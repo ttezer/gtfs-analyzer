@@ -1,0 +1,17 @@
+# Rust build cache
+/target/
+
+# Local-only files (not for version control)
+/notgit/
+/.claude/
+
+# npm
+/ui/node_modules/
+
+# Playwright test artifacts
+/ui/test-results/
+/ui/playwright-report/
+
+# OS
+.DS_Store
+Thumbs.db

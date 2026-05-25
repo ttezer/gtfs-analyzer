@@ -1,0 +1,297 @@
+use wasm_bindgen::prelude::*;
+
+use gtfs_config::{merge_delta, ValidatorConfig};
+use gtfs_core::{FatalCode, FatalError, ValidateResult, ValidationResult};
+use gtfs_pipeline::{
+    analyze_k6, build_derived, build_entity_map, build_name_index, check_cross_ref,
+    collect_file_stats, parse, report_k7, validate_k2, DerivedData, EntityRecords, FileInfo,
+};
+
+macro_rules! t_start {
+    ($label:expr) => {
+        web_sys::console::time_with_label($label)
+    };
+}
+macro_rules! t_end {
+    ($label:expr) => {
+        web_sys::console::time_end_with_label($label)
+    };
+}
+
+#[wasm_bindgen(start)]
+pub fn wasm_init() {
+    web_sys::console::warn_1(&"[GTFS WASM] binary v6 yüklendi".into());
+}
+
+// ── Sabitler ─────────────────────────────────────────────────────────────────
+
+const PER_RULE_CAP: usize = 500;
+const NOTICE_LIMIT: usize = 100_000;
+
+// ── CachedState ───────────────────────────────────────────────────────────────
+
+#[wasm_bindgen]
+pub struct CachedState {
+    k1_k5_notices: Vec<gtfs_core::Notice>,
+    records: EntityRecords,
+    derived: DerivedData,
+    file_stats: Vec<FileInfo>,
+}
+
+// ── Yardımcı: aşama callback çağrısı ─────────────────────────────────────────
+
+fn call_stage(f: &js_sys::Function, name: &str, elapsed_ms: u32) {
+    let _ = f.call2(
+        &JsValue::NULL,
+        &JsValue::from_str(name),
+        &JsValue::from_f64(elapsed_ms as f64),
+    );
+}
+
+// ── Public API ────────────────────────────────────────────────────────────────
+
+/// ZIP içindeki kök .txt dosyalarını listeler (ayrıştırma yapmadan, sadece metadata).
+/// Dönen değer: JSON dizisi — [{name, uncompressed_size}]
+#[wasm_bindgen]
+pub fn list_zip_files(zip_bytes: &[u8]) -> JsValue {
+    use std::io::Cursor;
+
+    #[derive(serde::Serialize)]
+    struct Entry {
+        name: String,
+        uncompressed_size: u64,
+    }
+
+    let cursor = Cursor::new(zip_bytes);
+    let mut archive = match zip::ZipArchive::new(cursor) {
+        Ok(a) => a,
+        Err(_) => return JsValue::from_str("[]"),
+    };
+
+    let mut entries: Vec<Entry> = Vec::new();
+    for i in 0..archive.len() {
+        let Ok(f) = archive.by_index(i) else { continue };
+        let name = f.name().to_string();
+        if name.ends_with(".txt") && !name.contains('/') && !name.contains('\\') {
+            entries.push(Entry { name, uncompressed_size: f.size() });
+        }
+    }
+
+    JsValue::from_str(&serde_json::to_string(&entries).unwrap_or_else(|_| "[]".into()))
+}
+
+/// CachedState içindeki dosya istatistiklerini JSON olarak döner.
+/// [{name, rows, bytes}]
+#[wasm_bindgen]
+pub fn get_cached_file_stats(cache: &CachedState) -> JsValue {
+    JsValue::from_str(&serde_json::to_string(&cache.file_stats).unwrap_or_else(|_| "[]".into()))
+}
+
+/// Tam pipeline: K1–K7 tek seferde (config panel kullanmayan akış için).
+#[wasm_bindgen]
+pub fn validate(zip_bytes: &[u8], config_delta_json: &str) -> JsValue {
+    let today = today_yyyymmdd();
+    let config = match parse_config(config_delta_json) {
+        Ok(c) => c,
+        Err(e) => return to_js(&ValidateResult::Fatal(e)),
+    };
+    to_js(&run_full_pipeline(zip_bytes, &config, today))
+}
+
+/// K1–K5'i çalıştırır.
+/// `on_stage(name, elapsed_ms)`: K1/K2/K3/K4/K5 her biri bittikten sonra çağrılır.
+#[wasm_bindgen]
+pub fn prepare(zip_bytes: &[u8], on_stage: &js_sys::Function) -> Result<CachedState, JsValue> {
+    run_k1_k5(zip_bytes, on_stage)
+        .map_err(|fatal| to_js(&ValidateResult::Fatal(fatal)))
+}
+
+/// Önbellekten K6+K7'yi çalıştırır.
+/// `on_stage(name, elapsed_ms)`: K6 ve K7 bittikten sonra çağrılır.
+#[wasm_bindgen]
+pub fn rerun_k6_k7(cache: &CachedState, config_delta_json: &str, on_stage: &js_sys::Function) -> JsValue {
+    let today = today_yyyymmdd();
+    let config = match parse_config(config_delta_json) {
+        Ok(c) => c,
+        Err(e) => return to_js(&ValidateResult::Fatal(e)),
+    };
+
+    let t = js_sys::Date::now();
+    t_start!("K6-analytics");
+    let k6 = analyze_k6(&cache.records, &cache.derived, &config, today);
+    t_end!("K6-analytics");
+    call_stage(on_stage, "K6", (js_sys::Date::now() - t) as u32);
+
+    let mut all_notices = cache.k1_k5_notices.clone();
+    all_notices.extend(k6.notices);
+    cap_per_rule(&mut all_notices);
+    if all_notices.len() > NOTICE_LIMIT {
+        return to_js(&ValidateResult::Fatal(resource_limit_error()));
+    }
+
+    let t = js_sys::Date::now();
+    let k7 = report_k7(all_notices, &cache.records, &cache.derived, cache.file_stats.clone());
+    call_stage(on_stage, "K7", (js_sys::Date::now() - t) as u32);
+
+    to_js(&ValidateResult::Ok(ValidationResult {
+        notices: k7.notices,
+        reports: k7.reports,
+        metrics: k7.metrics,
+        name_index: build_name_index(&cache.records),
+    }))
+}
+
+// ── İç pipeline yardımcıları ──────────────────────────────────────────────────
+
+fn run_full_pipeline(zip_bytes: &[u8], config: &ValidatorConfig, today: u32) -> ValidateResult {
+    t_start!("K1-parse");
+    let k1 = match parse(zip_bytes) {
+        Ok(r) => r,
+        Err(e) => return ValidateResult::Fatal(e),
+    };
+    t_end!("K1-parse");
+    let file_stats = collect_file_stats(&k1.files);
+
+    t_start!("K2-validate");
+    let k2 = validate_k2(&k1.files);
+    t_end!("K2-validate");
+
+    t_start!("K3-entity-map");
+    let k3 = build_entity_map(&k2.records);
+    t_end!("K3-entity-map");
+
+    t_start!("K4-cross-ref");
+    let k4 = check_cross_ref(&k2.records, &k3.entity_map, today);
+    t_end!("K4-cross-ref");
+
+    t_start!("K5-derived");
+    let k5 = build_derived(&k2.records, &k3.entity_map);
+    t_end!("K5-derived");
+
+    t_start!("K6-analytics");
+    let k6 = analyze_k6(&k2.records, &k5.derived, config, today);
+    t_end!("K6-analytics");
+
+    let mut all_notices = Vec::new();
+    all_notices.extend(k1.notices);
+    all_notices.extend(k2.notices);
+    all_notices.extend(k3.notices);
+    all_notices.extend(k4.notices);
+    all_notices.extend(k5.notices);
+    all_notices.extend(k6.notices);
+    cap_per_rule(&mut all_notices);
+    if all_notices.len() > NOTICE_LIMIT {
+        return ValidateResult::Fatal(resource_limit_error());
+    }
+
+    let k7 = report_k7(all_notices, &k2.records, &k5.derived, file_stats);
+    ValidateResult::Ok(ValidationResult {
+        notices: k7.notices,
+        reports: k7.reports,
+        metrics: k7.metrics,
+        name_index: build_name_index(&k2.records),
+    })
+}
+
+fn run_k1_k5(zip_bytes: &[u8], on_stage: &js_sys::Function) -> Result<CachedState, FatalError> {
+    let today = today_yyyymmdd();
+
+    let mut t = js_sys::Date::now();
+    t_start!("K1-parse");
+    let k1 = parse(zip_bytes)?;
+    t_end!("K1-parse");
+    call_stage(on_stage, "K1", (js_sys::Date::now() - t) as u32);
+    let file_stats = collect_file_stats(&k1.files);
+
+    t = js_sys::Date::now();
+    t_start!("K2-validate");
+    let k2 = validate_k2(&k1.files);
+    t_end!("K2-validate");
+    call_stage(on_stage, "K2", (js_sys::Date::now() - t) as u32);
+
+    t = js_sys::Date::now();
+    t_start!("K3-entity-map");
+    let k3 = build_entity_map(&k2.records);
+    t_end!("K3-entity-map");
+    call_stage(on_stage, "K3", (js_sys::Date::now() - t) as u32);
+
+    t = js_sys::Date::now();
+    t_start!("K4-cross-ref");
+    let k4 = check_cross_ref(&k2.records, &k3.entity_map, today);
+    t_end!("K4-cross-ref");
+    call_stage(on_stage, "K4", (js_sys::Date::now() - t) as u32);
+
+    t = js_sys::Date::now();
+    t_start!("K5-derived");
+    let k5 = build_derived(&k2.records, &k3.entity_map);
+    t_end!("K5-derived");
+    call_stage(on_stage, "K5", (js_sys::Date::now() - t) as u32);
+
+    let mut k1_k5_notices = Vec::new();
+    k1_k5_notices.extend(k1.notices);
+    k1_k5_notices.extend(k2.notices);
+    k1_k5_notices.extend(k3.notices);
+    k1_k5_notices.extend(k4.notices);
+    k1_k5_notices.extend(k5.notices);
+    cap_per_rule(&mut k1_k5_notices);
+    if k1_k5_notices.len() > NOTICE_LIMIT {
+        return Err(resource_limit_error());
+    }
+
+    Ok(CachedState { k1_k5_notices, records: k2.records, derived: k5.derived, file_stats })
+}
+
+fn parse_config(delta_json: &str) -> Result<ValidatorConfig, FatalError> {
+    if delta_json.is_empty() || delta_json == "{}" {
+        return Ok(ValidatorConfig::default());
+    }
+    merge_delta(&ValidatorConfig::default(), delta_json).map_err(|e| FatalError {
+        code: FatalCode::InvalidInput,
+        message: format!("Config parse hatası: {e}"),
+    })
+}
+
+// Kural başına notice sınırı (cap):
+// Aynı kural çok sayıda satırda tetiklenebilir (örn. her stop_time satırı için STM_017).
+// Sınırsız bırakılırsa WASM bellek kullanımı patlar ve UI render süresi uzar.
+// Varsayılan cap PER_RULE_CAP (500); gerçek feed'lerde doğal olarak yüksek çıkan
+// kurallar HIGH_CAP_RULES listesinde 2000'e yükseltilmiştir.
+// Ayrıca tüm kuralların toplamı NOTICE_LIMIT (100.000) ile sınırlıdır.
+// Raporda cap'e çarpan bir kural için gösterilen notice sayısı gerçek ihlal sayısını
+// yansıtmaz; kullanıcıya bu durum bilgi notu olarak iletilmelidir.
+fn cap_per_rule(notices: &mut Vec<gtfs_core::Notice>) {
+    use std::collections::HashMap;
+    const HIGH_CAP_RULES: &[&str] = &["TRP_020", "OPR_007", "STP_016", "STP_017"];
+    const HIGH_CAP: usize = 2_000;
+    let mut counts: HashMap<String, usize> = HashMap::new();
+    notices.retain(|n| {
+        let c = counts.entry(n.rule_id.clone()).or_insert(0);
+        *c += 1;
+        let cap = if HIGH_CAP_RULES.contains(&n.rule_id.as_str()) { HIGH_CAP } else { PER_RULE_CAP };
+        *c <= cap
+    });
+}
+
+fn resource_limit_error() -> FatalError {
+    FatalError {
+        code: FatalCode::ResourceLimit,
+        message: format!(
+            "Notice sayısı sınırı aşıldı ({NOTICE_LIMIT}). Feed çok büyük veya çok hatalı."
+        ),
+    }
+}
+
+fn today_yyyymmdd() -> u32 {
+    let now = js_sys::Date::new_0();
+    let y = now.get_full_year();
+    let m = now.get_month() + 1;
+    let d = now.get_date();
+    y * 10000 + m * 100 + d
+}
+
+fn to_js<T: serde::Serialize>(value: &T) -> JsValue {
+    match serde_json::to_string(value) {
+        Ok(json) => JsValue::from_str(&json),
+        Err(e) => JsValue::from_str(&format!(r#"{{"error":"serialize failed: {e}"}}"#)),
+    }
+}

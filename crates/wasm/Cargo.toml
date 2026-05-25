@@ -1,0 +1,22 @@
+[package]
+name = "gtfs-wasm"
+version = "0.1.0"
+edition = "2021"
+license.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+gtfs-core = { path = "../core" }
+gtfs-pipeline = { path = "../pipeline" }
+gtfs-config = { path = "../config" }
+wasm-bindgen = { workspace = true }
+js-sys = "0.3"
+web-sys = { version = "0.3", features = ["console"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+zip = { workspace = true }
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = ["-O3", "--enable-bulk-memory"]

@@ -1,0 +1,1071 @@
+﻿use gtfs_core::DedupLevel::{Entity, Feed, Field, File, Row};
+use gtfs_core::ReportId::{R1, R2, R3, R4, R5, R7, R8, R9};
+use gtfs_core::RuleClass::{Analytics, Interop, Quality, Spec};
+use gtfs_core::Severity::{Bilgi, Dusuk, Kritik, Orta, Yuksek};
+use gtfs_core::{DedupLevel, ReportId, RuleClass, Severity};
+
+// ── Statik rapor görünüm kümeleri ────────────────────────────────────────────
+//
+// R1 → blocker/conditional_blocker: KRİTİK+(Spec|Interop) veya YÜKSEK+Interop
+// R2 → tüm notice'lar (filtrelenebilir)
+// R3 → ANALYTICS sınıfı
+// R4 → GEO ailesi + SHP_014/016 (coğrafi doğruluk)
+// R5 → kalite skoru (tüm sınıflar)
+// R7 → erişilebilirlik (wheelchair_*, stop_access, PTH_012/013)
+// R8 → yalnızca INTEROP sınıfı
+// R9 → remediation queue (tüm sınıflar dahil ANALYTICS)
+
+/// Spec + KRİTİK → Blocker → R1
+const VS_K: &[ReportId] = &[R1, R2, R5, R9];
+/// Spec veya Quality, non-blocker
+const VS: &[ReportId] = &[R2, R5, R9];
+/// Interop + KRİTİK veya YÜKSEK → Blocker/ConditionalBlocker → R1 + R8
+const VI_K: &[ReportId] = &[R1, R2, R5, R8, R9];
+/// Interop + düşük severity (ORTA/DÜŞÜK/BİLGİ) → R8, no R1
+const VI: &[ReportId] = &[R2, R5, R8, R9];
+/// Analytics → R3 (operasyonel kalite) + R9 (tüm notice'lar)
+const VA: &[ReportId] = &[R2, R3, R5, R9];
+
+// Coğrafi ek (R4)
+/// Interop + (KRİTİK|YÜKSEK) + Geo → R1+R4+R8
+const VI_K_GEO: &[ReportId] = &[R1, R2, R4, R5, R8, R9];
+/// Analytics + Geo → R3+R4+R9
+const VA_GEO: &[ReportId] = &[R2, R3, R4, R5, R9];
+
+// Erişilebilirlik eki (R7)
+/// Interop + (KRİTİK|YÜKSEK) + Accessibility → R1+R7+R8
+const VI_K_ACC: &[ReportId] = &[R1, R2, R5, R7, R8, R9];
+/// Analytics + Accessibility → R3+R7+R9
+const VA_ACC: &[ReportId] = &[R2, R3, R5, R7, R9];
+/// Spec/Quality + Accessibility → R7
+const VS_ACC: &[ReportId] = &[R2, R5, R7, R9];
+
+pub struct RuleMeta {
+    pub id: &'static str,
+    pub severity: Severity,
+    pub rule_class: RuleClass,
+    pub base_effort: u8,
+    /// Canonical rule ID'leri — GEO_008/010/011 gibi rapor görünüm ID'leri içermez.
+    pub blocks: &'static [&'static str],
+    /// Notice üretiminde scope_key'e atanacak GTFS alanı.
+    /// Bileşik anahtar gerektiğinde pipe-separated (ör. "from_stop_id|to_stop_id").
+    pub scope_key_field: Option<&'static str>,
+    /// Bu kuralın notice'larının hangi raporlarda göründüğü.
+    pub report_views: &'static [ReportId],
+    /// Notice dedup granülaritesi (architecture Bölüm K1).
+    pub dedup_level: DedupLevel,
+    /// Kural için kısa genel Türkçe başlık — UI'da gösterilir.
+    pub title: &'static str,
+}
+
+macro_rules! r {
+    ($id:expr, $sev:expr, $cls:expr, $effort:expr, $blocks:expr, $scope:expr, $views:expr, $dedup:expr, $title:expr) => {
+        RuleMeta {
+            id: $id,
+            severity: $sev,
+            rule_class: $cls,
+            base_effort: $effort,
+            blocks: $blocks,
+            scope_key_field: $scope,
+            report_views: $views,
+            dedup_level: $dedup,
+            title: $title,
+        }
+    };
+}
+
+/// Tüm canonical kuralların statik metadata tablosu.
+///
+/// Kapsam dışı (registry'de YOK):
+/// - GEO_008/010/011 — rapor görünüm ID'leri (R4 projeksiyonu, notice üretmez)
+/// - GEO_META — ön işlem adımı, kural değil
+/// - STM_011 → STM_008, TRP_010 → OPR_007, GEO_001 → GEO_META,
+///   GEO_005 → STP_017, DQ_007 → MET_001, DQ_008 → MET_002, DQ_015 → RTS_007
+pub static RULES: &[RuleMeta] = &[
+    // ── ARC: Arşiv / Dosya Seviyesi ────────────────────────────────────────────
+    r!("ARC_001", Kritik, Spec, 1, &[], None, VS_K, Feed,
+        "ZIP arşivi açılamadı"),
+    r!("ARC_002", Kritik, Spec, 1,
+        &["ARC_010","AGN_003","AGN_009","RTS_009","FIN_008","ATR_010","STP_022","DQ_016"],
+        None, VS_K, File,
+        "Dosya UTF-8 ile okunamıyor"),
+    r!("ARC_003", Orta,   Quality, 1, &[], None, VS, File,
+        "İsteğe bağlı dosyada UTF-8 kodlama hatası"),
+    r!("ARC_004", Kritik, Spec, 1,
+        &["XFL_007","XFL_005","XFL_002","DQ_005","DQ_005b"],
+        None, VS_K, Feed,
+        "Zorunlu dosya eksik"),
+    r!("ARC_006", Bilgi,  Quality, 1, &[], None, VS, File,
+        "İsteğe bağlı GTFS dosyası mevcut"),
+    r!("ARC_007", Bilgi,  Quality, 1, &[], None, VS, File,
+        "GTFS dışı tanınmayan dosya"),
+    r!("ARC_008", Kritik, Spec,    1, &[], None, VS_K, Feed,
+        "Takvim dosyası eksik (calendar.txt ve calendar_dates.txt)"),
+    r!("ARC_009", Kritik, Spec,    1, &[], None, VS_K, File,
+        "Dosyada veri satırı yok"),
+    r!("ARC_010", Orta,   Interop, 1, &[], None, VI, File,
+        "Dosya UTF-8 BOM içeriyor"),
+    r!("ARC_011", Bilgi,  Analytics, 1, &[], None, VA, File,
+        "Dosya boyutu (bilgi)"),
+    r!("ARC_012", Kritik, Spec,    1, &["ARC_015","ARC_016"], None, VS_K, Row,
+        "Satır sütun sayısı başlıkla uyuşmuyor"),
+    r!("ARC_013", Kritik, Spec,    1,
+        &["ARC_016","AGN_003","RTS_005","STM_005","STM_006"],
+        None, VS_K, File,
+        "CSV ayrıştırma hatası"),
+    r!("ARC_014", Orta,   Quality, 1, &[], None, VS, Field,
+        "Başlıkta baştaki/sondaki boşluk"),
+    r!("ARC_015", Kritik, Spec,    1, &[], None, VS_K, Field,
+        "Yinelenen başlık sütunu"),
+    r!("ARC_016", Yuksek, Spec,    1, &[], None, VS, Row,
+        "Zorunlu alan boş veya eksik"),
+    r!("ARC_017", Bilgi,  Quality, 1, &[], None, VS, Field,
+        "Bilinmeyen sütun (GTFS spesifikasyonunda tanımlı değil)"),
+    r!("ARC_018", Orta,   Quality, 1, &[], None, VS, Row,
+        "Boş veri satırı"),
+    r!("ARC_019", Yuksek, Spec,    1, &[], None, VS, File,
+        "Başlıkta boş sütun adı"),
+    // ── AGN: Agency ────────────────────────────────────────────────────────────
+    r!("AGN_001", Kritik, Spec, 1,
+        &["RTS_002","XFL_007"], None, VS_K, Feed,
+        "agency.txt dosyası eksik"),
+    r!("AGN_002", Kritik, Spec, 1, &[], Some("agency_id"), VS_K, Entity,
+        "agency_name eksik"),
+    r!("AGN_003", Yuksek, Spec, 1, &[], Some("agency_id"), VS, Entity,
+        "agency_url eksik veya geçersiz"),
+    r!("AGN_004", Kritik, Spec, 1, &[], Some("agency_id"), VS_K, Entity,
+        "agency_timezone eksik veya geçersiz"),
+    r!("AGN_005", Orta,   Quality, 1, &[], None, VS, Feed,
+        "Kuruluşlar arası saat dilimi tutarsızlığı"),
+    r!("AGN_006", Dusuk,  Spec, 1, &[], Some("agency_id"), VS, Entity,
+        "agency_lang geçersiz"),
+    r!("AGN_007", Dusuk,  Quality, 1, &[], Some("agency_id"), VS, Entity,
+        "agency_phone geçersiz"),
+    r!("AGN_008", Dusuk,  Spec, 1, &[], Some("agency_id"), VS, Entity,
+        "agency_fare_url geçersiz"),
+    r!("AGN_009", Dusuk,  Spec, 1, &[], Some("agency_id"), VS, Entity,
+        "agency_email geçersiz"),
+    r!("AGN_010", Kritik, Spec, 1, &[], Some("agency_id"), VS_K, Entity,
+        "agency_id yineleniyor"),
+    r!("AGN_011", Kritik, Spec, 1, &[], None, VS_K, Feed,
+        "Birden fazla kuruluşta agency_id yok"),
+    r!("AGN_012", Dusuk,  Quality, 1, &[], Some("agency_id"), VS, Entity,
+        "agency_cemv_support geçersiz"),
+    r!("AGN_013", Dusuk,  Interop, 1, &[], None, VI, Feed,
+        "Feed dili ve ajans dili uyuşmuyor"),
+
+    // ── STP: Stops ─────────────────────────────────────────────────────────────
+    r!("STP_001", Kritik, Spec, 1,
+        &["STP_009","STM_002","XFL_005","PTH_002","PTH_003","GEO_002"],
+        Some("stop_id"), VS_K, Entity,
+        "stop_id yineleniyor"),
+    r!("STP_002", Yuksek, Spec, 1, &[], Some("stop_id"), VS, Entity,
+        "stop_id boş"),
+    r!("STP_003", Kritik, Spec, 2,
+        &["STP_021","GEO_002","GEO_009","GEO_012","STP_016","STP_017"],
+        Some("stop_id"), VS_K, Entity,
+        "stop_name eksik veya stop_lat aralık dışı"),
+    r!("STP_004", Kritik, Spec, 2,
+        &["STP_021","GEO_002","GEO_009","GEO_012","STP_016","STP_017"],
+        Some("stop_id"), VS_K, Entity,
+        "stop_lat sayısal değil"),
+    r!("STP_005", Kritik, Quality, 2, &[], Some("stop_id"), VS, Entity,
+        "stop_lon geçersiz veya aralık dışı"),
+    r!("STP_006", Kritik, Spec, 2,
+        &["GEO_002","GEO_009","GEO_012","STP_016","STP_017"],
+        Some("stop_id"), VS_K, Entity,
+        "stop_lat eksik"),
+    r!("STP_007", Kritik, Spec, 2,
+        &["GEO_002","GEO_009","GEO_012","STP_016","STP_017"],
+        Some("stop_id"), VS_K, Entity,
+        "stop_lon eksik"),
+    r!("STP_008", Yuksek, Spec, 1,
+        &["STP_010","STP_011","STP_012","TRF_015"],
+        Some("stop_id"), VS, Entity,
+        "location_type geçersiz"),
+    r!("STP_009", Kritik, Spec, 1,
+        &["STP_010","STP_011","PTH_002","PTH_003","PTH_012"],
+        Some("stop_id"), VS_K, Entity,
+        "parent_station bulunamadı"),
+    r!("STP_010", Yuksek, Spec, 1, &[], Some("stop_id"), VS, Entity,
+        "parent_station location_type=1 değil"),
+    r!("STP_011", Yuksek, Spec, 1, &[], Some("stop_id"), VS, Entity,
+        "Giriş/çıkış/boarding için parent_station zorunlu"),
+    r!("STP_012", Kritik, Spec, 1, &[], Some("stop_id"), VS_K, Entity,
+        "stop_times'ta istasyon veya giriş kullanılmış"),
+    r!("STP_013", Dusuk,  Spec, 1, &[], Some("stop_id"), VS_ACC, Entity,
+        "wheelchair_boarding geçersiz"),
+    r!("STP_014", Orta,   Spec, 1, &[], Some("stop_id"), VS, Entity,
+        "stop_timezone geçersiz"),
+    r!("STP_015", Orta,   Spec, 1, &[], Some("stop_id"), VS, Entity,
+        "level_id bulunamadı"),
+    r!("STP_016", Orta,   Quality, 2, &[], Some("stop_id"), VS, Entity,
+        "İki durak tam aynı koordinatta"),
+    r!("STP_017", Dusuk,  Quality, 1, &[], Some("stop_id"), VS, Entity,
+        "İki durak birbirine çok yakın"),
+    r!("STP_018", Kritik, Spec, 1, &[], None, VS_K, Feed,
+        "Hiç durak yok"),
+    r!("STP_019", Dusuk,  Quality, 1, &[], Some("stop_id"), VS, Entity,
+        "stop_name çok uzun"),
+    r!("STP_020", Orta,   Analytics, 2, &[], Some("stop_id"), VA, Entity,
+        "Hiç sefer geçmeyen durak"),
+    r!("STP_021", Yuksek, Quality, 2, &[], Some("stop_id"), VS, Entity,
+        "Alt durak istasyon dışında"),
+    r!("STP_022", Orta,   Quality, 1, &[], Some("stop_id"), VS, Entity,
+        "stop_code eksik"),
+    r!("STP_023", Dusuk,  Quality, 1, &[], Some("stop_id"), VS, Entity,
+        "tts_stop_name geçersiz"),
+    r!("STP_024", Bilgi,  Quality, 1, &["STP_026"], Some("stop_id"), VS, Entity,
+        "stop_access geçersiz"),
+    r!("STP_025", Orta,   Quality, 1, &[], Some("stop_id"), VS, Entity,
+        "stop_name baştaki veya sondaki boşluk içeriyor"),
+    r!("STP_026", Dusuk,  Spec, 1,
+        &["STP_027","PTH_012"],
+        Some("stop_id"), VS_ACC, Entity,
+        "stop_access geçersiz değer"),
+    r!("STP_027", Orta,   Spec, 1,
+        &["PTH_012","PTH_013"],
+        Some("stop_id"), VS_ACC, Entity,
+        "Pathway istasyonunda stop_access belirtilmemiş"),
+    r!("STP_028", Bilgi,  Quality, 1, &[], Some("stop_id"), VS, Entity,
+        "stop_code çok uzun"),
+    r!("STP_029", Yuksek, Quality, 2, &[], Some("stop_id"), VS, Entity,
+        "Durak istasyon içinde ama koordinat çok uzakta"),
+    r!("STP_030", Orta,   Quality, 1, &[], Some("stop_id"), VS, Entity,
+        "Üst istasyonun alt durağı yok"),
+    r!("STP_031", Bilgi,  Quality, 1, &[], Some("stop_id"), VS, Entity,
+        "Durak adı ve açıklaması aynı"),
+    r!("STP_032", Orta,   Quality, 2, &[], Some("stop_id"), VS, Entity,
+        "Pathway bağlantılı platform için parent_station eksik"),
+    r!("STP_033", Bilgi,  Quality, 1, &[], Some("stop_id"), VS, Entity,
+        "Durak zone_id eksik (ücret hesabı için gerekli)"),
+
+    // ── RTS: Routes ────────────────────────────────────────────────────────────
+    r!("RTS_001", Kritik, Spec, 1,
+        &["TRP_002","XFL_007","FRL_002","ATR_006"],
+        Some("route_id"), VS_K, Entity,
+        "route_id yineleniyor"),
+    r!("RTS_002", Kritik, Spec, 1,
+        &["XFL_007"],
+        Some("route_id"), VS_K, Entity,
+        "agency_id bulunamadı"),
+    r!("RTS_003", Kritik, Spec, 1,
+        &["TRP_015","DQ_003"],
+        Some("route_id"), VS_K, Entity,
+        "route_short_name ve route_long_name ikisi de eksik"),
+    r!("RTS_004", Kritik, Spec, 1, &[], Some("route_id"), VS_K, Entity,
+        "route_type eksik veya geçersiz"),
+    r!("RTS_005", Orta,   Spec, 1, &[], Some("route_id"), VS, Entity,
+        "route_url geçersiz"),
+    r!("RTS_006", Orta,   Spec, 1, &[], Some("route_id"), VS, Entity,
+        "route_color geçersiz hex renk"),
+    r!("RTS_007", Dusuk,  Quality, 1, &[], Some("route_id"), VS, Entity,
+        "route_text_color geçersiz hex renk"),
+    r!("RTS_008", Orta,   Quality, 1, &[], Some("route_id"), VS, Entity,
+        "Hat rengi ve metin rengi kontrast düşük"),
+    r!("RTS_009", Dusuk,  Spec, 1, &[], Some("route_id"), VS, Entity,
+        "route_short_name ve route_long_name birbirinin aynısı"),
+    r!("RTS_010", Dusuk,  Quality, 1, &[], Some("route_id"), VS, Entity,
+        "route_short_name çok uzun"),
+    r!("RTS_011", Dusuk,  Quality, 1, &[], Some("route_id"), VS, Entity,
+        "route_long_name çok uzun"),
+    r!("RTS_012", Orta,   Quality, 1, &[], Some("route_id"), VS, Entity,
+        "Seferi olmayan hat"),
+    r!("RTS_013", Dusuk,  Spec, 1, &[], Some("route_id"), VS, Entity,
+        "continuous_pickup geçersiz"),
+    r!("RTS_014", Orta,   Quality, 1, &[], None, VS, Feed,
+        "route_long_name değerleri tekrar ediyor"),
+    r!("RTS_016", Dusuk,  Quality, 2, &[], Some("route_id"), VS, Entity,
+        "Hiçbir aktif servis günü olmayan hat"),
+    r!("RTS_017", Bilgi,  Quality, 2, &[], Some("route_id"), VS, Entity,
+        "Shape tanımlı olmayan hat"),
+    r!("RTS_018", Dusuk,  Spec, 1, &[], Some("route_id"), VS, Entity,
+        "continuous_drop_off geçersiz"),
+    r!("RTS_019", Dusuk,  Quality, 1, &[], Some("route_id"), VS, Row,
+        "Yinelenen hat adı"),
+
+    // ── TRP: Trips ─────────────────────────────────────────────────────────────
+    r!("TRP_001", Kritik, Spec, 1,
+        &["STM_001","FRQ_001","XFL_002","XFL_010","OPR_006","OPR_007"],
+        Some("trip_id"), VS_K, Entity,
+        "trip_id eksik veya yineleniyor"),
+    r!("TRP_002", Kritik, Spec, 1, &[], Some("trip_id"), VS_K, Entity,
+        "route_id bulunamadı"),
+    r!("TRP_003", Kritik, Spec, 1,
+        &["DQ_005","DQ_005b","CAL_009","CAL_012","OPR_011"],
+        Some("trip_id"), VS_K, Entity,
+        "service_id bulunamadı"),
+    r!("TRP_004", Yuksek, Spec, 1,
+        &["XFL_003","SHP_014","SHP_016","SHP_017","STM_015","STM_016","STM_027"],
+        Some("shape_id"), VS, Entity,
+        "shape_id bulunamadı"),
+    r!("TRP_005", Orta,   Spec, 1, &[], Some("trip_id"), VS, Entity,
+        "direction_id geçersiz"),
+    r!("TRP_006", Dusuk,  Spec, 1, &[], Some("trip_id"), VS, Entity,
+        "wheelchair_accessible geçersiz"),
+    r!("TRP_007", Dusuk,  Spec, 1, &[], Some("trip_id"), VS, Entity,
+        "bikes_allowed geçersiz"),
+    r!("TRP_009", Yuksek, Quality, 2,
+        &["OPR_006","OPR_007"],
+        Some("trip_id"), VS, Entity,
+        "Seferde zaman damgalı durak yok"),
+    r!("TRP_011", Yuksek, Quality, 3, &[], Some("trip_id"), VS, Entity,
+        "Sefer yön adı girilmemiş"),
+    r!("TRP_012", Dusuk,  Quality, 1, &[], Some("trip_id"), VS, Entity,
+        "Çift yönlü rotada direction_id eksik"),
+    r!("TRP_013", Dusuk,  Quality, 1, &[], Some("route_id"), VS, Entity,
+        "Hat tek seferlik"),
+    r!("TRP_014", Bilgi,  Quality, 1, &[], Some("trip_id"), VS, Entity,
+        "trip_short_name çok uzun"),
+    r!("TRP_015", Dusuk,  Quality, 1, &[], Some("trip_id"), VS, Entity,
+        "block_id grubunda tek sefer"),
+    r!("TRP_017", Orta,   Spec, 1, &[], Some("trip_id"), VS, Entity,
+        "Frekans tabanlı sefer stop_times'ta eksik"),
+    r!("TRP_019", Yuksek, Spec, 1, &[], Some("trip_id"), VS, Entity,
+        "Continuous servis aktifken shape_id eksik"),
+    r!("TRP_020", Dusuk,  Quality, 1, &[], Some("trip_id"), VS, Entity,
+        "trip_headsign ara durak adıyla eşleşiyor"),
+    r!("TRP_021", Bilgi,  Quality, 1, &[], Some("trip_id"), VS, Entity,
+        "Bisiklet izni (bikes_allowed) belirtilmemiş"),
+    r!("TRP_022", Yuksek, Spec,    3, &[], Some("trip_id"), VS, Entity,
+        "Block içinde çakışan sefer saatleri"),
+    r!("TRP_023", Dusuk,  Quality, 1, &[], None, VS, Feed,
+        "Önümüzdeki 7 günde aktif sefer yok"),
+    r!("TRP_024", Dusuk,  Interop, 1, &[], Some("trip_id"), VI, Entity,
+        "Block içinde tutarsız rota tipi"),
+    r!("TRP_025", Bilgi,  Quality, 1, &[], None, VS, Feed,
+        "Tekerlekli sandalye erişilebilirlik bilgisi eksik seferlerin oranı yüksek"),
+
+    // ── STM: Stop Times ────────────────────────────────────────────────────────
+    r!("STM_001", Kritik, Spec, 1,
+        &["STM_008","STM_013","STM_014","STM_027","OPR_001","OPR_008"],
+        Some("trip_id"), VS_K, Row,
+        "trip_id bulunamadı"),
+    r!("STM_002", Kritik, Spec, 1,
+        &["STM_007","STM_012","GEO_002","OPR_014"],
+        Some("stop_id"), VS_K, Row,
+        "stop_id bulunamadı"),
+    r!("STM_003", Kritik, Spec, 1,
+        &["STM_004","STM_008","STM_027","SHP_014"],
+        Some("trip_id"), VS_K, Row,
+        "arrival_time geçersiz format"),
+    r!("STM_004", Kritik, Spec, 1,
+        &["STM_008","STM_012","STM_027"],
+        Some("trip_id"), VS_K, Row,
+        "departure_time geçersiz format"),
+    r!("STM_005", Kritik, Spec, 2,
+        &["STM_008","STM_012","STM_013","STM_014","STM_028","STM_029","OPR_008","OPR_010"],
+        Some("trip_id"), VS_K, Row,
+        "stop_sequence eksik veya geçersiz"),
+    r!("STM_006", Kritik, Spec, 2,
+        &["STM_007","STM_008","STM_012","STM_013","STM_014","STM_028","STM_029","OPR_008"],
+        Some("trip_id"), VS_K, Row,
+        "stop_id eksik (stop_times)"),
+    r!("STM_007", Yuksek, Spec, 2, &[], Some("trip_id"), VS, Row,
+        "Varış saati kalkış saatinden sonra"),
+    r!("STM_008", Kritik, Spec, 2, &[], Some("trip_id"), VS_K, Row,
+        "Duraklar arası zaman geriye gidiyor"),
+    r!("STM_009", Yuksek, Spec, 1, &[], Some("trip_id"), VS, Row,
+        "pickup_type geçersiz"),
+    r!("STM_010", Yuksek, Spec, 1, &[], Some("trip_id"), VS, Row,
+        "drop_off_type geçersiz"),
+    r!("STM_012", Yuksek, Interop, 2, &[], Some("trip_id"), VI_K, Row,
+        "Duraklar arası hız gerçekçi değil"),
+    r!("STM_013", Yuksek, Quality, 2, &[], Some("trip_id"), VS, Row,
+        "Karışık varış/kalkış zamanları"),
+    r!("STM_014", Yuksek, Analytics, 3, &[], Some("trip_id"), VA, Row,
+        "Segmentte aşırı hız"),
+    r!("STM_015", Kritik, Spec, 2,
+        &["STM_016","STM_017","XFL_013","SHP_017"],
+        Some("trip_id"), VS_K, Row,
+        "İlk duraklama noktası yok"),
+    r!("STM_016", Kritik, Spec, 2, &[], Some("trip_id"), VS_K, Row,
+        "Son duraklama noktası yok"),
+    r!("STM_017", Yuksek, Interop, 5, &[], Some("trip_id"), VI_K, Row,
+        "Sefer saatlerinde güzergah mesafesi eksik"),
+    r!("STM_018", Orta,   Spec, 1, &[], Some("trip_id"), VS, Row,
+        "continuous_pickup geçersiz (stop_times)"),
+    r!("STM_019", Orta,   Spec, 1, &[], Some("trip_id"), VS, Row,
+        "continuous_drop_off geçersiz (stop_times)"),
+    r!("STM_020", Yuksek, Quality, 3, &[], Some("trip_id"), VS, Row,
+        "Sıfır geçiş süresi (mesafe > 200m)"),
+    r!("STM_021", Yuksek, Quality, 3, &[], Some("trip_id"), VS, Row,
+        "Duraklar arası mesafe sıfır veya negatif"),
+    r!("STM_022", Orta,   Spec, 1, &[], Some("trip_id"), VS, Row,
+        "timepoint geçersiz"),
+    r!("STM_023", Kritik, Spec, 3, &[], Some("trip_id"), VS_K, Row,
+        "stop_times satır sıralaması bozuk"),
+    r!("STM_024", Bilgi,  Quality, 2, &[], Some("trip_id"), VS, Row,
+        "shape_dist_traveled birim tutarsızlığı"),
+    r!("STM_025", Orta,   Quality, 2, &[], Some("trip_id"), VS, Row,
+        "Seyahat süresi çok kısa"),
+    r!("STM_026", Yuksek, Quality, 2, &[], Some("trip_id"), VS, Row,
+        "Durak arası mesafe aşırı uzun"),
+    r!("STM_027", Yuksek, Interop, 3, &[], Some("trip_id"), VI_K, Row,
+        "shape_dist_traveled monoton artmıyor"),
+    r!("STM_028", Yuksek, Analytics, 2, &[], Some("trip_id"), VA, Row,
+        "Sefer süresi çok uzun"),
+    r!("STM_029", Orta,   Analytics, 2, &[], Some("trip_id"), VA, Row,
+        "Sefer süresi çok kısa"),
+    r!("STM_030", Dusuk,  Spec, 1, &[], Some("trip_id"), VS, Row,
+        "shape_dist_traveled negatif"),
+    r!("STM_032", Dusuk,  Quality, 1, &[], Some("trip_id"), VS, Row,
+        "stop_times yinelenen satır"),
+    r!("STM_033", Yuksek, Spec, 2, &[], Some("trip_id"), VS, Entity,
+        "Tek duraklı sefer (kullanılamaz)"),
+    r!("STM_034", Orta,   Spec, 2, &[], Some("trip_id"), VS, Row,
+        "Varış veya kalkış zamanından yalnızca biri tanımlı"),
+
+    // ── CAL: Calendar ──────────────────────────────────────────────────────────
+    r!("CAL_001", Kritik, Spec, 1,
+        &["TRP_003","XFL_001","CAL_009","DQ_005"],
+        Some("service_id"), VS_K, Entity,
+        "service_id yineleniyor"),
+    r!("CAL_002", Kritik, Spec, 1,
+        &["CAL_006","CAL_009","CAL_012","OPR_011","OPR_016","OPR_018"],
+        Some("service_id"), VS_K, Entity,
+        "Takvim gün alanı geçersiz değer"),
+    r!("CAL_003", Kritik, Spec, 2,
+        &["CAL_005","CAL_007","CAL_008","CAL_009","CAL_012","DQ_006"],
+        Some("service_id"), VS_K, Entity,
+        "start_date geçersiz"),
+    r!("CAL_004", Kritik, Spec, 2,
+        &["CAL_005","CAL_008","CAL_009","CAL_010","CAL_012","FIN_010","DQ_006"],
+        Some("service_id"), VS_K, Entity,
+        "end_date geçersiz"),
+    r!("CAL_005", Kritik, Spec, 2, &[], Some("service_id"), VS_K, Entity,
+        "start_date end_date'den sonra"),
+    r!("CAL_006", Yuksek, Quality, 2, &[], Some("service_id"), VS, Entity,
+        "Serviste aktif gün yok"),
+    r!("CAL_007", Orta,   Analytics, 2, &[], Some("service_id"), VA, Entity,
+        "Servis döneminde boşluk"),
+    r!("CAL_008", Yuksek, Analytics, 2, &[], Some("service_id"), VA, Entity,
+        "Servis tarihi yakında sona eriyor"),
+    r!("CAL_009", Kritik, Interop, 2, &[], Some("service_id"), VI_K, Entity,
+        "Aktif servisi olmayan sefer"),
+    r!("CAL_010", Orta,   Analytics, 2, &[], Some("service_id"), VA, Entity,
+        "Servis dönemi çok kısa"),
+    r!("CAL_011", Dusuk,  Quality, 1, &[], Some("service_id"), VS, Entity,
+        "Kullanılmayan servis"),
+    r!("CAL_012", Yuksek, Analytics, 2, &[], Some("service_id"), VA, Entity,
+        "Yakın gelecekte aktif servis yok"),
+    r!("CAL_013", Bilgi,  Analytics, 1, &[], Some("service_id"), VA, Entity,
+        "Geçmiş tarihli servis dönemi"),
+    r!("CAL_014", Dusuk,  Quality,   1, &[], Some("service_id"), VS, Entity,
+        "Servis tarihleri feed_info geçerlilik aralığı dışında"),
+    r!("CAL_015", Dusuk,  Quality,   1, &[], None, VS, Feed,
+        "Tüm takvim tarihleri gelecekte (bugün aktif sefer yok)"),
+    r!("CAL_016", Bilgi,  Quality,   1, &[], None, VS, Feed,
+        "Servis çok uzak bir gelecek tarihine kadar uzanıyor"),
+
+    // ── CLD: Calendar Dates ────────────────────────────────────────────────────
+    r!("CLD_001", Kritik, Spec, 1, &[], Some("service_id"), VS_K, Row,
+        "service_id eksik"),
+    r!("CLD_002", Kritik, Spec, 2, &[], Some("service_id"), VS_K, Row,
+        "date geçersiz format"),
+    r!("CLD_003", Kritik, Spec, 1,
+        &["CLD_005","CLD_006","CLD_007"],
+        Some("service_id"), VS_K, Row,
+        "exception_type eksik veya geçersiz"),
+    r!("CLD_004", Yuksek, Interop, 2, &[], Some("service_id"), VI_K, Row,
+        "Aynı tarihte çelişen kayıt"),
+    r!("CLD_005", Kritik, Spec, 2, &[], Some("service_id"), VS_K, Row,
+        "Tarih aralık dışında"),
+    r!("CLD_006", Orta,   Quality, 1, &[], Some("service_id"), VS, Row,
+        "Çok fazla istisna günü"),
+    r!("CLD_007", Bilgi,  Analytics, 1, &[], Some("service_id"), VA, Row,
+        "Aşırı takvim istisnası"),
+
+    // ── SHP: Shapes ────────────────────────────────────────────────────────────
+    r!("SHP_001", Dusuk,  Quality, 1, &[], Some("shape_id"), VS, Entity,
+        "shape_id eksik"),
+    r!("SHP_002", Kritik, Spec, 1,
+        &["SHP_003","SHP_014","SHP_016","SHP_017"],
+        Some("shape_id"), VS_K, Entity,
+        "shape_pt_lat eksik veya geçersiz"),
+    r!("SHP_003", Kritik, Spec, 1, &[], Some("shape_id"), VS_K, Entity,
+        "shape_pt_lon eksik veya geçersiz"),
+    r!("SHP_004", Kritik, Spec, 2,
+        &["SHP_009","SHP_011","SHP_012","GEO_006","GEO_007"],
+        Some("shape_id"), VS_K, Row,
+        "shape_pt_sequence eksik veya geçersiz"),
+    r!("SHP_005", Kritik, Spec, 2,
+        &["SHP_009","SHP_011","SHP_012","GEO_006","GEO_007"],
+        Some("shape_id"), VS_K, Row,
+        "shape_dist_traveled geriye gidiyor"),
+    r!("SHP_006", Kritik, Spec, 2,
+        &["SHP_017","STM_015","STM_016"],
+        Some("shape_id"), VS_K, Entity,
+        "Güzergah şekli yalnızca tek noktadan oluşuyor"),
+    r!("SHP_007", Kritik, Spec, 2,
+        &["SHP_017","STM_015","STM_016"],
+        Some("shape_id"), VS_K, Entity,
+        "Güzergah şekli çok az nokta içeriyor"),
+    r!("SHP_008", Kritik, Spec, 3, &[], Some("shape_id"), VS_K, Entity,
+        "shape_pt_sequence yineleniyor"),
+    r!("SHP_009", Bilgi,  Analytics, 3, &[], Some("shape_id"), VA, Entity,
+        "Güzergah şekli kendisiyle kesişiyor"),
+    r!("SHP_010", Dusuk,  Quality, 1, &[], Some("shape_id"), VS, Entity,
+        "Tekrarlanan shape noktası (ardışık özdeş koordinat)"),
+    r!("SHP_011", Orta,   Analytics, 2, &[], Some("shape_id"), VA, Entity,
+        "Güzergah şeklinde büyük boşluk"),
+    r!("SHP_012", Yuksek, Analytics, 3, &[], Some("shape_id"), VA, Entity,
+        "Güzergah şekli sefer duraklarından çok uzak"),
+    r!("SHP_014", Yuksek, Quality, 5, &[], Some("shape_id"), VI_K_GEO, Entity,
+        "İlk veya son durak güzergah ucundan uzakta"),
+    r!("SHP_015", Orta,   Quality, 2, &[], Some("shape_id"), VS, Entity,
+        "Güzergah şekli istatistiksel olarak çok az nokta"),
+    r!("SHP_016", Yuksek, Interop, 2, &[], Some("shape_id"), VI_K_GEO, Entity,
+        "Güzergah şekli yön bilgisiyle uyumsuz"),
+    r!("SHP_017", Yuksek, Quality, 5, &[], Some("shape_id"), VI_K, Entity,
+        "Durak sırası güzergah şekliyle çelişiyor"),
+    r!("SHP_018", Dusuk,  Quality, 1, &[], Some("shape_id"), VS, Entity,
+        "Güzergah şekli sefer tarafından referanslanmıyor"),
+    r!("SHP_019", Orta,   Quality, 2, &[], Some("shape_id"), VS, Entity,
+        "Güzergah şeklinin seferleri durak zamanı içermiyor"),
+    r!("SHP_020", Bilgi,  Analytics, 3, &[], Some("shape_id"), VA, Entity,
+        "Güzergah şeklinde tekrarlayan nokta"),
+    r!("SHP_021", Dusuk,  Quality, 1, &[], Some("shape_id"), VS, Entity,
+        "shape_dist_traveled negatif değer"),
+    r!("SHP_022", Orta,   Interop, 2, &[], Some("stop_id"), VI, Entity,
+        "Durak güzergah şeklinde belirsiz konumda"),
+
+    // ── FRQ: Frequencies ───────────────────────────────────────────────────────
+    r!("FRQ_001", Kritik, Spec, 1, &[], Some("trip_id"), VS_K, Row,
+        "trip_id bulunamadı"),
+    r!("FRQ_002", Kritik, Spec, 2, &[], Some("trip_id"), VS_K, Row,
+        "start_time geçersiz"),
+    r!("FRQ_003", Kritik, Spec, 2, &[], Some("trip_id"), VS_K, Row,
+        "end_time geçersiz"),
+    r!("FRQ_004", Kritik, Spec, 2, &[], Some("trip_id"), VS_K, Row,
+        "headway_secs eksik veya geçersiz"),
+    r!("FRQ_005", Kritik, Spec, 2, &[], Some("trip_id"), VS_K, Row,
+        "end_time start_time'dan önce"),
+    r!("FRQ_006", Orta,   Analytics, 2, &[], Some("trip_id"), VA, Row,
+        "headway_secs çok uzun"),
+    r!("FRQ_007", Orta,   Spec, 1, &[], Some("trip_id"), VS, Row,
+        "exact_times geçersiz"),
+    r!("FRQ_008", Kritik, Spec, 3, &[], Some("trip_id"), VS_K, Row,
+        "headway_secs sıfır (geçersiz frekans)"),
+    r!("FRQ_009", Orta,   Quality, 3, &[], Some("trip_id"), VS, Row,
+        "Frekans aralığı çok kısa"),
+    r!("FRQ_010", Bilgi,  Analytics, 1, &[], Some("trip_id"), VA, Row,
+        "Çok sık frekans (sıkışma riski)"),
+
+    // ── TRF: Transfers ─────────────────────────────────────────────────────────
+    r!("TRF_001", Kritik, Spec, 1, &[], None, VS_K, Row,
+        "from_stop_id eksik"),
+    r!("TRF_002", Kritik, Spec, 1, &[], None, VS_K, Row,
+        "to_stop_id eksik"),
+    r!("TRF_003", Kritik, Spec, 1,
+        &["TRF_004","TRF_010","TRF_011","TRF_013","TRF_014","TRF_015","TRF_016"],
+        Some("from_stop_id|to_stop_id"), VS_K, Row,
+        "from_stop_id veya to_stop_id bulunamadı"),
+    r!("TRF_004", Yuksek, Spec, 2, &[], Some("from_stop_id|to_stop_id"), VS, Row,
+        "transfer_type geçersiz"),
+    r!("TRF_005", Yuksek, Spec, 2, &[], Some("from_stop_id|to_stop_id"), VS, Row,
+        "min_transfer_time eksik"),
+    r!("TRF_006", Kritik, Spec, 1,
+        &["TRF_013","TRF_014","TRF_015","TRF_017","TRF_018","OPR_007"],
+        Some("from_trip_id"), VS_K, Row,
+        "from_trip_id bulunamadı"),
+    r!("TRF_007", Kritik, Spec, 1,
+        &["TRF_013","TRF_014","TRF_015","TRF_017","TRF_018","OPR_007"],
+        Some("to_trip_id"), VS_K, Row,
+        "to_trip_id bulunamadı"),
+    r!("TRF_008", Kritik, Spec, 1, &[], Some("from_route_id"), VS_K, Row,
+        "from_route_id bulunamadı"),
+    r!("TRF_009", Kritik, Spec, 1, &[], Some("to_route_id"), VS_K, Row,
+        "to_route_id bulunamadı"),
+    r!("TRF_010", Orta,   Analytics, 2, &[], Some("from_stop_id|to_stop_id"), VA, Row,
+        "Aktarma süresi çok uzun"),
+    r!("TRF_011", Bilgi,  Quality, 2, &[], Some("from_stop_id|to_stop_id"), VS, Row,
+        "Aktarma tanımlandı ama mesafe uzak"),
+    r!("TRF_012", Orta,   Quality, 1, &[], None, VS, Row,
+        "Yinelenen aktarma kaydı"),
+    r!("TRF_013", Kritik, Spec, 2, &[], None, VS_K, Row,
+        "Aktarma türü bağlamla uyumsuz"),
+    r!("TRF_014", Yuksek, Spec, 2, &[], None, VS, Row,
+        "in-seat aktarma için sefer yok"),
+    r!("TRF_015", Yuksek, Spec, 2, &[], None, VS, Row,
+        "in-seat aktarma geçersiz"),
+    r!("TRF_016", Orta,   Spec, 2, &[], None, VS, Row,
+        "Aktarma koşulu çelişkili"),
+    r!("TRF_017", Yuksek, Spec, 2, &[], None, VS, Row,
+        "Sefer aktarması yanlış hat"),
+    r!("TRF_018", Yuksek, Spec, 2, &[], None, VS, Row,
+        "Sefer aktarması aynı seferi gösteriyor"),
+
+    // ── FAR: Fare Attributes ───────────────────────────────────────────────────
+    r!("FAR_001", Kritik, Spec, 1,
+        &["FRL_001","FAR_009"],
+        Some("fare_id"), VS_K, Entity,
+        "fare_id yineleniyor"),
+    r!("FAR_002", Yuksek, Spec, 1, &[], Some("fare_id"), VS, Entity,
+        "price eksik veya geçersiz"),
+    r!("FAR_003", Kritik, Spec, 1, &[], Some("fare_id"), VS_K, Entity,
+        "currency_type eksik"),
+    r!("FAR_004", Kritik, Spec, 1, &[], Some("fare_id"), VS_K, Entity,
+        "payment_method geçersiz"),
+    r!("FAR_005", Kritik, Spec, 1, &[], Some("fare_id"), VS_K, Entity,
+        "transfers geçersiz"),
+    r!("FAR_006", Orta,   Spec, 1, &[], Some("fare_id"), VS, Entity,
+        "transfer_duration geçersiz"),
+    r!("FAR_008", Kritik, Spec, 1, &[], Some("fare_id"), VS_K, Entity,
+        "agency_id bulunamadı"),
+    r!("FAR_009", Dusuk,  Quality, 3, &[], Some("fare_id"), VS, Entity,
+        "Ücrete ait hat kuralı yok"),
+    r!("FAR_010", Orta,   Quality, 2, &[], None, VS, Feed,
+        "Çakışan ücret kuralları"),
+
+    // ── FRL: Fare Rules ────────────────────────────────────────────────────────
+    r!("FRL_001", Kritik, Spec, 1, &[], Some("fare_id"), VS_K, Row,
+        "fare_id bulunamadı"),
+    r!("FRL_002", Kritik, Spec, 1, &[], Some("route_id"), VS_K, Row,
+        "route_id bulunamadı"),
+    r!("FRL_003", Kritik, Spec, 1, &[], Some("fare_id"), VS_K, Row,
+        "origin_id geçersiz"),
+    r!("FRL_004", Kritik, Spec, 1, &[], Some("fare_id"), VS_K, Row,
+        "destination_id geçersiz"),
+    r!("FRL_005", Kritik, Spec, 1, &[], Some("fare_id"), VS_K, Row,
+        "contains_id geçersiz"),
+    r!("FRL_006", Bilgi,  Quality, 1, &[], None, VS, Feed,
+        "Ücret kuralı tanımlı değil"),
+    r!("FRL_007", Orta,   Quality, 3, &[], Some("fare_id"), VS, Row,
+        "Ücret kuralı mantıksal tutarsızlık"),
+    r!("FRL_008", Bilgi,  Quality, 3, &[], None, VS, Feed,
+        "Tüm hatlar için ücret tanımlı değil"),
+
+    // ── PTH: Pathways ──────────────────────────────────────────────────────────
+    r!("PTH_001", Kritik, Spec, 1, &[], Some("pathway_id"), VS_K, Entity,
+        "pathway_id yineleniyor"),
+    r!("PTH_002", Kritik, Spec, 1,
+        &["PTH_011","PTH_012","PTH_013","PTH_015"],
+        Some("pathway_id"), VS_K, Entity,
+        "from_stop_id bulunamadı"),
+    r!("PTH_003", Kritik, Spec, 1,
+        &["PTH_011","PTH_012","PTH_013","PTH_015"],
+        Some("pathway_id"), VS_K, Entity,
+        "to_stop_id bulunamadı"),
+    r!("PTH_004", Kritik, Spec, 1,
+        &["PTH_008","PTH_009","PTH_016","PTH_017","PTH_018"],
+        Some("pathway_id"), VS_K, Entity,
+        "pathway_mode eksik veya geçersiz"),
+    r!("PTH_005", Kritik, Spec, 1,
+        &["PTH_012","PTH_016"],
+        Some("pathway_id"), VS_K, Entity,
+        "is_bidirectional eksik"),
+    r!("PTH_006", Orta,   Spec, 1, &[], Some("pathway_id"), VS, Entity,
+        "length geçersiz"),
+    r!("PTH_007", Orta,   Spec, 1, &[], Some("pathway_id"), VS, Entity,
+        "traversal_time geçersiz"),
+    r!("PTH_008", Dusuk,  Quality, 2, &[], Some("pathway_id"), VS, Entity,
+        "stair_count eksik"),
+    r!("PTH_009", Dusuk,  Quality, 2, &[], Some("pathway_id"), VS, Entity,
+        "max_slope eksik"),
+    r!("PTH_010", Dusuk,  Spec, 1, &[], Some("pathway_id"), VS, Entity,
+        "min_width geçersiz"),
+    r!("PTH_011", Yuksek, Spec, 3, &[], Some("pathway_id"), VS, Entity,
+        "Geçit döngü oluşturuyor"),
+    r!("PTH_012", Yuksek, Interop, 3,
+        &["PTH_013"],
+        Some("stop_id"), VI_K_ACC, Entity,
+        "İstasyona erişilebilir yol yok"),
+    r!("PTH_013", Bilgi,  Analytics, 5, &[], Some("stop_id"), VA_ACC, Entity,
+        "Erişilebilir yol analizi"),
+    r!("PTH_014", Kritik, Spec, 1, &[], Some("pathway_id"), VS_K, Entity,
+        "Geçit istasyon sınırını aşıyor"),
+    r!("PTH_015", Orta,   Analytics, 2, &[], Some("pathway_id"), VA, Entity,
+        "Geçit hedefi erişilemeyen durakta"),
+    r!("PTH_016", Yuksek, Spec, 3, &[], Some("pathway_id"), VS, Entity,
+        "Çıkış kapısı çift yönlü tanımlanmış"),
+    r!("PTH_017", Orta,   Spec, 2, &[], Some("pathway_id"), VS, Entity,
+        "max_slope geçersiz bağlam"),
+    r!("PTH_018", Dusuk,  Quality, 1, &[], Some("pathway_id"), VS, Entity,
+        "signposted_as çok uzun"),
+    r!("PTH_019", Orta,   Quality, 2, &[], Some("stop_id"), VS, Entity,
+        "Generic node tek pathway'e bağlı (dead-end)"),
+
+    // ── LVL: Levels ────────────────────────────────────────────────────────────
+    r!("LVL_001", Kritik, Spec, 1,
+        &["STP_015","XFL_009"],
+        Some("level_id"), VS_K, Entity,
+        "level_id yineleniyor"),
+    r!("LVL_002", Kritik, Spec, 1, &[], Some("level_id"), VS_K, Entity,
+        "level_index geçersiz"),
+    r!("LVL_003", Dusuk,  Quality, 1, &[], Some("level_id"), VS, Entity,
+        "level_name eksik"),
+    r!("LVL_004", Dusuk,  Quality, 1, &[], Some("level_id"), VS, Entity,
+        "Kullanılmayan level"),
+    r!("LVL_005", Orta,   Quality, 1, &[], Some("level_id"), VS, Entity,
+        "level_name çok uzun"),
+    r!("LVL_006", Orta,   Quality, 2, &[], Some("stop_id"), VS, Entity,
+        "Asansör bağlantısındaki durakta level_id eksik"),
+
+    // ── FIN: Feed Info ─────────────────────────────────────────────────────────
+    r!("FIN_001", Kritik, Spec, 1, &[], None, VS_K, Feed,
+        "feed_publisher_name eksik"),
+    r!("FIN_002", Kritik, Spec, 1, &[], None, VS_K, Feed,
+        "feed_publisher_url eksik veya geçersiz"),
+    r!("FIN_003", Kritik, Spec, 1,
+        &["TRN_007"],
+        None, VS_K, Feed,
+        "feed_lang eksik"),
+    r!("FIN_004", Orta,   Spec, 1, &[], None, VS, Feed,
+        "default_lang geçersiz"),
+    r!("FIN_005", Orta,   Spec, 1, &[], None, VS, Feed,
+        "feed_start_date geçersiz"),
+    r!("FIN_006", Yuksek, Spec, 2, &[], None, VS, Feed,
+        "feed_end_date geçersiz veya geçmiş tarihli"),
+    r!("FIN_007", Dusuk,  Quality, 1, &[], None, VS, Feed,
+        "feed_version eksik"),
+    r!("FIN_008", Dusuk,  Spec, 1, &[], None, VS, Feed,
+        "feed_contact_email geçersiz"),
+    r!("FIN_009", Dusuk,  Spec, 1, &[], None, VS, Feed,
+        "feed_contact_url geçersiz"),
+    r!("FIN_010", Yuksek, Analytics, 2, &[], None, VA, Feed,
+        "Feed geçerlilik süresi dolmuş"),
+    r!("FIN_012", Dusuk,  Quality, 1, &[], None, VS, Feed,
+        "feed_start_date feed_end_date'den sonra"),
+    r!("FIN_013", Bilgi,  Quality, 1, &[], Some("agency_id"), VS, Row,
+        "fare_attributes.agency_id önerilen ama eksik"),
+    r!("FIN_014", Dusuk,  Quality, 1, &[], None, VS, Feed,
+        "Feed geçerlilik tarihleri (feed_start_date/feed_end_date) eksik"),
+    r!("FIN_015", Orta,   Quality, 1, &[], None, VS, File,
+        "Birden fazla feed_info kaydı"),
+    r!("FIN_016", Dusuk,  Quality, 1, &[], None, VS, Feed,
+        "feed_start_date gelecekte (feed henüz aktif değil)"),
+    r!("FIN_017", Bilgi,  Quality, 1, &[], None, VS, Feed,
+        "Feed çok uzak gelecekte sona eriyor"),
+
+    // ── TRN: Translations ──────────────────────────────────────────────────────
+    r!("TRN_001", Kritik, Spec, 1, &[], None, VS_K, Row,
+        "table_name geçersiz değer"),
+    r!("TRN_002", Kritik, Spec, 1, &[], None, VS_K, Row,
+        "field_name bu tablo için geçersiz"),
+    r!("TRN_003", Orta,   Spec, 1, &[], None, VS, Row,
+        "language geçersiz"),
+    r!("TRN_004", Yuksek, Spec, 1, &[], Some("record_id"), VS, Row,
+        "record_id bulunamadı"),
+    r!("TRN_005", Kritik, Spec, 1, &[], Some("record_id"), VS_K, Row,
+        "Çeviri yineleniyor"),
+    r!("TRN_006", Kritik, Spec, 1, &[], Some("record_id"), VS_K, Row,
+        "Çeviri kaydı çelişkili"),
+    r!("TRN_007", Dusuk,  Quality, 1, &[], None, VS, Row,
+        "Çeviri feed_lang ile aynı dilde"),
+    r!("TRN_008", Bilgi,  Quality, 1, &[], None, VS, Row,
+        "translation değeri boş"),
+    r!("TRN_009", Yuksek, Spec, 1, &[], Some("record_id"), VS, Row,
+        "record_id ve field_value aynı anda kullanılamaz"),
+    r!("TRN_010", Yuksek, Spec, 1, &[], Some("record_id"), VS, Row,
+        "record_sub_id geçersiz"),
+    r!("TRN_011", Yuksek, Spec, 1, &[], None, VS, Row,
+        "field_name çevrilebilir değil"),
+    r!("TRN_013", Yuksek, Spec, 1, &[], None, VS, Row,
+        "feed_info çevirisinde kimlik alanı kullanılamaz"),
+    r!("TRN_014", Yuksek, Spec, 1, &[], Some("record_id"), VS, Row,
+        "record_sub_id yalnızca stop_times için geçerli"),
+
+    // ── ATR: Attributions ──────────────────────────────────────────────────────
+    r!("ATR_001", Yuksek, Spec, 1, &[], Some("attribution_id"), VS, Entity,
+        "attribution_id eksik"),
+    r!("ATR_002", Kritik, Spec, 1, &[], Some("attribution_id"), VS_K, Entity,
+        "organization_name eksik"),
+    r!("ATR_003", Yuksek, Spec, 1, &[], Some("attribution_id"), VS, Entity,
+        "Attribution rolü tanımlanmamış"),
+    r!("ATR_004", Kritik, Spec, 1, &[], Some("attribution_id"), VS_K, Entity,
+        "is_producer geçersiz"),
+    r!("ATR_005", Kritik, Spec, 1, &[], Some("attribution_id"), VS_K, Entity,
+        "is_operator geçersiz"),
+    r!("ATR_006", Kritik, Spec, 1, &[], Some("attribution_id"), VS_K, Entity,
+        "is_authority geçersiz"),
+    r!("ATR_007", Kritik, Spec, 1, &[], Some("attribution_id"), VS_K, Entity,
+        "attribution_url geçersiz"),
+    r!("ATR_008", Dusuk,  Spec, 1, &[], Some("attribution_id"), VS, Entity,
+        "attribution_email geçersiz"),
+    r!("ATR_009", Yuksek, Spec, 1, &[], Some("attribution_id"), VS, Entity,
+        "attribution_phone geçersiz"),
+    r!("ATR_010", Dusuk,  Spec, 1, &[], Some("attribution_id"), VS, Entity,
+        "agency_id bulunamadı"),
+
+    // ── XFL: Çapraz Dosya / Semantik ───────────────────────────────────────────
+    r!("XFL_001", Kritik, Spec, 1,
+        &["CAL_009","DQ_005","OPR_011","OPR_016"],
+        Some("service_id"), VS_K, Entity,
+        "calendar ve calendar_dates'te service_id yok"),
+    r!("XFL_002", Yuksek, Spec, 1, &[], Some("trip_id"), VS, Entity,
+        "Seferin stop_times kaydı yok"),
+    r!("XFL_003", Yuksek, Spec, 1, &[], Some("trip_id"), VS, Entity,
+        "shape_id tanımsız"),
+    r!("XFL_004", Kritik, Spec, 1, &[], Some("route_id"), VS_K, Entity,
+        "fare_rules'ta tanımsız route_id"),
+    r!("XFL_005", Kritik, Spec, 1,
+        &["STP_012","DQ_005c"],
+        Some("stop_id"), VS_K, Entity,
+        "stop_times'ta tanımsız stop_id"),
+    r!("XFL_006", Orta,   Spec, 2, &[], Some("service_id"), VS, Entity,
+        "service_id yalnızca iptal istisnası içeriyor (aktif gün yok)"),
+    r!("XFL_007", Kritik, Spec, 1, &[], Some("agency_id"), VS_K, Entity,
+        "agency_id bulunamadı"),
+    r!("XFL_009", Kritik, Spec, 1, &[], Some("level_id"), VS_K, Entity,
+        "level_id geçersiz"),
+    r!("XFL_010", Kritik, Spec, 1, &[], Some("trip_id"), VS_K, Entity,
+        "frequencies'te tanımsız trip_id"),
+    r!("XFL_011", Orta,   Interop, 2, &[], None, VI, Feed,
+        "Takvim tarihleri feed_info aralığı dışında"),
+    r!("XFL_012", Yuksek, Quality, 2, &[], Some("route_id"), VS, Entity,
+        "Hat hiç kullanılmıyor"),
+    r!("XFL_013", Yuksek, Interop, 2,
+        &["SHP_017","STM_017"],
+        None, VI_K, Feed,
+        "shape_id birden fazla yönde kullanılıyor"),
+    r!("XFL_014", Orta,   Quality, 1, &[], None, VS, Feed,
+        "Geçersiz çeviri referansı (kaynak kayıt bulunamadı)"),
+    r!("XFL_015", Kritik, Spec, 1, &[], None, VS_K, Feed,
+        "Attribution'da geçersiz referans"),
+    r!("XFL_016", Yuksek, Spec, 1, &[], None, VS, Feed,
+        "Çeviri feed_info'ya referans veriyor ama feed_info.txt eksik"),
+    r!("XFL_017", Dusuk,  Quality, 1, &[], None, VS, Feed,
+        "route_cemv_support ile agency_cemv_support çelişiyor"),
+    r!("XFL_018", Orta,   Quality, 2, &[], None, VS, Feed,
+        "feed_info.txt eksik"),
+    r!("XFL_019", Orta,   Spec, 2, &[], None, VS, Feed,
+        "Ağ tanımı iki ayrı dosyada (routes.network_id + route_networks.txt)"),
+    r!("XFL_020", Yuksek, Spec, 2, &[], None, VS, Row,
+        "Transfers'de geçersiz (from_trip_id/to_trip_id, route_id) çifti"),
+    r!("XFL_021", Yuksek, Spec, 2, &[], None, VS, Row,
+        "Transfers'de geçersiz (from_trip_id/to_trip_id, stop_id) çifti"),
+
+    // ── OPR: Operasyonel Tutarlılık (tümü ANALYTICS) ───────────────────────────
+    r!("OPR_001", Orta,   Analytics, 3, &[], Some("route_id"), VA, Entity,
+        "Hat sefer sıklığı düşük"),
+    r!("OPR_003", Dusuk,  Analytics, 2, &[], Some("route_id"), VA, Entity,
+        "Sefer sıkışması (minimum aralık çok küçük)"),
+    r!("OPR_004", Bilgi,  Analytics, 1, &[], Some("route_id"), VA, Entity,
+        "Hafta sonu sefer yok"),
+    r!("OPR_005", Bilgi,  Analytics, 2, &[], Some("route_id"), VA, Entity,
+        "Rota ortalama sefer aralığı"),
+    r!("OPR_006", Yuksek, Analytics, 3, &[], Some("trip_id"), VA, Entity,
+        "Seferde çok az durak (işlevsel değil)"),
+    r!("OPR_007", Orta,   Analytics, 3, &[], Some("trip_id"), VA, Entity,
+        "Sefer içinde tekrarlayan durak"),
+    r!("OPR_008", Yuksek, Analytics, 3, &[], Some("trip_id"), VA, Entity,
+        "Birden fazla segmentte aşırı hız"),
+    r!("OPR_009", Bilgi,  Analytics, 2, &[], Some("trip_id"), VA, Entity,
+        "Gece seferi başlangıç saati çok geç"),
+    r!("OPR_010", Orta,   Analytics, 2, &[], Some("route_id"), VA, Entity,
+        "Hatta erişilebilirlik veya bisiklet politikası çelişiyor"),
+    r!("OPR_011", Yuksek, Analytics, 2, &[], Some("service_id"), VA, Entity,
+        "Serviste aktif gün yok"),
+    r!("OPR_012", Orta,   Analytics, 2, &[], Some("service_id"), VA, Entity,
+        "Servis boşluğu"),
+    r!("OPR_013", Bilgi,  Analytics, 2, &[], Some("route_id"), VA, Entity,
+        "Hat tek yönde işliyor (karşı yön tanımlı değil)"),
+    r!("OPR_014", Orta,   Analytics, 2, &[], None, VA, Feed,
+        "Ortalama aktarma süresi uzun"),
+    r!("OPR_015", Bilgi,  Analytics, 1, &[], Some("route_id"), VA, Entity,
+        "Hat yalnızca tek güzergahla işliyor"),
+    r!("OPR_016", Bilgi,  Analytics, 1, &[], None, VA, Feed,
+        "Feed genelinde aktif servis yok"),
+    r!("OPR_017", Orta,   Analytics, 2, &[], Some("trip_id"), VA, Entity,
+        "Sefer çok kısa mesafe"),
+    r!("OPR_018", Orta,   Analytics, 2, &[], Some("service_id"), VA, Entity,
+        "Servis dönemi çok kısa"),
+    r!("OPR_019", Bilgi,  Analytics, 2, &[], Some("route_id"),   VA, Entity,
+        "Rota takvim çakışması (aynı günde birden fazla servis)"),
+    r!("OPR_020", Yuksek, Analytics, 2, &[], Some("route_id"),   VA, Entity,
+        "Rota exception günü çakışması"),
+    r!("OPR_021", Yuksek, Analytics, 3, &[], Some("route_id"),   VA, Entity,
+        "Takvim override çakışması: override ve base eş zamanlı aktif"),
+    r!("OPR_022", Yuksek, Analytics, 3, &[], Some("route_id"),   VA, Entity,
+        "Takvim override uygulanmamış: override gününde base servis çalışıyor"),
+    r!("OPR_023", Orta,   Analytics, 3, &[], Some("route_id"),   VA, Entity,
+        "Takvim override boşluğu: pencere içinde hiçbir servis aktif değil"),
+
+    // ── GEO: Coğrafi / Uzamsal (canonical kurallar — GEO_008/010/011 hariç) ───
+    r!("GEO_002", Yuksek, Analytics, 2, &[], Some("stop_id"), VA_GEO, Entity,
+        "Durak feed medianından çok uzakta"),
+    r!("GEO_006", Yuksek, Analytics, 3, &[], Some("shape_id"), VA_GEO, Entity,
+        "Güzergah şeklinde büyük atlama"),
+    r!("GEO_007", Yuksek, Analytics, 3, &[], Some("shape_id"), VA_GEO, Entity,
+        "Güzergah şeklinde kritik atlama (3× eşik)"),
+    r!("GEO_009", Yuksek, Quality,   5, &[], Some("stop_id"), VI_K_GEO, Entity,
+        "Durak shape güzergahından çok uzakta"),
+    r!("GEO_012", Orta,   Analytics, 2, &[], Some("stop_id"), VA_GEO, Entity,
+        "Duraksallar kümelenmesi (çok yakın duraklar)"),
+    r!("GEO_013", Bilgi,  Analytics, 2, &[], None, VA_GEO, Feed,
+        "Feed coğrafi kapsam özeti"),
+    r!("GEO_014", Bilgi,  Analytics, 1, &[], None, VA_GEO, Feed,
+        "Feed coğrafi kapsamı çok geniş"),
+
+    // ── DQ: Veri Kalitesi / Kullanıcı Deneyimi ─────────────────────────────────
+    r!("DQ_001",  Dusuk,  Quality,  1, &[], None, VS, Feed,
+        "Feed adı eksik"),
+    r!("DQ_002",  Dusuk,  Quality,  1, &[], None, VS, Feed,
+        "feed_publisher_url eksik"),
+    r!("DQ_003",  Bilgi,  Quality,  1, &[], Some("route_id"), VS, Entity,
+        "Hat açıklaması eksik"),
+    r!("DQ_004",  Dusuk,  Quality,  1, &[], Some("route_id"), VS, Entity,
+        "Hat URL'si eksik"),
+    r!("DQ_005",  Yuksek, Interop,  2, &[], None, VI_K, Feed,
+        "Geçerli servis dönemi yok"),
+    r!("DQ_005b", Yuksek, Interop,  2, &["DQ_009"], None, VI_K, Feed,
+        "Hiçbir seferin durak zamanı yok"),
+    r!("DQ_005c", Yuksek, Interop,  2, &[], None, VI_K, Feed,
+        "Koordinatsız durak oranı çok yüksek"),
+    r!("DQ_006",  Yuksek, Quality,  2, &[], None, VS, Feed,
+        "Şekil olmayan sefer oranı çok yüksek"),
+    r!("DQ_009",  Bilgi,  Quality,  1, &[], None, VS, Feed,
+        "Seferlerde durak zamanı yok"),
+    r!("DQ_010",  Bilgi,  Quality,  1, &[], None, VS, Feed,
+        "Acente hiçbir hatta kullanılmıyor"),
+    r!("DQ_011",  Dusuk,  Quality,  1, &[], None, VS, Feed,
+        "Yalnızca bir durak var"),
+    r!("DQ_012",  Dusuk,  Quality,  1, &[], None, VS, Feed,
+        "Çok fazla acente, agency_id kullanılmıyor"),
+    r!("DQ_013",  Orta,   Quality,  1, &[], None, VS, Feed,
+        "Çok az sefer"),
+    r!("DQ_016",  Orta,   Quality,  1, &[], Some("file"), VS, File,
+        "Değerde fazladan boşluk karakteri"),
+    r!("DQ_017",  Bilgi,  Quality,  1, &[], None, VS, Feed,
+        "Şüpheli koordinat değeri"),
+    r!("DQ_018",  Dusuk,  Quality,  1, &[], Some("stop_id"), VS, Entity,
+        "Durak adı tamamen büyük harf"),
+
+    // ── VAT: Varlık Analitik Tespiti (tümü ANALYTICS) ──────────────────────────
+    r!("VAT_001", Orta,   Analytics, 5, &[], Some("route_id"), VA, Entity,
+        "Hat güzergah benzerliği (muhtemel kopya hat)"),
+    r!("VAT_002", Bilgi,  Analytics, 3, &[], Some("stop_id"), VA, Entity,
+        "Aktarma merkezi tanımsız — çok sayıda hat geçiyor ama aktarma yok"),
+    r!("VAT_003", Dusuk,  Analytics, 3, &[], Some("trip_id"), VA, Entity,
+        "Sefer süresi istatistiksel aykırı değer"),
+    r!("VAT_004", Bilgi,  Analytics, 3, &[], Some("route_id"), VA, Entity,
+        "Hat hizmet asimetrisi — hat yalnızca hafta içi çalışıyor"),
+    r!("VAT_005", Orta,   Analytics, 5, &[], None, VA, Feed,
+        "İzole durak kümesi — ağ grafiğinde ana bileşenden kopuk duraklar"),
+    r!("VAT_006", Bilgi,  Analytics, 2, &[], Some("route_id"), VA, Entity,
+        "Hizmet yoğunluğu dengesizliği — tek hat feed sefer sayısının büyük bölümünü oluşturuyor"),
+    r!("VAT_007", Bilgi,  Analytics, 3, &[], Some("stop_id"), VA, Entity,
+        "Terminus aktarma eksikliği — terminal durağa başka hat geliyor ama aktarma tanımlı değil"),
+];
+
+/// Kural ID'sine göre metadata döndürür.
+pub fn get_rule(id: &str) -> Option<&'static RuleMeta> {
+    RULES.iter().find(|r| r.id == id)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn no_duplicate_ids() {
+        let mut ids: Vec<&str> = RULES.iter().map(|r| r.id).collect();
+        ids.sort_unstable();
+        let before = ids.len();
+        ids.dedup();
+        assert_eq!(before, ids.len(), "Tekrar eden kural ID'si var");
+    }
+
+    #[test]
+    fn geo_view_ids_absent() {
+        assert!(get_rule("GEO_008").is_none(), "GEO_008 registry'de olmamalı");
+        assert!(get_rule("GEO_010").is_none(), "GEO_010 registry'de olmamalı");
+        assert!(get_rule("GEO_011").is_none(), "GEO_011 registry'de olmamalı");
+    }
+
+    #[test]
+    fn removed_ids_absent() {
+        assert!(get_rule("STM_011").is_none());
+        assert!(get_rule("TRP_010").is_none());
+        assert!(get_rule("GEO_001").is_none());
+        assert!(get_rule("GEO_005").is_none());
+        assert!(get_rule("DQ_007").is_none());
+        assert!(get_rule("DQ_008").is_none());
+        assert!(get_rule("DQ_015").is_none());
+    }
+
+    #[test]
+    fn blocks_only_canonical_ids() {
+        let view_ids = ["GEO_008", "GEO_010", "GEO_011"];
+        let removed_ids = ["STM_011","TRP_010","GEO_001","GEO_005","DQ_007","DQ_008","DQ_015"];
+        for rule in RULES {
+            for &b in rule.blocks {
+                assert!(!view_ids.contains(&b),
+                    "{}: blocks[] içinde rapor görünüm ID'si var: {}", rule.id, b);
+                assert!(!removed_ids.contains(&b),
+                    "{}: blocks[] içinde kaldırılmış ID var: {}", rule.id, b);
+                assert!(get_rule(b).is_some(),
+                    "{}: blocks[] içinde bilinmeyen canonical ID: {}", rule.id, b);
+            }
+        }
+    }
+
+    #[test]
+    fn get_rule_lookup() {
+        assert!(get_rule("STP_003").is_some());
+        assert!(get_rule("STM_014").is_some());
+        assert!(get_rule("NONEXISTENT").is_none());
+    }
+
+    #[test]
+    fn base_effort_valid() {
+        for rule in RULES {
+            assert!(
+                matches!(rule.base_effort, 1 | 2 | 3 | 5),
+                "{}: geçersiz base_effort = {}", rule.id, rule.base_effort
+            );
+        }
+    }
+
+    #[test]
+    fn report_views_nonempty() {
+        for rule in RULES {
+            assert!(
+                !rule.report_views.is_empty(),
+                "{}: report_views boş olamaz", rule.id
+            );
+        }
+    }
+
+    #[test]
+    fn interop_always_has_r8() {
+        use gtfs_core::{RuleClass::Interop, ReportId::R8};
+        for rule in RULES {
+            if rule.rule_class == Interop {
+                assert!(
+                    rule.report_views.contains(&R8),
+                    "{}: INTEROP kuralı R8'i içermeli", rule.id
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn blocker_rules_have_r1() {
+        use gtfs_core::{
+            RuleClass::{Interop, Spec},
+            ReportId::R1,
+            Severity::{Kritik, Yuksek},
+        };
+        for rule in RULES {
+            let is_blocker = rule.severity == Kritik
+                && (rule.rule_class == Spec || rule.rule_class == Interop);
+            let is_cond_blocker =
+                rule.severity == Yuksek && rule.rule_class == Interop;
+            if is_blocker || is_cond_blocker {
+                assert!(
+                    rule.report_views.contains(&R1),
+                    "{}: blocker/conditional_blocker kural R1'i içermeli", rule.id
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn all_rules_have_title() {
+        for rule in RULES {
+            assert!(!rule.title.is_empty(), "{}: title boş olamaz", rule.id);
+        }
+    }
+}

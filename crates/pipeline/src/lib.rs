@@ -1,0 +1,236 @@
+pub mod k1_parse;
+pub mod k2;
+pub mod k3_entity_graph;
+pub mod k4_cross_ref;
+pub mod k5_derived;
+pub mod k6_analytics;
+pub mod k7_reporting;
+pub(crate) mod timing;
+
+pub use k1_parse::{parse, K1Result, RawFile, RawFiles};
+pub use k2::{validate as validate_k2, EntityRecords, K2Result};
+pub use k3_entity_graph::{build as build_entity_map, EntityMap, K3Result};
+pub use k4_cross_ref::{check as check_cross_ref, K4Result};
+pub use k5_derived::{build as build_derived, DerivedData, K5Result};
+pub use k6_analytics::{analyze as analyze_k6, K6Result};
+pub use k7_reporting::{report as report_k7, K7Result};
+
+// Entegrasyon testlerine açık yeniden ihracat
+pub use gtfs_config::{CalendarOverrideRule, ValidatorConfig};
+pub use gtfs_core::{FatalCode, FatalError, FileInfo, ValidateResult, ValidationResult};
+
+/// K1–K7 tam pipeline — entegrasyon testleri ve araç entegrasyonu için.
+/// WASM sürümünden farkı: notice limit yok, `today` dışarıdan verilir.
+pub fn validate_bytes(zip: &[u8], config: &ValidatorConfig, today: u32) -> ValidateResult {
+    use crate::timing::Timer;
+
+    let k1 = {
+        let _t = Timer::start("K1-parse");
+        match parse(zip) {
+            Ok(r) => r,
+            Err(e) => return ValidateResult::Fatal(e),
+        }
+    };
+    let file_stats = collect_file_stats(&k1.files);
+
+    let k2 = {
+        let _t = Timer::start("K2-validate");
+        validate_k2(&k1.files)
+    };
+
+    let k3 = {
+        let _t = Timer::start("K3-entity-map");
+        build_entity_map(&k2.records)
+    };
+
+    let k4 = {
+        let _t = Timer::start("K4-cross-ref");
+        check_cross_ref(&k2.records, &k3.entity_map, today)
+    };
+
+    let k5 = {
+        let _t = Timer::start("K5-derived");
+        build_derived(&k2.records, &k3.entity_map)
+    };
+
+    let k6 = {
+        let _t = Timer::start("K6-analytics");
+        analyze_k6(&k2.records, &k5.derived, config, today)
+    };
+
+    let mut all = Vec::new();
+    all.extend(k1.notices);
+    all.extend(k2.notices);
+    all.extend(k3.notices);
+    all.extend(k4.notices);
+    all.extend(k5.notices);
+    all.extend(k6.notices);
+
+    let k7 = {
+        let _t = Timer::start("K7-reporting");
+        report_k7(all, &k2.records, &k5.derived, file_stats)
+    };
+
+    ValidateResult::Ok(ValidationResult {
+        notices: k7.notices,
+        reports: k7.reports,
+        metrics: k7.metrics,
+        name_index: build_name_index(&k2.records),
+    })
+}
+
+pub fn build_name_index(records: &EntityRecords) -> gtfs_core::NameIndex {
+    use std::collections::HashMap;
+
+    let stops: HashMap<String, String> = records.stops.iter()
+        .filter_map(|r| r.stop_name.as_ref().map(|n| (r.stop_id.clone(), n.clone())))
+        .collect();
+
+    let routes: HashMap<String, String> = records.routes.iter()
+        .map(|r| {
+            let name = r.route_short_name.as_deref()
+                .or(r.route_long_name.as_deref())
+                .unwrap_or("")
+                .to_string();
+            (r.route_id.clone(), name)
+        })
+        .filter(|(_, n)| !n.is_empty())
+        .collect();
+
+    let trips: HashMap<String, String> = records.trips.iter()
+        .filter_map(|r| r.trip_headsign.as_ref().map(|h| (r.trip_id.clone(), h.clone())))
+        .collect();
+
+    let trip_routes: HashMap<String, String> = records.trips.iter()
+        .map(|r| (r.trip_id.clone(), r.route_id.clone()))
+        .collect();
+
+    let stop_coords: HashMap<String, [f64; 2]> = records.stops.iter()
+        .filter_map(|r| {
+            if let (Some(lat), Some(lon)) = (r.stop_lat, r.stop_lon) {
+                Some((r.stop_id.clone(), [lat, lon]))
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    // trip_id → ilk kalkış saati "HH:MM" (stop_sequence=min olan durağın departure_time)
+    let trip_first_dep: HashMap<String, String> = {
+        let mut best: HashMap<String, (u32, u32, u32)> = HashMap::new(); // trip_id → (seq, h, m)
+        for st in &records.stop_times {
+            let seq = st.stop_sequence.unwrap_or(u32::MAX);
+            let Some((h, m, _)) = st.departure_time else { continue };
+            let entry = best.entry(st.trip_id.to_string());
+            match entry {
+                std::collections::hash_map::Entry::Vacant(v) => { v.insert((seq, h, m)); }
+                std::collections::hash_map::Entry::Occupied(mut o) => {
+                    if seq < o.get().0 { o.insert((seq, h, m)); }
+                }
+            }
+        }
+        best.into_iter()
+            .map(|(trip_id, (_, h, m))| (trip_id, format!("{:02}:{:02}", h % 24, m)))
+            .collect()
+    };
+
+    // shape_id → benzersiz [[route_id, yön]] listesi
+    let shape_routes: HashMap<String, Vec<[String; 2]>> = {
+        let mut seen: std::collections::HashSet<(String, String, String)> = std::collections::HashSet::new();
+        let mut map: HashMap<String, Vec<[String; 2]>> = HashMap::new();
+        for trip in &records.trips {
+            let Some(shape_id) = &trip.shape_id else { continue };
+            let dir = match trip.direction_id {
+                Some(0) => "Gidiş",
+                Some(1) => "Dönüş",
+                _       => "",
+            };
+            let key = (shape_id.clone(), trip.route_id.clone(), dir.to_string());
+            if seen.insert(key) {
+                map.entry(shape_id.clone())
+                    .or_default()
+                    .push([trip.route_id.clone(), dir.to_string()]);
+            }
+        }
+        map
+    };
+
+    // shape_id → sıralı [[lat, lon]] nokta listesi (harita çizimi için)
+    let shape_coords: HashMap<String, Vec<[f64; 2]>> = {
+        let mut pts: Vec<(&str, u32, f64, f64)> = records.shapes.iter()
+            .filter_map(|s| {
+                let lat = s.shape_pt_lat?;
+                let lon = s.shape_pt_lon?;
+                Some((s.shape_id.as_str(), s.shape_pt_sequence.unwrap_or(0), lat, lon))
+            })
+            .collect();
+        pts.sort_unstable_by_key(|&(id, seq, _, _)| (id, seq));
+        let mut map: HashMap<String, Vec<[f64; 2]>> = HashMap::new();
+        for (id, _, lat, lon) in pts {
+            map.entry(id.to_string()).or_default().push([lat, lon]);
+        }
+        map
+    };
+
+    // trip_id → shape_id (harita: trip'in güzergah şeklini çizmek için)
+    let trip_shapes: HashMap<String, String> = records.trips.iter()
+        .filter_map(|t| t.shape_id.as_ref().map(|s| (t.trip_id.clone(), s.clone())))
+        .collect();
+
+    // trip_id → [stop_id, ...] stop_sequence sıralı (harita: sefer durakları)
+    let trip_stops: HashMap<String, Vec<String>> = {
+        let mut map: HashMap<String, Vec<(u32, String)>> = HashMap::new();
+        for st in &records.stop_times {
+            map.entry(st.trip_id.to_string())
+                .or_default()
+                .push((st.stop_sequence.unwrap_or(u32::MAX), st.stop_id.to_string()));
+        }
+        map.into_iter()
+            .map(|(trip_id, mut stops)| {
+                stops.sort_unstable_by_key(|(seq, _)| *seq);
+                stops.dedup_by(|a, b| a.1 == b.1);
+                (trip_id, stops.into_iter().map(|(_, id)| id).collect())
+            })
+            .collect()
+    };
+
+    // shape_id → ilk trip_id (shape'in durakları için yönlendirme)
+    let shape_trips: HashMap<String, String> = {
+        let mut map: HashMap<String, String> = HashMap::new();
+        for t in &records.trips {
+            if let Some(ref shape_id) = t.shape_id {
+                map.entry(shape_id.clone()).or_insert_with(|| t.trip_id.clone());
+            }
+        }
+        map
+    };
+
+    // route_id → [distinct shape_ids] (terminus haritası için)
+    let route_shapes: HashMap<String, Vec<String>> = {
+        let mut map: HashMap<String, Vec<String>> = HashMap::new();
+        for t in &records.trips {
+            if let Some(ref shape_id) = t.shape_id {
+                let v = map.entry(t.route_id.clone()).or_default();
+                if !v.contains(shape_id) {
+                    v.push(shape_id.clone());
+                }
+            }
+        }
+        map
+    };
+
+    gtfs_core::NameIndex { stops, routes, trips, trip_routes, stop_coords, trip_first_dep, shape_routes, shape_coords, trip_shapes, trip_stops, shape_trips, route_shapes }
+}
+
+pub fn collect_file_stats(files: &RawFiles) -> Vec<FileInfo> {
+    let mut stats: Vec<FileInfo> = files
+        .values()
+        .map(|f| FileInfo {
+            name: f.name.clone(),
+            rows: f.rows.len() as u32,
+            bytes: f.bytes,
+        })
+        .collect();
+    stats.sort_by(|a, b| a.name.cmp(&b.name));
+    stats
+}

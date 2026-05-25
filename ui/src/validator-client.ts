@@ -1,0 +1,89 @@
+import type { FatalError, ValidationResult } from './types';
+import type { WorkerMsg } from './validator-worker';
+
+// ── Dışa açık callback tipleri ────────────────────────────────────────────────
+
+export type OnFileList  = (files: Array<{ name: string; uncompressed_size: number }>) => void;
+export type OnFileDone  = (name: string, rows: number, bytes: number) => void;
+export type OnStageDone = (stage: string, elapsed_ms: number) => void;
+
+export interface ValidateCallbacks {
+  onFileList?:  OnFileList;
+  onFileDone?:  OnFileDone;
+  onStageDone?: OnStageDone;
+}
+
+// ── İç tipler ─────────────────────────────────────────────────────────────────
+
+type ValidateRequest = { id: number; type: 'validate'; buffer: ArrayBuffer; configDelta: string };
+type RerunRequest    = { id: number; type: 'rerun';    configDelta: string };
+
+type PendingEntry = {
+  resolve:    (v: ValidationResult) => void;
+  reject:     (e: FatalError) => void;
+  callbacks?: ValidateCallbacks;
+};
+
+// ── Worker ────────────────────────────────────────────────────────────────────
+
+const worker  = new Worker(new URL('./validator-worker.ts', import.meta.url), { type: 'module' });
+const pending = new Map<number, PendingEntry>();
+let   nextId  = 1;
+
+worker.onmessage = (event: MessageEvent<WorkerMsg>) => {
+  const msg = event.data;
+  const entry = pending.get(msg.id);
+  if (!entry) return;
+
+  if (msg.type === 'file-list') {
+    entry.callbacks?.onFileList?.(msg.files);
+    return;
+  }
+  if (msg.type === 'file-done') {
+    entry.callbacks?.onFileDone?.(msg.name, msg.rows, msg.bytes);
+    return;
+  }
+  if (msg.type === 'stage') {
+    entry.callbacks?.onStageDone?.(msg.stage, msg.elapsed_ms);
+    return;
+  }
+  if (msg.type === 'result') {
+    pending.delete(msg.id);
+    if (msg.ok) entry.resolve(msg.result);
+    else        entry.reject(msg.error);
+  }
+};
+
+worker.onerror = (event: ErrorEvent) => {
+  const error: FatalError = {
+    code: 'ResourceLimit',
+    message: event.message || 'Arka plan doğrulama işçisi beklenmedik şekilde durdu.',
+  };
+  for (const [, e] of pending) e.reject(error);
+  pending.clear();
+};
+
+// ── Public API ────────────────────────────────────────────────────────────────
+
+export function validateFile(
+  buffer: ArrayBuffer,
+  configDelta: string,
+  callbacks?: ValidateCallbacks,
+): Promise<ValidationResult> {
+  const id = nextId++;
+  return new Promise<ValidationResult>((resolve, reject) => {
+    pending.set(id, { resolve, reject, callbacks });
+    worker.postMessage({ id, type: 'validate', buffer, configDelta } satisfies ValidateRequest, [buffer]);
+  });
+}
+
+export function rerunValidation(
+  configDelta: string,
+  callbacks?: ValidateCallbacks,
+): Promise<ValidationResult> {
+  const id = nextId++;
+  return new Promise<ValidationResult>((resolve, reject) => {
+    pending.set(id, { resolve, reject, callbacks });
+    worker.postMessage({ id, type: 'rerun', configDelta } satisfies RerunRequest);
+  });
+}

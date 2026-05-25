@@ -1,0 +1,948 @@
+use std::collections::{HashMap, HashSet};
+use std::io::Read;
+
+use gtfs_core::{EntityType, FatalCode, FatalError, Notice, Severity};
+use gtfs_rules::get_rule;
+use smol_str::SmolStr;
+
+// ── GTFS dosya listeleri ──────────────────────────────────────────────────────
+
+const REQUIRED_FILES: &[&str] = &[
+    "agency.txt", "stops.txt", "routes.txt", "trips.txt", "stop_times.txt",
+];
+
+const CALENDAR_FILES: &[&str] = &["calendar.txt", "calendar_dates.txt"];
+
+const KNOWN_FILES: &[&str] = &[
+    "agency.txt", "stops.txt", "routes.txt", "trips.txt", "stop_times.txt",
+    "calendar.txt", "calendar_dates.txt", "shapes.txt", "frequencies.txt",
+    "transfers.txt", "fare_attributes.txt", "fare_rules.txt",
+    "pathways.txt", "levels.txt", "feed_info.txt", "translations.txt", "attributions.txt",
+    "route_networks.txt",
+];
+
+// ── Tipler ────────────────────────────────────────────────────────────────────
+
+/// Ham CSV verisi: başlıklar + satırlar. Tip/enum kontrolü K2'de yapılır.
+#[derive(Debug)]
+pub struct RawFile {
+    pub name: String,
+    pub headers: Vec<String>,
+    /// Her satır, başlıklarla aynı indekste hizalanmış ham string değerleri taşır.
+    /// SmolStr: ≤22 bayt alanlar inline saklanır (heap alloc yok); daha uzunlar Arc<str>.
+    pub rows: Vec<Vec<SmolStr>>,
+    /// Sıkıştırılmamış dosya boyutu (bayt). Büyük dosyalarda READ_LIMIT ile kırpılabilir.
+    pub bytes: u32,
+}
+
+pub type RawFiles = HashMap<String, RawFile>;
+
+#[derive(Debug)]
+pub struct K1Result {
+    pub files: RawFiles,
+    pub notices: Vec<Notice>,
+}
+
+// ── Notice yardımcısı ─────────────────────────────────────────────────────────
+
+fn make_notice(
+    counter: &mut u32,
+    rule_id: &str,
+    entity_type: EntityType,
+    entity_id: Option<String>,
+    file: Option<&str>,
+    line: Option<u64>,
+    field: Option<&str>,
+    observed_value: Option<String>,
+    message: String,
+    remediation: &str,
+) -> Notice {
+    *counter += 1;
+    let meta = get_rule(rule_id).unwrap_or_else(|| panic!("K1: bilinmeyen rule_id {rule_id}"));
+    Notice {
+        id: format!("k1/{rule_id}#{counter}"),
+        rule_id: rule_id.to_string(),
+        severity: meta.severity,
+        rule_class: meta.rule_class,
+        entity_type,
+        entity_id,
+        scope_key: None,
+        file: file.map(str::to_string),
+        line,
+        field: field.map(str::to_string),
+        observed_value,
+        expected_value: None,
+        details: None,
+        title: meta.title.to_string(),
+        message,
+        remediation: remediation.to_string(),
+        blocks: meta.blocks.iter().map(|s| s.to_string()).collect(),
+        base_effort: meta.base_effort,
+    }
+}
+
+// ── UTF-8 BOM ─────────────────────────────────────────────────────────────────
+
+const UTF8_BOM: &[u8] = &[0xEF, 0xBB, 0xBF];
+
+fn strip_bom(bytes: &[u8]) -> (&[u8], bool) {
+    if bytes.starts_with(UTF8_BOM) {
+        (&bytes[3..], true)
+    } else {
+        (bytes, false)
+    }
+}
+
+// ── CSV tokenizer ─────────────────────────────────────────────────────────────
+
+/// RFC 4180 uyumlu CSV tokenizer. Byte-level scanner; büyük dosyalarda hızlı.
+/// `max_data_rows`: başlık hariç maksimum satır sayısı (None = sınırsız).
+/// Limit aşıldığında kalan baytlar işlenmez; dönen vec truncated olur.
+fn tokenize_csv(text: &str, max_data_rows: Option<usize>) -> Result<(Vec<Vec<SmolStr>>, bool), String> {
+    let bytes = text.as_bytes();
+    let n = bytes.len();
+    let cap = max_data_rows.map(|m| m + 1).unwrap_or_else(|| (n / 50).max(1).min(5_000_000));
+    let mut records: Vec<Vec<SmolStr>> = Vec::with_capacity(cap.min(5_000_000));
+    let mut pos = 0;
+    let mut col_hint: usize = 8;
+    let mut truncated = false;
+
+    while pos < n {
+        let mut record: Vec<SmolStr> = Vec::with_capacity(col_hint);
+
+        loop {
+            if bytes[pos] == b'"' {
+                // Quoted field — SmolStr dönüştürme için geçici String gerekir
+                pos += 1;
+                let mut buf = String::new();
+                let mut closed = false;
+                while pos < n {
+                    let b = bytes[pos];
+                    if b == b'"' {
+                        pos += 1;
+                        if pos < n && bytes[pos] == b'"' {
+                            buf.push('"');
+                            pos += 1;
+                        } else {
+                            closed = true;
+                            break;
+                        }
+                    } else if b < 0x80 {
+                        buf.push(b as char);
+                        pos += 1;
+                    } else {
+                        let ch = text[pos..].chars().next().unwrap();
+                        buf.push(ch);
+                        pos += ch.len_utf8();
+                    }
+                }
+                if !closed {
+                    return Err("Kapanmamış tırnak işareti (unclosed quote)".to_string());
+                }
+                record.push(SmolStr::new(&buf));
+            } else {
+                // Unquoted field — doğrudan slice'tan SmolStr (≤22 byte → inline, heap alloc yok)
+                let start = pos;
+                while pos < n {
+                    let b = bytes[pos];
+                    if b == b',' || b == b'\n' || b == b'\r' {
+                        break;
+                    }
+                    pos += 1;
+                }
+                record.push(SmolStr::new(&text[start..pos]));
+            }
+
+            if pos >= n {
+                break;
+            }
+            match bytes[pos] {
+                b',' => {
+                    pos += 1;
+                    if pos >= n {
+                        // Sondaki virgül + newline yok: boş alan push et
+                        record.push(SmolStr::new(""));
+                        break;
+                    }
+                    continue;
+                }
+                b'\r' => {
+                    pos += 1;
+                    if pos < n && bytes[pos] == b'\n' {
+                        pos += 1;
+                    }
+                    break;
+                }
+                b'\n' => {
+                    pos += 1;
+                    break;
+                }
+                _ => break,
+            }
+        }
+
+        if !(record.len() == 1 && record[0].is_empty()) && !record.is_empty() {
+            col_hint = record.len();
+            records.push(record);
+            if let Some(max) = max_data_rows {
+                // records[0] başlık; veri satırı sayısı records.len()-1
+                if records.len() > max {
+                    truncated = true;
+                    break;
+                }
+            }
+        }
+    }
+
+    Ok((records, truncated))
+}
+
+// ── Şema yardımcıları ─────────────────────────────────────────────────────────
+
+/// Dosya başına her satırda boş olmaması gereken minimum alan seti (ARC_016).
+fn required_fields(filename: &str) -> &'static [&'static str] {
+    match filename {
+        "agency.txt"          => &["agency_name", "agency_url", "agency_timezone"],
+        "stops.txt"           => &["stop_id"],
+        "routes.txt"          => &["route_id", "route_type"],
+        "trips.txt"           => &["route_id", "service_id", "trip_id"],
+        "stop_times.txt"      => &["trip_id", "stop_id", "stop_sequence"],
+        "calendar.txt"        => &["service_id", "start_date", "end_date"],
+        "calendar_dates.txt"  => &["service_id", "date", "exception_type"],
+        "shapes.txt"          => &["shape_id", "shape_pt_lat", "shape_pt_lon", "shape_pt_sequence"],
+        "frequencies.txt"     => &["trip_id", "start_time", "end_time", "headway_secs"],
+        "transfers.txt"       => &["from_stop_id", "to_stop_id"],
+        // transfers boş = sınırsız transfer (geçerli GTFS değeri) — ARC_016 tetiklenmemeli
+        "fare_attributes.txt" => &["fare_id", "price", "currency_type", "payment_method"],
+        "fare_rules.txt"      => &["fare_id"],
+        "pathways.txt"        => &["pathway_id", "from_stop_id", "to_stop_id", "pathway_mode", "is_bidirectional"],
+        "levels.txt"          => &["level_id", "level_index"],
+        "feed_info.txt"       => &["feed_publisher_name", "feed_publisher_url", "feed_lang"],
+        "translations.txt"    => &["table_name", "field_name", "language", "translation"],
+        "attributions.txt"    => &[],
+        _                     => &[],
+    }
+}
+
+/// GTFS spesifikasyonunda tanımlı sütun adları (ARC_017).
+fn known_columns(filename: &str) -> &'static [&'static str] {
+    match filename {
+        "agency.txt" => &[
+            "agency_id","agency_name","agency_url","agency_timezone",
+            "agency_lang","agency_phone","agency_fare_url","agency_email",
+            "agency_cemv_support",
+        ],
+        "stops.txt" => &[
+            "stop_id","stop_code","stop_name","stop_desc","stop_lat","stop_lon",
+            "zone_id","stop_url","location_type","parent_station","stop_timezone",
+            "wheelchair_boarding","level_id","platform_code","stop_access","tts_stop_name",
+        ],
+        "routes.txt" => &[
+            "route_id","agency_id","route_short_name","route_long_name","route_desc",
+            "route_type","route_url","route_color","route_text_color","route_sort_order",
+            "continuous_pickup","continuous_drop_off","network_id","route_cemv_support",
+        ],
+        "trips.txt" => &[
+            "route_id","service_id","trip_id","trip_headsign","trip_short_name",
+            "direction_id","block_id","shape_id","wheelchair_accessible","bikes_allowed",
+            "cars_allowed","safe_duration_factor","safe_duration_offset",
+        ],
+        "stop_times.txt" => &[
+            "trip_id","arrival_time","departure_time","stop_id","stop_sequence",
+            "stop_headsign","pickup_type","drop_off_type","continuous_pickup",
+            "continuous_drop_off","shape_dist_traveled","timepoint",
+        ],
+        "calendar.txt" => &[
+            "service_id","monday","tuesday","wednesday","thursday","friday",
+            "saturday","sunday","start_date","end_date",
+        ],
+        "calendar_dates.txt" => &["service_id","date","exception_type"],
+        "shapes.txt" => &[
+            "shape_id","shape_pt_lat","shape_pt_lon","shape_pt_sequence","shape_dist_traveled",
+        ],
+        "frequencies.txt" => &["trip_id","start_time","end_time","headway_secs","exact_times"],
+        "transfers.txt" => &[
+            "from_stop_id","to_stop_id","transfer_type","min_transfer_time",
+            "from_route_id","to_route_id","from_trip_id","to_trip_id",
+        ],
+        "fare_attributes.txt" => &[
+            "fare_id","price","currency_type","payment_method","transfers",
+            "agency_id","transfer_duration",
+        ],
+        "fare_rules.txt" => &["fare_id","route_id","origin_id","destination_id","contains_id"],
+        "pathways.txt" => &[
+            "pathway_id","from_stop_id","to_stop_id","pathway_mode","is_bidirectional",
+            "length","traversal_time","stair_count","max_slope","min_width",
+            "signposted_as","reversed_signposted_as",
+        ],
+        "levels.txt" => &["level_id","level_index","level_name"],
+        "feed_info.txt" => &[
+            "feed_publisher_name","feed_publisher_url","feed_lang","default_lang",
+            "feed_start_date","feed_end_date","feed_version",
+            "feed_contact_email","feed_contact_url",
+        ],
+        "translations.txt" => &[
+            "table_name","field_name","language","translation",
+            "record_id","record_sub_id","field_value",
+        ],
+        "attributions.txt" => &[
+            "attribution_id","agency_id","route_id","trip_id","organization_name",
+            "is_producer","is_operator","is_authority",
+            "attribution_url","attribution_email","attribution_phone",
+        ],
+        _ => &[],
+    }
+}
+
+// ── Ana parse fonksiyonu ──────────────────────────────────────────────────────
+
+/// K1 Parse katmanı. ZIP baytlarından ham dosya haritası ve ARC_* notice'ları üretir.
+///
+/// Fatal durumlar (pipeline durur):
+/// - ARC_001: ZIP açılamazsa
+/// - ARC_002: Zorunlu dosya UTF-8 ile okunamazsa
+/// - ARC_004: Zorunlu dosyalar eksikse
+/// - ARC_013: Zorunlu dosya CSV tokenization'ı başarısızsa
+///
+/// ARC_008: Kritik notice üretir, pipeline devam eder (non-Fatal).
+pub fn parse(zip_bytes: &[u8]) -> Result<K1Result, FatalError> {
+    #[cfg(target_arch = "wasm32")]
+    web_sys::console::warn_1(&format!("[K1] parse başladı, {} bayt", zip_bytes.len()).into());
+    let cursor = std::io::Cursor::new(zip_bytes);
+    #[cfg(target_arch = "wasm32")]
+    web_sys::console::warn_1(&"[K1] ZipArchive::new çağrılıyor...".into());
+    let mut archive = zip::ZipArchive::new(cursor).map_err(|e| FatalError {
+        code: FatalCode::ZipUnreadable,
+        message: format!("ZIP arşivi açılamadı: {e}"),
+    })?;
+    #[cfg(target_arch = "wasm32")]
+    web_sys::console::warn_1(&format!("[K1] archive açıldı: {} entry", archive.len()).into());
+
+    let mut notices: Vec<Notice> = Vec::new();
+    let mut counter: u32 = 0;
+    let mut raw_files: RawFiles = HashMap::new();
+    let mut present_files: HashSet<String> = HashSet::new();
+    let mut dq016_fired = false;
+
+    for i in 0..archive.len() {
+        #[cfg(target_arch = "wasm32")]
+        web_sys::console::warn_1(&format!("[K1] by_index({i})...").into());
+        let mut zf = archive.by_index(i).map_err(|e| FatalError {
+            code: FatalCode::ZipUnreadable,
+            message: format!("ZIP dosyası okunamadı (index {i}): {e}"),
+        })?;
+
+        let raw_name = zf.name().to_string();
+
+        // Yalnızca kök dizindeki .txt dosyaları işlenir
+        if !raw_name.ends_with(".txt") || raw_name.contains('/') || raw_name.contains('\\') {
+            continue;
+        }
+
+        present_files.insert(raw_name.clone());
+        let is_required = REQUIRED_FILES.contains(&raw_name.as_str());
+        let is_known   = KNOWN_FILES.contains(&raw_name.as_str());
+
+        // Bayt oku (ARC_011 için is_known kontrolünden önce yapılır)
+        #[cfg(target_arch = "wasm32")]
+        web_sys::console::log_1(&format!("[K1] okuma başladı: {raw_name} (compressed: {} b)", zf.compressed_size()).into());
+        let uncompressed_hint = zf.size() as usize;
+        let mut bytes = Vec::with_capacity(uncompressed_hint.max(1));
+        zf.read_to_end(&mut bytes).map_err(|e| FatalError {
+            code: FatalCode::ZipUnreadable,
+            message: format!("'{raw_name}' okunamadı: {e}"),
+        })?;
+
+        // ARC_011: Dosya boyutu — tüm kök .txt dosyaları için (bilinmeyen dahil)
+        notices.push(make_notice(
+            &mut counter, "ARC_011",
+            EntityType::File, Some(raw_name.clone()),
+            Some(&raw_name), None, None,
+            Some(format!("{} bayt", bytes.len())),
+            format!("'{raw_name}' boyutu: {} bayt.", bytes.len()),
+            "Bilgi amaçlı; düzeltme gerekmez.",
+        ));
+
+        // ARC_007: Bilinmeyen dosya — boyut kaydedildikten sonra atla
+        if !is_known {
+            notices.push(make_notice(
+                &mut counter, "ARC_007",
+                EntityType::File, Some(raw_name.clone()),
+                Some(&raw_name), None, None,
+                Some(raw_name.clone()),
+                format!("'{raw_name}' GTFS spesifikasyonunda tanımlı değil."),
+                "GTFS dışı dosyaları ZIP'ten kaldırın.",
+            ));
+            continue;
+        }
+
+        // ARC_006: İsteğe bağlı dosya mevcut (BİLGİ)
+        if !is_required {
+            notices.push(make_notice(
+                &mut counter, "ARC_006",
+                EntityType::File, Some(raw_name.clone()),
+                Some(&raw_name), None, None,
+                None,
+                format!("İsteğe bağlı dosya mevcut: '{raw_name}'."),
+                "Bilgi amaçlı; düzeltme gerekmez.",
+            ));
+        }
+
+        // BOM kontrolü
+        let (bytes, has_bom) = strip_bom(&bytes);
+        if has_bom {
+            // ARC_010 ve DQ_014 aynı koşul — ikisi ayrı ayrı ateşlenmez;
+            // DQ_014 sadece ARC_002 suppressor listesinde referans, ARC_010 onu kapsar.
+            notices.push(make_notice(
+                &mut counter, "ARC_010",
+                EntityType::File, Some(raw_name.clone()),
+                Some(&raw_name), None, None,
+                Some("UTF-8 BOM (EF BB BF)".to_string()),
+                format!("'{raw_name}' dosyasında UTF-8 BOM var — bazı parser'lar BOM'u ilk alan adının parçası olarak okur."),
+                "Dosyayı BOM olmadan UTF-8 olarak kaydedin (UTF-8 without BOM).",
+            ));
+        }
+
+        #[cfg(target_arch = "wasm32")]
+        web_sys::console::log_1(&format!("[K1] okundu: {raw_name} ({} bayt)", bytes.len()).into());
+        // UTF-8 doğrulama — from_utf8 sıfır maliyetli &str döndürür (kopya yok).
+        // Geçersiz UTF-8 durumunda lossy String gerekir; yoksa doğrudan bytes'ı ödünç alıyoruz.
+        let lossy_buf: String;
+        let text: &str = match std::str::from_utf8(bytes) {
+            Ok(s) => s,
+            Err(_) => {
+                // ARC_002: Kritik UTF-8 ihlali
+                notices.push(make_notice(
+                    &mut counter, "ARC_002",
+                    EntityType::File, Some(raw_name.clone()),
+                    Some(&raw_name), None, None,
+                    None,
+                    format!("'{raw_name}' UTF-8 kodlamasıyla okunamıyor."),
+                    "Dosyayı UTF-8 kodlamasıyla yeniden kaydedin.",
+                ));
+                if is_required {
+                    return Err(FatalError {
+                        code: FatalCode::Utf8Critical,
+                        message: format!("Zorunlu dosya UTF-8 ile okunamıyor: {raw_name}"),
+                    });
+                }
+                // İsteğe bağlı dosya: ARC_003 (encoding kalitesi)
+                lossy_buf = String::from_utf8_lossy(bytes).into_owned();
+                notices.push(make_notice(
+                    &mut counter, "ARC_003",
+                    EntityType::File, Some(raw_name.clone()),
+                    Some(&raw_name), None, None,
+                    None,
+                    format!("'{raw_name}' UTF-8 dışı karakter içeriyor; kayıplı dönüşüm uygulandı."),
+                    "Tüm GTFS dosyalarını UTF-8 kodlamasıyla kaydedin.",
+                ));
+                &lossy_buf
+            }
+        };
+
+        #[cfg(target_arch = "wasm32")]
+        web_sys::console::log_1(&format!("[K1] tokenizing: {raw_name}").into());
+        // CSV tokenization — satır sınırı yok, tam veri
+        let _t = crate::timing::Timer::start(format!("K1::tokenize::{raw_name}"));
+        let (mut records, _) = match tokenize_csv(text, None) {
+            Ok(r) => r,
+            Err(msg) => {
+                // ARC_013
+                notices.push(make_notice(
+                    &mut counter, "ARC_013",
+                    EntityType::File, Some(raw_name.clone()),
+                    Some(&raw_name), None, None,
+                    Some(msg.clone()),
+                    format!("'{raw_name}' CSV tokenization hatası: {msg}"),
+                    "CSV formatını kontrol edin; tırnak işaretlerinin doğru kapandığından emin olun.",
+                ));
+                if is_required {
+                    return Err(FatalError {
+                        code: FatalCode::CsvMalformed,
+                        message: format!("Zorunlu dosya CSV tokenization hatası: {raw_name}"),
+                    });
+                }
+                continue;
+            }
+        };
+
+
+        // ARC_009: Boş dosya
+        if records.is_empty() {
+            notices.push(make_notice(
+                &mut counter, "ARC_009",
+                EntityType::File, Some(raw_name.clone()),
+                Some(&raw_name), None, None,
+                None,
+                format!("'{raw_name}' dosyası boş veya yalnızca başlık satırı içeriyor."),
+                "Dosyaya en az bir veri satırı ekleyin.",
+            ));
+            continue;
+        }
+
+        // Başlık satırı (ownership al, clone yok)
+        let raw_headers = records.remove(0);
+
+        // ARC_014: Başlıkta boşluk
+        for (col_i, hdr) in raw_headers.iter().enumerate() {
+            if hdr != hdr.trim() {
+                notices.push(make_notice(
+                    &mut counter, "ARC_014",
+                    EntityType::File, Some(raw_name.clone()),
+                    Some(&raw_name), Some(1), Some(hdr.as_str()),
+                    Some(format!("{hdr:?}")),
+                    format!("'{raw_name}' başlığında '{hdr}' sütununda gereksiz boşluk var."),
+                    "CSV başlıklarındaki baştaki/sondaki boşlukları kaldırın.",
+                ));
+                let _ = col_i;
+            }
+        }
+
+        // Temiz başlıklar (trim)
+        let headers: Vec<String> = raw_headers.iter().map(|h| h.trim().to_string()).collect();
+
+        // ARC_019: Başlıkta boş sütun adı
+        for hdr in &headers {
+            if hdr.is_empty() {
+                notices.push(make_notice(
+                    &mut counter, "ARC_019",
+                    EntityType::File, Some(raw_name.clone()),
+                    Some(&raw_name), Some(1), None,
+                    Some("(boş)".to_string()),
+                    format!("'{raw_name}' başlığında boş sütun adı var."),
+                    "Tüm sütun adlarının dolu olduğundan emin olun.",
+                ));
+                break; // Dosya başına bir kez yeter
+            }
+        }
+
+        // ARC_015: Tekrar eden sütun
+        let mut seen_hdrs: HashSet<&str> = HashSet::new();
+        for hdr in &headers {
+            if !seen_hdrs.insert(hdr.as_str()) {
+                notices.push(make_notice(
+                    &mut counter, "ARC_015",
+                    EntityType::File, Some(raw_name.clone()),
+                    Some(&raw_name), Some(1), Some(hdr.as_str()),
+                    Some(hdr.clone()),
+                    format!("'{raw_name}' dosyasında '{hdr}' sütunu tekrarlanıyor."),
+                    "Tekrar eden sütunu kaldırın.",
+                ));
+            }
+        }
+
+        // ARC_017: Bilinmeyen sütun
+        let known_cols = known_columns(&raw_name);
+        if !known_cols.is_empty() {
+            for hdr in &headers {
+                if !known_cols.contains(&hdr.as_str()) {
+                    notices.push(make_notice(
+                        &mut counter, "ARC_017",
+                        EntityType::File, Some(raw_name.clone()),
+                        Some(&raw_name), Some(1), Some(hdr.as_str()),
+                        Some(hdr.clone()),
+                        format!("'{raw_name}' dosyasında '{hdr}' GTFS spesifikasyonunda tanımlı değil."),
+                        "GTFS standardı dışındaki sütunları kaldırın.",
+                    ));
+                }
+            }
+        }
+
+        let header_count = headers.len();
+        let req_flds = required_fields(&raw_name);
+        // required_fields içinde başlıkta bulunanların indeksini bul
+        let req_indices: Vec<(usize, &str)> = req_flds
+            .iter()
+            .filter_map(|&f| headers.iter().position(|h| h == f).map(|i| (i, f)))
+            .collect();
+
+        let mut rows: Vec<Vec<SmolStr>> = Vec::new();
+        for (row_idx, row) in records.into_iter().enumerate() {
+            let line_num = (row_idx + 2) as u64;
+
+            // ARC_012: Sütun sayısı tutarsız
+            // row < header: sondaki boş isteğe bağlı alanlar atlanmış — geçerli CSV pratiği → BİLGİ
+            // row > header: fazla alan — kaçmamış virgül veya format hatası → KRİTİK
+            if row.len() != header_count {
+                let missing = header_count.saturating_sub(row.len());
+                let (msg, tip) = if row.len() < header_count {
+                    (
+                        format!("'{raw_name}' {line_num}. satırda sondaki {missing} isteğe bağlı alan atlanmış ({} sütun, başlık: {header_count}).", row.len()),
+                        "CSV'de sondaki boş alanlar atlanabilir; zorunlu alanlar boş bırakılmamalıdır.",
+                    )
+                } else {
+                    (
+                        format!("'{raw_name}' {line_num}. satırda fazla alan: {} (beklenen {header_count}) — kaçmamış virgül veya format hatası.", row.len()),
+                        "Her satırın başlık sayısı kadar virgülle ayrılmış değer içerdiğinden emin olun.",
+                    )
+                };
+                let mut n = make_notice(
+                    &mut counter, "ARC_012",
+                    EntityType::File, Some(raw_name.clone()),
+                    Some(&raw_name), Some(line_num), None,
+                    Some(format!("{} sütun (beklenen {})", row.len(), header_count)),
+                    msg, &tip,
+                );
+                if row.len() < header_count {
+                    n.severity = Severity::Bilgi;
+                }
+                notices.push(n);
+            }
+
+            // ARC_016: Zorunlu alan boş veya satır kısa olduğu için tamamen eksik
+            for &(col_i, field_name) in &req_indices {
+                let is_empty = if col_i < row.len() {
+                    row[col_i].trim().is_empty()
+                } else {
+                    true // Kısa satırda bu alan hiç yazılmamış
+                };
+                if is_empty {
+                    notices.push(make_notice(
+                        &mut counter, "ARC_016",
+                        EntityType::File, Some(raw_name.clone()),
+                        Some(&raw_name), Some(line_num), Some(field_name),
+                        Some(String::new()),
+                        format!("'{raw_name}' {line_num}. satırda zorunlu '{field_name}' alanı boş."),
+                        "Zorunlu alanları doldurun.",
+                    ));
+                }
+            }
+
+            // ARC_018: Boş veri satırı (tüm alanlar boş)
+            if row.iter().all(|v| v.trim().is_empty()) {
+                notices.push(make_notice(
+                    &mut counter, "ARC_018",
+                    EntityType::File, Some(raw_name.clone()),
+                    Some(&raw_name), Some(line_num), None,
+                    None,
+                    format!("'{raw_name}' {line_num}. satırı tamamen boş."),
+                    "Boş satırları kaldırın.",
+                ));
+                continue; // Boş satırı kaydetme
+            }
+
+            // DQ_016: değerlerde fazladan boşluk
+            {
+                let mut found = false;
+                'outer: for val in row.iter() {
+                    let s = val.as_str();
+                    if s != s.trim() { found = true; break 'outer; }
+                }
+                if found && !dq016_fired {
+                    dq016_fired = true;
+                    notices.push(make_notice(
+                        &mut counter, "DQ_016",
+                        EntityType::File, Some(raw_name.clone()), Some(raw_name.as_str()), None, None, None,
+                        "Bir veya daha fazla alanda baştaki/sondaki boşluk karakteri var — bazı uygulamalar ID eşleştirmede sorun yaşayabilir.".to_string(),
+                        "Tüm değerlerdeki gereksiz boşlukları kaldırın.",
+                    ));
+                }
+            }
+
+            rows.push(row);
+        }
+
+        // Başlık satırından oluşan kayıt için ARC_009 kontrolü (yalnızca başlık var, veri yok)
+        if rows.is_empty() {
+            notices.push(make_notice(
+                &mut counter, "ARC_009",
+                EntityType::File, Some(raw_name.clone()),
+                Some(&raw_name), None, None,
+                None,
+                format!("'{raw_name}' dosyasında başlık satırı var ama veri satırı yok."),
+                "Dosyaya en az bir veri satırı ekleyin.",
+            ));
+        }
+
+        #[cfg(target_arch = "wasm32")]
+        web_sys::console::log_1(&format!("[K1] bitti: {raw_name} ({} satır)", rows.len()).into());
+        raw_files.insert(raw_name.clone(), RawFile { name: raw_name, headers, rows, bytes: bytes.len() as u32 });
+    }
+
+    // ── Dosya varlık kontrolleri ──────────────────────────────────────────────
+
+    // ARC_004: Zorunlu dosya eksik → Fatal
+    let missing: Vec<&str> = REQUIRED_FILES
+        .iter()
+        .filter(|&&f| !present_files.contains(f))
+        .copied()
+        .collect();
+
+    if !missing.is_empty() {
+        for &f in &missing {
+            notices.push(make_notice(
+                &mut counter, "ARC_004",
+                EntityType::Feed, None,
+                None, None, None,
+                Some(f.to_string()),
+                format!("Zorunlu GTFS dosyası eksik: '{f}'."),
+                "Eksik dosyayı feed ZIP arşivine ekleyin.",
+            ));
+        }
+        return Err(FatalError {
+            code: FatalCode::NoRequiredFiles,
+            message: format!("Zorunlu dosyalar eksik: {}", missing.join(", ")),
+        });
+    }
+
+    // ARC_008: calendar.txt VE calendar_dates.txt ikisi de eksik (Kritik, non-Fatal)
+    let has_any_calendar = CALENDAR_FILES
+        .iter()
+        .any(|&f| present_files.contains(f));
+    if !has_any_calendar {
+        notices.push(make_notice(
+            &mut counter, "ARC_008",
+            EntityType::Feed, None,
+            None, None, None,
+            None,
+            "calendar.txt ve calendar_dates.txt dosyalarının ikisi de eksik.".to_string(),
+            "En az birini (calendar.txt veya calendar_dates.txt) ZIP'e ekleyin.",
+        ));
+    }
+
+    Ok(K1Result { files: raw_files, notices })
+}
+
+// ── Testler ───────────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Write;
+    use zip::write::SimpleFileOptions;
+
+    fn minimal_gtfs_zip() -> Vec<u8> {
+        let buf = std::io::Cursor::new(Vec::new());
+        let mut zw = zip::ZipWriter::new(buf);
+        let opts = SimpleFileOptions::default();
+
+        let files: &[(&str, &str)] = &[
+            ("agency.txt",     "agency_id,agency_name,agency_url,agency_timezone\n1,Test,http://x.com,UTC\n"),
+            ("stops.txt",      "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\n"),
+            ("routes.txt",     "route_id,agency_id,route_short_name,route_type\nR1,1,101,3\n"),
+            ("trips.txt",      "route_id,service_id,trip_id\nR1,SVC1,T1\n"),
+            ("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\n"),
+            ("calendar.txt",   "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,0,0,20240101,20241231\n"),
+        ];
+        for (name, content) in files {
+            zw.start_file(*name, opts).unwrap();
+            zw.write_all(content.as_bytes()).unwrap();
+        }
+        zw.finish().unwrap().into_inner()
+    }
+
+    fn zip_with_files(files: &[(&str, &[u8])]) -> Vec<u8> {
+        let buf = std::io::Cursor::new(Vec::new());
+        let mut zw = zip::ZipWriter::new(buf);
+        let opts = SimpleFileOptions::default();
+        for (name, content) in files {
+            zw.start_file(*name, opts).unwrap();
+            zw.write_all(content).unwrap();
+        }
+        zw.finish().unwrap().into_inner()
+    }
+
+    #[test]
+    fn minimal_valid_feed_produces_no_error() {
+        let zip = minimal_gtfs_zip();
+        let result = parse(&zip);
+        assert!(result.is_ok(), "Geçerli feed Ok dönmeli: {:?}", result.err());
+    }
+
+    #[test]
+    fn minimal_valid_feed_has_six_files() {
+        let zip = minimal_gtfs_zip();
+        let k1 = parse(&zip).unwrap();
+        assert_eq!(k1.files.len(), 6);
+        assert!(k1.files.contains_key("agency.txt"));
+        assert!(k1.files.contains_key("stop_times.txt"));
+    }
+
+    #[test]
+    fn invalid_zip_returns_fatal_zip_unreadable() {
+        let err = parse(b"not a zip").expect_err("geçersiz ZIP Fatal olmalı");
+        assert_eq!(err.code, FatalCode::ZipUnreadable);
+    }
+
+    #[test]
+    fn missing_required_file_returns_fatal_no_required_files() {
+        // agency.txt olmadan ZIP
+        let zip = zip_with_files(&[
+            ("stops.txt",      b"stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\n"),
+            ("routes.txt",     b"route_id,agency_id,route_short_name,route_type\nR1,1,101,3\n"),
+            ("trips.txt",      b"route_id,service_id,trip_id\nR1,SVC1,T1\n"),
+            ("stop_times.txt", b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\n"),
+            ("calendar.txt",   b"service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,0,0,20240101,20241231\n"),
+        ]);
+        let err = parse(&zip).expect_err("agency.txt eksik Fatal olmalı");
+        assert_eq!(err.code, FatalCode::NoRequiredFiles);
+        assert!(err.message.contains("agency.txt"), "{}", err.message);
+    }
+
+    #[test]
+    fn utf8_failure_on_required_file_returns_fatal() {
+        // stops.txt içinde geçersiz UTF-8 bayt
+        let bad_bytes: &[u8] = b"stop_id,stop_name\nS1,\xFF\xFE invalid\n";
+        let zip = zip_with_files(&[
+            ("agency.txt",     b"agency_id,agency_name,agency_url,agency_timezone\n1,Test,http://x.com,UTC\n"),
+            ("stops.txt",      bad_bytes),
+            ("routes.txt",     b"route_id,agency_id,route_short_name,route_type\nR1,1,101,3\n"),
+            ("trips.txt",      b"route_id,service_id,trip_id\nR1,SVC1,T1\n"),
+            ("stop_times.txt", b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\n"),
+            ("calendar.txt",   b"service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,0,0,20240101,20241231\n"),
+        ]);
+        let err = parse(&zip).expect_err("UTF-8 hatası Fatal olmalı");
+        assert_eq!(err.code, FatalCode::Utf8Critical);
+    }
+
+    #[test]
+    fn csv_malformed_on_required_file_returns_fatal() {
+        let bad_csv = b"trip_id,stop_id\n\"unclosed quote\n";
+        let zip = zip_with_files(&[
+            ("agency.txt",     b"agency_id,agency_name,agency_url,agency_timezone\n1,Test,http://x.com,UTC\n"),
+            ("stops.txt",      b"stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\n"),
+            ("routes.txt",     b"route_id,agency_id,route_short_name,route_type\nR1,1,101,3\n"),
+            ("trips.txt",      b"route_id,service_id,trip_id\nR1,SVC1,T1\n"),
+            ("stop_times.txt", bad_csv),
+            ("calendar.txt",   b"service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,0,0,20240101,20241231\n"),
+        ]);
+        let err = parse(&zip).expect_err("bozuk CSV Fatal olmalı");
+        assert_eq!(err.code, FatalCode::CsvMalformed);
+    }
+
+    #[test]
+    fn unknown_file_produces_arc007_notice() {
+        let zip = zip_with_files(&[
+            ("agency.txt",     b"agency_id,agency_name,agency_url,agency_timezone\n1,Test,http://x.com,UTC\n"),
+            ("stops.txt",      b"stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\n"),
+            ("routes.txt",     b"route_id,agency_id,route_short_name,route_type\nR1,1,101,3\n"),
+            ("trips.txt",      b"route_id,service_id,trip_id\nR1,SVC1,T1\n"),
+            ("stop_times.txt", b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\n"),
+            ("calendar.txt",   b"service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,0,0,20240101,20241231\n"),
+            ("custom_data.txt",b"foo,bar\n1,2\n"),
+        ]);
+        let k1 = parse(&zip).unwrap();
+        assert!(
+            k1.notices.iter().any(|n| n.rule_id == "ARC_007"),
+            "ARC_007 notice bekleniyor"
+        );
+    }
+
+    #[test]
+    fn bom_produces_arc010_notice() {
+        let bom_csv = b"\xEF\xBB\xBFstop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\n";
+        let zip = zip_with_files(&[
+            ("agency.txt",     b"agency_id,agency_name,agency_url,agency_timezone\n1,Test,http://x.com,UTC\n"),
+            ("stops.txt",      bom_csv),
+            ("routes.txt",     b"route_id,agency_id,route_short_name,route_type\nR1,1,101,3\n"),
+            ("trips.txt",      b"route_id,service_id,trip_id\nR1,SVC1,T1\n"),
+            ("stop_times.txt", b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\n"),
+            ("calendar.txt",   b"service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,0,0,20240101,20241231\n"),
+        ]);
+        let k1 = parse(&zip).unwrap();
+        assert!(
+            k1.notices.iter().any(|n| n.rule_id == "ARC_010"),
+            "ARC_010 notice bekleniyor"
+        );
+    }
+
+    #[test]
+    fn header_whitespace_produces_arc014_notice() {
+        let csv = b"stop_id, stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\n";
+        let zip = zip_with_files(&[
+            ("agency.txt",     b"agency_id,agency_name,agency_url,agency_timezone\n1,Test,http://x.com,UTC\n"),
+            ("stops.txt",      csv),
+            ("routes.txt",     b"route_id,agency_id,route_short_name,route_type\nR1,1,101,3\n"),
+            ("trips.txt",      b"route_id,service_id,trip_id\nR1,SVC1,T1\n"),
+            ("stop_times.txt", b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\n"),
+            ("calendar.txt",   b"service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,0,0,20240101,20241231\n"),
+        ]);
+        let k1 = parse(&zip).unwrap();
+        assert!(
+            k1.notices.iter().any(|n| n.rule_id == "ARC_014"),
+            "ARC_014 notice bekleniyor"
+        );
+    }
+
+    #[test]
+    fn missing_required_field_produces_arc016_notice() {
+        // stop_id boş olan bir satır
+        let csv = b"stop_id,stop_name,stop_lat,stop_lon\n,Stop1,41.0,29.0\n";
+        let zip = zip_with_files(&[
+            ("agency.txt",     b"agency_id,agency_name,agency_url,agency_timezone\n1,Test,http://x.com,UTC\n"),
+            ("stops.txt",      csv),
+            ("routes.txt",     b"route_id,agency_id,route_short_name,route_type\nR1,1,101,3\n"),
+            ("trips.txt",      b"route_id,service_id,trip_id\nR1,SVC1,T1\n"),
+            ("stop_times.txt", b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\n"),
+            ("calendar.txt",   b"service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,0,0,20240101,20241231\n"),
+        ]);
+        let k1 = parse(&zip).unwrap();
+        assert!(
+            k1.notices.iter().any(|n| n.rule_id == "ARC_016"),
+            "ARC_016 notice bekleniyor"
+        );
+    }
+
+    #[test]
+    fn no_calendar_produces_arc008_notice() {
+        // calendar.txt ve calendar_dates.txt her ikisi de yok
+        let zip = zip_with_files(&[
+            ("agency.txt",     b"agency_id,agency_name,agency_url,agency_timezone\n1,Test,http://x.com,UTC\n"),
+            ("stops.txt",      b"stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\n"),
+            ("routes.txt",     b"route_id,agency_id,route_short_name,route_type\nR1,1,101,3\n"),
+            ("trips.txt",      b"route_id,service_id,trip_id\nR1,SVC1,T1\n"),
+            ("stop_times.txt", b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\n"),
+        ]);
+        let k1 = parse(&zip).unwrap();
+        assert!(
+            k1.notices.iter().any(|n| n.rule_id == "ARC_008"),
+            "ARC_008 notice bekleniyor"
+        );
+    }
+
+    #[test]
+    fn tokenize_csv_quoted_field() {
+        let text = "a,\"b,c\",d\n1,\"hello\nworld\",3\n";
+        let (records, _) = tokenize_csv(text, None).unwrap();
+        assert_eq!(records[0][0], "a");
+        assert_eq!(records[0][1], "b,c");
+        assert_eq!(records[0][2], "d");
+        assert_eq!(records[1][1], "hello\nworld");
+    }
+
+    #[test]
+    fn tokenize_csv_unclosed_quote_returns_err() {
+        assert!(tokenize_csv("\"unclosed\n", None).is_err());
+    }
+
+    #[test]
+    fn tokenize_csv_trailing_comma_no_newline() {
+        // Dosya sondaki virgülle bitip newline olmadığında boş alan eksik sayılmamalı
+        let text = "a,b,c\n1,2,";
+        let (records, _) = tokenize_csv(text, None).unwrap();
+        assert_eq!(records.len(), 2);
+        assert_eq!(records[1].len(), 3, "sondaki virgül boş 3. alanı temsil eder");
+        assert_eq!(records[1][2], "");
+    }
+
+    #[test]
+    fn notice_ids_are_unique() {
+        let zip = minimal_gtfs_zip();
+        let k1 = parse(&zip).unwrap();
+        let ids: Vec<&str> = k1.notices.iter().map(|n| n.id.as_str()).collect();
+        let unique: HashSet<&str> = ids.iter().copied().collect();
+        assert_eq!(ids.len(), unique.len(), "Tekrar eden notice ID var");
+    }
+
+    #[test]
+    fn all_notices_have_valid_rule_ids() {
+        let zip = minimal_gtfs_zip();
+        let k1 = parse(&zip).unwrap();
+        for n in &k1.notices {
+            assert!(
+                get_rule(&n.rule_id).is_some(),
+                "Geçersiz rule_id: {}", n.rule_id
+            );
+        }
+    }
+}

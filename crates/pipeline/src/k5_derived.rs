@@ -1,0 +1,790 @@
+use std::collections::{HashMap, HashSet};
+
+use gtfs_core::{EntityType, Notice};
+use gtfs_rules::get_rule;
+
+use crate::k2::EntityRecords;
+use crate::k3_entity_graph::EntityMap;
+
+// ── Çıktı tipleri ─────────────────────────────────────────────────────────────
+
+/// K5'te hesaplanan shape geometry verileri.
+#[derive(Debug, Default)]
+pub struct ShapeGeometry {
+    /// shape_id → segment verileri (sıralı nokta çiftleri arası Haversine km, toplam uzunluk, bbox)
+    pub shapes: HashMap<String, ShapeSegments>,
+}
+
+#[derive(Debug, Clone)]
+pub struct ShapeSegments {
+    /// Ardışık nokta çiftleri arası mesafe (km). Uzunluk = nokta sayısı - 1.
+    pub segment_distances_km: Vec<f64>,
+    /// Toplam polyline uzunluğu (km).
+    pub total_length_km: f64,
+    /// (min_lat, max_lat, min_lon, max_lon)
+    pub bbox: (f64, f64, f64, f64),
+}
+
+/// K5 takvim bitmap — K6 takvim kuralları tarafından tüketilir.
+#[derive(Debug, Default)]
+pub struct CalendarBitmap {
+    /// service_id → aktif YYYYMMDD günleri kümesi
+    pub active_dates: HashMap<String, HashSet<u32>>,
+}
+
+/// K5 uzamsal indeks — K6 STP_016/017 tarafından tüketilir.
+#[derive(Debug, Default)]
+pub struct SpatialIndex {
+    /// Grid-tabanlı durak koordinat indeksi: (grid_row, grid_col) → stop Vec indeksleri
+    pub grid: HashMap<(i32, i32), Vec<usize>>,
+    pub cell_deg: f64,
+}
+
+/// K5 pathway graph — K6 PTH_012–015 tarafından tüketilir.
+#[derive(Debug, Default)]
+pub struct PathwayGraph {
+    /// stop_id → komşu (stop_id, pathway_idx) listesi
+    pub adjacency: HashMap<String, Vec<(String, usize)>>,
+}
+
+/// K5 fare network — fare_id → routes ve zone referansları.
+#[derive(Debug, Default)]
+pub struct FareNetwork {
+    /// fare_id → fare_rules'tan gelen route_id listesi
+    pub fare_routes: HashMap<String, Vec<String>>,
+    /// fare_rules'ta kullanılan tüm zone ID'leri (origin/destination/contains)
+    pub zone_ids: HashSet<String>,
+}
+
+/// K5 türev veri yapılarının kapsayıcısı.
+#[derive(Debug, Default)]
+pub struct DerivedData {
+    pub shape_geometry: ShapeGeometry,
+    pub calendar_bitmap: CalendarBitmap,
+    pub spatial_index: SpatialIndex,
+    pub pathway_graph: PathwayGraph,
+    pub fare_network: FareNetwork,
+}
+
+/// K5 çıktısı.
+#[derive(Debug, Default)]
+pub struct K5Result {
+    pub derived: DerivedData,
+    pub notices: Vec<Notice>,
+}
+
+// ── Ana fonksiyon ─────────────────────────────────────────────────────────────
+
+pub fn build(records: &EntityRecords, entity_map: &EntityMap) -> K5Result {
+    use crate::timing::Timer;
+    let mut derived = DerivedData::default();
+    let mut notices = Vec::new();
+    let mut ctr = 0u32;
+
+    { let _t = Timer::start("K5::shape_geometry");   build_shape_geometry(records, entity_map, &mut derived, &mut notices, &mut ctr); }
+    { let _t = Timer::start("K5::calendar_bitmap");  build_calendar_bitmap(records, &mut derived); }
+    { let _t = Timer::start("K5::spatial_index");    build_spatial_index(records, &mut derived); }
+    { let _t = Timer::start("K5::pathway_graph");    build_pathway_graph(records, &mut derived); }
+    { let _t = Timer::start("K5::fare_network");     build_fare_network(records, &mut derived); }
+
+    K5Result { derived, notices }
+}
+
+// ── Notice yardımcısı ─────────────────────────────────────────────────────────
+
+fn k5_notice(
+    ctr: &mut u32,
+    rule_id: &str,
+    entity_type: EntityType,
+    entity_id: Option<String>,
+    scope_key: Option<String>,
+    file: &str,
+    line: Option<u64>,
+    field: Option<&str>,
+    observed: Option<String>,
+    expected: Option<String>,
+    message: String,
+    remediation: &str,
+) -> Notice {
+    *ctr += 1;
+    let meta = get_rule(rule_id).unwrap_or_else(|| panic!("K5: bilinmeyen rule_id {rule_id}"));
+    Notice {
+        id: format!("{rule_id}#{ctr}"),
+        rule_id: rule_id.to_string(),
+        severity: meta.severity,
+        rule_class: meta.rule_class,
+        entity_type,
+        entity_id,
+        scope_key,
+        file: Some(file.to_string()),
+        line,
+        field: field.map(str::to_string),
+        observed_value: observed,
+        expected_value: expected,
+        details: None,
+        title: meta.title.to_string(),
+        message,
+        remediation: remediation.to_string(),
+        blocks: meta.blocks.iter().map(|s| s.to_string()).collect(),
+        base_effort: meta.base_effort,
+    }
+}
+
+// ── Haversine mesafe (km) ─────────────────────────────────────────────────────
+
+fn haversine_km(lat1: f64, lon1: f64, lat2: f64, lon2: f64) -> f64 {
+    const R: f64 = 6371.0;
+    let dlat = (lat2 - lat1).to_radians();
+    let dlon = (lon2 - lon1).to_radians();
+    let a = (dlat / 2.0).sin().powi(2)
+        + lat1.to_radians().cos() * lat2.to_radians().cos() * (dlon / 2.0).sin().powi(2);
+    2.0 * R * a.sqrt().asin()
+}
+
+// ── WP-08b: Calendar bitmap ───────────────────────────────────────────────────
+
+/// YYYYMMDD tuple → Julian Day Number.
+fn ymd_to_jdn(y: u32, m: u32, d: u32) -> u32 {
+    let a = (14u32.wrapping_sub(m)) / 12;
+    let yr = y + 4800 - a;
+    let mo = m + 12 * a - 3;
+    d + (153 * mo + 2) / 5 + 365 * yr + yr / 4 - yr / 100 + yr / 400 - 32045
+}
+
+/// Julian Day Number → YYYYMMDD.
+fn jdn_to_yyyymmdd(jdn: u32) -> u32 {
+    let a = jdn + 32044;
+    let b = (4 * a + 3) / 146097;
+    let c = a - (146097 * b) / 4;
+    let d = (4 * c + 3) / 1461;
+    let e = c - (1461 * d) / 4;
+    let m = (5 * e + 2) / 153;
+    let day = e - (153 * m + 2) / 5 + 1;
+    let month = m + 3 - 12 * (m / 10);
+    let year = 100 * b + d - 4800 + m / 10;
+    year * 10000 + month * 100 + day
+}
+
+fn build_calendar_bitmap(records: &EntityRecords, derived: &mut DerivedData) {
+    // calendar.txt: base schedule
+    for rec in &records.calendars {
+        if rec.service_id.is_empty() {
+            continue;
+        }
+        let (start, end) = match (rec.start_date, rec.end_date) {
+            (Some(s), Some(e)) => (s, e),
+            _ => continue,
+        };
+        let start_jdn = ymd_to_jdn(start.0, start.1, start.2);
+        let end_jdn = ymd_to_jdn(end.0, end.1, end.2);
+        if end_jdn < start_jdn {
+            continue; // CAL_005 K2'de zaten yakalandı
+        }
+
+        let set = derived
+            .calendar_bitmap
+            .active_dates
+            .entry(rec.service_id.clone())
+            .or_default();
+
+        let mut jdn = start_jdn;
+        while jdn <= end_jdn {
+            // JDN % 7: 0=Mon … 6=Sun — calendar.txt days[] sırası aynı
+            let dow = (jdn % 7) as usize;
+            if rec.days[dow] == Some(1) {
+                set.insert(jdn_to_yyyymmdd(jdn));
+            }
+            jdn += 1;
+        }
+    }
+
+    // calendar_dates.txt: exception overlay
+    for rec in &records.calendar_dates {
+        if rec.service_id.is_empty() {
+            continue;
+        }
+        let date = match rec.date {
+            Some((y, m, d)) => y * 10000 + m * 100 + d,
+            None => continue,
+        };
+        let set = derived
+            .calendar_bitmap
+            .active_dates
+            .entry(rec.service_id.clone())
+            .or_default();
+        match rec.exception_type {
+            Some(1) => {
+                set.insert(date);
+            }
+            Some(2) => {
+                set.remove(&date);
+            }
+            _ => {}
+        }
+    }
+}
+
+// ── WP-08a: Shape geometry ────────────────────────────────────────────────────
+
+fn build_shape_geometry(
+    records: &EntityRecords,
+    entity_map: &EntityMap,
+    derived: &mut DerivedData,
+    notices: &mut Vec<Notice>,
+    ctr: &mut u32,
+) {
+    // Hangi shape_id'lerin trip tarafından kullanıldığını topla (SHP_018 için)
+    let referenced_shapes: HashSet<&str> = records
+        .trips
+        .iter()
+        .filter_map(|t| t.shape_id.as_deref())
+        .filter(|s| !s.is_empty())
+        .collect();
+
+    for (shape_id, point_indices) in &entity_map.shape_points {
+        let n_pts = point_indices.len();
+        if n_pts == 0 { continue; }
+        let first_line = point_indices.first().map(|&i| records.shapes[i].line);
+        if n_pts == 1 {
+            // SHP_006: tek noktalı shape
+            notices.push(k5_notice(ctr, "SHP_006", EntityType::Shape,
+                Some(shape_id.clone()), Some(shape_id.clone()),
+                "shapes.txt", first_line, Some("shape_pt_sequence"),
+                Some("1".to_string()), Some(">= 2".to_string()),
+                format!("'{}' güzergah şekli yalnızca 1 noktadan oluşuyor; en az 2 nokta gerekir.", shape_id),
+                "shapes.txt'e bu shape_id için en az bir nokta daha ekleyin.",
+            ));
+            // SHP_007: çok az noktalı shape (< 3)
+            notices.push(k5_notice(ctr, "SHP_007", EntityType::Shape,
+                Some(shape_id.clone()), Some(shape_id.clone()),
+                "shapes.txt", first_line, Some("shape_pt_sequence"),
+                Some("1".to_string()), Some(">= 3".to_string()),
+                format!("'{}' güzergah şekli yalnızca 1 noktadan oluşuyor; anlamlı bir güzergah için en az 3 nokta önerilir.", shape_id),
+                "Güzergahın tüm dönüm noktalarını shapes.txt'e ekleyin.",
+            ));
+            continue;
+        }
+        if n_pts == 2 {
+            // SHP_007: çok az noktalı shape (< 3)
+            notices.push(k5_notice(ctr, "SHP_007", EntityType::Shape,
+                Some(shape_id.clone()), Some(shape_id.clone()),
+                "shapes.txt", first_line, Some("shape_pt_sequence"),
+                Some("2".to_string()), Some(">= 3".to_string()),
+                format!("'{}' güzergah şekli yalnızca 2 noktadan oluşuyor; anlamlı bir güzergah için en az 3 nokta önerilir.", shape_id),
+                "Güzergahın tüm dönüm noktalarını shapes.txt'e ekleyin.",
+            ));
+            // 2 noktalı shape'in geometry'sini yine de hesapla
+        }
+
+        let mut segment_distances_km: Vec<f64> = Vec::with_capacity(point_indices.len() - 1);
+        let mut total_km = 0.0f64;
+        let mut min_lat = f64::MAX;
+        let mut max_lat = f64::MIN;
+        let mut min_lon = f64::MAX;
+        let mut max_lon = f64::MIN;
+
+        let mut prev_lat: Option<f64> = None;
+        let mut prev_lon: Option<f64> = None;
+        let mut prev_line: u64 = 0;
+
+        for &idx in point_indices {
+            let pt = &records.shapes[idx];
+            let (lat, lon) = match (pt.shape_pt_lat, pt.shape_pt_lon) {
+                (Some(la), Some(lo)) => (la, lo),
+                _ => {
+                    // lat/lon yoksa bu noktayı atla; SHP_003/004/005 K2'de zaten yakalandı
+                    prev_lat = None;
+                    prev_lon = None;
+                    continue;
+                }
+            };
+
+            // Bounding box güncelle
+            min_lat = min_lat.min(lat);
+            max_lat = max_lat.max(lat);
+            min_lon = min_lon.min(lon);
+            max_lon = max_lon.max(lon);
+
+            if let (Some(plat), Some(plon)) = (prev_lat, prev_lon) {
+                // SHP_010: ardışık özdeş koordinat
+                if (lat - plat).abs() < f64::EPSILON && (lon - plon).abs() < f64::EPSILON {
+                    notices.push(k5_notice(
+                        ctr,
+                        "SHP_010",
+                        EntityType::Shape,
+                        Some(shape_id.clone()),
+                        Some(shape_id.clone()),
+                        "shapes.txt",
+                        Some(pt.line),
+                        Some("shape_pt_lat|shape_pt_lon"),
+                        Some(format!("({lat},{lon})")),
+                        None,
+                        format!(
+                            "shape_id '{shape_id}' satır {} ile {} arasında ardışık özdeş koordinat.",
+                            prev_line, pt.line
+                        ),
+                        "Tekrarlanan güzergah noktasını kaldırın.",
+                    ));
+                }
+
+                let d = haversine_km(plat, plon, lat, lon);
+                segment_distances_km.push(d);
+                total_km += d;
+            }
+
+            prev_lat = Some(lat);
+            prev_lon = Some(lon);
+            prev_line = pt.line;
+        }
+
+        derived.shape_geometry.shapes.insert(
+            shape_id.clone(),
+            ShapeSegments {
+                segment_distances_km,
+                total_length_km: total_km,
+                bbox: (min_lat, max_lat, min_lon, max_lon),
+            },
+        );
+    }
+
+    // SHP_018: orphan shape — trip tarafından referans edilmeyen shape
+    for shape_id in entity_map.shape_points.keys() {
+        if !referenced_shapes.contains(shape_id.as_str()) {
+            // İlk noktanın satır numarasını bul
+            let line = entity_map.shape_points[shape_id]
+                .first()
+                .map(|&i| records.shapes[i].line);
+            notices.push(k5_notice(
+                ctr,
+                "SHP_018",
+                EntityType::Shape,
+                Some(shape_id.clone()),
+                Some(shape_id.clone()),
+                "shapes.txt",
+                line,
+                Some("shape_id"),
+                Some(shape_id.clone()),
+                None,
+                format!("'{}' güzergahı hiçbir sefer tarafından referans edilmiyor.", shape_id),
+                "Kullanılmayan güzergah şeklini kaldırın ya da bir sefere atayın.",
+            ));
+        }
+    }
+}
+
+// ── WP-08c: Spatial index ─────────────────────────────────────────────────────
+
+const SPATIAL_CELL_DEG: f64 = 0.5;
+
+fn build_spatial_index(records: &EntityRecords, derived: &mut DerivedData) {
+    derived.spatial_index.cell_deg = SPATIAL_CELL_DEG;
+    for (idx, stop) in records.stops.iter().enumerate() {
+        let (lat, lon) = match (stop.stop_lat, stop.stop_lon) {
+            (Some(la), Some(lo)) => (la, lo),
+            _ => continue,
+        };
+        let row = (lat / SPATIAL_CELL_DEG).floor() as i32;
+        let col = (lon / SPATIAL_CELL_DEG).floor() as i32;
+        derived.spatial_index.grid.entry((row, col)).or_default().push(idx);
+    }
+}
+
+// ── WP-08d: Pathway graph ─────────────────────────────────────────────────────
+
+fn build_pathway_graph(records: &EntityRecords, derived: &mut DerivedData) {
+    for (idx, pw) in records.pathways.iter().enumerate() {
+        if pw.from_stop_id.is_empty() || pw.to_stop_id.is_empty() {
+            continue;
+        }
+        derived
+            .pathway_graph
+            .adjacency
+            .entry(pw.from_stop_id.clone())
+            .or_default()
+            .push((pw.to_stop_id.clone(), idx));
+
+        if pw.is_bidirectional == Some(1) {
+            derived
+                .pathway_graph
+                .adjacency
+                .entry(pw.to_stop_id.clone())
+                .or_default()
+                .push((pw.from_stop_id.clone(), idx));
+        }
+    }
+}
+
+// ── WP-08d: Fare network ──────────────────────────────────────────────────────
+
+fn build_fare_network(records: &EntityRecords, derived: &mut DerivedData) {
+    for rule in &records.fare_rules {
+        if rule.fare_id.is_empty() {
+            continue;
+        }
+        if let Some(route_id) = rule.route_id.as_deref() {
+            derived
+                .fare_network
+                .fare_routes
+                .entry(rule.fare_id.clone())
+                .or_default()
+                .push(route_id.to_string());
+        }
+        for zone in [
+            rule.origin_id.as_deref(),
+            rule.destination_id.as_deref(),
+            rule.contains_id.as_deref(),
+        ]
+        .into_iter()
+        .flatten()
+        {
+            derived.fare_network.zone_ids.insert(zone.to_string());
+        }
+    }
+}
+
+// ── Testler ───────────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::k2::fare_rules::FareRuleRecord;
+    use crate::k2::pathways::PathwayRecord;
+    use crate::k2::shapes::ShapePointRecord;
+    use crate::k2::stops::StopRecord;
+    use crate::k2::trips::TripRecord;
+
+    fn empty_records() -> EntityRecords {
+        EntityRecords::default()
+    }
+
+    fn empty_map() -> EntityMap {
+        EntityMap::default()
+    }
+
+    fn shape_pt(shape_id: &str, seq: u32, lat: f64, lon: f64, line: u64) -> ShapePointRecord {
+        ShapePointRecord {
+            shape_id: shape_id.into(),
+            shape_pt_lat: Some(lat),
+            shape_pt_lon: Some(lon),
+            shape_pt_sequence: Some(seq),
+            shape_dist_traveled: None,
+            line,
+        }
+    }
+
+    fn trip_with_shape(trip_id: &str, shape_id: &str) -> TripRecord {
+        TripRecord {
+            trip_id: trip_id.into(),
+            route_id: "R1".into(),
+            service_id: "SVC".into(),
+            shape_id: Some(shape_id.into()),
+            trip_headsign: None, trip_short_name: None,
+            direction_id: None, block_id: None,
+            wheelchair_accessible: None, bikes_allowed: None,
+            cars_allowed: None, safe_duration_factor: None,
+            safe_duration_offset: None,
+            line: 2,
+        }
+    }
+
+    // ── Haversine ─────────────────────────────────────────────────────────────
+
+    #[test]
+    fn haversine_istanbul_ankara_approx_350km() {
+        // İstanbul (~41.0, 29.0) → Ankara (~39.9, 32.9) ≈ 350 km
+        let d = haversine_km(41.0, 29.0, 39.9, 32.9);
+        assert!(d > 340.0 && d < 360.0, "Beklenen ~350 km, bulunan {d:.1}");
+    }
+
+    #[test]
+    fn haversine_same_point_is_zero() {
+        assert!((haversine_km(41.0, 29.0, 41.0, 29.0)).abs() < 1e-9);
+    }
+
+    // ── ShapeGeometry ─────────────────────────────────────────────────────────
+
+    #[test]
+    fn three_point_shape_produces_two_segments() {
+        let mut records = empty_records();
+        let mut map = empty_map();
+        records.shapes = vec![
+            shape_pt("S1", 1, 41.0, 29.0, 2),
+            shape_pt("S1", 2, 41.1, 29.1, 3),
+            shape_pt("S1", 3, 41.2, 29.2, 4),
+        ];
+        records.trips = vec![trip_with_shape("T1", "S1")];
+        map.shape_points.insert("S1".into(), vec![0, 1, 2]);
+        map.trips.insert("T1".into(), 0);
+
+        let result = build(&records, &map);
+        let seg = result.derived.shape_geometry.shapes.get("S1").unwrap();
+        assert_eq!(seg.segment_distances_km.len(), 2);
+        assert!(seg.total_length_km > 0.0);
+        assert!(result.notices.is_empty(), "Temiz shape'te notice üretilmemeli");
+    }
+
+    #[test]
+    fn bounding_box_correct() {
+        let mut records = empty_records();
+        let mut map = empty_map();
+        records.shapes = vec![
+            shape_pt("S1", 1, 40.0, 28.0, 2),
+            shape_pt("S1", 2, 42.0, 30.0, 3),
+        ];
+        records.trips = vec![trip_with_shape("T1", "S1")];
+        map.shape_points.insert("S1".into(), vec![0, 1]);
+        map.trips.insert("T1".into(), 0);
+
+        let result = build(&records, &map);
+        let seg = result.derived.shape_geometry.shapes.get("S1").unwrap();
+        assert!((seg.bbox.0 - 40.0).abs() < 1e-9); // min_lat
+        assert!((seg.bbox.1 - 42.0).abs() < 1e-9); // max_lat
+        assert!((seg.bbox.2 - 28.0).abs() < 1e-9); // min_lon
+        assert!((seg.bbox.3 - 30.0).abs() < 1e-9); // max_lon
+    }
+
+    // ── SHP_010 ───────────────────────────────────────────────────────────────
+
+    #[test]
+    fn duplicate_coordinate_produces_shp_010() {
+        let mut records = empty_records();
+        let mut map = empty_map();
+        records.shapes = vec![
+            shape_pt("S1", 1, 41.0, 29.0, 2),
+            shape_pt("S1", 2, 41.0, 29.0, 3), // özdeş koordinat
+            shape_pt("S1", 3, 41.1, 29.1, 4),
+        ];
+        records.trips = vec![trip_with_shape("T1", "S1")];
+        map.shape_points.insert("S1".into(), vec![0, 1, 2]);
+        map.trips.insert("T1".into(), 0);
+
+        let result = build(&records, &map);
+        assert!(result.notices.iter().any(|n| n.rule_id == "SHP_010"));
+    }
+
+    // ── SHP_018 ───────────────────────────────────────────────────────────────
+
+    #[test]
+    fn orphan_shape_produces_shp_018() {
+        let mut records = empty_records();
+        let mut map = empty_map();
+        records.shapes = vec![
+            shape_pt("ORPHAN", 1, 41.0, 29.0, 2),
+            shape_pt("ORPHAN", 2, 41.1, 29.1, 3),
+        ];
+        // trips: shape'e referans yok
+        map.shape_points.insert("ORPHAN".into(), vec![0, 1]);
+
+        let result = build(&records, &map);
+        assert!(result.notices.iter().any(|n| n.rule_id == "SHP_018"));
+    }
+
+    #[test]
+    fn referenced_shape_does_not_produce_shp_018() {
+        let mut records = empty_records();
+        let mut map = empty_map();
+        records.shapes = vec![
+            shape_pt("S1", 1, 41.0, 29.0, 2),
+            shape_pt("S1", 2, 41.1, 29.1, 3),
+        ];
+        records.trips = vec![trip_with_shape("T1", "S1")];
+        map.shape_points.insert("S1".into(), vec![0, 1]);
+        map.trips.insert("T1".into(), 0);
+
+        let result = build(&records, &map);
+        assert!(!result.notices.iter().any(|n| n.rule_id == "SHP_018"));
+    }
+
+    // ── Boş feed ─────────────────────────────────────────────────────────────
+
+    #[test]
+    fn empty_feed_produces_no_notices() {
+        let result = build(&empty_records(), &empty_map());
+        assert!(result.notices.is_empty());
+        assert!(result.derived.shape_geometry.shapes.is_empty());
+    }
+
+    // ── WP-08b: CalendarBitmap ────────────────────────────────────────────────
+
+    use crate::k2::calendar::CalendarRecord;
+    use crate::k2::calendar_dates::CalendarDateRecord;
+
+    fn calendar_rec(service_id: &str, days: [Option<u32>; 7], start: (u32,u32,u32), end: (u32,u32,u32)) -> CalendarRecord {
+        CalendarRecord {
+            service_id: service_id.into(),
+            days,
+            start_date: Some(start),
+            end_date: Some(end),
+            row: Default::default(),
+            line: 2,
+        }
+    }
+
+    fn cal_date_rec(service_id: &str, date: (u32,u32,u32), exception_type: u32) -> CalendarDateRecord {
+        CalendarDateRecord {
+            service_id: service_id.into(),
+            date: Some(date),
+            exception_type: Some(exception_type),
+            row: Default::default(),
+            line: 2,
+        }
+    }
+
+    #[test]
+    fn calendar_bitmap_monday_only_in_week() {
+        // 2026-05-11 is a Monday. Mon 11 May 2026 = service active; Tue 12 should not be.
+        let mut records = empty_records();
+        // days: [mon=1, tue=0, wed=0, thu=0, fri=0, sat=0, sun=0]
+        records.calendars = vec![calendar_rec(
+            "SVC1",
+            [Some(1), Some(0), Some(0), Some(0), Some(0), Some(0), Some(0)],
+            (2026, 5, 11),
+            (2026, 5, 17),
+        )];
+        let result = build(&records, &empty_map());
+        let dates = result.derived.calendar_bitmap.active_dates.get("SVC1").unwrap();
+        assert!(dates.contains(&20260511), "Pazartesi olmalı");
+        assert!(!dates.contains(&20260512), "Salı olmamalı");
+        assert!(!dates.contains(&20260517), "Pazar olmamalı");
+        assert_eq!(dates.len(), 1);
+    }
+
+    #[test]
+    fn calendar_dates_exception_type2_removes_date() {
+        let mut records = empty_records();
+        // Tüm hafta aktif
+        records.calendars = vec![calendar_rec(
+            "SVC1",
+            [Some(1), Some(1), Some(1), Some(1), Some(1), Some(1), Some(1)],
+            (2026, 5, 11),
+            (2026, 5, 11),
+        )];
+        // Pazartesi'yi kaldır (exception_type=2)
+        records.calendar_dates = vec![cal_date_rec("SVC1", (2026, 5, 11), 2)];
+        let result = build(&records, &empty_map());
+        let dates = result.derived.calendar_bitmap.active_dates.get("SVC1").unwrap();
+        assert!(!dates.contains(&20260511), "İptal edilen gün olmamalı");
+    }
+
+    #[test]
+    fn calendar_dates_exception_type1_adds_date() {
+        let mut records = empty_records();
+        // Takvim yok, sadece ek gün
+        records.calendar_dates = vec![cal_date_rec("SVC_NEW", (2026, 6, 1), 1)];
+        let result = build(&records, &empty_map());
+        let dates = result.derived.calendar_bitmap.active_dates.get("SVC_NEW").unwrap();
+        assert!(dates.contains(&20260601));
+    }
+
+    // ── WP-08c: SpatialIndex ─────────────────────────────────────────────────
+
+    fn stop_rec(stop_id: &str, lat: f64, lon: f64) -> StopRecord {
+        StopRecord {
+            stop_id: stop_id.into(),
+            stop_code: None, stop_name: None,
+            stop_lat: Some(lat), stop_lon: Some(lon),
+            location_type: None, stop_timezone: None,
+            wheelchair_boarding: None, stop_access: None,
+            level_id: None, tts_stop_name: None,
+            row: Default::default(), line: 2,
+        }
+    }
+
+    #[test]
+    fn spatial_index_places_stops_in_correct_cells() {
+        let mut records = empty_records();
+        // İki durak aynı 0.5° hücresinde (41.0 → cell row=82, 29.0 → cell col=58)
+        records.stops = vec![
+            stop_rec("S1", 41.0, 29.0),
+            stop_rec("S2", 41.2, 29.3),
+            stop_rec("S3", 41.6, 29.0), // farklı hücre (row=83)
+        ];
+        let result = build(&records, &empty_map());
+        let idx = &result.derived.spatial_index;
+        let cell_82_58 = idx.grid.get(&(82, 58)).expect("Hücre (82,58) olmalı");
+        assert_eq!(cell_82_58.len(), 2, "S1 ve S2 aynı hücrede");
+        let cell_83_58 = idx.grid.get(&(83, 58)).expect("Hücre (83,58) olmalı");
+        assert_eq!(cell_83_58.len(), 1, "S3 farklı hücrede");
+    }
+
+    #[test]
+    fn spatial_index_skips_stops_without_coords() {
+        let mut records = empty_records();
+        records.stops = vec![StopRecord {
+            stop_id: "S_NO_COORD".into(),
+            stop_code: None, stop_name: None,
+            stop_lat: None, stop_lon: None,
+            location_type: None, stop_timezone: None,
+            wheelchair_boarding: None, stop_access: None,
+            level_id: None, tts_stop_name: None,
+            row: Default::default(), line: 2,
+        }];
+        let result = build(&records, &empty_map());
+        assert!(result.derived.spatial_index.grid.is_empty());
+    }
+
+    // ── WP-08d: PathwayGraph ──────────────────────────────────────────────────
+
+    fn pathway_rec(pathway_id: &str, from: &str, to: &str, bidirectional: u32) -> PathwayRecord {
+        PathwayRecord {
+            pathway_id: pathway_id.into(),
+            from_stop_id: from.into(),
+            to_stop_id: to.into(),
+            pathway_mode: Some(1),
+            is_bidirectional: Some(bidirectional),
+            length: None, traversal_time: None, stair_count: None,
+            max_slope: None, min_width: None,
+            row: Default::default(), line: 2,
+        }
+    }
+
+    #[test]
+    fn unidirectional_pathway_adds_one_edge() {
+        let mut records = empty_records();
+        records.pathways = vec![pathway_rec("PW1", "A", "B", 0)];
+        let result = build(&records, &empty_map());
+        let adj = &result.derived.pathway_graph.adjacency;
+        assert!(adj.get("A").is_some_and(|v| v.iter().any(|(to, _)| to == "B")));
+        assert!(adj.get("B").is_none_or(|v| !v.iter().any(|(to, _)| to == "A")));
+    }
+
+    #[test]
+    fn bidirectional_pathway_adds_two_edges() {
+        let mut records = empty_records();
+        records.pathways = vec![pathway_rec("PW1", "A", "B", 1)];
+        let result = build(&records, &empty_map());
+        let adj = &result.derived.pathway_graph.adjacency;
+        assert!(adj.get("A").is_some_and(|v| v.iter().any(|(to, _)| to == "B")));
+        assert!(adj.get("B").is_some_and(|v| v.iter().any(|(to, _)| to == "A")));
+    }
+
+    // ── WP-08d: FareNetwork ───────────────────────────────────────────────────
+
+    fn fare_rule_rec(fare_id: &str, route_id: Option<&str>, origin: Option<&str>, dest: Option<&str>) -> FareRuleRecord {
+        FareRuleRecord {
+            fare_id: fare_id.into(),
+            route_id: route_id.map(str::to_string),
+            origin_id: origin.map(str::to_string),
+            destination_id: dest.map(str::to_string),
+            contains_id: None,
+            row: Default::default(), line: 2,
+        }
+    }
+
+    #[test]
+    fn fare_network_indexes_routes_and_zones() {
+        let mut records = empty_records();
+        records.fare_rules = vec![
+            fare_rule_rec("F1", Some("R1"), Some("Z1"), Some("Z2")),
+            fare_rule_rec("F1", Some("R2"), None, None),
+            fare_rule_rec("F2", None, Some("Z3"), None),
+        ];
+        let result = build(&records, &empty_map());
+        let fn_ = &result.derived.fare_network;
+        assert_eq!(fn_.fare_routes.get("F1").unwrap().len(), 2);
+        assert!(fn_.zone_ids.contains("Z1"));
+        assert!(fn_.zone_ids.contains("Z2"));
+        assert!(fn_.zone_ids.contains("Z3"));
+        assert!(!fn_.fare_routes.contains_key("F2"), "F2'nin route_id'si yok");
+    }
+}

@@ -1,0 +1,9 @@
+[http]
+# Windows Schannel sertifika revokasyon kontrolü devre dışı
+check-revoke = false
+
+[build]
+# wasm32 için varsayılan target belirtilmez — cargo wasm-pack bunu yönetir
+
+[target.x86_64-pc-windows-gnu]
+linker = "gcc"
