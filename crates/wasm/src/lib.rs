@@ -27,6 +27,8 @@ pub fn wasm_init() {
 
 const PER_RULE_CAP: usize = 500;
 const NOTICE_LIMIT: usize = 100_000;
+const HIGH_CAP: usize = 2_000;
+const HIGH_CAP_RULES: &[&str] = &["TRP_020", "OPR_007", "STP_016", "STP_017"];
 
 // ── CachedState ───────────────────────────────────────────────────────────────
 
@@ -124,18 +126,21 @@ pub fn rerun_k6_k7(cache: &CachedState, config_delta_json: &str, on_stage: &js_s
 
     let mut all_notices = cache.k1_k5_notices.clone();
     all_notices.extend(k6.notices);
+
+    let real_totals = count_totals(&all_notices);
+    let _ = cap_per_rule(&mut all_notices);
     if all_notices.len() > NOTICE_LIMIT {
         return to_js(&ValidateResult::Fatal(resource_limit_error()));
     }
 
     let t = js_sys::Date::now();
-    let k7 = report_k7(all_notices, &cache.records, &cache.derived, cache.file_stats.clone());
+    let mut k7 = report_k7(all_notices, &cache.records, &cache.derived, cache.file_stats.clone());
     call_stage(on_stage, "K7", (js_sys::Date::now() - t) as u32);
 
-    let mut display_notices = k7.notices;
-    let capped_totals = cap_per_rule(&mut display_notices);
+    scale_r9_deltas(&mut k7.reports, &real_totals);
+    let capped_totals = build_capped_totals(&real_totals);
     to_js(&ValidateResult::Ok(ValidationResult {
-        notices: display_notices,
+        notices: k7.notices,
         reports: k7.reports,
         metrics: k7.metrics,
         name_index: build_name_index(&cache.records),
@@ -181,17 +186,22 @@ fn run_full_pipeline(zip_bytes: &[u8], config: &ValidatorConfig, today: u32) -> 
     all_notices.extend(k4.notices);
     all_notices.extend(k5.notices);
     all_notices.extend(k6.notices);
+
+    // 1) Gerçek totalleri cap öncesinde say (score delta ölçekleme için)
+    let real_totals = count_totals(&all_notices);
+    // 2) Cap uygula — büyük feed'lerde belleği yönet
+    let _ = cap_per_rule(&mut all_notices);
+    // 3) NOTICE_LIMIT cap sonrasında kontrol (Madrid gibi büyük feed'ler çalışsın)
     if all_notices.len() > NOTICE_LIMIT {
         return ValidateResult::Fatal(resource_limit_error());
     }
 
-    // K7 tam notice seti üzerinde çalışır → score delta'lar gerçek notice sayısına göre hesaplanır.
-    // Cap yalnızca UI display için k7.notices üzerine uygulanır.
-    let k7 = report_k7(all_notices, &k2.records, &k5.derived, file_stats);
-    let mut display_notices = k7.notices;
-    let capped_totals = cap_per_rule(&mut display_notices);
+    let mut k7 = report_k7(all_notices, &k2.records, &k5.derived, file_stats);
+    // 4) Cap'e çarpan kurallarda score delta'yı gerçek toplam oranıyla ölçekle
+    scale_r9_deltas(&mut k7.reports, &real_totals);
+    let capped_totals = build_capped_totals(&real_totals);
     ValidateResult::Ok(ValidationResult {
-        notices: display_notices,
+        notices: k7.notices,
         reports: k7.reports,
         metrics: k7.metrics,
         name_index: build_name_index(&k2.records),
@@ -262,30 +272,48 @@ fn parse_config(delta_json: &str) -> Result<ValidatorConfig, FatalError> {
 // Varsayılan cap PER_RULE_CAP (500); gerçek feed'lerde doğal olarak yüksek çıkan
 // kurallar HIGH_CAP_RULES listesinde 2000'e yükseltilmiştir.
 // Dönüş değeri: cap'e çarpan kuralların {rule_id → gerçek_toplam} haritası.
-fn cap_per_rule(notices: &mut Vec<gtfs_core::Notice>) -> std::collections::HashMap<String, u32> {
-    use std::collections::HashMap;
-    const HIGH_CAP_RULES: &[&str] = &["TRP_020", "OPR_007", "STP_016", "STP_017"];
-    const HIGH_CAP: usize = 2_000;
+fn cap_for_rule(rule_id: &str) -> usize {
+    if HIGH_CAP_RULES.contains(&rule_id) { HIGH_CAP } else { PER_RULE_CAP }
+}
 
-    let mut totals: HashMap<String, usize> = HashMap::new();
-    for n in notices.iter() {
-        *totals.entry(n.rule_id.clone()).or_insert(0) += 1;
+fn count_totals(notices: &[gtfs_core::Notice]) -> std::collections::HashMap<String, u32> {
+    let mut m = std::collections::HashMap::new();
+    for n in notices { *m.entry(n.rule_id.clone()).or_insert(0u32) += 1; }
+    m
+}
+
+fn build_capped_totals(real_totals: &std::collections::HashMap<String, u32>) -> std::collections::HashMap<String, u32> {
+    real_totals.iter()
+        .filter_map(|(rule_id, &total)| {
+            if total > cap_for_rule(rule_id) as u32 { Some((rule_id.clone(), total)) } else { None }
+        })
+        .collect()
+}
+
+/// Cap'e çarpan kurallarda R9 score delta'larını gerçek notice sayısıyla orantılı ölçekler.
+/// Büyük sayılarda hiperbolik model lineerleşir; ölçekleme iyi bir yaklaşım sağlar.
+fn scale_r9_deltas(reports: &mut gtfs_core::ReportSet, real_totals: &std::collections::HashMap<String, u32>) {
+    for item in &mut reports.r9.items {
+        if let Some(&real) = real_totals.get(&item.rule_id) {
+            let cap = cap_for_rule(&item.rule_id) as u32;
+            let shown = real.min(cap);
+            if shown > 0 && real > shown {
+                let scale = real as f64 / shown as f64;
+                item.score_delta *= scale;
+                item.pub_score_delta *= scale;
+            }
+        }
     }
+}
 
-    let mut counts: HashMap<String, usize> = HashMap::new();
+fn cap_per_rule(notices: &mut Vec<gtfs_core::Notice>) -> std::collections::HashMap<String, u32> {
+    let mut counts: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
     notices.retain(|n| {
         let c = counts.entry(n.rule_id.clone()).or_insert(0);
         *c += 1;
-        let cap = if HIGH_CAP_RULES.contains(&n.rule_id.as_str()) { HIGH_CAP } else { PER_RULE_CAP };
-        *c <= cap
+        *c <= cap_for_rule(&n.rule_id)
     });
-
-    totals.into_iter()
-        .filter_map(|(rule_id, total)| {
-            let cap = if HIGH_CAP_RULES.contains(&rule_id.as_str()) { HIGH_CAP } else { PER_RULE_CAP };
-            if total > cap { Some((rule_id, total as u32)) } else { None }
-        })
-        .collect()
+    std::collections::HashMap::new() // artık count_totals + build_capped_totals kullanılıyor
 }
 
 fn resource_limit_error() -> FatalError {
