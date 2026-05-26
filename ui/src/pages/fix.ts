@@ -44,6 +44,12 @@ function renderR9(items: R9Item[], noticeMap: Map<string, Notice>, normFactor: n
     return '<div class="card"><h2>Düzeltme Kuyruğu (R9)</h2><p class="empty">Düzeltilecek bulgu yok.</p></div>';
   }
 
+  // result.notices = display_notices (cap sonrası), kural başına kaç notice gösterildiğini hesapla
+  const shownCounts: Record<string, number> = {};
+  for (const n of noticeMap.values()) {
+    shownCounts[n.rule_id] = (shownCounts[n.rule_id] ?? 0) + 1;
+  }
+
   const rowPairs = items.map((item, i) => {
     const notice = item.notice_ids[0] ? noticeMap.get(item.notice_ids[0]) : undefined;
     const severity = notice?.severity ?? 'INFO';
@@ -54,8 +60,9 @@ function renderR9(items: R9Item[], noticeMap: Map<string, Notice>, normFactor: n
     const pubHtml  = pubSd  >= 0.05 ? `<span class="pub-delta">+${pubSd.toFixed(1)}</span>`   : '<span class="muted-text">—</span>';
     const qualHtml = qualSd >= 0.05 ? `<span class="score-delta">+${qualSd.toFixed(1)}</span>` : '<span class="muted-text">—</span>';
     const realTotal = cappedTotals[item.rule_id];
+    // Toplam: sadece cap'e çarpan kurullarda "R2'de gösterilen / gerçek toplam" formatında
     const totalHtml = realTotal != null
-      ? `<span class="cap-total">${realTotal.toLocaleString('tr-TR')}</span>`
+      ? `<span class="cap-shown">${(shownCounts[item.rule_id] ?? 0).toLocaleString('tr-TR')}</span><span class="muted-text"> / </span><span class="cap-total">${realTotal.toLocaleString('tr-TR')}</span>`
       : '<span class="muted-text">—</span>';
 
     const mainRow = `
@@ -99,7 +106,7 @@ function renderR9(items: R9Item[], noticeMap: Map<string, Notice>, normFactor: n
             <th>Önem</th>
             <th>Etiket</th>
             <th>Hata <span class="col-info" title="Bu kuraldan kaç hata üretildi — sorunun yaygınlığını gösterir.">ℹ</span></th>
-            <th>Toplam <span class="col-info" title="Kural başına notice sınırı (cap) uygulandığında gerçek ihlal sayısı. Raporda yalnızca sınır kadar notice gösterilmektedir; sınıra çarpmayan kurallarda bu sütun boş kalır.">ℹ</span></th>
+            <th>Tablo <span class="col-info" title="Kural başına 500 notice sınırı (cap) uygulandığında: R2 tablosunda gezinebileceğiniz / gerçek toplam. Sınıra çarpmayan kurallarda boş kalır.">ℹ</span></th>
             <th class="score">Skor <span class="col-info" title="Öncelik puanı. Ciddiyet × (1+Bağımlı) × log₂(1+Etkilenen) / Çaba formülüyle hesaplanır. Yüksek skor = önce düzelt.">ℹ</span></th>
             <th class="score-delta-cell">+Yayın <span class="col-info" title="Bu kural düzeltilirse yayın skoru kaç puan artar. Yalnızca blocker/conditional_blocker kurallar için gösterilir. Toplamı = 100 − mevcut yayın skoru.">ℹ</span></th>
             <th class="score-delta-cell">+Kalite <span class="col-info" title="Bu kural düzeltilirse kalite skoru kaç puan artar. Toplamı = 100 − mevcut kalite skoru.">ℹ</span></th>
