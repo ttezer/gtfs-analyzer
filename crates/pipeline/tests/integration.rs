@@ -552,9 +552,10 @@ fn lvl_006_fires_when_elevator_stop_missing_level_id() {
                 vr.notices.iter().map(|n| n.rule_id.as_str()).collect::<Vec<_>>(),
             );
         }
-        _ => panic!("ValidateResult::Ok beklendi"),
+        _ => panic!("Fatal hata"),
     }
 }
+
 
 // ── Test 19: LVL_006 — asansör pathway'inde level_id dolu → sessiz ────────────
 // PLT_A ve PLT_B her ikisinde de level_id var → LVL_006 üretilmez.

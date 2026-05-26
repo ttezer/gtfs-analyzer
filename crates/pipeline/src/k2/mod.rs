@@ -1,39 +1,57 @@
 ﻿pub mod agency;
+pub mod areas;
 pub mod attributions;
 pub mod calendar;
 pub mod calendar_dates;
 pub mod common;
-pub mod feed_info;
 pub mod fare_attributes;
+pub mod fare_leg_rules;
+pub mod fare_media;
+pub mod fare_products;
 pub mod fare_rules;
+pub mod fare_transfer_rules;
+pub mod feed_info;
 pub mod frequencies;
 pub mod levels;
+pub mod networks;
 pub mod pathways;
+pub mod rider_categories;
 pub mod routes;
 pub mod shapes;
+pub mod stop_areas;
 pub mod stops;
 pub mod stop_times;
+pub mod timeframes;
 pub mod transfers;
 pub mod translations;
 pub mod trips;
 
 use agency::{validate_agency, AgencyRecord};
+use areas::{parse_areas, AreaRecord};
 use attributions::{validate_attributions, AttributionRecord};
 use common::make_k2_notice;
 use calendar::{validate_calendar, CalendarRecord};
 use calendar_dates::{validate_calendar_dates, CalendarDateRecord};
 use gtfs_core::Notice;
 use crate::k1_parse::{RawFile, RawFiles};
-use feed_info::{validate_feed_info, FeedInfoRecord};
 use fare_attributes::{validate_fare_attributes, FareAttributeRecord};
+use fare_leg_rules::{validate_fare_leg_rules, FareLegRuleRecord};
+use fare_media::{validate_fare_media, FareMediaRecord};
+use fare_products::{validate_fare_products, FareProductRecord};
 use fare_rules::{parse_fare_rules, FareRuleRecord};
+use fare_transfer_rules::{validate_fare_transfer_rules, FareTransferRuleRecord};
+use feed_info::{validate_feed_info, FeedInfoRecord};
 use frequencies::{validate_frequencies, FrequencyRecord};
 use levels::{validate_levels, LevelRecord};
+use networks::{parse_networks, NetworkRecord};
 use pathways::{validate_pathways, PathwayRecord};
+use rider_categories::{validate_rider_categories, RiderCategoryRecord};
 use routes::{validate_routes, RouteRecord};
 use shapes::{validate_shapes, ShapePointRecord};
+use stop_areas::{parse_stop_areas, StopAreaRecord};
 use stops::{validate_stops, StopRecord};
 use stop_times::{validate_stop_times, StopTimeRecord};
+use timeframes::{validate_timeframes, TimeframeRecord};
 use transfers::{validate_transfers, TransferRecord};
 use translations::{validate_translations, TranslationRecord};
 use trips::{validate_trips, TripRecord};
@@ -42,19 +60,28 @@ use trips::{validate_trips, TripRecord};
 #[derive(Debug, Default)]
 pub struct EntityRecords {
     pub agencies: Vec<AgencyRecord>,
+    pub areas: Vec<AreaRecord>,
     pub attributions: Vec<AttributionRecord>,
     pub calendars: Vec<CalendarRecord>,
     pub calendar_dates: Vec<CalendarDateRecord>,
     pub feed_info: Vec<FeedInfoRecord>,
     pub fare_attributes: Vec<FareAttributeRecord>,
+    pub fare_leg_rules: Vec<FareLegRuleRecord>,
+    pub fare_media: Vec<FareMediaRecord>,
+    pub fare_products: Vec<FareProductRecord>,
     pub fare_rules: Vec<FareRuleRecord>,
+    pub fare_transfer_rules: Vec<FareTransferRuleRecord>,
     pub frequencies: Vec<FrequencyRecord>,
     pub levels: Vec<LevelRecord>,
+    pub networks: Vec<NetworkRecord>,
     pub pathways: Vec<PathwayRecord>,
+    pub rider_categories: Vec<RiderCategoryRecord>,
     pub routes: Vec<RouteRecord>,
     pub shapes: Vec<ShapePointRecord>,
+    pub stop_areas: Vec<StopAreaRecord>,
     pub stops: Vec<StopRecord>,
     pub stop_times: Vec<StopTimeRecord>,
+    pub timeframes: Vec<TimeframeRecord>,
     pub transfers: Vec<TransferRecord>,
     pub translations: Vec<TranslationRecord>,
     pub trips: Vec<TripRecord>,
@@ -188,6 +215,63 @@ pub fn validate(files: &RawFiles) -> K2Result {
         let (trip_records, trip_notices) = validate_trips(file);
         records.trips = trip_records;
         notices.extend(trip_notices);
+    }
+
+    if let Some(file) = files.get("areas.txt") {
+        let _t = Timer::start("K2::areas");
+        records.areas = parse_areas(file);
+    }
+
+    if let Some(file) = files.get("stop_areas.txt") {
+        let _t = Timer::start("K2::stop_areas");
+        records.stop_areas = parse_stop_areas(file);
+    }
+
+    if let Some(file) = files.get("networks.txt") {
+        let _t = Timer::start("K2::networks");
+        records.networks = parse_networks(file);
+    }
+
+    if let Some(file) = files.get("rider_categories.txt") {
+        let _t = Timer::start("K2::rider_categories");
+        let (rcat_records, rcat_notices) = validate_rider_categories(file);
+        records.rider_categories = rcat_records;
+        notices.extend(rcat_notices);
+    }
+
+    if let Some(file) = files.get("fare_media.txt") {
+        let _t = Timer::start("K2::fare_media");
+        let (fmed_records, fmed_notices) = validate_fare_media(file);
+        records.fare_media = fmed_records;
+        notices.extend(fmed_notices);
+    }
+
+    if let Some(file) = files.get("fare_products.txt") {
+        let _t = Timer::start("K2::fare_products");
+        let (fprod_records, fprod_notices) = validate_fare_products(file);
+        records.fare_products = fprod_records;
+        notices.extend(fprod_notices);
+    }
+
+    if let Some(file) = files.get("fare_leg_rules.txt") {
+        let _t = Timer::start("K2::fare_leg_rules");
+        let (flr_records, flr_notices) = validate_fare_leg_rules(file);
+        records.fare_leg_rules = flr_records;
+        notices.extend(flr_notices);
+    }
+
+    if let Some(file) = files.get("fare_transfer_rules.txt") {
+        let _t = Timer::start("K2::fare_transfer_rules");
+        let (ftr_records, ftr_notices) = validate_fare_transfer_rules(file);
+        records.fare_transfer_rules = ftr_records;
+        notices.extend(ftr_notices);
+    }
+
+    if let Some(file) = files.get("timeframes.txt") {
+        let _t = Timer::start("K2::timeframes");
+        let (tfr_records, tfr_notices) = validate_timeframes(file);
+        records.timeframes = tfr_records;
+        notices.extend(tfr_notices);
     }
 
     records.has_route_networks_file = files.contains_key("route_networks.txt");

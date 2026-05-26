@@ -19,6 +19,10 @@ const KNOWN_FILES: &[&str] = &[
     "transfers.txt", "fare_attributes.txt", "fare_rules.txt",
     "pathways.txt", "levels.txt", "feed_info.txt", "translations.txt", "attributions.txt",
     "route_networks.txt",
+    // Fares v2
+    "areas.txt", "stop_areas.txt", "networks.txt",
+    "rider_categories.txt", "fare_media.txt", "fare_products.txt",
+    "fare_leg_rules.txt", "fare_transfer_rules.txt", "timeframes.txt",
 ];
 
 // ── Tipler ────────────────────────────────────────────────────────────────────

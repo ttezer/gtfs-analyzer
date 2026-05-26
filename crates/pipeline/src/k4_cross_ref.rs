@@ -100,6 +100,7 @@ pub fn check(records: &EntityRecords, entity_map: &EntityMap, today: u32) -> K4R
     { let _t = Timer::start("K4::transfers");      check_transfers(records, map, &mut notices, &mut ctr, &stm_trips_in_stm, &stm_trip_stops); }
     { let _t = Timer::start("K4::fare_attributes");check_fare_attributes(records, map, &mut notices, &mut ctr); }
     { let _t = Timer::start("K4::fare_rules");     check_fare_rules(records, map, &mut notices, &mut ctr); }
+    { let _t = Timer::start("K4::fares_v2");       check_fares_v2(records, map, &mut notices, &mut ctr); }
     { let _t = Timer::start("K4::levels");         check_levels(records, map, &mut notices, &mut ctr); }
     { let _t = Timer::start("K4::translations");   check_translations(records, map, &mut notices, &mut ctr); }
     { let _t = Timer::start("K4::attributions");   check_attributions(records, map, &mut notices, &mut ctr); }
@@ -1502,6 +1503,196 @@ fn check_fare_rules(
                     ));
                 }
             }
+        }
+    }
+}
+
+
+// -- Fares v2 cross-reference
+
+fn check_fares_v2(
+    records: &EntityRecords,
+    map: &EntityMap,
+    notices: &mut Vec<Notice>,
+    ctr: &mut u32,
+) {
+    // FPD_004/005: fare_products foreign keys
+    for rec in &records.fare_products {
+        if let Some(ref fmid) = rec.fare_media_id {
+            if !map.fare_media_ids.contains_key(fmid.as_str()) {
+                notices.push(notice(
+                    ctr, "FPD_004", EntityType::Row,
+                    Some(rec.fare_product_id.clone()), Some(rec.fare_product_id.clone()),
+                    "fare_products.txt", Some(rec.line), Some("fare_media_id"),
+                    Some(fmid.clone()), None,
+                    format!("'{}' odeme araci fare_media.txt te tanimli degil.", fmid),
+                    "Gecerli bir fare_media_id kullanin.",
+                ));
+            }
+        }
+        if let Some(ref rcid) = rec.rider_category_id {
+            if !map.rider_category_ids.contains(rcid.as_str()) {
+                notices.push(notice(
+                    ctr, "FPD_005", EntityType::Row,
+                    Some(rec.fare_product_id.clone()), Some(rec.fare_product_id.clone()),
+                    "fare_products.txt", Some(rec.line), Some("rider_category_id"),
+                    Some(rcid.clone()), None,
+                    format!("'{}' yolcu kategorisi rider_categories.txt te tanimli degil.", rcid),
+                    "Gecerli bir rider_category_id kullanin.",
+                ));
+            }
+        }
+    }
+
+    // FLG_001-006: fare_leg_rules cross-ref
+    for rec in &records.fare_leg_rules {
+        if !rec.fare_product_id.is_empty() && !map.fare_product_ids.contains_key(rec.fare_product_id.as_str()) {
+            let eid = rec.leg_group_id.clone();
+            notices.push(notice(
+                ctr, "FLG_001", EntityType::Row, eid.clone(), eid.clone(),
+                "fare_leg_rules.txt", Some(rec.line), Some("fare_product_id"),
+                Some(rec.fare_product_id.clone()), None,
+                format!("'{}' ucret urunu fare_products.txt te tanimli degil.", rec.fare_product_id),
+                "Gecerli bir fare_product_id kullanin.",
+            ));
+        }
+        if let Some(ref nid) = rec.network_id {
+            if !map.network_ids.contains(nid.as_str()) {
+                let eid = rec.leg_group_id.clone();
+                notices.push(notice(
+                    ctr, "FLG_002", EntityType::Row, eid.clone(), eid.clone(),
+                    "fare_leg_rules.txt", Some(rec.line), Some("network_id"),
+                    Some(nid.clone()), None,
+                    format!("'{}' ag kodu networks.txt te tanimli degil.", nid),
+                    "Gecerli bir network_id kullanin.",
+                ));
+            }
+        }
+        if let Some(ref aid) = rec.from_area_id {
+            if !map.areas.contains_key(aid.as_str()) {
+                let eid = rec.leg_group_id.clone();
+                notices.push(notice(
+                    ctr, "FLG_003", EntityType::Row, eid.clone(), eid.clone(),
+                    "fare_leg_rules.txt", Some(rec.line), Some("from_area_id"),
+                    Some(aid.clone()), None,
+                    format!("'{}' alan kodu areas.txt te tanimli degil.", aid),
+                    "Gecerli bir from_area_id kullanin.",
+                ));
+            }
+        }
+        if let Some(ref aid) = rec.to_area_id {
+            if !map.areas.contains_key(aid.as_str()) {
+                let eid = rec.leg_group_id.clone();
+                notices.push(notice(
+                    ctr, "FLG_004", EntityType::Row, eid.clone(), eid.clone(),
+                    "fare_leg_rules.txt", Some(rec.line), Some("to_area_id"),
+                    Some(aid.clone()), None,
+                    format!("'{}' alan kodu areas.txt te tanimli degil.", aid),
+                    "Gecerli bir to_area_id kullanin.",
+                ));
+            }
+        }
+        if let Some(ref tfid) = rec.from_timeframe_group_id {
+            if !map.timeframe_group_ids.contains(tfid.as_str()) {
+                let eid = rec.leg_group_id.clone();
+                notices.push(notice(
+                    ctr, "FLG_005", EntityType::Row, eid.clone(), eid.clone(),
+                    "fare_leg_rules.txt", Some(rec.line), Some("from_timeframe_group_id"),
+                    Some(tfid.clone()), None,
+                    format!("'{}' zaman dilimi timeframes.txt te tanimli degil.", tfid),
+                    "Gecerli bir from_timeframe_group_id kullanin.",
+                ));
+            }
+        }
+        if let Some(ref tfid) = rec.to_timeframe_group_id {
+            if !map.timeframe_group_ids.contains(tfid.as_str()) {
+                let eid = rec.leg_group_id.clone();
+                notices.push(notice(
+                    ctr, "FLG_006", EntityType::Row, eid.clone(), eid.clone(),
+                    "fare_leg_rules.txt", Some(rec.line), Some("to_timeframe_group_id"),
+                    Some(tfid.clone()), None,
+                    format!("'{}' zaman dilimi timeframes.txt te tanimli degil.", tfid),
+                    "Gecerli bir to_timeframe_group_id kullanin.",
+                ));
+            }
+        }
+    }
+
+    // FTR_002-004: fare_transfer_rules cross-ref
+    for rec in &records.fare_transfer_rules {
+        if let Some(ref lgid) = rec.from_leg_group_id {
+            if !map.leg_group_ids.contains(lgid.as_str()) {
+                notices.push(notice(
+                    ctr, "FTR_002", EntityType::Row,
+                    Some(lgid.clone()), Some(lgid.clone()),
+                    "fare_transfer_rules.txt", Some(rec.line), Some("from_leg_group_id"),
+                    Some(lgid.clone()), None,
+                    format!("'{}' bacak grubu fare_leg_rules.txt te tanimli degil.", lgid),
+                    "Gecerli bir from_leg_group_id kullanin.",
+                ));
+            }
+        }
+        if let Some(ref lgid) = rec.to_leg_group_id {
+            if !map.leg_group_ids.contains(lgid.as_str()) {
+                notices.push(notice(
+                    ctr, "FTR_003", EntityType::Row,
+                    Some(lgid.clone()), Some(lgid.clone()),
+                    "fare_transfer_rules.txt", Some(rec.line), Some("to_leg_group_id"),
+                    Some(lgid.clone()), None,
+                    format!("'{}' bacak grubu fare_leg_rules.txt te tanimli degil.", lgid),
+                    "Gecerli bir to_leg_group_id kullanin.",
+                ));
+            }
+        }
+        if let Some(ref fpid) = rec.fare_product_id {
+            if !map.fare_product_ids.contains_key(fpid.as_str()) {
+                notices.push(notice(
+                    ctr, "FTR_004", EntityType::Row,
+                    rec.from_leg_group_id.clone(), rec.from_leg_group_id.clone(),
+                    "fare_transfer_rules.txt", Some(rec.line), Some("fare_product_id"),
+                    Some(fpid.clone()), None,
+                    format!("'{}' ucret urunu fare_products.txt te tanimli degil.", fpid),
+                    "Gecerli bir fare_product_id kullanin.",
+                ));
+            }
+        }
+    }
+
+    // SAR_001-002: stop_areas cross-ref
+    for rec in &records.stop_areas {
+        if !rec.area_id.is_empty() && !map.areas.contains_key(rec.area_id.as_str()) {
+            notices.push(notice(
+                ctr, "SAR_001", EntityType::Row,
+                Some(rec.area_id.clone()), Some(rec.area_id.clone()),
+                "stop_areas.txt", Some(rec.line), Some("area_id"),
+                Some(rec.area_id.clone()), None,
+                format!("'{}' alan kodu areas.txt te tanimli degil.", rec.area_id),
+                "Gecerli bir area_id kullanin.",
+            ));
+        }
+        if !rec.stop_id.is_empty() && !map.stops.contains_key(rec.stop_id.as_str()) {
+            notices.push(notice(
+                ctr, "SAR_002", EntityType::Row,
+                Some(rec.stop_id.clone()), Some(rec.stop_id.clone()),
+                "stop_areas.txt", Some(rec.line), Some("stop_id"),
+                Some(rec.stop_id.clone()), None,
+                format!("'{}' durak stops.txt te tanimli degil.", rec.stop_id),
+                "Gecerli bir stop_id kullanin.",
+            ));
+        }
+    }
+
+    // TFR_002: timeframes.service_id cross-ref
+    for rec in &records.timeframes {
+        if !rec.service_id.is_empty() && !map.services.contains(rec.service_id.as_str()) {
+            notices.push(notice(
+                ctr, "TFR_002", EntityType::Row,
+                Some(rec.timeframe_group_id.clone()), Some(rec.timeframe_group_id.clone()),
+                "timeframes.txt", Some(rec.line), Some("service_id"),
+                Some(rec.service_id.clone()), None,
+                format!("'{}' servis takvimi tanimli degil.", rec.service_id),
+                "Gecerli bir service_id kullanin.",
+            ));
         }
     }
 }

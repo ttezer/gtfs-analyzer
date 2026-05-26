@@ -72,6 +72,21 @@ pub struct EntityMap {
     pub fare_attrs: HashMap<String, usize>,
     /// stops.txt'te tanımlı zone_id kümesi (fare_rules cross-ref için)
     pub zone_ids: HashSet<String>,
+    // ── Fares v2 ──────────────────────────────────────────────────────────────
+    /// area_id → areas indeksi
+    pub areas: HashMap<String, usize>,
+    /// network_id kümesi
+    pub network_ids: HashSet<String>,
+    /// rider_category_id kümesi
+    pub rider_category_ids: HashSet<String>,
+    /// fare_media_id → fare_media indeksi
+    pub fare_media_ids: HashMap<String, usize>,
+    /// fare_product_id → fare_products indeksi
+    pub fare_product_ids: HashMap<String, usize>,
+    /// fare_leg_rules'tan toplanan leg_group_id kümesi
+    pub leg_group_ids: HashSet<String>,
+    /// timeframes'ten toplanan timeframe_group_id kümesi
+    pub timeframe_group_ids: HashSet<String>,
 }
 
 /// K3 çıktısı.
@@ -98,6 +113,7 @@ pub fn build(records: &EntityRecords) -> K3Result {
     build_pathways(records, &mut map, &mut notices, &mut ctr);
     build_levels(records, &mut map, &mut notices, &mut ctr);
     build_fare_attrs(records, &mut map, &mut notices, &mut ctr);
+    build_fares_v2(records, &mut map, &mut notices, &mut ctr);
 
     K3Result { entity_map: map, notices }
 }
@@ -407,6 +423,128 @@ fn build_fare_attrs(
             ));
         } else {
             map.fare_attrs.insert(fid.clone(), idx);
+        }
+    }
+}
+
+// ── Fares v2: areas, networks, rider_categories, fare_media, fare_products ────
+
+fn build_fares_v2(
+    records: &EntityRecords,
+    map: &mut EntityMap,
+    notices: &mut Vec<Notice>,
+    ctr: &mut u32,
+) {
+    // ARS_001: area_id tekil
+    for (idx, rec) in records.areas.iter().enumerate() {
+        if rec.area_id.is_empty() {
+            continue;
+        }
+        if let Some(&prev_idx) = map.areas.get(rec.area_id.as_str()) {
+            let prev_line = records.areas[prev_idx].line;
+            notices.push(make_notice(
+                ctr, "ARS_001", EntityType::Row,
+                Some(rec.area_id.clone()), Some(rec.area_id.clone()),
+                "areas.txt", rec.line, "area_id",
+                Some(rec.area_id.clone()),
+                format!("'{}' alan kodu tekrarlanıyor (ilk görünüm: satır {prev_line}).", rec.area_id),
+                "Her alana benzersiz bir area_id atayın.",
+            ));
+        } else {
+            map.areas.insert(rec.area_id.clone(), idx);
+        }
+    }
+
+    // NET_001: network_id tekil
+    for rec in &records.networks {
+        if rec.network_id.is_empty() {
+            continue;
+        }
+        if map.network_ids.contains(rec.network_id.as_str()) {
+            notices.push(make_notice(
+                ctr, "NET_001", EntityType::Row,
+                Some(rec.network_id.clone()), Some(rec.network_id.clone()),
+                "networks.txt", rec.line, "network_id",
+                Some(rec.network_id.clone()),
+                format!("'{}' ağ kodu tekrarlanıyor.", rec.network_id),
+                "Her ağa benzersiz bir network_id atayın.",
+            ));
+        } else {
+            map.network_ids.insert(rec.network_id.clone());
+        }
+    }
+
+    // RCT_001: rider_category_id tekil
+    for rec in &records.rider_categories {
+        if rec.rider_category_id.is_empty() {
+            continue;
+        }
+        if map.rider_category_ids.contains(rec.rider_category_id.as_str()) {
+            notices.push(make_notice(
+                ctr, "RCT_001", EntityType::Row,
+                Some(rec.rider_category_id.clone()), Some(rec.rider_category_id.clone()),
+                "rider_categories.txt", rec.line, "rider_category_id",
+                Some(rec.rider_category_id.clone()),
+                format!("'{}' yolcu kategorisi tekrarlanıyor.", rec.rider_category_id),
+                "Her yolcu kategorisine benzersiz bir rider_category_id atayın.",
+            ));
+        } else {
+            map.rider_category_ids.insert(rec.rider_category_id.clone());
+        }
+    }
+
+    // FMD_001: fare_media_id tekil
+    for (idx, rec) in records.fare_media.iter().enumerate() {
+        if rec.fare_media_id.is_empty() {
+            continue;
+        }
+        if let Some(&prev_idx) = map.fare_media_ids.get(rec.fare_media_id.as_str()) {
+            let prev_line = records.fare_media[prev_idx].line;
+            notices.push(make_notice(
+                ctr, "FMD_001", EntityType::Row,
+                Some(rec.fare_media_id.clone()), Some(rec.fare_media_id.clone()),
+                "fare_media.txt", rec.line, "fare_media_id",
+                Some(rec.fare_media_id.clone()),
+                format!("'{}' ödeme aracı tekrarlanıyor (ilk görünüm: satır {prev_line}).", rec.fare_media_id),
+                "Her ödeme aracına benzersiz bir fare_media_id atayın.",
+            ));
+        } else {
+            map.fare_media_ids.insert(rec.fare_media_id.clone(), idx);
+        }
+    }
+
+    // FPD_001: fare_product_id tekil
+    for (idx, rec) in records.fare_products.iter().enumerate() {
+        if rec.fare_product_id.is_empty() {
+            continue;
+        }
+        if let Some(&prev_idx) = map.fare_product_ids.get(rec.fare_product_id.as_str()) {
+            let prev_line = records.fare_products[prev_idx].line;
+            notices.push(make_notice(
+                ctr, "FPD_001", EntityType::Row,
+                Some(rec.fare_product_id.clone()), Some(rec.fare_product_id.clone()),
+                "fare_products.txt", rec.line, "fare_product_id",
+                Some(rec.fare_product_id.clone()),
+                format!("'{}' ücret ürünü tekrarlanıyor (ilk görünüm: satır {prev_line}).", rec.fare_product_id),
+                "Her ücret ürününe benzersiz bir fare_product_id atayın.",
+            ));
+        } else {
+            map.fare_product_ids.insert(rec.fare_product_id.clone(), idx);
+        }
+    }
+
+    // leg_group_id ve timeframe_group_id kümelerini topla (K4 cross-ref için)
+    for rec in &records.fare_leg_rules {
+        if let Some(ref lgid) = rec.leg_group_id {
+            if !lgid.is_empty() {
+                map.leg_group_ids.insert(lgid.clone());
+            }
+        }
+    }
+
+    for rec in &records.timeframes {
+        if !rec.timeframe_group_id.is_empty() {
+            map.timeframe_group_ids.insert(rec.timeframe_group_id.clone());
         }
     }
 }

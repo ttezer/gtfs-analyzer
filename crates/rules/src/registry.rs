@@ -636,6 +636,99 @@ pub static RULES: &[RuleMeta] = &[
     r!("FRL_008", Bilgi,  Quality, 3, &[], None, VS, Feed,
         "Tüm hatlar için ücret tanımlı değil"),
 
+    // ── RCT: Rider Categories (Fares v2) ──────────────────────────────────────
+    r!("RCT_001", Kritik, Spec, 1, &["FPD_005"],
+        Some("rider_category_id"), VS_K, Row,
+        "rider_category_id yineleniyor"),
+    r!("RCT_002", Kritik, Spec, 1, &[], Some("rider_category_id"), VS_K, Row,
+        "rider_category_name eksik"),
+    r!("RCT_003", Kritik, Spec, 1, &[], Some("rider_category_id"), VS_K, Row,
+        "is_default_fare_category geçersiz"),
+    r!("RCT_004", Orta,   Spec, 1, &[], Some("rider_category_id"), VS, Row,
+        "min_age veya max_age geçersiz"),
+    r!("RCT_005", Orta,   Spec, 1, &[], Some("rider_category_id"), VS, Row,
+        "max_age min_age'den küçük"),
+
+    // ── FMD: Fare Media (Fares v2) ────────────────────────────────────────────
+    r!("FMD_001", Kritik, Spec, 1, &["FPD_004"],
+        Some("fare_media_id"), VS_K, Row,
+        "fare_media_id yineleniyor"),
+    r!("FMD_002", Kritik, Spec, 1, &[], Some("fare_media_id"), VS_K, Row,
+        "fare_media_type eksik veya geçersiz"),
+
+    // ── FPD: Fare Products (Fares v2) ─────────────────────────────────────────
+    r!("FPD_001", Kritik, Spec, 1, &["FLG_001","FTR_004"],
+        Some("fare_product_id"), VS_K, Row,
+        "fare_product_id yineleniyor"),
+    r!("FPD_002", Kritik, Spec, 1, &[], Some("fare_product_id"), VS_K, Row,
+        "amount eksik veya negatif"),
+    r!("FPD_003", Kritik, Spec, 1, &[], Some("fare_product_id"), VS_K, Row,
+        "currency geçersiz ISO 4217 kodu"),
+    r!("FPD_004", Kritik, Spec, 1, &[], Some("fare_product_id"), VS_K, Row,
+        "fare_media_id bulunamadı"),
+    r!("FPD_005", Kritik, Spec, 1, &[], Some("fare_product_id"), VS_K, Row,
+        "rider_category_id bulunamadı"),
+
+    // ── FLG: Fare Leg Rules (Fares v2) ────────────────────────────────────────
+    r!("FLG_001", Kritik, Spec, 1, &[], Some("fare_product_id"), VS_K, Row,
+        "fare_product_id bulunamadı"),
+    r!("FLG_002", Kritik, Spec, 1, &[], Some("network_id"), VS_K, Row,
+        "network_id bulunamadı"),
+    r!("FLG_003", Kritik, Spec, 1, &[], Some("from_area_id"), VS_K, Row,
+        "from_area_id bulunamadı"),
+    r!("FLG_004", Kritik, Spec, 1, &[], Some("to_area_id"), VS_K, Row,
+        "to_area_id bulunamadı"),
+    r!("FLG_005", Kritik, Spec, 1, &[], Some("from_timeframe_group_id"), VS_K, Row,
+        "from_timeframe_group_id bulunamadı"),
+    r!("FLG_006", Kritik, Spec, 1, &[], Some("to_timeframe_group_id"), VS_K, Row,
+        "to_timeframe_group_id bulunamadı"),
+    r!("FLG_007", Orta,   Spec, 1, &[], Some("leg_group_id"), VS, Row,
+        "rule_priority geçersiz"),
+
+    // ── FTR: Fare Transfer Rules (Fares v2) ───────────────────────────────────
+    r!("FTR_001", Kritik, Spec, 1, &[], None, VS_K, Row,
+        "fare_transfer_type eksik veya geçersiz"),
+    r!("FTR_002", Kritik, Spec, 1, &[], Some("from_leg_group_id"), VS_K, Row,
+        "from_leg_group_id bulunamadı"),
+    r!("FTR_003", Kritik, Spec, 1, &[], Some("to_leg_group_id"), VS_K, Row,
+        "to_leg_group_id bulunamadı"),
+    r!("FTR_004", Kritik, Spec, 1, &[], Some("fare_product_id"), VS_K, Row,
+        "fare_product_id bulunamadı"),
+    r!("FTR_005", Kritik, Spec, 1, &[], None, VS_K, Row,
+        "duration_limit_type geçersiz"),
+    r!("FTR_006", Orta,   Spec, 1, &[], None, VS, Row,
+        "duration_limit geçersiz"),
+    r!("FTR_007", Orta,   Spec, 1, &[], None, VS, Row,
+        "duration_limit_type duration_limit olmadan tanımlı"),
+    r!("FTR_008", Orta,   Spec, 1, &[], None, VS, Row,
+        "transfer_count geçersiz"),
+
+    // ── ARS: Areas (Fares v2) ─────────────────────────────────────────────────
+    r!("ARS_001", Kritik, Spec, 1, &["SAR_001","FLG_003","FLG_004"],
+        Some("area_id"), VS_K, Row,
+        "area_id yineleniyor"),
+
+    // ── SAR: Stop Areas (Fares v2) ────────────────────────────────────────────
+    r!("SAR_001", Kritik, Spec, 1, &[], Some("area_id"), VS_K, Row,
+        "area_id bulunamadı"),
+    r!("SAR_002", Kritik, Spec, 1, &[], Some("stop_id"), VS_K, Row,
+        "stop_id bulunamadı"),
+
+    // ── NET: Networks (Fares v2) ──────────────────────────────────────────────
+    r!("NET_001", Kritik, Spec, 1, &["FLG_002"],
+        Some("network_id"), VS_K, Row,
+        "network_id yineleniyor"),
+
+    // ── TFR: Timeframes (Fares v2) ────────────────────────────────────────────
+    r!("TFR_001", Kritik, Spec, 1, &[], Some("timeframe_group_id"), VS_K, Row,
+        "timeframe_group_id eksik"),
+    r!("TFR_002", Kritik, Spec, 1, &[], Some("timeframe_group_id"), VS_K, Row,
+        "service_id bulunamadı"),
+    r!("TFR_003", Yuksek, Spec, 1, &[], Some("timeframe_group_id"), VS, Row,
+        "start_time veya end_time format hatası"),
+    r!("TFR_004", Orta,   Spec, 1, &[], Some("timeframe_group_id"), VS, Row,
+        "end_time start_time'dan küçük"),
+
     // ── PTH: Pathways ──────────────────────────────────────────────────────────
     r!("PTH_001", Kritik, Spec, 1, &[], Some("pathway_id"), VS_K, Entity,
         "pathway_id yineleniyor"),
