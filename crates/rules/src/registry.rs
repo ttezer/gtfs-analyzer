@@ -415,6 +415,8 @@ pub static RULES: &[RuleMeta] = &[
         "Tek duraklı sefer (kullanılamaz)"),
     r!("STM_034", Orta,   Spec, 2, &[], Some("trip_id"), VS, Row,
         "Varış veya kalkış zamanından yalnızca biri tanımlı"),
+    r!("STM_035", Bilgi,  Analytics, 1, &[], Some("trip_id"), VS, Row,
+        "Aynı durak ardışık iki kez ziyaret ediliyor (terminal/döngü)"),
 
     // ── CAL: Calendar ──────────────────────────────────────────────────────────
     r!("CAL_001", Kritik, Spec, 1,

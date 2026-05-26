@@ -574,6 +574,7 @@ fn check_speed_and_duration(
                 (Some(c1), Some(c2)) => (c1, c2),
                 _ => continue,
             };
+            let haver_km = haversine_km(c1.0, c1.1, c2.0, c2.1);
             let dist_km = trip_shape_speed.get(trip_id)
                 .and_then(|&sid| {
                     let pts = shape_pts_speed.get(sid)?;
@@ -584,20 +585,34 @@ fn check_speed_and_duration(
                     let d = (arc_b - arc_a).abs();
                     if d > 1e-6 { Some(d) } else { None }
                 })
-                .unwrap_or_else(|| haversine_km(c1.0, c1.1, c2.0, c2.1));
+                .unwrap_or(haver_km);
 
             if dist_km < 1e-6 {
-                // STM_021: ardışık duraklar aynı koordinatta
-                notices.push(k6_notice(
-                    ctr, "STM_021", EntityType::Trip,
-                    Some(trip_id.to_string()), Some(trip_id.to_string()),
-                    "stop_times.txt", Some(b.line), Some("stop_id"),
-                    Some(format!("{} → {}", a.stop_id, b.stop_id)),
-                    Some("> 0 m".to_string()),
-                    format!("trip_id '{trip_id}' stop_sequence {}-{} arası mesafe 0: her iki durak aynı koordinatta.",
-                        a.stop_sequence.unwrap_or(0), b.stop_sequence.unwrap_or(0)),
-                    "stops.txt'te durak koordinatlarını doğrulayın; ardışık farklı duraklar aynı konumda olmamalıdır.",
-                ));
+                if a.stop_id == b.stop_id {
+                    // STM_035: aynı durak ardışık iki kez (terminal/döngü hattı)
+                    notices.push(k6_notice(
+                        ctr, "STM_035", EntityType::Trip,
+                        Some(trip_id.to_string()), Some(trip_id.to_string()),
+                        "stop_times.txt", Some(b.line), Some("stop_id"),
+                        Some(a.stop_id.to_string()),
+                        None,
+                        format!("trip_id '{trip_id}' stop_sequence {}-{} arasında aynı durak ({}) ardışık iki kez ziyaret ediliyor.",
+                            a.stop_sequence.unwrap_or(0), b.stop_sequence.unwrap_or(0), a.stop_id),
+                        "Terminal veya döngü hattıysa beklenen bir durumdur. Değilse stop_times.txt'teki yinelenen satırı kaldırın.",
+                    ));
+                } else {
+                    // STM_021: farklı stop_id'ler aynı koordinatta — gerçek veri hatası
+                    notices.push(k6_notice(
+                        ctr, "STM_021", EntityType::Trip,
+                        Some(trip_id.to_string()), Some(trip_id.to_string()),
+                        "stop_times.txt", Some(b.line), Some("stop_id"),
+                        Some(format!("{} → {}", a.stop_id, b.stop_id)),
+                        Some("> 0 m".to_string()),
+                        format!("trip_id '{trip_id}' stop_sequence {}-{} arası mesafe 0: '{}' ve '{}' farklı duraklar ama aynı koordinatta.",
+                            a.stop_sequence.unwrap_or(0), b.stop_sequence.unwrap_or(0), a.stop_id, b.stop_id),
+                        "stops.txt'te durak koordinatlarını doğrulayın; ardışık farklı duraklar aynı konumda olmamalıdır.",
+                    ));
+                }
                 continue;
             }
 
@@ -619,8 +634,9 @@ fn check_speed_and_duration(
                 notices.push(n025);
             }
 
-            // STM_026: durak arası mesafe çok uzun
-            if dist_km > 50.0 {
+            // STM_026: durak arası mesafe çok uzun — shape arc projeksiyon hataları olabileceğinden
+            // straight-line (haversine) mesafesiyle kontrol edilir; gerçek sorun varsa o da büyük olur.
+            if haver_km > 50.0 {
                 let mut n026 = k6_notice(
                     ctr, "STM_026", EntityType::Trip,
                     Some(trip_id.to_string()), Some(trip_id.to_string()),
