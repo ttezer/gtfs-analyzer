@@ -8,17 +8,16 @@ export function renderDomain(root: HTMLElement, result: ValidationResult): void 
 
   root.innerHTML = `
     <div class="report-page">
-      ${renderScoreRow(r5)}
+      ${renderScoreRow(r5, sevCounts)}
       ${renderR1Card(r1, result)}
       ${renderSubScores(r5)}
-      ${renderSevRow(sevCounts)}
       ${renderMetrics(metrics)}
     </div>`;
 }
 
 // ── İki büyük skor kartı ──────────────────────────────────────────────────────
 
-function renderScoreRow(r5: R5Report): string {
+function renderScoreRow(r5: R5Report, c: SevCount): string {
   const pubColor   = scoreColor(r5.pub_score);
   const qualColor  = scoreColor(r5.score);
 
@@ -36,6 +35,7 @@ function renderScoreRow(r5: R5Report): string {
         <div class="rpt-score-track"><div class="rpt-score-fill" style="width:${r5.score.toFixed(1)}%;background:${qualColor}"></div></div>
         <span class="rpt-score-hint">Tüm sınıfların ağırlıklı ortalaması</span>
       </div>
+      ${renderPieCard(c)}
     </div>`;
 }
 
@@ -120,9 +120,64 @@ function renderSubScores(r5: R5Report): string {
     </div>`;
 }
 
-// ── Önem dağılımı ─────────────────────────────────────────────────────────────
+// ── Pasta grafiği (donut) ─────────────────────────────────────────────────────
 
 type SevCount = { CRITICAL: number; HIGH: number; MEDIUM: number; LOW: number; INFO: number };
+
+const PIE_SEGS = [
+  { key: 'CRITICAL', label: 'Kritik',  color: '#dc2626' },
+  { key: 'HIGH',     label: 'Yüksek',  color: '#d97706' },
+  { key: 'MEDIUM',   label: 'Orta',    color: '#2563eb' },
+  { key: 'LOW',      label: 'Düşük',   color: '#16a34a' },
+  { key: 'INFO',     label: 'Bilgi',   color: '#9ca3af' },
+] as const;
+
+function renderPieCard(c: SevCount): string {
+  const total = c.CRITICAL + c.HIGH + c.MEDIUM + c.LOW + c.INFO;
+  if (total === 0) return '';
+
+  // r=15.9155 → circumference≈100, stroke-dasharray percentages map 1:1
+  const R = 15.9155;
+  let cumPct = 0;
+  const circles = PIE_SEGS
+    .filter(s => (c as Record<string, number>)[s.key] > 0)
+    .map(s => {
+      const pct = (c as Record<string, number>)[s.key] / total * 100;
+      const dashOffset = 25 - cumPct; // 25 = start at 12 o'clock
+      cumPct += pct;
+      return `<circle cx="18" cy="18" r="${R}" fill="none" stroke="${s.color}" stroke-width="3.5"` +
+             ` stroke-dasharray="${pct.toFixed(3)} ${(100 - pct).toFixed(3)}" stroke-dashoffset="${dashOffset.toFixed(3)}"/>`;
+    }).join('');
+
+  const legend = PIE_SEGS
+    .filter(s => (c as Record<string, number>)[s.key] > 0)
+    .map(s => {
+      const count = (c as Record<string, number>)[s.key];
+      const pct   = (count / total * 100).toFixed(1);
+      return `<div class="pie-leg-row">` +
+               `<span class="pie-leg-dot" style="background:${s.color}"></span>` +
+               `<span class="pie-leg-label">${s.label}</span>` +
+               `<span class="pie-leg-count">${count.toLocaleString('tr-TR')}</span>` +
+               `<span class="pie-leg-pct">${pct}%</span>` +
+             `</div>`;
+    }).join('');
+
+  return `
+    <div class="rpt-score-card rpt-pie-card">
+      <span class="rpt-score-label">Hata Dağılımı</span>
+      <div class="rpt-pie-body">
+        <svg viewBox="0 0 36 36" class="rpt-pie-svg" aria-hidden="true">
+          <circle cx="18" cy="18" r="${R}" fill="none" class="pie-track" stroke-width="3.5"/>
+          ${circles}
+          <text x="18" y="16" text-anchor="middle" dominant-baseline="middle"
+            font-size="5.5" font-weight="800" class="pie-center-num">${total.toLocaleString('tr-TR')}</text>
+          <text x="18" y="22" text-anchor="middle" dominant-baseline="middle"
+            font-size="2.8" class="pie-center-txt">hata</text>
+        </svg>
+        <div class="rpt-pie-legend">${legend}</div>
+      </div>
+    </div>`;
+}
 
 function countBySeverity(result: ValidationResult): SevCount {
   const c: SevCount = { CRITICAL: 0, HIGH: 0, MEDIUM: 0, LOW: 0, INFO: 0 };
