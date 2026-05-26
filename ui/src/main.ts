@@ -99,7 +99,7 @@ export function renderApp(): void {
   const pageRoot = document.getElementById('page-root')!;
   switch (state.page) {
     case 'domain': renderDomain(pageRoot, state.result); break;
-    case 'fix':    renderFix(pageRoot, state.result); attachFixListeners(pageRoot, state.result); break;
+    case 'fix':    renderFix(pageRoot, state.result); attachFixListeners(pageRoot, state.result, state.result.capped_totals); break;
     case 'rules':  renderRules(pageRoot, state.result); break;
     case 'export': renderExport(pageRoot, state.result, state.fileName); break;
   }

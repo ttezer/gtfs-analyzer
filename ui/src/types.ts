@@ -15,7 +15,7 @@ export type FatalCode  =
   | 'CsvMalformed'  | 'ResourceLimit' | 'InvalidInput';
 export type R9Label    =
   | 'blocker' | 'conditional_blocker' | 'interop' | 'propagation' | 'quick-win'
-  | 'quality' | 'widespread';
+  | 'quality' | 'widespread' | 'analytics' | 'hard' | 'single' | 'high-impact';
 export type ReportId   = 'R1' | 'R2' | 'R3' | 'R4' | 'R5' | 'R7' | 'R8' | 'R9';
 
 export interface Notice {
@@ -132,6 +132,7 @@ export interface ValidationResult {
   reports: ReportSet;
   metrics: FeedMetrics;
   name_index: NameIndex;
+  capped_totals: Record<string, number>;
 }
 
 export interface FatalError {

@@ -10,6 +10,10 @@ const LABEL_TR: Record<string, string> = {
   'quick-win'           : 'Kolay Düzeltme',
   'quality'             : 'Kalite Öncelikli',
   'widespread'          : 'Yaygın',
+  'analytics'           : 'Analitik',
+  'hard'                : 'Zor',
+  'single'              : 'Tek Örnek',
+  'high-impact'         : 'Yüksek Etki',
 };
 
 export function renderFix(root: HTMLElement, result: ValidationResult): void {
@@ -30,12 +34,12 @@ export function renderFix(root: HTMLElement, result: ValidationResult): void {
 
   root.innerHTML = `
     <section class="page-fix">
-      ${renderR9(result.reports.r9.items, noticeMap, normFactor, pubNormFactor)}
+      ${renderR9(result.reports.r9.items, noticeMap, normFactor, pubNormFactor, result.capped_totals)}
       ${renderR2(result, noticeMap, deltaMap, result.name_index)}
     </section>`;
 }
 
-function renderR9(items: R9Item[], noticeMap: Map<string, Notice>, normFactor: number, pubNormFactor: number): string {
+function renderR9(items: R9Item[], noticeMap: Map<string, Notice>, normFactor: number, pubNormFactor: number, cappedTotals: Record<string, number>): string {
   if (items.length === 0) {
     return '<div class="card"><h2>Düzeltme Kuyruğu (R9)</h2><p class="empty">Düzeltilecek bulgu yok.</p></div>';
   }
@@ -49,6 +53,10 @@ function renderR9(items: R9Item[], noticeMap: Map<string, Notice>, normFactor: n
     const qualSd = item.score_delta     * normFactor;
     const pubHtml  = pubSd  >= 0.05 ? `<span class="pub-delta">+${pubSd.toFixed(1)}</span>`   : '<span class="muted-text">—</span>';
     const qualHtml = qualSd >= 0.05 ? `<span class="score-delta">+${qualSd.toFixed(1)}</span>` : '<span class="muted-text">—</span>';
+    const realTotal = cappedTotals[item.rule_id];
+    const totalHtml = realTotal != null
+      ? `<span class="cap-total">${realTotal.toLocaleString('tr-TR')}</span>`
+      : '<span class="muted-text">—</span>';
 
     const mainRow = `
       <tr class="r9-main-row" data-idx="${i}">
@@ -59,6 +67,7 @@ function renderR9(items: R9Item[], noticeMap: Map<string, Notice>, normFactor: n
         <td style="color:${SEVERITY_COLOR[severity]}">${SEVERITY_TR[severity]}</td>
         <td>${badgeHtml}</td>
         <td>${item.affected_instance_count}</td>
+        <td>${totalHtml}</td>
         <td class="score">${item.priority_score.toFixed(1)}</td>
         <td class="score-delta-cell">${pubHtml}</td>
         <td class="score-delta-cell">${qualHtml}</td>
@@ -68,7 +77,7 @@ function renderR9(items: R9Item[], noticeMap: Map<string, Notice>, normFactor: n
 
     const detailRow = `
       <tr class="r9-detail-row" data-for="${i}" hidden>
-        <td colspan="9">
+        <td colspan="10">
           <div class="r9-detail">
             ${notice?.title ? `<p><strong>Mesaj:</strong> ${escHtml(notice.title)}</p>` : ''}
             ${notice?.remediation ? `<p><strong>Çözüm:</strong> ${escHtml(notice.remediation)}</p>` : ''}
@@ -90,6 +99,7 @@ function renderR9(items: R9Item[], noticeMap: Map<string, Notice>, normFactor: n
             <th>Önem</th>
             <th>Etiket</th>
             <th>Hata <span class="col-info" title="Bu kuraldan kaç hata üretildi — sorunun yaygınlığını gösterir.">ℹ</span></th>
+            <th>Toplam <span class="col-info" title="Kural başına notice sınırı (cap) uygulandığında gerçek ihlal sayısı. Raporda yalnızca sınır kadar notice gösterilmektedir; sınıra çarpmayan kurallarda bu sütun boş kalır.">ℹ</span></th>
             <th class="score">Skor <span class="col-info" title="Öncelik puanı. Ciddiyet × (1+Bağımlı) × log₂(1+Etkilenen) / Çaba formülüyle hesaplanır. Yüksek skor = önce düzelt.">ℹ</span></th>
             <th class="score-delta-cell">+Yayın <span class="col-info" title="Bu kural düzeltilirse yayın skoru kaç puan artar. Yalnızca blocker/conditional_blocker kurallar için gösterilir. Toplamı = 100 − mevcut yayın skoru.">ℹ</span></th>
             <th class="score-delta-cell">+Kalite <span class="col-info" title="Bu kural düzeltilirse kalite skoru kaç puan artar. Toplamı = 100 − mevcut kalite skoru.">ℹ</span></th>
@@ -182,6 +192,7 @@ function renderR2(result: ValidationResult, noticeMap: Map<string, Notice>, delt
     <div class="card" id="r2-card">
       <h2>Tüm Bulgular (R2) <span class="count-badge">${items.length}</span></h2>
       ${filterBar}
+      <div id="r2-cap-warning" class="cap-warning" hidden></div>
       <div class="table-scroll">
         <table class="data-table" id="r2-table">
           <thead><tr>
@@ -988,7 +999,7 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
   return { pins: [{ lat, lon, label: `<strong>${stopName}</strong><br><code>${entityId}</code>`, primary: true }] };
 }
 
-export function attachFixListeners(root: HTMLElement, result?: ValidationResult): void {
+export function attachFixListeners(root: HTMLElement, result?: ValidationResult, cappedTotals?: Record<string, number>): void {
   // R9 expandable rows — blocks[] bağlamı
   root.querySelectorAll<HTMLTableRowElement>('.r9-main-row').forEach(row => {
     row.addEventListener('click', () => {
@@ -1084,11 +1095,23 @@ export function attachFixListeners(root: HTMLElement, result?: ValidationResult)
       if (sevMatch && clsMatch) ruleSet.add(rowRule);
     });
 
+    const anyFilter = sev || cls || rule;
     const counter = root.querySelector<HTMLSpanElement>('#filter-count');
-    if (counter) counter.textContent = (sev || cls || rule) ? `${total} noticeden ${visible} tanesi` : '';
+    if (counter) counter.textContent = anyFilter ? `${total} noticeden ${visible} tanesi` : '';
 
     const badge = root.querySelector<HTMLSpanElement>('#r2-card h2 .count-badge');
-    if (badge) badge.textContent = (sev || cls || rule) ? String(visible) : String(total);
+    if (badge) badge.textContent = anyFilter ? String(visible) : String(total);
+
+    const capWarn = root.querySelector<HTMLDivElement>('#r2-cap-warning');
+    if (capWarn) {
+      const realTotal = rule && cappedTotals ? cappedTotals[rule] : undefined;
+      if (realTotal != null) {
+        capWarn.hidden = false;
+        capWarn.textContent = `⚠ Bu kural cap'e çarptı — raporda yalnızca ${visible.toLocaleString('tr-TR')} notice gösterilmektedir, gerçek toplam: ${realTotal.toLocaleString('tr-TR')}.`;
+      } else {
+        capWarn.hidden = true;
+      }
+    }
 
     rebuildOpts(sevFilter!, sev, sevSet, SEV_OPTS);
     rebuildOpts(clsFilter!, cls, clsSet, CLS_OPTS);

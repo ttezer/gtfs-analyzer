@@ -128,6 +128,7 @@
     .rpt-score-row { display: grid; grid-template-columns: 1fr 1fr 1.4fr; gap: 1rem; }
     .rpt-score-card { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius); padding: 1.1rem 1.3rem; display: flex; flex-direction: column; gap: .35rem; }
     .rpt-score-label { font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--color-muted); }
+    .rpt-score-total { font-size: .82rem; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--color-text); text-transform: none; letter-spacing: 0; margin-left: .3rem; }
     .rpt-score-val { font-size: 2.4rem; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
     .rpt-score-max { font-size: 1rem; font-weight: 400; color: var(--color-muted); margin-left: .1rem; }
     .rpt-score-track { height: 6px; background: var(--color-border); border-radius: 3px; }
@@ -274,6 +275,16 @@
     .label-quick-win   { background: #f0fdf4; color: #15803d; }
     .label-quality     { background: #ecfdf5; color: #065f46; }
     .label-widespread  { background: #fdf4ff; color: #7e22ce; }
+    .label-analytics   { background: #f5f3ff; color: #6d28d9; }
+    .label-hard        { background: #fff1f2; color: #9f1239; }
+    .label-single      { background: #f0f9ff; color: #0369a1; }
+    .label-high-impact { background: #fefce8; color: #854d0e; }
+
+    /* Cap uyarı banner */
+    .cap-warning { background: #fffbeb; border: 1px solid #fcd34d; border-radius: 6px;
+      padding: .5rem .85rem; font-size: .82rem; color: #92400e; margin-bottom: .6rem; }
+    /* R9 cap toplam sütunu */
+    .cap-total { font-variant-numeric: tabular-nums; color: #dc2626; font-weight: 600; }
 
     /* R9 column info icon */
     .col-info { display: inline-block; font-size: .65rem; color: var(--color-muted); cursor: help; margin-left: .2rem; vertical-align: middle; line-height: 1; }
