@@ -4,7 +4,7 @@ GTFS (General Transit Feed Specification) dosyalarını tarayıcıda doğrulayan
 
 Mevcut GTFS doğrulayıcıların çoğu yalnızca spesifikasyon uyumunu kontrol eder ve hata listesi çıkarır. GTFS Analyzer bunu çok adım öteye taşır: hangi dosyanın kaçıncı satırında ne sorun olduğunu gösterir, her sorun için adım adım düzeltme talimatı sunar ve coğrafi hataları (sapan güzergah, koordinat bozukluğu, erişilemeyen durak gibi) interaktif haritada işaretler. Her bulgu dosya ve bileşen bazlı bir kural koduyla (`ARC_`, `STP_`, `STM_`...), dört sınıftan biriyle (Spec · Interop · Quality · Analytics) ve beş önem seviyesinden biriyle (Kritik → Bilgi) etiketlenir; böylece binlerce bulgu arasında filtreleme, önceliklendirme ve otomasyon kolaylaşır. Feed'in hangi GTFS özelliklerini kullandığı (Shapes, Transfers, Fares, Headsigns vb.) otomatik tespit edilir ve rapora yansıtılır.
 
-Spesifikasyon uyumunun ötesinde operasyonel kaliteyi de ölçer: hat bazında sefer sıklığı tutarsızlıkları, anormal hız segmentleri, izole duraklar, servis desenlerindeki boşluklar ve ağ topolojisi sorunları 360 kuralla analiz edilir. Sonuçlar iki bağımsız skorla özetlenir; düzeltme kuyruğu "önce ne düzeltilmeli?" sorusunu otomatik olarak yanıtlar ve her düzeltmenin skora katkısını gösterir.
+Spesifikasyon uyumunun ötesinde operasyonel kaliteyi de ölçer: hat bazında sefer sıklığı tutarsızlıkları, anormal hız segmentleri, izole duraklar, servis desenlerindeki boşluklar ve ağ topolojisi sorunları 395 kuralla analiz edilir. Sonuçlar iki bağımsız skorla özetlenir; düzeltme kuyruğu "önce ne düzeltilmeli?" sorusunu otomatik olarak yanıtlar ve her düzeltmenin skora katkısını gösterir.
 
 **Kimler kullanır:**
 - Toplu taşıma işletmecileri ve belediyeler — feed yayına almadan önce
@@ -30,28 +30,27 @@ Spesifikasyon uyumunun ötesinde operasyonel kaliteyi de ölçer: hat bazında s
 | Düzeltme önerisi | ❌ | ❌ | ❌ | ✅ |
 | Çıktı formatı | HTML, JSON | Web (kalıcı link) | HTML, JSON | HTML, CSV, JSON, PDF |
 | Platform | Web | Web | Web, CLI, Desktop | Web *(CLI, Desktop planlanmış)* |
-| **Toplam kural** | **~120** | **~80** | **~120** | **360** |
+| **Toplam kural** | **~120** | **~80** | **~120** | **395** |
 
 ### BART GTFS Feed Örneği
 
 BART (Bay Area Rapid Transit, San Francisco) feed'i dört validator ile test edildi.  
 Feed: `BART (San Francisco).zip` — 2026-05-25 tarihinde indirilen sürüm (feed geçerlilik aralığı: 2026-01-12–2026-08-07).  
-Kullanılan sürümler: MobilityData gtfs-validator v7.x · France Transport (transport.data.gouv.fr, Mayıs 2026) · GTFS Guru v0.1.0 · GTFS Analyzer v0.1.1.
+Kullanılan sürümler: MobilityData gtfs-validator v7.x · France Transport (transport.data.gouv.fr, Mayıs 2026) · GTFS Guru v0.1.0 · GTFS Analyzer v0.1.2.
 
 | | MobilityData | France Transport | GTFS Guru | GTFS Analyzer |
 |---|---:|---:|---:|---:|
-| Toplam notice | 2.725 | 6 ⚠️ | 2.663 | 2.701 |
-| Kritik / Error | 2 | 1 | 1 | 0 † |
-| Yüksek / Warning | 2.655 | 0 | 2.655 | 1.148 |
+| Toplam notice | 2.725 | 6 ⚠️ | 2.663 | 6.684 |
+| Kritik / Error | 2 | 1 | 1 | 3 |
+| Yüksek / Warning | 2.655 | 0 | 2.655 | 5.128 |
 | Orta | — | — | — | 554 |
 | Düşük | — | — | — | 500 |
 | Bilgi / Info | 68 | 5 | 7 | 499 |
-| Tetiklenen kural tipi | 13 | 2 | 13 | **44** |
-| Yayın skoru | — | — | — | **84,7 / 100** |
-| Kalite skoru | — | — | — | **83,1 / 100** |
+| Tetiklenen kural tipi | 13 | 2 | 13 | **45** |
+| Yayın skoru | — | — | — | **79,4 / 100** |
+| Kalite skoru | — | — | — | **80,1 / 100** |
 
-> ⚠️ France Transport, `rider_category_name` eksik alanı nedeniyle validasyonu tamamlayamadı.  
-> † GTFS Analyzer standart GTFS dosyalarında kritik ihlal bulmadı. Diğer araçların hataları `rider_categories.txt` içindir; bu dosya GTFS spec'inde tanımlı değildir.
+> ⚠️ France Transport, `rider_category_name` eksik alanı nedeniyle validasyonu tamamlayamadı.
 
 ---
 
@@ -66,6 +65,45 @@ GTFS Analyzer bir web uygulamasıdır; kurulum gerektirmez. Canlı sürümü tar
 3. Tamamlandığında Yayın ve Kalite skorları ile dört sekme görünür: **Rapor**, **Ayrıntı ve Düzeltme**, **Kategori Bazlı**, **Dışa Aktar**.
 
 > Kendi sunucunuzda barındırmak veya geliştirme ortamı kurmak için [Geliştirici Kurulumu](#geliştirici-kurulumu) bölümüne bakın.
+
+---
+
+## Analiz Kriterleri
+
+Yükleme ekranındaki **Analiz Kriterleri** bölümünden doğrulama eşikleri özelleştirilebilir. Değiştirilen alanlar bir sonraki ZIP yüklemesinde uygulanır; sıfırla butonu varsayılanlara döndürür.
+
+### Hız Eşikleri
+
+| Parametre | Varsayılan | Aralık | Açıklama |
+|---|---:|---|---|
+| Maks. Otobüs Hızı | 120 km/h | 60–200 | Otobüs seferleri için maksimum izin verilen hız |
+| Maks. Tramvay Hızı | 100 km/h | 40–160 | Tramvay seferleri için maksimum izin verilen hız |
+| Maks. Metro Hızı | 150 km/h | 80–250 | Metro seferleri için maksimum izin verilen hız |
+| Maks. Demiryolu Hızı | 300 km/h | 100–400 | Demiryolu seferleri için maksimum izin verilen hız |
+| Maks. Feribot Hızı | 80 km/h | 20–150 | Feribot seferleri için maksimum izin verilen hız |
+| Maks. Teleferik Hızı | 30 km/h | 10–60 | Teleferik/füniküler için maksimum izin verilen hız |
+
+### Coğrafi ve Aktarma Eşikleri
+
+| Parametre | Varsayılan | Aralık | Açıklama |
+|---|---:|---|---|
+| Min. Aktarma Süresi | 180 sn | 30–1800 | Transferler için minimum bağlantı süresi |
+| Maks. Aktarma Mesafesi | 500 m | 50–2000 | Transfer geçerli sayılmak için maksimum mesafe |
+| Maks. Güzergah Sıçraması | 10 km | 1–50 | Art arda güzergah noktaları arasındaki maksimum mesafe |
+| Çok Yakın Durak Eşiği | 5 m | 1–20 | Bu mesafeden yakın duraklar tekrar sayılır |
+| Durağın Güzergaha Uzaklığı | 100 m | 20–500 | Durağın güzergahından en fazla bu kadar uzakta olabilir |
+| Üst İstasyona Uzaklık Eşiği | 100 m | 10–1000 | Durak, üst istasyonundan en fazla bu kadar uzakta olabilir |
+
+### Servis ve Operasyonel Eşikler
+
+| Parametre | Varsayılan | Aralık | Açıklama |
+|---|---:|---|---|
+| Son Kullanma Uyarısı | 30 gün | 1–60 | Feed bu kadar günden az kalmışsa uyarı üretilir |
+| Servis Boşluğu Eşiği | 7 gün | 3–30 | Bu günden uzun servis kesintisi işaretlenir |
+| Maks. Sefer Süresi | 24 saat | 8–72 | Tek bir seferin maksimum süresi |
+| Min. Sefer Süresi | 60 sn | 10–300 | Tek bir seferin minimum süresi |
+| Maks. Sefer Aralığı | 240 dk | 60–720 | Bu dakikadan uzun aralık uyarı üretir |
+| Sıkışma Eşiği | 2 dk | 1–10 | Bu dakikadan kısa aralık sıkışma sayılır |
 
 ---
 
@@ -145,6 +183,8 @@ Raporu HTML, CSV veya JSON olarak indirir. PDF seçeneği tarayıcının yazdır
 | **Düşük** | Küçük sapma, en iyi pratikten uzaklaşma |
 | **Bilgi** | Bilgilendirme amaçlı, eylem gerekmeyebilir |
 
+Önem seviyeleri, [GTFS Schedule Referans Dokümantasyonu](https://gtfs.org/documentation/schedule/reference/#file-requirements)'nda tanımlanan dosya ve alan zorunluluk seviyeleri (Required · Conditionally Required · Recommended · Optional) esas alınarak belirlenmiştir.
+
 ---
 
 ## Bulgu Sınırları
@@ -190,6 +230,15 @@ Her kural `GRUP_NNN` formatında kodlanır. Gruplar GTFS dosya ve bileşen sın�
 | **OPR** | Operasyonel analiz | Seferler arası bekleme süresi, hat yoğunluğu, durak tekrarı |
 | **VAT** | Ağ topolojisi | İzole duraklar, bağlantısız güzergahlar, ağ erişilebilirliği |
 | **DQ** | Feed geneli kalite | Genel veri kalitesi metrikleri ve eşik kontrolleri |
+| **RCT** | `rider_categories.txt` | Yolcu kategorileri, yaş aralıkları ve varsayılan kategori (Fares v2) |
+| **FMD** | `fare_media.txt` | Ödeme araçları: fiziksel kart, mobil uygulama, EMV vb. (Fares v2) |
+| **FPD** | `fare_products.txt` | Ücret ürünleri, tutar, para birimi ve medya/kategori ilişkileri (Fares v2) |
+| **FLG** | `fare_leg_rules.txt` | Yolculuk bacağı bazında ücret kuralları ve öncelik (Fares v2) |
+| **FTR** | `fare_transfer_rules.txt` | Aktarma ücret kuralları ve süre limitleri (Fares v2) |
+| **ARS** | `areas.txt` | Coğrafi alan tanımları (Fares v2) |
+| **SAR** | `stop_areas.txt` | Durak–alan eşleştirmeleri (Fares v2) |
+| **NET** | `networks.txt` | Ağ tanımları (Fares v2) |
+| **TFR** | `timeframes.txt` | Zaman dilimi grupları ve servis takvimi ilişkileri (Fares v2) |
 
 ---
 
@@ -251,7 +300,7 @@ gtfs-validator/
 │   ├── config/     # Yapılandırma tipleri
 │   ├── core/       # Ortak veri yapıları ve sonuç modeli
 │   ├── pipeline/   # Doğrulama pipeline'ı (k1–k7 aşamaları)
-│   ├── rules/      # Kural tanımları ve registry (360 kural)
+│   ├── rules/      # Kural tanımları ve registry (395 kural)
 │   └── wasm/       # wasm-bindgen WASM çıktısı
 └── ui/             # Vite + TypeScript frontend
     ├── pkg/          # wasm-pack çıktısı (üretilen, commit'lenmiş)
