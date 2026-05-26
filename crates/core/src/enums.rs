@@ -153,7 +153,19 @@ pub enum R9Label {
     /// QUALITY sınıfı + YÜKSEK severity
     #[serde(rename = "quality")]
     Quality,
-    /// affected_instance_count > 50
+    /// affected_instance_count > 20
     #[serde(rename = "widespread")]
     Widespread,
+    /// Analytics sınıfı kural
+    #[serde(rename = "analytics")]
+    Analytics,
+    /// fix_effort ≥ 4.0 — kapsamlı veri revizyonu gerektirir
+    #[serde(rename = "hard")]
+    Hard,
+    /// affected_instance_count == 1 — tek satırda hata, kolay bulunur
+    #[serde(rename = "single")]
+    Single,
+    /// score_delta veya pub_score_delta yüksek — düzeltme skora büyük katkı sağlar
+    #[serde(rename = "high-impact")]
+    HighImpact,
 }

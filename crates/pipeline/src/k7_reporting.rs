@@ -321,19 +321,33 @@ fn r9_labels(severity: Severity, rule_class: RuleClass, realized_dep: u32, fix_e
         (_, RuleClass::Interop) => {
             labels.push(R9Label::Interop);
         }
+        (_, RuleClass::Analytics) => {
+            labels.push(R9Label::Analytics);
+        }
         _ => {}
     }
     if realized_dep > 2 {
         labels.push(R9Label::Propagation);
     }
-    if fix_effort <= 1.0 && matches!(severity, Severity::Kritik | Severity::Yuksek) {
+    // Kolay Düzeltme: düşük çaba, Bilgi hariç her önem
+    if fix_effort <= 1.5 && !matches!(severity, Severity::Bilgi) {
         labels.push(R9Label::QuickWin);
     }
-    if matches!(rule_class, RuleClass::Quality) && matches!(severity, Severity::Yuksek) {
+    // Kalite Öncelikli: Quality sınıfı, Orta veya üzeri
+    if matches!(rule_class, RuleClass::Quality) && matches!(severity, Severity::Kritik | Severity::Yuksek | Severity::Orta) {
         labels.push(R9Label::Quality);
     }
-    if affected > 50 {
+    // Yaygın: 20'den fazla etkilenen instance
+    if affected > 20 {
         labels.push(R9Label::Widespread);
+    }
+    // Tek Örnek: tam olarak 1 instance — kolay bulunur
+    if affected == 1 {
+        labels.push(R9Label::Single);
+    }
+    // Zor: yüksek çaba gerektiren düzeltme
+    if fix_effort >= 4.0 {
+        labels.push(R9Label::Hard);
     }
     labels
 }
@@ -392,7 +406,7 @@ fn build_r9(notices: &[Notice], resolution: &SymptomResolution) -> R9Report {
             let fix_effort = base_effort as f64 * multiplier;
             let realized_dep =
                 realized_dep_for_group(&indices, notices, &resolution.rule_scope_index);
-            let labels = r9_labels(severity, rule_class, realized_dep, fix_effort, affected);
+            let mut labels = r9_labels(severity, rule_class, realized_dep, fix_effort, affected);
             let priority_score =
                 compute_priority_score(severity, realized_dep, affected, fix_effort);
 
@@ -433,6 +447,11 @@ fn build_r9(notices: &[Notice], resolution: &SymptomResolution) -> R9Report {
             let cur_pub = k * 100.0 / (k + total_pub_penalty);
             let new_pub = k * 100.0 / (k + (total_pub_penalty - closure_pub_penalty).max(0.0));
             let pub_score_delta = round1(new_pub - cur_pub);
+
+            // Yüksek Etki: skor katkısı belirgin eşiğin üzerinde
+            if score_delta >= 5.0 || pub_score_delta >= 3.0 {
+                labels.push(R9Label::HighImpact);
+            }
 
             R9Item {
                 rule_id: rule_id.to_string(),
