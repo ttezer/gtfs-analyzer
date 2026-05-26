@@ -124,6 +124,39 @@ fn haversine_km(lat1: f64, lon1: f64, lat2: f64, lon2: f64) -> f64 {
     2.0 * R * a.sqrt().asin()
 }
 
+/// Bir durağın (slat, slon) bir shape polyline'ına olan minimum mesafesini metre cinsinden döner.
+/// Her segment için dik-mesafe (perpendicular projection) hesaplanır; projeksiyon segment
+/// dışına taşarsa en yakın uç noktaya mesafe kullanılır.
+fn point_to_polyline_dist_m(slat: f64, slon: f64, pts: &[(f64, f64)]) -> f64 {
+    if pts.is_empty() { return f64::MAX; }
+    if pts.len() == 1 {
+        return haversine_km(slat, slon, pts[0].0, pts[0].1) * 1000.0;
+    }
+    const DEG_TO_M: f64 = 111_320.0;
+    let cos_lat = slat.to_radians().cos();
+    // Durağı yerel Kartezyen koordinat merkezi (0,0) olarak al
+    let to_local = |lat: f64, lon: f64| -> (f64, f64) {
+        ((lon - slon) * cos_lat * DEG_TO_M, (lat - slat) * DEG_TO_M)
+    };
+    let mut min_dist = f64::MAX;
+    for w in pts.windows(2) {
+        let (ax, ay) = to_local(w[0].0, w[0].1);
+        let (bx, by) = to_local(w[1].0, w[1].1);
+        let (dx, dy) = (bx - ax, by - ay);
+        let len_sq = dx * dx + dy * dy;
+        let dist = if len_sq < 1e-6 {
+            (ax * ax + ay * ay).sqrt()
+        } else {
+            let t = ((-ax * dx) + (-ay * dy)) / len_sq;
+            let t = t.clamp(0.0, 1.0);
+            let (cx, cy) = (ax + t * dx, ay + t * dy);
+            (cx * cx + cy * cy).sqrt()
+        };
+        if dist < min_dist { min_dist = dist; }
+    }
+    min_dist
+}
+
 fn hms_to_secs(t: (u32, u32, u32)) -> u32 {
     t.0 * 3600 + t.1 * 60 + t.2
 }
@@ -3723,10 +3756,9 @@ fn check_remaining_analytics(
 
             for st in stimes {
                 let Some(&(slat, slon)) = stop_coords.get(st.stop_id.as_str()) else { continue };
-                // minimum mesafe: tüm shape noktalarına mesafe
-                let min_dist_m = pts.iter()
-                    .map(|&(plat, plon)| haversine_km(slat, slon, plat, plon) * 1000.0)
-                    .fold(f64::MAX, f64::min);
+                // Shape'e en yakın SEGMENT mesafesi (nokta-noktaya değil): seyrek shape
+                // noktalarında iki nokta arasındaki duraklarda false-positive önlenir.
+                let min_dist_m = point_to_polyline_dist_m(slat, slon, pts);
                 if min_dist_m > SHP_STOP_THRESHOLD_M {
                     *shape_stop_violations.entry(shape_id).or_insert(0) += 1;
                 }

@@ -197,7 +197,7 @@ Büyük feed'lerde aynı kural binlerce satırda tetiklenebilir. Sınırsız bul
 | Kural başına (yüksek) | 2.000 | `TRP_020`, `OPR_007`, `STP_016`, `STP_017` |
 | Toplam (tüm kurallar) | 100.000 | Feed geneli — aşılırsa doğrulama durur |
 
-Yüksek cap listesindeki kurallar gerçek feed'lerde doğal olarak yüksek sayılara ulaşır (örn. her sefer için bir headway kaydı). Raporda bir kuralın sınıra ulaştığı durumlarda gösterilen sayı gerçek ihlal sayısını yansıtmaz.
+Yüksek cap listesindeki kurallar gerçek feed'lerde doğal olarak yüksek sayılara ulaşır (örn. her sefer için bir headway kaydı). Sınıra çarpan kurallarda gerçek ihlal sayısı Düzeltme Kuyruğu'nun **Toplam** sütununda görünür; Tüm Bulgular sayfasında kural filtresi seçildiğinde ise sarı bir uyarı satırı gösterilir.
 
 ---
 

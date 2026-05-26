@@ -164,7 +164,7 @@ function renderPieCard(c: SevCount): string {
 
   return `
     <div class="rpt-score-card rpt-pie-card">
-      <span class="rpt-score-label">Hata Dağılımı</span>
+      <span class="rpt-score-label">Hata Dağılımı <span class="rpt-score-total">${total.toLocaleString('tr-TR')}</span></span>
       <div class="rpt-pie-body">
         <svg viewBox="0 0 36 36" class="rpt-pie-svg" aria-hidden="true">
           <circle cx="18" cy="18" r="${R}" fill="none" class="pie-track" stroke-width="3.5"/>
@@ -187,29 +187,6 @@ function countBySeverity(result: ValidationResult): SevCount {
   return c;
 }
 
-function renderSevRow(c: SevCount): string {
-  const total = c.CRITICAL + c.HIGH + c.MEDIUM + c.LOW + c.INFO;
-  if (total === 0) return '';
-
-  const chips = [
-    { key: 'CRITICAL', label: 'Kritik',  color: '#dc2626', bg: '#fef2f2' },
-    { key: 'HIGH',     label: 'Yüksek',  color: '#d97706', bg: '#fffbeb' },
-    { key: 'MEDIUM',   label: 'Orta',    color: '#2563eb', bg: '#eff6ff' },
-    { key: 'LOW',      label: 'Düşük',   color: '#16a34a', bg: '#f0fdf4' },
-    { key: 'INFO',     label: 'Bilgi',   color: '#6b7280', bg: '#f9fafb' },
-  ].filter(s => (c as any)[s.key] > 0)
-   .map(s => `
-    <div class="rpt-sev-chip" style="background:${s.bg};color:${s.color}">
-      <span class="rpt-sev-label">${s.label}</span>
-      <span class="rpt-sev-val">${(c as any)[s.key].toLocaleString('tr-TR')}</span>
-    </div>`).join('');
-
-  return `
-    <div class="card rpt-sev-card">
-      <h3 class="rpt-section-title">Hata Dağılımı <span class="count-badge">${total.toLocaleString('tr-TR')}</span></h3>
-      <div class="rpt-sev-row">${chips}</div>
-    </div>`;
-}
 
 // ── Feed metrikleri ───────────────────────────────────────────────────────────
 
