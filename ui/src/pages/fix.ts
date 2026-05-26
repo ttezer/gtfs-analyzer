@@ -336,6 +336,11 @@ function hasMapCoords(notice: Notice, nameIndex: NameIndex): boolean {
   if (['STM_012','STM_026','STM_033'].includes(notice.rule_id)) {
     return !!(eid && eid in nameIndex.trip_shapes) || !!(eid && eid in nameIndex.trip_stops);
   }
+  // STM_035: aynı durak ardışık iki kez — tekrar eden durak pini veya trip shape
+  if (notice.rule_id === 'STM_035') {
+    const stopId = notice.observed_value ?? '';
+    return !!(stopId && stopId in nameIndex.stop_coords) || !!(eid && (eid in nameIndex.trip_shapes || eid in nameIndex.trip_stops));
+  }
   // VAT_005: izole duraksız da gösterebiliriz — stop_coords boş değilse
   if (notice.rule_id === 'VAT_005') {
     return Object.keys(nameIndex.stop_coords).length > 0;
@@ -790,6 +795,27 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
     const legendItems: Array<{ color: string; label: string }> = [];
     if (polyline.length > 1) legendItems.push({ color: '#f59e0b', label: 'Güzergah şekli' });
     legendItems.push({ color: '#dc2626', label: 'Tek durak (kullanılamaz sefer)' });
+    return { pins, polyline: polyline.length > 1 ? polyline : undefined, legendItems, showArrows: polyline.length > 1 };
+  }
+
+  // STM_035: aynı durak ardışık iki kez — shape + tüm duraklar + tekrar eden durak kırmızı
+  if (notice.rule_id === 'STM_035') {
+    const shapeId = entityId ? (nameIndex.trip_shapes[entityId] ?? '') : '';
+    const polyline = shapeId ? (nameIndex.shape_coords[shapeId] ?? []) : [];
+    const stopIds = entityId ? (nameIndex.trip_stops[entityId] ?? []) : [];
+    const repeatStopId = notice.observed_value ?? '';
+    const pins: MapPin[] = [];
+    for (const id of stopIds) {
+      if (id === repeatStopId) continue;
+      const p = stopPin(id, nameIndex, true);
+      if (p) pins.push({ ...p, small: true });
+    }
+    const errPin = repeatStopId ? stopPin(repeatStopId, nameIndex, false, '(ardışık iki kez ziyaret)') : null;
+    if (errPin) pins.push(errPin);
+    const legendItems: Array<{ color: string; label: string }> = [];
+    if (polyline.length > 1) legendItems.push({ color: '#f59e0b', label: 'Güzergah şekli' });
+    if (stopIds.length > 0) legendItems.push({ color: '#2563eb', label: 'Sefer durakları' });
+    if (errPin) legendItems.push({ color: '#dc2626', label: 'Tekrar ziyaret edilen durak' });
     return { pins, polyline: polyline.length > 1 ? polyline : undefined, legendItems, showArrows: polyline.length > 1 };
   }
 
