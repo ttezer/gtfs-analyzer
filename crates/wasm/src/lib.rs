@@ -124,7 +124,6 @@ pub fn rerun_k6_k7(cache: &CachedState, config_delta_json: &str, on_stage: &js_s
 
     let mut all_notices = cache.k1_k5_notices.clone();
     all_notices.extend(k6.notices);
-    cap_per_rule(&mut all_notices);
     if all_notices.len() > NOTICE_LIMIT {
         return to_js(&ValidateResult::Fatal(resource_limit_error()));
     }
@@ -133,11 +132,14 @@ pub fn rerun_k6_k7(cache: &CachedState, config_delta_json: &str, on_stage: &js_s
     let k7 = report_k7(all_notices, &cache.records, &cache.derived, cache.file_stats.clone());
     call_stage(on_stage, "K7", (js_sys::Date::now() - t) as u32);
 
+    let mut display_notices = k7.notices;
+    let capped_totals = cap_per_rule(&mut display_notices);
     to_js(&ValidateResult::Ok(ValidationResult {
-        notices: k7.notices,
+        notices: display_notices,
         reports: k7.reports,
         metrics: k7.metrics,
         name_index: build_name_index(&cache.records),
+        capped_totals,
     }))
 }
 
@@ -179,17 +181,21 @@ fn run_full_pipeline(zip_bytes: &[u8], config: &ValidatorConfig, today: u32) -> 
     all_notices.extend(k4.notices);
     all_notices.extend(k5.notices);
     all_notices.extend(k6.notices);
-    cap_per_rule(&mut all_notices);
     if all_notices.len() > NOTICE_LIMIT {
         return ValidateResult::Fatal(resource_limit_error());
     }
 
+    // K7 tam notice seti üzerinde çalışır → score delta'lar gerçek notice sayısına göre hesaplanır.
+    // Cap yalnızca UI display için k7.notices üzerine uygulanır.
     let k7 = report_k7(all_notices, &k2.records, &k5.derived, file_stats);
+    let mut display_notices = k7.notices;
+    let capped_totals = cap_per_rule(&mut display_notices);
     ValidateResult::Ok(ValidationResult {
-        notices: k7.notices,
+        notices: display_notices,
         reports: k7.reports,
         metrics: k7.metrics,
         name_index: build_name_index(&k2.records),
+        capped_totals,
     })
 }
 
@@ -233,7 +239,6 @@ fn run_k1_k5(zip_bytes: &[u8], on_stage: &js_sys::Function) -> Result<CachedStat
     k1_k5_notices.extend(k3.notices);
     k1_k5_notices.extend(k4.notices);
     k1_k5_notices.extend(k5.notices);
-    cap_per_rule(&mut k1_k5_notices);
     if k1_k5_notices.len() > NOTICE_LIMIT {
         return Err(resource_limit_error());
     }
@@ -256,13 +261,17 @@ fn parse_config(delta_json: &str) -> Result<ValidatorConfig, FatalError> {
 // Sınırsız bırakılırsa WASM bellek kullanımı patlar ve UI render süresi uzar.
 // Varsayılan cap PER_RULE_CAP (500); gerçek feed'lerde doğal olarak yüksek çıkan
 // kurallar HIGH_CAP_RULES listesinde 2000'e yükseltilmiştir.
-// Ayrıca tüm kuralların toplamı NOTICE_LIMIT (100.000) ile sınırlıdır.
-// Raporda cap'e çarpan bir kural için gösterilen notice sayısı gerçek ihlal sayısını
-// yansıtmaz; kullanıcıya bu durum bilgi notu olarak iletilmelidir.
-fn cap_per_rule(notices: &mut Vec<gtfs_core::Notice>) {
+// Dönüş değeri: cap'e çarpan kuralların {rule_id → gerçek_toplam} haritası.
+fn cap_per_rule(notices: &mut Vec<gtfs_core::Notice>) -> std::collections::HashMap<String, u32> {
     use std::collections::HashMap;
     const HIGH_CAP_RULES: &[&str] = &["TRP_020", "OPR_007", "STP_016", "STP_017"];
     const HIGH_CAP: usize = 2_000;
+
+    let mut totals: HashMap<String, usize> = HashMap::new();
+    for n in notices.iter() {
+        *totals.entry(n.rule_id.clone()).or_insert(0) += 1;
+    }
+
     let mut counts: HashMap<String, usize> = HashMap::new();
     notices.retain(|n| {
         let c = counts.entry(n.rule_id.clone()).or_insert(0);
@@ -270,6 +279,13 @@ fn cap_per_rule(notices: &mut Vec<gtfs_core::Notice>) {
         let cap = if HIGH_CAP_RULES.contains(&n.rule_id.as_str()) { HIGH_CAP } else { PER_RULE_CAP };
         *c <= cap
     });
+
+    totals.into_iter()
+        .filter_map(|(rule_id, total)| {
+            let cap = if HIGH_CAP_RULES.contains(&rule_id.as_str()) { HIGH_CAP } else { PER_RULE_CAP };
+            if total > cap { Some((rule_id, total as u32)) } else { None }
+        })
+        .collect()
 }
 
 fn resource_limit_error() -> FatalError {

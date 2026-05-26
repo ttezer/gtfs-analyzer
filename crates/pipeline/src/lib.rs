@@ -76,6 +76,7 @@ pub fn validate_bytes(zip: &[u8], config: &ValidatorConfig, today: u32) -> Valid
         reports: k7.reports,
         metrics: k7.metrics,
         name_index: build_name_index(&k2.records),
+        capped_totals: std::collections::HashMap::new(),
     })
 }
 

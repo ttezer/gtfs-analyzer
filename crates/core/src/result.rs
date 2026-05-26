@@ -32,6 +32,9 @@ pub struct ValidationResult {
     pub reports: ReportSet,
     pub metrics: FeedMetrics,
     pub name_index: NameIndex,
+    /// Cap'e çarpan kurallar ve gerçek notice sayıları.
+    /// Yalnızca cap'i aşan kuralları içerir; aşmayanlar burada yer almaz.
+    pub capped_totals: HashMap<String, u32>,
 }
 
 /// Validator ana dönüş tipi.
