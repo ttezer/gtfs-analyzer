@@ -1039,23 +1039,65 @@ export function attachFixListeners(root: HTMLElement, result?: ValidationResult)
   const table      = root.querySelector<HTMLTableElement>('#r2-table');
   if (!sevFilter || !clsFilter || !table) return;
 
+  const allRuleOpts: [string, string][] = ruleFilter
+    ? Array.from(ruleFilter.options).filter(o => o.value !== '').map(o => [o.value, o.text])
+    : [];
+
+  const SEV_OPTS: [string, string][] = [
+    ['CRITICAL', 'KRİTİK'], ['HIGH', 'YÜKSEK'], ['MEDIUM', 'ORTA'],
+    ['LOW', 'DÜŞÜK'], ['INFO', 'BİLGİ'],
+  ];
+  const CLS_OPTS: [string, string][] = [
+    ['SPEC', 'GTFS Geçerliliği'], ['INTEROP', 'GTFS Uyumluluğu'],
+    ['QUALITY', 'GTFS Kalitesi'], ['ANALYTICS', 'GTFS Analitiği'],
+  ];
+
+  function rebuildOpts(sel: HTMLSelectElement, cur: string, available: Set<string>, opts: [string, string][]): void {
+    sel.innerHTML = '<option value="">Tümü</option>' +
+      opts.filter(([v]) => available.has(v))
+          .map(([v, l]) => `<option value="${v}"${v === cur ? ' selected' : ''}>${l}</option>`)
+          .join('');
+    if (cur && !available.has(cur)) sel.value = '';
+  }
+
   function applyFilters(): void {
     const sev  = sevFilter!.value;
     const cls  = clsFilter!.value;
     const rule = ruleFilter?.value ?? '';
     let visible = 0, total = 0;
+    const sevSet  = new Set<string>();
+    const clsSet  = new Set<string>();
+    const ruleSet = new Set<string>();
+
     table!.querySelectorAll<HTMLTableRowElement>('tbody tr').forEach(row => {
       total++;
-      const sevMatch  = !sev  || row.dataset['severity'] === sev;
-      const clsMatch  = !cls  || row.dataset['class']    === cls;
-      const ruleMatch = !rule || row.dataset['rule']      === rule;
-      const show = sevMatch && clsMatch && ruleMatch;
-      row.style.display = show ? '' : 'none';
-      if (show) visible++;
+      const rowSev  = row.dataset['severity'] ?? '';
+      const rowCls  = row.dataset['class']    ?? '';
+      const rowRule = row.dataset['rule']      ?? '';
+      const sevMatch  = !sev  || rowSev  === sev;
+      const clsMatch  = !cls  || rowCls  === cls;
+      const ruleMatch = !rule || rowRule === rule;
+      row.style.display = (sevMatch && clsMatch && ruleMatch) ? '' : 'none';
+      if (sevMatch && clsMatch && ruleMatch) visible++;
+      if (clsMatch && ruleMatch) sevSet.add(rowSev);
+      if (sevMatch && ruleMatch) clsSet.add(rowCls);
+      if (sevMatch && clsMatch) ruleSet.add(rowRule);
     });
+
     const counter = root.querySelector<HTMLSpanElement>('#filter-count');
-    if (counter) {
-      counter.textContent = (sev || cls || rule) ? `${total} noticeden ${visible} tanesi` : '';
+    if (counter) counter.textContent = (sev || cls || rule) ? `${total} noticeden ${visible} tanesi` : '';
+
+    const badge = root.querySelector<HTMLSpanElement>('#r2-card h2 .count-badge');
+    if (badge) badge.textContent = (sev || cls || rule) ? String(visible) : String(total);
+
+    rebuildOpts(sevFilter!, sev, sevSet, SEV_OPTS);
+    rebuildOpts(clsFilter!, cls, clsSet, CLS_OPTS);
+    if (ruleFilter) {
+      ruleFilter.innerHTML = '<option value="">Tümü</option>' +
+        allRuleOpts.filter(([v]) => ruleSet.has(v))
+                   .map(([v, l]) => `<option value="${v}"${v === rule ? ' selected' : ''}>${escHtml(l)}</option>`)
+                   .join('');
+      if (rule && !ruleSet.has(rule)) ruleFilter.value = '';
     }
   }
 
