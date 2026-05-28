@@ -28,9 +28,11 @@ export function renderExport(
 
 function csvCell(v: string | number | null | undefined): string {
   const s = v == null ? '' : String(v);
-  return s.includes(',') || s.includes('"') || s.includes('\n')
-    ? `"${s.replace(/"/g, '""')}"`
-    : s;
+  // Formula injection: Excel/Calc =, +, -, @ ile başlayan değerleri formül olarak yorumlar
+  const safe = /^[=+\-@]/.test(s) ? `'${s}` : s;
+  return safe.includes(',') || safe.includes('"') || safe.includes('\n')
+    ? `"${safe.replace(/"/g, '""')}"`
+    : safe;
 }
 
 function exportCsv(result: ValidationResult, fileName: string): void {

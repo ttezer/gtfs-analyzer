@@ -26,11 +26,18 @@ type PendingEntry = {
 
 // ── Worker ────────────────────────────────────────────────────────────────────
 
-const worker  = new Worker(new URL('./validator-worker.ts', import.meta.url), { type: 'module' });
 const pending = new Map<number, PendingEntry>();
 let   nextId  = 1;
+let   worker  = createWorker();
 
-worker.onmessage = (event: MessageEvent<WorkerMsg>) => {
+function createWorker(): Worker {
+  const w = new Worker(new URL('./validator-worker.ts', import.meta.url), { type: 'module' });
+  w.onmessage = onWorkerMessage;
+  w.onerror   = onWorkerError;
+  return w;
+}
+
+function onWorkerMessage(event: MessageEvent<WorkerMsg>): void {
   const msg = event.data;
   const entry = pending.get(msg.id);
   if (!entry) return;
@@ -52,16 +59,18 @@ worker.onmessage = (event: MessageEvent<WorkerMsg>) => {
     if (msg.ok) entry.resolve(msg.result);
     else        entry.reject(msg.error);
   }
-};
+}
 
-worker.onerror = (event: ErrorEvent) => {
+function onWorkerError(event: ErrorEvent): void {
   const error: FatalError = {
     code: 'ResourceLimit',
     message: event.message || 'Arka plan doğrulama işçisi beklenmedik şekilde durdu.',
   };
   for (const [, e] of pending) e.reject(error);
   pending.clear();
-};
+  worker.terminate();
+  worker = createWorker();
+}
 
 // ── Public API ────────────────────────────────────────────────────────────────
 

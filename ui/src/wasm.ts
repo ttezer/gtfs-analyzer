@@ -25,7 +25,8 @@ export function runValidate(zip: Uint8Array, configDelta = ''): ValidateResult {
 export function listZipFiles(zip: Uint8Array): Array<{ name: string; uncompressed_size: number }> {
   try {
     return JSON.parse(wasmListZipFiles(zip)) as Array<{ name: string; uncompressed_size: number }>;
-  } catch {
+  } catch (err) {
+    console.error('[WASM] listZipFiles başarısız:', err);
     return [];
   }
 }

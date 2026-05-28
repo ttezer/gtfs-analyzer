@@ -14,3 +14,16 @@
 # OS
 .DS_Store
 Thumbs.db
+
+# Editor temp files
+*.swp
+*.swo
+*~
+
+# IDE configs
+.vscode/
+.idea/
+
+# Environment variables
+.env
+.env.local
