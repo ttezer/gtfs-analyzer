@@ -10,7 +10,7 @@ const FIXTURE_ZIP = path.join(
 
 test('sayfa açılıyor ve upload zone görünüyor', async ({ page }) => {
   await page.goto('/');
-  await expect(page.locator('h1')).toHaveText('GTFS Validator');
+  await expect(page.locator('h1')).toHaveText('GTFS Analyzer');
   await expect(page.locator('.drop-zone')).toBeVisible();
   await expect(page.locator('#file-input')).toBeAttached();
 });
@@ -61,12 +61,15 @@ test('bozuk ZIP dosyası hata kartı gösteriyor', async ({ page }) => {
 test('512 MB üzeri dosya reddediliyor', async ({ page }) => {
   await page.goto('/');
 
-  // 513 MB sahte buffer — content önemsiz, sadece boyut kontrol ediliyor
-  const bigBuffer = Buffer.alloc(513 * 1024 * 1024, 0);
-  await page.locator('#file-input').setInputFiles({
-    name: 'huge.zip',
-    mimeType: 'application/zip',
-    buffer: bigBuffer,
+  // Playwright setInputFiles buffer limiti 50 MB — JS tarafında sahte File inject et
+  await page.evaluate(() => {
+    const input = document.querySelector('#file-input') as HTMLInputElement;
+    const fakeFile = new File([new ArrayBuffer(1)], 'huge.zip', { type: 'application/zip' });
+    Object.defineProperty(fakeFile, 'size', { value: 513 * 1024 * 1024 });
+    const dt = new DataTransfer();
+    dt.items.add(fakeFile);
+    input.files = dt.files;
+    input.dispatchEvent(new Event('change', { bubbles: true }));
   });
 
   const status = page.locator('.upload-status.error');
