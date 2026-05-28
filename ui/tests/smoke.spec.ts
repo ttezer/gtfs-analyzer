@@ -45,3 +45,31 @@ test('ZIP → WASM çalışır → loading biter, sonuç gelir', async ({ page }
   const hasError = await page.locator('.upload-status.error').isVisible();
   expect(hasScore || hasError, `WASM sonuç vermedi. Console: ${consoleErrors.join(', ')}`).toBe(true);
 });
+
+test('bozuk ZIP dosyası hata kartı gösteriyor', async ({ page }) => {
+  await page.goto('/');
+  await page.locator('#file-input').setInputFiles({
+    name: 'corrupt.zip',
+    mimeType: 'application/zip',
+    buffer: Buffer.from('bu gercek bir zip degil - sadece rastgele baytlar'),
+  });
+
+  const status = page.locator('.upload-status.error');
+  await expect(status).toBeVisible({ timeout: 15_000 });
+});
+
+test('512 MB üzeri dosya reddediliyor', async ({ page }) => {
+  await page.goto('/');
+
+  // 513 MB sahte buffer — content önemsiz, sadece boyut kontrol ediliyor
+  const bigBuffer = Buffer.alloc(513 * 1024 * 1024, 0);
+  await page.locator('#file-input').setInputFiles({
+    name: 'huge.zip',
+    mimeType: 'application/zip',
+    buffer: bigBuffer,
+  });
+
+  const status = page.locator('.upload-status.error');
+  await expect(status).toBeVisible({ timeout: 5_000 });
+  await expect(status).toContainText('512 MB');
+});

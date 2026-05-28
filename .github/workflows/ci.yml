@@ -32,8 +32,29 @@ jobs:
       - name: cargo test
         run: cargo test --workspace
 
+  ts-test:
+    name: TypeScript Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Node.js kur
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: ui/package-lock.json
+
+      - name: npm bağımlılıkları yükle
+        working-directory: ui
+        run: npm ci
+
+      - name: vitest çalıştır
+        working-directory: ui
+        run: npm test
+
   wasm-build:
-    name: WASM Build + UI Build
+    name: WASM Build + UI Build + E2E
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -74,3 +95,11 @@ jobs:
       - name: UI derle
         working-directory: ui
         run: npm run build
+
+      - name: Playwright browser kur
+        working-directory: ui
+        run: npx playwright install chromium --with-deps
+
+      - name: E2E testleri çalıştır
+        working-directory: ui
+        run: npx playwright test
