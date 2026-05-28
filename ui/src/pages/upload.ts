@@ -217,8 +217,15 @@ function renderSettingsFields(overrides: Record<string, number>): string {
 
 function parseConfigDelta(delta: string): Record<string, number> {
   if (!delta || delta === '{}') return {};
-  try { return JSON.parse(delta) as Record<string, number>; }
-  catch { return {}; }
+  try {
+    const parsed: unknown = JSON.parse(delta);
+    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return {};
+    const result: Record<string, number> = {};
+    for (const [key, value] of Object.entries(parsed as Record<string, unknown>)) {
+      if (typeof value === 'number' && isFinite(value)) result[key] = value;
+    }
+    return result;
+  } catch { return {}; }
 }
 
 // ── Olay dinleyicileri ───────────────────────────────────────────────────────
@@ -325,9 +332,18 @@ function resetSettings(root: HTMLElement): void {
 
 // ── Dosya işleme ─────────────────────────────────────────────────────────────
 
+const MAX_FILE_BYTES = 512 * 1024 * 1024; // 512 MB
+
 async function handleFile(file: File, root: HTMLElement, errorEl: HTMLElement): Promise<void> {
   if (!file.name.endsWith('.zip')) {
     showError(errorEl, { code: 'InvalidInput', message: 'Yalnızca .zip uzantılı dosyalar kabul edilir.' });
+    return;
+  }
+  if (file.size > MAX_FILE_BYTES) {
+    showError(errorEl, {
+      code: 'InvalidInput',
+      message: `Dosya çok büyük (${(file.size / 1_048_576).toFixed(1)} MB). Maksimum izin verilen boyut: 512 MB.`,
+    });
     return;
   }
 

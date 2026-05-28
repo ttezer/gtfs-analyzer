@@ -74,6 +74,16 @@ function onWorkerError(event: ErrorEvent): void {
 
 // ── Public API ────────────────────────────────────────────────────────────────
 
+const VALIDATE_TIMEOUT_MS = 5 * 60 * 1000; // 5 dakika
+
+function withTimeout(id: number, reject: (e: FatalError) => void): ReturnType<typeof setTimeout> {
+  return setTimeout(() => {
+    if (!pending.has(id)) return;
+    pending.delete(id);
+    reject({ code: 'ResourceLimit', message: 'Doğrulama 5 dakika içinde tamamlanamadı. Daha küçük bir feed deneyin.' });
+  }, VALIDATE_TIMEOUT_MS);
+}
+
 export function validateFile(
   buffer: ArrayBuffer,
   configDelta: string,
@@ -81,7 +91,12 @@ export function validateFile(
 ): Promise<ValidationResult> {
   const id = nextId++;
   return new Promise<ValidationResult>((resolve, reject) => {
-    pending.set(id, { resolve, reject, callbacks });
+    const timer = withTimeout(id, reject);
+    pending.set(id, {
+      resolve: (v) => { clearTimeout(timer); resolve(v); },
+      reject:  (e) => { clearTimeout(timer); reject(e); },
+      callbacks,
+    });
     worker.postMessage({ id, type: 'validate', buffer, configDelta } satisfies ValidateRequest, [buffer]);
   });
 }
@@ -92,7 +107,12 @@ export function rerunValidation(
 ): Promise<ValidationResult> {
   const id = nextId++;
   return new Promise<ValidationResult>((resolve, reject) => {
-    pending.set(id, { resolve, reject, callbacks });
+    const timer = withTimeout(id, reject);
+    pending.set(id, {
+      resolve: (v) => { clearTimeout(timer); resolve(v); },
+      reject:  (e) => { clearTimeout(timer); reject(e); },
+      callbacks,
+    });
     worker.postMessage({ id, type: 'rerun', configDelta } satisfies RerunRequest);
   });
 }
