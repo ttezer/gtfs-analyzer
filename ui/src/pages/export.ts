@@ -1,5 +1,5 @@
 import type { ValidationResult } from '../types';
-import { SEVERITY_TR, RULE_CLASS_TR } from '../i18n';
+import { SEVERITY_TR, RULE_CLASS_TR, t } from '../i18n';
 
 export function renderExport(
   root: HTMLElement,
@@ -9,13 +9,13 @@ export function renderExport(
   root.innerHTML = `
     <section class="page-export-wide">
       <div class="card">
-        <h2>Dışa Aktar</h2>
-        <p class="export-filename">Kaynak: <code>${escHtml(fileName)}</code></p>
+        <h2>${t('export.title')}</h2>
+        <p class="export-filename">${t('export.source')} <code>${escHtml(fileName)}</code></p>
         <div class="export-actions">
-          <button id="btn-export-html" class="btn btn-primary">HTML Rapor İndir</button>
-          <button id="btn-export-csv"  class="btn btn-secondary">CSV İndir</button>
-          <button id="btn-export-json" class="btn btn-secondary">JSON Ham Veri İndir</button>
-          <button id="btn-export-pdf"  class="btn btn-secondary">PDF Olarak Yazdır</button>
+          <button id="btn-export-html" class="btn btn-primary">${t('export.html')}</button>
+          <button id="btn-export-csv"  class="btn btn-secondary">${t('export.csv')}</button>
+          <button id="btn-export-json" class="btn btn-secondary">${t('export.json')}</button>
+          <button id="btn-export-pdf"  class="btn btn-secondary">${t('export.pdf')}</button>
         </div>
       </div>
     </section>`;
@@ -28,7 +28,6 @@ export function renderExport(
 
 function csvCell(v: string | number | null | undefined): string {
   const s = v == null ? '' : String(v);
-  // Formula injection: Excel/Calc =, +, -, @ ile başlayan değerleri formül olarak yorumlar
   const safe = /^[=+\-@]/.test(s) ? `'${s}` : s;
   return safe.includes(',') || safe.includes('"') || safe.includes('\n')
     ? `"${safe.replace(/"/g, '""')}"`
@@ -36,7 +35,10 @@ function csvCell(v: string | number | null | undefined): string {
 }
 
 function exportCsv(result: ValidationResult, fileName: string): void {
-  const header = ['Kural', 'Önem', 'Sınıf', 'Mesaj', 'Varlık ID', 'Dosya', 'Satır'];
+  const header = [
+    t('export.csv.rule'), t('export.csv.severity'), t('export.csv.class'),
+    t('export.csv.message'), t('export.csv.entity_id'), t('export.csv.file'), t('export.csv.row'),
+  ];
   const rows = result.notices.map(n => [
     n.rule_id,
     SEVERITY_TR[n.severity] ?? n.severity,
@@ -47,7 +49,7 @@ function exportCsv(result: ValidationResult, fileName: string): void {
     n.line != null ? String(n.line) : '',
   ].map(csvCell).join(','));
 
-  const bom = '﻿'; // Excel UTF-8 BOM
+  const bom = '﻿';
   const csv = bom + [header.map(csvCell).join(','), ...rows].join('\r\n');
   const blob = new Blob([csv], { type: 'text/csv; charset=utf-8' });
   triggerDownload(blob, fileName.replace(/\.zip$/i, '-report.csv'));
@@ -61,8 +63,8 @@ function exportJson(result: ValidationResult, fileName: string): void {
 function buildReportHtml(result: ValidationResult, fileName: string): string {
   const { r1, r5 } = result.reports;
   const publishLabel = r1.publishable
-    ? (r1.conditional ? 'Koşullu Yayına Uygun' : 'Yayına Uygun')
-    : 'Yayınlanması Tavsiye Edilmez';
+    ? (r1.conditional ? t('export.html.publishable_cond') : t('export.html.publishable_ok'))
+    : t('export.html.publishable_blocked');
 
   const noticeRows = result.notices.map(n => `
     <tr>
@@ -75,11 +77,18 @@ function buildReportHtml(result: ValidationResult, fileName: string): string {
       <td>${n.line ?? ''}</td>
     </tr>`).join('');
 
+  const breakdown = t('export.html.breakdown', {
+    spec    : r5.spec_score.toFixed(1),
+    interop : r5.interop_score.toFixed(1),
+    quality : r5.quality_score.toFixed(1),
+    analytics: r5.analytics_score.toFixed(1),
+  });
+
   return `<!DOCTYPE html>
 <html lang="tr">
 <head>
   <meta charset="UTF-8"/>
-  <title>GTFS Doğrulama Raporu - ${escHtml(fileName)}</title>
+  <title>${t('export.html.doc_title')} - ${escHtml(fileName)}</title>
   <style>
     body { font-family: system-ui, sans-serif; max-width: 1100px; margin: 0 auto; padding: 2rem; color: #1e293b; }
     h1 { font-size: 1.4rem; margin-bottom: .5rem; }
@@ -96,34 +105,39 @@ function buildReportHtml(result: ValidationResult, fileName: string): string {
   </style>
 </head>
 <body>
-  <h1>GTFS Doğrulama Raporu</h1>
-  <p style="color:#64748b;font-size:.9rem">Kaynak: ${escHtml(fileName)}</p>
+  <h1>${t('export.html.h1')}</h1>
+  <p style="color:#64748b;font-size:.9rem">${t('export.html.source')} ${escHtml(fileName)}</p>
 
   <div class="summary">
     <div class="kpi">
       <span class="kpi-value">${publishLabel}</span>
-      <span class="kpi-label">Yayınlanabilirlik</span>
+      <span class="kpi-label">${t('export.html.publishability')}</span>
     </div>
     <div class="kpi">
       <span class="kpi-value">${r5.score.toFixed(1)}<span style="font-size:1rem;font-weight:400">/100</span></span>
-      <span class="kpi-label">Kalite Skoru</span>
-      <span class="score-breakdown">GTFS Geçerliliği ${r5.spec_score.toFixed(1)} · GTFS Uyumluluğu ${r5.interop_score.toFixed(1)} · GTFS Kalitesi ${r5.quality_score.toFixed(1)} · GTFS Analitiği ${r5.analytics_score.toFixed(1)}</span>
+      <span class="kpi-label">${t('export.html.qual_score')}</span>
+      <span class="score-breakdown">${breakdown}</span>
     </div>
     <div class="kpi">
       <span class="kpi-value">${r5.pub_score.toFixed(1)}<span style="font-size:1rem;font-weight:400">/100</span></span>
-      <span class="kpi-label">Yayın Skoru</span>
+      <span class="kpi-label">${t('export.html.pub_score')}</span>
     </div>
     <div class="kpi">
       <span class="kpi-value">${result.notices.length}</span>
-      <span class="kpi-label">Toplam Bulgu</span>
+      <span class="kpi-label">${t('export.html.total')}</span>
     </div>
   </div>
 
-  <h2>Bulgular</h2>
+  <h2>${t('export.html.h2_findings')}</h2>
   <table>
     <thead><tr>
-      <th>Kural</th><th>Önem</th><th>Sınıf</th><th>Mesaj</th>
-      <th>Varlık ID</th><th>Dosya</th><th>Satır</th>
+      <th>${t('export.html.th.rule')}</th>
+      <th>${t('export.html.th.severity')}</th>
+      <th>${t('export.html.th.class')}</th>
+      <th>${t('export.html.th.message')}</th>
+      <th>${t('export.html.th.entity_id')}</th>
+      <th>${t('export.html.th.file')}</th>
+      <th>${t('export.html.th.row')}</th>
     </tr></thead>
     <tbody>${noticeRows}</tbody>
   </table>
@@ -140,7 +154,7 @@ function exportHtml(result: ValidationResult, fileName: string): void {
 function exportPdf(result: ValidationResult, fileName: string): void {
   const html = buildReportHtml(result, fileName);
   const win = window.open('', '_blank');
-  if (!win) { alert('Açılır pencere engellendi. Tarayıcı ayarlarını kontrol edin.'); return; }
+  if (!win) { alert(t('export.popup_blocked')); return; }
   win.document.write(html);
   win.document.close();
   win.focus();

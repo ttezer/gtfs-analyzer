@@ -1,137 +1,98 @@
 import { setResult, getState, setConfigDelta, setPage } from '../state';
-import { FATAL_CODE_TR } from '../i18n';
+import { FATAL_CODE_TR, t } from '../i18n';
 import type { FatalError, ValidationResult, FileInfo } from '../types';
 import { renderApp } from '../main';
 import { validateFile } from '../validator-client';
 
-const STAGE_LABELS: Record<string, string> = {
-  K1: 'K1 — Dosya Ayrıştırma',
-  K2: 'K2 — Kural Doğrulama',
-  K3: 'K3 — Varlık Haritası',
-  K4: 'K4 — Çapraz Kontrol',
-  K5: 'K5 — Türetilmiş Veri',
-  K6: 'K6 — İstatistik Analizi',
-  K7: 'K7 — Rapor Oluşturma',
-};
-
 const STAGE_ORDER = ['K1', 'K2', 'K3', 'K4', 'K5', 'K6', 'K7'];
 
-const CONFIG_FIELDS: Array<{
-  key: string; label: string; unit: string; type: 'float' | 'int';
-  def: number; min: number; max: number; desc: string;
-}> = [
-  { key: 'max_speed_bus_kmh',        label: 'Maks. Otobüs Hızı',           unit: 'km/s',  type: 'float', def: 120,  min: 60,   max: 200,  desc: 'Otobüs seferleri için maksimum izin verilen hız' },
-  { key: 'max_speed_tram_kmh',       label: 'Maks. Tramvay Hızı',          unit: 'km/s',  type: 'float', def: 100,  min: 40,   max: 160,  desc: 'Tramvay seferleri için maksimum izin verilen hız' },
-  { key: 'max_speed_metro_kmh',      label: 'Maks. Metro Hızı',            unit: 'km/s',  type: 'float', def: 150,  min: 80,   max: 250,  desc: 'Metro seferleri için maksimum izin verilen hız' },
-  { key: 'max_speed_rail_kmh',       label: 'Maks. Demiryolu Hızı',        unit: 'km/s',  type: 'float', def: 300,  min: 100,  max: 400,  desc: 'Demiryolu seferleri için maksimum izin verilen hız' },
-  { key: 'max_speed_ferry_kmh',      label: 'Maks. Feribot Hızı',          unit: 'km/s',  type: 'float', def: 80,   min: 20,   max: 150,  desc: 'Feribot seferleri için maksimum izin verilen hız' },
-  { key: 'max_speed_cablecar_kmh',   label: 'Maks. Teleferik Hızı',        unit: 'km/s',  type: 'float', def: 30,   min: 10,   max: 60,   desc: 'Teleferik/füniküler için maksimum izin verilen hız' },
-  { key: 'min_transfer_time_sec',    label: 'Min. Aktarma Süresi',          unit: 'sn',    type: 'int',   def: 180,  min: 30,   max: 1800, desc: 'Transferler için minimum bağlantı süresi' },
-  { key: 'max_transfer_distance_m',  label: 'Maks. Aktarma Mesafesi',      unit: 'm',     type: 'float', def: 500,  min: 50,   max: 2000, desc: 'Transfer geçerli sayılmak için maksimum mesafe' },
-  { key: 'max_shape_jump_km',        label: 'Maks. Güzergah Sıçraması',    unit: 'km',    type: 'float', def: 10,   min: 1,    max: 50,   desc: 'Art arda güzergah noktaları arasındaki maksimum mesafe' },
-  { key: 'stop_too_close_m',         label: 'Çok Yakın Durak Eşiği',       unit: 'm',     type: 'float', def: 5,    min: 1,    max: 20,   desc: 'Bu mesafeden yakın duraklar tekrar sayılır' },
-  { key: 'stop_far_from_shape_m',    label: "Durağın Güzergah'a Uzaklığı", unit: 'm',     type: 'float', def: 100,  min: 20,   max: 500,  desc: 'Durağın güzergahından en fazla bu kadar uzakta olabilir' },
-  { key: 'stop_far_from_parent_m',  label: 'Üst İstasyona Uzaklık Eşiği', unit: 'm',     type: 'float', def: 100,  min: 10,   max: 1000, desc: 'Durak, üst istasyonundan en fazla bu kadar uzakta olabilir' },
-  { key: 'feed_expiry_warning_days', label: 'Son Kullanma Uyarısı',         unit: 'gün',   type: 'int',   def: 30,   min: 1,    max: 60,   desc: 'Feed bu kadar günden az kalmışsa uyarı üretilir' },
-  { key: 'service_gap_days',         label: 'Servis Boşluğu Eşiği',        unit: 'gün',   type: 'int',   def: 7,    min: 3,    max: 30,   desc: 'Bu günden uzun servis kesintisi işaretlenir' },
-  { key: 'max_trip_duration_hours',  label: 'Maks. Sefer Süresi',           unit: 'saat',  type: 'float', def: 24,   min: 8,    max: 72,   desc: 'Tek bir seferin maksimum süresi' },
-  { key: 'min_trip_duration_sec',    label: 'Min. Sefer Süresi',            unit: 'sn',    type: 'int',   def: 60,   min: 10,   max: 300,  desc: 'Tek bir seferin minimum süresi' },
-  { key: 'max_headway_warning_min',  label: 'Maks. Sefer Aralığı',          unit: 'dk',    type: 'int',   def: 240,  min: 60,   max: 720,  desc: 'Bu dakikadan uzun aralık uyarı üretir' },
-  { key: 'bunching_threshold_min',   label: 'Sıkışma Eşiği',               unit: 'dk',    type: 'int',   def: 2,    min: 1,    max: 10,   desc: 'Bu dakikadan kısa aralık sıkışma sayılır' },
+const CONFIG_KEYS: Array<{ key: string; type: 'float' | 'int'; def: number; min: number; max: number }> = [
+  { key: 'max_speed_bus_kmh',        type: 'float', def: 120,  min: 60,   max: 200  },
+  { key: 'max_speed_tram_kmh',       type: 'float', def: 100,  min: 40,   max: 160  },
+  { key: 'max_speed_metro_kmh',      type: 'float', def: 150,  min: 80,   max: 250  },
+  { key: 'max_speed_rail_kmh',       type: 'float', def: 300,  min: 100,  max: 400  },
+  { key: 'max_speed_ferry_kmh',      type: 'float', def: 80,   min: 20,   max: 150  },
+  { key: 'max_speed_cablecar_kmh',   type: 'float', def: 30,   min: 10,   max: 60   },
+  { key: 'min_transfer_time_sec',    type: 'int',   def: 180,  min: 30,   max: 1800 },
+  { key: 'max_transfer_distance_m',  type: 'float', def: 500,  min: 50,   max: 2000 },
+  { key: 'max_shape_jump_km',        type: 'float', def: 10,   min: 1,    max: 50   },
+  { key: 'stop_too_close_m',         type: 'float', def: 5,    min: 1,    max: 20   },
+  { key: 'stop_far_from_shape_m',    type: 'float', def: 100,  min: 20,   max: 500  },
+  { key: 'stop_far_from_parent_m',   type: 'float', def: 100,  min: 10,   max: 1000 },
+  { key: 'feed_expiry_warning_days', type: 'int',   def: 30,   min: 1,    max: 60   },
+  { key: 'service_gap_days',         type: 'int',   def: 7,    min: 3,    max: 30   },
+  { key: 'max_trip_duration_hours',  type: 'float', def: 24,   min: 8,    max: 72   },
+  { key: 'min_trip_duration_sec',    type: 'int',   def: 60,   min: 10,   max: 300  },
+  { key: 'max_headway_warning_min',  type: 'int',   def: 240,  min: 60,   max: 720  },
+  { key: 'bunching_threshold_min',   type: 'int',   def: 2,    min: 1,    max: 10   },
 ];
-
-const FILE_ROW_LABEL: Record<string, string> = {
-  'stops.txt':          'durak',
-  'routes.txt':         'hat',
-  'trips.txt':          'sefer',
-  'stop_times.txt':     'geçiş zamanı',
-  'shapes.txt':         'güzergah',
-  'agency.txt':         'işletici',
-  'calendar.txt':       'takvim',
-  'calendar_dates.txt': 'özel gün',
-  'frequencies.txt':    'frekans',
-  'transfers.txt':      'aktarma',
-  'pathways.txt':       'geçit',
-  'levels.txt':         'kat',
-  'attributions.txt':   'atıf',
-  'translations.txt':   'çeviri',
-};
 
 export function renderUpload(root: HTMLElement): void {
   const state = getState();
   const hasResult = state.result !== null;
-  const btnLabel = hasResult ? 'Farklı GTFS Yükle' : 'GTFS Yükle';
+  const btnLabel = hasResult ? t('upload.load_another') : t('upload.load');
 
-  /* Grid düzeni:
-     Sol sütun  → up-files (üst) + up-stages (alt)
-     Sağ sütun  → up-drop  (üst) + up-score  (alt)
-     CSS grid-template-areas ile sıra bağımsız yerleşim sağlanır. */
   root.innerHTML = `
     <div class="up-grid">
 
-      <!-- Sol üst: GTFS Dosyaları -->
       <div class="up-cell up-files">
-        <div class="lp-section-title">GTFS Dosyaları</div>
+        <div class="lp-section-title">${t('upload.files_section')}</div>
         <div id="file-rows" class="lp-rows">
           ${hasResult && state.result!.metrics.file_stats.length > 0
             ? renderFileStatRows(state.result!.metrics.file_stats)
-            : '<div class="lp-placeholder">Henüz dosya yüklenmedi</div>'}
+            : `<div class="lp-placeholder">${t('upload.no_files')}</div>`}
         </div>
       </div>
 
-      <!-- Sağ üst: ZIP Yükle -->
       <div class="up-cell up-drop">
         <div id="drop-zone" class="drop-zone" role="button" tabindex="0" aria-label="ZIP dosyası yükle">
           <svg class="upload-icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/>
           </svg>
-          <span class="drop-primary">ZIP sürükleyin</span>
+          <span class="drop-primary">${t('upload.drag')}</span>
           <label id="upload-btn-label" class="btn btn-primary btn-sm" for="file-input">${escHtml(btnLabel)}</label>
           <input type="file" id="file-input" accept=".zip" class="visually-hidden" aria-label="ZIP dosyası seç"/>
         </div>
         <div id="upload-error" class="upload-status hidden"></div>
       </div>
 
-      <!-- Sol alt: İşlem Aşamaları -->
       <div class="up-cell up-stages">
-        <div class="lp-section-title">İşlem Aşamaları</div>
+        <div class="lp-section-title">${t('upload.stages_section')}</div>
         <div id="stage-rows" class="lp-rows">
           ${STAGE_ORDER.map(s => `
             <div class="lp-stage-row ${hasResult ? 'done' : 'waiting'}" data-stage="${s}">
               <span class="lp-icon">${hasResult ? '✓' : '○'}</span>
-              <span class="lp-label">${escHtml(STAGE_LABELS[s] ?? s)}</span>
+              <span class="lp-label">${escHtml(t(`stage.${s}`))}</span>
               <span class="lp-status">${hasResult ? '' : '—'}</span>
             </div>`).join('')}
         </div>
       </div>
 
-      <!-- Sağ alt: Kalite Skoru + Rapor butonu -->
       <div class="up-cell up-score">
         <div id="score-panel" class="score-compact${hasResult ? '' : ' hidden'}">
           ${hasResult ? renderScoreCompact(state.result!) : ''}
         </div>
         <button id="btn-report" class="btn btn-primary btn-report" ${hasResult ? '' : 'disabled'}>
-          Raporu Göster →
+          ${t('upload.show_report')}
         </button>
       </div>
 
     </div>
 
-    <!-- Analiz Kriterleri (collapse) -->
     <div class="settings-wrap">
       <button class="settings-toggle" id="settings-toggle" type="button">
         <span class="settings-arrow" id="settings-arrow">▶</span>
-        Analiz Kriterleri
+        ${t('upload.settings_title')}
         ${state.configDelta && state.configDelta !== '{}'
-          ? '<span class="settings-badge">Değiştirildi</span>' : ''}
+          ? `<span class="settings-badge">${t('upload.settings_modified')}</span>` : ''}
       </button>
       <div class="settings-body hidden" id="settings-body">
         <div class="settings-grid" id="settings-grid">
           ${renderSettingsFields(parseConfigDelta(state.configDelta))}
         </div>
         <div class="settings-actions">
-          <button id="btn-apply-settings" class="btn btn-primary btn-sm">Uygula</button>
-          <button id="btn-reset-settings" class="btn btn-ghost btn-sm">Sıfırla</button>
+          <button id="btn-apply-settings" class="btn btn-primary btn-sm">${t('upload.apply')}</button>
+          <button id="btn-reset-settings" class="btn btn-ghost btn-sm">${t('upload.reset')}</button>
           <span id="settings-status" class="settings-status hidden"></span>
         </div>
       </div>
@@ -145,7 +106,7 @@ export function renderUpload(root: HTMLElement): void {
 function renderFileStatRows(files: FileInfo[]): string {
   return files.map(f => {
     const kb = Math.round(f.bytes / 1024);
-    const label = FILE_ROW_LABEL[f.name] ?? 'satır';
+    const label = t(`file.${f.name}`) !== `file.${f.name}` ? t(`file.${f.name}`) : t('upload.row_unit');
     return `
       <div class="lp-file-row done">
         <span class="lp-icon">✓</span>
@@ -160,10 +121,10 @@ function renderFileStatRows(files: FileInfo[]): string {
 function renderScoreCompact(result: ValidationResult): string {
   const { r5 } = result.reports;
   const cats = [
-    { label: 'GTFS Geçerliliği', weight: '×40%', value: r5.spec_score,      color: '#2563eb', bg: '#eff6ff' },
-    { label: 'GTFS Uyumluluğu', weight: '×30%', value: r5.interop_score,   color: '#92400e', bg: '#fef3c7' },
-    { label: 'GTFS Kalitesi',   weight: '×20%', value: r5.quality_score,   color: '#15803d', bg: '#f0fdf4' },
-    { label: 'GTFS Analitiği',  weight: '×10%', value: r5.analytics_score, color: '#6d28d9', bg: '#f5f3ff' },
+    { labelKey: 'class.SPEC',      weight: '×40%', value: r5.spec_score,      color: '#2563eb', bg: '#eff6ff' },
+    { labelKey: 'class.INTEROP',   weight: '×30%', value: r5.interop_score,   color: '#92400e', bg: '#fef3c7' },
+    { labelKey: 'class.QUALITY',   weight: '×20%', value: r5.quality_score,   color: '#15803d', bg: '#f0fdf4' },
+    { labelKey: 'class.ANALYTICS', weight: '×10%', value: r5.analytics_score, color: '#6d28d9', bg: '#f5f3ff' },
   ];
   const qualColor = r5.score     >= 80 ? '#15803d' : r5.score     >= 60 ? '#92400e' : '#dc2626';
   const pubColor  = r5.pub_score >= 80 ? '#15803d' : r5.pub_score >= 60 ? '#d97706' : '#dc2626';
@@ -171,7 +132,7 @@ function renderScoreCompact(result: ValidationResult): string {
   const chips = cats.map(c =>
     `<div class="sc-chip" style="background:${c.bg};color:${c.color}">
       <div class="sc-chip-left">
-        <span class="sc-chip-label">${c.label}</span>
+        <span class="sc-chip-label">${t(c.labelKey)}</span>
         <span class="sc-weight">${c.weight}</span>
       </div>
       <span class="sc-chip-val">${c.value.toFixed(1)}</span>
@@ -181,12 +142,12 @@ function renderScoreCompact(result: ValidationResult): string {
   return `
     <div class="sc-dual-header">
       <div class="sc-dual-item">
-        <span class="sc-title">Yayın Skoru</span>
+        <span class="sc-title">${t('score.pub')}</span>
         <span class="sc-overall" style="color:${pubColor}">${r5.pub_score.toFixed(1)}<span class="sc-max">/100</span></span>
       </div>
       <div class="sc-dual-sep"></div>
       <div class="sc-dual-item">
-        <span class="sc-title">Kalite Skoru</span>
+        <span class="sc-title">${t('score.qual')}</span>
         <span class="sc-overall" style="color:${qualColor}">${r5.score.toFixed(1)}<span class="sc-max">/100</span></span>
       </div>
     </div>
@@ -196,21 +157,24 @@ function renderScoreCompact(result: ValidationResult): string {
 // ── Ayarlar alanları ─────────────────────────────────────────────────────────
 
 function renderSettingsFields(overrides: Record<string, number>): string {
-  return CONFIG_FIELDS.map(f => {
+  return CONFIG_KEYS.map(f => {
     const val = overrides[f.key] !== undefined ? overrides[f.key] : f.def;
     const isOverridden = overrides[f.key] !== undefined;
+    const label = t(`cfg.${f.key}.label`);
+    const unit  = t(`cfg.${f.key}.unit`);
+    const desc  = t(`cfg.${f.key}.desc`);
     return `
       <div class="sf-row${isOverridden ? ' sf-overridden' : ''}">
-        <label class="sf-label" title="${escHtml(f.desc)}">${escHtml(f.label)}</label>
+        <label class="sf-label" title="${escHtml(desc)}">${escHtml(label)}</label>
         <div class="sf-control">
           <input class="sf-input" type="number" data-key="${f.key}" data-def="${f.def}"
             data-type="${f.type}" min="${f.min}" max="${f.max}"
             step="${f.type === 'int' ? 1 : 0.1}" value="${val}"/>
-          <span class="sf-unit">${f.unit}</span>
-          <button class="sf-reset btn btn-ghost" data-key="${f.key}" title="Sıfırla"
+          <span class="sf-unit">${unit}</span>
+          <button class="sf-reset btn btn-ghost" data-key="${f.key}" title="${t('upload.reset')}"
             ${!isOverridden ? 'style="visibility:hidden"' : ''}>✕</button>
         </div>
-        <div class="sf-desc">${escHtml(f.desc)} (varsayılan: ${f.def})</div>
+        <div class="sf-desc">${escHtml(desc)} (${t('upload.default_for', { val: f.def })})</div>
       </div>`;
   }).join('');
 }
@@ -259,7 +223,6 @@ function attachUploadListeners(root: HTMLElement): void {
 
   root.querySelector('#btn-report')?.addEventListener('click', () => { setPage('domain'); renderApp(); });
 
-  // Analiz Kriterleri collapse
   const settingsToggle = root.querySelector<HTMLButtonElement>('#settings-toggle')!;
   const settingsBody   = root.querySelector<HTMLElement>('#settings-body')!;
   const settingsArrow  = root.querySelector<HTMLElement>('#settings-arrow')!;
@@ -309,7 +272,7 @@ function applySettings(root: HTMLElement): void {
   setConfigDelta(deltaStr);
 
   const statusEl = root.querySelector<HTMLElement>('#settings-status')!;
-  statusEl.textContent = 'Ayarlar kaydedildi. Yeni ZIP yükleyince uygulanır.';
+  statusEl.textContent = t('upload.settings_saved');
   statusEl.className = 'settings-status ok';
   setTimeout(() => { statusEl.className = 'settings-status hidden'; }, 3000);
 }
@@ -325,24 +288,24 @@ function resetSettings(root: HTMLElement): void {
   setConfigDelta('');
 
   const statusEl = root.querySelector<HTMLElement>('#settings-status')!;
-  statusEl.textContent = 'Varsayılanlara döndürüldü.';
+  statusEl.textContent = t('upload.settings_reset');
   statusEl.className = 'settings-status ok';
   setTimeout(() => { statusEl.className = 'settings-status hidden'; }, 3000);
 }
 
 // ── Dosya işleme ─────────────────────────────────────────────────────────────
 
-const MAX_FILE_BYTES = 512 * 1024 * 1024; // 512 MB
+const MAX_FILE_BYTES = 512 * 1024 * 1024;
 
 async function handleFile(file: File, root: HTMLElement, errorEl: HTMLElement): Promise<void> {
   if (!file.name.endsWith('.zip')) {
-    showError(errorEl, { code: 'InvalidInput', message: 'Yalnızca .zip uzantılı dosyalar kabul edilir.' });
+    showError(errorEl, { code: 'InvalidInput', message: t('upload.error_zip') });
     return;
   }
   if (file.size > MAX_FILE_BYTES) {
     showError(errorEl, {
       code: 'InvalidInput',
-      message: `Dosya çok büyük (${(file.size / 1_048_576).toFixed(1)} MB). Maksimum izin verilen boyut: 512 MB.`,
+      message: t('upload.error_size', { mb: (file.size / 1_048_576).toFixed(1) }),
     });
     return;
   }
@@ -362,10 +325,11 @@ async function handleFile(file: File, root: HTMLElement, errorEl: HTMLElement): 
           row.className = 'lp-file-row reading';
           row.dataset['file'] = f.name;
           const sizeKb = Math.round(f.uncompressed_size / 1024);
+          const readingLabel = `${formatSize(sizeKb)} ${t('upload.running')}`;
           row.innerHTML = `
             <span class="lp-icon">○</span>
             <span class="lp-label">${escHtml(f.name)}</span>
-            <span class="lp-status">${formatSize(sizeKb)} okunuyor…</span>`;
+            <span class="lp-status">${readingLabel}</span>`;
           container.appendChild(row);
         });
       },
@@ -375,7 +339,7 @@ async function handleFile(file: File, root: HTMLElement, errorEl: HTMLElement): 
         if (!row) return;
         row.className = 'lp-file-row done';
         row.querySelector('.lp-icon')!.textContent = '✓';
-        const label = FILE_ROW_LABEL[name] ?? 'satır';
+        const label = t(`file.${name}`) !== `file.${name}` ? t(`file.${name}`) : t('upload.row_unit');
         row.querySelector<HTMLElement>('.lp-status')!.textContent =
           `${rows.toLocaleString('tr-TR')} ${label} · ${formatSize(Math.round(bytes / 1024))}`;
       },
@@ -393,7 +357,7 @@ async function handleFile(file: File, root: HTMLElement, errorEl: HTMLElement): 
           if (nextEl?.classList.contains('waiting')) {
             nextEl.className = 'lp-stage-row running';
             nextEl.querySelector('.lp-icon')!.textContent = '⋯';
-            nextEl.querySelector<HTMLElement>('.lp-status')!.textContent = 'çalışıyor…';
+            nextEl.querySelector<HTMLElement>('.lp-status')!.textContent = t('upload.running');
           }
         }
       },
@@ -412,7 +376,6 @@ function setLoading(root: HTMLElement, fileName: string, fileSize: number): void
   const fileInput = root.querySelector<HTMLInputElement>('#file-input')!;
   const btnLabel  = root.querySelector<HTMLElement>('#upload-btn-label')!;
 
-  // Eski sonuç skoru yükleme sırasında görünmesin
   const scorePanel = root.querySelector<HTMLElement>('#score-panel');
   if (scorePanel) { scorePanel.classList.add('hidden'); scorePanel.innerHTML = ''; }
   const btnReport = root.querySelector<HTMLButtonElement>('#btn-report');
@@ -426,15 +389,15 @@ function setLoading(root: HTMLElement, fileName: string, fileSize: number): void
 
   const sizeMb = (fileSize / 1_048_576).toFixed(1);
   const dropPrimary = dropZone.querySelector('.drop-primary');
-  if (dropPrimary) dropPrimary.textContent = `${fileName} (${sizeMb} MB) işleniyor…`;
+  if (dropPrimary) dropPrimary.textContent = `${fileName} (${sizeMb} MB) ${t('upload.running')}`;
 
   const stageRows = root.querySelector<HTMLElement>('#stage-rows');
   if (stageRows) {
     stageRows.innerHTML = STAGE_ORDER.map((s, i) => `
       <div class="lp-stage-row ${i === 0 ? 'running' : 'waiting'}" data-stage="${s}">
         <span class="lp-icon">${i === 0 ? '⋯' : '○'}</span>
-        <span class="lp-label">${escHtml(STAGE_LABELS[s] ?? s)}</span>
-        <span class="lp-status">${i === 0 ? 'çalışıyor…' : 'bekliyor'}</span>
+        <span class="lp-label">${escHtml(t(`stage.${s}`))}</span>
+        <span class="lp-status">${i === 0 ? t('upload.running') : t('upload.waiting')}</span>
       </div>`).join('');
   }
 }
@@ -453,7 +416,7 @@ function clearLoading(root: HTMLElement): void {
 function activateResult(root: HTMLElement, result: ValidationResult): void {
   clearLoading(root);
   const btnLabel = root.querySelector<HTMLElement>('#upload-btn-label')!;
-  btnLabel.textContent = 'Farklı GTFS Yükle';
+  btnLabel.textContent = t('upload.load_another');
 
   const scorePanel = root.querySelector<HTMLElement>('#score-panel')!;
   scorePanel.className = 'score-compact';

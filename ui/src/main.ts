@@ -4,14 +4,8 @@ import { renderDomain } from './pages/domain';
 import { renderFix, attachFixListeners } from './pages/fix';
 import { renderRules } from './pages/rules';
 import { renderExport } from './pages/export';
+import { getLocale, setLocale, t } from './i18n';
 import type { AppPage } from './state';
-
-const NAV_LABELS: Record<Exclude<AppPage, 'upload'>, string> = {
-  domain : 'Rapor',
-  fix    : 'Ayrıntı ve Düzeltme',
-  rules  : 'Kategori Bazlı',
-  export : 'Dışa Aktar',
-};
 
 // ── Dark mode ─────────────────────────────────────────────────────────────────
 
@@ -31,13 +25,19 @@ function syncDarkButtons(): void {
   const isDark = document.documentElement.classList.contains('dark');
   document.querySelectorAll<HTMLButtonElement>('.dark-toggle').forEach(btn => {
     btn.textContent = isDark ? '☀' : '☾';
-    btn.title = isDark ? 'Açık mod' : 'Koyu mod';
+    btn.title = isDark ? t('theme.light') : t('theme.dark');
   });
 }
 
 function darkToggleHtml(): string {
   const isDark = document.documentElement.classList.contains('dark');
-  return `<button class="btn btn-ghost dark-toggle" title="${isDark ? 'Açık mod' : 'Koyu mod'}">${isDark ? '☀' : '☾'}</button>`;
+  return `<button class="btn btn-ghost dark-toggle" title="${isDark ? t('theme.light') : t('theme.dark')}">${isDark ? '☀' : '☾'}</button>`;
+}
+
+// ── Language toggle ───────────────────────────────────────────────────────────
+
+function langToggleHtml(): string {
+  return `<button class="btn btn-ghost lang-toggle" title="Switch language">${t('lang.switch')}</button>`;
 }
 
 // ── Uygulama render ───────────────────────────────────────────────────────────
@@ -49,30 +49,45 @@ export function renderApp(): void {
   if (state.page === 'upload' || !state.result) {
     app.innerHTML = `
       <header class="app-header">
-        <h1>GTFS Analyzer</h1>
+        <h1>${t('header.title')}</h1>
         <span style="flex:1"></span>
+        ${langToggleHtml()}
         ${darkToggleHtml()}
       </header>
       <main id="page-root"></main>`;
     app.querySelector<HTMLButtonElement>('.dark-toggle')!
       .addEventListener('click', toggleDarkMode);
+    app.querySelector<HTMLButtonElement>('.lang-toggle')!
+      .addEventListener('click', () => {
+        setLocale(getLocale() === 'tr' ? 'en' : 'tr');
+        renderApp();
+      });
     renderUpload(document.getElementById('page-root')!);
     return;
   }
 
-  const navItems = (Object.keys(NAV_LABELS) as Exclude<AppPage, 'upload'>[])
+  const NAV_PAGES: Exclude<AppPage, 'upload'>[] = ['domain', 'fix', 'rules', 'export'];
+  const NAV_KEYS: Record<Exclude<AppPage, 'upload'>, string> = {
+    domain : 'nav.report',
+    fix    : 'nav.fix',
+    rules  : 'nav.rules',
+    export : 'nav.export',
+  };
+
+  const navItems = NAV_PAGES
     .map(page => `
       <button class="nav-btn ${state.page === page ? 'active' : ''}" data-page="${page}">
-        ${NAV_LABELS[page]}
+        ${t(NAV_KEYS[page])}
       </button>`)
     .join('');
 
   app.innerHTML = `
     <header class="app-header">
-      <h1>GTFS Validator</h1>
+      <h1>${t('header.title')}</h1>
       <span class="header-filename">${escHtml(state.fileName)}</span>
-      <button id="btn-back" class="btn btn-ghost">← Ana Sayfa</button>
-      <button id="btn-new" class="btn btn-secondary">Yeni GTFS Yükle</button>
+      <button id="btn-back" class="btn btn-ghost">${t('header.back')}</button>
+      <button id="btn-new" class="btn btn-secondary">${t('header.new')}</button>
+      ${langToggleHtml()}
       ${darkToggleHtml()}
     </header>
     <nav class="app-nav">${navItems}</nav>
@@ -88,6 +103,11 @@ export function renderApp(): void {
   });
   app.querySelector<HTMLButtonElement>('.dark-toggle')!
     .addEventListener('click', toggleDarkMode);
+  app.querySelector<HTMLButtonElement>('.lang-toggle')!
+    .addEventListener('click', () => {
+      setLocale(getLocale() === 'tr' ? 'en' : 'tr');
+      renderApp();
+    });
 
   app.querySelectorAll<HTMLButtonElement>('.nav-btn').forEach(btn => {
     btn.addEventListener('click', () => {

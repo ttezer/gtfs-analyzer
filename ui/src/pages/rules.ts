@@ -1,15 +1,8 @@
 import type { ValidationResult, Notice, RuleClass, Severity } from '../types';
-import { SEVERITY_TR, SEVERITY_COLOR, RULE_CLASS_TR } from '../i18n';
+import { SEVERITY_TR, SEVERITY_COLOR, RULE_CLASS_TR, t } from '../i18n';
 
 const SEV_ORDER: Record<string, number> = {
   CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3, INFO: 4,
-};
-
-const ENTITY_TYPE_TR: Record<string, string> = {
-  Stop: 'Durak', Trip: 'Sefer', Route: 'Hat', Shape: 'Güzergah',
-  Agency: 'İşletici', Service: 'Servis', File: 'Dosya', Feed: 'Feed',
-  Row: 'Satır', Field: 'Alan', Transfer: 'Aktarma', Pathway: 'Geçit',
-  Level: 'Kat', Translation: 'Çeviri', Attribution: 'Atıf', Fare: 'Ücret',
 };
 
 interface RuleGroup {
@@ -26,7 +19,7 @@ export function renderRules(root: HTMLElement, result: ValidationResult): void {
   root.innerHTML = `
     <div class="rules-page">
       <div class="rules-summary-bar">
-        <span class="rules-summary-text">${total} bulgu · ${groups.length} kural</span>
+        <span class="rules-summary-text">${t('rules.summary', { total, rules: groups.length })}</span>
       </div>
       <div class="rules-accordion">
         ${groups.map(g => renderRuleGroup(g)).join('')}
@@ -75,7 +68,9 @@ function renderRuleGroup(g: RuleGroup): string {
     const raw = formatMessage(n.message);
     const msg = raw.length > 160 ? raw.slice(0, 160) + '…' : raw;
     const sc  = SEVERITY_COLOR[n.severity] ?? '#666';
-    const typeLabel = ENTITY_TYPE_TR[n.entity_type] ?? n.entity_type;
+    const typeLabel = t(`entity.${n.entity_type}`) !== `entity.${n.entity_type}`
+      ? t(`entity.${n.entity_type}`)
+      : n.entity_type;
     const entityStr = n.entity_id
       ? `<span class="muted-text">${escHtml(typeLabel)}</span> <code class="entity-id">${escHtml(n.entity_id)}</code>`
       : `<span class="muted-text">${escHtml(typeLabel)}</span>`;
@@ -105,7 +100,9 @@ function renderRuleGroup(g: RuleGroup): string {
         <div class="table-scroll">
           <table class="data-table">
             <thead><tr>
-              <th>Önem</th><th>Varlık</th><th>Mesaj</th>
+              <th>${t('rules.th.severity')}</th>
+              <th>${t('rules.th.entity')}</th>
+              <th>${t('rules.th.message')}</th>
             </tr></thead>
             <tbody>${rows}</tbody>
           </table>

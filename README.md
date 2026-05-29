@@ -1,5 +1,7 @@
 # GTFS Analyzer
 
+→ [English version](README.en.md)
+
 GTFS (General Transit Feed Specification) dosyalarını tarayıcıda doğrulayan, tamamen istemci taraflı çalışan açık kaynak bir araç. Yüklenen zip dosyası sunucuya gönderilmez; tüm işlem WebAssembly ile kullanıcının tarayıcısında gerçekleşir.
 
 Mevcut GTFS doğrulayıcıların çoğu yalnızca spesifikasyon uyumunu kontrol eder ve hata listesi çıkarır. GTFS Analyzer bunu çok adım öteye taşır: hangi dosyanın kaçıncı satırında ne sorun olduğunu gösterir, her sorun için adım adım düzeltme talimatı sunar ve coğrafi hataları (sapan güzergah, koordinat bozukluğu, erişilemeyen durak gibi) interaktif haritada işaretler. Her bulgu dosya ve bileşen bazlı bir kural koduyla (`ARC_`, `STP_`, `STM_`...), dört sınıftan biriyle (Spec · Interop · Quality · Analytics) ve beş önem seviyesinden biriyle (Kritik → Bilgi) etiketlenir; böylece binlerce bulgu arasında filtreleme, önceliklendirme ve otomasyon kolaylaşır. Feed'in hangi GTFS özelliklerini kullandığı (Shapes, Transfers, Fares, Headsigns, Flex vb.) otomatik tespit edilir ve rapora yansıtılır.

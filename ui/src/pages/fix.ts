@@ -1,20 +1,6 @@
 ﻿import type { ValidationResult, Notice, R9Item, NameIndex } from '../types';
-import { SEVERITY_TR, SEVERITY_COLOR, RULE_CLASS_TR } from '../i18n';
+import { SEVERITY_TR, SEVERITY_COLOR, RULE_CLASS_TR, t } from '../i18n';
 import { openMapModal, type MapPin, type MapOptions } from '../map-modal';
-
-const LABEL_TR: Record<string, string> = {
-  'blocker'             : 'Engelleyici',
-  'conditional_blocker' : 'Koşullu Engelleyici',
-  'interop'             : 'Uyumluluk',
-  'propagation'         : 'Zincirleme',
-  'quick-win'           : 'Kolay Düzeltme',
-  'quality'             : 'Kalite Öncelikli',
-  'widespread'          : 'Yaygın',
-  'analytics'           : 'Analitik',
-  'hard'                : 'Zor',
-  'single'              : 'Tek Örnek',
-  'high-impact'         : 'Yüksek Etki',
-};
 
 export function renderFix(root: HTMLElement, result: ValidationResult): void {
   const noticeMap = new Map<string, Notice>(result.notices.map(n => [n.id, n]));
@@ -41,7 +27,7 @@ export function renderFix(root: HTMLElement, result: ValidationResult): void {
 
 function renderR9(items: R9Item[], noticeMap: Map<string, Notice>, normFactor: number, pubNormFactor: number, cappedTotals: Record<string, number>): string {
   if (items.length === 0) {
-    return '<div class="card"><h2>Düzeltme Kuyruğu (R9)</h2><p class="empty">Düzeltilecek bulgu yok.</p></div>';
+    return `<div class="card"><h2>${t('fix.r9_title')}</h2><p class="empty">${t('fix.r9_empty')}</p></div>`;
   }
 
   // result.notices = display_notices (cap sonrası), kural başına kaç notice gösterildiğini hesapla
@@ -53,7 +39,7 @@ function renderR9(items: R9Item[], noticeMap: Map<string, Notice>, normFactor: n
   const rowPairs = items.map((item, i) => {
     const notice = item.notice_ids[0] ? noticeMap.get(item.notice_ids[0]) : undefined;
     const severity = notice?.severity ?? 'INFO';
-    const badgeHtml = item.labels.map(l => `<span class="label-badge label-${l}">${LABEL_TR[l] ?? l}</span>`).join('');
+    const badgeHtml = item.labels.map(l => `<span class="label-badge label-${l}">${t(`label.${l}`) !== `label.${l}` ? t(`label.${l}`) : l}</span>`).join('');
 
     const pubSd  = item.pub_score_delta * pubNormFactor;
     const qualSd = item.score_delta     * normFactor;
@@ -88,8 +74,8 @@ function renderR9(items: R9Item[], noticeMap: Map<string, Notice>, normFactor: n
       <tr class="r9-detail-row" data-for="${i}" hidden>
         <td colspan="10">
           <div class="r9-detail">
-            ${notice?.title ? `<p><strong>Mesaj:</strong> ${escHtml(notice.title)}</p>` : ''}
-            ${notice?.remediation ? `<p><strong>Çözüm:</strong> ${escHtml(notice.remediation)}</p>` : ''}
+            ${notice?.title ? `<p><strong>${t('fix.r9_message')}</strong> ${escHtml(notice.title)}</p>` : ''}
+            ${notice?.remediation ? `<p><strong>${t('fix.r9_remediation')}</strong> ${escHtml(notice.remediation)}</p>` : ''}
           </div>
         </td>
       </tr>`;
@@ -99,21 +85,21 @@ function renderR9(items: R9Item[], noticeMap: Map<string, Notice>, normFactor: n
 
   return `
     <div class="card">
-      <h2>Düzeltme Kuyruğu (R9) <span class="count-badge">${items.length}</span></h2>
-      <p class="hint">Satıra tıklayarak açıklama ve çözüm önerisini görebilirsiniz.</p>
+      <h2>${t('fix.r9_title')} <span class="count-badge">${items.length}</span></h2>
+      <p class="hint">${t('fix.r9_hint')}</p>
       <div class="table-scroll">
         <table class="data-table" id="r9-table">
           <thead><tr>
-            <th>Kural</th>
-            <th>Önem</th>
-            <th>Etiket</th>
-            <th>Hata <span class="col-info" title="Bu kuraldan kaç hata üretildi — sorunun yaygınlığını gösterir.">ℹ</span></th>
-            <th>Toplam <span class="col-info" title="Kural başına notice sınırı (cap) uygulandığında gerçek ihlal sayısı. Raporda yalnızca sınır kadar notice gösterilir; sınıra çarpmayan kurallarda bu sütun boş kalır.">ℹ</span></th>
-            <th class="score">Skor <span class="col-info" title="Öncelik puanı. Ciddiyet × (1+Bağımlı) × log₂(1+Etkilenen) / Çaba formülüyle hesaplanır. Yüksek skor = önce düzelt.">ℹ</span></th>
-            <th class="score-delta-cell">+Yayın <span class="col-info" title="Bu kural düzeltilirse yayın skoru kaç puan artar. Yalnızca blocker/conditional_blocker kurallar için gösterilir. Toplamı = 100 − mevcut yayın skoru.">ℹ</span></th>
-            <th class="score-delta-cell">+Kalite <span class="col-info" title="Bu kural düzeltilirse kalite skoru kaç puan artar. Toplamı = 100 − mevcut kalite skoru.">ℹ</span></th>
-            <th>Bağımlı <span class="col-info" title="Bu kural düzeltilince kaç başka kural daha kendiliğinden kapanır (bu feed'de ateşlenmiş olan bağımlı kurallar).">ℹ</span></th>
-            <th>Çaba <span class="col-info" title="Düzeltmenin iş yükü: 1=kolay (tek alan değişikliği), 5=zor (veri modelinde kapsamlı revizyon).">ℹ</span></th>
+            <th>${t('fix.th.rule')}</th>
+            <th>${t('fix.th.severity')}</th>
+            <th>${t('fix.th.label')}</th>
+            <th>${t('fix.th.count')} <span class="col-info" title="${t('fix.th.count.tip')}">ℹ</span></th>
+            <th>${t('fix.th.total')} <span class="col-info" title="${t('fix.th.total.tip')}">ℹ</span></th>
+            <th class="score">${t('fix.th.score')} <span class="col-info" title="${t('fix.th.score.tip')}">ℹ</span></th>
+            <th class="score-delta-cell">${t('fix.th.pub')} <span class="col-info" title="${t('fix.th.pub.tip')}">ℹ</span></th>
+            <th class="score-delta-cell">${t('fix.th.quality')} <span class="col-info" title="${t('fix.th.quality.tip')}">ℹ</span></th>
+            <th>${t('fix.th.dependent')} <span class="col-info" title="${t('fix.th.dependent.tip')}">ℹ</span></th>
+            <th>${t('fix.th.effort')} <span class="col-info" title="${t('fix.th.effort.tip')}">ℹ</span></th>
           </tr></thead>
           <tbody>${rowPairs}</tbody>
         </table>
@@ -125,7 +111,7 @@ function renderR9(items: R9Item[], noticeMap: Map<string, Notice>, normFactor: n
 function renderR2(result: ValidationResult, noticeMap: Map<string, Notice>, deltaMap: Map<string, { qualDelta: number; pubDelta: number; count: number }>, nameIndex: NameIndex): string {
   const items = result.reports.r2.items;
   if (items.length === 0) {
-    return '<div class="card"><h2>Tüm Bulgular (R2)</h2><p class="empty">Bulgu yok.</p></div>';
+    return `<div class="card"><h2>${t('fix.r2_title')}</h2><p class="empty">${t('fix.r2_empty')}</p></div>`;
   }
 
   const uniqueRules = [...new Map(
@@ -141,30 +127,31 @@ function renderR2(result: ValidationResult, noticeMap: Map<string, Notice>, delt
     .map(([id, title]) => `<option value="${escHtml(id)}">${escHtml(id)} — ${escHtml(title)}</option>`)
     .join('');
 
+  const all = t('fix.filter.all');
   const filterBar = `
     <div class="filter-bar">
-      <label>Önem filtrele:
+      <label>${t('fix.filter.severity')}
         <select id="sev-filter">
-          <option value="">Tümü</option>
-          <option value="CRITICAL">KRİTİK</option>
-          <option value="HIGH">YÜKSEK</option>
-          <option value="MEDIUM">ORTA</option>
-          <option value="LOW">DÜŞÜK</option>
-          <option value="INFO">BİLGİ</option>
+          <option value="">${all}</option>
+          <option value="CRITICAL">${SEVERITY_TR['CRITICAL']}</option>
+          <option value="HIGH">${SEVERITY_TR['HIGH']}</option>
+          <option value="MEDIUM">${SEVERITY_TR['MEDIUM']}</option>
+          <option value="LOW">${SEVERITY_TR['LOW']}</option>
+          <option value="INFO">${SEVERITY_TR['INFO']}</option>
         </select>
       </label>
-      <label>Sınıf filtrele:
+      <label>${t('fix.filter.class')}
         <select id="cls-filter">
-          <option value="">Tümü</option>
-          <option value="SPEC">GTFS Geçerliliği</option>
-          <option value="INTEROP">GTFS Uyumluluğu</option>
-          <option value="QUALITY">GTFS Kalitesi</option>
-          <option value="ANALYTICS">GTFS Analitiği</option>
+          <option value="">${all}</option>
+          <option value="SPEC">${RULE_CLASS_TR['SPEC']}</option>
+          <option value="INTEROP">${RULE_CLASS_TR['INTEROP']}</option>
+          <option value="QUALITY">${RULE_CLASS_TR['QUALITY']}</option>
+          <option value="ANALYTICS">${RULE_CLASS_TR['ANALYTICS']}</option>
         </select>
       </label>
-      <label>Kural filtrele:
+      <label>${t('fix.filter.rule')}
         <select id="rule-filter">
-          <option value="">Tümü</option>
+          <option value="">${all}</option>
           ${ruleOptions}
         </select>
       </label>
@@ -179,8 +166,9 @@ function renderR2(result: ValidationResult, noticeMap: Map<string, Notice>, delt
     const qualUnit = entry != null && entry.count > 0 ? entry.qualDelta / entry.count : null;
     const pubHtml  = pubUnit  != null && pubUnit  >= 0.005 ? `<span class="pub-delta">+${pubUnit.toFixed(2)}</span>`   : '<span class="muted-text">—</span>';
     const qualHtml = qualUnit != null && qualUnit >= 0.005 ? `<span class="score-delta">+${qualUnit.toFixed(2)}</span>` : '<span class="muted-text">—</span>';
+    const mapLabel = t('fix.map_btn');
     const mapBtn   = hasMapCoords(notice, nameIndex)
-      ? `<button class="map-pin-btn" data-notice-id="${escHtml(notice.id)}" title="Haritada göster" aria-label="Haritada göster">📍</button>`
+      ? `<button class="map-pin-btn" data-notice-id="${escHtml(notice.id)}" title="${mapLabel}" aria-label="${mapLabel}">📍</button>`
       : '';
     return `
       <tr data-severity="${notice.severity}" data-class="${notice.rule_class}" data-rule="${notice.rule_id}">
@@ -199,16 +187,16 @@ function renderR2(result: ValidationResult, noticeMap: Map<string, Notice>, delt
 
   return `
     <div class="card" id="r2-card">
-      <h2>Tüm Bulgular (R2) <span class="count-badge">${items.length}</span></h2>
+      <h2>${t('fix.r2_title')} <span class="count-badge">${items.length}</span></h2>
       ${filterBar}
       <div id="r2-cap-warning" class="cap-warning" hidden></div>
       <div class="table-scroll">
         <table class="data-table" id="r2-table">
           <thead><tr>
-            <th>Kural</th><th>Önem</th><th>Sınıf</th><th>Mesaj</th>
-            <th>Dosya</th><th>Satır</th><th>Alan</th>
-            <th class="score-delta-cell">+Yayın <span class="col-info" title="Bu hatayı düzeltmenin yayın skoruna katkısı (turuncu). Toplamı = 100 − mevcut yayın skoru.">ℹ</span></th>
-            <th class="score-delta-cell">+Kalite <span class="col-info" title="Bu hatayı düzeltmenin kalite skoruna katkısı (yeşil). Toplamı = 100 − mevcut kalite skoru.">ℹ</span></th>
+            <th>${t('fix.r2.th.rule')}</th><th>${t('fix.r2.th.severity')}</th><th>${t('fix.r2.th.class')}</th><th>${t('fix.r2.th.message')}</th>
+            <th>${t('fix.r2.th.file')}</th><th>${t('fix.r2.th.row')}</th><th>${t('fix.r2.th.field')}</th>
+            <th class="score-delta-cell">${t('fix.r2.th.pub')} <span class="col-info" title="${t('fix.r2.th.pub.tip')}">ℹ</span></th>
+            <th class="score-delta-cell">${t('fix.r2.th.quality')} <span class="col-info" title="${t('fix.r2.th.quality.tip')}">ℹ</span></th>
             <th class="map-btn-cell"></th>
           </tr></thead>
           <tbody>${rows}</tbody>
@@ -1062,7 +1050,7 @@ export function attachFixListeners(root: HTMLElement, result?: ValidationResult,
         const eid = notice.entity_id ?? '';
         let entityLabel: string;
         if (shapeIdRules.has(notice.rule_id)) {
-          entityLabel = `şekil: ${eid}`;
+          entityLabel = `${t('fix.map.shape')}: ${eid}`;
         } else if (TRIP_ID_RULES.has(notice.rule_id)) {
           const rId = result.name_index.trip_routes[eid] ?? '';
           const rName = rId ? (result.name_index.routes[rId] ?? '') : '';
@@ -1090,16 +1078,16 @@ export function attachFixListeners(root: HTMLElement, result?: ValidationResult,
     : [];
 
   const SEV_OPTS: [string, string][] = [
-    ['CRITICAL', 'KRİTİK'], ['HIGH', 'YÜKSEK'], ['MEDIUM', 'ORTA'],
-    ['LOW', 'DÜŞÜK'], ['INFO', 'BİLGİ'],
+    ['CRITICAL', SEVERITY_TR['CRITICAL']], ['HIGH', SEVERITY_TR['HIGH']], ['MEDIUM', SEVERITY_TR['MEDIUM']],
+    ['LOW', SEVERITY_TR['LOW']], ['INFO', SEVERITY_TR['INFO']],
   ];
   const CLS_OPTS: [string, string][] = [
-    ['SPEC', 'GTFS Geçerliliği'], ['INTEROP', 'GTFS Uyumluluğu'],
-    ['QUALITY', 'GTFS Kalitesi'], ['ANALYTICS', 'GTFS Analitiği'],
+    ['SPEC', RULE_CLASS_TR['SPEC']], ['INTEROP', RULE_CLASS_TR['INTEROP']],
+    ['QUALITY', RULE_CLASS_TR['QUALITY']], ['ANALYTICS', RULE_CLASS_TR['ANALYTICS']],
   ];
 
   function rebuildOpts(sel: HTMLSelectElement, cur: string, available: Set<string>, opts: [string, string][]): void {
-    sel.innerHTML = '<option value="">Tümü</option>' +
+    sel.innerHTML = `<option value="">${t('fix.filter.all')}</option>` +
       opts.filter(([v]) => available.has(v))
           .map(([v, l]) => `<option value="${v}"${v === cur ? ' selected' : ''}>${l}</option>`)
           .join('');
@@ -1132,7 +1120,7 @@ export function attachFixListeners(root: HTMLElement, result?: ValidationResult,
 
     const anyFilter = sev || cls || rule;
     const counter = root.querySelector<HTMLSpanElement>('#filter-count');
-    if (counter) counter.textContent = anyFilter ? `${total} noticeden ${visible} tanesi` : '';
+    if (counter) counter.textContent = anyFilter ? t('fix.filter.count', { visible, total }) : '';
 
     const badge = root.querySelector<HTMLSpanElement>('#r2-card h2 .count-badge');
     if (badge) badge.textContent = anyFilter ? String(visible) : String(total);
@@ -1142,7 +1130,7 @@ export function attachFixListeners(root: HTMLElement, result?: ValidationResult,
       const realTotal = rule && cappedTotals ? cappedTotals[rule] : undefined;
       if (realTotal != null) {
         capWarn.hidden = false;
-        capWarn.textContent = `⚠ Bu kural cap'e çarptı — raporda yalnızca ${visible.toLocaleString('tr-TR')} notice gösterilmektedir, gerçek toplam: ${realTotal.toLocaleString('tr-TR')}.`;
+        capWarn.textContent = `⚠ ${t('fix.cap_warning', { shown: visible, total: realTotal })}`;
       } else {
         capWarn.hidden = true;
       }
@@ -1151,7 +1139,7 @@ export function attachFixListeners(root: HTMLElement, result?: ValidationResult,
     rebuildOpts(sevFilter!, sev, sevSet, SEV_OPTS);
     rebuildOpts(clsFilter!, cls, clsSet, CLS_OPTS);
     if (ruleFilter) {
-      ruleFilter.innerHTML = '<option value="">Tümü</option>' +
+      ruleFilter.innerHTML = `<option value="">${t('fix.filter.all')}</option>` +
         allRuleOpts.filter(([v]) => ruleSet.has(v))
                    .map(([v, l]) => `<option value="${v}"${v === rule ? ' selected' : ''}>${escHtml(l)}</option>`)
                    .join('');
