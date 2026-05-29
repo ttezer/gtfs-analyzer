@@ -127,6 +127,34 @@ pub static RULES: &[RuleMeta] = &[
         "Başlıkta boş sütun adı"),
     r!("ARC_020", Dusuk,  Quality, 1, &[], None, VS, Feed,
         "Önerilen GTFS dosyası eksik (shapes.txt veya feed_info.txt)"),
+    r!("ARC_021", Dusuk,  Quality, 1, &[], None, VS, File,
+        "Alanda ASCII dışı veya yazdırılamaz karakter"),
+    r!("ARC_022", Dusuk,  Quality, 1, &[], None, VS, File,
+        "Dosya satır sayısı 1.000.000 sınırını aşıyor"),
+
+    // ── BKR: Booking Rules ─────────────────────────────────────────────────────
+    r!("BKR_001", Yuksek, Spec, 1, &[], Some("booking_rule_id"), VS, Entity,
+        "Önceki gün rezervasyon alanı yasak bağlamda dolu"),
+    r!("BKR_002", Yuksek, Spec, 1, &[], Some("booking_rule_id"), VS, Entity,
+        "prior_notice_start_day yalnızca prior_notice_last_day ile kullanılabilir"),
+    r!("BKR_003", Yuksek, Spec, 1, &[], Some("booking_rule_id"), VS, Entity,
+        "prior_notice_start_time yalnızca prior_notice_start_day ile kullanılabilir"),
+    r!("BKR_004", Yuksek, Spec, 1, &[], Some("booking_rule_id"), VS, Entity,
+        "Anlık rezervasyonda prior_notice alanları yasak"),
+    r!("BKR_005", Orta,   Spec, 1, &[], Some("booking_rule_id"), VS, Entity,
+        "prior_notice_duration_max yalnızca booking_type=1 ile kullanılabilir"),
+    r!("BKR_006", Yuksek, Spec, 1, &[], Some("booking_rule_id"), VS, Entity,
+        "prior_notice_duration_min geçersiz (≤ 0 veya sayısal değil)"),
+    r!("BKR_007", Kritik, Spec, 1, &[], Some("booking_rule_id"), VS_K, Entity,
+        "booking_type=1 için prior_notice_duration_min zorunlu"),
+    r!("BKR_008", Kritik, Spec, 1, &[], Some("booking_rule_id"), VS_K, Entity,
+        "booking_type=2 için prior_notice_last_day zorunlu"),
+    r!("BKR_009", Kritik, Spec, 1, &[], Some("booking_rule_id"), VS_K, Entity,
+        "booking_type=2 için prior_notice_last_time zorunlu"),
+    r!("BKR_010", Yuksek, Spec, 1, &[], Some("booking_rule_id"), VS, Entity,
+        "prior_notice_start_day belirtilmişse prior_notice_start_time zorunlu"),
+    r!("BKR_011", Yuksek, Spec, 1, &[], Some("booking_rule_id"), VS, Entity,
+        "prior_notice_last_day > prior_notice_start_day: rezervasyon penceresi geçersiz"),
 
     // ── AGN: Agency ────────────────────────────────────────────────────────────
     r!("AGN_001", Kritik, Spec, 1,
@@ -242,6 +270,10 @@ pub static RULES: &[RuleMeta] = &[
         "Pathway bağlantılı platform için parent_station eksik"),
     r!("STP_033", Bilgi,  Quality, 1, &[], Some("stop_id"), VS, Entity,
         "Durak zone_id eksik (ücret hesabı için gerekli)"),
+    r!("STP_034", Bilgi,  Quality, 1, &[], Some("stop_id"), VS, Entity,
+        "stop_url acente URL'siyle aynı"),
+    r!("STP_035", Bilgi,  Quality, 1, &[], Some("stop_id"), VS, Entity,
+        "stop_url hat URL'siyle aynı"),
 
     // ── RTS: Routes ────────────────────────────────────────────────────────────
     r!("RTS_001", Kritik, Spec, 1,
@@ -288,10 +320,12 @@ pub static RULES: &[RuleMeta] = &[
         "Yinelenen hat adı"),
     r!("RTS_020", Dusuk,  Quality, 1, &[], Some("route_id"), VS, Entity,
         "Hat ve acente aynı URL'yi paylaşıyor"),
-    r!("RTS_021", Dusuk,  Quality, 1, &[], Some("route_id"), VS, Entity,
-        "Kısa hat adı çok uzun (≥12 karakter)"),
+    r!("RTS_021", Dusuk, Interop, 1, &[], Some("route_id"), VI, Entity,
+        "Kısa hat adı Google Transit eşiğini (6 karakter) aşıyor"),
     r!("RTS_022", Dusuk,  Quality, 1, &[], Some("route_id"), VS, Entity,
         "Uzun hat adı kısa adı içeriyor"),
+    r!("RTS_023", Bilgi,  Quality, 1, &[], Some("route_id"), VS, Entity,
+        "Uzun hat adı ve açıklaması aynı"),
 
     // ── TRP: Trips ─────────────────────────────────────────────────────────────
     r!("TRP_001", Kritik, Spec, 1,
@@ -344,6 +378,10 @@ pub static RULES: &[RuleMeta] = &[
         "Block içinde tutarsız rota tipi"),
     r!("TRP_025", Bilgi,  Quality, 1, &[], None, VS, Feed,
         "Tekerlekli sandalye erişilebilirlik bilgisi eksik seferlerin oranı yüksek"),
+    r!("TRP_026", Orta, Analytics, 2, &[], Some("trip_id"), VA, Entity,
+        "Hiçbir zaman çalışmayacak sefer (geçersiz service_id)"),
+    r!("TRP_027", Orta, Quality, 2, &[], Some("trip_id"), VS, Entity,
+        "Kopya sefer: aynı route+service+direction+shape+durak sırası"),
 
     // ── STM: Stop Times ────────────────────────────────────────────────────────
     r!("STM_001", Kritik, Spec, 1,
@@ -428,6 +466,26 @@ pub static RULES: &[RuleMeta] = &[
         "Aynı durak ardışık iki kez ziyaret ediliyor (terminal/döngü)"),
     r!("STM_036", Yuksek, Quality,   2, &[], Some("trip_id"), VS, Entity,
         "stop_sequence değerleri sırasız (unsorted_stop_times)"),
+    r!("STM_037", Yuksek, Spec, 1, &[], Some("trip_id"), VS, Entity,
+        "Flex penceresinde arrival_time/departure_time yasak"),
+    r!("STM_038", Yuksek, Spec, 1, &[], Some("trip_id"), VS, Entity,
+        "start_pickup_drop_off_window > end_pickup_drop_off_window"),
+    r!("STM_039", Kritik, Spec, 1, &[], Some("trip_id"), VS_K, Entity,
+        "Flex bağlamında pickup/drop_off penceresi eksik"),
+    r!("STM_040", Yuksek, Spec, 1, &[], Some("trip_id"), VS, Entity,
+        "Flex stop_times'ta pickup/drop_off_booking_rule_id eksik"),
+    r!("STM_041", Yuksek, Spec, 1, &[], Some("trip_id"), VS, Entity,
+        "stop_id ile location_id/group_id aynı anda kullanılamaz"),
+    r!("STM_042", Dusuk, Interop, 1, &[], Some("trip_id"), VI, Row,
+        "stop_headsign Google Transit tarafından desteklenmeyen karakter içeriyor"),
+
+    // ── PDW: Pickup/Drop-off Window ──────────────────────────────────────────
+    r!("PDW_006", Orta, Spec, 2, &[], Some("trip_id"), VS, Entity,
+        "Aynı trip+zone'da örtüşen pickup/drop-off penceresi"),
+
+    // ── LOC: locations.geojson ───────────────────────────────────────────────
+    r!("LOC_001", Yuksek, Spec, 2, &[], None, VS, File,
+        "locations.geojson'da bilinmeyen veya geçersiz geometri tipi"),
 
     // ── CAL: Calendar ──────────────────────────────────────────────────────────
     r!("CAL_001", Kritik, Spec, 1,
@@ -618,6 +676,14 @@ pub static RULES: &[RuleMeta] = &[
         "Sefer aktarması yanlış hat"),
     r!("TRF_018", Yuksek, Spec, 2, &[], None, VS, Row,
         "Sefer aktarması aynı seferi gösteriyor"),
+    r!("TRF_019", Orta, Spec, 2, &[], None, VS, Row,
+        "In-seat aktarmada farklı route_type"),
+
+    // ── GGL: Google Transit Uyumluluk Kuralları ───────────────────────────────
+    r!("GGL_001", Dusuk, Interop, 1, &[], None, VI, Row,
+        "transfer_type=4/5 Google Transit tarafından desteklenmiyor"),
+    r!("GGL_002", Dusuk, Interop, 1, &[], None, VI, Row,
+        "ic_price (Google-özel) geçersiz değer"),
 
     // ── FAR: Fare Attributes ───────────────────────────────────────────────────
     r!("FAR_001", Kritik, Spec, 1,
@@ -671,6 +737,8 @@ pub static RULES: &[RuleMeta] = &[
         "min_age veya max_age geçersiz"),
     r!("RCT_005", Orta,   Spec, 1, &[], Some("rider_category_id"), VS, Row,
         "max_age min_age'den küçük"),
+    r!("RCT_006", Orta,   Spec, 2, &[], Some("fare_product_id"), VS, Entity,
+        "fare_product başına birden fazla varsayılan yolcu kategorisi"),
 
     // ── FMD: Fare Media (Fares v2) ────────────────────────────────────────────
     r!("FMD_001", Kritik, Spec, 1, &["FPD_004"],
@@ -678,6 +746,8 @@ pub static RULES: &[RuleMeta] = &[
         "fare_media_id yineleniyor"),
     r!("FMD_002", Kritik, Spec, 1, &[], Some("fare_media_id"), VS_K, Row,
         "fare_media_type eksik veya geçersiz"),
+    r!("FMD_003", Dusuk, Quality, 1, &[], Some("fare_media_id"), VS, Row,
+        "TransitCard/MobileApp için fare_media_name tavsiye edilir"),
 
     // ── FPD: Fare Products (Fares v2) ─────────────────────────────────────────
     r!("FPD_001", Kritik, Spec, 1, &["FLG_001","FTR_004"],
@@ -691,6 +761,8 @@ pub static RULES: &[RuleMeta] = &[
         "fare_media_id bulunamadı"),
     r!("FPD_005", Kritik, Spec, 1, &[], Some("fare_product_id"), VS_K, Row,
         "rider_category_id bulunamadı"),
+    r!("FPD_006", Orta, Spec, 1, &[], Some("fare_product_id"), VS, Entity,
+        "Bir fare_product için birden fazla varsayılan rider category"),
 
     // ── FLG: Fare Leg Rules (Fares v2) ────────────────────────────────────────
     r!("FLG_001", Kritik, Spec, 1, &[], Some("fare_product_id"), VS_K, Row,
@@ -751,6 +823,8 @@ pub static RULES: &[RuleMeta] = &[
         "start_time veya end_time format hatası"),
     r!("TFR_004", Orta,   Spec, 1, &[], Some("timeframe_group_id"), VS, Row,
         "end_time start_time'dan küçük"),
+    r!("TFR_005", Orta,   Spec, 1, &[], Some("timeframe_group_id"), VS, Row,
+        "Aynı grup ve service_id içinde örtüşen zaman aralıkları"),
 
     // ── PTH: Pathways ──────────────────────────────────────────────────────────
     r!("PTH_001", Kritik, Spec, 1, &[], Some("pathway_id"), VS_K, Entity,

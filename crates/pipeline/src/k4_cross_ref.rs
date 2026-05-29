@@ -1164,6 +1164,35 @@ fn check_transfers(
             }
         }
 
+        // TRF_019: in-seat aktarmada farklı route_type (InconsistentRouteTypeForInSeatTransfer)
+        if matches!(ttype, Some(4) | Some(5)) {
+            if let (Some(ref fti), Some(ref tti)) = (&rec.from_trip_id, &rec.to_trip_id) {
+                let from_rtype = map.trips.get(fti.as_str())
+                    .and_then(|&tidx| {
+                        let rid = &records.trips[tidx].route_id;
+                        map.routes.get(rid.as_str()).and_then(|&ridx| records.routes[ridx].route_type)
+                    });
+                let to_rtype = map.trips.get(tti.as_str())
+                    .and_then(|&tidx| {
+                        let rid = &records.trips[tidx].route_id;
+                        map.routes.get(rid.as_str()).and_then(|&ridx| records.routes[ridx].route_type)
+                    });
+                if let (Some(fr), Some(tr)) = (from_rtype, to_rtype) {
+                    if fr != tr {
+                        notices.push(notice(
+                            ctr, "TRF_019", EntityType::Transfer,
+                            None, None, "transfers.txt", Some(rec.line), Some("from_trip_id"),
+                            Some(format!("from={fr}, to={tr}")), None,
+                            format!(
+                                "In-seat aktarma: from_trip_id '{fti}' route_type={fr}, to_trip_id '{tti}' route_type={tr} — uyumsuz."
+                            ),
+                            "In-seat aktarma yapan seferler aynı route_type'a sahip olmalıdır.",
+                        ));
+                    }
+                }
+            }
+        }
+
         // TRF_017: sefer aktarmasında route uyumsuzluğu
         if let (Some(ref fti), Some(ref fri)) = (&rec.from_trip_id, &rec.from_route_id) {
             if let Some(&tidx) = map.trips.get(fti.as_str()) {
@@ -1540,6 +1569,42 @@ fn check_fares_v2(
                     format!("'{}' yolcu kategorisi rider_categories.txt te tanimli degil.", rcid),
                     "Gecerli bir rider_category_id kullanin.",
                 ));
+            }
+        }
+    }
+
+    // RCT_006: fare_product başına birden fazla varsayılan (is_default_fare_category=1) rider_category
+    {
+        let default_rcids: HashSet<&str> = records
+            .rider_categories
+            .iter()
+            .filter(|rc| rc.is_default_fare_category == Some(1))
+            .map(|rc| rc.rider_category_id.as_str())
+            .collect();
+
+        if !default_rcids.is_empty() {
+            let mut fp_defaults: HashMap<&str, Vec<u64>> = HashMap::new();
+            for fp in &records.fare_products {
+                if let Some(ref rcid) = fp.rider_category_id {
+                    if default_rcids.contains(rcid.as_str()) {
+                        fp_defaults.entry(fp.fare_product_id.as_str()).or_default().push(fp.line);
+                    }
+                }
+            }
+            for (fpid, lines) in fp_defaults {
+                if lines.len() > 1 {
+                    notices.push(notice(
+                        ctr, "RCT_006", EntityType::Row,
+                        Some(fpid.to_string()), Some(fpid.to_string()),
+                        "fare_products.txt", lines.first().copied(), None,
+                        Some(lines.len().to_string()), Some("1".to_string()),
+                        format!(
+                            "'{}' ucret urunu {} varsayilan yolcu kategorisine bagli; en fazla 1 olmali.",
+                            fpid, lines.len()
+                        ),
+                        "Bir fare_product_id icin yalnizca bir rider_category is_default_fare_category=1 olmali.",
+                    ));
+                }
             }
         }
     }
@@ -2699,6 +2764,7 @@ mod tests {
             wheelchair_boarding: None, stop_access: None,
             level_id: None, tts_stop_name: None,
             row: Default::default(), line: 2,
+            ..Default::default()
         }
     }
 
@@ -2760,13 +2826,9 @@ mod tests {
         recs.stop_times = vec![StopTimeRecord {
             trip_id: "MISSING".into(),
             stop_id: "S1".into(),
-            arrival_time: None, departure_time: None,
             stop_sequence: Some(1),
-            stop_headsign: None,
-            pickup_type: None, drop_off_type: None,
-            shape_dist_traveled: None, timepoint: None,
-            continuous_pickup: None, continuous_drop_off: None,
             line: 2,
+            ..Default::default()
         }];
         let result = check(&recs, &map, 20260515);
         assert!(result.notices.iter().any(|n| n.rule_id == "STM_001"));
@@ -2781,13 +2843,9 @@ mod tests {
         recs.stop_times = vec![StopTimeRecord {
             trip_id: "T1".into(),
             stop_id: "MISSING_STOP".into(),
-            arrival_time: None, departure_time: None,
             stop_sequence: Some(1),
-            stop_headsign: None,
-            pickup_type: None, drop_off_type: None,
-            shape_dist_traveled: None, timepoint: None,
-            continuous_pickup: None, continuous_drop_off: None,
             line: 2,
+            ..Default::default()
         }];
         let result = check(&recs, &map, 20260515);
         assert!(result.notices.iter().any(|n| n.rule_id == "STM_002"));
@@ -3089,10 +3147,8 @@ mod tests {
         }];
         recs.stop_times = vec![StopTimeRecord {
             trip_id: "T1".into(), stop_id: "STOP1".into(),
-            stop_sequence: Some(1), arrival_time: None, departure_time: None,
-            stop_headsign: None, pickup_type: None, drop_off_type: None,
-            shape_dist_traveled: None, timepoint: None, continuous_pickup: None,
-            continuous_drop_off: None, line: 10,
+            stop_sequence: Some(1), line: 10,
+            ..Default::default()
         }];
         // stop_times var → SHP_019 ateşlenmemeli
         let result = check(&recs, &map, 20260515);
@@ -3286,6 +3342,94 @@ mod tests {
         recs.transfers = vec![base.clone(), TransferRecord { line: 3, ..base }];
         let result = check(&recs, &EntityMap::default(), 20260515);
         assert!(result.notices.iter().any(|n| n.rule_id == "TRF_016"));
+    }
+
+    // ── RCT_006 ───────────────────────────────────────────────────────────────
+
+    #[test]
+    fn multiple_default_rider_categories_per_fare_product_produces_rct_006() {
+        use crate::k2::fare_products::FareProductRecord;
+        use crate::k2::rider_categories::RiderCategoryRecord;
+        let (mut recs, _map) = empty();
+        recs.rider_categories = vec![
+            RiderCategoryRecord {
+                rider_category_id: "adult".into(),
+                rider_category_name: "Adult".into(),
+                is_default_fare_category: Some(1),
+                min_age: None, max_age: None,
+                rider_category_eligibility_url: None,
+                row: Default::default(), line: 2,
+            },
+            RiderCategoryRecord {
+                rider_category_id: "senior".into(),
+                rider_category_name: "Senior".into(),
+                is_default_fare_category: Some(1),
+                min_age: None, max_age: None,
+                rider_category_eligibility_url: None,
+                row: Default::default(), line: 3,
+            },
+        ];
+        recs.fare_products = vec![
+            FareProductRecord {
+                fare_product_id: "fp1".into(),
+                fare_product_name: None,
+                rider_category_id: Some("adult".into()),
+                fare_media_id: None, amount: None, currency: String::new(),
+                row: Default::default(), line: 10,
+            },
+            FareProductRecord {
+                fare_product_id: "fp1".into(),
+                fare_product_name: None,
+                rider_category_id: Some("senior".into()),
+                fare_media_id: None, amount: None, currency: String::new(),
+                row: Default::default(), line: 11,
+            },
+        ];
+        let result = check(&recs, &EntityMap::default(), 20260515);
+        assert!(result.notices.iter().any(|n| n.rule_id == "RCT_006"));
+    }
+
+    #[test]
+    fn single_default_rider_category_per_fare_product_is_ok() {
+        use crate::k2::fare_products::FareProductRecord;
+        use crate::k2::rider_categories::RiderCategoryRecord;
+        let (mut recs, _map) = empty();
+        recs.rider_categories = vec![
+            RiderCategoryRecord {
+                rider_category_id: "adult".into(),
+                rider_category_name: "Adult".into(),
+                is_default_fare_category: Some(1),
+                min_age: None, max_age: None,
+                rider_category_eligibility_url: None,
+                row: Default::default(), line: 2,
+            },
+            RiderCategoryRecord {
+                rider_category_id: "child".into(),
+                rider_category_name: "Child".into(),
+                is_default_fare_category: Some(0),
+                min_age: None, max_age: None,
+                rider_category_eligibility_url: None,
+                row: Default::default(), line: 3,
+            },
+        ];
+        recs.fare_products = vec![
+            FareProductRecord {
+                fare_product_id: "fp1".into(),
+                fare_product_name: None,
+                rider_category_id: Some("adult".into()),
+                fare_media_id: None, amount: None, currency: String::new(),
+                row: Default::default(), line: 10,
+            },
+            FareProductRecord {
+                fare_product_id: "fp1".into(),
+                fare_product_name: None,
+                rider_category_id: Some("child".into()),
+                fare_media_id: None, amount: None, currency: String::new(),
+                row: Default::default(), line: 11,
+            },
+        ];
+        let result = check(&recs, &EntityMap::default(), 20260515);
+        assert!(!result.notices.iter().any(|n| n.rule_id == "RCT_006"));
     }
 }
 

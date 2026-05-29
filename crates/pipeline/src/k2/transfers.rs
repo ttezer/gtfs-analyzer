@@ -101,6 +101,18 @@ pub fn validate_transfers(file: &RawFile) -> (Vec<TransferRecord>, Vec<gtfs_core
             ));
         }
 
+        // GGL_001: transfer_type=4/5 Google Transit tarafından desteklenmiyor
+        if matches!(transfer_type, Some(4) | Some(5)) {
+            let ttype = transfer_type.unwrap();
+            notices.push(make_k2_notice(
+                &mut counter, "GGL_001", EntityType::Row, entity_id.clone(), Some(&row_map),
+                &file.name, Some(line), Some("transfer_type"),
+                Some(ttype.to_string()), None,
+                format!("transfer_type={ttype} (in-seat aktarma) Google Transit tarafından yoksayılıyor."),
+                "Google Transit uyumluluğu gerekiyorsa transfer_type değerini 0–3 arasında seçin.",
+            ));
+        }
+
         records.push(TransferRecord {
             from_stop_id,
             to_stop_id,
@@ -116,4 +128,41 @@ pub fn validate_transfers(file: &RawFile) -> (Vec<TransferRecord>, Vec<gtfs_core
     }
 
     (records, notices)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::k1_parse::RawFile;
+    use smol_str::SmolStr;
+
+    fn make_file(rows: Vec<Vec<&str>>) -> RawFile {
+        RawFile {
+            name: "transfers.txt".into(),
+            headers: vec!["from_stop_id".into(), "to_stop_id".into(), "transfer_type".into()],
+            rows: rows.iter().map(|r| r.iter().map(|v| SmolStr::new(*v)).collect()).collect(),
+            bytes: 0,
+        }
+    }
+
+    #[test]
+    fn ggl_001_fires_for_in_seat_transfer_type_4() {
+        let file = make_file(vec![vec!["S1", "S2", "4"]]);
+        let (_, notices) = validate_transfers(&file);
+        assert!(notices.iter().any(|n| n.rule_id == "GGL_001"), "GGL_001 bekleniyor");
+    }
+
+    #[test]
+    fn ggl_001_fires_for_in_seat_transfer_type_5() {
+        let file = make_file(vec![vec!["S1", "S2", "5"]]);
+        let (_, notices) = validate_transfers(&file);
+        assert!(notices.iter().any(|n| n.rule_id == "GGL_001"), "GGL_001 bekleniyor");
+    }
+
+    #[test]
+    fn ggl_001_silent_for_standard_transfer_types() {
+        let file = make_file(vec![vec!["S1", "S2", "0"], vec!["S3", "S4", "1"]]);
+        let (_, notices) = validate_transfers(&file);
+        assert!(!notices.iter().any(|n| n.rule_id == "GGL_001"), "GGL_001 tetiklenmemeli");
+    }
 }

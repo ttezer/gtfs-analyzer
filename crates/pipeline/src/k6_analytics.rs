@@ -1638,6 +1638,28 @@ fn check_operational_analytics(
         }
     }
 
+    // TRP_026: hiç aktif hizmet günü olmayan sefer (UnusedTripNotice)
+    if today_yyyymmdd > 0 {
+        for trip in &records.trips {
+            if trip.trip_id.is_empty() { continue; }
+            let has_any_date = derived.calendar_bitmap.active_dates
+                .get(trip.service_id.as_str())
+                .map(|dates| !dates.is_empty())
+                .unwrap_or(false);
+            if !has_any_date {
+                notices.push(k6_notice(
+                    ctr, "TRP_026", EntityType::Trip,
+                    Some(trip.trip_id.clone()), Some(trip.trip_id.clone()),
+                    "trips.txt", Some(trip.line), Some("service_id"),
+                    Some(trip.service_id.clone()), None,
+                    format!("service_id '{}' için geçerli hizmet tarihi yok; '{}' seferi hiçbir zaman çalışmayacak.",
+                        trip.service_id, trip.trip_id),
+                    "service_id'nin calendar.txt veya calendar_dates.txt'te aktif tarihlere sahip olduğundan emin olun.",
+                ));
+            }
+        }
+    }
+
     // TRP_024: block içinde tutarsız rota tipi
     {
         let route_type_map: HashMap<&str, u32> = records.routes.iter()
@@ -2104,6 +2126,116 @@ fn check_route_trip_quality(
                     format!("'{}' hattının uzun adı '{}', kısa adı '{}' zaten içeriyor.", route.route_id, long, short),
                     "route_long_name'i kısa adı tekrar etmeyecek şekilde düzenleyin.",
                 ));
+            }
+        }
+    }
+
+    // ── STP_034/035: stop_url acente veya hat URL'siyle aynı ─────────────────
+    {
+        let agency_urls: Vec<&str> = records.agencies.iter()
+            .filter_map(|a| a.agency_url.as_str().is_empty().then_some(None).unwrap_or_else(|| Some(a.agency_url.as_str())))
+            .collect();
+        let route_urls: Vec<&str> = records.routes.iter()
+            .filter_map(|r| r.route_url.as_deref().filter(|u| !u.is_empty()))
+            .collect();
+
+        for stop in &records.stops {
+            let Some(ref surl) = stop.stop_url else { continue };
+            if surl.is_empty() { continue }
+
+            // STP_034: stop_url == agency_url
+            if agency_urls.iter().any(|&au| au == surl.as_str()) {
+                notices.push(k6_notice(
+                    ctr, "STP_034", EntityType::Stop,
+                    Some(stop.stop_id.clone()), Some(stop.stop_id.clone()),
+                    "stops.txt", Some(stop.line), Some("stop_url"),
+                    Some(surl.clone()), None,
+                    format!("'{}' durağının stop_url değeri bir acente URL'siyle aynı: '{surl}'.", stop.stop_id),
+                    "stop_url'yi bu durağa özgü bir sayfaya yönlendirin ya da boş bırakın.",
+                ));
+            }
+
+            // STP_035: stop_url == route_url
+            if route_urls.iter().any(|&ru| ru == surl.as_str()) {
+                notices.push(k6_notice(
+                    ctr, "STP_035", EntityType::Stop,
+                    Some(stop.stop_id.clone()), Some(stop.stop_id.clone()),
+                    "stops.txt", Some(stop.line), Some("stop_url"),
+                    Some(surl.clone()), None,
+                    format!("'{}' durağının stop_url değeri bir hat URL'siyle aynı: '{surl}'.", stop.stop_id),
+                    "stop_url'yi bu durağa özgü bir sayfaya yönlendirin ya ya boş bırakın.",
+                ));
+            }
+        }
+    }
+
+    // ── TRP_027: kopya sefer (aynı route+service+direction+shape+durak sırası) ─
+    {
+        // trip_id → sıralı stop_id listesi (stop_sequence'a göre)
+        let mut trip_stop_seq: FxHashMap<&str, Vec<(u32, &str)>> = FxHashMap::default();
+        for st in &records.stop_times {
+            if let Some(seq) = st.stop_sequence {
+                trip_stop_seq.entry(st.trip_id.as_str()).or_default().push((seq, st.stop_id.as_str()));
+            }
+        }
+
+        let mut fingerprints: HashMap<String, &str> = HashMap::new(); // fingerprint → ilk trip_id
+        for trip in &records.trips {
+            let dir = trip.direction_id.map(|d| d.to_string()).unwrap_or_default();
+            let shape = trip.shape_id.as_deref().unwrap_or("");
+            let mut stops = trip_stop_seq.get(trip.trip_id.as_str()).cloned().unwrap_or_default();
+            stops.sort_by_key(|&(seq, _)| seq);
+            let stop_key: Vec<&str> = stops.iter().map(|(_, sid)| *sid).collect();
+            let fp = format!("{}|{}|{}|{}|{}", trip.route_id, trip.service_id, dir, shape, stop_key.join(","));
+
+            match fingerprints.get(&fp) {
+                Some(&first_id) => {
+                    notices.push(k6_notice(
+                        ctr, "TRP_027", EntityType::Trip,
+                        Some(trip.trip_id.clone()), Some(trip.trip_id.clone()),
+                        "trips.txt", Some(trip.line), Some("trip_id"),
+                        Some(trip.trip_id.clone()), Some(first_id.to_string()),
+                        format!("'{}' seferi '{}' seferiyle aynı route+service+direction+shape+durak sırasına sahip (kopya).", trip.trip_id, first_id),
+                        "Tekrarlayan seferleri kaldırın veya farklılaştırın.",
+                    ));
+                }
+                None => { fingerprints.insert(fp, trip.trip_id.as_str()); }
+            }
+        }
+    }
+
+    // ── PDW_006: aynı trip+zone'da örtüşen pickup/drop-off penceresi ──────────
+    {
+        // (trip_id, zone_key) → [(start_secs, end_secs, line)]
+        let mut zone_wins: HashMap<(&str, &str), Vec<(u64, u64, u64)>> = HashMap::new();
+        for st in &records.stop_times {
+            let Some(start) = st.start_pickup_drop_off_window else { continue };
+            let Some(end)   = st.end_pickup_drop_off_window   else { continue };
+            let zone = if let Some(ref z) = st.location_id        { z.as_str() }
+                       else if let Some(ref z) = st.location_group_id { z.as_str() }
+                       else { continue };
+            let s = start.0 as u64 * 3600 + start.1 as u64 * 60 + start.2 as u64;
+            let e = end.0   as u64 * 3600 + end.1   as u64 * 60 + end.2   as u64;
+            zone_wins.entry((st.trip_id.as_str(), zone)).or_default().push((s, e, st.line));
+        }
+
+        for ((trip_id, zone), mut wins) in zone_wins {
+            if wins.len() < 2 { continue; }
+            wins.sort_by_key(|&(s, _, _)| s);
+            for i in 1..wins.len() {
+                let (_ps, pe, _) = wins[i - 1];
+                let (cs, _ce, cl) = wins[i];
+                if cs < pe {
+                    notices.push(k6_notice(
+                        ctr, "PDW_006", EntityType::Trip,
+                        Some(trip_id.to_string()), Some(trip_id.to_string()),
+                        "stop_times.txt", Some(cl), Some("start_pickup_drop_off_window"),
+                        None, None,
+                        format!("trip_id '{}' için zone '{}' içinde örtüşen pickup/drop-off pencereleri var.", trip_id, zone),
+                        "Aynı trip+zone içindeki zaman pencerelerinin örtüşmediğinden emin olun.",
+                    ));
+                    break;
+                }
             }
         }
     }
@@ -5393,6 +5525,7 @@ mod tests {
             wheelchair_boarding: None, stop_access: None,
             level_id: None, tts_stop_name: None,
             row: Default::default(), line: 2,
+            ..Default::default()
         }
     }
 
@@ -5427,10 +5560,8 @@ mod tests {
             stop_sequence: Some(seq),
             arrival_time: Some(arr),
             departure_time: Some(dep),
-            stop_headsign: None, pickup_type: None, drop_off_type: None,
-            shape_dist_traveled: None, timepoint: None,
-            continuous_pickup: None, continuous_drop_off: None,
             line,
+            ..Default::default()
         }
     }
 
@@ -6054,11 +6185,8 @@ mod tests {
         StopTimeRecord {
             trip_id: trip_id.into(), stop_id: stop_id.into(),
             stop_sequence: Some(seq),
-            arrival_time: None, departure_time: None,
-            stop_headsign: None, pickup_type: None, drop_off_type: None,
-            shape_dist_traveled: None, timepoint: None,
-            continuous_pickup: None, continuous_drop_off: None,
             line,
+            ..Default::default()
         }
     }
 
@@ -6491,6 +6619,7 @@ mod tests {
             stop_lat: None, stop_lon: None, location_type: None,
             stop_timezone: None, wheelchair_boarding: None, stop_access: None,
             level_id: None, tts_stop_name: None, row: Default::default(), line: 3,
+            ..Default::default()
         };
         let records = records_with(
             vec![stop("A", 41.0, 29.0), no_coord.clone(), {

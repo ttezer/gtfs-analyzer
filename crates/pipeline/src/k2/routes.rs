@@ -90,6 +90,15 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
                     format!("'{}' hattının route_short_name değeri {} karakter; kısa isimler 12 karakteri aşmamalıdır.", route_id, s.len()),
                     "route_short_name'i 12 karakterin altında tutun.",
                 ));
+            } else if s.len() > 6 {
+                // RTS_021: 6 karakterden uzun (Google Transit eşiği)
+                notices.push(make_k2_notice(
+                    &mut counter, "RTS_021", EntityType::Route, entity_id.clone(), Some(&row_map),
+                    &file.name, Some(line), Some("route_short_name"),
+                    Some(s.len().to_string()), Some("≤6 (Google)".to_string()),
+                    format!("'{}' hattının route_short_name değeri {} karakter; Google Transit 6 karakteri tavsiye ediyor.", route_id, s.len()),
+                    "Google Transit uyumluluğu için route_short_name'i 6 karakterin altında tutun.",
+                ));
             }
         }
 
@@ -230,6 +239,19 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
         let route_desc = get_trimmed_field(&row_map, "route_desc")
             .filter(|v| !v.is_empty())
             .map(str::to_string);
+
+        // RTS_023: route_long_name == route_desc (same_name_and_description_for_route)
+        if let (Some(ref l), Some(ref d)) = (&route_long_name, &route_desc) {
+            if l.to_lowercase() == d.to_lowercase() {
+                notices.push(make_k2_notice(
+                    &mut counter, "RTS_023", EntityType::Route, entity_id.clone(), Some(&row_map),
+                    &file.name, Some(line), Some("route_desc"), Some(d.clone()), None,
+                    format!("'{}' hattının route_long_name ve route_desc değerleri aynı: '{l}'.", route_id),
+                    "route_desc, route_long_name'den farklı ve daha açıklayıcı bir açıklama içermelidir.",
+                ));
+            }
+        }
+
         let network_id = get_trimmed_field(&row_map, "network_id")
             .filter(|v| !v.is_empty())
             .map(str::to_string);

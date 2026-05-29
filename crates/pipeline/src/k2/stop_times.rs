@@ -5,7 +5,7 @@ use smol_str::SmolStr;
 use super::common::make_k2_notice;
 use crate::k1_parse::RawFile;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct StopTimeRecord {
     pub trip_id: SmolStr,
     pub stop_id: SmolStr,
@@ -19,6 +19,13 @@ pub struct StopTimeRecord {
     pub timepoint: Option<u32>,
     pub continuous_pickup: Option<u32>,
     pub continuous_drop_off: Option<u32>,
+    // Flex GTFS alanları
+    pub start_pickup_drop_off_window: Option<(u32, u32, u32)>,
+    pub end_pickup_drop_off_window: Option<(u32, u32, u32)>,
+    pub location_id: Option<SmolStr>,
+    pub location_group_id: Option<SmolStr>,
+    pub pickup_booking_rule_id: Option<SmolStr>,
+    pub drop_off_booking_rule_id: Option<SmolStr>,
     pub line: u64,
 }
 
@@ -37,6 +44,13 @@ struct Cols {
     continuous_pickup:    Option<usize>,
     continuous_drop_off:  Option<usize>,
     stop_sequence:        Option<usize>,
+    // Flex
+    start_pickup_drop_off_window:  Option<usize>,
+    end_pickup_drop_off_window:    Option<usize>,
+    location_id:                   Option<usize>,
+    location_group_id:             Option<usize>,
+    pickup_booking_rule_id:        Option<usize>,
+    drop_off_booking_rule_id:      Option<usize>,
 }
 
 impl Cols {
@@ -55,6 +69,12 @@ impl Cols {
             continuous_pickup:   pos("continuous_pickup"),
             continuous_drop_off: pos("continuous_drop_off"),
             stop_sequence:       pos("stop_sequence"),
+            start_pickup_drop_off_window: pos("start_pickup_drop_off_window"),
+            end_pickup_drop_off_window:   pos("end_pickup_drop_off_window"),
+            location_id:                  pos("location_id"),
+            location_group_id:            pos("location_group_id"),
+            pickup_booking_rule_id:       pos("pickup_booking_rule_id"),
+            drop_off_booking_rule_id:     pos("drop_off_booking_rule_id"),
         }
     }
 }
@@ -354,6 +374,98 @@ pub fn validate_stop_times(file: &RawFile) -> (Vec<StopTimeRecord>, Vec<gtfs_cor
             Some(SmolStr::new(stop_headsign_raw))
         };
 
+        // STM_042: stop_headsign'da Google Transit'in yasakladığı özel karakterler
+        if let Some(ref hs) = stop_headsign {
+            const FORBIDDEN: &[char] = &['!', '$', '%', '\\', '*', '=', '_'];
+            if let Some(bad) = hs.chars().find(|c| FORBIDDEN.contains(c)) {
+                notices.push(make_k2_notice(
+                    &mut counter, "STM_042", EntityType::Trip, eid(),
+                    None, &file.name, Some(line), Some("stop_headsign"),
+                    Some(format!("'{bad}' karakteri içeriyor")), None,
+                    format!("stop_headsign '{}' Google Transit tarafından desteklenmeyen karakter içeriyor: '{bad}'.", hs),
+                    "stop_headsign değerinden ! $ % \\ * = _ karakterlerini kaldırın.",
+                ));
+            }
+        }
+
+        // ── Flex GTFS alanları ───────────────────────────────────────────────
+        let start_window_raw = get_col(row, cols.start_pickup_drop_off_window);
+        let end_window_raw   = get_col(row, cols.end_pickup_drop_off_window);
+        let loc_id_raw       = get_col(row, cols.location_id);
+        let loc_grp_raw      = get_col(row, cols.location_group_id);
+        let pbr_raw          = get_col(row, cols.pickup_booking_rule_id);
+        let dobr_raw         = get_col(row, cols.drop_off_booking_rule_id);
+
+        let start_window = parse_gtfs_time_raw(start_window_raw, "start_pickup_drop_off_window").ok().flatten();
+        let end_window   = parse_gtfs_time_raw(end_window_raw,   "end_pickup_drop_off_window").ok().flatten();
+
+        let has_start_window = !start_window_raw.is_empty();
+        let has_end_window   = !end_window_raw.is_empty();
+        let has_any_window   = has_start_window || has_end_window;
+        let has_location     = !loc_id_raw.is_empty() || !loc_grp_raw.is_empty();
+
+        // STM_037: Flex penceresinde arrival_time/departure_time yasak
+        if has_any_window && (arrival_time.is_some() || departure_time.is_some()) {
+            notices.push(make_k2_notice(
+                &mut counter, "STM_037", EntityType::Trip, eid(),
+                None, &file.name, Some(line), Some("arrival_time"),
+                Some(arr_raw.to_string()), Some("(boş)".to_string()),
+                format!("trip_id '{}' Flex penceresi tanımlı iken arrival_time/departure_time yasaktır.", trip_id),
+                "Flex stop_times satırlarında arrival_time ve departure_time alanlarını kaldırın.",
+            ));
+        }
+
+        // STM_038: start_window > end_window
+        if let (Some(sw), Some(ew)) = (start_window, end_window) {
+            let sw_secs = sw.0 * 3600 + sw.1 * 60 + sw.2;
+            let ew_secs = ew.0 * 3600 + ew.1 * 60 + ew.2;
+            if sw_secs > ew_secs {
+                notices.push(make_k2_notice(
+                    &mut counter, "STM_038", EntityType::Trip, eid(),
+                    None, &file.name, Some(line), Some("start_pickup_drop_off_window"),
+                    Some(format!("{start_window_raw} > {end_window_raw}")), None,
+                    format!("trip_id '{}' start_pickup_drop_off_window, end_pickup_drop_off_window'dan sonra.", trip_id),
+                    "start_pickup_drop_off_window değerini end_pickup_drop_off_window'dan küçük ya da eşit yapın.",
+                ));
+            }
+        }
+
+        // STM_039: location_id/group_id var ama pencere eksik
+        if has_location && (!has_start_window || !has_end_window) {
+            let missing = if !has_start_window { "start_pickup_drop_off_window" } else { "end_pickup_drop_off_window" };
+            notices.push(make_k2_notice(
+                &mut counter, "STM_039", EntityType::Trip, eid(),
+                None, &file.name, Some(line), Some(missing),
+                None, Some("HH:MM:SS".to_string()),
+                format!("trip_id '{}' location_id/group_id tanımlı ama {missing} eksik.", trip_id),
+                "Flex stop_times için hem start_pickup_drop_off_window hem end_pickup_drop_off_window girin.",
+            ));
+        }
+
+        // STM_040: Flex penceresi var ama booking_rule_id yok
+        if has_any_window && pbr_raw.is_empty() && dobr_raw.is_empty() {
+            notices.push(make_k2_notice(
+                &mut counter, "STM_040", EntityType::Trip, eid(),
+                None, &file.name, Some(line), Some("pickup_booking_rule_id"),
+                None, None,
+                format!("trip_id '{}' Flex penceresi tanımlı ama pickup/drop_off_booking_rule_id eksik.", trip_id),
+                "Flex rezervasyon için pickup_booking_rule_id veya drop_off_booking_rule_id girin.",
+            ));
+        }
+
+        // STM_041: stop_id ve location_id/group_id aynı anda dolu (çakışma)
+        if !stop_id.is_empty() && has_location {
+            notices.push(make_k2_notice(
+                &mut counter, "STM_041", EntityType::Trip, eid(),
+                None, &file.name, Some(line), Some("location_id"),
+                Some(loc_id_raw.to_string()), Some("(boş)".to_string()),
+                format!("trip_id '{}' stop_id ve location_id/group_id aynı anda tanımlı olamaz.", trip_id),
+                "Standart stop için yalnızca stop_id, Flex stop için yalnızca location_id veya location_group_id kullanın.",
+            ));
+        }
+
+        let smol_opt = |s: &str| if s.is_empty() { None } else { Some(SmolStr::new(s)) };
+
         records.push(StopTimeRecord {
             trip_id,
             stop_id,
@@ -367,6 +479,12 @@ pub fn validate_stop_times(file: &RawFile) -> (Vec<StopTimeRecord>, Vec<gtfs_cor
             timepoint,
             continuous_pickup,
             continuous_drop_off,
+            start_pickup_drop_off_window: start_window,
+            end_pickup_drop_off_window: end_window,
+            location_id: smol_opt(loc_id_raw),
+            location_group_id: smol_opt(loc_grp_raw),
+            pickup_booking_rule_id: smol_opt(pbr_raw),
+            drop_off_booking_rule_id: smol_opt(dobr_raw),
             line,
         });
     }
@@ -533,5 +651,68 @@ mod tests {
         let (_, notices) = validate_stop_times(&file);
         assert!(!notices.iter().any(|n| n.rule_id == "STM_034"),
             "İkisi de boş → STM_034 üretilmemeli. Notices: {:?}", notices);
+    }
+
+    // ── STM Flex ────────────────────────────────────────────────────────────────
+
+    #[test]
+    fn stm_037_arrival_time_forbidden_in_flex_window() {
+        let file = make_file(
+            vec!["trip_id", "stop_id", "stop_sequence", "start_pickup_drop_off_window", "arrival_time", "departure_time"],
+            vec![vec!["T1", "", "1", "08:00:00", "08:00:00", ""]],
+        );
+        let (_, notices) = validate_stop_times(&file);
+        assert!(notices.iter().any(|n| n.rule_id == "STM_037"), "STM_037 bekleniyor: {:?}", notices);
+    }
+
+    #[test]
+    fn stm_038_start_window_after_end_window() {
+        let file = make_file(
+            vec!["trip_id", "stop_id", "stop_sequence", "start_pickup_drop_off_window", "end_pickup_drop_off_window", "pickup_booking_rule_id"],
+            vec![vec!["T1", "", "1", "10:00:00", "09:00:00", "BR1"]],
+        );
+        let (_, notices) = validate_stop_times(&file);
+        assert!(notices.iter().any(|n| n.rule_id == "STM_038"), "STM_038 bekleniyor: {:?}", notices);
+    }
+
+    #[test]
+    fn stm_039_location_id_without_window() {
+        let file = make_file(
+            vec!["trip_id", "stop_sequence", "location_id"],
+            vec![vec!["T1", "1", "LOC1"]],
+        );
+        let (_, notices) = validate_stop_times(&file);
+        assert!(notices.iter().any(|n| n.rule_id == "STM_039"), "STM_039 bekleniyor: {:?}", notices);
+    }
+
+    #[test]
+    fn stm_040_flex_window_without_booking_rule() {
+        let file = make_file(
+            vec!["trip_id", "stop_sequence", "start_pickup_drop_off_window", "end_pickup_drop_off_window"],
+            vec![vec!["T1", "1", "08:00:00", "10:00:00"]],
+        );
+        let (_, notices) = validate_stop_times(&file);
+        assert!(notices.iter().any(|n| n.rule_id == "STM_040"), "STM_040 bekleniyor: {:?}", notices);
+    }
+
+    #[test]
+    fn stm_041_stop_id_and_location_id_conflict() {
+        let file = make_file(
+            vec!["trip_id", "stop_id", "stop_sequence", "location_id", "start_pickup_drop_off_window", "end_pickup_drop_off_window", "pickup_booking_rule_id"],
+            vec![vec!["T1", "S1", "1", "LOC1", "08:00:00", "10:00:00", "BR1"]],
+        );
+        let (_, notices) = validate_stop_times(&file);
+        assert!(notices.iter().any(|n| n.rule_id == "STM_041"), "STM_041 bekleniyor: {:?}", notices);
+    }
+
+    #[test]
+    fn valid_flex_stop_time_no_notices() {
+        let file = make_file(
+            vec!["trip_id", "stop_sequence", "location_id", "start_pickup_drop_off_window", "end_pickup_drop_off_window", "pickup_booking_rule_id"],
+            vec![vec!["T1", "1", "LOC1", "08:00:00", "10:00:00", "BR1"]],
+        );
+        let (_, notices) = validate_stop_times(&file);
+        let flex_notices: Vec<_> = notices.iter().filter(|n| matches!(n.rule_id.as_str(), "STM_037"|"STM_038"|"STM_039"|"STM_040"|"STM_041")).collect();
+        assert!(flex_notices.is_empty(), "Geçerli Flex stop_time için Flex notice olmamalı: {:?}", flex_notices);
     }
 }

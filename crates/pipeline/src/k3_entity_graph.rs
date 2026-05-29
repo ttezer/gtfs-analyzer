@@ -651,6 +651,7 @@ mod tests {
             wheelchair_boarding: None, stop_access: None,
             level_id: None, tts_stop_name: None,
             row: Default::default(), line: 2,
+            ..Default::default()
         };
         records.stops = vec![
             base.clone(),
@@ -875,6 +876,7 @@ mod tests {
             level_id: None, tts_stop_name: None,
             row,
             line: 2,
+            ..Default::default()
         }];
         let result = build(&records);
         assert!(result.entity_map.zone_ids.contains("ZoneA"));

@@ -6,7 +6,7 @@ use super::common::{
 };
 use crate::k1_parse::RawFile;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct StopRecord {
     pub stop_id: String,
     pub stop_code: Option<String>,
@@ -19,6 +19,7 @@ pub struct StopRecord {
     pub stop_access: Option<u32>,
     pub level_id: Option<String>,
     pub tts_stop_name: Option<String>,
+    pub stop_url: Option<String>,
     pub row: RowMap,
     pub line: u64,
 }
@@ -325,6 +326,10 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
             ));
         }
 
+        let stop_url = get_trimmed_field(&row_map, "stop_url")
+            .filter(|v| !v.is_empty())
+            .map(str::to_string);
+
         records.push(StopRecord {
             stop_id,
             stop_code,
@@ -337,6 +342,7 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
             stop_access,
             level_id,
             tts_stop_name,
+            stop_url,
             row: row_map,
             line,
         });

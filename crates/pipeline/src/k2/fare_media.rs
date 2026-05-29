@@ -60,11 +60,28 @@ pub fn validate_fare_media(
             }
         };
 
+        let fare_media_name = get_trimmed_field(&row_map, "fare_media_name")
+            .filter(|v| !v.is_empty())
+            .map(str::to_string);
+
+        // FMD_003: TransitCard/MobileApp/AgencyApp için fare_media_name tavsiye edilir
+        if fare_media_name.is_none() && matches!(fare_media_type, Some(1) | Some(2) | Some(4)) {
+            let type_label = match fare_media_type {
+                Some(1) => "fiziksel kart",
+                Some(2) => "mobil uygulama",
+                _ => "transit kuruluş uygulaması",
+            };
+            notices.push(make_k2_notice(
+                &mut counter, "FMD_003", EntityType::Row, entity_id.clone(), Some(&row_map),
+                &file.name, Some(line), Some("fare_media_name"), None, None,
+                format!("fare_media_type={} ({type_label}) için fare_media_name tavsiye edilir.", fare_media_type.unwrap()),
+                "Kullanıcıların ödeme aracını tanıyabilmesi için fare_media_name ekleyin.",
+            ));
+        }
+
         records.push(FareMediaRecord {
             fare_media_id: id,
-            fare_media_name: get_trimmed_field(&row_map, "fare_media_name")
-                .filter(|v| !v.is_empty())
-                .map(str::to_string),
+            fare_media_name,
             fare_media_type,
             row: row_map,
             line,
@@ -72,4 +89,50 @@ pub fn validate_fare_media(
     }
 
     (records, notices)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::k1_parse::RawFile;
+    use smol_str::SmolStr;
+
+    fn make_file(headers: &[&str], rows: Vec<Vec<&str>>) -> RawFile {
+        RawFile {
+            name: "fare_media.txt".into(),
+            headers: headers.iter().map(|s| s.to_string()).collect(),
+            rows: rows.iter().map(|r| r.iter().map(|v| SmolStr::new(*v)).collect()).collect(),
+            bytes: 0,
+        }
+    }
+
+    #[test]
+    fn fmd_003_fires_for_transit_card_without_name() {
+        let file = make_file(
+            &["fare_media_id", "fare_media_type"],
+            vec![vec!["FM1", "1"]],
+        );
+        let (_, notices) = validate_fare_media(&file);
+        assert!(notices.iter().any(|n| n.rule_id == "FMD_003"), "FMD_003 bekleniyor");
+    }
+
+    #[test]
+    fn fmd_003_silent_when_name_present() {
+        let file = make_file(
+            &["fare_media_id", "fare_media_type", "fare_media_name"],
+            vec![vec!["FM1", "1", "İstanbulkart"]],
+        );
+        let (_, notices) = validate_fare_media(&file);
+        assert!(!notices.iter().any(|n| n.rule_id == "FMD_003"), "FMD_003 tetiklenmemeli");
+    }
+
+    #[test]
+    fn fmd_003_silent_for_type_0_and_3() {
+        let file = make_file(
+            &["fare_media_id", "fare_media_type"],
+            vec![vec!["FM1", "0"], vec!["FM2", "3"]],
+        );
+        let (_, notices) = validate_fare_media(&file);
+        assert!(!notices.iter().any(|n| n.rule_id == "FMD_003"), "FMD_003 tetiklenmemeli");
+    }
 }

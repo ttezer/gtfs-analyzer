@@ -1,4 +1,5 @@
 use gtfs_core::EntityType;
+use std::collections::HashMap;
 
 use super::common::{build_row_map, get_trimmed_field, make_k2_notice, parse_gtfs_time, RowMap};
 use crate::k1_parse::RawFile;
@@ -89,6 +90,40 @@ pub fn validate_timeframes(
             row: row_map,
             line,
         });
+    }
+
+    // TFR_005: aynı (timeframe_group_id, service_id) grubunda örtüşen zaman aralıkları
+    // Gruplama: key → Vec<(start_secs, end_secs, line)>
+    let mut groups: HashMap<(&str, &str), Vec<(u32, u32, u64)>> = HashMap::new();
+    for rec in &records {
+        if let (Some(st), Some(et)) = (rec.start_time, rec.end_time) {
+            let st_secs = st.0 * 3600 + st.1 * 60 + st.2;
+            let et_secs = et.0 * 3600 + et.1 * 60 + et.2;
+            groups
+                .entry((rec.timeframe_group_id.as_str(), rec.service_id.as_str()))
+                .or_default()
+                .push((st_secs, et_secs, rec.line));
+        }
+    }
+    for ((group_id, service_id), mut intervals) in groups {
+        intervals.sort_by_key(|&(st, _, _)| st);
+        for i in 1..intervals.len() {
+            let (prev_st, prev_et, prev_line) = intervals[i - 1];
+            let (cur_st, _, cur_line) = intervals[i];
+            if cur_st < prev_et {
+                notices.push(make_k2_notice(
+                    &mut counter, "TFR_005", EntityType::Row,
+                    Some(group_id.to_string()), None,
+                    &file.name, Some(cur_line), Some("start_time"),
+                    Some(format!("satır {cur_line} ve {prev_line} örtüşüyor")), None,
+                    format!(
+                        "timeframe_group_id '{}' service_id '{}': {prev_st}–{prev_et}s ile {cur_st}s aralıkları örtüşüyor.",
+                        group_id, service_id
+                    ),
+                    "Aynı grup ve service_id içindeki zaman aralıklarının örtüşmediğinden emin olun.",
+                ));
+            }
+        }
     }
 
     (records, notices)

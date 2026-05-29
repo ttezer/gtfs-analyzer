@@ -187,7 +187,7 @@ pub fn looks_like_phone(value: &str) -> bool {
         return false;
     }
     let digit_count = trimmed.chars().filter(|c| c.is_ascii_digit()).count();
-    digit_count >= 7
+    digit_count >= 5
         && trimmed
             .chars()
             .all(|c| c.is_ascii_digit() || matches!(c, '+' | '-' | '(' | ')' | ' ' | '.'))

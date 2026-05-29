@@ -23,6 +23,8 @@ const KNOWN_FILES: &[&str] = &[
     "areas.txt", "stop_areas.txt", "networks.txt",
     "rider_categories.txt", "fare_media.txt", "fare_products.txt",
     "fare_leg_rules.txt", "fare_transfer_rules.txt", "timeframes.txt",
+    // Flex
+    "booking_rules.txt",
 ];
 
 // ── Tipler ────────────────────────────────────────────────────────────────────
@@ -338,6 +340,15 @@ pub fn parse(zip_bytes: &[u8]) -> Result<K1Result, FatalError> {
 
         let raw_name = zf.name().to_string();
 
+        // locations.geojson: Flex GeoJSON lokasyon dosyası (özel işlem)
+        if raw_name == "locations.geojson" {
+            let mut buf = Vec::with_capacity(zf.size() as usize);
+            if zf.read_to_end(&mut buf).is_ok() {
+                validate_locations_geojson(&buf, &raw_name, &mut notices, &mut counter);
+            }
+            continue;
+        }
+
         // Yalnızca kök dizindeki .txt dosyaları işlenir
         if !raw_name.ends_with(".txt") || raw_name.contains('/') || raw_name.contains('\\') {
             continue;
@@ -561,6 +572,7 @@ pub fn parse(zip_bytes: &[u8]) -> Result<K1Result, FatalError> {
             .collect();
 
         let mut rows: Vec<Vec<SmolStr>> = Vec::new();
+        let mut arc021_fired = false;
         for (row_idx, row) in records.into_iter().enumerate() {
             let line_num = (row_idx + 2) as u64;
 
@@ -625,6 +637,27 @@ pub fn parse(zip_bytes: &[u8]) -> Result<K1Result, FatalError> {
                 continue; // Boş satırı kaydetme
             }
 
+            // ARC_021: ASCII dışı veya yazdırılamaz karakter (dosya başına bir kez)
+            if !arc021_fired {
+                'arc021: for val in row.iter() {
+                    for ch in val.chars() {
+                        let cp = ch as u32;
+                        if cp > 127 || (cp < 32 && cp != 9) || cp == 127 {
+                            arc021_fired = true;
+                            notices.push(make_notice(
+                                &mut counter, "ARC_021",
+                                EntityType::File, Some(raw_name.clone()),
+                                Some(&raw_name), Some(line_num), None,
+                                Some(format!("U+{cp:04X}")),
+                                format!("'{raw_name}' dosyasında ASCII dışı veya yazdırılamaz karakter içeren değer var (U+{cp:04X})."),
+                                "Tüm alan değerlerinin yazdırılabilir ASCII karakter içerdiğinden emin olun.",
+                            ));
+                            break 'arc021;
+                        }
+                    }
+                }
+            }
+
             // DQ_016: değerlerde fazladan boşluk
             {
                 let mut found = false;
@@ -644,6 +677,19 @@ pub fn parse(zip_bytes: &[u8]) -> Result<K1Result, FatalError> {
             }
 
             rows.push(row);
+        }
+
+        // ARC_022: Dosya satır sayısı limiti
+        const MAX_ROWS: usize = 1_000_000;
+        if rows.len() > MAX_ROWS {
+            notices.push(make_notice(
+                &mut counter, "ARC_022",
+                EntityType::File, Some(raw_name.clone()),
+                Some(&raw_name), None, None,
+                Some(format!("{} satır", rows.len())),
+                format!("'{raw_name}' dosyasında {} satır var; {} satır sınırını aşıyor.", rows.len(), MAX_ROWS),
+                "Dosyayı küçük parçalara bölün veya gereksiz satırları kaldırın.",
+            ));
         }
 
         // Başlık satırından oluşan kayıt için ARC_009 kontrolü (yalnızca başlık var, veri yok)
@@ -705,6 +751,76 @@ pub fn parse(zip_bytes: &[u8]) -> Result<K1Result, FatalError> {
     }
 
     Ok(K1Result { files: raw_files, notices })
+}
+
+// ── locations.geojson validasyon ─────────────────────────────────────────────
+
+fn validate_locations_geojson(bytes: &[u8], fname: &str, notices: &mut Vec<Notice>, counter: &mut u32) {
+    let text = match std::str::from_utf8(bytes) {
+        Ok(s) => s,
+        Err(_) => {
+            notices.push(make_notice(
+                counter, "ARC_002", EntityType::File, Some(fname.to_string()),
+                Some(fname), None, None, None,
+                format!("'{fname}' UTF-8 kodlamasıyla okunamıyor."),
+                "Dosyayı UTF-8 kodlamasıyla yeniden kaydedin.",
+            ));
+            return;
+        }
+    };
+
+    let json: serde_json::Value = match serde_json::from_str(text) {
+        Ok(v) => v,
+        Err(e) => {
+            notices.push(make_notice(
+                counter, "LOC_001", EntityType::File, Some(fname.to_string()),
+                Some(fname), None, None, Some(format!("JSON hatası: {e}")),
+                format!("'{fname}' geçerli bir GeoJSON belgesi değil: {e}"),
+                "locations.geojson'ın geçerli bir GeoJSON FeatureCollection olduğundan emin olun.",
+            ));
+            return;
+        }
+    };
+
+    let root_type = json.get("type").and_then(|t| t.as_str());
+    if root_type != Some("FeatureCollection") {
+        notices.push(make_notice(
+            counter, "LOC_001", EntityType::File, Some(fname.to_string()),
+            Some(fname), None, Some("type"), root_type.map(str::to_string),
+            format!("'{fname}' kök tipi 'FeatureCollection' olmalıdır; bulundu: '{}'.", root_type.unwrap_or("yok")),
+            "locations.geojson dosyasının kök tipi 'FeatureCollection' olmalıdır.",
+        ));
+        return;
+    }
+
+    let Some(features) = json.get("features").and_then(|f| f.as_array()) else { return; };
+
+    for (i, feature) in features.iter().enumerate() {
+        let geom_type = feature
+            .get("geometry")
+            .and_then(|g| g.get("type"))
+            .and_then(|t| t.as_str());
+
+        match geom_type {
+            Some("Polygon") | Some("MultiPolygon") => {}
+            Some(t) => {
+                notices.push(make_notice(
+                    counter, "LOC_001", EntityType::File, Some(fname.to_string()),
+                    Some(fname), Some((i + 1) as u64), Some("geometry.type"), Some(t.to_string()),
+                    format!("'{fname}' özellik {} geçersiz geometri tipi: '{t}'. GTFS Flex yalnızca Polygon ve MultiPolygon destekler.", i + 1),
+                    "locations.geojson'da yalnızca Polygon ve MultiPolygon geometrileri kullanın.",
+                ));
+            }
+            None => {
+                notices.push(make_notice(
+                    counter, "LOC_001", EntityType::File, Some(fname.to_string()),
+                    Some(fname), Some((i + 1) as u64), Some("geometry"), None,
+                    format!("'{fname}' özellik {} için geometri tipi eksik veya null.", i + 1),
+                    "Her feature için Polygon veya MultiPolygon geometrisi tanımlayın.",
+                ));
+            }
+        }
+    }
 }
 
 // ── Testler ───────────────────────────────────────────────────────────────────
@@ -948,5 +1064,60 @@ mod tests {
                 "Geçersiz rule_id: {}", n.rule_id
             );
         }
+    }
+
+    #[test]
+    fn arc_021_fires_for_non_ascii_char() {
+        // stops.txt'de stop_name'e UTF-8 Türkçe karakter (ş → U+015F > 127)
+        let zip = zip_with_files(&[
+            ("agency.txt",     b"agency_id,agency_name,agency_url,agency_timezone\n1,Test,http://x.com,UTC\n"),
+            ("stops.txt",      "stop_id,stop_name,stop_lat,stop_lon\nS1,Durak\u{015F},41.0,29.0\n".as_bytes()),
+            ("routes.txt",     b"route_id,agency_id,route_short_name,route_type\nR1,1,101,3\n"),
+            ("trips.txt",      b"route_id,service_id,trip_id\nR1,SVC1,T1\n"),
+            ("stop_times.txt", b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\n"),
+            ("calendar.txt",   b"service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,0,0,20240101,20241231\n"),
+        ]);
+        let k1 = parse(&zip).unwrap();
+        assert!(k1.notices.iter().any(|n| n.rule_id == "ARC_021"), "ARC_021 bekleniyor");
+    }
+
+    #[test]
+    fn arc_021_silent_for_ascii_only() {
+        let zip = minimal_gtfs_zip(); // yalnızca ASCII içerir
+        let k1 = parse(&zip).unwrap();
+        assert!(!k1.notices.iter().any(|n| n.rule_id == "ARC_021"), "ARC_021 tetiklenmemeli");
+    }
+
+    #[test]
+    fn loc_001_fires_for_invalid_geometry_type() {
+        // locations.geojson ile birlikte ZIP
+        let geojson = br#"{"type":"FeatureCollection","features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[29.0,41.0]},"properties":{}}]}"#;
+        let zip = zip_with_files(&[
+            ("agency.txt",     b"agency_id,agency_name,agency_url,agency_timezone\n1,Test,http://x.com,UTC\n"),
+            ("stops.txt",      b"stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\n"),
+            ("routes.txt",     b"route_id,agency_id,route_short_name,route_type\nR1,1,101,3\n"),
+            ("trips.txt",      b"route_id,service_id,trip_id\nR1,SVC1,T1\n"),
+            ("stop_times.txt", b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\n"),
+            ("calendar.txt",   b"service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,0,0,20240101,20241231\n"),
+            ("locations.geojson", geojson),
+        ]);
+        let k1 = parse(&zip).unwrap();
+        assert!(k1.notices.iter().any(|n| n.rule_id == "LOC_001"), "LOC_001 bekleniyor");
+    }
+
+    #[test]
+    fn loc_001_silent_for_valid_polygon() {
+        let geojson = br#"{"type":"FeatureCollection","features":[{"type":"Feature","geometry":{"type":"Polygon","coordinates":[[[29.0,41.0],[29.1,41.0],[29.1,41.1],[29.0,41.1],[29.0,41.0]]]},"properties":{}}]}"#;
+        let zip = zip_with_files(&[
+            ("agency.txt",     b"agency_id,agency_name,agency_url,agency_timezone\n1,Test,http://x.com,UTC\n"),
+            ("stops.txt",      b"stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\n"),
+            ("routes.txt",     b"route_id,agency_id,route_short_name,route_type\nR1,1,101,3\n"),
+            ("trips.txt",      b"route_id,service_id,trip_id\nR1,SVC1,T1\n"),
+            ("stop_times.txt", b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\n"),
+            ("calendar.txt",   b"service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,0,0,20240101,20241231\n"),
+            ("locations.geojson", geojson),
+        ]);
+        let k1 = parse(&zip).unwrap();
+        assert!(!k1.notices.iter().any(|n| n.rule_id == "LOC_001"), "LOC_001 tetiklenmemeli");
     }
 }

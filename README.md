@@ -2,9 +2,9 @@
 
 GTFS (General Transit Feed Specification) dosyalarını tarayıcıda doğrulayan, tamamen istemci taraflı çalışan açık kaynak bir araç. Yüklenen zip dosyası sunucuya gönderilmez; tüm işlem WebAssembly ile kullanıcının tarayıcısında gerçekleşir.
 
-Mevcut GTFS doğrulayıcıların çoğu yalnızca spesifikasyon uyumunu kontrol eder ve hata listesi çıkarır. GTFS Analyzer bunu çok adım öteye taşır: hangi dosyanın kaçıncı satırında ne sorun olduğunu gösterir, her sorun için adım adım düzeltme talimatı sunar ve coğrafi hataları (sapan güzergah, koordinat bozukluğu, erişilemeyen durak gibi) interaktif haritada işaretler. Her bulgu dosya ve bileşen bazlı bir kural koduyla (`ARC_`, `STP_`, `STM_`...), dört sınıftan biriyle (Spec · Interop · Quality · Analytics) ve beş önem seviyesinden biriyle (Kritik → Bilgi) etiketlenir; böylece binlerce bulgu arasında filtreleme, önceliklendirme ve otomasyon kolaylaşır. Feed'in hangi GTFS özelliklerini kullandığı (Shapes, Transfers, Fares, Headsigns vb.) otomatik tespit edilir ve rapora yansıtılır.
+Mevcut GTFS doğrulayıcıların çoğu yalnızca spesifikasyon uyumunu kontrol eder ve hata listesi çıkarır. GTFS Analyzer bunu çok adım öteye taşır: hangi dosyanın kaçıncı satırında ne sorun olduğunu gösterir, her sorun için adım adım düzeltme talimatı sunar ve coğrafi hataları (sapan güzergah, koordinat bozukluğu, erişilemeyen durak gibi) interaktif haritada işaretler. Her bulgu dosya ve bileşen bazlı bir kural koduyla (`ARC_`, `STP_`, `STM_`...), dört sınıftan biriyle (Spec · Interop · Quality · Analytics) ve beş önem seviyesinden biriyle (Kritik → Bilgi) etiketlenir; böylece binlerce bulgu arasında filtreleme, önceliklendirme ve otomasyon kolaylaşır. Feed'in hangi GTFS özelliklerini kullandığı (Shapes, Transfers, Fares, Headsigns, Flex vb.) otomatik tespit edilir ve rapora yansıtılır.
 
-Spesifikasyon uyumunun ötesinde operasyonel kaliteyi de ölçer: hat bazında sefer sıklığı tutarsızlıkları, anormal hız segmentleri, izole duraklar, servis desenlerindeki boşluklar ve ağ topolojisi sorunları 411 kuralla analiz edilir. Sonuçlar iki bağımsız skorla özetlenir; düzeltme kuyruğu "önce ne düzeltilmeli?" sorusunu otomatik olarak yanıtlar ve her düzeltmenin skora katkısını gösterir.
+Spesifikasyon uyumunun ötesinde operasyonel kaliteyi de ölçer: hat bazında sefer sıklığı tutarsızlıkları, anormal hız segmentleri, izole duraklar, servis desenlerindeki boşluklar ve ağ topolojisi sorunları 444 kuralla analiz edilir. Sonuçlar iki bağımsız skorla özetlenir; düzeltme kuyruğu "önce ne düzeltilmeli?" sorusunu otomatik olarak yanıtlar ve her düzeltmenin skora katkısını gösterir.
 
 **Kimler kullanır:**
 - Toplu taşıma işletmecileri ve belediyeler — feed yayına almadan önce
@@ -27,16 +27,17 @@ Spesifikasyon uyumunun ötesinde operasyonel kaliteyi de ölçer: hat bazında s
 | Operasyonel analitik | ❌ | ❌ | ❌ | ✅ |
 | Harita görselleştirme | ❌ | Durak | ❌ | Durak, güzergah, sefer, hat, pathway |
 | Feed skoru | ❌ | ❌ | ❌ | ✅ |
-| Düzeltme önerisi | ❌ | ❌ | ❌ | ✅ |
+| Düzeltme önerisi | Kısmi | ❌ | ❌ | ✅ |
+| GTFS Flex desteği | Kısmi | ❌ | ❌ | ✅ |
 | Çıktı formatı | HTML, JSON | Web (kalıcı link) | HTML, JSON | HTML, CSV, JSON, PDF |
 | Platform | Web | Web | Web, CLI, Desktop | Web *(CLI, Desktop planlanmış)* |
-| **Toplam kural** | **~120** | **~80** | **~120** | **411** |
+| **Toplam kural** | **~120** | **~80** | **~120** | **444** |
 
 ### BART GTFS Feed Örneği
 
 BART (Bay Area Rapid Transit, San Francisco) feed'i dört validator ile test edildi.  
 Feed: `BART (San Francisco).zip` — 2026-05-25 tarihinde indirilen sürüm (feed geçerlilik aralığı: 2026-01-12–2026-08-07).  
-Kullanılan sürümler: MobilityData gtfs-validator v7.x · France Transport (transport.data.gouv.fr, Mayıs 2026) · GTFS Guru v0.1.0 · GTFS Analyzer v0.1.2.
+Kullanılan sürümler: MobilityData gtfs-validator v8.0.1 · France Transport (transport.data.gouv.fr, Mayıs 2026) · GTFS Guru v0.1.0 · GTFS Analyzer v0.1.2.
 
 | | MobilityData | France Transport | GTFS Guru | GTFS Analyzer |
 |---|---:|---:|---:|---:|
@@ -207,7 +208,7 @@ Her kural `GRUP_NNN` formatında kodlanır. Gruplar GTFS dosya ve bileşen sın�
 
 | Grup | GTFS Bileşeni | Açıklama |
 |---|---|---|
-| **ARC** | Arşiv / dosya seviyesi | ZIP açılması, dosya formatı, zorunlu dosya varlığı |
+| **ARC** | Arşiv / dosya seviyesi | ZIP açılması, dosya formatı, zorunlu dosya varlığı, karakter kodlaması |
 | **AGN** | `agency.txt` | Acente bilgileri ve çoklu acente tutarlılığı |
 | **CAL** | `calendar.txt` | Servis takvimleri ve haftalık gün desenleri |
 | **CLD** | `calendar_dates.txt` | Servis istisna günleri ve tarih geçerliliği |
@@ -239,6 +240,10 @@ Her kural `GRUP_NNN` formatında kodlanır. Gruplar GTFS dosya ve bileşen sın�
 | **SAR** | `stop_areas.txt` | Durak–alan eşleştirmeleri (Fares v2) |
 | **NET** | `networks.txt` | Ağ tanımları (Fares v2) |
 | **TFR** | `timeframes.txt` | Zaman dilimi grupları ve servis takvimi ilişkileri (Fares v2) |
+| **BKR** | `booking_rules.txt` | Talep odaklı rezervasyon kuralları, önceden bildirim süreleri ve rezervasyon türleri (GTFS Flex) |
+| **PDW** | Esnek pencere kuralları | `stop_times.txt` içindeki talep odaklı alım/bırakma zaman penceresi tutarlılığı (GTFS Flex) |
+| **LOC** | `locations.geojson` | Coğrafi esnek hizmet bölgelerinin geometri ve format doğrulaması (GTFS Flex) |
+| **GGL** | Google Transit özgün | Google Maps ve Google Transit'in ek olarak zorunlu kıldığı ya da kısıtladığı kurallar |
 
 ---
 
@@ -300,7 +305,7 @@ gtfs-validator/
 │   ├── config/     # Yapılandırma tipleri
 │   ├── core/       # Ortak veri yapıları ve sonuç modeli
 │   ├── pipeline/   # Doğrulama pipeline'ı (k1–k7 aşamaları)
-│   ├── rules/      # Kural tanımları ve registry (411 kural)
+│   ├── rules/      # Kural tanımları ve registry (444 kural, 36 grup)
 │   └── wasm/       # wasm-bindgen WASM çıktısı
 └── ui/             # Vite + TypeScript frontend
     ├── pkg/          # wasm-pack çıktısı (üretilen, commit'lenmiş)

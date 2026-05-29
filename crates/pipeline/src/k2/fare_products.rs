@@ -1,4 +1,5 @@
 use gtfs_core::EntityType;
+use std::collections::HashMap;
 
 use super::common::{build_row_map, get_trimmed_field, make_k2_notice, parse_f64, RowMap};
 use crate::k1_parse::RawFile;
@@ -63,6 +64,31 @@ pub fn validate_fare_products(
             }
         };
 
+        // GGL_002: ic_price (Google-özel alan) — varsa -1 veya pozitif olmalı
+        if let Some(ic_price_raw) = get_trimmed_field(&row_map, "ic_price").filter(|v| !v.is_empty()) {
+            match ic_price_raw.parse::<f64>() {
+                Ok(v) if v >= 0.0 || (v - (-1.0)).abs() < 1e-9 => {}
+                Ok(v) => {
+                    notices.push(make_k2_notice(
+                        &mut counter, "GGL_002", EntityType::Row, entity_id.clone(), Some(&row_map),
+                        &file.name, Some(line), Some("ic_price"),
+                        Some(v.to_string()), Some("-1 veya >= 0".to_string()),
+                        format!("ic_price '{v}' geçersiz: -1 veya sıfırdan büyük bir değer olmalıdır."),
+                        "ic_price değerini -1 (bilinmiyor) veya pozitif bir sayı olarak ayarlayın.",
+                    ));
+                }
+                Err(_) => {
+                    notices.push(make_k2_notice(
+                        &mut counter, "GGL_002", EntityType::Row, entity_id.clone(), Some(&row_map),
+                        &file.name, Some(line), Some("ic_price"),
+                        Some(ic_price_raw.to_string()), Some("-1 veya >= 0".to_string()),
+                        format!("ic_price '{ic_price_raw}' sayısal değil."),
+                        "ic_price değerini -1 (bilinmiyor) veya pozitif bir sayı olarak ayarlayın.",
+                    ));
+                }
+            }
+        }
+
         let currency = get_trimmed_field(&row_map, "currency").unwrap_or("").to_string();
         if currency.len() != 3 || !currency.chars().all(|c| c.is_ascii_uppercase()) {
             notices.push(make_k2_notice(
@@ -90,6 +116,27 @@ pub fn validate_fare_products(
             row: row_map,
             line,
         });
+    }
+
+    // FPD_006: aynı fare_product_id için birden fazla varsayılan (boş rider_category_id)
+    let mut default_count: HashMap<&str, (u64, u32)> = HashMap::new();
+    for rec in &records {
+        if rec.rider_category_id.is_none() {
+            let entry = default_count.entry(rec.fare_product_id.as_str()).or_insert((rec.line, 0));
+            entry.1 += 1;
+        }
+    }
+    for (fare_product_id, (first_line, count)) in &default_count {
+        if *count > 1 {
+            notices.push(make_k2_notice(
+                &mut counter, "FPD_006", EntityType::Row,
+                Some(fare_product_id.to_string()), None,
+                &file.name, Some(*first_line), Some("rider_category_id"),
+                Some(count.to_string()), Some("1".to_string()),
+                format!("fare_product_id '{}' için {count} varsayılan rider category tanımlı (rider_category_id boş).", fare_product_id),
+                "Bir fare_product'ta en fazla bir varsayılan (rider_category_id boş) kayıt olabilir.",
+            ));
+        }
     }
 
     (records, notices)

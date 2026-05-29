@@ -1,5 +1,6 @@
 ﻿pub mod agency;
 pub mod areas;
+pub mod booking_rules;
 pub mod attributions;
 pub mod calendar;
 pub mod calendar_dates;
@@ -28,6 +29,7 @@ pub mod trips;
 
 use agency::{validate_agency, AgencyRecord};
 use areas::{parse_areas, AreaRecord};
+use booking_rules::{validate_booking_rules, BookingRuleRecord};
 use attributions::{validate_attributions, AttributionRecord};
 use common::make_k2_notice;
 use calendar::{validate_calendar, CalendarRecord};
@@ -61,6 +63,7 @@ use trips::{validate_trips, TripRecord};
 pub struct EntityRecords {
     pub agencies: Vec<AgencyRecord>,
     pub areas: Vec<AreaRecord>,
+    pub booking_rules: Vec<BookingRuleRecord>,
     pub attributions: Vec<AttributionRecord>,
     pub calendars: Vec<CalendarRecord>,
     pub calendar_dates: Vec<CalendarDateRecord>,
@@ -220,6 +223,13 @@ pub fn validate(files: &RawFiles) -> K2Result {
     if let Some(file) = files.get("areas.txt") {
         let _t = Timer::start("K2::areas");
         records.areas = parse_areas(file);
+    }
+
+    if let Some(file) = files.get("booking_rules.txt") {
+        let _t = Timer::start("K2::booking_rules");
+        let (bkr_records, bkr_notices) = validate_booking_rules(file);
+        records.booking_rules = bkr_records;
+        notices.extend(bkr_notices);
     }
 
     if let Some(file) = files.get("stop_areas.txt") {

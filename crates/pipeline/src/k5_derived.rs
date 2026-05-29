@@ -687,6 +687,7 @@ mod tests {
             wheelchair_boarding: None, stop_access: None,
             level_id: None, tts_stop_name: None,
             row: Default::default(), line: 2,
+            ..Default::default()
         }
     }
 
@@ -718,6 +719,7 @@ mod tests {
             wheelchair_boarding: None, stop_access: None,
             level_id: None, tts_stop_name: None,
             row: Default::default(), line: 2,
+            ..Default::default()
         }];
         let result = build(&records, &empty_map());
         assert!(result.derived.spatial_index.grid.is_empty());
