@@ -2169,40 +2169,6 @@ fn check_route_trip_quality(
         }
     }
 
-    // ── TRP_027: kopya sefer (aynı route+service+direction+shape+durak sırası) ─
-    {
-        // trip_id → sıralı stop_id listesi (stop_sequence'a göre)
-        let mut trip_stop_seq: FxHashMap<&str, Vec<(u32, &str)>> = FxHashMap::default();
-        for st in &records.stop_times {
-            if let Some(seq) = st.stop_sequence {
-                trip_stop_seq.entry(st.trip_id.as_str()).or_default().push((seq, st.stop_id.as_str()));
-            }
-        }
-
-        let mut fingerprints: HashMap<String, &str> = HashMap::new(); // fingerprint → ilk trip_id
-        for trip in &records.trips {
-            let dir = trip.direction_id.map(|d| d.to_string()).unwrap_or_default();
-            let shape = trip.shape_id.as_deref().unwrap_or("");
-            let mut stops = trip_stop_seq.get(trip.trip_id.as_str()).cloned().unwrap_or_default();
-            stops.sort_by_key(|&(seq, _)| seq);
-            let stop_key: Vec<&str> = stops.iter().map(|(_, sid)| *sid).collect();
-            let fp = format!("{}|{}|{}|{}|{}", trip.route_id, trip.service_id, dir, shape, stop_key.join(","));
-
-            match fingerprints.get(&fp) {
-                Some(&first_id) => {
-                    notices.push(k6_notice(
-                        ctr, "TRP_027", EntityType::Trip,
-                        Some(trip.trip_id.clone()), Some(trip.trip_id.clone()),
-                        "trips.txt", Some(trip.line), Some("trip_id"),
-                        Some(trip.trip_id.clone()), Some(first_id.to_string()),
-                        format!("'{}' seferi '{}' seferiyle aynı route+service+direction+shape+durak sırasına sahip (kopya).", trip.trip_id, first_id),
-                        "Tekrarlayan seferleri kaldırın veya farklılaştırın.",
-                    ));
-                }
-                None => { fingerprints.insert(fp, trip.trip_id.as_str()); }
-            }
-        }
-    }
 
     // ── PDW_006: aynı trip+zone'da örtüşen pickup/drop-off penceresi ──────────
     {

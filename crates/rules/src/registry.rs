@@ -380,8 +380,6 @@ pub static RULES: &[RuleMeta] = &[
         "Tekerlekli sandalye erişilebilirlik bilgisi eksik seferlerin oranı yüksek"),
     r!("TRP_026", Orta, Analytics, 2, &[], Some("trip_id"), VA, Entity,
         "Hiçbir zaman çalışmayacak sefer (geçersiz service_id)"),
-    r!("TRP_027", Orta, Quality, 2, &[], Some("trip_id"), VS, Entity,
-        "Kopya sefer: aynı route+service+direction+shape+durak sırası"),
 
     // ── STM: Stop Times ────────────────────────────────────────────────────────
     r!("STM_001", Kritik, Spec, 1,
