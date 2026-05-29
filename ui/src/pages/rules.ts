@@ -1,5 +1,5 @@
 import type { ValidationResult, Notice, RuleClass, Severity } from '../types';
-import { SEVERITY_TR, SEVERITY_COLOR, RULE_CLASS_TR, t } from '../i18n';
+import { SEVERITY_TR, SEVERITY_COLOR, RULE_CLASS_TR, t, tMsg, tRemediation } from '../i18n';
 
 const SEV_ORDER: Record<string, number> = {
   CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3, INFO: 4,
@@ -65,7 +65,7 @@ function renderRuleGroup(g: RuleGroup): string {
   );
 
   const rows = sorted.map(n => {
-    const raw = formatMessage(n.message);
+    const raw = formatMessage(tMsg(n));
     const msg = raw.length > 160 ? raw.slice(0, 160) + '…' : raw;
     const sc  = SEVERITY_COLOR[n.severity] ?? '#666';
     const typeLabel = t(`entity.${n.entity_type}`) !== `entity.${n.entity_type}`
@@ -82,7 +82,7 @@ function renderRuleGroup(g: RuleGroup): string {
       </tr>`;
   }).join('');
 
-  const desc = g.notices[0]?.remediation ?? '';
+  const desc = g.notices[0] ? tRemediation(g.notices[0]) : '';
 
   return `
     <div class="rule-acc-section">

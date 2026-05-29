@@ -1,5 +1,5 @@
 ﻿import type { ValidationResult, Notice, R9Item, NameIndex } from '../types';
-import { SEVERITY_TR, SEVERITY_COLOR, RULE_CLASS_TR, t } from '../i18n';
+import { SEVERITY_TR, SEVERITY_COLOR, RULE_CLASS_TR, t, tMsg, tRemediation } from '../i18n';
 import { openMapModal, type MapPin, type MapOptions } from '../map-modal';
 
 export function renderFix(root: HTMLElement, result: ValidationResult): void {
@@ -75,7 +75,7 @@ function renderR9(items: R9Item[], noticeMap: Map<string, Notice>, normFactor: n
         <td colspan="10">
           <div class="r9-detail">
             ${notice ? `<p><strong>${t('fix.r9_message')}</strong> ${escHtml(t('rule.' + notice.rule_id))}</p>` : ''}
-            ${notice?.remediation ? `<p><strong>${t('fix.r9_remediation')}</strong> ${escHtml(notice.remediation)}</p>` : ''}
+            ${notice?.remediation ? `<p><strong>${t('fix.r9_remediation')}</strong> ${escHtml(tRemediation(notice))}</p>` : ''}
           </div>
         </td>
       </tr>`;
@@ -175,7 +175,7 @@ function renderR2(result: ValidationResult, noticeMap: Map<string, Notice>, delt
         <td>${escHtml(item.display_label)}</td>
         <td style="color:${SEVERITY_COLOR[notice.severity]}">${SEVERITY_TR[notice.severity]}</td>
         <td>${RULE_CLASS_TR[notice.rule_class]}</td>
-        <td>${escHtml(notice.message)}</td>
+        <td>${escHtml(tMsg(notice))}</td>
         <td>${notice.file ? escHtml(notice.file) : '—'}</td>
         <td>${notice.line ?? '—'}</td>
         <td>${notice.field ? escHtml(notice.field) : '—'}</td>
@@ -272,9 +272,9 @@ function hasMapCoords(notice: Notice, nameIndex: NameIndex): boolean {
   if (notice.rule_id === 'GEO_013') {
     return Object.keys(nameIndex.stop_coords).length > 0;
   }
-  // SHP_017: mesajdan stop_id veya details'tan ctx
+  // SHP_017: details'tan bad_stop veya ctx
   if (notice.rule_id === 'SHP_017') {
-    const sid  = notice.message.match(/\(kod: '([^']+)'\)/)?.[1];
+    const sid  = notice.details?.['bad_stop'] ?? '';
     const ctxB = notice.details?.['ctx_b'] ?? '';
     const ctxA = notice.details?.['ctx_a'] ?? '';
     return !!(sid && sid in nameIndex.stop_coords) || ctxB.length > 0 || ctxA.length > 0;
@@ -349,7 +349,7 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
 
   // SHP_017: hatalı durak (kırmızı) + ±3 bağlam durağı (mavi) + shape polyline
   if (notice.rule_id === 'SHP_017') {
-    const sid    = notice.message.match(/\(kod: '([^']+)'\)/)?.[1] ?? '';
+    const sid    = notice.details?.['bad_stop'] ?? '';
     const shapeId = notice.details?.['shape_id'] ?? '';
     const ctxB   = (notice.details?.['ctx_b'] ?? '').split(',').filter(Boolean);
     const ctxA   = (notice.details?.['ctx_a'] ?? '').split(',').filter(Boolean);
@@ -361,56 +361,56 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
     // Önceki 3 durak — mavi (birincil olmayan)
     for (let i = 0; i < ctxB.length; i++) {
       const seq = seqB[i] ? `#${seqB[i]} ` : '';
-      const p = stopPin(ctxB[i], nameIndex, true, `${seq}(önceki)`);
+      const p = stopPin(ctxB[i], nameIndex, true, `${seq}${t('fix.map.pin.prev')}`);
       if (p) pins.push(p);
     }
     // Hatalı durak — kırmızı
     const seqLabel = errSeq ? `#${errSeq} ` : '';
-    const errPin = sid ? stopPin(sid, nameIndex, false, `${seqLabel}⚠ sıra bozuk`) : null;
+    const errPin = sid ? stopPin(sid, nameIndex, false, `${seqLabel}${t('fix.map.pin.bad_seq')}`) : null;
     if (errPin) pins.push(errPin);
     // Sonraki 3 durak — mavi
     for (let i = 0; i < ctxA.length; i++) {
       const seq = seqA[i] ? `#${seqA[i]} ` : '';
-      const p = stopPin(ctxA[i], nameIndex, true, `${seq}(sonraki)`);
+      const p = stopPin(ctxA[i], nameIndex, true, `${seq}${t('fix.map.pin.next')}`);
       if (p) pins.push(p);
     }
 
     const polyline = shapeId ? (nameIndex.shape_coords[shapeId] ?? []) : [];
     const legendItems: Array<{ color: string; label: string }> = [];
-    if (polyline.length > 1) legendItems.push({ color: '#f59e0b', label: 'Güzergah şekli' });
-    legendItems.push({ color: '#2563eb', label: 'Komşu duraklar' });
-    legendItems.push({ color: '#dc2626', label: 'Sırası bozuk durak' });
+    if (polyline.length > 1) legendItems.push({ color: '#f59e0b', label: t('fix.map.route_shape') });
+    legendItems.push({ color: '#2563eb', label: t('fix.map.neighbor_stops') });
+    legendItems.push({ color: '#dc2626', label: t('fix.map.bad_seq_stop') });
     return { pins, polyline: polyline.length > 1 ? polyline : undefined, legendItems, showArrows: polyline.length > 1 };
   }
 
   // STM_014: iki pin + trip'in shape'i
   if (notice.rule_id === 'STM_014') {
     const m = notice.observed_value?.match(/\(([^→ ]+)\s*→\s*([^)]+)\)/);
-    const pinA = m ? stopPin(m[1].trim(), nameIndex, true, '(kalkış)') : null;
-    const pinB = m ? stopPin(m[2].trim(), nameIndex, false, '(varış)') : null;
+    const pinA = m ? stopPin(m[1].trim(), nameIndex, true, t('fix.map.pin.depart')) : null;
+    const pinB = m ? stopPin(m[2].trim(), nameIndex, false, t('fix.map.pin.arrive')) : null;
     const pins = [pinA, pinB].filter((p): p is MapPin => p !== null);
     const shapeId = entityId ? (nameIndex.trip_shapes[entityId] ?? '') : '';
     const polyline = shapeId ? (nameIndex.shape_coords[shapeId] ?? []) : [];
     const legendItems: Array<{ color: string; label: string }> = [];
-    if (polyline.length > 1) legendItems.push({ color: '#f59e0b', label: 'Güzergah şekli' });
+    if (polyline.length > 1) legendItems.push({ color: '#f59e0b', label: t('fix.map.route_shape') });
     if (pins.length > 1) {
-      legendItems.push({ color: '#2563eb', label: 'Kalkış durağı' });
-      legendItems.push({ color: '#dc2626', label: 'Varış durağı' });
+      legendItems.push({ color: '#2563eb', label: t('fix.map.depart_stop') });
+      legendItems.push({ color: '#dc2626', label: t('fix.map.arrive_stop') });
     }
     return { pins, polyline: polyline.length > 1 ? polyline : undefined, legendItems, showArrows: polyline.length > 1 };
   }
 
   // STM_020: iki durak pini + trip shape'i
   if (notice.rule_id === 'STM_020') {
-    const pinA = notice.details?.['stop_a'] ? stopPin(notice.details['stop_a'], nameIndex, true, '(kalkış)') : null;
-    const pinB = notice.details?.['stop_b'] ? stopPin(notice.details['stop_b'], nameIndex, false, '(varış)') : null;
+    const pinA = notice.details?.['stop_a'] ? stopPin(notice.details['stop_a'], nameIndex, true, t('fix.map.pin.depart')) : null;
+    const pinB = notice.details?.['stop_b'] ? stopPin(notice.details['stop_b'], nameIndex, false, t('fix.map.pin.arrive')) : null;
     const pins = [pinA, pinB].filter((p): p is MapPin => p !== null);
     const shapeId = entityId ? (nameIndex.trip_shapes[entityId] ?? '') : '';
     const polyline = shapeId ? (nameIndex.shape_coords[shapeId] ?? []) : [];
     const legendItems: Array<{ color: string; label: string }> = [];
-    if (polyline.length > 1) legendItems.push({ color: '#f59e0b', label: 'Güzergah şekli' });
-    if (pins.length > 0) legendItems.push({ color: '#2563eb', label: 'Kalkış durağı' });
-    if (pins.length > 1) legendItems.push({ color: '#dc2626', label: 'Varış durağı' });
+    if (polyline.length > 1) legendItems.push({ color: '#f59e0b', label: t('fix.map.route_shape') });
+    if (pins.length > 0) legendItems.push({ color: '#2563eb', label: t('fix.map.depart_stop') });
+    if (pins.length > 1) legendItems.push({ color: '#dc2626', label: t('fix.map.arrive_stop') });
     return { pins, polyline: polyline.length > 1 ? polyline : undefined, legendItems, showArrows: true };
   }
 
@@ -423,37 +423,37 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
       const lat = parseFloat(m[1]);
       const lon = parseFloat(m[2]);
       if (!isNaN(lat) && !isNaN(lon)) {
-        pins.push({ lat, lon, label: `Tekrarlanan koordinat<br><code>(${m[1]}, ${m[2]})</code>`, primary: false });
+        pins.push({ lat, lon, label: `${t('fix.map.pin.dup_coord')}<br><code>(${m[1]}, ${m[2]})</code>`, primary: false });
       }
     }
     const legendItems: Array<{ color: string; label: string }> = [];
-    if (polyline.length > 1) legendItems.push({ color: '#f59e0b', label: 'Güzergah şekli' });
-    if (pins.length > 0) legendItems.push({ color: '#dc2626', label: 'Tekrarlanan nokta' });
+    if (polyline.length > 1) legendItems.push({ color: '#f59e0b', label: t('fix.map.route_shape') });
+    if (pins.length > 0) legendItems.push({ color: '#dc2626', label: t('fix.map.dup_point') });
     return { pins, polyline: polyline.length > 1 ? polyline : undefined, legendItems, showArrows: true };
   }
 
   // SHP_022: durak güzergah şeklinde belirsiz — stop pin + shape polyline
   if (notice.rule_id === 'SHP_022') {
-    const shapeId = notice.message.match(/durağı '([^']+)' güzergah şeklinin/)?.[1] ?? '';
-    const pin = stopPin(entityId, nameIndex, false, '⚠ belirsiz eşleşme');
+    const shapeId = notice.details?.['shape_id'] ?? '';
+    const pin = stopPin(entityId, nameIndex, false, t('fix.map.pin.ambiguous'));
     const polyline = shapeId ? (nameIndex.shape_coords[shapeId] ?? []) : [];
     const pins = pin ? [pin] : [];
     const legendItems: Array<{ color: string; label: string }> = [];
-    if (polyline.length > 1) legendItems.push({ color: '#f59e0b', label: 'Güzergah şekli' });
-    if (pins.length > 0) legendItems.push({ color: '#dc2626', label: 'Belirsiz durak' });
+    if (polyline.length > 1) legendItems.push({ color: '#f59e0b', label: t('fix.map.route_shape') });
+    if (pins.length > 0) legendItems.push({ color: '#dc2626', label: t('fix.map.ambiguous_stop') });
     return { pins, polyline: polyline.length > 1 ? polyline : undefined, legendItems, showArrows: true };
   }
 
   // SHP_018 / SHP_019: orphan shape — sadece polyline, durak pini yok
   if (notice.rule_id === 'SHP_018' || notice.rule_id === 'SHP_019') {
     const polyline = entityId ? (nameIndex.shape_coords[entityId] ?? []) : [];
-    const legendItems = polyline.length > 1 ? [{ color: '#f59e0b', label: 'Kullanılmayan güzergah şekli' }] : [];
+    const legendItems = polyline.length > 1 ? [{ color: '#f59e0b', label: t('fix.map.route_shape_unused') }] : [];
     return { pins: [], polyline: polyline.length > 1 ? polyline : undefined, legendItems, showArrows: true };
   }
 
   // OPR_007: tekrar eden durak — tüm duraklar + shape + yön okları
   if (notice.rule_id === 'OPR_007') {
-    const dupStopId = notice.details?.['dup_stop'] ?? notice.message.match(/\(kod: '([^']+)'\)/)?.[1] ?? '';
+    const dupStopId = notice.details?.['dup_stop'] ?? '';
     const stops = (notice.details?.['stops'] ?? '').split(',').filter(Boolean);
     const shapeId = entityId ? (nameIndex.trip_shapes[entityId] ?? '') : '';
     const polyline = shapeId ? (nameIndex.shape_coords[shapeId] ?? []) : [];
@@ -464,13 +464,13 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
       if (seen.has(id)) continue;
       seen.add(id);
       const isDup = id === dupStopId;
-      const p = stopPin(id, nameIndex, !isDup, isDup ? '(tekrar eden)' : undefined);
+      const p = stopPin(id, nameIndex, !isDup, isDup ? t('fix.map.pin.repeated') : undefined);
       if (p) { p.small = !isDup; pins.push(p); }
     }
     const legendItems: Array<{ color: string; label: string }> = [];
-    if (polyline.length > 1) legendItems.push({ color: '#f59e0b', label: 'Güzergah şekli' });
-    if (pins.length > 1) legendItems.push({ color: '#2563eb', label: 'Duraklar' });
-    if (dupStopId) legendItems.push({ color: '#dc2626', label: 'Tekrar eden durak' });
+    if (polyline.length > 1) legendItems.push({ color: '#f59e0b', label: t('fix.map.route_shape') });
+    if (pins.length > 1) legendItems.push({ color: '#2563eb', label: t('fix.map.stops') });
+    if (dupStopId) legendItems.push({ color: '#dc2626', label: t('fix.map.repeated_stop') });
     return { pins, polyline: polyline.length > 1 ? polyline : undefined, legendItems, showArrows: true };
   }
 
@@ -484,8 +484,8 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
       .filter((p): p is MapPin => p !== null)
       .map(p => ({ ...p, small: true }));
     const legendItems: Array<{ color: string; label: string }> = [];
-    if (polyline.length > 1) legendItems.push({ color: '#f59e0b', label: 'Güzergah şekli' });
-    if (pins.length > 0) legendItems.push({ color: '#2563eb', label: 'Sefer durakları' });
+    if (polyline.length > 1) legendItems.push({ color: '#f59e0b', label: t('fix.map.route_shape') });
+    if (pins.length > 0) legendItems.push({ color: '#2563eb', label: t('fix.map.trip_stops') });
     return { pins, polyline: polyline.length > 1 ? polyline : undefined, legendItems, showArrows: true };
   }
 
@@ -499,14 +499,14 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
       const idxB = parseInt(m[2], 10);
       const ptA = polyline[idxA];
       const ptB = polyline[idxB];
-      if (ptA) pins.push({ lat: ptA[0], lon: ptA[1], label: `<strong>Atlama başlangıcı</strong><br>Segment ${idxA}`, primary: true });
-      if (ptB) pins.push({ lat: ptB[0], lon: ptB[1], label: `<strong>Atlama bitişi</strong><br>Segment ${idxB}`, primary: false });
+      if (ptA) pins.push({ lat: ptA[0], lon: ptA[1], label: `<strong>${t('fix.map.pin.jump_start')}</strong><br>Segment ${idxA}`, primary: true });
+      if (ptB) pins.push({ lat: ptB[0], lon: ptB[1], label: `<strong>${t('fix.map.pin.jump_end')}</strong><br>Segment ${idxB}`, primary: false });
     }
     const legendItems: Array<{ color: string; label: string }> = [];
-    if (polyline.length > 1) legendItems.push({ color: '#f59e0b', label: 'Güzergah şekli' });
+    if (polyline.length > 1) legendItems.push({ color: '#f59e0b', label: t('fix.map.route_shape') });
     if (pins.length > 0) {
-      legendItems.push({ color: '#dc2626', label: 'Atlama başlangıcı' });
-      legendItems.push({ color: '#2563eb', label: 'Atlama bitişi' });
+      legendItems.push({ color: '#dc2626', label: t('fix.map.jump_start') });
+      legendItems.push({ color: '#2563eb', label: t('fix.map.jump_end') });
     }
     return { pins, polyline: polyline.length > 1 ? polyline : undefined, legendItems, showArrows: false };
   }
@@ -521,12 +521,12 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
       const lat = parseFloat(m[1]);
       const lon = parseFloat(m[2]);
       if (!isNaN(lat) && !isNaN(lon)) {
-        pins.push({ lat, lon, label: `Tekrarlayan koordinat<br><code>(${m[1]}, ${m[2]})</code>`, primary: false });
+        pins.push({ lat, lon, label: `${t('fix.map.pin.repeat_coord')}<br><code>(${m[1]}, ${m[2]})</code>`, primary: false });
       }
     }
     const legendItems: Array<{ color: string; label: string }> = [];
-    if (polyline.length > 1) legendItems.push({ color: '#f59e0b', label: 'Güzergah şekli' });
-    if (pins.length > 0) legendItems.push({ color: '#dc2626', label: 'Tekrarlayan nokta' });
+    if (polyline.length > 1) legendItems.push({ color: '#f59e0b', label: t('fix.map.route_shape') });
+    if (pins.length > 0) legendItems.push({ color: '#dc2626', label: t('fix.map.repeat_point') });
     return { pins, polyline: polyline.length > 1 ? polyline : undefined, legendItems, showArrows: true };
   }
 
@@ -541,16 +541,16 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
       const c = parseInt(m[3], 10), d = parseInt(m[4], 10);
       const ptA = polyline[a], ptB = polyline[b];
       const ptC = polyline[c], ptD = polyline[d];
-      if (ptA) pins.push({ lat: ptA[0], lon: ptA[1], label: `Segment ${a}→${b} başlangıcı`, primary: true });
-      if (ptB) pins.push({ lat: ptB[0], lon: ptB[1], label: `Segment ${a}→${b} bitişi`, primary: true });
-      if (ptC) pins.push({ lat: ptC[0], lon: ptC[1], label: `Segment ${c}→${d} başlangıcı`, primary: false });
-      if (ptD) pins.push({ lat: ptD[0], lon: ptD[1], label: `Segment ${c}→${d} bitişi`, primary: false });
+      if (ptA) pins.push({ lat: ptA[0], lon: ptA[1], label: t('fix.map.pin.seg_start', { a: String(a), b: String(b) }), primary: true });
+      if (ptB) pins.push({ lat: ptB[0], lon: ptB[1], label: t('fix.map.pin.seg_end',   { a: String(a), b: String(b) }), primary: true });
+      if (ptC) pins.push({ lat: ptC[0], lon: ptC[1], label: t('fix.map.pin.seg_start', { a: String(c), b: String(d) }), primary: false });
+      if (ptD) pins.push({ lat: ptD[0], lon: ptD[1], label: t('fix.map.pin.seg_end',   { a: String(c), b: String(d) }), primary: false });
     }
     const legendItems: Array<{ color: string; label: string }> = [];
-    if (polyline.length > 1) legendItems.push({ color: '#f59e0b', label: 'Güzergah şekli' });
+    if (polyline.length > 1) legendItems.push({ color: '#f59e0b', label: t('fix.map.route_shape') });
     if (pins.length > 0) {
-      legendItems.push({ color: '#2563eb', label: '1. kesişen segment' });
-      legendItems.push({ color: '#dc2626', label: '2. kesişen segment' });
+      legendItems.push({ color: '#2563eb', label: t('fix.map.segment_1') });
+      legendItems.push({ color: '#dc2626', label: t('fix.map.segment_2') });
     }
     return { pins, polyline: polyline.length > 1 ? polyline : undefined, legendItems, showArrows: true };
   }
@@ -560,7 +560,7 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
     const shapeId = entityId ? (nameIndex.trip_shapes[entityId] ?? '') : '';
     const polyline = shapeId ? (nameIndex.shape_coords[shapeId] ?? []) : [];
     const legendItems: Array<{ color: string; label: string }> = [];
-    if (polyline.length > 1) legendItems.push({ color: '#9ca3af', label: 'Güzergah şekli' });
+    if (polyline.length > 1) legendItems.push({ color: '#9ca3af', label: t('fix.map.route_shape') });
 
     // Tüm bozuk segmentleri topla (bad_seg_0_a/b, bad_seg_1_a/b, ...)
     const extraPolylines: Array<{ coords: [number, number][]; color: string; weight: number; zoomTo: boolean }> = [];
@@ -591,8 +591,8 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
       }
     }
 
-    if (extraPolylines.length > 0) legendItems.push({ color: '#dc2626', label: 'Bozuk segment' });
-    legendItems.push({ color: '#2563eb', label: 'Segment uçları' });
+    if (extraPolylines.length > 0) legendItems.push({ color: '#dc2626', label: t('fix.map.bad_segment') });
+    legendItems.push({ color: '#2563eb', label: t('fix.map.segment_ends') });
 
     return {
       pins,
@@ -617,15 +617,15 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
       const p = stopPin(id, nameIndex, true);
       if (p) pins.push({ ...p, small: true });
     }
-    const pinA = stopA ? stopPin(stopA, nameIndex, true, '(kalkış)') : null;
+    const pinA = stopA ? stopPin(stopA, nameIndex, true, t('fix.map.pin.depart')) : null;
     if (pinA) pins.push(pinA);
-    const pinB = stopB ? stopPin(stopB, nameIndex, false, '(varış — çok kısa süre)') : null;
+    const pinB = stopB ? stopPin(stopB, nameIndex, false, t('fix.map.pin.arrive_short')) : null;
     if (pinB) pins.push(pinB);
 
     const legendItems: Array<{ color: string; label: string }> = [];
-    if (polyline.length > 1) legendItems.push({ color: '#f59e0b', label: 'Güzergah şekli' });
-    if (stopIds.length > 0) legendItems.push({ color: '#2563eb', label: 'Sefer durakları' });
-    legendItems.push({ color: '#dc2626', label: 'Kısa süreli segment sonu' });
+    if (polyline.length > 1) legendItems.push({ color: '#f59e0b', label: t('fix.map.route_shape') });
+    if (stopIds.length > 0) legendItems.push({ color: '#2563eb', label: t('fix.map.trip_stops') });
+    legendItems.push({ color: '#dc2626', label: t('fix.map.short_segment_end') });
     return { pins, polyline: polyline.length > 1 ? polyline : undefined, legendItems, showArrows: true };
   }
 
@@ -633,7 +633,7 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
   if (notice.rule_id === 'OPR_015') {
     const shapeId = notice.details?.['shape_id'] ?? '';
     const polyline = shapeId ? (nameIndex.shape_coords[shapeId] ?? []) : [];
-    const legendItems = polyline.length > 1 ? [{ color: '#f59e0b', label: 'Tek güzergah şekli' }] : [];
+    const legendItems = polyline.length > 1 ? [{ color: '#f59e0b', label: t('fix.map.route_shape_single') }] : [];
     return { pins: [], polyline: polyline.length > 1 ? polyline : undefined, legendItems, showArrows: true };
   }
 
@@ -654,8 +654,8 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
     const polyline = entityId ? (nameIndex.shape_coords[entityId] ?? []) : [];
     const pins = shapeStopPins(entityId);
     const legendItems: Array<{ color: string; label: string }> = [];
-    if (polyline.length > 1) legendItems.push({ color: '#f59e0b', label: 'Güzergah şekli' });
-    if (pins.length > 0) legendItems.push({ color: '#2563eb', label: 'Sefer durakları' });
+    if (polyline.length > 1) legendItems.push({ color: '#f59e0b', label: t('fix.map.route_shape') });
+    if (pins.length > 0) legendItems.push({ color: '#2563eb', label: t('fix.map.trip_stops') });
     return { pins, polyline: polyline.length > 1 ? polyline : undefined, legendItems, showArrows: polyline.length > 1 };
   }
 
@@ -664,8 +664,8 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
     const polyline = entityId ? (nameIndex.shape_coords[entityId] ?? []) : [];
     const pins = shapeStopPins(entityId);
     const legendItems: Array<{ color: string; label: string }> = [];
-    if (polyline.length > 1) legendItems.push({ color: '#f59e0b', label: 'Güzergah şekli' });
-    if (pins.length > 0) legendItems.push({ color: '#2563eb', label: 'Sefer durakları' });
+    if (polyline.length > 1) legendItems.push({ color: '#f59e0b', label: t('fix.map.route_shape') });
+    if (pins.length > 0) legendItems.push({ color: '#2563eb', label: t('fix.map.trip_stops') });
     return { pins, polyline: polyline.length > 1 ? polyline : undefined, legendItems, showArrows: true };
   }
 
@@ -681,13 +681,13 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
       const p = stopPin(id, nameIndex, true);
       if (p) pins.push({ ...p, small: true });
     }
-    const endpoint = notice.details?.['endpoint'] === 'start' ? '⚠ ilk durak — shape başından uzak' : '⚠ son durak — shape bitişinden uzak';
+    const endpoint = notice.details?.['endpoint'] === 'start' ? t('fix.map.pin.first_far_start') : t('fix.map.pin.last_far_end');
     const errPin = problemStopId ? stopPin(problemStopId, nameIndex, false, endpoint) : null;
     if (errPin) pins.push(errPin);
     const legendItems: Array<{ color: string; label: string }> = [];
-    if (polyline.length > 1) legendItems.push({ color: '#f59e0b', label: 'Güzergah şekli' });
-    if (stopIds.length > 0) legendItems.push({ color: '#2563eb', label: 'Sefer durakları' });
-    if (errPin) legendItems.push({ color: '#dc2626', label: 'Uçtan uzak durak' });
+    if (polyline.length > 1) legendItems.push({ color: '#f59e0b', label: t('fix.map.route_shape') });
+    if (stopIds.length > 0) legendItems.push({ color: '#2563eb', label: t('fix.map.trip_stops') });
+    if (errPin) legendItems.push({ color: '#dc2626', label: t('fix.map.far_endpoint_stop') });
     return { pins, polyline: polyline.length > 1 ? polyline : undefined, legendItems, showArrows: true };
   }
 
@@ -696,8 +696,8 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
     const polyline = entityId ? (nameIndex.shape_coords[entityId] ?? []) : [];
     const pins = shapeStopPins(entityId);
     const legendItems: Array<{ color: string; label: string }> = [];
-    if (polyline.length > 1) legendItems.push({ color: '#f59e0b', label: 'Güzergah şekli' });
-    if (pins.length > 0) legendItems.push({ color: '#2563eb', label: 'Sefer durakları' });
+    if (polyline.length > 1) legendItems.push({ color: '#f59e0b', label: t('fix.map.route_shape') });
+    if (pins.length > 0) legendItems.push({ color: '#2563eb', label: t('fix.map.trip_stops') });
     return { pins, polyline: polyline.length > 1 ? polyline : undefined, legendItems, showArrows: true };
   }
 
@@ -713,12 +713,12 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
       const p = stopPin(id, nameIndex, true);
       if (p) pins.push({ ...p, small: true });
     }
-    const errPin = firstStopId ? stopPin(firstStopId, nameIndex, false, '⚠ ilk durak — shape\'in yanlış ucuna düşüyor') : null;
+    const errPin = firstStopId ? stopPin(firstStopId, nameIndex, false, t('fix.map.pin.first_wrong')) : null;
     if (errPin) pins.push(errPin);
     const legendItems: Array<{ color: string; label: string }> = [];
-    if (polyline.length > 1) legendItems.push({ color: '#f59e0b', label: 'Güzergah şekli (ters)' });
-    if (stopIds.length > 0) legendItems.push({ color: '#2563eb', label: 'Sefer durakları' });
-    if (errPin) legendItems.push({ color: '#dc2626', label: 'İlk durak (yanlış uçta)' });
+    if (polyline.length > 1) legendItems.push({ color: '#f59e0b', label: t('fix.map.route_shape_rev') });
+    if (stopIds.length > 0) legendItems.push({ color: '#2563eb', label: t('fix.map.trip_stops') });
+    if (errPin) legendItems.push({ color: '#dc2626', label: t('fix.map.first_stop_wrong_end') });
     return { pins, polyline: polyline.length > 1 ? polyline : undefined, legendItems, showArrows: true };
   }
 
@@ -737,14 +737,14 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
       const p = stopPin(id, nameIndex, true);
       if (p) pins.push({ ...p, small: true });
     }
-    const pinA = stopA ? stopPin(stopA, nameIndex, true, '(kalkış — imkansız hız)') : null;
-    const pinB = stopB ? stopPin(stopB, nameIndex, false, '(varış — imkansız hız)') : null;
+    const pinA = stopA ? stopPin(stopA, nameIndex, true, t('fix.map.pin.depart_speed')) : null;
+    const pinB = stopB ? stopPin(stopB, nameIndex, false, t('fix.map.pin.arrive_speed')) : null;
     if (pinA) pins.push(pinA);
     if (pinB) pins.push(pinB);
     const legendItems: Array<{ color: string; label: string }> = [];
-    if (polyline.length > 1) legendItems.push({ color: '#f59e0b', label: 'Güzergah şekli' });
-    if (stopIds.length > 0) legendItems.push({ color: '#2563eb', label: 'Sefer durakları' });
-    legendItems.push({ color: '#dc2626', label: 'İmkansız hız segmenti' });
+    if (polyline.length > 1) legendItems.push({ color: '#f59e0b', label: t('fix.map.route_shape') });
+    if (stopIds.length > 0) legendItems.push({ color: '#2563eb', label: t('fix.map.trip_stops') });
+    legendItems.push({ color: '#dc2626', label: t('fix.map.impossible_speed') });
     return { pins, polyline: polyline.length > 1 ? polyline : undefined, legendItems, showArrows: true };
   }
 
@@ -761,14 +761,14 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
       const p = stopPin(id, nameIndex, true);
       if (p) pins.push({ ...p, small: true });
     }
-    const pinA = stopA ? stopPin(stopA, nameIndex, true, '(kalkış)') : null;
-    const pinB = stopB ? stopPin(stopB, nameIndex, false, '(varış — çok uzak)') : null;
+    const pinA = stopA ? stopPin(stopA, nameIndex, true, t('fix.map.pin.depart')) : null;
+    const pinB = stopB ? stopPin(stopB, nameIndex, false, t('fix.map.pin.arrive_far')) : null;
     if (pinA) pins.push(pinA);
     if (pinB) pins.push(pinB);
     const legendItems: Array<{ color: string; label: string }> = [];
-    if (polyline.length > 1) legendItems.push({ color: '#f59e0b', label: 'Güzergah şekli' });
-    if (stopIds.length > 0) legendItems.push({ color: '#2563eb', label: 'Sefer durakları' });
-    legendItems.push({ color: '#dc2626', label: 'Aşırı uzak segment sonu' });
+    if (polyline.length > 1) legendItems.push({ color: '#f59e0b', label: t('fix.map.route_shape') });
+    if (stopIds.length > 0) legendItems.push({ color: '#2563eb', label: t('fix.map.trip_stops') });
+    legendItems.push({ color: '#dc2626', label: t('fix.map.far_segment_end') });
     return { pins, polyline: polyline.length > 1 ? polyline : undefined, legendItems, showArrows: true };
   }
 
@@ -778,11 +778,11 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
     const polyline = shapeId ? (nameIndex.shape_coords[shapeId] ?? []) : [];
     const stopIds = entityId ? (nameIndex.trip_stops[entityId] ?? []) : [];
     const pins: MapPin[] = stopIds
-      .map(id => stopPin(id, nameIndex, false, '(tek durak — sefer kullanılamaz)'))
+      .map(id => stopPin(id, nameIndex, false, t('fix.map.pin.single_stop')))
       .filter((p): p is MapPin => p !== null);
     const legendItems: Array<{ color: string; label: string }> = [];
-    if (polyline.length > 1) legendItems.push({ color: '#f59e0b', label: 'Güzergah şekli' });
-    legendItems.push({ color: '#dc2626', label: 'Tek durak (kullanılamaz sefer)' });
+    if (polyline.length > 1) legendItems.push({ color: '#f59e0b', label: t('fix.map.route_shape') });
+    legendItems.push({ color: '#dc2626', label: t('fix.map.single_stop_trip') });
     return { pins, polyline: polyline.length > 1 ? polyline : undefined, legendItems, showArrows: polyline.length > 1 };
   }
 
@@ -798,12 +798,12 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
       const p = stopPin(id, nameIndex, true);
       if (p) pins.push({ ...p, small: true });
     }
-    const errPin = repeatStopId ? stopPin(repeatStopId, nameIndex, false, '(ardışık iki kez ziyaret)') : null;
+    const errPin = repeatStopId ? stopPin(repeatStopId, nameIndex, false, t('fix.map.pin.revisit')) : null;
     if (errPin) pins.push(errPin);
     const legendItems: Array<{ color: string; label: string }> = [];
-    if (polyline.length > 1) legendItems.push({ color: '#f59e0b', label: 'Güzergah şekli' });
-    if (stopIds.length > 0) legendItems.push({ color: '#2563eb', label: 'Sefer durakları' });
-    if (errPin) legendItems.push({ color: '#dc2626', label: 'Tekrar ziyaret edilen durak' });
+    if (polyline.length > 1) legendItems.push({ color: '#f59e0b', label: t('fix.map.route_shape') });
+    if (stopIds.length > 0) legendItems.push({ color: '#2563eb', label: t('fix.map.trip_stops') });
+    if (errPin) legendItems.push({ color: '#dc2626', label: t('fix.map.revisit_stop') });
     return { pins, polyline: polyline.length > 1 ? polyline : undefined, legendItems, showArrows: polyline.length > 1 };
   }
 
@@ -826,8 +826,8 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
       center,
       zoom: 15,
       markers: [
-        { lat: fromCoord[0], lon: fromCoord[1], color: '#ef4444', label: fromName, title: `İstasyon: ${fromName}` },
-        { lat: toCoord[0],   lon: toCoord[1],   color: '#3b82f6', label: toName,   title: `İstasyon: ${toName}` },
+        { lat: fromCoord[0], lon: fromCoord[1], color: '#ef4444', label: fromName, title: t('fix.map.pin.station', { name: fromName }) },
+        { lat: toCoord[0],   lon: toCoord[1],   color: '#3b82f6', label: toName,   title: t('fix.map.pin.station', { name: toName }) },
       ],
       polylines: [{
         coords: [[fromCoord[0], fromCoord[1]], [toCoord[0], toCoord[1]]],
@@ -860,7 +860,7 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
         lat: coord[0],
         lon: coord[1],
         label: isIsolated
-          ? `<strong>⚠ İzole</strong><br><strong>${name}</strong><br><code>${sid}</code>`
+          ? `<strong>${t('fix.map.pin.isolated')}</strong><br><strong>${name}</strong><br><code>${sid}</code>`
           : `<strong>${name}</strong><br><code>${sid}</code>`,
         primary: !isIsolated,
         small: !isIsolated,
@@ -869,8 +869,8 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
     return {
       pins,
       legendItems: [
-        { color: '#2563eb', label: 'Bağlı duraklar' },
-        { color: '#dc2626', label: 'İzole duraklar' },
+        { color: '#2563eb', label: t('fix.map.connected_stops') },
+        { color: '#dc2626', label: t('fix.map.isolated_stops') },
       ],
     };
   }
@@ -882,11 +882,11 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
     const coords = nameIndex.stop_coords[entityId];
     const stopName = nameIndex.stops[entityId] ?? entityId;
     const pins: MapPin[] = coords
-      ? [{ lat: coords[0], lon: coords[1], label: `<strong>Terminal: ${stopName}</strong><br><code>${entityId}</code>`, primary: false }]
+      ? [{ lat: coords[0], lon: coords[1], label: `<strong>${t('fix.map.pin.terminal', { name: stopName })}</strong><br><code>${entityId}</code>`, primary: false }]
       : [];
     const extraPolylines: Array<{ coords: [number,number][]; color: string; weight: number; zoomTo: boolean }> = [];
     const legendItems: Array<{ color: string; label: string }> = [];
-    if (pins.length > 0) legendItems.push({ color: '#dc2626', label: 'Terminal durağı' });
+    if (pins.length > 0) legendItems.push({ color: '#dc2626', label: t('fix.map.terminal_stop') });
     let colorIdx = 0;
     for (const rId of routeIds.slice(0, 5)) {
       const shapeIds = nameIndex.route_shapes[rId] ?? [];
@@ -921,7 +921,7 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
     }));
     return {
       pins,
-      legendItems: [{ color: '#2563eb', label: `${pins.length} durak` }],
+      legendItems: [{ color: '#2563eb', label: t('fix.map.n_stops', { n: String(pins.length) }) }],
     };
   }
 
@@ -939,8 +939,8 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
     });
 
     const legendItems: Array<{ color: string; label: string }> = [];
-    if (polyline.length > 1) legendItems.push({ color: '#f59e0b', label: routeName ? `Güzergah şekli — ${routeName}` : 'Güzergah şekli' });
-    if (pins.length > 0) legendItems.push({ color: '#2563eb', label: 'Sefer durakları' });
+    if (polyline.length > 1) legendItems.push({ color: '#f59e0b', label: routeName ? t('fix.map.route_shape_named', { name: routeName }) : t('fix.map.route_shape') });
+    if (pins.length > 0) legendItems.push({ color: '#2563eb', label: t('fix.map.trip_stops') });
     return { pins, polyline: polyline.length > 1 ? polyline : undefined, legendItems, showArrows: polyline.length > 1 };
   }
 
@@ -957,7 +957,7 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
     return {
       pins: [],
       extraPolylines,
-      legendItems: [{ color: '#f59e0b', label: `Güzergah şekilleri — ${routeName}` }],
+      legendItems: [{ color: '#f59e0b', label: t('fix.map.route_shapes_named', { name: routeName }) }],
       showArrows: false,
     };
   }
@@ -969,14 +969,14 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
 
   // STP_029: child + parent istasyon
   if (notice.rule_id === 'STP_029') {
-    const parentId = notice.message.match(/üst istasyonundan \(([^)]+)\)/)?.[1] ?? '';
+    const parentId = notice.details?.['parent_id'] ?? '';
     const pins: MapPin[] = [
       { lat, lon, label: `<strong>${stopName}</strong><br><code>${entityId}</code>`, primary: true },
     ];
-    const parentPin = parentId ? stopPin(parentId, nameIndex, false, '(üst istasyon)') : null;
+    const parentPin = parentId ? stopPin(parentId, nameIndex, false, t('fix.map.pin.parent')) : null;
     if (parentPin) pins.push(parentPin);
     const legendItems = pins.length > 1
-      ? [{ color: '#2563eb', label: 'Durak' }, { color: '#dc2626', label: 'Üst İstasyon' }]
+      ? [{ color: '#2563eb', label: t('fix.map.stop') }, { color: '#dc2626', label: t('fix.map.parent_station_label') }]
       : [];
     return { pins, legendItems };
   }
@@ -998,7 +998,7 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
     const pinB = secondId ? stopPin(secondId, nameIndex, false) : null;
     if (pinB) pins.push(pinB);
     const legendItems = pins.length > 1
-      ? [{ color: '#2563eb', label: 'Durak 1' }, { color: '#dc2626', label: 'Durak 2' }]
+      ? [{ color: '#2563eb', label: `${t('fix.map.stop')} 1` }, { color: '#dc2626', label: `${t('fix.map.stop')} 2` }]
       : [];
     return { pins, legendItems };
   }
@@ -1008,9 +1008,9 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
     const shapeId = notice.observed_value?.match(/\(shape '([^']+)'\)/)?.[1] ?? '';
     const polyline = shapeId ? (nameIndex.shape_coords[shapeId] ?? []) : [];
     const legendItems: Array<{ color: string; label: string }> = [
-      { color: '#2563eb', label: 'Durak' },
+      { color: '#2563eb', label: t('fix.map.stop') },
     ];
-    if (polyline.length > 0) legendItems.push({ color: '#f59e0b', label: 'Güzergah şekli' });
+    if (polyline.length > 0) legendItems.push({ color: '#f59e0b', label: t('fix.map.route_shape') });
     return {
       pins: [{ lat, lon, label: `<strong>${stopName}</strong><br><code>${entityId}</code>`, primary: true }],
       polyline: polyline.length > 1 ? polyline : undefined,

@@ -1,5 +1,5 @@
 import type { ValidationResult } from '../types';
-import { SEVERITY_TR, RULE_CLASS_TR, t } from '../i18n';
+import { SEVERITY_TR, RULE_CLASS_TR, t, tMsg } from '../i18n';
 
 export function renderExport(
   root: HTMLElement,
@@ -43,7 +43,7 @@ function exportCsv(result: ValidationResult, fileName: string): void {
     n.rule_id,
     SEVERITY_TR[n.severity] ?? n.severity,
     RULE_CLASS_TR[n.rule_class] ?? n.rule_class,
-    n.message,
+    tMsg(n),
     n.entity_id ?? '',
     n.file ?? '',
     n.line != null ? String(n.line) : '',
@@ -71,7 +71,7 @@ function buildReportHtml(result: ValidationResult, fileName: string): string {
       <td>${escHtml(n.rule_id)}</td>
       <td>${SEVERITY_TR[n.severity]}</td>
       <td>${RULE_CLASS_TR[n.rule_class]}</td>
-      <td>${escHtml(n.message)}</td>
+      <td>${escHtml(tMsg(n))}</td>
       <td>${n.entity_id ? escHtml(n.entity_id) : ''}</td>
       <td>${n.file ? escHtml(n.file) : ''}</td>
       <td>${n.line ?? ''}</td>

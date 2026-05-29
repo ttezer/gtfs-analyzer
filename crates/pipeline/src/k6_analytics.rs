@@ -3695,6 +3695,7 @@ fn check_remaining_analytics(
                 det.insert("seq_b".to_string(), seq_b.join(","));
                 det.insert("seq_a".to_string(), seq_a.join(","));
                 det.insert("shape_id".to_string(), shape_id.to_string());
+                det.insert("bad_stop".to_string(), st.stop_id.to_string());
                 notice.details = Some(det);
                 notices.push(notice);
             }
@@ -3770,7 +3771,7 @@ fn check_remaining_analytics(
 
                 shp022_seen.insert((shape_id, stop_id));
                 let sname = stop_names.get(stop_id).copied().unwrap_or(stop_id);
-                notices.push(k6_notice(
+                let mut notice = k6_notice(
                     ctr,
                     "SHP_022",
                     EntityType::Stop,
@@ -3788,7 +3789,11 @@ fn check_remaining_analytics(
                     ),
                     "stop_times'a shape_dist_traveled ekleyerek durağın şekil üzerindeki \
                      konumunu açıkça belirtin.",
-                ));
+                );
+                let mut det = HashMap::new();
+                det.insert("shape_id".to_string(), shape_id.to_string());
+                notice.details = Some(det);
+                notices.push(notice);
             }
         }
     }
@@ -3908,7 +3913,7 @@ fn check_remaining_analytics(
             let dist_m = haversine_km(slat, slon, plat, plon) * 1000.0;
             if dist_m > threshold_m {
                 let sname = stop.stop_name.as_deref().unwrap_or(stop.stop_id.as_str());
-                notices.push(k6_notice(
+                let mut notice = k6_notice(
                     ctr,
                     "STP_029",
                     EntityType::Stop,
@@ -3924,7 +3929,11 @@ fn check_remaining_analytics(
                         stop.stop_id, sname, parent_id
                     ),
                     "Durak koordinatlarını veya parent_station referansını düzeltin.",
-                ));
+                );
+                let mut det = HashMap::new();
+                det.insert("parent_id".to_string(), parent_id.to_string());
+                notice.details = Some(det);
+                notices.push(notice);
             }
         }
     }
