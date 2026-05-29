@@ -1660,6 +1660,36 @@ fn check_operational_analytics(
         }
     }
 
+    // TRP_028/029: wheelchair_accessible eksikliği
+    {
+        let total = records.trips.iter().filter(|t| !t.trip_id.is_empty()).count();
+        if total > 0 {
+            let unset = records.trips.iter()
+                .filter(|t| !t.trip_id.is_empty() && t.wheelchair_accessible.unwrap_or(0) == 0)
+                .count();
+            if unset == total {
+                notices.push(k6_notice(
+                    ctr, "TRP_029", EntityType::Feed,
+                    None, None,
+                    "trips.txt", None, Some("wheelchair_accessible"),
+                    Some(format!("{total} sefer")), Some("1 veya 2".to_string()),
+                    format!("{total} seferin hiçbirinde wheelchair_accessible bilgisi girilmemiş."),
+                    "Tekerlekli sandalye erişilebilirliğini wheelchair_accessible alanıyla bildirin (1=erişilebilir, 2=erişilemez).",
+                ));
+            } else if unset > 0 {
+                notices.push(k6_notice(
+                    ctr, "TRP_028", EntityType::Feed,
+                    None, None,
+                    "trips.txt", None, Some("wheelchair_accessible"),
+                    Some(format!("{unset}/{total} sefer")), Some("0".to_string()),
+                    format!("{total} seferin {unset} tanesinde wheelchair_accessible bilgisi eksik ({:.0}%).",
+                        unset as f64 / total as f64 * 100.0),
+                    "Tüm seferlerin wheelchair_accessible alanını doldurun (1=erişilebilir, 2=erişilemez).",
+                ));
+            }
+        }
+    }
+
     // TRP_024: block içinde tutarsız rota tipi
     {
         let route_type_map: HashMap<&str, u32> = records.routes.iter()
@@ -4006,6 +4036,41 @@ fn check_remaining_analytics(
                 ));
             }
         }
+
+        // stop_headsign (stop_times — benzersiz değer bazlı dedup)
+        {
+            let mut seen: std::collections::HashSet<&str> = std::collections::HashSet::new();
+            for st in &records.stop_times {
+                if let Some(ref hs) = st.stop_headsign {
+                    let s = hs.as_str();
+                    if !seen.contains(s) && is_all_caps(s) {
+                        seen.insert(s);
+                        notices.push(k6_notice(
+                            ctr, "DQ_018", EntityType::Row,
+                            None, None,
+                            "stop_times.txt", Some(st.line), Some("stop_headsign"),
+                            Some(s.to_string()), None,
+                            format!("stop_headsign değeri tamamen büyük harf: '{s}'."),
+                            "Yön adını düzgün harf kuralıyla yazın.",
+                        ));
+                    }
+                }
+            }
+        }
+
+        // feed_publisher_name
+        if let Some(fi) = records.feed_info.first() {
+            if is_all_caps(&fi.feed_publisher_name) {
+                notices.push(k6_notice(
+                    ctr, "DQ_018", EntityType::Feed,
+                    None, None,
+                    "feed_info.txt", Some(fi.line), Some("feed_publisher_name"),
+                    Some(fi.feed_publisher_name.clone()), None,
+                    format!("feed_publisher_name tamamen büyük harf: '{}'.", fi.feed_publisher_name),
+                    "Yayıncı adını düzgün harf kuralıyla yazın.",
+                ));
+            }
+        }
     }
 
     // ── DQ_019: önerilen alanlarda tümü küçük harf (mixed_case_recommended_field) ──
@@ -4047,6 +4112,59 @@ fn check_remaining_analytics(
                     Some(hs.to_string()), None,
                     format!("'{}' seferinin yön adı tamamen küçük harf: '{hs}'.", trip.trip_id),
                     "Yön adını başlık harfiyle yazın.",
+                ));
+            }
+        }
+
+        // agency_name
+        for ag in &records.agencies {
+            if ag.agency_name.is_empty() { continue; }
+            if is_all_lower(&ag.agency_name) {
+                let label = ag.agency_id.as_deref()
+                    .filter(|s| !s.is_empty())
+                    .unwrap_or(ag.agency_name.as_str());
+                notices.push(k6_notice(
+                    ctr, "DQ_019", EntityType::Agency,
+                    Some(label.to_string()), Some(label.to_string()),
+                    "agency.txt", Some(ag.line), Some("agency_name"),
+                    Some(ag.agency_name.clone()), None,
+                    format!("'{}' işleticisinin adı tamamen küçük harf: '{}'.", label, ag.agency_name),
+                    "İşletici adını başlık harfiyle yazın.",
+                ));
+            }
+        }
+
+        // stop_headsign (stop_times — benzersiz değer bazlı dedup)
+        {
+            let mut seen: std::collections::HashSet<&str> = std::collections::HashSet::new();
+            for st in &records.stop_times {
+                if let Some(ref hs) = st.stop_headsign {
+                    let s = hs.as_str();
+                    if !seen.contains(s) && is_all_lower(s) {
+                        seen.insert(s);
+                        notices.push(k6_notice(
+                            ctr, "DQ_019", EntityType::Row,
+                            None, None,
+                            "stop_times.txt", Some(st.line), Some("stop_headsign"),
+                            Some(s.to_string()), None,
+                            format!("stop_headsign değeri tamamen küçük harf: '{s}'."),
+                            "Yön adını başlık harfiyle yazın.",
+                        ));
+                    }
+                }
+            }
+        }
+
+        // feed_publisher_name
+        if let Some(fi) = records.feed_info.first() {
+            if is_all_lower(&fi.feed_publisher_name) {
+                notices.push(k6_notice(
+                    ctr, "DQ_019", EntityType::Feed,
+                    None, None,
+                    "feed_info.txt", Some(fi.line), Some("feed_publisher_name"),
+                    Some(fi.feed_publisher_name.clone()), None,
+                    format!("feed_publisher_name tamamen küçük harf: '{}'.", fi.feed_publisher_name),
+                    "Yayıncı adını başlık harfiyle yazın.",
                 ));
             }
         }
