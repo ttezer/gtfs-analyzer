@@ -125,6 +125,9 @@ pub static RULES: &[RuleMeta] = &[
         "Boş veri satırı"),
     r!("ARC_019", Yuksek, Spec,    1, &[], None, VS, File,
         "Başlıkta boş sütun adı"),
+    r!("ARC_020", Dusuk,  Quality, 1, &[], None, VS, Feed,
+        "Önerilen GTFS dosyası eksik (shapes.txt veya feed_info.txt)"),
+
     // ── AGN: Agency ────────────────────────────────────────────────────────────
     r!("AGN_001", Kritik, Spec, 1,
         &["RTS_002","XFL_007"], None, VS_K, Feed,
@@ -283,6 +286,12 @@ pub static RULES: &[RuleMeta] = &[
         "continuous_drop_off geçersiz"),
     r!("RTS_019", Dusuk,  Quality, 1, &[], Some("route_id"), VS, Row,
         "Yinelenen hat adı"),
+    r!("RTS_020", Dusuk,  Quality, 1, &[], Some("route_id"), VS, Entity,
+        "Hat ve acente aynı URL'yi paylaşıyor"),
+    r!("RTS_021", Dusuk,  Quality, 1, &[], Some("route_id"), VS, Entity,
+        "Kısa hat adı çok uzun (≥12 karakter)"),
+    r!("RTS_022", Dusuk,  Quality, 1, &[], Some("route_id"), VS, Entity,
+        "Uzun hat adı kısa adı içeriyor"),
 
     // ── TRP: Trips ─────────────────────────────────────────────────────────────
     r!("TRP_001", Kritik, Spec, 1,
@@ -417,6 +426,8 @@ pub static RULES: &[RuleMeta] = &[
         "Varış veya kalkış zamanından yalnızca biri tanımlı"),
     r!("STM_035", Bilgi,  Analytics, 1, &[], Some("trip_id"), VS, Row,
         "Aynı durak ardışık iki kez ziyaret ediliyor (terminal/döngü)"),
+    r!("STM_036", Yuksek, Quality,   2, &[], Some("trip_id"), VS, Entity,
+        "stop_sequence değerleri sırasız (unsorted_stop_times)"),
 
     // ── CAL: Calendar ──────────────────────────────────────────────────────────
     r!("CAL_001", Kritik, Spec, 1,
@@ -459,6 +470,10 @@ pub static RULES: &[RuleMeta] = &[
         "Tüm takvim tarihleri gelecekte (bugün aktif sefer yok)"),
     r!("CAL_016", Bilgi,  Quality,   1, &[], None, VS, Feed,
         "Servis çok uzak bir gelecek tarihine kadar uzanıyor"),
+    r!("CAL_017", Dusuk,  Quality,   1, &[], Some("service_id"), VS, Entity,
+        "Takvim henüz başlamamış (tüm aktif tarihler gelecekte)"),
+    r!("CAL_018", Dusuk,  Quality,   1, &[], Some("service_id"), VS, Entity,
+        "Servisin aktif haftanın günü yok (tüm günler 0, calendar_dates ile geçersiz kılınan yok)"),
 
     // ── CLD: Calendar Dates ────────────────────────────────────────────────────
     r!("CLD_001", Kritik, Spec, 1, &[], Some("service_id"), VS_K, Row,
@@ -531,6 +546,12 @@ pub static RULES: &[RuleMeta] = &[
         "shape_dist_traveled negatif değer"),
     r!("SHP_022", Orta,   Interop, 2, &[], Some("stop_id"), VI, Entity,
         "Durak güzergah şeklinde belirsiz konumda"),
+    r!("SHP_023", Orta,   Quality, 2, &[], Some("shape_id"), VS, Entity,
+        "shape_dist_traveled aynı değere sahip art arda iki nokta aynı koordinatta"),
+    r!("SHP_024", Orta,   Quality, 2, &[], Some("stop_id"), VS, Entity,
+        "Duraktan şekle mesafe shape_dist_traveled ile tutarsız"),
+    r!("SHP_025", Orta,   Quality, 2, &[], Some("trip_id"), VS, Entity,
+        "Sefer stop_times mesafesi şeklin toplam mesafesini aşıyor"),
 
     // ── FRQ: Frequencies ───────────────────────────────────────────────────────
     r!("FRQ_001", Kritik, Spec, 1, &[], Some("trip_id"), VS_K, Row,
@@ -832,6 +853,10 @@ pub static RULES: &[RuleMeta] = &[
         "feed_start_date gelecekte (feed henüz aktif değil)"),
     r!("FIN_017", Bilgi,  Quality, 1, &[], None, VS, Feed,
         "Feed çok uzak gelecekte sona eriyor"),
+    r!("FIN_018", Dusuk,  Quality, 1, &[], None, VS, Feed,
+        "feed_contact_email ve feed_contact_url ikisi de eksik"),
+    r!("FIN_019", Dusuk,  Quality, 1, &[], None, VS, Feed,
+        "Feed'in geçerlilik süresi 7 gün içinde dolacak"),
 
     // ── TRN: Translations ──────────────────────────────────────────────────────
     r!("TRN_001", Kritik, Spec, 1, &[], None, VS_K, Row,
@@ -1026,6 +1051,12 @@ pub static RULES: &[RuleMeta] = &[
         "Şüpheli koordinat değeri"),
     r!("DQ_018",  Dusuk,  Quality,  1, &[], Some("stop_id"), VS, Entity,
         "Durak adı tamamen büyük harf"),
+    r!("DQ_019",  Dusuk,  Quality,  1, &[], Some("file"), VS, Field,
+        "Önerilen alanda karışık büyük/küçük harf (mixed case)"),
+    r!("DQ_020",  Dusuk,  Quality,  1, &[], Some("file"), VS, Field,
+        "Önerilen alan eksik veya boş"),
+    r!("DQ_021",  Yuksek, Spec,     1, &[], Some("file"), VS_K, Entity,
+        "Birincil anahtar yineleniyor (duplicate_key)"),
 
     // ── VAT: Varlık Analitik Tespiti (tümü ANALYTICS) ──────────────────────────
     r!("VAT_001", Orta,   Analytics, 5, &[], Some("route_id"), VA, Entity,

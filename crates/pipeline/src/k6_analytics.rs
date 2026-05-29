@@ -115,6 +115,12 @@ fn is_all_caps(s: &str) -> bool {
     letters.len() >= 2 && letters.iter().all(|c| c.is_uppercase())
 }
 
+// Tüm harfler küçük harf — mixed_case_recommended_field (all-lowercase varyantı)
+fn is_all_lower(s: &str) -> bool {
+    let letters: Vec<char> = s.chars().filter(|c| c.is_alphabetic()).collect();
+    letters.len() >= 3 && letters.iter().all(|c| c.is_lowercase())
+}
+
 fn haversine_km(lat1: f64, lon1: f64, lat2: f64, lon2: f64) -> f64 {
     const R: f64 = 6371.0;
     let dlat = (lat2 - lat1).to_radians();
@@ -265,6 +271,8 @@ struct StopTimesIndex<'a> {
     trip_has_time: FxHashSet<&'a str>,
     stop_shapes: FxHashMap<&'a str, Vec<&'a str>>,
     trips_missing_sdt: FxHashMap<&'a str, u64>,
+    // STM_036: trip_id -> (önceki seq, sonraki seq, satır no) — sırasız stop_sequence tespiti
+    unsorted_seq_trips: Vec<(&'a str, u32, u32, u64)>,
 }
 
 impl<'a> StopTimesIndex<'a> {
@@ -289,6 +297,21 @@ impl<'a> StopTimesIndex<'a> {
                 if let Some(&shape_id) = trip_shape.get(trip_id) {
                     stop_shapes.entry(st.stop_id.as_str()).or_default().push(shape_id);
                 }
+            }
+        }
+
+        // STM_036: sıralama öncesi stop_sequence azalan geçişleri tespit et (unsorted_stop_times)
+        let mut unsorted_seq_trips: Vec<(&'a str, u32, u32, u64)> = Vec::new();
+        let mut seen_unsorted: FxHashSet<&str> = FxHashSet::default();
+        for (&trip_id, rows) in &by_trip {
+            let mut prev_seq = 0u32;
+            for st in rows.iter() {
+                let seq = st.stop_sequence.unwrap_or(0);
+                if seq < prev_seq && seen_unsorted.insert(trip_id) {
+                    unsorted_seq_trips.push((trip_id, prev_seq, seq, st.line));
+                    break;
+                }
+                prev_seq = seq;
             }
         }
 
@@ -327,7 +350,7 @@ impl<'a> StopTimesIndex<'a> {
             })
             .collect();
 
-        Self { by_trip, trip_first_dep, trip_has_time, stop_shapes, trips_missing_sdt }
+        Self { by_trip, trip_first_dep, trip_has_time, stop_shapes, trips_missing_sdt, unsorted_seq_trips }
     }
 }
 
@@ -437,6 +460,18 @@ fn check_speed_and_duration(
         (shape_pts, shape_cum, trip_shape)
     };
 
+    // STM_036: stop_sequence sırasız trip'ler
+    for &(trip_id, prev_seq, curr_seq, line_no) in &idx.unsorted_seq_trips {
+        notices.push(k6_notice(
+            ctr, "STM_036", EntityType::Trip,
+            Some(trip_id.to_string()), Some(trip_id.to_string()),
+            "stop_times.txt", Some(line_no), Some("stop_sequence"),
+            Some(format!("{curr_seq}")), Some(format!("≥ {prev_seq}")),
+            format!("'{trip_id}' seferinde stop_sequence {prev_seq}'den {curr_seq}'e düşüyor — değerler artmalı."),
+            "stop_times.txt'i trip_id ve stop_sequence'a göre sıralayın.",
+        ));
+    }
+
     // Reusable per-trip coord buffer: 1 lookup/stop (windows(2) ile 2 lookup/pair olurdu)
     let mut coords_buf: Vec<Option<(f64, f64)>> = Vec::new();
 
@@ -530,16 +565,35 @@ fn check_speed_and_duration(
             let (Some(dep), Some(arr)) = (dep_a, arr_b) else { continue };
             // STM_020: sıfır geçiş süresi — eşik 200m (dakika yuvarlama gürültüsünü filtreler)
             if arr == dep {
-                // Her iki zaman da tam dakika ise (saniye=0) → dakika yuvarlama gürültüsü, atla
                 let dep_secs = a.departure_time.map(|(_, _, s)| s).unwrap_or(1);
                 let arr_secs = b.arrival_time.map(|(_, _, s)| s).unwrap_or(1);
-                if dep_secs == 0 && arr_secs == 0 {
-                    continue;
-                }
                 let dist_km = match (coords_buf[i], coords_buf[i + 1]) {
                     (Some((la1, lo1)), Some((la2, lo2))) => haversine_km(la1, lo1, la2, lo2),
                     _ => 0.0,
                 };
+                // Her iki zaman tam dakika (saniye=0) ve duraklar 1 km'den yakın:
+                // dakika yuvarlama gürültüsü olabilir — atla.
+                // Duraklar 1 km'den uzaksa sıfır süre gerçek bir hata; STM_012 ateşle.
+                if dep_secs == 0 && arr_secs == 0 {
+                    if dist_km >= 1.0 {
+                        let mut n012 = k6_notice(
+                            ctr, "STM_012", EntityType::Trip,
+                            Some(trip_id.to_string()), Some(trip_id.to_string()),
+                            "stop_times.txt", Some(b.line), Some("arrival_time"),
+                            Some(format!("sifir sure, {dist_km:.1} km")),
+                            Some("<= 700 km/h".to_string()),
+                            format!("trip_id '{trip_id}' stop_sequence {}-{} arasi gecis suresi sifir ama mesafe {dist_km:.1} km — fiziksel olarak imkansiz.",
+                                a.stop_sequence.unwrap_or(0), b.stop_sequence.unwrap_or(0)),
+                            "stop_times.txt zaman degerlerini dogrulayin; ayni dakikada cok uzak iki durak olamaz.",
+                        );
+                        let mut d = std::collections::HashMap::new();
+                        d.insert("stop_a".to_string(), a.stop_id.to_string());
+                        d.insert("stop_b".to_string(), b.stop_id.to_string());
+                        n012.details = Some(d);
+                        notices.push(n012);
+                    }
+                    continue;
+                }
                 if dist_km > 0.2 {
                     let is_worse = worst_zero_seg.as_ref().map_or(true, |&(d, ..)| dist_km > d);
                     if is_worse {
@@ -983,7 +1037,7 @@ fn check_calendar_analytics(
                     ctr,
                     "CAL_007",
                     EntityType::Service,
-                    Some(service_id.clone()),
+                    Some(format!("{}@{}", service_id, pair[0])),
                     Some(service_id.clone()),
                     "calendar.txt",
                     None,
@@ -1178,6 +1232,22 @@ fn check_calendar_analytics(
                     Some(format!("{first}")), Some(format!("≤ {today_yyyymmdd}")),
                     format!("Feed'in en erken servis tarihi {first}; bu tarih henüz gelmedi — seferler bugün için mevcut değil."),
                     "Feed yayınlama zamanlamasını gözden geçirin ya da calendar.txt'i düzeltin.",
+                ));
+            }
+        }
+
+        // CAL_017: bireysel service_id'nin tüm aktif tarihleri gelecekte
+        for (service_id, dates) in &derived.calendar_bitmap.active_dates {
+            if dates.is_empty() { continue; }
+            let min_svc = dates.iter().copied().min().unwrap();
+            if min_svc > today_yyyymmdd {
+                notices.push(k6_notice(
+                    ctr, "CAL_017", EntityType::Service,
+                    Some(service_id.to_string()), Some(service_id.to_string()),
+                    "calendar.txt", None, Some("start_date"),
+                    Some(format!("{min_svc}")), Some(format!("≤ {today_yyyymmdd}")),
+                    format!("'{service_id}' takvimi henüz başlamamış; en erken aktif tarih {min_svc}."),
+                    "Takvim başlangıç tarihini veya calendar_dates.txt girişlerini gözden geçirin.",
                 ));
             }
         }
@@ -1969,6 +2039,74 @@ fn check_route_trip_quality(
         }
     }
     drop(_t5);
+
+    // ── RTS_020: hat URL'si acente URL'siyle aynı (same_route_and_agency_url) ─
+    {
+        let _t6 = Timer::start("K6::rtq::rts_020");
+        // agency_id → agency_url
+        let agency_url_map: HashMap<&str, &str> = records.agencies.iter()
+            .filter_map(|a| {
+                let aid = a.agency_id.as_deref().unwrap_or("");
+                if a.agency_url.is_empty() { None } else { Some((aid, a.agency_url.as_str())) }
+            })
+            .collect();
+        // Tek acente varsa ve agency_id eksikse o acente URL'sini kullan
+        let default_agency_url = if records.agencies.len() == 1 {
+            Some(records.agencies[0].agency_url.as_str())
+        } else {
+            None
+        };
+
+        for route in &records.routes {
+            if route.route_id.is_empty() { continue; }
+            let route_url = match route.route_url.as_deref().filter(|u| !u.is_empty()) {
+                Some(u) => u,
+                None => continue,
+            };
+            let agency_url = route.agency_id.as_deref()
+                .and_then(|aid| agency_url_map.get(aid).copied())
+                .or(default_agency_url);
+            if let Some(aurl) = agency_url {
+                if route_url == aurl {
+                    let rname = route_short.get(route.route_id.as_str()).copied().unwrap_or(route.route_id.as_str());
+                    notices.push(k6_notice(
+                        ctr, "RTS_020", EntityType::Route,
+                        Some(route.route_id.clone()), Some(route.route_id.clone()),
+                        "routes.txt", Some(route.line), Some("route_url"),
+                        Some(route_url.to_string()), None,
+                        format!("'{}' hattının route_url değeri acente URL'siyle aynı: '{route_url}'.", rname),
+                        "route_url'yi bu hata özgü bir sayfaya yönlendirin ya da boş bırakın.",
+                    ));
+                }
+            }
+        }
+    }
+
+    // ── RTS_022: uzun hat adı kısa adı içeriyor (route_long_name_contains_short_name) ─
+    {
+        let _t7 = Timer::start("K6::rtq::rts_022");
+        for route in &records.routes {
+            if route.route_id.is_empty() { continue; }
+            let short = match route.route_short_name.as_deref().filter(|s| !s.is_empty()) {
+                Some(s) => s,
+                None => continue,
+            };
+            let long = match route.route_long_name.as_deref().filter(|l| !l.is_empty()) {
+                Some(l) => l,
+                None => continue,
+            };
+            if long.to_lowercase().contains(&short.to_lowercase()) {
+                notices.push(k6_notice(
+                    ctr, "RTS_022", EntityType::Route,
+                    Some(route.route_id.clone()), Some(route.route_id.clone()),
+                    "routes.txt", Some(route.line), Some("route_long_name"),
+                    Some(long.to_string()), None,
+                    format!("'{}' hattının uzun adı '{}', kısa adı '{}' zaten içeriyor.", route.route_id, long, short),
+                    "route_long_name'i kısa adı tekrar etmeyecek şekilde düzenleyin.",
+                ));
+            }
+        }
+    }
 }
 
 // ── WP-09d: Veri kalitesi özet kuralları ──────────────────────────────────────
@@ -2240,6 +2378,113 @@ fn check_data_quality(
                     ));
                 }
             }
+
+            // FIN_018: feed_contact_email ve feed_contact_url ikisi de eksik
+            // (missing_feed_contact_email_and_url)
+            let has_contact_email = fi.feed_contact_email.as_deref()
+                .map(|e| !e.trim().is_empty()).unwrap_or(false);
+            let has_contact_url = fi.feed_contact_url.as_deref()
+                .map(|u| !u.trim().is_empty()).unwrap_or(false);
+            if !has_contact_email && !has_contact_url {
+                notices.push(k6_notice(
+                    ctr, "FIN_018", EntityType::Feed,
+                    None, None, "feed_info.txt", None, Some("feed_contact_email"),
+                    None, None,
+                    "feed_contact_email ve feed_contact_url alanlarının ikisi de eksik — kullanıcılar feed sorunlarını nereden bildireceğini bilemiyor.".to_string(),
+                    "feed_info.txt'e feed_contact_email veya feed_contact_url ekleyin.",
+                ));
+            }
+
+            // FIN_019: feed 7 gün içinde sona erecek (feed_expiration_date7_days)
+            if today_yyyymmdd > 0 {
+                if let Some((ey, em, ed)) = fi.feed_end_date {
+                    let end = ey * 10000 + em * 100 + ed;
+                    if end >= today_yyyymmdd {
+                        let today_jdn = yyyymmdd_to_approx_jdn(today_yyyymmdd);
+                        let end_jdn   = yyyymmdd_to_approx_jdn(end);
+                        let days_left = end_jdn.saturating_sub(today_jdn);
+                        if days_left <= 7 && days_left > 0 {
+                            notices.push(k6_notice(
+                                ctr, "FIN_019", EntityType::Feed,
+                                None, None, "feed_info.txt", None, Some("feed_end_date"),
+                                Some(format!("{ey}-{em:02}-{ed:02}")),
+                                Some("> +7 gün".to_string()),
+                                format!("Feed'in geçerlilik süresi {ey}-{em:02}-{ed:02} tarihinde doluyor — {days_left} gün kaldı."),
+                                "Yeni bir feed versiyonu yayınlamaya hazırlanın.",
+                            ));
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // DQ_021: birincil anahtar yineleniyor (duplicate_key)
+    // stop_id, route_id, trip_id, service_id tekrarını kontrol et
+    {
+        fn find_dups<'a, I: Iterator<Item=&'a str>>(ids: I) -> Vec<String> {
+            let mut seen: HashMap<&str, u32> = HashMap::new();
+            let mut dups: Vec<String> = Vec::new();
+            for id in ids {
+                let e = seen.entry(id).or_default();
+                *e += 1;
+                if *e == 2 { dups.push(id.to_string()); }
+            }
+            dups
+        }
+
+        for dup_id in find_dups(records.stops.iter().filter(|s| !s.stop_id.is_empty()).map(|s| s.stop_id.as_str())) {
+            notices.push(k6_notice(ctr, "DQ_021", EntityType::Stop,
+                Some(dup_id.clone()), Some(dup_id.clone()),
+                "stops.txt", None, Some("stop_id"), Some(dup_id.clone()), None,
+                format!("stop_id '{dup_id}' stops.txt'de birden fazla kez tanımlanmış."),
+                "stops.txt'de benzersiz stop_id değerleri kullanın."));
+        }
+        for dup_id in find_dups(records.routes.iter().filter(|r| !r.route_id.is_empty()).map(|r| r.route_id.as_str())) {
+            notices.push(k6_notice(ctr, "DQ_021", EntityType::Route,
+                Some(dup_id.clone()), Some(dup_id.clone()),
+                "routes.txt", None, Some("route_id"), Some(dup_id.clone()), None,
+                format!("route_id '{dup_id}' routes.txt'de birden fazla kez tanımlanmış."),
+                "routes.txt'de benzersiz route_id değerleri kullanın."));
+        }
+        for dup_id in find_dups(records.trips.iter().filter(|t| !t.trip_id.is_empty()).map(|t| t.trip_id.as_str())) {
+            notices.push(k6_notice(ctr, "DQ_021", EntityType::Trip,
+                Some(dup_id.clone()), Some(dup_id.clone()),
+                "trips.txt", None, Some("trip_id"), Some(dup_id.clone()), None,
+                format!("trip_id '{dup_id}' trips.txt'de birden fazla kez tanımlanmış."),
+                "trips.txt'de benzersiz trip_id değerleri kullanın."));
+        }
+    }
+
+    // ARC_020: önerilen dosyalar eksik (missing_recommended_file)
+    // GTFS en iyi uygulamalarına göre shapes.txt ve feed_info.txt önerilir.
+    if feed_has_content {
+        let has_shapes = !records.shapes.is_empty();
+        let has_feed_info = !records.feed_info.is_empty();
+        if !has_shapes && !has_feed_info {
+            notices.push(k6_notice(
+                ctr, "ARC_020", EntityType::Feed,
+                None, None, "shapes.txt/feed_info.txt", None, None,
+                Some("shapes.txt, feed_info.txt eksik".to_string()), None,
+                "Feed'de shapes.txt ve feed_info.txt dosyaları yok — her ikisi de önerilir.".to_string(),
+                "shapes.txt ile güzergah geometrisi ve feed_info.txt ile yayıncı bilgisi ekleyin.",
+            ));
+        } else if !has_shapes {
+            notices.push(k6_notice(
+                ctr, "ARC_020", EntityType::Feed,
+                None, None, "shapes.txt", None, None,
+                Some("shapes.txt eksik".to_string()), None,
+                "Feed'de shapes.txt dosyası yok — güzergah geometrisi için önerilir.".to_string(),
+                "shapes.txt dosyası oluşturarak güzergah geometrisi ekleyin.",
+            ));
+        } else if !has_feed_info {
+            notices.push(k6_notice(
+                ctr, "ARC_020", EntityType::Feed,
+                None, None, "feed_info.txt", None, None,
+                Some("feed_info.txt eksik".to_string()), None,
+                "Feed'de feed_info.txt dosyası yok — yayıncı ve geçerlilik bilgisi için önerilir.".to_string(),
+                "feed_info.txt dosyası oluşturarak yayıncı bilgisini tanımlayın.",
+            ));
         }
     }
 }
@@ -2375,6 +2620,45 @@ fn check_remaining_analytics(
                         "Güzergah şekline ara noktalar ekleyerek büyük atlama noktasını kapatın.",
                     ));
                     break;
+                }
+            }
+        }
+    }
+
+    // ── SHP_023: aynı dist_traveled ve koordinatlara sahip ardışık iki shape noktası ─
+    // (equal_shape_distance_same_coordinates)
+    {
+        let _ts23 = Timer::start("K6::rem::shp_023");
+        let mut shape_raw: FxHashMap<&str, Vec<(u32, Option<f64>, f64, f64)>> = FxHashMap::default();
+        for sp in &records.shapes {
+            if let (Some(lat), Some(lon)) = (sp.shape_pt_lat, sp.shape_pt_lon) {
+                shape_raw.entry(sp.shape_id.as_str()).or_default()
+                    .push((sp.shape_pt_sequence.unwrap_or(0), sp.shape_dist_traveled, lat, lon));
+            }
+        }
+        for (_shape_id, pts) in &mut shape_raw {
+            pts.sort_by_key(|&(seq, _, _, _)| seq);
+        }
+        let mut shp023_fired: FxHashSet<&str> = FxHashSet::default();
+        for (shape_id, pts) in &shape_raw {
+            if shp023_fired.contains(*shape_id) { continue; }
+            for w in pts.windows(2) {
+                let (_, da, la, loa) = w[0];
+                let (_, db, lb, lob) = w[1];
+                if let (Some(da_v), Some(db_v)) = (da, db) {
+                    const EPS: f64 = 1e-9;
+                    if (da_v - db_v).abs() < EPS && (la - lb).abs() < EPS && (loa - lob).abs() < EPS {
+                        shp023_fired.insert(shape_id);
+                        notices.push(k6_notice(
+                            ctr, "SHP_023", EntityType::Shape,
+                            Some(shape_id.to_string()), Some(shape_id.to_string()),
+                            "shapes.txt", None, Some("shape_dist_traveled"),
+                            Some(format!("dist={da_v:.4}, ({la:.6},{loa:.6})")), None,
+                            format!("'{shape_id}' şeklinde art arda iki noktanın shape_dist_traveled ({da_v:.4}) ve koordinatları aynı — tekrar eden nokta."),
+                            "Yinelenen shape noktasını kaldırın.",
+                        ));
+                        break;
+                    }
                 }
             }
         }
@@ -2554,6 +2838,162 @@ fn check_remaining_analytics(
                 }
                 notices.push(notice);
                 // SHP_013 kaldırıldı — GEO_009 ile aynı fiziksel koşulu raporluyordu (çift sayım)
+            }
+        }
+    }
+
+    // ── SHP_024: duraktan şekle mesafe shape_dist_traveled ile tutarsız ────────
+    // (stop_too_far_from_shape_using_user_distance)
+    // GEO_009 ile fark: polyline'a minimum mesafe değil, shape_dist_traveled ile
+    // belirlenen konumdaki şekil noktasına olan mesafe hesaplanır.
+    {
+        let _ts24 = Timer::start("K6::rem::shp_024");
+        let threshold_km = config.stop_far_from_shape_m / 1000.0;
+
+        // shape_id → sorted Vec<(dist, lat, lon)> — yalnızca dist_traveled olan noktalar
+        let mut shape_sdt_pts: FxHashMap<&str, Vec<(f64, f64, f64)>> = FxHashMap::default();
+        for sp in &records.shapes {
+            if let (Some(dist), Some(lat), Some(lon)) = (sp.shape_dist_traveled, sp.shape_pt_lat, sp.shape_pt_lon) {
+                shape_sdt_pts.entry(sp.shape_id.as_str()).or_default().push((dist, lat, lon));
+            }
+        }
+        for pts in shape_sdt_pts.values_mut() {
+            pts.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
+        }
+
+        let mut seen_shp024: FxHashSet<(&str, &str)> = FxHashSet::default(); // (stop_id, shape_id)
+
+        for trip in &records.trips {
+            let shape_id = match trip.shape_id.as_deref().filter(|s| !s.is_empty()) {
+                Some(s) => s,
+                None => continue,
+            };
+            let sdt_pts = match shape_sdt_pts.get(shape_id) {
+                Some(pts) if pts.len() >= 2 => pts,
+                _ => continue,
+            };
+            let stimes = match idx.by_trip.get(trip.trip_id.as_str()) {
+                Some(v) => v,
+                None => continue,
+            };
+
+            for st in stimes.iter() {
+                let sdt = match st.shape_dist_traveled {
+                    Some(d) => d,
+                    None => continue,
+                };
+                let stop_id = st.stop_id.as_str();
+                if seen_shp024.contains(&(stop_id, shape_id)) { continue; }
+
+                let (slat, slon) = match stop_coords.get(stop_id) {
+                    Some(&c) => c,
+                    None => continue,
+                };
+
+                // sdt değerine karşılık gelen konumu shape üzerinde interpolasyonla bul
+                let pos = sdt_pts.partition_point(|&(d, _, _)| d <= sdt);
+                let (ilat, ilon) = if pos == 0 {
+                    let &(_, la, lo) = sdt_pts.first().unwrap();
+                    (la, lo)
+                } else if pos >= sdt_pts.len() {
+                    let &(_, la, lo) = sdt_pts.last().unwrap();
+                    (la, lo)
+                } else {
+                    let (da, la, loa) = sdt_pts[pos - 1];
+                    let (db, lb, lob) = sdt_pts[pos];
+                    if (db - da).abs() < 1e-9 {
+                        (la, loa)
+                    } else {
+                        let t = (sdt - da) / (db - da);
+                        (la + t * (lb - la), loa + t * (lob - loa))
+                    }
+                };
+
+                let dist_km = haversine_km(slat, slon, ilat, ilon);
+                if dist_km > threshold_km {
+                    seen_shp024.insert((stop_id, shape_id));
+                    let stop_name = stop_names.get(stop_id).copied().unwrap_or(stop_id);
+                    notices.push(k6_notice(
+                        ctr, "SHP_024", EntityType::Stop,
+                        Some(stop_id.to_string()), Some(stop_id.to_string()),
+                        "stop_times.txt", Some(st.line), Some("shape_dist_traveled"),
+                        Some(format!("{:.1}m shape '{shape_id}'daki sdt={sdt:.3}", dist_km * 1000.0)),
+                        Some(format!("≤ {:.0}m", config.stop_far_from_shape_m)),
+                        format!("'{}' durağı (shape_dist_traveled={sdt:.3}) shape_dist_traveled konumundan {:.1}m uzakta (eşik: {:.0}m).",
+                            stop_name, dist_km * 1000.0, config.stop_far_from_shape_m),
+                        "stop_times.txt'deki shape_dist_traveled değerini ya da stop koordinatlarını düzeltin.",
+                    ));
+                }
+            }
+        }
+    }
+
+    // ── SHP_025: stop_times shape_dist_traveled şeklin toplam mesafesini aşıyor ─
+    // (trip_distance_exceeds_shape_distance)
+    {
+        let _ts25 = Timer::start("K6::rem::shp_025");
+        // shape_id → max shape_dist_traveled değeri (shapes.txt'ten)
+        let mut shape_max_sdt: FxHashMap<&str, f64> = FxHashMap::default();
+        for sp in &records.shapes {
+            if let Some(d) = sp.shape_dist_traveled {
+                let e = shape_max_sdt.entry(sp.shape_id.as_str()).or_insert(0.0);
+                if d > *e { *e = d; }
+            }
+        }
+        // Yalnızca tüm shape noktaları dist_traveled içeriyorsa kontrol et
+        // (shapes.txt'te bazı noktalarda yoksa karşılaştırma güvenilmez)
+        let mut shape_has_full_sdt: FxHashSet<&str> = FxHashSet::default();
+        {
+            let mut shape_total: FxHashMap<&str, u32> = FxHashMap::default();
+            let mut shape_with_sdt: FxHashMap<&str, u32> = FxHashMap::default();
+            for sp in &records.shapes {
+                if !sp.shape_id.is_empty() {
+                    *shape_total.entry(sp.shape_id.as_str()).or_default() += 1;
+                    if sp.shape_dist_traveled.is_some() {
+                        *shape_with_sdt.entry(sp.shape_id.as_str()).or_default() += 1;
+                    }
+                }
+            }
+            for (sid, total) in &shape_total {
+                if shape_with_sdt.get(sid).copied().unwrap_or(0) == *total {
+                    shape_has_full_sdt.insert(sid);
+                }
+            }
+        }
+
+        for trip in &records.trips {
+            let shape_id = match trip.shape_id.as_deref().filter(|s| !s.is_empty()) {
+                Some(s) => s,
+                None => continue,
+            };
+            if !shape_has_full_sdt.contains(shape_id) { continue; }
+            let shape_max = match shape_max_sdt.get(shape_id) {
+                Some(&m) => m,
+                None => continue,
+            };
+
+            let stimes = match idx.by_trip.get(trip.trip_id.as_str()) {
+                Some(v) => v,
+                None => continue,
+            };
+
+            // stop_times'daki en büyük shape_dist_traveled değeri
+            let trip_max_sdt = stimes.iter()
+                .filter_map(|st| st.shape_dist_traveled)
+                .fold(f64::NEG_INFINITY, f64::max);
+
+            if trip_max_sdt.is_finite() && trip_max_sdt > shape_max * 1.001 {
+                let route = trip_to_route_rem.get(trip.trip_id.as_str()).copied().unwrap_or(trip.trip_id.as_str());
+                notices.push(k6_notice(
+                    ctr, "SHP_025", EntityType::Trip,
+                    Some(trip.trip_id.clone()), Some(trip.trip_id.clone()),
+                    "stop_times.txt", None, Some("shape_dist_traveled"),
+                    Some(format!("{trip_max_sdt:.3}")),
+                    Some(format!("≤ {shape_max:.3}")),
+                    format!("'{}' hattının seferinde stop_times shape_dist_traveled ({trip_max_sdt:.3}) şeklin maksimum değerini ({shape_max:.3}) aşıyor.",
+                        route),
+                    "stop_times.txt'deki shape_dist_traveled değerlerini shapes.txt ölçeğiyle eşleştirin.",
+                ));
             }
         }
     }
@@ -3465,6 +3905,69 @@ fn check_remaining_analytics(
                     Some(ag.agency_name.clone()), None,
                     format!("'{}' işleticisinin adı tamamen büyük harf: '{}'.", label, ag.agency_name),
                     "İşletici adını düzgün harf kuralıyla yazın.",
+                ));
+            }
+        }
+    }
+
+    // ── DQ_019: önerilen alanlarda tümü küçük harf (mixed_case_recommended_field) ──
+    {
+        let _t19 = Timer::start("K6::rem::dq_019");
+        for stop in &records.stops {
+            if stop.stop_id.is_empty() { continue; }
+            if let Some(name) = stop.stop_name.as_deref().filter(|s| is_all_lower(s)) {
+                notices.push(k6_notice(
+                    ctr, "DQ_019", EntityType::Stop,
+                    Some(stop.stop_id.clone()), Some(stop.stop_id.clone()),
+                    "stops.txt", Some(stop.line), Some("stop_name"),
+                    Some(name.to_string()), None,
+                    format!("'{}' durağının adı tamamen küçük harf: '{name}'.", stop.stop_id),
+                    "Durak adını başlık harfiyle yazın (ör. 'Merkez İstasyon').",
+                ));
+            }
+        }
+        for route in &records.routes {
+            if route.route_id.is_empty() { continue; }
+            if let Some(name) = route.route_long_name.as_deref().filter(|s| is_all_lower(s)) {
+                notices.push(k6_notice(
+                    ctr, "DQ_019", EntityType::Route,
+                    Some(route.route_id.clone()), Some(route.route_id.clone()),
+                    "routes.txt", Some(route.line), Some("route_long_name"),
+                    Some(name.to_string()), None,
+                    format!("'{}' hattının uzun adı tamamen küçük harf: '{name}'.", route.route_id),
+                    "Hat adını başlık harfiyle yazın.",
+                ));
+            }
+        }
+        for trip in &records.trips {
+            if trip.trip_id.is_empty() { continue; }
+            if let Some(hs) = trip.trip_headsign.as_deref().filter(|s| is_all_lower(s)) {
+                notices.push(k6_notice(
+                    ctr, "DQ_019", EntityType::Trip,
+                    Some(trip.trip_id.clone()), Some(trip.trip_id.clone()),
+                    "trips.txt", Some(trip.line), Some("trip_headsign"),
+                    Some(hs.to_string()), None,
+                    format!("'{}' seferinin yön adı tamamen küçük harf: '{hs}'.", trip.trip_id),
+                    "Yön adını başlık harfiyle yazın.",
+                ));
+            }
+        }
+    }
+
+    // ── DQ_020: önerilen alan eksik (missing_recommended_field) ──────────────
+    {
+        let _t20 = Timer::start("K6::rem::dq_020");
+        // trip_headsign: GTFS spec'te önerilen alan
+        for trip in &records.trips {
+            if trip.trip_id.is_empty() { continue; }
+            if trip.trip_headsign.as_deref().map(|s| s.trim().is_empty()).unwrap_or(true) {
+                notices.push(k6_notice(
+                    ctr, "DQ_020", EntityType::Trip,
+                    Some(trip.trip_id.clone()), Some(trip.trip_id.clone()),
+                    "trips.txt", Some(trip.line), Some("trip_headsign"),
+                    None, None,
+                    format!("'{}' seferinde trip_headsign eksik — yolcu bilgi sistemleri için önerilir.", trip.trip_id),
+                    "trips.txt'e trip_headsign sütunu ekleyin.",
                 ));
             }
         }
