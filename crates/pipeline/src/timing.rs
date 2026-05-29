@@ -25,7 +25,9 @@ impl Timer {
 #[cfg(not(target_arch = "wasm32"))]
 impl Drop for Timer {
     fn drop(&mut self) {
-        eprintln!("[timing] {}: {}ms", self.label, self.start.elapsed().as_millis());
+        if std::env::var_os("GTFS_QUIET").is_none() {
+            eprintln!("[timing] {}: {}ms", self.label, self.start.elapsed().as_millis());
+        }
     }
 }
 
