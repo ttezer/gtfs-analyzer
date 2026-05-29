@@ -57,7 +57,7 @@ function renderR9(items: R9Item[], noticeMap: Map<string, Notice>, normFactor: n
       <tr class="r9-main-row" data-idx="${i}">
         <td>
           <span class="r9-arrow">▶</span> <code>${escHtml(item.rule_id)}</code>
-          ${notice?.title ? `<span class="r9-rule-title">${escHtml(notice.title)}</span>` : ''}
+          ${notice ? `<span class="r9-rule-title">${escHtml(t('rule.' + notice.rule_id))}</span>` : ''}
         </td>
         <td style="color:${SEVERITY_COLOR[severity]}">${SEVERITY_TR[severity]}</td>
         <td>${badgeHtml}</td>
@@ -74,7 +74,7 @@ function renderR9(items: R9Item[], noticeMap: Map<string, Notice>, normFactor: n
       <tr class="r9-detail-row" data-for="${i}" hidden>
         <td colspan="10">
           <div class="r9-detail">
-            ${notice?.title ? `<p><strong>${t('fix.r9_message')}</strong> ${escHtml(notice.title)}</p>` : ''}
+            ${notice ? `<p><strong>${t('fix.r9_message')}</strong> ${escHtml(t('rule.' + notice.rule_id))}</p>` : ''}
             ${notice?.remediation ? `<p><strong>${t('fix.r9_remediation')}</strong> ${escHtml(notice.remediation)}</p>` : ''}
           </div>
         </td>
@@ -119,7 +119,7 @@ function renderR2(result: ValidationResult, noticeMap: Map<string, Notice>, delt
       .filter(item => noticeMap.has(item.notice_id))
       .map(item => {
         const n = noticeMap.get(item.notice_id)!;
-        return [n.rule_id, n.title || n.rule_id] as [string, string];
+        return [n.rule_id, t('rule.' + n.rule_id)] as [string, string];
       })
   ).entries()].sort(([a], [b]) => a.localeCompare(b));
 

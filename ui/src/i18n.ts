@@ -1,4 +1,5 @@
 import type { Severity, RuleClass, FatalCode } from './types';
+import { getRuleTitle } from './rule-titles';
 
 export type Locale = 'tr' | 'en';
 
@@ -592,6 +593,7 @@ const STRINGS: Record<Locale, Record<string, string>> = {
 // ── t() — translate with optional {param} interpolation ──────────────────────
 
 export function t(key: string, params?: Record<string, string | number>): string {
+  if (key.startsWith('rule.')) return getRuleTitle(key.slice(5), _locale);
   let s = STRINGS[_locale][key] ?? STRINGS.tr[key] ?? key;
   if (params) {
     for (const [k, v] of Object.entries(params)) {

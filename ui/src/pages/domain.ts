@@ -53,7 +53,7 @@ function renderR1Card(r1: ValidationResult['reports']['r1'], result: ValidationR
       .slice(0, 5)
       .map(id => {
         const n = noticeMap.get(id);
-        return n ? `<li><code>${escHtml(n.rule_id)}</code> — ${escHtml(n.title || n.message.slice(0, 80))}</li>` : '';
+        return n ? `<li><code>${escHtml(n.rule_id)}</code> — ${escHtml(t('rule.' + n.rule_id))}</li>` : '';
       }).join('');
     return `
       <div class="rpt-r1 rpt-r1-blocked">
@@ -71,7 +71,7 @@ function renderR1Card(r1: ValidationResult['reports']['r1'], result: ValidationR
       .slice(0, 5)
       .map(id => {
         const n = noticeMap.get(id);
-        return n ? `<li><code>${escHtml(n.rule_id)}</code> — ${escHtml(n.title || n.message.slice(0, 80))}</li>` : '';
+        return n ? `<li><code>${escHtml(n.rule_id)}</code> — ${escHtml(t('rule.' + n.rule_id))}</li>` : '';
       }).join('');
     return `
       <div class="rpt-r1 rpt-r1-conditional">
