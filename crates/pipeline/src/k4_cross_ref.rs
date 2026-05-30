@@ -490,35 +490,6 @@ fn check_routes(
         }
     }
 
-    // RTS_014: route_long_name değerleri tekrar ediyor (feed-level)
-    {
-        let mut long_name_routes: HashMap<String, Vec<String>> = HashMap::new();
-        for rec in &records.routes {
-            if let Some(ref ln) = rec.route_long_name {
-                long_name_routes.entry(ln.clone()).or_default().push(rec.route_id.clone());
-            }
-        }
-        for (name, route_ids) in &long_name_routes {
-            if route_ids.len() > 1 {
-                notices.push(notice(
-                    ctr,
-                    "RTS_014",
-                    EntityType::Feed,
-                    None,
-                    None,
-                    "routes.txt",
-                    None,
-                    Some("route_long_name"),
-                    Some(name.clone()),
-                    None,
-                    format!("route_long_name '{name}' {} farklı hatta kullanılıyor: {}.",
-                        route_ids.len(), route_ids.join(", ")),
-                    "Her hatta özgün bir route_long_name verin.",
-                ));
-            }
-        }
-    }
-
     // RTS_012: hiçbir trip'te kullanılmayan rota (orphan)
     let used_routes: HashSet<&str> = records
         .trips
@@ -2422,6 +2393,55 @@ fn check_xfl(
                                 rec.service_id
                             ),
                             "feed_info.txt'deki feed_start_date ve feed_end_date'i calendar.txt aralıklarıyla uyumlu hale getirin.",
+                        ));
+                    }
+                }
+            }
+        }
+    }
+
+    // CAL_019: Servis takvim aralığı feed_info.txt geçerlilik penceresi dışına taşıyor
+    {
+        if let Some(fi) = records.feed_info.first() {
+            let fi_start_opt = fi.feed_start_date.map(date_to_u32);
+            let fi_end_opt   = fi.feed_end_date.map(date_to_u32);
+            if fi_start_opt.is_some() || fi_end_opt.is_some() {
+                for rec in &records.calendars {
+                    if rec.service_id.is_empty() { continue; }
+                    let mut outside = false;
+                    let mut observed = String::new();
+                    if let (Some(fi_s), Some(cal_start)) = (fi_start_opt, rec.start_date) {
+                        let cs = date_to_u32(cal_start);
+                        if cs < fi_s {
+                            outside = true;
+                            observed = format!("start_date={cs} < feed_start_date={fi_s}");
+                        }
+                    }
+                    if let (Some(fi_e), Some(cal_end)) = (fi_end_opt, rec.end_date) {
+                        let ce = date_to_u32(cal_end);
+                        if ce > fi_e {
+                            outside = true;
+                            if observed.is_empty() {
+                                observed = format!("end_date={ce} > feed_end_date={fi_e}");
+                            } else {
+                                observed = format!("{observed}, end_date={ce} > feed_end_date={fi_e}");
+                            }
+                        }
+                    }
+                    if outside {
+                        notices.push(notice(
+                            ctr,
+                            "CAL_019",
+                            EntityType::Service,
+                            Some(rec.service_id.clone()),
+                            Some(rec.service_id.clone()),
+                            "calendar.txt",
+                            Some(rec.line),
+                            Some("start_date|end_date"),
+                            Some(observed),
+                            None,
+                            format!("Servis '{}' takvim tarihleri feed_info.txt geçerlilik penceresi dışında.", rec.service_id),
+                            "feed_info.txt'deki feed_start_date/feed_end_date'i ya da calendar.txt'deki servis tarihlerini güncelleyin.",
                         ));
                     }
                 }

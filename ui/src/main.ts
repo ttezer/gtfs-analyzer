@@ -60,6 +60,12 @@ export function renderApp(): void {
     app.querySelector<HTMLButtonElement>('.lang-toggle')!
       .addEventListener('click', () => {
         setLocale(getLocale() === 'tr' ? 'en' : 'tr');
+        if (document.querySelector('#drop-zone.loading')) {
+          // ZIP yükleme aktifken tam render yapma — eski root'u kopar
+          const btn = document.querySelector<HTMLButtonElement>('.lang-toggle');
+          if (btn) btn.textContent = t('lang.switch');
+          return;
+        }
         renderApp();
       });
     renderUpload(document.getElementById('page-root')!);

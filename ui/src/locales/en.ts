@@ -449,11 +449,10 @@ const en: LocaleShape = {
     'RTS_011': "Route '{entity_id}': route_long_name is too long.",
     'RTS_012': "Route '{entity_id}' has no trips.",
     'RTS_013': "Route '{entity_id}': continuous_pickup '{observed_value}' is invalid.",
-    'RTS_014': "route_long_name '{entity_id}' is shared by multiple routes.",
     'RTS_016': "Route '{entity_id}' has no active service days.",
     'RTS_017': "Route '{entity_id}' has no shape defined.",
     'RTS_018': "Route '{entity_id}': continuous_drop_off '{observed_value}' is invalid.",
-    'RTS_019': "Duplicate route name: '{entity_id}'.",
+    'RTS_019': "Route '{entity_id}': {field} '{observed_value}' is already used by another route.",
     'RTS_020': "Route '{entity_id}': route_url and agency_url are identical.",
     'RTS_021': "Route '{entity_id}': route_short_name exceeds Google Transit's 6-character limit.",
     'RTS_022': "Route '{entity_id}': route_long_name contains the route_short_name.",
@@ -547,6 +546,7 @@ const en: LocaleShape = {
     'CAL_016': "Feed's latest service date is {observed_value} — more than 2 years in the future.",
     'CAL_017': "Service '{entity_id}': all active dates are in the future (earliest: {observed_value}).",
     'CAL_018': "Service '{entity_id}': no active weekdays and no calendar_dates overrides.",
+    'CAL_019': "Service '{entity_id}': calendar dates fall outside the feed_info validity window ({observed_value}).",
     // CLD
     'CLD_001': 'calendar_dates.txt: service_id is missing.',
     'CLD_002': "calendar_dates.txt: date '{observed_value}' has an invalid format.",
@@ -1034,7 +1034,6 @@ const en: LocaleShape = {
     'RTS_011': 'Keep route_long_name under 100 characters.',
     'RTS_012': 'Remove the unused route or assign it a trip.',
     'RTS_013': 'Set the field to a valid GTFS continuous service value (0–3).',
-    'RTS_014': 'Give each route a unique route_long_name.',
     'RTS_018': 'Set the field to a valid GTFS continuous service value (0–3).',
     'RTS_019': 'Give each route a unique short or long name, or document intentional sharing.',
     'RTS_021': 'Keep route_short_name under 6 characters for Google Transit compatibility.',
@@ -1254,6 +1253,88 @@ const en: LocaleShape = {
     'XFL_018': 'Add feed_info.txt with feed_publisher_name, feed_publisher_url, feed_lang, feed_start_date and feed_end_date.',
     'XFL_019': 'Define the network assignment in only one place: either routes.txt network_id or route_networks.txt.',
     'XFL_021': 'Replace from_stop_id/to_stop_id with a stop that is actually served by the referenced trip.',
+    'XFL_020': 'Correct the (from_trip_id/to_trip_id, route_id) pair so the route matches the referenced trip.',
+    // ARC
+    'ARC_001': 'Verify the feed ZIP file is not corrupted and can be opened.',
+    'ARC_002': 'Re-save the file with UTF-8 encoding.',
+    'ARC_003': 'Save all GTFS files with UTF-8 encoding.',
+    'ARC_004': 'Add the missing file to the feed ZIP archive.',
+    'ARC_006': 'Informational notice; no action required.',
+    'ARC_007': 'Remove non-GTFS files from the ZIP.',
+    'ARC_008': 'Include at least one of calendar.txt or calendar_dates.txt in the ZIP.',
+    'ARC_009': 'Add at least one data row to the file.',
+    'ARC_010': 'Re-save the file as UTF-8 without BOM.',
+    'ARC_011': 'Informational notice; no action required.',
+    'ARC_012': 'Ensure each row contains exactly as many comma-separated values as the header.',
+    'ARC_013': 'Check the CSV format; ensure all quoted fields are properly closed.',
+    'ARC_014': 'Remove leading and trailing whitespace from CSV header field names.',
+    'ARC_015': 'Remove the duplicate column from the header row.',
+    'ARC_016': 'Fill in all required fields.',
+    'ARC_017': 'Remove columns not defined in the GTFS specification.',
+    'ARC_018': 'Remove empty rows from the file.',
+    'ARC_019': 'Ensure all header column names are non-empty.',
+    'ARC_021': 'Ensure all field values contain only printable ASCII characters.',
+    'ARC_022': 'Split the file into smaller parts or remove unnecessary rows.',
+    // AGN
+    'AGN_001': 'Add agency.txt to the feed ZIP.',
+    'AGN_013': 'Align the feed_lang value in feed_info.txt with the agency_lang value in agency.txt.',
+    // ATR
+    'ATR_009': 'Fill in only one of these attribution reference fields.',
+    'ATR_010': 'Use a valid agency_id, route_id or trip_id in the attribution record.',
+    // CAL
+    'CAL_009': 'Update the feed validity period so active service dates are covered.',
+    'CAL_011': 'Remove the unused service or assign it to at least one trip.',
+    'CAL_018': 'Set at least one weekday to active (1) or add calendar_dates entries for this service.',
+    'CAL_019': 'Update feed_start_date/feed_end_date in feed_info.txt to cover the full service date range, or adjust calendar.txt dates.',
+    // CLD
+    'CLD_004': 'Remove the duplicate or conflicting exception record for this service and date.',
+    // DQ
+    'DQ_005b': 'Create stop_times.txt with arrival/departure_time and stop_sequence entries.',
+    'DQ_005c': 'Add stop_lat and stop_lon coordinates to all stops in stops.txt.',
+    'DQ_016': 'Trim leading and trailing whitespace from all field values.',
+    // FAR
+    'FAR_008': 'Use a valid agency_id from agency.txt.',
+    'FAR_009': 'Add at least one rule in fare_rules.txt for this fare_id.',
+    'FAR_010': 'Review fare rules to remove overlapping origin/destination/zone combinations.',
+    // FMD
+    'FMD_001': 'Assign a unique fare_media_id to each fare media record.',
+    // FPD
+    'FPD_001': 'Assign a unique fare_product_id to each fare product record.',
+    // FRL
+    'FRL_007': 'Review fare rule logic; ensure the zone combination is consistent and non-contradictory.',
+    'FRL_008': 'Add fare rules covering all routes or define a catch-all fare.',
+    // LOC
+    'LOC_001': 'Ensure locations.geojson contains only Polygon or MultiPolygon feature geometries.',
+    // PTH
+    'PTH_001': 'Assign a unique pathway_id to each pathway record.',
+    'PTH_014': 'Pathways must connect stops within the same station; update from_stop_id or to_stop_id.',
+    // RTS
+    'RTS_001': 'Assign a unique route_id to each route record.',
+    // SHP
+    'SHP_006': 'Add at least one more point to the shape in shapes.txt (minimum 2 total).',
+    'SHP_007': 'Add all significant turning points to the shape in shapes.txt.',
+    'SHP_010': 'Remove the repeated consecutive coordinate from the shape.',
+    'SHP_018': 'Remove the unused shape or assign it to a trip via shape_id in trips.txt.',
+    // STM
+    'STM_024': 'Ensure shape_dist_traveled units are consistent across all stop_times rows for this trip.',
+    // TRF
+    'TRF_006': 'Use a valid trip_id from trips.txt for from_trip_id.',
+    'TRF_007': 'Use a valid trip_id from trips.txt for to_trip_id.',
+    'TRF_008': 'Use a valid route_id from routes.txt for from_route_id.',
+    'TRF_009': 'Use a valid route_id from routes.txt for to_route_id.',
+    'TRF_010': 'Review min_transfer_time; enter a realistic transfer duration in seconds.',
+    'TRF_012': 'Remove the duplicate transfer record.',
+    'TRF_013': 'Fill in both from_trip_id and to_trip_id for linked-trip transfers.',
+    'TRF_014': 'Add stop_times records for the referenced trip.',
+    'TRF_015': 'Use a regular stop (location_type=0) for linked-trip transfers, not a station or entrance.',
+    'TRF_016': 'Remove or modify one of the conflicting transfer conditions.',
+    'TRF_017': 'Set from_route_id to the route_id of the referenced from_trip_id.',
+    'TRF_018': 'from_trip_id and to_trip_id must reference different trips.',
+    'TRF_019': 'Ensure both trips in an in-seat transfer use the same route_type.',
+    // TRN
+    'TRN_004': 'Use a record_id that exists in the referenced table.',
+    // TRP
+    'TRP_017': 'Add stop_times records for this frequency-based trip.',
   } as Record<string, string>,
 
   ruleTitles: {
@@ -1355,7 +1436,6 @@ const en: LocaleShape = {
     'RTS_011': 'route_long_name too long',
     'RTS_012': 'Route with no trips',
     'RTS_013': 'continuous_pickup invalid',
-    'RTS_014': 'Duplicate route_long_name values',
     'RTS_016': 'Route with no active service days',
     'RTS_017': 'Route with no shape defined',
     'RTS_018': 'continuous_drop_off invalid',
@@ -1453,6 +1533,7 @@ const en: LocaleShape = {
     'CAL_016': 'Service extends to a very distant future date',
     'CAL_017': 'Calendar has not yet started (all active dates in the future)',
     'CAL_018': 'Service has no active weekdays (all days 0, none overridden by calendar_dates)',
+    'CAL_019': 'Service calendar dates outside feed_info validity window',
     // CLD
     'CLD_001': 'service_id missing',
     'CLD_002': 'date invalid format',

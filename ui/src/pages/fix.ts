@@ -256,7 +256,7 @@ const TRIP_ID_RULES = new Set([
 const ROUTE_ID_RULES = new Set([
   // RTS grubu
   'RTS_001','RTS_002','RTS_003','RTS_004','RTS_005','RTS_006','RTS_007','RTS_008',
-  'RTS_009','RTS_010','RTS_011','RTS_012','RTS_013','RTS_014','RTS_015','RTS_016','RTS_017',
+  'RTS_009','RTS_010','RTS_011','RTS_012','RTS_013','RTS_015','RTS_016','RTS_017',
   // OPR grubu — hat bazlı
   'OPR_001','OPR_002','OPR_003',
 ]);

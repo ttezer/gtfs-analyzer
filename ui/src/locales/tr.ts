@@ -451,7 +451,6 @@ const tr = {
     'RTS_011': 'route_long_name çok uzun',
     'RTS_012': 'Seferi olmayan hat',
     'RTS_013': 'continuous_pickup geçersiz',
-    'RTS_014': 'route_long_name değerleri tekrar ediyor',
     'RTS_016': 'Hiçbir aktif servis günü olmayan hat',
     'RTS_017': 'Shape tanımlı olmayan hat',
     'RTS_018': 'continuous_drop_off geçersiz',
@@ -549,6 +548,7 @@ const tr = {
     'CAL_016': 'Servis çok uzak bir gelecek tarihine kadar uzanıyor',
     'CAL_017': 'Takvim henüz başlamamış (tüm aktif tarihler gelecekte)',
     'CAL_018': 'Servisin aktif haftanın günü yok (tüm günler 0, calendar_dates ile geçersiz kılınan yok)',
+    'CAL_019': 'Servis takvim tarihleri feed_info geçerlilik penceresi dışında',
     // CLD
     'CLD_001': 'service_id eksik',
     'CLD_002': 'date geçersiz format',
