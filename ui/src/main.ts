@@ -38,13 +38,13 @@ function darkToggleHtml(): string {
 
 function langFlagsHtml(): string {
   const cur = getLocale();
-  const flags = [
-    { lang: 'tr', flag: '🇹🇷', label: 'Türkçe' },
-    { lang: 'en', flag: '🇬🇧', label: 'English' },
-    { lang: 'ja', flag: '🇯🇵', label: '日本語' },
+  const langs = [
+    { lang: 'tr', label: 'TR', title: 'Türkçe' },
+    { lang: 'en', label: 'EN', title: 'English' },
+    { lang: 'ja', label: '日本語', title: '日本語' },
   ];
-  return `<div class="lang-flags">${flags.map(f =>
-    `<button class="lang-flag${cur === f.lang ? ' active' : ''}" data-lang="${f.lang}" title="${f.label}">${f.flag}</button>`
+  return `<div class="lang-flags">${langs.map(f =>
+    `<button class="lang-flag${cur === f.lang ? ' active' : ''}" data-lang="${f.lang}" title="${f.title}">${f.label}</button>`
   ).join('')}</div>`;
 }
 
