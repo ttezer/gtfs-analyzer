@@ -437,6 +437,7 @@ const tr = {
     'STP_033': 'Durak zone_id eksik (ücret hesabı için gerekli)',
     'STP_034': "stop_url acente URL'siyle aynı",
     'STP_035': "stop_url hat URL'siyle aynı",
+    'STP_036': 'İstasyonun (location_type=1) parent_station değeri var',
     // RTS
     'RTS_001': 'route_id yineleniyor',
     'RTS_002': 'agency_id bulunamadı',
@@ -484,6 +485,7 @@ const tr = {
     'TRP_026': 'Hiçbir zaman çalışmayacak sefer (geçersiz service_id)',
     'TRP_028': 'Bazı seferler tekerlekli sandalye erişilebilirliği işaretlememiş',
     'TRP_029': 'Hiçbir sefer tekerlekli sandalye erişilebilirliği bildirmemiş',
+    'TRP_030': 'Sefer önümüzdeki 7 günde aktif değil',
     // STM
     'STM_001': 'trip_id bulunamadı',
     'STM_002': 'stop_id bulunamadı',

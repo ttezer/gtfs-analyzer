@@ -307,6 +307,24 @@ fn check_stops(
             ));
         }
 
+        // STP_036: location_type=1 (station) parent_station içermemeli
+        if loc_type == Some(1) && !parent.is_empty() {
+            notices.push(notice(
+                ctr,
+                "STP_036",
+                EntityType::Stop,
+                eid.clone(),
+                eid.clone(),
+                "stops.txt",
+                Some(rec.line),
+                Some("parent_station"),
+                Some(parent.to_string()),
+                Some("boş olmalı".to_string()),
+                format!("İstasyon '{}' (location_type=1) parent_station='{}' içeriyor; istasyonlar üst varlık olarak parent_station içermemelidir.", rec.stop_id, parent),
+                "İstasyondan parent_station alanını kaldırın; sadece location_type 2/3/4 için parent_station gerekir.",
+            ));
+        }
+
         // STP_012: stop_times'ta kullanılan durakların location_type = 0 veya bo�Y olması
         if used_in_stm.contains(rec.stop_id.as_str())
             && !matches!(loc_type, None | Some(0))

@@ -435,6 +435,7 @@ const en: LocaleShape = {
     'STP_033': "Stop '{entity_id}': zone_id is missing (required for fare calculation).",
     'STP_034': "Stop '{entity_id}': stop_url matches the agency URL.",
     'STP_035': "Stop '{entity_id}': stop_url matches a route URL.",
+    'STP_036': "Station '{entity_id}' (location_type=1) has a parent_station set; stations must not have a parent.",
     // RTS
     'RTS_001': "Duplicate route_id: '{entity_id}'.",
     'RTS_002': "Route '{entity_id}': agency_id '{observed_value}' not found in agency.txt.",
@@ -482,6 +483,7 @@ const en: LocaleShape = {
     'TRP_026': "Trip '{entity_id}': service_id '{observed_value}' has no valid service dates — trip will never operate.",
     'TRP_028': "Some trips are missing wheelchair accessibility information ({observed_value}).",
     'TRP_029': "None of the trips have wheelchair accessibility information ({observed_value}).",
+    'TRP_030': "Trip '{entity_id}': service '{observed_value}' has no active dates in the next 7 days.",
     // STM
     'STM_001': "trip_id '{entity_id}' not found in trips.txt.",
     'STM_002': "stop_id '{entity_id}' not found in stops.txt.",
@@ -949,6 +951,7 @@ const en: LocaleShape = {
     'STP_030': 'Populate parent_station for physical stops belonging to this station, or remove the station.',
     'STP_034': 'Point stop_url to a stop-specific page or leave it empty.',
     'STP_035': 'Point stop_url to a stop-specific page or leave it empty.',
+    'STP_036': 'Remove parent_station from the station record; only entrances, generic nodes and boarding areas may have a parent_station.',
     // TRF
     'TRF_011': 'Review the transfer definition; transfers between very distant stops may be challenging for passengers.',
     // TRP
@@ -965,6 +968,7 @@ const en: LocaleShape = {
     'TRP_026': 'Ensure the service_id has active dates in calendar.txt or calendar_dates.txt.',
     'TRP_028': 'Fill the wheelchair_accessible field for all trips (1=accessible, 2=not accessible).',
     'TRP_029': 'Report wheelchair accessibility using the wheelchair_accessible field (1=accessible, 2=not accessible).',
+    'TRP_030': 'Update the service calendar or publish a new feed.',
     // VAT
     'VAT_001': 'Merge the two routes or differentiate them with distinct alignments.',
     'VAT_002': 'Add transfer records for this stop in transfers.txt (use transfer_type=2 to specify wait time).',
@@ -1422,6 +1426,7 @@ const en: LocaleShape = {
     'STP_033': 'Stop zone_id missing (required for fare calculation)',
     'STP_034': 'stop_url matches agency URL',
     'STP_035': 'stop_url matches route URL',
+    'STP_036': 'Station has parent_station (invalid)',
     // RTS
     'RTS_001': 'Duplicate route_id',
     'RTS_002': 'agency_id not found',
@@ -1469,6 +1474,7 @@ const en: LocaleShape = {
     'TRP_026': 'Trip that will never operate (invalid service_id)',
     'TRP_028': 'Some trips have not set wheelchair accessibility',
     'TRP_029': 'No trips report wheelchair accessibility',
+    'TRP_030': 'Trip inactive in the next 7 days',
     // STM
     'STM_001': 'trip_id not found',
     'STM_002': 'stop_id not found',

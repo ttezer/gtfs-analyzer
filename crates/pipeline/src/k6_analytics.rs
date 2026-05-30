@@ -1638,6 +1638,32 @@ fn check_operational_analytics(
         }
     }
 
+    // TRP_030: sefer önümüzdeki 7 günde aktif değil (per-trip 7-day window)
+    if today_yyyymmdd > 0 && !records.trips.is_empty() {
+        let today_jdn = yyyymmdd_to_approx_jdn(today_yyyymmdd);
+        for trip in &records.trips {
+            if trip.trip_id.is_empty() { continue; }
+            let active_in_7 = derived.calendar_bitmap.active_dates
+                .get(trip.service_id.as_str())
+                .map(|dates| dates.iter().any(|&d| {
+                    let djdn = yyyymmdd_to_approx_jdn(d);
+                    djdn >= today_jdn && djdn < today_jdn + 7
+                }))
+                .unwrap_or(false);
+            if !active_in_7 {
+                notices.push(k6_notice(
+                    ctr, "TRP_030", EntityType::Trip,
+                    Some(trip.trip_id.clone()), Some(trip.trip_id.clone()),
+                    "trips.txt", Some(trip.line), Some("service_id"),
+                    Some(trip.service_id.clone()), None,
+                    format!("'{}' seferi önümüzdeki 7 günde aktif değil (service_id: '{}').",
+                        trip.trip_id, trip.service_id),
+                    "calendar.txt veya calendar_dates.txt'i güncelleyin ya da yeni bir feed yayınlayın.",
+                ));
+            }
+        }
+    }
+
     // TRP_026: hiç aktif hizmet günü olmayan sefer (UnusedTripNotice)
     if today_yyyymmdd > 0 {
         for trip in &records.trips {
@@ -3646,6 +3672,18 @@ fn check_remaining_analytics(
                 if arc > prev_arc { prev_arc = arc; }
             }
             if let Some(pi) = prob_idx {
+                // Backtrack filtresi: prob_idx sonraki duraklarda arc prev_arc'ı geçiyorsa
+                // shape geriye dönüp ilerlemeye devam ediyor — false positive, atla.
+                let recovers = sorted[pi + 1..].iter().take(3).any(|nxt| {
+                    let narc = if all_have_sdt {
+                        nxt.shape_dist_traveled.unwrap_or(0.0) * sdt_to_km
+                    } else {
+                        arc_cache.get(&(shape_id, nxt.stop_id.as_str())).copied().unwrap_or(0.0)
+                    };
+                    narc > prev_arc
+                });
+                if recovers { continue; }
+
                 let st = sorted[pi];
                 // Aynı (shape_id, problem_stop_id) çifti için daha önce notice üretildiyse atla
                 if !shp017_seen.insert((shape_id, st.stop_id.as_str())) {

@@ -274,6 +274,8 @@ pub static RULES: &[RuleMeta] = &[
         "stop_url acente URL'siyle aynı"),
     r!("STP_035", Bilgi,  Quality, 1, &[], Some("stop_id"), VS, Entity,
         "stop_url hat URL'siyle aynı"),
+    r!("STP_036", Dusuk,  Spec, 1, &[], Some("stop_id"), VS, Entity,
+        "İstasyonun (location_type=1) parent_station'ı var"),
 
     // ── RTS: Routes ────────────────────────────────────────────────────────────
     r!("RTS_001", Kritik, Spec, 1,
@@ -382,6 +384,8 @@ pub static RULES: &[RuleMeta] = &[
         "Bazı seferler tekerlekli sandalye erişilebilirliği işaretlememiş"),
     r!("TRP_029", Bilgi, Quality, 1, &[], None, VS, Feed,
         "Hiçbir sefer tekerlekli sandalye erişilebilirliği bildirmemiş"),
+    r!("TRP_030", Dusuk, Quality, 1, &["TRP_023"], Some("trip_id"), VS, Entity,
+        "Sefer önümüzdeki 7 günde aktif değil"),
 
     // ── STM: Stop Times ────────────────────────────────────────────────────────
     r!("STM_001", Kritik, Spec, 1,

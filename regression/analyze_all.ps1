@@ -47,12 +47,13 @@ $KnownMap = @{
     "service_extends_far_in_the_future"       = "CAL_016"
     "service_window_outside_feed_period"      = "CAL_019"
     "expired_calendar"                        = "CAL_013"
-    "trip_coverage_not_active_for_next7_days" = "TRP_023"
+    "trip_coverage_not_active_for_next7_days" = "TRP_030"
     "route_short_and_long_name_equal"         = "RTS_009"
     "overlapping_frequency"                   = "FRQ_009"
     "duplicate_route_long_name_and_short_name" = "RTS_019"
     "missing_required_file"                   = "ARC_004"
     "wrong_parent_location_type"              = "STP_010"
+    "station_with_parent_station"             = "STP_036"
     "location_without_parent_station"         = "STP_011"
     "mixed_case_recommended_field"            = "DQ_018/DQ_019"
     "future_calendar"                         = "CAL_017"
@@ -75,7 +76,7 @@ $KnownMap = @{
 
 # Hic karsiligi olmayan MD kurallari (bilinen eksikler)
 $KnownMissing = @(
-    "station_with_parent_station"   # location_type=1 istasyonunun parent_station'ı var — bizde kural yok
+    # station_with_parent_station → STP_036 olarak eklendi
 )
 
 # â”€â”€ Feed listesi â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
