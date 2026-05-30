@@ -1051,7 +1051,7 @@ export function attachFixListeners(root: HTMLElement, result?: ValidationResult,
         const notice = noticeMap.get(noticeId);
         if (!notice) return;
         const opts = buildMapOptions(notice, result.name_index);
-        if (opts.pins.length === 0 && !opts.polyline) return;
+        if (opts.pins.length === 0 && !opts.polyline && !(opts.extraPolylines?.length)) return;
         const shapeIdRules = new Set(['SHP_007','SHP_009','SHP_010','SHP_012','SHP_014','SHP_015','SHP_016','SHP_018','SHP_019','SHP_020','GEO_006','GEO_007']);
         const eid = notice.entity_id ?? '';
         let entityLabel: string;

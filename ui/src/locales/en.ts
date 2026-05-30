@@ -1159,6 +1159,12 @@ const en: LocaleShape = {
     'FIN_012': 'Set feed_start_date to be equal to or before feed_end_date.',
     'FIN_014': 'Fill in feed_start_date and feed_end_date in YYYYMMDD format.',
     'FIN_015': 'Keep only one record in feed_info.txt.',
+    'FIN_010': 'Update the feed with current validity dates or publish a new feed.',
+    'FIN_013': 'Add an agency_id column to fare_attributes.txt when multiple agencies are present.',
+    'FIN_016': 'Set feed_start_date to today or an earlier date, or publish the feed at the right time.',
+    'FIN_017': 'Set feed_end_date to a realistic end date (within 2 years).',
+    'FIN_018': 'Add feed_contact_email or feed_contact_url to feed_info.txt.',
+    'FIN_019': 'Plan to publish an updated feed before the current one expires.',
     // ATR
     'ATR_001': 'Assign a unique attribution_id to each attribution record.',
     'ATR_002': 'Fill in the organization_name field.',
