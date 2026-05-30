@@ -527,6 +527,10 @@
 
     /* Dark mode toggle */
     .dark-toggle { font-size: 1rem; padding: .3rem .5rem; }
+    .lang-flags { display: flex; gap: .1rem; align-items: center; }
+    .lang-flag { background: none; border: 1px solid transparent; cursor: pointer; font-size: 1.1rem; padding: .1rem .2rem; border-radius: 4px; opacity: .3; transition: opacity .15s; line-height: 1; }
+    .lang-flag.active { opacity: 1; border-color: var(--color-border); }
+    .lang-flag:hover:not(.active) { opacity: .65; }
 
     /* ── Dark mode ── */
     html.dark {

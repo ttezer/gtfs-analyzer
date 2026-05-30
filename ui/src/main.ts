@@ -34,10 +34,18 @@ function darkToggleHtml(): string {
   return `<button class="btn btn-ghost dark-toggle" title="${isDark ? t('theme.light') : t('theme.dark')}">${isDark ? '☀' : '☾'}</button>`;
 }
 
-// ── Language toggle ───────────────────────────────────────────────────────────
+// ── Language flags ────────────────────────────────────────────────────────────
 
-function langToggleHtml(): string {
-  return `<button class="btn btn-ghost lang-toggle" title="Switch language">${t('lang.switch')}</button>`;
+function langFlagsHtml(): string {
+  const cur = getLocale();
+  const flags = [
+    { lang: 'tr', flag: '🇹🇷', label: 'Türkçe' },
+    { lang: 'en', flag: '🇬🇧', label: 'English' },
+    { lang: 'ja', flag: '🇯🇵', label: '日本語' },
+  ];
+  return `<div class="lang-flags">${flags.map(f =>
+    `<button class="lang-flag${cur === f.lang ? ' active' : ''}" data-lang="${f.lang}" title="${f.label}">${f.flag}</button>`
+  ).join('')}</div>`;
 }
 
 // ── Uygulama render ───────────────────────────────────────────────────────────
@@ -51,23 +59,25 @@ export function renderApp(): void {
       <header class="app-header">
         <h1>${t('header.title')}</h1>
         <span style="flex:1"></span>
-        ${langToggleHtml()}
+        ${langFlagsHtml()}
         ${darkToggleHtml()}
       </header>
       <main id="page-root"></main>`;
     app.querySelector<HTMLButtonElement>('.dark-toggle')!
       .addEventListener('click', toggleDarkMode);
-    app.querySelector<HTMLButtonElement>('.lang-toggle')!
-      .addEventListener('click', () => {
-        setLocale(getLocale() === 'tr' ? 'en' : 'tr');
+    app.querySelectorAll<HTMLButtonElement>('.lang-flag').forEach(btn => {
+      btn.addEventListener('click', () => {
+        setLocale(btn.dataset['lang'] as 'tr' | 'en' | 'ja');
         if (document.querySelector('#drop-zone.loading')) {
-          // ZIP yükleme aktifken tam render yapma — eski root'u kopar
-          const btn = document.querySelector<HTMLButtonElement>('.lang-toggle');
-          if (btn) btn.textContent = t('lang.switch');
+          // ZIP yükleme aktifken tam render yapma
+          document.querySelectorAll<HTMLButtonElement>('.lang-flag').forEach(b => {
+            b.classList.toggle('active', b.dataset['lang'] === btn.dataset['lang']);
+          });
           return;
         }
         renderApp();
       });
+    });
     renderUpload(document.getElementById('page-root')!);
     return;
   }
@@ -93,7 +103,7 @@ export function renderApp(): void {
       <span class="header-filename">${escHtml(state.fileName)}</span>
       <button id="btn-back" class="btn btn-ghost">${t('header.back')}</button>
       <button id="btn-new" class="btn btn-secondary">${t('header.new')}</button>
-      ${langToggleHtml()}
+      ${langFlagsHtml()}
       ${darkToggleHtml()}
     </header>
     <nav class="app-nav">${navItems}</nav>
@@ -109,11 +119,12 @@ export function renderApp(): void {
   });
   app.querySelector<HTMLButtonElement>('.dark-toggle')!
     .addEventListener('click', toggleDarkMode);
-  app.querySelector<HTMLButtonElement>('.lang-toggle')!
-    .addEventListener('click', () => {
-      setLocale(getLocale() === 'tr' ? 'en' : 'tr');
+  app.querySelectorAll<HTMLButtonElement>('.lang-flag').forEach(btn => {
+    btn.addEventListener('click', () => {
+      setLocale(btn.dataset['lang'] as 'tr' | 'en' | 'ja');
       renderApp();
     });
+  });
 
   app.querySelectorAll<HTMLButtonElement>('.nav-btn').forEach(btn => {
     btn.addEventListener('click', () => {
