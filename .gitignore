@@ -3,6 +3,7 @@
 
 # Local-only files (not for version control)
 /notgit/
+/regression/
 
 # npm
 /ui/node_modules/
