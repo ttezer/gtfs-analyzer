@@ -6,7 +6,7 @@ GTFS (General Transit Feed Specification) dosyalarını tarayıcıda doğrulayan
 
 Mevcut GTFS doğrulayıcıların çoğu yalnızca spesifikasyon uyumunu kontrol eder ve hata listesi çıkarır. GTFS Analyzer bunu çok adım öteye taşır: hangi dosyanın kaçıncı satırında ne sorun olduğunu gösterir, her sorun için adım adım düzeltme talimatı sunar ve coğrafi hataları (sapan güzergah, koordinat bozukluğu, erişilemeyen durak gibi) interaktif haritada işaretler. Her bulgu dosya ve bileşen bazlı bir kural koduyla (`ARC_`, `STP_`, `STM_`...), dört sınıftan biriyle (Spec · Interop · Quality · Analytics) ve beş önem seviyesinden biriyle (Kritik → Bilgi) etiketlenir; böylece binlerce bulgu arasında filtreleme, önceliklendirme ve otomasyon kolaylaşır. Feed'in hangi GTFS özelliklerini kullandığı (Shapes, Transfers, Fares, Headsigns, Flex vb.) otomatik tespit edilir ve rapora yansıtılır.
 
-Spesifikasyon uyumunun ötesinde operasyonel kaliteyi de ölçer: hat bazında sefer sıklığı tutarsızlıkları, anormal hız segmentleri, izole duraklar, servis desenlerindeki boşluklar ve ağ topolojisi sorunları 445 kuralla analiz edilir. Sonuçlar iki bağımsız skorla özetlenir; düzeltme kuyruğu "önce ne düzeltilmeli?" sorusunu otomatik olarak yanıtlar ve her düzeltmenin skora katkısını gösterir.
+Spesifikasyon uyumunun ötesinde operasyonel kaliteyi de ölçer: hat bazında sefer sıklığı tutarsızlıkları, anormal hız segmentleri, izole duraklar, servis desenlerindeki boşluklar ve ağ topolojisi sorunları 448 kuralla analiz edilir. Sonuçlar iki bağımsız skorla özetlenir; düzeltme kuyruğu "önce ne düzeltilmeli?" sorusunu otomatik olarak yanıtlar ve her düzeltmenin skora katkısını gösterir.
 
 **Kimler kullanır:**
 - Toplu taşıma işletmecileri ve belediyeler — feed yayına almadan önce
@@ -33,7 +33,7 @@ Spesifikasyon uyumunun ötesinde operasyonel kaliteyi de ölçer: hat bazında s
 | GTFS Flex desteği | Kısmi | ❌ | ❌ | ✅ |
 | Çıktı formatı | HTML, JSON | Web (kalıcı link) | HTML, JSON | HTML, CSV, JSON, PDF |
 | Platform | Web | Web | Web, CLI, Desktop | Web *(CLI, Desktop planlanmış)* |
-| **Toplam kural** | **~120** | **~80** | **~120** | **445** |
+| **Toplam kural** | **178** | **~80** | **~120** | **448** |
 
 ### BART GTFS Feed Örneği
 
@@ -307,7 +307,7 @@ gtfs-validator/
 │   ├── config/     # Yapılandırma tipleri
 │   ├── core/       # Ortak veri yapıları ve sonuç modeli
 │   ├── pipeline/   # Doğrulama pipeline'ı (k1–k7 aşamaları)
-│   ├── rules/      # Kural tanımları ve registry (445 kural, 36 grup)
+│   ├── rules/      # Kural tanımları ve registry (448 kural, 36 grup)
 │   └── wasm/       # wasm-bindgen WASM çıktısı
 └── ui/             # Vite + TypeScript frontend
     ├── pkg/          # wasm-pack çıktısı (üretilen, commit'lenmiş)
