@@ -1,6 +1,6 @@
 # GTFS Analyzer
 
-→ [Türkçe sürüm](README.md)
+🇹🇷 [Türkçe](README.md) · 🇬🇧 **English** · 🇯🇵 [日本語](README.ja.md)
 
 An open-source, fully client-side GTFS (General Transit Feed Specification) validator that runs entirely in the browser. The uploaded zip file is never sent to a server — all processing happens in WebAssembly inside the user's browser.
 

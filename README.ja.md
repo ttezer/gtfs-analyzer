@@ -1,6 +1,6 @@
 # GTFS Analyzer
 
-→ [Türkçe sürüm](README.md) · [English version](README.en.md)
+🇹🇷 [Türkçe](README.md) · 🇬🇧 [English](README.en.md) · 🇯🇵 **日本語**
 
 完全にブラウザ上で動作する、オープンソースかつクライアントサイドのみの GTFS（General Transit Feed Specification）バリデーターです。アップロードされた zip ファイルはサーバーに送信されることはなく、すべての処理はユーザーのブラウザ内の WebAssembly で行われます。
 
