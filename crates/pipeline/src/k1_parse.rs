@@ -1095,10 +1095,10 @@ mod tests {
 
     #[test]
     fn arc_021_fires_for_non_ascii_char() {
-        // stops.txt'de stop_name'e UTF-8 Türkçe karakter (ş → U+015F > 127)
+        // stops.txt'de stop_id'ye özel kullanım alanı karakteri (U+E000) — sorunlu karakter
         let zip = zip_with_files(&[
             ("agency.txt",     b"agency_id,agency_name,agency_url,agency_timezone\n1,Test,http://x.com,UTC\n"),
-            ("stops.txt",      "stop_id,stop_name,stop_lat,stop_lon\nS1,Durak\u{015F},41.0,29.0\n".as_bytes()),
+            ("stops.txt",      "stop_id,stop_name,stop_lat,stop_lon\nS\u{E000}1,Durak,41.0,29.0\n".as_bytes()),
             ("routes.txt",     b"route_id,agency_id,route_short_name,route_type\nR1,1,101,3\n"),
             ("trips.txt",      b"route_id,service_id,trip_id\nR1,SVC1,T1\n"),
             ("stop_times.txt", b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\n"),
