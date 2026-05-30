@@ -281,40 +281,62 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
         });
     }
 
-    // RTS_019: Yinelenen hat adı (duplicate_route_name)
+    // RTS_019: Yinelenen hat adı — önce tüm adları topla, sonra her çakışan için notice üret
     {
-        let mut short_seen: HashMap<String, String> = HashMap::new(); // name → first route_id
-        let mut long_seen:  HashMap<String, String> = HashMap::new();
+        let mut short_groups: HashMap<String, Vec<(String, u64)>> = HashMap::new(); // key → Vec<(route_id, line)>
+        let mut long_groups:  HashMap<String, Vec<(String, u64)>> = HashMap::new();
         for rec in &records {
             if let Some(ref sn) = rec.route_short_name {
-                let key = sn.to_lowercase();
-                if let Some(first_id) = short_seen.get(&key) {
-                    notices.push(make_k2_notice(
-                        &mut counter, "RTS_019", EntityType::Route,
-                        Some(rec.route_id.clone()), None,
-                        "routes.txt", Some(rec.line), Some("route_short_name"),
-                        Some(sn.clone()), None,
-                        format!("route_short_name '{}' başka bir hatta da kullanılıyor (ilk: '{}').", sn, first_id),
-                        "Her hatta benzersiz bir kısa ad verin veya bilerek paylaşılıyorsa bu uyarıyı görmezden gelin.",
-                    ));
-                } else {
-                    short_seen.insert(key, rec.route_id.clone());
+                if !sn.is_empty() {
+                    short_groups.entry(sn.to_lowercase()).or_default().push((rec.route_id.clone(), rec.line));
                 }
             }
             if let Some(ref ln) = rec.route_long_name {
-                let key = ln.to_lowercase();
-                if let Some(first_id) = long_seen.get(&key) {
-                    notices.push(make_k2_notice(
-                        &mut counter, "RTS_019", EntityType::Route,
-                        Some(rec.route_id.clone()), None,
-                        "routes.txt", Some(rec.line), Some("route_long_name"),
-                        Some(ln.clone()), None,
-                        format!("route_long_name '{}' başka bir hatta da kullanılıyor (ilk: '{}').", ln, first_id),
-                        "Her hatta benzersiz bir uzun ad verin veya bilerek paylaşılıyorsa bu uyarıyı görmezden gelin.",
-                    ));
-                } else {
-                    long_seen.insert(key, rec.route_id.clone());
+                if !ln.is_empty() {
+                    long_groups.entry(ln.to_lowercase()).or_default().push((rec.route_id.clone(), rec.line));
                 }
+            }
+        }
+        for (key, entries) in &short_groups {
+            if entries.len() < 2 { continue; }
+            let all_ids: Vec<&str> = entries.iter().map(|(id, _)| id.as_str()).collect();
+            for (route_id, line) in entries {
+                let rest: Vec<&str> = all_ids.iter().copied().filter(|&id| id != route_id.as_str()).collect();
+                let rest_str = rest.join(", ");
+                let display_name = records.iter().find(|r| &r.route_id == route_id)
+                    .and_then(|r| r.route_short_name.as_deref())
+                    .unwrap_or(key.as_str());
+                let mut n = make_k2_notice(
+                    &mut counter, "RTS_019", EntityType::Route,
+                    Some(route_id.clone()), None,
+                    "routes.txt", Some(*line), Some("route_short_name"),
+                    Some(display_name.to_string()), None,
+                    format!("route_short_name '{}' başka hatlarda da kullanılıyor: {}.", display_name, rest_str),
+                    "Her hatta benzersiz bir kısa ad verin veya bilerek paylaşılıyorsa bu uyarıyı görmezden gelin.",
+                );
+                n.details = Some([("conflicting_routes".to_string(), rest_str)].into_iter().collect());
+                notices.push(n);
+            }
+        }
+        for (key, entries) in &long_groups {
+            if entries.len() < 2 { continue; }
+            let all_ids: Vec<&str> = entries.iter().map(|(id, _)| id.as_str()).collect();
+            for (route_id, line) in entries {
+                let rest: Vec<&str> = all_ids.iter().copied().filter(|&id| id != route_id.as_str()).collect();
+                let rest_str = rest.join(", ");
+                let display_name = records.iter().find(|r| &r.route_id == route_id)
+                    .and_then(|r| r.route_long_name.as_deref())
+                    .unwrap_or(key.as_str());
+                let mut n = make_k2_notice(
+                    &mut counter, "RTS_019", EntityType::Route,
+                    Some(route_id.clone()), None,
+                    "routes.txt", Some(*line), Some("route_long_name"),
+                    Some(display_name.to_string()), None,
+                    format!("route_long_name '{}' başka hatlarda da kullanılıyor: {}.", display_name, rest_str),
+                    "Her hatta benzersiz bir uzun ad verin veya bilerek paylaşılıyorsa bu uyarıyı görmezden gelin.",
+                );
+                n.details = Some([("conflicting_routes".to_string(), rest_str)].into_iter().collect());
+                notices.push(n);
             }
         }
     }

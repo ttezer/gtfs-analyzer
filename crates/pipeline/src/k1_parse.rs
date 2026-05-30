@@ -328,7 +328,8 @@ pub fn parse(zip_bytes: &[u8]) -> Result<K1Result, FatalError> {
     let mut counter: u32 = 0;
     let mut raw_files: RawFiles = HashMap::new();
     let mut present_files: HashSet<String> = HashSet::new();
-    let mut dq016_fired = false;
+    // DQ_016 için dosya başına birincil anahtar sütun indeksi — ilk "*_id" sütunu
+    let _dq016_dummy = ();
 
     for i in 0..archive.len() {
         #[cfg(target_arch = "wasm32")]
@@ -658,20 +659,32 @@ pub fn parse(zip_bytes: &[u8]) -> Result<K1Result, FatalError> {
                 }
             }
 
-            // DQ_016: değerlerde fazladan boşluk
+            // DQ_016: değerlerde fazladan boşluk — alan ve satır bazında
             {
-                let mut found = false;
-                'outer: for val in row.iter() {
-                    let s = val.as_str();
-                    if s != s.trim() { found = true; break 'outer; }
-                }
-                if found && !dq016_fired {
-                    dq016_fired = true;
+                let pk_idx = headers.iter().position(|h| h.ends_with("_id"));
+                let eid: String = pk_idx
+                    .and_then(|i| row.get(i))
+                    .map(|v| v.as_str())
+                    .filter(|v| !v.is_empty())
+                    .unwrap_or(&raw_name)
+                    .to_string();
+                let ws_fields: Vec<&str> = row.iter().enumerate()
+                    .filter(|(_, v)| { let s = v.as_str(); s != s.trim() })
+                    .filter_map(|(i, _)| headers.get(i).map(|s| s.as_str()))
+                    .collect();
+                if !ws_fields.is_empty() {
+                    let fields_str = ws_fields.join(", ");
                     notices.push(make_notice(
                         &mut counter, "DQ_016",
-                        EntityType::File, Some(raw_name.clone()), Some(raw_name.as_str()), None, None, None,
-                        "Bir veya daha fazla alanda baştaki/sondaki boşluk karakteri var — bazı uygulamalar ID eşleştirmede sorun yaşayabilir.".to_string(),
-                        "Tüm değerlerdeki gereksiz boşlukları kaldırın.",
+                        EntityType::Row,
+                        Some(eid.clone()),
+                        Some(raw_name.as_str()),
+                        Some(line_num),
+                        Some(fields_str.as_str()),
+                        Some(format!("satır {line_num}")),
+                        format!("'{}' kaydında ({}, satır {line_num}): '{}' alanlarında baştaki/sondaki boşluk var.",
+                            eid, raw_name, fields_str),
+                        "Değerlerdeki gereksiz baştaki/sondaki boşlukları kaldırın.",
                     ));
                 }
             }

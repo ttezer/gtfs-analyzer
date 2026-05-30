@@ -100,6 +100,25 @@ fn k6_notice(
 /// Rakam içermiyorsa orijinal id döner (kıyas güvenli değil).
 /// Örnek: "2119d" → "2119", "t17d" → "t17", "abc" → "abc"
 #[allow(dead_code)]
+/// `needle`, `haystack` içinde kelime sınırında (alfanümerik olmayan karakter veya
+/// dize başı/sonu ile çevrili) geçiyor mu? Büyük/küçük harf duyarsız.
+fn contains_as_word(haystack: &str, needle: &str) -> bool {
+    let h = haystack.to_lowercase();
+    let n = needle.to_lowercase();
+    let nb = n.as_bytes().len();
+    let mut start = 0usize;
+    while let Some(pos) = h[start..].find(n.as_str()) {
+        let pos = start + pos;
+        let before_ok = pos == 0
+            || !h[..pos].chars().next_back().map(|c| c.is_alphanumeric()).unwrap_or(false);
+        let after_ok = pos + nb >= h.len()
+            || !h[pos + nb..].chars().next().map(|c| c.is_alphanumeric()).unwrap_or(false);
+        if before_ok && after_ok { return true; }
+        start = pos + 1;
+    }
+    false
+}
+
 fn id_numeric_base(id: &str) -> &str {
     let stripped = id.trim_end_matches(|c: char| c.is_alphabetic());
     if stripped.is_empty() || !stripped.chars().any(|c| c.is_ascii_digit()) {
@@ -2173,7 +2192,9 @@ fn check_route_trip_quality(
                 Some(l) => l,
                 None => continue,
             };
-            if long.to_lowercase().contains(&short.to_lowercase()) {
+            // Kısa ad en az 2 karakter olmalı ve uzun adda kelime sınırında yer almalı.
+            // Örn: short="5A", long="5A Hattı" → ateşler; short="5", long="Route 5A" → ateşlemez.
+            if short.len() >= 2 && contains_as_word(long, short) {
                 notices.push(k6_notice(
                     ctr, "RTS_022", EntityType::Route,
                     Some(route.route_id.clone()), Some(route.route_id.clone()),
@@ -2430,36 +2451,40 @@ fn check_data_quality(
         }
     }
 
-    // DQ_003: hat açıklaması (route_desc) boş
-    {
-        let missing = records.routes.iter()
-            .filter(|r| !r.route_id.is_empty())
-            .filter(|r| r.row.get("route_desc").map(|v| v.trim().is_empty()).unwrap_or(true))
-            .count();
-        if missing > 0 {
+    // DQ_003: hat açıklaması (route_desc) boş — hat başına bir notice
+    for route in &records.routes {
+        if route.route_id.is_empty() { continue; }
+        if route.row.get("route_desc").map(|v| v.trim().is_empty()).unwrap_or(true) {
+            let label = route.route_short_name.as_deref()
+                .filter(|s| !s.is_empty())
+                .or(route.route_long_name.as_deref().filter(|s| !s.is_empty()))
+                .unwrap_or(&route.route_id);
             notices.push(k6_notice(
-                ctr, "DQ_003", EntityType::Feed,
-                None, None, "routes.txt", None, Some("route_desc"),
-                Some(format!("{missing} hat")), None,
-                format!("{missing} hatta route_desc alanı boş; kullanıcılar hat hakkında ek bilgi alamıyor."),
-                "routes.txt'e route_desc açıklamaları ekleyin.",
+                ctr, "DQ_003", EntityType::Route,
+                Some(route.route_id.clone()), Some(route.route_id.clone()),
+                "routes.txt", Some(route.line), Some("route_desc"),
+                Some(route.route_id.clone()), None,
+                format!("'{}' ({}) hattında route_desc alanı boş; kullanıcılar hat hakkında ek bilgi alamıyor.", route.route_id, label),
+                "routes.txt'e route_desc açıklaması ekleyin.",
             ));
         }
     }
 
-    // DQ_004: hat URL'si (route_url) eksik
-    {
-        let missing = records.routes.iter()
-            .filter(|r| !r.route_id.is_empty())
-            .filter(|r| r.row.get("route_url").map(|v| v.trim().is_empty()).unwrap_or(true))
-            .count();
-        if missing > 0 {
+    // DQ_004: hat URL'si (route_url) eksik — hat başına bir notice
+    for route in &records.routes {
+        if route.route_id.is_empty() { continue; }
+        if route.row.get("route_url").map(|v| v.trim().is_empty()).unwrap_or(true) {
+            let label = route.route_short_name.as_deref()
+                .filter(|s| !s.is_empty())
+                .or(route.route_long_name.as_deref().filter(|s| !s.is_empty()))
+                .unwrap_or(&route.route_id);
             notices.push(k6_notice(
-                ctr, "DQ_004", EntityType::Feed,
-                None, None, "routes.txt", None, Some("route_url"),
-                Some(format!("{missing} hat")), None,
-                format!("{missing} hatta route_url alanı boş; yolcular hat web sayfasına yönlendirilemiyor."),
-                "routes.txt'e route_url bağlantıları ekleyin.",
+                ctr, "DQ_004", EntityType::Route,
+                Some(route.route_id.clone()), Some(route.route_id.clone()),
+                "routes.txt", Some(route.line), Some("route_url"),
+                Some(route.route_id.clone()), None,
+                format!("'{}' ({}) hattında route_url alanı boş; yolcular hat web sayfasına yönlendirilemiyor.", route.route_id, label),
+                "routes.txt'e route_url bağlantısı ekleyin.",
             ));
         }
     }

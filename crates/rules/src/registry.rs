@@ -1125,7 +1125,7 @@ pub static RULES: &[RuleMeta] = &[
         "Çok fazla acente, agency_id kullanılmıyor"),
     r!("DQ_013",  Orta,   Quality,  1, &[], None, VS, Feed,
         "Çok az sefer"),
-    r!("DQ_016",  Orta,   Quality,  1, &[], Some("file"), VS, File,
+    r!("DQ_016",  Orta,   Quality,  1, &[], None, VS, Row,
         "Değerde fazladan boşluk karakteri"),
     r!("DQ_017",  Bilgi,  Quality,  1, &[], None, VS, Feed,
         "Şüpheli koordinat değeri"),

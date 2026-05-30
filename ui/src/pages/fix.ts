@@ -231,8 +231,9 @@ const STOP_ID_RULES = new Set([
   'GEO_009','GEO_010','GEO_011','GEO_012','GEO_014',
   'PTH_012','PTH_013','PTH_015','PTH_016','PTH_017','PTH_018','PTH_019',
   'LVL_006',
-  'SHP_022',
-  'VAT_007',
+  'SHP_022','SHP_024',
+  'STP_033','STP_036',
+  'VAT_002','VAT_007',
 ]);
 
 // entity_id trip_id olan kural listesi — generic sefer haritası
@@ -248,6 +249,8 @@ const TRIP_ID_RULES = new Set([
   'STM_009','STM_010','STM_011','STM_013','STM_015','STM_016','STM_018','STM_019',
   'STM_021','STM_022','STM_023','STM_024','STM_027','STM_028','STM_029','STM_030',
   'STM_031','STM_032','STM_034',
+  // VAT grubu — sefer bazlı
+  'VAT_003',
   // OPR grubu — sefer bazlı
   'OPR_006','OPR_017',
 ]);
@@ -257,6 +260,9 @@ const ROUTE_ID_RULES = new Set([
   // RTS grubu
   'RTS_001','RTS_002','RTS_003','RTS_004','RTS_005','RTS_006','RTS_007','RTS_008',
   'RTS_009','RTS_010','RTS_011','RTS_012','RTS_013','RTS_015','RTS_016','RTS_017',
+  'RTS_018','RTS_019','RTS_020','RTS_021','RTS_022','RTS_023',
+  // VAT grubu — hat bazlı
+  'VAT_001','VAT_004',
   // OPR grubu — hat bazlı
   'OPR_001','OPR_002','OPR_003',
 ]);
