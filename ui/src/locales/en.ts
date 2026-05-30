@@ -806,6 +806,7 @@ const en: LocaleShape = {
     'GEO_012': "Stop cluster: {observed_value} stops are very close together.",
     'GEO_013': "Feed geographic coverage summary: {observed_value}.",
     'GEO_014': "Feed geographic coverage is very wide: {observed_value}.",
+    'GEO_015': "Stop '{entity_id}': coordinates {observed_value} are outside Japan's bounds (lat 20.25–45.33, lon 122.56–153.59).",
     // DQ
     'DQ_001':  'Feed name is missing.',
     'DQ_002':  'feed_publisher_url is missing.',
@@ -879,6 +880,7 @@ const en: LocaleShape = {
     'GEO_012': 'Merge stops if they represent the same physical location.',
     'GEO_013': 'Informational notice; no action required.',
     'GEO_014': 'Informational notice; expected for large networks.',
+    'GEO_015': 'Verify the stop coordinates; all stops in a Japanese feed (feed_lang: ja) must be within Japan.',
     // OPR
     'OPR_001': 'Increase peak/off-peak trip frequency or close large service gaps.',
     'OPR_003': 'Adjust the trip schedule; very frequent trips may cause congestion.',
@@ -1803,6 +1805,7 @@ const en: LocaleShape = {
     'GEO_012': 'Stop cluster (stops too close together)',
     'GEO_013': 'Feed geographic coverage summary',
     'GEO_014': 'Feed geographic coverage too wide',
+    'GEO_015': 'Stop coordinates outside Japan bounds (feed_lang: ja)',
     // DQ
     'DQ_001':  'Feed name missing',
     'DQ_002':  'feed_publisher_url missing',

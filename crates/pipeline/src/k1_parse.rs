@@ -25,6 +25,8 @@ const KNOWN_FILES: &[&str] = &[
     "fare_leg_rules.txt", "fare_transfer_rules.txt", "timeframes.txt",
     // Flex
     "booking_rules.txt",
+    // GTFS-JP uzantıları (Japonya standardı)
+    "agency_jp.txt", "routes_jp.txt", "office_jp.txt",
 ];
 
 // ── Tipler ────────────────────────────────────────────────────────────────────
@@ -247,11 +249,15 @@ fn known_columns(filename: &str) -> &'static [&'static str] {
             "route_id","agency_id","route_short_name","route_long_name","route_desc",
             "route_type","route_url","route_color","route_text_color","route_sort_order",
             "continuous_pickup","continuous_drop_off","network_id","route_cemv_support",
+            // GTFS-JP
+            "jp_parent_route_id","jp_office_id",
         ],
         "trips.txt" => &[
             "route_id","service_id","trip_id","trip_headsign","trip_short_name",
             "direction_id","block_id","shape_id","wheelchair_accessible","bikes_allowed",
             "cars_allowed","safe_duration_factor","safe_duration_offset",
+            // GTFS-JP
+            "jp_trip_desc","jp_trip_desc_symbol","jp_pattern_id",
         ],
         "stop_times.txt" => &[
             "trip_id","arrival_time","departure_time","stop_id","stop_sequence",
@@ -547,11 +553,11 @@ pub fn parse(zip_bytes: &[u8]) -> Result<K1Result, FatalError> {
             }
         }
 
-        // ARC_017: Bilinmeyen sütun
+        // ARC_017: Bilinmeyen sütun (jp_ prefix = GTFS-JP uzantısı, atla)
         let known_cols = known_columns(&raw_name);
         if !known_cols.is_empty() {
             for hdr in &headers {
-                if !known_cols.contains(&hdr.as_str()) {
+                if !known_cols.contains(&hdr.as_str()) && !hdr.starts_with("jp_") {
                     notices.push(make_notice(
                         &mut counter, "ARC_017",
                         EntityType::File, Some(raw_name.clone()),
@@ -638,12 +644,20 @@ pub fn parse(zip_bytes: &[u8]) -> Result<K1Result, FatalError> {
                 continue; // Boş satırı kaydetme
             }
 
-            // ARC_021: ASCII dışı veya yazdırılamaz karakter (dosya başına bir kez)
+            // ARC_021: yazdırılamaz veya sorunlu karakter — geçerli Unicode metni (Japonca vb.) hariç
             if !arc021_fired {
                 'arc021: for val in row.iter() {
                     for ch in val.chars() {
                         let cp = ch as u32;
-                        if cp > 127 || (cp < 32 && cp != 9) || cp == 127 {
+                        // Geçerli Unicode harf/rakam/boşluk → sorun değil
+                        if ch.is_alphanumeric() || ch.is_whitespace() { continue; }
+                        // Sorunlu: kontrol karakterleri, DEL, yedek alanlar, özel kullanım alanı
+                        let is_bad = (cp < 32 && cp != 9)
+                            || cp == 127
+                            || (0xD800..=0xDFFF).contains(&cp)
+                            || (0xE000..=0xF8FF).contains(&cp)
+                            || (0xFFF0..=0xFFFF).contains(&cp);
+                        if is_bad {
                             arc021_fired = true;
                             notices.push(make_notice(
                                 &mut counter, "ARC_021",

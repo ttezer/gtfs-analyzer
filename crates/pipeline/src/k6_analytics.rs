@@ -1466,6 +1466,32 @@ fn check_geo_analytics(
             ));
         }
     }
+    // GEO_015: Japonya koordinat sınırı — feed_lang=ja ise durak koordinatları Japonya dışında olmamalı
+    // Japonya coğrafi sınırları: lat 20.25–45.33, lon 122.56–153.59
+    {
+        let is_japanese = records.feed_info.first()
+            .map(|fi| fi.feed_lang.starts_with("ja"))
+            .unwrap_or(false);
+        if is_japanese {
+            for stop in &records.stops {
+                if stop.stop_id.is_empty() { continue; }
+                let (Some(lat), Some(lon)) = (stop.stop_lat, stop.stop_lon) else { continue };
+                let in_japan = (20.25..=45.33).contains(&lat) && (122.56..=153.59).contains(&lon);
+                if !in_japan {
+                    let name = stop.stop_name.as_deref().filter(|s| !s.is_empty()).unwrap_or(&stop.stop_id);
+                    notices.push(k6_notice(
+                        ctr, "GEO_015", EntityType::Stop,
+                        Some(stop.stop_id.clone()), Some(stop.stop_id.clone()),
+                        "stops.txt", Some(stop.line), Some("stop_lat|stop_lon"),
+                        Some(format!("{lat:.6},{lon:.6}")), None,
+                        format!("'{}' durağının koordinatları ({lat:.6},{lon:.6}) Japonya sınırları dışında (lat: 20.25–45.33, lon: 122.56–153.59).",
+                            name),
+                        "stop_lat ve stop_lon değerlerinin doğru olduğunu kontrol edin.",
+                    ));
+                }
+            }
+        }
+    }
     drop(_tgeo2);
 }
 
@@ -2071,7 +2097,7 @@ fn check_route_trip_quality(
     drop(_t4);
 
     // TRP_020: trip_headsign terminal durak değil ara durak adıyla eşleşiyor
-    // MobilityData davranışı: per-matching-stop fire; circular trip'ler atlanır
+    // Per-matching-stop fire; circular trip'ler atlanır
     let _t5 = Timer::start("K6::rtq::trp_020");
     {
         // stop_id → stop_name (küçük harf, trim edilmiş)
@@ -2109,7 +2135,7 @@ fn check_route_trip_quality(
             let rname = route_short.get(trip.route_id.as_str()).copied().unwrap_or(trip.route_id.as_str());
             let dep = trip_first_dep.get(trip.trip_id.as_str()).map(|s| format!(" {} kalkışlı", s)).unwrap_or_default();
 
-            // Her matching intermediate stop için ayrı notice (MobilityData per-stop sayar)
+            // Her matching intermediate stop için ayrı notice
             for st in stimes.iter().filter(|s| s.stop_id.as_str() != terminal_stop_id) {
                 if let Some(stop_name) = stop_name_lc.get(st.stop_id.as_str()) {
                     if *stop_name == headsign_lc {

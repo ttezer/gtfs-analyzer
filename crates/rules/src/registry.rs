@@ -1097,6 +1097,8 @@ pub static RULES: &[RuleMeta] = &[
         "Feed coğrafi kapsam özeti"),
     r!("GEO_014", Bilgi,  Analytics, 1, &[], None, VA_GEO, Feed,
         "Feed coğrafi kapsamı çok geniş"),
+    r!("GEO_015", Orta,   Quality,   1, &[], Some("stop_id"), VS, Entity,
+        "Durak koordinatları Japonya sınırları dışında (feed_lang: ja)"),
 
     // ── DQ: Veri Kalitesi / Kullanıcı Deneyimi ─────────────────────────────────
     r!("DQ_001",  Dusuk,  Quality,  1, &[], None, VS, Feed,

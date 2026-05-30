@@ -808,6 +808,7 @@ const tr = {
     'GEO_012': 'Duraksallar kümelenmesi (çok yakın duraklar)',
     'GEO_013': 'Feed coğrafi kapsam özeti',
     'GEO_014': 'Feed coğrafi kapsamı çok geniş',
+    'GEO_015': 'Durak koordinatları Japonya sınırları dışında (feed_lang: ja)',
     // DQ
     'DQ_001':  'Feed adı eksik',
     'DQ_002':  'feed_publisher_url eksik',
