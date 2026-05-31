@@ -347,12 +347,38 @@ pub fn parse(zip_bytes: &[u8]) -> Result<K1Result, FatalError> {
 
         let raw_name = zf.name().to_string();
 
+        // ARC_023: ZIP içinde nested ZIP dosyası
+        if raw_name.ends_with(".zip") && !raw_name.contains('/') && !raw_name.contains('\\') {
+            notices.push(make_notice(
+                &mut counter, "ARC_023",
+                EntityType::File, Some(raw_name.clone()),
+                Some(&raw_name), None, None,
+                Some(raw_name.clone()),
+                format!("'{raw_name}' GTFS ZIP içinde başka bir ZIP dosyası — GTFS bu formatı desteklemiyor."),
+                "İç içe ZIP dosyasını kaldırın; GTFS dosyaları tek bir ZIP içinde düz yapıda bulunmalıdır.",
+            ));
+            continue;
+        }
+
         // locations.geojson: Flex GeoJSON lokasyon dosyası (özel işlem)
         if raw_name == "locations.geojson" {
             let mut buf = Vec::with_capacity(zf.size() as usize);
             if zf.read_to_end(&mut buf).is_ok() {
                 validate_locations_geojson(&buf, &raw_name, &mut notices, &mut counter);
             }
+            continue;
+        }
+
+        // ARC_024: Alt dizinde .txt dosyası — standart parser'lar bu dosyaları atlar
+        if raw_name.ends_with(".txt") && (raw_name.contains('/') || raw_name.contains('\\')) {
+            notices.push(make_notice(
+                &mut counter, "ARC_024",
+                EntityType::File, Some(raw_name.clone()),
+                Some(&raw_name), None, None,
+                Some(raw_name.clone()),
+                format!("'{raw_name}' alt dizinde bulunuyor — GTFS dosyaları ZIP kök dizininde düz olmalıdır."),
+                "Dosyayı ZIP'in kök dizinine taşıyın.",
+            ));
             continue;
         }
 
@@ -822,30 +848,163 @@ fn validate_locations_geojson(bytes: &[u8], fname: &str, notices: &mut Vec<Notic
 
     let Some(features) = json.get("features").and_then(|f| f.as_array()) else { return; };
 
-    for (i, feature) in features.iter().enumerate() {
-        let geom_type = feature
-            .get("geometry")
-            .and_then(|g| g.get("type"))
-            .and_then(|t| t.as_str());
+    // LOC_005: FeatureCollection boş
+    if features.is_empty() {
+        notices.push(make_notice(
+            counter, "LOC_005", EntityType::File, Some(fname.to_string()),
+            Some(fname), None, Some("features"), None,
+            format!("'{fname}' FeatureCollection'ı boş — hiç feature yok."),
+            "GTFS Flex için en az bir Polygon veya MultiPolygon feature ekleyin.",
+        ));
+        return;
+    }
 
+    // LOC_007: Yinelenen feature 'id' değerleri
+    {
+        let mut seen_ids: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+        for (i, feature) in features.iter().enumerate() {
+            if let Some(id_val) = feature.get("id") {
+                let id_str = id_val.to_string();
+                if let Some(first_idx) = seen_ids.get(&id_str) {
+                    notices.push(make_notice(
+                        counter, "LOC_007", EntityType::File, Some(fname.to_string()),
+                        Some(fname), Some((i + 1) as u64), Some("id"), Some(id_str.clone()),
+                        format!("'{fname}' özellik {} ve {} aynı 'id' değerine sahip ({id_str}) — GTFS Flex referansı belirsizleşir.", first_idx + 1, i + 1),
+                        "Her feature'a benzersiz bir 'id' değeri verin.",
+                    ));
+                } else {
+                    seen_ids.insert(id_str, i);
+                }
+            }
+        }
+    }
+
+    for (i, feature) in features.iter().enumerate() {
+        let feat_num = (i + 1) as u64;
+
+        // LOC_003: Feature'da 'id' property eksik
+        if feature.get("id").is_none() {
+            notices.push(make_notice(
+                counter, "LOC_003", EntityType::File, Some(fname.to_string()),
+                Some(fname), Some(feat_num), Some("id"), None,
+                format!("'{fname}' özellik {feat_num} için 'id' property eksik — stop_times çapraz referansı için zorunlu."),
+                "Her feature'a stop_times.txt'deki location_id değeriyle eşleşen benzersiz bir 'id' ekleyin.",
+            ));
+        }
+
+        let geometry = feature.get("geometry");
+
+        // LOC_002: Feature'da geometry null veya eksik
+        if geometry.map_or(true, |g| g.is_null()) {
+            notices.push(make_notice(
+                counter, "LOC_002", EntityType::File, Some(fname.to_string()),
+                Some(fname), Some(feat_num), Some("geometry"), None,
+                format!("'{fname}' özellik {feat_num} için geometry null veya eksik — GTFS Flex gerektiriyor."),
+                "Her feature için geçerli bir Polygon veya MultiPolygon geometrisi tanımlayın.",
+            ));
+            continue;
+        }
+        let geometry = geometry.unwrap();
+
+        let geom_type = geometry.get("type").and_then(|t| t.as_str());
         match geom_type {
-            Some("Polygon") | Some("MultiPolygon") => {}
+            Some("Polygon") => {
+                if let Some(rings) = geometry.get("coordinates").and_then(|c| c.as_array()) {
+                    check_polygon_rings(counter, fname, feat_num, rings, notices);
+                }
+            }
+            Some("MultiPolygon") => {
+                if let Some(polygons) = geometry.get("coordinates").and_then(|c| c.as_array()) {
+                    for poly in polygons {
+                        if let Some(rings) = poly.as_array() {
+                            check_polygon_rings(counter, fname, feat_num, rings, notices);
+                        }
+                    }
+                }
+            }
             Some(t) => {
                 notices.push(make_notice(
                     counter, "LOC_001", EntityType::File, Some(fname.to_string()),
-                    Some(fname), Some((i + 1) as u64), Some("geometry.type"), Some(t.to_string()),
-                    format!("'{fname}' özellik {} geçersiz geometri tipi: '{t}'. GTFS Flex yalnızca Polygon ve MultiPolygon destekler.", i + 1),
+                    Some(fname), Some(feat_num), Some("geometry.type"), Some(t.to_string()),
+                    format!("'{fname}' özellik {feat_num} geçersiz geometri tipi: '{t}'. GTFS Flex yalnızca Polygon ve MultiPolygon destekler."),
                     "locations.geojson'da yalnızca Polygon ve MultiPolygon geometrileri kullanın.",
                 ));
             }
             None => {
                 notices.push(make_notice(
                     counter, "LOC_001", EntityType::File, Some(fname.to_string()),
-                    Some(fname), Some((i + 1) as u64), Some("geometry"), None,
-                    format!("'{fname}' özellik {} için geometri tipi eksik veya null.", i + 1),
+                    Some(fname), Some(feat_num), Some("geometry.type"), None,
+                    format!("'{fname}' özellik {feat_num} için geometri tipi eksik."),
                     "Her feature için Polygon veya MultiPolygon geometrisi tanımlayın.",
                 ));
             }
+        }
+    }
+}
+
+/// Polygon ring'leri için LOC_004 (kapalı değil) ve LOC_006 (alan > 500km²) kontrolü.
+fn check_polygon_rings(
+    counter: &mut u32,
+    fname: &str,
+    feat_num: u64,
+    rings: &[serde_json::Value],
+    notices: &mut Vec<Notice>,
+) {
+    let mut all_lats = Vec::new();
+    let mut all_lons = Vec::new();
+    let mut already_reported_closure = false;
+
+    for ring in rings {
+        let Some(pts) = ring.as_array() else { continue };
+        if pts.len() < 2 { continue; }
+
+        // LOC_004: İlk ve son nokta eşit değilse ring kapalı değil
+        if !already_reported_closure {
+            let first = &pts[0];
+            let last  = &pts[pts.len() - 1];
+            let first_lon = first.get(0).and_then(|v| v.as_f64());
+            let first_lat = first.get(1).and_then(|v| v.as_f64());
+            let last_lon  = last.get(0).and_then(|v| v.as_f64());
+            let last_lat  = last.get(1).and_then(|v| v.as_f64());
+            if let (Some(fl), Some(fa), Some(ll), Some(la)) = (first_lon, first_lat, last_lon, last_lat) {
+                if (fl - ll).abs() > 1e-8 || (fa - la).abs() > 1e-8 {
+                    notices.push(make_notice(
+                        counter, "LOC_004", EntityType::File, Some(fname.to_string()),
+                        Some(fname), Some(feat_num), Some("coordinates"), None,
+                        format!("'{fname}' özellik {feat_num} Polygon ring'i kapalı değil — ilk nokta [{fl},{fa}] son nokta [{ll},{la}] ile eşleşmiyor."),
+                        "GeoJSON Polygon ring'inin ilk ve son koordinatı aynı olmalıdır.",
+                    ));
+                    already_reported_closure = true;
+                }
+            }
+        }
+
+        // bbox için koordinatları topla
+        for pt in pts {
+            if let (Some(lon), Some(lat)) = (pt.get(0).and_then(|v| v.as_f64()), pt.get(1).and_then(|v| v.as_f64())) {
+                all_lats.push(lat);
+                all_lons.push(lon);
+            }
+        }
+    }
+
+    // LOC_006: Bounding box alanı > 500km²
+    if all_lats.len() >= 3 {
+        let min_lat = all_lats.iter().cloned().fold(f64::INFINITY, f64::min);
+        let max_lat = all_lats.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
+        let min_lon = all_lons.iter().cloned().fold(f64::INFINITY, f64::min);
+        let max_lon = all_lons.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
+        let avg_lat = (min_lat + max_lat) / 2.0;
+        let lat_km = (max_lat - min_lat) * 111.0;
+        let lon_km = (max_lon - min_lon) * 111.0 * avg_lat.to_radians().cos();
+        let bbox_km2 = lat_km * lon_km;
+        if bbox_km2 > 500.0 {
+            notices.push(make_notice(
+                counter, "LOC_006", EntityType::File, Some(fname.to_string()),
+                Some(fname), Some(feat_num), Some("coordinates"), Some(format!("{bbox_km2:.0}km²")),
+                format!("'{fname}' özellik {feat_num} Polygon alanı çok büyük (~{bbox_km2:.0}km²) — GTFS Flex bölgesi için gerçekçi değil."),
+                "Bölge geometrisini gerçek hizmet alanını kapsayacak şekilde küçültün.",
+            ));
         }
     }
 }

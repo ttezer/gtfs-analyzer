@@ -6,7 +6,7 @@ An open-source, fully client-side GTFS (General Transit Feed Specification) vali
 
 Most existing GTFS validators only check specification compliance and produce an error list. GTFS Analyzer goes several steps further: it shows exactly which file and line number contains a problem, provides step-by-step remediation guidance for each issue, and marks geographic errors (route deviations, coordinate anomalies, unreachable stops, etc.) on an interactive map. Every finding is tagged with a file- and component-level rule code (`ARC_`, `STP_`, `STM_`...), one of four classes (Spec · Interop · Quality · Analytics), and one of five severity levels (Critical → Info) — making it easy to filter, prioritize, and automate across thousands of findings. The GTFS features used by a feed (Shapes, Transfers, Fares, Headsigns, Flex, etc.) are detected automatically and reflected in the report.
 
-Beyond specification compliance, it also measures operational quality: frequency inconsistencies per route, anomalous speed segments, isolated stops, service pattern gaps, and network topology issues — across 448 rules. Results are summarized with two independent scores; the fix queue automatically answers "what should I fix first?" and shows each fix's contribution to the score.
+Beyond specification compliance, it also measures operational quality: frequency inconsistencies per route, anomalous speed segments, isolated stops, service pattern gaps, and network topology issues — across 473 rules. Results are summarized with two independent scores; the fix queue automatically answers "what should I fix first?" and shows each fix's contribution to the score.
 
 **Who uses it:**
 - Transit operators and municipalities — before publishing a feed
@@ -33,7 +33,7 @@ Beyond specification compliance, it also measures operational quality: frequency
 | GTFS Flex support | Partial | ❌ | ❌ | ✅ |
 | Output formats | HTML, JSON | Web (permalink) | HTML, JSON | HTML, CSV, JSON, PDF |
 | Platform | Web | Web | Web, CLI, Desktop | Web *(CLI, Desktop planned)* |
-| **Total rules** | **178** | **~80** | **~120** | **448** |
+| **Total rules** | **178** | **~80** | **~120** | **473** |
 
 ### BART GTFS Feed Example
 
@@ -307,7 +307,7 @@ gtfs-validator/
 │   ├── config/     # Configuration types
 │   ├── core/       # Shared data structures and result model
 │   ├── pipeline/   # Validation pipeline (k1–k7 stages)
-│   ├── rules/      # Rule definitions and registry (448 rules, 36 groups)
+│   ├── rules/      # Rule definitions and registry (473 rules, 36 groups)
 │   └── wasm/       # wasm-bindgen WASM output
 └── ui/             # Vite + TypeScript frontend
     ├── pkg/          # wasm-pack output (generated, committed)

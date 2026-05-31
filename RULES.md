@@ -2,7 +2,7 @@
 
 🇹🇷 **Türkçe** · 🇬🇧 [English](RULES.en.md) · 🇯🇵 [日本語](RULES.ja.md)
 
-448 kural, 36 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
+473 kural, 36 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
 Önem seviyeleri: **KRİTİK** (yayın engelleyici) · **YÜKSEK** · **ORTA** · **DÜŞÜK** · **BİLGİ**
 Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · **Quality** (GTFS Kalitesi) · **Analytics** (GTFS Analitiği)
 
@@ -33,6 +33,8 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | ARC_020 | Önerilen GTFS dosyası eksik (shapes.txt veya feed_info.txt) | DÜŞÜK | Quality |
 | ARC_021 | Alanda ASCII dışı veya yazdırılamaz karakter | DÜŞÜK | Quality |
 | ARC_022 | Dosya satır sayısı 1.000.000 sınırını aşıyor | DÜŞÜK | Quality |
+| ARC_023 | ZIP içinde iç içe ZIP dosyası | ORTA | Spec |
+| ARC_024 | GTFS .txt dosyası alt dizinde (parse edilemez) | ORTA | Spec |
 
 ## AGN — Agency (İşletici)
 
@@ -193,6 +195,9 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | STM_040 | Flex stop_times'ta pickup/drop_off_booking_rule_id eksik | YÜKSEK | Spec |
 | STM_041 | stop_id ile location_id/group_id aynı anda kullanılamaz | YÜKSEK | Spec |
 | STM_042 | stop_headsign Google Transit tarafından desteklenmeyen karakter içeriyor | DÜŞÜK | Interop |
+| STM_043 | Sefer aşırı fazla durağa sahip (>200) | BİLGİ | Analytics |
+| STM_044 | Feed stop_times satır sayısı 2 milyonu aşıyor | BİLGİ | Analytics |
+| STM_045 | Sefer kalkış saati gece yarısından 26 saat sonra | ORTA | Quality |
 
 ## PDW — Pickup/Drop-off Window
 
@@ -205,6 +210,12 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | Kural | Başlık | Önem | Sınıf |
 |---|---|---|---|
 | LOC_001 | locations.geojson'da bilinmeyen veya geçersiz geometri tipi | YÜKSEK | Spec |
+| LOC_002 | Feature'da geometry null veya eksik | YÜKSEK | Spec |
+| LOC_003 | Feature'da 'id' property eksik | YÜKSEK | Spec |
+| LOC_004 | Polygon ring kapalı değil | ORTA | Spec |
+| LOC_005 | FeatureCollection tamamen boş | DÜŞÜK | Quality |
+| LOC_006 | Polygon alanı 500km²'yi aşıyor | ORTA | Quality |
+| LOC_007 | FeatureCollection içinde yinelenen feature 'id' | ORTA | Spec |
 
 ## CAL — Calendar (Takvim)
 
@@ -229,6 +240,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | CAL_017 | Takvim henüz başlamamış (tüm aktif tarihler gelecekte) | DÜŞÜK | Quality |
 | CAL_018 | Servisin aktif haftanın günü yok (tüm günler 0, calendar_dates ile geçersiz kılınan yok) | DÜŞÜK | Quality |
 | CAL_019 | Servis takvim tarihleri feed_info geçerlilik penceresi dışında | DÜŞÜK | Quality |
+| CAL_020 | Feed geçerlilik penceresi 5 yılı aşıyor | DÜŞÜK | Quality |
 
 ## CLD — Calendar Dates
 
@@ -270,6 +282,8 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | SHP_023 | shape_dist_traveled aynı değere sahip art arda iki nokta aynı koordinatta | ORTA | Quality |
 | SHP_024 | Duraktan şekle mesafe shape_dist_traveled ile tutarsız | ORTA | Quality |
 | SHP_025 | Sefer stop_times mesafesi şeklin toplam mesafesini aşıyor | ORTA | Quality |
+| SHP_026 | Shape aşırı fazla noktaya sahip (>5000) | BİLGİ | Analytics |
+| SHP_027 | Shape 200+ sefer tarafından kullanılıyor | BİLGİ | Analytics |
 
 ## FRQ — Frequencies (Frekanslar)
 
@@ -485,6 +499,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | FIN_017 | Feed çok uzak gelecekte sona eriyor | BİLGİ | Quality |
 | FIN_018 | feed_contact_email ve feed_contact_url ikisi de eksik | DÜŞÜK | Quality |
 | FIN_019 | Feed'in geçerlilik süresi 7 gün içinde dolacak | DÜŞÜK | Quality |
+| FIN_020 | Feed geçerlilik penceresi 7 günden kısa | ORTA | Quality |
 
 ## TRN — Translations (Çeviriler)
 
@@ -570,6 +585,8 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | OPR_021 | Takvim override çakışması: override ve base eş zamanlı aktif | YÜKSEK | Analytics |
 | OPR_022 | Takvim override uygulanmamış: override gününde base servis çalışıyor | YÜKSEK | Analytics |
 | OPR_023 | Takvim override boşluğu: pencere içinde hiçbir servis aktif değil | ORTA | Analytics |
+| OPR_024 | Hat 500+ sefer içeriyor | BİLGİ | Analytics |
+| OPR_025 | Ortalama sefer süresi 60 saniyeden kısa | YÜKSEK | Analytics |
 
 ## GEO — Coğrafi / Uzamsal
 
@@ -583,6 +600,12 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | GEO_013 | Feed coğrafi kapsam özeti | BİLGİ | Analytics |
 | GEO_014 | Feed coğrafi kapsamı çok geniş | BİLGİ | Analytics |
 | GEO_015 | Durak koordinatları Japonya sınırları dışında (feed_lang: ja) | ORTA | Quality |
+| GEO_016 | Durak Null Island yakınında (\|lat\|<0.1 VE \|lon\|<0.1) | YÜKSEK | Quality |
+| GEO_017 | Shape noktası Null Island yakınında | YÜKSEK | Quality |
+| GEO_018 | Tüm feed durakları 200m içinde (test verisi) | YÜKSEK | Analytics |
+| GEO_019 | Durak tam sayı koordinatlara sahip (hassasiyet sıfır) | ORTA | Quality |
+| GEO_020 | Shape dejenere — tüm noktalar aynı koordinatta | YÜKSEK | Quality |
+| GEO_021 | Durakların %30+ koordinatı paylaşıyor (sistematik hata) | YÜKSEK | Analytics |
 
 ## DQ — Veri Kalitesi / Kullanıcı Deneyimi
 
@@ -607,6 +630,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | DQ_019 | Önerilen alanda tamamen küçük harf (all-lowercase) | ORTA | Quality |
 | DQ_020 | Önerilen alan eksik veya boş | DÜŞÜK | Quality |
 | DQ_021 | Birincil anahtar yineleniyor (duplicate_key) | YÜKSEK | Spec |
+| DQ_022 | Durakların %80+'i aynı stop_name değerini paylaşıyor | YÜKSEK | Quality |
 
 ## VAT — Varlık Analitik Tespiti
 
@@ -619,6 +643,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | VAT_005 | İzole durak kümesi — ağ grafiğinde ana bileşenden kopuk duraklar | ORTA | Analytics |
 | VAT_006 | Hizmet yoğunluğu dengesizliği — tek hat feed sefer sayısının büyük bölümünü oluşturuyor | BİLGİ | Analytics |
 | VAT_007 | Terminus aktarma eksikliği — terminal durağa başka hat geliyor ama aktarma tanımlı değil | BİLGİ | Analytics |
+| VAT_008 | Aynı shape feed hatlarının %30+'ında kullanılıyor | BİLGİ | Analytics |
 
 ## BKR — Booking Rules (Rezervasyon Kuralları)
 

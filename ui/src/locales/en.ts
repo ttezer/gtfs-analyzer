@@ -373,6 +373,8 @@ const en: LocaleShape = {
     'ARC_020': "Recommended file '{entity_id}' is missing (shapes.txt or feed_info.txt).",
     'ARC_021': "Non-ASCII or non-printable character in field '{field}' of '{entity_id}'.",
     'ARC_022': "File '{entity_id}' exceeds the 1,000,000 row limit ({observed_value} rows).",
+    'ARC_023': "'{entity_id}' is a nested ZIP file inside the GTFS archive — not supported by the GTFS format.",
+    'ARC_024': "'{entity_id}' is a .txt file inside a subdirectory — standard GTFS parsers will not read it.",
     // BKR
     'BKR_001': "Booking rule '{entity_id}': prior_notice_start_day is set in a prohibited context.",
     'BKR_002': "Booking rule '{entity_id}': prior_notice_start_day requires prior_notice_last_day.",
@@ -525,10 +527,19 @@ const en: LocaleShape = {
     'STM_040': "Trip '{entity_id}': pickup/drop_off_booking_rule_id is missing in Flex stop_times.",
     'STM_041': "Trip '{entity_id}': stop_id and location_id/group_id cannot be used together.",
     'STM_042': "Trip '{entity_id}': stop_headsign contains characters unsupported by Google Transit.",
+    'STM_043': "Trip '{entity_id}' has {observed_value} stops — unusually high, possible data aggregation error.",
+    'STM_044': "Feed stop_times has {observed_value} rows — serious memory/performance risk for WASM consumers.",
+    'STM_045': "Trip '{entity_id}': departure time {observed_value} is more than 26 hours after midnight.",
     // PDW
     'PDW_006': "Trip '{entity_id}': overlapping pickup/drop-off windows for the same trip+zone.",
     // LOC
     'LOC_001': "Invalid geometry type in locations.geojson: '{observed_value}'.",
+    'LOC_002': "Feature {observed_value} in locations.geojson has null or missing geometry.",
+    'LOC_003': "Feature {observed_value} in locations.geojson is missing the required 'id' property.",
+    'LOC_004': "Feature {observed_value} in locations.geojson has an unclosed Polygon ring.",
+    'LOC_005': "locations.geojson FeatureCollection has no features.",
+    'LOC_006': "Feature {observed_value} in locations.geojson has a very large bounding box (~{observed_value} km²).",
+    'LOC_007': "locations.geojson contains duplicate feature 'id' values: '{observed_value}'.",
     // CAL
     'CAL_001': "Duplicate service_id: '{entity_id}'.",
     'CAL_002': "Service '{entity_id}': day field '{field}' has invalid value '{observed_value}'.",
@@ -549,6 +560,7 @@ const en: LocaleShape = {
     'CAL_017': "Service '{entity_id}': all active dates are in the future (earliest: {observed_value}).",
     'CAL_018': "Service '{entity_id}': no active weekdays and no calendar_dates overrides.",
     'CAL_019': "Service '{entity_id}': calendar dates fall outside the feed_info validity window ({observed_value}).",
+    'CAL_020': "Feed validity window spans {observed_value} — unrealistically long for a transit feed.",
     // CLD
     'CLD_001': 'calendar_dates.txt: service_id is missing.',
     'CLD_002': "calendar_dates.txt: date '{observed_value}' has an invalid format.",
@@ -582,6 +594,8 @@ const en: LocaleShape = {
     'SHP_023': "Shape '{entity_id}': consecutive points share the same shape_dist_traveled at the same coordinates.",
     'SHP_024': "Shape '{entity_id}': stop-to-shape distance is inconsistent with shape_dist_traveled.",
     'SHP_025': "Shape '{entity_id}': stop_times distance exceeds total shape length.",
+    'SHP_026': "Shape '{entity_id}' has {observed_value} points — high point count may impact consumer rendering performance.",
+    'SHP_027': "Shape '{entity_id}' is used by {observed_value} trips — possible incorrect shape assignment.",
     // FRQ
     'FRQ_001': "Frequency trip_id '{entity_id}' not found in trips.txt.",
     'FRQ_002': "Frequency '{entity_id}': start_time '{observed_value}' is invalid.",
@@ -729,6 +743,7 @@ const en: LocaleShape = {
     'FIN_017': "feed_info.txt: feed expires very far in the future ({observed_value}).",
     'FIN_018': 'feed_info.txt: both feed_contact_email and feed_contact_url are missing.',
     'FIN_019': "Feed validity expires soon (end date: {observed_value}).",
+    'FIN_020': "Feed validity window is only {observed_value} — too short for operational use.",
     // TRN
     'TRN_001': "Translation: table_name '{observed_value}' is invalid.",
     'TRN_002': "Translation: field_name '{observed_value}' is invalid for this table.",
@@ -798,6 +813,8 @@ const en: LocaleShape = {
     'OPR_021': "Calendar override conflict for '{entity_id}': override and base are both active simultaneously.",
     'OPR_022': "Calendar override for '{entity_id}' not applied: base service is still running on override day.",
     'OPR_023': "Calendar override gap for '{entity_id}': no service is active within the override window.",
+    'OPR_024': "Route '{entity_id}' has {observed_value} trips — possible data aggregation issue.",
+    'OPR_025': "Feed average trip duration is {observed_value} — extremely short, likely a data quality issue.",
     // GEO
     'GEO_002': "Stop '{entity_id}' is {observed_value} from the feed median — possible coordinate error.",
     'GEO_006': "Shape '{entity_id}': jump of {observed_value} (limit: {expected_value}).",
@@ -807,6 +824,12 @@ const en: LocaleShape = {
     'GEO_013': "Feed geographic coverage summary: {observed_value}.",
     'GEO_014': "Feed geographic coverage is very wide: {observed_value}.",
     'GEO_015': "Stop '{entity_id}': coordinates {observed_value} are outside Japan's bounds (lat 20.25–45.33, lon 122.56–153.59).",
+    'GEO_016': "Stop '{entity_id}': coordinates {observed_value} are at or near Null Island — likely a data error.",
+    'GEO_017': "Shape '{entity_id}' has a point at or near Null Island ({observed_value}) — GPS dropout or data error.",
+    'GEO_018': "All {observed_value} stops are within a {expected_value} radius — possible placeholder or test data.",
+    'GEO_019': "Stop '{entity_id}': coordinates {observed_value} are integers — zero decimal precision, likely placeholder data.",
+    'GEO_020': "Shape '{entity_id}': all {observed_value} points are at the same location — degenerate geometry.",
+    'GEO_021': "{observed_value} of stops share coordinates with another stop — systematic coordinate issue.",
     // DQ
     'DQ_001':  'Feed name is missing.',
     'DQ_002':  'feed_publisher_url is missing.',
@@ -827,6 +850,7 @@ const en: LocaleShape = {
     'DQ_019':  "All-lowercase value in recommended field '{field}' of '{entity_id}'.",
     'DQ_020':  "Recommended field '{field}' is missing or empty in '{entity_id}'.",
     'DQ_021':  "Duplicate primary key: '{entity_id}'.",
+    'DQ_022':  "{observed_value} of stops share the same stop_name — possible placeholder or test data.",
     // VAT
     'VAT_001': "Route '{entity_id}': high shape similarity with another route ({observed_value}) — possible duplicate.",
     'VAT_002': "Stop '{entity_id}': potential transfer hub — many routes pass but no transfers are defined.",
@@ -835,6 +859,7 @@ const en: LocaleShape = {
     'VAT_005': "Isolated stop cluster detected — stops are disconnected from the main network.",
     'VAT_006': "Route '{entity_id}' accounts for a disproportionately large share of feed trips ({observed_value}).",
     'VAT_007': "Stop '{entity_id}': another route shares this terminus but no transfer is defined.",
+    'VAT_008': "Shape '{entity_id}' is used across {observed_value} of routes — possible incorrect shape assignment.",
   } as Record<string, string>,
 
   ruleRemediations: {
@@ -869,6 +894,7 @@ const en: LocaleShape = {
     'DQ_019': "Capitalize the stop name (e.g., 'Central Station').",
     'DQ_020': 'Add a trip_headsign column to trips.txt.',
     'DQ_021': 'Use unique stop_id values in stops.txt.',
+    'DQ_022': 'Assign unique, descriptive stop_name values to each stop.',
     // FRQ
     'FRQ_006': 'Reduce the gap between trips or add extra runs.',
     'FRQ_010': 'Review the trip schedule; ignore if this headway is intentional.',
@@ -881,6 +907,12 @@ const en: LocaleShape = {
     'GEO_013': 'Informational notice; no action required.',
     'GEO_014': 'Informational notice; expected for large networks.',
     'GEO_015': 'Verify the stop coordinates; all stops in a Japanese feed (feed_lang: ja) must be within Japan.',
+    'GEO_016': 'Correct the stop_lat and stop_lon values; (0,0) is in the Gulf of Guinea — likely a missing coordinate.',
+    'GEO_017': 'Check shapes.txt for rows with shape_pt_lat=0 and shape_pt_lon=0; these are likely GPS dropouts.',
+    'GEO_018': 'Replace placeholder stop coordinates with real geographic locations.',
+    'GEO_019': 'Update stop_lat and stop_lon with at least 5 decimal places of precision.',
+    'GEO_020': 'Correct the shape coordinates in shapes.txt to follow the actual route path.',
+    'GEO_021': 'Fix duplicate stop coordinates in stops.txt; each physical stop should have a unique location.',
     // OPR
     'OPR_001': 'Increase peak/off-peak trip frequency or close large service gaps.',
     'OPR_003': 'Adjust the trip schedule; very frequent trips may cause congestion.',
@@ -904,6 +936,8 @@ const en: LocaleShape = {
     'OPR_021': 'Remove the base service on the override day via calendar_dates.txt (exception_type=2).',
     'OPR_022': 'Add the override service on the override day via calendar_dates.txt (exception_type=1).',
     'OPR_023': 'Keep both base and override services active during the override window.',
+    'OPR_024': 'Check that trips are correctly assigned to routes; consider splitting very large routes.',
+    'OPR_025': 'Review departure_time and arrival_time values in stop_times.txt for data errors.',
     // PDW
     'PDW_006': 'Ensure time windows within the same trip+zone do not overlap.',
     // PTH
@@ -928,6 +962,8 @@ const en: LocaleShape = {
     'SHP_023': 'Remove the duplicate shape point.',
     'SHP_024': 'Fix the shape_dist_traveled value in stop_times.txt or the stop coordinates.',
     'SHP_025': 'Match the shape_dist_traveled values in stop_times.txt to the scale used in shapes.txt.',
+    'SHP_026': 'Simplify shapes.txt using a path simplification algorithm (e.g., Douglas-Peucker) to reduce the point count.',
+    'SHP_027': 'Assign a unique shape_id for each route direction instead of reusing the same shape.',
     // STM
     'STM_008': 'Review stop_times.txt time values; times must increase monotonically across trips.',
     'STM_012': 'Verify stop_times.txt time values; two stops cannot be that far apart within the same minute.',
@@ -979,6 +1015,7 @@ const en: LocaleShape = {
     'VAT_005': 'Verify that disconnected stops are linked to trips and that stop_times records are correct.',
     'VAT_006': 'Informational notice if high trip density reflects operational reality. Otherwise, add trips to other routes.',
     'VAT_007': 'Add a transfer record for this terminus stop in transfers.txt.',
+    'VAT_008': 'Define a separate shape_id for each route and direction.',
     // AGN
     'AGN_002': 'Fill in the agency_name field.',
     'AGN_003': 'Enter a valid http/https URL for agency_url.',
@@ -1078,6 +1115,9 @@ const en: LocaleShape = {
     'STM_039': 'Enter both start_pickup_drop_off_window and end_pickup_drop_off_window for flex stop_times.',
     'STM_040': 'Enter pickup_booking_rule_id or drop_off_booking_rule_id for flex booking.',
     'STM_041': 'For a standard stop use only stop_id; for a flex stop use only location_id or location_group_id.',
+    'STM_043': 'Review stop_times.txt for this trip; consider splitting into logical segments if routes share a single trip_id.',
+    'STM_044': 'Split the feed into smaller geographic or time-based partitions.',
+    'STM_045': 'Check stop_times.txt for this trip; departure times over 26 hours usually indicate a data error.',
     'STM_042': 'Remove the characters ! $ % \\ * = _ from the stop_headsign value.',
     // SHP (field-level)
     'SHP_001': 'Fill in the shape_id field.',
@@ -1167,6 +1207,7 @@ const en: LocaleShape = {
     'FIN_017': 'Set feed_end_date to a realistic end date (within 2 years).',
     'FIN_018': 'Add feed_contact_email or feed_contact_url to feed_info.txt.',
     'FIN_019': 'Plan to publish an updated feed before the current one expires.',
+    'FIN_020': 'Extend the feed validity window to cover at least one full service cycle.',
     // ATR
     'ATR_001': 'Assign a unique attribution_id to each attribution record.',
     'ATR_002': 'Fill in the organization_name field.',
@@ -1287,6 +1328,8 @@ const en: LocaleShape = {
     'ARC_019': 'Ensure all header column names are non-empty.',
     'ARC_021': 'Ensure all field values contain only printable ASCII characters.',
     'ARC_022': 'Split the file into smaller parts or remove unnecessary rows.',
+    'ARC_023': 'Remove the nested ZIP file; GTFS files must be directly inside a single flat ZIP archive.',
+    'ARC_024': 'Move the file to the root of the ZIP archive.',
     // AGN
     'AGN_001': 'Add agency.txt to the feed ZIP.',
     'AGN_013': 'Align the feed_lang value in feed_info.txt with the agency_lang value in agency.txt.',
@@ -1298,6 +1341,7 @@ const en: LocaleShape = {
     'CAL_011': 'Remove the unused service or assign it to at least one trip.',
     'CAL_018': 'Set at least one weekday to active (1) or add calendar_dates entries for this service.',
     'CAL_019': 'Update feed_start_date/feed_end_date in feed_info.txt to cover the full service date range, or adjust calendar.txt dates.',
+    'CAL_020': 'Limit feed_start_date and feed_end_date to a realistic service period (typically 1–2 years).',
     // CLD
     'CLD_004': 'Remove the duplicate or conflicting exception record for this service and date.',
     // DQ
@@ -1317,6 +1361,12 @@ const en: LocaleShape = {
     'FRL_008': 'Add fare rules covering all routes or define a catch-all fare.',
     // LOC
     'LOC_001': 'Ensure locations.geojson contains only Polygon or MultiPolygon feature geometries.',
+    'LOC_002': 'Add a valid Polygon or MultiPolygon geometry to each feature in locations.geojson.',
+    'LOC_003': 'Add a unique "id" property to each feature that matches the location_id referenced in stop_times.txt.',
+    'LOC_004': 'Close the Polygon ring by making the last coordinate equal to the first coordinate.',
+    'LOC_005': 'Add at least one Polygon or MultiPolygon feature to locations.geojson.',
+    'LOC_006': 'Reduce the polygon extent to a realistic service zone; large polygons are likely coordinate errors.',
+    'LOC_007': 'Assign a unique "id" to each feature in locations.geojson.',
     // PTH
     'PTH_001': 'Assign a unique pathway_id to each pathway record.',
     'PTH_014': 'Pathways must connect stops within the same station; update from_stop_id or to_stop_id.',
@@ -1372,6 +1422,8 @@ const en: LocaleShape = {
     'ARC_020': 'Recommended GTFS file missing (shapes.txt or feed_info.txt)',
     'ARC_021': 'Non-ASCII or non-printable character in field',
     'ARC_022': 'File row count exceeds 1,000,000 limit',
+    'ARC_023': 'Nested ZIP file inside GTFS archive',
+    'ARC_024': 'GTFS .txt file in subdirectory (will not be parsed)',
     // BKR
     'BKR_001': 'Prior-day booking field set in prohibited context',
     'BKR_002': 'prior_notice_start_day only valid with prior_notice_last_day',
@@ -1524,10 +1576,19 @@ const en: LocaleShape = {
     'STM_040': 'pickup/drop_off_booking_rule_id missing in Flex stop_times',
     'STM_041': 'stop_id and location_id/group_id cannot be used together',
     'STM_042': 'stop_headsign contains characters unsupported by Google Transit',
+    'STM_043': 'Trip has extreme stop count (>200)',
+    'STM_044': 'Feed stop_times exceeds 2,000,000 rows (WASM performance warning)',
+    'STM_045': 'Trip departure time exceeds 26 hours after midnight',
     // PDW
     'PDW_006': 'Overlapping pickup/drop-off window for same trip+zone',
     // LOC
     'LOC_001': 'Unknown or invalid geometry type in locations.geojson',
+    'LOC_002': 'Feature has null or missing geometry',
+    'LOC_003': "Feature missing required 'id' property",
+    'LOC_004': 'Polygon ring is not closed',
+    'LOC_005': 'FeatureCollection has no features',
+    'LOC_006': 'Polygon bounding box exceeds 500km²',
+    'LOC_007': "Duplicate feature 'id' in FeatureCollection",
     // CAL
     'CAL_001': 'Duplicate service_id',
     'CAL_002': 'Calendar day field invalid value',
@@ -1548,6 +1609,7 @@ const en: LocaleShape = {
     'CAL_017': 'Calendar has not yet started (all active dates in the future)',
     'CAL_018': 'Service has no active weekdays (all days 0, none overridden by calendar_dates)',
     'CAL_019': 'Service calendar dates outside feed_info validity window',
+    'CAL_020': 'Feed validity window exceeds 5 years',
     // CLD
     'CLD_001': 'service_id missing',
     'CLD_002': 'date invalid format',
@@ -1581,6 +1643,8 @@ const en: LocaleShape = {
     'SHP_023': 'Consecutive points with same shape_dist_traveled at same coordinates',
     'SHP_024': 'Stop-to-shape distance inconsistent with shape_dist_traveled',
     'SHP_025': 'Trip stop_times distance exceeds total shape distance',
+    'SHP_026': 'Shape has extreme point count (>5,000)',
+    'SHP_027': 'Shape used by more than 200 trips',
     // FRQ
     'FRQ_001': 'trip_id not found',
     'FRQ_002': 'start_time invalid',
@@ -1728,6 +1792,7 @@ const en: LocaleShape = {
     'FIN_017': 'Feed expires in the very distant future',
     'FIN_018': 'Both feed_contact_email and feed_contact_url missing',
     'FIN_019': 'Feed validity expires within 7 days',
+    'FIN_020': 'Feed validity window shorter than 7 days',
     // TRN
     'TRN_001': 'table_name invalid value',
     'TRN_002': 'field_name invalid for this table',
@@ -1797,6 +1862,8 @@ const en: LocaleShape = {
     'OPR_021': 'Calendar override conflict: override and base simultaneously active',
     'OPR_022': 'Calendar override not applied: base service running on override day',
     'OPR_023': 'Calendar override gap: no service active within window',
+    'OPR_024': 'Route has extreme trip count (>500)',
+    'OPR_025': 'Feed average trip duration under 60 seconds',
     // GEO
     'GEO_002': 'Stop too far from feed median',
     'GEO_006': 'Large jump in shape',
@@ -1806,6 +1873,12 @@ const en: LocaleShape = {
     'GEO_013': 'Feed geographic coverage summary',
     'GEO_014': 'Feed geographic coverage too wide',
     'GEO_015': 'Stop coordinates outside Japan bounds (feed_lang: ja)',
+    'GEO_016': 'Stop at or near Null Island (|lat|<0.1 and |lon|<0.1)',
+    'GEO_017': 'Shape point at or near Null Island',
+    'GEO_018': 'All feed stops within 200m radius (possible test data)',
+    'GEO_019': 'Stop has integer (zero-precision) coordinates',
+    'GEO_020': 'Shape is degenerate — all points at the same location',
+    'GEO_021': 'More than 30% of stops share coordinates (systematic issue)',
     // DQ
     'DQ_001':  'Feed name missing',
     'DQ_002':  'feed_publisher_url missing',
@@ -1826,6 +1899,7 @@ const en: LocaleShape = {
     'DQ_019':  'All-lowercase value in recommended field',
     'DQ_020':  'Recommended field missing or empty',
     'DQ_021':  'Primary key duplicate (duplicate_key)',
+    'DQ_022':  'More than 80% of stops share the same stop_name',
     // VAT
     'VAT_001': 'Route shape similarity (likely duplicate route)',
     'VAT_002': 'Transfer hub undefined — many routes pass but no transfers defined',
@@ -1834,6 +1908,7 @@ const en: LocaleShape = {
     'VAT_005': 'Isolated stop cluster — stops disconnected from main network component',
     'VAT_006': 'Service density imbalance — single route accounts for large proportion of feed trips',
     'VAT_007': 'Terminal transfer missing — another route serves the terminus but no transfer defined',
+    'VAT_008': 'Same shape used by more than 30% of routes',
   },
 };
 

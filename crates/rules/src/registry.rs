@@ -131,6 +131,10 @@ pub static RULES: &[RuleMeta] = &[
         "Alanda ASCII dışı veya yazdırılamaz karakter"),
     r!("ARC_022", Dusuk,  Quality, 1, &[], None, VS, File,
         "Dosya satır sayısı 1.000.000 sınırını aşıyor"),
+    r!("ARC_023", Orta,   Spec,    2, &[], None, VS, File,
+        "ZIP içinde nested ZIP dosyası — GTFS formatında desteklenmez"),
+    r!("ARC_024", Orta,   Spec,    2, &[], None, VS, File,
+        "GTFS .txt dosyası ZIP içinde alt dizinde — standart parser'lar tarafından atlanır"),
 
     // ── BKR: Booking Rules ─────────────────────────────────────────────────────
     r!("BKR_001", Yuksek, Spec, 1, &[], Some("booking_rule_id"), VS, Entity,
@@ -482,6 +486,12 @@ pub static RULES: &[RuleMeta] = &[
         "stop_id ile location_id/group_id aynı anda kullanılamaz"),
     r!("STM_042", Dusuk, Interop, 1, &[], Some("trip_id"), VI, Row,
         "stop_headsign Google Transit tarafından desteklenmeyen karakter içeriyor"),
+    r!("STM_043", Bilgi,  Analytics, 1, &[], Some("trip_id"), VA, Entity,
+        "Sefer aşırı fazla durağa sahip (>200) — olası veri birleştirme hatası"),
+    r!("STM_044", Bilgi,  Analytics, 1, &[], None, VA, Feed,
+        "Feed stop_times satır sayısı 2 milyonu aşıyor — WASM bellek/performans uyarısı"),
+    r!("STM_045", Orta,   Quality,   1, &[], Some("trip_id"), VS, Entity,
+        "Seferin hareket saati gece yarısından 26 saat sonrasını aşıyor — olası veri anomalisi"),
 
     // ── PDW: Pickup/Drop-off Window ──────────────────────────────────────────
     r!("PDW_006", Orta, Spec, 2, &[], Some("trip_id"), VS, Entity,
@@ -490,6 +500,18 @@ pub static RULES: &[RuleMeta] = &[
     // ── LOC: locations.geojson ───────────────────────────────────────────────
     r!("LOC_001", Yuksek, Spec, 2, &[], None, VS, File,
         "locations.geojson'da bilinmeyen veya geçersiz geometri tipi"),
+    r!("LOC_002", Yuksek, Spec, 2, &[], None, VS, File,
+        "Feature'da geometry null veya eksik — GTFS Flex gerektiriyor"),
+    r!("LOC_003", Yuksek, Spec, 2, &[], None, VS, File,
+        "Feature'da 'id' property eksik — stop_times çapraz referansı için zorunlu"),
+    r!("LOC_004", Orta,   Spec, 2, &[], None, VS, File,
+        "Polygon ring kapalı değil (ilk != son nokta)"),
+    r!("LOC_005", Dusuk,  Quality, 1, &[], None, VS, File,
+        "FeatureCollection boş — hiç feature yok"),
+    r!("LOC_006", Orta,   Quality, 1, &[], None, VS, File,
+        "Polygon alanı 500km²'yi aşıyor — gerçekçi olmayan Flex bölge"),
+    r!("LOC_007", Orta,   Spec,    2, &[], None, VS, File,
+        "FeatureCollection içinde yinelenen 'id' değeri — Flex referansı belirsizleşir"),
 
     // ── CAL: Calendar ──────────────────────────────────────────────────────────
     r!("CAL_001", Kritik, Spec, 1,
@@ -538,6 +560,8 @@ pub static RULES: &[RuleMeta] = &[
         "Servisin aktif haftanın günü yok (tüm günler 0, calendar_dates ile geçersiz kılınan yok)"),
     r!("CAL_019", Dusuk,  Quality,   1, &[], Some("service_id"), VS, Entity,
         "Servis takvimi feed_info geçerlilik penceresi dışına taşıyor"),
+    r!("CAL_020", Dusuk,  Quality,   1, &[], None, VS, Feed,
+        "Feed geçerlilik penceresi 5 yılı aşıyor — gerçekçi olmayan zaman dilimi"),
 
     // ── CLD: Calendar Dates ────────────────────────────────────────────────────
     r!("CLD_001", Kritik, Spec, 1, &[], Some("service_id"), VS_K, Row,
@@ -616,6 +640,10 @@ pub static RULES: &[RuleMeta] = &[
         "Duraktan şekle mesafe shape_dist_traveled ile tutarsız"),
     r!("SHP_025", Orta,   Quality, 2, &[], Some("trip_id"), VS, Entity,
         "Sefer stop_times mesafesi şeklin toplam mesafesini aşıyor"),
+    r!("SHP_026", Bilgi,  Analytics, 1, &[], Some("shape_id"), VA_GEO, Entity,
+        "Shape aşırı fazla noktaya sahip (>5000) — tüketici render performansını etkiler"),
+    r!("SHP_027", Bilgi,  Analytics, 1, &[], Some("shape_id"), VA_GEO, Entity,
+        "Aynı shape 200'den fazla sefer tarafından kullanılıyor — olası yanlış atama"),
 
     // ── FRQ: Frequencies ───────────────────────────────────────────────────────
     r!("FRQ_001", Kritik, Spec, 1, &[], Some("trip_id"), VS_K, Row,
@@ -937,6 +965,8 @@ pub static RULES: &[RuleMeta] = &[
         "feed_contact_email ve feed_contact_url ikisi de eksik"),
     r!("FIN_019", Dusuk,  Quality, 1, &[], None, VS, Feed,
         "Feed'in geçerlilik süresi 7 gün içinde dolacak"),
+    r!("FIN_020", Orta,   Quality, 1, &[], None, VS, Feed,
+        "Feed geçerlilik penceresi 7 günden kısa — operasyonel kullanım için çok kısa"),
 
     // ── TRN: Translations ──────────────────────────────────────────────────────
     r!("TRN_001", Kritik, Spec, 1, &[], None, VS_K, Row,
@@ -1081,6 +1111,10 @@ pub static RULES: &[RuleMeta] = &[
         "Takvim override uygulanmamış: override gününde base servis çalışıyor"),
     r!("OPR_023", Orta,   Analytics, 3, &[], Some("route_id"),   VA, Entity,
         "Takvim override boşluğu: pencere içinde hiçbir servis aktif değil"),
+    r!("OPR_024", Bilgi,  Analytics, 1, &[], Some("route_id"),   VA, Entity,
+        "Hattın 500'den fazla seferi var — olası veri birleştirme sorunu"),
+    r!("OPR_025", Yuksek, Analytics, 2, &[], None, VA, Feed,
+        "Feed genelinde ortalama sefer süresi 60 saniyeden kısa — veri kalitesi sorunu"),
 
     // ── GEO: Coğrafi / Uzamsal (canonical kurallar — GEO_008/010/011 hariç) ───
     r!("GEO_002", Yuksek, Analytics, 2, &[], Some("stop_id"), VA_GEO, Entity,
@@ -1099,6 +1133,18 @@ pub static RULES: &[RuleMeta] = &[
         "Feed coğrafi kapsamı çok geniş"),
     r!("GEO_015", Orta,   Quality,   1, &[], Some("stop_id"), VS, Entity,
         "Durak koordinatları Japonya sınırları dışında (feed_lang: ja)"),
+    r!("GEO_016", Yuksek, Quality,   1, &[], Some("stop_id"), VA_GEO, Entity,
+        "Durak Null Island yakınında (|lat|<1 VE |lon|<1) — olası koordinat hatası"),
+    r!("GEO_017", Yuksek, Quality,   1, &[], Some("shape_id"), VA_GEO, Entity,
+        "Shape noktası Null Island yakınında — GPS verisi hatası"),
+    r!("GEO_018", Yuksek, Analytics, 2, &[], None, VA_GEO, Feed,
+        "Tüm feed durağları 200m yarıçap içinde — test/yer tutucu veri"),
+    r!("GEO_019", Orta,   Quality,   1, &[], Some("stop_id"), VS, Entity,
+        "Durak koordinatları tam sayı (ondalık basamak yok) — düşük hassasiyetli veya yer tutucu"),
+    r!("GEO_020", Yuksek, Quality,   1, &[], Some("shape_id"), VA_GEO, Entity,
+        "Shape'in tüm noktaları aynı koordinatta — dejenere geometri"),
+    r!("GEO_021", Yuksek, Analytics, 2, &[], None, VA_GEO, Feed,
+        "Durakların %30'undan fazlası koordinatlarını başka bir durakla paylaşıyor — sistematik hata"),
 
     // ── DQ: Veri Kalitesi / Kullanıcı Deneyimi ─────────────────────────────────
     r!("DQ_001",  Dusuk,  Quality,  1, &[], None, VS, Feed,
@@ -1139,6 +1185,8 @@ pub static RULES: &[RuleMeta] = &[
         "Önerilen alan eksik veya boş"),
     r!("DQ_021",  Yuksek, Spec,     1, &[], Some("file"), VS_K, Entity,
         "Birincil anahtar yineleniyor (duplicate_key)"),
+    r!("DQ_022",  Yuksek, Quality,  2, &[], None, VS, Feed,
+        "Durakların %80'inden fazlası aynı stop_name değerini paylaşıyor — yer tutucu/test verisi"),
 
     // ── VAT: Varlık Analitik Tespiti (tümü ANALYTICS) ──────────────────────────
     r!("VAT_001", Orta,   Analytics, 5, &[], Some("route_id"), VA, Entity,
@@ -1155,6 +1203,8 @@ pub static RULES: &[RuleMeta] = &[
         "Hizmet yoğunluğu dengesizliği — tek hat feed sefer sayısının büyük bölümünü oluşturuyor"),
     r!("VAT_007", Bilgi,  Analytics, 3, &[], Some("stop_id"), VA, Entity,
         "Terminus aktarma eksikliği — terminal durağa başka hat geliyor ama aktarma tanımlı değil"),
+    r!("VAT_008", Bilgi,  Analytics, 2, &[], Some("shape_id"), VA_GEO, Entity,
+        "Aynı shape feed hatlarının %30'undan fazlasında kullanılıyor — olası yanlış shape ataması"),
 ];
 
 /// Kural ID'sine göre metadata döndürür.

@@ -2,7 +2,7 @@
 
 🇹🇷 [Türkçe](RULES.md) · 🇬🇧 **English** · 🇯🇵 [日本語](RULES.ja.md)
 
-448 rules, 36 groups. Each rule is identified by a unique ID, severity level, and class.
+473 rules, 36 groups. Each rule is identified by a unique ID, severity level, and class.
 Severity levels: **CRITICAL** (publish blocker) · **HIGH** · **MEDIUM** · **LOW** · **INFO**
 Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Quality** (GTFS Quality) · **Analytics** (GTFS Analytics)
 
@@ -33,6 +33,8 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | ARC_020 | Recommended GTFS file missing (shapes.txt or feed_info.txt) | LOW | Quality |
 | ARC_021 | Non-ASCII or non-printable character in field | LOW | Quality |
 | ARC_022 | File row count exceeds 1,000,000 limit | LOW | Quality |
+| ARC_023 | Nested ZIP file inside GTFS archive | MEDIUM | Spec |
+| ARC_024 | GTFS .txt file in subdirectory (will not be parsed) | MEDIUM | Spec |
 
 ## AGN — Agency
 
@@ -193,6 +195,9 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | STM_040 | pickup/drop_off_booking_rule_id missing in Flex stop_times | HIGH | Spec |
 | STM_041 | stop_id and location_id/group_id cannot be used together | HIGH | Spec |
 | STM_042 | stop_headsign contains characters unsupported by Google Transit | LOW | Interop |
+| STM_043 | Trip has extreme stop count (>200) | INFO | Analytics |
+| STM_044 | Feed stop_times exceeds 2,000,000 rows (WASM performance warning) | INFO | Analytics |
+| STM_045 | Trip departure time exceeds 26 hours after midnight | MEDIUM | Quality |
 
 ## PDW — Pickup/Drop-off Window
 
@@ -205,6 +210,12 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | Rule | Title | Severity | Class |
 |---|---|---|---|
 | LOC_001 | Unknown or invalid geometry type in locations.geojson | HIGH | Spec |
+| LOC_002 | Feature has null or missing geometry | HIGH | Spec |
+| LOC_003 | Feature missing required 'id' property | HIGH | Spec |
+| LOC_004 | Polygon ring is not closed | MEDIUM | Spec |
+| LOC_005 | FeatureCollection has no features | LOW | Quality |
+| LOC_006 | Polygon bounding box exceeds 500km² | MEDIUM | Quality |
+| LOC_007 | Duplicate feature 'id' in FeatureCollection | MEDIUM | Spec |
 
 ## CAL — Calendar
 
@@ -229,6 +240,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | CAL_017 | Calendar has not yet started (all active dates in the future) | LOW | Quality |
 | CAL_018 | Service has no active weekdays (all days 0, none overridden by calendar_dates) | LOW | Quality |
 | CAL_019 | Service calendar dates outside feed_info validity window | LOW | Quality |
+| CAL_020 | Feed validity window exceeds 5 years | LOW | Quality |
 
 ## CLD — Calendar Dates
 
@@ -270,6 +282,8 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | SHP_023 | Consecutive points with same shape_dist_traveled at same coordinates | MEDIUM | Quality |
 | SHP_024 | Stop-to-shape distance inconsistent with shape_dist_traveled | MEDIUM | Quality |
 | SHP_025 | Trip stop_times distance exceeds total shape distance | MEDIUM | Quality |
+| SHP_026 | Shape has extreme point count (>5,000) | INFO | Analytics |
+| SHP_027 | Shape used by more than 200 trips | INFO | Analytics |
 
 ## FRQ — Frequencies
 
@@ -485,6 +499,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | FIN_017 | Feed expires in the very distant future | INFO | Quality |
 | FIN_018 | Both feed_contact_email and feed_contact_url missing | LOW | Quality |
 | FIN_019 | Feed validity expires within 7 days | LOW | Quality |
+| FIN_020 | Feed validity window shorter than 7 days | MEDIUM | Quality |
 
 ## TRN — Translations
 
@@ -570,6 +585,8 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | OPR_021 | Calendar override conflict: override and base simultaneously active | HIGH | Analytics |
 | OPR_022 | Calendar override not applied: base service running on override day | HIGH | Analytics |
 | OPR_023 | Calendar override gap: no service active within window | MEDIUM | Analytics |
+| OPR_024 | Route has extreme trip count (>500) | INFO | Analytics |
+| OPR_025 | Feed average trip duration under 60 seconds | HIGH | Analytics |
 
 ## GEO — Geographic / Spatial
 
@@ -583,6 +600,12 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | GEO_013 | Feed geographic coverage summary | INFO | Analytics |
 | GEO_014 | Feed geographic coverage too wide | INFO | Analytics |
 | GEO_015 | Stop coordinates outside Japan bounds (feed_lang: ja) | MEDIUM | Quality |
+| GEO_016 | Stop at or near Null Island (\|lat\|<0.1 and \|lon\|<0.1) | HIGH | Quality |
+| GEO_017 | Shape point at or near Null Island | HIGH | Quality |
+| GEO_018 | All feed stops within 200m radius (possible test data) | HIGH | Analytics |
+| GEO_019 | Stop has integer (zero-precision) coordinates | MEDIUM | Quality |
+| GEO_020 | Shape is degenerate — all points at the same location | HIGH | Quality |
+| GEO_021 | More than 30% of stops share coordinates (systematic issue) | HIGH | Analytics |
 
 ## DQ — Data Quality / User Experience
 
@@ -607,6 +630,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | DQ_019 | All-lowercase value in recommended field | MEDIUM | Quality |
 | DQ_020 | Recommended field missing or empty | LOW | Quality |
 | DQ_021 | Primary key duplicate (duplicate_key) | HIGH | Spec |
+| DQ_022 | More than 80% of stops share the same stop_name | HIGH | Quality |
 
 ## VAT — Entity Analytics Detection
 
@@ -619,6 +643,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | VAT_005 | Isolated stop cluster — stops disconnected from main network component | MEDIUM | Analytics |
 | VAT_006 | Service density imbalance — single route accounts for large proportion of feed trips | INFO | Analytics |
 | VAT_007 | Terminal transfer missing — another route serves the terminus but no transfer defined | INFO | Analytics |
+| VAT_008 | Same shape used by more than 30% of routes | INFO | Analytics |
 
 ## BKR — Booking Rules
 

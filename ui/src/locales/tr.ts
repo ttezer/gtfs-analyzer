@@ -375,6 +375,8 @@ const tr = {
     'ARC_020': 'Önerilen GTFS dosyası eksik (shapes.txt veya feed_info.txt)',
     'ARC_021': 'Alanda ASCII dışı veya yazdırılamaz karakter',
     'ARC_022': "Dosya satır sayısı 1.000.000 sınırını aşıyor",
+    'ARC_023': "ZIP içinde iç içe ZIP dosyası",
+    'ARC_024': "GTFS .txt dosyası alt dizinde (parse edilemez)",
     // BKR
     'BKR_001': 'Önceki gün rezervasyon alanı yasak bağlamda dolu',
     'BKR_002': 'prior_notice_start_day yalnızca prior_notice_last_day ile kullanılabilir',
@@ -527,10 +529,19 @@ const tr = {
     'STM_040': "Flex stop_times'ta pickup/drop_off_booking_rule_id eksik",
     'STM_041': 'stop_id ile location_id/group_id aynı anda kullanılamaz',
     'STM_042': 'stop_headsign Google Transit tarafından desteklenmeyen karakter içeriyor',
+    'STM_043': 'Sefer aşırı fazla durağa sahip (>200)',
+    'STM_044': 'Feed stop_times satır sayısı 2 milyonu aşıyor',
+    'STM_045': 'Sefer kalkış saati gece yarısından 26 saat sonra',
     // PDW
     'PDW_006': "Aynı trip+zone'da örtüşen pickup/drop-off penceresi",
     // LOC
     'LOC_001': "locations.geojson'da bilinmeyen veya geçersiz geometri tipi",
+    'LOC_002': "Feature'da geometry null veya eksik",
+    'LOC_003': "Feature'da 'id' property eksik",
+    'LOC_004': "Polygon ring kapalı değil",
+    'LOC_005': "FeatureCollection tamamen boş",
+    'LOC_006': "Polygon alanı 500km²'yi aşıyor",
+    'LOC_007': "FeatureCollection içinde yinelenen feature 'id'",
     // CAL
     'CAL_001': 'service_id yineleniyor',
     'CAL_002': 'Takvim gün alanı geçersiz değer',
@@ -551,6 +562,7 @@ const tr = {
     'CAL_017': 'Takvim henüz başlamamış (tüm aktif tarihler gelecekte)',
     'CAL_018': 'Servisin aktif haftanın günü yok (tüm günler 0, calendar_dates ile geçersiz kılınan yok)',
     'CAL_019': 'Servis takvim tarihleri feed_info geçerlilik penceresi dışında',
+    'CAL_020': 'Feed geçerlilik penceresi 5 yılı aşıyor',
     // CLD
     'CLD_001': 'service_id eksik',
     'CLD_002': 'date geçersiz format',
@@ -584,6 +596,8 @@ const tr = {
     'SHP_023': 'shape_dist_traveled aynı değere sahip art arda iki nokta aynı koordinatta',
     'SHP_024': 'Duraktan şekle mesafe shape_dist_traveled ile tutarsız',
     'SHP_025': 'Sefer stop_times mesafesi şeklin toplam mesafesini aşıyor',
+    'SHP_026': 'Shape aşırı fazla noktaya sahip (>5000)',
+    'SHP_027': 'Shape 200+ sefer tarafından kullanılıyor',
     // FRQ
     'FRQ_001': 'trip_id bulunamadı',
     'FRQ_002': 'start_time geçersiz',
@@ -731,6 +745,7 @@ const tr = {
     'FIN_017': 'Feed çok uzak gelecekte sona eriyor',
     'FIN_018': 'feed_contact_email ve feed_contact_url ikisi de eksik',
     'FIN_019': "Feed'in geçerlilik süresi 7 gün içinde dolacak",
+    'FIN_020': 'Feed geçerlilik penceresi 7 günden kısa',
     // TRN
     'TRN_001': 'table_name geçersiz değer',
     'TRN_002': 'field_name bu tablo için geçersiz',
@@ -800,6 +815,8 @@ const tr = {
     'OPR_021': 'Takvim override çakışması: override ve base eş zamanlı aktif',
     'OPR_022': 'Takvim override uygulanmamış: override gününde base servis çalışıyor',
     'OPR_023': 'Takvim override boşluğu: pencere içinde hiçbir servis aktif değil',
+    'OPR_024': 'Hat 500+ sefer içeriyor',
+    'OPR_025': 'Ortalama sefer süresi 60 saniyeden kısa',
     // GEO
     'GEO_002': 'Durak feed medianından çok uzakta',
     'GEO_006': 'Güzergah şeklinde büyük atlama',
@@ -809,6 +826,12 @@ const tr = {
     'GEO_013': 'Feed coğrafi kapsam özeti',
     'GEO_014': 'Feed coğrafi kapsamı çok geniş',
     'GEO_015': 'Durak koordinatları Japonya sınırları dışında (feed_lang: ja)',
+    'GEO_016': 'Durak Null Island yakınında (|lat|<0.1 VE |lon|<0.1)',
+    'GEO_017': 'Shape noktası Null Island yakınında',
+    'GEO_018': 'Tüm feed durakları 200m içinde (test verisi)',
+    'GEO_019': 'Durak tam sayı koordinatlara sahip (hassasiyet sıfır)',
+    'GEO_020': 'Shape dejenere — tüm noktalar aynı koordinatta',
+    'GEO_021': 'Durakların %30+ koordinatı paylaşıyor (sistematik hata)',
     // DQ
     'DQ_001':  'Feed adı eksik',
     'DQ_002':  'feed_publisher_url eksik',
@@ -829,6 +852,7 @@ const tr = {
     'DQ_019':  'Önerilen alanda tamamen küçük harf (all-lowercase)',
     'DQ_020':  'Önerilen alan eksik veya boş',
     'DQ_021':  'Birincil anahtar yineleniyor (duplicate_key)',
+    'DQ_022':  "Durakların %80+'i aynı stop_name değerini paylaşıyor",
     // VAT
     'VAT_001': 'Hat güzergah benzerliği (muhtemel kopya hat)',
     'VAT_002': 'Aktarma merkezi tanımsız — çok sayıda hat geçiyor ama aktarma yok',
@@ -837,6 +861,7 @@ const tr = {
     'VAT_005': 'İzole durak kümesi — ağ grafiğinde ana bileşenden kopuk duraklar',
     'VAT_006': 'Hizmet yoğunluğu dengesizliği — tek hat feed sefer sayısının büyük bölümünü oluşturuyor',
     'VAT_007': 'Terminus aktarma eksikliği — terminal durağa başka hat geliyor ama aktarma tanımlı değil',
+    'VAT_008': "Aynı shape feed hatlarının %30+'ında kullanılıyor",
   } as Record<string, string>,
 };
 
