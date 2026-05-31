@@ -157,11 +157,18 @@ fn run_full_pipeline(zip_bytes: &[u8], config: &ValidatorConfig, today: u32) -> 
         Err(e) => return ValidateResult::Fatal(e),
     };
     t_end!("K1-parse");
-    let file_stats = collect_file_stats(&k1.files);
+    let mut file_stats = collect_file_stats(&k1.files);
 
     t_start!("K2-validate");
     let k2 = validate_k2(&k1.files);
     t_end!("K2-validate");
+    // OOM fix Plan A: stop_times K1'de stream edildi (RawFile.rows boş); gerçek satır
+    // sayısı K2 index'inde — file_stats'taki 0'ı düzelt.
+    for fi in file_stats.iter_mut() {
+        if fi.name == "stop_times.txt" {
+            fi.rows = k2.records.stop_times_index.total_rows as u32;
+        }
+    }
 
     t_start!("K3-entity-map");
     let k3 = build_entity_map(&k2.records);
@@ -217,13 +224,20 @@ fn run_k1_k5(zip_bytes: &[u8], on_stage: &js_sys::Function) -> Result<CachedStat
     let k1 = parse(zip_bytes)?;
     t_end!("K1-parse");
     call_stage(on_stage, "K1", (js_sys::Date::now() - t) as u32);
-    let file_stats = collect_file_stats(&k1.files);
+    let mut file_stats = collect_file_stats(&k1.files);
 
     t = js_sys::Date::now();
     t_start!("K2-validate");
     let k2 = validate_k2(&k1.files);
     t_end!("K2-validate");
     call_stage(on_stage, "K2", (js_sys::Date::now() - t) as u32);
+    // OOM fix Plan A: stop_times K1'de stream edildi (RawFile.rows boş); gerçek satır
+    // sayısı K2 index'inde — file_stats'taki 0'ı düzelt.
+    for fi in file_stats.iter_mut() {
+        if fi.name == "stop_times.txt" {
+            fi.rows = k2.records.stop_times_index.total_rows as u32;
+        }
+    }
 
     t = js_sys::Date::now();
     t_start!("K3-entity-map");

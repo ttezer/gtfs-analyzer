@@ -21,71 +21,66 @@ pub fn check(records: &EntityRecords, entity_map: &EntityMap, today: u32) -> K4R
     let mut ctr = 0u32;
     let map = entity_map;
 
-    // Tek stop_times geçişi: STP_012 / TRP_019 / XFL_002/005/012 / STM_001/002
+    // stop_times geçişi → StopTimesIndex üzerinden (Vec<StopTimeRecord> taranmaz)
     let (stm_used_stop_ids, stm_trip_continuous, stm_trips_in_stm, stm_trip_stm_count, stm_bad_stop_ids, stm_trip_stops) = {
         let _t = Timer::start("K4::stop_times");
-        let mut used_stop_ids: HashSet<&str> = HashSet::new();
-        let mut trip_continuous: HashSet<&str> = HashSet::new();
-        let mut trips_in_stm: HashSet<&str> = HashSet::new();
-        let mut trip_stm_count: HashMap<&str, u32> = HashMap::new();
-        let mut bad_stop_ids: HashSet<&str> = HashSet::new();
-        let mut trip_stops: HashMap<&str, HashSet<&str>> = HashMap::new();
-        let mut bad_trips_seen: HashSet<String> = HashSet::new();
-        let mut bad_stops_seen: HashSet<String> = HashSet::new();
-        for st in &records.stop_times {
-            if !st.trip_id.is_empty() {
-                trips_in_stm.insert(st.trip_id.as_str());
-                *trip_stm_count.entry(st.trip_id.as_str()).or_insert(0) += 1;
-                if !map.trips.contains_key(st.trip_id.as_str())
-                    && bad_trips_seen.insert(st.trip_id.to_string())
-                {
-                    notices.push(notice(
-                        &mut ctr,
-                        "STM_001",
-                        EntityType::Trip,
-                        Some(st.trip_id.to_string()),
-                        Some(st.trip_id.to_string()),
-                        "stop_times.txt",
-                        Some(st.line),
-                        Some("trip_id"),
-                        Some(st.trip_id.to_string()),
-                        None,
-                        format!("'{}' sefer kodu trips.txt'te tanımlı değil.", st.trip_id),
-                        "Geçerli bir trip_id kullanın.",
-                    ));
-                }
-                if matches!(st.continuous_pickup, Some(0) | Some(1))
-                    || matches!(st.continuous_drop_off, Some(0) | Some(1))
-                {
-                    trip_continuous.insert(st.trip_id.as_str());
-                }
-            }
-            if !st.stop_id.is_empty() {
-                used_stop_ids.insert(st.stop_id.as_str());
-                if !st.trip_id.is_empty() {
-                    trip_stops.entry(st.trip_id.as_str()).or_default().insert(st.stop_id.as_str());
-                }
-                if !map.stops.contains_key(st.stop_id.as_str()) {
-                    bad_stop_ids.insert(st.stop_id.as_str());
-                    if bad_stops_seen.insert(st.stop_id.to_string()) {
-                        notices.push(notice(
-                            &mut ctr,
-                            "STM_002",
-                            EntityType::Stop,
-                            Some(st.stop_id.to_string()),
-                            Some(st.stop_id.to_string()),
-                            "stop_times.txt",
-                            Some(st.line),
-                            Some("stop_id"),
-                            Some(st.stop_id.to_string()),
-                            None,
-                            format!("'{}' durağı stops.txt'te tanımlı değil.", st.stop_id),
-                            "Geçerli bir stop_id kullanın.",
-                        ));
-                    }
-                }
+        let idx = &records.stop_times_index;
+
+        // STM_001: trip_id stop_times'ta var ama trips.txt'te yok
+        for trip_id in &idx.trip_id_set {
+            if !map.trips.contains_key(trip_id.as_str()) {
+                let line = idx.trip_first_line.get(trip_id).copied();
+                notices.push(notice(
+                    &mut ctr,
+                    "STM_001",
+                    EntityType::Trip,
+                    Some(trip_id.to_string()),
+                    Some(trip_id.to_string()),
+                    "stop_times.txt",
+                    line,
+                    Some("trip_id"),
+                    Some(trip_id.to_string()),
+                    None,
+                    format!("'{}' sefer kodu trips.txt'te tanımlı değil.", trip_id),
+                    "Geçerli bir trip_id kullanın.",
+                ));
             }
         }
+
+        // STM_002: stop_id stop_times'ta var ama stops.txt'te yok
+        let mut bad_stop_ids: HashSet<&str> = HashSet::new();
+        for stop_id in &idx.stop_id_set {
+            if !map.stops.contains_key(stop_id.as_str()) {
+                bad_stop_ids.insert(stop_id.as_str());
+                let line = idx.stop_first_line.get(stop_id).copied();
+                notices.push(notice(
+                    &mut ctr,
+                    "STM_002",
+                    EntityType::Stop,
+                    Some(stop_id.to_string()),
+                    Some(stop_id.to_string()),
+                    "stop_times.txt",
+                    line,
+                    Some("stop_id"),
+                    Some(stop_id.to_string()),
+                    None,
+                    format!("'{}' durağı stops.txt'te tanımlı değil.", stop_id),
+                    "Geçerli bir stop_id kullanın.",
+                ));
+            }
+        }
+
+        // index'ten &str görünümlü geçici koleksiyonlar (fonksiyon imzaları değişmeden)
+        let used_stop_ids: HashSet<&str>  = idx.stop_id_set.iter().map(|s| s.as_str()).collect();
+        let trip_continuous: HashSet<&str> = idx.continuous_trips.iter().map(|s| s.as_str()).collect();
+        let trips_in_stm: HashSet<&str>   = idx.trip_id_set.iter().map(|s| s.as_str()).collect();
+        let trip_stm_count: HashMap<&str, u32> = idx.trips.iter()
+            .map(|(k, v)| (k.as_str(), v.len() as u32))
+            .collect();
+        let trip_stops: HashMap<&str, HashSet<&str>> = idx.trip_stop_set.iter()
+            .map(|(k, v)| (k.as_str(), v.iter().map(|s| s.as_str()).collect()))
+            .collect();
+
         (used_stop_ids, trip_continuous, trips_in_stm, trip_stm_count, bad_stop_ids, trip_stops)
     };
 
@@ -2760,7 +2755,7 @@ mod tests {
     use crate::k2::pathways::PathwayRecord;
     use crate::k2::routes::RouteRecord;
     use crate::k2::stops::StopRecord;
-    use crate::k2::stop_times::StopTimeRecord;
+    use crate::k2::stop_times::{StopTimeRecord, StopTimesIndex};
     use crate::k2::transfers::TransferRecord;
     use crate::k2::trips::TripRecord;
 
@@ -2868,6 +2863,7 @@ mod tests {
             line: 2,
             ..Default::default()
         }];
+        recs.stop_times_index = StopTimesIndex::from_records(&recs.stop_times);
         let result = check(&recs, &map, 20260515);
         assert!(result.notices.iter().any(|n| n.rule_id == "STM_001"));
     }
@@ -2885,6 +2881,7 @@ mod tests {
             line: 2,
             ..Default::default()
         }];
+        recs.stop_times_index = StopTimesIndex::from_records(&recs.stop_times);
         let result = check(&recs, &map, 20260515);
         assert!(result.notices.iter().any(|n| n.rule_id == "STM_002"));
     }
@@ -3188,6 +3185,7 @@ mod tests {
             stop_sequence: Some(1), line: 10,
             ..Default::default()
         }];
+        recs.stop_times_index = StopTimesIndex::from_records(&recs.stop_times);
         // stop_times var → SHP_019 ateşlenmemeli
         let result = check(&recs, &map, 20260515);
         assert!(!result.notices.iter().any(|n| n.rule_id == "SHP_019"), "stop_times olan trip için SHP_019 olmamalı");

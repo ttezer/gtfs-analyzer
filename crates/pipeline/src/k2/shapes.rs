@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+﻿use std::collections::{HashMap, HashSet};
 
 use gtfs_core::EntityType;
 use smol_str::SmolStr;
@@ -76,7 +76,7 @@ pub fn validate_shapes(file: &RawFile) -> (Vec<ShapePointRecord>, Vec<gtfs_core:
                 None, &file.name, Some(line), Some("shape_id"),
                 Some(String::new()), None,
                 "shape_id zorunludur.".to_string(),
-                "shape_id alanını doldurun.",
+                "shape_id alanÄ±nÄ± doldurun.",
             ));
         }
 
@@ -90,7 +90,7 @@ pub fn validate_shapes(file: &RawFile) -> (Vec<ShapePointRecord>, Vec<gtfs_core:
                         None, &file.name, Some(line), Some("shape_pt_sequence"),
                         Some(String::new()), None,
                         "shape_pt_sequence zorunludur.".to_string(),
-                        "shape_pt_sequence negatif olmayan bir tam sayı olarak girin.",
+                        "shape_pt_sequence negatif olmayan bir tam sayÄ± olarak girin.",
                     ));
                 }
                 v
@@ -100,8 +100,8 @@ pub fn validate_shapes(file: &RawFile) -> (Vec<ShapePointRecord>, Vec<gtfs_core:
                     &mut counter, "SHP_004", EntityType::Shape, entity_id.clone(),
                     None, &file.name, Some(line), Some("shape_pt_sequence"),
                     Some(seq_raw.to_string()), None,
-                    format!("shape_pt_sequence '{seq_raw}' geçersiz."),
-                    "shape_pt_sequence negatif olmayan bir tam sayı olarak girin.",
+                    format!("shape_pt_sequence '{seq_raw}' geÃ§ersiz."),
+                    "shape_pt_sequence negatif olmayan bir tam sayÄ± olarak girin.",
                 ));
                 None
             }
@@ -114,8 +114,8 @@ pub fn validate_shapes(file: &RawFile) -> (Vec<ShapePointRecord>, Vec<gtfs_core:
                     &mut counter, "SHP_008", EntityType::Shape, entity_id.clone(),
                     None, &file.name, Some(line), Some("shape_pt_sequence"),
                     Some(seq.to_string()), None,
-                    format!("shape_id '{shape_id}' için shape_pt_sequence {seq} yineleniyor."),
-                    "Her shape noktasına benzersiz bir shape_pt_sequence atayın.",
+                    format!("shape_id '{shape_id}' iÃ§in shape_pt_sequence {seq} yineleniyor."),
+                    "Her shape noktasÄ±na benzersiz bir shape_pt_sequence atayÄ±n.",
                 ));
             }
         }
@@ -129,7 +129,7 @@ pub fn validate_shapes(file: &RawFile) -> (Vec<ShapePointRecord>, Vec<gtfs_core:
                     None, &file.name, Some(line), Some("shape_pt_lat"),
                     Some(String::new()), Some("[-90, 90]".to_string()),
                     "shape_pt_lat zorunludur.".to_string(),
-                    "shape_pt_lat alanını ondalıklı enlem değeriyle doldurun.",
+                    "shape_pt_lat alanÄ±nÄ± ondalÄ±klÄ± enlem deÄŸeriyle doldurun.",
                 ));
                 None
             }
@@ -139,8 +139,8 @@ pub fn validate_shapes(file: &RawFile) -> (Vec<ShapePointRecord>, Vec<gtfs_core:
                         &mut counter, "SHP_002", EntityType::Shape, entity_id.clone(),
                         None, &file.name, Some(line), Some("shape_pt_lat"),
                         Some(lat.to_string()), Some("[-90, 90]".to_string()),
-                        format!("shape_pt_lat {lat} değeri [-90, 90] aralığı dışında."),
-                        "shape_pt_lat için -90 ile 90 arasında bir değer girin.",
+                        format!("shape_pt_lat {lat} deÄŸeri [-90, 90] aralÄ±ÄŸÄ± dÄ±ÅŸÄ±nda."),
+                        "shape_pt_lat iÃ§in -90 ile 90 arasÄ±nda bir deÄŸer girin.",
                     ));
                 }
                 Some(lat)
@@ -150,8 +150,8 @@ pub fn validate_shapes(file: &RawFile) -> (Vec<ShapePointRecord>, Vec<gtfs_core:
                     &mut counter, "SHP_002", EntityType::Shape, entity_id.clone(),
                     None, &file.name, Some(line), Some("shape_pt_lat"),
                     Some(lat_raw.to_string()), Some("[-90, 90]".to_string()),
-                    format!("shape_pt_lat '{lat_raw}' geçersiz."),
-                    "shape_pt_lat alanını ondalıklı enlem değeriyle doldurun.",
+                    format!("shape_pt_lat '{lat_raw}' geÃ§ersiz."),
+                    "shape_pt_lat alanÄ±nÄ± ondalÄ±klÄ± enlem deÄŸeriyle doldurun.",
                 ));
                 None
             }
@@ -166,7 +166,7 @@ pub fn validate_shapes(file: &RawFile) -> (Vec<ShapePointRecord>, Vec<gtfs_core:
                     None, &file.name, Some(line), Some("shape_pt_lon"),
                     Some(String::new()), Some("[-180, 180]".to_string()),
                     "shape_pt_lon zorunludur.".to_string(),
-                    "shape_pt_lon alanını ondalıklı boylam değeriyle doldurun.",
+                    "shape_pt_lon alanÄ±nÄ± ondalÄ±klÄ± boylam deÄŸeriyle doldurun.",
                 ));
                 None
             }
@@ -176,8 +176,8 @@ pub fn validate_shapes(file: &RawFile) -> (Vec<ShapePointRecord>, Vec<gtfs_core:
                         &mut counter, "SHP_003", EntityType::Shape, entity_id.clone(),
                         None, &file.name, Some(line), Some("shape_pt_lon"),
                         Some(lon.to_string()), Some("[-180, 180]".to_string()),
-                        format!("shape_pt_lon {lon} değeri [-180, 180] aralığı dışında."),
-                        "shape_pt_lon için -180 ile 180 arasında bir değer girin.",
+                        format!("shape_pt_lon {lon} deÄŸeri [-180, 180] aralÄ±ÄŸÄ± dÄ±ÅŸÄ±nda."),
+                        "shape_pt_lon iÃ§in -180 ile 180 arasÄ±nda bir deÄŸer girin.",
                     ));
                 }
                 Some(lon)
@@ -187,8 +187,8 @@ pub fn validate_shapes(file: &RawFile) -> (Vec<ShapePointRecord>, Vec<gtfs_core:
                     &mut counter, "SHP_003", EntityType::Shape, entity_id.clone(),
                     None, &file.name, Some(line), Some("shape_pt_lon"),
                     Some(lon_raw.to_string()), Some("[-180, 180]".to_string()),
-                    format!("shape_pt_lon '{lon_raw}' geçersiz."),
-                    "shape_pt_lon alanını ondalıklı boylam değeriyle doldurun.",
+                    format!("shape_pt_lon '{lon_raw}' geÃ§ersiz."),
+                    "shape_pt_lon alanÄ±nÄ± ondalÄ±klÄ± boylam deÄŸeriyle doldurun.",
                 ));
                 None
             }
@@ -205,7 +205,7 @@ pub fn validate_shapes(file: &RawFile) -> (Vec<ShapePointRecord>, Vec<gtfs_core:
                             None, &file.name, Some(line), Some("shape_dist_traveled"),
                             Some(d.to_string()), Some(">= 0".to_string()),
                             "shape_dist_traveled negatif olamaz.".to_string(),
-                            "shape_dist_traveled alanını sıfır veya pozitif bir değere ayarlayın.",
+                            "shape_dist_traveled alanÄ±nÄ± sÄ±fÄ±r veya pozitif bir deÄŸere ayarlayÄ±n.",
                         ));
                     }
                 }
@@ -221,9 +221,9 @@ pub fn validate_shapes(file: &RawFile) -> (Vec<ShapePointRecord>, Vec<gtfs_core:
                     notices.push(make_k2_notice(
                         &mut counter, "SHP_005", EntityType::Shape, entity_id.clone(),
                         None, &file.name, Some(line), Some("shape_dist_traveled"),
-                        Some(format!("{d}")), Some(format!("≥ {prev} (önceki değer)")),
-                        format!("shape_id '{shape_id}' için shape_dist_traveled azalıyor: {prev} → {d}."),
-                        "shape_dist_traveled değerlerini her shape için artan sırada yazın.",
+                        Some(format!("{d}")), Some(format!("â‰¥ {prev} (Ã¶nceki deÄŸer)")),
+                        format!("shape_id '{shape_id}' iÃ§in shape_dist_traveled azalÄ±yor: {prev} â†’ {d}."),
+                        "shape_dist_traveled deÄŸerlerini her shape iÃ§in artan sÄ±rada yazÄ±n.",
                     ));
                 }
             }
@@ -254,6 +254,7 @@ mod tests {
             headers: headers.into_iter().map(str::to_string).collect(),
             rows: rows.into_iter().map(|r| r.into_iter().map(smol_str::SmolStr::from).collect()).collect(),
             bytes: 0,
+            raw_text: None,
         }
     }
 
@@ -265,7 +266,7 @@ mod tests {
         );
         let (records, notices) = validate_shapes(&file);
         assert_eq!(records.len(), 1);
-        assert!(notices.is_empty(), "Geçerli shape noktası notice üretmemeli: {:?}", notices);
+        assert!(notices.is_empty(), "GeÃ§erli shape noktasÄ± notice Ã¼retmemeli: {:?}", notices);
     }
 
     #[test]

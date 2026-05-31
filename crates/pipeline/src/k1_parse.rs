@@ -32,15 +32,22 @@ const KNOWN_FILES: &[&str] = &[
 // ── Tipler ────────────────────────────────────────────────────────────────────
 
 /// Ham CSV verisi: başlıklar + satırlar. Tip/enum kontrolü K2'de yapılır.
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct RawFile {
     pub name: String,
     pub headers: Vec<String>,
     /// Her satır, başlıklarla aynı indekste hizalanmış ham string değerleri taşır.
     /// SmolStr: ≤22 bayt alanlar inline saklanır (heap alloc yok); daha uzunlar Arc<str>.
+    ///
+    /// NOT: Çok büyük dosyalarda (stop_times.txt) bellek için bu alan BOŞ bırakılır;
+    /// ham gövde `raw_text`'te tutulur ve K2 tarafından streaming parse edilir (OOM fix Plan A).
     pub rows: Vec<Vec<SmolStr>>,
     /// Sıkıştırılmamış dosya boyutu (bayt). Büyük dosyalarda READ_LIMIT ile kırpılabilir.
     pub bytes: u32,
+    /// Streaming parse edilen dosyalar (stop_times.txt) için BOM'suz, UTF-8 doğrulanmış
+    /// ham metin (başlık dahil). `rows` boş kaldığında K2 bunu satır satır işler.
+    /// Diğer tüm dosyalarda `None`.
+    pub raw_text: Option<String>,
 }
 
 pub type RawFiles = HashMap<String, RawFile>;
@@ -203,6 +210,56 @@ fn tokenize_csv(text: &str, max_data_rows: Option<usize>) -> Result<(Vec<Vec<Smo
     }
 
     Ok((records, truncated))
+}
+
+/// stream_mode (stop_times.txt) için: gövdeyi Vec'e açmadan, yalnızca alloc'suz byte
+/// taraması ile kapanmamış tırnak (ARC_013) olup olmadığını tespit eder. tokenize_csv'nin
+/// alan-başı tırnak mantığını birebir taklit eder (yalnızca `"` baytlarını izler — UTF-8
+/// devam baytlarında 0x22 görünmez, bu yüzden byte taraması güvenlidir).
+fn csv_has_unclosed_quote(text: &str) -> bool {
+    let b = text.as_bytes();
+    let n = b.len();
+    let mut pos = 0;
+    while pos < n {
+        // Alan başı
+        if b[pos] == b'"' {
+            pos += 1;
+            let mut closed = false;
+            while pos < n {
+                if b[pos] == b'"' {
+                    pos += 1;
+                    if pos < n && b[pos] == b'"' {
+                        pos += 1; // kaçırılmış tırnak ("")
+                    } else {
+                        closed = true;
+                        break;
+                    }
+                } else {
+                    pos += 1;
+                }
+            }
+            if !closed {
+                return true;
+            }
+        } else {
+            while pos < n && b[pos] != b',' && b[pos] != b'\n' && b[pos] != b'\r' {
+                pos += 1;
+            }
+        }
+        // Ayraç
+        if pos < n {
+            match b[pos] {
+                b'\r' => {
+                    pos += 1;
+                    if pos < n && b[pos] == b'\n' {
+                        pos += 1;
+                    }
+                }
+                _ => pos += 1,
+            }
+        }
+    }
+    false
 }
 
 // ── Şema yardımcıları ─────────────────────────────────────────────────────────
@@ -488,11 +545,18 @@ pub fn parse(zip_bytes: &[u8]) -> Result<K1Result, FatalError> {
             }
         };
 
+        // OOM fix Plan A: stop_times.txt çok büyük (2.3M+ satır). K1'de tam
+        // Vec<Vec<SmolStr>>'e açmak ~714 MB + ~96 sn maliyet. Bu dosyada SADECE
+        // header tokenize edilir; gövde ham metin (`raw_text`) olarak K2'ye verilip
+        // orada streaming işlenir. Tüm per-satır notice'lar (ARC_012/016/018/021, DQ_016,
+        // ARC_022, veri-yok ARC_009) K2 stream geçişine taşındı.
+        let stream_mode = raw_name == "stop_times.txt";
+
         #[cfg(target_arch = "wasm32")]
         web_sys::console::log_1(&format!("[K1] tokenizing: {raw_name}").into());
-        // CSV tokenization — satır sınırı yok, tam veri
+        // CSV tokenization — stream_mode'da yalnızca başlık (Some(0)), aksi halde tam veri
         let _t = crate::timing::Timer::start(format!("K1::tokenize::{raw_name}"));
-        let (mut records, _) = match tokenize_csv(text, None) {
+        let (mut records, _) = match tokenize_csv(text, if stream_mode { Some(0) } else { None }) {
             Ok(r) => r,
             Err(msg) => {
                 // ARC_013
@@ -513,6 +577,27 @@ pub fn parse(zip_bytes: &[u8]) -> Result<K1Result, FatalError> {
                 continue;
             }
         };
+
+        // stream_mode: K1 yalnızca başlığı tokenize eder; gövdedeki kapanmamış tırnağı
+        // (ARC_013) yine de tespit et — zorunlu dosyada Fatal davranışı korunur (alloc YOK).
+        if stream_mode && csv_has_unclosed_quote(text) {
+            let msg = "Kapanmamış tırnak işareti (unclosed quote)".to_string();
+            notices.push(make_notice(
+                &mut counter, "ARC_013",
+                EntityType::File, Some(raw_name.clone()),
+                Some(&raw_name), None, None,
+                Some(msg.clone()),
+                format!("'{raw_name}' CSV tokenization hatası: {msg}"),
+                "CSV formatını kontrol edin; tırnak işaretlerinin doğru kapandığından emin olun.",
+            ));
+            if is_required {
+                return Err(FatalError {
+                    code: FatalCode::CsvMalformed,
+                    message: format!("Zorunlu dosya CSV tokenization hatası: {raw_name}"),
+                });
+            }
+            continue;
+        }
 
 
         // ARC_009: Boş dosya
@@ -732,9 +817,9 @@ pub fn parse(zip_bytes: &[u8]) -> Result<K1Result, FatalError> {
             rows.push(row);
         }
 
-        // ARC_022: Dosya satır sayısı limiti
+        // ARC_022: Dosya satır sayısı limiti (stream_mode'da K2 üretir — rows burada boş)
         const MAX_ROWS: usize = 1_000_000;
-        if rows.len() > MAX_ROWS {
+        if !stream_mode && rows.len() > MAX_ROWS {
             notices.push(make_notice(
                 &mut counter, "ARC_022",
                 EntityType::File, Some(raw_name.clone()),
@@ -746,7 +831,8 @@ pub fn parse(zip_bytes: &[u8]) -> Result<K1Result, FatalError> {
         }
 
         // Başlık satırından oluşan kayıt için ARC_009 kontrolü (yalnızca başlık var, veri yok)
-        if rows.is_empty() {
+        // stream_mode'da rows her zaman boştur; "veri yok" tespitini K2 (total_rows) yapar.
+        if !stream_mode && rows.is_empty() {
             notices.push(make_notice(
                 &mut counter, "ARC_009",
                 EntityType::File, Some(raw_name.clone()),
@@ -757,9 +843,12 @@ pub fn parse(zip_bytes: &[u8]) -> Result<K1Result, FatalError> {
             ));
         }
 
+        // stream_mode (stop_times.txt): gövdeyi ham metin olarak sakla; rows boş kalır.
+        let raw_text = if stream_mode { Some(text.to_string()) } else { None };
+
         #[cfg(target_arch = "wasm32")]
         web_sys::console::log_1(&format!("[K1] bitti: {raw_name} ({} satır)", rows.len()).into());
-        raw_files.insert(raw_name.clone(), RawFile { name: raw_name, headers, rows, bytes: bytes.len() as u32 });
+        raw_files.insert(raw_name.clone(), RawFile { name: raw_name, headers, rows, bytes: bytes.len() as u32, raw_text });
     }
 
     // ── Dosya varlık kontrolleri ──────────────────────────────────────────────

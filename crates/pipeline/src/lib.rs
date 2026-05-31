@@ -31,12 +31,20 @@ pub fn validate_bytes(zip: &[u8], config: &ValidatorConfig, today: u32) -> Valid
             Err(e) => return ValidateResult::Fatal(e),
         }
     };
-    let file_stats = collect_file_stats(&k1.files);
+    let mut file_stats = collect_file_stats(&k1.files);
 
     let k2 = {
         let _t = Timer::start("K2-validate");
         validate_k2(&k1.files)
     };
+
+    // OOM fix Plan A: stop_times.txt K1'de stream edildiği için RawFile.rows boştur;
+    // gerçek satır sayısı K2 index'inde. file_stats'taki 0 değerini düzelt.
+    for fi in file_stats.iter_mut() {
+        if fi.name == "stop_times.txt" {
+            fi.rows = k2.records.stop_times_index.total_rows as u32;
+        }
+    }
 
     let k3 = {
         let _t = Timer::start("K3-entity-map");
@@ -116,24 +124,14 @@ pub fn build_name_index(records: &EntityRecords) -> gtfs_core::NameIndex {
         })
         .collect();
 
-    // trip_id → ilk kalkış saati "HH:MM" (stop_sequence=min olan durağın departure_time)
-    let trip_first_dep: HashMap<String, String> = {
-        let mut best: HashMap<String, (u32, u32, u32)> = HashMap::new(); // trip_id → (seq, h, m)
-        for st in &records.stop_times {
-            let seq = st.stop_sequence.unwrap_or(u32::MAX);
-            let Some((h, m, _)) = st.departure_time else { continue };
-            let entry = best.entry(st.trip_id.to_string());
-            match entry {
-                std::collections::hash_map::Entry::Vacant(v) => { v.insert((seq, h, m)); }
-                std::collections::hash_map::Entry::Occupied(mut o) => {
-                    if seq < o.get().0 { o.insert((seq, h, m)); }
-                }
-            }
-        }
-        best.into_iter()
-            .map(|(trip_id, (_, h, m))| (trip_id, format!("{:02}:{:02}", h % 24, m)))
-            .collect()
-    };
+    // trip_id → ilk kalkış saati "HH:MM" (stop_sequence=min — K2 index'te zaten sıralı)
+    let trip_first_dep: HashMap<String, String> = records.stop_times_index.trips.iter()
+        .filter_map(|(trip_id, stops)| {
+            stops.first()
+                .and_then(|s| s.departure_time)
+                .map(|(h, m, _)| (trip_id.to_string(), format!("{:02}:{:02}", h % 24, m)))
+        })
+        .collect();
 
     // shape_id → benzersiz [[route_id, yön]] listesi
     let shape_routes: HashMap<String, Vec<[String; 2]>> = {
@@ -178,22 +176,17 @@ pub fn build_name_index(records: &EntityRecords) -> gtfs_core::NameIndex {
         .filter_map(|t| t.shape_id.as_ref().map(|s| (t.trip_id.clone(), s.clone())))
         .collect();
 
-    // trip_id → [stop_id, ...] stop_sequence sıralı (harita: sefer durakları)
-    let trip_stops: HashMap<String, Vec<String>> = {
-        let mut map: HashMap<String, Vec<(u32, String)>> = HashMap::new();
-        for st in &records.stop_times {
-            map.entry(st.trip_id.to_string())
-                .or_default()
-                .push((st.stop_sequence.unwrap_or(u32::MAX), st.stop_id.to_string()));
-        }
-        map.into_iter()
-            .map(|(trip_id, mut stops)| {
-                stops.sort_unstable_by_key(|(seq, _)| *seq);
-                stops.dedup_by(|a, b| a.1 == b.1);
-                (trip_id, stops.into_iter().map(|(_, id)| id).collect())
-            })
-            .collect()
-    };
+    // trip_id → [stop_id, ...] stop_sequence sıralı (K2 index'te zaten sıralı)
+    let trip_stops: HashMap<String, Vec<String>> = records.stop_times_index.trips.iter()
+        .map(|(trip_id, stops)| {
+            let mut ids: Vec<String> = stops.iter()
+                .filter(|s| !s.stop_id.is_empty())
+                .map(|s| s.stop_id.to_string())
+                .collect();
+            ids.dedup();
+            (trip_id.to_string(), ids)
+        })
+        .collect();
 
     // shape_id → ilk trip_id (shape'in durakları için yönlendirme)
     let shape_trips: HashMap<String, String> = {

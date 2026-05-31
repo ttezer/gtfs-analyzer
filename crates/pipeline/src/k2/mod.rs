@@ -53,6 +53,7 @@ use shapes::{validate_shapes, ShapePointRecord};
 use stop_areas::{parse_stop_areas, StopAreaRecord};
 use stops::{validate_stops, StopRecord};
 use stop_times::{validate_stop_times, StopTimeRecord};
+pub use stop_times::{CompactStopTime, StopTimesIndex};
 use timeframes::{validate_timeframes, TimeframeRecord};
 use transfers::{validate_transfers, TransferRecord};
 use translations::{validate_translations, TranslationRecord};
@@ -83,7 +84,10 @@ pub struct EntityRecords {
     pub shapes: Vec<ShapePointRecord>,
     pub stop_areas: Vec<StopAreaRecord>,
     pub stops: Vec<StopRecord>,
+    // Production'da BOŞ kalır — K2 artık Vec build etmez (bellek tasarrufu).
+    // Sadece testler doğrudan set eder; K6 fallback bu durumu from_records ile karşılar.
     pub stop_times: Vec<StopTimeRecord>,
+    pub stop_times_index: StopTimesIndex,    // production stop_times kaynağı (streaming K2)
     pub timeframes: Vec<TimeframeRecord>,
     pub transfers: Vec<TransferRecord>,
     pub translations: Vec<TranslationRecord>,
@@ -194,8 +198,8 @@ pub fn validate(files: &RawFiles) -> K2Result {
 
     if let Some(file) = files.get("stop_times.txt") {
         let _t = Timer::start("K2::stop_times");
-        let (stop_time_records, stop_time_notices) = validate_stop_times(file);
-        records.stop_times = stop_time_records;
+        let (stm_index, stop_time_notices) = validate_stop_times(file);
+        records.stop_times_index = stm_index;
         notices.extend(stop_time_notices);
     }
 
@@ -350,6 +354,7 @@ mod tests {
                     "Europe/Istanbul".into(),
                 ]],
                 bytes: 0,
+                raw_text: None,
             },
         );
 
@@ -364,6 +369,7 @@ mod tests {
                 ],
                 rows: vec![vec!["R1".into(), "10".into(), "99".into()]],
                 bytes: 0,
+                raw_text: None,
             },
         );
 
@@ -379,6 +385,7 @@ mod tests {
                 ],
                 rows: vec![vec!["R1".into(), "WKD".into(), "T1".into(), "9".into()]],
                 bytes: 0,
+                raw_text: None,
             },
         );
 
@@ -400,6 +407,7 @@ mod tests {
                 headers: vec!["fare_id".into(), "route_id".into()],
                 rows: vec![vec!["F1".into(), "R1".into()]],
                 bytes: 0,
+                raw_text: None,
             },
         );
 

@@ -1,9 +1,164 @@
-use gtfs_core::EntityType;
+use gtfs_core::{EntityType, Notice, Severity};
 use rustc_hash::{FxHashMap, FxHashSet};
 use smol_str::SmolStr;
 
 use super::common::make_k2_notice;
 use crate::k1_parse::RawFile;
+
+// ── CompactStopTime: trip_id taşımaz (HashMap key'i), sadece gerekli alanlar ──
+
+#[derive(Debug, Clone, Default)]
+pub struct CompactStopTime {
+    pub stop_id:              SmolStr,
+    pub stop_sequence:        Option<u32>,
+    pub arrival_time:         Option<(u32, u32, u32)>,
+    pub departure_time:       Option<(u32, u32, u32)>,
+    pub stop_headsign:        Option<SmolStr>,
+    pub pickup_type:          Option<u32>,
+    pub drop_off_type:        Option<u32>,
+    pub shape_dist_traveled:  Option<f64>,
+    pub timepoint:            Option<u32>,
+    pub continuous_pickup:    Option<u32>,
+    pub continuous_drop_off:  Option<u32>,
+    pub line:                 u64,
+    // Flex alanları — OOM fix Plan C: feed'lerin %99'unda None olduğundan Box'lanır.
+    // None iken 8 byte (boxsuz ~128 byte) — 2.48M satırda ~300 MB tasarruf.
+    pub flex: Option<Box<StopTimeFlex>>,
+}
+
+/// CompactStopTime'ın nadir kullanılan GTFS-Flex alanları (Box'lanır — bkz. CompactStopTime.flex).
+#[derive(Debug, Clone, Default)]
+pub struct StopTimeFlex {
+    pub start_pickup_drop_off_window:  Option<(u32, u32, u32)>,
+    pub end_pickup_drop_off_window:    Option<(u32, u32, u32)>,
+    pub location_id:                   Option<SmolStr>,
+    pub location_group_id:             Option<SmolStr>,
+    pub pickup_booking_rule_id:        Option<SmolStr>,
+    pub drop_off_booking_rule_id:      Option<SmolStr>,
+}
+
+/// 6 flex değerinden herhangi biri Some ise Box'lanmış StopTimeFlex, aksi halde None döner.
+#[inline]
+pub fn build_flex(
+    start_window: Option<(u32, u32, u32)>,
+    end_window: Option<(u32, u32, u32)>,
+    location_id: Option<SmolStr>,
+    location_group_id: Option<SmolStr>,
+    pickup_booking_rule_id: Option<SmolStr>,
+    drop_off_booking_rule_id: Option<SmolStr>,
+) -> Option<Box<StopTimeFlex>> {
+    if start_window.is_some() || end_window.is_some() || location_id.is_some()
+        || location_group_id.is_some() || pickup_booking_rule_id.is_some()
+        || drop_off_booking_rule_id.is_some()
+    {
+        Some(Box::new(StopTimeFlex {
+            start_pickup_drop_off_window: start_window,
+            end_pickup_drop_off_window: end_window,
+            location_id,
+            location_group_id,
+            pickup_booking_rule_id,
+            drop_off_booking_rule_id,
+        }))
+    } else {
+        None
+    }
+}
+
+// ── StopTimesIndex: K4/K6 için tek referans noktası ──────────────────────────
+
+#[derive(Debug, Default)]
+pub struct StopTimesIndex {
+    /// trip_id → sıralı (stop_sequence'e göre) stop listesi
+    pub trips: FxHashMap<SmolStr, Vec<CompactStopTime>>,
+    /// K4: XFL_002 — stop_times'ta geçen trip_id'ler
+    pub trip_id_set: FxHashSet<SmolStr>,
+    /// K4: STP_012 / STM_001/002 — stop_times'ta geçen stop_id'ler
+    pub stop_id_set: FxHashSet<SmolStr>,
+    /// K4: XFL_021 — per-trip stop_id seti
+    pub trip_stop_set: FxHashMap<SmolStr, FxHashSet<SmolStr>>,
+    /// K4: TRP_019 — continuous pickup/drop-off olan seferler
+    pub continuous_trips: FxHashSet<SmolStr>,
+    /// K2/K6: toplam satır sayısı (STM_044 için)
+    pub total_rows: usize,
+    /// K4: STM_001 — her trip_id'nin stop_times.txt'teki ilk satır numarası
+    pub trip_first_line: FxHashMap<SmolStr, u64>,
+    /// K4: STM_002 — her stop_id'nin stop_times.txt'teki ilk satır numarası
+    pub stop_first_line: FxHashMap<SmolStr, u64>,
+    /// K6: STM_036 — dosya sırasında stop_sequence gerileyen seferler: (trip_id, prev_seq, curr_seq, line)
+    pub unsorted_seq_trips: Vec<(SmolStr, u32, u32, u64)>,
+}
+
+impl StopTimesIndex {
+    /// K6 benzeri döngüler için: trip başına sıralı stop listesi
+    /// (stop_sequence artan sırayla)
+    pub fn sorted_stops(&self, trip_id: &str) -> Option<&Vec<CompactStopTime>> {
+        self.trips.get(trip_id)
+    }
+
+    /// trip_id'nin stop_times'ta olup olmadığı (K4)
+    pub fn has_trip(&self, trip_id: &str) -> bool {
+        self.trip_id_set.contains(trip_id)
+    }
+
+    /// trip'in stop_times'taki stop sayısı (K6: STM_043)
+    pub fn stop_count(&self, trip_id: &str) -> usize {
+        self.trips.get(trip_id).map_or(0, |v| v.len())
+    }
+
+    /// Test yardımcısı: Vec<StopTimeRecord>'dan index oluşturur.
+    /// Gerçek pipeline'da K2 streaming tarafından doldurulur.
+    pub fn from_records(records: &[StopTimeRecord]) -> Self {
+        let mut idx = Self::default();
+        for st in records {
+            if st.trip_id.is_empty() { continue; }
+            idx.total_rows += 1;
+            idx.trip_id_set.insert(st.trip_id.clone());
+            idx.trip_first_line.entry(st.trip_id.clone()).or_insert(st.line);
+            if !st.stop_id.is_empty() {
+                idx.stop_id_set.insert(st.stop_id.clone());
+                idx.stop_first_line.entry(st.stop_id.clone()).or_insert(st.line);
+                idx.trip_stop_set
+                    .entry(st.trip_id.clone())
+                    .or_default()
+                    .insert(st.stop_id.clone());
+            }
+            if matches!(st.continuous_pickup, Some(0) | Some(1))
+                || matches!(st.continuous_drop_off, Some(0) | Some(1))
+            {
+                idx.continuous_trips.insert(st.trip_id.clone());
+            }
+            idx.trips.entry(st.trip_id.clone()).or_default().push(CompactStopTime {
+                stop_id:            st.stop_id.clone(),
+                stop_sequence:      st.stop_sequence,
+                arrival_time:       st.arrival_time,
+                departure_time:     st.departure_time,
+                stop_headsign:      st.stop_headsign.clone(),
+                pickup_type:        st.pickup_type,
+                drop_off_type:      st.drop_off_type,
+                shape_dist_traveled: st.shape_dist_traveled,
+                timepoint:          st.timepoint,
+                continuous_pickup:  st.continuous_pickup,
+                continuous_drop_off: st.continuous_drop_off,
+                line:               st.line,
+                flex: build_flex(
+                    st.start_pickup_drop_off_window,
+                    st.end_pickup_drop_off_window,
+                    st.location_id.clone(),
+                    st.location_group_id.clone(),
+                    st.pickup_booking_rule_id.clone(),
+                    st.drop_off_booking_rule_id.clone(),
+                ),
+            });
+        }
+        for stops in idx.trips.values_mut() {
+            stops.sort_by_key(|st| st.stop_sequence.unwrap_or(u32::MAX));
+        }
+        idx
+    }
+}
+
+// ── StopTimeRecord — sadece test fixture'ları için (production'da kullanılmaz) ─
+// Testler bu struct ile veri kurar; StopTimesIndex::from_records() index'e çevirir.
 
 #[derive(Debug, Clone, Default)]
 pub struct StopTimeRecord {
@@ -139,26 +294,222 @@ fn intern_smolstr(raw: &str, cache: &mut FxHashMap<String, SmolStr>) -> SmolStr 
 
 // ── Ana doğrulayıcı ─────────────────────────────────────────────────────────
 
-pub fn validate_stop_times(file: &RawFile) -> (Vec<StopTimeRecord>, Vec<gtfs_core::Notice>) {
-    let mut notices = Vec::new();
-    let mut records = Vec::with_capacity(file.rows.len());
-    let mut counter = 0u32;
+// ── Streaming CSV okuyucu: tek reused buffer, satır başına yeni Vec YOK ─────────
+//
+// OOM fix Plan A: K1 stop_times'ı Vec<Vec<SmolStr>>'e açmaz; ham metni `raw_text`'te
+// verir. Bu fonksiyon ham metni satır satır, tek `out` buffer'ı yeniden kullanarak
+// işler — 2.48M satır için tek seferde 714 MB değil, anlık bir satır kadar bellek.
+//
+// RFC 4180 uyumlu (tokenize_csv ile aynı semantik). EOF'ta `false` döner.
+fn next_csv_record(text: &str, pos: &mut usize, out: &mut Vec<SmolStr>) -> bool {
+    let bytes = text.as_bytes();
+    let n = bytes.len();
+    if *pos >= n {
+        return false;
+    }
+    out.clear();
+    loop {
+        if bytes[*pos] == b'"' {
+            // Tırnaklı alan — geçici String gerekir
+            *pos += 1;
+            let mut buf = String::new();
+            while *pos < n {
+                let b = bytes[*pos];
+                if b == b'"' {
+                    *pos += 1;
+                    if *pos < n && bytes[*pos] == b'"' {
+                        buf.push('"');
+                        *pos += 1;
+                    } else {
+                        break;
+                    }
+                } else if b < 0x80 {
+                    buf.push(b as char);
+                    *pos += 1;
+                } else {
+                    let ch = text[*pos..].chars().next().unwrap();
+                    buf.push(ch);
+                    *pos += ch.len_utf8();
+                }
+            }
+            // Kapanmamış tırnak: best-effort (zorunlu dosya CSV'si K1 header aşamasında
+            // ve gövdede burada toleranslı işlenir; satır düşürülmez).
+            out.push(SmolStr::new(&buf));
+        } else {
+            let start = *pos;
+            while *pos < n {
+                let b = bytes[*pos];
+                if b == b',' || b == b'\n' || b == b'\r' {
+                    break;
+                }
+                *pos += 1;
+            }
+            out.push(SmolStr::new(&text[start..*pos]));
+        }
 
+        if *pos >= n {
+            break;
+        }
+        match bytes[*pos] {
+            b',' => {
+                *pos += 1;
+                if *pos >= n {
+                    out.push(SmolStr::new(""));
+                    break;
+                }
+                continue;
+            }
+            b'\r' => {
+                *pos += 1;
+                if *pos < n && bytes[*pos] == b'\n' {
+                    *pos += 1;
+                }
+                break;
+            }
+            b'\n' => {
+                *pos += 1;
+                break;
+            }
+            _ => break,
+        }
+    }
+    true
+}
+
+// ── Akış durumu: tek satırlık işleme için tüm değişken durum ────────────────────
+pub fn validate_stop_times(file: &RawFile) -> (StopTimesIndex, Vec<gtfs_core::Notice>) {
+    let mut notices: Vec<Notice> = Vec::new();
+    let mut index = StopTimesIndex::default();
+    let mut counter = 0u32;
     let cols = Cols::from_headers(&file.headers);
+    let header_count = file.headers.len();
+    // ARC_016: zorunlu alan indeksleri; DQ_016: ilk "*_id" sütunu (döngü dışında bir kez)
+    let req_indices: Vec<(usize, &'static str)> = ["trip_id", "stop_id", "stop_sequence"]
+        .iter()
+        .filter_map(|&f| file.headers.iter().position(|h| h == f).map(|i| (i, f)))
+        .collect();
+    let dq016_pk_idx = file.headers.iter().position(|h| h.ends_with("_id"));
 
     // Intern cache: unique long (>22 byte) trip_id / stop_id başına bir Arc alloc
     let mut trip_id_cache: FxHashMap<String, SmolStr> = FxHashMap::default();
     let mut stop_id_cache: FxHashMap<String, SmolStr> = FxHashMap::default();
-
     // STM_023 / STM_032: sıralama ve tekrar takibi
     let mut last_seq_by_trip: FxHashMap<SmolStr, u32> = FxHashMap::default();
     let mut seen_trip_seq: FxHashMap<SmolStr, FxHashSet<u32>> = FxHashMap::default();
     let mut stm023_fired: FxHashSet<SmolStr> = FxHashSet::default();
+    let mut arc021_fired = false;
 
-    for (row_idx, row) in file.rows.iter().enumerate() {
-        let line = (row_idx + 2) as u64;
+    {
+        // Satır işleyici — hem stream (raw_text) hem rows yolundan çağrılır.
+        // Tüm değişken durum closure ile yakalanır (notices, counter, index, caches).
+        let mut process = |row: &[SmolStr], line: u64| {
+            // ── Taşınan dosya/satır-seviye notice'lar (K1'den) — eksik veri YOK ──
+            // ARC_012: sütun sayısı tutarsız
+            if row.len() != header_count {
+                let missing = header_count.saturating_sub(row.len());
+                let (msg, tip) = if row.len() < header_count {
+                    (
+                        format!("'{}' {line}. satırda sondaki {missing} isteğe bağlı alan atlanmış ({} sütun, başlık: {header_count}).", file.name, row.len()),
+                        "CSV'de sondaki boş alanlar atlanabilir; zorunlu alanlar boş bırakılmamalıdır.",
+                    )
+                } else {
+                    (
+                        format!("'{}' {line}. satırda fazla alan: {} (beklenen {header_count}) — kaçmamış virgül veya format hatası.", file.name, row.len()),
+                        "Her satırın başlık sayısı kadar virgülle ayrılmış değer içerdiğinden emin olun.",
+                    )
+                };
+                let mut n = make_k2_notice(
+                    &mut counter, "ARC_012", EntityType::File, Some(file.name.clone()),
+                    None, &file.name, Some(line), None,
+                    Some(format!("{} sütun (beklenen {header_count})", row.len())), None,
+                    msg, tip,
+                );
+                if row.len() < header_count {
+                    n.severity = Severity::Bilgi;
+                }
+                notices.push(n);
+            }
 
-        let trip_id_raw = get_col(row, cols.trip_id);
+            // ARC_016: zorunlu alan boş veya satır kısa
+            for &(col_i, field_name) in &req_indices {
+                let is_empty = if col_i < row.len() { row[col_i].trim().is_empty() } else { true };
+                if is_empty {
+                    notices.push(make_k2_notice(
+                        &mut counter, "ARC_016", EntityType::File, Some(file.name.clone()),
+                        None, &file.name, Some(line), Some(field_name),
+                        Some(String::new()), None,
+                        format!("'{}' {line}. satırda zorunlu '{field_name}' alanı boş.", file.name),
+                        "Zorunlu alanları doldurun.",
+                    ));
+                }
+            }
+
+            // ARC_018: tamamen boş satır → notice + indexleme YAPMA (K1'deki continue)
+            if row.iter().all(|v| v.trim().is_empty()) {
+                notices.push(make_k2_notice(
+                    &mut counter, "ARC_018", EntityType::File, Some(file.name.clone()),
+                    None, &file.name, Some(line), None,
+                    None, None,
+                    format!("'{}' {line}. satırı tamamen boş.", file.name),
+                    "Boş satırları kaldırın.",
+                ));
+                return;
+            }
+
+            // ARC_021: yazdırılamaz/sorunlu karakter — dosya başına bir kez
+            if !arc021_fired {
+                'arc021: for val in row.iter() {
+                    for ch in val.chars() {
+                        let cp = ch as u32;
+                        if ch.is_alphanumeric() || ch.is_whitespace() {
+                            continue;
+                        }
+                        let is_bad = (cp < 32 && cp != 9)
+                            || cp == 127
+                            || (0xD800..=0xDFFF).contains(&cp)
+                            || (0xE000..=0xF8FF).contains(&cp)
+                            || (0xFFF0..=0xFFFF).contains(&cp);
+                        if is_bad {
+                            arc021_fired = true;
+                            notices.push(make_k2_notice(
+                                &mut counter, "ARC_021", EntityType::File, Some(file.name.clone()),
+                                None, &file.name, Some(line), None,
+                                Some(format!("U+{cp:04X}")), None,
+                                format!("'{}' dosyasında ASCII dışı veya yazdırılamaz karakter içeren değer var (U+{cp:04X}).", file.name),
+                                "Tüm alan değerlerinin yazdırılabilir ASCII karakter içerdiğinden emin olun.",
+                            ));
+                            break 'arc021;
+                        }
+                    }
+                }
+            }
+
+            // DQ_016: değerlerde baştaki/sondaki boşluk
+            {
+                let eid016: String = dq016_pk_idx
+                    .and_then(|i| row.get(i))
+                    .map(|v| v.as_str())
+                    .filter(|v| !v.is_empty())
+                    .unwrap_or(&file.name)
+                    .to_string();
+                let ws_fields: Vec<&str> = row.iter().enumerate()
+                    .filter(|(_, v)| { let s = v.as_str(); s != s.trim() })
+                    .filter_map(|(i, _)| file.headers.get(i).map(|s| s.as_str()))
+                    .collect();
+                if !ws_fields.is_empty() {
+                    let fields_str = ws_fields.join(", ");
+                    notices.push(make_k2_notice(
+                        &mut counter, "DQ_016", EntityType::Row, Some(eid016.clone()),
+                        None, &file.name, Some(line), Some(fields_str.as_str()),
+                        Some(format!("satır {line}")), None,
+                        format!("'{}' kaydında ({}, satır {line}): '{}' alanlarında baştaki/sondaki boşluk var.", eid016, file.name, fields_str),
+                        "Değerlerdeki gereksiz baştaki/sondaki boşlukları kaldırın.",
+                    ));
+                }
+            }
+
+            // ── Mevcut STM_* doğrulamaları + index ──
+            let trip_id_raw = get_col(row, cols.trip_id);
         let trip_id = intern_smolstr(trip_id_raw, &mut trip_id_cache);
         // entity_id is only materialized when a notice is actually pushed
         let eid = || (!trip_id.is_empty()).then(|| trip_id.to_string());
@@ -214,6 +565,7 @@ pub fn validate_stop_times(file: &RawFile) -> (Vec<StopTimeRecord>, Vec<gtfs_cor
                             "stop_times.txt'i stop_sequence değerine göre sıralayın.",
                         ));
                         stm023_fired.insert(trip_id.clone());
+                        index.unsorted_seq_trips.push((trip_id.clone(), last, seq, line));
                     } else if seq > last {
                         last_seq_by_trip.insert(trip_id.clone(), seq);
                     }
@@ -466,30 +818,110 @@ pub fn validate_stop_times(file: &RawFile) -> (Vec<StopTimeRecord>, Vec<gtfs_cor
 
         let smol_opt = |s: &str| if s.is_empty() { None } else { Some(SmolStr::new(s)) };
 
-        records.push(StopTimeRecord {
-            trip_id,
-            stop_id,
-            stop_sequence,
-            arrival_time,
-            departure_time,
-            stop_headsign,
-            pickup_type,
-            drop_off_type,
-            shape_dist_traveled,
-            timepoint,
-            continuous_pickup,
-            continuous_drop_off,
-            start_pickup_drop_off_window: start_window,
-            end_pickup_drop_off_window: end_window,
-            location_id: smol_opt(loc_id_raw),
-            location_group_id: smol_opt(loc_grp_raw),
-            pickup_booking_rule_id: smol_opt(pbr_raw),
-            drop_off_booking_rule_id: smol_opt(dobr_raw),
-            line,
-        });
+        let location_id         = smol_opt(loc_id_raw);
+        let location_group_id   = smol_opt(loc_grp_raw);
+        let pickup_booking_rule_id   = smol_opt(pbr_raw);
+        let drop_off_booking_rule_id = smol_opt(dobr_raw);
+
+        // ── StopTimesIndex güncelleme ─────────────────────────────────────────
+        index.total_rows += 1;
+        if !trip_id.is_empty() {
+            index.trip_id_set.insert(trip_id.clone());
+            index.trip_first_line.entry(trip_id.clone()).or_insert(line);
+            if !stop_id.is_empty() {
+                index.stop_id_set.insert(stop_id.clone());
+                index.stop_first_line.entry(stop_id.clone()).or_insert(line);
+                index.trip_stop_set
+                    .entry(trip_id.clone())
+                    .or_default()
+                    .insert(stop_id.clone());
+            }
+            if matches!(continuous_pickup, Some(0) | Some(1))
+                || matches!(continuous_drop_off, Some(0) | Some(1))
+            {
+                index.continuous_trips.insert(trip_id.clone());
+            }
+            index.trips.entry(trip_id.clone()).or_default().push(CompactStopTime {
+                stop_id:            stop_id.clone(),
+                stop_sequence,
+                arrival_time,
+                departure_time,
+                stop_headsign:      stop_headsign.clone(),
+                pickup_type,
+                drop_off_type,
+                shape_dist_traveled,
+                timepoint,
+                continuous_pickup,
+                continuous_drop_off,
+                line,
+                flex: build_flex(
+                    start_window,
+                    end_window,
+                    location_id.clone(),
+                    location_group_id.clone(),
+                    pickup_booking_rule_id.clone(),
+                    drop_off_booking_rule_id.clone(),
+                ),
+            });
+        }
+        };
+
+        // ── Sürücü: stream raw_text (başlığı atla) veya rows fallback ──
+        if let Some(text) = &file.raw_text {
+            let mut pos = 0usize;
+            let mut buf: Vec<SmolStr> = Vec::with_capacity(16);
+            let mut data_idx = 0usize;
+            let mut header_skipped = false;
+            while next_csv_record(text, &mut pos, &mut buf) {
+                // Boş satır (tek boş alan) — tokenize_csv ile aynı filtre
+                if buf.len() == 1 && buf[0].is_empty() {
+                    continue;
+                }
+                if !header_skipped {
+                    header_skipped = true;
+                    continue;
+                }
+                process(&buf, (data_idx + 2) as u64);
+                data_idx += 1;
+            }
+        } else {
+            // Fallback (test/legacy): önceden parse edilmiş rows üzerinden.
+            for (row_idx, row) in file.rows.iter().enumerate() {
+                process(row, (row_idx + 2) as u64);
+            }
+        }
     }
 
-    (records, notices)
+    // ARC_022: satır sayısı limiti (K1'den taşındı — stream_mode'da burada üretilir)
+    const MAX_ROWS: usize = 1_000_000;
+    if index.total_rows > MAX_ROWS {
+        let total = index.total_rows;
+        notices.push(make_k2_notice(
+            &mut counter, "ARC_022", EntityType::File, Some(file.name.clone()),
+            None, &file.name, None, None,
+            Some(format!("{total} satır")), None,
+            format!("'{}' dosyasında {total} satır var; {MAX_ROWS} satır sınırını aşıyor.", file.name),
+            "Dosyayı küçük parçalara bölün veya gereksiz satırları kaldırın.",
+        ));
+    }
+
+    // ARC_009: başlık var ama veri satırı yok (K1'den taşındı)
+    if file.raw_text.is_some() && index.total_rows == 0 {
+        notices.push(make_k2_notice(
+            &mut counter, "ARC_009", EntityType::File, Some(file.name.clone()),
+            None, &file.name, None, None,
+            None, None,
+            format!("'{}' dosyasında başlık satırı var ama veri satırı yok.", file.name),
+            "Dosyaya en az bir veri satırı ekleyin.",
+        ));
+    }
+
+    // stop_sequence sırasına göre sırala (K6 sıralı erişim için)
+    for stops in index.trips.values_mut() {
+        stops.sort_by_key(|st| st.stop_sequence.unwrap_or(u32::MAX));
+    }
+
+    (index, notices)
 }
 
 fn parse_pickup_dropoff_col(
@@ -537,11 +969,20 @@ mod tests {
     use crate::k1_parse::RawFile;
 
     fn make_file(headers: Vec<&str>, rows: Vec<Vec<&str>>) -> RawFile {
+        // OOM fix Plan A: testler de streaming yolunu kullanır — headers+rows CSV'ye
+        // serialize edilir, rows boş bırakılır. (Test değerlerinde virgül/tırnak yok.)
+        let mut text = headers.join(",");
+        text.push('\n');
+        for r in &rows {
+            text.push_str(&r.join(","));
+            text.push('\n');
+        }
         RawFile {
             name: "stop_times.txt".to_string(),
             headers: headers.into_iter().map(str::to_string).collect(),
-            rows: rows.into_iter().map(|r| r.into_iter().map(SmolStr::from).collect()).collect(),
+            rows: Vec::new(),
             bytes: 0,
+            raw_text: Some(text),
         }
     }
 
@@ -554,8 +995,8 @@ mod tests {
                 vec!["T1", "08:10:00", "08:10:00", "S2", "2"],
             ],
         );
-        let (records, notices) = validate_stop_times(&file);
-        assert_eq!(records.len(), 2);
+        let (records_idx, notices) = validate_stop_times(&file);
+        assert_eq!(records_idx.trips.values().map(|v| v.len()).sum::<usize>(), 2);
         assert!(notices.is_empty(), "Geçerli stop_times notice üretmemeli: {:?}", notices);
     }
 

@@ -6,7 +6,7 @@ use gtfs_config::ValidatorConfig;
 use gtfs_core::{EntityType, Notice};
 use gtfs_rules::get_rule;
 
-use crate::k2::stop_times::StopTimeRecord;
+use crate::k2::stop_times::{build_flex, CompactStopTime};
 use crate::k2::EntityRecords;
 use crate::k5_derived::DerivedData;
 
@@ -35,7 +35,15 @@ pub fn analyze(
         .iter()
         .filter_map(|t| t.shape_id.as_deref().map(|s| (t.trip_id.as_str(), s)))
         .collect();
-    let idx = { let _t = Timer::start("K6::idx::build"); StopTimesIndex::build(records, &trip_shape) };
+    // OOM fix Plan D: K6 artık K2 index'ini KLONLAMAZ — ödünç alır. Fallback (yalnızca test:
+    // stop_times_index boş ama records.stop_times dolu) için owned by_trip burada kurulur,
+    // build()'e ref geçilir; idx ondan ödünç alır (yaşam süresi bu frame'de, idx'ten önce tanımlı).
+    let fallback_by_trip = if records.stop_times_index.total_rows == 0 && !records.stop_times.is_empty() {
+        build_fallback_by_trip(records)
+    } else {
+        FxHashMap::default()
+    };
+    let idx = { let _t = Timer::start("K6::idx::build"); StopTimesIndex::build(records, &trip_shape, &fallback_by_trip) };
 
     { let _t = Timer::start("K6::speed_and_duration");    check_speed_and_duration(records, config, &idx, &mut notices, &mut ctr); }
     { let _t = Timer::start("K6::frequency_headway");     check_frequency_headway(records, config, &mut notices, &mut ctr); }
@@ -117,15 +125,6 @@ fn contains_as_word(haystack: &str, needle: &str) -> bool {
         start = pos + 1;
     }
     false
-}
-
-fn id_numeric_base(id: &str) -> &str {
-    let stripped = id.trim_end_matches(|c: char| c.is_alphabetic());
-    if stripped.is_empty() || !stripped.chars().any(|c| c.is_ascii_digit()) {
-        id
-    } else {
-        stripped
-    }
 }
 
 /// Metin yalnızca büyük harf alfabetik karakter içeriyor mu? (en az 2 harf, hepsi büyük)
@@ -283,59 +282,60 @@ fn max_speed_kmh(route_type: u32, cfg: &ValidatorConfig) -> f64 {
 }
 
 // ── Shared stop_times index (K6 tek geçiş) ──────────────────────────────────
+// Not: by_trip artık K2 StopTimesIndex'inden &CompactStopTime referansları taşıyor.
+// records.stop_times Vec<StopTimeRecord> taranmaz; sadece index kullanılır.
 
 struct StopTimesIndex<'a> {
-    by_trip: FxHashMap<&'a str, Vec<&'a StopTimeRecord>>,
+    by_trip: FxHashMap<&'a str, &'a Vec<CompactStopTime>>,
     trip_first_dep: FxHashMap<&'a str, u32>,
     trip_has_time: FxHashSet<&'a str>,
     stop_shapes: FxHashMap<&'a str, Vec<&'a str>>,
     trips_missing_sdt: FxHashMap<&'a str, u64>,
-    // STM_036: trip_id -> (önceki seq, sonraki seq, satır no) — sırasız stop_sequence tespiti
-    unsorted_seq_trips: Vec<(&'a str, u32, u32, u64)>,
+    // STM_036: K2'de tespit edilen sırasız stop_sequence bilgisi
+    unsorted_seq_trips: &'a Vec<(SmolStr, u32, u32, u64)>,
 }
 
 impl<'a> StopTimesIndex<'a> {
-    fn build(records: &'a EntityRecords, trip_shape: &HashMap<&'a str, &'a str>) -> Self {
+    fn build(
+        records: &'a EntityRecords,
+        trip_shape: &HashMap<&'a str, &'a str>,
+        fallback: &'a FxHashMap<&'a str, Vec<CompactStopTime>>,
+    ) -> Self {
         let n_trips = records.trips.len();
         let n_stops = records.stops.len();
+        let k2_idx = &records.stop_times_index;
 
-        let mut by_trip: FxHashMap<&'a str, Vec<&'a StopTimeRecord>> = FxHashMap::default();
+        // OOM fix Plan D: by_trip K2 index Vec'lerini ÖDÜNÇ alır (KLON YOK).
+        let mut by_trip: FxHashMap<&'a str, &'a Vec<CompactStopTime>> = FxHashMap::default();
         let mut stop_shapes: FxHashMap<&'a str, Vec<&'a str>> = FxHashMap::default();
         by_trip.reserve(n_trips);
         stop_shapes.reserve(n_stops);
 
-        // Main loop: 2 hash op/row (by_trip + stop_shapes); trip flag'leri post-build hesaplanır
-        for st in &records.stop_times {
-            if st.trip_id.is_empty() {
-                continue;
-            }
-            let trip_id = st.trip_id.as_str();
-            by_trip.entry(trip_id).or_default().push(st);
-
-            if !st.stop_id.is_empty() {
-                if let Some(&shape_id) = trip_shape.get(trip_id) {
-                    stop_shapes.entry(st.stop_id.as_str()).or_default().push(shape_id);
+        if k2_idx.total_rows > 0 || records.stop_times.is_empty() {
+            // Üretim yolu: K2 index Vec'lerini ödünç al — klon yok
+            for (trip_id, stops) in &k2_idx.trips {
+                let tid: &'a str = trip_id.as_str(); // 'a lifetime: records'tan gelir
+                by_trip.insert(tid, stops);
+                if let Some(&shape_id) = trip_shape.get(tid) {
+                    for st in stops {
+                        if !st.stop_id.is_empty() {
+                            stop_shapes.entry(st.stop_id.as_str()).or_default().push(shape_id);
+                        }
+                    }
                 }
             }
-        }
-
-        // STM_036: sıralama öncesi stop_sequence azalan geçişleri tespit et (unsorted_stop_times)
-        let mut unsorted_seq_trips: Vec<(&'a str, u32, u32, u64)> = Vec::new();
-        let mut seen_unsorted: FxHashSet<&str> = FxHashSet::default();
-        for (&trip_id, rows) in &by_trip {
-            let mut prev_seq = 0u32;
-            for st in rows.iter() {
-                let seq = st.stop_sequence.unwrap_or(0);
-                if seq < prev_seq && seen_unsorted.insert(trip_id) {
-                    unsorted_seq_trips.push((trip_id, prev_seq, seq, st.line));
-                    break;
+        } else {
+            // Test yolu: çağıranın kurduğu owned fallback map'ini ödünç al (bkz. build_fallback_by_trip)
+            for (&tid, stops) in fallback {
+                by_trip.insert(tid, stops);
+                if let Some(&shape_id) = trip_shape.get(tid) {
+                    for st in stops {
+                        if !st.stop_id.is_empty() {
+                            stop_shapes.entry(st.stop_id.as_str()).or_default().push(shape_id);
+                        }
+                    }
                 }
-                prev_seq = seq;
             }
-        }
-
-        for v in by_trip.values_mut() {
-            v.sort_by_key(|s| s.stop_sequence.unwrap_or(0));
         }
 
         for v in stop_shapes.values_mut() {
@@ -343,8 +343,7 @@ impl<'a> StopTimesIndex<'a> {
             v.dedup();
         }
 
-        // Post-build: by_trip üzerinden trip_has_time + trips_missing_sdt — 2.3M insert yerine N_trip insert
-        // trips_missing_sdt: sadece shape'li trip'ler (trip_shape filtresi), line numarası depola
+        // Post-build: trip_has_time + trips_missing_sdt
         let mut trip_has_time: FxHashSet<&'a str> = FxHashSet::default();
         let mut trips_missing_sdt: FxHashMap<&'a str, u64> = FxHashMap::default();
         trip_has_time.reserve(n_trips);
@@ -369,8 +368,59 @@ impl<'a> StopTimesIndex<'a> {
             })
             .collect();
 
-        Self { by_trip, trip_first_dep, trip_has_time, stop_shapes, trips_missing_sdt, unsorted_seq_trips }
+        static EMPTY_UNSORTED: std::sync::OnceLock<Vec<(SmolStr, u32, u32, u64)>> = std::sync::OnceLock::new();
+        let unsorted_ref: &'a Vec<(SmolStr, u32, u32, u64)> = if k2_idx.total_rows > 0 || records.stop_times.is_empty() {
+            &k2_idx.unsorted_seq_trips
+        } else {
+            EMPTY_UNSORTED.get_or_init(Vec::new)
+        };
+
+        Self {
+            by_trip,
+            trip_first_dep,
+            trip_has_time,
+            stop_shapes,
+            trips_missing_sdt,
+            unsorted_seq_trips: unsorted_ref,
+        }
     }
+}
+
+/// OOM fix Plan D: YALNIZCA test yolu (stop_times_index boş ama records.stop_times dolu) için
+/// records.stop_times'tan owned by_trip kurar. Üretimde çağrılmaz (K2 index ödünç alınır).
+/// Map çağıran (analyze_k6) frame'inde yaşar; StopTimesIndex::build ondan &Vec ödünç alır.
+fn build_fallback_by_trip<'a>(records: &'a EntityRecords) -> FxHashMap<&'a str, Vec<CompactStopTime>> {
+    let mut by_trip: FxHashMap<&'a str, Vec<CompactStopTime>> = FxHashMap::default();
+    for st in &records.stop_times {
+        if st.trip_id.is_empty() { continue; }
+        let tid: &'a str = st.trip_id.as_str();
+        by_trip.entry(tid).or_default().push(CompactStopTime {
+            stop_id: st.stop_id.clone(),
+            stop_sequence: st.stop_sequence,
+            arrival_time: st.arrival_time,
+            departure_time: st.departure_time,
+            stop_headsign: st.stop_headsign.clone(),
+            pickup_type: st.pickup_type,
+            drop_off_type: st.drop_off_type,
+            shape_dist_traveled: st.shape_dist_traveled,
+            timepoint: st.timepoint,
+            continuous_pickup: st.continuous_pickup,
+            continuous_drop_off: st.continuous_drop_off,
+            line: st.line,
+            flex: build_flex(
+                st.start_pickup_drop_off_window,
+                st.end_pickup_drop_off_window,
+                st.location_id.clone(),
+                st.location_group_id.clone(),
+                st.pickup_booking_rule_id.clone(),
+                st.drop_off_booking_rule_id.clone(),
+            ),
+        });
+    }
+    for v in by_trip.values_mut() {
+        v.sort_by_key(|s| s.stop_sequence.unwrap_or(u32::MAX));
+    }
+    by_trip
 }
 
 // ── WP-09a: Hız anomalisi + trip süresi ──────────────────────────────────────
@@ -479,12 +529,12 @@ fn check_speed_and_duration(
         (shape_pts, shape_cum, trip_shape)
     };
 
-    // STM_036: stop_sequence sırasız trip'ler
-    for &(trip_id, prev_seq, curr_seq, line_no) in &idx.unsorted_seq_trips {
+    // STM_036: stop_sequence sırasız trip'ler (K2'de tespit edildi, burada notice üretilir)
+    for (trip_id, prev_seq, curr_seq, line_no) in idx.unsorted_seq_trips.iter() {
         notices.push(k6_notice(
             ctr, "STM_036", EntityType::Trip,
             Some(trip_id.to_string()), Some(trip_id.to_string()),
-            "stop_times.txt", Some(line_no), Some("stop_sequence"),
+            "stop_times.txt", Some(*line_no), Some("stop_sequence"),
             Some(format!("{curr_seq}")), Some(format!("≥ {prev_seq}")),
             format!("'{trip_id}' seferinde stop_sequence {prev_seq}'den {curr_seq}'e düşüyor — değerler artmalı."),
             "stop_times.txt'i trip_id ve stop_sequence'a göre sıralayın.",
@@ -575,8 +625,8 @@ fn check_speed_and_duration(
         let mut worst_zero_seg: Option<(f64, u64, SmolStr, SmolStr, u32, u32)> = None;
 
         for i in 0..stimes.len() - 1 {
-            let a = stimes[i];
-            let b = stimes[i + 1];
+            let a = &stimes[i];
+            let b = &stimes[i + 1];
 
             let dep_a = a.departure_time.map(hms_to_secs);
             let arr_b = b.arrival_time.map(hms_to_secs);
@@ -1628,7 +1678,7 @@ fn check_geo_analytics(
 
     // STM_044: Feed stop_times satır sayısı 2 milyonu aşıyor
     {
-        let total_st = records.stop_times.len();
+        let total_st = records.stop_times_index.total_rows;
         if total_st > 2_000_000 {
             notices.push(k6_notice(
                 ctr, "STM_044", EntityType::Feed,
@@ -1642,20 +1692,20 @@ fn check_geo_analytics(
 
     // STM_045: Trip kalkış saati gece yarısından 26 saatten fazla
     {
-        let mut flagged_trips: HashSet<String> = HashSet::new();
-        for st in &records.stop_times {
-            if flagged_trips.contains(st.trip_id.as_str()) { continue; }
-            let Some((h, m, s)) = st.departure_time else { continue };
-            if h > 26 || (h == 26 && (m > 0 || s > 0)) {
-                flagged_trips.insert(st.trip_id.to_string());
-                notices.push(k6_notice(
-                    ctr, "STM_045", EntityType::Trip,
-                    Some(st.trip_id.to_string()), Some(st.trip_id.to_string()),
-                    "stop_times.txt", Some(st.line), Some("departure_time"),
-                    Some(format!("{h:02}:{m:02}:{s:02}")), Some("≤26:00:00".to_string()),
-                    format!("'{}' seferinde {h:02}:{m:02}:{s:02} kalkış saati — gece yarısından 26 saatten fazla.", st.trip_id),
-                    "departure_time değerini kontrol edin; 26 saati aşan değerler genellikle veri hatasıdır.",
-                ));
+        for (trip_id, stops) in &records.stop_times_index.trips {
+            for st in stops {
+                let Some((h, m, s)) = st.departure_time else { continue };
+                if h > 26 || (h == 26 && (m > 0 || s > 0)) {
+                    notices.push(k6_notice(
+                        ctr, "STM_045", EntityType::Trip,
+                        Some(trip_id.to_string()), Some(trip_id.to_string()),
+                        "stop_times.txt", Some(st.line), Some("departure_time"),
+                        Some(format!("{h:02}:{m:02}:{s:02}")), Some("≤26:00:00".to_string()),
+                        format!("'{trip_id}' seferinde {h:02}:{m:02}:{s:02} kalkış saati — gece yarısından 26 saatten fazla."),
+                        "departure_time değerini kontrol edin; 26 saati aşan değerler genellikle veri hatasıdır.",
+                    ));
+                    break; // trip başına bir notice yeterli
+                }
             }
         }
     }
@@ -1686,13 +1736,11 @@ fn check_geo_analytics(
 
     // STM_043: Sefer aşırı fazla durağa sahip (>200)
     {
-        let mut trip_stop_counts: FxHashMap<&str, u32> = FxHashMap::default();
-        for st in &records.stop_times {
-            *trip_stop_counts.entry(st.trip_id.as_str()).or_default() += 1;
-        }
         let trip_ids_set: FxHashSet<&str> = records.trips.iter().map(|t| t.trip_id.as_str()).collect();
-        for (trip_id, count) in &trip_stop_counts {
-            if *count > 200 && trip_ids_set.contains(trip_id) {
+        for (trip_id, stops) in &records.stop_times_index.trips {
+            let count = stops.len() as u32;
+            let trip_id = trip_id.as_str();
+            if count > 200 && trip_ids_set.contains(trip_id) {
                 notices.push(k6_notice(
                     ctr, "STM_043", EntityType::Trip,
                     Some((*trip_id).to_string()), Some((*trip_id).to_string()),
@@ -1783,7 +1831,7 @@ fn check_operational_analytics(
         let mut stop_counts: HashMap<&str, u32> = HashMap::new();
         for (&trip_id, stimes) in &idx.by_trip {
             stop_counts.clear();
-            for st in stimes {
+            for st in stimes.iter() {
                 if !st.stop_id.is_empty() {
                     *stop_counts.entry(st.stop_id.as_str()).or_default() += 1;
                 }
@@ -2119,7 +2167,7 @@ fn check_stoptimes_derived(
 
         // STM_027
         let mut prev_dist: Option<f64> = None;
-        for st in stimes {
+        for st in stimes.iter() {
             let Some(dist) = st.shape_dist_traveled else { continue };
             if let Some(prev) = prev_dist {
                 if dist < prev - 1e-6 {
@@ -2510,15 +2558,18 @@ fn check_route_trip_quality(
     {
         // (trip_id, zone_key) → [(start_secs, end_secs, line)]
         let mut zone_wins: HashMap<(&str, &str), Vec<(u64, u64, u64)>> = HashMap::new();
-        for st in &records.stop_times {
-            let Some(start) = st.start_pickup_drop_off_window else { continue };
-            let Some(end)   = st.end_pickup_drop_off_window   else { continue };
-            let zone = if let Some(ref z) = st.location_id        { z.as_str() }
-                       else if let Some(ref z) = st.location_group_id { z.as_str() }
-                       else { continue };
-            let s = start.0 as u64 * 3600 + start.1 as u64 * 60 + start.2 as u64;
-            let e = end.0   as u64 * 3600 + end.1   as u64 * 60 + end.2   as u64;
-            zone_wins.entry((st.trip_id.as_str(), zone)).or_default().push((s, e, st.line));
+        for (trip_id, stops) in &records.stop_times_index.trips {
+            for st in stops {
+                let Some(flex) = st.flex.as_deref() else { continue };
+                let Some(start) = flex.start_pickup_drop_off_window else { continue };
+                let Some(end)   = flex.end_pickup_drop_off_window   else { continue };
+                let zone = if let Some(ref z) = flex.location_id        { z.as_str() }
+                           else if let Some(ref z) = flex.location_group_id { z.as_str() }
+                           else { continue };
+                let s = start.0 as u64 * 3600 + start.1 as u64 * 60 + start.2 as u64;
+                let e = end.0   as u64 * 3600 + end.1   as u64 * 60 + end.2   as u64;
+                zone_wins.entry((trip_id.as_str(), zone)).or_default().push((s, e, st.line));
+            }
         }
 
         for ((trip_id, zone), mut wins) in zone_wins {
@@ -2602,7 +2653,7 @@ fn check_data_quality(
     }
 
     // DQ_009: feed'de hiç stop_times yok
-    if records.stop_times.is_empty() && !records.trips.is_empty() {
+    if records.stop_times_index.total_rows == 0 && !records.trips.is_empty() {
         notices.push(k6_notice(
             ctr,
             "DQ_009",
@@ -3855,11 +3906,9 @@ fn check_remaining_analytics(
     // ── STP_020: stop_times'da hiç kullanılmayan fiziksel durak ──────────────
     {
         let _t20 = Timer::start("K6::rem::stp_020");
-        let used_stops: FxHashSet<&str> = records
-            .stop_times
+        let used_stops: FxHashSet<&str> = records.stop_times_index.stop_id_set
             .iter()
-            .filter(|st| !st.stop_id.is_empty())
-            .map(|st| st.stop_id.as_str())
+            .map(|s| s.as_str())
             .collect();
 
         for stop in &records.stops {
@@ -3924,7 +3973,7 @@ fn check_remaining_analytics(
                 c
             });
 
-            let mut sorted: Vec<&&crate::k2::stop_times::StopTimeRecord> = stimes.iter().collect();
+            let mut sorted: Vec<&CompactStopTime> = stimes.iter().collect();
             sorted.sort_by_key(|st| st.stop_sequence.unwrap_or(0));
 
             // Dairesel shape tespiti: shape başlangıcı ile bitişi birbirine yakınsa
@@ -4433,19 +4482,21 @@ fn check_remaining_analytics(
         // stop_headsign (stop_times — benzersiz değer bazlı dedup)
         {
             let mut seen: std::collections::HashSet<&str> = std::collections::HashSet::new();
-            for st in &records.stop_times {
-                if let Some(ref hs) = st.stop_headsign {
-                    let s = hs.as_str();
-                    if !seen.contains(s) && is_all_caps(s) {
-                        seen.insert(s);
-                        notices.push(k6_notice(
-                            ctr, "DQ_018", EntityType::Row,
-                            None, None,
-                            "stop_times.txt", Some(st.line), Some("stop_headsign"),
-                            Some(s.to_string()), None,
-                            format!("stop_headsign değeri tamamen büyük harf: '{s}'."),
-                            "Yön adını düzgün harf kuralıyla yazın.",
-                        ));
+            for stops in records.stop_times_index.trips.values() {
+                for st in stops {
+                    if let Some(ref hs) = st.stop_headsign {
+                        let s = hs.as_str();
+                        if !seen.contains(s) && is_all_caps(s) {
+                            seen.insert(s);
+                            notices.push(k6_notice(
+                                ctr, "DQ_018", EntityType::Row,
+                                None, None,
+                                "stop_times.txt", Some(st.line), Some("stop_headsign"),
+                                Some(s.to_string()), None,
+                                format!("stop_headsign değeri tamamen büyük harf: '{s}'."),
+                                "Yön adını düzgün harf kuralıyla yazın.",
+                            ));
+                        }
                     }
                 }
             }
@@ -4530,19 +4581,21 @@ fn check_remaining_analytics(
         // stop_headsign (stop_times — benzersiz değer bazlı dedup)
         {
             let mut seen: std::collections::HashSet<&str> = std::collections::HashSet::new();
-            for st in &records.stop_times {
-                if let Some(ref hs) = st.stop_headsign {
-                    let s = hs.as_str();
-                    if !seen.contains(s) && is_all_lower(s) {
-                        seen.insert(s);
-                        notices.push(k6_notice(
-                            ctr, "DQ_019", EntityType::Row,
-                            None, None,
-                            "stop_times.txt", Some(st.line), Some("stop_headsign"),
-                            Some(s.to_string()), None,
-                            format!("stop_headsign değeri tamamen küçük harf: '{s}'."),
-                            "Yön adını başlık harfiyle yazın.",
-                        ));
+            for stops in records.stop_times_index.trips.values() {
+                for st in stops {
+                    if let Some(ref hs) = st.stop_headsign {
+                        let s = hs.as_str();
+                        if !seen.contains(s) && is_all_lower(s) {
+                            seen.insert(s);
+                            notices.push(k6_notice(
+                                ctr, "DQ_019", EntityType::Row,
+                                None, None,
+                                "stop_times.txt", Some(st.line), Some("stop_headsign"),
+                                Some(s.to_string()), None,
+                                format!("stop_headsign değeri tamamen küçük harf: '{s}'."),
+                                "Yön adını başlık harfiyle yazın.",
+                            ));
+                        }
                     }
                 }
             }
@@ -4882,7 +4935,7 @@ fn check_remaining_analytics(
             let Some(pts) = shape_coords.get(shape_id) else { continue };
             let Some(stimes) = idx.by_trip.get(trip.trip_id.as_str()) else { continue };
 
-            for st in stimes {
+            for st in stimes.iter() {
                 let Some(&(slat, slon)) = stop_coords.get(st.stop_id.as_str()) else { continue };
                 // Shape'e en yakın SEGMENT mesafesi (nokta-noktaya değil): seyrek shape
                 // noktalarında iki nokta arasındaki duraklarda false-positive önlenir.
@@ -5593,7 +5646,7 @@ fn check_vat_analytics(
         let route = match trip_route.get(trip_id) { Some(&r) => r, None => continue };
         *route_trip_count.entry(route).or_insert(0) += 1;
         let route_set = route_stops.entry(route).or_default();
-        for st in stop_times {
+        for st in stop_times.iter() {
             if st.stop_id.is_empty() { continue; }
             let sid = st.stop_id.as_str();
             route_set.insert(sid);
@@ -5998,17 +6051,17 @@ fn check_vat_analytics(
     // OPR_025: Ortalama sefer süresi 60 saniyeden kısa (feed genelinde)
     {
         let mut trip_durations: Vec<u64> = Vec::new();
-        let mut trip_st: HashMap<&str, (Option<u32>, Option<u32>)> = HashMap::new();
-        for st in &records.stop_times {
-            let entry = trip_st.entry(st.trip_id.as_str()).or_insert((None, None));
-            if let Some((h, m, s)) = st.departure_time {
-                let secs = h as u32 * 3600 + m as u32 * 60 + s as u32;
-                entry.0 = Some(entry.0.map_or(secs, |prev: u32| prev.min(secs)));
-                entry.1 = Some(entry.1.map_or(secs, |prev: u32| prev.max(secs)));
+        for stops in records.stop_times_index.trips.values() {
+            let mut min_dep: Option<u32> = None;
+            let mut max_dep: Option<u32> = None;
+            for st in stops {
+                if let Some((h, m, s)) = st.departure_time {
+                    let secs = h as u32 * 3600 + m as u32 * 60 + s as u32;
+                    min_dep = Some(min_dep.map_or(secs, |prev: u32| prev.min(secs)));
+                    max_dep = Some(max_dep.map_or(secs, |prev: u32| prev.max(secs)));
+                }
             }
-        }
-        for (_, (first, last)) in &trip_st {
-            if let (Some(f), Some(l)) = (*first, *last) {
+            if let (Some(f), Some(l)) = (min_dep, max_dep) {
                 if l > f { trip_durations.push((l - f) as u64); }
             }
         }
@@ -6132,10 +6185,12 @@ mod tests {
         trips: Vec<TripRecord>,
         stoptimes: Vec<StopTimeRecord>,
     ) -> crate::k2::EntityRecords {
+        use crate::k2::stop_times::StopTimesIndex;
         let mut r = crate::k2::EntityRecords::default();
         r.stops = stops;
         r.routes = routes;
         r.trips = trips;
+        r.stop_times_index = StopTimesIndex::from_records(&stoptimes);
         r.stop_times = stoptimes;
         r
     }
