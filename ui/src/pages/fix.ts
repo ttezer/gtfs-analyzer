@@ -2,7 +2,7 @@
 import { SEVERITY_TR, SEVERITY_COLOR, RULE_CLASS_TR, t, tMsg, tRemediation } from '../i18n';
 import { openMapModal, type MapPin, type MapOptions } from '../map-modal';
 
-export function renderFix(root: HTMLElement, result: ValidationResult): void {
+export function renderFix(root: HTMLElement, result: ValidationResult, fileFilter?: string): void {
   const noticeMap = new Map<string, Notice>(result.notices.map(n => [n.id, n]));
 
   const totalDelta    = result.reports.r9.items.reduce((s, i) => s + i.score_delta, 0);
@@ -21,7 +21,7 @@ export function renderFix(root: HTMLElement, result: ValidationResult): void {
   root.innerHTML = `
     <section class="page-fix">
       ${renderR9(result.reports.r9.items, noticeMap, normFactor, pubNormFactor, result.capped_totals)}
-      ${renderR2(result, noticeMap, deltaMap, result.name_index)}
+      ${renderR2(result, noticeMap, deltaMap, result.name_index, fileFilter)}
     </section>`;
 }
 
@@ -108,7 +108,7 @@ function renderR9(items: R9Item[], noticeMap: Map<string, Notice>, normFactor: n
 }
 
 
-function renderR2(result: ValidationResult, noticeMap: Map<string, Notice>, deltaMap: Map<string, { qualDelta: number; pubDelta: number; count: number }>, nameIndex: NameIndex): string {
+function renderR2(result: ValidationResult, noticeMap: Map<string, Notice>, deltaMap: Map<string, { qualDelta: number; pubDelta: number; count: number }>, nameIndex: NameIndex, fileFilter?: string): string {
   const items = result.reports.r2.items;
   if (items.length === 0) {
     return `<div class="card"><h2>${t('fix.r2_title')}</h2><p class="empty">${t('fix.r2_empty')}</p></div>`;
@@ -125,6 +125,17 @@ function renderR2(result: ValidationResult, noticeMap: Map<string, Notice>, delt
 
   const ruleOptions = uniqueRules
     .map(([id, title]) => `<option value="${escHtml(id)}">${escHtml(id)} — ${escHtml(title)}</option>`)
+    .join('');
+
+  // Dosya filtresi için benzersiz dosya adları
+  const uniqueFiles = [...new Set(
+    items
+      .filter(item => noticeMap.has(item.notice_id))
+      .map(item => noticeMap.get(item.notice_id)!.file)
+      .filter((f): f is string => !!f)
+  )].sort();
+  const fileOptions = uniqueFiles
+    .map(f => `<option value="${escHtml(f)}"${fileFilter && fileFilter === f ? ' selected' : ''}>${escHtml(f)}</option>`)
     .join('');
 
   const all = t('fix.filter.all');
@@ -155,6 +166,13 @@ function renderR2(result: ValidationResult, noticeMap: Map<string, Notice>, delt
           ${ruleOptions}
         </select>
       </label>
+      ${uniqueFiles.length > 0 ? `
+      <label>${t('fix.filter.file')}
+        <select id="file-filter">
+          <option value="">${all}</option>
+          ${fileOptions}
+        </select>
+      </label>` : ''}
       <span id="filter-count" class="filter-count"></span>
     </div>`;
 
@@ -171,7 +189,7 @@ function renderR2(result: ValidationResult, noticeMap: Map<string, Notice>, delt
       ? `<button class="map-pin-btn" data-notice-id="${escHtml(notice.id)}" title="${mapLabel}" aria-label="${mapLabel}">📍</button>`
       : '';
     return `
-      <tr data-severity="${notice.severity}" data-class="${notice.rule_class}" data-rule="${notice.rule_id}">
+      <tr data-severity="${notice.severity}" data-class="${notice.rule_class}" data-rule="${notice.rule_id}" data-file="${escHtml(notice.file ?? '')}">
         <td>${escHtml(item.display_label)}</td>
         <td style="color:${SEVERITY_COLOR[notice.severity]}">${SEVERITY_TR[notice.severity]}</td>
         <td>${RULE_CLASS_TR[notice.rule_class]}</td>
@@ -1072,10 +1090,11 @@ export function attachFixListeners(root: HTMLElement, result?: ValidationResult,
     });
   }
 
-  // R2 severity + class + rule filter
+  // R2 severity + class + rule + file filter
   const sevFilter  = root.querySelector<HTMLSelectElement>('#sev-filter');
   const clsFilter  = root.querySelector<HTMLSelectElement>('#cls-filter');
   const ruleFilter = root.querySelector<HTMLSelectElement>('#rule-filter');
+  const fileFilterEl = root.querySelector<HTMLSelectElement>('#file-filter');
   const table      = root.querySelector<HTMLTableElement>('#r2-table');
   if (!sevFilter || !clsFilter || !table) return;
 
@@ -1104,6 +1123,7 @@ export function attachFixListeners(root: HTMLElement, result?: ValidationResult,
     const sev  = sevFilter!.value;
     const cls  = clsFilter!.value;
     const rule = ruleFilter?.value ?? '';
+    const file = fileFilterEl?.value ?? '';
     let visible = 0, total = 0;
     const sevSet  = new Set<string>();
     const clsSet  = new Set<string>();
@@ -1114,17 +1134,19 @@ export function attachFixListeners(root: HTMLElement, result?: ValidationResult,
       const rowSev  = row.dataset['severity'] ?? '';
       const rowCls  = row.dataset['class']    ?? '';
       const rowRule = row.dataset['rule']      ?? '';
+      const rowFile = row.dataset['file']      ?? '';
       const sevMatch  = !sev  || rowSev  === sev;
       const clsMatch  = !cls  || rowCls  === cls;
       const ruleMatch = !rule || rowRule === rule;
-      row.style.display = (sevMatch && clsMatch && ruleMatch) ? '' : 'none';
-      if (sevMatch && clsMatch && ruleMatch) visible++;
-      if (clsMatch && ruleMatch) sevSet.add(rowSev);
-      if (sevMatch && ruleMatch) clsSet.add(rowCls);
-      if (sevMatch && clsMatch) ruleSet.add(rowRule);
+      const fileMatch = !file || rowFile === file;
+      row.style.display = (sevMatch && clsMatch && ruleMatch && fileMatch) ? '' : 'none';
+      if (sevMatch && clsMatch && ruleMatch && fileMatch) visible++;
+      if (clsMatch && ruleMatch && fileMatch) sevSet.add(rowSev);
+      if (sevMatch && ruleMatch && fileMatch) clsSet.add(rowCls);
+      if (sevMatch && clsMatch && fileMatch) ruleSet.add(rowRule);
     });
 
-    const anyFilter = sev || cls || rule;
+    const anyFilter = sev || cls || rule || file;
     const counter = root.querySelector<HTMLSpanElement>('#filter-count');
     if (counter) counter.textContent = anyFilter ? t('fix.filter.count', { visible, total }) : '';
 
@@ -1156,4 +1178,13 @@ export function attachFixListeners(root: HTMLElement, result?: ValidationResult,
   sevFilter.addEventListener('change', applyFilters);
   clsFilter.addEventListener('change', applyFilters);
   ruleFilter?.addEventListener('change', applyFilters);
+  fileFilterEl?.addEventListener('change', applyFilters);
+
+  // files sayfasından filtreli gelindiyse hemen uygula ve R2'ye scroll et
+  if (fileFilterEl && fileFilterEl.value) {
+    applyFilters();
+    requestAnimationFrame(() => {
+      root.querySelector('#r2-card')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  }
 }

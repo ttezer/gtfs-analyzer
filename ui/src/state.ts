@@ -1,12 +1,13 @@
 import type { ValidationResult } from './types';
 
-export type AppPage = 'upload' | 'domain' | 'fix' | 'rules' | 'export';
+export type AppPage = 'upload' | 'domain' | 'fix' | 'files' | 'export';
 
 export interface AppState {
   page: AppPage;
   result: ValidationResult | null;
   configDelta: string;
   fileName: string;
+  fixFileFilter: string; // files sayfasından fix'e filtreli geçiş için
 }
 
 const state: AppState = {
@@ -14,6 +15,7 @@ const state: AppState = {
   result: null,
   configDelta: sessionStorage.getItem('gtfs-config-delta') ?? '',
   fileName: '',
+  fixFileFilter: '',
 };
 
 export function getState(): Readonly<AppState> { return state; }
@@ -26,6 +28,10 @@ export function setResult(result: ValidationResult, fileName: string): void {
 
 export function setPage(page: AppPage): void {
   state.page = page;
+}
+
+export function setFixFileFilter(file: string): void {
+  state.fixFileFilter = file;
 }
 
 export function setConfigDelta(delta: string): void {

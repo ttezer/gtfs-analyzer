@@ -1,8 +1,8 @@
-import { getState, setPage } from './state';
+import { getState, setPage, setFixFileFilter } from './state';
 import { renderUpload } from './pages/upload';
 import { renderDomain } from './pages/domain';
 import { renderFix, attachFixListeners } from './pages/fix';
-import { renderRules } from './pages/rules';
+import { renderFiles } from './pages/files';
 import { renderExport } from './pages/export';
 import { getLocale, setLocale, t } from './i18n';
 import type { AppPage } from './state';
@@ -82,11 +82,11 @@ export function renderApp(): void {
     return;
   }
 
-  const NAV_PAGES: Exclude<AppPage, 'upload'>[] = ['domain', 'fix', 'rules', 'export'];
+  const NAV_PAGES: Exclude<AppPage, 'upload'>[] = ['domain', 'fix', 'files', 'export'];
   const NAV_KEYS: Record<Exclude<AppPage, 'upload'>, string> = {
     domain : 'nav.report',
     fix    : 'nav.fix',
-    rules  : 'nav.rules',
+    files  : 'nav.files',
     export : 'nav.export',
   };
 
@@ -136,8 +136,8 @@ export function renderApp(): void {
   const pageRoot = document.getElementById('page-root')!;
   switch (state.page) {
     case 'domain': renderDomain(pageRoot, state.result); break;
-    case 'fix':    renderFix(pageRoot, state.result); attachFixListeners(pageRoot, state.result, state.result.capped_totals); break;
-    case 'rules':  renderRules(pageRoot, state.result); break;
+    case 'fix':    renderFix(pageRoot, state.result, state.fixFileFilter); attachFixListeners(pageRoot, state.result, state.result.capped_totals); break;
+    case 'files':  renderFiles(pageRoot, state.result); break;
     case 'export': renderExport(pageRoot, state.result, state.fileName); break;
   }
 }
@@ -148,3 +148,6 @@ function escHtml(s: string): string {
 
 initDarkMode();
 renderApp();
+
+// files sayfasından filtreli fix navigasyonu için
+window.addEventListener('gtfs-navigate', () => renderApp());

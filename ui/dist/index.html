@@ -562,6 +562,42 @@
     .rules-summary-bar { background: var(--color-surface); border: 1px solid var(--color-border);
       border-radius: var(--radius); padding: .5rem 1rem; }
     .rules-summary-text { font-size: .82rem; color: var(--color-muted); font-weight: 600; }
+
+    /* ── GTFS Dosyaları sayfası ───────────────────────────────────────────────── */
+    .files-page { display: flex; flex-direction: column; gap: .75rem; }
+    .files-summary-bar { background: var(--color-surface); border: 1px solid var(--color-border);
+      border-radius: var(--radius); padding: .5rem 1rem; }
+    .files-summary-text { font-size: .82rem; color: var(--color-muted); font-weight: 600; }
+    .files-list { display: flex; flex-direction: column; gap: .35rem; }
+
+    .file-row { display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+      background: var(--color-surface); border: 1px solid var(--color-border);
+      border-radius: var(--radius); padding: .6rem 1rem; font-size: .88rem; }
+    .file-row-btn { cursor: pointer; text-align: left; transition: background .15s; }
+    .file-row-btn:hover { background: var(--color-bg); border-color: var(--color-primary, #2563eb); }
+    .file-row-clean { border-color: #bbf7d0; }
+    .file-row-missing { border-color: #fecaca; background: #fff5f5; opacity: .85; }
+    .dark .file-row-missing { background: #2a1515; border-color: #7f1d1d; }
+
+    .file-row-left { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; }
+    .file-row-right { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; white-space: nowrap; }
+    .file-name { font-size: .82rem; background: var(--color-bg); padding: .1rem .4rem;
+      border-radius: 4px; border: 1px solid var(--color-border); }
+    .file-info { font-size: .75rem; color: var(--color-muted); }
+
+    .file-badge { font-size: .68rem; font-weight: 700; padding: .15rem .45rem;
+      border-radius: 999px; }
+    .badge-clean { background: #dcfce7; color: #15803d; }
+    .dark .badge-clean { background: #14532d; color: #86efac; }
+    .badge-missing { background: #fee2e2; color: #b91c1c; }
+    .dark .badge-missing { background: #7f1d1d; color: #fca5a5; }
+    .badge-required { background: #fef3c7; color: #92400e; }
+    .dark .badge-required { background: #451a03; color: #fcd34d; }
+
+    .file-sev-badge { font-size: .75rem; font-weight: 700; }
+    .file-delta-neg { font-size: .78rem; color: #dc2626; font-weight: 600; }
+    .file-missing-hint { font-size: .76rem; color: var(--color-muted); font-style: italic; }
+    .file-row-arrow { color: var(--color-muted); font-size: .85rem; }
     .rules-accordion { display: flex; flex-direction: column; gap: .4rem; }
 
     .rule-acc-section { background: var(--color-surface); border: 1px solid var(--color-border);
@@ -579,7 +615,7 @@
     .rule-acc-body { border-top: 1px solid var(--color-border); }
 
   </style>
-  <script type="module" crossorigin src="./assets/index-CAR7l9xu.js"></script>
+  <script type="module" crossorigin src="./assets/index-DXRkZJ_q.js"></script>
 </head>
 <body>
   <div id="app"></div>

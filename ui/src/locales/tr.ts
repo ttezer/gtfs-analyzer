@@ -3,7 +3,7 @@ const tr = {
     // Nav
     'nav.report' : 'Rapor',
     'nav.fix'    : 'Ayrıntı ve Düzeltme',
-    'nav.rules'  : 'Kategori Bazlı',
+    'nav.files'  : 'GTFS Dosyaları',
     'nav.export' : 'Dışa Aktar',
     // Header
     'header.title' : 'GTFS Analyzer',
@@ -305,6 +305,15 @@ const tr = {
     'rules.th.severity': 'Önem',
     'rules.th.entity'  : 'Varlık',
     'rules.th.message' : 'Mesaj',
+    // Files page
+    'files.summary'           : '{count} dosya mevcut',
+    'files.general'           : 'Genel (dosyasız bulgular)',
+    'files.badge.clean'       : 'Temiz',
+    'files.badge.missing'     : 'Eksik',
+    'files.badge.required'    : 'Zorunlu',
+    'files.hint.missing'      : 'Bu dosya feed ZIP\'inde bulunamadı.',
+    // Fix page file filter
+    'fix.filter.file'         : 'Dosya',
     // Entity types
     'entity.Stop'        : 'Durak',
     'entity.Trip'        : 'Sefer',
