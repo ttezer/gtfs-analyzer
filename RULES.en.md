@@ -1,4 +1,4 @@
-# GTFS Analyzer — Rule List
+﻿# GTFS Analyzer — Rule List
 
 🇹🇷 [Türkçe](RULES.md) · 🇬🇧 **English** · 🇯🇵 [日本語](RULES.ja.md)
 
@@ -26,12 +26,12 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | ARC_013 | CSV parse error | CRITICAL | Spec |
 | ARC_014 | Leading/trailing whitespace in header | MEDIUM | Quality |
 | ARC_015 | Duplicate header column | CRITICAL | Spec |
-| ARC_016 | Required field empty or missing | HIGH | Spec |
+| ARC_016 | Required field or header empty/missing (K1 parse stage) | HIGH | Spec |
 | ARC_017 | Unknown column (not defined in GTFS specification) | INFO | Quality |
 | ARC_018 | Empty data row | MEDIUM | Quality |
 | ARC_019 | Empty column name in header | HIGH | Spec |
 | ARC_020 | Recommended GTFS file missing (shapes.txt or feed_info.txt) | LOW | Quality |
-| ARC_021 | Non-ASCII or non-printable character in field | LOW | Quality |
+| ARC_021 | Non-printable or problematic character in field | LOW | Quality |
 | ARC_022 | File row count exceeds 1,000,000 limit | LOW | Quality |
 | ARC_023 | Nested ZIP file inside GTFS archive | MEDIUM | Spec |
 | ARC_024 | GTFS .txt file in subdirectory (will not be parsed) | MEDIUM | Spec |
@@ -60,7 +60,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 |---|---|---|---|
 | STP_001 | Duplicate stop_id | CRITICAL | Spec |
 | STP_002 | stop_id is empty | HIGH | Spec |
-| STP_003 | stop_name missing or stop_lat out of range | CRITICAL | Spec |
+| STP_003 | stop_name missing or stop_lat/stop_lon out of range (two distinct conditions under one ID) | CRITICAL | Spec |
 | STP_004 | stop_lat is not numeric | CRITICAL | Spec |
 | STP_005 | stop_lon invalid or out of range | CRITICAL | Quality |
 | STP_006 | stop_lat missing | CRITICAL | Spec |
@@ -81,7 +81,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | STP_021 | Child stop outside parent station | HIGH | Quality |
 | STP_022 | stop_code missing | MEDIUM | Quality |
 | STP_023 | tts_stop_name invalid | LOW | Quality |
-| STP_024 | stop_access invalid | INFO | Quality |
+| STP_024 | stop_access value outside enum range (K2 raw field check) | INFO | Quality |
 | STP_025 | stop_name has leading or trailing whitespace | MEDIUM | Quality |
 | STP_026 | stop_access invalid value | LOW | Spec |
 | STP_027 | stop_access not set on pathway station | MEDIUM | Spec |
@@ -146,7 +146,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | TRP_023 | No active trips in the next 7 days | LOW | Quality |
 | TRP_024 | Inconsistent route type within block | LOW | Interop |
 | TRP_025 | High proportion of trips without wheelchair accessibility information | INFO | Quality |
-| TRP_026 | Trip that will never operate (invalid service_id) | MEDIUM | Analytics |
+| TRP_026 | Trip with empty active-date set | MEDIUM | Analytics |
 | TRP_028 | Some trips have not set wheelchair accessibility | MEDIUM | Quality |
 | TRP_029 | No trips report wheelchair accessibility | INFO | Quality |
 | TRP_030 | Trip inactive in the next 7 days | LOW | Quality |
@@ -161,7 +161,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | STM_004 | departure_time invalid format | CRITICAL | Spec |
 | STM_005 | stop_sequence missing or invalid | CRITICAL | Spec |
 | STM_006 | stop_id missing (stop_times) | CRITICAL | Spec |
-| STM_007 | Arrival time after departure time | HIGH | Spec |
+| STM_007 | Departure time before arrival time (departure_time < arrival_time) | HIGH | Spec |
 | STM_008 | Time decreases between stops | CRITICAL | Spec |
 | STM_009 | pickup_type invalid | HIGH | Spec |
 | STM_010 | drop_off_type invalid | HIGH | Spec |
@@ -177,14 +177,14 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | STM_021 | Distance between stops is zero or negative | HIGH | Quality |
 | STM_022 | timepoint invalid | MEDIUM | Spec |
 | STM_023 | stop_times row ordering corrupted | CRITICAL | Spec |
-| STM_024 | shape_dist_traveled unit inconsistency | INFO | Quality |
+| STM_024 | shape_dist_traveled unit inconsistency (stop_times vs shapes ratio) | INFO | Quality |
 | STM_025 | Travel time too short | MEDIUM | Quality |
 | STM_026 | Excessive distance between stops | HIGH | Quality |
 | STM_027 | shape_dist_traveled not monotonically increasing | HIGH | Interop |
 | STM_028 | Trip duration too long | HIGH | Analytics |
 | STM_029 | Trip duration too short | MEDIUM | Analytics |
 | STM_030 | shape_dist_traveled is negative | LOW | Spec |
-| STM_032 | Duplicate stop_times row | LOW | Quality |
+| STM_032 | Duplicate stop_sequence within trip | LOW | Quality |
 | STM_033 | Single-stop trip (unusable) | HIGH | Spec |
 | STM_034 | Only one of arrival or departure time defined | MEDIUM | Spec |
 | STM_035 | Same stop visited twice consecutively (terminal/loop) | INFO | Analytics |
@@ -223,23 +223,23 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 |---|---|---|---|
 | CAL_001 | Duplicate service_id | CRITICAL | Spec |
 | CAL_002 | Calendar day field invalid value | CRITICAL | Spec |
-| CAL_003 | start_date invalid | CRITICAL | Spec |
-| CAL_004 | end_date invalid | CRITICAL | Spec |
+| CAL_003 | start_date missing or invalid format | CRITICAL | Spec |
+| CAL_004 | end_date missing or invalid format | CRITICAL | Spec |
 | CAL_005 | start_date is after end_date | CRITICAL | Spec |
-| CAL_006 | Service has no active days | HIGH | Quality |
+| CAL_006 | Weekly schedule has all days disabled | HIGH | Quality |
 | CAL_007 | Gap in service period | MEDIUM | Analytics |
 | CAL_008 | Service expires soon | HIGH | Analytics |
-| CAL_009 | Trip with no active service | CRITICAL | Interop |
-| CAL_010 | Service period too short | MEDIUM | Analytics |
+| CAL_009 | All feed services have expired | CRITICAL | Interop |
+| CAL_010 | Service has too few active days | MEDIUM | Analytics |
 | CAL_011 | Unused service | LOW | Quality |
-| CAL_012 | No active service in the near future | HIGH | Analytics |
+| CAL_012 | Service gap in the near future | HIGH | Analytics |
 | CAL_013 | Expired service period | INFO | Analytics |
 | CAL_014 | Service dates outside feed_info validity range | LOW | Quality |
 | CAL_015 | All calendar dates in the future (no active trips today) | LOW | Quality |
 | CAL_016 | Service extends to a very distant future date | INFO | Quality |
 | CAL_017 | Calendar has not yet started (all active dates in the future) | LOW | Quality |
 | CAL_018 | Service has no active weekdays (all days 0, none overridden by calendar_dates) | LOW | Quality |
-| CAL_019 | Service calendar dates outside feed_info validity window | LOW | Quality |
+| CAL_019 | Raw calendar range exceeds feed_info window (CAL_014 checks active dates) | LOW | Quality |
 | CAL_020 | Feed validity window exceeds 5 years | LOW | Quality |
 
 ## CLD — Calendar Dates
@@ -247,10 +247,10 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | Rule | Title | Severity | Class |
 |---|---|---|---|
 | CLD_001 | service_id missing | CRITICAL | Spec |
-| CLD_002 | date invalid format | CRITICAL | Spec |
+| CLD_002 | date missing or invalid format | CRITICAL | Spec |
 | CLD_003 | exception_type missing or invalid | CRITICAL | Spec |
-| CLD_004 | Conflicting record on same date | HIGH | Interop |
-| CLD_005 | Date out of range | CRITICAL | Spec |
+| CLD_004 | Calendar-dates-only service has no active dates (exception_type=1) | HIGH | Interop |
+| CLD_005 | Date outside reasonable year range | CRITICAL | Spec |
 | CLD_006 | Too many exception days | MEDIUM | Quality |
 | CLD_007 | Excessive calendar exceptions | INFO | Analytics |
 
@@ -486,7 +486,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | FIN_003 | feed_lang missing | CRITICAL | Spec |
 | FIN_004 | default_lang invalid | MEDIUM | Spec |
 | FIN_005 | feed_start_date invalid | MEDIUM | Spec |
-| FIN_006 | feed_end_date invalid or past | HIGH | Spec |
+| FIN_006 | feed_end_date invalid format (past date: use FIN_010) | HIGH | Spec |
 | FIN_007 | feed_version missing | LOW | Quality |
 | FIN_008 | feed_contact_email invalid | LOW | Spec |
 | FIN_009 | feed_contact_url invalid | LOW | Spec |
@@ -548,7 +548,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | XFL_009 | level_id invalid | CRITICAL | Spec |
 | XFL_010 | Undefined trip_id in frequencies | CRITICAL | Spec |
 | XFL_011 | Calendar dates outside feed_info range | MEDIUM | Interop |
-| XFL_012 | Route never used | HIGH | Quality |
+| XFL_012 | Route with no operational trips | HIGH | Quality |
 | XFL_013 | shape_id used in multiple directions | HIGH | Interop |
 | XFL_014 | Invalid translation reference (source record not found) | MEDIUM | Quality |
 | XFL_015 | Invalid reference in attribution | CRITICAL | Spec |
@@ -629,7 +629,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | DQ_018 | All-caps value in recommended field | MEDIUM | Quality |
 | DQ_019 | All-lowercase value in recommended field | MEDIUM | Quality |
 | DQ_020 | Recommended field missing or empty | LOW | Quality |
-| DQ_021 | Primary key duplicate (duplicate_key) | HIGH | Spec |
+| DQ_021 | Primary key duplicate — general secondary signal (may overlap STP_001/RTS_001) | HIGH | Spec |
 | DQ_022 | More than 80% of stops share the same stop_name | HIGH | Quality |
 
 ## VAT — Entity Analytics Detection
@@ -653,7 +653,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | BKR_002 | prior_notice_start_day only valid with prior_notice_last_day | HIGH | Spec |
 | BKR_003 | prior_notice_start_time only valid with prior_notice_start_day | HIGH | Spec |
 | BKR_004 | prior_notice fields prohibited for real-time booking | HIGH | Spec |
-| BKR_005 | prior_notice_duration_max only valid with booking_type=1 | MEDIUM | Spec |
+| BKR_005 | prior_notice_duration_max only valid with booking_type=1 (prohibited for booking_type=0/2) | MEDIUM | Spec |
 | BKR_006 | prior_notice_duration_min invalid (≤ 0 or non-numeric) | HIGH | Spec |
 | BKR_007 | prior_notice_duration_min required for booking_type=1 | CRITICAL | Spec |
 | BKR_008 | prior_notice_last_day required for booking_type=2 | CRITICAL | Spec |

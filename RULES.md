@@ -1,4 +1,4 @@
-# GTFS Analyzer — Kural Listesi
+﻿# GTFS Analyzer — Kural Listesi
 
 🇹🇷 **Türkçe** · 🇬🇧 [English](RULES.en.md) · 🇯🇵 [日本語](RULES.ja.md)
 
@@ -26,12 +26,12 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | ARC_013 | CSV ayrıştırma hatası | KRİTİK | Spec |
 | ARC_014 | Başlıkta baştaki/sondaki boşluk | ORTA | Quality |
 | ARC_015 | Yinelenen başlık sütunu | KRİTİK | Spec |
-| ARC_016 | Zorunlu alan boş veya eksik | YÜKSEK | Spec |
+| ARC_016 | K1 aşamasında zorunlu alan veya başlık boş ya da eksik | YÜKSEK | Spec |
 | ARC_017 | Bilinmeyen sütun (GTFS spesifikasyonunda tanımlı değil) | BİLGİ | Quality |
 | ARC_018 | Boş veri satırı | ORTA | Quality |
 | ARC_019 | Başlıkta boş sütun adı | YÜKSEK | Spec |
 | ARC_020 | Önerilen GTFS dosyası eksik (shapes.txt veya feed_info.txt) | DÜŞÜK | Quality |
-| ARC_021 | Alanda ASCII dışı veya yazdırılamaz karakter | DÜŞÜK | Quality |
+| ARC_021 | Alanda yazdırılamaz veya sorunlu karakter | DÜŞÜK | Quality |
 | ARC_022 | Dosya satır sayısı 1.000.000 sınırını aşıyor | DÜŞÜK | Quality |
 | ARC_023 | ZIP içinde iç içe ZIP dosyası | ORTA | Spec |
 | ARC_024 | GTFS .txt dosyası alt dizinde (parse edilemez) | ORTA | Spec |
@@ -60,7 +60,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 |---|---|---|---|
 | STP_001 | stop_id yineleniyor | KRİTİK | Spec |
 | STP_002 | stop_id boş | YÜKSEK | Spec |
-| STP_003 | stop_name eksik veya stop_lat aralık dışı | KRİTİK | Spec |
+| STP_003 | stop_name eksik veya stop_lat/stop_lon aralık dışı (aynı ID altında iki ayrı koşul) | KRİTİK | Spec |
 | STP_004 | stop_lat sayısal değil | KRİTİK | Spec |
 | STP_005 | stop_lon geçersiz veya aralık dışı | KRİTİK | Quality |
 | STP_006 | stop_lat eksik | KRİTİK | Spec |
@@ -81,7 +81,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | STP_021 | Alt durak istasyon dışında | YÜKSEK | Quality |
 | STP_022 | stop_code eksik | ORTA | Quality |
 | STP_023 | tts_stop_name geçersiz | DÜŞÜK | Quality |
-| STP_024 | stop_access geçersiz | BİLGİ | Quality |
+| STP_024 | stop_access enum aralığı dışında değer (K2 ham alan kontrolü) | BİLGİ | Quality |
 | STP_025 | stop_name baştaki veya sondaki boşluk içeriyor | ORTA | Quality |
 | STP_026 | stop_access geçersiz değer | DÜŞÜK | Spec |
 | STP_027 | Pathway istasyonunda stop_access belirtilmemiş | ORTA | Spec |
@@ -146,7 +146,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | TRP_023 | Önümüzdeki 7 günde aktif sefer yok | DÜŞÜK | Quality |
 | TRP_024 | Block içinde tutarsız rota tipi | DÜŞÜK | Interop |
 | TRP_025 | Tekerlekli sandalye erişilebilirlik bilgisi eksik seferlerin oranı yüksek | BİLGİ | Quality |
-| TRP_026 | Hiçbir zaman çalışmayacak sefer (geçersiz service_id) | ORTA | Analytics |
+| TRP_026 | Aktif tarihi olmayan sefer (service_id geçerli ama aktif gün seti boş) | ORTA | Analytics |
 | TRP_028 | Bazı seferler tekerlekli sandalye erişilebilirliği işaretlememiş | ORTA | Quality |
 | TRP_029 | Hiçbir sefer tekerlekli sandalye erişilebilirliği bildirmemiş | BİLGİ | Quality |
 | TRP_030 | Sefer önümüzdeki 7 günde aktif değil | DÜŞÜK | Quality |
@@ -161,7 +161,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | STM_004 | departure_time geçersiz format | KRİTİK | Spec |
 | STM_005 | stop_sequence eksik veya geçersiz | KRİTİK | Spec |
 | STM_006 | stop_id eksik (stop_times) | KRİTİK | Spec |
-| STM_007 | Varış saati kalkış saatinden sonra | YÜKSEK | Spec |
+| STM_007 | Kalkış saati varış saatinden önce (departure_time < arrival_time) | YÜKSEK | Spec |
 | STM_008 | Duraklar arası zaman geriye gidiyor | KRİTİK | Spec |
 | STM_009 | pickup_type geçersiz | YÜKSEK | Spec |
 | STM_010 | drop_off_type geçersiz | YÜKSEK | Spec |
@@ -177,14 +177,14 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | STM_021 | Duraklar arası mesafe sıfır veya negatif | YÜKSEK | Quality |
 | STM_022 | timepoint geçersiz | ORTA | Spec |
 | STM_023 | stop_times satır sıralaması bozuk | KRİTİK | Spec |
-| STM_024 | shape_dist_traveled birim tutarsızlığı | BİLGİ | Quality |
+| STM_024 | shape_dist_traveled birim tutarsızlığı (stop_times vs shapes oranı) | BİLGİ | Quality |
 | STM_025 | Seyahat süresi çok kısa | ORTA | Quality |
 | STM_026 | Durak arası mesafe aşırı uzun | YÜKSEK | Quality |
 | STM_027 | shape_dist_traveled monoton artmıyor | YÜKSEK | Interop |
 | STM_028 | Sefer süresi çok uzun | YÜKSEK | Analytics |
 | STM_029 | Sefer süresi çok kısa | ORTA | Analytics |
 | STM_030 | shape_dist_traveled negatif | DÜŞÜK | Spec |
-| STM_032 | stop_times yinelenen satır | DÜŞÜK | Quality |
+| STM_032 | Aynı seferde yinelenen stop_sequence değeri | DÜŞÜK | Quality |
 | STM_033 | Tek duraklı sefer (kullanılamaz) | YÜKSEK | Spec |
 | STM_034 | Varış veya kalkış zamanından yalnızca biri tanımlı | ORTA | Spec |
 | STM_035 | Aynı durak ardışık iki kez ziyaret ediliyor (terminal/döngü) | BİLGİ | Analytics |
@@ -214,7 +214,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | LOC_003 | Feature'da 'id' property eksik | YÜKSEK | Spec |
 | LOC_004 | Polygon ring kapalı değil | ORTA | Spec |
 | LOC_005 | FeatureCollection tamamen boş | DÜŞÜK | Quality |
-| LOC_006 | Polygon alanı 500km²'yi aşıyor | ORTA | Quality |
+| LOC_006 | Polygon yaklaşık kapsamı 500km²'yi aşıyor (bounding-box tahmini) | ORTA | Quality |
 | LOC_007 | FeatureCollection içinde yinelenen feature 'id' | ORTA | Spec |
 
 ## CAL — Calendar (Takvim)
@@ -223,23 +223,23 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 |---|---|---|---|
 | CAL_001 | service_id yineleniyor | KRİTİK | Spec |
 | CAL_002 | Takvim gün alanı geçersiz değer | KRİTİK | Spec |
-| CAL_003 | start_date geçersiz | KRİTİK | Spec |
-| CAL_004 | end_date geçersiz | KRİTİK | Spec |
+| CAL_003 | start_date eksik veya geçersiz format | KRİTİK | Spec |
+| CAL_004 | end_date eksik veya geçersiz format | KRİTİK | Spec |
 | CAL_005 | start_date end_date'den sonra | KRİTİK | Spec |
-| CAL_006 | Serviste aktif gün yok | YÜKSEK | Quality |
+| CAL_006 | Haftalık bazda tüm günler pasif (calendar_dates ile override mümkün) | YÜKSEK | Quality |
 | CAL_007 | Servis döneminde boşluk | ORTA | Analytics |
 | CAL_008 | Servis tarihi yakında sona eriyor | YÜKSEK | Analytics |
-| CAL_009 | Aktif servisi olmayan sefer | KRİTİK | Interop |
-| CAL_010 | Servis dönemi çok kısa | ORTA | Analytics |
+| CAL_009 | Feed'deki tüm takvim dönemleri sona ermiş | KRİTİK | Interop |
+| CAL_010 | Serviste aktif gün sayısı çok az | ORTA | Analytics |
 | CAL_011 | Kullanılmayan servis | DÜŞÜK | Quality |
-| CAL_012 | Yakın gelecekte aktif servis yok | YÜKSEK | Analytics |
+| CAL_012 | Yakın gelecekte servis boşluğu var | YÜKSEK | Analytics |
 | CAL_013 | Geçmiş tarihli servis dönemi | BİLGİ | Analytics |
 | CAL_014 | Servis tarihleri feed_info geçerlilik aralığı dışında | DÜŞÜK | Quality |
 | CAL_015 | Tüm takvim tarihleri gelecekte (bugün aktif sefer yok) | DÜŞÜK | Quality |
 | CAL_016 | Servis çok uzak bir gelecek tarihine kadar uzanıyor | BİLGİ | Quality |
 | CAL_017 | Takvim henüz başlamamış (tüm aktif tarihler gelecekte) | DÜŞÜK | Quality |
-| CAL_018 | Servisin aktif haftanın günü yok (tüm günler 0, calendar_dates ile geçersiz kılınan yok) | DÜŞÜK | Quality |
-| CAL_019 | Servis takvim tarihleri feed_info geçerlilik penceresi dışında | DÜŞÜK | Quality |
+| CAL_018 | Haftalık bazda tüm günler pasif ve calendar_dates override da yok | DÜŞÜK | Quality |
+| CAL_019 | Ham takvim aralığı feed_info penceresini aşıyor (CAL_014: aktif tarihler üzerinden) | DÜŞÜK | Quality |
 | CAL_020 | Feed geçerlilik penceresi 5 yılı aşıyor | DÜŞÜK | Quality |
 
 ## CLD — Calendar Dates
@@ -247,10 +247,10 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | Kural | Başlık | Önem | Sınıf |
 |---|---|---|---|
 | CLD_001 | service_id eksik | KRİTİK | Spec |
-| CLD_002 | date geçersiz format | KRİTİK | Spec |
+| CLD_002 | date eksik veya geçersiz format | KRİTİK | Spec |
 | CLD_003 | exception_type eksik veya geçersiz | KRİTİK | Spec |
-| CLD_004 | Aynı tarihte çelişen kayıt | YÜKSEK | Interop |
-| CLD_005 | Tarih aralık dışında | KRİTİK | Spec |
+| CLD_004 | calendar_dates-only serviste aktif gün (exception_type=1) tanımlı değil | YÜKSEK | Interop |
+| CLD_005 | Tarih makul yıl aralığı dışında | KRİTİK | Spec |
 | CLD_006 | Çok fazla istisna günü | ORTA | Quality |
 | CLD_007 | Aşırı takvim istisnası | BİLGİ | Analytics |
 
@@ -264,7 +264,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | SHP_004 | shape_pt_sequence eksik veya geçersiz | KRİTİK | Spec |
 | SHP_005 | shape_dist_traveled geriye gidiyor | KRİTİK | Spec |
 | SHP_006 | Güzergah şekli yalnızca tek noktadan oluşuyor | KRİTİK | Spec |
-| SHP_007 | Güzergah şekli çok az nokta içeriyor | KRİTİK | Spec |
+| SHP_007 | Güzergah şekli çok az nokta içeriyor (tek noktalı shape SHP_006 ile de tetiklenir) | KRİTİK | Spec |
 | SHP_008 | shape_pt_sequence yineleniyor | KRİTİK | Spec |
 | SHP_009 | Güzergah şekli kendisiyle kesişiyor | BİLGİ | Analytics |
 | SHP_010 | Tekrarlanan shape noktası (ardışık özdeş koordinat) | DÜŞÜK | Quality |
@@ -486,7 +486,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | FIN_003 | feed_lang eksik | KRİTİK | Spec |
 | FIN_004 | default_lang geçersiz | ORTA | Spec |
 | FIN_005 | feed_start_date geçersiz | ORTA | Spec |
-| FIN_006 | feed_end_date geçersiz veya geçmiş tarihli | YÜKSEK | Spec |
+| FIN_006 | feed_end_date geçersiz format (geçmiş tarih için FIN_010) | YÜKSEK | Spec |
 | FIN_007 | feed_version eksik | DÜŞÜK | Quality |
 | FIN_008 | feed_contact_email geçersiz | DÜŞÜK | Spec |
 | FIN_009 | feed_contact_url geçersiz | DÜŞÜK | Spec |
@@ -548,7 +548,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | XFL_009 | level_id geçersiz | KRİTİK | Spec |
 | XFL_010 | frequencies'te tanımsız trip_id | KRİTİK | Spec |
 | XFL_011 | Takvim tarihleri feed_info aralığı dışında | ORTA | Interop |
-| XFL_012 | Hat hiç kullanılmıyor | YÜKSEK | Quality |
+| XFL_012 | Çalıştırılabilir seferi olmayan hat | YÜKSEK | Quality |
 | XFL_013 | shape_id birden fazla yönde kullanılıyor | YÜKSEK | Interop |
 | XFL_014 | Geçersiz çeviri referansı (kaynak kayıt bulunamadı) | ORTA | Quality |
 | XFL_015 | Attribution'da geçersiz referans | KRİTİK | Spec |
@@ -629,7 +629,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | DQ_018 | Önerilen alanda tamamen büyük harf (all-caps) | ORTA | Quality |
 | DQ_019 | Önerilen alanda tamamen küçük harf (all-lowercase) | ORTA | Quality |
 | DQ_020 | Önerilen alan eksik veya boş | DÜŞÜK | Quality |
-| DQ_021 | Birincil anahtar yineleniyor (duplicate_key) | YÜKSEK | Spec |
+| DQ_021 | Birincil anahtar yineleniyor — genel ikincil sinyal (STP_001/RTS_001 ile örtüşebilir) | YÜKSEK | Spec |
 | DQ_022 | Durakların %80+'i aynı stop_name değerini paylaşıyor | YÜKSEK | Quality |
 
 ## VAT — Varlık Analitik Tespiti
@@ -653,7 +653,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | BKR_002 | prior_notice_start_day yalnızca prior_notice_last_day ile kullanılabilir | YÜKSEK | Spec |
 | BKR_003 | prior_notice_start_time yalnızca prior_notice_start_day ile kullanılabilir | YÜKSEK | Spec |
 | BKR_004 | Anlık rezervasyonda prior_notice alanları yasak | YÜKSEK | Spec |
-| BKR_005 | prior_notice_duration_max yalnızca booking_type=1 ile kullanılabilir | ORTA | Spec |
+| BKR_005 | prior_notice_duration_max yalnızca booking_type=1 ile geçerli (booking_type=0/2 ile yasak) | ORTA | Spec |
 | BKR_006 | prior_notice_duration_min geçersiz (≤ 0 veya sayısal değil) | YÜKSEK | Spec |
 | BKR_007 | booking_type=1 için prior_notice_duration_min zorunlu | KRİTİK | Spec |
 | BKR_008 | booking_type=2 için prior_notice_last_day zorunlu | KRİTİK | Spec |

@@ -100,6 +100,7 @@ pub fn check(records: &EntityRecords, entity_map: &EntityMap, today: u32) -> K4R
     { let _t = Timer::start("K4::translations");   check_translations(records, map, &mut notices, &mut ctr); }
     { let _t = Timer::start("K4::attributions");   check_attributions(records, map, &mut notices, &mut ctr); }
     { let _t = Timer::start("K4::xfl");            check_xfl(records, map, &mut notices, &mut ctr, &stm_trips_in_stm, &stm_trip_stm_count, &stm_bad_stop_ids); }
+    { let _t = Timer::start("K4::stm_shape_dist"); check_stm_shape_dist(records, &mut notices, &mut ctr); }
 
     K4Result { notices }
 }
@@ -164,6 +165,36 @@ fn check_agencies(
     notices: &mut Vec<Notice>,
     ctr: &mut u32,
 ) {
+    // AGN_013: feed_info.feed_lang ile agency.agency_lang uyuşmuyor
+    if let Some(fi) = records.feed_info.first() {
+        let feed_lang = fi.feed_lang.as_str();
+        if !feed_lang.is_empty() {
+            for rec in &records.agencies {
+                if let Some(ref alang) = rec.agency_lang {
+                    if !alang.is_empty() && alang.to_lowercase() != feed_lang.to_lowercase() {
+                        notices.push(notice(
+                            ctr,
+                            "AGN_013",
+                            EntityType::Agency,
+                            rec.agency_id.clone(),
+                            rec.agency_id.clone(),
+                            "agency.txt",
+                            None,
+                            Some("agency_lang"),
+                            Some(alang.clone()),
+                            Some(feed_lang.to_string()),
+                            format!(
+                                "agency_lang '{}' feed_info.txt'deki feed_lang '{}' ile uyuşmuyor.",
+                                alang, feed_lang
+                            ),
+                            "agency.txt'teki agency_lang değerini feed_info.feed_lang ile uyumlu hale getirin.",
+                        ));
+                    }
+                }
+            }
+        }
+    }
+
     if records.agencies.len() < 2 {
         return;
     }
@@ -862,6 +893,41 @@ fn check_calendar(
             ));
         }
     }
+
+    // CAL_018: haftalık bazda tüm günler pasif VE calendar_dates'te exception_type=1 override yok
+    {
+        let services_with_added: HashSet<&str> = records
+            .calendar_dates
+            .iter()
+            .filter(|r| r.exception_type == Some(1))
+            .map(|r| r.service_id.as_str())
+            .collect();
+        for rec in &records.calendars {
+            if rec.service_id.is_empty() {
+                continue;
+            }
+            let all_inactive = rec.days.iter().all(|d| d.map_or(true, |v| v == 0));
+            if all_inactive && !services_with_added.contains(rec.service_id.as_str()) {
+                notices.push(notice(
+                    ctr,
+                    "CAL_018",
+                    EntityType::Service,
+                    Some(rec.service_id.clone()),
+                    Some(rec.service_id.clone()),
+                    "calendar.txt",
+                    Some(rec.line),
+                    None,
+                    None,
+                    None,
+                    format!(
+                        "'{}' takviminde haftanın tüm günleri pasif (0) ve calendar_dates.txt'te aktif gün (exception_type=1) de tanımlı değil; bu servis hiç çalışmaz.",
+                        rec.service_id
+                    ),
+                    "Haftalık günlerden en az birini 1 yapın ya da calendar_dates.txt'e bu servis için exception_type=1 kayıt ekleyin.",
+                ));
+            }
+        }
+    }
 }
 
 // �"?�"? CLD_004: calendar_dates kapsamlılık kontrolü �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?
@@ -1249,6 +1315,30 @@ fn check_transfers(
             }
         }
 
+        // XFL_020: transfer kaydındaki (trip_id, route_id) çifti geçersiz — sefer belirtilen hatta ait değil
+        for (trip_opt, route_opt, trip_field, route_field) in [
+            (&rec.from_trip_id, &rec.from_route_id, "from_trip_id", "from_route_id"),
+            (&rec.to_trip_id,   &rec.to_route_id,   "to_trip_id",   "to_route_id"),
+        ] {
+            if let (Some(ref tid), Some(ref rid)) = (trip_opt, route_opt) {
+                if let Some(&tidx) = map.trips.get(tid.as_str()) {
+                    let actual_route = &records.trips[tidx].route_id;
+                    if actual_route.as_str() != rid.as_str() {
+                        notices.push(notice(
+                            ctr, "XFL_020", EntityType::Transfer,
+                            None, None, "transfers.txt", Some(rec.line), Some(route_field),
+                            Some(rid.clone()), Some(actual_route.clone()),
+                            format!(
+                                "{trip_field} '{tid}' seferinin gerçek hattı '{}', ancak {route_field} '{rid}' belirtilmiş.",
+                                actual_route
+                            ),
+                            "Aktarma kaydındaki route_id'yi ilgili seferin gerçek hat kodu ile güncelleyin.",
+                        ));
+                    }
+                }
+            }
+        }
+
         // TRF_015: type=4/5 için from/to_stop_id station (location_type=1) olamaz
         if matches!(ttype, Some(4) | Some(5)) {
             for (field, stop_id) in [
@@ -1515,6 +1605,107 @@ fn check_fare_rules(
                         "Geçerli bir zone_id kullanın.",
                     ));
                 }
+            }
+        }
+
+        // FRL_007: hiç ayrıştırıcı kriter yok (route/zone/contains) — tüm seyahatlere uygulanır
+        if rec.route_id.is_none()
+            && rec.origin_id.is_none()
+            && rec.destination_id.is_none()
+            && rec.contains_id.is_none()
+        {
+            notices.push(notice(
+                ctr,
+                "FRL_007",
+                EntityType::Fare,
+                eid.clone(),
+                eid.clone(),
+                "fare_rules.txt",
+                Some(rec.line),
+                None,
+                None,
+                None,
+                format!(
+                    "'{}' ücret kuralı için route_id, origin_id, destination_id ve contains_id alanlarının tümü boş; bu kural tüm seyahatlere uygulanır.",
+                    rec.fare_id
+                ),
+                "En az bir ayrıştırıcı kriter (route_id, origin_id, destination_id veya contains_id) belirtin.",
+            ));
+        }
+    }
+
+    // FRL_008: ücret sistemi route tabanlı ama bazı hatlar kapsam dışı
+    if !records.fare_attributes.is_empty() && !records.fare_rules.is_empty() {
+        let routes_in_rules: HashSet<&str> = records
+            .fare_rules
+            .iter()
+            .filter_map(|fr| fr.route_id.as_deref())
+            .collect();
+        if !routes_in_rules.is_empty() {
+            let uncovered: Vec<&str> = records
+                .routes
+                .iter()
+                .filter(|r| !r.route_id.is_empty() && !routes_in_rules.contains(r.route_id.as_str()))
+                .map(|r| r.route_id.as_str())
+                .collect();
+            if !uncovered.is_empty() {
+                notices.push(notice(
+                    ctr,
+                    "FRL_008",
+                    EntityType::Feed,
+                    None,
+                    None,
+                    "fare_rules.txt",
+                    None,
+                    Some("route_id"),
+                    Some(uncovered.join(", ")),
+                    None,
+                    format!(
+                        "Şu hatlar için fare_rules.txt'te ücret kuralı tanımlı değil: {}.",
+                        uncovered.join(", ")
+                    ),
+                    "Tüm hatlar için fare_rules.txt'e kapsayan kurallar ekleyin veya zone tabanlı ücretlendirmeye geçin.",
+                ));
+            }
+        }
+    }
+
+    // FAR_010: aynı (route_id, origin_id, destination_id, contains_id) kombinasyonu için birden fazla fare_id
+    {
+        let mut rule_key_to_fare: HashMap<(Option<&str>, Option<&str>, Option<&str>, Option<&str>), &str> =
+            HashMap::new();
+        for rec in &records.fare_rules {
+            if rec.fare_id.is_empty() {
+                continue;
+            }
+            let key = (
+                rec.route_id.as_deref(),
+                rec.origin_id.as_deref(),
+                rec.destination_id.as_deref(),
+                rec.contains_id.as_deref(),
+            );
+            if let Some(&prev_fare) = rule_key_to_fare.get(&key) {
+                if prev_fare != rec.fare_id.as_str() {
+                    notices.push(notice(
+                        ctr,
+                        "FAR_010",
+                        EntityType::Fare,
+                        Some(rec.fare_id.clone()),
+                        Some(rec.fare_id.clone()),
+                        "fare_rules.txt",
+                        Some(rec.line),
+                        Some("fare_id"),
+                        Some(rec.fare_id.clone()),
+                        Some(prev_fare.to_string()),
+                        format!(
+                            "Ücret tarifesi '{}' için tanımlanan kural, '{}' ile çakışıyor — aynı koşul kümesine birden fazla tarife uygulanıyor.",
+                            rec.fare_id, prev_fare
+                        ),
+                        "Her (route_id, origin_id, destination_id, contains_id) kombinasyonu için yalnızca bir ücret tarifesi tanımlayın.",
+                    ));
+                }
+            } else {
+                rule_key_to_fare.insert(key, rec.fare_id.as_str());
             }
         }
     }
@@ -1795,7 +1986,7 @@ fn check_translations(
     let mut seen: HashSet<String> = HashSet::new();
 
     for rec in &records.translations {
-        // TRN_005: record_id ba�Yvurulan kayıt mevcut
+        // TRN_004: record_id başvurulan kayıt bulunamadı
         if let Some(ref rid) = rec.record_id {
             let exists = match rec.table_name.as_str() {
                 "agency" => map.agencies.contains_key(rid.as_str()),
@@ -1813,7 +2004,7 @@ fn check_translations(
             if !exists {
                 notices.push(notice(
                     ctr,
-                    "TRN_005",
+                    "TRN_004",
                     EntityType::Translation,
                     None,
                     None,
@@ -1894,12 +2085,12 @@ fn check_attributions(
     for rec in &records.attributions {
         let eid = rec.attribution_id.clone();
 
-        // ATR_005: agency_id referansı
+        // ATR_010: agency_id cross-ref — attribution'daki agency_id agency.txt'te bulunamadı
         if let Some(ref aid) = rec.agency_id {
             if !map.agencies.contains_key(aid.as_str()) {
                 notices.push(notice(
                     ctr,
-                    "ATR_005",
+                    "ATR_010",
                     EntityType::Attribution,
                     eid.clone(),
                     eid.clone(),
@@ -2722,6 +2913,85 @@ fn check_xfl(
                     }
                 }
             }
+        }
+    }
+}
+
+// ── STM_024: shape_dist_traveled birim tutarsızlığı ─────────────────────────
+
+fn check_stm_shape_dist(
+    records: &EntityRecords,
+    notices: &mut Vec<Notice>,
+    ctr: &mut u32,
+) {
+    // shape_id → o shape'teki max shape_dist_traveled
+    let mut shape_max_dist: HashMap<&str, f64> = HashMap::new();
+    for sp in &records.shapes {
+        if let Some(d) = sp.shape_dist_traveled {
+            let e = shape_max_dist.entry(sp.shape_id.as_str()).or_insert(0.0_f64);
+            if d > *e {
+                *e = d;
+            }
+        }
+    }
+    if shape_max_dist.is_empty() {
+        return;
+    }
+
+    let mut flagged_shapes: HashSet<&str> = HashSet::new();
+
+    for rec in &records.trips {
+        if rec.trip_id.is_empty() {
+            continue;
+        }
+        let shape_id = match &rec.shape_id {
+            Some(s) if !s.is_empty() => s.as_str(),
+            _ => continue,
+        };
+        let shape_max = match shape_max_dist.get(shape_id) {
+            Some(&d) if d > 0.0 => d,
+            _ => continue,
+        };
+        if flagged_shapes.contains(shape_id) {
+            continue;
+        }
+
+        let stm_max = records
+            .stop_times_index
+            .sorted_stops(&rec.trip_id)
+            .map(|stops| {
+                stops
+                    .iter()
+                    .filter_map(|s| s.shape_dist_traveled)
+                    .fold(f64::NEG_INFINITY, f64::max)
+            })
+            .unwrap_or(f64::NEG_INFINITY);
+
+        if stm_max <= 0.0 || stm_max.is_infinite() {
+            continue;
+        }
+
+        let ratio = stm_max / shape_max;
+        // Olası birim çakışmaları: ayak/metre ≈ 3.28×, metre/km ≈ 1000×, km/metre ≈ 0.001×
+        if ratio > 2.5 || ratio < 0.4 {
+            flagged_shapes.insert(shape_id);
+            notices.push(notice(
+                ctr,
+                "STM_024",
+                EntityType::Trip,
+                Some(rec.trip_id.clone()),
+                Some(rec.trip_id.clone()),
+                "stop_times.txt",
+                None,
+                Some("shape_dist_traveled"),
+                Some(format!("{stm_max:.2}")),
+                Some(format!("{shape_max:.2}")),
+                format!(
+                    "'{}' seferinin stop_times.txt'teki shape_dist_traveled (max {stm_max:.2}) ile shape '{shape_id}' toplam mesafesi ({shape_max:.2}) arasındaki oran {ratio:.2}× — birim uyumsuzluğu (metre/ayak/km karışımı) olabilir.",
+                    rec.trip_id
+                ),
+                "stop_times.txt ve shapes.txt'teki shape_dist_traveled değerlerinin aynı birimi (metre, ayak veya kilometre) kullandığını doğrulayın.",
+            ));
         }
     }
 }
