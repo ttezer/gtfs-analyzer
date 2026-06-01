@@ -16,3 +16,11 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 zip = { version = "2", default-features = false, features = ["deflate", "time"] }
 wasm-bindgen = "0.2"
+
+# NOT: lto="fat"+codegen-units=1 GEÇİCİ olarak geri alındı — TriMet hata sayısı 6059→6085 (+26)
+# regresyonunun lto kaynaklı FP drift (haversine eşik kontrolleri) mi yoksa flat-layout bug'ı mı
+# olduğunu izole etmek için. Varsayılan release (opt-level=3, lto=false) kullanılıyor.
+# [profile.release]
+# opt-level = 3
+# lto = "fat"
+# codegen-units = 1

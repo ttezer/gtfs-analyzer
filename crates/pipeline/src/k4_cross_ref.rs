@@ -74,7 +74,7 @@ pub fn check(records: &EntityRecords, entity_map: &EntityMap, today: u32) -> K4R
         let used_stop_ids: HashSet<&str>  = idx.stop_id_set.iter().map(|s| s.as_str()).collect();
         let trip_continuous: HashSet<&str> = idx.continuous_trips.iter().map(|s| s.as_str()).collect();
         let trips_in_stm: HashSet<&str>   = idx.trip_id_set.iter().map(|s| s.as_str()).collect();
-        let trip_stm_count: HashMap<&str, u32> = idx.trips.iter()
+        let trip_stm_count: HashMap<&str, u32> = idx.iter_trips()
             .map(|(k, v)| (k.as_str(), v.len() as u32))
             .collect();
         let trip_stops: HashMap<&str, HashSet<&str>> = idx.trip_stop_set.iter()

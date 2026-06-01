@@ -125,7 +125,7 @@ pub fn build_name_index(records: &EntityRecords) -> gtfs_core::NameIndex {
         .collect();
 
     // trip_id → ilk kalkış saati "HH:MM" (stop_sequence=min — K2 index'te zaten sıralı)
-    let trip_first_dep: HashMap<String, String> = records.stop_times_index.trips.iter()
+    let trip_first_dep: HashMap<String, String> = records.stop_times_index.iter_trips()
         .filter_map(|(trip_id, stops)| {
             stops.first()
                 .and_then(|s| s.departure_time)
@@ -177,7 +177,7 @@ pub fn build_name_index(records: &EntityRecords) -> gtfs_core::NameIndex {
         .collect();
 
     // trip_id → [stop_id, ...] stop_sequence sıralı (K2 index'te zaten sıralı)
-    let trip_stops: HashMap<String, Vec<String>> = records.stop_times_index.trips.iter()
+    let trip_stops: HashMap<String, Vec<String>> = records.stop_times_index.iter_trips()
         .map(|(trip_id, stops)| {
             let mut ids: Vec<String> = stops.iter()
                 .filter(|s| !s.stop_id.is_empty())

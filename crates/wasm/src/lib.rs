@@ -26,7 +26,9 @@ pub fn wasm_init() {
 // ── Sabitler ─────────────────────────────────────────────────────────────────
 
 const PER_RULE_CAP: usize = 500;
-const NOTICE_LIMIT: usize = 100_000;
+// Yumuşak uyarı eşiği — AŞILSA BİLE doğrulamayı DURDURMAZ; yalnızca konsola uyarı yazar.
+// Notice sayısı cap dışı gerçek bir rakamdır; gösterim/render kural başına cap_per_rule ile sınırlanır.
+const NOTICE_LIMIT: usize = 1_000_000;
 const HIGH_CAP: usize = 2_000;
 const HIGH_CAP_RULES: &[&str] = &["TRP_020", "OPR_007", "STP_016", "STP_017"];
 
@@ -129,8 +131,11 @@ pub fn rerun_k6_k7(cache: &CachedState, config_delta_json: &str, on_stage: &js_s
 
     let real_totals = count_totals(&all_notices);
     let _ = cap_per_rule(&mut all_notices);
-    if all_notices.len() > NOTICE_LIMIT {
-        return to_js(&ValidateResult::Fatal(resource_limit_error()));
+    let real_total: usize = real_totals.values().map(|&v| v as usize).sum();
+    if real_total > NOTICE_LIMIT {
+        web_sys::console::warn_1(&format!(
+            "[uyarı] {real_total} notice üretildi (>{NOTICE_LIMIT}); gösterim kural başına cap'lendi, doğrulama durdurulmadı."
+        ).into());
     }
 
     let t = js_sys::Date::now();
@@ -196,11 +201,14 @@ fn run_full_pipeline(zip_bytes: &[u8], config: &ValidatorConfig, today: u32) -> 
 
     // 1) Gerçek totalleri cap öncesinde say (score delta ölçekleme için)
     let real_totals = count_totals(&all_notices);
-    // 2) Cap uygula — büyük feed'lerde belleği yönet
+    // 2) Cap uygula — kural başına sınır; büyük/hatalı feed'lerde gösterim/render'ı yönetir
     let _ = cap_per_rule(&mut all_notices);
-    // 3) NOTICE_LIMIT cap sonrasında kontrol (Madrid gibi büyük feed'ler çalışsın)
-    if all_notices.len() > NOTICE_LIMIT {
-        return ValidateResult::Fatal(resource_limit_error());
+    // 3) DURDURMA YOK — çok büyük feed'de yalnızca konsola uyarı (cap zaten sınırlıyor)
+    let real_total: usize = real_totals.values().map(|&v| v as usize).sum();
+    if real_total > NOTICE_LIMIT {
+        web_sys::console::warn_1(&format!(
+            "[uyarı] {real_total} notice üretildi (>{NOTICE_LIMIT}); gösterim kural başına cap'lendi, doğrulama durdurulmadı."
+        ).into());
     }
 
     let mut k7 = report_k7(all_notices, &k2.records, &k5.derived, file_stats);
@@ -263,9 +271,7 @@ fn run_k1_k5(zip_bytes: &[u8], on_stage: &js_sys::Function) -> Result<CachedStat
     k1_k5_notices.extend(k3.notices);
     k1_k5_notices.extend(k4.notices);
     k1_k5_notices.extend(k5.notices);
-    if k1_k5_notices.len() > NOTICE_LIMIT {
-        return Err(resource_limit_error());
-    }
+    // DURDURMA YOK: K1-K5 notice'ları cap'lenmeden taşınır; gösterim cap'i K6+K7 yolunda uygulanır.
 
     Ok(CachedState { k1_k5_notices, records: k2.records, derived: k5.derived, file_stats })
 }
@@ -328,15 +334,6 @@ fn cap_per_rule(notices: &mut Vec<gtfs_core::Notice>) -> std::collections::HashM
         *c <= cap_for_rule(&n.rule_id)
     });
     std::collections::HashMap::new() // artık count_totals + build_capped_totals kullanılıyor
-}
-
-fn resource_limit_error() -> FatalError {
-    FatalError {
-        code: FatalCode::ResourceLimit,
-        message: format!(
-            "Notice sayısı sınırı aşıldı ({NOTICE_LIMIT}). Feed çok büyük veya çok hatalı."
-        ),
-    }
 }
 
 fn today_yyyymmdd() -> u32 {

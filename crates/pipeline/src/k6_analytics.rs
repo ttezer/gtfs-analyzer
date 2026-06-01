@@ -286,7 +286,7 @@ fn max_speed_kmh(route_type: u32, cfg: &ValidatorConfig) -> f64 {
 // records.stop_times Vec<StopTimeRecord> taranmaz; sadece index kullanılır.
 
 struct StopTimesIndex<'a> {
-    by_trip: FxHashMap<&'a str, &'a Vec<CompactStopTime>>,
+    by_trip: FxHashMap<&'a str, &'a [CompactStopTime]>,
     trip_first_dep: FxHashMap<&'a str, u32>,
     trip_has_time: FxHashSet<&'a str>,
     stop_shapes: FxHashMap<&'a str, Vec<&'a str>>,
@@ -305,15 +305,15 @@ impl<'a> StopTimesIndex<'a> {
         let n_stops = records.stops.len();
         let k2_idx = &records.stop_times_index;
 
-        // OOM fix Plan D: by_trip K2 index Vec'lerini ÖDÜNÇ alır (KLON YOK).
-        let mut by_trip: FxHashMap<&'a str, &'a Vec<CompactStopTime>> = FxHashMap::default();
+        // OOM fix Plan D: by_trip K2 index dilimlerini ÖDÜNÇ alır (KLON YOK).
+        let mut by_trip: FxHashMap<&'a str, &'a [CompactStopTime]> = FxHashMap::default();
         let mut stop_shapes: FxHashMap<&'a str, Vec<&'a str>> = FxHashMap::default();
         by_trip.reserve(n_trips);
         stop_shapes.reserve(n_stops);
 
         if k2_idx.total_rows > 0 || records.stop_times.is_empty() {
-            // Üretim yolu: K2 index Vec'lerini ödünç al — klon yok
-            for (trip_id, stops) in &k2_idx.trips {
+            // Üretim yolu: K2 index dilimlerini ödünç al — klon yok
+            for (trip_id, stops) in k2_idx.iter_trips() {
                 let tid: &'a str = trip_id.as_str(); // 'a lifetime: records'tan gelir
                 by_trip.insert(tid, stops);
                 if let Some(&shape_id) = trip_shape.get(tid) {
@@ -327,7 +327,7 @@ impl<'a> StopTimesIndex<'a> {
         } else {
             // Test yolu: çağıranın kurduğu owned fallback map'ini ödünç al (bkz. build_fallback_by_trip)
             for (&tid, stops) in fallback {
-                by_trip.insert(tid, stops);
+                by_trip.insert(tid, stops.as_slice());
                 if let Some(&shape_id) = trip_shape.get(tid) {
                     for st in stops {
                         if !st.stop_id.is_empty() {
@@ -544,6 +544,11 @@ fn check_speed_and_duration(
     // Reusable per-trip coord buffer: 1 lookup/stop (windows(2) ile 2 lookup/pair olurdu)
     let mut coords_buf: Vec<Option<(f64, f64)>> = Vec::new();
 
+    // Perf: (shape_id, stop_id) → shape üzerine arc-uzunluğu projeksiyonu MEMOIZE edilir.
+    // project_arc_km tüm shape noktalarını gezer; aynı (shape,durak) seferler/segmentler
+    // arası tekrar projekte ediliyordu. dist_km çıktısı BİREBİR aynı — sadece tekrar eleniyor.
+    let mut arc_cache: FxHashMap<(&str, &str), f64> = FxHashMap::default();
+
     { let _t = Timer::start("K6::sd::loop");
     for (&trip_id, stimes) in &idx.by_trip {
         if stimes.len() < 2 {
@@ -703,8 +708,12 @@ fn check_speed_and_duration(
                     let pts = shape_pts_speed.get(sid)?;
                     let cum = shape_cum_speed.get(sid)?;
                     if pts.len() < 2 { return None; }
-                    let arc_a = project_arc_km(pts, cum, c1.0, c1.1);
-                    let arc_b = project_arc_km(pts, cum, c2.0, c2.1);
+                    // (sid, stop_id) → arc cache: aynı shape'i kullanan seferlerde/segmentlerde
+                    // tekrar projeksiyonu önler. stop_id → tek koordinat olduğundan sonuç deterministik.
+                    let arc_a = *arc_cache.entry((sid, a.stop_id.as_str()))
+                        .or_insert_with(|| project_arc_km(pts, cum, c1.0, c1.1));
+                    let arc_b = *arc_cache.entry((sid, b.stop_id.as_str()))
+                        .or_insert_with(|| project_arc_km(pts, cum, c2.0, c2.1));
                     let d = (arc_b - arc_a).abs();
                     if d > 1e-6 { Some(d) } else { None }
                 })
@@ -1692,7 +1701,7 @@ fn check_geo_analytics(
 
     // STM_045: Trip kalkış saati gece yarısından 26 saatten fazla
     {
-        for (trip_id, stops) in &records.stop_times_index.trips {
+        for (trip_id, stops) in records.stop_times_index.iter_trips() {
             for st in stops {
                 let Some((h, m, s)) = st.departure_time else { continue };
                 if h > 26 || (h == 26 && (m > 0 || s > 0)) {
@@ -1737,7 +1746,7 @@ fn check_geo_analytics(
     // STM_043: Sefer aşırı fazla durağa sahip (>200)
     {
         let trip_ids_set: FxHashSet<&str> = records.trips.iter().map(|t| t.trip_id.as_str()).collect();
-        for (trip_id, stops) in &records.stop_times_index.trips {
+        for (trip_id, stops) in records.stop_times_index.iter_trips() {
             let count = stops.len() as u32;
             let trip_id = trip_id.as_str();
             if count > 200 && trip_ids_set.contains(trip_id) {
@@ -2558,7 +2567,7 @@ fn check_route_trip_quality(
     {
         // (trip_id, zone_key) → [(start_secs, end_secs, line)]
         let mut zone_wins: HashMap<(&str, &str), Vec<(u64, u64, u64)>> = HashMap::new();
-        for (trip_id, stops) in &records.stop_times_index.trips {
+        for (trip_id, stops) in records.stop_times_index.iter_trips() {
             for st in stops {
                 let Some(flex) = st.flex.as_deref() else { continue };
                 let Some(start) = flex.start_pickup_drop_off_window else { continue };
@@ -4482,7 +4491,7 @@ fn check_remaining_analytics(
         // stop_headsign (stop_times — benzersiz değer bazlı dedup)
         {
             let mut seen: std::collections::HashSet<&str> = std::collections::HashSet::new();
-            for stops in records.stop_times_index.trips.values() {
+            for stops in records.stop_times_index.iter_stops() {
                 for st in stops {
                     if let Some(ref hs) = st.stop_headsign {
                         let s = hs.as_str();
@@ -4581,7 +4590,7 @@ fn check_remaining_analytics(
         // stop_headsign (stop_times — benzersiz değer bazlı dedup)
         {
             let mut seen: std::collections::HashSet<&str> = std::collections::HashSet::new();
-            for stops in records.stop_times_index.trips.values() {
+            for stops in records.stop_times_index.iter_stops() {
                 for st in stops {
                     if let Some(ref hs) = st.stop_headsign {
                         let s = hs.as_str();
@@ -4928,18 +4937,25 @@ fn check_remaining_analytics(
         let _t12b = Timer::start("K6::rem::shp_012");
         const SHP_STOP_THRESHOLD_M: f64 = 500.0;
 
-        // trip_id → stop_ids (stop_times'dan)
+        // Perf: (shape_id, stop_id) → polyline mesafesi MEMOIZE edilir. Aynı shape'i kullanan
+        // onlarca sefer aynı (shape,durak) mesafesini tekrar tekrar hesaplıyordu; pahalı
+        // point_to_polyline yalnızca BENZERSİZ çift başına bir kez çalışır. Sayım semantiği
+        // (sefer-durak örneği başına artış) AYNI kalır → notice sayısı/değeri/skor DEĞİŞMEZ.
         let mut shape_stop_violations: FxHashMap<&str, u32> = FxHashMap::default();
+        let mut dist_cache: FxHashMap<(&str, &str), f64> = FxHashMap::default();
         for trip in &records.trips {
             let Some(shape_id) = trip.shape_id.as_deref().filter(|s| !s.is_empty()) else { continue };
             let Some(pts) = shape_coords.get(shape_id) else { continue };
             let Some(stimes) = idx.by_trip.get(trip.trip_id.as_str()) else { continue };
 
             for st in stimes.iter() {
-                let Some(&(slat, slon)) = stop_coords.get(st.stop_id.as_str()) else { continue };
+                let stop_id = st.stop_id.as_str();
+                let Some(&(slat, slon)) = stop_coords.get(stop_id) else { continue };
                 // Shape'e en yakın SEGMENT mesafesi (nokta-noktaya değil): seyrek shape
                 // noktalarında iki nokta arasındaki duraklarda false-positive önlenir.
-                let min_dist_m = point_to_polyline_dist_m(slat, slon, pts);
+                let min_dist_m = *dist_cache
+                    .entry((shape_id, stop_id))
+                    .or_insert_with(|| point_to_polyline_dist_m(slat, slon, pts));
                 if min_dist_m > SHP_STOP_THRESHOLD_M {
                     *shape_stop_violations.entry(shape_id).or_insert(0) += 1;
                 }
@@ -6051,7 +6067,7 @@ fn check_vat_analytics(
     // OPR_025: Ortalama sefer süresi 60 saniyeden kısa (feed genelinde)
     {
         let mut trip_durations: Vec<u64> = Vec::new();
-        for stops in records.stop_times_index.trips.values() {
+        for stops in records.stop_times_index.iter_stops() {
             let mut min_dep: Option<u32> = None;
             let mut max_dep: Option<u32> = None;
             for st in stops {
