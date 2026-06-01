@@ -15,8 +15,11 @@ export interface ValidateCallbacks {
 
 // ── İç tipler ─────────────────────────────────────────────────────────────────
 
-type ValidateRequest = { id: number; type: 'validate'; buffer: ArrayBuffer; configDelta: string };
+type ValidateRequest = { id: number; type: 'validate'; buffer: ArrayBuffer; configDelta: string; forceSerial?: boolean };
 type RerunRequest    = { id: number; type: 'rerun';    configDelta: string };
+
+// Sayfa ?serial=1 ise WASM thread'lerini kapat (A/B ölçümü / hata-ayıklama).
+const FORCE_SERIAL = typeof location !== 'undefined' && /[?&]serial=1\b/.test(location.search);
 
 type PendingEntry = {
   resolve:    (v: ValidationResult) => void;
@@ -97,7 +100,7 @@ export function validateFile(
       reject:  (e) => { clearTimeout(timer); reject(e); },
       callbacks,
     });
-    worker.postMessage({ id, type: 'validate', buffer, configDelta } satisfies ValidateRequest, [buffer]);
+    worker.postMessage({ id, type: 'validate', buffer, configDelta, forceSerial: FORCE_SERIAL } satisfies ValidateRequest, [buffer]);
   });
 }
 

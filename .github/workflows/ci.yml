@@ -88,9 +88,18 @@ jobs:
         working-directory: ui
         run: npm ci
 
-      - name: WASM derle
+      - name: WASM derle (seri — varsayılan, ui/pkg/)
         working-directory: ui
         run: npm run wasm
+
+      - name: Nightly toolchain (threaded WASM / build-std için)
+        run: |
+          rustup toolchain install nightly --component rust-src --profile minimal
+          rustup target add wasm32-unknown-unknown --toolchain nightly
+
+      - name: Threaded WASM derle (ui/pkg-threads/ — UI build bunu dinamik import eder)
+        working-directory: ui
+        run: npm run wasm:threads
 
       - name: UI derle
         working-directory: ui

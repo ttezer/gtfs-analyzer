@@ -93,13 +93,13 @@ function renderR9(items: R9Item[], noticeMap: Map<string, Notice>, normFactor: n
             <th>${t('fix.th.rule')}</th>
             <th>${t('fix.th.severity')}</th>
             <th>${t('fix.th.label')}</th>
-            <th>${t('fix.th.count')} <span class="col-info" title="${t('fix.th.count.tip')}">ℹ</span></th>
-            <th>${t('fix.th.total')} <span class="col-info" title="${t('fix.th.total.tip')}">ℹ</span></th>
-            <th class="score">${t('fix.th.score')} <span class="col-info" title="${t('fix.th.score.tip')}">ℹ</span></th>
-            <th class="score-delta-cell">${t('fix.th.pub')} <span class="col-info" title="${t('fix.th.pub.tip')}">ℹ</span></th>
-            <th class="score-delta-cell">${t('fix.th.quality')} <span class="col-info" title="${t('fix.th.quality.tip')}">ℹ</span></th>
-            <th>${t('fix.th.dependent')} <span class="col-info" title="${t('fix.th.dependent.tip')}">ℹ</span></th>
-            <th>${t('fix.th.effort')} <span class="col-info" title="${t('fix.th.effort.tip')}">ℹ</span></th>
+            <th>${t('fix.th.count')} <span class="col-info" role="button" tabindex="0" data-tip="${t('fix.th.count.tip')}">ℹ</span></th>
+            <th>${t('fix.th.total')} <span class="col-info" role="button" tabindex="0" data-tip="${t('fix.th.total.tip')}">ℹ</span></th>
+            <th class="score">${t('fix.th.score')} <span class="col-info" role="button" tabindex="0" data-tip="${t('fix.th.score.tip')}">ℹ</span></th>
+            <th class="score-delta-cell">${t('fix.th.pub')} <span class="col-info" role="button" tabindex="0" data-tip="${t('fix.th.pub.tip')}">ℹ</span></th>
+            <th class="score-delta-cell">${t('fix.th.quality')} <span class="col-info" role="button" tabindex="0" data-tip="${t('fix.th.quality.tip')}">ℹ</span></th>
+            <th>${t('fix.th.dependent')} <span class="col-info" role="button" tabindex="0" data-tip="${t('fix.th.dependent.tip')}">ℹ</span></th>
+            <th>${t('fix.th.effort')} <span class="col-info" role="button" tabindex="0" data-tip="${t('fix.th.effort.tip')}">ℹ</span></th>
           </tr></thead>
           <tbody>${rowPairs}</tbody>
         </table>
@@ -213,8 +213,8 @@ function renderR2(result: ValidationResult, noticeMap: Map<string, Notice>, delt
           <thead><tr>
             <th>${t('fix.r2.th.rule')}</th><th>${t('fix.r2.th.severity')}</th><th>${t('fix.r2.th.class')}</th><th>${t('fix.r2.th.message')}</th>
             <th>${t('fix.r2.th.file')}</th><th>${t('fix.r2.th.row')}</th><th>${t('fix.r2.th.field')}</th>
-            <th class="score-delta-cell">${t('fix.r2.th.pub')} <span class="col-info" title="${t('fix.r2.th.pub.tip')}">ℹ</span></th>
-            <th class="score-delta-cell">${t('fix.r2.th.quality')} <span class="col-info" title="${t('fix.r2.th.quality.tip')}">ℹ</span></th>
+            <th class="score-delta-cell">${t('fix.r2.th.pub')} <span class="col-info" role="button" tabindex="0" data-tip="${t('fix.r2.th.pub.tip')}">ℹ</span></th>
+            <th class="score-delta-cell">${t('fix.r2.th.quality')} <span class="col-info" role="button" tabindex="0" data-tip="${t('fix.r2.th.quality.tip')}">ℹ</span></th>
             <th class="map-btn-cell"></th>
           </tr></thead>
           <tbody>${rows}</tbody>
@@ -1047,6 +1047,9 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
 }
 
 export function attachFixListeners(root: HTMLElement, result?: ValidationResult, cappedTotals?: Record<string, number>): void {
+  // Kolon-bilgi (ℹ) tooltip'leri — hover + tıklama + klavye (native title yerine)
+  cinfoWire(root);
+
   // R9 expandable rows — blocks[] bağlamı
   root.querySelectorAll<HTMLTableRowElement>('.r9-main-row').forEach(row => {
     row.addEventListener('click', () => {
@@ -1186,5 +1189,108 @@ export function attachFixListeners(root: HTMLElement, result?: ValidationResult,
     requestAnimationFrame(() => {
       root.querySelector('#r2-card')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
+  }
+}
+
+// ── Kolon-bilgi (ℹ) tooltip ─────────────────────────────────────────────────
+// Native `title` yalnızca hover'da (gecikmeli, mobilde/tıklamada hiç) çalıştığı
+// için hover + tıklama + klavye ile açılan özel bir tooltip kullanıyoruz.
+let cinfoTipEl: HTMLElement | null = null;
+let cinfoTarget: HTMLElement | null = null;
+let cinfoPinned = false;
+let cinfoGlobalsBound = false;
+
+function cinfoEnsureEl(): HTMLElement {
+  if (cinfoTipEl) return cinfoTipEl;
+  const el = document.createElement('div');
+  el.className = 'col-info-pop';
+  el.setAttribute('role', 'tooltip');
+  el.hidden = true;
+  document.body.appendChild(el);
+  cinfoTipEl = el;
+  return el;
+}
+
+function cinfoShow(target: HTMLElement, pinned: boolean): void {
+  const text = target.getAttribute('data-tip') ?? '';
+  if (!text) return;
+  const tip = cinfoEnsureEl();
+  tip.textContent = text;
+  tip.hidden = false;
+  cinfoTarget = target;
+  cinfoPinned = pinned;
+
+  // İkonun altına konumla; viewport dışına taşarsa üste/yana sığdır.
+  const r = target.getBoundingClientRect();
+  const m = 6;
+  const tw = tip.offsetWidth;
+  const th = tip.offsetHeight;
+  let left = r.left + r.width / 2 - tw / 2;
+  left = Math.max(m, Math.min(left, window.innerWidth - tw - m));
+  let top = r.bottom + m;
+  if (top + th > window.innerHeight - m) top = r.top - th - m;
+  tip.style.left = `${Math.round(left)}px`;
+  tip.style.top = `${Math.round(Math.max(m, top))}px`;
+}
+
+function cinfoHide(): void {
+  if (cinfoTipEl) cinfoTipEl.hidden = true;
+  cinfoTarget = null;
+  cinfoPinned = false;
+}
+
+function cinfoWire(root: HTMLElement): void {
+  // Erişilebilir ad (screen reader) — data-tip'ten türet.
+  root.querySelectorAll<HTMLElement>('.col-info').forEach(el => {
+    if (!el.getAttribute('aria-label')) {
+      el.setAttribute('aria-label', el.getAttribute('data-tip') ?? '');
+    }
+  });
+
+  // Hover: geçici göster/gizle (sabitlenmemişse).
+  root.addEventListener('mouseover', e => {
+    const el = (e.target as HTMLElement).closest<HTMLElement>('.col-info');
+    if (el && !cinfoPinned) cinfoShow(el, false);
+  });
+  root.addEventListener('mouseout', e => {
+    const el = (e.target as HTMLElement).closest<HTMLElement>('.col-info');
+    if (el && !cinfoPinned) cinfoHide();
+  });
+
+  // Tıklama: aç/kapat (sabitle).
+  root.addEventListener('click', e => {
+    const el = (e.target as HTMLElement).closest<HTMLElement>('.col-info');
+    if (!el) return;
+    e.stopPropagation();
+    if (cinfoPinned && cinfoTarget === el) cinfoHide();
+    else cinfoShow(el, true);
+  });
+
+  // Klavye: Enter/Space ile aç/kapat.
+  root.addEventListener('keydown', e => {
+    const ke = e as KeyboardEvent;
+    const el = (ke.target as HTMLElement).closest<HTMLElement>('.col-info');
+    if (!el) return;
+    if (ke.key === 'Enter' || ke.key === ' ') {
+      ke.preventDefault();
+      if (cinfoPinned && cinfoTarget === el) cinfoHide();
+      else cinfoShow(el, true);
+    }
+  });
+
+  // Global kapatma — yalnızca bir kez bağlanır.
+  if (!cinfoGlobalsBound) {
+    cinfoGlobalsBound = true;
+    document.addEventListener('click', ev => {
+      if (!cinfoPinned) return;
+      const tgt = ev.target as HTMLElement;
+      if (tgt.closest('.col-info') || tgt.closest('.col-info-pop')) return;
+      cinfoHide();
+    });
+    document.addEventListener('keydown', ev => {
+      if ((ev as KeyboardEvent).key === 'Escape') cinfoHide();
+    });
+    window.addEventListener('scroll', () => cinfoHide(), true);
+    window.addEventListener('resize', () => cinfoHide());
   }
 }

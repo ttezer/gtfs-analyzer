@@ -4,7 +4,12 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>GTFS Validator</title>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+  <!-- COOP/COEP shim: GitHub Pages başlık gönderemez; SharedArrayBuffer (WASM threads) için
+       crossOriginIsolated'ı service worker ile sağlar (ilk yüklemede sayfayı bir kez yeniler).
+       Başlıklar zaten varsa (vite dev/preview) hiçbir şey yapmaz. -->
+  <script src="./coi-serviceworker.js"></script>
+  <!-- Leaflet kendi sunucumuzda (COEP require-corp cross-origin unpkg'i bloklardı). -->
+  <link rel="stylesheet" href="./vendor/leaflet/leaflet.css"/>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -37,6 +42,14 @@
     .nav-btn { padding: .4rem .9rem; border: none; background: transparent; border-radius: var(--radius); cursor: pointer; font-size: .9rem; color: var(--color-muted); transition: background .15s, color .15s; }
     .nav-btn:hover { background: var(--color-bg); color: var(--color-text); }
     .nav-btn.active { background: #eff6ff; color: #1d4ed8; font-weight: 600; }
+
+    /* Footer */
+    .app-footer { display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: .5rem;
+      padding: .65rem 1.5rem; font-size: .75rem; color: var(--color-muted);
+      background: var(--color-surface); border-top: 1px solid var(--color-border); }
+    .app-footer a { color: var(--color-muted); text-decoration: none; }
+    .app-footer a:hover { color: #1d4ed8; text-decoration: underline; }
+    .app-footer-sep { opacity: .5; }
 
     /* Buttons */
     .btn { display: inline-flex; align-items: center; padding: .45rem 1rem; border-radius: var(--radius); font-size: .9rem; cursor: pointer; border: 1px solid transparent; transition: opacity .15s; }
@@ -288,8 +301,15 @@
     .cap-shown { font-variant-numeric: tabular-nums; color: #d97706; font-weight: 600; }
 
     /* R9 column info icon */
-    .col-info { display: inline-block; font-size: .65rem; color: var(--color-muted); cursor: help; margin-left: .2rem; vertical-align: middle; line-height: 1; }
-    .col-info:hover { color: #1d4ed8; }
+    .col-info { display: inline-block; font-size: .65rem; color: var(--color-muted); cursor: pointer; margin-left: .2rem; vertical-align: middle; line-height: 1; }
+    .col-info:hover, .col-info:focus-visible { color: #1d4ed8; }
+    .col-info:focus-visible { outline: 2px solid #1d4ed8; outline-offset: 2px; border-radius: 2px; }
+    /* Kolon-bilgi tooltip baloncuğu — hover/tıklama ile açılır (body'ye eklenir) */
+    .col-info-pop { position: fixed; z-index: 9999; max-width: 280px;
+      background: #1e293b; color: #f8fafc; border: 1px solid rgba(148,163,184,.25);
+      padding: .5rem .65rem; border-radius: 6px; font-size: .78rem; line-height: 1.45;
+      font-weight: 400; box-shadow: 0 6px 24px rgba(0,0,0,.28); pointer-events: none; }
+    .col-info-pop[hidden] { display: none; }
 
     /* R9 rule subtitle (message truncated) */
     .r9-rule-title { display: block; font-size: .75rem; color: var(--color-muted); margin-top: .15rem; font-weight: 400; line-height: 1.35; }
@@ -618,7 +638,7 @@
 </head>
 <body>
   <div id="app"></div>
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+  <script src="./vendor/leaflet/leaflet.js"></script>
   <script type="module" src="/src/main.ts"></script>
 </body>
 </html>

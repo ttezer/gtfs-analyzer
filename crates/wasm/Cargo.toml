@@ -17,6 +17,15 @@ web-sys = { version = "0.3", features = ["console"] }
 serde = { workspace = true }
 serde_json = { workspace = true }
 zip = { workspace = true }
+wasm-bindgen-rayon = { version = "1.3", optional = true }
+
+[features]
+# Tarayıcıda gerçek iş-parçacıkları (SharedArrayBuffer + Web Workers). Yalnızca
+# nightly + build-std + atomics ile derlenir; varsayılan (cargo test / seri wasm) KAPALI.
+# K6 paralelliğini gtfs-pipeline/parallel üzerinden açar; init_thread_pool'u JS'e verir.
+threads = ["dep:wasm-bindgen-rayon", "gtfs-pipeline/parallel"]
 
 [package.metadata.wasm-pack.profile.release]
-wasm-opt = ["-O3", "--enable-bulk-memory"]
+# --enable-threads: threaded build atomics/shared-memory içerir; wasm-opt bunu korumalı.
+# Seri build'de zararsız no-op (atomik işlem yok).
+wasm-opt = ["-O3", "--enable-bulk-memory", "--enable-threads"]

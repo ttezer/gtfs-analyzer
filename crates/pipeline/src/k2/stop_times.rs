@@ -265,13 +265,35 @@ fn get_col<'a>(row: &'a [Cow<'_, str>], col: Option<usize>) -> &'a str {
 
 // ── Parser yardımcıları (RowMap olmaksızın) ──────────────────────────────────
 
+/// `str::parse::<u32>()` ile BİREBİR aynı sonucu verir: opsiyonel tek '+' öneki,
+/// ardından ≥1 ASCII rakam; '-'/boşluk/ASCII-dışı/boş → None; overflow → None.
+/// (parse_tests modülü str::parse'a karşı brute-force + fuzz doğrular.) Hot path'te
+/// str::parse'ın generic FromStr dispatch + Result kurma maliyetini kaldırır.
+#[inline]
+fn parse_u32_ascii(s: &str) -> Option<u32> {
+    let b = s.as_bytes();
+    let digits = if b.first() == Some(&b'+') { &b[1..] } else { b };
+    if digits.is_empty() {
+        return None;
+    }
+    let mut acc: u32 = 0;
+    for &c in digits {
+        if !c.is_ascii_digit() {
+            return None;
+        }
+        acc = acc.checked_mul(10)?.checked_add((c - b'0') as u32)?;
+    }
+    Some(acc)
+}
+
 fn parse_u32_raw(raw: &str, field: &str) -> Result<Option<u32>, String> {
     if raw.is_empty() {
         return Ok(None);
     }
-    raw.parse::<u32>()
-        .map(Some)
-        .map_err(|_| format!("'{field}' için u32 bekleniyor, alınan: {raw}"))
+    match parse_u32_ascii(raw) {
+        Some(n) => Ok(Some(n)),
+        None => Err(format!("'{field}' için u32 bekleniyor, alınan: {raw}")),
+    }
 }
 
 fn parse_f64_raw(raw: &str, field: &str) -> Result<Option<f64>, String> {
@@ -289,13 +311,73 @@ fn parse_gtfs_time_raw(raw: &str, field: &str) -> Result<Option<(u32, u32, u32)>
     }
     let bad = || format!("'{field}' için HH:MM:SS bekleniyor, alınan: {raw}");
     let mut it = raw.splitn(3, ':');
-    let hour   = it.next().ok_or_else(bad)?.parse::<u32>().map_err(|_| bad())?;
-    let minute = it.next().ok_or_else(bad)?.parse::<u32>().map_err(|_| bad())?;
-    let second = it.next().ok_or_else(bad)?.parse::<u32>().map_err(|_| bad())?;
+    // parse_u32_ascii(seg).is_some() == seg.parse::<u32>().is_ok() (parse_tests garantisi) →
+    // Ok/Err kararı orijinalle birebir; splitn + ok_or_else(bad) yapısı değişmedi.
+    let hour   = parse_u32_ascii(it.next().ok_or_else(bad)?).ok_or_else(bad)?;
+    let minute = parse_u32_ascii(it.next().ok_or_else(bad)?).ok_or_else(bad)?;
+    let second = parse_u32_ascii(it.next().ok_or_else(bad)?).ok_or_else(bad)?;
     if minute > 59 || second > 59 {
         return Err(format!("'{field}' dakika/saniye aralığı geçersiz: {raw}"));
     }
     Ok(Some((hour, minute, second)))
+}
+
+#[cfg(test)]
+mod parse_tests {
+    use super::{parse_u32_ascii, parse_gtfs_time_raw};
+
+    // str::parse referans HH:MM:SS — değiştirdiğimiz fonksiyonun ESKİ mantığı.
+    fn ref_time(raw: &str) -> Result<Option<(u32, u32, u32)>, ()> {
+        if raw.is_empty() { return Ok(None); }
+        let mut it = raw.splitn(3, ':');
+        let h = it.next().ok_or(())?.parse::<u32>().map_err(|_| ())?;
+        let m = it.next().ok_or(())?.parse::<u32>().map_err(|_| ())?;
+        let s = it.next().ok_or(())?.parse::<u32>().map_err(|_| ())?;
+        if m > 59 || s > 59 { return Err(()); }
+        Ok(Some((h, m, s)))
+    }
+
+    #[test]
+    fn u32_ascii_matches_std_bruteforce() {
+        for n in (0u32..=100_000).chain([100_001, 999_999, 1_000_000, 4_294_967_294, 4_294_967_295]) {
+            let s = n.to_string();
+            assert_eq!(parse_u32_ascii(&s), s.parse::<u32>().ok(), "düz {s}");
+            let plus = format!("+{s}");
+            assert_eq!(parse_u32_ascii(&plus), plus.parse::<u32>().ok(), "+önek {plus}");
+        }
+    }
+
+    #[test]
+    fn u32_ascii_matches_std_edge_cases() {
+        for s in ["", "+", "-", "-5", "+5", "0", "00", "007", "+007", " 5", "5 ", "5a", "a5",
+                  "4294967295", "4294967296", "42949672960", "99999999999999",
+                  "+0", "++5", "1.5", "0x10", "१२", "८", "  ", "\t5", "+\u{0661}"] {
+            assert_eq!(parse_u32_ascii(s), s.parse::<u32>().ok(), "edge {s:?}");
+        }
+    }
+
+    #[test]
+    fn u32_ascii_matches_std_fuzz() {
+        let alphabet = b"0123456789+-  aZ\t.x";
+        let mut state: u64 = 0x9E37_79B9_7F4A_7C15;
+        let mut next = || { state = state.wrapping_mul(6364136223846793005).wrapping_add(1); (state >> 33) as usize };
+        for _ in 0..50_000 {
+            let len = next() % 13;
+            let bytes: Vec<u8> = (0..len).map(|_| alphabet[next() % alphabet.len()]).collect();
+            let s = String::from_utf8_lossy(&bytes).into_owned();
+            assert_eq!(parse_u32_ascii(&s), s.parse::<u32>().ok(), "fuzz {s:?}");
+        }
+    }
+
+    #[test]
+    fn gtfs_time_matches_reference() {
+        let cases = ["", "08:30:45", "0:0:0", "25:00:00", "24:00:00", "12:60:00", "12:00:60",
+                     "1:2:3", "12:3:45", "+8:30:45", "8:+30:45", "ab:cd:ef", "12:30", "12:30:45:6",
+                     "12::45", ":30:45", "100:00:00", "12:30:45 ", " 12:30:45", "0x:30:45", "१२:३०:४५"];
+        for c in cases {
+            assert_eq!(parse_gtfs_time_raw(c, "f").map_err(|_| ()), ref_time(c), "time {c:?}");
+        }
+    }
 }
 
 
@@ -422,6 +504,14 @@ pub fn validate_stop_times(file: &RawFile) -> (StopTimesIndex, Vec<gtfs_core::No
     let mut notices: Vec<Notice> = Vec::new();
     let mut counter = 0u32;
     let cols = Cols::from_headers(&file.headers);
+    // B1: feed'de hiç Flex sütunu yoksa satır başı flex işini tümüyle atla.
+    // Çıktı birebir aynı: get_col hep "" döner → STM_037-041 boş-yere-false, 6 alan None.
+    let has_flex_cols = cols.start_pickup_drop_off_window.is_some()
+        || cols.end_pickup_drop_off_window.is_some()
+        || cols.location_id.is_some()
+        || cols.location_group_id.is_some()
+        || cols.pickup_booking_rule_id.is_some()
+        || cols.drop_off_booking_rule_id.is_some();
     let header_count = file.headers.len();
     // ARC_016: zorunlu alan indeksleri; DQ_016: ilk "*_id" sütunu (döngü dışında bir kez)
     let req_indices: Vec<(usize, &'static str)> = ["trip_id", "stop_id", "stop_sequence"]
@@ -444,6 +534,12 @@ pub fn validate_stop_times(file: &RawFile) -> (StopTimesIndex, Vec<gtfs_core::No
     // OOM/perf (Aşama 1b): per-trip Vec YOK. Tüm satırlar (trip_idx etiketli) tek flat buffer'da
     // dosya sırasında toplanır; finalize'da counting-placement ile trip'e göre gruplanır.
     let mut all_rows: Vec<(u32, CompactStopTime)> = Vec::new();
+    // Düz tamponun log₂(N) realloc/memcpy'sini önle: satır sayısını ham metin
+    // uzunluğundan tahmin et (stop_times satırı tipik ≥~40 bayt → muhafazakâr
+    // alt-sınır bölen). Yalnızca KAPASITE; eleman değeri/sırası etkilenmez.
+    if let Some(text) = &file.raw_text {
+        all_rows.reserve(text.len() / 40);
+    }
 
     {
         // Satır işleyici — hem stream (raw_text) hem rows yolundan çağrılır.
@@ -788,7 +884,12 @@ pub fn validate_stop_times(file: &RawFile) -> (StopTimesIndex, Vec<gtfs_core::No
             }
         }
 
-        // ── Flex GTFS alanları ───────────────────────────────────────────────
+        // ── Flex GTFS alanları (B1: yalnızca feed'de flex sütunu varsa işlenir) ──
+        let (start_window, end_window, location_id, location_group_id,
+             pickup_booking_rule_id, drop_off_booking_rule_id): (
+            Option<(u32, u32, u32)>, Option<(u32, u32, u32)>,
+            Option<SmolStr>, Option<SmolStr>, Option<SmolStr>, Option<SmolStr>,
+        ) = if has_flex_cols {
         let start_window_raw = get_col(row, cols.start_pickup_drop_off_window);
         let end_window_raw   = get_col(row, cols.end_pickup_drop_off_window);
         let loc_id_raw       = get_col(row, cols.location_id);
@@ -870,6 +971,11 @@ pub fn validate_stop_times(file: &RawFile) -> (StopTimesIndex, Vec<gtfs_core::No
         let location_group_id   = smol_opt(loc_grp_raw);
         let pickup_booking_rule_id   = smol_opt(pbr_raw);
         let drop_off_booking_rule_id = smol_opt(dobr_raw);
+            (start_window, end_window, location_id, location_group_id,
+             pickup_booking_rule_id, drop_off_booking_rule_id)
+        } else {
+            (None, None, None, None, None, None)
+        };
 
         // ── Per-trip toplama (çıktı setleri finalize'da türetilir) ──
         total_rows += 1;

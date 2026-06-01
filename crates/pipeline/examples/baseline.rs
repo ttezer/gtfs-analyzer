@@ -13,15 +13,14 @@ use gtfs_core::{Notice, Severity};
 fn main() {
     let args: Vec<String> = std::env::args().collect();
     if args.len() < 2 {
-        eprintln!("Kullanım: baseline <feed.zip> [today_yyyymmdd]");
+        eprintln!("Kullanım: baseline <feed.zip> [today_yyyymmdd] [--json]");
         std::process::exit(1);
     }
 
     let path = &args[1];
-    let today: u32 = args
-        .get(2)
-        .and_then(|s| s.parse().ok())
-        .unwrap_or(20_260_515);
+    // today = path'ten sonraki ilk u32-parse edilebilen arg (--json bayrağını atlar)
+    let today: u32 = args[2..].iter().find_map(|s| s.parse().ok()).unwrap_or(20_260_515);
+    let json_mode = args.iter().any(|a| a == "--json");
 
     let zip_bytes = std::fs::read(path).unwrap_or_else(|e| {
         eprintln!("Dosya okunamadı '{path}': {e}");
@@ -31,15 +30,29 @@ fn main() {
     eprintln!("=== TIMING (stderr) ===");
     let result = validate_bytes(&zip_bytes, &ValidatorConfig::default(), today);
 
-    let notices = match result {
-        ValidateResult::Ok(vr) => vr.notices,
+    let vr = match result {
+        ValidateResult::Ok(vr) => vr,
         ValidateResult::Fatal(e) => {
             eprintln!("FATAL: {:?} — {}", e.code, e.message);
             std::process::exit(2);
         }
     };
 
-    print_baseline(&notices, path);
+    if json_mode {
+        let mut vr = vr;
+        // R9 kuyruğu eşit (bucket, priority_score) kalemlerde sıra-belirsizdir (build_r9 sort'u
+        // tie'larda kararlı değil — bu MEVCUT, benim değişikliğimden bağımsız bir durum). Diff'in
+        // anlamlı olması için rule_id'ye göre KANONİK sırala (R9'da rule_id benzersiz). Bu yalnız
+        // dev-dump kanonikleştirmesi → pipeline çıktısını DEĞİŞTİRMEZ. Rapor eşitliği = içerik eşitliği.
+        vr.reports.r9.items.sort_by(|a, b| a.rule_id.cmp(&b.rule_id));
+        // Kanonik (anahtar-sıralı) TAM ValidationResult dökümü → kurallar VE raporlar
+        // (notices + R1–R9 + metrics + name_index + capped_totals). serde_json::Value::Object =
+        // BTreeMap olduğundan tüm map anahtarları sıralanır → HashMap sıra belirsizliği kalkar.
+        let canon: serde_json::Value = serde_json::to_value(&vr).expect("serialize");
+        println!("{}", serde_json::to_string(&canon).expect("to_string"));
+    } else {
+        print_baseline(&vr.notices, path);
+    }
 }
 
 fn print_baseline(notices: &[Notice], source: &str) {

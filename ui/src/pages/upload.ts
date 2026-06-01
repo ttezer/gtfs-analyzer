@@ -367,6 +367,7 @@ async function handleFile(file: File, root: HTMLElement, errorEl: HTMLElement): 
     activateResult(root, result);
   } catch (err: unknown) {
     clearLoading(root);
+    resetProgressRows(root);
     showError(errorEl, err as FatalError);
   }
 }
@@ -411,6 +412,29 @@ function clearLoading(root: HTMLElement): void {
   btnLabel.removeAttribute('aria-disabled');
   btnLabel.style.opacity = '';
   btnLabel.style.pointerEvents = '';
+
+  // Yükleme bitti — drop alanındaki "<dosya> çalışıyor…" metnini sıfırla.
+  const dropPrimary = dropZone.querySelector('.drop-primary');
+  if (dropPrimary) dropPrimary.textContent = t('upload.drag');
+}
+
+// Fatal hatadan sonra dosya + aşama satırlarını boştaki haline döndürür.
+// Hata yolunda onFileDone / onStageDone tetiklenmediği için bu satırlar
+// aksi halde "çalışıyor…" göstergesinde takılı kalır.
+function resetProgressRows(root: HTMLElement): void {
+  const fileRows = root.querySelector<HTMLElement>('#file-rows');
+  if (fileRows) {
+    fileRows.innerHTML = `<div class="lp-placeholder">${t('upload.no_files')}</div>`;
+  }
+  const stageRows = root.querySelector<HTMLElement>('#stage-rows');
+  if (stageRows) {
+    stageRows.innerHTML = STAGE_ORDER.map(s => `
+      <div class="lp-stage-row waiting" data-stage="${s}">
+        <span class="lp-icon">○</span>
+        <span class="lp-label">${escHtml(t(`stage.${s}`))}</span>
+        <span class="lp-status">—</span>
+      </div>`).join('');
+  }
 }
 
 function activateResult(root: HTMLElement, result: ValidationResult): void {

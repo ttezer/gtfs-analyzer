@@ -5,6 +5,17 @@ use gtfs_core::{EntityType, FatalCode, FatalError, Notice, Severity};
 use gtfs_rules::get_rule;
 use smol_str::SmolStr;
 
+/// Debug-only K1 izleme. Release WASM derlemesinde (debug_assertions kapalı) ve
+/// native'de tamamen derlenip çıkarılır — sıfır runtime maliyeti, hiçbir Notice
+/// veya akış etkisi yok. (Profilde DevTools açıkken WASM stack sembolizasyonu
+/// her console çağrısını felç edici yavaşlattığı için kapatıldı.)
+macro_rules! k1dbg {
+    ($($arg:tt)*) => {{
+        #[cfg(all(target_arch = "wasm32", debug_assertions))]
+        web_sys::console::log_1(&format!($($arg)*).into());
+    }};
+}
+
 // ── GTFS dosya listeleri ──────────────────────────────────────────────────────
 
 const REQUIRED_FILES: &[&str] = &[
@@ -375,17 +386,14 @@ fn known_columns(filename: &str) -> &'static [&'static str] {
 ///
 /// ARC_008: Kritik notice üretir, pipeline devam eder (non-Fatal).
 pub fn parse(zip_bytes: &[u8]) -> Result<K1Result, FatalError> {
-    #[cfg(target_arch = "wasm32")]
-    web_sys::console::warn_1(&format!("[K1] parse başladı, {} bayt", zip_bytes.len()).into());
+    k1dbg!("[K1] parse başladı, {} bayt", zip_bytes.len());
     let cursor = std::io::Cursor::new(zip_bytes);
-    #[cfg(target_arch = "wasm32")]
-    web_sys::console::warn_1(&"[K1] ZipArchive::new çağrılıyor...".into());
+    k1dbg!("[K1] ZipArchive::new çağrılıyor...");
     let mut archive = zip::ZipArchive::new(cursor).map_err(|e| FatalError {
         code: FatalCode::ZipUnreadable,
         message: format!("ZIP arşivi açılamadı: {e}"),
     })?;
-    #[cfg(target_arch = "wasm32")]
-    web_sys::console::warn_1(&format!("[K1] archive açıldı: {} entry", archive.len()).into());
+    k1dbg!("[K1] archive açıldı: {} entry", archive.len());
 
     let mut notices: Vec<Notice> = Vec::new();
     let mut counter: u32 = 0;
@@ -395,8 +403,7 @@ pub fn parse(zip_bytes: &[u8]) -> Result<K1Result, FatalError> {
     let _dq016_dummy = ();
 
     for i in 0..archive.len() {
-        #[cfg(target_arch = "wasm32")]
-        web_sys::console::warn_1(&format!("[K1] by_index({i})...").into());
+        k1dbg!("[K1] by_index({i})...");
         let mut zf = archive.by_index(i).map_err(|e| FatalError {
             code: FatalCode::ZipUnreadable,
             message: format!("ZIP dosyası okunamadı (index {i}): {e}"),
@@ -449,14 +456,16 @@ pub fn parse(zip_bytes: &[u8]) -> Result<K1Result, FatalError> {
         let is_known   = KNOWN_FILES.contains(&raw_name.as_str());
 
         // Bayt oku (ARC_011 için is_known kontrolünden önce yapılır)
-        #[cfg(target_arch = "wasm32")]
-        web_sys::console::log_1(&format!("[K1] okuma başladı: {raw_name} (compressed: {} b)", zf.compressed_size()).into());
+        k1dbg!("[K1] okuma başladı: {raw_name} (compressed: {} b)", zf.compressed_size());
         let uncompressed_hint = zf.size() as usize;
         let mut bytes = Vec::with_capacity(uncompressed_hint.max(1));
-        zf.read_to_end(&mut bytes).map_err(|e| FatalError {
-            code: FatalCode::ZipUnreadable,
-            message: format!("'{raw_name}' okunamadı: {e}"),
-        })?;
+        {
+            let _t = crate::timing::Timer::start(format!("K1::decompress::{raw_name}"));
+            zf.read_to_end(&mut bytes).map_err(|e| FatalError {
+                code: FatalCode::ZipUnreadable,
+                message: format!("'{raw_name}' okunamadı: {e}"),
+            })?;
+        }
 
         // ARC_011: Dosya boyutu — tüm kök .txt dosyaları için (bilinmeyen dahil)
         notices.push(make_notice(
@@ -508,8 +517,7 @@ pub fn parse(zip_bytes: &[u8]) -> Result<K1Result, FatalError> {
             ));
         }
 
-        #[cfg(target_arch = "wasm32")]
-        web_sys::console::log_1(&format!("[K1] okundu: {raw_name} ({} bayt)", bytes.len()).into());
+        k1dbg!("[K1] okundu: {raw_name} ({} bayt)", bytes.len());
         // UTF-8 doğrulama — from_utf8 sıfır maliyetli &str döndürür (kopya yok).
         // Geçersiz UTF-8 durumunda lossy String gerekir; yoksa doğrudan bytes'ı ödünç alıyoruz.
         let lossy_buf: String;
@@ -552,8 +560,7 @@ pub fn parse(zip_bytes: &[u8]) -> Result<K1Result, FatalError> {
         // ARC_022, veri-yok ARC_009) K2 stream geçişine taşındı.
         let stream_mode = raw_name == "stop_times.txt";
 
-        #[cfg(target_arch = "wasm32")]
-        web_sys::console::log_1(&format!("[K1] tokenizing: {raw_name}").into());
+        k1dbg!("[K1] tokenizing: {raw_name}");
         // CSV tokenization — stream_mode'da yalnızca başlık (Some(0)), aksi halde tam veri
         let _t = crate::timing::Timer::start(format!("K1::tokenize::{raw_name}"));
         let (mut records, _) = match tokenize_csv(text, if stream_mode { Some(0) } else { None }) {
@@ -689,6 +696,8 @@ pub fn parse(zip_bytes: &[u8]) -> Result<K1Result, FatalError> {
             .filter_map(|&f| headers.iter().position(|h| h == f).map(|i| (i, f)))
             .collect();
 
+        // DQ_016: birincil anahtar sütun indeksi döngü-değişmezdir — döngü dışında bir kez hesapla.
+        let dq016_pk_idx = headers.iter().position(|h| h.ends_with("_id"));
         let mut rows: Vec<Vec<SmolStr>> = Vec::new();
         let mut arc021_fired = false;
         for (row_idx, row) in records.into_iter().enumerate() {
@@ -786,7 +795,7 @@ pub fn parse(zip_bytes: &[u8]) -> Result<K1Result, FatalError> {
 
             // DQ_016: değerlerde fazladan boşluk — alan ve satır bazında
             {
-                let pk_idx = headers.iter().position(|h| h.ends_with("_id"));
+                let pk_idx = dq016_pk_idx;
                 let eid: String = pk_idx
                     .and_then(|i| row.get(i))
                     .map(|v| v.as_str())
@@ -846,8 +855,7 @@ pub fn parse(zip_bytes: &[u8]) -> Result<K1Result, FatalError> {
         // stream_mode (stop_times.txt): gövdeyi ham metin olarak sakla; rows boş kalır.
         let raw_text = if stream_mode { Some(text.to_string()) } else { None };
 
-        #[cfg(target_arch = "wasm32")]
-        web_sys::console::log_1(&format!("[K1] bitti: {raw_name} ({} satır)", rows.len()).into());
+        k1dbg!("[K1] bitti: {raw_name} ({} satır)", rows.len());
         raw_files.insert(raw_name.clone(), RawFile { name: raw_name, headers, rows, bytes: bytes.len() as u32, raw_text });
     }
 

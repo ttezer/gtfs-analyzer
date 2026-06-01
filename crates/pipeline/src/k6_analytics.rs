@@ -27,8 +27,6 @@ pub fn analyze(
     today_yyyymmdd: u32,
 ) -> K6Result {
     use crate::timing::Timer;
-    let mut notices = Vec::new();
-    let mut ctr = 0u32;
 
     let trip_shape: HashMap<&str, &str> = records
         .trips
@@ -45,19 +43,50 @@ pub fn analyze(
     };
     let idx = { let _t = Timer::start("K6::idx::build"); StopTimesIndex::build(records, &trip_shape, &fallback_by_trip) };
 
-    { let _t = Timer::start("K6::speed_and_duration");    check_speed_and_duration(records, config, &idx, &mut notices, &mut ctr); }
-    { let _t = Timer::start("K6::frequency_headway");     check_frequency_headway(records, config, &mut notices, &mut ctr); }
-    { let _t = Timer::start("K6::route_headway");         check_route_headway(records, config, &idx, &mut notices, &mut ctr); }
-    { let _t = Timer::start("K6::calendar_analytics");    check_calendar_analytics(records, derived, config, today_yyyymmdd, &mut notices, &mut ctr); }
-    { let _t = Timer::start("K6::geo_analytics");         check_geo_analytics(records, derived, config, &mut notices, &mut ctr); }
-    { let _t = Timer::start("K6::operational_analytics"); check_operational_analytics(records, derived, config, &idx, today_yyyymmdd, &mut notices, &mut ctr); }
-    { let _t = Timer::start("K6::stoptimes_derived");     check_stoptimes_derived(&idx, &mut notices, &mut ctr); }
-    { let _t = Timer::start("K6::route_trip_quality");    check_route_trip_quality(records, derived, &idx, &mut notices, &mut ctr); }
-    { let _t = Timer::start("K6::data_quality");          check_data_quality(records, derived, today_yyyymmdd, &mut notices, &mut ctr); }
-    { let _t = Timer::start("K6::remaining_analytics");   check_remaining_analytics(records, derived, config, &idx, &mut notices, &mut ctr); }
-    { let _t = Timer::start("K6::pathway_analytics");          check_pathway_analytics(records, derived, &mut notices, &mut ctr); }
-    { let _t = Timer::start("K6::calendar_override");          check_calendar_override_analytics(records, derived, config, &mut notices, &mut ctr); }
-    { let _t = Timer::start("K6::vat_analytics");              check_vat_analytics(records, &idx, &mut notices, &mut ctr); }
+    // Her bağımsız K6 check'i KENDİ (notices, ctr)'sini üretir; sonuçlar KANONİK sırada
+    // (1→13) birleştirilir ve sondaki renumber id'leri tek-iş-parçacıklı global ctr ile
+    // BİREBİR eşler. Paralellik check'ler ARASINDA (her check kendi dedup set'ine sahip,
+    // sadece `records/derived/config/idx`'i OKUR) → say/içerik/sıra emisyon-sırasından
+    // bağımsız. `parallel` feature açıkken rayon::scope ile paralel, kapalıyken seri — AYNI çıktı.
+    type K6Task<'a> = Box<dyn Fn() -> Vec<Notice> + Send + Sync + 'a>;
+    let tasks: Vec<K6Task> = vec![
+        Box::new(|| { let _t = Timer::start("K6::speed_and_duration");    let mut v = Vec::new(); let mut c = 0u32; check_speed_and_duration(records, config, &idx, &mut v, &mut c); v }),
+        Box::new(|| { let _t = Timer::start("K6::frequency_headway");     let mut v = Vec::new(); let mut c = 0u32; check_frequency_headway(records, config, &mut v, &mut c); v }),
+        Box::new(|| { let _t = Timer::start("K6::route_headway");         let mut v = Vec::new(); let mut c = 0u32; check_route_headway(records, config, &idx, &mut v, &mut c); v }),
+        Box::new(|| { let _t = Timer::start("K6::calendar_analytics");    let mut v = Vec::new(); let mut c = 0u32; check_calendar_analytics(records, derived, config, today_yyyymmdd, &mut v, &mut c); v }),
+        Box::new(|| { let _t = Timer::start("K6::geo_analytics");         let mut v = Vec::new(); let mut c = 0u32; check_geo_analytics(records, derived, config, &mut v, &mut c); v }),
+        Box::new(|| { let _t = Timer::start("K6::operational_analytics"); let mut v = Vec::new(); let mut c = 0u32; check_operational_analytics(records, derived, config, &idx, today_yyyymmdd, &mut v, &mut c); v }),
+        Box::new(|| { let _t = Timer::start("K6::stoptimes_derived");     let mut v = Vec::new(); let mut c = 0u32; check_stoptimes_derived(&idx, &mut v, &mut c); v }),
+        Box::new(|| { let _t = Timer::start("K6::route_trip_quality");    let mut v = Vec::new(); let mut c = 0u32; check_route_trip_quality(records, derived, &idx, &mut v, &mut c); v }),
+        Box::new(|| { let _t = Timer::start("K6::data_quality");          let mut v = Vec::new(); let mut c = 0u32; check_data_quality(records, derived, today_yyyymmdd, &mut v, &mut c); v }),
+        Box::new(|| { let _t = Timer::start("K6::remaining_analytics");   let mut v = Vec::new(); let mut c = 0u32; check_remaining_analytics(records, derived, config, &idx, &mut v, &mut c); v }),
+        Box::new(|| { let _t = Timer::start("K6::pathway_analytics");     let mut v = Vec::new(); let mut c = 0u32; check_pathway_analytics(records, derived, &mut v, &mut c); v }),
+        Box::new(|| { let _t = Timer::start("K6::calendar_override");     let mut v = Vec::new(); let mut c = 0u32; check_calendar_override_analytics(records, derived, config, &mut v, &mut c); v }),
+        Box::new(|| { let _t = Timer::start("K6::vat_analytics");         let mut v = Vec::new(); let mut c = 0u32; check_vat_analytics(records, &idx, &mut v, &mut c); v }),
+    ];
+
+    #[cfg(feature = "parallel")]
+    let parts: Vec<Vec<Notice>> = {
+        let mut out: Vec<Vec<Notice>> = tasks.iter().map(|_| Vec::new()).collect();
+        rayon::scope(|s| {
+            for (slot, task) in out.iter_mut().zip(tasks.iter()) {
+                s.spawn(move |_| { *slot = task(); });
+            }
+        });
+        out
+    };
+    #[cfg(not(feature = "parallel"))]
+    let parts: Vec<Vec<Notice>> = tasks.iter().map(|t| t()).collect();
+
+    let mut notices: Vec<Notice> = Vec::with_capacity(parts.iter().map(|p| p.len()).sum());
+    for p in parts {
+        notices.extend(p);
+    }
+    // Renumber → tek-iş-parçacıklı global ctr ile BİREBİR id'ler (k6/{rule}#{N}).
+    // Birleştirme sırası sabit (kanonik) olduğundan paralel/seri ayırt edilemez.
+    for (i, n) in notices.iter_mut().enumerate() {
+        n.id = format!("k6/{}#{}", n.rule_id, i + 1);
+    }
 
     K6Result { notices }
 }
@@ -128,15 +157,25 @@ fn contains_as_word(haystack: &str, needle: &str) -> bool {
 }
 
 /// Metin yalnızca büyük harf alfabetik karakter içeriyor mu? (en az 2 harf, hepsi büyük)
+/// Alloc'suz: ara Vec yok, ilk küçük harfte kısa devre. Eşik + predicate AYNI →
+/// her girdi için orijinalle birebir aynı sonuç.
 fn is_all_caps(s: &str) -> bool {
-    let letters: Vec<char> = s.chars().filter(|c| c.is_alphabetic()).collect();
-    letters.len() >= 2 && letters.iter().all(|c| c.is_uppercase())
+    let mut n = 0usize;
+    for c in s.chars().filter(|c| c.is_alphabetic()) {
+        if !c.is_uppercase() { return false; }
+        n += 1;
+    }
+    n >= 2
 }
 
 // Tüm harfler küçük harf — mixed_case_recommended_field (all-lowercase varyantı)
 fn is_all_lower(s: &str) -> bool {
-    let letters: Vec<char> = s.chars().filter(|c| c.is_alphabetic()).collect();
-    letters.len() >= 3 && letters.iter().all(|c| c.is_lowercase())
+    let mut n = 0usize;
+    for c in s.chars().filter(|c| c.is_alphabetic()) {
+        if !c.is_lowercase() { return false; }
+        n += 1;
+    }
+    n >= 3
 }
 
 fn haversine_km(lat1: f64, lon1: f64, lat2: f64, lon2: f64) -> f64 {
@@ -4154,6 +4193,10 @@ fn check_remaining_analytics(
         const SEP_KM:   f64 = 0.500;       // 500 m — iki cluster arası min arc fark
 
         let mut shp022_seen: FxHashSet<(&str, &str)> = FxHashSet::default();
+        // B2 perf: (shape,stop) küme kararı saf fonksiyon — aynı çifti paylaşan onlarca
+        // sdt-eksik sefer için segment taramasını tekrarlama. shp022_seen yalnız EMİSYON
+        // dedup'u; bu set DEĞERLENDİRME dedup'u → çıktı birebir aynı.
+        let mut shp022_done: FxHashSet<(&str, &str)> = FxHashSet::default();
 
         for (trip_id, stimes) in &idx.by_trip {
             // Sadece shape_dist_traveled eksik trippler
@@ -4177,7 +4220,19 @@ fn check_remaining_analytics(
             for st in stimes.iter() {
                 let stop_id = st.stop_id.as_str();
                 if shp022_seen.contains(&(shape_id, stop_id)) { continue; }
+                if !shp022_done.insert((shape_id, stop_id)) { continue; }
                 let Some(&(slat, slon)) = stop_coords.get(stop_id) else { continue };
+
+                // B2 bbox ön-filtresi (GEO_009 emsali, satır ~3323): bbox+MATCH_KM dışındaki
+                // durak hiçbir segmente MATCH_KM kadar yakın olamaz → close_arcs boş → notice yok.
+                if let Some(&[bmin_la, bmax_la, bmin_lo, bmax_lo]) = shape_bbox.get(shape_id) {
+                    let margin_lat = MATCH_KM / 111.0_f64;
+                    let margin_lon = MATCH_KM / scale_lon;
+                    if slat < bmin_la - margin_lat || slat > bmax_la + margin_lat
+                        || slon < bmin_lo - margin_lon || slon > bmax_lo + margin_lon {
+                        continue;
+                    }
+                }
 
                 // Her segment için minimum mesafeyi hesapla, MATCH_KM altındakileri kaydet
                 let mut close_arcs: Vec<f64> = Vec::new();
@@ -4419,6 +4474,32 @@ fn check_remaining_analytics(
         }
     }
 
+    // B4: stop_headsign 36MB taraması DQ_018+DQ_019 için BİR kez yapılır (önceden iki kez).
+    // Ham (line, value) toplanır; notice'lar aşağıda kendi blok konumlarında MINT edilir →
+    // emisyon sırası, ctr, id ve içerik birebir korunur (yalnız tarama sayısı 2→1).
+    let (dq_caps_hs, dq_lower_hs): (Vec<(u64, String)>, Vec<(u64, String)>) = {
+        let mut caps: Vec<(u64, String)> = Vec::new();
+        let mut lower: Vec<(u64, String)> = Vec::new();
+        let mut seen_caps: std::collections::HashSet<&str> = std::collections::HashSet::new();
+        let mut seen_lower: std::collections::HashSet<&str> = std::collections::HashSet::new();
+        for stops in records.stop_times_index.iter_stops() {
+            for st in stops {
+                if let Some(ref hs) = st.stop_headsign {
+                    let s = hs.as_str();
+                    if !seen_caps.contains(s) && is_all_caps(s) {
+                        seen_caps.insert(s);
+                        caps.push((st.line, s.to_string()));
+                    }
+                    if !seen_lower.contains(s) && is_all_lower(s) {
+                        seen_lower.insert(s);
+                        lower.push((st.line, s.to_string()));
+                    }
+                }
+            }
+        }
+        (caps, lower)
+    };
+
     // ── DQ_018: önerilen metin alanları tamamen büyük harf (mixed_case_recommended_field) ──
     {
         let _t18 = Timer::start("K6::rem::dq_018");
@@ -4488,27 +4569,16 @@ fn check_remaining_analytics(
             }
         }
 
-        // stop_headsign (stop_times — benzersiz değer bazlı dedup)
-        {
-            let mut seen: std::collections::HashSet<&str> = std::collections::HashSet::new();
-            for stops in records.stop_times_index.iter_stops() {
-                for st in stops {
-                    if let Some(ref hs) = st.stop_headsign {
-                        let s = hs.as_str();
-                        if !seen.contains(s) && is_all_caps(s) {
-                            seen.insert(s);
-                            notices.push(k6_notice(
-                                ctr, "DQ_018", EntityType::Row,
-                                None, None,
-                                "stop_times.txt", Some(st.line), Some("stop_headsign"),
-                                Some(s.to_string()), None,
-                                format!("stop_headsign değeri tamamen büyük harf: '{s}'."),
-                                "Yön adını düzgün harf kuralıyla yazın.",
-                            ));
-                        }
-                    }
-                }
-            }
+        // stop_headsign (B4: tek-tarama'dan toplanan caps değerleri — aynı sıra/içerik/ctr)
+        for (line, s) in &dq_caps_hs {
+            notices.push(k6_notice(
+                ctr, "DQ_018", EntityType::Row,
+                None, None,
+                "stop_times.txt", Some(*line), Some("stop_headsign"),
+                Some(s.clone()), None,
+                format!("stop_headsign değeri tamamen büyük harf: '{s}'."),
+                "Yön adını düzgün harf kuralıyla yazın.",
+            ));
         }
 
         // feed_publisher_name
@@ -4587,27 +4657,16 @@ fn check_remaining_analytics(
             }
         }
 
-        // stop_headsign (stop_times — benzersiz değer bazlı dedup)
-        {
-            let mut seen: std::collections::HashSet<&str> = std::collections::HashSet::new();
-            for stops in records.stop_times_index.iter_stops() {
-                for st in stops {
-                    if let Some(ref hs) = st.stop_headsign {
-                        let s = hs.as_str();
-                        if !seen.contains(s) && is_all_lower(s) {
-                            seen.insert(s);
-                            notices.push(k6_notice(
-                                ctr, "DQ_019", EntityType::Row,
-                                None, None,
-                                "stop_times.txt", Some(st.line), Some("stop_headsign"),
-                                Some(s.to_string()), None,
-                                format!("stop_headsign değeri tamamen küçük harf: '{s}'."),
-                                "Yön adını başlık harfiyle yazın.",
-                            ));
-                        }
-                    }
-                }
-            }
+        // stop_headsign (B4: tek-tarama'dan toplanan lower değerleri — aynı sıra/içerik/ctr)
+        for (line, s) in &dq_lower_hs {
+            notices.push(k6_notice(
+                ctr, "DQ_019", EntityType::Row,
+                None, None,
+                "stop_times.txt", Some(*line), Some("stop_headsign"),
+                Some(s.clone()), None,
+                format!("stop_headsign değeri tamamen küçük harf: '{s}'."),
+                "Yön adını başlık harfiyle yazın.",
+            ));
         }
 
         // feed_publisher_name
@@ -4955,7 +5014,23 @@ fn check_remaining_analytics(
                 // noktalarında iki nokta arasındaki duraklarda false-positive önlenir.
                 let min_dist_m = *dist_cache
                     .entry((shape_id, stop_id))
-                    .or_insert_with(|| point_to_polyline_dist_m(slat, slon, pts));
+                    .or_insert_with(|| {
+                        // B3 bbox kısayolu (GEO_009 emsali): bbox+500m dışındaki durak kesinlikle
+                        // >500m → tam polyline hesabı yerine clamped-corner haversine (>500m garantili)
+                        // sakla. >threshold booleanı, viol_count ve mesaj birebir korunur.
+                        if let Some(&[bmin_la, bmax_la, bmin_lo, bmax_lo]) = shape_bbox.get(shape_id) {
+                            let cos_lat = slat.to_radians().cos();
+                            let margin_lat = SHP_STOP_THRESHOLD_M / 111_320.0_f64;
+                            let margin_lon = SHP_STOP_THRESHOLD_M / (111_320.0_f64 * cos_lat);
+                            if slat < bmin_la - margin_lat || slat > bmax_la + margin_lat
+                                || slon < bmin_lo - margin_lon || slon > bmax_lo + margin_lon {
+                                let clat = slat.clamp(bmin_la, bmax_la);
+                                let clon = slon.clamp(bmin_lo, bmax_lo);
+                                return haversine_km(slat, slon, clat, clon) * 1000.0;
+                            }
+                        }
+                        point_to_polyline_dist_m(slat, slon, pts)
+                    });
                 if min_dist_m > SHP_STOP_THRESHOLD_M {
                     *shape_stop_violations.entry(shape_id).or_insert(0) += 1;
                 }

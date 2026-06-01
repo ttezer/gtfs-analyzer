@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "wasm": "wasm-pack build ../crates/wasm --target web --out-dir ../../ui/pkg",
+    "wasm:threads": "RUSTFLAGS='-C target-feature=+atomics,+bulk-memory,+mutable-globals -C link-arg=--shared-memory -C link-arg=--max-memory=4294967296 -C link-arg=--import-memory -C link-arg=--export=__heap_base -C link-arg=--export=__wasm_init_tls -C link-arg=--export=__tls_size -C link-arg=--export=__tls_align -C link-arg=--export=__tls_base' CARGO_UNSTABLE_BUILD_STD='panic_abort,std' rustup run nightly wasm-pack build ../crates/wasm --target web --out-dir ../../ui/pkg-threads --release --features threads",
+    "wasm:all": "npm run wasm && npm run wasm:threads",
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",

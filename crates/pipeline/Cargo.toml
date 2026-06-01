@@ -15,6 +15,12 @@ chrono-tz = "0.10"
 smol_str = "0.2"
 url = "2"
 rustc-hash = "2"
+rayon = { version = "1", optional = true }
+
+[features]
+# K6 check'lerini iş-parçacıkları arası paralel çalıştırır (native: gerçek threadler).
+# Çıktı seri ile BİREBİR (renumber + kanonik birleştirme). WASM'da ayrı thread kurulumu gerekir.
+parallel = ["dep:rayon"]
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 web-sys = { version = "0.3", features = ["console"] }

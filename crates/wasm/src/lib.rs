@@ -23,6 +23,12 @@ pub fn wasm_init() {
     web_sys::console::warn_1(&"[GTFS WASM] binary v6 yüklendi".into());
 }
 
+// `threads` feature açıkken JS'e `init_thread_pool(n)` verir; UI doğrulamadan önce
+// `await init_thread_pool(navigator.hardwareConcurrency)` çağırıp rayon havuzunu kurar.
+// Bu çağrı yapılana kadar (veya feature kapalıysa) rayon::scope tek thread'de çalışır.
+#[cfg(feature = "threads")]
+pub use wasm_bindgen_rayon::init_thread_pool;
+
 // ── Sabitler ─────────────────────────────────────────────────────────────────
 
 const PER_RULE_CAP: usize = 500;

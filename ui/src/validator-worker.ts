@@ -14,7 +14,7 @@ import type { FatalError, ValidationResult } from './types';
 
 // ── İstek tipleri ─────────────────────────────────────────────────────────────
 
-type ValidateRequest = { id: number; type: 'validate'; buffer: ArrayBuffer; configDelta: string };
+type ValidateRequest = { id: number; type: 'validate'; buffer: ArrayBuffer; configDelta: string; forceSerial?: boolean };
 type RerunRequest    = { id: number; type: 'rerun';    configDelta: string };
 type WorkerRequest   = ValidateRequest | RerunRequest;
 
@@ -38,7 +38,7 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
   const req = event.data;
 
   try {
-    await initWasm();
+    await initWasm(req.type === 'validate' ? (req.forceSerial ?? false) : false);
 
     if (req.type === 'validate') {
       const bytes = new Uint8Array(req.buffer);

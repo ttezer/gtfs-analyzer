@@ -48,6 +48,18 @@ function langFlagsHtml(): string {
   ).join('')}</div>`;
 }
 
+// ── Footer ──────────────────────────────────────────────────────────────────
+
+const REPO_URL = 'https://github.com/ttezer/gtfs-analyzer';
+
+function footerHtml(): string {
+  return `<footer class="app-footer">
+      <a href="${REPO_URL}" target="_blank" rel="noopener noreferrer">github.com/ttezer/gtfs-analyzer</a>
+      <span class="app-footer-sep">·</span>
+      <span>MIT License</span>
+    </footer>`;
+}
+
 // ── Uygulama render ───────────────────────────────────────────────────────────
 
 export function renderApp(): void {
@@ -62,7 +74,8 @@ export function renderApp(): void {
         ${langFlagsHtml()}
         ${darkToggleHtml()}
       </header>
-      <main id="page-root"></main>`;
+      <main id="page-root"></main>
+      ${footerHtml()}`;
     app.querySelector<HTMLButtonElement>('.dark-toggle')!
       .addEventListener('click', toggleDarkMode);
     app.querySelectorAll<HTMLButtonElement>('.lang-flag').forEach(btn => {
@@ -107,7 +120,8 @@ export function renderApp(): void {
       ${darkToggleHtml()}
     </header>
     <nav class="app-nav">${navItems}</nav>
-    <main id="page-root"></main>`;
+    <main id="page-root"></main>
+    ${footerHtml()}`;
 
   app.querySelector('#btn-back')!.addEventListener('click', () => {
     setPage('upload');

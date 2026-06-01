@@ -141,6 +141,10 @@ function buildReportHtml(result: ValidationResult, fileName: string): string {
     </tr></thead>
     <tbody>${noticeRows}</tbody>
   </table>
+
+  <footer style="margin-top:2rem;padding-top:1rem;border-top:1px solid #e2e8f0;text-align:center;font-size:.78rem;color:#64748b">
+    <a href="https://github.com/ttezer/gtfs-analyzer" style="color:#64748b">github.com/ttezer/gtfs-analyzer</a> · MIT License
+  </footer>
 </body>
 </html>`;
 }
