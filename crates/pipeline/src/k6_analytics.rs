@@ -307,10 +307,17 @@ fn seg_min_dist_km(
     if min_sq <= safe_sq { 0.0 } else { haversine_km(slat, slon, best_lat, best_lon) }
 }
 
-/// Demiryolu/tren route_type'ı mı? (STM_017 / STM_026 için)
+/// Intercity/uzun mesafe ray route_type'ı mı? (STM_017 shape_dist eksik, STM_026 eşiği için)
 /// GTFS: 2=Rail, 12=Monorail, 100-117 genişletilmiş tren tipleri.
 fn is_rail_route_type(route_type: u32) -> bool {
     route_type == 2 || route_type == 12 || (100..=117).contains(&route_type)
+}
+
+/// Sabit güzergahlı taşıt mı? (shape projeksiyon bypass için)
+/// Tram/LRT/Metro/Rail hepsi dahil — haversine yeterince iyi, projeksiyon false positive üretir.
+/// GTFS: 0=Tram, 1=Metro, 2=Rail, 12=Monorail, 100-117 genişletilmiş tren tipleri.
+fn is_fixed_guideway(route_type: u32) -> bool {
+    matches!(route_type, 0 | 1 | 2 | 12) || (100..=117).contains(&route_type)
 }
 
 /// route_type → config'ten hız eşiği (km/h)
@@ -752,7 +759,7 @@ fn check_speed_and_duration(
                 _ => continue,
             };
             let haver_km = haversine_km(c1.0, c1.1, c2.0, c2.1);
-            let dist_km = if is_rail_route_type(route_type) { haver_km } else {
+            let dist_km = if is_fixed_guideway(route_type) { haver_km } else {
             trip_shape_speed.get(trip_id)
                 .and_then(|&sid| {
                     let pts = shape_pts_speed.get(sid)?;
