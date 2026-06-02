@@ -60,6 +60,8 @@ pub fn analyze(
         Box::new(|| { let _t = Timer::start("K6::route_trip_quality");    let mut v = Vec::new(); let mut c = 0u32; check_route_trip_quality(records, derived, &idx, &mut v, &mut c); v }),
         Box::new(|| { let _t = Timer::start("K6::data_quality");          let mut v = Vec::new(); let mut c = 0u32; check_data_quality(records, derived, today_yyyymmdd, &mut v, &mut c); v }),
         Box::new(|| { let _t = Timer::start("K6::remaining_analytics");   let mut v = Vec::new(); let mut c = 0u32; check_remaining_analytics(records, derived, config, &idx, &mut v, &mut c); v }),
+        Box::new(|| { let _t = Timer::start("K6::shp012");                let mut v = Vec::new(); let mut c = 0u32; check_shp012(records, &idx, &mut v, &mut c); v }),
+        Box::new(|| { let _t = Timer::start("K6::shp022");                let mut v = Vec::new(); let mut c = 0u32; check_shp022(records, &idx, &mut v, &mut c); v }),
         Box::new(|| { let _t = Timer::start("K6::pathway_analytics");     let mut v = Vec::new(); let mut c = 0u32; check_pathway_analytics(records, derived, &mut v, &mut c); v }),
         Box::new(|| { let _t = Timer::start("K6::calendar_override");     let mut v = Vec::new(); let mut c = 0u32; check_calendar_override_analytics(records, derived, config, &mut v, &mut c); v }),
         Box::new(|| { let _t = Timer::start("K6::vat_analytics");         let mut v = Vec::new(); let mut c = 0u32; check_vat_analytics(records, &idx, &mut v, &mut c); v }),
@@ -4183,117 +4185,6 @@ fn check_remaining_analytics(
         }
     }
 
-    // ── SHP_022: durak shape'te birden fazla eşleşme bölgesine yakın ─────────
-    // shape_dist_traveled eksik tripplerde bir durak shape'in farklı bölümlerine
-    // eşit uzaklıktaysa (döngü / geri dönüş) trip planlayıcı hangi noktayla
-    // eşleşeceğini bilemez. Dedup: (shape_id, stop_id) çifti başına bir notice.
-    {
-        let _t22 = Timer::start("K6::rem::shp_022");
-        const MATCH_KM: f64 = 0.150;       // 150 m — eşleşme eşiği
-        const SEP_KM:   f64 = 0.500;       // 500 m — iki cluster arası min arc fark
-
-        let mut shp022_seen: FxHashSet<(&str, &str)> = FxHashSet::default();
-        // B2 perf: (shape,stop) küme kararı saf fonksiyon — aynı çifti paylaşan onlarca
-        // sdt-eksik sefer için segment taramasını tekrarlama. shp022_seen yalnız EMİSYON
-        // dedup'u; bu set DEĞERLENDİRME dedup'u → çıktı birebir aynı.
-        let mut shp022_done: FxHashSet<(&str, &str)> = FxHashSet::default();
-
-        for (trip_id, stimes) in &idx.by_trip {
-            // Sadece shape_dist_traveled eksik trippler
-            if !idx.trips_missing_sdt.contains_key(trip_id) { continue; }
-            let Some(&shape_id) = trip_shape_local.get(trip_id) else { continue };
-            let Some(pts) = shape_coords.get(shape_id) else { continue };
-            if pts.len() < 2 { continue; }
-
-            let cum = shape_cum.entry(shape_id).or_insert_with(|| {
-                let mut c = Vec::with_capacity(pts.len());
-                c.push(0.0_f64);
-                for i in 1..pts.len() {
-                    c.push(c[i-1] + haversine_km(pts[i-1].0, pts[i-1].1, pts[i].0, pts[i].1));
-                }
-                c
-            });
-            let cos_lat = (pts[0].0.to_radians()).cos().max(0.001_f64);
-            let scale_lon = 111.0_f64 * cos_lat;
-            let match_sq = MATCH_KM * MATCH_KM;
-
-            for st in stimes.iter() {
-                let stop_id = st.stop_id.as_str();
-                if shp022_seen.contains(&(shape_id, stop_id)) { continue; }
-                if !shp022_done.insert((shape_id, stop_id)) { continue; }
-                let Some(&(slat, slon)) = stop_coords.get(stop_id) else { continue };
-
-                // B2 bbox ön-filtresi (GEO_009 emsali, satır ~3323): bbox+MATCH_KM dışındaki
-                // durak hiçbir segmente MATCH_KM kadar yakın olamaz → close_arcs boş → notice yok.
-                if let Some(&[bmin_la, bmax_la, bmin_lo, bmax_lo]) = shape_bbox.get(shape_id) {
-                    let margin_lat = MATCH_KM / 111.0_f64;
-                    let margin_lon = MATCH_KM / scale_lon;
-                    if slat < bmin_la - margin_lat || slat > bmax_la + margin_lat
-                        || slon < bmin_lo - margin_lon || slon > bmax_lo + margin_lon {
-                        continue;
-                    }
-                }
-
-                // Her segment için minimum mesafeyi hesapla, MATCH_KM altındakileri kaydet
-                let mut close_arcs: Vec<f64> = Vec::new();
-                for w in 0..pts.len() - 1 {
-                    let (alat, alon) = pts[w];
-                    let (blat, blon) = pts[w + 1];
-                    let ax = (alon - slon) * scale_lon;
-                    let ay = (alat - slat) * 111.0_f64;
-                    let bx = (blon - slon) * scale_lon;
-                    let by_ = (blat - slat) * 111.0_f64;
-                    let dx = bx - ax; let dy = by_ - ay;
-                    let len_sq = dx * dx + dy * dy;
-                    let t = if len_sq < 1e-12 { 0.0_f64 } else {
-                        ((-ax * dx) + (-ay * dy)) / len_sq
-                    }.clamp(0.0_f64, 1.0_f64);
-                    let nx = ax + t * dx; let ny = ay + t * dy;
-                    let dsq = nx * nx + ny * ny;
-                    if dsq <= match_sq {
-                        close_arcs.push(cum[w] + t * (cum[w + 1] - cum[w]));
-                    }
-                }
-                if close_arcs.is_empty() { continue; }
-
-                // Cluster sayısını bul (art arda gelmeyen arc grupları)
-                close_arcs.sort_by(|a, b| a.total_cmp(b));
-                let mut clusters = 1usize;
-                let mut prev = close_arcs[0];
-                for &arc in &close_arcs[1..] {
-                    if arc - prev > SEP_KM { clusters += 1; }
-                    prev = arc;
-                }
-                if clusters < 2 { continue; }
-
-                shp022_seen.insert((shape_id, stop_id));
-                let sname = stop_names.get(stop_id).copied().unwrap_or(stop_id);
-                let mut notice = k6_notice(
-                    ctr,
-                    "SHP_022",
-                    EntityType::Stop,
-                    Some(stop_id.to_string()),
-                    Some(stop_id.to_string()),
-                    "stop_times.txt",
-                    Some(st.line),
-                    Some("stop_id"),
-                    Some(stop_id.to_string()),
-                    None,
-                    format!(
-                        "'{}' (kod: '{}') durağı '{}' güzergah şeklinin {} ayrı bölümüne yakın — \
-                         shape_dist_traveled eksikken hangi bölümle eşleşeceği belirsiz.",
-                        sname, stop_id, shape_id, clusters
-                    ),
-                    "stop_times'a shape_dist_traveled ekleyerek durağın şekil üzerindeki \
-                     konumunu açıkça belirtin.",
-                );
-                let mut det = HashMap::new();
-                det.insert("shape_id".to_string(), shape_id.to_string());
-                notice.details = Some(det);
-                notices.push(notice);
-            }
-        }
-    }
 
     // ── SHP_014: ilk/son durak güzergah ucundan uzakta ───────────────────────
     {
@@ -4991,9 +4882,62 @@ fn check_remaining_analytics(
         }
     }
 
-    // ── SHP_012: güzergah şekli sefer duraklarından çok uzak ─────────────────
+}
+
+/// SHP_012: güzergah şekli sefer duraklarından çok uzak.
+/// check_remaining_analytics'ten ayrı bir K6 task'ı olarak çıkarıldı (paralel wall-clock'ta
+/// uzun-kolu kısaltmak için). build_maps'teki shape_coords/shape_bbox/stop_coords KURULUMU
+/// BİREBİR aynı (aynı sort_by_key, aynı bbox) → çıktı (notice sayısı/değeri/skor) özdeş.
+/// Kendi yerel cache'leri (shape_stop_violations, dist_cache) var; başka kontrolle paylaşılan
+/// mutable durum YOK → bağımsız task olarak güvenli, mevcut 13-task deseniyle aynı.
+fn check_shp012(
+    records: &EntityRecords,
+    idx: &StopTimesIndex<'_>,
+    notices: &mut Vec<Notice>,
+    ctr: &mut u32,
+) {
+    // shape_id → sıralı (lat, lon) + bbox (build_maps ile birebir aynı kurulum)
+    let mut shape_pts_unsorted: FxHashMap<&str, Vec<(u32, f64, f64)>> = FxHashMap::default();
+    for sp in &records.shapes {
+        if let (Some(lat), Some(lon)) = (sp.shape_pt_lat, sp.shape_pt_lon) {
+            shape_pts_unsorted
+                .entry(sp.shape_id.as_str())
+                .or_default()
+                .push((sp.shape_pt_sequence.unwrap_or(0), lat, lon));
+        }
+    }
+    let n_shapes = shape_pts_unsorted.len();
+    let mut shape_coords: FxHashMap<&str, Vec<(f64, f64)>> = FxHashMap::default();
+    let mut shape_bbox: FxHashMap<&str, [f64; 4]> = FxHashMap::default();
+    shape_coords.reserve(n_shapes);
+    shape_bbox.reserve(n_shapes);
+    for (sid, mut v) in shape_pts_unsorted {
+        v.sort_by_key(|&(seq, _, _)| seq);
+        let pts: Vec<(f64, f64)> = v.into_iter().map(|(_, la, lo)| (la, lo)).collect();
+        if !pts.is_empty() {
+            let mut mn_lat = pts[0].0;
+            let mut mx_lat = pts[0].0;
+            let mut mn_lon = pts[0].1;
+            let mut mx_lon = pts[0].1;
+            for &(la, lo) in pts.iter().skip(1) {
+                if la < mn_lat { mn_lat = la; }
+                if la > mx_lat { mx_lat = la; }
+                if lo < mn_lon { mn_lon = lo; }
+                if lo > mx_lon { mx_lon = lo; }
+            }
+            shape_bbox.insert(sid, [mn_lat, mx_lat, mn_lon, mx_lon]);
+        }
+        shape_coords.insert(sid, pts);
+    }
+    let stop_coords: FxHashMap<&str, (f64, f64)> = records
+        .stops
+        .iter()
+        .filter_map(|s| s.stop_lat.zip(s.stop_lon).map(|c| (s.stop_id.as_str(), c)))
+        .collect();
+
+    // ── SHP_012 gövdesi (check_remaining_analytics'ten verbatim taşındı) ──────
     {
-        let _t12b = Timer::start("K6::rem::shp_012");
+        let _t12b = crate::timing::Timer::start("K6::shp012::body");
         const SHP_STOP_THRESHOLD_M: f64 = 500.0;
 
         // Perf: (shape_id, stop_id) → polyline mesafesi MEMOIZE edilir. Aynı shape'i kullanan
@@ -5048,6 +4992,180 @@ fn check_remaining_analytics(
                 ),
                 "shapes.txt noktalarını durak konumlarına yaklaştırın.",
             ));
+        }
+    }
+}
+
+/// SHP_022: durak shape'te birden fazla eşleşme bölgesine yakın.
+/// check_remaining_analytics'ten ayrı bir K6 task'ı olarak çıkarıldı (remaining'in en ağır
+/// alt-kontrolü ~126ms; paralel wall-clock'ta uzun-kolu kısaltır). Kullandığı map'ler
+/// (shape_coords/shape_bbox/stop_coords/stop_names/trip_shape_local) build_maps ile BİREBİR
+/// aynı kurulum; shape_cum yerel olarak yeniden kurulur (sadece memoization — aynı değerler).
+/// Dedup set'leri (shp022_seen/shp022_done) yerel → bağımsız task olarak güvenli, çıktı özdeş.
+fn check_shp022(
+    records: &EntityRecords,
+    idx: &StopTimesIndex<'_>,
+    notices: &mut Vec<Notice>,
+    ctr: &mut u32,
+) {
+    use crate::timing::Timer;
+
+    // ── build_maps ile birebir aynı kurulum (shape_coords + shape_bbox) ──────
+    let mut shape_pts_unsorted: FxHashMap<&str, Vec<(u32, f64, f64)>> = FxHashMap::default();
+    for sp in &records.shapes {
+        if let (Some(lat), Some(lon)) = (sp.shape_pt_lat, sp.shape_pt_lon) {
+            shape_pts_unsorted
+                .entry(sp.shape_id.as_str())
+                .or_default()
+                .push((sp.shape_pt_sequence.unwrap_or(0), lat, lon));
+        }
+    }
+    let n_shapes = shape_pts_unsorted.len();
+    let mut shape_coords: FxHashMap<&str, Vec<(f64, f64)>> = FxHashMap::default();
+    let mut shape_bbox: FxHashMap<&str, [f64; 4]> = FxHashMap::default();
+    shape_coords.reserve(n_shapes);
+    shape_bbox.reserve(n_shapes);
+    for (sid, mut v) in shape_pts_unsorted {
+        v.sort_by_key(|&(seq, _, _)| seq);
+        let pts: Vec<(f64, f64)> = v.into_iter().map(|(_, la, lo)| (la, lo)).collect();
+        if !pts.is_empty() {
+            let mut mn_lat = pts[0].0;
+            let mut mx_lat = pts[0].0;
+            let mut mn_lon = pts[0].1;
+            let mut mx_lon = pts[0].1;
+            for &(la, lo) in pts.iter().skip(1) {
+                if la < mn_lat { mn_lat = la; }
+                if la > mx_lat { mx_lat = la; }
+                if lo < mn_lon { mn_lon = lo; }
+                if lo > mx_lon { mx_lon = lo; }
+            }
+            shape_bbox.insert(sid, [mn_lat, mx_lat, mn_lon, mx_lon]);
+        }
+        shape_coords.insert(sid, pts);
+    }
+    let stop_coords: FxHashMap<&str, (f64, f64)> = records
+        .stops
+        .iter()
+        .filter_map(|s| s.stop_lat.zip(s.stop_lon).map(|c| (s.stop_id.as_str(), c)))
+        .collect();
+    let stop_names: FxHashMap<&str, &str> = records
+        .stops
+        .iter()
+        .filter_map(|s| s.stop_name.as_deref().map(|n| (s.stop_id.as_str(), n)))
+        .collect();
+    let trip_shape_local: HashMap<&str, &str> = records
+        .trips
+        .iter()
+        .filter_map(|t| t.shape_id.as_deref().map(|s| (t.trip_id.as_str(), s)))
+        .collect();
+    let mut shape_cum: FxHashMap<&str, Vec<f64>> = FxHashMap::default();
+
+    // ── SHP_022 gövdesi (check_remaining_analytics'ten verbatim taşındı) ─────
+    {
+        let _t22 = Timer::start("K6::shp022::body");
+        const MATCH_KM: f64 = 0.150;       // 150 m — eşleşme eşiği
+        const SEP_KM:   f64 = 0.500;       // 500 m — iki cluster arası min arc fark
+
+        let mut shp022_seen: FxHashSet<(&str, &str)> = FxHashSet::default();
+        // B2 perf: (shape,stop) küme kararı saf fonksiyon — aynı çifti paylaşan onlarca
+        // sdt-eksik sefer için segment taramasını tekrarlama. shp022_seen yalnız EMİSYON
+        // dedup'u; bu set DEĞERLENDİRME dedup'u → çıktı birebir aynı.
+        let mut shp022_done: FxHashSet<(&str, &str)> = FxHashSet::default();
+
+        for (trip_id, stimes) in &idx.by_trip {
+            // Sadece shape_dist_traveled eksik trippler
+            if !idx.trips_missing_sdt.contains_key(trip_id) { continue; }
+            let Some(&shape_id) = trip_shape_local.get(trip_id) else { continue };
+            let Some(pts) = shape_coords.get(shape_id) else { continue };
+            if pts.len() < 2 { continue; }
+
+            let cum = shape_cum.entry(shape_id).or_insert_with(|| {
+                let mut c = Vec::with_capacity(pts.len());
+                c.push(0.0_f64);
+                for i in 1..pts.len() {
+                    c.push(c[i-1] + haversine_km(pts[i-1].0, pts[i-1].1, pts[i].0, pts[i].1));
+                }
+                c
+            });
+            let cos_lat = (pts[0].0.to_radians()).cos().max(0.001_f64);
+            let scale_lon = 111.0_f64 * cos_lat;
+            let match_sq = MATCH_KM * MATCH_KM;
+
+            for st in stimes.iter() {
+                let stop_id = st.stop_id.as_str();
+                if shp022_seen.contains(&(shape_id, stop_id)) { continue; }
+                if !shp022_done.insert((shape_id, stop_id)) { continue; }
+                let Some(&(slat, slon)) = stop_coords.get(stop_id) else { continue };
+
+                // B2 bbox ön-filtresi (GEO_009 emsali, satır ~3323): bbox+MATCH_KM dışındaki
+                // durak hiçbir segmente MATCH_KM kadar yakın olamaz → close_arcs boş → notice yok.
+                if let Some(&[bmin_la, bmax_la, bmin_lo, bmax_lo]) = shape_bbox.get(shape_id) {
+                    let margin_lat = MATCH_KM / 111.0_f64;
+                    let margin_lon = MATCH_KM / scale_lon;
+                    if slat < bmin_la - margin_lat || slat > bmax_la + margin_lat
+                        || slon < bmin_lo - margin_lon || slon > bmax_lo + margin_lon {
+                        continue;
+                    }
+                }
+
+                // Her segment için minimum mesafeyi hesapla, MATCH_KM altındakileri kaydet
+                let mut close_arcs: Vec<f64> = Vec::new();
+                for w in 0..pts.len() - 1 {
+                    let (alat, alon) = pts[w];
+                    let (blat, blon) = pts[w + 1];
+                    let ax = (alon - slon) * scale_lon;
+                    let ay = (alat - slat) * 111.0_f64;
+                    let bx = (blon - slon) * scale_lon;
+                    let by_ = (blat - slat) * 111.0_f64;
+                    let dx = bx - ax; let dy = by_ - ay;
+                    let len_sq = dx * dx + dy * dy;
+                    let t = if len_sq < 1e-12 { 0.0_f64 } else {
+                        ((-ax * dx) + (-ay * dy)) / len_sq
+                    }.clamp(0.0_f64, 1.0_f64);
+                    let nx = ax + t * dx; let ny = ay + t * dy;
+                    let dsq = nx * nx + ny * ny;
+                    if dsq <= match_sq {
+                        close_arcs.push(cum[w] + t * (cum[w + 1] - cum[w]));
+                    }
+                }
+                if close_arcs.is_empty() { continue; }
+
+                // Cluster sayısını bul (art arda gelmeyen arc grupları)
+                close_arcs.sort_by(|a, b| a.total_cmp(b));
+                let mut clusters = 1usize;
+                let mut prev = close_arcs[0];
+                for &arc in &close_arcs[1..] {
+                    if arc - prev > SEP_KM { clusters += 1; }
+                    prev = arc;
+                }
+                if clusters < 2 { continue; }
+
+                shp022_seen.insert((shape_id, stop_id));
+                let sname = stop_names.get(stop_id).copied().unwrap_or(stop_id);
+                let mut notice = k6_notice(
+                    ctr,
+                    "SHP_022",
+                    EntityType::Stop,
+                    Some(stop_id.to_string()),
+                    Some(stop_id.to_string()),
+                    "stop_times.txt",
+                    Some(st.line),
+                    Some("stop_id"),
+                    Some(stop_id.to_string()),
+                    None,
+                    format!(
+                        "'{}' (kod: '{}') durağı '{}' güzergah şeklinin {} ayrı bölümüne yakın — \
+                         shape_dist_traveled eksikken hangi bölümle eşleşeceği belirsiz.",
+                        sname, stop_id, shape_id, clusters
+                    ),
+                    "stop_times'a shape_dist_traveled ekleyerek durağın şekil üzerindeki \
+                     konumunu açıkça belirtin.",
+                );
+                let mut det = HashMap::new();
+                det.insert("shape_id".to_string(), shape_id.to_string());
+                notice.details = Some(det);
+                notices.push(notice);
+            }
         }
     }
 }
