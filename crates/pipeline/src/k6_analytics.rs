@@ -4455,6 +4455,23 @@ fn check_remaining_analytics(
             }
         }
 
+        // route_desc
+        for route in &records.routes {
+            if route.route_id.is_empty() { continue; }
+            if let Some(desc) = route.route_desc.as_deref().filter(|s| is_all_caps(s)) {
+                let label = route.route_short_name.as_deref()
+                    .filter(|s| !s.is_empty()).unwrap_or(route.route_id.as_str());
+                notices.push(k6_notice(
+                    ctr, "DQ_018", EntityType::Route,
+                    Some(route.route_id.clone()), Some(route.route_id.clone()),
+                    "routes.txt", Some(route.line), Some("route_desc"),
+                    Some(desc.to_string()), None,
+                    format!("'{}' hattının açıklaması tamamen büyük harf: '{desc}'.", label),
+                    "Hat açıklamasını düzgün harf kuralıyla yazın.",
+                ));
+            }
+        }
+
         // trip_headsign
         for trip in &records.trips {
             if trip.trip_id.is_empty() { continue; }
@@ -4544,6 +4561,19 @@ fn check_remaining_analytics(
                 ));
             }
         }
+        for route in &records.routes {
+            if route.route_id.is_empty() { continue; }
+            if let Some(desc) = route.route_desc.as_deref().filter(|s| is_all_lower(s)) {
+                notices.push(k6_notice(
+                    ctr, "DQ_019", EntityType::Route,
+                    Some(route.route_id.clone()), Some(route.route_id.clone()),
+                    "routes.txt", Some(route.line), Some("route_desc"),
+                    Some(desc.to_string()), None,
+                    format!("'{}' hattının açıklaması tamamen küçük harf: '{desc}'.", route.route_id),
+                    "Hat açıklamasını başlık harfiyle yazın.",
+                ));
+            }
+        }
         for trip in &records.trips {
             if trip.trip_id.is_empty() { continue; }
             if let Some(hs) = trip.trip_headsign.as_deref().filter(|s| is_all_lower(s)) {
@@ -4603,22 +4633,25 @@ fn check_remaining_analytics(
         }
     }
 
-    // ── DQ_020: önerilen alan eksik (missing_recommended_field) ──────────────
+    // ── DQ_020: önerilen alan eksik/boş (missing_recommended_field) ──────────
+    // Field-scoped (registry: VS, Field): trip_headsign çoğu/tüm satırda boşsa
+    // trips.txt için TEK notice. Önceki davranış her trip için ateşliyordu →
+    // LA Metro gibi feed'lerde 33.642 cap-busting gürültü üretiyordu.
     {
         let _t20 = Timer::start("K6::rem::dq_020");
-        // trip_headsign: GTFS spec'te önerilen alan
-        for trip in &records.trips {
-            if trip.trip_id.is_empty() { continue; }
-            if trip.trip_headsign.as_deref().map(|s| s.trim().is_empty()).unwrap_or(true) {
-                notices.push(k6_notice(
-                    ctr, "DQ_020", EntityType::Trip,
-                    Some(trip.trip_id.clone()), Some(trip.trip_id.clone()),
-                    "trips.txt", Some(trip.line), Some("trip_headsign"),
-                    None, None,
-                    format!("'{}' seferinde trip_headsign eksik — yolcu bilgi sistemleri için önerilir.", trip.trip_id),
-                    "trips.txt'e trip_headsign sütunu ekleyin.",
-                ));
-            }
+        let total = records.trips.iter().filter(|t| !t.trip_id.is_empty()).count();
+        let missing = records.trips.iter()
+            .filter(|t| !t.trip_id.is_empty())
+            .filter(|t| t.trip_headsign.as_deref().map(|s| s.trim().is_empty()).unwrap_or(true))
+            .count();
+        if missing > 0 && total > 0 {
+            notices.push(k6_notice(
+                ctr, "DQ_020", EntityType::Feed,
+                None, None, "trips.txt", None, Some("trip_headsign"),
+                Some(format!("{missing}/{total} satır boş")), None,
+                format!("trips.txt'te önerilen trip_headsign alanı {missing}/{total} satırda boş — yolcu bilgi sistemleri için doldurulması önerilir."),
+                "trips.txt'teki trip_headsign sütununu doldurun.",
+            ));
         }
     }
 
