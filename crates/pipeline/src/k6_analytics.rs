@@ -313,13 +313,6 @@ fn is_rail_route_type(route_type: u32) -> bool {
     route_type == 2 || route_type == 12 || (100..=117).contains(&route_type)
 }
 
-/// Sabit güzergahlı taşıt mı? (shape projeksiyon bypass için)
-/// Tram/LRT/Metro/Rail hepsi dahil — haversine yeterince iyi, projeksiyon false positive üretir.
-/// GTFS: 0=Tram, 1=Metro, 2=Rail, 12=Monorail, 100-117 genişletilmiş tren tipleri.
-fn is_fixed_guideway(route_type: u32) -> bool {
-    matches!(route_type, 0 | 1 | 2 | 12) || (100..=117).contains(&route_type)
-}
-
 /// route_type → config'ten hız eşiği (km/h)
 fn max_speed_kmh(route_type: u32, cfg: &ValidatorConfig) -> f64 {
     match route_type {
@@ -759,8 +752,7 @@ fn check_speed_and_duration(
                 _ => continue,
             };
             let haver_km = haversine_km(c1.0, c1.1, c2.0, c2.1);
-            let dist_km = if is_fixed_guideway(route_type) { haver_km } else {
-            trip_shape_speed.get(trip_id)
+            let dist_km = trip_shape_speed.get(trip_id)
                 .and_then(|&sid| {
                     let pts = shape_pts_speed.get(sid)?;
                     let cum = shape_cum_speed.get(sid)?;
@@ -774,8 +766,13 @@ fn check_speed_and_duration(
                     let d = (arc_b - arc_a).abs();
                     if d > 1e-6 { Some(d) } else { None }
                 })
-                .unwrap_or(haver_km)
-            };
+                // Shape projeksiyon kuş uçuşunun 4 katından büyükse durak büyük olasılıkla
+                // YANLIŞ shape segmentine eşleşmiştir (shape kendine yaklaşıyor/kesişiyor —
+                // grid ağlarında, gidiş-dönüş aynı caddede vb.). Bu durumda projeksiyon
+                // güvenilmez; haversine'e düş. Aksi halde LA Metro gibi feed'lerde sahte
+                // 1000+ km/h hızlar STM_012/STM_014 yanlış pozitifleri üretir.
+                .filter(|&d| d <= 4.0 * haver_km.max(0.05))
+                .unwrap_or(haver_km);
 
             if dist_km < 1e-6 {
                 if a.stop_id == b.stop_id {
@@ -7989,18 +7986,14 @@ mod tests {
         assert!(!result.notices.iter().any(|n| n.rule_id == "DQ_018"), "tek harf DQ_018 üretmemeli");
     }
 
-    // ── Fix-8: hız anomalisi shape projeksiyonu ──────────────────────────────
+    // ── Fix-8 (revize): patolojik shape projeksiyonu haversine'e düşer ────────
 
     #[test]
-    fn winding_shape_produces_stm_014_where_haversine_would_not() {
-        // Kuş uçuşu A→B ≈ 0.84 km / 5 dk → ~10 km/h (eşik altı; haversine tek başına kaçırır).
-        // Küçük U shape (0.1° detour): arc ≈ 23 km / 5 dk → ~277 km/h → STM_014 tetiklenir.
-        //
-        // Projeksiyon analizi:
-        //   A(41.0,29.0) → Segment 0 başlangıcında dsq=0   → arc = 0
-        //   B(41.0,29.01)→ Segment 2 sonunda dsq=0 (Seg 0'dan dsq≈0.7) → arc ≈ 23 km
-        //   |arc_B − arc_A| ≈ 23 km vs. haversine ~0.84 km.
-        //   Hız: 23/300×3600 ≈ 277 km/h → 120 < 277 < 700 → STM_014 (STM_012 değil).
+    fn pathological_shape_projection_falls_back_to_haversine() {
+        // Kuş uçuşu A→B ≈ 0.84 km. U biçimli shape projeksiyonu B'yi yanlış segmente
+        // eşleştirip arc ≈ 23 km verir (27× kuş uçuşu). Bu YANLIŞ segment eşleşmesidir
+        // (LA Metro grid bus rotalarındaki gibi). 4× kuralıyla haversine'e düşülmeli:
+        // 0.84 km / 5 dk ≈ 10 km/h → STM_012 de STM_014 de ÜRETİLMEMELİ.
         use crate::k2::shapes::ShapePointRecord;
         let mut records = records_with(
             vec![stop("A", 41.0, 29.0), stop("B", 41.0, 29.01)],
@@ -8016,7 +8009,7 @@ mod tests {
             ],
         );
         // U shape: (41.0,29.0) → kuzeye (41.1,29.0) → (41.1,29.01) → güneye (41.0,29.01)
-        // Arc ≈ 11.1 + 0.84 + 11.1 = 23 km; B yalnızca son segmente yakın (dsq=0)
+        // Arc ≈ 23 km vs haversine ~0.84 km → ratio ~27× → 4× eşiği aşar → fallback.
         records.shapes = vec![
             ShapePointRecord { shape_id: "S1".into(), shape_pt_lat: Some(41.0), shape_pt_lon: Some(29.00), shape_pt_sequence: Some(1), shape_dist_traveled: None, line: 2 },
             ShapePointRecord { shape_id: "S1".into(), shape_pt_lat: Some(41.1), shape_pt_lon: Some(29.00), shape_pt_sequence: Some(2), shape_dist_traveled: None, line: 3 },
@@ -8025,8 +8018,41 @@ mod tests {
         ];
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
         assert!(
+            !result.notices.iter().any(|n| n.rule_id == "STM_012" || n.rule_id == "STM_014"),
+            "Patolojik shape projeksiyonu (27× kuş uçuşu) haversine'e düşmeli; STM_012/014 üretilmemeli; notices: {:?}",
+            result.notices.iter().map(|n| (&n.rule_id, n.observed_value.as_deref())).collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
+    fn moderate_detour_within_ratio_still_uses_shape() {
+        // Makul detour: shape kuş uçuşunun 4× altında kalırsa shape mesafesi korunur.
+        // A→B kuş uçuşu ~11.1 km; shape hafif kavisli ~13 km (≈1.2×) → 4× altında.
+        // 13 km / 2 dk ≈ 390 km/h → 120 < 390 < 700 → STM_014 tetiklenir (shape kullanıldığının kanıtı).
+        use crate::k2::shapes::ShapePointRecord;
+        let mut records = records_with(
+            vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.0)],
+            vec![route("R1", 3)],
+            vec![{
+                let mut t = trip("T1", "R1");
+                t.shape_id = Some("S1".into());
+                t
+            }],
+            vec![
+                stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
+                stoptime("T1", 2, "B", (8, 2, 0), (8, 2, 0), 3), // 2 dk
+            ],
+        );
+        // A(41.0,29.0) → orta nokta hafif doğuya (41.05,29.03) → B(41.1,29.0): kavisli ama ~1.2×
+        records.shapes = vec![
+            ShapePointRecord { shape_id: "S1".into(), shape_pt_lat: Some(41.00), shape_pt_lon: Some(29.00), shape_pt_sequence: Some(1), shape_dist_traveled: None, line: 2 },
+            ShapePointRecord { shape_id: "S1".into(), shape_pt_lat: Some(41.05), shape_pt_lon: Some(29.03), shape_pt_sequence: Some(2), shape_dist_traveled: None, line: 3 },
+            ShapePointRecord { shape_id: "S1".into(), shape_pt_lat: Some(41.10), shape_pt_lon: Some(29.00), shape_pt_sequence: Some(3), shape_dist_traveled: None, line: 4 },
+        ];
+        let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
+        assert!(
             result.notices.iter().any(|n| n.rule_id == "STM_014"),
-            "U biçimli shape projeksiyonu ~23 km / 5 dk → ~277 km/h → STM_014 beklenir; notices: {:?}",
+            "Makul detour (≈1.2× kuş uçuşu) shape mesafesini korumalı → STM_014 beklenir; notices: {:?}",
             result.notices.iter().map(|n| (&n.rule_id, n.observed_value.as_deref())).collect::<Vec<_>>()
         );
     }
