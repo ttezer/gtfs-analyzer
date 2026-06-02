@@ -17,10 +17,12 @@ serde_json = "1"
 zip = { version = "2", default-features = false, features = ["deflate", "time"] }
 wasm-bindgen = "0.2"
 
-# NOT: lto="fat"+codegen-units=1 GEÇİCİ olarak geri alındı — TriMet hata sayısı 6059→6085 (+26)
-# regresyonunun lto kaynaklı FP drift (haversine eşik kontrolleri) mi yoksa flat-layout bug'ı mı
-# olduğunu izole etmek için. Varsayılan release (opt-level=3, lto=false) kullanılıyor.
-# [profile.release]
-# opt-level = 3
-# lto = "fat"
-# codegen-units = 1
+# NOT: Geçmişte lto kapatılmıştı (TriMet 6059→6085 regresyonunun lto FP-drift mi yoksa
+# flat-layout bug'ı mı olduğu izole edilemediği için). flat-layout bug'ı sonradan düzeldi;
+# lto bu gerçek feed üzerinde notice-histogram + skor kapısıyla yeniden doğrulandı → çıktı
+# (per-rule sayılar, R1–R9, metrikler) lto=false ile BİREBİR aynı. wasm32 FP'si deterministik
+# ve Rust FP reassociation yapmadığı için lto yalnızca kod üretimini hızlandırır, mantığı değil.
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1

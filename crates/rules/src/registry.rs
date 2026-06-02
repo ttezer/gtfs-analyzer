@@ -1207,9 +1207,20 @@ pub static RULES: &[RuleMeta] = &[
         "Aynı shape feed hatlarının %30'undan fazlasında kullanılıyor — olası yanlış shape ataması"),
 ];
 
+/// `RULES` üzerinden id → metadata için tek seferlik kurulan O(1) arama tablosu.
+/// `RULES` derleme-zamanı sabiti olduğundan ilk çağrıda bir kez kurulur; sonraki
+/// çağrılar lineer tarama yerine hash-lookup yapar. `OnceLock` thread-safe →
+/// `pkg-threads` (rayon) build'inde de güvenli. Çıktı/dönüş değeri lineer taramayla
+/// BİREBİR aynıdır (ID'ler `no_duplicate_ids` testiyle benzersiz garantili).
+fn rule_index() -> &'static std::collections::HashMap<&'static str, &'static RuleMeta> {
+    static IDX: std::sync::OnceLock<std::collections::HashMap<&'static str, &'static RuleMeta>> =
+        std::sync::OnceLock::new();
+    IDX.get_or_init(|| RULES.iter().map(|r| (r.id, r)).collect())
+}
+
 /// Kural ID'sine göre metadata döndürür.
 pub fn get_rule(id: &str) -> Option<&'static RuleMeta> {
-    RULES.iter().find(|r| r.id == id)
+    rule_index().get(id).copied()
 }
 
 #[cfg(test)]
