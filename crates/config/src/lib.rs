@@ -35,6 +35,7 @@ const DEF_MAX_TRIP_DURATION_HOURS:  f64 =  24.0;
 const DEF_MIN_TRIP_DURATION_SEC:    u32 =  60;
 const DEF_MAX_HEADWAY_WARNING_MIN:  u32 = 240;
 const DEF_BUNCHING_THRESHOLD_MIN:   u32 =   2;
+const DEF_RAIL_STOP_DISTANCE_KM:    f64 = 500.0;
 
 /// Validator parametreleri. Tüm eşikler architecture v0.8 Bölüm 6'dan.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -57,6 +58,8 @@ pub struct ValidatorConfig {
     pub min_trip_duration_sec:    u32,
     pub max_headway_warning_min:  u32,
     pub bunching_threshold_min:   u32,
+    /// Demiryolu (route_type 2/12/100-117) seferleri için STM_026 durak arası mesafe eşiği (km).
+    pub rail_stop_distance_km:    f64,
     /// Takvim override kuralları — OPR_021/022/023 için.
     /// Boş liste varsayılan; override analizi yapılmaz.
     pub calendar_override_rules: Vec<CalendarOverrideRule>,
@@ -83,6 +86,7 @@ impl Default for ValidatorConfig {
             min_trip_duration_sec:    DEF_MIN_TRIP_DURATION_SEC,
             max_headway_warning_min:  DEF_MAX_HEADWAY_WARNING_MIN,
             bunching_threshold_min:   DEF_BUNCHING_THRESHOLD_MIN,
+            rail_stop_distance_km:    DEF_RAIL_STOP_DISTANCE_KM,
             calendar_override_rules:  Vec::new(),
         }
     }
@@ -152,6 +156,7 @@ fn validate_ranges(cfg: &ValidatorConfig) -> Result<(), String> {
     chk_u32!(cfg.min_trip_duration_sec,    "min_trip_duration_sec",       10,   300);
     chk_u32!(cfg.max_headway_warning_min,  "max_headway_warning_min",     60,   720);
     chk_u32!(cfg.bunching_threshold_min,   "bunching_threshold_min",       1,    10);
+    chk_f64!(cfg.rail_stop_distance_km,    "rail_stop_distance_km",       50.0, 2000.0);
     Ok(())
 }
 
@@ -172,7 +177,7 @@ pub fn merge_delta(base: &ValidatorConfig, delta_json: &str) -> Result<Validator
         "min_transfer_time_sec", "max_transfer_distance_m", "max_shape_jump_km",
         "stop_too_close_m", "stop_far_from_shape_m", "stop_far_from_parent_m", "feed_expiry_warning_days",
         "service_gap_days", "max_trip_duration_hours", "min_trip_duration_sec",
-        "max_headway_warning_min", "bunching_threshold_min",
+        "max_headway_warning_min", "bunching_threshold_min", "rail_stop_distance_km",
         "calendar_override_rules",
     ];
     let unknown: Vec<&str> = map.keys()
@@ -224,6 +229,7 @@ pub fn merge_delta(base: &ValidatorConfig, delta_json: &str) -> Result<Validator
     apply_u32!("min_trip_duration_sec",    cfg.min_trip_duration_sec);
     apply_u32!("max_headway_warning_min",  cfg.max_headway_warning_min);
     apply_u32!("bunching_threshold_min",   cfg.bunching_threshold_min);
+    apply_f64!("rail_stop_distance_km",    cfg.rail_stop_distance_km);
 
     if let Some(v) = map.get("calendar_override_rules") {
         cfg.calendar_override_rules = serde_json::from_value(v.clone())

@@ -307,6 +307,12 @@ fn seg_min_dist_km(
     if min_sq <= safe_sq { 0.0 } else { haversine_km(slat, slon, best_lat, best_lon) }
 }
 
+/// Demiryolu/tren route_type'ı mı? (STM_017 / STM_026 için)
+/// GTFS: 2=Rail, 12=Monorail, 100-117 genişletilmiş tren tipleri.
+fn is_rail_route_type(route_type: u32) -> bool {
+    route_type == 2 || route_type == 12 || (100..=117).contains(&route_type)
+}
+
 /// route_type → config'ten hız eşiği (km/h)
 fn max_speed_kmh(route_type: u32, cfg: &ValidatorConfig) -> f64 {
     match route_type {
@@ -809,12 +815,18 @@ fn check_speed_and_duration(
 
             // STM_026: durak arası mesafe çok uzun — shape arc projeksiyon hataları olabileceğinden
             // straight-line (haversine) mesafesiyle kontrol edilir; gerçek sorun varsa o da büyük olur.
-            if haver_km > 50.0 {
+            // Demiryolu seferleri için daha yüksek eşik (config.rail_stop_distance_km).
+            let stm026_threshold = if is_rail_route_type(route_type) {
+                config.rail_stop_distance_km
+            } else {
+                50.0
+            };
+            if haver_km > stm026_threshold {
                 let mut n026 = k6_notice(
                     ctr, "STM_026", EntityType::Trip,
                     Some(trip_id.to_string()), Some(trip_id.to_string()),
                     "stop_times.txt", Some(b.line), Some("stop_id"),
-                    Some(format!("{dist_km:.1} km")), Some("<= 50 km".to_string()),
+                    Some(format!("{dist_km:.1} km")), Some(format!("<= {stm026_threshold:.0} km")),
                     format!("trip_id '{trip_id}' stop_sequence {}-{} arası mesafe {dist_km:.1} km.",
                         a.stop_sequence.unwrap_or(0), b.stop_sequence.unwrap_or(0)),
                     "stops.txt koordinatlarını ve stop_times.txt sırasını doğrulayın.",
@@ -3157,6 +3169,9 @@ fn check_remaining_analytics(
     let trip_to_route_rem: FxHashMap<&str, &str> = records.trips.iter()
         .map(|t| (t.trip_id.as_str(), t.route_id.as_str()))
         .collect();
+    let route_type_rem: FxHashMap<&str, u32> = records.routes.iter()
+        .filter_map(|r| r.route_type.map(|rt| (r.route_id.as_str(), rt)))
+        .collect();
     let trip_first_dep: FxHashMap<&str, (u32, u32, u32)> = idx.by_trip.iter()
         .filter_map(|(&tid, sts)| sts.first().and_then(|s| s.departure_time).map(|d| (tid, d)))
         .collect();
@@ -3270,7 +3285,12 @@ fn check_remaining_analytics(
     {
         let _ts = Timer::start("K6::rem::stm_017");
         for (&trip_id, &line) in &idx.trips_missing_sdt {
-            let route = trip_to_route_rem.get(trip_id).copied().unwrap_or(trip_id);
+            let route_id = trip_to_route_rem.get(trip_id).copied().unwrap_or(trip_id);
+            let rt = route_type_rem.get(route_id).copied().unwrap_or(3);
+            if is_rail_route_type(rt) {
+                continue; // intercity rail shape_dist_traveled sağlamaz — beklenen davranış
+            }
+            let route = route_id;
             let dep = trip_first_dep.get(trip_id)
                 .map(|(h, m, _)| format!("{h:02}:{m:02}"))
                 .unwrap_or_default();
