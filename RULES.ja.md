@@ -170,7 +170,7 @@
 | STM_014 | セグメントで速度超過 | 高 | 分析 |
 | STM_015 | 最初の停留所にdeparture_timeなし | 致命的 | 仕様 |
 | STM_016 | 最後の停留所にarrival_timeなし | 致命的 | 仕様 |
-| STM_017 | stop_timesにshape_dist_traveledなし | 中 | 相互運用 |
+| STM_017 | stop_timesにshape_dist_traveledなし（鉄道路線を除く） | 中 | 相互運用 |
 | STM_018 | stop_timesのcontinuous_pickupが無効 | 中 | 仕様 |
 | STM_019 | stop_timesのcontinuous_drop_offが無効 | 中 | 仕様 |
 | STM_020 | 距離 > 200mでの走行時間ゼロ | 高 | 品質 |
@@ -179,7 +179,7 @@
 | STM_023 | stop_timesの行順序が不正 | 致命的 | 仕様 |
 | STM_024 | shape_dist_traveled単位の不一致（stop_times対shapes比率） | 情報 | 品質 |
 | STM_025 | 走行時間が短すぎる | 中 | 品質 |
-| STM_026 | 停留所間距離が超過 | 高 | 品質 |
+| STM_026 | 停留所間距離が超過（鉄道閾値：500km） | 高 | 品質 |
 | STM_027 | shape_dist_traveledが減少 | 高 | 相互運用 |
 | STM_028 | 便の総所要時間が上限超過 | 高 | 分析 |
 | STM_029 | 便の総所要時間が下限未満 | 中 | 分析 |

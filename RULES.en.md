@@ -170,7 +170,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | STM_014 | Excessive speed in segment | HIGH | Analytics |
 | STM_015 | Missing first timepoint | CRITICAL | Spec |
 | STM_016 | Missing last timepoint | CRITICAL | Spec |
-| STM_017 | Shape distance missing in stop times | MEDIUM | Interop |
+| STM_017 | Shape distance missing in stop times (rail routes exempt) | MEDIUM | Interop |
 | STM_018 | continuous_pickup invalid (stop_times) | MEDIUM | Spec |
 | STM_019 | continuous_drop_off invalid (stop_times) | MEDIUM | Spec |
 | STM_020 | Zero travel time (distance > 200m) | HIGH | Quality |
@@ -179,7 +179,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | STM_023 | stop_times row ordering corrupted | CRITICAL | Spec |
 | STM_024 | shape_dist_traveled unit inconsistency (stop_times vs shapes ratio) | INFO | Quality |
 | STM_025 | Travel time too short | MEDIUM | Quality |
-| STM_026 | Excessive distance between stops | HIGH | Quality |
+| STM_026 | Excessive distance between stops (rail threshold: 500km) | HIGH | Quality |
 | STM_027 | shape_dist_traveled not monotonically increasing | HIGH | Interop |
 | STM_028 | Trip duration too long | HIGH | Analytics |
 | STM_029 | Trip duration too short | MEDIUM | Analytics |

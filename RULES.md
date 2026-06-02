@@ -170,7 +170,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | STM_014 | Segmentte aşırı hız | YÜKSEK | Analytics |
 | STM_015 | İlk duraklama noktası yok | KRİTİK | Spec |
 | STM_016 | Son duraklama noktası yok | KRİTİK | Spec |
-| STM_017 | Sefer saatlerinde güzergah mesafesi eksik | ORTA | Interop |
+| STM_017 | Sefer saatlerinde güzergah mesafesi eksik (demiryolu hariç) | ORTA | Interop |
 | STM_018 | continuous_pickup geçersiz (stop_times) | ORTA | Spec |
 | STM_019 | continuous_drop_off geçersiz (stop_times) | ORTA | Spec |
 | STM_020 | Sıfır geçiş süresi (mesafe > 200m) | YÜKSEK | Quality |
@@ -179,7 +179,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | STM_023 | stop_times satır sıralaması bozuk | KRİTİK | Spec |
 | STM_024 | shape_dist_traveled birim tutarsızlığı (stop_times vs shapes oranı) | BİLGİ | Quality |
 | STM_025 | Seyahat süresi çok kısa | ORTA | Quality |
-| STM_026 | Durak arası mesafe aşırı uzun | YÜKSEK | Quality |
+| STM_026 | Durak arası mesafe aşırı uzun (demiryolu eşiği: 500km) | YÜKSEK | Quality |
 | STM_027 | shape_dist_traveled monoton artmıyor | YÜKSEK | Interop |
 | STM_028 | Sefer süresi çok uzun | YÜKSEK | Analytics |
 | STM_029 | Sefer süresi çok kısa | ORTA | Analytics |
