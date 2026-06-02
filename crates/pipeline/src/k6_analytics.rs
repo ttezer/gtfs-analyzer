@@ -744,13 +744,16 @@ fn check_speed_and_duration(
             }
             let dt_sec = arr - dep;
 
-            // Mesafe: shape polyline projeksiyonu (varsa) ya da Haversine fallback
+            // Mesafe: shape polyline projeksiyonu (varsa) ya da Haversine fallback.
+            // Ray (metro/tren) seferleri için projeksiyon atlanır: düz/tünel hatlar
+            // haversine ile yeterince temsil edilir; winding shapes false positive üretebilir.
             let (c1, c2) = match (coords_buf[i], coords_buf[i + 1]) {
                 (Some(c1), Some(c2)) => (c1, c2),
                 _ => continue,
             };
             let haver_km = haversine_km(c1.0, c1.1, c2.0, c2.1);
-            let dist_km = trip_shape_speed.get(trip_id)
+            let dist_km = if is_rail_route_type(route_type) { haver_km } else {
+            trip_shape_speed.get(trip_id)
                 .and_then(|&sid| {
                     let pts = shape_pts_speed.get(sid)?;
                     let cum = shape_cum_speed.get(sid)?;
@@ -764,7 +767,8 @@ fn check_speed_and_duration(
                     let d = (arc_b - arc_a).abs();
                     if d > 1e-6 { Some(d) } else { None }
                 })
-                .unwrap_or(haver_km);
+                .unwrap_or(haver_km)
+            };
 
             if dist_km < 1e-6 {
                 if a.stop_id == b.stop_id {
