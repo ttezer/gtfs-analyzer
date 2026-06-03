@@ -376,7 +376,10 @@ pub static RULES: &[RuleMeta] = &[
         "Bisiklet izni (bikes_allowed) belirtilmemiş"),
     r!("TRP_022", Yuksek, Spec,    3, &[], Some("trip_id"), VS, Entity,
         "Block içinde çakışan sefer saatleri"),
-    r!("TRP_023", Dusuk,  Quality, 1, &[], None, VS, Feed,
+    // Feed genelinde 7 günde hiç aktif sefer yoksa TRP_023 (feed-level, None scope)
+    // tek kök mesajdır ve her sefer için tekrar eden TRP_030 spam'ini bastırır.
+    // (Eski yön TRP_030→TRP_023 scope uyumsuzluğundan etkisizdi.)
+    r!("TRP_023", Dusuk,  Quality, 1, &["TRP_030"], None, VS, Feed,
         "Önümüzdeki 7 günde aktif sefer yok"),
     r!("TRP_024", Dusuk,  Interop, 1, &[], Some("trip_id"), VI, Entity,
         "Block içinde tutarsız rota tipi"),
@@ -388,7 +391,7 @@ pub static RULES: &[RuleMeta] = &[
         "Bazı seferler tekerlekli sandalye erişilebilirliği işaretlememiş"),
     r!("TRP_029", Bilgi, Quality, 1, &[], None, VS, Feed,
         "Hiçbir sefer tekerlekli sandalye erişilebilirliği bildirmemiş"),
-    r!("TRP_030", Dusuk, Quality, 1, &["TRP_023"], Some("trip_id"), VS, Entity,
+    r!("TRP_030", Dusuk, Quality, 1, &[], Some("trip_id"), VS, Entity,
         "Sefer önümüzdeki 7 günde aktif değil"),
 
     // ── STM: Stop Times ────────────────────────────────────────────────────────
@@ -559,7 +562,7 @@ pub static RULES: &[RuleMeta] = &[
     r!("CAL_018", Dusuk,  Quality,   1, &[], Some("service_id"), VS, Entity,
         "Servisin aktif haftanın günü yok (tüm günler 0, calendar_dates ile geçersiz kılınan yok)"),
     r!("CAL_019", Dusuk,  Quality,   1, &[], Some("service_id"), VS, Entity,
-        "Ham takvim aralığı feed_info geçerlilik penceresini aşıyor (CAL_014: aktif tarihler üzerinden)"),
+        "Ham takvim aralığı feed_info geçerlilik penceresini aşıyor"),
     r!("CAL_020", Dusuk,  Quality,   1, &[], None, VS, Feed,
         "Feed geçerlilik penceresi 5 yılı aşıyor — gerçekçi olmayan zaman dilimi"),
 
@@ -706,7 +709,9 @@ pub static RULES: &[RuleMeta] = &[
         "in-seat aktarma geçersiz"),
     r!("TRF_016", Orta,   Spec, 2, &[], None, VS, Row,
         "Aktarma koşulu çelişkili"),
-    r!("TRF_017", Yuksek, Spec, 2, &[], None, VS, Row,
+    // XFL_020 aynı (trip, route) uyumsuzluğunu kontrol eder; çift raporlamayı
+    // önlemek için TRF_017 kök kuraldır ve XFL_020'yi semptom olarak bastırır.
+    r!("TRF_017", Yuksek, Spec, 2, &["XFL_020"], None, VS, Row,
         "Sefer aktarması yanlış hat"),
     r!("TRF_018", Yuksek, Spec, 2, &[], None, VS, Row,
         "Sefer aktarması aynı seferi gösteriyor"),
@@ -1041,7 +1046,10 @@ pub static RULES: &[RuleMeta] = &[
         "level_id geçersiz"),
     r!("XFL_010", Kritik, Spec, 1, &[], Some("trip_id"), VS_K, Entity,
         "frequencies'te tanımsız trip_id"),
-    r!("XFL_011", Orta,   Interop, 2, &[], None, VI, Feed,
+    // XFL_011 (Interop, iki feed tarihi de zorunlu) ile CAL_019 (Quality) aynı
+    // ham calendar–feed_info karşılaştırmasını yapar. XFL_011 tetiklendiğinde
+    // aynı service_id scope'undaki CAL_019 semptom olarak bastırılır (çift rapor önlenir).
+    r!("XFL_011", Orta,   Interop, 2, &["CAL_019"], None, VI, Feed,
         "Takvim tarihleri feed_info aralığı dışında"),
     r!("XFL_012", Yuksek, Quality, 2, &[], Some("route_id"), VS, Entity,
         "Çalıştırılabilir seferi olmayan hat (stop_times veya aktif servis bağlamı eksik)"),

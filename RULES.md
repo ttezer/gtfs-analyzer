@@ -239,7 +239,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | CAL_016 | Servis çok uzak bir gelecek tarihine kadar uzanıyor | BİLGİ | Quality |
 | CAL_017 | Takvim henüz başlamamış (tüm aktif tarihler gelecekte) | DÜŞÜK | Quality |
 | CAL_018 | Haftalık bazda tüm günler pasif ve calendar_dates override da yok | DÜŞÜK | Quality |
-| CAL_019 | Ham takvim aralığı feed_info penceresini aşıyor (CAL_014: aktif tarihler üzerinden) | DÜŞÜK | Quality |
+| CAL_019 | Ham takvim aralığı feed_info geçerlilik penceresini aşıyor | DÜŞÜK | Quality |
 | CAL_020 | Feed geçerlilik penceresi 5 yılı aşıyor | DÜŞÜK | Quality |
 
 ## CLD — Calendar Dates

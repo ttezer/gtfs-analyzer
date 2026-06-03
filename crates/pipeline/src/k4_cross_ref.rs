@@ -1983,7 +1983,10 @@ fn check_translations(
     ctr: &mut u32,
 ) {
     let feed_lang = records.feed_info.first().map(|fi| fi.feed_lang.as_str()).unwrap_or("");
-    let mut seen: HashSet<String> = HashSet::new();
+    // key → ilk görülen translation değeri. Aynı key tekrar görülürse:
+    //   değer aynı  → TRN_005 (birebir yinelenen çeviri)
+    //   değer farklı → TRN_006 (çelişkili çeviri; hangisi geçerli belirsiz)
+    let mut seen: HashMap<String, String> = HashMap::new();
 
     for rec in &records.translations {
         // TRN_004: record_id başvurulan kayıt bulunamadı
@@ -2052,24 +2055,50 @@ fn check_translations(
             rec.record_id.as_deref().unwrap_or(""),
             rec.record_sub_id.as_deref().unwrap_or(""),
         );
-        if !seen.insert(key) {
-            notices.push(notice(
-                ctr,
-                "TRN_006",
-                EntityType::Translation,
-                None,
-                None,
-                "translations.txt",
-                Some(rec.line),
-                None,
-                Some(format!("{}/{}/{}", rec.table_name, rec.field_name, rec.language)),
-                None,
-                format!(
-                    "table_name='{}', field_name='{}', language='{}' kombinasyonu tekrarlanıyor.",
-                    rec.table_name, rec.field_name, rec.language
-                ),
-                "Aynı kayıt için aynı dilde yalnızca bir çeviri tanımlayın.",
-            ));
+        match seen.get(&key) {
+            None => {
+                seen.insert(key, rec.translation.clone());
+            }
+            Some(prev) if *prev == rec.translation => {
+                // TRN_005: aynı anahtar + aynı çeviri değeri → birebir yinelenen satır
+                notices.push(notice(
+                    ctr,
+                    "TRN_005",
+                    EntityType::Translation,
+                    None,
+                    None,
+                    "translations.txt",
+                    Some(rec.line),
+                    None,
+                    Some(format!("{}/{}/{}", rec.table_name, rec.field_name, rec.language)),
+                    None,
+                    format!(
+                        "table_name='{}', field_name='{}', language='{}' için aynı çeviri değeri ('{}') birden çok satırda tekrarlanıyor.",
+                        rec.table_name, rec.field_name, rec.language, rec.translation
+                    ),
+                    "Yinelenen çeviri satırını kaldırın.",
+                ));
+            }
+            Some(_) => {
+                // TRN_006: aynı anahtar + farklı çeviri değeri → çelişki
+                notices.push(notice(
+                    ctr,
+                    "TRN_006",
+                    EntityType::Translation,
+                    None,
+                    None,
+                    "translations.txt",
+                    Some(rec.line),
+                    None,
+                    Some(format!("{}/{}/{}", rec.table_name, rec.field_name, rec.language)),
+                    None,
+                    format!(
+                        "table_name='{}', field_name='{}', language='{}' kombinasyonu farklı çeviri değerleriyle tekrarlanıyor; hangisinin geçerli olduğu belirsiz.",
+                        rec.table_name, rec.field_name, rec.language
+                    ),
+                    "Aynı kayıt için aynı dilde yalnızca bir çeviri tanımlayın.",
+                ));
+            }
         }
     }
 }
@@ -3387,7 +3416,7 @@ mod tests {
     // �"?�"? TRN_006 �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?
 
     #[test]
-    fn duplicate_translation_key_produces_trn_006() {
+    fn identical_translation_rows_produce_trn_005() {
         use crate::k2::translations::TranslationRecord;
         let (mut recs, _map) = empty();
         let base = TranslationRecord {
@@ -3397,9 +3426,32 @@ mod tests {
             record_sub_id: None, field_value: None,
             row: Default::default(), line: 2,
         };
+        // Aynı anahtar + aynı değer → birebir kopya → TRN_005
         recs.translations = vec![base.clone(), TranslationRecord { line: 3, ..base }];
         let result = check(&recs, &EntityMap::default(), 20260515);
+        assert!(result.notices.iter().any(|n| n.rule_id == "TRN_005"));
+        assert!(!result.notices.iter().any(|n| n.rule_id == "TRN_006"));
+    }
+
+    #[test]
+    fn conflicting_translation_key_produces_trn_006() {
+        use crate::k2::translations::TranslationRecord;
+        let (mut recs, _map) = empty();
+        let base = TranslationRecord {
+            table_name: "stops".into(), field_name: "stop_name".into(),
+            language: "tr".into(), translation: "Durak".into(),
+            record_id: Some("S1".into()),
+            record_sub_id: None, field_value: None,
+            row: Default::default(), line: 2,
+        };
+        // Aynı anahtar + farklı değer → çelişki → TRN_006
+        recs.translations = vec![
+            base.clone(),
+            TranslationRecord { line: 3, translation: "İstasyon".into(), ..base },
+        ];
+        let result = check(&recs, &EntityMap::default(), 20260515);
         assert!(result.notices.iter().any(|n| n.rule_id == "TRN_006"));
+        assert!(!result.notices.iter().any(|n| n.rule_id == "TRN_005"));
     }
 
     // �"?�"? XFL_003 �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?

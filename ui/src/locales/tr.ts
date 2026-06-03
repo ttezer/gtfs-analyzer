@@ -570,7 +570,7 @@ const tr = {
     'CAL_016': 'Servis çok uzak bir gelecek tarihine kadar uzanıyor',
     'CAL_017': 'Takvim henüz başlamamış (tüm aktif tarihler gelecekte)',
     'CAL_018': 'Servisin aktif haftanın günü yok (tüm günler 0, calendar_dates ile geçersiz kılınan yok)',
-    'CAL_019': 'Ham takvim aralığı feed_info penceresini aşıyor (CAL_014: aktif tarihler üzerinden)',
+    'CAL_019': 'Ham takvim aralığı feed_info geçerlilik penceresini aşıyor',
     'CAL_020': 'Feed geçerlilik penceresi 5 yılı aşıyor',
     // CLD
     'CLD_001': 'service_id eksik',
