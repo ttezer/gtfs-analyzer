@@ -2,17 +2,30 @@
 
 🇹🇷 [Türkçe](README.md) · 🇬🇧 [English](README.en.md) · 🇯🇵 **日本語**
 
-完全にブラウザ上で動作する、オープンソースかつクライアントサイドのみの GTFS（General Transit Feed Specification）バリデーターです。アップロードされた zip ファイルはサーバーに送信されることはなく、すべての処理はユーザーのブラウザ内の WebAssembly で行われます。
+[![アプリを開く](https://img.shields.io/badge/%E3%82%A2%E3%83%97%E3%83%AA%E3%82%92%E9%96%8B%E3%81%8F-gtfs--analyzer-2ea44f?style=flat&logo=googlechrome&logoColor=white)](https://ttezer.github.io/gtfs-analyzer/)
+![Rust](https://img.shields.io/badge/Rust-000000?style=flat&logo=rust&logoColor=white)
+![WebAssembly](https://img.shields.io/badge/WebAssembly-654FF0?style=flat&logo=webassembly&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat&logo=typescript&logoColor=white)
+![Vite](https://img.shields.io/badge/Vite-646CFF?style=flat&logo=vite&logoColor=white)
+![Privacy](https://img.shields.io/badge/100%25-%E3%82%AF%E3%83%A9%E3%82%A4%E3%82%A2%E3%83%B3%E3%83%88%E3%82%B5%E3%82%A4%E3%83%89-2ea44f?style=flat&logo=shield&logoColor=white)
+![Rules](https://img.shields.io/badge/473-%E3%83%AB%E3%83%BC%E3%83%AB-blue?style=flat)
+![Languages](https://img.shields.io/badge/%E8%A8%80%E8%AA%9E-TR%20%C2%B7%20EN%20%C2%B7%20JA-informational?style=flat)
+[![License MIT](https://img.shields.io/badge/%E3%83%A9%E3%82%A4%E3%82%BB%E3%83%B3%E3%82%B9-MIT-yellow?style=flat)](LICENSE)
 
-既存の GTFS バリデーターの多くは仕様への準拠チェックのみを行い、エラーの一覧を出力するだけです。GTFS Analyzer はさらに数段階上を行きます。問題が含まれているファイルと行番号を正確に示し、各問題に対するステップごとの修正ガイダンスを提供し、地理的なエラー（経路の逸脱、座標の異常、到達不能な停留所など）をインタラクティブな地図上にマーキングします。すべての検出結果は、ファイルおよびコンポーネントレベルのルールコード（`ARC_`、`STP_`、`STM_` など）、4 つのクラス（Spec・Interop・Quality・Analytics）のいずれか、および 5 つの重大度レベル（Critical → Info）のいずれかでタグ付けされており、数千件の通知を横断してフィルタリング、優先順位付け、自動化が容易に行えます。フィードで使用されている GTFS 機能（Shapes、Transfers、Fares、Headsigns、Flex など）は自動検出され、レポートに反映されます。
+GTFS Analyzer は、GTFS ファイルをブラウザ上で直接検証・分析するオープンソースのツールです。アップロードされた .zip ファイルはいかなるサーバーにも送信されず、すべての処理は WebAssembly によってユーザーのデバイス上で実行されます。
 
-仕様への準拠チェックにとどまらず、運用品質も測定します。路線ごとの運行頻度の不整合、異常な速度区間、孤立した停留所、サービスパターンの欠落、ネットワークトポロジーの問題など、473 個のルールにわたって解析します。結果は 2 つの独立したスコアで要約され、修正キューが「最初に何を修正すべきか」に自動的に回答し、各修正がスコアに与える貢献を表示します。
+GTFS Analyzer は、ファイルが仕様に準拠しているかどうかをチェックするだけではありません。フィードがどれだけ信頼でき、一貫性があり、利用可能であるかも分析します。エラーを該当するファイルと行番号とともに表示し、各検出結果に対する修正手順を提示し、地理的な問題 — 例えば逸脱した経路、壊れた座標、到達不能な停留所など — をインタラクティブな地図上にマーキングします。
 
-**利用対象者：**
-- 交通事業者や自治体 — フィードを公開する前に
-- GTFS インテグレーターやコンサルタント — 納品品質の検証のために
-- アプリケーション開発者 — 利用するフィードの信頼性を評価するために
-- 研究者やアナリスト — ネットワーク品質のベンチマークのために
+すべての検出結果には、ルールコード、分析クラス、重大度レベルが付与されます。Spec・Interop・Quality・Analytics のクラスと Critical → Info の重大度レベルにより、数千件の検出結果をフィルタリングし、優先順位付けし、体系的に処理できます。また本ツールは、フィードが使用している GTFS 機能 — Shapes、Transfers、Fares、Headsigns、Flex など — を自動的に検出してレポートに含めます。
+
+GTFS Analyzer は、仕様検証を運用品質分析へと拡張します。路線ごとの運行頻度の不整合、異常な速度区間、孤立した停留所、サービスパターンの欠落、ネットワークトポロジーの問題を、473 個の異なる検証・分析ルールで精査します。結果は、準拠性と品質を別々に評価するスコアで要約されます。優先順位付けされた修正キューは、どの問題を最初に対処すべきか、および各修正がスコアに与える可能性のある影響を示します。
+
+**対象ユーザー**
+
+- **交通事業者・自治体** — フィードを公開する前に検証し、品質上の問題を解消するため。
+- **GTFS インテグレーター・コンサルタント** — 納品データの技術的・運用的な品質を文書化するため。
+- **アプリケーション開発者** — 利用するフィードの信頼性と統合リスクを評価するため。
+- **研究者・アナリスト** — 異なる交通ネットワークをデータ品質と構造の観点で比較するため。
 
 ---
 
@@ -20,40 +33,59 @@
 
 ### 機能比較表
 
-| 機能 | MobilityData | France Transport | GTFS Guru | GTFS Analyzer |
-|---|:---:|:---:|:---:|:---:|
-| Web インターフェース | ✅ | ✅ | ✅ | ✅ |
-| データがブラウザから出ない | ❌ | ❌ | ✅ | ✅ |
-| 仕様準拠ルール | ✅ | ✅ | ✅ | ✅ |
-| 品質ルール | ❌ | 一部 | ❌ | ✅ |
-| 運用アナリティクス | ❌ | ❌ | ❌ | ✅ |
-| 地図の可視化 | ❌ | 停留所のみ | ❌ | 停留所・経路・便・路線・通路 |
-| フィードスコア | ❌ | ❌ | ❌ | ✅ |
-| 修正ガイダンス | 一部 | ❌ | ❌ | ✅ |
-| GTFS Flex サポート | 一部 | ❌ | ❌ | ✅ |
-| 出力形式 | HTML, JSON | Web（パーマリンク） | HTML, JSON | HTML, CSV, JSON, PDF |
-| プラットフォーム | Web | Web | Web, CLI, デスクトップ | Web *（CLI・デスクトップは計画中）* |
-| **総ルール数** | **178** | **~80** | **~120** | **473** |
+| 機能 | MobilityData | GTFS Guru | GTFS Analyzer |
+|---|:---:|:---:|:---:|
+| Web インターフェース | ✅ | ✅ | ✅ |
+| データがブラウザから出ない | ❌ | ✅ | ✅ |
+| 仕様準拠ルール | ✅ | ✅ | ✅ |
+| 品質ルール | ❌ | ❌ | ✅ |
+| 運用アナリティクス | ❌ | ❌ | ✅ |
+| 地図の可視化 | ❌ | ❌ | 停留所・経路・便・路線・通路 |
+| フィードスコア | ❌ | ❌ | ✅ |
+| 修正ガイダンス | 一部 | ❌ | ✅ |
+| GTFS Flex サポート | 一部 | ❌ | ✅ |
+| Fares v2 検証 | ❌ | ❌ | ✅ |
+| 出力形式 | HTML, JSON | HTML, JSON | HTML, CSV, JSON, PDF |
+| プラットフォーム | Web | Web, CLI, デスクトップ | Web *（CLI・デスクトップは計画中）* |
+| **総ルール数** | **178** | **~120** | **473** |
 
-### BART GTFS フィード例
+### フィード分析の例
 
-BART（ベイエリア高速鉄道、サンフランシスコ）のフィードを 4 つのバリデーターでテストしました。  
-フィード：`BART (San Francisco).zip` — 2026-05-25 ダウンロード版（有効期間：2026-01-12〜2026-08-07）。  
-使用バージョン：MobilityData gtfs-validator v8.0.1・France Transport（transport.data.gouv.fr、2026 年 5 月版）・GTFS Guru v0.1.0・GTFS Analyzer v0.1.2。
+同じフィードを 3 つのバリデーターで比較しました：MobilityData gtfs-validator v8.0.1・GTFS Guru v0.1.0・GTFS Analyzer v0.1.2。
 
-| | MobilityData | France Transport | GTFS Guru | GTFS Analyzer |
-|---|---:|---:|---:|---:|
-| 総通知数 | 2,725 | 6 ⚠️ | 2,663 | 6,684 |
-| Critical / Error | 2 | 1 | 1 | 3 |
-| High / Warning | 2,655 | 0 | 2,655 | 5,128 |
-| Medium | — | — | — | 554 |
-| Low | — | — | — | 500 |
-| Info | 68 | 5 | 7 | 499 |
-| 発動した個別ルール種別数 | 13 | 2 | 13 | **45** |
-| 公開スコア | — | — | — | **79.4 / 100** |
-| 品質スコア | — | — | — | **80.1 / 100** |
+#### BART（ベイエリア高速鉄道、サンフランシスコ）
 
-> ⚠️ France Transport は `rider_category_name` フィールドの欠落により検証を完了できませんでした。
+フィード：`BART (San Francisco).zip` — 2026-05-25 ダウンロード版（有効期間：2026-01-12〜2026-08-07）・14 路線、287 停留所、4,455 便。
+
+| | MobilityData | GTFS Guru | GTFS Analyzer |
+|---|---:|---:|---:|
+| 総通知数 | 2,725 | 2,663 | 3,256 |
+| Critical / Error | 2 | 1 | 3 |
+| High / Warning | 2,655 | 2,655 | 150 |
+| Medium | — | — | 1,060 |
+| Low | — | — | 1,015 |
+| Info | 68 | 7 | 1,028 |
+| 発動した個別ルール種別数 | 13 | 10 | **50** |
+| 公開スコア | — | — | **87.7 / 100** |
+| 品質スコア | — | — | **80.6 / 100** |
+
+#### TriMet（ポートランド、オレゴン）
+
+フィード：`trimet.zip` — 2026-06-04 ダウンロード版（有効期間：2026-04-26〜2026-08-22）・89 路線、6,395 停留所、48,146 便。
+
+| | MobilityData | GTFS Guru | GTFS Analyzer |
+|---|---:|---:|---:|
+| 総通知数 | 48 | 116 | 5,098 |
+| Critical / Error | 0 | 0 | 36 |
+| High / Warning | 39 | 107 | 1,657 |
+| Medium | — | — | 1,382 |
+| Low | — | — | 1,032 |
+| Info | 9 | 9 | 991 |
+| 発動した個別ルール種別数 | 7 | 7 | **59** |
+| 公開スコア | — | — | **80.6 / 100** |
+| 品質スコア | — | — | **73.5 / 100** |
+
+> ⚠️ **Fares v2：** TriMet の 36 件の重大検出はすべて GTFS Fares v2 ファイルに起因します — `fare_products.txt` の重複した `fare_product_id` 29 件、および `networks.txt` で定義されていない `fare_leg_rules.txt` 内の `network_id` 7 件です。MobilityData と GTFS Guru はこれらのファイルを検証しないため、同じ壊れた参照を重大 0 件として報告します。GTFS Analyzer のみが Fares v2 の整合性をチェックします。
 
 ---
 

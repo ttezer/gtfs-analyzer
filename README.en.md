@@ -2,17 +2,30 @@
 
 🇹🇷 [Türkçe](README.md) · 🇬🇧 **English** · 🇯🇵 [日本語](README.ja.md)
 
-An open-source, fully client-side GTFS (General Transit Feed Specification) validator that runs entirely in the browser. The uploaded zip file is never sent to a server — all processing happens in WebAssembly inside the user's browser.
+[![Open App](https://img.shields.io/badge/Open%20App-gtfs--analyzer-2ea44f?style=flat&logo=googlechrome&logoColor=white)](https://ttezer.github.io/gtfs-analyzer/)
+![Rust](https://img.shields.io/badge/Rust-000000?style=flat&logo=rust&logoColor=white)
+![WebAssembly](https://img.shields.io/badge/WebAssembly-654FF0?style=flat&logo=webassembly&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat&logo=typescript&logoColor=white)
+![Vite](https://img.shields.io/badge/Vite-646CFF?style=flat&logo=vite&logoColor=white)
+![Privacy](https://img.shields.io/badge/100%25-client--side-2ea44f?style=flat&logo=shield&logoColor=white)
+![Rules](https://img.shields.io/badge/473-rules-blue?style=flat)
+![Languages](https://img.shields.io/badge/languages-TR%20%C2%B7%20EN%20%C2%B7%20JA-informational?style=flat)
+[![License MIT](https://img.shields.io/badge/license-MIT-yellow?style=flat)](LICENSE)
 
-Most existing GTFS validators only check specification compliance and produce an error list. GTFS Analyzer goes several steps further: it shows exactly which file and line number contains a problem, provides step-by-step remediation guidance for each issue, and marks geographic errors (route deviations, coordinate anomalies, unreachable stops, etc.) on an interactive map. Every finding is tagged with a file- and component-level rule code (`ARC_`, `STP_`, `STM_`...), one of four classes (Spec · Interop · Quality · Analytics), and one of five severity levels (Critical → Info) — making it easy to filter, prioritize, and automate across thousands of findings. The GTFS features used by a feed (Shapes, Transfers, Fares, Headsigns, Flex, etc.) are detected automatically and reflected in the report.
+GTFS Analyzer is an open-source tool that validates and analyzes GTFS files directly in the browser. The uploaded .zip file is never sent to any server; all processing is performed on the user's device via WebAssembly.
 
-Beyond specification compliance, it also measures operational quality: frequency inconsistencies per route, anomalous speed segments, isolated stops, service pattern gaps, and network topology issues — across 473 rules. Results are summarized with two independent scores; the fix queue automatically answers "what should I fix first?" and shows each fix's contribution to the score.
+GTFS Analyzer does not merely check whether a file conforms to the specification; it also analyzes how reliable, consistent, and usable the feed is. It shows errors together with the relevant file and line number, provides remediation steps for each finding, and marks geographic issues — such as deviating routes, broken coordinates, or unreachable stops — on an interactive map.
 
-**Who uses it:**
-- Transit operators and municipalities — before publishing a feed
-- GTFS integrators and consultants — to verify delivery quality
-- Application developers — to assess the reliability of feeds they consume
-- Researchers and analysts — to benchmark network quality
+Every finding is tagged with a rule code, an analysis class, and a severity level. Thanks to the Spec · Interop · Quality · Analytics classes and the Critical → Info severity levels, thousands of findings can be filtered, prioritized, and handled systematically. The tool also automatically detects the GTFS features used by the feed — Shapes, Transfers, Fares, Headsigns, Flex, and the like — and includes them in the report.
+
+GTFS Analyzer extends specification validation with operational quality analysis. Frequency inconsistencies per route, anomalous speed segments, isolated stops, gaps in service patterns, and network topology problems are examined with 473 distinct validation and analysis rules. Results are summarized with separate scores that evaluate compliance and quality independently. The prioritized fix queue shows which issues should be addressed first and the likely impact of each fix on the score.
+
+**Who is it for?**
+
+- **Transit operators and municipalities** — To validate a feed and resolve quality issues before publishing.
+- **GTFS integrators and consultants** — To document the technical and operational quality of delivered data.
+- **Application developers** — To assess the reliability and integration risks of the feeds they consume.
+- **Researchers and analysts** — To compare different transit networks in terms of data quality and structure.
 
 ---
 
@@ -20,40 +33,59 @@ Beyond specification compliance, it also measures operational quality: frequency
 
 ### Feature Matrix
 
-| Feature | MobilityData | France Transport | GTFS Guru | GTFS Analyzer |
-|---|:---:|:---:|:---:|:---:|
-| Web interface | ✅ | ✅ | ✅ | ✅ |
-| Data never leaves the browser | ❌ | ❌ | ✅ | ✅ |
-| Spec compliance rules | ✅ | ✅ | ✅ | ✅ |
-| Quality rules | ❌ | Partial | ❌ | ✅ |
-| Operational analytics | ❌ | ❌ | ❌ | ✅ |
-| Map visualization | ❌ | Stops | ❌ | Stops, routes, trips, lines, pathways |
-| Feed score | ❌ | ❌ | ❌ | ✅ |
-| Remediation guidance | Partial | ❌ | ❌ | ✅ |
-| GTFS Flex support | Partial | ❌ | ❌ | ✅ |
-| Output formats | HTML, JSON | Web (permalink) | HTML, JSON | HTML, CSV, JSON, PDF |
-| Platform | Web | Web | Web, CLI, Desktop | Web *(CLI, Desktop planned)* |
-| **Total rules** | **178** | **~80** | **~120** | **473** |
+| Feature | MobilityData | GTFS Guru | GTFS Analyzer |
+|---|:---:|:---:|:---:|
+| Web interface | ✅ | ✅ | ✅ |
+| Data never leaves the browser | ❌ | ✅ | ✅ |
+| Spec compliance rules | ✅ | ✅ | ✅ |
+| Quality rules | ❌ | ❌ | ✅ |
+| Operational analytics | ❌ | ❌ | ✅ |
+| Map visualization | ❌ | ❌ | Stops, routes, trips, lines, pathways |
+| Feed score | ❌ | ❌ | ✅ |
+| Remediation guidance | Partial | ❌ | ✅ |
+| GTFS Flex support | Partial | ❌ | ✅ |
+| Fares v2 validation | ❌ | ❌ | ✅ |
+| Output formats | HTML, JSON | HTML, JSON | HTML, CSV, JSON, PDF |
+| Platform | Web | Web, CLI, Desktop | Web *(CLI, Desktop planned)* |
+| **Total rules** | **178** | **~120** | **473** |
 
-### BART GTFS Feed Example
+### Feed Analysis Examples
 
-The BART (Bay Area Rapid Transit, San Francisco) feed was tested with four validators.  
-Feed: `BART (San Francisco).zip` — version downloaded on 2026-05-25 (validity range: 2026-01-12–2026-08-07).  
-Versions used: MobilityData gtfs-validator v8.0.1 · France Transport (transport.data.gouv.fr, May 2026) · GTFS Guru v0.1.0 · GTFS Analyzer v0.1.2.
+The same feeds were compared with three validators: MobilityData gtfs-validator v8.0.1 · GTFS Guru v0.1.0 · GTFS Analyzer v0.1.2.
 
-| | MobilityData | France Transport | GTFS Guru | GTFS Analyzer |
-|---|---:|---:|---:|---:|
-| Total notices | 2,725 | 6 ⚠️ | 2,663 | 6,684 |
-| Critical / Error | 2 | 1 | 1 | 3 |
-| High / Warning | 2,655 | 0 | 2,655 | 5,128 |
-| Medium | — | — | — | 554 |
-| Low | — | — | — | 500 |
-| Info | 68 | 5 | 7 | 499 |
-| Distinct rule types triggered | 13 | 2 | 13 | **45** |
-| Publish score | — | — | — | **79.4 / 100** |
-| Quality score | — | — | — | **80.1 / 100** |
+#### BART (Bay Area Rapid Transit, San Francisco)
 
-> ⚠️ France Transport could not complete validation due to a missing `rider_category_name` field.
+Feed: `BART (San Francisco).zip` — version downloaded on 2026-05-25 (validity range: 2026-01-12–2026-08-07) · 14 routes, 287 stops, 4,455 trips.
+
+| | MobilityData | GTFS Guru | GTFS Analyzer |
+|---|---:|---:|---:|
+| Total notices | 2,725 | 2,663 | 3,256 |
+| Critical / Error | 2 | 1 | 3 |
+| High / Warning | 2,655 | 2,655 | 150 |
+| Medium | — | — | 1,060 |
+| Low | — | — | 1,015 |
+| Info | 68 | 7 | 1,028 |
+| Distinct rule types triggered | 13 | 10 | **50** |
+| Publish score | — | — | **87.7 / 100** |
+| Quality score | — | — | **80.6 / 100** |
+
+#### TriMet (Portland, Oregon)
+
+Feed: `trimet.zip` — version downloaded on 2026-06-04 (validity range: 2026-04-26–2026-08-22) · 89 routes, 6,395 stops, 48,146 trips.
+
+| | MobilityData | GTFS Guru | GTFS Analyzer |
+|---|---:|---:|---:|
+| Total notices | 48 | 116 | 5,098 |
+| Critical / Error | 0 | 0 | 36 |
+| High / Warning | 39 | 107 | 1,657 |
+| Medium | — | — | 1,382 |
+| Low | — | — | 1,032 |
+| Info | 9 | 9 | 991 |
+| Distinct rule types triggered | 7 | 7 | **59** |
+| Publish score | — | — | **80.6 / 100** |
+| Quality score | — | — | **73.5 / 100** |
+
+> ⚠️ **Fares v2:** All 36 critical findings for TriMet come from GTFS Fares v2 files — 29× duplicate `fare_product_id` (`fare_products.txt`) and 7× a `network_id` in `fare_leg_rules.txt` that is not defined in `networks.txt`. Because MobilityData and GTFS Guru do not validate these files, they report the same broken references as 0 critical; GTFS Analyzer alone checks Fares v2 integrity.
 
 ---
 

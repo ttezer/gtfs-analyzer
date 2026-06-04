@@ -2,17 +2,30 @@
 
 🇹🇷 **Türkçe** · 🇬🇧 [English](README.en.md) · 🇯🇵 [日本語](README.ja.md)
 
-GTFS (General Transit Feed Specification) dosyalarını tarayıcıda doğrulayan, tamamen istemci taraflı çalışan açık kaynak bir araç. Yüklenen zip dosyası sunucuya gönderilmez; tüm işlem WebAssembly ile kullanıcının tarayıcısında gerçekleşir.
+[![Uygulamayı Aç](https://img.shields.io/badge/Uygulamay%C4%B1%20A%C3%A7-gtfs--analyzer-2ea44f?style=flat&logo=googlechrome&logoColor=white)](https://ttezer.github.io/gtfs-analyzer/)
+![Rust](https://img.shields.io/badge/Rust-000000?style=flat&logo=rust&logoColor=white)
+![WebAssembly](https://img.shields.io/badge/WebAssembly-654FF0?style=flat&logo=webassembly&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat&logo=typescript&logoColor=white)
+![Vite](https://img.shields.io/badge/Vite-646CFF?style=flat&logo=vite&logoColor=white)
+![Gizlilik](https://img.shields.io/badge/%25100-istemci%20tarafl%C4%B1-2ea44f?style=flat&logo=shield&logoColor=white)
+![Kural sayısı](https://img.shields.io/badge/473-kural-blue?style=flat)
+![Diller](https://img.shields.io/badge/diller-TR%20%C2%B7%20EN%20%C2%B7%20JA-informational?style=flat)
+[![Lisans MIT](https://img.shields.io/badge/lisans-MIT-yellow?style=flat)](LICENSE)
 
-Mevcut GTFS doğrulayıcıların çoğu yalnızca spesifikasyon uyumunu kontrol eder ve hata listesi çıkarır. GTFS Analyzer bunu çok adım öteye taşır: hangi dosyanın kaçıncı satırında ne sorun olduğunu gösterir, her sorun için adım adım düzeltme talimatı sunar ve coğrafi hataları (sapan güzergah, koordinat bozukluğu, erişilemeyen durak gibi) interaktif haritada işaretler. Her bulgu dosya ve bileşen bazlı bir kural koduyla (`ARC_`, `STP_`, `STM_`...), dört sınıftan biriyle (Spec · Interop · Quality · Analytics) ve beş önem seviyesinden biriyle (Kritik → Bilgi) etiketlenir; böylece binlerce bulgu arasında filtreleme, önceliklendirme ve otomasyon kolaylaşır. Feed'in hangi GTFS özelliklerini kullandığı (Shapes, Transfers, Fares, Headsigns, Flex vb.) otomatik tespit edilir ve rapora yansıtılır.
+GTFS Analyzer, GTFS dosyalarını doğrudan tarayıcıda doğrulayan ve analiz eden açık kaynak bir araçtır. Yüklenen .zip dosyası hiçbir sunucuya gönderilmez; tüm işlemler WebAssembly ile kullanıcının cihazında gerçekleştirilir.
 
-Spesifikasyon uyumunun ötesinde operasyonel kaliteyi de ölçer: hat bazında sefer sıklığı tutarsızlıkları, anormal hız segmentleri, izole duraklar, servis desenlerindeki boşluklar ve ağ topolojisi sorunları 473 kuralla analiz edilir. Sonuçlar iki bağımsız skorla özetlenir; düzeltme kuyruğu "önce ne düzeltilmeli?" sorusunu otomatik olarak yanıtlar ve her düzeltmenin skora katkısını gösterir.
+GTFS Analyzer yalnızca dosyanın spesifikasyona uygun olup olmadığını kontrol etmez; feed'in ne kadar güvenilir, tutarlı ve kullanılabilir olduğunu da analiz eder. Hataları ilgili dosya ve satır numarasıyla birlikte gösterir, her bulgu için düzeltme adımları sunar ve coğrafi sorunları — örneğin sapan güzergâhlar, bozuk koordinatlar veya erişilemeyen duraklar — interaktif harita üzerinde işaretler.
 
-**Kimler kullanır:**
-- Toplu taşıma işletmecileri ve belediyeler — feed yayına almadan önce
-- GTFS entegratörleri ve danışmanlar — teslim kalitesini doğrulamak için
-- Uygulama geliştiriciler — tükettikleri feed'in güvenilirliğini ölçmek için
-- Araştırmacılar ve analistler — ağ kalitesini karşılaştırmak için
+Her bulgu; kural kodu, analiz sınıfı ve önem seviyesiyle etiketlenir. Spec · Interop · Quality · Analytics sınıfları ile Kritik → Bilgi önem seviyeleri sayesinde binlerce bulgu filtrelenebilir, önceliklendirilebilir ve sistematik biçimde ele alınabilir. Araç ayrıca feed'in kullandığı GTFS özelliklerini — Shapes, Transfers, Fares, Headsigns, Flex ve benzerlerini — otomatik olarak tespit ederek rapora dahil eder.
+
+GTFS Analyzer, spesifikasyon doğrulamasını operasyonel kalite analiziyle genişletir. Hat bazında sefer sıklığı tutarsızlıkları, anormal hız segmentleri, izole duraklar, servis desenlerindeki boşluklar ve ağ topolojisi problemleri 473 farklı doğrulama ve analiz kuralıyla incelenir. Sonuçlar, uyumluluk ve kaliteyi ayrı ayrı değerlendiren skorlarla özetlenir. Önceliklendirilmiş düzeltme kuyruğu ise hangi sorunların önce ele alınması gerektiğini ve yapılacak düzeltmelerin skora olası etkisini gösterir.
+
+**Kimler için?**
+
+- **Toplu taşıma işletmecileri ve belediyeler** — Feed'i yayına almadan önce doğrulamak ve kalite sorunlarını gidermek için.
+- **GTFS entegratörleri ve danışmanlar** — Teslim edilen verinin teknik ve operasyonel kalitesini belgelemek için.
+- **Uygulama geliştiriciler** — Kullandıkları feed'in güvenilirliğini ve entegrasyon risklerini değerlendirmek için.
+- **Araştırmacılar ve analistler** — Farklı toplu taşıma ağlarını veri kalitesi ve yapı bakımından karşılaştırmak için.
 
 ---
 
@@ -20,40 +33,59 @@ Spesifikasyon uyumunun ötesinde operasyonel kaliteyi de ölçer: hat bazında s
 
 ### Özellikler
 
-| Özellik | MobilityData | France Transport | GTFS Guru | GTFS Analyzer |
-|---|:---:|:---:|:---:|:---:|
-| Web arayüzü | ✅ | ✅ | ✅ | ✅ |
-| Veri sunucuya gitmiyor | ❌ | ❌ | ✅ | ✅ |
-| Spec uyum kuralları | ✅ | ✅ | ✅ | ✅ |
-| Kalite kuralları | ❌ | Kısmi | ❌ | ✅ |
-| Operasyonel analitik | ❌ | ❌ | ❌ | ✅ |
-| Harita görselleştirme | ❌ | Durak | ❌ | Durak, güzergah, sefer, hat, pathway |
-| Feed skoru | ❌ | ❌ | ❌ | ✅ |
-| Düzeltme önerisi | Kısmi | ❌ | ❌ | ✅ |
-| GTFS Flex desteği | Kısmi | ❌ | ❌ | ✅ |
-| Çıktı formatı | HTML, JSON | Web (kalıcı link) | HTML, JSON | HTML, CSV, JSON, PDF |
-| Platform | Web | Web | Web, CLI, Desktop | Web *(CLI, Desktop planlanmış)* |
-| **Toplam kural** | **178** | **~80** | **~120** | **473** |
+| Özellik | MobilityData | GTFS Guru | GTFS Analyzer |
+|---|:---:|:---:|:---:|
+| Web arayüzü | ✅ | ✅ | ✅ |
+| Veri sunucuya gitmiyor | ❌ | ✅ | ✅ |
+| Spec uyum kuralları | ✅ | ✅ | ✅ |
+| Kalite kuralları | ❌ | ❌ | ✅ |
+| Operasyonel analitik | ❌ | ❌ | ✅ |
+| Harita görselleştirme | ❌ | ❌ | Durak, güzergah, sefer, hat, pathway |
+| Feed skoru | ❌ | ❌ | ✅ |
+| Düzeltme önerisi | Kısmi | ❌ | ✅ |
+| GTFS Flex desteği | Kısmi | ❌ | ✅ |
+| Fares v2 doğrulama | ❌ | ❌ | ✅ |
+| Çıktı formatı | HTML, JSON | HTML, JSON | HTML, CSV, JSON, PDF |
+| Platform | Web | Web, CLI, Desktop | Web *(CLI, Desktop planlanmış)* |
+| **Toplam kural** | **178** | **~120** | **473** |
 
-### BART GTFS Feed Örneği
+### Feed Analizi Örnekleri
 
-BART (Bay Area Rapid Transit, San Francisco) feed'i dört validator ile test edildi.  
-Feed: `BART (San Francisco).zip` — 2026-05-25 tarihinde indirilen sürüm (feed geçerlilik aralığı: 2026-01-12–2026-08-07).  
-Kullanılan sürümler: MobilityData gtfs-validator v8.0.1 · France Transport (transport.data.gouv.fr, Mayıs 2026) · GTFS Guru v0.1.0 · GTFS Analyzer v0.1.2.
+Aynı feed'ler üç validator ile karşılaştırıldı: MobilityData gtfs-validator v8.0.1 · GTFS Guru v0.1.0 · GTFS Analyzer v0.1.2.
 
-| | MobilityData | France Transport | GTFS Guru | GTFS Analyzer |
-|---|---:|---:|---:|---:|
-| Toplam notice | 2.725 | 6 ⚠️ | 2.663 | 6.684 |
-| Kritik / Error | 2 | 1 | 1 | 3 |
-| Yüksek / Warning | 2.655 | 0 | 2.655 | 5.128 |
-| Orta | — | — | — | 554 |
-| Düşük | — | — | — | 500 |
-| Bilgi / Info | 68 | 5 | 7 | 499 |
-| Tetiklenen kural tipi | 13 | 2 | 13 | **45** |
-| Yayın skoru | — | — | — | **79,4 / 100** |
-| Kalite skoru | — | — | — | **80,1 / 100** |
+#### BART (Bay Area Rapid Transit, San Francisco)
 
-> ⚠️ France Transport, `rider_category_name` eksik alanı nedeniyle validasyonu tamamlayamadı.
+Feed: `BART (San Francisco).zip` — 2026-05-25'te indirilen sürüm (geçerlilik aralığı: 2026-01-12–2026-08-07) · 14 hat, 287 durak, 4.455 sefer.
+
+| | MobilityData | GTFS Guru | GTFS Analyzer |
+|---|---:|---:|---:|
+| Toplam notice | 2.725 | 2.663 | 3.256 |
+| Kritik / Error | 2 | 1 | 3 |
+| Yüksek / Warning | 2.655 | 2.655 | 150 |
+| Orta | — | — | 1.060 |
+| Düşük | — | — | 1.015 |
+| Bilgi / Info | 68 | 7 | 1.028 |
+| Tetiklenen kural tipi | 13 | 10 | **50** |
+| Yayın skoru | — | — | **87,7 / 100** |
+| Kalite skoru | — | — | **80,6 / 100** |
+
+#### TriMet (Portland, Oregon)
+
+Feed: `trimet.zip` — 2026-06-04'te indirilen sürüm (geçerlilik aralığı: 2026-04-26–2026-08-22) · 89 hat, 6.395 durak, 48.146 sefer.
+
+| | MobilityData | GTFS Guru | GTFS Analyzer |
+|---|---:|---:|---:|
+| Toplam notice | 48 | 116 | 5.098 |
+| Kritik / Error | 0 | 0 | 36 |
+| Yüksek / Warning | 39 | 107 | 1.657 |
+| Orta | — | — | 1.382 |
+| Düşük | — | — | 1.032 |
+| Bilgi / Info | 9 | 9 | 991 |
+| Tetiklenen kural tipi | 7 | 7 | **59** |
+| Yayın skoru | — | — | **80,6 / 100** |
+| Kalite skoru | — | — | **73,5 / 100** |
+
+> ⚠️ **Fares v2:** TriMet'teki 36 kritik bulgunun tamamı GTFS Fares v2 dosyalarından gelir — 29× tekrarlanan `fare_product_id` (`fare_products.txt`) ve 7× `fare_leg_rules.txt` içinde `networks.txt`'te tanımsız `network_id`. MobilityData ve GTFS Guru bu dosyaları doğrulamadığı için aynı bozuk referansları 0 kritik olarak raporlar; tek başına GTFS Analyzer Fares v2 bütünlüğünü denetler.
 
 ---
 
