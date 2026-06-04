@@ -15,14 +15,13 @@ export default defineConfig({
       all: true,
       include: ['src/**/*.ts'],
       exclude: ['src/__tests__/**', 'src/**/*.d.ts', 'src/**/types.ts'],
-      // BASELINE eşikleri: UI mantığının bir kısmı yalnızca Playwright E2E ile test edildiğinden
-      // vitest (birim) coverage'ı bilinçli olarak düşük başlar. İlk CI raporundaki gerçek oran
-      // görüldükten sonra bu değerler kademeli olarak ~%80'e yükseltilecek (ratchet).
+      // Gerçek baseline (ilk CI koşusu): lines/statements ~%64.5.
+      // Eşik mevcut oranın hemen altına (60) konumlandı; tests eklendikçe ~%80'e yükseltilecek.
+      // functions/branches v8 + all:true ile gürültülü (payda ~13: import edilmeyen dosyalar
+      // için v8 branch/function noktası üretmiyor) olduğundan gate'lenmiyor — yanıltıcı olur.
       thresholds: {
-        lines: 25,
-        functions: 25,
-        branches: 60,
-        statements: 25,
+        lines: 60,
+        statements: 60,
       },
     },
   },
