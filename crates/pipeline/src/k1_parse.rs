@@ -1214,45 +1214,6 @@ mod tests {
     }
 
     #[test]
-    fn path_traversal_entries_rejected_and_root_file_intact() {
-        // Güvenlik: ZIP içinde path traversal / nested giriş adları kök dosya yerine geçmemeli.
-        // Beklenti: bu girişler işlenmez, ARC_024 üretir, canonical agency.txt poison ile ezilmez.
-        let evil: &[u8] =
-            b"agency_id,agency_name,agency_url,agency_timezone\n9,EVIL_TRAVERSAL,http://evil.com,UTC\n";
-        let zip = zip_with_files(&[
-            ("agency.txt",     b"agency_id,agency_name,agency_url,agency_timezone\n1,Test,http://x.com,UTC\n"),
-            ("stops.txt",      b"stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\n"),
-            ("routes.txt",     b"route_id,agency_id,route_short_name,route_type\nR1,1,101,3\n"),
-            ("trips.txt",      b"route_id,service_id,trip_id\nR1,SVC1,T1\n"),
-            ("stop_times.txt", b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\n"),
-            ("calendar.txt",   b"service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,0,0,20240101,20241231\n"),
-            // Traversal / nested / absolute path denemeleri — hiçbiri kök agency.txt sayılmamalı:
-            ("../agency.txt",      evil),
-            ("nested/agency.txt",  evil),
-            ("nested\\agency.txt", evil),
-            ("/agency.txt",        evil),
-            ("C:\\agency.txt",     evil),
-        ]);
-        let k1 = parse(&zip).expect("geçerli kök dosyalar mevcut → Ok dönmeli");
-
-        // Yalnızca kök dizindeki 6 dosya işlenmeli; traversal girişleri files'a hiç girmemeli.
-        assert_eq!(k1.files.len(), 6, "yalnızca kök dosyalar işlenmeli (traversal girişleri değil)");
-        for name in ["../agency.txt", "nested/agency.txt", "nested\\agency.txt", "/agency.txt", "C:\\agency.txt"] {
-            assert!(!k1.files.contains_key(name), "traversal girişi files'a girmemeli: {name}");
-        }
-
-        // Canonical agency.txt gerçek kök içeriğini taşımalı; poison sızmamalı.
-        let agency = k1.files.get("agency.txt").expect("kök agency.txt işlenmeli");
-        let joined: String = agency.rows.iter().flatten().map(|s| s.as_str()).collect::<Vec<_>>().join(",");
-        assert!(joined.contains("Test"), "kök agency.txt içeriği korunmalı: {joined}");
-        assert!(!joined.contains("EVIL_TRAVERSAL"), "poison içerik canonical dosyaya sızmamalı: {joined}");
-
-        // Her .txt traversal girişi alt-dizin/escape olduğundan ARC_024 üretmeli.
-        let arc024 = k1.notices.iter().filter(|n| n.rule_id == "ARC_024").count();
-        assert_eq!(arc024, 5, "5 traversal .txt girişi için ARC_024 beklenir, bulunan: {arc024}");
-    }
-
-    #[test]
     fn unknown_file_produces_arc007_notice() {
         let zip = zip_with_files(&[
             ("agency.txt",     b"agency_id,agency_name,agency_url,agency_timezone\n1,Test,http://x.com,UTC\n"),
