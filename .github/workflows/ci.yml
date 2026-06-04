@@ -49,6 +49,10 @@ jobs:
         working-directory: ui
         run: npm ci
 
+      - name: TypeScript tip kontrolü (tsc --noEmit)
+        working-directory: ui
+        run: npm run typecheck
+
       - name: vitest + coverage (eşik altındaysa fail)
         working-directory: ui
         run: npm run test:coverage

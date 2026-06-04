@@ -1,4 +1,4 @@
-import { getState, setPage, setFixFileFilter } from './state';
+import { getState, setPage } from './state';
 import { renderUpload } from './pages/upload';
 import { renderDomain } from './pages/domain';
 import { renderFix, attachFixListeners } from './pages/fix';
