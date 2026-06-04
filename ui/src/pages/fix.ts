@@ -1,6 +1,7 @@
 ﻿import type { ValidationResult, Notice, R9Item, NameIndex } from '../types';
 import { SEVERITY_TR, SEVERITY_COLOR, RULE_CLASS_TR, t, tMsg, tRemediation } from '../i18n';
 import { openMapModal, type MapPin, type MapOptions } from '../map-modal';
+import { escHtml } from '../escape';
 
 export function renderFix(root: HTMLElement, result: ValidationResult, fileFilter?: string): void {
   const noticeMap = new Map<string, Notice>(result.notices.map(n => [n.id, n]));
@@ -223,16 +224,20 @@ function renderR2(result: ValidationResult, noticeMap: Map<string, Notice>, delt
     </div>`;
 }
 
-function escHtml(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-}
-
 function stopPin(id: string, nameIndex: NameIndex, primary: boolean, suffix?: string): MapPin | null {
   const coords = nameIndex.stop_coords[id];
   if (!coords) return null;
   const name = nameIndex.stops[id] ?? id;
-  const label = `<strong>${name}</strong>${suffix ? ` ${suffix}` : ''}<br><code>${id}</code>`;
+  // name ve id feed kaynaklı → Leaflet bindPopup HTML olarak render ettiği için escape şart.
+  const label = `<strong>${escHtml(name)}</strong>${suffix ? ` ${escHtml(suffix)}` : ''}<br><code>${escHtml(id)}</code>`;
   return { lat: coords[0], lon: coords[1], label, primary };
+}
+
+// Feed kaynaklı ad + id'den güvenli (escape'li) harita popup etiketi üretir.
+// Harita etiketleri bindPopup/innerHTML ile HTML olarak render edildiğinden,
+// feed değerleri tek bir yerde escape edilir (tekrar eden <strong>/<code> kalıbı).
+function stopLabel(name: string, id: string): string {
+  return `<strong>${escHtml(name)}</strong><br><code>${escHtml(id)}</code>`;
 }
 
 // Harita ikon sistemi: whitelist tabanlı.
@@ -607,11 +612,11 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
       }
       if (coordA && !seenStops.has(stopA)) {
         seenStops.add(stopA);
-        pins.push({ lat: coordA[0], lon: coordA[1], label: `<code>${stopA}</code>`, primary: true, small: false });
+        pins.push({ lat: coordA[0], lon: coordA[1], label: `<code>${escHtml(stopA)}</code>`, primary: true, small: false });
       }
       if (coordB && !seenStops.has(stopB)) {
         seenStops.add(stopB);
-        pins.push({ lat: coordB[0], lon: coordB[1], label: `<code>${stopB}</code>`, primary: true, small: false });
+        pins.push({ lat: coordB[0], lon: coordB[1], label: `<code>${escHtml(stopB)}</code>`, primary: true, small: false });
       }
     }
 
@@ -884,8 +889,8 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
         lat: coord[0],
         lon: coord[1],
         label: isIsolated
-          ? `<strong>${t('fix.map.pin.isolated')}</strong><br><strong>${name}</strong><br><code>${sid}</code>`
-          : `<strong>${name}</strong><br><code>${sid}</code>`,
+          ? `<strong>${t('fix.map.pin.isolated')}</strong><br>${stopLabel(name, sid)}`
+          : stopLabel(name, sid),
         primary: !isIsolated,
         small: !isIsolated,
       });
@@ -906,7 +911,7 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
     const coords = nameIndex.stop_coords[entityId];
     const stopName = nameIndex.stops[entityId] ?? entityId;
     const pins: MapPin[] = coords
-      ? [{ lat: coords[0], lon: coords[1], label: `<strong>${t('fix.map.pin.terminal', { name: stopName })}</strong><br><code>${entityId}</code>`, primary: false }]
+      ? [{ lat: coords[0], lon: coords[1], label: `<strong>${t('fix.map.pin.terminal', { name: escHtml(stopName) })}</strong><br><code>${escHtml(entityId)}</code>`, primary: false }]
       : [];
     const extraPolylines: Array<{ coords: [number,number][]; color: string; weight: number; zoomTo: boolean }> = [];
     const legendItems: Array<{ color: string; label: string }> = [];
@@ -925,7 +930,7 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
       }
       if (added) {
         const routeName = nameIndex.routes[rId] ?? rId;
-        legendItems.push({ color, label: routeName });
+        legendItems.push({ color, label: escHtml(routeName) });
         colorIdx++;
       }
     }
@@ -938,8 +943,8 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
       lat: coord[0],
       lon: coord[1],
       label: nameIndex.stops[stopId]
-        ? `<strong>${nameIndex.stops[stopId]}</strong><br><code>${stopId}</code>`
-        : `<code>${stopId}</code>`,
+        ? stopLabel(nameIndex.stops[stopId], stopId)
+        : `<code>${escHtml(stopId)}</code>`,
       primary: true,
       small: true,
     }));
@@ -963,7 +968,7 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
     });
 
     const legendItems: Array<{ color: string; label: string }> = [];
-    if (polyline.length > 1) legendItems.push({ color: '#f59e0b', label: routeName ? t('fix.map.route_shape_named', { name: routeName }) : t('fix.map.route_shape') });
+    if (polyline.length > 1) legendItems.push({ color: '#f59e0b', label: routeName ? t('fix.map.route_shape_named', { name: escHtml(routeName) }) : t('fix.map.route_shape') });
     if (pins.length > 0) legendItems.push({ color: '#2563eb', label: t('fix.map.trip_stops') });
     return { pins, polyline: polyline.length > 1 ? polyline : undefined, legendItems, showArrows: polyline.length > 1 };
   }
@@ -981,7 +986,7 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
     return {
       pins: [],
       extraPolylines,
-      legendItems: [{ color: '#f59e0b', label: t('fix.map.route_shapes_named', { name: routeName }) }],
+      legendItems: [{ color: '#f59e0b', label: t('fix.map.route_shapes_named', { name: escHtml(routeName) }) }],
       showArrows: false,
     };
   }
@@ -995,7 +1000,7 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
   if (notice.rule_id === 'STP_029') {
     const parentId = notice.details?.['parent_id'] ?? '';
     const pins: MapPin[] = [
-      { lat, lon, label: `<strong>${stopName}</strong><br><code>${entityId}</code>`, primary: true },
+      { lat, lon, label: stopLabel(stopName, entityId), primary: true },
     ];
     const parentPin = parentId ? stopPin(parentId, nameIndex, false, t('fix.map.pin.parent')) : null;
     if (parentPin) pins.push(parentPin);
@@ -1010,15 +1015,15 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
     const secondId = notice.observed_value?.match(/== '([^']+)'/)?.[1] ?? '';
     const secondName = secondId ? (nameIndex.stops[secondId] ?? secondId) : '';
     const label = secondName
-      ? `<strong>${stopName}</strong> = <strong>${secondName}</strong><br><code>${entityId}</code> ve <code>${secondId}</code>`
-      : `<strong>${stopName}</strong><br><code>${entityId}</code>`;
+      ? `<strong>${escHtml(stopName)}</strong> = <strong>${escHtml(secondName)}</strong><br><code>${escHtml(entityId)}</code> ve <code>${escHtml(secondId)}</code>`
+      : stopLabel(stopName, entityId);
     return { pins: [{ lat, lon, label, primary: true }] };
   }
 
   // STP_017: iki yakın durak — ikincisi observed_value'dan
   if (notice.rule_id === 'STP_017') {
     const secondId = notice.observed_value?.match(/to '([^']+)'/)?.[1] ?? '';
-    const pins: MapPin[] = [{ lat, lon, label: `<strong>${stopName}</strong><br><code>${entityId}</code>`, primary: true }];
+    const pins: MapPin[] = [{ lat, lon, label: stopLabel(stopName, entityId), primary: true }];
     const pinB = secondId ? stopPin(secondId, nameIndex, false) : null;
     if (pinB) pins.push(pinB);
     const legendItems = pins.length > 1
@@ -1036,14 +1041,14 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
     ];
     if (polyline.length > 0) legendItems.push({ color: '#f59e0b', label: t('fix.map.route_shape') });
     return {
-      pins: [{ lat, lon, label: `<strong>${stopName}</strong><br><code>${entityId}</code>`, primary: true }],
+      pins: [{ lat, lon, label: stopLabel(stopName, entityId), primary: true }],
       polyline: polyline.length > 1 ? polyline : undefined,
       legendItems,
     };
   }
 
   // Diğer durak kuralları — tek pin
-  return { pins: [{ lat, lon, label: `<strong>${stopName}</strong><br><code>${entityId}</code>`, primary: true }] };
+  return { pins: [{ lat, lon, label: stopLabel(stopName, entityId), primary: true }] };
 }
 
 export function attachFixListeners(root: HTMLElement, result?: ValidationResult, cappedTotals?: Record<string, number>): void {
