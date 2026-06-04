@@ -1,7 +1,7 @@
 use std::io::Write as _;
 use zip::write::SimpleFileOptions;
 
-use gtfs_pipeline::{validate_bytes, FatalCode, ValidateResult, ValidatorConfig};
+use gtfs_pipeline::{k1_parse::parse, validate_bytes, FatalCode, ValidateResult, ValidatorConfig};
 
 // Tüm testler için sabit tarih — deterministik analytics çıktısı
 const TODAY: u32 = 20_260_515;
@@ -639,4 +639,59 @@ fn xfl_019_silent_when_only_route_networks_file() {
         }
         _ => panic!("ValidateResult::Ok beklendi"),
     }
+}
+
+#[test]
+fn path_traversal_entries_rejected_and_root_file_intact() {
+    // ZIP icindeki traversal/nested giris adlari kok dosya yerine gecmemeli.
+    let evil: &[u8] =
+        b"agency_id,agency_name,agency_url,agency_timezone\n9,EVIL_TRAVERSAL,http://evil.com,UTC\n";
+    let mut files = base_files();
+    files.extend([
+        ("../agency.txt", evil),
+        ("nested/agency.txt", evil),
+        ("nested\\agency.txt", evil),
+        ("/agency.txt", evil),
+        ("C:\\agency.txt", evil),
+    ]);
+
+    let k1 = parse(&make_zip(&files)).expect("gecerli kok dosyalar mevcut oldugunda Ok donmeli");
+
+    assert_eq!(
+        k1.files.len(),
+        6,
+        "yalnizca kok dosyalar islenmeli; traversal girisleri degil",
+    );
+    for name in [
+        "../agency.txt",
+        "nested/agency.txt",
+        "nested\\agency.txt",
+        "/agency.txt",
+        "C:\\agency.txt",
+    ] {
+        assert!(
+            !k1.files.contains_key(name),
+            "traversal girisi files'a girmemeli: {name}",
+        );
+    }
+
+    let agency = k1.files.get("agency.txt").expect("kok agency.txt islenmeli");
+    let joined = agency
+        .rows
+        .iter()
+        .flatten()
+        .map(|s| s.as_str())
+        .collect::<Vec<_>>()
+        .join(",");
+    assert!(joined.contains("Test"), "kok agency.txt icerigi korunmali: {joined}");
+    assert!(
+        !joined.contains("EVIL_TRAVERSAL"),
+        "poison icerik canonical dosyaya sizmamali: {joined}",
+    );
+
+    let arc024 = k1.notices.iter().filter(|n| n.rule_id == "ARC_024").count();
+    assert_eq!(
+        arc024, 5,
+        "5 traversal .txt girisi icin ARC_024 beklenir, bulunan: {arc024}",
+    );
 }
