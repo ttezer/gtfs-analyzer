@@ -210,3 +210,36 @@ jobs:
           name: rust-coverage
           path: coverage/
           if-no-files-found: ignore
+
+  artifact-drift:
+    name: Artifact Drift Check
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Heuristik drift gate: wasm build makineler arası bit-aynı olmadığı için binary diff
+      # yapmıyoruz. Bunun yerine "kaynak değişti ama committed artefakt güncellenmemiş" durumunu
+      # yakalıyoruz. (Üretim drift'i ayrıca deploy.yml'in kaynaktan build etmesiyle garanti.)
+      - name: Rust/UI kaynağı değişince artefakt da güncellenmiş mi?
+        run: |
+          base="origin/${{ github.base_ref }}"
+          changed="$(git diff --name-only "$base"...HEAD)"
+          echo "Değişen dosyalar:"; echo "$changed"
+          rust_src="$(echo "$changed" | grep -E '^crates/[^/]+/(src/|Cargo\.toml$)' | grep -v '/tests/' || true)"
+          ui_src="$(echo "$changed" | grep -E '^ui/src/' || true)"
+          pkg="$(echo "$changed" | grep -E '^ui/(pkg|pkg-threads)/' || true)"
+          dist="$(echo "$changed" | grep -E '^ui/dist/' || true)"
+          fail=0
+          if [ -n "$rust_src" ] && [ -z "$pkg" ]; then
+            echo "::error::Rust pipeline/registry değişmiş ama ui/pkg* commit'lenmemiş. Yerelde 'npm run wasm:all && npm run build' çalıştırıp artefaktları commit'le."
+            fail=1
+          fi
+          if { [ -n "$rust_src" ] || [ -n "$ui_src" ]; } && [ -z "$dist" ]; then
+            echo "::error::Kaynak (crates/ui) değişmiş ama ui/dist commit'lenmemiş. Yerelde 'npm run build' çalıştırıp dist'i commit'le."
+            fail=1
+          fi
+          if [ "$fail" = "0" ]; then echo "Drift yok: kaynak değişiklikleri artefaktlarla tutarlı."; fi
+          exit $fail
