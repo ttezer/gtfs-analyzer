@@ -38,7 +38,26 @@ pub fn report(
 
 // ── WP-10a: Dedup ─────────────────────────────────────────────────────────────
 
-fn dedup(notices: Vec<Notice>) -> Vec<Notice> {
+/// Notice'lar için thread-bağımsız, kararlı toplam sıralama anahtarı.
+/// Threaded K2/K6 notice'ları nondeterministik sırada üretebilir; dedup keep-first
+/// ve (wasm tarafında) dedup-sonrası cap bu sıraya duyarlı olduğundan, sıralamadan
+/// önce kararlı düzen "aynı feed → aynı temsilciler/aynı sayı" sağlar.
+pub fn notice_order_key(n: &Notice) -> (&str, &str, &str, u64, &str, &str, &str) {
+    (
+        n.rule_id.as_str(),
+        n.entity_type.stable_name(),
+        n.entity_id.as_deref().unwrap_or(""),
+        n.line.unwrap_or(0),
+        n.file.as_deref().unwrap_or(""),
+        n.field.as_deref().unwrap_or(""),
+        n.scope_key.as_deref().unwrap_or(""),
+    )
+}
+
+pub fn dedup(notices: Vec<Notice>) -> Vec<Notice> {
+    // Determinizm: keep-first temsilcisi thread-bağımsız olsun diye önce kararlı sırala.
+    let mut notices = notices;
+    notices.sort_unstable_by(|a, b| notice_order_key(a).cmp(&notice_order_key(b)));
     let mut seen: FxHashSet<String> = FxHashSet::default();
     seen.reserve(notices.len());
     let mut out: Vec<Notice> = Vec::with_capacity(notices.len());

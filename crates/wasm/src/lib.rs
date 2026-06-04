@@ -333,6 +333,11 @@ fn scale_r9_deltas(reports: &mut gtfs_core::ReportSet, real_totals: &std::collec
 }
 
 fn cap_per_rule(notices: &mut Vec<gtfs_core::Notice>) -> std::collections::HashMap<String, u32> {
+    // Determinizm + tam temsil: önce dedup (kararlı sıralı, distinct entity), sonra cap.
+    // Cap ham notice'lara değil distinct entity'lere uygulanır → gösterilen temsilciler
+    // thread-bağımsız ve kümelenme olmaz (ör. OPR_005 cap'e çarpsa bile distinct route
+    // sayısı korunur). dedup içinde notice_order_key ile kararlı sıralama yapılır.
+    *notices = gtfs_pipeline::k7_reporting::dedup(std::mem::take(notices));
     let mut counts: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
     notices.retain(|n| {
         let c = counts.entry(n.rule_id.clone()).or_insert(0);
