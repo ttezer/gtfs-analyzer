@@ -1,4 +1,4 @@
-import { getState, setPage } from './state';
+import { getState, setPage, setFixFileFilter } from './state';
 import { renderUpload } from './pages/upload';
 import { renderDomain } from './pages/domain';
 import { renderFix, attachFixListeners } from './pages/fix';
@@ -142,6 +142,9 @@ export function renderApp(): void {
 
   app.querySelectorAll<HTMLButtonElement>('.nav-btn').forEach(btn => {
     btn.addEventListener('click', () => {
+      // Nav sekmesiyle geçişte dosya filtresini sıfırla; aksi halde files sayfasından
+      // kalan filtre, fix sayfasını R9 yerine R2'ye kaydırır (deep-link yalnız dosya tıklamasında).
+      setFixFileFilter('');
       setPage(btn.dataset['page'] as AppPage);
       renderApp();
     });
