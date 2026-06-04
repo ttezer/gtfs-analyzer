@@ -1247,7 +1247,7 @@ const en: LocaleShape = {
     'FLG_006': 'Use a valid to_timeframe_group_id.',
     'FLG_007': 'Enter a non-negative integer for rule_priority.',
     // FTR
-    'FTR_001': 'Use 0, 1 or 2 for transfer_count.',
+    'FTR_001': 'Use 0, 1 or 2 for fare_transfer_type.',
     'FTR_002': 'Use a valid from_leg_group_id.',
     'FTR_003': 'Use a valid to_leg_group_id.',
     'FTR_004': 'Use a valid fare_product_id.',
