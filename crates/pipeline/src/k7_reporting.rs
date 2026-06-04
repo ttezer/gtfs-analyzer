@@ -468,7 +468,9 @@ fn build_r9(notices: &[Notice], resolution: &SymptomResolution) -> R9Report {
         })
         .collect();
 
-    // Birincil: bucket rank; ikincil: priority_score azalan
+    // Birincil: bucket rank; ikincil: priority_score azalan;
+    // üçüncül: rule_id (R9'da benzersiz) — eşit skorlarda HashMap iterasyon
+    // sırasından bağımsız, deterministik sıra garanti eder.
     items.sort_by(|a, b| {
         bucket_rank(&a.labels)
             .cmp(&bucket_rank(&b.labels))
@@ -477,6 +479,7 @@ fn build_r9(notices: &[Notice], resolution: &SymptomResolution) -> R9Report {
                     .partial_cmp(&a.priority_score)
                     .unwrap_or(std::cmp::Ordering::Equal),
             )
+            .then_with(|| a.rule_id.cmp(&b.rule_id))
     });
 
     R9Report { items }
@@ -1369,5 +1372,37 @@ mod tests {
             "gruplu hiperbolik pub_score_delta beklenen ≈{expected_delta}, gelen {}",
             root_item.pub_score_delta
         );
+    }
+
+    // R9 sıralaması eşit skorlarda deterministik mi? (rule_id tie-break)
+    #[test]
+    fn r9_order_deterministic_on_score_ties() {
+        // Aynı severity/class, farklı rule_id → eşit bucket_rank ve priority_score.
+        // Registry'de olmayan ID'ler → metadata fallback ile skorlar birebir eşit.
+        // scope_key None, blocks yok → hepsi kök neden, hepsi R9 item olur.
+        let scrambled = ["ZZ_003", "ZZ_001", "ZZ_002"];
+        let notices: Vec<Notice> = scrambled
+            .iter()
+            .enumerate()
+            .map(|(i, rid)| notice(&format!("n{i}"), rid, Severity::Orta, RuleClass::Quality))
+            .collect();
+
+        // build_r9 her çağrıda yeni HashMap (yeni random seed) kurar; çıktı sırası
+        // tie-break sayesinde her çağrıda aynı VE rule_id'ye göre artan olmalı.
+        let mut seen: Option<Vec<String>> = None;
+        for _ in 0..16 {
+            let resolution = resolve_symptoms(&notices);
+            let r9 = build_r9(&notices, &resolution);
+            let order: Vec<String> = r9.items.iter().map(|it| it.rule_id.clone()).collect();
+            assert_eq!(
+                order,
+                vec!["ZZ_001", "ZZ_002", "ZZ_003"],
+                "eşit skorlarda rule_id'ye göre artan sıralı olmalı"
+            );
+            match &seen {
+                Some(prev) => assert_eq!(&order, prev, "tekrar çağrıda sıra değişmemeli (deterministik)"),
+                None => seen = Some(order),
+            }
+        }
     }
 }
