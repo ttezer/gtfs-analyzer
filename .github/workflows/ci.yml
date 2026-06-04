@@ -49,12 +49,6 @@ jobs:
         working-directory: ui
         run: npm ci
 
-      # Coverage sağlayıcıyı lockfile'ı bozmadan ekle (yerelde TLS kısıtı nedeniyle
-      # package.json'a kalıcı eklenemedi; sürüm vitest major'ı ile eşleşmeli).
-      - name: Coverage sağlayıcı kur (--no-save)
-        working-directory: ui
-        run: npm install --no-save @vitest/coverage-v8@^2.0.0
-
       - name: vitest + coverage (eşik altındaysa fail)
         working-directory: ui
         run: npm run test:coverage
@@ -161,13 +155,26 @@ jobs:
           cache: 'npm'
           cache-dependency-path: ui/package-lock.json
 
-      # Non-blocking: mevcut bulgular (uuid critical + esbuild/vite moderate) yalnızca
-      # build/dev araç zincirinde; deploy edilen statik sitede npm runtime bağımlılığı yok.
-      # Rapor görünür kalır ama yayını bloklamaz. (cargo audit gerçek shipped wasm deps → blocking.)
-      - name: npm audit (raporla, non-blocking)
+      # Non-blocking: bulgular yalnızca dev/build araç zincirinde. Critical'lar doğrudan Vitest
+      # paketleri (vitest + @vitest/coverage-v8, Vitest 2.x advisory'si); kök neden esbuild/vite
+      # dev-server. Deploy edilen statik sitede npm runtime bağımlılığı yok → üretim artefaktı
+      # etkilenmiyor. Takip: https://github.com/ttezer/gtfs-analyzer/issues/2  (Vitest 4 major geçişi).
+      # Rapor JSON+metin olarak artefakta yazılır; loglarda kaybolmaz. (cargo audit shipped deps → blocking.)
+      - name: npm audit (rapor + artefakt, non-blocking)
         working-directory: ui
         continue-on-error: true
-        run: npm audit --audit-level=high
+        run: |
+          mkdir -p audit
+          npm audit --audit-level=high | tee audit/npm-audit.txt || true
+          npm audit --json > audit/npm-audit.json || true
+
+      - name: Audit raporu artefaktı
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-audit
+          path: ui/audit/
+          if-no-files-found: ignore
 
   rust-coverage:
     name: Rust Coverage
