@@ -3,9 +3,15 @@ import { defineConfig, devices } from '@playwright/test';
 export default defineConfig({
   testDir: './tests',
   timeout: 30_000,
+  reporter: [
+    ['list'],
+    ['html', { outputFolder: 'playwright-report', open: 'never' }],
+    ['junit', { outputFile: 'test-results/playwright-junit.xml' }],
+  ],
   use: {
     baseURL: 'http://localhost:4173',
     headless: true,
+    trace: 'retain-on-failure',
   },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'], channel: 'chrome' } }],
   webServer: {

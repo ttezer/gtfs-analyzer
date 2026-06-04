@@ -12,6 +12,10 @@
 /ui/test-results/
 /ui/playwright-report/
 
+# Coverage reports
+/ui/coverage/
+/coverage/
+
 # OS
 .DS_Store
 Thumbs.db

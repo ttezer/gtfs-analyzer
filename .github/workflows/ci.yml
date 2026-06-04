@@ -33,7 +33,7 @@ jobs:
         run: cargo test --workspace
 
   ts-test:
-    name: TypeScript Unit Tests
+    name: TypeScript Unit Tests + Coverage
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -49,9 +49,25 @@ jobs:
         working-directory: ui
         run: npm ci
 
-      - name: vitest çalıştır
+      # Coverage sağlayıcıyı lockfile'ı bozmadan ekle (yerelde TLS kısıtı nedeniyle
+      # package.json'a kalıcı eklenemedi; sürüm vitest major'ı ile eşleşmeli).
+      - name: Coverage sağlayıcı kur (--no-save)
         working-directory: ui
-        run: npm test
+        run: npm install --no-save @vitest/coverage-v8@^2.0.0
+
+      - name: vitest + coverage (eşik altındaysa fail)
+        working-directory: ui
+        run: npm run test:coverage
+
+      - name: Coverage & JUnit artefaktları
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ts-coverage
+          path: |
+            ui/coverage/
+            ui/test-results/vitest-junit.xml
+          if-no-files-found: ignore
 
   wasm-build:
     name: WASM Build + UI Build + E2E
@@ -112,3 +128,74 @@ jobs:
       - name: E2E testleri çalıştır
         working-directory: ui
         run: npx playwright test
+
+      - name: E2E rapor & sonuç artefaktları
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            ui/playwright-report/
+            ui/test-results/
+          if-no-files-found: ignore
+
+  security-audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Rust toolchain kur
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: cargo-audit kur
+        run: cargo install cargo-audit --locked
+
+      - name: cargo audit (Rust bağımlılıkları — RustSec)
+        run: cargo audit
+
+      - name: Node.js kur
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: ui/package-lock.json
+
+      - name: npm audit (high/critical → fail)
+        working-directory: ui
+        run: npm audit --audit-level=high
+
+  rust-coverage:
+    name: Rust Coverage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Rust toolchain kur
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cargo cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-tarpaulin-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-tarpaulin-
+
+      - name: cargo-tarpaulin kur
+        run: cargo install cargo-tarpaulin --locked
+
+      # wasm crate'i host'ta derlenemediği için hariç tutulur.
+      # --fail-under BASELINE: ilk CI raporundaki gerçek oran görüldükten sonra ~%80'e yükseltilecek.
+      - name: cargo tarpaulin (eşik altındaysa fail)
+        run: cargo tarpaulin --workspace --exclude gtfs-wasm --out Html --out Lcov --output-dir coverage --fail-under 30 --timeout 300
+
+      - name: Rust coverage artefaktı
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rust-coverage
+          path: coverage/
+          if-no-files-found: ignore
