@@ -49,6 +49,9 @@ jobs:
         working-directory: ui
         run: npm ci
 
+      # NOT: tsc burada çalıştırılamaz — src/wasm.ts ../pkg/* (wasm-pack çıktısı, git'te
+      # izlenmez) import eder; bu job wasm build etmez. Tip kontrolü wasm-build job'undaki
+      # `npm run build` adımında yapılır (artık `tsc --noEmit && vite build`, pkg mevcutken).
       - name: vitest + coverage (eşik altındaysa fail)
         working-directory: ui
         run: npm run test:coverage

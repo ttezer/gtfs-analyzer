@@ -1,5 +1,5 @@
 import type { ValidationResult, R5Report, FeedMetrics } from '../types';
-import { SEVERITY_COLOR, t } from '../i18n';
+import { t } from '../i18n';
 
 export function renderDomain(root: HTMLElement, result: ValidationResult): void {
   const { r1, r5 } = result.reports;

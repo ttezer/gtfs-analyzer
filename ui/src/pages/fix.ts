@@ -844,26 +844,23 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
     const toId   = notice.details?.['to_station']   ?? '';
     const fromCoord = nameIndex.stop_coords[fromId];
     const toCoord   = nameIndex.stop_coords[toId];
-    if (!fromCoord || !toCoord) return defaultMapOptions(notice, nameIndex);
+    // hasMapCoords her iki istasyon koordinatını da şart koşar; bu dal savunma amaçlı.
+    if (!fromCoord || !toCoord) return { pins: [], legendItems: [], showArrows: false };
     const fromName = nameIndex.stops[fromId] ?? fromId;
     const toName   = nameIndex.stops[toId]   ?? toId;
-    const center: [number, number] = [
-      (fromCoord[0] + toCoord[0]) / 2,
-      (fromCoord[1] + toCoord[1]) / 2,
+    const pins: MapPin[] = [
+      { lat: fromCoord[0], lon: fromCoord[1], label: t('fix.map.pin.station', { name: fromName }), primary: true },
+      { lat: toCoord[0],   lon: toCoord[1],   label: t('fix.map.pin.station', { name: toName }),   primary: false },
     ];
     return {
-      center,
-      zoom: 15,
-      markers: [
-        { lat: fromCoord[0], lon: fromCoord[1], color: '#ef4444', label: fromName, title: t('fix.map.pin.station', { name: fromName }) },
-        { lat: toCoord[0],   lon: toCoord[1],   color: '#3b82f6', label: toName,   title: t('fix.map.pin.station', { name: toName }) },
-      ],
-      polylines: [{
+      pins,
+      extraPolylines: [{
         coords: [[fromCoord[0], fromCoord[1]], [toCoord[0], toCoord[1]]],
-        color: '#ef4444',
-        dashArray: '6,4',
+        color: '#dc2626',
         weight: 2,
+        zoomTo: true,
       }],
+      legendItems: [],
       showArrows: false,
     };
   }
