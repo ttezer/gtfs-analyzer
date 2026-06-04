@@ -12,6 +12,13 @@
 /ui/test-results/
 /ui/playwright-report/
 
+# Coverage reports
+/ui/coverage/
+/coverage/
+
+# Audit reports (CI artifact)
+/ui/audit/
+
 # OS
 .DS_Store
 Thumbs.db

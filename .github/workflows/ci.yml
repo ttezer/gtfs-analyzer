@@ -33,7 +33,7 @@ jobs:
         run: cargo test --workspace
 
   ts-test:
-    name: TypeScript Unit Tests
+    name: TypeScript Unit Tests + Coverage
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -49,9 +49,19 @@ jobs:
         working-directory: ui
         run: npm ci
 
-      - name: vitest çalıştır
+      - name: vitest + coverage (eşik altındaysa fail)
         working-directory: ui
-        run: npm test
+        run: npm run test:coverage
+
+      - name: Coverage & JUnit artefaktları
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ts-coverage
+          path: |
+            ui/coverage/
+            ui/test-results/vitest-junit.xml
+          if-no-files-found: ignore
 
   wasm-build:
     name: WASM Build + UI Build + E2E
@@ -112,3 +122,91 @@ jobs:
       - name: E2E testleri çalıştır
         working-directory: ui
         run: npx playwright test
+
+      - name: E2E rapor & sonuç artefaktları
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            ui/playwright-report/
+            ui/test-results/
+          if-no-files-found: ignore
+
+  security-audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Rust toolchain kur
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: cargo-audit kur
+        run: cargo install cargo-audit --locked
+
+      - name: cargo audit (Rust bağımlılıkları — RustSec)
+        run: cargo audit
+
+      - name: Node.js kur
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: ui/package-lock.json
+
+      # Non-blocking: bulgular yalnızca dev/build araç zincirinde. Critical'lar doğrudan Vitest
+      # paketleri (vitest + @vitest/coverage-v8, Vitest 2.x advisory'si); kök neden esbuild/vite
+      # dev-server. Deploy edilen statik sitede npm runtime bağımlılığı yok → üretim artefaktı
+      # etkilenmiyor. Takip: https://github.com/ttezer/gtfs-analyzer/issues/2  (Vitest 4 major geçişi).
+      # Rapor JSON+metin olarak artefakta yazılır; loglarda kaybolmaz. (cargo audit shipped deps → blocking.)
+      - name: npm audit (rapor + artefakt, non-blocking)
+        working-directory: ui
+        continue-on-error: true
+        run: |
+          mkdir -p audit
+          npm audit --audit-level=high | tee audit/npm-audit.txt || true
+          npm audit --json > audit/npm-audit.json || true
+
+      - name: Audit raporu artefaktı
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-audit
+          path: ui/audit/
+          if-no-files-found: ignore
+
+  rust-coverage:
+    name: Rust Coverage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Rust toolchain kur
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cargo cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-tarpaulin-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-tarpaulin-
+
+      - name: cargo-tarpaulin kur
+        run: cargo install cargo-tarpaulin --locked
+
+      # wasm crate'i host'ta derlenemediği için hariç tutulur.
+      # Gerçek baseline (ilk CI): %70.14. Eşik mevcut oranın altına (65) konumlandı; ratchet ile yükseltilir.
+      - name: cargo tarpaulin (eşik altındaysa fail)
+        run: cargo tarpaulin --workspace --exclude gtfs-wasm --out Html --out Lcov --output-dir coverage --fail-under 65 --timeout 300
+
+      - name: Rust coverage artefaktı
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rust-coverage
+          path: coverage/
+          if-no-files-found: ignore
