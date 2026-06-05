@@ -7,18 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-This is the first tracked changelog entry; prior history is available in the git log.
-Future changes will be recorded here under this section until the next release.
-
-## [0.1.2]
-
-Current state of the published application.
+Unreleased working state — no version has been tagged yet. Prior history is available
+in the git log; entries below describe the current state of the application.
 
 ### Features
 - Fully client-side GTFS validation and analysis in the browser (WebAssembly); uploaded
   feeds never leave the user's device.
-- 473 validation and analysis rules across spec compliance, interoperability, quality,
+- 474 validation and analysis rules across spec compliance, interoperability, quality,
   and operational analytics, each tagged with a rule code, class, and severity.
+- Feed Calendar report section: feed validity window (from `feed_info`), actual service
+  coverage with a coverage figure and a proportional timeline, and a report generation
+  timestamp.
 - Two independent scores (Publish / Quality) and a prioritized fix queue.
 - Interactive map visualization for geographic findings (deviating routes, broken
   coordinates, unreachable stops, pathways, etc.).

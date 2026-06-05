@@ -98,6 +98,9 @@ const tr = {
     'cfg.service_gap_days.label'         : 'Servis Boşluğu Eşiği',
     'cfg.service_gap_days.unit'          : 'gün',
     'cfg.service_gap_days.desc'          : 'Bu günden uzun servis kesintisi işaretlenir',
+    'cfg.upcoming_service_days.label'    : 'Yakın Servis Penceresi',
+    'cfg.upcoming_service_days.unit'     : 'gün',
+    'cfg.upcoming_service_days.desc'     : 'Bugünü kapsayan ama bu kadar gün içinde seferi olmayan servisleri işaretler (CAL_021)',
     'cfg.max_trip_duration_hours.label'  : 'Maks. Sefer Süresi',
     'cfg.max_trip_duration_hours.unit'   : 'saat',
     'cfg.max_trip_duration_hours.desc'   : 'Tek bir seferin maksimum süresi',
@@ -581,6 +584,7 @@ const tr = {
     'CAL_018': 'Servisin aktif haftanın günü yok (tüm günler 0, calendar_dates ile geçersiz kılınan yok)',
     'CAL_019': 'Ham takvim aralığı feed_info geçerlilik penceresini aşıyor',
     'CAL_020': 'Feed geçerlilik penceresi 5 yılı aşıyor',
+    'CAL_021': 'Servis bugünü kapsıyor ama yakın günlerde aktif sefer yok',
     // CLD
     'CLD_001': 'service_id eksik',
     'CLD_002': 'date eksik veya geçersiz format',

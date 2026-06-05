@@ -94,6 +94,9 @@ const ja: LocaleShape = {
     'cfg.service_gap_days.label'         : 'サービス間隔しきい値',
     'cfg.service_gap_days.unit'          : '日',
     'cfg.service_gap_days.desc'          : 'この日数を超えるサービス空白を検出',
+    'cfg.upcoming_service_days.label'    : '直近運行ウィンドウ',
+    'cfg.upcoming_service_days.unit'     : '日',
+    'cfg.upcoming_service_days.desc'     : '本日は有効だがこの日数以内に運行がないサービスを検出（CAL_021）',
     'cfg.max_trip_duration_hours.label'  : '最大便所要時間',
     'cfg.max_trip_duration_hours.unit'   : '時間',
     'cfg.max_trip_duration_hours.desc'   : '1便の最大所要時間',
@@ -560,6 +563,7 @@ const ja: LocaleShape = {
     'CAL_018': "サービス'{entity_id}'：平日に有効な日がなく、calendar_datesによる上書きもありません。",
     'CAL_019': "サービス'{entity_id}'：カレンダー日付がfeed_infoの有効ウィンドウ外にあります（{observed_value}）。",
     'CAL_020': "フィードの有効期間が{observed_value}に及びます — 交通フィードとして非現実的な長さです。",
+    'CAL_021': "サービス'{entity_id}'は本日は有効ですが、今後の期間に運行予定がありません。",
     // CLD
     'CLD_001': 'calendar_dates.txt：service_idがありません。',
     'CLD_002': "calendar_dates.txt：日付'{observed_value}'の形式が無効です。",
@@ -944,6 +948,7 @@ const ja: LocaleShape = {
     'CAL_018': '少なくとも1つの曜日をアクティブ（1）に設定するか、このサービスのcalendar_datesエントリーを追加してください。',
     'CAL_019': 'feed_info.txtのfeed_start_date/feed_end_dateを更新するか、calendar.txtの日付を調整してください。',
     'CAL_020': 'feed_start_dateとfeed_end_dateを現実的なサービス期間（通常1〜2年）に制限してください。',
+    'CAL_021': '今後の運行がないのが意図的でなければ、calendar/calendar_datesで近い日付に運行日を追加してください。',
     // CLD
     'CLD_001': 'service_idフィールドを入力してください。',
     'CLD_002': '日付をYYYYMMDD形式で入力してください。',
@@ -1582,6 +1587,7 @@ const ja: LocaleShape = {
     'CAL_018': 'アクティブな曜日なし（全曜日0、calendar_dates上書きなし）',
     'CAL_019': 'サービスカレンダー日付がfeed_info有効期間外',
     'CAL_020': 'フィード有効期間が5年超',
+    'CAL_021': '本日は有効だが今後数日間運行なし',
     // CLD
     'CLD_001': 'service_idが不足',
     'CLD_002': '日付が欠落または形式が無効',

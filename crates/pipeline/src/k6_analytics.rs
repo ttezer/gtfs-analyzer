@@ -1132,6 +1132,14 @@ fn check_calendar_analytics(
     notices: &mut Vec<Notice>,
     ctr: &mut u32,
 ) {
+    // CAL_021 için: her servisin kaç sefer (trip) tarafından kullanıldığı.
+    let mut service_trip_counts: HashMap<&str, u32> = HashMap::new();
+    for t in &records.trips {
+        if !t.service_id.is_empty() {
+            *service_trip_counts.entry(t.service_id.as_str()).or_insert(0) += 1;
+        }
+    }
+
     // CAL_007: servis içinde ardışık boşluk (service_gap_days'den büyük)
     // CAL_010: toplam aktif gün sayısı çok az (≤ service_gap_days)
     // CAL_012: servis boyunca service_gap_days veya daha büyük boşluk var
@@ -1209,6 +1217,40 @@ fn check_calendar_analytics(
                         format!("'{service_id}' takviminde {}-{} arası {gap_days} günlük boşluk — yolcu deneyimi etkilenebilir.",
                             pair[0], pair[1]),
                         "Servis boşluğunu kapatın ya da alternatif hat sağlayın.",
+                    ));
+                }
+            }
+        }
+
+        // CAL_021: servis aktif dönemi bugünü kapsıyor (min ≤ today ≤ max) AMA
+        // önümüzdeki N günde (config.upcoming_service_days) hiç aktif günü yok.
+        // Tamamen geçmiş (CAL_013) / tamamen gelecek (CAL_017) servisleri "spans today"
+        // koşulu dışlar → çakışma yok. Yalnızca sefer kullanan servisler için.
+        if today_yyyymmdd > 0 {
+            let min_d = sorted[0];
+            let max_d = *sorted.last().unwrap();
+            if min_d <= today_yyyymmdd && max_d >= today_yyyymmdd {
+                let window_end_jdn = today_jdn + config.upcoming_service_days;
+                let has_upcoming = sorted.iter().any(|&d| {
+                    let jdn = yyyymmdd_to_approx_jdn(d);
+                    jdn >= today_jdn && jdn <= window_end_jdn
+                });
+                let trip_count = service_trip_counts.get(service_id.as_str()).copied().unwrap_or(0);
+                if !has_upcoming && trip_count > 0 {
+                    let n = config.upcoming_service_days;
+                    notices.push(k6_notice(
+                        ctr,
+                        "CAL_021",
+                        EntityType::Service,
+                        Some(service_id.clone()),
+                        Some(service_id.clone()),
+                        "calendar.txt",
+                        None,
+                        None,
+                        Some(format!("0 aktif gün / {n} gün")),
+                        Some(format!("≥ 1 aktif gün / {n} gün")),
+                        format!("'{service_id}' servisi bugünü kapsıyor ama önümüzdeki {n} günde aktif günü yok ({trip_count} sefer etkileniyor)."),
+                        "Yakın günlerde sefer olmaması kasıtlıysa yok sayın; değilse calendar/calendar_dates ile yakın tarihlere aktif gün ekleyin.",
                     ));
                 }
             }
@@ -6862,6 +6904,75 @@ mod tests {
             "Yakın gelecek boşluk CAL_007 üretmeli");
         assert!(result.notices.iter().any(|n| n.rule_id == "CAL_012"),
             "Yakın gelecek boşluk CAL_012 üretmeli");
+    }
+
+    // ── CAL_021: bugünü kapsayan ama yakın günlerde aktif seferi olmayan servis ──
+
+    fn trip_svc(trip_id: &str, sid: &str) -> crate::k2::trips::TripRecord {
+        crate::k2::trips::TripRecord {
+            trip_id: trip_id.into(), route_id: "R1".into(), service_id: sid.into(),
+            shape_id: None, trip_headsign: None, trip_short_name: None,
+            direction_id: None, block_id: None, wheelchair_accessible: None,
+            bikes_allowed: None, cars_allowed: None,
+            safe_duration_factor: None, safe_duration_offset: None, line: 2,
+        }
+    }
+
+    #[test]
+    fn spans_today_but_no_upcoming_produces_cal_021() {
+        use crate::k5_derived::CalendarBitmap;
+        let mut derived = DerivedData::default();
+        // today=20260514, N=7 → pencere [20260514..20260521].
+        // SVC bugünü kapsıyor (20260510 ≤ today ≤ 20260601) ama pencerede aktif gün yok.
+        let dates: std::collections::HashSet<u32> = [20260510u32, 20260601].into_iter().collect();
+        derived.calendar_bitmap = CalendarBitmap {
+            active_dates: [("SVC".to_string(), dates)].into_iter().collect(),
+        };
+        let mut records = crate::k2::EntityRecords::default();
+        records.trips = vec![trip_svc("T1", "SVC")];
+        let result = analyze(&records, &derived, &default_config(), 20260514);
+        assert!(result.notices.iter().any(|n| n.rule_id == "CAL_021"),
+            "bugünü kapsayan ama yakın günde seferi olmayan servis CAL_021 üretmeli");
+    }
+
+    #[test]
+    fn cal_021_requires_trips() {
+        use crate::k5_derived::CalendarBitmap;
+        let mut derived = DerivedData::default();
+        let dates: std::collections::HashSet<u32> = [20260510u32, 20260601].into_iter().collect();
+        derived.calendar_bitmap = CalendarBitmap {
+            active_dates: [("SVC".to_string(), dates)].into_iter().collect(),
+        };
+        let records = crate::k2::EntityRecords::default(); // sefer yok
+        let result = analyze(&records, &derived, &default_config(), 20260514);
+        assert!(!result.notices.iter().any(|n| n.rule_id == "CAL_021"),
+            "sefersiz servis CAL_021 üretmemeli");
+    }
+
+    #[test]
+    fn cal_021_not_for_active_or_expired() {
+        use crate::k5_derived::CalendarBitmap;
+        // (a) yakın günde aktif → CAL_021 yok
+        let mut derived = DerivedData::default();
+        let active: std::collections::HashSet<u32> = [20260514u32, 20260515].into_iter().collect();
+        derived.calendar_bitmap = CalendarBitmap {
+            active_dates: [("SVC".to_string(), active)].into_iter().collect(),
+        };
+        let mut records = crate::k2::EntityRecords::default();
+        records.trips = vec![trip_svc("T1", "SVC")];
+        let r1 = analyze(&records, &derived, &default_config(), 20260514);
+        assert!(!r1.notices.iter().any(|n| n.rule_id == "CAL_021"),
+            "yakın günde aktif servis CAL_021 üretmemeli");
+
+        // (b) tamamen geçmiş → spans-today değil → CAL_021 yok (CAL_013 alanı)
+        let mut derived2 = DerivedData::default();
+        let past: std::collections::HashSet<u32> = [20251201u32, 20251231].into_iter().collect();
+        derived2.calendar_bitmap = CalendarBitmap {
+            active_dates: [("SVC".to_string(), past)].into_iter().collect(),
+        };
+        let r2 = analyze(&records, &derived2, &default_config(), 20260514);
+        assert!(!r2.notices.iter().any(|n| n.rule_id == "CAL_021"),
+            "tamamen geçmiş servis CAL_021 üretmemeli");
     }
 
     // ── CAL_013: bitmap üzerinden süresi dolmuş servis ────────────────────────

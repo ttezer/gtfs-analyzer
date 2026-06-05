@@ -100,6 +100,9 @@ const en: LocaleShape = {
     'cfg.service_gap_days.label'         : 'Service Gap Threshold',
     'cfg.service_gap_days.unit'          : 'days',
     'cfg.service_gap_days.desc'          : 'Service gaps longer than this are flagged',
+    'cfg.upcoming_service_days.label'    : 'Upcoming Service Window',
+    'cfg.upcoming_service_days.unit'     : 'days',
+    'cfg.upcoming_service_days.desc'     : 'Flag services active today but with no service within this many days (CAL_021)',
     'cfg.max_trip_duration_hours.label'  : 'Max. Trip Duration',
     'cfg.max_trip_duration_hours.unit'   : 'hours',
     'cfg.max_trip_duration_hours.desc'   : 'Maximum duration of a single trip',
@@ -579,6 +582,7 @@ const en: LocaleShape = {
     'CAL_018': "Service '{entity_id}': no active weekdays and no calendar_dates overrides.",
     'CAL_019': "Service '{entity_id}': calendar dates fall outside the feed_info validity window ({observed_value}).",
     'CAL_020': "Feed validity window spans {observed_value} — unrealistically long for a transit feed.",
+    'CAL_021': "Service '{entity_id}' is active today but has no scheduled service in the upcoming window.",
     // CLD
     'CLD_001': 'calendar_dates.txt: service_id is missing.',
     'CLD_002': "calendar_dates.txt: date '{observed_value}' has an invalid format.",
@@ -1360,6 +1364,7 @@ const en: LocaleShape = {
     'CAL_018': 'Set at least one weekday to active (1) or add calendar_dates entries for this service.',
     'CAL_019': 'Update feed_start_date/feed_end_date in feed_info.txt to cover the full service date range, or adjust calendar.txt dates.',
     'CAL_020': 'Limit feed_start_date and feed_end_date to a realistic service period (typically 1–2 years).',
+    'CAL_021': 'If the lack of upcoming service is intentional, ignore; otherwise add near-term active days via calendar/calendar_dates.',
     // CLD
     'CLD_004': 'Add at least one calendar_dates.txt row with exception_type=1 for this service, or add a calendar.txt entry with at least one active day.',
     // DQ
@@ -1628,6 +1633,7 @@ const en: LocaleShape = {
     'CAL_018': 'Service has no active weekdays (all days 0, none overridden by calendar_dates)',
     'CAL_019': 'Service calendar dates outside feed_info validity window',
     'CAL_020': 'Feed validity window exceeds 5 years',
+    'CAL_021': 'Active today but no service in the upcoming days',
     // CLD
     'CLD_001': 'service_id missing',
     'CLD_002': 'date invalid format',

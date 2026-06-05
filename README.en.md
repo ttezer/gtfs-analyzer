@@ -8,7 +8,7 @@
 ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat&logo=typescript&logoColor=white)
 ![Vite](https://img.shields.io/badge/Vite-646CFF?style=flat&logo=vite&logoColor=white)
 ![Privacy](https://img.shields.io/badge/100%25-client--side-2ea44f?style=flat&logo=shield&logoColor=white)
-![Rules](https://img.shields.io/badge/473-rules-blue?style=flat)
+![Rules](https://img.shields.io/badge/474-rules-blue?style=flat)
 ![Languages](https://img.shields.io/badge/languages-TR%20%C2%B7%20EN%20%C2%B7%20JA-informational?style=flat)
 [![License MIT](https://img.shields.io/badge/license-MIT-yellow?style=flat)](LICENSE)
 
@@ -18,7 +18,7 @@ GTFS Analyzer does not merely check whether a file conforms to the specification
 
 Every finding is tagged with a rule code, an analysis class, and a severity level. Thanks to the Spec · Interop · Quality · Analytics classes and the Critical → Info severity levels, thousands of findings can be filtered, prioritized, and handled systematically. The tool also automatically detects the GTFS features used by the feed — Shapes, Transfers, Fares, Headsigns, Flex, and the like — and includes them in the report.
 
-GTFS Analyzer extends specification validation with operational quality analysis. Frequency inconsistencies per route, anomalous speed segments, isolated stops, gaps in service patterns, and network topology problems are examined with 473 distinct validation and analysis rules. Results are summarized with separate scores that evaluate compliance and quality independently. The prioritized fix queue shows which issues should be addressed first and the likely impact of each fix on the score.
+GTFS Analyzer extends specification validation with operational quality analysis. Frequency inconsistencies per route, anomalous speed segments, isolated stops, gaps in service patterns, andnetwork topology problems are examined with 474 distinct validation and analysis rules. Results are summarized with separate scores that evaluate compliance and quality independently. The prioritized fix queue shows which issues should be addressed first and the likely impact of each fix on the score.
 
 **Who is it for?**
 
@@ -47,7 +47,7 @@ GTFS Analyzer extends specification validation with operational quality analysis
 | Fares v2 validation | ❌ | ❌ | ✅ |
 | Output formats | HTML, JSON | HTML, JSON | HTML, CSV, JSON, PDF |
 | Platform | Web | Web, CLI, Desktop | Web *(CLI, Desktop planned)* |
-| **Total rules** | **178** | **~120** | **473** |
+| **Total rules** | **178** | **~120** | **474** |
 
 ### Feed Analysis Examples
 
@@ -339,7 +339,7 @@ gtfs-validator/
 │   ├── config/     # Configuration types
 │   ├── core/       # Shared data structures and result model
 │   ├── pipeline/   # Validation pipeline (k1–k7 stages)
-│   ├── rules/      # Rule definitions and registry (473 rules, 36 groups)
+│   ├── rules/      # Rule definitions and registry (474 rules, 36 groups)
 │   └── wasm/       # wasm-bindgen WASM output
 └── ui/             # Vite + TypeScript frontend
     ├── pkg/          # wasm-pack output (generated, committed)

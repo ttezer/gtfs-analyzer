@@ -2,7 +2,7 @@
 
 🇹🇷 **Türkçe** · 🇬🇧 [English](RULES.en.md) · 🇯🇵 [日本語](RULES.ja.md)
 
-473 kural, 36 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
+474 kural, 36 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
 Önem seviyeleri: **KRİTİK** (yayın engelleyici) · **YÜKSEK** · **ORTA** · **DÜŞÜK** · **BİLGİ**
 Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · **Quality** (GTFS Kalitesi) · **Analytics** (GTFS Analitiği)
 
@@ -241,6 +241,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | CAL_018 | Haftalık bazda tüm günler pasif ve calendar_dates override da yok | DÜŞÜK | Quality |
 | CAL_019 | Ham takvim aralığı feed_info geçerlilik penceresini aşıyor | DÜŞÜK | Quality |
 | CAL_020 | Feed geçerlilik penceresi 5 yılı aşıyor | DÜŞÜK | Quality |
+| CAL_021 | Servis bugünü kapsıyor ama yakın günlerde aktif sefer yok | BİLGİ | Analytics |
 
 ## CLD — Calendar Dates
 

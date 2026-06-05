@@ -2,7 +2,7 @@
 
 🇹🇷 [Türkçe](RULES.md) · 🇬🇧 **English** · 🇯🇵 [日本語](RULES.ja.md)
 
-473 rules, 36 groups. Each rule is identified by a unique ID, severity level, and class.
+474 rules, 36 groups. Each rule is identified by a unique ID, severity level, and class.
 Severity levels: **CRITICAL** (publish blocker) · **HIGH** · **MEDIUM** · **LOW** · **INFO**
 Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Quality** (GTFS Quality) · **Analytics** (GTFS Analytics)
 
@@ -241,6 +241,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | CAL_018 | Service has no active weekdays (all days 0, none overridden by calendar_dates) | LOW | Quality |
 | CAL_019 | Raw calendar range exceeds feed_info window (CAL_014 checks active dates) | LOW | Quality |
 | CAL_020 | Feed validity window exceeds 5 years | LOW | Quality |
+| CAL_021 | Active today but no service in the upcoming days | INFO | Analytics |
 
 ## CLD — Calendar Dates
 

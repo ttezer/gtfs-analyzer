@@ -31,6 +31,7 @@ const DEF_STOP_FAR_FROM_SHAPE_M:    f64 = 100.0;
 const DEF_STOP_FAR_FROM_PARENT_M:   f64 = 100.0;
 const DEF_FEED_EXPIRY_WARNING_DAYS: u32 =  30;
 const DEF_SERVICE_GAP_DAYS:         u32 =   7;
+const DEF_UPCOMING_SERVICE_DAYS:    u32 =   7;
 const DEF_MAX_TRIP_DURATION_HOURS:  f64 =  24.0;
 const DEF_MIN_TRIP_DURATION_SEC:    u32 =  60;
 const DEF_MAX_HEADWAY_WARNING_MIN:  u32 = 240;
@@ -54,6 +55,8 @@ pub struct ValidatorConfig {
     pub stop_far_from_parent_m:   f64,
     pub feed_expiry_warning_days: u32,
     pub service_gap_days:         u32,
+    /// CAL_021: bugünden itibaren kaç gün içinde aktif sefer aranır (operasyonel tazelik penceresi).
+    pub upcoming_service_days:    u32,
     pub max_trip_duration_hours:  f64,
     pub min_trip_duration_sec:    u32,
     pub max_headway_warning_min:  u32,
@@ -82,6 +85,7 @@ impl Default for ValidatorConfig {
             stop_far_from_parent_m:   DEF_STOP_FAR_FROM_PARENT_M,
             feed_expiry_warning_days: DEF_FEED_EXPIRY_WARNING_DAYS,
             service_gap_days:         DEF_SERVICE_GAP_DAYS,
+            upcoming_service_days:    DEF_UPCOMING_SERVICE_DAYS,
             max_trip_duration_hours:  DEF_MAX_TRIP_DURATION_HOURS,
             min_trip_duration_sec:    DEF_MIN_TRIP_DURATION_SEC,
             max_headway_warning_min:  DEF_MAX_HEADWAY_WARNING_MIN,
@@ -152,6 +156,7 @@ fn validate_ranges(cfg: &ValidatorConfig) -> Result<(), String> {
     chk_f64!(cfg.stop_far_from_parent_m,  "stop_far_from_parent_m",    10.0,  1000.0);
     chk_u32!(cfg.feed_expiry_warning_days, "feed_expiry_warning_days",     1,    60);
     chk_u32!(cfg.service_gap_days,         "service_gap_days",             3,    30);
+    chk_u32!(cfg.upcoming_service_days,    "upcoming_service_days",        1,    90);
     chk_f64!(cfg.max_trip_duration_hours,  "max_trip_duration_hours",    8.0,    72.0);
     chk_u32!(cfg.min_trip_duration_sec,    "min_trip_duration_sec",       10,   300);
     chk_u32!(cfg.max_headway_warning_min,  "max_headway_warning_min",     60,   720);
@@ -176,7 +181,7 @@ pub fn merge_delta(base: &ValidatorConfig, delta_json: &str) -> Result<Validator
         "max_speed_rail_kmh", "max_speed_ferry_kmh", "max_speed_cablecar_kmh",
         "min_transfer_time_sec", "max_transfer_distance_m", "max_shape_jump_km",
         "stop_too_close_m", "stop_far_from_shape_m", "stop_far_from_parent_m", "feed_expiry_warning_days",
-        "service_gap_days", "max_trip_duration_hours", "min_trip_duration_sec",
+        "service_gap_days", "upcoming_service_days", "max_trip_duration_hours", "min_trip_duration_sec",
         "max_headway_warning_min", "bunching_threshold_min", "rail_stop_distance_km",
         "calendar_override_rules",
     ];
@@ -225,6 +230,7 @@ pub fn merge_delta(base: &ValidatorConfig, delta_json: &str) -> Result<Validator
     apply_f64!("stop_far_from_parent_m",   cfg.stop_far_from_parent_m);
     apply_u32!("feed_expiry_warning_days", cfg.feed_expiry_warning_days);
     apply_u32!("service_gap_days",         cfg.service_gap_days);
+    apply_u32!("upcoming_service_days",    cfg.upcoming_service_days);
     apply_f64!("max_trip_duration_hours",  cfg.max_trip_duration_hours);
     apply_u32!("min_trip_duration_sec",    cfg.min_trip_duration_sec);
     apply_u32!("max_headway_warning_min",  cfg.max_headway_warning_min);
@@ -289,6 +295,7 @@ mod tests {
         assert_eq!(cfg.stop_far_from_shape_m,    100.0);
         assert_eq!(cfg.feed_expiry_warning_days,   30);
         assert_eq!(cfg.service_gap_days,            7);
+        assert_eq!(cfg.upcoming_service_days,       7);
         assert_eq!(cfg.max_trip_duration_hours,   24.0);
         assert_eq!(cfg.min_trip_duration_sec,      60);
         assert_eq!(cfg.max_headway_warning_min,   240);

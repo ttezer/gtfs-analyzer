@@ -8,7 +8,7 @@
 ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat&logo=typescript&logoColor=white)
 ![Vite](https://img.shields.io/badge/Vite-646CFF?style=flat&logo=vite&logoColor=white)
 ![Privacy](https://img.shields.io/badge/100%25-%E3%82%AF%E3%83%A9%E3%82%A4%E3%82%A2%E3%83%B3%E3%83%88%E3%82%B5%E3%82%A4%E3%83%89-2ea44f?style=flat&logo=shield&logoColor=white)
-![Rules](https://img.shields.io/badge/473-%E3%83%AB%E3%83%BC%E3%83%AB-blue?style=flat)
+![Rules](https://img.shields.io/badge/474-%E3%83%AB%E3%83%BC%E3%83%AB-blue?style=flat)
 ![Languages](https://img.shields.io/badge/%E8%A8%80%E8%AA%9E-TR%20%C2%B7%20EN%20%C2%B7%20JA-informational?style=flat)
 [![License MIT](https://img.shields.io/badge/%E3%83%A9%E3%82%A4%E3%82%BB%E3%83%B3%E3%82%B9-MIT-yellow?style=flat)](LICENSE)
 
@@ -18,7 +18,7 @@ GTFS Analyzer は、ファイルが仕様に準拠しているかどうかをチ
 
 すべての検出結果には、ルールコード、分析クラス、重大度レベルが付与されます。Spec・Interop・Quality・Analytics のクラスと Critical → Info の重大度レベルにより、数千件の検出結果をフィルタリングし、優先順位付けし、体系的に処理できます。また本ツールは、フィードが使用している GTFS 機能 — Shapes、Transfers、Fares、Headsigns、Flex など — を自動的に検出してレポートに含めます。
 
-GTFS Analyzer は、仕様検証を運用品質分析へと拡張します。路線ごとの運行頻度の不整合、異常な速度区間、孤立した停留所、サービスパターンの欠落、ネットワークトポロジーの問題を、473 個の異なる検証・分析ルールで精査します。結果は、準拠性と品質を別々に評価するスコアで要約されます。優先順位付けされた修正キューは、どの問題を最初に対処すべきか、および各修正がスコアに与える可能性のある影響を示します。
+GTFS Analyzer は、仕様検証を運用品質分析へと拡張します。路線ごとの運行頻度の不整合、異常な速度区間、孤立した停留所、サービスパターンの欠落、ネットワークトポロジーの問題を、474 個の異なる検証・分析ルールで精査します。結果は、準拠性と品質を別々に評価するスコアで要約されます。優先順位付けされた修正キューは、どの問題を最初に対処すべきか、および各修正がスコアに与える可能性のある影響を示します。
 
 **対象ユーザー**
 
@@ -47,7 +47,7 @@ GTFS Analyzer は、仕様検証を運用品質分析へと拡張します。路
 | Fares v2 検証 | ❌ | ❌ | ✅ |
 | 出力形式 | HTML, JSON | HTML, JSON | HTML, CSV, JSON, PDF |
 | プラットフォーム | Web | Web, CLI, デスクトップ | Web *（CLI・デスクトップは計画中）* |
-| **総ルール数** | **178** | **~120** | **473** |
+| **総ルール数** | **178** | **~120** | **474** |
 
 ### フィード分析の例
 
@@ -339,7 +339,7 @@ gtfs-validator/
 │   ├── config/     # 設定型
 │   ├── core/       # 共有データ構造と結果モデル
 │   ├── pipeline/   # 検証パイプライン（k1〜k7 ステージ）
-│   ├── rules/      # ルール定義とレジストリ（473 ルール、36 グループ）
+│   ├── rules/      # ルール定義とレジストリ（474 ルール、36 グループ）
 │   └── wasm/       # wasm-bindgen WASM 出力
 └── ui/             # Vite + TypeScript フロントエンド
     ├── pkg/          # wasm-pack 出力（生成済み、コミット済み）
