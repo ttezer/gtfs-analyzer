@@ -1,4 +1,4 @@
-﻿use gtfs_core::EntityType;
+use gtfs_core::EntityType;
 
 use super::common::{build_row_map, get_trimmed_field, make_k2_notice, parse_u32, validate_enum, RowMap};
 use crate::k1_parse::RawFile;
@@ -32,18 +32,18 @@ pub fn validate_fare_media(
                         notices.push(make_k2_notice(
                             &mut counter, "FMD_002", EntityType::Row, entity_id.clone(), Some(&row_map),
                             &file.name, Some(line), Some("fare_media_type"), Some(v.to_string()),
-                            Some("0â€“4".to_string()),
-                            "fare_media_type geÃ§erli bir enum deÄŸeri deÄŸil.".to_string(),
-                            "0 (yok), 1 (fiziksel kart), 2 (mobil uygulama), 3 (EMV temassÄ±z), 4 (transit kuruluÅŸ uygulamasÄ±) kullanÄ±n.",
+                            Some("0–4".to_string()),
+                            "fare_media_type geçerli bir enum değeri değil.".to_string(),
+                            "0 (yok), 1 (fiziksel kart), 2 (mobil uygulama), 3 (EMV temassız), 4 (transit kuruluş uygulaması) kullanın.",
                         ));
                     }
                 } else {
                     notices.push(make_k2_notice(
                         &mut counter, "FMD_002", EntityType::Row, entity_id.clone(), Some(&row_map),
                         &file.name, Some(line), Some("fare_media_type"), None,
-                        Some("0â€“4".to_string()),
+                        Some("0–4".to_string()),
                         "fare_media_type zorunludur.".to_string(),
-                        "GeÃ§erli bir fare_media_type deÄŸeri girin.",
+                        "Geçerli bir fare_media_type değeri girin.",
                     ));
                 }
                 value
@@ -53,8 +53,8 @@ pub fn validate_fare_media(
                     &mut counter, "FMD_002", EntityType::Row, entity_id.clone(), Some(&row_map),
                     &file.name, Some(line), Some("fare_media_type"),
                     get_trimmed_field(&row_map, "fare_media_type").map(str::to_string),
-                    Some("0â€“4".to_string()), err,
-                    "GeÃ§erli bir fare_media_type deÄŸeri girin.",
+                    Some("0–4".to_string()), err,
+                    "Geçerli bir fare_media_type değeri girin.",
                 ));
                 None
             }
@@ -64,18 +64,18 @@ pub fn validate_fare_media(
             .filter(|v| !v.is_empty())
             .map(str::to_string);
 
-        // FMD_003: TransitCard/MobileApp/AgencyApp iÃ§in fare_media_name tavsiye edilir
+        // FMD_003: TransitCard/MobileApp/AgencyApp için fare_media_name tavsiye edilir
         if fare_media_name.is_none() && matches!(fare_media_type, Some(1) | Some(2) | Some(4)) {
             let type_label = match fare_media_type {
                 Some(1) => "fiziksel kart",
                 Some(2) => "mobil uygulama",
-                _ => "transit kuruluÅŸ uygulamasÄ±",
+                _ => "transit kuruluş uygulaması",
             };
             notices.push(make_k2_notice(
                 &mut counter, "FMD_003", EntityType::Row, entity_id.clone(), Some(&row_map),
                 &file.name, Some(line), Some("fare_media_name"), None, None,
-                format!("fare_media_type={} ({type_label}) iÃ§in fare_media_name tavsiye edilir.", fare_media_type.unwrap()),
-                "KullanÄ±cÄ±larÄ±n Ã¶deme aracÄ±nÄ± tanÄ±yabilmesi iÃ§in fare_media_name ekleyin.",
+                format!("fare_media_type={} ({type_label}) için fare_media_name tavsiye edilir.", fare_media_type.unwrap()),
+                "Kullanıcıların ödeme aracını tanıyabilmesi için fare_media_name ekleyin.",
             ));
         }
 
@@ -121,7 +121,7 @@ mod tests {
     fn fmd_003_silent_when_name_present() {
         let file = make_file(
             &["fare_media_id", "fare_media_type", "fare_media_name"],
-            vec![vec!["FM1", "1", "Ä°stanbulkart"]],
+            vec![vec!["FM1", "1", "İstanbulkart"]],
         );
         let (_, notices) = validate_fare_media(&file);
         assert!(!notices.iter().any(|n| n.rule_id == "FMD_003"), "FMD_003 tetiklenmemeli");

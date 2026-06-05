@@ -1,4 +1,4 @@
-﻿use gtfs_core::EntityType;
+use gtfs_core::EntityType;
 
 use super::common::{build_row_map, get_trimmed_field, make_k2_notice, RowMap};
 use crate::k1_parse::RawFile;
@@ -62,7 +62,7 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
         let start_day    = opt_int(&row_map, "prior_notice_start_day");
 
         if let Some(btype) = booking_type {
-            // BKR_004: booking_type=0 iken prior_notice alanlarÄ± yasak
+            // BKR_004: booking_type=0 iken prior_notice alanları yasak
             if btype == 0
                 && (has_duration_min || has_duration_max || has_last_day
                     || has_last_time || has_start_day || has_start_time)
@@ -70,9 +70,9 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
                 notices.push(make_k2_notice(
                     &mut ctr, "BKR_004", EntityType::Row, entity_id.clone(), Some(&row_map),
                     &file.name, Some(line), Some("prior_notice_duration_min"),
-                    Some(btype_str.clone()), Some("(boÅŸ)".to_string()),
-                    "booking_type=0 (anlÄ±k rezervasyon) iken prior_notice alanlarÄ± dolu olmamalÄ±.".to_string(),
-                    "AnlÄ±k rezervasyon iÃ§in prior_notice alanlarÄ±nÄ± kaldÄ±rÄ±n ya da booking_type deÄŸerini dÃ¼zeltin.",
+                    Some(btype_str.clone()), Some("(boş)".to_string()),
+                    "booking_type=0 (anlık rezervasyon) iken prior_notice alanları dolu olmamalı.".to_string(),
+                    "Anlık rezervasyon için prior_notice alanlarını kaldırın ya da booking_type değerini düzeltin.",
                 ));
             }
 
@@ -82,9 +82,9 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
                     &mut ctr, "BKR_005", EntityType::Row, entity_id.clone(), Some(&row_map),
                     &file.name, Some(line), Some("prior_notice_duration_max"),
                     get_trimmed_field(&row_map, "prior_notice_duration_max").map(str::to_string),
-                    Some("(boÅŸ)".to_string()),
-                    "booking_type=2 iken prior_notice_duration_max yasaktÄ±r.".to_string(),
-                    "prior_notice_duration_max yalnÄ±zca booking_type=1 (aynÄ± gÃ¼n) ile kullanÄ±labilir.",
+                    Some("(boş)".to_string()),
+                    "booking_type=2 iken prior_notice_duration_max yasaktır.".to_string(),
+                    "prior_notice_duration_max yalnızca booking_type=1 (aynı gün) ile kullanılabilir.",
                 ));
             }
 
@@ -95,18 +95,18 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
                     &file.name, Some(line), Some("prior_notice_duration_min"),
                     None, Some("integer > 0".to_string()),
                     "booking_type=1 iken prior_notice_duration_min zorunludur.".to_string(),
-                    "AynÄ± gÃ¼n rezervasyon iÃ§in minimum Ã¶nceden bildirim sÃ¼resini (dakika) girin.",
+                    "Aynı gün rezervasyon için minimum önceden bildirim süresini (dakika) girin.",
                 ));
             }
 
-            // BKR_001: booking_typeâ‰ 2 iken prior_notice_last_day/start_day yasak
+            // BKR_001: booking_type≠2 iken prior_notice_last_day/start_day yasak
             if btype != 2 && (has_last_day || has_start_day) {
                 notices.push(make_k2_notice(
                     &mut ctr, "BKR_001", EntityType::Row, entity_id.clone(), Some(&row_map),
                     &file.name, Some(line), Some("prior_notice_last_day"),
                     Some(btype_str.clone()), Some("2".to_string()),
-                    format!("booking_type={} iken prior_notice_last_day/start_day alanlarÄ± yasaktÄ±r.", btype),
-                    "Ã–nceki gÃ¼n bazlÄ± alanlarÄ± yalnÄ±zca booking_type=2 ile kullanÄ±n.",
+                    format!("booking_type={} iken prior_notice_last_day/start_day alanları yasaktır.", btype),
+                    "Önceki gün bazlı alanları yalnızca booking_type=2 ile kullanın.",
                 ));
             }
 
@@ -115,9 +115,9 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
                 notices.push(make_k2_notice(
                     &mut ctr, "BKR_008", EntityType::Row, entity_id.clone(), Some(&row_map),
                     &file.name, Some(line), Some("prior_notice_last_day"),
-                    None, Some("integer â‰¥ 0".to_string()),
+                    None, Some("integer ≥ 0".to_string()),
                     "booking_type=2 iken prior_notice_last_day zorunludur.".to_string(),
-                    "Ã–nceki gÃ¼n rezervasyonu iÃ§in son bildirim gÃ¼nÃ¼nÃ¼ girin.",
+                    "Önceki gün rezervasyonu için son bildirim gününü girin.",
                 ));
             }
 
@@ -128,12 +128,12 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
                     &file.name, Some(line), Some("prior_notice_last_time"),
                     None, Some("HH:MM:SS".to_string()),
                     "booking_type=2 iken prior_notice_last_time zorunludur.".to_string(),
-                    "Son bildirim gÃ¼nÃ¼ iÃ§in saat bilgisini girin (HH:MM:SS).",
+                    "Son bildirim günü için saat bilgisini girin (HH:MM:SS).",
                 ));
             }
         }
 
-        // BKR_006: prior_notice_duration_min â‰¤ 0 veya sayÄ±sal deÄŸil
+        // BKR_006: prior_notice_duration_min ≤ 0 veya sayısal değil
         if has_duration_min {
             match duration_min {
                 Some(v) if v <= 0 => {
@@ -141,8 +141,8 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
                         &mut ctr, "BKR_006", EntityType::Row, entity_id.clone(), Some(&row_map),
                         &file.name, Some(line), Some("prior_notice_duration_min"),
                         Some(v.to_string()), Some("> 0".to_string()),
-                        "prior_notice_duration_min sÄ±fÄ±r veya negatif olamaz.".to_string(),
-                        "Minimum bildirim sÃ¼resini pozitif bir dakika deÄŸeri olarak girin.",
+                        "prior_notice_duration_min sıfır veya negatif olamaz.".to_string(),
+                        "Minimum bildirim süresini pozitif bir dakika değeri olarak girin.",
                     ));
                 }
                 None => {
@@ -151,8 +151,8 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
                         &file.name, Some(line), Some("prior_notice_duration_min"),
                         get_trimmed_field(&row_map, "prior_notice_duration_min").map(str::to_string),
                         Some("integer > 0".to_string()),
-                        "prior_notice_duration_min sayÄ±sal bir deÄŸer deÄŸil.".to_string(),
-                        "GeÃ§erli bir tam sayÄ± (dakika) girin.",
+                        "prior_notice_duration_min sayısal bir değer değil.".to_string(),
+                        "Geçerli bir tam sayı (dakika) girin.",
                     ));
                 }
                 _ => {}
@@ -165,8 +165,8 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
                 &mut ctr, "BKR_002", EntityType::Row, entity_id.clone(), Some(&row_map),
                 &file.name, Some(line), Some("prior_notice_start_day"),
                 get_trimmed_field(&row_map, "prior_notice_start_day").map(str::to_string), None,
-                "prior_notice_start_day yalnÄ±zca prior_notice_last_day ile birlikte kullanÄ±labilir.".to_string(),
-                "prior_notice_last_day ekleyin ya da prior_notice_start_day kaldÄ±rÄ±n.",
+                "prior_notice_start_day yalnızca prior_notice_last_day ile birlikte kullanılabilir.".to_string(),
+                "prior_notice_last_day ekleyin ya da prior_notice_start_day kaldırın.",
             ));
         }
 
@@ -176,8 +176,8 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
                 &mut ctr, "BKR_003", EntityType::Row, entity_id.clone(), Some(&row_map),
                 &file.name, Some(line), Some("prior_notice_start_time"),
                 get_trimmed_field(&row_map, "prior_notice_start_time").map(str::to_string), None,
-                "prior_notice_start_time yalnÄ±zca prior_notice_start_day ile birlikte kullanÄ±labilir.".to_string(),
-                "prior_notice_start_day ekleyin ya da prior_notice_start_time kaldÄ±rÄ±n.",
+                "prior_notice_start_time yalnızca prior_notice_start_day ile birlikte kullanılabilir.".to_string(),
+                "prior_notice_start_day ekleyin ya da prior_notice_start_time kaldırın.",
             ));
         }
 
@@ -187,20 +187,20 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
                 &mut ctr, "BKR_010", EntityType::Row, entity_id.clone(), Some(&row_map),
                 &file.name, Some(line), Some("prior_notice_start_time"),
                 None, Some("HH:MM:SS".to_string()),
-                "prior_notice_start_day belirtilmiÅŸse prior_notice_start_time zorunludur.".to_string(),
-                "Erken rezervasyon penceresi baÅŸlangÄ±Ã§ saatini girin (HH:MM:SS).",
+                "prior_notice_start_day belirtilmişse prior_notice_start_time zorunludur.".to_string(),
+                "Erken rezervasyon penceresi başlangıç saatini girin (HH:MM:SS).",
             ));
         }
 
-        // BKR_011: prior_notice_last_day > prior_notice_start_day (rezervasyon penceresi geÃ§ersiz)
+        // BKR_011: prior_notice_last_day > prior_notice_start_day (rezervasyon penceresi geçersiz)
         if let (Some(ld), Some(sd)) = (last_day, start_day) {
             if ld > sd {
                 notices.push(make_k2_notice(
                     &mut ctr, "BKR_011", EntityType::Row, entity_id.clone(), Some(&row_map),
                     &file.name, Some(line), Some("prior_notice_last_day"),
                     Some(format!("last_day={ld}, start_day={sd}")), None,
-                    format!("prior_notice_last_day ({ld}) > prior_notice_start_day ({sd}): rezervasyon penceresi geÃ§ersiz."),
-                    "prior_notice_start_day deÄŸerini prior_notice_last_day deÄŸerinden bÃ¼yÃ¼k ya da eÅŸit yapÄ±n.",
+                    format!("prior_notice_last_day ({ld}) > prior_notice_start_day ({sd}): rezervasyon penceresi geçersiz."),
+                    "prior_notice_start_day değerini prior_notice_last_day değerinden büyük ya da eşit yapın.",
                 ));
             }
         }
@@ -317,7 +317,7 @@ mod tests {
         );
         let (recs, notices) = validate_booking_rules(&file);
         assert_eq!(recs.len(), 1);
-        assert!(notices.is_empty(), "GeÃ§erli type=2 iÃ§in notice olmamalÄ±: {:?}", notices);
+        assert!(notices.is_empty(), "Geçerli type=2 için notice olmamalı: {:?}", notices);
     }
 
     #[test]

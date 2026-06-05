@@ -1,4 +1,4 @@
-﻿use gtfs_core::EntityType;
+use gtfs_core::EntityType;
 
 use super::common::{build_row_map, get_trimmed_field, make_k2_notice, parse_u32, validate_enum, RowMap};
 use crate::k1_parse::RawFile;
@@ -35,7 +35,7 @@ pub fn validate_transfers(file: &RawFile) -> (Vec<TransferRecord>, Vec<gtfs_core
                 &mut counter, "TRF_001", EntityType::Row, entity_id.clone(), Some(&row_map),
                 &file.name, Some(line), Some("from_stop_id"), Some(String::new()), None,
                 "from_stop_id zorunludur.".to_string(),
-                "Aktarma kaydÄ±na from_stop_id ekleyin.",
+                "Aktarma kaydına from_stop_id ekleyin.",
             ));
         }
 
@@ -45,11 +45,11 @@ pub fn validate_transfers(file: &RawFile) -> (Vec<TransferRecord>, Vec<gtfs_core
                 &mut counter, "TRF_002", EntityType::Row, entity_id.clone(), Some(&row_map),
                 &file.name, Some(line), Some("to_stop_id"), Some(String::new()), None,
                 "to_stop_id zorunludur.".to_string(),
-                "Aktarma kaydÄ±na to_stop_id ekleyin.",
+                "Aktarma kaydına to_stop_id ekleyin.",
             ));
         }
 
-        // TRF_004: transfer_type geÃ§ersiz
+        // TRF_004: transfer_type geçersiz
         let transfer_type = match parse_u32(&row_map, "transfer_type") {
             Ok(value) => {
                 if let Some(v) = value {
@@ -57,9 +57,9 @@ pub fn validate_transfers(file: &RawFile) -> (Vec<TransferRecord>, Vec<gtfs_core
                         notices.push(make_k2_notice(
                             &mut counter, "TRF_004", EntityType::Row, entity_id.clone(), Some(&row_map),
                             &file.name, Some(line), Some("transfer_type"), Some(v.to_string()),
-                            Some("0â€“5".to_string()),
-                            format!("transfer_type '{v}' geÃ§ersiz."),
-                            "transfer_type'Ä± geÃ§erli bir GTFS enum deÄŸerine ayarlayÄ±n (0â€“5).",
+                            Some("0–5".to_string()),
+                            format!("transfer_type '{v}' geçersiz."),
+                            "transfer_type'ı geçerli bir GTFS enum değerine ayarlayın (0–5).",
                         ));
                     }
                 }
@@ -70,14 +70,14 @@ pub fn validate_transfers(file: &RawFile) -> (Vec<TransferRecord>, Vec<gtfs_core
                     &mut counter, "TRF_004", EntityType::Row, entity_id.clone(), Some(&row_map),
                     &file.name, Some(line), Some("transfer_type"),
                     get_trimmed_field(&row_map, "transfer_type").map(str::to_string),
-                    Some("0â€“5".to_string()), err,
-                    "transfer_type'Ä± geÃ§erli bir GTFS enum deÄŸerine ayarlayÄ±n (0â€“5).",
+                    Some("0–5".to_string()), err,
+                    "transfer_type'ı geçerli bir GTFS enum değerine ayarlayın (0–5).",
                 ));
                 None
             }
         };
 
-        // TRF_005: transfer_type=2 iÃ§in min_transfer_time zorunlu
+        // TRF_005: transfer_type=2 için min_transfer_time zorunlu
         let min_transfer_time = match parse_u32(&row_map, "min_transfer_time") {
             Ok(value) => value,
             Err(err) => {
@@ -86,7 +86,7 @@ pub fn validate_transfers(file: &RawFile) -> (Vec<TransferRecord>, Vec<gtfs_core
                     &file.name, Some(line), Some("min_transfer_time"),
                     get_trimmed_field(&row_map, "min_transfer_time").map(str::to_string),
                     Some(">= 0".to_string()), err,
-                    "min_transfer_time iÃ§in sÄ±fÄ±r veya pozitif bir tamsayÄ± girin.",
+                    "min_transfer_time için sıfır veya pozitif bir tamsayı girin.",
                 ));
                 None
             }
@@ -96,20 +96,20 @@ pub fn validate_transfers(file: &RawFile) -> (Vec<TransferRecord>, Vec<gtfs_core
             notices.push(make_k2_notice(
                 &mut counter, "TRF_005", EntityType::Row, entity_id.clone(), Some(&row_map),
                 &file.name, Some(line), Some("min_transfer_time"), Some(String::new()),
-                None, "transfer_type=2 iÃ§in min_transfer_time zorunludur.".to_string(),
-                "min_transfer_time alanÄ±nÄ± doldurun.",
+                None, "transfer_type=2 için min_transfer_time zorunludur.".to_string(),
+                "min_transfer_time alanını doldurun.",
             ));
         }
 
-        // GGL_001: transfer_type=4/5 Google Transit tarafÄ±ndan desteklenmiyor
+        // GGL_001: transfer_type=4/5 Google Transit tarafından desteklenmiyor
         if matches!(transfer_type, Some(4) | Some(5)) {
             let ttype = transfer_type.unwrap();
             notices.push(make_k2_notice(
                 &mut counter, "GGL_001", EntityType::Row, entity_id.clone(), Some(&row_map),
                 &file.name, Some(line), Some("transfer_type"),
                 Some(ttype.to_string()), None,
-                format!("transfer_type={ttype} (in-seat aktarma) Google Transit tarafÄ±ndan yoksayÄ±lÄ±yor."),
-                "Google Transit uyumluluÄŸu gerekiyorsa transfer_type deÄŸerini 0â€“3 arasÄ±nda seÃ§in.",
+                format!("transfer_type={ttype} (in-seat aktarma) Google Transit tarafından yoksayılıyor."),
+                "Google Transit uyumluluğu gerekiyorsa transfer_type değerini 0–3 arasında seçin.",
             ));
         }
 

@@ -1,4 +1,4 @@
-﻿use gtfs_core::EntityType;
+use gtfs_core::EntityType;
 use smol_str::SmolStr;
 
 use super::common::make_k2_notice;
@@ -80,7 +80,7 @@ pub fn validate_trips(file: &RawFile) -> (Vec<TripRecord>, Vec<gtfs_core::Notice
     let mut counter = 0u32;
 
     let cols = Cols::from_headers(&file.headers);
-    // TRP_021: feed genelinde bikes_allowed kullanÄ±mÄ±nÄ± takip et
+    // TRP_021: feed genelinde bikes_allowed kullanımını takip et
     let mut trp021_missing: Vec<gtfs_core::Notice> = Vec::new();
     let mut bikes_allowed_set_count: u32 = 0;
 
@@ -97,7 +97,7 @@ pub fn validate_trips(file: &RawFile) -> (Vec<TripRecord>, Vec<gtfs_core::Notice
                 None, &file.name, Some(line), Some("trip_id"),
                 Some(String::new()), None,
                 "trip_id zorunludur.".to_string(),
-                "Her sefere benzersiz bir trip_id atayÄ±n.",
+                "Her sefere benzersiz bir trip_id atayın.",
             ));
         }
 
@@ -117,15 +117,15 @@ pub fn validate_trips(file: &RawFile) -> (Vec<TripRecord>, Vec<gtfs_core::Notice
             if v.is_empty() { None } else { Some(v.to_string()) }
         };
 
-        // TRP_014: trip_short_name Ã§ok uzun (>20 karakter)
+        // TRP_014: trip_short_name çok uzun (>20 karakter)
         if let Some(ref sn) = trip_short_name {
             if sn.len() > 20 {
                 notices.push(make_k2_notice(
                     &mut counter, "TRP_014", EntityType::Trip, entity_id.clone(),
                     None, &file.name, Some(line), Some("trip_short_name"),
-                    Some(sn.len().to_string()), Some("â‰¤20".to_string()),
-                    format!("trip_short_name {} karakter; 20'yi aÅŸmamalÄ±dÄ±r.", sn.len()),
-                    "trip_short_name'i kÄ±saltÄ±n.",
+                    Some(sn.len().to_string()), Some("≤20".to_string()),
+                    format!("trip_short_name {} karakter; 20'yi aşmamalıdır.", sn.len()),
+                    "trip_short_name'i kısaltın.",
                 ));
             }
         }
@@ -145,8 +145,8 @@ pub fn validate_trips(file: &RawFile) -> (Vec<TripRecord>, Vec<gtfs_core::Notice
                             &mut counter, "TRP_005", EntityType::Trip, entity_id.clone(),
                             None, &file.name, Some(line), Some("direction_id"),
                             Some(val.to_string()), Some("0 veya 1".to_string()),
-                            format!("direction_id {val} geÃ§ersiz; 0 veya 1 olmalÄ±dÄ±r."),
-                            "direction_id deÄŸerini 0 (gidiÅŸ) veya 1 (dÃ¶nÃ¼ÅŸ) olarak ayarlayÄ±n.",
+                            format!("direction_id {val} geçersiz; 0 veya 1 olmalıdır."),
+                            "direction_id değerini 0 (gidiş) veya 1 (dönüş) olarak ayarlayın.",
                         ));
                     }
                 }
@@ -157,14 +157,14 @@ pub fn validate_trips(file: &RawFile) -> (Vec<TripRecord>, Vec<gtfs_core::Notice
                     &mut counter, "TRP_005", EntityType::Trip, entity_id.clone(),
                     None, &file.name, Some(line), Some("direction_id"),
                     Some(dir_raw.to_string()), Some("0 veya 1".to_string()),
-                    format!("direction_id '{dir_raw}' geÃ§ersiz; 0 veya 1 olmalÄ±dÄ±r."),
-                    "direction_id deÄŸerini 0 (gidiÅŸ) veya 1 (dÃ¶nÃ¼ÅŸ) olarak ayarlayÄ±n.",
+                    format!("direction_id '{dir_raw}' geçersiz; 0 veya 1 olmalıdır."),
+                    "direction_id değerini 0 (gidiş) veya 1 (dönüş) olarak ayarlayın.",
                 ));
                 None
             }
         };
 
-        // TRP_006: wheelchair_accessible 0, 1 veya 2 olmalÄ±
+        // TRP_006: wheelchair_accessible 0, 1 veya 2 olmalı
         let wc_raw = get_col(row, cols.wheelchair_accessible);
         let wheelchair_accessible = match parse_u32_raw(wc_raw) {
             Ok(v) => {
@@ -174,8 +174,8 @@ pub fn validate_trips(file: &RawFile) -> (Vec<TripRecord>, Vec<gtfs_core::Notice
                             &mut counter, "TRP_006", EntityType::Trip, entity_id.clone(),
                             None, &file.name, Some(line), Some("wheelchair_accessible"),
                             Some(val.to_string()), Some("0, 1 veya 2".to_string()),
-                            "wheelchair_accessible 0, 1 veya 2 olmalÄ±dÄ±r.".to_string(),
-                            "wheelchair_accessible deÄŸerini 0 (bilgi yok), 1 (eriÅŸilebilir) veya 2 (eriÅŸilemez) olarak ayarlayÄ±n.",
+                            "wheelchair_accessible 0, 1 veya 2 olmalıdır.".to_string(),
+                            "wheelchair_accessible değerini 0 (bilgi yok), 1 (erişilebilir) veya 2 (erişilemez) olarak ayarlayın.",
                         ));
                     }
                 }
@@ -184,7 +184,7 @@ pub fn validate_trips(file: &RawFile) -> (Vec<TripRecord>, Vec<gtfs_core::Notice
             Err(_) => None,
         };
 
-        // TRP_007: bikes_allowed 0, 1 veya 2 olmalÄ±
+        // TRP_007: bikes_allowed 0, 1 veya 2 olmalı
         let ba_raw = get_col(row, cols.bikes_allowed);
         let bikes_allowed = match parse_u32_raw(ba_raw) {
             Ok(v) => {
@@ -194,8 +194,8 @@ pub fn validate_trips(file: &RawFile) -> (Vec<TripRecord>, Vec<gtfs_core::Notice
                             &mut counter, "TRP_007", EntityType::Trip, entity_id.clone(),
                             None, &file.name, Some(line), Some("bikes_allowed"),
                             Some(val.to_string()), Some("0, 1 veya 2".to_string()),
-                            "bikes_allowed 0, 1 veya 2 olmalÄ±dÄ±r.".to_string(),
-                            "bikes_allowed deÄŸerini 0 (bilgi yok), 1 (izinli) veya 2 (izinsiz) olarak ayarlayÄ±n.",
+                            "bikes_allowed 0, 1 veya 2 olmalıdır.".to_string(),
+                            "bikes_allowed değerini 0 (bilgi yok), 1 (izinli) veya 2 (izinsiz) olarak ayarlayın.",
                         ));
                     }
                 }
@@ -204,14 +204,14 @@ pub fn validate_trips(file: &RawFile) -> (Vec<TripRecord>, Vec<gtfs_core::Notice
             Err(_) => None,
         };
 
-        // TRP_021: bikes_allowed kullanÄ±m istatistiÄŸi â€” per-trip bildirimi loop sonrasÄ± yapÄ±lÄ±r
+        // TRP_021: bikes_allowed kullanım istatistiği — per-trip bildirimi loop sonrası yapılır
         if bikes_allowed.is_none() && ba_raw.is_empty() {
             trp021_missing.push(make_k2_notice(
                 &mut counter, "TRP_021", EntityType::Trip, entity_id.clone(),
                 None, &file.name, Some(line), Some("bikes_allowed"),
                 None, None,
-                format!("'{}' seferinde bikes_allowed belirtilmemiÅŸ.", trip_id),
-                "bikes_allowed deÄŸerini 0 (bilgi yok), 1 (bisiklet izinli) veya 2 (bisiklet izinsiz) olarak ayarlayÄ±n.",
+                format!("'{}' seferinde bikes_allowed belirtilmemiş.", trip_id),
+                "bikes_allowed değerini 0 (bilgi yok), 1 (bisiklet izinli) veya 2 (bisiklet izinsiz) olarak ayarlayın.",
             ));
         } else if bikes_allowed.is_some() {
             bikes_allowed_set_count += 1;
@@ -239,20 +239,20 @@ pub fn validate_trips(file: &RawFile) -> (Vec<TripRecord>, Vec<gtfs_core::Notice
         });
     }
 
-    // TRP_021: hiÃ§bir seferde bikes_allowed set edilmemiÅŸse tek Ã¶zet notice; bazÄ±larÄ±nda varsa per-trip
+    // TRP_021: hiçbir seferde bikes_allowed set edilmemişse tek özet notice; bazılarında varsa per-trip
     if !trp021_missing.is_empty() {
         if bikes_allowed_set_count == 0 {
-            // Feed genelinde alan hiÃ§ doldurulmamÄ±ÅŸ â€” tek Ã¶zet yeterli
+            // Feed genelinde alan hiç doldurulmamış — tek özet yeterli
             let total = trp021_missing.len();
             notices.push(make_k2_notice(
                 &mut counter, "TRP_021", EntityType::Trip, None,
                 None, &file.name, None, Some("bikes_allowed"),
                 None, None,
-                format!("Bu feed'de bikes_allowed alanÄ± hiÃ§bir seferde belirtilmemiÅŸ ({total} sefer)."),
-                "bikes_allowed deÄŸerini 0 (bilgi yok), 1 (bisiklet izinli) veya 2 (bisiklet izinsiz) olarak ayarlayÄ±n.",
+                format!("Bu feed'de bikes_allowed alanı hiçbir seferde belirtilmemiş ({total} sefer)."),
+                "bikes_allowed değerini 0 (bilgi yok), 1 (bisiklet izinli) veya 2 (bisiklet izinsiz) olarak ayarlayın.",
             ));
         } else {
-            // BazÄ± seferler set etmiÅŸ â€” eksik olanlarÄ± per-trip bildir (tutarsÄ±zlÄ±k)
+            // Bazı seferler set etmiş — eksik olanları per-trip bildir (tutarsızlık)
             notices.extend(trp021_missing);
         }
     }
@@ -283,7 +283,7 @@ mod tests {
         );
         let (records, notices) = validate_trips(&file);
         assert_eq!(records.len(), 1);
-        assert!(notices.is_empty(), "GeÃ§erli sefer notice Ã¼retmemeli: {:?}", notices);
+        assert!(notices.is_empty(), "Geçerli sefer notice üretmemeli: {:?}", notices);
     }
 
     #[test]

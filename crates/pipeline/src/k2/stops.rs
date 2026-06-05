@@ -1,4 +1,4 @@
-﻿use gtfs_core::EntityType;
+use gtfs_core::EntityType;
 
 use super::common::{
     build_row_map, get_field, get_trimmed_field, looks_like_iana_timezone, make_k2_notice,
@@ -83,7 +83,7 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
             Err(_) => None,
         };
 
-        // For location_type 0 (or empty â€” regular stop) and 1 (station), coordinates + name required
+        // For location_type 0 (or empty — regular stop) and 1 (station), coordinates + name required
         let is_stop_or_station = matches!(location_type, None | Some(0) | Some(1));
 
         // STP_022: stop_code eksik (duraklar ve istasyonlar için)
