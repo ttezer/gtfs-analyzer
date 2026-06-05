@@ -65,7 +65,7 @@ Feed: `BART (San Francisco).zip` — 2026-05-25'te indirilen sürüm (geçerlili
 | Orta | — | — | 1.060 |
 | Düşük | — | — | 1.015 |
 | Bilgi / Info | 68 | 7 | 1.028 |
-| Tetiklenen kural tipi | 13 | 10 | **50** |
+| Tetiklenen kural tipi | 13 | 10 | **51** |
 | Yayın skoru | — | — | **87,7 / 100** |
 | Kalite skoru | — | — | **80,6 / 100** |
 

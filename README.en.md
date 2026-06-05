@@ -65,7 +65,7 @@ Feed: `BART (San Francisco).zip` — version downloaded on 2026-05-25 (validity 
 | Medium | — | — | 1,060 |
 | Low | — | — | 1,015 |
 | Info | 68 | 7 | 1,028 |
-| Distinct rule types triggered | 13 | 10 | **50** |
+| Distinct rule types triggered | 13 | 10 | **51** |
 | Publish score | — | — | **87.7 / 100** |
 | Quality score | — | — | **80.6 / 100** |
 

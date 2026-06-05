@@ -4193,7 +4193,13 @@ fn check_remaining_analytics(
                     let narc = if all_have_sdt {
                         nxt.shape_dist_traveled.unwrap_or(0.0) * sdt_to_km
                     } else {
-                        arc_cache.get(&(shape_id, nxt.stop_id.as_str())).copied().unwrap_or(0.0)
+                        // Break prob_idx'te gerçekleştiği için sonraki duraklar henüz cache'de
+                        // değil; arc'ı doğrudan projekte et. (Cache'e güvenmek 0.0 verir →
+                        // geometrik yolda kurtarma asla tetiklenmez = yanlış pozitif.)
+                        match stop_coords.get(nxt.stop_id.as_str()) {
+                            Some(&(slat, slon)) => project_arc_km(pts, cum, slat, slon),
+                            None => 0.0,
+                        }
                     };
                     narc > prev_arc
                 });
@@ -7871,6 +7877,41 @@ mod tests {
         ];
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
         assert!(result.notices.iter().any(|n| n.rule_id == "SHP_017"), "kısmi sıra ihlali → SHP_017 olmalı");
+    }
+
+    #[test]
+    fn backtrack_that_recovers_no_shp_017() {
+        use crate::k2::shapes::ShapePointRecord;
+        // Backtrack kurtarma filtresi (#17): doğuya giden düz shape 29.00 → 29.10 (lat 41.0).
+        // stop_times: A(29.00) → B(29.03) → C(29.015: B'nin ~1.3km gerisi, >500m tolerans) → D(29.05).
+        // C geri sıçrar AMA D 3 durak içinde önceki maksimumu (B) geçer → kurtarma → SHP_017 YOK.
+        let mut records = records_with(
+            vec![
+                stop("A", 41.0, 29.00),
+                stop("B", 41.0, 29.03),
+                stop("C", 41.0, 29.015),
+                stop("D", 41.0, 29.05),
+            ],
+            vec![route("R1", 3)],
+            vec![{ let mut t = trip("T1", "R1"); t.shape_id = Some("S1".into()); t }],
+            vec![
+                stoptime("T1", 1, "A", (8,0,0),  (8,0,0),  2),
+                stoptime("T1", 2, "B", (8,10,0), (8,10,0), 3),
+                stoptime("T1", 3, "C", (8,20,0), (8,20,0), 4),
+                stoptime("T1", 4, "D", (8,30,0), (8,30,0), 5),
+            ],
+        );
+        records.shapes = vec![
+            ShapePointRecord { shape_id: "S1".into(), shape_pt_lat: Some(41.0), shape_pt_lon: Some(29.00),
+                shape_pt_sequence: Some(1), shape_dist_traveled: None, line: 2 },
+            ShapePointRecord { shape_id: "S1".into(), shape_pt_lat: Some(41.0), shape_pt_lon: Some(29.05),
+                shape_pt_sequence: Some(2), shape_dist_traveled: None, line: 3 },
+            ShapePointRecord { shape_id: "S1".into(), shape_pt_lat: Some(41.0), shape_pt_lon: Some(29.10),
+                shape_pt_sequence: Some(3), shape_dist_traveled: None, line: 4 },
+        ];
+        let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
+        assert!(!result.notices.iter().any(|n| n.rule_id == "SHP_017"),
+            "geri sıçrayıp 3 durak içinde toparlanan trip SHP_017 üretmemeli (backtrack kurtarma filtresi)");
     }
 
     // ── STP_029: parent_station'dan çok uzak durak ───────────────────────────
