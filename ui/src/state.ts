@@ -8,6 +8,7 @@ export interface AppState {
   configDelta: string;
   fileName: string;
   fixFileFilter: string; // files sayfasından fix'e filtreli geçiş için
+  generatedAt: Date | null; // raporun hesaplandığı an (validasyon/yeniden çalıştırma)
 }
 
 const state: AppState = {
@@ -16,6 +17,7 @@ const state: AppState = {
   configDelta: sessionStorage.getItem('gtfs-config-delta') ?? '',
   fileName: '',
   fixFileFilter: '',
+  generatedAt: null,
 };
 
 export function getState(): Readonly<AppState> { return state; }
@@ -24,6 +26,7 @@ export function setResult(result: ValidationResult, fileName: string): void {
   state.result = result;
   state.fileName = fileName;
   state.page = 'domain';
+  state.generatedAt = new Date();
 }
 
 export function setPage(page: AppPage): void {
@@ -41,4 +44,5 @@ export function setConfigDelta(delta: string): void {
 
 export function updateResult(result: ValidationResult): void {
   state.result = result;
+  state.generatedAt = new Date(); // yeniden çalıştırma yeni bir rapor üretir
 }

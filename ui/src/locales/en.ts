@@ -149,6 +149,15 @@ const en: LocaleShape = {
     'domain.table.file'          : 'File',
     'domain.table.rows'          : 'Rows',
     'domain.table.size'          : 'Size',
+    // Feed calendar / validity
+    'domain.calendar_title'      : 'Feed Calendar',
+    'domain.feed_validity'       : 'Validity window',
+    'domain.service_coverage'    : 'Service coverage',
+    'domain.active_days_fmt'     : '{active} of {span} days active',
+    'domain.coverage_fmt'        : '{pct}% coverage',
+    'domain.generated_at'        : 'Report generated',
+    'domain.not_specified'       : 'not specified',
+    'domain.no_service'          : 'No service dates found',
     // Fix labels
     'label.blocker'             : 'Blocker',
     'label.conditional_blocker' : 'Conditional Blocker',

@@ -104,6 +104,10 @@ export interface FeedMetrics {
   shape_count: number;
   active_service_days: number;
   avg_daily_trips: number;
+  feed_start_date: number | null;     // feed_info geçerlilik penceresi (YYYYMMDD)
+  feed_end_date: number | null;
+  service_start_date: number | null;  // gerçek servis kapsama aralığı (YYYYMMDD)
+  service_end_date: number | null;
   spec_notice_count: number;
   interop_notice_count: number;
   quality_notice_count: number;

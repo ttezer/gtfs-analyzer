@@ -1,5 +1,7 @@
 import type { ValidationResult, R5Report, FeedMetrics } from '../types';
 import { t } from '../i18n';
+import { getState } from '../state';
+import { fmtServiceDate, inclusiveDaySpan, dayOffset, fmtTimestamp } from '../dates';
 
 export function renderDomain(root: HTMLElement, result: ValidationResult): void {
   const { r1, r5 } = result.reports;
@@ -12,6 +14,7 @@ export function renderDomain(root: HTMLElement, result: ValidationResult): void 
       ${renderR1Card(r1, result)}
       ${renderSubScores(r5)}
       ${renderMetrics(metrics)}
+      ${renderFeedCalendar(metrics)}
     </div>`;
 }
 
@@ -233,6 +236,92 @@ function formatBytes(b: number): string {
   if (b < 1024) return `${b} B`;
   if (b < 1024 * 1024) return `${(b / 1024).toFixed(1)} KB`;
   return `${(b / 1024 / 1024).toFixed(1)} MB`;
+}
+
+// ── Feed takvimi: geçerlilik penceresi (F1) + servis kapsama görseli (F2) + zaman damgası (F3) ──
+
+function renderFeedCalendar(m: FeedMetrics): string {
+  const { feed_start_date: fs, feed_end_date: fe, service_start_date: ss, service_end_date: se } = m;
+
+  // F1 — feed_info geçerlilik penceresi
+  const validityVal = (fs != null && fe != null)
+    ? `${escHtml(fmtServiceDate(fs) ?? '')} – ${escHtml(fmtServiceDate(fe) ?? '')}`
+    : `<span class="muted-text">${t('domain.not_specified')}</span>`;
+
+  // F2 — gerçek servis kapsaması + yoğunluk
+  let serviceVal: string;
+  if (ss != null && se != null) {
+    const span = inclusiveDaySpan(ss, se);
+    const pct = span > 0 ? Math.round((m.active_service_days / span) * 100) : 0;
+    const activeStr = t('domain.active_days_fmt', {
+      active: m.active_service_days.toLocaleString('tr-TR'),
+      span: span.toLocaleString('tr-TR'),
+    });
+    const coverageStr = t('domain.coverage_fmt', { pct });
+    serviceVal = `${escHtml(fmtServiceDate(ss) ?? '')} – ${escHtml(fmtServiceDate(se) ?? '')}`
+      + ` <span class="cal-sub">· ${escHtml(activeStr)} · ${escHtml(coverageStr)}</span>`;
+  } else {
+    serviceVal = `<span class="muted-text">${t('domain.no_service')}</span>`;
+  }
+
+  // F3 — rapor oluşturulma zaman damgası (validasyon anında yakalandı)
+  const gen = getState().generatedAt;
+  const genHtml = gen
+    ? `<div class="cal-generated">${t('domain.generated_at')}: ${escHtml(fmtTimestamp(gen))}</div>`
+    : '';
+
+  return `
+    <div class="card">
+      <h3 class="rpt-section-title">${t('domain.calendar_title')}</h3>
+      <div class="cal-rows">
+        <div class="cal-row"><span class="cal-label">${t('domain.feed_validity')}</span><span class="cal-val">${validityVal}</span></div>
+        <div class="cal-row"><span class="cal-label">${t('domain.service_coverage')}</span><span class="cal-val">${serviceVal}</span></div>
+      </div>
+      ${renderTimelineBar(fs, fe, ss, se)}
+      ${genHtml}
+    </div>`;
+}
+
+// Eksen = feed penceresi ile servis aralığının birleşimi; iki bant orantılı çizilir.
+function renderTimelineBar(fs: number | null, fe: number | null, ss: number | null, se: number | null): string {
+  const starts = [fs, ss].filter((x): x is number => x != null);
+  const ends = [fe, se].filter((x): x is number => x != null);
+  if (starts.length === 0 || ends.length === 0) return '';
+
+  const axisStart = Math.min(...starts);
+  const axisEnd = Math.max(...ends);
+  const axisDays = inclusiveDaySpan(axisStart, axisEnd);
+  if (axisDays <= 0) return '';
+
+  const seg = (a: number, b: number): { left: number; width: number } => {
+    const left = (dayOffset(axisStart, a) / axisDays) * 100;
+    const width = (inclusiveDaySpan(a, b) / axisDays) * 100;
+    return { left: Math.max(0, left), width: Math.max(1.5, Math.min(100 - left, width)) };
+  };
+
+  let bands = '';
+  if (fs != null && fe != null) {
+    const s = seg(fs, fe);
+    bands += `<div class="cal-band cal-band-feed" style="left:${s.left.toFixed(2)}%;width:${s.width.toFixed(2)}%" title="${t('domain.feed_validity')}"></div>`;
+  }
+  if (ss != null && se != null) {
+    const s = seg(ss, se);
+    bands += `<div class="cal-band cal-band-svc" style="left:${s.left.toFixed(2)}%;width:${s.width.toFixed(2)}%" title="${t('domain.service_coverage')}"></div>`;
+  }
+
+  const legend = (fs != null && fe != null)
+    ? `<div class="cal-legend"><span class="cal-leg cal-leg-feed">${t('domain.feed_validity')}</span><span class="cal-leg cal-leg-svc">${t('domain.service_coverage')}</span></div>`
+    : '';
+
+  return `
+    <div class="cal-timeline">
+      <div class="cal-track">${bands}</div>
+      <div class="cal-axis">
+        <span>${escHtml(fmtServiceDate(axisStart, 'DD MMM YYYY') ?? '')}</span>
+        <span>${escHtml(fmtServiceDate(axisEnd, 'DD MMM YYYY') ?? '')}</span>
+      </div>
+      ${legend}
+    </div>`;
 }
 
 function escHtml(s: string): string {

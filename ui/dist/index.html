@@ -212,6 +212,25 @@
     .rpt-files { margin-top: .6rem; }
     .data-table .num { text-align: right; font-variant-numeric: tabular-nums; }
 
+    /* Feed takvimi / geçerlilik */
+    .cal-rows { display: flex; flex-direction: column; gap: .45rem; margin-bottom: .7rem; }
+    .cal-row { display: flex; gap: .6rem; align-items: baseline; flex-wrap: wrap; }
+    .cal-label { font-size: .7rem; font-weight: 600; color: var(--color-muted); text-transform: uppercase; letter-spacing: .04em; min-width: 9rem; }
+    .cal-val { font-size: .92rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+    .cal-sub { font-weight: 500; color: var(--color-muted); font-size: .82rem; }
+    .cal-timeline { margin: .5rem 0 .2rem; }
+    .cal-track { position: relative; height: 1.6rem; background: var(--color-bg); border: 1px solid var(--color-border); border-radius: 5px; }
+    .cal-band { position: absolute; border-radius: 3px; }
+    .cal-band-feed { top: 0; bottom: 0; background: color-mix(in srgb, var(--color-info) 14%, transparent); border: 1px dashed var(--color-info); }
+    .cal-band-svc { top: .3rem; bottom: .3rem; background: color-mix(in srgb, var(--color-info) 60%, transparent); }
+    .cal-axis { display: flex; justify-content: space-between; font-size: .68rem; color: var(--color-muted); margin-top: .25rem; font-variant-numeric: tabular-nums; }
+    .cal-legend { display: flex; gap: 1rem; margin-top: .4rem; font-size: .7rem; color: var(--color-muted); }
+    .cal-leg { display: inline-flex; align-items: center; gap: .35rem; }
+    .cal-leg::before { content: ''; width: .8rem; height: .8rem; border-radius: 2px; }
+    .cal-leg-feed::before { background: color-mix(in srgb, var(--color-info) 14%, transparent); border: 1px dashed var(--color-info); }
+    .cal-leg-svc::before { background: color-mix(in srgb, var(--color-info) 60%, transparent); }
+    .cal-generated { font-size: .72rem; color: var(--color-muted); margin-top: .7rem; }
+
     /* Skor bar */
     .score-bar { display: grid; grid-template-columns: repeat(4, 1fr); gap: .75rem; }
     .sb-card { background: var(--color-surface); border: 1px solid var(--color-border);
@@ -647,7 +666,7 @@
     .rule-acc-body { border-top: 1px solid var(--color-border); }
 
   </style>
-  <script type="module" crossorigin src="./assets/index-DGpKGKMn.js"></script>
+  <script type="module" crossorigin src="./assets/index-pwgTT-E4.js"></script>
 </head>
 <body>
   <div id="app"></div>

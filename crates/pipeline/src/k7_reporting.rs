@@ -697,6 +697,16 @@ fn build_metrics(notices: &[Notice], records: &EntityRecords, derived: &DerivedD
         .collect();
     let active_service_days = all_dates.len() as u32;
 
+    // Gerçek servis kapsama aralığı (YYYYMMDD min/max). all_dates değerleri zaten YYYYMMDD.
+    let service_start_date = all_dates.iter().min().copied();
+    let service_end_date = all_dates.iter().max().copied();
+
+    // Feed geçerlilik penceresi (feed_info.txt) — (y,m,d) tuple → YYYYMMDD u32.
+    let yyyymmdd = |(y, m, d): (u32, u32, u32)| y * 10000 + m * 100 + d;
+    let feed_info = records.feed_info.first();
+    let feed_start_date = feed_info.and_then(|fi| fi.feed_start_date).map(yyyymmdd);
+    let feed_end_date = feed_info.and_then(|fi| fi.feed_end_date).map(yyyymmdd);
+
     // Benzersiz, boş olmayan trip_id → service_id; duplicate/empty satırlar metriğe yansımasın.
     let mut unique_trips: HashMap<&str, &str> = HashMap::with_capacity(records.trips.len());
     for t in &records.trips {
@@ -746,6 +756,10 @@ fn build_metrics(notices: &[Notice], records: &EntityRecords, derived: &DerivedD
         shape_count,
         active_service_days,
         avg_daily_trips,
+        feed_start_date,
+        feed_end_date,
+        service_start_date,
+        service_end_date,
         spec_notice_count:      notices.iter().filter(|n| n.rule_class == RuleClass::Spec).count() as u32,
         interop_notice_count:   notices.iter().filter(|n| n.rule_class == RuleClass::Interop).count() as u32,
         quality_notice_count:   notices.iter().filter(|n| n.rule_class == RuleClass::Quality).count() as u32,

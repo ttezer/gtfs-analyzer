@@ -8,7 +8,7 @@ let __tla = (async ()=>{
         });
     }
     o(self, "wasm_bindgen_worker_init").then(async ({ init: r, receiver: t })=>{
-        const e = await import("./gtfs_wasm-CC1xm9by.js");
+        const e = await import("./gtfs_wasm-cq3q9Yke.js");
         await e.default(r), postMessage({
             type: "wasm_bindgen_worker_ready"
         }), e.wbg_rayon_start_worker(t);

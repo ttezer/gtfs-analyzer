@@ -147,6 +147,15 @@ const tr = {
     'domain.table.file'          : 'Dosya',
     'domain.table.rows'          : 'Satır',
     'domain.table.size'          : 'Boyut',
+    // Feed takvimi / geçerlilik
+    'domain.calendar_title'      : 'Feed Takvimi',
+    'domain.feed_validity'       : 'Geçerlilik penceresi',
+    'domain.service_coverage'    : 'Servis kapsaması',
+    'domain.active_days_fmt'     : '{span} günün {active} günü aktif',
+    'domain.coverage_fmt'        : '%{pct} kapsama',
+    'domain.generated_at'        : 'Rapor oluşturuldu',
+    'domain.not_specified'       : 'belirtilmemiş',
+    'domain.no_service'          : 'Servis tarihi bulunamadı',
     // Fix labels
     'label.blocker'             : 'Engelleyici',
     'label.conditional_blocker' : 'Koşullu Engelleyici',

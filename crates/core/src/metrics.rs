@@ -26,6 +26,14 @@ pub struct FeedMetrics {
     pub active_service_days: u32,
     pub avg_daily_trips: f64,
 
+    // Feed geçerlilik penceresi (feed_info.txt) — YYYYMMDD, yoksa None
+    pub feed_start_date: Option<u32>,
+    pub feed_end_date: Option<u32>,
+
+    // Gerçek servis kapsama aralığı (calendar + calendar_dates) — YYYYMMDD, servis yoksa None
+    pub service_start_date: Option<u32>,
+    pub service_end_date: Option<u32>,
+
     // MET_003 — Sınıf bazında hata sayısı
     pub spec_notice_count: u32,
     pub interop_notice_count: u32,

@@ -22,5 +22,8 @@
     "vite-plugin-top-level-await": "^1.4.0",
     "vite-plugin-wasm": "^3.3.0",
     "vitest": "^2.0.0"
+  },
+  "dependencies": {
+    "kk-date": "^4.1.3"
   }
 }

@@ -15,11 +15,17 @@ let _locale: Locale = (() => {
   return (s && s in LOCALES) ? s as Locale : 'tr';
 })();
 
+// Belge dilini locale ile senkronla — CSS text-transform:uppercase doğru
+// dil kurallarını kullansın (örn. EN'de "VALIDITY", TR'de "GEÇERLİLİK";
+// aksi halde EN metni Türkçe noktalı-İ ile büyür).
+if (typeof document !== 'undefined') document.documentElement.lang = _locale;
+
 export function getLocale(): Locale { return _locale; }
 
 export function setLocale(l: Locale): void {
   _locale = l;
   localStorage.setItem('gtfs-locale', l);
+  if (typeof document !== 'undefined') document.documentElement.lang = l;
   _syncDicts();
 }
 
