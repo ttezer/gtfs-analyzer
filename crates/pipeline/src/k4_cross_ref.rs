@@ -2046,14 +2046,19 @@ fn check_translations(
             ));
         }
 
-        // TRN_006: table+field+language+record kombinasyonu tekil
+        // TRN_006: table+field+language+record kombinasyonu tekil.
+        // GTFS spec'i bir çeviri satırını (record_id, record_sub_id) VEYA field_value
+        // ile tanımlar; field_value anahtara dahil EDİLMELİ. Aksi hâlde field_value
+        // bazlı çevirilerde (örn. her stop_headsign değeri için ayrı satır) record_id
+        // boş kalıp anahtar çakışır ve her farklı değer sahte TRN_006 üretir.
         let key = format!(
-            "{}|{}|{}|{}|{}",
+            "{}|{}|{}|{}|{}|{}",
             rec.table_name,
             rec.field_name,
             rec.language,
             rec.record_id.as_deref().unwrap_or(""),
             rec.record_sub_id.as_deref().unwrap_or(""),
+            rec.field_value.as_deref().unwrap_or(""),
         );
         match seen.get(&key) {
             None => {
