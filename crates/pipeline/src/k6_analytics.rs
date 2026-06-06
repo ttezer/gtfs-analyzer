@@ -1032,9 +1032,22 @@ fn check_route_headway(
         })
         .collect();
 
-    // Grouping key: (route_id, direction_key, service_id)
-    // direction_key: direction_id varsa "0"/"1"/..., yoksa "" (ayrı bucket açmaz)
+    // İki ayrı havuz, çünkü iki kural farklı şeyleri ölçer:
+    //  • OPR_001 (seyrek servis / en büyük aralık) hattın TOPLAM frekansına bakar →
+    //    kaba anahtar (route_id, direction_key, service_id).
+    //  • OPR_003 (sıkışma / en küçük aralık) yalnızca AYNI servis desenindeki ardışık
+    //    seferler arasında anlamlıdır → ince anahtar (first_stop_id, pattern) içerir.
+    // Aksi hâlde (a) farklı terminallerden ~aynı saatte kalkan seferler ya da
+    // (b) aynı duraktan farklı HEDEFE giden seferler (örn. B100: "Bedford Av" 3-durak
+    // stub vs "Mill Basin" 29-durak tam run) sahte "1dk sıkışma" üretir. pattern =
+    // shape_id (yoksa son durak); first_stop ANAHTARDA KALIR, çünkü shape yoksa farklı
+    // başlangıçtan aynı varışa giden seferlerin birleşip terminal-FP'sini geri
+    // getirmesini engeller. OPR_001'i ilk-durağa/desene bölmek ise yalnız belirli
+    // saatlerde sefer başlatan kısa-hat varyantlarını yanlışlıkla "seyrek" gösterir.
+    // direction_key: direction_id varsa "0"/"1"/..., yoksa "" (ayrı bucket açmaz).
     let mut route_departures: HashMap<(&str, &str, &str), Vec<u32>> = HashMap::new();
+    let mut route_stop_departures: HashMap<(&str, &str, &str, &str, &str), Vec<u32>> =
+        HashMap::new();
 
     for trip in &records.trips {
         let route_id = trip.route_id.as_str();
@@ -1057,34 +1070,44 @@ fn check_route_headway(
             continue;
         };
 
+        let stops = idx.by_trip.get(trip.trip_id.as_str());
+        let first_stop: &str = stops
+            .and_then(|v| v.first())
+            .map(|s| s.stop_id.as_str())
+            .unwrap_or("");
+        // Servis deseni: shape_id varsa onu, yoksa son durağı (varış) kullan.
+        let pattern: &str = match trip.shape_id.as_deref().filter(|s| !s.is_empty()) {
+            Some(s) => s,
+            None => stops
+                .and_then(|v| v.last())
+                .map(|s| s.stop_id.as_str())
+                .unwrap_or(""),
+        };
+
         route_departures
             .entry((route_id, direction_key, service_id))
             .or_default()
             .push(dep);
+        route_stop_departures
+            .entry((route_id, direction_key, service_id, first_stop, pattern))
+            .or_default()
+            .push(dep);
     }
-    // trip_route HashMap artık gerekli değil — trips üzerinde doğrudan dönüyoruz.
 
     let max_secs = config.max_headway_warning_min * 60;
     let bunching_secs = config.bunching_threshold_min * 60;
 
+    // OPR_001: hattın tamamında en büyük ardışık kalkış boşluğu eşiği aşıyor mu?
     for ((route_id, direction_key, service_id), mut deps) in route_departures {
         deps.sort_unstable();
-        // dedup suppresses cross-day repeated departure times for the same
-        // service_id; may also hide true parallel same-time trips (known tradeoff)
         deps.dedup();
-
         if deps.len() < 2 {
             continue;
         }
-
-        let dir_display = if direction_key.is_empty() { "-" } else { direction_key };
-        let route_label_hw = route_short_hw.get(route_id).copied().unwrap_or(route_id);
-
-        let headways: Vec<u32> = deps.windows(2).map(|w| w[1] - w[0]).collect();
-        let max_hw = headways.iter().copied().max().unwrap_or(0);
-        let min_hw = headways.iter().copied().min().unwrap_or(0);
-
+        let max_hw = deps.windows(2).map(|w| w[1] - w[0]).max().unwrap_or(0);
         if max_hw > max_secs {
+            let dir_display = if direction_key.is_empty() { "-" } else { direction_key };
+            let route_label_hw = route_short_hw.get(route_id).copied().unwrap_or(route_id);
             notices.push(k6_notice(
                 ctr,
                 "OPR_001",
@@ -1101,8 +1124,22 @@ fn check_route_headway(
                 "Pik/saatdışı sefer sayısını artırın ya da büyük boşlukları kapatın.",
             ));
         }
+    }
 
+    // OPR_003: aynı kalkış durağında ardışık seferler arası en küçük pozitif aralık
+    // sıkışma eşiğinin altında mı?
+    for ((route_id, direction_key, service_id, _first_stop, _pattern), mut deps) in route_stop_departures {
+        deps.sort_unstable();
+        // dedup suppresses cross-day repeated departure times for the same
+        // service_id; may also hide true parallel same-time trips (known tradeoff)
+        deps.dedup();
+        if deps.len() < 2 {
+            continue;
+        }
+        let min_hw = deps.windows(2).map(|w| w[1] - w[0]).min().unwrap_or(0);
         if min_hw < bunching_secs && min_hw > 0 {
+            let dir_display = if direction_key.is_empty() { "-" } else { direction_key };
+            let route_label_hw = route_short_hw.get(route_id).copied().unwrap_or(route_id);
             notices.push(k6_notice(
                 ctr,
                 "OPR_003",
@@ -1962,6 +1999,11 @@ fn check_operational_analytics(
             {
                 let route = trip_to_route.get(trip_id).copied().unwrap_or(trip_id);
                 let stop_name = stop_name_map.get(dup_stop).copied().unwrap_or(dup_stop);
+                // Kalkış saati: aynı hattın çok seferi varsa satırları ayırt edilebilir kılar.
+                let dep = stimes.first()
+                    .and_then(|s| s.departure_time.or(s.arrival_time))
+                    .map(|(h, m, _)| format!("{h:02}:{m:02} "))
+                    .unwrap_or_default();
                 let mut n = k6_notice(
                     ctr,
                     "OPR_007",
@@ -1973,8 +2015,8 @@ fn check_operational_analytics(
                     None,
                     Some(format!("{count}× tekrar")),
                     None,
-                    format!("'{}' hattının seferinde '{}' durağı (kod: '{}') {}× geçiyor — ring hat ise normaldir.",
-                        route, stop_name, dup_stop, count),
+                    format!("'{}' hattının {}seferinde '{}' durağı (kod: '{}') {}× geçiyor — ring hat ise normaldir.",
+                        route, dep, stop_name, dup_stop, count),
                     "Döngüsel sefer değilse tekrar eden stop_id girişlerini temizleyin.",
                 );
                 // Harita için sıralı durak listesi + tekrarlayan durak
