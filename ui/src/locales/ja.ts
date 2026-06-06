@@ -472,7 +472,7 @@ const ja: LocaleShape = {
     'TRP_007': "便'{entity_id}'：bikes_allowed'{observed_value}'が無効です。",
     'TRP_009': "便'{entity_id}'に時刻スタンプのある停留所がありません。",
     'TRP_011': "便'{entity_id}'：trip_headsignが設定されていません。",
-    'TRP_012': "便'{entity_id}'：双方向路線でdirection_idがありません。",
+    'TRP_012': "路線'{entity_id}'：{observed_value}便でdirection_idが未設定です — 双方向路線です。",
     'TRP_013': "路線'{entity_id}'に便が1つしかありません。",
     'TRP_014': "便'{entity_id}'：trip_short_nameが長すぎます。",
     'TRP_015': "便'{entity_id}'はblock_idグループ内で唯一の便です。",

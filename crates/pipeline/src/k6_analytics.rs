@@ -1804,14 +1804,20 @@ fn check_geo_analytics(
 
     // GEO_021: Durakların >%30'u koordinatını başka bir durakla paylaşıyor
     {
+        // Sadece fiziksel duraklar (location_type=0 veya null). İstasyon (lt=1) ve
+        // child platformu aynı koordinatta olmak NORMALDİR (hiyerarşi); bunları
+        // saymak Tokyo Toei gibi istasyon/platform modelleyen feed'lerde sahte
+        // "sistematik koordinat sorunu" üretir.
         let mut coord_counts: HashMap<(i64, i64), u32> = HashMap::new();
         for stop in &records.stops {
+            if stop.location_type.unwrap_or(0) != 0 { continue; }
             let (Some(lat), Some(lon)) = (stop.stop_lat, stop.stop_lon) else { continue };
             let key = ((lat * 1e6).round() as i64, (lon * 1e6).round() as i64);
             *coord_counts.entry(key).or_default() += 1;
         }
         let total_stops = records.stops.iter()
-            .filter(|s| s.stop_lat.is_some() && s.stop_lon.is_some()).count();
+            .filter(|s| s.location_type.unwrap_or(0) == 0 && s.stop_lat.is_some() && s.stop_lon.is_some())
+            .count();
         let shared: usize = coord_counts.values().filter(|&&c| c > 1).map(|&c| c as usize).sum();
         if total_stops >= 5 && shared as f64 / total_stops as f64 > 0.3 {
             let pct = shared as f64 / total_stops as f64 * 100.0;
@@ -4012,24 +4018,36 @@ fn check_remaining_analytics(
             }
             r.into_iter().filter(|(_, dirs)| dirs.len() > 1).map(|(rid, _)| rid).collect()
         };
+        // Rota seviyesinde topla: çift yönlü rotada direction_id'si eksik kaç sefer var.
+        // Sefer başına emit etmek aynı rota için yüzlerce özdeş satır üretiyordu (mesaj
+        // zaten rota-merkezli); rota başına TEK notice + sayım.
+        let mut route_missing: HashMap<&str, (u32, u64)> = HashMap::new(); // route -> (eksik_sayı, ilk_satır)
         for t in &records.trips {
             if !routes_with_both_dirs.contains(t.route_id.as_str()) { continue; }
             if t.direction_id.is_none() {
-                notices.push(k6_notice(
-                    ctr,
-                    "TRP_012",
-                    EntityType::Trip,
-                    Some(t.trip_id.clone()),
-                    Some(t.trip_id.clone()),
-                    "trips.txt",
-                    Some(t.line),
-                    Some("direction_id"),
-                    Some("eksik".to_string()),
-                    None,
-                    format!("'{}' hattının seferinde yön bilgisi (direction_id) girilmemiş — hat çift yönlü.", t.route_id),
-                    "direction_id alanını 0 veya 1 olarak doldurun.",
-                ));
+                let e = route_missing.entry(t.route_id.as_str()).or_insert((0, t.line));
+                e.0 += 1;
+                if t.line < e.1 { e.1 = t.line; }
             }
+        }
+        let mut rows: Vec<(&str, u32, u64)> =
+            route_missing.into_iter().map(|(r, (c, l))| (r, c, l)).collect();
+        rows.sort_unstable_by(|a, b| a.0.cmp(b.0)); // deterministik sıra
+        for (route_id, count, line) in rows {
+            notices.push(k6_notice(
+                ctr,
+                "TRP_012",
+                EntityType::Route,
+                Some(route_id.to_string()),
+                Some(route_id.to_string()),
+                "trips.txt",
+                Some(line),
+                Some("direction_id"),
+                Some(count.to_string()),
+                None,
+                format!("'{route_id}' hattının {count} seferinde yön bilgisi (direction_id) girilmemiş — hat çift yönlü."),
+                "Bu seferlerin direction_id alanını 0 veya 1 olarak doldurun.",
+            ));
         }
     }
 

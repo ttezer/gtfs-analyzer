@@ -491,7 +491,7 @@ const en: LocaleShape = {
     'TRP_007': "Trip '{entity_id}': bikes_allowed '{observed_value}' is invalid.",
     'TRP_009': "Trip '{entity_id}' has no time-stamped stops.",
     'TRP_011': "Trip '{entity_id}': trip_headsign is not set.",
-    'TRP_012': "Trip '{entity_id}': direction_id is missing on a bidirectional route.",
+    'TRP_012': "Route '{entity_id}': {observed_value} trips are missing direction_id — the route is bidirectional.",
     'TRP_013': "Route '{entity_id}' has only one trip.",
     'TRP_014': "Trip '{entity_id}': trip_short_name is too long.",
     'TRP_015': "Trip '{entity_id}' is the only trip in its block_id group.",

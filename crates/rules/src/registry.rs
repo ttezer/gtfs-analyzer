@@ -358,7 +358,7 @@ pub static RULES: &[RuleMeta] = &[
         "Seferde zaman damgalı durak yok"),
     r!("TRP_011", Yuksek, Quality, 3, &[], Some("trip_id"), VS, Entity,
         "Sefer yön adı girilmemiş"),
-    r!("TRP_012", Dusuk,  Quality, 1, &[], Some("trip_id"), VS, Entity,
+    r!("TRP_012", Dusuk,  Quality, 1, &[], Some("route_id"), VS, Entity,
         "Çift yönlü rotada direction_id eksik"),
     r!("TRP_013", Dusuk,  Quality, 1, &[], Some("route_id"), VS, Entity,
         "Hat tek seferlik"),
