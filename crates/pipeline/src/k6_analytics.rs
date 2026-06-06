@@ -64,7 +64,7 @@ pub fn analyze(
         Box::new(|| { let _t = Timer::start("K6::shp022");                let mut v = Vec::new(); let mut c = 0u32; check_shp022(records, &idx, &mut v, &mut c); v }),
         Box::new(|| { let _t = Timer::start("K6::pathway_analytics");     let mut v = Vec::new(); let mut c = 0u32; check_pathway_analytics(records, derived, &mut v, &mut c); v }),
         Box::new(|| { let _t = Timer::start("K6::calendar_override");     let mut v = Vec::new(); let mut c = 0u32; check_calendar_override_analytics(records, derived, config, &mut v, &mut c); v }),
-        Box::new(|| { let _t = Timer::start("K6::vat_analytics");         let mut v = Vec::new(); let mut c = 0u32; check_vat_analytics(records, &idx, &mut v, &mut c); v }),
+        Box::new(|| { let _t = Timer::start("K6::vat_analytics");         let mut v = Vec::new(); let mut c = 0u32; check_vat_analytics(records, config, &idx, &mut v, &mut c); v }),
     ];
 
     #[cfg(feature = "parallel")]
@@ -130,6 +130,7 @@ fn k6_notice(
         remediation: remediation.to_string(),
         blocks: meta.blocks.iter().map(|s| s.to_string()).collect(),
         base_effort: meta.base_effort,
+        service_id: None,
     }
 }
 
@@ -1140,7 +1141,7 @@ fn check_route_headway(
         if min_hw < bunching_secs && min_hw > 0 {
             let dir_display = if direction_key.is_empty() { "-" } else { direction_key };
             let route_label_hw = route_short_hw.get(route_id).copied().unwrap_or(route_id);
-            notices.push(k6_notice(
+            let mut n = k6_notice(
                 ctr,
                 "OPR_003",
                 EntityType::Route,
@@ -1154,7 +1155,9 @@ fn check_route_headway(
                 format!("'{route_label_hw}' kodlu hattın {dir_display} yönünde {service_id} çalışma takviminde minimum sefer aralığı {:.0}dk ≤ sıkışma eşiği {}dk.",
                     min_hw as f64 / 60.0, config.bunching_threshold_min),
                 "Sefer programını düzenleyin; çok sık gelen seferler sıkışmaya yol açabilir.",
-            ));
+            );
+            n.service_id = Some(service_id.to_string());
+            notices.push(n);
         }
     }
 }
@@ -1865,25 +1868,34 @@ fn check_geo_analytics(
         }
     }
 
-    // SHP_027: Aynı shape 200'den fazla sefer tarafından kullanılıyor
+    // SHP_027: Bir shape, FARKLI durak dizilerine (pattern) sahip seferlere atanmış.
+    // Bir shape tek bir güzergah geometrisidir; ≥2 farklı durak desenine atanmışsa
+    // geometri bazı seferlere uymaz → olası yanlış shape ataması. (Sık bir hattın tek
+    // pattern'i yüzlerce sefere atanması NORMAL; eski düz sayım eşiği o yüzden kaldırıldı.)
     {
-        let mut shape_trip_counts: HashMap<String, u32> = HashMap::new();
-        for t in &records.trips {
-            if let Some(shape_id) = &t.shape_id {
-                if !shape_id.is_empty() {
-                    *shape_trip_counts.entry(shape_id.clone()).or_default() += 1;
-                }
-            }
+        use std::collections::hash_map::DefaultHasher;
+        use std::hash::{Hash, Hasher};
+        let trip_shape: HashMap<&str, &str> = records.trips.iter()
+            .filter_map(|t| t.shape_id.as_deref().filter(|s| !s.is_empty())
+                .map(|s| (t.trip_id.as_str(), s)))
+            .collect();
+        let mut shape_patterns: HashMap<&str, FxHashSet<u64>> = HashMap::new();
+        for (trip_id, stops) in records.stop_times_index.iter_trips() {
+            let Some(&shape_id) = trip_shape.get(trip_id.as_str()) else { continue };
+            let mut h = DefaultHasher::new();
+            for st in stops { st.stop_id.hash(&mut h); }
+            shape_patterns.entry(shape_id).or_default().insert(h.finish());
         }
-        for (shape_id, count) in &shape_trip_counts {
-            if *count > 200 {
+        for (shape_id, patterns) in &shape_patterns {
+            let n = patterns.len();
+            if n >= 2 {
                 notices.push(k6_notice(
                     ctr, "SHP_027", EntityType::Shape,
-                    Some(shape_id.clone()), Some(shape_id.clone()),
+                    Some((*shape_id).to_string()), Some((*shape_id).to_string()),
                     "trips.txt", None, None,
-                    Some(count.to_string()), Some("≤200".to_string()),
-                    format!("'{shape_id}' shape'i {count} sefer tarafından kullanılıyor — olası yanlış shape ataması."),
-                    "Her güzergah yönü için ayrı shape_id tanımlayın.",
+                    Some(n.to_string()), Some("1".to_string()),
+                    format!("'{shape_id}' shape'i {n} farklı durak dizisine (pattern) atanmış — bir shape tek güzergaha karşılık gelmeli; olası yanlış shape ataması."),
+                    "Her farklı durak desenine ayrı shape_id atayın.",
                 ));
             }
         }
@@ -3823,7 +3835,7 @@ fn check_remaining_analytics(
             let diffs: Vec<u32> = deps.windows(2).map(|w| w[1] - w[0]).collect();
             let avg_hw = diffs.iter().sum::<u32>() / diffs.len() as u32;
             let route_label = route_short_opr5.get(route_id).copied().unwrap_or(route_id);
-            notices.push(k6_notice(
+            let mut n = k6_notice(
                 ctr,
                 "OPR_005",
                 EntityType::Route,
@@ -3837,7 +3849,9 @@ fn check_remaining_analytics(
                 format!("'{route_label}' kodlu hattın {dir_key} yönünde {svc_key} çalışma takviminde ortalama sefer aralığı {:.0}dk ({} sefer).",
                     avg_hw as f64 / 60.0, deps.len()),
                 "Bu bilgi notu; aksiyona gerek yoktur.",
-            ));
+            );
+            n.service_id = Some(svc_key.to_string());
+            notices.push(n);
         }
     }
 
@@ -5988,6 +6002,7 @@ fn check_pathway_analytics(
 
 fn check_vat_analytics(
     records: &EntityRecords,
+    config: &ValidatorConfig,
     idx: &StopTimesIndex<'_>,
     notices: &mut Vec<Notice>,
     ctr: &mut u32,
@@ -6061,7 +6076,7 @@ fn check_vat_analytics(
                     if jaccard >= 0.85 {
                         let la = route_label.get(rid_a).copied().unwrap_or(rid_a);
                         let lb = route_label.get(rid_b).copied().unwrap_or(rid_b);
-                        notices.push(k6_notice(
+                        let mut n = k6_notice(
                             ctr,
                             "VAT_001",
                             EntityType::Route,
@@ -6075,7 +6090,12 @@ fn check_vat_analytics(
                             format!("'{la}' ve '{lb}' hatları %{:.0} oranda aynı durağı paylaşıyor — muhtemel kopya hat.",
                                 jaccard * 100.0),
                             "İki hattı birleştirin ya da güzergahları ayırt edilir biçimde farklılaştırın.",
-                        ));
+                        );
+                        // Harita: her iki hattı farklı renkte çizebilmek için ikisini de ver.
+                        let mut d = std::collections::HashMap::new();
+                        d.insert("routes".to_string(), format!("{rid_a},{rid_b}"));
+                        n.details = Some(d);
+                        notices.push(n);
                     }
                 }
             }
@@ -6140,7 +6160,7 @@ fn check_vat_analytics(
             let mad = abs_devs[abs_devs.len() / 2] * 1.4826;
             // MAD = 0 (tüm süreler aynı): ratio bazlı fallback — median'ın 3× üstü veya 0.25× altı
             let use_ratio_fallback = mad < 30.0;
-            let threshold = if use_ratio_fallback { 0.0 } else { 2.5 * mad };
+            let threshold = if use_ratio_fallback { 0.0 } else { config.duration_outlier_sigma * mad };
             for &(trip_id, dur) in &durs {
                 let is_outlier = if use_ratio_fallback {
                     let r = dur as f64 / median;
@@ -6152,11 +6172,15 @@ fn check_vat_analytics(
                     let label = route_label.get(route).copied().unwrap_or(route);
                     let dur_min = dur / 60;
                     let med_min = (median as u32) / 60;
+                    // Yönlü sapma: + = medyandan uzun, − = medyandan kısa.
                     let sigma_str = if use_ratio_fallback {
-                        format!("{:.1}× medyan", dur as f64 / median)
+                        let yon = if dur as f64 >= median { "uzun" } else { "kısa" };
+                        format!("{:.1}× medyan, medyandan {yon}", dur as f64 / median)
                     } else {
-                        let dev = (dur as f64 - median).abs();
-                        format!("{:.1}σ sapma", dev / (mad / 1.4826))
+                        let signed_dev = dur as f64 - median;
+                        let sigma = signed_dev / (mad / 1.4826);
+                        let yon = if signed_dev >= 0.0 { "medyandan uzun" } else { "medyandan kısa" };
+                        format!("{sigma:+.1}σ, {yon}")
                     };
                     notices.push(k6_notice(
                         ctr,
@@ -6312,8 +6336,8 @@ fn check_vat_analytics(
                         None,
                         Some(format!("{isolated_count} durak, {comp_count} bileşen")),
                         None,
-                        format!("Ağ grafında ana bileşenden kopuk {comp_count} izole durak kümesi var ({isolated_count} durak). Örnek: '{ex_name}' ('{example}')."),
-                        "Kopuk durakların seferlere bağlandığını ve stop_times kayıtlarının doğru olduğunu kontrol edin.",
+                        format!("Ağ grafında ana şebekeden (seferlerle bağlı en büyük durak kümesi) kopuk {comp_count} izole durak kümesi var ({isolated_count} durak) — bu duraklar kendi aralarında seferlerle bağlı ama ana şebekeye hiçbir seferle bağlanmıyor. Örnek: '{ex_name}' ('{example}')."),
+                        "Ayrı bir servis bölgesi değilse, ortak durakların başka rotalarla aynı stop_id'yi paylaştığını veya bağlantı seferlerinin tanımlı olduğunu kontrol edin (sık neden: aynı yerin platform-özel ayrı stop_id'lerle modellenmesi).",
                     );
                     let mut d = std::collections::HashMap::new();
                     d.insert("isolated_stops".to_string(), isolated_all.join(","));
@@ -6413,12 +6437,12 @@ fn check_vat_analytics(
             }
         }
         for (route_id, count) in &route_trip_counts {
-            if *count > 500 {
+            if *count > config.max_trips_per_route {
                 notices.push(k6_notice(
                     ctr, "OPR_024", EntityType::Route,
                     Some((*route_id).to_string()), Some((*route_id).to_string()),
                     "trips.txt", None, None,
-                    Some(count.to_string()), Some("≤500".to_string()),
+                    Some(count.to_string()), Some(format!("≤{}", config.max_trips_per_route)),
                     format!("'{route_id}' hattında {count} sefer var — veri birleştirme sorunu olabilir."),
                     "Bu hattaki seferlerin doğru route_id'ye atandığını kontrol edin.",
                 ));

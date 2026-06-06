@@ -37,6 +37,8 @@ export interface Notice {
   remediation: string;
   blocks: string[];
   base_effort: number;
+  /** Sefer-bazlı bulgularda çalışma takvimi (service_id); yoksa undefined. */
+  service_id?: string | null;
 }
 
 export interface ReportItem {

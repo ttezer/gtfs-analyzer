@@ -648,7 +648,7 @@ pub static RULES: &[RuleMeta] = &[
     r!("SHP_026", Bilgi,  Analytics, 1, &[], Some("shape_id"), VA_GEO, Entity,
         "Shape aşırı fazla noktaya sahip (>5000) — tüketici render performansını etkiler"),
     r!("SHP_027", Bilgi,  Analytics, 1, &[], Some("shape_id"), VA_GEO, Entity,
-        "Aynı shape 200'den fazla sefer tarafından kullanılıyor — olası yanlış atama"),
+        "Shape birden fazla durak desenine atanmış — olası yanlış shape ataması"),
 
     // ── FRQ: Frequencies ───────────────────────────────────────────────────────
     r!("FRQ_001", Kritik, Spec, 1, &[], Some("trip_id"), VS_K, Row,
@@ -1122,7 +1122,7 @@ pub static RULES: &[RuleMeta] = &[
     r!("OPR_023", Orta,   Analytics, 3, &[], Some("route_id"),   VA, Entity,
         "Takvim override boşluğu: pencere içinde hiçbir servis aktif değil"),
     r!("OPR_024", Bilgi,  Analytics, 1, &[], Some("route_id"),   VA, Entity,
-        "Hattın 500'den fazla seferi var — olası veri birleştirme sorunu"),
+        "Hat çok fazla sefer içeriyor — olası veri birleştirme sorunu"),
     r!("OPR_025", Yuksek, Analytics, 2, &[], None, VA, Feed,
         "Feed genelinde ortalama sefer süresi 60 saniyeden kısa — veri kalitesi sorunu"),
 

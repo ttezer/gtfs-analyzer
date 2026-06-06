@@ -196,6 +196,7 @@ function renderR2(result: ValidationResult, noticeMap: Map<string, Notice>, delt
         <td>${RULE_CLASS_TR[notice.rule_class]}</td>
         <td>${escHtml(tMsg(notice))}</td>
         <td>${notice.file ? escHtml(notice.file) : '—'}</td>
+        <td>${notice.service_id ? escHtml(notice.service_id) : '—'}</td>
         <td>${notice.line ?? '—'}</td>
         <td>${notice.field ? escHtml(notice.field) : '—'}</td>
         <td class="score-delta-cell">${pubHtml}</td>
@@ -213,7 +214,7 @@ function renderR2(result: ValidationResult, noticeMap: Map<string, Notice>, delt
         <table class="data-table" id="r2-table">
           <thead><tr>
             <th>${t('fix.r2.th.rule')}</th><th>${t('fix.r2.th.severity')}</th><th>${t('fix.r2.th.class')}</th><th>${t('fix.r2.th.message')}</th>
-            <th>${t('fix.r2.th.file')}</th><th>${t('fix.r2.th.row')}</th><th>${t('fix.r2.th.field')}</th>
+            <th>${t('fix.r2.th.file')}</th><th>${t('fix.r2.th.service')}</th><th>${t('fix.r2.th.row')}</th><th>${t('fix.r2.th.field')}</th>
             <th class="score-delta-cell">${t('fix.r2.th.pub')} <span class="col-info" role="button" tabindex="0" data-tip="${t('fix.r2.th.pub.tip')}">ℹ</span></th>
             <th class="score-delta-cell">${t('fix.r2.th.quality')} <span class="col-info" role="button" tabindex="0" data-tip="${t('fix.r2.th.quality.tip')}">ℹ</span></th>
             <th class="map-btn-cell"></th>
@@ -932,6 +933,33 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
       }
     }
     return { pins, extraPolylines, legendItems, showArrows: false };
+  }
+
+  // VAT_001: muhtemel kopya hat — iki hattı farklı renkte çiz + legend (hangisi hangisi)
+  if (notice.rule_id === 'VAT_001') {
+    const routeIds = (notice.details?.['routes'] ?? '').split(',').filter(Boolean);
+    const routeColors = ['#3b82f6', '#f97316']; // mavi vs turuncu
+    const extraPolylines: Array<{ coords: [number,number][]; color: string; weight: number; zoomTo: boolean }> = [];
+    const legendItems: Array<{ color: string; label: string }> = [];
+    let colorIdx = 0;
+    for (const rId of routeIds.slice(0, 2)) {
+      const shapeIds = nameIndex.route_shapes[rId] ?? [];
+      const color = routeColors[colorIdx % routeColors.length];
+      let added = false;
+      for (const shapeId of shapeIds.slice(0, 3)) {
+        const pts = nameIndex.shape_coords[shapeId] ?? [];
+        if (pts.length > 1) {
+          extraPolylines.push({ coords: pts as [number,number][], color, weight: 3, zoomTo: true });
+          added = true;
+        }
+      }
+      if (added) {
+        const routeName = nameIndex.routes[rId] ?? rId;
+        legendItems.push({ color, label: escHtml(routeName) });
+        colorIdx++;
+      }
+    }
+    return { pins: [], extraPolylines, legendItems, showArrows: false };
   }
 
   // GEO_013: feed'deki tüm durakları küçük pinlerle göster

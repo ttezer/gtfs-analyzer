@@ -104,6 +104,7 @@ fn make_notice(
         remediation: remediation.to_string(),
         blocks: meta.blocks.iter().map(|s| s.to_string()).collect(),
         base_effort: meta.base_effort,
+        service_id: None,
     }
 }
 

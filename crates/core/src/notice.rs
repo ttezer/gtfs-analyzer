@@ -40,6 +40,10 @@ pub struct Notice {
     pub blocks: Vec<String>,
     /// 1=kolay, 5=zor. fix_effort = base_effort × instance_multiplier.
     pub base_effort: u8,
+    /// Bulgunun ait olduğu çalışma takvimi (service_id). Sefer-bazlı bulgularda
+    /// doldurulur (R2'de "Çalışma Takvimi" sütunu). Feed/dosya kurallarında None.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub service_id: Option<String>,
 }
 
 /// Canonical Notice'ı bir rapor görünümüne projekte eden referans nesnesi.

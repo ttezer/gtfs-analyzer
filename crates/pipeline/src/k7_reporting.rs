@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use rustc_hash::FxHashSet;
 
 use gtfs_core::{
-    DedupLevel, FeedMetrics, FileInfo, Notice, R1Report, R2Report, R3Report, R4Report, R5Report,
+    DedupLevel, EntityType, FeedMetrics, FileInfo, Notice, R1Report, R2Report, R3Report, R4Report, R5Report,
     R7Report, R8Report, R9Item, R9Label, R9Report, ReportId, ReportItem, ReportSet,
     RuleClass, Severity,
 };
@@ -28,12 +28,35 @@ pub fn report(
     file_stats: Vec<FileInfo>,
 ) -> K7Result {
     use crate::timing::Timer;
+    let all_notices      = { let _t = Timer::start("K7::fill_service_ids"); fill_service_ids(all_notices, records) };
     let notices          = { let _t = Timer::start("K7::dedup");            dedup(all_notices) };
     let resolution       = { let _t = Timer::start("K7::resolve_symptoms"); resolve_symptoms(&notices) };
     let reports          = { let _t = Timer::start("K7::build_reports");    build_report_set(&notices, &resolution) };
     let mut metrics      = { let _t = Timer::start("K7::build_metrics");    build_metrics(&notices, records, derived, file_stats) };
     metrics.quality_score = reports.r5.score;
     K7Result { notices, reports, metrics }
+}
+
+// ── Çalışma takvimi (service_id) doldurma ─────────────────────────────────────
+
+/// Sefer-bazlı (entity_type=Trip) notice'lara, entity_id'deki trip_id'den service_id
+/// ekler — R2'deki "Çalışma Takvimi" sütunu için. Zaten dolu olanlar (OPR_003/005 gibi
+/// emit'te set edilenler) korunur. Trip dışı entity'ler (Route/Feed/Stop…) atlanır.
+fn fill_service_ids(mut notices: Vec<Notice>, records: &EntityRecords) -> Vec<Notice> {
+    let trip_service: std::collections::HashMap<&str, &str> = records.trips.iter()
+        .filter(|t| !t.service_id.is_empty())
+        .map(|t| (t.trip_id.as_str(), t.service_id.as_str()))
+        .collect();
+    for n in &mut notices {
+        if n.service_id.is_none() && matches!(n.entity_type, EntityType::Trip) {
+            if let Some(eid) = n.entity_id.as_deref() {
+                if let Some(&svc) = trip_service.get(eid) {
+                    n.service_id = Some(svc.to_string());
+                }
+            }
+        }
+    }
+    notices
 }
 
 // ── WP-10a: Dedup ─────────────────────────────────────────────────────────────
@@ -796,6 +819,7 @@ mod tests {
             remediation: String::new(),
             blocks: vec![],
             base_effort: 1,
+            service_id: None,
         }
     }
 

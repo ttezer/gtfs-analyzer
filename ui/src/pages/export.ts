@@ -37,7 +37,7 @@ function csvCell(v: string | number | null | undefined): string {
 function exportCsv(result: ValidationResult, fileName: string): void {
   const header = [
     t('export.csv.rule'), t('export.csv.severity'), t('export.csv.class'),
-    t('export.csv.message'), t('export.csv.entity_id'), t('export.csv.file'), t('export.csv.row'),
+    t('export.csv.message'), t('export.csv.entity_id'), t('export.csv.file'), t('export.csv.service'), t('export.csv.row'),
   ];
   const rows = result.notices.map(n => [
     n.rule_id,
@@ -46,6 +46,7 @@ function exportCsv(result: ValidationResult, fileName: string): void {
     tMsg(n),
     n.entity_id ?? '',
     n.file ?? '',
+    n.service_id ?? '',
     n.line != null ? String(n.line) : '',
   ].map(csvCell).join(','));
 
@@ -74,6 +75,7 @@ function buildReportHtml(result: ValidationResult, fileName: string): string {
       <td>${escHtml(tMsg(n))}</td>
       <td>${n.entity_id ? escHtml(n.entity_id) : ''}</td>
       <td>${n.file ? escHtml(n.file) : ''}</td>
+      <td>${n.service_id ? escHtml(n.service_id) : ''}</td>
       <td>${n.line ?? ''}</td>
     </tr>`).join('');
 
@@ -137,6 +139,7 @@ function buildReportHtml(result: ValidationResult, fileName: string): string {
       <th>${t('export.html.th.message')}</th>
       <th>${t('export.html.th.entity_id')}</th>
       <th>${t('export.html.th.file')}</th>
+      <th>${t('export.html.th.service')}</th>
       <th>${t('export.html.th.row')}</th>
     </tr></thead>
     <tbody>${noticeRows}</tbody>

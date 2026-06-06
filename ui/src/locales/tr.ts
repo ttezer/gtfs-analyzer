@@ -208,6 +208,7 @@ const tr = {
     'fix.r2.th.class'       : 'Sınıf',
     'fix.r2.th.message'     : 'Mesaj',
     'fix.r2.th.file'        : 'Dosya',
+    'fix.r2.th.service'     : 'Çalışma Takvimi',
     'fix.r2.th.row'         : 'Satır',
     'fix.r2.th.field'       : 'Alan',
     'fix.r2.th.pub'         : '+Yayın',
@@ -293,6 +294,7 @@ const tr = {
     'export.csv.message'              : 'Mesaj',
     'export.csv.entity_id'            : 'Varlık ID',
     'export.csv.file'                 : 'Dosya',
+    'export.csv.service'              : 'Çalışma Takvimi',
     'export.csv.row'                  : 'Satır',
     'export.html.doc_title'           : 'GTFS Doğrulama Raporu',
     'export.html.h1'                  : 'GTFS Doğrulama Raporu',
@@ -311,6 +313,7 @@ const tr = {
     'export.html.th.message'          : 'Mesaj',
     'export.html.th.entity_id'        : 'Varlık ID',
     'export.html.th.file'             : 'Dosya',
+    'export.html.th.service'          : 'Çalışma Takvimi',
     'export.html.th.row'              : 'Satır',
     // Rules page
     'rules.summary'    : '{total} bulgu · {rules} kural',
@@ -619,7 +622,7 @@ const tr = {
     'SHP_024': 'Duraktan şekle mesafe shape_dist_traveled ile tutarsız',
     'SHP_025': 'Sefer stop_times mesafesi şeklin toplam mesafesini aşıyor',
     'SHP_026': 'Shape aşırı fazla noktaya sahip (>5000)',
-    'SHP_027': 'Shape 200+ sefer tarafından kullanılıyor',
+    'SHP_027': 'Shape birden fazla durak desenine atanmış',
     // FRQ
     'FRQ_001': 'trip_id bulunamadı',
     'FRQ_002': 'start_time geçersiz',
@@ -837,7 +840,7 @@ const tr = {
     'OPR_021': 'Takvim override çakışması: override ve base eş zamanlı aktif',
     'OPR_022': 'Takvim override uygulanmamış: override gününde base servis çalışıyor',
     'OPR_023': 'Takvim override boşluğu: pencere içinde hiçbir servis aktif değil',
-    'OPR_024': 'Hat 500+ sefer içeriyor',
+    'OPR_024': 'Hat çok fazla sefer içeriyor',
     'OPR_025': 'Ortalama sefer süresi 60 saniyeden kısa',
     // GEO
     'GEO_002': 'Durak feed medianından çok uzakta',

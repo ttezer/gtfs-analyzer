@@ -210,6 +210,7 @@ const en: LocaleShape = {
     'fix.r2.th.class'       : 'Class',
     'fix.r2.th.message'     : 'Message',
     'fix.r2.th.file'        : 'File',
+    'fix.r2.th.service'     : 'Service Calendar',
     'fix.r2.th.row'         : 'Row',
     'fix.r2.th.field'       : 'Field',
     'fix.r2.th.pub'         : '+Pub',
@@ -295,6 +296,7 @@ const en: LocaleShape = {
     'export.csv.message'              : 'Message',
     'export.csv.entity_id'            : 'Entity ID',
     'export.csv.file'                 : 'File',
+    'export.csv.service'              : 'Service Calendar',
     'export.csv.row'                  : 'Row',
     'export.html.doc_title'           : 'GTFS Validation Report',
     'export.html.h1'                  : 'GTFS Validation Report',
@@ -313,6 +315,7 @@ const en: LocaleShape = {
     'export.html.th.message'          : 'Message',
     'export.html.th.entity_id'        : 'Entity ID',
     'export.html.th.file'             : 'File',
+    'export.html.th.service'          : 'Service Calendar',
     'export.html.th.row'              : 'Row',
     // Rules page
     'rules.summary'    : '{total} findings · {rules} rules',
@@ -617,7 +620,7 @@ const en: LocaleShape = {
     'SHP_024': "Shape '{entity_id}': stop-to-shape distance is inconsistent with shape_dist_traveled.",
     'SHP_025': "Shape '{entity_id}': stop_times distance exceeds total shape length.",
     'SHP_026': "Shape '{entity_id}' has {observed_value} points — high point count may impact consumer rendering performance.",
-    'SHP_027': "Shape '{entity_id}' is used by {observed_value} trips — possible incorrect shape assignment.",
+    'SHP_027': "Shape '{entity_id}' is assigned to {observed_value} distinct stop patterns — a shape should match a single path, so this is a possible incorrect shape assignment.",
     // FRQ
     'FRQ_001': "Frequency trip_id '{entity_id}' not found in trips.txt.",
     'FRQ_002': "Frequency '{entity_id}': start_time '{observed_value}' is invalid.",
@@ -878,7 +881,7 @@ const en: LocaleShape = {
     'VAT_002': "Stop '{entity_id}': potential transfer hub — many routes pass but no transfers are defined.",
     'VAT_003': "Trip '{entity_id}': trip duration is a statistical outlier ({observed_value}).",
     'VAT_004': "Route '{entity_id}': service asymmetry — operates on weekdays only.",
-    'VAT_005': "Isolated stop cluster detected — stops are disconnected from the main network.",
+    'VAT_005': "Isolated stop clusters disconnected from the main network (the largest trip-connected set of stops) — these stops are connected among themselves but no trip links them to the main network.",
     'VAT_006': "Route '{entity_id}' accounts for a disproportionately large share of feed trips ({observed_value}).",
     'VAT_007': "Stop '{entity_id}': another route shares this terminus but no transfer is defined.",
     'VAT_008': "Shape '{entity_id}' is used across {observed_value} of routes — possible incorrect shape assignment.",
@@ -985,7 +988,7 @@ const en: LocaleShape = {
     'SHP_024': 'Fix the shape_dist_traveled value in stop_times.txt or the stop coordinates.',
     'SHP_025': 'Match the shape_dist_traveled values in stop_times.txt to the scale used in shapes.txt.',
     'SHP_026': 'Simplify shapes.txt using a path simplification algorithm (e.g., Douglas-Peucker) to reduce the point count.',
-    'SHP_027': 'Assign a unique shape_id for each route direction instead of reusing the same shape.',
+    'SHP_027': 'Assign a separate shape_id for each distinct stop pattern instead of reusing one shape.',
     // STM
     'STM_008': 'Review stop_times.txt time values; times must increase monotonically across trips.',
     'STM_012': 'Verify stop_times.txt time values; two stops cannot be that far apart within the same minute.',
@@ -1668,7 +1671,7 @@ const en: LocaleShape = {
     'SHP_024': 'Stop-to-shape distance inconsistent with shape_dist_traveled',
     'SHP_025': 'Trip stop_times distance exceeds total shape distance',
     'SHP_026': 'Shape has extreme point count (>5,000)',
-    'SHP_027': 'Shape used by more than 200 trips',
+    'SHP_027': 'Shape assigned to multiple stop patterns',
     // FRQ
     'FRQ_001': 'trip_id not found',
     'FRQ_002': 'start_time invalid',
@@ -1886,7 +1889,7 @@ const en: LocaleShape = {
     'OPR_021': 'Calendar override conflict: override and base simultaneously active',
     'OPR_022': 'Calendar override not applied: base service running on override day',
     'OPR_023': 'Calendar override gap: no service active within window',
-    'OPR_024': 'Route has extreme trip count (>500)',
+    'OPR_024': 'Route has an extreme trip count',
     'OPR_025': 'Feed average trip duration under 60 seconds',
     // GEO
     'GEO_002': 'Stop too far from feed median',
