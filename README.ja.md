@@ -8,7 +8,7 @@
 ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat&logo=typescript&logoColor=white)
 ![Vite](https://img.shields.io/badge/Vite-646CFF?style=flat&logo=vite&logoColor=white)
 ![Privacy](https://img.shields.io/badge/100%25-%E3%82%AF%E3%83%A9%E3%82%A4%E3%82%A2%E3%83%B3%E3%83%88%E3%82%B5%E3%82%A4%E3%83%89-2ea44f?style=flat&logo=shield&logoColor=white)
-![Rules](https://img.shields.io/badge/474-%E3%83%AB%E3%83%BC%E3%83%AB-blue?style=flat)
+![Rules](https://img.shields.io/badge/477-%E3%83%AB%E3%83%BC%E3%83%AB-blue?style=flat)
 ![Languages](https://img.shields.io/badge/%E8%A8%80%E8%AA%9E-TR%20%C2%B7%20EN%20%C2%B7%20JA-informational?style=flat)
 [![License MIT](https://img.shields.io/badge/%E3%83%A9%E3%82%A4%E3%82%BB%E3%83%B3%E3%82%B9-MIT-yellow?style=flat)](LICENSE)
 
@@ -18,7 +18,7 @@ GTFS Analyzer は、ファイルが仕様に準拠しているかどうかをチ
 
 すべての検出結果には、ルールコード、分析クラス、重大度レベルが付与されます。Spec・Interop・Quality・Analytics のクラスと Critical → Info の重大度レベルにより、数千件の検出結果をフィルタリングし、優先順位付けし、体系的に処理できます。また本ツールは、フィードが使用している GTFS 機能 — Shapes、Transfers、Fares、Headsigns、Flex など — を自動的に検出してレポートに含めます。
 
-GTFS Analyzer は、仕様検証を運用品質分析へと拡張します。路線ごとの運行頻度の不整合、異常な速度区間、孤立した停留所、サービスパターンの欠落、ネットワークトポロジーの問題を、474 個の異なる検証・分析ルールで精査します。結果は、準拠性と品質を別々に評価するスコアで要約されます。優先順位付けされた修正キューは、どの問題を最初に対処すべきか、および各修正がスコアに与える可能性のある影響を示します。
+GTFS Analyzer は、仕様検証を運用品質分析へと拡張します。路線ごとの運行頻度の不整合、異常な速度区間、孤立した停留所、サービスパターンの欠落、ネットワークトポロジーの問題を、477 個の異なる検証・分析ルールで精査します。結果は、準拠性と品質を別々に評価するスコアで要約されます。優先順位付けされた修正キューは、どの問題を最初に対処すべきか、および各修正がスコアに与える可能性のある影響を示します。
 
 **対象ユーザー**
 
@@ -45,9 +45,10 @@ GTFS Analyzer は、仕様検証を運用品質分析へと拡張します。路
 | 修正ガイダンス | 一部 | ❌ | ✅ |
 | GTFS Flex サポート | 一部 | ❌ | ✅ |
 | Fares v2 検証 | ❌ | ❌ | ✅ |
+| GTFS-JP プロファイル検証 | ❌ | ❌ | ✅ |
 | 出力形式 | HTML, JSON | HTML, JSON | HTML, CSV, JSON, PDF |
 | プラットフォーム | Web | Web, CLI, デスクトップ | Web *（CLI・デスクトップは計画中）* |
-| **総ルール数** | **178** | **~120** | **474** |
+| **総ルール数** | **178** | **~120** | **477** |
 
 ### フィード分析の例
 
@@ -104,6 +105,24 @@ GTFS Analyzer は、仕様検証を運用品質分析へと拡張します。路
 | 品質スコア | — | — | **72.3 / 100** |
 
 > 🗾 **仕様準拠だが運用的には密：** 3 つのツールすべてが重大 0 件 — フィードは仕様的にクリーンです。違いは分析レイヤーにあります。GTFS Analyzer の中・低検出の多くは、3 年間の有効期間（2026〜2029）や密なネットワーク／シェイプパターンに由来する運用シグナルであり、MobilityData と GTFS Guru はこのフィードを主に警告／情報として要約します。
+
+---
+
+## GTFS-JP 対応
+
+GTFS Analyzer は、日本の国内 GTFS プロファイルである **GTFS-JP**（国土交通省 / MLIT 標準）を自動的に認識し、標準 GTFS では任意とされている項目のうち GTFS-JP が必須とする要件を検証します。MLIT は補助を受ける事業者に GTFS-JP の公開を求めているため、数百の中小事業者がこのプロファイルへの準拠を必要としますが、一般的なバリデーターはプロファイル固有の要件を検査しません。
+
+**自動検出。** フィードに `*_jp.txt` ファイル（`agency_jp.txt`、`office_jp.txt`、`routes_jp.txt`）が含まれる場合、`feed_lang` が `ja` で始まる場合、または `translations.txt` にかな（`ja-Hrkt`）の読みが含まれる場合、そのフィードは GTFS-JP として判定され、レポートに **GTFS-JP** バッジが表示されます。プロファイルルールはこれらのフィードでのみ有効になり、標準フィードでは作動しません。
+
+**プロファイルルール（JPN グループ）。**
+
+| ルール | 検査内容 |
+|---|---|
+| **JPN_001** | 停留所名のかな（よみがな — `translations.txt`、`ja-Hrkt`）読み。音声案内・検索のため GTFS-JP で必須 |
+| **JPN_002** | `trips.jp_office_id` が `office_jp.txt` の `office_id` と一致すること（営業所参照整合性） |
+| **JPN_003** | `agency_jp.txt` の `agency_id` が `agency.txt` に定義されていること（事業者参照整合性） |
+
+上記の **Tokyo Toei** の比較は、実際の GTFS-JP フィードでこのプロファイルがどう振る舞うかを示しています。フィードは仕様的にクリーン（重大 0 件）であり、正しく参照されたデータではプロファイルルールが誤検出を生みません。
 
 ---
 
@@ -357,7 +376,7 @@ gtfs-validator/
 │   ├── config/     # 設定型
 │   ├── core/       # 共有データ構造と結果モデル
 │   ├── pipeline/   # 検証パイプライン（k1〜k7 ステージ）
-│   ├── rules/      # ルール定義とレジストリ（474 ルール、36 グループ）
+│   ├── rules/      # ルール定義とレジストリ（477 ルール、36 グループ）
 │   └── wasm/       # wasm-bindgen WASM 出力
 └── ui/             # Vite + TypeScript フロントエンド
     ├── pkg/          # wasm-pack 出力（生成済み、コミット済み）
