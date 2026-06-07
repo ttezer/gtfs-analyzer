@@ -889,6 +889,8 @@ const tr = {
     'VAT_007': 'Terminus aktarma eksikliği — terminal durağa başka hat geliyor ama aktarma tanımlı değil',
     'VAT_008': "Aynı shape feed hatlarının %30+'ında kullanılıyor",
     'JPN_001': 'GTFS-JP: durak adında kana (ja-Hrkt) okuması eksik',
+    'JPN_002': "GTFS-JP: jp_office_id office_jp.txt'te tanımlı değil",
+    'JPN_003': "GTFS-JP: agency_jp.agency_id agency.txt'te tanımlı değil",
   } as Record<string, string>,
 };
 

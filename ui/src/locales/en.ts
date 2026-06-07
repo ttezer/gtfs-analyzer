@@ -887,6 +887,8 @@ const en: LocaleShape = {
     'VAT_007': "Stop '{entity_id}': another route shares this terminus but no transfer is defined.",
     'VAT_008': "Shape '{entity_id}' is used across {observed_value} of routes — possible incorrect shape assignment.",
     'JPN_001': "Stop '{entity_id}': stop_name has no kana (ja-Hrkt) reading — required by GTFS-JP.",
+    'JPN_002': "Trip '{entity_id}': jp_office_id '{observed_value}' is not defined in office_jp.txt.",
+    'JPN_003': "agency_jp.txt agency_id '{observed_value}' is not defined in agency.txt.",
   } as Record<string, string>,
 
   ruleRemediations: {
@@ -1044,6 +1046,8 @@ const en: LocaleShape = {
     'VAT_007': 'Add a transfer record for this terminus stop in transfers.txt.',
     'VAT_008': 'Define a separate shape_id for each route and direction.',
     'JPN_001': 'Add a language=ja-Hrkt (kana) translation for this stop in translations.txt.',
+    'JPN_002': 'Point jp_office_id at an office_id defined in office_jp.txt.',
+    'JPN_003': 'Point the agency_jp.txt agency_id at an agency_id defined in agency.txt.',
     // AGN
     'AGN_002': 'Fill in the agency_name field.',
     'AGN_003': 'Enter a valid http/https URL for agency_url.',
@@ -1940,6 +1944,8 @@ const en: LocaleShape = {
     'VAT_007': 'Terminal transfer missing — another route serves the terminus but no transfer defined',
     'VAT_008': 'Same shape used by more than 30% of routes',
     'JPN_001': 'GTFS-JP: stop name missing kana (ja-Hrkt) reading',
+    'JPN_002': 'GTFS-JP: jp_office_id not defined in office_jp.txt',
+    'JPN_003': 'GTFS-JP: agency_jp agency_id not defined in agency.txt',
   },
 };
 

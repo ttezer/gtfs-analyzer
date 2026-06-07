@@ -1219,6 +1219,10 @@ pub static RULES: &[RuleMeta] = &[
     // ── JPN — GTFS-JP (Japonya profili) kuralları; yalnız GTFS-JP feed'lerde ────
     r!("JPN_001", Orta,   Quality, 2, &[], Some("stop_id"), VS, Entity,
         "GTFS-JP: durak adının kana (ja-Hrkt) okuması eksik"),
+    r!("JPN_002", Yuksek, Spec,    1, &[], Some("trip_id"), VS, Entity,
+        "GTFS-JP: jp_office_id office_jp.txt'te tanımlı değil"),
+    r!("JPN_003", Yuksek, Spec,    1, &[], Some("agency_id"), VS, Entity,
+        "GTFS-JP: agency_jp.agency_id agency.txt'te tanımlı değil"),
 ];
 
 /// `RULES` üzerinden id → metadata için tek seferlik kurulan O(1) arama tablosu.

@@ -19,6 +19,8 @@ pub struct TripRecord {
     pub cars_allowed: Option<u32>,
     pub safe_duration_factor: Option<f64>,
     pub safe_duration_offset: Option<u32>,
+    /// GTFS-JP: bu seferi işleten ofis (office_jp.office_id'ye referans).
+    pub jp_office_id: Option<String>,
     pub line: u64,
 }
 
@@ -36,6 +38,7 @@ struct Cols {
     cars_allowed: Option<usize>,
     safe_duration_factor: Option<usize>,
     safe_duration_offset: Option<usize>,
+    jp_office_id: Option<usize>,
 }
 
 impl Cols {
@@ -55,6 +58,7 @@ impl Cols {
             cars_allowed:          pos("cars_allowed"),
             safe_duration_factor:  pos("safe_duration_factor"),
             safe_duration_offset:  pos("safe_duration_offset"),
+            jp_office_id:          pos("jp_office_id"),
         }
     }
 }
@@ -221,6 +225,11 @@ pub fn validate_trips(file: &RawFile) -> (Vec<TripRecord>, Vec<gtfs_core::Notice
         let safe_duration_factor = parse_f64_raw(get_col(row, cols.safe_duration_factor)).ok().flatten();
         let safe_duration_offset = parse_u32_raw(get_col(row, cols.safe_duration_offset)).ok().flatten();
 
+        let jp_office_id = {
+            let v = get_col(row, cols.jp_office_id);
+            if v.is_empty() { None } else { Some(v.to_string()) }
+        };
+
         records.push(TripRecord {
             trip_id,
             route_id,
@@ -235,6 +244,7 @@ pub fn validate_trips(file: &RawFile) -> (Vec<TripRecord>, Vec<gtfs_core::Notice
             cars_allowed,
             safe_duration_factor,
             safe_duration_offset,
+            jp_office_id,
             line,
         });
     }

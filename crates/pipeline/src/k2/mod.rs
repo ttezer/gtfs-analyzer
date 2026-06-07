@@ -1,4 +1,5 @@
 ﻿pub mod agency;
+pub mod agency_jp;
 pub mod areas;
 pub mod booking_rules;
 pub mod attributions;
@@ -15,6 +16,7 @@ pub mod feed_info;
 pub mod frequencies;
 pub mod levels;
 pub mod networks;
+pub mod office_jp;
 pub mod pathways;
 pub mod rider_categories;
 pub mod routes;
@@ -28,6 +30,7 @@ pub mod translations;
 pub mod trips;
 
 use agency::{validate_agency, AgencyRecord};
+use agency_jp::{parse_agency_jp, AgencyJpRecord};
 use areas::{parse_areas, AreaRecord};
 use booking_rules::{validate_booking_rules, BookingRuleRecord};
 use attributions::{validate_attributions, AttributionRecord};
@@ -46,6 +49,7 @@ use feed_info::{validate_feed_info, FeedInfoRecord};
 use frequencies::{validate_frequencies, FrequencyRecord};
 use levels::{validate_levels, LevelRecord};
 use networks::{parse_networks, NetworkRecord};
+use office_jp::{parse_office_jp, OfficeJpRecord};
 use pathways::{validate_pathways, PathwayRecord};
 use rider_categories::{validate_rider_categories, RiderCategoryRecord};
 use routes::{validate_routes, RouteRecord};
@@ -63,6 +67,7 @@ use trips::{validate_trips, TripRecord};
 #[derive(Debug, Default)]
 pub struct EntityRecords {
     pub agencies: Vec<AgencyRecord>,
+    pub agency_jp: Vec<AgencyJpRecord>,
     pub areas: Vec<AreaRecord>,
     pub booking_rules: Vec<BookingRuleRecord>,
     pub attributions: Vec<AttributionRecord>,
@@ -78,6 +83,7 @@ pub struct EntityRecords {
     pub frequencies: Vec<FrequencyRecord>,
     pub levels: Vec<LevelRecord>,
     pub networks: Vec<NetworkRecord>,
+    pub office_jp: Vec<OfficeJpRecord>,
     pub pathways: Vec<PathwayRecord>,
     pub rider_categories: Vec<RiderCategoryRecord>,
     pub routes: Vec<RouteRecord>,
@@ -112,6 +118,16 @@ pub fn validate(files: &RawFiles) -> K2Result {
         let (agency_records, agency_notices) = validate_agency(file);
         records.agencies = agency_records;
         notices.extend(agency_notices);
+    }
+
+    if let Some(file) = files.get("agency_jp.txt") {
+        let _t = Timer::start("K2::agency_jp");
+        records.agency_jp = parse_agency_jp(file);
+    }
+
+    if let Some(file) = files.get("office_jp.txt") {
+        let _t = Timer::start("K2::office_jp");
+        records.office_jp = parse_office_jp(file);
     }
 
     if let Some(file) = files.get("attributions.txt") {

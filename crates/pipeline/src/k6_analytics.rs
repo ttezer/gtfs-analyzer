@@ -6565,6 +6565,7 @@ mod tests {
             direction_id: None, block_id: None,
             wheelchair_accessible: None, bikes_allowed: None,
             cars_allowed: None, safe_duration_factor: None, safe_duration_offset: None,
+            jp_office_id: None,
             line: 2,
         }
     }
@@ -6842,6 +6843,7 @@ mod tests {
             direction_id: None, block_id: None,
             wheelchair_accessible: None, bikes_allowed: None,
             cars_allowed: None, safe_duration_factor: None, safe_duration_offset: None,
+            jp_office_id: None,
             line: 2,
         }
     }
@@ -7004,7 +7006,8 @@ mod tests {
             shape_id: None, trip_headsign: None, trip_short_name: None,
             direction_id: None, block_id: None, wheelchair_accessible: None,
             bikes_allowed: None, cars_allowed: None,
-            safe_duration_factor: None, safe_duration_offset: None, line: 2,
+            safe_duration_factor: None, safe_duration_offset: None,
+            jp_office_id: None, line: 2,
         }
     }
 

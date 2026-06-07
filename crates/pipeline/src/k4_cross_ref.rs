@@ -2119,54 +2119,117 @@ fn check_translations(
 // (table=stops, field=stop_name, language=ja-Hrkt) record_id=stop_id VEYA
 // field_value=stop_name ile eşleşen satır bulunur.
 fn check_gtfs_jp(records: &EntityRecords, notices: &mut Vec<Notice>, ctr: &mut u32) {
+    // ── JPN_001: stop_name kana (ja-Hrkt) okuması — kapı: feed_lang ja* VEYA ja-Hrkt çeviri ──
     let feed_lang_ja = records.feed_info.first()
         .map(|fi| fi.feed_lang.to_lowercase().starts_with("ja"))
         .unwrap_or(false);
     let has_kana = records.translations.iter()
         .any(|t| t.language.eq_ignore_ascii_case("ja-Hrkt"));
-    if !(feed_lang_ja || has_kana) {
-        return;
+    if feed_lang_ja || has_kana {
+        let mut kana_records: HashSet<&str> = HashSet::new();
+        let mut kana_values: HashSet<&str> = HashSet::new();
+        for t in &records.translations {
+            if t.table_name == "stops"
+                && t.field_name == "stop_name"
+                && t.language.eq_ignore_ascii_case("ja-Hrkt")
+            {
+                if let Some(rid) = t.record_id.as_deref() { kana_records.insert(rid); }
+                if let Some(fv) = t.field_value.as_deref() { kana_values.insert(fv); }
+            }
+        }
+
+        for stop in &records.stops {
+            // Sadece fiziksel duraklar (location_type 0/boş); istasyon/giriş/node hariç.
+            if stop.location_type.unwrap_or(0) != 0 {
+                continue;
+            }
+            let name = match stop.stop_name.as_deref() {
+                Some(n) if !n.is_empty() => n,
+                _ => continue,
+            };
+            if kana_records.contains(stop.stop_id.as_str()) || kana_values.contains(name) {
+                continue;
+            }
+            notices.push(notice(
+                ctr,
+                "JPN_001",
+                EntityType::Stop,
+                Some(stop.stop_id.clone()),
+                Some(stop.stop_id.clone()),
+                "translations.txt",
+                Some(stop.line),
+                Some("stop_name"),
+                None,
+                Some("ja-Hrkt".to_string()),
+                format!("'{}' durağının adı ('{}') için kana (ja-Hrkt) okuması eksik — GTFS-JP'de zorunlu.",
+                    stop.stop_id, name),
+                "translations.txt'e bu durak için language=ja-Hrkt (かな) çevirisi ekleyin.",
+            ));
+        }
     }
 
-    let mut kana_records: HashSet<&str> = HashSet::new();
-    let mut kana_values: HashSet<&str> = HashSet::new();
-    for t in &records.translations {
-        if t.table_name == "stops"
-            && t.field_name == "stop_name"
-            && t.language.eq_ignore_ascii_case("ja-Hrkt")
-        {
-            if let Some(rid) = t.record_id.as_deref() { kana_records.insert(rid); }
-            if let Some(fv) = t.field_value.as_deref() { kana_values.insert(fv); }
+    // ── JPN_002: trips.jp_office_id → office_jp.office_id ──
+    // Kapı: office_jp.txt mevcut (GTFS-JP yapısal sinyali). Boş/eksik jp_office_id atlanır;
+    // sadece dolu ama office_jp'de tanımsız referanslar işaretlenir.
+    if !records.office_jp.is_empty() {
+        let office_ids: HashSet<&str> = records.office_jp.iter()
+            .map(|o| o.office_id.as_str())
+            .filter(|id| !id.is_empty())
+            .collect();
+        for trip in &records.trips {
+            let oid = match trip.jp_office_id.as_deref() {
+                Some(o) if !o.is_empty() => o,
+                _ => continue,
+            };
+            if !office_ids.contains(oid) {
+                notices.push(notice(
+                    ctr,
+                    "JPN_002",
+                    EntityType::Trip,
+                    Some(trip.trip_id.clone()),
+                    Some(trip.trip_id.clone()),
+                    "trips.txt",
+                    Some(trip.line),
+                    Some("jp_office_id"),
+                    Some(oid.to_string()),
+                    None,
+                    format!("'{}' seferindeki jp_office_id ('{}') office_jp.txt'te tanımlı değil.",
+                        trip.trip_id, oid),
+                    "jp_office_id değerini office_jp.txt'te tanımlı bir office_id ile eşleştirin.",
+                ));
+            }
         }
     }
 
-    for stop in &records.stops {
-        // Sadece fiziksel duraklar (location_type 0/boş); istasyon/giriş/node hariç.
-        if stop.location_type.unwrap_or(0) != 0 {
-            continue;
+    // ── JPN_003: agency_jp.agency_id → agency.agency_id ──
+    // Kapı: agency_jp.txt mevcut. Boş agency_id (ayrı zorunluluk ihlali) atlanır.
+    if !records.agency_jp.is_empty() {
+        let agency_ids: HashSet<&str> = records.agencies.iter()
+            .filter_map(|a| a.agency_id.as_deref())
+            .filter(|id| !id.is_empty())
+            .collect();
+        for aj in &records.agency_jp {
+            let aid = match aj.agency_id.as_deref() {
+                Some(a) if !a.is_empty() => a,
+                _ => continue,
+            };
+            if !agency_ids.contains(aid) {
+                notices.push(notice(
+                    ctr,
+                    "JPN_003",
+                    EntityType::Agency,
+                    Some(aid.to_string()),
+                    Some(aid.to_string()),
+                    "agency_jp.txt",
+                    Some(aj.line),
+                    Some("agency_id"),
+                    Some(aid.to_string()),
+                    None,
+                    format!("agency_jp.txt'teki agency_id ('{}') agency.txt'te tanımlı değil.", aid),
+                    "agency_jp.txt'teki agency_id değerini agency.txt'te tanımlı bir agency_id ile eşleştirin.",
+                ));
+            }
         }
-        let name = match stop.stop_name.as_deref() {
-            Some(n) if !n.is_empty() => n,
-            _ => continue,
-        };
-        if kana_records.contains(stop.stop_id.as_str()) || kana_values.contains(name) {
-            continue;
-        }
-        notices.push(notice(
-            ctr,
-            "JPN_001",
-            EntityType::Stop,
-            Some(stop.stop_id.clone()),
-            Some(stop.stop_id.clone()),
-            "translations.txt",
-            Some(stop.line),
-            Some("stop_name"),
-            None,
-            Some("ja-Hrkt".to_string()),
-            format!("'{}' durağının adı ('{}') için kana (ja-Hrkt) okuması eksik — GTFS-JP'de zorunlu.",
-                stop.stop_id, name),
-            "translations.txt'e bu durak için language=ja-Hrkt (かな) çevirisi ekleyin.",
-        ));
     }
 }
 
@@ -3148,6 +3211,7 @@ mod tests {
             direction_id: None, block_id: None, wheelchair_accessible: None,
             bikes_allowed: None, cars_allowed: None,
             safe_duration_factor: None, safe_duration_offset: None,
+            jp_office_id: None,
             line: 2,
         }
     }
@@ -3550,6 +3614,82 @@ mod tests {
         // JP sinyali yok (feed_lang yok, ja-Hrkt yok) → kapı kapalı → JPN_001 yok.
         let result = check(&recs, &EntityMap::default(), 20260515);
         assert!(!result.notices.iter().any(|n| n.rule_id == "JPN_001"));
+    }
+
+    // �"?�"? JPN_002 �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?
+
+    #[test]
+    fn dangling_jp_office_id_produces_jpn_002() {
+        use crate::k2::office_jp::OfficeJpRecord;
+        let (mut recs, _map) = empty();
+        recs.office_jp = vec![OfficeJpRecord {
+            office_id: "OF1".into(), office_name: Some("本社".into()),
+            row: Default::default(), line: 2,
+        }];
+        // T1 geçerli ofise işaret eder, T2 tanımsız ofise → yalnız T2 işaretlenmeli.
+        recs.trips = vec![
+            TripRecord { jp_office_id: Some("OF1".into()), ..trip("T1", "R1", "SVC1") },
+            TripRecord { jp_office_id: Some("MISSING".into()), ..trip("T2", "R1", "SVC1") },
+        ];
+        let result = check(&recs, &EntityMap::default(), 20260515);
+        let jpn: Vec<&str> = result.notices.iter()
+            .filter(|n| n.rule_id == "JPN_002")
+            .filter_map(|n| n.entity_id.as_deref())
+            .collect();
+        assert_eq!(jpn, vec!["T2"], "yalnız tanımsız ofise işaret eden T2 işaretlenmeli");
+    }
+
+    #[test]
+    fn valid_jp_office_id_no_jpn_002() {
+        use crate::k2::office_jp::OfficeJpRecord;
+        let (mut recs, _map) = empty();
+        recs.office_jp = vec![OfficeJpRecord {
+            office_id: "OF1".into(), office_name: None,
+            row: Default::default(), line: 2,
+        }];
+        recs.trips = vec![TripRecord { jp_office_id: Some("OF1".into()), ..trip("T1", "R1", "SVC1") }];
+        let result = check(&recs, &EntityMap::default(), 20260515);
+        assert!(!result.notices.iter().any(|n| n.rule_id == "JPN_002"));
+    }
+
+    // �"?�"? JPN_003 �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?
+
+    #[test]
+    fn dangling_agency_jp_id_produces_jpn_003() {
+        use crate::k2::agency::AgencyRecord;
+        use crate::k2::agency_jp::AgencyJpRecord;
+        let (mut recs, _map) = empty();
+        recs.agencies = vec![AgencyRecord {
+            agency_id: Some("A1".into()), agency_name: "都営".into(),
+            agency_url: "https://example.jp".into(), agency_timezone: "Asia/Tokyo".into(),
+            agency_lang: None, agency_phone: None, agency_fare_url: None,
+            agency_email: None, agency_cemv_support: None,
+            row: Default::default(), line: 2,
+        }];
+        recs.agency_jp = vec![AgencyJpRecord {
+            agency_id: Some("NONEXISTENT".into()), row: Default::default(), line: 2,
+        }];
+        let result = check(&recs, &EntityMap::default(), 20260515);
+        assert!(result.notices.iter().any(|n| n.rule_id == "JPN_003"));
+    }
+
+    #[test]
+    fn valid_agency_jp_id_no_jpn_003() {
+        use crate::k2::agency::AgencyRecord;
+        use crate::k2::agency_jp::AgencyJpRecord;
+        let (mut recs, _map) = empty();
+        recs.agencies = vec![AgencyRecord {
+            agency_id: Some("A1".into()), agency_name: "都営".into(),
+            agency_url: "https://example.jp".into(), agency_timezone: "Asia/Tokyo".into(),
+            agency_lang: None, agency_phone: None, agency_fare_url: None,
+            agency_email: None, agency_cemv_support: None,
+            row: Default::default(), line: 2,
+        }];
+        recs.agency_jp = vec![AgencyJpRecord {
+            agency_id: Some("A1".into()), row: Default::default(), line: 2,
+        }];
+        let result = check(&recs, &EntityMap::default(), 20260515);
+        assert!(!result.notices.iter().any(|n| n.rule_id == "JPN_003"));
     }
 
     // �"?�"? XFL_003 �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?

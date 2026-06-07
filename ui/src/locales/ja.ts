@@ -868,6 +868,8 @@ const ja: LocaleShape = {
     'VAT_007': "停留所'{entity_id}'：別の路線がこの終点を共有していますが、乗り換えが定義されていません。",
     'VAT_008': "シェープ'{entity_id}'はフィードの路線の{observed_value}で使用されています — 誤ったシェープ割り当ての可能性があります。",
     'JPN_001': "停留所'{entity_id}'：stop_name にかな（ja-Hrkt）読みがありません — GTFS-JP では必須です。",
+    'JPN_002': "便'{entity_id}'：jp_office_id '{observed_value}' が office_jp.txt に定義されていません。",
+    'JPN_003': "agency_jp.txt の agency_id '{observed_value}' が agency.txt に定義されていません。",
   } as Record<string, string>,
 
   ruleRemediations: {
@@ -1359,6 +1361,8 @@ const ja: LocaleShape = {
     'VAT_007': 'この終点停留所のtransfers.txtに乗換レコードを追加してください。',
     'VAT_008': '各路線と方向に固有のshape_idを定義してください。',
     'JPN_001': 'translations.txt にこの停留所の language=ja-Hrkt（かな）翻訳を追加してください。',
+    'JPN_002': 'jp_office_id を office_jp.txt に定義された office_id に合わせてください。',
+    'JPN_003': 'agency_jp.txt の agency_id を agency.txt に定義された agency_id に合わせてください。',
     // XFL
     'XFL_001': 'calendar.txtまたはcalendar_dates.txtに不足しているサービス定義を追加してください。',
     'XFL_002': 'この便のstop_timesレコードを追加してください。',
@@ -1894,6 +1898,8 @@ const ja: LocaleShape = {
     'VAT_007': '終点の乗換不足（別路線が終点に来るが乗換未定義）',
     'VAT_008': '同じシェープがフィード路線の30%以上で使用',
     'JPN_001': 'GTFS-JP：停留所名のかな（ja-Hrkt）読みが欠落',
+    'JPN_002': 'GTFS-JP：jp_office_id が office_jp.txt に未定義',
+    'JPN_003': 'GTFS-JP：agency_jp の agency_id が agency.txt に未定義',
   } as Record<string, string>,
 };
 

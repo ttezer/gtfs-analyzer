@@ -484,6 +484,7 @@ mod tests {
             wheelchair_accessible: None, bikes_allowed: None,
             cars_allowed: None, safe_duration_factor: None,
             safe_duration_offset: None,
+            jp_office_id: None,
             line: 2,
         }
     }
