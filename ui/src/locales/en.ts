@@ -143,6 +143,7 @@ const en: LocaleShape = {
     'domain.sev.LOW'             : 'Low',
     'domain.sev.INFO'            : 'Info',
     'domain.metrics_title'       : 'Feed Metrics',
+    'domain.gtfs_jp.tip'         : 'GTFS-JP (Japan profile) feed — detected from feed_lang=ja, kana translations (ja-Hrkt), or *_jp files.',
     'domain.metric.stops'        : 'Stops',
     'domain.metric.routes'       : 'Routes',
     'domain.metric.trips'        : 'Trips',

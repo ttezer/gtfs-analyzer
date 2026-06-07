@@ -216,7 +216,7 @@ function renderMetrics(m: FeedMetrics): string {
 
   return `
     <div class="card">
-      <h3 class="rpt-section-title">${t('domain.metrics_title')}</h3>
+      <h3 class="rpt-section-title">${t('domain.metrics_title')}${m.is_gtfs_jp ? ` <span class="jp-badge" title="${escHtml(t('domain.gtfs_jp.tip'))}">GTFS-JP</span>` : ''}</h3>
       <div class="rpt-metrics-grid">${metricCards}</div>
       ${fileRows ? `
         <div class="table-scroll rpt-files">

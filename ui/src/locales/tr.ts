@@ -141,6 +141,7 @@ const tr = {
     'domain.sev.LOW'             : 'Düşük',
     'domain.sev.INFO'            : 'Bilgi',
     'domain.metrics_title'       : 'Feed Metrikleri',
+    'domain.gtfs_jp.tip'         : 'GTFS-JP (Japonya profili) feed — feed_lang=ja, kana çevirileri (ja-Hrkt) veya *_jp dosyalarından algılandı.',
     'domain.metric.stops'        : 'Durak',
     'domain.metric.routes'       : 'Hat',
     'domain.metric.trips'        : 'Sefer',

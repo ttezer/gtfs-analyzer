@@ -45,4 +45,9 @@ pub struct FeedMetrics {
 
     // Dosya bazında istatistikler (K1 parse)
     pub file_stats: Vec<FileInfo>,
+
+    /// Feed GTFS-JP (Japonya profili) mi — herhangi bir `*_jp.txt` dosyası varsa true.
+    /// UI'da "GTFS-JP" rozeti + JPN grubu kurallarının koşullu tetiklenmesi için.
+    #[serde(default)]
+    pub is_gtfs_jp: bool,
 }
