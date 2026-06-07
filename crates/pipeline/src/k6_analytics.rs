@@ -143,6 +143,7 @@ fn k6_notice(
 /// `needle`, `haystack` içinde kelime sınırında (alfanümerik olmayan karakter veya
 /// dize başı/sonu ile çevrili) geçiyor mu? Büyük/küçük harf duyarsız.
 fn contains_as_word(haystack: &str, needle: &str) -> bool {
+    if needle.is_empty() { return false; }
     let h = haystack.to_lowercase();
     let n = needle.to_lowercase();
     let nb = n.as_bytes().len();
@@ -154,7 +155,9 @@ fn contains_as_word(haystack: &str, needle: &str) -> bool {
         let after_ok = pos + nb >= h.len()
             || !h[pos + nb..].chars().next().map(|c| c.is_alphanumeric()).unwrap_or(false);
         if before_ok && after_ok { return true; }
-        start = pos + 1;
+        // pos+1 çok-baytlı UTF-8'de (CJK vb.) char sınırında olmayabilir → bir sonraki
+        // char sınırına ilerle; aksi halde h[start..] dilimlemesi panik atar.
+        start = pos + h[pos..].chars().next().map_or(1, |c| c.len_utf8());
     }
     false
 }
@@ -6526,6 +6529,22 @@ mod tests {
 
     fn default_config() -> ValidatorConfig {
         ValidatorConfig::default()
+    }
+
+    // Regresyon: contains_as_word çok-baytlı UTF-8'de (CJK) char sınırı içinde
+    // dilimleme yapıp panik atmamalı. Eskiden `start = pos + 1` Japonca feed'lerde
+    // (ör. "市バス１号系統") wasm worker'ını çökertiyordu.
+    #[test]
+    fn contains_as_word_handles_multibyte_utf8() {
+        // Panik atmadan tamamlanmalı (asıl regresyon koşulu).
+        assert!(!contains_as_word("市バス１号系統", "bus"));
+        assert!(!contains_as_word("六本木ヒルズ前", "ab"));
+        assert!(!contains_as_word("東京", ""));
+        // ASCII davranışı korunmalı.
+        assert!(contains_as_word("Route 5 Express", "5"));
+        assert!(!contains_as_word("Route 51", "5"));
+        // CJK gövdesi içinde gömülü ASCII kelimesi de sınırda bulunmalı.
+        assert!(contains_as_word("市バス bus 系統", "bus"));
     }
 
     fn empty_derived() -> DerivedData {
