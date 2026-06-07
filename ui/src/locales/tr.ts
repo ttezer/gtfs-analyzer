@@ -888,6 +888,7 @@ const tr = {
     'VAT_006': 'Hizmet yoğunluğu dengesizliği — tek hat feed sefer sayısının büyük bölümünü oluşturuyor',
     'VAT_007': 'Terminus aktarma eksikliği — terminal durağa başka hat geliyor ama aktarma tanımlı değil',
     'VAT_008': "Aynı shape feed hatlarının %30+'ında kullanılıyor",
+    'JPN_001': 'GTFS-JP: durak adında kana (ja-Hrkt) okuması eksik',
   } as Record<string, string>,
 };
 

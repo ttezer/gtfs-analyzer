@@ -867,6 +867,7 @@ const ja: LocaleShape = {
     'VAT_006': "路線'{entity_id}'がフィードの便の不均衡に大きな割合を占めています（{observed_value}）。",
     'VAT_007': "停留所'{entity_id}'：別の路線がこの終点を共有していますが、乗り換えが定義されていません。",
     'VAT_008': "シェープ'{entity_id}'はフィードの路線の{observed_value}で使用されています — 誤ったシェープ割り当ての可能性があります。",
+    'JPN_001': "停留所'{entity_id}'：stop_name にかな（ja-Hrkt）読みがありません — GTFS-JP では必須です。",
   } as Record<string, string>,
 
   ruleRemediations: {
@@ -1357,6 +1358,7 @@ const ja: LocaleShape = {
     'VAT_006': '高い便密度が運営実態を反映している場合は無視してください。そうでない場合は他の路線に便を追加してください。',
     'VAT_007': 'この終点停留所のtransfers.txtに乗換レコードを追加してください。',
     'VAT_008': '各路線と方向に固有のshape_idを定義してください。',
+    'JPN_001': 'translations.txt にこの停留所の language=ja-Hrkt（かな）翻訳を追加してください。',
     // XFL
     'XFL_001': 'calendar.txtまたはcalendar_dates.txtに不足しているサービス定義を追加してください。',
     'XFL_002': 'この便のstop_timesレコードを追加してください。',
@@ -1891,6 +1893,7 @@ const ja: LocaleShape = {
     'VAT_006': 'サービス密度の偏り（1路線がフィードの大部分を占有）',
     'VAT_007': '終点の乗換不足（別路線が終点に来るが乗換未定義）',
     'VAT_008': '同じシェープがフィード路線の30%以上で使用',
+    'JPN_001': 'GTFS-JP：停留所名のかな（ja-Hrkt）読みが欠落',
   } as Record<string, string>,
 };
 

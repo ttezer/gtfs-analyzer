@@ -886,6 +886,7 @@ const en: LocaleShape = {
     'VAT_006': "Route '{entity_id}' accounts for a disproportionately large share of feed trips ({observed_value}).",
     'VAT_007': "Stop '{entity_id}': another route shares this terminus but no transfer is defined.",
     'VAT_008': "Shape '{entity_id}' is used across {observed_value} of routes — possible incorrect shape assignment.",
+    'JPN_001': "Stop '{entity_id}': stop_name has no kana (ja-Hrkt) reading — required by GTFS-JP.",
   } as Record<string, string>,
 
   ruleRemediations: {
@@ -1042,6 +1043,7 @@ const en: LocaleShape = {
     'VAT_006': 'Informational notice if high trip density reflects operational reality. Otherwise, add trips to other routes.',
     'VAT_007': 'Add a transfer record for this terminus stop in transfers.txt.',
     'VAT_008': 'Define a separate shape_id for each route and direction.',
+    'JPN_001': 'Add a language=ja-Hrkt (kana) translation for this stop in translations.txt.',
     // AGN
     'AGN_002': 'Fill in the agency_name field.',
     'AGN_003': 'Enter a valid http/https URL for agency_url.',
@@ -1937,6 +1939,7 @@ const en: LocaleShape = {
     'VAT_006': 'Service density imbalance — single route accounts for large proportion of feed trips',
     'VAT_007': 'Terminal transfer missing — another route serves the terminus but no transfer defined',
     'VAT_008': 'Same shape used by more than 30% of routes',
+    'JPN_001': 'GTFS-JP: stop name missing kana (ja-Hrkt) reading',
   },
 };
 

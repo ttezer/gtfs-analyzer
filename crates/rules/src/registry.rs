@@ -1215,6 +1215,10 @@ pub static RULES: &[RuleMeta] = &[
         "Terminus aktarma eksikliği — terminal durağa başka hat geliyor ama aktarma tanımlı değil"),
     r!("VAT_008", Bilgi,  Analytics, 2, &[], Some("shape_id"), VA_GEO, Entity,
         "Aynı shape feed hatlarının %30'undan fazlasında kullanılıyor — olası yanlış shape ataması"),
+
+    // ── JPN — GTFS-JP (Japonya profili) kuralları; yalnız GTFS-JP feed'lerde ────
+    r!("JPN_001", Orta,   Quality, 2, &[], Some("stop_id"), VS, Entity,
+        "GTFS-JP: durak adının kana (ja-Hrkt) okuması eksik"),
 ];
 
 /// `RULES` üzerinden id → metadata için tek seferlik kurulan O(1) arama tablosu.

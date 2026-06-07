@@ -98,6 +98,7 @@ pub fn check(records: &EntityRecords, entity_map: &EntityMap, today: u32) -> K4R
     { let _t = Timer::start("K4::fares_v2");       check_fares_v2(records, map, &mut notices, &mut ctr); }
     { let _t = Timer::start("K4::levels");         check_levels(records, map, &mut notices, &mut ctr); }
     { let _t = Timer::start("K4::translations");   check_translations(records, map, &mut notices, &mut ctr); }
+    { let _t = Timer::start("K4::gtfs_jp");         check_gtfs_jp(records, &mut notices, &mut ctr); }
     { let _t = Timer::start("K4::attributions");   check_attributions(records, map, &mut notices, &mut ctr); }
     { let _t = Timer::start("K4::xfl");            check_xfl(records, map, &mut notices, &mut ctr, &stm_trips_in_stm, &stm_trip_stm_count, &stm_bad_stop_ids); }
     { let _t = Timer::start("K4::stm_shape_dist"); check_stm_shape_dist(records, &mut notices, &mut ctr); }
@@ -2111,6 +2112,64 @@ fn check_translations(
 
 // �"?�"? ATR_005-007, ATR_009: attribution cross-ref �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?
 
+// ── JPN_001: GTFS-JP feed'inde durak adının kana (ja-Hrkt) okuması eksik ──────
+// GTFS-JP, stop_name için かな okumasını (translations, language=ja-Hrkt) ZORUNLU kılar
+// (sesli anons + arama için). Yalnız Japon feed'inde çalışır: feed_lang=ja VEYA herhangi
+// bir ja-Hrkt çeviri varsa. Bir durağın kanası var sayılır ⇔ translations'ta
+// (table=stops, field=stop_name, language=ja-Hrkt) record_id=stop_id VEYA
+// field_value=stop_name ile eşleşen satır bulunur.
+fn check_gtfs_jp(records: &EntityRecords, notices: &mut Vec<Notice>, ctr: &mut u32) {
+    let feed_lang_ja = records.feed_info.first()
+        .map(|fi| fi.feed_lang.to_lowercase().starts_with("ja"))
+        .unwrap_or(false);
+    let has_kana = records.translations.iter()
+        .any(|t| t.language.eq_ignore_ascii_case("ja-Hrkt"));
+    if !(feed_lang_ja || has_kana) {
+        return;
+    }
+
+    let mut kana_records: HashSet<&str> = HashSet::new();
+    let mut kana_values: HashSet<&str> = HashSet::new();
+    for t in &records.translations {
+        if t.table_name == "stops"
+            && t.field_name == "stop_name"
+            && t.language.eq_ignore_ascii_case("ja-Hrkt")
+        {
+            if let Some(rid) = t.record_id.as_deref() { kana_records.insert(rid); }
+            if let Some(fv) = t.field_value.as_deref() { kana_values.insert(fv); }
+        }
+    }
+
+    for stop in &records.stops {
+        // Sadece fiziksel duraklar (location_type 0/boş); istasyon/giriş/node hariç.
+        if stop.location_type.unwrap_or(0) != 0 {
+            continue;
+        }
+        let name = match stop.stop_name.as_deref() {
+            Some(n) if !n.is_empty() => n,
+            _ => continue,
+        };
+        if kana_records.contains(stop.stop_id.as_str()) || kana_values.contains(name) {
+            continue;
+        }
+        notices.push(notice(
+            ctr,
+            "JPN_001",
+            EntityType::Stop,
+            Some(stop.stop_id.clone()),
+            Some(stop.stop_id.clone()),
+            "translations.txt",
+            Some(stop.line),
+            Some("stop_name"),
+            None,
+            Some("ja-Hrkt".to_string()),
+            format!("'{}' durağının adı ('{}') için kana (ja-Hrkt) okuması eksik — GTFS-JP'de zorunlu.",
+                stop.stop_id, name),
+            "translations.txt'e bu durak için language=ja-Hrkt (かな) çevirisi ekleyin.",
+        ));
+    }
+}
+
 fn check_attributions(
     records: &EntityRecords,
     map: &EntityMap,
@@ -3458,6 +3517,39 @@ mod tests {
         let result = check(&recs, &EntityMap::default(), 20260515);
         assert!(result.notices.iter().any(|n| n.rule_id == "TRN_006"));
         assert!(!result.notices.iter().any(|n| n.rule_id == "TRN_005"));
+    }
+
+    #[test]
+    fn missing_kana_produces_jpn_001() {
+        use crate::k2::translations::TranslationRecord;
+        let (mut recs, _map) = empty();
+        let mut s1 = stop("S1"); s1.stop_name = Some("六本木".into());
+        let mut s2 = stop("S2"); s2.stop_name = Some("赤坂".into());
+        recs.stops = vec![s1, s2];
+        // S1 için kana var, S2 için yok. ja-Hrkt varlığı GTFS-JP kapısını açar.
+        recs.translations = vec![TranslationRecord {
+            table_name: "stops".into(), field_name: "stop_name".into(),
+            language: "ja-Hrkt".into(), translation: "ろっぽんぎ".into(),
+            record_id: Some("S1".into()),
+            record_sub_id: None, field_value: None,
+            row: Default::default(), line: 2,
+        }];
+        let result = check(&recs, &EntityMap::default(), 20260515);
+        let jpn: Vec<&str> = result.notices.iter()
+            .filter(|n| n.rule_id == "JPN_001")
+            .filter_map(|n| n.entity_id.as_deref())
+            .collect();
+        assert_eq!(jpn, vec!["S2"], "yalnız kanası eksik S2 işaretlenmeli");
+    }
+
+    #[test]
+    fn non_japanese_feed_no_jpn_001() {
+        let (mut recs, _map) = empty();
+        let mut s1 = stop("S1"); s1.stop_name = Some("Main St".into());
+        recs.stops = vec![s1];
+        // JP sinyali yok (feed_lang yok, ja-Hrkt yok) → kapı kapalı → JPN_001 yok.
+        let result = check(&recs, &EntityMap::default(), 20260515);
+        assert!(!result.notices.iter().any(|n| n.rule_id == "JPN_001"));
     }
 
     // �"?�"? XFL_003 �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?
