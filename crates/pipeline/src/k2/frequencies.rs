@@ -29,8 +29,8 @@ pub fn validate_frequencies(file: &RawFile) -> (Vec<FrequencyRecord>, Vec<gtfs_c
         let trip_id = get_trimmed_field(&row_map, "trip_id").unwrap_or("").to_string();
         let entity_id = (!trip_id.is_empty()).then_some(trip_id.clone());
 
-        // FRQ_001: trip_id required
-        if trip_id.is_empty() {
+        // FRQ_001: trip_id required (sütun yoksa ARC_025 devralır → atla)
+        if get_trimmed_field(&row_map, "trip_id") == Some("") {
             notices.push(make_k2_notice(
                 &mut counter, "FRQ_001", EntityType::Trip, None,
                 Some(&row_map), &file.name, Some(line), Some("trip_id"),
@@ -43,7 +43,7 @@ pub fn validate_frequencies(file: &RawFile) -> (Vec<FrequencyRecord>, Vec<gtfs_c
         // FRQ_002: start_time required + valid HH:MM:SS
         let start_time = match parse_gtfs_time(&row_map, "start_time") {
             Ok(v) => {
-                if v.is_none() {
+                if get_trimmed_field(&row_map, "start_time") == Some("") {
                     notices.push(make_k2_notice(
                         &mut counter, "FRQ_002", EntityType::Trip, entity_id.clone(),
                         Some(&row_map), &file.name, Some(line), Some("start_time"),
@@ -69,7 +69,7 @@ pub fn validate_frequencies(file: &RawFile) -> (Vec<FrequencyRecord>, Vec<gtfs_c
         // FRQ_003: end_time required + valid HH:MM:SS
         let end_time = match parse_gtfs_time(&row_map, "end_time") {
             Ok(v) => {
-                if v.is_none() {
+                if get_trimmed_field(&row_map, "end_time") == Some("") {
                     notices.push(make_k2_notice(
                         &mut counter, "FRQ_003", EntityType::Trip, entity_id.clone(),
                         Some(&row_map), &file.name, Some(line), Some("end_time"),
@@ -97,13 +97,16 @@ pub fn validate_frequencies(file: &RawFile) -> (Vec<FrequencyRecord>, Vec<gtfs_c
             Ok(v) => {
                 match v {
                     None => {
-                        notices.push(make_k2_notice(
-                            &mut counter, "FRQ_004", EntityType::Trip, entity_id.clone(),
-                            Some(&row_map), &file.name, Some(line), Some("headway_secs"),
-                            Some(String::new()), Some("> 0".to_string()),
-                            "headway_secs zorunludur.".to_string(),
-                            "headway_secs pozitif bir tam sayı olarak girin.",
-                        ));
+                        // sütun yoksa ARC_025 devralır → atla
+                        if get_trimmed_field(&row_map, "headway_secs") == Some("") {
+                            notices.push(make_k2_notice(
+                                &mut counter, "FRQ_004", EntityType::Trip, entity_id.clone(),
+                                Some(&row_map), &file.name, Some(line), Some("headway_secs"),
+                                Some(String::new()), Some("> 0".to_string()),
+                                "headway_secs zorunludur.".to_string(),
+                                "headway_secs pozitif bir tam sayı olarak girin.",
+                            ));
+                        }
                         None
                     }
                     Some(val) => {

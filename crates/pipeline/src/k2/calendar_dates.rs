@@ -27,8 +27,8 @@ pub fn validate_calendar_dates(file: &RawFile) -> (Vec<CalendarDateRecord>, Vec<
         let service_id = get_trimmed_field(&row_map, "service_id").unwrap_or("").to_string();
         let entity_id = (!service_id.is_empty()).then_some(service_id.clone());
 
-        // CLD_001: service_id required
-        if service_id.is_empty() {
+        // CLD_001: service_id required (sütun yoksa ARC_025 devralır → atla)
+        if get_trimmed_field(&row_map, "service_id") == Some("") {
             notices.push(make_k2_notice(
                 &mut counter, "CLD_001", EntityType::Service, None,
                 Some(&row_map), &file.name, Some(line), Some("service_id"),
@@ -41,7 +41,7 @@ pub fn validate_calendar_dates(file: &RawFile) -> (Vec<CalendarDateRecord>, Vec<
         // CLD_002: date required + valid YYYYMMDD
         let date = match parse_service_date(&row_map, "date") {
             Ok(v) => {
-                if v.is_none() {
+                if get_trimmed_field(&row_map, "date") == Some("") {
                     notices.push(make_k2_notice(
                         &mut counter, "CLD_002", EntityType::Service, entity_id.clone(),
                         Some(&row_map), &file.name, Some(line), Some("date"),
@@ -82,13 +82,16 @@ pub fn validate_calendar_dates(file: &RawFile) -> (Vec<CalendarDateRecord>, Vec<
             Ok(v) => {
                 match v {
                     None => {
-                        notices.push(make_k2_notice(
-                            &mut counter, "CLD_003", EntityType::Service, entity_id.clone(),
-                            Some(&row_map), &file.name, Some(line), Some("exception_type"),
-                            Some(String::new()), Some("1 veya 2".to_string()),
-                            "exception_type zorunludur.".to_string(),
-                            "exception_type değerini 1 (eklendi) veya 2 (kaldırıldı) olarak ayarlayın.",
-                        ));
+                        // sütun yoksa ARC_025 devralır → atla
+                        if get_trimmed_field(&row_map, "exception_type") == Some("") {
+                            notices.push(make_k2_notice(
+                                &mut counter, "CLD_003", EntityType::Service, entity_id.clone(),
+                                Some(&row_map), &file.name, Some(line), Some("exception_type"),
+                                Some(String::new()), Some("1 veya 2".to_string()),
+                                "exception_type zorunludur.".to_string(),
+                                "exception_type değerini 1 (eklendi) veya 2 (kaldırıldı) olarak ayarlayın.",
+                            ));
+                        }
                         None
                     }
                     Some(val) => {
