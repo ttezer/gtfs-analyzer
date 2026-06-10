@@ -569,6 +569,8 @@ pub static RULES: &[RuleMeta] = &[
         "Feed geçerlilik penceresi 5 yılı aşıyor — gerçekçi olmayan zaman dilimi"),
     r!("CAL_021", Bilgi,  Analytics, 1, &[], Some("service_id"), VA, Entity,
         "Servis bugünü kapsıyor ama yakın günlerde aktif sefer yok"),
+    r!("CAL_022", Kritik, Spec, 1, &[], Some("service_id"), VS_K, Row,
+        "service_id eksik"),
 
     // ── CLD: Calendar Dates ────────────────────────────────────────────────────
     r!("CLD_001", Kritik, Spec, 1, &[], Some("service_id"), VS_K, Row,

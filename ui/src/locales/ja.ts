@@ -574,6 +574,7 @@ const ja: LocaleShape = {
     'CAL_019': "サービス'{entity_id}'：カレンダー日付がfeed_infoの有効ウィンドウ外にあります（{observed_value}）。",
     'CAL_020': "フィードの有効期間が{observed_value}に及びます — 交通フィードとして非現実的な長さです。",
     'CAL_021': "サービス'{entity_id}'は本日は有効ですが、今後の期間に運行予定がありません。",
+    'CAL_022': 'calendar.txt：service_idがありません。',
     // CLD
     'CLD_001': 'calendar_dates.txt：service_idがありません。',
     'CLD_002': "calendar_dates.txt：日付'{observed_value}'の形式が無効です。",
@@ -962,6 +963,7 @@ const ja: LocaleShape = {
     'CAL_019': 'feed_info.txtのfeed_start_date/feed_end_dateを更新するか、calendar.txtの日付を調整してください。',
     'CAL_020': 'feed_start_dateとfeed_end_dateを現実的なサービス期間（通常1〜2年）に制限してください。',
     'CAL_021': '今後の運行がないのが意図的でなければ、calendar/calendar_datesで近い日付に運行日を追加してください。',
+    'CAL_022': 'service_idフィールドを入力してください。',
     // CLD
     'CLD_001': 'service_idフィールドを入力してください。',
     'CLD_002': '日付をYYYYMMDD形式で入力してください。',
@@ -1604,6 +1606,7 @@ const ja: LocaleShape = {
     'CAL_019': 'サービスカレンダー日付がfeed_info有効期間外',
     'CAL_020': 'フィード有効期間が5年超',
     'CAL_021': '本日は有効だが今後数日間運行なし',
+    'CAL_022': 'service_idが不足',
     // CLD
     'CLD_001': 'service_idが不足',
     'CLD_002': '日付が欠落または形式が無効',

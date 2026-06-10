@@ -593,6 +593,7 @@ const en: LocaleShape = {
     'CAL_019': "Service '{entity_id}': calendar dates fall outside the feed_info validity window ({observed_value}).",
     'CAL_020': "Feed validity window spans {observed_value} — unrealistically long for a transit feed.",
     'CAL_021': "Service '{entity_id}' is active today but has no scheduled service in the upcoming window.",
+    'CAL_022': 'calendar.txt: service_id is missing.',
     // CLD
     'CLD_001': 'calendar_dates.txt: service_id is missing.',
     'CLD_002': "calendar_dates.txt: date '{observed_value}' has an invalid format.",
@@ -1380,6 +1381,7 @@ const en: LocaleShape = {
     'CAL_019': 'Update feed_start_date/feed_end_date in feed_info.txt to cover the full service date range, or adjust calendar.txt dates.',
     'CAL_020': 'Limit feed_start_date and feed_end_date to a realistic service period (typically 1–2 years).',
     'CAL_021': 'If the lack of upcoming service is intentional, ignore; otherwise add near-term active days via calendar/calendar_dates.',
+    'CAL_022': 'Fill in the service_id field.',
     // CLD
     'CLD_004': 'Add at least one calendar_dates.txt row with exception_type=1 for this service, or add a calendar.txt entry with at least one active day.',
     // DQ
@@ -1650,6 +1652,7 @@ const en: LocaleShape = {
     'CAL_019': 'Service calendar dates outside feed_info validity window',
     'CAL_020': 'Feed validity window exceeds 5 years',
     'CAL_021': 'Active today but no service in the upcoming days',
+    'CAL_022': 'service_id missing',
     // CLD
     'CLD_001': 'service_id missing',
     'CLD_002': 'date invalid format',

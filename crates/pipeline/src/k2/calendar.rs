@@ -33,6 +33,16 @@ pub fn validate_calendar(file: &RawFile) -> (Vec<CalendarRecord>, Vec<gtfs_core:
         let service_id = get_trimmed_field(&row_map, "service_id").unwrap_or("").to_string();
         let entity_id = (!service_id.is_empty()).then_some(service_id.clone());
 
+        // CAL_022: service_id required (sütun yoksa ARC_025 devralır → atla)
+        if get_trimmed_field(&row_map, "service_id") == Some("") {
+            notices.push(make_k2_notice(
+                &mut counter, "CAL_022", EntityType::Service, None, Some(&row_map),
+                &file.name, Some(line), Some("service_id"), Some(String::new()), None,
+                "service_id zorunludur.".to_string(),
+                "service_id alanını doldurun.",
+            ));
+        }
+
         // CAL_002: day fields must be 0 or 1
         let mut days = [None::<u32>; 7];
         let mut all_zero = true;
