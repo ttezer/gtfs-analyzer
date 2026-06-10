@@ -4,7 +4,7 @@
         if (u) return;
         const e = globalThis.crossOriginIsolated === !0, a = !r && typeof SharedArrayBuffer < "u" && e;
         if (a) try {
-            const t = await import("./gtfs_wasm-B12oIkas.js");
+            const t = await import("./gtfs_wasm-BqDa4Kr2.js");
             await t.default();
             const n = navigator.hardwareConcurrency || 4, s = Math.max(1, Math.min(n, 8));
             await t.initThreadPool(s), o = t, y = !0, console.info(`[WASM] threaded mode (${s} iş parçacığı)`);
@@ -12,7 +12,7 @@
             console.warn("[WASM] threaded init başarısız → seri fallback", t), o = null;
         }
         if (!o) {
-            const t = await import("./gtfs_wasm-KeDpNSli.js");
+            const t = await import("./gtfs_wasm-DGuQ31jL.js");
             await t.default(), o = t, y = !1, console.info(a ? "[WASM] seri mod (threaded yüklenemedi)" : "[WASM] seri mod (cross-origin isolated değil)");
         }
         u = !0;
