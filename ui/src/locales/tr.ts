@@ -285,6 +285,7 @@ const tr = {
     'fix.map.pin.terminal'         : 'Terminal: {name}',
     'fix.map.pin.station'          : 'İstasyon: {name}',
     'fix.map.pin.isolated'         : '⚠ İzole',
+    'fix.map.pin.isolated_routes'  : '{routes} hat • {trips} sefer',
     // Export
     'export.title'                    : 'Dışa Aktar',
     'export.source'                   : 'Kaynak:',

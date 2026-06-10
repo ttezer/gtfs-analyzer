@@ -342,9 +342,12 @@ function hasMapCoords(notice: Notice, nameIndex: NameIndex): boolean {
     const ts = notice.details?.['to_station'] ?? '';
     return !!(fs && fs in nameIndex.stop_coords && ts && ts in nameIndex.stop_coords);
   }
-  // Trip shape gerektiren kurallar: entity_id = trip_id
+  // OPR_007/OPR_008/STM_017: entity_id = trip_id.
+  // Harita shape polyline'a ek olarak durak koordinatlarından da çizilebilir
+  // (OPR_007 stops details, STM_017 trip_stops, OPR_008 bad_seg durakları).
+  // Bu yüzden shapes.txt'i olmayan feed'lerde de durak verisi varsa ikon gösterilir.
   if (['OPR_007','OPR_008','STM_017'].includes(notice.rule_id)) {
-    return !!(eid && eid in nameIndex.trip_shapes);
+    return !!(eid && (eid in nameIndex.trip_shapes || eid in nameIndex.trip_stops));
   }
   // Shape koordinatı gerektiren kurallar: entity_id = shape_id
   if (['SHP_007','SHP_009','SHP_010','SHP_012','SHP_014','SHP_015','SHP_016','SHP_018','SHP_019','SHP_020','GEO_006','GEO_007'].includes(notice.rule_id)) {
@@ -874,8 +877,24 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
     // Sadece gerçekten stop_times'ta geçen durakları göster — stop_times'sız duraklar mavi
     // "bağlı" gibi görünür ki bu yanıltıcı olur.
     const stopsInTrips = new Set<string>();
-    for (const stops of Object.values(nameIndex.trip_stops)) {
-      for (const s of stops) stopsInTrips.add(s);
+    // İzole duraklar için durak→{hat seti, sefer sayısı} aggregate (client-side).
+    // İzole küme ≤200 durak olduğundan, yalnızca izole duraklar için biriktir.
+    const stopRoutes = new Map<string, Set<string>>(); // stop_id → route_id set
+    const stopTrips  = new Map<string, number>();       // stop_id → distinct trip count
+    for (const [tripId, stops] of Object.entries(nameIndex.trip_stops)) {
+      const routeId = nameIndex.trip_routes[tripId];
+      const seenInTrip = new Set<string>();
+      for (const s of stops) {
+        stopsInTrips.add(s);
+        if (!isolatedSet.has(s) || seenInTrip.has(s)) continue;
+        seenInTrip.add(s);
+        stopTrips.set(s, (stopTrips.get(s) ?? 0) + 1);
+        if (routeId) {
+          let rset = stopRoutes.get(s);
+          if (!rset) { rset = new Set<string>(); stopRoutes.set(s, rset); }
+          rset.add(routeId);
+        }
+      }
     }
     const pins: MapPin[] = [];
     for (const [sid, coord] of Object.entries(nameIndex.stop_coords)) {
@@ -883,12 +902,30 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
       const inTrips = stopsInTrips.has(sid);
       if (!isIsolated && !inTrips) continue; // stop_times'sız durakları gizle
       const name = nameIndex.stops[sid] ?? sid;
+      let label: string;
+      if (isIsolated) {
+        const routeIds = Array.from(stopRoutes.get(sid) ?? []);
+        const tripCount = stopTrips.get(sid) ?? 0;
+        const routeCodes = routeIds
+          .map(rid => nameIndex.routes[rid] ?? rid)
+          .filter(Boolean);
+        label = `<strong>${t('fix.map.pin.isolated')}</strong><br>${stopLabel(name, sid)}`;
+        if (routeIds.length > 0 || tripCount > 0) {
+          label += `<br><span>${escHtml(t('fix.map.pin.isolated_routes', {
+            routes: String(routeIds.length),
+            trips: String(tripCount),
+          }))}</span>`;
+        }
+        if (routeCodes.length > 0) {
+          label += `<br><code>${escHtml(routeCodes.join(', '))}</code>`;
+        }
+      } else {
+        label = stopLabel(name, sid);
+      }
       pins.push({
         lat: coord[0],
         lon: coord[1],
-        label: isIsolated
-          ? `<strong>${t('fix.map.pin.isolated')}</strong><br>${stopLabel(name, sid)}`
-          : stopLabel(name, sid),
+        label,
         primary: !isIsolated,
         small: !isIsolated,
       });

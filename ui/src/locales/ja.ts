@@ -274,6 +274,7 @@ const ja: LocaleShape = {
     'fix.map.pin.terminal'         : '終点: {name}',
     'fix.map.pin.station'          : '駅: {name}',
     'fix.map.pin.isolated'         : '⚠ 孤立',
+    'fix.map.pin.isolated_routes'  : '{routes} 路線 • {trips} 便',
     'export.title'                    : 'エクスポート',
     'export.source'                   : 'ソース:',
     'export.html'                     : 'HTMLレポートをダウンロード',
