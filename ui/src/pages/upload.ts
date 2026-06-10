@@ -54,6 +54,9 @@ export function renderUpload(root: HTMLElement): void {
           <label id="upload-btn-label" class="btn btn-primary btn-sm" for="file-input">${escHtml(btnLabel)}</label>
           <input type="file" id="file-input" accept=".zip" class="visually-hidden" aria-label="ZIP dosyası seç"/>
         </div>
+        <div id="uploaded-name" class="uploaded-name${hasResult && state.fileName ? '' : ' hidden'}">
+          ${hasResult && state.fileName ? `${t('upload.loaded_file')} <strong>${escHtml(state.fileName)}</strong>` : ''}
+        </div>
         <div id="upload-error" class="upload-status hidden"></div>
       </div>
 
@@ -383,6 +386,9 @@ function setLoading(root: HTMLElement, fileName: string, fileSize: number): void
   const btnReport = root.querySelector<HTMLButtonElement>('#btn-report');
   if (btnReport) btnReport.disabled = true;
 
+  const uploadedName = root.querySelector<HTMLElement>('#uploaded-name');
+  if (uploadedName) { uploadedName.classList.add('hidden'); uploadedName.innerHTML = ''; }
+
   dropZone.classList.add('loading');
   fileInput.disabled = true;
   btnLabel.setAttribute('aria-disabled', 'true');
@@ -442,6 +448,15 @@ function activateResult(root: HTMLElement, result: ValidationResult): void {
   clearLoading(root);
   const btnLabel = root.querySelector<HTMLElement>('#upload-btn-label')!;
   btnLabel.textContent = t('upload.load_another');
+
+  const uploadedName = root.querySelector<HTMLElement>('#uploaded-name');
+  if (uploadedName) {
+    const fileName = getState().fileName;
+    if (fileName) {
+      uploadedName.classList.remove('hidden');
+      uploadedName.innerHTML = `${t('upload.loaded_file')} <strong>${escHtml(fileName)}</strong>`;
+    }
+  }
 
   const scorePanel = root.querySelector<HTMLElement>('#score-panel')!;
   scorePanel.className = 'score-compact';

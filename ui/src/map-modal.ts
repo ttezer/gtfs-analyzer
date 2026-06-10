@@ -8,6 +8,7 @@ export interface MapPin {
   label: string;
   primary: boolean; // mavi = birincil, kırmızı = referans
   small?: boolean;  // küçük marker (çok sayıda pin olduğunda)
+  color?: string;   // özel renk (verilirse primary mavi/kırmızı yerine bu kullanılır)
 }
 
 let overlay: HTMLElement | null = null;
@@ -84,7 +85,7 @@ export function openMapModal(title: string, opts: MapOptions): void {
 
   // Pinler
   for (const pin of opts.pins) {
-    const color = pin.primary ? '#2563eb' : '#dc2626';
+    const color = pin.color ?? (pin.primary ? '#2563eb' : '#dc2626');
     const radius = pin.small ? 5 : 9;
     const weight = pin.small ? 1.5 : 2.5;
     L.circleMarker([pin.lat, pin.lon], {

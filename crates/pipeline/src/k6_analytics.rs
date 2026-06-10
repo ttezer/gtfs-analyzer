@@ -1112,7 +1112,7 @@ fn check_route_headway(
         if max_hw > max_secs {
             let dir_display = if direction_key.is_empty() { "-" } else { direction_key };
             let route_label_hw = route_short_hw.get(route_id).copied().unwrap_or(route_id);
-            notices.push(k6_notice(
+            let mut n001 = k6_notice(
                 ctr,
                 "OPR_001",
                 EntityType::Route,
@@ -1126,7 +1126,9 @@ fn check_route_headway(
                 format!("'{route_label_hw}' kodlu hattın {dir_display} yönünde {service_id} çalışma takviminde maksimum sefer aralığı {:.0}dk — eşik {}dk.",
                     max_hw as f64 / 60.0, config.max_headway_warning_min),
                 "Pik/saatdışı sefer sayısını artırın ya da büyük boşlukları kapatın.",
-            ));
+            );
+            n001.service_id = Some(service_id.to_string());
+            notices.push(n001);
         }
     }
 
@@ -2470,7 +2472,7 @@ fn check_route_trip_quality(
     let _t2 = Timer::start("K6::rtq::trp_013");
     for (route_id, trips) in &route_trips {
         if trips.len() == 1 {
-            notices.push(k6_notice(
+            let mut n013 = k6_notice(
                 ctr,
                 "TRP_013",
                 EntityType::Route,
@@ -2486,7 +2488,12 @@ fn check_route_trip_quality(
                     format!("'{rname}' hattında yalnızca 1 sefer var — düşük frekans sinyali.")
                 },
                 "Bu rotaya ek seferler ekleyin ya da frekans bazlı tanım kullanın.",
-            ));
+            );
+            // Tek seferin çalışma takvimi (varsa) — R2 "Çalışma Takvimi" sütununu doldurur.
+            if let Some(svc) = trips.first().map(|t| t.service_id.as_str()).filter(|s| !s.is_empty()) {
+                n013.service_id = Some(svc.to_string());
+            }
+            notices.push(n013);
         }
     }
     drop(_t2);
@@ -5521,14 +5528,30 @@ fn check_calendar_override_analytics(
         if !exc_dates.is_empty() {
             exc_dates.sort_unstable();
             let count = exc_dates.len();
-            let sample_str: String = exc_dates.iter().take(3)
-                .map(|d| d.to_string())
-                .collect::<Vec<_>>()
-                .join(", ");
             let patterns_str = summarize_patterns(&exc_patterns);
+            // Her örnek tarihin yanında o tarihte çakışan service_id'leri göster:
+            // "20260720 (X, Y)". Dil-nötr (yalnız tarih + service_id'ler) tutulur ki
+            // tr mesajı ve en/ja şablonu aynı stringi güvenle kullanabilsin.
+            let sample_detail: String = exc_dates.iter().take(3)
+                .map(|d| {
+                    let svcs = date_services.get(d)
+                        .map(|v| {
+                            let mut s = v.clone();
+                            s.sort_unstable();
+                            s.join(", ")
+                        })
+                        .unwrap_or_default();
+                    if svcs.is_empty() {
+                        d.to_string()
+                    } else {
+                        format!("{d} ({svcs})")
+                    }
+                })
+                .collect::<Vec<_>>()
+                .join("; ");
             let msg = format!(
-                "'{}' hattında {} exception gününde birden fazla aktif servis var — override çakışması riski. Örnek tarihler: {}.",
-                route_id, count, sample_str
+                "'{}' hattında {} exception gününde birden fazla aktif servis var — override çakışması riski. Örnek tarihler (parantezde çakışan çalışma takvimleri): {}.",
+                route_id, count, sample_detail
             );
             let mut n = k6_notice(
                 ctr, "OPR_020", EntityType::Route,
@@ -5544,6 +5567,7 @@ fn check_calendar_override_analytics(
                 d.insert("conflict_day_count".to_string(), count.to_string());
                 d.insert("sample_dates".to_string(),
                     exc_dates.iter().take(10).map(|x| x.to_string()).collect::<Vec<_>>().join(","));
+                d.insert("sample_dates_detail".to_string(), sample_detail);
                 d.insert("active_service_patterns".to_string(), patterns_str);
                 d
             });
@@ -5686,7 +5710,7 @@ fn check_calendar_override_analytics(
                 if d > max_gap { max_gap = d; gap_start = w[0]; gap_end = w[1]; }
             }
             if max_gap >= gap_threshold {
-                notices.push(k6_notice(
+                let mut n012 = k6_notice(
                     ctr, "OPR_012", EntityType::Service,
                     Some(svc_id.clone()), Some(svc_id.clone()),
                     "calendar.txt", None, None,
@@ -5694,7 +5718,9 @@ fn check_calendar_override_analytics(
                     Some(format!("≤ {gap_threshold} gün")),
                     format!("'{svc_id}' servisinde {gap_start}-{gap_end} arasında {max_gap} günlük servis boşluğu var."),
                     "Boşluk planlanmışsa görmezden gelin; aksi hâlde eksik günleri calendar_dates.txt ile ekleyin.",
-                ));
+                );
+                n012.service_id = Some(svc_id.clone());
+                notices.push(n012);
             }
         }
     }
@@ -6117,7 +6143,14 @@ fn check_vat_analytics(
             if transfer_stops.contains(stop_id) { continue; }
             if is_station.contains(stop_id) { continue; }
             let name = stop_name_map.get(stop_id).copied().unwrap_or(stop_id);
-            notices.push(k6_notice(
+            // Hatları kararlı sırada topla: harita için route_id'ler, mesaj için okunur etiketler.
+            let mut route_ids: Vec<&str> = routes.iter().copied().collect();
+            route_ids.sort_unstable();
+            let route_labels: Vec<&str> = route_ids.iter()
+                .map(|rid| route_label.get(rid).copied().unwrap_or(rid))
+                .collect();
+            let routes_label_str = route_labels.join(", ");
+            let mut n002 = k6_notice(
                 ctr,
                 "VAT_002",
                 EntityType::Stop,
@@ -6128,10 +6161,16 @@ fn check_vat_analytics(
                 Some("stop_id"),
                 Some(format!("{} hat", routes.len())),
                 None,
-                format!("'{name}' (kod: '{stop_id}') durağından {} hat geçiyor; transfers.txt'te aktarma tanımlı değil.",
+                format!("'{name}' (kod: '{stop_id}') durağından {} hat geçiyor ({routes_label_str}); transfers.txt'te aktarma tanımlı değil.",
                     routes.len()),
                 "transfers.txt'e bu durak için aktarma kayıtları ekleyin (transfer_type=2 ile bekleme süresi belirtin).",
-            ));
+            );
+            n002.details = Some({
+                let mut d = std::collections::HashMap::new();
+                d.insert("routes".to_string(), route_ids.join(","));
+                d
+            });
+            notices.push(n002);
         }
     }
 

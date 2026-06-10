@@ -3,7 +3,7 @@ import { SEVERITY_TR, SEVERITY_COLOR, RULE_CLASS_TR, t, tMsg, tRemediation } fro
 import { openMapModal, type MapPin, type MapOptions } from '../map-modal';
 import { escHtml } from '../escape';
 
-export function renderFix(root: HTMLElement, result: ValidationResult, fileFilter?: string): void {
+export function renderFix(root: HTMLElement, result: ValidationResult, fileFilter?: string, classFilter?: string): void {
   const noticeMap = new Map<string, Notice>(result.notices.map(n => [n.id, n]));
 
   const totalDelta    = result.reports.r9.items.reduce((s, i) => s + i.score_delta, 0);
@@ -22,7 +22,7 @@ export function renderFix(root: HTMLElement, result: ValidationResult, fileFilte
   root.innerHTML = `
     <section class="page-fix">
       ${renderR9(result.reports.r9.items, noticeMap, normFactor, pubNormFactor, result.capped_totals)}
-      ${renderR2(result, noticeMap, deltaMap, result.name_index, fileFilter)}
+      ${renderR2(result, noticeMap, deltaMap, result.name_index, fileFilter, classFilter)}
     </section>`;
 }
 
@@ -109,7 +109,7 @@ function renderR9(items: R9Item[], noticeMap: Map<string, Notice>, normFactor: n
 }
 
 
-function renderR2(result: ValidationResult, noticeMap: Map<string, Notice>, deltaMap: Map<string, { qualDelta: number; pubDelta: number; count: number }>, nameIndex: NameIndex, fileFilter?: string): string {
+function renderR2(result: ValidationResult, noticeMap: Map<string, Notice>, deltaMap: Map<string, { qualDelta: number; pubDelta: number; count: number }>, nameIndex: NameIndex, fileFilter?: string, classFilter?: string): string {
   const items = result.reports.r2.items;
   if (items.length === 0) {
     return `<div class="card"><h2>${t('fix.r2_title')}</h2><p class="empty">${t('fix.r2_empty')}</p></div>`;
@@ -154,11 +154,11 @@ function renderR2(result: ValidationResult, noticeMap: Map<string, Notice>, delt
       </label>
       <label>${t('fix.filter.class')}
         <select id="cls-filter">
-          <option value="">${all}</option>
-          <option value="SPEC">${RULE_CLASS_TR['SPEC']}</option>
-          <option value="INTEROP">${RULE_CLASS_TR['INTEROP']}</option>
-          <option value="QUALITY">${RULE_CLASS_TR['QUALITY']}</option>
-          <option value="ANALYTICS">${RULE_CLASS_TR['ANALYTICS']}</option>
+          <option value=""${classFilter ? '' : ' selected'}>${all}</option>
+          <option value="SPEC"${classFilter === 'SPEC' ? ' selected' : ''}>${RULE_CLASS_TR['SPEC']}</option>
+          <option value="INTEROP"${classFilter === 'INTEROP' ? ' selected' : ''}>${RULE_CLASS_TR['INTEROP']}</option>
+          <option value="QUALITY"${classFilter === 'QUALITY' ? ' selected' : ''}>${RULE_CLASS_TR['QUALITY']}</option>
+          <option value="ANALYTICS"${classFilter === 'ANALYTICS' ? ' selected' : ''}>${RULE_CLASS_TR['ANALYTICS']}</option>
         </select>
       </label>
       <label>${t('fix.filter.rule')}
@@ -935,11 +935,46 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
     return { pins, extraPolylines, legendItems, showArrows: false };
   }
 
-  // VAT_001: muhtemel kopya hat — iki hattı farklı renkte çiz + legend (hangisi hangisi)
+  // VAT_002: aktarma merkezi tanımsız — durak (kırmızı) + geçen hatlar farklı renkte
+  if (notice.rule_id === 'VAT_002') {
+    const routeIds = (notice.details?.['routes'] ?? '').split(',').filter(Boolean);
+    const routeColors = ['#3b82f6', '#10b981', '#8b5cf6', '#f97316', '#06b6d4', '#eab308'];
+    const coords = nameIndex.stop_coords[entityId];
+    const stopName = nameIndex.stops[entityId] ?? entityId;
+    const pins: MapPin[] = coords
+      ? [{ lat: coords[0], lon: coords[1], label: `<strong>${escHtml(stopName)}</strong><br><code>${escHtml(entityId)}</code>`, primary: false }]
+      : [];
+    const extraPolylines: Array<{ coords: [number,number][]; color: string; weight: number; zoomTo: boolean }> = [];
+    const legendItems: Array<{ color: string; label: string }> = [];
+    if (pins.length > 0) legendItems.push({ color: '#dc2626', label: t('fix.map.transfer_hub_stop') });
+    let colorIdx = 0;
+    for (const rId of routeIds.slice(0, 6)) {
+      const shapeIds = nameIndex.route_shapes[rId] ?? [];
+      const color = routeColors[colorIdx % routeColors.length];
+      let added = false;
+      for (const shapeId of shapeIds.slice(0, 2)) {
+        const pts = nameIndex.shape_coords[shapeId] ?? [];
+        if (pts.length > 1) {
+          extraPolylines.push({ coords: pts as [number,number][], color, weight: 3, zoomTo: false });
+          added = true;
+        }
+      }
+      if (added) {
+        const routeName = nameIndex.routes[rId] ?? rId;
+        legendItems.push({ color, label: escHtml(routeName) });
+        colorIdx++;
+      }
+    }
+    return { pins, extraPolylines, legendItems, showArrows: false };
+  }
+
+  // VAT_001: muhtemel kopya hat — iki hattı farklı renkte çiz + her hattın kalkış/varış
+  // durağını aynı hat renginde göster (güzergahlar üst üste binse bile uçlar ayırt edilir).
   if (notice.rule_id === 'VAT_001') {
     const routeIds = (notice.details?.['routes'] ?? '').split(',').filter(Boolean);
     const routeColors = ['#3b82f6', '#f97316']; // mavi vs turuncu
     const extraPolylines: Array<{ coords: [number,number][]; color: string; weight: number; zoomTo: boolean }> = [];
+    const pins: MapPin[] = [];
     const legendItems: Array<{ color: string; label: string }> = [];
     let colorIdx = 0;
     for (const rId of routeIds.slice(0, 2)) {
@@ -956,10 +991,34 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
       if (added) {
         const routeName = nameIndex.routes[rId] ?? rId;
         legendItems.push({ color, label: escHtml(routeName) });
+
+        // Hattın kalkış/varış durağını ilk shape'in seferinden bul.
+        const firstShape = shapeIds[0] ?? '';
+        const tripId = firstShape ? (nameIndex.shape_trips[firstShape] ?? '') : '';
+        const stopIds = tripId ? (nameIndex.trip_stops[tripId] ?? []) : [];
+        if (stopIds.length > 0) {
+          const depId = stopIds[0];
+          const arrId = stopIds[stopIds.length - 1];
+          const depCoord = nameIndex.stop_coords[depId];
+          const arrCoord = nameIndex.stop_coords[arrId];
+          if (depCoord) {
+            const depName = nameIndex.stops[depId] ?? depId;
+            pins.push({ lat: depCoord[0], lon: depCoord[1], color, primary: true,
+              label: `<strong>${escHtml(routeName)} — ${t('fix.map.pin.depart')}</strong><br>${stopLabel(depName, depId)}` });
+          }
+          if (arrCoord && arrId !== depId) {
+            const arrName = nameIndex.stops[arrId] ?? arrId;
+            pins.push({ lat: arrCoord[0], lon: arrCoord[1], color, primary: true, small: true,
+              label: `<strong>${escHtml(routeName)} — ${t('fix.map.pin.arrive')}</strong><br>${stopLabel(arrName, arrId)}` });
+          }
+        }
         colorIdx++;
       }
     }
-    return { pins: [], extraPolylines, legendItems, showArrows: false };
+    if (pins.length > 0) {
+      legendItems.push({ color: '#111827', label: t('fix.map.depart_arrive_stops') });
+    }
+    return { pins, extraPolylines, legendItems, showArrows: false };
   }
 
   // GEO_013: feed'deki tüm durakları küçük pinlerle göster
@@ -1076,7 +1135,7 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
   return { pins: [{ lat, lon, label: stopLabel(stopName, entityId), primary: true }] };
 }
 
-export function attachFixListeners(root: HTMLElement, result?: ValidationResult, cappedTotals?: Record<string, number>): void {
+export function attachFixListeners(root: HTMLElement, result?: ValidationResult, cappedTotals?: Record<string, number>, classFilter?: string): void {
   // Kolon-bilgi (ℹ) tooltip'leri — hover + tıklama + klavye (native title yerine)
   cinfoWire(root);
 
@@ -1213,8 +1272,9 @@ export function attachFixListeners(root: HTMLElement, result?: ValidationResult,
   ruleFilter?.addEventListener('change', applyFilters);
   fileFilterEl?.addEventListener('change', applyFilters);
 
-  // files sayfasından filtreli gelindiyse hemen uygula ve R2'ye scroll et
-  if (fileFilterEl && fileFilterEl.value) {
+  // files sayfasından (dosya filtresi) veya skor bileşeni kartından (sınıf filtresi)
+  // filtreli gelindiyse hemen uygula ve R2'ye scroll et
+  if ((fileFilterEl && fileFilterEl.value) || (classFilter && clsFilter.value)) {
     applyFilters();
     requestAnimationFrame(() => {
       root.querySelector('#r2-card')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
