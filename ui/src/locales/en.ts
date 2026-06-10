@@ -287,6 +287,7 @@ const en: LocaleShape = {
     'fix.map.pin.terminal'         : 'Terminal: {name}',
     'fix.map.pin.station'          : 'Station: {name}',
     'fix.map.pin.isolated'         : '⚠ Isolated',
+    'fix.map.pin.isolated_routes'  : '{routes} routes • {trips} trips',
     // Export
     'export.title'                    : 'Export',
     'export.source'                   : 'Source:',
