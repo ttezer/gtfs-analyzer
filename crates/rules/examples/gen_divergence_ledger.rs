@@ -1,7 +1,7 @@
 //! Sapma Defteri (divergence ledger) üreteci — Katman A seed.
 //!
 //! Her kuralın kartındaki "Dış araç eşleşmesi" bölümünden MD karşılığını / proje-özel
-//! durumunu otomatik çıkarır ve docs/DIVERGENCE_LEDGER.md üretir. Karar sütunları
+//! durumunu otomatik çıkarır ve notgit/DIVERGENCE_LEDGER.md üretir. Karar sütunları
 //! (Bilinçli sapma? / Gerekçe) boş bırakılır — fark görüldükçe elle doldurulur (Katman B).
 //!
 //! Çalıştır: cargo run -p gtfs-rules --example gen_divergence_ledger
@@ -119,7 +119,7 @@ fn sev_display(dbg: &str) -> &str {
 fn main() {
     let mut md = String::new();
     md.push_str("# Sapma Defteri (Divergence Ledger)\n\n");
-    md.push_str("> **Amaç:** Bir feed'i MobilityData/GTFS Guru ile karşılaştırınca çıkan farkın **bizde bilinçli mi, bug mı** olduğunu kesin cevaplamak. `docs/RULE_TRIAGE.md` Adım 3'ün referansıdır.\n>\n");
+    md.push_str("> **Amaç:** Bir feed'i MobilityData/GTFS Guru ile karşılaştırınca çıkan farkın **bizde bilinçli mi, bug mı** olduğunu kesin cevaplamak. `notgit/RULE_TRIAGE.md` Adım 3'ün referansıdır.\n>\n");
     md.push_str("> **Katman A (otomatik):** `MD karşılığı` + `Tür` sütunları kartların \"Dış araç eşleşmesi\" bölümünden üretilir — `cargo run -p gtfs-rules --example gen_divergence_ledger` ile yenilenir.\n>\n");
     md.push_str("> **Katman B (elle):** `Bilinçli sapma?` + `Gerekçe / parite` sütunları boş doğar; bir fark araştırıldıkça doldurulur. Bir kez doldurulan satır, aynı fark tekrar çıktığında anında karar verir.\n>\n");
     md.push_str("> **Tür değerleri:** `MD-eşleşme` (MD'de birebir/yakın karşılık var) · `proje-özel` (MD/Guru'da karşılık yok) · `İNCELE` (otomatik sınıflanamadı).\n\n");
@@ -164,7 +164,7 @@ fn main() {
         ));
     }
 
-    let out = repo_root().join("docs/DIVERGENCE_LEDGER.md");
+    let out = repo_root().join("notgit/DIVERGENCE_LEDGER.md");
     fs::write(&out, md).unwrap();
 
     println!("Yazıldı: {}", out.display());

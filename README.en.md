@@ -257,6 +257,8 @@ Download the report as HTML, CSV, or JSON. The PDF option opens the browser's pr
 
 Severity levels are based on the file and field requirement levels (Required · Conditionally Required · Recommended · Optional) defined in the [GTFS Schedule Reference](https://gtfs.org/documentation/schedule/reference/#file-requirements).
 
+For GTFS-JP feeds, the **JPN** group rules are based on the official [GTFS-JP specification](https://www.gtfs.jp/) (gtfs.jp).
+
 ---
 
 ## Notice Limits
@@ -315,6 +317,7 @@ Each rule is coded as `GROUP_NNN`. Groups follow GTFS file and component boundar
 | **PDW** | Flex window rules | Demand-responsive pickup/drop-off time window consistency in `stop_times.txt` (GTFS Flex) |
 | **LOC** | `locations.geojson` | Geometry and format validation of flexible service zones (GTFS Flex) |
 | **GGL** | Google Transit specific | Rules additionally required or restricted by Google Maps and Google Transit |
+| **JPN** | GTFS-JP profile | Japan national GTFS-JP profile rules — kana readings, `office_jp.txt`/`agency_jp.txt` referential integrity (GTFS-JP feeds only) |
 
 ---
 
@@ -376,7 +379,7 @@ gtfs-validator/
 │   ├── config/     # Configuration types
 │   ├── core/       # Shared data structures and result model
 │   ├── pipeline/   # Validation pipeline (k1–k7 stages)
-│   ├── rules/      # Rule definitions and registry (477 rules, 36 groups)
+│   ├── rules/      # Rule definitions and registry (477 rules, 37 groups)
 │   └── wasm/       # wasm-bindgen WASM output
 └── ui/             # Vite + TypeScript frontend
     ├── pkg/          # wasm-pack output (generated, committed)

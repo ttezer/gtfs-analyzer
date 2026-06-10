@@ -257,6 +257,8 @@ GTFS Analyzer は Web アプリケーションです — インストール不�
 
 重大度レベルは、[GTFS Schedule Reference](https://gtfs.org/documentation/schedule/reference/#file-requirements) で定義されているファイルおよびフィールドの要件レベル（Required・Conditionally Required・Recommended・Optional）に基づいています。
 
+GTFS-JP フィードの場合、**JPN** グループのルールは公式の [GTFS-JP 仕様](https://www.gtfs.jp/)（gtfs.jp）に基づいています。
+
 ---
 
 ## 通知の上限
@@ -315,6 +317,7 @@ GTFS Analyzer は Web アプリケーションです — インストール不�
 | **PDW** | Flex ウィンドウルール | `stop_times.txt` におけるデマンド型交通の乗降時間ウィンドウの一貫性（GTFS Flex） |
 | **LOC** | `locations.geojson` | 柔軟サービスゾーンのジオメトリと形式の検証（GTFS Flex） |
 | **GGL** | Google Transit 固有 | Google Maps および Google Transit が追加で要求または制限するルール |
+| **JPN** | GTFS-JP プロファイル | 日本の GTFS-JP プロファイルルール — カナ読み、`office_jp.txt`・`agency_jp.txt` の参照整合性（GTFS-JP フィードのみ） |
 
 ---
 
@@ -376,7 +379,7 @@ gtfs-validator/
 │   ├── config/     # 設定型
 │   ├── core/       # 共有データ構造と結果モデル
 │   ├── pipeline/   # 検証パイプライン（k1〜k7 ステージ）
-│   ├── rules/      # ルール定義とレジストリ（477 ルール、36 グループ）
+│   ├── rules/      # ルール定義とレジストリ（477 ルール、37 グループ）
 │   └── wasm/       # wasm-bindgen WASM 出力
 └── ui/             # Vite + TypeScript フロントエンド
     ├── pkg/          # wasm-pack 出力（生成済み、コミット済み）
