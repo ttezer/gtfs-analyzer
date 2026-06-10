@@ -379,7 +379,7 @@ gtfs-validator/
 │   ├── config/     # 設定型
 │   ├── core/       # 共有データ構造と結果モデル
 │   ├── pipeline/   # 検証パイプライン（k1〜k7 ステージ）
-│   ├── rules/      # ルール定義とレジストリ（477 ルール、37 グループ）
+│   ├── rules/      # ルール定義とレジストリ（476 ルール、37 グループ）
 │   └── wasm/       # wasm-bindgen WASM 出力
 └── ui/             # Vite + TypeScript フロントエンド
     ├── pkg/          # wasm-pack 出力（生成済み、コミット済み）
