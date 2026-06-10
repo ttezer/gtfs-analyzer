@@ -37,12 +37,18 @@ pub fn build_header_index(headers: &[String]) -> HeaderIndex {
 
 /// Bir satırı header adlarıyla hizalı map'e dönüştürür.
 ///
-/// Fazla sütunlar yok sayılır; eksik sütunlar map'e girmez.
+/// HER başlık map'e girer: satır o sütuna kadar kısaysa değer boş string olur.
+/// Böylece `get_trimmed_field` `None` döndürmesi yalnızca "sütun başlıkta hiç yok"
+/// anlamına gelir (satır-kısa durumu `Some("")`'tır). Bu ayrım, zorunlu-alan
+/// kurallarının sütun-yokken susup ARC_025'e devretmesini sağlar.
 pub fn build_row_map(headers: &[String], row: &[SmolStr]) -> RowMap {
     headers
         .iter()
-        .zip(row.iter())
-        .map(|(header, value)| (header.clone(), value.to_string()))
+        .enumerate()
+        .map(|(i, header)| {
+            let value = row.get(i).map(|v| v.to_string()).unwrap_or_default();
+            (header.clone(), value)
+        })
         .collect()
 }
 

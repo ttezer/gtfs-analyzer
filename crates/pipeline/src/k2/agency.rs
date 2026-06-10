@@ -35,9 +35,9 @@ pub fn validate_agency(file: &RawFile) -> (Vec<AgencyRecord>, Vec<gtfs_core::Not
             .map(str::to_string);
         let entity_id = agency_id.clone();
 
-        // AGN_002: agency_name required
+        // AGN_002: agency_name required (sütun başlıkta yoksa ARC_025 devralır → atla)
         let agency_name = get_trimmed_field(&row_map, "agency_name").unwrap_or("").to_string();
-        if agency_name.is_empty() {
+        if get_trimmed_field(&row_map, "agency_name") == Some("") {
             notices.push(make_k2_notice(
                 &mut counter, "AGN_002", EntityType::Agency, entity_id.clone(), Some(&row_map),
                 &file.name, Some(line), Some("agency_name"), Some(String::new()), None,
@@ -45,37 +45,37 @@ pub fn validate_agency(file: &RawFile) -> (Vec<AgencyRecord>, Vec<gtfs_core::Not
             ));
         }
 
-        // AGN_003: agency_url required + valid URL
+        // AGN_003: agency_url required + valid URL (sütun yoksa ARC_025 devralır → atla)
         let agency_url = get_trimmed_field(&row_map, "agency_url").unwrap_or("").to_string();
-        if agency_url.is_empty() {
-            notices.push(make_k2_notice(
+        match get_trimmed_field(&row_map, "agency_url") {
+            Some("") => notices.push(make_k2_notice(
                 &mut counter, "AGN_003", EntityType::Agency, entity_id.clone(), Some(&row_map),
                 &file.name, Some(line), Some("agency_url"), Some(String::new()), None,
                 "agency_url zorunludur.".to_string(), "Geçerli bir http/https URL'si girin.",
-            ));
-        } else if !looks_like_url(&agency_url) {
-            notices.push(make_k2_notice(
+            )),
+            Some(_) if !looks_like_url(&agency_url) => notices.push(make_k2_notice(
                 &mut counter, "AGN_003", EntityType::Agency, entity_id.clone(), Some(&row_map),
                 &file.name, Some(line), Some("agency_url"), Some(agency_url.clone()), None,
                 "agency_url geçerli bir URL değil.".to_string(), "Geçerli bir http/https URL'si kullanın.",
-            ));
+            )),
+            _ => {}
         }
 
-        // AGN_004: agency_timezone required + valid IANA
+        // AGN_004: agency_timezone required + valid IANA (sütun yoksa ARC_025 devralır → atla)
         let agency_timezone = get_trimmed_field(&row_map, "agency_timezone").unwrap_or("").to_string();
-        if agency_timezone.is_empty() {
-            notices.push(make_k2_notice(
+        match get_trimmed_field(&row_map, "agency_timezone") {
+            Some("") => notices.push(make_k2_notice(
                 &mut counter, "AGN_004", EntityType::Agency, entity_id.clone(), Some(&row_map),
                 &file.name, Some(line), Some("agency_timezone"), Some(String::new()), None,
                 "agency_timezone zorunludur.".to_string(), "Geçerli bir IANA saat dilimi girin.",
-            ));
-        } else if !looks_like_iana_timezone(&agency_timezone) {
-            notices.push(make_k2_notice(
+            )),
+            Some(_) if !looks_like_iana_timezone(&agency_timezone) => notices.push(make_k2_notice(
                 &mut counter, "AGN_004", EntityType::Agency, entity_id.clone(), Some(&row_map),
                 &file.name, Some(line), Some("agency_timezone"), Some(agency_timezone.clone()), None,
                 format!("agency_timezone '{agency_timezone}' geçerli bir IANA saat dilimi değil."),
                 "Geçerli bir IANA saat dilimi kullanın (örn. Europe/Istanbul).",
-            ));
+            )),
+            _ => {}
         }
 
         // AGN_006: agency_lang must be valid BCP-47
