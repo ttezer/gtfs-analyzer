@@ -6317,17 +6317,16 @@ fn check_vat_analytics(
         let total = adj.len();
         if total >= 5 {
             let mut visited: FxHashSet<&str> = FxHashSet::default();
-            let mut comp_sizes: Vec<usize> = Vec::new();
-            let mut comp_examples: Vec<&str> = Vec::new();
+            let mut comp_nodes: Vec<Vec<&str>> = Vec::new();
             let all_nodes: Vec<&str> = adj.keys().copied().collect();
 
             for &start in &all_nodes {
                 if visited.contains(start) { continue; }
-                let mut size = 0usize;
+                let mut nodes: Vec<&str> = Vec::new();
                 let mut stack = vec![start];
                 visited.insert(start);
                 while let Some(node) = stack.pop() {
-                    size += 1;
+                    nodes.push(node);
                     if let Some(neighbors) = adj.get(node) {
                         for &nb in neighbors {
                             if visited.insert(nb) {
@@ -6336,44 +6335,56 @@ fn check_vat_analytics(
                         }
                     }
                 }
-                comp_sizes.push(size);
-                comp_examples.push(start);
+                comp_nodes.push(nodes);
             }
 
-            if comp_sizes.len() > 1 {
-                let main_size = comp_sizes.iter().copied().max().unwrap_or(0);
+            if comp_nodes.len() > 1 {
+                let main_size = comp_nodes.iter().map(|c| c.len()).max().unwrap_or(0);
                 let small_thresh = (total / 20).max(2);
 
-                // Hangi bileşenler izole? Örnek düğümleri + BFS tekrarı ile tam stop listesi
-                let isolated_comp_examples: Vec<&str> = comp_examples.iter()
-                    .zip(comp_sizes.iter())
-                    .filter(|(_, &sz)| sz < main_size && sz <= small_thresh)
-                    .map(|(&ex, _)| ex)
+                // Durak koordinatları: parent_station'sız feed'lerde aynı fiziksel yer
+                // (ör. otogar peronları) ayrı stop_id'lere bölünür → sahte izole bileşen.
+                // Bir izole adayın herhangi bir durağı ana şebekedeki bir durağa bu mesafeden
+                // yakınsa fiziksel olarak aynı ağ kabul edilir, izole sayılmaz (yanlış pozitif önleme).
+                let mut stop_coords: FxHashMap<&str, (f64, f64)> = FxHashMap::default();
+                for s in &records.stops {
+                    if let Some(c) = s.stop_lat.zip(s.stop_lon) {
+                        stop_coords.insert(s.stop_id.as_str(), c);
+                    }
+                }
+                let main_idx = comp_nodes.iter().enumerate()
+                    .max_by_key(|(_, c)| c.len())
+                    .map(|(i, _)| i)
+                    .unwrap_or(0);
+                let main_coords: Vec<(f64, f64)> = comp_nodes[main_idx].iter()
+                    .filter_map(|s| stop_coords.get(s).copied())
+                    .collect();
+                const VAT005_MERGE_M: f64 = 200.0;
+
+                // İzole bileşenler: hem küçük hem ana şebekeden coğrafi olarak da kopuk.
+                let isolated_comps: Vec<&Vec<&str>> = comp_nodes.iter()
+                    .filter(|c| c.len() < main_size && c.len() <= small_thresh)
+                    .filter(|c| !c.iter().any(|s| {
+                        stop_coords.get(s).map_or(false, |&(la, lo)| {
+                            main_coords.iter().any(|&(mla, mlo)|
+                                haversine_km(la, lo, mla, mlo) * 1000.0 <= VAT005_MERGE_M)
+                        })
+                    }))
                     .collect();
 
-                if !isolated_comp_examples.is_empty() {
+                if !isolated_comps.is_empty() {
                     // İzole bileşenlere ait tüm durakları topla (maks 200)
                     let mut isolated_all: Vec<&str> = Vec::new();
-                    let mut revisited: FxHashSet<&str> = FxHashSet::default();
-                    'outer: for &start in &isolated_comp_examples {
-                        let mut stack = vec![start];
-                        revisited.insert(start);
-                        while let Some(node) = stack.pop() {
+                    'outer: for c in &isolated_comps {
+                        for &node in c.iter() {
                             isolated_all.push(node);
                             if isolated_all.len() >= 200 { break 'outer; }
-                            if let Some(neighbors) = adj.get(node) {
-                                for &nb in neighbors {
-                                    if revisited.insert(nb) {
-                                        stack.push(nb);
-                                    }
-                                }
-                            }
                         }
                     }
 
                     let isolated_count = isolated_all.len();
-                    let comp_count = isolated_comp_examples.len();
-                    let example = isolated_comp_examples[0];
+                    let comp_count = isolated_comps.len();
+                    let example = isolated_comps[0][0];
                     let ex_name = stop_name_map.get(example).copied().unwrap_or(example);
 
                     let mut n005 = k6_notice(
@@ -8568,6 +8579,40 @@ mod tests {
         r.stop_times = st_v;
         let result = analyze(&r, &empty_derived(), &default_config(), 20260514);
         assert!(result.notices.iter().any(|n| n.rule_id == "VAT_005"), "VAT_005 olmalı");
+    }
+
+    #[test]
+    fn isolated_cluster_near_main_network_suppressed_vat_005() {
+        // İzole küme ana şebekeye coğrafi olarak ÇOK yakın (parent_station'sız çoklu
+        // peron senaryosu, ör. otogar) → fiziksel olarak aynı yer → VAT_005 bastırılır.
+        let mut r = crate::k2::EntityRecords::default();
+        r.stops = vec![
+            stop("A",41.0,29.0), stop("B",41.1,29.0), stop("C",41.2,29.0), stop("D",41.3,29.0),
+            stop("E",41.4,29.0), stop("F",41.5,29.0),
+            stop("P",41.0003,29.0), stop("Q",41.0005,29.0), // A'ya ~33m: aynı fiziksel yer
+        ];
+        r.routes = vec![route("R1",3), route("R2",3)];
+        let mut trips_v = Vec::new();
+        let mut st_v = Vec::new();
+        for i in 1..=12u32 {
+            let tid = format!("M{i}");
+            trips_v.push(trip(&tid, "R1"));
+            st_v.push(stoptime(&tid,1,"A",(i,0,0),(i,0,0),2));
+            st_v.push(stoptime(&tid,2,"B",(i,5,0),(i,5,0),3));
+            st_v.push(stoptime(&tid,3,"C",(i,10,0),(i,10,0),4));
+            st_v.push(stoptime(&tid,4,"D",(i,15,0),(i,15,0),5));
+            st_v.push(stoptime(&tid,5,"E",(i,20,0),(i,20,0),6));
+            st_v.push(stoptime(&tid,6,"F",(i,25,0),(i,25,0),7));
+        }
+        // İzole küme P-Q: ana ağa trip bağı yok ama P koordinatı A'ya bitişik (<200m).
+        trips_v.push(trip("ISO","R2"));
+        st_v.push(stoptime("ISO",1,"P",(8,0,0),(8,0,0),2));
+        st_v.push(stoptime("ISO",2,"Q",(8,10,0),(8,10,0),3));
+        r.trips = trips_v;
+        r.stop_times = st_v;
+        let result = analyze(&r, &empty_derived(), &default_config(), 20260514);
+        assert!(!result.notices.iter().any(|n| n.rule_id == "VAT_005"),
+            "İzole küme ana şebekeye <200m yakın → VAT_005 bastırılmalı");
     }
 
     #[test]
