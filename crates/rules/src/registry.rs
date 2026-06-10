@@ -1067,8 +1067,6 @@ pub static RULES: &[RuleMeta] = &[
         "Çeviri feed_info'ya referans veriyor ama feed_info.txt eksik"),
     r!("XFL_017", Dusuk,  Quality, 1, &[], None, VS, Feed,
         "route_cemv_support ile agency_cemv_support çelişiyor"),
-    r!("XFL_018", Orta,   Quality, 2, &[], None, VS, Feed,
-        "feed_info.txt eksik"),
     r!("XFL_019", Orta,   Spec, 2, &[], None, VS, Feed,
         "Ağ tanımı iki ayrı dosyada (routes.network_id + route_networks.txt)"),
     r!("XFL_020", Yuksek, Spec, 2, &[], None, VS, Row,

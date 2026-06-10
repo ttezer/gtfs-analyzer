@@ -2,7 +2,7 @@
 
 🇹🇷 **Türkçe** · 🇬🇧 [English](RULES.en.md) · 🇯🇵 [日本語](RULES.ja.md)
 
-474 kural, 36 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
+473 kural, 36 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
 Önem seviyeleri: **KRİTİK** (yayın engelleyici) · **YÜKSEK** · **ORTA** · **DÜŞÜK** · **BİLGİ**
 Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · **Quality** (GTFS Kalitesi) · **Analytics** (GTFS Analitiği)
 
@@ -555,7 +555,6 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | XFL_015 | Attribution'da geçersiz referans | KRİTİK | Spec |
 | XFL_016 | Çeviri feed_info'ya referans veriyor ama feed_info.txt eksik | YÜKSEK | Spec |
 | XFL_017 | route_cemv_support ile agency_cemv_support çelişiyor | DÜŞÜK | Quality |
-| XFL_018 | feed_info.txt eksik | ORTA | Quality |
 | XFL_019 | Ağ tanımı iki ayrı dosyada (routes.network_id + route_networks.txt) | ORTA | Spec |
 | XFL_020 | Transfers'de geçersiz (from_trip_id/to_trip_id, route_id) çifti | YÜKSEK | Spec |
 | XFL_021 | Transfers'de geçersiz (from_trip_id/to_trip_id, stop_id) çifti | YÜKSEK | Spec |
