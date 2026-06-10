@@ -84,8 +84,12 @@ pub fn validate_trips(file: &RawFile) -> (Vec<TripRecord>, Vec<gtfs_core::Notice
     let mut counter = 0u32;
 
     let cols = Cols::from_headers(&file.headers);
-    // TRP_021: feed genelinde bikes_allowed kullanımını takip et
-    let mut trp021_missing: Vec<gtfs_core::Notice> = Vec::new();
+    // TRP_021: feed genelinde bikes_allowed kullanımını takip et.
+    // Eksik seferleri tek tek bildirmek yerine sayar + birkaç örnek trip_id toplar;
+    // loop sonrası tek özet notice üretilir (TRP_028/029 deseni).
+    let mut trp021_missing_count: usize = 0;
+    let mut trp021_missing_examples: Vec<String> = Vec::new();
+    let mut trp021_first_line: Option<u64> = None;
     let mut bikes_allowed_set_count: u32 = 0;
 
     for (row_idx, row) in file.rows.iter().enumerate() {
@@ -208,15 +212,15 @@ pub fn validate_trips(file: &RawFile) -> (Vec<TripRecord>, Vec<gtfs_core::Notice
             Err(_) => None,
         };
 
-        // TRP_021: bikes_allowed kullanım istatistiği — per-trip bildirimi loop sonrası yapılır
+        // TRP_021: bikes_allowed kullanım istatistiği — özet bildirim loop sonrası yapılır
         if bikes_allowed.is_none() && ba_raw.is_empty() {
-            trp021_missing.push(make_k2_notice(
-                &mut counter, "TRP_021", EntityType::Trip, entity_id.clone(),
-                None, &file.name, Some(line), Some("bikes_allowed"),
-                None, None,
-                format!("'{}' seferinde bikes_allowed belirtilmemiş.", trip_id),
-                "bikes_allowed değerini 0 (bilgi yok), 1 (bisiklet izinli) veya 2 (bisiklet izinsiz) olarak ayarlayın.",
-            ));
+            trp021_missing_count += 1;
+            if trp021_first_line.is_none() {
+                trp021_first_line = Some(line);
+            }
+            if trp021_missing_examples.len() < 5 && !trip_id.is_empty() {
+                trp021_missing_examples.push(trip_id.clone());
+            }
         } else if bikes_allowed.is_some() {
             bikes_allowed_set_count += 1;
         }
@@ -249,21 +253,37 @@ pub fn validate_trips(file: &RawFile) -> (Vec<TripRecord>, Vec<gtfs_core::Notice
         });
     }
 
-    // TRP_021: hiçbir seferde bikes_allowed set edilmemişse tek özet notice; bazılarında varsa per-trip
-    if !trp021_missing.is_empty() {
+    // TRP_021: bikes_allowed eksik seferler — her satır için ayrı notice yerine tek özet notice
+    // (TRP_028/029 deseni). Hiç set edilmemişse feed genelinde eksiklik; bazıları set etmişse
+    // kalanlar tutarsızlık olarak örneklerle özetlenir.
+    if trp021_missing_count > 0 {
+        let total = trp021_missing_count + bikes_allowed_set_count as usize;
         if bikes_allowed_set_count == 0 {
             // Feed genelinde alan hiç doldurulmamış — tek özet yeterli
-            let total = trp021_missing.len();
             notices.push(make_k2_notice(
                 &mut counter, "TRP_021", EntityType::Trip, None,
                 None, &file.name, None, Some("bikes_allowed"),
-                None, None,
-                format!("Bu feed'de bikes_allowed alanı hiçbir seferde belirtilmemiş ({total} sefer)."),
+                Some(format!("{trp021_missing_count}/{total} sefer")), Some("0".to_string()),
+                format!("Bu feed'de bikes_allowed alanı hiçbir seferde belirtilmemiş ({trp021_missing_count} sefer)."),
                 "bikes_allowed değerini 0 (bilgi yok), 1 (bisiklet izinli) veya 2 (bisiklet izinsiz) olarak ayarlayın.",
             ));
         } else {
-            // Bazı seferler set etmiş — eksik olanları per-trip bildir (tutarsızlık)
-            notices.extend(trp021_missing);
+            // Bazı seferler set etmiş — eksik olanları tek özette örneklerle bildir (tutarsızlık)
+            let examples = if trp021_missing_examples.is_empty() {
+                String::new()
+            } else {
+                format!(" Örnek seferler: {}{}.",
+                    trp021_missing_examples.join(", "),
+                    if trp021_missing_count > trp021_missing_examples.len() { ", …" } else { "" })
+            };
+            notices.push(make_k2_notice(
+                &mut counter, "TRP_021", EntityType::Trip, None,
+                None, &file.name, trp021_first_line, Some("bikes_allowed"),
+                Some(format!("{trp021_missing_count}/{total} sefer")), Some("0".to_string()),
+                format!("{total} seferin {trp021_missing_count} tanesinde bikes_allowed belirtilmemiş ({:.0}%).{examples}",
+                    trp021_missing_count as f64 / total as f64 * 100.0),
+                "Tüm seferlerin bikes_allowed alanını 0 (bilgi yok), 1 (bisiklet izinli) veya 2 (bisiklet izinsiz) olarak doldurun.",
+            ));
         }
     }
 
