@@ -29,7 +29,8 @@ pub fn validate_rider_categories(
         let entity_id = (!id.is_empty()).then_some(id.clone());
 
         let name = get_trimmed_field(&row_map, "rider_category_name").unwrap_or("").to_string();
-        if name.is_empty() {
+        // sütun başlıkta yoksa ARC_025 devralır → atla
+        if get_trimmed_field(&row_map, "rider_category_name") == Some("") {
             notices.push(make_k2_notice(
                 &mut counter, "RCT_002", EntityType::Row, entity_id.clone(), Some(&row_map),
                 &file.name, Some(line), Some("rider_category_name"), None,

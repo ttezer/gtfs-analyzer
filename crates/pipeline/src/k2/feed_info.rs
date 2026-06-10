@@ -30,7 +30,8 @@ pub fn validate_feed_info(file: &RawFile) -> (Vec<FeedInfoRecord>, Vec<gtfs_core
         let row_map = build_row_map(&file.headers, row);
 
         let publisher_name = get_trimmed_field(&row_map, "feed_publisher_name").unwrap_or("").to_string();
-        if publisher_name.is_empty() {
+        // sütun başlıkta yoksa ARC_025 devralır → atla
+        if get_trimmed_field(&row_map, "feed_publisher_name") == Some("") {
             notices.push(make_k2_notice(
                 &mut counter,
                 "FIN_001",

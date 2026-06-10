@@ -48,7 +48,8 @@ pub fn validate_attributions(
         }
 
         let organization_name = get_trimmed_field(&row_map, "organization_name").unwrap_or("").to_string();
-        if organization_name.is_empty() {
+        // sütun başlıkta yoksa ARC_025 devralır → atla
+        if get_trimmed_field(&row_map, "organization_name") == Some("") {
             notices.push(make_k2_notice(
                 &mut counter,
                 "ATR_002",
