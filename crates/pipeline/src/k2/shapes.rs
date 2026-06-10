@@ -69,8 +69,8 @@ pub fn validate_shapes(file: &RawFile) -> (Vec<ShapePointRecord>, Vec<gtfs_core:
         let shape_id = shape_id_raw.to_string();
         let entity_id = (!shape_id.is_empty()).then_some(shape_id.clone());
 
-        // SHP_001: shape_id required
-        if shape_id.is_empty() {
+        // SHP_001: shape_id required (sütun yoksa ARC_025 devralır → atla)
+        if shape_id.is_empty() && file.headers.iter().any(|h| h == "shape_id") {
             notices.push(make_k2_notice(
                 &mut counter, "SHP_001", EntityType::Shape, None,
                 None, &file.name, Some(line), Some("shape_id"),
@@ -84,7 +84,7 @@ pub fn validate_shapes(file: &RawFile) -> (Vec<ShapePointRecord>, Vec<gtfs_core:
         let seq_raw = get_col(row, cols.shape_pt_sequence);
         let shape_pt_sequence = match parse_u32_raw(seq_raw) {
             Ok(v) => {
-                if v.is_none() {
+                if v.is_none() && file.headers.iter().any(|h| h == "shape_pt_sequence") {
                     notices.push(make_k2_notice(
                         &mut counter, "SHP_004", EntityType::Shape, entity_id.clone(),
                         None, &file.name, Some(line), Some("shape_pt_sequence"),
@@ -124,13 +124,16 @@ pub fn validate_shapes(file: &RawFile) -> (Vec<ShapePointRecord>, Vec<gtfs_core:
         let lat_raw = get_col(row, cols.shape_pt_lat);
         let shape_pt_lat = match parse_f64_raw(lat_raw) {
             Ok(None) => {
-                notices.push(make_k2_notice(
-                    &mut counter, "SHP_002", EntityType::Shape, entity_id.clone(),
-                    None, &file.name, Some(line), Some("shape_pt_lat"),
-                    Some(String::new()), Some("[-90, 90]".to_string()),
-                    "shape_pt_lat zorunludur.".to_string(),
-                    "shape_pt_lat alanını ondalıklı enlem değeriyle doldurun.",
-                ));
+                // sütun yoksa ARC_025 devralır → atla
+                if file.headers.iter().any(|h| h == "shape_pt_lat") {
+                    notices.push(make_k2_notice(
+                        &mut counter, "SHP_002", EntityType::Shape, entity_id.clone(),
+                        None, &file.name, Some(line), Some("shape_pt_lat"),
+                        Some(String::new()), Some("[-90, 90]".to_string()),
+                        "shape_pt_lat zorunludur.".to_string(),
+                        "shape_pt_lat alanını ondalıklı enlem değeriyle doldurun.",
+                    ));
+                }
                 None
             }
             Ok(Some(lat)) => {
@@ -161,13 +164,16 @@ pub fn validate_shapes(file: &RawFile) -> (Vec<ShapePointRecord>, Vec<gtfs_core:
         let lon_raw = get_col(row, cols.shape_pt_lon);
         let shape_pt_lon = match parse_f64_raw(lon_raw) {
             Ok(None) => {
-                notices.push(make_k2_notice(
-                    &mut counter, "SHP_003", EntityType::Shape, entity_id.clone(),
-                    None, &file.name, Some(line), Some("shape_pt_lon"),
-                    Some(String::new()), Some("[-180, 180]".to_string()),
-                    "shape_pt_lon zorunludur.".to_string(),
-                    "shape_pt_lon alanını ondalıklı boylam değeriyle doldurun.",
-                ));
+                // sütun yoksa ARC_025 devralır → atla
+                if file.headers.iter().any(|h| h == "shape_pt_lon") {
+                    notices.push(make_k2_notice(
+                        &mut counter, "SHP_003", EntityType::Shape, entity_id.clone(),
+                        None, &file.name, Some(line), Some("shape_pt_lon"),
+                        Some(String::new()), Some("[-180, 180]".to_string()),
+                        "shape_pt_lon zorunludur.".to_string(),
+                        "shape_pt_lon alanını ondalıklı boylam değeriyle doldurun.",
+                    ));
+                }
                 None
             }
             Ok(Some(lon)) => {

@@ -98,8 +98,8 @@ pub fn validate_trips(file: &RawFile) -> (Vec<TripRecord>, Vec<gtfs_core::Notice
         let trip_id = get_col(row, cols.trip_id).to_string();
         let entity_id = (!trip_id.is_empty()).then(|| trip_id.clone());
 
-        // TRP_001: trip_id zorunlu
-        if trip_id.is_empty() {
+        // TRP_001: trip_id zorunlu (sütun yoksa ARC_025 devralır → atla)
+        if trip_id.is_empty() && file.headers.iter().any(|h| h == "trip_id") {
             notices.push(make_k2_notice(
                 &mut counter, "TRP_001", EntityType::Trip, None,
                 None, &file.name, Some(line), Some("trip_id"),

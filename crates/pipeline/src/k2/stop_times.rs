@@ -660,7 +660,7 @@ pub fn validate_stop_times(file: &RawFile) -> (StopTimesIndex, Vec<gtfs_core::No
         let seq_raw = get_col(row, cols.stop_sequence);
         let stop_sequence = match parse_u32_raw(seq_raw, "stop_sequence") {
             Ok(v) => {
-                if v.is_none() {
+                if v.is_none() && file.headers.iter().any(|h| h == "stop_sequence") {
                     notices.push(make_k2_notice(
                         &mut counter, "STM_005", EntityType::Trip, eid(),
                         None, &file.name, Some(line), Some("stop_sequence"),
@@ -719,9 +719,9 @@ pub fn validate_stop_times(file: &RawFile) -> (StopTimesIndex, Vec<gtfs_core::No
             }
         }
 
-        // STM_006: stop_id required
+        // STM_006: stop_id required (sütun yoksa ARC_025 devralır → atla)
         let stop_id = intern_smolstr(get_col(row, cols.stop_id), &mut stop_id_cache);
-        if stop_id.is_empty() {
+        if stop_id.is_empty() && file.headers.iter().any(|h| h == "stop_id") {
             notices.push(make_k2_notice(
                 &mut counter, "STM_006", EntityType::Stop, eid(),
                 None, &file.name, Some(line), Some("stop_id"),
