@@ -41,7 +41,7 @@ pub fn validate_fare_products(
                             "amount alanını sıfır veya pozitif bir değere ayarlayın.",
                         ));
                     }
-                } else {
+                } else if get_trimmed_field(&row_map, "amount") == Some("") {
                     notices.push(make_k2_notice(
                         &mut counter, "FPD_002", EntityType::Row, entity_id.clone(), Some(&row_map),
                         &file.name, Some(line), Some("amount"), None,

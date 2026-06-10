@@ -36,8 +36,8 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
         let stop_id = get_trimmed_field(&row_map, "stop_id").unwrap_or("").to_string();
         let entity_id = (!stop_id.is_empty()).then_some(stop_id.clone());
 
-        // STP_002: stop_id recommended to be non-empty (warning)
-        if stop_id.is_empty() {
+        // STP_002: stop_id required (sütun yoksa ARC_025 devralır → atla)
+        if get_trimmed_field(&row_map, "stop_id") == Some("") {
             notices.push(make_k2_notice(
                 &mut counter, "STP_002", EntityType::Stop, None,
                 Some(&row_map), &file.name, Some(line), Some("stop_id"),

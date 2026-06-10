@@ -80,7 +80,7 @@ pub fn validate_calendar(file: &RawFile) -> (Vec<CalendarRecord>, Vec<gtfs_core:
         // CAL_003: start_date required + valid YYYYMMDD
         let start_date = match parse_service_date(&row_map, "start_date") {
             Ok(v) => {
-                if v.is_none() {
+                if get_trimmed_field(&row_map, "start_date") == Some("") {
                     notices.push(make_k2_notice(
                         &mut counter, "CAL_003", EntityType::Service, entity_id.clone(),
                         Some(&row_map), &file.name, Some(line), Some("start_date"),
@@ -106,7 +106,7 @@ pub fn validate_calendar(file: &RawFile) -> (Vec<CalendarRecord>, Vec<gtfs_core:
         // CAL_004: end_date required + valid YYYYMMDD
         let end_date = match parse_service_date(&row_map, "end_date") {
             Ok(v) => {
-                if v.is_none() {
+                if get_trimmed_field(&row_map, "end_date") == Some("") {
                     notices.push(make_k2_notice(
                         &mut counter, "CAL_004", EntityType::Service, entity_id.clone(),
                         Some(&row_map), &file.name, Some(line), Some("end_date"),

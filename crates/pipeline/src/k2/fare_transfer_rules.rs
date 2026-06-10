@@ -43,7 +43,7 @@ pub fn validate_fare_transfer_rules(
                             "0, 1 veya 2 kullanın.",
                         ));
                     }
-                } else {
+                } else if get_trimmed_field(&row_map, "fare_transfer_type") == Some("") {
                     notices.push(make_k2_notice(
                         &mut counter, "FTR_001", EntityType::Row, entity_id.clone(), Some(&row_map),
                         &file.name, Some(line), Some("fare_transfer_type"), None,

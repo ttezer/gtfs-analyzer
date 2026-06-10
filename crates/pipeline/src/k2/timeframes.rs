@@ -27,7 +27,7 @@ pub fn validate_timeframes(
         let group_id = get_trimmed_field(&row_map, "timeframe_group_id").unwrap_or("").to_string();
         let entity_id = (!group_id.is_empty()).then_some(group_id.clone());
 
-        if group_id.is_empty() {
+        if get_trimmed_field(&row_map, "timeframe_group_id") == Some("") {
             notices.push(make_k2_notice(
                 &mut counter, "TFR_001", EntityType::Row, None, Some(&row_map),
                 &file.name, Some(line), Some("timeframe_group_id"), None,

@@ -29,8 +29,8 @@ pub fn validate_transfers(file: &RawFile) -> (Vec<TransferRecord>, Vec<gtfs_core
         let to_stop_id = get_trimmed_field(&row_map, "to_stop_id").unwrap_or("").to_string();
         let entity_id = (!from_stop_id.is_empty() && !to_stop_id.is_empty()).then_some(format!("{from_stop_id}|{to_stop_id}"));
 
-        // TRF_001: from_stop_id zorunlu
-        if from_stop_id.is_empty() {
+        // TRF_001: from_stop_id zorunlu (sütun yoksa ARC_025 devralır → atla)
+        if get_trimmed_field(&row_map, "from_stop_id") == Some("") {
             notices.push(make_k2_notice(
                 &mut counter, "TRF_001", EntityType::Row, entity_id.clone(), Some(&row_map),
                 &file.name, Some(line), Some("from_stop_id"), Some(String::new()), None,
@@ -39,8 +39,8 @@ pub fn validate_transfers(file: &RawFile) -> (Vec<TransferRecord>, Vec<gtfs_core
             ));
         }
 
-        // TRF_002: to_stop_id zorunlu
-        if to_stop_id.is_empty() {
+        // TRF_002: to_stop_id zorunlu (sütun yoksa ARC_025 devralır → atla)
+        if get_trimmed_field(&row_map, "to_stop_id") == Some("") {
             notices.push(make_k2_notice(
                 &mut counter, "TRF_002", EntityType::Row, entity_id.clone(), Some(&row_map),
                 &file.name, Some(line), Some("to_stop_id"), Some(String::new()), None,

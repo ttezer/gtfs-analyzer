@@ -37,7 +37,7 @@ pub fn validate_fare_media(
                             "0 (yok), 1 (fiziksel kart), 2 (mobil uygulama), 3 (EMV temassız), 4 (transit kuruluş uygulaması) kullanın.",
                         ));
                     }
-                } else {
+                } else if get_trimmed_field(&row_map, "fare_media_type") == Some("") {
                     notices.push(make_k2_notice(
                         &mut counter, "FMD_002", EntityType::Row, entity_id.clone(), Some(&row_map),
                         &file.name, Some(line), Some("fare_media_type"), None,

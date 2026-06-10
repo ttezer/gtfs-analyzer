@@ -120,14 +120,16 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
             Ok(v) => {
                 match v {
                     None => {
-                        // RTS_004: route_type missing
-                        notices.push(make_k2_notice(
-                            &mut counter, "RTS_004", EntityType::Route, entity_id.clone(), Some(&row_map),
-                            &file.name, Some(line), Some("route_type"),
-                            Some(String::new()), None,
-                            "route_type zorunludur.".to_string(),
-                            "Geçerli bir route_type girin (0-7, 11, 12 veya genişletilmiş 100-1799).",
-                        ));
+                        // RTS_004: route_type missing (sütun yoksa ARC_025 devralır → atla)
+                        if get_trimmed_field(&row_map, "route_type") == Some("") {
+                            notices.push(make_k2_notice(
+                                &mut counter, "RTS_004", EntityType::Route, entity_id.clone(), Some(&row_map),
+                                &file.name, Some(line), Some("route_type"),
+                                Some(String::new()), None,
+                                "route_type zorunludur.".to_string(),
+                                "Geçerli bir route_type girin (0-7, 11, 12 veya genişletilmiş 100-1799).",
+                            ));
+                        }
                         None
                     }
                     Some(val) => {
