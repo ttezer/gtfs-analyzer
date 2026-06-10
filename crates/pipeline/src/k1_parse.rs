@@ -697,6 +697,23 @@ pub fn parse(zip_bytes: &[u8]) -> Result<K1Result, FatalError> {
             .filter_map(|&f| headers.iter().position(|h| h == f).map(|i| (i, f)))
             .collect();
 
+        // ARC_025: Zorunlu sütun başlıkta hiç yok (header-level, dosya başına bir kez).
+        // ARC_016 yalnız MEVCUT sütunların değer-boşluğunu satır bazlı kontrol eder; sütun
+        // komple eksikse req_indices'e girmez ve ARC_016 onu sessizce atlardı. Bu, MD'nin
+        // missing_required_column karşılığıdır.
+        for &f in req_flds {
+            if !headers.iter().any(|h| h == f) {
+                notices.push(make_notice(
+                    &mut counter, "ARC_025",
+                    EntityType::File, Some(raw_name.clone()),
+                    Some(&raw_name), Some(1), Some(f),
+                    Some(String::new()),
+                    format!("'{raw_name}' dosyasında zorunlu '{f}' sütunu başlıkta yok."),
+                    "Zorunlu sütunu başlığa ekleyin.",
+                ));
+            }
+        }
+
         // DQ_016: birincil anahtar sütun indeksi döngü-değişmezdir — döngü dışında bir kez hesapla.
         let dq016_pk_idx = headers.iter().position(|h| h.ends_with("_id"));
         let mut rows: Vec<Vec<SmolStr>> = Vec::new();

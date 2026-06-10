@@ -695,3 +695,40 @@ fn path_traversal_entries_rejected_and_root_file_intact() {
         "5 traversal .txt girisi icin ARC_024 beklenir, bulunan: {arc024}",
     );
 }
+
+// ── ARC_025: zorunlu sutun basligta hic yok (header-level) ────────────────────
+
+#[test]
+fn missing_required_column_produces_arc_025() {
+    // agency.txt'te zorunlu 'agency_name' sutunu basligta yok → ARC_025 (dosya basina bir kez).
+    let bad_agency: &[u8] = b"agency_id,agency_url,agency_timezone\n1,http://test.example,UTC\n";
+    let mut files = base_files();
+    files[0] = ("agency.txt", bad_agency);
+    let k1 = parse(&make_zip(&files)).expect("gecerli kok dosyalar Ok donmeli");
+
+    let arc025_name = k1
+        .notices
+        .iter()
+        .filter(|n| n.rule_id == "ARC_025" && n.field.as_deref() == Some("agency_name"))
+        .count();
+    assert_eq!(
+        arc025_name, 1,
+        "agency_name sutunu basligta yok → 1 ARC_025, bulunan: {arc025_name}",
+    );
+
+    // Mevcut sutun (agency_url) icin ARC_025 CIKMAMALI — o, deger boslugu (ARC_016) konusudur.
+    assert!(
+        !k1.notices
+            .iter()
+            .any(|n| n.rule_id == "ARC_025" && n.field.as_deref() == Some("agency_url")),
+        "mevcut sutun icin ARC_025 cikmamali",
+    );
+}
+
+#[test]
+fn complete_headers_produce_no_arc_025() {
+    // base_files tum zorunlu sutunlari icerir → hic ARC_025 olmamali.
+    let k1 = parse(&make_zip(&base_files())).expect("gecerli kok dosyalar Ok donmeli");
+    let arc025 = k1.notices.iter().filter(|n| n.rule_id == "ARC_025").count();
+    assert_eq!(arc025, 0, "tam basliklarda ARC_025 cikmamali, bulunan: {arc025}");
+}
