@@ -2,7 +2,7 @@
 
 🇹🇷 [Türkçe](RULES.md) · 🇬🇧 **English** · 🇯🇵 [日本語](RULES.ja.md)
 
-474 rules, 36 groups. Each rule is identified by a unique ID, severity level, and class.
+473 rules, 36 groups. Each rule is identified by a unique ID, severity level, and class.
 Severity levels: **CRITICAL** (publish blocker) · **HIGH** · **MEDIUM** · **LOW** · **INFO**
 Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Quality** (GTFS Quality) · **Analytics** (GTFS Analytics)
 
@@ -555,7 +555,6 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | XFL_015 | Invalid reference in attribution | CRITICAL | Spec |
 | XFL_016 | Translation references feed_info but feed_info.txt is missing | HIGH | Spec |
 | XFL_017 | route_cemv_support conflicts with agency_cemv_support | LOW | Quality |
-| XFL_018 | feed_info.txt missing | MEDIUM | Quality |
 | XFL_019 | Network defined in two separate files (routes.network_id + route_networks.txt) | MEDIUM | Spec |
 | XFL_020 | Invalid (from_trip_id/to_trip_id, route_id) pair in transfers | HIGH | Spec |
 | XFL_021 | Invalid (from_trip_id/to_trip_id, stop_id) pair in transfers | HIGH | Spec |

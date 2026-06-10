@@ -2999,24 +2999,6 @@ fn check_xfl(
         }
     }
 
-    // XFL_018: feed_info.txt eksik (GTFS best-practice; kalite puanına etkisi var)
-    if records.feed_info.is_empty() {
-        notices.push(notice(
-            ctr,
-            "XFL_018",
-            EntityType::Feed,
-            None,
-            None,
-            "feed_info.txt",
-            None,
-            None,
-            None,
-            None,
-            "feed_info.txt dosyası yok; besleme sürümü, yayıncı ve geçerlilik tarihleri tanımsız.".to_string(),
-            "feed_info.txt ekleyin: feed_publisher_name, feed_publisher_url, feed_lang, feed_start_date, feed_end_date.",
-        ));
-    }
-
     // XFL_019: network_id hem routes.txt hem route_networks.txt'te tanımlı → çakışma
     if records.has_route_networks_file {
         let has_route_network_id = records.routes.iter()

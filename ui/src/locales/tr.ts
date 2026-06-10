@@ -818,7 +818,6 @@ const tr = {
     'XFL_015': "Attribution'da geçersiz referans",
     'XFL_016': "Çeviri feed_info'ya referans veriyor ama feed_info.txt eksik",
     'XFL_017': 'route_cemv_support ile agency_cemv_support çelişiyor',
-    'XFL_018': 'feed_info.txt eksik',
     'XFL_019': 'Ağ tanımı iki ayrı dosyada (routes.network_id + route_networks.txt)',
     'XFL_020': "Transfers'de geçersiz (from_trip_id/to_trip_id, route_id) çifti",
     'XFL_021': "Transfers'de geçersiz (from_trip_id/to_trip_id, stop_id) çifti",
