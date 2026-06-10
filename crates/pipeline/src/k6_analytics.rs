@@ -920,17 +920,26 @@ fn check_speed_and_duration(
                 Some(format!("≤ {threshold:.0} km/h")),
                 format!(
                     "'{route_label}' kodlu hattın {dir_sd} yönünde {svc_sd} çalışma takviminde \
-                    '{trip_id}' seferindeki {trip_bad_seg_count} bozuk segmentte en yüksek hız {trip_max_speed:.1} km/h — eşik {threshold:.0} km/h."
+                    '{trip_id}'{} seferindeki {trip_bad_seg_count} bozuk segmentte en yüksek hız {trip_max_speed:.1} km/h — eşik {threshold:.0} km/h.",
+                    if dep_str.is_empty() { String::new() } else { format!(" {dep_str} kalkışlı") }
                 ),
                 "stop_times zaman ve koordinat verilerini kontrol edin.",
             );
             // Tüm bozuk segment çiftleri → UI'da her biri kırmızı polyline
-            if !bad_seg_stops.is_empty() {
+            // Ayrıca kalkış saati (varsa) details'e → EN/JA mesaj şablonunda gösterilebilir.
+            {
                 let mut d = std::collections::HashMap::new();
                 for (i, (sa, sb)) in bad_seg_stops.iter().enumerate() {
                     d.insert(format!("bad_seg_{i}_a"), sa.to_string());
                     d.insert(format!("bad_seg_{i}_b"), sb.to_string());
                 }
+                // Kalkış saati → details'e. EN/JA şablonu {dep_suffix} ile gösterir;
+                // boşken suffix tamamen kaybolur (koşullu boşluk için Rust'ta üretilir).
+                d.insert("departure".to_string(), dep_str.clone());
+                d.insert(
+                    "dep_suffix".to_string(),
+                    if dep_str.is_empty() { String::new() } else { format!(" ({dep_str})") },
+                );
                 n.details = Some(d);
             }
             notices.push(n);
