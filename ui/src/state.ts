@@ -8,6 +8,7 @@ export interface AppState {
   configDelta: string;
   fileName: string;
   fixFileFilter: string; // files sayfasından fix'e filtreli geçiş için
+  fixClassFilter: string; // skor bileşeni kartından fix R2'ye sınıf-filtreli geçiş için
   generatedAt: Date | null; // raporun hesaplandığı an (validasyon/yeniden çalıştırma)
 }
 
@@ -17,6 +18,7 @@ const state: AppState = {
   configDelta: sessionStorage.getItem('gtfs-config-delta') ?? '',
   fileName: '',
   fixFileFilter: '',
+  fixClassFilter: '',
   generatedAt: null,
 };
 
@@ -35,6 +37,10 @@ export function setPage(page: AppPage): void {
 
 export function setFixFileFilter(file: string): void {
   state.fixFileFilter = file;
+}
+
+export function setFixClassFilter(cls: string): void {
+  state.fixClassFilter = cls;
 }
 
 export function setConfigDelta(delta: string): void {

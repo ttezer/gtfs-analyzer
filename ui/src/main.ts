@@ -1,4 +1,4 @@
-import { getState, setPage, setFixFileFilter } from './state';
+import { getState, setPage, setFixFileFilter, setFixClassFilter } from './state';
 import { renderUpload } from './pages/upload';
 import { renderDomain } from './pages/domain';
 import { renderFix, attachFixListeners } from './pages/fix';
@@ -142,9 +142,11 @@ export function renderApp(): void {
 
   app.querySelectorAll<HTMLButtonElement>('.nav-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-      // Nav sekmesiyle geçişte dosya filtresini sıfırla; aksi halde files sayfasından
-      // kalan filtre, fix sayfasını R9 yerine R2'ye kaydırır (deep-link yalnız dosya tıklamasında).
+      // Nav sekmesiyle geçişte dosya + sınıf filtresini sıfırla; aksi halde başka
+      // sayfadan kalan filtre, fix sayfasını R9 yerine R2'ye kaydırır
+      // (deep-link yalnız dosya/skor-bileşeni tıklamasında).
       setFixFileFilter('');
+      setFixClassFilter('');
       setPage(btn.dataset['page'] as AppPage);
       renderApp();
     });
@@ -153,7 +155,7 @@ export function renderApp(): void {
   const pageRoot = document.getElementById('page-root')!;
   switch (state.page) {
     case 'domain': renderDomain(pageRoot, state.result); break;
-    case 'fix':    renderFix(pageRoot, state.result, state.fixFileFilter); attachFixListeners(pageRoot, state.result, state.result.capped_totals); break;
+    case 'fix':    renderFix(pageRoot, state.result, state.fixFileFilter, state.fixClassFilter); attachFixListeners(pageRoot, state.result, state.result.capped_totals, state.fixClassFilter); break;
     case 'files':  renderFiles(pageRoot, state.result); break;
     case 'export': renderExport(pageRoot, state.result, state.fileName); break;
   }

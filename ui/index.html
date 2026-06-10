@@ -85,6 +85,9 @@
     .upload-icon { width: 40px; height: 40px; color: var(--color-muted); }
     .drop-primary { font-size: .95rem; font-weight: 500; }
     .drop-secondary { font-size: .82rem; color: var(--color-muted); }
+    .uploaded-name { margin-top: .4rem; font-size: .82rem; color: var(--color-text-muted, #64748b); text-align: center; word-break: break-all; }
+    .uploaded-name.hidden { display: none; }
+    .uploaded-name strong { color: var(--color-text, inherit); font-weight: 600; }
     .upload-status { }
     .upload-status.hidden { display: none; }
     .upload-status.error { padding: .75rem 1rem; border-radius: var(--radius); background: #fef2f2; color: var(--color-critical); }
@@ -176,7 +179,9 @@
 
     /* Alt skor breakdown */
     .rpt-sub-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: .4rem; }
-    .rpt-sub-chip { border-radius: 6px; padding: .45rem .7rem; display: flex; justify-content: space-between; align-items: center; gap: .5rem; }
+    .rpt-sub-chip { border-radius: 6px; padding: .45rem .7rem; display: flex; justify-content: space-between; align-items: center; gap: .5rem; width: 100%; border: 1px solid transparent; font: inherit; cursor: pointer; transition: border-color .15s, filter .15s; }
+    .rpt-sub-chip:hover { border-color: currentColor; filter: brightness(.97); }
+    .rpt-sub-chip:focus-visible { outline: 2px solid var(--color-primary, #2563eb); outline-offset: 1px; }
     .rpt-sub-top { display: flex; flex-direction: column; gap: .05rem; }
     .rpt-sub-label { font-size: .66rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
     .rpt-sub-weight { font-size: .58rem; opacity: .5; }

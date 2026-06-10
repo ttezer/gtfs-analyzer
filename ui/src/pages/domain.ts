@@ -1,6 +1,6 @@
 import type { ValidationResult, R5Report, FeedMetrics } from '../types';
 import { t } from '../i18n';
-import { getState } from '../state';
+import { getState, setPage, setFixClassFilter } from '../state';
 import { fmtServiceDate, inclusiveDaySpan, dayOffset, fmtTimestamp } from '../dates';
 
 export function renderDomain(root: HTMLElement, result: ValidationResult): void {
@@ -16,6 +16,16 @@ export function renderDomain(root: HTMLElement, result: ValidationResult): void 
       ${renderMetrics(metrics)}
       ${renderFeedCalendar(metrics)}
     </div>`;
+
+  // Kalite skoru bileşeni kartları → Ayrıntı ve Düzeltme (fix) sayfasındaki R2 bölümünü
+  // o sınıfla filtreli aç. files sayfasıyla aynı navigasyon mekanizmasını yeniden kullan.
+  root.querySelectorAll<HTMLButtonElement>('.rpt-sub-chip[data-class]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      setFixClassFilter(btn.dataset['class']!);
+      setPage('fix');
+      window.dispatchEvent(new CustomEvent('gtfs-navigate'));
+    });
+  });
 }
 
 // ── İki büyük skor kartı ──────────────────────────────────────────────────────
@@ -107,14 +117,19 @@ function renderSubScores(r5: R5Report): string {
     { labelKey: 'class.ANALYTICS', weight: '×10%', value: r5.analytics_score, color: '#6d28d9', bg: '#f5f3ff' },
   ];
 
-  const chips = cats.map(c => `
-    <div class="rpt-sub-chip" style="background:${c.bg};color:${c.color}">
+  const chips = cats.map(c => {
+    const cls = c.labelKey.slice('class.'.length); // 'class.SPEC' → 'SPEC'
+    return `
+    <button type="button" class="rpt-sub-chip" data-class="${cls}"
+      style="background:${c.bg};color:${c.color}"
+      title="${escHtml(t('domain.subscore_filter_tip'))}">
       <div class="rpt-sub-top">
         <span class="rpt-sub-label">${t(c.labelKey)}</span>
         <span class="rpt-sub-weight">${c.weight}</span>
       </div>
       <span class="rpt-sub-val">${c.value.toFixed(1)}</span>
-    </div>`).join('');
+    </button>`;
+  }).join('');
 
   return `
     <div>
@@ -198,7 +213,7 @@ function renderMetrics(m: FeedMetrics): string {
     { label: t('domain.metric.trips'),        value: m.trip_count.toLocaleString('tr-TR') },
     { label: t('domain.metric.shapes'),       value: m.shape_count.toLocaleString('tr-TR') },
     { label: t('domain.metric.service_days'), value: m.active_service_days.toLocaleString('tr-TR') },
-    { label: t('domain.metric.avg_trips'),    value: m.avg_daily_trips.toFixed(0) },
+    { label: t('domain.metric.avg_trips'),    value: Math.round(m.avg_daily_trips).toLocaleString('tr-TR') },
   ];
 
   const metricCards = items.map(it => `
