@@ -52,7 +52,7 @@ GTFS Analyzer extends specification validation with operational quality analysis
 
 ### Feed Analysis Examples
 
-The same feeds were compared with three validators: MobilityData gtfs-validator v8.0.1 · GTFS Guru v0.1.0 · GTFS Analyzer v0.1.2. (GTFS Analyzer figures are a snapshot from an analysis run on 2026-06-06; because some rules are date-dependent, running on a different day may produce small deviations.)
+The same feeds were compared with three validators: MobilityData gtfs-validator v8.0.1 · GTFS Guru v0.1.0 · GTFS Analyzer v0.1.2. (GTFS Analyzer figures are a snapshot from an analysis run on 2026-06-11; because some rules are date-dependent, running on a different day may produce small deviations.)
 
 #### BART (Bay Area Rapid Transit, San Francisco)
 
@@ -60,15 +60,15 @@ Feed: `BART (San Francisco).zip` — version downloaded on 2026-05-25 (validity 
 
 | | MobilityData | GTFS Guru | GTFS Analyzer |
 |---|---:|---:|---:|
-| Total notices | 2,725 | 2,663 | 3,255 |
-| Critical / Error | 2 | 1 | 3 |
-| High / Warning | 2,655 | 2,655 | 150 |
-| Medium | — | — | 1,060 |
+| Total notices | 2,725 | 2,663 | 3,252 |
+| Critical / Error | 2 | 1 | 0 |
+| High / Warning | 2,655 | 2,655 | 151 |
+| Medium | — | — | 1,059 |
 | Low | — | — | 1,013 |
 | Info | 68 | 7 | 1,029 |
-| Distinct rule types triggered | 13 | 10 | **50** |
-| Publish score | — | — | **87.7 / 100** |
-| Quality score | — | — | **80.7 / 100** |
+| Distinct rule types triggered | 13 | 10 | **49** |
+| Publish score | — | — | **94.3 / 100** |
+| Quality score | — | — | **81.6 / 100** |
 
 #### TriMet (Portland, Oregon)
 
@@ -76,15 +76,15 @@ Feed: `trimet.zip` — version downloaded on 2026-06-04 (validity range: 2026-04
 
 | | MobilityData | GTFS Guru | GTFS Analyzer |
 |---|---:|---:|---:|
-| Total notices | 48 | 116 | 5,084 |
+| Total notices | 48 | 116 | 5,008 |
 | Critical / Error | 0 | 0 | 36 |
 | High / Warning | 39 | 107 | 1,655 |
-| Medium | — | — | 1,382 |
+| Medium | — | — | 1,381 |
 | Low | — | — | 1,019 |
-| Info | 9 | 9 | 992 |
-| Distinct rule types triggered | 7 | 7 | **58** |
+| Info | 9 | 9 | 917 |
+| Distinct rule types triggered | 7 | 7 | **56** |
 | Publish score | — | — | **80.6 / 100** |
-| Quality score | — | — | **73.7 / 100** |
+| Quality score | — | — | **73.9 / 100** |
 
 > ⚠️ **Fares v2:** All 36 critical findings for TriMet come from GTFS Fares v2 files — 29× duplicate `fare_product_id` (`fare_products.txt`) and 7× a `network_id` in `fare_leg_rules.txt` that is not defined in `networks.txt`. Because MobilityData and GTFS Guru do not validate these files, they report the same broken references as 0 critical; GTFS Analyzer alone checks Fares v2 integrity.
 
@@ -94,15 +94,15 @@ Feed: `tokyo_toei_bus.zip` — feed_version 2026-06-06 (validity range: 2026-06-
 
 | | MobilityData | GTFS Guru | GTFS Analyzer |
 |---|---:|---:|---:|
-| Total notices | 1,637 | 4,137 | 9,335 |
+| Total notices | 1,637 | 4,137 | 9,216 |
 | Critical / Error | 0 | 0 | 0 |
 | High / Warning | 265 | 4,128 | 1,061 |
-| Medium | — | — | 3,325 |
-| Low | — | — | 3,961 |
-| Info | 1,372 | 9 | 988 |
-| Distinct rule types triggered | 9 | 6 | **59** |
+| Medium | — | — | 3,324 |
+| Low | — | — | 3,917 |
+| Info | 1,372 | 9 | 914 |
+| Distinct rule types triggered | 9 | 6 | **58** |
 | Publish score | — | — | **94.3 / 100** |
-| Quality score | — | — | **72.3 / 100** |
+| Quality score | — | — | **72.5 / 100** |
 
 > 🗾 **Spec-clean but operationally dense:** All three tools report 0 critical — the feed is specification-clean. The difference is in the analytics layer: most of GTFS Analyzer's medium/low findings are operational signals from the three-year validity window (2026–2029) and dense network/shape patterns, which MobilityData and GTFS Guru largely summarize as warnings/info.
 

@@ -52,7 +52,7 @@ GTFS Analyzer, spesifikasyon doğrulamasını operasyonel kalite analiziyle geni
 
 ### Feed Analizi Örnekleri
 
-Aynı feed'ler üç validator ile karşılaştırıldı: MobilityData gtfs-validator v8.0.1 · GTFS Guru v0.1.0 · GTFS Analyzer v0.1.2. (GTFS Analyzer sayıları 2026-06-06 tarihli analizin anlık görüntüsüdür; tarihe bağlı kurallar nedeniyle farklı bir günde çalıştırma küçük sapmalar verebilir.)
+Aynı feed'ler üç validator ile karşılaştırıldı: MobilityData gtfs-validator v8.0.1 · GTFS Guru v0.1.0 · GTFS Analyzer v0.1.2. (GTFS Analyzer sayıları 2026-06-11 tarihli analizin anlık görüntüsüdür; tarihe bağlı kurallar nedeniyle farklı bir günde çalıştırma küçük sapmalar verebilir.)
 
 #### BART (Bay Area Rapid Transit, San Francisco)
 
@@ -60,15 +60,15 @@ Feed: `BART (San Francisco).zip` — 2026-05-25'te indirilen sürüm (geçerlili
 
 | | MobilityData | GTFS Guru | GTFS Analyzer |
 |---|---:|---:|---:|
-| Toplam notice | 2.725 | 2.663 | 3.255 |
-| Kritik / Error | 2 | 1 | 3 |
-| Yüksek / Warning | 2.655 | 2.655 | 150 |
-| Orta | — | — | 1.060 |
+| Toplam notice | 2.725 | 2.663 | 3.252 |
+| Kritik / Error | 2 | 1 | 0 |
+| Yüksek / Warning | 2.655 | 2.655 | 151 |
+| Orta | — | — | 1.059 |
 | Düşük | — | — | 1.013 |
 | Bilgi / Info | 68 | 7 | 1.029 |
-| Tetiklenen kural tipi | 13 | 10 | **50** |
-| Yayın skoru | — | — | **87,7 / 100** |
-| Kalite skoru | — | — | **80,7 / 100** |
+| Tetiklenen kural tipi | 13 | 10 | **49** |
+| Yayın skoru | — | — | **94,3 / 100** |
+| Kalite skoru | — | — | **81,6 / 100** |
 
 #### TriMet (Portland, Oregon)
 
@@ -76,15 +76,15 @@ Feed: `trimet.zip` — 2026-06-04'te indirilen sürüm (geçerlilik aralığı: 
 
 | | MobilityData | GTFS Guru | GTFS Analyzer |
 |---|---:|---:|---:|
-| Toplam notice | 48 | 116 | 5.084 |
+| Toplam notice | 48 | 116 | 5.008 |
 | Kritik / Error | 0 | 0 | 36 |
 | Yüksek / Warning | 39 | 107 | 1.655 |
-| Orta | — | — | 1.382 |
+| Orta | — | — | 1.381 |
 | Düşük | — | — | 1.019 |
-| Bilgi / Info | 9 | 9 | 992 |
-| Tetiklenen kural tipi | 7 | 7 | **58** |
+| Bilgi / Info | 9 | 9 | 917 |
+| Tetiklenen kural tipi | 7 | 7 | **56** |
 | Yayın skoru | — | — | **80,6 / 100** |
-| Kalite skoru | — | — | **73,7 / 100** |
+| Kalite skoru | — | — | **73,9 / 100** |
 
 > ⚠️ **Fares v2:** TriMet'teki 36 kritik bulgunun tamamı GTFS Fares v2 dosyalarından gelir — 29× tekrarlanan `fare_product_id` (`fare_products.txt`) ve 7× `fare_leg_rules.txt` içinde `networks.txt`'te tanımsız `network_id`. MobilityData ve GTFS Guru bu dosyaları doğrulamadığı için aynı bozuk referansları 0 kritik olarak raporlar; tek başına GTFS Analyzer Fares v2 bütünlüğünü denetler.
 
@@ -94,15 +94,15 @@ Feed: `tokyo_toei_bus.zip` — feed_version 2026-06-06 (geçerlilik aralığı: 
 
 | | MobilityData | GTFS Guru | GTFS Analyzer |
 |---|---:|---:|---:|
-| Toplam notice | 1.637 | 4.137 | 9.335 |
+| Toplam notice | 1.637 | 4.137 | 9.216 |
 | Kritik / Error | 0 | 0 | 0 |
 | Yüksek / Warning | 265 | 4.128 | 1.061 |
-| Orta | — | — | 3.325 |
-| Düşük | — | — | 3.961 |
-| Bilgi / Info | 1.372 | 9 | 988 |
-| Tetiklenen kural tipi | 9 | 6 | **59** |
+| Orta | — | — | 3.324 |
+| Düşük | — | — | 3.917 |
+| Bilgi / Info | 1.372 | 9 | 914 |
+| Tetiklenen kural tipi | 9 | 6 | **58** |
 | Yayın skoru | — | — | **94,3 / 100** |
-| Kalite skoru | — | — | **72,3 / 100** |
+| Kalite skoru | — | — | **72,5 / 100** |
 
 > 🗾 **Spec-temiz ama operasyonel olarak yoğun:** Üç araç da 0 kritik bulur — feed spec açısından temiz. Fark analitik katmanda: GTFS Analyzer'ın orta/düşük bulgularının çoğu 3 yıllık geçerlilik penceresi (2026–2029) ve yoğun şebeke/şekil desenlerinden gelen operasyonel sinyallerdir; MobilityData ve GTFS Guru bu feed'i ağırlıkla uyarı/bilgi olarak özetler.
 
