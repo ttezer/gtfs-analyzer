@@ -296,7 +296,7 @@ fn required_fields(filename: &str) -> &'static [&'static str] {
         "levels.txt"          => &["level_id", "level_index"],
         "feed_info.txt"       => &["feed_publisher_name", "feed_publisher_url", "feed_lang"],
         "translations.txt"    => &["table_name", "field_name", "language", "translation"],
-        "rider_categories.txt"    => &["rider_category_id", "rider_category_name"],
+        "rider_categories.txt"    => &["rider_category_id", "rider_category_name", "is_default_fare_category"],
         "fare_media.txt"          => &["fare_media_id", "fare_media_type"],
         "fare_products.txt"       => &["fare_product_id", "amount", "currency"],
         "fare_leg_rules.txt"      => &["fare_product_id"],
