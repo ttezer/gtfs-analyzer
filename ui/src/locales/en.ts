@@ -485,7 +485,7 @@ const en: LocaleShape = {
     'RTS_016': "Route '{entity_id}' has no active service days.",
     'RTS_017': "Route '{entity_id}' has no shape defined.",
     'RTS_018': "Route '{entity_id}': continuous_drop_off '{observed_value}' is invalid.",
-    'RTS_019': "Route '{entity_id}': {field} '{observed_value}' is also used by: {conflicting_routes}.",
+    'RTS_019': "Route '{entity_id}': {field} '{observed_value}' is shared by routes: {conflicting_routes}.",
     'RTS_020': "Route '{entity_id}': route_url and agency_url are identical.",
     'RTS_021': "Route '{entity_id}': route_short_name exceeds Google Transit's 6-character limit.",
     'RTS_022': "Route '{entity_id}': route_long_name contains the route_short_name.",

@@ -301,10 +301,9 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
         }
         for (key, entries) in &short_groups {
             if entries.len() < 2 { continue; }
-            let all_ids: Vec<&str> = entries.iter().map(|(id, _)| id.as_str()).collect();
+            // Kısa adlar aynı olduğu için hatları route_id ile ayırt et; ismi paylaşan TÜM hatları listele
+            let group_str = entries.iter().map(|(id, _)| id.as_str()).collect::<Vec<_>>().join(", ");
             for (route_id, line) in entries {
-                let rest: Vec<&str> = all_ids.iter().copied().filter(|&id| id != route_id.as_str()).collect();
-                let rest_str = rest.join(", ");
                 let display_name = records.iter().find(|r| &r.route_id == route_id)
                     .and_then(|r| r.route_short_name.as_deref())
                     .unwrap_or(key.as_str());
@@ -313,19 +312,23 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
                     Some(route_id.clone()), None,
                     "routes.txt", Some(*line), Some("route_short_name"),
                     Some(display_name.to_string()), None,
-                    format!("route_short_name '{}' başka hatlarda da kullanılıyor: {}.", display_name, rest_str),
+                    format!("route_short_name '{}' şu hatlar tarafından paylaşılıyor: {}.", display_name, group_str),
                     "Her hatta benzersiz bir kısa ad verin veya bilerek paylaşılıyorsa bu uyarıyı görmezden gelin.",
                 );
-                n.details = Some([("conflicting_routes".to_string(), rest_str)].into_iter().collect());
+                n.details = Some([("conflicting_routes".to_string(), group_str.clone())].into_iter().collect());
                 notices.push(n);
             }
         }
         for (key, entries) in &long_groups {
             if entries.len() < 2 { continue; }
-            let all_ids: Vec<&str> = entries.iter().map(|(id, _)| id.as_str()).collect();
+            // Uzun adlar aynı; hatları route_short_name ile listele (yoksa route_id) — ismi paylaşan TÜM hatlar
+            let group_str = entries.iter().map(|(id, _)| {
+                records.iter().find(|r| &r.route_id == id)
+                    .and_then(|r| r.route_short_name.clone())
+                    .filter(|s| !s.is_empty())
+                    .unwrap_or_else(|| id.clone())
+            }).collect::<Vec<_>>().join(", ");
             for (route_id, line) in entries {
-                let rest: Vec<&str> = all_ids.iter().copied().filter(|&id| id != route_id.as_str()).collect();
-                let rest_str = rest.join(", ");
                 let display_name = records.iter().find(|r| &r.route_id == route_id)
                     .and_then(|r| r.route_long_name.as_deref())
                     .unwrap_or(key.as_str());
@@ -334,10 +337,10 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
                     Some(route_id.clone()), None,
                     "routes.txt", Some(*line), Some("route_long_name"),
                     Some(display_name.to_string()), None,
-                    format!("route_long_name '{}' başka hatlarda da kullanılıyor: {}.", display_name, rest_str),
+                    format!("route_long_name '{}' şu hatlar tarafından paylaşılıyor: {}.", display_name, group_str),
                     "Her hatta benzersiz bir uzun ad verin veya bilerek paylaşılıyorsa bu uyarıyı görmezden gelin.",
                 );
-                n.details = Some([("conflicting_routes".to_string(), rest_str)].into_iter().collect());
+                n.details = Some([("conflicting_routes".to_string(), group_str.clone())].into_iter().collect());
                 notices.push(n);
             }
         }

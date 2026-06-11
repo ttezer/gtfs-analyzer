@@ -466,7 +466,7 @@ const ja: LocaleShape = {
     'RTS_016': "路線'{entity_id}'に有効な運行日がありません。",
     'RTS_017': "路線'{entity_id}'にシェープが定義されていません。",
     'RTS_018': "路線'{entity_id}'：continuous_drop_off'{observed_value}'が無効です。",
-    'RTS_019': "路線'{entity_id}'：{field}'{observed_value}'は{conflicting_routes}でも使用されています。",
+    'RTS_019': "路線'{entity_id}'：{field}'{observed_value}'は次の路線で共有されています：{conflicting_routes}。",
     'RTS_020': "路線'{entity_id}'：route_urlとagency_urlが同じです。",
     'RTS_021': "路線'{entity_id}'：route_short_nameがGoogleトランジットの6文字制限を超えています。",
     'RTS_022': "路線'{entity_id}'：route_long_nameにroute_short_nameが含まれています。",
