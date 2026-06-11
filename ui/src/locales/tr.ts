@@ -398,7 +398,6 @@ const tr = {
     'ARC_013': 'CSV ayrıştırma hatası',
     'ARC_014': 'Başlıkta baştaki/sondaki boşluk',
     'ARC_015': 'Yinelenen başlık sütunu',
-    'ARC_016': 'Zorunlu alan değeri boş ya da satır kısa',
     'ARC_025': "Zorunlu sütun başlıkta hiç yok (header'da eksik)",
     'ARC_017': 'Bilinmeyen sütun (GTFS spesifikasyonunda tanımlı değil)',
     'ARC_018': 'Boş veri satırı',

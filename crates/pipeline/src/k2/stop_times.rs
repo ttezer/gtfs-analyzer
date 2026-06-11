@@ -513,11 +513,7 @@ pub fn validate_stop_times(file: &RawFile) -> (StopTimesIndex, Vec<gtfs_core::No
         || cols.pickup_booking_rule_id.is_some()
         || cols.drop_off_booking_rule_id.is_some();
     let header_count = file.headers.len();
-    // ARC_016: zorunlu alan indeksleri; DQ_016: ilk "*_id" sütunu (döngü dışında bir kez)
-    let req_indices: Vec<(usize, &'static str)> = ["trip_id", "stop_id", "stop_sequence"]
-        .iter()
-        .filter_map(|&f| file.headers.iter().position(|h| h == f).map(|i| (i, f)))
-        .collect();
+    // DQ_016: ilk "*_id" sütunu (döngü dışında bir kez)
     let dq016_pk_idx = file.headers.iter().position(|h| h.ends_with("_id"));
 
     // Intern cache: unique long (>22 byte) trip_id / stop_id başına bir Arc alloc
@@ -570,20 +566,6 @@ pub fn validate_stop_times(file: &RawFile) -> (StopTimesIndex, Vec<gtfs_core::No
                     n.severity = Severity::Bilgi;
                 }
                 notices.push(n);
-            }
-
-            // ARC_016: zorunlu alan boş veya satır kısa
-            for &(col_i, field_name) in &req_indices {
-                let is_empty = if col_i < row.len() { row[col_i].trim().is_empty() } else { true };
-                if is_empty {
-                    notices.push(make_k2_notice(
-                        &mut counter, "ARC_016", EntityType::File, Some(file.name.clone()),
-                        None, &file.name, Some(line), Some(field_name),
-                        Some(String::new()), None,
-                        format!("'{}' {line}. satırda zorunlu '{field_name}' alanı boş.", file.name),
-                        "Zorunlu alanları doldurun.",
-                    ));
-                }
             }
 
             // ARC_018: tamamen boş satır → notice + indexleme YAPMA (K1'deki continue)

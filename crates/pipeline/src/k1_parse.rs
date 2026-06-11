@@ -692,11 +692,6 @@ pub fn parse(zip_bytes: &[u8]) -> Result<K1Result, FatalError> {
         let header_count = headers.len();
         let req_flds = required_fields(&raw_name);
         // required_fields içinde başlıkta bulunanların indeksini bul
-        let req_indices: Vec<(usize, &str)> = req_flds
-            .iter()
-            .filter_map(|&f| headers.iter().position(|h| h == f).map(|i| (i, f)))
-            .collect();
-
         // ARC_025: Zorunlu sütun başlıkta hiç yok (header-level, dosya başına bir kez).
         // ARC_016 yalnız MEVCUT sütunların değer-boşluğunu satır bazlı kontrol eder; sütun
         // komple eksikse req_indices'e girmez ve ARC_016 onu sessizce atlardı. Bu, MD'nin
@@ -748,25 +743,6 @@ pub fn parse(zip_bytes: &[u8]) -> Result<K1Result, FatalError> {
                     n.severity = Severity::Bilgi;
                 }
                 notices.push(n);
-            }
-
-            // ARC_016: Zorunlu alan boş veya satır kısa olduğu için tamamen eksik
-            for &(col_i, field_name) in &req_indices {
-                let is_empty = if col_i < row.len() {
-                    row[col_i].trim().is_empty()
-                } else {
-                    true // Kısa satırda bu alan hiç yazılmamış
-                };
-                if is_empty {
-                    notices.push(make_notice(
-                        &mut counter, "ARC_016",
-                        EntityType::File, Some(raw_name.clone()),
-                        Some(&raw_name), Some(line_num), Some(field_name),
-                        Some(String::new()),
-                        format!("'{raw_name}' {line_num}. satırda zorunlu '{field_name}' alanı boş."),
-                        "Zorunlu alanları doldurun.",
-                    ));
-                }
             }
 
             // ARC_018: Boş veri satırı (tüm alanlar boş)
@@ -1282,25 +1258,6 @@ mod tests {
         assert!(
             k1.notices.iter().any(|n| n.rule_id == "ARC_014"),
             "ARC_014 notice bekleniyor"
-        );
-    }
-
-    #[test]
-    fn missing_required_field_produces_arc016_notice() {
-        // stop_id boş olan bir satır
-        let csv = b"stop_id,stop_name,stop_lat,stop_lon\n,Stop1,41.0,29.0\n";
-        let zip = zip_with_files(&[
-            ("agency.txt",     b"agency_id,agency_name,agency_url,agency_timezone\n1,Test,http://x.com,UTC\n"),
-            ("stops.txt",      csv),
-            ("routes.txt",     b"route_id,agency_id,route_short_name,route_type\nR1,1,101,3\n"),
-            ("trips.txt",      b"route_id,service_id,trip_id\nR1,SVC1,T1\n"),
-            ("stop_times.txt", b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\n"),
-            ("calendar.txt",   b"service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,0,0,20240101,20241231\n"),
-        ]);
-        let k1 = parse(&zip).unwrap();
-        assert!(
-            k1.notices.iter().any(|n| n.rule_id == "ARC_016"),
-            "ARC_016 notice bekleniyor"
         );
     }
 
