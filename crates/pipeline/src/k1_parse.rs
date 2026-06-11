@@ -284,7 +284,7 @@ fn required_fields(filename: &str) -> &'static [&'static str] {
         "routes.txt"          => &["route_id", "route_type"],
         "trips.txt"           => &["route_id", "service_id", "trip_id"],
         "stop_times.txt"      => &["trip_id", "stop_id", "stop_sequence"],
-        "calendar.txt"        => &["service_id", "start_date", "end_date"],
+        "calendar.txt"        => &["service_id", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday", "start_date", "end_date"],
         "calendar_dates.txt"  => &["service_id", "date", "exception_type"],
         "shapes.txt"          => &["shape_id", "shape_pt_lat", "shape_pt_lon", "shape_pt_sequence"],
         "frequencies.txt"     => &["trip_id", "start_time", "end_time", "headway_secs"],
