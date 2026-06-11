@@ -654,6 +654,7 @@ const ja: LocaleShape = {
     'FAR_008': "運賃'{entity_id}'：agency_id'{observed_value}'が見つかりません。",
     'FAR_009': "運賃'{entity_id}'に路線ルールがありません。",
     'FAR_010': "運賃'{entity_id}'：運賃ルールが重複しています。",
+    'FAR_011': 'fare_attributes.txt：payment_methodがありません。',
     // FRL
     'FRL_001': "運賃ルール：fare_id'{entity_id}'が見つかりません。",
     'FRL_002': "運賃ルール：route_id'{entity_id}'が見つかりません。",
@@ -738,6 +739,7 @@ const ja: LocaleShape = {
     'LVL_004': "階'{entity_id}'は使用されていません。",
     'LVL_005': "階'{entity_id}'：level_nameが長すぎます。",
     'LVL_006': "停留所'{entity_id}'はエレベーター経路に接続されていますが、level_idがありません。",
+    'LVL_007': 'levels.txt：level_indexがありません。',
     // FIN
     'FIN_001': 'feed_info.txt：feed_publisher_nameがありません。',
     'FIN_002': 'feed_info.txt：feed_publisher_urlがないか無効です。',
@@ -1003,6 +1005,7 @@ const ja: LocaleShape = {
     'FAR_008': 'agency.txtの有効なagency_idを使用してください。',
     'FAR_009': 'このfare_idのfare_rules.txtに少なくとも1つのルールを追加してください。',
     'FAR_010': '重複する発着地/ゾーンの組み合わせを削除するために運賃ルールを見直してください。',
+    'FAR_011': 'payment_methodを0（乗車時）または1（事前）に設定してください。',
     // FIN
     'FIN_001': 'feed_publisher_nameフィールドを入力してください。',
     'FIN_002': 'feed_publisher_urlに有効なhttp/https URLを入力してください。',
@@ -1096,6 +1099,7 @@ const ja: LocaleShape = {
     'LVL_004': '未使用の階層を削除するか、停留所に割り当ててください。',
     'LVL_005': 'level_nameを255文字以内にしてください。',
     'LVL_006': 'エレベーター経路に接続している停留所にlevel_idを追加してください。',
+    'LVL_007': 'level_indexフィールドに数値を入力してください。',
     // LOC
     'LOC_001': 'locations.geojsonにPolygonまたはMultiPolygonのフィーチャーのみが含まれていることを確認してください。',
     'LOC_002': '各フィーチャーに有効なPolygonまたはMultiPolygonジオメトリを追加してください。',
@@ -1686,6 +1690,7 @@ const ja: LocaleShape = {
     'FAR_008': 'agency_idが存在しない',
     'FAR_009': 'この運賃IDに路線ルールなし',
     'FAR_010': '運賃ルールが重複',
+    'FAR_011': 'payment_methodが不足',
     // FRL
     'FRL_001': 'fare_idがfares.txtに存在しない',
     'FRL_002': 'route_idがroutes.txtに存在しない',
@@ -1770,6 +1775,7 @@ const ja: LocaleShape = {
     'LVL_004': '未使用の階層',
     'LVL_005': 'level_nameが長すぎる',
     'LVL_006': 'エレベーター接続停留所にlevel_idなし',
+    'LVL_007': 'level_indexが不足',
     // FIN
     'FIN_001': 'feed_publisher_nameが不足',
     'FIN_002': 'feed_publisher_urlが不足または無効',

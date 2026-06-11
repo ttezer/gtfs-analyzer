@@ -24,7 +24,18 @@ pub fn validate_levels(file: &RawFile) -> (Vec<LevelRecord>, Vec<gtfs_core::Noti
         let entity_id = (!level_id.is_empty()).then_some(level_id.clone());
 
         let level_index = match parse_f64(&row_map, "level_index") {
-            Ok(v) => v,
+            Ok(v) => {
+                // LVL_007: level_index required (sütun yoksa ARC_025 devralır → atla)
+                if v.is_none() && get_trimmed_field(&row_map, "level_index") == Some("") {
+                    notices.push(make_k2_notice(
+                        &mut counter, "LVL_007", EntityType::Level, entity_id.clone(), Some(&row_map),
+                        &file.name, Some(line), Some("level_index"), Some(String::new()), None,
+                        "level_index zorunludur.".to_string(),
+                        "level_index alanını sayısal bir değerle doldurun.",
+                    ));
+                }
+                v
+            }
             Err(err) => {
                 notices.push(make_k2_notice(
                     &mut counter,

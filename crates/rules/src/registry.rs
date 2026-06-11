@@ -751,6 +751,8 @@ pub static RULES: &[RuleMeta] = &[
         "Ücrete ait hat kuralı yok"),
     r!("FAR_010", Orta,   Quality, 2, &[], None, VS, Feed,
         "Çakışan ücret kuralları"),
+    r!("FAR_011", Kritik, Spec, 1, &[], Some("payment_method"), VS_K, Entity,
+        "payment_method eksik"),
 
     // ── FRL: Fare Rules ────────────────────────────────────────────────────────
     r!("FRL_001", Kritik, Spec, 1, &[], Some("fare_id"), VS_K, Row,
@@ -936,6 +938,8 @@ pub static RULES: &[RuleMeta] = &[
         "level_name çok uzun"),
     r!("LVL_006", Orta,   Quality, 2, &[], Some("stop_id"), VS, Entity,
         "Asansör bağlantısındaki durakta level_id eksik"),
+    r!("LVL_007", Kritik, Spec, 1, &[], Some("level_index"), VS_K, Row,
+        "level_index eksik"),
 
     // ── FIN: Feed Info ─────────────────────────────────────────────────────────
     r!("FIN_001", Kritik, Spec, 1, &[], None, VS_K, Feed,

@@ -673,6 +673,7 @@ const en: LocaleShape = {
     'FAR_008': "Fare '{entity_id}': agency_id '{observed_value}' not found.",
     'FAR_009': "Fare '{entity_id}' has no route rules.",
     'FAR_010': "Fare '{entity_id}': overlapping fare rules.",
+    'FAR_011': 'fare_attributes.txt: payment_method is missing.',
     // FRL
     'FRL_001': "Fare rule: fare_id '{entity_id}' not found.",
     'FRL_002': "Fare rule: route_id '{entity_id}' not found.",
@@ -757,6 +758,7 @@ const en: LocaleShape = {
     'LVL_004': "Level '{entity_id}' is unused.",
     'LVL_005': "Level '{entity_id}': level_name is too long.",
     'LVL_006': "Stop '{entity_id}' is connected to an elevator pathway but has no level_id.",
+    'LVL_007': 'levels.txt: level_index is missing.',
     // FIN
     'FIN_001': 'feed_info.txt: feed_publisher_name is missing.',
     'FIN_002': 'feed_info.txt: feed_publisher_url is missing or invalid.',
@@ -1226,6 +1228,7 @@ const en: LocaleShape = {
     'LVL_004': 'Remove the unused level or assign it to a stop.',
     'LVL_005': 'Keep level_name under 255 characters.',
     'LVL_006': 'Add a level_id to stops connected to elevator pathways.',
+    'LVL_007': 'Fill in the level_index field with a numeric value.',
     // FIN
     'FIN_001': 'Fill in the feed_publisher_name field.',
     'FIN_002': 'Enter a valid http/https URL for feed_publisher_url.',
@@ -1392,6 +1395,7 @@ const en: LocaleShape = {
     'FAR_008': 'Use a valid agency_id from agency.txt.',
     'FAR_009': 'Add at least one rule in fare_rules.txt for this fare_id.',
     'FAR_010': 'Review fare rules to remove overlapping origin/destination/zone combinations.',
+    'FAR_011': 'Set payment_method to 0 (on board) or 1 (before boarding).',
     // FMD
     'FMD_001': 'Assign a unique fare_media_id to each fare media record.',
     // FPD
@@ -1732,6 +1736,7 @@ const en: LocaleShape = {
     'FAR_008': 'agency_id not found',
     'FAR_009': 'Fare has no route rules',
     'FAR_010': 'Overlapping fare rules',
+    'FAR_011': 'payment_method missing',
     // FRL
     'FRL_001': 'fare_id not found',
     'FRL_002': 'route_id not found',
@@ -1816,6 +1821,7 @@ const en: LocaleShape = {
     'LVL_004': 'Unused level',
     'LVL_005': 'level_name too long',
     'LVL_006': 'level_id missing on elevator-connected stop',
+    'LVL_007': 'level_index missing',
     // FIN
     'FIN_001': 'feed_publisher_name missing',
     'FIN_002': 'feed_publisher_url missing or invalid',

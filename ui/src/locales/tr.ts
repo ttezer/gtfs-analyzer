@@ -675,6 +675,7 @@ const tr = {
     'FAR_008': 'agency_id bulunamadı',
     'FAR_009': 'Ücrete ait hat kuralı yok',
     'FAR_010': 'Çakışan ücret kuralları',
+    'FAR_011': 'payment_method eksik',
     // FRL
     'FRL_001': 'fare_id bulunamadı',
     'FRL_002': 'route_id bulunamadı',
@@ -759,6 +760,7 @@ const tr = {
     'LVL_004': 'Kullanılmayan level',
     'LVL_005': 'level_name çok uzun',
     'LVL_006': 'Asansör bağlantısındaki durakta level_id eksik',
+    'LVL_007': 'level_index eksik',
     // FIN
     'FIN_001': 'feed_publisher_name eksik',
     'FIN_002': 'feed_publisher_url eksik veya geçersiz',

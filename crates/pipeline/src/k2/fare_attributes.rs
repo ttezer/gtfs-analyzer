@@ -65,6 +65,15 @@ pub fn validate_fare_attributes(
         let payment_method = parse_enum_u32(
             &row_map, &mut notices, &mut counter, "FAR_004", "payment_method", &["0","1"], &entity_id, line, &file.name
         );
+        // FAR_011: payment_method required (sütun yoksa ARC_025 devralır → atla)
+        if get_trimmed_field(&row_map, "payment_method") == Some("") {
+            notices.push(make_k2_notice(
+                &mut counter, "FAR_011", EntityType::Fare, entity_id.clone(), Some(&row_map),
+                &file.name, Some(line), Some("payment_method"), Some(String::new()), None,
+                "payment_method zorunludur.".to_string(),
+                "payment_method değerini 0 (peşin) veya 1 (önceden) olarak girin.",
+            ));
+        }
         let transfers = parse_enum_u32(
             &row_map, &mut notices, &mut counter, "FAR_005", "transfers", &["0","1","2"], &entity_id, line, &file.name
         );
