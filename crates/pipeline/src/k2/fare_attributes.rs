@@ -27,6 +27,14 @@ pub fn validate_fare_attributes(
         let line = (row_idx + 2) as u64;
         let row_map = build_row_map(&file.headers, row);
         let fare_id = get_trimmed_field(&row_map, "fare_id").unwrap_or("").to_string();
+        // FAR_012: fare_id required (sütun yoksa ARC_025 devralır → atla)
+        if get_trimmed_field(&row_map, "fare_id") == Some("") {
+            notices.push(make_k2_notice(
+                &mut counter, "FAR_012", EntityType::Fare, None, Some(&row_map),
+                &file.name, Some(line), Some("fare_id"), Some(String::new()), None,
+                "fare_id zorunludur.".to_string(), "Her ücret tanımına benzersiz bir fare_id verin.",
+            ));
+        }
         let entity_id = (!fare_id.is_empty()).then_some(fare_id.clone());
 
         let price = match parse_f64(&row_map, "price") {

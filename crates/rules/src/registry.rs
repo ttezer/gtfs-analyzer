@@ -757,6 +757,8 @@ pub static RULES: &[RuleMeta] = &[
         "Çakışan ücret kuralları"),
     r!("FAR_011", Kritik, Spec, 1, &[], Some("payment_method"), VS_K, Entity,
         "payment_method eksik"),
+    r!("FAR_012", Kritik, Spec, 1, &[], Some("fare_id"), VS_K, Entity,
+        "fare_id eksik"),
 
     // ── FRL: Fare Rules ────────────────────────────────────────────────────────
     r!("FRL_001", Kritik, Spec, 1, &[], Some("fare_id"), VS_K, Row,
@@ -926,6 +928,16 @@ pub static RULES: &[RuleMeta] = &[
         "signposted_as çok uzun"),
     r!("PTH_019", Orta,   Quality, 2, &[], Some("stop_id"), VS, Entity,
         "Generic node tek pathway'e bağlı (dead-end)"),
+    r!("PTH_020", Kritik, Spec, 1, &[], Some("pathway_id"), VS_K, Entity,
+        "pathway_id eksik"),
+    r!("PTH_021", Kritik, Spec, 1, &[], Some("from_stop_id"), VS_K, Entity,
+        "from_stop_id eksik"),
+    r!("PTH_022", Kritik, Spec, 1, &[], Some("to_stop_id"), VS_K, Entity,
+        "to_stop_id eksik"),
+    r!("PTH_023", Kritik, Spec, 1, &[], Some("pathway_mode"), VS_K, Entity,
+        "pathway_mode eksik"),
+    r!("PTH_024", Kritik, Spec, 1, &[], Some("is_bidirectional"), VS_K, Entity,
+        "is_bidirectional eksik"),
 
     // ── LVL: Levels ────────────────────────────────────────────────────────────
     r!("LVL_001", Kritik, Spec, 1,
@@ -944,6 +956,8 @@ pub static RULES: &[RuleMeta] = &[
         "Asansör bağlantısındaki durakta level_id eksik"),
     r!("LVL_007", Kritik, Spec, 1, &[], Some("level_index"), VS_K, Row,
         "level_index eksik"),
+    r!("LVL_008", Kritik, Spec, 1, &[], Some("level_id"), VS_K, Entity,
+        "level_id eksik"),
 
     // ── FIN: Feed Info ─────────────────────────────────────────────────────────
     r!("FIN_001", Kritik, Spec, 1, &[], None, VS_K, Feed,

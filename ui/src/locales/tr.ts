@@ -678,6 +678,13 @@ const tr = {
     'FAR_009': 'Ücrete ait hat kuralı yok',
     'FAR_010': 'Çakışan ücret kuralları',
     'FAR_011': 'payment_method eksik',
+    'FAR_012': 'fare_id eksik',
+    'LVL_008': 'level_id eksik',
+    'PTH_020': 'pathway_id eksik',
+    'PTH_021': 'from_stop_id eksik',
+    'PTH_022': 'to_stop_id eksik',
+    'PTH_023': 'pathway_mode eksik',
+    'PTH_024': 'is_bidirectional eksik',
     // FRL
     'FRL_001': 'fare_id bulunamadı',
     'FRL_002': 'route_id bulunamadı',

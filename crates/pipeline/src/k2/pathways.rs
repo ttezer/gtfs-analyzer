@@ -32,6 +32,14 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
         let row_map = build_row_map(&file.headers, row);
         let pathway_id = get_trimmed_field(&row_map, "pathway_id").unwrap_or("").to_string();
         let entity_id = (!pathway_id.is_empty()).then_some(pathway_id.clone());
+        // PTH_020: pathway_id required (sütun yoksa ARC_025 devralır → atla)
+        if get_trimmed_field(&row_map, "pathway_id") == Some("") {
+            notices.push(make_k2_notice(
+                &mut counter, "PTH_020", EntityType::Pathway, None, Some(&row_map),
+                &file.name, Some(line), Some("pathway_id"), Some(String::new()), None,
+                "pathway_id zorunludur.".to_string(), "Her geçide benzersiz bir pathway_id verin.",
+            ));
+        }
 
         let pathway_mode = parse_enum_u32(
             &row_map, &mut notices, &mut counter, "PTH_004", "pathway_mode", &["1","2","3","4","5","6","7"], &entity_id, line, &file.name
@@ -39,6 +47,12 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
         let is_bidirectional = parse_enum_u32(
             &row_map, &mut notices, &mut counter, "PTH_005", "is_bidirectional", &["0","1"], &entity_id, line, &file.name
         );
+        if get_trimmed_field(&row_map, "pathway_mode") == Some("") {
+            notices.push(make_k2_notice(&mut counter, "PTH_023", EntityType::Pathway, entity_id.clone(), Some(&row_map), &file.name, Some(line), Some("pathway_mode"), Some(String::new()), None, "pathway_mode zorunludur.".to_string(), "pathway_mode değerini 1-7 arasında girin."));
+        }
+        if get_trimmed_field(&row_map, "is_bidirectional") == Some("") {
+            notices.push(make_k2_notice(&mut counter, "PTH_024", EntityType::Pathway, entity_id.clone(), Some(&row_map), &file.name, Some(line), Some("is_bidirectional"), Some(String::new()), None, "is_bidirectional zorunludur.".to_string(), "is_bidirectional değerini 0 veya 1 girin."));
+        }
 
         let length = parse_nonnegative_f64(
             &row_map, &mut notices, &mut counter, "PTH_006", "length", &entity_id, line, &file.name
@@ -52,6 +66,12 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
 
         let from_stop_id = get_trimmed_field(&row_map, "from_stop_id").unwrap_or("");
         let to_stop_id = get_trimmed_field(&row_map, "to_stop_id").unwrap_or("");
+        if get_trimmed_field(&row_map, "from_stop_id") == Some("") {
+            notices.push(make_k2_notice(&mut counter, "PTH_021", EntityType::Pathway, entity_id.clone(), Some(&row_map), &file.name, Some(line), Some("from_stop_id"), Some(String::new()), None, "from_stop_id zorunludur.".to_string(), "Geçidin başlangıç durağını girin."));
+        }
+        if get_trimmed_field(&row_map, "to_stop_id") == Some("") {
+            notices.push(make_k2_notice(&mut counter, "PTH_022", EntityType::Pathway, entity_id.clone(), Some(&row_map), &file.name, Some(line), Some("to_stop_id"), Some(String::new()), None, "to_stop_id zorunludur.".to_string(), "Geçidin bitiş durağını girin."));
+        }
         if !from_stop_id.is_empty() && from_stop_id == to_stop_id {
             notices.push(make_k2_notice(
                 &mut counter,
