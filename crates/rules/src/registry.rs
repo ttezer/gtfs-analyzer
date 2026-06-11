@@ -117,7 +117,7 @@ pub static RULES: &[RuleMeta] = &[
         "Başlıkta baştaki/sondaki boşluk"),
     r!("ARC_015", Kritik, Spec,    1, &[], None, VS_K, Field,
         "Yinelenen başlık sütunu"),
-    r!("ARC_025", Yuksek, Spec,    1, &[], None, VS, File,
+    r!("ARC_025", Yuksek, Spec,    1, &[], None, VS, Field,
         "Zorunlu sütun başlıkta hiç yok (header'da eksik)"),
     r!("ARC_017", Bilgi,  Quality, 1, &[], None, VS, Field,
         "Bilinmeyen sütun (GTFS spesifikasyonunda tanımlı değil)"),
