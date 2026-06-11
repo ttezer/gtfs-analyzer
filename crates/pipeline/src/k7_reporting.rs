@@ -890,11 +890,11 @@ mod tests {
         assert_eq!(dedup(vec![n1, n2]).len(), 2);
     }
 
-    // ARC_016 → Row dedup
+    // ARC_018 → Row dedup
     #[test]
     fn dedup_row_level_same_row() {
-        let mut n1 = notice("n1", "ARC_016", Severity::Yuksek, RuleClass::Spec);
-        let mut n2 = notice("n2", "ARC_016", Severity::Yuksek, RuleClass::Spec);
+        let mut n1 = notice("n1", "ARC_018", Severity::Yuksek, RuleClass::Spec);
+        let mut n2 = notice("n2", "ARC_018", Severity::Yuksek, RuleClass::Spec);
         n1.file = Some("stops.txt".into()); n1.line = Some(5);
         n2.file = Some("stops.txt".into()); n2.line = Some(5);
         assert_eq!(dedup(vec![n1, n2]).len(), 1);
@@ -902,8 +902,8 @@ mod tests {
 
     #[test]
     fn dedup_row_level_different_rows() {
-        let mut n1 = notice("n1", "ARC_016", Severity::Yuksek, RuleClass::Spec);
-        let mut n2 = notice("n2", "ARC_016", Severity::Yuksek, RuleClass::Spec);
+        let mut n1 = notice("n1", "ARC_018", Severity::Yuksek, RuleClass::Spec);
+        let mut n2 = notice("n2", "ARC_018", Severity::Yuksek, RuleClass::Spec);
         n1.file = Some("stops.txt".into()); n1.line = Some(5);
         n2.file = Some("stops.txt".into()); n2.line = Some(6);
         assert_eq!(dedup(vec![n1, n2]).len(), 2);
@@ -960,8 +960,8 @@ mod tests {
     // Row dedup: file=None → dedup yapılmamalı, her notice tekil kalmalı
     #[test]
     fn dedup_row_none_file_not_merged() {
-        let n1 = notice("n1", "ARC_016", Severity::Yuksek, RuleClass::Spec);
-        let n2 = notice("n2", "ARC_016", Severity::Yuksek, RuleClass::Spec);
+        let n1 = notice("n1", "ARC_018", Severity::Yuksek, RuleClass::Spec);
+        let n2 = notice("n2", "ARC_018", Severity::Yuksek, RuleClass::Spec);
         // file=None, line=None → tekil key
         assert_eq!(dedup(vec![n1, n2]).len(), 2, "file=None → dedup yapılmamalı");
     }

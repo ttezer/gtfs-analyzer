@@ -276,7 +276,7 @@ fn csv_has_unclosed_quote(text: &str) -> bool {
 
 // ── Şema yardımcıları ─────────────────────────────────────────────────────────
 
-/// Dosya başına her satırda boş olmaması gereken minimum alan seti (ARC_016).
+/// Dosya başına zorunlu sütun seti. Sütun başlıkta yoksa ARC_025; değer boşsa ilgili k2 grup kuralı.
 fn required_fields(filename: &str) -> &'static [&'static str] {
     match filename {
         "agency.txt"          => &["agency_name", "agency_url", "agency_timezone"],
@@ -289,8 +289,8 @@ fn required_fields(filename: &str) -> &'static [&'static str] {
         "shapes.txt"          => &["shape_id", "shape_pt_lat", "shape_pt_lon", "shape_pt_sequence"],
         "frequencies.txt"     => &["trip_id", "start_time", "end_time", "headway_secs"],
         "transfers.txt"       => &["from_stop_id", "to_stop_id"],
-        // transfers boş = sınırsız transfer (geçerli GTFS değeri) — ARC_016 tetiklenmemeli
-        "fare_attributes.txt" => &["fare_id", "price", "currency_type", "payment_method"],
+        // transfers boş = sınırsız transfer (geçerli GTFS değeri) — değer-boş kuralı tetiklenmemeli
+        "fare_attributes.txt" => &["fare_id", "price", "currency_type", "payment_method", "transfers"],
         "fare_rules.txt"      => &["fare_id"],
         "pathways.txt"        => &["pathway_id", "from_stop_id", "to_stop_id", "pathway_mode", "is_bidirectional"],
         "levels.txt"          => &["level_id", "level_index"],
@@ -701,11 +701,9 @@ pub fn parse(zip_bytes: &[u8]) -> Result<K1Result, FatalError> {
 
         let header_count = headers.len();
         let req_flds = required_fields(&raw_name);
-        // required_fields içinde başlıkta bulunanların indeksini bul
-        // ARC_025: Zorunlu sütun başlıkta hiç yok (header-level, dosya başına bir kez).
-        // ARC_016 yalnız MEVCUT sütunların değer-boşluğunu satır bazlı kontrol eder; sütun
-        // komple eksikse req_indices'e girmez ve ARC_016 onu sessizce atlardı. Bu, MD'nin
-        // missing_required_column karşılığıdır.
+        // ARC_025: req_flds'te olup başlıkta OLMAYAN zorunlu sütun (header-level, dosya başına
+        // bir kez). MD'nin missing_required_column karşılığı. Değer-boşluğu (sütun var) ilgili
+        // k2 grup kuralının konusudur.
         for &f in req_flds {
             if !headers.iter().any(|h| h == f) {
                 notices.push(make_notice(

@@ -716,7 +716,7 @@ fn missing_required_column_produces_arc_025() {
         "agency_name sutunu basligta yok → 1 ARC_025, bulunan: {arc025_name}",
     );
 
-    // Mevcut sutun (agency_url) icin ARC_025 CIKMAMALI — o, deger boslugu (ARC_016) konusudur.
+    // Mevcut sutun (agency_url) icin ARC_025 CIKMAMALI — o, deger boslugu (k2 grup kurali) konusudur.
     assert!(
         !k1.notices
             .iter()
