@@ -519,6 +519,7 @@ const tr = {
     'TRP_028': 'Bazı seferler tekerlekli sandalye erişilebilirliği işaretlememiş',
     'TRP_029': 'Hiçbir sefer tekerlekli sandalye erişilebilirliği bildirmemiş',
     'TRP_030': 'Sefer önümüzdeki 7 günde aktif değil',
+    'TRP_031': 'route_id eksik',
     // STM
     'STM_001': 'trip_id bulunamadı',
     'STM_002': 'stop_id bulunamadı',
@@ -563,6 +564,7 @@ const tr = {
     'STM_043': 'Sefer aşırı fazla durağa sahip (>200)',
     'STM_044': 'Feed stop_times satır sayısı 2 milyonu aşıyor',
     'STM_045': 'Sefer kalkış saati gece yarısından 26 saat sonra',
+    'STM_046': 'trip_id eksik',
     // PDW
     'PDW_006': "Aynı trip+zone'da örtüşen pickup/drop-off penceresi",
     // LOC

@@ -112,6 +112,17 @@ pub fn validate_trips(file: &RawFile) -> (Vec<TripRecord>, Vec<gtfs_core::Notice
         let route_id = get_col(row, cols.route_id).to_string();
         let service_id = get_col(row, cols.service_id).to_string();
 
+        // TRP_031: route_id required (sütun yoksa ARC_025 devralır → atla)
+        if route_id.is_empty() && file.headers.iter().any(|h| h == "route_id") {
+            notices.push(make_k2_notice(
+                &mut counter, "TRP_031", EntityType::Trip, None,
+                None, &file.name, Some(line), Some("route_id"),
+                Some(String::new()), None,
+                "route_id zorunludur.".to_string(),
+                "Her sefere geçerli bir route_id atayın.",
+            ));
+        }
+
         let shape_id = {
             let v = get_col(row, cols.shape_id);
             if v.is_empty() { None } else { Some(v.to_string()) }

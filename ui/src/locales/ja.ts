@@ -498,6 +498,7 @@ const ja: LocaleShape = {
     'TRP_028': "一部の便に車椅子対応情報がありません（{observed_value}）。",
     'TRP_029': "すべての便に車椅子対応情報がありません（{observed_value}）。",
     'TRP_030': "便'{entity_id}'：サービス'{observed_value}'は今後7日間に有効な日がありません。",
+    'TRP_031': 'trips.txt：route_idがありません。',
     // STM
     'STM_001': "trip_id'{entity_id}'がtrips.txtに見つかりません。",
     'STM_002': "stop_id'{entity_id}'がstops.txtに見つかりません。",
@@ -542,6 +543,7 @@ const ja: LocaleShape = {
     'STM_043': "便'{entity_id}'は{observed_value}か所の停留所があります — 異常に多く、データ集約エラーの可能性があります。",
     'STM_044': "フィードのstop_timesは{observed_value}行あります — WASMコンシューマーに深刻なメモリ/パフォーマンスリスク。",
     'STM_045': "便'{entity_id}'：出発時刻{observed_value}が深夜から26時間以上後です。",
+    'STM_046': 'stop_times.txt：trip_idがありません。',
     // PDW
     'PDW_006': "便'{entity_id}'：同じ便とゾーンの乗降ウィンドウが重複しています。",
     // LOC
@@ -1260,6 +1262,7 @@ const ja: LocaleShape = {
     'STM_043': 'この便のstop_times.txtを確認してください。複数の路線が1つのtrip_idを共有している場合は、論理的なセグメントに分割することを検討してください。',
     'STM_044': 'フィードを地理的または時間的なパーティションに分割してください。',
     'STM_045': 'この便のstop_times.txtを確認してください。26時間を超える値は通常データエラーを示します。',
+    'STM_046': '各stop_times行に有効なtrip_idを入力してください。',
     // STP
     'STP_001': '各停留所に一意のstop_idを割り当ててください。',
     'STP_002': 'stop_idフィールドを入力してください。',
@@ -1363,6 +1366,7 @@ const ja: LocaleShape = {
     'TRP_028': 'すべての便のwheelchair_accessibleフィールドを入力してください（1=対応、2=非対応）。',
     'TRP_029': 'wheelchair_accessibleフィールドを使用して車椅子対応を報告してください（1=対応、2=非対応）。',
     'TRP_030': 'サービスカレンダーを更新するか、新しいフィードを公開してください。',
+    'TRP_031': '各便に有効なroute_idを割り当ててください。',
     // VAT
     'VAT_001': '2つの路線を統合するか、異なる経路で差別化してください。',
     'VAT_002': 'この停留所のtransfers.txtに乗換レコードを追加してください（transfer_type=2で待ち時間を指定）。',
@@ -1534,6 +1538,7 @@ const ja: LocaleShape = {
     'TRP_028': '一部の便で車椅子対応情報が未設定',
     'TRP_029': 'すべての便で車椅子対応情報が未報告',
     'TRP_030': '今後7日間にアクティブでない便',
+    'TRP_031': 'route_idが不足',
     // STM
     'STM_001': 'trip_idがtrips.txtに存在しない',
     'STM_002': 'stop_idがstops.txtに存在しない',
@@ -1578,6 +1583,7 @@ const ja: LocaleShape = {
     'STM_043': '便の停留所数が極端に多い（>200）',
     'STM_044': 'stop_times行数が200万超（WASMパフォーマンス警告）',
     'STM_045': '便の出発時刻が深夜から26時間超',
+    'STM_046': 'trip_idが不足',
     // PDW
     'PDW_006': '同一便・ゾーンで乗降ウィンドウが重複',
     // LOC

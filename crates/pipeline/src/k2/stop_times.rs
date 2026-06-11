@@ -656,6 +656,17 @@ pub fn validate_stop_times(file: &RawFile) -> (StopTimesIndex, Vec<gtfs_core::No
         // entity_id is only materialized when a notice is actually pushed
         let eid = || (!trip_id.is_empty()).then(|| trip_id.to_string());
 
+        // STM_046: trip_id required (sütun yoksa ARC_025 devralır → atla)
+        if trip_id.is_empty() && file.headers.iter().any(|h| h == "trip_id") {
+            notices.push(make_k2_notice(
+                &mut counter, "STM_046", EntityType::Trip, None,
+                None, &file.name, Some(line), Some("trip_id"),
+                Some(String::new()), None,
+                "trip_id zorunludur.".to_string(),
+                "Her stop_times satırına geçerli bir trip_id girin.",
+            ));
+        }
+
         // STM_005: stop_sequence required
         let seq_raw = get_col(row, cols.stop_sequence);
         let stop_sequence = match parse_u32_raw(seq_raw, "stop_sequence") {

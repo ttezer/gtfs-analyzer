@@ -395,6 +395,8 @@ pub static RULES: &[RuleMeta] = &[
         "Hiçbir sefer tekerlekli sandalye erişilebilirliği bildirmemiş"),
     r!("TRP_030", Dusuk, Quality, 1, &[], Some("trip_id"), VS, Entity,
         "Sefer önümüzdeki 7 günde aktif değil"),
+    r!("TRP_031", Kritik, Spec, 1, &[], Some("route_id"), VS_K, Entity,
+        "route_id eksik"),
 
     // ── STM: Stop Times ────────────────────────────────────────────────────────
     r!("STM_001", Kritik, Spec, 1,
@@ -497,6 +499,8 @@ pub static RULES: &[RuleMeta] = &[
         "Feed stop_times satır sayısı 2 milyonu aşıyor — WASM bellek/performans uyarısı"),
     r!("STM_045", Orta,   Quality,   1, &[], Some("trip_id"), VS, Entity,
         "Seferin hareket saati gece yarısından 26 saat sonrasını aşıyor — olası veri anomalisi"),
+    r!("STM_046", Kritik, Spec, 1, &[], Some("trip_id"), VS_K, Row,
+        "trip_id eksik"),
 
     // ── PDW: Pickup/Drop-off Window ──────────────────────────────────────────
     r!("PDW_006", Orta, Spec, 2, &[], Some("trip_id"), VS, Entity,

@@ -517,6 +517,7 @@ const en: LocaleShape = {
     'TRP_028': "Some trips are missing wheelchair accessibility information ({observed_value}).",
     'TRP_029': "None of the trips have wheelchair accessibility information ({observed_value}).",
     'TRP_030': "Trip '{entity_id}': service '{observed_value}' has no active dates in the next 7 days.",
+    'TRP_031': 'trips.txt: route_id is missing.',
     // STM
     'STM_001': "trip_id '{entity_id}' not found in trips.txt.",
     'STM_002': "stop_id '{entity_id}' not found in stops.txt.",
@@ -561,6 +562,7 @@ const en: LocaleShape = {
     'STM_043': "Trip '{entity_id}' has {observed_value} stops — unusually high, possible data aggregation error.",
     'STM_044': "Feed stop_times has {observed_value} rows — serious memory/performance risk for WASM consumers.",
     'STM_045': "Trip '{entity_id}': departure time {observed_value} is more than 26 hours after midnight.",
+    'STM_046': 'stop_times.txt: trip_id is missing.',
     // PDW
     'PDW_006': "Trip '{entity_id}': overlapping pickup/drop-off windows for the same trip+zone.",
     // LOC
@@ -1044,6 +1046,7 @@ const en: LocaleShape = {
     'TRP_028': 'Fill the wheelchair_accessible field for all trips (1=accessible, 2=not accessible).',
     'TRP_029': 'Report wheelchair accessibility using the wheelchair_accessible field (1=accessible, 2=not accessible).',
     'TRP_030': 'Update the service calendar or publish a new feed.',
+    'TRP_031': 'Assign a valid route_id to every trip.',
     // VAT
     'VAT_001': 'Merge the two routes or differentiate them with distinct alignments.',
     'VAT_002': 'Add transfer records for this stop in transfers.txt (use transfer_type=2 to specify wait time).',
@@ -1158,6 +1161,7 @@ const en: LocaleShape = {
     'STM_043': 'Review stop_times.txt for this trip; consider splitting into logical segments if routes share a single trip_id.',
     'STM_044': 'Split the feed into smaller geographic or time-based partitions.',
     'STM_045': 'Check stop_times.txt for this trip; departure times over 26 hours usually indicate a data error.',
+    'STM_046': 'Enter a valid trip_id on every stop_times row.',
     'STM_042': 'Remove the characters ! $ % \\ * = _ from the stop_headsign value.',
     // SHP (field-level)
     'SHP_001': 'Fill in the shape_id field.',
@@ -1580,6 +1584,7 @@ const en: LocaleShape = {
     'TRP_028': 'Some trips have not set wheelchair accessibility',
     'TRP_029': 'No trips report wheelchair accessibility',
     'TRP_030': 'Trip inactive in the next 7 days',
+    'TRP_031': 'route_id missing',
     // STM
     'STM_001': 'trip_id not found',
     'STM_002': 'stop_id not found',
@@ -1624,6 +1629,7 @@ const en: LocaleShape = {
     'STM_043': 'Trip has extreme stop count (>200)',
     'STM_044': 'Feed stop_times exceeds 2,000,000 rows (WASM performance warning)',
     'STM_045': 'Trip departure time exceeds 26 hours after midnight',
+    'STM_046': 'trip_id missing',
     // PDW
     'PDW_006': 'Overlapping pickup/drop-off window for same trip+zone',
     // LOC
