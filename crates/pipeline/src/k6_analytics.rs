@@ -4159,6 +4159,78 @@ fn check_remaining_analytics(
         .collect();
     let mut shape_cum: FxHashMap<&str, Vec<f64>> = FxHashMap::default();
 
+    // ── SHP_016: shape tamamen ters yönde çizilmiş (varyant-farkında ön-geçiş) ─
+    // İlk durak shape'in ikinci yarısına projekte oluyorsa shape ters takılmış.
+    // Varyant körlüğünü önlemek için: shape'i kullanan TÜM trip'lerin ilk-durak
+    // projeksiyonunun MİNİMUMU shape ortasını geçiyorsa (hiçbir varyant baştan
+    // başlamıyorsa) ateşle. Tek bir ileri/short-turn varyant ya da çift-yön kullanımı
+    // (XFL_013'ün konusu) bunu bastırır. Deterministik (min sıradan bağımsız).
+    let mut reversed_shapes: FxHashSet<&str> = FxHashSet::default();
+    {
+        let _t16 = Timer::start("K6::rem::shp_016");
+        // shape_id → (min_first_arc, total_km, route, trip_id, first_stop)
+        let mut agg: FxHashMap<&str, (f64, f64, String, String, String)> = FxHashMap::default();
+        for (trip_id, stimes) in &idx.by_trip {
+            let Some(&shape_id) = trip_shape_local.get(trip_id) else { continue };
+            let Some(pts) = shape_coords.get(shape_id) else { continue };
+            if pts.len() < 2 { continue; }
+            let cum = shape_cum.entry(shape_id).or_insert_with(|| {
+                let mut c = Vec::with_capacity(pts.len());
+                c.push(0.0_f64);
+                for i in 1..pts.len() {
+                    c.push(c[i - 1] + haversine_km(pts[i-1].0, pts[i-1].1, pts[i].0, pts[i].1));
+                }
+                c
+            });
+            let total = cum.last().copied().unwrap_or(0.0);
+            if total <= 0.1 { continue; }
+            // Dairesel shape (başlangıç≈bitiş) → ters-kontrolü anlamsız, atla
+            let ring = haversine_km(pts[0].0, pts[0].1, pts.last().unwrap().0, pts.last().unwrap().1);
+            if ring < total * 0.10 && ring < 1.0 { continue; }
+            // by_trip dilimleri stop_sequence sıralı → ilk eleman = ilk durak
+            let Some(first_st) = stimes.first() else { continue };
+            let Some(&(slat, slon)) = stop_coords.get(first_st.stop_id.as_str()) else { continue };
+            let first_arc = project_arc_km(pts, cum, slat, slon);
+            let route = trip_to_route_rem.get(trip_id).copied().unwrap_or(trip_id);
+            let entry = agg.entry(shape_id).or_insert_with(|| {
+                (f64::INFINITY, total, String::new(), String::new(), String::new())
+            });
+            if first_arc < entry.0 {
+                entry.0 = first_arc;
+                entry.2 = route.to_string();
+                entry.3 = trip_id.to_string();
+                entry.4 = first_st.stop_id.to_string();
+            }
+        }
+        let mut shape_ids: Vec<&str> = agg.keys().copied().collect();
+        shape_ids.sort_unstable();
+        for shape_id in shape_ids {
+            let (min_arc, total, route, trip_id, first_stop) = &agg[shape_id];
+            if !min_arc.is_finite() || *min_arc <= *total * 0.5 { continue; }
+            reversed_shapes.insert(shape_id);
+            let mut n016 = k6_notice(
+                ctr, "SHP_016",
+                EntityType::Shape,
+                Some(shape_id.to_string()),
+                Some(shape_id.to_string()),
+                "trips.txt", None,
+                Some("shape_id"),
+                Some(shape_id.to_string()),
+                None,
+                format!(
+                    "'{route}' hattının '{shape_id}' güzergahı ters yönde çizilmiş — bu shape'i kullanan tüm seferlerin ilk durağı shape'in başından değil sonuna yakın projekte oluyor (en yakını {:.0}m / {:.0}m).",
+                    min_arc * 1000.0, total * 1000.0
+                ),
+                "shape_pt_sequence sırasını tersine çevirin veya bu yön için ayrı bir shape_id tanımlayın.",
+            );
+            let mut d = std::collections::HashMap::new();
+            d.insert("first_stop".to_string(), first_stop.clone());
+            d.insert("trip_id".to_string(), trip_id.clone());
+            n016.details = Some(d);
+            notices.push(n016);
+        }
+    }
+
     // ── SHP_017: trip'teki durak sırası shape projeksiyonuyla çelişiyor ──────
     // Her trip için stop_sequence sırasındaki durakların shape üzerindeki
     // arc-length projeksiyonları monoton artmalıdır.
@@ -4169,8 +4241,6 @@ fn check_remaining_analytics(
         // Aynı (shape_id, problem_stop_id) çifti için tek notice üret
         // (aynı route'un tüm tripleri aynı shape sorununu tekrarlamamalı)
         let mut shp017_seen: FxHashSet<(&str, &str)> = FxHashSet::default();
-        // SHP_016: tamamen ters shape — shape_id başına tek notice
-        let mut shp016_seen: FxHashSet<&str> = FxHashSet::default();
 
         for (trip_id, stimes) in &idx.by_trip {
             let Some(&shape_id) = trip_shape_local.get(trip_id) else { continue };
@@ -4202,46 +4272,9 @@ fn check_remaining_analytics(
                 }
             }
 
-            // ── SHP_016: shape tamamen ters yönde çizilmiş ───────────────────────
-            // İlk durak shape'in ikinci yarısına projekte oluyorsa shape ters takılmış.
-            // Bu durumda SHP_017 yanlış konumda "sıra bozuk" der; SHP_016 daha net.
-            if !shp016_seen.contains(shape_id) {
-                let shape_total_km = cum.last().copied().unwrap_or(0.0);
-                if shape_total_km > 0.1 {
-                    if let Some(first_st) = sorted.first() {
-                        if let Some(&(slat, slon)) = stop_coords.get(first_st.stop_id.as_str()) {
-                            let first_arc = project_arc_km(pts, cum, slat, slon);
-                            if first_arc > shape_total_km * 0.5 {
-                                shp016_seen.insert(shape_id);
-                                let route = trip_to_route_rem.get(trip_id).copied().unwrap_or(trip_id);
-                                let mut n016 = k6_notice(
-                                    ctr,
-                                    "SHP_016",
-                                    EntityType::Shape,
-                                    Some(shape_id.to_string()),
-                                    Some(shape_id.to_string()),
-                                    "trips.txt",
-                                    None,
-                                    Some("shape_id"),
-                                    Some(shape_id.to_string()),
-                                    None,
-                                    format!(
-                                        "'{route}' hattının '{shape_id}' güzergahı ters yönde çizilmiş — ilk durak shape'in başından değil sonuna yakın projekte oluyor ({:.0}m / {:.0}m).",
-                                        first_arc * 1000.0, shape_total_km * 1000.0
-                                    ),
-                                    "shape_pt_sequence sırasını tersine çevirin veya bu yön için ayrı bir shape_id tanımlayın.",
-                                );
-                                let mut d = std::collections::HashMap::new();
-                                d.insert("first_stop".to_string(), first_st.stop_id.to_string());
-                                d.insert("trip_id".to_string(), trip_id.to_string());
-                                n016.details = Some(d);
-                                notices.push(n016);
-                                continue;
-                            }
-                        }
-                    }
-                }
-            }
+            // Ters shape (SHP_016 ön-geçişte tespit edildi): bu shape için SHP_017
+            // "sıra bozuk" gürültüsünü bastır (SHP_016 daha net sinyaldir).
+            if reversed_shapes.contains(shape_id) { continue; }
 
             // stop_times'da shape_dist_traveled varsa geometrik projeksiyona gerek yok.
             // Tüm duraklarda mevcutsa yetkili kaynak olarak kullan; karışık durumdaysa
@@ -4355,88 +4388,103 @@ fn check_remaining_analytics(
     }
 
 
-    // ── SHP_014: ilk/son durak güzergah ucundan uzakta ───────────────────────
+    // ── SHP_014: ilk/son durak güzergah ucundan uzakta (varyant-farkında) ─────
+    // Bir shape birden çok trip varyantı (short-turn, farklı terminal) tarafından
+    // paylaşılabilir. Shape ucu HİÇBİR varyantın ucuna yakın değilse ateşle:
+    // shape başına min(dist) > eşik. En yakın varyant raporlanır. Deterministik.
     {
         let _t14 = Timer::start("K6::rem::shp_014");
         let threshold_km = config.stop_far_from_shape_m / 1000.0;
-        let mut shp014_start_seen: FxHashSet<&str> = FxHashSet::default();
-        let mut shp014_end_seen: FxHashSet<&str> = FxHashSet::default();
+        // shape_id → (min_dist_km, problem_stop, trip_id)
+        let mut start_agg: FxHashMap<&str, (f64, String, String)> = FxHashMap::default();
+        let mut end_agg:   FxHashMap<&str, (f64, String, String)> = FxHashMap::default();
 
         for (&trip_id, stimes) in &idx.by_trip {
             let Some(&shape_id) = trip_shape_local.get(trip_id) else { continue };
             let Some(pts) = shape_coords.get(shape_id) else { continue };
             if pts.len() < 2 { continue; }
-
             let shape_start = pts[0];
             let shape_end = *pts.last().unwrap();
 
-            if !shp014_start_seen.contains(shape_id) {
-                if let Some(first_st) = stimes.first() {
-                    if let Some(&(slat, slon)) = stop_coords.get(first_st.stop_id.as_str()) {
-                        let d_km = haversine_km(slat, slon, shape_start.0, shape_start.1);
-                        if d_km > threshold_km {
-                            shp014_start_seen.insert(shape_id);
-                            let dist_m = d_km * 1000.0;
-                            let sname = stop_names.get(first_st.stop_id.as_str()).copied().unwrap_or(first_st.stop_id.as_str());
-                            let mut n = k6_notice(
-                                ctr, "SHP_014",
-                                EntityType::Shape,
-                                Some(shape_id.to_string()),
-                                Some(shape_id.to_string()),
-                                "shapes.txt", None,
-                                Some("shape_pt_sequence"),
-                                Some(format!("{dist_m:.0}m")),
-                                Some(format!("≤ {:.0}m", config.stop_far_from_shape_m)),
-                                format!(
-                                    "'{}' güzergah şeklinin başlangıç noktası, ilk durak '{}' (kod: '{}') konumundan {dist_m:.0}m uzakta.",
-                                    shape_id, sname, first_st.stop_id
-                                ),
-                                "shape_dist_traveled veya güzergah şeklinin başlangıç noktasını ilk durağa hizalayın.",
-                            );
-                            let mut d = std::collections::HashMap::new();
-                            d.insert("problem_stop".to_string(), first_st.stop_id.to_string());
-                            d.insert("endpoint".to_string(), "start".to_string());
-                            d.insert("trip_id".to_string(), trip_id.to_string());
-                            n.details = Some(d);
-                            notices.push(n);
-                        }
+            if let Some(first_st) = stimes.first() {
+                if let Some(&(slat, slon)) = stop_coords.get(first_st.stop_id.as_str()) {
+                    let d_km = haversine_km(slat, slon, shape_start.0, shape_start.1);
+                    let e = start_agg.entry(shape_id)
+                        .or_insert_with(|| (f64::INFINITY, String::new(), String::new()));
+                    if d_km < e.0 {
+                        e.0 = d_km;
+                        e.1 = first_st.stop_id.to_string();
+                        e.2 = trip_id.to_string();
                     }
                 }
             }
 
-            if !shp014_end_seen.contains(shape_id) {
-                if let Some(last_st) = stimes.last() {
-                    if let Some(&(slat, slon)) = stop_coords.get(last_st.stop_id.as_str()) {
-                        let d_km = haversine_km(slat, slon, shape_end.0, shape_end.1);
-                        if d_km > threshold_km {
-                            shp014_end_seen.insert(shape_id);
-                            let dist_m = d_km * 1000.0;
-                            let sname = stop_names.get(last_st.stop_id.as_str()).copied().unwrap_or(last_st.stop_id.as_str());
-                            let mut n = k6_notice(
-                                ctr, "SHP_014",
-                                EntityType::Shape,
-                                Some(shape_id.to_string()),
-                                Some(shape_id.to_string()),
-                                "shapes.txt", None,
-                                Some("shape_pt_sequence"),
-                                Some(format!("{dist_m:.0}m")),
-                                Some(format!("≤ {:.0}m", config.stop_far_from_shape_m)),
-                                format!(
-                                    "'{}' güzergah şeklinin bitiş noktası, son durak '{}' (kod: '{}') konumundan {dist_m:.0}m uzakta.",
-                                    shape_id, sname, last_st.stop_id
-                                ),
-                                "shape_dist_traveled veya güzergah şeklinin bitiş noktasını son durağa hizalayın.",
-                            );
-                            let mut d = std::collections::HashMap::new();
-                            d.insert("problem_stop".to_string(), last_st.stop_id.to_string());
-                            d.insert("endpoint".to_string(), "end".to_string());
-                            d.insert("trip_id".to_string(), trip_id.to_string());
-                            n.details = Some(d);
-                            notices.push(n);
-                        }
+            if let Some(last_st) = stimes.last() {
+                if let Some(&(slat, slon)) = stop_coords.get(last_st.stop_id.as_str()) {
+                    let d_km = haversine_km(slat, slon, shape_end.0, shape_end.1);
+                    let e = end_agg.entry(shape_id)
+                        .or_insert_with(|| (f64::INFINITY, String::new(), String::new()));
+                    if d_km < e.0 {
+                        e.0 = d_km;
+                        e.1 = last_st.stop_id.to_string();
+                        e.2 = trip_id.to_string();
                     }
                 }
             }
+        }
+
+        let mut start_ids: Vec<&str> = start_agg.keys().copied().collect();
+        start_ids.sort_unstable();
+        for shape_id in start_ids {
+            let (min_km, stop_id, trip_id) = &start_agg[shape_id];
+            if !min_km.is_finite() || *min_km <= threshold_km { continue; }
+            let dist_m = *min_km * 1000.0;
+            let sname = stop_names.get(stop_id.as_str()).copied().unwrap_or(stop_id.as_str());
+            let mut n = k6_notice(
+                ctr, "SHP_014", EntityType::Shape,
+                Some(shape_id.to_string()), Some(shape_id.to_string()),
+                "shapes.txt", None, Some("shape_pt_sequence"),
+                Some(format!("{dist_m:.0}m")),
+                Some(format!("≤ {:.0}m", config.stop_far_from_shape_m)),
+                format!(
+                    "'{}' güzergah şeklinin başlangıç noktası, en yakın seferin ilk durağı '{}' (kod: '{}') konumundan {dist_m:.0}m uzakta.",
+                    shape_id, sname, stop_id
+                ),
+                "shape_dist_traveled veya güzergah şeklinin başlangıç noktasını ilk durağa hizalayın.",
+            );
+            let mut d = std::collections::HashMap::new();
+            d.insert("problem_stop".to_string(), stop_id.clone());
+            d.insert("endpoint".to_string(), "start".to_string());
+            d.insert("trip_id".to_string(), trip_id.clone());
+            n.details = Some(d);
+            notices.push(n);
+        }
+
+        let mut end_ids: Vec<&str> = end_agg.keys().copied().collect();
+        end_ids.sort_unstable();
+        for shape_id in end_ids {
+            let (min_km, stop_id, trip_id) = &end_agg[shape_id];
+            if !min_km.is_finite() || *min_km <= threshold_km { continue; }
+            let dist_m = *min_km * 1000.0;
+            let sname = stop_names.get(stop_id.as_str()).copied().unwrap_or(stop_id.as_str());
+            let mut n = k6_notice(
+                ctr, "SHP_014", EntityType::Shape,
+                Some(shape_id.to_string()), Some(shape_id.to_string()),
+                "shapes.txt", None, Some("shape_pt_sequence"),
+                Some(format!("{dist_m:.0}m")),
+                Some(format!("≤ {:.0}m", config.stop_far_from_shape_m)),
+                format!(
+                    "'{}' güzergah şeklinin bitiş noktası, en yakın seferin son durağı '{}' (kod: '{}') konumundan {dist_m:.0}m uzakta.",
+                    shape_id, sname, stop_id
+                ),
+                "shape_dist_traveled veya güzergah şeklinin bitiş noktasını son durağa hizalayın.",
+            );
+            let mut d = std::collections::HashMap::new();
+            d.insert("problem_stop".to_string(), stop_id.clone());
+            d.insert("endpoint".to_string(), "end".to_string());
+            d.insert("trip_id".to_string(), trip_id.clone());
+            n.details = Some(d);
+            notices.push(n);
         }
     }
 
@@ -8014,6 +8062,92 @@ mod tests {
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
         assert!(result.notices.iter().any(|n| n.rule_id == "SHP_016"), "tamamen ters shape → SHP_016 olmalı");
         assert!(!result.notices.iter().any(|n| n.rule_id == "SHP_017"), "tamamen ters shape → SHP_017 olmamalı (SHP_016 öncelikli)");
+    }
+
+    #[test]
+    fn shape_reused_in_both_directions_no_shp_016() {
+        use crate::k2::shapes::ShapePointRecord;
+        // S1: A(29.0) → B(29.1). T1 ileri (A→B), T2 aynı shape'i ters kullanıyor (B→A).
+        // Bir ileri varyant olduğu için shape "ters çizilmiş" sayılmamalı (varyant-farkında min).
+        let mut records = records_with(
+            vec![stop("A", 41.0, 29.0), stop("B", 41.0, 29.1)],
+            vec![route("R1", 3)],
+            vec![
+                { let mut t = trip("T1", "R1"); t.shape_id = Some("S1".into()); t },
+                { let mut t = trip("T2", "R1"); t.shape_id = Some("S1".into()); t },
+            ],
+            vec![
+                stoptime("T1", 1, "A", (8,0,0), (8,0,0), 2),
+                stoptime("T1", 2, "B", (8,10,0), (8,10,0), 3),
+                stoptime("T2", 1, "B", (9,0,0), (9,0,0), 4),
+                stoptime("T2", 2, "A", (9,10,0), (9,10,0), 5),
+            ],
+        );
+        records.shapes = vec![
+            ShapePointRecord { shape_id: "S1".into(), shape_pt_lat: Some(41.0), shape_pt_lon: Some(29.0),
+                shape_pt_sequence: Some(1), shape_dist_traveled: None, line: 2 },
+            ShapePointRecord { shape_id: "S1".into(), shape_pt_lat: Some(41.0), shape_pt_lon: Some(29.1),
+                shape_pt_sequence: Some(2), shape_dist_traveled: None, line: 3 },
+        ];
+        let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
+        assert!(!result.notices.iter().any(|n| n.rule_id == "SHP_016"),
+            "ileri varyant varken shape ters sayılmamalı (SHP_016 yok)");
+    }
+
+    #[test]
+    fn shape_end_matches_one_variant_no_shp_014() {
+        use crate::k2::shapes::ShapePointRecord;
+        // S1: A(29.0) → B(29.1). T1 tam (A→B, son durak B = shape sonu).
+        // T2 kısa varyant (A→FAR, son durak shape sonundan çok uzak).
+        // En yakın varyant (T1) shape sonuyla eşleştiği için SHP_014 ateşlememeli.
+        let mut records = records_with(
+            vec![stop("A", 41.0, 29.0), stop("B", 41.0, 29.1), stop("FAR", 42.0, 30.0)],
+            vec![route("R1", 3)],
+            vec![
+                { let mut t = trip("T1", "R1"); t.shape_id = Some("S1".into()); t },
+                { let mut t = trip("T2", "R1"); t.shape_id = Some("S1".into()); t },
+            ],
+            vec![
+                stoptime("T1", 1, "A", (8,0,0), (8,0,0), 2),
+                stoptime("T1", 2, "B", (8,10,0), (8,10,0), 3),
+                stoptime("T2", 1, "A", (9,0,0), (9,0,0), 4),
+                stoptime("T2", 2, "FAR", (9,10,0), (9,10,0), 5),
+            ],
+        );
+        records.shapes = vec![
+            ShapePointRecord { shape_id: "S1".into(), shape_pt_lat: Some(41.0), shape_pt_lon: Some(29.0),
+                shape_pt_sequence: Some(1), shape_dist_traveled: None, line: 2 },
+            ShapePointRecord { shape_id: "S1".into(), shape_pt_lat: Some(41.0), shape_pt_lon: Some(29.1),
+                shape_pt_sequence: Some(2), shape_dist_traveled: None, line: 3 },
+        ];
+        let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
+        assert!(!result.notices.iter().any(|n| n.rule_id == "SHP_014"),
+            "shape sonu bir varyantın son durağıyla eşleşiyorsa SHP_014 yok");
+    }
+
+    #[test]
+    fn shape_end_far_from_all_variants_produces_shp_014() {
+        use crate::k2::shapes::ShapePointRecord;
+        // S1: A(29.0) → B(29.1). Tek sefer T1'in son durağı C, shape sonundan çok uzak.
+        // Hiçbir varyant shape sonuna yakın değil → SHP_014 ateşlemeli (regresyon koruması).
+        let mut records = records_with(
+            vec![stop("A", 41.0, 29.0), stop("C", 42.0, 30.0)],
+            vec![route("R1", 3)],
+            vec![{ let mut t = trip("T1", "R1"); t.shape_id = Some("S1".into()); t }],
+            vec![
+                stoptime("T1", 1, "A", (8,0,0), (8,0,0), 2),
+                stoptime("T1", 2, "C", (8,10,0), (8,10,0), 3),
+            ],
+        );
+        records.shapes = vec![
+            ShapePointRecord { shape_id: "S1".into(), shape_pt_lat: Some(41.0), shape_pt_lon: Some(29.0),
+                shape_pt_sequence: Some(1), shape_dist_traveled: None, line: 2 },
+            ShapePointRecord { shape_id: "S1".into(), shape_pt_lat: Some(41.0), shape_pt_lon: Some(29.1),
+                shape_pt_sequence: Some(2), shape_dist_traveled: None, line: 3 },
+        ];
+        let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
+        assert!(result.notices.iter().any(|n| n.rule_id == "SHP_014"),
+            "shape sonu hiçbir varyantın son durağına yakın değil → SHP_014");
     }
 
     #[test]
