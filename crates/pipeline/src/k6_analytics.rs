@@ -2614,14 +2614,17 @@ fn check_route_trip_quality(
                 .map(|s| s.stop_id.as_str())
                 .unwrap_or("");
 
-            // Circular/loop trip → headsign genelde dönüş/uç noktasını gösterir, atla.
-            // (1) ilk ve son durak aynı fiziksel istasyon (parent_station-aware; farklı
-            //     peron stop_id'leriyle aynı istasyona dönen loop'lar dahil), VEYA
-            // (2) trip içinde herhangi bir istasyon tekrar ediyor (loop deseni).
+            // Tam döngüsel sefer → ilk ve son durak aynı fiziksel istasyon (parent_station-aware;
+            // farklı peron stop_id'leriyle aynı istasyona dönen loop'lar dahil). Tüm sefer loop, atla.
             if eff_station(&parent_of, first_stop_id) == eff_station(&parent_of, terminal_stop_id) { continue; }
-            let mut seen_stations = HashSet::with_capacity(stimes.len());
-            if stimes.iter().any(|s| !seen_stations.insert(eff_station(&parent_of, s.stop_id.as_str()))) {
-                continue;
+
+            // Sefer içinde her etkin istasyonun kaç kez geçtiği. headsign'ın eşleştiği durak
+            // birden fazla geçiyorsa o durak meşru bir uç/dönüş noktasıdır (ör. havalimanı wye:
+            // trene girip çıkar) → o eşleşme yanlış pozitiftir, atlanır. Alakasız bir durağın
+            // tekrarı, headsign'ın eşleştiği başka bir ara durağı bastırmaz (yanlış negatif önlenir).
+            let mut station_counts: HashMap<&str, u32> = HashMap::with_capacity(stimes.len());
+            for s in stimes.iter() {
+                *station_counts.entry(eff_station(&parent_of, s.stop_id.as_str())).or_insert(0) += 1;
             }
 
             let rname = route_short.get(trip.route_id.as_str()).copied().unwrap_or(trip.route_id.as_str());
@@ -2631,6 +2634,10 @@ fn check_route_trip_quality(
             for st in stimes.iter().filter(|s| s.stop_id.as_str() != terminal_stop_id) {
                 if let Some(stop_name) = stop_name_lc.get(st.stop_id.as_str()) {
                     if *stop_name == headsign_lc {
+                        // Eşleşen durak bir uç/dönüş noktası (sefer içinde tekrar ediyor) → atla.
+                        if station_counts.get(eff_station(&parent_of, st.stop_id.as_str())).copied().unwrap_or(0) > 1 {
+                            continue;
+                        }
                         notices.push(k6_notice(
                             ctr,
                             "TRP_020",
@@ -8348,9 +8355,9 @@ mod tests {
     }
 
     #[test]
-    fn headsign_loop_with_repeated_stop_no_trp_020() {
-        // Loop hattı: A → B → C → B (tekrar) → D. headsign = ara durak "Stop B".
-        // first(A) != terminal(D) ama B istasyonu tekrarlanıyor → loop → TRP_020 olmamalı.
+    fn headsign_matches_repeated_turnaround_stop_no_trp_020() {
+        // Sefer: A → B → C → B (tekrar) → D. headsign = "Stop B" = TEKRAR EDEN durak.
+        // B bir uç/dönüş noktası (havalimanı wye gibi) → headsign meşru → TRP_020 olmamalı.
         let mut sa = stop("A", 41.0, 29.0); sa.stop_name = Some("Stop A".into());
         let mut sb = stop("B", 41.1, 29.1); sb.stop_name = Some("Stop B".into());
         let mut sc = stop("C", 41.2, 29.2); sc.stop_name = Some("Stop C".into());
@@ -8370,7 +8377,36 @@ mod tests {
             ],
         );
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
-        assert!(!result.notices.iter().any(|n| n.rule_id == "TRP_020"), "tekrar eden durak (loop) → TRP_020 olmamalı");
+        assert!(!result.notices.iter().any(|n| n.rule_id == "TRP_020"), "headsign tekrar eden uç noktaya eşleşiyor → TRP_020 olmamalı");
+    }
+
+    #[test]
+    fn headsign_intermediate_with_unrelated_repeat_produces_trp_020() {
+        // Sefer: A → B → C → B (tekrar) → D. headsign = "Stop C" = TEK GEÇEN ara durak.
+        // B'nin tekrarı ALAKASIZ; headsign C bir kez geçen meşru ara durak eşleşmesi.
+        // Eski "herhangi tekrar → loop" mantığı bunu yanlışlıkla bastırırdı (yanlış negatif).
+        let mut sa = stop("A", 41.0, 29.0); sa.stop_name = Some("Stop A".into());
+        let mut sb = stop("B", 41.1, 29.1); sb.stop_name = Some("Stop B".into());
+        let mut sc = stop("C", 41.2, 29.2); sc.stop_name = Some("Stop C".into());
+        let mut sd = stop("D", 41.3, 29.3); sd.stop_name = Some("Stop D".into());
+        let mut t = trip("T1", "R1");
+        t.trip_headsign = Some("Stop C".into());
+        let records = records_with(
+            vec![sa, sb, sc, sd],
+            vec![route("R1", 3)],
+            vec![t],
+            vec![
+                stoptime("T1", 1, "A", (8,0,0), (8,0,0), 2),
+                stoptime("T1", 2, "B", (8,10,0), (8,10,0), 3),
+                stoptime("T1", 3, "C", (8,20,0), (8,20,0), 4),
+                stoptime("T1", 4, "B", (8,30,0), (8,30,0), 5),
+                stoptime("T1", 5, "D", (8,40,0), (8,40,0), 6),
+            ],
+        );
+        let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
+        assert!(result.notices.iter().any(|n| n.rule_id == "TRP_020"),
+            "alakasız tekrar headsign'ın eşleştiği ara durağı bastırmamalı: {:?}",
+            result.notices.iter().map(|n| &n.rule_id).collect::<Vec<_>>());
     }
 
     #[test]
