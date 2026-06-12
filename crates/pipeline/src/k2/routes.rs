@@ -283,7 +283,7 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
         });
     }
 
-    // RTS_019: Yinelenen hat adı — önce tüm adları topla, sonra her çakışan için notice üret
+    // RTS_019: Yinelenen hat adı — önce tüm adları topla, sonra her çakışan GRUP için tek notice üret
     {
         let mut short_groups: HashMap<String, Vec<(String, u64)>> = HashMap::new(); // key → Vec<(route_id, line)>
         let mut long_groups:  HashMap<String, Vec<(String, u64)>> = HashMap::new();
@@ -301,23 +301,23 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
         }
         for (key, entries) in &short_groups {
             if entries.len() < 2 { continue; }
-            // Kısa adlar aynı olduğu için hatları route_id ile ayırt et; ismi paylaşan TÜM hatları listele
+            // Çakışan grup başına TEK notice; ismi paylaşan TÜM hatları (route_id) listele.
+            // (Üye başına emit aynı çakışmayı N kez tekrarlardı.) İlk üyeye sabitlenir.
             let group_str = entries.iter().map(|(id, _)| id.as_str()).collect::<Vec<_>>().join(", ");
-            for (route_id, line) in entries {
-                let display_name = records.iter().find(|r| &r.route_id == route_id)
-                    .and_then(|r| r.route_short_name.as_deref())
-                    .unwrap_or(key.as_str());
-                let mut n = make_k2_notice(
-                    &mut counter, "RTS_019", EntityType::Route,
-                    Some(route_id.clone()), None,
-                    "routes.txt", Some(*line), Some("route_short_name"),
-                    Some(display_name.to_string()), None,
-                    format!("route_short_name '{}' şu hatlar tarafından paylaşılıyor: {}.", display_name, group_str),
-                    "Her hatta benzersiz bir kısa ad verin veya bilerek paylaşılıyorsa bu uyarıyı görmezden gelin.",
-                );
-                n.details = Some([("conflicting_routes".to_string(), group_str.clone())].into_iter().collect());
-                notices.push(n);
-            }
+            let (anchor_id, anchor_line) = &entries[0];
+            let display_name = records.iter().find(|r| &r.route_id == anchor_id)
+                .and_then(|r| r.route_short_name.as_deref())
+                .unwrap_or(key.as_str());
+            let mut n = make_k2_notice(
+                &mut counter, "RTS_019", EntityType::Route,
+                Some(anchor_id.clone()), None,
+                "routes.txt", Some(*anchor_line), Some("route_short_name"),
+                Some(display_name.to_string()), None,
+                format!("route_short_name '{}' şu hatlar tarafından paylaşılıyor: {}.", display_name, group_str),
+                "Her hatta benzersiz bir kısa ad verin veya bilerek paylaşılıyorsa bu uyarıyı görmezden gelin.",
+            );
+            n.details = Some([("conflicting_routes".to_string(), group_str.clone())].into_iter().collect());
+            notices.push(n);
         }
         for (key, entries) in &long_groups {
             if entries.len() < 2 { continue; }
@@ -328,21 +328,21 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
                     .filter(|s| !s.is_empty())
                     .unwrap_or_else(|| id.clone())
             }).collect::<Vec<_>>().join(", ");
-            for (route_id, line) in entries {
-                let display_name = records.iter().find(|r| &r.route_id == route_id)
-                    .and_then(|r| r.route_long_name.as_deref())
-                    .unwrap_or(key.as_str());
-                let mut n = make_k2_notice(
-                    &mut counter, "RTS_019", EntityType::Route,
-                    Some(route_id.clone()), None,
-                    "routes.txt", Some(*line), Some("route_long_name"),
-                    Some(display_name.to_string()), None,
-                    format!("route_long_name '{}' şu hatlar tarafından paylaşılıyor: {}.", display_name, group_str),
-                    "Her hatta benzersiz bir uzun ad verin veya bilerek paylaşılıyorsa bu uyarıyı görmezden gelin.",
-                );
-                n.details = Some([("conflicting_routes".to_string(), group_str.clone())].into_iter().collect());
-                notices.push(n);
-            }
+            // Çakışan grup başına TEK notice; ismi paylaşan TÜM hatları listele. İlk üyeye sabitlenir.
+            let (anchor_id, anchor_line) = &entries[0];
+            let display_name = records.iter().find(|r| &r.route_id == anchor_id)
+                .and_then(|r| r.route_long_name.as_deref())
+                .unwrap_or(key.as_str());
+            let mut n = make_k2_notice(
+                &mut counter, "RTS_019", EntityType::Route,
+                Some(anchor_id.clone()), None,
+                "routes.txt", Some(*anchor_line), Some("route_long_name"),
+                Some(display_name.to_string()), None,
+                format!("route_long_name '{}' şu hatlar tarafından paylaşılıyor: {}.", display_name, group_str),
+                "Her hatta benzersiz bir uzun ad verin veya bilerek paylaşılıyorsa bu uyarıyı görmezden gelin.",
+            );
+            n.details = Some([("conflicting_routes".to_string(), group_str.clone())].into_iter().collect());
+            notices.push(n);
         }
     }
 
@@ -433,6 +433,38 @@ mod tests {
         );
         let (_, notices) = validate_routes(&file);
         assert!(notices.iter().any(|n| n.rule_id == "RTS_006"));
+    }
+
+    #[test]
+    fn shared_route_name_produces_single_rts_019_per_group() {
+        // 3 hat aynı long_name'i paylaşıyor → çakışan grup başına TEK RTS_019 (üye başına değil)
+        let file = make_file(
+            vec!["route_id", "route_short_name", "route_long_name", "route_type"],
+            vec![
+                vec!["R1", "QM2",  "Astoria - Midtown", "3"],
+                vec!["R2", "QM20", "Astoria - Midtown", "3"],
+                vec!["R3", "QM21", "Astoria - Midtown", "3"],
+            ],
+        );
+        let (_, notices) = validate_routes(&file);
+        let rts019: Vec<_> = notices.iter().filter(|n| n.rule_id == "RTS_019").collect();
+        assert_eq!(rts019.len(), 1, "Grup başına tek RTS_019 bekleniyor, {} üretildi: {:?}",
+            rts019.len(), rts019.iter().map(|n| &n.message).collect::<Vec<_>>());
+        // Mesaj grubun TÜM üyelerini (short_name ile) listelemeli
+        let msg = &rts019[0].message;
+        assert!(msg.contains("QM2") && msg.contains("QM20") && msg.contains("QM21"),
+            "Mesaj tüm grubu listelemeli: {}", msg);
+    }
+
+    #[test]
+    fn shared_short_name_produces_single_rts_019() {
+        let file = make_file(
+            vec!["route_id", "route_short_name", "route_type"],
+            vec![vec!["R1", "10", "3"], vec!["R2", "10", "3"]],
+        );
+        let (_, notices) = validate_routes(&file);
+        assert_eq!(notices.iter().filter(|n| n.rule_id == "RTS_019").count(), 1,
+            "Aynı short_name → tek RTS_019");
     }
 
     #[test]
