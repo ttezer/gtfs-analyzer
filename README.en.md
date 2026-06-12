@@ -52,7 +52,7 @@ GTFS Analyzer extends specification validation with operational quality analysis
 
 ### Feed Analysis Examples
 
-The same feeds were compared with three validators: MobilityData gtfs-validator v8.0.1 · GTFS Guru v0.1.0 · GTFS Analyzer v0.1.2. (GTFS Analyzer figures are a snapshot from an analysis run on 2026-06-11; because some rules are date-dependent, running on a different day may produce small deviations.)
+The same feeds were compared with three validators: MobilityData gtfs-validator v8.0.1 · GTFS Guru v0.1.0 · GTFS Analyzer v0.1.2. (GTFS Analyzer figures are a snapshot from an analysis run on 2026-06-12; because some rules are date-dependent, running on a different day may produce small deviations.)
 
 #### BART (Bay Area Rapid Transit, San Francisco)
 
@@ -60,15 +60,15 @@ Feed: `BART (San Francisco).zip` — version downloaded on 2026-05-25 (validity 
 
 | | MobilityData | GTFS Guru | GTFS Analyzer |
 |---|---:|---:|---:|
-| Total notices | 2,725 | 2,663 | 3,252 |
-| Critical / Error | 2 | 1 | 0 |
-| High / Warning | 2,655 | 2,655 | 151 |
-| Medium | — | — | 1,059 |
-| Low | — | — | 1,013 |
+| Total notices | 2,725 | 2,663 | 3,217 |
+| Critical / Error | 2 | 1 | 2 |
+| High / Warning | 2,655 | 2,655 | 141 |
+| Medium | — | — | 1,058 |
+| Low | — | — | 987 |
 | Info | 68 | 7 | 1,029 |
-| Distinct rule types triggered | 13 | 10 | **49** |
-| Publish score | — | — | **94.3 / 100** |
-| Quality score | — | — | **81.6 / 100** |
+| Distinct rule types triggered | 13 | 10 | **47** |
+| Publish score | — | — | **92.6 / 100** |
+| Quality score | — | — | **82.6 / 100** |
 
 #### TriMet (Portland, Oregon)
 
@@ -94,11 +94,11 @@ Feed: `tokyo_toei_bus.zip` — feed_version 2026-06-06 (validity range: 2026-06-
 
 | | MobilityData | GTFS Guru | GTFS Analyzer |
 |---|---:|---:|---:|
-| Total notices | 1,637 | 4,137 | 9,216 |
+| Total notices | 1,637 | 4,137 | 7,265 |
 | Critical / Error | 0 | 0 | 0 |
-| High / Warning | 265 | 4,128 | 1,061 |
+| High / Warning | 265 | 4,128 | 1,059 |
 | Medium | — | — | 3,324 |
-| Low | — | — | 3,917 |
+| Low | — | — | 1,968 |
 | Info | 1,372 | 9 | 914 |
 | Distinct rule types triggered | 9 | 6 | **58** |
 | Publish score | — | — | **94.3 / 100** |

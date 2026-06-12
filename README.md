@@ -52,7 +52,7 @@ GTFS Analyzer, spesifikasyon doğrulamasını operasyonel kalite analiziyle geni
 
 ### Feed Analizi Örnekleri
 
-Aynı feed'ler üç validator ile karşılaştırıldı: MobilityData gtfs-validator v8.0.1 · GTFS Guru v0.1.0 · GTFS Analyzer v0.1.2. (GTFS Analyzer sayıları 2026-06-11 tarihli analizin anlık görüntüsüdür; tarihe bağlı kurallar nedeniyle farklı bir günde çalıştırma küçük sapmalar verebilir.)
+Aynı feed'ler üç validator ile karşılaştırıldı: MobilityData gtfs-validator v8.0.1 · GTFS Guru v0.1.0 · GTFS Analyzer v0.1.2. (GTFS Analyzer sayıları 2026-06-12 tarihli analizin anlık görüntüsüdür; tarihe bağlı kurallar nedeniyle farklı bir günde çalıştırma küçük sapmalar verebilir.)
 
 #### BART (Bay Area Rapid Transit, San Francisco)
 
@@ -60,15 +60,15 @@ Feed: `BART (San Francisco).zip` — 2026-05-25'te indirilen sürüm (geçerlili
 
 | | MobilityData | GTFS Guru | GTFS Analyzer |
 |---|---:|---:|---:|
-| Toplam notice | 2.725 | 2.663 | 3.252 |
-| Kritik / Error | 2 | 1 | 0 |
-| Yüksek / Warning | 2.655 | 2.655 | 151 |
-| Orta | — | — | 1.059 |
-| Düşük | — | — | 1.013 |
+| Toplam notice | 2.725 | 2.663 | 3.217 |
+| Kritik / Error | 2 | 1 | 2 |
+| Yüksek / Warning | 2.655 | 2.655 | 141 |
+| Orta | — | — | 1.058 |
+| Düşük | — | — | 987 |
 | Bilgi / Info | 68 | 7 | 1.029 |
-| Tetiklenen kural tipi | 13 | 10 | **49** |
-| Yayın skoru | — | — | **94,3 / 100** |
-| Kalite skoru | — | — | **81,6 / 100** |
+| Tetiklenen kural tipi | 13 | 10 | **47** |
+| Yayın skoru | — | — | **92,6 / 100** |
+| Kalite skoru | — | — | **82,6 / 100** |
 
 #### TriMet (Portland, Oregon)
 
@@ -94,11 +94,11 @@ Feed: `tokyo_toei_bus.zip` — feed_version 2026-06-06 (geçerlilik aralığı: 
 
 | | MobilityData | GTFS Guru | GTFS Analyzer |
 |---|---:|---:|---:|
-| Toplam notice | 1.637 | 4.137 | 9.216 |
+| Toplam notice | 1.637 | 4.137 | 7.265 |
 | Kritik / Error | 0 | 0 | 0 |
-| Yüksek / Warning | 265 | 4.128 | 1.061 |
+| Yüksek / Warning | 265 | 4.128 | 1.059 |
 | Orta | — | — | 3.324 |
-| Düşük | — | — | 3.917 |
+| Düşük | — | — | 1.968 |
 | Bilgi / Info | 1.372 | 9 | 914 |
 | Tetiklenen kural tipi | 9 | 6 | **58** |
 | Yayın skoru | — | — | **94,3 / 100** |
