@@ -611,8 +611,6 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 
 | Rule | Title | Severity | Class |
 |---|---|---|---|
-| DQ_001 | Feed name missing | LOW | Quality |
-| DQ_002 | feed_publisher_url missing | LOW | Quality |
 | DQ_003 | Route description missing | INFO | Quality |
 | DQ_004 | Route URL missing | LOW | Quality |
 | DQ_005 | No valid service period | HIGH | Interop |

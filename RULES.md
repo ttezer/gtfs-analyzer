@@ -611,8 +611,6 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 
 | Kural | Başlık | Önem | Sınıf |
 |---|---|---|---|
-| DQ_001 | Feed adı eksik | DÜŞÜK | Quality |
-| DQ_002 | feed_publisher_url eksik | DÜŞÜK | Quality |
 | DQ_003 | Hat açıklaması eksik | BİLGİ | Quality |
 | DQ_004 | Hat URL'si eksik | DÜŞÜK | Quality |
 | DQ_005 | Geçerli servis dönemi yok | YÜKSEK | Interop |

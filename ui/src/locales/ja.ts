@@ -856,8 +856,6 @@ const ja: LocaleShape = {
     'GEO_020': "シェープ'{entity_id}'：全{observed_value}点が同じ座標にあります — 退化したジオメトリです。",
     'GEO_021': "停留所の{observed_value}が別の停留所と座標を共有しています — 系統的な座標エラーです。",
     // DQ
-    'DQ_001':  'フィード名がありません。',
-    'DQ_002':  'feed_publisher_urlがありません。',
     'DQ_003':  "路線'{entity_id}'：路線説明がありません。",
     'DQ_004':  "路線'{entity_id}'：route_urlがありません。",
     'DQ_005':  '有効なサービス期間がありません。',
@@ -985,8 +983,6 @@ const ja: LocaleShape = {
     'CLD_006': 'calendar_datesの代わりにcalendar.txtの基本スケジュールを定義してください。',
     'CLD_007': 'calendar.txtの基本スケジュールを更新することを推奨します。calendar_datesは例外のみに使用してください。',
     // DQ
-    'DQ_001': 'feed_info.txtにfeed_publisher_nameを追加してください。',
-    'DQ_002': 'feed_info.txtにfeed_publisher_urlを追加してください。',
     'DQ_003': 'routes.txtにroute_descの説明を追加してください。',
     'DQ_004': 'routes.txtにroute_urlのリンクを追加してください。',
     'DQ_005': 'calendar.txtまたはcalendar_dates.txtのデータを更新してください。',
@@ -1912,8 +1908,6 @@ const ja: LocaleShape = {
     'GEO_020': 'シェープが退化（全点が同一座標）',
     'GEO_021': '停留所の30%以上が座標を共有（系統的エラー）',
     // DQ
-    'DQ_001':  'フィード名が不足',
-    'DQ_002':  'feed_publisher_urlが不足',
     'DQ_003':  '路線の説明が不足',
     'DQ_004':  '路線URLが不足',
     'DQ_005':  '有効なサービス期間なし',

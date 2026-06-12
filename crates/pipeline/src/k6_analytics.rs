@@ -2577,6 +2577,19 @@ fn check_route_trip_quality(
             .filter_map(|s| s.stop_name.as_deref().map(|n| (s.stop_id.as_str(), n.trim().to_lowercase())))
             .collect();
 
+        // stop_id → parent_station (boş olmayan) — loop/circular tespiti parent-aware olsun.
+        // Bir durağın "etkin istasyonu": parent_station varsa o, yoksa stop_id.
+        let parent_of: HashMap<&str, &str> = records.stops.iter()
+            .filter_map(|s| s.row.get("parent_station")
+                .map(|p| p.trim())
+                .filter(|p| !p.is_empty())
+                .map(|p| (s.stop_id.as_str(), p)))
+            .collect();
+        // Etkin istasyon: parent_station varsa o, yoksa stop_id.
+        fn eff_station<'a>(parent_of: &HashMap<&'a str, &'a str>, sid: &'a str) -> &'a str {
+            parent_of.get(sid).copied().unwrap_or(sid)
+        }
+
         for trip in &records.trips {
             let headsign = match trip.trip_headsign.as_deref().map(str::trim).filter(|h| !h.is_empty()) {
                 Some(h) => h,
@@ -2601,8 +2614,15 @@ fn check_route_trip_quality(
                 .map(|s| s.stop_id.as_str())
                 .unwrap_or("");
 
-            // Circular trip: ilk == son durak → atla
-            if first_stop_id == terminal_stop_id { continue; }
+            // Circular/loop trip → headsign genelde dönüş/uç noktasını gösterir, atla.
+            // (1) ilk ve son durak aynı fiziksel istasyon (parent_station-aware; farklı
+            //     peron stop_id'leriyle aynı istasyona dönen loop'lar dahil), VEYA
+            // (2) trip içinde herhangi bir istasyon tekrar ediyor (loop deseni).
+            if eff_station(&parent_of, first_stop_id) == eff_station(&parent_of, terminal_stop_id) { continue; }
+            let mut seen_stations = HashSet::with_capacity(stimes.len());
+            if stimes.iter().any(|s| !seen_stations.insert(eff_station(&parent_of, s.stop_id.as_str()))) {
+                continue;
+            }
 
             let rname = route_short.get(trip.route_id.as_str()).copied().unwrap_or(trip.route_id.as_str());
             let dep = trip_first_dep.get(trip.trip_id.as_str()).map(|s| format!(" {} kalkışlı", s)).unwrap_or_default();
@@ -2914,43 +2934,13 @@ fn check_data_quality(
         }
     }
 
-    // DQ_001/002: feed_info eksiklikleri — yalnızca feed gerçek içerik barındırıyorsa kontrol et
+    // feed_has_content: feed gerçek transit içeriği barındırıyor mu (ARC_020 için).
+    // DQ_001/002 (feed_publisher_name/url eksik) kaldırıldı: ARC_020 + FIN_001/002
+    // + ARC_025 zaten kapsıyor, çift-sayım/üçleme yapıyordu.
     let feed_has_content = !records.agencies.is_empty()
         || !records.routes.is_empty()
         || !records.stops.is_empty()
         || !records.trips.is_empty();
-
-    if feed_has_content {
-        // DQ_001: feed_publisher_name eksik
-        let has_publisher = records.feed_info.first()
-            .and_then(|fi| fi.row.get("feed_publisher_name"))
-            .map(|v| !v.trim().is_empty())
-            .unwrap_or(false);
-        if !has_publisher {
-            notices.push(k6_notice(
-                ctr, "DQ_001", EntityType::Feed,
-                None, None, "feed_info.txt", None, Some("feed_publisher_name"),
-                None, None,
-                "feed_publisher_name belirtilmemiş — feed kaynağı tanımlanamıyor.".to_string(),
-                "feed_info.txt dosyasına feed_publisher_name ekleyin.",
-            ));
-        }
-
-        // DQ_002: feed_publisher_url eksik
-        let has_url = records.feed_info.first()
-            .and_then(|fi| fi.row.get("feed_publisher_url"))
-            .map(|v| !v.trim().is_empty())
-            .unwrap_or(false);
-        if !has_url {
-            notices.push(k6_notice(
-                ctr, "DQ_002", EntityType::Feed,
-                None, None, "feed_info.txt", None, Some("feed_publisher_url"),
-                None, None,
-                "feed_publisher_url belirtilmemiş.".to_string(),
-                "feed_info.txt dosyasına feed_publisher_url ekleyin.",
-            ));
-        }
-    }
 
     // DQ_003: hat açıklaması (route_desc) boş — hat başına bir notice
     for route in &records.routes {
@@ -8355,6 +8345,57 @@ mod tests {
         );
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
         assert!(!result.notices.iter().any(|n| n.rule_id == "TRP_020"), "eşleşme yoksa TRP_020 olmamalı");
+    }
+
+    #[test]
+    fn headsign_loop_with_repeated_stop_no_trp_020() {
+        // Loop hattı: A → B → C → B (tekrar) → D. headsign = ara durak "Stop B".
+        // first(A) != terminal(D) ama B istasyonu tekrarlanıyor → loop → TRP_020 olmamalı.
+        let mut sa = stop("A", 41.0, 29.0); sa.stop_name = Some("Stop A".into());
+        let mut sb = stop("B", 41.1, 29.1); sb.stop_name = Some("Stop B".into());
+        let mut sc = stop("C", 41.2, 29.2); sc.stop_name = Some("Stop C".into());
+        let mut sd = stop("D", 41.3, 29.3); sd.stop_name = Some("Stop D".into());
+        let mut t = trip("T1", "R1");
+        t.trip_headsign = Some("Stop B".into());
+        let records = records_with(
+            vec![sa, sb, sc, sd],
+            vec![route("R1", 3)],
+            vec![t],
+            vec![
+                stoptime("T1", 1, "A", (8,0,0), (8,0,0), 2),
+                stoptime("T1", 2, "B", (8,10,0), (8,10,0), 3),
+                stoptime("T1", 3, "C", (8,20,0), (8,20,0), 4),
+                stoptime("T1", 4, "B", (8,30,0), (8,30,0), 5),
+                stoptime("T1", 5, "D", (8,40,0), (8,40,0), 6),
+            ],
+        );
+        let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
+        assert!(!result.notices.iter().any(|n| n.rule_id == "TRP_020"), "tekrar eden durak (loop) → TRP_020 olmamalı");
+    }
+
+    #[test]
+    fn headsign_loop_via_parent_station_no_trp_020() {
+        // Loop: A1 → B → A2; A1 ve A2 farklı stop_id ama aynı parent_station P.
+        // first(A1) != terminal(A2) (stop_id) ama etkin istasyon aynı (P) → TRP_020 olmamalı.
+        let mut sa1 = stop("A1", 41.0, 29.0); sa1.stop_name = Some("İstasyon P".into());
+        sa1.row.insert("parent_station".into(), "P".into());
+        let mut sa2 = stop("A2", 41.0, 29.0); sa2.stop_name = Some("İstasyon P".into());
+        sa2.row.insert("parent_station".into(), "P".into());
+        let mut sb = stop("B", 41.1, 29.1); sb.stop_name = Some("Stop B".into());
+        let mut t = trip("T1", "R1");
+        t.trip_headsign = Some("Stop B".into()); // ara durak adı
+        let records = records_with(
+            vec![sa1, sa2, sb],
+            vec![route("R1", 3)],
+            vec![t],
+            vec![
+                stoptime("T1", 1, "A1", (8,0,0), (8,0,0), 2),
+                stoptime("T1", 2, "B",  (8,10,0), (8,10,0), 3),
+                stoptime("T1", 3, "A2", (8,20,0), (8,20,0), 4),
+            ],
+        );
+        let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
+        assert!(!result.notices.iter().any(|n| n.rule_id == "TRP_020"), "parent_station ile dönen loop → TRP_020 olmamalı");
     }
 
     // ── SHP_022: durak shape'te birden fazla eşleşme bölgesine yakın ─────────

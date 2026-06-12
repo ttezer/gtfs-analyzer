@@ -877,8 +877,6 @@ const tr = {
     'GEO_020': 'Shape dejenere — tüm noktalar aynı koordinatta',
     'GEO_021': 'Durakların %30+ koordinatı paylaşıyor (sistematik hata)',
     // DQ
-    'DQ_001':  'Feed adı eksik',
-    'DQ_002':  'feed_publisher_url eksik',
     'DQ_003':  'Hat açıklaması eksik',
     'DQ_004':  "Hat URL'si eksik",
     'DQ_005':  'Geçerli servis dönemi yok',

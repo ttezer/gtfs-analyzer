@@ -1183,10 +1183,8 @@ pub static RULES: &[RuleMeta] = &[
         "Durakların %30'undan fazlası koordinatlarını başka bir durakla paylaşıyor — sistematik hata"),
 
     // ── DQ: Veri Kalitesi / Kullanıcı Deneyimi ─────────────────────────────────
-    r!("DQ_001",  Dusuk,  Quality,  1, &[], None, VS, Feed,
-        "Feed adı eksik"),
-    r!("DQ_002",  Dusuk,  Quality,  1, &[], None, VS, Feed,
-        "feed_publisher_url eksik"),
+    // DQ_001/DQ_002 (feed_publisher_name/url eksik) kaldırıldı: ARC_020 (dosya yok)
+    // + FIN_001/002 (değer boş) + ARC_025 (sütun yok) zaten kapsıyor.
     r!("DQ_003",  Bilgi,  Quality,  1, &[], Some("route_id"), VS, Entity,
         "Hat açıklaması eksik"),
     r!("DQ_004",  Dusuk,  Quality,  1, &[], Some("route_id"), VS, Entity,

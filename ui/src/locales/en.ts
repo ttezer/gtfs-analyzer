@@ -875,8 +875,6 @@ const en: LocaleShape = {
     'GEO_020': "Shape '{entity_id}': all {observed_value} points are at the same location — degenerate geometry.",
     'GEO_021': "{observed_value} of stops share coordinates with another stop — systematic coordinate issue.",
     // DQ
-    'DQ_001':  'Feed name is missing.',
-    'DQ_002':  'feed_publisher_url is missing.',
     'DQ_003':  "Route '{entity_id}': route description is missing.",
     'DQ_004':  "Route '{entity_id}': route_url is missing.",
     'DQ_005':  'No valid service period.',
@@ -925,8 +923,6 @@ const en: LocaleShape = {
     // CLD
     'CLD_007': 'Prefer updating the calendar.txt base schedule; use calendar_dates for exceptions only.',
     // DQ
-    'DQ_001': 'Add feed_publisher_name to feed_info.txt.',
-    'DQ_002': 'Add feed_publisher_url to feed_info.txt.',
     'DQ_003': 'Add route_desc descriptions to routes.txt.',
     'DQ_004': 'Add route_url links to routes.txt.',
     'DQ_005': 'Update calendar.txt or calendar_dates.txt data.',
@@ -1958,8 +1954,6 @@ const en: LocaleShape = {
     'GEO_020': 'Shape is degenerate — all points at the same location',
     'GEO_021': 'More than 30% of stops share coordinates (systematic issue)',
     // DQ
-    'DQ_001':  'Feed name missing',
-    'DQ_002':  'feed_publisher_url missing',
     'DQ_003':  'Route description missing',
     'DQ_004':  'Route URL missing',
     'DQ_005':  'No valid service period',
