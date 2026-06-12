@@ -1230,6 +1230,9 @@ export function attachFixListeners(root: HTMLElement, result?: ValidationResult,
   const allRuleOpts: [string, string][] = ruleFilter
     ? Array.from(ruleFilter.options).filter(o => o.value !== '').map(o => [o.value, o.text])
     : [];
+  const allFileOpts: [string, string][] = fileFilterEl
+    ? Array.from(fileFilterEl.options).filter(o => o.value !== '').map(o => [o.value, o.text])
+    : [];
 
   const SEV_OPTS: [string, string][] = [
     ['CRITICAL', SEVERITY_TR['CRITICAL']], ['HIGH', SEVERITY_TR['HIGH']], ['MEDIUM', SEVERITY_TR['MEDIUM']],
@@ -1257,6 +1260,7 @@ export function attachFixListeners(root: HTMLElement, result?: ValidationResult,
     const sevSet  = new Set<string>();
     const clsSet  = new Set<string>();
     const ruleSet = new Set<string>();
+    const fileSet = new Set<string>();
 
     table!.querySelectorAll<HTMLTableRowElement>('tbody tr').forEach(row => {
       total++;
@@ -1270,9 +1274,13 @@ export function attachFixListeners(root: HTMLElement, result?: ValidationResult,
       const fileMatch = !file || rowFile === file;
       row.style.display = (sevMatch && clsMatch && ruleMatch && fileMatch) ? '' : 'none';
       if (sevMatch && clsMatch && ruleMatch && fileMatch) visible++;
+      // Her dropdown'ın seçenekleri DİĞER üç filtrenin uygulandığı satır kümesinden
+      // türetilir (çapraz filtreleme). Böylece hiçbir filtre diğerini boşaltmaz ve
+      // bir filtre seçilince diğerleri kalan veriye göre daralır.
       if (clsMatch && ruleMatch && fileMatch) sevSet.add(rowSev);
       if (sevMatch && ruleMatch && fileMatch) clsSet.add(rowCls);
       if (sevMatch && clsMatch && fileMatch) ruleSet.add(rowRule);
+      if (sevMatch && clsMatch && ruleMatch) fileSet.add(rowFile);
     });
 
     const anyFilter = sev || cls || rule || file;
@@ -1301,6 +1309,13 @@ export function attachFixListeners(root: HTMLElement, result?: ValidationResult,
                    .map(([v, l]) => `<option value="${v}"${v === rule ? ' selected' : ''}>${escHtml(l)}</option>`)
                    .join('');
       if (rule && !ruleSet.has(rule)) ruleFilter.value = '';
+    }
+    if (fileFilterEl) {
+      fileFilterEl.innerHTML = `<option value="">${t('fix.filter.all')}</option>` +
+        allFileOpts.filter(([v]) => fileSet.has(v))
+                   .map(([v, l]) => `<option value="${v}"${v === file ? ' selected' : ''}>${escHtml(l)}</option>`)
+                   .join('');
+      if (file && !fileSet.has(file)) fileFilterEl.value = '';
     }
   }
 
