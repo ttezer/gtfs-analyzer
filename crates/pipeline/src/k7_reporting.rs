@@ -33,7 +33,7 @@ pub fn report(
     let resolution       = { let _t = Timer::start("K7::resolve_symptoms"); resolve_symptoms(&notices) };
     let reports          = { let _t = Timer::start("K7::build_reports");    build_report_set(&notices, &resolution) };
     let mut metrics      = { let _t = Timer::start("K7::build_metrics");    build_metrics(&notices, records, derived, file_stats) };
-    metrics.quality_score = reports.r5.score;
+    metrics.overall_score = reports.r5.score;
     K7Result { notices, reports, metrics }
 }
 
@@ -800,7 +800,7 @@ fn build_metrics(notices: &[Notice], records: &EntityRecords, derived: &DerivedD
         interop_notice_count:   notices.iter().filter(|n| n.rule_class == RuleClass::Interop).count() as u32,
         quality_notice_count:   notices.iter().filter(|n| n.rule_class == RuleClass::Quality).count() as u32,
         analytics_notice_count: notices.iter().filter(|n| n.rule_class == RuleClass::Analytics).count() as u32,
-        quality_score: 0.0, // report() fonksiyonunda r5.score ile güncellenir
+        overall_score: 0.0, // report() fonksiyonunda r5.score ile güncellenir
         file_stats,
         is_gtfs_jp,
     }

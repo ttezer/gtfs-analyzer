@@ -114,7 +114,7 @@ export interface FeedMetrics {
   interop_notice_count: number;
   quality_notice_count: number;
   analytics_notice_count: number;
-  quality_score: number;
+  overall_score: number;
   file_stats: FileInfo[];
   /** Feed GTFS-JP (Japonya profili) mi — *_jp.txt dosyası varsa true. */
   is_gtfs_jp?: boolean;

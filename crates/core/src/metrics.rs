@@ -40,8 +40,9 @@ pub struct FeedMetrics {
     pub quality_notice_count: u32,
     pub analytics_notice_count: u32,
 
-    // MET_004 — Genel kalite skoru 0.0–100.0
-    pub quality_score: f64,
+    // MET_004 — Genel skor 0.0–100.0 (R5 ağırlıklı: 0.4·spec + 0.3·interop + 0.2·quality + 0.1·analytics).
+    // NOT: R5Report.quality_score (yalnız Quality sınıfı bileşeni) ile karıştırılmamalı.
+    pub overall_score: f64,
 
     // Dosya bazında istatistikler (K1 parse)
     pub file_stats: Vec<FileInfo>,
