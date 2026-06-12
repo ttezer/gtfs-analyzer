@@ -83,8 +83,11 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
             Err(_) => None,
         };
 
-        // For location_type 0 (or empty — regular stop) and 1 (station), coordinates + name required
+        // For location_type 0 (or empty — regular stop) and 1 (station), stop_code önerilir.
         let is_stop_or_station = matches!(location_type, None | Some(0) | Some(1));
+        // stop_name/stop_lat/stop_lon: spec'e göre stop (0), station (1) VE entrance/exit (2)
+        // için zorunlu; generic node (3) ve boarding area (4) için opsiyonel.
+        let requires_name_and_coords = matches!(location_type, None | Some(0) | Some(1) | Some(2));
 
         // STP_022: stop_code eksik (duraklar ve istasyonlar için)
         if stop_code.is_none() && is_stop_or_station {
@@ -97,11 +100,11 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
             ));
         }
 
-        // stop_name: required for stops and stations (location_type 0 or 1 or empty)
+        // stop_name: required for stops/stations/entrances (location_type 0, 1, 2 veya boş)
         let stop_name = get_trimmed_field(&row_map, "stop_name")
             .filter(|v| !v.is_empty())
             .map(str::to_string);
-        if stop_name.is_none() && is_stop_or_station {
+        if stop_name.is_none() && requires_name_and_coords {
             notices.push(make_k2_notice(
                 &mut counter, "STP_003", EntityType::Stop, entity_id.clone(),
                 Some(&row_map), &file.name, Some(line), Some("stop_name"),
@@ -153,12 +156,12 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
             }
         }
 
-        // STP_004: stop_lat required for stops and stations, must be in [-90, 90]
+        // STP_004: stop_lat required for stops/stations/entrances, must be in [-90, 90]
         let stop_lat = match parse_f64(&row_map, "stop_lat") {
             Ok(v) => {
                 match v {
                     None => {
-                        if is_stop_or_station {
+                        if requires_name_and_coords {
                             notices.push(make_k2_notice(
                                 &mut counter, "STP_006", EntityType::Stop, entity_id.clone(),
                                 Some(&row_map), &file.name, Some(line), Some("stop_lat"),
@@ -195,12 +198,12 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
             }
         };
 
-        // STP_007: stop_lon required for stops and stations, must be in [-180, 180]
+        // STP_007: stop_lon required for stops/stations/entrances, must be in [-180, 180]
         let stop_lon = match parse_f64(&row_map, "stop_lon") {
             Ok(v) => {
                 match v {
                     None => {
-                        if is_stop_or_station {
+                        if requires_name_and_coords {
                             notices.push(make_k2_notice(
                                 &mut counter, "STP_007", EntityType::Stop, entity_id.clone(),
                                 Some(&row_map), &file.name, Some(line), Some("stop_lon"),
@@ -414,6 +417,34 @@ mod tests {
         );
         let (_, notices) = validate_stops(&file);
         assert!(notices.iter().any(|n| n.rule_id == "STP_003"));
+    }
+
+    #[test]
+    fn entrance_missing_name_and_coords_produces_notices() {
+        // location_type=2 (giriş/çıkış) için stop_name/stop_lat/stop_lon zorunlu
+        let file = make_file(
+            vec!["stop_id", "stop_name", "stop_lat", "stop_lon", "location_type"],
+            vec![vec!["E1", "", "", "", "2"]],
+        );
+        let (_, notices) = validate_stops(&file);
+        let ids: Vec<&str> = notices.iter().map(|n| n.rule_id.as_str()).collect();
+        assert!(ids.contains(&"STP_003"), "stop_name eksik → STP_003 bekleniyor: {:?}", ids);
+        assert!(ids.contains(&"STP_006"), "stop_lat eksik → STP_006 bekleniyor: {:?}", ids);
+        assert!(ids.contains(&"STP_007"), "stop_lon eksik → STP_007 bekleniyor: {:?}", ids);
+    }
+
+    #[test]
+    fn generic_node_missing_name_and_coords_silent() {
+        // location_type=3 (generic node) için stop_name/stop_lat/stop_lon opsiyonel
+        let file = make_file(
+            vec!["stop_id", "stop_name", "stop_lat", "stop_lon", "location_type"],
+            vec![vec!["N1", "", "", "", "3"]],
+        );
+        let (_, notices) = validate_stops(&file);
+        let ids: Vec<&str> = notices.iter().map(|n| n.rule_id.as_str()).collect();
+        assert!(!ids.contains(&"STP_003"), "generic node'da stop_name zorunlu olmamalı: {:?}", ids);
+        assert!(!ids.contains(&"STP_006"), "generic node'da stop_lat zorunlu olmamalı: {:?}", ids);
+        assert!(!ids.contains(&"STP_007"), "generic node'da stop_lon zorunlu olmamalı: {:?}", ids);
     }
 
     #[test]

@@ -836,6 +836,18 @@ pub fn validate_stop_times(file: &RawFile) -> (StopTimesIndex, Vec<gtfs_core::No
             Err(_) => None,
         };
 
+        // STM_047: timepoint=1 (kesin zaman noktası) iken hem arrival_time hem departure_time
+        // eksik. Yalnızca biri dolu olduğunda STM_034 asimetriyi yakalar → örtüşme yok.
+        if timepoint == Some(1) && arrival_time.is_none() && departure_time.is_none() {
+            notices.push(make_k2_notice(
+                &mut counter, "STM_047", EntityType::Trip, eid(),
+                None, &file.name, Some(line), Some("arrival_time"),
+                Some(String::new()), Some("dolu".to_string()),
+                format!("trip_id '{}' satırında timepoint=1 (kesin zaman noktası) ama arrival_time ve departure_time tanımlı değil.", trip_id),
+                "Kesin zaman noktalarında (timepoint=1) hem arrival_time hem departure_time değerlerini girin.",
+            ));
+        }
+
         // shape_dist_traveled: non-negative
         let sdt_raw = get_col(row, cols.shape_dist_traveled);
         let shape_dist_traveled = match parse_f64_raw(sdt_raw, "shape_dist_traveled") {
@@ -1241,6 +1253,42 @@ mod tests {
         );
         let (_, notices) = validate_stop_times(&file);
         assert!(notices.iter().any(|n| n.rule_id == "STM_022"));
+    }
+
+    #[test]
+    fn timepoint_one_without_times_produces_stm_047() {
+        let file = make_file(
+            vec!["trip_id", "arrival_time", "departure_time", "stop_id", "stop_sequence", "timepoint"],
+            vec![vec!["T1", "", "", "S1", "1", "1"]],
+        );
+        let (_, notices) = validate_stop_times(&file);
+        let ids: Vec<&str> = notices.iter().map(|n| n.rule_id.as_str()).collect();
+        assert!(ids.contains(&"STM_047"), "timepoint=1 + saatsiz → STM_047: {:?}", ids);
+        assert!(!ids.contains(&"STM_034"), "Her ikisi boşken STM_034 tetiklenmemeli: {:?}", ids);
+    }
+
+    #[test]
+    fn timepoint_one_with_one_time_is_stm_034_not_047() {
+        let file = make_file(
+            vec!["trip_id", "arrival_time", "departure_time", "stop_id", "stop_sequence", "timepoint"],
+            vec![vec!["T1", "08:00:00", "", "S1", "1", "1"]],
+        );
+        let (_, notices) = validate_stop_times(&file);
+        let ids: Vec<&str> = notices.iter().map(|n| n.rule_id.as_str()).collect();
+        assert!(ids.contains(&"STM_034"), "Yalnız biri dolu → STM_034: {:?}", ids);
+        assert!(!ids.contains(&"STM_047"), "Biri dolu iken STM_047 tetiklenmemeli: {:?}", ids);
+    }
+
+    #[test]
+    fn timepoint_zero_without_times_silent_for_stm_047() {
+        let file = make_file(
+            vec!["trip_id", "arrival_time", "departure_time", "stop_id", "stop_sequence", "timepoint"],
+            vec![vec!["T1", "", "", "S1", "1", "0"]],
+        );
+        let (_, notices) = validate_stop_times(&file);
+        assert!(!notices.iter().any(|n| n.rule_id == "STM_047"),
+            "timepoint=0 (yaklaşık) → STM_047 tetiklenmemeli: {:?}",
+            notices.iter().map(|n| &n.rule_id).collect::<Vec<_>>());
     }
 
     // ── STM_023/032 + finalize çıktı alanları (K2 hashmap-birleştirme refactor güvenlik ağı) ──

@@ -26,6 +26,10 @@ pub fn validate_agency(file: &RawFile) -> (Vec<AgencyRecord>, Vec<gtfs_core::Not
     let mut records = Vec::new();
     let mut counter = 0u32;
 
+    // agency_id koşullu zorunlu: birden fazla kuruluş varsa her satırda agency_id gerekir
+    // (aksi halde routes/fares hangi kuruluşa ait ayırt edilemez). MD: missing_required_agency_id.
+    let multiple_agencies = file.rows.len() > 1;
+
     for (row_idx, row) in file.rows.iter().enumerate() {
         let line = (row_idx + 2) as u64;
         let row_map = build_row_map(&file.headers, row);
@@ -34,6 +38,16 @@ pub fn validate_agency(file: &RawFile) -> (Vec<AgencyRecord>, Vec<gtfs_core::Not
             .filter(|v| !v.is_empty())
             .map(str::to_string);
         let entity_id = agency_id.clone();
+
+        // AGN_014: birden fazla kuruluş varken bu satırda agency_id boş/eksik
+        if multiple_agencies && agency_id.is_none() {
+            notices.push(make_k2_notice(
+                &mut counter, "AGN_014", EntityType::Agency, None, Some(&row_map),
+                &file.name, Some(line), Some("agency_id"), Some(String::new()), None,
+                "Birden fazla kuruluş tanımlıyken agency_id zorunludur.".to_string(),
+                "Çoklu kuruluş durumunda her agency satırına benzersiz bir agency_id girin.",
+            ));
+        }
 
         // AGN_002: agency_name required (sütun başlıkta yoksa ARC_025 devralır → atla)
         let agency_name = get_trimmed_field(&row_map, "agency_name").unwrap_or("").to_string();
@@ -249,5 +263,32 @@ mod tests {
         );
         let (_, notices) = validate_agency(&file);
         assert!(notices.iter().any(|n| n.rule_id == "AGN_009"));
+    }
+
+    #[test]
+    fn multiple_agencies_missing_agency_id_produces_agn_014() {
+        let file = make_file(
+            vec!["agency_id", "agency_name", "agency_url", "agency_timezone"],
+            vec![
+                vec!["A1", "Transit Co", "https://transit.example", "Europe/Istanbul"],
+                vec!["", "Other Co", "https://other.example", "Europe/Istanbul"],
+            ],
+        );
+        let (_, notices) = validate_agency(&file);
+        assert!(notices.iter().any(|n| n.rule_id == "AGN_014"),
+            "Çoklu kuruluşta boş agency_id → AGN_014: {:?}",
+            notices.iter().map(|n| &n.rule_id).collect::<Vec<_>>());
+    }
+
+    #[test]
+    fn single_agency_missing_agency_id_silent_for_agn_014() {
+        let file = make_file(
+            vec!["agency_id", "agency_name", "agency_url", "agency_timezone"],
+            vec![vec!["", "Transit Co", "https://transit.example", "Europe/Istanbul"]],
+        );
+        let (_, notices) = validate_agency(&file);
+        assert!(!notices.iter().any(|n| n.rule_id == "AGN_014"),
+            "Tek kuruluşta agency_id opsiyonel → AGN_014 yok: {:?}",
+            notices.iter().map(|n| &n.rule_id).collect::<Vec<_>>());
     }
 }

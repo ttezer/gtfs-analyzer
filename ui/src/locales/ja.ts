@@ -412,6 +412,7 @@ const ja: LocaleShape = {
     'AGN_011': '複数の事業者が存在しますが、agency_idがありません。',
     'AGN_012': "事業者'{entity_id}'：agency_cemv_support'{observed_value}'が無効です。",
     'AGN_013': 'フィード言語と事業者言語が一致しません。',
+    'AGN_014': 'agency.txtに複数の事業者が定義されている場合、agency_idは必須です。',
     // STP
     'STP_001': "stop_idが重複しています：'{entity_id}'。",
     'STP_002': 'stop_idが空です。',
@@ -543,6 +544,7 @@ const ja: LocaleShape = {
     'STM_044': "フィードのstop_timesは{observed_value}行あります — WASMコンシューマーに深刻なメモリ/パフォーマンスリスク。",
     'STM_045': "便'{entity_id}'：出発時刻{observed_value}が深夜から26時間以上後です。",
     'STM_046': 'stop_times.txt：trip_idがありません。',
+    'STM_047': 'トリップ「{entity_id}」：timepoint=1（正確な時刻ポイント）ですが、arrival_timeとdeparture_timeの両方がありません。',
     // PDW
     'PDW_006': "便'{entity_id}'：同じ便とゾーンの乗降ウィンドウが重複しています。",
     // LOC
@@ -927,6 +929,7 @@ const ja: LocaleShape = {
     'AGN_011': '複数の事業者が存在する場合はagency_idをすべての路線に入力してください。',
     'AGN_012': 'agency_cemv_supportを0または1に設定してください。',
     'AGN_013': 'feed_info.txtのfeed_langとagency.txtのagency_langの値を一致させてください。',
+    'AGN_014': '複数の事業者が存在する場合は、各agency行に一意のagency_idを割り当ててください。',
     // ATR
     'ATR_001': '各帰属レコードに一意のattribution_idを割り当ててください。',
     'ATR_002': 'organization_nameフィールドを入力してください。',
@@ -1275,6 +1278,7 @@ const ja: LocaleShape = {
     'STM_044': 'フィードを地理的または時間的なパーティションに分割してください。',
     'STM_045': 'この便のstop_times.txtを確認してください。26時間を超える値は通常データエラーを示します。',
     'STM_046': '各stop_times行に有効なtrip_idを入力してください。',
+    'STM_047': '正確な時刻ポイント（timepoint=1）ではarrival_timeとdeparture_timeの両方を入力してください。',
     // STP
     'STP_001': '各停留所に一意のstop_idを割り当ててください。',
     'STP_002': 'stop_idフィールドを入力してください。',
@@ -1464,6 +1468,7 @@ const ja: LocaleShape = {
     'AGN_011': '複数事業者でagency_idなし',
     'AGN_012': 'agency_cemv_supportが無効',
     'AGN_013': 'フィード言語と事業者言語が不一致',
+    'AGN_014': '複数事業者だがagency.txtにagency_idなし',
     // STP
     'STP_001': 'stop_idが重複',
     'STP_002': 'stop_idが空',
@@ -1595,6 +1600,7 @@ const ja: LocaleShape = {
     'STM_044': 'stop_times行数が200万超（WASMパフォーマンス警告）',
     'STM_045': '便の出発時刻が深夜から26時間超',
     'STM_046': 'trip_idが不足',
+    'STM_047': 'timepoint=1だが到着/出発時刻なし',
     // PDW
     'PDW_006': '同一便・ゾーンで乗降ウィンドウが重複',
     // LOC

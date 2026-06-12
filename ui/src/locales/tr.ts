@@ -433,6 +433,7 @@ const tr = {
     'AGN_011': 'Birden fazla kuruluşta agency_id yok',
     'AGN_012': 'agency_cemv_support geçersiz',
     'AGN_013': 'Feed dili ve ajans dili uyuşmuyor',
+    'AGN_014': 'Birden fazla kuruluş var ama agency.txt agency_id eksik',
     // STP
     'STP_001': 'stop_id yineleniyor',
     'STP_002': 'stop_id boş',
@@ -564,6 +565,7 @@ const tr = {
     'STM_044': 'Feed stop_times satır sayısı 2 milyonu aşıyor',
     'STM_045': 'Sefer kalkış saati gece yarısından 26 saat sonra',
     'STM_046': 'trip_id eksik',
+    'STM_047': 'timepoint=1 ama arrival_time/departure_time eksik',
     // PDW
     'PDW_006': "Aynı trip+zone'da örtüşen pickup/drop-off penceresi",
     // LOC

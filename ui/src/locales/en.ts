@@ -431,6 +431,7 @@ const en: LocaleShape = {
     'AGN_011': "Multiple agencies present with no agency_id.",
     'AGN_012': "Agency '{entity_id}': agency_cemv_support '{observed_value}' is invalid.",
     'AGN_013': 'Feed language and agency language mismatch.',
+    'AGN_014': 'agency_id is required when multiple agencies are defined in agency.txt.',
     // STP
     'STP_001': "Duplicate stop_id: '{entity_id}'.",
     'STP_002': 'stop_id is empty.',
@@ -562,6 +563,7 @@ const en: LocaleShape = {
     'STM_044': "Feed stop_times has {observed_value} rows — serious memory/performance risk for WASM consumers.",
     'STM_045': "Trip '{entity_id}': departure time {observed_value} is more than 26 hours after midnight.",
     'STM_046': 'stop_times.txt: trip_id is missing.',
+    'STM_047': "Trip '{entity_id}': timepoint=1 (exact time point) but both arrival_time and departure_time are missing.",
     // PDW
     'PDW_006': "Trip '{entity_id}': overlapping pickup/drop-off windows for the same trip+zone.",
     // LOC
@@ -1168,6 +1170,7 @@ const en: LocaleShape = {
     'STM_044': 'Split the feed into smaller geographic or time-based partitions.',
     'STM_045': 'Check stop_times.txt for this trip; departure times over 26 hours usually indicate a data error.',
     'STM_046': 'Enter a valid trip_id on every stop_times row.',
+    'STM_047': 'Provide both arrival_time and departure_time on exact time points (timepoint=1).',
     'STM_042': 'Remove the characters ! $ % \\ * = _ from the stop_headsign value.',
     // SHP (field-level)
     'SHP_001': 'Fill in the shape_id field.',
@@ -1383,6 +1386,7 @@ const en: LocaleShape = {
     // AGN
     'AGN_001': 'Add agency.txt to the feed ZIP.',
     'AGN_013': 'Align the feed_lang value in feed_info.txt with the agency_lang value in agency.txt.',
+    'AGN_014': 'Assign a unique agency_id to every agency row when multiple agencies are present.',
     // ATR
     'ATR_009': 'Fill in only one of these attribution reference fields.',
     'ATR_010': 'Use a valid agency_id, route_id or trip_id in the attribution record.',
@@ -1510,6 +1514,7 @@ const en: LocaleShape = {
     'AGN_011': 'Multiple agencies with no agency_id',
     'AGN_012': 'agency_cemv_support invalid',
     'AGN_013': 'Feed language and agency language mismatch',
+    'AGN_014': 'Multiple agencies but agency.txt agency_id missing',
     // STP
     'STP_001': 'Duplicate stop_id',
     'STP_002': 'stop_id is empty',
@@ -1641,6 +1646,7 @@ const en: LocaleShape = {
     'STM_044': 'Feed stop_times exceeds 2,000,000 rows (WASM performance warning)',
     'STM_045': 'Trip departure time exceeds 26 hours after midnight',
     'STM_046': 'trip_id missing',
+    'STM_047': 'timepoint=1 without arrival/departure time',
     // PDW
     'PDW_006': 'Overlapping pickup/drop-off window for same trip+zone',
     // LOC

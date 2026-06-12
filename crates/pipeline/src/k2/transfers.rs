@@ -29,27 +29,7 @@ pub fn validate_transfers(file: &RawFile) -> (Vec<TransferRecord>, Vec<gtfs_core
         let to_stop_id = get_trimmed_field(&row_map, "to_stop_id").unwrap_or("").to_string();
         let entity_id = (!from_stop_id.is_empty() && !to_stop_id.is_empty()).then_some(format!("{from_stop_id}|{to_stop_id}"));
 
-        // TRF_001: from_stop_id zorunlu (sütun yoksa ARC_025 devralır → atla)
-        if get_trimmed_field(&row_map, "from_stop_id") == Some("") {
-            notices.push(make_k2_notice(
-                &mut counter, "TRF_001", EntityType::Row, entity_id.clone(), Some(&row_map),
-                &file.name, Some(line), Some("from_stop_id"), Some(String::new()), None,
-                "from_stop_id zorunludur.".to_string(),
-                "Aktarma kaydına from_stop_id ekleyin.",
-            ));
-        }
-
-        // TRF_002: to_stop_id zorunlu (sütun yoksa ARC_025 devralır → atla)
-        if get_trimmed_field(&row_map, "to_stop_id") == Some("") {
-            notices.push(make_k2_notice(
-                &mut counter, "TRF_002", EntityType::Row, entity_id.clone(), Some(&row_map),
-                &file.name, Some(line), Some("to_stop_id"), Some(String::new()), None,
-                "to_stop_id zorunludur.".to_string(),
-                "Aktarma kaydına to_stop_id ekleyin.",
-            ));
-        }
-
-        // TRF_004: transfer_type geçersiz
+        // TRF_004: transfer_type geçersiz (TRF_001/002 koşulu buna bağlı olduğundan önce parse edilir)
         let transfer_type = match parse_u32(&row_map, "transfer_type") {
             Ok(value) => {
                 if let Some(v) = value {
@@ -76,6 +56,32 @@ pub fn validate_transfers(file: &RawFile) -> (Vec<TransferRecord>, Vec<gtfs_core
                 None
             }
         };
+
+        // from_stop_id/to_stop_id koşullu zorunlu: transfer_type 0/1/2/3 için zorunlu,
+        // 4/5 (in-seat / scheduled connection) için opsiyonel — bunlar from_trip_id/to_trip_id
+        // kullanır. Sütun yoksa ARC_025 devralır → atla (get_trimmed_field == Some("") sütun var
+        // ama değer boş demek). transfer_type geçersiz/yoksa varsayılan 0 → zorunlu kabul edilir.
+        let stop_ids_required = !matches!(transfer_type, Some(4) | Some(5));
+
+        // TRF_001: from_stop_id zorunlu
+        if stop_ids_required && get_trimmed_field(&row_map, "from_stop_id") == Some("") {
+            notices.push(make_k2_notice(
+                &mut counter, "TRF_001", EntityType::Row, entity_id.clone(), Some(&row_map),
+                &file.name, Some(line), Some("from_stop_id"), Some(String::new()), None,
+                "from_stop_id zorunludur.".to_string(),
+                "Aktarma kaydına from_stop_id ekleyin.",
+            ));
+        }
+
+        // TRF_002: to_stop_id zorunlu
+        if stop_ids_required && get_trimmed_field(&row_map, "to_stop_id") == Some("") {
+            notices.push(make_k2_notice(
+                &mut counter, "TRF_002", EntityType::Row, entity_id.clone(), Some(&row_map),
+                &file.name, Some(line), Some("to_stop_id"), Some(String::new()), None,
+                "to_stop_id zorunludur.".to_string(),
+                "Aktarma kaydına to_stop_id ekleyin.",
+            ));
+        }
 
         // TRF_005: transfer_type=2 için min_transfer_time zorunlu
         let min_transfer_time = match parse_u32(&row_map, "min_transfer_time") {
@@ -165,5 +171,25 @@ mod tests {
         let file = make_file(vec![vec!["S1", "S2", "0"], vec!["S3", "S4", "1"]]);
         let (_, notices) = validate_transfers(&file);
         assert!(!notices.iter().any(|n| n.rule_id == "GGL_001"), "GGL_001 tetiklenmemeli");
+    }
+
+    #[test]
+    fn trf_001_002_skipped_for_transfer_type_4() {
+        // transfer_type=4 (in-seat) için from/to_stop_id opsiyonel → boş olsa da TRF_001/002 yok
+        let file = make_file(vec![vec!["", "", "4"]]);
+        let (_, notices) = validate_transfers(&file);
+        let ids: Vec<&str> = notices.iter().map(|n| n.rule_id.as_str()).collect();
+        assert!(!ids.contains(&"TRF_001"), "transfer_type=4'te from_stop_id zorunlu olmamalı: {:?}", ids);
+        assert!(!ids.contains(&"TRF_002"), "transfer_type=4'te to_stop_id zorunlu olmamalı: {:?}", ids);
+    }
+
+    #[test]
+    fn trf_001_fires_for_transfer_type_1_missing_stop() {
+        // transfer_type=1 için from/to_stop_id zorunlu → boşsa TRF_001/002
+        let file = make_file(vec![vec!["", "", "1"]]);
+        let (_, notices) = validate_transfers(&file);
+        let ids: Vec<&str> = notices.iter().map(|n| n.rule_id.as_str()).collect();
+        assert!(ids.contains(&"TRF_001"), "transfer_type=1'de from_stop_id eksik → TRF_001: {:?}", ids);
+        assert!(ids.contains(&"TRF_002"), "transfer_type=1'de to_stop_id eksik → TRF_002: {:?}", ids);
     }
 }
