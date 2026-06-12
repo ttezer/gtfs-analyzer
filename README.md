@@ -3,13 +3,8 @@
 🇹🇷 **Türkçe** · 🇬🇧 [English](README.en.md) · 🇯🇵 [日本語](README.ja.md)
 
 [![Uygulamayı Aç](https://img.shields.io/badge/Uygulamay%C4%B1%20A%C3%A7-gtfs--analyzer-2ea44f?style=flat&logo=googlechrome&logoColor=white)](https://ttezer.github.io/gtfs-analyzer/)
-![Rust](https://img.shields.io/badge/Rust-000000?style=flat&logo=rust&logoColor=white)
-![WebAssembly](https://img.shields.io/badge/WebAssembly-654FF0?style=flat&logo=webassembly&logoColor=white)
-![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat&logo=typescript&logoColor=white)
-![Vite](https://img.shields.io/badge/Vite-646CFF?style=flat&logo=vite&logoColor=white)
-![Gizlilik](https://img.shields.io/badge/%25100-istemci%20tarafl%C4%B1-2ea44f?style=flat&logo=shield&logoColor=white)
-![Kural sayısı](https://img.shields.io/badge/488-kural-blue?style=flat)
-![Diller](https://img.shields.io/badge/diller-TR%20%C2%B7%20EN%20%C2%B7%20JA-informational?style=flat)
+[![GTFS-JP](https://img.shields.io/badge/GTFS--JP-destekli-c8102e?style=flat)](https://www.gtfs.jp/)
+[![GTFS Spec](https://img.shields.io/badge/GTFS-Spec-007ec6?style=flat)](https://gtfs.org/)
 [![Lisans MIT](https://img.shields.io/badge/lisans-MIT-yellow?style=flat)](LICENSE)
 
 GTFS Analyzer, GTFS dosyalarını doğrudan tarayıcıda doğrulayan ve analiz eden açık kaynak bir araçtır. Yüklenen .zip dosyası hiçbir sunucuya gönderilmez; tüm işlemler WebAssembly ile kullanıcının cihazında gerçekleştirilir.

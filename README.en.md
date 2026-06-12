@@ -3,13 +3,8 @@
 🇹🇷 [Türkçe](README.md) · 🇬🇧 **English** · 🇯🇵 [日本語](README.ja.md)
 
 [![Open App](https://img.shields.io/badge/Open%20App-gtfs--analyzer-2ea44f?style=flat&logo=googlechrome&logoColor=white)](https://ttezer.github.io/gtfs-analyzer/)
-![Rust](https://img.shields.io/badge/Rust-000000?style=flat&logo=rust&logoColor=white)
-![WebAssembly](https://img.shields.io/badge/WebAssembly-654FF0?style=flat&logo=webassembly&logoColor=white)
-![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat&logo=typescript&logoColor=white)
-![Vite](https://img.shields.io/badge/Vite-646CFF?style=flat&logo=vite&logoColor=white)
-![Privacy](https://img.shields.io/badge/100%25-client--side-2ea44f?style=flat&logo=shield&logoColor=white)
-![Rules](https://img.shields.io/badge/488-rules-blue?style=flat)
-![Languages](https://img.shields.io/badge/languages-TR%20%C2%B7%20EN%20%C2%B7%20JA-informational?style=flat)
+[![GTFS-JP](https://img.shields.io/badge/GTFS--JP-supported-c8102e?style=flat)](https://www.gtfs.jp/)
+[![GTFS Spec](https://img.shields.io/badge/GTFS-Spec-007ec6?style=flat)](https://gtfs.org/)
 [![License MIT](https://img.shields.io/badge/license-MIT-yellow?style=flat)](LICENSE)
 
 GTFS Analyzer is an open-source tool that validates and analyzes GTFS files directly in the browser. The uploaded .zip file is never sent to any server; all processing is performed on the user's device via WebAssembly.

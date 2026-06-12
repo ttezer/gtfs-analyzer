@@ -3,13 +3,8 @@
 🇹🇷 [Türkçe](README.md) · 🇬🇧 [English](README.en.md) · 🇯🇵 **日本語**
 
 [![アプリを開く](https://img.shields.io/badge/%E3%82%A2%E3%83%97%E3%83%AA%E3%82%92%E9%96%8B%E3%81%8F-gtfs--analyzer-2ea44f?style=flat&logo=googlechrome&logoColor=white)](https://ttezer.github.io/gtfs-analyzer/)
-![Rust](https://img.shields.io/badge/Rust-000000?style=flat&logo=rust&logoColor=white)
-![WebAssembly](https://img.shields.io/badge/WebAssembly-654FF0?style=flat&logo=webassembly&logoColor=white)
-![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat&logo=typescript&logoColor=white)
-![Vite](https://img.shields.io/badge/Vite-646CFF?style=flat&logo=vite&logoColor=white)
-![Privacy](https://img.shields.io/badge/100%25-%E3%82%AF%E3%83%A9%E3%82%A4%E3%82%A2%E3%83%B3%E3%83%88%E3%82%B5%E3%82%A4%E3%83%89-2ea44f?style=flat&logo=shield&logoColor=white)
-![Rules](https://img.shields.io/badge/488-%E3%83%AB%E3%83%BC%E3%83%AB-blue?style=flat)
-![Languages](https://img.shields.io/badge/%E8%A8%80%E8%AA%9E-TR%20%C2%B7%20EN%20%C2%B7%20JA-informational?style=flat)
+[![GTFS-JP](https://img.shields.io/badge/GTFS--JP-対応-c8102e?style=flat)](https://www.gtfs.jp/)
+[![GTFS Spec](https://img.shields.io/badge/GTFS-Spec-007ec6?style=flat)](https://gtfs.org/)
 [![License MIT](https://img.shields.io/badge/%E3%83%A9%E3%82%A4%E3%82%BB%E3%83%B3%E3%82%B9-MIT-yellow?style=flat)](LICENSE)
 
 GTFS Analyzer は、GTFS ファイルをブラウザ上で直接検証・分析するオープンソースのツールです。アップロードされた .zip ファイルはいかなるサーバーにも送信されず、すべての処理は WebAssembly によってユーザーのデバイス上で実行されます。
