@@ -9,6 +9,10 @@ on:
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
+# Least privilege by default; the deploy job widens its own scope below.
+permissions:
+  contents: read
+
 jobs:
   rust-test:
     name: Rust Tests
@@ -50,8 +54,8 @@ jobs:
         run: npm ci
 
       # NOT: tsc burada çalıştırılamaz — src/wasm.ts ../pkg/* (wasm-pack çıktısı, git'te
-      # izlenmez) import eder; bu job wasm build etmez. Tip kontrolü wasm-build job'undaki
-      # `npm run build` adımında yapılır (artık `tsc --noEmit && vite build`, pkg mevcutken).
+      # izlenmez) import eder; bu job wasm build etmez. Tip kontrolü build-wasm job'undaki
+      # `npm run build` adımında yapılır (`tsc --noEmit && vite build`, pkg mevcutken).
       - name: vitest + coverage (eşik altındaysa fail)
         working-directory: ui
         run: npm run test:coverage
@@ -66,8 +70,10 @@ jobs:
             ui/test-results/vitest-junit.xml
           if-no-files-found: ignore
 
-  wasm-build:
-    name: WASM Build + UI Build + E2E
+  # WASM + UI tek kez derlenir; çıktı (ui/dist) artifact olarak e2e ve deploy job'larına
+  # aktarılır. Böylece aynı wasm iki ayrı runner'da tekrar derlenmez.
+  build-wasm:
+    name: WASM + UI Build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -114,9 +120,42 @@ jobs:
         working-directory: ui
         run: npm run wasm:threads
 
-      - name: UI derle
+      - name: UI derle (taze ui/dist)
         working-directory: ui
         run: npm run build
+
+      - name: ui/dist artifact yükle (e2e + deploy bunu tüketir)
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-dist
+          path: ui/dist
+          if-no-files-found: error
+          retention-days: 1
+
+  e2e:
+    name: E2E (Playwright)
+    needs: build-wasm
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Node.js kur
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: ui/package-lock.json
+
+      - name: npm bağımlılıkları yükle
+        working-directory: ui
+        run: npm ci
+
+      # wasm yeniden derlenmez: build-wasm'ın ürettiği ui/dist indirilir; vite preview onu sunar.
+      - name: ui/dist artifact indir
+        uses: actions/download-artifact@v4
+        with:
+          name: ui-dist
+          path: ui/dist
 
       - name: Playwright browser cache
         uses: actions/cache@v4
@@ -227,41 +266,33 @@ jobs:
           path: coverage/
           if-no-files-found: ignore
 
-  artifact-drift:
-    name: Artifact Drift Check
+  # GitHub Pages deploy — yalnız main'e push'ta. build-wasm'ın ürettiği ui/dist artifact'ını
+  # kaynaktan-taze olarak deploy eder (committed dist yok; drift imkânsız).
+  deploy:
+    name: Deploy
+    needs: build-wasm
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    concurrency:
+      group: pages
+      cancel-in-progress: false
     steps:
-      - uses: actions/checkout@v4
+      - name: ui/dist artifact indir
+        uses: actions/download-artifact@v4
         with:
-          fetch-depth: 0
+          name: ui-dist
+          path: ui/dist
 
-      # Heuristik drift uyarısı (BLOKLAMAZ): "kaynak değişti ama committed artefakt güncellenmemiş"
-      # durumunu ::warning:: olarak yüzeye çıkarır, PR'ı kırmaz. Üretim drift'i zaten deploy.yml'in
-      # kaynaktan build etmesiyle garanti; bu kontrol yalnızca committed artefaktları "dürüst" tutar.
-      # NOT: src içindeki #[cfg(test)] testleri ayırt edilemez (false-positive) — bu yüzden bloklamaz.
-      # Escape: commit mesajında [skip-drift] varsa kontrol tamamen atlanır.
-      - name: Artefakt drift uyarısı (non-blocking)
-        run: |
-          base="origin/${{ github.base_ref }}"
-          if git log --format=%B "$base"...HEAD | grep -qF '[skip-drift]'; then
-            echo "Drift kontrolü atlandı ([skip-drift] commit mesajında bulundu)."
-            exit 0
-          fi
-          changed="$(git diff --name-only "$base"...HEAD)"
-          echo "Değişen dosyalar:"; echo "$changed"
-          rust_src="$(echo "$changed" | grep -E '^crates/[^/]+/(src/|Cargo\.toml$)' | grep -v '/tests/' || true)"
-          ui_src="$(echo "$changed" | grep -E '^ui/src/' || true)"
-          pkg="$(echo "$changed" | grep -E '^ui/(pkg|pkg-threads)/' || true)"
-          dist="$(echo "$changed" | grep -E '^ui/dist/' || true)"
-          warn=0
-          if [ -n "$rust_src" ] && [ -z "$pkg" ]; then
-            echo "::warning::Rust kaynağı değişmiş ama ui/pkg* commit'lenmemiş. Gerçek mantık değiştiyse 'npm run wasm:all && npm run build' çalıştırıp artefaktları commit'le. (Yalnız test/yorum ise yok say veya [skip-drift] kullan.)"
-            warn=1
-          fi
-          if { [ -n "$rust_src" ] || [ -n "$ui_src" ]; } && [ -z "$dist" ]; then
-            echo "::warning::Kaynak (crates/ui) değişmiş ama ui/dist commit'lenmemiş. Gerçek değişiklikse 'npm run build' çalıştırıp dist'i commit'le."
-            warn=1
-          fi
-          if [ "$warn" = "0" ]; then echo "Drift yok: kaynak değişiklikleri artefaktlarla tutarlı."; else echo "Drift uyarısı verildi (PR bloklanmadı)."; fi
-          exit 0
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: ui/dist
+
+      - id: deploy
+        uses: actions/deploy-pages@v4
