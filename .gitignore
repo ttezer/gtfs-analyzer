@@ -8,6 +8,10 @@
 # npm
 /ui/node_modules/
 
+# Built UI bundle — CI builds and deploys it from source (see deploy.yml),
+# so the committed copy was dead weight. Build locally only for preview.
+/ui/dist/
+
 # Playwright test artifacts
 /ui/test-results/
 /ui/playwright-report/
