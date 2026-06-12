@@ -1,4 +1,4 @@
-﻿use std::collections::{HashMap, HashSet};
+﻿use std::collections::{BTreeSet, HashMap, HashSet};
 
 use gtfs_core::{EntityType, Notice};
 use gtfs_rules::get_rule;
@@ -2851,37 +2851,102 @@ fn check_xfl(
         }
     }
 
-    // XFL_013: shape_id hem gidiş hem dönüş yönünde kullanılıyor
+    // XFL_013: shape_id hem gidiş hem dönüş yönünde kullanılıyor.
+    // Mesaja her yönün hat (route_id), çalışma takvimi (service_id) ve ilk kalkış saatini ekle;
+    // farklı hat/takvim/sefer varsa hepsini listele (kalkışlar 6 ile sınırlı, dil-nötr "(+N)").
     {
-        let mut shape_dirs: HashMap<&str, (bool, bool)> = HashMap::new(); // (has_dir0, has_dir1)
+        #[derive(Default)]
+        struct DirInfo {
+            routes: BTreeSet<String>,
+            services: BTreeSet<String>,
+            deps: BTreeSet<String>,
+        }
+        // dil-nötr birleştirme: "a, b, c (+N)" — sone dilden bağımsız (en/ja details için güvenli)
+        fn join_capped(set: &BTreeSet<String>, cap: usize) -> String {
+            if set.is_empty() {
+                return "—".to_string();
+            }
+            let n = set.len();
+            let shown = set.iter().take(cap).cloned().collect::<Vec<_>>().join(", ");
+            if n > cap { format!("{shown} (+{})", n - cap) } else { shown }
+        }
+
+        // shape_id → (gidiş, dönüş) detayları
+        let mut shapes: HashMap<&str, (DirInfo, DirInfo)> = HashMap::new();
         for t in &records.trips {
             let shape_id = match t.shape_id.as_deref().filter(|s| !s.is_empty()) {
                 Some(s) => s,
                 None => continue,
             };
-            if let Some(dir) = t.direction_id {
-                let e = shape_dirs.entry(shape_id).or_default();
-                if dir == 0 { e.0 = true; }
-                if dir == 1 { e.1 = true; }
+            let dir = match t.direction_id {
+                Some(0) => 0u32,
+                Some(1) => 1u32,
+                _ => continue,
+            };
+            let entry = shapes.entry(shape_id).or_default();
+            let info = if dir == 0 { &mut entry.0 } else { &mut entry.1 };
+            if !t.route_id.is_empty() {
+                info.routes.insert(t.route_id.clone());
+            }
+            if !t.service_id.is_empty() {
+                info.services.insert(t.service_id.clone());
+            }
+            if let Some(dep) = records
+                .stop_times_index
+                .sorted_stops(&t.trip_id)
+                .and_then(|s| s.first())
+                .and_then(|st| st.departure_time)
+                .map(|(h, m, _)| format!("{h:02}:{m:02}"))
+            {
+                info.deps.insert(dep);
             }
         }
-        for (shape_id, (has0, has1)) in &shape_dirs {
-            if *has0 && *has1 {
-                notices.push(notice(
-                    ctr,
-                    "XFL_013",
-                    EntityType::Shape,
-                    Some(shape_id.to_string()),
-                    Some(shape_id.to_string()),
-                    "trips.txt",
-                    None,
-                    Some("shape_id"),
-                    Some(shape_id.to_string()),
-                    None,
-                    format!("shape_id '{}' hem gidiş (direction_id=0) hem dönüş (direction_id=1) seferlerinde kullanılıyor.", shape_id),
-                    "Gidiş ve dönüş yönleri için ayrı shape_id tanımlayın.",
-                ));
+
+        let mut shape_ids: Vec<&str> = shapes.keys().copied().collect();
+        shape_ids.sort_unstable();
+        for shape_id in shape_ids {
+            let (d0, d1) = &shapes[shape_id];
+            let has0 = !d0.routes.is_empty() || !d0.services.is_empty() || !d0.deps.is_empty();
+            let has1 = !d1.routes.is_empty() || !d1.services.is_empty() || !d1.deps.is_empty();
+            if !(has0 && has1) {
+                continue;
             }
+
+            let fwd_routes = join_capped(&d0.routes, 5);
+            let fwd_services = join_capped(&d0.services, 5);
+            let fwd_deps = join_capped(&d0.deps, 6);
+            let bwd_routes = join_capped(&d1.routes, 5);
+            let bwd_services = join_capped(&d1.services, 5);
+            let bwd_deps = join_capped(&d1.deps, 6);
+
+            let mut details: HashMap<String, String> = HashMap::new();
+            details.insert("fwd_routes".into(), fwd_routes.clone());
+            details.insert("fwd_services".into(), fwd_services.clone());
+            details.insert("fwd_deps".into(), fwd_deps.clone());
+            details.insert("bwd_routes".into(), bwd_routes.clone());
+            details.insert("bwd_services".into(), bwd_services.clone());
+            details.insert("bwd_deps".into(), bwd_deps.clone());
+
+            let mut n = notice(
+                ctr,
+                "XFL_013",
+                EntityType::Shape,
+                Some(shape_id.to_string()),
+                Some(shape_id.to_string()),
+                "trips.txt",
+                None,
+                Some("shape_id"),
+                Some(shape_id.to_string()),
+                None,
+                format!(
+                    "shape_id '{shape_id}' hem gidiş (yön 0) hem dönüş (yön 1) seferlerinde kullanılıyor. \
+                     Gidiş → hat {fwd_routes}, takvim {fwd_services}, kalkış {fwd_deps}; \
+                     Dönüş → hat {bwd_routes}, takvim {bwd_services}, kalkış {bwd_deps}.",
+                ),
+                "Gidiş ve dönüş yönleri için ayrı shape_id tanımlayın.",
+            );
+            n.details = Some(details);
+            notices.push(n);
         }
     }
 
@@ -3223,6 +3288,40 @@ mod tests {
         }];
         let result = check(&recs, &map, 20260515);
         assert!(result.notices.iter().any(|n| n.rule_id == "RTS_002"));
+    }
+
+    #[test]
+    fn xfl_013_lists_routes_and_services_per_direction() {
+        let (mut recs, map) = empty();
+        recs.trips = vec![
+            TripRecord { shape_id: Some("S1".into()), direction_id: Some(0), ..trip("T1", "R1", "WD") },
+            TripRecord { shape_id: Some("S1".into()), direction_id: Some(0), ..trip("T2", "R2", "WD") },
+            TripRecord { shape_id: Some("S1".into()), direction_id: Some(1), ..trip("T3", "R1", "SAT") },
+        ];
+        let result = check(&recs, &map, 20260515);
+        let xfl: Vec<_> = result.notices.iter().filter(|n| n.rule_id == "XFL_013").collect();
+        assert_eq!(xfl.len(), 1, "tek XFL_013 bekleniyor: {:?}",
+            xfl.iter().map(|n| &n.message).collect::<Vec<_>>());
+        let m = &xfl[0].message;
+        assert!(m.contains("R1") && m.contains("R2"), "gidiş iki hattı listelemeli: {m}");
+        assert!(m.contains("WD") && m.contains("SAT"), "takvimler listelenmeli: {m}");
+        assert!(m.contains("Gidiş") && m.contains("Dönüş"), "yön etiketleri olmalı: {m}");
+        let d = xfl[0].details.as_ref().expect("details olmalı");
+        assert_eq!(d.get("fwd_routes").map(String::as_str), Some("R1, R2"));
+        assert_eq!(d.get("bwd_routes").map(String::as_str), Some("R1"));
+        assert_eq!(d.get("bwd_services").map(String::as_str), Some("SAT"));
+    }
+
+    #[test]
+    fn xfl_013_silent_for_single_direction() {
+        let (mut recs, map) = empty();
+        recs.trips = vec![
+            TripRecord { shape_id: Some("S1".into()), direction_id: Some(0), ..trip("T1", "R1", "WD") },
+            TripRecord { shape_id: Some("S1".into()), direction_id: Some(0), ..trip("T2", "R1", "WD") },
+        ];
+        let result = check(&recs, &map, 20260515);
+        assert!(!result.notices.iter().any(|n| n.rule_id == "XFL_013"),
+            "tek yön → XFL_013 üretilmemeli");
     }
 
     // �"?�"? TRP_002 �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?

@@ -826,7 +826,7 @@ const en: LocaleShape = {
     'XFL_010': "Frequency: trip_id '{entity_id}' is undefined.",
     'XFL_011': "Calendar dates for '{entity_id}' are outside the feed_info validity range.",
     'XFL_012': "Route '{entity_id}' is never used.",
-    'XFL_013': "Shape '{entity_id}' is used in multiple trip directions.",
+    'XFL_013': "Shape '{entity_id}' is used in both directions. Outbound → routes {fwd_routes}, services {fwd_services}, departures {fwd_deps}; inbound → routes {bwd_routes}, services {bwd_services}, departures {bwd_deps}.",
     'XFL_014': "Translation: source record '{entity_id}' not found.",
     'XFL_015': "Attribution: reference '{entity_id}' is invalid.",
     'XFL_016': 'Translation references feed_info but feed_info.txt is missing.',

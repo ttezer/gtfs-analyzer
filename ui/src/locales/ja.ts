@@ -807,7 +807,7 @@ const ja: LocaleShape = {
     'XFL_010': "頻度：trip_id'{entity_id}'が定義されていません。",
     'XFL_011': "'{entity_id}'のカレンダー日付がfeed_infoの有効範囲外にあります。",
     'XFL_012': "路線'{entity_id}'は一度も使用されていません。",
-    'XFL_013': "シェープ'{entity_id}'が複数の便方向で使用されています。",
+    'XFL_013': "シェープ'{entity_id}'が往復両方向で使用されています。往路 → 路線 {fwd_routes}、運行日 {fwd_services}、発車 {fwd_deps}；復路 → 路線 {bwd_routes}、運行日 {bwd_services}、発車 {bwd_deps}。",
     'XFL_014': "翻訳：ソースレコード'{entity_id}'が見つかりません。",
     'XFL_015': "帰属：参照'{entity_id}'が無効です。",
     'XFL_016': '翻訳がfeed_infoを参照していますが、feed_info.txtがありません。',
