@@ -732,3 +732,66 @@ fn complete_headers_produce_no_arc_025() {
     let arc025 = k1.notices.iter().filter(|n| n.rule_id == "ARC_025").count();
     assert_eq!(arc025, 0, "tam basliklarda ARC_025 cikmamali, bulunan: {arc025}");
 }
+
+// ── XFL_026/027: route-bazlı contactless EMV uygulanabilirliği ─────────────────
+// Ortak: 1 route (R1, 2 durak), contactless fare_media(type=3) + fare_product.
+// Senaryoya göre routes.txt (cemv/network) + fare_leg_rules + networks değişir.
+fn cemv_base() -> Vec<(&'static str, &'static [u8])> {
+    vec![
+        ("agency.txt", b"agency_id,agency_name,agency_url,agency_timezone\nA1,T,http://t.co,UTC\n" as &[u8]),
+        ("stops.txt", b"stop_id,stop_name,stop_lat,stop_lon\nS1,S1,40.0,-73.0\nS2,S2,40.1,-73.1\n"),
+        ("trips.txt", b"route_id,service_id,trip_id\nR1,SVC,T1\n"),
+        ("stop_times.txt", b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\nT1,08:10:00,08:10:00,S2,2\n"),
+        ("calendar.txt", b"service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC,1,1,1,1,1,0,0,20250101,20261231\n"),
+        ("fare_media.txt", b"fare_media_id,fare_media_name,fare_media_type\nemv,Contactless,3\n"),
+        ("fare_products.txt", b"fare_product_id,fare_product_name,amount,currency,fare_media_id\np_emv,EMV,2.00,USD,emv\n"),
+    ]
+}
+
+#[test]
+fn xfl027_route_cemv2_with_global_contactless() {
+    // R1 cemv_support=2 (desteklenmiyor) ama leg rule GLOBAL (network/area yok) → her route kapsanır → celiski.
+    let mut files = cemv_base();
+    files.push(("routes.txt", b"route_id,agency_id,route_short_name,route_type,cemv_support\nR1,A1,1,3,2\n"));
+    files.push(("fare_leg_rules.txt", b"leg_group_id,fare_product_id\nlg1,p_emv\n"));
+    match run(&files) {
+        ValidateResult::Ok(vr) => assert!(
+            vr.notices.iter().any(|n| n.rule_id == "XFL_027"),
+            "XFL_027 bekleniyor (cemv=2 + global contactless). Cikan: {:?}",
+            vr.notices.iter().map(|n| n.rule_id.as_str()).collect::<Vec<_>>()),
+        other => panic!("Ok bekleniyordu: {other:?}"),
+    }
+}
+
+#[test]
+fn xfl026_route_cemv1_network_mismatch() {
+    // R1 cemv=1, network=N1; contactless leg rule network=N2 → R1 kapsanmiyor + cozulebilir → XFL_026.
+    let mut files = cemv_base();
+    files.push(("routes.txt", b"route_id,agency_id,route_short_name,route_type,network_id,cemv_support\nR1,A1,1,3,N1,1\n"));
+    files.push(("networks.txt", b"network_id,network_name\nN1,N1\nN2,N2\n"));
+    files.push(("fare_leg_rules.txt", b"leg_group_id,fare_product_id,network_id\nlg1,p_emv,N2\n"));
+    match run(&files) {
+        ValidateResult::Ok(vr) => assert!(
+            vr.notices.iter().any(|n| n.rule_id == "XFL_026"),
+            "XFL_026 bekleniyor (cemv=1 + network eslesmiyor). Cikan: {:?}",
+            vr.notices.iter().map(|n| n.rule_id.as_str()).collect::<Vec<_>>()),
+        other => panic!("Ok bekleniyordu: {other:?}"),
+    }
+}
+
+#[test]
+fn xfl026_silent_when_route_coverage_unresolvable() {
+    // R1 cemv=1, network_id BOS; contactless leg rule network-based → route kapsami cozulemez → FP guard SUSAR.
+    let mut files = cemv_base();
+    files.push(("routes.txt", b"route_id,agency_id,route_short_name,route_type,cemv_support\nR1,A1,1,3,1\n"));
+    files.push(("networks.txt", b"network_id,network_name\nN1,N1\n"));
+    files.push(("fare_leg_rules.txt", b"leg_group_id,fare_product_id,network_id\nlg1,p_emv,N1\n"));
+    match run(&files) {
+        ValidateResult::Ok(vr) => {
+            let ids: Vec<&str> = vr.notices.iter().map(|n| n.rule_id.as_str()).collect();
+            assert!(!ids.contains(&"XFL_026") && !ids.contains(&"XFL_027"),
+                "FP guard susmali (network/area cozulemez). Cikan: {ids:?}");
+        }
+        other => panic!("Ok bekleniyordu: {other:?}"),
+    }
+}

@@ -153,13 +153,13 @@ pub fn validate_agency(file: &RawFile) -> (Vec<AgencyRecord>, Vec<gtfs_core::Not
         }
 
         // AGN_012: agency_cemv_support must be 0, 1 or 2 (GTFS: 0/empty=bilinmiyor, 1=destekleniyor, 2=desteklenmiyor)
-        let agency_cemv_support = match parse_u32(&row_map, "agency_cemv_support") {
+        let agency_cemv_support = match parse_u32(&row_map, "cemv_support") {
             Ok(v) => {
                 if let Some(val) = v {
                     if val > 2 {
                         notices.push(make_k2_notice(
                             &mut counter, "AGN_012", EntityType::Agency, entity_id.clone(), Some(&row_map),
-                            &file.name, Some(line), Some("agency_cemv_support"), Some(val.to_string()),
+                            &file.name, Some(line), Some("cemv_support"), Some(val.to_string()),
                             Some("0, 1 veya 2".to_string()),
                             "agency_cemv_support 0, 1 veya 2 olmalıdır.".to_string(),
                             "agency_cemv_support alanını 0 (bilgi yok), 1 (destekleniyor) veya 2 (desteklenmiyor) olarak ayarlayın.",

@@ -3285,7 +3285,7 @@ fn check_xfl(
                                 Some(rec.route_id.clone()),
                                 "routes.txt",
                                 Some(rec.line),
-                                Some("route_cemv_support"),
+                                Some("cemv_support"),
                                 Some(format!("route={rv}, agency={av}")),
                                 None,
                                 format!(

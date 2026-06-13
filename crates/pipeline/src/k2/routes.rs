@@ -259,13 +259,13 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
             .map(str::to_string);
 
         // RTS_024: route_cemv_support 0, 1 veya 2 olmalı (AGN_012 route ikizi)
-        let route_cemv_support = match parse_u32(&row_map, "route_cemv_support") {
+        let route_cemv_support = match parse_u32(&row_map, "cemv_support") {
             Ok(v) => {
                 if let Some(val) = v {
                     if val > 2 {
                         notices.push(make_k2_notice(
                             &mut counter, "RTS_024", EntityType::Route, entity_id.clone(), Some(&row_map),
-                            &file.name, Some(line), Some("route_cemv_support"), Some(val.to_string()),
+                            &file.name, Some(line), Some("cemv_support"), Some(val.to_string()),
                             Some("0, 1 veya 2".to_string()),
                             "route_cemv_support 0, 1 veya 2 olmalıdır.".to_string(),
                             "route_cemv_support alanını 0 (bilgi yok), 1 (destekleniyor) veya 2 (desteklenmiyor) olarak ayarlayın.",
@@ -495,7 +495,7 @@ mod tests {
     #[test]
     fn invalid_route_cemv_support_produces_rts_024() {
         let file = make_file(
-            vec!["route_id", "route_short_name", "route_type", "route_cemv_support"],
+            vec!["route_id", "route_short_name", "route_type", "cemv_support"],
             vec![vec!["R1", "Metro", "1", "3"]],
         );
         let (_, notices) = validate_routes(&file);
@@ -505,7 +505,7 @@ mod tests {
     #[test]
     fn valid_route_cemv_support_produces_no_rts_024() {
         let file = make_file(
-            vec!["route_id", "route_short_name", "route_type", "route_cemv_support"],
+            vec!["route_id", "route_short_name", "route_type", "cemv_support"],
             vec![vec!["R1", "Metro", "1", "2"]],
         );
         let (_, notices) = validate_routes(&file);

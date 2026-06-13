@@ -321,7 +321,7 @@ fn known_columns(filename: &str) -> &'static [&'static str] {
         "agency.txt" => &[
             "agency_id","agency_name","agency_url","agency_timezone",
             "agency_lang","agency_phone","agency_fare_url","agency_email",
-            "agency_cemv_support",
+            "cemv_support",
         ],
         "stops.txt" => &[
             "stop_id","stop_code","stop_name","stop_desc","stop_lat","stop_lon",
@@ -331,7 +331,7 @@ fn known_columns(filename: &str) -> &'static [&'static str] {
         "routes.txt" => &[
             "route_id","agency_id","route_short_name","route_long_name","route_desc",
             "route_type","route_url","route_color","route_text_color","route_sort_order",
-            "continuous_pickup","continuous_drop_off","network_id","route_cemv_support",
+            "continuous_pickup","continuous_drop_off","network_id","cemv_support",
             // GTFS-JP
             "jp_parent_route_id","jp_office_id",
         ],
