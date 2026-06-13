@@ -35,7 +35,7 @@ const KNOWN_FILES: &[&str] = &[
     "rider_categories.txt", "fare_media.txt", "fare_products.txt",
     "fare_leg_rules.txt", "fare_transfer_rules.txt", "timeframes.txt",
     // Flex
-    "booking_rules.txt",
+    "booking_rules.txt", "location_groups.txt", "location_group_stops.txt",
     // GTFS-JP uzantıları (Japonya standardı)
     "agency_jp.txt", "routes_jp.txt", "office_jp.txt",
 ];
@@ -306,6 +306,8 @@ fn required_fields(filename: &str) -> &'static [&'static str] {
         "networks.txt"            => &["network_id"],
         "timeframes.txt"          => &["timeframe_group_id", "service_id"],
         "booking_rules.txt"       => &["booking_rule_id", "booking_type"],
+        "location_groups.txt"        => &["location_group_id"],
+        "location_group_stops.txt"   => &["location_group_id", "stop_id"],
         "attributions.txt"    => &[],
         _                     => &[],
     }
