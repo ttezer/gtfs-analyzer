@@ -217,7 +217,7 @@ Bulunan sorunlar öncelik puanına göre sıralanmış bir düzeltme kuyruğu ol
 | **+Yayın** | Bu kural düzeltilirse Yayın Skoru kaç puan artar |
 | **+Kalite** | Bu kural düzeltilirse Kalite Skoru kaç puan artar |
 | **Bağımlı** | Bu kural giderilince kaç başka kural otomatik kapanır |
-| **Çaba** | Düzeltme iş yükü: 1 = tek alan değişikliği, 5 = veri modelinde kapsamlı revizyon |
+| **Çaba** | Düzeltme iş yükü: 1 = tek alan değişikliği, 2 = sınırlı çapraz-dosya, 3 = yapısal / veri modeli revizyonu |
 
 Tüm satırların +Yayın toplamı `100 − mevcut Yayın Skoru`na, +Kalite toplamı `100 − mevcut Kalite Skoru`na eşittir. Coğrafi sorunlarda harita ikonu görünür; tıklandığında sorunlu noktalar ve ilgili şekil/durak verileri interaktif haritada gösterilir.
 

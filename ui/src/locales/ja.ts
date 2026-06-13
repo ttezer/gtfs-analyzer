@@ -187,7 +187,7 @@ const ja: LocaleShape = {
     'fix.th.dependent'     : '依存',
     'fix.th.dependent.tip' : 'このルールを修正すると自動的に解決する他のルール数。',
     'fix.th.effort'        : '労力',
-    'fix.th.effort.tip'    : '修正の難易度: 1=簡単（単一フィールド）、5=困難（データモデルの見直し）。',
+    'fix.th.effort.tip'    : '修正の難易度: 1=簡単（単一フィールド）、2=中（複数ファイル）、3=困難（構造的/データモデル）。',
     'fix.r2_title'          : '全検出結果 (R2)',
     'fix.r2_empty'          : '検出結果なし。',
     'fix.filter.severity'   : '重要度フィルター:',

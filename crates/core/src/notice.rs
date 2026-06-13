@@ -8,7 +8,7 @@ use crate::{EntityType, RuleClass, Severity};
 /// - `blocks`: yalnızca canonical rule ID'leri — report-view ID'leri (GEO_008/010/011) içermez
 /// - `scope_key`: kural tanımında hangi linking entity kullanılacağı belirlenir;
 ///   runtime bu değeri notice üretiminde ilgili entity ID'sinden atar
-/// - `base_effort`: 1 / 2 / 3 / 5 — kural bazında sabit
+/// - `base_effort`: 1 / 2 / 3 — kural bazında sabit (1=tek alan/satır, 2=sınırlı çapraz-dosya, 3=yapısal/topoloji)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Notice {
     /// Oluşturulma sırasında atanan benzersiz kimlik — ReportItem referansı için.
@@ -38,7 +38,7 @@ pub struct Notice {
     pub remediation: String,
     /// Bu notice düzelirse kapanacak downstream canonical rule ID'leri.
     pub blocks: Vec<String>,
-    /// 1=kolay, 5=zor. fix_effort = base_effort × instance_multiplier.
+    /// 1=kolay, 3=zor. fix_effort = base_effort × instance_multiplier.
     pub base_effort: u8,
     /// Bulgunun ait olduğu çalışma takvimi (service_id). Sefer-bazlı bulgularda
     /// doldurulur (R2'de "Çalışma Takvimi" sütunu). Feed/dosya kurallarında None.

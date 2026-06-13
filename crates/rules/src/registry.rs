@@ -447,7 +447,7 @@ pub static RULES: &[RuleMeta] = &[
         "İlk duraklama noktası yok"),
     r!("STM_016", Kritik, Spec, 2, &[], Some("trip_id"), VS_K, Row,
         "Son duraklama noktası yok"),
-    r!("STM_017", Orta,   Interop, 5, &[], Some("trip_id"), VI, Row,
+    r!("STM_017", Orta,   Interop, 3, &[], Some("trip_id"), VI, Row,
         "Sefer saatlerinde güzergah mesafesi eksik"),
     r!("STM_018", Orta,   Spec, 1, &[], Some("trip_id"), VS, Row,
         "continuous_pickup geçersiz (stop_times)"),
@@ -635,13 +635,13 @@ pub static RULES: &[RuleMeta] = &[
         "Güzergah şeklinde büyük boşluk"),
     r!("SHP_012", Yuksek, Analytics, 3, &[], Some("shape_id"), VA, Entity,
         "Güzergah şekli sefer duraklarından çok uzak"),
-    r!("SHP_014", Yuksek, Quality, 5, &[], Some("shape_id"), VI_K_GEO, Entity,
+    r!("SHP_014", Yuksek, Quality, 3, &[], Some("shape_id"), VI_K_GEO, Entity,
         "İlk veya son durak güzergah ucundan uzakta"),
     r!("SHP_015", Orta,   Quality, 2, &[], Some("shape_id"), VS, Entity,
         "Güzergah şekli istatistiksel olarak çok az nokta"),
     r!("SHP_016", Yuksek, Interop, 2, &[], Some("shape_id"), VI_K_GEO, Entity,
         "Güzergah şekli yön bilgisiyle uyumsuz"),
-    r!("SHP_017", Yuksek, Quality, 5, &[], Some("shape_id"), VI_K, Entity,
+    r!("SHP_017", Yuksek, Quality, 3, &[], Some("shape_id"), VI_K, Entity,
         "Durak sırası güzergah şekliyle çelişiyor"),
     r!("SHP_018", Dusuk,  Quality, 1, &[], Some("shape_id"), VS, Entity,
         "Güzergah şekli sefer tarafından referanslanmıyor"),
@@ -920,7 +920,7 @@ pub static RULES: &[RuleMeta] = &[
         &["PTH_013"],
         Some("stop_id"), VI_K_ACC, Entity,
         "İstasyona erişilebilir yol yok"),
-    r!("PTH_013", Bilgi,  Analytics, 5, &[], Some("stop_id"), VA_ACC, Entity,
+    r!("PTH_013", Bilgi,  Analytics, 3, &[], Some("stop_id"), VA_ACC, Entity,
         "Erişilebilir yol analizi"),
     r!("PTH_014", Kritik, Spec, 1, &[], Some("pathway_id"), VS_K, Entity,
         "Geçit istasyon sınırını aşıyor"),
@@ -1181,7 +1181,7 @@ pub static RULES: &[RuleMeta] = &[
         "Güzergah şeklinde büyük atlama"),
     r!("GEO_007", Yuksek, Analytics, 3, &[], Some("shape_id"), VA_GEO, Entity,
         "Güzergah şeklinde kritik atlama (3× eşik)"),
-    r!("GEO_009", Yuksek, Quality,   5, &[], Some("stop_id"), VI_K_GEO, Entity,
+    r!("GEO_009", Yuksek, Quality,   3, &[], Some("stop_id"), VI_K_GEO, Entity,
         "Durak shape güzergahından çok uzakta"),
     r!("GEO_012", Orta,   Analytics, 2, &[], Some("stop_id"), VA_GEO, Entity,
         "Duraksallar kümelenmesi (çok yakın duraklar)"),
@@ -1245,7 +1245,7 @@ pub static RULES: &[RuleMeta] = &[
         "Durakların %80'inden fazlası aynı stop_name değerini paylaşıyor — yer tutucu/test verisi"),
 
     // ── VAT: Varlık Analitik Tespiti (tümü ANALYTICS) ──────────────────────────
-    r!("VAT_001", Orta,   Analytics, 5, &[], Some("route_id"), VA, Entity,
+    r!("VAT_001", Orta,   Analytics, 3, &[], Some("route_id"), VA, Entity,
         "Hat güzergah benzerliği (muhtemel kopya hat)"),
     r!("VAT_002", Bilgi,  Analytics, 3, &[], Some("stop_id"), VA, Entity,
         "Aktarma merkezi tanımsız — çok sayıda hat geçiyor ama aktarma yok"),
@@ -1253,7 +1253,7 @@ pub static RULES: &[RuleMeta] = &[
         "Sefer süresi istatistiksel aykırı değer"),
     r!("VAT_004", Bilgi,  Analytics, 3, &[], Some("route_id"), VA, Entity,
         "Hat hizmet asimetrisi — hat yalnızca hafta içi çalışıyor"),
-    r!("VAT_005", Orta,   Analytics, 5, &[], None, VA, Feed,
+    r!("VAT_005", Orta,   Analytics, 3, &[], None, VA, Feed,
         "İzole durak kümesi — ağ grafiğinde ana bileşenden kopuk duraklar"),
     r!("VAT_006", Bilgi,  Analytics, 2, &[], Some("route_id"), VA, Entity,
         "Hizmet yoğunluğu dengesizliği — tek hat feed sefer sayısının büyük bölümünü oluşturuyor"),
@@ -1345,7 +1345,7 @@ mod tests {
     fn base_effort_valid() {
         for rule in RULES {
             assert!(
-                matches!(rule.base_effort, 1 | 2 | 3 | 5),
+                matches!(rule.base_effort, 1 | 2 | 3),
                 "{}: geçersiz base_effort = {}", rule.id, rule.base_effort
             );
         }

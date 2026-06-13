@@ -198,7 +198,7 @@ const en: LocaleShape = {
     'fix.th.dependent'     : 'Dependent',
     'fix.th.dependent.tip' : 'How many other active rules close automatically if this one is fixed.',
     'fix.th.effort'        : 'Effort',
-    'fix.th.effort.tip'    : 'Fix effort: 1=easy (single field), 5=hard (data model revision).',
+    'fix.th.effort.tip'    : 'Fix effort: 1=easy (single field), 2=medium (cross-file), 3=hard (structural/data model).',
     // Fix R2
     'fix.r2_title'          : 'All Findings (R2)',
     'fix.r2_empty'          : 'No findings.',

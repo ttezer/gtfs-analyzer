@@ -217,7 +217,7 @@ Issues are presented as a prioritized fix queue, sorted by priority score. Each 
 | **+Pub** | Publish Score gain if this rule is fixed |
 | **+Quality** | Quality Score gain if this rule is fixed |
 | **Dependent** | How many other active rules close automatically if this one is fixed |
-| **Effort** | Fix effort: 1 = single field change, 5 = major data model revision |
+| **Effort** | Fix effort: 1 = single field change, 2 = limited cross-file, 3 = structural / data model revision |
 
 The sum of all +Pub values equals `100 − current Publish Score`; the sum of all +Quality values equals `100 − current Quality Score`. Geographic issues show a map icon; clicking it displays the problem location and related shape/stop data on an interactive map.
 

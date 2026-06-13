@@ -196,7 +196,7 @@ const tr = {
     'fix.th.dependent'     : 'Bağımlı',
     'fix.th.dependent.tip' : "Bu kural düzeltilince kaç başka kural daha kendiliğinden kapanır.",
     'fix.th.effort'        : 'Çaba',
-    'fix.th.effort.tip'    : 'Düzeltme iş yükü: 1=kolay (tek alan), 5=zor (veri modeli revizyonu).',
+    'fix.th.effort.tip'    : 'Düzeltme iş yükü: 1=kolay (tek alan), 2=orta (çapraz-dosya), 3=zor (yapısal/veri modeli).',
     // Fix R2
     'fix.r2_title'          : 'Tüm Bulgular (R2)',
     'fix.r2_empty'          : 'Bulgu yok.',
