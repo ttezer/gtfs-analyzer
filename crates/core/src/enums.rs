@@ -159,7 +159,12 @@ pub enum R9Label {
     /// Analytics sınıfı kural
     #[serde(rename = "analytics")]
     Analytics,
-    /// fix_effort ≥ 4.0 — kapsamlı veri revizyonu gerektirir
+    /// fix_effort ≥ 4.0 — kapsamlı veri revizyonu gerektirir.
+    /// base_effort 1-2-3 skalasına normalize edildikten sonra eşik bilinçli olarak 4.0'da
+    /// tutuldu: fix_effort = base_effort × instance_multiplier (maks 2×), yani üst sınır 6.0.
+    /// 4.0 eşiği → base_effort=3 + yaygın (≥1.5×) ya da base_effort=2 + çok yaygın (2×).
+    /// Eşik 3.0'a çekilseydi tek başına yapısal kurallar (base_effort=3) Hard sayılır,
+    /// etiket şişerdi.
     #[serde(rename = "hard")]
     Hard,
     /// affected_instance_count == 1 — tek satırda hata, kolay bulunur
