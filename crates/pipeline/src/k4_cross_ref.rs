@@ -1924,6 +1924,32 @@ fn check_fares_v2(
         }
     }
 
+    // XFL_022-023: location_group_stops cross-ref (GTFS-Flex)
+    for rec in &records.location_group_stops {
+        if !rec.location_group_id.is_empty()
+            && !map.location_group_ids.contains(rec.location_group_id.as_str())
+        {
+            notices.push(notice(
+                ctr, "XFL_022", EntityType::Row,
+                Some(rec.location_group_id.clone()), Some(rec.location_group_id.clone()),
+                "location_group_stops.txt", Some(rec.line), Some("location_group_id"),
+                Some(rec.location_group_id.clone()), None,
+                format!("'{}' konum grubu location_groups.txt'te tanimli degil.", rec.location_group_id),
+                "Gecerli bir location_group_id kullanin veya grubu location_groups.txt'te tanimlayin.",
+            ));
+        }
+        if !rec.stop_id.is_empty() && !map.stops.contains_key(rec.stop_id.as_str()) {
+            notices.push(notice(
+                ctr, "XFL_023", EntityType::Row,
+                Some(rec.stop_id.clone()), Some(rec.stop_id.clone()),
+                "location_group_stops.txt", Some(rec.line), Some("stop_id"),
+                Some(rec.stop_id.clone()), None,
+                format!("'{}' durak stops.txt'te tanimli degil.", rec.stop_id),
+                "Gecerli bir stop_id kullanin.",
+            ));
+        }
+    }
+
     // TFR_002: timeframes.service_id cross-ref
     for rec in &records.timeframes {
         if !rec.service_id.is_empty() && !map.services.contains(rec.service_id.as_str()) {

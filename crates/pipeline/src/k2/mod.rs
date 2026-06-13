@@ -19,6 +19,7 @@ pub mod networks;
 pub mod office_jp;
 pub mod pathways;
 pub mod rider_categories;
+pub mod location_groups;
 pub mod routes;
 pub mod shapes;
 pub mod stop_areas;
@@ -48,6 +49,7 @@ use fare_transfer_rules::{validate_fare_transfer_rules, FareTransferRuleRecord};
 use feed_info::{validate_feed_info, FeedInfoRecord};
 use frequencies::{validate_frequencies, FrequencyRecord};
 use levels::{validate_levels, LevelRecord};
+use location_groups::{parse_location_groups, LocationGroupRecord, parse_location_group_stops, LocationGroupStopRecord};
 use networks::{parse_networks, NetworkRecord};
 use office_jp::{parse_office_jp, OfficeJpRecord};
 use pathways::{validate_pathways, PathwayRecord};
@@ -82,6 +84,8 @@ pub struct EntityRecords {
     pub fare_transfer_rules: Vec<FareTransferRuleRecord>,
     pub frequencies: Vec<FrequencyRecord>,
     pub levels: Vec<LevelRecord>,
+    pub location_groups: Vec<LocationGroupRecord>,
+    pub location_group_stops: Vec<LocationGroupStopRecord>,
     pub networks: Vec<NetworkRecord>,
     pub office_jp: Vec<OfficeJpRecord>,
     pub pathways: Vec<PathwayRecord>,
@@ -255,6 +259,16 @@ pub fn validate(files: &RawFiles) -> K2Result {
     if let Some(file) = files.get("stop_areas.txt") {
         let _t = Timer::start("K2::stop_areas");
         records.stop_areas = parse_stop_areas(file);
+    }
+
+    if let Some(file) = files.get("location_groups.txt") {
+        let _t = Timer::start("K2::location_groups");
+        records.location_groups = parse_location_groups(file);
+    }
+
+    if let Some(file) = files.get("location_group_stops.txt") {
+        let _t = Timer::start("K2::location_group_stops");
+        records.location_group_stops = parse_location_group_stops(file);
     }
 
     if let Some(file) = files.get("networks.txt") {

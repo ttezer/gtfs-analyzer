@@ -1103,6 +1103,10 @@ pub static RULES: &[RuleMeta] = &[
         "Transfers'de geçersiz (from_trip_id/to_trip_id, route_id) çifti"),
     r!("XFL_021", Yuksek, Spec, 2, &[], None, VS, Row,
         "Transfers'de geçersiz (from_trip_id/to_trip_id, stop_id) çifti"),
+    r!("XFL_022", Kritik, Spec, 1, &[], Some("location_group_id"), VS_K, Row,
+        "location_group_id bulunamadı (location_group_stops)"),
+    r!("XFL_023", Kritik, Spec, 1, &[], Some("stop_id"), VS_K, Row,
+        "stop_id bulunamadı (location_group_stops)"),
 
     // ── OPR: Operasyonel Tutarlılık (tümü ANALYTICS) ───────────────────────────
     r!("OPR_001", Orta,   Analytics, 3, &[], Some("route_id"), VA, Entity,

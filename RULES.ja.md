@@ -2,7 +2,7 @@
 
 🇹🇷 [Türkçe](RULES.md) · 🇬🇧 [English](RULES.en.md) · 🇯🇵 **日本語**
 
-489ルール、37グループ。各ルールは一意のID、重要度、クラスで定義されます。
+491ルール、37グループ。各ルールは一意のID、重要度、クラスで定義されます。
 重要度: **致命的**（公開ブロッカー）· **高** · **中** · **低** · **情報**
 クラス: **仕様**（GTFS妥当性）· **相互運用**（GTFSインターオペラビリティ）· **品質**（GTFS品質）· **分析**（GTFSアナリティクス）
 
@@ -559,6 +559,8 @@
 | XFL_019 | ネットワーク割り当てが2か所に定義されている | 中 | 仕様 |
 | XFL_020 | （from_trip_id/to_trip_id, route_id）の組み合わせが無効 | 高 | 仕様 |
 | XFL_021 | （from_trip_id/to_trip_id, stop_id）の組み合わせが無効 | 高 | 仕様 |
+| XFL_022 | location_group_idが見つからない（location_group_stops） | 致命的 | 仕様 |
+| XFL_023 | stop_idが見つからない（location_group_stops） | 致命的 | 仕様 |
 
 ## OPR — 運行整合性（Operational Consistency）
 

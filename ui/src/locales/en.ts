@@ -736,6 +736,8 @@ const en: LocaleShape = {
     // SAR
     'SAR_001': "Stop area: area_id '{entity_id}' not found.",
     'SAR_002': "Stop area: stop_id '{entity_id}' not found.",
+    'XFL_022': "location_group_stops: location group '{entity_id}' is not defined in location_groups.txt.",
+    'XFL_023': "location_group_stops: stop_id '{entity_id}' not found.",
     // NET
     'NET_001': "Duplicate network_id: '{entity_id}'.",
     // TFR
@@ -1333,6 +1335,8 @@ const en: LocaleShape = {
     'NET_001': 'Assign a unique network_id to each network record.',
     'SAR_001': 'Use a valid area_id.',
     'SAR_002': 'Use a valid stop_id.',
+    'XFL_022': 'Use a valid location_group_id or define the group in location_groups.txt.',
+    'XFL_023': 'Use a valid stop_id.',
     // FRL
     'FRL_001': 'Use a valid fare_id.',
     'FRL_002': 'Use a valid route_id.',
@@ -1817,6 +1821,8 @@ const en: LocaleShape = {
     // SAR
     'SAR_001': 'area_id not found',
     'SAR_002': 'stop_id not found',
+    'XFL_022': 'location_group_id not found',
+    'XFL_023': 'stop_id not found (location_group_stops)',
     // NET
     'NET_001': 'Duplicate network_id',
     // TFR

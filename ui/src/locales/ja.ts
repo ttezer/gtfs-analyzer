@@ -717,6 +717,8 @@ const ja: LocaleShape = {
     // SAR
     'SAR_001': "停留所エリア：area_id'{entity_id}'が見つかりません。",
     'SAR_002': "停留所エリア：stop_id'{entity_id}'が見つかりません。",
+    'XFL_022': "location_group_stops：ロケーショングループ'{entity_id}'がlocation_groups.txtに定義されていません。",
+    'XFL_023': "location_group_stops：stop_id'{entity_id}'が見つかりません。",
     // NET
     'NET_001': "network_idが重複しています：'{entity_id}'。",
     // TFR
@@ -1129,6 +1131,8 @@ const ja: LocaleShape = {
     'ARS_001': '各エリアレコードに一意のarea_idを割り当ててください。',
     'SAR_001': '有効なarea_idを使用してください。',
     'SAR_002': '有効なstop_idを使用してください。',
+    'XFL_022': '有効なlocation_group_idを使用するか、location_groups.txtでグループを定義してください。',
+    'XFL_023': '有効なstop_idを使用してください。',
     // OPR
     'OPR_001': 'ピーク・オフピーク時の便数を増やすか、大きなサービスギャップを埋めてください。',
     'OPR_003': '便のスケジュールを調整してください。非常に頻繁な便は混雑を引き起こす可能性があります。',
@@ -1771,6 +1775,8 @@ const ja: LocaleShape = {
     // SAR
     'SAR_001': 'area_idが存在しない',
     'SAR_002': 'stop_idが存在しない',
+    'XFL_022': 'location_group_idが存在しない',
+    'XFL_023': 'stop_idが存在しない（location_group_stops）',
     // NET
     'NET_001': 'network_idが重複',
     // TFR

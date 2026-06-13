@@ -2,7 +2,7 @@
 
 🇹🇷 **Türkçe** · 🇬🇧 [English](RULES.en.md) · 🇯🇵 [日本語](RULES.ja.md)
 
-489 kural, 37 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
+491 kural, 37 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
 Önem seviyeleri: **KRİTİK** (yayın engelleyici) · **YÜKSEK** · **ORTA** · **DÜŞÜK** · **BİLGİ**
 Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · **Quality** (GTFS Kalitesi) · **Analytics** (GTFS Analitiği)
 
@@ -559,6 +559,8 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | XFL_019 | Ağ tanımı iki ayrı dosyada (routes.network_id + route_networks.txt) | ORTA | Spec |
 | XFL_020 | Transfers'de geçersiz (from_trip_id/to_trip_id, route_id) çifti | YÜKSEK | Spec |
 | XFL_021 | Transfers'de geçersiz (from_trip_id/to_trip_id, stop_id) çifti | YÜKSEK | Spec |
+| XFL_022 | location_group_id bulunamadı (location_group_stops) | KRİTİK | Spec |
+| XFL_023 | stop_id bulunamadı (location_group_stops) | KRİTİK | Spec |
 
 ## OPR — Operasyonel Tutarlılık
 

@@ -88,6 +88,8 @@ pub struct EntityMap {
     pub leg_group_ids: HashSet<String>,
     /// timeframes'ten toplanan timeframe_group_id kümesi
     pub timeframe_group_ids: HashSet<String>,
+    /// location_groups'tan toplanan location_group_id kümesi (GTFS-Flex)
+    pub location_group_ids: HashSet<String>,
 }
 
 /// K3 çıktısı.
@@ -115,8 +117,18 @@ pub fn build(records: &EntityRecords) -> K3Result {
     build_levels(records, &mut map, &mut notices, &mut ctr);
     build_fare_attrs(records, &mut map, &mut notices, &mut ctr);
     build_fares_v2(records, &mut map, &mut notices, &mut ctr);
+    build_location_groups(records, &mut map);
 
     K3Result { entity_map: map, notices }
+}
+
+/// location_groups.txt'ten geçerli location_group_id kümesini toplar (XFL_022/024 için).
+fn build_location_groups(records: &EntityRecords, map: &mut EntityMap) {
+    for rec in &records.location_groups {
+        if !rec.location_group_id.is_empty() {
+            map.location_group_ids.insert(rec.location_group_id.clone());
+        }
+    }
 }
 
 // ── AGN_010: agency_id tekil ──────────────────────────────────────────────────
