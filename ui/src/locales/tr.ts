@@ -740,6 +740,7 @@ const tr = {
     'SAR_002': 'stop_id bulunamadı',
     'XFL_022': 'location_group_id bulunamadı (location_group_stops)',
     'XFL_023': 'stop_id bulunamadı (location_group_stops)',
+    'XFL_024': 'location_group_id bulunamadı (stop_times)',
     // NET
     'NET_001': 'network_id yineleniyor',
     // TFR

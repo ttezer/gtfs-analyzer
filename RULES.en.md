@@ -2,7 +2,7 @@
 
 🇹🇷 [Türkçe](RULES.md) · 🇬🇧 **English** · 🇯🇵 [日本語](RULES.ja.md)
 
-491 rules, 37 groups. Each rule is identified by a unique ID, severity level, and class.
+492 rules, 37 groups. Each rule is identified by a unique ID, severity level, and class.
 Severity levels: **CRITICAL** (publish blocker) · **HIGH** · **MEDIUM** · **LOW** · **INFO**
 Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Quality** (GTFS Quality) · **Analytics** (GTFS Analytics)
 
@@ -561,6 +561,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | XFL_021 | Invalid (from_trip_id/to_trip_id, stop_id) pair in transfers | HIGH | Spec |
 | XFL_022 | location_group_id not found (location_group_stops) | CRITICAL | Spec |
 | XFL_023 | stop_id not found (location_group_stops) | CRITICAL | Spec |
+| XFL_024 | location_group_id not found (stop_times) | CRITICAL | Spec |
 
 ## OPR — Operational Consistency
 

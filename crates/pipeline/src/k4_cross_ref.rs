@@ -70,6 +70,28 @@ pub fn check(records: &EntityRecords, entity_map: &EntityMap, today: u32) -> K4R
             }
         }
 
+        // XFL_024: stop_times.location_group_id → location_groups (GTFS-Flex)
+        // idx.rows hem test hem production'da dolu; flex None satırlar ucuzca atlanır.
+        let mut xfl024_seen: HashSet<&str> = HashSet::new();
+        for st in &idx.rows {
+            let Some(flex) = &st.flex else { continue };
+            if let Some(lg) = &flex.location_group_id {
+                if !lg.is_empty()
+                    && !map.location_group_ids.contains(lg.as_str())
+                    && xfl024_seen.insert(lg.as_str())
+                {
+                    notices.push(notice(
+                        &mut ctr, "XFL_024", EntityType::Row,
+                        Some(lg.to_string()), Some(lg.to_string()),
+                        "stop_times.txt", Some(st.line), Some("location_group_id"),
+                        Some(lg.to_string()), None,
+                        format!("'{}' konum grubu location_groups.txt'te tanimli degil.", lg),
+                        "Gecerli bir location_group_id kullanin veya grubu location_groups.txt'te tanimlayin.",
+                    ));
+                }
+            }
+        }
+
         // index'ten &str görünümlü geçici koleksiyonlar (fonksiyon imzaları değişmeden)
         let used_stop_ids: HashSet<&str>  = idx.stop_id_set.iter().map(|s| s.as_str()).collect();
         let trip_continuous: HashSet<&str> = idx.continuous_trips.iter().map(|s| s.as_str()).collect();
