@@ -8,6 +8,25 @@ const REQUIRED_FILES = [
 ];
 const CALENDAR_FILES = ['calendar.txt', 'calendar_dates.txt'];
 
+// GTFS spec'te tanımlı tüm dosyalar (Rust KNOWN_FILES — k1_parse.rs:27 ile SENKRON tut).
+// Spec'te OLMAYAN bir ada atıf yapan notice (ör. ARC_007 bilinmeyen dosya) feed_stats'e
+// girmediği için "eksik" sanılıyordu; bu set onu "spec dışı/tanınmayan" olarak ayırır.
+const GTFS_SPEC_FILES = new Set<string>([
+  'agency.txt', 'stops.txt', 'routes.txt', 'trips.txt', 'stop_times.txt',
+  'calendar.txt', 'calendar_dates.txt', 'shapes.txt', 'frequencies.txt',
+  'transfers.txt', 'fare_attributes.txt', 'fare_rules.txt',
+  'pathways.txt', 'levels.txt', 'feed_info.txt', 'translations.txt', 'attributions.txt',
+  'route_networks.txt',
+  // Fares v2
+  'areas.txt', 'stop_areas.txt', 'networks.txt',
+  'rider_categories.txt', 'fare_media.txt', 'fare_products.txt',
+  'fare_leg_rules.txt', 'fare_transfer_rules.txt', 'timeframes.txt',
+  // Flex
+  'booking_rules.txt',
+  // GTFS-JP uzantıları
+  'agency_jp.txt', 'routes_jp.txt', 'office_jp.txt',
+]);
+
 const SEV_ORDER: Record<string, number> = {
   CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3, INFO: 4,
 };
@@ -136,6 +155,20 @@ function renderFileRow(row: FileRow, calendarMissing: boolean): string {
   const isRequired = REQUIRED_FILES.includes(row.name) || isCalendar;
 
   if (row.missing) {
+    // Spec'te tanımlı OLMAYAN dosya (notice'tan gelmiş, ör. ARC_007): "eksik" değil,
+    // "spec dışı/tanınmayan" olarak göster.
+    if (!isCalendar && !GTFS_SPEC_FILES.has(row.name)) {
+      return `
+      <div class="file-row file-row-unknown">
+        <div class="file-row-left">
+          <code class="file-name">${escHtml(row.name)}</code>
+          <span class="file-badge badge-unknown">${t('files.badge.unknown')}</span>
+        </div>
+        <div class="file-row-right">
+          <span class="file-missing-hint">${t('files.hint.unknown')}</span>
+        </div>
+      </div>`;
+    }
     // Takvim grubu için tek kayıp uyarısı yeter
     const showCalendarMissing = isCalendar && calendarMissing;
     if (isCalendar && !showCalendarMissing) return '';

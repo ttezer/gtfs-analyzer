@@ -332,7 +332,9 @@ const tr = {
     'files.badge.clean'       : 'Temiz',
     'files.badge.missing'     : 'Eksik',
     'files.badge.required'    : 'Zorunlu',
+    'files.badge.unknown'     : 'Spec dışı',
     'files.hint.missing'      : 'Bu dosya feed ZIP\'inde bulunamadı.',
+    'files.hint.unknown'      : 'Bu dosya GTFS spesifikasyonunda tanımlı değil.',
     // Fix page file filter
     'fix.filter.file'         : 'Dosya',
     // Entity types

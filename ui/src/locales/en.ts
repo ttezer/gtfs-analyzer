@@ -334,7 +334,9 @@ const en: LocaleShape = {
     'files.badge.clean'       : 'Clean',
     'files.badge.missing'     : 'Missing',
     'files.badge.required'    : 'Required',
+    'files.badge.unknown'     : 'Not in spec',
     'files.hint.missing'      : 'This file was not found in the feed ZIP.',
+    'files.hint.unknown'      : 'This file is not part of the GTFS specification.',
     // Fix page file filter
     'fix.filter.file'         : 'File',
     // Entity types
