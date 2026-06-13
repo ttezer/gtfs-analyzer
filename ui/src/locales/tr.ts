@@ -433,8 +433,8 @@ const tr = {
     'AGN_009': 'agency_email geçersiz',
     'AGN_010': 'agency_id yineleniyor',
     'AGN_011': 'Birden fazla kuruluşta agency_id yok',
-    'AGN_012': 'agency_cemv_support geçersiz',
-    'RTS_024': 'route_cemv_support geçersiz',
+    'AGN_012': 'cemv_support geçersiz (agency)',
+    'RTS_024': 'cemv_support geçersiz (route)',
     'AGN_013': 'Feed dili ve ajans dili uyuşmuyor',
     'AGN_014': 'Birden fazla kuruluş var ama agency.txt agency_id eksik',
     // STP

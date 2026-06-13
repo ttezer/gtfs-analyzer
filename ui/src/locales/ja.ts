@@ -412,8 +412,8 @@ const ja: LocaleShape = {
     'AGN_009': "事業者'{entity_id}'：agency_emailが無効です。",
     'AGN_010': "agency_idが重複しています：'{entity_id}'。",
     'AGN_011': '複数の事業者が存在しますが、agency_idがありません。',
-    'AGN_012': "事業者'{entity_id}'：agency_cemv_support'{observed_value}'が無効です。",
-    'RTS_024': "路線'{entity_id}'：route_cemv_support'{observed_value}'が無効です。",
+    'AGN_012': "事業者'{entity_id}'：cemv_support'{observed_value}'が無効です。",
+    'RTS_024': "路線'{entity_id}'：cemv_support'{observed_value}'が無効です。",
     'AGN_013': 'フィード言語と事業者言語が一致しません。',
     'AGN_014': 'agency.txtに複数の事業者が定義されている場合、agency_idは必須です。',
     // STP
@@ -938,8 +938,8 @@ const ja: LocaleShape = {
     'AGN_009': 'agency_emailに有効なメールアドレスを使用してください。',
     'AGN_010': '各事業者に一意のagency_idを割り当ててください。',
     'AGN_011': '複数の事業者が存在する場合はagency_idをすべての路線に入力してください。',
-    'AGN_012': 'agency_cemv_supportを0（情報なし）、1（対応）、2（非対応）に設定してください。',
-    'RTS_024': 'route_cemv_supportを0（情報なし）、1（対応）、2（非対応）に設定してください。',
+    'AGN_012': 'cemv_supportを0（情報なし）、1（対応）、2（非対応）に設定してください。',
+    'RTS_024': 'cemv_supportを0（情報なし）、1（対応）、2（非対応）に設定してください。',
     'AGN_013': 'feed_info.txtのfeed_langとagency.txtのagency_langの値を一致させてください。',
     'AGN_014': '複数の事業者が存在する場合は、各agency行に一意のagency_idを割り当ててください。',
     // ATR
@@ -1486,8 +1486,8 @@ const ja: LocaleShape = {
     'AGN_009': 'agency_emailが無効',
     'AGN_010': 'agency_idが重複',
     'AGN_011': '複数事業者でagency_idなし',
-    'AGN_012': 'agency_cemv_supportが無効',
-    'RTS_024': 'route_cemv_supportが無効',
+    'AGN_012': 'cemv_supportが無効（事業者）',
+    'RTS_024': 'cemv_supportが無効（路線）',
     'AGN_013': 'フィード言語と事業者言語が不一致',
     'AGN_014': '複数事業者だがagency.txtにagency_idなし',
     // STP
