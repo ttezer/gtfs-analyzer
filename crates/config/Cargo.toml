@@ -1,6 +1,6 @@
 [package]
 name = "gtfs-config"
-version = "0.1.2"
+version = "0.1.1"
 edition = "2021"
 license.workspace = true
 

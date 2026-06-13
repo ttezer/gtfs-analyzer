@@ -47,7 +47,7 @@ GTFS Analyzer は、仕様検証を運用品質分析へと拡張します。路
 
 ### フィード分析の例
 
-同じフィードを 3 つのバリデーターで比較しました：MobilityData gtfs-validator v8.0.1・GTFS Guru v0.1.0・GTFS Analyzer v0.1.2。（GTFS Analyzer の数値は 2026-06-12 に実行した分析のスナップショットです。一部のルールは日付に依存するため、別の日に実行すると小さな差異が生じる場合があります。）
+同じフィードを 3 つのバリデーターで比較しました：MobilityData gtfs-validator v8.0.1・GTFS Guru v0.1.0・GTFS Analyzer v0.1.1。（GTFS Analyzer の数値は 2026-06-12 に実行した分析のスナップショットです。一部のルールは日付に依存するため、別の日に実行すると小さな差異が生じる場合があります。）
 
 #### BART（ベイエリア高速鉄道、サンフランシスコ）
 

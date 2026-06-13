@@ -47,7 +47,7 @@ GTFS Analyzer extends specification validation with operational quality analysis
 
 ### Feed Analysis Examples
 
-The same feeds were compared with three validators: MobilityData gtfs-validator v8.0.1 · GTFS Guru v0.1.0 · GTFS Analyzer v0.1.2. (GTFS Analyzer figures are a snapshot from an analysis run on 2026-06-12; because some rules are date-dependent, running on a different day may produce small deviations.)
+The same feeds were compared with three validators: MobilityData gtfs-validator v8.0.1 · GTFS Guru v0.1.0 · GTFS Analyzer v0.1.1. (GTFS Analyzer figures are a snapshot from an analysis run on 2026-06-12; because some rules are date-dependent, running on a different day may produce small deviations.)
 
 #### BART (Bay Area Rapid Transit, San Francisco)
 
