@@ -155,39 +155,106 @@ pub fn check(records: &EntityRecords, entity_map: &EntityMap, today: u32) -> K4R
             .map(|m| m.fare_media_id.as_str())
             .collect();
         let has_type3 = !type3_media.is_empty();
-        let type3_used = records.fare_products.iter()
-            .any(|p| p.fare_media_id.as_deref().is_some_and(|id| type3_media.contains(id)));
 
-        let mut feed_cemv = |rule: &str, msg: String, rem: &str| {
-            notices.push(notice(
-                &mut ctr, rule, EntityType::Feed,
-                None, None, "", None, None, None, None, msg, rem,
-            ));
-        };
-        if has_route_cemv1 && has_type3 && !type3_used {
-            feed_cemv("XFL_026",
-                "route_cemv_support=1 var ama tanimli contactless fare media (fare_media_type=3) hicbir fare product'a bagli degil.".to_string(),
-                "Contactless EMV medyasini ilgili fare_products satirlarinda fare_media_id ile baglayin.");
+        // Feed-level (XFL_028/029/030): cemv ↔ contactless media VARLIK tutarlılığı
+        {
+            let mut feed_cemv = |rule: &str, msg: String, rem: &str| {
+                notices.push(notice(
+                    &mut ctr, rule, EntityType::Feed,
+                    None, None, "", None, None, None, None, msg, rem,
+                ));
+            };
+            if has_agency_cemv1 && has_fares_v2 && !has_type3 {
+                feed_cemv("XFL_028",
+                    "agency_cemv_support=1 var ve Fares v2 kullaniliyor ama hic contactless fare media (fare_media_type=3) yok.".to_string(),
+                    "Detayli ucret icin fare_media.txt'te fare_media_type=3 olan bir medya tanimlayin.");
+            }
+            if has_route_cemv1 && has_fares_v2 && !has_type3 {
+                feed_cemv("XFL_029",
+                    "route_cemv_support=1 var ve Fares v2 kullaniliyor ama hic contactless fare media (fare_media_type=3) yok.".to_string(),
+                    "Detayli ucret icin fare_media.txt'te fare_media_type=3 olan bir medya tanimlayin.");
+            }
+            if has_type3 && !has_any_cemv1 {
+                feed_cemv("XFL_030",
+                    "Contactless fare media (fare_media_type=3) tanimli ama hicbir agency/route'da cemv_support=1 yok.".to_string(),
+                    "Uygulama uyumlulugu icin agency veya route duzeyinde cemv_support=1 belirtmeyi degerlendirin.");
+            }
         }
-        if has_route_cemv2 && has_type3 {
-            feed_cemv("XFL_027",
-                "route_cemv_support=2 (desteklenmiyor) var ama feed'de contactless fare media (fare_media_type=3) tanimli — celiski.".to_string(),
-                "route_cemv_support degerini duzeltin ya da contactless fare media kullanimini gozden gecirin.");
-        }
-        if has_agency_cemv1 && has_fares_v2 && !has_type3 {
-            feed_cemv("XFL_028",
-                "agency_cemv_support=1 var ve Fares v2 kullaniliyor ama hic contactless fare media (fare_media_type=3) yok.".to_string(),
-                "Detayli ucret icin fare_media.txt'te fare_media_type=3 olan bir medya tanimlayin.");
-        }
-        if has_route_cemv1 && has_fares_v2 && !has_type3 {
-            feed_cemv("XFL_029",
-                "route_cemv_support=1 var ve Fares v2 kullaniliyor ama hic contactless fare media (fare_media_type=3) yok.".to_string(),
-                "Detayli ucret icin fare_media.txt'te fare_media_type=3 olan bir medya tanimlayin.");
-        }
-        if has_type3 && !has_any_cemv1 {
-            feed_cemv("XFL_030",
-                "Contactless fare media (fare_media_type=3) tanimli ama hicbir agency/route'da cemv_support=1 yok.".to_string(),
-                "Uygulama uyumlulugu icin agency veya route duzeyinde cemv_support=1 belirtmeyi degerlendirin.");
+
+        // Route-bazlı (XFL_026/027): route'a UYGULANABİLİR contactless fare product var mı?
+        // Yol: fare_media(type=3) → fare_products → fare_leg_rules → (network_id | from/to_area_id | global)
+        if has_type3 && (has_route_cemv1 || has_route_cemv2) {
+            let type3_products: HashSet<&str> = records.fare_products.iter()
+                .filter(|p| p.fare_media_id.as_deref().is_some_and(|id| type3_media.contains(id)))
+                .map(|p| p.fare_product_id.as_str())
+                .collect();
+            // type3 leg rule'ların kapsamı: global / network / area
+            let mut global_type3 = false;
+            let mut type3_networks: HashSet<&str> = HashSet::new();
+            let mut type3_areas: HashSet<&str> = HashSet::new();
+            for lr in &records.fare_leg_rules {
+                if !type3_products.contains(lr.fare_product_id.as_str()) { continue; }
+                let net = lr.network_id.as_deref().filter(|s| !s.is_empty());
+                let fa  = lr.from_area_id.as_deref().filter(|s| !s.is_empty());
+                let ta  = lr.to_area_id.as_deref().filter(|s| !s.is_empty());
+                if net.is_none() && fa.is_none() && ta.is_none() { global_type3 = true; }
+                if let Some(n) = net { type3_networks.insert(n); }
+                if let Some(a) = fa  { type3_areas.insert(a); }
+                if let Some(a) = ta  { type3_areas.insert(a); }
+            }
+            // route → area kümesi (yalnız area-based type3 leg rule varsa hesapla — maliyet guard)
+            let route_areas: HashMap<&str, HashSet<&str>> = if !type3_areas.is_empty() {
+                let mut stop_to_areas: HashMap<&str, Vec<&str>> = HashMap::new();
+                for sa in &records.stop_areas {
+                    if !sa.stop_id.is_empty() && !sa.area_id.is_empty() {
+                        stop_to_areas.entry(sa.stop_id.as_str()).or_default().push(sa.area_id.as_str());
+                    }
+                }
+                let idx = &records.stop_times_index;
+                let mut ra: HashMap<&str, HashSet<&str>> = HashMap::new();
+                for trip in &records.trips {
+                    if trip.route_id.is_empty() { continue; }
+                    if let Some(stops) = idx.trip_stop_set.get(trip.trip_id.as_str()) {
+                        for stop in stops {
+                            if let Some(areas) = stop_to_areas.get(stop.as_str()) {
+                                let e = ra.entry(trip.route_id.as_str()).or_default();
+                                for a in areas { e.insert(a); }
+                            }
+                        }
+                    }
+                }
+                ra
+            } else { HashMap::new() };
+
+            for r in &records.routes {
+                let cemv = r.route_cemv_support;
+                if cemv != Some(1) && cemv != Some(2) { continue; }
+                let rnet = r.network_id.as_deref().filter(|s| !s.is_empty());
+                let rareas = route_areas.get(r.route_id.as_str());
+                let network_match = rnet.is_some_and(|n| type3_networks.contains(n));
+                let area_match = rareas.is_some_and(|set| set.iter().any(|a| type3_areas.contains(a)));
+                let covered = global_type3 || network_match || area_match;
+                // FP guard: route'un kapsamı çözülebilir mi? (global / network bilgisi / area bilgisi var)
+                let resolvable = global_type3 || rnet.is_some() || rareas.is_some();
+                if cemv == Some(1) && resolvable && !covered {
+                    notices.push(notice(
+                        &mut ctr, "XFL_026", EntityType::Route,
+                        Some(r.route_id.clone()), Some(r.route_id.clone()),
+                        "routes.txt", None, Some("cemv_support"), None, None,
+                        format!("'{}' route'u cemv_support=1 (contactless) ama bu route'a uygulanabilir contactless fare product (fare_media_type=3) yok.", r.route_id),
+                        "Bu route'a uygulanabilir bir contactless fare product tanimlayin veya cemv_support degerini gozden gecirin.",
+                    ));
+                }
+                if cemv == Some(2) && covered {
+                    notices.push(notice(
+                        &mut ctr, "XFL_027", EntityType::Route,
+                        Some(r.route_id.clone()), Some(r.route_id.clone()),
+                        "routes.txt", None, Some("cemv_support"), None, None,
+                        format!("'{}' route'u cemv_support=2 (desteklenmiyor) ama bu route'a uygulanabilir contactless fare product var — celiski.", r.route_id),
+                        "cemv_support degerini duzeltin veya contactless fare product kapsamini gozden gecirin.",
+                    ));
+                }
+            }
         }
     }
 
