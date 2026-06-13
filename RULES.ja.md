@@ -2,7 +2,7 @@
 
 🇹🇷 [Türkçe](RULES.md) · 🇬🇧 [English](RULES.en.md) · 🇯🇵 **日本語**
 
-493ルール、37グループ。各ルールは一意のID、重要度、クラスで定義されます。
+494ルール、37グループ。各ルールは一意のID、重要度、クラスで定義されます。
 重要度: **致命的**（公開ブロッカー）· **高** · **中** · **低** · **情報**
 クラス: **仕様**（GTFS妥当性）· **相互運用**（GTFSインターオペラビリティ）· **品質**（GTFS品質）· **分析**（GTFSアナリティクス）
 
@@ -120,6 +120,7 @@
 | RTS_021 | route_short_nameがGoogleトランジットの上限（6文字）を超過 | 低 | 相互運用 |
 | RTS_022 | route_long_nameにroute_short_nameが含まれている | 低 | 品質 |
 | RTS_023 | route_long_nameとroute_descが同一 | 情報 | 品質 |
+| RTS_024 | route_cemv_supportが無効 | 低 | 品質 |
 
 ## TRP — 便（Trips）
 

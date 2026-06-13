@@ -2,7 +2,7 @@
 
 🇹🇷 [Türkçe](RULES.md) · 🇬🇧 **English** · 🇯🇵 [日本語](RULES.ja.md)
 
-493 rules, 37 groups. Each rule is identified by a unique ID, severity level, and class.
+494 rules, 37 groups. Each rule is identified by a unique ID, severity level, and class.
 Severity levels: **CRITICAL** (publish blocker) · **HIGH** · **MEDIUM** · **LOW** · **INFO**
 Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Quality** (GTFS Quality) · **Analytics** (GTFS Analytics)
 
@@ -120,6 +120,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | RTS_021 | route_short_name exceeds Google Transit limit (6 characters) | LOW | Interop |
 | RTS_022 | route_long_name contains route_short_name | LOW | Quality |
 | RTS_023 | route_long_name and description are identical | INFO | Quality |
+| RTS_024 | route_cemv_support invalid | LOW | Quality |
 
 ## TRP — Trips
 

@@ -258,8 +258,22 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
             .filter(|v| !v.is_empty())
             .map(str::to_string);
 
+        // RTS_024: route_cemv_support 0, 1 veya 2 olmalı (AGN_012 route ikizi)
         let route_cemv_support = match parse_u32(&row_map, "route_cemv_support") {
-            Ok(v) => v,
+            Ok(v) => {
+                if let Some(val) = v {
+                    if val > 2 {
+                        notices.push(make_k2_notice(
+                            &mut counter, "RTS_024", EntityType::Route, entity_id.clone(), Some(&row_map),
+                            &file.name, Some(line), Some("route_cemv_support"), Some(val.to_string()),
+                            Some("0, 1 veya 2".to_string()),
+                            "route_cemv_support 0, 1 veya 2 olmalıdır.".to_string(),
+                            "route_cemv_support alanını 0 (bilgi yok), 1 (destekleniyor) veya 2 (desteklenmiyor) olarak ayarlayın.",
+                        ));
+                    }
+                }
+                v
+            }
             Err(_) => None,
         };
 
@@ -476,5 +490,25 @@ mod tests {
         let (_, notices) = validate_routes(&file);
         assert!(!notices.iter().any(|n| n.rule_id == "RTS_004"),
             "Extended route_type 401 should be valid");
+    }
+
+    #[test]
+    fn invalid_route_cemv_support_produces_rts_024() {
+        let file = make_file(
+            vec!["route_id", "route_short_name", "route_type", "route_cemv_support"],
+            vec![vec!["R1", "Metro", "1", "3"]],
+        );
+        let (_, notices) = validate_routes(&file);
+        assert!(notices.iter().any(|n| n.rule_id == "RTS_024"));
+    }
+
+    #[test]
+    fn valid_route_cemv_support_produces_no_rts_024() {
+        let file = make_file(
+            vec!["route_id", "route_short_name", "route_type", "route_cemv_support"],
+            vec![vec!["R1", "Metro", "1", "2"]],
+        );
+        let (_, notices) = validate_routes(&file);
+        assert!(!notices.iter().any(|n| n.rule_id == "RTS_024"));
     }
 }
