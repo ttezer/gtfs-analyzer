@@ -1113,6 +1113,16 @@ pub static RULES: &[RuleMeta] = &[
         "location_group_id bulunamadı (stop_times)"),
     r!("XFL_025", Kritik, Spec, 1, &[], Some("location_id"), VS_K, Row,
         "location_id bulunamadı (locations.geojson)"),
+    r!("XFL_026", Orta,  Interop, 2, &[], None, VI, Feed,
+        "route cemv_support=1 ama contactless fare media ürüne bağlı değil"),
+    r!("XFL_027", Orta,  Interop, 2, &[], None, VI, Feed,
+        "route cemv_support=2 ama feed'de contactless fare media var"),
+    r!("XFL_028", Bilgi, Quality, 1, &[], None, VS, Feed,
+        "agency cemv_support=1 ama Fares v2'de contactless media yok"),
+    r!("XFL_029", Bilgi, Quality, 1, &[], None, VS, Feed,
+        "route cemv_support=1 ama Fares v2'de contactless media yok"),
+    r!("XFL_030", Bilgi, Quality, 1, &[], None, VS, Feed,
+        "contactless fare media var ama hiç cemv_support=1 yok"),
 
     // ── OPR: Operasyonel Tutarlılık (tümü ANALYTICS) ───────────────────────────
     r!("OPR_001", Orta,   Analytics, 3, &[], Some("route_id"), VA, Entity,

@@ -2,7 +2,7 @@
 
 🇹🇷 **Türkçe** · 🇬🇧 [English](RULES.en.md) · 🇯🇵 [日本語](RULES.ja.md)
 
-494 kural, 37 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
+499 kural, 37 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
 Önem seviyeleri: **KRİTİK** (yayın engelleyici) · **YÜKSEK** · **ORTA** · **DÜŞÜK** · **BİLGİ**
 Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · **Quality** (GTFS Kalitesi) · **Analytics** (GTFS Analitiği)
 
@@ -564,6 +564,11 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | XFL_023 | stop_id bulunamadı (location_group_stops) | KRİTİK | Spec |
 | XFL_024 | location_group_id bulunamadı (stop_times) | KRİTİK | Spec |
 | XFL_025 | location_id bulunamadı (locations.geojson) | KRİTİK | Spec |
+| XFL_026 | route cemv_support=1 ama contactless fare media ürüne bağlı değil | ORTA | Interop |
+| XFL_027 | route cemv_support=2 ama feed'de contactless fare media var | ORTA | Interop |
+| XFL_028 | agency cemv_support=1 ama Fares v2'de contactless media yok | BİLGİ | Quality |
+| XFL_029 | route cemv_support=1 ama Fares v2'de contactless media yok | BİLGİ | Quality |
+| XFL_030 | contactless fare media var ama hiç cemv_support=1 yok | BİLGİ | Quality |
 
 ## OPR — Operasyonel Tutarlılık
 

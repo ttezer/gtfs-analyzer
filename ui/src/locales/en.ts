@@ -741,6 +741,11 @@ const en: LocaleShape = {
     'XFL_023': "location_group_stops: stop_id '{entity_id}' not found.",
     'XFL_024': "stop_times: location group '{entity_id}' is not defined in location_groups.txt.",
     'XFL_025': "stop_times: location '{entity_id}' is not defined in locations.geojson.",
+    'XFL_026': "route cemv_support=1 but contactless fare media is not linked to any fare product.",
+    'XFL_027': "route cemv_support=2 but the feed defines contactless fare media.",
+    'XFL_028': "agency cemv_support=1 but Fares v2 has no contactless fare media.",
+    'XFL_029': "route cemv_support=1 but Fares v2 has no contactless fare media.",
+    'XFL_030': "Contactless fare media defined but no cemv_support=1 anywhere.",
     // NET
     'NET_001': "Duplicate network_id: '{entity_id}'.",
     // TFR
@@ -1343,6 +1348,11 @@ const en: LocaleShape = {
     'XFL_023': 'Use a valid stop_id.',
     'XFL_024': 'Use a valid location_group_id or define the group in location_groups.txt.',
     'XFL_025': 'Use a valid location_id or add the location to locations.geojson.',
+    'XFL_026': 'Link the contactless media to fare_products via fare_media_id.',
+    'XFL_027': 'Fix route_cemv_support or review contactless fare media usage.',
+    'XFL_028': 'Define a fare_media_type=3 media in fare_media.txt and link it to fare products.',
+    'XFL_029': 'Define a fare_media_type=3 media in fare_media.txt and link it to fare products.',
+    'XFL_030': 'Consider setting cemv_support=1 at agency or route level.',
     // FRL
     'FRL_001': 'Use a valid fare_id.',
     'FRL_002': 'Use a valid route_id.',
@@ -1832,6 +1842,11 @@ const en: LocaleShape = {
     'XFL_023': 'stop_id not found (location_group_stops)',
     'XFL_024': 'location_group_id not found (stop_times)',
     'XFL_025': 'location_id not found (locations.geojson)',
+    'XFL_026': 'cemv=1 but contactless media unlinked',
+    'XFL_027': 'cemv=2 but contactless media present',
+    'XFL_028': 'agency cemv=1 but no contactless media',
+    'XFL_029': 'route cemv=1 but no contactless media',
+    'XFL_030': 'contactless media but no cemv=1',
     // NET
     'NET_001': 'Duplicate network_id',
     // TFR

@@ -2,7 +2,7 @@
 
 🇹🇷 [Türkçe](RULES.md) · 🇬🇧 [English](RULES.en.md) · 🇯🇵 **日本語**
 
-494ルール、37グループ。各ルールは一意のID、重要度、クラスで定義されます。
+499ルール、37グループ。各ルールは一意のID、重要度、クラスで定義されます。
 重要度: **致命的**（公開ブロッカー）· **高** · **中** · **低** · **情報**
 クラス: **仕様**（GTFS妥当性）· **相互運用**（GTFSインターオペラビリティ）· **品質**（GTFS品質）· **分析**（GTFSアナリティクス）
 
@@ -564,6 +564,11 @@
 | XFL_023 | stop_idが見つからない（location_group_stops） | 致命的 | 仕様 |
 | XFL_024 | location_group_idが見つからない（stop_times） | 致命的 | 仕様 |
 | XFL_025 | location_idが見つからない（locations.geojson） | 致命的 | 仕様 |
+| XFL_026 | route cemv_support=1だがcontactless fare mediaが製品に未紐付け | 中 | 相互運用 |
+| XFL_027 | route cemv_support=2だがフィードにcontactless fare mediaあり | 中 | 相互運用 |
+| XFL_028 | agency cemv_support=1だがFares v2にcontactless mediaなし | 情報 | 品質 |
+| XFL_029 | route cemv_support=1だがFares v2にcontactless mediaなし | 情報 | 品質 |
+| XFL_030 | contactless fare mediaありだがcemv_support=1なし | 情報 | 品質 |
 
 ## OPR — 運行整合性（Operational Consistency）
 

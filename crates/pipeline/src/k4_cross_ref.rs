@@ -142,6 +142,55 @@ pub fn check(records: &EntityRecords, entity_map: &EntityMap, today: u32) -> K4R
     { let _t = Timer::start("K4::xfl");            check_xfl(records, map, &mut notices, &mut ctr, &stm_trips_in_stm, &stm_trip_stm_count, &stm_bad_stop_ids); }
     { let _t = Timer::start("K4::stm_shape_dist"); check_stm_shape_dist(records, &mut notices, &mut ctr); }
 
+    // XFL_026-030: cemv_support ↔ Fares v2 contactless media tutarlılığı (feed-level)
+    {
+        let _t = Timer::start("K4::cemv_fares");
+        let has_agency_cemv1 = records.agencies.iter().any(|a| a.agency_cemv_support == Some(1));
+        let has_route_cemv1  = records.routes.iter().any(|r| r.route_cemv_support == Some(1));
+        let has_route_cemv2  = records.routes.iter().any(|r| r.route_cemv_support == Some(2));
+        let has_any_cemv1    = has_agency_cemv1 || has_route_cemv1;
+        let has_fares_v2     = !records.fare_products.is_empty();
+        let type3_media: HashSet<&str> = records.fare_media.iter()
+            .filter(|m| m.fare_media_type == Some(3))
+            .map(|m| m.fare_media_id.as_str())
+            .collect();
+        let has_type3 = !type3_media.is_empty();
+        let type3_used = records.fare_products.iter()
+            .any(|p| p.fare_media_id.as_deref().is_some_and(|id| type3_media.contains(id)));
+
+        let mut feed_cemv = |rule: &str, msg: String, rem: &str| {
+            notices.push(notice(
+                &mut ctr, rule, EntityType::Feed,
+                None, None, "", None, None, None, None, msg, rem,
+            ));
+        };
+        if has_route_cemv1 && has_type3 && !type3_used {
+            feed_cemv("XFL_026",
+                "route_cemv_support=1 var ama tanimli contactless fare media (fare_media_type=3) hicbir fare product'a bagli degil.".to_string(),
+                "Contactless EMV medyasini ilgili fare_products satirlarinda fare_media_id ile baglayin.");
+        }
+        if has_route_cemv2 && has_type3 {
+            feed_cemv("XFL_027",
+                "route_cemv_support=2 (desteklenmiyor) var ama feed'de contactless fare media (fare_media_type=3) tanimli — celiski.".to_string(),
+                "route_cemv_support degerini duzeltin ya da contactless fare media kullanimini gozden gecirin.");
+        }
+        if has_agency_cemv1 && has_fares_v2 && !has_type3 {
+            feed_cemv("XFL_028",
+                "agency_cemv_support=1 var ve Fares v2 kullaniliyor ama hic contactless fare media (fare_media_type=3) yok.".to_string(),
+                "Detayli ucret icin fare_media.txt'te fare_media_type=3 olan bir medya tanimlayin.");
+        }
+        if has_route_cemv1 && has_fares_v2 && !has_type3 {
+            feed_cemv("XFL_029",
+                "route_cemv_support=1 var ve Fares v2 kullaniliyor ama hic contactless fare media (fare_media_type=3) yok.".to_string(),
+                "Detayli ucret icin fare_media.txt'te fare_media_type=3 olan bir medya tanimlayin.");
+        }
+        if has_type3 && !has_any_cemv1 {
+            feed_cemv("XFL_030",
+                "Contactless fare media (fare_media_type=3) tanimli ama hicbir agency/route'da cemv_support=1 yok.".to_string(),
+                "Uygulama uyumlulugu icin agency veya route duzeyinde cemv_support=1 belirtmeyi degerlendirin.");
+        }
+    }
+
     K4Result { notices }
 }
 

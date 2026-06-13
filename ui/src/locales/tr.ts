@@ -743,6 +743,11 @@ const tr = {
     'XFL_023': 'stop_id bulunamadı (location_group_stops)',
     'XFL_024': 'location_group_id bulunamadı (stop_times)',
     'XFL_025': 'location_id bulunamadı (locations.geojson)',
+    'XFL_026': 'route cemv_support=1 ama contactless media ürünsüz',
+    'XFL_027': 'route cemv_support=2 ama contactless media var',
+    'XFL_028': 'agency cemv_support=1 ama contactless media yok',
+    'XFL_029': 'route cemv_support=1 ama contactless media yok',
+    'XFL_030': 'contactless media var ama cemv_support=1 yok',
     // NET
     'NET_001': 'network_id yineleniyor',
     // TFR
