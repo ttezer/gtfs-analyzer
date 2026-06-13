@@ -354,6 +354,8 @@ pub static RULES: &[RuleMeta] = &[
         "wheelchair_accessible geçersiz"),
     r!("TRP_007", Dusuk,  Spec, 1, &[], Some("trip_id"), VS, Entity,
         "bikes_allowed geçersiz"),
+    r!("TRP_032", Dusuk,  Spec, 1, &[], Some("trip_id"), VS, Entity,
+        "cars_allowed geçersiz"),
     r!("TRP_009", Yuksek, Quality, 2,
         &["OPR_006","OPR_007"],
         Some("trip_id"), VS, Entity,

@@ -236,7 +236,25 @@ pub fn validate_trips(file: &RawFile) -> (Vec<TripRecord>, Vec<gtfs_core::Notice
             bikes_allowed_set_count += 1;
         }
 
-        let cars_allowed = parse_u32_raw(get_col(row, cols.cars_allowed)).ok().flatten();
+        // TRP_032: cars_allowed 0, 1 veya 2 olmalı (TRP_007 bikes_allowed ikizi)
+        let ca_raw = get_col(row, cols.cars_allowed);
+        let cars_allowed = match parse_u32_raw(ca_raw) {
+            Ok(v) => {
+                if let Some(val) = v {
+                    if val > 2 {
+                        notices.push(make_k2_notice(
+                            &mut counter, "TRP_032", EntityType::Trip, entity_id.clone(),
+                            None, &file.name, Some(line), Some("cars_allowed"),
+                            Some(val.to_string()), Some("0, 1 veya 2".to_string()),
+                            "cars_allowed 0, 1 veya 2 olmalıdır.".to_string(),
+                            "cars_allowed değerini 0 (bilgi yok), 1 (araç izinli) veya 2 (araç izinsiz) olarak ayarlayın.",
+                        ));
+                    }
+                }
+                v
+            }
+            Err(_) => None,
+        };
         let safe_duration_factor = parse_f64_raw(get_col(row, cols.safe_duration_factor)).ok().flatten();
         let safe_duration_offset = parse_u32_raw(get_col(row, cols.safe_duration_offset)).ok().flatten();
 
@@ -346,6 +364,26 @@ mod tests {
         );
         let (_, notices) = validate_trips(&file);
         assert!(notices.iter().any(|n| n.rule_id == "TRP_006"));
+    }
+
+    #[test]
+    fn invalid_cars_allowed_produces_trp_032() {
+        let file = make_file(
+            vec!["route_id", "service_id", "trip_id", "cars_allowed"],
+            vec![vec!["R1", "SVC1", "T1", "5"]],
+        );
+        let (_, notices) = validate_trips(&file);
+        assert!(notices.iter().any(|n| n.rule_id == "TRP_032"));
+    }
+
+    #[test]
+    fn valid_cars_allowed_produces_no_trp_032() {
+        let file = make_file(
+            vec!["route_id", "service_id", "trip_id", "cars_allowed"],
+            vec![vec!["R1", "SVC1", "T1", "2"]],
+        );
+        let (_, notices) = validate_trips(&file);
+        assert!(!notices.iter().any(|n| n.rule_id == "TRP_032"));
     }
 
     #[test]

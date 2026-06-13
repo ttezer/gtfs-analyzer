@@ -2,7 +2,7 @@
 
 🇹🇷 [Türkçe](RULES.md) · 🇬🇧 **English** · 🇯🇵 [日本語](RULES.ja.md)
 
-488 rules, 37 groups. Each rule is identified by a unique ID, severity level, and class.
+489 rules, 37 groups. Each rule is identified by a unique ID, severity level, and class.
 Severity levels: **CRITICAL** (publish blocker) · **HIGH** · **MEDIUM** · **LOW** · **INFO**
 Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Quality** (GTFS Quality) · **Analytics** (GTFS Analytics)
 
@@ -132,6 +132,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | TRP_005 | direction_id invalid | MEDIUM | Spec |
 | TRP_006 | wheelchair_accessible invalid | LOW | Spec |
 | TRP_007 | bikes_allowed invalid | LOW | Spec |
+| TRP_032 | cars_allowed invalid | LOW | Spec |
 | TRP_009 | Trip has no time-stamped stops | HIGH | Quality |
 | TRP_011 | Trip headsign not set | HIGH | Quality |
 | TRP_012 | direction_id missing on bidirectional route | LOW | Quality |

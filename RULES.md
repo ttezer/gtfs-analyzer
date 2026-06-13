@@ -2,7 +2,7 @@
 
 🇹🇷 **Türkçe** · 🇬🇧 [English](RULES.en.md) · 🇯🇵 [日本語](RULES.ja.md)
 
-488 kural, 37 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
+489 kural, 37 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
 Önem seviyeleri: **KRİTİK** (yayın engelleyici) · **YÜKSEK** · **ORTA** · **DÜŞÜK** · **BİLGİ**
 Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · **Quality** (GTFS Kalitesi) · **Analytics** (GTFS Analitiği)
 
@@ -132,6 +132,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | TRP_005 | direction_id geçersiz | ORTA | Spec |
 | TRP_006 | wheelchair_accessible geçersiz | DÜŞÜK | Spec |
 | TRP_007 | bikes_allowed geçersiz | DÜŞÜK | Spec |
+| TRP_032 | cars_allowed geçersiz | DÜŞÜK | Spec |
 | TRP_009 | Seferde zaman damgalı durak yok | YÜKSEK | Quality |
 | TRP_011 | Sefer yön adı girilmemiş | YÜKSEK | Quality |
 | TRP_012 | Çift yönlü rotada direction_id eksik | DÜŞÜK | Quality |

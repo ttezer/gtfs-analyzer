@@ -503,6 +503,7 @@ const tr = {
     'TRP_005': 'direction_id geçersiz',
     'TRP_006': 'wheelchair_accessible geçersiz',
     'TRP_007': 'bikes_allowed geçersiz',
+    'TRP_032': 'cars_allowed geçersiz',
     'TRP_009': 'Seferde zaman damgalı durak yok',
     'TRP_011': 'Sefer yön adı girilmemiş',
     'TRP_012': 'Çift yönlü rotada direction_id eksik',
