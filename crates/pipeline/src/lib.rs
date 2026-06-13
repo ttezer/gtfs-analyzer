@@ -48,7 +48,10 @@ pub fn validate_bytes(zip: &[u8], config: &ValidatorConfig, today: u32) -> Valid
 
     let k3 = {
         let _t = Timer::start("K3-entity-map");
-        build_entity_map(&k2.records)
+        let mut k3 = build_entity_map(&k2.records);
+        // XFL_025: geojson feature id'leri K1'de toplandı; EntityMap'e taşı.
+        k3.entity_map.geojson_location_ids = k1.geojson_location_ids.clone();
+        k3
     };
 
     let k4 = {

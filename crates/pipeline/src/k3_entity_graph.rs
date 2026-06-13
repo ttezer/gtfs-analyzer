@@ -90,6 +90,8 @@ pub struct EntityMap {
     pub timeframe_group_ids: HashSet<String>,
     /// location_groups'tan toplanan location_group_id kümesi (GTFS-Flex)
     pub location_group_ids: HashSet<String>,
+    /// locations.geojson feature id kümesi (XFL_025; k1'den lib.rs'te enjekte edilir)
+    pub geojson_location_ids: HashSet<String>,
 }
 
 /// K3 çıktısı.

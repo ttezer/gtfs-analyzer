@@ -2,7 +2,7 @@
 
 🇹🇷 **Türkçe** · 🇬🇧 [English](RULES.en.md) · 🇯🇵 [日本語](RULES.ja.md)
 
-492 kural, 37 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
+493 kural, 37 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
 Önem seviyeleri: **KRİTİK** (yayın engelleyici) · **YÜKSEK** · **ORTA** · **DÜŞÜK** · **BİLGİ**
 Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · **Quality** (GTFS Kalitesi) · **Analytics** (GTFS Analitiği)
 
@@ -562,6 +562,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | XFL_022 | location_group_id bulunamadı (location_group_stops) | KRİTİK | Spec |
 | XFL_023 | stop_id bulunamadı (location_group_stops) | KRİTİK | Spec |
 | XFL_024 | location_group_id bulunamadı (stop_times) | KRİTİK | Spec |
+| XFL_025 | location_id bulunamadı (locations.geojson) | KRİTİK | Spec |
 
 ## OPR — Operasyonel Tutarlılık
 

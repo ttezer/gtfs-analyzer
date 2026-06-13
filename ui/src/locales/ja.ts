@@ -720,6 +720,7 @@ const ja: LocaleShape = {
     'XFL_022': "location_group_stops：ロケーショングループ'{entity_id}'がlocation_groups.txtに定義されていません。",
     'XFL_023': "location_group_stops：stop_id'{entity_id}'が見つかりません。",
     'XFL_024': "stop_times：ロケーショングループ'{entity_id}'がlocation_groups.txtに定義されていません。",
+    'XFL_025': "stop_times：ロケーション'{entity_id}'がlocations.geojsonに定義されていません。",
     // NET
     'NET_001': "network_idが重複しています：'{entity_id}'。",
     // TFR
@@ -1135,6 +1136,7 @@ const ja: LocaleShape = {
     'XFL_022': '有効なlocation_group_idを使用するか、location_groups.txtでグループを定義してください。',
     'XFL_023': '有効なstop_idを使用してください。',
     'XFL_024': '有効なlocation_group_idを使用するか、location_groups.txtでグループを定義してください。',
+    'XFL_025': '有効なlocation_idを使用するか、locations.geojsonにロケーションを追加してください。',
     // OPR
     'OPR_001': 'ピーク・オフピーク時の便数を増やすか、大きなサービスギャップを埋めてください。',
     'OPR_003': '便のスケジュールを調整してください。非常に頻繁な便は混雑を引き起こす可能性があります。',
@@ -1780,6 +1782,7 @@ const ja: LocaleShape = {
     'XFL_022': 'location_group_idが存在しない',
     'XFL_023': 'stop_idが存在しない（location_group_stops）',
     'XFL_024': 'location_group_idが存在しない（stop_times）',
+    'XFL_025': 'location_idが存在しない（locations.geojson）',
     // NET
     'NET_001': 'network_idが重複',
     // TFR

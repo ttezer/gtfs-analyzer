@@ -67,6 +67,8 @@ pub type RawFiles = HashMap<String, RawFile>;
 pub struct K1Result {
     pub files: RawFiles,
     pub notices: Vec<Notice>,
+    /// locations.geojson feature 'id' kümesi (XFL_025: stop_times.location_id cross-ref).
+    pub geojson_location_ids: std::collections::HashSet<String>,
 }
 
 // ── Notice yardımcısı ─────────────────────────────────────────────────────────
@@ -410,6 +412,7 @@ pub fn parse(zip_bytes: &[u8]) -> Result<K1Result, FatalError> {
 
     let mut notices: Vec<Notice> = Vec::new();
     let mut counter: u32 = 0;
+    let mut geojson_location_ids: std::collections::HashSet<String> = std::collections::HashSet::new();
     let mut raw_files: RawFiles = HashMap::new();
     let mut present_files: HashSet<String> = HashSet::new();
     // DQ_016 için dosya başına birincil anahtar sütun indeksi — ilk "*_id" sütunu
@@ -441,7 +444,7 @@ pub fn parse(zip_bytes: &[u8]) -> Result<K1Result, FatalError> {
         if raw_name == "locations.geojson" {
             let mut buf = Vec::with_capacity(zf.size() as usize);
             if zf.read_to_end(&mut buf).is_ok() {
-                validate_locations_geojson(&buf, &raw_name, &mut notices, &mut counter);
+                validate_locations_geojson(&buf, &raw_name, &mut notices, &mut counter, &mut geojson_location_ids);
             }
             continue;
         }
@@ -904,12 +907,12 @@ pub fn parse(zip_bytes: &[u8]) -> Result<K1Result, FatalError> {
         ));
     }
 
-    Ok(K1Result { files: raw_files, notices })
+    Ok(K1Result { files: raw_files, notices, geojson_location_ids })
 }
 
 // ── locations.geojson validasyon ─────────────────────────────────────────────
 
-fn validate_locations_geojson(bytes: &[u8], fname: &str, notices: &mut Vec<Notice>, counter: &mut u32) {
+fn validate_locations_geojson(bytes: &[u8], fname: &str, notices: &mut Vec<Notice>, counter: &mut u32, geojson_ids: &mut std::collections::HashSet<String>) {
     let text = match std::str::from_utf8(bytes) {
         Ok(s) => s,
         Err(_) => {
@@ -966,6 +969,8 @@ fn validate_locations_geojson(bytes: &[u8], fname: &str, notices: &mut Vec<Notic
         for (i, feature) in features.iter().enumerate() {
             if let Some(id_val) = feature.get("id") {
                 let id_str = id_val.to_string();
+                // XFL_025: stop_times.location_id ham CSV değeriyle eşleşmesi için tırnaksız ham id.
+                geojson_ids.insert(id_val.as_str().map(str::to_string).unwrap_or_else(|| id_str.clone()));
                 if let Some(first_idx) = seen_ids.get(&id_str) {
                     notices.push(make_notice(
                         counter, "LOC_007", EntityType::File, Some(fname.to_string()),

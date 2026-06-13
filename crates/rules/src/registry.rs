@@ -1109,6 +1109,8 @@ pub static RULES: &[RuleMeta] = &[
         "stop_id bulunamadı (location_group_stops)"),
     r!("XFL_024", Kritik, Spec, 1, &[], Some("location_group_id"), VS_K, Row,
         "location_group_id bulunamadı (stop_times)"),
+    r!("XFL_025", Kritik, Spec, 1, &[], Some("location_id"), VS_K, Row,
+        "location_id bulunamadı (locations.geojson)"),
 
     // ── OPR: Operasyonel Tutarlılık (tümü ANALYTICS) ───────────────────────────
     r!("OPR_001", Orta,   Analytics, 3, &[], Some("route_id"), VA, Entity,

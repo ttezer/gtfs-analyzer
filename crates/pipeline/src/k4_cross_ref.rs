@@ -73,6 +73,7 @@ pub fn check(records: &EntityRecords, entity_map: &EntityMap, today: u32) -> K4R
         // XFL_024: stop_times.location_group_id → location_groups (GTFS-Flex)
         // idx.rows hem test hem production'da dolu; flex None satırlar ucuzca atlanır.
         let mut xfl024_seen: HashSet<&str> = HashSet::new();
+        let mut xfl025_seen: HashSet<&str> = HashSet::new();
         for st in &idx.rows {
             let Some(flex) = &st.flex else { continue };
             if let Some(lg) = &flex.location_group_id {
@@ -87,6 +88,22 @@ pub fn check(records: &EntityRecords, entity_map: &EntityMap, today: u32) -> K4R
                         Some(lg.to_string()), None,
                         format!("'{}' konum grubu location_groups.txt'te tanimli degil.", lg),
                         "Gecerli bir location_group_id kullanin veya grubu location_groups.txt'te tanimlayin.",
+                    ));
+                }
+            }
+            // XFL_025: stop_times.location_id → locations.geojson feature id
+            if let Some(loc) = &flex.location_id {
+                if !loc.is_empty()
+                    && !map.geojson_location_ids.contains(loc.as_str())
+                    && xfl025_seen.insert(loc.as_str())
+                {
+                    notices.push(notice(
+                        &mut ctr, "XFL_025", EntityType::Row,
+                        Some(loc.to_string()), Some(loc.to_string()),
+                        "stop_times.txt", Some(st.line), Some("location_id"),
+                        Some(loc.to_string()), None,
+                        format!("'{}' konum locations.geojson'da tanimli degil.", loc),
+                        "Gecerli bir location_id kullanin veya konumu locations.geojson'a ekleyin.",
                     ));
                 }
             }
