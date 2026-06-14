@@ -513,7 +513,7 @@ const ja: LocaleShape = {
     'STM_004': "便'{entity_id}'：departure_time'{observed_value}'の形式が無効です。",
     'STM_005': "便'{entity_id}'：stop_sequence'{observed_value}'がないか無効です。",
     'STM_006': 'stop_timesの行にstop_idがありません。',
-    'STM_007': "便'{entity_id}'：到着時刻が出発時刻より遅いです。",
+    'STM_007': "路線'{route}'の便'{entity_id}'：{stop_name}（停留所 {seq}）で出発 {dep} が到着 {arr} より前です（方向 {dir}）。",
     'STM_008': "路線'{route}'の便'{entity_id}'：{stop_a_name}（停留所 {seq_a}）の出発 {dep} に対し、{stop_b_name}（停留所 {seq_b}）への到着 {arr} — 到着が出発より前です（時刻が逆行）。(方向 {dir}{hs_sep}{headsign})",
     'STM_009': "便'{entity_id}'：pickup_type'{observed_value}'が無効です。",
     'STM_010': "便'{entity_id}'：drop_off_type'{observed_value}'が無効です。",

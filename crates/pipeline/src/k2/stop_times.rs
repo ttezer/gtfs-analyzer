@@ -798,20 +798,9 @@ pub fn validate_stop_times(file: &RawFile) -> (StopTimesIndex, Vec<gtfs_core::No
             }
         };
 
-        // STM_007: departure_time >= arrival_time
-        if let (Some(arr), Some(dep)) = (arrival_time, departure_time) {
-            let arr_secs = arr.0 * 3600 + arr.1 * 60 + arr.2;
-            let dep_secs = dep.0 * 3600 + dep.1 * 60 + dep.2;
-            if dep_secs < arr_secs {
-                notices.push(make_k2_notice(
-                    &mut counter, "STM_007", EntityType::Trip, eid(),
-                    None, &file.name, Some(line), Some("departure_time"),
-                    Some(dep_raw.to_string()), Some(">= arrival_time".to_string()),
-                    "departure_time, arrival_time'dan büyük veya eşit olmalıdır.".to_string(),
-                    "departure_time değerini arrival_time'dan sonra veya eşit olacak şekilde ayarlayın.",
-                ));
-            }
-        }
+        // STM_007 (departure_time >= arrival_time) K6'ya taşındı: orada servis-günü
+        // normalize'li veri + hat/yön/servis bağlamı mevcut, gece-yarısı (00:xx kalkış)
+        // yanlış-pozitifleri elenir. Bkz. k6_analytics.rs.
 
         // STM_034: varış veya kalkış zamanından yalnızca biri tanımlı
         match (arrival_time, departure_time) {
@@ -1303,15 +1292,7 @@ mod tests {
         assert!(notices.iter().any(|n| n.rule_id == "STM_006"));
     }
 
-    #[test]
-    fn departure_before_arrival_produces_stm_007() {
-        let file = make_file(
-            vec!["trip_id", "arrival_time", "departure_time", "stop_id", "stop_sequence"],
-            vec![vec!["T1", "09:00:00", "08:00:00", "S1", "1"]],
-        );
-        let (_, notices) = validate_stop_times(&file);
-        assert!(notices.iter().any(|n| n.rule_id == "STM_007"));
-    }
+    // STM_007 testi K6'ya taşındı (k6_analytics.rs: departure_before_arrival_*).
 
     #[test]
     fn invalid_pickup_type_produces_stm_009() {

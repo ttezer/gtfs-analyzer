@@ -634,6 +634,45 @@ fn check_speed_and_duration(
             .map(|(h, m, _)| format!("{h:02}:{m:02}"))
             .unwrap_or_default();
 
+        // ── STM_007: aynı durakta departure < arrival (K2'den taşındı) ───────────
+        // Gece yarısını aşan son durak (00:xx kalkış, 24:xx yazılmalıydı) yanlış-pozitifi
+        // service_day_start ile elenir; gerçek satır-içi hatalar zenginleştirilmiş mesajla verilir.
+        {
+            let sds_secs = config.service_day_start_hour * 3600;
+            for st in stimes.iter() {
+                let (Some(arr), Some(dep)) = (st.arrival_time, st.departure_time) else { continue };
+                let arr_s = hms_to_secs(arr);
+                let dep_s = hms_to_secs(dep);
+                if dep_s >= arr_s { continue; }
+                // departure'ı +24sa alınca arrival'a yakınsa → gece-yarısı geçişi (kasıtsız) → atla
+                if sds_secs > 0 && (dep_s + 86400).saturating_sub(arr_s) <= sds_secs {
+                    continue;
+                }
+                let seq = st.stop_sequence.unwrap_or(0);
+                let name = stop_name_sd.get(st.stop_id.as_str()).copied().unwrap_or(st.stop_id.as_str());
+                let mut n = k6_notice(
+                    ctr, "STM_007", EntityType::Trip,
+                    Some(trip_id.to_string()), Some(trip_id.to_string()),
+                    "stop_times.txt", Some(st.line), Some("departure_time"),
+                    Some(format!("{} < {}", format_hms(dep_s), format_hms(arr_s))),
+                    Some(format!(">= {}", format_hms(arr_s))),
+                    format!("'{route_label}' hattı '{trip_id}' seferi: {name} durağında (sıra {seq}) kalkış {} < varış {} — kalkış varıştan önce. (yön {dir_sd})",
+                        format_hms(dep_s), format_hms(arr_s)),
+                    "stop_times.txt'te kalkış zamanını varış zamanından sonra (veya eşit) ayarlayın.",
+                );
+                let mut d = std::collections::HashMap::new();
+                d.insert("route".to_string(), route_label.to_string());
+                d.insert("stop_name".to_string(), name.to_string());
+                d.insert("seq".to_string(), seq.to_string());
+                d.insert("dir".to_string(), dir_sd.to_string());
+                d.insert("dep".to_string(), format_hms(dep_s));
+                d.insert("arr".to_string(), format_hms(arr_s));
+                n.details = Some(d);
+                n.service_id = Some(svc_sd.to_string());
+                notices.push(n);
+            }
+        }
+
         // ── STM_028 / STM_029: trip süresi ───────────────────────────────────
         let first_dep = stimes.first().and_then(|s| s.departure_time).map(hms_to_secs);
         let last_arr = stimes.last().and_then(|s| s.arrival_time).map(hms_to_secs);
@@ -7036,6 +7075,38 @@ mod tests {
         );
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
         assert!(!result.notices.iter().any(|n| n.rule_id == "OPR_001"), "düzenli seyrek bastırılmalı");
+    }
+
+    #[test]
+    fn departure_before_arrival_produces_stm_007() {
+        // Gerçek satır-içi hata: B durağında varış 09:00 ama kalkış 08:00 → STM_007.
+        let records = records_with(
+            vec![stop("A", 41.0, 29.0), stop("B", 41.01, 29.01)],
+            vec![route("R1", 3)],
+            vec![trip("T1", "R1")],
+            vec![
+                stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
+                stoptime("T1", 2, "B", (9, 0, 0), (8, 0, 0), 3),
+            ],
+        );
+        let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
+        assert!(result.notices.iter().any(|n| n.rule_id == "STM_007"));
+    }
+
+    #[test]
+    fn midnight_departure_suppresses_stm_007() {
+        // Gece yarısı: son durakta varış 23:58, kalkış 00:00 (24:00 yazılmalıydı) → bastırılır.
+        let records = records_with(
+            vec![stop("A", 41.0, 29.0), stop("B", 41.01, 29.01)],
+            vec![route("R1", 3)],
+            vec![trip("T1", "R1")],
+            vec![
+                stoptime("T1", 1, "A", (23, 50, 0), (23, 50, 0), 2),
+                stoptime("T1", 2, "B", (23, 58, 0), (0, 0, 0), 3),
+            ],
+        );
+        let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
+        assert!(!result.notices.iter().any(|n| n.rule_id == "STM_007"), "gece-yarısı kalkış bastırılmalı");
     }
 
     #[test]
