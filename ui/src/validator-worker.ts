@@ -52,7 +52,7 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
         send<StageDoneMsg>({ id: req.id, type: 'stage', stage, elapsed_ms });
       };
 
-      const newCache = runPrepare(bytes, stageHandler);
+      const newCache = runPrepare(bytes, req.configDelta, stageHandler);
       cache = newCache;
 
       // 3. K1 bittikten sonra dosya istatistiklerini gönder

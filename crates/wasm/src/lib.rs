@@ -111,8 +111,11 @@ pub fn validate(zip_bytes: &[u8], config_delta_json: &str) -> JsValue {
 /// K1–K5'i çalıştırır.
 /// `on_stage(name, elapsed_ms)`: K1/K2/K3/K4/K5 her biri bittikten sonra çağrılır.
 #[wasm_bindgen]
-pub fn prepare(zip_bytes: &[u8], on_stage: &js_sys::Function) -> Result<CachedState, JsValue> {
-    run_k1_k5(zip_bytes, on_stage)
+pub fn prepare(zip_bytes: &[u8], config_delta_json: &str, on_stage: &js_sys::Function) -> Result<CachedState, JsValue> {
+    // Servis-günü normalizasyonu K2'de (run_k1_k5) yapıldığından config burada gerekir.
+    // service_day_start_hour değişimi cache'lenmiş records'a yansımaz → dosya yeniden yüklenir.
+    let config = parse_config(config_delta_json).map_err(|e| to_js(&ValidateResult::Fatal(e)))?;
+    run_k1_k5(zip_bytes, &config, on_stage)
         .map_err(|fatal| to_js(&ValidateResult::Fatal(fatal)))
 }
 
@@ -171,8 +174,12 @@ fn run_full_pipeline(zip_bytes: &[u8], config: &ValidatorConfig, today: u32) -> 
     let mut file_stats = collect_file_stats(&k1.files);
 
     t_start!("K2-validate");
-    let k2 = validate_k2(&k1.files);
+    let mut k2 = validate_k2(&k1.files);
     t_end!("K2-validate");
+    // Gece yarısını aşan seferleri (00:xx) servis-günü notasyonuna (24:xx) normalize et
+    // (K3–K6 öncesi). pipeline::validate_bytes ile aynı adım; WASM kendi orkestrasyonunu
+    // kullandığı için burada da çağrılmalı.
+    k2.records.stop_times_index.normalize_service_day(config.service_day_start_hour);
     // OOM fix Plan A: stop_times K1'de stream edildi (RawFile.rows boş); gerçek satır
     // sayısı K2 index'inde — file_stats'taki 0'ı düzelt.
     for fi in file_stats.iter_mut() {
@@ -230,7 +237,7 @@ fn run_full_pipeline(zip_bytes: &[u8], config: &ValidatorConfig, today: u32) -> 
     })
 }
 
-fn run_k1_k5(zip_bytes: &[u8], on_stage: &js_sys::Function) -> Result<CachedState, FatalError> {
+fn run_k1_k5(zip_bytes: &[u8], config: &ValidatorConfig, on_stage: &js_sys::Function) -> Result<CachedState, FatalError> {
     let today = today_yyyymmdd();
 
     let mut t = js_sys::Date::now();
@@ -242,8 +249,10 @@ fn run_k1_k5(zip_bytes: &[u8], on_stage: &js_sys::Function) -> Result<CachedStat
 
     t = js_sys::Date::now();
     t_start!("K2-validate");
-    let k2 = validate_k2(&k1.files);
+    let mut k2 = validate_k2(&k1.files);
     t_end!("K2-validate");
+    // Gece yarısı (00:xx) → servis-günü (24:xx) normalizasyonu — K3–K6 öncesi (bkz. ilk yol).
+    k2.records.stop_times_index.normalize_service_day(config.service_day_start_hour);
     call_stage(on_stage, "K2", (js_sys::Date::now() - t) as u32);
     // OOM fix Plan A: stop_times K1'de stream edildi (RawFile.rows boş); gerçek satır
     // sayısı K2 index'inde — file_stats'taki 0'ı düzelt.

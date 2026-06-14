@@ -80,10 +80,10 @@ export function getCachedFileStats(cache: CachedState): FileInfo[] {
   }
 }
 
-export function runPrepare(zip: Uint8Array, onStage: (name: string, elapsedMs: number) => void): CachedState {
+export function runPrepare(zip: Uint8Array, configDelta: string, onStage: (name: string, elapsedMs: number) => void): CachedState {
   const cb = (name: string, elapsedMs: number) => onStage(name, elapsedMs);
   try {
-    return loaded().prepare(zip, cb);
+    return loaded().prepare(zip, configDelta, cb);
   } catch (thrown: unknown) {
     const raw = typeof thrown === 'string' ? thrown : String(thrown);
     const parsed = tryParseJson<ValidateResult>(raw);
