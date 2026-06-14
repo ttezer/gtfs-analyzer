@@ -292,7 +292,7 @@ pub fn validate_trips(file: &RawFile) -> (Vec<TripRecord>, Vec<gtfs_core::Notice
             notices.push(make_k2_notice(
                 &mut counter, "TRP_021", EntityType::Trip, None,
                 None, &file.name, None, Some("bikes_allowed"),
-                Some(format!("{trp021_missing_count}/{total} sefer")), Some("0".to_string()),
+                Some(format!("{trp021_missing_count}/{total}")), Some("0".to_string()),
                 format!("Bu feed'de bikes_allowed alanı hiçbir seferde belirtilmemiş ({trp021_missing_count} sefer)."),
                 "bikes_allowed değerini 0 (bilgi yok), 1 (bisiklet izinli) veya 2 (bisiklet izinsiz) olarak ayarlayın.",
             ));
@@ -308,7 +308,7 @@ pub fn validate_trips(file: &RawFile) -> (Vec<TripRecord>, Vec<gtfs_core::Notice
             notices.push(make_k2_notice(
                 &mut counter, "TRP_021", EntityType::Trip, None,
                 None, &file.name, trp021_first_line, Some("bikes_allowed"),
-                Some(format!("{trp021_missing_count}/{total} sefer")), Some("0".to_string()),
+                Some(format!("{trp021_missing_count}/{total}")), Some("0".to_string()),
                 format!("{total} seferin {trp021_missing_count} tanesinde bikes_allowed belirtilmemiş ({:.0}%).{examples}",
                     trp021_missing_count as f64 / total as f64 * 100.0),
                 "Tüm seferlerin bikes_allowed alanını 0 (bilgi yok), 1 (bisiklet izinli) veya 2 (bisiklet izinsiz) olarak doldurun.",

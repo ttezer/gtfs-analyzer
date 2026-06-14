@@ -268,8 +268,8 @@ const TRIP_ID_RULES = new Set([
   'TRP_017','TRP_018','TRP_019','TRP_020',
   // FRQ grubu
   'FRQ_001','FRQ_002','FRQ_003','FRQ_004','FRQ_005','FRQ_006','FRQ_007','FRQ_008','FRQ_009',
-  // STM grubu — özel handler olmayan kurallar
-  'STM_001','STM_002','STM_003','STM_004','STM_005','STM_006','STM_007','STM_008',
+  // STM grubu — özel handler olmayan kurallar (STM_008 özel handler'a taşındı)
+  'STM_001','STM_002','STM_003','STM_004','STM_005','STM_006','STM_007',
   'STM_009','STM_010','STM_011','STM_013','STM_015','STM_016','STM_018','STM_019',
   'STM_021','STM_022','STM_023','STM_024','STM_027','STM_028','STM_029','STM_030',
   'STM_031','STM_032','STM_034',
@@ -315,8 +315,8 @@ function hasMapCoords(notice: Notice, nameIndex: NameIndex): boolean {
     if (m && (m[1] in nameIndex.stop_coords || m[2] in nameIndex.stop_coords)) return true;
     return !!(eid && eid in nameIndex.trip_shapes);
   }
-  // STM_020: tam dakika filtresi iki durak + trip shape
-  if (notice.rule_id === 'STM_020') {
+  // STM_008 / STM_020: iki sorunlu durak (kalkış/varış) + trip shape
+  if (notice.rule_id === 'STM_020' || notice.rule_id === 'STM_008') {
     const sa = notice.details?.['stop_a'] ?? '';
     const sb = notice.details?.['stop_b'] ?? '';
     if (sa && sa in nameIndex.stop_coords) return true;
@@ -433,8 +433,8 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
     return { pins, polyline: polyline.length > 1 ? polyline : undefined, legendItems, showArrows: polyline.length > 1 };
   }
 
-  // STM_020: iki durak pini + trip shape'i
-  if (notice.rule_id === 'STM_020') {
+  // STM_008 / STM_020: iki durak pini (kalkış/varış) + trip shape'i
+  if (notice.rule_id === 'STM_020' || notice.rule_id === 'STM_008') {
     const pinA = notice.details?.['stop_a'] ? stopPin(notice.details['stop_a'], nameIndex, true, t('fix.map.pin.depart')) : null;
     const pinB = notice.details?.['stop_b'] ? stopPin(notice.details['stop_b'], nameIndex, false, t('fix.map.pin.arrive')) : null;
     const pins = [pinA, pinB].filter((p): p is MapPin => p !== null);

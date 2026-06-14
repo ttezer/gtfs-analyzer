@@ -39,6 +39,7 @@ const DEF_BUNCHING_THRESHOLD_MIN:   u32 =   2;
 const DEF_RAIL_STOP_DISTANCE_KM:    f64 = 500.0;
 const DEF_MAX_TRIPS_PER_ROUTE:      u32 = 500;
 const DEF_DURATION_OUTLIER_SIGMA:   f64 =   2.5;
+const DEF_SERVICE_DAY_START_HOUR:   u32 =   3;
 
 /// Validator parametreleri. Tüm eşikler architecture v0.8 Bölüm 6'dan.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -69,6 +70,14 @@ pub struct ValidatorConfig {
     pub max_trips_per_route:      u32,
     /// VAT_003: sefer süresi route medyanından kaç robust-σ (MAD) saparsa aykırı sayılır.
     pub duration_outlier_sigma:   f64,
+    /// Servis günü başlangıç saati (0–6). Gece yarısını aşan seferlerin saatleri (00:xx)
+    /// bu eşiğin altındaysa servis-günü notasyonuna (24:xx) normalize edilir; STM_008 gibi
+    /// "zaman geriye gidiyor" yanlış-pozitiflerini önler. 0 = normalizasyon kapalı.
+    pub service_day_start_hour:   u32,
+    /// OPR_001 (seyrek servis / büyük kalkış boşluğu) için manuel kırsal hat override'ı.
+    /// Buradaki route_id'lerde OPR_001 hiç üretilmez (kasıtlı seyrek servis). Otomatik
+    /// CV-tabanlı algılamanın yanıldığı hatlar için güvenlik ağı. Boş = yalnız otomatik.
+    pub rural_route_ids:          Vec<String>,
     /// Takvim override kuralları — OPR_021/022/023 için.
     /// Boş liste varsayılan; override analizi yapılmaz.
     pub calendar_override_rules: Vec<CalendarOverrideRule>,
@@ -99,6 +108,8 @@ impl Default for ValidatorConfig {
             rail_stop_distance_km:    DEF_RAIL_STOP_DISTANCE_KM,
             max_trips_per_route:      DEF_MAX_TRIPS_PER_ROUTE,
             duration_outlier_sigma:   DEF_DURATION_OUTLIER_SIGMA,
+            service_day_start_hour:   DEF_SERVICE_DAY_START_HOUR,
+            rural_route_ids:          Vec::new(),
             calendar_override_rules:  Vec::new(),
         }
     }
@@ -172,6 +183,7 @@ fn validate_ranges(cfg: &ValidatorConfig) -> Result<(), String> {
     chk_f64!(cfg.rail_stop_distance_km,    "rail_stop_distance_km",       50.0, 2000.0);
     chk_u32!(cfg.max_trips_per_route,      "max_trips_per_route",          50,  20000);
     chk_f64!(cfg.duration_outlier_sigma,   "duration_outlier_sigma",      1.0,     6.0);
+    chk_u32!(cfg.service_day_start_hour,   "service_day_start_hour",        0,       6);
     Ok(())
 }
 
@@ -193,8 +205,8 @@ pub fn merge_delta(base: &ValidatorConfig, delta_json: &str) -> Result<Validator
         "stop_too_close_m", "stop_far_from_shape_m", "stop_far_from_parent_m", "feed_expiry_warning_days",
         "service_gap_days", "upcoming_service_days", "max_trip_duration_hours", "min_trip_duration_sec",
         "max_headway_warning_min", "bunching_threshold_min", "rail_stop_distance_km",
-        "max_trips_per_route", "duration_outlier_sigma",
-        "calendar_override_rules",
+        "max_trips_per_route", "duration_outlier_sigma", "service_day_start_hour",
+        "rural_route_ids", "calendar_override_rules",
     ];
     let unknown: Vec<&str> = map.keys()
         .filter(|k| !known.contains(&k.as_str()))
@@ -249,6 +261,12 @@ pub fn merge_delta(base: &ValidatorConfig, delta_json: &str) -> Result<Validator
     apply_f64!("rail_stop_distance_km",    cfg.rail_stop_distance_km);
     apply_u32!("max_trips_per_route",      cfg.max_trips_per_route);
     apply_f64!("duration_outlier_sigma",   cfg.duration_outlier_sigma);
+    apply_u32!("service_day_start_hour",   cfg.service_day_start_hour);
+
+    if let Some(v) = map.get("rural_route_ids") {
+        cfg.rural_route_ids = serde_json::from_value(v.clone())
+            .map_err(|e| format!("'rural_route_ids' parse hatası: {e}"))?;
+    }
 
     if let Some(v) = map.get("calendar_override_rules") {
         cfg.calendar_override_rules = serde_json::from_value(v.clone())

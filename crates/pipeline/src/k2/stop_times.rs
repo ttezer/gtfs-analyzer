@@ -99,6 +99,50 @@ impl StopTimesIndex {
         Some(&self.rows[s as usize..e as usize])
     }
 
+    /// Gece yarısını aşan seferleri servis-günü notasyonuna (24:xx, 25:xx…) normalize eder.
+    /// `start_hour` (0–6): servis günü başlangıç saati; `0` ise normalizasyon kapalıdır.
+    ///
+    /// Her trip'in sıralı duraklarını gezer: bir durağın `arrival_time`'ı önceki normalize
+    /// edilmiş zamandan KÜÇÜK **ve** ham değeri `start_hour*3600` saniyenin ALTINDA ise gece
+    /// dönümü kabul edilir; o noktadan itibaren `+24sa` offset uygulanır. `departure_time` aynı
+    /// offset'i takip eder ama kendi unwrap'ını TETİKLEMEZ — böylece aynı satırda `dep < arr`
+    /// (STM_007) gerçek hatası bozulmaz. Eşik ÜSTÜndeki geriye-gidişler (gerçek hata) dokunulmaz;
+    /// STM_008 onları yakalamaya devam eder. Monoton trip'lerde offset 0 kalır → satır yeniden yazılmaz.
+    pub fn normalize_service_day(&mut self, start_hour: u32) {
+        if start_hour == 0 {
+            return;
+        }
+        let start_secs = start_hour * 3600;
+        for &(s, e) in self.trip_ranges.values() {
+            let slice = &mut self.rows[s as usize..e as usize];
+            let mut offset: u32 = 0;
+            let mut prev: Option<u32> = None; // önceki normalize edilmiş zaman (saniye)
+            for st in slice.iter_mut() {
+                if let Some((h, m, sec)) = st.arrival_time {
+                    let raw = h * 3600 + m * 60 + sec;
+                    if let Some(p) = prev {
+                        if raw + offset < p && raw < start_secs {
+                            offset += 86400;
+                        }
+                    }
+                    let v = raw + offset;
+                    if offset > 0 {
+                        st.arrival_time = Some((v / 3600, (v % 3600) / 60, v % 60));
+                    }
+                    prev = Some(v);
+                }
+                if let Some((h, m, sec)) = st.departure_time {
+                    let raw = h * 3600 + m * 60 + sec;
+                    let v = raw + offset; // offset'i takip eder; kendi unwrap'ını tetiklemez
+                    if offset > 0 {
+                        st.departure_time = Some((v / 3600, (v % 3600) / 60, v % 60));
+                    }
+                    prev = Some(v);
+                }
+            }
+        }
+    }
+
     /// Tüm trip'leri (trip_id, sıralı stop dilimi) olarak gez. `&idx.trips` iterasyonu yerine BU kullanılır.
     pub fn iter_trips(&self) -> impl Iterator<Item = (&SmolStr, &[CompactStopTime])> {
         self.trip_ranges
@@ -625,7 +669,7 @@ pub fn validate_stop_times(file: &RawFile) -> (StopTimesIndex, Vec<gtfs_core::No
                     notices.push(make_k2_notice(
                         &mut counter, "DQ_016", EntityType::Row, Some(eid016.clone()),
                         None, &file.name, Some(line), Some(fields_str.as_str()),
-                        Some(format!("satır {line}")), None,
+                        Some(format!("{line}")), None,
                         format!("'{}' kaydında ({}, satır {line}): '{}' alanlarında baştaki/sondaki boşluk var.", eid016, file.name, fields_str),
                         "Değerlerdeki gereksiz baştaki/sondaki boşlukları kaldırın.",
                     ));
@@ -1057,7 +1101,7 @@ pub fn validate_stop_times(file: &RawFile) -> (StopTimesIndex, Vec<gtfs_core::No
         notices.push(make_k2_notice(
             &mut counter, "ARC_022", EntityType::File, Some(file.name.clone()),
             None, &file.name, None, None,
-            Some(format!("{total_rows} satır")), None,
+            Some(format!("{total_rows}")), None,
             format!("'{}' dosyasında {total_rows} satır var; {MAX_ROWS} satır sınırını aşıyor.", file.name),
             "Dosyayı küçük parçalara bölün veya gereksiz satırları kaldırın.",
         ));
@@ -1172,6 +1216,40 @@ fn parse_pickup_dropoff_col(
 mod tests {
     use super::*;
     use crate::k1_parse::RawFile;
+
+    #[test]
+    fn normalize_service_day_wraps_midnight_keeps_real_errors() {
+        let rec = |tid: &str, seq: u32, t: (u32, u32, u32)| StopTimeRecord {
+            trip_id: SmolStr::new(tid),
+            stop_id: SmolStr::new(format!("S{seq}")),
+            stop_sequence: Some(seq),
+            arrival_time: Some(t),
+            departure_time: Some(t),
+            ..Default::default()
+        };
+        // T1: gece dönümü — 23:58 → 00:01 (00:01 < 03:00 eşik) → 24:01'e normalize.
+        // T2: gerçek geriye-gidiş — 08:00 → 07:55 (07:55 ≥ 03:00) → dokunulmaz.
+        let recs = vec![
+            rec("T1", 1, (23, 58, 0)),
+            rec("T1", 2, (0, 1, 0)),
+            rec("T2", 1, (8, 0, 0)),
+            rec("T2", 2, (7, 55, 0)),
+        ];
+
+        let mut idx = StopTimesIndex::from_records(&recs);
+        idx.normalize_service_day(3);
+        let t1 = idx.sorted_stops("T1").unwrap();
+        assert_eq!(t1[0].departure_time, Some((23, 58, 0)), "ilk durak dokunulmamalı");
+        assert_eq!(t1[1].arrival_time, Some((24, 1, 0)), "00:01 → 24:01 normalize");
+        assert_eq!(t1[1].departure_time, Some((24, 1, 0)), "departure aynı offset'i takip eder");
+        let t2 = idx.sorted_stops("T2").unwrap();
+        assert_eq!(t2[1].arrival_time, Some((7, 55, 0)), "gerçek hata (eşik üstü) korunur");
+
+        // start_hour = 0 → normalizasyon kapalı.
+        let mut idx0 = StopTimesIndex::from_records(&recs);
+        idx0.normalize_service_day(0);
+        assert_eq!(idx0.sorted_stops("T1").unwrap()[1].arrival_time, Some((0, 1, 0)));
+    }
 
     fn make_file(headers: Vec<&str>, rows: Vec<Vec<&str>>) -> RawFile {
         // OOM fix Plan A: testler de streaming yolunu kullanır — headers+rows CSV'ye

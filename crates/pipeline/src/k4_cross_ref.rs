@@ -822,7 +822,7 @@ fn check_trips(
                     Some(rec.line),
                     Some("shape_id"),
                     None,
-                    Some("continuous servis aktifken zorunlu".to_string()),
+                    None,
                     format!(
                         "trip_id '{}' için continuous_pickup/drop_off aktif — shape_id zorunludur.",
                         rec.trip_id
@@ -2804,7 +2804,7 @@ fn check_xfl(
                     "shapes.txt",
                     line,
                     Some("shape_id"),
-                    Some(format!("{trip_count} sefer")),
+                    Some(format!("{trip_count}")),
                     None,
                     format!(
                         "'{}' güzergah şekli {} sefer tarafından referans alınmış ama bu seferlerin hiçbirinde stop_times kaydı yok.",

@@ -33,10 +33,19 @@ pub fn validate_bytes(zip: &[u8], config: &ValidatorConfig, today: u32) -> Valid
     };
     let mut file_stats = collect_file_stats(&k1.files);
 
-    let k2 = {
+    let mut k2 = {
         let _t = Timer::start("K2-validate");
         validate_k2(&k1.files)
     };
+
+    // Gece yarısını aşan seferleri (00:xx) servis-günü notasyonuna (24:xx) normalize et.
+    // K2 format kuralları (STM_004/007) parse anında ham raw ile çalıştı; bu pass yalnızca
+    // K3–K6 türetilmiş/analitik kuralların (STM_008/014/028, headway…) tutarlı görmesini sağlar.
+    // Monoton seferlerde no-op; yalnızca gece dönümü içeren seferler kayar.
+    {
+        let _t = Timer::start("K2-service-day-normalize");
+        k2.records.stop_times_index.normalize_service_day(config.service_day_start_hour);
+    }
 
     // OOM fix Plan A: stop_times.txt K1'de stream edildiği için RawFile.rows boştur;
     // gerçek satır sayısı K2 index'inde. file_stats'taki 0 değerini düzelt.

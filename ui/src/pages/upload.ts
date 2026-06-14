@@ -26,6 +26,7 @@ const CONFIG_KEYS: Array<{ key: string; type: 'float' | 'int'; def: number; min:
   { key: 'min_trip_duration_sec',    type: 'int',   def: 60,   min: 10,   max: 300  },
   { key: 'max_headway_warning_min',  type: 'int',   def: 240,  min: 60,   max: 720  },
   { key: 'bunching_threshold_min',   type: 'int',   def: 2,    min: 1,    max: 10   },
+  { key: 'service_day_start_hour',   type: 'int',   def: 3,    min: 0,    max: 6    },
 ];
 
 export function renderUpload(root: HTMLElement): void {

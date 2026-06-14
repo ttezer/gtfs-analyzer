@@ -114,6 +114,9 @@ const tr = {
     'cfg.bunching_threshold_min.label'   : 'Sıkışma Eşiği',
     'cfg.bunching_threshold_min.unit'    : 'dk',
     'cfg.bunching_threshold_min.desc'    : 'Bu dakikadan kısa aralık sıkışma sayılır',
+    'cfg.service_day_start_hour.label'   : 'Servis Günü Başlangıcı',
+    'cfg.service_day_start_hour.unit'    : ':00',
+    'cfg.service_day_start_hour.desc'    : 'Bir seferde bu saatten önceki zamanlar gece yarısı sonrası servis kabul edilir (00:xx → 24:xx); yanlış "zaman geriye gidiyor" hatalarını önler. 0 = kapalı.',
     // Score panel
     'score.pub'  : 'Yayın Skoru',
     'score.qual' : 'Kalite Skoru',

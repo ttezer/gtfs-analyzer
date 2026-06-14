@@ -115,7 +115,7 @@ pub fn validate_timeframes(
                     &mut counter, "TFR_005", EntityType::Row,
                     Some(group_id.to_string()), None,
                     &file.name, Some(cur_line), Some("start_time"),
-                    Some(format!("satır {cur_line} ve {prev_line} örtüşüyor")), None,
+                    Some(format!("{cur_line} / {prev_line}")), None,
                     format!(
                         "timeframe_group_id '{}' service_id '{}': {prev_st}–{prev_et}s ile {cur_st}s aralıkları örtüşüyor.",
                         group_id, service_id

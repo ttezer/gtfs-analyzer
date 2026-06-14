@@ -822,7 +822,7 @@ pub fn parse(zip_bytes: &[u8]) -> Result<K1Result, FatalError> {
                         Some(raw_name.as_str()),
                         Some(line_num),
                         Some(fields_str.as_str()),
-                        Some(format!("satır {line_num}")),
+                        Some(format!("{line_num}")),
                         format!("'{}' kaydında ({}, satır {line_num}): '{}' alanlarında baştaki/sondaki boşluk var.",
                             eid, raw_name, fields_str),
                         "Değerlerdeki gereksiz baştaki/sondaki boşlukları kaldırın.",
@@ -840,7 +840,7 @@ pub fn parse(zip_bytes: &[u8]) -> Result<K1Result, FatalError> {
                 &mut counter, "ARC_022",
                 EntityType::File, Some(raw_name.clone()),
                 Some(&raw_name), None, None,
-                Some(format!("{} satır", rows.len())),
+                Some(format!("{}", rows.len())),
                 format!("'{raw_name}' dosyasında {} satır var; {} satır sınırını aşıyor.", rows.len(), MAX_ROWS),
                 "Dosyayı küçük parçalara bölün veya gereksiz satırları kaldırın.",
             ));
