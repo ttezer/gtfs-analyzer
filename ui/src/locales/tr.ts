@@ -181,8 +181,9 @@ const tr = {
     'label.single'              : 'Tek Örnek',
     'label.high-impact'         : 'Yüksek Etki',
     // Fix R9
-    'fix.r9_title'       : 'Düzeltme Kuyruğu (R9)',
+    'fix.r9_title'       : 'Kural Bazlı Skor Özeti (R9)',
     'fix.r9_hint'        : 'Satıra tıklayarak açıklama ve çözüm önerisini görebilirsiniz.',
+    'fix.r9_collapsed_hint' : 'Yayın ve Kalite skoruna etkiyi görmek için tıklayın',
     'fix.r9_empty'       : 'Düzeltilecek bulgu yok.',
     'fix.r9_message'     : 'Mesaj:',
     'fix.r9_remediation' : 'Çözüm:',

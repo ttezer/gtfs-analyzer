@@ -93,8 +93,11 @@ function renderR9(items: R9Item[], noticeMap: Map<string, Notice>, normFactor: n
   ).join('');
 
   return `
-    <div class="card">
-      <h2>${t('fix.r9_title')} <span class="count-badge">${items.length}</span></h2>
+    <details class="card r9-card">
+      <summary>
+        <h2>${t('fix.r9_title')} <span class="count-badge">${items.length}</span></h2>
+        <span class="r9-collapsed-hint">${t('fix.r9_collapsed_hint')}</span>
+      </summary>
       <p class="hint">${t('fix.r9_hint')}</p>
       ${sevPresent.length > 1 ? `<div class="r9-sev-filter" id="r9-sev-filter" role="group" aria-label="${t('fix.th.severity')}">${sevChips}</div>` : ''}
       <div class="table-scroll">
@@ -114,7 +117,7 @@ function renderR9(items: R9Item[], noticeMap: Map<string, Notice>, normFactor: n
           <tbody>${rowPairs}</tbody>
         </table>
       </div>
-    </div>`;
+    </details>`;
 }
 
 
@@ -148,28 +151,29 @@ function renderR2(result: ValidationResult, noticeMap: Map<string, Notice>, delt
     .map(f => `<option value="${escHtml(f)}"${fileFilter && fileFilter === f ? ' selected' : ''}>${escHtml(f)}</option>`)
     .join('');
 
+  // Önem ve sınıf: R9'daki gibi çoklu seçilebilir chip filtresi (sadece mevcut değerler)
+  const SEV_ORDER = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'INFO'];
+  const CLS_ORDER = ['SPEC', 'INTEROP', 'QUALITY', 'ANALYTICS'];
+  const sevPresent = new Set<string>();
+  const clsPresent = new Set<string>();
+  for (const item of items) {
+    const n = noticeMap.get(item.notice_id);
+    if (!n) continue;
+    sevPresent.add(n.severity);
+    clsPresent.add(n.rule_class);
+  }
+  const sevChips = SEV_ORDER.filter(s => sevPresent.has(s)).map(s =>
+    `<button class="sev-chip" data-sev="${s}" style="--chip-color:${SEVERITY_COLOR[s as keyof typeof SEVERITY_COLOR]}">${SEVERITY_TR[s as keyof typeof SEVERITY_TR]}</button>`
+  ).join('');
+  const clsChips = CLS_ORDER.filter(c => clsPresent.has(c)).map(c =>
+    `<button class="cls-chip${classFilter === c ? ' active' : ''}" data-cls="${c}">${RULE_CLASS_TR[c as keyof typeof RULE_CLASS_TR]}</button>`
+  ).join('');
+
   const all = t('fix.filter.all');
   const filterBar = `
     <div class="filter-bar">
-      <label>${t('fix.filter.severity')}
-        <select id="sev-filter">
-          <option value="">${all}</option>
-          <option value="CRITICAL">${SEVERITY_TR['CRITICAL']}</option>
-          <option value="HIGH">${SEVERITY_TR['HIGH']}</option>
-          <option value="MEDIUM">${SEVERITY_TR['MEDIUM']}</option>
-          <option value="LOW">${SEVERITY_TR['LOW']}</option>
-          <option value="INFO">${SEVERITY_TR['INFO']}</option>
-        </select>
-      </label>
-      <label>${t('fix.filter.class')}
-        <select id="cls-filter">
-          <option value=""${classFilter ? '' : ' selected'}>${all}</option>
-          <option value="SPEC"${classFilter === 'SPEC' ? ' selected' : ''}>${RULE_CLASS_TR['SPEC']}</option>
-          <option value="INTEROP"${classFilter === 'INTEROP' ? ' selected' : ''}>${RULE_CLASS_TR['INTEROP']}</option>
-          <option value="QUALITY"${classFilter === 'QUALITY' ? ' selected' : ''}>${RULE_CLASS_TR['QUALITY']}</option>
-          <option value="ANALYTICS"${classFilter === 'ANALYTICS' ? ' selected' : ''}>${RULE_CLASS_TR['ANALYTICS']}</option>
-        </select>
-      </label>
+      ${sevPresent.size > 1 ? `<div class="filter-chip-group" id="r2-sev-filter"><span class="filter-cap">${t('fix.filter.severity')}</span>${sevChips}</div>` : ''}
+      ${clsPresent.size > 1 ? `<div class="filter-chip-group" id="r2-cls-filter"><span class="filter-cap">${t('fix.filter.class')}</span>${clsChips}</div>` : ''}
       <label>${t('fix.filter.rule')}
         <select id="rule-filter">
           <option value="">${all}</option>
@@ -1187,7 +1191,7 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
   return { pins: [{ lat, lon, label: stopLabel(stopName, entityId), primary: true }] };
 }
 
-export function attachFixListeners(root: HTMLElement, result?: ValidationResult, cappedTotals?: Record<string, number>, classFilter?: string): void {
+export function attachFixListeners(root: HTMLElement, result?: ValidationResult, cappedTotals?: Record<string, number>): void {
   // Kolon-bilgi (ℹ) tooltip'leri — hover + tıklama + klavye (native title yerine)
   cinfoWire(root);
 
@@ -1331,13 +1335,13 @@ export function attachFixListeners(root: HTMLElement, result?: ValidationResult,
     });
   }
 
-  // R2 severity + class + rule + file filter
-  const sevFilter  = root.querySelector<HTMLSelectElement>('#sev-filter');
-  const clsFilter  = root.querySelector<HTMLSelectElement>('#cls-filter');
+  // R2 önem + sınıf (chip, çoklu) + kural + dosya (dropdown) filtresi
+  const sevChipBox = root.querySelector('#r2-sev-filter');
+  const clsChipBox = root.querySelector('#r2-cls-filter');
   const ruleFilter = root.querySelector<HTMLSelectElement>('#rule-filter');
   const fileFilterEl = root.querySelector<HTMLSelectElement>('#file-filter');
   const table      = root.querySelector<HTMLTableElement>('#r2-table');
-  if (!sevFilter || !clsFilter || !table) return;
+  if (!table) return;
 
   const allRuleOpts: [string, string][] = ruleFilter
     ? Array.from(ruleFilter.options).filter(o => o.value !== '').map(o => [o.value, o.text])
@@ -1346,31 +1350,16 @@ export function attachFixListeners(root: HTMLElement, result?: ValidationResult,
     ? Array.from(fileFilterEl.options).filter(o => o.value !== '').map(o => [o.value, o.text])
     : [];
 
-  const SEV_OPTS: [string, string][] = [
-    ['CRITICAL', SEVERITY_TR['CRITICAL']], ['HIGH', SEVERITY_TR['HIGH']], ['MEDIUM', SEVERITY_TR['MEDIUM']],
-    ['LOW', SEVERITY_TR['LOW']], ['INFO', SEVERITY_TR['INFO']],
-  ];
-  const CLS_OPTS: [string, string][] = [
-    ['SPEC', RULE_CLASS_TR['SPEC']], ['INTEROP', RULE_CLASS_TR['INTEROP']],
-    ['QUALITY', RULE_CLASS_TR['QUALITY']], ['ANALYTICS', RULE_CLASS_TR['ANALYTICS']],
-  ];
-
-  function rebuildOpts(sel: HTMLSelectElement, cur: string, available: Set<string>, opts: [string, string][]): void {
-    sel.innerHTML = `<option value="">${t('fix.filter.all')}</option>` +
-      opts.filter(([v]) => available.has(v))
-          .map(([v, l]) => `<option value="${v}"${v === cur ? ' selected' : ''}>${l}</option>`)
-          .join('');
-    if (cur && !available.has(cur)) sel.value = '';
-  }
+  // Önem/sınıf: çoklu seçim (boş = tümü). Sınıf, dış filtreli gelişte önceden aktif olabilir.
+  const sevActive = new Set<string>();
+  const clsActive = new Set<string>();
+  clsChipBox?.querySelectorAll<HTMLButtonElement>('.cls-chip.active')
+    .forEach(c => clsActive.add(c.dataset['cls'] ?? ''));
 
   function applyFilters(): void {
-    const sev  = sevFilter!.value;
-    const cls  = clsFilter!.value;
     const rule = ruleFilter?.value ?? '';
     const file = fileFilterEl?.value ?? '';
     let visible = 0, total = 0;
-    const sevSet  = new Set<string>();
-    const clsSet  = new Set<string>();
     const ruleSet = new Set<string>();
     const fileSet = new Set<string>();
 
@@ -1380,22 +1369,20 @@ export function attachFixListeners(root: HTMLElement, result?: ValidationResult,
       const rowCls  = row.dataset['class']    ?? '';
       const rowRule = row.dataset['rule']      ?? '';
       const rowFile = row.dataset['file']      ?? '';
-      const sevMatch  = !sev  || rowSev  === sev;
-      const clsMatch  = !cls  || rowCls  === cls;
+      const sevMatch  = sevActive.size === 0 || sevActive.has(rowSev);
+      const clsMatch  = clsActive.size === 0 || clsActive.has(rowCls);
       const ruleMatch = !rule || rowRule === rule;
       const fileMatch = !file || rowFile === file;
-      row.style.display = (sevMatch && clsMatch && ruleMatch && fileMatch) ? '' : 'none';
-      if (sevMatch && clsMatch && ruleMatch && fileMatch) visible++;
-      // Her dropdown'ın seçenekleri DİĞER üç filtrenin uygulandığı satır kümesinden
-      // türetilir (çapraz filtreleme). Böylece hiçbir filtre diğerini boşaltmaz ve
-      // bir filtre seçilince diğerleri kalan veriye göre daralır.
-      if (clsMatch && ruleMatch && fileMatch) sevSet.add(rowSev);
-      if (sevMatch && ruleMatch && fileMatch) clsSet.add(rowCls);
+      const show = sevMatch && clsMatch && ruleMatch && fileMatch;
+      row.style.display = show ? '' : 'none';
+      if (show) visible++;
+      // Kural/dosya dropdown'ları çapraz filtreleme korur: seçenekleri diğer
+      // filtrelerin uygulandığı satır kümesinden türetilir.
       if (sevMatch && clsMatch && fileMatch) ruleSet.add(rowRule);
       if (sevMatch && clsMatch && ruleMatch) fileSet.add(rowFile);
     });
 
-    const anyFilter = sev || cls || rule || file;
+    const anyFilter = sevActive.size > 0 || clsActive.size > 0 || rule || file;
     const counter = root.querySelector<HTMLSpanElement>('#filter-count');
     if (counter) counter.textContent = anyFilter ? t('fix.filter.count', { visible, total }) : '';
 
@@ -1413,8 +1400,6 @@ export function attachFixListeners(root: HTMLElement, result?: ValidationResult,
       }
     }
 
-    rebuildOpts(sevFilter!, sev, sevSet, SEV_OPTS);
-    rebuildOpts(clsFilter!, cls, clsSet, CLS_OPTS);
     if (ruleFilter) {
       ruleFilter.innerHTML = `<option value="">${t('fix.filter.all')}</option>` +
         allRuleOpts.filter(([v]) => ruleSet.has(v))
@@ -1431,14 +1416,28 @@ export function attachFixListeners(root: HTMLElement, result?: ValidationResult,
     }
   }
 
-  sevFilter.addEventListener('change', applyFilters);
-  clsFilter.addEventListener('change', applyFilters);
+  sevChipBox?.querySelectorAll<HTMLButtonElement>('.sev-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      const s = chip.dataset['sev'] ?? '';
+      if (sevActive.has(s)) { sevActive.delete(s); chip.classList.remove('active'); }
+      else { sevActive.add(s); chip.classList.add('active'); }
+      applyFilters();
+    });
+  });
+  clsChipBox?.querySelectorAll<HTMLButtonElement>('.cls-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      const c = chip.dataset['cls'] ?? '';
+      if (clsActive.has(c)) { clsActive.delete(c); chip.classList.remove('active'); }
+      else { clsActive.add(c); chip.classList.add('active'); }
+      applyFilters();
+    });
+  });
   ruleFilter?.addEventListener('change', applyFilters);
   fileFilterEl?.addEventListener('change', applyFilters);
 
   // files sayfasından (dosya filtresi) veya skor bileşeni kartından (sınıf filtresi)
   // filtreli gelindiyse hemen uygula ve R2'ye scroll et
-  if ((fileFilterEl && fileFilterEl.value) || (classFilter && clsFilter.value)) {
+  if ((fileFilterEl && fileFilterEl.value) || clsActive.size > 0) {
     applyFilters();
     requestAnimationFrame(() => {
       root.querySelector('#r2-card')?.scrollIntoView({ behavior: 'smooth', block: 'start' });

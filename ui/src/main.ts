@@ -155,7 +155,7 @@ export function renderApp(): void {
   const pageRoot = document.getElementById('page-root')!;
   switch (state.page) {
     case 'domain': renderDomain(pageRoot, state.result); break;
-    case 'fix':    renderFix(pageRoot, state.result, state.fixFileFilter, state.fixClassFilter); attachFixListeners(pageRoot, state.result, state.result.capped_totals, state.fixClassFilter); break;
+    case 'fix':    renderFix(pageRoot, state.result, state.fixFileFilter, state.fixClassFilter); attachFixListeners(pageRoot, state.result, state.result.capped_totals); break;
     case 'files':  renderFiles(pageRoot, state.result); break;
     case 'export': renderExport(pageRoot, state.result, state.fileName); break;
   }

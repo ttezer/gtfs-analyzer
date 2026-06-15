@@ -183,8 +183,9 @@ const en: LocaleShape = {
     'label.single'              : 'Single Instance',
     'label.high-impact'         : 'High Impact',
     // Fix R9
-    'fix.r9_title'       : 'Fix Queue (R9)',
+    'fix.r9_title'       : 'Rule-Based Score Summary (R9)',
     'fix.r9_hint'        : 'Click a row to see details and remediation.',
+    'fix.r9_collapsed_hint' : 'click to see Publish and Quality score impact',
     'fix.r9_empty'       : 'No issues to fix.',
     'fix.r9_message'     : 'Message:',
     'fix.r9_remediation' : 'Remediation:',
