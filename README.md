@@ -47,7 +47,7 @@ GTFS Analyzer, spesifikasyon doğrulamasını operasyonel kalite analiziyle geni
 
 ### Feed Analizi Örnekleri
 
-Aynı feed'ler üç validator ile karşılaştırıldı: MobilityData gtfs-validator v8.0.1 · GTFS Guru v0.1.0 · GTFS Analyzer v0.1.1. (GTFS Analyzer sayıları 2026-06-12 tarihli analizin anlık görüntüsüdür; tarihe bağlı kurallar nedeniyle farklı bir günde çalıştırma küçük sapmalar verebilir.)
+Aynı feed'ler üç validator ile karşılaştırıldı: MobilityData gtfs-validator v8.0.1 · GTFS Guru v0.1.0 · GTFS Analyzer v0.1.1. (GTFS Analyzer sayıları 2026-06-15 tarihli analizin anlık görüntüsüdür; tarihe bağlı kurallar nedeniyle farklı bir günde çalıştırma küçük sapmalar verebilir.)
 
 #### BART (Bay Area Rapid Transit, San Francisco)
 
@@ -55,12 +55,12 @@ Feed: `BART (San Francisco).zip` — 2026-05-25'te indirilen sürüm (geçerlili
 
 | | MobilityData | GTFS Guru | GTFS Analyzer |
 |---|---:|---:|---:|
-| Toplam notice | 2.725 | 2.663 | 3.217 |
+| Toplam notice | 2.725 | 2.663 | 3.227 |
 | Kritik / Error | 2 | 1 | 2 |
 | Yüksek / Warning | 2.655 | 2.655 | 141 |
 | Orta | — | — | 1.058 |
 | Düşük | — | — | 987 |
-| Bilgi / Info | 68 | 7 | 1.029 |
+| Bilgi / Info | 68 | 7 | 1.039 |
 | Tetiklenen kural tipi | 13 | 10 | **47** |
 | Yayın skoru | — | — | **92,6 / 100** |
 | Kalite skoru | — | — | **82,6 / 100** |
@@ -71,13 +71,13 @@ Feed: `trimet.zip` — 2026-06-04'te indirilen sürüm (geçerlilik aralığı: 
 
 | | MobilityData | GTFS Guru | GTFS Analyzer |
 |---|---:|---:|---:|
-| Toplam notice | 48 | 116 | 5.008 |
+| Toplam notice | 48 | 116 | 4.966 |
 | Kritik / Error | 0 | 0 | 36 |
 | Yüksek / Warning | 39 | 107 | 1.655 |
-| Orta | — | — | 1.381 |
-| Düşük | — | — | 1.019 |
-| Bilgi / Info | 9 | 9 | 917 |
-| Tetiklenen kural tipi | 7 | 7 | **56** |
+| Orta | — | — | 1.379 |
+| Düşük | — | — | 1.018 |
+| Bilgi / Info | 9 | 9 | 878 |
+| Tetiklenen kural tipi | 7 | 7 | **57** |
 | Yayın skoru | — | — | **80,6 / 100** |
 | Kalite skoru | — | — | **73,9 / 100** |
 
@@ -89,12 +89,12 @@ Feed: `tokyo_toei_bus.zip` — feed_version 2026-06-06 (geçerlilik aralığı: 
 
 | | MobilityData | GTFS Guru | GTFS Analyzer |
 |---|---:|---:|---:|
-| Toplam notice | 1.637 | 4.137 | 7.265 |
+| Toplam notice | 1.637 | 4.137 | 7.231 |
 | Kritik / Error | 0 | 0 | 0 |
-| Yüksek / Warning | 265 | 4.128 | 1.059 |
+| Yüksek / Warning | 265 | 4.128 | 1.060 |
 | Orta | — | — | 3.324 |
 | Düşük | — | — | 1.968 |
-| Bilgi / Info | 1.372 | 9 | 914 |
+| Bilgi / Info | 1.372 | 9 | 879 |
 | Tetiklenen kural tipi | 9 | 6 | **58** |
 | Yayın skoru | — | — | **94,3 / 100** |
 | Kalite skoru | — | — | **72,5 / 100** |

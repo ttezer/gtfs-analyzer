@@ -47,7 +47,7 @@ GTFS Analyzer extends specification validation with operational quality analysis
 
 ### Feed Analysis Examples
 
-The same feeds were compared with three validators: MobilityData gtfs-validator v8.0.1 · GTFS Guru v0.1.0 · GTFS Analyzer v0.1.1. (GTFS Analyzer figures are a snapshot from an analysis run on 2026-06-12; because some rules are date-dependent, running on a different day may produce small deviations.)
+The same feeds were compared with three validators: MobilityData gtfs-validator v8.0.1 · GTFS Guru v0.1.0 · GTFS Analyzer v0.1.1. (GTFS Analyzer figures are a snapshot from an analysis run on 2026-06-15; because some rules are date-dependent, running on a different day may produce small deviations.)
 
 #### BART (Bay Area Rapid Transit, San Francisco)
 
@@ -55,12 +55,12 @@ Feed: `BART (San Francisco).zip` — version downloaded on 2026-05-25 (validity 
 
 | | MobilityData | GTFS Guru | GTFS Analyzer |
 |---|---:|---:|---:|
-| Total notices | 2,725 | 2,663 | 3,217 |
+| Total notices | 2,725 | 2,663 | 3,227 |
 | Critical / Error | 2 | 1 | 2 |
 | High / Warning | 2,655 | 2,655 | 141 |
 | Medium | — | — | 1,058 |
 | Low | — | — | 987 |
-| Info | 68 | 7 | 1,029 |
+| Info | 68 | 7 | 1,039 |
 | Distinct rule types triggered | 13 | 10 | **47** |
 | Publish score | — | — | **92.6 / 100** |
 | Quality score | — | — | **82.6 / 100** |
@@ -71,13 +71,13 @@ Feed: `trimet.zip` — version downloaded on 2026-06-04 (validity range: 2026-04
 
 | | MobilityData | GTFS Guru | GTFS Analyzer |
 |---|---:|---:|---:|
-| Total notices | 48 | 116 | 5,008 |
+| Total notices | 48 | 116 | 4,966 |
 | Critical / Error | 0 | 0 | 36 |
 | High / Warning | 39 | 107 | 1,655 |
-| Medium | — | — | 1,381 |
-| Low | — | — | 1,019 |
-| Info | 9 | 9 | 917 |
-| Distinct rule types triggered | 7 | 7 | **56** |
+| Medium | — | — | 1,379 |
+| Low | — | — | 1,018 |
+| Info | 9 | 9 | 878 |
+| Distinct rule types triggered | 7 | 7 | **57** |
 | Publish score | — | — | **80.6 / 100** |
 | Quality score | — | — | **73.9 / 100** |
 
@@ -89,12 +89,12 @@ Feed: `tokyo_toei_bus.zip` — feed_version 2026-06-06 (validity range: 2026-06-
 
 | | MobilityData | GTFS Guru | GTFS Analyzer |
 |---|---:|---:|---:|
-| Total notices | 1,637 | 4,137 | 7,265 |
+| Total notices | 1,637 | 4,137 | 7,231 |
 | Critical / Error | 0 | 0 | 0 |
-| High / Warning | 265 | 4,128 | 1,059 |
+| High / Warning | 265 | 4,128 | 1,060 |
 | Medium | — | — | 3,324 |
 | Low | — | — | 1,968 |
-| Info | 1,372 | 9 | 914 |
+| Info | 1,372 | 9 | 879 |
 | Distinct rule types triggered | 9 | 6 | **58** |
 | Publish score | — | — | **94.3 / 100** |
 | Quality score | — | — | **72.5 / 100** |
