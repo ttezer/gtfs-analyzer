@@ -75,6 +75,32 @@ pub fn validate_agency(file: &RawFile) -> (Vec<AgencyRecord>, Vec<gtfs_core::Not
             _ => {}
         }
 
+        // AGN_015: agency_url güvensiz 'http://' kullanıyor — 'https://' önerilir.
+        if agency_url.starts_with("http://") {
+            notices.push(make_k2_notice(
+                &mut counter, "AGN_015", EntityType::Agency, entity_id.clone(), Some(&row_map),
+                &file.name, Some(line), Some("agency_url"), Some(agency_url.clone()),
+                Some("https://".to_string()),
+                "agency_url güvensiz 'http://' kullanıyor — 'https://' önerilir.".to_string(),
+                "agency_url'yi https:// ile güncelleyin.",
+            ));
+        }
+
+        // AGN_016: agency_phone bilinen bir yer-tutucu/hizmet-dışı numara (veri üreticisinin
+        // kurumsal numarası, tüm feed'lere kopyalanmış vb.) — gerçek iletişim numarası olmayabilir.
+        if let Some(phone) = get_trimmed_field(&row_map, "agency_phone").filter(|v| !v.is_empty()) {
+            let digits: String = phone.chars().filter(|c| c.is_ascii_digit()).collect();
+            const SUSPICIOUS_PHONES: &[&str] = &["8882812681", "18882812681"];
+            if SUSPICIOUS_PHONES.contains(&digits.as_str()) {
+                notices.push(make_k2_notice(
+                    &mut counter, "AGN_016", EntityType::Agency, entity_id.clone(), Some(&row_map),
+                    &file.name, Some(line), Some("agency_phone"), Some(phone.to_string()), None,
+                    format!("agency_phone '{phone}' bilinen bir yer-tutucu/hizmet-dışı numara — gerçek iletişim numarası olmayabilir."),
+                    "agency_phone'u işleten ajansın gerçek, çalışan numarasıyla güncelleyin.",
+                ));
+            }
+        }
+
         // AGN_004: agency_timezone required + valid IANA (sütun yoksa ARC_025 devralır → atla)
         let agency_timezone = get_trimmed_field(&row_map, "agency_timezone").unwrap_or("").to_string();
         match get_trimmed_field(&row_map, "agency_timezone") {

@@ -6701,24 +6701,28 @@ fn check_vat_analytics(
         }
     }
 
-    // OPR_024: Hat 500'den fazla sefer içeriyor
+    // OPR_024: Bir hat TEK çalışma takviminde (route_id + service_id) çok fazla sefer içeriyor.
+    // Eşik route-toplam değil service-başına uygulanır: haftaya yayılan normal sefer sayısı
+    // (7 gün × günlük sefer) yanlış-pozitif vermez; gerçek "veri birleştirme" tek takvimde patlar.
     {
-        let mut route_trip_counts: HashMap<&str, u32> = HashMap::new();
+        let mut rs_trip_counts: HashMap<(&str, &str), u32> = HashMap::new();
         for t in &records.trips {
             if !t.route_id.is_empty() {
-                *route_trip_counts.entry(t.route_id.as_str()).or_default() += 1;
+                *rs_trip_counts.entry((t.route_id.as_str(), t.service_id.as_str())).or_default() += 1;
             }
         }
-        for (route_id, count) in &route_trip_counts {
+        for ((route_id, service_id), count) in &rs_trip_counts {
             if *count > config.max_trips_per_route {
-                notices.push(k6_notice(
+                let mut n = k6_notice(
                     ctr, "OPR_024", EntityType::Route,
                     Some((*route_id).to_string()), Some((*route_id).to_string()),
                     "trips.txt", None, None,
                     Some(count.to_string()), Some(format!("≤{}", config.max_trips_per_route)),
-                    format!("'{route_id}' hattında {count} sefer var — veri birleştirme sorunu olabilir."),
-                    "Bu hattaki seferlerin doğru route_id'ye atandığını kontrol edin.",
-                ));
+                    format!("'{route_id}' hattı '{service_id}' çalışma takviminde {count} sefer içeriyor — veri birleştirme sorunu olabilir."),
+                    "Bu seferlerin doğru route_id ve service_id'ye atandığını kontrol edin.",
+                );
+                n.service_id = Some((*service_id).to_string());
+                notices.push(n);
             }
         }
     }

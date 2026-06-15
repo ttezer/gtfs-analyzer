@@ -190,6 +190,10 @@ pub static RULES: &[RuleMeta] = &[
         "Feed dili ve ajans dili uyuşmuyor"),
     r!("AGN_014", Kritik, Spec, 1, &[], None, VS_K, Entity,
         "Birden fazla kuruluş var ama agency.txt'de agency_id eksik"),
+    r!("AGN_015", Bilgi,  Quality, 1, &[], Some("agency_url"), VS, Entity,
+        "agency_url güvensiz http kullanıyor (https önerilir)"),
+    r!("AGN_016", Bilgi,  Quality, 1, &[], Some("agency_phone"), VS, Entity,
+        "agency_phone bilinen yer-tutucu/şüpheli numara"),
 
     // ── STP: Stops ─────────────────────────────────────────────────────────────
     r!("STP_001", Kritik, Spec, 1,

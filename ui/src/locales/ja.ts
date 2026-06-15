@@ -423,6 +423,8 @@ const ja: LocaleShape = {
     'RTS_025': '{observed_value}路線でagency_idが空です — 推奨フィールドです。単一事業者でも入力が推奨されます。',
     'AGN_013': 'フィード言語と事業者言語が一致しません。',
     'AGN_014': 'agency.txtに複数の事業者が定義されている場合、agency_idは必須です。',
+    'AGN_015': "事業者「{entity_id}」：agency_urlが安全でない「http://」を使用しています。「https://」が推奨されます。",
+    'AGN_016': "事業者「{entity_id}」：agency_phone「{observed_value}」は既知のプレースホルダーまたは利用不可の番号です。実際の連絡先でない可能性があります。",
     // STP
     'STP_001': "stop_idが重複しています：'{entity_id}'。",
     'STP_002': 'stop_idが空です。',
@@ -861,7 +863,7 @@ const ja: LocaleShape = {
     'OPR_021': "'{entity_id}'のカレンダー上書き競合：上書きとベースサービスが同時に有効です。",
     'OPR_022': "'{entity_id}'のカレンダー上書きが適用されていません：ベースサービスが上書き日に引き続き稼働しています。",
     'OPR_023': "'{entity_id}'のカレンダー上書きギャップ：上書きウィンドウ内で有効なサービスがありません。",
-    'OPR_024': "路線'{entity_id}'は{observed_value}便あります — データ集約の問題の可能性があります。",
+    'OPR_024': "路線'{entity_id}'は単一のサービスカレンダーで{observed_value}便あります — データ集約の問題の可能性があります。",
     'OPR_025': "フィード全体の平均便所要時間は{observed_value} — 極端に短く、データ品質の問題の可能性があります。",
     // GEO
     'GEO_002': "停留所'{entity_id}'はフィードの中央値から{observed_value}離れています — 座標エラーの可能性があります。",
@@ -953,6 +955,8 @@ const ja: LocaleShape = {
     'RTS_025': 'routes.txtのagency_id列を運行事業者のagency_idで入力してください。',
     'AGN_013': 'feed_info.txtのfeed_langとagency.txtのagency_langの値を一致させてください。',
     'AGN_014': '複数の事業者が存在する場合は、各agency行に一意のagency_idを割り当ててください。',
+    'AGN_015': 'agency_urlをhttps://に更新してください。',
+    'AGN_016': 'agency_phoneを運行事業者の実際の有効な番号に更新してください。',
     // ATR
     'ATR_001': '各帰属レコードに一意のattribution_idを割り当ててください。',
     'ATR_002': 'organization_nameフィールドを入力してください。',
@@ -1505,6 +1509,8 @@ const ja: LocaleShape = {
     'RTS_025': 'routes.txtのagency_idが空（推奨）',
     'AGN_013': 'フィード言語と事業者言語が不一致',
     'AGN_014': '複数事業者だがagency.txtにagency_idなし',
+    'AGN_015': 'agency_urlが安全でないhttp',
+    'AGN_016': 'agency_phoneが疑わしい/プレースホルダー',
     // STP
     'STP_001': 'stop_idが重複',
     'STP_002': 'stop_idが空',

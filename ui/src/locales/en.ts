@@ -442,6 +442,8 @@ const en: LocaleShape = {
     'RTS_025': "{observed_value} routes have an empty agency_id — a recommended field; filling it is best practice even with a single agency.",
     'AGN_013': 'Feed language and agency language mismatch.',
     'AGN_014': 'agency_id is required when multiple agencies are defined in agency.txt.',
+    'AGN_015': "Agency '{entity_id}': agency_url uses insecure 'http://'; 'https://' is recommended.",
+    'AGN_016': "Agency '{entity_id}': agency_phone '{observed_value}' is a known placeholder or out-of-service number; it may not be a real contact.",
     // STP
     'STP_001': "Duplicate stop_id: '{entity_id}'.",
     'STP_002': 'stop_id is empty.',
@@ -880,7 +882,7 @@ const en: LocaleShape = {
     'OPR_021': "Calendar override conflict for '{entity_id}': override and base are both active simultaneously.",
     'OPR_022': "Calendar override for '{entity_id}' not applied: base service is still running on override day.",
     'OPR_023': "Calendar override gap for '{entity_id}': no service is active within the override window.",
-    'OPR_024': "Route '{entity_id}' has {observed_value} trips — possible data aggregation issue.",
+    'OPR_024': "Route '{entity_id}' has {observed_value} trips in a single service calendar — possible data aggregation issue.",
     'OPR_025': "Feed average trip duration is {observed_value} — extremely short, likely a data quality issue.",
     // GEO
     'GEO_002': "Stop '{entity_id}' is {observed_value} from the feed median — possible coordinate error.",
@@ -1420,6 +1422,8 @@ const en: LocaleShape = {
     'AGN_001': 'Add agency.txt to the feed ZIP.',
     'AGN_013': 'Align the feed_lang value in feed_info.txt with the agency_lang value in agency.txt.',
     'AGN_014': 'Assign a unique agency_id to every agency row when multiple agencies are present.',
+    'AGN_015': 'Update agency_url to use https://.',
+    'AGN_016': "Update agency_phone to the operating agency's real, working number.",
     // ATR
     'ATR_009': 'Fill in only one of these attribution reference fields.',
     'ATR_010': 'Use a valid agency_id, route_id or trip_id in the attribution record.',
@@ -1551,6 +1555,8 @@ const en: LocaleShape = {
     'RTS_025': 'routes.txt agency_id empty (recommended)',
     'AGN_013': 'Feed language and agency language mismatch',
     'AGN_014': 'Multiple agencies but agency.txt agency_id missing',
+    'AGN_015': 'agency_url uses insecure http',
+    'AGN_016': 'agency_phone suspect/placeholder',
     // STP
     'STP_001': 'Duplicate stop_id',
     'STP_002': 'stop_id is empty',
