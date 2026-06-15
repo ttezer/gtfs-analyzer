@@ -40,6 +40,7 @@ const DEF_RAIL_STOP_DISTANCE_KM:    f64 = 500.0;
 const DEF_MAX_TRIPS_PER_ROUTE:      u32 = 500;
 const DEF_DURATION_OUTLIER_SIGMA:   f64 =   2.5;
 const DEF_SERVICE_DAY_START_HOUR:   u32 =   3;
+const DEF_MAX_CALENDAR_FUTURE_YEARS: u32 =  3;
 
 /// Validator parametreleri. Tüm eşikler architecture v0.8 Bölüm 6'dan.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -74,6 +75,9 @@ pub struct ValidatorConfig {
     /// bu eşiğin altındaysa servis-günü notasyonuna (24:xx) normalize edilir; STM_008 gibi
     /// "zaman geriye gidiyor" yanlış-pozitiflerini önler. 0 = normalizasyon kapalı.
     pub service_day_start_hour:   u32,
+    /// CAL_023: calendar/calendar_dates end_date bugünden bu kadar yıldan fazla ileriyse
+    /// şüpheli veri sayılır (ör. 2050/2099). Düşük-kaliteli/yanlış tarih sinyali.
+    pub max_calendar_future_years: u32,
     /// OPR_001 (seyrek servis / büyük kalkış boşluğu) için manuel kırsal hat override'ı.
     /// Buradaki route_id'lerde OPR_001 hiç üretilmez (kasıtlı seyrek servis). Otomatik
     /// CV-tabanlı algılamanın yanıldığı hatlar için güvenlik ağı. Boş = yalnız otomatik.
@@ -109,6 +113,7 @@ impl Default for ValidatorConfig {
             max_trips_per_route:      DEF_MAX_TRIPS_PER_ROUTE,
             duration_outlier_sigma:   DEF_DURATION_OUTLIER_SIGMA,
             service_day_start_hour:   DEF_SERVICE_DAY_START_HOUR,
+            max_calendar_future_years: DEF_MAX_CALENDAR_FUTURE_YEARS,
             rural_route_ids:          Vec::new(),
             calendar_override_rules:  Vec::new(),
         }
@@ -184,6 +189,7 @@ fn validate_ranges(cfg: &ValidatorConfig) -> Result<(), String> {
     chk_u32!(cfg.max_trips_per_route,      "max_trips_per_route",          50,  20000);
     chk_f64!(cfg.duration_outlier_sigma,   "duration_outlier_sigma",      1.0,     6.0);
     chk_u32!(cfg.service_day_start_hour,   "service_day_start_hour",        0,       6);
+    chk_u32!(cfg.max_calendar_future_years, "max_calendar_future_years",     1,      50);
     Ok(())
 }
 
@@ -206,7 +212,7 @@ pub fn merge_delta(base: &ValidatorConfig, delta_json: &str) -> Result<Validator
         "service_gap_days", "upcoming_service_days", "max_trip_duration_hours", "min_trip_duration_sec",
         "max_headway_warning_min", "bunching_threshold_min", "rail_stop_distance_km",
         "max_trips_per_route", "duration_outlier_sigma", "service_day_start_hour",
-        "rural_route_ids", "calendar_override_rules",
+        "max_calendar_future_years", "rural_route_ids", "calendar_override_rules",
     ];
     let unknown: Vec<&str> = map.keys()
         .filter(|k| !known.contains(&k.as_str()))
@@ -262,6 +268,7 @@ pub fn merge_delta(base: &ValidatorConfig, delta_json: &str) -> Result<Validator
     apply_u32!("max_trips_per_route",      cfg.max_trips_per_route);
     apply_f64!("duration_outlier_sigma",   cfg.duration_outlier_sigma);
     apply_u32!("service_day_start_hour",   cfg.service_day_start_hour);
+    apply_u32!("max_calendar_future_years", cfg.max_calendar_future_years);
 
     if let Some(v) = map.get("rural_route_ids") {
         cfg.rural_route_ids = serde_json::from_value(v.clone())

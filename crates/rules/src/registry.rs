@@ -585,6 +585,8 @@ pub static RULES: &[RuleMeta] = &[
         "Servis bugünü kapsıyor ama yakın günlerde aktif sefer yok"),
     r!("CAL_022", Kritik, Spec, 1, &[], Some("service_id"), VS_K, Row,
         "service_id eksik"),
+    r!("CAL_023", Orta, Quality, 2, &[], Some("service_id"), VA, Entity,
+        "end_date çok ileri (şüpheli uzak-gelecek tarih)"),
 
     // ── CLD: Calendar Dates ────────────────────────────────────────────────────
     r!("CLD_001", Kritik, Spec, 1, &[], Some("service_id"), VS_K, Row,

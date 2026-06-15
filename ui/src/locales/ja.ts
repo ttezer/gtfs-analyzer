@@ -113,6 +113,9 @@ const ja: LocaleShape = {
     'cfg.service_day_start_hour.label'   : 'サービス日の開始時刻',
     'cfg.service_day_start_hour.unit'    : ':00',
     'cfg.service_day_start_hour.desc'    : '便内でこの時刻より前の時刻は深夜以降の運行（00:xx → 24:xx）として扱い、誤った「時刻が逆行」エラーを防ぎます。0で無効。',
+    'cfg.max_calendar_future_years.label': 'カレンダー最大未来',
+    'cfg.max_calendar_future_years.unit' : '年',
+    'cfg.max_calendar_future_years.desc' : 'カレンダーのend_dateがこの年数以上先の場合、疑わしい/低品質データとして検出します（例：2050/2099のプレースホルダー）。',
     'score.pub'  : '公開スコア',
     'score.qual' : '品質スコア',
     'class.SPEC'      : 'GTFS仕様',
@@ -587,6 +590,7 @@ const ja: LocaleShape = {
     'CAL_020': "フィードの有効期間が{observed_value}に及びます — 交通フィードとして非現実的な長さです。",
     'CAL_021': "サービス'{entity_id}'は本日は有効ですが、今後の期間に運行予定がありません。",
     'CAL_022': 'calendar.txt：service_idがありません。',
+    'CAL_023': "サービス「{entity_id}」：end_date {observed_value} が遠い未来です（期待値：{expected_value}）。プレースホルダーまたは低品質データの可能性があります。",
     // CLD
     'CLD_001': 'calendar_dates.txt：service_idがありません。',
     'CLD_002': "calendar_dates.txt：日付'{observed_value}'の形式が無効です。",
@@ -993,6 +997,7 @@ const ja: LocaleShape = {
     'CAL_020': 'feed_start_dateとfeed_end_dateを現実的なサービス期間（通常1〜2年）に制限してください。',
     'CAL_021': '今後の運行がないのが意図的でなければ、calendar/calendar_datesで近い日付に運行日を追加してください。',
     'CAL_022': 'service_idフィールドを入力してください。',
+    'CAL_023': 'end_dateを実際のサービス終了日に設定してください。遠い未来の日付は通常プレースホルダーか誤りです。',
     // CLD
     'CLD_001': 'service_idフィールドを入力してください。',
     'CLD_002': '日付をYYYYMMDD形式で入力してください。',
@@ -1665,6 +1670,7 @@ const ja: LocaleShape = {
     'CAL_020': 'フィード有効期間が5年超',
     'CAL_021': '本日は有効だが今後数日間運行なし',
     'CAL_022': 'service_idが不足',
+    'CAL_023': 'カレンダーのend_dateが遠い未来（疑わしい）',
     // CLD
     'CLD_001': 'service_idが不足',
     'CLD_002': '日付が欠落または形式が無効',

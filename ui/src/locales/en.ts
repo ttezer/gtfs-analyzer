@@ -119,6 +119,9 @@ const en: LocaleShape = {
     'cfg.service_day_start_hour.label'   : 'Service Day Start',
     'cfg.service_day_start_hour.unit'    : ':00',
     'cfg.service_day_start_hour.desc'    : 'Times before this hour on a trip are treated as after-midnight service (00:xx → 24:xx), avoiding false "time goes backwards" errors. 0 disables.',
+    'cfg.max_calendar_future_years.label': 'Max Calendar Future',
+    'cfg.max_calendar_future_years.unit' : 'yrs',
+    'cfg.max_calendar_future_years.desc' : 'A calendar end_date more than this many years ahead is flagged as suspect/low-quality data (e.g. 2050/2099 placeholders).',
     // Score panel
     'score.pub'  : 'Publish Score',
     'score.qual' : 'Quality Score',
@@ -606,6 +609,7 @@ const en: LocaleShape = {
     'CAL_020': "Feed validity window spans {observed_value} — unrealistically long for a transit feed.",
     'CAL_021': "Service '{entity_id}' is active today but has no scheduled service in the upcoming window.",
     'CAL_022': 'calendar.txt: service_id is missing.',
+    'CAL_023': "Service '{entity_id}': end_date {observed_value} is far in the future (expected {expected_value}); likely placeholder or low-quality data.",
     // CLD
     'CLD_001': 'calendar_dates.txt: service_id is missing.',
     'CLD_002': "calendar_dates.txt: date '{observed_value}' has an invalid format.",
@@ -1425,6 +1429,7 @@ const en: LocaleShape = {
     'CAL_020': 'Limit feed_start_date and feed_end_date to a realistic service period (typically 1–2 years).',
     'CAL_021': 'If the lack of upcoming service is intentional, ignore; otherwise add near-term active days via calendar/calendar_dates.',
     'CAL_022': 'Fill in the service_id field.',
+    'CAL_023': 'Set end_date to the actual service end; far-future dates are usually placeholders or errors.',
     // CLD
     'CLD_004': 'Add at least one calendar_dates.txt row with exception_type=1 for this service, or add a calendar.txt entry with at least one active day.',
     // DQ
@@ -1711,6 +1716,7 @@ const en: LocaleShape = {
     'CAL_020': 'Feed validity window exceeds 5 years',
     'CAL_021': 'Active today but no service in the upcoming days',
     'CAL_022': 'service_id missing',
+    'CAL_023': 'Calendar end_date far in the future (suspect)',
     // CLD
     'CLD_001': 'service_id missing',
     'CLD_002': 'date invalid format',

@@ -117,6 +117,9 @@ const tr = {
     'cfg.service_day_start_hour.label'   : 'Servis Günü Başlangıcı',
     'cfg.service_day_start_hour.unit'    : ':00',
     'cfg.service_day_start_hour.desc'    : 'Bir seferde bu saatten önceki zamanlar gece yarısı sonrası servis kabul edilir (00:xx → 24:xx); yanlış "zaman geriye gidiyor" hatalarını önler. 0 = kapalı.',
+    'cfg.max_calendar_future_years.label': 'Maks. Takvim Geleceği',
+    'cfg.max_calendar_future_years.unit' : 'yıl',
+    'cfg.max_calendar_future_years.desc' : 'Bir takvim end_date bu yıldan fazla ileriyse şüpheli/düşük-kaliteli veri işaretlenir (ör. 2050/2099 yer-tutucu).',
     // Score panel
     'score.pub'  : 'Yayın Skoru',
     'score.qual' : 'Kalite Skoru',
@@ -608,6 +611,7 @@ const tr = {
     'CAL_020': 'Feed geçerlilik penceresi 5 yılı aşıyor',
     'CAL_021': 'Servis bugünü kapsıyor ama yakın günlerde aktif sefer yok',
     'CAL_022': 'service_id eksik',
+    'CAL_023': 'Takvim end_date çok ileri (şüpheli)',
     // CLD
     'CLD_001': 'service_id eksik',
     'CLD_002': 'date eksik veya geçersiz format',

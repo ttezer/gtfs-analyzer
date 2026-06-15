@@ -1447,6 +1447,21 @@ fn check_calendar_analytics(
         let end_yyyymmdd = ey * 10000 + em * 100 + ed;
 
         if today_yyyymmdd > 0 {
+            // CAL_023: end_date bugünden max_calendar_future_years'tan fazla ileri → şüpheli/
+            // düşük-kaliteli veri (ör. 2050/2099 yer-tutucu tarihler).
+            let today_year = today_yyyymmdd / 10000;
+            if ey > today_year + config.max_calendar_future_years {
+                notices.push(k6_notice(
+                    ctr, "CAL_023", EntityType::Service,
+                    Some(cal.service_id.clone()), Some(cal.service_id.clone()),
+                    "calendar.txt", Some(cal.line), Some("end_date"),
+                    Some(format!("{end_yyyymmdd}")),
+                    Some(format!("≤ {}1231", today_year + config.max_calendar_future_years)),
+                    format!("'{}' takviminin end_date'i {end_yyyymmdd} — bugünden {} yıldan fazla ileri; şüpheli/düşük-kaliteli veri (yer-tutucu tarih) olabilir.",
+                        cal.service_id, config.max_calendar_future_years),
+                    "end_date'i gerçek servis bitiş tarihine güncelleyin; uzak-gelecek tarihler genelde yer-tutucu veya hatalıdır.",
+                ));
+            }
             if end_yyyymmdd < today_yyyymmdd {
                 // CAL_013: tekil servis süresi dolmuş — blocker değil, bilgi düzeyi.
                 // Tüm servisler sona ermişse k4_cross_ref CAL_009 (KRİTİK) zaten atar.
