@@ -420,7 +420,7 @@ const ja: LocaleShape = {
     'AGN_011': '複数の事業者が存在しますが、agency_idがありません。',
     'AGN_012': "事業者'{entity_id}'：cemv_support'{observed_value}'が無効です。",
     'RTS_024': "路線'{entity_id}'：cemv_support'{observed_value}'が無効です。",
-    'RTS_025': '{observed_value}路線でagency_idが空です — 推奨フィールドです。単一事業者でも入力が推奨されます。',
+    'RTS_025': "路線'{entity_id}'：agency_idが空です — 推奨フィールドです。単一事業者でも入力が推奨されます。",
     'AGN_013': 'フィード言語と事業者言語が一致しません。',
     'AGN_014': 'agency.txtに複数の事業者が定義されている場合、agency_idは必須です。',
     'AGN_015': "事業者「{entity_id}」：agency_urlが安全でない「http://」を使用しています。「https://」が推奨されます。",

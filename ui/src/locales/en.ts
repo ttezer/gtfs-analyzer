@@ -439,7 +439,7 @@ const en: LocaleShape = {
     'AGN_011': "Multiple agencies present with no agency_id.",
     'AGN_012': "Agency '{entity_id}': cemv_support '{observed_value}' is invalid.",
     'RTS_024': "Route '{entity_id}': cemv_support '{observed_value}' is invalid.",
-    'RTS_025': "{observed_value} routes have an empty agency_id — a recommended field; filling it is best practice even with a single agency.",
+    'RTS_025': "Route '{entity_id}': agency_id is empty — a recommended field; filling it is best practice even with a single agency.",
     'AGN_013': 'Feed language and agency language mismatch.',
     'AGN_014': 'agency_id is required when multiple agencies are defined in agency.txt.',
     'AGN_015': "Agency '{entity_id}': agency_url uses insecure 'http://'; 'https://' is recommended.",
