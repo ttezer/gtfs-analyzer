@@ -3072,6 +3072,24 @@ fn check_data_quality(
         }
     }
 
+    // RTS_025: routes.txt'te agency_id boş — önerilen alan (best practice). Tek/sıfır agency'de
+    // bilgi düzeyi; >1 agency varsa agency_id zorunludur (DQ_012 / cross-ref kapsamı). MD'nin
+    // missing_recommended_field karşılığı.
+    {
+        let n_missing = records.routes.iter()
+            .filter(|r| r.agency_id.as_deref().map_or(true, |s| s.trim().is_empty()))
+            .count();
+        if n_missing > 0 && records.agencies.len() <= 1 {
+            notices.push(k6_notice(
+                ctr, "RTS_025", EntityType::Feed,
+                None, None, "routes.txt", None, Some("agency_id"),
+                Some(format!("{n_missing}")), None,
+                format!("{n_missing} rotada agency_id boş — önerilen alan; tek işletici olsa bile doldurulması iyi uygulamadır."),
+                "routes.txt'teki agency_id sütununu işleten ajansın agency_id'siyle doldurun.",
+            ));
+        }
+    }
+
     // DQ_013: feed'de çok az sefer (< 3)
     {
         let trip_count = records.trips.len();

@@ -439,6 +439,7 @@ const en: LocaleShape = {
     'AGN_011': "Multiple agencies present with no agency_id.",
     'AGN_012': "Agency '{entity_id}': cemv_support '{observed_value}' is invalid.",
     'RTS_024': "Route '{entity_id}': cemv_support '{observed_value}' is invalid.",
+    'RTS_025': "{observed_value} routes have an empty agency_id — a recommended field; filling it is best practice even with a single agency.",
     'AGN_013': 'Feed language and agency language mismatch.',
     'AGN_014': 'agency_id is required when multiple agencies are defined in agency.txt.',
     // STP
@@ -1098,6 +1099,7 @@ const en: LocaleShape = {
     'AGN_011': 'Fill in agency_id for all routes when multiple agencies are present.',
     'AGN_012': 'Set cemv_support to 0 (no info), 1 (supported) or 2 (not supported).',
     'RTS_024': 'Set cemv_support to 0 (no info), 1 (supported) or 2 (not supported).',
+    'RTS_025': "Fill the agency_id column in routes.txt with the operating agency's agency_id.",
     // RCT
     'RCT_001': 'Assign a unique rider_category_id to each rider category.',
     'RCT_002': 'Provide a name for each rider category.',
@@ -1546,6 +1548,7 @@ const en: LocaleShape = {
     'AGN_011': 'Multiple agencies with no agency_id',
     'AGN_012': 'cemv_support invalid (agency)',
     'RTS_024': 'cemv_support invalid (route)',
+    'RTS_025': 'routes.txt agency_id empty (recommended)',
     'AGN_013': 'Feed language and agency language mismatch',
     'AGN_014': 'Multiple agencies but agency.txt agency_id missing',
     // STP
