@@ -55,20 +55,20 @@ function renderR9(items: R9Item[], noticeMap: Map<string, Notice>, normFactor: n
     const shownCount = shownCounts[item.rule_id] ?? item.affected_instance_count;
 
     const mainRow = `
-      <tr class="r9-main-row" data-idx="${i}">
+      <tr class="r9-main-row" data-idx="${i}" data-sev="${severity}">
         <td>
           <span class="r9-arrow">▶</span> <code>${escHtml(item.rule_id)}</code>
           ${notice ? `<span class="r9-rule-title">${escHtml(t('rule.' + notice.rule_id))}</span>` : ''}
         </td>
         <td style="color:${SEVERITY_COLOR[severity]}">${SEVERITY_TR[severity]}</td>
         <td>${badgeHtml}</td>
-        <td>${shownCount.toLocaleString('tr-TR')}</td>
-        <td>${totalHtml}</td>
-        <td class="score">${item.priority_score.toFixed(1)}</td>
-        <td class="score-delta-cell">${pubHtml}</td>
-        <td class="score-delta-cell">${qualHtml}</td>
-        <td>${item.realized_dependent_count}</td>
-        <td>${item.fix_effort.toFixed(1)}</td>
+        <td data-val="${shownCount}">${shownCount.toLocaleString('tr-TR')}</td>
+        <td data-val="${realTotal ?? -1}">${totalHtml}</td>
+        <td class="score" data-val="${item.priority_score}">${item.priority_score.toFixed(1)}</td>
+        <td class="score-delta-cell" data-val="${pubSd}">${pubHtml}</td>
+        <td class="score-delta-cell" data-val="${qualSd}">${qualHtml}</td>
+        <td data-val="${item.realized_dependent_count}">${item.realized_dependent_count}</td>
+        <td data-val="${item.fix_effort}">${item.fix_effort.toFixed(1)}</td>
       </tr>`;
 
     const detailRow = `
@@ -84,23 +84,32 @@ function renderR9(items: R9Item[], noticeMap: Map<string, Notice>, normFactor: n
     return mainRow + detailRow;
   }).join('');
 
+  const sevPresent = Array.from(new Set(items.map(it => {
+    const n = it.notice_ids[0] ? noticeMap.get(it.notice_ids[0]) : undefined;
+    return n?.severity ?? 'INFO';
+  })));
+  const sevChips = sevPresent.map(s =>
+    `<button class="sev-chip" data-sev="${s}" style="--chip-color:${SEVERITY_COLOR[s]}">${SEVERITY_TR[s]}</button>`
+  ).join('');
+
   return `
     <div class="card">
       <h2>${t('fix.r9_title')} <span class="count-badge">${items.length}</span></h2>
       <p class="hint">${t('fix.r9_hint')}</p>
+      ${sevPresent.length > 1 ? `<div class="r9-sev-filter" id="r9-sev-filter" role="group" aria-label="${t('fix.th.severity')}">${sevChips}</div>` : ''}
       <div class="table-scroll">
         <table class="data-table" id="r9-table">
           <thead><tr>
-            <th>${t('fix.th.rule')}</th>
-            <th>${t('fix.th.severity')}</th>
-            <th>${t('fix.th.label')}</th>
-            <th>${t('fix.th.count')} <span class="col-info" role="button" tabindex="0" data-tip="${t('fix.th.count.tip')}">ℹ</span></th>
-            <th>${t('fix.th.total')} <span class="col-info" role="button" tabindex="0" data-tip="${t('fix.th.total.tip')}">ℹ</span></th>
-            <th class="score">${t('fix.th.score')} <span class="col-info" role="button" tabindex="0" data-tip="${t('fix.th.score.tip')}">ℹ</span></th>
-            <th class="score-delta-cell">${t('fix.th.pub')} <span class="col-info" role="button" tabindex="0" data-tip="${t('fix.th.pub.tip')}">ℹ</span></th>
-            <th class="score-delta-cell">${t('fix.th.quality')} <span class="col-info" role="button" tabindex="0" data-tip="${t('fix.th.quality.tip')}">ℹ</span></th>
-            <th>${t('fix.th.dependent')} <span class="col-info" role="button" tabindex="0" data-tip="${t('fix.th.dependent.tip')}">ℹ</span></th>
-            <th>${t('fix.th.effort')} <span class="col-info" role="button" tabindex="0" data-tip="${t('fix.th.effort.tip')}">ℹ</span></th>
+            <th class="r9-sortable" data-col="0" data-type="text">${t('fix.th.rule')} <span class="sort-ind"></span></th>
+            <th class="r9-sortable" data-col="1" data-type="sev">${t('fix.th.severity')} <span class="sort-ind"></span></th>
+            <th class="r9-sortable" data-col="2" data-type="text">${t('fix.th.label')} <span class="sort-ind"></span></th>
+            <th class="r9-sortable" data-col="3" data-type="num">${t('fix.th.count')} <span class="col-info" role="button" tabindex="0" data-tip="${t('fix.th.count.tip')}">ℹ</span> <span class="sort-ind"></span></th>
+            <th class="r9-sortable" data-col="4" data-type="num">${t('fix.th.total')} <span class="col-info" role="button" tabindex="0" data-tip="${t('fix.th.total.tip')}">ℹ</span> <span class="sort-ind"></span></th>
+            <th class="r9-sortable score" data-col="5" data-type="num">${t('fix.th.score')} <span class="col-info" role="button" tabindex="0" data-tip="${t('fix.th.score.tip')}">ℹ</span> <span class="sort-ind"></span></th>
+            <th class="r9-sortable score-delta-cell" data-col="6" data-type="num">${t('fix.th.pub')} <span class="col-info" role="button" tabindex="0" data-tip="${t('fix.th.pub.tip')}">ℹ</span> <span class="sort-ind"></span></th>
+            <th class="r9-sortable score-delta-cell" data-col="7" data-type="num">${t('fix.th.quality')} <span class="col-info" role="button" tabindex="0" data-tip="${t('fix.th.quality.tip')}">ℹ</span> <span class="sort-ind"></span></th>
+            <th class="r9-sortable" data-col="8" data-type="num">${t('fix.th.dependent')} <span class="col-info" role="button" tabindex="0" data-tip="${t('fix.th.dependent.tip')}">ℹ</span> <span class="sort-ind"></span></th>
+            <th class="r9-sortable" data-col="9" data-type="num">${t('fix.th.effort')} <span class="col-info" role="button" tabindex="0" data-tip="${t('fix.th.effort.tip')}">ℹ</span> <span class="sort-ind"></span></th>
           </tr></thead>
           <tbody>${rowPairs}</tbody>
         </table>
@@ -1187,6 +1196,64 @@ export function attachFixListeners(root: HTMLElement, result?: ValidationResult,
       if (arrow) arrow.textContent = detail.hidden ? '▶' : '▼';
     });
   });
+
+  // R9 sütun sıralaması + ÖNEM filtresi
+  const r9Table = root.querySelector<HTMLTableElement>('#r9-table');
+  const r9Tbody = r9Table?.querySelector('tbody');
+  if (r9Table && r9Tbody) {
+    const sevOrderTr: Record<string, number> = { 'Kritik': 0, 'Yüksek': 1, 'Orta': 2, 'Düşük': 3, 'Bilgi': 4 };
+    let sortCol = -1, sortDir = 1;
+    const cellTxt = (row: HTMLTableRowElement, col: number) =>
+      (row.children[col] as HTMLElement | undefined)?.textContent?.trim() ?? '';
+    r9Table.querySelectorAll<HTMLTableCellElement>('th.r9-sortable').forEach(th => {
+      th.addEventListener('click', e => {
+        if ((e.target as HTMLElement).closest('.col-info')) return; // tooltip ikonu tıklaması
+        const col = parseInt(th.dataset['col'] ?? '0', 10);
+        const type = th.dataset['type'] ?? 'text';
+        sortDir = sortCol === col ? -sortDir : 1;
+        sortCol = col;
+        const mains = Array.from(r9Tbody.querySelectorAll<HTMLTableRowElement>('.r9-main-row'));
+        mains.sort((a, b) => {
+          if (type === 'num') {
+            const na = parseFloat((a.children[col] as HTMLElement).dataset['val'] ?? '0');
+            const nb = parseFloat((b.children[col] as HTMLElement).dataset['val'] ?? '0');
+            return (na - nb) * sortDir;
+          }
+          if (type === 'sev') {
+            return ((sevOrderTr[cellTxt(a, col)] ?? 9) - (sevOrderTr[cellTxt(b, col)] ?? 9)) * sortDir;
+          }
+          return cellTxt(a, col).localeCompare(cellTxt(b, col), 'tr') * sortDir;
+        });
+        for (const main of mains) {
+          const detail = r9Tbody.querySelector<HTMLTableRowElement>(`.r9-detail-row[data-for="${main.dataset['idx']}"]`);
+          r9Tbody.appendChild(main);
+          if (detail) r9Tbody.appendChild(detail);
+        }
+        r9Table.querySelectorAll('.sort-ind').forEach(s => { s.textContent = ''; });
+        const ind = th.querySelector('.sort-ind');
+        if (ind) ind.textContent = sortDir > 0 ? '▲' : '▼';
+      });
+    });
+
+    // ÖNEM filtresi: chip'e tıkla → seçili önemleri göster (hiçbiri seçili değilse tümü), çoklu seçim.
+    const sevFilter = root.querySelector('#r9-sev-filter');
+    if (sevFilter) {
+      const active = new Set<string>();
+      sevFilter.querySelectorAll<HTMLButtonElement>('.sev-chip').forEach(chip => {
+        chip.addEventListener('click', () => {
+          const sev = chip.dataset['sev'] ?? '';
+          if (active.has(sev)) { active.delete(sev); chip.classList.remove('active'); }
+          else { active.add(sev); chip.classList.add('active'); }
+          r9Tbody.querySelectorAll<HTMLTableRowElement>('.r9-main-row').forEach(main => {
+            const show = active.size === 0 || active.has(main.dataset['sev'] ?? 'INFO');
+            main.style.display = show ? '' : 'none';
+            const detail = r9Tbody.querySelector<HTMLTableRowElement>(`.r9-detail-row[data-for="${main.dataset['idx']}"]`);
+            if (detail) detail.style.display = show ? '' : 'none';
+          });
+        });
+      });
+    }
+  }
 
   // R2 harita butonları
   if (result) {
