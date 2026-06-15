@@ -617,6 +617,8 @@ fn check_speed_and_duration(
     // project_arc_km tüm shape noktalarını gezer; aynı (shape,durak) seferler/segmentler
     // arası tekrar projekte ediliyordu. dist_km çıktısı BİREBİR aynı — sadece tekrar eleniyor.
     let mut arc_cache: FxHashMap<(&str, &str), f64> = FxHashMap::default();
+    // STM_038: aynı satırda 00:xx kalkış (gece-yarısı) yüzünden STM_007'den elenen durak sayısı.
+    let mut stm007_midnight_count = 0u32;
 
     { let _t = Timer::start("K6::sd::loop");
     for (&trip_id, stimes) in &idx.by_trip {
@@ -646,6 +648,7 @@ fn check_speed_and_duration(
                 if dep_s >= arr_s { continue; }
                 // departure'ı +24sa alınca arrival'a yakınsa → gece-yarısı geçişi (kasıtsız) → atla
                 if sds_secs > 0 && (dep_s + 86400).saturating_sub(arr_s) <= sds_secs {
+                    stm007_midnight_count += 1;
                     continue;
                 }
                 let seq = st.stop_sequence.unwrap_or(0);
@@ -1053,6 +1056,30 @@ fn check_speed_and_duration(
         }
     }
     } // K6::sd::loop
+
+    // STM_048 / STM_049: gece yarısı sonrası saatleri 00:xx yazan feed'ler için bilgi notu.
+    // STM_048 = duraklar arası (normalize edilen trip'ler); STM_049 = aynı satır (00:xx kalkış).
+    {
+        let wrapped = records.stop_times_index.midnight_wrapped_trips;
+        if wrapped > 0 {
+            notices.push(k6_notice(
+                ctr, "STM_048", EntityType::Feed,
+                None, None, "stop_times.txt", None, None,
+                Some(format!("{wrapped}")), None,
+                format!("{wrapped} sefer gece yarısı sonrası saatleri 00:xx olarak yazmış; GTFS servis günü için 24:00:00+ önerilir. Analiz için otomatik 24:xx olarak yorumlandı."),
+                "Gece yarısını aşan saatleri 24:00:00, 25:00:00… biçiminde yazın (00:xx yerine).",
+            ));
+        }
+        if stm007_midnight_count > 0 {
+            notices.push(k6_notice(
+                ctr, "STM_049", EntityType::Feed,
+                None, None, "stop_times.txt", None, None,
+                Some(format!("{stm007_midnight_count}")), None,
+                format!("{stm007_midnight_count} durakta gece yarısı sonrası kalkış 00:xx yazılmış (aynı satırda kalkış varıştan önce görünüyor); 24:xx önerilir. STM_007 bu vakalarda bastırıldı."),
+                "Gece yarısını aşan kalkış saatlerini 24:00:00+ biçiminde yazın.",
+            ));
+        }
+    }
 }
 
 // ── WP-09b: Frequency headway ─────────────────────────────────────────────────
@@ -4948,10 +4975,13 @@ fn check_remaining_analytics(
     {
         let _t09 = Timer::start("K6::rem::opr_009");
         const LATE_NIGHT_SEC: u32 = 23 * 3600;
+        // Gece servisi = 23:00+ VEYA gece yarısı sonrası (service_day_start altı, ör. 00:30
+        // kalkış = önceki günün gece servisi). Aksi halde 00:00–02:59 başlayan seferler kaçar.
+        let sds_sec = config.service_day_start_hour * 3600;
         for (&trip_id, stimes) in &idx.by_trip {
             if let Some(dep) = stimes.first().and_then(|s| s.departure_time) {
                 let dep_sec = dep.0 * 3600 + dep.1 * 60 + dep.2;
-                if dep_sec >= LATE_NIGHT_SEC {
+                if dep_sec >= LATE_NIGHT_SEC || (sds_sec > 0 && dep_sec < sds_sec) {
                     let route = trip_to_route_rem.get(trip_id).copied().unwrap_or(trip_id);
                     let dep_str = format!("{:02}:{:02}", dep.0, dep.1);
                     notices.push(k6_notice(

@@ -552,6 +552,8 @@ const ja: LocaleShape = {
     'STM_045': "便'{entity_id}'：出発時刻{observed_value}が深夜から26時間以上後です。",
     'STM_046': 'stop_times.txt：trip_idがありません。',
     'STM_047': 'トリップ「{entity_id}」：timepoint=1（正確な時刻ポイント）ですが、arrival_timeとdeparture_timeの両方がありません。',
+    'STM_048': '{observed_value}便が深夜以降の時刻を00:xxで記述しています。GTFSのサービス日では24:00:00以降が推奨されます（解析では24:xxとして解釈）。',
+    'STM_049': '{observed_value}停留所で深夜以降の出発が00:xxで記述されています（同一行で出発が到着より前）。24:xxが推奨されます。',
     // PDW
     'PDW_006': "便'{entity_id}'：同じ便とゾーンの乗降ウィンドウが重複しています。",
     // LOC
@@ -1301,6 +1303,8 @@ const ja: LocaleShape = {
     'STM_045': 'この便のstop_times.txtを確認してください。26時間を超える値は通常データエラーを示します。',
     'STM_046': '各stop_times行に有効なtrip_idを入力してください。',
     'STM_047': '正確な時刻ポイント（timepoint=1）ではarrival_timeとdeparture_timeの両方を入力してください。',
+    'STM_048': '深夜以降の時刻は00:xxではなく24:00:00、25:00:00…で記述してください。',
+    'STM_049': '深夜以降の出発時刻は00:xxではなく24:00:00以降で記述してください。',
     // STP
     'STP_001': '各停留所に一意のstop_idを割り当ててください。',
     'STP_002': 'stop_idフィールドを入力してください。',
@@ -1626,6 +1630,8 @@ const ja: LocaleShape = {
     'STM_045': '便の出発時刻が深夜から26時間超',
     'STM_046': 'trip_idが不足',
     'STM_047': 'timepoint=1だが到着/出発時刻なし',
+    'STM_048': '深夜以降の時刻が00:xx（停留所間）',
+    'STM_049': '深夜以降の出発が00:xx（同一行）',
     // PDW
     'PDW_006': '同一便・ゾーンで乗降ウィンドウが重複',
     // LOC

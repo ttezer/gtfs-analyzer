@@ -571,6 +571,8 @@ const en: LocaleShape = {
     'STM_045': "Trip '{entity_id}': departure time {observed_value} is more than 26 hours after midnight.",
     'STM_046': 'stop_times.txt: trip_id is missing.',
     'STM_047': "Trip '{entity_id}': timepoint=1 (exact time point) but both arrival_time and departure_time are missing.",
+    'STM_048': "{observed_value} trips wrote after-midnight times as 00:xx; the GTFS service day expects 24:00:00+ (auto-interpreted as 24:xx for analysis).",
+    'STM_049': "{observed_value} stops wrote an after-midnight departure as 00:xx (departure appears before arrival on the same row); 24:xx is recommended.",
     // PDW
     'PDW_006': "Trip '{entity_id}': overlapping pickup/drop-off windows for the same trip+zone.",
     // LOC
@@ -1185,6 +1187,8 @@ const en: LocaleShape = {
     'STM_045': 'Check stop_times.txt for this trip; departure times over 26 hours usually indicate a data error.',
     'STM_046': 'Enter a valid trip_id on every stop_times row.',
     'STM_047': 'Provide both arrival_time and departure_time on exact time points (timepoint=1).',
+    'STM_048': 'Write after-midnight times as 24:00:00, 25:00:00, etc. instead of 00:xx.',
+    'STM_049': 'Write after-midnight departure times as 24:00:00+ instead of 00:xx.',
     'STM_042': 'Remove the characters ! $ % \\ * = _ from the stop_headsign value.',
     // SHP (field-level)
     'SHP_001': 'Fill in the shape_id field.',
@@ -1672,6 +1676,8 @@ const en: LocaleShape = {
     'STM_045': 'Trip departure time exceeds 26 hours after midnight',
     'STM_046': 'trip_id missing',
     'STM_047': 'timepoint=1 without arrival/departure time',
+    'STM_048': 'After-midnight times written as 00:xx (between stops)',
+    'STM_049': 'After-midnight departure written as 00:xx (same row)',
     // PDW
     'PDW_006': 'Overlapping pickup/drop-off window for same trip+zone',
     // LOC

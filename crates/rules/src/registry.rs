@@ -507,6 +507,10 @@ pub static RULES: &[RuleMeta] = &[
         "trip_id eksik"),
     r!("STM_047", Kritik, Spec, 1, &[], Some("trip_id"), VS_K, Row,
         "Kesin zaman noktasında (timepoint=1) arrival_time/departure_time eksik"),
+    r!("STM_048", Bilgi, Quality, 1, &[], Some("departure_time"), VS, Feed,
+        "Gece yarısı sonrası saatler 00:xx yazılmış (24:xx önerilir, duraklar arası)"),
+    r!("STM_049", Bilgi, Quality, 1, &[], Some("departure_time"), VS, Feed,
+        "Gece yarısı sonrası kalkış 00:xx yazılmış (24:xx önerilir, aynı satır)"),
 
     // ── PDW: Pickup/Drop-off Window ──────────────────────────────────────────
     r!("PDW_006", Orta, Spec, 2, &[], Some("trip_id"), VS, Entity,

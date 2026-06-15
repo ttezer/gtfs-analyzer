@@ -573,6 +573,8 @@ const tr = {
     'STM_045': 'Sefer kalkış saati gece yarısından 26 saat sonra',
     'STM_046': 'trip_id eksik',
     'STM_047': 'timepoint=1 ama arrival_time/departure_time eksik',
+    'STM_048': 'Gece yarısı sonrası saatler 00:xx (duraklar arası)',
+    'STM_049': 'Gece yarısı sonrası kalkış 00:xx (aynı satır)',
     // PDW
     'PDW_006': "Aynı trip+zone'da örtüşen pickup/drop-off penceresi",
     // LOC

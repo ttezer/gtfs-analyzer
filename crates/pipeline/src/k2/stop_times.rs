@@ -90,6 +90,8 @@ pub struct StopTimesIndex {
     pub stop_first_line: FxHashMap<SmolStr, u64>,
     /// K6: STM_036 — dosya sırasında stop_sequence gerileyen seferler: (trip_id, prev_seq, curr_seq, line)
     pub unsorted_seq_trips: Vec<(SmolStr, u32, u32, u64)>,
+    /// K6: STM_048 — normalize_service_day'in 00:xx→24:xx kaydırdığı (gece yarısını aşan) trip sayısı.
+    pub midnight_wrapped_trips: u32,
 }
 
 impl StopTimesIndex {
@@ -113,6 +115,7 @@ impl StopTimesIndex {
             return;
         }
         let start_secs = start_hour * 3600;
+        let mut wrapped = 0u32;
         for &(s, e) in self.trip_ranges.values() {
             let slice = &mut self.rows[s as usize..e as usize];
             let mut offset: u32 = 0;
@@ -140,7 +143,11 @@ impl StopTimesIndex {
                     prev = Some(v);
                 }
             }
+            if offset > 0 {
+                wrapped += 1;
+            }
         }
+        self.midnight_wrapped_trips = wrapped;
     }
 
     /// Tüm trip'leri (trip_id, sıralı stop dilimi) olarak gez. `&idx.trips` iterasyonu yerine BU kullanılır.
