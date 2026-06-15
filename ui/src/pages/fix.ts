@@ -222,10 +222,16 @@ function renderR2(result: ValidationResult, noticeMap: Map<string, Notice>, delt
       <div class="table-scroll">
         <table class="data-table" id="r2-table">
           <thead><tr>
-            <th>${t('fix.r2.th.rule')}</th><th>${t('fix.r2.th.severity')}</th><th>${t('fix.r2.th.class')}</th><th>${t('fix.r2.th.message')}</th>
-            <th>${t('fix.r2.th.file')}</th><th>${t('fix.r2.th.service')}</th><th>${t('fix.r2.th.row')}</th><th>${t('fix.r2.th.field')}</th>
-            <th class="score-delta-cell">${t('fix.r2.th.pub')} <span class="col-info" role="button" tabindex="0" data-tip="${t('fix.r2.th.pub.tip')}">ℹ</span></th>
-            <th class="score-delta-cell">${t('fix.r2.th.quality')} <span class="col-info" role="button" tabindex="0" data-tip="${t('fix.r2.th.quality.tip')}">ℹ</span></th>
+            <th class="r2-sortable" data-col="0" data-type="text">${t('fix.r2.th.rule')} <span class="sort-ind"></span></th>
+            <th class="r2-sortable" data-col="1" data-type="sev">${t('fix.r2.th.severity')} <span class="sort-ind"></span></th>
+            <th class="r2-sortable" data-col="2" data-type="text">${t('fix.r2.th.class')} <span class="sort-ind"></span></th>
+            <th class="r2-sortable" data-col="3" data-type="text">${t('fix.r2.th.message')} <span class="sort-ind"></span></th>
+            <th class="r2-sortable" data-col="4" data-type="text">${t('fix.r2.th.file')} <span class="sort-ind"></span></th>
+            <th class="r2-sortable" data-col="5" data-type="text">${t('fix.r2.th.service')} <span class="sort-ind"></span></th>
+            <th class="r2-sortable" data-col="6" data-type="num">${t('fix.r2.th.row')} <span class="sort-ind"></span></th>
+            <th class="r2-sortable" data-col="7" data-type="text">${t('fix.r2.th.field')} <span class="sort-ind"></span></th>
+            <th class="r2-sortable score-delta-cell" data-col="8" data-type="num">${t('fix.r2.th.pub')} <span class="col-info" role="button" tabindex="0" data-tip="${t('fix.r2.th.pub.tip')}">ℹ</span> <span class="sort-ind"></span></th>
+            <th class="r2-sortable score-delta-cell" data-col="9" data-type="num">${t('fix.r2.th.quality')} <span class="col-info" role="button" tabindex="0" data-tip="${t('fix.r2.th.quality.tip')}">ℹ</span> <span class="sort-ind"></span></th>
             <th class="map-btn-cell"></th>
           </tr></thead>
           <tbody>${rows}</tbody>
@@ -1201,7 +1207,7 @@ export function attachFixListeners(root: HTMLElement, result?: ValidationResult,
   const r9Table = root.querySelector<HTMLTableElement>('#r9-table');
   const r9Tbody = r9Table?.querySelector('tbody');
   if (r9Table && r9Tbody) {
-    const sevOrderTr: Record<string, number> = { 'Kritik': 0, 'Yüksek': 1, 'Orta': 2, 'Düşük': 3, 'Bilgi': 4 };
+    const sevOrder: Record<string, number> = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3, INFO: 4 };
     let sortCol = -1, sortDir = 1;
     const cellTxt = (row: HTMLTableRowElement, col: number) =>
       (row.children[col] as HTMLElement | undefined)?.textContent?.trim() ?? '';
@@ -1220,7 +1226,7 @@ export function attachFixListeners(root: HTMLElement, result?: ValidationResult,
             return (na - nb) * sortDir;
           }
           if (type === 'sev') {
-            return ((sevOrderTr[cellTxt(a, col)] ?? 9) - (sevOrderTr[cellTxt(b, col)] ?? 9)) * sortDir;
+            return ((sevOrder[a.dataset['sev'] ?? 'INFO'] ?? 9) - (sevOrder[b.dataset['sev'] ?? 'INFO'] ?? 9)) * sortDir;
           }
           return cellTxt(a, col).localeCompare(cellTxt(b, col), 'tr') * sortDir;
         });
@@ -1244,15 +1250,54 @@ export function attachFixListeners(root: HTMLElement, result?: ValidationResult,
           const sev = chip.dataset['sev'] ?? '';
           if (active.has(sev)) { active.delete(sev); chip.classList.remove('active'); }
           else { active.add(sev); chip.classList.add('active'); }
+          let visible = 0;
           r9Tbody.querySelectorAll<HTMLTableRowElement>('.r9-main-row').forEach(main => {
             const show = active.size === 0 || active.has(main.dataset['sev'] ?? 'INFO');
             main.style.display = show ? '' : 'none';
+            if (show) visible++;
             const detail = r9Tbody.querySelector<HTMLTableRowElement>(`.r9-detail-row[data-for="${main.dataset['idx']}"]`);
             if (detail) detail.style.display = show ? '' : 'none';
           });
+          const badge = r9Table.closest('.card')?.querySelector('.count-badge');
+          if (badge) badge.textContent = String(visible);
         });
       });
     }
+  }
+
+  // R2 sütun sıralaması (R9 ile aynı mantık; R2 satırları data-severity taşır)
+  const r2Table = root.querySelector<HTMLTableElement>('#r2-table');
+  const r2Tbody = r2Table?.querySelector('tbody');
+  if (r2Table && r2Tbody) {
+    const sevOrder2: Record<string, number> = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3, INFO: 4 };
+    let r2Col = -1, r2Dir = 1;
+    const txt2 = (row: HTMLTableRowElement, col: number) =>
+      (row.children[col] as HTMLElement | undefined)?.textContent?.trim() ?? '';
+    r2Table.querySelectorAll<HTMLTableCellElement>('th.r2-sortable').forEach(th => {
+      th.addEventListener('click', e => {
+        if ((e.target as HTMLElement).closest('.col-info')) return;
+        const col = parseInt(th.dataset['col'] ?? '0', 10);
+        const type = th.dataset['type'] ?? 'text';
+        r2Dir = r2Col === col ? -r2Dir : 1;
+        r2Col = col;
+        const rows2 = Array.from(r2Tbody.querySelectorAll<HTMLTableRowElement>('tr'));
+        rows2.sort((a, b) => {
+          if (type === 'sev') {
+            return ((sevOrder2[a.dataset['severity'] ?? 'INFO'] ?? 9) - (sevOrder2[b.dataset['severity'] ?? 'INFO'] ?? 9)) * r2Dir;
+          }
+          if (type === 'num') {
+            const na = parseFloat(txt2(a, col).replace(/[^\d.-]/g, '')) || 0;
+            const nb = parseFloat(txt2(b, col).replace(/[^\d.-]/g, '')) || 0;
+            return (na - nb) * r2Dir;
+          }
+          return txt2(a, col).localeCompare(txt2(b, col), 'tr') * r2Dir;
+        });
+        for (const r of rows2) r2Tbody.appendChild(r);
+        r2Table.querySelectorAll('.sort-ind').forEach(s => { s.textContent = ''; });
+        const ind = th.querySelector('.sort-ind');
+        if (ind) ind.textContent = r2Dir > 0 ? '▲' : '▼';
+      });
+    });
   }
 
   // R2 harita butonları
