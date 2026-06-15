@@ -13,7 +13,7 @@ GTFS Analyzer does not merely check whether a file conforms to the specification
 
 Every finding is tagged with a rule code, an analysis class, and a severity level. Thanks to the Spec · Interop · Quality · Analytics classes and the Critical → Info severity levels, thousands of findings can be filtered, prioritized, and handled systematically. The tool also automatically detects the GTFS features used by the feed — Shapes, Transfers, Fares, Headsigns, Flex, and the like — and includes them in the report.
 
-GTFS Analyzer extends specification validation with operational quality analysis. Frequency inconsistencies per route, anomalous speed segments, isolated stops, gaps in service patterns, andnetwork topology problems are examined with 499 distinct validation and analysis rules. Results are summarized with separate scores that evaluate compliance and quality independently. The prioritized fix queue shows which issues should be addressed first and the likely impact of each fix on the score.
+GTFS Analyzer extends specification validation with operational quality analysis. Frequency inconsistencies per route, anomalous speed segments, isolated stops, gaps in service patterns, andnetwork topology problems are examined with 504 distinct validation and analysis rules. Results are summarized with separate scores that evaluate compliance and quality independently. The prioritized fix queue shows which issues should be addressed first and the likely impact of each fix on the score.
 
 **Who is it for?**
 
@@ -43,7 +43,7 @@ GTFS Analyzer extends specification validation with operational quality analysis
 | GTFS-JP profile validation | ❌ | ❌ | ✅ |
 | Output formats | HTML, JSON | HTML, JSON | HTML, CSV, JSON, PDF |
 | Platform | Web | Web, CLI, Desktop | Web *(CLI, Desktop planned)* |
-| **Total rules** | **178** | **~120** | **499** |
+| **Total rules** | **178** | **~120** | **504** |
 
 ### Feed Analysis Examples
 
@@ -374,7 +374,7 @@ gtfs-validator/
 │   ├── config/     # Configuration types
 │   ├── core/       # Shared data structures and result model
 │   ├── pipeline/   # Validation pipeline (k1–k7 stages)
-│   ├── rules/      # Rule definitions and registry (499 rules, 37 groups)
+│   ├── rules/      # Rule definitions and registry (504 rules, 37 groups)
 │   └── wasm/       # wasm-bindgen WASM output
 └── ui/             # Vite + TypeScript frontend
     ├── pkg/          # wasm-pack output (generated, committed)

@@ -13,7 +13,7 @@ GTFS Analyzer yalnızca dosyanın spesifikasyona uygun olup olmadığını kontr
 
 Her bulgu; kural kodu, analiz sınıfı ve önem seviyesiyle etiketlenir. Spec · Interop · Quality · Analytics sınıfları ile Kritik → Bilgi önem seviyeleri sayesinde binlerce bulgu filtrelenebilir, önceliklendirilebilir ve sistematik biçimde ele alınabilir. Araç ayrıca feed'in kullandığı GTFS özelliklerini — Shapes, Transfers, Fares, Headsigns, Flex ve benzerlerini — otomatik olarak tespit ederek rapora dahil eder.
 
-GTFS Analyzer, spesifikasyon doğrulamasını operasyonel kalite analiziyle genişletir. Hat bazında sefer sıklığı tutarsızlıkları, anormal hız segmentleri, izole duraklar,servis desenlerindeki boşluklar ve ağ topolojisi problemleri 499 farklı doğrulama ve analiz kuralıyla incelenir. Sonuçlar, uyumluluk ve kaliteyi ayrı ayrı değerlendiren skorlarla özetlenir. Önceliklendirilmiş düzeltme kuyruğu ise hangi sorunların önce ele alınması gerektiğini ve yapılacak düzeltmelerin skora olası etkisini gösterir.
+GTFS Analyzer, spesifikasyon doğrulamasını operasyonel kalite analiziyle genişletir. Hat bazında sefer sıklığı tutarsızlıkları, anormal hız segmentleri, izole duraklar,servis desenlerindeki boşluklar ve ağ topolojisi problemleri 504 farklı doğrulama ve analiz kuralıyla incelenir. Sonuçlar, uyumluluk ve kaliteyi ayrı ayrı değerlendiren skorlarla özetlenir. Önceliklendirilmiş düzeltme kuyruğu ise hangi sorunların önce ele alınması gerektiğini ve yapılacak düzeltmelerin skora olası etkisini gösterir.
 
 **Kimler için?**
 
@@ -43,7 +43,7 @@ GTFS Analyzer, spesifikasyon doğrulamasını operasyonel kalite analiziyle geni
 | GTFS-JP profil doğrulama | ❌ | ❌ | ✅ |
 | Çıktı formatı | HTML, JSON | HTML, JSON | HTML, CSV, JSON, PDF |
 | Platform | Web | Web, CLI, Desktop | Web *(CLI, Desktop planlanmış)* |
-| **Toplam kural** | **178** | **~120** | **499** |
+| **Toplam kural** | **178** | **~120** | **504** |
 
 ### Feed Analizi Örnekleri
 
