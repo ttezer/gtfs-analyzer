@@ -517,6 +517,8 @@ pub static RULES: &[RuleMeta] = &[
         "Gece yarısı sonrası saatler 00:xx yazılmış (24:xx önerilir, duraklar arası)"),
     r!("STM_049", Bilgi, Quality, 1, &[], Some("departure_time"), VS, Feed,
         "Gece yarısı sonrası kalkış 00:xx yazılmış (24:xx önerilir, aynı satır)"),
+    r!("STM_050", Dusuk, Quality, 1, &[], Some("timepoint"), VS, Row,
+        "timepoint sütunu mevcut ama satırda boş — değer açıkça belirtilmeli (0 yaklaşık / 1 kesin)"),
 
     // ── PDW: Pickup/Drop-off Window ──────────────────────────────────────────
     r!("PDW_006", Orta, Spec, 2, &[], Some("trip_id"), VS, Entity,
@@ -675,6 +677,10 @@ pub static RULES: &[RuleMeta] = &[
         "Shape aşırı fazla noktaya sahip (>5000) — tüketici render performansını etkiler"),
     r!("SHP_027", Bilgi,  Analytics, 1, &[], Some("shape_id"), VA_GEO, Entity,
         "Shape birden fazla durak desenine atanmış — olası yanlış shape ataması"),
+    r!("SHP_028", Yuksek, Spec, 2, &[], Some("shape_id"), VS, Entity,
+        "Ardışık iki shape noktası aynı shape_dist_traveled ama farklı koordinat (mesafe artmadan konum değişmiş)"),
+    r!("SHP_029", Orta,   Quality, 2, &[], Some("shape_id"), VS, Entity,
+        "Aynı shape_dist_traveled, farklı ama çok yakın koordinatlı ardışık shape noktaları (eşik altı)"),
 
     // ── FRQ: Frequencies ───────────────────────────────────────────────────────
     r!("FRQ_001", Kritik, Spec, 1, &[], Some("trip_id"), VS_K, Row,
@@ -697,6 +703,8 @@ pub static RULES: &[RuleMeta] = &[
         "Frekans aralığı çok kısa"),
     r!("FRQ_010", Bilgi,  Analytics, 1, &[], Some("trip_id"), VA, Row,
         "Çok sık frekans (sıkışma riski)"),
+    r!("FRQ_011", Yuksek, Spec, 2, &[], Some("trip_id"), VS, Row,
+        "Aynı trip için frequencies dönemleri zaman aralığı çakışıyor"),
 
     // ── TRF: Transfers ─────────────────────────────────────────────────────────
     r!("TRF_001", Kritik, Spec, 1, &[], None, VS_K, Row,

@@ -561,6 +561,7 @@ const ja: LocaleShape = {
     'STM_047': 'トリップ「{entity_id}」：timepoint=1（正確な時刻ポイント）ですが、arrival_timeとdeparture_timeの両方がありません。',
     'STM_048': '{observed_value}便が深夜以降の時刻を00:xxで記述しています。GTFSのサービス日では24:00:00以降が推奨されます（解析では24:xxとして解釈）。',
     'STM_049': '{observed_value}停留所で深夜以降の出発が00:xxで記述されています（同一行で出発が到着より前）。24:xxが推奨されます。',
+    'STM_050': 'timepoint列は存在しますが、この行では値が空です。空のtimepointは暗黙的に正確（1）として扱われ、おおよその時刻が正確に見える可能性があります。',
     // PDW
     'PDW_006': "便'{entity_id}'：同じ便とゾーンの乗降ウィンドウが重複しています。",
     // LOC
@@ -630,6 +631,8 @@ const ja: LocaleShape = {
     'SHP_025': "シェープ'{entity_id}'：stop_timesの距離がシェープの総延長を超えています。",
     'SHP_026': "シェープ'{entity_id}'は{observed_value}個の点があります — 多すぎるためトランジットアプリの地図描画パフォーマンスに影響します。",
     'SHP_027': "シェープ'{entity_id}'は{observed_value}個の異なる停留所パターンに割り当てられています — シェープは単一の経路に対応すべきで、誤ったシェープ割り当ての可能性があります。",
+    'SHP_028': "シェープ'{entity_id}'：連続する点が同じshape_dist_traveledを持ちますが座標が異なります — 距離が増加せずに位置が変化しています。",
+    'SHP_029': "シェープ'{entity_id}'：連続する点が同じshape_dist_traveledを持ち、座標の差が非常に小さい（しきい値未満）です。",
     // FRQ
     'FRQ_001': "頻度のtrip_id'{entity_id}'がtrips.txtに見つかりません。",
     'FRQ_002': "頻度'{entity_id}'：start_time'{observed_value}'が無効です。",
@@ -641,6 +644,7 @@ const ja: LocaleShape = {
     'FRQ_008': "頻度'{entity_id}'：headway_secsがゼロ — 無効な頻度です。",
     'FRQ_009': "頻度'{entity_id}'：頻度間隔が短すぎます。",
     'FRQ_010': "頻度'{entity_id}'：頻度が非常に高い — 便の集中リスク（{observed_value}分）。",
+    'FRQ_011': "頻度'{entity_id}'：frequencies の期間が時間的に重複しており、どの運行間隔が適用されるか曖昧です。",
     // TRF
     'TRF_001': '乗り換え：from_stop_idがありません。',
     'TRF_002': '乗り換え：to_stop_idがありません。',
@@ -1118,6 +1122,7 @@ const ja: LocaleShape = {
     'FRQ_008': 'headway_secsを正の秒数に設定してください。',
     'FRQ_009': 'headway_secsを少なくとも60秒に設定してください。',
     'FRQ_010': '便のスケジュールを確認してください。この運行頻度が意図的な場合は無視してください。',
+    'FRQ_011': '同一便の frequencies 期間が時間的に重複しないように調整してください。',
     // GEO
     'GEO_002': 'stop_latとstop_lonの値を確認してください。',
     'GEO_006': '大きなギャップを埋めるために中間形状点を追加してください。',
@@ -1269,6 +1274,8 @@ const ja: LocaleShape = {
     'SHP_025': 'stop_times.txtのshape_dist_traveled値をshapes.txtで使用されているスケールに合わせてください。',
     'SHP_026': 'Douglas-Peucker等の経路簡略化アルゴリズムを使用してshapes.txtを簡略化してください。',
     'SHP_027': '異なる停留所パターンごとに個別のshape_idを割り当て、1つのシェープを再利用しないでください。',
+    'SHP_028': '連続するシェープ点に増加するshape_dist_traveled値を割り当ててください。',
+    'SHP_029': '増加するshape_dist_traveled値を割り当てるか、ほぼ重複するシェープ点を削除してください。',
     // STM
     'STM_001': '有効なtrip_idを使用してください。',
     'STM_002': '有効なstop_idを使用してください。',
@@ -1317,6 +1324,7 @@ const ja: LocaleShape = {
     'STM_047': '正確な時刻ポイント（timepoint=1）ではarrival_timeとdeparture_timeの両方を入力してください。',
     'STM_048': '深夜以降の時刻は00:xxではなく24:00:00、25:00:00…で記述してください。',
     'STM_049': '深夜以降の出発時刻は00:xxではなく24:00:00以降で記述してください。',
+    'STM_050': 'timepointを0（おおよそ）または1（正確）として明示的に設定してください。',
     // STP
     'STP_001': '各停留所に一意のstop_idを割り当ててください。',
     'STP_002': 'stop_idフィールドを入力してください。',
@@ -1647,6 +1655,7 @@ const ja: LocaleShape = {
     'STM_047': 'timepoint=1だが到着/出発時刻なし',
     'STM_048': '深夜以降の時刻が00:xx（停留所間）',
     'STM_049': '深夜以降の出発が00:xx（同一行）',
+    'STM_050': 'timepoint列はあるが値が空',
     // PDW
     'PDW_006': '同一便・ゾーンで乗降ウィンドウが重複',
     // LOC
@@ -1716,6 +1725,8 @@ const ja: LocaleShape = {
     'SHP_025': 'stop_timesの距離が形状の総長を超過',
     'SHP_026': '形状の点数が極端に多い（>5,000）',
     'SHP_027': 'シェープが複数の停留所パターンに割り当て',
+    'SHP_028': '同一shape_dist_traveledで座標が異なる',
+    'SHP_029': '同一shape_dist_traveled、座標差が微小',
     // FRQ
     'FRQ_001': 'trip_idがtrips.txtに存在しない',
     'FRQ_002': 'start_timeが無効',
@@ -1727,6 +1738,7 @@ const ja: LocaleShape = {
     'FRQ_008': 'headway_secsがゼロ（無効な頻度）',
     'FRQ_009': '頻度間隔が短すぎる',
     'FRQ_010': '運行頻度が非常に高い（詰まりリスク）',
+    'FRQ_011': 'frequencies 期間の重複',
     // TRF
     'TRF_001': 'from_stop_idが不足',
     'TRF_002': 'to_stop_idが不足',

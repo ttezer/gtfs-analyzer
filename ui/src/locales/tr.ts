@@ -582,6 +582,7 @@ const tr = {
     'STM_047': 'timepoint=1 ama arrival_time/departure_time eksik',
     'STM_048': 'Gece yarısı sonrası saatler 00:xx (duraklar arası)',
     'STM_049': 'Gece yarısı sonrası kalkış 00:xx (aynı satır)',
+    'STM_050': 'timepoint sütunu var ama değer boş',
     // PDW
     'PDW_006': "Aynı trip+zone'da örtüşen pickup/drop-off penceresi",
     // LOC
@@ -651,6 +652,8 @@ const tr = {
     'SHP_025': 'Sefer stop_times mesafesi şeklin toplam mesafesini aşıyor',
     'SHP_026': 'Shape aşırı fazla noktaya sahip (>5000)',
     'SHP_027': 'Shape birden fazla durak desenine atanmış',
+    'SHP_028': 'Aynı shape_dist_traveled, farklı koordinat',
+    'SHP_029': 'Aynı shape_dist_traveled, çok küçük koordinat farkı (eşik altı)',
     // FRQ
     'FRQ_001': 'trip_id bulunamadı',
     'FRQ_002': 'start_time geçersiz',
@@ -662,6 +665,7 @@ const tr = {
     'FRQ_008': 'headway_secs sıfır (geçersiz frekans)',
     'FRQ_009': 'Frekans aralığı çok kısa',
     'FRQ_010': 'Çok sık frekans (sıkışma riski)',
+    'FRQ_011': 'Frequencies dönemleri zaman aralığı çakışıyor',
     // TRF
     'TRF_001': 'from_stop_id eksik',
     'TRF_002': 'to_stop_id eksik',

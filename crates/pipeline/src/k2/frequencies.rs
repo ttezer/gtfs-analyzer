@@ -192,6 +192,49 @@ pub fn validate_frequencies(file: &RawFile) -> (Vec<FrequencyRecord>, Vec<gtfs_c
         });
     }
 
+    // FRQ_011: aynı trip için frequencies dönemleri zaman aralığı çakışıyor (MD overlapping_frequency).
+    // Geçerli [start, end) aralıklarını trip başına grupla, start'a göre sırala, max-end takibiyle
+    // ardışık olmayan çakışmaları da yakala. Geçersiz aralık (end ≤ start, FRQ_005) hariç.
+    use std::collections::HashMap;
+    let mut by_trip: HashMap<&str, Vec<(u32, u32, u64, &RowMap)>> = HashMap::new();
+    for rec in &records {
+        if rec.trip_id.is_empty() {
+            continue;
+        }
+        if let (Some(s), Some(e)) = (rec.start_time, rec.end_time) {
+            let s_secs = s.0 * 3600 + s.1 * 60 + s.2;
+            let e_secs = e.0 * 3600 + e.1 * 60 + e.2;
+            if e_secs > s_secs {
+                by_trip
+                    .entry(rec.trip_id.as_str())
+                    .or_default()
+                    .push((s_secs, e_secs, rec.line, &rec.row));
+            }
+        }
+    }
+    for (trip, mut periods) in by_trip {
+        if periods.len() < 2 {
+            continue;
+        }
+        periods.sort_by_key(|p| p.0);
+        let mut max_end = periods[0].1;
+        for &(cur_start, cur_end, cur_line, cur_row) in &periods[1..] {
+            if cur_start < max_end {
+                notices.push(make_k2_notice(
+                    &mut counter, "FRQ_011", EntityType::Trip, Some(trip.to_string()),
+                    Some(cur_row), &file.name, Some(cur_line), Some("start_time"),
+                    get_trimmed_field(cur_row, "start_time").map(str::to_string),
+                    Some("önceki dönemle çakışmamalı".to_string()),
+                    format!("trip_id '{trip}' için frequencies dönemleri zaman aralığı çakışıyor."),
+                    "Aynı trip'in frequencies dönemlerini çakışmayacak biçimde ayarlayın.",
+                ));
+            }
+            if cur_end > max_end {
+                max_end = cur_end;
+            }
+        }
+    }
+
     (records, notices)
 }
 
@@ -249,5 +292,35 @@ mod tests {
         );
         let (_, notices) = validate_frequencies(&file);
         assert!(notices.iter().any(|n| n.rule_id == "FRQ_005"));
+    }
+
+    #[test]
+    fn overlapping_periods_produce_frq_011() {
+        let file = make_file(
+            vec!["trip_id", "start_time", "end_time", "headway_secs"],
+            vec![
+                vec!["T1", "08:00:00", "12:00:00", "600"],
+                vec!["T1", "11:00:00", "14:00:00", "900"], // 11:00 < 12:00 → çakışma
+            ],
+        );
+        let (_, notices) = validate_frequencies(&file);
+        assert!(notices.iter().any(|n| n.rule_id == "FRQ_011"),
+            "çakışan dönemler → FRQ_011: {:?}",
+            notices.iter().map(|n| &n.rule_id).collect::<Vec<_>>());
+    }
+
+    #[test]
+    fn adjacent_periods_no_frq_011() {
+        let file = make_file(
+            vec!["trip_id", "start_time", "end_time", "headway_secs"],
+            vec![
+                vec!["T1", "08:00:00", "12:00:00", "600"],
+                vec!["T1", "12:00:00", "14:00:00", "900"], // bitişik (12:00==12:00) → çakışma değil
+            ],
+        );
+        let (_, notices) = validate_frequencies(&file);
+        assert!(!notices.iter().any(|n| n.rule_id == "FRQ_011"),
+            "bitişik dönemler FRQ_011 üretmemeli: {:?}",
+            notices.iter().map(|n| &n.rule_id).collect::<Vec<_>>());
     }
 }

@@ -858,6 +858,17 @@ pub fn validate_stop_times(file: &RawFile) -> (StopTimesIndex, Vec<gtfs_core::No
 
         // STM_022: timepoint 0 or 1
         let tp_raw = get_col(row, cols.timepoint);
+        // STM_050: timepoint sütunu feed'de mevcut ama bu satırda boş (MD missing_timepoint_value).
+        // Boş timepoint örtük 1 (kesin) sayılır → yaklaşık zamanlar yanlış kesin görünür; açık değer önerilir.
+        if cols.timepoint.is_some() && tp_raw.trim().is_empty() {
+            notices.push(make_k2_notice(
+                &mut counter, "STM_050", EntityType::Trip, eid(),
+                None, &file.name, Some(line), Some("timepoint"),
+                Some(String::new()), Some("0 veya 1".to_string()),
+                format!("trip_id '{}' satırında timepoint sütunu var ama değer boş.", trip_id),
+                "timepoint değerini 0 (yaklaşık) veya 1 (kesin) olarak açıkça girin.",
+            ));
+        }
         let timepoint = match parse_u32_raw(tp_raw, "timepoint") {
             Ok(v) => {
                 if let Some(val) = v {
@@ -1354,6 +1365,30 @@ mod tests {
         let (_, notices) = validate_stop_times(&file);
         assert!(!notices.iter().any(|n| n.rule_id == "STM_047"),
             "timepoint=0 (yaklaşık) → STM_047 tetiklenmemeli: {:?}",
+            notices.iter().map(|n| &n.rule_id).collect::<Vec<_>>());
+    }
+
+    #[test]
+    fn empty_timepoint_value_produces_stm_050() {
+        let file = make_file(
+            vec!["trip_id", "arrival_time", "departure_time", "stop_id", "stop_sequence", "timepoint"],
+            vec![vec!["T1", "08:00:00", "08:00:00", "S1", "1", ""]],
+        );
+        let (_, notices) = validate_stop_times(&file);
+        let ids: Vec<&str> = notices.iter().map(|n| n.rule_id.as_str()).collect();
+        assert!(ids.contains(&"STM_050"), "timepoint kolonu var + boş → STM_050: {:?}", ids);
+        assert!(!ids.contains(&"STM_022"), "boş değer STM_022 (geçersiz) tetiklememeli: {:?}", ids);
+    }
+
+    #[test]
+    fn absent_timepoint_column_silent_for_stm_050() {
+        let file = make_file(
+            vec!["trip_id", "arrival_time", "departure_time", "stop_id", "stop_sequence"],
+            vec![vec!["T1", "08:00:00", "08:00:00", "S1", "1"]],
+        );
+        let (_, notices) = validate_stop_times(&file);
+        assert!(!notices.iter().any(|n| n.rule_id == "STM_050"),
+            "timepoint kolonu yok → STM_050 tetiklenmemeli: {:?}",
             notices.iter().map(|n| &n.rule_id).collect::<Vec<_>>());
     }
 

@@ -580,6 +580,7 @@ const en: LocaleShape = {
     'STM_047': "Trip '{entity_id}': timepoint=1 (exact time point) but both arrival_time and departure_time are missing.",
     'STM_048': "{observed_value} trips wrote after-midnight times as 00:xx; the GTFS service day expects 24:00:00+ (auto-interpreted as 24:xx for analysis).",
     'STM_049': "{observed_value} stops wrote an after-midnight departure as 00:xx (departure appears before arrival on the same row); 24:xx is recommended.",
+    'STM_050': "The timepoint column is present but this row leaves it empty; an empty timepoint is implicitly treated as exact (1), so approximate times may look exact.",
     // PDW
     'PDW_006': "Trip '{entity_id}': overlapping pickup/drop-off windows for the same trip+zone.",
     // LOC
@@ -649,6 +650,8 @@ const en: LocaleShape = {
     'SHP_025': "Shape '{entity_id}': stop_times distance exceeds total shape length.",
     'SHP_026': "Shape '{entity_id}' has {observed_value} points — high point count may impact consumer rendering performance.",
     'SHP_027': "Shape '{entity_id}' is assigned to {observed_value} distinct stop patterns — a shape should match a single path, so this is a possible incorrect shape assignment.",
+    'SHP_028': "Shape '{entity_id}': consecutive points share the same shape_dist_traveled but have different coordinates — distance did not increase while position changed.",
+    'SHP_029': "Shape '{entity_id}': consecutive points share the same shape_dist_traveled with a very small coordinate difference (below threshold).",
     // FRQ
     'FRQ_001': "Frequency trip_id '{entity_id}' not found in trips.txt.",
     'FRQ_002': "Frequency '{entity_id}': start_time '{observed_value}' is invalid.",
@@ -660,6 +663,7 @@ const en: LocaleShape = {
     'FRQ_008': "Frequency '{entity_id}': headway_secs is zero — invalid frequency.",
     'FRQ_009': "Frequency '{entity_id}': frequency interval is too short.",
     'FRQ_010': "Frequency '{entity_id}': very high frequency — bunching risk ({observed_value} min).",
+    'FRQ_011': "Frequency '{entity_id}': frequencies periods overlap in time; it is ambiguous which headway applies.",
     // TRF
     'TRF_001': 'Transfer: from_stop_id is missing.',
     'TRF_002': 'Transfer: to_stop_id is missing.',
@@ -967,6 +971,7 @@ const en: LocaleShape = {
     // FRQ
     'FRQ_006': 'Reduce the gap between trips or add extra runs.',
     'FRQ_010': 'Review the trip schedule; ignore if this headway is intentional.',
+    'FRQ_011': "Adjust the trip's frequencies periods so their time ranges do not overlap.",
     // GEO
     'GEO_002': 'Verify stop_lat and stop_lon values.',
     'GEO_006': 'Add intermediate shape points to close the large gap.',
@@ -1033,6 +1038,8 @@ const en: LocaleShape = {
     'SHP_025': 'Match the shape_dist_traveled values in stop_times.txt to the scale used in shapes.txt.',
     'SHP_026': 'Simplify shapes.txt using a path simplification algorithm (e.g., Douglas-Peucker) to reduce the point count.',
     'SHP_027': 'Assign a separate shape_id for each distinct stop pattern instead of reusing one shape.',
+    'SHP_028': 'Assign increasing shape_dist_traveled values to consecutive shape points.',
+    'SHP_029': 'Assign increasing shape_dist_traveled values, or remove the near-duplicate shape point.',
     // STM
     'STM_008': 'Review stop_times.txt time values; times must increase monotonically across trips.',
     'STM_012': 'Verify stop_times.txt time values; two stops cannot be that far apart within the same minute.',
@@ -1198,6 +1205,7 @@ const en: LocaleShape = {
     'STM_047': 'Provide both arrival_time and departure_time on exact time points (timepoint=1).',
     'STM_048': 'Write after-midnight times as 24:00:00, 25:00:00, etc. instead of 00:xx.',
     'STM_049': 'Write after-midnight departure times as 24:00:00+ instead of 00:xx.',
+    'STM_050': 'Set timepoint explicitly to 0 (approximate) or 1 (exact) for this stop_time.',
     'STM_042': 'Remove the characters ! $ % \\ * = _ from the stop_headsign value.',
     // SHP (field-level)
     'SHP_001': 'Fill in the shape_id field.',
@@ -1693,6 +1701,7 @@ const en: LocaleShape = {
     'STM_047': 'timepoint=1 without arrival/departure time',
     'STM_048': 'After-midnight times written as 00:xx (between stops)',
     'STM_049': 'After-midnight departure written as 00:xx (same row)',
+    'STM_050': 'timepoint column present but value empty',
     // PDW
     'PDW_006': 'Overlapping pickup/drop-off window for same trip+zone',
     // LOC
@@ -1762,6 +1771,8 @@ const en: LocaleShape = {
     'SHP_025': 'Trip stop_times distance exceeds total shape distance',
     'SHP_026': 'Shape has extreme point count (>5,000)',
     'SHP_027': 'Shape assigned to multiple stop patterns',
+    'SHP_028': 'Same shape_dist_traveled with different coordinates',
+    'SHP_029': 'Same shape_dist_traveled, tiny coordinate difference',
     // FRQ
     'FRQ_001': 'trip_id not found',
     'FRQ_002': 'start_time invalid',
@@ -1773,6 +1784,7 @@ const en: LocaleShape = {
     'FRQ_008': 'headway_secs is zero (invalid frequency)',
     'FRQ_009': 'Frequency interval too short',
     'FRQ_010': 'Very high frequency (bunching risk)',
+    'FRQ_011': 'Overlapping frequency periods',
     // TRF
     'TRF_001': 'from_stop_id missing',
     'TRF_002': 'to_stop_id missing',
