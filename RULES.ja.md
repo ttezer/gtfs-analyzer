@@ -1,8 +1,8 @@
-﻿# GTFS Analyzer — ルール一覧
+# GTFS Analyzer — ルール一覧
 
 🇹🇷 [Türkçe](RULES.md) · 🇬🇧 [English](RULES.en.md) · 🇯🇵 **日本語**
 
-499ルール、37グループ。各ルールは一意のID、重要度、クラスで定義されます。
+509ルール、37グループ。各ルールは一意のID、重要度、クラスで定義されます。
 重要度: **致命的**（公開ブロッカー）· **高** · **中** · **低** · **情報**
 クラス: **仕様**（GTFS妥当性）· **相互運用**（GTFSインターオペラビリティ）· **品質**（GTFS品質）· **分析**（GTFSアナリティクス）
 
@@ -26,15 +26,31 @@
 | ARC_013 | CSV解析エラー | 致命的 | 仕様 |
 | ARC_014 | ヘッダーフィールドに前後の空白 | 中 | 品質 |
 | ARC_015 | ヘッダー列が重複 | 致命的 | 仕様 |
-| ARC_016 | K1解析ステージで必須フィールドまたはヘッダーが空または欠落 | 高 | 仕様 |
+| ARC_025 | 必須列がヘッダーに存在しない | 致命的 | 仕様 |
 | ARC_017 | GTFS仕様外の列名 | 情報 | 品質 |
 | ARC_018 | 空データ行 | 中 | 品質 |
 | ARC_019 | ヘッダーに空の列名 | 高 | 仕様 |
 | ARC_020 | 推奨ファイルが不足（shapes.txtまたはfeed_info.txt） | 低 | 品質 |
-| ARC_021 | 印刷不可または問題のある文字 | 低 | 品質 |
+| ARC_021 | 非ASCII文字または制御文字 | 低 | 品質 |
 | ARC_022 | ファイルの行数が上限（100万行）を超過 | 低 | 品質 |
 | ARC_023 | GTFSアーカイブ内のネストされたZIPファイル | 中 | 仕様 |
 | ARC_024 | サブディレクトリ内のGTFS .txtファイル（読み込み不可） | 中 | 仕様 |
+
+## BKR — 予約ルール（Booking Rules）
+
+| ルール | タイトル | 重要度 | クラス |
+|---|---|---|---|
+| BKR_001 | 予約ルール: prior_notice_start_dayが禁止コンテキスト | 高 | 仕様 |
+| BKR_002 | prior_notice_start_dayにprior_notice_last_dayが必要 | 高 | 仕様 |
+| BKR_003 | prior_notice_start_timeにprior_notice_start_dayが必要 | 高 | 仕様 |
+| BKR_004 | リアルタイム予約でprior_noticeフィールドが禁止 | 高 | 仕様 |
+| BKR_005 | prior_notice_duration_maxはbooking_type=1のみ有効 | 中 | 仕様 |
+| BKR_006 | prior_notice_duration_minが無効 | 高 | 仕様 |
+| BKR_007 | booking_type=1でprior_notice_duration_minが必須 | 致命的 | 仕様 |
+| BKR_008 | booking_type=2でprior_notice_last_dayが必須 | 致命的 | 仕様 |
+| BKR_009 | booking_type=2でprior_notice_last_timeが必須 | 致命的 | 仕様 |
+| BKR_010 | prior_notice_start_day設定時にprior_notice_start_timeが必須 | 高 | 仕様 |
+| BKR_011 | prior_notice_start_day > prior_notice_last_day（無効な予約ウィンドウ） | 高 | 仕様 |
 
 ## AGN — 事業者（Agency）
 
@@ -42,7 +58,7 @@
 |---|---|---|---|
 | AGN_001 | agency.txtが不足 | 致命的 | 仕様 |
 | AGN_002 | agency_nameが不足 | 致命的 | 仕様 |
-| AGN_003 | agency_urlが不足または無効 | 高 | 仕様 |
+| AGN_003 | agency_urlが不足または無効 | 致命的 | 仕様 |
 | AGN_004 | agency_timezoneが不足または無効 | 致命的 | 仕様 |
 | AGN_005 | 事業者間でタイムゾーンが不一致 | 中 | 品質 |
 | AGN_006 | agency_langが無効 | 低 | 仕様 |
@@ -51,16 +67,19 @@
 | AGN_009 | agency_emailが無効 | 低 | 仕様 |
 | AGN_010 | agency_idが重複 | 致命的 | 仕様 |
 | AGN_011 | 複数事業者でagency_idなし | 致命的 | 仕様 |
-| AGN_012 | agency_cemv_supportが無効 | 低 | 品質 |
+| AGN_012 | cemv_supportが無効（事業者） | 低 | 品質 |
 | AGN_013 | フィード言語と事業者言語が不一致 | 低 | 相互運用 |
+| AGN_014 | 複数事業者だがagency.txtにagency_idなし | 致命的 | 仕様 |
+| AGN_015 | agency_urlが安全でないhttp | 情報 | 品質 |
+| AGN_016 | agency_phoneが疑わしい/プレースホルダー | 情報 | 品質 |
 
 ## STP — 停留所（Stops）
 
 | ルール | タイトル | 重要度 | クラス |
 |---|---|---|---|
 | STP_001 | stop_idが重複 | 致命的 | 仕様 |
-| STP_002 | stop_idが空 | 高 | 仕様 |
-| STP_003 | stop_nameが欠落またはstop_lat/stop_lonが範囲外（同一IDで2つの条件） | 致命的 | 仕様 |
+| STP_002 | stop_idが空 | 致命的 | 仕様 |
+| STP_003 | stop_nameが不足またはstop_latが範囲外 | 致命的 | 仕様 |
 | STP_004 | stop_latが数値でない | 致命的 | 仕様 |
 | STP_005 | stop_lonが無効または範囲外 | 致命的 | 品質 |
 | STP_006 | stop_latが不足 | 致命的 | 仕様 |
@@ -68,7 +87,7 @@
 | STP_008 | location_typeが無効 | 高 | 仕様 |
 | STP_009 | parent_stationがstops.txtに存在しない | 致命的 | 仕様 |
 | STP_010 | parent_stationのlocation_typeが1でない | 高 | 仕様 |
-| STP_011 | このlocation_typeにはparent_stationが必須 | 高 | 仕様 |
+| STP_011 | このlocation_typeにはparent_stationが必須 | 致命的 | 仕様 |
 | STP_012 | stop_timesで使用される停留所のlocation_typeが不適切 | 致命的 | 仕様 |
 | STP_013 | wheelchair_boardingが無効 | 低 | 仕様 |
 | STP_014 | stop_timezoneが無効 | 中 | 仕様 |
@@ -81,7 +100,7 @@
 | STP_021 | 子停留所が親駅の外にある | 高 | 品質 |
 | STP_022 | stop_codeが不足 | 中 | 品質 |
 | STP_023 | tts_stop_nameが無効 | 低 | 品質 |
-| STP_024 | stop_accessの値が列挙範囲外（K2フィールドチェック） | 情報 | 品質 |
+| STP_024 | stop_accessが無効 | 情報 | 品質 |
 | STP_025 | stop_nameに先頭または末尾の空白 | 中 | 品質 |
 | STP_026 | stop_accessが有効な列挙値でない | 低 | 仕様 |
 | STP_027 | 経路接続駅でstop_accessが未設定 | 中 | 仕様 |
@@ -120,7 +139,8 @@
 | RTS_021 | route_short_nameがGoogleトランジットの上限（6文字）を超過 | 低 | 相互運用 |
 | RTS_022 | route_long_nameにroute_short_nameが含まれている | 低 | 品質 |
 | RTS_023 | route_long_nameとroute_descが同一 | 情報 | 品質 |
-| RTS_024 | route_cemv_supportが無効 | 低 | 品質 |
+| RTS_024 | cemv_supportが無効（路線） | 低 | 品質 |
+| RTS_025 | routes.txtのagency_idが空（推奨） | 情報 | 品質 |
 
 ## TRP — 便（Trips）
 
@@ -152,6 +172,7 @@
 | TRP_028 | 一部の便で車椅子対応情報が未設定 | 中 | 品質 |
 | TRP_029 | すべての便で車椅子対応情報が未報告 | 情報 | 品質 |
 | TRP_030 | 今後7日間にアクティブでない便 | 低 | 品質 |
+| TRP_031 | route_idが不足 | 致命的 | 仕様 |
 
 ## STM — 停車時刻（Stop Times）
 
@@ -172,16 +193,16 @@
 | STM_014 | セグメントで速度超過 | 高 | 分析 |
 | STM_015 | 最初の停留所にdeparture_timeなし | 致命的 | 仕様 |
 | STM_016 | 最後の停留所にarrival_timeなし | 致命的 | 仕様 |
-| STM_017 | stop_timesにshape_dist_traveledなし（鉄道路線を除く） | 中 | 相互運用 |
+| STM_017 | stop_timesにshape_dist_traveledなし | 中 | 相互運用 |
 | STM_018 | stop_timesのcontinuous_pickupが無効 | 中 | 仕様 |
 | STM_019 | stop_timesのcontinuous_drop_offが無効 | 中 | 仕様 |
 | STM_020 | 距離 > 200mでの走行時間ゼロ | 高 | 品質 |
 | STM_021 | 異なる停留所が同座標を共有 | 高 | 品質 |
 | STM_022 | timepointが無効 | 中 | 仕様 |
 | STM_023 | stop_timesの行順序が不正 | 致命的 | 仕様 |
-| STM_024 | shape_dist_traveled単位の不一致（stop_times対shapes比率） | 情報 | 品質 |
+| STM_024 | shape_dist_traveled単位の不一致 | 情報 | 品質 |
 | STM_025 | 走行時間が短すぎる | 中 | 品質 |
-| STM_026 | 停留所間距離が超過（鉄道閾値：500km） | 高 | 品質 |
+| STM_026 | 停留所間距離が超過 | 高 | 品質 |
 | STM_027 | shape_dist_traveledが減少 | 高 | 相互運用 |
 | STM_028 | 便の総所要時間が上限超過 | 高 | 分析 |
 | STM_029 | 便の総所要時間が下限未満 | 中 | 分析 |
@@ -194,12 +215,17 @@
 | STM_037 | Flexの乗降ウィンドウ内に時刻が設定されている | 高 | 仕様 |
 | STM_038 | start_pickup_drop_off_window > end_pickup_drop_off_window | 高 | 仕様 |
 | STM_039 | Flexコンテキストで乗降ウィンドウが不足 | 致命的 | 仕様 |
-| STM_040 | Flex stop_timesで予約ルールIDが不足 | 高 | 仕様 |
+| STM_040 | Flex stop_timesで予約ルールIDが不足 | 致命的 | 仕様 |
 | STM_041 | stop_idとlocation_id/group_idの同時使用不可 | 高 | 仕様 |
 | STM_042 | stop_headsignにGoogleトランジット非対応の文字 | 低 | 相互運用 |
 | STM_043 | 便の停留所数が極端に多い（>200） | 情報 | 分析 |
 | STM_044 | stop_times行数が200万超（WASMパフォーマンス警告） | 情報 | 分析 |
 | STM_045 | 便の出発時刻が深夜から26時間超 | 中 | 品質 |
+| STM_046 | trip_idが不足 | 致命的 | 仕様 |
+| STM_047 | timepoint=1だが到着/出発時刻なし | 致命的 | 仕様 |
+| STM_048 | 深夜以降の時刻が00:xx（停留所間） | 情報 | 品質 |
+| STM_049 | 深夜以降の出発が00:xx（同一行） | 情報 | 品質 |
+| STM_050 | timepoint列はあるが値が空 | 低 | 品質 |
 
 ## PDW — 乗降ウィンドウ（Pickup/Drop-off Window）
 
@@ -212,11 +238,11 @@
 | ルール | タイトル | 重要度 | クラス |
 |---|---|---|---|
 | LOC_001 | locations.geojsonのジオメトリタイプが無効 | 高 | 仕様 |
-| LOC_002 | フィーチャーのgeometryがnullまたは欠如 | 高 | 仕様 |
-| LOC_003 | フィーチャーに'id'プロパティが不足 | 高 | 仕様 |
+| LOC_002 | フィーチャーのgeometryがnullまたは欠如 | 致命的 | 仕様 |
+| LOC_003 | フィーチャーに'id'プロパティが不足 | 致命的 | 仕様 |
 | LOC_004 | Polygonリングが閉じていない | 中 | 仕様 |
 | LOC_005 | FeatureCollectionが空 | 低 | 品質 |
-| LOC_006 | Polygonの概算カバレッジが500km²超（バウンディングボックス推定） | 中 | 品質 |
+| LOC_006 | Polygonの範囲が500km²超 | 中 | 品質 |
 | LOC_007 | FeatureCollection内でフィーチャー'id'が重複 | 中 | 仕様 |
 
 ## CAL — カレンダー（Calendar）
@@ -240,10 +266,12 @@
 | CAL_015 | フィードの最初のサービス日が将来（本日アクティブな便なし） | 低 | 品質 |
 | CAL_016 | サービスが2年以上先まで続く | 情報 | 品質 |
 | CAL_017 | カレンダーがまだ開始していない（すべてのアクティブ日が将来） | 低 | 品質 |
-| CAL_018 | 全曜日が無効でcalendar_datesのアクティブ日上書きもなし | 低 | 品質 |
-| CAL_019 | 生カレンダー範囲がfeed_infoウィンドウを超過（CAL_014はアクティブ日を対象） | 低 | 品質 |
+| CAL_018 | アクティブな曜日なし（全曜日0、calendar_dates上書きなし） | 低 | 品質 |
+| CAL_019 | サービスカレンダー日付がfeed_info有効期間外 | 低 | 品質 |
 | CAL_020 | フィード有効期間が5年超 | 低 | 品質 |
 | CAL_021 | 本日は有効だが今後数日間運行なし | 情報 | 分析 |
+| CAL_022 | service_idが不足 | 致命的 | 仕様 |
+| CAL_023 | カレンダーのend_dateが遠い未来（疑わしい） | 中 | 品質 |
 
 ## CLD — カレンダー例外（Calendar Dates）
 
@@ -261,13 +289,13 @@
 
 | ルール | タイトル | 重要度 | クラス |
 |---|---|---|---|
-| SHP_001 | shape_idが不足 | 低 | 品質 |
+| SHP_001 | shape_idが不足 | 致命的 | 仕様 |
 | SHP_002 | shape_pt_latが不足または無効 | 致命的 | 仕様 |
 | SHP_003 | shape_pt_lonが不足または無効 | 致命的 | 仕様 |
 | SHP_004 | shape_pt_sequenceが不足または無効 | 致命的 | 仕様 |
 | SHP_005 | shape_dist_traveledが減少 | 致命的 | 仕様 |
 | SHP_006 | 形状点が1つしかない（最小2点必要） | 致命的 | 仕様 |
-| SHP_007 | 形状点が少なすぎる（単一点のshapeはSHP_006でも検出） | 致命的 | 仕様 |
+| SHP_007 | 形状点が少なすぎる | 致命的 | 仕様 |
 | SHP_008 | shape_pt_sequence値が重複 | 致命的 | 仕様 |
 | SHP_009 | 形状が自己交差している | 情報 | 分析 |
 | SHP_010 | 連続する座標が同一 | 低 | 品質 |
@@ -286,7 +314,9 @@
 | SHP_024 | shape_dist_traveledと形状距離が不一致 | 中 | 品質 |
 | SHP_025 | stop_timesの距離が形状の総長を超過 | 中 | 品質 |
 | SHP_026 | 形状の点数が極端に多い（>5,000） | 情報 | 分析 |
-| SHP_027 | 同一シェープが200便以上で使用 | 情報 | 分析 |
+| SHP_027 | シェープが複数の停留所パターンに割り当て | 情報 | 分析 |
+| SHP_028 | 同一shape_dist_traveledで座標が異なる | 高 | 仕様 |
+| SHP_029 | 同一shape_dist_traveled、座標差が微小 | 中 | 品質 |
 
 ## FRQ — 頻度（Frequencies）
 
@@ -302,6 +332,7 @@
 | FRQ_008 | headway_secsがゼロ（無効な頻度） | 致命的 | 仕様 |
 | FRQ_009 | 頻度間隔が短すぎる | 中 | 品質 |
 | FRQ_010 | 運行頻度が非常に高い（詰まりリスク） | 情報 | 分析 |
+| FRQ_011 | frequencies 期間の重複 | 高 | 仕様 |
 
 ## TRF — 乗換（Transfers）
 
@@ -311,7 +342,7 @@
 | TRF_002 | to_stop_idが不足 | 致命的 | 仕様 |
 | TRF_003 | 指定のIDがstops.txtに存在しない | 致命的 | 仕様 |
 | TRF_004 | transfer_typeが無効 | 高 | 仕様 |
-| TRF_005 | min_transfer_timeが不足 | 高 | 仕様 |
+| TRF_005 | min_transfer_timeが不足 | 致命的 | 仕様 |
 | TRF_006 | from_trip_idがtrips.txtに存在しない | 致命的 | 仕様 |
 | TRF_007 | to_trip_idがtrips.txtに存在しない | 致命的 | 仕様 |
 | TRF_008 | from_route_idがroutes.txtに存在しない | 致命的 | 仕様 |
@@ -339,7 +370,7 @@
 | ルール | タイトル | 重要度 | クラス |
 |---|---|---|---|
 | FAR_001 | fare_idが重複 | 致命的 | 仕様 |
-| FAR_002 | 運賃が不足または無効 | 高 | 仕様 |
+| FAR_002 | 運賃が不足または無効 | 致命的 | 仕様 |
 | FAR_003 | currency_typeが不足 | 致命的 | 仕様 |
 | FAR_004 | payment_methodが無効 | 致命的 | 仕様 |
 | FAR_005 | transfersが無効 | 致命的 | 仕様 |
@@ -347,6 +378,8 @@
 | FAR_008 | agency_idが存在しない | 致命的 | 仕様 |
 | FAR_009 | この運賃IDに路線ルールなし | 低 | 品質 |
 | FAR_010 | 運賃ルールが重複 | 中 | 品質 |
+| FAR_011 | payment_methodが不足 | 致命的 | 仕様 |
+| FAR_012 | fare_idが不足 | 致命的 | 仕様 |
 
 ## FRL — 運賃ルール（Fare Rules）
 
@@ -468,6 +501,11 @@
 | PTH_017 | このコンテキストでmax_slopeは無効 | 中 | 仕様 |
 | PTH_018 | signposted_asが長すぎる | 低 | 品質 |
 | PTH_019 | 汎用ノードが1経路にのみ接続（行き止まり） | 中 | 品質 |
+| PTH_020 | pathway_idが不足 | 致命的 | 仕様 |
+| PTH_021 | from_stop_idが不足 | 致命的 | 仕様 |
+| PTH_022 | to_stop_idが不足 | 致命的 | 仕様 |
+| PTH_023 | pathway_modeが不足 | 致命的 | 仕様 |
+| PTH_024 | is_bidirectionalが不足 | 致命的 | 仕様 |
 
 ## LVL — 階層（Levels）
 
@@ -479,6 +517,8 @@
 | LVL_004 | 未使用の階層 | 低 | 品質 |
 | LVL_005 | level_nameが長すぎる | 中 | 品質 |
 | LVL_006 | エレベーター接続停留所にlevel_idなし | 中 | 品質 |
+| LVL_007 | level_indexが不足 | 致命的 | 仕様 |
+| LVL_008 | level_idが不足 | 致命的 | 仕様 |
 
 ## FIN — フィード情報（Feed Info）
 
@@ -489,7 +529,7 @@
 | FIN_003 | feed_langが不足 | 致命的 | 仕様 |
 | FIN_004 | default_langが無効 | 中 | 仕様 |
 | FIN_005 | feed_start_dateが無効 | 中 | 仕様 |
-| FIN_006 | feed_end_dateの形式が無効（過去日付はFIN_010） | 高 | 仕様 |
+| FIN_006 | feed_end_dateが無効または過去の日付 | 高 | 仕様 |
 | FIN_007 | feed_versionが不足 | 低 | 品質 |
 | FIN_008 | feed_contact_emailが無効 | 低 | 仕様 |
 | FIN_009 | feed_contact_urlが無効 | 低 | 仕様 |
@@ -560,15 +600,15 @@
 | XFL_019 | ネットワーク割り当てが2か所に定義されている | 中 | 仕様 |
 | XFL_020 | （from_trip_id/to_trip_id, route_id）の組み合わせが無効 | 高 | 仕様 |
 | XFL_021 | （from_trip_id/to_trip_id, stop_id）の組み合わせが無効 | 高 | 仕様 |
-| XFL_022 | location_group_idが見つからない（location_group_stops） | 致命的 | 仕様 |
-| XFL_023 | stop_idが見つからない（location_group_stops） | 致命的 | 仕様 |
-| XFL_024 | location_group_idが見つからない（stop_times） | 致命的 | 仕様 |
-| XFL_025 | location_idが見つからない（locations.geojson） | 致命的 | 仕様 |
-| XFL_026 | route cemv_support=1だが適用可能なcontactless fare productなし | 中 | 相互運用 |
-| XFL_027 | route cemv_support=2だが適用可能なcontactless fare productあり | 中 | 相互運用 |
-| XFL_028 | agency cemv_support=1だがFares v2にcontactless mediaなし | 情報 | 品質 |
-| XFL_029 | route cemv_support=1だがFares v2にcontactless mediaなし | 情報 | 品質 |
-| XFL_030 | contactless fare mediaありだがcemv_support=1なし | 情報 | 品質 |
+| XFL_022 | location_group_idが存在しない | 致命的 | 仕様 |
+| XFL_023 | stop_idが存在しない（location_group_stops） | 致命的 | 仕様 |
+| XFL_024 | location_group_idが存在しない（stop_times） | 致命的 | 仕様 |
+| XFL_025 | location_idが存在しない（locations.geojson） | 致命的 | 仕様 |
+| XFL_026 | 路線cemv=1だが適用可能なcontactless productなし | 中 | 相互運用 |
+| XFL_027 | 路線cemv=2だが適用可能なcontactless productあり | 中 | 相互運用 |
+| XFL_028 | agency cemv=1だがcontactless mediaなし | 情報 | 品質 |
+| XFL_029 | route cemv=1だがcontactless mediaなし | 情報 | 品質 |
+| XFL_030 | contactless mediaありだがcemv=1なし | 情報 | 品質 |
 
 ## OPR — 運行整合性（Operational Consistency）
 
@@ -596,7 +636,7 @@
 | OPR_021 | カレンダー上書き競合: 上書きとベースが同時アクティブ | 高 | 分析 |
 | OPR_022 | カレンダー上書き未適用: 上書き日にベースサービスが動いている | 高 | 分析 |
 | OPR_023 | カレンダー上書き空白: ウィンドウ内にアクティブなサービスなし | 中 | 分析 |
-| OPR_024 | 路線の便数が極端に多い（>500） | 情報 | 分析 |
+| OPR_024 | 路線の便数が極端に多い | 情報 | 分析 |
 | OPR_025 | フィード全体の平均便所要時間が60秒未満 | 高 | 分析 |
 
 ## GEO — 地理 / 空間
@@ -638,7 +678,7 @@
 | DQ_018 | 推奨フィールドが全大文字 | 中 | 品質 |
 | DQ_019 | 推奨フィールドが全小文字 | 中 | 品質 |
 | DQ_020 | 推奨フィールドが不足または空 | 低 | 品質 |
-| DQ_021 | 主キーが重複 — 汎用セカンダリ信号（STP_001/RTS_001と重複の可能性） | 高 | 仕様 |
+| DQ_021 | 主キーが重複 | 高 | 仕様 |
 | DQ_022 | 停留所の80%以上が同じstop_name値を共有 | 高 | 品質 |
 
 ## VAT — エンティティ分析検出
@@ -654,18 +694,10 @@
 | VAT_007 | 終点の乗換不足（別路線が終点に来るが乗換未定義） | 情報 | 分析 |
 | VAT_008 | 同じシェープがフィード路線の30%以上で使用 | 情報 | 分析 |
 
-## BKR — 予約ルール（Booking Rules）
+## JPN
 
 | ルール | タイトル | 重要度 | クラス |
 |---|---|---|---|
-| BKR_001 | 予約ルール: prior_notice_start_dayが禁止コンテキスト | 高 | 仕様 |
-| BKR_002 | prior_notice_start_dayにprior_notice_last_dayが必要 | 高 | 仕様 |
-| BKR_003 | prior_notice_start_timeにprior_notice_start_dayが必要 | 高 | 仕様 |
-| BKR_004 | リアルタイム予約でprior_noticeフィールドが禁止 | 高 | 仕様 |
-| BKR_005 | prior_notice_duration_maxはbooking_type=1のみ有効（booking_type=0/2は禁止） | 中 | 仕様 |
-| BKR_006 | prior_notice_duration_minが無効 | 高 | 仕様 |
-| BKR_007 | booking_type=1でprior_notice_duration_minが必須 | 致命的 | 仕様 |
-| BKR_008 | booking_type=2でprior_notice_last_dayが必須 | 致命的 | 仕様 |
-| BKR_009 | booking_type=2でprior_notice_last_timeが必須 | 致命的 | 仕様 |
-| BKR_010 | prior_notice_start_day設定時にprior_notice_start_timeが必須 | 高 | 仕様 |
-| BKR_011 | prior_notice_start_day > prior_notice_last_day（無効な予約ウィンドウ） | 高 | 仕様 |
+| JPN_001 | GTFS-JP：停留所名のかな（ja-Hrkt）読みが欠落 | 中 | 品質 |
+| JPN_002 | GTFS-JP：jp_office_id が office_jp.txt に未定義 | 高 | 仕様 |
+| JPN_003 | GTFS-JP：agency_jp の agency_id が agency.txt に未定義 | 高 | 仕様 |
