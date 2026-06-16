@@ -2,7 +2,7 @@
 
 🇹🇷 **Türkçe** · 🇬🇧 [English](RULES.en.md) · 🇯🇵 [日本語](RULES.ja.md)
 
-509 kural, 37 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
+511 kural, 37 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
 Önem seviyeleri: **KRİTİK** (yayın engelleyici) · **YÜKSEK** · **ORTA** · **DÜŞÜK** · **BİLGİ**
 Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · **Quality** (GTFS Kalitesi) · **Analytics** (GTFS Analitiği)
 
@@ -226,6 +226,8 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | STM_048 | Gece yarısı sonrası saatler 00:xx yazılmış (24:xx önerilir, duraklar arası) | BİLGİ | Quality |
 | STM_049 | Gece yarısı sonrası kalkış 00:xx yazılmış (24:xx önerilir, aynı satır) | BİLGİ | Quality |
 | STM_050 | timepoint sütunu mevcut ama satırda boş — değer açıkça belirtilmeli (0 yaklaşık / 1 kesin) | DÜŞÜK | Quality |
+| STM_051 | Flex penceresi tanımlıyken pickup_type=0/3 yasak (talep-üzerine değerler gerekli) | YÜKSEK | Spec |
+| STM_052 | Flex penceresi tanımlıyken drop_off_type=0 yasak (talep-üzerine değer gerekli) | YÜKSEK | Spec |
 
 ## PDW — Pickup/Drop-off Window
 

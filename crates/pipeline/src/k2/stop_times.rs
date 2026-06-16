@@ -972,6 +972,32 @@ pub fn validate_stop_times(file: &RawFile) -> (StopTimesIndex, Vec<gtfs_core::No
             ));
         }
 
+        // STM_051: Flex penceresi tanımlı iken pickup_type=0 (düzenli) veya 3 (sürücü koordinasyonu) yasak.
+        // GTFS spec [Kesin]: pickup_type 0/3 forbidden if start/end_pickup_drop_off_window defined.
+        if has_any_window {
+            if let Some(pt) = pickup_type {
+                if pt == 0 || pt == 3 {
+                    notices.push(make_k2_notice(
+                        &mut counter, "STM_051", EntityType::Trip, eid(),
+                        None, &file.name, Some(line), Some("pickup_type"),
+                        Some(pt.to_string()), Some("1 veya 2".to_string()),
+                        format!("trip_id '{trip_id}' Flex penceresi tanımlı iken pickup_type={pt} yasaktır."),
+                        "Flex penceresi olan stop_times satırlarında pickup_type'ı 1 (alış yok) veya 2 (telefonla) yapın.",
+                    ));
+                }
+            }
+            // STM_052: Flex penceresi tanımlı iken drop_off_type=0 (düzenli) yasak.
+            if drop_off_type == Some(0) {
+                notices.push(make_k2_notice(
+                    &mut counter, "STM_052", EntityType::Trip, eid(),
+                    None, &file.name, Some(line), Some("drop_off_type"),
+                    Some("0".to_string()), Some("1 veya 2".to_string()),
+                    format!("trip_id '{trip_id}' Flex penceresi tanımlı iken drop_off_type=0 yasaktır."),
+                    "Flex penceresi olan stop_times satırlarında drop_off_type'ı 1 (iniş yok) veya 2 (telefonla) yapın.",
+                ));
+            }
+        }
+
         // STM_038: start_window > end_window
         if let (Some(sw), Some(ew)) = (start_window, end_window) {
             let sw_secs = sw.0 * 3600 + sw.1 * 60 + sw.2;
@@ -1389,6 +1415,41 @@ mod tests {
         let (_, notices) = validate_stop_times(&file);
         assert!(!notices.iter().any(|n| n.rule_id == "STM_050"),
             "timepoint kolonu yok → STM_050 tetiklenmemeli: {:?}",
+            notices.iter().map(|n| &n.rule_id).collect::<Vec<_>>());
+    }
+
+    #[test]
+    fn flex_window_forbidden_pickup_type_produces_stm_051() {
+        let file = make_file(
+            vec!["trip_id", "stop_sequence", "location_id", "start_pickup_drop_off_window", "end_pickup_drop_off_window", "pickup_type", "drop_off_type"],
+            vec![vec!["T1", "1", "Z1", "08:00:00", "18:00:00", "0", "2"]],
+        );
+        let (_, notices) = validate_stop_times(&file);
+        let ids: Vec<&str> = notices.iter().map(|n| n.rule_id.as_str()).collect();
+        assert!(ids.contains(&"STM_051"), "Flex penceresi + pickup_type=0 → STM_051: {:?}", ids);
+    }
+
+    #[test]
+    fn flex_window_forbidden_drop_off_type_produces_stm_052() {
+        let file = make_file(
+            vec!["trip_id", "stop_sequence", "location_id", "start_pickup_drop_off_window", "end_pickup_drop_off_window", "pickup_type", "drop_off_type"],
+            vec![vec!["T1", "1", "Z1", "08:00:00", "18:00:00", "2", "0"]],
+        );
+        let (_, notices) = validate_stop_times(&file);
+        assert!(notices.iter().any(|n| n.rule_id == "STM_052"),
+            "Flex penceresi + drop_off_type=0 → STM_052: {:?}",
+            notices.iter().map(|n| &n.rule_id).collect::<Vec<_>>());
+    }
+
+    #[test]
+    fn no_flex_window_pickup_type_zero_silent_for_stm_051() {
+        let file = make_file(
+            vec!["trip_id", "arrival_time", "departure_time", "stop_id", "stop_sequence", "pickup_type"],
+            vec![vec!["T1", "08:00:00", "08:00:00", "S1", "1", "0"]],
+        );
+        let (_, notices) = validate_stop_times(&file);
+        assert!(!notices.iter().any(|n| n.rule_id == "STM_051"),
+            "Flex penceresi yok → pickup_type=0 STM_051 üretmemeli: {:?}",
             notices.iter().map(|n| &n.rule_id).collect::<Vec<_>>());
     }
 

@@ -581,6 +581,8 @@ const en: LocaleShape = {
     'STM_048': "{observed_value} trips wrote after-midnight times as 00:xx; the GTFS service day expects 24:00:00+ (auto-interpreted as 24:xx for analysis).",
     'STM_049': "{observed_value} stops wrote an after-midnight departure as 00:xx (departure appears before arrival on the same row); 24:xx is recommended.",
     'STM_050': "The timepoint column is present but this row leaves it empty; an empty timepoint is implicitly treated as exact (1), so approximate times may look exact.",
+    'STM_051': "Trip '{entity_id}': pickup_type 0 (regular) or 3 (driver-coordinated) is forbidden when a Flex pickup/drop-off window is defined.",
+    'STM_052': "Trip '{entity_id}': drop_off_type 0 (regular) is forbidden when a Flex pickup/drop-off window is defined.",
     // PDW
     'PDW_006': "Trip '{entity_id}': overlapping pickup/drop-off windows for the same trip+zone.",
     // LOC
@@ -1206,6 +1208,8 @@ const en: LocaleShape = {
     'STM_048': 'Write after-midnight times as 24:00:00, 25:00:00, etc. instead of 00:xx.',
     'STM_049': 'Write after-midnight departure times as 24:00:00+ instead of 00:xx.',
     'STM_050': 'Set timepoint explicitly to 0 (approximate) or 1 (exact) for this stop_time.',
+    'STM_051': 'Use pickup_type 1 (none) or 2 (phone agency) on stop_times that have a Flex window.',
+    'STM_052': 'Use drop_off_type 1 (none) or 2 (phone agency) on stop_times that have a Flex window.',
     'STM_042': 'Remove the characters ! $ % \\ * = _ from the stop_headsign value.',
     // SHP (field-level)
     'SHP_001': 'Fill in the shape_id field.',
@@ -1702,6 +1706,8 @@ const en: LocaleShape = {
     'STM_048': 'After-midnight times written as 00:xx (between stops)',
     'STM_049': 'After-midnight departure written as 00:xx (same row)',
     'STM_050': 'timepoint column present but value empty',
+    'STM_051': 'pickup_type 0/3 forbidden with Flex window',
+    'STM_052': 'drop_off_type 0 forbidden with Flex window',
     // PDW
     'PDW_006': 'Overlapping pickup/drop-off window for same trip+zone',
     // LOC

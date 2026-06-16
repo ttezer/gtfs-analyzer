@@ -2,7 +2,7 @@
 
 🇹🇷 [Türkçe](RULES.md) · 🇬🇧 **English** · 🇯🇵 [日本語](RULES.ja.md)
 
-509 rules, 37 groups. Each rule is identified by a unique ID, severity level, and class.
+511 rules, 37 groups. Each rule is identified by a unique ID, severity level, and class.
 Severity levels: **CRITICAL** (publish blocker) · **HIGH** · **MEDIUM** · **LOW** · **INFO**
 Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Quality** (GTFS Quality) · **Analytics** (GTFS Analytics)
 
@@ -226,6 +226,8 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | STM_048 | After-midnight times written as 00:xx (between stops) | INFO | Quality |
 | STM_049 | After-midnight departure written as 00:xx (same row) | INFO | Quality |
 | STM_050 | timepoint column present but value empty | LOW | Quality |
+| STM_051 | pickup_type 0/3 forbidden with Flex window | HIGH | Spec |
+| STM_052 | drop_off_type 0 forbidden with Flex window | HIGH | Spec |
 
 ## PDW — Pickup/Drop-off Window
 

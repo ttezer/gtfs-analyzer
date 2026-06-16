@@ -583,6 +583,8 @@ const tr = {
     'STM_048': 'Gece yarısı sonrası saatler 00:xx (duraklar arası)',
     'STM_049': 'Gece yarısı sonrası kalkış 00:xx (aynı satır)',
     'STM_050': 'timepoint sütunu var ama değer boş',
+    'STM_051': 'Flex penceresinde pickup_type=0/3 yasak',
+    'STM_052': 'Flex penceresinde drop_off_type=0 yasak',
     // PDW
     'PDW_006': "Aynı trip+zone'da örtüşen pickup/drop-off penceresi",
     // LOC

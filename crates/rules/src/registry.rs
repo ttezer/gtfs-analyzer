@@ -519,6 +519,10 @@ pub static RULES: &[RuleMeta] = &[
         "Gece yarısı sonrası kalkış 00:xx yazılmış (24:xx önerilir, aynı satır)"),
     r!("STM_050", Dusuk, Quality, 1, &[], Some("timepoint"), VS, Row,
         "timepoint sütunu mevcut ama satırda boş — değer açıkça belirtilmeli (0 yaklaşık / 1 kesin)"),
+    r!("STM_051", Yuksek, Spec, 1, &[], Some("trip_id"), VS, Entity,
+        "Flex penceresi tanımlıyken pickup_type=0/3 yasak (talep-üzerine değerler gerekli)"),
+    r!("STM_052", Yuksek, Spec, 1, &[], Some("trip_id"), VS, Entity,
+        "Flex penceresi tanımlıyken drop_off_type=0 yasak (talep-üzerine değer gerekli)"),
 
     // ── PDW: Pickup/Drop-off Window ──────────────────────────────────────────
     r!("PDW_006", Orta, Spec, 2, &[], Some("trip_id"), VS, Entity,
