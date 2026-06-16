@@ -114,8 +114,15 @@ GTFS Analyzer, Japonya'nın ulusal GTFS profili **GTFS-JP**'yi (国土交通省 
 | Kural | Denetim |
 |---|---|
 | **JPN_001** | Durak adlarının kana (よみがな — `translations.txt`, `ja-Hrkt`) okuması; sesli anons ve arama için GTFS-JP'de zorunludur |
-| **JPN_002** | `trips.jp_office_id` değerinin `office_jp.txt`'teki bir `office_id` ile eşleşmesi (işletme ofisi referans bütünlüğü) |
+| **JPN_002** | `jp_office_id` (`trips.txt` **veya** `routes.txt`) değerinin `office_jp.txt`'teki bir `office_id` ile eşleşmesi (işletme ofisi referans bütünlüğü) |
 | **JPN_003** | `agency_jp.txt` `agency_id` değerinin `agency.txt`'te tanımlı olması (işletici referans bütünlüğü) |
+| **JPN_004** | `translations.txt`'in mevcudiyeti — GTFS-JP'de (özellikle kana okumaları için) zorunludur |
+| **JPN_005** | `office_jp.txt`'te `office_name` zorunlu alanının dolu olması |
+| **JPN_006** | `fare_attributes.txt` + `fare_rules.txt`'in mevcudiyeti — GTFS-JP'de zorunludur |
+| **JPN_007** | `feed_info.txt`'in mevcudiyeti — GTFS-JP'de zorunludur |
+| **JPN_008** | Hat adının (`route_long_name`) kana (`ja-Hrkt`) okuması |
+| **JPN_009** | `trip_headsign` kana (`ja-Hrkt`) okuması |
+| **JPN_010** | İşletici adının (`agency_name`) kana (`ja-Hrkt`) okuması |
 
 Yukarıdaki **Tokyo Toei** karşılaştırması bu profilin gerçek bir GTFS-JP feed'inde nasıl davrandığını gösterir: feed spec açısından temizdir (0 kritik) ve profil kuralları doğru referanslı veride yanlış pozitif üretmez.
 

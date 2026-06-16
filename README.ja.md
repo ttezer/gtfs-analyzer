@@ -114,8 +114,15 @@ GTFS Analyzer は、日本の国内 GTFS プロファイルである **GTFS-JP**
 | ルール | 検査内容 |
 |---|---|
 | **JPN_001** | 停留所名のかな（よみがな — `translations.txt`、`ja-Hrkt`）読み。音声案内・検索のため GTFS-JP で必須 |
-| **JPN_002** | `trips.jp_office_id` が `office_jp.txt` の `office_id` と一致すること（営業所参照整合性） |
+| **JPN_002** | `jp_office_id`（`trips.txt` **または** `routes.txt`）が `office_jp.txt` の `office_id` と一致すること（営業所参照整合性） |
 | **JPN_003** | `agency_jp.txt` の `agency_id` が `agency.txt` に定義されていること（事業者参照整合性） |
+| **JPN_004** | `translations.txt` の存在 — GTFS-JP では（特にかな読みのため）必須 |
+| **JPN_005** | `office_jp.txt` の必須項目 `office_name` が入力されていること |
+| **JPN_006** | `fare_attributes.txt` + `fare_rules.txt` の存在 — GTFS-JP では必須 |
+| **JPN_007** | `feed_info.txt` の存在 — GTFS-JP では必須 |
+| **JPN_008** | 路線名（`route_long_name`）のかな（`ja-Hrkt`）読み |
+| **JPN_009** | `trip_headsign` のかな（`ja-Hrkt`）読み |
+| **JPN_010** | 事業者名（`agency_name`）のかな（`ja-Hrkt`）読み |
 
 上記の **Tokyo Toei** の比較は、実際の GTFS-JP フィードでこのプロファイルがどう振る舞うかを示しています。フィードは仕様的にクリーン（重大 0 件）であり、正しく参照されたデータではプロファイルルールが誤検出を生みません。
 

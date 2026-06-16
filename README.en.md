@@ -114,8 +114,15 @@ GTFS Analyzer automatically recognizes **GTFS-JP**, Japan's national GTFS profil
 | Rule | Check |
 |---|---|
 | **JPN_001** | Kana reading (よみがな — `translations.txt`, `ja-Hrkt`) for stop names; required by GTFS-JP for voice announcements and search |
-| **JPN_002** | `trips.jp_office_id` must match an `office_id` defined in `office_jp.txt` (operating-office referential integrity) |
+| **JPN_002** | `jp_office_id` (in `trips.txt` **or** `routes.txt`) must match an `office_id` defined in `office_jp.txt` (operating-office referential integrity) |
 | **JPN_003** | `agency_jp.txt` `agency_id` must be defined in `agency.txt` (operator referential integrity) |
+| **JPN_004** | `translations.txt` must be present — mandatory in GTFS-JP (notably for kana readings) |
+| **JPN_005** | `office_name` (a required field) must be filled in `office_jp.txt` |
+| **JPN_006** | `fare_attributes.txt` + `fare_rules.txt` must be present — mandatory in GTFS-JP |
+| **JPN_007** | `feed_info.txt` must be present — mandatory in GTFS-JP |
+| **JPN_008** | Kana (`ja-Hrkt`) reading for the route name (`route_long_name`) |
+| **JPN_009** | Kana (`ja-Hrkt`) reading for `trip_headsign` |
+| **JPN_010** | Kana (`ja-Hrkt`) reading for the operator name (`agency_name`) |
 
 The **Tokyo Toei** comparison above shows how the profile behaves on a real GTFS-JP feed: the feed is specification-clean (0 critical), and the profile rules produce no false positives on correctly referenced data.
 
