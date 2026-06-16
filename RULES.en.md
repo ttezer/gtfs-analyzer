@@ -2,7 +2,7 @@
 
 🇹🇷 [Türkçe](RULES.md) · 🇬🇧 **English** · 🇯🇵 [日本語](RULES.ja.md)
 
-518 rules, 37 groups. Each rule is identified by a unique ID, severity level, and class.
+520 rules, 37 groups. Each rule is identified by a unique ID, severity level, and class.
 Severity levels: **CRITICAL** (publish blocker) · **HIGH** · **MEDIUM** · **LOW** · **INFO**
 Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Quality** (GTFS Quality) · **Analytics** (GTFS Analytics)
 
@@ -72,6 +72,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | AGN_014 | Multiple agencies but agency.txt agency_id missing | CRITICAL | Spec |
 | AGN_015 | agency_url uses insecure http | INFO | Quality |
 | AGN_016 | agency_phone suspect/placeholder | INFO | Quality |
+| AGN_017 | Inconsistent agency_lang across agencies | LOW | Interop |
 
 ## STP — Stops
 
@@ -659,6 +660,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | GEO_019 | Stop has integer (zero-precision) coordinates | MEDIUM | Quality |
 | GEO_020 | Shape is degenerate — all points at the same location | HIGH | Quality |
 | GEO_021 | More than 30% of stops share coordinates (systematic issue) | HIGH | Analytics |
+| GEO_022 | Stop latitude near a pole (\|lat\| > 89) | HIGH | Quality |
 
 ## DQ — Data Quality / User Experience
 

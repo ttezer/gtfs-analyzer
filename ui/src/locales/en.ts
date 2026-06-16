@@ -445,6 +445,7 @@ const en: LocaleShape = {
     'AGN_014': 'agency_id is required when multiple agencies are defined in agency.txt.',
     'AGN_015': "Agency '{entity_id}': agency_url uses insecure 'http://'; 'https://' is recommended.",
     'AGN_016': "Agency '{entity_id}': agency_phone '{observed_value}' is a known placeholder or out-of-service number; it may not be a real contact.",
+    'AGN_017': "Agencies in the feed declare different agency_lang values ({observed_value}) — an inconsistency across operators.",
     // STP
     'STP_001': "Duplicate stop_id: '{entity_id}'.",
     'STP_002': 'stop_id is empty.',
@@ -906,6 +907,7 @@ const en: LocaleShape = {
     'GEO_019': "Stop '{entity_id}': coordinates {observed_value} are integers — zero decimal precision, likely placeholder data.",
     'GEO_020': "Shape '{entity_id}': all {observed_value} points are at the same location — degenerate geometry.",
     'GEO_021': "{observed_value} of stops share coordinates with another stop — systematic coordinate issue.",
+    'GEO_022': "Stop '{entity_id}': latitude {observed_value} is extremely close to a pole (|lat| > 89) — likely a coordinate error.",
     // DQ
     'DQ_003':  "Route '{entity_id}': route description is missing.",
     'DQ_004':  "Route '{entity_id}': route_url is missing.",
@@ -996,6 +998,7 @@ const en: LocaleShape = {
     'GEO_019': 'Update stop_lat and stop_lon with at least 5 decimal places of precision.',
     'GEO_020': 'Correct the shape coordinates in shapes.txt to follow the actual route path.',
     'GEO_021': 'Fix duplicate stop coordinates in stops.txt; each physical stop should have a unique location.',
+    'GEO_022': 'Verify that stop_lat reflects the real location.',
     // OPR
     'OPR_001': 'Increase peak/off-peak trip frequency or close large service gaps.',
     'OPR_003': 'Adjust the trip schedule; very frequent trips may cause congestion.',
@@ -1451,6 +1454,7 @@ const en: LocaleShape = {
     'AGN_014': 'Assign a unique agency_id to every agency row when multiple agencies are present.',
     'AGN_015': 'Update agency_url to use https://.',
     'AGN_016': "Update agency_phone to the operating agency's real, working number.",
+    'AGN_017': 'Make agency_lang consistent across agencies (or ignore for a genuinely multilingual network).',
     // ATR
     'ATR_009': 'Fill in only one of these attribution reference fields.',
     'ATR_010': 'Use a valid agency_id, route_id or trip_id in the attribution record.',
@@ -1584,6 +1588,7 @@ const en: LocaleShape = {
     'AGN_014': 'Multiple agencies but agency.txt agency_id missing',
     'AGN_015': 'agency_url uses insecure http',
     'AGN_016': 'agency_phone suspect/placeholder',
+    'AGN_017': 'Inconsistent agency_lang across agencies',
     // STP
     'STP_001': 'Duplicate stop_id',
     'STP_002': 'stop_id is empty',
@@ -2045,6 +2050,7 @@ const en: LocaleShape = {
     'GEO_019': 'Stop has integer (zero-precision) coordinates',
     'GEO_020': 'Shape is degenerate — all points at the same location',
     'GEO_021': 'More than 30% of stops share coordinates (systematic issue)',
+    'GEO_022': 'Stop latitude near a pole (|lat| > 89)',
     // DQ
     'DQ_003':  'Route description missing',
     'DQ_004':  'Route URL missing',

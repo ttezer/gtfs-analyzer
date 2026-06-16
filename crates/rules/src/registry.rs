@@ -194,6 +194,8 @@ pub static RULES: &[RuleMeta] = &[
         "agency_url güvensiz http kullanıyor (https önerilir)"),
     r!("AGN_016", Bilgi,  Quality, 1, &[], Some("agency_phone"), VS, Entity,
         "agency_phone bilinen yer-tutucu/şüpheli numara"),
+    r!("AGN_017", Dusuk,  Interop, 1, &[], None, VI, Feed,
+        "Birden çok agency farklı agency_lang taşıyor — diller arası tutarsızlık"),
 
     // ── STP: Stops ─────────────────────────────────────────────────────────────
     r!("STP_001", Kritik, Spec, 1,
@@ -1227,6 +1229,8 @@ pub static RULES: &[RuleMeta] = &[
         "Shape'in tüm noktaları aynı koordinatta — dejenere geometri"),
     r!("GEO_021", Yuksek, Analytics, 2, &[], None, VA_GEO, Feed,
         "Durakların %30'undan fazlası koordinatlarını başka bir durakla paylaşıyor — sistematik hata"),
+    r!("GEO_022", Yuksek, Quality,   1, &[], Some("stop_id"), VA_GEO, Entity,
+        "Durak enlemi kutba aşırı yakın (|lat|>89) — olası koordinat hatası"),
 
     // ── DQ: Veri Kalitesi / Kullanıcı Deneyimi ─────────────────────────────────
     // DQ_001/DQ_002 (feed_publisher_name/url eksik) kaldırıldı: ARC_020 (dosya yok)

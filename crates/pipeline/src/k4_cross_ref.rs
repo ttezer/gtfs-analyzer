@@ -355,6 +355,27 @@ fn check_agencies(
     if records.agencies.len() < 2 {
         return;
     }
+
+    // AGN_017: agency'ler-arası agency_lang tutarsızlığı (inconsistent_agency_lang).
+    // 2+ agency garantili (yukarıdaki return). Farklı (büyük/küçük harf duyarsız) dil sayısı > 1 ise uyar.
+    {
+        let mut langs: Vec<String> = records.agencies.iter()
+            .filter_map(|a| a.agency_lang.as_deref())
+            .filter(|l| !l.is_empty())
+            .map(|l| l.to_lowercase())
+            .collect();
+        langs.sort();
+        langs.dedup();
+        if langs.len() > 1 {
+            notices.push(notice(
+                ctr, "AGN_017", EntityType::Feed,
+                None, None, "agency.txt", None, Some("agency_lang"),
+                Some(langs.join(", ")), None,
+                format!("Feed'deki agency'ler farklı agency_lang değerleri taşıyor ({}) — diller arası tutarsızlık.", langs.join(", ")),
+                "Aynı feed'deki agency'lerin agency_lang değerlerini tutarlı hale getirin (çok dilli ağ ise yok sayılabilir).",
+            ));
+        }
+    }
     let first_tz = &records.agencies[0].agency_timezone;
     let mismatch = records
         .agencies
@@ -4121,6 +4142,36 @@ mod tests {
         let result = check(&recs, &EntityMap::default(), 20260515);
         assert!(result.notices.iter().any(|n| n.rule_id == "JPN_010"),
             "agency_name kana yok → JPN_010");
+    }
+
+    #[test]
+    fn inconsistent_agency_lang_produces_agn_017() {
+        use crate::k2::agency::AgencyRecord;
+        let mk = |id: &str, lang: &str| AgencyRecord {
+            agency_id: Some(id.into()), agency_name: "X".into(),
+            agency_url: "https://example.com".into(), agency_timezone: "Europe/Istanbul".into(),
+            agency_lang: Some(lang.into()), agency_phone: None, agency_fare_url: None,
+            agency_email: None, agency_cemv_support: None, row: Default::default(), line: 2,
+        };
+        let (mut recs, _map) = empty();
+        recs.agencies = vec![mk("A1", "tr"), mk("A2", "en")];
+        let result = check(&recs, &EntityMap::default(), 20260515);
+        assert!(result.notices.iter().any(|n| n.rule_id == "AGN_017"), "farklı agency_lang → AGN_017");
+    }
+
+    #[test]
+    fn consistent_agency_lang_no_agn_017() {
+        use crate::k2::agency::AgencyRecord;
+        let mk = |id: &str| AgencyRecord {
+            agency_id: Some(id.into()), agency_name: "X".into(),
+            agency_url: "https://example.com".into(), agency_timezone: "Europe/Istanbul".into(),
+            agency_lang: Some("tr".into()), agency_phone: None, agency_fare_url: None,
+            agency_email: None, agency_cemv_support: None, row: Default::default(), line: 2,
+        };
+        let (mut recs, _map) = empty();
+        recs.agencies = vec![mk("A1"), mk("A2")];
+        let result = check(&recs, &EntityMap::default(), 20260515);
+        assert!(!result.notices.iter().any(|n| n.rule_id == "AGN_017"), "aynı agency_lang → AGN_017 olmamalı");
     }
 
     #[test]

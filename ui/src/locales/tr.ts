@@ -447,6 +447,7 @@ const tr = {
     'AGN_014': 'Birden fazla kuruluş var ama agency.txt agency_id eksik',
     'AGN_015': 'agency_url güvensiz http (https önerilir)',
     'AGN_016': 'agency_phone şüpheli/yer-tutucu numara',
+    'AGN_017': "Agency'ler arası agency_lang tutarsız",
     // STP
     'STP_001': 'stop_id yineleniyor',
     'STP_002': 'stop_id boş',
@@ -908,6 +909,7 @@ const tr = {
     'GEO_019': 'Durak tam sayı koordinatlara sahip (hassasiyet sıfır)',
     'GEO_020': 'Shape dejenere — tüm noktalar aynı koordinatta',
     'GEO_021': 'Durakların %30+ koordinatı paylaşıyor (sistematik hata)',
+    'GEO_022': 'Durak enlemi kutba aşırı yakın (|lat| > 89)',
     // DQ
     'DQ_003':  'Hat açıklaması eksik',
     'DQ_004':  "Hat URL'si eksik",

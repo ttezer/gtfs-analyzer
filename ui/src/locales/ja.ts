@@ -426,6 +426,7 @@ const ja: LocaleShape = {
     'AGN_014': 'agency.txtに複数の事業者が定義されている場合、agency_idは必須です。',
     'AGN_015': "事業者「{entity_id}」：agency_urlが安全でない「http://」を使用しています。「https://」が推奨されます。",
     'AGN_016': "事業者「{entity_id}」：agency_phone「{observed_value}」は既知のプレースホルダーまたは利用不可の番号です。実際の連絡先でない可能性があります。",
+    'AGN_017': "フィード内の事業者が異なる agency_lang 値（{observed_value}）を宣言しています — 事業者間の不整合です。",
     // STP
     'STP_001': "stop_idが重複しています：'{entity_id}'。",
     'STP_002': 'stop_idが空です。',
@@ -887,6 +888,7 @@ const ja: LocaleShape = {
     'GEO_019': "停留所'{entity_id}'：座標{observed_value}が整数です — 精度ゼロ、プレースホルダーデータの可能性があります。",
     'GEO_020': "シェープ'{entity_id}'：全{observed_value}点が同じ座標にあります — 退化したジオメトリです。",
     'GEO_021': "停留所の{observed_value}が別の停留所と座標を共有しています — 系統的な座標エラーです。",
+    'GEO_022': "停留所'{entity_id}'：緯度 {observed_value} が極に極端に近い（|lat| > 89）— 座標エラーの可能性。",
     // DQ
     'DQ_003':  "路線'{entity_id}'：路線説明がありません。",
     'DQ_004':  "路線'{entity_id}'：route_urlがありません。",
@@ -971,6 +973,7 @@ const ja: LocaleShape = {
     'AGN_014': '複数の事業者が存在する場合は、各agency行に一意のagency_idを割り当ててください。',
     'AGN_015': 'agency_urlをhttps://に更新してください。',
     'AGN_016': 'agency_phoneを運行事業者の実際の有効な番号に更新してください。',
+    'AGN_017': '事業者間で agency_lang を統一してください（多言語ネットワークの場合は無視可）。',
     // ATR
     'ATR_001': '各帰属レコードに一意のattribution_idを割り当ててください。',
     'ATR_002': 'organization_nameフィールドを入力してください。',
@@ -1147,6 +1150,7 @@ const ja: LocaleShape = {
     'GEO_019': 'stop_latとstop_lonを少なくとも小数点以下5桁の精度で更新してください。',
     'GEO_020': 'shapes.txtの座標を実際の経路に沿った位置に修正してください。',
     'GEO_021': 'stops.txtの重複座標を修正してください。各物理的停留所には固有の位置が必要です。',
+    'GEO_022': 'stop_lat が実際の位置を反映していることを確認してください。',
     // GGL
     'GGL_001': 'Googleトランジット互換性のためにtransfer_typeを0〜3の間で選択してください。',
     'GGL_002': 'ic_priceを-1（不明）または正の数に設定してください。',
@@ -1538,6 +1542,7 @@ const ja: LocaleShape = {
     'AGN_014': '複数事業者だがagency.txtにagency_idなし',
     'AGN_015': 'agency_urlが安全でないhttp',
     'AGN_016': 'agency_phoneが疑わしい/プレースホルダー',
+    'AGN_017': '事業者間で agency_lang が不一致',
     // STP
     'STP_001': 'stop_idが重複',
     'STP_002': 'stop_idが空',
@@ -1999,6 +2004,7 @@ const ja: LocaleShape = {
     'GEO_019': '停留所が整数座標（精度ゼロ）',
     'GEO_020': 'シェープが退化（全点が同一座標）',
     'GEO_021': '停留所の30%以上が座標を共有（系統的エラー）',
+    'GEO_022': '停留所の緯度が極に近い（|lat| > 89）',
     // DQ
     'DQ_003':  '路線の説明が不足',
     'DQ_004':  '路線URLが不足',

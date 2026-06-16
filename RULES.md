@@ -2,7 +2,7 @@
 
 🇹🇷 **Türkçe** · 🇬🇧 [English](RULES.en.md) · 🇯🇵 [日本語](RULES.ja.md)
 
-518 kural, 37 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
+520 kural, 37 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
 Önem seviyeleri: **KRİTİK** (yayın engelleyici) · **YÜKSEK** · **ORTA** · **DÜŞÜK** · **BİLGİ**
 Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · **Quality** (GTFS Kalitesi) · **Analytics** (GTFS Analitiği)
 
@@ -72,6 +72,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | AGN_014 | Birden fazla kuruluş var ama agency.txt'de agency_id eksik | KRİTİK | Spec |
 | AGN_015 | agency_url güvensiz http kullanıyor (https önerilir) | BİLGİ | Quality |
 | AGN_016 | agency_phone bilinen yer-tutucu/şüpheli numara | BİLGİ | Quality |
+| AGN_017 | Birden çok agency farklı agency_lang taşıyor — diller arası tutarsızlık | DÜŞÜK | Interop |
 
 ## STP — Stops (Duraklar)
 
@@ -659,6 +660,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | GEO_019 | Durak koordinatları tam sayı (ondalık basamak yok) — düşük hassasiyetli veya yer tutucu | ORTA | Quality |
 | GEO_020 | Shape'in tüm noktaları aynı koordinatta — dejenere geometri | YÜKSEK | Quality |
 | GEO_021 | Durakların %30'undan fazlası koordinatlarını başka bir durakla paylaşıyor — sistematik hata | YÜKSEK | Analytics |
+| GEO_022 | Durak enlemi kutba aşırı yakın (\|lat\|>89) — olası koordinat hatası | YÜKSEK | Quality |
 
 ## DQ — Veri Kalitesi / Kullanıcı Deneyimi
 

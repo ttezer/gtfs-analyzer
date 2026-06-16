@@ -1871,6 +1871,23 @@ fn check_geo_analytics(
         }
     }
 
+    // GEO_022: Stop enlemi kutba aşırı yakın (|lat| > 89) — olası koordinat hatası (point_near_pole)
+    for stop in &records.stops {
+        if stop.stop_id.is_empty() { continue; }
+        let Some(lat) = stop.stop_lat else { continue };
+        if lat.abs() > 89.0 {
+            let name = stop.stop_name.as_deref().filter(|s| !s.is_empty()).unwrap_or(&stop.stop_id);
+            notices.push(k6_notice(
+                ctr, "GEO_022", EntityType::Stop,
+                Some(stop.stop_id.clone()), Some(stop.stop_id.clone()),
+                "stops.txt", Some(stop.line), Some("stop_lat"),
+                Some(format!("{lat:.6}")), None,
+                format!("'{name}' durağının enlemi ({lat:.6}) kutba aşırı yakın — olası koordinat hatası."),
+                "stop_lat değerinin gerçek konuma karşılık geldiğini doğrulayın.",
+            ));
+        }
+    }
+
     // GEO_017: Shape noktası Null Island yakınında — her shape için en fazla 1 notice
     {
         let mut flagged: HashSet<String> = HashSet::new();
@@ -8382,6 +8399,22 @@ mod tests {
         let ids: Vec<&str> = result.notices.iter().map(|n| n.rule_id.as_str()).collect();
         assert!(ids.contains(&"SHP_029"), "aynı dist + minik koordinat farkı → SHP_029: {:?}", ids);
         assert!(!ids.contains(&"SHP_028"), "eşik altı fark SHP_028 olmamalı: {:?}", ids);
+    }
+
+    #[test]
+    fn stop_near_pole_produces_geo_022() {
+        let records = records_with(
+            vec![stop("A", 89.5, 10.0), stop("B", 41.0, 29.0)],
+            vec![route("R1", 3)],
+            vec![trip("T1", "R1")],
+            vec![
+                stoptime("T1", 1, "A", (8,0,0), (8,0,0), 2),
+                stoptime("T1", 2, "B", (8,10,0), (8,10,0), 3),
+            ],
+        );
+        let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
+        let ids: Vec<&str> = result.notices.iter().map(|n| n.rule_id.as_str()).collect();
+        assert!(ids.contains(&"GEO_022"), "kutba yakın durak (lat 89.5) → GEO_022: {:?}", ids);
     }
 
     #[test]
