@@ -6879,7 +6879,7 @@ mod tests {
             route_desc: None, route_type: Some(route_type), route_url: None,
             route_color: None, route_text_color: None, route_sort_order: None,
             continuous_pickup: None, continuous_drop_off: None, network_id: None,
-            route_cemv_support: None, row: Default::default(), line: 2,
+            route_cemv_support: None, jp_office_id: None, row: Default::default(), line: 2,
         }
     }
 

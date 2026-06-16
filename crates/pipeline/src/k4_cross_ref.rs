@@ -2380,6 +2380,32 @@ fn check_gtfs_jp(records: &EntityRecords, notices: &mut Vec<Notice>, ctr: &mut u
                 ));
             }
         }
+        // JPN_002 (genişletme): routes.jp_office_id → office_jp.office_id.
+        // Resmî GTFS-JP spec jp_office_id'yi routes.txt'te tanımlar (Tokyo trips.txt'te koymuş);
+        // sürüm-toleranslı olmak için her iki konumu da denetleriz.
+        for route in &records.routes {
+            let oid = match route.jp_office_id.as_deref() {
+                Some(o) if !o.is_empty() => o,
+                _ => continue,
+            };
+            if !office_ids.contains(oid) {
+                notices.push(notice(
+                    ctr,
+                    "JPN_002",
+                    EntityType::Route,
+                    Some(route.route_id.clone()),
+                    Some(route.route_id.clone()),
+                    "routes.txt",
+                    Some(route.line),
+                    Some("jp_office_id"),
+                    Some(oid.to_string()),
+                    None,
+                    format!("'{}' hattındaki jp_office_id ('{}') office_jp.txt'te tanımlı değil.",
+                        route.route_id, oid),
+                    "jp_office_id değerini office_jp.txt'te tanımlı bir office_id ile eşleştirin.",
+                ));
+            }
+        }
     }
 
     // ── JPN_003: agency_jp.agency_id → agency.agency_id ──
@@ -3513,7 +3539,7 @@ mod tests {
             route_url: None, route_color: None,
             route_text_color: None, route_sort_order: None,
             continuous_pickup: None, continuous_drop_off: None,
-            network_id: None, route_cemv_support: None,
+            network_id: None, route_cemv_support: None, jp_office_id: None,
             row: Default::default(), line: 2,
         }
     }
@@ -3985,6 +4011,27 @@ mod tests {
             .filter_map(|n| n.entity_id.as_deref())
             .collect();
         assert_eq!(jpn, vec!["T2"], "yalnız tanımsız ofise işaret eden T2 işaretlenmeli");
+    }
+
+    #[test]
+    fn dangling_route_jp_office_id_produces_jpn_002() {
+        use crate::k2::office_jp::OfficeJpRecord;
+        let (mut recs, _map) = empty();
+        recs.office_jp = vec![OfficeJpRecord {
+            office_id: "OF1".into(), office_name: Some("本社".into()),
+            row: Default::default(), line: 2,
+        }];
+        // routes.jp_office_id (resmî spec konumu): R1 geçerli, R2 tanımsız ofise → yalnız R2.
+        recs.routes = vec![
+            RouteRecord { jp_office_id: Some("OF1".into()), ..route("R1") },
+            RouteRecord { jp_office_id: Some("MISSING".into()), ..route("R2") },
+        ];
+        let result = check(&recs, &EntityMap::default(), 20260515);
+        let jpn: Vec<&str> = result.notices.iter()
+            .filter(|n| n.rule_id == "JPN_002")
+            .filter_map(|n| n.entity_id.as_deref())
+            .collect();
+        assert_eq!(jpn, vec!["R2"], "yalnız tanımsız ofise işaret eden R2 işaretlenmeli");
     }
 
     #[test]

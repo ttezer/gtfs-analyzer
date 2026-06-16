@@ -24,6 +24,7 @@ pub struct RouteRecord {
     pub continuous_drop_off: Option<u32>,
     pub network_id: Option<String>,
     pub route_cemv_support: Option<u32>,
+    pub jp_office_id: Option<String>,
     pub row: RowMap,
     pub line: u64,
 }
@@ -258,6 +259,11 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
             .filter(|v| !v.is_empty())
             .map(str::to_string);
 
+        // GTFS-JP: jp_office_id (resmî spec routes.txt'te tanımlar; JPN_002 office_jp FK denetimi)
+        let jp_office_id = get_trimmed_field(&row_map, "jp_office_id")
+            .filter(|v| !v.is_empty())
+            .map(str::to_string);
+
         // RTS_024: route_cemv_support 0, 1 veya 2 olmalı (AGN_012 route ikizi)
         let route_cemv_support = match parse_u32(&row_map, "cemv_support") {
             Ok(v) => {
@@ -292,6 +298,7 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
             continuous_drop_off,
             network_id,
             route_cemv_support,
+            jp_office_id,
             row: row_map,
             line,
         });
