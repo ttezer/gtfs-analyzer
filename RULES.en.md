@@ -2,7 +2,7 @@
 
 🇹🇷 [Türkçe](RULES.md) · 🇬🇧 **English** · 🇯🇵 [日本語](RULES.ja.md)
 
-515 rules, 37 groups. Each rule is identified by a unique ID, severity level, and class.
+518 rules, 37 groups. Each rule is identified by a unique ID, severity level, and class.
 Severity levels: **CRITICAL** (publish blocker) · **HIGH** · **MEDIUM** · **LOW** · **INFO**
 Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Quality** (GTFS Quality) · **Analytics** (GTFS Analytics)
 
@@ -707,3 +707,6 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | JPN_005 | GTFS-JP: office_jp office_name empty | HIGH | Spec |
 | JPN_006 | GTFS-JP: fare files missing | MEDIUM | Quality |
 | JPN_007 | GTFS-JP: feed_info.txt missing | MEDIUM | Quality |
+| JPN_008 | GTFS-JP: route_long_name kana reading missing | MEDIUM | Quality |
+| JPN_009 | GTFS-JP: trip_headsign kana reading missing | MEDIUM | Quality |
+| JPN_010 | GTFS-JP: agency_name kana reading missing | MEDIUM | Quality |

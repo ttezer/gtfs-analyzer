@@ -2293,6 +2293,24 @@ fn check_translations(
 
 // �"?�"? ATR_005-007, ATR_009: attribution cross-ref �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?
 
+/// translations.txt'ten belirli (table, field) için ja-Hrkt (かな) çevirisi olan
+/// record_id ve field_value kümeleri. JPN_001/008/009/010 kana kontrollerinde paylaşılır.
+fn collect_kana<'a>(
+    translations: &'a [crate::k2::translations::TranslationRecord],
+    table: &str,
+    field: &str,
+) -> (HashSet<&'a str>, HashSet<&'a str>) {
+    let mut recs: HashSet<&str> = HashSet::new();
+    let mut vals: HashSet<&str> = HashSet::new();
+    for t in translations {
+        if t.table_name == table && t.field_name == field && t.language.eq_ignore_ascii_case("ja-Hrkt") {
+            if let Some(rid) = t.record_id.as_deref() { recs.insert(rid); }
+            if let Some(fv) = t.field_value.as_deref() { vals.insert(fv); }
+        }
+    }
+    (recs, vals)
+}
+
 // ── JPN_001: GTFS-JP feed'inde durak adının kana (ja-Hrkt) okuması eksik ──────
 // GTFS-JP, stop_name için かな okumasını (translations, language=ja-Hrkt) ZORUNLU kılar
 // (sesli anons + arama için). Yalnız Japon feed'inde çalışır: feed_lang=ja VEYA herhangi
@@ -2345,6 +2363,67 @@ fn check_gtfs_jp(records: &EntityRecords, notices: &mut Vec<Notice>, ctr: &mut u
                 format!("'{}' durağının adı ('{}') için kana (ja-Hrkt) okuması eksik — GTFS-JP'de zorunlu.",
                     stop.stop_id, name),
                 "translations.txt'e bu durak için language=ja-Hrkt (かな) çevirisi ekleyin.",
+            ));
+        }
+
+        // ── JPN_008: route_long_name kana (ja-Hrkt) — GTFS-JP _name alanları zorunlu ──
+        let (kr_rec, kr_val) = collect_kana(&records.translations, "routes", "route_long_name");
+        for route in &records.routes {
+            let name = match route.route_long_name.as_deref() {
+                Some(n) if !n.is_empty() => n,
+                _ => continue,
+            };
+            if kr_rec.contains(route.route_id.as_str()) || kr_val.contains(name) {
+                continue;
+            }
+            notices.push(notice(
+                ctr, "JPN_008", EntityType::Route,
+                Some(route.route_id.clone()), Some(route.route_id.clone()),
+                "translations.txt", Some(route.line), Some("route_long_name"),
+                None, Some("ja-Hrkt".to_string()),
+                format!("'{}' hattının adı ('{}') için kana (ja-Hrkt) okuması eksik — GTFS-JP'de zorunlu.", route.route_id, name),
+                "translations.txt'e bu hat için language=ja-Hrkt (route_long_name) çevirisi ekleyin.",
+            ));
+        }
+
+        // ── JPN_009: trip_headsign kana (ja-Hrkt) — GTFS-JP _headsign alanları zorunlu ──
+        let (kt_rec, kt_val) = collect_kana(&records.translations, "trips", "trip_headsign");
+        for trip in &records.trips {
+            let hs = match trip.trip_headsign.as_deref() {
+                Some(h) if !h.is_empty() => h,
+                _ => continue,
+            };
+            if kt_rec.contains(trip.trip_id.as_str()) || kt_val.contains(hs) {
+                continue;
+            }
+            notices.push(notice(
+                ctr, "JPN_009", EntityType::Trip,
+                Some(trip.trip_id.clone()), Some(trip.trip_id.clone()),
+                "translations.txt", Some(trip.line), Some("trip_headsign"),
+                None, Some("ja-Hrkt".to_string()),
+                format!("'{}' seferinin trip_headsign'ı ('{}') için kana (ja-Hrkt) okuması eksik — GTFS-JP'de zorunlu.", trip.trip_id, hs),
+                "translations.txt'e bu sefer için language=ja-Hrkt (trip_headsign) çevirisi ekleyin.",
+            ));
+        }
+
+        // ── JPN_010: agency_name kana (ja-Hrkt) — GTFS-JP _name alanları zorunlu ──
+        let (ka_rec, ka_val) = collect_kana(&records.translations, "agency", "agency_name");
+        for ag in &records.agencies {
+            if ag.agency_name.is_empty() {
+                continue;
+            }
+            let aid = ag.agency_id.as_deref().unwrap_or("");
+            if (!aid.is_empty() && ka_rec.contains(aid)) || ka_val.contains(ag.agency_name.as_str()) {
+                continue;
+            }
+            let eid = ag.agency_id.clone().filter(|s| !s.is_empty()).unwrap_or_else(|| ag.agency_name.clone());
+            notices.push(notice(
+                ctr, "JPN_010", EntityType::Agency,
+                Some(eid.clone()), Some(eid),
+                "translations.txt", Some(ag.line), Some("agency_name"),
+                None, Some("ja-Hrkt".to_string()),
+                format!("'{}' işleticisinin adı için kana (ja-Hrkt) okuması eksik — GTFS-JP'de zorunlu.", ag.agency_name),
+                "translations.txt'e bu işletici için language=ja-Hrkt (agency_name) çevirisi ekleyin.",
             ));
         }
     }
@@ -3978,6 +4057,70 @@ mod tests {
             .filter_map(|n| n.entity_id.as_deref())
             .collect();
         assert_eq!(jpn, vec!["S2"], "yalnız kanası eksik S2 işaretlenmeli");
+    }
+
+    #[test]
+    fn missing_route_kana_produces_jpn_008() {
+        use crate::k2::translations::TranslationRecord;
+        let (mut recs, _map) = empty();
+        let mut r1 = route("R1"); r1.route_long_name = Some("東京駅行".into());
+        let mut r2 = route("R2"); r2.route_long_name = Some("渋谷行".into());
+        recs.routes = vec![r1, r2];
+        // R1 için kana var, R2 için yok. ja-Hrkt varlığı GTFS-JP kapısını açar.
+        recs.translations = vec![TranslationRecord {
+            table_name: "routes".into(), field_name: "route_long_name".into(),
+            language: "ja-Hrkt".into(), translation: "とうきょうえきゆき".into(),
+            record_id: Some("R1".into()), record_sub_id: None, field_value: None,
+            row: Default::default(), line: 2,
+        }];
+        let result = check(&recs, &EntityMap::default(), 20260515);
+        let jpn: Vec<&str> = result.notices.iter()
+            .filter(|n| n.rule_id == "JPN_008")
+            .filter_map(|n| n.entity_id.as_deref())
+            .collect();
+        assert_eq!(jpn, vec!["R2"], "yalnız kanası eksik R2 hattı işaretlenmeli");
+    }
+
+    #[test]
+    fn missing_trip_headsign_kana_produces_jpn_009() {
+        use crate::k2::translations::TranslationRecord;
+        let (mut recs, _map) = empty();
+        let mut t1 = trip("T1", "R1", "SVC1"); t1.trip_headsign = Some("東京行".into());
+        recs.trips = vec![t1];
+        // Kapı: başka alanda ja-Hrkt çeviri var; trip_headsign kana yok → JPN_009.
+        recs.translations = vec![TranslationRecord {
+            table_name: "stops".into(), field_name: "stop_name".into(),
+            language: "ja-Hrkt".into(), translation: "x".into(),
+            record_id: Some("S1".into()), record_sub_id: None, field_value: None,
+            row: Default::default(), line: 2,
+        }];
+        let result = check(&recs, &EntityMap::default(), 20260515);
+        assert!(result.notices.iter().any(|n| n.rule_id == "JPN_009"),
+            "trip_headsign kana yok → JPN_009");
+    }
+
+    #[test]
+    fn missing_agency_name_kana_produces_jpn_010() {
+        use crate::k2::agency::AgencyRecord;
+        use crate::k2::translations::TranslationRecord;
+        let (mut recs, _map) = empty();
+        recs.agencies = vec![AgencyRecord {
+            agency_id: Some("A1".into()), agency_name: "都営バス".into(),
+            agency_url: "https://example.jp".into(), agency_timezone: "Asia/Tokyo".into(),
+            agency_lang: None, agency_phone: None, agency_fare_url: None,
+            agency_email: None, agency_cemv_support: None,
+            row: Default::default(), line: 2,
+        }];
+        // Kapı: başka alanda ja-Hrkt çeviri var; agency_name kana yok → JPN_010.
+        recs.translations = vec![TranslationRecord {
+            table_name: "stops".into(), field_name: "stop_name".into(),
+            language: "ja-Hrkt".into(), translation: "x".into(),
+            record_id: Some("S1".into()), record_sub_id: None, field_value: None,
+            row: Default::default(), line: 2,
+        }];
+        let result = check(&recs, &EntityMap::default(), 20260515);
+        assert!(result.notices.iter().any(|n| n.rule_id == "JPN_010"),
+            "agency_name kana yok → JPN_010");
     }
 
     #[test]

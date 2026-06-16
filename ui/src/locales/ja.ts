@@ -922,6 +922,9 @@ const ja: LocaleShape = {
     'JPN_005': "office_jp.txt のオフィス'{entity_id}'の office_name が空です — GTFS-JP では必須です。",
     'JPN_006': "fare_attributes.txt／fare_rules.txt がありません — GTFS-JP では運賃情報が必須です。",
     'JPN_007': "feed_info.txt がありません — GTFS-JP では必須です（feed_lang=ja、発行者情報）。",
+    'JPN_008': "路線'{entity_id}'：route_long_name のかな（ja-Hrkt）読みがありません — GTFS-JP では必須です。",
+    'JPN_009': "トリップ'{entity_id}'：trip_headsign のかな（ja-Hrkt）読みがありません — GTFS-JP では必須です。",
+    'JPN_010': "事業者'{entity_id}'：agency_name のかな（ja-Hrkt）読みがありません — GTFS-JP では必須です。",
   } as Record<string, string>,
 
   ruleRemediations: {
@@ -1454,6 +1457,9 @@ const ja: LocaleShape = {
     'JPN_005': 'office_jp.txt のすべての office_id に office_name を入力してください。',
     'JPN_006': 'fare_attributes.txt と fare_rules.txt を追加して運賃情報を提供してください。',
     'JPN_007': 'feed_info.txt を追加し、feed_lang=ja と発行者情報を設定してください。',
+    'JPN_008': 'translations.txt にこの路線の language=ja-Hrkt（route_long_name）の翻訳を追加してください。',
+    'JPN_009': 'translations.txt にこの便の language=ja-Hrkt（trip_headsign）の翻訳を追加してください。',
+    'JPN_010': 'translations.txt にこの事業者の language=ja-Hrkt（agency_name）の翻訳を追加してください。',
     // XFL
     'XFL_001': 'calendar.txtまたはcalendar_dates.txtに不足しているサービス定義を追加してください。',
     'XFL_002': 'この便のstop_timesレコードを追加してください。',
@@ -2028,6 +2034,9 @@ const ja: LocaleShape = {
     'JPN_005': 'GTFS-JP：office_jp の office_name が空',
     'JPN_006': 'GTFS-JP：運賃ファイルが欠如',
     'JPN_007': 'GTFS-JP：feed_info.txt が欠如',
+    'JPN_008': 'GTFS-JP：route_long_name のかな読みが欠如',
+    'JPN_009': 'GTFS-JP：trip_headsign のかな読みが欠如',
+    'JPN_010': 'GTFS-JP：agency_name のかな読みが欠如',
   } as Record<string, string>,
 };
 

@@ -1301,6 +1301,12 @@ pub static RULES: &[RuleMeta] = &[
         "GTFS-JP: fare_attributes/fare_rules eksik (profil zorunlu kılar)"),
     r!("JPN_007", Orta,   Quality, 2, &[], None, VS, Feed,
         "GTFS-JP: feed_info.txt eksik (profil zorunlu kılar)"),
+    r!("JPN_008", Orta,   Quality, 2, &[], Some("route_id"), VS, Entity,
+        "GTFS-JP: hat adının (route_long_name) kana (ja-Hrkt) okuması eksik"),
+    r!("JPN_009", Orta,   Quality, 2, &[], Some("trip_id"), VS, Entity,
+        "GTFS-JP: trip_headsign kana (ja-Hrkt) okuması eksik"),
+    r!("JPN_010", Orta,   Quality, 2, &[], Some("agency_id"), VS, Entity,
+        "GTFS-JP: işletici adının (agency_name) kana (ja-Hrkt) okuması eksik"),
 ];
 
 /// `RULES` üzerinden id → metadata için tek seferlik kurulan O(1) arama tablosu.
