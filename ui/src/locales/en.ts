@@ -938,6 +938,9 @@ const en: LocaleShape = {
     'JPN_002': "Trip '{entity_id}': jp_office_id '{observed_value}' is not defined in office_jp.txt.",
     'JPN_003': "agency_jp.txt agency_id '{observed_value}' is not defined in agency.txt.",
     'JPN_004': "translations.txt is missing — GTFS-JP requires it, especially for stop_name kana (ja-Hrkt) readings.",
+    'JPN_005': "office_jp.txt office '{entity_id}' has an empty office_name, which is required by GTFS-JP.",
+    'JPN_006': "fare_attributes.txt/fare_rules.txt are missing — GTFS-JP requires fare information.",
+    'JPN_007': "feed_info.txt is missing — GTFS-JP requires it (feed_lang=ja and publisher information).",
   } as Record<string, string>,
 
   ruleRemediations: {
@@ -1100,6 +1103,9 @@ const en: LocaleShape = {
     'JPN_002': 'Point jp_office_id at an office_id defined in office_jp.txt.',
     'JPN_003': 'Point the agency_jp.txt agency_id at an agency_id defined in agency.txt.',
     'JPN_004': 'Add translations.txt with at least language=ja-Hrkt (kana) readings for stop_name.',
+    'JPN_005': 'Fill in office_name for every office_id in office_jp.txt.',
+    'JPN_006': 'Add fare_attributes.txt and fare_rules.txt to provide fare information.',
+    'JPN_007': 'Add feed_info.txt with feed_lang=ja and publisher information.',
     // AGN
     'AGN_002': 'Fill in the agency_name field.',
     'AGN_003': 'Enter a valid http/https URL for agency_url.',
@@ -2065,6 +2071,9 @@ const en: LocaleShape = {
     'JPN_002': 'GTFS-JP: jp_office_id not defined in office_jp.txt',
     'JPN_003': 'GTFS-JP: agency_jp agency_id not defined in agency.txt',
     'JPN_004': 'GTFS-JP: translations.txt missing',
+    'JPN_005': 'GTFS-JP: office_jp office_name empty',
+    'JPN_006': 'GTFS-JP: fare files missing',
+    'JPN_007': 'GTFS-JP: feed_info.txt missing',
   },
 };
 

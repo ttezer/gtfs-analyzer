@@ -2436,6 +2436,68 @@ fn check_gtfs_jp(records: &EntityRecords, notices: &mut Vec<Notice>, ctr: &mut u
             "translations.txt ekleyin ve en azından stop_name için language=ja-Hrkt (かな) çevirileri sağlayın.",
         ));
     }
+
+    // ── JPN_005: office_jp.office_name zorunlu (boş olamaz) ──
+    // Kapı: office_jp.txt mevcut. office_id'si dolu ama office_name'i boş/eksik satırlar işaretlenir.
+    for oj in &records.office_jp {
+        if oj.office_id.is_empty() {
+            continue;
+        }
+        let name_empty = oj.office_name.as_deref().map(|s| s.trim().is_empty()).unwrap_or(true);
+        if name_empty {
+            notices.push(notice(
+                ctr,
+                "JPN_005",
+                EntityType::Agency,
+                Some(oj.office_id.to_string()),
+                Some(oj.office_id.to_string()),
+                "office_jp.txt",
+                Some(oj.line),
+                Some("office_name"),
+                None,
+                None,
+                format!("office_jp.txt'teki '{}' ofisinin office_name değeri boş — GTFS-JP'de zorunludur.", oj.office_id),
+                "office_jp.txt'te her office_id için office_name değerini doldurun.",
+            ));
+        }
+    }
+
+    // ── JPN_006: GTFS-JP'de fare_attributes.txt + fare_rules.txt zorunlu ──
+    // FP riski (gerçekten ücretsiz hizmet olabilir) → Orta/Quality, feed-level tek uyarı.
+    if is_gtfs_jp && (records.fare_attributes.is_empty() || records.fare_rules.is_empty()) {
+        notices.push(notice(
+            ctr,
+            "JPN_006",
+            EntityType::Feed,
+            None,
+            None,
+            "fare_attributes.txt",
+            None,
+            Some("fare_attributes"),
+            None,
+            None,
+            "GTFS-JP feed'inde fare_attributes.txt/fare_rules.txt eksik — profil ücret bilgisini zorunlu kılar.".to_string(),
+            "fare_attributes.txt ve fare_rules.txt ekleyerek ücret bilgisini sağlayın.",
+        ));
+    }
+
+    // ── JPN_007: GTFS-JP'de feed_info.txt zorunlu ──
+    if is_gtfs_jp && records.feed_info.is_empty() {
+        notices.push(notice(
+            ctr,
+            "JPN_007",
+            EntityType::Feed,
+            None,
+            None,
+            "feed_info.txt",
+            None,
+            Some("feed_info"),
+            None,
+            None,
+            "GTFS-JP feed'inde feed_info.txt eksik — profil bunu (feed_lang=ja, yayıncı bilgisi) zorunlu kılar.".to_string(),
+            "feed_info.txt ekleyin ve feed_lang=ja ile yayıncı bilgilerini doldurun.",
+        ));
+    }
 }
 
 fn check_attributions(
@@ -4019,6 +4081,53 @@ mod tests {
         let (recs, _map) = empty();
         let result = check(&recs, &EntityMap::default(), 20260515);
         assert!(!result.notices.iter().any(|n| n.rule_id == "JPN_004"));
+    }
+
+    #[test]
+    fn empty_office_name_produces_jpn_005() {
+        use crate::k2::office_jp::OfficeJpRecord;
+        let (mut recs, _map) = empty();
+        recs.office_jp = vec![
+            OfficeJpRecord { office_id: "OF1".into(), office_name: Some("本社".into()), row: Default::default(), line: 2 },
+            OfficeJpRecord { office_id: "OF2".into(), office_name: None, row: Default::default(), line: 3 },
+        ];
+        let result = check(&recs, &EntityMap::default(), 20260515);
+        let ids: Vec<&str> = result.notices.iter()
+            .filter(|n| n.rule_id == "JPN_005")
+            .filter_map(|n| n.entity_id.as_deref())
+            .collect();
+        assert_eq!(ids, vec!["OF2"], "yalnız office_name boş OF2 işaretlenmeli");
+    }
+
+    #[test]
+    fn missing_fares_in_jp_feed_produces_jpn_006() {
+        use crate::k2::office_jp::OfficeJpRecord;
+        let (mut recs, _map) = empty();
+        recs.office_jp = vec![OfficeJpRecord { office_id: "OF1".into(), office_name: Some("本社".into()), row: Default::default(), line: 2 }];
+        // fare_attributes/fare_rules boş → JPN_006
+        let result = check(&recs, &EntityMap::default(), 20260515);
+        assert!(result.notices.iter().any(|n| n.rule_id == "JPN_006"), "GTFS-JP + fares yok → JPN_006");
+    }
+
+    #[test]
+    fn missing_feed_info_in_jp_feed_produces_jpn_007() {
+        use crate::k2::office_jp::OfficeJpRecord;
+        let (mut recs, _map) = empty();
+        recs.office_jp = vec![OfficeJpRecord { office_id: "OF1".into(), office_name: Some("本社".into()), row: Default::default(), line: 2 }];
+        // feed_info boş → JPN_007
+        let result = check(&recs, &EntityMap::default(), 20260515);
+        assert!(result.notices.iter().any(|n| n.rule_id == "JPN_007"), "GTFS-JP + feed_info yok → JPN_007");
+    }
+
+    #[test]
+    fn non_jp_feed_no_jpn_005_006_007() {
+        // GTFS-JP sinyali yok → office/fare/feed_info kuralları susar
+        let (recs, _map) = empty();
+        let result = check(&recs, &EntityMap::default(), 20260515);
+        let ids: Vec<&str> = result.notices.iter().map(|n| n.rule_id.as_str()).collect();
+        assert!(!ids.contains(&"JPN_005"));
+        assert!(!ids.contains(&"JPN_006"));
+        assert!(!ids.contains(&"JPN_007"));
     }
 
     // �"?�"? XFL_003 �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?

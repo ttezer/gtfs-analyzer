@@ -1295,6 +1295,12 @@ pub static RULES: &[RuleMeta] = &[
         "GTFS-JP: agency_jp.agency_id agency.txt'te tanımlı değil"),
     r!("JPN_004", Yuksek, Spec,    2, &[], None, VS, Feed,
         "GTFS-JP: translations.txt eksik (profil zorunlu kılar)"),
+    r!("JPN_005", Yuksek, Spec,    1, &[], Some("office_id"), VS, Entity,
+        "GTFS-JP: office_jp.office_name boş (zorunlu alan)"),
+    r!("JPN_006", Orta,   Quality, 2, &[], None, VS, Feed,
+        "GTFS-JP: fare_attributes/fare_rules eksik (profil zorunlu kılar)"),
+    r!("JPN_007", Orta,   Quality, 2, &[], None, VS, Feed,
+        "GTFS-JP: feed_info.txt eksik (profil zorunlu kılar)"),
 ];
 
 /// `RULES` üzerinden id → metadata için tek seferlik kurulan O(1) arama tablosu.

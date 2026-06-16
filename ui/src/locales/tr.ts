@@ -940,6 +940,9 @@ const tr = {
     'JPN_002': "GTFS-JP: jp_office_id office_jp.txt'te tanımlı değil",
     'JPN_003': "GTFS-JP: agency_jp.agency_id agency.txt'te tanımlı değil",
     'JPN_004': 'GTFS-JP: translations.txt eksik',
+    'JPN_005': 'GTFS-JP: office_jp.office_name boş',
+    'JPN_006': 'GTFS-JP: fare_attributes/fare_rules eksik',
+    'JPN_007': 'GTFS-JP: feed_info.txt eksik',
   } as Record<string, string>,
 };
 
