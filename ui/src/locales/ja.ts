@@ -918,6 +918,7 @@ const ja: LocaleShape = {
     'JPN_001': "停留所'{entity_id}'：stop_name にかな（ja-Hrkt）読みがありません — GTFS-JP では必須です。",
     'JPN_002': "便'{entity_id}'：jp_office_id '{observed_value}' が office_jp.txt に定義されていません。",
     'JPN_003': "agency_jp.txt の agency_id '{observed_value}' が agency.txt に定義されていません。",
+    'JPN_004': "translations.txt がありません — GTFS-JP では（特に stop_name のかな／ja-Hrkt 読みのために）必須です。",
   } as Record<string, string>,
 
   ruleRemediations: {
@@ -1446,6 +1447,7 @@ const ja: LocaleShape = {
     'JPN_001': 'translations.txt にこの停留所の language=ja-Hrkt（かな）翻訳を追加してください。',
     'JPN_002': 'jp_office_id を office_jp.txt に定義された office_id に合わせてください。',
     'JPN_003': 'agency_jp.txt の agency_id を agency.txt に定義された agency_id に合わせてください。',
+    'JPN_004': 'translations.txt を追加し、少なくとも stop_name に language=ja-Hrkt（かな）の翻訳を提供してください。',
     // XFL
     'XFL_001': 'calendar.txtまたはcalendar_dates.txtに不足しているサービス定義を追加してください。',
     'XFL_002': 'この便のstop_timesレコードを追加してください。',
@@ -2016,6 +2018,7 @@ const ja: LocaleShape = {
     'JPN_001': 'GTFS-JP：停留所名のかな（ja-Hrkt）読みが欠落',
     'JPN_002': 'GTFS-JP：jp_office_id が office_jp.txt に未定義',
     'JPN_003': 'GTFS-JP：agency_jp の agency_id が agency.txt に未定義',
+    'JPN_004': 'GTFS-JP：translations.txt が欠如',
   } as Record<string, string>,
 };
 

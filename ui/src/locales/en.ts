@@ -937,6 +937,7 @@ const en: LocaleShape = {
     'JPN_001': "Stop '{entity_id}': stop_name has no kana (ja-Hrkt) reading — required by GTFS-JP.",
     'JPN_002': "Trip '{entity_id}': jp_office_id '{observed_value}' is not defined in office_jp.txt.",
     'JPN_003': "agency_jp.txt agency_id '{observed_value}' is not defined in agency.txt.",
+    'JPN_004': "translations.txt is missing — GTFS-JP requires it, especially for stop_name kana (ja-Hrkt) readings.",
   } as Record<string, string>,
 
   ruleRemediations: {
@@ -1098,6 +1099,7 @@ const en: LocaleShape = {
     'JPN_001': 'Add a language=ja-Hrkt (kana) translation for this stop in translations.txt.',
     'JPN_002': 'Point jp_office_id at an office_id defined in office_jp.txt.',
     'JPN_003': 'Point the agency_jp.txt agency_id at an agency_id defined in agency.txt.',
+    'JPN_004': 'Add translations.txt with at least language=ja-Hrkt (kana) readings for stop_name.',
     // AGN
     'AGN_002': 'Fill in the agency_name field.',
     'AGN_003': 'Enter a valid http/https URL for agency_url.',
@@ -2062,6 +2064,7 @@ const en: LocaleShape = {
     'JPN_001': 'GTFS-JP: stop name missing kana (ja-Hrkt) reading',
     'JPN_002': 'GTFS-JP: jp_office_id not defined in office_jp.txt',
     'JPN_003': 'GTFS-JP: agency_jp agency_id not defined in agency.txt',
+    'JPN_004': 'GTFS-JP: translations.txt missing',
   },
 };
 

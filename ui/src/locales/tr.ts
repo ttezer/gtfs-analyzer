@@ -939,6 +939,7 @@ const tr = {
     'JPN_001': 'GTFS-JP: durak adında kana (ja-Hrkt) okuması eksik',
     'JPN_002': "GTFS-JP: jp_office_id office_jp.txt'te tanımlı değil",
     'JPN_003': "GTFS-JP: agency_jp.agency_id agency.txt'te tanımlı değil",
+    'JPN_004': 'GTFS-JP: translations.txt eksik',
   } as Record<string, string>,
 };
 

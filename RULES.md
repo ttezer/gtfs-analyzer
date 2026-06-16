@@ -2,7 +2,7 @@
 
 🇹🇷 **Türkçe** · 🇬🇧 [English](RULES.en.md) · 🇯🇵 [日本語](RULES.ja.md)
 
-511 kural, 37 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
+512 kural, 37 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
 Önem seviyeleri: **KRİTİK** (yayın engelleyici) · **YÜKSEK** · **ORTA** · **DÜŞÜK** · **BİLGİ**
 Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · **Quality** (GTFS Kalitesi) · **Analytics** (GTFS Analitiği)
 
@@ -703,3 +703,4 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | JPN_001 | GTFS-JP: durak adının kana (ja-Hrkt) okuması eksik | ORTA | Quality |
 | JPN_002 | GTFS-JP: jp_office_id office_jp.txt'te tanımlı değil | YÜKSEK | Spec |
 | JPN_003 | GTFS-JP: agency_jp.agency_id agency.txt'te tanımlı değil | YÜKSEK | Spec |
+| JPN_004 | GTFS-JP: translations.txt eksik (profil zorunlu kılar) | YÜKSEK | Spec |

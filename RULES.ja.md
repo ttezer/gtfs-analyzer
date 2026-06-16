@@ -2,7 +2,7 @@
 
 🇹🇷 [Türkçe](RULES.md) · 🇬🇧 [English](RULES.en.md) · 🇯🇵 **日本語**
 
-511ルール、37グループ。各ルールは一意のID、重要度、クラスで定義されます。
+512ルール、37グループ。各ルールは一意のID、重要度、クラスで定義されます。
 重要度: **致命的**（公開ブロッカー）· **高** · **中** · **低** · **情報**
 クラス: **仕様**（GTFS妥当性）· **相互運用**（GTFSインターオペラビリティ）· **品質**（GTFS品質）· **分析**（GTFSアナリティクス）
 
@@ -703,3 +703,4 @@
 | JPN_001 | GTFS-JP：停留所名のかな（ja-Hrkt）読みが欠落 | 中 | 品質 |
 | JPN_002 | GTFS-JP：jp_office_id が office_jp.txt に未定義 | 高 | 仕様 |
 | JPN_003 | GTFS-JP：agency_jp の agency_id が agency.txt に未定義 | 高 | 仕様 |
+| JPN_004 | GTFS-JP：translations.txt が欠如 | 高 | 仕様 |

@@ -2412,6 +2412,30 @@ fn check_gtfs_jp(records: &EntityRecords, notices: &mut Vec<Notice>, ctr: &mut u
             }
         }
     }
+
+    // ── JPN_004: GTFS-JP feed'inde translations.txt zorunlu ──
+    // GTFS-JP profili translations.txt'i (özellikle stop_name kana/ja-Hrkt okumaları için)
+    // zorunlu kılar. Kapı: GTFS-JP sinyali (feed_lang ja* VEYA *_jp dosyası) AMA translations hiç yok.
+    // has_kana zaten translations dolu demek → bu kuralla çelişmez.
+    let is_gtfs_jp = feed_lang_ja
+        || !records.office_jp.is_empty()
+        || !records.agency_jp.is_empty();
+    if is_gtfs_jp && records.translations.is_empty() {
+        notices.push(notice(
+            ctr,
+            "JPN_004",
+            EntityType::Feed,
+            None,
+            None,
+            "translations.txt",
+            None,
+            Some("translations"),
+            None,
+            None,
+            "GTFS-JP feed'inde translations.txt eksik — profil bunu (özellikle stop_name kana/ja-Hrkt okumaları için) zorunlu kılar.".to_string(),
+            "translations.txt ekleyin ve en azından stop_name için language=ja-Hrkt (かな) çevirileri sağlayın.",
+        ));
+    }
 }
 
 fn check_attributions(
@@ -3952,6 +3976,49 @@ mod tests {
         }];
         let result = check(&recs, &EntityMap::default(), 20260515);
         assert!(!result.notices.iter().any(|n| n.rule_id == "JPN_003"));
+    }
+
+    #[test]
+    fn missing_translations_in_jp_feed_produces_jpn_004() {
+        use crate::k2::office_jp::OfficeJpRecord;
+        let (mut recs, _map) = empty();
+        // *_jp dosyası = GTFS-JP sinyali; translations boş → JPN_004
+        recs.office_jp = vec![OfficeJpRecord {
+            office_id: "OF1".into(), office_name: Some("本社".into()),
+            row: Default::default(), line: 2,
+        }];
+        let result = check(&recs, &EntityMap::default(), 20260515);
+        assert!(result.notices.iter().any(|n| n.rule_id == "JPN_004"),
+            "GTFS-JP sinyali + translations yok → JPN_004");
+    }
+
+    #[test]
+    fn jp_feed_with_translations_no_jpn_004() {
+        use crate::k2::office_jp::OfficeJpRecord;
+        use crate::k2::translations::TranslationRecord;
+        let (mut recs, _map) = empty();
+        recs.office_jp = vec![OfficeJpRecord {
+            office_id: "OF1".into(), office_name: Some("本社".into()),
+            row: Default::default(), line: 2,
+        }];
+        recs.translations = vec![TranslationRecord {
+            table_name: "stops".into(), field_name: "stop_name".into(),
+            language: "ja-Hrkt".into(), translation: "ろっぽんぎ".into(),
+            record_id: Some("S1".into()),
+            record_sub_id: None, field_value: None,
+            row: Default::default(), line: 2,
+        }];
+        let result = check(&recs, &EntityMap::default(), 20260515);
+        assert!(!result.notices.iter().any(|n| n.rule_id == "JPN_004"),
+            "translations mevcut → JPN_004 olmamalı");
+    }
+
+    #[test]
+    fn non_jp_feed_no_jpn_004() {
+        // JP sinyali yok (feed_lang yok, *_jp dosyası yok) + translations yok → JPN_004 yok
+        let (recs, _map) = empty();
+        let result = check(&recs, &EntityMap::default(), 20260515);
+        assert!(!result.notices.iter().any(|n| n.rule_id == "JPN_004"));
     }
 
     // �"?�"? XFL_003 �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?
