@@ -6000,10 +6000,14 @@ fn check_calendar_override_analytics(
     {
         let _t15b = Timer::start("K6::rem::opr_015");
         let mut route_shape_set: FxHashMap<&str, FxHashSet<&str>> = FxHashMap::default();
+        let mut route_dirs: FxHashMap<&str, FxHashSet<u32>> = FxHashMap::default();
         for t in &records.trips {
             if t.route_id.is_empty() { continue; }
             if let Some(shape) = t.shape_id.as_deref().filter(|s| !s.is_empty()) {
                 route_shape_set.entry(t.route_id.as_str()).or_default().insert(shape);
+            }
+            if let Some(d) = t.direction_id {
+                route_dirs.entry(t.route_id.as_str()).or_default().insert(d);
             }
         }
         // route_id → route_type (raylı sistemler için skip)
@@ -6015,7 +6019,11 @@ fn check_calendar_override_analytics(
             // tek yönlü ray hattı; tek shape beklenen davranış
             let rt = rt_map.get(*route_id).copied().unwrap_or(3);
             if matches!(rt, 0 | 1 | 2 | 5 | 12) { continue; }
-            if shapes.len() == 1 {
+            // OPR_015 yalnız ÇİFT YÖNLÜ hatlarda anlamlı: iki yön aynı tek shape'i paylaşıyorsa
+            // "gidiş-dönüş için ayrı shape" önerilir. Tek yönlü / yön-tanımsız hatta tek shape
+            // beklenen davranıştır (öneri yanıltıcı olur) → susulur.
+            let bidirectional = route_dirs.get(*route_id).map_or(false, |d| d.len() > 1);
+            if shapes.len() == 1 && bidirectional {
                 let shape_id = shapes.iter().next().copied().unwrap_or("");
                 let mut n015 = k6_notice(
                     ctr, "OPR_015", EntityType::Route,
@@ -8415,6 +8423,43 @@ mod tests {
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
         let ids: Vec<&str> = result.notices.iter().map(|n| n.rule_id.as_str()).collect();
         assert!(ids.contains(&"GEO_022"), "kutba yakın durak (lat 89.5) → GEO_022: {:?}", ids);
+    }
+
+    #[test]
+    fn bidirectional_route_single_shape_produces_opr_015() {
+        let mut t0 = trip("T0", "R1"); t0.direction_id = Some(0); t0.shape_id = Some("S1".into());
+        let mut t1 = trip("T1", "R1"); t1.direction_id = Some(1); t1.shape_id = Some("S1".into());
+        let records = records_with(
+            vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1)],
+            vec![route("R1", 3)],
+            vec![t0, t1],
+            vec![
+                stoptime("T0", 1, "A", (8,0,0), (8,0,0), 2), stoptime("T0", 2, "B", (8,10,0), (8,10,0), 3),
+                stoptime("T1", 1, "B", (9,0,0), (9,0,0), 2), stoptime("T1", 2, "A", (9,10,0), (9,10,0), 3),
+            ],
+        );
+        let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
+        assert!(result.notices.iter().any(|n| n.rule_id == "OPR_015"),
+            "çift yönlü + tek shape → OPR_015");
+    }
+
+    #[test]
+    fn unidirectional_route_single_shape_no_opr_015() {
+        // İki trip de direction_id=0 → tek yönlü; tek shape beklenen davranış → OPR_015 yok
+        let mut t0 = trip("T0", "R1"); t0.direction_id = Some(0); t0.shape_id = Some("S1".into());
+        let mut t1 = trip("T1", "R1"); t1.direction_id = Some(0); t1.shape_id = Some("S1".into());
+        let records = records_with(
+            vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1)],
+            vec![route("R1", 3)],
+            vec![t0, t1],
+            vec![
+                stoptime("T0", 1, "A", (8,0,0), (8,0,0), 2), stoptime("T0", 2, "B", (8,10,0), (8,10,0), 3),
+                stoptime("T1", 1, "A", (9,0,0), (9,0,0), 2), stoptime("T1", 2, "B", (9,10,0), (9,10,0), 3),
+            ],
+        );
+        let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
+        assert!(!result.notices.iter().any(|n| n.rule_id == "OPR_015"),
+            "tek yönlü + tek shape → OPR_015 olmamalı");
     }
 
     #[test]
