@@ -2316,6 +2316,16 @@ fn check_translations(
 
 /// translations.txt'ten belirli (table, field) için ja-Hrkt (かな) çevirisi olan
 /// record_id ve field_value kümeleri. JPN_001/008/009/010 kana kontrollerinde paylaşılır.
+/// String Japonca karakter (Hiragana/Katakana/Kanji) içeriyor mu — char/scalar bazlı (byte DEĞİL).
+/// JPN_008'in route_short_name'e düşmesinde sayısal kodları (ör. "42") elemek için.
+fn has_japanese(s: &str) -> bool {
+    s.chars().any(|c| matches!(c,
+        '\u{3040}'..='\u{309F}'   // Hiragana
+        | '\u{30A0}'..='\u{30FF}' // Katakana
+        | '\u{4E00}'..='\u{9FFF}' // CJK Unified Ideographs (Kanji)
+    ))
+}
+
 fn collect_kana<'a>(
     translations: &'a [crate::k2::translations::TranslationRecord],
     table: &str,
@@ -2387,12 +2397,18 @@ fn check_gtfs_jp(records: &EntityRecords, notices: &mut Vec<Notice>, ctr: &mut u
             ));
         }
 
-        // ── JPN_008: route_long_name kana (ja-Hrkt) — GTFS-JP _name alanları zorunlu ──
-        let (kr_rec, kr_val) = collect_kana(&records.translations, "routes", "route_long_name");
+        // ── JPN_008: route adı kana (ja-Hrkt) — GTFS-JP _name alanları zorunlu ──
+        // route_long_name varsa onu; yoksa (Tokyo gibi adı route_short_name'de tutan feed'lerde)
+        // Japonca karakter içeren route_short_name'i denetle (sayısal kodlar elenir).
+        let (krl_rec, krl_val) = collect_kana(&records.translations, "routes", "route_long_name");
+        let (krs_rec, krs_val) = collect_kana(&records.translations, "routes", "route_short_name");
         for route in &records.routes {
-            let name = match route.route_long_name.as_deref() {
-                Some(n) if !n.is_empty() => n,
-                _ => continue,
+            let (field, name, kr_rec, kr_val) = match route.route_long_name.as_deref() {
+                Some(n) if !n.is_empty() => ("route_long_name", n, &krl_rec, &krl_val),
+                _ => match route.route_short_name.as_deref() {
+                    Some(s) if !s.is_empty() && has_japanese(s) => ("route_short_name", s, &krs_rec, &krs_val),
+                    _ => continue,
+                },
             };
             if kr_rec.contains(route.route_id.as_str()) || kr_val.contains(name) {
                 continue;
@@ -2400,10 +2416,10 @@ fn check_gtfs_jp(records: &EntityRecords, notices: &mut Vec<Notice>, ctr: &mut u
             notices.push(notice(
                 ctr, "JPN_008", EntityType::Route,
                 Some(route.route_id.clone()), Some(route.route_id.clone()),
-                "translations.txt", Some(route.line), Some("route_long_name"),
+                "translations.txt", Some(route.line), Some(field),
                 None, Some("ja-Hrkt".to_string()),
                 format!("'{}' hattının adı ('{}') için kana (ja-Hrkt) okuması eksik — GTFS-JP'de zorunlu.", route.route_id, name),
-                "translations.txt'e bu hat için language=ja-Hrkt (route_long_name) çevirisi ekleyin.",
+                "translations.txt'e bu hat için language=ja-Hrkt (route adı) çevirisi ekleyin.",
             ));
         }
 
@@ -4100,6 +4116,43 @@ mod tests {
             .filter_map(|n| n.entity_id.as_deref())
             .collect();
         assert_eq!(jpn, vec!["R2"], "yalnız kanası eksik R2 hattı işaretlenmeli");
+    }
+
+    #[test]
+    fn japanese_route_short_name_without_kana_produces_jpn_008() {
+        use crate::k2::translations::TranslationRecord;
+        let (mut recs, _map) = empty();
+        // Tokyo deseni: route_long_name BOŞ, ad route_short_name'de (Japonca)
+        let mut r1 = route("R1"); r1.route_long_name = None; r1.route_short_name = Some("波０１".into());
+        recs.routes = vec![r1];
+        // Kapı: başka alanda ja-Hrkt çeviri; route_short_name kana yok → JPN_008
+        recs.translations = vec![TranslationRecord {
+            table_name: "stops".into(), field_name: "stop_name".into(),
+            language: "ja-Hrkt".into(), translation: "x".into(),
+            record_id: Some("S1".into()), record_sub_id: None, field_value: None,
+            row: Default::default(), line: 2,
+        }];
+        let result = check(&recs, &EntityMap::default(), 20260515);
+        assert!(result.notices.iter().any(|n| n.rule_id == "JPN_008"),
+            "Japonca route_short_name kana yok → JPN_008");
+    }
+
+    #[test]
+    fn numeric_route_short_name_no_jpn_008() {
+        use crate::k2::translations::TranslationRecord;
+        let (mut recs, _map) = empty();
+        // route_long_name boş, route_short_name sayısal kod → Japonca değil → JPN_008 yok
+        let mut r1 = route("R1"); r1.route_long_name = None; r1.route_short_name = Some("42".into());
+        recs.routes = vec![r1];
+        recs.translations = vec![TranslationRecord {
+            table_name: "stops".into(), field_name: "stop_name".into(),
+            language: "ja-Hrkt".into(), translation: "x".into(),
+            record_id: Some("S1".into()), record_sub_id: None, field_value: None,
+            row: Default::default(), line: 2,
+        }];
+        let result = check(&recs, &EntityMap::default(), 20260515);
+        assert!(!result.notices.iter().any(|n| n.rule_id == "JPN_008"),
+            "sayısal route_short_name → JPN_008 olmamalı");
     }
 
     #[test]
