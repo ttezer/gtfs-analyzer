@@ -385,6 +385,47 @@ fn known_columns(filename: &str) -> &'static [&'static str] {
             "is_producer","is_operator","is_authority",
             "attribution_url","attribution_email","attribution_phone",
         ],
+        // ── Fares v2 ── (sütun adları GTFS spec + repo k2 parser'larıyla doğrulandı)
+        "rider_categories.txt" => &[
+            "rider_category_id","rider_category_name","is_default_fare_category","eligibility_url",
+        ],
+        "fare_media.txt" => &["fare_media_id","fare_media_name","fare_media_type"],
+        "fare_products.txt" => &[
+            "fare_product_id","fare_product_name","rider_category_id","fare_media_id","amount","currency",
+        ],
+        "fare_leg_rules.txt" => &[
+            "leg_group_id","network_id","from_area_id","to_area_id",
+            "from_timeframe_group_id","to_timeframe_group_id","fare_product_id","rule_priority",
+        ],
+        "fare_transfer_rules.txt" => &[
+            "from_leg_group_id","to_leg_group_id","transfer_count","duration_limit",
+            "duration_limit_type","fare_transfer_type","fare_product_id","rule_priority",
+        ],
+        "timeframes.txt" => &["timeframe_group_id","start_time","end_time","service_id"],
+        "areas.txt" => &["area_id","area_name"],
+        "stop_areas.txt" => &["area_id","stop_id"],
+        "networks.txt" => &["network_id","network_name"],
+        "route_networks.txt" => &["network_id","route_id"],
+        // ── Flex ──
+        "booking_rules.txt" => &[
+            "booking_rule_id","booking_type",
+            "prior_notice_duration_min","prior_notice_duration_max",
+            "prior_notice_last_day","prior_notice_last_time",
+            "prior_notice_start_day","prior_notice_start_time","prior_notice_service_id",
+            "message","pickup_message","drop_off_message","phone_number","info_url","booking_url",
+        ],
+        "location_groups.txt" => &["location_group_id","location_group_name"],
+        "location_group_stops.txt" => &["location_group_id","stop_id"],
+        // ── GTFS-JP (Japonya profili) — sütunlar resmî format-reference + Tokyo Toei feed'iyle doğrulandı.
+        // Not: jp_ önekli sütunlar ARC_017'de zaten atlanır (ek güvenlik marjı).
+        "agency_jp.txt" => &[
+            "agency_id","agency_official_name","agency_zip_number","agency_address",
+            "agency_president_pos","agency_president_name",
+        ],
+        "office_jp.txt" => &["office_id","office_name","office_url","office_phone"],
+        "routes_jp.txt" => &[
+            "route_id","route_update_date","origin_stop","via_stop","destination_stop",
+        ],
         _ => &[],
     }
 }
@@ -409,6 +450,12 @@ pub fn parse(zip_bytes: &[u8]) -> Result<K1Result, FatalError> {
         message: format!("ZIP arşivi açılamadı: {e}"),
     })?;
     k1dbg!("[K1] archive açıldı: {} entry", archive.len());
+
+    // ARC_009 yanlış-pozitif guard'ı: calendar_dates.txt boş (veya yalnızca başlık) olsa bile
+    // calendar.txt servisi tanımlıyorsa bu KRİTİK değildir (calendar_dates şartlı zorunludur,
+    // calendar.txt varken opsiyoneldir). Döngü-sırasından bağımsız olsun diye önceden hesaplanır.
+    // calendar.txt YOKSA boş calendar_dates "hiç servis tanımı yok" demektir → ARC_009 kalır.
+    let has_calendar_txt = archive.file_names().any(|n| n == "calendar.txt");
 
     let mut notices: Vec<Notice> = Vec::new();
     let mut counter: u32 = 0;
@@ -625,14 +672,17 @@ pub fn parse(zip_bytes: &[u8]) -> Result<K1Result, FatalError> {
 
         // ARC_009: Boş dosya
         if records.is_empty() {
-            notices.push(make_notice(
-                &mut counter, "ARC_009",
-                EntityType::File, Some(raw_name.clone()),
-                Some(&raw_name), None, None,
-                None,
-                format!("'{raw_name}' dosyası boş veya yalnızca başlık satırı içeriyor."),
-                "Dosyaya en az bir veri satırı ekleyin.",
-            ));
+            // calendar.txt servisi tanımlıyorsa boş calendar_dates.txt yanlış-pozitiftir → bastır.
+            if !(raw_name == "calendar_dates.txt" && has_calendar_txt) {
+                notices.push(make_notice(
+                    &mut counter, "ARC_009",
+                    EntityType::File, Some(raw_name.clone()),
+                    Some(&raw_name), None, None,
+                    None,
+                    format!("'{raw_name}' dosyası boş veya yalnızca başlık satırı içeriyor."),
+                    "Dosyaya en az bir veri satırı ekleyin.",
+                ));
+            }
             continue;
         }
 
@@ -848,7 +898,9 @@ pub fn parse(zip_bytes: &[u8]) -> Result<K1Result, FatalError> {
 
         // Başlık satırından oluşan kayıt için ARC_009 kontrolü (yalnızca başlık var, veri yok)
         // stream_mode'da rows her zaman boştur; "veri yok" tespitini K2 (total_rows) yapar.
-        if !stream_mode && rows.is_empty() {
+        if !stream_mode && rows.is_empty()
+            && !(raw_name == "calendar_dates.txt" && has_calendar_txt)
+        {
             notices.push(make_notice(
                 &mut counter, "ARC_009",
                 EntityType::File, Some(raw_name.clone()),
@@ -1241,6 +1293,64 @@ mod tests {
     }
 
     #[test]
+    fn unknown_column_in_fares_v2_produces_arc017() {
+        // Regresyon: known_columns Fares v2 dosyalarını içermediği için ARC_017 bu
+        // dosyaları tümüyle atlıyordu. rider_categories.txt'te eligibility_url GEÇERLİ
+        // (spec), zzz_custom BİLİNMEYEN olmalı.
+        let zip = zip_with_files(&[
+            ("agency.txt",     b"agency_id,agency_name,agency_url,agency_timezone\n1,Test,http://x.com,UTC\n"),
+            ("stops.txt",      b"stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\n"),
+            ("routes.txt",     b"route_id,agency_id,route_short_name,route_type\nR1,1,101,3\n"),
+            ("trips.txt",      b"route_id,service_id,trip_id\nR1,SVC1,T1\n"),
+            ("stop_times.txt", b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\n"),
+            ("calendar.txt",   b"service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,0,0,20240101,20241231\n"),
+            ("rider_categories.txt", b"rider_category_id,rider_category_name,eligibility_url,zzz_custom\nRC1,Adult,http://x.com,foo\n"),
+        ]);
+        let k1 = parse(&zip).unwrap();
+        let arc017_cols: Vec<&str> = k1.notices.iter()
+            .filter(|n| n.rule_id == "ARC_017" && n.file.as_deref() == Some("rider_categories.txt"))
+            .filter_map(|n| n.field.as_deref())
+            .collect();
+        assert!(arc017_cols.contains(&"zzz_custom"), "bilinmeyen sütun zzz_custom ARC_017 üretmeli: {arc017_cols:?}");
+        assert!(!arc017_cols.contains(&"eligibility_url"), "geçerli sütun eligibility_url ARC_017 üretmemeli");
+        assert!(!arc017_cols.contains(&"rider_category_id"), "geçerli sütun rider_category_id ARC_017 üretmemeli");
+    }
+
+    #[test]
+    fn unknown_column_in_gtfs_jp_produces_arc017() {
+        // office_jp.txt: office_id/office_name GEÇERLİ; jp_extra jp_ önekiyle ATLANIR; bad_col BİLİNMEYEN.
+        let zip = zip_with_files(&[
+            ("agency.txt",     b"agency_id,agency_name,agency_url,agency_timezone\n1,Test,http://x.com,UTC\n"),
+            ("stops.txt",      b"stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\n"),
+            ("routes.txt",     b"route_id,agency_id,route_short_name,route_type\nR1,1,101,3\n"),
+            ("trips.txt",      b"route_id,service_id,trip_id\nR1,SVC1,T1\n"),
+            ("stop_times.txt", b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\n"),
+            ("calendar.txt",   b"service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,0,0,20240101,20241231\n"),
+            ("office_jp.txt",  b"office_id,office_name,jp_extra,bad_col\nO1,Ofis,x,y\n"),
+        ]);
+        let k1 = parse(&zip).unwrap();
+        let cols: Vec<&str> = k1.notices.iter()
+            .filter(|n| n.rule_id == "ARC_017" && n.file.as_deref() == Some("office_jp.txt"))
+            .filter_map(|n| n.field.as_deref())
+            .collect();
+        assert!(cols.contains(&"bad_col"), "bad_col ARC_017 üretmeli: {cols:?}");
+        assert!(!cols.contains(&"office_name"), "office_name geçerli, ARC_017 üretmemeli");
+        assert!(!cols.contains(&"jp_extra"), "jp_ önekli sütun atlanmalı");
+    }
+
+    #[test]
+    fn every_known_file_has_column_list_for_arc017() {
+        // ARC_017 (k1: `if !known_cols.is_empty()`) known_columns() boş dönen dosyayı
+        // TÜMÜYLE atlar. KNOWN_FILES'taki her dosyanın sütun listesi olmalı; yoksa o
+        // dosyadaki bilinmeyen sütunlar sessizce kaçar (bu bug'ın kök nedeniydi).
+        let missing: Vec<&str> = KNOWN_FILES.iter()
+            .copied()
+            .filter(|&f| known_columns(f).is_empty())
+            .collect();
+        assert!(missing.is_empty(), "known_columns() boş dönen KNOWN_FILES: {missing:?}");
+    }
+
+    #[test]
     fn bom_produces_arc010_notice() {
         let bom_csv = b"\xEF\xBB\xBFstop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\n";
         let zip = zip_with_files(&[
@@ -1291,6 +1401,45 @@ mod tests {
             k1.notices.iter().any(|n| n.rule_id == "ARC_008"),
             "ARC_008 notice bekleniyor"
         );
+    }
+
+    #[test]
+    fn empty_calendar_dates_with_calendar_suppresses_arc009() {
+        // calendar.txt servisi tanımlıyor + calendar_dates.txt yalnızca başlık →
+        // ARC_009 yanlış-pozitif olur, bastırılmalı (calendar_dates şartlı zorunlu).
+        let zip = zip_with_files(&[
+            ("agency.txt",     b"agency_id,agency_name,agency_url,agency_timezone\n1,Test,http://x.com,UTC\n"),
+            ("stops.txt",      b"stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\n"),
+            ("routes.txt",     b"route_id,agency_id,route_short_name,route_type\nR1,1,101,3\n"),
+            ("trips.txt",      b"route_id,service_id,trip_id\nR1,SVC1,T1\n"),
+            ("stop_times.txt", b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\n"),
+            ("calendar.txt",   b"service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,0,0,20240101,20241231\n"),
+            ("calendar_dates.txt", b"service_id,date,exception_type\n"),
+        ]);
+        let k1 = parse(&zip).unwrap();
+        let cd_arc009 = k1.notices.iter().any(|n|
+            n.rule_id == "ARC_009" && n.file.as_deref() == Some("calendar_dates.txt"));
+        assert!(!cd_arc009, "calendar.txt varken boş calendar_dates.txt ARC_009 üretmemeli");
+    }
+
+    #[test]
+    fn empty_calendar_dates_without_calendar_produces_arc009() {
+        // calendar.txt YOK + calendar_dates.txt yalnızca başlık → hiç servis tanımı yok →
+        // ARC_009 KALIR (tek sinyal; ARC_008 calendar_dates mevcut olduğu için fire etmez).
+        let zip = zip_with_files(&[
+            ("agency.txt",     b"agency_id,agency_name,agency_url,agency_timezone\n1,Test,http://x.com,UTC\n"),
+            ("stops.txt",      b"stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\n"),
+            ("routes.txt",     b"route_id,agency_id,route_short_name,route_type\nR1,1,101,3\n"),
+            ("trips.txt",      b"route_id,service_id,trip_id\nR1,SVC1,T1\n"),
+            ("stop_times.txt", b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\n"),
+            ("calendar_dates.txt", b"service_id,date,exception_type\n"),
+        ]);
+        let k1 = parse(&zip).unwrap();
+        let cd_arc009 = k1.notices.iter().any(|n|
+            n.rule_id == "ARC_009" && n.file.as_deref() == Some("calendar_dates.txt"));
+        assert!(cd_arc009, "calendar.txt yokken boş calendar_dates.txt ARC_009 üretmeli");
+        assert!(!k1.notices.iter().any(|n| n.rule_id == "ARC_008"),
+            "calendar_dates.txt mevcutken ARC_008 fire etmemeli");
     }
 
     #[test]
