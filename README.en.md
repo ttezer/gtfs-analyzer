@@ -226,7 +226,7 @@ Issues are presented as a prioritized fix queue, sorted by priority score. Each 
 | **Dependent** | How many other active rules close automatically if this one is fixed |
 | **Effort** | Fix effort: 1 = single field change, 2 = limited cross-file, 3 = structural / data model revision |
 
-The sum of all +Pub values equals `100 − current Publish Score`; the sum of all +Quality values equals `100 − current Quality Score`. Geographic issues show a map icon; clicking it displays the problem location and related shape/stop data on an interactive map.
+The sum of all +Pub values equals `100 − current Publish Score`; the sum of all +Quality values equals `100 − current Quality Score`. Geographic issues show a map icon; clicking it displays the problem location and related shape/stop data on an interactive map. Clicking the **rule code** opens the relevant GTFS specification section in a new tab — the reference page of the file the finding most affects (gtfs.jp for GTFS-JP rules).
 
 ### 3. By Category
 All rule violations listed by group and class. Each row shows the rule code, title, affected record count, severity, and remediation guidance. Filtering and sorting are supported.
