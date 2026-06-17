@@ -226,6 +226,7 @@ const tr = {
     'fix.r2.th.quality'     : '+Kalite',
     'fix.r2.th.quality.tip' : 'Bu hatayı düzeltmenin kalite skoruna katkısı. Toplamı = 100 − mevcut kalite skoru.',
     'fix.map_btn'           : 'Haritada göster',
+    'fix.spec_link'         : 'GTFS spesifikasyonu (yeni sekme)',
     'fix.map.shape'         : 'şekil',
     // Map legend labels
     'fix.map.route_shape'          : 'Güzergah şekli',

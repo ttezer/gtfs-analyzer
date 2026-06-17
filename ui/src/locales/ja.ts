@@ -217,6 +217,7 @@ const ja: LocaleShape = {
     'fix.r2.th.quality'     : '+品質',
     'fix.r2.th.quality.tip' : 'このエラーを修正した場合の品質スコア向上分。',
     'fix.map_btn'           : '地図で表示',
+    'fix.spec_link'         : 'GTFS仕様（新しいタブ）',
     'fix.map.shape'         : '形状',
     'fix.map.route_shape'          : '経路形状',
     'fix.map.pattern'              : 'パターン',

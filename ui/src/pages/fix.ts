@@ -121,6 +121,19 @@ function renderR9(items: R9Item[], noticeMap: Map<string, Notice>, normFactor: n
 }
 
 
+// Bir bulgu için TEK GTFS spec linki. Öncelik: GTFS-JP profil kuralları / _jp dosyaları → gtfs.jp;
+// aksi halde notice.file → gtfs.org schedule reference çapası (dosya adındaki nokta silinir:
+// stop_times.txt → #stop_timestxt). Dosyası olmayan feed-seviyesi bulgular → null (link yok).
+// Çoklu-dosya kuralında bile notice.file "sorunun raporlandığı asıl dosya"dır → tek link yeter.
+function specUrl(notice: Notice): string | null {
+  const file = notice.file ?? '';
+  if (notice.rule_id.startsWith('JPN_') || file.endsWith('_jp.txt')) {
+    return 'https://www.gtfs.jp/testsite/fix/format-reference_style/developpers-guide/format-reference.html';
+  }
+  if (!file) return null;
+  return `https://gtfs.org/documentation/schedule/reference/#${file.replace(/\./g, '')}`;
+}
+
 function renderR2(result: ValidationResult, noticeMap: Map<string, Notice>, deltaMap: Map<string, { qualDelta: number; pubDelta: number; count: number }>, nameIndex: NameIndex, fileFilter?: string, classFilter?: string): string {
   const items = result.reports.r2.items;
   if (items.length === 0) {
@@ -202,9 +215,13 @@ function renderR2(result: ValidationResult, noticeMap: Map<string, Notice>, delt
     const mapBtn   = hasMapCoords(notice, nameIndex)
       ? `<button class="map-pin-btn" data-notice-id="${escHtml(notice.id)}" title="${mapLabel}" aria-label="${mapLabel}">📍</button>`
       : '';
+    const specHref = specUrl(notice);
+    const ruleCell = specHref
+      ? `<a href="${escHtml(specHref)}" target="_blank" rel="noopener" class="spec-link" title="${t('fix.spec_link')}">${escHtml(item.display_label)}</a>`
+      : escHtml(item.display_label);
     return `
       <tr data-severity="${notice.severity}" data-class="${notice.rule_class}" data-rule="${notice.rule_id}" data-file="${escHtml(notice.file ?? '')}">
-        <td>${escHtml(item.display_label)}</td>
+        <td>${ruleCell}</td>
         <td style="color:${SEVERITY_COLOR[notice.severity]}">${SEVERITY_TR[notice.severity]}</td>
         <td>${RULE_CLASS_TR[notice.rule_class]}</td>
         <td>${escHtml(tMsg(notice))}</td>

@@ -228,6 +228,7 @@ const en: LocaleShape = {
     'fix.r2.th.quality'     : '+Quality',
     'fix.r2.th.quality.tip' : 'Quality score contribution from fixing this error. Sum = 100 − current quality score.',
     'fix.map_btn'           : 'Show on map',
+    'fix.spec_link'         : 'GTFS spec (new tab)',
     'fix.map.shape'         : 'shape',
     // Map legend labels
     'fix.map.route_shape'          : 'Route shape',
