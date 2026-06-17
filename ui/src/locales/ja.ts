@@ -465,6 +465,8 @@ const ja: LocaleShape = {
     'STP_034': "停留所'{entity_id}'：stop_urlが事業者URLと同じです。",
     'STP_035': "停留所'{entity_id}'：stop_urlが路線URLと同じです。",
     'STP_036': "駅'{entity_id}'（location_type=1）にparent_stationが設定されています。駅は親を持てません。",
+    'STP_037': '一部の停留所にwheelchair_boarding情報がありません（{observed_value}）。',
+    'STP_038': 'いずれの物理停留所もwheelchair_boardingを報告していません（{observed_value}停留所）。',
     // RTS
     'RTS_001': "route_idが重複しています：'{entity_id}'。",
     'RTS_002': "路線'{entity_id}'：agency_id'{observed_value}'がagency.txtに見つかりません。",
@@ -1378,6 +1380,8 @@ const ja: LocaleShape = {
     'STP_034': 'stop_urlを停留所固有のページに指定するか、空のままにしてください。',
     'STP_035': 'stop_urlを停留所固有のページに指定するか、空のままにしてください。',
     'STP_036': '駅レコードからparent_stationを削除してください。入口、汎用ノード、乗車エリアのみparent_stationを持つことができます。',
+    'STP_037': '不足している停留所のwheelchair_boardingを入力してください（1=対応、2=非対応）。',
+    'STP_038': 'wheelchair_boardingを使用して停留所の車椅子対応を報告してください（1=対応、2=非対応）。',
     // TFR
     'TFR_001': '各タイムフレームレコードにtimeframe_group_idを入力してください。',
     'TFR_002': '有効なservice_idを使用してください。',
@@ -1581,6 +1585,8 @@ const ja: LocaleShape = {
     'STP_034': 'stop_urlが事業者URLと同一',
     'STP_035': 'stop_urlが路線URLと同一',
     'STP_036': '駅（location_type=1）にparent_stationが設定されている',
+    'STP_037': '一部の停留所で車椅子対応情報が未設定',
+    'STP_038': 'いずれの停留所も車椅子対応情報を報告していない',
     // RTS
     'RTS_001': 'route_idが重複',
     'RTS_002': 'agency_idがagency.txtに存在しない',

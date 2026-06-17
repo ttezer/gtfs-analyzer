@@ -288,6 +288,10 @@ pub static RULES: &[RuleMeta] = &[
         "stop_url hat URL'siyle aynı"),
     r!("STP_036", Dusuk,  Spec, 1, &[], Some("stop_id"), VS, Entity,
         "İstasyonun (location_type=1) parent_station'ı var"),
+    r!("STP_037", Orta,   Quality, 1, &[], None, VS_ACC, Feed,
+        "Bazı duraklar tekerlekli sandalye erişilebilirliği (wheelchair_boarding) bildirmemiş"),
+    r!("STP_038", Bilgi,  Quality, 1, &[], None, VS_ACC, Feed,
+        "Hiçbir durak tekerlekli sandalye erişilebilirliği (wheelchair_boarding) bildirmemiş"),
 
     // ── RTS: Routes ────────────────────────────────────────────────────────────
     r!("RTS_001", Kritik, Spec, 1,

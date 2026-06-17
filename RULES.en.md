@@ -2,7 +2,7 @@
 
 🇹🇷 [Türkçe](RULES.md) · 🇬🇧 **English** · 🇯🇵 [日本語](RULES.ja.md)
 
-520 rules, 37 groups. Each rule is identified by a unique ID, severity level, and class.
+522 rules, 37 groups. Each rule is identified by a unique ID, severity level, and class.
 Severity levels: **CRITICAL** (publish blocker) · **HIGH** · **MEDIUM** · **LOW** · **INFO**
 Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Quality** (GTFS Quality) · **Analytics** (GTFS Analytics)
 
@@ -114,6 +114,8 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | STP_034 | stop_url matches agency URL | INFO | Quality |
 | STP_035 | stop_url matches route URL | INFO | Quality |
 | STP_036 | Station has parent_station (invalid) | LOW | Spec |
+| STP_037 | Some stops have not set wheelchair boarding | MEDIUM | Quality |
+| STP_038 | No stops report wheelchair boarding | INFO | Quality |
 
 ## RTS — Routes
 

@@ -486,6 +486,8 @@ const tr = {
     'STP_034': "stop_url acente URL'siyle aynı",
     'STP_035': "stop_url hat URL'siyle aynı",
     'STP_036': 'İstasyonun (location_type=1) parent_station değeri var',
+    'STP_037': 'Bazı duraklar tekerlekli sandalye erişilebilirliği (wheelchair_boarding) bildirmemiş',
+    'STP_038': 'Hiçbir durak tekerlekli sandalye erişilebilirliği (wheelchair_boarding) bildirmemiş',
     // RTS
     'RTS_001': 'route_id yineleniyor',
     'RTS_002': 'agency_id bulunamadı',

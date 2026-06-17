@@ -484,6 +484,8 @@ const en: LocaleShape = {
     'STP_034': "Stop '{entity_id}': stop_url matches the agency URL.",
     'STP_035': "Stop '{entity_id}': stop_url matches a route URL.",
     'STP_036': "Station '{entity_id}' (location_type=1) has a parent_station set; stations must not have a parent.",
+    'STP_037': 'Some stops are missing wheelchair_boarding information ({observed_value}).',
+    'STP_038': 'No physical stop reports wheelchair_boarding ({observed_value} stops).',
     // RTS
     'RTS_001': "Duplicate route_id: '{entity_id}'.",
     'RTS_002': "Route '{entity_id}': agency_id '{observed_value}' not found in agency.txt.",
@@ -1079,6 +1081,8 @@ const en: LocaleShape = {
     'STP_034': 'Point stop_url to a stop-specific page or leave it empty.',
     'STP_035': 'Point stop_url to a stop-specific page or leave it empty.',
     'STP_036': 'Remove parent_station from the station record; only entrances, generic nodes and boarding areas may have a parent_station.',
+    'STP_037': 'Fill wheelchair_boarding (1=accessible, 2=not accessible) on the stops that are missing it.',
+    'STP_038': 'Report stop wheelchair accessibility using wheelchair_boarding (1=accessible, 2=not accessible).',
     // TRF
     'TRF_011': 'Review the transfer definition; transfers between very distant stops may be challenging for passengers.',
     // TRP
@@ -1627,6 +1631,8 @@ const en: LocaleShape = {
     'STP_034': 'stop_url matches agency URL',
     'STP_035': 'stop_url matches route URL',
     'STP_036': 'Station has parent_station (invalid)',
+    'STP_037': 'Some stops have not set wheelchair boarding',
+    'STP_038': 'No stops report wheelchair boarding',
     // RTS
     'RTS_001': 'Duplicate route_id',
     'RTS_002': 'agency_id not found',

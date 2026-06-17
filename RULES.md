@@ -2,7 +2,7 @@
 
 🇹🇷 **Türkçe** · 🇬🇧 [English](RULES.en.md) · 🇯🇵 [日本語](RULES.ja.md)
 
-520 kural, 37 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
+522 kural, 37 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
 Önem seviyeleri: **KRİTİK** (yayın engelleyici) · **YÜKSEK** · **ORTA** · **DÜŞÜK** · **BİLGİ**
 Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · **Quality** (GTFS Kalitesi) · **Analytics** (GTFS Analitiği)
 
@@ -114,6 +114,8 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | STP_034 | stop_url acente URL'siyle aynı | BİLGİ | Quality |
 | STP_035 | stop_url hat URL'siyle aynı | BİLGİ | Quality |
 | STP_036 | İstasyonun (location_type=1) parent_station'ı var | DÜŞÜK | Spec |
+| STP_037 | Bazı duraklar tekerlekli sandalye erişilebilirliği (wheelchair_boarding) bildirmemiş | ORTA | Quality |
+| STP_038 | Hiçbir durak tekerlekli sandalye erişilebilirliği (wheelchair_boarding) bildirmemiş | BİLGİ | Quality |
 
 ## RTS — Routes (Hatlar)
 

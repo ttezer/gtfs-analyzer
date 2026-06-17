@@ -2416,6 +2416,41 @@ fn check_operational_analytics(
         }
     }
 
+    // STP_037/038: wheelchair_boarding eksikliği (Cal-ITP ACC-1). TRP_028/029'un durak-seviyesi
+    // analogu. Sadece fiziksel duraklar/peronlar sayılır (location_type 0 veya boş); istasyon/giriş
+    // (1/2/3/4) erişilebilirlik semantiği farklı olduğundan paydaya katılmaz (yanlış-pozitif önlemi).
+    {
+        let total = records.stops.iter()
+            .filter(|s| !s.stop_id.is_empty() && matches!(s.location_type, None | Some(0)))
+            .count();
+        if total > 0 {
+            let unset = records.stops.iter()
+                .filter(|s| !s.stop_id.is_empty() && matches!(s.location_type, None | Some(0))
+                    && matches!(s.wheelchair_boarding, None | Some(0)))
+                .count();
+            if unset == total {
+                notices.push(k6_notice(
+                    ctr, "STP_038", EntityType::Feed,
+                    None, None,
+                    "stops.txt", None, Some("wheelchair_boarding"),
+                    Some(format!("{total}")), Some("1 veya 2".to_string()),
+                    format!("{total} fiziksel durağın hiçbirinde wheelchair_boarding bilgisi girilmemiş."),
+                    "Durakların tekerlekli sandalye erişilebilirliğini wheelchair_boarding ile bildirin (1=erişilebilir, 2=erişilemez).",
+                ));
+            } else if unset > 0 {
+                notices.push(k6_notice(
+                    ctr, "STP_037", EntityType::Feed,
+                    None, None,
+                    "stops.txt", None, Some("wheelchair_boarding"),
+                    Some(format!("{unset}/{total}")), Some("0".to_string()),
+                    format!("{total} fiziksel durağın {unset} tanesinde wheelchair_boarding bilgisi eksik ({:.0}%).",
+                        unset as f64 / total as f64 * 100.0),
+                    "Eksik duraklarda wheelchair_boarding alanını 1 (erişilebilir) veya 2 (erişilemez) olarak doldurun.",
+                ));
+            }
+        }
+    }
+
     // TRP_024: block içinde tutarsız rota tipi
     {
         let route_type_map: HashMap<&str, u32> = records.routes.iter()
@@ -7350,6 +7385,38 @@ mod tests {
         let r2 = analyze(&records2, &empty_derived(), &default_config(), 20260514);
         assert!(r2.notices.iter().any(|n| n.rule_id == "STM_045"),
             "28:30 default eşik (27h) üstünde STM_045 üretmeli");
+    }
+
+    #[test]
+    fn wheelchair_boarding_completeness_stp_037_038() {
+        let mk = |stops: Vec<StopRecord>| records_with(
+            stops,
+            vec![route("R1", 3)],
+            vec![trip("T1", "R1")],
+            vec![
+                stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
+                stoptime("T1", 2, "B", (8, 10, 0), (8, 10, 0), 3),
+            ],
+        );
+        let mut a = stop("A", 41.0, 29.0);
+        let mut b = stop("B", 41.01, 29.01);
+
+        // Tüm fiziksel duraklar eksik (wheelchair_boarding None) → STP_038, STP_037 yok.
+        let r = analyze(&mk(vec![a.clone(), b.clone()]), &empty_derived(), &default_config(), 20260514);
+        assert!(r.notices.iter().any(|n| n.rule_id == "STP_038"), "hepsi eksik → STP_038");
+        assert!(!r.notices.iter().any(|n| n.rule_id == "STP_037"));
+
+        // Biri dolu, biri eksik → STP_037, STP_038 yok.
+        a.wheelchair_boarding = Some(1);
+        let r2 = analyze(&mk(vec![a.clone(), b.clone()]), &empty_derived(), &default_config(), 20260514);
+        assert!(r2.notices.iter().any(|n| n.rule_id == "STP_037"), "kısmi → STP_037");
+        assert!(!r2.notices.iter().any(|n| n.rule_id == "STP_038"));
+
+        // Hepsi dolu → ikisi de yok.
+        b.wheelchair_boarding = Some(2);
+        let r3 = analyze(&mk(vec![a, b]), &empty_derived(), &default_config(), 20260514);
+        assert!(!r3.notices.iter().any(|n| n.rule_id == "STP_037" || n.rule_id == "STP_038"),
+            "hepsi dolu → notice yok");
     }
 
     #[test]
