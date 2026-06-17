@@ -2,7 +2,7 @@
 
 🇹🇷 **Türkçe** · 🇬🇧 [English](RULES.en.md) · 🇯🇵 [日本語](RULES.ja.md)
 
-523 kural, 37 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
+526 kural, 37 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
 Önem seviyeleri: **KRİTİK** (yayın engelleyici) · **YÜKSEK** · **ORTA** · **DÜŞÜK** · **BİLGİ**
 Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · **Quality** (GTFS Kalitesi) · **Analytics** (GTFS Analitiği)
 
@@ -453,6 +453,9 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | FTR_006 | duration_limit geçersiz | ORTA | Spec |
 | FTR_007 | duration_limit_type duration_limit olmadan tanımlı | ORTA | Spec |
 | FTR_008 | transfer_count geçersiz | ORTA | Spec |
+| FTR_009 | leg grupları aynıyken transfer_count zorunlu | ORTA | Spec |
+| FTR_010 | leg grupları farklıyken transfer_count tanımlanamaz | ORTA | Spec |
+| FTR_011 | duration_limit tanımlı ama duration_limit_type eksik | ORTA | Spec |
 
 ## ARS — Areas (Bölgeler, Fares v2)
 

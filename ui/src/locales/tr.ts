@@ -757,6 +757,9 @@ const tr = {
     'FTR_006': 'duration_limit geçersiz',
     'FTR_007': 'duration_limit_type duration_limit olmadan tanımlı',
     'FTR_008': 'transfer_count geçersiz',
+    'FTR_009': 'leg grupları aynıyken transfer_count zorunlu',
+    'FTR_010': 'leg grupları farklıyken transfer_count tanımlanamaz',
+    'FTR_011': 'duration_limit tanımlı ama duration_limit_type eksik',
     // ARS
     'ARS_001': 'area_id yineleniyor',
     // SAR

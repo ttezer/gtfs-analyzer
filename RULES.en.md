@@ -2,7 +2,7 @@
 
 🇹🇷 [Türkçe](RULES.md) · 🇬🇧 **English** · 🇯🇵 [日本語](RULES.ja.md)
 
-523 rules, 37 groups. Each rule is identified by a unique ID, severity level, and class.
+526 rules, 37 groups. Each rule is identified by a unique ID, severity level, and class.
 Severity levels: **CRITICAL** (publish blocker) · **HIGH** · **MEDIUM** · **LOW** · **INFO**
 Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Quality** (GTFS Quality) · **Analytics** (GTFS Analytics)
 
@@ -453,6 +453,9 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | FTR_006 | duration_limit invalid | MEDIUM | Spec |
 | FTR_007 | duration_limit_type defined without duration_limit | MEDIUM | Spec |
 | FTR_008 | transfer_count invalid | MEDIUM | Spec |
+| FTR_009 | transfer_count required when leg groups equal | MEDIUM | Spec |
+| FTR_010 | transfer_count forbidden when leg groups differ | MEDIUM | Spec |
+| FTR_011 | duration_limit set but duration_limit_type missing | MEDIUM | Spec |
 
 ## ARS — Areas (Fares v2)
 

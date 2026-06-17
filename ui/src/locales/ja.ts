@@ -736,6 +736,9 @@ const ja: LocaleShape = {
     'FTR_006': "運賃乗り換えルール：duration_limit'{observed_value}'が無効です。",
     'FTR_007': '運賃乗り換えルール：duration_limit_typeが設定されていますが、duration_limitがありません。',
     'FTR_008': "運賃乗り換えルール：transfer_count'{observed_value}'が無効です。",
+    'FTR_009': '運賃乗り換えルール：from_leg_group_idとto_leg_group_idが同じ場合、transfer_countは必須です。',
+    'FTR_010': "運賃乗り換えルール：from_leg_group_idとto_leg_group_idが異なる場合、transfer_count'{observed_value}'は指定できません。",
+    'FTR_011': '運賃乗り換えルール：duration_limitが定義されている場合、duration_limit_typeは必須です。',
     // ARS
     'ARS_001': "area_idが重複しています：'{entity_id}'。",
     // SAR
@@ -1107,6 +1110,9 @@ const ja: LocaleShape = {
     'FTR_006': 'duration_limitを正の秒数に設定してください。',
     'FTR_007': 'duration_limitを入力するか、duration_limit_typeを削除してください。',
     'FTR_008': 'transfer_countに-1（無制限）または正の値を入力してください。',
+    'FTR_009': 'transfer_countに-1（無制限）または正の値を入力してください。',
+    'FTR_010': 'transfer_countを削除するか、leg groupを一致させてください。',
+    'FTR_011': 'duration_limit_type（0–3）を入力するか、duration_limitを削除してください。',
     // FMD
     'FMD_001': '各運賃メディアレコードに一意のfare_media_idを割り当ててください。',
     'FMD_002': '0（なし）、1（物理カード）、2（モバイルアプリ）、3（EMVコンタクトレス）、4（事業者アプリ）のいずれかを使用してください。',
@@ -1858,6 +1864,9 @@ const ja: LocaleShape = {
     'FTR_006': 'duration_limitが無効',
     'FTR_007': 'duration_limitなしでduration_limit_typeが設定されている',
     'FTR_008': 'transfer_countが無効',
+    'FTR_009': 'leg groupが同じ場合transfer_count必須',
+    'FTR_010': 'leg groupが異なる場合transfer_count禁止',
+    'FTR_011': 'duration_limit定義済みだがduration_limit_type欠如',
     // ARS
     'ARS_001': 'area_idが重複',
     // SAR

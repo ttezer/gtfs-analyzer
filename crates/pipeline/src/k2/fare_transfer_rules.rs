@@ -163,11 +163,46 @@ pub fn validate_fare_transfer_rules(
             None
         };
 
+        let to_leg = get_trimmed_field(&row_map, "to_leg_group_id")
+            .filter(|v| !v.is_empty())
+            .map(str::to_string);
+
+        // FTR_009/010: transfer_count, leg grupları AYNIYKEN zorunlu, FARKLIYKEN yasaktır
+        // (GTFS spec + MD: from_leg_group_id == to_leg_group_id → gerekli; != → yasak).
+        // Yalnız iki leg grubu da tanımlıyken uygulanır (global/area kuralında atlanır → FP önlemi).
+        // Varlık kontrolü ham alan üzerinden (transfer_count_raw); geçersiz değer FTR_008'e bırakılır.
+        if let (Some(f), Some(t)) = (from_leg.as_deref(), to_leg.as_deref()) {
+            if f == t && transfer_count_raw.is_none() {
+                notices.push(make_k2_notice(
+                    &mut counter, "FTR_009", EntityType::Row, entity_id.clone(), Some(&row_map),
+                    &file.name, Some(line), Some("transfer_count"), None, Some("dolu".to_string()),
+                    "from_leg_group_id ile to_leg_group_id aynı olduğunda transfer_count zorunludur.".to_string(),
+                    "transfer_count girin (-1 = sınırsız veya pozitif bir değer).",
+                ));
+            } else if f != t && transfer_count_raw.is_some() {
+                notices.push(make_k2_notice(
+                    &mut counter, "FTR_010", EntityType::Row, entity_id.clone(), Some(&row_map),
+                    &file.name, Some(line), Some("transfer_count"),
+                    transfer_count_raw.clone(), Some("(boş)".to_string()),
+                    "from_leg_group_id ile to_leg_group_id farklı olduğunda transfer_count tanımlanamaz.".to_string(),
+                    "transfer_count alanını kaldırın ya da leg gruplarını eşitleyin.",
+                ));
+            }
+        }
+
+        // FTR_011: duration_limit tanımlıyken duration_limit_type zorunludur (FTR_007'nin ters yönü).
+        if duration_limit.is_some() && duration_limit_type.is_none() {
+            notices.push(make_k2_notice(
+                &mut counter, "FTR_011", EntityType::Row, entity_id.clone(), Some(&row_map),
+                &file.name, Some(line), Some("duration_limit_type"), None, Some("dolu".to_string()),
+                "duration_limit tanımlandığında duration_limit_type de belirtilmelidir.".to_string(),
+                "duration_limit_type alanını (0–3) doldurun ya da duration_limit'i kaldırın.",
+            ));
+        }
+
         records.push(FareTransferRuleRecord {
             from_leg_group_id: from_leg,
-            to_leg_group_id: get_trimmed_field(&row_map, "to_leg_group_id")
-                .filter(|v| !v.is_empty())
-                .map(str::to_string),
+            to_leg_group_id: to_leg,
             transfer_count,
             duration_limit,
             duration_limit_type,
@@ -181,4 +216,79 @@ pub fn validate_fare_transfer_rules(
     }
 
     (records, notices)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn make_file(headers: Vec<&str>, rows: Vec<Vec<&str>>) -> RawFile {
+        RawFile {
+            name: "fare_transfer_rules.txt".to_string(),
+            headers: headers.into_iter().map(str::to_string).collect(),
+            rows: rows.into_iter().map(|r| r.into_iter().map(smol_str::SmolStr::from).collect()).collect(),
+            bytes: 0,
+            raw_text: None,
+        }
+    }
+
+    fn has(notices: &[gtfs_core::Notice], id: &str) -> bool {
+        notices.iter().any(|n| n.rule_id == id)
+    }
+
+    #[test]
+    fn transfer_count_required_when_leg_groups_equal_ftr_009() {
+        let f = make_file(
+            vec!["from_leg_group_id", "to_leg_group_id", "fare_transfer_type"],
+            vec![vec!["L1", "L1", "0"]],
+        );
+        let (_, n) = validate_fare_transfer_rules(&f);
+        assert!(has(&n, "FTR_009"), "from==to + transfer_count yok → FTR_009: {n:?}");
+        assert!(!has(&n, "FTR_010"));
+    }
+
+    #[test]
+    fn transfer_count_forbidden_when_leg_groups_differ_ftr_010() {
+        let f = make_file(
+            vec!["from_leg_group_id", "to_leg_group_id", "transfer_count", "fare_transfer_type"],
+            vec![vec!["L1", "L2", "1", "0"]],
+        );
+        let (_, n) = validate_fare_transfer_rules(&f);
+        assert!(has(&n, "FTR_010"), "from!=to + transfer_count dolu → FTR_010: {n:?}");
+        assert!(!has(&n, "FTR_009"));
+    }
+
+    #[test]
+    fn transfer_count_ok_cases_no_ftr_009_010() {
+        let f1 = make_file(
+            vec!["from_leg_group_id", "to_leg_group_id", "transfer_count"],
+            vec![vec!["L1", "L1", "2"]],
+        );
+        let (_, n1) = validate_fare_transfer_rules(&f1);
+        assert!(!has(&n1, "FTR_009") && !has(&n1, "FTR_010"));
+
+        let f2 = make_file(
+            vec!["from_leg_group_id", "to_leg_group_id"],
+            vec![vec!["L1", "L2"]],
+        );
+        let (_, n2) = validate_fare_transfer_rules(&f2);
+        assert!(!has(&n2, "FTR_009") && !has(&n2, "FTR_010"));
+    }
+
+    #[test]
+    fn duration_limit_without_type_ftr_011() {
+        let f = make_file(
+            vec!["from_leg_group_id", "to_leg_group_id", "transfer_count", "duration_limit"],
+            vec![vec!["L1", "L1", "1", "3600"]],
+        );
+        let (_, n) = validate_fare_transfer_rules(&f);
+        assert!(has(&n, "FTR_011"), "duration_limit dolu, type yok → FTR_011: {n:?}");
+
+        let f2 = make_file(
+            vec!["from_leg_group_id", "to_leg_group_id", "transfer_count", "duration_limit", "duration_limit_type"],
+            vec![vec!["L1", "L1", "1", "3600", "1"]],
+        );
+        let (_, n2) = validate_fare_transfer_rules(&f2);
+        assert!(!has(&n2, "FTR_011"));
+    }
 }

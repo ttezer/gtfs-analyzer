@@ -2,7 +2,7 @@
 
 🇹🇷 [Türkçe](RULES.md) · 🇬🇧 [English](RULES.en.md) · 🇯🇵 **日本語**
 
-523ルール、37グループ。各ルールは一意のID、重要度、クラスで定義されます。
+526ルール、37グループ。各ルールは一意のID、重要度、クラスで定義されます。
 重要度: **致命的**（公開ブロッカー）· **高** · **中** · **低** · **情報**
 クラス: **仕様**（GTFS妥当性）· **相互運用**（GTFSインターオペラビリティ）· **品質**（GTFS品質）· **分析**（GTFSアナリティクス）
 
@@ -453,6 +453,9 @@
 | FTR_006 | duration_limitが無効 | 中 | 仕様 |
 | FTR_007 | duration_limitなしでduration_limit_typeが設定されている | 中 | 仕様 |
 | FTR_008 | transfer_countが無効 | 中 | 仕様 |
+| FTR_009 | leg groupが同じ場合transfer_count必須 | 中 | 仕様 |
+| FTR_010 | leg groupが異なる場合transfer_count禁止 | 中 | 仕様 |
+| FTR_011 | duration_limit定義済みだがduration_limit_type欠如 | 中 | 仕様 |
 
 ## ARS — エリア（Areas, Fares v2）
 

@@ -755,6 +755,9 @@ const en: LocaleShape = {
     'FTR_006': "Fare transfer rule: duration_limit '{observed_value}' is invalid.",
     'FTR_007': 'Fare transfer rule: duration_limit_type is set without duration_limit.',
     'FTR_008': "Fare transfer rule: transfer_count '{observed_value}' is invalid.",
+    'FTR_009': 'Fare transfer rule: transfer_count is required when from_leg_group_id equals to_leg_group_id.',
+    'FTR_010': "Fare transfer rule: transfer_count '{observed_value}' is not allowed when from_leg_group_id differs from to_leg_group_id.",
+    'FTR_011': 'Fare transfer rule: duration_limit_type is required when duration_limit is defined.',
     // ARS
     'ARS_001': "Duplicate area_id: '{entity_id}'.",
     // SAR
@@ -1363,6 +1366,9 @@ const en: LocaleShape = {
     'FTR_006': 'Set duration_limit to a positive number of seconds.',
     'FTR_007': 'Fill in duration_limit or remove duration_limit_type.',
     'FTR_008': 'Enter -1 (unlimited) or a positive value for transfer_count.',
+    'FTR_009': 'Enter transfer_count (-1 unlimited or a positive value).',
+    'FTR_010': 'Remove transfer_count or make the leg groups equal.',
+    'FTR_011': 'Fill duration_limit_type (0–3) or remove duration_limit.',
     // FPD
     'FPD_002': 'Set amount to zero or a positive value.',
     'FPD_003': 'Use a 3-letter uppercase ISO 4217 currency code (e.g., TRY, EUR, USD).',
@@ -1904,6 +1910,9 @@ const en: LocaleShape = {
     'FTR_006': 'duration_limit invalid',
     'FTR_007': 'duration_limit_type defined without duration_limit',
     'FTR_008': 'transfer_count invalid',
+    'FTR_009': 'transfer_count required when leg groups equal',
+    'FTR_010': 'transfer_count forbidden when leg groups differ',
+    'FTR_011': 'duration_limit set but duration_limit_type missing',
     // ARS
     'ARS_001': 'Duplicate area_id',
     // SAR

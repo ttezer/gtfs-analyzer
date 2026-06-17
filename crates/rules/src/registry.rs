@@ -886,6 +886,12 @@ pub static RULES: &[RuleMeta] = &[
         "duration_limit_type duration_limit olmadan tanımlı"),
     r!("FTR_008", Orta,   Spec, 1, &[], None, VS, Row,
         "transfer_count geçersiz"),
+    r!("FTR_009", Orta,   Spec, 1, &[], None, VS, Row,
+        "leg grupları aynıyken transfer_count zorunlu"),
+    r!("FTR_010", Orta,   Spec, 1, &[], None, VS, Row,
+        "leg grupları farklıyken transfer_count tanımlanamaz"),
+    r!("FTR_011", Orta,   Spec, 1, &[], None, VS, Row,
+        "duration_limit tanımlı ama duration_limit_type eksik"),
 
     // ── ARS: Areas (Fares v2) ─────────────────────────────────────────────────
     r!("ARS_001", Kritik, Spec, 1, &["SAR_001","FLG_003","FLG_004"],
