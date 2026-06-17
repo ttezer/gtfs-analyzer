@@ -3,7 +3,21 @@ import { SEVERITY_TR, SEVERITY_COLOR, RULE_CLASS_TR, t, tMsg, tRemediation } fro
 import { openMapModal, type MapPin, type MapOptions } from '../map-modal';
 import { escHtml } from '../escape';
 
+// EN/JA parite: route-scoped bulgularda entity_id = route_id ve mesaj şablonu {route_label}
+// kullanır. name_index.routes[route_id] = route_short_name (yoksa long_name) → details'e enjekte
+// edilir ki en/ja şablonları Türkçe ile aynı dostça hat kodunu göstersin (Türkçe runtime message
+// zaten route_short_name içerir; bu yalnız en/ja şablon yolu için). Idempotent; route olmayan
+// entity'lere dokunmaz.
+export function augmentRouteLabels(notices: Notice[], nameIndex: NameIndex): void {
+  for (const n of notices) {
+    const eid = n.entity_id ?? '';
+    if (!eid || !(eid in nameIndex.routes)) continue;
+    n.details = { ...(n.details ?? {}), route_label: nameIndex.routes[eid] || eid };
+  }
+}
+
 export function renderFix(root: HTMLElement, result: ValidationResult, fileFilter?: string, classFilter?: string): void {
+  augmentRouteLabels(result.notices, result.name_index);
   const noticeMap = new Map<string, Notice>(result.notices.map(n => [n.id, n]));
 
   const totalDelta    = result.reports.r9.items.reduce((s, i) => s + i.score_delta, 0);

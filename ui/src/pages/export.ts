@@ -1,11 +1,14 @@
 import type { ValidationResult } from '../types';
 import { SEVERITY_TR, RULE_CLASS_TR, t, tMsg } from '../i18n';
+import { augmentRouteLabels } from './fix';
 
 export function renderExport(
   root: HTMLElement,
   result: ValidationResult,
   fileName: string,
 ): void {
+  // EN/JA parite: route-scoped bulgu mesajlarının {route_label}'ını doldur (R2 ile aynı).
+  augmentRouteLabels(result.notices, result.name_index);
   root.innerHTML = `
     <section class="page-export-wide">
       <div class="card">
