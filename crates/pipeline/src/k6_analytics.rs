@@ -2026,19 +2026,27 @@ fn check_geo_analytics(
         }
     }
 
-    // STM_045: Trip kalkış saati gece yarısından 26 saatten fazla
+    // STM_045: Trip kalkış saati servis-günü penceresini aşıyor (olası veri anomalisi).
+    // Servis günü [start, start+24) → start+24 saati aşan departure şüphelidir. Eşik
+    // service_day_start_hour'a bağlıdır (ör. 04:00 başlayan operatörde 28h'e kadar meşru);
+    // sabit 26h yanlış-pozitif üretiyordu. start_hour=0 (normalizasyon kapalı) → eski 26h.
     {
+        let max_dep_h = if config.service_day_start_hour == 0 {
+            26
+        } else {
+            24 + config.service_day_start_hour
+        };
         for (trip_id, stops) in records.stop_times_index.iter_trips() {
             for st in stops {
                 let Some((h, m, s)) = st.departure_time else { continue };
-                if h > 26 || (h == 26 && (m > 0 || s > 0)) {
+                if h > max_dep_h || (h == max_dep_h && (m > 0 || s > 0)) {
                     notices.push(k6_notice(
                         ctr, "STM_045", EntityType::Trip,
                         Some(trip_id.to_string()), Some(trip_id.to_string()),
                         "stop_times.txt", Some(st.line), Some("departure_time"),
-                        Some(format!("{h:02}:{m:02}:{s:02}")), Some("≤26:00:00".to_string()),
-                        format!("'{trip_id}' seferinde {h:02}:{m:02}:{s:02} kalkış saati — gece yarısından 26 saatten fazla."),
-                        "departure_time değerini kontrol edin; 26 saati aşan değerler genellikle veri hatasıdır.",
+                        Some(format!("{h:02}:{m:02}:{s:02}")), Some(format!("≤{max_dep_h}:00:00")),
+                        format!("'{trip_id}' seferinde {h:02}:{m:02}:{s:02} kalkış saati — servis günü penceresini ({max_dep_h} saat) aşıyor."),
+                        "departure_time ve service_day_start_hour ayarını kontrol edin; bu pencereyi aşan değerler genellikle veri hatasıdır.",
                     ));
                     break; // trip başına bir notice yeterli
                 }
@@ -7304,6 +7312,44 @@ mod tests {
         );
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
         assert!(!result.notices.iter().any(|n| n.rule_id == "STM_007"), "gece-yarısı kalkış bastırılmalı");
+    }
+
+    #[test]
+    fn stm045_threshold_respects_service_day_start_hour() {
+        // 26:30 kalkış: default config (service_day_start_hour=3 → eşik 27h) altında MEŞRU.
+        let records = records_with(
+            vec![stop("A", 41.0, 29.0), stop("B", 41.01, 29.01)],
+            vec![route("R1", 3)],
+            vec![trip("T1", "R1")],
+            vec![
+                stoptime("T1", 1, "A", (26, 30, 0), (26, 30, 0), 2),
+                stoptime("T1", 2, "B", (26, 40, 0), (26, 40, 0), 3),
+            ],
+        );
+        let r = analyze(&records, &empty_derived(), &default_config(), 20260514);
+        assert!(!r.notices.iter().any(|n| n.rule_id == "STM_045"),
+            "26:30 default eşik (27h) altında STM_045 üretmemeli");
+
+        // start_hour=0 (normalizasyon kapalı) → eşik 26h → 26:30 anomali.
+        let mut cfg0 = default_config();
+        cfg0.service_day_start_hour = 0;
+        let r0 = analyze(&records, &empty_derived(), &cfg0, 20260514);
+        assert!(r0.notices.iter().any(|n| n.rule_id == "STM_045"),
+            "start_hour=0 iken 26:30 STM_045 üretmeli");
+
+        // 28:30 → default eşik (27h) üstünde → anomali.
+        let records2 = records_with(
+            vec![stop("A", 41.0, 29.0), stop("B", 41.01, 29.01)],
+            vec![route("R1", 3)],
+            vec![trip("T2", "R1")],
+            vec![
+                stoptime("T2", 1, "A", (28, 30, 0), (28, 30, 0), 2),
+                stoptime("T2", 2, "B", (28, 40, 0), (28, 40, 0), 3),
+            ],
+        );
+        let r2 = analyze(&records2, &empty_derived(), &default_config(), 20260514);
+        assert!(r2.notices.iter().any(|n| n.rule_id == "STM_045"),
+            "28:30 default eşik (27h) üstünde STM_045 üretmeli");
     }
 
     #[test]
