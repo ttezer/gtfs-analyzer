@@ -951,6 +951,7 @@ const tr = {
     'JPN_008': 'GTFS-JP: hat adının kana okuması eksik',
     'JPN_009': 'GTFS-JP: trip_headsign kana okuması eksik',
     'JPN_010': 'GTFS-JP: işletici adının kana okuması eksik',
+    'JPN_011': 'GTFS-JP: tek işletici olsa bile agency_id zorunlu',
   } as Record<string, string>,
 };
 

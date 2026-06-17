@@ -930,6 +930,7 @@ const ja: LocaleShape = {
     'JPN_008': "路線'{entity_id}'：route_long_name のかな（ja-Hrkt）読みがありません — GTFS-JP では必須です。",
     'JPN_009': "トリップ'{entity_id}'：trip_headsign のかな（ja-Hrkt）読みがありません — GTFS-JP では必須です。",
     'JPN_010': "事業者'{entity_id}'：agency_name のかな（ja-Hrkt）読みがありません — GTFS-JP では必須です。",
+    'JPN_011': 'GTFS-JPでは事業者が1つでもagency_idが必須です。{observed_value}件の事業者にagency_idがありません。',
   } as Record<string, string>,
 
   ruleRemediations: {
@@ -1469,6 +1470,7 @@ const ja: LocaleShape = {
     'JPN_008': 'translations.txt にこの路線の language=ja-Hrkt（route_long_name）の翻訳を追加してください。',
     'JPN_009': 'translations.txt にこの便の language=ja-Hrkt（trip_headsign）の翻訳を追加してください。',
     'JPN_010': 'translations.txt にこの事業者の language=ja-Hrkt（agency_name）の翻訳を追加してください。',
+    'JPN_011': 'agency.txtの各行に一意のagency_idを設定してください。',
     // XFL
     'XFL_001': 'calendar.txtまたはcalendar_dates.txtに不足しているサービス定義を追加してください。',
     'XFL_002': 'この便のstop_timesレコードを追加してください。',
@@ -2050,6 +2052,7 @@ const ja: LocaleShape = {
     'JPN_008': 'GTFS-JP：route_long_name のかな読みが欠如',
     'JPN_009': 'GTFS-JP：trip_headsign のかな読みが欠如',
     'JPN_010': 'GTFS-JP：agency_name のかな読みが欠如',
+    'JPN_011': 'GTFS-JP：事業者が1つでもagency_idが必須',
   } as Record<string, string>,
 };
 

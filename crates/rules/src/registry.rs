@@ -1315,6 +1315,8 @@ pub static RULES: &[RuleMeta] = &[
         "GTFS-JP: trip_headsign kana (ja-Hrkt) okuması eksik"),
     r!("JPN_010", Orta,   Quality, 2, &[], Some("agency_id"), VS, Entity,
         "GTFS-JP: işletici adının (agency_name) kana (ja-Hrkt) okuması eksik"),
+    r!("JPN_011", Yuksek, Spec,    1, &[], None, VS, Feed,
+        "GTFS-JP: tek işletici olsa bile agency_id zorunlu"),
 ];
 
 /// `RULES` üzerinden id → metadata için tek seferlik kurulan O(1) arama tablosu.

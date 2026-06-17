@@ -2,7 +2,7 @@
 
 🇹🇷 **Türkçe** · 🇬🇧 [English](RULES.en.md) · 🇯🇵 [日本語](RULES.ja.md)
 
-522 kural, 37 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
+523 kural, 37 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
 Önem seviyeleri: **KRİTİK** (yayın engelleyici) · **YÜKSEK** · **ORTA** · **DÜŞÜK** · **BİLGİ**
 Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · **Quality** (GTFS Kalitesi) · **Analytics** (GTFS Analitiği)
 
@@ -714,3 +714,4 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | JPN_008 | GTFS-JP: hat adının (route_long_name) kana (ja-Hrkt) okuması eksik | ORTA | Quality |
 | JPN_009 | GTFS-JP: trip_headsign kana (ja-Hrkt) okuması eksik | ORTA | Quality |
 | JPN_010 | GTFS-JP: işletici adının (agency_name) kana (ja-Hrkt) okuması eksik | ORTA | Quality |
+| JPN_011 | GTFS-JP: tek işletici olsa bile agency_id zorunlu | YÜKSEK | Spec |

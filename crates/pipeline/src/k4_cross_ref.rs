@@ -2579,6 +2579,31 @@ fn check_gtfs_jp(records: &EntityRecords, notices: &mut Vec<Notice>, ctr: &mut u
         ));
     }
 
+    // ── JPN_011: GTFS-JP'de agency_id her zaman zorunlu (tek işletici olsa bile) ──
+    // Standart GTFS tek-agency'de agency_id'yi opsiyonel sayar; AGN_011 yalnız ÇOKLU-agency'de
+    // (route-level) fire eder → tek-işletici JP feed'inde agency_id eksikliği boşlukta kalıyordu.
+    if is_gtfs_jp {
+        let missing = records.agencies.iter()
+            .filter(|a| a.agency_id.as_deref().map_or(true, |id| id.trim().is_empty()))
+            .count();
+        if missing > 0 {
+            notices.push(notice(
+                ctr,
+                "JPN_011",
+                EntityType::Feed,
+                None,
+                None,
+                "agency.txt",
+                None,
+                Some("agency_id"),
+                Some(format!("{missing}")),
+                Some("dolu".to_string()),
+                format!("GTFS-JP: {missing} işleticide agency_id eksik — JP profilinde tek işletici olsa bile agency_id zorunludur."),
+                "agency.txt'teki her satıra benzersiz bir agency_id girin.",
+            ));
+        }
+    }
+
     // ── JPN_005: office_jp.office_name zorunlu (boş olamaz) ──
     // Kapı: office_jp.txt mevcut. office_id'si dolu ama office_name'i boş/eksik satırlar işaretlenir.
     for oj in &records.office_jp {
@@ -4195,6 +4220,42 @@ mod tests {
         let result = check(&recs, &EntityMap::default(), 20260515);
         assert!(result.notices.iter().any(|n| n.rule_id == "JPN_010"),
             "agency_name kana yok → JPN_010");
+    }
+
+    #[test]
+    fn missing_agency_id_in_jp_feed_produces_jpn_011() {
+        use crate::k2::agency::AgencyRecord;
+        use crate::k2::office_jp::OfficeJpRecord;
+        let mk_agency = |id: Option<&str>| AgencyRecord {
+            agency_id: id.map(|s| s.into()), agency_name: "X".into(),
+            agency_url: "https://example.jp".into(), agency_timezone: "Asia/Tokyo".into(),
+            agency_lang: None, agency_phone: None, agency_fare_url: None,
+            agency_email: None, agency_cemv_support: None, row: Default::default(), line: 2,
+        };
+        let mk_office = || OfficeJpRecord {
+            office_id: "OF1".into(), office_name: Some("本社".into()),
+            row: Default::default(), line: 2,
+        };
+
+        // is_gtfs_jp kapısı: office_jp mevcut. Tek agency, agency_id YOK → JPN_011.
+        let (mut recs, _m) = empty();
+        recs.office_jp = vec![mk_office()];
+        recs.agencies = vec![mk_agency(None)];
+        let r = check(&recs, &EntityMap::default(), 20260515);
+        assert!(r.notices.iter().any(|n| n.rule_id == "JPN_011"), "JP + agency_id yok → JPN_011");
+
+        // agency_id dolu → JPN_011 yok.
+        let (mut recs2, _m2) = empty();
+        recs2.office_jp = vec![mk_office()];
+        recs2.agencies = vec![mk_agency(Some("A1"))];
+        let r2 = check(&recs2, &EntityMap::default(), 20260515);
+        assert!(!r2.notices.iter().any(|n| n.rule_id == "JPN_011"), "agency_id dolu → JPN_011 yok");
+
+        // JP sinyali yok + agency_id yok → JPN_011 yok (standart feed'de opsiyonel).
+        let (mut recs3, _m3) = empty();
+        recs3.agencies = vec![mk_agency(None)];
+        let r3 = check(&recs3, &EntityMap::default(), 20260515);
+        assert!(!r3.notices.iter().any(|n| n.rule_id == "JPN_011"), "JP değil → JPN_011 yok");
     }
 
     #[test]

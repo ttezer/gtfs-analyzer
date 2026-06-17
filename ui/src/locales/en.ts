@@ -949,6 +949,7 @@ const en: LocaleShape = {
     'JPN_008': "Route '{entity_id}': route_long_name is missing a kana (ja-Hrkt) reading, which is required by GTFS-JP.",
     'JPN_009': "Trip '{entity_id}': trip_headsign is missing a kana (ja-Hrkt) reading, which is required by GTFS-JP.",
     'JPN_010': "Agency '{entity_id}': agency_name is missing a kana (ja-Hrkt) reading, which is required by GTFS-JP.",
+    'JPN_011': 'GTFS-JP requires agency_id even for a single agency; {observed_value} agency record(s) are missing it.',
   } as Record<string, string>,
 
   ruleRemediations: {
@@ -1120,6 +1121,7 @@ const en: LocaleShape = {
     'JPN_008': 'Add a language=ja-Hrkt translation of route_long_name for this route in translations.txt.',
     'JPN_009': 'Add a language=ja-Hrkt translation of trip_headsign for this trip in translations.txt.',
     'JPN_010': 'Add a language=ja-Hrkt translation of agency_name for this agency in translations.txt.',
+    'JPN_011': 'Set a unique agency_id on every row of agency.txt.',
     // AGN
     'AGN_002': 'Fill in the agency_name field.',
     'AGN_003': 'Enter a valid http/https URL for agency_url.',
@@ -2096,6 +2098,7 @@ const en: LocaleShape = {
     'JPN_008': 'GTFS-JP: route_long_name kana reading missing',
     'JPN_009': 'GTFS-JP: trip_headsign kana reading missing',
     'JPN_010': 'GTFS-JP: agency_name kana reading missing',
+    'JPN_011': 'GTFS-JP: agency_id required even with one agency',
   },
 };
 
