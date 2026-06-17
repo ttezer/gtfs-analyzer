@@ -221,7 +221,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | STM_042 | stop_headsign contains characters unsupported by Google Transit | LOW | Interop |
 | STM_043 | Trip has extreme stop count (>200) | INFO | Analytics |
 | STM_044 | Feed stop_times exceeds 2,000,000 rows (WASM performance warning) | INFO | Analytics |
-| STM_045 | Trip departure time exceeds 26 hours after midnight | MEDIUM | Quality |
+| STM_045 | Trip departure time exceeds the service day window | MEDIUM | Quality |
 | STM_046 | trip_id missing | CRITICAL | Spec |
 | STM_047 | timepoint=1 without arrival/departure time | CRITICAL | Spec |
 | STM_048 | After-midnight times written as 00:xx (between stops) | INFO | Quality |

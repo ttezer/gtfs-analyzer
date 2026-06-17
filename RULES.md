@@ -221,7 +221,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | STM_042 | stop_headsign Google Transit tarafından desteklenmeyen karakter içeriyor | DÜŞÜK | Interop |
 | STM_043 | Sefer aşırı fazla durağa sahip (>200) — olası veri birleştirme hatası | BİLGİ | Analytics |
 | STM_044 | Feed stop_times satır sayısı 2 milyonu aşıyor — WASM bellek/performans uyarısı | BİLGİ | Analytics |
-| STM_045 | Seferin hareket saati gece yarısından 26 saat sonrasını aşıyor — olası veri anomalisi | ORTA | Quality |
+| STM_045 | Seferin hareket saati servis günü penceresini aşıyor — olası veri anomalisi | ORTA | Quality |
 | STM_046 | trip_id eksik | KRİTİK | Spec |
 | STM_047 | Kesin zaman noktasında (timepoint=1) arrival_time/departure_time eksik | KRİTİK | Spec |
 | STM_048 | Gece yarısı sonrası saatler 00:xx yazılmış (24:xx önerilir, duraklar arası) | BİLGİ | Quality |

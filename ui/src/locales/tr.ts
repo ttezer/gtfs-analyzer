@@ -579,7 +579,7 @@ const tr = {
     'STM_042': 'stop_headsign Google Transit tarafından desteklenmeyen karakter içeriyor',
     'STM_043': 'Sefer aşırı fazla durağa sahip (>200)',
     'STM_044': 'Feed stop_times satır sayısı 2 milyonu aşıyor',
-    'STM_045': 'Sefer kalkış saati gece yarısından 26 saat sonra',
+    'STM_045': 'Sefer kalkış saati servis günü penceresini aşıyor',
     'STM_046': 'trip_id eksik',
     'STM_047': 'timepoint=1 ama arrival_time/departure_time eksik',
     'STM_048': 'Gece yarısı sonrası saatler 00:xx (duraklar arası)',

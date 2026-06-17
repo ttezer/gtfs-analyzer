@@ -510,7 +510,7 @@ pub static RULES: &[RuleMeta] = &[
     r!("STM_044", Bilgi,  Analytics, 1, &[], None, VA, Feed,
         "Feed stop_times satır sayısı 2 milyonu aşıyor — WASM bellek/performans uyarısı"),
     r!("STM_045", Orta,   Quality,   1, &[], Some("trip_id"), VS, Entity,
-        "Seferin hareket saati gece yarısından 26 saat sonrasını aşıyor — olası veri anomalisi"),
+        "Seferin hareket saati servis günü penceresini aşıyor — olası veri anomalisi"),
     r!("STM_046", Kritik, Spec, 1, &[], Some("trip_id"), VS_K, Row,
         "trip_id eksik"),
     r!("STM_047", Kritik, Spec, 1, &[], Some("trip_id"), VS_K, Row,
