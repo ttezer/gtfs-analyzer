@@ -231,6 +231,7 @@ const en: LocaleShape = {
     'fix.map.shape'         : 'shape',
     // Map legend labels
     'fix.map.route_shape'          : 'Route shape',
+    'fix.map.pattern'              : 'Pattern',
     'fix.map.route_shape_rev'      : 'Route shape (reversed)',
     'fix.map.route_shape_named'    : 'Route shape — {name}',
     'fix.map.route_shapes_named'   : 'Route shapes — {name}',

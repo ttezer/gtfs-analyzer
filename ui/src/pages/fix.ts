@@ -355,6 +355,13 @@ function hasMapCoords(notice: Notice, nameIndex: NameIndex): boolean {
     const shapeId = notice.details?.['shape_id'] ?? '';
     return !!(shapeId && shapeId in nameIndex.shape_coords);
   }
+  // SHP_027: shape birden çok durak desenine atanmış — shape geometrisi veya
+  // temsili trip duraklarından biri biliniyorsa harita gösterilebilir.
+  if (notice.rule_id === 'SHP_027') {
+    if (eid && eid in nameIndex.shape_coords) return true;
+    const reps = (notice.details?.['pattern_trips'] ?? '').split(',').filter(Boolean);
+    return reps.some(tid => tid in nameIndex.trip_stops);
+  }
   // PTH_014: farklı istasyonlar arası pathway — iki istasyon koordinatı
   if (notice.rule_id === 'PTH_014') {
     const fs = notice.details?.['from_station'] ?? '';
@@ -772,6 +779,37 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
     if (stopIds.length > 0) legendItems.push({ color: '#2563eb', label: t('fix.map.trip_stops') });
     if (errPin) legendItems.push({ color: '#dc2626', label: t('fix.map.first_stop_wrong_end') });
     return { pins, polyline: polyline.length > 1 ? polyline : undefined, legendItems, showArrows: true };
+  }
+
+  // SHP_027: shape birden çok durak desenine (pattern) atanmış — shape (amber) +
+  // her farklı desen ayrı renkte polyline. Temsili trip'ler details.pattern_trips'te.
+  if (notice.rule_id === 'SHP_027') {
+    const polyline = entityId ? (nameIndex.shape_coords[entityId] ?? []) : [];
+    const reps = (notice.details?.['pattern_trips'] ?? '').split(',').filter(Boolean);
+    const palette = ['#2563eb','#dc2626','#16a34a','#9333ea','#ea580c','#0891b2','#ca8a04','#db2777','#4f46e5','#0d9488','#b91c1c','#7c3aed'];
+    const extraPolylines: Array<{ coords: [number, number][]; color: string; weight?: number }> = [];
+    const legendItems: Array<{ color: string; label: string }> = [];
+    if (polyline.length > 1) legendItems.push({ color: '#f59e0b', label: t('fix.map.route_shape') });
+    reps.forEach((tid, i) => {
+      const stopIds = nameIndex.trip_stops[tid] ?? [];
+      const coords: [number, number][] = [];
+      for (const sid of stopIds) {
+        const c = nameIndex.stop_coords[sid];
+        if (c) coords.push([c[0], c[1]]);
+      }
+      if (coords.length > 1) {
+        const color = palette[i % palette.length];
+        extraPolylines.push({ coords, color, weight: 4 });
+        legendItems.push({ color, label: `${t('fix.map.pattern')} ${i + 1}` });
+      }
+    });
+    return {
+      pins: [],
+      polyline: polyline.length > 1 ? polyline : undefined,
+      extraPolylines: extraPolylines.length ? extraPolylines : undefined,
+      legendItems,
+      showArrows: false,
+    };
   }
 
   // ── Trip kuralları: entity_id = trip_id ───────────────────────────────────
@@ -1315,7 +1353,7 @@ export function attachFixListeners(root: HTMLElement, result?: ValidationResult,
         if (!notice) return;
         const opts = buildMapOptions(notice, result.name_index);
         if (opts.pins.length === 0 && !opts.polyline && !(opts.extraPolylines?.length)) return;
-        const shapeIdRules = new Set(['SHP_007','SHP_009','SHP_010','SHP_012','SHP_014','SHP_015','SHP_016','SHP_018','SHP_019','SHP_020','GEO_006','GEO_007']);
+        const shapeIdRules = new Set(['SHP_007','SHP_009','SHP_010','SHP_012','SHP_014','SHP_015','SHP_016','SHP_018','SHP_019','SHP_020','SHP_027','GEO_006','GEO_007']);
         const eid = notice.entity_id ?? '';
         let entityLabel: string;
         if (shapeIdRules.has(notice.rule_id)) {

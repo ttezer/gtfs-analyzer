@@ -219,6 +219,7 @@ const ja: LocaleShape = {
     'fix.map_btn'           : '地図で表示',
     'fix.map.shape'         : '形状',
     'fix.map.route_shape'          : '経路形状',
+    'fix.map.pattern'              : 'パターン',
     'fix.map.route_shape_rev'      : '経路形状（逆方向）',
     'fix.map.route_shape_named'    : '経路形状 — {name}',
     'fix.map.route_shapes_named'   : '経路形状 — {name}',

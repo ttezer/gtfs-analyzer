@@ -635,6 +635,9 @@ fn check_speed_and_duration(
             .and_then(|s| s.departure_time)
             .map(|(h, m, _)| format!("{h:02}:{m:02}"))
             .unwrap_or_default();
+        // trip_id zenginleştirme: insan-tanır kalkış saati eki (" 08:15 kalkışlı"); bilinmiyorsa boş.
+        // (STM_026 mesajındaki mevcut desenle aynı biçim.)
+        let dep_suffix = if dep_str.is_empty() { String::new() } else { format!(" {dep_str} kalkışlı") };
 
         // ── STM_007: aynı durakta departure < arrival (K2'den taşındı) ───────────
         // Gece yarısını aşan son durak (00:xx kalkış, 24:xx yazılmalıydı) yanlış-pozitifi
@@ -659,7 +662,7 @@ fn check_speed_and_duration(
                     "stop_times.txt", Some(st.line), Some("departure_time"),
                     Some(format!("{} < {}", format_hms(dep_s), format_hms(arr_s))),
                     Some(format!(">= {}", format_hms(arr_s))),
-                    format!("'{route_label}' hattı '{trip_id}' seferi: {name} durağında (sıra {seq}) kalkış {} < varış {} — kalkış varıştan önce. (yön {dir_sd})",
+                    format!("'{route_label}' hattı '{trip_id}'{dep_suffix} seferi: {name} durağında (sıra {seq}) kalkış {} < varış {} — kalkış varıştan önce. (yön {dir_sd})",
                         format_hms(dep_s), format_hms(arr_s)),
                     "stop_times.txt'te kalkış zamanını varış zamanından sonra (veya eşit) ayarlayın.",
                 );
@@ -767,7 +770,7 @@ fn check_speed_and_duration(
                             "stop_times.txt", Some(b.line), Some("arrival_time"),
                             Some(format!("sifir sure, {dist_km:.1} km")),
                             Some("<= 700 km/h".to_string()),
-                            format!("trip_id '{trip_id}' stop_sequence {}-{} arasi gecis suresi sifir ama mesafe {dist_km:.1} km — fiziksel olarak imkansiz.",
+                            format!("trip_id '{trip_id}'{dep_suffix} stop_sequence {}-{} arasi gecis suresi sifir ama mesafe {dist_km:.1} km — fiziksel olarak imkansiz.",
                                 a.stop_sequence.unwrap_or(0), b.stop_sequence.unwrap_or(0)),
                             "stop_times.txt zaman degerlerini dogrulayin; ayni dakikada cok uzak iki durak olamaz.",
                         );
@@ -808,7 +811,7 @@ fn check_speed_and_duration(
                     "stop_times.txt", Some(b.line), Some("arrival_time"),
                     Some(format!("{arr_hms} < {dep_hms}")),
                     Some(format!(">= {dep_hms}")),
-                    format!("'{route_label}' hattı '{trip_id}' seferi: {name_a} durağından (sıra {seq_a}) kalkış {dep_hms}, {name_b} durağına (sıra {seq_b}) varış {arr_hms} — varış kalkıştan önce, zaman geriye gidiyor. (yön {dir_sd}{hs_sep}{headsign})"),
+                    format!("'{route_label}' hattı '{trip_id}'{dep_suffix} seferi: {name_a} durağından (sıra {seq_a}) kalkış {dep_hms}, {name_b} durağına (sıra {seq_b}) varış {arr_hms} — varış kalkıştan önce, zaman geriye gidiyor. (yön {dir_sd}{hs_sep}{headsign})"),
                     "stop_times.txt zaman değerlerini gözden geçirin; seferler boyunca zamanlar monoton artmalıdır.",
                 );
                 let mut d = std::collections::HashMap::new();
@@ -869,7 +872,7 @@ fn check_speed_and_duration(
                         "stop_times.txt", Some(b.line), Some("stop_id"),
                         Some(a.stop_id.to_string()),
                         None,
-                        format!("trip_id '{trip_id}' stop_sequence {}-{} arasında aynı durak ({}) ardışık iki kez ziyaret ediliyor.",
+                        format!("trip_id '{trip_id}'{dep_suffix} stop_sequence {}-{} arasında aynı durak ({}) ardışık iki kez ziyaret ediliyor.",
                             a.stop_sequence.unwrap_or(0), b.stop_sequence.unwrap_or(0), a.stop_id),
                         "Terminal veya döngü hattıysa beklenen bir durumdur. Değilse stop_times.txt'teki yinelenen satırı kaldırın.",
                     ));
@@ -881,7 +884,7 @@ fn check_speed_and_duration(
                         "stop_times.txt", Some(b.line), Some("stop_id"),
                         Some(format!("{} → {}", a.stop_id, b.stop_id)),
                         Some("> 0 m".to_string()),
-                        format!("trip_id '{trip_id}' stop_sequence {}-{} arası mesafe 0: '{}' ve '{}' farklı duraklar ama aynı koordinatta.",
+                        format!("trip_id '{trip_id}'{dep_suffix} stop_sequence {}-{} arası mesafe 0: '{}' ve '{}' farklı duraklar ama aynı koordinatta.",
                             a.stop_sequence.unwrap_or(0), b.stop_sequence.unwrap_or(0), a.stop_id, b.stop_id),
                         "stops.txt'te durak koordinatlarını doğrulayın; ardışık farklı duraklar aynı konumda olmamalıdır.",
                     ));
@@ -896,7 +899,7 @@ fn check_speed_and_duration(
                     Some(trip_id.to_string()), Some(trip_id.to_string()),
                     "stop_times.txt", Some(b.line), Some("arrival_time"),
                     Some(format!("{dt_sec}s")), Some(">= 10s".to_string()),
-                    format!("trip_id '{trip_id}' stop_sequence {}-{} arası seyahat süresi yalnızca {dt_sec}s.",
+                    format!("trip_id '{trip_id}'{dep_suffix} stop_sequence {}-{} arası seyahat süresi yalnızca {dt_sec}s.",
                         a.stop_sequence.unwrap_or(0), b.stop_sequence.unwrap_or(0)),
                     "stop_times.txt zaman değerlerini kontrol edin; segment süresi çok kısa.",
                 );
@@ -921,7 +924,7 @@ fn check_speed_and_duration(
                     Some(trip_id.to_string()), Some(trip_id.to_string()),
                     "stop_times.txt", Some(b.line), Some("stop_id"),
                     Some(format!("{dist_km:.1} km")), Some(format!("<= {stm026_threshold:.0} km")),
-                    format!("trip_id '{trip_id}' stop_sequence {}-{} arası mesafe {dist_km:.1} km.",
+                    format!("trip_id '{trip_id}'{dep_suffix} stop_sequence {}-{} arası mesafe {dist_km:.1} km.",
                         a.stop_sequence.unwrap_or(0), b.stop_sequence.unwrap_or(0)),
                     "stops.txt koordinatlarını ve stop_times.txt sırasını doğrulayın.",
                 );
@@ -941,7 +944,7 @@ fn check_speed_and_duration(
                     Some(trip_id.to_string()), Some(trip_id.to_string()),
                     "stop_times.txt", Some(b.line), Some("arrival_time"),
                     Some(format!("{speed:.0} km/h")), Some("<= 700 km/h".to_string()),
-                    format!("trip_id '{trip_id}' stop_sequence {}-{} arası hız {speed:.0} km/h — fiziksel olarak imkansız.",
+                    format!("trip_id '{trip_id}'{dep_suffix} stop_sequence {}-{} arası hız {speed:.0} km/h — fiziksel olarak imkansız.",
                         a.stop_sequence.unwrap_or(0), b.stop_sequence.unwrap_or(0)),
                     "stop_times.txt zaman ve stops.txt koordinat verilerini doğrulayın.",
                 );
@@ -968,7 +971,7 @@ fn check_speed_and_duration(
                     Some(format!("≤ {threshold:.0} km/h")),
                     format!(
                         "'{route_label}' kodlu hattın {dir_sd} yönünde {svc_sd} çalışma takviminde \
-                        '{trip_id}' seferindeki durak sırası {}-{} arası hız {:.1} km/h — eşik {:.0} km/h.",
+                        '{trip_id}'{dep_suffix} seferindeki durak sırası {}-{} arası hız {:.1} km/h — eşik {:.0} km/h.",
                         a.stop_sequence.unwrap_or(0),
                         b.stop_sequence.unwrap_or(0),
                         speed,
@@ -1002,8 +1005,7 @@ fn check_speed_and_duration(
                 Some(format!("≤ {threshold:.0} km/h")),
                 format!(
                     "'{route_label}' kodlu hattın {dir_sd} yönünde {svc_sd} çalışma takviminde \
-                    '{trip_id}'{} seferindeki {trip_bad_seg_count} bozuk segmentte en yüksek hız {trip_max_speed:.1} km/h — eşik {threshold:.0} km/h.",
-                    if dep_str.is_empty() { String::new() } else { format!(" {dep_str} kalkışlı") }
+                    '{trip_id}'{dep_suffix} seferindeki {trip_bad_seg_count} bozuk segmentte en yüksek hız {trip_max_speed:.1} km/h — eşik {threshold:.0} km/h.",
                 ),
                 "stop_times zaman ve koordinat verilerini kontrol edin.",
             );
@@ -2055,24 +2057,38 @@ fn check_geo_analytics(
             .filter_map(|t| t.shape_id.as_deref().filter(|s| !s.is_empty())
                 .map(|s| (t.trip_id.as_str(), s)))
             .collect();
-        let mut shape_patterns: HashMap<&str, FxHashSet<u64>> = HashMap::new();
+        // shape_id → (pattern_hash → temsili trip_id). Temsili = leksikografik en küçük
+        // trip_id (deterministik; HashMap iterasyon sırasından bağımsız).
+        let mut shape_patterns: HashMap<&str, HashMap<u64, &str>> = HashMap::new();
         for (trip_id, stops) in records.stop_times_index.iter_trips() {
             let Some(&shape_id) = trip_shape.get(trip_id.as_str()) else { continue };
             let mut h = DefaultHasher::new();
             for st in stops { st.stop_id.hash(&mut h); }
-            shape_patterns.entry(shape_id).or_default().insert(h.finish());
+            shape_patterns.entry(shape_id).or_default()
+                .entry(h.finish())
+                .and_modify(|cur| { if trip_id.as_str() < *cur { *cur = trip_id.as_str(); } })
+                .or_insert(trip_id.as_str());
         }
         for (shape_id, patterns) in &shape_patterns {
             let n = patterns.len();
             if n >= 2 {
-                notices.push(k6_notice(
+                let mut notice = k6_notice(
                     ctr, "SHP_027", EntityType::Shape,
                     Some((*shape_id).to_string()), Some((*shape_id).to_string()),
                     "trips.txt", None, None,
                     Some(n.to_string()), Some("1".to_string()),
                     format!("'{shape_id}' shape'i {n} farklı durak dizisine (pattern) atanmış — bir shape tek güzergaha karşılık gelmeli; olası yanlış shape ataması."),
                     "Her farklı durak desenine ayrı shape_id atayın.",
-                ));
+                );
+                // Haritada her deseni ayrı renkte çizmek için temsili trip_id'ler (UI fix.ts SHP_027).
+                // İlk 12 desenle sınırlı (palet boyutu + payload); observed_value (n) tam sayıyı korur.
+                let mut rep_trips: Vec<&str> = patterns.values().copied().collect();
+                rep_trips.sort_unstable();
+                rep_trips.truncate(12);
+                let mut d = std::collections::HashMap::new();
+                d.insert("pattern_trips".to_string(), rep_trips.join(","));
+                notice.details = Some(d);
+                notices.push(notice);
             }
         }
     }
@@ -2084,12 +2100,14 @@ fn check_geo_analytics(
             let count = stops.len() as u32;
             let trip_id = trip_id.as_str();
             if count > 200 && trip_ids_set.contains(trip_id) {
+                let dep_suffix = stops.first().and_then(|s| s.departure_time)
+                    .map(|(h, m, _)| format!(" {h:02}:{m:02} kalkışlı")).unwrap_or_default();
                 notices.push(k6_notice(
                     ctr, "STM_043", EntityType::Trip,
                     Some((*trip_id).to_string()), Some((*trip_id).to_string()),
                     "stop_times.txt", None, None,
                     Some(count.to_string()), Some("≤200".to_string()),
-                    format!("'{trip_id}' seferinde {count} durak var — olası veri birleştirme hatası."),
+                    format!("'{trip_id}'{dep_suffix} seferinde {count} durak var — olası veri birleştirme hatası."),
                     "Bu sefer için stop_times.txt'i gözden geçirin; seferler mantıksal segmentlere ayrılabilir.",
                 ));
             }
@@ -2488,6 +2506,9 @@ fn check_stoptimes_derived(
 ) {
     // STM_015 / STM_016: ilk/son durağın zorunlu zaman alanları
     for (&trip_id, stimes) in &idx.by_trip {
+        // trip_id zenginleştirme: ilk kalkış saati eki (" 08:15 kalkışlı"); bilinmiyorsa boş.
+        let dep_suffix = stimes.first().and_then(|s| s.departure_time)
+            .map(|(h, m, _)| format!(" {h:02}:{m:02} kalkışlı")).unwrap_or_default();
         if stimes.first().and_then(|s| s.departure_time).is_none() {
             notices.push(k6_notice(
                 ctr, "STM_015", EntityType::Trip,
@@ -2504,7 +2525,7 @@ fn check_stoptimes_derived(
                 Some(trip_id.to_string()), Some(trip_id.to_string()),
                 "stop_times.txt", stimes.last().map(|s| s.line),
                 Some("arrival_time"), None, Some("HH:MM:SS".to_string()),
-                format!("trip_id '{trip_id}' seferinin son durağında arrival_time eksik."),
+                format!("trip_id '{trip_id}'{dep_suffix} seferinin son durağında arrival_time eksik."),
                 "Son stop_times satırına arrival_time girin.",
             ));
         }
@@ -2512,6 +2533,8 @@ fn check_stoptimes_derived(
 
     // STM_027: shape_dist_traveled monoton artmıyor
     for (&trip_id, stimes) in &idx.by_trip {
+        let dep_suffix = stimes.first().and_then(|s| s.departure_time)
+            .map(|(h, m, _)| format!(" {h:02}:{m:02} kalkışlı")).unwrap_or_default();
 
         // STM_027
         let mut prev_dist: Option<f64> = None;
@@ -2530,7 +2553,7 @@ fn check_stoptimes_derived(
                         Some("shape_dist_traveled"),
                         Some(format!("{dist:.4}")),
                         Some(format!("≥ {prev:.4} (önceki değer)")),
-                        format!("'{trip_id}' seferinde güzergah mesafesi (shape_dist_traveled) azalıyor: {prev:.4} → {dist:.4}."),
+                        format!("'{trip_id}'{dep_suffix} seferinde güzergah mesafesi (shape_dist_traveled) azalıyor: {prev:.4} → {dist:.4}."),
                         "shape_dist_traveled değerlerini dizi boyunca sıralı olarak düzeltin.",
                     ));
                     break; // trip başına bir kez
@@ -2561,7 +2584,7 @@ fn check_stoptimes_derived(
                     Some("arrival_time|departure_time"),
                     None,
                     None,
-                    format!("'{trip_id}' seferinde bazı ara duraklarda zaman bilgisi eksik — tutarsız zaman dizisi."),
+                    format!("'{trip_id}'{dep_suffix} seferinde bazı ara duraklarda zaman bilgisi eksik — tutarsız zaman dizisi."),
                     "Tüm duraklara arrival/departure_time ekleyin ya da yalnızca ilk/son durak için gerektiğinde boş bırakın.",
                 ));
             }
@@ -3515,6 +3538,31 @@ fn check_remaining_analytics(
             .collect();
         (dirs, shape_to_route)
     };
+    // shape_id → o shape'i kullanan TÜM hatların etiketleri (sıralı, tekil).
+    // SHP_009/014/020/023 mesaj öneki için; route_short_name yoksa route_id'ye düşer.
+    let shape_route_labels: FxHashMap<&str, Vec<&str>> = {
+        let mut m: FxHashMap<&str, FxHashSet<&str>> = FxHashMap::default();
+        for t in &records.trips {
+            if t.route_id.is_empty() { continue; }
+            if let Some(shape) = t.shape_id.as_deref().filter(|s| !s.is_empty()) {
+                let label = route_short.get(t.route_id.as_str()).copied().unwrap_or(t.route_id.as_str());
+                m.entry(shape).or_default().insert(label);
+            }
+        }
+        m.into_iter()
+            .map(|(shape, set)| {
+                let mut labels: Vec<&str> = set.into_iter().collect();
+                labels.sort_unstable();
+                (shape, labels)
+            })
+            .collect()
+    };
+    // "[12, 14] kodlu hatlara ait " öneki (SHP_009/014/020/023). Boş slice → boş önek (orphan shape).
+    let shp_route_prefix = |labels: &[&str]| -> String {
+        if labels.is_empty() { return String::new(); }
+        let hat = if labels.len() == 1 { "hatta" } else { "hatlara" };
+        format!("[{}] kodlu {hat} ait ", labels.join(", "))
+    };
     drop(_tb);
 
     // ── SHP_011: ardışık shape noktaları arası büyük atlama ───────────────────
@@ -3579,12 +3627,13 @@ fn check_remaining_analytics(
                         if (la - lb).abs() < EPS && (loa - lob).abs() < EPS {
                             // SHP_023: aynı dist + aynı koordinat (tekrar eden nokta)
                             shp023_fired.insert(shape_id);
+                            let prefix = shp_route_prefix(shape_route_labels.get(*shape_id).map(|v| v.as_slice()).unwrap_or(&[]));
                             notices.push(k6_notice(
                                 ctr, "SHP_023", EntityType::Shape,
                                 Some(shape_id.to_string()), Some(shape_id.to_string()),
                                 "shapes.txt", None, Some("shape_dist_traveled"),
                                 Some(format!("dist={da_v:.4}, ({la:.6},{loa:.6})")), None,
-                                format!("'{shape_id}' şeklinde art arda iki noktanın shape_dist_traveled ({da_v:.4}) ve koordinatları aynı — tekrar eden nokta."),
+                                format!("{prefix}'{shape_id}' şeklinde art arda iki noktanın shape_dist_traveled ({da_v:.4}) ve koordinatları aynı — tekrar eden nokta."),
                                 "Yinelenen shape noktasını kaldırın.",
                             ));
                             break;
@@ -4088,6 +4137,13 @@ fn check_remaining_analytics(
     // ── OPR_013: tek yönlü rota bilgisi (tüm seferler aynı direction_id) ──────
     {
         let _topr13 = Timer::start("K6::rem::opr_013");
+        // route_id → gösterim etiketi (route_short_name varsa o, yoksa route_id)
+        let route_short_opr13: HashMap<&str, &str> = records.routes.iter()
+            .map(|r| {
+                let label = r.route_short_name.as_deref().filter(|s| !s.is_empty()).unwrap_or(r.route_id.as_str());
+                (r.route_id.as_str(), label)
+            })
+            .collect();
         let mut route_directions: HashMap<&str, HashSet<u32>> = HashMap::new();
         for t in &records.trips {
             if t.route_id.is_empty() {
@@ -4103,6 +4159,7 @@ fn check_remaining_analytics(
         for (route_id, dirs) in &route_directions {
             if dirs.len() == 1 {
                 let dir = dirs.iter().next().copied().unwrap_or(0);
+                let label = route_short_opr13.get(route_id).copied().unwrap_or(route_id);
                 notices.push(k6_notice(
                     ctr,
                     "OPR_013",
@@ -4114,7 +4171,7 @@ fn check_remaining_analytics(
                     Some("direction_id"),
                     Some(format!("direction_id={dir}")),
                     None,
-                    format!("'{route_id}' hattında yalnızca {} yönlü seferler var — karşı yön tanımlı değil.",
+                    format!("'{label}' kodlu hatta yalnızca {} yönlü seferler var — karşı yön tanımlı değil.",
                         if dir == 0 { "gidiş" } else { "dönüş" }),
                     "Bu bilgi notu; tek yönlü hatlar için beklenen bir durumdur.",
                 ));
@@ -4289,7 +4346,7 @@ fn check_remaining_analytics(
                 Some("direction_id"),
                 Some(count.to_string()),
                 None,
-                format!("'{route_id}' hattının {count} seferinde yön bilgisi (direction_id) girilmemiş — hat çift yönlü."),
+                format!("'{}' kodlu hattın {count} seferinde yön bilgisi (direction_id) girilmemiş — hat çift yönlü.", route_short.get(route_id).copied().unwrap_or(route_id)),
                 "Bu seferlerin direction_id alanını 0 veya 1 olarak doldurun.",
             ));
         }
@@ -4651,6 +4708,7 @@ fn check_remaining_analytics(
             if !min_km.is_finite() || *min_km <= threshold_km { continue; }
             let dist_m = *min_km * 1000.0;
             let sname = stop_names.get(stop_id.as_str()).copied().unwrap_or(stop_id.as_str());
+            let prefix = shp_route_prefix(shape_route_labels.get(shape_id).map(|v| v.as_slice()).unwrap_or(&[]));
             let mut n = k6_notice(
                 ctr, "SHP_014", EntityType::Shape,
                 Some(shape_id.to_string()), Some(shape_id.to_string()),
@@ -4658,7 +4716,7 @@ fn check_remaining_analytics(
                 Some(format!("{dist_m:.0}m")),
                 Some(format!("≤ {:.0}m", config.stop_far_from_shape_m)),
                 format!(
-                    "'{}' güzergah şeklinin başlangıç noktası, en yakın seferin ilk durağı '{}' (kod: '{}') konumundan {dist_m:.0}m uzakta.",
+                    "{prefix}'{}' güzergah şeklinin başlangıç noktası, en yakın seferin ilk durağı '{}' (kod: '{}') konumundan {dist_m:.0}m uzakta.",
                     shape_id, sname, stop_id
                 ),
                 "shape_dist_traveled veya güzergah şeklinin başlangıç noktasını ilk durağa hizalayın.",
@@ -4678,6 +4736,7 @@ fn check_remaining_analytics(
             if !min_km.is_finite() || *min_km <= threshold_km { continue; }
             let dist_m = *min_km * 1000.0;
             let sname = stop_names.get(stop_id.as_str()).copied().unwrap_or(stop_id.as_str());
+            let prefix = shp_route_prefix(shape_route_labels.get(shape_id).map(|v| v.as_slice()).unwrap_or(&[]));
             let mut n = k6_notice(
                 ctr, "SHP_014", EntityType::Shape,
                 Some(shape_id.to_string()), Some(shape_id.to_string()),
@@ -4685,7 +4744,7 @@ fn check_remaining_analytics(
                 Some(format!("{dist_m:.0}m")),
                 Some(format!("≤ {:.0}m", config.stop_far_from_shape_m)),
                 format!(
-                    "'{}' güzergah şeklinin bitiş noktası, en yakın seferin son durağı '{}' (kod: '{}') konumundan {dist_m:.0}m uzakta.",
+                    "{prefix}'{}' güzergah şeklinin bitiş noktası, en yakın seferin son durağı '{}' (kod: '{}') konumundan {dist_m:.0}m uzakta.",
                     shape_id, sname, stop_id
                 ),
                 "shape_dist_traveled veya güzergah şeklinin bitiş noktasını son durağa hizalayın.",
@@ -5164,7 +5223,7 @@ fn check_remaining_analytics(
                     Some(route_id.to_string()), Some(route_id.to_string()),
                     "trips.txt", None, Some("wheelchair_accessible"),
                     None, None,
-                    format!("'{route_id}' hattında bazı seferler tekerlekli sandalye erişimli (1), bazıları erişimsiz (2) olarak işaretlenmiş."),
+                    format!("'{}' kodlu hatta bazı seferler tekerlekli sandalye erişimli (1), bazıları erişimsiz (2) olarak işaretlenmiş.", route_short.get(*route_id).copied().unwrap_or(*route_id)),
                     "Aynı hattaki tüm seferlerin erişilebilirlik bilgisini tutarlı hâle getirin.",
                 ));
             }
@@ -5176,7 +5235,7 @@ fn check_remaining_analytics(
                     Some(route_id.to_string()), Some(route_id.to_string()),
                     "trips.txt", None, Some("bikes_allowed"),
                     None, None,
-                    format!("'{route_id}' hattında bazı seferler bisiklete izin veriyor (1), bazıları vermiyor (2)."),
+                    format!("'{}' kodlu hatta bazı seferler bisiklete izin veriyor (1), bazıları vermiyor (2).", route_short.get(*route_id).copied().unwrap_or(*route_id)),
                     "Aynı hattaki tüm seferlerin bisiklet politikasını tutarlı hâle getirin.",
                 ));
             }
@@ -5293,6 +5352,7 @@ fn check_remaining_analytics(
                     let dlat = (pts[i].0 - pts[j].0).abs();
                     let dlon = (pts[i].1 - pts[j].1).abs();
                     if dlat < DUP_THRESHOLD_DEG && dlon < DUP_THRESHOLD_DEG {
+                        let prefix = shp_route_prefix(shape_route_labels.get(*shape_id).map(|v| v.as_slice()).unwrap_or(&[]));
                         notices.push(k6_notice(
                             ctr, "SHP_020", EntityType::Shape,
                             Some(shape_id.to_string()), Some(shape_id.to_string()),
@@ -5300,7 +5360,7 @@ fn check_remaining_analytics(
                             Some(format!("{i}/{j}: ({:.6},{:.6})", pts[i].0, pts[i].1)),
                             None,
                             format!(
-                                "'{shape_id}' güzergahında nokta {i} ile {j} neredeyse aynı konumda ({:.6},{:.6}) — tekrarlayan nokta.",
+                                "{prefix}'{shape_id}' güzergahında nokta {i} ile {j} neredeyse aynı konumda ({:.6},{:.6}) — tekrarlayan nokta.",
                                 pts[i].0, pts[i].1
                             ),
                             "Güzergah şeklindeki tekrarlayan noktaları temizleyin.",
@@ -5326,13 +5386,14 @@ fn check_remaining_analytics(
                 for j in i + 2..n.saturating_sub(1) {
                     if i == 0 && j == n - 2 { continue; } // bitişik uçlar
                     if segments_cross(pts[i], pts[i+1], pts[j], pts[j+1]) {
+                        let prefix = shp_route_prefix(shape_route_labels.get(*shape_id).map(|v| v.as_slice()).unwrap_or(&[]));
                         notices.push(k6_notice(
                             ctr, "SHP_009", EntityType::Shape,
                             Some(shape_id.to_string()), Some(shape_id.to_string()),
                             "shapes.txt", None, Some("shape_pt_lat|shape_pt_lon"),
                             Some(format!("segment {i}-{} ∩ {j}-{}", i+1, j+1)), None,
                             format!(
-                                "'{shape_id}' güzergah şekli segment {i}→{} ile segment {j}→{} arasında kendisiyle kesişiyor.",
+                                "{prefix}'{shape_id}' güzergah şekli segment {i}→{} ile segment {j}→{} arasında kendisiyle kesişiyor.",
                                 i+1, j+1
                             ),
                             "Güzergah şeklindeki kesişen segmentleri düzeltin.",
@@ -5931,6 +5992,9 @@ fn check_calendar_override_analytics(
     // ── OPR_004: hatta hafta sonu sefer yok ──────────────────────────────────
     if !derived.calendar_bitmap.active_dates.is_empty() {
         let _t04 = Timer::start("K6::rem::opr_004");
+        let route_short_o4: FxHashMap<&str, &str> = records.routes.iter()
+            .map(|r| (r.route_id.as_str(), r.route_short_name.as_deref().filter(|s| !s.is_empty()).unwrap_or(r.route_id.as_str())))
+            .collect();
         let mut route_services: FxHashMap<&str, FxHashSet<&str>> = FxHashMap::default();
         for t in &records.trips {
             if !t.route_id.is_empty() && !t.service_id.is_empty() {
@@ -5950,7 +6014,7 @@ fn check_calendar_override_analytics(
                     ctr, "OPR_004", EntityType::Route,
                     Some(route_id.to_string()), Some(route_id.to_string()),
                     "trips.txt", None, None, None, None,
-                    format!("'{route_id}' hattının aktif servislerinde hafta sonu (Cumartesi/Pazar) günü yok."),
+                    format!("'{}' kodlu hattın aktif servislerinde hafta sonu (Cumartesi/Pazar) günü yok.", route_short_o4.get(*route_id).copied().unwrap_or(*route_id)),
                     "Bu bilgi notudur; aksiyon gerekmez.",
                 ));
             }
@@ -6014,6 +6078,9 @@ fn check_calendar_override_analytics(
         let rt_map: FxHashMap<&str, u32> = records.routes.iter()
             .filter_map(|r| r.route_type.map(|rt| (r.route_id.as_str(), rt)))
             .collect();
+        let route_short_o15: FxHashMap<&str, &str> = records.routes.iter()
+            .map(|r| (r.route_id.as_str(), r.route_short_name.as_deref().filter(|s| !s.is_empty()).unwrap_or(r.route_id.as_str())))
+            .collect();
         for (route_id, shapes) in &route_shape_set {
             // Tram(0), Metro(1), Demiryolu(2), Kablo tramvay(5), Monoray(12):
             // tek yönlü ray hattı; tek shape beklenen davranış
@@ -6030,7 +6097,7 @@ fn check_calendar_override_analytics(
                     Some(route_id.to_string()), Some(route_id.to_string()),
                     "trips.txt", None, Some("shape_id"),
                     Some(format!("1 shape ({shape_id})")), None,
-                    format!("'{route_id}' hattının tüm seferleri tek bir güzergah şekli kullanıyor ({shape_id})."),
+                    format!("'{}' kodlu hattın tüm seferleri tek bir güzergah şekli kullanıyor ({shape_id}).", route_short_o15.get(*route_id).copied().unwrap_or(*route_id)),
                     "Bu bilgi notu; gidiş-dönüş için ayrı shape_id kullanılması önerilir.",
                 );
                 let mut d = std::collections::HashMap::new();
@@ -6455,7 +6522,7 @@ fn check_vat_analytics(
 
     // ── VAT_003: Sefer süresi istatistiksel aykırı değer (MAD yöntemi) ───────
     {
-        let mut route_durs: FxHashMap<&str, Vec<(&str, u32)>> = FxHashMap::default();
+        let mut route_durs: FxHashMap<&str, Vec<(&str, u32, u32)>> = FxHashMap::default();
         for (&trip_id, stops) in &idx.by_trip {
             if stops.len() < 2 { continue; }
             let route = match trip_route.get(trip_id) { Some(&r) => r, None => continue };
@@ -6463,15 +6530,15 @@ fn check_vat_analytics(
             let last_arr  = stops.last().and_then(|s| s.arrival_time).map(hms_to_secs);
             if let (Some(dep), Some(arr)) = (first_dep, last_arr) {
                 if arr > dep {
-                    route_durs.entry(route).or_default().push((trip_id, arr - dep));
+                    route_durs.entry(route).or_default().push((trip_id, arr - dep, dep));
                 }
             }
         }
 
         for (route, mut durs) in route_durs {
             if durs.len() < 5 { continue; }
-            durs.sort_by_key(|&(_, d)| d);
-            let vals: Vec<u32> = durs.iter().map(|&(_, d)| d).collect();
+            durs.sort_by_key(|&(_, d, _)| d);
+            let vals: Vec<u32> = durs.iter().map(|&(_, d, _)| d).collect();
             let median = vals[vals.len() / 2] as f64;
             if median < 120.0 { continue; }
             let mut abs_devs: Vec<f64> = vals.iter()
@@ -6482,7 +6549,7 @@ fn check_vat_analytics(
             // MAD = 0 (tüm süreler aynı): ratio bazlı fallback — median'ın 3× üstü veya 0.25× altı
             let use_ratio_fallback = mad < 30.0;
             let threshold = if use_ratio_fallback { 0.0 } else { config.duration_outlier_sigma * mad };
-            for &(trip_id, dur) in &durs {
+            for &(trip_id, dur, dep_secs) in &durs {
                 let is_outlier = if use_ratio_fallback {
                     let r = dur as f64 / median;
                     r > 3.0 || r < 0.25
@@ -6491,6 +6558,7 @@ fn check_vat_analytics(
                 };
                 if is_outlier {
                     let label = route_label.get(route).copied().unwrap_or(route);
+                    let dep_suffix = format!(" {:02}:{:02} kalkışlı", dep_secs / 3600, (dep_secs % 3600) / 60);
                     let dur_min = dur / 60;
                     let med_min = (median as u32) / 60;
                     // Yönlü sapma: + = medyandan uzun, − = medyandan kısa.
@@ -6514,7 +6582,7 @@ fn check_vat_analytics(
                         Some("trip_id"),
                         Some(format!("{dur_min}dk (medyan {med_min}dk)")),
                         None,
-                        format!("'{label}' hattının '{trip_id}' seferinin süresi {dur_min}dk — hat medyanı {med_min}dk ({sigma_str})."),
+                        format!("'{label}' hattının '{trip_id}'{dep_suffix} seferinin süresi {dur_min}dk — hat medyanı {med_min}dk ({sigma_str})."),
                         "stop_times.txt zaman değerlerini ve sefer güzergahını doğrulayın.",
                     ));
                 }
@@ -6764,6 +6832,9 @@ fn check_vat_analytics(
     // Eşik route-toplam değil service-başına uygulanır: haftaya yayılan normal sefer sayısı
     // (7 gün × günlük sefer) yanlış-pozitif vermez; gerçek "veri birleştirme" tek takvimde patlar.
     {
+        let route_short_o24: HashMap<&str, &str> = records.routes.iter()
+            .map(|r| (r.route_id.as_str(), r.route_short_name.as_deref().filter(|s| !s.is_empty()).unwrap_or(r.route_id.as_str())))
+            .collect();
         let mut rs_trip_counts: HashMap<(&str, &str), u32> = HashMap::new();
         for t in &records.trips {
             if !t.route_id.is_empty() {
@@ -6777,7 +6848,7 @@ fn check_vat_analytics(
                     Some((*route_id).to_string()), Some((*route_id).to_string()),
                     "trips.txt", None, None,
                     Some(count.to_string()), Some(format!("≤{}", config.max_trips_per_route)),
-                    format!("'{route_id}' hattı '{service_id}' çalışma takviminde {count} sefer içeriyor — veri birleştirme sorunu olabilir."),
+                    format!("'{}' kodlu hat '{service_id}' çalışma takviminde {count} sefer içeriyor — veri birleştirme sorunu olabilir.", route_short_o24.get(*route_id).copied().unwrap_or(*route_id)),
                     "Bu seferlerin doğru route_id ve service_id'ye atandığını kontrol edin.",
                 );
                 n.service_id = Some((*service_id).to_string());

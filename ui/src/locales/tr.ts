@@ -229,6 +229,7 @@ const tr = {
     'fix.map.shape'         : 'şekil',
     // Map legend labels
     'fix.map.route_shape'          : 'Güzergah şekli',
+    'fix.map.pattern'              : 'Desen',
     'fix.map.route_shape_rev'      : 'Güzergah şekli (ters)',
     'fix.map.route_shape_named'    : 'Güzergah şekli — {name}',
     'fix.map.route_shapes_named'   : 'Güzergah şekilleri — {name}',
