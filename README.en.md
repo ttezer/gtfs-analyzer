@@ -39,7 +39,7 @@ GTFS Analyzer extends specification validation with operational quality analysis
 | Feed score | ❌ | ❌ | ✅ |
 | Remediation guidance | Partial | ❌ | ✅ |
 | GTFS Flex support | Partial | ❌ | ✅ |
-| Fares v2 validation | ❌ | ❌ | ✅ |
+| Fares v2 validation | Partial | ❌ | ✅ |
 | GTFS-JP profile validation | ❌ | ❌ | ✅ |
 | Output formats | HTML, JSON | HTML, JSON | HTML, CSV, JSON, PDF |
 | Platform | Web | Web, CLI, Desktop | Web *(CLI, Desktop planned)* |
@@ -81,7 +81,9 @@ Feed: `trimet.zip` — version downloaded on 2026-06-04 (validity range: 2026-04
 | Publish score | — | — | **80.6 / 100** |
 | Quality score | — | — | **73.9 / 100** |
 
-> ⚠️ **Fares v2:** All 36 critical findings for TriMet come from GTFS Fares v2 files — 29× duplicate `fare_product_id` (`fare_products.txt`) and 7× a `network_id` in `fare_leg_rules.txt` that is not defined in `networks.txt`. Because MobilityData and GTFS Guru do not validate these files, they report the same broken references as 0 critical; GTFS Analyzer alone checks Fares v2 integrity.
+> ⚠️ **Fares v2:** GTFS Analyzer reports Fares v2 referential-integrity problems as critical — for example, a `network_id` in `fare_leg_rules.txt` not defined in `networks.txt` (detailed coverage via the FAR/FPD/FLG/FTR/RCT/FMD groups). MobilityData also validates Fares v2 (schema + referential integrity + fare_transfer/products/media/timeframes rules), though coverage and severity classification differ.
+>
+> ℹ️ The critical count in the table above predates a **2026-06-18 fix** of a false positive related to the `fare_products` composite primary key (fare_product_id + rider_category_id + fare_media_id) and does not reflect the current code; it will be updated when the comparison is re-run.
 
 #### Tokyo Toei (Tokyo Metropolitan Bureau of Transportation)
 

@@ -528,23 +528,34 @@ fn build_fares_v2(
         }
     }
 
-    // FPD_001: fare_product_id tekil
+    // FPD_001: fare_products PK = (fare_product_id, rider_category_id, fare_media_id) BİLEŞİK.
+    // Aynı fare_product_id farklı rider_category_id/fare_media_id ile MEŞRU tekrar eder (GTFS spec:
+    // "Multiple records sharing the same fare_product_id are permitted as long as they contain
+    // different fare_media_ids or rider_category_ids"). Yalnız TAM bileşik anahtar tekrarı hatadır.
+    // FK varlık haritası (map.fare_product_ids) AYRI: id→ilk idx; FLG_001/FTR_004 "bulunamadı"
+    // lookup'ı id bazında olduğundan id ile tutulur (bozulmaz).
+    let mut seen_pk: HashMap<(&str, &str, &str), u64> = HashMap::new();
     for (idx, rec) in records.fare_products.iter().enumerate() {
         if rec.fare_product_id.is_empty() {
             continue;
         }
-        if let Some(&prev_idx) = map.fare_product_ids.get(rec.fare_product_id.as_str()) {
-            let prev_line = records.fare_products[prev_idx].line;
+        map.fare_product_ids.entry(rec.fare_product_id.clone()).or_insert(idx);
+        let pk = (
+            rec.fare_product_id.as_str(),
+            rec.rider_category_id.as_deref().unwrap_or(""),
+            rec.fare_media_id.as_deref().unwrap_or(""),
+        );
+        if let Some(&prev_line) = seen_pk.get(&pk) {
             notices.push(make_notice(
                 ctr, "FPD_001", EntityType::Row,
                 Some(rec.fare_product_id.clone()), Some(rec.fare_product_id.clone()),
                 "fare_products.txt", rec.line, "fare_product_id",
                 Some(rec.fare_product_id.clone()),
-                format!("'{}' ücret ürünü tekrarlanıyor (ilk görünüm: satır {prev_line}).", rec.fare_product_id),
-                "Her ücret ürününe benzersiz bir fare_product_id atayın.",
+                format!("'{}' ücret ürünü aynı (rider_category_id, fare_media_id) kombinasyonuyla tekrarlanıyor (ilk görünüm: satır {prev_line}).", rec.fare_product_id),
+                "Her (fare_product_id, rider_category_id, fare_media_id) kombinasyonu benzersiz olmalıdır.",
             ));
         } else {
-            map.fare_product_ids.insert(rec.fare_product_id.clone(), idx);
+            seen_pk.insert(pk, rec.line);
         }
     }
 
@@ -621,6 +632,42 @@ mod tests {
         assert!(result.notices.iter().any(|n| n.rule_id == "AGN_010"));
         // Canonical: ilk kayıt indekste olmalı
         assert_eq!(*result.entity_map.agencies.get("A1").unwrap(), 0);
+    }
+
+    #[test]
+    fn fare_product_composite_key_not_flagged_fpd_001() {
+        use crate::k2::fare_products::FareProductRecord;
+        let mk = |id: &str, rc: Option<&str>, fm: Option<&str>, line: u64| FareProductRecord {
+            fare_product_id: id.into(),
+            fare_product_name: None,
+            rider_category_id: rc.map(|s| s.into()),
+            fare_media_id: fm.map(|s| s.into()),
+            amount: Some(2.0),
+            currency: "USD".into(),
+            row: Default::default(),
+            line,
+        };
+        // Aynı fare_product_id, FARKLI rider_category → bileşik PK farklı → MEŞRU, FPD_001 YOK.
+        let mut records = empty_records();
+        records.fare_products = vec![
+            mk("P1", Some("adult"), None, 2),
+            mk("P1", Some("child"), None, 3),
+        ];
+        let r = build(&records);
+        assert!(!r.notices.iter().any(|n| n.rule_id == "FPD_001"),
+            "aynı id farklı rider_category → FPD_001 olmamalı (bileşik PK)");
+        assert!(r.entity_map.fare_product_ids.contains_key("P1"),
+            "FK varlık haritası id'yi içermeli (FLG/FTR lookup)");
+
+        // TAM bileşik anahtar tekrarı (id+rider+media aynı) → FPD_001.
+        let mut records2 = empty_records();
+        records2.fare_products = vec![
+            mk("P1", Some("adult"), Some("card"), 2),
+            mk("P1", Some("adult"), Some("card"), 3),
+        ];
+        let r2 = build(&records2);
+        assert!(r2.notices.iter().any(|n| n.rule_id == "FPD_001"),
+            "tam bileşik anahtar tekrarı → FPD_001");
     }
 
     #[test]

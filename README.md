@@ -39,7 +39,7 @@ GTFS Analyzer, spesifikasyon doğrulamasını operasyonel kalite analiziyle geni
 | Feed skoru | ❌ | ❌ | ✅ |
 | Düzeltme önerisi | Kısmi | ❌ | ✅ |
 | GTFS Flex desteği | Kısmi | ❌ | ✅ |
-| Fares v2 doğrulama | ❌ | ❌ | ✅ |
+| Fares v2 doğrulama | Kısmi | ❌ | ✅ |
 | GTFS-JP profil doğrulama | ❌ | ❌ | ✅ |
 | Çıktı formatı | HTML, JSON | HTML, JSON | HTML, CSV, JSON, PDF |
 | Platform | Web | Web, CLI, Desktop | Web *(CLI, Desktop planlanmış)* |
@@ -81,7 +81,9 @@ Feed: `trimet.zip` — 2026-06-04'te indirilen sürüm (geçerlilik aralığı: 
 | Yayın skoru | — | — | **80,6 / 100** |
 | Kalite skoru | — | — | **73,9 / 100** |
 
-> ⚠️ **Fares v2:** TriMet'teki 36 kritik bulgunun tamamı GTFS Fares v2 dosyalarından gelir — 29× tekrarlanan `fare_product_id` (`fare_products.txt`) ve 7× `fare_leg_rules.txt` içinde `networks.txt`'te tanımsız `network_id`. MobilityData ve GTFS Guru bu dosyaları doğrulamadığı için aynı bozuk referansları 0 kritik olarak raporlar; tek başına GTFS Analyzer Fares v2 bütünlüğünü denetler.
+> ⚠️ **Fares v2:** GTFS Analyzer, `fare_leg_rules.txt` içinde `networks.txt`'te tanımsız `network_id` gibi Fares v2 referans bütünlüğü sorunlarını kritik olarak raporlar (FAR/FPD/FLG/FTR/RCT/FMD grupları ile ayrıntılı kapsam). MobilityData da Fares v2'yi doğrular (şema + referans bütünlüğü + fare_transfer/products/media/timeframes kuralları), ancak kapsam ve önem sınıflandırması farklılık gösterir.
+>
+> ℹ️ Yukarıdaki tablodaki kritik sayısı, `fare_products` bileşik birincil anahtarına (fare_product_id + rider_category_id + fare_media_id) ilişkin bir yanlış-pozitifin **2026-06-18'de düzeltilmesinden öncedir** ve güncel kodu yansıtmaz; karşılaştırma yeniden çalıştırılınca güncellenecektir.
 
 #### Tokyo Toei (Tokyo Metropolitan Bureau of Transportation)
 

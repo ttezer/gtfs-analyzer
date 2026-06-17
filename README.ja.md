@@ -39,7 +39,7 @@ GTFS Analyzer は、仕様検証を運用品質分析へと拡張します。路
 | フィードスコア | ❌ | ❌ | ✅ |
 | 修正ガイダンス | 一部 | ❌ | ✅ |
 | GTFS Flex サポート | 一部 | ❌ | ✅ |
-| Fares v2 検証 | ❌ | ❌ | ✅ |
+| Fares v2 検証 | 部分的 | ❌ | ✅ |
 | GTFS-JP プロファイル検証 | ❌ | ❌ | ✅ |
 | 出力形式 | HTML, JSON | HTML, JSON | HTML, CSV, JSON, PDF |
 | プラットフォーム | Web | Web, CLI, デスクトップ | Web *（CLI・デスクトップは計画中）* |
@@ -81,7 +81,9 @@ GTFS Analyzer は、仕様検証を運用品質分析へと拡張します。路
 | 公開スコア | — | — | **80.6 / 100** |
 | 品質スコア | — | — | **73.9 / 100** |
 
-> ⚠️ **Fares v2：** TriMet の 36 件の重大検出はすべて GTFS Fares v2 ファイルに起因します — `fare_products.txt` の重複した `fare_product_id` 29 件、および `networks.txt` で定義されていない `fare_leg_rules.txt` 内の `network_id` 7 件です。MobilityData と GTFS Guru はこれらのファイルを検証しないため、同じ壊れた参照を重大 0 件として報告します。GTFS Analyzer のみが Fares v2 の整合性をチェックします。
+> ⚠️ **Fares v2：** GTFS Analyzer は Fares v2 の参照整合性の問題を重大として報告します — 例：`networks.txt` で定義されていない `fare_leg_rules.txt` 内の `network_id`（FAR/FPD/FLG/FTR/RCT/FMD グループによる詳細なカバレッジ）。MobilityData も Fares v2 を検証します（スキーマ＋参照整合性＋fare_transfer/products/media/timeframes ルール）が、カバレッジと重大度分類は異なります。
+>
+> ℹ️ 上記の表の重大件数は、`fare_products` の複合主キー（fare_product_id + rider_category_id + fare_media_id）に関する誤検出を **2026-06-18 に修正する前**のものであり、現在のコードを反映していません。比較の再実行時に更新されます。
 
 #### Tokyo Toei（東京都交通局）
 

@@ -733,7 +733,7 @@ const en: LocaleShape = {
     'FMD_002': "Fare media '{entity_id}': fare_media_type is missing or invalid.",
     'FMD_003': "Fare media '{entity_id}': fare_media_name is recommended for TransitCard/MobileApp.",
     // FPD
-    'FPD_001': "Duplicate fare_product_id: '{entity_id}'.",
+    'FPD_001': "Duplicate fare_products row for '{entity_id}' — same fare_product_id, rider_category_id and fare_media_id.",
     'FPD_002': "Fare product '{entity_id}': amount is missing or negative.",
     'FPD_003': "Fare product '{entity_id}': currency '{observed_value}' is not a valid ISO 4217 code.",
     'FPD_004': "Fare product '{entity_id}': fare_media_id '{observed_value}' not found.",
@@ -1502,7 +1502,7 @@ const en: LocaleShape = {
     // FMD
     'FMD_001': 'Assign a unique fare_media_id to each fare media record.',
     // FPD
-    'FPD_001': 'Assign a unique fare_product_id to each fare product record.',
+    'FPD_001': 'Each (fare_product_id, rider_category_id, fare_media_id) combination must be unique; the same fare_product_id may repeat with a different rider category or media.',
     // FRL
     'FRL_007': 'Review fare rule logic; ensure the zone combination is consistent and non-contradictory.',
     'FRL_008': 'Add fare rules covering all routes or define a catch-all fare.',

@@ -714,7 +714,7 @@ const ja: LocaleShape = {
     'FMD_002': "運賃メディア'{entity_id}'：fare_media_typeがないか無効です。",
     'FMD_003': "運賃メディア'{entity_id}'：TransitCard/MobileAppにはfare_media_nameを推奨します。",
     // FPD
-    'FPD_001': "fare_product_idが重複しています：'{entity_id}'。",
+    'FPD_001': "fare_productsの行が重複しています：'{entity_id}' — fare_product_id・rider_category_id・fare_media_idがすべて同一です。",
     'FPD_002': "運賃商品'{entity_id}'：amountがないか負の値です。",
     'FPD_003': "運賃商品'{entity_id}'：通貨'{observed_value}'が有効なISO 4217コードではありません。",
     'FPD_004': "運賃商品'{entity_id}'：fare_media_id'{observed_value}'が見つかりません。",
@@ -1119,7 +1119,7 @@ const ja: LocaleShape = {
     'FMD_002': '0（なし）、1（物理カード）、2（モバイルアプリ）、3（EMVコンタクトレス）、4（事業者アプリ）のいずれかを使用してください。',
     'FMD_003': '乗客が支払方法を認識できるようにfare_media_nameを追加してください。',
     // FPD
-    'FPD_001': '各運賃商品レコードに一意のfare_product_idを割り当ててください。',
+    'FPD_001': '(fare_product_id, rider_category_id, fare_media_id) の組み合わせは一意である必要があります。同じfare_product_idは異なるrider_category/mediaで繰り返し可能です。',
     'FPD_002': 'amountをゼロまたは正の値に設定してください。',
     'FPD_003': '3文字の大文字ISO 4217通貨コード（例: JPY、EUR、USD）を使用してください。',
     'FPD_004': '有効なfare_media_idを使用してください。',
