@@ -236,6 +236,8 @@ jobs:
 
       - name: Rust toolchain kur
         uses: dtolnay/rust-toolchain@stable
+        with:
+          components: llvm-tools-preview
 
       - name: Cargo cache
         uses: actions/cache@v4
@@ -255,8 +257,10 @@ jobs:
 
       # wasm crate'i host'ta derlenemediği için hariç tutulur.
       # Gerçek baseline (ilk CI): %70.14. Eşik mevcut oranın altına (65) konumlandı; ratchet ile yükseltilir.
+      # --engine llvm: varsayılan ptrace motoru bazı testlerde segfault veriyordu (safe Rust kaynaklı
+      # değil; LLVM source-based coverage ptrace kullanmaz ve kararlıdır). llvm-tools-preview gerekir.
       - name: cargo tarpaulin (eşik altındaysa fail)
-        run: cargo tarpaulin --workspace --exclude gtfs-wasm --out Html --out Lcov --output-dir coverage --fail-under 65 --timeout 300
+        run: cargo tarpaulin --engine llvm --workspace --exclude gtfs-wasm --out Html --out Lcov --output-dir coverage --fail-under 65 --timeout 300
 
       - name: Rust coverage artefaktı
         if: always()
