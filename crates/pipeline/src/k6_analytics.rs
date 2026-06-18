@@ -1716,6 +1716,13 @@ fn check_geo_analytics(
                 if la_j - la_i > lat_band {
                     break;
                 }
+                // parent/child istisnası: çocuk durak, ait olduğu istasyonla aynı/çok
+                // yakın konumda olabilir — bu normal GTFS modellemesidir, FP üretmeyelim.
+                let pa = sa.row.get("parent_station").map(|s| s.trim()).filter(|s| !s.is_empty());
+                let pb = sb.row.get("parent_station").map(|s| s.trim()).filter(|s| !s.is_empty());
+                if pa == Some(sb.stop_id.as_str()) || pb == Some(sa.stop_id.as_str()) {
+                    continue;
+                }
                 let dist_km = haversine_km(la_i, lo_i, la_j, lo_j);
                 if dist_km == 0.0 {
                     notices.push(k6_notice(

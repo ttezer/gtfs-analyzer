@@ -301,6 +301,63 @@ fn stp_016_silent_for_stops_at_different_coordinates() {
     }
 }
 
+// ── Test 10b: STP_016 — parent/child aynı koordinat sessiz ───────────────────
+// Çocuk durak, ait olduğu istasyonla aynı koordinatta olabilir (normal GTFS).
+// STP_016 bu çifti FP olarak işaretlememeli.
+
+#[test]
+fn stp_016_silent_for_parent_child_at_identical_coordinates() {
+    const STOPS_PARENT_CHILD: &[u8] =
+        b"stop_id,stop_name,stop_lat,stop_lon,location_type,parent_station\n\
+          ST1,Station,41.0,29.0,1,\n\
+          ST1-01,Platform,41.0,29.0,0,ST1\n";
+
+    let mut files = base_files();
+    files[1] = ("stops.txt", STOPS_PARENT_CHILD);
+
+    match run(&files) {
+        ValidateResult::Ok(vr) => assert!(
+            !vr.notices.iter().any(|n| n.rule_id == "STP_016"),
+            "STP_016 üretilmemeli (çocuk durak parent istasyonla aynı koordinatta).",
+        ),
+        _ => panic!("ValidateResult::Ok beklendi"),
+    }
+}
+
+// ── Test 10c: TRN_010 — field_value modunda record_sub_id muaf ───────────────
+// stop_times çevirisi field_value ile eşleştirilirse record_id/record_sub_id boş
+// olmalıdır (spec). Bu modda TRN_010 ateşlenmemeli; record_id modunda ateşlenmeli.
+
+#[test]
+fn trn_010_silent_in_field_value_mode_but_fires_in_record_id_mode() {
+    const TR_FIELD_VALUE: &[u8] =
+        b"table_name,field_name,language,translation,record_id,record_sub_id,field_value\n\
+          stop_times,stop_headsign,ja,Hedef,,,Headsign\n";
+    const TR_RECORD_ID: &[u8] =
+        b"table_name,field_name,language,translation,record_id,record_sub_id,field_value\n\
+          stop_times,stop_headsign,ja,Hedef,T1,,\n";
+
+    let mut files = base_files();
+    files.push(("translations.txt", TR_FIELD_VALUE));
+    match run(&files) {
+        ValidateResult::Ok(vr) => assert!(
+            !vr.notices.iter().any(|n| n.rule_id == "TRN_010"),
+            "field_value modunda TRN_010 üretilmemeli.",
+        ),
+        _ => panic!("ValidateResult::Ok beklendi"),
+    }
+
+    let mut files = base_files();
+    files.push(("translations.txt", TR_RECORD_ID));
+    match run(&files) {
+        ValidateResult::Ok(vr) => assert!(
+            vr.notices.iter().any(|n| n.rule_id == "TRN_010"),
+            "record_id modunda record_sub_id yoksa TRN_010 ateşlenmeli.",
+        ),
+        _ => panic!("ValidateResult::Ok beklendi"),
+    }
+}
+
 // ── Test 11: PTH_012 + PTH_013 — erişilemeyen platform → uyarı ───────────────
 // İstasyon: STA → ENT (loc=2), MID (loc=3), PLT (loc=0).
 // Pathway: ENT↔MID — PLT hiçbir entrance'tan erişilemiyor → PTH_012.

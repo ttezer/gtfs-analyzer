@@ -140,7 +140,9 @@ pub fn validate_translations(
             ));
         }
 
-        if table_name == "stop_times" {
+        // record_sub_id yalnızca record_id ile eşleştirme modunda zorunludur.
+        // field_value modunda (record_id boş) record_sub_id yasaktır → FP üretme.
+        if table_name == "stop_times" && record_id.is_some() {
             if record_sub_id.is_none() {
                 notices.push(make_k2_notice(
                     &mut counter,
