@@ -438,7 +438,9 @@
     .exp-formats-title { font-size: 1.15rem; font-weight: 700; margin-bottom: .2rem; }
     .exp-formats-sub { font-size: .88rem; color: var(--color-muted); margin-bottom: 1rem; }
     .exp-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }
-    .exp-card { border: 1px solid var(--color-border); border-radius: calc(var(--radius) * 1.5); padding: 1.1rem; display: flex; flex-direction: column; background: var(--color-surface); }
+    .exp-card { border: 1px solid var(--color-border); border-radius: calc(var(--radius) * 1.5); padding: 1.1rem; display: flex; flex-direction: column; background: var(--color-surface); transition: border-color .15s, box-shadow .15s; }
+    .exp-card:hover { border-color: #2563eb; background: #2563eb0a; box-shadow: 0 2px 10px #2563eb22; }
+    .exp-card:hover .exp-card-btn.btn-secondary { border-color: #2563eb; color: #2563eb; }
     .exp-card-rec { border-color: #2563eb; box-shadow: 0 0 0 1px #2563eb33; }
     .exp-card-head { display: flex; align-items: center; gap: .6rem; margin-bottom: .75rem; }
     .exp-card-icon { width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; flex-shrink: 0; }
