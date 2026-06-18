@@ -39,6 +39,7 @@ const DEF_BUNCHING_THRESHOLD_MIN:   u32 =   2;
 const DEF_RAIL_STOP_DISTANCE_KM:    f64 = 500.0;
 const DEF_MAX_TRIPS_PER_ROUTE:      u32 = 500;
 const DEF_DURATION_OUTLIER_SIGMA:   f64 =   2.5;
+const DEF_HEADWAY_OUTLIER_SIGMA:    f64 =   2.5;
 const DEF_SERVICE_DAY_START_HOUR:   u32 =   3;
 const DEF_MAX_CALENDAR_FUTURE_YEARS: u32 =  3;
 
@@ -71,6 +72,9 @@ pub struct ValidatorConfig {
     pub max_trips_per_route:      u32,
     /// VAT_003: sefer süresi route medyanından kaç robust-σ (MAD) saparsa aykırı sayılır.
     pub duration_outlier_sigma:   f64,
+    /// OPR_005: bir hattın ortalama sefer aralığı (headway), aynı route_type'taki hatların
+    /// medyanından kaç robust-σ (MAD) saparsa "sıradışı sık/seyrek" sayılır.
+    pub headway_outlier_sigma:    f64,
     /// Servis günü başlangıç saati (0–6). Gece yarısını aşan seferlerin saatleri (00:xx)
     /// bu eşiğin altındaysa servis-günü notasyonuna (24:xx) normalize edilir; STM_008 gibi
     /// "zaman geriye gidiyor" yanlış-pozitiflerini önler. 0 = normalizasyon kapalı.
@@ -112,6 +116,7 @@ impl Default for ValidatorConfig {
             rail_stop_distance_km:    DEF_RAIL_STOP_DISTANCE_KM,
             max_trips_per_route:      DEF_MAX_TRIPS_PER_ROUTE,
             duration_outlier_sigma:   DEF_DURATION_OUTLIER_SIGMA,
+            headway_outlier_sigma:    DEF_HEADWAY_OUTLIER_SIGMA,
             service_day_start_hour:   DEF_SERVICE_DAY_START_HOUR,
             max_calendar_future_years: DEF_MAX_CALENDAR_FUTURE_YEARS,
             rural_route_ids:          Vec::new(),
@@ -188,6 +193,7 @@ fn validate_ranges(cfg: &ValidatorConfig) -> Result<(), String> {
     chk_f64!(cfg.rail_stop_distance_km,    "rail_stop_distance_km",       50.0, 2000.0);
     chk_u32!(cfg.max_trips_per_route,      "max_trips_per_route",          50,  20000);
     chk_f64!(cfg.duration_outlier_sigma,   "duration_outlier_sigma",      1.0,     6.0);
+    chk_f64!(cfg.headway_outlier_sigma,    "headway_outlier_sigma",       1.0,     6.0);
     chk_u32!(cfg.service_day_start_hour,   "service_day_start_hour",        0,       6);
     chk_u32!(cfg.max_calendar_future_years, "max_calendar_future_years",     1,      50);
     Ok(())
@@ -211,7 +217,7 @@ pub fn merge_delta(base: &ValidatorConfig, delta_json: &str) -> Result<Validator
         "stop_too_close_m", "stop_far_from_shape_m", "stop_far_from_parent_m", "feed_expiry_warning_days",
         "service_gap_days", "upcoming_service_days", "max_trip_duration_hours", "min_trip_duration_sec",
         "max_headway_warning_min", "bunching_threshold_min", "rail_stop_distance_km",
-        "max_trips_per_route", "duration_outlier_sigma", "service_day_start_hour",
+        "max_trips_per_route", "duration_outlier_sigma", "headway_outlier_sigma", "service_day_start_hour",
         "max_calendar_future_years", "rural_route_ids", "calendar_override_rules",
     ];
     let unknown: Vec<&str> = map.keys()
@@ -267,6 +273,7 @@ pub fn merge_delta(base: &ValidatorConfig, delta_json: &str) -> Result<Validator
     apply_f64!("rail_stop_distance_km",    cfg.rail_stop_distance_km);
     apply_u32!("max_trips_per_route",      cfg.max_trips_per_route);
     apply_f64!("duration_outlier_sigma",   cfg.duration_outlier_sigma);
+    apply_f64!("headway_outlier_sigma",    cfg.headway_outlier_sigma);
     apply_u32!("service_day_start_hour",   cfg.service_day_start_hour);
     apply_u32!("max_calendar_future_years", cfg.max_calendar_future_years);
 

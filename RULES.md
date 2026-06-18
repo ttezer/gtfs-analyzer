@@ -625,7 +625,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | OPR_001 | Hat sefer sıklığı düşük | ORTA | Analytics |
 | OPR_003 | Sefer sıkışması (minimum aralık çok küçük) | DÜŞÜK | Analytics |
 | OPR_004 | Hafta sonu sefer yok | BİLGİ | Analytics |
-| OPR_005 | Rota ortalama sefer aralığı | BİLGİ | Analytics |
+| OPR_005 | Sıradışı sefer sıklığı | BİLGİ | Analytics |
 | OPR_006 | Seferde çok az durak (işlevsel değil) | YÜKSEK | Analytics |
 | OPR_007 | Sefer içinde tekrarlayan durak | ORTA | Analytics |
 | OPR_008 | Birden fazla segmentte aşırı hız | YÜKSEK | Analytics |

@@ -908,7 +908,7 @@ const tr = {
     'OPR_001': 'Hat sefer sıklığı düşük',
     'OPR_003': 'Sefer sıkışması (minimum aralık çok küçük)',
     'OPR_004': 'Hafta sonu sefer yok',
-    'OPR_005': 'Rota ortalama sefer aralığı',
+    'OPR_005': 'Sıradışı sefer sıklığı',
     'OPR_006': 'Seferde çok az durak (işlevsel değil)',
     'OPR_007': 'Sefer içinde tekrarlayan durak',
     'OPR_008': 'Birden fazla segmentte aşırı hız',

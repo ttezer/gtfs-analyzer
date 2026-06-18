@@ -1168,7 +1168,7 @@ pub static RULES: &[RuleMeta] = &[
     r!("OPR_004", Bilgi,  Analytics, 1, &[], Some("route_id"), VA, Entity,
         "Hafta sonu sefer yok"),
     r!("OPR_005", Bilgi,  Analytics, 2, &[], Some("route_id"), VA, Entity,
-        "Rota ortalama sefer aralığı"),
+        "Sıradışı sefer sıklığı"),
     r!("OPR_006", Yuksek, Analytics, 3, &[], Some("trip_id"), VA, Entity,
         "Seferde çok az durak (işlevsel değil)"),
     r!("OPR_007", Orta,   Analytics, 3, &[], Some("trip_id"), VA, Entity,

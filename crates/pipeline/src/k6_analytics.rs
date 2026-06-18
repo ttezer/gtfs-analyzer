@@ -4184,17 +4184,24 @@ fn check_remaining_analytics(
         }
     }
 
-    // ── OPR_005: Rota ortalama headway bilgisi (Bilgi) ────────────────────────
+    // ── OPR_005: Sıradışı sefer sıklığı (route_type bazlı göreli aykırı) ──────
+    // "Sık/seyrek" mutlak değil görelidir; mutlak eşik yerine bir (route,yön,takvim)
+    // grubunun ortalama headway'i, AYNI route_type'taki grupların medyanından
+    // robust-σ (MAD) kadar saparsa işaretlenir. Tek route_type baz alınır (metro ile
+    // kırsal otobüsü kıyaslamamak için). Tekdüze sıklıkta feed sıfır notice üretir.
     {
         let _topr5 = Timer::start("K6::rem::opr_005");
-        // (route_id, direction_key, service_id) → trip departure times
         let route_short_opr5: HashMap<&str, &str> = records.routes.iter()
             .map(|r| {
                 let label = r.route_short_name.as_deref().filter(|s| !s.is_empty()).unwrap_or(r.route_id.as_str());
                 (r.route_id.as_str(), label)
             })
             .collect();
+        let route_type_opr5: HashMap<&str, u32> = records.routes.iter()
+            .map(|r| (r.route_id.as_str(), r.route_type.unwrap_or(3)))
+            .collect();
 
+        // (route_id, direction_key, service_id) → ilk kalkış saatleri
         let mut route_headways: HashMap<(&str, &str, &str), Vec<u32>> = HashMap::new();
         for trip in &records.trips {
             let route_id = trip.route_id.as_str();
@@ -4206,32 +4213,68 @@ fn check_remaining_analytics(
             }
         }
 
+        // 1) Grup başına ortalama headway.
+        struct Hw<'a> { route: &'a str, dir: &'a str, svc: &'a str, hw: u32, rtype: u32 }
+        let mut grps: Vec<Hw> = Vec::new();
         for ((route_id, dir_key, svc_key), mut deps) in route_headways {
-            if deps.len() < 2 {
-                continue;
-            }
+            if deps.len() < 2 { continue; }
             deps.sort_unstable();
             deps.dedup();
             if deps.len() < 2 { continue; }
             let diffs: Vec<u32> = deps.windows(2).map(|w| w[1] - w[0]).collect();
             let avg_hw = diffs.iter().sum::<u32>() / diffs.len() as u32;
-            let route_label = route_short_opr5.get(route_id).copied().unwrap_or(route_id);
+            let rtype = route_type_opr5.get(route_id).copied().unwrap_or(3);
+            grps.push(Hw { route: route_id, dir: dir_key, svc: svc_key, hw: avg_hw, rtype });
+        }
+
+        // 2) route_type başına medyan + MAD (baz için ≥5 grup gerekir).
+        let mut by_type: HashMap<u32, Vec<u32>> = HashMap::new();
+        for g in &grps { by_type.entry(g.rtype).or_default().push(g.hw); }
+        let mut type_stats: HashMap<u32, (f64, f64)> = HashMap::new();
+        for (rt, mut hws) in by_type {
+            if hws.len() < 5 { continue; }
+            hws.sort_unstable();
+            let median = hws[hws.len() / 2] as f64;
+            let mut devs: Vec<f64> = hws.iter().map(|&h| (h as f64 - median).abs()).collect();
+            devs.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+            let mad = devs[devs.len() / 2] * 1.4826;
+            type_stats.insert(rt, (median, mad));
+        }
+
+        // 3) Yalnızca aynı route_type medyanına göre aykırı grupları emit et.
+        // Determinizm için sırala.
+        grps.sort_by(|a, b| (a.route, a.dir, a.svc).cmp(&(b.route, b.dir, b.svc)));
+        for g in &grps {
+            let (median, mad) = match type_stats.get(&g.rtype) { Some(&s) => s, None => continue };
+            let hw = g.hw as f64;
+            let use_ratio = mad < 30.0; // ~tüm hatlar neredeyse aynı sıklıkta → orana düş
+            let is_outlier = if use_ratio {
+                let r = hw / median;
+                r > 2.0 || r < 0.5
+            } else {
+                (hw - median).abs() > config.headway_outlier_sigma * mad
+            };
+            if !is_outlier { continue; }
+            let yon_str = if hw > median { "sıradışı seyrek" } else { "sıradışı sık" };
+            let route_label = route_short_opr5.get(g.route).copied().unwrap_or(g.route);
+            let hw_min = hw / 60.0;
+            let med_min = median / 60.0;
             let mut n = k6_notice(
                 ctr,
                 "OPR_005",
                 EntityType::Route,
-                Some(route_id.to_string()),
-                Some(route_id.to_string()),
+                Some(g.route.to_string()),
+                Some(g.route.to_string()),
                 "stop_times.txt",
                 None,
                 None,
-                Some(format!("{:.0}", avg_hw as f64 / 60.0)),
+                Some(format!("{hw_min:.0}")),
                 None,
-                format!("'{route_label}' kodlu hattın {dir_key} yönünde {svc_key} çalışma takviminde ortalama sefer aralığı {:.0}dk ({} sefer).",
-                    avg_hw as f64 / 60.0, deps.len()),
-                "Bu bilgi notu; aksiyona gerek yoktur.",
+                format!("'{route_label}' hattının {} yönünde {} takviminde ortalama sefer aralığı {hw_min:.0}dk — aynı tür hatların feed medyanı {med_min:.0}dk ({yon_str}).",
+                    g.dir, g.svc),
+                "Bu bilgi notu; sefer sıklığı aynı tür hatlara göre sıradışı.",
             );
-            n.service_id = Some(svc_key.to_string());
+            n.service_id = Some(g.svc.to_string());
             notices.push(n);
         }
     }
@@ -8388,23 +8431,62 @@ mod tests {
         assert!(result.notices.iter().any(|n| n.rule_id == "GEO_013"), "GEO_013 olmalı");
     }
 
-    // ── OPR_005: rota ortalama headway bilgisi (Bilgi) ───────────────────────
+    // ── OPR_005: sıradışı sefer sıklığı (route_type bazlı göreli aykırı) ─────
+
+    // 15dk headway (08:00, 08:15) veren bir hat üretir.
+    fn normal_route(rid: &str, stops: &mut Vec<StopTimeRecord>, trips: &mut Vec<TripRecord>) {
+        let (ta, tb) = (format!("{rid}a"), format!("{rid}b"));
+        trips.push(trip(&ta, rid)); trips.push(trip(&tb, rid));
+        stops.push(stoptime(&ta, 1, "A", (8,0,0), (8,0,0), 2));
+        stops.push(stoptime(&ta, 2, "B", (8,10,0), (8,10,0), 3));
+        stops.push(stoptime(&tb, 1, "A", (8,15,0), (8,15,0), 4));
+        stops.push(stoptime(&tb, 2, "B", (8,25,0), (8,25,0), 5));
+    }
 
     #[test]
-    fn multiple_trips_same_route_produces_opr_005() {
+    fn opr_005_flags_only_unusually_sparse_route() {
+        // 5 normal hat (15dk headway) + 1 seyrek hat (90dk): yalnızca seyrek olan işaretlenir.
+        let mut routes = Vec::new();
+        let mut trips = Vec::new();
+        let mut sts = Vec::new();
+        for i in 0..5u32 {
+            let rid = format!("R{i}");
+            routes.push(route(&rid, 3));
+            normal_route(&rid, &mut sts, &mut trips);
+        }
+        // Seyrek hat: 08:00 ve 09:30 → 90dk headway.
+        routes.push(route("RS", 3));
+        trips.push(trip("RSa", "RS")); trips.push(trip("RSb", "RS"));
+        sts.push(stoptime("RSa", 1, "A", (8,0,0), (8,0,0), 2));
+        sts.push(stoptime("RSa", 2, "B", (8,10,0), (8,10,0), 3));
+        sts.push(stoptime("RSb", 1, "A", (9,30,0), (9,30,0), 4));
+        sts.push(stoptime("RSb", 2, "B", (9,40,0), (9,40,0), 5));
         let records = records_with(
-            vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1)],
-            vec![route("R1", 3)],
-            vec![trip("T1", "R1"), trip("T2", "R1")],
-            vec![
-                stoptime("T1", 1, "A", (8,0,0), (8,0,0), 2),
-                stoptime("T1", 2, "B", (8,10,0), (8,10,0), 3),
-                stoptime("T2", 1, "A", (9,0,0), (9,0,0), 4),
-                stoptime("T2", 2, "B", (9,10,0), (9,10,0), 5),
-            ],
+            vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1)], routes, trips, sts,
         );
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
-        assert!(result.notices.iter().any(|n| n.rule_id == "OPR_005"), "OPR_005 olmalı");
+        let opr: Vec<_> = result.notices.iter().filter(|n| n.rule_id == "OPR_005").collect();
+        assert_eq!(opr.len(), 1, "yalnızca sıradışı seyrek hat işaretlenmeli");
+        assert_eq!(opr[0].entity_id.as_deref(), Some("RS"));
+    }
+
+    #[test]
+    fn opr_005_silent_when_frequency_is_uniform() {
+        // 6 hat, hepsi 15dk headway → aykırı yok.
+        let mut routes = Vec::new();
+        let mut trips = Vec::new();
+        let mut sts = Vec::new();
+        for i in 0..6u32 {
+            let rid = format!("R{i}");
+            routes.push(route(&rid, 3));
+            normal_route(&rid, &mut sts, &mut trips);
+        }
+        let records = records_with(
+            vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1)], routes, trips, sts,
+        );
+        let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
+        assert!(!result.notices.iter().any(|n| n.rule_id == "OPR_005"),
+            "tekdüze sıklıkta OPR_005 üretilmemeli");
     }
 
     // ── OPR_013: tek yönlü rota bilgisi ─────────────────────────────────────

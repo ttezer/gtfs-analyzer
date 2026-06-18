@@ -625,7 +625,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | OPR_001 | Route headway too long | MEDIUM | Analytics |
 | OPR_003 | Trip bunching (minimum headway too small) | LOW | Analytics |
 | OPR_004 | No weekend service | INFO | Analytics |
-| OPR_005 | Route average headway | INFO | Analytics |
+| OPR_005 | Unusual service frequency | INFO | Analytics |
 | OPR_006 | Trip has too few stops (not functional) | HIGH | Analytics |
 | OPR_007 | Repeated stop within trip | MEDIUM | Analytics |
 | OPR_008 | Excessive speed in multiple segments | HIGH | Analytics |
