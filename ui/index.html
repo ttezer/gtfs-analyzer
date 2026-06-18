@@ -419,6 +419,47 @@
     .page-export-wide { display: flex; flex-direction: column; gap: 1rem; max-width: 720px; }
     .export-filename { margin-bottom: 1rem; font-size: .9rem; color: var(--color-muted); }
     .export-actions { display: flex; gap: .75rem; flex-wrap: wrap; }
+
+    /* Dışa Aktar — yeniden tasarım */
+    .export-page { max-width: 1180px; }
+    .exp-title { font-size: 1.5rem; font-weight: 800; margin-bottom: .2rem; }
+    .exp-source { font-size: .9rem; color: var(--color-muted); margin-bottom: 1.2rem; }
+    .exp-source code { background: var(--color-bg); padding: .1rem .4rem; border-radius: 4px; }
+    .exp-stats { display: grid; grid-template-columns: repeat(3, 1fr); border: 1px solid var(--color-border); border-radius: calc(var(--radius) * 1.5); background: var(--color-surface); padding: 1rem 1rem; margin-bottom: 1.75rem; }
+    .exp-stat { display: flex; align-items: center; gap: .85rem; padding: .35rem 1.2rem; border-left: 1px solid var(--color-border); }
+    .exp-stat:first-child { border-left: none; }
+    .exp-stat-icon { width: 42px; height: 42px; border-radius: 10px; display: grid; place-items: center; flex-shrink: 0; }
+    .exp-stat-icon svg { width: 21px; height: 21px; }
+    .exp-stat-text { display: flex; flex-direction: column; line-height: 1.2; }
+    .exp-stat-label { font-size: .82rem; color: var(--color-muted); }
+    .exp-stat-value { font-size: 1.55rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+    .exp-val-pub { color: var(--color-low); }
+    .exp-val-qual { color: var(--color-high); }
+    .exp-formats-title { font-size: 1.15rem; font-weight: 700; margin-bottom: .2rem; }
+    .exp-formats-sub { font-size: .88rem; color: var(--color-muted); margin-bottom: 1rem; }
+    .exp-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }
+    .exp-card { border: 1px solid var(--color-border); border-radius: calc(var(--radius) * 1.5); padding: 1.1rem; display: flex; flex-direction: column; background: var(--color-surface); }
+    .exp-card-rec { border-color: #2563eb; box-shadow: 0 0 0 1px #2563eb33; }
+    .exp-card-head { display: flex; align-items: center; gap: .6rem; margin-bottom: .75rem; }
+    .exp-card-icon { width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; flex-shrink: 0; }
+    .exp-card-icon svg { width: 19px; height: 19px; }
+    .exp-card-title { font-weight: 700; font-size: 1rem; }
+    .exp-rec-badge { margin-left: auto; font-size: .7rem; font-weight: 600; color: #2563eb; background: #2563eb15; padding: .15rem .55rem; border-radius: 999px; }
+    .exp-card-desc { font-size: .85rem; color: var(--color-muted); line-height: 1.45; flex: 1; margin-bottom: .9rem; }
+    .exp-card-btn { width: 100%; justify-content: center; padding: .55rem; font-weight: 600; }
+    .exp-card-size { font-size: .8rem; color: var(--color-muted); margin-top: .75rem; margin-bottom: 0; }
+    .exp-icon-doc   { background: #2563eb15; color: #2563eb; }
+    .exp-icon-green, .exp-icon-csv { background: #16a34a15; color: #16a34a; }
+    .exp-icon-amber { background: #ea580c15; color: #ea580c; }
+    .exp-icon-json  { background: #9333ea15; color: #9333ea; }
+    .exp-icon-pdf   { background: #dc262615; color: #dc2626; }
+    .exp-note { margin-top: 1.6rem; padding: .8rem 1rem; background: #2563eb0d; border: 1px solid #2563eb22; border-radius: var(--radius); font-size: .85rem; color: var(--color-text); }
+    .exp-i { font-style: normal; color: var(--color-info); }
+    @media (max-width: 980px) {
+      .exp-grid { grid-template-columns: repeat(2, 1fr); }
+      .exp-stats { grid-template-columns: 1fr; gap: .25rem; }
+      .exp-stat { border-left: none; }
+    }
     .config-editor { display: block; width: 100%; min-height: 120px; margin: .75rem 0; padding: .6rem; font-family: ui-monospace, monospace; font-size: .85rem; border: 1px solid var(--color-border); border-radius: var(--radius); resize: vertical; background: var(--color-bg); color: var(--color-text); }
     .config-editor:focus { outline: 2px solid #1d4ed8; outline-offset: 1px; }
     .config-actions { display: flex; gap: .75rem; }
