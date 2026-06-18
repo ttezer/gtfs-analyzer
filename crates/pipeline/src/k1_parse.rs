@@ -315,6 +315,14 @@ fn required_fields(filename: &str) -> &'static [&'static str] {
     }
 }
 
+/// ARC_009: boş (yalnız-başlık) dosya KRİTİK mi? Zorunlu dosyalar (agency/stops/routes/trips/
+/// stop_times) + servis tanımlayan takvim dosyaları (calendar/calendar_dates) boşsa veri beklenen
+/// yerde yoktur → KRİTİK. Diğer OPSİYONEL dosyaların (transfers, fare_*, shapes, frequencies,
+/// translations, Fares v2/Flex/JP …) boş eklenmesi zararsızdır → BİLGİ'ye düşürülür.
+fn arc009_critical(filename: &str) -> bool {
+    REQUIRED_FILES.contains(&filename) || CALENDAR_FILES.contains(&filename)
+}
+
 /// GTFS spesifikasyonunda tanımlı sütun adları (ARC_017).
 fn known_columns(filename: &str) -> &'static [&'static str] {
     match filename {
@@ -674,14 +682,20 @@ pub fn parse(zip_bytes: &[u8]) -> Result<K1Result, FatalError> {
         if records.is_empty() {
             // calendar.txt servisi tanımlıyorsa boş calendar_dates.txt yanlış-pozitiftir → bastır.
             if !(raw_name == "calendar_dates.txt" && has_calendar_txt) {
-                notices.push(make_notice(
+                let mut n = make_notice(
                     &mut counter, "ARC_009",
                     EntityType::File, Some(raw_name.clone()),
                     Some(&raw_name), None, None,
                     None,
                     format!("'{raw_name}' dosyası boş veya yalnızca başlık satırı içeriyor."),
-                    "Dosyaya en az bir veri satırı ekleyin.",
-                ));
+                    "Dosyaya en az bir veri satırı ekleyin (veya gereksizse dosyayı kaldırın).",
+                );
+                // Boş OPSİYONEL dosya (transfers, fare_*, vb.) KRİTİK değildir → Bilgi'ye düşür.
+                // Zorunlu dosyalar + servis tanımlayan takvim dosyaları Kritik kalır.
+                if !arc009_critical(&raw_name) {
+                    n.severity = Severity::Bilgi;
+                }
+                notices.push(n);
             }
             continue;
         }
@@ -901,14 +915,19 @@ pub fn parse(zip_bytes: &[u8]) -> Result<K1Result, FatalError> {
         if !stream_mode && rows.is_empty()
             && !(raw_name == "calendar_dates.txt" && has_calendar_txt)
         {
-            notices.push(make_notice(
+            let mut n = make_notice(
                 &mut counter, "ARC_009",
                 EntityType::File, Some(raw_name.clone()),
                 Some(&raw_name), None, None,
                 None,
                 format!("'{raw_name}' dosyasında başlık satırı var ama veri satırı yok."),
-                "Dosyaya en az bir veri satırı ekleyin.",
-            ));
+                "Dosyaya en az bir veri satırı ekleyin (veya gereksizse dosyayı kaldırın).",
+            );
+            // Boş OPSİYONEL dosya KRİTİK değil → Bilgi (bkz. arc009_critical).
+            if !arc009_critical(&raw_name) {
+                n.severity = Severity::Bilgi;
+            }
+            notices.push(n);
         }
 
         // stream_mode (stop_times.txt): gövdeyi ham metin olarak sakla; rows boş kalır.
@@ -1440,6 +1459,26 @@ mod tests {
         assert!(cd_arc009, "calendar.txt yokken boş calendar_dates.txt ARC_009 üretmeli");
         assert!(!k1.notices.iter().any(|n| n.rule_id == "ARC_008"),
             "calendar_dates.txt mevcutken ARC_008 fire etmemeli");
+    }
+
+    #[test]
+    fn empty_optional_file_arc009_is_info_not_critical() {
+        // Boş (yalnız-başlık) transfers.txt (OPSİYONEL) → ARC_009 fire eder ama KRİTİK değil, BİLGİ.
+        let zip = zip_with_files(&[
+            ("agency.txt",     b"agency_id,agency_name,agency_url,agency_timezone\n1,Test,http://x.com,UTC\n"),
+            ("stops.txt",      b"stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\n"),
+            ("routes.txt",     b"route_id,agency_id,route_short_name,route_type\nR1,1,101,3\n"),
+            ("trips.txt",      b"route_id,service_id,trip_id\nR1,SVC1,T1\n"),
+            ("stop_times.txt", b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\n"),
+            ("calendar.txt",   b"service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,0,0,20240101,20241231\n"),
+            ("transfers.txt",  b"from_stop_id,to_stop_id,transfer_type,min_transfer_time\n"),
+        ]);
+        let k1 = parse(&zip).unwrap();
+        let n = k1.notices.iter().find(|n|
+            n.rule_id == "ARC_009" && n.file.as_deref() == Some("transfers.txt"))
+            .expect("boş transfers.txt ARC_009 üretmeli");
+        assert_eq!(n.severity, Severity::Bilgi,
+            "boş OPSİYONEL dosya ARC_009 BİLGİ olmalı (KRİTİK değil)");
     }
 
     #[test]
