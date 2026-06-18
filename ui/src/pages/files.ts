@@ -33,10 +33,11 @@ const SEV_ORDER: Record<string, number> = {
 
 interface FileRow {
   name: string;
-  info: FileInfo | null;    // null → feed'de yok
+  info: FileInfo | null;    // null → file_stats'te yok (eksik VEYA spec dışı)
   notices: Notice[];
   scoreDelta: number;
-  missing: boolean;
+  missing: boolean;         // gerçekten yok olan spec/zorunlu dosya
+  unknown: boolean;         // feed'de MEVCUT ama spec dışı (ör. assignments.txt) — eksik değil
 }
 
 export function renderFiles(root: HTMLElement, result: ValidationResult): void {
@@ -108,22 +109,32 @@ function buildRows(result: ValidationResult): FileRow[] {
   for (const name of allNames) {
     const ns = fileNotices.get(name) ?? [];
     const delta = ns.reduce((sum, n) => sum + (noticeDelta.get(n.id) ?? 0), 0);
+    const present = presentSet.has(name);
+    const isSpec = GTFS_SPEC_FILES.has(name) || CALENDAR_FILES.includes(name);
     rows.push({
       name,
       info: statsMap.get(name) ?? null,
       notices: ns,
       scoreDelta: delta,
-      missing: !presentSet.has(name),
+      // Spec dışı dosya (ör. assignments.txt) feed'de MEVCUTtur ama file_stats'e girmez →
+      // "eksik" DEĞİL. missing yalnız gerçekten yok olan spec/zorunlu dosyadır.
+      missing: !present && isSpec,
+      unknown: !present && !isSpec,
     });
   }
 
-  // Sıralama: mevcut dosyalar (en ağır hata önce, temiz sonda), sonra eksikler
-  const presentRows = rows.filter(r => !r.missing).sort((a, b) => {
+  // Sıralama: mevcut spec dosyalar (en ağır hata önce, temiz sonda), sonra mevcut spec-dışı
+  // dosyalar, en sonda gerçekten eksik dosyalar.
+  const presentRows = rows.filter(r => !r.missing && !r.unknown).sort((a, b) => {
     const aWorst = worstSev(a.notices);
     const bWorst = worstSev(b.notices);
     if (aWorst !== bWorst) return aWorst - bWorst;
     return b.notices.length - a.notices.length;
   });
+
+  const unknownRows = rows.filter(r => r.unknown).sort((a, b) =>
+    a.name.localeCompare(b.name)
+  );
 
   const missingRows = rows.filter(r => r.missing).sort((a, b) =>
     a.name.localeCompare(b.name)
@@ -139,9 +150,10 @@ function buildRows(result: ValidationResult): FileRow[] {
     notices: generalNotices,
     scoreDelta: generalDelta,
     missing: false,
+    unknown: false,
   };
 
-  return [...presentRows, ...(generalNotices.length > 0 ? [generalRow] : []), ...missingRows];
+  return [...presentRows, ...unknownRows, ...(generalNotices.length > 0 ? [generalRow] : []), ...missingRows];
 }
 
 function worstSev(notices: Notice[]): number {
@@ -154,11 +166,10 @@ function renderFileRow(row: FileRow, calendarMissing: boolean): string {
   const isCalendar = CALENDAR_FILES.includes(row.name);
   const isRequired = REQUIRED_FILES.includes(row.name) || isCalendar;
 
-  if (row.missing) {
-    // Spec'te tanımlı OLMAYAN dosya (notice'tan gelmiş, ör. ARC_007): "eksik" değil,
-    // "spec dışı/tanınmayan" olarak göster.
-    if (!isCalendar && !GTFS_SPEC_FILES.has(row.name)) {
-      return `
+  // Spec'te tanımlı OLMAYAN ama feed'de MEVCUT dosya (ör. ARC_007 assignments.txt): "eksik"
+  // değil "spec dışı" olarak gösterilir; eksikler bölümünde DEĞİL, mevcut dosyalarla birlikte.
+  if (row.unknown) {
+    return `
       <div class="file-row file-row-unknown">
         <div class="file-row-left">
           <code class="file-name">${escHtml(row.name)}</code>
@@ -168,7 +179,9 @@ function renderFileRow(row: FileRow, calendarMissing: boolean): string {
           <span class="file-missing-hint">${t('files.hint.unknown')}</span>
         </div>
       </div>`;
-    }
+  }
+
+  if (row.missing) {
     // Takvim grubu için tek kayıp uyarısı yeter
     const showCalendarMissing = isCalendar && calendarMissing;
     if (isCalendar && !showCalendarMissing) return '';
