@@ -6623,8 +6623,23 @@ fn check_vat_analytics(
     }
 
     // ── VAT_003: Sefer süresi istatistiksel aykırı değer (MAD yöntemi) ───────
+    // Gruplama anahtarı route_id DEĞİL, sefer DESENİ'dir: bir route_id çoğu zaman
+    // birden çok desen içerir (kısa-dönüş, varyant, yön) ve bunların süreleri doğal
+    // olarak farklıdır; hepsini tek medyanla karşılaştırmak kitlesel FP üretir.
+    // Birincil anahtar shape_id (aynı fiziksel güzergah → karşılaştırılabilir süre);
+    // shape yoksa (route_id, direction_id, durak sayısı) desenine düşülür.
     {
-        let mut route_durs: FxHashMap<&str, Vec<(&str, u32, u32)>> = FxHashMap::default();
+        let trip_shape: FxHashMap<&str, &str> = records.trips.iter()
+            .filter_map(|t| t.shape_id.as_deref().map(|s| (t.trip_id.as_str(), s)))
+            .collect();
+        let trip_dir: FxHashMap<&str, u32> = records.trips.iter()
+            .filter_map(|t| t.direction_id.map(|d| (t.trip_id.as_str(), d)))
+            .collect();
+
+        #[derive(PartialEq, Eq, Hash)]
+        enum DurKey<'a> { Shape(&'a str), Pattern(&'a str, Option<u32>, usize) }
+
+        let mut groups: FxHashMap<DurKey, Vec<(&str, u32, u32, &str)>> = FxHashMap::default();
         for (&trip_id, stops) in &idx.by_trip {
             if stops.len() < 2 { continue; }
             let route = match trip_route.get(trip_id) { Some(&r) => r, None => continue };
@@ -6632,15 +6647,19 @@ fn check_vat_analytics(
             let last_arr  = stops.last().and_then(|s| s.arrival_time).map(hms_to_secs);
             if let (Some(dep), Some(arr)) = (first_dep, last_arr) {
                 if arr > dep {
-                    route_durs.entry(route).or_default().push((trip_id, arr - dep, dep));
+                    let key = match trip_shape.get(trip_id) {
+                        Some(&sh) => DurKey::Shape(sh),
+                        None => DurKey::Pattern(route, trip_dir.get(trip_id).copied(), stops.len()),
+                    };
+                    groups.entry(key).or_default().push((trip_id, arr - dep, dep, route));
                 }
             }
         }
 
-        for (route, mut durs) in route_durs {
+        for (_key, mut durs) in groups {
             if durs.len() < 5 { continue; }
-            durs.sort_by_key(|&(_, d, _)| d);
-            let vals: Vec<u32> = durs.iter().map(|&(_, d, _)| d).collect();
+            durs.sort_by_key(|&(_, d, _, _)| d);
+            let vals: Vec<u32> = durs.iter().map(|&(_, d, _, _)| d).collect();
             let median = vals[vals.len() / 2] as f64;
             if median < 120.0 { continue; }
             let mut abs_devs: Vec<f64> = vals.iter()
@@ -6651,7 +6670,7 @@ fn check_vat_analytics(
             // MAD = 0 (tüm süreler aynı): ratio bazlı fallback — median'ın 3× üstü veya 0.25× altı
             let use_ratio_fallback = mad < 30.0;
             let threshold = if use_ratio_fallback { 0.0 } else { config.duration_outlier_sigma * mad };
-            for &(trip_id, dur, dep_secs) in &durs {
+            for &(trip_id, dur, dep_secs, route) in &durs {
                 let is_outlier = if use_ratio_fallback {
                     let r = dur as f64 / median;
                     r > 3.0 || r < 0.25
@@ -9435,6 +9454,40 @@ mod tests {
         r.stop_times = stoptimes_vec;
         let result = analyze(&r, &empty_derived(), &default_config(), 20260514);
         assert!(result.notices.iter().any(|n| n.rule_id == "VAT_003"), "VAT_003 olmalı");
+    }
+
+    #[test]
+    fn vat_003_does_not_cross_flag_distinct_patterns_on_same_route() {
+        // Aynı route_id, iki ayrı desen: 6 kısa sefer (2 durak, 10dk) + 5 uzun sefer
+        // (4 durak, 30dk). Eski route_id gruplaması uzun seferleri aykırı işaretlerdi;
+        // desen (durak sayısı) gruplamasıyla her küme kendi içinde tutarlı → VAT_003 yok.
+        let mut r = crate::k2::EntityRecords::default();
+        r.stops = vec![
+            stop("A", 41.0, 29.0), stop("B", 41.1, 29.1),
+            stop("C", 41.2, 29.2), stop("D", 41.3, 29.3),
+        ];
+        r.routes = vec![route("R1", 3)];
+        let mut trips_vec = Vec::new();
+        let mut stoptimes_vec = Vec::new();
+        for i in 0..6u32 {
+            let tid = format!("S{i}");
+            trips_vec.push(trip(&tid, "R1"));
+            stoptimes_vec.push(stoptime(&tid, 1, "A", (8, 0, 0), (8, 0, 0), 2));
+            stoptimes_vec.push(stoptime(&tid, 2, "B", (8, 10, 0), (8, 10, 0), 3));
+        }
+        for i in 0..5u32 {
+            let tid = format!("L{i}");
+            trips_vec.push(trip(&tid, "R1"));
+            stoptimes_vec.push(stoptime(&tid, 1, "A", (9, 0, 0), (9, 0, 0), 2));
+            stoptimes_vec.push(stoptime(&tid, 2, "B", (9, 10, 0), (9, 10, 0), 3));
+            stoptimes_vec.push(stoptime(&tid, 3, "C", (9, 20, 0), (9, 20, 0), 4));
+            stoptimes_vec.push(stoptime(&tid, 4, "D", (9, 30, 0), (9, 30, 0), 5));
+        }
+        r.trips = trips_vec;
+        r.stop_times = stoptimes_vec;
+        let result = analyze(&r, &empty_derived(), &default_config(), 20260514);
+        assert!(!result.notices.iter().any(|n| n.rule_id == "VAT_003"),
+            "ayrı desenler çapraz aykırı işaretlenmemeli");
     }
 
     #[test]
