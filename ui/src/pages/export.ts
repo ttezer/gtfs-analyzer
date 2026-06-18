@@ -12,6 +12,10 @@ function formatBytes(b: number): string {
 
 const byteLen = (s: string): number => new TextEncoder().encode(s).length;
 
+// Locale-duyarlı sayı biçimi (binlik ayraç tr "2.935.811" / en "2,935,811" / ja "2,935,811").
+const fmtInt = (n: number): string => new Intl.NumberFormat(undefined).format(n);
+const fmtDec1 = (n: number): string => new Intl.NumberFormat(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(n);
+
 // Renkli daire içinde satır-ikonu (currentColor). Kart/stat başlıkları için.
 const ICON: Record<string, string> = {
   doc:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M8 13h8M8 17h8"/></svg>',
@@ -22,6 +26,111 @@ const ICON: Record<string, string> = {
   print: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>',
 };
 
+interface SummaryData {
+  file: string; ts: string; ruleTypes: number; pubScore: number; qualScore: number;
+  // disp = gösterilen (kural başına 500 cap'li); real = gerçek (capped_totals ile düzeltilmiş).
+  disp: { total: number; critical: number; high: number; medium: number; low: number; info: number };
+  real: { total: number; critical: number; high: number; medium: number; low: number; info: number };
+  capped: boolean;  // herhangi bir kural cap'e takıldı mı (real > disp)
+  ruleCounts: Array<[string, number]>;  // [rule_id, gerçek sayı] — #21 diff birimi
+}
+
+// Özet snapshot. notices kural başına 500'de cap'li (WASM PER_RULE_CAP); gerçek totaller
+// result.capped_totals'tan alınır → hem cap'li hem gerçek sütun verilir.
+function buildSummaryData(result: ValidationResult, fileName: string, ts: string): SummaryData {
+  const sevDisp: Record<string, number> = {};
+  const rcDisp: Record<string, number> = {};
+  const ruleSev: Record<string, string> = {};
+  for (const n of result.notices) {
+    sevDisp[n.severity] = (sevDisp[n.severity] ?? 0) + 1;
+    rcDisp[n.rule_id] = (rcDisp[n.rule_id] ?? 0) + 1;
+    ruleSev[n.rule_id] = n.severity;
+  }
+  const cap = result.capped_totals ?? {};
+  const sevReal: Record<string, number> = {};
+  const rcReal: Record<string, number> = {};
+  for (const rid of Object.keys(rcDisp)) {
+    const real = cap[rid] ?? rcDisp[rid];
+    rcReal[rid] = real;
+    sevReal[ruleSev[rid]] = (sevReal[ruleSev[rid]] ?? 0) + real;
+  }
+  const g = (o: Record<string, number>, k: string) => o[k] ?? 0;
+  const dispTotal = result.notices.length;
+  const realTotal = Object.values(rcReal).reduce((a, b) => a + b, 0);
+  const { r5 } = result.reports;
+  return {
+    file: fileName, ts, ruleTypes: Object.keys(rcDisp).length,
+    pubScore: r5.pub_score, qualScore: r5.score,
+    disp: { total: dispTotal, critical: g(sevDisp, 'CRITICAL'), high: g(sevDisp, 'HIGH'), medium: g(sevDisp, 'MEDIUM'), low: g(sevDisp, 'LOW'), info: g(sevDisp, 'INFO') },
+    real: { total: realTotal, critical: g(sevReal, 'CRITICAL'), high: g(sevReal, 'HIGH'), medium: g(sevReal, 'MEDIUM'), low: g(sevReal, 'LOW'), info: g(sevReal, 'INFO') },
+    capped: realTotal > dispTotal,
+    ruleCounts: Object.entries(rcReal).sort((a, b) => b[1] - a[1]),
+  };
+}
+
+// Severity satırları: [etiket, disp, real, renk]
+function summaryRows(d: SummaryData): Array<[string, number, number, string | undefined]> {
+  return [
+    [t('export.html.total'), d.disp.total, d.real.total, undefined],
+    [SEVERITY_TR['CRITICAL'], d.disp.critical, d.real.critical, '#dc2626'],
+    [SEVERITY_TR['HIGH'], d.disp.high, d.real.high, '#ea580c'],
+    [SEVERITY_TR['MEDIUM'], d.disp.medium, d.real.medium, '#ca8a04'],
+    [SEVERITY_TR['LOW'], d.disp.low, d.real.low, '#16a34a'],
+    [SEVERITY_TR['INFO'], d.disp.info, d.real.info, '#2563eb'],
+  ];
+}
+
+// Kopyalanabilir Markdown: meta + Cap'li/Gerçek 2-sütunlu sayım tablosu + #21 için kural-sayım JSON.
+function summaryMarkdown(d: SummaryData): string {
+  const meta = [
+    `**${d.file} — ${t('export.summary.title')}**`,
+    `${d.ts} · ${t('export.html.pub_score')} ${fmtDec1(d.pubScore)} / ${t('export.html.qual_score')} ${fmtDec1(d.qualScore)} · ${fmtInt(d.ruleTypes)} ${t('export.summary.rule_types')}`,
+  ].join('  \n');
+  const head = `| ${t('export.summary.metric')} | ${t('export.summary.capped')} | ${t('export.summary.real')} |\n|---|--:|--:|`;
+  const body = summaryRows(d).map(([k, disp, real]) => `| ${k} | ${fmtInt(disp)} | ${fmtInt(real)} |`).join('\n');
+  const ruleJson = JSON.stringify({ file: d.file, ts: d.ts, scores: { pub: d.pubScore, quality: d.qualScore }, rule_counts: Object.fromEntries(d.ruleCounts) });
+  return `${meta}\n\n${head}\n${body}\n\n<!-- rule_counts gerçek sayılar (#21 diff) -->\n\`\`\`json\n${ruleJson}\n\`\`\`\n`;
+}
+
+// Özetin PNG render'ı (kullanıcı kart içinde okur). Cap'li / Gerçek iki sütun.
+function summaryPng(d: SummaryData): string {
+  const rows = summaryRows(d);
+  const dpr = window.devicePixelRatio || 1;
+  const W = 520, rowH = 30, top = 70, bot = 16;
+  const H = top + (rows.length + 1) * rowH + bot;  // +1 başlık satırı
+  const cv = document.createElement('canvas');
+  cv.width = W * dpr; cv.height = H * dpr;
+  const x = cv.getContext('2d')!;
+  x.scale(dpr, dpr);
+  x.fillStyle = '#ffffff'; x.fillRect(0, 0, W, H);
+  const colCap = W - 150, colReal = W - 22;  // sağ-hizalı sütun x'leri
+  // Başlık: "<feed.zip> — Özet Tablo"
+  const suffix = ` — ${t('export.summary.title')}`;
+  x.font = '700 15px system-ui, sans-serif'; x.textAlign = 'left';
+  let f = d.file;
+  while (f.length > 4 && x.measureText(f + suffix).width > W - 36) f = f.slice(0, -1);
+  if (f.length < d.file.length) f = f.slice(0, -1) + '…';
+  x.fillStyle = '#1e293b'; x.fillText(f + suffix, 18, 28);
+  // Meta satırı
+  x.fillStyle = '#64748b'; x.font = '12px system-ui, sans-serif';
+  x.fillText(`${d.ts} · ${t('export.html.pub_score')} ${fmtDec1(d.pubScore)} · ${t('export.html.qual_score')} ${fmtDec1(d.qualScore)} · ${fmtInt(d.ruleTypes)} ${t('export.summary.rule_types')}`, 18, 48);
+  // Sütun başlıkları
+  let y = top;
+  x.fillStyle = '#94a3b8'; x.font = '600 11px system-ui, sans-serif';
+  x.textAlign = 'right'; x.fillText(t('export.summary.capped').toUpperCase(), colCap, y); x.fillText(t('export.summary.real').toUpperCase(), colReal, y);
+  y += rowH;
+  for (const [label, disp, real, color] of rows) {
+    x.strokeStyle = '#eef2f7'; x.beginPath(); x.moveTo(18, y - 19); x.lineTo(W - 18, y - 19); x.stroke();
+    x.fillStyle = '#475569'; x.font = '13px system-ui, sans-serif'; x.textAlign = 'left';
+    x.fillText(label, 22, y);
+    x.font = '700 13px system-ui, sans-serif'; x.textAlign = 'right';
+    x.fillStyle = '#94a3b8'; x.fillText(fmtInt(disp), colCap, y);
+    x.fillStyle = color ?? '#1e293b'; x.fillText(fmtInt(real), colReal, y);
+    y += rowH;
+  }
+  return cv.toDataURL('image/png');
+}
+
 export function renderExport(
   root: HTMLElement,
   result: ValidationResult,
@@ -30,10 +139,17 @@ export function renderExport(
   // EN/JA parite: route-scoped bulgu mesajlarının {route_label}'ını doldur (R2 ile aynı).
   augmentRouteLabels(result.notices, result.name_index);
 
+  // Tarih-zaman damgası: karşılaştırma (#21) için her çıktıya yazılır.
+  const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
+  const fnTs = now.replace(/[: ]/g, '-');
+
   // İçerikleri bir kez üret → hem tahmini boyut hem indirme bunları kullanır (çift iş yok).
-  const htmlStr = buildReportHtml(result, fileName);
+  const htmlStr = buildReportHtml(result, fileName, now);
   const csvStr  = buildCsv(result);
   const jsonStr = JSON.stringify(result, null, 2);
+  const summary = buildSummaryData(result, fileName, now);
+  const summaryMd = summaryMarkdown(summary);
+  const summaryImg = summaryPng(summary);
 
   const { r5 } = result.reports;
   const fmtScore = (n: number) => new Intl.NumberFormat(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(n);
@@ -82,17 +198,44 @@ export function renderExport(
           ${card('btn-export-pdf',  ICON.print, 'pdf', t('export.card.pdf.title'),  '',                       t('export.card.pdf.desc'),  t('export.print'),    false, t('export.size.browser'))}
         </div>
 
+        <div class="exp-summary-card">
+          <div class="exp-summary-head">
+            <span class="exp-card-icon exp-icon-doc">${ICON.chart}</span>
+            <span class="exp-card-title">${t('export.summary.title')}</span>
+            <button id="btn-summary-copy" class="btn btn-secondary exp-summary-copy">${t('export.summary.copy')}</button>
+            <button id="btn-summary-png" class="btn btn-secondary exp-summary-copy">PNG</button>
+          </div>
+          <p class="exp-card-desc">${t('export.summary.desc')}</p>
+          <img class="exp-summary-img" src="${summaryImg}" alt="${t('export.summary.title')}" />
+        </div>
+
         <div class="exp-note"><span class="exp-i">ⓘ</span> <strong>${t('export.note.label')}</strong> ${t('export.note.text')}</div>
       </div>
     </section>`;
 
   const dl = (s: string, mime: string, ext: string) =>
-    triggerDownload(new Blob([s], { type: mime }), fileName.replace(/\.zip$/i, ext));
+    triggerDownload(new Blob([s], { type: mime }), fileName.replace(/\.zip$/i, `-report-${fnTs}.${ext}`));
 
-  root.querySelector('#btn-export-html')!.addEventListener('click', () => dl(htmlStr, 'text/html; charset=utf-8', '-report.html'));
-  root.querySelector('#btn-export-csv')!.addEventListener('click',  () => dl('﻿' + csvStr, 'text/csv; charset=utf-8', '-report.csv'));
-  root.querySelector('#btn-export-json')!.addEventListener('click', () => dl(jsonStr, 'application/json', '-report.json'));
+  root.querySelector('#btn-export-html')!.addEventListener('click', () => dl(htmlStr, 'text/html; charset=utf-8', 'html'));
+  root.querySelector('#btn-export-csv')!.addEventListener('click',  () => dl('﻿' + csvStr, 'text/csv; charset=utf-8', 'csv'));
+  root.querySelector('#btn-export-json')!.addEventListener('click', () => dl(jsonStr, 'application/json', 'json'));
   root.querySelector('#btn-export-pdf')!.addEventListener('click', () => printHtml(htmlStr));
+
+  const copyBtn = root.querySelector<HTMLButtonElement>('#btn-summary-copy')!;
+  copyBtn.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(summaryMd);
+      const old = copyBtn.textContent;
+      copyBtn.textContent = t('export.summary.copied');
+      setTimeout(() => { copyBtn.textContent = old; }, 1500);
+    } catch { alert(t('export.summary.copy_failed')); }
+  });
+  root.querySelector('#btn-summary-png')!.addEventListener('click', () => {
+    const a = document.createElement('a');
+    a.href = summaryImg;
+    a.download = fileName.replace(/\.zip$/i, `-summary-${fnTs}.png`);
+    a.click();
+  });
 }
 
 function csvCell(v: string | number | null | undefined): string {
@@ -123,7 +266,7 @@ function buildCsv(result: ValidationResult): string {
   return [header.map(csvCell).join(','), ...rows].join('\r\n');
 }
 
-function buildReportHtml(result: ValidationResult, fileName: string): string {
+function buildReportHtml(result: ValidationResult, fileName: string, ts: string): string {
   const { r1, r5 } = result.reports;
   const publishLabel = r1.publishable
     ? (r1.conditional ? t('export.html.publishable_cond') : t('export.html.publishable_ok'))
@@ -171,6 +314,7 @@ function buildReportHtml(result: ValidationResult, fileName: string): string {
 <body>
   <h1>${t('export.html.h1')}</h1>
   <p style="color:#64748b;font-size:.9rem">${t('export.html.source')} ${escHtml(fileName)}</p>
+  <p style="color:#64748b;font-size:.82rem">${t('export.summary.datetime')}: ${escHtml(ts)}</p>
 
   <div class="summary">
     <div class="kpi">
