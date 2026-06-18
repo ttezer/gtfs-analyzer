@@ -583,7 +583,7 @@ const ja: LocaleShape = {
     'STM_047': 'トリップ「{entity_id}」：timepoint=1（正確な時刻ポイント）ですが、arrival_timeとdeparture_timeの両方がありません。',
     'STM_048': '{observed_value}便が深夜以降の時刻を00:xxで記述しています。GTFSのサービス日では24:00:00以降が推奨されます（解析では24:xxとして解釈）。',
     'STM_049': '{observed_value}停留所で深夜以降の出発が00:xxで記述されています（同一行で出発が到着より前）。24:xxが推奨されます。',
-    'STM_050': 'timepoint列は存在しますが、この行では値が空です。空のtimepointは暗黙的に正確（1）として扱われ、おおよその時刻が正確に見える可能性があります。',
+    'STM_050': '{observed_value}件のstop_times行でtimepoint列が存在するが値が空です。空のtimepointは暗黙的に正確（1）として扱われ、おおよその時刻が正確に見える可能性があります。',
     'STM_051': "トリップ'{entity_id}'：Flexの乗降ウィンドウが定義されている場合、pickup_type 0（通常）または3（運転手調整）は禁止です。",
     'STM_052': "トリップ'{entity_id}'：Flexの乗降ウィンドウが定義されている場合、drop_off_type 0（通常）は禁止です。",
     // PDW

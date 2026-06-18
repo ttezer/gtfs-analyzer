@@ -523,7 +523,7 @@ pub static RULES: &[RuleMeta] = &[
         "Gece yarısı sonrası saatler 00:xx yazılmış (24:xx önerilir, duraklar arası)"),
     r!("STM_049", Bilgi, Quality, 1, &[], Some("departure_time"), VS, Feed,
         "Gece yarısı sonrası kalkış 00:xx yazılmış (24:xx önerilir, aynı satır)"),
-    r!("STM_050", Dusuk, Quality, 1, &[], Some("timepoint"), VS, Row,
+    r!("STM_050", Dusuk, Quality, 1, &[], None, VS, Feed,
         "timepoint sütunu mevcut ama satırda boş — değer açıkça belirtilmeli (0 yaklaşık / 1 kesin)"),
     r!("STM_051", Yuksek, Spec, 1, &[], Some("trip_id"), VS, Entity,
         "Flex penceresi tanımlıyken pickup_type=0/3 yasak (talep-üzerine değerler gerekli)"),

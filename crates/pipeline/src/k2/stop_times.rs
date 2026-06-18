@@ -578,6 +578,9 @@ pub fn validate_stop_times(file: &RawFile) -> (StopTimesIndex, Vec<gtfs_core::No
     let mut total_rows: usize = 0;
     let mut unsorted_seq_trips: Vec<(SmolStr, u32, u32, u64)> = Vec::new();
     let mut arc021_fired = false;
+    // STM_050: boş-timepoint satır sayısı. Satır-başına notice DEĞİL (büyük feed'lerde milyonlarca
+    // notice → tarayıcı OOM, bkz. Kocaeli 2.4M); döngü sonunda TEK feed-seviyesi özet emit edilir.
+    let mut stm050_empty: u32 = 0;
     // OOM/perf (Aşama 1b): per-trip Vec YOK. Tüm satırlar (trip_idx etiketli) tek flat buffer'da
     // dosya sırasında toplanır; finalize'da counting-placement ile trip'e göre gruplanır.
     let mut all_rows: Vec<(u32, CompactStopTime)> = Vec::new();
@@ -860,14 +863,9 @@ pub fn validate_stop_times(file: &RawFile) -> (StopTimesIndex, Vec<gtfs_core::No
         let tp_raw = get_col(row, cols.timepoint);
         // STM_050: timepoint sütunu feed'de mevcut ama bu satırda boş (MD missing_timepoint_value).
         // Boş timepoint örtük 1 (kesin) sayılır → yaklaşık zamanlar yanlış kesin görünür; açık değer önerilir.
+        // Satır-başına DEĞİL sayılır; döngü sonunda tek feed-seviyesi özet (büyük feed OOM önlemi).
         if cols.timepoint.is_some() && tp_raw.trim().is_empty() {
-            notices.push(make_k2_notice(
-                &mut counter, "STM_050", EntityType::Trip, eid(),
-                None, &file.name, Some(line), Some("timepoint"),
-                Some(String::new()), Some("0 veya 1".to_string()),
-                format!("trip_id '{}' satırında timepoint sütunu var ama değer boş.", trip_id),
-                "timepoint değerini 0 (yaklaşık) veya 1 (kesin) olarak açıkça girin.",
-            ));
+            stm050_empty += 1;
         }
         let timepoint = match parse_u32_raw(tp_raw, "timepoint") {
             Ok(v) => {
@@ -1151,6 +1149,17 @@ pub fn validate_stop_times(file: &RawFile) -> (StopTimesIndex, Vec<gtfs_core::No
         ));
     }
 
+    // STM_050: feed-seviyesi TEK özet (satır-başına değil — büyük feed OOM önlemi).
+    if stm050_empty > 0 {
+        notices.push(make_k2_notice(
+            &mut counter, "STM_050", EntityType::Feed, None,
+            None, &file.name, None, Some("timepoint"),
+            Some(format!("{stm050_empty}")), None,
+            format!("{stm050_empty} stop_times satırında timepoint sütunu var ama değer boş; bu satırlar örtük olarak 1 (kesin zaman) sayılır."),
+            "Yaklaşık zamanlı duraklarda timepoint=0, kesin zamanlı duraklarda timepoint=1 olarak açıkça girin.",
+        ));
+    }
+
     // ── Finalize: counting-placement (Aşama 1b) ──
     // all_rows (trip_idx etiketli, dosya sırasında) → trip'e göre gruplu tek flat `rows`.
     // Per-trip Vec YOK; sayım → prefix-sum → doğrudan yerleştirme → per-trip range sort.
@@ -1396,14 +1405,21 @@ mod tests {
 
     #[test]
     fn empty_timepoint_value_produces_stm_050() {
+        // 3 boş-timepoint satırı → TEK feed-seviyesi STM_050 özeti (satır-başına DEĞİL),
+        // observed_value = 3. (Büyük feed OOM önlemi: bkz. Kocaeli 2.4M.)
         let file = make_file(
             vec!["trip_id", "arrival_time", "departure_time", "stop_id", "stop_sequence", "timepoint"],
-            vec![vec!["T1", "08:00:00", "08:00:00", "S1", "1", ""]],
+            vec![
+                vec!["T1", "08:00:00", "08:00:00", "S1", "1", ""],
+                vec!["T1", "08:10:00", "08:10:00", "S2", "2", ""],
+                vec!["T2", "09:00:00", "09:00:00", "S1", "1", ""],
+            ],
         );
         let (_, notices) = validate_stop_times(&file);
-        let ids: Vec<&str> = notices.iter().map(|n| n.rule_id.as_str()).collect();
-        assert!(ids.contains(&"STM_050"), "timepoint kolonu var + boş → STM_050: {:?}", ids);
-        assert!(!ids.contains(&"STM_022"), "boş değer STM_022 (geçersiz) tetiklememeli: {:?}", ids);
+        let stm050: Vec<&_> = notices.iter().filter(|n| n.rule_id == "STM_050").collect();
+        assert_eq!(stm050.len(), 1, "STM_050 satır-başına değil TEK özet olmalı: {}", stm050.len());
+        assert_eq!(stm050[0].observed_value.as_deref(), Some("3"), "özet 3 boş satır saymalı");
+        assert!(!notices.iter().any(|n| n.rule_id == "STM_022"), "boş değer STM_022 tetiklememeli");
     }
 
     #[test]

@@ -602,7 +602,7 @@ const en: LocaleShape = {
     'STM_047': "Trip '{entity_id}': timepoint=1 (exact time point) but both arrival_time and departure_time are missing.",
     'STM_048': "{observed_value} trips wrote after-midnight times as 00:xx; the GTFS service day expects 24:00:00+ (auto-interpreted as 24:xx for analysis).",
     'STM_049': "{observed_value} stops wrote an after-midnight departure as 00:xx (departure appears before arrival on the same row); 24:xx is recommended.",
-    'STM_050': "The timepoint column is present but this row leaves it empty; an empty timepoint is implicitly treated as exact (1), so approximate times may look exact.",
+    'STM_050': "{observed_value} stop_times rows have the timepoint column present but empty; an empty timepoint is implicitly treated as exact (1), so approximate times may look exact.",
     'STM_051': "Trip '{entity_id}': pickup_type 0 (regular) or 3 (driver-coordinated) is forbidden when a Flex pickup/drop-off window is defined.",
     'STM_052': "Trip '{entity_id}': drop_off_type 0 (regular) is forbidden when a Flex pickup/drop-off window is defined.",
     // PDW
