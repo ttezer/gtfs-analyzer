@@ -174,7 +174,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | TRP_026 | Aktif tarihi olmayan sefer (service_id geçerli ama aktif gün seti boş) | ORTA | Analytics |
 | TRP_028 | Bazı seferler tekerlekli sandalye erişilebilirliği işaretlememiş | ORTA | Quality |
 | TRP_029 | Hiçbir sefer tekerlekli sandalye erişilebilirliği bildirmemiş | BİLGİ | Quality |
-| TRP_030 | Sefer önümüzdeki 7 günde aktif değil | DÜŞÜK | Quality |
+| TRP_030 | Takvim önümüzdeki 7 günde aktif değil | DÜŞÜK | Quality |
 | TRP_031 | route_id eksik | KRİTİK | Spec |
 
 ## STM — Stop Times (Geçiş Zamanları)

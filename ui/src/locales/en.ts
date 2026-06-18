@@ -563,7 +563,7 @@ const en: LocaleShape = {
     'TRP_026': "Trip '{entity_id}': service_id '{observed_value}' has no valid service dates — trip will never operate.",
     'TRP_028': "Some trips are missing wheelchair accessibility information ({observed_value} trips).",
     'TRP_029': "None of the trips have wheelchair accessibility information ({observed_value} trips).",
-    'TRP_030': "Trip '{entity_id}': service '{observed_value}' has no active dates in the next 7 days.",
+    'TRP_030': "Service '{entity_id}' has no active dates in the next 7 days; {observed_value} trips are affected.",
     'TRP_031': 'trips.txt: route_id is missing.',
     // STM
     'STM_001': "trip_id '{entity_id}' not found in trips.txt.",
@@ -1718,7 +1718,7 @@ const en: LocaleShape = {
     'TRP_026': 'Trip with empty active-date set',
     'TRP_028': 'Some trips have not set wheelchair accessibility',
     'TRP_029': 'No trips report wheelchair accessibility',
-    'TRP_030': 'Trip inactive in the next 7 days',
+    'TRP_030': 'Calendar inactive in the next 7 days',
     'TRP_031': 'route_id missing',
     // STM
     'STM_001': 'trip_id not found',

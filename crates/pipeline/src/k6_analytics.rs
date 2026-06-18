@@ -2345,9 +2345,13 @@ fn check_operational_analytics(
         }
     }
 
-    // TRP_030: sefer önümüzdeki 7 günde aktif değil (per-trip 7-day window)
+    // TRP_030: önümüzdeki 7 günde aktif olmayan takvim — service_id başına agregasyon.
+    // (Aynı aktif-olmayan takvim binlerce sefere yayılır; aksiyon birimi service_id'dir,
+    // sefer değil — bu yüzden sefer-başına notice yerine takvim-başına tek özet üretilir.)
     if today_yyyymmdd > 0 && !records.trips.is_empty() {
         let today_jdn = yyyymmdd_to_approx_jdn(today_yyyymmdd);
+        // service_id → (etkilenen sefer sayısı, ilk trip satırı)
+        let mut inactive_by_service: FxHashMap<&str, (u32, u64)> = FxHashMap::default();
         for trip in &records.trips {
             if trip.trip_id.is_empty() { continue; }
             let active_in_7 = derived.calendar_bitmap.active_dates
@@ -2358,16 +2362,22 @@ fn check_operational_analytics(
                 }))
                 .unwrap_or(false);
             if !active_in_7 {
-                notices.push(k6_notice(
-                    ctr, "TRP_030", EntityType::Trip,
-                    Some(trip.trip_id.clone()), Some(trip.trip_id.clone()),
-                    "trips.txt", Some(trip.line), Some("service_id"),
-                    Some(trip.service_id.clone()), None,
-                    format!("'{}' seferi önümüzdeki 7 günde aktif değil (service_id: '{}').",
-                        trip.trip_id, trip.service_id),
-                    "calendar.txt veya calendar_dates.txt'i güncelleyin ya da yeni bir feed yayınlayın.",
-                ));
+                let e = inactive_by_service.entry(trip.service_id.as_str()).or_insert((0, trip.line));
+                e.0 += 1;
             }
+        }
+        // Deterministik çıktı için service_id'ye göre sırala.
+        let mut services: Vec<(&str, (u32, u64))> = inactive_by_service.into_iter().collect();
+        services.sort_by(|a, b| a.0.cmp(b.0));
+        for (service_id, (count, line)) in services {
+            notices.push(k6_notice(
+                ctr, "TRP_030", EntityType::Service,
+                Some(service_id.to_string()), Some(service_id.to_string()),
+                "trips.txt", Some(line), Some("service_id"),
+                Some(count.to_string()), None,
+                format!("'{service_id}' takvimi önümüzdeki 7 günde aktif değil — {count} sefer etkileniyor."),
+                "calendar.txt veya calendar_dates.txt'i güncelleyin ya da yeni bir feed yayınlayın.",
+            ));
         }
     }
 
@@ -7631,6 +7641,35 @@ mod tests {
             "Geçmişteki boşluk CAL_007 üretmeli");
         assert!(!result.notices.iter().any(|n| n.rule_id == "CAL_012"),
             "Geçmişteki boşluk CAL_012 üretmemeli");
+    }
+
+    #[test]
+    fn trp_030_aggregates_inactive_service_to_single_service_notice() {
+        use crate::k5_derived::CalendarBitmap;
+        let mut derived = DerivedData::default();
+        // SVC takvimi yalnızca geçmişte aktif → önümüzdeki 7 günde (20260514+) değil.
+        let dates: std::collections::HashSet<u32> = [20260101u32, 20260201].into_iter().collect();
+        derived.calendar_bitmap = CalendarBitmap {
+            active_dates: [("SVC".to_string(), dates)].into_iter().collect(),
+        };
+        // İki sefer de aynı SVC takvimine ait → sefer-başına 2 yerine takvim-başına 1 notice.
+        let records = records_with(
+            vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1)],
+            vec![route("R1", 3)],
+            vec![trip("T1", "R1"), trip("T2", "R1")],
+            vec![
+                stoptime("T1", 1, "A", (8,0,0), (8,0,0), 2),
+                stoptime("T1", 2, "B", (8,10,0), (8,10,0), 3),
+                stoptime("T2", 1, "A", (9,0,0), (9,0,0), 4),
+                stoptime("T2", 2, "B", (9,10,0), (9,10,0), 5),
+            ],
+        );
+        let result = analyze(&records, &derived, &default_config(), 20260514);
+        let trp: Vec<_> = result.notices.iter().filter(|n| n.rule_id == "TRP_030").collect();
+        assert_eq!(trp.len(), 1, "aktif olmayan tek takvim için tek TRP_030 beklenir");
+        assert_eq!(trp[0].entity_type, gtfs_core::EntityType::Service);
+        assert_eq!(trp[0].entity_id.as_deref(), Some("SVC"));
+        assert_eq!(trp[0].observed_value.as_deref(), Some("2"), "2 sefer etkilenmeli");
     }
 
     #[test]

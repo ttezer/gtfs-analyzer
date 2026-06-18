@@ -409,8 +409,8 @@ pub static RULES: &[RuleMeta] = &[
         "Bazı seferler tekerlekli sandalye erişilebilirliği işaretlememiş"),
     r!("TRP_029", Bilgi, Quality, 1, &[], None, VS, Feed,
         "Hiçbir sefer tekerlekli sandalye erişilebilirliği bildirmemiş"),
-    r!("TRP_030", Dusuk, Quality, 1, &[], Some("trip_id"), VS, Entity,
-        "Sefer önümüzdeki 7 günde aktif değil"),
+    r!("TRP_030", Dusuk, Quality, 1, &[], Some("service_id"), VS, Entity,
+        "Takvim önümüzdeki 7 günde aktif değil"),
     r!("TRP_031", Kritik, Spec, 1, &[], Some("route_id"), VS_K, Entity,
         "route_id eksik"),
 

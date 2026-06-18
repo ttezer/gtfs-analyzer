@@ -29,6 +29,12 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
     let mut records = Vec::new();
     let mut counter = 0u32;
 
+    // STP_022 agregasyonu: stop_code feed genelinde hiç kullanılmamışsa (tek üretici
+    // kararı), durak-başına on binlerce özdeş notice yerine tek özet üretilir (STM_017
+    // emsali). Kısmen doluysa per-durak korunur. Karar döngü sonunda verilir.
+    let mut stp022_pending: Vec<gtfs_core::Notice> = Vec::new();
+    let mut any_stop_code_present = false;
+
     for (row_idx, row) in file.rows.iter().enumerate() {
         let line = (row_idx + 2) as u64;
         let row_map = build_row_map(&file.headers, row);
@@ -50,6 +56,9 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
         let stop_code = get_trimmed_field(&row_map, "stop_code")
             .filter(|v| !v.is_empty())
             .map(str::to_string);
+        if stop_code.is_some() {
+            any_stop_code_present = true;
+        }
 
         // STP_028: stop_code çok uzun (>50 karakter)
         if let Some(ref code) = stop_code {
@@ -89,9 +98,10 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
         // için zorunlu; generic node (3) ve boarding area (4) için opsiyonel.
         let requires_name_and_coords = matches!(location_type, None | Some(0) | Some(1) | Some(2));
 
-        // STP_022: stop_code eksik (duraklar ve istasyonlar için)
+        // STP_022: stop_code eksik (duraklar ve istasyonlar için) — döngü sonunda
+        // agregasyon kararı için bekletilir.
         if stop_code.is_none() && is_stop_or_station {
-            notices.push(make_k2_notice(
+            stp022_pending.push(make_k2_notice(
                 &mut counter, "STP_022", EntityType::Stop, entity_id.clone(),
                 Some(&row_map), &file.name, Some(line), Some("stop_code"),
                 Some(String::new()), None,
@@ -351,6 +361,21 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
         });
     }
 
+    // STP_022 karar: stop_code feed genelinde hiç yok ve >1 durak etkili → tek özet;
+    // aksi halde (kısmi doluluk veya tek durak) durak-başına notice korunur.
+    if !any_stop_code_present && stp022_pending.len() > 1 {
+        let n = stp022_pending.len();
+        notices.push(make_k2_notice(
+            &mut counter, "STP_022", EntityType::Feed, None,
+            None, &file.name, None, Some("stop_code"),
+            Some(n.to_string()), None,
+            format!("Feed genelinde stop_code hiç kullanılmamış: {n} durakta eksik — yolcular durağı kısa kodla tanıyamaz."),
+            "stops.txt'teki duraklara yolcuların tanıyabileceği stop_code değerleri ekleyin.",
+        ));
+    } else {
+        notices.append(&mut stp022_pending);
+    }
+
     // STP_018: stops.txt'te hiç durak yok
     if records.is_empty() {
         notices.push(make_k2_notice(
@@ -396,6 +421,41 @@ mod tests {
         let (records, notices) = validate_stops(&file);
         assert_eq!(records.len(), 1);
         assert!(notices.is_empty(), "Geçerli durak notice üretmemeli: {:?}", notices);
+    }
+
+    #[test]
+    fn stp_022_feed_wide_missing_aggregates_to_single_feed_notice() {
+        // Hiçbir durakta stop_code yok, >1 durak → tek feed-seviyesi STP_022.
+        let file = make_file(
+            vec!["stop_id", "stop_name", "stop_lat", "stop_lon"],
+            vec![
+                vec!["S1", "Stop1", "41.0", "29.0"],
+                vec!["S2", "Stop2", "41.1", "29.1"],
+                vec!["S3", "Stop3", "41.2", "29.2"],
+            ],
+        );
+        let (_, notices) = validate_stops(&file);
+        let stp022: Vec<_> = notices.iter().filter(|n| n.rule_id == "STP_022").collect();
+        assert_eq!(stp022.len(), 1, "feed-geneli eksiklikte tek STP_022 beklenir");
+        assert_eq!(stp022[0].entity_type, EntityType::Feed);
+        assert_eq!(stp022[0].observed_value.as_deref(), Some("3"));
+    }
+
+    #[test]
+    fn stp_022_partial_missing_stays_per_stop() {
+        // Bazı duraklarda stop_code dolu → eksik olanlar durak-başına işaretlenir.
+        let file = make_file(
+            vec!["stop_id", "stop_name", "stop_lat", "stop_lon", "stop_code"],
+            vec![
+                vec!["S1", "Stop1", "41.0", "29.0", "S001"],
+                vec!["S2", "Stop2", "41.1", "29.1", ""],
+                vec!["S3", "Stop3", "41.2", "29.2", ""],
+            ],
+        );
+        let (_, notices) = validate_stops(&file);
+        let stp022: Vec<_> = notices.iter().filter(|n| n.rule_id == "STP_022").collect();
+        assert_eq!(stp022.len(), 2, "kısmi doluluk durak-başına STP_022 vermeli");
+        assert!(stp022.iter().all(|n| n.entity_type == EntityType::Stop));
     }
 
     #[test]

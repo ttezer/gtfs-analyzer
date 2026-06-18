@@ -174,7 +174,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | TRP_026 | Trip with empty active-date set | MEDIUM | Analytics |
 | TRP_028 | Some trips have not set wheelchair accessibility | MEDIUM | Quality |
 | TRP_029 | No trips report wheelchair accessibility | INFO | Quality |
-| TRP_030 | Trip inactive in the next 7 days | LOW | Quality |
+| TRP_030 | Calendar inactive in the next 7 days | LOW | Quality |
 | TRP_031 | route_id missing | CRITICAL | Spec |
 
 ## STM — Stop Times

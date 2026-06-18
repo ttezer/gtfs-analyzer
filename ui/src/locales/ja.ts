@@ -544,7 +544,7 @@ const ja: LocaleShape = {
     'TRP_026': "便'{entity_id}'：service_id'{observed_value}'に有効な運行日がありません — 永遠に運行されません。",
     'TRP_028': "一部の便に車椅子対応情報がありません（{observed_value}便）。",
     'TRP_029': "すべての便に車椅子対応情報がありません（{observed_value}便）。",
-    'TRP_030': "便'{entity_id}'：サービス'{observed_value}'は今後7日間に有効な日がありません。",
+    'TRP_030': "サービス'{entity_id}'は今後7日間に有効な日がありません。{observed_value}便が影響を受けます。",
     'TRP_031': 'trips.txt：route_idがありません。',
     // STM
     'STM_001': "trip_id'{entity_id}'がtrips.txtに見つかりません。",
@@ -1672,7 +1672,7 @@ const ja: LocaleShape = {
     'TRP_026': 'アクティブ日付セットが空の便',
     'TRP_028': '一部の便で車椅子対応情報が未設定',
     'TRP_029': 'すべての便で車椅子対応情報が未報告',
-    'TRP_030': '今後7日間にアクティブでない便',
+    'TRP_030': '今後7日間にアクティブでないカレンダー',
     'TRP_031': 'route_idが不足',
     // STM
     'STM_001': 'trip_idがtrips.txtに存在しない',
