@@ -581,7 +581,7 @@ const en: LocaleShape = {
     'STM_014': "Trip '{entity_id}': excessive speed in segment — {observed_value} (limit: {expected_value}).",
     'STM_015': "Trip '{entity_id}': first stop is missing departure_time.",
     'STM_016': "Trip '{entity_id}': last stop is missing arrival_time.",
-    'STM_017': "Trip '{entity_id}': shape_dist_traveled is missing in stop_times.",
+    'STM_017': "shape_dist_traveled is missing in stop_times for trips that reference a shape, so stop positions along the shape cannot be verified.",
     'STM_018': "Trip '{entity_id}': continuous_pickup '{observed_value}' is invalid in stop_times.",
     'STM_019': "Trip '{entity_id}': continuous_drop_off '{observed_value}' is invalid in stop_times.",
     'STM_020': "Trip '{entity_id}': zero travel time with distance > 200 m ({observed_value}).",

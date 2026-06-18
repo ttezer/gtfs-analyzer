@@ -3723,31 +3723,73 @@ fn check_remaining_analytics(
     // idx.trips_missing_sdt: build'de trip_shape filtreli, line numarası hazır
     {
         let _ts = Timer::start("K6::rem::stm_017");
-        for (&trip_id, &line) in &idx.trips_missing_sdt {
-            let route_id = trip_to_route_rem.get(trip_id).copied().unwrap_or(trip_id);
-            let rt = route_type_rem.get(route_id).copied().unwrap_or(3);
-            if is_rail_route_type(rt) {
-                continue; // intercity rail shape_dist_traveled sağlamaz — beklenen davranış
-            }
-            let route = route_id;
-            let dep = trip_first_dep.get(trip_id)
-                .map(|(h, m, _)| format!("{h:02}:{m:02}"))
-                .unwrap_or_default();
-            let dep_infix = if dep.is_empty() { String::new() } else { format!(" {dep}") };
+        // shape_dist_traveled feed genelinde hiç kullanılmamışsa, trip-başına on
+        // binlerce özdeş notice yerine tek feed-seviyesi özet üret (STM_050 emsali).
+        // Kısmen doluysa (gerçek tutarsızlık) trip granülerliği korunur.
+        let any_sdt_present = records.stop_times.iter().any(|s| s.shape_dist_traveled.is_some());
+
+        // rail dışı (intercity rail shape_dist_traveled sağlamaz — beklenen davranış),
+        // shape'i olup sdt eksik trip'ler.
+        let flagged: Vec<(&str, u64)> = idx
+            .trips_missing_sdt
+            .iter()
+            .filter(|(trip_id, _)| {
+                let route_id = trip_to_route_rem.get(**trip_id).copied().unwrap_or(**trip_id);
+                let rt = route_type_rem.get(route_id).copied().unwrap_or(3);
+                !is_rail_route_type(rt)
+            })
+            .map(|(&trip_id, &line)| (trip_id, line))
+            .collect();
+
+        if !any_sdt_present && flagged.len() > 1 {
+            // Feed-geneli tamamen eksik → tek özet notice (gürültü ~54k → 1).
+            let n = flagged.len();
+            let trip_to_shape: FxHashMap<&str, &str> = records
+                .trips
+                .iter()
+                .filter_map(|t| t.shape_id.as_deref().map(|s| (t.trip_id.as_str(), s)))
+                .collect();
+            let n_shapes = flagged
+                .iter()
+                .filter_map(|(tid, _)| trip_to_shape.get(*tid).copied())
+                .collect::<FxHashSet<&str>>()
+                .len();
             notices.push(k6_notice(
                 ctr,
                 "STM_017",
-                EntityType::Trip,
-                Some(trip_id.to_string()),
-                Some(trip_id.to_string()),
+                EntityType::Feed,
+                None,
+                None,
                 "stop_times.txt",
-                Some(line),
+                None,
                 Some("shape_dist_traveled"),
+                Some(n.to_string()),
                 None,
-                None,
-                format!("'{}' hattının{dep_infix} seferinde güzergah mesafe bilgisi (shape_dist_traveled) eksik — durak konumları doğrulanamıyor.", route),
-                "Tüm stop_times satırlarına shape_dist_traveled ekleyin ya da tümünden kaldırın.",
+                format!("Feed genelinde shape_dist_traveled hiç kullanılmamış: {n_shapes} güzergaha ait {n} sefer etkileniyor — durak konumları güzergah üzerinde doğrulanamıyor."),
+                "Tüm stop_times satırlarına shape_dist_traveled ekleyin ya da güzergah bazlı mesafe verisi sağlayın.",
             ));
+        } else {
+            for (trip_id, line) in flagged {
+                let route = trip_to_route_rem.get(trip_id).copied().unwrap_or(trip_id);
+                let dep = trip_first_dep.get(trip_id)
+                    .map(|(h, m, _)| format!("{h:02}:{m:02}"))
+                    .unwrap_or_default();
+                let dep_infix = if dep.is_empty() { String::new() } else { format!(" {dep}") };
+                notices.push(k6_notice(
+                    ctr,
+                    "STM_017",
+                    EntityType::Trip,
+                    Some(trip_id.to_string()),
+                    Some(trip_id.to_string()),
+                    "stop_times.txt",
+                    Some(line),
+                    Some("shape_dist_traveled"),
+                    None,
+                    None,
+                    format!("'{}' hattının{dep_infix} seferinde güzergah mesafe bilgisi (shape_dist_traveled) eksik — durak konumları doğrulanamıyor.", route),
+                    "Tüm stop_times satırlarına shape_dist_traveled ekleyin ya da tümünden kaldırın.",
+                ));
+            }
         }
     }
 
@@ -8140,6 +8182,38 @@ mod tests {
         ];
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
         assert!(result.notices.iter().any(|n| n.rule_id == "STM_017"), "STM_017 olmalı");
+    }
+
+    #[test]
+    fn stm_017_feed_wide_missing_aggregates_to_single_feed_notice() {
+        use crate::k2::shapes::ShapePointRecord;
+        // İki trip de shape'i olup sdt eksik; feed genelinde sdt hiç yok →
+        // trip-başına 2 yerine tek feed-seviyesi özet beklenir.
+        let mut records = records_with(
+            vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1)],
+            vec![route("R1", 3)],
+            vec![
+                { let mut t = trip("T1", "R1"); t.shape_id = Some("S1".into()); t },
+                { let mut t = trip("T2", "R1"); t.shape_id = Some("S1".into()); t },
+            ],
+            vec![
+                stoptime("T1", 1, "A", (8,0,0), (8,0,0), 2),
+                stoptime("T1", 2, "B", (8,10,0), (8,10,0), 3),
+                stoptime("T2", 1, "A", (9,0,0), (9,0,0), 4),
+                stoptime("T2", 2, "B", (9,10,0), (9,10,0), 5),
+            ],
+        );
+        records.shapes = vec![
+            ShapePointRecord { shape_id: "S1".into(), shape_pt_lat: Some(41.0), shape_pt_lon: Some(29.0),
+                shape_pt_sequence: Some(1), shape_dist_traveled: None, line: 2 },
+            ShapePointRecord { shape_id: "S1".into(), shape_pt_lat: Some(41.1), shape_pt_lon: Some(29.1),
+                shape_pt_sequence: Some(2), shape_dist_traveled: None, line: 3 },
+        ];
+        let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
+        let stm017: Vec<_> = result.notices.iter().filter(|n| n.rule_id == "STM_017").collect();
+        assert_eq!(stm017.len(), 1, "feed-geneli eksiklikte tek STM_017 beklenir, alınan: {}", stm017.len());
+        assert_eq!(stm017[0].entity_type, gtfs_core::EntityType::Feed, "feed-seviyesi olmalı");
+        assert_eq!(stm017[0].observed_value.as_deref(), Some("2"), "etkilenen sefer sayısı 2 olmalı");
     }
 
     #[test]

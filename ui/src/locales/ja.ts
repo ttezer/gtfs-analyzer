@@ -562,7 +562,7 @@ const ja: LocaleShape = {
     'STM_014': "便'{entity_id}'：区間の速度が超過しています — {observed_value}（制限：{expected_value}）。",
     'STM_015': "便'{entity_id}'：最初の停留所にdeparture_timeがありません。",
     'STM_016': "便'{entity_id}'：最後の停留所にarrival_timeがありません。",
-    'STM_017': "便'{entity_id}'：stop_timesにshape_dist_traveledがありません。",
+    'STM_017': "shapeを参照する便のstop_timesにshape_dist_traveledがないため、shape上の停留所位置を検証できません。",
     'STM_018': "便'{entity_id}'：stop_timesのcontinuous_pickup'{observed_value}'が無効です。",
     'STM_019': "便'{entity_id}'：stop_timesのcontinuous_drop_off'{observed_value}'が無効です。",
     'STM_020': "便'{entity_id}'：移動時間ゼロで距離が200m超（{observed_value}）。",
