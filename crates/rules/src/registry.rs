@@ -272,7 +272,7 @@ pub static RULES: &[RuleMeta] = &[
         "Pathway istasyonunda stop_access belirtilmemiş"),
     r!("STP_028", Bilgi,  Quality, 1, &[], Some("stop_id"), VS, Entity,
         "stop_code çok uzun"),
-    r!("STP_029", Yuksek, Quality, 2, &[], Some("stop_id"), VS, Entity,
+    r!("STP_029", Orta, Quality, 2, &[], Some("stop_id"), VS, Entity,
         "Durak istasyon içinde ama koordinat çok uzakta"),
     r!("STP_030", Orta,   Quality, 1, &[], Some("stop_id"), VS, Entity,
         "Üst istasyonun alt durağı yok"),

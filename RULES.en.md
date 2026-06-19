@@ -106,7 +106,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | STP_026 | stop_access invalid value | LOW | Spec |
 | STP_027 | stop_access not set on pathway station | MEDIUM | Spec |
 | STP_028 | stop_code too long | INFO | Quality |
-| STP_029 | Stop inside station but coordinate too far | HIGH | Quality |
+| STP_029 | Stop inside station but coordinate too far | MEDIUM | Quality |
 | STP_030 | Parent station has no child stops | MEDIUM | Quality |
 | STP_031 | Stop name and description are identical | INFO | Quality |
 | STP_032 | parent_station missing for pathway-connected platform | MEDIUM | Quality |

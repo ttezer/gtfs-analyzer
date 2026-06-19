@@ -106,7 +106,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | STP_026 | stop_access geçersiz değer | DÜŞÜK | Spec |
 | STP_027 | Pathway istasyonunda stop_access belirtilmemiş | ORTA | Spec |
 | STP_028 | stop_code çok uzun | BİLGİ | Quality |
-| STP_029 | Durak istasyon içinde ama koordinat çok uzakta | YÜKSEK | Quality |
+| STP_029 | Durak istasyon içinde ama koordinat çok uzakta | ORTA | Quality |
 | STP_030 | Üst istasyonun alt durağı yok | ORTA | Quality |
 | STP_031 | Durak adı ve açıklaması aynı | BİLGİ | Quality |
 | STP_032 | Pathway bağlantılı platform için parent_station eksik | ORTA | Quality |
