@@ -207,12 +207,18 @@ jobs:
           cache: 'npm'
           cache-dependency-path: ui/package-lock.json
 
-      # Non-blocking: bulgular yalnızca dev/build araç zincirinde. Critical'lar doğrudan Vitest
-      # paketleri (vitest + @vitest/coverage-v8, Vitest 2.x advisory'si); kök neden esbuild/vite
-      # dev-server. Deploy edilen statik sitede npm runtime bağımlılığı yok → üretim artefaktı
-      # etkilenmiyor. Takip: https://github.com/ttezer/gtfs-analyzer/issues/2  (Vitest 4 major geçişi).
-      # Rapor JSON+metin olarak artefakta yazılır; loglarda kaybolmaz. (cargo audit shipped deps → blocking.)
-      - name: npm audit (rapor + artefakt, non-blocking)
+      # Üretim (runtime) bağımlılıkları → BLOCKING. Deploy edilen statik sitenin npm runtime
+      # bağımlılığı olmadığından bu adım bugün temiz geçer; ama ileride eklenecek bir runtime
+      # açığı CI'ı kırar — gerçek güvenlik kapısı budur. (cargo audit shipped Rust deps → blocking.)
+      - name: npm audit (üretim bağımlılıkları — blocking)
+        working-directory: ui
+        run: npm audit --omit=dev --audit-level=high
+
+      # Dev/build araç zinciri bulguları → NON-BLOCKING. Bunlar yalnızca lokal dev/build'i
+      # etkiler (Vitest/esbuild/vite dev-server); deploy edilen statik artefakt etkilenmez.
+      # Vitest/Vite major upgrade'i ayrı bir iş — takip: https://github.com/ttezer/gtfs-analyzer/issues/2
+      # Rapor JSON+metin olarak artefakta yazılır; loglarda kaybolmaz.
+      - name: npm audit (tüm bağımlılıklar — rapor + artefakt, non-blocking)
         working-directory: ui
         continue-on-error: true
         run: |
