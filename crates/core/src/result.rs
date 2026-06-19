@@ -15,6 +15,7 @@ pub struct NameIndex {
     pub routes: HashMap<String, String>,                 // route_id → short_name (veya long_name)
     pub trips: HashMap<String, String>,                  // trip_id → trip_headsign
     pub trip_routes: HashMap<String, String>,            // trip_id → route_id (filtre için)
+    pub trip_directions: HashMap<String, String>,        // trip_id → "0"/"1" (direction_id; yoksa yok)
     pub stop_coords: HashMap<String, [f64; 2]>,           // stop_id → [lat, lon] (harita için)
     pub trip_first_dep: HashMap<String, String>,          // trip_id → "HH:MM" (sefer saati)
     pub shape_routes: HashMap<String, Vec<[String; 2]>>,  // shape_id → [[route_id, yön]]

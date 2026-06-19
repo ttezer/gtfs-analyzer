@@ -636,10 +636,9 @@
     .pm-body    { padding: .9rem 1rem; overflow: auto; max-height: 72vh; }
     .pm-summary { margin: 0 0 .75rem; font-size: .82rem; color: var(--color-muted); }
     .pm-empty   { margin: .5rem 0; font-size: .85rem; color: var(--color-muted); }
-    .pm-pat     { border: 1px solid var(--color-border); border-radius: var(--radius); padding: .4rem .6rem; margin-bottom: .5rem; }
-    .pm-pat > summary { cursor: pointer; font-size: .82rem; }
-    .pm-chips   { display: flex; flex-wrap: wrap; gap: .3rem; margin-top: .5rem; }
-    .pm-chip    { background: var(--color-bg); border: 1px solid var(--color-border); border-radius: 999px; padding: .1rem .5rem; font-size: .72rem; white-space: nowrap; }
+    .pm-pat-row { font-size: .82rem; padding: .45rem .25rem; border-bottom: 1px solid var(--color-border); }
+    .pm-pat-row:last-child { border-bottom: none; }
+    .pm-dir     { background: var(--color-bg); border: 1px solid var(--color-border); border-radius: 999px; padding: .02rem .45rem; font-size: .72rem; }
 
     /* Harita modal */
     .mm-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.55); display: flex; align-items: center; justify-content: center; z-index: 9999; }

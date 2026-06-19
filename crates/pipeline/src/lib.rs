@@ -126,6 +126,11 @@ pub fn build_name_index(records: &EntityRecords) -> gtfs_core::NameIndex {
         .map(|r| (r.trip_id.clone(), r.route_id.clone()))
         .collect();
 
+    // trip_id → direction_id ("0"/"1"); yön bilgisi olmayan sefer dahil edilmez.
+    let trip_directions: HashMap<String, String> = records.trips.iter()
+        .filter_map(|r| r.direction_id.map(|d| (r.trip_id.clone(), d.to_string())))
+        .collect();
+
     let stop_coords: HashMap<String, [f64; 2]> = records.stops.iter()
         .filter_map(|r| {
             if let (Some(lat), Some(lon)) = (r.stop_lat, r.stop_lon) {
@@ -225,7 +230,7 @@ pub fn build_name_index(records: &EntityRecords) -> gtfs_core::NameIndex {
         map
     };
 
-    gtfs_core::NameIndex { stops, routes, trips, trip_routes, stop_coords, trip_first_dep, shape_routes, shape_coords, trip_shapes, trip_stops, shape_trips, route_shapes }
+    gtfs_core::NameIndex { stops, routes, trips, trip_routes, trip_directions, stop_coords, trip_first_dep, shape_routes, shape_coords, trip_shapes, trip_stops, shape_trips, route_shapes }
 }
 
 pub fn collect_file_stats(files: &RawFiles) -> Vec<FileInfo> {

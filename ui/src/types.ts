@@ -125,6 +125,7 @@ export interface NameIndex {
   routes: Record<string, string>;                  // route_id → short_name or long_name
   trips: Record<string, string>;                   // trip_id → trip_headsign
   trip_routes: Record<string, string>;             // trip_id → route_id
+  trip_directions: Record<string, string>;          // trip_id → "0"/"1" (direction_id)
   stop_coords: Record<string, [number, number]>;    // stop_id → [lat, lon]
   trip_first_dep: Record<string, string>;           // trip_id → "HH:MM"
   shape_routes: Record<string, [string, string][]>; // shape_id → [[route_id, yön]]

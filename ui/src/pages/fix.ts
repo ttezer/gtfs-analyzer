@@ -230,10 +230,11 @@ function renderR2(result: ValidationResult, noticeMap: Map<string, Notice>, delt
     const mapBtn   = hasMapCoords(notice, nameIndex)
       ? `<button class="map-pin-btn" data-notice-id="${escHtml(notice.id)}" title="${mapLabel}" aria-label="${mapLabel}">📍</button>`
       : '';
-    // Desenler: entity bir hat ise (route_id) o hattın sefer desenlerini göster.
+    // Desenler: yalnızca desen görmenin işe yaradığı hat-yapısı/servis kurallarında
+    // (PATTERN_RULES) ve entity gerçekten bir hat (route_id) ise göster.
     const patLabel = t('fix.pattern_btn');
-    const patBtn   = (notice.entity_id && notice.entity_id in nameIndex.routes)
-      ? `<button class="pattern-btn" data-notice-id="${escHtml(notice.id)}" title="${patLabel}" aria-label="${patLabel}">🧩</button>`
+    const patBtn   = (PATTERN_RULES.has(notice.rule_id) && notice.entity_id && notice.entity_id in nameIndex.routes)
+      ? `<button class="pattern-btn" data-notice-id="${escHtml(notice.id)}" title="${patLabel}" aria-label="${patLabel}">${PATTERN_ICON}</button>`
       : '';
     const specHref = specUrl(notice);
     const ruleCell = specHref
@@ -346,6 +347,26 @@ const ROUTE_ID_RULES = new Set([
   // OPR grubu — hat bazlı
   'OPR_001','OPR_002','OPR_003',
 ]);
+
+// Sefer-deseni görünümünün işe yaradığı kurallar (hat-yapısı / geometri / servis).
+// Metadata kuralları (DQ_003 desc, RTS_025 agency_id, RTS_012 sefersiz hat vb.) hariç.
+const PATTERN_RULES = new Set([
+  'VAT_001', // muhtemel kopya hat — desenleri karşılaştır
+  'VAT_003', // sefer süresi aykırı — desen açıklar
+  'OPR_001', // seyrek servis — desen + sıklık
+  'OPR_005', // sıradışı sefer sıklığı
+  'OPR_013', // tek yönlü hat — desen/yön
+  'RTS_017', // shape'siz hat — shape yokken desen yapısı
+]);
+
+// "Sefer deseni" ikonu — dallanan hat (varyant) şeması; haritadan (📍) ayırt edilir.
+const PATTERN_ICON =
+  '<svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true" style="vertical-align:middle">' +
+  '<path d="M2.5 8h4l6-4M6.5 8l6 4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>' +
+  '<circle cx="2.5" cy="8" r="1.7" fill="currentColor"/>' +
+  '<circle cx="13" cy="4" r="1.7" fill="currentColor"/>' +
+  '<circle cx="13" cy="12" r="1.7" fill="currentColor"/>' +
+  '</svg>';
 
 function hasMapCoords(notice: Notice, nameIndex: NameIndex): boolean {
   const eid = notice.entity_id ?? '';

@@ -236,6 +236,9 @@ const en: LocaleShape = {
     'fix.pattern.trips'     : '{n} trips',
     'fix.pattern.stops_n'   : '{n} stops',
     'fix.pattern.summary'   : '{p} distinct patterns · {t} trips total',
+    'fix.pattern.headway'   : 'every ~{n} min',
+    'fix.pattern.dir_out'   : 'Outbound',
+    'fix.pattern.dir_in'    : 'Inbound',
     'fix.spec_link'         : 'GTFS spec (new tab)',
     'fix.map.shape'         : 'shape',
     // Map legend labels
