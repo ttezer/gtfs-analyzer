@@ -6706,57 +6706,92 @@ fn check_vat_analytics(
             }
         }
 
-        for (_key, mut durs) in groups {
+        // Gün-içi (peak/off-peak) deseasonalize: süre, kalkış SAATİNE göre beklenenden
+        // sapması ölçülür. Bir saatte ≥BUCKET_MIN_TRIPS sefer varsa o saatin medyanı
+        // referans alınır; aksi halde desen-global medyanına düşülür (seyrek saatte
+        // veri-açlığını önler). Robust-z artık residual üzerinde; min-dakika tabanı
+        // tamamlayıcı (tiny-MAD'da küçük sapmaları işaretleme). Bkz. issue #24.
+        const BUCKET_MIN_TRIPS: usize = 5;
+        // Operasyonel min sapma: bundan küçük residual'lar (gün-içi gürültü) hiç işaretlenmez.
+        // Deseasonalize residual'ları sıkıştırdığından σ tek başına aşırı hassas olur; bu taban
+        // AND-gate olarak küçük sapmaları eler (issue #24 katkıcısının "min-dakika tamamlayıcı" notu).
+        const RESIDUAL_FLOOR_SECS: f64 = 300.0;
+
+        for (_key, durs) in groups {
             if durs.len() < 5 { continue; }
-            durs.sort_by_key(|&(_, d, _, _)| d);
-            let vals: Vec<u32> = durs.iter().map(|&(_, d, _, _)| d).collect();
-            let median = vals[vals.len() / 2] as f64;
-            if median < 120.0 { continue; }
-            let mut abs_devs: Vec<f64> = vals.iter()
-                .map(|&d| (d as f64 - median).abs())
-                .collect();
-            abs_devs.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
-            let mad = abs_devs[abs_devs.len() / 2] * 1.4826;
-            // MAD = 0 (tüm süreler aynı): ratio bazlı fallback — median'ın 3× üstü veya 0.25× altı
-            let use_ratio_fallback = mad < 30.0;
-            let threshold = if use_ratio_fallback { 0.0 } else { config.duration_outlier_sigma * mad };
-            for &(trip_id, dur, dep_secs, route) in &durs {
-                let is_outlier = if use_ratio_fallback {
-                    let r = dur as f64 / median;
-                    r > 3.0 || r < 0.25
-                } else {
-                    (dur as f64 - median).abs() > threshold
-                };
-                if is_outlier {
-                    let label = route_label.get(route).copied().unwrap_or(route);
-                    let dep_suffix = format!(" {:02}:{:02} kalkışlı", dep_secs / 3600, (dep_secs % 3600) / 60);
-                    let dur_min = dur / 60;
-                    let med_min = (median as u32) / 60;
-                    // Yönlü sapma: + = medyandan uzun, − = medyandan kısa.
-                    let sigma_str = if use_ratio_fallback {
-                        let yon = if dur as f64 >= median { "uzun" } else { "kısa" };
-                        format!("{:.1}× medyan, medyandan {yon}", dur as f64 / median)
-                    } else {
-                        let signed_dev = dur as f64 - median;
-                        let sigma = signed_dev / (mad / 1.4826);
-                        let yon = if signed_dev >= 0.0 { "medyandan uzun" } else { "medyandan kısa" };
-                        format!("{sigma:+.1}σ, {yon}")
-                    };
-                    notices.push(k6_notice(
-                        ctr,
-                        "VAT_003",
-                        EntityType::Trip,
-                        Some(trip_id.to_string()),
-                        None,
-                        "stop_times.txt",
-                        None,
-                        Some("trip_id"),
-                        Some(format!("{dur_min}dk (medyan {med_min}dk)")),
-                        None,
-                        format!("'{label}' hattının '{trip_id}'{dep_suffix} seferinin süresi {dur_min}dk — hat medyanı {med_min}dk ({sigma_str})."),
-                        "stop_times.txt zaman değerlerini ve sefer güzergahını doğrulayın.",
-                    ));
+            let mut all: Vec<u32> = durs.iter().map(|&(_, d, _, _)| d).collect();
+            all.sort_unstable();
+            let med_all = all[all.len() / 2] as f64;
+            if med_all < 120.0 { continue; }
+
+            // Kaba zaman bandı (saatlik yerine): gün-içi yapıyı yakalar ama bucket'ları
+            // veri-aç bırakmaz (katkıcının "coarse buckets degrade more gracefully" notu).
+            let band = |dep: u32| -> u32 {
+                match dep / 3600 {
+                    0..=5 => 0,    // gece / erken
+                    6..=9 => 1,    // sabah zirve
+                    10..=15 => 2,  // gündüz
+                    16..=19 => 3,  // akşam zirve
+                    _ => 4,        // akşam / gece (20+ ve 24+)
                 }
+            };
+            // Yoğun bandların (≥BUCKET_MIN_TRIPS) kendi medyanı; seyrek bandlar global'e düşer.
+            let mut by_band: FxHashMap<u32, Vec<u32>> = FxHashMap::default();
+            for &(_, d, dep, _) in &durs { by_band.entry(band(dep)).or_default().push(d); }
+            let mut band_med: FxHashMap<u32, f64> = FxHashMap::default();
+            for (b, mut bv) in by_band {
+                if bv.len() >= BUCKET_MIN_TRIPS {
+                    bv.sort_unstable();
+                    band_med.insert(b, bv[bv.len() / 2] as f64);
+                }
+            }
+            let reference = |dep: u32| band_med.get(&band(dep)).copied().unwrap_or(med_all);
+
+            // residual = süre − saat-bazlı beklenen; MAD residual üzerinde.
+            let mut res: Vec<f64> = durs.iter().map(|&(_, d, dep, _)| d as f64 - reference(dep)).collect();
+            res.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+            let med_res = res[res.len() / 2];
+            let mut dev: Vec<f64> = res.iter().map(|r| (r - med_res).abs()).collect();
+            dev.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+            let mad_r = dev[dev.len() / 2] * 1.4826;
+
+            // Residual-z eşiği (config; varsayılan 3.5 — issue #24, deseasonalize residual'ı sıkı).
+            let sigma = config.duration_outlier_sigma;
+            for &(trip_id, dur, dep_secs, route) in &durs {
+                let ref_med = reference(dep_secs);
+                let residual = dur as f64 - ref_med;
+                // İki koşul birlikte (AND): (1) operasyonel olarak anlamlı sapma (≥ taban),
+                // (2) istatistiksel aykırılık (residual > σ·MAD). mad_r≈0 ise (residual'lar
+                // birebir aynı) σ testi atlanır; yalnızca taban karar verir.
+                let mag_ok = residual.abs() >= RESIDUAL_FLOOR_SECS;
+                let stat_ok = mad_r < 1.0 || residual.abs() > sigma * mad_r;
+                if !(mag_ok && stat_ok) { continue; }
+
+                let label = route_label.get(route).copied().unwrap_or(route);
+                let dep_suffix = format!(" {:02}:{:02} kalkışlı", dep_secs / 3600, (dep_secs % 3600) / 60);
+                let dur_min = dur / 60;
+                let ref_min = (ref_med as u32) / 60;
+                let yon = if residual >= 0.0 { "beklenenden uzun" } else { "beklenenden kısa" };
+                let sigma_str = if mad_r >= 30.0 {
+                    let z = residual / (mad_r / 1.4826);
+                    format!("{z:+.1}σ, {yon}")
+                } else {
+                    format!("{:+}dk, {yon}", (residual / 60.0).round() as i64)
+                };
+                notices.push(k6_notice(
+                    ctr,
+                    "VAT_003",
+                    EntityType::Trip,
+                    Some(trip_id.to_string()),
+                    None,
+                    "stop_times.txt",
+                    None,
+                    Some("trip_id"),
+                    Some(format!("{dur_min}dk (saat-bazlı beklenen {ref_min}dk)")),
+                    None,
+                    format!("'{label}' hattının '{trip_id}'{dep_suffix} seferinin süresi {dur_min}dk — bu saatte beklenen ~{ref_min}dk ({sigma_str})."),
+                    "stop_times.txt zaman değerlerini ve sefer güzergahını doğrulayın.",
+                ));
             }
         }
     }
@@ -9636,6 +9671,48 @@ mod tests {
         let result = analyze(&r, &empty_derived(), &default_config(), 20260514);
         assert!(!result.notices.iter().any(|n| n.rule_id == "VAT_003"),
             "aynı durak sayılı farklı desenler durak-sırasıyla ayrılmalı, çapraz işaretlenmemeli");
+    }
+
+    #[test]
+    fn vat_003_deseasonalizes_peak_offpeak_within_pattern() {
+        // Tek desen (A→B), tek route, shape yok. Baskın off-peak küme (saat 10, ~20dk),
+        // meşru daha uzun peak (saat 8, 28dk), 1 gerçek olay (saat 10, 40dk).
+        // Saat-bazlı deseasonalize ile peak FP üretmemeli; yalnızca olay işaretlenmeli.
+        // (Eski global medyan/MAD bu kurguda tüm peak seferlerini FP olarak işaretlerdi.)
+        let mut r = crate::k2::EntityRecords::default();
+        r.stops = vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1)];
+        r.routes = vec![route("R1", 3)];
+        let mut trips_vec = Vec::new();
+        let mut sts = Vec::new();
+        // Off-peak: saat 10, 19/20/21dk (hafif spread), 20 sefer — baskın küme.
+        for i in 0..20u32 {
+            let tid = format!("O{i}");
+            trips_vec.push(trip(&tid, "R1"));
+            let mins = 19 + (i % 3);
+            sts.push(stoptime(&tid, 1, "A", (10, 0, 0), (10, 0, 0), 2));
+            sts.push(stoptime(&tid, 2, "B", (10, mins, 0), (10, mins, 0), 3));
+        }
+        // Peak: saat 8, 28dk, 6 sefer — meşru uzun.
+        for i in 0..6u32 {
+            let tid = format!("P{i}");
+            trips_vec.push(trip(&tid, "R1"));
+            sts.push(stoptime(&tid, 1, "A", (8, 0, 0), (8, 0, 0), 2));
+            sts.push(stoptime(&tid, 2, "B", (8, 28, 0), (8, 28, 0), 3));
+        }
+        // Olay: saat 10, 40dk.
+        trips_vec.push(trip("INC", "R1"));
+        sts.push(stoptime("INC", 1, "A", (10, 2, 0), (10, 2, 0), 2));
+        sts.push(stoptime("INC", 2, "B", (10, 42, 0), (10, 42, 0), 3));
+        r.trips = trips_vec;
+        r.stop_times = sts;
+        let result = analyze(&r, &empty_derived(), &default_config(), 20260514);
+        let flagged: std::collections::HashSet<&str> = result.notices.iter()
+            .filter(|n| n.rule_id == "VAT_003")
+            .filter_map(|n| n.entity_id.as_deref())
+            .collect();
+        assert!(flagged.contains("INC"), "gerçek olay (40dk) işaretlenmeli");
+        assert!(!flagged.iter().any(|id| id.starts_with('P')),
+            "meşru peak seferleri saat-bazlı deseasonalize ile işaretlenmemeli");
     }
 
     #[test]

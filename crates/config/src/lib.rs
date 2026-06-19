@@ -38,7 +38,7 @@ const DEF_MAX_HEADWAY_WARNING_MIN:  u32 = 240;
 const DEF_BUNCHING_THRESHOLD_MIN:   u32 =   2;
 const DEF_RAIL_STOP_DISTANCE_KM:    f64 = 500.0;
 const DEF_MAX_TRIPS_PER_ROUTE:      u32 = 500;
-const DEF_DURATION_OUTLIER_SIGMA:   f64 =   2.5;
+const DEF_DURATION_OUTLIER_SIGMA:   f64 =   3.5;
 const DEF_HEADWAY_OUTLIER_SIGMA:    f64 =   2.5;
 const DEF_SERVICE_DAY_START_HOUR:   u32 =   3;
 const DEF_MAX_CALENDAR_FUTURE_YEARS: u32 =  3;
@@ -70,7 +70,9 @@ pub struct ValidatorConfig {
     pub rail_stop_distance_km:    f64,
     /// OPR_024: tek route_id'ye bağlı sefer sayısı bu eşiği aşarsa "veri birleştirme" şüphesi.
     pub max_trips_per_route:      u32,
-    /// VAT_003: sefer süresi route medyanından kaç robust-σ (MAD) saparsa aykırı sayılır.
+    /// VAT_003: sefer süresi, aynı desen+saat-bandının beklenen değerinden (residual) kaç
+    /// robust-σ (MAD) saparsa aykırı sayılır. Gün-içi deseasonalize sonrası residual ölçeği
+    /// sıkı olduğundan muhafazakâr bir değer (3.5) kullanılır.
     pub duration_outlier_sigma:   f64,
     /// OPR_005: bir hattın ortalama sefer aralığı (headway), aynı route_type'taki hatların
     /// medyanından kaç robust-σ (MAD) saparsa "sıradışı sık/seyrek" sayılır.
