@@ -4411,7 +4411,9 @@ fn check_remaining_analytics(
         }
     }
 
-    // ── RTS_017: shape'siz route oranı bilgisi ────────────────────────────────
+    // ── RTS_017: shape tanımlı olmayan hat — her hat için ayrı bilgi notu ─────
+    // (route_short_name etiketiyle; RTS_025 deseni. Eski feed-özeti tek route_id
+    // gösteriyordu; artık hangi hatların shape'siz olduğu tek tek görülür.)
     {
         let mut route_has_shape: HashMap<&str, bool> = HashMap::new();
         for t in &records.trips {
@@ -4420,27 +4422,27 @@ fn check_remaining_analytics(
                 *entry = true;
             }
         }
-        let shapeless_routes: Vec<&str> = route_has_shape
-            .iter()
-            .filter(|(_, &has)| !has)
-            .map(|(&rid, _)| rid)
-            .collect();
-        if !shapeless_routes.is_empty() {
-            let count = shapeless_routes.len();
-            notices.push(k6_notice(
-                ctr,
-                "RTS_017",
-                EntityType::Route,
-                shapeless_routes.first().map(|r| r.to_string()),
-                shapeless_routes.first().map(|r| r.to_string()),
-                "routes.txt",
-                None,
-                Some("route_id"),
-                Some(format!("{count}")),
-                None,
-                format!("{count} rotanın hiçbir seferinde shape_id tanımlı değil — harita gösterimi kısıtlı."),
-                "Tüm rotalar için shapes.txt tanımlayın ve trips.txt'de shape_id atayın.",
-            ));
+        // Yalnızca seferi olup hiç shape'i olmayan hatlar (sefersiz hatları başka kural ele alır).
+        for r in &records.routes {
+            if route_has_shape.get(r.route_id.as_str()) == Some(&false) {
+                let label = r.route_short_name.as_deref()
+                    .filter(|s| !s.is_empty())
+                    .unwrap_or(r.route_id.as_str());
+                notices.push(k6_notice(
+                    ctr,
+                    "RTS_017",
+                    EntityType::Route,
+                    Some(r.route_id.to_string()),
+                    Some(r.route_id.to_string()),
+                    "routes.txt",
+                    Some(r.line),
+                    Some("route_id"),
+                    None,
+                    None,
+                    format!("'{label}' hattının hiçbir seferinde shape_id tanımlı değil — harita gösterimi kısıtlı."),
+                    "Bu hat için shapes.txt tanımlayın ve trips.txt'de shape_id atayın.",
+                ));
+            }
         }
     }
 
@@ -8609,6 +8611,34 @@ mod tests {
         );
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
         assert!(!result.notices.iter().any(|n| n.rule_id == "RTS_017"));
+    }
+
+    #[test]
+    fn rts_017_one_notice_per_shapeless_route() {
+        // İki shape'siz hat (R1, R2) + bir shape'li hat (R3) → yalnızca R1,R2 için ayrı notice.
+        let records = records_with(
+            vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1)],
+            vec![route("R1", 3), route("R2", 3), route("R3", 3)],
+            vec![
+                trip("T1", "R1"),
+                trip("T2", "R2"),
+                { let mut t = trip("T3", "R3"); t.shape_id = Some("S1".into()); t },
+            ],
+            vec![
+                stoptime("T1", 1, "A", (8,0,0), (8,0,0), 2),
+                stoptime("T1", 2, "B", (8,10,0), (8,10,0), 3),
+                stoptime("T2", 1, "A", (8,0,0), (8,0,0), 4),
+                stoptime("T2", 2, "B", (8,10,0), (8,10,0), 5),
+                stoptime("T3", 1, "A", (8,0,0), (8,0,0), 6),
+                stoptime("T3", 2, "B", (8,10,0), (8,10,0), 7),
+            ],
+        );
+        let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
+        let rts: Vec<_> = result.notices.iter().filter(|n| n.rule_id == "RTS_017").collect();
+        assert_eq!(rts.len(), 2, "her shape'siz hat için ayrı RTS_017 beklenir");
+        assert!(rts.iter().all(|n| n.entity_type == gtfs_core::EntityType::Route));
+        let ids: std::collections::HashSet<_> = rts.iter().filter_map(|n| n.entity_id.as_deref()).collect();
+        assert!(ids.contains("R1") && ids.contains("R2") && !ids.contains("R3"));
     }
 
     // ── TRP_012: çift yönlü rotada direction_id eksik sefer ──────────────────
