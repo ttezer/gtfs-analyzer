@@ -2191,6 +2191,10 @@ fn check_translations(
     //   değer aynı  → TRN_005 (birebir yinelenen çeviri)
     //   değer farklı → TRN_006 (çelişkili çeviri; hangisi geçerli belirsiz)
     let mut seen: HashMap<String, String> = HashMap::new();
+    // TRN_007 agregasyonu: feed_lang ile aynı dildeki çeviriler (yaygın GTFS-JP araç pratiği —
+    // her alanı ja/ja-Hrkt/en'e çevirir, ja kaynağı birebir tekrarlar) satır-başına on binlerce
+    // notice yerine tek feed-seviyesi özette toplanır (STM_017/STP_022 emsali).
+    let mut trn007_pending: Vec<Notice> = Vec::new();
 
     for rec in &records.translations {
         // TRN_004: record_id başvurulan kayıt bulunamadı
@@ -2229,9 +2233,9 @@ fn check_translations(
             }
         }
 
-        // TRN_007: çeviri dili feed_lang ile aynı — gereksiz çeviri
+        // TRN_007: çeviri dili feed_lang ile aynı — gereksiz çeviri (döngü sonunda agregasyon)
         if !feed_lang.is_empty() && rec.language == feed_lang {
-            notices.push(notice(
+            trn007_pending.push(notice(
                 ctr,
                 "TRN_007",
                 EntityType::Translation,
@@ -2309,6 +2313,28 @@ fn check_translations(
                 ));
             }
         }
+    }
+
+    // TRN_007 karar: birden çok satır aynı dildeyse (sistemik) tek feed-seviyesi özet;
+    // tek satır ise satır-başına korunur.
+    if trn007_pending.len() > 1 {
+        let n = trn007_pending.len();
+        notices.push(notice(
+            ctr,
+            "TRN_007",
+            EntityType::Feed,
+            None,
+            None,
+            "translations.txt",
+            None,
+            Some("language"),
+            Some(n.to_string()),
+            Some(format!("≠ {feed_lang}")),
+            format!("Feed genelinde {n} çeviri satırı feed_lang ('{feed_lang}') ile aynı dilde — orijinal dilde çeviri gereksiz."),
+            "feed_lang ile aynı dildeki çeviri satırlarını translations.txt'ten kaldırın.",
+        ));
+    } else {
+        notices.append(&mut trn007_pending);
     }
 }
 

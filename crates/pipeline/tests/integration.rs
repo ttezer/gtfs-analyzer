@@ -358,6 +358,30 @@ fn trn_010_silent_in_field_value_mode_but_fires_in_record_id_mode() {
     }
 }
 
+// ── Test 10d: TRN_007 — feed_lang ile aynı dildeki çeviriler tek özette toplanır ──
+
+#[test]
+fn trn_007_same_language_translations_aggregate_to_feed_summary() {
+    const FEED_INFO: &[u8] =
+        b"feed_publisher_name,feed_publisher_url,feed_lang\nP,http://x.example,ja\n";
+    // İki ja çeviri (feed_lang=ja) → satır-başına 2 yerine tek feed-seviyesi TRN_007.
+    const TR_JA: &[u8] =
+        b"table_name,field_name,language,translation,record_id,record_sub_id,field_value\n\
+          stops,stop_name,ja,S1 Stop,S1,,\n\
+          stops,stop_name,ja,S2 Stop,S2,,\n";
+    let mut files = base_files();
+    files.push(("feed_info.txt", FEED_INFO));
+    files.push(("translations.txt", TR_JA));
+    match run(&files) {
+        ValidateResult::Ok(vr) => {
+            let trn: Vec<_> = vr.notices.iter().filter(|n| n.rule_id == "TRN_007").collect();
+            assert_eq!(trn.len(), 1, "aynı dildeki çeviriler tek feed-özetinde toplanmalı");
+            assert_eq!(trn[0].observed_value.as_deref(), Some("2"), "etkilenen satır sayısı 2");
+        }
+        _ => panic!("ValidateResult::Ok beklendi"),
+    }
+}
+
 // ── Test 11: PTH_012 + PTH_013 — erişilemeyen platform → uyarı ───────────────
 // İstasyon: STA → ENT (loc=2), MID (loc=3), PLT (loc=0).
 // Pathway: ENT↔MID — PLT hiçbir entrance'tan erişilemiyor → PTH_012.
