@@ -174,7 +174,6 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | TRP_026 | Trip with empty active-date set | MEDIUM | Analytics |
 | TRP_028 | Some trips have not set wheelchair accessibility | MEDIUM | Quality |
 | TRP_029 | No trips report wheelchair accessibility | INFO | Quality |
-| TRP_030 | Calendar inactive in the next 7 days | LOW | Quality |
 | TRP_031 | route_id missing | CRITICAL | Spec |
 
 ## STM — Stop Times
@@ -277,6 +276,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | CAL_021 | Active today but no service in the upcoming days | INFO | Analytics |
 | CAL_022 | service_id missing | CRITICAL | Spec |
 | CAL_023 | Calendar end_date far in the future (suspect) | MEDIUM | Quality |
+| CAL_024 | Calendar inactive in the next 7 days | LOW | Quality |
 
 ## CLD — Calendar Dates
 

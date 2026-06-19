@@ -544,7 +544,7 @@ const ja: LocaleShape = {
     'TRP_026': "便'{entity_id}'：service_id'{observed_value}'に有効な運行日がありません — 永遠に運行されません。",
     'TRP_028': "一部の便に車椅子対応情報がありません（{observed_value}便）。",
     'TRP_029': "すべての便に車椅子対応情報がありません（{observed_value}便）。",
-    'TRP_030': "サービス'{entity_id}'は今後7日間に有効な日がありません。{observed_value}便が影響を受けます。",
+    'CAL_024': "サービス'{entity_id}'は今後7日間に有効な日がありません。{observed_value}便が影響を受けます。",
     'TRP_031': 'trips.txt：route_idがありません。',
     // STM
     'STM_001': "trip_id'{entity_id}'がtrips.txtに見つかりません。",
@@ -1484,7 +1484,7 @@ const ja: LocaleShape = {
     'TRP_026': 'service_idがcalendar.txtまたはcalendar_dates.txtにアクティブな日付があることを確認してください。',
     'TRP_028': 'すべての便のwheelchair_accessibleフィールドを入力してください（1=対応、2=非対応）。',
     'TRP_029': 'wheelchair_accessibleフィールドを使用して車椅子対応を報告してください（1=対応、2=非対応）。',
-    'TRP_030': 'サービスカレンダーを更新するか、新しいフィードを公開してください。',
+    'CAL_024': 'サービスカレンダーを更新するか、新しいフィードを公開してください。',
     'TRP_031': '各便に有効なroute_idを割り当ててください。',
     // VAT
     'VAT_001': '2つの路線を統合するか、異なる経路で差別化してください。',
@@ -1672,7 +1672,7 @@ const ja: LocaleShape = {
     'TRP_026': 'アクティブ日付セットが空の便',
     'TRP_028': '一部の便で車椅子対応情報が未設定',
     'TRP_029': 'すべての便で車椅子対応情報が未報告',
-    'TRP_030': '今後7日間にアクティブでないカレンダー',
+    'CAL_024': '今後7日間にアクティブでないカレンダー',
     'TRP_031': 'route_idが不足',
     // STM
     'STM_001': 'trip_idがtrips.txtに存在しない',

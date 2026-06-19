@@ -565,7 +565,7 @@ const tr = {
     'TRP_026': 'Aktif tarihi olmayan sefer (service_id geçerli ama aktif gün seti boş)',
     'TRP_028': 'Bazı seferler tekerlekli sandalye erişilebilirliği işaretlememiş',
     'TRP_029': 'Hiçbir sefer tekerlekli sandalye erişilebilirliği bildirmemiş',
-    'TRP_030': 'Takvim önümüzdeki 7 günde aktif değil',
+    'CAL_024': 'Takvim önümüzdeki 7 günde aktif değil',
     'TRP_031': 'route_id eksik',
     // STM
     'STM_001': 'trip_id bulunamadı',

@@ -397,7 +397,7 @@ pub static RULES: &[RuleMeta] = &[
     // Feed genelinde 7 günde hiç aktif sefer yoksa TRP_023 (feed-level, None scope)
     // tek kök mesajdır ve her sefer için tekrar eden TRP_030 spam'ini bastırır.
     // (Eski yön TRP_030→TRP_023 scope uyumsuzluğundan etkisizdi.)
-    r!("TRP_023", Dusuk,  Quality, 1, &["TRP_030"], None, VS, Feed,
+    r!("TRP_023", Dusuk,  Quality, 1, &["CAL_024"], None, VS, Feed,
         "Önümüzdeki 7 günde aktif sefer yok"),
     r!("TRP_024", Dusuk,  Interop, 1, &[], Some("trip_id"), VI, Entity,
         "Block içinde tutarsız rota tipi"),
@@ -409,8 +409,6 @@ pub static RULES: &[RuleMeta] = &[
         "Bazı seferler tekerlekli sandalye erişilebilirliği işaretlememiş"),
     r!("TRP_029", Bilgi, Quality, 1, &[], None, VS, Feed,
         "Hiçbir sefer tekerlekli sandalye erişilebilirliği bildirmemiş"),
-    r!("TRP_030", Dusuk, Quality, 1, &[], Some("service_id"), VS, Entity,
-        "Takvim önümüzdeki 7 günde aktif değil"),
     r!("TRP_031", Kritik, Spec, 1, &[], Some("route_id"), VS_K, Entity,
         "route_id eksik"),
 
@@ -605,6 +603,9 @@ pub static RULES: &[RuleMeta] = &[
         "service_id eksik"),
     r!("CAL_023", Orta, Quality, 2, &[], Some("service_id"), VA, Entity,
         "end_date çok ileri (şüpheli uzak-gelecek tarih)"),
+    // CAL_024: eski TRP_030 (takvim odaklı olduğu için #23 ile CAL grubuna taşındı).
+    r!("CAL_024", Dusuk, Quality, 1, &[], Some("service_id"), VS, Entity,
+        "Takvim önümüzdeki 7 günde aktif değil"),
 
     // ── CLD: Calendar Dates ────────────────────────────────────────────────────
     r!("CLD_001", Kritik, Spec, 1, &[], Some("service_id"), VS_K, Row,

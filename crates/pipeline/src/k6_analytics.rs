@@ -2345,7 +2345,7 @@ fn check_operational_analytics(
         }
     }
 
-    // TRP_030: önümüzdeki 7 günde aktif olmayan takvim — service_id başına agregasyon.
+    // CAL_024 (eski TRP_030): önümüzdeki 7 günde aktif olmayan takvim — service_id başına agregasyon.
     // (Aynı aktif-olmayan takvim binlerce sefere yayılır; aksiyon birimi service_id'dir,
     // sefer değil — bu yüzden sefer-başına notice yerine takvim-başına tek özet üretilir.)
     if today_yyyymmdd > 0 && !records.trips.is_empty() {
@@ -2371,7 +2371,7 @@ fn check_operational_analytics(
         services.sort_by(|a, b| a.0.cmp(b.0));
         for (service_id, (count, line)) in services {
             notices.push(k6_notice(
-                ctr, "TRP_030", EntityType::Service,
+                ctr, "CAL_024", EntityType::Service,
                 Some(service_id.to_string()), Some(service_id.to_string()),
                 "trips.txt", Some(line), Some("service_id"),
                 Some(count.to_string()), None,
@@ -7713,7 +7713,7 @@ mod tests {
     }
 
     #[test]
-    fn trp_030_aggregates_inactive_service_to_single_service_notice() {
+    fn cal_024_aggregates_inactive_service_to_single_service_notice() {
         use crate::k5_derived::CalendarBitmap;
         let mut derived = DerivedData::default();
         // SVC takvimi yalnızca geçmişte aktif → önümüzdeki 7 günde (20260514+) değil.
@@ -7734,8 +7734,8 @@ mod tests {
             ],
         );
         let result = analyze(&records, &derived, &default_config(), 20260514);
-        let trp: Vec<_> = result.notices.iter().filter(|n| n.rule_id == "TRP_030").collect();
-        assert_eq!(trp.len(), 1, "aktif olmayan tek takvim için tek TRP_030 beklenir");
+        let trp: Vec<_> = result.notices.iter().filter(|n| n.rule_id == "CAL_024").collect();
+        assert_eq!(trp.len(), 1, "aktif olmayan tek takvim için tek CAL_024 beklenir");
         assert_eq!(trp[0].entity_type, gtfs_core::EntityType::Service);
         assert_eq!(trp[0].entity_id.as_deref(), Some("SVC"));
         assert_eq!(trp[0].observed_value.as_deref(), Some("2"), "2 sefer etkilenmeli");

@@ -174,7 +174,6 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | TRP_026 | Aktif tarihi olmayan sefer (service_id geçerli ama aktif gün seti boş) | ORTA | Analytics |
 | TRP_028 | Bazı seferler tekerlekli sandalye erişilebilirliği işaretlememiş | ORTA | Quality |
 | TRP_029 | Hiçbir sefer tekerlekli sandalye erişilebilirliği bildirmemiş | BİLGİ | Quality |
-| TRP_030 | Takvim önümüzdeki 7 günde aktif değil | DÜŞÜK | Quality |
 | TRP_031 | route_id eksik | KRİTİK | Spec |
 
 ## STM — Stop Times (Geçiş Zamanları)
@@ -277,6 +276,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | CAL_021 | Servis bugünü kapsıyor ama yakın günlerde aktif sefer yok | BİLGİ | Analytics |
 | CAL_022 | service_id eksik | KRİTİK | Spec |
 | CAL_023 | end_date çok ileri (şüpheli uzak-gelecek tarih) | ORTA | Quality |
+| CAL_024 | Takvim önümüzdeki 7 günde aktif değil | DÜŞÜK | Quality |
 
 ## CLD — Calendar Dates
 
