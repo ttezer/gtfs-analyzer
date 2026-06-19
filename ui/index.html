@@ -628,9 +628,18 @@
     .map-unavail { padding: .65rem 1rem; font-size: .82rem; color: var(--color-muted); font-style: italic; }
 
     /* R2 harita butonu */
-    .map-pin-btn { background: none; border: none; cursor: pointer; font-size: .95rem; padding: .1rem .25rem; line-height: 1; border-radius: 4px; transition: background .15s; }
-    .map-pin-btn:hover { background: var(--color-bg); }
-    .map-btn-cell { width: 2rem; text-align: center; padding: .35rem .25rem !important; }
+    .map-pin-btn, .pattern-btn { background: none; border: none; cursor: pointer; font-size: .95rem; padding: .1rem .25rem; line-height: 1; border-radius: 4px; transition: background .15s; }
+    .map-pin-btn:hover, .pattern-btn:hover { background: var(--color-bg); }
+    .map-btn-cell { width: 3.5rem; text-align: center; padding: .35rem .25rem !important; white-space: nowrap; }
+
+    /* Sefer deseni modalı (pattern-modal) */
+    .pm-body    { padding: .9rem 1rem; overflow: auto; max-height: 72vh; }
+    .pm-summary { margin: 0 0 .75rem; font-size: .82rem; color: var(--color-muted); }
+    .pm-empty   { margin: .5rem 0; font-size: .85rem; color: var(--color-muted); }
+    .pm-pat     { border: 1px solid var(--color-border); border-radius: var(--radius); padding: .4rem .6rem; margin-bottom: .5rem; }
+    .pm-pat > summary { cursor: pointer; font-size: .82rem; }
+    .pm-chips   { display: flex; flex-wrap: wrap; gap: .3rem; margin-top: .5rem; }
+    .pm-chip    { background: var(--color-bg); border: 1px solid var(--color-border); border-radius: 999px; padding: .1rem .5rem; font-size: .72rem; white-space: nowrap; }
 
     /* Harita modal */
     .mm-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.55); display: flex; align-items: center; justify-content: center; z-index: 9999; }

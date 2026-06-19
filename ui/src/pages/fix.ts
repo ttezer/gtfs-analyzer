@@ -1,6 +1,7 @@
 ﻿import type { ValidationResult, Notice, R9Item, NameIndex } from '../types';
 import { SEVERITY_TR, SEVERITY_COLOR, RULE_CLASS_TR, t, tMsg, tRemediation } from '../i18n';
 import { openMapModal, type MapPin, type MapOptions } from '../map-modal';
+import { openPatternModal } from '../pattern-modal';
 import { escHtml } from '../escape';
 
 // EN/JA parite: route-scoped bulgularda entity_id = route_id ve mesaj şablonu {route_label}
@@ -229,6 +230,11 @@ function renderR2(result: ValidationResult, noticeMap: Map<string, Notice>, delt
     const mapBtn   = hasMapCoords(notice, nameIndex)
       ? `<button class="map-pin-btn" data-notice-id="${escHtml(notice.id)}" title="${mapLabel}" aria-label="${mapLabel}">📍</button>`
       : '';
+    // Desenler: entity bir hat ise (route_id) o hattın sefer desenlerini göster.
+    const patLabel = t('fix.pattern_btn');
+    const patBtn   = (notice.entity_id && notice.entity_id in nameIndex.routes)
+      ? `<button class="pattern-btn" data-notice-id="${escHtml(notice.id)}" title="${patLabel}" aria-label="${patLabel}">🧩</button>`
+      : '';
     const specHref = specUrl(notice);
     const ruleCell = specHref
       ? `<a href="${escHtml(specHref)}" target="_blank" rel="noopener" class="spec-link" title="${t('fix.spec_link')}">${escHtml(item.display_label)}</a>`
@@ -245,7 +251,7 @@ function renderR2(result: ValidationResult, noticeMap: Map<string, Notice>, delt
         <td>${notice.field ? escHtml(notice.field) : '—'}</td>
         <td class="score-delta-cell">${pubHtml}</td>
         <td class="score-delta-cell">${qualHtml}</td>
-        <td class="map-btn-cell">${mapBtn}</td>
+        <td class="map-btn-cell">${mapBtn}${patBtn}</td>
       </tr>`;
   }).join('');
 
@@ -1400,6 +1406,18 @@ export function attachFixListeners(root: HTMLElement, result?: ValidationResult,
           entityLabel = result.name_index.stops[eid] ?? eid;
         }
         openMapModal(`${notice.rule_id} — ${entityLabel}`, opts);
+      });
+    });
+
+    // Desen butonları: hat-seviyesi notice → o hattın sefer desenleri modalı
+    root.querySelectorAll<HTMLButtonElement>('.pattern-btn').forEach(btn => {
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
+        const notice = noticeMap.get(btn.dataset['noticeId'] ?? '');
+        const rid = notice?.entity_id ?? '';
+        if (!rid) return;
+        const label = result.name_index.routes[rid] ?? rid;
+        openPatternModal(rid, label, result.name_index);
       });
     });
   }
