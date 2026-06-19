@@ -6672,17 +6672,14 @@ fn check_vat_analytics(
     // birden çok desen içerir (kısa-dönüş, varyant, yön) ve bunların süreleri doğal
     // olarak farklıdır; hepsini tek medyanla karşılaştırmak kitlesel FP üretir.
     // Birincil anahtar shape_id (aynı fiziksel güzergah → karşılaştırılabilir süre);
-    // shape yoksa (route_id, direction_id, durak sayısı) desenine düşülür.
+    // shape yoksa (route_id + sıralı durak dizisi hash'i) desenine düşülür.
     {
         let trip_shape: FxHashMap<&str, &str> = records.trips.iter()
             .filter_map(|t| t.shape_id.as_deref().map(|s| (t.trip_id.as_str(), s)))
             .collect();
-        let trip_dir: FxHashMap<&str, u32> = records.trips.iter()
-            .filter_map(|t| t.direction_id.map(|d| (t.trip_id.as_str(), d)))
-            .collect();
 
         #[derive(PartialEq, Eq, Hash)]
-        enum DurKey<'a> { Shape(&'a str), Pattern(&'a str, Option<u32>, usize) }
+        enum DurKey<'a> { Shape(&'a str), Pattern(&'a str, u64) }
 
         let mut groups: FxHashMap<DurKey, Vec<(&str, u32, u32, &str)>> = FxHashMap::default();
         for (&trip_id, stops) in &idx.by_trip {
@@ -6694,7 +6691,15 @@ fn check_vat_analytics(
                 if arr > dep {
                     let key = match trip_shape.get(trip_id) {
                         Some(&sh) => DurKey::Shape(sh),
-                        None => DurKey::Pattern(route, trip_dir.get(trip_id).copied(), stops.len()),
+                        None => {
+                            // shape yoksa, durakların SIRALI dizisini hash'le — aynı durakları
+                            // aynı sırada gezen seferler tek grupta toplanır. (Durak sayısı yeterince
+                            // ayırt edici değil: aynı sayıda durağa sahip farklı desenler karışırdı.)
+                            use std::hash::{Hash, Hasher};
+                            let mut h = std::collections::hash_map::DefaultHasher::new();
+                            for st in stops.iter() { st.stop_id.hash(&mut h); }
+                            DurKey::Pattern(route, h.finish())
+                        }
                     };
                     groups.entry(key).or_default().push((trip_id, arr - dep, dep, route));
                 }
@@ -9600,6 +9605,37 @@ mod tests {
         let result = analyze(&r, &empty_derived(), &default_config(), 20260514);
         assert!(!result.notices.iter().any(|n| n.rule_id == "VAT_003"),
             "ayrı desenler çapraz aykırı işaretlenmemeli");
+    }
+
+    #[test]
+    fn vat_003_groups_by_stop_sequence_not_count() {
+        // Aynı route, shape yok, AYNI durak sayısı (2) ama FARKLI duraklar:
+        // 6 sefer A→B (10dk) + 5 sefer A→C (30dk). Durak SAYISI anahtarı bunları
+        // karıştırıp 30dk'ları aykırı işaretlerdi; durak SIRASI hash'iyle ayrılır → VAT_003 yok.
+        let mut r = crate::k2::EntityRecords::default();
+        r.stops = vec![
+            stop("A", 41.0, 29.0), stop("B", 41.1, 29.1), stop("C", 41.5, 29.5),
+        ];
+        r.routes = vec![route("R1", 3)];
+        let mut trips_vec = Vec::new();
+        let mut stoptimes_vec = Vec::new();
+        for i in 0..6u32 {
+            let tid = format!("S{i}");
+            trips_vec.push(trip(&tid, "R1"));
+            stoptimes_vec.push(stoptime(&tid, 1, "A", (8, 0, 0), (8, 0, 0), 2));
+            stoptimes_vec.push(stoptime(&tid, 2, "B", (8, 10, 0), (8, 10, 0), 3));
+        }
+        for i in 0..5u32 {
+            let tid = format!("L{i}");
+            trips_vec.push(trip(&tid, "R1"));
+            stoptimes_vec.push(stoptime(&tid, 1, "A", (9, 0, 0), (9, 0, 0), 2));
+            stoptimes_vec.push(stoptime(&tid, 2, "C", (9, 30, 0), (9, 30, 0), 3));
+        }
+        r.trips = trips_vec;
+        r.stop_times = stoptimes_vec;
+        let result = analyze(&r, &empty_derived(), &default_config(), 20260514);
+        assert!(!result.notices.iter().any(|n| n.rule_id == "VAT_003"),
+            "aynı durak sayılı farklı desenler durak-sırasıyla ayrılmalı, çapraz işaretlenmemeli");
     }
 
     #[test]
