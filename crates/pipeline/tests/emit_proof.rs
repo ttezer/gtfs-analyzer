@@ -963,6 +963,70 @@ fn fixtures() -> Vec<Fixture> {
         fx("TRN_013", vec![("translations.txt", "table_name,field_name,language,translation,record_id\nfeed_info,feed_publisher_name,fr,X,FI\n")]),
         // TRN_014: stop_times dışı tabloda record_sub_id (k2).
         fx("TRN_014", vec![("translations.txt", "table_name,field_name,language,translation,record_id,record_sub_id\nstops,stop_name,fr,X,S1,2\n")]),
+
+        // ── STP grubu (kalan: k2 + k3 dup + k4 FK + k6) ────────────────────────
+        // STP_001: stop_id tekrarı (k3).
+        fx("STP_001", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,A,41.0,29.0\nS1,B,41.1,29.1\n")]),
+        // STP_009: parent_station stops.txt'te yok (k4).
+        fx("STP_009", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon,parent_station\nS1,Stop1,41.0,29.0,\nS2,Stop2,41.1,29.1,NOPE\n")]),
+        // STP_010: parent_station location_type=1 değil (k4).
+        fx("STP_010", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon,location_type,parent_station\nS1,Stop1,41.0,29.0,0,\nS2,Stop2,41.1,29.1,0,S1\n")]),
+        // STP_011: location_type 2/3/4 için parent_station yok (k4).
+        fx("STP_011", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon,location_type\nS1,Stop1,41.0,29.0,2\nS2,Stop2,41.1,29.1,0\n")]),
+        // STP_012: stop_times'ta kullanılan durak location_type != 0 (k4).
+        fx("STP_012", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon,location_type\nS1,Stop1,41.0,29.0,1\nS2,Stop2,41.1,29.1,0\n")]),
+        // STP_015: level_id levels.txt'te yok (k4).
+        fx("STP_015", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon,level_id\nS1,Stop1,41.0,29.0,NOPE\nS2,Stop2,41.1,29.1,\n")]),
+        // STP_017: iki durak çok yakın (< 5m, > 0) (k6).
+        fx("STP_017", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,40.0,40.0\nS2,Stop2,40.00002,40.0\n")]),
+        // STP_019: stop_name > 100 karakter (k2).
+        fx("STP_019", vec![("stops.txt", concat!("stop_id,stop_name,stop_lat,stop_lon\nS1,",
+            "Lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod tempor incididunt ut labore et dolore",
+            ",41.0,29.0\nS2,Stop2,41.1,29.1\n"))]),
+        // STP_020: stop_times'ta kullanılmayan fiziksel durak (k6).
+        fx("STP_020", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\nS2,Stop2,41.1,29.1\nS3,Stop3,41.2,29.2\n")]),
+        // STP_021: boarding area (loc=2) parent'ı platform (loc=0) değil (k4).
+        fx("STP_021", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon,location_type,parent_station\nST1,Station,41.0,29.0,1,\nE1,Entrance,41.0,29.0,2,ST1\nS1,Stop1,41.0,29.0,0,\nS2,Stop2,41.1,29.1,0,\n")]),
+        // STP_023: tts_stop_name '<'/'>' içeriyor (k2).
+        fx("STP_023", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon,tts_stop_name\nS1,Stop1,41.0,29.0,<b>X\nS2,Stop2,41.1,29.1,\n")]),
+        // STP_024: stop_access geçersiz enum (k2).
+        fx("STP_024", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon,stop_access\nS1,Stop1,41.0,29.0,5\nS2,Stop2,41.1,29.1,\n")]),
+        // STP_025: stop_name baştaki/sondaki boşluk (k2).
+        fx("STP_025", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1, Stop1 ,41.0,29.0\nS2,Stop2,41.1,29.1\n")]),
+        // STP_026: stop_access ham geçersiz enum (k4).
+        fx("STP_026", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon,stop_access\nS1,Stop1,41.0,29.0,9\nS2,Stop2,41.1,29.1,\n")]),
+        // STP_027: pathway tanımlı istasyonda platform stop_access belirsiz (k4).
+        fx("STP_027", vec![
+            ("stops.txt", "stop_id,stop_name,stop_lat,stop_lon,location_type,parent_station\nST1,Station,41.0,29.0,1,\nS1,Plat1,41.0,29.0,0,ST1\nS2,Plat2,41.01,29.01,0,ST1\n"),
+            ("pathways.txt", "pathway_id,from_stop_id,to_stop_id,pathway_mode,is_bidirectional\nP1,S1,S2,3,0\n"),
+        ]),
+        // STP_028: stop_code > 50 karakter (k2).
+        fx("STP_028", vec![("stops.txt", "stop_id,stop_code,stop_name,stop_lat,stop_lon\nS1,AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA,Stop1,41.0,29.0\nS2,C2,Stop2,41.1,29.1\n")]),
+        // STP_029: durak parent_station'dan çok uzak (> 150m) (k6).
+        fx("STP_029", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon,location_type,parent_station\nST1,Station,41.0,29.0,1,\nS1,Stop1,41.5,29.5,0,ST1\nS2,Stop2,41.1,29.1,0,\n")]),
+        // STP_030: çocuğu olmayan üst istasyon (loc=1) (k6).
+        fx("STP_030", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon,location_type\nS1,Stop1,41.0,29.0,0\nS2,Stop2,41.1,29.1,0\nST1,Station,41.2,29.2,1\n")]),
+        // STP_031: stop_name == stop_desc (k2).
+        fx("STP_031", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon,stop_desc\nS1,Stop1,41.0,29.0,Stop1\nS2,Stop2,41.1,29.1,\n")]),
+        // STP_032: pathway bağlı platform için parent_station yok (k4).
+        fx("STP_032", vec![("pathways.txt", "pathway_id,from_stop_id,to_stop_id,pathway_mode,is_bidirectional\nP1,S1,S2,3,0\n")]),
+        // STP_034: stop_url acente URL'siyle aynı (k6).
+        fx("STP_034", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon,stop_url\nS1,Stop1,41.0,29.0,http://test.example\nS2,Stop2,41.1,29.1,\n")]),
+        // STP_035: stop_url hat URL'siyle aynı (k6).
+        fx("STP_035", vec![
+            ("routes.txt", "route_id,agency_id,route_short_name,route_type,route_url\nR1,1,101,3,http://r1.example\n"),
+            ("stops.txt", "stop_id,stop_name,stop_lat,stop_lon,stop_url\nS1,Stop1,41.0,29.0,http://r1.example\nS2,Stop2,41.1,29.1,\n"),
+        ]),
+        // STP_036: istasyon (loc=1) parent_station içeriyor (k4).
+        fx("STP_036", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon,location_type,parent_station\nST1,Station1,41.0,29.0,1,ST2\nST2,Station2,41.2,29.2,1,\nS1,Stop1,41.0,29.0,0,\nS2,Stop2,41.1,29.1,0,\n")]),
+        // STP_037: bazı fiziksel duraklarda wheelchair_boarding eksik (k6).
+        fx("STP_037", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon,wheelchair_boarding\nS1,Stop1,41.0,29.0,1\nS2,Stop2,41.1,29.1,\n")]),
+        // STP_022: stop_code eksik — base tetikler (k2).
+        fx("STP_022", vec![]),
+        // STP_033: zone_id eksik — base tetikler (k2).
+        fx("STP_033", vec![]),
+        // STP_038: hiçbir durakta wheelchair_boarding yok — base tetikler (k6).
+        fx("STP_038", vec![]),
     ]
 }
 
