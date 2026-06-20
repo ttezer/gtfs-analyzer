@@ -94,20 +94,40 @@ fn fixtures() -> Vec<Fixture> {
         fx("STP_022", vec![]),
         // RTS_017: hat shape'siz (base'te shape yok).
         fx("RTS_017", vec![]),
+
+        // ── AGN grubu (agency.txt alan doğrulamaları) ──────────────────────────
+        fx("AGN_002", vec![("agency.txt", "agency_id,agency_name,agency_url,agency_timezone\n1,,https://x.example,UTC\n")]),
+        fx("AGN_003", vec![("agency.txt", "agency_id,agency_name,agency_url,agency_timezone\n1,Test,notaurl,UTC\n")]),
+        fx("AGN_004", vec![("agency.txt", "agency_id,agency_name,agency_url,agency_timezone\n1,Test,https://x.example,NotAZone\n")]),
+        fx("AGN_006", vec![("agency.txt", "agency_id,agency_name,agency_url,agency_timezone,agency_lang\n1,Test,https://x.example,UTC,!!bad\n")]),
+        fx("AGN_007", vec![("agency.txt", "agency_id,agency_name,agency_url,agency_timezone,agency_phone\n1,Test,https://x.example,UTC,12\n")]),
+        fx("AGN_008", vec![("agency.txt", "agency_id,agency_name,agency_url,agency_timezone,agency_fare_url\n1,Test,https://x.example,UTC,notaurl\n")]),
+        fx("AGN_009", vec![("agency.txt", "agency_id,agency_name,agency_url,agency_timezone,agency_email\n1,Test,https://x.example,UTC,notanemail\n")]),
+        fx("AGN_012", vec![("agency.txt", "agency_id,agency_name,agency_url,agency_timezone,cemv_support\n1,Test,https://x.example,UTC,5\n")]),
+        fx("AGN_015", vec![("agency.txt", "agency_id,agency_name,agency_url,agency_timezone\n1,Test,http://x.example,UTC\n")]),
+        fx("AGN_016", vec![("agency.txt", "agency_id,agency_name,agency_url,agency_timezone,agency_phone\n1,Test,https://x.example,UTC,888-281-2681\n")]),
+        // Çoklu kuruluş senaryoları:
+        fx("AGN_014", vec![("agency.txt", "agency_id,agency_name,agency_url,agency_timezone\n1,A,https://a.example,UTC\n,B,https://b.example,UTC\n")]),
+        fx("AGN_005", vec![("agency.txt", "agency_id,agency_name,agency_url,agency_timezone\n1,A,https://a.example,UTC\n2,B,https://b.example,Europe/Istanbul\n")]),
+        fx("AGN_017", vec![("agency.txt", "agency_id,agency_name,agency_url,agency_timezone,agency_lang\n1,A,https://a.example,UTC,tr\n2,B,https://b.example,UTC,en\n")]),
+        // AGN_011: birden fazla işletici varken route'ta agency_id boş.
+        fx("AGN_011", vec![
+            ("agency.txt", "agency_id,agency_name,agency_url,agency_timezone\n1,A,https://a.example,UTC\n2,B,https://b.example,UTC\n"),
+            ("routes.txt", "route_id,agency_id,route_short_name,route_type\nR1,,101,3\n"),
+        ]),
     ]
 }
 
 #[test]
 fn each_fixture_actually_emits_its_rule() {
+    let mut failures = Vec::new();
     for f in fixtures() {
-        let files = with(&f.overrides);
-        let emitted = emitted_rules(&files);
-        assert!(
-            emitted.contains(f.rule),
-            "Fixture '{}' bu kuralı emit etmedi. Üretilenler: {:?}",
-            f.rule, emitted,
-        );
+        let emitted = emitted_rules(&with(&f.overrides));
+        if !emitted.contains(f.rule) {
+            failures.push(format!("  {} emit etmedi → {:?}", f.rule, emitted));
+        }
     }
+    assert!(failures.is_empty(), "Emit etmeyen fixture(lar):\n{}", failures.join("\n"));
 }
 
 #[test]
