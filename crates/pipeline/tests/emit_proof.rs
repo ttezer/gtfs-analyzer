@@ -362,6 +362,60 @@ fn fixtures() -> Vec<Fixture> {
         ]),
         // PTH_015: length/traversal_time'dan türetilen hız > 3 m/s (100m / 10s = 10 m/s).
         fx("PTH_015", vec![("pathways.txt", "pathway_id,from_stop_id,to_stop_id,pathway_mode,is_bidirectional,length,traversal_time\nP1,S1,S2,3,0,100,10\n")]),
+
+        // ── JPN grubu (GTFS-JP; k4_cross_ref::check_gtfs_jp) ───────────────────
+        // Kapı: feed_lang=ja* VEYA office_jp/agency_jp dosyası (is_gtfs_jp).
+        // JPN_001/008/009/010 ek kapı: feed_lang ja* VEYA herhangi ja-Hrkt çeviri.
+        // JPN_001: durak adında kana (ja-Hrkt) okuması yok (base duraklar).
+        fx("JPN_001", vec![("feed_info.txt", "feed_publisher_name,feed_publisher_url,feed_lang\nPub,https://x.example,ja\n")]),
+        // JPN_008: route_long_name dolu ama kana okuması yok.
+        fx("JPN_008", vec![
+            ("feed_info.txt", "feed_publisher_name,feed_publisher_url,feed_lang\nPub,https://x.example,ja\n"),
+            ("routes.txt", "route_id,agency_id,route_short_name,route_type,route_long_name\nR1,1,101,3,渋谷線\n"),
+        ]),
+        // JPN_009: trip_headsign dolu ama kana okuması yok.
+        fx("JPN_009", vec![
+            ("feed_info.txt", "feed_publisher_name,feed_publisher_url,feed_lang\nPub,https://x.example,ja\n"),
+            ("trips.txt", "route_id,service_id,trip_id,trip_headsign\nR1,SVC1,T1,渋谷\n"),
+        ]),
+        // JPN_010: agency_name dolu ama kana okuması yok (base agency).
+        fx("JPN_010", vec![("feed_info.txt", "feed_publisher_name,feed_publisher_url,feed_lang\nPub,https://x.example,ja\n")]),
+        // JPN_002: trips.jp_office_id office_jp.txt'te tanımsız.
+        fx("JPN_002", vec![
+            ("office_jp.txt", "office_id,office_name\nO1,Office1\n"),
+            ("trips.txt", "route_id,service_id,trip_id,jp_office_id\nR1,SVC1,T1,BADREF\n"),
+        ]),
+        // JPN_003: agency_jp.agency_id agency.txt'te tanımsız.
+        fx("JPN_003", vec![("agency_jp.txt", "agency_id\nNOPE\n")]),
+        // JPN_004: GTFS-JP sinyali (office_jp) var ama translations.txt yok.
+        fx("JPN_004", vec![("office_jp.txt", "office_id,office_name\nO1,Office1\n")]),
+        // JPN_005: office_jp.office_name boş.
+        fx("JPN_005", vec![("office_jp.txt", "office_id,office_name\nO1,\n")]),
+        // JPN_006: GTFS-JP (feed_lang=ja) ama fare_attributes/fare_rules yok.
+        fx("JPN_006", vec![("feed_info.txt", "feed_publisher_name,feed_publisher_url,feed_lang\nPub,https://x.example,ja\n")]),
+        // JPN_007: GTFS-JP sinyali (office_jp) var ama feed_info.txt yok.
+        fx("JPN_007", vec![("office_jp.txt", "office_id,office_name\nO1,Office1\n")]),
+        // JPN_011: GTFS-JP'de agency_id boş (tek işletici olsa bile zorunlu).
+        fx("JPN_011", vec![
+            ("feed_info.txt", "feed_publisher_name,feed_publisher_url,feed_lang\nPub,https://x.example,ja\n"),
+            ("agency.txt", "agency_id,agency_name,agency_url,agency_timezone\n,Test,http://test.example,UTC\n"),
+        ]),
+
+        // ── LOC grubu (locations.geojson; k1_parse::validate_locations_geojson) ─
+        // LOC_001: geçersiz JSON.
+        fx("LOC_001", vec![("locations.geojson", "not valid json")]),
+        // LOC_005: FeatureCollection boş.
+        fx("LOC_005", vec![("locations.geojson", "{\"type\":\"FeatureCollection\",\"features\":[]}")]),
+        // LOC_007: yinelenen feature 'id'.
+        fx("LOC_007", vec![("locations.geojson", "{\"type\":\"FeatureCollection\",\"features\":[{\"type\":\"Feature\",\"id\":\"L1\",\"geometry\":{\"type\":\"Polygon\",\"coordinates\":[[[0,0],[0,0.01],[0.01,0.01],[0,0]]]}},{\"type\":\"Feature\",\"id\":\"L1\",\"geometry\":{\"type\":\"Polygon\",\"coordinates\":[[[0,0],[0,0.01],[0.01,0.01],[0,0]]]}}]}")]),
+        // LOC_003: feature'da 'id' yok.
+        fx("LOC_003", vec![("locations.geojson", "{\"type\":\"FeatureCollection\",\"features\":[{\"type\":\"Feature\",\"geometry\":{\"type\":\"Polygon\",\"coordinates\":[[[0,0],[0,0.01],[0.01,0.01],[0,0]]]}}]}")]),
+        // LOC_002: geometry null.
+        fx("LOC_002", vec![("locations.geojson", "{\"type\":\"FeatureCollection\",\"features\":[{\"type\":\"Feature\",\"id\":\"L1\",\"geometry\":null}]}")]),
+        // LOC_004: Polygon ring kapalı değil (ilk≠son nokta).
+        fx("LOC_004", vec![("locations.geojson", "{\"type\":\"FeatureCollection\",\"features\":[{\"type\":\"Feature\",\"id\":\"L1\",\"geometry\":{\"type\":\"Polygon\",\"coordinates\":[[[0,0],[0,0.01],[0.01,0.01],[0.01,0]]]}}]}")]),
+        // LOC_006: bbox alanı > 500km² (~5°×5°).
+        fx("LOC_006", vec![("locations.geojson", "{\"type\":\"FeatureCollection\",\"features\":[{\"type\":\"Feature\",\"id\":\"L1\",\"geometry\":{\"type\":\"Polygon\",\"coordinates\":[[[0,0],[0,5],[5,5],[0,0]]]}}]}")]),
     ]
 }
 
