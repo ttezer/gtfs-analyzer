@@ -33,8 +33,9 @@ fn base() -> Vec<(String, String)> {
     ].iter().map(|(n, c)| (n.to_string(), c.to_string())).collect()
 }
 
-/// Temel feed'i alır, verilen dosya override'larını uygular (yeni dosya da ekler).
-fn with(overrides: &[(&str, &str)]) -> Vec<(String, String)> {
+/// Temel feed'i alır, override'ları uygular (yeni dosya da ekler) ve `removes`'taki
+/// dosyaları çıkarır (örn. "agency.txt eksik" senaryosu).
+fn with_opts(overrides: &[(&str, &str)], removes: &[&str]) -> Vec<(String, String)> {
     let mut files = base();
     for (name, content) in overrides {
         if let Some(slot) = files.iter_mut().find(|(n, _)| n == name) {
@@ -43,6 +44,7 @@ fn with(overrides: &[(&str, &str)]) -> Vec<(String, String)> {
             files.push((name.to_string(), content.to_string()));
         }
     }
+    files.retain(|(n, _)| !removes.contains(&n.as_str()));
     files
 }
 
@@ -71,10 +73,16 @@ fn emitted_rules(files: &[(String, String)]) -> BTreeSet<String> {
 struct Fixture {
     rule: &'static str,
     overrides: Vec<(&'static str, &'static str)>,
+    removes: Vec<&'static str>,
 }
 
 fn fx(rule: &'static str, overrides: Vec<(&'static str, &'static str)>) -> Fixture {
-    Fixture { rule, overrides }
+    Fixture { rule, overrides, removes: Vec::new() }
+}
+
+/// Dosya çıkarmalı fixture ("X.txt eksik" senaryoları).
+fn fx_rm(rule: &'static str, overrides: Vec<(&'static str, &'static str)>, removes: Vec<&'static str>) -> Fixture {
+    Fixture { rule, overrides, removes }
 }
 
 /// Notice olarak emit edilmeyen kurallar (fatal yol veya dinamik) — proof'tan muaf.
@@ -115,6 +123,26 @@ fn fixtures() -> Vec<Fixture> {
             ("agency.txt", "agency_id,agency_name,agency_url,agency_timezone\n1,A,https://a.example,UTC\n2,B,https://b.example,UTC\n"),
             ("routes.txt", "route_id,agency_id,route_short_name,route_type\nR1,,101,3\n"),
         ]),
+        // NOT (#5 bulgu): AGN_001 "agency.txt eksik" başlıklı ama agency.txt eksikliğini
+        // ARC_004 (Fatal NoRequiredFiles) ele alıyor; AGN_001 hiçbir yolla emit edilmiyor
+        // (emit_coverage'da da statik-görünmez). Muhtemelen ölü kural — fixture yazılamaz,
+        // coverage_debt'te bırakıldı; registry temizliği ayrı/onaylı bir iş.
+
+        // ── ARC grubu (arşiv/dosya/başlık seviyesi) ────────────────────────────
+        // ARC_008: takvim dosyası yok (calendar + calendar_dates ikisi de).
+        fx_rm("ARC_008", vec![], vec!["calendar.txt"]),
+        // ARC_009: dosyada veri satırı yok (sadece başlık).
+        fx("ARC_009", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\n")]),
+        // ARC_012: satır sütun sayısı başlıkla uyuşmuyor.
+        fx("ARC_012", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0\nS2,Stop2,41.1,29.1\n")]),
+        // ARC_015: yinelenen başlık sütunu.
+        fx("ARC_015", vec![("stops.txt", "stop_id,stop_id,stop_lat,stop_lon\nS1,X,41.0,29.0\nS2,Y,41.1,29.1\n")]),
+        // ARC_019: başlıkta boş sütun adı.
+        fx("ARC_019", vec![("stops.txt", "stop_id,,stop_lat,stop_lon\nS1,X,41.0,29.0\nS2,Y,41.1,29.1\n")]),
+        // ARC_025: zorunlu sütun başlıkta yok (stop_id).
+        fx("ARC_025", vec![("stops.txt", "stop_name,stop_lat,stop_lon\nStop1,41.0,29.0\nStop2,41.1,29.1\n")]),
+        // ARC_024: GTFS .txt ZIP içinde alt dizinde.
+        fx("ARC_024", vec![("feed/stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS9,Extra,41.0,29.0\n")]),
     ]
 }
 
@@ -122,7 +150,7 @@ fn fixtures() -> Vec<Fixture> {
 fn each_fixture_actually_emits_its_rule() {
     let mut failures = Vec::new();
     for f in fixtures() {
-        let emitted = emitted_rules(&with(&f.overrides));
+        let emitted = emitted_rules(&with_opts(&f.overrides, &f.removes));
         if !emitted.contains(f.rule) {
             failures.push(format!("  {} emit etmedi → {:?}", f.rule, emitted));
         }
