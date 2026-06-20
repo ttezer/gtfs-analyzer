@@ -663,6 +663,106 @@ fn fixtures() -> Vec<Fixture> {
         fx("NET_001", vec![("networks.txt", "network_id,network_name\nN1,Net1\nN1,Net2\n")]),
         // PDW_006: aynı trip+zone içinde örtüşen pickup/drop-off pencereleri (k6 Flex).
         fx("PDW_006", vec![("stop_times.txt", "trip_id,stop_sequence,location_id,start_pickup_drop_off_window,end_pickup_drop_off_window\nT1,1,Z1,09:00:00,10:00:00\nT1,2,Z1,09:30:00,11:00:00\n")]),
+
+        // ── CAL grubu (takvim analitiği k6 + cross-ref k4 + k2) ────────────────
+        // TODAY=20260515. CAL_006: tüm günler 0 (k2).
+        fx("CAL_006", vec![("calendar.txt", "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,0,0,0,0,0,0,0,20250101,20271231\n")]),
+        // CAL_007: serviste >= 7 günlük boşluk (calendar_dates, calendar yok).
+        fx_rm("CAL_007", vec![("calendar_dates.txt", "service_id,date,exception_type\nSVC1,20260518,1\nSVC1,20260601,1\n")], vec!["calendar.txt"]),
+        // CAL_008: end_date 30 gün içinde bitiyor (bugün+10).
+        fx("CAL_008", vec![("calendar.txt", "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,1,1,20260101,20260525\n")]),
+        // CAL_009: tüm servisler sona ermiş (k4 kritik).
+        fx("CAL_009", vec![("calendar.txt", "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,0,0,20200101,20201231\n")]),
+        // CAL_010: toplam aktif gün <= 7 (1 haftalık pencere).
+        fx("CAL_010", vec![("calendar.txt", "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,1,1,20260518,20260524\n")]),
+        // CAL_011: hiçbir sefer kullanmıyor (SVC2 boşta).
+        fx("CAL_011", vec![("calendar.txt", "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,0,0,20250101,20271231\nSVC2,1,1,1,1,1,0,0,20250101,20271231\n")]),
+        // CAL_012: yakın gelecekte servis boşluğu.
+        fx_rm("CAL_012", vec![("calendar_dates.txt", "service_id,date,exception_type\nSVC1,20260516,1\nSVC1,20260530,1\n")], vec!["calendar.txt"]),
+        // CAL_013: tekil servis süresi dolmuş (k6).
+        fx("CAL_013", vec![("calendar.txt", "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,0,0,20190101,20201231\n")]),
+        // CAL_014: servis tarihleri feed_info penceresi dışında (servis calendar_dates'te
+        // görünmeli → override_counts döngüsüne girsin; base takvim 2025 tarihleri pencere-öncesi).
+        fx("CAL_014", vec![
+            ("feed_info.txt", "feed_publisher_name,feed_publisher_url,feed_lang,feed_start_date,feed_end_date\nPub,https://x.example,en,20260601,20260630\n"),
+            ("calendar_dates.txt", "service_id,date,exception_type\nSVC1,20260615,1\n"),
+        ]),
+        // CAL_015: en erken aktif tarih gelecekte (feed-level).
+        fx("CAL_015", vec![("calendar.txt", "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,1,1,20270101,20270107\n")]),
+        // CAL_016: en geç aktif tarih > bugün+2yıl.
+        fx("CAL_016", vec![("calendar.txt", "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,0,0,20260101,20300101\n")]),
+        // CAL_017: tekil servisin tüm tarihleri gelecekte.
+        fx("CAL_017", vec![("calendar.txt", "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,1,1,20270101,20270107\n")]),
+        // CAL_018: haftanın tüm günleri pasif, exception_type=1 yok (k4).
+        fx("CAL_018", vec![("calendar.txt", "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,0,0,0,0,0,0,0,20250101,20271231\n")]),
+        // CAL_019: servis tarihleri feed_info geçerlilik penceresi dışında (k4).
+        fx("CAL_019", vec![("feed_info.txt", "feed_publisher_name,feed_publisher_url,feed_lang,feed_start_date,feed_end_date\nPub,https://x.example,en,20260601,20271231\n")]),
+        // CAL_020: feed geçerlilik penceresi > 5 yıl.
+        fx("CAL_020", vec![("feed_info.txt", "feed_publisher_name,feed_publisher_url,feed_lang,feed_start_date,feed_end_date\nPub,https://x.example,en,20200101,20271231\n")]),
+        // CAL_021: bugünü kapsıyor ama önümüzdeki 7 günde aktif gün yok.
+        fx_rm("CAL_021", vec![("calendar_dates.txt", "service_id,date,exception_type\nSVC1,20260101,1\nSVC1,20261231,1\n")], vec!["calendar.txt"]),
+        // CAL_023: end_date bugünden 3 yıldan fazla ileri.
+        fx("CAL_023", vec![("calendar.txt", "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,0,0,20260101,20300101\n")]),
+        // CAL_024: servis önümüzdeki 7 günde aktif değil (service-başına).
+        fx("CAL_024", vec![("calendar.txt", "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,1,1,20270101,20270131\n")]),
+
+        // ── FIN grubu (feed_info.txt k2 + k6) ──────────────────────────────────
+        // FIN_007: feed_version eksik.
+        fx("FIN_007", vec![("feed_info.txt", "feed_publisher_name,feed_publisher_url,feed_lang\nPub,https://x.example,en\n")]),
+        // FIN_008: feed_contact_email geçersiz.
+        fx("FIN_008", vec![("feed_info.txt", "feed_publisher_name,feed_publisher_url,feed_lang,feed_contact_email\nPub,https://x.example,en,notanemail\n")]),
+        // FIN_009: feed_contact_url geçersiz.
+        fx("FIN_009", vec![("feed_info.txt", "feed_publisher_name,feed_publisher_url,feed_lang,feed_contact_url\nPub,https://x.example,en,notaurl\n")]),
+        // FIN_010: feed_end_date geçmişte (k6).
+        fx("FIN_010", vec![("feed_info.txt", "feed_publisher_name,feed_publisher_url,feed_lang,feed_start_date,feed_end_date\nPub,https://x.example,en,20190101,20200101\n")]),
+        // FIN_012: feed_start_date > feed_end_date (k2).
+        fx("FIN_012", vec![("feed_info.txt", "feed_publisher_name,feed_publisher_url,feed_lang,feed_start_date,feed_end_date\nPub,https://x.example,en,20271231,20250101\n")]),
+        // FIN_013: çoklu agency'de fare_attribute agency_id eksik (k4).
+        fx("FIN_013", vec![
+            ("agency.txt", "agency_id,agency_name,agency_url,agency_timezone\n1,A,https://a.example,UTC\n2,B,https://b.example,UTC\n"),
+            ("fare_attributes.txt", "fare_id,price,currency_type,payment_method\nF1,2.5,USD,0\n"),
+        ]),
+        // FIN_014: feed_start_date/feed_end_date eksik.
+        fx("FIN_014", vec![("feed_info.txt", "feed_publisher_name,feed_publisher_url,feed_lang,feed_version\nPub,https://x.example,en,1.0\n")]),
+        // FIN_015: birden fazla feed_info kaydı.
+        fx("FIN_015", vec![("feed_info.txt", "feed_publisher_name,feed_publisher_url,feed_lang\nPub,https://x.example,en\nPub2,https://y.example,en\n")]),
+        // FIN_016: feed_start_date gelecekte (k6).
+        fx("FIN_016", vec![("feed_info.txt", "feed_publisher_name,feed_publisher_url,feed_lang,feed_start_date,feed_end_date\nPub,https://x.example,en,20270101,20271231\n")]),
+        // FIN_017: feed_end_date > bugün+2yıl (k6).
+        fx("FIN_017", vec![("feed_info.txt", "feed_publisher_name,feed_publisher_url,feed_lang,feed_start_date,feed_end_date\nPub,https://x.example,en,20260101,20300101\n")]),
+        // FIN_018: feed_contact_email ve feed_contact_url ikisi de yok (k6).
+        fx("FIN_018", vec![("feed_info.txt", "feed_publisher_name,feed_publisher_url,feed_lang,feed_start_date,feed_end_date\nPub,https://x.example,en,20260101,20261231\n")]),
+        // FIN_019: feed 7 gün içinde sona eriyor (bugün+5).
+        fx("FIN_019", vec![("feed_info.txt", "feed_publisher_name,feed_publisher_url,feed_lang,feed_start_date,feed_end_date\nPub,https://x.example,en,20260101,20260520\n")]),
+        // FIN_020: feed geçerlilik penceresi < 7 gün.
+        fx("FIN_020", vec![("feed_info.txt", "feed_publisher_name,feed_publisher_url,feed_lang,feed_start_date,feed_end_date\nPub,https://x.example,en,20260101,20260103\n")]),
+
+        // ── CLD grubu (calendar_dates) ─────────────────────────────────────────
+        // CLD_004: calendar yok, trip servisinin exception_type=1 kaydı yok (k4).
+        fx_rm("CLD_004", vec![("calendar_dates.txt", "service_id,date,exception_type\nSVC1,20260601,2\n")], vec!["calendar.txt"]),
+        // CLD_006: bir service_id için > 60 istisna günü (k2).
+        fx("CLD_006", vec![("calendar_dates.txt", concat!(
+            "service_id,date,exception_type\n",
+            "SVC1,20260101,1\nSVC1,20260102,1\nSVC1,20260103,1\nSVC1,20260104,1\nSVC1,20260105,1\nSVC1,20260106,1\nSVC1,20260107,1\nSVC1,20260108,1\nSVC1,20260109,1\nSVC1,20260110,1\n",
+            "SVC1,20260111,1\nSVC1,20260112,1\nSVC1,20260113,1\nSVC1,20260114,1\nSVC1,20260115,1\nSVC1,20260116,1\nSVC1,20260117,1\nSVC1,20260118,1\nSVC1,20260119,1\nSVC1,20260120,1\n",
+            "SVC1,20260121,1\nSVC1,20260122,1\nSVC1,20260123,1\nSVC1,20260124,1\nSVC1,20260125,1\nSVC1,20260126,1\nSVC1,20260127,1\nSVC1,20260128,1\nSVC1,20260129,1\nSVC1,20260130,1\n",
+            "SVC1,20260131,1\nSVC1,20260201,1\nSVC1,20260202,1\nSVC1,20260203,1\nSVC1,20260204,1\nSVC1,20260205,1\nSVC1,20260206,1\nSVC1,20260207,1\nSVC1,20260208,1\nSVC1,20260209,1\n",
+            "SVC1,20260210,1\nSVC1,20260211,1\nSVC1,20260212,1\nSVC1,20260213,1\nSVC1,20260214,1\nSVC1,20260215,1\nSVC1,20260216,1\nSVC1,20260217,1\nSVC1,20260218,1\nSVC1,20260219,1\n",
+            "SVC1,20260220,1\nSVC1,20260221,1\nSVC1,20260222,1\nSVC1,20260223,1\nSVC1,20260224,1\nSVC1,20260225,1\nSVC1,20260226,1\nSVC1,20260227,1\nSVC1,20260228,1\nSVC1,20260301,1\nSVC1,20260302,1\n"
+        ))]),
+        // CLD_007: aktif günlerin yarısından fazlası override (kısa servis + 4 removal).
+        fx("CLD_007", vec![
+            ("calendar.txt", "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,1,1,20260518,20260524\n"),
+            ("calendar_dates.txt", "service_id,date,exception_type\nSVC1,20260518,2\nSVC1,20260519,2\nSVC1,20260520,2\nSVC1,20260521,2\n"),
+        ]),
+
+        // ── FAR grubu (fares v1) ───────────────────────────────────────────────
+        // FAR_001: fare_id tekrarı (k3).
+        fx("FAR_001", vec![("fare_attributes.txt", "fare_id,price,currency_type,payment_method\nF1,2.5,USD,0\nF1,2.5,USD,0\n")]),
+        // FAR_008: fare_attribute agency_id agency.txt'te yok (k4).
+        fx("FAR_008", vec![("fare_attributes.txt", "fare_id,price,currency_type,payment_method,agency_id\nF1,2.5,USD,0,NOPE\n")]),
+        // FAR_009: fare_attribute için fare_rules kaydı yok (k4).
+        fx("FAR_009", vec![("fare_attributes.txt", "fare_id,price,currency_type,payment_method\nF1,2.5,USD,0\n")]),
     ]
 }
 
