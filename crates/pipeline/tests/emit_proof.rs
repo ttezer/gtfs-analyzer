@@ -494,6 +494,80 @@ fn fixtures() -> Vec<Fixture> {
         fx("DQ_021", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,A,40.0,40.0\nS1,B,41.1,29.1\n")]),
         // DQ_022: durakların > %80'i aynı stop_name (total>=5).
         fx("DQ_022", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop,40.0,40.0\nS2,Stop,40.1,40.1\nS3,Stop,40.2,40.2\nS4,Stop,40.3,40.3\nS5,Stop,40.4,40.4\n")]),
+
+        // ── OPR grubu (operasyonel analitik; k6_analytics) ─────────────────────
+        // Config: max_headway_warning_min=240, bunching_threshold_min=2, max_speed_bus=120,
+        // service_gap_days=7, max_trips_per_route=500, headway_outlier_sigma=2.5.
+        // NOT: OPR_021/022/023 yalnız config.calendar_override_rules ile (default'ta imkânsız);
+        // OPR_024 >500 sefer gerektirir (inline yazılamaz) → debt'te bırakıldı.
+        // OPR_001: hat genelinde maksimum sefer aralığı > 240dk ve düzensiz.
+        fx("OPR_001", vec![
+            ("trips.txt", "route_id,service_id,trip_id\nR1,SVC1,T1\nR1,SVC1,T2\nR1,SVC1,T3\n"),
+            ("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\nT1,08:05:00,08:05:00,S2,2\nT2,08:10:00,08:10:00,S1,1\nT2,08:15:00,08:15:00,S2,2\nT3,18:00:00,18:00:00,S1,1\nT3,18:05:00,18:05:00,S2,2\n"),
+        ]),
+        // OPR_003: aynı kalkış durağında ardışık seferler 2dk'dan sık (sıkışma).
+        fx("OPR_003", vec![
+            ("trips.txt", "route_id,service_id,trip_id\nR1,SVC1,T1\nR1,SVC1,T2\n"),
+            ("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\nT1,08:10:00,08:10:00,S2,2\nT2,08:01:00,08:01:00,S1,1\nT2,08:11:00,08:11:00,S2,2\n"),
+        ]),
+        // OPR_004: hatta hafta sonu servisi yok — base (SVC1 Pzt-Cum) tetikler.
+        fx("OPR_004", vec![]),
+        // OPR_005: route_type-göreli headway aykırısı (6 grup; R6 6× medyan).
+        fx("OPR_005", vec![
+            ("routes.txt", "route_id,agency_id,route_short_name,route_type\nR1,1,1,3\nR2,1,2,3\nR3,1,3,3\nR4,1,4,3\nR5,1,5,3\nR6,1,6,3\n"),
+            ("trips.txt", "route_id,service_id,trip_id\nR1,SVC1,T1\nR1,SVC1,T2\nR2,SVC1,T3\nR2,SVC1,T4\nR3,SVC1,T5\nR3,SVC1,T6\nR4,SVC1,T7\nR4,SVC1,T8\nR5,SVC1,T9\nR5,SVC1,T10\nR6,SVC1,T11\nR6,SVC1,T12\n"),
+            ("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\nT2,08:10:00,08:10:00,S1,1\nT3,08:00:00,08:00:00,S1,1\nT4,08:10:00,08:10:00,S1,1\nT5,08:00:00,08:00:00,S1,1\nT6,08:10:00,08:10:00,S1,1\nT7,08:00:00,08:00:00,S1,1\nT8,08:10:00,08:10:00,S1,1\nT9,08:00:00,08:00:00,S1,1\nT10,08:10:00,08:10:00,S1,1\nT11,08:00:00,08:00:00,S1,1\nT12,09:00:00,09:00:00,S1,1\n"),
+        ]),
+        // OPR_006: seferde < 2 durak.
+        fx("OPR_006", vec![("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\n")]),
+        // OPR_007: seferde aynı durak tekrar (ring değil).
+        fx("OPR_007", vec![("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\nT1,08:10:00,08:10:00,S2,2\nT1,08:20:00,08:20:00,S2,3\n")]),
+        // OPR_008: seferde >1 bozuk hız segmenti (~660 km/h, eşik bus 120).
+        fx("OPR_008", vec![
+            ("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,40.0,40.0\nS2,Stop2,40.05,40.0\nS3,Stop3,40.10,40.0\n"),
+            ("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\nT1,08:00:30,08:00:30,S2,2\nT1,08:01:00,08:01:00,S3,3\n"),
+        ]),
+        // OPR_009: gece seferi (kalkış >= 23:00).
+        fx("OPR_009", vec![("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,23:30:00,23:30:00,S1,1\nT1,23:40:00,23:40:00,S2,2\n")]),
+        // OPR_010: hatta wheelchair_accessible tutarsız (1 ve 2).
+        fx("OPR_010", vec![("trips.txt", "route_id,service_id,trip_id,wheelchair_accessible\nR1,SVC1,T1,1\nR1,SVC1,T2,2\n")]),
+        // OPR_011: trip'in service_id'si aktif gün içermiyor (takvimde yok).
+        fx("OPR_011", vec![("trips.txt", "route_id,service_id,trip_id\nR1,SVCX,T1\n")]),
+        // OPR_012: serviste >= 7 günlük boşluk (calendar_dates iki uzak tarih).
+        fx_rm("OPR_012",
+            vec![("calendar_dates.txt", "service_id,date,exception_type\nSVC1,20260518,1\nSVC1,20260601,1\n")],
+            vec!["calendar.txt"]),
+        // OPR_013: hattın tüm seferleri tek yönde (direction_id tek değer).
+        fx("OPR_013", vec![("trips.txt", "route_id,service_id,trip_id,direction_id\nR1,SVC1,T1,0\n")]),
+        // OPR_014: feed genelinde ortalama aktarma süresi > 10dk (type=2).
+        fx("OPR_014", vec![("transfers.txt", "from_stop_id,to_stop_id,transfer_type,min_transfer_time\nS1,S2,2,1200\n")]),
+        // OPR_015: çift yönlü hat tek shape kullanıyor (bus).
+        fx("OPR_015", vec![
+            ("trips.txt", "route_id,service_id,trip_id,shape_id,direction_id\nR1,SVC1,T1,SH1,0\nR1,SVC1,T2,SH1,1\n"),
+            ("shapes.txt", "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\nSH1,41.0,29.0,1\nSH1,41.1,29.1,2\n"),
+        ]),
+        // OPR_016: feed'de hiçbir service aktif gün içermiyor (tüm flag 0).
+        fx("OPR_016", vec![("calendar.txt", "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,0,0,0,0,0,0,0,20260518,20260524\n")]),
+        // OPR_017: sefer çok kısa mesafe (< 100m, shape'siz → durak koordinatı).
+        fx("OPR_017", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,40.0,40.0\nS2,Stop2,40.0005,40.0\n")]),
+        // OPR_018: servis dönemi < 3 aktif gün (2 günlük pencere).
+        fx("OPR_018", vec![("calendar.txt", "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,1,1,20260518,20260519\n")]),
+        // OPR_019: hatta aynı (exception'sız) günde >1 aktif servis.
+        fx("OPR_019", vec![
+            ("calendar.txt", "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,1,1,20260518,20260524\nSVC2,1,1,1,1,1,1,1,20260518,20260524\n"),
+            ("trips.txt", "route_id,service_id,trip_id\nR1,SVC1,T1\nR1,SVC2,T2\n"),
+        ]),
+        // OPR_020: hatta exception gününde >1 aktif servis (override çakışması).
+        fx("OPR_020", vec![
+            ("calendar.txt", "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,1,1,20260518,20260518\n"),
+            ("calendar_dates.txt", "service_id,date,exception_type\nSVC2,20260518,1\n"),
+            ("trips.txt", "route_id,service_id,trip_id\nR1,SVC1,T1\nR1,SVC2,T2\n"),
+        ]),
+        // OPR_025: feed ortalama sefer süresi < 60s (5 trip, 10s'lik).
+        fx("OPR_025", vec![
+            ("trips.txt", "route_id,service_id,trip_id\nR1,SVC1,T1\nR1,SVC1,T2\nR1,SVC1,T3\nR1,SVC1,T4\nR1,SVC1,T5\n"),
+            ("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\nT1,08:00:10,08:00:10,S2,2\nT2,08:00:00,08:00:00,S1,1\nT2,08:00:10,08:00:10,S2,2\nT3,08:00:00,08:00:00,S1,1\nT3,08:00:10,08:00:10,S2,2\nT4,08:00:00,08:00:00,S1,1\nT4,08:00:10,08:00:10,S2,2\nT5,08:00:00,08:00:00,S1,1\nT5,08:00:10,08:00:10,S2,2\n"),
+        ]),
     ]
 }
 
