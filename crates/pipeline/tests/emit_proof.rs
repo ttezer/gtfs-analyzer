@@ -416,6 +416,84 @@ fn fixtures() -> Vec<Fixture> {
         fx("LOC_004", vec![("locations.geojson", "{\"type\":\"FeatureCollection\",\"features\":[{\"type\":\"Feature\",\"id\":\"L1\",\"geometry\":{\"type\":\"Polygon\",\"coordinates\":[[[0,0],[0,0.01],[0.01,0.01],[0.01,0]]]}}]}")]),
         // LOC_006: bbox alanı > 500km² (~5°×5°).
         fx("LOC_006", vec![("locations.geojson", "{\"type\":\"FeatureCollection\",\"features\":[{\"type\":\"Feature\",\"id\":\"L1\",\"geometry\":{\"type\":\"Polygon\",\"coordinates\":[[[0,0],[0,5],[5,5],[0,0]]]}}]}")]),
+
+        // ── GEO grubu (coğrafi analitik; k6_analytics::check_geo_analytics) ─────
+        // Config varsayılan: max_shape_jump_km=10, stop_too_close_m=5, stop_far_from_shape_m=100.
+        // GEO_006: shape segmenti > 10km atlama (~22km).
+        fx("GEO_006", vec![("shapes.txt", "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\nSH1,40.0,40.0,1\nSH1,40.2,40.0,2\n")]),
+        // GEO_007: kritik shape atlaması > 30km (3× eşik, ~55km).
+        fx("GEO_007", vec![("shapes.txt", "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\nSH1,40.0,40.0,1\nSH1,40.5,40.0,2\n")]),
+        // GEO_009: durak kendi seferinin shape'inden > 100m uzak.
+        fx("GEO_009", vec![
+            ("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,40.0,40.0\nS2,Stop2,40.05,40.05\n"),
+            ("trips.txt", "route_id,service_id,trip_id,shape_id\nR1,SVC1,T1,SH1\n"),
+            ("shapes.txt", "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\nSH1,40.0,40.0,1\nSH1,40.0,40.1,2\n"),
+        ]),
+        // GEO_002: durak feed medianından > 200km uzak (>=3 koordinatlı durak).
+        fx("GEO_002", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\nS2,Stop2,41.1,29.1\nS3,Far,10.123,10.123\n")]),
+        // GEO_012: 3+ durak 5m içinde kümelenmiş.
+        fx("GEO_012", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,40.0,40.0\nS2,Stop2,40.00001,40.0\nS3,Stop3,40.0,40.00001\n")]),
+        // GEO_013: koordinatlı durak içeren feed (Bilgi) — base zaten tetikler.
+        fx("GEO_013", vec![]),
+        // GEO_014: feed bbox köşegeni > 500km (Bilgi).
+        fx("GEO_014", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,40.0,29.0\nS2,Stop2,45.0,35.0\n")]),
+        // GEO_015: feed_lang=ja ama durak Japonya sınırları dışında (base lon 29).
+        fx("GEO_015", vec![("feed_info.txt", "feed_publisher_name,feed_publisher_url,feed_lang\nPub,https://x.example,ja\n")]),
+        // GEO_016: durak Null Island yakınında (|lat|,|lon| < 0.1).
+        fx("GEO_016", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,0.01,0.01\nS2,Stop2,41.1,29.1\n")]),
+        // GEO_017: shape noktası Null Island yakınında.
+        fx("GEO_017", vec![("shapes.txt", "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\nSH1,0.01,0.01,1\nSH1,0.02,0.02,2\n")]),
+        // GEO_018: tüm duraklar < 200m'lik alanda (test/placeholder veri).
+        fx("GEO_018", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,40.0,40.0\nS2,Stop2,40.0005,40.0\nS3,Stop3,40.0,40.0005\n")]),
+        // GEO_019: tam sayı koordinat — base S1 (41.0,29.0) zaten tetikler.
+        fx("GEO_019", vec![]),
+        // GEO_020: shape'in tüm noktaları aynı koordinatta (dejenere geometri).
+        fx("GEO_020", vec![("shapes.txt", "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\nSH1,40.0,40.0,1\nSH1,40.0,40.0,2\n")]),
+        // GEO_021: durakların > %30'u koordinat paylaşıyor (total>=5).
+        fx("GEO_021", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,A,40.1,40.1\nS2,B,40.1,40.1\nS3,C,40.1,40.1\nS4,D,40.1,40.1\nS5,E,41.1,29.1\n")]),
+        // GEO_022: durak enlemi kutba aşırı yakın (|lat| > 89).
+        fx("GEO_022", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,89.5,29.0\nS2,Stop2,41.1,29.1\n")]),
+
+        // ── DQ grubu (veri kalitesi; k6_analytics::check_data_quality + k1_parse) ─
+        // DQ_003: route_desc boş — base R1 zaten tetikler.
+        fx("DQ_003", vec![]),
+        // DQ_004: route_url boş — base R1 zaten tetikler.
+        fx("DQ_004", vec![]),
+        // DQ_005: bugün itibarıyla aktif servis yok (takvim süresi dolmuş).
+        fx("DQ_005", vec![("calendar.txt", "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,0,0,20200101,20201231\n")]),
+        // DQ_005b: hiçbir trip'in stop_times kaydı yok.
+        fx("DQ_005b", vec![("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\n")]),
+        // DQ_005c: durakların > %50'sinde koordinat eksik.
+        fx("DQ_005c", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,,\nS2,Stop2,,\n")]),
+        // DQ_006: trips'in > %80'inde shape_id eksik — base (shape'siz tek trip) tetikler.
+        fx("DQ_006", vec![]),
+        // DQ_009: trip var ama stop_times tamamen boş.
+        fx("DQ_009", vec![("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\n")]),
+        // DQ_010: hiçbir hatta kullanılmayan agency (agency_id=2 boşta).
+        fx("DQ_010", vec![("agency.txt", "agency_id,agency_name,agency_url,agency_timezone\n1,A,https://a.example,UTC\n2,B,https://b.example,UTC\n")]),
+        // DQ_011: feed'de yalnızca 1 durak.
+        fx("DQ_011", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\n")]),
+        // DQ_012: >5 agency ve hiçbir rotada agency_id yok.
+        fx("DQ_012", vec![
+            ("agency.txt", "agency_id,agency_name,agency_url,agency_timezone\n1,A,https://a.example,UTC\n2,B,https://b.example,UTC\n3,C,https://c.example,UTC\n4,D,https://d.example,UTC\n5,E,https://e.example,UTC\n6,F,https://f.example,UTC\n"),
+            ("routes.txt", "route_id,agency_id,route_short_name,route_type\nR1,,101,3\n"),
+        ]),
+        // DQ_013: feed'de < 3 sefer — base (tek trip) tetikler.
+        fx("DQ_013", vec![]),
+        // DQ_016: değerde baştaki/sondaki boşluk (k1_parse).
+        fx("DQ_016", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1, Stop1 ,41.0,29.0\nS2,Stop2,41.1,29.1\n")]),
+        // DQ_017: şüpheli koordinat (|lat|,|lon| < 1°).
+        fx("DQ_017", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,0.5,0.5\nS2,Stop2,41.1,29.1\n")]),
+        // DQ_018: önerilen metin alanı tamamen büyük harf (stop_name).
+        fx("DQ_018", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,MERKEZ,41.0,29.0\nS2,Stop2,41.1,29.1\n")]),
+        // DQ_019: önerilen metin alanı tamamen küçük harf (stop_name).
+        fx("DQ_019", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,merkez,41.0,29.0\nS2,Stop2,41.1,29.1\n")]),
+        // DQ_020: önerilen trip_headsign boş — base (headsign'sız trip) tetikler.
+        fx("DQ_020", vec![]),
+        // DQ_021: birincil anahtar yineleniyor (stop_id duplicate).
+        fx("DQ_021", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,A,40.0,40.0\nS1,B,41.1,29.1\n")]),
+        // DQ_022: durakların > %80'i aynı stop_name (total>=5).
+        fx("DQ_022", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop,40.0,40.0\nS2,Stop,40.1,40.1\nS3,Stop,40.2,40.2\nS4,Stop,40.3,40.3\nS5,Stop,40.4,40.4\n")]),
     ]
 }
 
