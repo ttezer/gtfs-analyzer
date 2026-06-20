@@ -763,6 +763,96 @@ fn fixtures() -> Vec<Fixture> {
         fx("FAR_008", vec![("fare_attributes.txt", "fare_id,price,currency_type,payment_method,agency_id\nF1,2.5,USD,0,NOPE\n")]),
         // FAR_009: fare_attribute için fare_rules kaydı yok (k4).
         fx("FAR_009", vec![("fare_attributes.txt", "fare_id,price,currency_type,payment_method\nF1,2.5,USD,0\n")]),
+        // FAR_010: aynı (route,origin,destination,contains) için birden fazla fare_id (k4).
+        fx("FAR_010", vec![("fare_rules.txt", "fare_id,route_id\nF1,R1\nF2,R1\n")]),
+
+        // ── AGN / ATR (kalan) ──────────────────────────────────────────────────
+        // AGN_010: agency_id tekrarı (k3).
+        fx("AGN_010", vec![("agency.txt", "agency_id,agency_name,agency_url,agency_timezone\n1,A,https://a.example,UTC\n1,B,https://b.example,UTC\n")]),
+        // AGN_013: feed_lang ile agency_lang uyuşmuyor (k2).
+        fx("AGN_013", vec![
+            ("feed_info.txt", "feed_publisher_name,feed_publisher_url,feed_lang\nPub,https://x.example,en\n"),
+            ("agency.txt", "agency_id,agency_name,agency_url,agency_timezone,agency_lang\n1,Test,http://test.example,UTC,fr\n"),
+        ]),
+        // ATR_009: agency_id/route_id/trip_id'den birden fazlası dolu (k4).
+        fx("ATR_009", vec![("attributions.txt", "attribution_id,organization_name,is_producer,agency_id,route_id\nA1,Org,1,1,R1\n")]),
+        // ATR_010: attribution agency_id agency.txt'te yok (k4).
+        fx("ATR_010", vec![("attributions.txt", "attribution_id,organization_name,is_producer,agency_id\nA1,Org,1,NOPE\n")]),
+
+        // ── LVL grubu (levels.txt) ─────────────────────────────────────────────
+        // LVL_001: level_id tekrarı (k3).
+        fx("LVL_001", vec![("levels.txt", "level_id,level_index\nL1,0\nL1,1\n")]),
+        // LVL_002: level_index sayısal değil (k2).
+        fx("LVL_002", vec![("levels.txt", "level_id,level_index\nL1,abc\n")]),
+        // LVL_003: level_name eksik (k2).
+        fx("LVL_003", vec![("levels.txt", "level_id,level_index\nL1,0\n")]),
+        // LVL_004: level hiçbir durak tarafından kullanılmıyor (k4).
+        fx("LVL_004", vec![("levels.txt", "level_id,level_index,level_name\nL1,0,Ground\n")]),
+        // LVL_005: level_name > 255 karakter (k2).
+        fx("LVL_005", vec![("levels.txt", concat!("level_id,level_index,level_name\nL1,0,",
+            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n"))]),
+        // LVL_006: asansör (pathway_mode=5) uç durağında level_id yok (k4).
+        fx("LVL_006", vec![("pathways.txt", "pathway_id,from_stop_id,to_stop_id,pathway_mode,is_bidirectional\nP1,S1,S2,5,0\n")]),
+
+        // ── FLG grubu (fare_leg_rules cross-ref k4) ────────────────────────────
+        fx("FLG_001", vec![("fare_leg_rules.txt", "leg_group_id,fare_product_id\nLG1,NOPE\n")]),
+        fx("FLG_002", vec![("fare_leg_rules.txt", "leg_group_id,network_id\nLG1,NOPE\n")]),
+        fx("FLG_003", vec![("fare_leg_rules.txt", "leg_group_id,from_area_id\nLG1,NOPE\n")]),
+        fx("FLG_004", vec![("fare_leg_rules.txt", "leg_group_id,to_area_id\nLG1,NOPE\n")]),
+        fx("FLG_005", vec![("fare_leg_rules.txt", "leg_group_id,from_timeframe_group_id\nLG1,NOPE\n")]),
+        fx("FLG_006", vec![("fare_leg_rules.txt", "leg_group_id,to_timeframe_group_id\nLG1,NOPE\n")]),
+
+        // ── FPD grubu (fare_products) ──────────────────────────────────────────
+        // FPD_001: bileşik PK tekrarı (k3).
+        fx("FPD_001", vec![("fare_products.txt", "fare_product_id,amount,currency\nP1,2.5,USD\nP1,2.5,USD\n")]),
+        // FPD_003: currency geçersiz (k2).
+        fx("FPD_003", vec![("fare_products.txt", "fare_product_id,amount,currency\nP1,2.5,usd\n")]),
+        // FPD_004: fare_media_id fare_media.txt'te yok (k4).
+        fx("FPD_004", vec![("fare_products.txt", "fare_product_id,amount,currency,fare_media_id\nP1,2.5,USD,MNOPE\n")]),
+        // FPD_005: rider_category_id rider_categories.txt'te yok (k4).
+        fx("FPD_005", vec![("fare_products.txt", "fare_product_id,amount,currency,rider_category_id\nP1,2.5,USD,RCNOPE\n")]),
+        // FPD_006: aynı fare_product_id için birden fazla varsayılan (rider boş) (k2).
+        fx("FPD_006", vec![("fare_products.txt", "fare_product_id,amount,currency\nP1,2.5,USD\nP1,3.5,EUR\n")]),
+
+        // ── FTR grubu (fare_transfer_rules) ────────────────────────────────────
+        fx("FTR_002", vec![("fare_transfer_rules.txt", "from_leg_group_id,fare_transfer_type\nLGNOPE,0\n")]),
+        fx("FTR_003", vec![("fare_transfer_rules.txt", "to_leg_group_id,fare_transfer_type\nLGNOPE,0\n")]),
+        fx("FTR_004", vec![("fare_transfer_rules.txt", "fare_product_id,fare_transfer_type\nPNOPE,0\n")]),
+        fx("FTR_009", vec![("fare_transfer_rules.txt", "from_leg_group_id,to_leg_group_id,fare_transfer_type\nLG1,LG1,0\n")]),
+        fx("FTR_010", vec![("fare_transfer_rules.txt", "from_leg_group_id,to_leg_group_id,fare_transfer_type,transfer_count\nLG1,LG2,0,3\n")]),
+        fx("FTR_011", vec![("fare_transfer_rules.txt", "from_leg_group_id,fare_transfer_type,duration_limit\nLG1,0,3600\n")]),
+
+        // ── RCT / SAR / TFR / FMD / GGL ────────────────────────────────────────
+        // RCT_001: rider_category_id tekrarı (k3).
+        fx("RCT_001", vec![("rider_categories.txt", "rider_category_id,rider_category_name\nRC1,A\nRC1,B\n")]),
+        // RCT_006: fare_product başına birden fazla varsayılan rider_category (k4).
+        fx("RCT_006", vec![
+            ("rider_categories.txt", "rider_category_id,rider_category_name,is_default_fare_category\nRC1,Adult,1\nRC2,Senior,1\n"),
+            ("fare_products.txt", "fare_product_id,amount,currency,rider_category_id\nP1,2.5,USD,RC1\nP1,3.5,USD,RC2\n"),
+        ]),
+        // SAR_001: stop_areas area_id areas.txt'te yok (k4).
+        fx("SAR_001", vec![("stop_areas.txt", "area_id,stop_id\nANOPE,S1\n")]),
+        // SAR_002: stop_areas stop_id stops.txt'te yok (k4).
+        fx("SAR_002", vec![
+            ("areas.txt", "area_id,area_name\nA1,Area1\n"),
+            ("stop_areas.txt", "area_id,stop_id\nA1,NOPE\n"),
+        ]),
+        // TFR_002: timeframes service_id calendar'da yok (k4).
+        fx("TFR_002", vec![("timeframes.txt", "timeframe_group_id,start_time,end_time,service_id\nTG1,08:00:00,10:00:00,SVCX\n")]),
+        // FMD_001: fare_media_id tekrarı (k3).
+        fx("FMD_001", vec![("fare_media.txt", "fare_media_id,fare_media_type\nM1,2\nM1,2\n")]),
+        // GGL_001: transfer_type=4/5 (in-seat) Google desteklemiyor (k2).
+        fx("GGL_001", vec![("transfers.txt", "from_stop_id,to_stop_id,transfer_type\nS1,S2,4\n")]),
+        // GGL_002: ic_price geçersiz (-5) (k2).
+        fx("GGL_002", vec![("fare_products.txt", "fare_product_id,amount,currency,ic_price\nP1,2.5,USD,-5\n")]),
+
+        // ── FRQ grubu (kalan) ──────────────────────────────────────────────────
+        // FRQ_006: headway > 240dk (k6).
+        fx("FRQ_006", vec![("frequencies.txt", "trip_id,start_time,end_time,headway_secs\nT1,08:00:00,10:00:00,20000\n")]),
+        // FRQ_010: headway <= sıkışma eşiği (k6).
+        fx("FRQ_010", vec![("frequencies.txt", "trip_id,start_time,end_time,headway_secs\nT1,08:00:00,10:00:00,60\n")]),
+        // FRQ_011: aynı trip'in frequencies dönemleri çakışıyor (k2).
+        fx("FRQ_011", vec![("frequencies.txt", "trip_id,start_time,end_time,headway_secs\nT1,08:00:00,10:00:00,600\nT1,09:00:00,11:00:00,600\n")]),
     ]
 }
 
