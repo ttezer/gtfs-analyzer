@@ -6727,10 +6727,12 @@ fn check_vat_analytics(
             // Kaba zaman bandı (saatlik yerine): gün-içi yapıyı yakalar ama bucket'ları
             // veri-aç bırakmaz (katkıcının "coarse buckets degrade more gracefully" notu).
             let band = |dep: u32| -> u32 {
-                // % 24: normalize_service_day gece yarısını aşan seferleri 24:xx+ (≥86400 sn)
-                // notasyonuna taşır. Saat-dilimi rejimi clock-time'a göre belirlenir, bu yüzden
-                // 24→0, 25→1, … geri eşlenir; owl seferi akşam (band 4) yerine gece (band 0)
-                // referansıyla kıyaslanır. Bkz. issue #26.
+                // % 24: bandlama trip'in İLK kalkışına göredir. Bir feed gece yarısını aşan bir
+                // seferin ilk kalkışını 24:xx+ (≥86400 sn) yazarsa (geçerli GTFS), ham saatle akşam
+                // (band 4) yerine yanlış banda düşerdi; % 24 ile gece bandına (band 0) eşlenir.
+                // NOT: normalize_service_day İLK durağı kaydırmaz (offset 0'dan başlar), o yüzden
+                // bu yalnız feed'in kendisi 24:xx-ilk-kalkış yazdığında devreye girer (savunmacı;
+                // Toei gibi 00:xx yazan feed'lerde no-op). Bkz. issue #26.
                 match (dep / 3600) % 24 {
                     0..=5 => 0,    // gece / erken (24:xx, 25:xx… buraya döner)
                     6..=9 => 1,    // sabah zirve
