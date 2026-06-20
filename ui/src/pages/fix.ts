@@ -233,7 +233,7 @@ function renderR2(result: ValidationResult, noticeMap: Map<string, Notice>, delt
     // Desenler: yalnızca desen görmenin işe yaradığı hat-yapısı/servis kurallarında
     // (PATTERN_RULES) ve entity gerçekten bir hat (route_id) ise göster.
     const patLabel = t('fix.pattern_btn');
-    const patBtn   = (PATTERN_RULES.has(notice.rule_id) && notice.entity_id && notice.entity_id in nameIndex.routes)
+    const patBtn   = patternRouteId(notice, nameIndex)
       ? `<button class="pattern-btn" data-notice-id="${escHtml(notice.id)}" title="${patLabel}" aria-label="${patLabel}">${PATTERN_ICON}</button>`
       : '';
     const specHref = specUrl(notice);
@@ -348,15 +348,14 @@ const ROUTE_ID_RULES = new Set([
   'OPR_001','OPR_002','OPR_003',
 ]);
 
-// Sefer-deseni görünümünün işe yaradığı kurallar (hat-yapısı / geometri / servis).
-// Metadata kuralları (DQ_003 desc, RTS_025 agency_id, RTS_012 sefersiz hat vb.) hariç.
+// Sefer-deseni görünümü = hattın YAPISI (durak desenleri). Yalnızca bunun gerçekten
+// işe yaradığı iki kural: shape'siz hatta yapıyı görmek (RTS_017) ve süre-aykırı
+// seferin hangi desende olduğunu görmek (VAT_003). Sıklık (OPR_001/005 — modal hat-geneli
+// ort. verir, kuralın hat+yön+takvim dilimiyle çelişir) ve benzerlik (VAT_001 — hat ÇİFTİ,
+// tek-hat deseniyle alakasız) bilinçli olarak HARİÇ.
 const PATTERN_RULES = new Set([
-  'VAT_001', // muhtemel kopya hat — desenleri karşılaştır
-  'VAT_003', // sefer süresi aykırı — desen açıklar
-  'OPR_001', // seyrek servis — desen + sıklık
-  'OPR_005', // sıradışı sefer sıklığı
-  'OPR_013', // tek yönlü hat — desen/yön
-  'RTS_017', // shape'siz hat — shape yokken desen yapısı
+  'VAT_003', // sefer süresi aykırı — sefer hangi desende?
+  'RTS_017', // shape'siz hat — shape yokken yapıyı göster
 ]);
 
 // "Sefer deseni" ikonu — dallanan hat (varyant) şeması; haritadan (📍) ayırt edilir.
@@ -367,6 +366,17 @@ const PATTERN_ICON =
   '<circle cx="13" cy="4" r="1.7" fill="currentColor"/>' +
   '<circle cx="13" cy="12" r="1.7" fill="currentColor"/>' +
   '</svg>';
+
+// Desen modalının açılacağı route_id'yi çöz: RTS_017 entity'si route_id'dir; VAT_003
+// entity'si trip_id'dir → trip_routes ile hattına çevrilir. Uygun değilse null (buton çıkmaz).
+function patternRouteId(notice: Notice, nameIndex: NameIndex): string | null {
+  if (!PATTERN_RULES.has(notice.rule_id)) return null;
+  const eid = notice.entity_id ?? '';
+  if (!eid) return null;
+  if (eid in nameIndex.routes) return eid;            // route entity (RTS_017)
+  const r = nameIndex.trip_routes[eid];               // trip entity (VAT_003) → route
+  return r && r in nameIndex.routes ? r : null;
+}
 
 function hasMapCoords(notice: Notice, nameIndex: NameIndex): boolean {
   const eid = notice.entity_id ?? '';
@@ -1435,7 +1445,8 @@ export function attachFixListeners(root: HTMLElement, result?: ValidationResult,
       btn.addEventListener('click', e => {
         e.stopPropagation();
         const notice = noticeMap.get(btn.dataset['noticeId'] ?? '');
-        const rid = notice?.entity_id ?? '';
+        if (!notice) return;
+        const rid = patternRouteId(notice, result.name_index);
         if (!rid) return;
         const label = result.name_index.routes[rid] ?? rid;
         openPatternModal(rid, label, result.name_index);
