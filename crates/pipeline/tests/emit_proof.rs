@@ -1111,6 +1111,88 @@ fn fixtures() -> Vec<Fixture> {
         fx("SHP_028", vec![("shapes.txt", "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence,shape_dist_traveled\nSH1,40.0,40.0,1,5\nSH1,40.1,40.0,2,5\nSH1,40.2,40.2,3,10\n")]),
         // SHP_029: aynı dist farklı koordinat (eşik altı ~1e-6°) (k6).
         fx("SHP_029", vec![("shapes.txt", "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence,shape_dist_traveled\nSH1,40.0,40.0,1,5\nSH1,40.000001,40.0,2,5\nSH1,40.1,40.1,3,10\n")]),
+
+        // ── STM grubu (kalan: k4 + k6 + k2). STM_043 (>200 durak) ve STM_044
+        //    (>2M satır) inline yazılamaz → debt'te bırakıldı. ──────────────────
+        // STM_001: stop_times trip_id trips.txt'te yok (k4).
+        fx("STM_001", vec![("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\nT1,08:10:00,08:10:00,S2,2\nTGHOST,08:00:00,08:00:00,S1,1\n")]),
+        // STM_002: stop_times stop_id stops.txt'te yok (k4).
+        fx("STM_002", vec![("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\nT1,08:10:00,08:10:00,SNOPE,2\n")]),
+        // STM_007: aynı durakta kalkış < varış (k6).
+        fx("STM_007", vec![("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:10:00,08:00:00,S1,1\nT1,08:20:00,08:20:00,S2,2\n")]),
+        // STM_008: duraklar arası zaman geriye gidiyor (k6).
+        fx("STM_008", vec![("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,09:00:00,09:00:00,S1,1\nT1,08:00:00,08:00:00,S2,2\n")]),
+        // STM_012: sıfır geçiş süresi ama mesafe >= 1km (base duraklar ~14km) (k6).
+        fx("STM_012", vec![("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\nT1,08:00:00,08:00:00,S2,2\n")]),
+        // STM_013: ara durakta zaman eksik (k6).
+        fx("STM_013", vec![
+            ("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\nS2,Stop2,41.05,29.05\nS3,Stop3,41.1,29.1\n"),
+            ("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\nT1,,,S2,2\nT1,08:20:00,08:20:00,S3,3\n"),
+        ]),
+        // STM_014: hız eşiği aşımı (~208 km/h: bus eşik 120 < hız < 700 imkânsız sınırı) (k6).
+        fx("STM_014", vec![("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\nT1,08:04:00,08:04:00,S2,2\n")]),
+        // STM_015: ilk durakta departure_time yok (k6).
+        fx("STM_015", vec![("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,,,S1,1\nT1,08:10:00,08:10:00,S2,2\n")]),
+        // STM_016: son durakta arrival_time yok (k6).
+        fx("STM_016", vec![("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\nT1,,,S2,2\n")]),
+        // STM_017: shape'i olan trip'te shape_dist_traveled eksik (k6).
+        fx("STM_017", vec![
+            ("trips.txt", "route_id,service_id,trip_id,shape_id\nR1,SVC1,T1,SH1\n"),
+            ("shapes.txt", "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\nSH1,41.0,29.0,1\nSH1,41.05,29.05,2\nSH1,41.1,29.1,3\n"),
+        ]),
+        // STM_020: sıfır geçiş süreli segment, mesafe 0.2-1km, saniye dolu (k6).
+        fx("STM_020", vec![
+            ("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,40.0,40.0\nS2,Stop2,40.005,40.0\n"),
+            ("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:30,08:00:30,S1,1\nT1,08:00:30,08:00:30,S2,2\n"),
+        ]),
+        // STM_021: farklı durak aynı koordinatta (k6).
+        fx("STM_021", vec![
+            ("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,40.0,40.0\nS2,Stop2,40.0,40.0\n"),
+            ("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\nT1,08:10:00,08:10:00,S2,2\n"),
+        ]),
+        // STM_024: shape_dist_traveled birim uyumsuzluğu (oran 10×) (k4).
+        fx("STM_024", vec![
+            ("trips.txt", "route_id,service_id,trip_id,shape_id\nR1,SVC1,T1,SH1\n"),
+            ("shapes.txt", "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence,shape_dist_traveled\nSH1,41.0,29.0,1,0\nSH1,41.1,29.1,2,100\n"),
+            ("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence,shape_dist_traveled\nT1,08:00:00,08:00:00,S1,1,0\nT1,08:10:00,08:10:00,S2,2,1000\n"),
+        ]),
+        // STM_025: segment seyahat süresi < 10s (k6).
+        fx("STM_025", vec![
+            ("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,40.0,40.0\nS2,Stop2,40.001,40.0\n"),
+            ("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\nT1,08:00:05,08:00:05,S2,2\n"),
+        ]),
+        // STM_026: durak arası mesafe > 50km (k6).
+        fx("STM_026", vec![
+            ("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,40.0,40.0\nS2,Stop2,41.0,40.0\n"),
+            ("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\nT1,10:00:00,10:00:00,S2,2\n"),
+        ]),
+        // STM_027: shape_dist_traveled azalıyor (k6).
+        fx("STM_027", vec![("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence,shape_dist_traveled\nT1,08:00:00,08:00:00,S1,1,1000\nT1,08:10:00,08:10:00,S2,2,500\n")]),
+        // STM_028: trip süresi > 24 saat (k6).
+        fx("STM_028", vec![("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\nT1,33:00:00,33:00:00,S2,2\n")]),
+        // STM_029: trip süresi < 60s (k6).
+        fx("STM_029", vec![
+            ("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,40.0,40.0\nS2,Stop2,40.0005,40.0\n"),
+            ("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\nT1,08:00:30,08:00:30,S2,2\n"),
+        ]),
+        // STM_032: (trip_id, stop_sequence) tekrarı (k2).
+        fx("STM_032", vec![("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\nT1,08:10:00,08:10:00,S2,1\n")]),
+        // STM_033: tek duraklı sefer (k4).
+        fx("STM_033", vec![("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\n")]),
+        // STM_035: aynı durak ardışık iki kez (k6).
+        fx("STM_035", vec![("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\nT1,08:10:00,08:10:00,S1,2\n")]),
+        // STM_036: stop_sequence azalan sırada (k6, k2 tespit).
+        fx("STM_036", vec![("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,2\nT1,08:10:00,08:10:00,S2,1\n")]),
+        // STM_042: stop_headsign yasaklı karakter içeriyor (k2).
+        fx("STM_042", vec![("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence,stop_headsign\nT1,08:00:00,08:00:00,S1,1,Bad!Sign\nT1,08:10:00,08:10:00,S2,2,\n")]),
+        // STM_045: kalkış saati servis-günü penceresini aşıyor (>27h) (k6).
+        fx("STM_045", vec![("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\nT1,28:00:00,28:00:00,S2,2\n")]),
+        // STM_048: gece yarısı sonrası 00:xx yazılmış (sarma) (k6).
+        fx("STM_048", vec![("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,23:50:00,23:50:00,S1,1\nT1,00:10:00,00:10:00,S2,2\n")]),
+        // STM_049: gece yarısı sonrası 00:xx kalkış aynı satırda (k6).
+        fx("STM_049", vec![("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,23:50:00,00:10:00,S1,1\nT1,01:00:00,01:00:00,S2,2\n")]),
+        // STM_050: timepoint sütunu var ama değer boş (k2).
+        fx("STM_050", vec![("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence,timepoint\nT1,08:00:00,08:00:00,S1,1,\nT1,08:10:00,08:10:00,S2,2,\n")]),
     ]
 }
 
