@@ -6727,12 +6727,16 @@ fn check_vat_analytics(
             // Kaba zaman bandı (saatlik yerine): gün-içi yapıyı yakalar ama bucket'ları
             // veri-aç bırakmaz (katkıcının "coarse buckets degrade more gracefully" notu).
             let band = |dep: u32| -> u32 {
-                match dep / 3600 {
-                    0..=5 => 0,    // gece / erken
+                // % 24: normalize_service_day gece yarısını aşan seferleri 24:xx+ (≥86400 sn)
+                // notasyonuna taşır. Saat-dilimi rejimi clock-time'a göre belirlenir, bu yüzden
+                // 24→0, 25→1, … geri eşlenir; owl seferi akşam (band 4) yerine gece (band 0)
+                // referansıyla kıyaslanır. Bkz. issue #26.
+                match (dep / 3600) % 24 {
+                    0..=5 => 0,    // gece / erken (24:xx, 25:xx… buraya döner)
                     6..=9 => 1,    // sabah zirve
                     10..=15 => 2,  // gündüz
                     16..=19 => 3,  // akşam zirve
-                    _ => 4,        // akşam / gece (20+ ve 24+)
+                    _ => 4,        // akşam / gece (20:00–23:59)
                 }
             };
             // Yoğun bandların (≥BUCKET_MIN_TRIPS) kendi medyanı; seyrek bandlar global'e düşer.
@@ -9713,6 +9717,57 @@ mod tests {
         assert!(flagged.contains("INC"), "gerçek olay (40dk) işaretlenmeli");
         assert!(!flagged.iter().any(|id| id.starts_with('P')),
             "meşru peak seferleri saat-bazlı deseasonalize ile işaretlenmemeli");
+    }
+
+    #[test]
+    fn vat_003_owl_trips_banded_by_clock_time_not_service_day() {
+        // Issue #26: gece yarısını aşan (owl) seferler servis-günü notasyonunda 24:xx+ ile
+        // kodlanır. Band fonksiyonu (% 24 olmadan) bunları akşam (band 4) yerine yanlış banda
+        // koyardı: gece seferi 20dk normaldir ama akşam medyanı (40dk) ile kıyaslanınca FP olur.
+        // % 24 ile owl seferleri gerçek gece bandına (band 0) döner.
+        let mut r = crate::k2::EntityRecords::default();
+        r.stops = vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1)];
+        r.routes = vec![route("R1", 3)];
+        let mut trips_vec = Vec::new();
+        let mut sts = Vec::new();
+        // Gece bandı (saat 2, 20dk), 5 sefer.
+        for i in 0..5u32 {
+            let tid = format!("N{i}");
+            trips_vec.push(trip(&tid, "R1"));
+            sts.push(stoptime(&tid, 1, "A", (2, 0, 0), (2, 0, 0), 2));
+            sts.push(stoptime(&tid, 2, "B", (2, 20, 0), (2, 20, 0), 3));
+        }
+        // Akşam bandı (saat 21, 40dk — gece trafiğine göre uzun), 6 sefer.
+        for i in 0..6u32 {
+            let tid = format!("E{i}");
+            trips_vec.push(trip(&tid, "R1"));
+            sts.push(stoptime(&tid, 1, "A", (21, 0, 0), (21, 0, 0), 2));
+            sts.push(stoptime(&tid, 2, "B", (21, 40, 0), (21, 40, 0), 3));
+        }
+        // Owl seferleri: 24:30 kalkış (00:30 ertesi gün), gece rejimi için NORMAL 20dk.
+        for i in 0..3u32 {
+            let tid = format!("W{i}");
+            trips_vec.push(trip(&tid, "R1"));
+            sts.push(stoptime(&tid, 1, "A", (24, 30, 0), (24, 30, 0), 2));
+            sts.push(stoptime(&tid, 2, "B", (24, 50, 0), (24, 50, 0), 3));
+        }
+        // Owl olay: 24:35 kalkış, 40dk — gece bandı için ANORMAL.
+        trips_vec.push(trip("WINC", "R1"));
+        sts.push(stoptime("WINC", 1, "A", (24, 35, 0), (24, 35, 0), 2));
+        sts.push(stoptime("WINC", 2, "B", (25, 15, 0), (25, 15, 0), 3));
+        r.trips = trips_vec;
+        r.stop_times = sts;
+        let result = analyze(&r, &empty_derived(), &default_config(), 20260514);
+        let flagged: std::collections::HashSet<&str> = result.notices.iter()
+            .filter(|n| n.rule_id == "VAT_003")
+            .filter_map(|n| n.entity_id.as_deref())
+            .collect();
+        // % 24 ile owl-normal seferleri gece bandına düşer → FP yok.
+        assert!(!flagged.iter().any(|id| id.starts_with('W') && *id != "WINC"),
+            "normal owl seferleri gece bandına göre kıyaslanmalı (yanlış akşam-FP olmamalı)");
+        // Gerçek owl anomalisi gece bandına göre yine yakalanmalı.
+        assert!(flagged.contains("WINC"),
+            "gece bandı için anormal (40dk) owl seferi işaretlenmeli");
     }
 
     #[test]
