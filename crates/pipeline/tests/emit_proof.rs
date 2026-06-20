@@ -225,6 +225,22 @@ fn fixtures() -> Vec<Fixture> {
         fx("FMD_002", vec![("fare_media.txt", "fare_media_id,fare_media_type\nM1,9\n")]),
         fx("FMD_003", vec![("fare_media.txt", "fare_media_id,fare_media_type\nM1,2\n")]),
         fx("FPD_002", vec![("fare_products.txt", "fare_product_id,amount,currency\nP1,-1,USD\n")]),
+
+        // ── LVL (levels.txt) ───────────────────────────────────────────────────
+        fx("LVL_007", vec![("levels.txt", "level_id,level_index\nL1,\n")]),
+        fx("LVL_008", vec![("levels.txt", "level_id,level_index\n,0\n")]),
+
+        // ── RCT (rider_categories.txt) ─────────────────────────────────────────
+        fx("RCT_002", vec![("rider_categories.txt", "rider_category_id,rider_category_name\nRC1,\n")]),
+        fx("RCT_003", vec![("rider_categories.txt", "rider_category_id,rider_category_name,is_default_fare_category\nRC1,Adult,5\n")]),
+        fx("RCT_004", vec![("rider_categories.txt", "rider_category_id,rider_category_name,min_age\nRC1,Adult,abc\n")]),
+        fx("RCT_005", vec![("rider_categories.txt", "rider_category_id,rider_category_name,min_age,max_age\nRC1,Adult,65,18\n")]),
+
+        // ── TFR (timeframes.txt) ───────────────────────────────────────────────
+        fx("TFR_001", vec![("timeframes.txt", "timeframe_group_id,start_time,end_time,service_id\n,08:00:00,10:00:00,SVC1\n")]),
+        fx("TFR_003", vec![("timeframes.txt", "timeframe_group_id,start_time,end_time,service_id\nTG1,notatime,10:00:00,SVC1\n")]),
+        fx("TFR_004", vec![("timeframes.txt", "timeframe_group_id,start_time,end_time,service_id\nTG1,10:00:00,08:00:00,SVC1\n")]),
+        fx("TFR_005", vec![("timeframes.txt", "timeframe_group_id,start_time,end_time,service_id\nTG1,08:00:00,12:00:00,SVC1\nTG1,10:00:00,14:00:00,SVC1\n")]),
     ]
 }
 
