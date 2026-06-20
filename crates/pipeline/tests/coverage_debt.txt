@@ -1,5 +1,5 @@
 # emit-proof coverage debt (#5 C). Fixture'ı olmayan canonical kurallar.
-# Azaltmak için emit_proof.rs::fixtures()'a fixture ekleyin. 500 kural.
+# Azaltmak için emit_proof.rs::fixtures()'a fixture ekleyin. 480 kural.
 AGN_001
 AGN_010
 AGN_013
@@ -18,28 +18,8 @@ ARC_020
 ARC_021
 ARC_022
 ARC_023
-ARS_001
-ATR_001
-ATR_002
-ATR_003
-ATR_004
-ATR_005
-ATR_006
-ATR_007
-ATR_008
 ATR_009
 ATR_010
-BKR_001
-BKR_002
-BKR_003
-BKR_004
-BKR_005
-BKR_006
-BKR_007
-BKR_008
-BKR_009
-BKR_010
-BKR_011
 CAL_001
 CAL_002
 CAL_003
