@@ -1,6 +1,9 @@
 import type { ValidationResult } from '../types';
-import { SEVERITY_TR, RULE_CLASS_TR, t, tMsg } from '../i18n';
+import { SEVERITY_TR, RULE_CLASS_TR, t, tMsg, getLocale } from '../i18n';
 import { augmentRouteLabels } from './fix';
+import { getState } from '../state';
+import { isThreaded } from '../wasm';
+import { getLogs, getActions } from '../debug-buffer';
 
 // Bayt → insan-okur boyut (yerel ondalık ayraçla). Tahmini dışa aktarım boyutu için.
 function formatBytes(b: number): string {
@@ -66,6 +69,42 @@ function buildSummaryData(result: ValidationResult, fileName: string, ts: string
     capped: realTotal > dispTotal,
     ruleCounts: Object.entries(rcReal).sort((a, b) => b[1] - a[1]),
   };
+}
+
+// Teşhis paketi (#14): YALNIZCA whitelist alanlar. Feed içeriği (durak adı/koordinat,
+// notice mesajları) ASLA dahil edilmez — yalnızca metadata + agregat sayılar.
+function buildDebugBundle(result: ValidationResult, fileName: string, fileSize: number, ts: string): string {
+  const s = buildSummaryData(result, fileName, ts);
+  const nav = navigator as Navigator & { hardwareConcurrency?: number };
+  const bundle = {
+    schema: 'gtfs-analyzer-debug/1',
+    generated_at: ts,
+    app: {
+      version: typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'dev',
+      wasm_mode: isThreaded() ? 'threaded' : 'serial',
+      user_agent: navigator.userAgent,
+      language: getLocale(),
+      hardware_concurrency: nav.hardwareConcurrency ?? null,
+    },
+    feed: { file_name: fileName, size_bytes: fileSize },
+    config_delta: getState().configDelta || null,
+    result_summary: {
+      scores: {
+        score: s.qualScore, pub_score: s.pubScore,
+        spec: result.reports.r5.spec_score, interop: result.reports.r5.interop_score,
+        quality: result.reports.r5.quality_score, analytics: result.reports.r5.analytics_score,
+      },
+      rule_types: s.ruleTypes,
+      notice_total_capped: s.disp.total,
+      notice_total_actual: s.real.total,
+      by_severity_actual: { critical: s.real.critical, high: s.real.high, medium: s.real.medium, low: s.real.low, info: s.real.info },
+      rule_counts_actual: Object.fromEntries(s.ruleCounts),
+      capped_rules: Object.keys(result.capped_totals ?? {}),
+    },
+    actions: getActions(),
+    logs: getLogs(),
+  };
+  return JSON.stringify(bundle, null, 2);
 }
 
 // Severity satırları: [etiket, disp, real, renk]
@@ -150,6 +189,7 @@ export function renderExport(
   const summary = buildSummaryData(result, fileName, now);
   const summaryMd = summaryMarkdown(summary);
   const summaryImg = summaryPng(summary);
+  const debugStr = buildDebugBundle(result, fileName, getState().fileSize, now);
 
   const { r5 } = result.reports;
   const fmtScore = (n: number) => new Intl.NumberFormat(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(n);
@@ -209,6 +249,16 @@ export function renderExport(
           <img class="exp-summary-img" src="${summaryImg}" alt="${t('export.summary.title')}" />
         </div>
 
+        <div class="exp-summary-card">
+          <div class="exp-summary-head">
+            <span class="exp-card-icon exp-icon-amber">${ICON.shield}</span>
+            <span class="exp-card-title">${t('export.debug.title')}</span>
+            <button id="btn-debug-json" class="btn btn-secondary exp-summary-copy">${t('export.download')}</button>
+          </div>
+          <p class="exp-card-desc">${t('export.debug.desc')}</p>
+          <p class="exp-card-desc exp-debug-privacy"><span class="exp-i">ⓘ</span> ${t('export.debug.privacy')}</p>
+        </div>
+
         <div class="exp-note"><span class="exp-i">ⓘ</span> <strong>${t('export.note.label')}</strong> ${t('export.note.text')}</div>
       </div>
     </section>`;
@@ -220,6 +270,8 @@ export function renderExport(
   root.querySelector('#btn-export-csv')!.addEventListener('click',  () => dl('﻿' + csvStr, 'text/csv; charset=utf-8', 'csv'));
   root.querySelector('#btn-export-json')!.addEventListener('click', () => dl(jsonStr, 'application/json', 'json'));
   root.querySelector('#btn-export-pdf')!.addEventListener('click', () => printHtml(htmlStr));
+  root.querySelector('#btn-debug-json')!.addEventListener('click', () =>
+    triggerDownload(new Blob([debugStr], { type: 'application/json' }), fileName.replace(/\.zip$/i, `-debug-${fnTs}.json`)));
 
   const copyBtn = root.querySelector<HTMLButtonElement>('#btn-summary-copy')!;
   copyBtn.addEventListener('click', async () => {

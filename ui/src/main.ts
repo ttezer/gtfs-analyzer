@@ -5,6 +5,7 @@ import { renderFix, attachFixListeners } from './pages/fix';
 import { renderFiles } from './pages/files';
 import { renderExport } from './pages/export';
 import { getLocale, setLocale, t } from './i18n';
+import { initDebugBuffer } from './debug-buffer';
 import type { AppPage } from './state';
 
 // ── Dark mode ─────────────────────────────────────────────────────────────────
@@ -165,6 +166,7 @@ function escHtml(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
+initDebugBuffer();
 initDarkMode();
 renderApp();
 

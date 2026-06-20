@@ -369,7 +369,7 @@ async function handleFile(file: File, root: HTMLElement, errorEl: HTMLElement): 
       },
     });
 
-    setResult(result, file.name);
+    setResult(result, file.name, file.size);
     activateResult(root, result);
   } catch (err: unknown) {
     clearLoading(root);

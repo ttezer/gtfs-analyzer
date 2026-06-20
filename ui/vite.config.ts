@@ -1,6 +1,10 @@
 import { defineConfig } from 'vite';
 import wasm from 'vite-plugin-wasm';
 import topLevelAwait from 'vite-plugin-top-level-await';
+import { readFileSync } from 'node:fs';
+
+// Build-time sabiti: package.json sürümü (debug bundle / about için).
+const pkgVersion = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')).version;
 
 // WASM threads (SharedArrayBuffer) crossOriginIsolated gerektirir. Prod'da bunu
 // coi-serviceworker sağlar; dev/preview'de aşağıdaki başlıklarla sağlanır.
@@ -12,6 +16,7 @@ const coopCoep = {
 export default defineConfig({
   plugins: [wasm(), topLevelAwait()],
   base: './',
+  define: { __APP_VERSION__: JSON.stringify(pkgVersion) },
   server: { headers: coopCoep },
   preview: { headers: coopCoep },
   // Worker'lar ES modülü olarak paketlenmeli: validator-worker içinde threaded WASM
