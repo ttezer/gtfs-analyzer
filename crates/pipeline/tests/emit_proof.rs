@@ -853,6 +853,116 @@ fn fixtures() -> Vec<Fixture> {
         fx("FRQ_010", vec![("frequencies.txt", "trip_id,start_time,end_time,headway_secs\nT1,08:00:00,10:00:00,60\n")]),
         // FRQ_011: aynı trip'in frequencies dönemleri çakışıyor (k2).
         fx("FRQ_011", vec![("frequencies.txt", "trip_id,start_time,end_time,headway_secs\nT1,08:00:00,10:00:00,600\nT1,09:00:00,11:00:00,600\n")]),
+
+        // ── RTS grubu (kalan: k2 alan + k3 dup + k4 FK + k6) ───────────────────
+        // RTS_001: route_id tekrarı (k3).
+        fx("RTS_001", vec![("routes.txt", "route_id,agency_id,route_short_name,route_type\nR1,1,101,3\nR1,1,102,3\n")]),
+        // RTS_002: agency_id agency.txt'te yok (k4 per-route).
+        fx("RTS_002", vec![("routes.txt", "route_id,agency_id,route_short_name,route_type\nR1,NOPE,101,3\n")]),
+        // RTS_007: route_text_color geçersiz hex (k2).
+        fx("RTS_007", vec![("routes.txt", "route_id,agency_id,route_short_name,route_type,route_text_color\nR1,1,101,3,ZZZ\n")]),
+        // RTS_008: route_text_color/route_color düşük kontrast (k2).
+        fx("RTS_008", vec![("routes.txt", "route_id,agency_id,route_short_name,route_type,route_color,route_text_color\nR1,1,101,3,FFFFFF,FEFEFE\n")]),
+        // RTS_010: route_short_name > 12 karakter (k2).
+        fx("RTS_010", vec![("routes.txt", "route_id,agency_id,route_short_name,route_type\nR1,1,ABCDEFGHIJKLM,3\n")]),
+        // RTS_011: route_long_name > 100 karakter (k2).
+        fx("RTS_011", vec![("routes.txt", concat!("route_id,agency_id,route_short_name,route_long_name,route_type\nR1,1,101,",
+            "Lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod tempor incididunt ut labore et dolore magna",
+            ",3\n"))]),
+        // RTS_012: hiçbir trip'te kullanılmayan rota (k4 orphan).
+        fx("RTS_012", vec![("routes.txt", "route_id,agency_id,route_short_name,route_type\nR1,1,101,3\nR2,1,102,3\n")]),
+        // RTS_016: hattın hiçbir seferinde aktif takvim günü yok (k6).
+        fx("RTS_016", vec![("calendar.txt", "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,0,0,0,0,0,0,0,20250101,20271231\n")]),
+        // RTS_019: yinelenen route_short_name (k2).
+        fx("RTS_019", vec![("routes.txt", "route_id,agency_id,route_short_name,route_type\nR1,1,101,3\nR2,1,101,3\n")]),
+        // RTS_020: route_url acente URL'siyle aynı (k6).
+        fx("RTS_020", vec![("routes.txt", "route_id,agency_id,route_short_name,route_type,route_url\nR1,1,101,3,http://test.example\n")]),
+        // RTS_021: route_short_name > 6 karakter (Google eşiği) (k2).
+        fx("RTS_021", vec![("routes.txt", "route_id,agency_id,route_short_name,route_type\nR1,1,ABCDEFG,3\n")]),
+        // RTS_022: route_long_name route_short_name'i içeriyor (k6).
+        fx("RTS_022", vec![("routes.txt", "route_id,agency_id,route_short_name,route_long_name,route_type\nR1,1,5A,5A Line,3\n")]),
+        // RTS_023: route_long_name == route_desc (k2).
+        fx("RTS_023", vec![("routes.txt", "route_id,agency_id,route_short_name,route_long_name,route_desc,route_type\nR1,1,101,Main Line,Main Line,3\n")]),
+        // RTS_024: cemv_support > 2 (k2).
+        fx("RTS_024", vec![("routes.txt", "route_id,agency_id,route_short_name,route_type,cemv_support\nR1,1,101,3,5\n")]),
+        // RTS_025: tek agency'de route agency_id boş (k6 best-practice).
+        fx("RTS_025", vec![("routes.txt", "route_id,agency_id,route_short_name,route_type\nR1,,101,3\n")]),
+
+        // ── TRP grubu (kalan: k2 + k4 FK + k6) ─────────────────────────────────
+        // TRP_002: route_id routes.txt'te yok (k4).
+        fx("TRP_002", vec![("trips.txt", "route_id,service_id,trip_id\nRNOPE,SVC1,T1\n")]),
+        // TRP_003: service_id calendar'da yok (k4).
+        fx("TRP_003", vec![("trips.txt", "route_id,service_id,trip_id\nR1,SVCX,T1\n")]),
+        // TRP_004: shape_id shapes.txt'te yok (k4).
+        fx("TRP_004", vec![("trips.txt", "route_id,service_id,trip_id,shape_id\nR1,SVC1,T1,SHNOPE\n")]),
+        // TRP_009: stop_times var ama hiç zaman bilgisi yok (k6).
+        fx("TRP_009", vec![("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,,,S1,1\nT1,,,S2,2\n")]),
+        // TRP_011: trip_headsign ve trip_short_name yok — base tetikler (k6).
+        fx("TRP_011", vec![]),
+        // TRP_012: çift yönlü hatta bazı seferlerde direction_id yok (k6).
+        fx("TRP_012", vec![("trips.txt", "route_id,service_id,trip_id,direction_id\nR1,SVC1,T1,0\nR1,SVC1,T2,1\nR1,SVC1,T3,\n")]),
+        // TRP_013: route başına tek sefer — base tetikler (k6).
+        fx("TRP_013", vec![]),
+        // TRP_014: trip_short_name > 20 karakter (k2).
+        fx("TRP_014", vec![("trips.txt", "route_id,service_id,trip_id,trip_short_name\nR1,SVC1,T1,ABCDEFGHIJKLMNOPQRSTU\n")]),
+        // TRP_015: block_id'de tek sefer (k6).
+        fx("TRP_015", vec![("trips.txt", "route_id,service_id,trip_id,block_id\nR1,SVC1,T1,B1\n")]),
+        // TRP_017: frekans tabanlı sefer stop_times'ta yok (k4).
+        fx("TRP_017", vec![
+            ("trips.txt", "route_id,service_id,trip_id\nR1,SVC1,T1\nR1,SVC1,T2\n"),
+            ("frequencies.txt", "trip_id,start_time,end_time,headway_secs\nT2,08:00:00,10:00:00,600\n"),
+        ]),
+        // TRP_019: continuous pickup/drop-off aktif ama shape_id yok (k4).
+        fx("TRP_019", vec![("routes.txt", "route_id,agency_id,route_short_name,route_type,continuous_pickup\nR1,1,101,3,0\n")]),
+        // TRP_020: trip_headsign terminal değil ara durak adıyla eşleşiyor (k6).
+        fx("TRP_020", vec![
+            ("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\nS2,Stop2,41.1,29.1\nS3,Stop3,41.2,29.2\n"),
+            ("trips.txt", "route_id,service_id,trip_id,trip_headsign\nR1,SVC1,T1,Stop2\n"),
+            ("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\nT1,08:10:00,08:10:00,S2,2\nT1,08:20:00,08:20:00,S3,3\n"),
+        ]),
+        // TRP_021: bikes_allowed hiç belirtilmemiş — base tetikler (k2).
+        fx("TRP_021", vec![]),
+        // TRP_022: block içinde çakışan sefer saatleri (k6).
+        fx("TRP_022", vec![
+            ("trips.txt", "route_id,service_id,trip_id,block_id\nR1,SVC1,T1,B1\nR1,SVC1,T2,B1\n"),
+            ("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\nT1,09:00:00,09:00:00,S2,2\nT2,08:30:00,08:30:00,S1,1\nT2,09:30:00,09:30:00,S2,2\n"),
+        ]),
+        // TRP_023: önümüzdeki 7 günde aktif sefer yok (feed-level k6).
+        fx("TRP_023", vec![("calendar.txt", "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,1,1,20270101,20270131\n")]),
+        // TRP_024: block içinde tutarsız route_type (k6).
+        fx("TRP_024", vec![
+            ("routes.txt", "route_id,agency_id,route_short_name,route_type\nR1,1,101,3\nR2,1,102,0\n"),
+            ("trips.txt", "route_id,service_id,trip_id,block_id\nR1,SVC1,T1,B1\nR2,SVC1,T2,B1\n"),
+        ]),
+        // TRP_025: wheelchair_accessible bilinmeyen oran > %80 — base tetikler (k6).
+        fx("TRP_025", vec![]),
+        // TRP_026: servisin hiç aktif tarihi yok (k6).
+        fx("TRP_026", vec![("calendar.txt", "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,0,0,0,0,0,0,0,20250101,20271231\n")]),
+        // TRP_028: bazı seferlerde wheelchair_accessible eksik (k6).
+        fx("TRP_028", vec![("trips.txt", "route_id,service_id,trip_id,wheelchair_accessible\nR1,SVC1,T1,1\nR1,SVC1,T2,\n")]),
+        // TRP_029: hiçbir seferde wheelchair_accessible yok — base tetikler (k6).
+        fx("TRP_029", vec![]),
+
+        // ── TRN grubu (kalan: k4 + k2) ─────────────────────────────────────────
+        // TRN_004: record_id başvurulan tabloda yok (k4).
+        fx("TRN_004", vec![("translations.txt", "table_name,field_name,language,translation,record_id\nstops,stop_name,fr,X,NOPE\n")]),
+        // TRN_005: aynı anahtar + aynı çeviri birden çok satırda (k4).
+        fx("TRN_005", vec![("translations.txt", "table_name,field_name,language,translation,record_id\nstops,stop_name,fr,X,S1\nstops,stop_name,fr,X,S1\n")]),
+        // TRN_006: aynı anahtar + farklı çeviri (çelişki) (k4).
+        fx("TRN_006", vec![("translations.txt", "table_name,field_name,language,translation,record_id\nstops,stop_name,fr,X,S1\nstops,stop_name,fr,Y,S1\n")]),
+        // TRN_007: çeviri dili feed_lang ile aynı (>1 satır → feed-level) (k4).
+        fx("TRN_007", vec![
+            ("feed_info.txt", "feed_publisher_name,feed_publisher_url,feed_lang\nPub,https://x.example,en\n"),
+            ("translations.txt", "table_name,field_name,language,translation,record_id\nstops,stop_name,en,X,S1\nstops,stop_name,en,Y,S2\n"),
+        ]),
+        // TRN_008: translation değeri boş (k2).
+        fx("TRN_008", vec![("translations.txt", "table_name,field_name,language,translation,record_id\nstops,stop_name,fr,,S1\n")]),
+        // TRN_010: stop_times çevirisi record_id var ama record_sub_id yok (k2).
+        fx("TRN_010", vec![("translations.txt", "table_name,field_name,language,translation,record_id\nstop_times,stop_headsign,fr,X,T1\n")]),
+        // TRN_013: feed_info çevirisi record_id/sub_id/field_value kullanıyor (k2).
+        fx("TRN_013", vec![("translations.txt", "table_name,field_name,language,translation,record_id\nfeed_info,feed_publisher_name,fr,X,FI\n")]),
+        // TRN_014: stop_times dışı tabloda record_sub_id (k2).
+        fx("TRN_014", vec![("translations.txt", "table_name,field_name,language,translation,record_id,record_sub_id\nstops,stop_name,fr,X,S1,2\n")]),
     ]
 }
 
