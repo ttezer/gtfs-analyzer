@@ -568,6 +568,101 @@ fn fixtures() -> Vec<Fixture> {
             ("trips.txt", "route_id,service_id,trip_id\nR1,SVC1,T1\nR1,SVC1,T2\nR1,SVC1,T3\nR1,SVC1,T4\nR1,SVC1,T5\n"),
             ("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\nT1,08:00:10,08:00:10,S2,2\nT2,08:00:00,08:00:00,S1,1\nT2,08:00:10,08:00:10,S2,2\nT3,08:00:00,08:00:00,S1,1\nT3,08:00:10,08:00:10,S2,2\nT4,08:00:00,08:00:00,S1,1\nT4,08:00:10,08:00:10,S2,2\nT5,08:00:00,08:00:00,S1,1\nT5,08:00:10,08:00:10,S2,2\n"),
         ]),
+
+        // ── XFL grubu (cross-file FK; k4_cross_ref::check_xfl + cemv/fares v2) ──
+        // XFL_001: trip service_id calendar/calendar_dates'te yok.
+        fx("XFL_001", vec![("trips.txt", "route_id,service_id,trip_id\nR1,SVCX,T1\n")]),
+        // XFL_002: trip'in stop_times kaydı yok (T2).
+        fx("XFL_002", vec![("trips.txt", "route_id,service_id,trip_id\nR1,SVC1,T1\nR1,SVC1,T2\n")]),
+        // XFL_003: trip shape_id shapes.txt'te yok.
+        fx("XFL_003", vec![("trips.txt", "route_id,service_id,trip_id,shape_id\nR1,SVC1,T1,NOPE\n")]),
+        // XFL_004: fare_rules route_id routes.txt'te yok.
+        fx("XFL_004", vec![("fare_rules.txt", "fare_id,route_id\nF1,NOPE\n")]),
+        // XFL_005: stop_times stop_id stops.txt'te yok.
+        fx("XFL_005", vec![("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\nT1,08:10:00,08:10:00,NOPE,2\n")]),
+        // XFL_006: calendar_dates yalnız exception_type=2 ve calendar'da yok.
+        fx("XFL_006", vec![("calendar_dates.txt", "service_id,date,exception_type\nSVCZ,20260601,2\n")]),
+        // XFL_007: route agency_id agency.txt'te yok.
+        fx("XFL_007", vec![("routes.txt", "route_id,agency_id,route_short_name,route_type\nR1,NOPE,101,3\n")]),
+        // XFL_009: stop level_id levels.txt'te yok.
+        fx("XFL_009", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon,level_id\nS1,Stop1,41.0,29.0,NOPE\nS2,Stop2,41.1,29.1,\n")]),
+        // XFL_010: frequencies trip_id trips.txt'te yok.
+        fx("XFL_010", vec![("frequencies.txt", "trip_id,start_time,end_time,headway_secs\nNOPE,08:00:00,10:00:00,600\n")]),
+        // XFL_011: calendar aralığı feed_info penceresiyle tutarsız (cal_start < feed_start).
+        fx("XFL_011", vec![("feed_info.txt", "feed_publisher_name,feed_publisher_url,feed_lang,feed_start_date,feed_end_date\nPub,https://x.example,en,20250601,20271231\n")]),
+        // XFL_012: route'un tüm seferlerinin stop_times'ı yok (boş stop_times).
+        fx("XFL_012", vec![("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\n")]),
+        // XFL_013: shape hem gidiş (0) hem dönüş (1) yönünde kullanılıyor.
+        fx("XFL_013", vec![
+            ("trips.txt", "route_id,service_id,trip_id,shape_id,direction_id\nR1,SVC1,T1,SH1,0\nR1,SVC1,T2,SH1,1\n"),
+            ("shapes.txt", "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\nSH1,41.0,29.0,1\nSH1,41.1,29.1,2\n"),
+        ]),
+        // XFL_014: translation record_id var olmayan kayda işaret ediyor.
+        fx("XFL_014", vec![("translations.txt", "table_name,field_name,language,translation,record_id\nstops,stop_name,en,X,NOPE\n")]),
+        // XFL_015: attribution geçersiz referans (agency_id).
+        fx("XFL_015", vec![("attributions.txt", "attribution_id,organization_name,is_producer,agency_id\nA1,Org,1,NOPE\n")]),
+        // XFL_016: translation table_name=feed_info ama feed_info.txt yok.
+        fx("XFL_016", vec![("translations.txt", "table_name,field_name,language,translation\nfeed_info,feed_publisher_name,en,X\n")]),
+        // XFL_019: network_id hem routes.txt hem route_networks.txt'te (çakışma).
+        fx("XFL_019", vec![
+            ("routes.txt", "route_id,agency_id,route_short_name,route_type,network_id\nR1,1,101,3,N1\n"),
+            ("route_networks.txt", "network_id,route_id\nN1,R1\n"),
+        ]),
+        // XFL_017: route_cemv_support agency_cemv_support ile çelişiyor.
+        fx("XFL_017", vec![
+            ("agency.txt", "agency_id,agency_name,agency_url,agency_timezone,cemv_support\n1,Test,http://test.example,UTC,1\n"),
+            ("routes.txt", "route_id,agency_id,route_short_name,route_type,cemv_support\nR1,1,101,3,0\n"),
+        ]),
+        // XFL_020: transfer (trip_id, route_id) çifti geçersiz.
+        fx("XFL_020", vec![("transfers.txt", "from_stop_id,to_stop_id,transfer_type,from_trip_id,from_route_id\nS1,S2,1,T1,RWRONG\n")]),
+        // XFL_021: from_stop_id, from_trip_id'nin stop_times'ında yok.
+        fx("XFL_021", vec![
+            ("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\nS2,Stop2,41.1,29.1\nS3,Stop3,41.2,29.2\n"),
+            ("transfers.txt", "from_stop_id,to_stop_id,transfer_type,from_trip_id\nS3,S2,1,T1\n"),
+        ]),
+        // XFL_022: location_group_stops group location_groups.txt'te yok.
+        fx("XFL_022", vec![("location_group_stops.txt", "location_group_id,stop_id\nLGNOPE,S1\n")]),
+        // XFL_023: location_group_stops stop_id stops.txt'te yok.
+        fx("XFL_023", vec![
+            ("location_groups.txt", "location_group_id,location_group_name\nLG1,Group1\n"),
+            ("location_group_stops.txt", "location_group_id,stop_id\nLG1,NOPE\n"),
+        ]),
+        // XFL_024: stop_times.location_group_id location_groups.txt'te yok (Flex).
+        fx("XFL_024", vec![("stop_times.txt", "trip_id,stop_sequence,location_group_id,start_pickup_drop_off_window,end_pickup_drop_off_window\nT1,1,NOPE,09:00:00,10:00:00\n")]),
+        // XFL_025: stop_times.location_id locations.geojson'da yok (Flex).
+        fx("XFL_025", vec![("stop_times.txt", "trip_id,stop_sequence,location_id,start_pickup_drop_off_window,end_pickup_drop_off_window\nT1,1,NOPE,09:00:00,10:00:00\n")]),
+        // XFL_026: route cemv=1 ama uygulanabilir contactless (type3) fare product yok.
+        fx("XFL_026", vec![
+            ("fare_media.txt", "fare_media_id,fare_media_type\nM3,3\n"),
+            ("fare_products.txt", "fare_product_id,fare_media_id,amount,currency\nP1,M3,2.5,USD\n"),
+            ("fare_leg_rules.txt", "leg_group_id,network_id,fare_product_id\nLG1,NOTHER,P1\n"),
+            ("routes.txt", "route_id,agency_id,route_short_name,route_type,network_id,cemv_support\nR1,1,101,3,N1,1\n"),
+        ]),
+        // XFL_027: route cemv=2 ama uygulanabilir contactless fare product var (çelişki).
+        fx("XFL_027", vec![
+            ("fare_media.txt", "fare_media_id,fare_media_type\nM3,3\n"),
+            ("fare_products.txt", "fare_product_id,fare_media_id,amount,currency\nP1,M3,2.5,USD\n"),
+            ("fare_leg_rules.txt", "leg_group_id,fare_product_id\nLG1,P1\n"),
+            ("routes.txt", "route_id,agency_id,route_short_name,route_type,cemv_support\nR1,1,101,3,2\n"),
+        ]),
+        // XFL_028: agency_cemv_support=1 + Fares v2 var ama type3 media yok.
+        fx("XFL_028", vec![
+            ("agency.txt", "agency_id,agency_name,agency_url,agency_timezone,cemv_support\n1,Test,http://test.example,UTC,1\n"),
+            ("fare_products.txt", "fare_product_id,amount,currency\nP1,2.5,USD\n"),
+        ]),
+        // XFL_029: route_cemv_support=1 + Fares v2 var ama type3 media yok.
+        fx("XFL_029", vec![
+            ("routes.txt", "route_id,agency_id,route_short_name,route_type,cemv_support\nR1,1,101,3,1\n"),
+            ("fare_products.txt", "fare_product_id,amount,currency\nP1,2.5,USD\n"),
+        ]),
+        // XFL_030: type3 media var ama hiçbir agency/route'da cemv=1 yok.
+        fx("XFL_030", vec![("fare_media.txt", "fare_media_id,fare_media_type\nM3,3\n")]),
+
+        // ── NET / PDW ──────────────────────────────────────────────────────────
+        // NET_001: networks.txt network_id tekrarı (k3).
+        fx("NET_001", vec![("networks.txt", "network_id,network_name\nN1,Net1\nN1,Net2\n")]),
+        // PDW_006: aynı trip+zone içinde örtüşen pickup/drop-off pencereleri (k6 Flex).
+        fx("PDW_006", vec![("stop_times.txt", "trip_id,stop_sequence,location_id,start_pickup_drop_off_window,end_pickup_drop_off_window\nT1,1,Z1,09:00:00,10:00:00\nT1,2,Z1,09:30:00,11:00:00\n")]),
     ]
 }
 
