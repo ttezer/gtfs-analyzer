@@ -1027,6 +1027,90 @@ fn fixtures() -> Vec<Fixture> {
         fx("STP_033", vec![]),
         // STP_038: hiçbir durakta wheelchair_boarding yok — base tetikler (k6).
         fx("STP_038", vec![]),
+
+        // ── SHP grubu (kalan: k5 geometri + k4 + k6). SHP_026 (>5000 nokta) inline
+        //    yazılamaz → debt'te bırakıldı. ─────────────────────────────────────
+        // SHP_006: tek noktalı shape (k5).
+        fx("SHP_006", vec![("shapes.txt", "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\nSH1,41.0,29.0,1\n")]),
+        // SHP_007: < 3 noktalı shape (k5).
+        fx("SHP_007", vec![("shapes.txt", "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\nSH1,41.0,29.0,1\nSH1,41.1,29.1,2\n")]),
+        // SHP_009: kendisiyle kesişen shape — seg(2→3) ile seg(4→5) kesişir (k6).
+        // (4 nokta yetmez: tek karşılaştırma (0,n-2) "bitişik uç" guard'ıyla atlanır.)
+        fx("SHP_009", vec![("shapes.txt", "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\nSH1,40.0,40.0,1\nSH1,40.0,40.1,2\nSH1,40.1,40.1,3\nSH1,40.05,40.15,4\nSH1,40.05,40.05,5\n")]),
+        // SHP_010: ardışık özdeş koordinat (k5).
+        fx("SHP_010", vec![("shapes.txt", "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\nSH1,40.0,40.0,1\nSH1,40.0,40.0,2\nSH1,40.1,40.1,3\n")]),
+        // SHP_011: ardışık noktalar arası > 10km atlama (k6).
+        fx("SHP_011", vec![("shapes.txt", "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\nSH1,40.0,40.0,1\nSH1,40.2,40.0,2\nSH1,40.21,40.0,3\n")]),
+        // SHP_012: shape duraklardan > eşik uzakta (k6).
+        fx("SHP_012", vec![
+            ("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,40.0,40.0\nS2,Stop2,40.05,40.05\n"),
+            ("trips.txt", "route_id,service_id,trip_id,shape_id\nR1,SVC1,T1,SH1\n"),
+            ("shapes.txt", "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\nSH1,40.0,40.0,1\nSH1,40.0,40.05,2\nSH1,40.0,40.1,3\n"),
+        ]),
+        // SHP_014: shape başlangıç noktası ilk duraktan > 100m uzak (k6).
+        fx("SHP_014", vec![
+            ("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,41.0\nS2,Stop2,40.0,40.1\n"),
+            ("trips.txt", "route_id,service_id,trip_id,shape_id\nR1,SVC1,T1,SH1\n"),
+            ("shapes.txt", "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\nSH1,40.0,40.0,1\nSH1,40.0,40.1,2\nSH1,40.0,40.2,3\n"),
+        ]),
+        // SHP_015: düşük nokta yoğunluğu (3 nokta / ~66km) (k6).
+        fx("SHP_015", vec![("shapes.txt", "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\nSH1,40.0,40.0,1\nSH1,40.0,40.3,2\nSH1,40.0,40.6,3\n")]),
+        // SHP_016: ters yönde çizilmiş shape (k6).
+        fx("SHP_016", vec![
+            ("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,40.0,40.0\nS2,Stop2,40.0,40.5\n"),
+            ("trips.txt", "route_id,service_id,trip_id,shape_id\nR1,SVC1,T1,SH1\n"),
+            ("shapes.txt", "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\nSH1,40.0,40.5,1\nSH1,40.0,40.25,2\nSH1,40.0,40.0,3\n"),
+        ]),
+        // SHP_017: durak sırası shape projeksiyonuyla çelişiyor (azalan sdt) (k6).
+        fx("SHP_017", vec![
+            ("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,40.0,40.0\nS2,Stop2,40.0,40.1\n"),
+            ("trips.txt", "route_id,service_id,trip_id,shape_id\nR1,SVC1,T1,SH1\n"),
+            ("shapes.txt", "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\nSH1,40.0,40.0,1\nSH1,40.0,40.1,2\nSH1,40.0,40.2,3\n"),
+            ("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence,shape_dist_traveled\nT1,08:00:00,08:00:00,S1,1,1000\nT1,08:10:00,08:10:00,S2,2,500\n"),
+        ]),
+        // SHP_018: hiçbir sefer tarafından referans edilmeyen shape (k5).
+        fx("SHP_018", vec![("shapes.txt", "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\nSH1,40.0,40.0,1\nSH1,40.001,40.001,2\nSH1,40.002,40.002,3\n")]),
+        // SHP_019: shape referans alan tüm seferlerin stop_times'ı yok (k4).
+        fx_rm("SHP_019",
+            vec![
+                ("trips.txt", "route_id,service_id,trip_id,shape_id\nR1,SVC1,T1,SH1\n"),
+                ("shapes.txt", "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\nSH1,40.0,40.0,1\nSH1,40.1,40.1,2\nSH1,40.2,40.2,3\n"),
+                ("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\n"),
+            ],
+            vec![]),
+        // SHP_020: ardışık olmayan tekrarlayan nokta (k6).
+        fx("SHP_020", vec![("shapes.txt", "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\nSH1,40.0,40.0,1\nSH1,40.1,40.1,2\nSH1,40.0,40.0,3\n")]),
+        // SHP_022: durak shape'in 2 ayrı bölümüne yakın (loop, sdt yok) (k6).
+        fx("SHP_022", vec![
+            ("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,40.0,40.0\nS2,Stop2,40.1,40.1\n"),
+            ("trips.txt", "route_id,service_id,trip_id,shape_id\nR1,SVC1,T1,SH1\n"),
+            ("shapes.txt", "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\nSH1,40.0,40.0,1\nSH1,40.0,40.2,2\nSH1,40.2,40.2,3\nSH1,40.2,40.0,4\nSH1,40.0,40.0,5\n"),
+        ]),
+        // SHP_023: aynı dist_traveled + aynı koordinat (k6).
+        fx("SHP_023", vec![("shapes.txt", "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence,shape_dist_traveled\nSH1,40.0,40.0,1,5\nSH1,40.0,40.0,2,5\nSH1,40.1,40.1,3,10\n")]),
+        // SHP_024: durak shape_dist_traveled konumundan uzak (k6).
+        fx("SHP_024", vec![
+            ("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,41.0\nS2,Stop2,40.0,40.0\n"),
+            ("trips.txt", "route_id,service_id,trip_id,shape_id\nR1,SVC1,T1,SH1\n"),
+            ("shapes.txt", "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence,shape_dist_traveled\nSH1,40.0,40.0,1,0\nSH1,40.0,40.1,2,1000\n"),
+            ("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence,shape_dist_traveled\nT1,08:00:00,08:00:00,S2,1,0\nT1,08:10:00,08:10:00,S1,2,500\n"),
+        ]),
+        // SHP_025: trip shape_dist_traveled şeklin maksimumunu aşıyor (k6).
+        fx("SHP_025", vec![
+            ("trips.txt", "route_id,service_id,trip_id,shape_id\nR1,SVC1,T1,SH1\n"),
+            ("shapes.txt", "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence,shape_dist_traveled\nSH1,40.0,40.0,1,0\nSH1,40.0,40.1,2,100\n"),
+            ("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence,shape_dist_traveled\nT1,08:00:00,08:00:00,S1,1,0\nT1,08:10:00,08:10:00,S2,2,200\n"),
+        ]),
+        // SHP_027: shape farklı durak desenlerine atanmış (k6).
+        fx("SHP_027", vec![
+            ("trips.txt", "route_id,service_id,trip_id,shape_id\nR1,SVC1,T1,SH1\nR1,SVC1,T2,SH1\n"),
+            ("shapes.txt", "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\nSH1,40.0,40.0,1\nSH1,40.1,40.1,2\n"),
+            ("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\nT1,08:10:00,08:10:00,S2,2\nT2,09:00:00,09:00:00,S2,1\nT2,09:10:00,09:10:00,S1,2\n"),
+        ]),
+        // SHP_028: aynı dist farklı koordinat (eşik üstü ~0.1°) (k6).
+        fx("SHP_028", vec![("shapes.txt", "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence,shape_dist_traveled\nSH1,40.0,40.0,1,5\nSH1,40.1,40.0,2,5\nSH1,40.2,40.2,3,10\n")]),
+        // SHP_029: aynı dist farklı koordinat (eşik altı ~1e-6°) (k6).
+        fx("SHP_029", vec![("shapes.txt", "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence,shape_dist_traveled\nSH1,40.0,40.0,1,5\nSH1,40.000001,40.0,2,5\nSH1,40.1,40.1,3,10\n")]),
     ]
 }
 

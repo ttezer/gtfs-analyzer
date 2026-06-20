@@ -1,5 +1,5 @@
 # emit-proof coverage debt (#5 C). Fixture'ı olmayan canonical kurallar.
-# Azaltmak için emit_proof.rs::fixtures()'a fixture ekleyin. 102 kural.
+# Azaltmak için emit_proof.rs::fixtures()'a fixture ekleyin. 82 kural.
 AGN_001
 ARC_002
 ARC_003
@@ -28,28 +28,8 @@ OPR_021
 OPR_022
 OPR_023
 OPR_024
-SHP_006
-SHP_007
-SHP_009
-SHP_010
-SHP_011
-SHP_012
-SHP_014
-SHP_015
-SHP_016
-SHP_017
-SHP_018
-SHP_019
-SHP_020
 SHP_021
-SHP_022
-SHP_023
-SHP_024
-SHP_025
 SHP_026
-SHP_027
-SHP_028
-SHP_029
 STM_001
 STM_002
 STM_007
