@@ -92,6 +92,20 @@ const PROOF_ALLOWLIST: &[&str] = &[
                // ValidateResult::Fatal, notices kaybolur. Bu harness'ta yapısal olarak kanıtlanamaz.
 ];
 
+// ── KALICI DEBT (bu harness'ta YAPISAL OLARAK kanıtlanamaz; coverage_debt.txt'te kalır) ──
+// Bunlar fixture eksikliği değil; runtime emit-proof mekanizmasının sınırları:
+//   AGN_001  — ölü kural: agency.txt eksikliğini ARC_004 (Fatal) devralır; AGN_001 hiç emit edilmez.
+//   ARC_002  — geçersiz UTF-8 gerektirir; fixture içeriği String → her zaman geçerli UTF-8.
+//   ARC_003  — aynı (geçersiz UTF-8, opsiyonel dosya).
+//   ARC_022  — > 1.000.000 satır gerektirir (inline yazılamaz).
+//   OPR_021/022/023 — yalnız config.calendar_override_rules ile; harness ValidatorConfig::default() kullanır.
+//   OPR_024  — tek (route, service)'te > 500 sefer gerektirir (inline yazılamaz).
+//   SHP_026  — > 5000 shape noktası gerektirir.
+//   STM_043  — sefer başına > 200 durak gerektirir.
+//   STM_044  — > 2.000.000 stop_times satırı gerektirir.
+//   VAT_006  — feed'de >= 50 sefer gerektirir (inline pratik değil).
+// ARC_001/ARC_004 PROOF_ALLOWLIST'te (Fatal yol). Diğerleri coverage_debt.txt'te bilinçli bırakıldı.
+
 /// rule_id → tetikleyici fixture. Kademeli doldurulur; her satır gerçek runtime proof.
 fn fixtures() -> Vec<Fixture> {
     vec![
@@ -1308,6 +1322,47 @@ fn fixtures() -> Vec<Fixture> {
             ("shapes.txt", "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\nSH1,41.0,29.0,1\nSH1,41.1,29.1,2\n"),
             ("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\nT1,08:10:00,08:10:00,S2,2\nT2,09:00:00,09:00:00,S1,1\nT2,09:10:00,09:10:00,S2,2\nT3,10:00:00,10:00:00,S1,1\nT3,10:10:00,10:10:00,S2,2\n"),
         ]),
+
+        // ── FRL grubu (fare_rules cross-ref k4) ────────────────────────────────
+        // FRL_001: fare_id fare_attributes.txt'te yok.
+        fx("FRL_001", vec![("fare_rules.txt", "fare_id,route_id\nFNOPE,R1\n")]),
+        // FRL_002: route_id routes.txt'te yok.
+        fx("FRL_002", vec![
+            ("fare_attributes.txt", "fare_id,price,currency_type,payment_method\nF1,2.5,USD,0\n"),
+            ("fare_rules.txt", "fare_id,route_id\nF1,RNOPE\n"),
+        ]),
+        // FRL_003: origin_id geçerli bir zone değil.
+        fx("FRL_003", vec![
+            ("fare_attributes.txt", "fare_id,price,currency_type,payment_method\nF1,2.5,USD,0\n"),
+            ("fare_rules.txt", "fare_id,origin_id\nF1,ZNOPE\n"),
+        ]),
+        // FRL_004: destination_id geçerli bir zone değil.
+        fx("FRL_004", vec![
+            ("fare_attributes.txt", "fare_id,price,currency_type,payment_method\nF1,2.5,USD,0\n"),
+            ("fare_rules.txt", "fare_id,destination_id\nF1,ZNOPE\n"),
+        ]),
+        // FRL_005: contains_id geçerli bir zone değil.
+        fx("FRL_005", vec![
+            ("fare_attributes.txt", "fare_id,price,currency_type,payment_method\nF1,2.5,USD,0\n"),
+            ("fare_rules.txt", "fare_id,contains_id\nF1,ZNOPE\n"),
+        ]),
+        // FRL_006: fare_attributes var ama fare_rules yok.
+        fx("FRL_006", vec![("fare_attributes.txt", "fare_id,price,currency_type,payment_method\nF1,2.5,USD,0\n")]),
+        // FRL_007: kuralda ayrıştırıcı kriter yok (route/zone/contains hepsi boş).
+        fx("FRL_007", vec![
+            ("fare_attributes.txt", "fare_id,price,currency_type,payment_method\nF1,2.5,USD,0\n"),
+            ("fare_rules.txt", "fare_id\nF1\n"),
+        ]),
+        // FRL_008: route tabanlı ücret ama bazı hatlar kapsam dışı (R2).
+        fx("FRL_008", vec![
+            ("fare_attributes.txt", "fare_id,price,currency_type,payment_method\nF1,2.5,USD,0\n"),
+            ("routes.txt", "route_id,agency_id,route_short_name,route_type\nR1,1,101,3\nR2,1,102,3\n"),
+            ("fare_rules.txt", "fare_id,route_id\nF1,R1\n"),
+        ]),
+
+        // ── SHP_021 (k2) ───────────────────────────────────────────────────────
+        // SHP_021: shape_dist_traveled negatif.
+        fx("SHP_021", vec![("shapes.txt", "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence,shape_dist_traveled\nSH1,41.0,29.0,1,-5\nSH1,41.1,29.1,2,10\n")]),
     ]
 }
 
