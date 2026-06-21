@@ -2505,19 +2505,38 @@ fn check_operational_analytics(
             }
         }
 
-        let mut block_trips: HashMap<&str, Vec<(&str, u32, u32)>> = HashMap::new();
+        let mut block_trips: HashMap<&str, Vec<(&str, u32, u32, &str)>> = HashMap::new();
         for t in &records.trips {
             let Some(ref bid) = t.block_id else { continue };
             let Some(&(dep, arr)) = trip_range.get(t.trip_id.as_str()) else { continue };
-            block_trips.entry(bid.as_str()).or_default().push((t.trip_id.as_str(), dep, arr));
+            block_trips.entry(bid.as_str()).or_default().push((t.trip_id.as_str(), dep, arr, t.service_id.as_str()));
         }
+
+        // Takvim kesişim önbelleği (#29): aynı block'ta FARKLI service_id'li iki sefer ancak AYNI
+        // gün aktifse gerçekten çakışır — bir araç farklı günlerde yalnız birini yapar. Bu guard
+        // olmadan TriMet gibi varyant-servisli büyük block'lar 201k+ FP üretiyordu (MD: 908, biz 201476).
+        let mut svc_overlap_cache: HashMap<(&str, &str), bool> = HashMap::new();
 
         for (block_id, trips) in &block_trips {
             for i in 0..trips.len() {
                 for j in (i + 1)..trips.len() {
-                    let (tid_a, dep_a, arr_a) = trips[i];
-                    let (tid_b, dep_b, arr_b) = trips[j];
+                    let (tid_a, dep_a, arr_a, svc_a) = trips[i];
+                    let (tid_b, dep_b, arr_b, svc_b) = trips[j];
                     if dep_a < arr_b && dep_b < arr_a {
+                        // Aynı service → kesinlikle aynı gün. Farklı service → takvimleri kesişmeli.
+                        if svc_a != svc_b {
+                            let key = if svc_a < svc_b { (svc_a, svc_b) } else { (svc_b, svc_a) };
+                            let same_day = *svc_overlap_cache.entry(key).or_insert_with(|| {
+                                match (
+                                    derived.calendar_bitmap.active_dates.get(svc_a),
+                                    derived.calendar_bitmap.active_dates.get(svc_b),
+                                ) {
+                                    (Some(a), Some(b)) => a.intersection(b).next().is_some(),
+                                    _ => false,
+                                }
+                            });
+                            if !same_day { continue; }
+                        }
                         notices.push(k6_notice(
                             ctr, "TRP_022", EntityType::Trip,
                             Some(tid_a.to_string()), Some(tid_a.to_string()),
