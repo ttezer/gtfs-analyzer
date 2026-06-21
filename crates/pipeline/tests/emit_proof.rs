@@ -90,11 +90,15 @@ const PROOF_ALLOWLIST: &[&str] = &[
     "ARC_001", // fatal FatalCode::ZipUnreadable (Notice değil)
     "ARC_004", // ARC_004 notice'ı emit edilir AMA hemen FatalCode::NoRequiredFiles döner →
                // ValidateResult::Fatal, notices kaybolur. Bu harness'ta yapısal olarak kanıtlanamaz.
+    "AGN_001", // "agency.txt eksik" — FİİLEN HİÇ emit edilmez (ne Notice ne fatal rule_id).
+               // Dosya eksikliğini ARC_004 (Fatal NoRequiredFiles) temsil eder; AGN_001 yalnızca
+               // MD `missing_required_file` paritesi için registry'de tutulan, Notice üretmeyen bir
+               // kayıttır. Karar: bırak + allowlist (issue #27). Üretim kodunda literal yok.
 ];
 
 // ── KALICI DEBT (bu harness'ta YAPISAL OLARAK kanıtlanamaz; coverage_debt.txt'te kalır) ──
 // Bunlar fixture eksikliği değil; runtime emit-proof mekanizmasının sınırları:
-//   AGN_001  — ölü kural: agency.txt eksikliğini ARC_004 (Fatal) devralır; AGN_001 hiç emit edilmez.
+//   (AGN_001 → PROOF_ALLOWLIST'te: fatal yol, ARC_004 temsil eder; issue #27)
 //   ARC_002  — geçersiz UTF-8 gerektirir; fixture içeriği String → her zaman geçerli UTF-8.
 //   ARC_003  — aynı (geçersiz UTF-8, opsiyonel dosya).
 //   ARC_022  — > 1.000.000 satır gerektirir (inline yazılamaz).
@@ -139,10 +143,10 @@ fn fixtures() -> Vec<Fixture> {
             ("agency.txt", "agency_id,agency_name,agency_url,agency_timezone\n1,A,https://a.example,UTC\n2,B,https://b.example,UTC\n"),
             ("routes.txt", "route_id,agency_id,route_short_name,route_type\nR1,,101,3\n"),
         ]),
-        // NOT (#5 bulgu): AGN_001 "agency.txt eksik" başlıklı ama agency.txt eksikliğini
-        // ARC_004 (Fatal NoRequiredFiles) ele alıyor; AGN_001 hiçbir yolla emit edilmiyor
-        // (emit_coverage'da da statik-görünmez). Muhtemelen ölü kural — fixture yazılamaz,
-        // coverage_debt'te bırakıldı; registry temizliği ayrı/onaylı bir iş.
+        // NOT (#5 bulgu, #27 karar): AGN_001 "agency.txt eksik" başlıklı ama agency.txt
+        // eksikliğini ARC_004 (Fatal NoRequiredFiles) ele alıyor; AGN_001 hiçbir yolla emit
+        // edilmiyor. Karar (#27): bırak + PROOF_ALLOWLIST'e taşındı (ARC_001/ARC_004 gibi
+        // fatal-yol kuralı); MD missing_required_file paritesi için registry'de kalır.
 
         // ── ARC grubu (arşiv/dosya/başlık seviyesi) ────────────────────────────
         // ARC_008: takvim dosyası yok (calendar + calendar_dates ikisi de).

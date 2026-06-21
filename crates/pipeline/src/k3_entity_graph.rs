@@ -143,7 +143,7 @@ fn build_agencies(
 ) {
     for (idx, rec) in records.agencies.iter().enumerate() {
         let Some(ref aid) = rec.agency_id else {
-            // agency_id yok → AGN_001 K2'de zaten üretildi; indekse eklenmez
+            // agency_id yok → duplicate (AGN_010) indeksine eklenmez (tekillik anahtarı yok).
             continue;
         };
         if let Some(&prev_idx) = map.agencies.get(aid.as_str()) {
