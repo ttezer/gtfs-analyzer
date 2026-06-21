@@ -107,6 +107,33 @@ function buildDebugBundle(result: ValidationResult, fileName: string, fileSize: 
   return JSON.stringify(bundle, null, 2);
 }
 
+// Golden snapshot (sürüm-diff / regresyon): SADECE deterministik agregat — logs/actions/
+// timestamp/user-agent YOK. rule_id ALFABETİK sıralı (count değişse de satır sırası sabit →
+// temiz `git diff`). Feed içeriği dahil edilmez (Teşhis Paketi ile aynı gizlilik garantisi).
+function buildGoldenSnapshot(result: ValidationResult, fileName: string): string {
+  const s = buildSummaryData(result, fileName, '');
+  const ruleCounts = Object.fromEntries(
+    [...s.ruleCounts].sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0)),
+  );
+  const r5 = result.reports.r5;
+  const golden = {
+    schema: 'gtfs-analyzer-golden/1',
+    app_version: typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'dev',
+    feed: fileName,
+    validate_date: new Date().toISOString().slice(0, 10),  // tarih-bağımlı kuralları yorumlamak için
+    scores: {
+      score: s.qualScore, pub_score: s.pubScore,
+      spec: r5.spec_score, interop: r5.interop_score,
+      quality: r5.quality_score, analytics: r5.analytics_score,
+    },
+    notice_total_actual: s.real.total,
+    by_severity_actual: { critical: s.real.critical, high: s.real.high, medium: s.real.medium, low: s.real.low, info: s.real.info },
+    rule_counts_actual: ruleCounts,
+    capped_rules: Object.keys(result.capped_totals ?? {}).sort(),
+  };
+  return JSON.stringify(golden, null, 2);
+}
+
 // Severity satırları: [etiket, disp, real, renk]
 function summaryRows(d: SummaryData): Array<[string, number, number, string | undefined]> {
   return [
@@ -190,6 +217,7 @@ export function renderExport(
   const summaryMd = summaryMarkdown(summary);
   const summaryImg = summaryPng(summary);
   const debugStr = buildDebugBundle(result, fileName, getState().fileSize, now);
+  const goldenStr = buildGoldenSnapshot(result, fileName);
 
   const { r5 } = result.reports;
   const fmtScore = (n: number) => new Intl.NumberFormat(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(n);
@@ -254,6 +282,7 @@ export function renderExport(
             <span class="exp-card-icon exp-icon-amber">${ICON.shield}</span>
             <span class="exp-card-title">${t('export.debug.title')}</span>
             <button id="btn-debug-json" class="btn btn-secondary exp-summary-copy">${t('export.download')}</button>
+            <button id="btn-golden-json" class="btn btn-secondary exp-summary-copy">Golden JSON</button>
           </div>
           <p class="exp-card-desc">${t('export.debug.desc')}</p>
           <p class="exp-card-desc exp-debug-privacy"><span class="exp-i">ⓘ</span> ${t('export.debug.privacy')}</p>
@@ -272,6 +301,10 @@ export function renderExport(
   root.querySelector('#btn-export-pdf')!.addEventListener('click', () => printHtml(htmlStr));
   root.querySelector('#btn-debug-json')!.addEventListener('click', () =>
     triggerDownload(new Blob([debugStr], { type: 'application/json' }), fileName.replace(/\.zip$/i, `-debug-${fnTs}.json`)));
+  root.querySelector('#btn-golden-json')!.addEventListener('click', () => {
+    const v = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'dev';
+    triggerDownload(new Blob([goldenStr], { type: 'application/json' }), fileName.replace(/\.zip$/i, `-golden-${v}.json`));
+  });
 
   const copyBtn = root.querySelector<HTMLButtonElement>('#btn-summary-copy')!;
   copyBtn.addEventListener('click', async () => {
