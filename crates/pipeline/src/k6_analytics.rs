@@ -2804,12 +2804,24 @@ fn check_route_trip_quality(
     }
     drop(_t3);
 
-    // TRP_011: trip_headsign boş veya yok (kısa ad da yoksa) — yolcu bilgisi eksik
+    // TRP_011: yolcu hiçbir tanımlayıcı bilgi alamıyor — trip_headsign, trip_short_name VE
+    // route adı (route_short/long_name) yoksa. Route adlıysa yolcu hattı route'tan tanır →
+    // trip_headsign opsiyoneldir, FP üretme (#29: TriMet'te tüm seferler headsign'sız ama tüm
+    // route'lar adlıydı → 52298 saf FP). route_id → en az bir route adı var mı?
+    let route_named: HashMap<&str, bool> = records.routes.iter()
+        .map(|r| (r.route_id.as_str(),
+            r.route_short_name.as_deref().map_or(false, |s| !s.is_empty())
+                || r.route_long_name.as_deref().map_or(false, |s| !s.is_empty())))
+        .collect();
     let _t4 = Timer::start("K6::rtq::trp_011");
     for trip in &records.trips {
         let headsign_missing = trip.trip_headsign.as_deref().map(str::is_empty).unwrap_or(true);
         let short_missing = trip.trip_short_name.as_deref().map(str::is_empty).unwrap_or(true);
         if headsign_missing && short_missing {
+            // Route adlıysa yolcu hattı route'tan tanır → trip_headsign opsiyonel, atla.
+            if route_named.get(trip.route_id.as_str()).copied().unwrap_or(false) {
+                continue;
+            }
             notices.push(k6_notice(
                 ctr,
                 "TRP_011",

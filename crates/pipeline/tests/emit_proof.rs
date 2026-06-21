@@ -917,8 +917,9 @@ fn fixtures() -> Vec<Fixture> {
         fx("TRP_004", vec![("trips.txt", "route_id,service_id,trip_id,shape_id\nR1,SVC1,T1,SHNOPE\n")]),
         // TRP_009: stop_times var ama hiç zaman bilgisi yok (k6).
         fx("TRP_009", vec![("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,,,S1,1\nT1,,,S2,2\n")]),
-        // TRP_011: trip_headsign ve trip_short_name yok — base tetikler (k6).
-        fx("TRP_011", vec![]),
+        // TRP_011: trip_headsign + trip_short_name yok VE route da adsız (route-telafi guard #29).
+        // (Base route_short_name=101 → guard eler; route adsız feed gerekiyor.)
+        fx("TRP_011", vec![("routes.txt", "route_id,agency_id,route_type\nR1,1,3\n")]),
         // TRP_012: çift yönlü hatta bazı seferlerde direction_id yok (k6).
         fx("TRP_012", vec![("trips.txt", "route_id,service_id,trip_id,direction_id\nR1,SVC1,T1,0\nR1,SVC1,T2,1\nR1,SVC1,T3,\n")]),
         // TRP_013: route başına tek sefer — base tetikler (k6).
