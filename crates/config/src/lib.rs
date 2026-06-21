@@ -196,7 +196,14 @@ fn validate_ranges(cfg: &ValidatorConfig) -> Result<(), String> {
     chk_u32!(cfg.max_trips_per_route,      "max_trips_per_route",          50,  20000);
     chk_f64!(cfg.duration_outlier_sigma,   "duration_outlier_sigma",      1.0,     6.0);
     chk_f64!(cfg.headway_outlier_sigma,    "headway_outlier_sigma",       1.0,     6.0);
-    chk_u32!(cfg.service_day_start_hour,   "service_day_start_hour",        0,       6);
+    // service_day_start_hour: u32 alt sınır 0 → `< 0` kontrolü tip-limiti gereği anlamsız
+    // (chk_u32! bu satırda "comparison is useless" uyarısı verirdi); yalnız üst sınırı kontrol et.
+    if cfg.service_day_start_hour > 6 {
+        return Err(format!(
+            "'{}' aralık dışı: {} (beklenen {}-{})",
+            "service_day_start_hour", cfg.service_day_start_hour, 0, 6
+        ));
+    }
     chk_u32!(cfg.max_calendar_future_years, "max_calendar_future_years",     1,      50);
     Ok(())
 }
