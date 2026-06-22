@@ -302,8 +302,10 @@ export function renderExport(
   root.querySelector('#btn-debug-json')!.addEventListener('click', () =>
     triggerDownload(new Blob([debugStr], { type: 'application/json' }), fileName.replace(/\.zip$/i, `-debug-${fnTs}.json`)));
   root.querySelector('#btn-golden-json')!.addEventListener('click', () => {
-    const v = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'dev';
-    triggerDownload(new Blob([goldenStr], { type: 'application/json' }), fileName.replace(/\.zip$/i, `-golden-${v}.json`));
+    // İndirme adı: <feed adı>_<indirme tarihi>.json. app_version JSON içeriğinde (app_version
+    // alanı) korunur; sürüm-diff için JSON'dan okunur.
+    const date = now.slice(0, 10); // YYYY-MM-DD
+    triggerDownload(new Blob([goldenStr], { type: 'application/json' }), fileName.replace(/\.zip$/i, `_${date}.json`));
   });
 
   const copyBtn = root.querySelector<HTMLButtonElement>('#btn-summary-copy')!;
