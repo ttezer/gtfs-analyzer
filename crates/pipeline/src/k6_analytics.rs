@@ -64,7 +64,7 @@ pub fn analyze(
         Box::new(|| { let _t = Timer::start("K6::shp022");                let mut v = Vec::new(); let mut c = 0u32; check_shp022(records, &idx, &mut v, &mut c); v }),
         Box::new(|| { let _t = Timer::start("K6::pathway_analytics");     let mut v = Vec::new(); let mut c = 0u32; check_pathway_analytics(records, derived, &mut v, &mut c); v }),
         Box::new(|| { let _t = Timer::start("K6::calendar_override");     let mut v = Vec::new(); let mut c = 0u32; check_calendar_override_analytics(records, derived, config, &mut v, &mut c); v }),
-        Box::new(|| { let _t = Timer::start("K6::vat_analytics");         let mut v = Vec::new(); let mut c = 0u32; check_vat_analytics(records, config, &idx, &mut v, &mut c); v }),
+        Box::new(|| { let _t = Timer::start("K6::vat_analytics");         let mut v = Vec::new(); let mut c = 0u32; check_vat_analytics(records, derived, config, &idx, &mut v, &mut c); v }),
     ];
 
     #[cfg(feature = "parallel")]
@@ -6555,6 +6555,7 @@ fn check_pathway_analytics(
 
 fn check_vat_analytics(
     records: &EntityRecords,
+    derived: &DerivedData,
     config: &ValidatorConfig,
     idx: &StopTimesIndex<'_>,
     notices: &mut Vec<Notice>,
@@ -6608,6 +6609,34 @@ fn check_vat_analytics(
 
     // ── VAT_001: Hat güzergah benzerliği (Jaccard ≥ 0.85) ───────────────────
     {
+        // Her hattın kullandığı service_id'ler — takvim-kesişim guard'ı için (aşağıda).
+        let route_services: FxHashMap<&str, FxHashSet<&str>> = {
+            let mut m: FxHashMap<&str, FxHashSet<&str>> = FxHashMap::default();
+            for t in &records.trips {
+                m.entry(t.route_id.as_str()).or_default().insert(t.service_id.as_str());
+            }
+            m
+        };
+        // İki hat herhangi bir günde birlikte çalışıyor mu? (servis takvimleri kesişiyor mu)
+        // Bir service_id'nin çözülebilir aktif günü varsa "tarihli" sayılır; ikisi de tarihliyse
+        // VE hiç ortak gün yoksa → bunlar zamansal olarak ayrık (kopya değil, bk. #29 yorumu).
+        let active = &derived.calendar_bitmap.active_dates;
+        let route_has_dates = |svcs: &FxHashSet<&str>| -> bool {
+            svcs.iter().any(|s| active.get(*s).is_some_and(|d| !d.is_empty()))
+        };
+        let routes_share_day = |sa: &FxHashSet<&str>, sb: &FxHashSet<&str>| -> bool {
+            for &x in sa {
+                let Some(da) = active.get(x) else { continue };
+                if da.is_empty() { continue; }
+                for &y in sb {
+                    if let Some(db) = active.get(y) {
+                        if da.intersection(db).next().is_some() { return true; }
+                    }
+                }
+            }
+            false
+        };
+
         let route_list: Vec<(&str, &FxHashSet<&str>, u32)> = route_stops.iter()
             .filter(|(_, stops)| stops.len() >= 5)
             .filter_map(|(&rid, stops)| {
@@ -6626,30 +6655,52 @@ fn check_vat_analytics(
                     let union = stops_a.len() + stops_b.len() - inter;
                     if union == 0 { continue; }
                     let jaccard = inter as f64 / union as f64;
-                    if jaccard >= 0.85 {
-                        let la = route_label.get(rid_a).copied().unwrap_or(rid_a);
-                        let lb = route_label.get(rid_b).copied().unwrap_or(rid_b);
-                        let mut n = k6_notice(
-                            ctr,
-                            "VAT_001",
-                            EntityType::Route,
-                            Some(rid_a.to_string()),
-                            None,
-                            "routes.txt",
-                            None,
-                            Some("route_id"),
-                            Some(format!("Jaccard={:.0}%", jaccard * 100.0)),
-                            None,
-                            format!("'{la}' ve '{lb}' hatları %{:.0} oranda aynı durağı paylaşıyor — muhtemel kopya hat.",
-                                jaccard * 100.0),
-                            "İki hattı birleştirin ya da güzergahları ayırt edilir biçimde farklılaştırın.",
-                        );
-                        // Harita: her iki hattı farklı renkte çizebilmek için ikisini de ver.
-                        let mut d = std::collections::HashMap::new();
-                        d.insert("routes".to_string(), format!("{rid_a},{rid_b}"));
-                        n.details = Some(d);
-                        notices.push(n);
+                    if jaccard < 0.85 { continue; }
+
+                    // Takvim-kesişim guard'ı (#29): aynı public hat servis-değişiminde yeni
+                    // route_id alabilir (TriMet '20'/'20a': '20' yaz takvimi, '20a' sonbahar,
+                    // tarih aralıkları ayrık). Bu kopya değil zamansal bölünmedir; "birleştir"
+                    // önerisi geçersiz. İki hat da çözülebilir tarihliyse VE hiç ortak günü
+                    // yoksa atla. Takvim eksikse (kanıt yok) eski davranış: emit.
+                    let (Some(svcs_a), Some(svcs_b)) =
+                        (route_services.get(rid_a), route_services.get(rid_b)) else { continue };
+                    if route_has_dates(svcs_a) && route_has_dates(svcs_b)
+                        && !routes_share_day(svcs_a, svcs_b) {
+                        continue;
                     }
+
+                    let la = route_label.get(rid_a).copied().unwrap_or(rid_a);
+                    let lb = route_label.get(rid_b).copied().unwrap_or(rid_b);
+                    // Etiket route_id'den farklıysa route_id'yi de göster (aynı kısa-adlı iki
+                    // farklı hat "'20' ve '20'" gibi ayırt edilemez bir mesaj üretmesin).
+                    let disp = |rid: &str, label: &str| if label == rid {
+                        format!("'{rid}'")
+                    } else {
+                        format!("'{label}' (route_id '{rid}')")
+                    };
+                    let mut n = k6_notice(
+                        ctr,
+                        "VAT_001",
+                        EntityType::Route,
+                        Some(rid_a.to_string()),
+                        None,
+                        "routes.txt",
+                        None,
+                        Some("route_id"),
+                        Some(format!("Jaccard={:.0}%", jaccard * 100.0)),
+                        None,
+                        format!("{} ve {} hatları %{:.0} oranda aynı durağı paylaşıyor — muhtemel kopya hat.",
+                            disp(rid_a, la), disp(rid_b, lb), jaccard * 100.0),
+                        "İki hattı birleştirin ya da güzergahları ayırt edilir biçimde farklılaştırın.",
+                    );
+                    // Harita: her iki hattı farklı renkte çizebilmek için ikisini de ver.
+                    // route_b: EN/JA mesaj şablonu ikinci hattı adlandırabilsin diye (details
+                    // anahtarları tMsg'de parametre olur).
+                    let mut d = std::collections::HashMap::new();
+                    d.insert("routes".to_string(), format!("{rid_a},{rid_b}"));
+                    d.insert("route_b".to_string(), rid_b.to_string());
+                    n.details = Some(d);
+                    notices.push(n);
                 }
             }
         }

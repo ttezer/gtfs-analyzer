@@ -957,7 +957,7 @@ const ja: LocaleShape = {
     'DQ_021':  "主キーが重複しています：'{entity_id}'。",
     'DQ_022':  "停留所の{observed_value}が同じstop_name値を共有しています — プレースホルダー/テストデータの可能性があります。",
     // VAT
-    'VAT_001': "路線'{entity_id}'：別の路線と形状の類似度が高いです（{observed_value}）— 重複の可能性があります。",
+    'VAT_001': "路線'{entity_id}'と'{route_b}'はほとんどの停留所を共有しています（{observed_value}）— 重複の可能性があります。",
     'VAT_002': "停留所'{entity_id}'：乗り換えハブの可能性 — 多くの路線が通過していますが（{routes}）、乗り換えが定義されていません。",
     'VAT_003': "便'{entity_id}'：便所要時間が統計的外れ値です（{observed_value}）。",
     'VAT_004': "路線'{entity_id}'：サービスの非対称性 — 平日のみ運行。",

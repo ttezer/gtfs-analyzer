@@ -976,7 +976,7 @@ const en: LocaleShape = {
     'DQ_021':  "Duplicate primary key: '{entity_id}'.",
     'DQ_022':  "{observed_value} of stops share the same stop_name — possible placeholder or test data.",
     // VAT
-    'VAT_001': "Route '{entity_id}': high shape similarity with another route ({observed_value}) — possible duplicate.",
+    'VAT_001': "Routes '{entity_id}' and '{route_b}' share most stops ({observed_value}) — possible duplicate.",
     'VAT_002': "Stop '{entity_id}': potential transfer hub — many routes pass ({routes}) but no transfers are defined.",
     'VAT_003': "Trip '{entity_id}': trip duration is a statistical outlier ({observed_value}).",
     'VAT_004': "Route '{entity_id}': service asymmetry — operates on weekdays only.",
