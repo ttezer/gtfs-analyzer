@@ -687,8 +687,10 @@ fn fixtures() -> Vec<Fixture> {
         // ── CAL grubu (takvim analitiği k6 + cross-ref k4 + k2) ────────────────
         // TODAY=20260515. CAL_006: tüm günler 0 (k2).
         fx("CAL_006", vec![("calendar.txt", "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,0,0,0,0,0,0,0,20250101,20271231\n")]),
-        // CAL_007: serviste >= 7 günlük boşluk (calendar_dates, calendar yok).
-        fx_rm("CAL_007", vec![("calendar_dates.txt", "service_id,date,exception_type\nSVC1,20260518,1\nSVC1,20260601,1\n")], vec!["calendar.txt"]),
+        // CAL_007: serviste >= 7 günlük boşluk (calendar_dates, calendar yok). Boşluk GEÇMİŞTE
+        // (today=20260515 öncesi) → yakın-gelecek değil, CAL_007 üretir (yakın gelecekte CAL_012
+        // onun yerine geçer, #29).
+        fx_rm("CAL_007", vec![("calendar_dates.txt", "service_id,date,exception_type\nSVC1,20260401,1\nSVC1,20260420,1\n")], vec!["calendar.txt"]),
         // CAL_008: end_date 30 gün içinde bitiyor (bugün+10).
         fx("CAL_008", vec![("calendar.txt", "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,1,1,20260101,20260525\n")]),
         // CAL_009: tüm servisler sona ermiş (k4 kritik).

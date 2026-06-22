@@ -1366,28 +1366,17 @@ fn check_calendar_analytics(
             // Boşluk = pair[0] ile pair[1] arasındaki eksik günler (her ikisi dışlayıcı)
             let gap_days = b_jdn.saturating_sub(a_jdn).saturating_sub(1);
             if gap_days >= gap_threshold {
-                notices.push(k6_notice(
-                    ctr,
-                    "CAL_007",
-                    EntityType::Service,
-                    Some(format!("{}@{}", service_id, pair[0])),
-                    Some(service_id.clone()),
-                    "calendar.txt",
-                    None,
-                    None,
-                    Some(format!("{gap_days} ({}-{})", pair[0], pair[1])),
-                    Some(format!("< {gap_threshold}")),
-                    format!("'{service_id}' takviminde {}-{} arası {gap_days} günlük boşluk.",
-                        pair[0], pair[1]),
-                    "Boşluk kasıtlıysa calendar_dates ile açıklayın; değilse takvimi düzeltin.",
-                ));
-
-                // CAL_012: yalnızca boşluk dönemi bugün veya yakın gelecekle örtüşüyorsa
+                // Boşluk bugün veya yakın gelecekle (bugünden +30 gün) örtüşüyor mu?
                 // (boşluk başı ≤ today + 30 gün VE boşluk sonu ≥ bugün)
                 let gap_start_jdn = a_jdn + 1; // ilk eksik gün
                 let gap_end_jdn = b_jdn.saturating_sub(1); // son eksik gün
                 let near_future = gap_end_jdn >= today_jdn
                     && gap_start_jdn <= today_jdn + 30;
+
+                // #29: AYNI boşluk için CAL_007 (Orta) + CAL_012 (Yüksek) çift-emit gürültü
+                // üretiyordu. CAL_012 yakın-gelecek boşluğun yolcu-etkili özel halidir; yakın
+                // gelecekteyse CAL_012 (Yüksek) CAL_007'nin YERİNE raporlanır. Geçmiş/uzak
+                // boşluklar yalnız CAL_007 üretir. Her boşluk tek kez, doğru önemde.
                 if near_future {
                     notices.push(k6_notice(
                         ctr,
@@ -1403,6 +1392,22 @@ fn check_calendar_analytics(
                         format!("'{service_id}' takviminde {}-{} arası {gap_days} günlük boşluk — yolcu deneyimi etkilenebilir.",
                             pair[0], pair[1]),
                         "Servis boşluğunu kapatın ya da alternatif hat sağlayın.",
+                    ));
+                } else {
+                    notices.push(k6_notice(
+                        ctr,
+                        "CAL_007",
+                        EntityType::Service,
+                        Some(format!("{}@{}", service_id, pair[0])),
+                        Some(service_id.clone()),
+                        "calendar.txt",
+                        None,
+                        None,
+                        Some(format!("{gap_days} ({}-{})", pair[0], pair[1])),
+                        Some(format!("< {gap_threshold}")),
+                        format!("'{service_id}' takviminde {}-{} arası {gap_days} günlük boşluk.",
+                            pair[0], pair[1]),
+                        "Boşluk kasıtlıysa calendar_dates ile açıklayın; değilse takvimi düzeltin.",
                     ));
                 }
             }
@@ -7865,7 +7870,7 @@ mod tests {
     }
 
     #[test]
-    fn near_future_service_gap_produces_cal_007_and_cal_012() {
+    fn near_future_service_gap_produces_cal_012_not_cal_007() {
         use crate::k5_derived::CalendarBitmap;
         let mut derived = DerivedData::default();
         // Yakın gelecekte boşluk (today=20260514, boşluk 20260516→20260601 = 15 gün > 7 eşik)
@@ -7877,10 +7882,11 @@ mod tests {
         };
         let records = crate::k2::EntityRecords::default();
         let result = analyze(&records, &derived, &default_config(), 20260514);
-        assert!(result.notices.iter().any(|n| n.rule_id == "CAL_007"),
-            "Yakın gelecek boşluk CAL_007 üretmeli");
+        // #29: yakın-gelecek boşlukta CAL_012 (Yüksek) CAL_007'nin YERİNE raporlanır (çift-emit yok).
         assert!(result.notices.iter().any(|n| n.rule_id == "CAL_012"),
             "Yakın gelecek boşluk CAL_012 üretmeli");
+        assert!(!result.notices.iter().any(|n| n.rule_id == "CAL_007"),
+            "Yakın gelecek boşluk CAL_007 üretmemeli (CAL_012 onun yerine geçer)");
     }
 
     // ── CAL_021: bugünü kapsayan ama yakın günlerde aktif seferi olmayan servis ──
