@@ -59,7 +59,11 @@ pub fn validate_shapes(file: &RawFile) -> (Vec<ShapePointRecord>, Vec<gtfs_core:
     // bu geçişe taşındı (stop_times deseni — aynı line/severity/rule davranışı). Eski rows
     // yolu test/legacy fallback olarak korunur.
     let mut notices = Vec::new();
-    let mut records: Vec<ShapePointRecord> = Vec::new();
+    // #15: records Vec'ini önceden boyutlandır — doubling realloc'un geçici 2× peak'i
+    // shape-ağır feed'lerde ~500 MB tepe yaratıyordu (K1 stream'i düşünce açığa çıktı).
+    // Satır ~30 bayt (shape_id,lat,lon,seq[,dist]) → muhafazakâr sayı tahmini. Yalnız KAPASİTE.
+    let est_rows = file.raw_text.as_ref().map(|t| t.len() / 30).unwrap_or(file.rows.len());
+    let mut records: Vec<ShapePointRecord> = Vec::with_capacity(est_rows);
     let mut counter = 0u32;
 
     let cols = Cols::from_headers(&file.headers);
