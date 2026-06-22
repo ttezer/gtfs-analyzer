@@ -458,7 +458,7 @@ fn intern_smolstr(raw: &str, cache: &mut FxHashMap<String, SmolStr>) -> SmolStr 
 // işler — 2.48M satır için tek seferde 714 MB değil, anlık bir satır kadar bellek.
 //
 // RFC 4180 uyumlu (tokenize_csv ile aynı semantik). EOF'ta `false` döner.
-fn next_csv_record<'a>(text: &'a str, pos: &mut usize, out: &mut Vec<Cow<'a, str>>) -> bool {
+pub(super) fn next_csv_record<'a>(text: &'a str, pos: &mut usize, out: &mut Vec<Cow<'a, str>>) -> bool {
     let bytes = text.as_bytes();
     let n = bytes.len();
     if *pos >= n {

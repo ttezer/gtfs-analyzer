@@ -52,6 +52,9 @@ pub fn validate_bytes(zip: &[u8], config: &ValidatorConfig, today: u32) -> Valid
     for fi in file_stats.iter_mut() {
         if fi.name == "stop_times.txt" {
             fi.rows = k2.records.stop_times_index.total_rows as u32;
+        } else if fi.name == "shapes.txt" {
+            // #15 W3: shapes da stream edildi (rows boş) → gerçek satır sayısını K2'den al.
+            fi.rows = k2.records.shapes.len() as u32;
         }
     }
 

@@ -624,12 +624,12 @@ pub fn parse(zip_bytes: &[u8]) -> Result<K1Result, FatalError> {
             }
         };
 
-        // OOM fix Plan A: stop_times.txt çok büyük (2.3M+ satır). K1'de tam
-        // Vec<Vec<SmolStr>>'e açmak ~714 MB + ~96 sn maliyet. Bu dosyada SADECE
-        // header tokenize edilir; gövde ham metin (`raw_text`) olarak K2'ye verilip
-        // orada streaming işlenir. Tüm per-satır notice'lar (ARC_012/016/018/021, DQ_016,
-        // ARC_022, veri-yok ARC_009) K2 stream geçişine taşındı.
-        let stream_mode = raw_name == "stop_times.txt";
+        // OOM fix Plan A + #15 W3: stop_times.txt ve shapes.txt çok büyük olabilir; K1'de tam
+        // Vec<Vec<SmolStr>>'e açmak yüzlerce MB tutar (shape-ağır feed'de ~920 MB ölçüldü).
+        // Bu dosyalarda SADECE header tokenize edilir; gövde ham metin (`raw_text`) olarak
+        // K2'ye verilip orada streaming işlenir. Per-satır notice'lar (ARC_012/016/018/021,
+        // DQ_016, ARC_022, veri-yok ARC_009) K2 stream geçişine taşındı.
+        let stream_mode = raw_name == "stop_times.txt" || raw_name == "shapes.txt";
 
         k1dbg!("[K1] tokenizing: {raw_name}");
         // CSV tokenization — stream_mode'da yalnızca başlık (Some(0)), aksi halde tam veri
