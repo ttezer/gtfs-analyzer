@@ -116,11 +116,20 @@ function buildGoldenSnapshot(result: ValidationResult, fileName: string): string
     [...s.ruleCounts].sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0)),
   );
   const r5 = result.reports.r5;
+  const m = result.metrics;
   const golden = {
-    schema: 'gtfs-analyzer-golden/1',
+    schema: 'gtfs-analyzer-golden/2',
     app_version: typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'dev',
     feed: fileName,
     validate_date: new Date().toISOString().slice(0, 10),  // tarih-bağımlı kuralları yorumlamak için
+    // Feed ölçekleri (README karşılaştırma tablosu + sürüm-diff bağlamı için; hepsi deterministik).
+    feed_metrics: {
+      route_count: m.route_count, stop_count: m.stop_count, trip_count: m.trip_count,
+      shape_count: m.shape_count, active_service_days: m.active_service_days, avg_daily_trips: m.avg_daily_trips,
+      feed_start_date: m.feed_start_date, feed_end_date: m.feed_end_date,
+      service_start_date: m.service_start_date, service_end_date: m.service_end_date,
+      is_gtfs_jp: m.is_gtfs_jp ?? false,
+    },
     scores: {
       score: s.qualScore, pub_score: s.pubScore,
       spec: r5.spec_score, interop: r5.interop_score,
@@ -302,10 +311,11 @@ export function renderExport(
   root.querySelector('#btn-debug-json')!.addEventListener('click', () =>
     triggerDownload(new Blob([debugStr], { type: 'application/json' }), fileName.replace(/\.zip$/i, `-debug-${fnTs}.json`)));
   root.querySelector('#btn-golden-json')!.addEventListener('click', () => {
-    // İndirme adı: <feed adı>_<indirme tarihi>.json. app_version JSON içeriğinde (app_version
-    // alanı) korunur; sürüm-diff için JSON'dan okunur.
+    // İndirme adı: <feed adı>_<indirme tarihi>_<sürüm>.json. Sürüm hem dosya adında (kolay
+    // ayırt etme) hem JSON içeriğinde (app_version) bulunur.
     const date = now.slice(0, 10); // YYYY-MM-DD
-    triggerDownload(new Blob([goldenStr], { type: 'application/json' }), fileName.replace(/\.zip$/i, `_${date}.json`));
+    const ver = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'dev';
+    triggerDownload(new Blob([goldenStr], { type: 'application/json' }), fileName.replace(/\.zip$/i, `_${date}_${ver}.json`));
   });
 
   const copyBtn = root.querySelector<HTMLButtonElement>('#btn-summary-copy')!;
