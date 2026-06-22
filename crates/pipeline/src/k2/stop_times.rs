@@ -1178,9 +1178,12 @@ pub fn validate_stop_times(file: &RawFile) -> (StopTimesIndex, Vec<gtfs_core::No
         ));
     }
 
+    crate::timing::mem_log("  stop_times: all_rows + trips_agg built (pre-finalize)");
     // ── Finalize: counting-placement (Aşama 1b) ──
     // all_rows (trip_idx etiketli, dosya sırasında) → trip'e göre gruplu tek flat `rows`.
     // Per-trip Vec YOK; sayım → prefix-sum → doğrudan yerleştirme → per-trip range sort.
+    // NOT (#15): placement sırasında all_rows (N×~176B) + rows (N×168B) AYNI ANDA canlı →
+    // en büyük yapıda ~2× geçici peak; OOM burada olabilir.
     let n_trips = trips_agg.len();
     let mut counts = vec![0u32; n_trips];
     for &(ti, _) in &all_rows {
@@ -1230,6 +1233,7 @@ pub fn validate_stop_times(file: &RawFile) -> (StopTimesIndex, Vec<gtfs_core::No
         }
     }
 
+    crate::timing::mem_log("  stop_times: index finalized (rows placed, all_rows freed, maps built)");
     (index, notices)
 }
 

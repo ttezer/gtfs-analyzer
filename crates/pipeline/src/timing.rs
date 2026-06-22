@@ -31,6 +31,17 @@ impl Drop for Timer {
     }
 }
 
+/// #15 Adım-2: K2-içi peak attribution. WASM linear memory high-water (MB) konsola basar.
+/// Bellek yalnız büyür → her etiket o ana dek erişilen tepe. Native'de no-op.
+#[cfg(target_arch = "wasm32")]
+pub(crate) fn mem_log(label: &str) {
+    let pages = core::arch::wasm32::memory_size(0);
+    let mb = (pages as f64) * 65536.0 / 1_048_576.0;
+    web_sys::console::log_1(&format!("[mem] {label}: {mb:.1} MB").into());
+}
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) fn mem_log(_label: &str) {}
+
 #[cfg(target_arch = "wasm32")]
 pub(crate) struct Timer(String);
 

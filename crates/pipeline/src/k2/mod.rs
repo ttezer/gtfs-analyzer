@@ -113,9 +113,10 @@ pub struct K2Result {
 }
 
 pub fn validate(files: &RawFiles) -> K2Result {
-    use crate::timing::Timer;
+    use crate::timing::{Timer, mem_log};
     let mut notices = Vec::new();
     let mut records = EntityRecords::default();
+    mem_log("K2-start (=after-K1, K1 raw alive)");
 
     if let Some(file) = files.get("agency.txt") {
         let _t = Timer::start("K2::agency");
@@ -207,6 +208,7 @@ pub fn validate(files: &RawFiles) -> K2Result {
         let (shape_records, shape_notices) = validate_shapes(file);
         records.shapes = shape_records;
         notices.extend(shape_notices);
+        mem_log("K2 after shapes records");
     }
 
     if let Some(file) = files.get("stops.txt") {
@@ -215,12 +217,14 @@ pub fn validate(files: &RawFiles) -> K2Result {
         records.stops = stop_records;
         notices.extend(stop_notices);
     }
+    mem_log("K2 before stop_times");
 
     if let Some(file) = files.get("stop_times.txt") {
         let _t = Timer::start("K2::stop_times");
         let (stm_index, stop_time_notices) = validate_stop_times(file);
         records.stop_times_index = stm_index;
         notices.extend(stop_time_notices);
+        mem_log("K2 after stop_times index");
     }
 
     if let Some(file) = files.get("transfers.txt") {
@@ -242,6 +246,7 @@ pub fn validate(files: &RawFiles) -> K2Result {
         let (trip_records, trip_notices) = validate_trips(file);
         records.trips = trip_records;
         notices.extend(trip_notices);
+        mem_log("K2 after trips records");
     }
 
     if let Some(file) = files.get("areas.txt") {
