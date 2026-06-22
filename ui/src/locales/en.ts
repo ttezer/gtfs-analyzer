@@ -600,7 +600,7 @@ const en: LocaleShape = {
     'STM_020': "Trip '{entity_id}': zero travel time with distance > 200 m ({observed_value}).",
     'STM_021': "Trip '{entity_id}': different stops share the same coordinates.",
     'STM_022': "Trip '{entity_id}': timepoint '{observed_value}' is invalid.",
-    'STM_023': "stop_times rows are not in the correct order for trip '{entity_id}'.",
+    'STM_023': "stop_times rows are out of order for trip '{entity_id}': stop '{curr_stop}' (stop_sequence {curr_seq}) is written after stop '{prev_stop}', which has a larger stop_sequence {prev_seq}. Rows must be in increasing stop_sequence order.",
     'STM_024': "Trip '{entity_id}': shape_dist_traveled unit inconsistency.",
     'STM_025': "Trip '{entity_id}': travel time too short — {observed_value} (expected: {expected_value}).",
     'STM_026': "Trip '{entity_id}': excessive distance between stops — {observed_value} (limit: {expected_value}).",

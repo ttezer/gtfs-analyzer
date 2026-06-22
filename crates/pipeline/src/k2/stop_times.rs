@@ -540,7 +540,8 @@ struct TripAgg {
     idx: u32,                     // yoğun trip indeksi (counting-placement için)
     first_line: u64,
     seen_seq: FxHashSet<u32>,     // STM_032: tekrar eden stop_sequence
-    last_seq: Option<u32>,        // STM_023: sıralama takibi
+    last_seq: Option<u32>,        // STM_023: sıralama takibi (o ana dek görülen maksimum)
+    last_stop: Option<SmolStr>,   // STM_023: last_seq'i ayarlayan satırdaki stop_id (mesaj için)
     stm023_fired: bool,           // STM_023: trip başına bir kez
     stop_set: FxHashSet<SmolStr>, // çıktı: trip_stop_set
     continuous: bool,             // çıktı: continuous_trips
@@ -732,6 +733,7 @@ pub fn validate_stop_times(file: &RawFile) -> (StopTimesIndex, Vec<gtfs_core::No
         // STM_023 / STM_032: sıralama ve yineleme (per-trip durum TripAgg'da; trip_id boş olsa da
         // orijinaldeki gibi "" kovasında izlenir — finalize çıktıdan "" hariç tutar)
         if let Some(seq) = stop_sequence {
+            let cur_stop = get_col(row, cols.stop_id);
             let next_idx = trips_agg.len() as u32;
             let agg = trips_agg.entry(trip_id.clone()).or_insert_with(|| TripAgg::new(line, next_idx));
             // STM_032: aynı (trip_id, stop_sequence) çifti tekrar
@@ -748,20 +750,36 @@ pub fn validate_stop_times(file: &RawFile) -> (StopTimesIndex, Vec<gtfs_core::No
             if !agg.stm023_fired {
                 if let Some(last) = agg.last_seq {
                     if seq < last {
-                        notices.push(make_k2_notice(
+                        // Daha küçük stop_sequence'li satır, daha büyük sequence'li satırdan SONRA
+                        // yazılmış → dosya artan sırada değil. Mesaj durak-odaklı: hangi durak
+                        // hangi duraktan sonra yazılmış. prev_stop = max'ı ayarlayan satırın durağı.
+                        let prev_stop = agg.last_stop.clone().unwrap_or_default();
+                        let mut n = make_k2_notice(
                             &mut counter, "STM_023", EntityType::Trip, eid(),
                             None, &file.name, Some(line), Some("stop_sequence"),
                             Some(seq.to_string()), Some(format!("> {last}")),
-                            format!("trip_id '{}' satırları stop_sequence sırasında değil: {seq} < {last}.", trip_id),
-                            "stop_times.txt'i stop_sequence değerine göre sıralayın.",
-                        ));
+                            format!(
+                                "'{}' seferinde stop_times satır sırası bozuk: stop_sequence {seq} olan '{}' durağı, daha büyük stop_sequence {last} olan '{}' durağından sonra yazılmış. Satırlar artan stop_sequence sırasında olmalı.",
+                                trip_id, cur_stop, prev_stop
+                            ),
+                            "stop_times.txt satırlarını trip_id ve stop_sequence değerine göre artan sırada düzenleyin.",
+                        );
+                        let mut d = std::collections::HashMap::new();
+                        d.insert("curr_stop".to_string(), cur_stop.to_string());
+                        d.insert("prev_stop".to_string(), prev_stop.to_string());
+                        d.insert("curr_seq".to_string(), seq.to_string());
+                        d.insert("prev_seq".to_string(), last.to_string());
+                        n.details = Some(d);
+                        notices.push(n);
                         agg.stm023_fired = true;
                         unsorted_seq_trips.push((trip_id.clone(), last, seq, line));
                     } else if seq > last {
                         agg.last_seq = Some(seq);
+                        agg.last_stop = Some(SmolStr::from(cur_stop));
                     }
                 } else {
                     agg.last_seq = Some(seq);
+                    agg.last_stop = Some(SmolStr::from(cur_stop));
                 }
             }
         }

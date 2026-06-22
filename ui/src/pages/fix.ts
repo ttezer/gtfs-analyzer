@@ -328,7 +328,9 @@ const TRIP_ID_RULES = new Set([
   // STM grubu — özel handler olmayan kurallar (STM_008 özel handler'a taşındı)
   'STM_001','STM_002','STM_003','STM_004','STM_005','STM_006','STM_007',
   'STM_009','STM_010','STM_011','STM_013','STM_015','STM_016','STM_018','STM_019',
-  'STM_021','STM_022','STM_023','STM_024','STM_027','STM_028','STM_029','STM_030',
+  // STM_023 (satır sıralaması) coğrafi değil — durak konumları doğru, yalnız dosya satır
+  // sırası bozuk; harita yanıltıcı (boş/normal görünür). Bilinçli olarak haritasız.
+  'STM_021','STM_022','STM_024','STM_027','STM_028','STM_029','STM_030',
   'STM_031','STM_032','STM_034',
   // VAT grubu — sefer bazlı
   'VAT_003',

@@ -469,7 +469,7 @@ pub static RULES: &[RuleMeta] = &[
         "Duraklar arası mesafe sıfır veya negatif"),
     r!("STM_022", Orta,   Spec, 1, &[], Some("trip_id"), VS, Row,
         "timepoint geçersiz"),
-    r!("STM_023", Kritik, Spec, 3, &[], Some("trip_id"), VS_K, Row,
+    r!("STM_023", Dusuk, Spec, 3, &[], Some("trip_id"), VS_K, Row,
         "stop_times satır sıralaması bozuk"),
     r!("STM_024", Bilgi,  Quality, 2, &[], Some("trip_id"), VS, Row,
         "shape_dist_traveled birim tutarsızlığı"),

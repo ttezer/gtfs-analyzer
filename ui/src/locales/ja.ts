@@ -581,7 +581,7 @@ const ja: LocaleShape = {
     'STM_020': "便'{entity_id}'：移動時間ゼロで距離が200m超（{observed_value}）。",
     'STM_021': "便'{entity_id}'：異なる停留所が同じ座標を共有しています。",
     'STM_022': "便'{entity_id}'：timepoint'{observed_value}'が無効です。",
-    'STM_023': "便'{entity_id}'のstop_timesの行が正しい順序になっていません。",
+    'STM_023': "便'{entity_id}'のstop_timesの行順序が不正です：stop_sequence {curr_seq} の停留所'{curr_stop}'が、より大きい stop_sequence {prev_seq} の停留所'{prev_stop}'より後に記述されています。行はstop_sequenceの昇順である必要があります。",
     'STM_024': "便'{entity_id}'：shape_dist_traveledの単位が一致しません。",
     'STM_025': "便'{entity_id}'：移動時間が短すぎます — {observed_value}（期待：{expected_value}）。",
     'STM_026': "便'{entity_id}'：停留所間の距離が過大です — {observed_value}（制限：{expected_value}）。",
