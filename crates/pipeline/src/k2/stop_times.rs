@@ -584,12 +584,17 @@ pub fn validate_stop_times(file: &RawFile) -> (StopTimesIndex, Vec<gtfs_core::No
     let mut stm050_empty: u32 = 0;
     // OOM/perf (Aşama 1b): per-trip Vec YOK. Tüm satırlar (trip_idx etiketli) tek flat buffer'da
     // dosya sırasında toplanır; finalize'da counting-placement ile trip'e göre gruplanır.
-    let mut all_rows: Vec<(u32, CompactStopTime)> = Vec::new();
+    // #15 W1: tag'siz CompactStopTime + paralel row_trip → finalize'da in-place permütasyon
+    // (ikinci tam Vec<CompactStopTime> ASLA ayrılmaz).
+    let mut all_rows: Vec<CompactStopTime> = Vec::new();
+    let mut row_trip: Vec<u32> = Vec::new();
     // Düz tamponun log₂(N) realloc/memcpy'sini önle: satır sayısını ham metin
     // uzunluğundan tahmin et (stop_times satırı tipik ≥~40 bayt → muhafazakâr
     // alt-sınır bölen). Yalnızca KAPASITE; eleman değeri/sırası etkilenmez.
     if let Some(text) = &file.raw_text {
-        all_rows.reserve(text.len() / 40);
+        let est = text.len() / 40;
+        all_rows.reserve(est);
+        row_trip.reserve(est);
     }
 
     {
@@ -1090,7 +1095,8 @@ pub fn validate_stop_times(file: &RawFile) -> (StopTimesIndex, Vec<gtfs_core::No
                 agg.continuous = true;
             }
             let trip_idx = agg.idx;
-            all_rows.push((trip_idx, CompactStopTime {
+            row_trip.push(trip_idx);
+            all_rows.push(CompactStopTime {
                 stop_id:            stop_id.clone(),
                 stop_sequence,
                 arrival_time,
@@ -1111,7 +1117,7 @@ pub fn validate_stop_times(file: &RawFile) -> (StopTimesIndex, Vec<gtfs_core::No
                     pickup_booking_rule_id.clone(),
                     drop_off_booking_rule_id.clone(),
                 ),
-            }));
+            });
         }
         };
 
@@ -1179,14 +1185,13 @@ pub fn validate_stop_times(file: &RawFile) -> (StopTimesIndex, Vec<gtfs_core::No
     }
 
     crate::timing::mem_log("  stop_times: all_rows + trips_agg built (pre-finalize)");
-    // ── Finalize: counting-placement (Aşama 1b) ──
-    // all_rows (trip_idx etiketli, dosya sırasında) → trip'e göre gruplu tek flat `rows`.
-    // Per-trip Vec YOK; sayım → prefix-sum → doğrudan yerleştirme → per-trip range sort.
-    // NOT (#15): placement sırasında all_rows (N×~176B) + rows (N×168B) AYNI ANDA canlı →
-    // en büyük yapıda ~2× geçici peak; OOM burada olabilir.
+    // ── Finalize: in-place gruplama (Asama 1b + #15 W1) ──
+    // counts/offsets sadece trip_ranges + cikti duzeni icin; satirlar all_rows icinde
+    // yerinde (permutasyon) gruplanir. Eski counting-placement ikinci tam rows Vec'i
+    // all_rows ile AYNI ANDA tutuyordu (~2x peak); kaldirildi.
     let n_trips = trips_agg.len();
     let mut counts = vec![0u32; n_trips];
-    for &(ti, _) in &all_rows {
+    for &ti in &row_trip {
         counts[ti as usize] += 1;
     }
     // offsets[i] = trip i'nin rows içindeki başlangıcı; offsets[n_trips] = toplam
@@ -1194,19 +1199,38 @@ pub fn validate_stop_times(file: &RawFile) -> (StopTimesIndex, Vec<gtfs_core::No
     for i in 0..n_trips {
         offsets[i + 1] = offsets[i] + counts[i];
     }
-    let total_placed = all_rows.len();
-    let mut rows: Vec<CompactStopTime> = vec![CompactStopTime::default(); total_placed];
-    let mut write: Vec<u32> = offsets[..n_trips].to_vec();
-    for (ti, row) in all_rows.into_iter() {
-        let w = write[ti as usize] as usize;
-        rows[w] = row;
-        write[ti as usize] += 1;
+    // #15 W1: ikinci tam Vec ASLA ayrilmaz. Cikti sirasi = (trip_idx ASC, stop_sequence
+    // [None=MAX] ASC, dosya-ordinali ASC). Dosya-ordinali son tie-breaker => TAM siralama;
+    // esit-anahtar nondeterminizmi YOK. Eski davranisla birebir: trip gruplama + trip-ici
+    // stable-by-sequence (file-order ties) == bu total-order key.
+    let n = all_rows.len();
+    let mut perm: Vec<u32> = (0..n as u32).collect();
+    perm.sort_unstable_by(|&a, &b| {
+        let (ia, ib) = (a as usize, b as usize);
+        row_trip[ia]
+            .cmp(&row_trip[ib])
+            .then_with(|| {
+                all_rows[ia].stop_sequence.unwrap_or(u32::MAX)
+                    .cmp(&all_rows[ib].stop_sequence.unwrap_or(u32::MAX))
+            })
+            .then_with(|| a.cmp(&b))
+    });
+    drop(row_trip); // perm kuruldu; 4B/satir tag in-place uygulamadan ONCE serbest birak
+    // perm[pos] = pos. cikti pozisyonuna gelecek KAYNAK indeks. In-place icin dest'e
+    // (eleman i NEREYE gider) cevir, sonra cycle-swap uygula (ikinci Vec yok).
+    let mut dest: Vec<u32> = vec![0u32; n];
+    for (pos, &src) in perm.iter().enumerate() {
+        dest[src as usize] = pos as u32;
     }
-    // Her trip dilimini stop_sequence'e göre sırala (dosya içi sıra korunur, sequence'e göre düzenlenir)
-    for i in 0..n_trips {
-        let (s, e) = (offsets[i] as usize, offsets[i + 1] as usize);
-        rows[s..e].sort_by_key(|st| st.stop_sequence.unwrap_or(u32::MAX));
+    drop(perm);
+    for k in 0..n {
+        while dest[k] as usize != k {
+            let d = dest[k] as usize;
+            all_rows.swap(k, d);
+            dest.swap(k, d);
+        }
     }
+    let rows = all_rows; // zero-copy: yerinde gruplandi + siralandi
 
     // stop_id_set = stop_first_line anahtarları (aynı guard'larla → birebir aynı küme).
     let mut index = StopTimesIndex {
@@ -1544,6 +1568,39 @@ mod tests {
         let t1 = idx.sorted_stops("T1").expect("T1 trips'te olmalı");
         assert_eq!(t1[0].stop_sequence, Some(1));
         assert_eq!(t1[1].stop_sequence, Some(2));
+    }
+
+    #[test]
+    fn w1_inplace_grouping_orders_by_seq_with_file_order_tiebreak() {
+        // #15 W1: trip'ler dosyada İÇ İÇE, sequence'ler bozuk, T1'de seq=1 İKİ kez.
+        // In-place permütasyon: (a) trip'e göre grupla, (b) trip-içi sequence ASC,
+        // (c) eşit sequence'te DOSYA sırası (determinizm), (d) trip_ranges doğru.
+        let file = make_file(
+            vec!["trip_id", "arrival_time", "departure_time", "stop_id", "stop_sequence"],
+            vec![
+                vec!["T2", "09:02:00", "09:02:00", "S_B", "2"], // satır 2  (T2 = idx 0)
+                vec!["T1", "08:30:00", "08:30:00", "S_a", "3"], // satır 3  (T1 = idx 1)
+                vec!["T2", "09:01:00", "09:01:00", "S_A", "1"], // satır 4
+                vec!["T1", "08:00:00", "08:00:00", "S_c", "1"], // satır 5  (seq=1 #1)
+                vec!["T1", "08:00:00", "08:00:00", "S_d", "1"], // satır 6  (seq=1 #2 dup)
+                vec!["T1", "08:10:00", "08:10:00", "S_b", "2"], // satır 7
+            ],
+        );
+        let (idx, _) = validate_stop_times(&file);
+        assert_eq!(idx.total_rows, 6);
+        assert_eq!(idx.trip_ranges.len(), 2);
+
+        let t1: Vec<_> = idx.sorted_stops("T1").unwrap().iter()
+            .map(|s| (s.stop_id.as_str().to_string(), s.stop_sequence)).collect();
+        assert_eq!(t1, vec![
+            ("S_c".into(), Some(1)), ("S_d".into(), Some(1)),
+            ("S_b".into(), Some(2)), ("S_a".into(), Some(3)),
+        ], "T1: sequence ASC + eşit seq'te dosya sırası (S_c < S_d)");
+
+        let t2: Vec<_> = idx.sorted_stops("T2").unwrap().iter()
+            .map(|s| (s.stop_id.as_str().to_string(), s.stop_sequence)).collect();
+        assert_eq!(t2, vec![("S_A".into(), Some(1)), ("S_B".into(), Some(2))],
+            "T2 ayrı grup, sequence ASC");
     }
 
     #[test]
