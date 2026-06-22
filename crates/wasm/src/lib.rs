@@ -138,6 +138,7 @@ pub fn rerun_k6_k7(cache: &CachedState, config_delta_json: &str, on_stage: &js_s
     let mut all_notices = cache.k1_k5_notices.clone();
     all_notices.extend(k6.notices);
     web_sys::console::log_1(&format!("[mem] after-K6 (pre-cap): {} notices, {:.1} MB", all_notices.len(), mem_mb()).into());
+    web_sys::console::log_1(&format!("[rules] after-K6 top: {}", top_rules_str(&all_notices)).into());
 
     let real_totals = count_totals(&all_notices);
     let _ = cap_per_rule(&mut all_notices);
@@ -302,6 +303,7 @@ fn run_k1_k5(zip_bytes: &[u8], config: &ValidatorConfig, on_stage: &js_sys::Func
     k1_k5_notices.extend(k5.notices);
     // DURDURMA YOK: K1-K5 notice'ları cap'lenmeden taşınır; gösterim cap'i K6+K7 yolunda uygulanır.
     web_sys::console::log_1(&format!("[mem] K1-K5 done: {} notices, {:.1} MB", k1_k5_notices.len(), mem_mb()).into());
+    web_sys::console::log_1(&format!("[rules] K1-K5 top: {}", top_rules_str(&k1_k5_notices)).into());
 
     Ok(CachedState { k1_k5_notices, records: k2.records, derived: k5.derived, file_stats })
 }
@@ -330,6 +332,14 @@ fn count_totals(notices: &[gtfs_core::Notice]) -> std::collections::HashMap<Stri
     let mut m = std::collections::HashMap::new();
     for n in notices { *m.entry(n.rule_id.clone()).or_insert(0u32) += 1; }
     m
+}
+
+// #15 Mode A teşhisi: en çok notice üreten ilk 10 kuralı "RULE=count" olarak döner.
+fn top_rules_str(notices: &[gtfs_core::Notice]) -> String {
+    let m = count_totals(notices);
+    let mut v: Vec<(&String, &u32)> = m.iter().collect();
+    v.sort_by(|a, b| b.1.cmp(a.1).then(a.0.cmp(b.0)));
+    v.iter().take(10).map(|(r, c)| format!("{r}={c}")).collect::<Vec<_>>().join(" ")
 }
 
 fn build_capped_totals(real_totals: &std::collections::HashMap<String, u32>) -> std::collections::HashMap<String, u32> {
