@@ -43,63 +43,63 @@ GTFS Analyzer extends specification validation with operational quality analysis
 | GTFS-JP profile validation | ❌ | ❌ | ✅ |
 | Output formats | HTML, JSON | HTML, JSON | HTML, CSV, JSON, PDF |
 | Platform | Web | Web, CLI, Desktop | Web *(CLI, Desktop planned)* |
-| **Total rules** | **178** | **~120** | **520** |
+| **Total rules** | **178** | **~120** | **526** |
 
 ### Feed Analysis Examples
 
-The same feeds were compared with three validators: MobilityData gtfs-validator v8.0.1 · GTFS Guru v0.1.0 · GTFS Analyzer v0.1.2. (GTFS Analyzer figures are a snapshot from an analysis run on 2026-06-15; because some rules are date-dependent, running on a different day may produce small deviations.)
+The same feeds were compared with three validators: MobilityData gtfs-validator v8.0.1 · GTFS Guru v0.1.0 · GTFS Analyzer v0.1.3. (GTFS Analyzer figures are a snapshot from an analysis run on 2026-06-22; because some rules are date-dependent, running on a different day may produce small deviations.)
 
 #### BART (Bay Area Rapid Transit, San Francisco)
 
-Feed: `BART (San Francisco).zip` — version downloaded on 2026-05-25 (validity range: 2026-01-12–2026-08-07) · 14 routes, 287 stops, 4,455 trips.
+Feed: `mdb-53` (MobilityDatabase, 2026-06-13 snapshot; validity range: 2026-01-12–2026-08-07) · 14 routes, 287 stops, 5,307 trips.
 
 | | MobilityData | GTFS Guru | GTFS Analyzer |
 |---|---:|---:|---:|
-| Total notices | 2,725 | 2,663 | 3,227 |
+| Total notices | 2,733 | 2,663 | 2,218 |
 | Critical / Error | 2 | 1 | 2 |
 | High / Warning | 2,655 | 2,655 | 141 |
-| Medium | — | — | 1,058 |
-| Low | — | — | 987 |
-| Info | 68 | 7 | 1,039 |
-| Distinct rule types triggered | 13 | 10 | **47** |
+| Medium | — | — | 673 |
+| Low | — | — | 171 |
+| Info | 76 | 7 | 1,231 |
+| Distinct rule types triggered | 13 | 10 | **50** |
 | Publish score | — | — | **92.6 / 100** |
-| Quality score | — | — | **82.6 / 100** |
+| Quality score | — | — | **66.2 / 100** |
 
 #### TriMet (Portland, Oregon)
 
-Feed: `trimet.zip` — version downloaded on 2026-06-04 (validity range: 2026-04-26–2026-08-22) · 89 routes, 6,395 stops, 48,146 trips.
+Feed: `mdb-247` (MobilityDatabase, 2026-06-14 snapshot; validity range: 2026-05-31–2026-11-28) · 110 routes, 6,466 stops, 52,298 trips.
 
 | | MobilityData | GTFS Guru | GTFS Analyzer |
 |---|---:|---:|---:|
-| Total notices | 48 | 116 | 4,966 |
-| Critical / Error | 0 | 0 | 36 |
-| High / Warning | 39 | 107 | 1,655 |
-| Medium | — | — | 1,379 |
-| Low | — | — | 1,018 |
-| Info | 9 | 9 | 878 |
-| Distinct rule types triggered | 7 | 7 | **57** |
-| Publish score | — | — | **80.6 / 100** |
-| Quality score | — | — | **73.9 / 100** |
+| Total notices | 951 | 1,017 | 8,483 |
+| Critical / Error | 908 | 908 | 7 |
+| High / Warning | 33 | 100 | 1,507 |
+| Medium | — | — | 2,849 |
+| Low | — | — | 1,680 |
+| Info | 10 | 9 | 2,440 |
+| Distinct rule types triggered | 10 | 9 | **57** |
+| Publish score | — | — | **89.3 / 100** |
+| Quality score | — | — | **51.5 / 100** |
 
-> ⚠️ **Fares v2:** GTFS Analyzer reports Fares v2 referential-integrity problems as critical — for example, a `network_id` in `fare_leg_rules.txt` not defined in `networks.txt` (detailed coverage via the FAR/FPD/FLG/FTR/RCT/FMD groups). MobilityData also validates Fares v2 (schema + referential integrity + fare_transfer/products/media/timeframes rules), though coverage and severity classification differ.
+> ⚠️ **Overlapping block trips:** This feed's dominant finding is trips that overlap in time within the same block (908 *errors* in MobilityData and GTFS Guru). GTFS Analyzer catches this with TRP_022 (907) but counts a conflict only for services active on the same day (calendar-intersection guard); severity classification differs across tools (not critical in Analyzer).
 >
-> ℹ️ The critical count in the table above predates a **2026-06-18 fix** of a false positive related to the `fare_products` composite primary key (fare_product_id + rider_category_id + fare_media_id) and does not reflect the current code; it will be updated when the comparison is re-run.
+> ⚠️ **Fares v2:** GTFS Analyzer reports Fares v2 referential-integrity problems as critical — for example, a `network_id` in `fare_leg_rules.txt` not defined in `networks.txt` (detailed coverage via the FAR/FPD/FLG/FTR/RCT/FMD groups). MobilityData also validates Fares v2 (schema + referential integrity + fare_transfer/products/media/timeframes rules), though coverage and severity classification differ.
 
 #### Tokyo Toei (Tokyo Metropolitan Bureau of Transportation)
 
-Feed: `tokyo_toei_bus.zip` — feed_version 2026-06-06 (validity range: 2026-06-06–2029-06-05) · 150 routes, 5,367 stops, 54,315 trips.
+Feed: `mdb-3175` (MobilityDatabase, 2026-06-21 snapshot; validity range: 2026-06-21–2029-06-20) · 150 routes, 5,367 stops, 57,600 trips.
 
 | | MobilityData | GTFS Guru | GTFS Analyzer |
 |---|---:|---:|---:|
-| Total notices | 1,637 | 4,137 | 7,231 |
+| Total notices | 2,395 | 4,138 | 4,684 |
 | Critical / Error | 0 | 0 | 0 |
-| High / Warning | 265 | 4,128 | 1,060 |
-| Medium | — | — | 3,324 |
-| Low | — | — | 1,968 |
-| Info | 1,372 | 9 | 879 |
-| Distinct rule types triggered | 9 | 6 | **58** |
+| High / Warning | 297 | 4,129 | 63 |
+| Medium | — | — | 2,090 |
+| Low | — | — | 1,770 |
+| Info | 2,098 | 9 | 761 |
+| Distinct rule types triggered | 9 | 6 | **61** |
 | Publish score | — | — | **94.3 / 100** |
-| Quality score | — | — | **72.5 / 100** |
+| Quality score | — | — | **48.8 / 100** |
 
 > 🗾 **Spec-clean but operationally dense:** All three tools report 0 critical — the feed is specification-clean. The difference is in the analytics layer: most of GTFS Analyzer's medium/low findings are operational signals from the three-year validity window (2026–2029) and dense network/shape patterns, which MobilityData and GTFS Guru largely summarize as warnings/info.
 
