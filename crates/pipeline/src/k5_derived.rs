@@ -287,6 +287,10 @@ fn build_shape_geometry(
         let mut prev_lat: Option<f64> = None;
         let mut prev_lon: Option<f64> = None;
         let mut prev_line: u64 = 0;
+        // SHP_010 Entity-scope (shape_id) → dedup shape başına TEKE çökertir. Büyük feed'de
+        // bir shape'in her ardışık-tekrar noktası için emit etmek yüz binlerce ara-notice
+        // üretip sonra atıyordu (#15 Mode A). Shape başına bir kez emit = birebir aynı sonuç.
+        let mut shp010_fired = false;
 
         for &idx in point_indices {
             let pt = &records.shapes[idx];
@@ -307,8 +311,9 @@ fn build_shape_geometry(
             max_lon = max_lon.max(lon);
 
             if let (Some(plat), Some(plon)) = (prev_lat, prev_lon) {
-                // SHP_010: ardışık özdeş koordinat
-                if (lat - plat).abs() < f64::EPSILON && (lon - plon).abs() < f64::EPSILON {
+                // SHP_010: ardışık özdeş koordinat — shape başına bir kez (dedup zaten teke indirir)
+                if (lat - plat).abs() < f64::EPSILON && (lon - plon).abs() < f64::EPSILON && !shp010_fired {
+                    shp010_fired = true;
                     notices.push(k5_notice(
                         ctr,
                         "SHP_010",
@@ -562,6 +567,28 @@ mod tests {
 
         let result = build(&records, &map);
         assert!(result.notices.iter().any(|n| n.rule_id == "SHP_010"));
+    }
+
+    #[test]
+    fn shp_010_fires_once_per_shape_despite_many_duplicates() {
+        // #15 Mode A: bir shape'te ÇOK ardışık-tekrar nokta olsa da SHP_010 shape başına
+        // TEK üretilmeli (dedup zaten teke indirir; ara-üretim patlamasını önle).
+        let mut records = empty_records();
+        let mut map = empty_map();
+        records.shapes = vec![
+            shape_pt("S1", 1, 41.0, 29.0, 1),
+            shape_pt("S1", 2, 41.0, 29.0, 2), // dup 1
+            shape_pt("S1", 3, 41.0, 29.0, 3), // dup 2
+            shape_pt("S1", 4, 41.0, 29.0, 4), // dup 3
+            shape_pt("S1", 5, 41.1, 29.1, 5),
+        ];
+        records.trips = vec![trip_with_shape("T1", "S1")];
+        map.shape_points.insert("S1".into(), vec![0, 1, 2, 3, 4]);
+        map.trips.insert("T1".into(), 0);
+
+        let result = build(&records, &map);
+        let shp010 = result.notices.iter().filter(|n| n.rule_id == "SHP_010").count();
+        assert_eq!(shp010, 1, "3 ardışık tekrar olsa da SHP_010 shape başına 1 kez: {shp010}");
     }
 
     // ── SHP_018 ───────────────────────────────────────────────────────────────
