@@ -2903,9 +2903,23 @@ fn check_route_trip_quality(
             // birden fazla geçiyorsa o durak meşru bir uç/dönüş noktasıdır (ör. havalimanı wye:
             // trene girip çıkar) → o eşleşme yanlış pozitiftir, atlanır. Alakasız bir durağın
             // tekrarı, headsign'ın eşleştiği başka bir ara durağı bastırmaz (yanlış negatif önlenir).
-            let mut station_counts: HashMap<&str, u32> = HashMap::with_capacity(stimes.len());
-            for s in stimes.iter() {
-                *station_counts.entry(eff_station(&parent_of, s.stop_id.as_str())).or_insert(0) += 1;
+            //
+            // #29: ARDIŞIK yinelenen aynı durak satırları (aynı etkin istasyonun peş peşe iki
+            // stop_time kaydı — dwell/timepoint çiftlemesi, ör. BART SFO seq 26-27 aynı stop_id)
+            // gerçek dönüş DEĞİLDİR ve TEK sayılmalıdır; gerçek uç/dönüş noktası aralarında BAŞKA
+            // durak olarak tekrar eder. Sıralama garanti olmadığından stop_sequence'a göre sırala,
+            // sonra ardışık tekrarları tekille.
+            let mut seq_eff: Vec<(u32, &str)> = stimes.iter()
+                .map(|s| (s.stop_sequence.unwrap_or(0), eff_station(&parent_of, s.stop_id.as_str())))
+                .collect();
+            seq_eff.sort_by_key(|(seq, _)| *seq);
+            let mut station_counts: HashMap<&str, u32> = HashMap::with_capacity(seq_eff.len());
+            let mut prev_eff: Option<&str> = None;
+            for (_, e) in &seq_eff {
+                if prev_eff != Some(*e) {
+                    *station_counts.entry(*e).or_insert(0) += 1;
+                    prev_eff = Some(*e);
+                }
             }
 
             let rname = route_short.get(trip.route_id.as_str()).copied().unwrap_or(trip.route_id.as_str());
@@ -9376,6 +9390,33 @@ mod tests {
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
         assert!(result.notices.iter().any(|n| n.rule_id == "TRP_020"),
             "alakasız tekrar headsign'ın eşleştiği ara durağı bastırmamalı: {:?}",
+            result.notices.iter().map(|n| &n.rule_id).collect::<Vec<_>>());
+    }
+
+    #[test]
+    fn headsign_intermediate_consecutive_duplicate_produces_trp_020() {
+        // #29: Sefer A → B → B → C; B aynı stop_id PEŞ PEŞE iki kez (dwell/timepoint çiftlemesi,
+        // BART SFO seq 26-27 deseni), terminal = C. headsign = "Stop B" = ara durak.
+        // Ardışık yineleme gerçek uç/dönüş DEĞİLDİR → TRP_020 ÇIKMALI (önceki mantık yanlış bastırırdı).
+        let mut sa = stop("A", 41.0, 29.0); sa.stop_name = Some("Stop A".into());
+        let mut sb = stop("B", 41.1, 29.1); sb.stop_name = Some("Stop B".into());
+        let mut sc = stop("C", 41.2, 29.2); sc.stop_name = Some("Stop C".into());
+        let mut t = trip("T1", "R1");
+        t.trip_headsign = Some("Stop B".into());
+        let records = records_with(
+            vec![sa, sb, sc],
+            vec![route("R1", 3)],
+            vec![t],
+            vec![
+                stoptime("T1", 1, "A", (8,0,0), (8,0,0), 2),
+                stoptime("T1", 2, "B", (8,10,0), (8,10,0), 3),
+                stoptime("T1", 3, "B", (8,11,0), (8,11,0), 4),
+                stoptime("T1", 4, "C", (8,20,0), (8,20,0), 5),
+            ],
+        );
+        let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
+        assert!(result.notices.iter().any(|n| n.rule_id == "TRP_020"),
+            "ardışık yinelenen ara durak (dwell) bastırılmamalı → TRP_020 çıkmalı: {:?}",
             result.notices.iter().map(|n| &n.rule_id).collect::<Vec<_>>());
     }
 
