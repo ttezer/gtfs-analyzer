@@ -137,9 +137,11 @@ pub fn rerun_k6_k7(cache: &CachedState, config_delta_json: &str, on_stage: &js_s
 
     let mut all_notices = cache.k1_k5_notices.clone();
     all_notices.extend(k6.notices);
+    web_sys::console::log_1(&format!("[mem] after-K6 (pre-cap): {} notices, {:.1} MB", all_notices.len(), mem_mb()).into());
 
     let real_totals = count_totals(&all_notices);
     let _ = cap_per_rule(&mut all_notices);
+    log_mem("after-cap");
     let real_total: usize = real_totals.values().map(|&v| v as usize).sum();
     if real_total > NOTICE_LIMIT {
         web_sys::console::warn_1(&format!(
@@ -239,12 +241,14 @@ fn run_full_pipeline(zip_bytes: &[u8], config: &ValidatorConfig, today: u32) -> 
 
 fn run_k1_k5(zip_bytes: &[u8], config: &ValidatorConfig, on_stage: &js_sys::Function) -> Result<CachedState, FatalError> {
     let today = today_yyyymmdd();
+    web_sys::console::log_1(&format!("[mem] K0-start (zip {:.1} MB): {:.1} MB", zip_bytes.len() as f64 / 1_048_576.0, mem_mb()).into());
 
     let mut t = js_sys::Date::now();
     t_start!("K1-parse");
     let k1 = parse(zip_bytes)?;
     t_end!("K1-parse");
     call_stage(on_stage, "K1", (js_sys::Date::now() - t) as u32);
+    log_mem("after-K1-parse");
     let mut file_stats = collect_file_stats(&k1.files);
 
     t = js_sys::Date::now();
@@ -254,6 +258,7 @@ fn run_k1_k5(zip_bytes: &[u8], config: &ValidatorConfig, on_stage: &js_sys::Func
     // Gece yarısı (00:xx) → servis-günü (24:xx) normalizasyonu — K3–K6 öncesi (bkz. ilk yol).
     k2.records.stop_times_index.normalize_service_day(config.service_day_start_hour);
     call_stage(on_stage, "K2", (js_sys::Date::now() - t) as u32);
+    log_mem("after-K2-validate");
     // OOM fix Plan A: stop_times K1'de stream edildi (RawFile.rows boş); gerçek satır
     // sayısı K2 index'inde — file_stats'taki 0'ı düzelt.
     for fi in file_stats.iter_mut() {
@@ -267,18 +272,21 @@ fn run_k1_k5(zip_bytes: &[u8], config: &ValidatorConfig, on_stage: &js_sys::Func
     let k3 = build_entity_map(&k2.records);
     t_end!("K3-entity-map");
     call_stage(on_stage, "K3", (js_sys::Date::now() - t) as u32);
+    log_mem("after-K3-entity-map");
 
     t = js_sys::Date::now();
     t_start!("K4-cross-ref");
     let k4 = check_cross_ref(&k2.records, &k3.entity_map, today);
     t_end!("K4-cross-ref");
     call_stage(on_stage, "K4", (js_sys::Date::now() - t) as u32);
+    log_mem("after-K4-cross-ref");
 
     t = js_sys::Date::now();
     t_start!("K5-derived");
     let k5 = build_derived(&k2.records, &k3.entity_map);
     t_end!("K5-derived");
     call_stage(on_stage, "K5", (js_sys::Date::now() - t) as u32);
+    log_mem("after-K5-derived");
 
     let mut k1_k5_notices = Vec::new();
     k1_k5_notices.extend(k1.notices);
@@ -287,6 +295,7 @@ fn run_k1_k5(zip_bytes: &[u8], config: &ValidatorConfig, on_stage: &js_sys::Func
     k1_k5_notices.extend(k4.notices);
     k1_k5_notices.extend(k5.notices);
     // DURDURMA YOK: K1-K5 notice'ları cap'lenmeden taşınır; gösterim cap'i K6+K7 yolunda uygulanır.
+    web_sys::console::log_1(&format!("[mem] K1-K5 done: {} notices, {:.1} MB", k1_k5_notices.len(), mem_mb()).into());
 
     Ok(CachedState { k1_k5_notices, records: k2.records, derived: k5.derived, file_stats })
 }
@@ -354,6 +363,23 @@ fn cap_per_rule(notices: &mut Vec<gtfs_core::Notice>) -> std::collections::HashM
         *c <= cap_for_rule(&n.rule_id)
     });
     std::collections::HashMap::new() // artık count_totals + build_capped_totals kullanılıyor
+}
+
+// #15 Adım-1 enstrümantasyon: WASM linear memory high-water (MB).
+// WASM belleği yalnızca BÜYÜR (sayfa iade edilmez) → her aşamadan sonra okunan değer
+// o ana dek erişilen tepe kullanımdır; aşamalar arası delta = o aşamanın eklediği kalıcı
+// tahsisat. OOM'da feed taşıran aşamada ölür → son log hangi aşamaya kadar geldiğini verir.
+fn mem_mb() -> f64 {
+    use wasm_bindgen::JsCast;
+    let buf = wasm_bindgen::memory()
+        .unchecked_into::<js_sys::WebAssembly::Memory>()
+        .buffer();
+    let bytes = buf.unchecked_into::<js_sys::ArrayBuffer>().byte_length();
+    bytes as f64 / 1_048_576.0
+}
+
+fn log_mem(stage: &str) {
+    web_sys::console::log_1(&format!("[mem] {stage}: {:.1} MB", mem_mb()).into());
 }
 
 fn today_yyyymmdd() -> u32 {
