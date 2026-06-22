@@ -112,11 +112,15 @@ pub struct K2Result {
     pub notices: Vec<Notice>,
 }
 
-pub fn validate(files: &RawFiles) -> K2Result {
+pub fn validate(mut files: RawFiles) -> K2Result {
     use crate::timing::{Timer, mem_log};
     let mut notices = Vec::new();
     let mut records = EntityRecords::default();
     mem_log("K2-start (=after-K1, K1 raw alive)");
+    // #15 W2: stop_times EN SONA ertelenir — diğer tüm dosyalar parse edilip k1.files'in
+    // kalanı (özellikle dev shapes ham satırları) drop edildikten SONRA işlenir. Böylece
+    // stop_times index'i kurulurken K1 raw ile AYNI ANDA canlı olmaz (~K1-raw kadar düşük peak).
+    let stop_times_file = files.remove("stop_times.txt");
 
     if let Some(file) = files.get("agency.txt") {
         let _t = Timer::start("K2::agency");
@@ -217,15 +221,6 @@ pub fn validate(files: &RawFiles) -> K2Result {
         records.stops = stop_records;
         notices.extend(stop_notices);
     }
-    mem_log("K2 before stop_times");
-
-    if let Some(file) = files.get("stop_times.txt") {
-        let _t = Timer::start("K2::stop_times");
-        let (stm_index, stop_time_notices) = validate_stop_times(file);
-        records.stop_times_index = stm_index;
-        notices.extend(stop_time_notices);
-        mem_log("K2 after stop_times index");
-    }
 
     if let Some(file) = files.get("transfers.txt") {
         let _t = Timer::start("K2::transfers");
@@ -325,6 +320,19 @@ pub fn validate(files: &RawFiles) -> K2Result {
 
     records.has_route_networks_file = files.contains_key("route_networks.txt");
 
+    // #15 W2: diğer tüm ham dosyalar parse edildi; stop_times index'ini kurmadan ÖNCE
+    // k1.files'in kalanını (büyük shapes raw dahil) bırak → K2 peak'i ~K1-raw kadar düşer.
+    mem_log("K2 before stop_times (dropping raw files)");
+    drop(files);
+    mem_log("K2 after drop(files)");
+    if let Some(file) = &stop_times_file {
+        let _t = Timer::start("K2::stop_times");
+        let (stm_index, stop_time_notices) = validate_stop_times(file);
+        records.stop_times_index = stm_index;
+        notices.extend(stop_time_notices);
+        mem_log("K2 after stop_times index");
+    }
+
     // AGN_013: Feed dili ile ajans dili uyuşmuyor (feed_info_lang_and_agency_lang_mismatch)
     if let (Some(fi), Some(ag)) = (records.feed_info.first(), records.agencies.first()) {
         let feed_lang = fi.feed_lang.to_lowercase();
@@ -361,7 +369,7 @@ mod tests {
     #[test]
     fn validate_empty_files_returns_empty_result() {
         let files: RawFiles = HashMap::new();
-        let result = validate(&files);
+        let result = validate(files);
         assert!(result.notices.is_empty());
         assert!(result.records.agencies.is_empty());
         assert!(result.records.routes.is_empty());
@@ -424,7 +432,7 @@ mod tests {
             },
         );
 
-        let result = validate(&files);
+        let result = validate(files);
         assert_eq!(result.records.agencies.len(), 1);
         assert_eq!(result.records.routes.len(), 1);
         assert_eq!(result.records.trips.len(), 1);
@@ -446,7 +454,7 @@ mod tests {
             },
         );
 
-        let result = validate(&files);
+        let result = validate(files);
         assert_eq!(result.records.fare_rules.len(), 1);
         assert!(result.notices.is_empty());
     }

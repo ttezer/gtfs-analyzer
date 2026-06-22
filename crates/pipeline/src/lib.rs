@@ -35,7 +35,7 @@ pub fn validate_bytes(zip: &[u8], config: &ValidatorConfig, today: u32) -> Valid
 
     let mut k2 = {
         let _t = Timer::start("K2-validate");
-        validate_k2(&k1.files)
+        validate_k2(k1.files) // #15 W2: K2 dosyaları sahiplenir + parse sonrası bırakır
     };
 
     // Gece yarısını aşan seferleri (00:xx) servis-günü notasyonuna (24:xx) normalize et.
