@@ -5,6 +5,10 @@
 /notgit/
 /regression/
 
+# Local validation/debug dumps accidentally produced at the repo root
+/bart.json
+/*-report.json
+
 # npm
 /ui/node_modules/
 
