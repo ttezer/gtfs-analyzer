@@ -5822,6 +5822,10 @@ fn check_shp022(
         // sdt-eksik sefer için segment taramasını tekrarlama. shp022_seen yalnız EMİSYON
         // dedup'u; bu set DEĞERLENDİRME dedup'u → çıktı birebir aynı.
         let mut shp022_done: FxHashSet<(&str, &str)> = FxHashSet::default();
+        // #15: SHP_022 Entity-scope (stop_id) → dedup stop başına TEK temsilciye (min st.line,
+        // tiebreak shape_id) çöker. (shape,stop) başına emit yerine stop başına BUFFER tut →
+        // büyük feed'de ara-notice patlaması yok; sonuç dedup ile birebir + iterasyon-bağımsız.
+        let mut shp022_best: FxHashMap<&str, ((u64, &str), Notice)> = FxHashMap::default();
 
         for (trip_id, stimes) in &idx.by_trip {
             // Sadece shape_dist_traveled eksik trippler
@@ -5892,6 +5896,11 @@ fn check_shp022(
                 if clusters < 2 { continue; }
 
                 shp022_seen.insert((shape_id, stop_id));
+                // Stop başına yalnız en küçük (st.line, shape_id) temsilciyi tut (dedup eşdeğeri).
+                let best_key = (st.line, shape_id);
+                if shp022_best.get(stop_id).is_some_and(|(k, _)| *k <= best_key) {
+                    continue;
+                }
                 let sname = stop_names.get(stop_id).copied().unwrap_or(stop_id);
                 let mut notice = k6_notice(
                     ctr,
@@ -5915,8 +5924,13 @@ fn check_shp022(
                 let mut det = HashMap::new();
                 det.insert("shape_id".to_string(), shape_id.to_string());
                 notice.details = Some(det);
-                notices.push(notice);
+                shp022_best.insert(stop_id, (best_key, notice));
             }
+        }
+        // Buffer'ı boşalt: stop başına tek (deterministik) temsilci. Sıra önemsiz (K6 renumber
+        // + K7 dedup sonradan kanonik sıralar).
+        for (_stop, (_key, notice)) in shp022_best {
+            notices.push(notice);
         }
     }
 }
