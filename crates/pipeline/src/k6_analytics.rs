@@ -3559,23 +3559,30 @@ fn check_remaining_analytics(
 
     // ── shape_id → sıralı (lat, lon) noktaları + bbox (tek pass) ────────────
     let _tb = Timer::start("K6::rem::build_maps");
-    let mut shape_pts_unsorted: FxHashMap<&str, Vec<(u32, f64, f64)>> = FxHashMap::default();
-    for sp in &records.shapes {
-        if let (Some(lat), Some(lon)) = (sp.shape_pt_lat, sp.shape_pt_lon) {
-            shape_pts_unsorted
-                .entry(sp.shape_id.as_str())
-                .or_default()
-                .push((sp.shape_pt_sequence.unwrap_or(0), lat, lon));
+    // #15 (build_maps OOM/312s): shape_coords'u NOKTA-İNDEKSLERİYLE kur. Eski yol her noktayı
+    // (u32,f64,f64)=24B ara tamponda gruplayıp sonra (f64,f64)=16B'ye kopyalıyordu → transient
+    // ~40B/nokta. Devasa-shape feed'inde bu, K6 başındaki ~3.6 GB'ın üstüne binince 4 GB tavanı
+    // aşıp OOM ediyordu (ve allocator tavanda tıkanınca 312 sn). İndeks (4B) + coords (16B) =
+    // ~20B/nokta tepe. Çıktı (seq-sıralı lat,lon) BİREBİR aynı (stable sort, file-order ties).
+    let mut shape_pt_idx: FxHashMap<&str, Vec<u32>> = FxHashMap::default();
+    for (i, sp) in records.shapes.iter().enumerate() {
+        if sp.shape_pt_lat.is_some() && sp.shape_pt_lon.is_some() {
+            shape_pt_idx.entry(sp.shape_id.as_str()).or_default().push(i as u32);
         }
     }
-    let n_shapes = shape_pts_unsorted.len();
+    let n_shapes = shape_pt_idx.len();
     let mut shape_coords: FxHashMap<&str, Vec<(f64, f64)>> = FxHashMap::default();
     let mut shape_bbox: FxHashMap<&str, [f64; 4]> = FxHashMap::default();
     shape_coords.reserve(n_shapes);
     shape_bbox.reserve(n_shapes);
-    for (sid, mut v) in shape_pts_unsorted {
-        v.sort_by_key(|&(seq, _, _)| seq);
-        let pts: Vec<(f64, f64)> = v.into_iter().map(|(_, la, lo)| (la, lo)).collect();
+    for (sid, mut idxs) in shape_pt_idx {
+        idxs.sort_by_key(|&i| records.shapes[i as usize].shape_pt_sequence.unwrap_or(0));
+        let pts: Vec<(f64, f64)> = idxs.iter()
+            .map(|&i| {
+                let sp = &records.shapes[i as usize];
+                (sp.shape_pt_lat.unwrap(), sp.shape_pt_lon.unwrap())
+            })
+            .collect();
         if !pts.is_empty() {
             let mut mn_lat = pts[0].0;
             let mut mx_lat = pts[0].0;
@@ -5619,23 +5626,30 @@ fn check_shp012(
     ctr: &mut u32,
 ) {
     // shape_id → sıralı (lat, lon) + bbox (build_maps ile birebir aynı kurulum)
-    let mut shape_pts_unsorted: FxHashMap<&str, Vec<(u32, f64, f64)>> = FxHashMap::default();
-    for sp in &records.shapes {
-        if let (Some(lat), Some(lon)) = (sp.shape_pt_lat, sp.shape_pt_lon) {
-            shape_pts_unsorted
-                .entry(sp.shape_id.as_str())
-                .or_default()
-                .push((sp.shape_pt_sequence.unwrap_or(0), lat, lon));
+    // #15 (build_maps OOM/312s): shape_coords'u NOKTA-İNDEKSLERİYLE kur. Eski yol her noktayı
+    // (u32,f64,f64)=24B ara tamponda gruplayıp sonra (f64,f64)=16B'ye kopyalıyordu → transient
+    // ~40B/nokta. Devasa-shape feed'inde bu, K6 başındaki ~3.6 GB'ın üstüne binince 4 GB tavanı
+    // aşıp OOM ediyordu (ve allocator tavanda tıkanınca 312 sn). İndeks (4B) + coords (16B) =
+    // ~20B/nokta tepe. Çıktı (seq-sıralı lat,lon) BİREBİR aynı (stable sort, file-order ties).
+    let mut shape_pt_idx: FxHashMap<&str, Vec<u32>> = FxHashMap::default();
+    for (i, sp) in records.shapes.iter().enumerate() {
+        if sp.shape_pt_lat.is_some() && sp.shape_pt_lon.is_some() {
+            shape_pt_idx.entry(sp.shape_id.as_str()).or_default().push(i as u32);
         }
     }
-    let n_shapes = shape_pts_unsorted.len();
+    let n_shapes = shape_pt_idx.len();
     let mut shape_coords: FxHashMap<&str, Vec<(f64, f64)>> = FxHashMap::default();
     let mut shape_bbox: FxHashMap<&str, [f64; 4]> = FxHashMap::default();
     shape_coords.reserve(n_shapes);
     shape_bbox.reserve(n_shapes);
-    for (sid, mut v) in shape_pts_unsorted {
-        v.sort_by_key(|&(seq, _, _)| seq);
-        let pts: Vec<(f64, f64)> = v.into_iter().map(|(_, la, lo)| (la, lo)).collect();
+    for (sid, mut idxs) in shape_pt_idx {
+        idxs.sort_by_key(|&i| records.shapes[i as usize].shape_pt_sequence.unwrap_or(0));
+        let pts: Vec<(f64, f64)> = idxs.iter()
+            .map(|&i| {
+                let sp = &records.shapes[i as usize];
+                (sp.shape_pt_lat.unwrap(), sp.shape_pt_lon.unwrap())
+            })
+            .collect();
         if !pts.is_empty() {
             let mut mn_lat = pts[0].0;
             let mut mx_lat = pts[0].0;
@@ -5733,23 +5747,30 @@ fn check_shp022(
     use crate::timing::Timer;
 
     // ── build_maps ile birebir aynı kurulum (shape_coords + shape_bbox) ──────
-    let mut shape_pts_unsorted: FxHashMap<&str, Vec<(u32, f64, f64)>> = FxHashMap::default();
-    for sp in &records.shapes {
-        if let (Some(lat), Some(lon)) = (sp.shape_pt_lat, sp.shape_pt_lon) {
-            shape_pts_unsorted
-                .entry(sp.shape_id.as_str())
-                .or_default()
-                .push((sp.shape_pt_sequence.unwrap_or(0), lat, lon));
+    // #15 (build_maps OOM/312s): shape_coords'u NOKTA-İNDEKSLERİYLE kur. Eski yol her noktayı
+    // (u32,f64,f64)=24B ara tamponda gruplayıp sonra (f64,f64)=16B'ye kopyalıyordu → transient
+    // ~40B/nokta. Devasa-shape feed'inde bu, K6 başındaki ~3.6 GB'ın üstüne binince 4 GB tavanı
+    // aşıp OOM ediyordu (ve allocator tavanda tıkanınca 312 sn). İndeks (4B) + coords (16B) =
+    // ~20B/nokta tepe. Çıktı (seq-sıralı lat,lon) BİREBİR aynı (stable sort, file-order ties).
+    let mut shape_pt_idx: FxHashMap<&str, Vec<u32>> = FxHashMap::default();
+    for (i, sp) in records.shapes.iter().enumerate() {
+        if sp.shape_pt_lat.is_some() && sp.shape_pt_lon.is_some() {
+            shape_pt_idx.entry(sp.shape_id.as_str()).or_default().push(i as u32);
         }
     }
-    let n_shapes = shape_pts_unsorted.len();
+    let n_shapes = shape_pt_idx.len();
     let mut shape_coords: FxHashMap<&str, Vec<(f64, f64)>> = FxHashMap::default();
     let mut shape_bbox: FxHashMap<&str, [f64; 4]> = FxHashMap::default();
     shape_coords.reserve(n_shapes);
     shape_bbox.reserve(n_shapes);
-    for (sid, mut v) in shape_pts_unsorted {
-        v.sort_by_key(|&(seq, _, _)| seq);
-        let pts: Vec<(f64, f64)> = v.into_iter().map(|(_, la, lo)| (la, lo)).collect();
+    for (sid, mut idxs) in shape_pt_idx {
+        idxs.sort_by_key(|&i| records.shapes[i as usize].shape_pt_sequence.unwrap_or(0));
+        let pts: Vec<(f64, f64)> = idxs.iter()
+            .map(|&i| {
+                let sp = &records.shapes[i as usize];
+                (sp.shape_pt_lat.unwrap(), sp.shape_pt_lon.unwrap())
+            })
+            .collect();
         if !pts.is_empty() {
             let mut mn_lat = pts[0].0;
             let mut mx_lat = pts[0].0;
