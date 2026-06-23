@@ -31,6 +31,9 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
     // (STM_050 deseni): gerçek sayı + ilk örnekler details'te; loop sonunda tek emit.
     let mut pth009_count: u32 = 0;
     let mut pth009_examples: Vec<String> = Vec::new();
+    // PTH_008 (#15): PTH_009 ikizi (merdiven geçidinde stair_count eksik) — aynı feed-aggregate.
+    let mut pth008_count: u32 = 0;
+    let mut pth008_examples: Vec<String> = Vec::new();
 
     for (row_idx, row) in file.rows.iter().enumerate() {
         let line = (row_idx + 2) as u64;
@@ -153,15 +156,14 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
             Err(_) => None,
         };
 
-        // PTH_008: merdiven geçidinde stair_count belirtilmemiş
+        // PTH_008: merdiven geçidinde stair_count belirtilmemiş — feed-seviyesi özetle (aşağıda tek emit)
         if matches!(pathway_mode, Some(2)) && stair_count.is_none() {
-            notices.push(make_k2_notice(
-                &mut counter, "PTH_008", EntityType::Pathway,
-                entity_id.clone(), Some(&row_map), &file.name, Some(line),
-                Some("stair_count"), None, None,
-                "pathway_mode=2 (merdiven) için stair_count belirtilmemiş.".to_string(),
-                "stair_count alanını doldurarak kat farkını belirtin.",
-            ));
+            pth008_count += 1;
+            if pth008_examples.len() < 5 {
+                if let Some(id) = &entity_id {
+                    pth008_examples.push(id.clone());
+                }
+            }
         }
 
         // PTH_009: yürüme yolunda max_slope belirtilmemiş — feed-seviyesi özetle (aşağıda tek emit)
@@ -223,6 +225,24 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
         d.insert("affected_pathways".to_string(), pth009_count.to_string());
         if !pth009_examples.is_empty() {
             d.insert("example_pathways".to_string(), pth009_examples.join(", "));
+        }
+        n.details = Some(d);
+        notices.push(n);
+    }
+
+    // PTH_008 feed-seviyesi tek özet (PTH_009 ile aynı desen).
+    if pth008_count > 0 {
+        let mut n = make_k2_notice(
+            &mut counter, "PTH_008", EntityType::Feed, None, None,
+            &file.name, None, Some("stair_count"),
+            Some(pth008_count.to_string()), None,
+            format!("{pth008_count} merdiven geçidinde (pathway_mode=2) stair_count eksik."),
+            "İlgili pathways.txt kayıtlarına stair_count ekleyin veya veri kaynağını düzeltin.",
+        );
+        let mut d = std::collections::HashMap::new();
+        d.insert("affected_pathways".to_string(), pth008_count.to_string());
+        if !pth008_examples.is_empty() {
+            d.insert("example_pathways".to_string(), pth008_examples.join(", "));
         }
         n.details = Some(d);
         notices.push(n);
@@ -375,6 +395,25 @@ mod tests {
         assert_eq!(
             n.details.as_ref().and_then(|d| d.get("affected_pathways")).map(String::as_str),
             Some("3"),
+        );
+    }
+
+    #[test]
+    fn pth_008_aggregates_to_single_feed_notice_with_count() {
+        // #15: 2 merdiven (mode=2) stair_count boş → TEK PTH_008 (feed-seviyesi), affected=2.
+        let file = pathways_file(vec![
+            vec!["P1", "S1", "S2", "2", "0", ""],
+            vec!["P2", "S2", "S3", "2", "0", ""],
+            vec!["P3", "S3", "S4", "1", "0", ""], // yürüme yolu → PTH_008 sayılmaz
+        ]);
+        let (_, notices) = validate_pathways(&file);
+        let pth008: Vec<_> = notices.iter().filter(|n| n.rule_id == "PTH_008").collect();
+        assert_eq!(pth008.len(), 1, "PTH_008 feed-seviyesi tek notice olmalı");
+        let n = pth008[0];
+        assert_eq!(n.entity_type, EntityType::Feed);
+        assert_eq!(
+            n.details.as_ref().and_then(|d| d.get("affected_pathways")).map(String::as_str),
+            Some("2"),
         );
     }
 }
