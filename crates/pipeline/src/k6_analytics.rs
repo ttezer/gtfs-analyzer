@@ -2950,6 +2950,10 @@ fn check_route_trip_quality(
                             ),
                             "trip_headsign'ı son durağın (terminal) adına veya o istikameti temsil eden bir yere adına göre ayarlayın.",
                         ));
+                        // #15: TRP_020 Entity-scope (trip_id) → dedup trip başına TEKE indirir.
+                        // Sefer içindeki HER eşleşen ara durağa emit etmek (büyük feed'de) yüz
+                        // binlerce ara-notice üretip atıyordu; ilk eşleşmede dur (sonuç aynı).
+                        break;
                     }
                 }
             }
