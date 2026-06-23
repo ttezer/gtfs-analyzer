@@ -453,7 +453,7 @@ fn build_fallback_by_trip<'a>(records: &'a EntityRecords) -> FxHashMap<&'a str, 
             stop_sequence: st.stop_sequence,
             arrival_time: st.arrival_time,
             departure_time: st.departure_time,
-            stop_headsign: st.stop_headsign.clone(),
+            stop_headsign: st.stop_headsign.clone().map(Box::new),
             shape_dist_traveled: st.shape_dist_traveled,
             line: st.line,
             flex: build_flex(

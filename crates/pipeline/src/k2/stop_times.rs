@@ -14,7 +14,9 @@ pub struct CompactStopTime {
     pub stop_sequence:        Option<u32>,
     pub arrival_time:         Option<(u32, u32, u32)>,
     pub departure_time:       Option<(u32, u32, u32)>,
-    pub stop_headsign:        Option<SmolStr>,
+    // #15: stop_headsign satır-başı NADİR dolu (genelde trip_headsign kullanılır). Box'lanınca
+    // None=8 byte (boxsuz Option<SmolStr>=24); dolu olduğunda tek heap alloc. ~16 byte/satır tasarruf.
+    pub stop_headsign:        Option<Box<SmolStr>>,
     pub shape_dist_traveled:  Option<f64>,
     pub line:                 u64,
     // #15: pickup_type/drop_off_type/timepoint/continuous_pickup/continuous_drop_off ÇIKARILDI —
@@ -27,7 +29,7 @@ pub struct CompactStopTime {
 
 // #15: CompactStopTime KALICI boyut guard'ı — bu satır büyük feed'de ~10M× tutulur, her byte ≈
 // 10 MB. Alan eklenince/büyüyünce derleme kırılır → kazanım kilitli. Hedef düşürüldükçe güncellenir.
-const _: () = assert!(std::mem::size_of::<CompactStopTime>() <= 128);
+const _: () = assert!(std::mem::size_of::<CompactStopTime>() <= 112);
 
 /// CompactStopTime'ın nadir kullanılan GTFS-Flex alanları (Box'lanır — bkz. CompactStopTime.flex).
 #[derive(Debug, Clone, Default)]
@@ -204,7 +206,7 @@ impl StopTimesIndex {
                 stop_sequence:      st.stop_sequence,
                 arrival_time:       st.arrival_time,
                 departure_time:     st.departure_time,
-                stop_headsign:      st.stop_headsign.clone(),
+                stop_headsign:      st.stop_headsign.clone().map(Box::new),
                 shape_dist_traveled: st.shape_dist_traveled,
                 line:               st.line,
                 flex: build_flex(
@@ -1098,7 +1100,7 @@ pub fn validate_stop_times(file: &RawFile) -> (StopTimesIndex, Vec<gtfs_core::No
                 stop_sequence,
                 arrival_time,
                 departure_time,
-                stop_headsign:      stop_headsign.clone(),
+                stop_headsign:      stop_headsign.clone().map(Box::new),
                 shape_dist_traveled,
                 line,
                 flex: build_flex(
