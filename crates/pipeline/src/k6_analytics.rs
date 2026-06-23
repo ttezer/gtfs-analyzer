@@ -3719,22 +3719,26 @@ fn check_remaining_analytics(
     // (equal_shape_distance_same_coordinates)
     {
         let _ts23 = Timer::start("K6::rem::shp_023");
-        let mut shape_raw: FxHashMap<&str, Vec<(u32, Option<f64>, f64, f64)>> = FxHashMap::default();
-        for sp in &records.shapes {
-            if let (Some(lat), Some(lon)) = (sp.shape_pt_lat, sp.shape_pt_lon) {
-                shape_raw.entry(sp.shape_id.as_str()).or_default()
-                    .push((sp.shape_pt_sequence.unwrap_or(0), sp.shape_dist_traveled, lat, lon));
+        // #15: shape_raw'ı (seq,dist,lat,lon)=~40B/nokta materialize etmek yerine nokta-indeksleri
+        // (4B) grupla, veriye records.shapes'ten eriş → build_maps OOM'undan sonraki ikinci büyük
+        // shape rebuild kalkar (asıl unreachable burada oluyordu). Çıktı/sıra BİREBİR aynı.
+        let mut shape_pt_idx: FxHashMap<&str, Vec<u32>> = FxHashMap::default();
+        for (i, sp) in records.shapes.iter().enumerate() {
+            if sp.shape_pt_lat.is_some() && sp.shape_pt_lon.is_some() {
+                shape_pt_idx.entry(sp.shape_id.as_str()).or_default().push(i as u32);
             }
         }
-        for (_shape_id, pts) in &mut shape_raw {
-            pts.sort_by_key(|&(seq, _, _, _)| seq);
+        for (_shape_id, idxs) in &mut shape_pt_idx {
+            idxs.sort_by_key(|&i| records.shapes[i as usize].shape_pt_sequence.unwrap_or(0));
         }
         let mut shp023_fired: FxHashSet<&str> = FxHashSet::default();
-        for (shape_id, pts) in &shape_raw {
+        for (shape_id, idxs) in &shape_pt_idx {
             if shp023_fired.contains(*shape_id) { continue; }
-            for w in pts.windows(2) {
-                let (_, da, la, loa) = w[0];
-                let (_, db, lb, lob) = w[1];
+            for w in idxs.windows(2) {
+                let pa = &records.shapes[w[0] as usize];
+                let pb = &records.shapes[w[1] as usize];
+                let (da, la, loa) = (pa.shape_dist_traveled, pa.shape_pt_lat.unwrap(), pa.shape_pt_lon.unwrap());
+                let (db, lb, lob) = (pb.shape_dist_traveled, pb.shape_pt_lat.unwrap(), pb.shape_pt_lon.unwrap());
                 if let (Some(da_v), Some(db_v)) = (da, db) {
                     const EPS: f64 = 1e-9;
                     // SHP_028/029 koordinat-fark eşiği (~1.1m, 1e-5°): altı gürültü (WARNING),
