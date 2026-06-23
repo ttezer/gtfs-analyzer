@@ -156,13 +156,19 @@ pub fn rerun_k6_k7(cache: &CachedState, config_delta_json: &str, on_stage: &js_s
 
     scale_r9_deltas(&mut k7.reports, &real_totals);
     let capped_totals = build_capped_totals(&real_totals);
-    to_js(&ValidateResult::Ok(ValidationResult {
+    let result = ValidateResult::Ok(ValidationResult {
         notices: k7.notices,
         reports: k7.reports,
         metrics: k7.metrics,
         name_index: build_name_index(&cache.records),
         capped_totals,
-    }))
+    });
+    // #15: sonucu JS'e serialize etmek (to_js) büyük feed'de belleğin son sıçraması;
+    // bu satır basılıp sonrası gelmiyorsa OOM serialize'da demektir.
+    web_sys::console::log_1(&format!("[mem] before to_js (serialize): {:.1} MB", mem_mb()).into());
+    let js = to_js(&result);
+    web_sys::console::log_1(&format!("[mem] after to_js: {:.1} MB", mem_mb()).into());
+    js
 }
 
 // ── İç pipeline yardımcıları ──────────────────────────────────────────────────

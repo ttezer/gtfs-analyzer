@@ -106,6 +106,16 @@ pub fn validate_bytes(zip: &[u8], config: &ValidatorConfig, today: u32) -> Valid
 pub fn build_name_index(records: &EntityRecords) -> gtfs_core::NameIndex {
     use std::collections::HashMap;
 
+    // #15: çok büyük feed'de en ağır iki name_index alanı — shape_coords (TÜM shape noktaları)
+    // ve trip_stops (TÜM sefer durak listeleri) — sonucu JS'e serialize ederken belleği
+    // patlatıyor (yüz MB+ JSON; 4 GB tavanını aşıp OOM). Bu ölçekte harita zaten çizilemez →
+    // eşik üstünde bu iki alan BOŞ bırakılır (UI'da ilgili harita butonu çıkmaz; rapor/tablo
+    // etkilenmez — küçük lookup'lar korunur).
+    const SHAPE_PT_CAP: usize = 800_000;
+    const TRIP_CAP: usize = 60_000;
+    let skip_shape_coords = records.shapes.len() > SHAPE_PT_CAP;
+    let skip_trip_stops = records.trips.len() > TRIP_CAP;
+
     let stops: HashMap<String, String> = records.stops.iter()
         .filter_map(|r| r.stop_name.as_ref().map(|n| (r.stop_id.clone(), n.clone())))
         .collect();
@@ -174,8 +184,9 @@ pub fn build_name_index(records: &EntityRecords) -> gtfs_core::NameIndex {
         map
     };
 
-    // shape_id → sıralı [[lat, lon]] nokta listesi (harita çizimi için)
-    let shape_coords: HashMap<String, Vec<[f64; 2]>> = {
+    // shape_id → sıralı [[lat, lon]] nokta listesi (harita çizimi için).
+    // #15: çok büyük feed'de atlanır (serialize OOM önlemi).
+    let shape_coords: HashMap<String, Vec<[f64; 2]>> = if skip_shape_coords { HashMap::new() } else {
         let mut pts: Vec<(&str, u32, f64, f64)> = records.shapes.iter()
             .filter_map(|s| {
                 let lat = s.shape_pt_lat?;
@@ -196,17 +207,20 @@ pub fn build_name_index(records: &EntityRecords) -> gtfs_core::NameIndex {
         .filter_map(|t| t.shape_id.as_ref().map(|s| (t.trip_id.clone(), s.clone())))
         .collect();
 
-    // trip_id → [stop_id, ...] stop_sequence sıralı (K2 index'te zaten sıralı)
-    let trip_stops: HashMap<String, Vec<String>> = records.stop_times_index.iter_trips()
-        .map(|(trip_id, stops)| {
-            let mut ids: Vec<String> = stops.iter()
-                .filter(|s| !s.stop_id.is_empty())
-                .map(|s| s.stop_id.to_string())
-                .collect();
-            ids.dedup();
-            (trip_id.to_string(), ids)
-        })
-        .collect();
+    // trip_id → [stop_id, ...] stop_sequence sıralı (K2 index'te zaten sıralı).
+    // #15: çok büyük feed'de atlanır (serialize OOM önlemi).
+    let trip_stops: HashMap<String, Vec<String>> = if skip_trip_stops { HashMap::new() } else {
+        records.stop_times_index.iter_trips()
+            .map(|(trip_id, stops)| {
+                let mut ids: Vec<String> = stops.iter()
+                    .filter(|s| !s.stop_id.is_empty())
+                    .map(|s| s.stop_id.to_string())
+                    .collect();
+                ids.dedup();
+                (trip_id.to_string(), ids)
+            })
+            .collect()
+    };
 
     // shape_id → ilk trip_id (shape'in durakları için yönlendirme)
     let shape_trips: HashMap<String, String> = {
