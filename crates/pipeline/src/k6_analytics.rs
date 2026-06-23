@@ -317,17 +317,20 @@ fn is_rail_route_type(route_type: u32) -> bool {
     route_type == 2 || route_type == 12 || (100..=117).contains(&route_type)
 }
 
-/// route_type → config'ten hız eşiği (km/h)
+/// route_type → config'ten hız eşiği (km/h).
+/// #15/MD-kalibrasyon: STANDART (0-7,11,12) VE GENİŞLETİLMİŞ Avrupa route_type'larını (100-1700)
+/// doğru kategoriye eşler. Eski sürüm yalnız standartları tanıyordu → VBB Berlin gibi tamamı
+/// extended-kod kullanan feed'lerde rail (100-117 = S-Bahn/bölgesel/intercity) `_ => bus`'a
+/// düşüp 120 km/h eşik alıyordu → meşru 120-300 km/h trenler STM_014 FP (4530 vs MD 233).
+/// is_rail_route_type ile artık tutarlı.
 fn max_speed_kmh(route_type: u32, cfg: &ValidatorConfig) -> f64 {
     match route_type {
-        0 => cfg.max_speed_tram_kmh,
-        1 => cfg.max_speed_metro_kmh,
-        2 => cfg.max_speed_rail_kmh,
-        3 => cfg.max_speed_bus_kmh,
-        4 => cfg.max_speed_ferry_kmh,
-        5 | 6 | 7 => cfg.max_speed_cablecar_kmh,
-        11 => cfg.max_speed_bus_kmh,
-        12 => cfg.max_speed_rail_kmh,
+        0 | 900..=906                                   => cfg.max_speed_tram_kmh,   // tram / hafif raylı
+        1 | 400..=405                                   => cfg.max_speed_metro_kmh,  // metro / U-Bahn
+        2 | 12 | 100..=117                              => cfg.max_speed_rail_kmh,   // rail / S-Bahn / bölgesel
+        3 | 11 | 200..=209 | 700..=716 | 800 | 1500..=1507 => cfg.max_speed_bus_kmh, // bus / coach / troleybüs / taksi
+        4 | 1000..=1021 | 1200                          => cfg.max_speed_ferry_kmh,  // su / feribot
+        5 | 6 | 7 | 1300..=1307 | 1400                  => cfg.max_speed_cablecar_kmh, // teleferik / füniküler
         _ => cfg.max_speed_bus_kmh, // bilinmeyen tür → güvenli varsayılan
     }
 }
@@ -7281,6 +7284,23 @@ fn check_vat_analytics(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn max_speed_kmh_maps_extended_route_types() {
+        // #15/MD: genişletilmiş Avrupa route_type'ları doğru kategoriye eşlenmeli.
+        let cfg = ValidatorConfig::default();
+        assert_eq!(max_speed_kmh(100, &cfg), cfg.max_speed_rail_kmh, "100 (railway ext) = rail");
+        assert_eq!(max_speed_kmh(109, &cfg), cfg.max_speed_rail_kmh, "109 (S-Bahn) = rail");
+        assert_eq!(max_speed_kmh(106, &cfg), cfg.max_speed_rail_kmh, "106 (bölgesel rail) = rail");
+        assert_eq!(max_speed_kmh(400, &cfg), cfg.max_speed_metro_kmh, "400 (U-Bahn ext) = metro");
+        assert_eq!(max_speed_kmh(900, &cfg), cfg.max_speed_tram_kmh, "900 (tram ext) = tram");
+        assert_eq!(max_speed_kmh(700, &cfg), cfg.max_speed_bus_kmh, "700 (bus ext) = bus");
+        assert_eq!(max_speed_kmh(2, &cfg), cfg.max_speed_rail_kmh, "standart 2 hâlâ rail");
+        assert_eq!(max_speed_kmh(3, &cfg), cfg.max_speed_bus_kmh, "standart 3 hâlâ bus");
+        // Asıl bug: rail extended kodları bus eşiği ALMAMALI.
+        assert_ne!(max_speed_kmh(100, &cfg), cfg.max_speed_bus_kmh, "rail ext bus eşiği almamalı");
+    }
+
     use crate::k2::routes::RouteRecord;
     use crate::k2::stop_times::StopTimeRecord;
     use crate::k2::stops::StopRecord;
