@@ -15,17 +15,19 @@ pub struct CompactStopTime {
     pub arrival_time:         Option<(u32, u32, u32)>,
     pub departure_time:       Option<(u32, u32, u32)>,
     pub stop_headsign:        Option<SmolStr>,
-    pub pickup_type:          Option<u32>,
-    pub drop_off_type:        Option<u32>,
     pub shape_dist_traveled:  Option<f64>,
-    pub timepoint:            Option<u32>,
-    pub continuous_pickup:    Option<u32>,
-    pub continuous_drop_off:  Option<u32>,
     pub line:                 u64,
-    // Flex alanları — OOM fix Plan C: feed'lerin %99'unda None olduğundan Box'lanır.
-    // None iken 8 byte (boxsuz ~128 byte) — 2.48M satırda ~300 MB tasarruf.
+    // #15: pickup_type/drop_off_type/timepoint/continuous_pickup/continuous_drop_off ÇIKARILDI —
+    // index satırına SET ediliyordu ama HİÇ okunmuyordu (per-row enum kuralları STM_009/022/047
+    // K2 parse anında local değerden çalışır; continuous tespiti StopTimeRecord'tan). ÖLÜ ağırlıktı;
+    // 5×8=40 byte/satır → büyük feed'de (~10M satır) ~400 MB tasarruf. [[issue15_compactstoptime_plan]]
+    // Flex alanları — feed'lerin %99'unda None olduğundan Box'lanır (None iken 8 byte).
     pub flex: Option<Box<StopTimeFlex>>,
 }
+
+// #15: CompactStopTime KALICI boyut guard'ı — bu satır büyük feed'de ~10M× tutulur, her byte ≈
+// 10 MB. Alan eklenince/büyüyünce derleme kırılır → kazanım kilitli. Hedef düşürüldükçe güncellenir.
+const _: () = assert!(std::mem::size_of::<CompactStopTime>() <= 128);
 
 /// CompactStopTime'ın nadir kullanılan GTFS-Flex alanları (Box'lanır — bkz. CompactStopTime.flex).
 #[derive(Debug, Clone, Default)]
@@ -203,12 +205,7 @@ impl StopTimesIndex {
                 arrival_time:       st.arrival_time,
                 departure_time:     st.departure_time,
                 stop_headsign:      st.stop_headsign.clone(),
-                pickup_type:        st.pickup_type,
-                drop_off_type:      st.drop_off_type,
                 shape_dist_traveled: st.shape_dist_traveled,
-                timepoint:          st.timepoint,
-                continuous_pickup:  st.continuous_pickup,
-                continuous_drop_off: st.continuous_drop_off,
                 line:               st.line,
                 flex: build_flex(
                     st.start_pickup_drop_off_window,
@@ -1102,12 +1099,7 @@ pub fn validate_stop_times(file: &RawFile) -> (StopTimesIndex, Vec<gtfs_core::No
                 arrival_time,
                 departure_time,
                 stop_headsign:      stop_headsign.clone(),
-                pickup_type,
-                drop_off_type,
                 shape_dist_traveled,
-                timepoint,
-                continuous_pickup,
-                continuous_drop_off,
                 line,
                 flex: build_flex(
                     start_window,
