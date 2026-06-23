@@ -201,7 +201,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | STM_020 | Zero travel time (distance > 200m) | HIGH | Quality |
 | STM_021 | Distance between stops is zero or negative | HIGH | Quality |
 | STM_022 | timepoint invalid | MEDIUM | Spec |
-| STM_023 | stop_times row ordering corrupted | CRITICAL | Spec |
+| STM_023 | stop_times row ordering corrupted | LOW | Spec |
 | STM_024 | shape_dist_traveled unit inconsistency | INFO | Quality |
 | STM_025 | Travel time too short | MEDIUM | Quality |
 | STM_026 | Excessive distance between stops | HIGH | Quality |

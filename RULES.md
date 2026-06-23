@@ -201,7 +201,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | STM_020 | Sıfır geçiş süresi (mesafe > 200m) | YÜKSEK | Quality |
 | STM_021 | Duraklar arası mesafe sıfır veya negatif | YÜKSEK | Quality |
 | STM_022 | timepoint geçersiz | ORTA | Spec |
-| STM_023 | stop_times satır sıralaması bozuk | KRİTİK | Spec |
+| STM_023 | stop_times satır sıralaması bozuk | DÜŞÜK | Spec |
 | STM_024 | shape_dist_traveled birim tutarsızlığı | BİLGİ | Quality |
 | STM_025 | Seyahat süresi çok kısa | ORTA | Quality |
 | STM_026 | Durak arası mesafe aşırı uzun | YÜKSEK | Quality |
