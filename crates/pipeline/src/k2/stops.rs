@@ -361,17 +361,33 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
         });
     }
 
-    // STP_022 karar: stop_code feed genelinde hiç yok ve >1 durak etkili → tek özet;
-    // aksi halde (kısmi doluluk veya tek durak) durak-başına notice korunur.
-    if !any_stop_code_present && stp022_pending.len() > 1 {
-        let n = stp022_pending.len();
-        notices.push(make_k2_notice(
+    // STP_022 karar (#15): üç durum —
+    //  (a) stop_code feed genelinde HİÇ yok ve >1 durak → tek özet ("hiç kullanılmamış");
+    //  (b) stop_code KISMEN var ama eksik durak sayısı YÜKSEK (>eşik) → tek özet ("kısmen") —
+    //      büyük feed'de durak-başına emit headroom/gürültü sorunu (eski aggregation açığı);
+    //  (c) aksi halde (düşük hacim) durak-başına notice KORUNUR (pinpoint detay değerli).
+    const STP022_AGG_THRESHOLD: usize = 50;
+    let n = stp022_pending.len();
+    if n > 1 && (!any_stop_code_present || n > STP022_AGG_THRESHOLD) {
+        let msg = if !any_stop_code_present {
+            format!("Feed genelinde stop_code hiç kullanılmamış: {n} durakta eksik — yolcular durağı kısa kodla tanıyamaz.")
+        } else {
+            format!("{n} durakta stop_code eksik (feed'de stop_code kısmen kullanılıyor) — yolcular bu durakları kısa kodla tanıyamaz.")
+        };
+        let examples: Vec<String> = stp022_pending.iter()
+            .filter_map(|x| x.entity_id.clone()).take(5).collect();
+        let mut notice = make_k2_notice(
             &mut counter, "STP_022", EntityType::Feed, None,
             None, &file.name, None, Some("stop_code"),
             Some(n.to_string()), None,
-            format!("Feed genelinde stop_code hiç kullanılmamış: {n} durakta eksik — yolcular durağı kısa kodla tanıyamaz."),
-            "stops.txt'teki duraklara yolcuların tanıyabileceği stop_code değerleri ekleyin.",
-        ));
+            msg,
+            "stops.txt'teki ilgili duraklara yolcuların tanıyabileceği stop_code değerleri ekleyin.",
+        );
+        let mut d = std::collections::HashMap::new();
+        d.insert("affected_stops".to_string(), n.to_string());
+        if !examples.is_empty() { d.insert("example_stops".to_string(), examples.join(", ")); }
+        notice.details = Some(d);
+        notices.push(notice);
     } else {
         notices.append(&mut stp022_pending);
     }
@@ -456,6 +472,27 @@ mod tests {
         let stp022: Vec<_> = notices.iter().filter(|n| n.rule_id == "STP_022").collect();
         assert_eq!(stp022.len(), 2, "kısmi doluluk durak-başına STP_022 vermeli");
         assert!(stp022.iter().all(|n| n.entity_type == EntityType::Stop));
+    }
+
+    #[test]
+    fn stp_022_partial_but_high_volume_aggregates() {
+        // #15: stop_code KISMEN var ama eksik durak sayısı yüksek (>50) → tek feed özet.
+        let ids: Vec<String> = (0..=51).map(|i| format!("S{i}")).collect();
+        let mut rows: Vec<Vec<&str>> = vec![vec![ids[0].as_str(), "Has", "41.0", "29.0", "C0"]];
+        for id in &ids[1..] {
+            rows.push(vec![id.as_str(), "X", "41.0", "29.0", ""]); // stop_code eksik
+        }
+        let file = make_file(
+            vec!["stop_id", "stop_name", "stop_lat", "stop_lon", "stop_code"], rows,
+        );
+        let (_, notices) = validate_stops(&file);
+        let stp022: Vec<_> = notices.iter().filter(|n| n.rule_id == "STP_022").collect();
+        assert_eq!(stp022.len(), 1, "yüksek hacimde kısmi eksiklik tek feed-özeti vermeli");
+        assert_eq!(stp022[0].entity_type, EntityType::Feed);
+        assert_eq!(
+            stp022[0].details.as_ref().and_then(|d| d.get("affected_stops")).map(String::as_str),
+            Some("51"),
+        );
     }
 
     #[test]
