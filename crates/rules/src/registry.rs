@@ -934,7 +934,8 @@ pub static RULES: &[RuleMeta] = &[
         Some("pathway_id"), VS_K, Entity,
         "to_stop_id bulunamadı"),
     r!("PTH_004", Kritik, Spec, 1,
-        &["PTH_008","PTH_009","PTH_016","PTH_017","PTH_018"],
+        // PTH_009 feed-seviyesi özet oldu (#15) → per-pathway suppression'a uymaz, listeden çıkarıldı.
+        &["PTH_008","PTH_016","PTH_017","PTH_018"],
         Some("pathway_id"), VS_K, Entity,
         "pathway_mode eksik veya geçersiz"),
     r!("PTH_005", Kritik, Spec, 1,
@@ -947,7 +948,7 @@ pub static RULES: &[RuleMeta] = &[
         "traversal_time geçersiz"),
     r!("PTH_008", Dusuk,  Quality, 2, &[], Some("pathway_id"), VS, Entity,
         "stair_count eksik"),
-    r!("PTH_009", Dusuk,  Quality, 2, &[], Some("pathway_id"), VS, Entity,
+    r!("PTH_009", Dusuk,  Quality, 2, &[], None, VS, Feed,
         "max_slope eksik"),
     r!("PTH_010", Dusuk,  Spec, 1, &[], Some("pathway_id"), VS, Entity,
         "min_width geçersiz"),

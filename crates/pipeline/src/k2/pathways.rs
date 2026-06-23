@@ -26,6 +26,11 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
     let mut notices = Vec::new();
     let mut records = Vec::new();
     let mut counter = 0;
+    // PTH_009 (#15 Mode A): pathway başına emit büyük feed'de yüz binlerce notice üretiyordu
+    // (tek tip opsiyonel-alan eksikliği, aksiyon hepsinde aynı). Feed-seviyesi TEK özete indir
+    // (STM_050 deseni): gerçek sayı + ilk örnekler details'te; loop sonunda tek emit.
+    let mut pth009_count: u32 = 0;
+    let mut pth009_examples: Vec<String> = Vec::new();
 
     for (row_idx, row) in file.rows.iter().enumerate() {
         let line = (row_idx + 2) as u64;
@@ -159,17 +164,16 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
             ));
         }
 
-        // PTH_009: yürüme yolunda max_slope belirtilmemiş
+        // PTH_009: yürüme yolunda max_slope belirtilmemiş — feed-seviyesi özetle (aşağıda tek emit)
         if matches!(pathway_mode, Some(1)) && max_slope.is_none() {
             let raw = get_trimmed_field(&row_map, "max_slope");
             if raw.map(|s| s.is_empty()).unwrap_or(true) {
-                notices.push(make_k2_notice(
-                    &mut counter, "PTH_009", EntityType::Pathway,
-                    entity_id.clone(), Some(&row_map), &file.name, Some(line),
-                    Some("max_slope"), None, None,
-                    "pathway_mode=1 (yürüme yolu) için max_slope belirtilmemiş.".to_string(),
-                    "max_slope alanını doldurarak eğim bilgisini sağlayın.",
-                ));
+                pth009_count += 1;
+                if pth009_examples.len() < 5 {
+                    if let Some(id) = &entity_id {
+                        pth009_examples.push(id.clone());
+                    }
+                }
             }
         }
 
@@ -202,6 +206,26 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
             row: row_map,
             line,
         });
+    }
+
+    // PTH_009 feed-seviyesi tek özet. Tek notice → capped_totals etkilenmez; gerçek sayı
+    // details.affected_pathways'te (UI "1 gösterilen, N etkilenen" diyebilir). EntityType::Feed
+    // + scope None (registry Feed dedup). field=max_slope, file=pathways.txt korunur.
+    if pth009_count > 0 {
+        let mut n = make_k2_notice(
+            &mut counter, "PTH_009", EntityType::Feed, None, None,
+            &file.name, None, Some("max_slope"),
+            Some(pth009_count.to_string()), None,
+            format!("{pth009_count} yürüme yolu geçidinde (pathway_mode=1) max_slope eksik."),
+            "İlgili pathways.txt kayıtlarına max_slope ekleyin veya veri kaynağını düzeltin.",
+        );
+        let mut d = std::collections::HashMap::new();
+        d.insert("affected_pathways".to_string(), pth009_count.to_string());
+        if !pth009_examples.is_empty() {
+            d.insert("example_pathways".to_string(), pth009_examples.join(", "));
+        }
+        n.details = Some(d);
+        notices.push(n);
     }
 
     (records, notices)
@@ -313,5 +337,44 @@ fn parse_positive_u32(
             notices.push(make_k2_notice(counter, rule_id, EntityType::Pathway, entity_id.clone(), Some(row_map), file_name, Some(line), Some(field), get_trimmed_field(row_map, field).map(str::to_string), None, err, "Alanı geçerli bir tam sayıya ayarlayın."));
             None
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use smol_str::SmolStr;
+
+    fn pathways_file(rows: Vec<Vec<&str>>) -> RawFile {
+        let headers = ["pathway_id", "from_stop_id", "to_stop_id", "pathway_mode", "is_bidirectional", "max_slope"];
+        RawFile {
+            name: "pathways.txt".to_string(),
+            headers: headers.iter().map(|s| s.to_string()).collect(),
+            rows: rows.into_iter().map(|r| r.into_iter().map(SmolStr::from).collect()).collect(),
+            bytes: 0,
+            raw_text: None,
+        }
+    }
+
+    #[test]
+    fn pth_009_aggregates_to_single_feed_notice_with_count() {
+        // #15: 3 yürüme yolu (mode=1) max_slope boş → TEK PTH_009 (feed-seviyesi),
+        // affected_pathways=3. mode=2 olan pathway sayılmaz.
+        let file = pathways_file(vec![
+            vec!["P1", "S1", "S2", "1", "0", ""],
+            vec!["P2", "S2", "S3", "1", "0", ""],
+            vec!["P3", "S3", "S4", "1", "0", ""],
+            vec!["P4", "S4", "S5", "2", "0", ""], // merdiven → PTH_009 sayılmaz
+        ]);
+        let (_, notices) = validate_pathways(&file);
+        let pth009: Vec<_> = notices.iter().filter(|n| n.rule_id == "PTH_009").collect();
+        assert_eq!(pth009.len(), 1, "PTH_009 feed-seviyesi tek notice olmalı");
+        let n = pth009[0];
+        assert_eq!(n.entity_type, EntityType::Feed);
+        assert_eq!(n.field.as_deref(), Some("max_slope"));
+        assert_eq!(
+            n.details.as_ref().and_then(|d| d.get("affected_pathways")).map(String::as_str),
+            Some("3"),
+        );
     }
 }
