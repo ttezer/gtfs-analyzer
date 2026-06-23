@@ -48,8 +48,10 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
       send<FileListMsg>({ id: req.id, type: 'file-list', files });
 
       // 2. K1–K5 — her aşama sonrası callback ateşlenir
+      const tStart = performance.now();
       const stageHandler = (stage: string, elapsed_ms: number) => {
         send<StageDoneMsg>({ id: req.id, type: 'stage', stage, elapsed_ms });
+        console.log(`[time] ${stage}: +${elapsed_ms}ms — ${((performance.now() - tStart) / 1000).toFixed(1)}s toplam`);
       };
 
       const newCache = runPrepare(bytes, req.configDelta, stageHandler);
@@ -76,8 +78,10 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
       return;
     }
 
+    const tStart = performance.now();
     const stageHandler = (stage: string, elapsed_ms: number) => {
       send<StageDoneMsg>({ id: req.id, type: 'stage', stage, elapsed_ms });
+      console.log(`[time] ${stage}: +${elapsed_ms}ms — ${((performance.now() - tStart) / 1000).toFixed(1)}s toplam`);
     };
     respondWithResult(req.id, runRerun(cache, req.configDelta, stageHandler));
 

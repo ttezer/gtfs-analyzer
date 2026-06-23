@@ -77,13 +77,16 @@ function onWorkerError(event: ErrorEvent): void {
 
 // ── Public API ────────────────────────────────────────────────────────────────
 
-const VALIDATE_TIMEOUT_MS = 5 * 60 * 1000; // 5 dakika
+// #15: bellek artık tavanı aşmıyor (W1-W3 + Mode A fix); çok büyük feed'lerde tek kalan
+// sınır wall-clock SÜREsi. K2/K6 büyük feed'de dakikalar sürebildiğinden 5→15 dk.
+const VALIDATE_TIMEOUT_MS = 15 * 60 * 1000; // 15 dakika
+const VALIDATE_TIMEOUT_MIN = VALIDATE_TIMEOUT_MS / 60000;
 
 function withTimeout(id: number, reject: (e: FatalError) => void): ReturnType<typeof setTimeout> {
   return setTimeout(() => {
     if (!pending.has(id)) return;
     pending.delete(id);
-    reject({ code: 'ResourceLimit', message: 'Doğrulama 5 dakika içinde tamamlanamadı. Daha küçük bir feed deneyin.' });
+    reject({ code: 'ResourceLimit', message: `Doğrulama ${VALIDATE_TIMEOUT_MIN} dakika içinde tamamlanamadı. Daha küçük bir feed deneyin.` });
   }, VALIDATE_TIMEOUT_MS);
 }
 
