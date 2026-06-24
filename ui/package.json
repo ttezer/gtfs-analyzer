@@ -24,6 +24,8 @@
     "vitest": "^2.0.0"
   },
   "dependencies": {
-    "kk-date": "^4.1.3"
+    "cytoscape": "^3.34.0",
+    "kk-date": "^4.1.3",
+    "lucide": "^1.21.0"
   }
 }

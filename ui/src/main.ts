@@ -3,6 +3,7 @@ import { renderUpload } from './pages/upload';
 import { renderDomain } from './pages/domain';
 import { renderFix, attachFixListeners } from './pages/fix';
 import { renderFiles } from './pages/files';
+import { renderFileMap } from './pages/file-map';
 import { renderExport } from './pages/export';
 import { getLocale, setLocale, t } from './i18n';
 import { initDebugBuffer } from './debug-buffer';
@@ -20,6 +21,7 @@ function toggleDarkMode(): void {
   const isDark = document.documentElement.classList.toggle('dark');
   localStorage.setItem('gtfs-theme', isDark ? 'dark' : 'light');
   syncDarkButtons();
+  window.dispatchEvent(new CustomEvent('gtfs-theme-change'));
 }
 
 function syncDarkButtons(): void {
@@ -96,11 +98,12 @@ export function renderApp(): void {
     return;
   }
 
-  const NAV_PAGES: Exclude<AppPage, 'upload'>[] = ['domain', 'fix', 'files', 'export'];
+  const NAV_PAGES: Exclude<AppPage, 'upload'>[] = ['domain', 'fix', 'files', 'file-map', 'export'];
   const NAV_KEYS: Record<Exclude<AppPage, 'upload'>, string> = {
     domain : 'nav.report',
     fix    : 'nav.fix',
     files  : 'nav.files',
+    'file-map': 'nav.fileMap',
     export : 'nav.export',
   };
 
@@ -158,6 +161,7 @@ export function renderApp(): void {
     case 'domain': renderDomain(pageRoot, state.result); break;
     case 'fix':    renderFix(pageRoot, state.result, state.fixFileFilter, state.fixClassFilter); attachFixListeners(pageRoot, state.result, state.result.capped_totals); break;
     case 'files':  renderFiles(pageRoot, state.result); break;
+    case 'file-map': renderFileMap(pageRoot, state.result); break;
     case 'export': renderExport(pageRoot, state.result, state.fileName); break;
   }
 }

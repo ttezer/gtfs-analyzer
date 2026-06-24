@@ -1,173 +1,43 @@
-import type { ValidationResult, Notice, FileInfo } from '../types';
+import type { ValidationResult } from '../types';
 import { SEVERITY_COLOR, SEVERITY_TR, t } from '../i18n';
 import { setFixFileFilter, setPage } from '../state';
-
-// GTFS zorunlu dosyalar (en az calendar.txt VEYA calendar_dates.txt gerekli)
-const REQUIRED_FILES = [
-  'agency.txt', 'stops.txt', 'routes.txt', 'trips.txt', 'stop_times.txt',
-];
-const CALENDAR_FILES = ['calendar.txt', 'calendar_dates.txt'];
-
-// GTFS spec'te tanımlı tüm dosyalar (Rust KNOWN_FILES — k1_parse.rs:27 ile SENKRON tut).
-// Spec'te OLMAYAN bir ada atıf yapan notice (ör. ARC_007 bilinmeyen dosya) feed_stats'e
-// girmediği için "eksik" sanılıyordu; bu set onu "spec dışı/tanınmayan" olarak ayırır.
-const GTFS_SPEC_FILES = new Set<string>([
-  'agency.txt', 'stops.txt', 'routes.txt', 'trips.txt', 'stop_times.txt',
-  'calendar.txt', 'calendar_dates.txt', 'shapes.txt', 'frequencies.txt',
-  'transfers.txt', 'fare_attributes.txt', 'fare_rules.txt',
-  'pathways.txt', 'levels.txt', 'feed_info.txt', 'translations.txt', 'attributions.txt',
-  'route_networks.txt',
-  // Fares v2
-  'areas.txt', 'stop_areas.txt', 'networks.txt',
-  'rider_categories.txt', 'fare_media.txt', 'fare_products.txt',
-  'fare_leg_rules.txt', 'fare_transfer_rules.txt', 'timeframes.txt',
-  // Flex
-  'booking_rules.txt',
-  // GTFS-JP uzantıları
-  'agency_jp.txt', 'routes_jp.txt', 'office_jp.txt',
-]);
-
-const SEV_ORDER: Record<string, number> = {
-  CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3, INFO: 4,
-};
-
-interface FileRow {
-  name: string;
-  info: FileInfo | null;    // null → file_stats'te yok (eksik VEYA spec dışı)
-  notices: Notice[];
-  scoreDelta: number;
-  missing: boolean;         // gerçekten yok olan spec/zorunlu dosya
-  unknown: boolean;         // feed'de MEVCUT ama spec dışı (ör. assignments.txt) — eksik değil
-}
+import {
+  CALENDAR_FILES,
+  buildFileSummaries,
+  formatFileBytes,
+  type FileSummary,
+} from '../file-summary';
+import { escHtml } from '../escape';
 
 export function renderFiles(root: HTMLElement, result: ValidationResult): void {
-  const rows = buildRows(result);
-
-  const presentNames = new Set(result.metrics.file_stats.map(f => f.name));
-  const calendarMissing = !CALENDAR_FILES.some(f => presentNames.has(f));
+  const rows = buildFileSummaries(result);
+  const presentNames = new Set(result.metrics.file_stats.map((file) => file.name));
+  const calendarMissing = !CALENDAR_FILES.some((file) => presentNames.has(file));
 
   root.innerHTML = `
     <div class="files-page">
       <div class="files-summary-bar">
-        <span class="files-summary-text">${t('files.summary', { count: rows.filter(r => !r.missing).length })}</span>
+        <span class="files-summary-text">${t('files.summary', {
+          count: rows.filter((row) => !row.missing).length,
+        })}</span>
       </div>
       <div class="files-list">
-        ${rows.map(r => renderFileRow(r, calendarMissing)).join('')}
+        ${rows.map((row) => renderFileRow(row, calendarMissing)).join('')}
       </div>
     </div>`;
 
-  root.querySelectorAll<HTMLButtonElement>('.file-row-btn[data-file]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const file = btn.dataset['file']!;
-      setFixFileFilter(file);
+  root.querySelectorAll<HTMLButtonElement>('.file-row-btn[data-file]').forEach((button) => {
+    button.addEventListener('click', () => {
+      setFixFileFilter(button.dataset['file'] ?? '');
       setPage('fix');
-      // main.ts'in render döngüsünü tetikle
       window.dispatchEvent(new CustomEvent('gtfs-navigate'));
     });
   });
 }
 
-function buildRows(result: ValidationResult): FileRow[] {
-  const { notices, metrics, reports } = result;
+function renderFileRow(row: FileSummary, calendarMissing: boolean): string {
+  const isCalendar = CALENDAR_FILES.some((file) => file === row.name);
 
-  // notice.id → score_delta eşlemesi (R9 items'ten)
-  const noticeDelta = new Map<string, number>();
-  for (const item of reports.r9.items) {
-    for (const nid of item.notice_ids) {
-      noticeDelta.set(nid, (noticeDelta.get(nid) ?? 0) + item.score_delta);
-    }
-  }
-
-  // dosya → notice'lar
-  const fileNotices = new Map<string, Notice[]>();
-  const generalNotices: Notice[] = [];
-  for (const n of notices) {
-    if (n.file) {
-      if (!fileNotices.has(n.file)) fileNotices.set(n.file, []);
-      fileNotices.get(n.file)!.push(n);
-    } else {
-      generalNotices.push(n);
-    }
-  }
-
-  // file_stats map
-  const statsMap = new Map<string, FileInfo>(
-    metrics.file_stats.map(f => [f.name, f])
-  );
-
-  // tüm bilinen dosyaları topla (mevcut + notice olan + zorunlu)
-  const allNames = new Set<string>([
-    ...statsMap.keys(),
-    ...fileNotices.keys(),
-    ...REQUIRED_FILES,
-    ...CALENDAR_FILES,
-  ]);
-
-  const presentSet = new Set(statsMap.keys());
-
-  const rows: FileRow[] = [];
-  for (const name of allNames) {
-    const ns = fileNotices.get(name) ?? [];
-    const delta = ns.reduce((sum, n) => sum + (noticeDelta.get(n.id) ?? 0), 0);
-    const present = presentSet.has(name);
-    const isSpec = GTFS_SPEC_FILES.has(name) || CALENDAR_FILES.includes(name);
-    rows.push({
-      name,
-      info: statsMap.get(name) ?? null,
-      notices: ns,
-      scoreDelta: delta,
-      // Spec dışı dosya (ör. assignments.txt) feed'de MEVCUTtur ama file_stats'e girmez →
-      // "eksik" DEĞİL. missing yalnız gerçekten yok olan spec/zorunlu dosyadır.
-      missing: !present && isSpec,
-      unknown: !present && !isSpec,
-    });
-  }
-
-  // Sıralama: mevcut spec dosyalar (en ağır hata önce, temiz sonda), sonra mevcut spec-dışı
-  // dosyalar, en sonda gerçekten eksik dosyalar.
-  const presentRows = rows.filter(r => !r.missing && !r.unknown).sort((a, b) => {
-    const aWorst = worstSev(a.notices);
-    const bWorst = worstSev(b.notices);
-    if (aWorst !== bWorst) return aWorst - bWorst;
-    return b.notices.length - a.notices.length;
-  });
-
-  const unknownRows = rows.filter(r => r.unknown).sort((a, b) =>
-    a.name.localeCompare(b.name)
-  );
-
-  const missingRows = rows.filter(r => r.missing).sort((a, b) =>
-    a.name.localeCompare(b.name)
-  );
-
-  // Genel notice'lar ayrı satır
-  const generalDelta = generalNotices.reduce(
-    (sum, n) => sum + (noticeDelta.get(n.id) ?? 0), 0
-  );
-  const generalRow: FileRow = {
-    name: '__general__',
-    info: null,
-    notices: generalNotices,
-    scoreDelta: generalDelta,
-    missing: false,
-    unknown: false,
-  };
-
-  return [...presentRows, ...unknownRows, ...(generalNotices.length > 0 ? [generalRow] : []), ...missingRows];
-}
-
-function worstSev(notices: Notice[]): number {
-  if (notices.length === 0) return 99;
-  return Math.min(...notices.map(n => SEV_ORDER[n.severity] ?? 99));
-}
-
-function renderFileRow(row: FileRow, calendarMissing: boolean): string {
-  const isGeneral = row.name === '__general__';
-  const isCalendar = CALENDAR_FILES.includes(row.name);
-  const isRequired = REQUIRED_FILES.includes(row.name) || isCalendar;
-
-  // Spec'te tanımlı OLMAYAN ama feed'de MEVCUT dosya (ör. ARC_007 assignments.txt): "eksik"
-  // değil "spec dışı" olarak gösterilir; eksikler bölümünde DEĞİL, mevcut dosyalarla birlikte.
   if (row.unknown) {
     return `
       <div class="file-row file-row-unknown">
@@ -182,9 +52,7 @@ function renderFileRow(row: FileRow, calendarMissing: boolean): string {
   }
 
   if (row.missing) {
-    // Takvim grubu için tek kayıp uyarısı yeter
-    const showCalendarMissing = isCalendar && calendarMissing;
-    if (isCalendar && !showCalendarMissing) return '';
+    if (isCalendar && !calendarMissing) return '';
     const label = isCalendar
       ? 'calendar.txt / calendar_dates.txt'
       : row.name;
@@ -193,7 +61,7 @@ function renderFileRow(row: FileRow, calendarMissing: boolean): string {
         <div class="file-row-left">
           <code class="file-name">${escHtml(label)}</code>
           <span class="file-badge badge-missing">${t('files.badge.missing')}</span>
-          ${isRequired ? `<span class="file-badge badge-required">${t('files.badge.required')}</span>` : ''}
+          ${row.required ? `<span class="file-badge badge-required">${t('files.badge.required')}</span>` : ''}
         </div>
         <div class="file-row-right">
           <span class="file-missing-hint">${t('files.hint.missing')}</span>
@@ -201,53 +69,39 @@ function renderFileRow(row: FileRow, calendarMissing: boolean): string {
       </div>`;
   }
 
-  const sevCounts: Record<string, number> = {};
-  for (const n of row.notices) {
-    sevCounts[n.severity] = (sevCounts[n.severity] ?? 0) + 1;
-  }
-
-  const sevBadges = (['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'INFO'] as const)
-    .filter(s => sevCounts[s])
-    .map(s => `<span class="file-sev-badge" style="color:${SEVERITY_COLOR[s]}">${SEVERITY_TR[s]} ${sevCounts[s].toLocaleString('tr-TR')}</span>`)
+  const severityBadges = (['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'INFO'] as const)
+    .filter((severity) => row.severityCounts[severity] > 0)
+    .map((severity) => `
+      <span class="file-sev-badge" style="color:${SEVERITY_COLOR[severity]}">
+        ${SEVERITY_TR[severity]} ${row.severityCounts[severity].toLocaleString('tr-TR')}
+      </span>`)
     .join('');
 
   const clean = row.notices.length === 0;
-  const deltaStr = row.scoreDelta < -0.005
+  const scoreDelta = row.scoreDelta < -0.005
     ? `<span class="file-delta-neg">${row.scoreDelta.toFixed(1)} puan</span>`
     : '';
-
-  const infoStr = row.info
-    ? `<span class="file-info">${row.info.rows.toLocaleString('tr-TR')} satır · ${formatBytes(row.info.bytes)}</span>`
+  const fileInfo = row.info
+    ? `<span class="file-info">${row.info.rows.toLocaleString('tr-TR')} satir - ${formatFileBytes(row.info.bytes)}</span>`
     : '';
+  const displayName = row.general ? t('files.general') : row.name;
+  const clickable = !row.general && row.notices.length > 0;
 
-  const displayName = isGeneral ? t('files.general') : row.name;
-  const clickable = !isGeneral && row.notices.length > 0;
-
-  const inner = `
+  const content = `
     <div class="file-row-left">
       <code class="file-name">${escHtml(displayName)}</code>
-      ${infoStr}
+      ${fileInfo}
     </div>
     <div class="file-row-right">
       ${clean
-        ? `<span class="file-badge badge-clean">✓ ${t('files.badge.clean')}</span>`
-        : sevBadges}
-      ${deltaStr}
-      ${clickable ? `<span class="file-row-arrow">→</span>` : ''}
+        ? `<span class="file-badge badge-clean">${t('files.badge.clean')}</span>`
+        : severityBadges}
+      ${scoreDelta}
+      ${clickable ? '<span class="file-row-arrow">&rarr;</span>' : ''}
     </div>`;
 
   if (clickable) {
-    return `<button class="file-row file-row-btn" type="button" data-file="${escHtml(row.name)}">${inner}</button>`;
+    return `<button class="file-row file-row-btn" type="button" data-file="${escHtml(row.name)}">${content}</button>`;
   }
-  return `<div class="file-row ${clean ? 'file-row-clean' : ''}">${inner}</div>`;
-}
-
-function formatBytes(b: number): string {
-  if (b < 1024) return `${b} B`;
-  if (b < 1024 * 1024) return `${(b / 1024).toFixed(1)} KB`;
-  return `${(b / 1024 / 1024).toFixed(1)} MB`;
-}
-
-function escHtml(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return `<div class="file-row ${clean ? 'file-row-clean' : ''}">${content}</div>`;
 }
