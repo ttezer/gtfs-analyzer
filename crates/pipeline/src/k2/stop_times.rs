@@ -197,7 +197,9 @@ impl StopTimesIndex {
         let nc = self.continuous_trips.len();
         let nu = self.unsorted_seq_trips.len();
 
-        let rows_mb = mb(self.rows.capacity() * CST);
+        let rows_cap = self.rows.capacity();
+        let rows_used_mb = mb(n * CST);
+        let rows_cap_mb = mb(rows_cap * CST);
         let tr_mb = mb(nt * (SS + 8));            // trip_ranges: SmolStr key + (u32,u32)
         let tid_mb = mb(nt * SS);                 // trip_id_set
         let sid_mb = mb(ns * SS);                 // stop_id_set
@@ -215,7 +217,7 @@ impl StopTimesIndex {
 
         crate::timing::mem_note(&format!(
             "stop_times index canli boyut (len x size_of, high-water DEGIL): \
-             rows {n} x {CST}B = {rows_mb:.1} MB | trip_ranges {nt} ~{tr_mb:.1} | \
+             rows len {n} kullanilan {rows_used_mb:.1} MB / kapasite {rows_cap} ayrilan {rows_cap_mb:.1} MB | trip_ranges {nt} ~{tr_mb:.1} | \
              trip_id_set ~{tid_mb:.1} | stop_id_set {ns} ~{sid_mb:.1} | \
              trip_stop_set dis ~{tss_outer_mb:.1} ic({tss_inner_entries}) ~{tss_inner_mb:.1} | \
              trip_first_line ~{tfl_mb:.1} | stop_first_line ~{sfl_mb:.1} | \
@@ -637,7 +639,11 @@ pub fn validate_stop_times(file: &RawFile) -> (StopTimesIndex, Vec<gtfs_core::No
     // uzunluğundan tahmin et (stop_times satırı tipik ≥~40 bayt → muhafazakâr
     // alt-sınır bölen). Yalnızca KAPASITE; eleman değeri/sırası etkilenmez.
     if let Some(text) = &file.raw_text {
-        let est = text.len() / 40;
+        // #15: eski text.len()/40 40B/satir varsayiyordu; VBB gercek ~71B/satir → ~1.78x
+        // FAZLA kapasite (~454 MB bos alan). Newline sayisi ~kesin satir sayisi verir
+        // (header + olasi gomulu-newline = kucuk UST tahmin, guvenli; realloc yok).
+        // shrink_to_fit YAPILMAZ (1GB canliyken yeni buffer = transient peak/OOM).
+        let est = text.bytes().filter(|&b| b == b'\n').count();
         all_rows.reserve(est);
         row_trip.reserve(est);
     }
