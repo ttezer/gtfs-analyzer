@@ -2869,12 +2869,17 @@ fn check_route_trip_quality(
             parent_of.get(sid).copied().unwrap_or(sid)
         }
 
+        // #15 (TRP_020 perf): scratch'ler trip döngüsü DIŞINDA — per-trip Vec/HashMap tahsisini
+        // önler (her ikisi de records'tan &str ödünç alır, her kullanımdan önce clear). station_counts
+        // yalnız bir ad-eşleşmesi bulununca TEMBEL kurulur; eşleşmeyen seferler (çoğunluk) hiç kurmaz.
+        let mut seq_eff: Vec<(u32, &str)> = Vec::new();
+        let mut station_counts: HashMap<&str, u32> = HashMap::new();
+
         for trip in &records.trips {
             let headsign = match trip.trip_headsign.as_deref().map(str::trim).filter(|h| !h.is_empty()) {
                 Some(h) => h,
                 None => continue,
             };
-            let headsign_lc = headsign.to_lowercase();
 
             let stimes = match idx.by_trip.get(trip.trip_id.as_str()) {
                 Some(v) if v.len() >= 2 => v,
@@ -2897,63 +2902,69 @@ fn check_route_trip_quality(
             // farklı peron stop_id'leriyle aynı istasyona dönen loop'lar dahil). Tüm sefer loop, atla.
             if eff_station(&parent_of, first_stop_id) == eff_station(&parent_of, terminal_stop_id) { continue; }
 
-            // Sefer içinde her etkin istasyonun kaç kez geçtiği. headsign'ın eşleştiği durak
-            // birden fazla geçiyorsa o durak meşru bir uç/dönüş noktasıdır (ör. havalimanı wye:
-            // trene girip çıkar) → o eşleşme yanlış pozitiftir, atlanır. Alakasız bir durağın
-            // tekrarı, headsign'ın eşleştiği başka bir ara durağı bastırmaz (yanlış negatif önlenir).
-            //
-            // #29: ARDIŞIK yinelenen aynı durak satırları (aynı etkin istasyonun peş peşe iki
-            // stop_time kaydı — dwell/timepoint çiftlemesi, ör. BART SFO seq 26-27 aynı stop_id)
-            // gerçek dönüş DEĞİLDİR ve TEK sayılmalıdır; gerçek uç/dönüş noktası aralarında BAŞKA
-            // durak olarak tekrar eder. Sıralama garanti olmadığından stop_sequence'a göre sırala,
-            // sonra ardışık tekrarları tekille.
-            let mut seq_eff: Vec<(u32, &str)> = stimes.iter()
-                .map(|s| (s.stop_sequence.unwrap_or(0), eff_station(&parent_of, s.stop_id.as_str())))
-                .collect();
-            seq_eff.sort_by_key(|(seq, _)| *seq);
-            let mut station_counts: HashMap<&str, u32> = HashMap::with_capacity(seq_eff.len());
-            let mut prev_eff: Option<&str> = None;
-            for (_, e) in &seq_eff {
-                if prev_eff != Some(*e) {
-                    *station_counts.entry(*e).or_insert(0) += 1;
-                    prev_eff = Some(*e);
-                }
-            }
+            // #15: headsign_lc'yi erken-çıkışlardan (stimes/cyclic) SONRA hesapla — elenecek
+            // seferler to_lowercase tahsisi ödemez.
+            let headsign_lc = headsign.to_lowercase();
 
-            let rname = route_short.get(trip.route_id.as_str()).copied().unwrap_or(trip.route_id.as_str());
-            let dep = trip_first_dep.get(trip.trip_id.as_str()).map(|s| format!(" {} kalkışlı", s)).unwrap_or_default();
+            // station_counts (sefer içinde her etkin istasyonun geçiş sayısı) yalnız ilk ad-eşleşmesinde
+            // TEMBEL kurulur (counts_built). Eşleşen durak birden fazla geçiyorsa meşru uç/dönüş noktası
+            // (ör. havalimanı wye) → o eşleşme bastırılır. Alakasız durak tekrarı başka eşleşmeyi bastırmaz.
+            // #29: ARDIŞIK yinelenen aynı durak satırları (dwell/timepoint çiftlemesi) TEK sayılır;
+            // gerçek uç/dönüş aralarında BAŞKA durakla tekrar eder. seq_eff stop_sequence'a göre
+            // (unwrap_or(0)) sıralanır — by_trip slice'ı unwrap_or(u32::MAX) ile sıralı olduğundan
+            // eksik-sequence'li feed'de FARKLI olabilir; bu yüzden sıralama KORUNUR (kaldırılmaz).
+            let mut counts_built = false;
 
-            // Her matching intermediate stop için ayrı notice
+            // Her matching intermediate stop için tek notice (ilk eşleşmede dur).
             for st in stimes.iter().filter(|s| s.stop_id.as_str() != terminal_stop_id) {
-                if let Some(stop_name) = stop_name_lc.get(st.stop_id.as_str()) {
-                    if *stop_name == headsign_lc {
-                        // Eşleşen durak bir uç/dönüş noktası (sefer içinde tekrar ediyor) → atla.
-                        if station_counts.get(eff_station(&parent_of, st.stop_id.as_str())).copied().unwrap_or(0) > 1 {
-                            continue;
+                let Some(stop_name) = stop_name_lc.get(st.stop_id.as_str()) else { continue };
+                if *stop_name != headsign_lc { continue; }
+
+                if !counts_built {
+                    seq_eff.clear();
+                    seq_eff.extend(stimes.iter()
+                        .map(|s| (s.stop_sequence.unwrap_or(0), eff_station(&parent_of, s.stop_id.as_str()))));
+                    seq_eff.sort_by_key(|(seq, _)| *seq);
+                    station_counts.clear();
+                    let mut prev_eff: Option<&str> = None;
+                    for (_, e) in &seq_eff {
+                        if prev_eff != Some(*e) {
+                            *station_counts.entry(*e).or_insert(0) += 1;
+                            prev_eff = Some(*e);
                         }
-                        notices.push(k6_notice(
-                            ctr,
-                            "TRP_020",
-                            EntityType::Trip,
-                            Some(trip.trip_id.clone()),
-                            Some(trip.trip_id.clone()),
-                            "trips.txt",
-                            Some(trip.line),
-                            Some("trip_headsign"),
-                            Some(headsign.to_string()),
-                            None,
-                            format!(
-                                "'{}' hattının{dep} seferinde yön adı '{}' terminal durak değil, ara durak adıyla eşleşiyor.",
-                                rname, headsign
-                            ),
-                            "trip_headsign'ı son durağın (terminal) adına veya o istikameti temsil eden bir yere adına göre ayarlayın.",
-                        ));
-                        // #15: TRP_020 Entity-scope (trip_id) → dedup trip başına TEKE indirir.
-                        // Sefer içindeki HER eşleşen ara durağa emit etmek (büyük feed'de) yüz
-                        // binlerce ara-notice üretip atıyordu; ilk eşleşmede dur (sonuç aynı).
-                        break;
                     }
+                    counts_built = true;
                 }
+
+                // Eşleşen durak bir uç/dönüş noktası (sefer içinde tekrar ediyor) → atla.
+                if station_counts.get(eff_station(&parent_of, st.stop_id.as_str())).copied().unwrap_or(0) > 1 {
+                    continue;
+                }
+
+                // #15: rname/dep (format!) yalnız emit anında — eşleşmeyen seferler için değil.
+                let rname = route_short.get(trip.route_id.as_str()).copied().unwrap_or(trip.route_id.as_str());
+                let dep = trip_first_dep.get(trip.trip_id.as_str()).map(|s| format!(" {} kalkışlı", s)).unwrap_or_default();
+                notices.push(k6_notice(
+                    ctr,
+                    "TRP_020",
+                    EntityType::Trip,
+                    Some(trip.trip_id.clone()),
+                    Some(trip.trip_id.clone()),
+                    "trips.txt",
+                    Some(trip.line),
+                    Some("trip_headsign"),
+                    Some(headsign.to_string()),
+                    None,
+                    format!(
+                        "'{}' hattının{dep} seferinde yön adı '{}' terminal durak değil, ara durak adıyla eşleşiyor.",
+                        rname, headsign
+                    ),
+                    "trip_headsign'ı son durağın (terminal) adına veya o istikameti temsil eden bir yere adına göre ayarlayın.",
+                ));
+                // #15: TRP_020 Entity-scope (trip_id) → dedup trip başına TEKE indirir.
+                // Sefer içindeki HER eşleşen ara durağa emit etmek (büyük feed'de) yüz
+                // binlerce ara-notice üretip atıyordu; ilk eşleşmede dur (sonuç aynı).
+                break;
             }
         }
     }
