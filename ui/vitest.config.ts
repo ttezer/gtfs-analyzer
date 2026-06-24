@@ -14,7 +14,15 @@ export default defineConfig({
       reportsDirectory: './coverage',
       all: true,
       include: ['src/**/*.ts'],
-      exclude: ['src/__tests__/**', 'src/**/*.d.ts', 'src/**/types.ts'],
+      exclude: [
+        'src/__tests__/**',
+        'src/**/*.d.ts',
+        'src/**/types.ts',
+        // Render-only sayfa modülü: saf mantığı file-summary.ts / file-map-schema.ts /
+        // severity-order.ts'e çıkarıldı (unit test'li); Cytoscape/DOM çizim katmanı
+        // tests/file-map.spec.ts (Playwright e2e) ile kapsanıyor, unit coverage'a girmez.
+        'src/pages/file-map.ts',
+      ],
       // Gerçek baseline (ilk CI koşusu): lines/statements ~%64.5.
       // Eşik mevcut oranın hemen altına (60) konumlandı; tests eklendikçe ~%80'e yükseltilecek.
       // functions/branches v8 + all:true ile gürültülü (payda ~13: import edilmeyen dosyalar
