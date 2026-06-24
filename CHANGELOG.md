@@ -7,6 +7,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.4] - 2026-06-24
+
+This release adds the **Interactive GTFS File Map** and substantially improves the
+reliability of large feeds under WebAssembly. Before 0.1.4, VBB-class feeds (e.g.
+VBB Berlin, ~282k trips / 6.3M stop_times) either ran close to the 4 GB wasm32
+memory ceiling or failed during result serialization; 0.1.4 brings peak memory down
+to roughly **2.74 GB**, an improvement of about **1.3 GB** of headroom.
+
+### Added
+- **Interactive GTFS File Map** that combines GTFS file relationships with the real
+  analyzer findings for the loaded feed.
+- Per-file finding count, severity, row count, and missing/clean status.
+- Direct navigation from a file into the filtered Detail and Fix views.
+- File-type icons, dark theme, and a mobile layout; non-spec files are shown
+  separately.
+- Turkish, English, and Japanese UI strings for the File Map.
+- Diagnostic information showing the last completed pipeline stage on validation
+  errors and timeouts.
+
+### Performance
+- Reduced WASM peak memory on the VBB Berlin test feed from roughly **4.0 GB (or a
+  serialization failure)** to about **2.74 GB**.
+- `CompactStopTime` row size reduced from **168 to 96 bytes** (`size_of`): dead flag
+  fields were removed and `stop_headsign` is boxed.
+- Removed about **454 MB** of unused capacity in the `stop_times` row buffer by
+  reserving from the actual line count instead of `text.len() / 40`.
+- Removed the second, borrowed copy of `trip_stop_set` that was built in the K4
+  cross-reference stage.
+- `trip_stop_set` is now freed immediately after K4 so K6 allocations can reuse that
+  space, lowering peak memory.
+- Added a large-feed mode to the name index: above a deterministic trip-count
+  threshold, per-trip and map-only label fields are skipped (notices fall back to raw
+  IDs) to avoid serialization OOM; small and normal feeds are unchanged.
+- Reduced several high-volume intermediate notice emitters (TRP_020, SHP_022,
+  STP_022, PTH_008).
+
+### Fixed
+- Large GTFS feeds that previously approached the wasm32 4 GB limit or ran out of
+  memory can now be analyzed more safely.
+- **STM_014** (fast travel) false positives on feeds using extended European
+  `route_type` codes (S-Bahn, U-Bahn, tram, regional rail) — speed thresholds are now
+  mapped to the correct vehicle category, so legitimate high-speed rail is no longer
+  flagged.
+- The File Map no longer disappears entirely when a severity filter is applied.
+- File and group colors are now correct in the dark theme.
+- Improved the readability of link and field labels in the GTFS file relationship view.
+
 ## [0.1.3] - 2026-06-22
 
 This release focuses on real-feed accuracy: several rules that produced large numbers
