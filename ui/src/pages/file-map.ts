@@ -93,7 +93,14 @@ const GROUP_LAYOUT_ORDER = [
 ] as const;
 
 export function renderFileMap(root: HTMLElement, result: ValidationResult): void {
-  activeGraph?.destroy();
+  // Re-entry cleanup. We leave the page without a teardown hook, so the previous
+  // graph's container is detached by now and cytoscape destroy() can throw on a
+  // detached container; swallow it so the rebuild below always proceeds.
+  try {
+    activeGraph?.destroy();
+  } catch {
+    // ignore: stale graph is gone either way
+  }
   activeResizeObserver?.disconnect();
   if (activeThemeHandler) {
     window.removeEventListener('gtfs-theme-change', activeThemeHandler);
@@ -195,11 +202,13 @@ export function renderFileMap(root: HTMLElement, result: ValidationResult): void
 
   const graph = activeGraph;
   activeThemeHandler = () => {
+    if (graph.destroyed()) return;
     refreshGraphTheme(graph);
     layoutVisibleGraph(graph);
   };
   window.addEventListener('gtfs-theme-change', activeThemeHandler);
   activeResizeObserver = new ResizeObserver(() => {
+    if (graph.destroyed()) return;
     graph.resize();
     layoutVisibleGraph(graph);
   });
@@ -332,6 +341,17 @@ export function renderFileMap(root: HTMLElement, result: ValidationResult): void
   });
 
   resetToCoreView();
+
+  // Re-entry via the cached lazy import can run before the browser lays out the
+  // freshly re-created page-root, so the synchronous fit in resetToCoreView may
+  // see a zero-height container and zoom to NaN (blank graph). Re-fit after a
+  // layout flush (double rAF), guarded so a newer graph isn't clobbered if the
+  // page changed while we waited.
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      if (activeGraph === graph && !graph.destroyed()) layoutVisibleGraph(graph);
+    });
+  });
 }
 
 function buildElements(
@@ -592,7 +612,21 @@ function layoutVisibleGraph(graph: Core): void {
     }
   });
 
-  graph.fit(graph.elements(':visible'), 34);
+  // Node positions are model-space and safe to set at any container size, but
+  // fit() reads the container box: a 0-size container (re-entry before layout
+  // flush) or an empty visible set produces a NaN/degenerate zoom that blanks
+  // the canvas. Skip those — a later resize/rAF re-fits — and clamp a
+  // non-finite zoom defensively.
+  const container = graph.container();
+  if (container && (container.clientWidth === 0 || container.clientHeight === 0)) return;
+  const visible = graph.elements(':visible');
+  if (visible.length === 0) return;
+  graph.fit(visible, 34);
+  const zoom = graph.zoom();
+  if (!Number.isFinite(zoom) || zoom <= 0) {
+    graph.zoom(graph.minZoom());
+    graph.center(visible);
+  }
 }
 
 function refreshGraphTheme(graph: Core): void {
