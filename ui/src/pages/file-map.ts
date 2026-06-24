@@ -56,12 +56,25 @@ const SEVERITIES: readonly Severity[] = [
   'CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'INFO',
 ];
 
+// Cytoscape draws nodes onto a canvas/SVG data-URI and cannot resolve CSS
+// custom properties, so the graph needs concrete colors. Derive them from the
+// same --color-* variables index.html defines (single source of truth; see
+// also SEVERITY_COLOR used for DOM panels). Fall back to the known palette if
+// the stylesheet is somehow unavailable. file-map.ts is lazy-loaded after the
+// inline stylesheet is parsed, so getComputedStyle is reliable here.
+function cssColor(name: string, fallback: string): string {
+  const value = getComputedStyle(document.documentElement)
+    .getPropertyValue(name)
+    .trim();
+  return value || fallback;
+}
+
 const NODE_COLORS: Record<Severity, string> = {
-  CRITICAL: '#dc2626',
-  HIGH: '#ea580c',
-  MEDIUM: '#ca8a04',
-  LOW: '#16a34a',
-  INFO: '#2563eb',
+  CRITICAL: cssColor('--color-critical', '#dc2626'),
+  HIGH: cssColor('--color-high', '#ea580c'),
+  MEDIUM: cssColor('--color-medium', '#ca8a04'),
+  LOW: cssColor('--color-low', '#16a34a'),
+  INFO: cssColor('--color-info', '#2563eb'),
 };
 
 const FILE_NODE_WIDTH = 172;
@@ -718,9 +731,9 @@ function fileNodeDecoration(
   dark: boolean,
 ): string {
   const accentColor = status === 'missing'
-    ? '#94a3b8'
+    ? cssColor('--color-muted', '#94a3b8')
     : status === 'clean'
-      ? '#16a34a'
+      ? NODE_COLORS.LOW
       : NODE_COLORS[status.toUpperCase() as Severity];
   const iconColor = dark
     ? status === 'missing' ? '#64748b' : '#cbd5e1'
