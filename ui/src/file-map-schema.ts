@@ -57,8 +57,11 @@ function node(
   group: FileMapGroup,
   x: number,
   y: number,
-  anchor = id.replace('.', '').replace('_', ''),
 ): FileMapNode {
+  // gtfs.org reference anchors drop the dot but keep underscores and the
+  // extension, e.g. stop_times.txt -> #stop_timestxt, locations.geojson ->
+  // #locationsgeojson. Derive from id so the anchor can't drift.
+  const anchor = id.replace(/\./g, '');
   return {
     id,
     group,
@@ -69,46 +72,46 @@ function node(
 }
 
 export const FILE_MAP_NODES: readonly FileMapNode[] = [
-  node('agency.txt', 'core', 80, 300, 'agencytxt'),
-  node('routes.txt', 'core', 330, 300, 'routestxt'),
-  node('trips.txt', 'core', 580, 300, 'tripstxt'),
-  node('stop_times.txt', 'core', 830, 300, 'stop_timestxt'),
-  node('stops.txt', 'core', 1080, 300, 'stopstxt'),
-  node('frequencies.txt', 'core', 580, 470, 'frequenciestxt'),
+  node('agency.txt', 'core', 80, 300),
+  node('routes.txt', 'core', 330, 300),
+  node('trips.txt', 'core', 580, 300),
+  node('stop_times.txt', 'core', 830, 300),
+  node('stops.txt', 'core', 1080, 300),
+  node('frequencies.txt', 'core', 580, 470),
 
-  node('calendar.txt', 'calendar', 430, 70, 'calendartxt'),
-  node('calendar_dates.txt', 'calendar', 700, 70, 'calendar_datestxt'),
+  node('calendar.txt', 'calendar', 430, 70),
+  node('calendar_dates.txt', 'calendar', 700, 70),
 
-  node('shapes.txt', 'geometry', 760, 540, 'shapestxt'),
-  node('locations.geojson', 'geometry', 1020, 540, 'locationsgeojson'),
+  node('shapes.txt', 'geometry', 760, 540),
+  node('locations.geojson', 'geometry', 1020, 540),
 
-  node('transfers.txt', 'station', 1230, 130, 'transferstxt'),
-  node('pathways.txt', 'station', 1430, 130, 'pathwaystxt'),
-  node('levels.txt', 'station', 1430, 300, 'levelstxt'),
+  node('transfers.txt', 'station', 1230, 130),
+  node('pathways.txt', 'station', 1430, 130),
+  node('levels.txt', 'station', 1430, 300),
 
-  node('fare_attributes.txt', 'fare-v1', 80, 760, 'fare_attributestxt'),
-  node('fare_rules.txt', 'fare-v1', 330, 760, 'fare_rulestxt'),
+  node('fare_attributes.txt', 'fare-v1', 80, 760),
+  node('fare_rules.txt', 'fare-v1', 330, 760),
 
-  node('fare_media.txt', 'fare-v2', 80, 1010, 'fare_mediatxt'),
-  node('rider_categories.txt', 'fare-v2', 330, 1010, 'rider_categoriestxt'),
-  node('fare_products.txt', 'fare-v2', 580, 1010, 'fare_productstxt'),
-  node('fare_leg_rules.txt', 'fare-v2', 830, 1010, 'fare_leg_rulestxt'),
-  node('timeframes.txt', 'fare-v2', 1080, 1010, 'timeframestxt'),
-  node('fare_transfer_rules.txt', 'fare-v2', 1330, 1010, 'fare_transfer_rulestxt'),
-  node('fare_leg_join_rules.txt', 'fare-v2', 1080, 1170, 'fare_leg_join_rulestxt'),
+  node('fare_media.txt', 'fare-v2', 80, 1010),
+  node('rider_categories.txt', 'fare-v2', 330, 1010),
+  node('fare_products.txt', 'fare-v2', 580, 1010),
+  node('fare_leg_rules.txt', 'fare-v2', 830, 1010),
+  node('timeframes.txt', 'fare-v2', 1080, 1010),
+  node('fare_transfer_rules.txt', 'fare-v2', 1330, 1010),
+  node('fare_leg_join_rules.txt', 'fare-v2', 1080, 1170),
 
-  node('areas.txt', 'network', 80, 1270, 'areastxt'),
-  node('stop_areas.txt', 'network', 330, 1270, 'stop_areastxt'),
-  node('networks.txt', 'network', 580, 1270, 'networkstxt'),
-  node('route_networks.txt', 'network', 830, 1270, 'route_networkstxt'),
+  node('areas.txt', 'network', 80, 1270),
+  node('stop_areas.txt', 'network', 330, 1270),
+  node('networks.txt', 'network', 580, 1270),
+  node('route_networks.txt', 'network', 830, 1270),
 
-  node('location_groups.txt', 'flex', 1180, 720, 'location_groupstxt'),
-  node('location_group_stops.txt', 'flex', 1430, 720, 'location_group_stopstxt'),
-  node('booking_rules.txt', 'flex', 1430, 880, 'booking_rulestxt'),
+  node('location_groups.txt', 'flex', 1180, 720),
+  node('location_group_stops.txt', 'flex', 1430, 720),
+  node('booking_rules.txt', 'flex', 1430, 880),
 
-  node('translations.txt', 'support', 1030, 1450, 'translationstxt'),
-  node('feed_info.txt', 'support', 1280, 1450, 'feed_infotxt'),
-  node('attributions.txt', 'support', 1530, 1450, 'attributionstxt'),
+  node('translations.txt', 'support', 1030, 1450),
+  node('feed_info.txt', 'support', 1280, 1450),
+  node('attributions.txt', 'support', 1530, 1450),
 ] as const;
 
 export const FILE_MAP_EDGES: readonly FileMapEdge[] = [

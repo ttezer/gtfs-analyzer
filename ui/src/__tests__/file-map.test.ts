@@ -113,6 +113,17 @@ describe('GTFS file map schema', () => {
     expect(validateFileMapSchema()).toEqual([]);
   });
 
+  it('derives gtfs.org spec anchors by dropping the dot but keeping underscores', () => {
+    const urlFor = (id: string) =>
+      FILE_MAP_NODES.find((node) => node.id === id)?.specUrl;
+    const base = 'https://gtfs.org/documentation/schedule/reference/';
+    expect(urlFor('agency.txt')).toBe(`${base}#agencytxt`);
+    expect(urlFor('stop_times.txt')).toBe(`${base}#stop_timestxt`);
+    expect(urlFor('calendar_dates.txt')).toBe(`${base}#calendar_datestxt`);
+    expect(urlFor('locations.geojson')).toBe(`${base}#locationsgeojson`);
+    expect(urlFor('fare_leg_join_rules.txt')).toBe(`${base}#fare_leg_join_rulestxt`);
+  });
+
   it('defines the seven-file core view and direct trip relationships', () => {
     expect(CORE_FILE_IDS).toEqual([
       'agency.txt',
