@@ -31,7 +31,7 @@ import type { Notice, Severity, ValidationResult } from '../types';
 import { SEVERITY_COLOR, SEVERITY_TR, t, tMsg } from '../i18n';
 import { setFixFileFilter, setPage } from '../state';
 import { escHtml } from '../escape';
-import { compareSeverityThenCount } from '../severity-order';
+import { SEVERITY_ORDER, compareSeverityThenCount } from '../severity-order';
 import {
   buildFileSummaries,
   formatFileBytes,
@@ -51,10 +51,6 @@ import {
 let activeGraph: Core | null = null;
 let activeResizeObserver: ResizeObserver | null = null;
 let activeThemeHandler: (() => void) | null = null;
-
-const SEVERITIES: readonly Severity[] = [
-  'CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'INFO',
-];
 
 // Cytoscape draws nodes onto a canvas/SVG data-URI and cannot resolve CSS
 // custom properties, so the graph needs concrete colors. Derive them from the
@@ -145,7 +141,7 @@ export function renderFileMap(root: HTMLElement, result: ValidationResult): void
             <span>${t('fileMap.severityFilter')}</span>
             <select id="file-map-severity">
               <option value="all">${t('fileMap.allSeverities')}</option>
-              ${SEVERITIES.map((severity) => `
+              ${SEVERITY_ORDER.map((severity) => `
                 <option value="${severity}">${SEVERITY_TR[severity]}</option>
               `).join('')}
             </select>
@@ -170,7 +166,7 @@ export function renderFileMap(root: HTMLElement, result: ValidationResult): void
         <div class="file-map-canvas-wrap">
           <div id="file-map-canvas" role="application" aria-label="${t('fileMap.canvasLabel')}"></div>
           <div class="file-map-legend">
-            ${SEVERITIES.map((severity) => `
+            ${SEVERITY_ORDER.map((severity) => `
               <span><i style="background:${NODE_COLORS[severity]}"></i>${SEVERITY_TR[severity]}</span>
             `).join('')}
             <span><i class="clean"></i>${t('fileMap.clean')}</span>
@@ -806,7 +802,7 @@ function renderFilePanel(
     </div>
     <p class="file-map-meta">${info}</p>
     <div class="file-map-severity-grid">
-      ${SEVERITIES.map((severity) => `
+      ${SEVERITY_ORDER.map((severity) => `
         <div>
           <span>${SEVERITY_TR[severity]}</span>
           <strong style="color:${SEVERITY_COLOR[severity]}">${summary.severityCounts[severity].toLocaleString()}</strong>

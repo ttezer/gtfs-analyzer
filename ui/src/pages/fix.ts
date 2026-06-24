@@ -1,8 +1,9 @@
-﻿import type { ValidationResult, Notice, R9Item, NameIndex } from '../types';
+﻿import type { ValidationResult, Notice, R9Item, NameIndex, Severity } from '../types';
 import { SEVERITY_TR, SEVERITY_COLOR, RULE_CLASS_TR, t, tMsg, tRemediation } from '../i18n';
 import { openMapModal, type MapPin, type MapOptions } from '../map-modal';
 import { openPatternModal } from '../pattern-modal';
 import { escHtml } from '../escape';
+import { SEVERITY_ORDER, SEVERITY_RANK } from '../severity-order';
 
 // EN/JA parite: route-scoped bulgularda entity_id = route_id ve mesaj şablonu {route_label}
 // kullanır. name_index.routes[route_id] = route_short_name (yoksa long_name) → details'e enjekte
@@ -180,7 +181,6 @@ function renderR2(result: ValidationResult, noticeMap: Map<string, Notice>, delt
     .join('');
 
   // Önem ve sınıf: R9'daki gibi çoklu seçilebilir chip filtresi (sadece mevcut değerler)
-  const SEV_ORDER = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'INFO'];
   const CLS_ORDER = ['SPEC', 'INTEROP', 'QUALITY', 'ANALYTICS'];
   const sevPresent = new Set<string>();
   const clsPresent = new Set<string>();
@@ -190,7 +190,7 @@ function renderR2(result: ValidationResult, noticeMap: Map<string, Notice>, delt
     sevPresent.add(n.severity);
     clsPresent.add(n.rule_class);
   }
-  const sevChips = SEV_ORDER.filter(s => sevPresent.has(s)).map(s =>
+  const sevChips = SEVERITY_ORDER.filter(s => sevPresent.has(s)).map(s =>
     `<button class="sev-chip" data-sev="${s}" style="--chip-color:${SEVERITY_COLOR[s as keyof typeof SEVERITY_COLOR]}">${SEVERITY_TR[s as keyof typeof SEVERITY_TR]}</button>`
   ).join('');
   const clsChips = CLS_ORDER.filter(c => clsPresent.has(c)).map(c =>
@@ -1319,7 +1319,6 @@ export function attachFixListeners(root: HTMLElement, result?: ValidationResult,
   const r9Table = root.querySelector<HTMLTableElement>('#r9-table');
   const r9Tbody = r9Table?.querySelector('tbody');
   if (r9Table && r9Tbody) {
-    const sevOrder: Record<string, number> = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3, INFO: 4 };
     let sortCol = -1, sortDir = 1;
     const cellTxt = (row: HTMLTableRowElement, col: number) =>
       (row.children[col] as HTMLElement | undefined)?.textContent?.trim() ?? '';
@@ -1338,7 +1337,7 @@ export function attachFixListeners(root: HTMLElement, result?: ValidationResult,
             return (na - nb) * sortDir;
           }
           if (type === 'sev') {
-            return ((sevOrder[a.dataset['sev'] ?? 'INFO'] ?? 9) - (sevOrder[b.dataset['sev'] ?? 'INFO'] ?? 9)) * sortDir;
+            return ((SEVERITY_RANK[(a.dataset['sev'] ?? 'INFO') as Severity] ?? 9) - (SEVERITY_RANK[(b.dataset['sev'] ?? 'INFO') as Severity] ?? 9)) * sortDir;
           }
           return cellTxt(a, col).localeCompare(cellTxt(b, col), 'tr') * sortDir;
         });
@@ -1381,7 +1380,6 @@ export function attachFixListeners(root: HTMLElement, result?: ValidationResult,
   const r2Table = root.querySelector<HTMLTableElement>('#r2-table');
   const r2Tbody = r2Table?.querySelector('tbody');
   if (r2Table && r2Tbody) {
-    const sevOrder2: Record<string, number> = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3, INFO: 4 };
     let r2Col = -1, r2Dir = 1;
     const txt2 = (row: HTMLTableRowElement, col: number) =>
       (row.children[col] as HTMLElement | undefined)?.textContent?.trim() ?? '';
@@ -1395,7 +1393,7 @@ export function attachFixListeners(root: HTMLElement, result?: ValidationResult,
         const rows2 = Array.from(r2Tbody.querySelectorAll<HTMLTableRowElement>('tr'));
         rows2.sort((a, b) => {
           if (type === 'sev') {
-            return ((sevOrder2[a.dataset['severity'] ?? 'INFO'] ?? 9) - (sevOrder2[b.dataset['severity'] ?? 'INFO'] ?? 9)) * r2Dir;
+            return ((SEVERITY_RANK[(a.dataset['severity'] ?? 'INFO') as Severity] ?? 9) - (SEVERITY_RANK[(b.dataset['severity'] ?? 'INFO') as Severity] ?? 9)) * r2Dir;
           }
           if (type === 'num') {
             const na = parseFloat(txt2(a, col).replace(/[^\d.-]/g, '')) || 0;

@@ -1,4 +1,5 @@
 import type { FileInfo, Notice, Severity, ValidationResult } from './types';
+import { SEVERITY_RANK } from './severity-order';
 
 export const REQUIRED_FILES = [
   'agency.txt', 'stops.txt', 'routes.txt', 'trips.txt', 'stop_times.txt',
@@ -21,14 +22,6 @@ export const GTFS_SPEC_FILES = [
 const GTFS_SPEC_FILE_SET = new Set<string>(GTFS_SPEC_FILES);
 const REQUIRED_FILE_SET = new Set<string>(REQUIRED_FILES);
 const CALENDAR_FILE_SET = new Set<string>(CALENDAR_FILES);
-
-export const SEVERITY_ORDER: Record<Severity, number> = {
-  CRITICAL: 0,
-  HIGH: 1,
-  MEDIUM: 2,
-  LOW: 3,
-  INFO: 4,
-};
 
 export interface FileSummary {
   name: string;
@@ -162,7 +155,7 @@ function countSeverities(notices: Notice[]): Record<Severity, number> {
 function findWorstSeverity(notices: Notice[]): Severity | null {
   let worst: Severity | null = null;
   for (const notice of notices) {
-    if (worst === null || SEVERITY_ORDER[notice.severity] < SEVERITY_ORDER[worst]) {
+    if (worst === null || SEVERITY_RANK[notice.severity] < SEVERITY_RANK[worst]) {
       worst = notice.severity;
     }
   }
@@ -170,8 +163,8 @@ function findWorstSeverity(notices: Notice[]): Severity | null {
 }
 
 function compareFileSummaries(a: FileSummary, b: FileSummary): number {
-  const aOrder = a.worstSeverity ? SEVERITY_ORDER[a.worstSeverity] : 99;
-  const bOrder = b.worstSeverity ? SEVERITY_ORDER[b.worstSeverity] : 99;
+  const aOrder = a.worstSeverity ? SEVERITY_RANK[a.worstSeverity] : 99;
+  const bOrder = b.worstSeverity ? SEVERITY_RANK[b.worstSeverity] : 99;
   if (aOrder !== bOrder) return aOrder - bOrder;
   return b.notices.length - a.notices.length;
 }

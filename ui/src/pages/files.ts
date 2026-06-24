@@ -8,6 +8,7 @@ import {
   type FileSummary,
 } from '../file-summary';
 import { escHtml } from '../escape';
+import { SEVERITY_ORDER } from '../severity-order';
 
 export function renderFiles(root: HTMLElement, result: ValidationResult): void {
   const rows = buildFileSummaries(result);
@@ -69,7 +70,7 @@ function renderFileRow(row: FileSummary, calendarMissing: boolean): string {
       </div>`;
   }
 
-  const severityBadges = (['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'INFO'] as const)
+  const severityBadges = SEVERITY_ORDER
     .filter((severity) => row.severityCounts[severity] > 0)
     .map((severity) => `
       <span class="file-sev-badge" style="color:${SEVERITY_COLOR[severity]}">
