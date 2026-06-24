@@ -1,7 +1,7 @@
 import type { ValidationResult } from './types';
 import { logAction } from './debug-buffer';
 
-export type AppPage = 'upload' | 'domain' | 'fix' | 'files' | 'export';
+export type AppPage = 'upload' | 'domain' | 'fix' | 'files' | 'file-map' | 'export';
 
 export interface AppState {
   page: AppPage;
