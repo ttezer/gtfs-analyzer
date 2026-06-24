@@ -42,6 +42,15 @@ pub(crate) fn mem_log(label: &str) {
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) fn mem_log(_label: &str) {}
 
+/// #15: serbest teşhis satırı (yapı-boyutu kırılımı vb.). high-water DEĞİL — çağıran
+/// gerçek `len × size_of` canlı boyutu hesaplar. Native'de no-op.
+#[cfg(target_arch = "wasm32")]
+pub(crate) fn mem_note(msg: &str) {
+    web_sys::console::log_1(&format!("[mem] {msg}").into());
+}
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) fn mem_note(_msg: &str) {}
+
 #[cfg(target_arch = "wasm32")]
 pub(crate) struct Timer(String);
 

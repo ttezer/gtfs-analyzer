@@ -178,6 +178,52 @@ impl StopTimesIndex {
         self.trip_ranges.get(trip_id).map_or(0, |&(s, e)| (e - s) as usize)
     }
 
+    /// #15 teşhis: index yapılarının GERÇEK (canlı) bellek maliyetini logla.
+    /// high-water (`memory_size`) DEĞİL — her yapının `len × size_of` + SmolStr heap (key
+    /// uzunlukları, >23B = heap) toplamı. K1-K5 bellek refactor'ını önceliklendirmek için.
+    /// Native'de mem_note no-op (hesap ucuz, O(trip+stop), tek seferlik).
+    pub fn log_mem_report(&self) {
+        const SS: usize = std::mem::size_of::<SmolStr>();
+        const CST: usize = std::mem::size_of::<CompactStopTime>();
+        const SET: usize = std::mem::size_of::<FxHashSet<SmolStr>>();
+        let mb = |b: usize| b as f64 / 1_048_576.0;
+        fn heap_bytes<'a>(it: impl Iterator<Item = &'a SmolStr>) -> usize {
+            it.filter(|s| s.len() > 23).map(|s| s.len()).sum()
+        }
+
+        let n = self.rows.len();
+        let nt = self.trip_ranges.len();
+        let ns = self.stop_id_set.len();
+        let nc = self.continuous_trips.len();
+        let nu = self.unsorted_seq_trips.len();
+
+        let rows_mb = mb(self.rows.capacity() * CST);
+        let tr_mb = mb(nt * (SS + 8));            // trip_ranges: SmolStr key + (u32,u32)
+        let tid_mb = mb(nt * SS);                 // trip_id_set
+        let sid_mb = mb(ns * SS);                 // stop_id_set
+        let tfl_mb = mb(nt * (SS + 8));           // trip_first_line
+        let sfl_mb = mb(ns * (SS + 8));           // stop_first_line
+        let tss_outer_mb = mb(self.trip_stop_set.capacity() * (SS + SET));
+        let tss_inner_entries: usize = self.trip_stop_set.values().map(|s| s.capacity()).sum();
+        let tss_inner_mb = mb(tss_inner_entries * SS);
+        let useq_mb = mb(self.unsorted_seq_trips.capacity()
+            * std::mem::size_of::<(SmolStr, u32, u32, u64)>());
+
+        let heap_tid_mb = mb(heap_bytes(self.trip_id_set.iter()));
+        let heap_sid_mb = mb(heap_bytes(self.stop_id_set.iter()));
+        let heap_tss_mb = mb(heap_bytes(self.trip_stop_set.values().flat_map(|s| s.iter())));
+
+        crate::timing::mem_note(&format!(
+            "stop_times index canli boyut (len x size_of, high-water DEGIL): \
+             rows {n} x {CST}B = {rows_mb:.1} MB | trip_ranges {nt} ~{tr_mb:.1} | \
+             trip_id_set ~{tid_mb:.1} | stop_id_set {ns} ~{sid_mb:.1} | \
+             trip_stop_set dis ~{tss_outer_mb:.1} ic({tss_inner_entries}) ~{tss_inner_mb:.1} | \
+             trip_first_line ~{tfl_mb:.1} | stop_first_line ~{sfl_mb:.1} | \
+             continuous {nc} | unsorted_seq {nu} ~{useq_mb:.1} | \
+             SmolStr heap: trip ~{heap_tid_mb:.1} stop ~{heap_sid_mb:.1} tss_ic ~{heap_tss_mb:.1} MB"
+        ));
+    }
+
     /// Test yardımcısı: Vec<StopTimeRecord>'dan index oluşturur.
     /// Gerçek pipeline'da K2 streaming tarafından doldurulur.
     pub fn from_records(records: &[StopTimeRecord]) -> Self {
@@ -1199,6 +1245,7 @@ pub fn validate_stop_times(file: &RawFile) -> (StopTimesIndex, Vec<gtfs_core::No
     // stable-by-sequence (file-order ties) == bu total-order key.
     let n = all_rows.len();
     let mut perm: Vec<u32> = (0..n as u32).collect();
+    let _t_sort = crate::timing::Timer::start("K2::st::fin::sort");
     perm.sort_unstable_by(|&a, &b| {
         let (ia, ib) = (a as usize, b as usize);
         row_trip[ia]
@@ -1209,6 +1256,7 @@ pub fn validate_stop_times(file: &RawFile) -> (StopTimesIndex, Vec<gtfs_core::No
             })
             .then_with(|| a.cmp(&b))
     });
+    drop(_t_sort);
     drop(row_trip); // perm kuruldu; 4B/satir tag in-place uygulamadan ONCE serbest birak
     // perm[pos] = pos. cikti pozisyonuna gelecek KAYNAK indeks. In-place icin dest'e
     // (eleman i NEREYE gider) cevir, sonra cycle-swap uygula (ikinci Vec yok).
@@ -1217,6 +1265,7 @@ pub fn validate_stop_times(file: &RawFile) -> (StopTimesIndex, Vec<gtfs_core::No
         dest[src as usize] = pos as u32;
     }
     drop(perm);
+    let _t_perm = crate::timing::Timer::start("K2::st::fin::permute");
     for k in 0..n {
         while dest[k] as usize != k {
             let d = dest[k] as usize;
@@ -1224,6 +1273,7 @@ pub fn validate_stop_times(file: &RawFile) -> (StopTimesIndex, Vec<gtfs_core::No
             dest.swap(k, d);
         }
     }
+    drop(_t_perm);
     let rows = all_rows; // zero-copy: yerinde gruplandi + siralandi
 
     // stop_id_set = stop_first_line anahtarları (aynı guard'larla → birebir aynı küme).
@@ -1235,6 +1285,7 @@ pub fn validate_stop_times(file: &RawFile) -> (StopTimesIndex, Vec<gtfs_core::No
         ..Default::default()
     };
     index.stop_id_set = index.stop_first_line.keys().cloned().collect();
+    let _t_maps = crate::timing::Timer::start("K2::st::fin::maps");
     for (tid, agg) in trips_agg {
         if tid.is_empty() {
             continue; // boş trip_id çıktıya girmez (orijinal `if !trip_id.is_empty()` guard'ı)
@@ -1250,8 +1301,10 @@ pub fn validate_stop_times(file: &RawFile) -> (StopTimesIndex, Vec<gtfs_core::No
             index.trip_stop_set.insert(tid.clone(), agg.stop_set);
         }
     }
+    drop(_t_maps);
 
     crate::timing::mem_log("  stop_times: index finalized (rows placed, all_rows freed, maps built)");
+    index.log_mem_report();
     (index, notices)
 }
 
