@@ -238,6 +238,34 @@ Download the report as HTML, CSV, or JSON. The PDF option opens the browser's pr
 
 ---
 
+## Interactive GTFS File Map
+
+GTFS Analyzer includes an interactive File Map that combines the GTFS data structure with the real validation findings of the analyzed feed.
+
+This view is not a static schema. It shows the files present in the feed, the missing ones, the findings, and the validated file relationships based on the analysis result.
+
+### Features
+
+- Shows the seven core GTFS files in the **Calendar** and **Core Service** groups
+- Shows non-core standard files only when the analyzer reports a finding for them
+- Lists non-spec files found in the feed in a separate group
+- Visualizes validated GTFS relationships such as `route_id`, `trip_id`, `stop_id`, `service_id`, and `shape_id`
+- Colors files by their highest finding severity
+- Distinguishes missing, clean, and problematic files
+- Shows row count, file size, finding count, and severity distribution
+- Lists findings by rule, always ordered **Critical → High → Medium → Low → Info**
+- Opens all findings of the selected file in a filtered Detail & Fix view
+- Provides file-presence and severity filters
+- Supports zoom, fit-to-screen, dark theme, and a mobile layout
+
+When a file is selected, only its validated and related GTFS connections expand. Non-spec files stay visible, but no unvalidated relationships are drawn.
+
+Analysis and visualization run entirely in the browser. GTFS files are never uploaded to any server.
+
+![GTFS File Map](docs/images/gtfs-file-map.png)
+
+---
+
 ## Rule Classes
 
 | Class | What it measures | Affects |

@@ -238,6 +238,34 @@ Raporu HTML, CSV veya JSON olarak indirir. PDF seçeneği tarayıcının yazdır
 
 ---
 
+## İnteraktif GTFS Dosya Haritası
+
+GTFS Analyzer, GTFS veri yapısını analiz edilen feed'in gerçek doğrulama bulgularıyla birleştiren interaktif bir Dosya Haritası içerir.
+
+Bu görünüm statik bir şema değildir. Feed'de bulunan dosyaları, eksikleri, bulguları ve doğrulanmış dosya ilişkilerini analiz sonucuna göre gösterir.
+
+### Özellikler
+
+- Yedi çekirdek GTFS dosyasını **Takvim** ve **Ana Servis** gruplarında gösterir
+- Çekirdek dışındaki standart dosyaları yalnızca analyzer bulgusu varsa gösterir
+- Feed'de bulunan spec dışı dosyaları ayrı bir grupta listeler
+- `route_id`, `trip_id`, `stop_id`, `service_id` ve `shape_id` gibi doğrulanmış GTFS ilişkilerini görselleştirir
+- Dosyaları en yüksek bulgu önemine göre renklendirir
+- Eksik, temiz ve sorunlu dosyaları birbirinden ayırır
+- Satır sayısı, dosya boyutu, bulgu sayısı ve önem dağılımını gösterir
+- Bulguları kurala göre ve **Kritik → Yüksek → Orta → Düşük → Bilgi** sırasıyla listeler
+- Seçilen dosyanın tüm bulgularını filtrelenmiş Ayrıntı ve Düzeltme ekranında açar
+- Dosya varlığı ve önem filtreleri sunar
+- Yakınlaştırma, ekrana sığdırma, koyu tema ve mobil görünümü destekler
+
+Bir dosya seçildiğinde yalnızca doğrulanmış ve ilgili GTFS bağlantıları açılır. Spec dışı dosyalar görünür tutulur ancak doğrulanmamış ilişkiler çizilmez.
+
+Analiz ve görselleştirme tamamen tarayıcı içinde çalışır. GTFS dosyaları herhangi bir sunucuya yüklenmez.
+
+![GTFS Dosya Haritası](docs/images/gtfs-file-map.png)
+
+---
+
 ## Kural Sınıfları
 
 | Sınıf | Ne ölçer | Hangi skoru etkiler |
