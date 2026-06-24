@@ -33,6 +33,15 @@ const pending = new Map<number, PendingEntry>();
 let   nextId  = 1;
 let   worker  = createWorker();
 
+// #15 teşhis: UI her aşama mesajını alıyor (onWorkerMessage 'stage'). Son tamamlanan
+// aşamayı tut ki bir çökme/timeout olduğunda hata mesajına eklenebilsin — büyük feed'de
+// WASM trap'i (memory access out of bounds) rayon alt-worker'ında olup JS'te temiz
+// yakalanamıyor; en azından HANGİ aşamadan sonra öldüğü devtools'suz görünsün.
+let lastStage = '';
+function stageHint(): string {
+  return lastStage ? ` (son tamamlanan aşama: ${lastStage})` : '';
+}
+
 function createWorker(): Worker {
   const w = new Worker(new URL('./validator-worker.ts', import.meta.url), { type: 'module' });
   w.onmessage = onWorkerMessage;
@@ -54,6 +63,7 @@ function onWorkerMessage(event: MessageEvent<WorkerMsg>): void {
     return;
   }
   if (msg.type === 'stage') {
+    lastStage = msg.stage;
     entry.callbacks?.onStageDone?.(msg.stage, msg.elapsed_ms);
     return;
   }
@@ -67,7 +77,7 @@ function onWorkerMessage(event: MessageEvent<WorkerMsg>): void {
 function onWorkerError(event: ErrorEvent): void {
   const error: FatalError = {
     code: 'ResourceLimit',
-    message: event.message || 'Arka plan doğrulama işçisi beklenmedik şekilde durdu.',
+    message: (event.message || 'Arka plan doğrulama işçisi beklenmedik şekilde durdu.') + stageHint(),
   };
   for (const [, e] of pending) e.reject(error);
   pending.clear();
@@ -86,7 +96,7 @@ function withTimeout(id: number, reject: (e: FatalError) => void): ReturnType<ty
   return setTimeout(() => {
     if (!pending.has(id)) return;
     pending.delete(id);
-    reject({ code: 'ResourceLimit', message: `Doğrulama ${VALIDATE_TIMEOUT_MIN} dakika içinde tamamlanamadı. Daha küçük bir feed deneyin.` });
+    reject({ code: 'ResourceLimit', message: `Doğrulama ${VALIDATE_TIMEOUT_MIN} dakika içinde tamamlanamadı. Daha küçük bir feed deneyin.${stageHint()}` });
   }, VALIDATE_TIMEOUT_MS);
 }
 
