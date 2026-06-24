@@ -208,6 +208,9 @@ fn run_full_pipeline(zip_bytes: &[u8], config: &ValidatorConfig, today: u32) -> 
     let k4 = check_cross_ref(&k2.records, &k3.entity_map, today);
     t_end!("K4-cross-ref");
 
+    // #15: trip_stop_set (büyük feed'de ~226 MB) yalnızca K4'te kullanılır → serbest bırak.
+    k2.records.stop_times_index.trip_stop_set = Default::default();
+
     t_start!("K5-derived");
     let k5 = build_derived(&k2.records, &k3.entity_map);
     t_end!("K5-derived");
@@ -292,6 +295,9 @@ fn run_k1_k5(zip_bytes: &[u8], config: &ValidatorConfig, on_stage: &js_sys::Func
     let k4 = check_cross_ref(&k2.records, &k3.entity_map, today);
     t_end!("K4-cross-ref");
     call_stage(on_stage, "K4", (js_sys::Date::now() - t) as u32);
+    // #15: trip_stop_set (büyük feed'de ~226 MB) yalnızca K4'te kullanılır; cache'lenen records'tan
+    // K6 continuation öncesi serbest bırak (K6 peak'ini ~226 MB düşürme potansiyeli).
+    k2.records.stop_times_index.trip_stop_set = Default::default();
     log_mem("after-K4-cross-ref");
 
     t = js_sys::Date::now();

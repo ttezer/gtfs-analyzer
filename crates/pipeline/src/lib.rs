@@ -71,6 +71,10 @@ pub fn validate_bytes(zip: &[u8], config: &ValidatorConfig, today: u32) -> Valid
         check_cross_ref(&k2.records, &k3.entity_map, today)
     };
 
+    // #15: trip_stop_set (büyük feed'de ~226 MB) yalnızca K4'te kullanılır; K5/K6/K7 ve
+    // build_name_index kullanmaz → K4 biter bitmez serbest bırak (K6 öncesi canlı belleği düşürür).
+    k2.records.stop_times_index.trip_stop_set = Default::default();
+
     let k5 = {
         let _t = Timer::start("K5-derived");
         build_derived(&k2.records, &k3.entity_map)

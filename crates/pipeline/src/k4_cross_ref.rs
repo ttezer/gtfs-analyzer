@@ -2,6 +2,8 @@
 
 use gtfs_core::{EntityType, Notice};
 use gtfs_rules::get_rule;
+use rustc_hash::{FxHashMap, FxHashSet};
+use smol_str::SmolStr;
 
 use crate::k2::EntityRecords;
 use crate::k3_entity_graph::EntityMap;
@@ -22,7 +24,7 @@ pub fn check(records: &EntityRecords, entity_map: &EntityMap, today: u32) -> K4R
     let map = entity_map;
 
     // stop_times geçişi → StopTimesIndex üzerinden (Vec<StopTimeRecord> taranmaz)
-    let (stm_used_stop_ids, stm_trip_continuous, stm_trips_in_stm, stm_trip_stm_count, stm_bad_stop_ids, stm_trip_stops) = {
+    let (stm_used_stop_ids, stm_trip_continuous, stm_trips_in_stm, stm_trip_stm_count, stm_bad_stop_ids) = {
         let _t = Timer::start("K4::stop_times");
         let idx = &records.stop_times_index;
 
@@ -116,11 +118,8 @@ pub fn check(records: &EntityRecords, entity_map: &EntityMap, today: u32) -> K4R
         let trip_stm_count: HashMap<&str, u32> = idx.iter_trips()
             .map(|(k, v)| (k.as_str(), v.len() as u32))
             .collect();
-        let trip_stops: HashMap<&str, HashSet<&str>> = idx.trip_stop_set.iter()
-            .map(|(k, v)| (k.as_str(), v.iter().map(|s| s.as_str()).collect()))
-            .collect();
 
-        (used_stop_ids, trip_continuous, trips_in_stm, trip_stm_count, bad_stop_ids, trip_stops)
+        (used_stop_ids, trip_continuous, trips_in_stm, trip_stm_count, bad_stop_ids)
     };
 
     { let _t = Timer::start("K4::agencies");       check_agencies(records, map, &mut notices, &mut ctr); }
@@ -131,7 +130,7 @@ pub fn check(records: &EntityRecords, entity_map: &EntityMap, today: u32) -> K4R
     { let _t = Timer::start("K4::calendar");       check_calendar(records, map, &mut notices, &mut ctr, today); }
     { let _t = Timer::start("K4::calendar_dates"); check_calendar_dates(records, map, &mut notices, &mut ctr); }
     { let _t = Timer::start("K4::frequencies");    check_frequencies(records, map, &mut notices, &mut ctr, &stm_trips_in_stm); }
-    { let _t = Timer::start("K4::transfers");      check_transfers(records, map, &mut notices, &mut ctr, &stm_trips_in_stm, &stm_trip_stops); }
+    { let _t = Timer::start("K4::transfers");      check_transfers(records, map, &mut notices, &mut ctr, &stm_trips_in_stm, &records.stop_times_index.trip_stop_set); }
     { let _t = Timer::start("K4::fare_attributes");check_fare_attributes(records, map, &mut notices, &mut ctr); }
     { let _t = Timer::start("K4::fare_rules");     check_fare_rules(records, map, &mut notices, &mut ctr); }
     { let _t = Timer::start("K4::fares_v2");       check_fares_v2(records, map, &mut notices, &mut ctr); }
@@ -1220,7 +1219,9 @@ fn check_transfers(
     notices: &mut Vec<Notice>,
     ctr: &mut u32,
     trips_in_stm: &HashSet<&str>,
-    trip_stops: &HashMap<&str, HashSet<&str>>,
+    // #15: trip_stop_set'i doğrudan ödünç al (SmolStr: Borrow<str> → .get/.contains &str ile çalışır).
+    // Önceki &str borrowed-kopya (HashMap<&str,HashSet<&str>>) ~200 MB transient idi; kaldırıldı.
+    trip_stops: &FxHashMap<SmolStr, FxHashSet<SmolStr>>,
 ) {
     for rec in &records.transfers {
         let ttype = rec.transfer_type;
