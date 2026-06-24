@@ -14,22 +14,38 @@ export default defineConfig({
       reportsDirectory: './coverage',
       all: true,
       include: ['src/**/*.ts'],
+      // The gate measures unit-testable logic only. Two categories are excluded
+      // so the percentage isn't dominated by things vitest can't meaningfully
+      // cover:
+      //   1. Translation DATA (src/locales/**): ~5000 lines that score 100%
+      //      merely by being imported — pure noise in the numerator.
+      //   2. Browser-only layers exercised by Playwright e2e, not vitest:
+      //      every page renderer, the modals, the WASM/worker glue and the
+      //      DOM-coupled i18n/main entry points.
+      // What stays in the gate: pure logic modules (dates, state, debug-buffer,
+      // escape, file-summary, file-map-schema, severity-order). Some are still
+      // 0% (dates/state/debug-buffer) — kept on purpose so the gate reflects
+      // real untested logic instead of hiding it.
       exclude: [
         'src/__tests__/**',
         'src/**/*.d.ts',
         'src/**/types.ts',
-        // Render-only sayfa modülü: saf mantığı file-summary.ts / file-map-schema.ts /
-        // severity-order.ts'e çıkarıldı (unit test'li); Cytoscape/DOM çizim katmanı
-        // tests/file-map.spec.ts (Playwright e2e) ile kapsanıyor, unit coverage'a girmez.
-        'src/pages/file-map.ts',
+        'src/locales/**',
+        'src/pages/**',
+        'src/main.ts',
+        'src/i18n.ts',
+        'src/wasm.ts',
+        'src/validator-client.ts',
+        'src/validator-worker.ts',
+        'src/map-modal.ts',
+        'src/pattern-modal.ts',
       ],
-      // Gerçek baseline (ilk CI koşusu): lines/statements ~%64.5.
-      // Eşik mevcut oranın hemen altına (60) konumlandı; tests eklendikçe ~%80'e yükseltilecek.
-      // functions/branches v8 + all:true ile gürültülü (payda ~13: import edilmeyen dosyalar
-      // için v8 branch/function noktası üretmiyor) olduğundan gate'lenmiyor — yanıltıcı olur.
+      // Threshold sits just under the current honest logic-coverage; raise it
+      // as dates/state/debug-buffer get unit tests. functions/branches stay
+      // ungated (noisy under v8 + all:true).
       thresholds: {
-        lines: 60,
-        statements: 60,
+        lines: 65,
+        statements: 65,
       },
     },
   },
