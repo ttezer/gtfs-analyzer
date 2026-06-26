@@ -64,6 +64,7 @@ use timeframes::{validate_timeframes, TimeframeRecord};
 use transfers::{validate_transfers, TransferRecord};
 use translations::{validate_translations, TranslationRecord};
 use trips::{validate_trips, TripRecord};
+use rustc_hash::FxHashMap;
 
 /// K2 sonrasında üretilecek typed entity kayıtlarının kapsayıcısı.
 #[derive(Debug, Default)]
@@ -103,6 +104,10 @@ pub struct EntityRecords {
     pub translations: Vec<TranslationRecord>,
     pub trips: Vec<TripRecord>,
     pub has_route_networks_file: bool,
+    /// Streaming parse edilen dosyaların fiziksel veri satırı sayıları (başlık hariç).
+    /// lib.rs file_stats döngüsünde K1 rows.len()==0 yerine bu sayaçlar kullanılır.
+    /// Yeni bir dosya stream edildiğinde buraya eklemek yeterli; lib.rs dokunmaz.
+    pub streaming_row_counts: FxHashMap<String, u64>,
 }
 
 /// K2 schema/field validation çıktısı.
@@ -158,6 +163,7 @@ pub fn validate(mut files: RawFiles, zip_bytes: Option<&[u8]>) -> K2Result {
         let (calendar_date_records, calendar_date_notices) = validate_calendar_dates(file, zip_bytes);
         records.calendar_dates = calendar_date_records;
         notices.extend(calendar_date_notices);
+        records.streaming_row_counts.insert("calendar_dates.txt".to_string(), records.calendar_dates.raw_row_count);
         mem_log(&format!(
             "K2::calendar_dates done: svcs={} exc_total={} added_dates={} removed_dates={}",
             records.calendar_dates.exception_count.len(),
@@ -219,6 +225,7 @@ pub fn validate(mut files: RawFiles, zip_bytes: Option<&[u8]>) -> K2Result {
         let (shape_records, shape_notices) = validate_shapes(file);
         records.shapes = shape_records;
         notices.extend(shape_notices);
+        records.streaming_row_counts.insert("shapes.txt".to_string(), records.shapes.len() as u64);
         mem_log("K2 after shapes records");
     }
 
@@ -248,6 +255,7 @@ pub fn validate(mut files: RawFiles, zip_bytes: Option<&[u8]>) -> K2Result {
         let (trip_records, trip_notices) = validate_trips(file, zip_bytes);
         records.trips = trip_records;
         notices.extend(trip_notices);
+        records.streaming_row_counts.insert("trips.txt".to_string(), records.trips.len() as u64);
         mem_log("K2 after trips records");
     }
 
@@ -337,6 +345,7 @@ pub fn validate(mut files: RawFiles, zip_bytes: Option<&[u8]>) -> K2Result {
         let (stm_index, stop_time_notices) = validate_stop_times(file, zip_bytes);
         records.stop_times_index = stm_index;
         notices.extend(stop_time_notices);
+        records.streaming_row_counts.insert("stop_times.txt".to_string(), records.stop_times_index.total_rows as u64);
         mem_log("K2 after stop_times index");
     }
 
