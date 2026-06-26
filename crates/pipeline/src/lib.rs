@@ -47,14 +47,16 @@ pub fn validate_bytes(zip: &[u8], config: &ValidatorConfig, today: u32) -> Valid
         k2.records.stop_times_index.normalize_service_day(config.service_day_start_hour);
     }
 
-    // OOM fix Plan A: stop_times.txt K1'de stream edildiği için RawFile.rows boştur;
-    // gerçek satır sayısı K2 index'inde. file_stats'taki 0 değerini düzelt.
+    // Stream edilen dosyalarda K1 rows boş kalır; K2'den gerçek satır sayısını al.
     for fi in file_stats.iter_mut() {
         if fi.name == "stop_times.txt" {
             fi.rows = k2.records.stop_times_index.total_rows as u32;
         } else if fi.name == "shapes.txt" {
-            // #15 W3: shapes da stream edildi (rows boş) → gerçek satır sayısını K2'den al.
             fi.rows = k2.records.shapes.len() as u32;
+        } else if fi.name == "trips.txt" {
+            fi.rows = k2.records.trips.len() as u32;
+        } else if fi.name == "calendar_dates.txt" {
+            fi.rows = k2.records.calendar_dates.raw_row_count as u32;
         }
     }
 

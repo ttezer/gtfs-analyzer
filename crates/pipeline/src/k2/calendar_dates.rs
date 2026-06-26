@@ -37,6 +37,9 @@ pub struct CalendarDateIndex {
     /// service_id → toplam exception satırı (CLD_006 / K6 CLD_007 için ham sayı).
     /// Geçersiz tarih veya exception_type içeren satırlar da dahil; boş service_id hariç.
     pub exception_count: FxHashMap<SmolStr, u32>,
+    /// Başlık hariç toplam veri satırı sayısı (boş service_id dahil).
+    /// Dosya özeti (RAOR sayfası) için — stop_times_index.total_rows ile aynı semantik.
+    pub raw_row_count: u64,
 }
 
 // ── Parse ──────────────────────────────────────────────────────────────────────
@@ -95,6 +98,7 @@ pub fn validate_calendar_dates(
     let has_exception_type_col = file.headers.iter().any(|h| h == "exception_type");
 
     let mut process = |row: &[Cow<'_, str>], line: u64| {
+        index.raw_row_count += 1;
         let raw_sid = get_col(row, cols.service_id);
         let service_id: SmolStr = if raw_sid.is_empty() {
             SmolStr::default()
