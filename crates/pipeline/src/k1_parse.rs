@@ -529,22 +529,50 @@ pub fn parse(zip_bytes: &[u8]) -> Result<K1Result, FatalError> {
         // Bayt oku (ARC_011 için is_known kontrolünden önce yapılır)
         k1dbg!("[K1] okuma başladı: {raw_name} (compressed: {} b)", zf.compressed_size());
         let uncompressed_hint = zf.size() as usize;
-        let mut bytes = Vec::with_capacity(uncompressed_hint.max(1));
+        // #38: Büyük dosyalar K2 ZIP stream eder; K1 yalnızca başlık satırını okur.
+        // stop_times, trips, calendar_dates için 8 KB partial read; raw_text=None.
+        let is_zip_stream = matches!(raw_name.as_str(), "stop_times.txt" | "trips.txt" | "calendar_dates.txt");
+        let _is_stop_times = raw_name == "stop_times.txt"; // legacy: sadece ARC_011 bytes için artık is_zip_stream
+        // Alloc'dan ÖNCE log: crash olursa son satır hangi dosyada OOM çıktığını gösterir.
+        crate::timing::mem_note(&format!(
+            "K1::alloc::{} hint={}MB{}",
+            raw_name, uncompressed_hint / 1_048_576,
+            if is_zip_stream { " (partial)" } else { "" }
+        ));
+        crate::timing::mem_log(&format!("K1::pre-alloc::{raw_name}"));
+        let mut raw_vec = if is_zip_stream {
+            Vec::with_capacity(8192)
+        } else {
+            Vec::with_capacity(uncompressed_hint.max(1))
+        };
         {
             let _t = crate::timing::Timer::start(format!("K1::decompress::{raw_name}"));
-            zf.read_to_end(&mut bytes).map_err(|e| FatalError {
-                code: FatalCode::ZipUnreadable,
-                message: format!("'{raw_name}' okunamadı: {e}"),
-            })?;
+            if is_zip_stream {
+                // Header satırı için 8 KB yeterli; gövde K2'de ZIP'ten stream edilir.
+                let cap = uncompressed_hint.min(8192).max(1);
+                raw_vec.resize(cap, 0u8);
+                let n = zf.read(&mut raw_vec).map_err(|e| FatalError {
+                    code: FatalCode::ZipUnreadable,
+                    message: format!("'{raw_name}' başlık okunamadı: {e}"),
+                })?;
+                raw_vec.truncate(n);
+            } else {
+                zf.read_to_end(&mut raw_vec).map_err(|e| FatalError {
+                    code: FatalCode::ZipUnreadable,
+                    message: format!("'{raw_name}' okunamadı: {e}"),
+                })?;
+            }
         }
 
-        // ARC_011: Dosya boyutu — tüm kök .txt dosyaları için (bilinmeyen dahil)
+        // ARC_011: Dosya boyutu — tüm kök .txt dosyaları için (bilinmeyen dahil).
+        // zip_stream partial_read'de raw_vec yalnızca başlık (~8KB); gerçek boyut ZIP metadata'sından.
+        let file_size_bytes = if is_zip_stream { uncompressed_hint } else { raw_vec.len() };
         notices.push(make_notice(
             &mut counter, "ARC_011",
             EntityType::File, Some(raw_name.clone()),
             Some(&raw_name), None, None,
-            Some(format!("{} bayt", bytes.len())),
-            format!("'{raw_name}' boyutu: {} bayt.", bytes.len()),
+            Some(format!("{file_size_bytes} bayt")),
+            format!("'{raw_name}' boyutu: {file_size_bytes} bayt."),
             "Bilgi amaçlı; düzeltme gerekmez.",
         ));
 
@@ -574,7 +602,7 @@ pub fn parse(zip_bytes: &[u8]) -> Result<K1Result, FatalError> {
         }
 
         // BOM kontrolü
-        let (bytes, has_bom) = strip_bom(&bytes);
+        let (bytes, has_bom) = strip_bom(&raw_vec);
         if has_bom {
             // ARC_010 ve DQ_014 aynı koşul — ikisi ayrı ayrı ateşlenmez;
             // DQ_014 sadece ARC_002 suppressor listesinde referans, ARC_010 onu kapsar.
@@ -629,7 +657,12 @@ pub fn parse(zip_bytes: &[u8]) -> Result<K1Result, FatalError> {
         // Bu dosyalarda SADECE header tokenize edilir; gövde ham metin (`raw_text`) olarak
         // K2'ye verilip orada streaming işlenir. Per-satır notice'lar (ARC_012/016/018/021,
         // DQ_016, ARC_022, veri-yok ARC_009) K2 stream geçişine taşındı.
-        let stream_mode = raw_name == "stop_times.txt" || raw_name == "shapes.txt";
+        // #38: trips.txt + calendar_dates.txt K1'de stream edilir.
+        // trips: ~3M sefer × 8 alan Vec<Vec<SmolStr>> (~576 MB) TripRecord Vec ile çakışır.
+        // calendar_dates: Swiss feed ~8M+ satır → rows Vec<Vec<SmolStr>> 700MB+ tüketir,
+        // stop_times.txt decompress için yer kalmaz.
+        let stream_mode = raw_name == "stop_times.txt" || raw_name == "shapes.txt"
+            || raw_name == "trips.txt" || raw_name == "calendar_dates.txt";
 
         k1dbg!("[K1] tokenizing: {raw_name}");
         // CSV tokenization — stream_mode'da yalnızca başlık (Some(0)), aksi halde tam veri
@@ -658,7 +691,8 @@ pub fn parse(zip_bytes: &[u8]) -> Result<K1Result, FatalError> {
 
         // stream_mode: K1 yalnızca başlığı tokenize eder; gövdedeki kapanmamış tırnağı
         // (ARC_013) yine de tespit et — zorunlu dosyada Fatal davranışı korunur (alloc YOK).
-        if stream_mode && csv_has_unclosed_quote(text) {
+        // zip_stream dosyalarda gövde yoktur; unclosed quote kontrolü yanlış-pozitif üretir.
+        if stream_mode && !is_zip_stream && csv_has_unclosed_quote(text) {
             let msg = "Kapanmamış tırnak işareti (unclosed quote)".to_string();
             notices.push(make_notice(
                 &mut counter, "ARC_013",
@@ -910,9 +944,13 @@ pub fn parse(zip_bytes: &[u8]) -> Result<K1Result, FatalError> {
             ));
         }
 
-        // Başlık satırından oluşan kayıt için ARC_009 kontrolü (yalnızca başlık var, veri yok)
-        // stream_mode'da rows her zaman boştur; "veri yok" tespitini K2 (total_rows) yapar.
-        if !stream_mode && rows.is_empty()
+        // Başlık satırından oluşan kayıt için ARC_009 kontrolü (yalnızca başlık var, veri yok).
+        // stream_mode'da rows boştur; stop_times/shapes için K2 üretir (total_rows var).
+        // calendar_dates.txt stream_mode'da da burada kontrol edilir (K2'nin total_rows'u yok).
+        let stream_empty = stream_mode
+            && raw_name == "calendar_dates.txt"
+            && text.lines().filter(|l| !l.trim().is_empty()).count() <= 1;
+        if (!stream_mode && rows.is_empty() || stream_empty)
             && !(raw_name == "calendar_dates.txt" && has_calendar_txt)
         {
             let mut n = make_notice(
@@ -930,11 +968,23 @@ pub fn parse(zip_bytes: &[u8]) -> Result<K1Result, FatalError> {
             notices.push(n);
         }
 
-        // stream_mode (stop_times.txt): gövdeyi ham metin olarak sakla; rows boş kalır.
-        let raw_text = if stream_mode { Some(text.to_string()) } else { None };
+        // zip_stream partial_read'de bytes = ~8KB snippet; gerçek boyut ZIP metadata'sında.
+        // NLL: bytes ödüncü burada biter (son kullanım), ardından raw_vec taşınabilir.
+        let bytes_len = if is_zip_stream { uncompressed_hint as u32 } else { bytes.len() as u32 };
+        // zip_stream dosyalarda (stop_times, trips, calendar_dates): raw_text=None.
+        // K2 zip_bytes alır, ZIP'i yeniden açarak gövdeyi stream eder.
+        // shapes.txt: raw_text yoluyla stream (zip_stream değil, raw_text=Some).
+        let raw_text = if is_zip_stream {
+            None
+        } else if stream_mode {
+            // shapes.txt — is_required=false, lossy yol kabul edilebilir.
+            Some(text.to_string())
+        } else {
+            None
+        };
 
         k1dbg!("[K1] bitti: {raw_name} ({} satır)", rows.len());
-        raw_files.insert(raw_name.clone(), RawFile { name: raw_name, headers, rows, bytes: bytes.len() as u32, raw_text });
+        raw_files.insert(raw_name.clone(), RawFile { name: raw_name, headers, rows, bytes: bytes_len, raw_text });
     }
 
     // ── Dosya varlık kontrolleri ──────────────────────────────────────────────
@@ -1280,13 +1330,15 @@ mod tests {
 
     #[test]
     fn csv_malformed_on_required_file_returns_fatal() {
-        let bad_csv = b"trip_id,stop_id\n\"unclosed quote\n";
+        // #38: stop_times/trips/calendar_dates K1'de partial (8KB header) okunur → body K2'de.
+        // Malformed CSV testi için routes.txt kullanılır (K1'de hâlâ tam okunur).
+        let bad_routes = b"route_id,agency_id,route_short_name,route_type\n\"unclosed quote\n";
         let zip = zip_with_files(&[
             ("agency.txt",     b"agency_id,agency_name,agency_url,agency_timezone\n1,Test,http://x.com,UTC\n"),
             ("stops.txt",      b"stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\n"),
-            ("routes.txt",     b"route_id,agency_id,route_short_name,route_type\nR1,1,101,3\n"),
+            ("routes.txt",     bad_routes),
             ("trips.txt",      b"route_id,service_id,trip_id\nR1,SVC1,T1\n"),
-            ("stop_times.txt", bad_csv),
+            ("stop_times.txt", b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\n"),
             ("calendar.txt",   b"service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,0,0,20240101,20241231\n"),
         ]);
         let err = parse(&zip).expect_err("bozuk CSV Fatal olmalı");

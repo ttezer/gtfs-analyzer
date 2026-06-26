@@ -185,7 +185,7 @@ fn build_calendar_bitmap(records: &EntityRecords, derived: &mut DerivedData) {
         let set = derived
             .calendar_bitmap
             .active_dates
-            .entry(rec.service_id.clone())
+            .entry(rec.service_id.to_string())
             .or_default();
 
         let mut jdn = start_jdn;
@@ -199,28 +199,17 @@ fn build_calendar_bitmap(records: &EntityRecords, derived: &mut DerivedData) {
         }
     }
 
-    // calendar_dates.txt: exception overlay
-    for rec in &records.calendar_dates {
-        if rec.service_id.is_empty() {
-            continue;
-        }
-        let date = match rec.date {
-            Some((y, m, d)) => y * 10000 + m * 100 + d,
-            None => continue,
-        };
-        let set = derived
-            .calendar_bitmap
-            .active_dates
-            .entry(rec.service_id.clone())
-            .or_default();
-        match rec.exception_type {
-            Some(1) => {
-                set.insert(date);
-            }
-            Some(2) => {
-                set.remove(&date);
-            }
-            _ => {}
+    // calendar_dates.txt: exception overlay.
+    // Önce tüm exception_type=1 (added) tarihleri ekle, ardından exception_type=2 (removed) kaldır.
+    // ⚠️ Çakışma davranışı: aynı (service_id, date) hem added hem removed'daysa removed kazanır
+    // (CSV satır sırasından bağımsız). Geçerli GTFS feed'lerinde bu çakışma olmamalı.
+    for (svc, dates) in &records.calendar_dates.added {
+        let set = derived.calendar_bitmap.active_dates.entry(svc.to_string()).or_default();
+        for &d in dates { set.insert(d); }
+    }
+    for (svc, dates) in &records.calendar_dates.removed {
+        if let Some(set) = derived.calendar_bitmap.active_dates.get_mut(svc.as_str()) {
+            for &d in dates { set.remove(&d); }
         }
     }
 }
@@ -636,7 +625,7 @@ mod tests {
     // ── WP-08b: CalendarBitmap ────────────────────────────────────────────────
 
     use crate::k2::calendar::CalendarRecord;
-    use crate::k2::calendar_dates::CalendarDateRecord;
+    use crate::k2::calendar_dates::CalendarDateIndex;
 
     fn calendar_rec(service_id: &str, days: [Option<u32>; 7], start: (u32,u32,u32), end: (u32,u32,u32)) -> CalendarRecord {
         CalendarRecord {
@@ -649,14 +638,17 @@ mod tests {
         }
     }
 
-    fn cal_date_rec(service_id: &str, date: (u32,u32,u32), exception_type: u32) -> CalendarDateRecord {
-        CalendarDateRecord {
-            service_id: service_id.into(),
-            date: Some(date),
-            exception_type: Some(exception_type),
-            row: Default::default(),
-            line: 2,
+    fn cal_date_idx(service_id: &str, date: (u32, u32, u32), exception_type: u32) -> CalendarDateIndex {
+        let mut idx = CalendarDateIndex::default();
+        let d = date.0 * 10000 + date.1 * 100 + date.2;
+        idx.exception_count.insert(service_id.into(), 1);
+        idx.first_line.insert(service_id.into(), 2);
+        match exception_type {
+            1 => { idx.added.insert(service_id.into(), vec![d]); }
+            2 => { idx.removed.insert(service_id.into(), vec![d]); }
+            _ => {}
         }
+        idx
     }
 
     #[test]
@@ -689,7 +681,7 @@ mod tests {
             (2026, 5, 11),
         )];
         // Pazartesi'yi kaldır (exception_type=2)
-        records.calendar_dates = vec![cal_date_rec("SVC1", (2026, 5, 11), 2)];
+        records.calendar_dates = cal_date_idx("SVC1", (2026, 5, 11), 2);
         let result = build(&records, &empty_map());
         let dates = result.derived.calendar_bitmap.active_dates.get("SVC1").unwrap();
         assert!(!dates.contains(&20260511), "İptal edilen gün olmamalı");
@@ -699,7 +691,7 @@ mod tests {
     fn calendar_dates_exception_type1_adds_date() {
         let mut records = empty_records();
         // Takvim yok, sadece ek gün
-        records.calendar_dates = vec![cal_date_rec("SVC_NEW", (2026, 6, 1), 1)];
+        records.calendar_dates = cal_date_idx("SVC_NEW", (2026, 6, 1), 1);
         let result = build(&records, &empty_map());
         let dates = result.derived.calendar_bitmap.active_dates.get("SVC_NEW").unwrap();
         assert!(dates.contains(&20260601));

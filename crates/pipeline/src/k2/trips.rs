@@ -1,27 +1,44 @@
+use std::borrow::Cow;
+use std::io::Cursor;
+
 use gtfs_core::EntityType;
+use rustc_hash::FxHashMap;
 use smol_str::SmolStr;
 
 use super::common::make_k2_notice;
+use super::stop_times::{next_csv_record, ZipCsvReader};
 use crate::k1_parse::RawFile;
+
+// TripRecord boyutunu sabitle — alan ekleme struct'ı şişirirse CI kırar.
+const _: () = assert!(std::mem::size_of::<TripRecord>() <= 256);
 
 #[derive(Debug, Clone)]
 pub struct TripRecord {
-    pub trip_id: String,
-    pub route_id: String,
-    pub service_id: String,
-    pub shape_id: Option<String>,
-    pub trip_headsign: Option<String>,
-    pub trip_short_name: Option<String>,
+    pub trip_id: SmolStr,
+    pub route_id: SmolStr,
+    pub service_id: SmolStr,
+    pub shape_id: Option<SmolStr>,
+    pub trip_headsign: Option<SmolStr>,
+    pub trip_short_name: Option<SmolStr>,
     pub direction_id: Option<u32>,
-    pub block_id: Option<String>,
+    pub block_id: Option<SmolStr>,
     pub wheelchair_accessible: Option<u32>,
     pub bikes_allowed: Option<u32>,
     pub cars_allowed: Option<u32>,
     pub safe_duration_factor: Option<f64>,
     pub safe_duration_offset: Option<u32>,
     /// GTFS-JP: bu seferi işleten ofis (office_jp.office_id'ye referans).
-    pub jp_office_id: Option<String>,
+    pub jp_office_id: Option<SmolStr>,
     pub line: u64,
+}
+
+/// Tekrarlanan uzun string'leri paylaşılmış SmolStr olarak intern'le.
+/// ≤22 karakter → zaten SmolStr inline; cache lookup gereksiz.
+#[inline]
+fn intern(raw: &str, cache: &mut FxHashMap<String, SmolStr>) -> SmolStr {
+    if raw.is_empty() { return SmolStr::default(); }
+    if raw.len() <= 22 { return SmolStr::new(raw); }
+    cache.entry(raw.to_string()).or_insert_with(|| SmolStr::new(raw)).clone()
 }
 
 struct Cols {
@@ -64,8 +81,8 @@ impl Cols {
 }
 
 #[inline]
-fn get_col<'a>(row: &'a [SmolStr], col: Option<usize>) -> &'a str {
-    col.and_then(|i| row.get(i)).map(|s| s.as_str().trim()).unwrap_or("")
+fn get_col<'a>(row: &'a [Cow<'_, str>], col: Option<usize>) -> &'a str {
+    col.and_then(|i| row.get(i)).map(|s| s.as_ref().trim()).unwrap_or("")
 }
 
 fn parse_u32_raw(raw: &str) -> Result<Option<u32>, ()> {
@@ -78,28 +95,39 @@ fn parse_f64_raw(raw: &str) -> Result<Option<f64>, ()> {
     raw.parse::<f64>().map(Some).map_err(|_| ())
 }
 
-pub fn validate_trips(file: &RawFile) -> (Vec<TripRecord>, Vec<gtfs_core::Notice>) {
+pub fn validate_trips(file: &RawFile, zip_bytes: Option<&[u8]>) -> (Vec<TripRecord>, Vec<gtfs_core::Notice>) {
+    // #38: trips.txt K1'de yalnızca başlık okunur; K2 zip_bytes'tan stream eder.
+    // Eski rows yolu test/legacy fallback olarak korunur.
     let mut notices = Vec::new();
-    let mut records = Vec::new();
+    // Kapasite tahmini: sıkışık boyut / 60 (ortalama satır).
+    let est_rows = zip_bytes.map(|_| (file.bytes as usize / 60).max(1))
+        .or_else(|| file.raw_text.as_ref().map(|t| t.len() / 60))
+        .unwrap_or(file.rows.len());
+    let mut records: Vec<TripRecord> = Vec::with_capacity(est_rows);
     let mut counter = 0u32;
 
     let cols = Cols::from_headers(&file.headers);
-    // TRP_021: feed genelinde bikes_allowed kullanımını takip et.
-    // Eksik seferleri tek tek bildirmek yerine sayar + birkaç örnek trip_id toplar;
-    // loop sonrası tek özet notice üretilir (TRP_028/029 deseni).
     let mut trp021_missing_count: usize = 0;
-    let mut trp021_missing_examples: Vec<String> = Vec::new();
+    let mut trp021_missing_examples: Vec<SmolStr> = Vec::new();
     let mut trp021_first_line: Option<u64> = None;
     let mut bikes_allowed_set_count: u32 = 0;
 
-    for (row_idx, row) in file.rows.iter().enumerate() {
-        let line = (row_idx + 2) as u64;
+    let has_trip_id_col   = file.headers.iter().any(|h| h == "trip_id");
+    let has_route_id_col  = file.headers.iter().any(|h| h == "route_id");
 
-        let trip_id = get_col(row, cols.trip_id).to_string();
-        let entity_id = (!trip_id.is_empty()).then(|| trip_id.clone());
+    // Intern cache: route_id / service_id / shape_id pek çok satırda tekrar eder.
+    // trip_id genellikle benzersiz → doğrudan SmolStr::new.
+    let mut route_id_cache:   FxHashMap<String, SmolStr> = FxHashMap::default();
+    let mut service_id_cache: FxHashMap<String, SmolStr> = FxHashMap::default();
+    let mut shape_id_cache:   FxHashMap<String, SmolStr> = FxHashMap::default();
 
-        // TRP_001: trip_id zorunlu (sütun yoksa ARC_025 devralır → atla)
-        if trip_id.is_empty() && file.headers.iter().any(|h| h == "trip_id") {
+    // Satır işleyici — hem stream (raw_text) hem rows fallback yolundan çağrılır.
+    let mut process = |row: &[Cow<'_, str>], line: u64| {
+        let trip_id = SmolStr::new(get_col(row, cols.trip_id));
+        let entity_id = (!trip_id.is_empty()).then(|| trip_id.to_string());
+
+        // TRP_001: trip_id zorunlu
+        if trip_id.is_empty() && has_trip_id_col {
             notices.push(make_k2_notice(
                 &mut counter, "TRP_001", EntityType::Trip, None,
                 None, &file.name, Some(line), Some("trip_id"),
@@ -109,11 +137,11 @@ pub fn validate_trips(file: &RawFile) -> (Vec<TripRecord>, Vec<gtfs_core::Notice
             ));
         }
 
-        let route_id = get_col(row, cols.route_id).to_string();
-        let service_id = get_col(row, cols.service_id).to_string();
+        let route_id   = intern(get_col(row, cols.route_id),   &mut route_id_cache);
+        let service_id = intern(get_col(row, cols.service_id), &mut service_id_cache);
 
-        // TRP_031: route_id required (sütun yoksa ARC_025 devralır → atla)
-        if route_id.is_empty() && file.headers.iter().any(|h| h == "route_id") {
+        // TRP_031: route_id required
+        if route_id.is_empty() && has_route_id_col {
             notices.push(make_k2_notice(
                 &mut counter, "TRP_031", EntityType::Trip, None,
                 None, &file.name, Some(line), Some("route_id"),
@@ -125,15 +153,15 @@ pub fn validate_trips(file: &RawFile) -> (Vec<TripRecord>, Vec<gtfs_core::Notice
 
         let shape_id = {
             let v = get_col(row, cols.shape_id);
-            if v.is_empty() { None } else { Some(v.to_string()) }
+            if v.is_empty() { None } else { Some(intern(v, &mut shape_id_cache)) }
         };
         let trip_headsign = {
             let v = get_col(row, cols.trip_headsign);
-            if v.is_empty() { None } else { Some(v.to_string()) }
+            if v.is_empty() { None } else { Some(SmolStr::new(v)) }
         };
         let trip_short_name = {
             let v = get_col(row, cols.trip_short_name);
-            if v.is_empty() { None } else { Some(v.to_string()) }
+            if v.is_empty() { None } else { Some(SmolStr::new(v)) }
         };
 
         // TRP_014: trip_short_name çok uzun (>20 karakter)
@@ -151,10 +179,10 @@ pub fn validate_trips(file: &RawFile) -> (Vec<TripRecord>, Vec<gtfs_core::Notice
 
         let block_id = {
             let v = get_col(row, cols.block_id);
-            if v.is_empty() { None } else { Some(v.to_string()) }
+            if v.is_empty() { None } else { Some(SmolStr::new(v)) }
         };
 
-        // TRP_005: direction_id must be 0 or 1 if provided
+        // TRP_005: direction_id 0 veya 1 olmalı
         let dir_raw = get_col(row, cols.direction_id);
         let direction_id = match parse_u32_raw(dir_raw) {
             Ok(v) => {
@@ -223,7 +251,7 @@ pub fn validate_trips(file: &RawFile) -> (Vec<TripRecord>, Vec<gtfs_core::Notice
             Err(_) => None,
         };
 
-        // TRP_021: bikes_allowed kullanım istatistiği — özet bildirim loop sonrası yapılır
+        // TRP_021: bikes_allowed eksik sayacı
         if bikes_allowed.is_none() && ba_raw.is_empty() {
             trp021_missing_count += 1;
             if trp021_first_line.is_none() {
@@ -236,7 +264,7 @@ pub fn validate_trips(file: &RawFile) -> (Vec<TripRecord>, Vec<gtfs_core::Notice
             bikes_allowed_set_count += 1;
         }
 
-        // TRP_032: cars_allowed 0, 1 veya 2 olmalı (TRP_007 bikes_allowed ikizi)
+        // TRP_032: cars_allowed 0, 1 veya 2 olmalı
         let ca_raw = get_col(row, cols.cars_allowed);
         let cars_allowed = match parse_u32_raw(ca_raw) {
             Ok(v) => {
@@ -255,12 +283,13 @@ pub fn validate_trips(file: &RawFile) -> (Vec<TripRecord>, Vec<gtfs_core::Notice
             }
             Err(_) => None,
         };
+
         let safe_duration_factor = parse_f64_raw(get_col(row, cols.safe_duration_factor)).ok().flatten();
         let safe_duration_offset = parse_u32_raw(get_col(row, cols.safe_duration_offset)).ok().flatten();
 
         let jp_office_id = {
             let v = get_col(row, cols.jp_office_id);
-            if v.is_empty() { None } else { Some(v.to_string()) }
+            if v.is_empty() { None } else { Some(SmolStr::new(v)) }
         };
 
         records.push(TripRecord {
@@ -280,15 +309,77 @@ pub fn validate_trips(file: &RawFile) -> (Vec<TripRecord>, Vec<gtfs_core::Notice
             jp_office_id,
             line,
         });
+    };
+
+    // ── Sürücü: zip_bytes → ZIP stream; raw_text → string stream; rows → fallback ──
+    if let Some(zb) = zip_bytes {
+        let cursor = Cursor::new(zb);
+        match zip::ZipArchive::new(cursor) {
+            Err(e) => {
+                notices.push(make_k2_notice(
+                    &mut counter, "ARC_009", EntityType::File, Some(file.name.clone()),
+                    None, &file.name, None, None, None, None,
+                    format!("'{}' ZIP yeniden açılamadı: {e}.", file.name),
+                    "ZIP arşivini kontrol edin.",
+                ));
+            }
+            Ok(mut archive) => {
+                match archive.by_name(&file.name) {
+                    Err(e) => {
+                        notices.push(make_k2_notice(
+                            &mut counter, "ARC_009", EntityType::File, Some(file.name.clone()),
+                            None, &file.name, None, None, None, None,
+                            format!("'{}' ZIP girdisi bulunamadı: {e}.", file.name),
+                            "ZIP arşivini kontrol edin.",
+                        ));
+                    }
+                    Ok(entry) => {
+                        let mut csv_reader = ZipCsvReader::new(entry);
+                        let mut raw_fields: Vec<Vec<u8>> = Vec::with_capacity(16);
+                        let mut zip_line: u64 = 2;
+                        let mut header_skipped = false;
+                        while csv_reader.next_record(&mut raw_fields) {
+                            if raw_fields.len() == 1 && raw_fields[0].is_empty() { continue; }
+                            if !header_skipped { header_skipped = true; continue; }
+                            let strings: Vec<String> = raw_fields.iter()
+                                .map(|f| match std::str::from_utf8(f) {
+                                    Ok(s) => s.to_owned(),
+                                    Err(_) => String::from_utf8_lossy(f).into_owned(),
+                                })
+                                .collect();
+                            let cow_row: Vec<Cow<'_, str>> =
+                                strings.iter().map(|s| Cow::Borrowed(s.as_str())).collect();
+                            process(&cow_row, zip_line);
+                            zip_line += 1;
+                        }
+                    }
+                }
+            }
+        }
+    } else if let Some(text) = &file.raw_text {
+        let mut pos = 0usize;
+        let mut buf: Vec<Cow<'_, str>> = Vec::with_capacity(16);
+        let mut data_idx = 0usize;
+        let mut header_skipped = false;
+        while next_csv_record(text, &mut pos, &mut buf) {
+            if buf.len() == 1 && buf[0].is_empty() { continue; }
+            if !header_skipped { header_skipped = true; continue; }
+            process(&buf, (data_idx + 2) as u64);
+            data_idx += 1;
+        }
+    } else {
+        // Fallback (test/legacy): önceden parse edilmiş rows üzerinden.
+        for (row_idx, row) in file.rows.iter().enumerate() {
+            let cow_row: Vec<Cow<'_, str>> =
+                row.iter().map(|s| Cow::Borrowed(s.as_str())).collect();
+            process(&cow_row, (row_idx + 2) as u64);
+        }
     }
 
-    // TRP_021: bikes_allowed eksik seferler — her satır için ayrı notice yerine tek özet notice
-    // (TRP_028/029 deseni). Hiç set edilmemişse feed genelinde eksiklik; bazıları set etmişse
-    // kalanlar tutarsızlık olarak örneklerle özetlenir.
+    // TRP_021: loop sonrası tek özet notice
     if trp021_missing_count > 0 {
         let total = trp021_missing_count + bikes_allowed_set_count as usize;
         if bikes_allowed_set_count == 0 {
-            // Feed genelinde alan hiç doldurulmamış — tek özet yeterli
             notices.push(make_k2_notice(
                 &mut counter, "TRP_021", EntityType::Trip, None,
                 None, &file.name, None, Some("bikes_allowed"),
@@ -297,7 +388,6 @@ pub fn validate_trips(file: &RawFile) -> (Vec<TripRecord>, Vec<gtfs_core::Notice
                 "bikes_allowed değerini 0 (bilgi yok), 1 (bisiklet izinli) veya 2 (bisiklet izinsiz) olarak ayarlayın.",
             ));
         } else {
-            // Bazı seferler set etmiş — eksik olanları tek özette örneklerle bildir (tutarsızlık)
             let examples = if trp021_missing_examples.is_empty() {
                 String::new()
             } else {
@@ -324,6 +414,7 @@ mod tests {
     use super::*;
     use crate::k1_parse::RawFile;
 
+    // Testler rows fallback yolunu kullanır (raw_text=None).
     fn make_file(headers: Vec<&str>, rows: Vec<Vec<&str>>) -> RawFile {
         RawFile {
             name: "trips.txt".to_string(),
@@ -334,15 +425,49 @@ mod tests {
         }
     }
 
+    // Streaming yolunu test et — shapes.rs deseni.
+    fn make_file_streaming(headers: Vec<&str>, rows: Vec<Vec<&str>>) -> RawFile {
+        let header_line = headers.join(",");
+        let data_lines: Vec<String> = rows.iter()
+            .map(|r| r.join(","))
+            .collect();
+        let text = format!("{}\n{}\n", header_line, data_lines.join("\n"));
+        RawFile {
+            name: "trips.txt".to_string(),
+            headers: headers.into_iter().map(str::to_string).collect(),
+            rows: vec![],
+            bytes: text.len() as u32,
+            raw_text: Some(text),
+        }
+    }
+
     #[test]
     fn valid_trip_produces_no_notices() {
         let file = make_file(
             vec!["route_id", "service_id", "trip_id", "bikes_allowed"],
             vec![vec!["R1", "SVC1", "T1", "0"]],
         );
-        let (records, notices) = validate_trips(&file);
+        let (records, notices) = validate_trips(&file, None);
         assert_eq!(records.len(), 1);
         assert!(notices.is_empty(), "Geçerli sefer notice üretmemeli: {:?}", notices);
+    }
+
+    #[test]
+    fn streaming_matches_rows_path() {
+        let headers = vec!["route_id", "service_id", "trip_id", "direction_id", "bikes_allowed"];
+        let rows = vec![
+            vec!["R1", "SVC1", "T1", "0", "1"],
+            vec!["R2", "SVC2", "T2", "1", "2"],
+        ];
+        let (rec_rows, notices_rows) = validate_trips(&make_file(headers.clone(), rows.clone()), None);
+        let (rec_stream, notices_stream) = validate_trips(&make_file_streaming(headers, rows), None);
+        assert_eq!(rec_rows.len(), rec_stream.len());
+        assert_eq!(notices_rows.len(), notices_stream.len());
+        for (a, b) in rec_rows.iter().zip(rec_stream.iter()) {
+            assert_eq!(a.trip_id, b.trip_id);
+            assert_eq!(a.route_id, b.route_id);
+            assert_eq!(a.direction_id, b.direction_id);
+        }
     }
 
     #[test]
@@ -351,7 +476,7 @@ mod tests {
             vec!["route_id", "service_id", "trip_id", "direction_id"],
             vec![vec!["R1", "WKD", "T1", "9"]],
         );
-        let (_, notices) = validate_trips(&file);
+        let (_, notices) = validate_trips(&file, None);
         assert!(notices.iter().any(|n| n.rule_id == "TRP_005"),
             "direction_id=9 must produce TRP_005, got: {:?}", notices.iter().map(|n| &n.rule_id).collect::<Vec<_>>());
     }
@@ -362,7 +487,7 @@ mod tests {
             vec!["route_id", "service_id", "trip_id", "wheelchair_accessible"],
             vec![vec!["R1", "SVC1", "T1", "5"]],
         );
-        let (_, notices) = validate_trips(&file);
+        let (_, notices) = validate_trips(&file, None);
         assert!(notices.iter().any(|n| n.rule_id == "TRP_006"));
     }
 
@@ -372,7 +497,7 @@ mod tests {
             vec!["route_id", "service_id", "trip_id", "cars_allowed"],
             vec![vec!["R1", "SVC1", "T1", "5"]],
         );
-        let (_, notices) = validate_trips(&file);
+        let (_, notices) = validate_trips(&file, None);
         assert!(notices.iter().any(|n| n.rule_id == "TRP_032"));
     }
 
@@ -382,7 +507,7 @@ mod tests {
             vec!["route_id", "service_id", "trip_id", "cars_allowed"],
             vec![vec!["R1", "SVC1", "T1", "2"]],
         );
-        let (_, notices) = validate_trips(&file);
+        let (_, notices) = validate_trips(&file, None);
         assert!(!notices.iter().any(|n| n.rule_id == "TRP_032"));
     }
 
@@ -392,7 +517,7 @@ mod tests {
             vec!["route_id", "service_id", "trip_id", "direction_id"],
             vec![vec!["R1", "SVC1", "T1", "0"]],
         );
-        let (_, notices) = validate_trips(&file);
+        let (_, notices) = validate_trips(&file, None);
         assert!(!notices.iter().any(|n| n.rule_id == "TRP_005"));
     }
 }

@@ -259,21 +259,22 @@ fn build_trips(
         }
         if let Some(&prev_idx) = map.trips.get(tid.as_str()) {
             let prev_line = records.trips[prev_idx].line;
+            let tid_s = tid.to_string();
             notices.push(make_notice(
                 ctr,
                 "TRP_001",
                 EntityType::Trip,
-                Some(tid.clone()),
-                Some(tid.clone()),
+                Some(tid_s.clone()),
+                Some(tid_s.clone()),
                 "trips.txt",
                 rec.line,
                 "trip_id",
-                Some(tid.clone()),
+                Some(tid_s),
                 format!("'{}' sefer kodu tekrarlanıyor (ilk görünüm: satır {prev_line}).", tid),
                 "Her sefere benzersiz bir trip_id atayın.",
             ));
         } else {
-            map.trips.insert(tid.clone(), idx);
+            map.trips.insert(tid.to_string(), idx);
         }
     }
 }
@@ -313,11 +314,10 @@ fn build_services(
         }
     }
 
-    // calendar_dates'ten service_id ekle (CLD_001 zaten K2'de kontrol edildi)
-    for rec in &records.calendar_dates {
-        if !rec.service_id.is_empty() {
-            map.services.insert(rec.service_id.clone());
-        }
+    // calendar_dates'ten service_id ekle (CLD_001 zaten K2'de kontrol edildi).
+    // exception_count tüm non-empty service_id'leri kapsar (geçersiz tarih/type dahil).
+    for svc in records.calendar_dates.exception_count.keys() {
+        map.services.insert(svc.to_string());
     }
 }
 
@@ -582,7 +582,7 @@ mod tests {
     use super::*;
     use crate::k2::agency::AgencyRecord;
     use crate::k2::calendar::CalendarRecord;
-    use crate::k2::calendar_dates::CalendarDateRecord;
+    use crate::k2::calendar_dates::CalendarDateIndex;
     use crate::k2::fare_attributes::FareAttributeRecord;
     use crate::k2::levels::LevelRecord;
     use crate::k2::pathways::PathwayRecord;
@@ -802,19 +802,11 @@ mod tests {
             start_date: None, end_date: None,
             row: Default::default(), line: 2,
         }];
-        records.calendar_dates = vec![
-            CalendarDateRecord {
-                service_id: "HOL".into(),
-                date: None, exception_type: None,
-                row: Default::default(), line: 2,
-            },
-            // Boş service_id services kümesine girmemeli
-            CalendarDateRecord {
-                service_id: "".into(),
-                date: None, exception_type: None,
-                row: Default::default(), line: 3,
-            },
-        ];
+        // "HOL": exception_type=None → yalnızca exception_count'ta (added/removed'da değil)
+        // Boş service_id: exception_count'a GİRMEZ → services kümesine eklenmemeli
+        let mut idx = CalendarDateIndex::default();
+        idx.exception_count.insert("HOL".into(), 1);
+        records.calendar_dates = idx;
         let result = build(&records);
         assert!(result.entity_map.services.contains("WKD"));
         assert!(result.entity_map.services.contains("HOL"));

@@ -37,7 +37,7 @@ use booking_rules::{validate_booking_rules, BookingRuleRecord};
 use attributions::{validate_attributions, AttributionRecord};
 use common::make_k2_notice;
 use calendar::{validate_calendar, CalendarRecord};
-use calendar_dates::{validate_calendar_dates, CalendarDateRecord};
+use calendar_dates::{validate_calendar_dates, CalendarDateIndex};
 use gtfs_core::Notice;
 use crate::k1_parse::{RawFile, RawFiles};
 use fare_attributes::{validate_fare_attributes, FareAttributeRecord};
@@ -74,7 +74,7 @@ pub struct EntityRecords {
     pub booking_rules: Vec<BookingRuleRecord>,
     pub attributions: Vec<AttributionRecord>,
     pub calendars: Vec<CalendarRecord>,
-    pub calendar_dates: Vec<CalendarDateRecord>,
+    pub calendar_dates: CalendarDateIndex,
     pub feed_info: Vec<FeedInfoRecord>,
     pub fare_attributes: Vec<FareAttributeRecord>,
     pub fare_leg_rules: Vec<FareLegRuleRecord>,
@@ -112,7 +112,7 @@ pub struct K2Result {
     pub notices: Vec<Notice>,
 }
 
-pub fn validate(mut files: RawFiles) -> K2Result {
+pub fn validate(mut files: RawFiles, zip_bytes: Option<&[u8]>) -> K2Result {
     use crate::timing::{Timer, mem_log};
     let mut notices = Vec::new();
     let mut records = EntityRecords::default();
@@ -155,9 +155,16 @@ pub fn validate(mut files: RawFiles) -> K2Result {
 
     if let Some(file) = files.get("calendar_dates.txt") {
         let _t = Timer::start("K2::calendar_dates");
-        let (calendar_date_records, calendar_date_notices) = validate_calendar_dates(file);
+        let (calendar_date_records, calendar_date_notices) = validate_calendar_dates(file, zip_bytes);
         records.calendar_dates = calendar_date_records;
         notices.extend(calendar_date_notices);
+        mem_log(&format!(
+            "K2::calendar_dates done: svcs={} exc_total={} added_dates={} removed_dates={}",
+            records.calendar_dates.exception_count.len(),
+            records.calendar_dates.exception_count.values().map(|&v| v as u64).sum::<u64>(),
+            records.calendar_dates.added.values().map(|v| v.len()).sum::<usize>(),
+            records.calendar_dates.removed.values().map(|v| v.len()).sum::<usize>(),
+        ));
     }
 
     if let Some(file) = files.get("feed_info.txt") {
@@ -238,7 +245,7 @@ pub fn validate(mut files: RawFiles) -> K2Result {
 
     if let Some(file) = files.get("trips.txt") {
         let _t = Timer::start("K2::trips");
-        let (trip_records, trip_notices) = validate_trips(file);
+        let (trip_records, trip_notices) = validate_trips(file, zip_bytes);
         records.trips = trip_records;
         notices.extend(trip_notices);
         mem_log("K2 after trips records");
@@ -327,7 +334,7 @@ pub fn validate(mut files: RawFiles) -> K2Result {
     mem_log("K2 after drop(files)");
     if let Some(file) = &stop_times_file {
         let _t = Timer::start("K2::stop_times");
-        let (stm_index, stop_time_notices) = validate_stop_times(file);
+        let (stm_index, stop_time_notices) = validate_stop_times(file, zip_bytes);
         records.stop_times_index = stm_index;
         notices.extend(stop_time_notices);
         mem_log("K2 after stop_times index");
@@ -369,7 +376,7 @@ mod tests {
     #[test]
     fn validate_empty_files_returns_empty_result() {
         let files: RawFiles = HashMap::new();
-        let result = validate(files);
+        let result = validate(files, None);
         assert!(result.notices.is_empty());
         assert!(result.records.agencies.is_empty());
         assert!(result.records.routes.is_empty());
@@ -432,7 +439,7 @@ mod tests {
             },
         );
 
-        let result = validate(files);
+        let result = validate(files, None);
         assert_eq!(result.records.agencies.len(), 1);
         assert_eq!(result.records.routes.len(), 1);
         assert_eq!(result.records.trips.len(), 1);
@@ -454,7 +461,7 @@ mod tests {
             },
         );
 
-        let result = validate(files);
+        let result = validate(files, None);
         assert_eq!(result.records.fare_rules.len(), 1);
         assert!(result.notices.is_empty());
     }

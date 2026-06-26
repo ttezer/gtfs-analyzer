@@ -77,7 +77,7 @@ pub fn check(records: &EntityRecords, entity_map: &EntityMap, today: u32) -> K4R
         let mut xfl024_seen: HashSet<&str> = HashSet::new();
         let mut xfl025_seen: HashSet<&str> = HashSet::new();
         for st in &idx.rows {
-            let Some(flex) = &st.flex else { continue };
+            let Some(flex) = idx.flex_of(st) else { continue };
             if let Some(lg) = &flex.location_group_id {
                 if !lg.is_empty()
                     && !map.location_group_ids.contains(lg.as_str())
@@ -86,7 +86,7 @@ pub fn check(records: &EntityRecords, entity_map: &EntityMap, today: u32) -> K4R
                     notices.push(notice(
                         &mut ctr, "XFL_024", EntityType::Row,
                         Some(lg.to_string()), Some(lg.to_string()),
-                        "stop_times.txt", Some(st.line), Some("location_group_id"),
+                        "stop_times.txt", Some(st.line as u64), Some("location_group_id"),
                         Some(lg.to_string()), None,
                         format!("'{}' konum grubu location_groups.txt'te tanimli degil.", lg),
                         "Gecerli bir location_group_id kullanin veya grubu location_groups.txt'te tanimlayin.",
@@ -102,7 +102,7 @@ pub fn check(records: &EntityRecords, entity_map: &EntityMap, today: u32) -> K4R
                     notices.push(notice(
                         &mut ctr, "XFL_025", EntityType::Row,
                         Some(loc.to_string()), Some(loc.to_string()),
-                        "stop_times.txt", Some(st.line), Some("location_id"),
+                        "stop_times.txt", Some(st.line as u64), Some("location_id"),
                         Some(loc.to_string()), None,
                         format!("'{}' konum locations.geojson'da tanimli degil.", loc),
                         "Gecerli bir location_id kullanin veya konumu locations.geojson'a ekleyin.",
@@ -130,7 +130,7 @@ pub fn check(records: &EntityRecords, entity_map: &EntityMap, today: u32) -> K4R
     { let _t = Timer::start("K4::calendar");       check_calendar(records, map, &mut notices, &mut ctr, today); }
     { let _t = Timer::start("K4::calendar_dates"); check_calendar_dates(records, map, &mut notices, &mut ctr); }
     { let _t = Timer::start("K4::frequencies");    check_frequencies(records, map, &mut notices, &mut ctr, &stm_trips_in_stm); }
-    { let _t = Timer::start("K4::transfers");      check_transfers(records, map, &mut notices, &mut ctr, &stm_trips_in_stm, &records.stop_times_index.trip_stop_set); }
+    { let _t = Timer::start("K4::transfers");      check_transfers(records, map, &mut notices, &mut ctr, &stm_trips_in_stm, &records.stop_times_index.trip_stop_set, &records.stop_times_index.stop_id_to_idx); }
     { let _t = Timer::start("K4::fare_attributes");check_fare_attributes(records, map, &mut notices, &mut ctr); }
     { let _t = Timer::start("K4::fare_rules");     check_fare_rules(records, map, &mut notices, &mut ctr); }
     { let _t = Timer::start("K4::fares_v2");       check_fares_v2(records, map, &mut notices, &mut ctr); }
@@ -214,8 +214,9 @@ pub fn check(records: &EntityRecords, entity_map: &EntityMap, today: u32) -> K4R
                 for trip in &records.trips {
                     if trip.route_id.is_empty() { continue; }
                     if let Some(stops) = idx.trip_stop_set.get(trip.trip_id.as_str()) {
-                        for stop in stops {
-                            if let Some(areas) = stop_to_areas.get(stop.as_str()) {
+                        for &stop_idx in stops {
+                            let stop_id = idx.stop_id_of_idx(stop_idx);
+                            if let Some(areas) = stop_to_areas.get(stop_id) {
                                 let e = ra.entry(trip.route_id.as_str()).or_default();
                                 for a in areas { e.insert(a); }
                             }
@@ -758,7 +759,7 @@ fn check_trips(
         if rec.trip_id.is_empty() {
             continue;
         }
-        let eid = Some(rec.trip_id.clone());
+        let eid: Option<String> = Some(rec.trip_id.to_string());
 
         // TRP_002: route_id referansı
         if !rec.route_id.is_empty() && !map.routes.contains_key(rec.route_id.as_str()) {
@@ -771,7 +772,7 @@ fn check_trips(
                 "trips.txt",
                 Some(rec.line),
                 Some("route_id"),
-                Some(rec.route_id.clone()),
+                Some(rec.route_id.to_string()),
                 None,
                 format!("'{}' hattı routes.txt'te tanımlı değil.", rec.route_id),
                 "Geçerli bir route_id kullanın.",
@@ -789,7 +790,7 @@ fn check_trips(
                 "trips.txt",
                 Some(rec.line),
                 Some("service_id"),
-                Some(rec.service_id.clone()),
+                Some(rec.service_id.to_string()),
                 None,
                 format!(
                     "service_id '{}' calendar veya calendar_dates'te tanımlı değil.",
@@ -807,11 +808,11 @@ fn check_trips(
                     "TRP_004",
                     EntityType::Trip,
                     eid.clone(),
-                    Some(sid.clone()), // scope_key = shape_id
+                    Some(sid.to_string()), // scope_key = shape_id
                     "trips.txt",
                     Some(rec.line),
                     Some("shape_id"),
-                    Some(sid.clone()),
+                    Some(sid.to_string()),
                     None,
                     format!("'{}' güzergahı shapes.txt'te tanımlı değil.", sid),
                     "Geçerli bir shape_id kullanın veya alanı boş bırakın.",
@@ -1073,12 +1074,8 @@ fn check_calendar(
 
     // CAL_018: haftalık bazda tüm günler pasif VE calendar_dates'te exception_type=1 override yok
     {
-        let services_with_added: HashSet<&str> = records
-            .calendar_dates
-            .iter()
-            .filter(|r| r.exception_type == Some(1))
-            .map(|r| r.service_id.as_str())
-            .collect();
+        let services_with_added: HashSet<&str> = records.calendar_dates.added.keys()
+            .map(|s| s.as_str()).collect();
         for rec in &records.calendars {
             if rec.service_id.is_empty() {
                 continue;
@@ -1118,13 +1115,10 @@ fn check_calendar_dates(
     // CLD_004: calendar.txt yokken calendar_dates tüm tarihleri kapsıyor mu?
     // Bu kontrol: calendar_dates'te exception_type=1 (eklenen gün) olan
     // servis_id'lerinin en az 1 tarihi olup olmadı�Yını kontrol eder.
-    if records.calendars.is_empty() && !records.calendar_dates.is_empty() {
-        let has_added: HashSet<&str> = records
-            .calendar_dates
-            .iter()
-            .filter(|r| r.exception_type == Some(1))
-            .map(|r| r.service_id.as_str())
-            .collect();
+    if records.calendars.is_empty() && !records.calendar_dates.exception_count.is_empty() {
+        // added.keys() = service_ids with at least one exception_type=1 record (even invalid date)
+        let has_added: HashSet<&str> = records.calendar_dates.added.keys()
+            .map(|s| s.as_str()).collect();
         // trips'teki her service_id en az bir exception_type=1 kaydına sahip olmalı
         let trip_services: HashSet<&str> = records
             .trips
@@ -1135,11 +1129,7 @@ fn check_calendar_dates(
             if !has_added.contains(*sid) {
                 // Bu service_id için exception_type=1 kaydı yok
                 // �?' calendar.txt olmadan bu servis hiç çalı�Ymaz
-                let line = records
-                    .calendar_dates
-                    .iter()
-                    .find(|r| r.service_id.as_str() == *sid)
-                    .map(|r| r.line);
+                let line = records.calendar_dates.first_line.get(*sid).copied();
                 notices.push(notice(
                     ctr,
                     "CLD_004",
@@ -1219,9 +1209,9 @@ fn check_transfers(
     notices: &mut Vec<Notice>,
     ctr: &mut u32,
     trips_in_stm: &HashSet<&str>,
-    // #15: trip_stop_set'i doğrudan ödünç al (SmolStr: Borrow<str> → .get/.contains &str ile çalışır).
-    // Önceki &str borrowed-kopya (HashMap<&str,HashSet<&str>>) ~200 MB transient idi; kaldırıldı.
-    trip_stops: &FxHashMap<SmolStr, FxHashSet<SmolStr>>,
+    // #15/#38: trip_stop_set iç tipi u32 (intern indeks); stop_id_to_idx ile dönüştür.
+    trip_stops: &FxHashMap<SmolStr, FxHashSet<u32>>,
+    stop_id_to_idx: &FxHashMap<smol_str::SmolStr, u32>,
 ) {
     for rec in &records.transfers {
         let ttype = rec.transfer_type;
@@ -1430,7 +1420,7 @@ fn check_transfers(
                         ctr, "TRF_017", EntityType::Transfer,
                         None, None, "transfers.txt", Some(rec.line), Some("from_route_id"),
                         Some(fri.clone()),
-                        Some(records.trips[tidx].route_id.clone()),
+                        Some(records.trips[tidx].route_id.to_string()),
                         format!(
                             "from_trip_id '{fti}' route_id '{}' ile ilişkili, ancak from_route_id '{fri}' belirtilmiş.",
                             records.trips[tidx].route_id
@@ -1447,7 +1437,7 @@ fn check_transfers(
                         ctr, "TRF_017", EntityType::Transfer,
                         None, None, "transfers.txt", Some(rec.line), Some("to_route_id"),
                         Some(tri.clone()),
-                        Some(records.trips[tidx].route_id.clone()),
+                        Some(records.trips[tidx].route_id.to_string()),
                         format!(
                             "to_trip_id '{tti}' route_id '{}' ile ilişkili, ancak to_route_id '{tri}' belirtilmiş.",
                             records.trips[tidx].route_id
@@ -1462,8 +1452,8 @@ fn check_transfers(
         if let Some(ref fti) = rec.from_trip_id {
             let fsid = rec.from_stop_id.as_str();
             if !fsid.is_empty() && map.trips.contains_key(fti.as_str()) {
-                let in_trip = trip_stops.get(fti.as_str())
-                    .map(|s| s.contains(fsid))
+                let in_trip = stop_id_to_idx.get(fsid)
+                    .and_then(|idx| trip_stops.get(fti.as_str()).map(|s| s.contains(idx)))
                     .unwrap_or(false);
                 if !in_trip {
                     notices.push(notice(
@@ -1479,8 +1469,8 @@ fn check_transfers(
         if let Some(ref tti) = rec.to_trip_id {
             let tsid = rec.to_stop_id.as_str();
             if !tsid.is_empty() && map.trips.contains_key(tti.as_str()) {
-                let in_trip = trip_stops.get(tti.as_str())
-                    .map(|s| s.contains(tsid))
+                let in_trip = stop_id_to_idx.get(tsid)
+                    .and_then(|idx| trip_stops.get(tti.as_str()).map(|s| s.contains(idx)))
                     .unwrap_or(false);
                 if !in_trip {
                     notices.push(notice(
@@ -1506,7 +1496,7 @@ fn check_transfers(
                         notices.push(notice(
                             ctr, "XFL_020", EntityType::Transfer,
                             None, None, "transfers.txt", Some(rec.line), Some(route_field),
-                            Some(rid.clone()), Some(actual_route.clone()),
+                            Some(rid.clone()), Some(actual_route.to_string()),
                             format!(
                                 "{trip_field} '{tid}' seferinin gerçek hattı '{}', ancak {route_field} '{rid}' belirtilmiş.",
                                 actual_route
@@ -2462,7 +2452,7 @@ fn check_gtfs_jp(records: &EntityRecords, notices: &mut Vec<Notice>, ctr: &mut u
             }
             notices.push(notice(
                 ctr, "JPN_009", EntityType::Trip,
-                Some(trip.trip_id.clone()), Some(trip.trip_id.clone()),
+                Some(trip.trip_id.to_string()), Some(trip.trip_id.to_string()),
                 "translations.txt", Some(trip.line), Some("trip_headsign"),
                 None, Some("ja-Hrkt".to_string()),
                 format!("'{}' seferinin trip_headsign'ı ('{}') için kana (ja-Hrkt) okuması eksik — GTFS-JP'de zorunlu.", trip.trip_id, hs),
@@ -2510,8 +2500,8 @@ fn check_gtfs_jp(records: &EntityRecords, notices: &mut Vec<Notice>, ctr: &mut u
                     ctr,
                     "JPN_002",
                     EntityType::Trip,
-                    Some(trip.trip_id.clone()),
-                    Some(trip.trip_id.clone()),
+                    Some(trip.trip_id.to_string()),
+                    Some(trip.trip_id.to_string()),
                     "trips.txt",
                     Some(trip.line),
                     Some("jp_office_id"),
@@ -2840,12 +2830,12 @@ fn check_xfl(
                     ctr,
                     "XFL_002",
                     EntityType::Trip,
-                    Some(rec.trip_id.clone()),
-                    Some(rec.trip_id.clone()),
+                    Some(rec.trip_id.to_string()),
+                    Some(rec.trip_id.to_string()),
                     "trips.txt",
                     Some(rec.line),
                     Some("trip_id"),
-                    Some(rec.trip_id.clone()),
+                    Some(rec.trip_id.to_string()),
                     None,
                     format!("'{}' hattının{} seferi tanımlanmış ama çalışma saatleri girilmemiş (stop_times.txt'te kayıt yok).",
                         rec.route_id,
@@ -2870,8 +2860,8 @@ fn check_xfl(
                     ctr,
                     "STM_033",
                     EntityType::Trip,
-                    Some(rec.trip_id.clone()),
-                    Some(rec.trip_id.clone()),
+                    Some(rec.trip_id.to_string()),
+                    Some(rec.trip_id.to_string()),
                     "trips.txt",
                     Some(rec.line),
                     Some("trip_id"),
@@ -3133,17 +3123,11 @@ fn check_xfl(
             .iter()
             .map(|c| c.service_id.as_str())
             .collect();
-        let added_services: HashSet<&str> = records
-            .calendar_dates
-            .iter()
-            .filter(|r| r.exception_type == Some(1) && !r.service_id.is_empty())
-            .map(|r| r.service_id.as_str())
-            .collect();
-        let bad: HashSet<&str> = records
-            .calendar_dates
-            .iter()
-            .filter(|r| r.exception_type == Some(2) && !r.service_id.is_empty())
-            .map(|r| r.service_id.as_str())
+        let added_services: HashSet<&str> = records.calendar_dates.added.keys()
+            .map(|s| s.as_str()).collect();
+        // removed.keys() = services with at least one type=2 record (valid date or not)
+        let bad: HashSet<&str> = records.calendar_dates.removed.keys()
+            .map(|s| s.as_str())
             .filter(|sid| !cal_services.contains(*sid) && !added_services.contains(*sid))
             .collect();
         if !bad.is_empty() {
@@ -3347,16 +3331,16 @@ fn check_xfl(
             let entry = shapes.entry(shape_id).or_default();
             let info = if dir == 0 { &mut entry.0 } else { &mut entry.1 };
             if !t.route_id.is_empty() {
-                info.routes.insert(t.route_id.clone());
+                info.routes.insert(t.route_id.to_string());
             }
             if !t.service_id.is_empty() {
-                info.services.insert(t.service_id.clone());
+                info.services.insert(t.service_id.to_string());
             }
             if let Some(dep) = records
                 .stop_times_index
                 .sorted_stops(&t.trip_id)
                 .and_then(|s| s.first())
-                .and_then(|st| st.departure_time)
+                .and_then(|st| st.departure_time())
                 .map(|(h, m, _)| format!("{h:02}:{m:02}"))
             {
                 info.deps.insert(dep);
@@ -3627,7 +3611,7 @@ fn check_stm_shape_dist(
             .map(|stops| {
                 stops
                     .iter()
-                    .filter_map(|s| s.shape_dist_traveled)
+                    .filter_map(|s| s.shape_dist_traveled())
                     .fold(f64::NEG_INFINITY, f64::max)
             })
             .unwrap_or(f64::NEG_INFINITY);
@@ -3644,8 +3628,8 @@ fn check_stm_shape_dist(
                 ctr,
                 "STM_024",
                 EntityType::Trip,
-                Some(rec.trip_id.clone()),
-                Some(rec.trip_id.clone()),
+                Some(rec.trip_id.to_string()),
+                Some(rec.trip_id.to_string()),
                 "stop_times.txt",
                 None,
                 Some("shape_dist_traveled"),
@@ -4605,15 +4589,14 @@ mod tests {
 
     #[test]
     fn removal_only_service_produces_xfl_006() {
-        use crate::k2::calendar_dates::CalendarDateRecord;
+        use crate::k2::calendar_dates::CalendarDateIndex;
         let (mut recs, _map) = empty();
-        // Servis yalnızca exception_type=2 (kaldırma) kaydı var, calendar.txt'te veya type=1'de yok
-        recs.calendar_dates = vec![CalendarDateRecord {
-            service_id: "GHOST_SVC".into(),
-            date: None,
-            exception_type: Some(2),
-            row: Default::default(), line: 2,
-        }];
+        // Servis yalnızca exception_type=2 (kaldırma) kaydı var, calendar.txt'te veya type=1'de yok.
+        // removed'da anahtar var ama Vec boş (date=None): XFL_006 anahtar varlığına bakar.
+        let mut idx = CalendarDateIndex::default();
+        idx.removed.insert("GHOST_SVC".into(), vec![]);
+        idx.exception_count.insert("GHOST_SVC".into(), 1);
+        recs.calendar_dates = idx;
         let result = check(&recs, &EntityMap::default(), 20260515);
         assert!(result.notices.iter().any(|n| n.rule_id == "XFL_006"));
     }

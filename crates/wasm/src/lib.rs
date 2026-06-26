@@ -183,7 +183,7 @@ fn run_full_pipeline(zip_bytes: &[u8], config: &ValidatorConfig, today: u32) -> 
     let mut file_stats = collect_file_stats(&k1.files);
 
     t_start!("K2-validate");
-    let mut k2 = validate_k2(k1.files); // #15 W2: K2 dosyaları sahiplenir + parse sonrası bırakır
+    let mut k2 = validate_k2(k1.files, Some(zip_bytes)); // #15 W2 + #38: stop_times ZIP stream
     t_end!("K2-validate");
     // Gece yarısını aşan seferleri (00:xx) servis-günü notasyonuna (24:xx) normalize et
     // (K3–K6 öncesi). pipeline::validate_bytes ile aynı adım; WASM kendi orkestrasyonunu
@@ -197,6 +197,9 @@ fn run_full_pipeline(zip_bytes: &[u8], config: &ValidatorConfig, today: u32) -> 
         } else if fi.name == "shapes.txt" {
             // #15 W3: shapes da stream edildi (rows boş) → gerçek satır sayısını K2'den al.
             fi.rows = k2.records.shapes.len() as u32;
+        } else if fi.name == "trips.txt" {
+            // #38: trips da stream edildi (rows boş) → gerçek satır sayısını K2'den al.
+            fi.rows = k2.records.trips.len() as u32;
         }
     }
 
@@ -266,7 +269,7 @@ fn run_k1_k5(zip_bytes: &[u8], config: &ValidatorConfig, on_stage: &js_sys::Func
 
     t = js_sys::Date::now();
     t_start!("K2-validate");
-    let mut k2 = validate_k2(k1.files); // #15 W2: K2 dosyaları sahiplenir + parse sonrası bırakır
+    let mut k2 = validate_k2(k1.files, Some(zip_bytes)); // #15 W2 + #38: stop_times ZIP stream
     t_end!("K2-validate");
     // Gece yarısı (00:xx) → servis-günü (24:xx) normalizasyonu — K3–K6 öncesi (bkz. ilk yol).
     k2.records.stop_times_index.normalize_service_day(config.service_day_start_hour);
@@ -280,6 +283,9 @@ fn run_k1_k5(zip_bytes: &[u8], config: &ValidatorConfig, on_stage: &js_sys::Func
         } else if fi.name == "shapes.txt" {
             // #15 W3: shapes da stream edildi (rows boş) → gerçek satır sayısını K2'den al.
             fi.rows = k2.records.shapes.len() as u32;
+        } else if fi.name == "trips.txt" {
+            // #38: trips da stream edildi (rows boş) → gerçek satır sayısını K2'den al.
+            fi.rows = k2.records.trips.len() as u32;
         }
     }
 
