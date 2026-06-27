@@ -189,17 +189,11 @@ fn run_full_pipeline(zip_bytes: &[u8], config: &ValidatorConfig, today: u32) -> 
     // (K3–K6 öncesi). pipeline::validate_bytes ile aynı adım; WASM kendi orkestrasyonunu
     // kullandığı için burada da çağrılmalı.
     k2.records.stop_times_index.normalize_service_day(config.service_day_start_hour);
-    // OOM fix Plan A: stop_times K1'de stream edildi (RawFile.rows boş); gerçek satır
-    // sayısı K2 index'inde — file_stats'taki 0'ı düzelt.
+    // Stream edilen dosyalarda K1 rows boş kalır; K2 sayaçları varsa üzerine yaz.
+    // Yeni bir dosya stream edildiğinde k2/mod.rs streaming_row_counts'a eklenmesi yeterli.
     for fi in file_stats.iter_mut() {
-        if fi.name == "stop_times.txt" {
-            fi.rows = k2.records.stop_times_index.total_rows as u32;
-        } else if fi.name == "shapes.txt" {
-            // #15 W3: shapes da stream edildi (rows boş) → gerçek satır sayısını K2'den al.
-            fi.rows = k2.records.shapes.len() as u32;
-        } else if fi.name == "trips.txt" {
-            // #38: trips da stream edildi (rows boş) → gerçek satır sayısını K2'den al.
-            fi.rows = k2.records.trips.len() as u32;
+        if let Some(&count) = k2.records.streaming_row_counts.get(fi.name.as_str()) {
+            fi.rows = count as u32;
         }
     }
 
@@ -275,17 +269,11 @@ fn run_k1_k5(zip_bytes: &[u8], config: &ValidatorConfig, on_stage: &js_sys::Func
     k2.records.stop_times_index.normalize_service_day(config.service_day_start_hour);
     call_stage(on_stage, "K2", (js_sys::Date::now() - t) as u32);
     log_mem("after-K2-validate");
-    // OOM fix Plan A: stop_times K1'de stream edildi (RawFile.rows boş); gerçek satır
-    // sayısı K2 index'inde — file_stats'taki 0'ı düzelt.
+    // Stream edilen dosyalarda K1 rows boş kalır; K2 sayaçları varsa üzerine yaz.
+    // Yeni bir dosya stream edildiğinde k2/mod.rs streaming_row_counts'a eklenmesi yeterli.
     for fi in file_stats.iter_mut() {
-        if fi.name == "stop_times.txt" {
-            fi.rows = k2.records.stop_times_index.total_rows as u32;
-        } else if fi.name == "shapes.txt" {
-            // #15 W3: shapes da stream edildi (rows boş) → gerçek satır sayısını K2'den al.
-            fi.rows = k2.records.shapes.len() as u32;
-        } else if fi.name == "trips.txt" {
-            // #38: trips da stream edildi (rows boş) → gerçek satır sayısını K2'den al.
-            fi.rows = k2.records.trips.len() as u32;
+        if let Some(&count) = k2.records.streaming_row_counts.get(fi.name.as_str()) {
+            fi.rows = count as u32;
         }
     }
 
