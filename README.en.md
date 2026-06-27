@@ -13,7 +13,7 @@ GTFS Analyzer does not merely check whether a file conforms to the specification
 
 Every finding is tagged with a rule code, an analysis class, and a severity level. Thanks to the Spec · Interop · Quality · Analytics classes and the Critical → Info severity levels, thousands of findings can be filtered, prioritized, and handled systematically. The tool also automatically detects the GTFS features used by the feed — Shapes, Transfers, Fares, Headsigns, Flex, and the like — and includes them in the report.
 
-GTFS Analyzer extends specification validation with operational quality analysis. Frequency inconsistencies per route, anomalous speed segments, isolated stops, gaps in service patterns, andnetwork topology problems are examined with 526 distinct validation and analysis rules. Results are summarized with separate scores that evaluate compliance and quality independently. The prioritized fix queue shows which issues should be addressed first and the likely impact of each fix on the score.
+GTFS Analyzer extends specification validation with operational quality analysis. Frequency inconsistencies per route, anomalous speed segments, isolated stops, gaps in service patterns, andnetwork topology problems are examined with 526 distinct validation and analysis rules. Results are summarized with two scores — the Publish Score (blocking issues only) and the Overall Score (weighted average of all four classes) — computed with different formulas for different purposes. The prioritized fix queue shows which issues should be addressed first and the likely impact of each fix on the score.
 
 **Who is it for?**
 
@@ -63,7 +63,7 @@ Feed: `mdb-53` (MobilityDatabase, 2026-06-13 snapshot; validity range: 2026-01-1
 | Info | 76 | 7 | 1,231 |
 | Distinct rule types triggered | 13 | 10 | **50** |
 | Publish score | — | — | **92.6 / 100** |
-| Quality score | — | — | **66.2 / 100** |
+| Overall score | — | — | **83.8 / 100** |
 
 #### TriMet (Portland, Oregon)
 
@@ -79,7 +79,7 @@ Feed: `mdb-247` (MobilityDatabase, 2026-06-14 snapshot; validity range: 2026-05-
 | Info | 10 | 9 | 2,440 |
 | Distinct rule types triggered | 10 | 9 | **57** |
 | Publish score | — | — | **89.3 / 100** |
-| Quality score | — | — | **51.5 / 100** |
+| Overall score | — | — | **76.6 / 100** |
 
 > ⚠️ **Overlapping block trips:** This feed's dominant finding is trips that overlap in time within the same block (908 *errors* in MobilityData and GTFS Guru). GTFS Analyzer catches this with TRP_022 (907) but counts a conflict only for services active on the same day (calendar-intersection guard); severity classification differs across tools (not critical in Analyzer).
 >
@@ -99,7 +99,7 @@ Feed: `mdb-3175` (MobilityDatabase, 2026-06-21 snapshot; validity range: 2026-06
 | Info | 2,098 | 9 | 761 |
 | Distinct rule types triggered | 9 | 6 | **61** |
 | Publish score | — | — | **94.3 / 100** |
-| Quality score | — | — | **48.8 / 100** |
+| Overall score | — | — | **76.5 / 100** |
 
 > 🗾 **Spec-clean but operationally dense:** All three tools report 0 critical — the feed is specification-clean. The difference is in the analytics layer: most of GTFS Analyzer's medium/low findings are operational signals from the three-year validity window (2026–2029) and dense network/shape patterns, which MobilityData and GTFS Guru largely summarize as warnings/info.
 
@@ -138,7 +138,7 @@ GTFS Analyzer is a web application — no installation required. Open the live v
 
 1. Drag and drop your GTFS zip file, or use the file picker.
 2. Validation starts automatically; progress is shown step by step on screen.
-3. When complete, the Publish and Quality scores appear alongside four tabs: **Report**, **Detail & Fix**, **By Category**, **Export**.
+3. When complete, the Publish and Overall scores appear alongside four tabs: **Report**, **Detail & Fix**, **By Category**, **Export**.
 
 > To self-host or set up a development environment, see [Developer Setup](#developer-setup).
 
@@ -197,18 +197,18 @@ Measures how consumable the feed is by transit applications. The score **starts 
 - **70–90:** Usable, but attention is needed.
 - **90–100:** Ready to publish.
 
-### Quality Score (0–100)
+### Overall Score (0–100)
 
-Measures data quality and adherence to best practices beyond specification compliance. A feed can be publishable while still having a low Quality Score.
+Weighted average of all four analysis classes: Spec×40% + Interop×30% + Quality×20% + Analytics×10%. Reflects both specification compliance and operational data quality. A feed can be publishable while still having a low Overall Score.
 
 **How the score is computed:**
-- `Quality` and `Analytics` class issues affect this score.
-- Missing optional fields, inconsistent service patterns, and accessibility gaps are reflected here.
+- Issues from all four classes (Spec, Interop, Quality, Analytics) affect this score according to their weights.
+- Missing optional fields, inconsistent service patterns, and accessibility gaps are reflected here via the Quality and Analytics components.
 - **0–60:** Significant quality issues; passenger experience may be affected.
 - **60–80:** Moderate quality; improvements recommended.
 - **80–100:** Good data quality.
 
-> **Note:** The two scores are independent. A feed with a high Publish Score but a low Quality Score works technically, but issues such as missing accessibility information or incorrect route names affect passengers.
+> **Note:** The Publish Score and the Overall Score serve different purposes and are computed with different formulas. A feed with a high Publish Score but a low Overall Score works technically, but issues such as missing accessibility information or incorrect route names affect passengers.
 
 ---
 
@@ -224,11 +224,11 @@ Issues are presented as a prioritized fix queue, sorted by priority score. Each 
 |---|---|
 | **Score** | Priority score — computed as `Severity × (1 + Dependent) × log₂(1 + Count) / Effort`; higher = fix first |
 | **+Pub** | Publish Score gain if this rule is fixed |
-| **+Quality** | Quality Score gain if this rule is fixed |
+| **+Score** | Overall Score gain if this rule is fixed |
 | **Dependent** | How many other active rules close automatically if this one is fixed |
 | **Effort** | Fix effort: 1 = single field change, 2 = limited cross-file, 3 = structural / data model revision |
 
-The sum of all +Pub values equals `100 − current Publish Score`; the sum of all +Quality values equals `100 − current Quality Score`. Geographic issues show a map icon; clicking it displays the problem location and related shape/stop data on an interactive map. Clicking the **rule code** opens the relevant GTFS specification section in a new tab — the reference page of the file the finding most affects (gtfs.jp for GTFS-JP rules).
+The sum of all +Pub values equals `100 − current Publish Score`; the sum of all +Score values equals `100 − current Overall Score`. Geographic issues show a map icon; clicking it displays the problem location and related shape/stop data on an interactive map. Clicking the **rule code** opens the relevant GTFS specification section in a new tab — the reference page of the file the finding most affects (gtfs.jp for GTFS-JP rules).
 
 ### 3. By Category
 All rule violations listed by group and class. Each row shows the rule code, title, affected record count, severity, and remediation guidance. Filtering and sorting are supported.
@@ -272,8 +272,8 @@ Analysis and visualization run entirely in the browser. GTFS files are never upl
 |---|---|---|
 | **Spec** | Deviations from the GTFS specification — missing required fields, invalid values, referential integrity errors | Publish Score |
 | **Interop** | Spec-compliant but rejected or misinterpreted by common consumers (Google Maps, Apple Maps, etc.) | Publish Score |
-| **Quality** | Missing optional but expected fields, inconsistencies, deviations from best practices | Quality Score |
-| **Analytics** | Service pattern analysis — bunching, sparse service, expired service | Quality Score |
+| **Quality** | Missing optional but expected fields, inconsistencies, deviations from best practices | Overall Score |
+| **Analytics** | Service pattern analysis — bunching, sparse service, expired service | Overall Score |
 
 ---
 

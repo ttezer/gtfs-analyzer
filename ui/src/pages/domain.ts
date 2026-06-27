@@ -17,7 +17,7 @@ export function renderDomain(root: HTMLElement, result: ValidationResult): void 
       ${renderFeedCalendar(metrics)}
     </div>`;
 
-  // Kalite skoru bileşeni kartları → Ayrıntı ve Düzeltme (fix) sayfasındaki R2 bölümünü
+  // Genel Skor bileşeni kartları → Ayrıntı ve Düzeltme (fix) sayfasındaki R2 bölümünü
   // o sınıfla filtreli aç. files sayfasıyla aynı navigasyon mekanizmasını yeniden kullan.
   root.querySelectorAll<HTMLButtonElement>('.rpt-sub-chip[data-class]').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -43,10 +43,10 @@ function renderScoreRow(r5: R5Report, c: SevCount): string {
         <span class="rpt-score-hint">${t('domain.pub_hint')}</span>
       </div>
       <div class="rpt-score-card">
-        <span class="rpt-score-label">${t('domain.qual_score')}</span>
+        <span class="rpt-score-label">${t('domain.overall_score')}</span>
         <span class="rpt-score-val" style="color:${qualColor}">${r5.score.toFixed(1)}<span class="rpt-score-max">/100</span></span>
         <div class="rpt-score-track"><div class="rpt-score-fill" style="width:${r5.score.toFixed(1)}%;background:${qualColor}"></div></div>
-        <span class="rpt-score-hint">${t('domain.qual_hint')}</span>
+        <span class="rpt-score-hint">${t('domain.overall_hint')}</span>
       </div>
       ${renderPieCard(c)}
     </div>`;

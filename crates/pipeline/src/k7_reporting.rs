@@ -462,7 +462,7 @@ fn build_r9(notices: &[Notice], resolution: &SymptomResolution) -> R9Report {
             // Closure set: bu R9 item seçilince kapanacak tüm notice'lar (root + downstream)
             let closure = closure_notice_indices_for_group(&indices, notices, resolution);
 
-            // R5 kalite skoru iyileştirmesi — closure set üzerinden sınıf başına penaltı düşümü.
+            // R5 genel skor iyileştirmesi — closure set üzerinden sınıf başına penaltı düşümü.
             // Closure set içindeki notice'lar sınıfa göre gruplanır; her sınıf için toplam
             // closure penaltısı bir kerede çıkarılarak delta hesaplanır. Bu yöntem aynı sınıftan
             // birden fazla closure notice olduğunda da doğru sonuç verir.

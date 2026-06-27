@@ -32,7 +32,7 @@ pub struct R4Report {
     pub items: Vec<ReportItem>,
 }
 
-/// R5: Kalite skoru kartı — 0–100 genel skor + sınıf kırılımı (MET_004).
+/// R5: Genel Skor kartı — 0–100 ağırlıklı genel skor (Spec×40%+Interop×30%+Quality×20%+Analytics×10%) + sınıf kırılımı (MET_004).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct R5Report {
     pub score: f64,

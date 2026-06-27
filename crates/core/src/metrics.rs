@@ -13,7 +13,7 @@ pub struct FileInfo {
 /// MET_001: entity sayıları
 /// MET_002: servis kapsama yoğunluğu
 /// MET_003: sınıf bazında hata sayısı
-/// MET_004: genel kalite skoru (R5 ile eşdeğer)
+/// MET_004: genel skor (R5 ile eşdeğer; Spec×40%+Interop×30%+Quality×20%+Analytics×10%)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FeedMetrics {
     // MET_001 — Toplam durak / hat / sefer / şekil sayısı

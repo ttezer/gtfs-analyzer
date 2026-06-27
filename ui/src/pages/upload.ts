@@ -153,7 +153,7 @@ function renderScoreCompact(result: ValidationResult): string {
       </div>
       <div class="sc-dual-sep"></div>
       <div class="sc-dual-item">
-        <span class="sc-title">${t('score.qual')}</span>
+        <span class="sc-title">${t('score.overall')}</span>
         <span class="sc-overall" style="color:${qualColor}">${r5.score.toFixed(1)}<span class="sc-max">/100</span></span>
       </div>
     </div>

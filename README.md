@@ -63,7 +63,7 @@ Feed: `mdb-53` (MobilityDatabase, 2026-06-13 anlık görüntüsü; geçerlilik a
 | Bilgi / Info | 76 | 7 | 1.231 |
 | Tetiklenen kural tipi | 13 | 10 | **50** |
 | Yayın skoru | — | — | **92,6 / 100** |
-| Kalite skoru | — | — | **66,2 / 100** |
+| Genel skor | — | — | **83,8 / 100** |
 
 #### TriMet (Portland, Oregon)
 
@@ -79,7 +79,7 @@ Feed: `mdb-247` (MobilityDatabase, 2026-06-14 anlık görüntüsü; geçerlilik 
 | Bilgi / Info | 10 | 9 | 2.440 |
 | Tetiklenen kural tipi | 10 | 9 | **57** |
 | Yayın skoru | — | — | **89,3 / 100** |
-| Kalite skoru | — | — | **51,5 / 100** |
+| Genel skor | — | — | **76,6 / 100** |
 
 > ⚠️ **Çakışan blok seferleri:** Bu feed'in baskın bulgusu, aynı blokta zaman bakımından çakışan seferler (MobilityData ve GTFS Guru'da 908 *error*). GTFS Analyzer bunu TRP_022 ile yakalar (907) ancak yalnızca aynı gün aktif servisleri çakışma sayar (takvim-kesişim guard'ı); önem sınıflandırması araçlar arasında farklılık gösterir (Analyzer'da kritik değil).
 >
@@ -99,7 +99,7 @@ Feed: `mdb-3175` (MobilityDatabase, 2026-06-21 anlık görüntüsü; geçerlilik
 | Bilgi / Info | 2.098 | 9 | 761 |
 | Tetiklenen kural tipi | 9 | 6 | **61** |
 | Yayın skoru | — | — | **94,3 / 100** |
-| Kalite skoru | — | — | **48,8 / 100** |
+| Genel skor | — | — | **76,5 / 100** |
 
 > 🗾 **Spec-temiz ama operasyonel olarak yoğun:** Üç araç da 0 kritik bulur — feed spec açısından temiz. Fark analitik katmanda: GTFS Analyzer'ın orta/düşük bulgularının çoğu 3 yıllık geçerlilik penceresi (2026–2029) ve yoğun şebeke/şekil desenlerinden gelen operasyonel sinyallerdir; MobilityData ve GTFS Guru bu feed'i ağırlıkla uyarı/bilgi olarak özetler.
 
@@ -197,18 +197,18 @@ Feed'in toplu taşıma uygulamaları tarafından tüketilebilirlik durumunu öl�
 - **70–90:** Kullanılabilir, dikkat gerektiren noktalar var.
 - **90–100:** Yayına hazır.
 
-### Kalite Skoru (0–100)
+### Genel Skor (0–100)
 
-Spesifikasyon uyumunun ötesinde veri kalitesini ve en iyi pratiklere uyumu ölçer. Feed yayına girebilir olsa bile Kalite Skoru düşük olabilir.
+Spec, Interop, Quality ve Analytics sınıflarının ağırlıklı ortalamasıdır (Spec×40% + Interop×30% + Quality×20% + Analytics×10%). Spesifikasyon uyumunun ötesinde operasyonel veri kalitesini de yansıtır.
 
 **Skor nasıl oluşur:**
-- `Quality` ve `Analytics` sınıfındaki sorunlar bu skoru etkiler.
-- Eksik isteğe bağlı alanlar, tutarsız servis desenleri, erişilebilirlik eksiklikleri bu skora yansır.
+- Dört sınıfın tümündeki sorunlar bu skoru etkiler.
+- `Spec` ve `Interop` sınıfları daha ağır; `Quality` ve `Analytics` veri kalitesi ve servis deseni boyutlarını temsil eder.
 - **0–60:** Önemli kalite sorunları, yolcu deneyimi etkileniyor olabilir.
 - **60–80:** Orta kalite, iyileştirme önerilir.
 - **80–100:** İyi veri kalitesi.
 
-> **Not:** İki skor birbirinden bağımsızdır. Yayın Skoru yüksek ama Kalite Skoru düşük bir feed teknik olarak çalışır; ancak eksik erişilebilirlik bilgisi, hatalı güzergah isimleri gibi sorunlar yolcuları etkiler.
+> **Not:** Yayın Skoru ve Genel Skor farklı amaçlarla ve farklı formüllerle hesaplanır. Yayın Skoru yüksek ama Genel Skor düşük bir feed teknik olarak çalışır; ancak eksik erişilebilirlik bilgisi, hatalı güzergah isimleri gibi sorunlar yolcuları etkiler.
 
 ---
 
@@ -224,11 +224,11 @@ Bulunan sorunlar öncelik puanına göre sıralanmış bir düzeltme kuyruğu ol
 |---|---|
 | **Skor** | Öncelik puanı — `Ciddiyet × (1 + Bağımlı) × log₂(1 + Etkilenen) / Çaba` formülüyle hesaplanır; yüksek = önce düzelt |
 | **+Yayın** | Bu kural düzeltilirse Yayın Skoru kaç puan artar |
-| **+Kalite** | Bu kural düzeltilirse Kalite Skoru kaç puan artar |
+| **+Skor** | Bu kural düzeltilirse Genel Skor kaç puan artar |
 | **Bağımlı** | Bu kural giderilince kaç başka kural otomatik kapanır |
 | **Çaba** | Düzeltme iş yükü: 1 = tek alan değişikliği, 2 = sınırlı çapraz-dosya, 3 = yapısal / veri modeli revizyonu |
 
-Tüm satırların +Yayın toplamı `100 − mevcut Yayın Skoru`na, +Kalite toplamı `100 − mevcut Kalite Skoru`na eşittir. Coğrafi sorunlarda harita ikonu görünür; tıklandığında sorunlu noktalar ve ilgili şekil/durak verileri interaktif haritada gösterilir. **Kural kodu**na tıklandığında ilgili GTFS spesifikasyon bölümü yeni sekmede açılır — bulgunun en çok etkilediği dosyanın referans sayfası (GTFS-JP kurallarında gtfs.jp).
+Tüm satırların +Yayın toplamı `100 − mevcut Yayın Skoru`na, +Skor toplamı `100 − mevcut Genel Skor`a eşittir. Coğrafi sorunlarda harita ikonu görünür; tıklandığında sorunlu noktalar ve ilgili şekil/durak verileri interaktif haritada gösterilir. **Kural kodu**na tıklandığında ilgili GTFS spesifikasyon bölümü yeni sekmede açılır — bulgunun en çok etkilediği dosyanın referans sayfası (GTFS-JP kurallarında gtfs.jp).
 
 ### 3. Kategori Bazlı
 Tüm kural ihlalleri grup ve sınıfa göre listelenir. Her satırda kural kodu, başlık, etkilenen kayıt sayısı, önem seviyesi ve düzeltme önerisi yer alır. Filtreleme ve sıralama desteklenir.

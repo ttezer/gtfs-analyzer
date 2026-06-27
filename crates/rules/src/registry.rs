@@ -10,7 +10,7 @@ use gtfs_core::{DedupLevel, ReportId, RuleClass, Severity};
 // R2 → tüm notice'lar (filtrelenebilir)
 // R3 → ANALYTICS sınıfı
 // R4 → GEO ailesi + SHP_014/016 (coğrafi doğruluk)
-// R5 → kalite skoru (tüm sınıflar)
+// R5 → genel skor (tüm sınıflar; Spec×40%+Interop×30%+Quality×20%+Analytics×10%)
 // R7 → erişilebilirlik (wheelchair_*, stop_access, PTH_012/013)
 // R8 → yalnızca INTEROP sınıfı
 // R9 → remediation queue (tüm sınıflar dahil ANALYTICS)

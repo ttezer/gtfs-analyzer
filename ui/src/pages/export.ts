@@ -4,6 +4,7 @@ import { augmentRouteLabels } from './fix';
 import { getState } from '../state';
 import { isThreaded } from '../wasm';
 import { getLogs, getActions } from '../debug-buffer';
+import { GOLDEN_SCHEMA, buildGoldenScores } from '../golden';
 
 // Bayt → insan-okur boyut (yerel ondalık ayraçla). Tahmini dışa aktarım boyutu için.
 function formatBytes(b: number): string {
@@ -30,7 +31,7 @@ const ICON: Record<string, string> = {
 };
 
 interface SummaryData {
-  file: string; ts: string; ruleTypes: number; pubScore: number; qualScore: number;
+  file: string; ts: string; ruleTypes: number; pubScore: number; overallScore: number;
   // disp = gösterilen (kural başına 500 cap'li); real = gerçek (capped_totals ile düzeltilmiş).
   disp: { total: number; critical: number; high: number; medium: number; low: number; info: number };
   real: { total: number; critical: number; high: number; medium: number; low: number; info: number };
@@ -63,7 +64,7 @@ function buildSummaryData(result: ValidationResult, fileName: string, ts: string
   const { r5 } = result.reports;
   return {
     file: fileName, ts, ruleTypes: Object.keys(rcDisp).length,
-    pubScore: r5.pub_score, qualScore: r5.score,
+    pubScore: r5.pub_score, overallScore: r5.score,
     disp: { total: dispTotal, critical: g(sevDisp, 'CRITICAL'), high: g(sevDisp, 'HIGH'), medium: g(sevDisp, 'MEDIUM'), low: g(sevDisp, 'LOW'), info: g(sevDisp, 'INFO') },
     real: { total: realTotal, critical: g(sevReal, 'CRITICAL'), high: g(sevReal, 'HIGH'), medium: g(sevReal, 'MEDIUM'), low: g(sevReal, 'LOW'), info: g(sevReal, 'INFO') },
     capped: realTotal > dispTotal,
@@ -90,7 +91,7 @@ function buildDebugBundle(result: ValidationResult, fileName: string, fileSize: 
     config_delta: getState().configDelta || null,
     result_summary: {
       scores: {
-        score: s.qualScore, pub_score: s.pubScore,
+        score: s.overallScore, pub_score: s.pubScore,
         spec: result.reports.r5.spec_score, interop: result.reports.r5.interop_score,
         quality: result.reports.r5.quality_score, analytics: result.reports.r5.analytics_score,
       },
@@ -118,7 +119,7 @@ function buildGoldenSnapshot(result: ValidationResult, fileName: string): string
   const r5 = result.reports.r5;
   const m = result.metrics;
   const golden = {
-    schema: 'gtfs-analyzer-golden/2',
+    schema: GOLDEN_SCHEMA,
     app_version: typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'dev',
     feed: fileName,
     validate_date: new Date().toISOString().slice(0, 10),  // tarih-bağımlı kuralları yorumlamak için
@@ -130,11 +131,7 @@ function buildGoldenSnapshot(result: ValidationResult, fileName: string): string
       service_start_date: m.service_start_date, service_end_date: m.service_end_date,
       is_gtfs_jp: m.is_gtfs_jp ?? false,
     },
-    scores: {
-      score: s.qualScore, pub_score: s.pubScore,
-      spec: r5.spec_score, interop: r5.interop_score,
-      quality: r5.quality_score, analytics: r5.analytics_score,
-    },
+    scores: buildGoldenScores(r5),
     notice_total_actual: s.real.total,
     by_severity_actual: { critical: s.real.critical, high: s.real.high, medium: s.real.medium, low: s.real.low, info: s.real.info },
     rule_counts_actual: ruleCounts,
@@ -159,11 +156,11 @@ function summaryRows(d: SummaryData): Array<[string, number, number, string | un
 function summaryMarkdown(d: SummaryData): string {
   const meta = [
     `**${d.file} — ${t('export.summary.title')}**`,
-    `${d.ts} · ${t('export.html.pub_score')} ${fmtDec1(d.pubScore)} / ${t('export.html.qual_score')} ${fmtDec1(d.qualScore)} · ${fmtInt(d.ruleTypes)} ${t('export.summary.rule_types')}`,
+    `${d.ts} · ${t('export.html.pub_score')} ${fmtDec1(d.pubScore)} / ${t('export.html.overall_score')} ${fmtDec1(d.overallScore)} · ${fmtInt(d.ruleTypes)} ${t('export.summary.rule_types')}`,
   ].join('  \n');
   const head = `| ${t('export.summary.metric')} | ${t('export.summary.capped')} | ${t('export.summary.real')} |\n|---|--:|--:|`;
   const body = summaryRows(d).map(([k, disp, real]) => `| ${k} | ${fmtInt(disp)} | ${fmtInt(real)} |`).join('\n');
-  const ruleJson = JSON.stringify({ file: d.file, ts: d.ts, scores: { pub: d.pubScore, quality: d.qualScore }, rule_counts: Object.fromEntries(d.ruleCounts) });
+  const ruleJson = JSON.stringify({ file: d.file, ts: d.ts, scores: { pub: d.pubScore, overall: d.overallScore }, rule_counts: Object.fromEntries(d.ruleCounts) });
   return `${meta}\n\n${head}\n${body}\n\n<!-- rule_counts gerçek sayılar (#21 diff) -->\n\`\`\`json\n${ruleJson}\n\`\`\`\n`;
 }
 
@@ -188,7 +185,7 @@ function summaryPng(d: SummaryData): string {
   x.fillStyle = '#1e293b'; x.fillText(f + suffix, 18, 28);
   // Meta satırı
   x.fillStyle = '#64748b'; x.font = '12px system-ui, sans-serif';
-  x.fillText(`${d.ts} · ${t('export.html.pub_score')} ${fmtDec1(d.pubScore)} · ${t('export.html.qual_score')} ${fmtDec1(d.qualScore)} · ${fmtInt(d.ruleTypes)} ${t('export.summary.rule_types')}`, 18, 48);
+  x.fillText(`${d.ts} · ${t('export.html.pub_score')} ${fmtDec1(d.pubScore)} · ${t('export.html.overall_score')} ${fmtDec1(d.overallScore)} · ${fmtInt(d.ruleTypes)} ${t('export.summary.rule_types')}`, 18, 48);
   // Sütun başlıkları
   let y = top;
   x.fillStyle = '#94a3b8'; x.font = '600 11px system-ui, sans-serif';
@@ -261,7 +258,7 @@ export function renderExport(
           </div>
           <div class="exp-stat">
             <span class="exp-stat-icon exp-icon-amber">${ICON.shield}</span>
-            <span class="exp-stat-text"><span class="exp-stat-label">${t('export.html.qual_score')}</span><span class="exp-stat-value exp-val-qual">${fmtScore(r5.score)}</span></span>
+            <span class="exp-stat-text"><span class="exp-stat-label">${t('export.html.overall_score')}</span><span class="exp-stat-value exp-val-qual">${fmtScore(r5.score)}</span></span>
           </div>
         </div>
 
@@ -420,7 +417,7 @@ function buildReportHtml(result: ValidationResult, fileName: string, ts: string)
     </div>
     <div class="kpi">
       <span class="kpi-value">${r5.score.toFixed(1)}<span style="font-size:1rem;font-weight:400">/100</span></span>
-      <span class="kpi-label">${t('export.html.qual_score')}</span>
+      <span class="kpi-label">${t('export.html.overall_score')}</span>
       <span class="score-breakdown">${breakdown}</span>
     </div>
     <div class="kpi">
