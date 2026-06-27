@@ -26,10 +26,16 @@ pub fn report(
     records: &EntityRecords,
     derived: &DerivedData,
     file_stats: Vec<FileInfo>,
+    already_deduped: bool,
 ) -> K7Result {
     use crate::timing::Timer;
     let all_notices      = { let _t = Timer::start("K7::fill_service_ids"); fill_service_ids(all_notices, records) };
-    let notices          = { let _t = Timer::start("K7::dedup");            dedup(all_notices) };
+    let notices          = if already_deduped {
+        all_notices
+    } else {
+        let _t = Timer::start("K7::dedup");
+        dedup(all_notices)
+    };
     let resolution       = { let _t = Timer::start("K7::resolve_symptoms"); resolve_symptoms(&notices) };
     let reports          = { let _t = Timer::start("K7::build_reports");    build_report_set(&notices, &resolution) };
     let mut metrics      = { let _t = Timer::start("K7::build_metrics");    build_metrics(&notices, records, derived, file_stats) };

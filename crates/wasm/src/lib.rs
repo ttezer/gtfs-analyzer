@@ -142,6 +142,7 @@ pub fn rerun_k6_k7(cache: &CachedState, config_delta_json: &str, on_stage: &js_s
 
     let real_totals = count_totals(&all_notices);
     let _ = cap_per_rule(&mut all_notices);
+    all_notices.shrink_to_fit();
     log_mem("after-cap");
     let real_total: usize = real_totals.values().map(|&v| v as usize).sum();
     if real_total > NOTICE_LIMIT {
@@ -151,7 +152,7 @@ pub fn rerun_k6_k7(cache: &CachedState, config_delta_json: &str, on_stage: &js_s
     }
 
     let t = js_sys::Date::now();
-    let mut k7 = report_k7(all_notices, &cache.records, &cache.derived, cache.file_stats.clone());
+    let mut k7 = report_k7(all_notices, &cache.records, &cache.derived, cache.file_stats.clone(), true);
     call_stage(on_stage, "K7", (js_sys::Date::now() - t) as u32);
 
     scale_r9_deltas(&mut k7.reports, &real_totals);
@@ -228,6 +229,7 @@ fn run_full_pipeline(zip_bytes: &[u8], config: &ValidatorConfig, today: u32) -> 
     let real_totals = count_totals(&all_notices);
     // 2) Cap uygula — kural başına sınır; büyük/hatalı feed'lerde gösterim/render'ı yönetir
     let _ = cap_per_rule(&mut all_notices);
+    all_notices.shrink_to_fit();
     // 3) DURDURMA YOK — çok büyük feed'de yalnızca konsola uyarı (cap zaten sınırlıyor)
     let real_total: usize = real_totals.values().map(|&v| v as usize).sum();
     if real_total > NOTICE_LIMIT {
@@ -236,7 +238,7 @@ fn run_full_pipeline(zip_bytes: &[u8], config: &ValidatorConfig, today: u32) -> 
         ).into());
     }
 
-    let mut k7 = report_k7(all_notices, &k2.records, &k5.derived, file_stats);
+    let mut k7 = report_k7(all_notices, &k2.records, &k5.derived, file_stats, true);
     // 4) Cap'e çarpan kurallarda score delta'yı gerçek toplam oranıyla ölçekle
     scale_r9_deltas(&mut k7.reports, &real_totals);
     let capped_totals = build_capped_totals(&real_totals);

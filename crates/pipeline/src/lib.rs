@@ -92,7 +92,7 @@ pub fn validate_bytes(zip: &[u8], config: &ValidatorConfig, today: u32) -> Valid
 
     let k7 = {
         let _t = Timer::start("K7-reporting");
-        report_k7(all, &k2.records, &k5.derived, file_stats)
+        report_k7(all, &k2.records, &k5.derived, file_stats, false)
     };
 
     ValidateResult::Ok(ValidationResult {
