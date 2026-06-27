@@ -224,10 +224,11 @@ fn build_shape_geometry(
     ctr: &mut u32,
 ) {
     // Hangi shape_id'lerin trip tarafından kullanıldığını topla (SHP_018 için)
+    let ti = &records.trip_interns;
     let referenced_shapes: HashSet<&str> = records
         .trips
         .iter()
-        .filter_map(|t| t.shape_id.as_deref())
+        .filter_map(|t| ti.shape_id(t))
         .filter(|s| !s.is_empty())
         .collect();
 
@@ -467,20 +468,26 @@ mod tests {
         }
     }
 
-    fn trip_with_shape(trip_id: &str, shape_id: &str) -> TripRecord {
-        TripRecord {
+    fn trip_with_shape(trip_id: &str, shape_id: &str) -> (TripRecord, crate::k2::trips::TripInternTable) {
+        use crate::k2::trips::TripInternTable;
+        use smol_str::SmolStr;
+        let mut ti = TripInternTable::new();
+        let ri = ti.route_ids.len() as u32;
+        ti.route_ids.push(SmolStr::new("R1"));
+        let si = ti.service_ids.len() as u32;
+        ti.service_ids.push(SmolStr::new("SVC"));
+        let shi = ti.shape_ids.len() as u32;
+        ti.shape_ids.push(SmolStr::new(shape_id));
+        let trip = TripRecord {
             trip_id: trip_id.into(),
-            route_id: "R1".into(),
-            service_id: "SVC".into(),
-            shape_id: Some(shape_id.into()),
-            trip_headsign: None, trip_short_name: None,
-            direction_id: None, block_id: None,
-            wheelchair_accessible: None, bikes_allowed: None,
-            cars_allowed: None, safe_duration_factor: None,
-            safe_duration_offset: None,
-            jp_office_id: None,
+            route_idx: ri, service_idx: si, shape_idx: shi,
+            headsign_idx: 0, short_name_idx: 0, block_idx: 0, jp_office_idx: 0,
+            direction_id: None, wheelchair_accessible: None,
+            bikes_allowed: None, cars_allowed: None,
+            safe_duration_factor: None, safe_duration_offset: None,
             line: 2,
-        }
+        };
+        (trip, ti)
     }
 
     // ── Haversine ─────────────────────────────────────────────────────────────
@@ -508,7 +515,9 @@ mod tests {
             shape_pt("S1", 2, 41.1, 29.1, 3),
             shape_pt("S1", 3, 41.2, 29.2, 4),
         ];
-        records.trips = vec![trip_with_shape("T1", "S1")];
+        let (t1, ti1) = trip_with_shape("T1", "S1");
+        records.trips = vec![t1];
+        records.trip_interns = ti1;
         map.shape_points.insert("S1".into(), vec![0, 1, 2]);
         map.trips.insert("T1".into(), 0);
 
@@ -527,7 +536,9 @@ mod tests {
             shape_pt("S1", 1, 40.0, 28.0, 2),
             shape_pt("S1", 2, 42.0, 30.0, 3),
         ];
-        records.trips = vec![trip_with_shape("T1", "S1")];
+        let (t1, ti1) = trip_with_shape("T1", "S1");
+        records.trips = vec![t1];
+        records.trip_interns = ti1;
         map.shape_points.insert("S1".into(), vec![0, 1]);
         map.trips.insert("T1".into(), 0);
 
@@ -550,7 +561,9 @@ mod tests {
             shape_pt("S1", 2, 41.0, 29.0, 3), // özdeş koordinat
             shape_pt("S1", 3, 41.1, 29.1, 4),
         ];
-        records.trips = vec![trip_with_shape("T1", "S1")];
+        let (t1, ti1) = trip_with_shape("T1", "S1");
+        records.trips = vec![t1];
+        records.trip_interns = ti1;
         map.shape_points.insert("S1".into(), vec![0, 1, 2]);
         map.trips.insert("T1".into(), 0);
 
@@ -571,7 +584,9 @@ mod tests {
             shape_pt("S1", 4, 41.0, 29.0, 4), // dup 3
             shape_pt("S1", 5, 41.1, 29.1, 5),
         ];
-        records.trips = vec![trip_with_shape("T1", "S1")];
+        let (t1, ti1) = trip_with_shape("T1", "S1");
+        records.trips = vec![t1];
+        records.trip_interns = ti1;
         map.shape_points.insert("S1".into(), vec![0, 1, 2, 3, 4]);
         map.trips.insert("T1".into(), 0);
 
@@ -605,7 +620,9 @@ mod tests {
             shape_pt("S1", 1, 41.0, 29.0, 2),
             shape_pt("S1", 2, 41.1, 29.1, 3),
         ];
-        records.trips = vec![trip_with_shape("T1", "S1")];
+        let (t1, ti1) = trip_with_shape("T1", "S1");
+        records.trips = vec![t1];
+        records.trip_interns = ti1;
         map.shape_points.insert("S1".into(), vec![0, 1]);
         map.trips.insert("T1".into(), 0);
 

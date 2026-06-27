@@ -137,16 +137,18 @@ pub fn build_name_index(records: &EntityRecords) -> gtfs_core::NameIndex {
         .filter(|(_, n)| !n.is_empty())
         .collect();
 
+    let ti = &records.trip_interns;
+
     // Per-trip etiket map'leri (#15): büyük feed modunda atlanır → notice'lar ham trip_id gösterir.
     let trips: HashMap<String, String> = if large_feed_mode { HashMap::new() } else {
         records.trips.iter()
-            .filter_map(|r| r.trip_headsign.as_ref().map(|h| (r.trip_id.to_string(), h.to_string())))
+            .filter_map(|r| ti.headsign(r).map(|h| (r.trip_id.to_string(), h.to_string())))
             .collect()
     };
 
     let trip_routes: HashMap<String, String> = if large_feed_mode { HashMap::new() } else {
         records.trips.iter()
-            .map(|r| (r.trip_id.to_string(), r.route_id.to_string()))
+            .map(|r| (r.trip_id.to_string(), ti.route_id(r).to_string()))
             .collect()
     };
 
@@ -183,17 +185,18 @@ pub fn build_name_index(records: &EntityRecords) -> gtfs_core::NameIndex {
         let mut seen: std::collections::HashSet<(String, String, String)> = std::collections::HashSet::new();
         let mut map: HashMap<String, Vec<[String; 2]>> = HashMap::new();
         for trip in &records.trips {
-            let Some(shape_id) = &trip.shape_id else { continue };
+            let Some(shape_id) = ti.shape_id(trip) else { continue };
+            let rid = ti.route_id(trip);
             let dir = match trip.direction_id {
                 Some(0) => "Gidiş",
                 Some(1) => "Dönüş",
                 _       => "",
             };
-            let key = (shape_id.to_string(), trip.route_id.to_string(), dir.to_string());
+            let key = (shape_id.to_string(), rid.to_string(), dir.to_string());
             if seen.insert(key) {
                 map.entry(shape_id.to_string())
                     .or_default()
-                    .push([trip.route_id.to_string(), dir.to_string()]);
+                    .push([rid.to_string(), dir.to_string()]);
             }
         }
         map
@@ -220,7 +223,7 @@ pub fn build_name_index(records: &EntityRecords) -> gtfs_core::NameIndex {
     // trip_id → shape_id (harita; büyük feed modunda atlanır)
     let trip_shapes: HashMap<String, String> = if large_feed_mode { HashMap::new() } else {
         records.trips.iter()
-            .filter_map(|t| t.shape_id.as_ref().map(|s| (t.trip_id.to_string(), s.to_string())))
+            .filter_map(|t| ti.shape_id(t).map(|s| (t.trip_id.to_string(), s.to_string())))
             .collect()
     };
 
@@ -243,7 +246,7 @@ pub fn build_name_index(records: &EntityRecords) -> gtfs_core::NameIndex {
     let shape_trips: HashMap<String, String> = if large_feed_mode { HashMap::new() } else {
         let mut map: HashMap<String, String> = HashMap::new();
         for t in &records.trips {
-            if let Some(ref shape_id) = t.shape_id {
+            if let Some(shape_id) = ti.shape_id(t) {
                 map.entry(shape_id.to_string()).or_insert_with(|| t.trip_id.to_string());
             }
         }
@@ -254,10 +257,9 @@ pub fn build_name_index(records: &EntityRecords) -> gtfs_core::NameIndex {
     let route_shapes: HashMap<String, Vec<String>> = if large_feed_mode { HashMap::new() } else {
         let mut map: HashMap<String, Vec<String>> = HashMap::new();
         for t in &records.trips {
-            if let Some(ref shape_id) = t.shape_id {
-                let v = map.entry(t.route_id.to_string()).or_default();
-                let shape_str = shape_id.as_str();
-                if !v.iter().any(|s: &String| s == shape_str) {
+            if let Some(shape_id) = ti.shape_id(t) {
+                let v = map.entry(ti.route_id(t).to_string()).or_default();
+                if !v.iter().any(|s: &String| s == shape_id) {
                     v.push(shape_id.to_string());
                 }
             }

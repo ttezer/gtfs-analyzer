@@ -10,35 +10,98 @@ use super::stop_times::{next_csv_record, ZipCsvReader};
 use crate::k1_parse::RawFile;
 
 // TripRecord boyutunu sabitle — alan ekleme struct'ı şişirirse CI kırar.
-const _: () = assert!(std::mem::size_of::<TripRecord>() <= 256);
+const _: () = assert!(std::mem::size_of::<TripRecord>() <= 128);
+
+/// String intern tablosu — TripRecord u32 indekslerinin çözümlendiği yer.
+/// Index 0 = boş string / None sentinel (her tablo None/absent için 0'ı saklar).
+#[derive(Debug, Default)]
+pub struct TripInternTable {
+    pub route_ids:   Vec<SmolStr>,
+    pub service_ids: Vec<SmolStr>,
+    pub shape_ids:   Vec<SmolStr>,
+    pub headsigns:   Vec<SmolStr>,
+    pub short_names: Vec<SmolStr>,
+    pub block_ids:   Vec<SmolStr>,
+    pub jp_offices:  Vec<SmolStr>,
+}
+
+impl TripInternTable {
+    pub fn new() -> Self {
+        let empty = || vec![SmolStr::default()];
+        Self {
+            route_ids:   empty(),
+            service_ids: empty(),
+            shape_ids:   empty(),
+            headsigns:   empty(),
+            short_names: empty(),
+            block_ids:   empty(),
+            jp_offices:  empty(),
+        }
+    }
+
+    #[inline]
+    pub fn route_id<'a>(&'a self, t: &TripRecord) -> &'a str {
+        self.route_ids.get(t.route_idx as usize).map(SmolStr::as_str).unwrap_or("")
+    }
+    #[inline]
+    pub fn service_id<'a>(&'a self, t: &TripRecord) -> &'a str {
+        self.service_ids.get(t.service_idx as usize).map(SmolStr::as_str).unwrap_or("")
+    }
+    #[inline]
+    pub fn shape_id<'a>(&'a self, t: &TripRecord) -> Option<&'a str> {
+        if t.shape_idx == 0 { return None; }
+        self.shape_ids.get(t.shape_idx as usize).map(SmolStr::as_str)
+    }
+    #[inline]
+    pub fn headsign<'a>(&'a self, t: &TripRecord) -> Option<&'a str> {
+        if t.headsign_idx == 0 { return None; }
+        self.headsigns.get(t.headsign_idx as usize).map(SmolStr::as_str)
+    }
+    #[inline]
+    pub fn short_name<'a>(&'a self, t: &TripRecord) -> Option<&'a str> {
+        if t.short_name_idx == 0 { return None; }
+        self.short_names.get(t.short_name_idx as usize).map(SmolStr::as_str)
+    }
+    #[inline]
+    pub fn block_id<'a>(&'a self, t: &TripRecord) -> Option<&'a str> {
+        if t.block_idx == 0 { return None; }
+        self.block_ids.get(t.block_idx as usize).map(SmolStr::as_str)
+    }
+    #[inline]
+    pub fn jp_office_id<'a>(&'a self, t: &TripRecord) -> Option<&'a str> {
+        if t.jp_office_idx == 0 { return None; }
+        self.jp_offices.get(t.jp_office_idx as usize).map(SmolStr::as_str)
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct TripRecord {
-    pub trip_id: SmolStr,
-    pub route_id: SmolStr,
-    pub service_id: SmolStr,
-    pub shape_id: Option<SmolStr>,
-    pub trip_headsign: Option<SmolStr>,
-    pub trip_short_name: Option<SmolStr>,
-    pub direction_id: Option<u32>,
-    pub block_id: Option<SmolStr>,
+    pub trip_id:        SmolStr,
+    pub route_idx:      u32,
+    pub service_idx:    u32,
+    pub shape_idx:      u32,
+    pub headsign_idx:   u32,
+    pub short_name_idx: u32,
+    pub block_idx:      u32,
+    pub jp_office_idx:  u32,
+    pub direction_id:   Option<u32>,
     pub wheelchair_accessible: Option<u32>,
-    pub bikes_allowed: Option<u32>,
-    pub cars_allowed: Option<u32>,
+    pub bikes_allowed:  Option<u32>,
+    pub cars_allowed:   Option<u32>,
     pub safe_duration_factor: Option<f64>,
     pub safe_duration_offset: Option<u32>,
-    /// GTFS-JP: bu seferi işleten ofis (office_jp.office_id'ye referans).
-    pub jp_office_id: Option<SmolStr>,
     pub line: u64,
 }
 
-/// Tekrarlanan uzun string'leri paylaşılmış SmolStr olarak intern'le.
-/// ≤22 karakter → zaten SmolStr inline; cache lookup gereksiz.
+/// String intern yardımcısı — boş string → 0 sentinel, aksi hâlde tabloya ekle/bul.
 #[inline]
-fn intern(raw: &str, cache: &mut FxHashMap<String, SmolStr>) -> SmolStr {
-    if raw.is_empty() { return SmolStr::default(); }
-    if raw.len() <= 22 { return SmolStr::new(raw); }
-    cache.entry(raw.to_string()).or_insert_with(|| SmolStr::new(raw)).clone()
+fn intern_idx(raw: &str, table: &mut Vec<SmolStr>, map: &mut FxHashMap<String, u32>) -> u32 {
+    if raw.is_empty() { return 0; }
+    if let Some(&idx) = map.get(raw) { return idx; }
+    let idx = table.len() as u32;
+    table.push(SmolStr::new(raw));
+    map.insert(raw.to_string(), idx);
+    idx
 }
 
 struct Cols {
@@ -95,7 +158,7 @@ fn parse_f64_raw(raw: &str) -> Result<Option<f64>, ()> {
     raw.parse::<f64>().map(Some).map_err(|_| ())
 }
 
-pub fn validate_trips(file: &RawFile, zip_bytes: Option<&[u8]>) -> (Vec<TripRecord>, Vec<gtfs_core::Notice>) {
+pub fn validate_trips(file: &RawFile, zip_bytes: Option<&[u8]>) -> (Vec<TripRecord>, TripInternTable, Vec<gtfs_core::Notice>) {
     // #38: trips.txt K1'de yalnızca başlık okunur; K2 zip_bytes'tan stream eder.
     // Eski rows yolu test/legacy fallback olarak korunur.
     let mut notices = Vec::new();
@@ -115,11 +178,15 @@ pub fn validate_trips(file: &RawFile, zip_bytes: Option<&[u8]>) -> (Vec<TripReco
     let has_trip_id_col   = file.headers.iter().any(|h| h == "trip_id");
     let has_route_id_col  = file.headers.iter().any(|h| h == "route_id");
 
-    // Intern cache: route_id / service_id / shape_id pek çok satırda tekrar eder.
-    // trip_id genellikle benzersiz → doğrudan SmolStr::new.
-    let mut route_id_cache:   FxHashMap<String, SmolStr> = FxHashMap::default();
-    let mut service_id_cache: FxHashMap<String, SmolStr> = FxHashMap::default();
-    let mut shape_id_cache:   FxHashMap<String, SmolStr> = FxHashMap::default();
+    // Intern tablo + per-field lookup map'leri
+    let mut interns = TripInternTable::new();
+    let mut route_map:      FxHashMap<String, u32> = FxHashMap::default();
+    let mut service_map:    FxHashMap<String, u32> = FxHashMap::default();
+    let mut shape_map:      FxHashMap<String, u32> = FxHashMap::default();
+    let mut headsign_map:   FxHashMap<String, u32> = FxHashMap::default();
+    let mut short_name_map: FxHashMap<String, u32> = FxHashMap::default();
+    let mut block_map:      FxHashMap<String, u32> = FxHashMap::default();
+    let mut jp_office_map:  FxHashMap<String, u32> = FxHashMap::default();
 
     // Satır işleyici — hem stream (raw_text) hem rows fallback yolundan çağrılır.
     let mut process = |row: &[Cow<'_, str>], line: u64| {
@@ -137,11 +204,11 @@ pub fn validate_trips(file: &RawFile, zip_bytes: Option<&[u8]>) -> (Vec<TripReco
             ));
         }
 
-        let route_id   = intern(get_col(row, cols.route_id),   &mut route_id_cache);
-        let service_id = intern(get_col(row, cols.service_id), &mut service_id_cache);
+        let route_idx = intern_idx(get_col(row, cols.route_id), &mut interns.route_ids, &mut route_map);
+        let service_idx = intern_idx(get_col(row, cols.service_id), &mut interns.service_ids, &mut service_map);
 
-        // TRP_031: route_id required
-        if route_id.is_empty() && has_route_id_col {
+        // TRP_031: route_id required — intern_idx 0 döndürdüyse boş demektir
+        if route_idx == 0 && has_route_id_col {
             notices.push(make_k2_notice(
                 &mut counter, "TRP_031", EntityType::Trip, None,
                 None, &file.name, Some(line), Some("route_id"),
@@ -151,36 +218,27 @@ pub fn validate_trips(file: &RawFile, zip_bytes: Option<&[u8]>) -> (Vec<TripReco
             ));
         }
 
-        let shape_id = {
-            let v = get_col(row, cols.shape_id);
-            if v.is_empty() { None } else { Some(intern(v, &mut shape_id_cache)) }
-        };
-        let trip_headsign = {
-            let v = get_col(row, cols.trip_headsign);
-            if v.is_empty() { None } else { Some(SmolStr::new(v)) }
-        };
-        let trip_short_name = {
-            let v = get_col(row, cols.trip_short_name);
-            if v.is_empty() { None } else { Some(SmolStr::new(v)) }
-        };
+        let shape_idx = intern_idx(get_col(row, cols.shape_id), &mut interns.shape_ids, &mut shape_map);
+
+        // trip_headsign ve trip_short_name için önce raw string al (TRP_014 kontrolü için)
+        let headsign_raw   = get_col(row, cols.trip_headsign);
+        let short_name_raw = get_col(row, cols.trip_short_name);
 
         // TRP_014: trip_short_name çok uzun (>20 karakter)
-        if let Some(ref sn) = trip_short_name {
-            if sn.len() > 20 {
-                notices.push(make_k2_notice(
-                    &mut counter, "TRP_014", EntityType::Trip, entity_id.clone(),
-                    None, &file.name, Some(line), Some("trip_short_name"),
-                    Some(sn.len().to_string()), Some("≤20".to_string()),
-                    format!("trip_short_name {} karakter; 20'yi aşmamalıdır.", sn.len()),
-                    "trip_short_name'i kısaltın.",
-                ));
-            }
+        if !short_name_raw.is_empty() && short_name_raw.len() > 20 {
+            notices.push(make_k2_notice(
+                &mut counter, "TRP_014", EntityType::Trip, entity_id.clone(),
+                None, &file.name, Some(line), Some("trip_short_name"),
+                Some(short_name_raw.len().to_string()), Some("≤20".to_string()),
+                format!("trip_short_name {} karakter; 20'yi aşmamalıdır.", short_name_raw.len()),
+                "trip_short_name'i kısaltın.",
+            ));
         }
 
-        let block_id = {
-            let v = get_col(row, cols.block_id);
-            if v.is_empty() { None } else { Some(SmolStr::new(v)) }
-        };
+        let headsign_idx    = intern_idx(headsign_raw,   &mut interns.headsigns,    &mut headsign_map);
+        let short_name_idx  = intern_idx(short_name_raw, &mut interns.short_names,  &mut short_name_map);
+        let block_idx       = intern_idx(get_col(row, cols.block_id),     &mut interns.block_ids,  &mut block_map);
+        let jp_office_idx   = intern_idx(get_col(row, cols.jp_office_id), &mut interns.jp_offices, &mut jp_office_map);
 
         // TRP_005: direction_id 0 veya 1 olmalı
         let dir_raw = get_col(row, cols.direction_id);
@@ -287,26 +345,13 @@ pub fn validate_trips(file: &RawFile, zip_bytes: Option<&[u8]>) -> (Vec<TripReco
         let safe_duration_factor = parse_f64_raw(get_col(row, cols.safe_duration_factor)).ok().flatten();
         let safe_duration_offset = parse_u32_raw(get_col(row, cols.safe_duration_offset)).ok().flatten();
 
-        let jp_office_id = {
-            let v = get_col(row, cols.jp_office_id);
-            if v.is_empty() { None } else { Some(SmolStr::new(v)) }
-        };
-
         records.push(TripRecord {
             trip_id,
-            route_id,
-            service_id,
-            shape_id,
-            trip_headsign,
-            trip_short_name,
+            route_idx, service_idx, shape_idx,
+            headsign_idx, short_name_idx, block_idx, jp_office_idx,
             direction_id,
-            block_id,
-            wheelchair_accessible,
-            bikes_allowed,
-            cars_allowed,
-            safe_duration_factor,
-            safe_duration_offset,
-            jp_office_id,
+            wheelchair_accessible, bikes_allowed, cars_allowed,
+            safe_duration_factor, safe_duration_offset,
             line,
         });
     };
@@ -406,7 +451,7 @@ pub fn validate_trips(file: &RawFile, zip_bytes: Option<&[u8]>) -> (Vec<TripReco
         }
     }
 
-    (records, notices)
+    (records, interns, notices)
 }
 
 #[cfg(test)]
@@ -447,7 +492,7 @@ mod tests {
             vec!["route_id", "service_id", "trip_id", "bikes_allowed"],
             vec![vec!["R1", "SVC1", "T1", "0"]],
         );
-        let (records, notices) = validate_trips(&file, None);
+        let (records, _ti, notices) = validate_trips(&file, None);
         assert_eq!(records.len(), 1);
         assert!(notices.is_empty(), "Geçerli sefer notice üretmemeli: {:?}", notices);
     }
@@ -459,13 +504,13 @@ mod tests {
             vec!["R1", "SVC1", "T1", "0", "1"],
             vec!["R2", "SVC2", "T2", "1", "2"],
         ];
-        let (rec_rows, notices_rows) = validate_trips(&make_file(headers.clone(), rows.clone()), None);
-        let (rec_stream, notices_stream) = validate_trips(&make_file_streaming(headers, rows), None);
+        let (rec_rows, ti_rows, notices_rows) = validate_trips(&make_file(headers.clone(), rows.clone()), None);
+        let (rec_stream, ti_stream, notices_stream) = validate_trips(&make_file_streaming(headers, rows), None);
         assert_eq!(rec_rows.len(), rec_stream.len());
         assert_eq!(notices_rows.len(), notices_stream.len());
         for (a, b) in rec_rows.iter().zip(rec_stream.iter()) {
             assert_eq!(a.trip_id, b.trip_id);
-            assert_eq!(a.route_id, b.route_id);
+            assert_eq!(ti_rows.route_id(a), ti_stream.route_id(b));
             assert_eq!(a.direction_id, b.direction_id);
         }
     }
@@ -476,7 +521,7 @@ mod tests {
             vec!["route_id", "service_id", "trip_id", "direction_id"],
             vec![vec!["R1", "WKD", "T1", "9"]],
         );
-        let (_, notices) = validate_trips(&file, None);
+        let (_, _ti, notices) = validate_trips(&file, None);
         assert!(notices.iter().any(|n| n.rule_id == "TRP_005"),
             "direction_id=9 must produce TRP_005, got: {:?}", notices.iter().map(|n| &n.rule_id).collect::<Vec<_>>());
     }
@@ -487,7 +532,7 @@ mod tests {
             vec!["route_id", "service_id", "trip_id", "wheelchair_accessible"],
             vec![vec!["R1", "SVC1", "T1", "5"]],
         );
-        let (_, notices) = validate_trips(&file, None);
+        let (_, _ti, notices) = validate_trips(&file, None);
         assert!(notices.iter().any(|n| n.rule_id == "TRP_006"));
     }
 
@@ -497,7 +542,7 @@ mod tests {
             vec!["route_id", "service_id", "trip_id", "cars_allowed"],
             vec![vec!["R1", "SVC1", "T1", "5"]],
         );
-        let (_, notices) = validate_trips(&file, None);
+        let (_, _ti, notices) = validate_trips(&file, None);
         assert!(notices.iter().any(|n| n.rule_id == "TRP_032"));
     }
 
@@ -507,7 +552,7 @@ mod tests {
             vec!["route_id", "service_id", "trip_id", "cars_allowed"],
             vec![vec!["R1", "SVC1", "T1", "2"]],
         );
-        let (_, notices) = validate_trips(&file, None);
+        let (_, _ti, notices) = validate_trips(&file, None);
         assert!(!notices.iter().any(|n| n.rule_id == "TRP_032"));
     }
 
@@ -517,7 +562,7 @@ mod tests {
             vec!["route_id", "service_id", "trip_id", "direction_id"],
             vec![vec!["R1", "SVC1", "T1", "0"]],
         );
-        let (_, notices) = validate_trips(&file, None);
+        let (_, _ti, notices) = validate_trips(&file, None);
         assert!(!notices.iter().any(|n| n.rule_id == "TRP_005"));
     }
 }

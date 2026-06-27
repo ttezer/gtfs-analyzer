@@ -63,7 +63,7 @@ pub use stop_times::{CompactStopTime, StopTimesIndex};
 use timeframes::{validate_timeframes, TimeframeRecord};
 use transfers::{validate_transfers, TransferRecord};
 use translations::{validate_translations, TranslationRecord};
-use trips::{validate_trips, TripRecord};
+use trips::{validate_trips, TripRecord, TripInternTable};
 use rustc_hash::FxHashMap;
 
 /// K2 sonrasında üretilecek typed entity kayıtlarının kapsayıcısı.
@@ -103,6 +103,7 @@ pub struct EntityRecords {
     pub transfers: Vec<TransferRecord>,
     pub translations: Vec<TranslationRecord>,
     pub trips: Vec<TripRecord>,
+    pub trip_interns: TripInternTable,
     pub has_route_networks_file: bool,
     /// Streaming parse edilen dosyaların fiziksel veri satırı sayıları (başlık hariç).
     /// lib.rs file_stats döngüsünde K1 rows.len()==0 yerine bu sayaçlar kullanılır.
@@ -252,8 +253,9 @@ pub fn validate(mut files: RawFiles, zip_bytes: Option<&[u8]>) -> K2Result {
 
     if let Some(file) = files.get("trips.txt") {
         let _t = Timer::start("K2::trips");
-        let (trip_records, trip_notices) = validate_trips(file, zip_bytes);
+        let (trip_records, trip_interns, trip_notices) = validate_trips(file, zip_bytes);
         records.trips = trip_records;
+        records.trip_interns = trip_interns;
         notices.extend(trip_notices);
         records.streaming_row_counts.insert("trips.txt".to_string(), records.trips.len() as u64);
         mem_log("K2 after trips records");

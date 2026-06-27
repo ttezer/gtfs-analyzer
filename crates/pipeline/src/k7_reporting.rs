@@ -49,9 +49,10 @@ pub fn report(
 /// ekler — R2'deki "Çalışma Takvimi" sütunu için. Zaten dolu olanlar (OPR_003/005 gibi
 /// emit'te set edilenler) korunur. Trip dışı entity'ler (Route/Feed/Stop…) atlanır.
 fn fill_service_ids(mut notices: Vec<Notice>, records: &EntityRecords) -> Vec<Notice> {
+    let ti = &records.trip_interns;
     let trip_service: std::collections::HashMap<&str, &str> = records.trips.iter()
-        .filter(|t| !t.service_id.is_empty())
-        .map(|t| (t.trip_id.as_str(), t.service_id.as_str()))
+        .filter(|t| !ti.service_id(t).is_empty())
+        .map(|t| (t.trip_id.as_str(), ti.service_id(t)))
         .collect();
     for n in &mut notices {
         if n.service_id.is_none() && matches!(n.entity_type, EntityType::Trip) {
@@ -737,10 +738,11 @@ fn build_metrics(notices: &[Notice], records: &EntityRecords, derived: &DerivedD
     let feed_end_date = feed_info.and_then(|fi| fi.feed_end_date).map(yyyymmdd);
 
     // Benzersiz, boş olmayan trip_id → service_id; duplicate/empty satırlar metriğe yansımasın.
+    let ti_k7 = &records.trip_interns;
     let mut unique_trips: HashMap<&str, &str> = HashMap::with_capacity(records.trips.len());
     for t in &records.trips {
         if !t.trip_id.is_empty() {
-            unique_trips.entry(t.trip_id.as_str()).or_insert(t.service_id.as_str());
+            unique_trips.entry(t.trip_id.as_str()).or_insert(ti_k7.service_id(t));
         }
     }
 

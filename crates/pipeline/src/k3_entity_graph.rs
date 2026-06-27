@@ -755,13 +755,11 @@ mod tests {
         let mut records = empty_records();
         let base = TripRecord {
             trip_id: "T1".into(),
-            route_id: "R1".into(), service_id: "S1".into(),
-            shape_id: None, trip_headsign: None,
-            trip_short_name: None, direction_id: None,
-            block_id: None, wheelchair_accessible: None,
+            route_idx: 0, service_idx: 0, shape_idx: 0,
+            headsign_idx: 0, short_name_idx: 0, block_idx: 0, jp_office_idx: 0,
+            direction_id: None, wheelchair_accessible: None,
             bikes_allowed: None, cars_allowed: None,
             safe_duration_factor: None, safe_duration_offset: None,
-            jp_office_id: None,
             line: 2,
         };
         records.trips = vec![

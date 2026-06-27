@@ -29,10 +29,11 @@ pub fn analyze(
 ) -> K6Result {
     use crate::timing::Timer;
 
+    let ti_analyze = &records.trip_interns;
     let trip_shape: HashMap<&str, &str> = records
         .trips
         .iter()
-        .filter_map(|t| t.shape_id.as_deref().map(|s| (t.trip_id.as_str(), s)))
+        .filter_map(|t| ti_analyze.shape_id(t).map(|s| (t.trip_id.as_str(), s)))
         .collect();
     // OOM fix Plan D (güncellendi): K6 K2 index'ini KLONLAMAZ. Test yolunda (stop_times_index boş
     // ama records.stop_times dolu) owned K2 index kurulur; üretimde records.stop_times_index ödünç.
@@ -451,6 +452,7 @@ fn check_speed_and_duration(
     ctr: &mut u32,
 ) {
     use crate::timing::Timer;
+    let ti_sd = &records.trip_interns;
 
     let (stop_coords, stop_name_sd, trip_route_type, trip_to_route, route_short_sd, trip_direction, trip_headsign_sd, trip_service) = {
         let _t = Timer::start("K6::sd::setup");
@@ -483,7 +485,7 @@ fn check_speed_and_duration(
         let mut trip_route_type: FxHashMap<&str, u32> = FxHashMap::default();
         trip_route_type.reserve(records.trips.len());
         for t in &records.trips {
-            if let Some(&rt) = route_type_map.get(t.route_id.as_str()) {
+            if let Some(&rt) = route_type_map.get(ti_sd.route_id(t)) {
                 trip_route_type.insert(t.trip_id.as_str(), rt);
             }
         }
@@ -492,7 +494,7 @@ fn check_speed_and_duration(
         let mut trip_to_route: FxHashMap<&str, &str> = FxHashMap::default();
         trip_to_route.reserve(records.trips.len());
         for t in &records.trips {
-            trip_to_route.insert(t.trip_id.as_str(), t.route_id.as_str());
+            trip_to_route.insert(t.trip_id.as_str(), ti_sd.route_id(t));
         }
 
         // route_id → gösterim adı
@@ -515,14 +517,14 @@ fn check_speed_and_duration(
         let mut trip_service: FxHashMap<&str, &str> = FxHashMap::default();
         trip_service.reserve(records.trips.len());
         for t in &records.trips {
-            trip_service.insert(t.trip_id.as_str(), t.service_id.as_str());
+            trip_service.insert(t.trip_id.as_str(), ti_sd.service_id(t));
         }
 
         // trip_id → trip_headsign (gösterim için; boş/yoksa eklenmez)
         let mut trip_headsign_sd: FxHashMap<&str, &str> = FxHashMap::default();
         trip_headsign_sd.reserve(records.trips.len());
         for t in &records.trips {
-            if let Some(hs) = t.trip_headsign.as_deref().filter(|h| !h.is_empty()) {
+            if let Some(hs) = ti_sd.headsign(t).filter(|h| !h.is_empty()) {
                 trip_headsign_sd.insert(t.trip_id.as_str(), hs);
             }
         }
@@ -558,7 +560,7 @@ fn check_speed_and_duration(
             })
             .collect();
         let trip_shape: FxHashMap<&str, &str> = records.trips.iter()
-            .filter_map(|t| t.shape_id.as_deref()
+            .filter_map(|t| ti_sd.shape_id(t)
                 .filter(|s| !s.is_empty())
                 .map(|s| (t.trip_id.as_str(), s)))
             .collect();
@@ -1130,6 +1132,7 @@ fn check_route_headway(
     notices: &mut Vec<Notice>,
     ctr: &mut u32,
 ) {
+    let ti_hw = &records.trip_interns;
     let route_short_hw: HashMap<&str, &str> = records.routes.iter()
         .map(|r| {
             let label = r.route_short_name.as_deref().filter(|s| !s.is_empty()).unwrap_or(r.route_id.as_str());
@@ -1155,7 +1158,7 @@ fn check_route_headway(
         HashMap::new();
 
     for trip in &records.trips {
-        let route_id = trip.route_id.as_str();
+        let route_id = ti_hw.route_id(trip);
         if route_id.is_empty() {
             continue;
         }
@@ -1169,7 +1172,7 @@ fn check_route_headway(
             }
             None => "",
         };
-        let service_id = trip.service_id.as_str();
+        let service_id = ti_hw.service_id(trip);
 
         let Some(&dep) = idx.trip_first_dep.get(trip.trip_id.as_str()) else {
             continue;
@@ -1181,7 +1184,7 @@ fn check_route_headway(
             .map(|s| idx.stop_id_of(s))
             .unwrap_or("");
         // Servis deseni: shape_id varsa onu, yoksa son durağı (varış) kullan.
-        let pattern: &str = match trip.shape_id.as_deref().filter(|s| !s.is_empty()) {
+        let pattern: &str = match ti_hw.shape_id(trip).filter(|s| !s.is_empty()) {
             Some(s) => s,
             None => stops
                 .and_then(|v| v.last())
@@ -1285,11 +1288,12 @@ fn check_calendar_analytics(
     notices: &mut Vec<Notice>,
     ctr: &mut u32,
 ) {
+    let ti_cal = &records.trip_interns;
     // CAL_021 için: her servisin kaç sefer (trip) tarafından kullanıldığı.
     let mut service_trip_counts: HashMap<&str, u32> = HashMap::new();
     for t in &records.trips {
-        if !t.service_id.is_empty() {
-            *service_trip_counts.entry(t.service_id.as_str()).or_insert(0) += 1;
+        if !ti_cal.service_id(t).is_empty() {
+            *service_trip_counts.entry(ti_cal.service_id(t)).or_insert(0) += 1;
         }
     }
 
@@ -1633,6 +1637,7 @@ fn check_geo_analytics(
     ctr: &mut u32,
 ) {
     use crate::timing::Timer;
+    let ti_geo = &records.trip_interns;
 
     // GEO_006: shape segmentleri arası büyük atlama (jump)
     // GEO_007: aynı — GEO_006'dan biraz farklı ciddiyette ama aynı kontrol
@@ -2037,7 +2042,7 @@ fn check_geo_analytics(
         use std::collections::hash_map::DefaultHasher;
         use std::hash::{Hash, Hasher};
         let trip_shape: HashMap<&str, &str> = records.trips.iter()
-            .filter_map(|t| t.shape_id.as_deref().filter(|s| !s.is_empty())
+            .filter_map(|t| ti_geo.shape_id(t).filter(|s| !s.is_empty())
                 .map(|s| (t.trip_id.as_str(), s)))
             .collect();
         // shape_id → (pattern_hash → temsili trip_id). Temsili = leksikografik en küçük
@@ -2132,9 +2137,10 @@ fn check_operational_analytics(
     ctr: &mut u32,
 ) {
     use crate::timing::Timer;
+    let ti_opr = &records.trip_interns;
 
     let trip_to_route: HashMap<&str, &str> = records.trips.iter()
-        .map(|t| (t.trip_id.as_str(), t.route_id.as_str()))
+        .map(|t| (t.trip_id.as_str(), ti_opr.route_id(t)))
         .collect();
     let stop_name_map: HashMap<&str, &str> = records.stops.iter()
         .filter_map(|s| s.stop_name.as_deref().map(|n| (s.stop_id.as_str(), n)))
@@ -2236,7 +2242,7 @@ fn check_operational_analytics(
     {
         let mut reported_services: HashSet<&str> = HashSet::new();
         for t in &records.trips {
-            let svc = t.service_id.as_str();
+            let svc = ti_opr.service_id(t);
             if reported_services.contains(svc) {
                 continue;
             }
@@ -2323,14 +2329,14 @@ fn check_operational_analytics(
         for trip in &records.trips {
             if trip.trip_id.is_empty() { continue; }
             let active_in_7 = derived.calendar_bitmap.active_dates
-                .get(trip.service_id.as_str())
+                .get(ti_opr.service_id(trip))
                 .map(|dates| dates.iter().any(|&d| {
                     let djdn = yyyymmdd_to_approx_jdn(d);
                     djdn >= today_jdn && djdn < today_jdn + 7
                 }))
                 .unwrap_or(false);
             if !active_in_7 {
-                let e = inactive_by_service.entry(trip.service_id.as_str()).or_insert((0, trip.line));
+                let e = inactive_by_service.entry(ti_opr.service_id(trip)).or_insert((0, trip.line));
                 e.0 += 1;
             }
         }
@@ -2354,17 +2360,18 @@ fn check_operational_analytics(
         for trip in &records.trips {
             if trip.trip_id.is_empty() { continue; }
             let has_any_date = derived.calendar_bitmap.active_dates
-                .get(trip.service_id.as_str())
+                .get(ti_opr.service_id(trip))
                 .map(|dates| !dates.is_empty())
                 .unwrap_or(false);
             if !has_any_date {
+                let svc = ti_opr.service_id(trip);
                 notices.push(k6_notice(
                     ctr, "TRP_026", EntityType::Trip,
                     Some(trip.trip_id.to_string()), Some(trip.trip_id.to_string()),
                     "trips.txt", Some(trip.line as u64), Some("service_id"),
-                    Some(trip.service_id.to_string()), None,
+                    Some(svc.to_string()), None,
                     format!("service_id '{}' için geçerli hizmet tarihi yok; '{}' seferi hiçbir zaman çalışmayacak.",
-                        trip.service_id, trip.trip_id),
+                        svc, trip.trip_id),
                     "service_id'nin calendar.txt veya calendar_dates.txt'te aktif tarihlere sahip olduğundan emin olun.",
                 ));
             }
@@ -2444,9 +2451,9 @@ fn check_operational_analytics(
             .collect();
         let mut block_route_types: HashMap<&str, (u32, &str)> = HashMap::new();
         for t in &records.trips {
-            let Some(ref bid) = t.block_id else { continue };
-            let Some(&rtype) = route_type_map.get(t.route_id.as_str()) else { continue };
-            let entry = block_route_types.entry(bid.as_str()).or_insert((rtype, t.trip_id.as_str()));
+            let Some(bid) = ti_opr.block_id(t) else { continue };
+            let Some(&rtype) = route_type_map.get(ti_opr.route_id(t)) else { continue };
+            let entry = block_route_types.entry(bid).or_insert((rtype, t.trip_id.as_str()));
             if entry.0 != rtype {
                 notices.push(k6_notice(
                     ctr, "TRP_024", EntityType::Trip,
@@ -2475,9 +2482,9 @@ fn check_operational_analytics(
 
         let mut block_trips: HashMap<&str, Vec<(&str, u32, u32, &str)>> = HashMap::new();
         for t in &records.trips {
-            let Some(ref bid) = t.block_id else { continue };
+            let Some(bid) = ti_opr.block_id(t) else { continue };
             let Some(&(dep, arr)) = trip_range.get(t.trip_id.as_str()) else { continue };
-            block_trips.entry(bid.as_str()).or_default().push((t.trip_id.as_str(), dep, arr, t.service_id.as_str()));
+            block_trips.entry(bid).or_default().push((t.trip_id.as_str(), dep, arr, ti_opr.service_id(t)));
         }
 
         // Takvim kesişim önbelleği (#29): aynı block'ta FARKLI service_id'li iki sefer ancak AYNI
@@ -2649,13 +2656,14 @@ fn check_route_trip_quality(
     ctr: &mut u32,
 ) {
     use crate::timing::Timer;
+    let ti_rtq = &records.trip_interns;
 
     // route_id → trip listesi
     let _t0 = Timer::start("K6::rtq::build_trip_maps");
     let mut route_trips: HashMap<&str, Vec<&crate::k2::trips::TripRecord>> = HashMap::new();
     for t in &records.trips {
-        if !t.route_id.is_empty() {
-            route_trips.entry(t.route_id.as_str()).or_default().push(t);
+        if !ti_rtq.route_id(t).is_empty() {
+            route_trips.entry(ti_rtq.route_id(t)).or_default().push(t);
         }
     }
     drop(_t0);
@@ -2699,7 +2707,8 @@ fn check_route_trip_quality(
                 None,
                 None,
                 {
-                    let rname = route_short.get(trip.route_id.as_str()).copied().unwrap_or(trip.route_id.as_str());
+                    let rid = ti_rtq.route_id(trip);
+                    let rname = route_short.get(rid).copied().unwrap_or(rid);
                     let dep = trip_first_dep.get(trip.trip_id.as_str()).map(|s| format!(" {} kalkışlı", s)).unwrap_or_default();
                     format!("'{}' hattının{dep} seferinde stop_times kaydı var ama hiçbirinde zaman bilgisi girilmemiş.", rname)
                 },
@@ -2731,7 +2740,7 @@ fn check_route_trip_quality(
                 "Bu rotaya ek seferler ekleyin ya da frekans bazlı tanım kullanın.",
             );
             // Tek seferin çalışma takvimi (varsa) — R2 "Çalışma Takvimi" sütununu doldurur.
-            if let Some(svc) = trips.first().map(|t| t.service_id.as_str()).filter(|s| !s.is_empty()) {
+            if let Some(svc) = trips.first().map(|t| ti_rtq.service_id(t)).filter(|s| !s.is_empty()) {
                 n013.service_id = Some(svc.to_string());
             }
             notices.push(n013);
@@ -2746,7 +2755,7 @@ fn check_route_trip_quality(
             derived
                 .calendar_bitmap
                 .active_dates
-                .get(t.service_id.as_str())
+                .get(ti_rtq.service_id(t))
                 .map(|s| !s.is_empty())
                 .unwrap_or(false)
         });
@@ -2783,11 +2792,11 @@ fn check_route_trip_quality(
         .collect();
     let _t4 = Timer::start("K6::rtq::trp_011");
     for trip in &records.trips {
-        let headsign_missing = trip.trip_headsign.as_deref().map(str::is_empty).unwrap_or(true);
-        let short_missing = trip.trip_short_name.as_deref().map(str::is_empty).unwrap_or(true);
+        let headsign_missing = ti_rtq.headsign(trip).map(str::is_empty).unwrap_or(true);
+        let short_missing = ti_rtq.short_name(trip).map(str::is_empty).unwrap_or(true);
         if headsign_missing && short_missing {
             // Route adlıysa yolcu hattı route'tan tanır → trip_headsign opsiyonel, atla.
-            if route_named.get(trip.route_id.as_str()).copied().unwrap_or(false) {
+            if route_named.get(ti_rtq.route_id(trip)).copied().unwrap_or(false) {
                 continue;
             }
             notices.push(k6_notice(
@@ -2802,7 +2811,8 @@ fn check_route_trip_quality(
                 None,
                 None,
                 {
-                    let rname = route_short.get(trip.route_id.as_str()).copied().unwrap_or(trip.route_id.as_str());
+                    let rid = ti_rtq.route_id(trip);
+                    let rname = route_short.get(rid).copied().unwrap_or(rid);
                     let dep = trip_first_dep.get(trip.trip_id.as_str()).map(|s| format!(" {} kalkışlı", s)).unwrap_or_default();
                     format!("'{}' hattının{dep} seferinde yön adı (trip_headsign) ve kısa ad girilmemiş — yolcu bilgisi yok.", rname)
                 },
@@ -2841,7 +2851,7 @@ fn check_route_trip_quality(
         let mut station_counts: HashMap<&str, u32> = HashMap::new();
 
         for trip in &records.trips {
-            let headsign = match trip.trip_headsign.as_deref().map(str::trim).filter(|h| !h.is_empty()) {
+            let headsign = match ti_rtq.headsign(trip).map(str::trim).filter(|h| !h.is_empty()) {
                 Some(h) => h,
                 None => continue,
             };
@@ -2907,7 +2917,7 @@ fn check_route_trip_quality(
                 }
 
                 // #15: rname/dep (format!) yalnız emit anında — eşleşmeyen seferler için değil.
-                let rname = route_short.get(trip.route_id.as_str()).copied().unwrap_or(trip.route_id.as_str());
+                let rname = route_short.get(ti_rtq.route_id(trip)).copied().unwrap_or(ti_rtq.route_id(trip));
                 let dep = trip_first_dep.get(trip.trip_id.as_str()).map(|s| format!(" {} kalkışlı", s)).unwrap_or_default();
                 notices.push(k6_notice(
                     ctr,
@@ -3122,7 +3132,7 @@ fn check_data_quality(
 
     // DQ_006: şekil (shape) olmayan trip oranı çok yüksek (> %80)
     if !records.trips.is_empty() {
-        let shapeless = records.trips.iter().filter(|t| t.shape_id.is_none()).count();
+        let shapeless = records.trips.iter().filter(|t| t.shape_idx == 0).count();
         let ratio = shapeless as f64 / records.trips.len() as f64;
         if ratio > 0.8 {
             notices.push(k6_notice(
@@ -3534,6 +3544,7 @@ fn check_remaining_analytics(
     ctr: &mut u32,
 ) {
     use crate::timing::Timer;
+    let ti_rem = &records.trip_interns;
 
     // ── shape_id → sıralı (lat, lon) noktaları + bbox (tek pass) ────────────
     let _tb = Timer::start("K6::rem::build_maps");
@@ -3594,7 +3605,7 @@ fn check_remaining_analytics(
         .filter_map(|s| s.stop_name.as_deref().map(|n| (s.stop_id.as_str(), n)))
         .collect();
     let trip_to_route_rem: FxHashMap<&str, &str> = records.trips.iter()
-        .map(|t| (t.trip_id.as_str(), t.route_id.as_str()))
+        .map(|t| (t.trip_id.as_str(), ti_rem.route_id(t)))
         .collect();
     let route_type_rem: FxHashMap<&str, u32> = records.routes.iter()
         .filter_map(|r| r.route_type.map(|rt| (r.route_id.as_str(), rt)))
@@ -3618,11 +3629,12 @@ fn check_remaining_analytics(
         let mut dirs: FxHashMap<&str, Option<u32>> = FxHashMap::default();
         let mut route_ids: FxHashMap<&str, Option<&str>> = FxHashMap::default();
         for t in &records.trips {
-            if let Some(shape) = t.shape_id.as_deref().filter(|s| !s.is_empty()) {
+            if let Some(shape) = ti_rem.shape_id(t).filter(|s| !s.is_empty()) {
                 let de = dirs.entry(shape).or_insert(t.direction_id);
                 if *de != t.direction_id { *de = None; }
-                let re = route_ids.entry(shape).or_insert(Some(t.route_id.as_str()));
-                if *re != Some(t.route_id.as_str()) { *re = None; }
+                let rid = ti_rem.route_id(t);
+                let re = route_ids.entry(shape).or_insert(Some(rid));
+                if *re != Some(rid) { *re = None; }
             }
         }
         let shape_to_route = route_ids.into_iter()
@@ -3638,9 +3650,10 @@ fn check_remaining_analytics(
     let shape_route_labels: FxHashMap<&str, Vec<&str>> = {
         let mut m: FxHashMap<&str, FxHashSet<&str>> = FxHashMap::default();
         for t in &records.trips {
-            if t.route_id.is_empty() { continue; }
-            if let Some(shape) = t.shape_id.as_deref().filter(|s| !s.is_empty()) {
-                let label = route_short.get(t.route_id.as_str()).copied().unwrap_or(t.route_id.as_str());
+            if ti_rem.route_id(t).is_empty() { continue; }
+            if let Some(shape) = ti_rem.shape_id(t).filter(|s| !s.is_empty()) {
+                let rid = ti_rem.route_id(t);
+                let label = route_short.get(rid).copied().unwrap_or(rid);
                 m.entry(shape).or_default().insert(label);
             }
         }
@@ -3796,7 +3809,7 @@ fn check_remaining_analytics(
             let trip_to_shape: FxHashMap<&str, &str> = records
                 .trips
                 .iter()
-                .filter_map(|t| t.shape_id.as_deref().map(|s| (t.trip_id.as_str(), s)))
+                .filter_map(|t| ti_rem.shape_id(t).map(|s| (t.trip_id.as_str(), s)))
                 .collect();
             let n_shapes = flagged
                 .iter()
@@ -3877,8 +3890,8 @@ fn check_remaining_analytics(
     let shape_route_set: FxHashMap<&str, FxHashSet<&str>> = {
         let mut m: FxHashMap<&str, FxHashSet<&str>> = FxHashMap::default();
         for t in &records.trips {
-            if let Some(sid) = t.shape_id.as_deref().filter(|s| !s.is_empty()) {
-                m.entry(sid).or_default().insert(t.route_id.as_str());
+            if let Some(sid) = ti_rem.shape_id(t).filter(|s| !s.is_empty()) {
+                m.entry(sid).or_default().insert(ti_rem.route_id(t));
             }
         }
         m
@@ -3887,7 +3900,7 @@ fn check_remaining_analytics(
     let shape_trips: FxHashMap<&str, Vec<&str>> = {
         let mut m: FxHashMap<&str, Vec<&str>> = FxHashMap::default();
         for t in &records.trips {
-            if let Some(sid) = t.shape_id.as_deref().filter(|s| !s.is_empty()) {
+            if let Some(sid) = ti_rem.shape_id(t).filter(|s| !s.is_empty()) {
                 m.entry(sid).or_default().push(t.trip_id.as_str());
             }
         }
@@ -4015,7 +4028,7 @@ fn check_remaining_analytics(
         let mut seen_shp024: FxHashSet<(&str, &str)> = FxHashSet::default(); // (stop_id, shape_id)
 
         for trip in &records.trips {
-            let shape_id = match trip.shape_id.as_deref().filter(|s| !s.is_empty()) {
+            let shape_id = match ti_rem.shape_id(trip).filter(|s| !s.is_empty()) {
                 Some(s) => s,
                 None => continue,
             };
@@ -4113,7 +4126,7 @@ fn check_remaining_analytics(
         }
 
         for trip in &records.trips {
-            let shape_id = match trip.shape_id.as_deref().filter(|s| !s.is_empty()) {
+            let shape_id = match ti_rem.shape_id(trip).filter(|s| !s.is_empty()) {
                 Some(s) => s,
                 None => continue,
             };
@@ -4243,10 +4256,10 @@ fn check_remaining_analytics(
         // (route_id, direction_key, service_id) → ilk kalkış saatleri
         let mut route_headways: HashMap<(&str, &str, &str), Vec<u32>> = HashMap::new();
         for trip in &records.trips {
-            let route_id = trip.route_id.as_str();
+            let route_id = ti_rem.route_id(trip);
             if route_id.is_empty() { continue; }
             let dir_key: &str = match trip.direction_id { Some(0) => "0", Some(1) => "1", _ => "-" };
-            let svc_key = trip.service_id.as_str();
+            let svc_key = ti_rem.service_id(trip);
             if let Some(&dep) = idx.trip_first_dep.get(trip.trip_id.as_str()) {
                 route_headways.entry((route_id, dir_key, svc_key)).or_default().push(dep);
             }
@@ -4330,12 +4343,12 @@ fn check_remaining_analytics(
             .collect();
         let mut route_directions: HashMap<&str, HashSet<u32>> = HashMap::new();
         for t in &records.trips {
-            if t.route_id.is_empty() {
+            if ti_rem.route_id(t).is_empty() {
                 continue;
             }
             if let Some(dir) = t.direction_id {
                 route_directions
-                    .entry(t.route_id.as_str())
+                    .entry(ti_rem.route_id(t))
                     .or_default()
                     .insert(dir);
             }
@@ -4456,8 +4469,8 @@ fn check_remaining_analytics(
     {
         let mut route_has_shape: HashMap<&str, bool> = HashMap::new();
         for t in &records.trips {
-            let entry = route_has_shape.entry(t.route_id.as_str()).or_insert(false);
-            if t.shape_id.is_some() {
+            let entry = route_has_shape.entry(ti_rem.route_id(t)).or_insert(false);
+            if t.shape_idx != 0 {
                 *entry = true;
             }
         }
@@ -4490,9 +4503,9 @@ fn check_remaining_analytics(
     {
         let mut route_dir_trips: HashMap<(&str, u32), u32> = HashMap::new();
         for t in &records.trips {
-            if t.route_id.is_empty() { continue; }
+            if ti_rem.route_id(t).is_empty() { continue; }
             if let Some(dir) = t.direction_id {
-                *route_dir_trips.entry((t.route_id.as_str(), dir)).or_default() += 1;
+                *route_dir_trips.entry((ti_rem.route_id(t), dir)).or_default() += 1;
             }
         }
         // Aynı rotada her iki yönde de sefer var; yalnızca direction_id set olmayan seferler → TRP_012
@@ -4500,7 +4513,7 @@ fn check_remaining_analytics(
             let mut r: HashMap<&str, HashSet<u32>> = HashMap::new();
             for t in &records.trips {
                 if let Some(d) = t.direction_id {
-                    r.entry(t.route_id.as_str()).or_default().insert(d);
+                    r.entry(ti_rem.route_id(t)).or_default().insert(d);
                 }
             }
             r.into_iter().filter(|(_, dirs)| dirs.len() > 1).map(|(rid, _)| rid).collect()
@@ -4510,9 +4523,9 @@ fn check_remaining_analytics(
         // zaten rota-merkezli); rota başına TEK notice + sayım.
         let mut route_missing: HashMap<&str, (u32, u64)> = HashMap::new(); // route -> (eksik_sayı, ilk_satır)
         for t in &records.trips {
-            if !routes_with_both_dirs.contains(t.route_id.as_str()) { continue; }
+            if !routes_with_both_dirs.contains(ti_rem.route_id(t)) { continue; }
             if t.direction_id.is_none() {
-                let e = route_missing.entry(t.route_id.as_str()).or_insert((0, t.line));
+                let e = route_missing.entry(ti_rem.route_id(t)).or_insert((0, t.line));
                 e.0 += 1;
                 if t.line < e.1 { e.1 = t.line; }
             }
@@ -4542,15 +4555,13 @@ fn check_remaining_analytics(
     {
         let mut block_count: HashMap<&str, u32> = HashMap::new();
         for t in &records.trips {
-            if let Some(ref bid) = t.block_id {
-                if !bid.is_empty() {
-                    *block_count.entry(bid.as_str()).or_default() += 1;
-                }
+            if let Some(bid) = ti_rem.block_id(t).filter(|b| !b.is_empty()) {
+                *block_count.entry(bid).or_default() += 1;
             }
         }
         for t in &records.trips {
-            if let Some(ref bid) = t.block_id {
-                if block_count.get(bid.as_str()).copied().unwrap_or(0) == 1 {
+            if let Some(bid) = ti_rem.block_id(t).filter(|b| !b.is_empty()) {
+                if block_count.get(bid).copied().unwrap_or(0) == 1 {
                     notices.push(k6_notice(
                         ctr,
                         "TRP_015",
@@ -4562,7 +4573,7 @@ fn check_remaining_analytics(
                         Some("block_id"),
                         Some(bid.to_string()),
                         None,
-                        format!("'{}' hattının seferinde '{bid}' blok kodu tek kullanılmış — blok en az 2 sefer içermelidir.", t.route_id),
+                        format!("'{}' hattının seferinde '{bid}' blok kodu tek kullanılmış — blok en az 2 sefer içermelidir.", ti_rem.route_id(t)),
                         "block_id'nin aynı araca atanan birden fazla sefer için kullanıldığından emin olun.",
                     ));
                 }
@@ -4609,7 +4620,7 @@ fn check_remaining_analytics(
     let trip_shape_local: HashMap<&str, &str> = records
         .trips
         .iter()
-        .filter_map(|t| t.shape_id.as_deref().map(|s| (t.trip_id.as_str(), s)))
+        .filter_map(|t| ti_rem.shape_id(t).map(|s| (t.trip_id.as_str(), s)))
         .collect();
     let mut shape_cum: FxHashMap<&str, Vec<f64>> = FxHashMap::default();
 
@@ -5120,7 +5131,7 @@ fn check_remaining_analytics(
         // trip_headsign
         for trip in &records.trips {
             if trip.trip_id.is_empty() { continue; }
-            if let Some(hs) = trip.trip_headsign.as_deref().filter(|s| is_all_caps(s)) {
+            if let Some(hs) = ti_rem.headsign(trip).filter(|s| is_all_caps(s)) {
                 notices.push(k6_notice(
                     ctr, "DQ_018", EntityType::Trip,
                     Some(trip.trip_id.to_string()), Some(trip.trip_id.to_string()),
@@ -5221,7 +5232,7 @@ fn check_remaining_analytics(
         }
         for trip in &records.trips {
             if trip.trip_id.is_empty() { continue; }
-            if let Some(hs) = trip.trip_headsign.as_deref().filter(|s| is_all_lower(s)) {
+            if let Some(hs) = ti_rem.headsign(trip).filter(|s| is_all_lower(s)) {
                 notices.push(k6_notice(
                     ctr, "DQ_019", EntityType::Trip,
                     Some(trip.trip_id.to_string()), Some(trip.trip_id.to_string()),
@@ -5287,7 +5298,7 @@ fn check_remaining_analytics(
         let total = records.trips.iter().filter(|t| !t.trip_id.is_empty()).count();
         let missing = records.trips.iter()
             .filter(|t| !t.trip_id.is_empty())
-            .filter(|t| t.trip_headsign.as_deref().map(|s| s.trim().is_empty()).unwrap_or(true))
+            .filter(|t| ti_rem.headsign(t).map(|s| s.trim().is_empty()).unwrap_or(true))
             .count();
         if missing > 0 && total > 0 {
             notices.push(k6_notice(
@@ -5364,8 +5375,8 @@ fn check_remaining_analytics(
         let _t18 = Timer::start("K6::rem::opr_018");
         const MIN_DAYS: usize = 3;
         let used_services_18: FxHashSet<&str> = records.trips.iter()
-            .filter(|t| !t.service_id.is_empty())
-            .map(|t| t.service_id.as_str())
+            .filter(|t| !ti_rem.service_id(t).is_empty())
+            .map(|t| ti_rem.service_id(t))
             .collect();
         for (svc_id, dates) in &derived.calendar_bitmap.active_dates {
             if dates.is_empty() { continue; } // OPR_011 zaten yakaladı
@@ -5390,14 +5401,14 @@ fn check_remaining_analytics(
         let mut route_wc: FxHashMap<&str, (bool, bool)> = FxHashMap::default();
         let mut route_ba: FxHashMap<&str, (bool, bool)> = FxHashMap::default();
         for t in &records.trips {
-            if t.route_id.is_empty() { continue; }
+            if ti_rem.route_id(t).is_empty() { continue; }
             if let Some(wc) = t.wheelchair_accessible {
-                let e = route_wc.entry(t.route_id.as_str()).or_default();
+                let e = route_wc.entry(ti_rem.route_id(t)).or_default();
                 if wc == 1 { e.0 = true; }
                 if wc == 2 { e.1 = true; }
             }
             if let Some(ba) = t.bikes_allowed {
-                let e = route_ba.entry(t.route_id.as_str()).or_default();
+                let e = route_ba.entry(ti_rem.route_id(t)).or_default();
                 if ba == 1 { e.0 = true; }
                 if ba == 2 { e.1 = true; }
             }
@@ -5607,6 +5618,7 @@ fn check_shp012(
     notices: &mut Vec<Notice>,
     ctr: &mut u32,
 ) {
+    let ti_shp012 = &records.trip_interns;
     // shape_id → sıralı (lat, lon) + bbox (build_maps ile birebir aynı kurulum)
     // #15 (build_maps OOM/312s): shape_coords'u NOKTA-İNDEKSLERİYLE kur. Eski yol her noktayı
     // (u32,f64,f64)=24B ara tamponda gruplayıp sonra (f64,f64)=16B'ye kopyalıyordu → transient
@@ -5665,7 +5677,7 @@ fn check_shp012(
         let mut shape_stop_violations: FxHashMap<&str, u32> = FxHashMap::default();
         let mut dist_cache: FxHashMap<(&str, &str), f64> = FxHashMap::default();
         for trip in &records.trips {
-            let Some(shape_id) = trip.shape_id.as_deref().filter(|s| !s.is_empty()) else { continue };
+            let Some(shape_id) = ti_shp012.shape_id(trip).filter(|s| !s.is_empty()) else { continue };
             let Some(pts) = shape_coords.get(shape_id) else { continue };
             let Some(stimes) = idx.by_trip.get(trip.trip_id.as_str()) else { continue };
 
@@ -5727,6 +5739,7 @@ fn check_shp022(
     ctr: &mut u32,
 ) {
     use crate::timing::Timer;
+    let ti_shp022 = &records.trip_interns;
 
     // ── build_maps ile birebir aynı kurulum (shape_coords + shape_bbox) ──────
     // #15 (build_maps OOM/312s): shape_coords'u NOKTA-İNDEKSLERİYLE kur. Eski yol her noktayı
@@ -5781,7 +5794,7 @@ fn check_shp022(
     let trip_shape_local: HashMap<&str, &str> = records
         .trips
         .iter()
-        .filter_map(|t| t.shape_id.as_deref().map(|s| (t.trip_id.as_str(), s)))
+        .filter_map(|t| ti_shp022.shape_id(t).map(|s| (t.trip_id.as_str(), s)))
         .collect();
     let mut shape_cum: FxHashMap<&str, Vec<f64>> = FxHashMap::default();
 
@@ -5970,14 +5983,15 @@ fn check_calendar_override_analytics(
     ctr: &mut u32,
 ) {
     use crate::timing::Timer;
+    let ti_cal_ov = &records.trip_interns;
     // ── route_id → service_id kümesi ─────────────────────────────────────────
     let mut route_services: HashMap<&str, Vec<&str>> = HashMap::new();
     for trip in &records.trips {
-        if !trip.route_id.is_empty() && !trip.service_id.is_empty() {
+        if !ti_cal_ov.route_id(trip).is_empty() && !ti_cal_ov.service_id(trip).is_empty() {
             route_services
-                .entry(trip.route_id.as_str())
+                .entry(ti_cal_ov.route_id(trip))
                 .or_default()
-                .push(trip.service_id.as_str());
+                .push(ti_cal_ov.service_id(trip));
         }
     }
     // Servis listelerini sırala ve dedup et
@@ -6209,8 +6223,8 @@ fn check_calendar_override_analytics(
             .collect();
         let mut route_services: FxHashMap<&str, FxHashSet<&str>> = FxHashMap::default();
         for t in &records.trips {
-            if !t.route_id.is_empty() && !t.service_id.is_empty() {
-                route_services.entry(t.route_id.as_str()).or_default().insert(t.service_id.as_str());
+            if !ti_cal_ov.route_id(t).is_empty() && !ti_cal_ov.service_id(t).is_empty() {
+                route_services.entry(ti_cal_ov.route_id(t)).or_default().insert(ti_cal_ov.service_id(t));
             }
         }
         for (route_id, service_ids) in &route_services {
@@ -6238,8 +6252,8 @@ fn check_calendar_override_analytics(
         let _t12 = Timer::start("K6::rem::opr_012");
         let gap_threshold = config.service_gap_days;
         let used_services_12: FxHashSet<&str> = records.trips.iter()
-            .filter(|t| !t.service_id.is_empty())
-            .map(|t| t.service_id.as_str())
+            .filter(|t| !ti_cal_ov.service_id(t).is_empty())
+            .map(|t| ti_cal_ov.service_id(t))
             .collect();
         for (svc_id, dates) in &derived.calendar_bitmap.active_dates {
             if dates.len() < 2 { continue; }
@@ -6278,12 +6292,12 @@ fn check_calendar_override_analytics(
         let mut route_shape_set: FxHashMap<&str, FxHashSet<&str>> = FxHashMap::default();
         let mut route_dirs: FxHashMap<&str, FxHashSet<u32>> = FxHashMap::default();
         for t in &records.trips {
-            if t.route_id.is_empty() { continue; }
-            if let Some(shape) = t.shape_id.as_deref().filter(|s| !s.is_empty()) {
-                route_shape_set.entry(t.route_id.as_str()).or_default().insert(shape);
+            if ti_cal_ov.route_id(t).is_empty() { continue; }
+            if let Some(shape) = ti_cal_ov.shape_id(t).filter(|s| !s.is_empty()) {
+                route_shape_set.entry(ti_cal_ov.route_id(t)).or_default().insert(shape);
             }
             if let Some(d) = t.direction_id {
-                route_dirs.entry(t.route_id.as_str()).or_default().insert(d);
+                route_dirs.entry(ti_cal_ov.route_id(t)).or_default().insert(d);
             }
         }
         // route_id → route_type (raylı sistemler için skip)
@@ -6595,6 +6609,7 @@ fn check_vat_analytics(
     notices: &mut Vec<Notice>,
     ctr: &mut u32,
 ) {
+    let ti_vat = &records.trip_interns;
     // ── Ortak indeksler ─────────────────────────────────────────────────────
 
     let route_label: FxHashMap<&str, &str> = records.routes.iter()
@@ -6611,7 +6626,7 @@ fn check_vat_analytics(
         .collect();
 
     let trip_route: FxHashMap<&str, &str> = records.trips.iter()
-        .map(|t| (t.trip_id.as_str(), t.route_id.as_str()))
+        .map(|t| (t.trip_id.as_str(), ti_vat.route_id(t)))
         .collect();
 
     let stop_name_map: FxHashMap<&str, &str> = records.stops.iter()
@@ -6647,7 +6662,7 @@ fn check_vat_analytics(
         let route_services: FxHashMap<&str, FxHashSet<&str>> = {
             let mut m: FxHashMap<&str, FxHashSet<&str>> = FxHashMap::default();
             for t in &records.trips {
-                m.entry(t.route_id.as_str()).or_default().insert(t.service_id.as_str());
+                m.entry(ti_vat.route_id(t)).or_default().insert(ti_vat.service_id(t));
             }
             m
         };
@@ -6791,7 +6806,7 @@ fn check_vat_analytics(
     // shape yoksa (route_id + sıralı durak dizisi hash'i) desenine düşülür.
     {
         let trip_shape: FxHashMap<&str, &str> = records.trips.iter()
-            .filter_map(|t| t.shape_id.as_deref().map(|s| (t.trip_id.as_str(), s)))
+            .filter_map(|t| ti_vat.shape_id(t).map(|s| (t.trip_id.as_str(), s)))
             .collect();
 
         #[derive(PartialEq, Eq, Hash)]
@@ -6936,8 +6951,8 @@ fn check_vat_analytics(
         let mut route_we: FxHashMap<&str, u32> = FxHashMap::default();
 
         for trip in &records.trips {
-            let route = trip.route_id.as_str();
-            let svc = trip.service_id.as_str();
+            let route = ti_vat.route_id(trip);
+            let svc = ti_vat.service_id(trip);
             let has_wd = svc_weekday.get(svc).copied().unwrap_or(false);
             let has_we = svc_weekend.get(svc).copied().unwrap_or(false);
             if has_wd { *route_wd.entry(route).or_insert(0) += 1; }
@@ -7165,8 +7180,8 @@ fn check_vat_analytics(
             .collect();
         let mut rs_trip_counts: HashMap<(&str, &str), u32> = HashMap::new();
         for t in &records.trips {
-            if !t.route_id.is_empty() {
-                *rs_trip_counts.entry((t.route_id.as_str(), t.service_id.as_str())).or_default() += 1;
+            if !ti_vat.route_id(t).is_empty() {
+                *rs_trip_counts.entry((ti_vat.route_id(t), ti_vat.service_id(t))).or_default() += 1;
             }
         }
         for ((route_id, service_id), count) in &rs_trip_counts {
@@ -7222,9 +7237,9 @@ fn check_vat_analytics(
         if total_routes >= 3 {
             let mut shape_routes: HashMap<&str, HashSet<&str>> = HashMap::new();
             for t in &records.trips {
-                if let Some(shape_id) = t.shape_id.as_deref() {
-                    if !shape_id.is_empty() && !t.route_id.is_empty() {
-                        shape_routes.entry(shape_id).or_default().insert(t.route_id.as_str());
+                if let Some(shape_id) = ti_vat.shape_id(t) {
+                    if !shape_id.is_empty() && !ti_vat.route_id(t).is_empty() {
+                        shape_routes.entry(shape_id).or_default().insert(ti_vat.route_id(t));
                     }
                 }
             }
@@ -7324,18 +7339,81 @@ mod tests {
         }
     }
 
+    use crate::k2::trips::TripInternTable;
+    use smol_str::SmolStr;
+
+    // Thread-local TripInternTable: test yardımcıları stringleri buraya intern eder.
+    // Her test kendi iş parçacığında çalıştığından izolasyon otomatik sağlanır.
+    thread_local! {
+        static TEST_TI: std::cell::RefCell<TripInternTable> =
+            std::cell::RefCell::new(TripInternTable::new());
+    }
+
+    /// Birikmiş TripInternTable'ı al ve yerine yeni boş tablo koy.
+    fn take_ti() -> TripInternTable {
+        TEST_TI.with(|cell| {
+            std::mem::replace(&mut *cell.borrow_mut(), TripInternTable::new())
+        })
+    }
+
+    /// Temel sefer kaydı: route_id + service="SVC" thread-local intern tablosuna eklenir.
     fn trip(trip_id: &str, route_id: &str) -> TripRecord {
-        TripRecord {
-            trip_id: trip_id.into(),
-            route_id: route_id.into(),
-            service_id: "SVC".into(),
-            shape_id: None, trip_headsign: None, trip_short_name: None,
-            direction_id: None, block_id: None,
-            wheelchair_accessible: None, bikes_allowed: None,
-            cars_allowed: None, safe_duration_factor: None, safe_duration_offset: None,
-            jp_office_id: None,
-            line: 2,
+        TEST_TI.with(|cell| {
+            let mut ti = cell.borrow_mut();
+            let ri = ti.route_ids.len() as u32;
+            ti.route_ids.push(SmolStr::new(route_id));
+            let si = ti.service_ids.len() as u32;
+            ti.service_ids.push(SmolStr::new("SVC"));
+            TripRecord {
+                trip_id: trip_id.into(),
+                route_idx: ri, service_idx: si, shape_idx: 0,
+                headsign_idx: 0, short_name_idx: 0, block_idx: 0, jp_office_idx: 0,
+                direction_id: None, wheelchair_accessible: None,
+                bikes_allowed: None, cars_allowed: None,
+                safe_duration_factor: None, safe_duration_offset: None,
+                line: 2,
+            }
+        })
+    }
+
+    /// Sefer + shape_id (thread-local intern tablosuna eklenir).
+    fn trip_sh(trip_id: &str, route_id: &str, shape_id: &str) -> TripRecord {
+        let mut t = trip(trip_id, route_id);
+        if !shape_id.is_empty() {
+            TEST_TI.with(|cell| {
+                let mut ti = cell.borrow_mut();
+                let shi = ti.shape_ids.len() as u32;
+                ti.shape_ids.push(SmolStr::new(shape_id));
+                t.shape_idx = shi;
+            });
         }
+        t
+    }
+
+    /// Sefer + trip_headsign (thread-local intern tablosuna eklenir).
+    fn trip_hs(trip_id: &str, route_id: &str, headsign: &str) -> TripRecord {
+        let mut t = trip(trip_id, route_id);
+        TEST_TI.with(|cell| {
+            let mut ti = cell.borrow_mut();
+            let hi = ti.headsigns.len() as u32;
+            ti.headsigns.push(SmolStr::new(headsign));
+            t.headsign_idx = hi;
+        });
+        t
+    }
+
+    /// Sefer + block_id (thread-local intern tablosuna eklenir).
+    fn trip_blk(trip_id: &str, route_id: &str, block_id: &str) -> TripRecord {
+        let mut t = trip(trip_id, route_id);
+        if !block_id.is_empty() {
+            TEST_TI.with(|cell| {
+                let mut ti = cell.borrow_mut();
+                let bi = ti.block_ids.len() as u32;
+                ti.block_ids.push(SmolStr::new(block_id));
+                t.block_idx = bi;
+            });
+        }
+        t
     }
 
     fn stoptime(trip_id: &str, seq: u32, stop_id: &str, arr: (u32,u32,u32), dep: (u32,u32,u32), line: u64) -> StopTimeRecord {
@@ -7350,6 +7428,7 @@ mod tests {
         }
     }
 
+    /// records_with: trip intern tablosunu thread-local'dan otomatik alır (take_ti).
     fn records_with(
         stops: Vec<StopRecord>,
         routes: Vec<RouteRecord>,
@@ -7357,10 +7436,12 @@ mod tests {
         stoptimes: Vec<StopTimeRecord>,
     ) -> crate::k2::EntityRecords {
         use crate::k2::stop_times::StopTimesIndex;
+        let ti = take_ti();
         let mut r = crate::k2::EntityRecords::default();
         r.stops = stops;
         r.routes = routes;
         r.trips = trips;
+        r.trip_interns = ti;
         r.stop_times_index = StopTimesIndex::from_records(&stoptimes);
         r.stop_times = stoptimes;
         r
@@ -7742,17 +7823,22 @@ mod tests {
     // ── OPR_001/OPR_003 yeni testler: dedup davranışı ────────────────────────
 
     fn trip_with_service(trip_id: &str, route_id: &str, service_id: &str) -> TripRecord {
-        TripRecord {
-            trip_id: trip_id.into(),
-            route_id: route_id.into(),
-            service_id: service_id.into(),
-            shape_id: None, trip_headsign: None, trip_short_name: None,
-            direction_id: None, block_id: None,
-            wheelchair_accessible: None, bikes_allowed: None,
-            cars_allowed: None, safe_duration_factor: None, safe_duration_offset: None,
-            jp_office_id: None,
-            line: 2,
-        }
+        TEST_TI.with(|cell| {
+            let mut ti = cell.borrow_mut();
+            let ri = ti.route_ids.len() as u32;
+            ti.route_ids.push(SmolStr::new(route_id));
+            let si = ti.service_ids.len() as u32;
+            ti.service_ids.push(SmolStr::new(service_id));
+            TripRecord {
+                trip_id: trip_id.into(),
+                route_idx: ri, service_idx: si, shape_idx: 0,
+                headsign_idx: 0, short_name_idx: 0, block_idx: 0, jp_office_idx: 0,
+                direction_id: None, wheelchair_accessible: None,
+                bikes_allowed: None, cars_allowed: None,
+                safe_duration_factor: None, safe_duration_offset: None,
+                line: 2,
+            }
+        })
     }
 
     #[test]
@@ -7937,15 +8023,23 @@ mod tests {
 
     // ── CAL_021: bugünü kapsayan ama yakın günlerde aktif seferi olmayan servis ──
 
-    fn trip_svc(trip_id: &str, sid: &str) -> crate::k2::trips::TripRecord {
-        crate::k2::trips::TripRecord {
-            trip_id: trip_id.into(), route_id: "R1".into(), service_id: sid.into(),
-            shape_id: None, trip_headsign: None, trip_short_name: None,
-            direction_id: None, block_id: None, wheelchair_accessible: None,
-            bikes_allowed: None, cars_allowed: None,
-            safe_duration_factor: None, safe_duration_offset: None,
-            jp_office_id: None, line: 2,
-        }
+    fn trip_svc(trip_id: &str, sid: &str) -> TripRecord {
+        TEST_TI.with(|cell| {
+            let mut ti = cell.borrow_mut();
+            let ri = ti.route_ids.len() as u32;
+            ti.route_ids.push(SmolStr::new("R1"));
+            let si = ti.service_ids.len() as u32;
+            ti.service_ids.push(SmolStr::new(sid));
+            TripRecord {
+                trip_id: trip_id.into(),
+                route_idx: ri, service_idx: si, shape_idx: 0,
+                headsign_idx: 0, short_name_idx: 0, block_idx: 0, jp_office_idx: 0,
+                direction_id: None, wheelchair_accessible: None,
+                bikes_allowed: None, cars_allowed: None,
+                safe_duration_factor: None, safe_duration_offset: None,
+                line: 2,
+            }
+        })
     }
 
     #[test]
@@ -7960,6 +8054,7 @@ mod tests {
         };
         let mut records = crate::k2::EntityRecords::default();
         records.trips = vec![trip_svc("T1", "SVC")];
+        records.trip_interns = take_ti();
         let result = analyze(&records, &derived, &default_config(), 20260514);
         assert!(result.notices.iter().any(|n| n.rule_id == "CAL_021"),
             "bugünü kapsayan ama yakın günde seferi olmayan servis CAL_021 üretmeli");
@@ -7990,6 +8085,7 @@ mod tests {
         };
         let mut records = crate::k2::EntityRecords::default();
         records.trips = vec![trip_svc("T1", "SVC")];
+        records.trip_interns = take_ti();
         let r1 = analyze(&records, &derived, &default_config(), 20260514);
         assert!(!r1.notices.iter().any(|n| n.rule_id == "CAL_021"),
             "yakın günde aktif servis CAL_021 üretmemeli");
@@ -8441,11 +8537,7 @@ mod tests {
         let mut records = records_with(
             vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1)],
             vec![route("R1", 3)],
-            vec![{
-                let mut t = trip("T1", "R1");
-                t.shape_id = Some("S1".into());
-                t
-            }],
+            vec![trip_sh("T1", "R1", "S1")],
             vec![
                 stoptime("T1", 1, "A", (8,0,0), (8,0,0), 2),
                 stoptime("T1", 2, "B", (8,10,0), (8,10,0), 3),
@@ -8470,8 +8562,8 @@ mod tests {
             vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1)],
             vec![route("R1", 3)],
             vec![
-                { let mut t = trip("T1", "R1"); t.shape_id = Some("S1".into()); t },
-                { let mut t = trip("T2", "R1"); t.shape_id = Some("S1".into()); t },
+                trip_sh("T1", "R1", "S1"),
+                trip_sh("T2", "R1", "S1"),
             ],
             vec![
                 stoptime("T1", 1, "A", (8,0,0), (8,0,0), 2),
@@ -8553,11 +8645,7 @@ mod tests {
         let mut records = records_with(
             vec![stop("IST", 41.0, 29.0)],
             vec![route("R1", 3)],
-            vec![{
-                let mut t = trip("T1", "R1");
-                t.shape_id = Some("S1".into());
-                t
-            }],
+            vec![trip_sh("T1", "R1", "S1")],
             vec![stoptime("T1", 1, "IST", (8,0,0), (8,0,0), 2)],
         );
         records.shapes = vec![
@@ -8576,11 +8664,7 @@ mod tests {
         let mut records = records_with(
             vec![stop("A", 41.0, 29.0)],
             vec![route("R1", 3)],
-            vec![{
-                let mut t = trip("T1", "R1");
-                t.shape_id = Some("S1".into());
-                t
-            }],
+            vec![trip_sh("T1", "R1", "S1")],
             vec![stoptime("T1", 1, "A", (8,0,0), (8,0,0), 2)],
         );
         // Shape noktası durağın hemen yanında (< 1 m)
@@ -8773,11 +8857,7 @@ mod tests {
         let records = records_with(
             vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1)],
             vec![route("R1", 3)],
-            vec![{
-                let mut t = trip("T1", "R1");
-                t.shape_id = Some("S1".into());
-                t
-            }],
+            vec![trip_sh("T1", "R1", "S1")],
             vec![
                 stoptime("T1", 1, "A", (8,0,0), (8,0,0), 2),
                 stoptime("T1", 2, "B", (8,10,0), (8,10,0), 3),
@@ -8796,7 +8876,7 @@ mod tests {
             vec![
                 trip("T1", "R1"),
                 trip("T2", "R2"),
-                { let mut t = trip("T3", "R3"); t.shape_id = Some("S1".into()); t },
+                trip_sh("T3", "R3", "S1"),
             ],
             vec![
                 stoptime("T1", 1, "A", (8,0,0), (8,0,0), 2),
@@ -8844,11 +8924,7 @@ mod tests {
         let records = records_with(
             vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1)],
             vec![route("R1", 3)],
-            vec![{
-                let mut t = trip("T1", "R1");
-                t.block_id = Some("BLK1".into()); // block'ta tek sefer
-                t
-            }],
+            vec![trip_blk("T1", "R1", "BLK1")], // block'ta tek sefer
             vec![
                 stoptime("T1", 1, "A", (8,0,0), (8,0,0), 2),
                 stoptime("T1", 2, "B", (8,10,0), (8,10,0), 3),
@@ -8864,8 +8940,8 @@ mod tests {
             vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1)],
             vec![route("R1", 3)],
             vec![
-                { let mut t = trip("T1", "R1"); t.block_id = Some("BLK1".into()); t },
-                { let mut t = trip("T2", "R1"); t.block_id = Some("BLK1".into()); t },
+                trip_blk("T1", "R1", "BLK1"),
+                trip_blk("T2", "R1", "BLK1"),
             ],
             vec![
                 stoptime("T1", 1, "A", (8,0,0), (8,0,0), 2),
@@ -8926,7 +9002,7 @@ mod tests {
         let mut records = records_with(
             vec![stop("A", 41.0, 29.0), stop("B", 41.0, 29.1)],
             vec![route("R1", 3)],
-            vec![{ let mut t = trip("T1", "R1"); t.shape_id = Some("S1".into()); t }],
+            vec![trip_sh("T1", "R1", "S1")],
             vec![
                 stoptime("T1", 1, "A", (8,0,0), (8,0,0), 2),
                 stoptime("T1", 2, "B", (8,10,0), (8,10,0), 3),
@@ -8951,7 +9027,7 @@ mod tests {
         let mut records = records_with(
             vec![stop("A", 41.0, 29.0), stop("B", 41.0, 29.1)],
             vec![route("R1", 3)],
-            vec![{ let mut t = trip("T1", "R1"); t.shape_id = Some("S1".into()); t }],
+            vec![trip_sh("T1", "R1", "S1")],
             vec![
                 stoptime("T1", 1, "B", (8,0,0), (8,0,0), 2),
                 stoptime("T1", 2, "A", (8,10,0), (8,10,0), 3),
@@ -8974,7 +9050,7 @@ mod tests {
         let mut records = records_with(
             vec![stop("A", 41.0, 29.0), stop("B", 41.0, 29.1)],
             vec![route("R1", 3)],
-            vec![{ let mut t = trip("T1", "R1"); t.shape_id = Some("S1".into()); t }],
+            vec![trip_sh("T1", "R1", "S1")],
             vec![
                 stoptime("T1", 1, "A", (8,0,0), (8,0,0), 2),
                 stoptime("T1", 2, "B", (8,10,0), (8,10,0), 3),
@@ -8999,7 +9075,7 @@ mod tests {
         let mut records = records_with(
             vec![stop("A", 41.0, 29.0), stop("B", 41.0, 29.1)],
             vec![route("R1", 3)],
-            vec![{ let mut t = trip("T1", "R1"); t.shape_id = Some("S1".into()); t }],
+            vec![trip_sh("T1", "R1", "S1")],
             vec![
                 stoptime("T1", 1, "A", (8,0,0), (8,0,0), 2),
                 stoptime("T1", 2, "B", (8,10,0), (8,10,0), 3),
@@ -9036,8 +9112,8 @@ mod tests {
 
     #[test]
     fn bidirectional_route_single_shape_produces_opr_015() {
-        let mut t0 = trip("T0", "R1"); t0.direction_id = Some(0); t0.shape_id = Some("S1".into());
-        let mut t1 = trip("T1", "R1"); t1.direction_id = Some(1); t1.shape_id = Some("S1".into());
+        let mut t0 = trip_sh("T0", "R1", "S1"); t0.direction_id = Some(0);
+        let mut t1 = trip_sh("T1", "R1", "S1"); t1.direction_id = Some(1);
         let records = records_with(
             vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1)],
             vec![route("R1", 3)],
@@ -9055,8 +9131,8 @@ mod tests {
     #[test]
     fn unidirectional_route_single_shape_no_opr_015() {
         // İki trip de direction_id=0 → tek yönlü; tek shape beklenen davranış → OPR_015 yok
-        let mut t0 = trip("T0", "R1"); t0.direction_id = Some(0); t0.shape_id = Some("S1".into());
-        let mut t1 = trip("T1", "R1"); t1.direction_id = Some(0); t1.shape_id = Some("S1".into());
+        let mut t0 = trip_sh("T0", "R1", "S1"); t0.direction_id = Some(0);
+        let mut t1 = trip_sh("T1", "R1", "S1"); t1.direction_id = Some(0);
         let records = records_with(
             vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1)],
             vec![route("R1", 3)],
@@ -9080,8 +9156,8 @@ mod tests {
             vec![stop("A", 41.0, 29.0), stop("B", 41.0, 29.1)],
             vec![route("R1", 3)],
             vec![
-                { let mut t = trip("T1", "R1"); t.shape_id = Some("S1".into()); t },
-                { let mut t = trip("T2", "R1"); t.shape_id = Some("S1".into()); t },
+                trip_sh("T1", "R1", "S1"),
+                trip_sh("T2", "R1", "S1"),
             ],
             vec![
                 stoptime("T1", 1, "A", (8,0,0), (8,0,0), 2),
@@ -9111,8 +9187,8 @@ mod tests {
             vec![stop("A", 41.0, 29.0), stop("B", 41.0, 29.1), stop("FAR", 42.0, 30.0)],
             vec![route("R1", 3)],
             vec![
-                { let mut t = trip("T1", "R1"); t.shape_id = Some("S1".into()); t },
-                { let mut t = trip("T2", "R1"); t.shape_id = Some("S1".into()); t },
+                trip_sh("T1", "R1", "S1"),
+                trip_sh("T2", "R1", "S1"),
             ],
             vec![
                 stoptime("T1", 1, "A", (8,0,0), (8,0,0), 2),
@@ -9140,7 +9216,7 @@ mod tests {
         let mut records = records_with(
             vec![stop("A", 41.0, 29.0), stop("C", 42.0, 30.0)],
             vec![route("R1", 3)],
-            vec![{ let mut t = trip("T1", "R1"); t.shape_id = Some("S1".into()); t }],
+            vec![trip_sh("T1", "R1", "S1")],
             vec![
                 stoptime("T1", 1, "A", (8,0,0), (8,0,0), 2),
                 stoptime("T1", 2, "C", (8,10,0), (8,10,0), 3),
@@ -9166,7 +9242,7 @@ mod tests {
         let mut records = records_with(
             vec![stop("A", 41.0, 29.0), stop("B", 41.0, 29.05), stop("C", 41.0, 29.1)],
             vec![route("R1", 3)],
-            vec![{ let mut t = trip("T1", "R1"); t.shape_id = Some("S1".into()); t }],
+            vec![trip_sh("T1", "R1", "S1")],
             vec![
                 stoptime("T1", 1, "A", (8,0,0),  (8,0,0),  2),
                 stoptime("T1", 2, "C", (8,10,0), (8,10,0), 3),
@@ -9199,7 +9275,7 @@ mod tests {
                 stop("D", 41.0, 29.05),
             ],
             vec![route("R1", 3)],
-            vec![{ let mut t = trip("T1", "R1"); t.shape_id = Some("S1".into()); t }],
+            vec![trip_sh("T1", "R1", "S1")],
             vec![
                 stoptime("T1", 1, "A", (8,0,0),  (8,0,0),  2),
                 stoptime("T1", 2, "B", (8,10,0), (8,10,0), 3),
@@ -9302,8 +9378,7 @@ mod tests {
         sa.stop_name = Some("Stop A".into());
         let mut sb = stop("B", 41.1, 29.1);
         sb.stop_name = Some("Stop B".into());
-        let mut t = trip("T1", "R1");
-        t.trip_headsign = Some("Stop A".into()); // ara durak adı
+        let t = trip_hs("T1", "R1", "Stop A"); // ara durak adı
         let records = records_with(
             vec![sa, sb],
             vec![route("R1", 3)],
@@ -9327,8 +9402,7 @@ mod tests {
         sa.stop_name = Some("Stop A".into());
         let mut sb = stop("B", 41.1, 29.1);
         sb.stop_name = Some("Stop B".into());
-        let mut t = trip("T1", "R1");
-        t.trip_headsign = Some("Stop B".into()); // terminal durak adı
+        let t = trip_hs("T1", "R1", "Stop B"); // terminal durak adı
         let records = records_with(
             vec![sa, sb],
             vec![route("R1", 3)],
@@ -9349,8 +9423,7 @@ mod tests {
         sa.stop_name = Some("Stop A".into());
         let mut sb = stop("B", 41.1, 29.1);
         sb.stop_name = Some("Stop B".into());
-        let mut t = trip("T1", "R1");
-        t.trip_headsign = Some("Tren Garı".into());
+        let t = trip_hs("T1", "R1", "Tren Garı");
         let records = records_with(
             vec![sa, sb],
             vec![route("R1", 3)],
@@ -9372,8 +9445,7 @@ mod tests {
         let mut sb = stop("B", 41.1, 29.1); sb.stop_name = Some("Stop B".into());
         let mut sc = stop("C", 41.2, 29.2); sc.stop_name = Some("Stop C".into());
         let mut sd = stop("D", 41.3, 29.3); sd.stop_name = Some("Stop D".into());
-        let mut t = trip("T1", "R1");
-        t.trip_headsign = Some("Stop B".into());
+        let t = trip_hs("T1", "R1", "Stop B");
         let records = records_with(
             vec![sa, sb, sc, sd],
             vec![route("R1", 3)],
@@ -9399,8 +9471,7 @@ mod tests {
         let mut sb = stop("B", 41.1, 29.1); sb.stop_name = Some("Stop B".into());
         let mut sc = stop("C", 41.2, 29.2); sc.stop_name = Some("Stop C".into());
         let mut sd = stop("D", 41.3, 29.3); sd.stop_name = Some("Stop D".into());
-        let mut t = trip("T1", "R1");
-        t.trip_headsign = Some("Stop C".into());
+        let t = trip_hs("T1", "R1", "Stop C");
         let records = records_with(
             vec![sa, sb, sc, sd],
             vec![route("R1", 3)],
@@ -9427,8 +9498,7 @@ mod tests {
         let mut sa = stop("A", 41.0, 29.0); sa.stop_name = Some("Stop A".into());
         let mut sb = stop("B", 41.1, 29.1); sb.stop_name = Some("Stop B".into());
         let mut sc = stop("C", 41.2, 29.2); sc.stop_name = Some("Stop C".into());
-        let mut t = trip("T1", "R1");
-        t.trip_headsign = Some("Stop B".into());
+        let t = trip_hs("T1", "R1", "Stop B");
         let records = records_with(
             vec![sa, sb, sc],
             vec![route("R1", 3)],
@@ -9455,8 +9525,7 @@ mod tests {
         let mut sa2 = stop("A2", 41.0, 29.0); sa2.stop_name = Some("İstasyon P".into());
         sa2.row.insert("parent_station".into(), "P".into());
         let mut sb = stop("B", 41.1, 29.1); sb.stop_name = Some("Stop B".into());
-        let mut t = trip("T1", "R1");
-        t.trip_headsign = Some("Stop B".into()); // ara durak adı
+        let t = trip_hs("T1", "R1", "Stop B"); // ara durak adı
         let records = records_with(
             vec![sa1, sa2, sb],
             vec![route("R1", 3)],
@@ -9478,8 +9547,7 @@ mod tests {
         // "U" şekli: gidip dönen hat — durak hem gidiş hem dönüş bölümüne yakın
         // shape_dist_traveled YOK → SHP_022 beklenir
         use crate::k2::shapes::ShapePointRecord;
-        let mut t = trip("T1", "R1");
-        t.shape_id = Some("SH1".into());
+        let t = trip_sh("T1", "R1", "SH1");
         // Koordinatlar: lon=0.0 ekseni boyunca gidip, 0.001° ≈ 111m sağa kayıp dönüyor
         // Durak: lat=0.5, lon=0.00005 — hem gidiş (lon≈0) hem dönüş (lon≈0.001) segmentine ~5m yakın
         let mut s = stop("S1", 0.5, 0.00005);
@@ -9513,8 +9581,7 @@ mod tests {
     fn stop_near_one_shape_section_no_shp_022() {
         // Düz hat — stop yalnızca bir bölüme yakın → SHP_022 olmamalı
         use crate::k2::shapes::ShapePointRecord;
-        let mut t = trip("T1", "R1");
-        t.shape_id = Some("SH2".into());
+        let t = trip_sh("T1", "R1", "SH2");
         let mut s = stop("S1", 0.5, 0.0001); // sadece ilk segmente yakın
         s.stop_name = Some("Tek Bölüm".into());
         let mut records = records_with(
@@ -9596,11 +9663,7 @@ mod tests {
         let mut records = records_with(
             vec![stop("A", 41.0, 29.0), stop("B", 41.0, 29.01)],
             vec![route("R1", 3)],
-            vec![{
-                let mut t = trip("T1", "R1");
-                t.shape_id = Some("S1".into());
-                t
-            }],
+            vec![trip_sh("T1", "R1", "S1")],
             vec![
                 stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
                 stoptime("T1", 2, "B", (8, 5, 0), (8, 5, 0), 3), // 5 dk
@@ -9631,11 +9694,7 @@ mod tests {
         let mut records = records_with(
             vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.0)],
             vec![route("R1", 3)],
-            vec![{
-                let mut t = trip("T1", "R1");
-                t.shape_id = Some("S1".into());
-                t
-            }],
+            vec![trip_sh("T1", "R1", "S1")],
             vec![
                 stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
                 stoptime("T1", 2, "B", (8, 2, 0), (8, 2, 0), 3), // 2 dk
@@ -9663,11 +9722,7 @@ mod tests {
         let records = records_with(
             vec![stop("A", 41.0, 29.0), stop("B", 41.0, 29.01)],
             vec![route("R1", 3)],
-            vec![{
-                let mut t = trip("T1", "R1");
-                t.shape_id = Some("MISSING_SHAPE".into());
-                t
-            }],
+            vec![trip_sh("T1", "R1", "MISSING_SHAPE")],
             vec![
                 stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
                 stoptime("T1", 2, "B", (8, 10, 0), (8, 10, 0), 3),
@@ -9692,9 +9747,10 @@ mod tests {
         let mut r = crate::k2::EntityRecords::default();
         r.stops = stops;
         r.routes = vec![route("R1", 3), route("R2", 3)];
-        let mut t1 = trip("T1", "R1"); t1.service_id = "SVC".into();
-        let mut t2 = trip("T2", "R2"); t2.service_id = "SVC".into();
+        let t1 = trip("T1", "R1");
+        let t2 = trip("T2", "R2");
         r.trips = vec![t1, t2];
+        r.trip_interns = take_ti();
         r.stop_times = (1..=6).flat_map(|i| {
             let h = i as u32;
             vec![
@@ -9713,6 +9769,7 @@ mod tests {
         r.stops = (1..=6).map(|i| stop(&format!("S{i}"), 41.0 + i as f64 * 0.01, 29.0)).collect();
         r.routes = vec![route("R1", 3), route("R2", 3)];
         r.trips = vec![trip("T1", "R1"), trip("T2", "R2")];
+        r.trip_interns = take_ti();
         r.stop_times = vec![
             stoptime("T1", 1, "S1", (8,0,0), (8,0,0), 2),
             stoptime("T1", 2, "S2", (8,5,0), (8,5,0), 3),
@@ -9732,10 +9789,9 @@ mod tests {
         r.stops = vec![stop("S1", 41.0, 29.0), stop("S2", 41.1, 29.1)];
         r.routes = (1..=4).map(|i| route(&format!("R{i}"), 3)).collect();
         r.trips = (1..=4).map(|i| {
-            let mut t = trip(&format!("T{i}"), &format!("R{i}"));
-            t.service_id = "SVC".into();
-            t
+            trip(&format!("T{i}"), &format!("R{i}"))
         }).collect();
+        r.trip_interns = take_ti();
         r.stop_times = (1..=4).flat_map(|i| vec![
             stoptime(&format!("T{i}"), 1, "S1", (8,0,0), (8,0,0), 2),
             stoptime(&format!("T{i}"), 2, "S2", (8,10,0), (8,10,0), 3),
@@ -9764,6 +9820,7 @@ mod tests {
         stoptimes_vec.push(stoptime("T5", 1, "A", (6, 0, 0), (6, 0, 0), 2));
         stoptimes_vec.push(stoptime("T5", 2, "B", (9, 0, 0), (9, 0, 0), 3));
         r.trips = trips_vec;
+        r.trip_interns = take_ti();
         r.stop_times = stoptimes_vec;
         let result = analyze(&r, &empty_derived(), &default_config(), 20260514);
         assert!(result.notices.iter().any(|n| n.rule_id == "VAT_003"), "VAT_003 olmalı");
@@ -9797,6 +9854,7 @@ mod tests {
             stoptimes_vec.push(stoptime(&tid, 4, "D", (9, 30, 0), (9, 30, 0), 5));
         }
         r.trips = trips_vec;
+        r.trip_interns = take_ti();
         r.stop_times = stoptimes_vec;
         let result = analyze(&r, &empty_derived(), &default_config(), 20260514);
         assert!(!result.notices.iter().any(|n| n.rule_id == "VAT_003"),
@@ -9828,6 +9886,7 @@ mod tests {
             stoptimes_vec.push(stoptime(&tid, 2, "C", (9, 30, 0), (9, 30, 0), 3));
         }
         r.trips = trips_vec;
+        r.trip_interns = take_ti();
         r.stop_times = stoptimes_vec;
         let result = analyze(&r, &empty_derived(), &default_config(), 20260514);
         assert!(!result.notices.iter().any(|n| n.rule_id == "VAT_003"),
@@ -9865,6 +9924,7 @@ mod tests {
         sts.push(stoptime("INC", 1, "A", (10, 2, 0), (10, 2, 0), 2));
         sts.push(stoptime("INC", 2, "B", (10, 42, 0), (10, 42, 0), 3));
         r.trips = trips_vec;
+        r.trip_interns = take_ti();
         r.stop_times = sts;
         let result = analyze(&r, &empty_derived(), &default_config(), 20260514);
         let flagged: std::collections::HashSet<&str> = result.notices.iter()
@@ -9913,6 +9973,7 @@ mod tests {
         sts.push(stoptime("WINC", 1, "A", (24, 35, 0), (24, 35, 0), 2));
         sts.push(stoptime("WINC", 2, "B", (25, 15, 0), (25, 15, 0), 3));
         r.trips = trips_vec;
+        r.trip_interns = take_ti();
         r.stop_times = sts;
         let result = analyze(&r, &empty_derived(), &default_config(), 20260514);
         let flagged: std::collections::HashSet<&str> = result.notices.iter()
@@ -9942,10 +10003,9 @@ mod tests {
             line: 2,
         }];
         r.trips = (1..=5u32).map(|i| {
-            let mut t = trip(&format!("T{i}"), "R1");
-            t.service_id = "WEEKDAY".into();
-            t
+            trip_svc(&format!("T{i}"), "WEEKDAY")
         }).collect();
+        r.trip_interns = take_ti();
         r.stop_times = (1..=5u32).flat_map(|i| vec![
             stoptime(&format!("T{i}"), 1, "A", (i+7, 0, 0), (i+7, 0, 0), 2),
             stoptime(&format!("T{i}"), 2, "B", (i+7, 30, 0), (i+7, 30, 0), 3),
@@ -9982,6 +10042,7 @@ mod tests {
         st_v.push(stoptime("ISO",1,"X",(8,0,0),(8,0,0),2));
         st_v.push(stoptime("ISO",2,"Y",(8,10,0),(8,10,0),3));
         r.trips = trips_v;
+        r.trip_interns = take_ti();
         r.stop_times = st_v;
         let result = analyze(&r, &empty_derived(), &default_config(), 20260514);
         assert!(result.notices.iter().any(|n| n.rule_id == "VAT_005"), "VAT_005 olmalı");
@@ -10015,6 +10076,7 @@ mod tests {
         st_v.push(stoptime("ISO",1,"P",(8,0,0),(8,0,0),2));
         st_v.push(stoptime("ISO",2,"Q",(8,10,0),(8,10,0),3));
         r.trips = trips_v;
+        r.trip_interns = take_ti();
         r.stop_times = st_v;
         let result = analyze(&r, &empty_derived(), &default_config(), 20260514);
         assert!(!result.notices.iter().any(|n| n.rule_id == "VAT_005"),
@@ -10046,6 +10108,7 @@ mod tests {
             st_v.push(stoptime(&tid3, 2, "B", (i, 55, 0), (i, 55, 0), 3));
         }
         r.trips = trips_v;
+        r.trip_interns = take_ti();
         r.stop_times = st_v;
         let result = analyze(&r, &empty_derived(), &default_config(), 20260514);
         assert!(result.notices.iter().any(|n| n.rule_id == "VAT_006"), "VAT_006 olmalı");
@@ -10061,6 +10124,7 @@ mod tests {
         ];
         r.routes = (1..=3).map(|i| route(&format!("R{i}"), 3)).collect();
         r.trips = (1..=3).map(|i| trip(&format!("T{i}"), &format!("R{i}"))).collect();
+        r.trip_interns = take_ti();
         r.stop_times = vec![
             stoptime("T1", 1, "HUB", (8,0,0), (8,0,0), 2),
             stoptime("T1", 2, "A",   (8,10,0), (8,10,0), 3),

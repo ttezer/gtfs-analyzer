@@ -210,14 +210,16 @@ pub fn check(records: &EntityRecords, entity_map: &EntityMap, today: u32) -> K4R
                     }
                 }
                 let idx = &records.stop_times_index;
+                let ti_fa = &records.trip_interns;
                 let mut ra: HashMap<&str, HashSet<&str>> = HashMap::new();
                 for trip in &records.trips {
-                    if trip.route_id.is_empty() { continue; }
+                    let trip_route_id = ti_fa.route_id(trip);
+                    if trip_route_id.is_empty() { continue; }
                     if let Some(stops) = idx.trip_stop_set.get(trip.trip_id.as_str()) {
                         for &stop_idx in stops {
                             let stop_id = idx.stop_id_of_idx(stop_idx);
                             if let Some(areas) = stop_to_areas.get(stop_id) {
-                                let e = ra.entry(trip.route_id.as_str()).or_default();
+                                let e = ra.entry(trip_route_id).or_default();
                                 for a in areas { e.insert(a); }
                             }
                         }
@@ -713,10 +715,11 @@ fn check_routes(
     }
 
     // RTS_012: hiçbir trip'te kullanılmayan rota (orphan)
+    let ti_rts012 = &records.trip_interns;
     let used_routes: HashSet<&str> = records
         .trips
         .iter()
-        .map(|t| t.route_id.as_str())
+        .map(|t| ti_rts012.route_id(t))
         .collect();
     for rec in &records.routes {
         if rec.route_id.is_empty() {
@@ -755,14 +758,17 @@ fn check_trips(
     ctr: &mut u32,
     trip_has_continuous_stm: &HashSet<&str>,
 ) {
+    let ti = &records.trip_interns;
     for rec in &records.trips {
         if rec.trip_id.is_empty() {
             continue;
         }
         let eid: Option<String> = Some(rec.trip_id.to_string());
+        let rec_route_id = ti.route_id(rec);
+        let rec_service_id = ti.service_id(rec);
 
         // TRP_002: route_id referansı
-        if !rec.route_id.is_empty() && !map.routes.contains_key(rec.route_id.as_str()) {
+        if !rec_route_id.is_empty() && !map.routes.contains_key(rec_route_id) {
             notices.push(notice(
                 ctr,
                 "TRP_002",
@@ -772,15 +778,15 @@ fn check_trips(
                 "trips.txt",
                 Some(rec.line),
                 Some("route_id"),
-                Some(rec.route_id.to_string()),
+                Some(rec_route_id.to_string()),
                 None,
-                format!("'{}' hattı routes.txt'te tanımlı değil.", rec.route_id),
+                format!("'{}' hattı routes.txt'te tanımlı değil.", rec_route_id),
                 "Geçerli bir route_id kullanın.",
             ));
         }
 
         // TRP_003: service_id referansı
-        if !rec.service_id.is_empty() && !map.services.contains(rec.service_id.as_str()) {
+        if !rec_service_id.is_empty() && !map.services.contains(rec_service_id) {
             notices.push(notice(
                 ctr,
                 "TRP_003",
@@ -790,19 +796,19 @@ fn check_trips(
                 "trips.txt",
                 Some(rec.line),
                 Some("service_id"),
-                Some(rec.service_id.to_string()),
+                Some(rec_service_id.to_string()),
                 None,
                 format!(
                     "service_id '{}' calendar veya calendar_dates'te tanımlı değil.",
-                    rec.service_id
+                    rec_service_id
                 ),
                 "Geçerli bir service_id kullanın.",
             ));
         }
 
         // TRP_004: shape_id referansı (varsa)
-        if let Some(ref sid) = rec.shape_id {
-            if !map.shape_points.contains_key(sid.as_str()) {
+        if let Some(sid) = ti.shape_id(rec) {
+            if !map.shape_points.contains_key(sid) {
                 notices.push(notice(
                     ctr,
                     "TRP_004",
@@ -821,10 +827,10 @@ fn check_trips(
         }
 
         // TRP_019: continuous service aktifken shape_id zorunlu
-        if rec.shape_id.is_none() {
+        if rec.shape_idx == 0 {
             let route_continuous = map
                 .routes
-                .get(rec.route_id.as_str())
+                .get(rec_route_id)
                 .and_then(|&idx| records.routes.get(idx))
                 .map(|r| {
                     matches!(r.continuous_pickup, Some(0) | Some(1))
@@ -1045,10 +1051,11 @@ fn check_calendar(
     }
 
     // CAL_011: servis hiçbir trip tarafından kullanılmıyor (orphan)
+    let ti_cal = &records.trip_interns;
     let used_services: HashSet<&str> = records
         .trips
         .iter()
-        .map(|t| t.service_id.as_str())
+        .map(|t| ti_cal.service_id(t))
         .collect();
     for rec in &records.calendars {
         if rec.service_id.is_empty() {
@@ -1120,10 +1127,11 @@ fn check_calendar_dates(
         let has_added: HashSet<&str> = records.calendar_dates.added.keys()
             .map(|s| s.as_str()).collect();
         // trips'teki her service_id en az bir exception_type=1 kaydına sahip olmalı
+        let ti_cld = &records.trip_interns;
         let trip_services: HashSet<&str> = records
             .trips
             .iter()
-            .map(|t| t.service_id.as_str())
+            .map(|t| ti_cld.service_id(t))
             .collect();
         for sid in &trip_services {
             if !has_added.contains(*sid) {
@@ -1213,6 +1221,7 @@ fn check_transfers(
     trip_stops: &FxHashMap<SmolStr, FxHashSet<u32>>,
     stop_id_to_idx: &FxHashMap<smol_str::SmolStr, u32>,
 ) {
+    let ti_trf = &records.trip_interns;
     for rec in &records.transfers {
         let ttype = rec.transfer_type;
 
@@ -1388,13 +1397,13 @@ fn check_transfers(
             if let (Some(ref fti), Some(ref tti)) = (&rec.from_trip_id, &rec.to_trip_id) {
                 let from_rtype = map.trips.get(fti.as_str())
                     .and_then(|&tidx| {
-                        let rid = &records.trips[tidx].route_id;
-                        map.routes.get(rid.as_str()).and_then(|&ridx| records.routes[ridx].route_type)
+                        let rid = ti_trf.route_id(&records.trips[tidx]);
+                        map.routes.get(rid).and_then(|&ridx| records.routes[ridx].route_type)
                     });
                 let to_rtype = map.trips.get(tti.as_str())
                     .and_then(|&tidx| {
-                        let rid = &records.trips[tidx].route_id;
-                        map.routes.get(rid.as_str()).and_then(|&ridx| records.routes[ridx].route_type)
+                        let rid = ti_trf.route_id(&records.trips[tidx]);
+                        map.routes.get(rid).and_then(|&ridx| records.routes[ridx].route_type)
                     });
                 if let (Some(fr), Some(tr)) = (from_rtype, to_rtype) {
                     if fr != tr {
@@ -1415,15 +1424,15 @@ fn check_transfers(
         // TRF_017: sefer aktarmasında route uyumsuzluğu
         if let (Some(ref fti), Some(ref fri)) = (&rec.from_trip_id, &rec.from_route_id) {
             if let Some(&tidx) = map.trips.get(fti.as_str()) {
-                if records.trips[tidx].route_id != *fri {
+                if ti_trf.route_id(&records.trips[tidx]) != fri.as_str() {
                     notices.push(notice(
                         ctr, "TRF_017", EntityType::Transfer,
                         None, None, "transfers.txt", Some(rec.line), Some("from_route_id"),
                         Some(fri.clone()),
-                        Some(records.trips[tidx].route_id.to_string()),
+                        Some(ti_trf.route_id(&records.trips[tidx]).to_string()),
                         format!(
                             "from_trip_id '{fti}' route_id '{}' ile ilişkili, ancak from_route_id '{fri}' belirtilmiş.",
-                            records.trips[tidx].route_id
+                            ti_trf.route_id(&records.trips[tidx])
                         ),
                         "from_route_id'yi ilgili seferin route_id'siyle eşleştirin.",
                     ));
@@ -1432,15 +1441,15 @@ fn check_transfers(
         }
         if let (Some(ref tti), Some(ref tri)) = (&rec.to_trip_id, &rec.to_route_id) {
             if let Some(&tidx) = map.trips.get(tti.as_str()) {
-                if records.trips[tidx].route_id != *tri {
+                if ti_trf.route_id(&records.trips[tidx]) != tri.as_str() {
                     notices.push(notice(
                         ctr, "TRF_017", EntityType::Transfer,
                         None, None, "transfers.txt", Some(rec.line), Some("to_route_id"),
                         Some(tri.clone()),
-                        Some(records.trips[tidx].route_id.to_string()),
+                        Some(ti_trf.route_id(&records.trips[tidx]).to_string()),
                         format!(
                             "to_trip_id '{tti}' route_id '{}' ile ilişkili, ancak to_route_id '{tri}' belirtilmiş.",
-                            records.trips[tidx].route_id
+                            ti_trf.route_id(&records.trips[tidx])
                         ),
                         "to_route_id'yi ilgili seferin route_id'siyle eşleştirin.",
                     ));
@@ -1491,8 +1500,8 @@ fn check_transfers(
         ] {
             if let (Some(ref tid), Some(ref rid)) = (trip_opt, route_opt) {
                 if let Some(&tidx) = map.trips.get(tid.as_str()) {
-                    let actual_route = &records.trips[tidx].route_id;
-                    if actual_route.as_str() != rid.as_str() {
+                    let actual_route = ti_trf.route_id(&records.trips[tidx]);
+                    if actual_route != rid.as_str() {
                         notices.push(notice(
                             ctr, "XFL_020", EntityType::Transfer,
                             None, None, "transfers.txt", Some(rec.line), Some(route_field),
@@ -2366,6 +2375,7 @@ fn collect_kana<'a>(
 // (table=stops, field=stop_name, language=ja-Hrkt) record_id=stop_id VEYA
 // field_value=stop_name ile eşleşen satır bulunur.
 fn check_gtfs_jp(records: &EntityRecords, notices: &mut Vec<Notice>, ctr: &mut u32) {
+    let ti_jpn = &records.trip_interns;
     // ── JPN_001: stop_name kana (ja-Hrkt) okuması — kapı: feed_lang ja* VEYA ja-Hrkt çeviri ──
     let feed_lang_ja = records.feed_info.first()
         .map(|fi| fi.feed_lang.to_lowercase().starts_with("ja"))
@@ -2443,7 +2453,7 @@ fn check_gtfs_jp(records: &EntityRecords, notices: &mut Vec<Notice>, ctr: &mut u
         // ── JPN_009: trip_headsign kana (ja-Hrkt) — GTFS-JP _headsign alanları zorunlu ──
         let (kt_rec, kt_val) = collect_kana(&records.translations, "trips", "trip_headsign");
         for trip in &records.trips {
-            let hs = match trip.trip_headsign.as_deref() {
+            let hs = match ti_jpn.headsign(trip) {
                 Some(h) if !h.is_empty() => h,
                 _ => continue,
             };
@@ -2491,7 +2501,7 @@ fn check_gtfs_jp(records: &EntityRecords, notices: &mut Vec<Notice>, ctr: &mut u
             .filter(|id| !id.is_empty())
             .collect();
         for trip in &records.trips {
-            let oid = match trip.jp_office_id.as_deref() {
+            let oid = match ti_jpn.jp_office_id(trip) {
                 Some(o) if !o.is_empty() => o,
                 _ => continue,
             };
@@ -2788,13 +2798,14 @@ fn check_xfl(
     trip_stm_count: &HashMap<&str, u32>,
     bad_stop_ids: &HashSet<&str>,
 ) {
+    let ti_xfl = &records.trip_interns;
     // XFL_001: tüm service_id'ler calendar/calendar_dates'te tanımlı (feed-level özet)
     {
         let bad: Vec<&str> = records
             .trips
             .iter()
-            .filter(|t| !t.service_id.is_empty() && !map.services.contains(t.service_id.as_str()))
-            .map(|t| t.service_id.as_str())
+            .filter(|t| !ti_xfl.service_id(t).is_empty() && !map.services.contains(ti_xfl.service_id(t)))
+            .map(|t| ti_xfl.service_id(t))
             .collect::<HashSet<_>>()
             .into_iter()
             .collect();
@@ -2838,8 +2849,8 @@ fn check_xfl(
                     Some(rec.trip_id.to_string()),
                     None,
                     format!("'{}' hattının{} seferi tanımlanmış ama çalışma saatleri girilmemiş (stop_times.txt'te kayıt yok).",
-                        rec.route_id,
-                        rec.trip_headsign.as_deref()
+                        ti_xfl.route_id(rec),
+                        ti_xfl.headsign(rec)
                             .filter(|h| !h.is_empty())
                             .map(|h| format!(" '{}' istikametli", h))
                             .unwrap_or_default(),
@@ -3022,7 +3033,7 @@ fn check_xfl(
         let bad: HashSet<&str> = records
             .trips
             .iter()
-            .filter_map(|t| t.shape_id.as_deref())
+            .filter_map(|t| ti_xfl.shape_id(t))
             .filter(|sid| !sid.is_empty() && !map.shape_points.contains_key(*sid))
             .collect();
         if !bad.is_empty() {
@@ -3052,7 +3063,7 @@ fn check_xfl(
         // shape_id → referans eden trip_id listesi
         let mut shape_to_trips: HashMap<&str, Vec<&str>> = HashMap::new();
         for trip in &records.trips {
-            if let Some(sid) = trip.shape_id.as_deref() {
+            if let Some(sid) = ti_xfl.shape_id(trip) {
                 if !sid.is_empty() {
                     shape_to_trips.entry(sid).or_default().push(trip.trip_id.as_str());
                 }
@@ -3259,9 +3270,9 @@ fn check_xfl(
     {
         let mut route_trip_ids: HashMap<&str, Vec<&str>> = HashMap::new();
         for t in &records.trips {
-            if !t.route_id.is_empty() && !t.trip_id.is_empty() {
+            if !ti_xfl.route_id(t).is_empty() && !t.trip_id.is_empty() {
                 route_trip_ids
-                    .entry(t.route_id.as_str())
+                    .entry(ti_xfl.route_id(t))
                     .or_default()
                     .push(t.trip_id.as_str());
             }
@@ -3319,7 +3330,7 @@ fn check_xfl(
         // shape_id → (gidiş, dönüş) detayları
         let mut shapes: HashMap<&str, (DirInfo, DirInfo)> = HashMap::new();
         for t in &records.trips {
-            let shape_id = match t.shape_id.as_deref().filter(|s| !s.is_empty()) {
+            let shape_id = match ti_xfl.shape_id(t).filter(|s| !s.is_empty()) {
                 Some(s) => s,
                 None => continue,
             };
@@ -3330,11 +3341,11 @@ fn check_xfl(
             };
             let entry = shapes.entry(shape_id).or_default();
             let info = if dir == 0 { &mut entry.0 } else { &mut entry.1 };
-            if !t.route_id.is_empty() {
-                info.routes.insert(t.route_id.to_string());
+            if !ti_xfl.route_id(t).is_empty() {
+                info.routes.insert(ti_xfl.route_id(t).to_string());
             }
-            if !t.service_id.is_empty() {
-                info.services.insert(t.service_id.to_string());
+            if !ti_xfl.service_id(t).is_empty() {
+                info.services.insert(ti_xfl.service_id(t).to_string());
             }
             if let Some(dep) = records
                 .stop_times_index
@@ -3573,6 +3584,7 @@ fn check_stm_shape_dist(
     notices: &mut Vec<Notice>,
     ctr: &mut u32,
 ) {
+    let ti_stm = &records.trip_interns;
     // shape_id → o shape'teki max shape_dist_traveled
     let mut shape_max_dist: HashMap<&str, f64> = HashMap::new();
     for sp in &records.shapes {
@@ -3593,8 +3605,8 @@ fn check_stm_shape_dist(
         if rec.trip_id.is_empty() {
             continue;
         }
-        let shape_id = match &rec.shape_id {
-            Some(s) if !s.is_empty() => s.as_str(),
+        let shape_id = match ti_stm.shape_id(rec) {
+            Some(s) if !s.is_empty() => s,
             _ => continue,
         };
         let shape_max = match shape_max_dist.get(shape_id) {
@@ -3676,7 +3688,7 @@ mod tests {
     use crate::k2::stops::StopRecord;
     use crate::k2::stop_times::{StopTimeRecord, StopTimesIndex};
     use crate::k2::transfers::TransferRecord;
-    use crate::k2::trips::TripRecord;
+    use crate::k2::trips::{TripRecord, TripInternTable};
 
     fn empty() -> (EntityRecords, EntityMap) {
         (EntityRecords::default(), EntityMap::default())
@@ -3696,16 +3708,33 @@ mod tests {
         }
     }
 
-    fn trip(id: &str, rid: &str, sid: &str) -> TripRecord {
+    /// Temel sefer kaydı oluşturur; rid/sid intern tablosuna eklenir (index 0 sentinel).
+    fn trip(ti: &mut TripInternTable, id: &str, rid: &str, sid: &str) -> TripRecord {
+        let ri = ti.route_ids.len() as u32;
+        ti.route_ids.push(SmolStr::new(rid));
+        let si = ti.service_ids.len() as u32;
+        ti.service_ids.push(SmolStr::new(sid));
         TripRecord {
-            trip_id: id.into(), route_id: rid.into(), service_id: sid.into(),
-            shape_id: None, trip_headsign: None, trip_short_name: None,
-            direction_id: None, block_id: None, wheelchair_accessible: None,
+            trip_id: id.into(),
+            route_idx: ri, service_idx: si, shape_idx: 0,
+            headsign_idx: 0, short_name_idx: 0, block_idx: 0, jp_office_idx: 0,
+            direction_id: None, wheelchair_accessible: None,
             bikes_allowed: None, cars_allowed: None,
             safe_duration_factor: None, safe_duration_offset: None,
-            jp_office_id: None,
             line: 2,
         }
+    }
+
+    /// Shape ve yön içeren sefer kaydı oluşturur; intern tablosuna eklenir.
+    fn trip_s(ti: &mut TripInternTable, id: &str, rid: &str, sid: &str, shape: &str, dir: Option<u32>) -> TripRecord {
+        let mut t = trip(ti, id, rid, sid);
+        t.direction_id = dir;
+        if !shape.is_empty() {
+            let shi = ti.shape_ids.len() as u32;
+            ti.shape_ids.push(SmolStr::new(shape));
+            t.shape_idx = shi;
+        }
+        t
     }
 
     fn stop(id: &str) -> StopRecord {
@@ -3738,11 +3767,13 @@ mod tests {
     #[test]
     fn xfl_013_lists_routes_and_services_per_direction() {
         let (mut recs, map) = empty();
+        let mut ti = TripInternTable::new();
         recs.trips = vec![
-            TripRecord { shape_id: Some("S1".into()), direction_id: Some(0), ..trip("T1", "R1", "WD") },
-            TripRecord { shape_id: Some("S1".into()), direction_id: Some(0), ..trip("T2", "R2", "WD") },
-            TripRecord { shape_id: Some("S1".into()), direction_id: Some(1), ..trip("T3", "R1", "SAT") },
+            trip_s(&mut ti, "T1", "R1", "WD",  "S1", Some(0)),
+            trip_s(&mut ti, "T2", "R2", "WD",  "S1", Some(0)),
+            trip_s(&mut ti, "T3", "R1", "SAT", "S1", Some(1)),
         ];
+        recs.trip_interns = ti;
         let result = check(&recs, &map, 20260515);
         let xfl: Vec<_> = result.notices.iter().filter(|n| n.rule_id == "XFL_013").collect();
         assert_eq!(xfl.len(), 1, "tek XFL_013 bekleniyor: {:?}",
@@ -3760,10 +3791,12 @@ mod tests {
     #[test]
     fn xfl_013_silent_for_single_direction() {
         let (mut recs, map) = empty();
+        let mut ti = TripInternTable::new();
         recs.trips = vec![
-            TripRecord { shape_id: Some("S1".into()), direction_id: Some(0), ..trip("T1", "R1", "WD") },
-            TripRecord { shape_id: Some("S1".into()), direction_id: Some(0), ..trip("T2", "R1", "WD") },
+            trip_s(&mut ti, "T1", "R1", "WD", "S1", Some(0)),
+            trip_s(&mut ti, "T2", "R1", "WD", "S1", Some(0)),
         ];
+        recs.trip_interns = ti;
         let result = check(&recs, &map, 20260515);
         assert!(!result.notices.iter().any(|n| n.rule_id == "XFL_013"),
             "tek yön → XFL_013 üretilmemeli");
@@ -3774,7 +3807,9 @@ mod tests {
     #[test]
     fn invalid_route_ref_in_trip_produces_trp_002() {
         let (mut recs, map) = empty();
-        recs.trips = vec![trip("T1", "MISSING_ROUTE", "SVC1")];
+        let mut ti = TripInternTable::new();
+        recs.trips = vec![trip(&mut ti, "T1", "MISSING_ROUTE", "SVC1")];
+        recs.trip_interns = ti;
         let result = check(&recs, &map, 20260515);
         assert!(result.notices.iter().any(|n| n.rule_id == "TRP_002"));
     }
@@ -3785,7 +3820,9 @@ mod tests {
     fn invalid_service_ref_in_trip_produces_trp_003() {
         let (mut recs, mut map) = empty();
         map.routes.insert("R1".into(), 0);
-        recs.trips = vec![trip("T1", "R1", "MISSING_SERVICE")];
+        let mut ti = TripInternTable::new();
+        recs.trips = vec![trip(&mut ti, "T1", "R1", "MISSING_SERVICE")];
+        recs.trip_interns = ti;
         let result = check(&recs, &map, 20260515);
         assert!(result.notices.iter().any(|n| n.rule_id == "TRP_003"));
     }
@@ -3797,10 +3834,9 @@ mod tests {
         let (mut recs, mut map) = empty();
         map.routes.insert("R1".into(), 0);
         map.services.insert("SVC1".into());
-        recs.trips = vec![TripRecord {
-            shape_id: Some("MISSING_SHAPE".into()),
-            ..trip("T1", "R1", "SVC1")
-        }];
+        let mut ti = TripInternTable::new();
+        recs.trips = vec![trip_s(&mut ti, "T1", "R1", "SVC1", "MISSING_SHAPE", None)];
+        recs.trip_interns = ti;
         let result = check(&recs, &map, 20260515);
         assert!(result.notices.iter().any(|n| n.rule_id == "TRP_004"));
     }
@@ -3991,7 +4027,9 @@ mod tests {
     fn trip_without_stop_times_produces_xfl_002() {
         let (mut recs, mut map) = empty();
         map.trips.insert("T1".into(), 0);
-        recs.trips = vec![trip("T1", "R1", "SVC1")];
+        let mut ti = TripInternTable::new();
+        recs.trips = vec![trip(&mut ti, "T1", "R1", "SVC1")];
+        recs.trip_interns = ti;
         // stop_times bo�Y �?' T1 için kayıt yok
         let result = check(&recs, &map, 20260515);
         assert!(result.notices.iter().any(|n| n.rule_id == "XFL_002"));
@@ -4195,8 +4233,13 @@ mod tests {
     fn missing_trip_headsign_kana_produces_jpn_009() {
         use crate::k2::translations::TranslationRecord;
         let (mut recs, _map) = empty();
-        let mut t1 = trip("T1", "R1", "SVC1"); t1.trip_headsign = Some("東京行".into());
+        let mut ti = TripInternTable::new();
+        let mut t1 = trip(&mut ti, "T1", "R1", "SVC1");
+        let hi = ti.headsigns.len() as u32;
+        ti.headsigns.push(SmolStr::new("東京行"));
+        t1.headsign_idx = hi;
         recs.trips = vec![t1];
+        recs.trip_interns = ti;
         // Kapı: başka alanda ja-Hrkt çeviri var; trip_headsign kana yok → JPN_009.
         recs.translations = vec![TranslationRecord {
             table_name: "stops".into(), field_name: "stop_name".into(),
@@ -4320,10 +4363,13 @@ mod tests {
             row: Default::default(), line: 2,
         }];
         // T1 geçerli ofise işaret eder, T2 tanımsız ofise → yalnız T2 işaretlenmeli.
-        recs.trips = vec![
-            TripRecord { jp_office_id: Some("OF1".into()), ..trip("T1", "R1", "SVC1") },
-            TripRecord { jp_office_id: Some("MISSING".into()), ..trip("T2", "R1", "SVC1") },
-        ];
+        let mut ti = TripInternTable::new();
+        let jpo1 = ti.jp_offices.len() as u32; ti.jp_offices.push(SmolStr::new("OF1"));
+        let mut t1 = trip(&mut ti, "T1", "R1", "SVC1"); t1.jp_office_idx = jpo1;
+        let jpo2 = ti.jp_offices.len() as u32; ti.jp_offices.push(SmolStr::new("MISSING"));
+        let mut t2 = trip(&mut ti, "T2", "R1", "SVC1"); t2.jp_office_idx = jpo2;
+        recs.trips = vec![t1, t2];
+        recs.trip_interns = ti;
         let result = check(&recs, &EntityMap::default(), 20260515);
         let jpn: Vec<&str> = result.notices.iter()
             .filter(|n| n.rule_id == "JPN_002")
@@ -4361,7 +4407,11 @@ mod tests {
             office_id: "OF1".into(), office_name: None,
             row: Default::default(), line: 2,
         }];
-        recs.trips = vec![TripRecord { jp_office_id: Some("OF1".into()), ..trip("T1", "R1", "SVC1") }];
+        let mut ti = TripInternTable::new();
+        let jpo1 = ti.jp_offices.len() as u32; ti.jp_offices.push(SmolStr::new("OF1"));
+        let mut t = trip(&mut ti, "T1", "R1", "SVC1"); t.jp_office_idx = jpo1;
+        recs.trips = vec![t];
+        recs.trip_interns = ti;
         let result = check(&recs, &EntityMap::default(), 20260515);
         assert!(!result.notices.iter().any(|n| n.rule_id == "JPN_002"));
     }
@@ -4501,10 +4551,9 @@ mod tests {
     #[test]
     fn trip_with_missing_shape_produces_xfl_003() {
         let (mut recs, map) = empty();
-        recs.trips = vec![TripRecord {
-            shape_id: Some("MISSING_SHAPE".into()),
-            ..trip("T1", "R1", "SVC1")
-        }];
+        let mut ti = TripInternTable::new();
+        recs.trips = vec![trip_s(&mut ti, "T1", "R1", "SVC1", "MISSING_SHAPE", None)];
+        recs.trip_interns = ti;
         let result = check(&recs, &map, 20260515);
         assert!(result.notices.iter().any(|n| n.rule_id == "XFL_003"));
     }
@@ -4518,7 +4567,9 @@ mod tests {
         map.routes.insert("R1".into(), 0);
         map.services.insert("SVC1".into());
         map.trips.insert("T1".into(), 0);
-        recs.trips = vec![TripRecord { shape_id: Some("S1".into()), ..trip("T1", "R1", "SVC1") }];
+        let mut ti = TripInternTable::new();
+        recs.trips = vec![trip_s(&mut ti, "T1", "R1", "SVC1", "S1", None)];
+        recs.trip_interns = ti;
         recs.shapes = vec![ShapePointRecord {
             shape_id: "S1".into(),
             shape_pt_lat: Some(41.0), shape_pt_lon: Some(29.0),
@@ -4538,7 +4589,9 @@ mod tests {
         map.services.insert("SVC1".into());
         map.trips.insert("T1".into(), 0);
         map.stops.insert("STOP1".into(), 0);
-        recs.trips = vec![TripRecord { shape_id: Some("S1".into()), ..trip("T1", "R1", "SVC1") }];
+        let mut ti = TripInternTable::new();
+        recs.trips = vec![trip_s(&mut ti, "T1", "R1", "SVC1", "S1", None)];
+        recs.trip_interns = ti;
         recs.shapes = vec![ShapePointRecord {
             shape_id: "S1".into(),
             shape_pt_lat: Some(41.0), shape_pt_lon: Some(29.0),
@@ -4635,7 +4688,9 @@ mod tests {
         map.routes.insert("R1".into(), 0);
         map.trips.insert("T1".into(), 0);
         recs.routes = vec![route("R1")];
-        recs.trips = vec![trip("T1", "R1", "SVC1")];
+        let mut ti = TripInternTable::new();
+        recs.trips = vec![trip(&mut ti, "T1", "R1", "SVC1")];
+        recs.trip_interns = ti;
         // stop_times bo�Y �?' T1'in kaydı yok
         let result = check(&recs, &map, 20260515);
         assert!(result.notices.iter().any(|n| n.rule_id == "XFL_012"));
