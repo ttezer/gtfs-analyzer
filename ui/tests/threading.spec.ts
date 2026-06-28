@@ -8,17 +8,18 @@ const FIXTURE_ZIP = path.join(
   'minimal.zip',
 );
 
-// WASM threads ↔ seri fallback: izole ortamda (vite preview COOP/COEP) thread'ler
+// WASM32 threads ↔ seri fallback: izole ortamda (vite preview COOP/COEP) thread'ler
 // aktif olmalı; izole değilse seri fallback DEVREYE girip AYNI sonucu üretmeli.
 // Test her iki yolda da yeşil kalır (CI tarayıcısı SAB sağlamasa bile), ama izole
 // iken threading'in gerçekten devreye girdiğini doğrular (regression guard).
+// v0.2.0'da varsayılan Memory64 seri olduğundan bu test WASM32'yi bilinçli zorlar.
 test('threaded WASM (izole) veya seri fallback — her durumda doğru sonuç, hatasız', async ({ page }) => {
   const logs: string[] = [];
   const errors: string[] = [];
   page.on('console', (m) => logs.push(`[${m.type()}] ${m.text()}`));
   page.on('pageerror', (e) => errors.push(String(e)));
 
-  await page.goto('/');
+  await page.goto('/?wasm32=1');
   const isolated = await page.evaluate(
     () => (globalThis as { crossOriginIsolated?: boolean }).crossOriginIsolated === true,
   );
