@@ -4,6 +4,7 @@ import { renderDomain } from './pages/domain';
 import { renderFix, attachFixListeners } from './pages/fix';
 import { renderFiles } from './pages/files';
 import { renderExport } from './pages/export';
+import { renderCompare } from './pages/compare';
 import { getLocale, setLocale, t } from './i18n';
 import { initDebugBuffer } from './debug-buffer';
 import type { AppPage } from './state';
@@ -97,13 +98,14 @@ export function renderApp(): void {
     return;
   }
 
-  const NAV_PAGES: Exclude<AppPage, 'upload'>[] = ['domain', 'fix', 'files', 'file-map', 'export'];
+  const NAV_PAGES: Exclude<AppPage, 'upload'>[] = ['domain', 'fix', 'files', 'file-map', 'export', 'compare'];
   const NAV_KEYS: Record<Exclude<AppPage, 'upload'>, string> = {
     domain : 'nav.report',
     fix    : 'nav.fix',
     files  : 'nav.files',
     'file-map': 'nav.fileMap',
     export : 'nav.export',
+    compare: 'nav.compare',
   };
 
   const navItems = NAV_PAGES
@@ -170,6 +172,7 @@ export function renderApp(): void {
       break;
     }
     case 'export': renderExport(pageRoot, state.result, state.fileName); break;
+    case 'compare': renderCompare(pageRoot, state.result, state.fileName, state.generatedAt ?? new Date(), state.configDelta); break;
   }
 }
 

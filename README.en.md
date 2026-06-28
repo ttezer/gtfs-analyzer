@@ -142,7 +142,8 @@ shown on the upload screen. For diagnostics, use `?wasm32=1`, `?wasm64=1`, or `?
 
 1. Drag and drop your GTFS zip file, or use the file picker.
 2. Validation starts automatically; progress is shown step by step on screen.
-3. When complete, the Publish and Overall scores appear alongside four tabs: **Report**, **Detail & Fix**, **By Category**, **Export**.
+3. When complete, the Publish and Overall scores appear with the detailed report tabs.
+4. To compare an earlier analysis, open **Compare** and upload its Golden JSON. Fixed, new, decreased, and increased rules are shown alongside score, feed-date, and normalized notice-density changes.
 
 > To self-host or set up a development environment, see [Developer Setup](#developer-setup).
 

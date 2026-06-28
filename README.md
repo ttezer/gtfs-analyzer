@@ -142,7 +142,8 @@ ekranında gösterilir. Hata ayıklamak için `?wasm32=1`, `?wasm64=1` veya `?se
 
 1. GTFS zip dosyanızı sürükleyip bırakın ya da dosya seçiciyle yükleyin.
 2. Doğrulama otomatik başlar; ilerleme ekranda aşama aşama gösterilir.
-3. Tamamlandığında Yayın ve Kalite skorları ile dört sekme görünür: **Rapor**, **Ayrıntı ve Düzeltme**, **Kategori Bazlı**, **Dışa Aktar**.
+3. Tamamlandığında Yayın ve Genel skorları ile ayrıntılı rapor sekmeleri görünür.
+4. Önceki bir analizi karşılaştırmak için **Karşılaştır** sekmesinden eski Golden JSON'u yükleyin. Düzeltilen, yeni, azalan ve artan kurallar; skorlar, feed tarihleri ve normalize edilmiş notice yoğunlukları birlikte gösterilir.
 
 > Kendi sunucunuzda barındırmak veya geliştirme ortamı kurmak için [Geliştirici Kurulumu](#geliştirici-kurulumu) bölümüne bakın.
 

@@ -14,7 +14,7 @@ const BART_V014_R5 = {
 
 describe('GOLDEN_SCHEMA', () => {
   it('doğru şema sabiti', () => {
-    expect(GOLDEN_SCHEMA).toBe('gtfs-analyzer-golden/3');
+    expect(GOLDEN_SCHEMA).toBe('gtfs-analyzer-golden/4');
   });
 });
 

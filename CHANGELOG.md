@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Run-to-run comparison page (#21): compare the currently analyzed feed with an older
+  Golden JSON, including fixed/new/increased/decreased rules, score, severity, class,
+  feed-size, date-range, and normalized notice-density deltas.
+- Golden JSON v4 with an exact UTC `generated_at` timestamp, file row/byte counts,
+  feed metrics, analysis settings, rule metadata, and severity/class totals. Golden
+  v1–v3 files remain importable with clearly marked limitations.
+
 ## [0.2.0] - 2026-06-28
 
 ### Added

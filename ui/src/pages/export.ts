@@ -4,7 +4,7 @@ import { augmentRouteLabels } from './fix';
 import { getState } from '../state';
 import { getLastEngineMode } from '../validator-client';
 import { getLogs, getActions } from '../debug-buffer';
-import { GOLDEN_SCHEMA, buildGoldenScores } from '../golden';
+import { buildGoldenSnapshot } from '../golden';
 
 // Bayt → insan-okur boyut (yerel ondalık ayraçla). Tahmini dışa aktarım boyutu için.
 function formatBytes(b: number): string {
@@ -108,38 +108,6 @@ function buildDebugBundle(result: ValidationResult, fileName: string, fileSize: 
   return JSON.stringify(bundle, null, 2);
 }
 
-// Golden snapshot (sürüm-diff / regresyon): SADECE deterministik agregat — logs/actions/
-// timestamp/user-agent YOK. rule_id ALFABETİK sıralı (count değişse de satır sırası sabit →
-// temiz `git diff`). Feed içeriği dahil edilmez (Teşhis Paketi ile aynı gizlilik garantisi).
-function buildGoldenSnapshot(result: ValidationResult, fileName: string): string {
-  const s = buildSummaryData(result, fileName, '');
-  const ruleCounts = Object.fromEntries(
-    [...s.ruleCounts].sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0)),
-  );
-  const r5 = result.reports.r5;
-  const m = result.metrics;
-  const golden = {
-    schema: GOLDEN_SCHEMA,
-    app_version: typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'dev',
-    feed: fileName,
-    validate_date: new Date().toISOString().slice(0, 10),  // tarih-bağımlı kuralları yorumlamak için
-    // Feed ölçekleri (README karşılaştırma tablosu + sürüm-diff bağlamı için; hepsi deterministik).
-    feed_metrics: {
-      route_count: m.route_count, stop_count: m.stop_count, trip_count: m.trip_count,
-      shape_count: m.shape_count, active_service_days: m.active_service_days, avg_daily_trips: m.avg_daily_trips,
-      feed_start_date: m.feed_start_date, feed_end_date: m.feed_end_date,
-      service_start_date: m.service_start_date, service_end_date: m.service_end_date,
-      is_gtfs_jp: m.is_gtfs_jp ?? false,
-    },
-    scores: buildGoldenScores(r5),
-    notice_total_actual: s.real.total,
-    by_severity_actual: { critical: s.real.critical, high: s.real.high, medium: s.real.medium, low: s.real.low, info: s.real.info },
-    rule_counts_actual: ruleCounts,
-    capped_rules: Object.keys(result.capped_totals ?? {}).sort(),
-  };
-  return JSON.stringify(golden, null, 2);
-}
-
 // Severity satırları: [etiket, disp, real, renk]
 function summaryRows(d: SummaryData): Array<[string, number, number, string | undefined]> {
   return [
@@ -223,7 +191,8 @@ export function renderExport(
   const summaryMd = summaryMarkdown(summary);
   const summaryImg = summaryPng(summary);
   const debugStr = buildDebugBundle(result, fileName, getState().fileSize, now);
-  const goldenStr = buildGoldenSnapshot(result, fileName);
+  const generatedAt = getState().generatedAt ?? new Date();
+  const goldenStr = buildGoldenSnapshot(result, fileName, generatedAt, getState().configDelta);
 
   const { r5 } = result.reports;
   const fmtScore = (n: number) => new Intl.NumberFormat(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(n);
@@ -310,7 +279,7 @@ export function renderExport(
   root.querySelector('#btn-golden-json')!.addEventListener('click', () => {
     // İndirme adı: <feed adı>_<indirme tarihi>_<sürüm>.json. Sürüm hem dosya adında (kolay
     // ayırt etme) hem JSON içeriğinde (app_version) bulunur.
-    const date = now.slice(0, 10); // YYYY-MM-DD
+    const date = generatedAt.toISOString().slice(0, 19).replace(/[:T]/g, '-');
     const ver = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'dev';
     triggerDownload(new Blob([goldenStr], { type: 'application/json' }), fileName.replace(/\.zip$/i, `_${date}_${ver}.json`));
   });
