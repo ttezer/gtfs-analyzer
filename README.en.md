@@ -271,6 +271,25 @@ Analysis and visualization run entirely in the browser. GTFS files are never upl
 
 ---
 
+## Run-to-Run Comparison
+
+GTFS Analyzer can compare two analyses of the same feed (before/after) to show what a fix round improved and what it regressed. Open **Compare** and upload the **Golden JSON** you downloaded from an earlier analysis; the diff is computed against the current run.
+
+### Features
+
+- Shows the before/after change in Publish, Overall, and sub-scores (Spec, Interop, Quality, Analytics)
+- Classifies each rule as **Fixed, Decreased, Increased, New, or Same**, with filtering and search
+- Shows the change in severity (Critical → Info) and class (Spec/Interop/Quality/Analytics) distribution
+- Compares feed structure (trip, stop, `stop_times` and `calendar_dates` row counts) and feed/service date ranges
+- Normalizes notice density **per 1,000 trips** and **per 100,000 stop_times**, so feeds of different sizes are comparable
+- Warns when the two runs differ in feed name, date range, or configuration, so a misleading delta is not misread
+- Exports the comparison as CSV
+- Also reads legacy Golden schemas (v1–v3)
+
+The comparison runs entirely in the browser. The Golden JSON is parsed locally; nothing is uploaded to any server.
+
+---
+
 ## Rule Classes
 
 | Class | What it measures | Affects |
