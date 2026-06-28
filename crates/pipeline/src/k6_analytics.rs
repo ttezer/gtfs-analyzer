@@ -5668,7 +5668,7 @@ fn check_shp012(
     // ── SHP_012 gövdesi (check_remaining_analytics'ten verbatim taşındı) ──────
     {
         let _t12b = crate::timing::Timer::start("K6::shp012::body");
-        let SHP_STOP_THRESHOLD_M: f64 = config.stop_far_from_shape_m;
+        let shp_stop_threshold_m: f64 = config.stop_far_from_shape_m;
 
         // Perf: (shape_id, stop_id) → polyline mesafesi MEMOIZE edilir. Aynı shape'i kullanan
         // onlarca sefer aynı (shape,durak) mesafesini tekrar tekrar hesaplıyordu; pahalı
@@ -5694,8 +5694,8 @@ fn check_shp012(
                         // sakla. >threshold booleanı, viol_count ve mesaj birebir korunur.
                         if let Some(&[bmin_la, bmax_la, bmin_lo, bmax_lo]) = shape_bbox.get(shape_id) {
                             let cos_lat = slat.to_radians().cos();
-                            let margin_lat = SHP_STOP_THRESHOLD_M / 111_320.0_f64;
-                            let margin_lon = SHP_STOP_THRESHOLD_M / (111_320.0_f64 * cos_lat);
+                            let margin_lat = shp_stop_threshold_m / 111_320.0_f64;
+                            let margin_lon = shp_stop_threshold_m / (111_320.0_f64 * cos_lat);
                             if slat < bmin_la - margin_lat || slat > bmax_la + margin_lat
                                 || slon < bmin_lo - margin_lon || slon > bmax_lo + margin_lon {
                                 let clat = slat.clamp(bmin_la, bmax_la);
@@ -5705,7 +5705,7 @@ fn check_shp012(
                         }
                         point_to_polyline_dist_m(slat, slon, pts)
                     });
-                if min_dist_m > SHP_STOP_THRESHOLD_M {
+                if min_dist_m > shp_stop_threshold_m {
                     *shape_stop_violations.entry(shape_id).or_insert(0) += 1;
                 }
             }
@@ -5716,9 +5716,9 @@ fn check_shp012(
                 ctr, "SHP_012", EntityType::Shape,
                 Some(shape_id.to_string()), Some(shape_id.to_string()),
                 "shapes.txt", None, Some("shape_pt_lat|shape_pt_lon"),
-                Some(format!("{viol_count} (>{SHP_STOP_THRESHOLD_M:.0}m)")), None,
+                Some(format!("{viol_count} (>{shp_stop_threshold_m:.0}m)")), None,
                 format!(
-                    "'{shape_id}' güzergah şekli {viol_count} duraktan >{SHP_STOP_THRESHOLD_M:.0}m uzakta — güzergah doğru çizilmemiş olabilir."
+                    "'{shape_id}' güzergah şekli {viol_count} duraktan >{shp_stop_threshold_m:.0}m uzakta — güzergah doğru çizilmemiş olabilir."
                 ),
                 "shapes.txt noktalarını durak konumlarına yaklaştırın.",
             ));
