@@ -739,9 +739,9 @@ fn fixtures() -> Vec<Fixture> {
         fx("FIN_010", vec![("feed_info.txt", "feed_publisher_name,feed_publisher_url,feed_lang,feed_start_date,feed_end_date\nPub,https://x.example,en,20190101,20200101\n")]),
         // FIN_012: feed_start_date > feed_end_date (k2).
         fx("FIN_012", vec![("feed_info.txt", "feed_publisher_name,feed_publisher_url,feed_lang,feed_start_date,feed_end_date\nPub,https://x.example,en,20271231,20250101\n")]),
-        // FIN_013: çoklu agency'de fare_attribute agency_id eksik (k4).
+        // FIN_013: tek agency'de bile fare_attribute agency_id eksikse tetiklenir (k4).
         fx("FIN_013", vec![
-            ("agency.txt", "agency_id,agency_name,agency_url,agency_timezone\n1,A,https://a.example,UTC\n2,B,https://b.example,UTC\n"),
+            ("agency.txt", "agency_id,agency_name,agency_url,agency_timezone\n1,A,https://a.example,UTC\n"),
             ("fare_attributes.txt", "fare_id,price,currency_type,payment_method\nF1,2.5,USD,0\n"),
         ]),
         // FIN_014: feed_start_date/feed_end_date eksik.

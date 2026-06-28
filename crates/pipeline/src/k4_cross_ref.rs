@@ -1646,8 +1646,8 @@ fn check_fare_attributes(
                     "Geçerli bir agency_id kullanın.",
                 ));
             }
-        } else if multi_agency {
-            // FIN_013: çoklu kuruluşta agency_id önerilir ama eksik
+        } else {
+            // FIN_013: agency_id önerilir ama eksik — tek kuruluşta INFO, çoklu kuruluşta zorunlu
             notices.push(notice(
                 ctr,
                 "FIN_013",
@@ -1660,8 +1660,9 @@ fn check_fare_attributes(
                 None,
                 Some("dolu".to_string()),
                 format!(
-                    "Ücret tarifesi '{}' için agency_id eksik; birden fazla kuruluş olduğunda önerilir.",
-                    rec.fare_id
+                    "Ücret tarifesi '{}' için agency_id eksik{}.",
+                    rec.fare_id,
+                    if multi_agency { "; birden fazla kuruluşta zorunludur" } else { "; tek kuruluşta önerilir" }
                 ),
                 "agency_id sütununu ücret tarifeleri için doldurun.",
             ));

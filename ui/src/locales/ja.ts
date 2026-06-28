@@ -1175,7 +1175,7 @@ const ja: LocaleShape = {
     'FIN_009': 'feed_contact_urlに有効なhttp/https URLを使用してください。',
     'FIN_010': '現在の有効日付でフィードを更新するか、新しいフィードを公開してください。',
     'FIN_012': 'feed_start_dateをfeed_end_date以前の日付に設定してください。',
-    'FIN_013': '複数の事業者が存在する場合はfare_attributes.txtにagency_id列を追加してください。',
+    'FIN_013': 'fare_attributes.txtの各運賃にagency_idを入力して、どの事業者の運賃か明確にしてください。',
     'FIN_014': 'feed_start_dateとfeed_end_dateをYYYYMMDD形式で入力してください。',
     'FIN_015': 'feed_info.txtのレコードを1件のみにしてください。',
     'FIN_016': 'feed_start_dateを今日以前の日付に設定するか、適切なタイミングでフィードを公開してください。',
