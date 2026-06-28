@@ -63,7 +63,7 @@ pub fn analyze(
         Box::new(|| { let _t = Timer::start("K6::route_trip_quality");    let mut v = Vec::new(); let mut c = 0u32; check_route_trip_quality(records, derived, &idx, &mut v, &mut c); v }),
         Box::new(|| { let _t = Timer::start("K6::data_quality");          let mut v = Vec::new(); let mut c = 0u32; check_data_quality(records, derived, today_yyyymmdd, &mut v, &mut c); v }),
         Box::new(|| { let _t = Timer::start("K6::remaining_analytics");   let mut v = Vec::new(); let mut c = 0u32; check_remaining_analytics(records, derived, config, &idx, &mut v, &mut c); v }),
-        Box::new(|| { let _t = Timer::start("K6::shp012");                let mut v = Vec::new(); let mut c = 0u32; check_shp012(records, &idx, &mut v, &mut c); v }),
+        Box::new(|| { let _t = Timer::start("K6::shp012");                let mut v = Vec::new(); let mut c = 0u32; check_shp012(records, config, &idx, &mut v, &mut c); v }),
         Box::new(|| { let _t = Timer::start("K6::shp022");                let mut v = Vec::new(); let mut c = 0u32; check_shp022(records, &idx, &mut v, &mut c); v }),
         Box::new(|| { let _t = Timer::start("K6::pathway_analytics");     let mut v = Vec::new(); let mut c = 0u32; check_pathway_analytics(records, derived, &mut v, &mut c); v }),
         Box::new(|| { let _t = Timer::start("K6::calendar_override");     let mut v = Vec::new(); let mut c = 0u32; check_calendar_override_analytics(records, derived, config, &mut v, &mut c); v }),
@@ -5613,6 +5613,7 @@ fn check_remaining_analytics(
 /// mutable durum YOK → bağımsız task olarak güvenli, mevcut 13-task deseniyle aynı.
 fn check_shp012(
     records: &EntityRecords,
+    config: &ValidatorConfig,
     idx: &StopTimesIndex<'_>,
     notices: &mut Vec<Notice>,
     ctr: &mut u32,
@@ -5667,7 +5668,7 @@ fn check_shp012(
     // ── SHP_012 gövdesi (check_remaining_analytics'ten verbatim taşındı) ──────
     {
         let _t12b = crate::timing::Timer::start("K6::shp012::body");
-        const SHP_STOP_THRESHOLD_M: f64 = 500.0;
+        let SHP_STOP_THRESHOLD_M: f64 = config.stop_far_from_shape_m;
 
         // Perf: (shape_id, stop_id) → polyline mesafesi MEMOIZE edilir. Aynı shape'i kullanan
         // onlarca sefer aynı (shape,durak) mesafesini tekrar tekrar hesaplıyordu; pahalı
