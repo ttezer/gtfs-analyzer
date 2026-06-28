@@ -117,6 +117,17 @@ jobs:
         working-directory: ui
         run: npm run wasm:threads
 
+      - name: wasm-bindgen CLI kur (Memory64)
+        run: cargo install wasm-bindgen-cli --version 0.2.121 --locked
+
+      - name: Memory64 WASM derle (ui/pkg64/)
+        working-directory: ui
+        run: npm run wasm:64
+
+      - name: wasm32 / wasm64 deterministik çıktı eşitliği
+        working-directory: ui
+        run: npm run wasm:64:parity
+
       - name: UI derle (taze ui/dist)
         working-directory: ui
         run: npm run build

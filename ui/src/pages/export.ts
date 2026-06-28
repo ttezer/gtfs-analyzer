@@ -2,7 +2,7 @@ import type { ValidationResult } from '../types';
 import { SEVERITY_TR, RULE_CLASS_TR, t, tMsg, getLocale } from '../i18n';
 import { augmentRouteLabels } from './fix';
 import { getState } from '../state';
-import { isThreaded } from '../wasm';
+import { getLastEngineMode } from '../validator-client';
 import { getLogs, getActions } from '../debug-buffer';
 import { GOLDEN_SCHEMA, buildGoldenScores } from '../golden';
 
@@ -82,7 +82,7 @@ function buildDebugBundle(result: ValidationResult, fileName: string, fileSize: 
     generated_at: ts,
     app: {
       version: typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'dev',
-      wasm_mode: isThreaded() ? 'threaded' : 'serial',
+      wasm_mode: getLastEngineMode() ?? 'unknown',
       user_agent: navigator.userAgent,
       language: getLocale(),
       hardware_concurrency: nav.hardwareConcurrency ?? null,

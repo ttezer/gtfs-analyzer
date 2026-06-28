@@ -134,6 +134,10 @@ The **Tokyo Toei** comparison above shows how the profile behaves on a real GTFS
 
 GTFS Analyzer is a web application — no installation required. Open the live version in your browser and upload your GTFS zip file.
 
+The runtime is selected automatically from browser capabilities: browsers with Memory64 use
+**WASM64** for feeds that need more than 4 GB; all others use **WASM32**. The active engine is
+shown on the upload screen. For diagnostics, use `?wasm32=1`, `?wasm64=1`, or `?serial=1`.
+
 **→ [https://ttezer.github.io/gtfs-analyzer/](https://ttezer.github.io/gtfs-analyzer/)**
 
 1. Drag and drop your GTFS zip file, or use the file picker.

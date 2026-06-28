@@ -1,6 +1,6 @@
 [package]
 name = "gtfs-pipeline"
-version = "0.1.4"
+version = "0.2.0"
 edition = "2021"
 license.workspace = true
 
@@ -22,5 +22,5 @@ rayon = { version = "1", optional = true }
 # Çıktı seri ile BİREBİR (renumber + kanonik birleştirme). WASM'da ayrı thread kurulumu gerekir.
 parallel = ["dep:rayon"]
 
-[target.'cfg(target_arch = "wasm32")'.dependencies]
+[target.'cfg(target_family = "wasm")'.dependencies]
 web-sys = { version = "0.3", features = ["console"] }

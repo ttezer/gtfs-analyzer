@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-06-28
+
+### Added
+- Automatic dual-runtime selection: browsers with WebAssembly Memory64 use the
+  wasm64 serial engine; other browsers fall back to wasm32 threaded or serial mode.
+- Active engine badge and diagnostic export metadata.
+- Debug overrides: `?wasm32=1`, `?wasm64=1`, and `?serial=1`.
+
+### Performance
+- Large feeds can exceed the wasm32 4 GB linear-memory ceiling when the browser
+  supports Memory64. A 250 MB feed with 34.5 million stop-times completed at about
+  5.3 GB.
+- wasm32 and wasm64 output parity is checked with a deterministic Golden snapshot.
+
 ## [0.1.4] - 2026-06-24
 
 This release adds the **Interactive GTFS File Map** and substantially improves the

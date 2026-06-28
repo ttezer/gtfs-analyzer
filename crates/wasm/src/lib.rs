@@ -398,8 +398,14 @@ fn mem_mb() -> f64 {
     let buf = wasm_bindgen::memory()
         .unchecked_into::<js_sys::WebAssembly::Memory>()
         .buffer();
-    let bytes = buf.unchecked_into::<js_sys::ArrayBuffer>().byte_length();
-    bytes as f64 / 1_048_576.0
+    // js_sys::ArrayBuffer::byte_length() dönüş tipi u32 olduğu için Memory64'te
+    // 4 GiB üzerinde sarar (örn. 5313 MB → 1217 MB). WebIDL Number değerini
+    // Reflect ile doğrudan f64 oku; web tarafındaki 16 GiB sınırı tam temsil edilir.
+    let bytes = js_sys::Reflect::get(buf.as_ref(), &JsValue::from_str("byteLength"))
+        .ok()
+        .and_then(|v| v.as_f64())
+        .unwrap_or(0.0);
+    bytes / 1_048_576.0
 }
 
 fn log_mem(stage: &str) {

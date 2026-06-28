@@ -8,13 +8,15 @@ import {
   getCachedFileStats,
   extractOk,
   extractFatal,
+  engineMode,
   type CachedState,
+  type EngineMode,
 } from './wasm';
 import type { FatalError, ValidationResult } from './types';
 
 // ── İstek tipleri ─────────────────────────────────────────────────────────────
 
-type ValidateRequest = { id: number; type: 'validate'; buffer: ArrayBuffer; configDelta: string; forceSerial?: boolean };
+type ValidateRequest = { id: number; type: 'validate'; buffer: ArrayBuffer; configDelta: string; forceSerial?: boolean; forceMemory64?: boolean; forceWasm32?: boolean };
 type RerunRequest    = { id: number; type: 'rerun';    configDelta: string };
 type WorkerRequest   = ValidateRequest | RerunRequest;
 
@@ -23,10 +25,11 @@ type WorkerRequest   = ValidateRequest | RerunRequest;
 export type FileListMsg  = { id: number; type: 'file-list'; files: Array<{ name: string; uncompressed_size: number }> };
 export type FileDoneMsg  = { id: number; type: 'file-done'; name: string; rows: number; bytes: number };
 export type StageDoneMsg = { id: number; type: 'stage';     stage: string; elapsed_ms: number };
+export type EngineMsg    = { id: number; type: 'engine';    mode: EngineMode };
 export type ResultMsg    = { id: number; type: 'result'; ok: true;  result: ValidationResult }
                          | { id: number; type: 'result'; ok: false; error: FatalError };
 
-export type WorkerMsg = FileListMsg | FileDoneMsg | StageDoneMsg | ResultMsg;
+export type WorkerMsg = FileListMsg | FileDoneMsg | StageDoneMsg | EngineMsg | ResultMsg;
 
 // ── Durum ─────────────────────────────────────────────────────────────────────
 
@@ -38,9 +41,14 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
   const req = event.data;
 
   try {
-    await initWasm(req.type === 'validate' ? (req.forceSerial ?? false) : false);
+    await initWasm(
+      req.type === 'validate' ? (req.forceSerial ?? false) : false,
+      req.type === 'validate' ? (req.forceMemory64 ?? false) : false,
+      req.type === 'validate' ? (req.forceWasm32 ?? false) : false,
+    );
 
     if (req.type === 'validate') {
+      send<EngineMsg>({ id: req.id, type: 'engine', mode: engineMode() });
       const bytes = new Uint8Array(req.buffer);
 
       // 1. ZIP dosya listesi — anında

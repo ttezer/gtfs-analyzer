@@ -1,25 +1,33 @@
 import type { FatalError, ValidationResult } from './types';
 import type { WorkerMsg } from './validator-worker';
+import type { EngineMode } from './wasm';
 
 // ── Dışa açık callback tipleri ────────────────────────────────────────────────
 
 export type OnFileList  = (files: Array<{ name: string; uncompressed_size: number }>) => void;
 export type OnFileDone  = (name: string, rows: number, bytes: number) => void;
 export type OnStageDone = (stage: string, elapsed_ms: number) => void;
+export type OnEngine    = (mode: EngineMode) => void;
 
 export interface ValidateCallbacks {
   onFileList?:  OnFileList;
   onFileDone?:  OnFileDone;
   onStageDone?: OnStageDone;
+  onEngine?:    OnEngine;
 }
 
 // ── İç tipler ─────────────────────────────────────────────────────────────────
 
-type ValidateRequest = { id: number; type: 'validate'; buffer: ArrayBuffer; configDelta: string; forceSerial?: boolean };
+type ValidateRequest = { id: number; type: 'validate'; buffer: ArrayBuffer; configDelta: string; forceSerial?: boolean; forceMemory64?: boolean; forceWasm32?: boolean };
 type RerunRequest    = { id: number; type: 'rerun';    configDelta: string };
 
 // Sayfa ?serial=1 ise WASM thread'lerini kapat (A/B ölçümü / hata-ayıklama).
 const FORCE_SERIAL = typeof location !== 'undefined' && /[?&]serial=1\b/.test(location.search);
+const FORCE_MEMORY64 = typeof location !== 'undefined' && /[?&]wasm64=1\b/.test(location.search);
+const FORCE_WASM32 = typeof location !== 'undefined' && /[?&]wasm32=1\b/.test(location.search);
+
+let lastEngineMode: EngineMode | null = null;
+export function getLastEngineMode(): EngineMode | null { return lastEngineMode; }
 
 type PendingEntry = {
   resolve:    (v: ValidationResult) => void;
@@ -56,6 +64,11 @@ function onWorkerMessage(event: MessageEvent<WorkerMsg>): void {
 
   if (msg.type === 'file-list') {
     entry.callbacks?.onFileList?.(msg.files);
+    return;
+  }
+  if (msg.type === 'engine') {
+    lastEngineMode = msg.mode;
+    entry.callbacks?.onEngine?.(msg.mode);
     return;
   }
   if (msg.type === 'file-done') {
@@ -113,7 +126,12 @@ export function validateFile(
       reject:  (e) => { clearTimeout(timer); reject(e); },
       callbacks,
     });
-    worker.postMessage({ id, type: 'validate', buffer, configDelta, forceSerial: FORCE_SERIAL } satisfies ValidateRequest, [buffer]);
+    worker.postMessage({
+      id, type: 'validate', buffer, configDelta,
+      forceSerial: FORCE_SERIAL || FORCE_MEMORY64,
+      forceMemory64: FORCE_MEMORY64,
+      forceWasm32: FORCE_WASM32,
+    } satisfies ValidateRequest, [buffer]);
   });
 }
 

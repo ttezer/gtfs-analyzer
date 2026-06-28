@@ -3,8 +3,14 @@ import { FATAL_CODE_TR, t } from '../i18n';
 import type { FatalError, ValidationResult, FileInfo } from '../types';
 import { renderApp } from '../main';
 import { validateFile } from '../validator-client';
+import type { EngineMode } from '../wasm';
 
 const STAGE_ORDER = ['K1', 'K2', 'K3', 'K4', 'K5', 'K6', 'K7'];
+let activeEngine: EngineMode | null = null;
+
+function engineBadge(): string {
+  return activeEngine ? `<span class="engine-badge">${escHtml(t(`engine.${activeEngine}`))}</span>` : '';
+}
 
 const CONFIG_KEYS: Array<{ key: string; type: 'float' | 'int'; def: number; min: number; max: number }> = [
   { key: 'max_speed_bus_kmh',        type: 'float', def: 120,  min: 60,   max: 200  },
@@ -57,7 +63,7 @@ export function renderUpload(root: HTMLElement): void {
           <input type="file" id="file-input" accept=".zip" class="visually-hidden" aria-label="ZIP dosyası seç"/>
         </div>
         <div id="uploaded-name" class="uploaded-name${hasResult && state.fileName ? '' : ' hidden'}">
-          ${hasResult && state.fileName ? `${t('upload.loaded_file')} <strong>${escHtml(state.fileName)}</strong>` : ''}
+          ${hasResult && state.fileName ? `${t('upload.loaded_file')} <strong>${escHtml(state.fileName)}</strong> ${engineBadge()}` : ''}
         </div>
         <div id="upload-error" class="upload-status hidden"></div>
       </div>
@@ -322,6 +328,14 @@ async function handleFile(file: File, root: HTMLElement, errorEl: HTMLElement): 
   try {
     const buffer = await file.arrayBuffer();
     const result = await validateFile(buffer, getState().configDelta, {
+      onEngine: (mode) => {
+        activeEngine = mode;
+        const name = root.querySelector<HTMLElement>('#uploaded-name');
+        if (name) {
+          name.classList.remove('hidden');
+          name.innerHTML = `<strong>${escHtml(file.name)}</strong> ${engineBadge()}`;
+        }
+      },
       onFileList: (files) => {
         const container = root.querySelector<HTMLElement>('#file-rows');
         if (!container) return;
@@ -456,7 +470,7 @@ function activateResult(root: HTMLElement, result: ValidationResult): void {
     const fileName = getState().fileName;
     if (fileName) {
       uploadedName.classList.remove('hidden');
-      uploadedName.innerHTML = `${t('upload.loaded_file')} <strong>${escHtml(fileName)}</strong>`;
+      uploadedName.innerHTML = `${t('upload.loaded_file')} <strong>${escHtml(fileName)}</strong> ${engineBadge()}`;
     }
   }
 

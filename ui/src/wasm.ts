@@ -7,18 +7,59 @@ export type { CachedState };
 // Seri paket = pkg/ (stable, tek thread). Threaded paket = pkg-threads/ (nightly+atomics, rayon).
 type SerialModule = typeof import('../pkg/gtfs_wasm');
 type ThreadedModule = SerialModule & { initThreadPool: (n: number) => Promise<void> };
+type Memory64Module = typeof import('../pkg64/gtfs_wasm');
 
 let ready = false;
 let mod: SerialModule | null = null;
 let usingThreads = false;
+let usingMemory64 = false;
+
+export type EngineMode = 'wasm64-serial' | 'wasm32-threaded' | 'wasm32-serial';
 
 /** Doğrulamanın gerçek thread'lerle mi (paralel K6) yoksa seri mi çalıştığını döner. */
 export function isThreaded(): boolean {
   return usingThreads;
 }
 
-export async function initWasm(forceSerial = false): Promise<void> {
+/** Memory64 paketinin gerçekten seçili olup olmadığını döner. */
+export function isMemory64(): boolean {
+  return usingMemory64;
+}
+
+export function engineMode(): EngineMode {
+  if (usingMemory64) return 'wasm64-serial';
+  return usingThreads ? 'wasm32-threaded' : 'wasm32-serial';
+}
+
+function supportsMemory64(): boolean {
+  try {
+    const descriptor = { address: 'i64', initial: 1n, maximum: 1n };
+    new WebAssembly.Memory(descriptor as unknown as WebAssembly.MemoryDescriptor);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function initWasm(forceSerial = false, forceMemory64 = false, forceWasm32 = false): Promise<void> {
   if (ready) return;
+
+  // Memory64 destekleyen tarayıcıda varsayılan motor budur. Paket yüklenemezse
+  // uygulama kullanılabilir kalmak için aşağıdaki wasm32 yoluna döner.
+  if (!forceWasm32 && (forceMemory64 || supportsMemory64())) {
+    try {
+      const m64 = await import('../pkg64/gtfs_wasm') as Memory64Module;
+      await m64.default();
+      mod = m64 as unknown as SerialModule;
+      usingThreads = false;
+      usingMemory64 = true;
+      ready = true;
+      console.info('[WASM] wasm64 serial mode');
+      return;
+    } catch (err) {
+      console.warn('[WASM] wasm64 init başarısız → wasm32 fallback', err);
+    }
+  }
 
   // Gerçek thread'ler yalnızca crossOriginIsolated + SharedArrayBuffer varken kurulur.
   // GitHub Pages'te bunu coi-serviceworker, dev/preview'de vite COOP/COEP başlıkları sağlar.
@@ -37,6 +78,7 @@ export async function initWasm(forceSerial = false): Promise<void> {
       await t.initThreadPool(n);
       mod = t;
       usingThreads = true;
+      usingMemory64 = false;
       console.info(`[WASM] threaded mode (${n} iş parçacığı)`);
     } catch (err) {
       console.warn('[WASM] threaded init başarısız → seri fallback', err);
@@ -49,6 +91,7 @@ export async function initWasm(forceSerial = false): Promise<void> {
     await s.default();
     mod = s;
     usingThreads = false;
+    usingMemory64 = false;
     console.info(canThread ? '[WASM] seri mod (threaded yüklenemedi)' : '[WASM] seri mod (cross-origin isolated değil)');
   }
   ready = true;

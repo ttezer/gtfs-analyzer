@@ -1,12 +1,14 @@
 {
   "name": "gtfs-validator-ui",
   "private": true,
-  "version": "0.1.4",
+  "version": "0.2.0",
   "type": "module",
   "scripts": {
     "wasm": "wasm-pack build ../crates/wasm --target web --out-dir ../../ui/pkg",
     "wasm:threads": "node scripts/build-wasm-threads.mjs",
-    "wasm:all": "npm run wasm && npm run wasm:threads",
+    "wasm:64": "node scripts/build-wasm64.mjs",
+    "wasm:64:parity": "node scripts/check-wasm64-parity.mjs",
+    "wasm:all": "npm run wasm && npm run wasm:threads && npm run wasm:64",
     "dev": "vite",
     "typecheck": "tsc --noEmit",
     "build": "tsc --noEmit && vite build",

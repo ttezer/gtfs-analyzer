@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GTFS Analyzer wasm64 probe</title>
+  <style>
+    body { font: 16px/1.5 system-ui, sans-serif; max-width: 760px; margin: 3rem auto; padding: 0 1rem; }
+    pre { padding: 1rem; background: #f1f5f9; border-radius: .5rem; white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+  <h1>wasm64 browser probe</h1>
+  <pre id="result">running…</pre>
+  <script type="module">
+    import { initWasm, engineMode, runValidate } from './src/wasm.ts';
+
+    const output = document.querySelector('#result');
+    try {
+      const forceWasm32 = /[?&]wasm32=1\b/.test(location.search);
+      await initWasm(false, false, forceWasm32);
+      const response = await fetch('./tests/fixtures/minimal.zip');
+      if (!response.ok) throw new Error(`fixture HTTP ${response.status}`);
+      const result = runValidate(new Uint8Array(await response.arrayBuffer()));
+      const ok = 'Ok' in result;
+      output.dataset.status = ok ? 'pass' : 'fail';
+      output.textContent = JSON.stringify({
+        engine: engineMode(), ok,
+        noticeCount: ok ? result.Ok.notices.length : null,
+      }, null, 2);
+    } catch (error) {
+      output.dataset.status = 'fail';
+      output.textContent = String(error?.stack ?? error);
+    }
+  </script>
+</body>
+</html>

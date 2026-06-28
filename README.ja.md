@@ -134,6 +134,10 @@ GTFS Analyzer は、日本の国内 GTFS プロファイルである **GTFS-JP**
 
 GTFS Analyzer は Web アプリケーションです — インストール不要です。ブラウザでライブ版を開き、GTFS の zip ファイルをアップロードしてください。
 
+実行エンジンはブラウザの機能に応じて自動選択されます。Memory64 対応環境では
+4 GB を超える大規模フィード向けに **WASM64**、それ以外では **WASM32** を使用します。
+使用中のエンジンは画面に表示されます。診断用に `?wasm32=1`、`?wasm64=1`、`?serial=1` を使用できます。
+
 **→ [https://ttezer.github.io/gtfs-analyzer/](https://ttezer.github.io/gtfs-analyzer/)**
 
 1. GTFS の zip ファイルをドラッグ＆ドロップするか、ファイル選択ボタンを使用してください。

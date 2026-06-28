@@ -11,7 +11,7 @@ use smol_str::SmolStr;
 /// her console çağrısını felç edici yavaşlattığı için kapatıldı.)
 macro_rules! k1dbg {
     ($($arg:tt)*) => {{
-        #[cfg(all(target_arch = "wasm32", debug_assertions))]
+        #[cfg(all(target_family = "wasm", debug_assertions))]
         web_sys::console::log_1(&format!($($arg)*).into());
     }};
 }

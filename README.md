@@ -134,6 +134,10 @@ Yukarıdaki **Tokyo Toei** karşılaştırması bu profilin gerçek bir GTFS-JP 
 
 GTFS Analyzer bir web uygulamasıdır; kurulum gerektirmez. Canlı sürümü tarayıcıda açıp GTFS zip dosyanızı yükleyin.
 
+Motor tarayıcı yeteneğine göre otomatik seçilir: Memory64 destekleniyorsa 4 GB üzerindeki
+büyük feed'ler için **WASM64**, desteklenmiyorsa **WASM32** kullanılır. Aktif motor yükleme
+ekranında gösterilir. Hata ayıklamak için `?wasm32=1`, `?wasm64=1` veya `?serial=1` kullanılabilir.
+
 **→ [https://ttezer.github.io/gtfs-analyzer/](https://ttezer.github.io/gtfs-analyzer/)**
 
 1. GTFS zip dosyanızı sürükleyip bırakın ya da dosya seçiciyle yükleyin.
