@@ -723,8 +723,8 @@ fn fixtures() -> Vec<Fixture> {
         fx("CAL_020", vec![("feed_info.txt", "feed_publisher_name,feed_publisher_url,feed_lang,feed_start_date,feed_end_date\nPub,https://x.example,en,20200101,20271231\n")]),
         // CAL_021: bugünü kapsıyor ama önümüzdeki 7 günde aktif gün yok.
         fx_rm("CAL_021", vec![("calendar_dates.txt", "service_id,date,exception_type\nSVC1,20260101,1\nSVC1,20261231,1\n")], vec!["calendar.txt"]),
-        // CAL_023: end_date bugünden 3 yıldan fazla ileri.
-        fx("CAL_023", vec![("calendar.txt", "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,0,0,20260101,20300101\n")]),
+        // CAL_023: end_date >= today_year+3 (sınır yılı dahil; ör. 2026+3=2029 eşikte).
+        fx("CAL_023", vec![("calendar.txt", "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,0,0,20260101,20290101\n")]),
         // CAL_024: servis önümüzdeki 7 günde aktif değil (service-başına).
         fx("CAL_024", vec![("calendar.txt", "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,1,1,20270101,20270131\n")]),
 

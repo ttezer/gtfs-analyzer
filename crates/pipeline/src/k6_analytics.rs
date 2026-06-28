@@ -1423,17 +1423,18 @@ fn check_calendar_analytics(
         let end_yyyymmdd = ey * 10000 + em * 100 + ed;
 
         if today_yyyymmdd > 0 {
-            // CAL_023: end_date bugünden max_calendar_future_years'tan fazla ileri → şüpheli/
-            // düşük-kaliteli veri (ör. 2050/2099 yer-tutucu tarihler).
+            // CAL_023: end_date bugünden max_calendar_future_years veya daha fazla ileri →
+            // şüpheli/düşük-kaliteli veri (ör. 2050/2099 yer-tutucu tarihler).
+            // `>=` kullanıyoruz: sınır yılına denk gelen tarihler de dahil ("3 yıl veya daha fazla").
             let today_year = today_yyyymmdd / 10000;
-            if ey > today_year + config.max_calendar_future_years {
+            if ey >= today_year + config.max_calendar_future_years {
                 notices.push(k6_notice(
                     ctr, "CAL_023", EntityType::Service,
                     Some(cal.service_id.clone()), Some(cal.service_id.clone()),
                     "calendar.txt", Some(cal.line as u64), Some("end_date"),
                     Some(format!("{end_yyyymmdd}")),
-                    Some(format!("≤ {}1231", today_year + config.max_calendar_future_years)),
-                    format!("'{}' takviminin end_date'i {end_yyyymmdd} — bugünden {} yıldan fazla ileri; şüpheli/düşük-kaliteli veri (yer-tutucu tarih) olabilir.",
+                    Some(format!("< {}0101", today_year + config.max_calendar_future_years)),
+                    format!("'{}' takviminin end_date'i {end_yyyymmdd} — bugünden {} yıl veya daha fazla ileri; şüpheli/düşük-kaliteli veri (yer-tutucu tarih) olabilir.",
                         cal.service_id, config.max_calendar_future_years),
                     "end_date'i gerçek servis bitiş tarihine güncelleyin; uzak-gelecek tarihler genelde yer-tutucu veya hatalıdır.",
                 ));
