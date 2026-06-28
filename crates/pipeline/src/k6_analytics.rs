@@ -6,7 +6,7 @@ use gtfs_config::ValidatorConfig;
 use gtfs_core::{EntityType, Notice};
 use gtfs_rules::get_rule;
 
-use crate::k2::stop_times::{CompactStopTime, StopTimeFlex};
+use crate::k2::stop_times::CompactStopTime;
 use crate::k2::stop_times::StopTimesIndex as K2StopTimesIndex;
 use crate::k2::EntityRecords;
 use crate::k5_derived::DerivedData;
@@ -435,10 +435,8 @@ impl<'a> StopTimesIndex<'a> {
         }
     }
 
-    // Stop_id/headsign/flex yardımcıları — K2 intern tablosuna delege eder
+    // Stop_id yardımcısı — K2 intern tablosuna delege eder
     #[inline] fn stop_id_of(&self, st: &CompactStopTime) -> &str { self.k2.stop_id_of(st) }
-    #[inline] fn stop_headsign_of(&self, st: &CompactStopTime) -> Option<&smol_str::SmolStr> { self.k2.stop_headsign_of(st) }
-    #[inline] fn flex_of(&self, st: &CompactStopTime) -> Option<&StopTimeFlex> { self.k2.flex_of(st) }
 }
 
 

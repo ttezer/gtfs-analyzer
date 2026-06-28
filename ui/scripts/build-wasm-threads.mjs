@@ -13,6 +13,7 @@ import { spawnSync } from 'node:child_process';
 
 const rustflags = [
   '-C target-feature=+atomics,+bulk-memory,+mutable-globals',
+  '-A warnings',              // atomics nightly-only unstable feature — beklenen uyarıyı bastır
   '-C link-arg=--shared-memory',
   '-C link-arg=--max-memory=4294967296',
   '-C link-arg=--import-memory',
