@@ -92,8 +92,12 @@ function status(kind: ChangeKind, count: number): string {
   const icon: Record<ChangeKind, string> = { fixed: '✓', decreased: '↓', increased: '↑', new: '+', same: '−' };
   return `<div class="status-${kind}"><b>${icon[kind]}</b><strong>${count}</strong><span>${t(`compare.${kind}`)}</span></div>`;
 }
+// 'overall' alanı Golden /3'te eklendi; legacy /2'de yalnız 'score' var → alias.
+function scoreVal(run: GoldenRun, key: typeof SCORE_KEYS[number]): number {
+  return key === 'overall' ? n(run.scores.overall ?? run.scores.score) : n(run.scores[key]);
+}
 function scoreBar(key: typeof SCORE_KEYS[number], before: GoldenRun, now: GoldenRun): string {
-  const old = n(before.scores[key]); const cur = n(now.scores[key]); const d = cur - old;
+  const old = scoreVal(before, key); const cur = scoreVal(now, key); const d = cur - old;
   return `<div class="score-delta"><strong>${t(`compare.score.${key}`)}</strong><div><span style="width:${Math.max(1, old)}%"></span><em>${old.toFixed(1)}</em></div><div class="current"><span style="width:${Math.max(1, cur)}%"></span><em>${cur.toFixed(1)}</em></div><small class="${deltaClass(-d)}">${scoreDelta(d)}</small></div>`;
 }
 function drawRows(body: HTMLElement, changes: RuleChange[]): void {
@@ -103,10 +107,18 @@ function drawRows(body: HTMLElement, changes: RuleChange[]): void {
   }).join('') || `<tr><td colspan="7" class="compare-no-rows">${t('compare.no_rows')}</td></tr>`;
 }
 function distributionSection(before: GoldenRun, now: GoldenRun): string {
-  const table = (title: string, keys: string[], oldMap: Record<string, number>, newMap: Record<string, number>) => `<div><strong>${title}</strong><table>${keys.map(key => { const old = oldMap[key] ?? 0; const cur = newMap[key] ?? 0; const d = cur-old; return `<tr><td>${key}</td><td>${nf.format(old)}</td><td>→</td><td>${nf.format(cur)}</td><td class="${deltaClass(d)}">${d > 0 ? '+' : ''}${nf.format(d)}</td></tr>`; }).join('')}</table></div>`;
-  return `<section class="compare-section"><div class="compare-section-title">${t('compare.distribution')}</div><div class="compare-distributions">
-    ${table(t('compare.by_severity'), ['CRITICAL','HIGH','MEDIUM','LOW','INFO'], before.severityCounts, now.severityCounts)}
-    ${table(t('compare.by_class'), ['SPEC','INTEROP','QUALITY','ANALYTICS'], before.classCounts, now.classCounts)}
+  // beforeKnown=false → "Karşılaştırılan" verisi yok (legacy Golden sınıf kırılımı saklamaz):
+  // sayım yerine "—" gösterilir, böylece her sınıf yanlışlıkla "yeni artmış" gibi görünmez.
+  const head = `<thead><tr><th></th><th>${t('compare.before')}</th><th></th><th>${t('compare.now')}</th><th>${t('compare.delta')}</th></tr></thead>`;
+  const table = (title: string, keys: string[], oldMap: Record<string, number>, newMap: Record<string, number>, beforeKnown: boolean) => `<div><strong>${title}</strong><table>${head}<tbody>${keys.map(key => {
+    const cur = newMap[key] ?? 0;
+    if (!beforeKnown) return `<tr><td>${key}</td><td class="same">—</td><td>→</td><td>${nf.format(cur)}</td><td class="same">—</td></tr>`;
+    const old = oldMap[key] ?? 0; const d = cur - old;
+    return `<tr><td>${key}</td><td>${nf.format(old)}</td><td>→</td><td>${nf.format(cur)}</td><td class="${deltaClass(d)}">${d > 0 ? '+' : ''}${nf.format(d)}</td></tr>`;
+  }).join('')}</tbody></table></div>`;
+  return `<section class="compare-section"><div class="compare-section-title">${t('compare.distribution')}</div>${before.legacy ? `<p class="compare-note">ⓘ ${t('compare.legacy_class_note')}</p>` : ''}<div class="compare-distributions">
+    ${table(t('compare.by_severity'), ['CRITICAL','HIGH','MEDIUM','LOW','INFO'], before.severityCounts, now.severityCounts, true)}
+    ${table(t('compare.by_class'), ['SPEC','INTEROP','QUALITY','ANALYTICS'], before.classCounts, now.classCounts, !before.legacy)}
   </div></section>`;
 }
 function feedStructure(before: GoldenRun, now: GoldenRun): string {
