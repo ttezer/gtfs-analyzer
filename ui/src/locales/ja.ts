@@ -93,6 +93,7 @@ const ja: LocaleShape = {
     'upload.load'             : 'GTFSを読み込む',
     'upload.load_another'     : '別のGTFSを読み込む',
     'upload.show_report'      : 'レポートを表示 →',
+    'upload.report_ready'     : 'レポートは{duration}秒で完成しました',
     'upload.waiting'          : '待機中',
     'upload.running'          : '処理中…',
     'upload.row_unit'         : '行',

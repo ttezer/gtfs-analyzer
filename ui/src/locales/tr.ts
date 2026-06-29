@@ -95,6 +95,7 @@ const tr = {
     'upload.load'             : 'GTFS Yükle',
     'upload.load_another'     : 'Farklı GTFS Yükle',
     'upload.show_report'      : 'Raporu Göster →',
+    'upload.report_ready'     : 'Rapor {duration} sn’de hazırlandı',
     'upload.waiting'          : 'bekliyor',
     'upload.running'          : 'çalışıyor…',
     'upload.row_unit'         : 'satır',

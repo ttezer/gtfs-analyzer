@@ -96,6 +96,7 @@ const en: LocaleShape = {
     'upload.load'             : 'Load GTFS',
     'upload.load_another'     : 'Load Another GTFS',
     'upload.show_report'      : 'Show Report →',
+    'upload.report_ready'     : 'Report ready in {duration} sec',
     'upload.waiting'          : 'waiting',
     'upload.running'          : 'running…',
     'upload.row_unit'         : 'row',

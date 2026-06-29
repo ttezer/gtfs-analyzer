@@ -84,6 +84,9 @@ export function renderUpload(root: HTMLElement): void {
         <div id="score-panel" class="score-compact${hasResult ? '' : ' hidden'}">
           ${hasResult ? renderScoreCompact(state.result!) : ''}
         </div>
+        <div id="report-duration" class="report-duration${hasResult && state.reportDurationMs != null ? '' : ' hidden'}">
+          ${hasResult && state.reportDurationMs != null ? escHtml(t('upload.report_ready', { duration: formatReportDuration(state.reportDurationMs) })) : ''}
+        </div>
         <button id="btn-report" class="btn btn-primary btn-report" ${hasResult ? '' : 'disabled'}>
           ${t('upload.show_report')}
         </button>
@@ -324,6 +327,7 @@ async function handleFile(file: File, root: HTMLElement, errorEl: HTMLElement): 
 
   errorEl.className = 'upload-status hidden';
   setLoading(root, file.name, file.size);
+  const startedAt = performance.now();
 
   try {
     const buffer = await file.arrayBuffer();
@@ -383,7 +387,7 @@ async function handleFile(file: File, root: HTMLElement, errorEl: HTMLElement): 
       },
     });
 
-    setResult(result, file.name, file.size);
+    setResult(result, file.name, file.size, performance.now() - startedAt);
     activateResult(root, result);
   } catch (err: unknown) {
     clearLoading(root);
@@ -399,6 +403,8 @@ function setLoading(root: HTMLElement, fileName: string, fileSize: number): void
 
   const scorePanel = root.querySelector<HTMLElement>('#score-panel');
   if (scorePanel) { scorePanel.classList.add('hidden'); scorePanel.innerHTML = ''; }
+  const reportDuration = root.querySelector<HTMLElement>('#report-duration');
+  if (reportDuration) { reportDuration.classList.add('hidden'); reportDuration.textContent = ''; }
   const btnReport = root.querySelector<HTMLButtonElement>('#btn-report');
   if (btnReport) btnReport.disabled = true;
 
@@ -478,6 +484,12 @@ function activateResult(root: HTMLElement, result: ValidationResult): void {
   scorePanel.className = 'score-compact';
   scorePanel.innerHTML = renderScoreCompact(result);
 
+  const reportDuration = root.querySelector<HTMLElement>('#report-duration');
+  if (reportDuration && getState().reportDurationMs != null) {
+    reportDuration.classList.remove('hidden');
+    reportDuration.textContent = t('upload.report_ready', { duration: formatReportDuration(getState().reportDurationMs!) });
+  }
+
   const btn = root.querySelector<HTMLButtonElement>('#btn-report')!;
   btn.disabled = false;
   btn.addEventListener('click', () => { setPage('domain'); renderApp(); }, { once: true });
@@ -496,6 +508,10 @@ function showError(el: HTMLElement, error: FatalError): void {
 
 function formatSize(kb: number): string {
   return kb >= 1024 ? `${(kb / 1024).toFixed(1)} MB` : `${kb} KB`;
+}
+
+function formatReportDuration(ms: number): string {
+  return new Intl.NumberFormat(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(ms / 1000);
 }
 
 function escHtml(s: string): string {

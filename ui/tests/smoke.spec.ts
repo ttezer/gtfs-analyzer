@@ -44,6 +44,7 @@ test('ZIP → WASM çalışır → loading biter, sonuç gelir', async ({ page }
   const hasScore = await page.locator('#score-panel.score-compact').isVisible();
   const hasError = await page.locator('.upload-status.error').isVisible();
   expect(hasScore || hasError, `WASM sonuç vermedi. Console: ${consoleErrors.join(', ')}`).toBe(true);
+  if (hasScore) await expect(page.locator('#report-duration')).toContainText(/Rapor \d+[,.]\d sn’de hazırlandı/);
 });
 
 test('bozuk ZIP dosyası hata kartı gösteriyor', async ({ page }) => {

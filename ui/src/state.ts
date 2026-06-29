@@ -12,6 +12,7 @@ export interface AppState {
   fixFileFilter: string; // files sayfasından fix'e filtreli geçiş için
   fixClassFilter: string; // skor bileşeni kartından fix R2'ye sınıf-filtreli geçiş için
   generatedAt: Date | null; // raporun hesaplandığı an (validasyon/yeniden çalıştırma)
+  reportDurationMs: number | null; // dosya okuma + analiz + rapor üretimi duvar saati
 }
 
 const state: AppState = {
@@ -23,16 +24,18 @@ const state: AppState = {
   fixFileFilter: '',
   fixClassFilter: '',
   generatedAt: null,
+  reportDurationMs: null,
 };
 
 export function getState(): Readonly<AppState> { return state; }
 
-export function setResult(result: ValidationResult, fileName: string, fileSize = 0): void {
+export function setResult(result: ValidationResult, fileName: string, fileSize = 0, reportDurationMs: number | null = null): void {
   state.result = result;
   state.fileName = fileName;
   state.fileSize = fileSize;
   state.page = 'domain';
   state.generatedAt = new Date();
+  state.reportDurationMs = reportDurationMs;
   logAction('validate', `${fileName} (${fileSize} B) → ${result.notices.length} notice`);
 }
 
