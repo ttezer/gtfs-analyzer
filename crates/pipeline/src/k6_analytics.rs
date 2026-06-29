@@ -859,16 +859,16 @@ fn check_speed_and_duration(
                 continue;
             }
 
-            // STM_025: segment seyahat süresi çok kısa
+            // STM_025: <10s tek başına hata değildir; fiziksel tutarlılığı hız kuralları değerlendirir.
             if dt_sec < 10 {
                 let mut n025 = k6_notice(
                     ctr, "STM_025", EntityType::Trip,
                     Some(trip_id.to_string()), Some(trip_id.to_string()),
                     "stop_times.txt", Some(b.line as u64), Some("arrival_time"),
-                    Some(format!("{dt_sec}s")), Some(">= 10s".to_string()),
-                    format!("trip_id '{trip_id}'{dep_suffix} stop_sequence {}-{} arası seyahat süresi yalnızca {dt_sec}s.",
+                    Some(format!("{dt_sec}s")), Some("inceleyin".to_string()),
+                    format!("trip_id '{trip_id}'{dep_suffix} stop_sequence {}-{} arası planlı süre {dt_sec}s — kısa zamanlama sinyali.",
                         a.stop_sequence().unwrap_or(0), b.stop_sequence().unwrap_or(0)),
-                    "stop_times.txt zaman değerlerini kontrol edin; segment süresi çok kısa.",
+                    "Bu süre bilinçliyse işlem gerekmez; değilse stop_times.txt zaman değerlerini kontrol edin.",
                 );
                 let mut d = std::collections::HashMap::new();
                 d.insert("stop_a".to_string(), idx.stop_id_of(a).to_string());
@@ -2174,7 +2174,7 @@ fn check_operational_analytics(
 
     drop(_topr6);
 
-    // OPR_007: aynı trip_id + stop_id kombinasyonu (döngüsel sefer değilse tekrar)
+    // OPR_007: ring terminali ve STM_035'in sahip olduğu ardışık tekrarlar hariç aynı stop_id
     let _topr7 = Timer::start("K6::opr::opr_007");
     {
         let mut stop_counts: HashMap<&str, u32> = HashMap::new();
@@ -2194,8 +2194,8 @@ fn check_operational_analytics(
             let last  = sorted_stops.last() .map(|st| idx.stop_id_of(st)).unwrap_or("");
             let is_ring = !first.is_empty() && first == last;
 
-            if let Some((&dup_stop, &count)) = stop_counts.iter()
-                .find(|(&sid, &c)| c > 1 && !(is_ring && sid == first))
+            if let Some((&dup_stop, &count)) = stop_counts.iter().find(|(&sid, &c)| c > 1 && !(is_ring && sid == first) && {
+                let mut prev = None; sorted_stops.iter().enumerate().filter(|(_, st)| idx.stop_id_of(st) == sid).any(|(i, _)| prev.replace(i).is_some_and(|p| i > p + 1)) })
             {
                 let route = trip_to_route.get(trip_id).copied().unwrap_or(trip_id);
                 let stop_name = stop_name_map.get(dup_stop).copied().unwrap_or(dup_stop);
@@ -2215,9 +2215,9 @@ fn check_operational_analytics(
                     None,
                     Some(format!("{count}× tekrar")),
                     None,
-                    format!("'{}' hattının {}seferinde '{}' durağı (kod: '{}') {}× geçiyor — ring hat ise normaldir.",
+                    format!("'{}' hattının {}seferinde '{}' durağı (kod: '{}') {}× geçiyor — tekrarlayan operasyon deseni.",
                         route, dep, stop_name, dup_stop, count),
-                    "Döngüsel sefer değilse tekrar eden stop_id girişlerini temizleyin.",
+                    "Bu rota deseni bilinçliyse işlem gerekmez; değilse stop_times.txt durak sırasını doğrulayın.",
                 );
                 // Harita için sıralı durak listesi + tekrarlayan durak
                 let stop_list: Vec<&str> = stimes.iter()
@@ -10176,4 +10176,22 @@ mod tests {
     // ── EntityMap eksikliği ───────────────────────────────────────────────────
 
     fn _uses_entity_map(_: &EntityMap) {}
+
+    #[test]
+    fn adjacent_repeated_stop_is_owned_by_stm_035_not_opr_007() {
+        let records = records_with(
+            vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1)],
+            vec![route("R1", 3)],
+            vec![trip("T1", "R1")],
+            vec![
+                stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
+                stoptime("T1", 2, "A", (8, 1, 0), (8, 1, 0), 3),
+                stoptime("T1", 3, "B", (8, 10, 0), (8, 10, 0), 4),
+            ],
+        );
+        let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
+        assert!(result.notices.iter().any(|n| n.rule_id == "STM_035"));
+        assert!(!result.notices.iter().any(|n| n.rule_id == "OPR_007"),
+            "ardışık tekrar OPR_007 ile ikinci kez raporlanmamalı");
+    }
 }

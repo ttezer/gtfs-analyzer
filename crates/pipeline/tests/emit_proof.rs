@@ -540,8 +540,8 @@ fn fixtures() -> Vec<Fixture> {
         ]),
         // OPR_006: seferde < 2 durak.
         fx("OPR_006", vec![("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\n")]),
-        // OPR_007: seferde aynı durak tekrar (ring değil).
-        fx("OPR_007", vec![("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\nT1,08:10:00,08:10:00,S2,2\nT1,08:20:00,08:20:00,S2,3\n")]),
+        // OPR_007: seferde ardışık olmayan aynı durak tekrarı (ring değil).
+        fx("OPR_007", vec![("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\nT1,08:10:00,08:10:00,S2,2\nT1,08:20:00,08:20:00,S3,3\nT1,08:30:00,08:30:00,S2,4\n")]),
         // OPR_008: seferde >1 bozuk hız segmenti (~660 km/h, eşik bus 120).
         fx("OPR_008", vec![
             ("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,40.0,40.0\nS2,Stop2,40.05,40.0\nS3,Stop3,40.10,40.0\n"),
