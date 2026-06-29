@@ -6802,15 +6802,17 @@ fn check_vat_analytics(
     // Gruplama anahtarı route_id DEĞİL, sefer DESENİ'dir: bir route_id çoğu zaman
     // birden çok desen içerir (kısa-dönüş, varyant, yön) ve bunların süreleri doğal
     // olarak farklıdır; hepsini tek medyanla karşılaştırmak kitlesel FP üretir.
-    // Birincil anahtar shape_id (aynı fiziksel güzergah → karşılaştırılabilir süre);
-    // shape yoksa (route_id + sıralı durak dizisi hash'i) desenine düşülür.
+    // Anahtar shape_id + sıralı durak desenidir. Aynı shape kısa-dönüş ve tam sefer
+    // gibi farklı stop dizileriyle paylaşılabilir; yalnız shape_id ile gruplamak bunların
+    // doğal süre farkını aykırı değer sanır (BART Green-N: 5 durak/23dk vs 22 durak/83dk).
+    // Shape yoksa route_id + sıralı durak dizisi hash'ine düşülür.
     {
         let trip_shape: FxHashMap<&str, &str> = records.trips.iter()
             .filter_map(|t| ti_vat.shape_id(t).map(|s| (t.trip_id.as_str(), s)))
             .collect();
 
         #[derive(PartialEq, Eq, Hash)]
-        enum DurKey<'a> { Shape(&'a str), Pattern(&'a str, u64) }
+        enum DurKey<'a> { ShapePattern(&'a str, u64), Pattern(&'a str, u64) }
 
         let mut groups: FxHashMap<DurKey, Vec<(&str, u32, u32, &str)>> = FxHashMap::default();
         for (&trip_id, stops) in &idx.by_trip {
@@ -6820,17 +6822,15 @@ fn check_vat_analytics(
             let last_arr  = stops.last().and_then(|s| s.arrival_time()).map(hms_to_secs);
             if let (Some(dep), Some(arr)) = (first_dep, last_arr) {
                 if arr > dep {
+                    // Durakların SIRALI dizisini hash'le. Durak sayısı yeterince ayırt edici
+                    // değildir: aynı sayıda durağa sahip farklı desenler karışabilir.
+                    use std::hash::{Hash, Hasher};
+                    let mut h = std::collections::hash_map::DefaultHasher::new();
+                    for st in stops.iter() { idx.stop_id_of(st).hash(&mut h); }
+                    let pattern_hash = h.finish();
                     let key = match trip_shape.get(trip_id) {
-                        Some(&sh) => DurKey::Shape(sh),
-                        None => {
-                            // shape yoksa, durakların SIRALI dizisini hash'le — aynı durakları
-                            // aynı sırada gezen seferler tek grupta toplanır. (Durak sayısı yeterince
-                            // ayırt edici değil: aynı sayıda durağa sahip farklı desenler karışırdı.)
-                            use std::hash::{Hash, Hasher};
-                            let mut h = std::collections::hash_map::DefaultHasher::new();
-                            for st in stops.iter() { idx.stop_id_of(st).hash(&mut h); }
-                            DurKey::Pattern(route, h.finish())
-                        }
+                        Some(&sh) => DurKey::ShapePattern(sh, pattern_hash),
+                        None => DurKey::Pattern(route, pattern_hash),
                     };
                     groups.entry(key).or_default().push((trip_id, arr - dep, dep, route));
                 }
@@ -9891,6 +9891,41 @@ mod tests {
         let result = analyze(&r, &empty_derived(), &default_config(), 20260514);
         assert!(!result.notices.iter().any(|n| n.rule_id == "VAT_003"),
             "aynı durak sayılı farklı desenler durak-sırasıyla ayrılmalı, çapraz işaretlenmemeli");
+    }
+
+    #[test]
+    fn vat_003_same_shape_different_stop_patterns_do_not_cross_flag() {
+        // Gerçek BART regresyonu: aynı shape_id kısa-dönüş (A→B, 10dk) ve tam sefer
+        // (A→B→C→D, 30dk) tarafından paylaşılabilir. Shape tek başına desen değildir;
+        // stop dizisi de anahtara katılmalı, aksi halde kısa seferler kitlesel FP olur.
+        let mut r = crate::k2::EntityRecords::default();
+        r.stops = vec![
+            stop("A", 41.0, 29.0), stop("B", 41.1, 29.1),
+            stop("C", 41.2, 29.2), stop("D", 41.3, 29.3),
+        ];
+        r.routes = vec![route("R1", 3)];
+        let mut trips_vec = Vec::new();
+        let mut stoptimes_vec = Vec::new();
+        for i in 0..5u32 {
+            let tid = format!("S{i}");
+            trips_vec.push(trip_sh(&tid, "R1", "SHARED"));
+            stoptimes_vec.push(stoptime(&tid, 1, "A", (8, 0, 0), (8, 0, 0), 2));
+            stoptimes_vec.push(stoptime(&tid, 2, "B", (8, 10, 0), (8, 10, 0), 3));
+        }
+        for i in 0..5u32 {
+            let tid = format!("L{i}");
+            trips_vec.push(trip_sh(&tid, "R1", "SHARED"));
+            stoptimes_vec.push(stoptime(&tid, 1, "A", (9, 0, 0), (9, 0, 0), 2));
+            stoptimes_vec.push(stoptime(&tid, 2, "B", (9, 10, 0), (9, 10, 0), 3));
+            stoptimes_vec.push(stoptime(&tid, 3, "C", (9, 20, 0), (9, 20, 0), 4));
+            stoptimes_vec.push(stoptime(&tid, 4, "D", (9, 30, 0), (9, 30, 0), 5));
+        }
+        r.trips = trips_vec;
+        r.trip_interns = take_ti();
+        r.stop_times = stoptimes_vec;
+        let result = analyze(&r, &empty_derived(), &default_config(), 20260514);
+        assert!(!result.notices.iter().any(|n| n.rule_id == "VAT_003"),
+            "aynı shape'i paylaşan farklı stop desenleri çapraz işaretlenmemeli");
     }
 
     #[test]
