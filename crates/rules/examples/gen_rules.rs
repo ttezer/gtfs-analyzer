@@ -126,7 +126,7 @@ fn main() {
     let langs = [
         Lang {
             file: "RULES.md", idx: 0,
-            title_hdr: "# GTFS Analyzer — Kural Listesi",
+            title_hdr: "# GTFS Validator & Analyzer — Kural Listesi",
             nav: "🇹🇷 **Türkçe** · 🇬🇧 [English](RULES.en.md) · 🇯🇵 [日本語](RULES.ja.md)",
             intro: "{N} kural, {G} grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.\nÖnem seviyeleri: **KRİTİK** (yayın engelleyici) · **YÜKSEK** · **ORTA** · **DÜŞÜK** · **BİLGİ**\nSınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · **Quality** (GTFS Kalitesi) · **Analytics** (GTFS Analitiği)",
             table_hdr: "| Kural | Başlık | Önem | Sınıf |",
@@ -134,7 +134,7 @@ fn main() {
         },
         Lang {
             file: "RULES.en.md", idx: 1,
-            title_hdr: "# GTFS Analyzer — Rule List",
+            title_hdr: "# GTFS Validator & Analyzer — Rule List",
             nav: "🇹🇷 [Türkçe](RULES.md) · 🇬🇧 **English** · 🇯🇵 [日本語](RULES.ja.md)",
             intro: "{N} rules, {G} groups. Each rule is identified by a unique ID, severity level, and class.\nSeverity levels: **CRITICAL** (publish blocker) · **HIGH** · **MEDIUM** · **LOW** · **INFO**\nClasses: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Quality** (GTFS Quality) · **Analytics** (GTFS Analytics)",
             table_hdr: "| Rule | Title | Severity | Class |",
@@ -142,7 +142,7 @@ fn main() {
         },
         Lang {
             file: "RULES.ja.md", idx: 2,
-            title_hdr: "# GTFS Analyzer — ルール一覧",
+            title_hdr: "# GTFS Validator & Analyzer — ルール一覧",
             nav: "🇹🇷 [Türkçe](RULES.md) · 🇬🇧 [English](RULES.en.md) · 🇯🇵 **日本語**",
             intro: "{N}ルール、{G}グループ。各ルールは一意のID、重要度、クラスで定義されます。\n重要度: **致命的**（公開ブロッカー）· **高** · **中** · **低** · **情報**\nクラス: **仕様**（GTFS妥当性）· **相互運用**（GTFSインターオペラビリティ）· **品質**（GTFS品質）· **分析**（GTFSアナリティクス）",
             table_hdr: "| ルール | タイトル | 重要度 | クラス |",

@@ -1,4 +1,4 @@
-# GTFS Analyzer — Kural Listesi
+# GTFS Validator & Analyzer — Kural Listesi
 
 🇹🇷 **Türkçe** · 🇬🇧 [English](RULES.en.md) · 🇯🇵 [日本語](RULES.ja.md)
 

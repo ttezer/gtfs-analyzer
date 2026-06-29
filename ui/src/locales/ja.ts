@@ -80,7 +80,7 @@ const ja: LocaleShape = {
     'fileMap.group.external': '仕様外ファイル',
     'fileMap.nonSpec': '仕様外',
     'fileMap.nonSpecPresent': '仕様外ファイルがフィードに存在します',
-    'header.title' : 'GTFSアナライザー',
+    'header.title' : 'GTFS Validator & Analyzer',
     'header.back'  : '← ホーム',
     'header.new'   : '別のGTFSを読み込む',
     'lang.switch'  : 'JA',

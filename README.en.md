@@ -1,4 +1,4 @@
-# GTFS Analyzer
+# GTFS Validator & Analyzer
 
 🇹🇷 [Türkçe](README.md) · 🇬🇧 **English** · 🇯🇵 [日本語](README.ja.md)
 
@@ -7,13 +7,13 @@
 [![GTFS Spec](https://img.shields.io/badge/GTFS-Spec-007ec6?style=flat)](https://gtfs.org/)
 [![License MIT](https://img.shields.io/badge/license-MIT-yellow?style=flat)](LICENSE)
 
-GTFS Analyzer is an open-source tool that validates and analyzes GTFS files directly in the browser. The uploaded .zip file is never sent to any server; all processing is performed on the user's device via WebAssembly.
+GTFS Validator & Analyzer is an open-source, browser-based GTFS validator and feed quality analyzer. The uploaded .zip file is never sent to any server; all processing is performed on the user's device via WebAssembly.
 
-GTFS Analyzer does not merely check whether a file conforms to the specification; it also analyzes how reliable, consistent, and usable the feed is. It shows errors together with the relevant file and line number, provides remediation steps for each finding, and marks geographic issues — such as deviating routes, broken coordinates, or unreachable stops — on an interactive map.
+GTFS Validator & Analyzer does not merely check whether a file conforms to the specification; it also analyzes how reliable, consistent, and usable the feed is. It shows errors together with the relevant file and line number, provides remediation steps for each finding, and marks geographic issues — such as deviating routes, broken coordinates, or unreachable stops — on an interactive map.
 
 Every finding is tagged with a rule code, an analysis class, and a severity level. Thanks to the Spec · Interop · Quality · Analytics classes and the Critical → Info severity levels, thousands of findings can be filtered, prioritized, and handled systematically. The tool also automatically detects the GTFS features used by the feed — Shapes, Transfers, Fares, Headsigns, Flex, and the like — and includes them in the report.
 
-GTFS Analyzer extends specification validation with operational quality analysis. Frequency inconsistencies per route, anomalous speed segments, isolated stops, gaps in service patterns, andnetwork topology problems are examined with 526 distinct validation and analysis rules. Results are summarized with two scores — the Publish Score (blocking issues only) and the Overall Score (weighted average of all four classes) — computed with different formulas for different purposes. The prioritized fix queue shows which issues should be addressed first and the likely impact of each fix on the score.
+GTFS Validator & Analyzer extends specification validation with operational quality analysis. Frequency inconsistencies per route, anomalous speed segments, isolated stops, gaps in service patterns, andnetwork topology problems are examined with 526 distinct validation and analysis rules. Results are summarized with two scores — the Publish Score (blocking issues only) and the Overall Score (weighted average of all four classes) — computed with different formulas for different purposes. The prioritized fix queue shows which issues should be addressed first and the likely impact of each fix on the score.
 
 **Who is it for?**
 
@@ -132,7 +132,7 @@ The **Tokyo Toei** comparison above shows how the profile behaves on a real GTFS
 
 ## Usage
 
-GTFS Analyzer is a web application — no installation required. Open the live version in your browser and upload your GTFS zip file.
+GTFS Validator & Analyzer is a web application — no installation required. Open the live version in your browser and upload your GTFS zip file.
 
 The runtime is selected automatically from browser capabilities: browsers with Memory64 use
 **WASM64** for feeds that need more than 4 GB; all others use **WASM32**. The active engine is
@@ -245,7 +245,7 @@ Download the report as HTML, CSV, or JSON. The PDF option opens the browser's pr
 
 ## Interactive GTFS File Map
 
-GTFS Analyzer includes an interactive File Map that combines the GTFS data structure with the real validation findings of the analyzed feed.
+GTFS Validator & Analyzer includes an interactive File Map that combines the GTFS data structure with the real validation findings of the analyzed feed.
 
 This view is not a static schema. It shows the files present in the feed, the missing ones, the findings, and the validated file relationships based on the analysis result.
 
@@ -273,7 +273,7 @@ Analysis and visualization run entirely in the browser. GTFS files are never upl
 
 ## Run-to-Run Comparison
 
-GTFS Analyzer can compare two analyses of the same feed (before/after) to show what a fix round improved and what it regressed. Open **Compare** and upload the **Golden JSON** you downloaded from an earlier analysis; the diff is computed against the current run.
+GTFS Validator & Analyzer can compare two analyses of the same feed (before/after) to show what a fix round improved and what it regressed. Open **Compare** and upload the **Golden JSON** you downloaded from an earlier analysis; the diff is computed against the current run.
 
 ### Features
 

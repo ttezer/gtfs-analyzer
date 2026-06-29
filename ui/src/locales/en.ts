@@ -82,7 +82,7 @@ const en: LocaleShape = {
     'fileMap.nonSpec': 'Non-spec',
     'fileMap.nonSpecPresent': 'Non-spec file is present in the feed',
     // Header
-    'header.title' : 'GTFS Analyzer',
+    'header.title' : 'GTFS Validator & Analyzer',
     'header.back'  : '← Home',
     'header.new'   : 'Load New GTFS',
     'lang.switch'  : 'TR',

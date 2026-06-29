@@ -81,7 +81,7 @@ const tr = {
     'fileMap.nonSpec': 'Spec dışı',
     'fileMap.nonSpecPresent': 'Spec dışı dosya feed içinde mevcut',
     // Header
-    'header.title' : 'GTFS Analyzer',
+    'header.title' : 'GTFS Validator & Analyzer',
     'header.back'  : '← Ana Sayfa',
     'header.new'   : 'Yeni GTFS Yükle',
     'lang.switch'  : 'EN',

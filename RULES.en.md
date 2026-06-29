@@ -1,4 +1,4 @@
-# GTFS Analyzer — Rule List
+# GTFS Validator & Analyzer — Rule List
 
 🇹🇷 [Türkçe](RULES.md) · 🇬🇧 **English** · 🇯🇵 [日本語](RULES.ja.md)
 
