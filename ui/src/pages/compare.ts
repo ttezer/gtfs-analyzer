@@ -6,6 +6,9 @@ const nf = new Intl.NumberFormat();
 const sf = new Intl.NumberFormat(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1, signDisplay: 'always' });
 const SCORE_KEYS = ['pub_score', 'overall', 'spec', 'interop', 'quality', 'analytics'] as const;
 
+interface ComparisonState { currentKey: string; before: GoldenRun }
+let comparisonState: ComparisonState | null = null;
+
 function esc(s: string): string { return s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!); }
 function n(v: unknown): number { return typeof v === 'number' && Number.isFinite(v) ? v : 0; }
 function dateLabel(run: GoldenRun): string {
@@ -23,6 +26,8 @@ function scoreDelta(delta: number): string { return `${delta >= 0 ? '+' : ''}${d
 
 export function renderCompare(root: HTMLElement, result: ValidationResult, fileName: string, generatedAt: Date, configDelta: string): void {
   const now = currentRun(result, fileName, generatedAt, configDelta);
+  const currentKey = `${now.generatedAt ?? now.validateDate}|${now.feedName}|${now.noticeTotal}`;
+  if (comparisonState?.currentKey !== currentKey) comparisonState = null;
   root.innerHTML = `<section class="compare-page">
     <div class="compare-head"><div><h2>${t('compare.title')}</h2><p>${t('compare.subtitle')}</p></div>
       <label class="compare-upload btn btn-primary" for="compare-golden-input">${t('compare.select_old')}</label>
@@ -31,11 +36,22 @@ export function renderCompare(root: HTMLElement, result: ValidationResult, fileN
     <div id="compare-content" class="compare-empty"><strong>${t('compare.empty_title')}</strong><span>${t('compare.empty_desc')}</span></div>
   </section>`;
   root.querySelector<HTMLInputElement>('#compare-golden-input')!.addEventListener('change', async e => {
-    const file = (e.currentTarget as HTMLInputElement).files?.[0]; if (!file) return;
+    const input = e.currentTarget as HTMLInputElement;
+    const file = input.files?.[0]; if (!file) return;
     const error = root.querySelector<HTMLElement>('#compare-error')!;
-    try { renderReport(root.querySelector<HTMLElement>('#compare-content')!, parseGolden(await file.text()), now); error.className = 'upload-status hidden'; }
-    catch (err) { error.className = 'upload-status error'; error.textContent = err instanceof Error ? err.message : String(err); }
+    try {
+      const before = parseGolden(await file.text());
+      comparisonState = { currentKey, before };
+      renderReport(root.querySelector<HTMLElement>('#compare-content')!, before, now);
+      error.className = 'upload-status hidden';
+    } catch (err) {
+      error.className = 'upload-status error'; error.textContent = err instanceof Error ? err.message : String(err);
+    } finally {
+      // Aynı dosya dahil her yeni seçimde change olayı yeniden çalışsın.
+      input.value = '';
+    }
   });
+  if (comparisonState) renderReport(root.querySelector<HTMLElement>('#compare-content')!, comparisonState.before, now);
 }
 
 function renderReport(host: HTMLElement, before: GoldenRun, now: GoldenRun): void {

@@ -28,4 +28,17 @@ test('analyzed feed can be compared with an older Golden v4 snapshot', async ({ 
   await expect(page.getByText('STM_014', { exact: true })).toBeVisible();
   await expect(page.locator('#compare-rows').getByText('Düzeltildi', { exact: true })).toBeVisible();
   await expect(page.getByText('Feed veya servis tarih aralığı değişmiş.', { exact: false })).toBeVisible();
+
+  // İkinci Golden seçimi mevcut karşılaştırmayı değiştirmeli; input sıfırlanarak
+  // aynı dosyanın yeniden seçilmesine de izin vermeli.
+  const second = { ...old, app_version: '0.3.0', generated_at: '2026-06-21T10:00:00.000Z' };
+  await page.locator('#compare-golden-input').setInputFiles({ name: 'second.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(second)) });
+  await expect(page.locator('.compare-runs')).toContainText('v0.3.0');
+  await expect(page.locator('#compare-golden-input')).toHaveValue('');
+
+  // Başka sekmeye gidip dönünce yüklenen karşılaştırma kaybolmamalı.
+  await page.locator('[data-page="export"]').click();
+  await page.locator('[data-page="compare"]').click();
+  await expect(page.locator('.compare-table')).toBeVisible();
+  await expect(page.locator('.compare-runs')).toContainText('v0.3.0');
 });
