@@ -10,7 +10,7 @@ const FIXTURE_ZIP = path.join(
 
 test('sayfa açılıyor ve upload zone görünüyor', async ({ page }) => {
   await page.goto('/');
-  await expect(page.locator('h1')).toHaveText('GTFS Analyzer');
+  await expect(page.locator('h1')).toHaveText('GTFS Validator & Analyzer');
   await expect(page.locator('.drop-zone')).toBeVisible();
   await expect(page.locator('#file-input')).toBeAttached();
 });
