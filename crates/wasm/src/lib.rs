@@ -140,8 +140,7 @@ pub fn rerun_k6_k7(cache: &CachedState, config_delta_json: &str, on_stage: &js_s
     web_sys::console::log_1(&format!("[mem] after-K6 (pre-cap): {} notices, {:.1} MB", all_notices.len(), mem_mb()).into());
     web_sys::console::log_1(&format!("[rules] after-K6 top: {}", top_rules_str(&all_notices)).into());
 
-    let real_totals = count_totals(&all_notices);
-    let _ = cap_per_rule(&mut all_notices);
+    let real_totals = cap_per_rule(&mut all_notices);
     all_notices.shrink_to_fit();
     log_mem("after-cap");
     let real_total: usize = real_totals.values().map(|&v| v as usize).sum();
@@ -225,10 +224,9 @@ fn run_full_pipeline(zip_bytes: &[u8], config: &ValidatorConfig, today: u32) -> 
     all_notices.extend(k5.notices);
     all_notices.extend(k6.notices);
 
-    // 1) Gerçek totalleri cap öncesinde say (score delta ölçekleme için)
-    let real_totals = count_totals(&all_notices);
-    // 2) Cap uygula — kural başına sınır; büyük/hatalı feed'lerde gösterim/render'ı yönetir
-    let _ = cap_per_rule(&mut all_notices);
+    // 1) Dedup sonrası gerçek totalleri say, ardından kural başına gösterim cap'ini uygula.
+    // Native pipeline K7'de dedup yaptığı için karşılaştırılabilir "gerçek" sayı bu noktadadır.
+    let real_totals = cap_per_rule(&mut all_notices);
     all_notices.shrink_to_fit();
     // 3) DURDURMA YOK — çok büyük feed'de yalnızca konsola uyarı (cap zaten sınırlıyor)
     let real_total: usize = real_totals.values().map(|&v| v as usize).sum();
@@ -380,13 +378,16 @@ fn cap_per_rule(notices: &mut Vec<gtfs_core::Notice>) -> std::collections::HashM
     // thread-bağımsız ve kümelenme olmaz (ör. OPR_005 cap'e çarpsa bile distinct route
     // sayısı korunur). dedup içinde notice_order_key ile kararlı sıralama yapılır.
     *notices = gtfs_pipeline::k7_reporting::dedup(std::mem::take(notices));
+    // Golden sayımları ve skor ölçeklemesi ham emisyonu değil, native K7 ile aynı
+    // dedup edilmiş gerçek notice sayısını taşımalı.
+    let real_totals = count_totals(notices);
     let mut counts: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
     notices.retain(|n| {
         let c = counts.entry(n.rule_id.clone()).or_insert(0);
         *c += 1;
         *c <= cap_for_rule(&n.rule_id)
     });
-    std::collections::HashMap::new() // artık count_totals + build_capped_totals kullanılıyor
+    real_totals
 }
 
 // #15 Adım-1 enstrümantasyon: WASM linear memory high-water (MB).
@@ -418,6 +419,32 @@ fn today_yyyymmdd() -> u32 {
     let m = now.get_month() + 1;
     let d = now.get_date();
     y * 10000 + m * 100 + d
+}
+
+#[cfg(test)]
+mod tests {
+    use super::cap_per_rule;
+    use gtfs_core::{EntityType, Notice, RuleClass, Severity};
+
+    fn trip_notice(id: &str) -> Notice {
+        Notice {
+            id: id.to_string(), rule_id: "TRP_022".to_string(), severity: Severity::Yuksek,
+            rule_class: RuleClass::Spec, entity_type: EntityType::Trip,
+            entity_id: Some("trip-a".to_string()), scope_key: Some("trip-a".to_string()),
+            file: Some("trips.txt".to_string()), line: None, field: Some("block_id".to_string()),
+            observed_value: None, expected_value: None, details: None, title: "test".to_string(),
+            message: "test".to_string(), remediation: "test".to_string(), blocks: Vec::new(),
+            base_effort: 1, service_id: None,
+        }
+    }
+
+    #[test]
+    fn cap_totals_count_deduped_not_raw_emissions() {
+        let mut notices = vec![trip_notice("a"), trip_notice("b")];
+        let totals = cap_per_rule(&mut notices);
+        assert_eq!(notices.len(), 1);
+        assert_eq!(totals.get("TRP_022"), Some(&1));
+    }
 }
 
 fn to_js<T: serde::Serialize>(value: &T) -> JsValue {
