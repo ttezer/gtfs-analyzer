@@ -1692,6 +1692,7 @@ const en: LocaleShape = {
     'ARC_024': 'GTFS .txt file in subdirectory (will not be parsed)',
     'ARC_026': 'Malformed end-of-line characters',
     'ARC_027': 'ZIP entry lacks user read permission',
+    'ARC_028': 'GTFS publishing URL does not end with a .zip filename',
     // BKR
     'BKR_001': 'Prior-day booking field set in prohibited context',
     'BKR_002': 'prior_notice_start_day only valid with prior_notice_last_day',

@@ -46,6 +46,8 @@ const DEF_MAX_CALENDAR_FUTURE_YEARS: u32 =  3;
 /// Validator parametreleri. Tüm eşikler architecture v0.8 Bölüm 6'dan.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ValidatorConfig {
+    /// URL ile başlatılan analizlerde dış yayın adresi; upload modunda None.
+    pub source_url: Option<String>,
     /// STP_040/041: dil-bağımlı stop naming best-practice kontrolleri (varsayılan kapalı).
     pub stop_name_best_practices: bool,
     pub max_speed_bus_kmh:        f64,
@@ -98,6 +100,7 @@ pub struct ValidatorConfig {
 impl Default for ValidatorConfig {
     fn default() -> Self {
         Self {
+            source_url: None,
             stop_name_best_practices: false,
             max_speed_bus_kmh:        DEF_MAX_SPEED_BUS_KMH,
             max_speed_tram_kmh:       DEF_MAX_SPEED_TRAM_KMH,
@@ -230,7 +233,7 @@ pub fn merge_delta(base: &ValidatorConfig, delta_json: &str) -> Result<Validator
         "service_gap_days", "upcoming_service_days", "max_trip_duration_hours", "min_trip_duration_sec",
         "max_headway_warning_min", "bunching_threshold_min", "rail_stop_distance_km",
         "max_trips_per_route", "duration_outlier_sigma", "headway_outlier_sigma", "service_day_start_hour",
-        "max_calendar_future_years", "stop_name_best_practices", "rural_route_ids", "calendar_override_rules",
+        "max_calendar_future_years", "source_url", "stop_name_best_practices", "rural_route_ids", "calendar_override_rules",
     ];
     let unknown: Vec<&str> = map.keys()
         .filter(|k| !known.contains(&k.as_str()))
@@ -245,6 +248,12 @@ pub fn merge_delta(base: &ValidatorConfig, delta_json: &str) -> Result<Validator
     if let Some(v) = map.get("stop_name_best_practices") {
         cfg.stop_name_best_practices = v.as_bool().ok_or_else(||
             format!("'stop_name_best_practices' için bool bekleniyor, alınan: {v}"))?;
+    }
+    if let Some(v) = map.get("source_url") {
+        cfg.source_url = if v.is_null() { None } else {
+            Some(v.as_str().ok_or_else(|| format!("'source_url' için string veya null bekleniyor, alınan: {v}"))?.trim().to_string())
+        };
+        if cfg.source_url.as_deref() == Some("") { cfg.source_url = None; }
     }
 
     macro_rules! apply_f64 {
@@ -722,5 +731,14 @@ mod tests {
         assert!(!base.stop_name_best_practices);
         let cfg = merge_delta(&base, r#"{"stop_name_best_practices": true}"#).unwrap();
         assert!(cfg.stop_name_best_practices);
+    }
+
+    #[test]
+    fn source_url_accepts_string_and_null() {
+        let base = ValidatorConfig::default();
+        let cfg = merge_delta(&base, r#"{"source_url":"https://example.org/gtfs.zip"}"#).unwrap();
+        assert_eq!(cfg.source_url.as_deref(), Some("https://example.org/gtfs.zip"));
+        let cfg = merge_delta(&cfg, r#"{"source_url":null}"#).unwrap();
+        assert!(cfg.source_url.is_none());
     }
 }

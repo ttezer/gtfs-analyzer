@@ -13,7 +13,7 @@ GTFS Validator & Analyzer yalnızca dosyanın spesifikasyona uygun olup olmadı�
 
 Her bulgu; kural kodu, analiz sınıfı ve önem seviyesiyle etiketlenir. Spec · Interop · Quality · Analytics sınıfları ile Kritik → Bilgi önem seviyeleri sayesinde binlerce bulgu filtrelenebilir, önceliklendirilebilir ve sistematik biçimde ele alınabilir. Araç ayrıca feed'in kullandığı GTFS özelliklerini — Shapes, Transfers, Fares, Headsigns, Flex ve benzerlerini — otomatik olarak tespit ederek rapora dahil eder.
 
-GTFS Validator & Analyzer, spesifikasyon doğrulamasını operasyonel kalite analiziyle genişletir. Hat bazında sefer sıklığı tutarsızlıkları, anormal hız segmentleri, izole duraklar,servis desenlerindeki boşluklar ve ağ topolojisi problemleri 526 farklı doğrulama ve analiz kuralıyla incelenir. Sonuçlar, uyumluluk ve kaliteyi ayrı ayrı değerlendiren skorlarla özetlenir. Önceliklendirilmiş düzeltme kuyruğu ise hangi sorunların önce ele alınması gerektiğini ve yapılacak düzeltmelerin skora olası etkisini gösterir.
+GTFS Validator & Analyzer, spesifikasyon doğrulamasını operasyonel kalite analiziyle genişletir. Hat bazında sefer sıklığı tutarsızlıkları, anormal hız segmentleri, izole duraklar,servis desenlerindeki boşluklar ve ağ topolojisi problemleri 536 farklı doğrulama ve analiz kuralıyla incelenir. Sonuçlar, uyumluluk ve kaliteyi ayrı ayrı değerlendiren skorlarla özetlenir. Önceliklendirilmiş düzeltme kuyruğu ise hangi sorunların önce ele alınması gerektiğini ve yapılacak düzeltmelerin skora olası etkisini gösterir.
 
 **Kimler için?**
 
@@ -43,7 +43,7 @@ GTFS Validator & Analyzer, spesifikasyon doğrulamasını operasyonel kalite ana
 | GTFS-JP profil doğrulama | ❌ | ❌ | ✅ |
 | Çıktı formatı | HTML, JSON | HTML, JSON | HTML, CSV, JSON, PDF |
 | Platform | Web | Web, CLI, Desktop | Web *(CLI, Desktop planlanmış)* |
-| **Toplam kural** | **178** | **~120** | **526** |
+| **Toplam kural** | **178** | **~120** | **536** |
 
 ### Feed Analizi Örnekleri
 
@@ -152,6 +152,10 @@ ekranında gösterilir. Hata ayıklamak için `?wasm32=1`, `?wasm64=1` veya `?se
 ## Analiz Kriterleri
 
 Yükleme ekranındaki **Analiz Kriterleri** bölümünden doğrulama eşikleri özelleştirilebilir. Değiştirilen alanlar bir sonraki ZIP yüklemesinde uygulanır; sıfırla butonu varsayılanlara döndürür.
+
+### İsteğe Bağlı Profiller ve Kaynak URL
+
+Config delta içinde `stop_name_best_practices=true` verilirse dil-bağımlı `STP_040` ve `STP_041` kontrolleri etkinleşir; yanlış pozitif riski nedeniyle varsayılan kapalıdır. URL tabanlı entegrasyonlar `source_url` metadata'sı sağlayabilir; `ARC_028` kalıcı yayın adresinin `.zip` dosya adı taşımasını denetler. Dosya yükleme modunda bu kontrol sessizdir. Core motor feed içindeki URL'lere ağ isteği yapmaz; 404 kontrolü ayrı ve açıkça opt-in bir online adapter gerektirir.
 
 ### Hız Eşikleri
 
@@ -435,7 +439,7 @@ gtfs-validator/
 │   ├── config/     # Yapılandırma tipleri
 │   ├── core/       # Ortak veri yapıları ve sonuç modeli
 │   ├── pipeline/   # Doğrulama pipeline'ı (k1–k7 aşamaları)
-│   ├── rules/      # Kural tanımları ve registry (526 kural, 37 grup)
+│   ├── rules/      # Kural tanımları ve registry (536 kural, 37 grup)
 │   └── wasm/       # wasm-bindgen WASM çıktısı
 └── ui/             # Vite + TypeScript frontend
     ├── pkg/          # wasm-pack çıktısı (üretilen, commit'lenmiş)

@@ -13,7 +13,7 @@ GTFS Validator & Analyzer does not merely check whether a file conforms to the s
 
 Every finding is tagged with a rule code, an analysis class, and a severity level. Thanks to the Spec · Interop · Quality · Analytics classes and the Critical → Info severity levels, thousands of findings can be filtered, prioritized, and handled systematically. The tool also automatically detects the GTFS features used by the feed — Shapes, Transfers, Fares, Headsigns, Flex, and the like — and includes them in the report.
 
-GTFS Validator & Analyzer extends specification validation with operational quality analysis. Frequency inconsistencies per route, anomalous speed segments, isolated stops, gaps in service patterns, andnetwork topology problems are examined with 526 distinct validation and analysis rules. Results are summarized with two scores — the Publish Score (blocking issues only) and the Overall Score (weighted average of all four classes) — computed with different formulas for different purposes. The prioritized fix queue shows which issues should be addressed first and the likely impact of each fix on the score.
+GTFS Validator & Analyzer extends specification validation with operational quality analysis. Frequency inconsistencies per route, anomalous speed segments, isolated stops, gaps in service patterns, andnetwork topology problems are examined with 536 distinct validation and analysis rules. Results are summarized with two scores — the Publish Score (blocking issues only) and the Overall Score (weighted average of all four classes) — computed with different formulas for different purposes. The prioritized fix queue shows which issues should be addressed first and the likely impact of each fix on the score.
 
 **Who is it for?**
 
@@ -43,7 +43,7 @@ GTFS Validator & Analyzer extends specification validation with operational qual
 | GTFS-JP profile validation | ❌ | ❌ | ✅ |
 | Output formats | HTML, JSON | HTML, JSON | HTML, CSV, JSON, PDF |
 | Platform | Web | Web, CLI, Desktop | Web *(CLI, Desktop planned)* |
-| **Total rules** | **178** | **~120** | **526** |
+| **Total rules** | **178** | **~120** | **536** |
 
 ### Feed Analysis Examples
 
@@ -152,6 +152,10 @@ shown on the upload screen. For diagnostics, use `?wasm32=1`, `?wasm64=1`, or `?
 ## Analysis Thresholds
 
 Validation thresholds can be customized from the **Analysis Thresholds** section on the upload screen. Changed values take effect on the next ZIP upload; the reset button restores defaults.
+
+### Optional Profiles and Source URL
+
+Setting `stop_name_best_practices=true` in the config delta enables the language-dependent `STP_040` and `STP_041` checks; they are disabled by default because of their false-positive risk. URL-based integrations may provide `source_url` metadata, allowing `ARC_028` to verify that the permanent publishing URL contains a `.zip` filename. Upload-only validation skips this check. The core engine never requests URLs found inside a feed; HTTP availability checks require a separate, explicitly opt-in online adapter.
 
 ### Speed Thresholds
 
@@ -435,7 +439,7 @@ gtfs-validator/
 │   ├── config/     # Configuration types
 │   ├── core/       # Shared data structures and result model
 │   ├── pipeline/   # Validation pipeline (k1–k7 stages)
-│   ├── rules/      # Rule definitions and registry (526 rules, 37 groups)
+│   ├── rules/      # Rule definitions and registry (536 rules, 37 groups)
 │   └── wasm/       # wasm-bindgen WASM output
 └── ui/             # Vite + TypeScript frontend
     ├── pkg/          # wasm-pack output (generated, committed)

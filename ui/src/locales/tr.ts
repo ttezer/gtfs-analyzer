@@ -538,6 +538,9 @@ const tr = {
     'ARC_022': "Dosya satır sayısı 1.000.000 sınırını aşıyor",
     'ARC_023': "ZIP içinde iç içe ZIP dosyası",
     'ARC_024': "GTFS .txt dosyası alt dizinde (parse edilemez)",
+    'ARC_026': 'Dosyada hatalı satır sonu karakteri',
+    'ARC_027': 'ZIP girdisinde kullanıcı okuma izni yok',
+    'ARC_028': "GTFS yayın URL'si .zip dosya adıyla bitmiyor",
     // BKR
     'BKR_001': 'Önceki gün rezervasyon alanı yasak bağlamda dolu',
     'BKR_002': 'prior_notice_start_day yalnızca prior_notice_last_day ile kullanılabilir',
@@ -609,6 +612,9 @@ const tr = {
     'STP_036': 'İstasyonun (location_type=1) parent_station değeri var',
     'STP_037': 'Bazı duraklar tekerlekli sandalye erişilebilirliği (wheelchair_boarding) bildirmemiş',
     'STP_038': 'Hiçbir durak tekerlekli sandalye erişilebilirliği (wheelchair_boarding) bildirmemiş',
+    'STP_039': 'stop_code birden fazla durakta kullanılıyor',
+    'STP_040': 'Durak adı gereksiz genel stop/station sözcüğü içeriyor',
+    'STP_041': 'Alt durak adı üst istasyon adını içermiyor',
     // RTS
     'RTS_001': 'route_id yineleniyor',
     'RTS_002': 'agency_id bulunamadı',
@@ -640,6 +646,7 @@ const tr = {
     'TRP_006': 'wheelchair_accessible geçersiz',
     'TRP_007': 'bikes_allowed geçersiz',
     'TRP_032': 'cars_allowed geçersiz',
+    'TRP_033': 'trip_id önerilen uzunluk eşiğini aşıyor',
     'TRP_009': 'Seferde zaman damgalı durak yok',
     'TRP_011': 'Sefer yön adı girilmemiş',
     'TRP_012': 'Çift yönlü rotada direction_id eksik',
@@ -710,6 +717,7 @@ const tr = {
     'STM_050': 'timepoint sütunu var ama değer boş',
     'STM_051': 'Flex penceresinde pickup_type=0/3 yasak',
     'STM_052': 'Flex penceresinde drop_off_type=0 yasak',
+    'STM_053': 'Çok sayıda ardışık durakta aynı zaman',
     // PDW
     'PDW_006': "Aynı trip+zone'da örtüşen pickup/drop-off penceresi",
     // LOC
@@ -813,6 +821,7 @@ const tr = {
     'TRF_017': 'Sefer aktarması yanlış hat',
     'TRF_018': 'Sefer aktarması aynı seferi gösteriyor',
     'TRF_019': 'In-seat aktarmada farklı route_type',
+    'TRF_020': 'Aktarma için gereken yürüme hızı çok yüksek',
     // GGL
     'GGL_001': 'transfer_type=4/5 Google Transit tarafından desteklenmiyor',
     'GGL_002': 'ic_price (Google-özel) geçersiz değer',
@@ -834,6 +843,7 @@ const tr = {
     'PTH_022': 'to_stop_id eksik',
     'PTH_023': 'pathway_mode eksik',
     'PTH_024': 'is_bidirectional eksik',
+    'PTH_025': 'Önerilen pathway length bilgisi eksik',
     // FRL
     'FRL_001': 'fare_id bulunamadı',
     'FRL_002': 'route_id bulunamadı',

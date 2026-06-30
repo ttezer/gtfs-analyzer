@@ -1646,6 +1646,7 @@ const ja: LocaleShape = {
     'ARC_024': 'サブディレクトリ内のGTFS .txtファイル（読み込み不可）',
     'ARC_026': '不正な改行文字',
     'ARC_027': 'ZIPエントリにユーザー読み取り権限がない',
+    'ARC_028': 'GTFS公開URLが.zipファイル名で終わっていない',
     // BKR
     'BKR_001': '予約ルール: prior_notice_start_dayが禁止コンテキスト',
     'BKR_002': 'prior_notice_start_dayにprior_notice_last_dayが必要',

@@ -3123,6 +3123,16 @@ fn check_data_quality(
     notices: &mut Vec<Notice>,
     ctr: &mut u32,
 ) {
+    if let Some(source_url) = config.source_url.as_deref() {
+        let path = source_url.split(['?', '#']).next().unwrap_or(source_url);
+        if !path.to_ascii_lowercase().ends_with(".zip") {
+            notices.push(k6_notice(ctr, "ARC_028", EntityType::Feed, None, None,
+                "source_url", None, Some("source_url"), Some(source_url.to_string()),
+                Some("kalıcı URL .../dosya.zip".to_string()),
+                format!("GTFS yayın URL'si bir .zip dosya adıyla bitmiyor: '{source_url}'."),
+                "Feed'i kalıcı ve açık bir .zip dosya adı içeren URL'de yayımlayın."));
+        }
+    }
     if config.stop_name_best_practices {
         let stop_by_id: HashMap<&str, &crate::k2::stops::StopRecord> = records.stops.iter()
             .map(|s| (s.stop_id.as_str(), s)).collect();
@@ -7543,6 +7553,17 @@ mod tests {
         let result = analyze(&records, &empty_derived(), &cfg, 20260514);
         assert!(result.notices.iter().any(|n| n.rule_id == "STP_040"));
         assert!(result.notices.iter().any(|n| n.rule_id == "STP_041"));
+    }
+
+    #[test]
+    fn source_url_without_zip_filename_emits_arc_028() {
+        let records = records_with(vec![], vec![], vec![], vec![]);
+        let mut cfg = default_config(); cfg.source_url = Some("https://example.org/gtfs".into());
+        let result = analyze(&records, &empty_derived(), &cfg, 20260514);
+        assert!(result.notices.iter().any(|n| n.rule_id == "ARC_028"));
+        cfg.source_url = Some("https://example.org/feed.zip?rev=2".into());
+        let result = analyze(&records, &empty_derived(), &cfg, 20260514);
+        assert!(!result.notices.iter().any(|n| n.rule_id == "ARC_028"));
     }
     #[test]
     fn three_consecutive_equal_times_produce_stm_053() {

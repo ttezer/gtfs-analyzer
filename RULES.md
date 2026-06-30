@@ -2,7 +2,7 @@
 
 🇹🇷 **Türkçe** · 🇬🇧 [English](RULES.en.md) · 🇯🇵 [日本語](RULES.ja.md)
 
-535 kural, 37 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
+536 kural, 37 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
 Önem seviyeleri: **KRİTİK** (yayın engelleyici) · **YÜKSEK** · **ORTA** · **DÜŞÜK** · **BİLGİ**
 Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · **Quality** (GTFS Kalitesi) · **Analytics** (GTFS Analitiği)
 
@@ -37,6 +37,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | ARC_024 | GTFS .txt dosyası ZIP içinde alt dizinde — standart parser'lar tarafından atlanır | ORTA | Spec |
 | ARC_026 | Dosyada hatalı satır sonu karakteri | ORTA | Interop |
 | ARC_027 | ZIP girdisinde kullanıcı okuma izni yok | BİLGİ | Interop |
+| ARC_028 | GTFS yayın URL'si .zip dosya adıyla bitmiyor | DÜŞÜK | Quality |
 
 ## BKR — Booking Rules (Rezervasyon Kuralları)
 
