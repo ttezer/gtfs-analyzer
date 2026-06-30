@@ -697,6 +697,25 @@ fn check_speed_and_duration(
             }
         }
 
+        let mut same_run = 1usize;
+        let mut max_same_run = 1usize;
+        let mut previous_time: Option<u32> = None;
+        for st in stimes.iter() {
+            let event_time = st.arrival_time().or_else(|| st.departure_time()).map(hms_to_secs);
+            if event_time.is_some() && event_time == previous_time {
+                same_run += 1; max_same_run = max_same_run.max(same_run);
+            } else { same_run = 1; }
+            previous_time = event_time;
+        }
+        if max_same_run >= 3 {
+            notices.push(k6_notice(ctr, "STM_053", EntityType::Trip,
+                Some(trip_id.to_string()), Some(trip_id.to_string()), "stop_times.txt",
+                stimes.first().map(|s| s.line as u64), Some("arrival_time"),
+                Some(format!("{max_same_run} ardışık durak")), Some("< 3 ardışık durak".to_string()),
+                format!("trip_id '{trip_id}' içinde {max_same_run} ardışık durak aynı zaman değerini kullanıyor."),
+                "Ardışık stop_times zamanlarını doğrulayın; gerçek bekleme ise zamanları açıklayıcı biçimde düzenleyin."));
+        }
+
         // ── STM_014 / OPR_008: hız anomalisi ─────────────────────────────────
         // Per-trip coord buffer: her stop bir kez sorgulanır
         coords_buf.clear();
@@ -7481,6 +7500,19 @@ mod tests {
         );
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
         assert!(!result.notices.iter().any(|n| n.rule_id == "STM_014"));
+    }
+    #[test]
+    fn three_consecutive_equal_times_produce_stm_053() {
+        let records = records_with(
+            vec![stop("A",41.0,29.0), stop("B",41.001,29.0), stop("C",41.002,29.0)],
+            vec![route("R1",3)], vec![trip("T1","R1")],
+            vec![
+                stoptime("T1",1,"A",(8,0,0),(8,0,0),2),
+                stoptime("T1",2,"B",(8,0,0),(8,0,0),3),
+                stoptime("T1",3,"C",(8,0,0),(8,0,0),4),
+            ]);
+        let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
+        assert!(result.notices.iter().any(|n| n.rule_id == "STM_053"));
     }
 
     // ── OPR_008 ───────────────────────────────────────────────────────────────

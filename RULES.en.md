@@ -2,7 +2,7 @@
 
 🇹🇷 [Türkçe](RULES.md) · 🇬🇧 **English** · 🇯🇵 [日本語](RULES.ja.md)
 
-531 rules, 37 groups. Each rule is identified by a unique ID, severity level, and class.
+533 rules, 37 groups. Each rule is identified by a unique ID, severity level, and class.
 Severity levels: **CRITICAL** (publish blocker) · **HIGH** · **MEDIUM** · **LOW** · **INFO**
 Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Quality** (GTFS Quality) · **Analytics** (GTFS Analytics)
 
@@ -234,6 +234,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | STM_050 | timepoint column present but value empty | LOW | Quality |
 | STM_051 | pickup_type 0/3 forbidden with Flex window | HIGH | Spec |
 | STM_052 | drop_off_type 0 forbidden with Flex window | HIGH | Spec |
+| STM_053 | Many consecutive stops have the same time | MEDIUM | Quality |
 
 ## PDW — Pickup/Drop-off Window
 
@@ -366,6 +367,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | TRF_017 | Trip transfer on wrong route | HIGH | Spec |
 | TRF_018 | Trip transfer references the same trip | HIGH | Spec |
 | TRF_019 | Different route_type in in-seat transfer | MEDIUM | Spec |
+| TRF_020 | Transfer walking speed is too fast | MEDIUM | Quality |
 
 ## GGL — Google Transit Compatibility
 

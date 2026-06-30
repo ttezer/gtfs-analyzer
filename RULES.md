@@ -2,7 +2,7 @@
 
 🇹🇷 **Türkçe** · 🇬🇧 [English](RULES.en.md) · 🇯🇵 [日本語](RULES.ja.md)
 
-531 kural, 37 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
+533 kural, 37 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
 Önem seviyeleri: **KRİTİK** (yayın engelleyici) · **YÜKSEK** · **ORTA** · **DÜŞÜK** · **BİLGİ**
 Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · **Quality** (GTFS Kalitesi) · **Analytics** (GTFS Analitiği)
 
@@ -234,6 +234,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | STM_050 | timepoint sütunu mevcut ama satırda boş — değer açıkça belirtilmeli (0 yaklaşık / 1 kesin) | DÜŞÜK | Quality |
 | STM_051 | Flex penceresi tanımlıyken pickup_type=0/3 yasak (talep-üzerine değerler gerekli) | YÜKSEK | Spec |
 | STM_052 | Flex penceresi tanımlıyken drop_off_type=0 yasak (talep-üzerine değer gerekli) | YÜKSEK | Spec |
+| STM_053 | Çok sayıda ardışık durakta aynı zaman | ORTA | Quality |
 
 ## PDW — Pickup/Drop-off Window
 
@@ -366,6 +367,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | TRF_017 | Sefer aktarması yanlış hat | YÜKSEK | Spec |
 | TRF_018 | Sefer aktarması aynı seferi gösteriyor | YÜKSEK | Spec |
 | TRF_019 | In-seat aktarmada farklı route_type | ORTA | Spec |
+| TRF_020 | Aktarma için gereken yürüme hızı çok yüksek | ORTA | Quality |
 
 ## GGL — Google Transit Uyumluluğu
 

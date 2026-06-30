@@ -535,6 +535,8 @@ pub static RULES: &[RuleMeta] = &[
         "Flex penceresi tanımlıyken pickup_type=0/3 yasak (talep-üzerine değerler gerekli)"),
     r!("STM_052", Yuksek, Spec, 1, &[], Some("trip_id"), VS, Entity,
         "Flex penceresi tanımlıyken drop_off_type=0 yasak (talep-üzerine değer gerekli)"),
+    r!("STM_053", Orta, Quality, 2, &[], Some("trip_id"), VS, Entity,
+        "Çok sayıda ardışık durakta aynı zaman"),
 
     // ── PDW: Pickup/Drop-off Window ──────────────────────────────────────────
     r!("PDW_006", Orta, Spec, 2, &[], Some("trip_id"), VS, Entity,
@@ -772,6 +774,8 @@ pub static RULES: &[RuleMeta] = &[
         "Sefer aktarması aynı seferi gösteriyor"),
     r!("TRF_019", Orta, Spec, 2, &[], None, VS, Row,
         "In-seat aktarmada farklı route_type"),
+    r!("TRF_020", Orta, Quality, 2, &[], Some("from_stop_id|to_stop_id"), VS, Row,
+        "Aktarma için gereken yürüme hızı çok yüksek"),
 
     // ── GGL: Google Transit Uyumluluk Kuralları ───────────────────────────────
     r!("GGL_001", Dusuk, Interop, 1, &[], None, VI, Row,

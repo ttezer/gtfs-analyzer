@@ -1820,6 +1820,7 @@ const ja: LocaleShape = {
     'STM_050': 'timepoint列はあるが値が空',
     'STM_051': 'Flexウィンドウでpickup_type 0/3禁止',
     'STM_052': 'Flexウィンドウでdrop_off_type 0禁止',
+    'STM_053': '多数の連続停留所が同じ時刻',
     // PDW
     'PDW_006': '同一便・ゾーンで乗降ウィンドウが重複',
     // LOC
@@ -1923,6 +1924,7 @@ const ja: LocaleShape = {
     'TRF_017': '乗換が誤った路線を参照',
     'TRF_018': 'from_trip_idとto_trip_idが同一の便',
     'TRF_019': '席内乗換で異なるroute_type',
+    'TRF_020': '乗継に必要な歩行速度が速すぎる',
     // GGL
     'GGL_001': 'transfer_type=4/5はGoogleトランジット非対応',
     'GGL_002': 'ic_priceが無効な値',

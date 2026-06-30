@@ -1866,6 +1866,7 @@ const en: LocaleShape = {
     'STM_050': 'timepoint column present but value empty',
     'STM_051': 'pickup_type 0/3 forbidden with Flex window',
     'STM_052': 'drop_off_type 0 forbidden with Flex window',
+    'STM_053': 'Many consecutive stops have the same time',
     // PDW
     'PDW_006': 'Overlapping pickup/drop-off window for same trip+zone',
     // LOC
@@ -1969,6 +1970,7 @@ const en: LocaleShape = {
     'TRF_017': 'Trip transfer on wrong route',
     'TRF_018': 'Trip transfer references the same trip',
     'TRF_019': 'Different route_type in in-seat transfer',
+    'TRF_020': 'Transfer walking speed is too fast',
     // GGL
     'GGL_001': 'transfer_type=4/5 not supported by Google Transit',
     'GGL_002': 'ic_price (Google-specific) invalid value',

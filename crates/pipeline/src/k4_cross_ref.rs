@@ -1254,6 +1254,26 @@ fn check_transfers(
                     "min_transfer_time değerini gözden geçirin; gerçekçi bir aktarma süresi girin.",
                 ));
             }
+            if mtt > 0 {
+                let pair = map.stops.get(rec.from_stop_id.as_str()).and_then(|&i| records.stops.get(i))
+                    .and_then(|a| map.stops.get(rec.to_stop_id.as_str()).and_then(|&i| records.stops.get(i)).map(|b| (a, b)));
+                if let Some((a, b)) = pair {
+                    if let (Some(lat1), Some(lon1), Some(lat2), Some(lon2)) = (a.stop_lat, a.stop_lon, b.stop_lat, b.stop_lon) {
+                        let p1 = lat1.to_radians(); let p2 = lat2.to_radians();
+                        let dp = (lat2 - lat1).to_radians(); let dl = (lon2 - lon1).to_radians();
+                        let h = (dp / 2.0).sin().powi(2) + p1.cos() * p2.cos() * (dl / 2.0).sin().powi(2);
+                        let distance_m = 6_371_000.0 * 2.0 * h.sqrt().atan2((1.0 - h).sqrt());
+                        let speed = distance_m / mtt as f64;
+                        if speed > 2.0 {
+                            notices.push(notice(ctr, "TRF_020", EntityType::Transfer, None, None,
+                                "transfers.txt", Some(rec.line), Some("min_transfer_time"),
+                                Some(format!("{speed:.2} m/s")), Some("≤ 2.00 m/s".to_string()),
+                                format!("'{}' → '{}' aktarması {:.0}m mesafeyi {}s içinde yürümeyi gerektiriyor ({speed:.2} m/s).", rec.from_stop_id, rec.to_stop_id, distance_m, mtt),
+                                "min_transfer_time değerini artırın veya aktarma duraklarını doğrulayın."));
+                        }
+                    }
+                }
+            }
         }
 
         // TRF_018: aynı seferde aktarma (from_trip_id == to_trip_id)
@@ -3947,6 +3967,18 @@ mod tests {
         }];
         let result = check(&recs, &map, 20260515);
         assert!(result.notices.iter().any(|n| n.rule_id == "TRF_010"));
+    }
+    #[test]
+    fn transfer_walking_speed_over_two_mps_produces_trf_020() {
+        let (mut recs, mut map) = empty();
+        let mut a = stop("S1"); a.stop_lat = Some(41.0); a.stop_lon = Some(29.0);
+        let mut b = stop("S2"); b.stop_lat = Some(41.01); b.stop_lon = Some(29.0);
+        recs.stops = vec![a, b]; map.stops.insert("S1".into(), 0); map.stops.insert("S2".into(), 1);
+        recs.transfers = vec![TransferRecord { from_stop_id: "S1".into(), to_stop_id: "S2".into(),
+            transfer_type: Some(2), min_transfer_time: Some(60), from_trip_id: None, to_trip_id: None,
+            from_route_id: None, to_route_id: None, row: Default::default(), line: 2 }];
+        let result = check(&recs, &map, 20260515);
+        assert!(result.notices.iter().any(|n| n.rule_id == "TRF_020"));
     }
 
     // �"?�"? TRF_013 �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?
