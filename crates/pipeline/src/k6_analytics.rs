@@ -5310,30 +5310,31 @@ fn check_remaining_analytics(
         }
     }
 
-    // ── OPR_009: sefer başlangıç saati 23:00 veya sonrası (gece seferi) ──────
+    // ── OPR_009: gece servisi — trip tekrarları yerine route başına tek özet ──
     {
         let _t09 = Timer::start("K6::rem::opr_009");
-        const LATE_NIGHT_SEC: u32 = 23 * 3600;
-        // Gece servisi = 23:00+ VEYA gece yarısı sonrası (service_day_start altı, ör. 00:30
-        // kalkış = önceki günün gece servisi). Aksi halde 00:00–02:59 başlayan seferler kaçar.
+        let mut by_route: FxHashMap<&str, (u32, u32, u32)> = FxHashMap::default();
         let sds_sec = config.service_day_start_hour * 3600;
         for (&trip_id, stimes) in &idx.by_trip {
             if let Some(dep) = stimes.first().and_then(|s| s.departure_time()) {
                 let dep_sec = dep.0 * 3600 + dep.1 * 60 + dep.2;
-                if dep_sec >= LATE_NIGHT_SEC || (sds_sec > 0 && dep_sec < sds_sec) {
+                if dep_sec >= 23 * 3600 || (sds_sec > 0 && dep_sec < sds_sec) {
                     let route = trip_to_route_rem.get(trip_id).copied().unwrap_or(trip_id);
-                    let dep_str = format!("{:02}:{:02}", dep.0, dep.1);
-                    notices.push(k6_notice(
-                        ctr, "OPR_009", EntityType::Trip,
-                        Some(trip_id.to_string()), Some(trip_id.to_string()),
-                        "stop_times.txt", stimes.first().map(|s| s.line as u64),
-                        Some("departure_time"),
-                        Some(dep_str.clone()), Some("< 23:00".to_string()),
-                        format!("'{route}' hattında {dep_str} kalkışlı gece seferi var."),
-                        "Bu bilgi notu; gece servisleri için beklenen bir durumdur.",
-                    ));
+                    let e = by_route.entry(route).or_insert((0, dep_sec, dep_sec));
+                    e.0 += 1; e.1 = e.1.min(dep_sec); e.2 = e.2.max(dep_sec);
                 }
             }
+        }
+        let mut routes: Vec<_> = by_route.into_iter().collect(); routes.sort_by_key(|x| x.0);
+        for (route, (count, min, max)) in routes {
+            let hm = |s: u32| format!("{:02}:{:02}", s / 3600, s / 60 % 60);
+            notices.push(k6_notice(
+                ctr, "OPR_009", EntityType::Route,
+                Some(route.to_string()), Some(route.to_string()), "stop_times.txt", None,
+                Some("departure_time"), Some(format!("{count} sefer, {}-{}", hm(min), hm(max))), None,
+                format!("'{route}' hattında {count} gece seferi var (ilk kalkış aralığı {}-{}).", hm(min), hm(max)),
+                "Bu bilgi notu; gece servisleri için beklenen bir durumdur.",
+            ));
         }
     }
 
@@ -10193,5 +10194,24 @@ mod tests {
         assert!(result.notices.iter().any(|n| n.rule_id == "STM_035"));
         assert!(!result.notices.iter().any(|n| n.rule_id == "OPR_007"),
             "ardışık tekrar OPR_007 ile ikinci kez raporlanmamalı");
+    }
+
+    #[test]
+    fn late_night_trips_are_summarized_once_per_route() {
+        let records = records_with(
+            vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1)],
+            vec![route("R1", 3)], vec![trip("T1", "R1"), trip("T2", "R1")],
+            vec![
+                stoptime("T1", 1, "A", (23, 0, 0), (23, 0, 0), 2),
+                stoptime("T1", 2, "B", (23, 10, 0), (23, 10, 0), 3),
+                stoptime("T2", 1, "A", (24, 0, 0), (24, 0, 0), 4),
+                stoptime("T2", 2, "B", (24, 10, 0), (24, 10, 0), 5),
+            ],
+        );
+        let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
+        let found: Vec<_> = result.notices.iter().filter(|n| n.rule_id == "OPR_009").collect();
+        assert_eq!(found.len(), 1);
+        assert_eq!(found[0].entity_type, EntityType::Route);
+        assert!(found[0].observed_value.as_deref().unwrap_or("").contains("2 sefer"));
     }
 }

@@ -1647,25 +1647,24 @@ fn check_fare_attributes(
                 ));
             }
         } else {
-            // FIN_013: agency_id önerilir ama eksik — tek kuruluşta INFO, çoklu kuruluşta zorunlu
-            notices.push(notice(
+            // FIN_013: aynı sütun politikasını her fare için tekrarlama; feed başına tek özet.
+            if records.fare_attributes.iter().find(|f| f.agency_id.is_none()).is_some_and(|first| std::ptr::eq(first, rec)) {
+              let missing = records.fare_attributes.iter().filter(|f| f.agency_id.is_none()).count();
+              notices.push(notice(
                 ctr,
                 "FIN_013",
-                EntityType::Fare,
-                Some(rec.fare_id.clone()),
-                Some(rec.fare_id.clone()),
-                "fare_attributes.txt",
-                Some(rec.line),
-                Some("agency_id"),
+                EntityType::Feed,
                 None,
+                None,
+                "fare_attributes.txt",
+                None,
+                Some("agency_id"),
+                Some(format!("{missing} eksik kayıt")),
                 Some("dolu".to_string()),
-                format!(
-                    "Ücret tarifesi '{}' için agency_id eksik{}.",
-                    rec.fare_id,
-                    if multi_agency { "; birden fazla kuruluşta zorunludur" } else { "; tek kuruluşta önerilir" }
-                ),
+                format!("{missing} ücret tarifesinde agency_id eksik{}.", if multi_agency { "; birden fazla kuruluşta zorunludur" } else { "; tek kuruluşta önerilir" }),
                 "agency_id sütununu ücret tarifeleri için doldurun.",
-            ));
+              ));
+            }
         }
 
         // FAR_009: bu fare_id'ye ait fare_rules kuralı yok
@@ -4886,5 +4885,19 @@ mod tests {
         let result = check(&recs, &EntityMap::default(), 20260515);
         assert!(!result.notices.iter().any(|n| n.rule_id == "RCT_006"));
     }
-}
 
+    #[test]
+    fn missing_fare_agency_is_summarized_once_per_feed() {
+        let (mut recs, map) = empty();
+        recs.fare_attributes = ["F1", "F2"].into_iter().enumerate().map(|(i, id)| FareAttributeRecord {
+            fare_id: id.into(), price: Some(2.0), currency_type: "TRY".into(),
+            payment_method: Some(0), transfers: None, transfer_duration: None,
+            agency_id: None, row: Default::default(), line: i as u64 + 2,
+        }).collect();
+        let result = check(&recs, &map, 20260515);
+        let found: Vec<_> = result.notices.iter().filter(|n| n.rule_id == "FIN_013").collect();
+        assert_eq!(found.len(), 1);
+        assert_eq!(found[0].entity_type, EntityType::Feed);
+        assert!(found[0].message.contains("2 ücret tarifesinde"));
+    }
+}

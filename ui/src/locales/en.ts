@@ -1001,7 +1001,7 @@ const en: LocaleShape = {
     'OPR_006': "Trip '{entity_id}' has too few stops (found: {observed_value}, expected: {expected_value}).",
     'OPR_007': "Trip '{entity_id}': stop '{dup_stop}' appears at non-adjacent positions — repeated operating pattern.",
     'OPR_008': "Trip '{entity_id}'{dep_suffix}: excessive speed in {observed_value} segments (max: {expected_value}).",
-    'OPR_009': "Trip '{entity_id}': late-night departure at {observed_value} (threshold: {expected_value}).",
+    'OPR_009': "Route '{entity_id}': late-night service summary — {observed_value}.",
     'OPR_010': "Route '{route_label}': accessibility or bicycle policy conflicts.",
     'OPR_011': "Service '{entity_id}' has no active days.",
     'OPR_012': "Service '{entity_id}': service gap of {observed_value} (threshold: {expected_value}).",

@@ -982,7 +982,7 @@ const ja: LocaleShape = {
     'OPR_006': "便'{entity_id}'の停留所数が少なすぎます（検出：{observed_value}、期待：{expected_value}）。",
     'OPR_007': "便'{entity_id}'：停留所'{dup_stop}'が離れた位置に複数回現れる運行パターンです。",
     'OPR_008': "便'{entity_id}'{dep_suffix}：{observed_value}区間で速度超過（最大：{expected_value}）。",
-    'OPR_009': "便'{entity_id}'：深夜出発 {observed_value}（閾値：{expected_value}）。",
+    'OPR_009': "路線'{entity_id}'：深夜運行の概要 — {observed_value}。",
     'OPR_010': "路線'{route_label}'：バリアフリーまたは自転車可否ポリシーが矛盾しています。",
     'OPR_011': "サービス'{entity_id}'に有効な日がありません。",
     'OPR_012': "サービス'{entity_id}'：{observed_value}のサービスギャップ（閾値：{expected_value}）。",
