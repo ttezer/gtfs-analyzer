@@ -198,6 +198,97 @@ fn trp_019_silent_when_no_continuous_service() {
     }
 }
 
+#[test]
+fn trp_019_fires_when_stop_time_enables_continuous_service() {
+    const STOP_TIMES_CONTINUOUS: &[u8] =
+        b"trip_id,arrival_time,departure_time,stop_id,stop_sequence,continuous_drop_off\n\
+          T1,08:00:00,08:00:00,S1,1,1\nT1,08:10:00,08:10:00,S2,2,1\n";
+
+    let mut files = base_files();
+    files[4] = ("stop_times.txt", STOP_TIMES_CONTINUOUS);
+
+    match run(&files) {
+        ValidateResult::Ok(vr) => assert!(
+            vr.notices.iter().any(|n| n.rule_id == "TRP_019"),
+            "stop_times continuous_drop_off aktifken shape_id eksikliği TRP_019 üretmeli",
+        ),
+        _ => panic!("ValidateResult::Ok beklendi"),
+    }
+}
+
+#[test]
+fn transfer_stop_requirements_cover_recommended_and_in_seat_types() {
+    for transfer_type in ["0", "1", "2", "3"] {
+        let transfers = format!(
+            "from_stop_id,to_stop_id,transfer_type\n,,{transfer_type}\n"
+        );
+        let mut files = base_files();
+        files.push(("transfers.txt", transfers.as_bytes()));
+        match run(&files) {
+            ValidateResult::Ok(vr) => {
+                assert!(vr.notices.iter().any(|n| n.rule_id == "TRF_001"), "type={transfer_type}");
+                assert!(vr.notices.iter().any(|n| n.rule_id == "TRF_002"), "type={transfer_type}");
+            }
+            _ => panic!("ValidateResult::Ok beklendi"),
+        }
+    }
+
+    let mut files = base_files();
+    files.push((
+        "transfers.txt",
+        b"from_stop_id,to_stop_id,transfer_type\nS1,,\n,S2,\n",
+    ));
+    match run(&files) {
+        ValidateResult::Ok(vr) => {
+            assert!(vr.notices.iter().any(|n| n.rule_id == "TRF_001"));
+            assert!(vr.notices.iter().any(|n| n.rule_id == "TRF_002"));
+        }
+        _ => panic!("ValidateResult::Ok beklendi"),
+    }
+
+    for transfer_type in ["4", "5"] {
+        let transfers = format!(
+            "from_stop_id,to_stop_id,transfer_type,from_trip_id,to_trip_id\n,,{transfer_type},T1,T1\n"
+        );
+        let mut files = base_files();
+        files.push(("transfers.txt", transfers.as_bytes()));
+        match run(&files) {
+            ValidateResult::Ok(vr) => assert!(
+                !vr.notices
+                    .iter()
+                    .any(|n| n.rule_id == "TRF_001" || n.rule_id == "TRF_002"),
+                "in-seat transfer_type={transfer_type} stop kimliği istememeli",
+            ),
+            _ => panic!("ValidateResult::Ok beklendi"),
+        }
+    }
+}
+
+#[test]
+fn pathway_recommendations_respect_mode_boundaries() {
+    const PATHWAYS: &[u8] =
+        b"pathway_id,from_stop_id,to_stop_id,pathway_mode,is_bidirectional,stair_count,max_slope\n\
+          WALK,S1,S2,1,0,,0.05\n\
+          STAIRS,S1,S2,2,0,,\n\
+          MOVING,S1,S2,3,0,,0.05\n\
+          ELEVATOR,S1,S2,5,0,,0.05\n";
+    let mut files = base_files();
+    files.push(("pathways.txt", PATHWAYS));
+
+    match run(&files) {
+        ValidateResult::Ok(vr) => {
+            assert!(vr.notices.iter().any(|n| n.rule_id == "PTH_008"));
+            let invalid_slope = vr
+                .notices
+                .iter()
+                .filter(|n| n.rule_id == "PTH_017")
+                .collect::<Vec<_>>();
+            assert_eq!(invalid_slope.len(), 1, "yalnız elevator max_slope ihlali olmalı");
+        }
+        _ => panic!("ValidateResult::Ok beklendi"),
+    }
+}
+
 // ── Test 7: PTH_014 — farklı istasyonları bağlayan pathway → ateşlenir ────────
 // PLT_A parent=STA1, PLT_B parent=STA2; PW1 PLT_A→PLT_B → cross-station ihlali.
 
