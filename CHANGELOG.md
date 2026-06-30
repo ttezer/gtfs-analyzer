@@ -139,8 +139,8 @@ regression comparison. The rule set grew from 518 to 526.
 agency names; `office_jp` / `agency_jp` / `routes_jp` foreign-key checks; and the
 profile's mandatory `translations.txt`, fare files and `feed_info.txt`.
 
-This release also closes the highest-impact coverage gaps found against MobilityData
-v8 — STM_050 (missing timepoint value), STM_051/052 (forbidden Flex pickup/drop-off
+This release also closes the highest-impact validation coverage gaps — STM_050
+(missing timepoint value), STM_051/052 (forbidden Flex pickup/drop-off
 types), FRQ_011 (overlapping frequency), SHP_028/029 (equal shape distance with
 differing coordinates) — and adds a generator that keeps `RULES.md` / `RULES.en.md` /
 `RULES.ja.md` in sync with the rule registry so the documented rule list can no longer
