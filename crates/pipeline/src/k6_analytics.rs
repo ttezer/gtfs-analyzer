@@ -1327,7 +1327,7 @@ fn check_calendar_analytics(
         }
 
         // CAL_007: servis döneminde boşluk (geçmiş dahil tüm boşluklar)
-        // CAL_012: boşluk yakın gelecekte (bugünden ±30 gün) → yolcu etkilenir (Yüksek)
+        // CAL_012: boşluk yakın gelecekte (bugünden +30 gün) → takvim inceleme sinyali
         let today_jdn = yyyymmdd_to_approx_jdn(today_yyyymmdd);
         for pair in sorted.windows(2) {
             let a_jdn = yyyymmdd_to_approx_jdn(pair[0]);
@@ -1342,9 +1342,9 @@ fn check_calendar_analytics(
                 let near_future = gap_end_jdn >= today_jdn
                     && gap_start_jdn <= today_jdn + 30;
 
-                // #29: AYNI boşluk için CAL_007 (Orta) + CAL_012 (Yüksek) çift-emit gürültü
-                // üretiyordu. CAL_012 yakın-gelecek boşluğun yolcu-etkili özel halidir; yakın
-                // gelecekteyse CAL_012 (Yüksek) CAL_007'nin YERİNE raporlanır. Geçmiş/uzak
+                // #29: AYNI boşluk için CAL_007 + CAL_012 çift-emit gürültü üretiyordu.
+                // CAL_012 yakın-gelecek boşluğun zaman-çıpalı özel halidir; yakın
+                // gelecekteyse CAL_012 CAL_007'nin YERİNE raporlanır. Geçmiş/uzak
                 // boşluklar yalnız CAL_007 üretir. Her boşluk tek kez, doğru önemde.
                 if near_future {
                     notices.push(k6_notice(
@@ -1358,9 +1358,9 @@ fn check_calendar_analytics(
                         None,
                         Some(format!("{gap_days}")),
                         Some(format!("< {gap_threshold}")),
-                        format!("'{service_id}' takviminde {}-{} arası {gap_days} günlük boşluk — yolcu deneyimi etkilenebilir.",
+                        format!("'{service_id}' takviminde {}-{} arası {gap_days} günlük yakın dönem inaktif aralık var.",
                             pair[0], pair[1]),
-                        "Servis boşluğunu kapatın ya da alternatif hat sağlayın.",
+                        "Bu aralık planlıysa işlem gerekmez; değilse servis takvimini doğrulayın.",
                     ));
                 } else {
                     notices.push(k6_notice(
@@ -2933,7 +2933,7 @@ fn check_route_trip_quality(
                         "'{}' hattının{dep} seferinde yön adı '{}' terminal durak değil, ara durak adıyla eşleşiyor.",
                         rname, headsign
                     ),
-                    "trip_headsign'ı son durağın (terminal) adına veya o istikameti temsil eden bir yere adına göre ayarlayın.",
+                    "Headsign bilinçli bir ana hedefi gösteriyorsa işlem gerekmez; değilse yön adını doğrulayın.",
                 ));
                 // #15: TRP_020 Entity-scope (trip_id) → dedup trip başına TEKE indirir.
                 // Sefer içindeki HER eşleşen ara durağa emit etmek (büyük feed'de) yüz
