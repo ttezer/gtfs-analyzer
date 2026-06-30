@@ -31,5 +31,8 @@ export default defineConfig({
     target: 'esnext',
     outDir: 'dist',
     chunkSizeWarningLimit: 700,
+    rollupOptions: {
+      output: { manualChunks: { leaflet: ['leaflet'] } },
+    },
   },
 });

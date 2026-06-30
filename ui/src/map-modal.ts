@@ -1,6 +1,7 @@
 /* WP-18a — Harita popup (durak / koordinat hataları) */
 
-declare const L: any; // Leaflet CDN global
+import * as L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 
 export interface MapPin {
   lat: number;
@@ -12,7 +13,7 @@ export interface MapPin {
 }
 
 let overlay: HTMLElement | null = null;
-let leafletMap: any = null;
+let leafletMap: L.Map | null = null;
 
 export interface MapOptions {
   pins: MapPin[];
@@ -41,8 +42,8 @@ export function openMapModal(title: string, opts: MapOptions): void {
       maxZoom: 19,
     }).addTo(leafletMap);
   } else {
-    leafletMap.eachLayer((layer: any) => {
-      if (!(layer instanceof L.TileLayer)) leafletMap.removeLayer(layer);
+    leafletMap.eachLayer((layer: L.Layer) => {
+      if (!(layer instanceof L.TileLayer)) leafletMap!.removeLayer(layer);
     });
   }
 
@@ -124,7 +125,7 @@ export function openMapModal(title: string, opts: MapOptions): void {
   }
 
   // Leaflet görünür hale geldikten sonra boyutu yeniden hesapla
-  setTimeout(() => leafletMap.invalidateSize(), 50);
+  setTimeout(() => leafletMap!.invalidateSize(), 50);
 }
 
 export function closeMapModal(): void {
