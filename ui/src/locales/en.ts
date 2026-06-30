@@ -1166,7 +1166,7 @@ const en: LocaleShape = {
     'SHP_009': 'Fix intersecting segments in the route shape.',
     'SHP_011': 'Add intermediate shape points to close the large gap.',
     'SHP_012': 'Move shapes.txt points closer to stop locations.',
-    'SHP_014': "Align shape_dist_traveled or the shape's starting point with the first stop.",
+    'SHP_014': 'No action is needed if this endpoint extension is intentional; otherwise verify the shape endpoint and terminal stop.',
     'SHP_015': 'Add more points to the route shape.',
     'SHP_016': 'Reverse the shape_pt_sequence order or define a separate shape_id for this direction.',
     'SHP_017': 'Most common cause: the same shape_id is used in opposite directions — define a separate shape_id for each direction. Other causes: shape points loop back geographically, stop coordinates are wrong, or stop_sequence is out of order.',

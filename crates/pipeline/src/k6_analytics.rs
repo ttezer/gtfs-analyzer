@@ -4915,7 +4915,7 @@ fn check_remaining_analytics(
                     "{prefix}'{}' güzergah şeklinin başlangıç noktası, en yakın seferin ilk durağı '{}' (kod: '{}') konumundan {dist_m:.0}m uzakta.",
                     shape_id, sname, stop_id
                 ),
-                "shape_dist_traveled veya güzergah şeklinin başlangıç noktasını ilk durağa hizalayın.",
+                "Bu uzantı bilinçliyse işlem gerekmez; değilse shape başlangıcını ve ilk durağı doğrulayın.",
             );
             let mut d = std::collections::HashMap::new();
             d.insert("problem_stop".to_string(), stop_id.clone());
@@ -4943,7 +4943,7 @@ fn check_remaining_analytics(
                     "{prefix}'{}' güzergah şeklinin bitiş noktası, en yakın seferin son durağı '{}' (kod: '{}') konumundan {dist_m:.0}m uzakta.",
                     shape_id, sname, stop_id
                 ),
-                "shape_dist_traveled veya güzergah şeklinin bitiş noktasını son durağa hizalayın.",
+                "Bu uzantı bilinçliyse işlem gerekmez; değilse shape bitişini ve son durağı doğrulayın.",
             );
             let mut d = std::collections::HashMap::new();
             d.insert("problem_stop".to_string(), stop_id.clone());

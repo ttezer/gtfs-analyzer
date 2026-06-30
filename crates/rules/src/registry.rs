@@ -660,7 +660,7 @@ pub static RULES: &[RuleMeta] = &[
         "Güzergah şeklinde büyük boşluk"),
     r!("SHP_012", Yuksek, Analytics, 3, &[], Some("shape_id"), VA, Entity,
         "Güzergah şekli sefer duraklarından çok uzak"),
-    r!("SHP_014", Yuksek, Quality, 3, &[], Some("shape_id"), VI_K_GEO, Entity,
+    r!("SHP_014", Bilgi,  Analytics, 3, &[], Some("shape_id"), VA_GEO, Entity,
         "İlk veya son durak güzergah ucundan uzakta"),
     r!("SHP_015", Orta,   Quality, 2, &[], Some("shape_id"), VS, Entity,
         "Güzergah şekli istatistiksel olarak çok az nokta"),
