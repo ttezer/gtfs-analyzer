@@ -46,6 +46,8 @@ const DEF_MAX_CALENDAR_FUTURE_YEARS: u32 =  3;
 /// Validator parametreleri. Tüm eşikler architecture v0.8 Bölüm 6'dan.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ValidatorConfig {
+    /// STP_040/041: dil-bağımlı stop naming best-practice kontrolleri (varsayılan kapalı).
+    pub stop_name_best_practices: bool,
     pub max_speed_bus_kmh:        f64,
     pub max_speed_tram_kmh:       f64,
     pub max_speed_metro_kmh:      f64,
@@ -96,6 +98,7 @@ pub struct ValidatorConfig {
 impl Default for ValidatorConfig {
     fn default() -> Self {
         Self {
+            stop_name_best_practices: false,
             max_speed_bus_kmh:        DEF_MAX_SPEED_BUS_KMH,
             max_speed_tram_kmh:       DEF_MAX_SPEED_TRAM_KMH,
             max_speed_metro_kmh:      DEF_MAX_SPEED_METRO_KMH,
@@ -227,7 +230,7 @@ pub fn merge_delta(base: &ValidatorConfig, delta_json: &str) -> Result<Validator
         "service_gap_days", "upcoming_service_days", "max_trip_duration_hours", "min_trip_duration_sec",
         "max_headway_warning_min", "bunching_threshold_min", "rail_stop_distance_km",
         "max_trips_per_route", "duration_outlier_sigma", "headway_outlier_sigma", "service_day_start_hour",
-        "max_calendar_future_years", "rural_route_ids", "calendar_override_rules",
+        "max_calendar_future_years", "stop_name_best_practices", "rural_route_ids", "calendar_override_rules",
     ];
     let unknown: Vec<&str> = map.keys()
         .filter(|k| !known.contains(&k.as_str()))
@@ -238,6 +241,11 @@ pub fn merge_delta(base: &ValidatorConfig, delta_json: &str) -> Result<Validator
     }
 
     let mut cfg = base.clone();
+
+    if let Some(v) = map.get("stop_name_best_practices") {
+        cfg.stop_name_best_practices = v.as_bool().ok_or_else(||
+            format!("'stop_name_best_practices' için bool bekleniyor, alınan: {v}"))?;
+    }
 
     macro_rules! apply_f64 {
         ($key:literal, $field:expr) => {
@@ -706,5 +714,13 @@ mod tests {
              "start_date": 20240229, "end_date": 20240229}]}"#)
             .expect("artık yılda 29 Şubat kabul edilmeli");
         assert_eq!(cfg.calendar_override_rules[0].start_date, 20240229);
+    }
+
+    #[test]
+    fn stop_name_best_practices_is_opt_in() {
+        let base = ValidatorConfig::default();
+        assert!(!base.stop_name_best_practices);
+        let cfg = merge_delta(&base, r#"{"stop_name_best_practices": true}"#).unwrap();
+        assert!(cfg.stop_name_best_practices);
     }
 }

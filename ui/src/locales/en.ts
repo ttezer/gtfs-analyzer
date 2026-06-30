@@ -1764,6 +1764,8 @@ const en: LocaleShape = {
     'STP_037': 'Some stops have not set wheelchair boarding',
     'STP_038': 'No stops report wheelchair boarding',
     'STP_039': 'stop_code is duplicated',
+    'STP_040': 'Stop name contains a redundant stop/station word',
+    'STP_041': 'Child stop name does not include the parent station name',
     // RTS
     'RTS_001': 'Duplicate route_id',
     'RTS_002': 'agency_id not found',

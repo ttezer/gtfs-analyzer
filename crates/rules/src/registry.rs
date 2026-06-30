@@ -298,6 +298,10 @@ pub static RULES: &[RuleMeta] = &[
         "Hiçbir durak tekerlekli sandalye erişilebilirliği (wheelchair_boarding) bildirmemiş"),
     r!("STP_039", Dusuk, Quality, 1, &[], Some("stop_code"), VS, Entity,
         "stop_code birden fazla durakta kullanılıyor"),
+    r!("STP_040", Dusuk, Quality, 1, &[], Some("stop_id"), VS, Entity,
+        "Durak adı gereksiz genel stop/station sözcüğü içeriyor"),
+    r!("STP_041", Dusuk, Quality, 1, &[], Some("stop_id"), VS, Entity,
+        "Alt durak adı üst istasyon adını içermiyor"),
 
     // ── RTS: Routes ────────────────────────────────────────────────────────────
     r!("RTS_001", Kritik, Spec, 1,

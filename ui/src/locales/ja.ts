@@ -1718,6 +1718,8 @@ const ja: LocaleShape = {
     'STP_037': '一部の停留所で車椅子対応情報が未設定',
     'STP_038': 'いずれの停留所も車椅子対応情報を報告していない',
     'STP_039': 'stop_codeが重複している',
+    'STP_040': '停留所名に冗長なstop/station語が含まれる',
+    'STP_041': '子停留所名に親駅名が含まれていない',
     // RTS
     'RTS_001': 'route_idが重複',
     'RTS_002': 'agency_idがagency.txtに存在しない',

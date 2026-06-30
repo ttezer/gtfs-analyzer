@@ -2,7 +2,7 @@
 
 🇹🇷 [Türkçe](RULES.md) · 🇬🇧 **English** · 🇯🇵 [日本語](RULES.ja.md)
 
-533 rules, 37 groups. Each rule is identified by a unique ID, severity level, and class.
+535 rules, 37 groups. Each rule is identified by a unique ID, severity level, and class.
 Severity levels: **CRITICAL** (publish blocker) · **HIGH** · **MEDIUM** · **LOW** · **INFO**
 Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Quality** (GTFS Quality) · **Analytics** (GTFS Analytics)
 
@@ -119,6 +119,8 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | STP_037 | Some stops have not set wheelchair boarding | MEDIUM | Quality |
 | STP_038 | No stops report wheelchair boarding | INFO | Quality |
 | STP_039 | stop_code is duplicated | LOW | Quality |
+| STP_040 | Stop name contains a redundant stop/station word | LOW | Quality |
+| STP_041 | Child stop name does not include the parent station name | LOW | Quality |
 
 ## RTS — Routes
 

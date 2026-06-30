@@ -61,7 +61,7 @@ pub fn analyze(
         Box::new(|| { let _t = Timer::start("K6::operational_analytics"); let mut v = Vec::new(); let mut c = 0u32; check_operational_analytics(records, derived, config, &idx, today_yyyymmdd, &mut v, &mut c); v }),
         Box::new(|| { let _t = Timer::start("K6::stoptimes_derived");     let mut v = Vec::new(); let mut c = 0u32; check_stoptimes_derived(&idx, &mut v, &mut c); v }),
         Box::new(|| { let _t = Timer::start("K6::route_trip_quality");    let mut v = Vec::new(); let mut c = 0u32; check_route_trip_quality(records, derived, &idx, &mut v, &mut c); v }),
-        Box::new(|| { let _t = Timer::start("K6::data_quality");          let mut v = Vec::new(); let mut c = 0u32; check_data_quality(records, derived, today_yyyymmdd, &mut v, &mut c); v }),
+        Box::new(|| { let _t = Timer::start("K6::data_quality");          let mut v = Vec::new(); let mut c = 0u32; check_data_quality(records, derived, config, today_yyyymmdd, &mut v, &mut c); v }),
         Box::new(|| { let _t = Timer::start("K6::remaining_analytics");   let mut v = Vec::new(); let mut c = 0u32; check_remaining_analytics(records, derived, config, &idx, &mut v, &mut c); v }),
         Box::new(|| { let _t = Timer::start("K6::shp012");                let mut v = Vec::new(); let mut c = 0u32; check_shp012(records, config, &idx, &mut v, &mut c); v }),
         Box::new(|| { let _t = Timer::start("K6::shp022");                let mut v = Vec::new(); let mut c = 0u32; check_shp022(records, &idx, &mut v, &mut c); v }),
@@ -3118,10 +3118,39 @@ fn check_route_trip_quality(
 fn check_data_quality(
     records: &EntityRecords,
     derived: &DerivedData,
+    config: &ValidatorConfig,
     today_yyyymmdd: u32,
     notices: &mut Vec<Notice>,
     ctr: &mut u32,
 ) {
+    if config.stop_name_best_practices {
+        let stop_by_id: HashMap<&str, &crate::k2::stops::StopRecord> = records.stops.iter()
+            .map(|s| (s.stop_id.as_str(), s)).collect();
+        for stop in &records.stops {
+            let Some(name) = stop.stop_name.as_deref() else { continue };
+            let lower = name.to_lowercase();
+            let generic = lower.split(|c: char| !c.is_alphanumeric()).any(|w| w == "stop" || w == "station");
+            let accepted = matches!(lower.as_str(), "union station" | "central station");
+            if generic && !accepted {
+                notices.push(k6_notice(ctr, "STP_040", EntityType::Stop, Some(stop.stop_id.clone()),
+                    Some(stop.stop_id.clone()), "stops.txt", Some(stop.line), Some("stop_name"),
+                    Some(name.to_string()), None,
+                    format!("stop_id '{}' adı gereksiz genel 'stop/station' sözcüğü içeriyor: '{}'.", stop.stop_id, name),
+                    "Genel sözcüğü kaldırın; sözcük resmi adın parçasıysa bu opt-in profili kapatın."));
+            }
+            if let Some(parent_id) = stop.row.get("parent_station").filter(|v| !v.trim().is_empty()) {
+                if let Some(parent_name) = stop_by_id.get(parent_id.trim()).and_then(|p| p.stop_name.as_deref()) {
+                    if !lower.contains(&parent_name.to_lowercase()) {
+                        notices.push(k6_notice(ctr, "STP_041", EntityType::Stop, Some(stop.stop_id.clone()),
+                            Some(stop.stop_id.clone()), "stops.txt", Some(stop.line), Some("stop_name"),
+                            Some(name.to_string()), Some(format!("{} içermeli", parent_name)),
+                            format!("Alt durak '{}' adı üst istasyon '{}' adını içermiyor.", name, parent_name),
+                            "Alt durak adında üst istasyon adını kullanın; yerel adlandırma farklıysa profili kapatın."));
+                    }
+                }
+            }
+        }
+    }
     // DQ_005: feed'de hiç aktif sefer yok (calendar_bitmap tamamen boş veya tüm servisler expired)
     let has_any_active = if today_yyyymmdd > 0 {
         derived.calendar_bitmap.active_dates.values().any(|dates| {
@@ -7500,6 +7529,20 @@ mod tests {
         );
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
         assert!(!result.notices.iter().any(|n| n.rule_id == "STM_014"));
+    }
+
+    #[test]
+    fn opt_in_stop_name_profile_emits_stp_040_and_041() {
+        let mut parent = stop("P", 41.0, 29.0);
+        parent.stop_name = Some("Kadikoy".into()); parent.location_type = Some(1);
+        let mut child = stop("C", 41.0, 29.0);
+        child.stop_name = Some("Platform Stop".into());
+        child.row.insert("parent_station".into(), "P".into());
+        let records = records_with(vec![parent, child], vec![], vec![], vec![]);
+        let mut cfg = default_config(); cfg.stop_name_best_practices = true;
+        let result = analyze(&records, &empty_derived(), &cfg, 20260514);
+        assert!(result.notices.iter().any(|n| n.rule_id == "STP_040"));
+        assert!(result.notices.iter().any(|n| n.rule_id == "STP_041"));
     }
     #[test]
     fn three_consecutive_equal_times_produce_stm_053() {
