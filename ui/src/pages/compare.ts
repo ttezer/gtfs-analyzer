@@ -1,6 +1,7 @@
 import type { ValidationResult } from '../types';
 import { buildGoldenSnapshot, compareGolden, parseGolden, type ChangeKind, type GoldenRun, type RuleChange } from '../golden';
 import { t } from '../i18n';
+import { getLastEngineMode } from '../validator-client';
 
 const nf = new Intl.NumberFormat();
 const sf = new Intl.NumberFormat(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1, signDisplay: 'always' });
@@ -19,7 +20,7 @@ function dateLabel(run: GoldenRun): string {
   return run.validateDate || t('compare.unknown_date');
 }
 function currentRun(result: ValidationResult, fileName: string, generatedAt: Date, configDelta: string): GoldenRun {
-  return parseGolden(buildGoldenSnapshot(result, fileName, generatedAt, configDelta));
+  return parseGolden(buildGoldenSnapshot(result, fileName, generatedAt, configDelta, getLastEngineMode() ?? 'unknown'));
 }
 function deltaClass(delta: number): string { return delta > 0 ? 'bad' : delta < 0 ? 'good' : 'same'; }
 function scoreDelta(delta: number): string { return `${delta >= 0 ? '+' : ''}${delta.toFixed(1)}`; }

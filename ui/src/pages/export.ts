@@ -192,7 +192,7 @@ export function renderExport(
   const summaryImg = summaryPng(summary);
   const debugStr = buildDebugBundle(result, fileName, getState().fileSize, now);
   const generatedAt = getState().generatedAt ?? new Date();
-  const goldenStr = buildGoldenSnapshot(result, fileName, generatedAt, getState().configDelta);
+  const goldenStr = buildGoldenSnapshot(result, fileName, generatedAt, getState().configDelta, getLastEngineMode() ?? 'unknown');
 
   const { r5 } = result.reports;
   const fmtScore = (n: number) => new Intl.NumberFormat(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(n);

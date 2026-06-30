@@ -4,6 +4,7 @@ import type { ValidationResult } from '../types';
 
 function run(rules: Record<string, number>): GoldenRun {
   return { schema: 'gtfs-analyzer-golden/4', appVersion: 'x', generatedAt: null, validateDate: '', feedName: 'feed.zip',
+    engineMode: 'unknown',
     files: {}, metrics: {}, scores: { overall: 0, score: 0, pub_score: 0, spec: 0, interop: 0, quality: 0, analytics: 0 },
     severityCounts: {}, classCounts: {}, rules: Object.fromEntries(Object.entries(rules).map(([id, count]) => [id, { count }])),
     noticeTotal: 0, configDelta: '', legacy: false };
@@ -51,16 +52,17 @@ describe('Golden comparison', () => {
     }
   });
 
-  it('snapshot /4 round-trips through parseGolden', () => {
-    const json = buildGoldenSnapshot(mockResult(), 'BART.zip', new Date('2026-06-28T10:00:00Z'), '{"foo":1}');
+  it('snapshot /5 round-trips through parseGolden with engine metadata', () => {
+    const json = buildGoldenSnapshot(mockResult(), 'BART.zip', new Date('2026-06-28T10:00:00Z'), '{"foo":1}', 'wasm32-threaded');
     const parsed = parseGolden(json);
 
-    expect(parsed.schema).toBe('gtfs-analyzer-golden/4');
+    expect(parsed.schema).toBe('gtfs-analyzer-golden/5');
     expect(parsed.legacy).toBe(false);
     expect(parsed.feedName).toBe('BART.zip');
     expect(parsed.configDelta).toBe('{"foo":1}');
     expect(parsed.generatedAt).toBe('2026-06-28T10:00:00.000Z');
     expect(parsed.validateDate).toBe('2026-06-28');
+    expect(parsed.engineMode).toBe('wasm32-threaded');
 
     // capped_totals görünür sayımı geçersiz kılar (2 görünür → 500 gerçek).
     expect(parsed.rules.STM_014.count).toBe(500);
@@ -81,5 +83,15 @@ describe('Golden comparison', () => {
     expect(parsed.metrics.trip_count).toBe(1500);
     expect(parsed.scores.overall).toBe(83.6);
     expect(parsed.scores.quality).toBe(65.8);
+  });
+
+  it('reads golden/4 without engine metadata as unknown', () => {
+    const parsed = parseGolden(JSON.stringify({
+      schema: 'gtfs-analyzer-golden/4', app_version: '0.2.0', generated_at: '2026-06-28T10:00:00.000Z',
+      validate_date: '2026-06-28', feed: { file_name: 'BART.zip', files: {}, metrics: {} },
+      validation: { config_delta: '', scores: {}, notice_total_actual: 0, severity_counts: {}, class_counts: {}, rule_counts: {} },
+    }));
+    expect(parsed.legacy).toBe(false);
+    expect(parsed.engineMode).toBe('unknown');
   });
 });

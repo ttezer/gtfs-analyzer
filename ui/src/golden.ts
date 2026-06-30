@@ -1,6 +1,6 @@
 import type { R5Report, RuleClass, Severity, ValidationResult } from './types';
 
-export const GOLDEN_SCHEMA = 'gtfs-analyzer-golden/4';
+export const GOLDEN_SCHEMA = 'gtfs-analyzer-golden/5';
 
 export interface GoldenRule { count: number; severity?: Severity; rule_class?: RuleClass; title?: string }
 export interface GoldenRun {
@@ -8,6 +8,7 @@ export interface GoldenRun {
   appVersion: string;
   generatedAt: string | null;
   validateDate: string;
+  engineMode: string;
   feedName: string;
   files: Record<string, { rows: number; bytes: number }>;
   metrics: Record<string, number | string | boolean | null>;
@@ -45,7 +46,7 @@ function actualRuleCounts(result: ValidationResult): Record<string, GoldenRule> 
 }
 
 export function buildGoldenSnapshot(
-  result: ValidationResult, fileName: string, generatedAt: Date, configDelta: string,
+  result: ValidationResult, fileName: string, generatedAt: Date, configDelta: string, engineMode = 'unknown',
 ): string {
   const rules = actualRuleCounts(result);
   const severityCounts: Record<string, number> = {};
@@ -70,6 +71,7 @@ export function buildGoldenSnapshot(
     app_version: typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'dev',
     generated_at: iso,
     validate_date: iso.slice(0, 10),
+    engine: { runtime: 'browser', mode: engineMode },
     feed: { file_name: fileName, files, metrics },
     validation: {
       config_delta: configDelta || '', scores: buildGoldenScores(result.reports.r5),
@@ -86,8 +88,9 @@ function obj(v: unknown): Record<string, unknown> { return v && typeof v === 'ob
 export function parseGolden(text: string): GoldenRun {
   const root = obj(JSON.parse(text));
   const schema = String(root.schema ?? '');
-  if (schema === GOLDEN_SCHEMA) {
+  if (schema === GOLDEN_SCHEMA || schema === 'gtfs-analyzer-golden/4') {
     const feed = obj(root.feed); const validation = obj(root.validation);
+    const engine = obj(root.engine);
     const rawRules = obj(validation.rule_counts);
     const rules: Record<string, GoldenRule> = {};
     for (const [id, value] of Object.entries(rawRules)) {
@@ -97,7 +100,7 @@ export function parseGolden(text: string): GoldenRun {
     }
     return {
       schema, appVersion: String(root.app_version ?? '?'), generatedAt: typeof root.generated_at === 'string' ? root.generated_at : null,
-      validateDate: String(root.validate_date ?? ''), feedName: String(feed.file_name ?? ''),
+      validateDate: String(root.validate_date ?? ''), engineMode: String(engine.mode ?? 'unknown'), feedName: String(feed.file_name ?? ''),
       files: obj(feed.files) as unknown as GoldenRun['files'], metrics: obj(feed.metrics) as GoldenRun['metrics'],
       scores: obj(validation.scores) as unknown as GoldenRun['scores'],
       severityCounts: Object.fromEntries(Object.entries(obj(validation.severity_counts)).map(([k, v]) => [k, num(v)])),
@@ -110,7 +113,7 @@ export function parseGolden(text: string): GoldenRun {
     const rules = Object.fromEntries(Object.entries(counts).map(([id, count]) => [id, { count: num(count) }]));
     return {
       schema, appVersion: String(root.app_version ?? '?'), generatedAt: null, validateDate: String(root.validate_date ?? ''),
-      feedName: String(root.feed ?? ''), files: {}, metrics: obj(root.feed_metrics) as GoldenRun['metrics'],
+      engineMode: 'unknown', feedName: String(root.feed ?? ''), files: {}, metrics: obj(root.feed_metrics) as GoldenRun['metrics'],
       scores: obj(root.scores) as unknown as GoldenRun['scores'],
       severityCounts: Object.fromEntries(Object.entries(obj(root.by_severity_actual)).map(([k, v]) => [k.toUpperCase(), num(v)])),
       classCounts: {}, rules, noticeTotal: num(root.notice_total_actual), configDelta: '', legacy: true,
