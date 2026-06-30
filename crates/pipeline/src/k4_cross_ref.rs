@@ -3936,6 +3936,19 @@ mod tests {
         assert!(result.notices.iter().any(|n| n.rule_id == "TRF_006"));
     }
 
+    #[test]
+    fn transfer_time_of_24_hours_produces_trf_010() {
+        let (mut recs, map) = empty();
+        recs.transfers = vec![TransferRecord {
+            from_stop_id: "S1".into(), to_stop_id: "S2".into(),
+            transfer_type: Some(2), min_transfer_time: Some(86_400),
+            from_trip_id: None, to_trip_id: None, from_route_id: None, to_route_id: None,
+            row: Default::default(), line: 2,
+        }];
+        let result = check(&recs, &map, 20260515);
+        assert!(result.notices.iter().any(|n| n.rule_id == "TRF_010"));
+    }
+
     // �"?�"? TRF_013 �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?
 
     #[test]

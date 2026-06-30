@@ -192,4 +192,13 @@ mod tests {
         assert!(ids.contains(&"TRF_001"), "transfer_type=1'de from_stop_id eksik → TRF_001: {:?}", ids);
         assert!(ids.contains(&"TRF_002"), "transfer_type=1'de to_stop_id eksik → TRF_002: {:?}", ids);
     }
+
+    #[test]
+    fn negative_min_transfer_time_is_rejected_by_trf_005() {
+        let mut file = make_file(vec![vec!["S1", "S2", "2"]]);
+        file.headers.push("min_transfer_time".into());
+        file.rows[0].push("-1".into());
+        let (_, notices) = validate_transfers(&file);
+        assert!(notices.iter().any(|n| n.rule_id == "TRF_005"));
+    }
 }
