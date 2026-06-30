@@ -666,7 +666,7 @@ pub static RULES: &[RuleMeta] = &[
         "Güzergah şekli istatistiksel olarak çok az nokta"),
     r!("SHP_016", Yuksek, Interop, 2, &[], Some("shape_id"), VI_K_GEO, Entity,
         "Güzergah şekli yön bilgisiyle uyumsuz"),
-    r!("SHP_017", Yuksek, Quality, 3, &[], Some("shape_id"), VI_K, Entity,
+    r!("SHP_017", Bilgi,  Analytics, 3, &[], Some("shape_id"), VA_GEO, Entity,
         "Durak sırası güzergah şekliyle çelişiyor"),
     r!("SHP_018", Dusuk,  Quality, 1, &[], Some("shape_id"), VS, Entity,
         "Güzergah şekli sefer tarafından referanslanmıyor"),

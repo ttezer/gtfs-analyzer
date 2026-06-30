@@ -1169,7 +1169,7 @@ const en: LocaleShape = {
     'SHP_014': 'No action is needed if this endpoint extension is intentional; otherwise verify the shape endpoint and terminal stop.',
     'SHP_015': 'Add more points to the route shape.',
     'SHP_016': 'Reverse the shape_pt_sequence order or define a separate shape_id for this direction.',
-    'SHP_017': 'Most common cause: the same shape_id is used in opposite directions — define a separate shape_id for each direction. Other causes: shape points loop back geographically, stop coordinates are wrong, or stop_sequence is out of order.',
+    'SHP_017': 'Projection can be ambiguous on loops or reused corridors. Verify it on the map; no action is needed if the pattern is intentional.',
     'SHP_020': 'Remove duplicate points from the route shape.',
     'SHP_022': 'Add shape_dist_traveled to stop_times to explicitly specify each stop\'s position on the shape.',
     'SHP_023': 'Remove the duplicate shape point.',

@@ -4827,7 +4827,7 @@ fn check_remaining_analytics(
                         route, sname, idx.stop_id_of(st), st.stop_sequence().unwrap_or(0),
                         arc * 1000.0, prev_arc * 1000.0,
                     ),
-                    "En yaygın neden: aynı shape_id zıt yönlerde kullanılıyor — her yön için ayrı shape_id tanımlayın. Diğer nedenler: shape noktaları coğrafi olarak geri dönüyor, durak koordinatları yanlış veya stop_sequence sırası bozuk.",
+                    "Projeksiyon döngü veya aynı yolun tekrar kullanımında belirsiz olabilir. Haritada doğrulayın; desen bilinçliyse işlem gerekmez.",
                 );
                 // Harita bağlamı: ±3 komşu durak + shape_id + sıra numaraları
                 let ctx_b: Vec<&str> = sorted[..pi].iter().rev().take(3).rev()
