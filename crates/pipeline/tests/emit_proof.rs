@@ -163,6 +163,7 @@ fn fixtures() -> Vec<Fixture> {
         fx("ARC_025", vec![("stops.txt", "stop_name,stop_lat,stop_lon\nStop1,41.0,29.0\nStop2,41.1,29.1\n")]),
         // ARC_024: GTFS .txt ZIP içinde alt dizinde.
         fx("ARC_024", vec![("feed/stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS9,Extra,41.0,29.0\n")]),
+        fx("ARC_026", vec![("feed_info.txt", "feed_publisher_name,feed_publisher_url,feed_lang\rPub,https://x.example,en\r")]),
 
         // ── ATR grubu (attributions.txt; base'te yok, eklenir) ─────────────────
         fx("ATR_001", vec![("attributions.txt", "organization_name,is_producer\nOrg,1\n")]),
@@ -342,6 +343,7 @@ fn fixtures() -> Vec<Fixture> {
         fx("PTH_006", vec![("pathways.txt", "pathway_id,from_stop_id,to_stop_id,pathway_mode,is_bidirectional,length\nP1,S1,S2,3,0,-1\n")]),
         fx("PTH_007", vec![("pathways.txt", "pathway_id,from_stop_id,to_stop_id,pathway_mode,is_bidirectional,traversal_time\nP1,S1,S2,3,0,0\n")]),
         fx("PTH_008", vec![("pathways.txt", "pathway_id,from_stop_id,to_stop_id,pathway_mode,is_bidirectional\nP1,S1,S2,2,0\n")]),
+        fx("PTH_025", vec![("pathways.txt", "pathway_id,from_stop_id,to_stop_id,pathway_mode,is_bidirectional,length\nP1,S1,S2,6,0,\n")]),
         fx("PTH_009", vec![("pathways.txt", "pathway_id,from_stop_id,to_stop_id,pathway_mode,is_bidirectional\nP1,S1,S2,1,0\n")]),
         fx("PTH_010", vec![("pathways.txt", "pathway_id,from_stop_id,to_stop_id,pathway_mode,is_bidirectional,min_width\nP1,S1,S2,3,0,0\n")]),
         fx("PTH_011", vec![("pathways.txt", "pathway_id,from_stop_id,to_stop_id,pathway_mode,is_bidirectional\nP1,S1,S1,3,0\n")]),
@@ -965,6 +967,7 @@ fn fixtures() -> Vec<Fixture> {
         fx("TRP_028", vec![("trips.txt", "route_id,service_id,trip_id,wheelchair_accessible\nR1,SVC1,T1,1\nR1,SVC1,T2,\n")]),
         // TRP_029: hiçbir seferde wheelchair_accessible yok — base tetikler (k6).
         fx("TRP_029", vec![]),
+        fx("TRP_033", vec![("trips.txt", "route_id,service_id,trip_id\nR1,SVC1,xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n")]),
 
         // ── TRN grubu (kalan: k4 + k2) ─────────────────────────────────────────
         // TRN_004: record_id başvurulan tabloda yok (k4).
@@ -1050,6 +1053,7 @@ fn fixtures() -> Vec<Fixture> {
         fx("STP_033", vec![]),
         // STP_038: hiçbir durakta wheelchair_boarding yok — base tetikler (k6).
         fx("STP_038", vec![]),
+        fx("STP_039", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon,stop_code\nS1,Stop1,41.0,29.0,100\nS2,Stop2,41.1,29.1,100\n")]),
 
         // ── SHP grubu (kalan: k5 geometri + k4 + k6). SHP_026 (>5000 nokta) inline
         //    yazılamaz → debt'te bırakıldı. ─────────────────────────────────────

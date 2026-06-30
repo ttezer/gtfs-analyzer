@@ -122,6 +122,10 @@ fn strip_bom(bytes: &[u8]) -> (&[u8], bool) {
     }
 }
 
+fn has_malformed_eol(bytes: &[u8]) -> bool {
+    bytes.iter().enumerate().any(|(i, b)| *b == b'\r' && bytes.get(i + 1) != Some(&b'\n'))
+}
+
 // ── CSV tokenizer ─────────────────────────────────────────────────────────────
 
 /// RFC 4180 uyumlu CSV tokenizer. Byte-level scanner; büyük dosyalarda hızlı.
@@ -481,6 +485,12 @@ pub fn parse(zip_bytes: &[u8]) -> Result<K1Result, FatalError> {
         })?;
 
         let raw_name = zf.name().to_string();
+        if raw_name.ends_with(".txt") && zf.unix_mode().is_some_and(|mode| mode & 0o400 == 0) {
+            notices.push(make_notice(&mut counter, "ARC_027", EntityType::File, Some(raw_name.clone()),
+                Some(&raw_name), None, None, zf.unix_mode().map(|m| format!("{m:o}")),
+                format!("'{raw_name}' ZIP girdisinde kullanıcı okuma izni bulunmuyor."),
+                "ZIP girdisinin Unix izinlerine user-read (0400) bitini ekleyin."));
+        }
 
         // ARC_023: ZIP içinde nested ZIP dosyası
         if raw_name.ends_with(".zip") && !raw_name.contains('/') && !raw_name.contains('\\') {
@@ -548,20 +558,29 @@ pub fn parse(zip_bytes: &[u8]) -> Result<K1Result, FatalError> {
         {
             let _t = crate::timing::Timer::start(format!("K1::decompress::{raw_name}"));
             if is_zip_stream {
-                // Header satırı için 8 KB yeterli; gövde K2'de ZIP'ten stream edilir.
-                let cap = uncompressed_hint.min(8192).max(1);
-                raw_vec.resize(cap, 0u8);
-                let n = zf.read(&mut raw_vec).map_err(|e| FatalError {
-                    code: FatalCode::ZipUnreadable,
-                    message: format!("'{raw_name}' başlık okunamadı: {e}"),
-                })?;
-                raw_vec.truncate(n);
+                let mut chunk = [0u8; 64 * 1024];
+                let mut malformed_eol = false;
+                let mut previous_was_cr = false;
+                loop {
+                    let n = zf.read(&mut chunk).map_err(|e| FatalError { code: FatalCode::ZipUnreadable, message: format!("'{raw_name}' okunamadı: {e}") })?;
+                    if n == 0 { break; }
+                    if previous_was_cr && chunk[0] != b'\n' { malformed_eol = true; }
+                    malformed_eol |= chunk[..n].windows(2).any(|p| p[0] == b'\r' && p[1] != b'\n');
+                    previous_was_cr = chunk[n - 1] == b'\r';
+                    let keep = (8192usize.saturating_sub(raw_vec.len())).min(n);
+                    raw_vec.extend_from_slice(&chunk[..keep]);
+                }
+                malformed_eol |= previous_was_cr;
+                if malformed_eol { notices.push(make_notice(&mut counter, "ARC_026", EntityType::File, Some(raw_name.clone()), Some(&raw_name), None, None, Some("CR not followed by LF".to_string()), format!("'{raw_name}' CRLF veya LF dışında satır sonu içeriyor."), "Satır sonlarını LF ya da CRLF olarak yeniden yazın.")); }
             } else {
                 zf.read_to_end(&mut raw_vec).map_err(|e| FatalError {
                     code: FatalCode::ZipUnreadable,
                     message: format!("'{raw_name}' okunamadı: {e}"),
                 })?;
             }
+        }
+        if !is_zip_stream && has_malformed_eol(&raw_vec) {
+            notices.push(make_notice(&mut counter, "ARC_026", EntityType::File, Some(raw_name.clone()), Some(&raw_name), None, None, Some("CR not followed by LF".to_string()), format!("'{raw_name}' CRLF veya LF dışında satır sonu içeriyor."), "Satır sonlarını LF ya da CRLF olarak yeniden yazın."));
         }
 
         // ARC_011: Dosya boyutu — tüm kök .txt dosyaları için (bilinmeyen dahil).
@@ -1634,3 +1653,10 @@ mod tests {
         assert!(!k1.notices.iter().any(|n| n.rule_id == "LOC_001"), "LOC_001 tetiklenmemeli");
     }
 }
+    #[test]
+    fn malformed_eol_detects_bare_and_repeated_cr() {
+        assert!(has_malformed_eol(b"a\rb\n"));
+        assert!(has_malformed_eol(b"a\r\r\nb"));
+        assert!(!has_malformed_eol(b"a\r\nb\n"));
+        assert!(!has_malformed_eol(b"a\n\nb\n"));
+    }

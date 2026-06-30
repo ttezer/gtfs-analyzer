@@ -34,6 +34,8 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
     // PTH_008 (#15): PTH_009 ikizi (merdiven geçidinde stair_count eksik) — aynı feed-aggregate.
     let mut pth008_count: u32 = 0;
     let mut pth008_examples: Vec<String> = Vec::new();
+    let mut pth025_count: u32 = 0;
+    let mut pth025_examples: Vec<String> = Vec::new();
 
     for (row_idx, row) in file.rows.iter().enumerate() {
         let line = (row_idx + 2) as u64;
@@ -65,6 +67,12 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
         let length = parse_nonnegative_f64(
             &row_map, &mut notices, &mut counter, "PTH_006", "length", &entity_id, line, &file.name
         );
+        if matches!(pathway_mode, Some(1 | 6 | 7)) && length.is_none()
+            && get_trimmed_field(&row_map, "length").is_none_or(str::is_empty)
+        {
+            pth025_count += 1;
+            if pth025_examples.len() < 5 { if let Some(id) = &entity_id { pth025_examples.push(id.clone()); } }
+        }
         let traversal_time = parse_positive_u32(
             &row_map, &mut notices, &mut counter, "PTH_007", "traversal_time", &entity_id, line, &file.name
         );
@@ -247,6 +255,16 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
         n.details = Some(d);
         notices.push(n);
     }
+    if pth025_count > 0 {
+        let mut n = make_k2_notice(&mut counter, "PTH_025", EntityType::Feed, None, None,
+            &file.name, None, Some("length"), Some(pth025_count.to_string()), None,
+            format!("{pth025_count} walkway/fare gate/exit gate kaydında önerilen length eksik."),
+            "pathway_mode 1, 6 veya 7 olan kayıtlara metre cinsinden length ekleyin.");
+        let mut d = std::collections::HashMap::new();
+        d.insert("affected_pathways".to_string(), pth025_count.to_string());
+        if !pth025_examples.is_empty() { d.insert("example_pathways".to_string(), pth025_examples.join(", ")); }
+        n.details = Some(d); notices.push(n);
+    }
 
     (records, notices)
 }
@@ -415,5 +433,15 @@ mod tests {
             n.details.as_ref().and_then(|d| d.get("affected_pathways")).map(String::as_str),
             Some("2"),
         );
+    }
+    #[test]
+    fn pth_025_counts_recommended_modes_without_length() {
+        let headers = ["pathway_id", "from_stop_id", "to_stop_id", "pathway_mode", "is_bidirectional", "length"];
+        let file = RawFile { name: "pathways.txt".into(), headers: headers.iter().map(|s| s.to_string()).collect(),
+            rows: [["P1","S1","S2","1","0",""],["P2","S1","S2","6","0",""],["P3","S1","S2","7","0","12"],["P4","S1","S2","2","0",""]]
+                .into_iter().map(|r| r.into_iter().map(SmolStr::from).collect()).collect(), bytes: 0, raw_text: None };
+        let (_, notices) = validate_pathways(&file);
+        let n = notices.iter().find(|n| n.rule_id == "PTH_025").unwrap();
+        assert_eq!(n.details.as_ref().unwrap().get("affected_pathways").map(String::as_str), Some("2"));
     }
 }

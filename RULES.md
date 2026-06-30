@@ -2,7 +2,7 @@
 
 🇹🇷 **Türkçe** · 🇬🇧 [English](RULES.en.md) · 🇯🇵 [日本語](RULES.ja.md)
 
-526 kural, 37 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
+531 kural, 37 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
 Önem seviyeleri: **KRİTİK** (yayın engelleyici) · **YÜKSEK** · **ORTA** · **DÜŞÜK** · **BİLGİ**
 Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · **Quality** (GTFS Kalitesi) · **Analytics** (GTFS Analitiği)
 
@@ -35,6 +35,8 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | ARC_022 | Dosya satır sayısı 1.000.000 sınırını aşıyor | DÜŞÜK | Quality |
 | ARC_023 | ZIP içinde nested ZIP dosyası — GTFS formatında desteklenmez | ORTA | Spec |
 | ARC_024 | GTFS .txt dosyası ZIP içinde alt dizinde — standart parser'lar tarafından atlanır | ORTA | Spec |
+| ARC_026 | Dosyada hatalı satır sonu karakteri | ORTA | Interop |
+| ARC_027 | ZIP girdisinde kullanıcı okuma izni yok | BİLGİ | Interop |
 
 ## BKR — Booking Rules (Rezervasyon Kuralları)
 
@@ -116,6 +118,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | STP_036 | İstasyonun (location_type=1) parent_station'ı var | DÜŞÜK | Spec |
 | STP_037 | Bazı duraklar tekerlekli sandalye erişilebilirliği (wheelchair_boarding) bildirmemiş | ORTA | Quality |
 | STP_038 | Hiçbir durak tekerlekli sandalye erişilebilirliği (wheelchair_boarding) bildirmemiş | BİLGİ | Quality |
+| STP_039 | stop_code birden fazla durakta kullanılıyor | DÜŞÜK | Quality |
 
 ## RTS — Routes (Hatlar)
 
@@ -157,6 +160,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | TRP_006 | wheelchair_accessible geçersiz | DÜŞÜK | Spec |
 | TRP_007 | bikes_allowed geçersiz | DÜŞÜK | Spec |
 | TRP_032 | cars_allowed geçersiz | DÜŞÜK | Spec |
+| TRP_033 | trip_id önerilen uzunluk eşiğini aşıyor | BİLGİ | Quality |
 | TRP_009 | Seferde zaman damgalı durak yok | YÜKSEK | Quality |
 | TRP_011 | Sefer yön adı girilmemiş | YÜKSEK | Quality |
 | TRP_012 | Çift yönlü rotada direction_id eksik | DÜŞÜK | Quality |
@@ -165,7 +169,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | TRP_015 | block_id grubunda tek sefer | DÜŞÜK | Quality |
 | TRP_017 | Frekans tabanlı sefer stop_times'ta eksik | ORTA | Spec |
 | TRP_019 | Continuous servis aktifken shape_id eksik | YÜKSEK | Spec |
-| TRP_020 | trip_headsign ara durak adıyla eşleşiyor | DÜŞÜK | Quality |
+| TRP_020 | trip_headsign ara durak adıyla eşleşiyor | BİLGİ | Analytics |
 | TRP_021 | Bisiklet izni (bikes_allowed) belirtilmemiş | BİLGİ | Quality |
 | TRP_022 | Block içinde çakışan sefer saatleri | YÜKSEK | Spec |
 | TRP_023 | Önümüzdeki 7 günde aktif sefer yok | DÜŞÜK | Quality |
@@ -203,7 +207,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | STM_022 | timepoint geçersiz | ORTA | Spec |
 | STM_023 | stop_times satır sıralaması bozuk | DÜŞÜK | Spec |
 | STM_024 | shape_dist_traveled birim tutarsızlığı | BİLGİ | Quality |
-| STM_025 | Seyahat süresi çok kısa | ORTA | Quality |
+| STM_025 | Kısa segment zamanlaması | BİLGİ | Analytics |
 | STM_026 | Durak arası mesafe aşırı uzun | YÜKSEK | Quality |
 | STM_027 | shape_dist_traveled monoton artmıyor | YÜKSEK | Interop |
 | STM_028 | Sefer süresi çok uzun | YÜKSEK | Analytics |
@@ -264,7 +268,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | CAL_009 | Feed'deki tüm takvim dönemleri sona ermiş | KRİTİK | Interop |
 | CAL_010 | Serviste aktif gün sayısı çok az | ORTA | Analytics |
 | CAL_011 | Kullanılmayan servis | DÜŞÜK | Quality |
-| CAL_012 | Yakın gelecekte servis boşluğu var | YÜKSEK | Analytics |
+| CAL_012 | Yakın gelecekte servis boşluğu var | BİLGİ | Analytics |
 | CAL_013 | Geçmiş tarihli servis dönemi | BİLGİ | Analytics |
 | CAL_014 | Servis tarihleri feed_info geçerlilik aralığı dışında | DÜŞÜK | Quality |
 | CAL_015 | Tüm takvim tarihleri gelecekte (bugün aktif sefer yok) | DÜŞÜK | Quality |
@@ -306,10 +310,10 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | SHP_010 | Tekrarlanan shape noktası (ardışık özdeş koordinat) | DÜŞÜK | Quality |
 | SHP_011 | Güzergah şeklinde büyük boşluk | ORTA | Analytics |
 | SHP_012 | Güzergah şekli sefer duraklarından çok uzak | YÜKSEK | Analytics |
-| SHP_014 | İlk veya son durak güzergah ucundan uzakta | YÜKSEK | Quality |
+| SHP_014 | İlk veya son durak güzergah ucundan uzakta | BİLGİ | Analytics |
 | SHP_015 | Güzergah şekli istatistiksel olarak çok az nokta | ORTA | Quality |
 | SHP_016 | Güzergah şekli yön bilgisiyle uyumsuz | YÜKSEK | Interop |
-| SHP_017 | Durak sırası güzergah şekliyle çelişiyor | YÜKSEK | Quality |
+| SHP_017 | Durak sırası güzergah şekliyle çelişiyor | BİLGİ | Analytics |
 | SHP_018 | Güzergah şekli sefer tarafından referanslanmıyor | DÜŞÜK | Quality |
 | SHP_019 | Güzergah şeklinin seferleri durak zamanı içermiyor | ORTA | Quality |
 | SHP_020 | Güzergah şeklinde tekrarlayan nokta | BİLGİ | Analytics |
@@ -514,6 +518,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | PTH_022 | to_stop_id eksik | KRİTİK | Spec |
 | PTH_023 | pathway_mode eksik | KRİTİK | Spec |
 | PTH_024 | is_bidirectional eksik | KRİTİK | Spec |
+| PTH_025 | Önerilen pathway length bilgisi eksik | DÜŞÜK | Quality |
 
 ## LVL — Levels (Katlar)
 
@@ -627,7 +632,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | OPR_004 | Hafta sonu sefer yok | BİLGİ | Analytics |
 | OPR_005 | Sıradışı sefer sıklığı | BİLGİ | Analytics |
 | OPR_006 | Seferde çok az durak (işlevsel değil) | YÜKSEK | Analytics |
-| OPR_007 | Sefer içinde tekrarlayan durak | ORTA | Analytics |
+| OPR_007 | Sefer içinde tekrarlayan durak deseni | BİLGİ | Analytics |
 | OPR_008 | Birden fazla segmentte aşırı hız | YÜKSEK | Analytics |
 | OPR_009 | Gece seferi başlangıç saati çok geç | BİLGİ | Analytics |
 | OPR_010 | Hatta erişilebilirlik veya bisiklet politikası çelişiyor | ORTA | Analytics |

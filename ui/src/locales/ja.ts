@@ -1644,6 +1644,8 @@ const ja: LocaleShape = {
     'ARC_022': 'ファイルの行数が上限（100万行）を超過',
     'ARC_023': 'GTFSアーカイブ内のネストされたZIPファイル',
     'ARC_024': 'サブディレクトリ内のGTFS .txtファイル（読み込み不可）',
+    'ARC_026': '不正な改行文字',
+    'ARC_027': 'ZIPエントリにユーザー読み取り権限がない',
     // BKR
     'BKR_001': '予約ルール: prior_notice_start_dayが禁止コンテキスト',
     'BKR_002': 'prior_notice_start_dayにprior_notice_last_dayが必要',
@@ -1715,6 +1717,7 @@ const ja: LocaleShape = {
     'STP_036': '駅（location_type=1）にparent_stationが設定されている',
     'STP_037': '一部の停留所で車椅子対応情報が未設定',
     'STP_038': 'いずれの停留所も車椅子対応情報を報告していない',
+    'STP_039': 'stop_codeが重複している',
     // RTS
     'RTS_001': 'route_idが重複',
     'RTS_002': 'agency_idがagency.txtに存在しない',
@@ -1746,6 +1749,7 @@ const ja: LocaleShape = {
     'TRP_006': 'wheelchair_accessibleが無効',
     'TRP_007': 'bikes_allowedが無効',
     'TRP_032': 'cars_allowedが無効',
+    'TRP_033': 'trip_idが推奨長を超えている',
     'TRP_009': '時刻スタンプ付き停留所なし',
     'TRP_011': 'trip_headsignが未設定',
     'TRP_012': '双方向路線でdirection_idが不足',
@@ -1940,6 +1944,7 @@ const ja: LocaleShape = {
     'PTH_022': 'to_stop_idが不足',
     'PTH_023': 'pathway_modeが不足',
     'PTH_024': 'is_bidirectionalが不足',
+    'PTH_025': '推奨されるpathway lengthが不足',
     // FRL
     'FRL_001': 'fare_idがfares.txtに存在しない',
     'FRL_002': 'route_idがroutes.txtに存在しない',

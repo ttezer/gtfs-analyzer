@@ -135,6 +135,10 @@ pub static RULES: &[RuleMeta] = &[
         "ZIP içinde nested ZIP dosyası — GTFS formatında desteklenmez"),
     r!("ARC_024", Orta,   Spec,    2, &[], None, VS, File,
         "GTFS .txt dosyası ZIP içinde alt dizinde — standart parser'lar tarafından atlanır"),
+    r!("ARC_026", Orta, Interop, 1, &[], None, VI, File,
+        "Dosyada hatalı satır sonu karakteri"),
+    r!("ARC_027", Bilgi, Interop, 1, &[], None, VI, File,
+        "ZIP girdisinde kullanıcı okuma izni yok"),
 
     // ── BKR: Booking Rules ─────────────────────────────────────────────────────
     r!("BKR_001", Yuksek, Spec, 1, &[], Some("booking_rule_id"), VS, Entity,
@@ -292,6 +296,8 @@ pub static RULES: &[RuleMeta] = &[
         "Bazı duraklar tekerlekli sandalye erişilebilirliği (wheelchair_boarding) bildirmemiş"),
     r!("STP_038", Bilgi,  Quality, 1, &[], None, VS_ACC, Feed,
         "Hiçbir durak tekerlekli sandalye erişilebilirliği (wheelchair_boarding) bildirmemiş"),
+    r!("STP_039", Dusuk, Quality, 1, &[], Some("stop_code"), VS, Entity,
+        "stop_code birden fazla durakta kullanılıyor"),
 
     // ── RTS: Routes ────────────────────────────────────────────────────────────
     r!("RTS_001", Kritik, Spec, 1,
@@ -370,6 +376,8 @@ pub static RULES: &[RuleMeta] = &[
         "bikes_allowed geçersiz"),
     r!("TRP_032", Dusuk,  Spec, 1, &[], Some("trip_id"), VS, Entity,
         "cars_allowed geçersiz"),
+    r!("TRP_033", Bilgi, Quality, 1, &[], Some("trip_id"), VS, Entity,
+        "trip_id önerilen uzunluk eşiğini aşıyor"),
     r!("TRP_009", Yuksek, Quality, 2,
         &["OPR_006","OPR_007"],
         Some("trip_id"), VS, Entity,
@@ -982,6 +990,8 @@ pub static RULES: &[RuleMeta] = &[
         "pathway_mode eksik"),
     r!("PTH_024", Kritik, Spec, 1, &[], Some("is_bidirectional"), VS_K, Entity,
         "is_bidirectional eksik"),
+    r!("PTH_025", Dusuk, Quality, 1, &[], None, VS, Feed,
+        "Önerilen pathway length bilgisi eksik"),
 
     // ── LVL: Levels ────────────────────────────────────────────────────────────
     r!("LVL_001", Kritik, Spec, 1,

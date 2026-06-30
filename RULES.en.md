@@ -2,7 +2,7 @@
 
 🇹🇷 [Türkçe](RULES.md) · 🇬🇧 **English** · 🇯🇵 [日本語](RULES.ja.md)
 
-526 rules, 37 groups. Each rule is identified by a unique ID, severity level, and class.
+531 rules, 37 groups. Each rule is identified by a unique ID, severity level, and class.
 Severity levels: **CRITICAL** (publish blocker) · **HIGH** · **MEDIUM** · **LOW** · **INFO**
 Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Quality** (GTFS Quality) · **Analytics** (GTFS Analytics)
 
@@ -35,6 +35,8 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | ARC_022 | File row count exceeds 1,000,000 limit | LOW | Quality |
 | ARC_023 | Nested ZIP file inside GTFS archive | MEDIUM | Spec |
 | ARC_024 | GTFS .txt file in subdirectory (will not be parsed) | MEDIUM | Spec |
+| ARC_026 | Malformed end-of-line characters | MEDIUM | Interop |
+| ARC_027 | ZIP entry lacks user read permission | INFO | Interop |
 
 ## BKR — Booking Rules
 
@@ -116,6 +118,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | STP_036 | Station has parent_station (invalid) | LOW | Spec |
 | STP_037 | Some stops have not set wheelchair boarding | MEDIUM | Quality |
 | STP_038 | No stops report wheelchair boarding | INFO | Quality |
+| STP_039 | stop_code is duplicated | LOW | Quality |
 
 ## RTS — Routes
 
@@ -157,6 +160,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | TRP_006 | wheelchair_accessible invalid | LOW | Spec |
 | TRP_007 | bikes_allowed invalid | LOW | Spec |
 | TRP_032 | cars_allowed invalid | LOW | Spec |
+| TRP_033 | trip_id exceeds the recommended length | INFO | Quality |
 | TRP_009 | Trip has no time-stamped stops | HIGH | Quality |
 | TRP_011 | Trip headsign not set | HIGH | Quality |
 | TRP_012 | direction_id missing on bidirectional route | LOW | Quality |
@@ -165,7 +169,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | TRP_015 | Single trip in block_id group | LOW | Quality |
 | TRP_017 | Frequency-based trip missing from stop_times | MEDIUM | Spec |
 | TRP_019 | shape_id missing with continuous service active | HIGH | Spec |
-| TRP_020 | trip_headsign matches intermediate stop name | LOW | Quality |
+| TRP_020 | trip_headsign matches intermediate stop name | INFO | Analytics |
 | TRP_021 | Bicycle allowance (bikes_allowed) not specified | INFO | Quality |
 | TRP_022 | Overlapping trip times within block | HIGH | Spec |
 | TRP_023 | No active trips in the next 7 days | LOW | Quality |
@@ -203,7 +207,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | STM_022 | timepoint invalid | MEDIUM | Spec |
 | STM_023 | stop_times row ordering corrupted | LOW | Spec |
 | STM_024 | shape_dist_traveled unit inconsistency | INFO | Quality |
-| STM_025 | Travel time too short | MEDIUM | Quality |
+| STM_025 | Short segment timing | INFO | Analytics |
 | STM_026 | Excessive distance between stops | HIGH | Quality |
 | STM_027 | shape_dist_traveled not monotonically increasing | HIGH | Interop |
 | STM_028 | Trip duration too long | HIGH | Analytics |
@@ -264,7 +268,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | CAL_009 | All feed services have expired | CRITICAL | Interop |
 | CAL_010 | Service has too few active days | MEDIUM | Analytics |
 | CAL_011 | Unused service | LOW | Quality |
-| CAL_012 | Service gap in the near future | HIGH | Analytics |
+| CAL_012 | Service gap in the near future | INFO | Analytics |
 | CAL_013 | Expired service period | INFO | Analytics |
 | CAL_014 | Service dates outside feed_info validity range | LOW | Quality |
 | CAL_015 | All calendar dates in the future (no active trips today) | LOW | Quality |
@@ -306,10 +310,10 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | SHP_010 | Repeated shape point (consecutive identical coordinates) | LOW | Quality |
 | SHP_011 | Large gap in shape | MEDIUM | Analytics |
 | SHP_012 | Shape too far from trip stops | HIGH | Analytics |
-| SHP_014 | First or last stop far from shape endpoint | HIGH | Quality |
+| SHP_014 | First or last stop far from shape endpoint | INFO | Analytics |
 | SHP_015 | Shape has statistically too few points | MEDIUM | Quality |
 | SHP_016 | Shape direction inconsistent with trip direction | HIGH | Interop |
-| SHP_017 | Stop sequence conflicts with shape | HIGH | Quality |
+| SHP_017 | Stop sequence conflicts with shape | INFO | Analytics |
 | SHP_018 | Shape not referenced by any trip | LOW | Quality |
 | SHP_019 | Shape's trips have no stop times | MEDIUM | Quality |
 | SHP_020 | Repeated point in shape | INFO | Analytics |
@@ -514,6 +518,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | PTH_022 | to_stop_id missing | CRITICAL | Spec |
 | PTH_023 | pathway_mode missing | CRITICAL | Spec |
 | PTH_024 | is_bidirectional missing | CRITICAL | Spec |
+| PTH_025 | Recommended pathway length missing | LOW | Quality |
 
 ## LVL — Levels
 
@@ -627,7 +632,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | OPR_004 | No weekend service | INFO | Analytics |
 | OPR_005 | Unusual service frequency | INFO | Analytics |
 | OPR_006 | Trip has too few stops (not functional) | HIGH | Analytics |
-| OPR_007 | Repeated stop within trip | MEDIUM | Analytics |
+| OPR_007 | Repeated stop pattern within trip | INFO | Analytics |
 | OPR_008 | Excessive speed in multiple segments | HIGH | Analytics |
 | OPR_009 | Night trip start time too late | INFO | Analytics |
 | OPR_010 | Route accessibility or bicycle policy conflicts | MEDIUM | Analytics |

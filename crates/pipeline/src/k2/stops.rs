@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use gtfs_core::EntityType;
 
 use super::common::{
@@ -34,6 +35,7 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
     // emsali). Kısmen doluysa per-durak korunur. Karar döngü sonunda verilir.
     let mut stp022_pending: Vec<gtfs_core::Notice> = Vec::new();
     let mut any_stop_code_present = false;
+    let mut stop_code_owner: HashMap<String, String> = HashMap::new();
 
     for (row_idx, row) in file.rows.iter().enumerate() {
         let line = (row_idx + 2) as u64;
@@ -58,6 +60,15 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
             .map(str::to_string);
         if stop_code.is_some() {
             any_stop_code_present = true;
+        }
+        if let Some(code) = &stop_code {
+            if let Some(first_stop) = stop_code_owner.get(code) {
+                notices.push(make_k2_notice(&mut counter, "STP_039", EntityType::Stop, entity_id.clone(),
+                    Some(&row_map), &file.name, Some(line), Some("stop_code"), Some(code.clone()),
+                    Some("feed içinde benzersiz".to_string()),
+                    format!("stop_code '{code}' hem '{first_stop}' hem '{stop_id}' duraklarında kullanılıyor."),
+                    "Her yolcu-facing stop_code değerini feed içinde benzersiz yapın."));
+            } else { stop_code_owner.insert(code.clone(), stop_id.clone()); }
         }
 
         // STP_028: stop_code çok uzun (>50 karakter)
@@ -562,5 +573,12 @@ mod tests {
         );
         let (_, notices) = validate_stops(&file);
         assert!(notices.iter().any(|n| n.rule_id == "STP_008"));
+    }
+    #[test]
+    fn duplicate_stop_code_produces_stp_039() {
+        let file = make_file(vec!["stop_id","stop_name","stop_lat","stop_lon","stop_code"],
+            vec![vec!["S1","One","41","29","100"], vec!["S2","Two","41.1","29.1","100"]]);
+        let (_, notices) = validate_stops(&file);
+        assert_eq!(notices.iter().filter(|n| n.rule_id == "STP_039").count(), 1);
     }
 }

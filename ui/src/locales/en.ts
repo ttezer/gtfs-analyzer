@@ -1690,6 +1690,8 @@ const en: LocaleShape = {
     'ARC_022': 'File row count exceeds 1,000,000 limit',
     'ARC_023': 'Nested ZIP file inside GTFS archive',
     'ARC_024': 'GTFS .txt file in subdirectory (will not be parsed)',
+    'ARC_026': 'Malformed end-of-line characters',
+    'ARC_027': 'ZIP entry lacks user read permission',
     // BKR
     'BKR_001': 'Prior-day booking field set in prohibited context',
     'BKR_002': 'prior_notice_start_day only valid with prior_notice_last_day',
@@ -1761,6 +1763,7 @@ const en: LocaleShape = {
     'STP_036': 'Station has parent_station (invalid)',
     'STP_037': 'Some stops have not set wheelchair boarding',
     'STP_038': 'No stops report wheelchair boarding',
+    'STP_039': 'stop_code is duplicated',
     // RTS
     'RTS_001': 'Duplicate route_id',
     'RTS_002': 'agency_id not found',
@@ -1792,6 +1795,7 @@ const en: LocaleShape = {
     'TRP_006': 'wheelchair_accessible invalid',
     'TRP_007': 'bikes_allowed invalid',
     'TRP_032': 'cars_allowed invalid',
+    'TRP_033': 'trip_id exceeds the recommended length',
     'TRP_009': 'Trip has no time-stamped stops',
     'TRP_011': 'Trip headsign not set',
     'TRP_012': 'direction_id missing on bidirectional route',
@@ -1986,6 +1990,7 @@ const en: LocaleShape = {
     'PTH_022': 'to_stop_id missing',
     'PTH_023': 'pathway_mode missing',
     'PTH_024': 'is_bidirectional missing',
+    'PTH_025': 'Recommended pathway length missing',
     // FRL
     'FRL_001': 'fare_id not found',
     'FRL_002': 'route_id not found',
