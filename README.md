@@ -47,7 +47,7 @@ GTFS Validator & Analyzer, spesifikasyon doğrulamasını operasyonel kalite ana
 
 ### Feed Analizi Örnekleri
 
-Aynı feed'ler üç validator ile karşılaştırıldı: MobilityData gtfs-validator v8.0.1 · GTFS Guru v0.1.0 · GTFS Analyzer v0.1.4. (GTFS Analyzer sayıları 2026-06-28 tarihli analizin anlık görüntüsüdür; tarihe bağlı kurallar nedeniyle farklı bir günde çalıştırma küçük sapmalar verebilir.)
+Aynı feed'ler üç validator ile karşılaştırıldı: MobilityData gtfs-validator v8.0.1 · GTFS Guru v0.1.0 · GTFS Analyzer v0.2.0. (GTFS Analyzer sayıları 2026-07-01 tarihli analizin anlık görüntüsüdür; tarihe bağlı kurallar nedeniyle farklı bir günde çalıştırma küçük sapmalar verebilir.)
 
 #### BART (Bay Area Rapid Transit, San Francisco)
 
@@ -55,15 +55,15 @@ Feed: `mdb-53` (MobilityDatabase, 2026-06-25 anlık görüntüsü; geçerlilik a
 
 | | MobilityData | GTFS Guru | GTFS Analyzer |
 |---|---:|---:|---:|
-| Toplam notice | 2.733 | 2.664 | 4.731 |
+| Toplam notice | 2.733 | 2.664 | 1.062 |
 | Kritik / Error | 2 | 1 | 2 |
-| Yüksek / Warning | 2.655 | 2.656 | 141 |
-| Orta | — | — | 676 |
-| Düşük | — | — | 175 |
-| Bilgi / Info | 76 | 7 | 3.737 |
-| Tetiklenen kural tipi | 13 | 10 | **51** |
+| Yüksek / Warning | 2.655 | 2.656 | 2 |
+| Orta | — | — | 30 |
+| Düşük | — | — | 78 |
+| Bilgi / Info | 76 | 7 | 950 |
+| Tetiklenen kural tipi | 13 | 10 | **49** |
 | Yayın skoru | — | — | **92,6 / 100** |
-| Genel skor | — | — | **83,6 / 100** |
+| Genel skor | — | — | **86,3 / 100** |
 
 #### TriMet (Portland, Oregon)
 
@@ -71,17 +71,17 @@ Feed: `mdb-247` (MobilityDatabase, 2026-06-26 anlık görüntüsü; geçerlilik 
 
 | | MobilityData | GTFS Guru | GTFS Analyzer |
 |---|---:|---:|---:|
-| Toplam notice | 968 | 1.029 | 11.353 |
+| Toplam notice | 968 | 1.029 | 7.899 |
 | Kritik / Error | 908 | 908 | 7 |
-| Yüksek / Warning | 47 | 112 | 1.763 |
-| Orta | — | — | 3.504 |
-| Düşük | — | — | 2.227 |
-| Bilgi / Info | 13 | 9 | 3.852 |
+| Yüksek / Warning | 47 | 112 | 1.408 |
+| Orta | — | — | 195 |
+| Düşük | — | — | 2.222 |
+| Bilgi / Info | 13 | 9 | 4.067 |
 | Tetiklenen kural tipi | 10 | 9 | **57** |
 | Yayın skoru | — | — | **89,3 / 100** |
-| Genel skor | — | — | **76,7 / 100** |
+| Genel skor | — | — | **78,4 / 100** |
 
-> ⚠️ **Çakışan blok seferleri:** Bu feed'in baskın bulgusu, aynı blokta zaman bakımından çakışan seferler (MobilityData ve GTFS Guru'da 908 *error*). GTFS Analyzer bunu TRP_022 ile yakalar (907) ancak yalnızca aynı gün aktif servisleri çakışma sayar (takvim-kesişim guard'ı); önem sınıflandırması araçlar arasında farklılık gösterir (Analyzer'da kritik değil).
+> ⚠️ **Çakışan blok seferleri:** Bu feed'in baskın bulgusu, aynı blokta zaman bakımından çakışan seferler (MobilityData ve GTFS Guru'da 908 *error*). GTFS Analyzer bunu TRP_022 ile yakalar (770) ancak yalnızca aynı gün aktif servisleri çakışma sayar (takvim-kesişim guard'ı); önem sınıflandırması araçlar arasında farklılık gösterir (Analyzer'da kritik değil).
 >
 > ⚠️ **Fares v2:** GTFS Analyzer, `fare_leg_rules.txt` içinde `networks.txt`'te tanımsız `network_id` gibi Fares v2 referans bütünlüğü sorunlarını kritik olarak raporlar (FAR/FPD/FLG/FTR/RCT/FMD grupları ile ayrıntılı kapsam). MobilityData da Fares v2'yi doğrular (şema + referans bütünlüğü + fare_transfer/products/media/timeframes kuralları), ancak kapsam ve önem sınıflandırması farklılık gösterir.
 
@@ -91,15 +91,15 @@ Feed: `mdb-3175` (MobilityDatabase, 2026-06-27 anlık görüntüsü; geçerlilik
 
 | | MobilityData | GTFS Guru | GTFS Analyzer |
 |---|---:|---:|---:|
-| Toplam notice | 2.403 | 4.145 | 3.478 |
+| Toplam notice | 2.403 | 4.145 | 3.808 |
 | Kritik / Error | 0 | 0 | 0 |
-| Yüksek / Warning | 300 | 4.136 | 95 |
-| Orta | — | — | 1.144 |
-| Düşük | — | — | 1.429 |
-| Bilgi / Info | 2.103 | 9 | 810 |
+| Yüksek / Warning | 300 | 4.136 | 18 |
+| Orta | — | — | 1.549 |
+| Düşük | — | — | 1.249 |
+| Bilgi / Info | 2.103 | 9 | 992 |
 | Tetiklenen kural tipi | 9 | 6 | **64** |
 | Yayın skoru | — | — | **94,3 / 100** |
-| Genel skor | — | — | **75,6 / 100** |
+| Genel skor | — | — | **77,0 / 100** |
 
 > 🗾 **Spec-temiz ama operasyonel olarak yoğun:** Üç araç da 0 kritik bulur — feed spec açısından temiz. Fark analitik katmanda: GTFS Analyzer'ın orta/düşük bulgularının çoğu 3 yıllık geçerlilik penceresi (2026–2029) ve yoğun şebeke/şekil desenlerinden gelen operasyonel sinyallerdir; MobilityData ve GTFS Guru bu feed'i ağırlıkla uyarı/bilgi olarak özetler.
 
