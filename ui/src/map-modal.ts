@@ -37,8 +37,8 @@ export function openMapModal(title: string, opts: MapOptions): void {
 
   if (!leafletMap) {
     leafletMap = L.map(mapDiv);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '© OpenStreetMap katkıcıları',
+    L.tileLayer('https://mt0.google.com/vt/lyrs=p&x={x}&y={y}&z={z}', {
+      attribution: '© Google',
       maxZoom: 19,
     }).addTo(leafletMap);
   } else {
