@@ -1314,9 +1314,15 @@ fn check_calendar_analytics(
         }
     }
 
-    // CAL_007: servis içinde ardışık boşluk (service_gap_days'den büyük)
-    // CAL_010: toplam aktif gün sayısı çok az (≤ service_gap_days)
-    // CAL_012: servis boyunca service_gap_days veya daha büyük boşluk var
+    // CAL_010: toplam aktif gün sayısı çok az (≤ service_gap_days) — per-service.
+    // CAL_007/012: servis dönemindeki boşluklar (gap_start, gap_end) imzasıyla TÜM servisler
+    // arasında toplanır (#30) → gap başına tek notice, etkilenen service_id'ler listelenir.
+    // near_future imzanın (bugüne bağlı) fonksiyonudur, servise değil → her imza tekdüze
+    // CAL_007 ya da CAL_012 üretir. Emit döngü SONRASINDA yapılır.
+    let today_jdn = yyyymmdd_to_approx_jdn(today_yyyymmdd);
+    let gap_threshold = config.service_gap_days;
+    let mut gap_services: std::collections::BTreeMap<(u32, u32), Vec<&str>> =
+        std::collections::BTreeMap::new();
     for (service_id, dates) in &derived.calendar_bitmap.active_dates {
         if dates.is_empty() {
             continue;
@@ -1325,7 +1331,6 @@ fn check_calendar_analytics(
         sorted.sort_unstable();
 
         let total_days = sorted.len() as u32;
-        let gap_threshold = config.service_gap_days;
 
         // CAL_010: çok kısa servis
         if total_days <= gap_threshold {
@@ -1345,59 +1350,14 @@ fn check_calendar_analytics(
             ));
         }
 
-        // CAL_007: servis döneminde boşluk (geçmiş dahil tüm boşluklar)
-        // CAL_012: boşluk yakın gelecekte (bugünden +30 gün) → takvim inceleme sinyali
-        let today_jdn = yyyymmdd_to_approx_jdn(today_yyyymmdd);
+        // Boşlukları (gap_start, gap_end) imzasıyla topla; emit döngü SONRASINDA (#30).
+        // Boşluk = pair[0] ile pair[1] arasındaki eksik günler (her ikisi dışlayıcı).
         for pair in sorted.windows(2) {
-            let a_jdn = yyyymmdd_to_approx_jdn(pair[0]);
-            let b_jdn = yyyymmdd_to_approx_jdn(pair[1]);
-            // Boşluk = pair[0] ile pair[1] arasındaki eksik günler (her ikisi dışlayıcı)
-            let gap_days = b_jdn.saturating_sub(a_jdn).saturating_sub(1);
+            let gap_days = yyyymmdd_to_approx_jdn(pair[1])
+                .saturating_sub(yyyymmdd_to_approx_jdn(pair[0]))
+                .saturating_sub(1);
             if gap_days >= gap_threshold {
-                // Boşluk bugün veya yakın gelecekle (bugünden +30 gün) örtüşüyor mu?
-                // (boşluk başı ≤ today + 30 gün VE boşluk sonu ≥ bugün)
-                let gap_start_jdn = a_jdn + 1; // ilk eksik gün
-                let gap_end_jdn = b_jdn.saturating_sub(1); // son eksik gün
-                let near_future = gap_end_jdn >= today_jdn
-                    && gap_start_jdn <= today_jdn + 30;
-
-                // #29: AYNI boşluk için CAL_007 + CAL_012 çift-emit gürültü üretiyordu.
-                // CAL_012 yakın-gelecek boşluğun zaman-çıpalı özel halidir; yakın
-                // gelecekteyse CAL_012 CAL_007'nin YERİNE raporlanır. Geçmiş/uzak
-                // boşluklar yalnız CAL_007 üretir. Her boşluk tek kez, doğru önemde.
-                if near_future {
-                    notices.push(k6_notice(
-                        ctr,
-                        "CAL_012",
-                        EntityType::Service,
-                        Some(service_id.clone()),
-                        Some(service_id.clone()),
-                        "calendar.txt",
-                        None,
-                        None,
-                        Some(format!("{gap_days}")),
-                        Some(format!("< {gap_threshold}")),
-                        format!("'{service_id}' takviminde {}-{} arası {gap_days} günlük yakın dönem inaktif aralık var.",
-                            pair[0], pair[1]),
-                        "Bu aralık planlıysa işlem gerekmez; değilse servis takvimini doğrulayın.",
-                    ));
-                } else {
-                    notices.push(k6_notice(
-                        ctr,
-                        "CAL_007",
-                        EntityType::Service,
-                        Some(format!("{}@{}", service_id, pair[0])),
-                        Some(service_id.clone()),
-                        "calendar.txt",
-                        None,
-                        None,
-                        Some(format!("{gap_days} ({}-{})", pair[0], pair[1])),
-                        Some(format!("< {gap_threshold}")),
-                        format!("'{service_id}' takviminde {}-{} arası {gap_days} günlük boşluk.",
-                            pair[0], pair[1]),
-                        "Boşluk kasıtlıysa calendar_dates ile açıklayın; değilse takvimi düzeltin.",
-                    ));
-                }
+                gap_services.entry((pair[0], pair[1])).or_default().push(service_id.as_str());
             }
         }
 
@@ -1436,6 +1396,63 @@ fn check_calendar_analytics(
         }
     }
 
+    // CAL_007/012 emit: gap imzası başına TEK notice (#30). Aynı operasyonel boşluğu
+    // paylaşan service_id varyantları details["services"]'te listelenir (VAT_002 deseni).
+    // #29 mantığı korunur: yakın-gelecek boşluk CAL_012, geçmiş/uzak boşluk CAL_007.
+    for ((gap_from, gap_to), mut svcs) in gap_services {
+        svcs.sort_unstable();
+        svcs.dedup();
+        let a_jdn = yyyymmdd_to_approx_jdn(gap_from);
+        let b_jdn = yyyymmdd_to_approx_jdn(gap_to);
+        let gap_days = b_jdn.saturating_sub(a_jdn).saturating_sub(1);
+        // Boşluk bugün/yakın gelecekle (bugünden +30 gün) örtüşüyor mu?
+        let near_future =
+            b_jdn.saturating_sub(1) >= today_jdn && (a_jdn + 1) <= today_jdn + 30;
+        let svc_suffix = if svcs.len() == 1 {
+            format!("'{}' servisinde", svcs[0])
+        } else {
+            format!("{} serviste: {}", svcs.len(), svcs.join(", "))
+        };
+        let entity = format!("{gap_from}-{gap_to}");
+        let mut n = if near_future {
+            k6_notice(
+                ctr,
+                "CAL_012",
+                EntityType::Service,
+                Some(entity.clone()),
+                Some(entity.clone()),
+                "calendar.txt",
+                None,
+                None,
+                Some(format!("{gap_days}")),
+                Some(format!("< {gap_threshold}")),
+                format!("{gap_from}-{gap_to} arası {gap_days} günlük yakın dönem inaktif aralık {svc_suffix}."),
+                "Bu aralık planlıysa işlem gerekmez; değilse servis takvimini doğrulayın.",
+            )
+        } else {
+            k6_notice(
+                ctr,
+                "CAL_007",
+                EntityType::Service,
+                Some(entity.clone()),
+                Some(entity.clone()),
+                "calendar.txt",
+                None,
+                None,
+                Some(format!("{gap_days}")),
+                Some(format!("< {gap_threshold}")),
+                format!("{gap_from}-{gap_to} arası {gap_days} günlük boşluk {svc_suffix}."),
+                "Boşluk kasıtlıysa calendar_dates ile açıklayın; değilse takvimi düzeltin.",
+            )
+        };
+        n.details = Some({
+            let mut d = std::collections::HashMap::new();
+            d.insert("services".to_string(), svcs.join(","));
+            d
+        });
+        notices.push(n);
+    }
+
     // CAL_008 / CAL_009: expiry (bitiş tarihine göre)
     for cal in &records.calendars {
         let Some((ey, em, ed)) = cal.end_date else { continue };
@@ -1458,12 +1475,17 @@ fn check_calendar_analytics(
                     "end_date'i gerçek servis bitiş tarihine güncelleyin; uzak-gelecek tarihler genelde yer-tutucu veya hatalıdır.",
                 ));
             }
-            if end_yyyymmdd < today_yyyymmdd {
-                // CAL_013: tekil servis süresi dolmuş — blocker değil, bilgi düzeyi.
-                // Tüm servisler sona ermişse k4_cross_ref CAL_009 (KRİTİK) zaten atar.
+            // CAL_008: yakında bitiyor (end_date gelecekte ve uyarı eşiği içinde).
+            // CAL_013 (süresi dolmuş) artık BURADA DEĞİL — calendar.txt end_date yerine
+            // birleşik active_dates'e göre CAL_017 döngüsünde hesaplanır; böylece
+            // calendar_dates ile ileri taşınan servisler yanlış "dolmuş" sayılmaz (FP fix).
+            let warning_days = config.feed_expiry_warning_days;
+            let end_jdn = yyyymmdd_to_approx_jdn(end_yyyymmdd);
+            let today_jdn = yyyymmdd_to_approx_jdn(today_yyyymmdd);
+            if end_jdn > today_jdn && end_jdn - today_jdn <= warning_days {
                 notices.push(k6_notice(
                     ctr,
-                    "CAL_013",
+                    "CAL_008",
                     EntityType::Service,
                     Some(cal.service_id.clone()),
                     Some(cal.service_id.clone()),
@@ -1471,33 +1493,11 @@ fn check_calendar_analytics(
                     Some(cal.line as u64),
                     Some("end_date"),
                     Some(format!("{end_yyyymmdd}")),
-                    Some(format!("≥ {today_yyyymmdd}")),
-                    format!("'{}' takviminin süresi dolmuş (son tarih: {end_yyyymmdd}). Bu servise ait seferler bugün için bulunamaz — diğer aktif servisler etkilenmiyor.",
-                        cal.service_id),
-                    "Feed'i yeni geçerlilik tarihleriyle güncelleyin veya servisi silin.",
+                    Some(format!("> {}", warning_days)),
+                    format!("'{}' takvimi {end_yyyymmdd} tarihinde bitiyor — {} gün kaldı.",
+                        cal.service_id, end_jdn - today_jdn),
+                    "Feed'i güncellemeyi planlayın.",
                 ));
-            } else {
-                // CAL_008: yakında bitiyor
-                let warning_days = config.feed_expiry_warning_days;
-                let end_jdn = yyyymmdd_to_approx_jdn(end_yyyymmdd);
-                let today_jdn = yyyymmdd_to_approx_jdn(today_yyyymmdd);
-                if end_jdn > today_jdn && end_jdn - today_jdn <= warning_days {
-                    notices.push(k6_notice(
-                        ctr,
-                        "CAL_008",
-                        EntityType::Service,
-                        Some(cal.service_id.clone()),
-                        Some(cal.service_id.clone()),
-                        "calendar.txt",
-                        Some(cal.line as u64),
-                        Some("end_date"),
-                        Some(format!("{end_yyyymmdd}")),
-                        Some(format!("> {}", warning_days)),
-                        format!("'{}' takvimi {end_yyyymmdd} tarihinde bitiyor — {} gün kaldı.",
-                            cal.service_id, end_jdn - today_jdn),
-                        "Feed'i güncellemeyi planlayın.",
-                    ));
-                }
             }
         }
     }
@@ -1512,33 +1512,8 @@ fn check_calendar_analytics(
             .get(service_id)
             .map(|s| s.len() as u32)
             .unwrap_or(0);
-        // CAL_013: hizmet calendar_dates'te tanımlı ama tüm tarihleri geçmişte
-        // (calendar.txt'ten bağımsız — calendar_dates-only feed'leri de kapsar)
-        if today_yyyymmdd > 0 && active > 0 {
-            let max_date = derived
-                .calendar_bitmap
-                .active_dates
-                .get(service_id)
-                .and_then(|s| s.iter().max().copied());
-            if let Some(max_d) = max_date {
-                if max_d < today_yyyymmdd {
-                    notices.push(k6_notice(
-                        ctr,
-                        "CAL_013",
-                        EntityType::Service,
-                        Some(service_id.to_string()),
-                        Some(service_id.to_string()),
-                        "calendar_dates.txt",
-                        None,
-                        Some("date"),
-                        Some(format!("{max_d}")),
-                        Some(format!("≥ {today_yyyymmdd}")),
-                        format!("'{service_id}' takviminin süresi dolmuş (son aktif tarih: {max_d})."),
-                        "Feed'i yeni geçerlilik tarihleriyle güncelleyin.",
-                    ));
-                }
-            }
-        }
+        // CAL_013 (süresi dolmuş) buradan kaldırıldı → tüm servisler için birleşik
+        // active_dates üzerinden CAL_017 döngüsünde tek yerde hesaplanır (çift-emit önlenir).
 
         // CAL_014: servis aktif tarihleri feed_info geçerlilik penceresinin dışında
         if let Some(fi) = records.feed_info.first() {
@@ -1608,10 +1583,17 @@ fn check_calendar_analytics(
             }
         }
 
-        // CAL_017: bireysel service_id'nin tüm aktif tarihleri gelecekte
+        // CAL_017: tüm aktif tarihler gelecekte (henüz başlamamış) — per-service.
+        // CAL_013: tüm aktif tarihler geçmişte (süresi dolmuş). Aynı son-aktif-tarihte (expiry)
+        // biten service_id varyantları TEK notice'ta toplanır (#30 deseni), details["services"]'te
+        // listelenir. Kaynak BİRLEŞİK active_dates → calendar_dates ile ileri taşınan servisler
+        // expired sayılmaz (FP fix). min>today ile max<today karşılıklı dışlayıcıdır.
+        let mut expired_services: std::collections::BTreeMap<u32, Vec<&str>> =
+            std::collections::BTreeMap::new();
         for (service_id, dates) in &derived.calendar_bitmap.active_dates {
             if dates.is_empty() { continue; }
             let min_svc = dates.iter().copied().min().unwrap();
+            let max_svc = dates.iter().copied().max().unwrap();
             if min_svc > today_yyyymmdd {
                 notices.push(k6_notice(
                     ctr, "CAL_017", EntityType::Service,
@@ -1621,7 +1603,33 @@ fn check_calendar_analytics(
                     format!("'{service_id}' takvimi henüz başlamamış; en erken aktif tarih {min_svc}."),
                     "Takvim başlangıç tarihini veya calendar_dates.txt girişlerini gözden geçirin.",
                 ));
+            } else if max_svc < today_yyyymmdd {
+                expired_services.entry(max_svc).or_default().push(service_id.as_str());
             }
+        }
+        // CAL_013 emit: son-aktif-tarih (expiry) imzası başına TEK notice.
+        for (max_svc, mut svcs) in expired_services {
+            svcs.sort_unstable();
+            svcs.dedup();
+            let msg = if svcs.len() == 1 {
+                format!("'{}' takviminin süresi dolmuş (son aktif tarih: {max_svc}) — bu servise ait seferler bugün için bulunamaz.", svcs[0])
+            } else {
+                format!("Son aktif tarihi {max_svc} olan {} servisin süresi dolmuş: {} — bu servislere ait seferler bugün için bulunamaz.", svcs.len(), svcs.join(", "))
+            };
+            let mut n = k6_notice(
+                ctr, "CAL_013", EntityType::Service,
+                Some(format!("{max_svc}")), Some(format!("{max_svc}")),
+                "calendar.txt", None, Some("end_date"),
+                Some(format!("{max_svc}")), Some(format!("≥ {today_yyyymmdd}")),
+                msg,
+                "Feed'i yeni geçerlilik tarihleriyle güncelleyin veya servisleri silin.",
+            );
+            n.details = Some({
+                let mut d = std::collections::HashMap::new();
+                d.insert("services".to_string(), svcs.join(","));
+                d
+            });
+            notices.push(n);
         }
 
         // CAL_016: en geç aktif tarih 2 yıldan fazla ileriye uzanıyor
@@ -8015,15 +8023,68 @@ mod tests {
 
     #[test]
     fn expired_service_produces_cal_013_not_cal_009() {
-        // Tek servis süresi dolmuş → bilgi seviyesi CAL_013, KRİTİK CAL_009 değil
+        // Tek servis süresi dolmuş → bilgi seviyesi CAL_013, KRİTİK CAL_009 değil.
+        // CAL_013 birleşik active_dates'e göre hesaplanır (gerçek boru hattında k5 doldurur).
+        use crate::k5_derived::CalendarBitmap;
+        let mut derived = DerivedData::default();
+        derived.calendar_bitmap = CalendarBitmap {
+            active_dates: [("SVC".to_string(),
+                [20251201u32, 20251215, 20251231].into_iter().collect())]
+                .into_iter().collect(),
+        };
         let mut records = crate::k2::EntityRecords::default();
         records.calendars = vec![cal_rec("SVC", all_days(), (2025, 1, 1), (2025, 12, 31))];
-        // today = 20260514 > 20251231
-        let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
+        // today = 20260514 > son aktif tarih 20251231
+        let result = analyze(&records, &derived, &default_config(), 20260514);
         assert!(result.notices.iter().any(|n| n.rule_id == "CAL_013"),
             "süresi dolmuş tekil servis CAL_013 üretmeli");
         assert!(!result.notices.iter().any(|n| n.rule_id == "CAL_009"),
             "tek servis durumunda k6'dan CAL_009 üretmemeli (k4 tümü dolmuşsa atar)");
+    }
+
+    #[test]
+    fn calendar_dates_extended_service_no_cal_013() {
+        // CAL_013 FP fix: calendar.txt end_date geçmişte olsa da calendar_dates ile
+        // servis bugüne/geleceğe uzatılmışsa (birleşik max_date >= today) süresi
+        // DOLMAMIŞTIR → CAL_013 ÜRETİLMEMELİ. (TriMet over-fire kök nedeni.)
+        use crate::k5_derived::CalendarBitmap;
+        let mut derived = DerivedData::default();
+        // calendar.txt end_date geçmişte olurdu ama calendar_dates 20260601'i eklemiş →
+        // birleşik active_dates gelecekte bir tarih içeriyor.
+        derived.calendar_bitmap = CalendarBitmap {
+            active_dates: [("SVC".to_string(),
+                [20251201u32, 20251231, 20260601].into_iter().collect())]
+                .into_iter().collect(),
+        };
+        let mut records = crate::k2::EntityRecords::default();
+        records.calendars = vec![cal_rec("SVC", all_days(), (2025, 1, 1), (2025, 12, 31))];
+        // today = 20260514 < 20260601 (uzatılmış aktif tarih)
+        let result = analyze(&records, &derived, &default_config(), 20260514);
+        assert!(!result.notices.iter().any(|n| n.rule_id == "CAL_013"),
+            "calendar_dates ile hâlâ aktif servis CAL_013 üretmemeli (FP)");
+    }
+
+    #[test]
+    fn expired_variants_same_date_aggregate_to_one_cal_013() {
+        // Aynı son-aktif-tarihte (20251231) biten iki service_id varyantı (#30 deseni):
+        // per-service 2 CAL_013 yerine expiry-imzası başına TEK notice beklenir.
+        use crate::k5_derived::CalendarBitmap;
+        let mut derived = DerivedData::default();
+        derived.calendar_bitmap = CalendarBitmap {
+            active_dates: [
+                ("A.724".to_string(), [20251215u32, 20251231].into_iter().collect()),
+                ("B.724".to_string(), [20251201u32, 20251231].into_iter().collect()),
+            ].into_iter().collect(),
+        };
+        let records = crate::k2::EntityRecords::default();
+        let result = analyze(&records, &derived, &default_config(), 20260514);
+        let cal013: Vec<_> = result.notices.iter().filter(|n| n.rule_id == "CAL_013").collect();
+        assert_eq!(cal013.len(), 1, "aynı expiry tarihini paylaşan iki varyant için tek CAL_013 beklenir");
+        assert_eq!(cal013[0].entity_id.as_deref(), Some("20251231"));
+        let services = cal013[0].details.as_ref()
+            .and_then(|d| d.get("services")).map(String::as_str).unwrap_or("");
+        assert!(services.contains("A.724") && services.contains("B.724"),
+            "details.services her iki varyantı listelemeli, bulundu: {services}");
     }
 
     #[test]
@@ -8116,6 +8177,33 @@ mod tests {
             "Yakın gelecek boşluk CAL_012 üretmeli");
         assert!(!result.notices.iter().any(|n| n.rule_id == "CAL_007"),
             "Yakın gelecek boşluk CAL_007 üretmemeli (CAL_012 onun yerine geçer)");
+    }
+
+    #[test]
+    fn shared_calendar_gap_aggregates_across_services_to_one_notice() {
+        use crate::k5_derived::CalendarBitmap;
+        let mut derived = DerivedData::default();
+        // Aynı geçmiş boşluğu (20260101→20260201) iki service_id paylaşıyor (#30):
+        // per-service 2 CAL_007 yerine gap-imzası başına TEK notice beklenir.
+        let dates_a: std::collections::HashSet<u32> = [20260101u32, 20260201].into_iter().collect();
+        let dates_b: std::collections::HashSet<u32> = [20260101u32, 20260201].into_iter().collect();
+        derived.calendar_bitmap = CalendarBitmap {
+            active_dates: [
+                ("SVC_A".to_string(), dates_a),
+                ("SVC_B".to_string(), dates_b),
+            ].into_iter().collect(),
+        };
+        let records = crate::k2::EntityRecords::default();
+        let result = analyze(&records, &derived, &default_config(), 20260514);
+        let cal007: Vec<_> = result.notices.iter().filter(|n| n.rule_id == "CAL_007").collect();
+        assert_eq!(cal007.len(), 1, "aynı boşluğu paylaşan iki servis için tek CAL_007 beklenir");
+        assert_eq!(cal007[0].entity_id.as_deref(), Some("20260101-20260201"));
+        let services = cal007[0].details.as_ref()
+            .and_then(|d| d.get("services"))
+            .map(String::as_str)
+            .unwrap_or("");
+        assert!(services.contains("SVC_A") && services.contains("SVC_B"),
+            "details.services her iki servisi listelemeli, bulundu: {services}");
     }
 
     // ── CAL_021: bugünü kapsayan ama yakın günlerde aktif seferi olmayan servis ──
