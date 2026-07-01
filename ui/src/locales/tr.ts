@@ -594,7 +594,7 @@ const tr = {
     'STP_018': 'Hiç durak yok',
     'STP_019': 'stop_name çok uzun',
     'STP_020': 'Hiç sefer geçmeyen durak',
-    'STP_021': 'Alt durak istasyon dışında',
+    'STP_021': 'Boarding area parent\'ı platform değil',
     'STP_022': 'stop_code eksik',
     'STP_023': 'tts_stop_name geçersiz',
     'STP_024': 'stop_access enum aralığı dışında değer (K2 ham alan kontrolü)',

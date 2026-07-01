@@ -101,7 +101,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | STP_018 | No stops found | CRITICAL | Spec |
 | STP_019 | stop_name too long | LOW | Quality |
 | STP_020 | Stop with no trips | MEDIUM | Analytics |
-| STP_021 | Child stop outside parent station | HIGH | Quality |
+| STP_021 | Boarding area parent is not a platform | HIGH | Quality |
 | STP_022 | stop_code missing | MEDIUM | Quality |
 | STP_023 | tts_stop_name invalid | LOW | Quality |
 | STP_024 | stop_access invalid | INFO | Quality |

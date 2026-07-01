@@ -470,10 +470,12 @@ fn check_stops(
                 "Geçerli bir stop_id'yi parent_station olarak kullanın.",
             ));
         } else if !parent.is_empty() {
-            // STP_010: parent_station'ın location_type = 1 olması
+            // STP_010: parent_station'ın location_type = 1 (station) olması.
+            // İstisna: location_type=4 (Boarding Area) parent'ı PLATFORM (location_type=0)
+            // olmalıdır; onu STP_021 denetler, STP_010 kapsamı dışında bırakılır.
             if let Some(&pidx) = map.stops.get(parent) {
                 let ptype = records.stops[pidx].location_type;
-                if ptype != Some(1) {
+                if ptype != Some(1) && loc_type != Some(4) {
                     notices.push(notice(
                         ctr,
                         "STP_010",
@@ -555,8 +557,10 @@ fn check_stops(
             ));
         }
 
-        // STP_021: boarding area (location_type=2) parent_station'ı platform (location_type=0) olmalı
-        if matches!(loc_type, Some(2)) && !parent.is_empty() {
+        // STP_021: boarding area (location_type=4) parent_station'ı platform (location_type=0) olmalı.
+        // GTFS: location_type=2 (Entrance/Exit) parent'ı ISTASYON (location_type=1) olmalıdır (STP_010);
+        // platform-parent zorunluluğu yalnız location_type=4 (Boarding Area) içindir.
+        if matches!(loc_type, Some(4)) && !parent.is_empty() {
             if let Some(&pidx) = map.stops.get(parent) {
                 let ptype = records.stops[pidx].location_type;
                 if !matches!(ptype, None | Some(0)) {

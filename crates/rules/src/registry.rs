@@ -259,7 +259,7 @@ pub static RULES: &[RuleMeta] = &[
     r!("STP_020", Orta,   Analytics, 2, &[], Some("stop_id"), VA, Entity,
         "Hiç sefer geçmeyen durak"),
     r!("STP_021", Yuksek, Quality, 2, &[], Some("stop_id"), VS, Entity,
-        "Alt durak istasyon dışında"),
+        "Boarding area parent'ı platform değil"),
     r!("STP_022", Orta,   Quality, 1, &[], Some("stop_id"), VS, Entity,
         "stop_code eksik"),
     r!("STP_023", Dusuk,  Quality, 1, &[], Some("stop_id"), VS, Entity,

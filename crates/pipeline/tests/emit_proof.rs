@@ -1013,8 +1013,8 @@ fn fixtures() -> Vec<Fixture> {
             ",41.0,29.0\nS2,Stop2,41.1,29.1\n"))]),
         // STP_020: stop_times'ta kullanılmayan fiziksel durak (k6).
         fx("STP_020", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\nS2,Stop2,41.1,29.1\nS3,Stop3,41.2,29.2\n")]),
-        // STP_021: boarding area (loc=2) parent'ı platform (loc=0) değil (k4).
-        fx("STP_021", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon,location_type,parent_station\nST1,Station,41.0,29.0,1,\nE1,Entrance,41.0,29.0,2,ST1\nS1,Stop1,41.0,29.0,0,\nS2,Stop2,41.1,29.1,0,\n")]),
+        // STP_021: boarding area (loc=4) parent'ı platform (loc=0) değil — BA1 parent'ı istasyon (loc=1) (k4).
+        fx("STP_021", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon,location_type,parent_station\nST1,Station,41.0,29.0,1,\nBA1,BoardArea,41.0,29.0,4,ST1\nS1,Stop1,41.0,29.0,0,\nS2,Stop2,41.1,29.1,0,\n")]),
         // STP_023: tts_stop_name '<'/'>' içeriyor (k2).
         fx("STP_023", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon,tts_stop_name\nS1,Stop1,41.0,29.0,<b>X\nS2,Stop2,41.1,29.1,\n")]),
         // STP_024: stop_access geçersiz enum (k2).

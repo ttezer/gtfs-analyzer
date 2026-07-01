@@ -101,7 +101,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | STP_018 | Hiç durak yok | KRİTİK | Spec |
 | STP_019 | stop_name çok uzun | DÜŞÜK | Quality |
 | STP_020 | Hiç sefer geçmeyen durak | ORTA | Analytics |
-| STP_021 | Alt durak istasyon dışında | YÜKSEK | Quality |
+| STP_021 | Boarding area parent'ı platform değil | YÜKSEK | Quality |
 | STP_022 | stop_code eksik | ORTA | Quality |
 | STP_023 | tts_stop_name geçersiz | DÜŞÜK | Quality |
 | STP_024 | stop_access enum aralığı dışında değer (K2 ham alan kontrolü) | BİLGİ | Quality |
