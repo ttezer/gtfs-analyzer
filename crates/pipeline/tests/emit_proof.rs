@@ -13,7 +13,7 @@ use std::collections::BTreeSet;
 use std::io::Write as _;
 use zip::write::SimpleFileOptions;
 
-use gtfs_pipeline::{validate_bytes, ValidateResult, ValidatorConfig};
+use gtfs_pipeline::{validate_bytes, CalendarOverrideRule, ValidateResult, ValidatorConfig};
 use gtfs_rules::RULES;
 
 const TODAY: u32 = 20_260_515;
@@ -26,40 +26,41 @@ const TRIPS: &str = "route_id,service_id,trip_id\nR1,SVC1,T1\n";
 const STOP_TIMES: &str = "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\nT1,08:10:00,08:10:00,S2,2\n";
 const CALENDAR: &str = "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,0,0,20250101,20271231\n";
 
-fn base() -> Vec<(String, String)> {
+// Dosya içeriği byte olarak tutulur: string fixture'lar UTF-8'e çevrilir, ham (invalid-UTF-8)
+// fixture'lar doğrudan byte geçer (ARC_002/003 için).
+fn base() -> Vec<(String, Vec<u8>)> {
     [
         ("agency.txt", AGENCY), ("stops.txt", STOPS), ("routes.txt", ROUTES),
         ("trips.txt", TRIPS), ("stop_times.txt", STOP_TIMES), ("calendar.txt", CALENDAR),
-    ].iter().map(|(n, c)| (n.to_string(), c.to_string())).collect()
+    ].iter().map(|(n, c)| (n.to_string(), c.as_bytes().to_vec())).collect()
 }
 
-/// Temel feed'i alır, override'ları uygular (yeni dosya da ekler) ve `removes`'taki
-/// dosyaları çıkarır (örn. "agency.txt eksik" senaryosu).
-fn with_opts(overrides: &[(&str, &str)], removes: &[&str]) -> Vec<(String, String)> {
+/// Temel feed'i alır; string override'ları, ham byte override'larını uygular (yeni dosya da ekler)
+/// ve `removes`'taki dosyaları çıkarır (örn. "agency.txt eksik" senaryosu).
+fn with_opts(overrides: &[(&str, &str)], removes: &[&str], raw: &[(&str, &[u8])]) -> Vec<(String, Vec<u8>)> {
     let mut files = base();
-    for (name, content) in overrides {
-        if let Some(slot) = files.iter_mut().find(|(n, _)| n == name) {
-            slot.1 = content.to_string();
-        } else {
-            files.push((name.to_string(), content.to_string()));
-        }
-    }
+    let apply = |name: &str, bytes: Vec<u8>, files: &mut Vec<(String, Vec<u8>)>| {
+        if let Some(slot) = files.iter_mut().find(|(n, _)| n == name) { slot.1 = bytes; }
+        else { files.push((name.to_string(), bytes)); }
+    };
+    for (name, content) in overrides { apply(name, content.as_bytes().to_vec(), &mut files); }
+    for (name, content) in raw { apply(name, content.to_vec(), &mut files); }
     files.retain(|(n, _)| !removes.contains(&n.as_str()));
     files
 }
 
-fn make_zip(files: &[(String, String)]) -> Vec<u8> {
+fn make_zip(files: &[(String, Vec<u8>)]) -> Vec<u8> {
     let cur = std::io::Cursor::new(Vec::new());
     let mut zw = zip::ZipWriter::new(cur);
     for (name, data) in files {
         zw.start_file(name, SimpleFileOptions::default()).unwrap();
-        zw.write_all(data.as_bytes()).unwrap();
+        zw.write_all(data).unwrap();
     }
     zw.finish().unwrap().into_inner()
 }
 
-fn emitted_rules(files: &[(String, String)]) -> BTreeSet<String> {
-    match validate_bytes(&make_zip(files), &ValidatorConfig::default(), TODAY) {
+fn emitted_rules(files: &[(String, Vec<u8>)], config: &ValidatorConfig) -> BTreeSet<String> {
+    match validate_bytes(&make_zip(files), config, TODAY) {
         ValidateResult::Ok(vr) => vr.notices.iter().map(|n| n.rule_id.clone()).collect(),
         ValidateResult::Fatal(e) => {
             // Fatal yol: rule_id'yi koddan türetmek yerine boş set; fatal kurallar allowlist'te.
@@ -74,15 +75,27 @@ struct Fixture {
     rule: &'static str,
     overrides: Vec<(&'static str, &'static str)>,
     removes: Vec<&'static str>,
+    raw: Vec<(&'static str, &'static [u8])>,
+    config: Option<ValidatorConfig>,
 }
 
 fn fx(rule: &'static str, overrides: Vec<(&'static str, &'static str)>) -> Fixture {
-    Fixture { rule, overrides, removes: Vec::new() }
+    Fixture { rule, overrides, removes: Vec::new(), raw: Vec::new(), config: None }
 }
 
 /// Dosya çıkarmalı fixture ("X.txt eksik" senaryoları).
 fn fx_rm(rule: &'static str, overrides: Vec<(&'static str, &'static str)>, removes: Vec<&'static str>) -> Fixture {
-    Fixture { rule, overrides, removes }
+    Fixture { rule, overrides, removes, raw: Vec::new(), config: None }
+}
+
+/// Ham byte fixture — geçersiz UTF-8 senaryoları (ARC_002/003).
+fn fx_raw(rule: &'static str, raw: Vec<(&'static str, &'static [u8])>) -> Fixture {
+    Fixture { rule, overrides: Vec::new(), removes: Vec::new(), raw, config: None }
+}
+
+/// Config-override fixture — ör. calendar_override_rules (OPR_021/022/023).
+fn fx_cfg(rule: &'static str, overrides: Vec<(&'static str, &'static str)>, config: ValidatorConfig) -> Fixture {
+    Fixture { rule, overrides, removes: Vec::new(), raw: Vec::new(), config: Some(config) }
 }
 
 /// Notice olarak emit edilmeyen kurallar (fatal yol veya dinamik) — proof'tan muaf.
@@ -96,23 +109,47 @@ const PROOF_ALLOWLIST: &[&str] = &[
                // kayıttır. Karar: bırak + allowlist (issue #27). Üretim kodunda literal yok.
 ];
 
-// ── KALICI DEBT (bu harness'ta YAPISAL OLARAK kanıtlanamaz; coverage_debt.txt'te kalır) ──
-// Bunlar fixture eksikliği değil; runtime emit-proof mekanizmasının sınırları:
-//   (AGN_001 → PROOF_ALLOWLIST'te: fatal yol, ARC_004 temsil eder; issue #27)
-//   ARC_002  — geçersiz UTF-8 gerektirir; fixture içeriği String → her zaman geçerli UTF-8.
-//   ARC_003  — aynı (geçersiz UTF-8, opsiyonel dosya).
+// ── KALICI DEBT (coverage_debt.txt'te kalır) ──
+// (AGN_001 → PROOF_ALLOWLIST'te: fatal yol, ARC_004 temsil eder; issue #27)
+// #28 Grup 1 ÇÖZÜLDÜ: ARC_002/ARC_003 (fx_raw ham byte) + OPR_021/022/023 (fx_cfg config) artık
+// fixtures()'ta runtime-kanıtlı. Kalan borç yalnız pratik-olmayan büyük feed'ler + config/metadata:
 //   ARC_022  — > 1.000.000 satır gerektirir (inline yazılamaz).
-//   OPR_021/022/023 — yalnız config.calendar_override_rules ile; harness ValidatorConfig::default() kullanır.
 //   OPR_024  — tek (route, service)'te > 500 sefer gerektirir (inline yazılamaz).
 //   SHP_026  — > 5000 shape noktası gerektirir.
 //   STM_043  — sefer başına > 200 durak gerektirir.
 //   STM_044  — > 2.000.000 stop_times satırı gerektirir.
 //   VAT_006  — feed'de >= 50 sefer gerektirir (inline pratik değil).
+//   ARC_027  — ZIP entry Unix izin metadata'sı gerektirir (fixture üretmiyor).
+//   ARC_028 / STP_040 / STP_041 — config-gated; fx_cfg ile kanıtlanabilir (sonraki tur).
 // ARC_001/ARC_004 PROOF_ALLOWLIST'te (Fatal yol). Diğerleri coverage_debt.txt'te bilinçli bırakıldı.
+
+// #28 Grup 1 yardımcıları ─────────────────────────────────────────────────────
+// OPSİYONEL dosyada (feed_info.txt) geçersiz UTF-8 (0xFF/0xFE) → ARC_002 + ARC_003 (fatal değil).
+const BAD_UTF8_FEED_INFO: &[u8] = b"feed_publisher_name,feed_publisher_url,feed_lang\n\xff\xfe,https://x.example,en\n";
+// calendar_dates: SVC_B 0101+0102, SVC_O yalnız 0101 aktif. Kural penceresi 0101-0103'te:
+// 0101 base+override → OPR_021, 0102 yalnız base → OPR_022, 0103 hiçbiri → OPR_023.
+const OVERRIDE_CD: &str = "service_id,date,exception_type\nSVC_B,20260101,1\nSVC_B,20260102,1\nSVC_O,20260101,1\n";
+fn override_config() -> ValidatorConfig {
+    let mut c = ValidatorConfig::default();
+    c.calendar_override_rules = vec![CalendarOverrideRule {
+        route_id: "R1".into(),
+        base_service_ids: vec!["SVC_B".into()],
+        override_service_ids: vec!["SVC_O".into()],
+        start_date: 20260101,
+        end_date: 20260103,
+    }];
+    c
+}
 
 /// rule_id → tetikleyici fixture. Kademeli doldurulur; her satır gerçek runtime proof.
 fn fixtures() -> Vec<Fixture> {
     vec![
+        // ── #28 Grup 1: ham-byte (ARC_002/003) + config-override (OPR_021/022/023) ──
+        fx_raw("ARC_002", vec![("feed_info.txt", BAD_UTF8_FEED_INFO)]),
+        fx_raw("ARC_003", vec![("feed_info.txt", BAD_UTF8_FEED_INFO)]),
+        fx_cfg("OPR_021", vec![("calendar_dates.txt", OVERRIDE_CD)], override_config()),
+        fx_cfg("OPR_022", vec![("calendar_dates.txt", OVERRIDE_CD)], override_config()),
+        fx_cfg("OPR_023", vec![("calendar_dates.txt", OVERRIDE_CD)], override_config()),
         // ── Tohum parti: tetikleme koşulu net K2/K6 kuralları ──────────────────
         // STP_003: stop_lat aralık dışı.
         fx("STP_003", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,999.0,29.0\nS2,Stop2,41.1,29.1\n")]),
@@ -1383,7 +1420,8 @@ fn fixtures() -> Vec<Fixture> {
 fn each_fixture_actually_emits_its_rule() {
     let mut failures = Vec::new();
     for f in fixtures() {
-        let emitted = emitted_rules(&with_opts(&f.overrides, &f.removes));
+        let cfg = f.config.clone().unwrap_or_default();
+        let emitted = emitted_rules(&with_opts(&f.overrides, &f.removes, &f.raw), &cfg);
         if !emitted.contains(f.rule) {
             failures.push(format!("  {} emit etmedi → {:?}", f.rule, emitted));
         }
