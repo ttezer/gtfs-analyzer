@@ -1,5 +1,5 @@
 import { setResult, getState, setConfigDelta, setPage } from '../state';
-import { FATAL_CODE_TR, t } from '../i18n';
+import { FATAL_CODE_TR, t, getLocale } from '../i18n';
 import type { FatalError, ValidationResult, FileInfo } from '../types';
 import { renderApp } from '../main';
 import { validateFile } from '../validator-client';
@@ -63,13 +63,13 @@ export function renderUpload(root: HTMLElement): void {
       </div>
 
       <div class="up-cell up-drop">
-        <div id="drop-zone" class="drop-zone" role="button" tabindex="0" aria-label="ZIP dosyası yükle">
+        <div id="drop-zone" class="drop-zone" role="button" tabindex="0" aria-label="${escHtml(t('upload.drop_aria'))}">
           <svg class="upload-icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/>
           </svg>
           <span class="drop-primary">${t('upload.drag')}</span>
           <label id="upload-btn-label" class="btn btn-primary btn-sm" for="file-input">${escHtml(btnLabel)}</label>
-          <input type="file" id="file-input" accept=".zip" class="visually-hidden" aria-label="ZIP dosyası seç"/>
+          <input type="file" id="file-input" accept=".zip" class="visually-hidden" aria-label="${escHtml(t('upload.file_input_aria'))}"/>
         </div>
         <div id="uploaded-name" class="uploaded-name${hasResult && state.fileName ? '' : ' hidden'}">
           ${hasResult && state.fileName ? `${t('upload.loaded_file')} <strong>${escHtml(state.fileName)}</strong> ${engineBadge()}` : ''}
@@ -130,12 +130,13 @@ export function renderUpload(root: HTMLElement): void {
 function renderFileStatRows(files: FileInfo[]): string {
   return files.map(f => {
     const kb = Math.round(f.bytes / 1024);
-    const label = t(`file.${f.name}`) !== `file.${f.name}` ? t(`file.${f.name}`) : t('upload.row_unit');
+    const base = t(`file.${f.name}`) !== `file.${f.name}` ? t(`file.${f.name}`) : t('upload.row_unit');
+    const label = pluralUnit(base, f.rows);
     return `
       <div class="lp-file-row done">
         <span class="lp-icon">✓</span>
         <span class="lp-label">${escHtml(f.name)}</span>
-        <span class="lp-status">${f.rows.toLocaleString('tr-TR')} ${label} · ${formatSize(kb)}</span>
+        <span class="lp-status">${formatCount(f.rows)} ${label} · ${formatSize(kb)}</span>
       </div>`;
   }).join('');
 }
@@ -369,7 +370,10 @@ async function handleUrl(rawUrl: string, root: HTMLElement, errorEl: HTMLElement
   const url = check.url;
   const name = urlFileName(url);
   errorEl.className = 'upload-status hidden';
-  setLoading(root, name, 0);
+  // İNDİRME aşaması: K1–K7 satırlarına, dosya listesine ve skor paneline DOKUNMA.
+  // Gerçek setLoading() ZIP indirilip imzası doğrulandıktan sonra handleBuffer'da çağrılır.
+  // İndirme hata verirse clearLoading bu hafif durumu geri alır → önceki sonuç korunur.
+  setUrlDownloading(root, name);
 
   // 2) Header fetch — CORS/DNS/TLS/offline burada ayırt edilemez TypeError olur.
   let resp: Response;
@@ -491,9 +495,10 @@ async function handleBuffer(buffer: ArrayBuffer, fileName: string, fileSize: num
         if (!row) return;
         row.className = 'lp-file-row done';
         row.querySelector('.lp-icon')!.textContent = '✓';
-        const label = t(`file.${name}`) !== `file.${name}` ? t(`file.${name}`) : t('upload.row_unit');
+        const base = t(`file.${name}`) !== `file.${name}` ? t(`file.${name}`) : t('upload.row_unit');
+        const label = pluralUnit(base, rows);
         row.querySelector<HTMLElement>('.lp-status')!.textContent =
-          `${rows.toLocaleString('tr-TR')} ${label} · ${formatSize(Math.round(bytes / 1024))}`;
+          `${formatCount(rows)} ${label} · ${formatSize(Math.round(bytes / 1024))}`;
       },
       onStageDone: (stage, elapsed_ms) => {
         const stageEl = root.querySelector<HTMLElement>(`[data-stage="${CSS.escape(stage)}"]`);
@@ -501,7 +506,9 @@ async function handleBuffer(buffer: ArrayBuffer, fileName: string, fileSize: num
         stageEl.className = 'lp-stage-row done';
         stageEl.querySelector('.lp-icon')!.textContent = '✓';
         stageEl.querySelector<HTMLElement>('.lp-status')!.textContent =
-          elapsed_ms < 1000 ? `${elapsed_ms} ms` : `${(elapsed_ms / 1000).toFixed(1)} sn`;
+          elapsed_ms < 1000
+            ? `${elapsed_ms} ${t('upload.unit_ms')}`
+            : `${(elapsed_ms / 1000).toLocaleString(numLocale(), { minimumFractionDigits: 1, maximumFractionDigits: 1 })} ${t('upload.unit_sec')}`;
         const idx = STAGE_ORDER.indexOf(stage);
         if (idx >= 0 && idx < STAGE_ORDER.length - 1) {
           const nextEl = root.querySelector<HTMLElement>(
@@ -522,6 +529,23 @@ async function handleBuffer(buffer: ArrayBuffer, fileName: string, fileSize: num
     resetProgressRows(root);
     showError(errorEl, err as FatalError);
   }
+}
+
+// #45: URL indirme aşaması göstergesi. setLoading'in AKSİNE aşama satırlarını (K1–K7),
+// dosya listesini ve skor panelini YENİDEN KURMAZ → indirme başarısız olursa clearLoading
+// ile temizlenir ve varsa önceki başarılı sonuç ekranda korunur. Yalnız drop alanını kilitler
+// ve "<dosya> indiriliyor…" metnini gösterir. Eşzamanlılık koruması dropZone.loading sınıfıdır.
+function setUrlDownloading(root: HTMLElement, fileName: string): void {
+  const dropZone  = root.querySelector<HTMLElement>('#drop-zone')!;
+  const fileInput = root.querySelector<HTMLInputElement>('#file-input')!;
+  const btnLabel  = root.querySelector<HTMLElement>('#upload-btn-label')!;
+  dropZone.classList.add('loading');
+  fileInput.disabled = true;
+  btnLabel.setAttribute('aria-disabled', 'true');
+  btnLabel.style.opacity = '0.5';
+  btnLabel.style.pointerEvents = 'none';
+  const dropPrimary = dropZone.querySelector('.drop-primary');
+  if (dropPrimary) dropPrimary.textContent = t('upload.url_downloading', { name: fileName });
 }
 
 function setLoading(root: HTMLElement, fileName: string, fileSize: number): void {
@@ -639,7 +663,25 @@ function formatSize(kb: number): string {
 }
 
 function formatReportDuration(ms: number): string {
-  return new Intl.NumberFormat(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(ms / 1000);
+  return new Intl.NumberFormat(numLocale(), { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(ms / 1000);
+}
+
+// App diline karşılık gelen BCP-47 etiketi — sayı biçimlendirme için (tr virgül, en/ja nokta).
+function numLocale(): string {
+  const l = getLocale();
+  return l === 'tr' ? 'tr-TR' : l === 'ja' ? 'ja-JP' : 'en-US';
+}
+
+// Tam sayıyı app diline göre binlik ayraçla biçimler.
+function formatCount(n: number): string {
+  return n.toLocaleString(numLocale());
+}
+
+// Dosya birimi locale'de tekil tutulur; İngilizcede sayıya göre çoğullanır (stop → stops).
+// tr/ja adı sayıya göre çekmez → değişmez. Mevcut tüm İngilizce birimler düzenli (+s).
+function pluralUnit(label: string, count: number): string {
+  if (getLocale() !== 'en') return label;
+  return new Intl.PluralRules('en').select(count) === 'one' ? label : `${label}s`;
 }
 
 function escHtml(s: string): string {
