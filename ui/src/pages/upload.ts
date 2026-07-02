@@ -4,6 +4,7 @@ import type { FatalError, ValidationResult, FileInfo } from '../types';
 import { renderApp } from '../main';
 import { validateFile } from '../validator-client';
 import type { EngineMode } from '../wasm';
+import { validateFeedUrl, urlFileName, isZipSignature } from './url-helpers';
 
 const STAGE_ORDER = ['K1', 'K2', 'K3', 'K4', 'K5', 'K6', 'K7'];
 let activeEngine: EngineMode | null = null;
@@ -43,6 +44,14 @@ export function renderUpload(root: HTMLElement): void {
 
   root.innerHTML = `
     <div class="up-grid">
+
+      <div class="up-cell up-url-bar">
+        <div class="up-url-row">
+          <input type="url" id="url-input" class="up-url-input" placeholder="${escHtml(t('upload.url_placeholder'))}" aria-label="${escHtml(t('upload.url_aria'))}"/>
+          <button id="url-btn" class="btn btn-secondary btn-sm">${escHtml(t('upload.url_load'))}</button>
+        </div>
+        <span class="up-url-hint">${escHtml(t('upload.url_hint'))}</span>
+      </div>
 
       <div class="up-cell up-files">
         <div class="lp-section-title">${t('upload.files_section')}</div>
@@ -236,6 +245,19 @@ function attachUploadListeners(root: HTMLElement): void {
       fileInput.click();
   });
 
+  // #45: URL'den yükleme (client-side fetch).
+  const urlInput = root.querySelector<HTMLInputElement>('#url-input');
+  const urlBtn   = root.querySelector<HTMLButtonElement>('#url-btn');
+  const loadUrl = () => {
+    if (dropZone.classList.contains('loading')) return;
+    const v = urlInput?.value.trim() ?? '';
+    if (v) void handleUrl(v, root, errorEl);
+  };
+  urlBtn?.addEventListener('click', loadUrl);
+  urlInput?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); loadUrl(); }
+  });
+
   root.querySelector('#btn-report')?.addEventListener('click', () => { setPage('domain'); renderApp(); });
 
   const settingsToggle = root.querySelector<HTMLButtonElement>('#settings-toggle')!;
@@ -324,20 +346,126 @@ async function handleFile(file: File, root: HTMLElement, errorEl: HTMLElement): 
     });
     return;
   }
+  let buffer: ArrayBuffer;
+  try { buffer = await file.arrayBuffer(); }
+  catch (err) { showError(errorEl, err as FatalError); return; }
+  await handleBuffer(buffer, file.name, file.size, root, errorEl);
+}
 
+// #45: feed'i bir URL'den CLIENT-SIDE indirir. CORS-açık host'larda (ör. Mobility Database)
+// çalışır; CORS'suz host'ta tarayıcı fetch'i engeller → net mesaj + indir-sürükle fallback.
+// Çekirdek/WASM internet isteği YAPMAZ; indirme yalnız bu UI katmanındadır.
+async function handleUrl(rawUrl: string, root: HTMLElement, errorEl: HTMLElement): Promise<void> {
+  if (!rawUrl.trim()) return;
+
+  // 1) Ucuz client-side doğrulama (ağ yok): https zorunlu, gömülü kimlik bilgisi reddedilir.
+  const check = validateFeedUrl(rawUrl);
+  if (!check.ok) {
+    const key = check.reason === 'https' ? 'upload.url_https'
+      : check.reason === 'credentials' ? 'upload.url_credentials' : 'upload.url_invalid';
+    showError(errorEl, { code: 'InvalidInput', message: t(key) });
+    return;
+  }
+  const url = check.url;
+  const name = urlFileName(url);
   errorEl.className = 'upload-status hidden';
-  setLoading(root, file.name, file.size);
+  setLoading(root, name, 0);
+
+  // 2) Header fetch — CORS/DNS/TLS/offline burada ayırt edilemez TypeError olur.
+  let resp: Response;
+  try {
+    resp = await fetch(url.href, {
+      credentials: 'omit', referrerPolicy: 'no-referrer', redirect: 'follow',
+      signal: AbortSignal.timeout(30_000),
+    });
+  } catch (err) {
+    clearLoading(root);
+    if (err instanceof DOMException && err.name === 'TimeoutError') {
+      showError(errorEl, { code: 'InvalidInput', message: t('upload.url_timeout') });
+    } else {
+      showUrlBlocked(errorEl, url); // CORS/ağ ortak mesajı + gerçek tıklanır link fallback
+    }
+    return;
+  }
+  // 3) CORS izinliyse HTTP hataları okunur.
+  if (!resp.ok) {
+    clearLoading(root);
+    showError(errorEl, { code: 'InvalidInput', message: t('upload.url_http', { status: String(resp.status) }) });
+    return;
+  }
+  // 4) Content-Length erken-ret (opsiyonel, yanlış olabilir → asıl sınır stream'de).
+  const declared = Number(resp.headers.get('content-length'));
+  if (declared && declared > MAX_FILE_BYTES) {
+    clearLoading(root);
+    showError(errorEl, { code: 'InvalidInput', message: t('upload.error_size', { mb: (declared / 1_048_576).toFixed(1) }) });
+    return;
+  }
+  // 5) Sınırlı stream indirme (Content-Length yalanlarına karşı gerçek bayt sayımı) + body-hata aşaması.
+  let buffer: ArrayBuffer;
+  try { buffer = await readCapped(resp, MAX_FILE_BYTES); }
+  catch (err) {
+    clearLoading(root);
+    const msg = err instanceof RangeError
+      ? t('upload.error_size', { mb: (MAX_FILE_BYTES / 1_048_576).toFixed(0) })
+      : t('upload.url_body');
+    showError(errorEl, { code: 'InvalidInput', message: msg });
+    return;
+  }
+  // 6) ZIP imzası (PK\x03\x04) — uzantı yerine otoriter içerik kontrolü.
+  if (!isZipSignature(new Uint8Array(buffer, 0, Math.min(4, buffer.byteLength)))) {
+    clearLoading(root);
+    showError(errorEl, { code: 'InvalidInput', message: t('upload.url_not_zip') });
+    return;
+  }
+
+  await handleBuffer(buffer, name, buffer.byteLength, root, errorEl);
+}
+
+// Response gövdesini bayt sınırıyla akış-okur; sınır aşılırsa RangeError, indirme kesilir.
+async function readCapped(resp: Response, maxBytes: number): Promise<ArrayBuffer> {
+  if (!resp.body) {
+    const buf = await resp.arrayBuffer();
+    if (buf.byteLength > maxBytes) throw new RangeError('exceeds limit');
+    return buf;
+  }
+  const reader = resp.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > maxBytes) { await reader.cancel(); throw new RangeError('exceeds limit'); }
+    chunks.push(value);
+  }
+  const out = new Uint8Array(total);
+  let off = 0;
+  for (const c of chunks) { out.set(c, off); off += c.byteLength; }
+  return out.buffer;
+}
+
+// CORS/ağ hatası: tarayıcı sebebi gizler → dürüst ortak mesaj + gerçek tıklanır link.
+// Cross-origin `download` attribute'una GÜVENİLMEZ; sade bir link kullanıcının indirmesini sağlar.
+function showUrlBlocked(el: HTMLElement, url: URL): void {
+  el.className = 'upload-status error';
+  el.innerHTML = `${escHtml(t('upload.url_blocked'))} `
+    + `<a href="${escHtml(url.href)}" target="_blank" rel="noopener noreferrer">${escHtml(t('upload.url_open_link'))}</a> `
+    + escHtml(t('upload.url_then_drop'));
+}
+
+async function handleBuffer(buffer: ArrayBuffer, fileName: string, fileSize: number, root: HTMLElement, errorEl: HTMLElement): Promise<void> {
+  errorEl.className = 'upload-status hidden';
+  setLoading(root, fileName, fileSize);
   const startedAt = performance.now();
 
   try {
-    const buffer = await file.arrayBuffer();
     const result = await validateFile(buffer, getState().configDelta, {
       onEngine: (mode) => {
         activeEngine = mode;
         const name = root.querySelector<HTMLElement>('#uploaded-name');
         if (name) {
           name.classList.remove('hidden');
-          name.innerHTML = `<strong>${escHtml(file.name)}</strong> ${engineBadge()}`;
+          name.innerHTML = `<strong>${escHtml(fileName)}</strong> ${engineBadge()}`;
         }
       },
       onFileList: (files) => {
@@ -387,7 +515,7 @@ async function handleFile(file: File, root: HTMLElement, errorEl: HTMLElement): 
       },
     });
 
-    setResult(result, file.name, file.size, performance.now() - startedAt);
+    setResult(result, fileName, fileSize, performance.now() - startedAt);
     activateResult(root, result);
   } catch (err: unknown) {
     clearLoading(root);
