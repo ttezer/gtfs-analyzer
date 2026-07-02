@@ -277,6 +277,7 @@ fn build_shape_geometry(
         let mut prev_lat: Option<f64> = None;
         let mut prev_lon: Option<f64> = None;
         let mut prev_line: u64 = 0;
+        let mut prev_dist: Option<f64> = None;
         // SHP_010 Entity-scope (shape_id) → dedup shape başına TEKE çökertir. Büyük feed'de
         // bir shape'in her ardışık-tekrar noktası için emit etmek yüz binlerce ara-notice
         // üretip sonra atıyordu (#15 Mode A). Shape başına bir kez emit = birebir aynı sonuç.
@@ -284,10 +285,30 @@ fn build_shape_geometry(
 
         for &idx in point_indices {
             let pt = &records.shapes[idx];
+
+            // SHP_005: shape_dist_traveled shape_pt_sequence ile artmalı. point_indices K3'te
+            // sequence'a göre SIRALI olduğundan burada kontrol edilir — K2 dosya-satır sırasında
+            // baksaydı (ve bakıyordu) sequence-dışı sıralı feed'lerde sahte "azalma" görürdü (FP fix).
+            if let Some(d) = pt.shape_dist_traveled {
+                if let Some(prev) = prev_dist {
+                    if d < prev - 1e-6 {
+                        notices.push(k5_notice(
+                            ctr, "SHP_005", EntityType::Shape,
+                            Some(shape_id.clone()), Some(shape_id.clone()),
+                            "shapes.txt", Some(pt.line), Some("shape_dist_traveled"),
+                            Some(format!("{d}")), Some(format!("≥ {prev} (önceki sıra)")),
+                            format!("shape_id '{shape_id}' için shape_dist_traveled shape_pt_sequence ile azalıyor: {prev} → {d}."),
+                            "shape_dist_traveled değerlerini her shape için shape_pt_sequence'e göre artan yazın.",
+                        ));
+                    }
+                }
+                prev_dist = Some(d);
+            }
+
             let (lat, lon) = match (pt.shape_pt_lat, pt.shape_pt_lon) {
                 (Some(la), Some(lo)) => (la, lo),
                 _ => {
-                    // lat/lon yoksa bu noktayı atla; SHP_003/004/005 K2'de zaten yakalandı
+                    // lat/lon yoksa geometri için bu noktayı atla; SHP_003/004 K2'de yakalandı.
                     prev_lat = None;
                     prev_lon = None;
                     continue;
@@ -468,6 +489,14 @@ mod tests {
         }
     }
 
+    fn shape_pt_d(shape_id: &str, seq: u32, lat: f64, lon: f64, dist: f64, line: u64) -> ShapePointRecord {
+        ShapePointRecord {
+            shape_id: shape_id.into(),
+            shape_pt_lat: Some(lat), shape_pt_lon: Some(lon),
+            shape_pt_sequence: Some(seq), shape_dist_traveled: Some(dist), line,
+        }
+    }
+
     fn trip_with_shape(trip_id: &str, shape_id: &str) -> (TripRecord, crate::k2::trips::TripInternTable) {
         use crate::k2::trips::TripInternTable;
         use smol_str::SmolStr;
@@ -526,6 +555,43 @@ mod tests {
         assert_eq!(seg.segment_distances_km.len(), 2);
         assert!(seg.total_length_km > 0.0);
         assert!(result.notices.is_empty(), "Temiz shape'te notice üretilmemeli");
+    }
+
+    #[test]
+    fn shp_005_no_false_positive_when_file_order_differs_from_sequence() {
+        // Dosyada seq 2 (dist 20) seq 1 (dist 10)'dan ÖNCE listelenmiş; K3 sequence'a göre sıralar.
+        // Sequence-sıralı dist artıyor → SHP_005 ÇIKMAMALI (Athens mdb-3220 FP'sinin köku).
+        let mut records = empty_records();
+        let mut map = empty_map();
+        records.shapes = vec![
+            shape_pt_d("S1", 2, 41.1, 29.1, 20.0, 2),
+            shape_pt_d("S1", 1, 41.0, 29.0, 10.0, 3),
+        ];
+        let (t1, ti1) = trip_with_shape("T1", "S1");
+        records.trips = vec![t1]; records.trip_interns = ti1;
+        map.shape_points.insert("S1".into(), vec![1, 0]); // sequence-sıralı: seq1, seq2
+        map.trips.insert("T1".into(), 0);
+        let result = build(&records, &map);
+        assert!(!result.notices.iter().any(|n| n.rule_id == "SHP_005"),
+            "sequence-sıralı artan shape_dist için SHP_005 çıkmamalı (FP fix)");
+    }
+
+    #[test]
+    fn shp_005_fires_on_true_sequence_decrease() {
+        // shape_pt_sequence sırasında gerçekten azalıyor (seq1=10 → seq2=5) → SHP_005 çıkmalı.
+        let mut records = empty_records();
+        let mut map = empty_map();
+        records.shapes = vec![
+            shape_pt_d("S1", 1, 41.0, 29.0, 10.0, 2),
+            shape_pt_d("S1", 2, 41.1, 29.1, 5.0, 3),
+        ];
+        let (t1, ti1) = trip_with_shape("T1", "S1");
+        records.trips = vec![t1]; records.trip_interns = ti1;
+        map.shape_points.insert("S1".into(), vec![0, 1]);
+        map.trips.insert("T1".into(), 0);
+        let result = build(&records, &map);
+        assert!(result.notices.iter().any(|n| n.rule_id == "SHP_005"),
+            "sequence sırasında azalan shape_dist SHP_005 üretmeli");
     }
 
     #[test]

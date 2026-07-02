@@ -71,7 +71,6 @@ pub fn validate_shapes(file: &RawFile) -> (Vec<ShapePointRecord>, Vec<gtfs_core:
     let dq016_pk_idx = file.headers.iter().position(|h| h.ends_with("_id"));
     let mut arc021_fired = false;
     let mut seen_seq_by_shape: HashMap<String, HashSet<u32>> = HashMap::new();
-    let mut prev_dist_by_shape: HashMap<String, f64> = HashMap::new();
     let mut total_rows: usize = 0;
 
     {
@@ -322,21 +321,9 @@ pub fn validate_shapes(file: &RawFile) -> (Vec<ShapePointRecord>, Vec<gtfs_core:
                 Err(_) => None,
             };
 
-            // SHP_005: shape_dist_traveled geriye gidiyor
-            if let Some(d) = shape_dist_traveled {
-                if let Some(&prev) = prev_dist_by_shape.get(&shape_id) {
-                    if d < prev - 1e-6 {
-                        notices.push(make_k2_notice(
-                            &mut counter, "SHP_005", EntityType::Shape, entity_id.clone(),
-                            None, &file.name, Some(line), Some("shape_dist_traveled"),
-                            Some(format!("{d}")), Some(format!("≥ {prev} (önceki değer)")),
-                            format!("shape_id '{shape_id}' için shape_dist_traveled azalıyor: {prev} → {d}."),
-                            "shape_dist_traveled değerlerini her shape için artan sırada yazın.",
-                        ));
-                    }
-                }
-                prev_dist_by_shape.insert(shape_id.clone(), d);
-            }
+            // SHP_005 (shape_dist_traveled monotonluğu) K5'e taşındı: dosya satır sırası DEĞİL,
+            // shape_pt_sequence-sıralı noktalar üzerinde kontrol edilir. Dosya sırası ≠ sequence
+            // olan geçerli feed'lerde eski dosya-sırası kontrolü sahte "azalma" (FP) üretiyordu.
 
             records.push(ShapePointRecord {
                 shape_id,
