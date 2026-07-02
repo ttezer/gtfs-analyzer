@@ -7,13 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-07-02
+
 ### Added
+- Load a GTFS feed directly from a URL (#45): the browser fetches the feed client-side —
+  no backend, and the feed data stays on the device. Works for CORS-enabled hosts such as
+  the Mobility Database catalog; other hosts fall back cleanly to download-and-drop.
 - Run-to-run comparison page (#21): compare the currently analyzed feed with an older
   Golden JSON, including fixed/new/increased/decreased rules, score, severity, class,
   feed-size, date-range, and normalized notice-density deltas.
 - Golden JSON v4 with an exact UTC `generated_at` timestamp, file row/byte counts,
   feed metrics, analysis settings, rule metadata, and severity/class totals. Golden
   v1–v3 files remain importable with clearly marked limitations.
+
+### Changed
+- The downloaded Golden snapshot is byte-deterministic again for git-tracked regression
+  baselines (#42): it omits the per-second `generated_at` while keeping the day-granular
+  `validate_date`; the in-app comparison keeps its live timestamp.
+- CAL_006 (all weekday columns are 0) and RTS_020 (route_url equals agency_url) are now
+  Info, matching MobilityData; CAL_006 is reframed as a dates-only hint rather than
+  "service never runs".
+- The Memory64 package (`pkg64`) is now optimized with `wasm-opt` (~2.37 MB → ~2.02 MB).
+
+### Fixed
+- STP_021 no longer flags valid Entrance/Exit stops. It now targets Boarding Areas
+  (`location_type=4`) that lack a platform parent, removing high-severity false positives
+  (e.g. 132 on the BART feed) that skewed the quality score.
+- Calendar-analytics over-fire on feeds that model one operational calendar as many
+  service-id variants (#30): CAL_007/CAL_012 gaps and CAL_013 expiries are aggregated by
+  signature, so each is reported once with the affected services listed.
 
 ## [0.2.0] - 2026-06-28
 

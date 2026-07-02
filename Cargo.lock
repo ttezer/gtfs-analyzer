@@ -185,7 +185,7 @@ dependencies = [
 
 [[package]]
 name = "gtfs-config"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -193,7 +193,7 @@ dependencies = [
 
 [[package]]
 name = "gtfs-core"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -201,7 +201,7 @@ dependencies = [
 
 [[package]]
 name = "gtfs-pipeline"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "chrono-tz",
  "gtfs-config",
@@ -219,14 +219,14 @@ dependencies = [
 
 [[package]]
 name = "gtfs-rules"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "gtfs-core",
 ]
 
 [[package]]
 name = "gtfs-wasm"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "gtfs-config",
  "gtfs-core",
