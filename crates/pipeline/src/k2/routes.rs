@@ -304,63 +304,40 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
         });
     }
 
-    // RTS_019: Yinelenen hat adı — önce tüm adları topla, sonra her çakışan GRUP için tek notice üret
+    // RTS_019: Yinelenen hat adı — bir hat başka biriyle HEM route_short_name HEM route_long_name
+    // bakımından aynıysa (gerçek kopya hat). Yalnız kısa VEYA yalnız uzun adı paylaşmak NORMALDİR
+    // (aynı hat numarası varyant/yön için tekrar kullanılır; farklı hatlar aynı uzun adı taşıyabilir)
+    // → MobilityData `duplicate_route_name` ile hizalı; (kısa|uzun) tek-başına eşleşme FP üretiyordu.
+    // Çakışan (kısa,uzun) çift başına TEK notice; adı paylaşan tüm hatları (route_id) listeler.
     {
-        let mut short_groups: HashMap<String, Vec<(String, u64)>> = HashMap::new(); // key → Vec<(route_id, line)>
-        let mut long_groups:  HashMap<String, Vec<(String, u64)>> = HashMap::new();
+        let mut name_groups: HashMap<(String, String), Vec<(String, u64)>> = HashMap::new();
         for rec in &records {
-            if let Some(ref sn) = rec.route_short_name {
-                if !sn.is_empty() {
-                    short_groups.entry(sn.to_lowercase()).or_default().push((rec.route_id.clone(), rec.line));
-                }
-            }
-            if let Some(ref ln) = rec.route_long_name {
-                if !ln.is_empty() {
-                    long_groups.entry(ln.to_lowercase()).or_default().push((rec.route_id.clone(), rec.line));
-                }
-            }
+            let sn = rec.route_short_name.as_deref().unwrap_or("").trim().to_lowercase();
+            let ln = rec.route_long_name.as_deref().unwrap_or("").trim().to_lowercase();
+            if sn.is_empty() && ln.is_empty() { continue; }
+            name_groups.entry((sn, ln)).or_default().push((rec.route_id.clone(), rec.line));
         }
-        for (key, entries) in &short_groups {
-            if entries.len() < 2 { continue; }
-            // Çakışan grup başına TEK notice; ismi paylaşan TÜM hatları (route_id) listele.
-            // (Üye başına emit aynı çakışmayı N kez tekrarlardı.) İlk üyeye sabitlenir.
+        // Deterministik çıktı için (kısa,uzun) anahtarına göre sırala.
+        let mut groups: Vec<_> = name_groups.into_iter().filter(|(_, e)| e.len() >= 2).collect();
+        groups.sort_by(|a, b| a.0.cmp(&b.0));
+        for (_key, entries) in &groups {
             let group_str = entries.iter().map(|(id, _)| id.as_str()).collect::<Vec<_>>().join(", ");
             let (anchor_id, anchor_line) = &entries[0];
-            let display_name = records.iter().find(|r| &r.route_id == anchor_id)
-                .and_then(|r| r.route_short_name.as_deref())
-                .unwrap_or(key.as_str());
-            let mut n = make_k2_notice(
-                &mut counter, "RTS_019", EntityType::Route,
-                Some(anchor_id.clone()), None,
-                "routes.txt", Some(*anchor_line), Some("route_short_name"),
-                Some(display_name.to_string()), None,
-                format!("route_short_name '{}' şu hatlar tarafından paylaşılıyor: {}.", display_name, group_str),
-                "Her hatta benzersiz bir kısa ad verin veya bilerek paylaşılıyorsa bu uyarıyı görmezden gelin.",
-            );
-            n.details = Some([("conflicting_routes".to_string(), group_str.clone())].into_iter().collect());
-            notices.push(n);
-        }
-        for (key, entries) in &long_groups {
-            if entries.len() < 2 { continue; }
-            // Uzun adlar aynı; hatları route_short_name ile listele (yoksa route_id) — ismi paylaşan TÜM hatlar
-            let group_str = entries.iter().map(|(id, _)| {
-                records.iter().find(|r| &r.route_id == id)
-                    .and_then(|r| r.route_short_name.clone())
-                    .filter(|s| !s.is_empty())
-                    .unwrap_or_else(|| id.clone())
-            }).collect::<Vec<_>>().join(", ");
-            // Çakışan grup başına TEK notice; ismi paylaşan TÜM hatları listele. İlk üyeye sabitlenir.
-            let (anchor_id, anchor_line) = &entries[0];
-            let display_name = records.iter().find(|r| &r.route_id == anchor_id)
-                .and_then(|r| r.route_long_name.as_deref())
-                .unwrap_or(key.as_str());
+            let anchor = records.iter().find(|r| &r.route_id == anchor_id);
+            let sn_disp = anchor.and_then(|r| r.route_short_name.as_deref()).unwrap_or("");
+            let ln_disp = anchor.and_then(|r| r.route_long_name.as_deref()).unwrap_or("");
+            let display = match (sn_disp.is_empty(), ln_disp.is_empty()) {
+                (false, false) => format!("{sn_disp} — {ln_disp}"),
+                (false, true)  => sn_disp.to_string(),
+                _              => ln_disp.to_string(),
+            };
             let mut n = make_k2_notice(
                 &mut counter, "RTS_019", EntityType::Route,
                 Some(anchor_id.clone()), None,
                 "routes.txt", Some(*anchor_line), Some("route_long_name"),
-                Some(display_name.to_string()), None,
-                format!("route_long_name '{}' şu hatlar tarafından paylaşılıyor: {}.", display_name, group_str),
-                "Her hatta benzersiz bir uzun ad verin veya bilerek paylaşılıyorsa bu uyarıyı görmezden gelin.",
+                Some(display.clone()), None,
+                format!("'{display}' hat adı (kısa+uzun aynı) şu hatlar tarafından paylaşılıyor: {group_str}."),
+                "Aynı kısa+uzun adı taşıyan hatları birleştirin ya da adlarını benzersizleştirin; bilerek kopya ise görmezden gelin.",
             );
             n.details = Some([("conflicting_routes".to_string(), group_str.clone())].into_iter().collect());
             notices.push(n);
@@ -458,23 +435,39 @@ mod tests {
 
     #[test]
     fn shared_route_name_produces_single_rts_019_per_group() {
-        // 3 hat aynı long_name'i paylaşıyor → çakışan grup başına TEK RTS_019 (üye başına değil)
+        // 3 hat HEM aynı short HEM aynı long → gerçek kopya → çakışan grup başına TEK RTS_019
         let file = make_file(
             vec!["route_id", "route_short_name", "route_long_name", "route_type"],
             vec![
-                vec!["R1", "QM2",  "Astoria - Midtown", "3"],
-                vec!["R2", "QM20", "Astoria - Midtown", "3"],
-                vec!["R3", "QM21", "Astoria - Midtown", "3"],
+                vec!["R1", "QM2", "Astoria - Midtown", "3"],
+                vec!["R2", "QM2", "Astoria - Midtown", "3"],
+                vec!["R3", "QM2", "Astoria - Midtown", "3"],
             ],
         );
         let (_, notices) = validate_routes(&file);
         let rts019: Vec<_> = notices.iter().filter(|n| n.rule_id == "RTS_019").collect();
         assert_eq!(rts019.len(), 1, "Grup başına tek RTS_019 bekleniyor, {} üretildi: {:?}",
             rts019.len(), rts019.iter().map(|n| &n.message).collect::<Vec<_>>());
-        // Mesaj grubun TÜM üyelerini (short_name ile) listelemeli
+        // Mesaj grubun TÜM üyelerini (route_id) listelemeli
         let msg = &rts019[0].message;
-        assert!(msg.contains("QM2") && msg.contains("QM20") && msg.contains("QM21"),
+        assert!(msg.contains("R1") && msg.contains("R2") && msg.contains("R3"),
             "Mesaj tüm grubu listelemeli: {}", msg);
+    }
+
+    #[test]
+    fn shared_short_name_different_long_no_rts_019() {
+        // Aynı route_short_name ama FARKLI route_long_name (varyant/yön) → kopya DEĞİL → RTS_019 YOK.
+        // Athens mdb-3220 FP'sinin köku: 109 grup yalnız kısa adı paylaşıyordu (MD de saymıyor).
+        let file = make_file(
+            vec!["route_id", "route_short_name", "route_long_name", "route_type"],
+            vec![
+                vec!["R1", "221", "Merkez - Kuzey", "3"],
+                vec!["R2", "221", "Merkez - Güney", "3"],
+            ],
+        );
+        let (_, notices) = validate_routes(&file);
+        assert!(!notices.iter().any(|n| n.rule_id == "RTS_019"),
+            "aynı short + farklı long RTS_019 üretmemeli (FP fix)");
     }
 
     #[test]
