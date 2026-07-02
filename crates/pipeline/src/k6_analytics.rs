@@ -3789,10 +3789,16 @@ fn check_remaining_analytics(
         for (_shape_id, idxs) in &mut shape_pt_idx {
             idxs.sort_by_key(|&i| records.shapes[i as usize].shape_pt_sequence.unwrap_or(0));
         }
-        let mut shp023_fired: FxHashSet<&str> = FxHashSet::default();
         for (shape_id, idxs) in &shape_pt_idx {
-            if shp023_fired.contains(*shape_id) { continue; }
+            // Shape başına HER TÜRDEN (SHP_023/028/029) en fazla BİR notice. Eskiden ilk eşit-dist
+            // çiftinde break ediliyordu → aynı shape'te hem tekrar-nokta (023) hem eşik-altı (029)
+            // varsa yalnız İLKİ raporlanıyordu (Spelunca: 6 SHP_023 kaybı). Artık tüm çiftler taranır,
+            // her tür bir kez emit edilir; üçü de bulununca erken çıkılır.
+            let mut fired_023 = false;
+            let mut fired_028 = false;
+            let mut fired_029 = false;
             for w in idxs.windows(2) {
+                if fired_023 && fired_028 && fired_029 { break; }
                 let pa = &records.shapes[w[0] as usize];
                 let pb = &records.shapes[w[1] as usize];
                 let (da, la, loa) = (pa.shape_dist_traveled, pa.shape_pt_lat.unwrap(), pa.shape_pt_lon.unwrap());
@@ -3805,31 +3811,36 @@ fn check_remaining_analytics(
                     if (da_v - db_v).abs() < EPS {
                         if (la - lb).abs() < EPS && (loa - lob).abs() < EPS {
                             // SHP_023: aynı dist + aynı koordinat (tekrar eden nokta)
-                            shp023_fired.insert(shape_id);
-                            let prefix = shp_route_prefix(shape_route_labels.get(*shape_id).map(|v| v.as_slice()).unwrap_or(&[]));
-                            notices.push(k6_notice(
-                                ctr, "SHP_023", EntityType::Shape,
-                                Some(shape_id.to_string()), Some(shape_id.to_string()),
-                                "shapes.txt", None, Some("shape_dist_traveled"),
-                                Some(format!("dist={da_v:.4}, ({la:.6},{loa:.6})")), None,
-                                format!("{prefix}'{shape_id}' şeklinde art arda iki noktanın shape_dist_traveled ({da_v:.4}) ve koordinatları aynı — tekrar eden nokta."),
-                                "Yinelenen shape noktasını kaldırın.",
-                            ));
-                            break;
+                            if !fired_023 {
+                                fired_023 = true;
+                                let prefix = shp_route_prefix(shape_route_labels.get(*shape_id).map(|v| v.as_slice()).unwrap_or(&[]));
+                                notices.push(k6_notice(
+                                    ctr, "SHP_023", EntityType::Shape,
+                                    Some(shape_id.to_string()), Some(shape_id.to_string()),
+                                    "shapes.txt", None, Some("shape_dist_traveled"),
+                                    Some(format!("dist={da_v:.4}, ({la:.6},{loa:.6})")), None,
+                                    format!("{prefix}'{shape_id}' şeklinde art arda iki noktanın shape_dist_traveled ({da_v:.4}) ve koordinatları aynı — tekrar eden nokta."),
+                                    "Yinelenen shape noktasını kaldırın.",
+                                ));
+                            }
                         } else {
                             // Aynı dist ama farklı koordinat → mesafe artmadan konum değişmiş.
                             let coord_diff = (la - lb).abs().max((loa - lob).abs());
                             if coord_diff >= DIFF_THRESHOLD {
-                                notices.push(k6_notice(
-                                    ctr, "SHP_028", EntityType::Shape,
-                                    Some(shape_id.to_string()), Some(shape_id.to_string()),
-                                    "shapes.txt", None, Some("shape_dist_traveled"),
-                                    Some(format!("dist={da_v:.4}, ({la:.6},{loa:.6})→({lb:.6},{lob:.6})")),
-                                    Some("artan dist".to_string()),
-                                    format!("'{shape_id}' şeklinde art arda iki noktanın shape_dist_traveled ({da_v:.4}) aynı ama koordinatları farklı — mesafe artmadan konum değişmiş."),
-                                    "Ardışık shape noktalarına artan shape_dist_traveled değerleri atayın.",
-                                ));
-                            } else {
+                                if !fired_028 {
+                                    fired_028 = true;
+                                    notices.push(k6_notice(
+                                        ctr, "SHP_028", EntityType::Shape,
+                                        Some(shape_id.to_string()), Some(shape_id.to_string()),
+                                        "shapes.txt", None, Some("shape_dist_traveled"),
+                                        Some(format!("dist={da_v:.4}, ({la:.6},{loa:.6})→({lb:.6},{lob:.6})")),
+                                        Some("artan dist".to_string()),
+                                        format!("'{shape_id}' şeklinde art arda iki noktanın shape_dist_traveled ({da_v:.4}) aynı ama koordinatları farklı — mesafe artmadan konum değişmiş."),
+                                        "Ardışık shape noktalarına artan shape_dist_traveled değerleri atayın.",
+                                    ));
+                                }
+                            } else if !fired_029 {
+                                fired_029 = true;
                                 notices.push(k6_notice(
                                     ctr, "SHP_029", EntityType::Shape,
                                     Some(shape_id.to_string()), Some(shape_id.to_string()),
@@ -3840,7 +3851,6 @@ fn check_remaining_analytics(
                                     "Ardışık shape noktalarına artan shape_dist_traveled değerleri atayın ya da yinelenen noktayı kaldırın.",
                                 ));
                             }
-                            break;
                         }
                     }
                 }
@@ -9271,6 +9281,38 @@ mod tests {
         let ids: Vec<&str> = result.notices.iter().map(|n| n.rule_id.as_str()).collect();
         assert!(ids.contains(&"SHP_028"), "aynı dist + farklı koordinat → SHP_028: {:?}", ids);
         assert!(!ids.contains(&"SHP_029"), "eşik üstü fark SHP_029 olmamalı: {:?}", ids);
+    }
+
+    #[test]
+    fn shape_with_both_below_threshold_and_repeat_fires_both_types() {
+        use crate::k2::shapes::ShapePointRecord;
+        // Bir shape hem eşik-altı fark (SHP_029, ÖNCE) hem tekrar-nokta (SHP_023, SONRA) içeriyor.
+        // Eski first-wins `break` SHP_023'ü kaçırırdı (Spelunca'da 6 kayıp); artık her tür bir kez.
+        let mut records = records_with(
+            vec![stop("A", 41.0, 29.0), stop("B", 41.0, 29.1)],
+            vec![route("R1", 3)],
+            vec![trip_sh("T1", "R1", "S1")],
+            vec![
+                stoptime("T1", 1, "A", (8,0,0), (8,0,0), 2),
+                stoptime("T1", 2, "B", (8,10,0), (8,10,0), 3),
+            ],
+        );
+        records.shapes = vec![
+            ShapePointRecord { shape_id: "S1".into(), shape_pt_lat: Some(41.0),      shape_pt_lon: Some(29.0),
+                shape_pt_sequence: Some(1), shape_dist_traveled: Some(100.0), line: 2 },
+            // Δlat=5e-6 (< 1e-5 eşik) → SHP_029 (eşik-altı), ilk çift
+            ShapePointRecord { shape_id: "S1".into(), shape_pt_lat: Some(41.000005), shape_pt_lon: Some(29.0),
+                shape_pt_sequence: Some(2), shape_dist_traveled: Some(100.0), line: 3 },
+            // 2. ile birebir aynı → SHP_023 (tekrar-nokta), ikinci çift
+            ShapePointRecord { shape_id: "S1".into(), shape_pt_lat: Some(41.000005), shape_pt_lon: Some(29.0),
+                shape_pt_sequence: Some(3), shape_dist_traveled: Some(100.0), line: 4 },
+        ];
+        let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
+        let ids: Vec<&str> = result.notices.iter().map(|n| n.rule_id.as_str()).collect();
+        assert!(ids.contains(&"SHP_029"), "eşik-altı fark → SHP_029: {:?}", ids);
+        assert!(ids.contains(&"SHP_023"), "tekrar-nokta → SHP_023 (first-wins bug fix): {:?}", ids);
+        assert_eq!(ids.iter().filter(|&&x| x == "SHP_023").count(), 1, "SHP_023 shape başına tek");
+        assert_eq!(ids.iter().filter(|&&x| x == "SHP_029").count(), 1, "SHP_029 shape başına tek");
     }
 
     #[test]
