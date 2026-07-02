@@ -111,8 +111,9 @@ const PROOF_ALLOWLIST: &[&str] = &[
 
 // ── KALICI DEBT (coverage_debt.txt'te kalır) ──
 // (AGN_001 → PROOF_ALLOWLIST'te: fatal yol, ARC_004 temsil eder; issue #27)
-// #28 Grup 1 ÇÖZÜLDÜ: ARC_002/ARC_003 (fx_raw ham byte) + OPR_021/022/023 (fx_cfg config) artık
-// fixtures()'ta runtime-kanıtlı. Kalan borç yalnız pratik-olmayan büyük feed'ler + config/metadata:
+// #28 ÇÖZÜLEN: ARC_002/003 (fx_raw ham byte), OPR_021/022/023 + ARC_028/STP_040/STP_041 (fx_cfg
+// config) artık fixtures()'ta runtime-kanıtlı. Kalan borç yalnız pratik-olmayan büyük feed'ler +
+// ARC_027 (yapısal):
 //   ARC_022  — > 1.000.000 satır gerektirir (inline yazılamaz).
 //   OPR_024  — tek (route, service)'te > 500 sefer gerektirir (inline yazılamaz).
 //   SHP_026  — > 5000 shape noktası gerektirir.
@@ -120,7 +121,6 @@ const PROOF_ALLOWLIST: &[&str] = &[
 //   STM_044  — > 2.000.000 stop_times satırı gerektirir.
 //   VAT_006  — feed'de >= 50 sefer gerektirir (inline pratik değil).
 //   ARC_027  — ZIP entry Unix izin metadata'sı gerektirir (fixture üretmiyor).
-//   ARC_028 / STP_040 / STP_041 — config-gated; fx_cfg ile kanıtlanabilir (sonraki tur).
 // ARC_001/ARC_004 PROOF_ALLOWLIST'te (Fatal yol). Diğerleri coverage_debt.txt'te bilinçli bırakıldı.
 
 // #28 Grup 1 yardımcıları ─────────────────────────────────────────────────────
@@ -140,6 +140,20 @@ fn override_config() -> ValidatorConfig {
     }];
     c
 }
+// ARC_028: source_url verilir ve .zip ile bitmezse tetiklenir (config-gated).
+fn source_url_config() -> ValidatorConfig {
+    let mut c = ValidatorConfig::default();
+    c.source_url = Some("https://example.org/gtfs".into());
+    c
+}
+// STP_040/041: opt-in stop-adı profili. P1 "Main Stop" → generic 'stop' sözcüğü (STP_040) VE
+// parent ST1 "Central Hub" adını içermiyor (STP_041). S1/S2 stop_times referansları için korunur.
+fn stop_name_config() -> ValidatorConfig {
+    let mut c = ValidatorConfig::default();
+    c.stop_name_best_practices = true;
+    c
+}
+const STOP_NAME_STOPS: &str = "stop_id,stop_name,stop_lat,stop_lon,location_type,parent_station\nS1,Stop1,41.0,29.0,0,\nS2,Stop2,41.1,29.1,0,\nST1,Central Hub,41.0,29.0,1,\nP1,Main Stop,41.0,29.0,0,ST1\n";
 
 /// rule_id → tetikleyici fixture. Kademeli doldurulur; her satır gerçek runtime proof.
 fn fixtures() -> Vec<Fixture> {
@@ -150,6 +164,10 @@ fn fixtures() -> Vec<Fixture> {
         fx_cfg("OPR_021", vec![("calendar_dates.txt", OVERRIDE_CD)], override_config()),
         fx_cfg("OPR_022", vec![("calendar_dates.txt", OVERRIDE_CD)], override_config()),
         fx_cfg("OPR_023", vec![("calendar_dates.txt", OVERRIDE_CD)], override_config()),
+        // Bonus: config-gated kurallar (fx_cfg ile).
+        fx_cfg("ARC_028", vec![], source_url_config()),
+        fx_cfg("STP_040", vec![("stops.txt", STOP_NAME_STOPS)], stop_name_config()),
+        fx_cfg("STP_041", vec![("stops.txt", STOP_NAME_STOPS)], stop_name_config()),
         // ── Tohum parti: tetikleme koşulu net K2/K6 kuralları ──────────────────
         // STP_003: stop_lat aralık dışı.
         fx("STP_003", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,999.0,29.0\nS2,Stop2,41.1,29.1\n")]),
