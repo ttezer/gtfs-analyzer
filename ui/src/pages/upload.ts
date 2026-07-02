@@ -28,6 +28,7 @@ const CONFIG_KEYS: Array<{ key: string; type: 'float' | 'int'; def: number; min:
   { key: 'stop_far_from_parent_m',   type: 'float', def: 100,  min: 10,   max: 1000 },
   { key: 'feed_expiry_warning_days', type: 'int',   def: 30,   min: 1,    max: 60   },
   { key: 'service_gap_days',         type: 'int',   def: 7,    min: 3,    max: 30   },
+  { key: 'big_gap_days',             type: 'int',   def: 14,   min: 7,    max: 60   },
   { key: 'upcoming_service_days',    type: 'int',   def: 7,    min: 1,    max: 90   },
   { key: 'max_trip_duration_hours',  type: 'float', def: 24,   min: 8,    max: 72   },
   { key: 'min_trip_duration_sec',    type: 'int',   def: 60,   min: 10,   max: 300  },

@@ -762,7 +762,7 @@ fn fixtures() -> Vec<Fixture> {
         // CAL_011: hiçbir sefer kullanmıyor (SVC2 boşta).
         fx("CAL_011", vec![("calendar.txt", "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,0,0,20250101,20271231\nSVC2,1,1,1,1,1,0,0,20250101,20271231\n")]),
         // CAL_012: yakın gelecekte servis boşluğu.
-        fx_rm("CAL_012", vec![("calendar_dates.txt", "service_id,date,exception_type\nSVC1,20260516,1\nSVC1,20260530,1\n")], vec!["calendar.txt"]),
+        fx_rm("CAL_012", vec![("calendar_dates.txt", "service_id,date,exception_type\nSVC1,20260516,1\nSVC1,20260603,1\n")], vec!["calendar.txt"]),
         // CAL_013: tekil servis süresi dolmuş (k6).
         fx("CAL_013", vec![("calendar.txt", "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,0,0,20190101,20201231\n")]),
         // CAL_014: servis tarihleri feed_info penceresi dışında (servis calendar_dates'te

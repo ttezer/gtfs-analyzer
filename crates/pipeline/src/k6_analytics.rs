@@ -1320,7 +1320,10 @@ fn check_calendar_analytics(
     // near_future imzanın (bugüne bağlı) fonksiyonudur, servise değil → her imza tekdüze
     // CAL_007 ya da CAL_012 üretir. Emit döngü SONRASINDA yapılır.
     let today_jdn = yyyymmdd_to_approx_jdn(today_yyyymmdd);
-    let gap_threshold = config.service_gap_days;
+    let gap_threshold = config.service_gap_days;   // CAL_010: çok-kısa servis eşiği (aktif gün)
+    let big_gap_threshold = config.big_gap_days;   // CAL_007/012: büyük-boşluk eşiği (MD ≈ 14)
+    let mut gap_services: std::collections::BTreeMap<(u32, u32), Vec<&str>> =
+        std::collections::BTreeMap::new();
     for (service_id, dates) in &derived.calendar_bitmap.active_dates {
         if dates.is_empty() {
             continue;
@@ -1346,6 +1349,18 @@ fn check_calendar_analytics(
                 format!("'{service_id}' takviminde yalnızca {total_days} aktif gün var."),
                 "Servis takvimini genişletin ya da bu servisin kısa olduğunu belgeleyin.",
             ));
+        }
+
+        // CAL_007/012: bu servisin ardışık aktif tarihleri arasında >= big_gap_days boşluk.
+        // MobilityData big_gap_in_service PER-SERVICE'tir (feed-level union DEĞİL). Boşluklar
+        // (gap_start, gap_end) imzasıyla TÜM servisler arasında toplanır (#30) → emit döngü SONRASI.
+        for pair in sorted.windows(2) {
+            let gap_days = yyyymmdd_to_approx_jdn(pair[1])
+                .saturating_sub(yyyymmdd_to_approx_jdn(pair[0]))
+                .saturating_sub(1);
+            if gap_days >= big_gap_threshold {
+                gap_services.entry((pair[0], pair[1])).or_default().push(service_id.as_str());
+            }
         }
 
         // CAL_021: servis aktif dönemi bugünü kapsıyor (min ≤ today ≤ max) AMA
@@ -1383,31 +1398,25 @@ fn check_calendar_analytics(
         }
     }
 
-    // CAL_007/012 emit: FEED-LEVEL boşluk. TÜM servislerin birleşimindeki (union) aktif
-    // tarihler arasındaki ardışık ≥ gap_threshold boşluk = feed genelinde HİÇBİR servisin
-    // aktif olmadığı dönem (MobilityData big_gap_in_service ile hizalı). Bir boşluğu başka
-    // bir service_id kapsıyorsa union'da görünmez → raporlanmaz (per-service FP giderildi).
-    // #29 korunur: yakın-gelecek feed-boşluğu CAL_012 (BİLGİ), geçmiş/uzak CAL_007 (ORTA).
-    let union_dates: Vec<u32> = {
-        let mut set = std::collections::BTreeSet::new();
-        for dates in derived.calendar_bitmap.active_dates.values() {
-            set.extend(dates.iter().copied());
-        }
-        set.into_iter().collect()
-    };
-    for pair in union_dates.windows(2) {
-        let (gap_from, gap_to) = (pair[0], pair[1]);
+    // CAL_007/012 emit: gap imzası başına TEK notice (#30). Aynı operasyonel boşluğu
+    // paylaşan service_id varyantları details["services"]'te listelenir (VAT_002 deseni).
+    // #29 mantığı korunur: yakın-gelecek boşluk CAL_012, geçmiş/uzak boşluk CAL_007.
+    for ((gap_from, gap_to), mut svcs) in gap_services {
+        svcs.sort_unstable();
+        svcs.dedup();
         let a_jdn = yyyymmdd_to_approx_jdn(gap_from);
         let b_jdn = yyyymmdd_to_approx_jdn(gap_to);
         let gap_days = b_jdn.saturating_sub(a_jdn).saturating_sub(1);
-        if gap_days < gap_threshold {
-            continue;
-        }
         // Boşluk bugün/yakın gelecekle (bugünden +30 gün) örtüşüyor mu?
         let near_future =
             b_jdn.saturating_sub(1) >= today_jdn && (a_jdn + 1) <= today_jdn + 30;
+        let svc_suffix = if svcs.len() == 1 {
+            format!("'{}' servisinde", svcs[0])
+        } else {
+            format!("{} serviste: {}", svcs.len(), svcs.join(", "))
+        };
         let entity = format!("{gap_from}-{gap_to}");
-        let n = if near_future {
+        let mut n = if near_future {
             k6_notice(
                 ctr,
                 "CAL_012",
@@ -1418,9 +1427,9 @@ fn check_calendar_analytics(
                 None,
                 None,
                 Some(format!("{gap_days}")),
-                Some(format!("< {gap_threshold}")),
-                format!("{gap_from}-{gap_to} arası {gap_days} günlük yakın dönem inaktif aralıkta feed genelinde hiçbir servis aktif değil."),
-                "Bu aralık planlıysa işlem gerekmez; değilse servis takvimlerini doğrulayın.",
+                Some(format!("< {big_gap_threshold}")),
+                format!("{gap_from}-{gap_to} arası {gap_days} günlük yakın dönem inaktif aralık {svc_suffix}."),
+                "Bu aralık planlıysa işlem gerekmez; değilse servis takvimini doğrulayın.",
             )
         } else {
             k6_notice(
@@ -1433,11 +1442,16 @@ fn check_calendar_analytics(
                 None,
                 None,
                 Some(format!("{gap_days}")),
-                Some(format!("< {gap_threshold}")),
-                format!("{gap_from}-{gap_to} arası {gap_days} günlük boşlukta feed genelinde hiçbir servis aktif değil."),
-                "Boşluk kasıtlıysa calendar_dates ile açıklayın; değilse takvimleri düzeltin.",
+                Some(format!("< {big_gap_threshold}")),
+                format!("{gap_from}-{gap_to} arası {gap_days} günlük boşluk {svc_suffix}."),
+                "Boşluk kasıtlıysa calendar_dates ile açıklayın; değilse takvimi düzeltin.",
             )
         };
+        n.details = Some({
+            let mut d = std::collections::HashMap::new();
+            d.insert("services".to_string(), svcs.join(","));
+            d
+        });
         notices.push(n);
     }
 
@@ -8171,8 +8185,8 @@ mod tests {
     fn shared_calendar_gap_aggregates_across_services_to_one_notice() {
         use crate::k5_derived::CalendarBitmap;
         let mut derived = DerivedData::default();
-        // Aynı geçmiş boşluğu (20260101→20260201) iki service_id paylaşıyor: feed-level
-        // union {20260101, 20260201} → boşluk feed genelinde → tek CAL_007 (union doğal dedup).
+        // Aynı geçmiş boşluğu (20260101→20260201, ~30 gün ≥ big_gap_days) iki service_id
+        // paylaşıyor (#30): per-service 2 CAL_007 yerine gap-imzası başına TEK notice.
         let dates_a: std::collections::HashSet<u32> = [20260101u32, 20260201].into_iter().collect();
         let dates_b: std::collections::HashSet<u32> = [20260101u32, 20260201].into_iter().collect();
         derived.calendar_bitmap = CalendarBitmap {
@@ -8184,32 +8198,31 @@ mod tests {
         let records = crate::k2::EntityRecords::default();
         let result = analyze(&records, &derived, &default_config(), 20260514);
         let cal007: Vec<_> = result.notices.iter().filter(|n| n.rule_id == "CAL_007").collect();
-        assert_eq!(cal007.len(), 1, "feed genelindeki tek boşluk için tek CAL_007 beklenir");
+        assert_eq!(cal007.len(), 1, "aynı boşluğu paylaşan iki servis için tek CAL_007 beklenir");
         assert_eq!(cal007[0].entity_id.as_deref(), Some("20260101-20260201"));
+        let services = cal007[0].details.as_ref()
+            .and_then(|d| d.get("services"))
+            .map(String::as_str)
+            .unwrap_or("");
+        assert!(services.contains("SVC_A") && services.contains("SVC_B"),
+            "details.services her iki servisi listelemeli, bulundu: {services}");
     }
 
     #[test]
-    fn gap_covered_by_another_service_no_cal_007() {
-        // Feed-level FP fix: SVC_A'nın kendi tarihleri arasında büyük boşluk var
-        // (20260101→20260201) AMA SVC_B o aralığı haftalık kapsıyor → feed genelinde
-        // ≥ gap_threshold ardışık boşluk YOK → CAL_007 üretilmemeli. (Eski per-service
-        // mantık SVC_A için CAL_007 üretirdi.)
+    fn gap_below_big_gap_threshold_no_cal_007() {
+        // big_gap_days=14: 10 günlük boşluk (< 14) CAL_007/012 üretmemeli. Bu, MD ile hizanın
+        // regresyon koruması — eski service_gap_days=7 eşiğinde bu boşluk (yanlışça) tetiklerdi.
         use crate::k5_derived::CalendarBitmap;
         let mut derived = DerivedData::default();
-        let dates_a: std::collections::HashSet<u32> = [20260101u32, 20260201].into_iter().collect();
-        let dates_b: std::collections::HashSet<u32> =
-            [20260106u32, 20260111, 20260116, 20260121, 20260126, 20260131]
-                .into_iter().collect();
+        // 20260101 → 20260112 = 10 gün boşluk (< 14)
+        let dates: std::collections::HashSet<u32> = [20260101u32, 20260112].into_iter().collect();
         derived.calendar_bitmap = CalendarBitmap {
-            active_dates: [
-                ("SVC_A".to_string(), dates_a),
-                ("SVC_B".to_string(), dates_b),
-            ].into_iter().collect(),
+            active_dates: [("SVC".to_string(), dates)].into_iter().collect(),
         };
         let records = crate::k2::EntityRecords::default();
         let result = analyze(&records, &derived, &default_config(), 20260514);
-        assert!(!result.notices.iter().any(|n| n.rule_id == "CAL_007"),
-            "boşluk başka servisçe kapsanıyorsa CAL_007 üretilmemeli (feed-level)");
+        assert!(!result.notices.iter().any(|n| n.rule_id == "CAL_007" || n.rule_id == "CAL_012"),
+            "big_gap_days eşiğinin altındaki boşluk (10<14) CAL_007/012 üretmemeli");
     }
 
     // ── CAL_021: bugünü kapsayan ama yakın günlerde aktif seferi olmayan servis ──

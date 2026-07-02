@@ -42,6 +42,7 @@ const DEF_DURATION_OUTLIER_SIGMA:   f64 =   3.5;
 const DEF_HEADWAY_OUTLIER_SIGMA:    f64 =   2.5;
 const DEF_SERVICE_DAY_START_HOUR:   u32 =   3;
 const DEF_MAX_CALENDAR_FUTURE_YEARS: u32 =  3;
+const DEF_BIG_GAP_DAYS:             u32 =  14;
 
 /// Validator parametreleri. Tüm eşikler architecture v0.8 Bölüm 6'dan.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -63,7 +64,12 @@ pub struct ValidatorConfig {
     pub stop_far_from_shape_m:    f64,
     pub stop_far_from_parent_m:   f64,
     pub feed_expiry_warning_days: u32,
+    /// CAL_010: bir servisin toplam aktif gün sayısı bu eşiğin altındaysa "çok kısa servis".
     pub service_gap_days:         u32,
+    /// CAL_007/012: bir servisin ardışık aktif tarihleri arasındaki "büyük boşluk" eşiği (gün).
+    /// MobilityData `big_gap_in_service` ile hizalı (14); `service_gap_days`'ten (çok-kısa servis)
+    /// ayrı tutulur — küçük boşlukları büyük-boşluk olarak işaretlememek için.
+    pub big_gap_days:             u32,
     /// CAL_021: bugünden itibaren kaç gün içinde aktif sefer aranır (operasyonel tazelik penceresi).
     pub upcoming_service_days:    u32,
     pub max_trip_duration_hours:  f64,
@@ -116,6 +122,7 @@ impl Default for ValidatorConfig {
             stop_far_from_parent_m:   DEF_STOP_FAR_FROM_PARENT_M,
             feed_expiry_warning_days: DEF_FEED_EXPIRY_WARNING_DAYS,
             service_gap_days:         DEF_SERVICE_GAP_DAYS,
+            big_gap_days:             DEF_BIG_GAP_DAYS,
             upcoming_service_days:    DEF_UPCOMING_SERVICE_DAYS,
             max_trip_duration_hours:  DEF_MAX_TRIP_DURATION_HOURS,
             min_trip_duration_sec:    DEF_MIN_TRIP_DURATION_SEC,
@@ -193,6 +200,7 @@ fn validate_ranges(cfg: &ValidatorConfig) -> Result<(), String> {
     chk_f64!(cfg.stop_far_from_parent_m,  "stop_far_from_parent_m",    10.0,  1000.0);
     chk_u32!(cfg.feed_expiry_warning_days, "feed_expiry_warning_days",     1,    60);
     chk_u32!(cfg.service_gap_days,         "service_gap_days",             3,    30);
+    chk_u32!(cfg.big_gap_days,             "big_gap_days",                 7,    60);
     chk_u32!(cfg.upcoming_service_days,    "upcoming_service_days",        1,    90);
     chk_f64!(cfg.max_trip_duration_hours,  "max_trip_duration_hours",    8.0,    72.0);
     chk_u32!(cfg.min_trip_duration_sec,    "min_trip_duration_sec",       10,   300);
@@ -230,7 +238,7 @@ pub fn merge_delta(base: &ValidatorConfig, delta_json: &str) -> Result<Validator
         "max_speed_rail_kmh", "max_speed_ferry_kmh", "max_speed_cablecar_kmh",
         "min_transfer_time_sec", "max_transfer_distance_m", "max_shape_jump_km",
         "stop_too_close_m", "stop_far_from_shape_m", "stop_far_from_parent_m", "feed_expiry_warning_days",
-        "service_gap_days", "upcoming_service_days", "max_trip_duration_hours", "min_trip_duration_sec",
+        "service_gap_days", "big_gap_days", "upcoming_service_days", "max_trip_duration_hours", "min_trip_duration_sec",
         "max_headway_warning_min", "bunching_threshold_min", "rail_stop_distance_km",
         "max_trips_per_route", "duration_outlier_sigma", "headway_outlier_sigma", "service_day_start_hour",
         "max_calendar_future_years", "source_url", "stop_name_best_practices", "rural_route_ids", "calendar_override_rules",
@@ -291,6 +299,7 @@ pub fn merge_delta(base: &ValidatorConfig, delta_json: &str) -> Result<Validator
     apply_f64!("stop_far_from_parent_m",   cfg.stop_far_from_parent_m);
     apply_u32!("feed_expiry_warning_days", cfg.feed_expiry_warning_days);
     apply_u32!("service_gap_days",         cfg.service_gap_days);
+    apply_u32!("big_gap_days",             cfg.big_gap_days);
     apply_u32!("upcoming_service_days",    cfg.upcoming_service_days);
     apply_f64!("max_trip_duration_hours",  cfg.max_trip_duration_hours);
     apply_u32!("min_trip_duration_sec",    cfg.min_trip_duration_sec);
