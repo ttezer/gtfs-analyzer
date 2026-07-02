@@ -144,7 +144,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | RTS_017 | Shape tanımlı olmayan hat | BİLGİ | Quality |
 | RTS_018 | continuous_drop_off geçersiz | DÜŞÜK | Spec |
 | RTS_019 | Yinelenen hat adı | ORTA | Quality |
-| RTS_020 | Hat ve acente aynı URL'yi paylaşıyor | DÜŞÜK | Quality |
+| RTS_020 | Hat ve acente aynı URL'yi paylaşıyor | BİLGİ | Quality |
 | RTS_021 | Kısa hat adı Google Transit eşiğini (6 karakter) aşıyor | DÜŞÜK | Interop |
 | RTS_022 | Uzun hat adı kısa adı içeriyor | DÜŞÜK | Quality |
 | RTS_023 | Uzun hat adı ve açıklaması aynı | BİLGİ | Quality |
@@ -266,7 +266,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | CAL_003 | start_date eksik veya geçersiz format | KRİTİK | Spec |
 | CAL_004 | end_date eksik veya geçersiz format | KRİTİK | Spec |
 | CAL_005 | start_date end_date'den sonra | KRİTİK | Spec |
-| CAL_006 | Haftalık bazda tüm günler pasif (calendar_dates ile override mümkün) | YÜKSEK | Quality |
+| CAL_006 | Haftalık bazda tüm günler pasif (calendar_dates ile override mümkün) | BİLGİ | Quality |
 | CAL_007 | Servis döneminde boşluk | ORTA | Analytics |
 | CAL_008 | Servis tarihi yakında sona eriyor | YÜKSEK | Analytics |
 | CAL_009 | Feed'deki tüm takvim dönemleri sona ermiş | KRİTİK | Interop |

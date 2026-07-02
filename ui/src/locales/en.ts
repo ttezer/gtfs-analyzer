@@ -723,7 +723,7 @@ const en: LocaleShape = {
     'CAL_003': "Service '{entity_id}': start_date '{observed_value}' is invalid.",
     'CAL_004': "Service '{entity_id}': end_date '{observed_value}' is invalid.",
     'CAL_005': "Service '{entity_id}': start_date is after end_date.",
-    'CAL_006': "Service '{entity_id}': no active days in the service period.",
+    'CAL_006': "Service '{entity_id}': all weekday columns are 0 — no weekly pattern; the service can only be active via calendar_dates.txt exceptions.",
     'CAL_007': "Service-period gap {entity_id}: {observed_value} days (threshold: {expected_value}); affected services: {services}.",
     'CAL_008': "Service '{entity_id}': expires {observed_value} (threshold: {expected_value}).",
     'CAL_009': "Service '{entity_id}': all calendar end_date values are in the past — feed has no active services.",
@@ -1373,7 +1373,7 @@ const en: LocaleShape = {
     'CAL_003': 'Fill in start_date in YYYYMMDD format.',
     'CAL_004': 'Fill in end_date in YYYYMMDD format.',
     'CAL_005': 'Set end_date to be equal to or after start_date.',
-    'CAL_006': 'Set at least one day field to 1, or remove this service.',
+    'CAL_006': 'If this is an intentional dates-only service, no action needed; otherwise set at least one weekday field to 1.',
     // CLD
     'CLD_001': 'Fill in the service_id field.',
     'CLD_002': 'Enter the date in YYYYMMDD format.',

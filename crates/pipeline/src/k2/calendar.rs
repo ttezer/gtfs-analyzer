@@ -77,13 +77,16 @@ pub fn validate_calendar(file: &RawFile) -> (Vec<CalendarRecord>, Vec<gtfs_core:
             }
         }
 
-        // CAL_006: all days are 0 (service never runs)
+        // CAL_006: haftalık gün alanlarının tümü 0 → haftalık tekrar yok. Bu GEÇERLİ bir
+        // GTFS desenidir (servis yalnız calendar_dates.txt istisnalarıyla aktif olabilir),
+        // bu yüzden BİLGİ. Servis gerçekten hiç aktif gün içermiyorsa (calendar_dates de yok)
+        // bunu OPR_011 (kullanılan) / CAL_011 (kullanılmayan) daha yüksek şiddette yakalar.
         if all_zero && days.iter().any(|d| d.is_some()) {
             notices.push(make_k2_notice(
                 &mut counter, "CAL_006", EntityType::Service, entity_id.clone(),
                 Some(&row_map), &file.name, Some(line), None, None, None,
-                format!("'{}' takviminde tüm günler 0 — bu takvim hiç çalışmıyor.", service_id),
-                "En az bir gün alanını 1 yapın veya bu servisi kaldırın.",
+                format!("'{}' takviminde haftalık gün alanlarının tümü 0 — haftalık tekrar yok; servis yalnızca calendar_dates.txt istisnalarıyla aktif olabilir.", service_id),
+                "Bilinçli bir dates-only servisse işlem gerekmez; değilse en az bir gün alanını 1 yapın.",
             ));
         }
 

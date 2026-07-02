@@ -144,7 +144,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | RTS_017 | Route with no shape defined | INFO | Quality |
 | RTS_018 | continuous_drop_off invalid | LOW | Spec |
 | RTS_019 | Duplicate route name | MEDIUM | Quality |
-| RTS_020 | Route and agency share the same URL | LOW | Quality |
+| RTS_020 | Route and agency share the same URL | INFO | Quality |
 | RTS_021 | route_short_name exceeds Google Transit limit (6 characters) | LOW | Interop |
 | RTS_022 | route_long_name contains route_short_name | LOW | Quality |
 | RTS_023 | route_long_name and description are identical | INFO | Quality |
@@ -266,7 +266,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | CAL_003 | start_date invalid | CRITICAL | Spec |
 | CAL_004 | end_date invalid | CRITICAL | Spec |
 | CAL_005 | start_date is after end_date | CRITICAL | Spec |
-| CAL_006 | Weekly schedule has all days disabled | HIGH | Quality |
+| CAL_006 | Weekly schedule has all days disabled | INFO | Quality |
 | CAL_007 | Gap in service period | MEDIUM | Analytics |
 | CAL_008 | Service expires soon | HIGH | Analytics |
 | CAL_009 | All feed services have expired | CRITICAL | Interop |
