@@ -647,6 +647,8 @@ const en: LocaleShape = {
     'RTS_021': "Route '{entity_id}': route_short_name exceeds Google Transit's 6-character limit.",
     'RTS_022': "Route '{entity_id}': route_long_name contains the route_short_name.",
     'RTS_023': "Route '{entity_id}': route_long_name and route_desc are identical.",
+    'RTS_026': "Route '{entity_id}': route_short_name '{observed_value}' is shared by routes with different long names: {conflicting_routes}.",
+    'RTS_027': "Route '{entity_id}': route_long_name '{observed_value}' is shared by routes with different short names: {conflicting_routes}.",
     // TRP
     'TRP_001': "Duplicate trip_id: '{entity_id}'.",
     'TRP_002': "Trip '{entity_id}': route_id '{observed_value}' not found in routes.txt.",
@@ -1181,6 +1183,8 @@ const en: LocaleShape = {
     'RTS_017': 'Define shapes.txt for all routes and assign shape_id in trips.txt.',
     'RTS_020': 'Point route_url to a route-specific page or leave it empty.',
     'RTS_022': 'Edit route_long_name so it does not repeat the short name.',
+    'RTS_026': 'Ignore if the route number is intentionally reused for variants/directions; otherwise make it unique.',
+    'RTS_027': 'Ignore if the long name is shared intentionally; otherwise give each route a distinguishing name.',
     // SHP
     'SHP_009': 'Fix intersecting segments in the route shape.',
     'SHP_011': 'Add intermediate shape points to close the large gap.',
@@ -1808,6 +1812,8 @@ const en: LocaleShape = {
     'RTS_021': 'route_short_name exceeds Google Transit limit (6 characters)',
     'RTS_022': 'route_long_name contains route_short_name',
     'RTS_023': 'route_long_name and description are identical',
+    'RTS_026': 'Duplicate short route name',
+    'RTS_027': 'Duplicate long route name',
     // TRP
     'TRP_001': 'trip_id missing or duplicate',
     'TRP_002': 'route_id not found',

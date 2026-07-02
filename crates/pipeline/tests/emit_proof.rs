@@ -337,6 +337,10 @@ fn fixtures() -> Vec<Fixture> {
         fx("RTS_009", vec![("routes.txt", "route_id,agency_id,route_short_name,route_long_name,route_type\nR1,1,ABC,ABC,3\n")]),
         fx("RTS_013", vec![("routes.txt", "route_id,agency_id,route_short_name,route_type,continuous_pickup\nR1,1,101,3,9\n")]),
         fx("RTS_018", vec![("routes.txt", "route_id,agency_id,route_short_name,route_type,continuous_drop_off\nR1,1,101,3,9\n")]),
+        // RTS_026: aynı kısa ad, FARKLI uzun ad (→ RTS_019 değil, Bilgi).
+        fx("RTS_026", vec![("routes.txt", "route_id,agency_id,route_short_name,route_long_name,route_type\nR1,1,100,Line North,3\nR2,1,100,Line South,3\n")]),
+        // RTS_027: aynı uzun ad, FARKLI kısa ad (→ RTS_019 değil, Bilgi).
+        fx("RTS_027", vec![("routes.txt", "route_id,agency_id,route_short_name,route_long_name,route_type\nR1,1,10,City Line,3\nR2,1,20,City Line,3\n")]),
 
         // ── TRP grubu (trips.txt; K2 alan kontrolleri) ─────────────────────────
         fx("TRP_001", vec![("trips.txt", "route_id,service_id,trip_id\nR1,SVC1,\n")]),

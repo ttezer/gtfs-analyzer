@@ -587,6 +587,8 @@ const tr = {
     'AGN_012': 'cemv_support geçersiz (agency)',
     'RTS_024': 'cemv_support geçersiz (route)',
     'RTS_025': 'routes.txt agency_id boş (önerilen)',
+    'RTS_026': 'Yinelenen kısa hat adı',
+    'RTS_027': 'Yinelenen uzun hat adı',
     'AGN_013': 'Feed dili ve ajans dili uyuşmuyor',
     'AGN_014': 'Birden fazla kuruluş var ama agency.txt agency_id eksik',
     'AGN_015': 'agency_url güvensiz http (https önerilir)',

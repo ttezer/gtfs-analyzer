@@ -358,6 +358,10 @@ pub static RULES: &[RuleMeta] = &[
         "route_cemv_support geçersiz"),
     r!("RTS_025", Bilgi,  Quality, 1, &[], Some("agency_id"), VS, Entity,
         "routes.txt'te agency_id boş (önerilen alan)"),
+    r!("RTS_026", Bilgi,  Quality, 1, &[], Some("route_id"), VS, Row,
+        "Yinelenen kısa hat adı"),
+    r!("RTS_027", Bilgi,  Quality, 1, &[], Some("route_id"), VS, Row,
+        "Yinelenen uzun hat adı"),
 
     // ── TRP: Trips ─────────────────────────────────────────────────────────────
     r!("TRP_001", Kritik, Spec, 1,

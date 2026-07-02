@@ -628,6 +628,8 @@ const ja: LocaleShape = {
     'RTS_021': "路線'{entity_id}'：route_short_nameがGoogleトランジットの6文字制限を超えています。",
     'RTS_022': "路線'{entity_id}'：route_long_nameにroute_short_nameが含まれています。",
     'RTS_023': "路線'{entity_id}'：route_long_nameとroute_descが同じです。",
+    'RTS_026': "路線'{entity_id}'：route_short_name '{observed_value}' が異なる長い名前の路線で共有されています：{conflicting_routes}。",
+    'RTS_027': "路線'{entity_id}'：route_long_name '{observed_value}' が異なる短い名前の路線で共有されています：{conflicting_routes}。",
     // TRP
     'TRP_001': "trip_idが重複しています：'{entity_id}'。",
     'TRP_002': "便'{entity_id}'：route_id'{observed_value}'がroutes.txtに見つかりません。",
@@ -1408,6 +1410,8 @@ const ja: LocaleShape = {
     'RTS_020': 'route_urlを路線固有のページに指定するか、空のままにしてください。',
     'RTS_021': 'Googleトランジット互換性のためroute_short_nameを6文字以内にしてください。',
     'RTS_022': 'route_long_nameが短い名前を繰り返さないように編集してください。',
+    'RTS_026': '路線番号がバリエーション／方向で意図的に再利用されている場合は無視してください。そうでなければ一意にしてください。',
+    'RTS_027': '長い名前が意図的に共有されている場合は無視してください。そうでなければ各路線に識別できる名前を付けてください。',
     'RTS_023': 'route_descはroute_long_nameとは異なる、より説明的な内容にしてください。',
     // SHP
     'SHP_001': 'shape_idフィールドを入力してください。',
@@ -1762,6 +1766,8 @@ const ja: LocaleShape = {
     'RTS_021': 'route_short_nameがGoogleトランジットの上限（6文字）を超過',
     'RTS_022': 'route_long_nameにroute_short_nameが含まれている',
     'RTS_023': 'route_long_nameとroute_descが同一',
+    'RTS_026': '短い路線名の重複',
+    'RTS_027': '長い路線名の重複',
     // TRP
     'TRP_001': 'trip_idが重複',
     'TRP_002': 'route_idがroutes.txtに存在しない',

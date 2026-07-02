@@ -344,6 +344,81 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
         }
     }
 
+    // RTS_026: Yinelenen kısa hat adı — ≥2 hat aynı route_short_name'i paylaşıyor AMA aralarında
+    // ≥2 farklı route_long_name var (aynı numara, farklı adlar). İkisi de aynı olsaydı RTS_019
+    // (ORTA) olurdu → o durum burada dışlanır. Sıkça bilinçlidir (varyant/yön) → BİLGİ. Kısa ad
+    // başına TEK notice; paylaşan tüm hatları listeler.
+    {
+        let mut short_groups: HashMap<String, Vec<(String, String, u64)>> = HashMap::new();
+        for rec in &records {
+            let sn = rec.route_short_name.as_deref().unwrap_or("").trim().to_lowercase();
+            if sn.is_empty() { continue; }
+            let ln = rec.route_long_name.as_deref().unwrap_or("").trim().to_lowercase();
+            short_groups.entry(sn).or_default().push((rec.route_id.clone(), ln, rec.line));
+        }
+        let mut groups: Vec<_> = short_groups.into_iter()
+            .filter(|(_, e)| {
+                e.len() >= 2
+                    && e.iter().map(|(_, ln, _)| ln.as_str())
+                        .collect::<std::collections::HashSet<_>>().len() >= 2
+            })
+            .collect();
+        groups.sort_by(|a, b| a.0.cmp(&b.0));
+        for (_sn, entries) in &groups {
+            let group_str = entries.iter().map(|(id, _, _)| id.as_str()).collect::<Vec<_>>().join(", ");
+            let (anchor_id, _, anchor_line) = &entries[0];
+            let sn_disp = records.iter().find(|r| &r.route_id == anchor_id)
+                .and_then(|r| r.route_short_name.as_deref()).unwrap_or("");
+            let mut n = make_k2_notice(
+                &mut counter, "RTS_026", EntityType::Route,
+                Some(anchor_id.clone()), None,
+                "routes.txt", Some(*anchor_line), Some("route_short_name"),
+                Some(sn_disp.to_string()), None,
+                format!("'{sn_disp}' kısa hat adı, farklı uzun adlı şu hatlar tarafından paylaşılıyor: {group_str}."),
+                "Aynı hat numarası varyant/yön için bilinçli kullanılıyorsa yok sayın; değilse benzersizleştirin.",
+            );
+            n.details = Some([("conflicting_routes".to_string(), group_str.clone())].into_iter().collect());
+            notices.push(n);
+        }
+    }
+
+    // RTS_027: Yinelenen uzun hat adı — ≥2 hat aynı route_long_name'i paylaşıyor AMA aralarında
+    // ≥2 farklı route_short_name var (farklı numaralar, aynı açıklama). İkisi de aynı olsaydı
+    // RTS_019 (ORTA) olurdu → dışlanır. BİLGİ. Uzun ad başına TEK notice; paylaşan hatları listeler.
+    {
+        let mut long_groups: HashMap<String, Vec<(String, String, u64)>> = HashMap::new();
+        for rec in &records {
+            let ln = rec.route_long_name.as_deref().unwrap_or("").trim().to_lowercase();
+            if ln.is_empty() { continue; }
+            let sn = rec.route_short_name.as_deref().unwrap_or("").trim().to_lowercase();
+            long_groups.entry(ln).or_default().push((rec.route_id.clone(), sn, rec.line));
+        }
+        let mut groups: Vec<_> = long_groups.into_iter()
+            .filter(|(_, e)| {
+                e.len() >= 2
+                    && e.iter().map(|(_, sn, _)| sn.as_str())
+                        .collect::<std::collections::HashSet<_>>().len() >= 2
+            })
+            .collect();
+        groups.sort_by(|a, b| a.0.cmp(&b.0));
+        for (_ln, entries) in &groups {
+            let group_str = entries.iter().map(|(id, _, _)| id.as_str()).collect::<Vec<_>>().join(", ");
+            let (anchor_id, _, anchor_line) = &entries[0];
+            let ln_disp = records.iter().find(|r| &r.route_id == anchor_id)
+                .and_then(|r| r.route_long_name.as_deref()).unwrap_or("");
+            let mut n = make_k2_notice(
+                &mut counter, "RTS_027", EntityType::Route,
+                Some(anchor_id.clone()), None,
+                "routes.txt", Some(*anchor_line), Some("route_long_name"),
+                Some(ln_disp.to_string()), None,
+                format!("'{ln_disp}' uzun hat adı, farklı kısa adlı şu hatlar tarafından paylaşılıyor: {group_str}."),
+                "Aynı uzun ad bilinçli paylaşılıyorsa yok sayın; değilse her hatta ayırt edici bir ad verin.",
+            );
+            n.details = Some([("conflicting_routes".to_string(), group_str.clone())].into_iter().collect());
+            notices.push(n);
+        }
+    }
+
     (records, notices)
 }
 
@@ -452,12 +527,16 @@ mod tests {
         let msg = &rts019[0].message;
         assert!(msg.contains("R1") && msg.contains("R2") && msg.contains("R3"),
             "Mesaj tüm grubu listelemeli: {}", msg);
+        // Hepsi HEM kısa HEM uzun aynı → yalnız RTS_019; RTS_026/027 (tek-alan) tetiklenmemeli.
+        assert!(!notices.iter().any(|n| n.rule_id == "RTS_026" || n.rule_id == "RTS_027"),
+            "both-same grup RTS_026/027 üretmemeli (RTS_019 dışında)");
     }
 
     #[test]
-    fn shared_short_name_different_long_no_rts_019() {
-        // Aynı route_short_name ama FARKLI route_long_name (varyant/yön) → kopya DEĞİL → RTS_019 YOK.
-        // Athens mdb-3220 FP'sinin köku: 109 grup yalnız kısa adı paylaşıyordu (MD de saymıyor).
+    fn shared_short_name_different_long_produces_rts_026_not_rts_019() {
+        // Aynı route_short_name ama FARKLI route_long_name (varyant/yön) → gerçek kopya DEĞİL →
+        // RTS_019 (ORTA) YOK; ama aynı numara farklı adlar → RTS_026 (Bilgi). Athens mdb-3220
+        // FP'sinin köku buydu (109 grup); artık ORTA değil BİLGİ.
         let file = make_file(
             vec!["route_id", "route_short_name", "route_long_name", "route_type"],
             vec![
@@ -467,7 +546,32 @@ mod tests {
         );
         let (_, notices) = validate_routes(&file);
         assert!(!notices.iter().any(|n| n.rule_id == "RTS_019"),
-            "aynı short + farklı long RTS_019 üretmemeli (FP fix)");
+            "aynı short + farklı long RTS_019 üretmemeli");
+        let rts026: Vec<_> = notices.iter().filter(|n| n.rule_id == "RTS_026").collect();
+        assert_eq!(rts026.len(), 1, "aynı short farklı long → tek RTS_026 beklenir");
+        assert!(rts026[0].message.contains("R1") && rts026[0].message.contains("R2"),
+            "RTS_026 mesajı tüm grubu listelemeli: {}", rts026[0].message);
+        assert!(!notices.iter().any(|n| n.rule_id == "RTS_027"),
+            "farklı long → RTS_027 üretmemeli");
+    }
+
+    #[test]
+    fn shared_long_name_different_short_produces_rts_027() {
+        // Aynı route_long_name ama FARKLI route_short_name → RTS_027 (Bilgi); RTS_019/026 YOK.
+        let file = make_file(
+            vec!["route_id", "route_short_name", "route_long_name", "route_type"],
+            vec![
+                vec!["R1", "10", "Şehir Merkezi Hattı", "3"],
+                vec!["R2", "20", "Şehir Merkezi Hattı", "3"],
+            ],
+        );
+        let (_, notices) = validate_routes(&file);
+        let rts027: Vec<_> = notices.iter().filter(|n| n.rule_id == "RTS_027").collect();
+        assert_eq!(rts027.len(), 1, "aynı long farklı short → tek RTS_027 beklenir");
+        assert!(rts027[0].message.contains("R1") && rts027[0].message.contains("R2"),
+            "RTS_027 mesajı tüm grubu listelemeli: {}", rts027[0].message);
+        assert!(!notices.iter().any(|n| n.rule_id == "RTS_019" || n.rule_id == "RTS_026"),
+            "aynı long farklı short durumda RTS_019/026 üretmemeli");
     }
 
     #[test]

@@ -2,7 +2,7 @@
 
 🇹🇷 [Türkçe](RULES.md) · 🇬🇧 **English** · 🇯🇵 [日本語](RULES.ja.md)
 
-536 rules, 37 groups. Each rule is identified by a unique ID, severity level, and class.
+538 rules, 37 groups. Each rule is identified by a unique ID, severity level, and class.
 Severity levels: **CRITICAL** (publish blocker) · **HIGH** · **MEDIUM** · **LOW** · **INFO**
 Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Quality** (GTFS Quality) · **Analytics** (GTFS Analytics)
 
@@ -150,6 +150,8 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | RTS_023 | route_long_name and description are identical | INFO | Quality |
 | RTS_024 | cemv_support invalid (route) | LOW | Quality |
 | RTS_025 | routes.txt agency_id empty (recommended) | INFO | Quality |
+| RTS_026 | Duplicate short route name | INFO | Quality |
+| RTS_027 | Duplicate long route name | INFO | Quality |
 
 ## TRP — Trips
 
