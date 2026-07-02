@@ -47,6 +47,7 @@ function actualRuleCounts(result: ValidationResult): Record<string, GoldenRule> 
 
 export function buildGoldenSnapshot(
   result: ValidationResult, fileName: string, generatedAt: Date, configDelta: string, engineMode = 'unknown',
+  opts: { deterministic?: boolean } = {},
 ): string {
   const rules = actualRuleCounts(result);
   const severityCounts: Record<string, number> = {};
@@ -66,10 +67,13 @@ export function buildGoldenSnapshot(
     service_end_date: m.service_end_date, is_gtfs_jp: m.is_gtfs_jp ?? false,
   };
   const iso = generatedAt.toISOString();
+  // deterministic=true (git-tracked regression export): per-second `generated_at` atlanır ki
+  // aynı feed+sürüm aynı gün birebir aynı byte'ları versin (temiz regresyon diff'i, #42).
+  // `validate_date` (gün granülü) kalır; in-app Compare (deterministic=false) tam timestamp'i tutar.
   const golden = {
     schema: GOLDEN_SCHEMA,
     app_version: typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'dev',
-    generated_at: iso,
+    ...(opts.deterministic ? {} : { generated_at: iso }),
     validate_date: iso.slice(0, 10),
     engine: { runtime: 'browser', mode: engineMode },
     feed: { file_name: fileName, files, metrics },

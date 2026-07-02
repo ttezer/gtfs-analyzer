@@ -192,7 +192,9 @@ export function renderExport(
   const summaryImg = summaryPng(summary);
   const debugStr = buildDebugBundle(result, fileName, getState().fileSize, now);
   const generatedAt = getState().generatedAt ?? new Date();
-  const goldenStr = buildGoldenSnapshot(result, fileName, generatedAt, getState().configDelta, getLastEngineMode() ?? 'unknown');
+  // İndirilen golden git-tracked regresyon baseline'ı olarak kullanılır → deterministik
+  // (per-saniye generated_at atlanır; validate_date gün granülü kalır). #42
+  const goldenStr = buildGoldenSnapshot(result, fileName, generatedAt, getState().configDelta, getLastEngineMode() ?? 'unknown', { deterministic: true });
 
   const { r5 } = result.reports;
   const fmtScore = (n: number) => new Intl.NumberFormat(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(n);

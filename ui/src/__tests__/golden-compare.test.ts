@@ -85,6 +85,24 @@ describe('Golden comparison', () => {
     expect(parsed.scores.quality).toBe(65.8);
   });
 
+  it('deterministic export omits generated_at, keeps validate_date, byte-stable per feed+day (#42)', () => {
+    // Aynı feed+sürüm, aynı gün ama farklı saat → deterministik modda birebir aynı byte.
+    const morning = buildGoldenSnapshot(mockResult(), 'BART.zip', new Date('2026-06-28T10:00:00Z'), '{"foo":1}', 'wasm32-threaded', { deterministic: true });
+    const evening = buildGoldenSnapshot(mockResult(), 'BART.zip', new Date('2026-06-28T23:59:59Z'), '{"foo":1}', 'wasm32-threaded', { deterministic: true });
+    expect(morning).toBe(evening);
+    expect(morning).not.toContain('generated_at');
+    expect(morning).toContain('"validate_date": "2026-06-28"');
+
+    const parsed = parseGolden(morning);
+    expect(parsed.generatedAt).toBe(null);
+    expect(parsed.validateDate).toBe('2026-06-28');
+
+    // Varsayılan (in-app Compare) yol timestamp'i korur → deterministik moddan farklı.
+    const withTs = buildGoldenSnapshot(mockResult(), 'BART.zip', new Date('2026-06-28T10:00:00Z'), '{"foo":1}', 'wasm32-threaded');
+    expect(withTs).toContain('generated_at');
+    expect(parseGolden(withTs).generatedAt).toBe('2026-06-28T10:00:00.000Z');
+  });
+
   it('reads golden/4 without engine metadata as unknown', () => {
     const parsed = parseGolden(JSON.stringify({
       schema: 'gtfs-analyzer-golden/4', app_version: '0.2.0', generated_at: '2026-06-28T10:00:00.000Z',
