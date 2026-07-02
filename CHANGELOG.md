@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-07-02
+
+### Fixed
+- SHP_005 (`shape_dist_traveled` decreasing) now evaluates values in `shape_pt_sequence`
+  order instead of file-row order. GTFS does not require `shapes.txt` rows to be pre-sorted
+  by sequence, so feeds that list shape points out of sequence order (valid) produced
+  spurious CRITICAL errors — e.g. all 5,774 on the Athens feed (mdb-3220) were false
+  positives (file order shows 5,774 decreases; sequence order shows 0, matching
+  MobilityData). The check moved to the stage that already sorts shape points by sequence;
+  no other rule was affected. On Athens: overall 79.2 → 84.8, publish/spec 86.2 → 100.
+
 ## [0.3.0] - 2026-07-02
 
 ### Added
