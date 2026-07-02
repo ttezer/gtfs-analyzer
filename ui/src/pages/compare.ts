@@ -2,6 +2,7 @@ import type { ValidationResult } from '../types';
 import { buildGoldenSnapshot, compareGolden, parseGolden, type ChangeKind, type GoldenRun, type RuleChange } from '../golden';
 import { t } from '../i18n';
 import { getLastEngineMode } from '../validator-client';
+import { feedMismatch, dateRangeChanged, configChanged, noticeDensity } from './compare-helpers';
 
 const nf = new Intl.NumberFormat();
 const sf = new Intl.NumberFormat(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1, signDisplay: 'always' });
@@ -59,19 +60,15 @@ function renderReport(host: HTMLElement, before: GoldenRun, now: GoldenRun): voi
   const changes = compareGolden(before, now);
   const counts = (kind: ChangeKind) => changes.filter(c => c.kind === kind).length;
   const totalDelta = now.noticeTotal - before.noticeTotal;
-  const feedMismatch = before.feedName && now.feedName && before.feedName !== now.feedName;
-  const dateRangeChanged = ['feed_start_date','feed_end_date','service_start_date','service_end_date']
-    .some(key => before.metrics[key] !== now.metrics[key]);
-  const configChanged = normalizeConfig(before.configDelta) !== normalizeConfig(now.configDelta);
   const cards = [
     ['compare.pub_score', n(before.scores.pub_score), n(now.scores.pub_score)],
     ['compare.overall_score', n(before.scores.overall ?? before.scores.score), n(now.scores.overall ?? now.scores.score)],
   ];
   host.className = '';
   host.innerHTML = `
-    ${feedMismatch ? `<div class="compare-warning">${t('compare.feed_warning')}: <strong>${esc(before.feedName)}</strong> ≠ <strong>${esc(now.feedName)}</strong></div>` : ''}
-    ${dateRangeChanged ? `<div class="compare-warning">${t('compare.date_warning')}</div>` : ''}
-    ${configChanged ? `<div class="compare-warning">${t('compare.config_warning')}</div>` : ''}
+    ${feedMismatch(before, now) ? `<div class="compare-warning">${t('compare.feed_warning')}: <strong>${esc(before.feedName)}</strong> ≠ <strong>${esc(now.feedName)}</strong></div>` : ''}
+    ${dateRangeChanged(before, now) ? `<div class="compare-warning">${t('compare.date_warning')}</div>` : ''}
+    ${configChanged(before, now) ? `<div class="compare-warning">${t('compare.config_warning')}</div>` : ''}
     ${before.legacy ? `<div class="compare-warning">${t('compare.legacy_warning')}</div>` : ''}
     <div class="compare-runs"><span class="run-dot old"></span><strong>${t('compare.before')}</strong> · v${esc(before.appVersion)} · ${esc(dateLabel(before))}<span class="run-vs">vs</span><span class="run-dot now"></span><strong>${t('compare.now')}</strong> · v${esc(now.appVersion)} · ${esc(dateLabel(now))}</div>
     <div class="compare-summary">
@@ -99,10 +96,6 @@ function renderReport(host: HTMLElement, before: GoldenRun, now: GoldenRun): voi
   }));
   host.querySelector<HTMLInputElement>('#compare-search')!.addEventListener('input', e => { search = (e.currentTarget as HTMLInputElement).value.toLowerCase(); draw(); });
   host.querySelector('#compare-csv')!.addEventListener('click', () => downloadCsv(changes, before, now));
-}
-function normalizeConfig(value: string): string {
-  try { const parsed = JSON.parse(value || '{}') as Record<string, unknown>; return JSON.stringify(Object.fromEntries(Object.entries(parsed).sort())); }
-  catch { return value; }
 }
 
 function status(kind: ChangeKind, count: number): string {
@@ -143,7 +136,7 @@ function feedStructure(before: GoldenRun, now: GoldenRun): string {
   const files = [['stop_times.txt','Stop Times'],['calendar_dates.txt','Calendar Dates']];
   const items = [...metrics.map(([k,l]) => [l, n(before.metrics[k]), n(now.metrics[k])]), ...files.map(([k,l]) => [l, before.files[k]?.rows ?? 0, now.files[k]?.rows ?? 0])];
   const range = (run: GoldenRun, prefix: string) => `${formatYmd(run.metrics[`${prefix}_start_date`])} → ${formatYmd(run.metrics[`${prefix}_end_date`])}`;
-  const density = (run: GoldenRun, denominator: number, scale: number) => denominator > 0 ? run.noticeTotal / denominator * scale : 0;
+  const density = noticeDensity;
   const oldTrips = n(before.metrics.trip_count), newTrips = n(now.metrics.trip_count);
   const oldSt = before.files['stop_times.txt']?.rows ?? 0, newSt = now.files['stop_times.txt']?.rows ?? 0;
   return `<section class="compare-section"><div class="compare-section-title">${t('compare.feed_structure')}</div><div class="feed-deltas">${items.map(([label, old, cur]) => { const d = Number(cur)-Number(old); return `<div><span>${label}</span><strong>${nf.format(Number(old))} → ${nf.format(Number(cur))}</strong><em class="${deltaClass(-d)}">${d > 0 ? '+' : ''}${nf.format(d)}</em></div>`; }).join('')}</div>
