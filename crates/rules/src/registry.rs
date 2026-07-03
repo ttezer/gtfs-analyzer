@@ -696,7 +696,7 @@ pub static RULES: &[RuleMeta] = &[
         "Güzergah şeklinde tekrarlayan nokta"),
     r!("SHP_021", Dusuk,  Quality, 1, &[], Some("shape_id"), VS, Entity,
         "shape_dist_traveled negatif değer"),
-    r!("SHP_022", Orta,   Interop, 2, &[], Some("stop_id"), VI, Entity,
+    r!("SHP_022", Dusuk,  Interop, 2, &[], Some("stop_id"), VI, Entity,
         "Durak güzergah şeklinde belirsiz konumda"),
     r!("SHP_023", Orta,   Quality, 2, &[], Some("shape_id"), VS, Entity,
         "shape_dist_traveled aynı değere sahip art arda iki nokta aynı koordinatta"),
@@ -1273,7 +1273,7 @@ pub static RULES: &[RuleMeta] = &[
     // + FIN_001/002 (değer boş) + ARC_025 (sütun yok) zaten kapsıyor.
     r!("DQ_003",  Bilgi,  Quality,  1, &[], Some("route_id"), VS, Entity,
         "Hat açıklaması eksik"),
-    r!("DQ_004",  Dusuk,  Quality,  1, &[], Some("route_id"), VS, Entity,
+    r!("DQ_004",  Bilgi,  Quality,  1, &[], Some("route_id"), VS, Entity,
         "Hat URL'si eksik"),
     r!("DQ_005",  Yuksek, Interop,  2, &[], None, VI_K, Feed,
         "Geçerli servis dönemi yok"),

@@ -324,7 +324,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | SHP_019 | Güzergah şeklinin seferleri durak zamanı içermiyor | ORTA | Quality |
 | SHP_020 | Güzergah şeklinde tekrarlayan nokta | BİLGİ | Analytics |
 | SHP_021 | shape_dist_traveled negatif değer | DÜŞÜK | Quality |
-| SHP_022 | Durak güzergah şeklinde belirsiz konumda | ORTA | Interop |
+| SHP_022 | Durak güzergah şeklinde belirsiz konumda | DÜŞÜK | Interop |
 | SHP_023 | shape_dist_traveled aynı değere sahip art arda iki nokta aynı koordinatta | ORTA | Quality |
 | SHP_024 | Duraktan şekle mesafe shape_dist_traveled ile tutarsız | ORTA | Quality |
 | SHP_025 | Sefer stop_times mesafesi şeklin toplam mesafesini aşıyor | ORTA | Quality |
@@ -684,7 +684,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | Kural | Başlık | Önem | Sınıf |
 |---|---|---|---|
 | DQ_003 | Hat açıklaması eksik | BİLGİ | Quality |
-| DQ_004 | Hat URL'si eksik | DÜŞÜK | Quality |
+| DQ_004 | Hat URL'si eksik | BİLGİ | Quality |
 | DQ_005 | Geçerli servis dönemi yok | YÜKSEK | Interop |
 | DQ_005b | Hiçbir seferin durak zamanı yok | YÜKSEK | Interop |
 | DQ_005c | Koordinatsız durak oranı çok yüksek | YÜKSEK | Interop |
