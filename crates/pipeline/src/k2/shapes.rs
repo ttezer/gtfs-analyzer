@@ -155,6 +155,7 @@ pub fn validate_shapes(file: &RawFile) -> (Vec<ShapePointRecord>, Vec<gtfs_core:
                 let ws_fields: Vec<&str> = row.iter().enumerate()
                     .filter(|(_, v)| { let s: &str = v.as_ref(); s != s.trim() })
                     .filter_map(|(i, _)| file.headers.get(i).map(|s| s.as_str()))
+                    .filter(|name| !crate::k1_parse::dq016_is_typed_column(name))
                     .collect();
                 if !ws_fields.is_empty() {
                     let fields_str = ws_fields.join(", ");

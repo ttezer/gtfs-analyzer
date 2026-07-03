@@ -327,6 +327,25 @@ fn arc009_critical(filename: &str) -> bool {
     REQUIRED_FILES.contains(&filename) || CALENDAR_FILES.contains(&filename)
 }
 
+/// DQ_016: baştaki/sondaki boşluk yalnız STRING/metin alanlarında anlamlıdır (isim, id, url,
+/// desc, kod) — join'i kırar ya da görünür. Zaman/tarih/sayı/koordinat/sequence/enum alanlarında
+/// boşluk parser'ca tolere edilir ve zararsızdır; MobilityData da bu tipli alanları işaretlemez
+/// (ör. mdb-2 arrival_time ' 6:04:00' → MD 0, bizde 65.747 over-fire idi). Tipli sütunları muaf tut.
+pub(crate) fn dq016_is_typed_column(name: &str) -> bool {
+    if name.ends_with("_time") || name.ends_with("_date") || name.ends_with("_sequence")
+        || name.ends_with("_lat") || name.ends_with("_lon") || name.ends_with("_secs")
+    {
+        return true;
+    }
+    matches!(name,
+        "route_type" | "location_type" | "direction_id" | "wheelchair_boarding"
+        | "wheelchair_accessible" | "bikes_allowed" | "cars_allowed" | "pickup_type"
+        | "drop_off_type" | "continuous_pickup" | "continuous_drop_off" | "timepoint"
+        | "shape_dist_traveled" | "exception_type" | "payment_method" | "transfers"
+        | "transfer_type" | "exact_times" | "is_bidirectional" | "stop_sequence"
+    )
+}
+
 /// GTFS spesifikasyonunda tanımlı sütun adları (ARC_017).
 fn known_columns(filename: &str) -> &'static [&'static str] {
     match filename {
@@ -929,6 +948,7 @@ pub fn parse(zip_bytes: &[u8]) -> Result<K1Result, FatalError> {
                 let ws_fields: Vec<&str> = row.iter().enumerate()
                     .filter(|(_, v)| { let s = v.as_str(); s != s.trim() })
                     .filter_map(|(i, _)| headers.get(i).map(|s| s.as_str()))
+                    .filter(|name| !dq016_is_typed_column(name))
                     .collect();
                 if !ws_fields.is_empty() {
                     let fields_str = ws_fields.join(", ");
@@ -1474,6 +1494,29 @@ mod tests {
             k1.notices.iter().any(|n| n.rule_id == "ARC_014"),
             "ARC_014 notice bekleniyor"
         );
+    }
+
+    #[test]
+    fn dq016_skips_typed_fields_flags_text() {
+        // Zaman alanında baştaki boşluk (' 8:00:00') TİPLİ → DQ_016 YOK; route_long_name'de
+        // sondaki boşluk ('Main Line ') METİN → DQ_016 VAR. MD ile hizalı (mdb-2 arrival_time
+        // over-fire fix: 65.747 → ~0).
+        let zip = zip_with_files(&[
+            ("agency.txt",     b"agency_id,agency_name,agency_url,agency_timezone\n1,Test,http://x.com,UTC\n"),
+            ("stops.txt",      b"stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\n"),
+            ("routes.txt",     b"route_id,agency_id,route_short_name,route_long_name,route_type\nR1,1,101,Main Line ,3\n"),
+            ("trips.txt",      b"route_id,service_id,trip_id\nR1,SVC1,T1\n"),
+            ("stop_times.txt", b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1, 8:00:00, 8:00:00,S1,1\n"),
+            ("calendar.txt",   b"service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,0,0,20240101,20241231\n"),
+        ]);
+        let k1 = parse(&zip).unwrap();
+        let dq016: Vec<_> = k1.notices.iter().filter(|n| n.rule_id == "DQ_016").collect();
+        assert!(dq016.iter().any(|n| n.message.contains("route_long_name")),
+            "route_long_name sondaki boşluk → DQ_016 beklenir: {:?}",
+            dq016.iter().map(|n| &n.message).collect::<Vec<_>>());
+        assert!(!dq016.iter().any(|n| n.message.contains("arrival_time") || n.message.contains("departure_time")),
+            "zaman alanı (tipli) baştaki boşluk DQ_016 ÜRETMEMELİ: {:?}",
+            dq016.iter().map(|n| &n.message).collect::<Vec<_>>());
     }
 
     #[test]
