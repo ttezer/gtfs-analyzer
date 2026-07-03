@@ -331,7 +331,7 @@
 | SHP_026 | 形状の点数が極端に多い（>5,000） | 情報 | 分析 |
 | SHP_027 | シェープが複数の停留所パターンに割り当て | 情報 | 分析 |
 | SHP_028 | 同一shape_dist_traveledで座標が異なる | 高 | 仕様 |
-| SHP_029 | 同一shape_dist_traveled、座標差が微小 | 中 | 品質 |
+| SHP_029 | 同一shape_dist_traveled、座標差が微小 | 情報 | 品質 |
 
 ## FRQ — 頻度（Frequencies）
 

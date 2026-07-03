@@ -331,7 +331,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | SHP_026 | Shape has extreme point count (>5,000) | INFO | Analytics |
 | SHP_027 | Shape assigned to multiple stop patterns | INFO | Analytics |
 | SHP_028 | Same shape_dist_traveled with different coordinates | HIGH | Spec |
-| SHP_029 | Same shape_dist_traveled, tiny coordinate difference | MEDIUM | Quality |
+| SHP_029 | Same shape_dist_traveled, tiny coordinate difference | INFO | Quality |
 
 ## FRQ — Frequencies
 

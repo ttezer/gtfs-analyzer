@@ -710,7 +710,7 @@ pub static RULES: &[RuleMeta] = &[
         "Shape birden fazla durak desenine atanmış — olası yanlış shape ataması"),
     r!("SHP_028", Yuksek, Spec, 2, &[], Some("shape_id"), VS, Entity,
         "Ardışık iki shape noktası aynı shape_dist_traveled ama farklı koordinat (mesafe artmadan konum değişmiş)"),
-    r!("SHP_029", Orta,   Quality, 2, &[], Some("shape_id"), VS, Entity,
+    r!("SHP_029", Bilgi,  Quality, 2, &[], Some("shape_id"), VS, Entity,
         "Aynı shape_dist_traveled, farklı ama çok yakın koordinatlı ardışık shape noktaları (eşik altı)"),
 
     // ── FRQ: Frequencies ───────────────────────────────────────────────────────

@@ -331,7 +331,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | SHP_026 | Shape aşırı fazla noktaya sahip (>5000) — tüketici render performansını etkiler | BİLGİ | Analytics |
 | SHP_027 | Shape birden fazla durak desenine atanmış — olası yanlış shape ataması | BİLGİ | Analytics |
 | SHP_028 | Ardışık iki shape noktası aynı shape_dist_traveled ama farklı koordinat (mesafe artmadan konum değişmiş) | YÜKSEK | Spec |
-| SHP_029 | Aynı shape_dist_traveled, farklı ama çok yakın koordinatlı ardışık shape noktaları (eşik altı) | ORTA | Quality |
+| SHP_029 | Aynı shape_dist_traveled, farklı ama çok yakın koordinatlı ardışık shape noktaları (eşik altı) | BİLGİ | Quality |
 
 ## FRQ — Frequencies (Frekanslar)
 
