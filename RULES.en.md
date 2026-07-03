@@ -222,7 +222,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | STM_033 | Single-stop trip (unusable) | HIGH | Spec |
 | STM_034 | Only one of arrival or departure time defined | MEDIUM | Spec |
 | STM_035 | Same stop visited twice consecutively (terminal/loop) | INFO | Analytics |
-| STM_036 | stop_sequence values out of order (unsorted_stop_times) | HIGH | Quality |
+| STM_036 | stop_times not sorted by trip_id + stop_sequence (unsorted_stop_times) | INFO | Quality |
 | STM_037 | arrival_time/departure_time prohibited in Flex window | HIGH | Spec |
 | STM_038 | start_pickup_drop_off_window > end_pickup_drop_off_window | HIGH | Spec |
 | STM_039 | Pickup/drop-off window missing in Flex context | CRITICAL | Spec |

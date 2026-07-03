@@ -222,7 +222,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | STM_033 | Tek duraklı sefer (kullanılamaz) | YÜKSEK | Spec |
 | STM_034 | Varış veya kalkış zamanından yalnızca biri tanımlı | ORTA | Spec |
 | STM_035 | Aynı durak ardışık iki kez ziyaret ediliyor (terminal/döngü) | BİLGİ | Analytics |
-| STM_036 | stop_sequence değerleri sırasız (unsorted_stop_times) | YÜKSEK | Quality |
+| STM_036 | stop_times trip_id + stop_sequence'a göre sıralı değil (unsorted_stop_times) | BİLGİ | Quality |
 | STM_037 | Flex penceresinde arrival_time/departure_time yasak | YÜKSEK | Spec |
 | STM_038 | start_pickup_drop_off_window > end_pickup_drop_off_window | YÜKSEK | Spec |
 | STM_039 | Flex bağlamında pickup/drop_off penceresi eksik | KRİTİK | Spec |

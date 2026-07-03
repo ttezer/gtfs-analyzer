@@ -565,14 +565,42 @@ fn check_speed_and_duration(
         (shape_pts, shape_cum, trip_shape)
     };
 
-    // STM_036: stop_sequence sırasız trip'ler (K2'de tespit edildi, burada notice üretilir)
+    // STM_036: stop_times trip_id + stop_sequence'a göre sıralı/gruplu değil (MD unsorted_stop_times,
+    // INFO — benign: pipeline zaten sequence'e göre yeniden sıralar). İki alt-vaka:
+    //   (a) sequence AZALIYOR (K2'de tespit, unsorted_seq_trips)
+    //   (b) satırlar DAĞINIK (araya başka trip girmiş; sequence artsa bile gruplu değil)
+    let mut stm036_seen: std::collections::HashSet<&str> = std::collections::HashSet::new();
     for (trip_id, prev_seq, curr_seq, line_no) in idx.unsorted_seq_trips.iter() {
+        stm036_seen.insert(trip_id.as_str());
         notices.push(k6_notice(
             ctr, "STM_036", EntityType::Trip,
             Some(trip_id.to_string()), Some(trip_id.to_string()),
             "stop_times.txt", Some(*line_no), Some("stop_sequence"),
-            Some(format!("{curr_seq}")), Some(format!("≥ {prev_seq}")),
-            format!("'{trip_id}' seferinde stop_sequence {prev_seq}'den {curr_seq}'e düşüyor — değerler artmalı."),
+            Some(format!("stop_sequence {prev_seq}→{curr_seq} azalıyor")), Some("artan + gruplu".to_string()),
+            format!("'{trip_id}' seferinde stop_times satır sırası bozuk: stop_sequence {prev_seq}'den {curr_seq}'e düşüyor."),
+            "stop_times.txt'i trip_id ve stop_sequence'a göre sıralayın.",
+        ));
+    }
+    // (b) non-contiguous: finalize edilmiş index'te trip satırlarının CSV line'ları ardışık mı
+    // (max-min+1 == satır sayısı) — değilse araya başka trip girmiş. Deterministik olsun diye ilk-satıra göre sıralanır.
+    let mut noncontig: Vec<(&str, u32, u32)> = Vec::new();
+    for (trip_id, stops) in idx.by_trip.iter() {
+        if stm036_seen.contains(*trip_id) { continue; }
+        if stops.len() < 2 { continue; }
+        let (mut lo, mut hi) = (u32::MAX, 0u32);
+        for r in *stops { lo = lo.min(r.line); hi = hi.max(r.line); }
+        if (hi - lo + 1) as usize != stops.len() {
+            noncontig.push((*trip_id, lo, hi));
+        }
+    }
+    noncontig.sort_by_key(|&(_, lo, _)| lo);
+    for (trip_id, lo, hi) in noncontig {
+        notices.push(k6_notice(
+            ctr, "STM_036", EntityType::Trip,
+            Some(trip_id.to_string()), Some(trip_id.to_string()),
+            "stop_times.txt", Some(lo as u64), Some("stop_sequence"),
+            Some("dağınık satırlar".to_string()), Some("trip'e göre gruplu".to_string()),
+            format!("'{trip_id}' seferinin stop_times satırları dosyada dağınık (trip_id'ye göre gruplu değil); {lo}–{hi} arasına yayılmış."),
             "stop_times.txt'i trip_id ve stop_sequence'a göre sıralayın.",
         ));
     }
@@ -9256,6 +9284,29 @@ mod tests {
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
         assert!(result.notices.iter().any(|n| n.rule_id == "SHP_016"), "tamamen ters shape → SHP_016 olmalı");
         assert!(!result.notices.iter().any(|n| n.rule_id == "SHP_017"), "tamamen ters shape → SHP_017 olmamalı (SHP_016 öncelikli)");
+    }
+
+    #[test]
+    fn interleaved_stop_times_rows_produce_stm_036() {
+        // İki trip dosyada interleaved (T1,T2,T1,T2 satır sırası) → her trip'in satırları dağınık,
+        // sequence yine ARTAN. MD unsorted_stop_times (INFO) karşılığı: STM_036 iki trip için de çıkar
+        // (sequence azalmasa bile non-contiguous).
+        let records = records_with(
+            vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1)],
+            vec![route("R1", 3)],
+            vec![trip("T1", "R1"), trip("T2", "R1")],
+            vec![
+                stoptime("T1", 1, "A", (8,0,0), (8,0,0), 2),
+                stoptime("T2", 1, "A", (9,0,0), (9,0,0), 3),
+                stoptime("T1", 2, "B", (8,10,0), (8,10,0), 4),
+                stoptime("T2", 2, "B", (9,10,0), (9,10,0), 5),
+            ],
+        );
+        let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
+        let stm036: Vec<_> = result.notices.iter().filter(|n| n.rule_id == "STM_036").collect();
+        assert_eq!(stm036.len(), 2,
+            "iki interleaved trip için 2 STM_036 (non-contiguous) beklenir: {:?}",
+            stm036.iter().map(|n| &n.message).collect::<Vec<_>>());
     }
 
     #[test]

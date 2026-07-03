@@ -222,7 +222,7 @@
 | STM_033 | 便に停留所が1つしかなく使用不可 | 高 | 仕様 |
 | STM_034 | arrival_timeとdeparture_timeのいずれか一方のみ定義 | 中 | 仕様 |
 | STM_035 | 同じ停留所に連続して停車（折返し・ループ） | 情報 | 分析 |
-| STM_036 | stop_sequenceが単調増加でない | 高 | 品質 |
+| STM_036 | stop_timesがtrip_id + stop_sequenceでソートされていない | 情報 | 品質 |
 | STM_037 | Flexの乗降ウィンドウ内に時刻が設定されている | 高 | 仕様 |
 | STM_038 | start_pickup_drop_off_window > end_pickup_drop_off_window | 高 | 仕様 |
 | STM_039 | Flexコンテキストで乗降ウィンドウが不足 | 致命的 | 仕様 |
