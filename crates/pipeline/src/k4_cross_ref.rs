@@ -3686,13 +3686,28 @@ fn station_context<'a>(
     stop_parent: &HashMap<&str, &'a str>,
     stop_loc: &HashMap<&str, Option<u32>>,
 ) -> Option<&'a str> {
-    if let Some(&parent) = stop_parent.get(stop_id) {
-        return Some(parent);
+    // parent_station zincirini TEPE istasyona kadar çöz. İç içe modellemede
+    // (boarding area → platform → station) direkt parent ara-seviyedir; PTH_014
+    // istasyon-sınırı kıyası tepe istasyonu kullanmalı, yoksa aynı istasyon
+    // içindeki geçitler sahte KRİTİK üretir (#49, mdb-3127 Santiago Metro 966 FP).
+    let mut cur = stop_id;
+    for _ in 0..8 {
+        match stop_parent.get(cur) {
+            Some(&parent) => cur = parent, // bir seviye yukarı çık
+            None => {
+                if cur == stop_id {
+                    // hiç parent yok: yalnızca istasyonun kendisi (lt=1) context üretir
+                    return if stop_loc.get(cur).map_or(false, |t| *t == Some(1)) {
+                        Some(cur)
+                    } else {
+                        None
+                    };
+                }
+                return Some(cur); // zincirin tepesi (parent'ı olmayan en üst ata)
+            }
+        }
     }
-    if stop_loc.get(stop_id).map_or(false, |t| *t == Some(1)) {
-        return Some(stop_id);
-    }
-    None
+    Some(cur) // döngü guard (bozuk/dairesel parent zinciri)
 }
 
 // �"?�"? Testler �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?
@@ -4100,6 +4115,69 @@ mod tests {
         }];
         let result = check(&recs, &map, 20260515);
         assert!(result.notices.iter().any(|n| n.rule_id == "PTH_002"));
+    }
+
+    fn stop_ctx(id: &str, lt: Option<u32>, parent: &str) -> StopRecord {
+        let mut s = stop(id);
+        s.location_type = lt;
+        if !parent.is_empty() {
+            s.row.insert("parent_station".to_string(), parent.to_string());
+        }
+        s
+    }
+
+    #[test]
+    fn pth_014_nested_station_no_false_positive() {
+        // İç içe modelleme (#49): station ST → platform PL(parent=ST) →
+        // boarding BA(parent=PL); concourse CN(parent=ST). CN→BA geçidi AYNI
+        // istasyon içindedir; station_context tepe istasyona (ST) çözmeli → PTH_014 ÇIKMAMALI.
+        let (mut recs, map) = empty();
+        recs.stops = vec![
+            stop_ctx("ST", Some(1), ""),   // istasyon
+            stop_ctx("PL", Some(0), "ST"), // peron (parent=istasyon)
+            stop_ctx("BA", Some(4), "PL"), // boarding area (parent=peron) — 2 seviye
+            stop_ctx("CN", Some(3), "ST"), // generic node (parent=istasyon)
+        ];
+        recs.pathways = vec![PathwayRecord {
+            pathway_id: "P1".into(),
+            from_stop_id: "CN".into(),
+            to_stop_id: "BA".into(),
+            pathway_mode: Some(1), is_bidirectional: Some(1),
+            length: None, traversal_time: None,
+            stair_count: None, max_slope: None, min_width: None,
+            row: Default::default(), line: 2,
+        }];
+        let result = check(&recs, &map, 20260515);
+        assert!(
+            !result.notices.iter().any(|n| n.rule_id == "PTH_014"),
+            "iç içe istasyonda PTH_014 sahte-pozitif çıkmamalı"
+        );
+    }
+
+    #[test]
+    fn pth_014_genuine_cross_station_fires() {
+        // Gerçek sınır ihlali: PA(parent=A) ↔ PB(parent=B), A≠B → PTH_014 ÇIKMALI.
+        let (mut recs, map) = empty();
+        recs.stops = vec![
+            stop_ctx("A", Some(1), ""),
+            stop_ctx("B", Some(1), ""),
+            stop_ctx("PA", Some(0), "A"),
+            stop_ctx("PB", Some(0), "B"),
+        ];
+        recs.pathways = vec![PathwayRecord {
+            pathway_id: "P1".into(),
+            from_stop_id: "PA".into(),
+            to_stop_id: "PB".into(),
+            pathway_mode: Some(1), is_bidirectional: Some(1),
+            length: None, traversal_time: None,
+            stair_count: None, max_slope: None, min_width: None,
+            row: Default::default(), line: 2,
+        }];
+        let result = check(&recs, &map, 20260515);
+        assert!(
+            result.notices.iter().any(|n| n.rule_id == "PTH_014"),
+            "gerçek cross-station geçidinde PTH_014 çıkmalı"
+        );
     }
 
     // �"?�"? XFL_009 �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?
