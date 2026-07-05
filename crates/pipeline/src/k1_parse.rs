@@ -546,8 +546,24 @@ pub fn parse(zip_bytes: &[u8]) -> Result<K1Result, FatalError> {
             continue;
         }
 
-        // Yalnızca kök dizindeki .txt dosyaları işlenir
-        if !raw_name.ends_with(".txt") || raw_name.contains('/') || raw_name.contains('\\') {
+        // ARC_007: kök dizindeki tanınmayan (.txt olmayan) dosyalar da bilinmeyen dosya olarak
+        // işaretlenir (ör. .pdf/.out/.csv). .zip → ARC_023, locations.geojson, alt-dizin .txt →
+        // ARC_024 yukarıda özel işlendi; bunlar buraya ulaşmadan continue etti.
+        if !raw_name.ends_with(".txt") {
+            if !raw_name.contains('/') && !raw_name.contains('\\') {
+                notices.push(make_notice(
+                    &mut counter, "ARC_007",
+                    EntityType::File, Some(raw_name.clone()),
+                    Some(&raw_name), None, None,
+                    Some(raw_name.clone()),
+                    format!("'{raw_name}' GTFS spesifikasyonunda tanımlı değil."),
+                    "GTFS dışı dosyaları ZIP'ten kaldırın.",
+                ));
+            }
+            continue;
+        }
+        // Yalnızca kök dizindeki .txt dosyaları işlenir (alt-dizin .txt yukarıda ARC_024 aldı)
+        if raw_name.contains('/') || raw_name.contains('\\') {
             continue;
         }
 
@@ -1400,6 +1416,29 @@ mod tests {
             k1.notices.iter().any(|n| n.rule_id == "ARC_007"),
             "ARC_007 notice bekleniyor"
         );
+    }
+
+    #[test]
+    fn non_txt_unknown_file_produces_arc007() {
+        // MobilityData unknown_file paritesi: ZIP içindeki .txt olmayan dosyalar
+        // (ör. .pdf/.out) da ARC_007 üretmeli — DELFI feed'inde .pdf + .out vardı.
+        let zip = zip_with_files(&[
+            ("agency.txt",     b"agency_id,agency_name,agency_url,agency_timezone\n1,Test,http://x.com,UTC\n"),
+            ("stops.txt",      b"stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\n"),
+            ("routes.txt",     b"route_id,agency_id,route_short_name,route_type\nR1,1,101,3\n"),
+            ("trips.txt",      b"route_id,service_id,trip_id\nR1,SVC1,T1\n"),
+            ("stop_times.txt", b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\n"),
+            ("calendar.txt",   b"service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,0,0,20240101,20241231\n"),
+            ("readme.pdf",     b"%PDF-1.4 fake\n"),
+            ("export.out",     b"legacy dump\n"),
+        ]);
+        let k1 = parse(&zip).unwrap();
+        for f in ["readme.pdf", "export.out"] {
+            assert!(
+                k1.notices.iter().any(|n| n.rule_id == "ARC_007" && n.file.as_deref() == Some(f)),
+                "ARC_007 notice bekleniyor: {f}"
+            );
+        }
     }
 
     #[test]
