@@ -6656,9 +6656,16 @@ fn check_pathway_analytics(
             visited
         };
 
-        let any_platform_accessible = platforms
-            .iter()
-            .any(|p| accessible_reachable.contains(p));
+        // #51 (#50 ile aynı iç içe-istasyon kalıbı): peron-container (lt0) accessible
+        // graph düğümü olmayabilir; boarding-area (lt4) çocuğu erişilebilirse peron da
+        // erişilebilir sayılır. Aksi halde erişilebilir istasyon "rotasız" sanılır.
+        let any_platform_accessible = platforms.iter().any(|p| {
+            accessible_reachable.contains(p)
+                || station_children.get(p).map_or(false, |kids| {
+                    kids.iter()
+                        .any(|k| accessible_reachable.contains(k.stop_id.as_str()))
+                })
+        });
 
         if !any_platform_accessible {
             notices.push(k6_notice(
@@ -8150,6 +8157,52 @@ mod tests {
         check_pathway_analytics(&recs, &derived, &mut v, &mut c);
         assert!(v.iter().any(|n| n.rule_id == "PTH_012"),
             "erişilemeyen peron PTH_012 üretmeli");
+    }
+
+    #[test]
+    fn pth_013_nested_platform_accessible_via_boarding_area_no_fp() {
+        // #51: iç içe peron (PL lt0) → boarding area (BA lt4); EN→BA erişilebilir
+        // (slope/width None). Çocuk erişilebilir → PTH_013 sahte-pozitif ÇIKMAMALI.
+        let mut recs = crate::k2::EntityRecords::default();
+        recs.stops = vec![
+            pth_stop("ST", Some(1), ""),
+            pth_stop("EN", Some(2), "ST"),
+            pth_stop("PL", Some(0), "ST"),
+            pth_stop("BA", Some(4), "PL"),
+        ];
+        recs.pathways = vec![pth_pw("P1", "EN", "BA")];
+        let mut derived = DerivedData::default();
+        derived.pathway_graph.adjacency.insert("EN".into(), vec![("BA".into(), 0)]);
+        derived.pathway_graph.adjacency.insert("BA".into(), vec![("EN".into(), 0)]);
+        let mut v = Vec::new();
+        let mut c = 0u32;
+        check_pathway_analytics(&recs, &derived, &mut v, &mut c);
+        assert!(!v.iter().any(|n| n.rule_id == "PTH_013"),
+            "erişilebilir boarding-area çocuğu varken PTH_013 çıkmamalı");
+    }
+
+    #[test]
+    fn pth_013_inaccessible_station_fires() {
+        // Tek rota dik (max_slope 0.20 > 0.08) → tekerlekli sandalye erişimi yok
+        // → PTH_013 ÇIKMALI (gerçek erişilebilirlik boşluğu korunur).
+        let mut recs = crate::k2::EntityRecords::default();
+        recs.stops = vec![
+            pth_stop("ST", Some(1), ""),
+            pth_stop("EN", Some(2), "ST"),
+            pth_stop("PL", Some(0), "ST"),
+            pth_stop("BA", Some(4), "PL"),
+        ];
+        let mut pw = pth_pw("P1", "EN", "BA");
+        pw.max_slope = Some(0.20);
+        recs.pathways = vec![pw];
+        let mut derived = DerivedData::default();
+        derived.pathway_graph.adjacency.insert("EN".into(), vec![("BA".into(), 0)]);
+        derived.pathway_graph.adjacency.insert("BA".into(), vec![("EN".into(), 0)]);
+        let mut v = Vec::new();
+        let mut c = 0u32;
+        check_pathway_analytics(&recs, &derived, &mut v, &mut c);
+        assert!(v.iter().any(|n| n.rule_id == "PTH_013"),
+            "dik rotalı istasyon PTH_013 üretmeli");
     }
 
     #[test]
