@@ -324,7 +324,7 @@
 | SHP_019 | この形状を使用する便にstop_timesなし | 中 | 品質 |
 | SHP_020 | 形状に重複点 | 情報 | 分析 |
 | SHP_021 | shape_dist_traveledが負の値 | 低 | 品質 |
-| SHP_022 | 形状上の停留所位置が曖昧 | 低 | 相互運用 |
+| SHP_022 | 形状上の停留所位置が曖昧 | 高 | 相互運用 |
 | SHP_023 | 連続する点が同座標で同一のshape_dist_traveled | 中 | 品質 |
 | SHP_024 | shape_dist_traveledと形状距離が不一致 | 中 | 品質 |
 | SHP_025 | stop_timesの距離が形状の総長を超過 | 中 | 品質 |

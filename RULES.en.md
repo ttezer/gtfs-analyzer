@@ -324,7 +324,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | SHP_019 | Shape's trips have no stop times | MEDIUM | Quality |
 | SHP_020 | Repeated point in shape | INFO | Analytics |
 | SHP_021 | shape_dist_traveled negative value | LOW | Quality |
-| SHP_022 | Stop position ambiguous on shape | LOW | Interop |
+| SHP_022 | Stop position ambiguous on shape | HIGH | Interop |
 | SHP_023 | Consecutive points with same shape_dist_traveled at same coordinates | MEDIUM | Quality |
 | SHP_024 | Stop-to-shape distance inconsistent with shape_dist_traveled | MEDIUM | Quality |
 | SHP_025 | Trip stop_times distance exceeds total shape distance | MEDIUM | Quality |

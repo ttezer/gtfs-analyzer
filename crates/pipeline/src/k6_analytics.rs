@@ -5928,6 +5928,27 @@ fn check_shp022(
             let Some(pts) = shape_coords.get(shape_id) else { continue };
             if pts.len() < 2 { continue; }
 
+            // #52: stop_sequence KULLANILABİLİR ise (mevcut + kesin artan + tekrarsız)
+            // sıra-farkında monoton eşleme durağın shape üzerindeki konumunu çözer →
+            // SHP_022 gereksiz (normal feed'lerde büyük over-fire). Yalnız sequence
+            // eksik/geçersiz (STM_005) veya duplicate (STM_032) trip'lerde konum gerçekten
+            // belirsizdir. by_trip dilimi stop_sequence'a göre artan sıralı (None=MAX sonda).
+            let seq_usable = {
+                let mut last: Option<u32> = None;
+                let mut ok = true;
+                for st in stimes.iter() {
+                    match st.stop_sequence() {
+                        None => { ok = false; break; }
+                        Some(s) => {
+                            if last.is_some_and(|l| s <= l) { ok = false; break; }
+                            last = Some(s);
+                        }
+                    }
+                }
+                ok
+            };
+            if seq_usable { continue; }
+
             let cum = shape_cum.entry(shape_id).or_insert_with(|| {
                 let mut c = Vec::with_capacity(pts.len());
                 c.push(0.0_f64);
@@ -9964,8 +9985,9 @@ mod tests {
 
     #[test]
     fn stop_near_two_shape_sections_produces_shp_022() {
-        // "U" şekli: gidip dönen hat — durak hem gidiş hem dönüş bölümüne yakın
-        // shape_dist_traveled YOK → SHP_022 beklenir
+        // "U" şekli: gidip dönen hat — durak hem gidiş hem dönüş bölümüne yakın,
+        // shape_dist_traveled YOK. #52: sıra KULLANILAMAZ olmalı (burada duplicate
+        // stop_sequence=1) → konum belirsiz → SHP_022 beklenir.
         use crate::k2::shapes::ShapePointRecord;
         let t = trip_sh("T1", "R1", "SH1");
         // Koordinatlar: lon=0.0 ekseni boyunca gidip, 0.001° ≈ 111m sağa kayıp dönüyor
@@ -9978,7 +10000,7 @@ mod tests {
             vec![t],
             vec![
                 stoptime("T1", 1, "S1", (8, 0, 0), (8, 0, 0), 2),
-                stoptime("T1", 2, "S1", (8, 10, 0), (8, 10, 0), 3),
+                stoptime("T1", 1, "S1", (8, 10, 0), (8, 10, 0), 3), // duplicate seq → sıra kullanılamaz
             ],
         );
         // shape: (0,0)→(1,0)→(1,0.001)→(0,0.001) — U benzeri
@@ -9992,8 +10014,38 @@ mod tests {
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
         assert!(
             result.notices.iter().any(|n| n.rule_id == "SHP_022"),
-            "U-şekli + shape_dist_traveled eksik → SHP_022 beklenir: {:?}",
+            "U-şekli + shape_dist eksik + sıra kullanılamaz → SHP_022 beklenir: {:?}",
             result.notices.iter().map(|n| &n.rule_id).collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
+    fn stop_near_two_sections_valid_sequence_no_shp_022() {
+        // #52: AYNI U-şekli geometrisi ama stop_sequence GEÇERLİ (1,2 kesin artan) →
+        // sıra-farkında eşleme belirsizliği çözer → SHP_022 ÇIKMAMALI (over-fire önlendi).
+        use crate::k2::shapes::ShapePointRecord;
+        let t = trip_sh("T1", "R1", "SH1");
+        let mut s = stop("S1", 0.5, 0.00005);
+        s.stop_name = Some("Orta Durak".into());
+        let mut records = records_with(
+            vec![s],
+            vec![route("R1", 3)],
+            vec![t],
+            vec![
+                stoptime("T1", 1, "S1", (8, 0, 0), (8, 0, 0), 2),
+                stoptime("T1", 2, "S1", (8, 10, 0), (8, 10, 0), 3), // geçerli artan sıra
+            ],
+        );
+        records.shapes = vec![
+            ShapePointRecord { shape_id: "SH1".into(), shape_pt_lat: Some(0.0), shape_pt_lon: Some(0.0),    shape_pt_sequence: Some(1), shape_dist_traveled: None, line: 2 },
+            ShapePointRecord { shape_id: "SH1".into(), shape_pt_lat: Some(1.0), shape_pt_lon: Some(0.0),    shape_pt_sequence: Some(2), shape_dist_traveled: None, line: 3 },
+            ShapePointRecord { shape_id: "SH1".into(), shape_pt_lat: Some(1.0), shape_pt_lon: Some(0.001),  shape_pt_sequence: Some(3), shape_dist_traveled: None, line: 4 },
+            ShapePointRecord { shape_id: "SH1".into(), shape_pt_lat: Some(0.0), shape_pt_lon: Some(0.001),  shape_pt_sequence: Some(4), shape_dist_traveled: None, line: 5 },
+        ];
+        let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
+        assert!(
+            !result.notices.iter().any(|n| n.rule_id == "SHP_022"),
+            "geçerli stop_sequence ile SHP_022 çıkmamalı (sıra belirsizliği çözer)"
         );
     }
 
