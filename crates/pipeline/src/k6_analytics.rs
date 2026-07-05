@@ -6603,9 +6603,18 @@ fn check_pathway_analytics(
             visited
         };
 
-        // PTH_012: her platform için en az bir entrance'tan erişilebilir olmalı
+        // PTH_012: her platform için en az bir entrance'tan erişilebilir olmalı.
+        // İç içe modellemede (peron lt=0 → boarding area lt=4) asıl pathway düğümü
+        // boarding area'dır; peron-container'ın kendisi grafikte olmayabilir. Çocuk
+        // düğümlerinden biri entrance'tan erişilebilirse peron da erişilebilir sayılır
+        // (#50, #49 ile aynı iç içe-istasyon kalıbı; mdb-3127 Santiago Metro 286 FP).
         for &platform in &platforms {
-            if !reachable_from_entrances.contains(platform) {
+            let reachable = reachable_from_entrances.contains(platform)
+                || station_children.get(platform).map_or(false, |kids| {
+                    kids.iter()
+                        .any(|k| reachable_from_entrances.contains(k.stop_id.as_str()))
+                });
+            if !reachable {
                 notices.push(k6_notice(
                     ctr,
                     "PTH_012",
@@ -8080,6 +8089,67 @@ mod tests {
             "süresi dolmuş tekil servis CAL_013 üretmeli");
         assert!(!result.notices.iter().any(|n| n.rule_id == "CAL_009"),
             "tek servis durumunda k6'dan CAL_009 üretmemeli (k4 tümü dolmuşsa atar)");
+    }
+
+    fn pth_stop(id: &str, lt: Option<u32>, parent: &str) -> StopRecord {
+        let mut s = stop(id, 0.0, 0.0);
+        s.location_type = lt;
+        if !parent.is_empty() {
+            s.row.insert("parent_station".to_string(), parent.to_string());
+        }
+        s
+    }
+    fn pth_pw(id: &str, from: &str, to: &str) -> crate::k2::pathways::PathwayRecord {
+        crate::k2::pathways::PathwayRecord {
+            pathway_id: id.into(), from_stop_id: from.into(), to_stop_id: to.into(),
+            pathway_mode: Some(1), is_bidirectional: Some(1),
+            length: None, traversal_time: None, stair_count: None,
+            max_slope: None, min_width: None, row: Default::default(), line: 2,
+        }
+    }
+
+    #[test]
+    fn pth_012_nested_platform_reachable_via_boarding_area_no_fp() {
+        // #50: station ST → platform PL(lt0) → boarding area BA(lt4); entrance EN(lt2).
+        // Pathway EN↔BA. Peron-record PL grafikte düğüm DEĞİL ama çocuğu BA
+        // entrance'tan erişilebilir → PTH_012 sahte-pozitif ÇIKMAMALI.
+        let mut recs = crate::k2::EntityRecords::default();
+        recs.stops = vec![
+            pth_stop("ST", Some(1), ""),
+            pth_stop("EN", Some(2), "ST"),
+            pth_stop("PL", Some(0), "ST"),
+            pth_stop("BA", Some(4), "PL"),
+        ];
+        recs.pathways = vec![pth_pw("P1", "EN", "BA")];
+        let mut derived = DerivedData::default();
+        derived.pathway_graph.adjacency.insert("EN".into(), vec![("BA".into(), 0)]);
+        derived.pathway_graph.adjacency.insert("BA".into(), vec![("EN".into(), 0)]);
+        let mut v = Vec::new();
+        let mut c = 0u32;
+        check_pathway_analytics(&recs, &derived, &mut v, &mut c);
+        assert!(!v.iter().any(|n| n.rule_id == "PTH_012"),
+            "boarding-area çocuğu erişilebilirken PTH_012 çıkmamalı");
+    }
+
+    #[test]
+    fn pth_012_genuinely_unreachable_platform_fires() {
+        // Peron PL grafikte düğüm ama entrance'tan erişilemiyor ve lt4 çocuğu yok
+        // → PTH_012 ÇIKMALI (gerçek erişilebilirlik boşluğu korunur).
+        let mut recs = crate::k2::EntityRecords::default();
+        recs.stops = vec![
+            pth_stop("ST", Some(1), ""),
+            pth_stop("EN", Some(2), "ST"),
+            pth_stop("PL", Some(0), "ST"),
+        ];
+        recs.pathways = vec![pth_pw("P1", "EN", "X"), pth_pw("P2", "PL", "Y")];
+        let mut derived = DerivedData::default();
+        derived.pathway_graph.adjacency.insert("EN".into(), vec![("X".into(), 0)]);
+        derived.pathway_graph.adjacency.insert("PL".into(), vec![("Y".into(), 0)]);
+        let mut v = Vec::new();
+        let mut c = 0u32;
+        check_pathway_analytics(&recs, &derived, &mut v, &mut c);
+        assert!(v.iter().any(|n| n.rule_id == "PTH_012"),
+            "erişilemeyen peron PTH_012 üretmeli");
     }
 
     #[test]
