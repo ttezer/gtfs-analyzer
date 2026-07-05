@@ -696,7 +696,7 @@ pub static RULES: &[RuleMeta] = &[
         "Güzergah şeklinde tekrarlayan nokta"),
     r!("SHP_021", Dusuk,  Quality, 1, &[], Some("shape_id"), VS, Entity,
         "shape_dist_traveled negatif değer"),
-    r!("SHP_022", Yuksek, Interop, 2, &[], Some("stop_id"), VI, Entity,
+    r!("SHP_022", Yuksek, Interop, 2, &[], Some("stop_id"), VI_K, Entity,
         "Durak güzergah şeklinde belirsiz konumda"),
     r!("SHP_023", Orta,   Quality, 2, &[], Some("shape_id"), VS, Entity,
         "shape_dist_traveled aynı değere sahip art arda iki nokta aynı koordinatta"),

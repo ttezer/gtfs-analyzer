@@ -1169,10 +1169,13 @@ fn fixtures() -> Vec<Fixture> {
         // SHP_020: ardışık olmayan tekrarlayan nokta (k6).
         fx("SHP_020", vec![("shapes.txt", "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\nSH1,40.0,40.0,1\nSH1,40.1,40.1,2\nSH1,40.0,40.0,3\n")]),
         // SHP_022: durak shape'in 2 ayrı bölümüne yakın (loop, sdt yok) (k6).
+        // #52: kural artık geçerli stop_sequence'lı trip'i atlar (sıra belirsizliği çözer);
+        // fixture DUPLICATE stop_sequence kullanır → sıra kullanılamaz → SHP_022 emit eder.
         fx("SHP_022", vec![
             ("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,40.0,40.0\nS2,Stop2,40.1,40.1\n"),
             ("trips.txt", "route_id,service_id,trip_id,shape_id\nR1,SVC1,T1,SH1\n"),
             ("shapes.txt", "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\nSH1,40.0,40.0,1\nSH1,40.0,40.2,2\nSH1,40.2,40.2,3\nSH1,40.2,40.0,4\nSH1,40.0,40.0,5\n"),
+            ("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\nT1,08:10:00,08:10:00,S2,1\n"),
         ]),
         // SHP_023: aynı dist_traveled + aynı koordinat (k6).
         fx("SHP_023", vec![("shapes.txt", "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence,shape_dist_traveled\nSH1,40.0,40.0,1,5\nSH1,40.0,40.0,2,5\nSH1,40.1,40.1,3,10\n")]),
