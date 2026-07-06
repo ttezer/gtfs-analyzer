@@ -295,6 +295,7 @@ jobs:
       contents: read
       pages: write
       id-token: write
+      actions: write   # mükerrer github-pages artifact'ını silmek için
     environment:
       name: github-pages
       url: ${{ steps.deploy.outputs.page_url }}
@@ -307,6 +308,18 @@ jobs:
         with:
           name: ui-dist
           path: ui/dist
+
+      # Re-run'larda upload-pages-artifact yeni bir "github-pages" artifact'ı ekler ama
+      # eskisini silmez → run içinde 2 tane olur → deploy-pages@v5 "Multiple artifacts
+      # named github-pages" ile patlar. Upload'tan önce mevcut olan(lar)ı temizle.
+      - name: Eski github-pages artifact'ını temizle
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts \
+            --jq '.artifacts[] | select(.name=="github-pages") | .id' \
+            | xargs -r -I{} gh api -X DELETE repos/${{ github.repository }}/actions/artifacts/{}
 
       - uses: actions/upload-pages-artifact@v5
         with:
