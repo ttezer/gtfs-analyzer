@@ -232,6 +232,11 @@ fn build_shape_geometry(
         .filter(|s| !s.is_empty())
         .collect();
 
+    // SHP_010 agregasyonu (#48): ardışık özdeş koordinat büyük feed'de neredeyse-evrensel
+    // (DELFI: 268K shape'in %98'i) — shape-başına Düşük notice yerine eşik aşılırsa tek
+    // feed-özet üretilir. STP_022 emsali; karar dış döngü sonunda verilir.
+    let mut shp010_pending: Vec<Notice> = Vec::new();
+
     for (shape_id, point_indices) in &entity_map.shape_points {
         let n_pts = point_indices.len();
         if n_pts == 0 { continue; }
@@ -325,7 +330,7 @@ fn build_shape_geometry(
                 // SHP_010: ardışık özdeş koordinat — shape başına bir kez (dedup zaten teke indirir)
                 if (lat - plat).abs() < f64::EPSILON && (lon - plon).abs() < f64::EPSILON && !shp010_fired {
                     shp010_fired = true;
-                    notices.push(k5_notice(
+                    shp010_pending.push(k5_notice(
                         ctr,
                         "SHP_010",
                         EntityType::Shape,
@@ -362,6 +367,29 @@ fn build_shape_geometry(
                 bbox: (min_lat, max_lat, min_lon, max_lon),
             },
         );
+    }
+
+    // SHP_010 karar (#48): ardışık-özdeş-koordinatlı shape sayısı eşiği aşarsa tek feed-özet;
+    // aksi halde shape-başına notice korunur (düşük hacimde pinpoint değerli).
+    const SHP010_AGG_THRESHOLD: usize = 50;
+    let n10 = shp010_pending.len();
+    if n10 > SHP010_AGG_THRESHOLD {
+        let examples: Vec<String> = shp010_pending.iter()
+            .filter_map(|x| x.entity_id.clone()).take(5).collect();
+        let mut notice = k5_notice(
+            ctr, "SHP_010", EntityType::Feed, None, None,
+            "shapes.txt", None, Some("shape_pt_lat|shape_pt_lon"),
+            Some(n10.to_string()), None,
+            format!("{n10} güzergah şeklinde ardışık özdeş koordinat var — tekrarlanan güzergah noktaları."),
+            "İlgili shape'lerdeki tekrarlanan güzergah noktalarını kaldırın.",
+        );
+        let mut d = std::collections::HashMap::new();
+        d.insert("affected_shapes".to_string(), n10.to_string());
+        if !examples.is_empty() { d.insert("example_shapes".to_string(), examples.join(", ")); }
+        notice.details = Some(d);
+        notices.push(notice);
+    } else {
+        notices.append(&mut shp010_pending);
     }
 
     // SHP_018: orphan shape — trip tarafından referans edilmeyen shape
@@ -659,6 +687,33 @@ mod tests {
         let result = build(&records, &map);
         let shp010 = result.notices.iter().filter(|n| n.rule_id == "SHP_010").count();
         assert_eq!(shp010, 1, "3 ardışık tekrar olsa da SHP_010 shape başına 1 kez: {shp010}");
+    }
+
+    #[test]
+    fn shp_010_high_volume_aggregates_to_single_feed_notice() {
+        // #48: ardışık-özdeş-koordinatlı shape sayısı yüksek (>50) → tek feed-özet.
+        let mut records = empty_records();
+        let mut map = empty_map();
+        let mut shapes = Vec::new();
+        for i in 0..=51u32 {
+            let sid = format!("S{i}");
+            let base = shapes.len();
+            // her shape: 2 özdeş nokta (dup) → SHP_010 tetikler
+            shapes.push(shape_pt(&sid, 1, 41.0, 29.0, 1));
+            shapes.push(shape_pt(&sid, 2, 41.0, 29.0, 2));
+            map.shape_points.insert(sid.into(), vec![base, base + 1]);
+        }
+        records.shapes = shapes;
+
+        let result = build(&records, &map);
+        let shp010: Vec<_> = result.notices.iter().filter(|n| n.rule_id == "SHP_010").collect();
+        assert_eq!(shp010.len(), 1, "yüksek hacimde tek feed-özeti beklenir");
+        assert_eq!(shp010[0].entity_type, EntityType::Feed);
+        assert_eq!(shp010[0].observed_value.as_deref(), Some("52"));
+        assert_eq!(
+            shp010[0].details.as_ref().and_then(|d| d.get("affected_shapes")).map(String::as_str),
+            Some("52"),
+        );
     }
 
     // ── SHP_018 ───────────────────────────────────────────────────────────────

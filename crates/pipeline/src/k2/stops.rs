@@ -37,6 +37,11 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
     let mut any_stop_code_present = false;
     let mut stop_code_owner: HashMap<String, String> = HashMap::new();
 
+    // STP_033 agregasyonu (#48): zone_id eksik duraklar büyük feed'de neredeyse-evrensel
+    // (DELFI: 548K durağın %91'i) — durak-başına on binlerce Bilgi notice yerine eşik
+    // aşılırsa tek feed-özet üretilir. STP_022 emsali; karar döngü sonunda verilir.
+    let mut stp033_pending: Vec<gtfs_core::Notice> = Vec::new();
+
     for (row_idx, row) in file.rows.iter().enumerate() {
         let line = (row_idx + 2) as u64;
         let row_map = build_row_map(&file.headers, row);
@@ -341,7 +346,7 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
             .map(str::to_string);
         let loc_type = location_type.unwrap_or(0);
         if zone_id.is_none() && loc_type == 0 {
-            notices.push(make_k2_notice(
+            stp033_pending.push(make_k2_notice(
                 &mut counter, "STP_033", EntityType::Stop, entity_id.clone(),
                 Some(&row_map), &file.name, Some(line), Some("zone_id"),
                 None, None,
@@ -401,6 +406,29 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
         notices.push(notice);
     } else {
         notices.append(&mut stp022_pending);
+    }
+
+    // STP_033 karar (#48): zone_id eksik durak sayısı eşiği aşarsa tek feed-özet;
+    // aksi halde durak-başına notice korunur (düşük hacimde pinpoint değerli).
+    const STP033_AGG_THRESHOLD: usize = 50;
+    let n33 = stp033_pending.len();
+    if n33 > STP033_AGG_THRESHOLD {
+        let examples: Vec<String> = stp033_pending.iter()
+            .filter_map(|x| x.entity_id.clone()).take(5).collect();
+        let mut notice = make_k2_notice(
+            &mut counter, "STP_033", EntityType::Feed, None,
+            None, &file.name, None, Some("zone_id"),
+            Some(n33.to_string()), None,
+            format!("{n33} durakta zone_id eksik — ücret bölgesi tabanlı hesaplamalar etkilenebilir."),
+            "Ücret hesabı gerekiyorsa ilgili duraklara zone_id ekleyin.",
+        );
+        let mut d = std::collections::HashMap::new();
+        d.insert("affected_stops".to_string(), n33.to_string());
+        if !examples.is_empty() { d.insert("example_stops".to_string(), examples.join(", ")); }
+        notice.details = Some(d);
+        notices.push(notice);
+    } else {
+        notices.append(&mut stp033_pending);
     }
 
     // STP_018: stops.txt'te hiç durak yok
@@ -503,6 +531,46 @@ mod tests {
         assert_eq!(
             stp022[0].details.as_ref().and_then(|d| d.get("affected_stops")).map(String::as_str),
             Some("51"),
+        );
+    }
+
+    #[test]
+    fn stp_033_low_volume_stays_per_stop() {
+        // #48: zone_id eksik durak sayısı düşük (≤50) → durak-başına STP_033 korunur.
+        // stop_code dolu tutulur ki STP_022 gürültüsü karışmasın.
+        let file = make_file(
+            vec!["stop_id", "stop_name", "stop_lat", "stop_lon", "stop_code"],
+            vec![
+                vec!["S1", "Stop1", "41.0", "29.0", "C1"],
+                vec!["S2", "Stop2", "41.1", "29.1", "C2"],
+                vec!["S3", "Stop3", "41.2", "29.2", "C3"],
+            ],
+        );
+        let (_, notices) = validate_stops(&file);
+        let stp033: Vec<_> = notices.iter().filter(|n| n.rule_id == "STP_033").collect();
+        assert_eq!(stp033.len(), 3, "düşük hacimde durak-başına STP_033 beklenir");
+        assert!(stp033.iter().all(|n| n.entity_type == EntityType::Stop));
+    }
+
+    #[test]
+    fn stp_033_high_volume_aggregates_to_single_feed_notice() {
+        // #48: zone_id eksik durak sayısı yüksek (>50) → tek feed-özet.
+        let ids: Vec<String> = (0..=51).map(|i| format!("S{i}")).collect();
+        let mut rows: Vec<Vec<&str>> = Vec::new();
+        for id in &ids {
+            rows.push(vec![id.as_str(), "X", "41.0", "29.0", id.as_str()]); // stop_code dolu, zone_id yok
+        }
+        let file = make_file(
+            vec!["stop_id", "stop_name", "stop_lat", "stop_lon", "stop_code"], rows,
+        );
+        let (_, notices) = validate_stops(&file);
+        let stp033: Vec<_> = notices.iter().filter(|n| n.rule_id == "STP_033").collect();
+        assert_eq!(stp033.len(), 1, "yüksek hacimde tek feed-özeti beklenir");
+        assert_eq!(stp033[0].entity_type, EntityType::Feed);
+        assert_eq!(stp033[0].observed_value.as_deref(), Some("52"));
+        assert_eq!(
+            stp033[0].details.as_ref().and_then(|d| d.get("affected_stops")).map(String::as_str),
+            Some("52"),
         );
     }
 
