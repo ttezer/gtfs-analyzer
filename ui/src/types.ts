@@ -12,7 +12,7 @@ export type EntityType =
 export type DedupLevel = 'Feed' | 'File' | 'Entity' | 'Row' | 'Field';
 export type FatalCode  =
   | 'ZipUnreadable' | 'Utf8Critical' | 'NoRequiredFiles'
-  | 'CsvMalformed'  | 'ResourceLimit' | 'InvalidInput';
+  | 'CsvMalformed'  | 'DecompressionLimit' | 'ResourceLimit' | 'InvalidInput';
 export type R9Label    =
   | 'blocker' | 'conditional_blocker' | 'interop' | 'propagation' | 'quick-win'
   | 'quality' | 'widespread' | 'analytics' | 'hard' | 'single' | 'high-impact';

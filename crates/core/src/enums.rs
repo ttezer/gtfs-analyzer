@@ -98,6 +98,8 @@ pub enum FatalCode {
     NoRequiredFiles,
     /// ARC_013 — CSV tokenization başarısız
     CsvMalformed,
+    /// ARC_029 — sıkıştırma koruması: arşiv zip-bomb / açılmış-boyut sınırını aştı
+    DecompressionLimit,
     /// WASM bellek veya notice sayısı limiti aşıldı (browser ortamı)
     ResourceLimit,
     /// Giriş verisi geçersiz (örn. config JSON parse hatası)

@@ -509,6 +509,7 @@ const ja: LocaleShape = {
     Utf8Critical   : 'UTF-8エンコードエラー',
     NoRequiredFiles: '必須ファイルが不足しています',
     CsvMalformed   : 'CSV形式エラー',
+    DecompressionLimit: 'Zip爆弾保護が作動しました',
     ResourceLimit  : '通知数の上限を超えました',
     InvalidInput   : '無効な入力',
   },
@@ -1673,6 +1674,7 @@ const ja: LocaleShape = {
     'ARC_026': '不正な改行文字',
     'ARC_027': 'ZIPエントリにユーザー読み取り権限がない',
     'ARC_028': 'GTFS公開URLが.zipファイル名で終わっていない',
+    'ARC_029': 'Zip爆弾保護：アーカイブがzip爆弾の上限を超えました',
     // BKR
     'BKR_001': '予約ルール: prior_notice_start_dayが禁止コンテキスト',
     'BKR_002': 'prior_notice_start_dayにprior_notice_last_dayが必要',

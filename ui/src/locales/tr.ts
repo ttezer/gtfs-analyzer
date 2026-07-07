@@ -527,6 +527,7 @@ const tr = {
     Utf8Critical   : 'UTF-8 kodlama hatası',
     NoRequiredFiles: 'Zorunlu dosyalar eksik',
     CsvMalformed   : 'CSV biçim hatası',
+    DecompressionLimit: 'Zip bomb koruması devreye girdi',
     ResourceLimit  : 'Notice limiti aşıldı',
     InvalidInput   : 'Geçersiz girdi',
   },
@@ -563,6 +564,7 @@ const tr = {
     'ARC_026': 'Dosyada hatalı satır sonu karakteri',
     'ARC_027': 'ZIP girdisinde kullanıcı okuma izni yok',
     'ARC_028': "GTFS yayın URL'si .zip dosya adıyla bitmiyor",
+    'ARC_029': 'Sıkıştırma koruması: arşiv zip-bomb sınırını aştı',
     // BKR
     'BKR_001': 'Önceki gün rezervasyon alanı yasak bağlamda dolu',
     'BKR_002': 'prior_notice_start_day yalnızca prior_notice_last_day ile kullanılabilir',

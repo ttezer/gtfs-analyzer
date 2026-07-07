@@ -141,6 +141,8 @@ pub static RULES: &[RuleMeta] = &[
         "ZIP girdisinde kullanıcı okuma izni yok"),
     r!("ARC_028", Dusuk, Quality, 1, &[], None, VS, Feed,
         "GTFS yayın URL'si .zip dosya adıyla bitmiyor"),
+    r!("ARC_029", Kritik, Spec, 1, &[], None, VS_K, File,
+        "Sıkıştırma koruması: arşiv zip-bomb sınırını aştı"),
 
     // ── BKR: Booking Rules ─────────────────────────────────────────────────────
     r!("BKR_001", Yuksek, Spec, 1, &[], Some("booking_rule_id"), VS, Entity,

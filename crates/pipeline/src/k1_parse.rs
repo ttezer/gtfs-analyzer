@@ -1,6 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use std::io::Read;
 
+use crate::decompress_guard::{GuardedReader, DEFAULT_DECOMPRESSION_LIMITS};
 use gtfs_core::{EntityType, FatalCode, FatalError, Notice, Severity};
 use gtfs_rules::get_rule;
 use smol_str::SmolStr;
@@ -126,6 +127,21 @@ const MAX_PREALLOC: usize = 64 * 1024 * 1024; // 64 MiB
 #[inline]
 fn prealloc_capacity(uncompressed_hint: usize) -> usize {
     uncompressed_hint.min(MAX_PREALLOC).max(1)
+}
+
+/// GuardedReader okuma hatasını Fatal'a çevirir: guard tetiklendiyse ARC_029
+/// (DecompressionLimit), aksi halde ham ZIP okuma hatası (ARC_001 ZipUnreadable).
+fn read_fatal<R: Read>(guarded: &GuardedReader<'_, R>, raw_name: &str, e: &std::io::Error) -> FatalError {
+    match guarded.tripped() {
+        Some(trip) => FatalError {
+            code: FatalCode::DecompressionLimit,
+            message: format!("'{raw_name}' sıkıştırma koruması sınırını aştı: {}", trip.describe()),
+        },
+        None => FatalError {
+            code: FatalCode::ZipUnreadable,
+            message: format!("'{raw_name}' okunamadı: {e}"),
+        },
+    }
 }
 
 fn strip_bom(bytes: &[u8]) -> (&[u8], bool) {
@@ -510,6 +526,8 @@ pub fn parse(zip_bytes: &[u8]) -> Result<K1Result, FatalError> {
     // DQ_016 için dosya başına birincil anahtar sütun indeksi — ilk "*_id" sütunu
     let _dq016_dummy = ();
 
+    // #46: zip-bomb koruması — tüm girdiler boyunca açılan toplam bayt (traversal geneli).
+    let mut total_decompressed: u64 = 0;
     for i in 0..archive.len() {
         k1dbg!("[K1] by_index({i})...");
         let mut zf = archive.by_index(i).map_err(|e| FatalError {
@@ -606,12 +624,20 @@ pub fn parse(zip_bytes: &[u8]) -> Result<K1Result, FatalError> {
         };
         {
             let _t = crate::timing::Timer::start(format!("K1::decompress::{raw_name}"));
+            // #46: her girdi, açılan baytları sayan GuardedReader üzerinden okunur.
+            // Bomba tetiklerse read() hata döner; tripped() ile plain ZIP hatasından
+            // ayrılıp ARC_029 (DecompressionLimit) Fatal'ı üretilir.
+            let comp_size = zf.compressed_size();
+            let mut guarded = GuardedReader::new(&mut zf, DEFAULT_DECOMPRESSION_LIMITS, &mut total_decompressed, comp_size);
             if is_zip_stream {
                 let mut chunk = [0u8; 64 * 1024];
                 let mut malformed_eol = false;
                 let mut previous_was_cr = false;
                 loop {
-                    let n = zf.read(&mut chunk).map_err(|e| FatalError { code: FatalCode::ZipUnreadable, message: format!("'{raw_name}' okunamadı: {e}") })?;
+                    let n = match guarded.read(&mut chunk) {
+                        Ok(n) => n,
+                        Err(e) => return Err(read_fatal(&guarded, &raw_name, &e)),
+                    };
                     if n == 0 { break; }
                     if previous_was_cr && chunk[0] != b'\n' { malformed_eol = true; }
                     malformed_eol |= chunk[..n].windows(2).any(|p| p[0] == b'\r' && p[1] != b'\n');
@@ -621,11 +647,8 @@ pub fn parse(zip_bytes: &[u8]) -> Result<K1Result, FatalError> {
                 }
                 malformed_eol |= previous_was_cr;
                 if malformed_eol { notices.push(make_notice(&mut counter, "ARC_026", EntityType::File, Some(raw_name.clone()), Some(&raw_name), None, None, Some("CR not followed by LF".to_string()), format!("'{raw_name}' CRLF veya LF dışında satır sonu içeriyor."), "Satır sonlarını LF ya da CRLF olarak yeniden yazın.")); }
-            } else {
-                zf.read_to_end(&mut raw_vec).map_err(|e| FatalError {
-                    code: FatalCode::ZipUnreadable,
-                    message: format!("'{raw_name}' okunamadı: {e}"),
-                })?;
+            } else if let Err(e) = guarded.read_to_end(&mut raw_vec) {
+                return Err(read_fatal(&guarded, &raw_name, &e));
             }
         }
         if !is_zip_stream && has_malformed_eol(&raw_vec) {
