@@ -28,18 +28,32 @@ pub struct DecompressionLimits {
     pub max_ratio: u64,
 }
 
-/// PLACEHOLDER değerler — merge öncesi gerçek ~9.4 GB feed + wasm64 zarfına göre
-/// KALİBRE EDİLECEK. Tek ayar noktası burasıdır.
+/// Decompression guard varsayılan sınırları — 2026-07-07'de gerçek bir 419 MB /
+/// 46,3M stop_times'lık feed'in canlı wasm64 profili ile kalibre edildi (issue #46).
+///
+/// O feed'de ölçülenler (guard false-trip ETMEDİ):
+/// - toplam açılmış ~3,36 GiB, en büyük tek girdi (stop_times) ~2,74 GiB,
+/// - tüm-feed sıkıştırma oranı ~8,2:1 (3438 MB açılmış / 419 MB zip).
+///
+/// Sınırlar bu ölçümlerin belirgin üstünde tutuldu (meşru büyük feed'i reddetmemek
+/// için) ama gerçek zip-bomba şekillerini (minik zip → devasa açılım) yakalayacak
+/// kadar dar. Yeniden ayarlamak için TEK nokta burasıdır: daha büyük meşru bir feed
+/// reddedilirse önce entry/total tavanları; guard çok agresif yakalarsa max_ratio
+/// gözden geçirilir.
 pub const DEFAULT_DECOMPRESSION_LIMITS: DecompressionLimits = DecompressionLimits {
-    // Gerçek feed tepe değerinin (~9.4 GB) üstünde, wasm64 OOM duvarının altında.
-    max_total_decompressed: 16 * 1024 * 1024 * 1024, // 16 GiB — TUNE
-    // Meşru tek girdi (büyük feed'de stop_times) çok-GB olabilir; bu yüzden yüksek
-    // kalır ve büyük girdilerde asıl kontrol ratio guard'dır.
-    max_entry_decompressed: 12 * 1024 * 1024 * 1024, // 12 GiB — TUNE
-    ratio_floor: 16 * 1024 * 1024, // 16 MiB — TUNE
-    // Tüm feed ~37:1; tek bir tekrarlı stop_times.txt daha yüksek çıkabilir, pay bırak.
-    // Yine de 1000:1+ bombaları yakalar.
-    max_ratio: 200, // TUNE
+    // Ölçülen ~3,36 GiB toplamın ~5×'i; wasm64 OOM duvarının (~16 GiB) altında.
+    // NOT: normal feed'lerde OOM'a karşı asıl bariyer bu DEĞİL (tepe bellek ~14 GiB
+    // K6 analitiğinden gelir); bu tavan yalnızca decompression-baskın bombalar içindir.
+    max_total_decompressed: 16 * 1024 * 1024 * 1024, // 16 GiB
+    // Ölçülen ~2,74 GiB en-büyük girdinin ~4,4×'i. Meşru tek girdi (büyük feed'de
+    // stop_times) çok-GB olabilir; büyük girdilerde asıl kontrol ratio guard'dır.
+    max_entry_decompressed: 12 * 1024 * 1024 * 1024, // 12 GiB
+    // Bu açılmış-boyutun altında oran yok sayılır (küçük, çok sıkışan girdiler zararsız).
+    ratio_floor: 16 * 1024 * 1024, // 16 MiB
+    // Ölçülen tüm-feed oranı ~8,2:1; tek bir tekrarlı stop_times.txt bunun birkaç katı
+    // çıkabilir → ~10× pay ile 80:1. Yine de 1000:1+ (tipik DEFLATE tavanı ~1032:1)
+    // bombaları rahatça yakalar.
+    max_ratio: 80,
 };
 
 /// Sınır aşımının nedeni (hata mesajı ve teşhis için).
