@@ -114,6 +114,20 @@ fn make_notice(
 
 const UTF8_BOM: &[u8] = &[0xEF, 0xBB, 0xBF];
 
+/// ZIP merkezi-dizininde beyan edilen (saldırgan-kontrollü) açılmış boyuttan
+/// ön-tahsis edilecek en büyük tampon. `zf.size()` güvenilmez olduğundan, bir arşiv
+/// yalnızca devasa bir boyut *beyan ederek* ilk bayt okunmadan büyük bir Vec alloc'una
+/// zorlayabilir. Beyanı bu tavana kapatırız; gerçek baytlar geldikçe Vec büyür, yani
+/// meşru büyük dosyalar için davranış değişmez, yalnızca başlangıç kapasitesi sınırlanır.
+const MAX_PREALLOC: usize = 64 * 1024 * 1024; // 64 MiB
+
+/// K1 ham dosya tamponu için başlangıç kapasitesi: beyan edilen boyutu [`MAX_PREALLOC`]
+/// ile sınırlar ve en az 1 döndürür (sıfır-kapasite alloc'u anlamsız).
+#[inline]
+fn prealloc_capacity(uncompressed_hint: usize) -> usize {
+    uncompressed_hint.min(MAX_PREALLOC).max(1)
+}
+
 fn strip_bom(bytes: &[u8]) -> (&[u8], bool) {
     if bytes.starts_with(UTF8_BOM) {
         (&bytes[3..], true)
@@ -588,7 +602,7 @@ pub fn parse(zip_bytes: &[u8]) -> Result<K1Result, FatalError> {
         let mut raw_vec = if is_zip_stream {
             Vec::with_capacity(8192)
         } else {
-            Vec::with_capacity(uncompressed_hint.max(1))
+            Vec::with_capacity(prealloc_capacity(uncompressed_hint))
         };
         {
             let _t = crate::timing::Timer::start(format!("K1::decompress::{raw_name}"));
@@ -1344,6 +1358,18 @@ mod tests {
         assert_eq!(k1.files.len(), 6);
         assert!(k1.files.contains_key("agency.txt"));
         assert!(k1.files.contains_key("stop_times.txt"));
+    }
+
+    #[test]
+    fn prealloc_capacity_caps_declared_size() {
+        // Devasa beyan → MAX_PREALLOC ile sınırlanır (lying-header DoS koruması).
+        assert_eq!(prealloc_capacity(usize::MAX), MAX_PREALLOC);
+        assert_eq!(prealloc_capacity(MAX_PREALLOC + 1), MAX_PREALLOC);
+        // Sıfır beyan → en az 1 (anlamsız 0-kapasite alloc'unu önle).
+        assert_eq!(prealloc_capacity(0), 1);
+        // Tavanın altındaki gerçek boyutlar aynen geçer (davranış değişmez).
+        assert_eq!(prealloc_capacity(1000), 1000);
+        assert_eq!(prealloc_capacity(MAX_PREALLOC), MAX_PREALLOC);
     }
 
     #[test]
