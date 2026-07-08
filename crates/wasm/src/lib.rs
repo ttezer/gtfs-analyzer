@@ -79,15 +79,74 @@ pub fn list_zip_files(zip_bytes: &[u8]) -> JsValue {
     };
 
     let mut entries: Vec<Entry> = Vec::new();
+    // #46 kalibrasyon: tüm girdilerin merkezi-dizin (açılmış, sıkıştırılmış) boyutlarını
+    // DECOMPRESS ETMEDEN topla — decompression guard sınırlarını gerçek feed'e göre
+    // ayarlamak için. Rapor konsola basılır (aşağıda).
+    let mut calib: Vec<(String, u64, u64)> = Vec::new();
     for i in 0..archive.len() {
         let Ok(f) = archive.by_index(i) else { continue };
         let name = f.name().to_string();
+        let (u, c) = (f.size(), f.compressed_size());
+        calib.push((name.clone(), u, c));
         if name.ends_with(".txt") && !name.contains('/') && !name.contains('\\') {
-            entries.push(Entry { name, uncompressed_size: f.size() });
+            entries.push(Entry { name, uncompressed_size: u });
         }
     }
+    log_zip_ratio_report(&calib);
 
     JsValue::from_str(&serde_json::to_string(&entries).unwrap_or_else(|_| "[]".into()))
+}
+
+/// #46 decompression-guard kalibrasyon raporu — per-entry açılmış/sıkıştırılmış oranı,
+/// toplamlar ve `DecompressionLimits` için önerilen üst-sınırlar. Yalnız merkezi-dizin
+/// metadata'sından; hiç decompress edilmez, milisaniye sürer. Bu değerler GÜVENİLİR bir
+/// gerçek feed'i kalibre etmek içindir — runtime guard hâlâ gerçek açılan baytı sayar,
+/// beyan edilen boyuta güvenmez.
+fn log_zip_ratio_report(entries: &[(String, u64, u64)]) {
+    if entries.is_empty() {
+        return;
+    }
+    let mib = |b: u64| b as f64 / 1_048_576.0;
+    let mut sorted: Vec<&(String, u64, u64)> = entries.iter().collect();
+    sorted.sort_by(|a, b| b.1.cmp(&a.1)); // açılmış boyuta göre azalan
+    let (mut total_u, mut total_c) = (0u64, 0u64);
+    let (mut max_ratio, mut max_ratio_name) = (0.0f64, String::new());
+    let (mut max_u, mut max_u_name) = (0u64, String::new());
+    let mut lines: Vec<String> = Vec::new();
+    for (name, u, c) in &sorted {
+        let ratio = if *c == 0 { f64::INFINITY } else { *u as f64 / *c as f64 };
+        total_u += *u;
+        total_c += *c;
+        if ratio.is_finite() && ratio > max_ratio {
+            max_ratio = ratio;
+            max_ratio_name = name.clone();
+        }
+        if *u > max_u {
+            max_u = *u;
+            max_u_name = name.clone();
+        }
+        lines.push(format!(
+            "  {name}: açılmış {:.1} MiB / sıkıştırılmış {:.1} MiB = {:.1}:1",
+            mib(*u), mib(*c), ratio
+        ));
+    }
+    let feed_ratio = if total_c == 0 { 0.0 } else { total_u as f64 / total_c as f64 };
+    let report = format!(
+        "[zip-calib] #46 decompression-guard kalibrasyon (merkezi-dizin, decompress YOK)\n{}\n\
+         — en yuksek oran: {max_ratio_name} = {:.1}:1  -> onerilen max_ratio ~ {} (x3)\n\
+         — en buyuk girdi: {max_u_name} = {:.1} MiB  -> onerilen max_entry ~ {:.0} MiB (x2)\n\
+         — toplam acilmis: {:.1} MiB (feed orani {:.1}:1)  -> onerilen max_total ~ {:.0} MiB (x2, wasm64 zarfi altinda)\n\
+         — MAX_PREALLOC feed'den bagimsiz (64 MiB placeholder makul)",
+        lines.join("\n"),
+        max_ratio,
+        (max_ratio * 3.0).ceil() as u64,
+        mib(max_u),
+        mib(max_u) * 2.0,
+        mib(total_u),
+        feed_ratio,
+        mib(total_u) * 2.0,
+    );
+    web_sys::console::log_1(&report.into());
 }
 
 /// CachedState içindeki dosya istatistiklerini JSON olarak döner.
