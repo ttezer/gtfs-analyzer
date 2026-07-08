@@ -147,6 +147,19 @@ fn log_zip_ratio_report(entries: &[(String, u64, u64)]) {
         mib(total_u) * 2.0,
     );
     web_sys::console::log_1(&report.into());
+
+    // Erken uyarı (issue #46, @Whatsonyourmind önerisi): ölçülen worst-ratio aktif
+    // `max_ratio` cap'inin yarısına ulaştıysa, false-trip'ten ÖNCE yeniden ölçmenin
+    // işaretidir. Eşik cap'e bağlı (sabit değişince otomatik izler).
+    let cap = gtfs_pipeline::decompress_guard::DEFAULT_DECOMPRESSION_LIMITS.max_ratio as f64;
+    if max_ratio >= cap / 2.0 {
+        let warn = format!(
+            "[zip-calib] UYARI: en yuksek oran {max_ratio_name} = {:.1}:1, aktif max_ratio cap'inin ({:.0}) yarisini asti \
+             -> false-trip'ten once decompression-guard sabitlerini yeniden olc (bkz. issue #46).",
+            max_ratio, cap
+        );
+        web_sys::console::warn_1(&warn.into());
+    }
 }
 
 /// CachedState içindeki dosya istatistiklerini JSON olarak döner.
