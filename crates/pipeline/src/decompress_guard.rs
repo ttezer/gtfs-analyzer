@@ -28,31 +28,33 @@ pub struct DecompressionLimits {
     pub max_ratio: u64,
 }
 
-/// Decompression guard varsayılan sınırları — 2026-07-07'de gerçek bir 419 MB /
-/// 46,3M stop_times'lık feed'in canlı wasm64 profili ile kalibre edildi (issue #46).
+/// Decompression guard varsayılan sınırları — 2026-07 gerçek bir 419 MB DELFI
+/// aggregate feed'inin (46,3M stop_times) merkezi-dizin taramasıyla kalibre edildi
+/// (issue #46; rapor `list_zip_files` içindeki `log_zip_ratio_report`).
 ///
-/// O feed'de ölçülenler (guard false-trip ETMEDİ):
-/// - toplam açılmış ~3,36 GiB, en büyük tek girdi (stop_times) ~2,74 GiB,
-/// - tüm-feed sıkıştırma oranı ~8,2:1 (3438 MB açılmış / 419 MB zip).
+/// Ölçülen (per-entry, decompress YOK; guard false-trip ETMEDİ):
+/// - en yüksek oran 17,8:1 (bir `.out` artefaktı); en yüksek GTFS dosyası trips.txt 12,3:1,
+/// - en büyük girdi stop_times ~2,74 GiB; toplam açılmış ~3,39 GiB; feed oranı ~8,3:1.
 ///
-/// Sınırlar bu ölçümlerin belirgin üstünde tutuldu (meşru büyük feed'i reddetmemek
-/// için) ama gerçek zip-bomba şekillerini (minik zip → devasa açılım) yakalayacak
-/// kadar dar. Yeniden ayarlamak için TEK nokta burasıdır: daha büyük meşru bir feed
-/// reddedilirse önce entry/total tavanları; guard çok agresif yakalarsa max_ratio
-/// gözden geçirilir.
+/// Değerler ölçülen en-kötünün belirgin üstünde (meşru büyük feed'i reddetmemek için)
+/// ama gerçek zip-bomba şekillerini (minik zip → devasa açılım) yakalayacak kadar dar.
+/// Yeniden ayarlamak için TEK nokta burasıdır; yeni bir en-kötü feed'de raporu tekrar
+/// koştur ve pay bırakarak güncelle.
 pub const DEFAULT_DECOMPRESSION_LIMITS: DecompressionLimits = DecompressionLimits {
-    // Ölçülen ~3,36 GiB toplamın ~5×'i; wasm64 OOM duvarının (~16 GiB) altında.
-    // NOT: normal feed'lerde OOM'a karşı asıl bariyer bu DEĞİL (tepe bellek ~14 GiB
-    // K6 analitiğinden gelir); bu tavan yalnızca decompression-baskın bombalar içindir.
+    // 16 GiB — ölçülen ~3,4 GiB toplamın çok üstünde BİLİNÇLİ tutuldu: daha büyük
+    // gerçek feed'ler (~9.4 GB sınıfı) mevcut, "2× toplam" (~7 GiB) onları reddederdi.
+    // wasm64 OOM duvarının (~16 GiB) hemen altında. NOT: normal feed'de asıl OOM
+    // bariyeri bu DEĞİL (tepe bellek ~14 GiB K6 analitiğinden); bu tavan yalnızca
+    // decompression-baskın bombalar içindir.
     max_total_decompressed: 16 * 1024 * 1024 * 1024, // 16 GiB
-    // Ölçülen ~2,74 GiB en-büyük girdinin ~4,4×'i. Meşru tek girdi (büyük feed'de
-    // stop_times) çok-GB olabilir; büyük girdilerde asıl kontrol ratio guard'dır.
+    // Ölçülen ~2,74 GiB en-büyük girdinin ~4,4×'i. Daha büyük tek girdi zaten 16 GiB
+    // duvarında işlenemez → false-trip riski yok; büyük girdilerde asıl kontrol ratio.
     max_entry_decompressed: 12 * 1024 * 1024 * 1024, // 12 GiB
     // Bu açılmış-boyutun altında oran yok sayılır (küçük, çok sıkışan girdiler zararsız).
     ratio_floor: 16 * 1024 * 1024, // 16 MiB
-    // Ölçülen tüm-feed oranı ~8,2:1; tek bir tekrarlı stop_times.txt bunun birkaç katı
-    // çıkabilir → ~10× pay ile 80:1. Yine de 1000:1+ (tipik DEFLATE tavanı ~1032:1)
-    // bombaları rahatça yakalar.
+    // Ölçülen en-kötü per-entry oran 17,8:1 → 80 ~4,5× pay bırakır. Ölçülmemiş bir
+    // feed'in aşırı-tekrarlı girdisine karşı marj; bir bombanın ihtiyacı ~200:1+ (tek
+    // DEFLATE tavanı ~1032:1) çok üstte. Aradaki boşluk entry/total cap'leriyle kapanır.
     max_ratio: 80,
 };
 
