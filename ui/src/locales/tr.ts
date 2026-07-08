@@ -792,7 +792,6 @@ const tr = {
     'SHP_004': 'shape_pt_sequence eksik veya geçersiz',
     'SHP_005': 'shape_dist_traveled geriye gidiyor',
     'SHP_006': 'Güzergah şekli yalnızca tek noktadan oluşuyor',
-    'SHP_007': 'Güzergah şekli çok az nokta içeriyor (tek noktalı shape SHP_006 ile de tetiklenir)',
     'SHP_008': 'shape_pt_sequence yineleniyor',
     'SHP_009': 'Güzergah şekli kendisiyle kesişiyor',
     'SHP_010': 'Tekrarlanan shape noktası (ardışık özdeş koordinat)',

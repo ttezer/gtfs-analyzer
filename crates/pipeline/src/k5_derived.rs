@@ -250,27 +250,10 @@ fn build_shape_geometry(
                 format!("'{}' güzergah şekli yalnızca 1 noktadan oluşuyor; en az 2 nokta gerekir.", shape_id),
                 "shapes.txt'e bu shape_id için en az bir nokta daha ekleyin.",
             ));
-            // SHP_007: çok az noktalı shape (< 3)
-            notices.push(k5_notice(ctr, "SHP_007", EntityType::Shape,
-                Some(shape_id.clone()), Some(shape_id.clone()),
-                "shapes.txt", first_line, Some("shape_pt_sequence"),
-                Some("1".to_string()), Some(">= 3".to_string()),
-                format!("'{}' güzergah şekli yalnızca 1 noktadan oluşuyor; anlamlı bir güzergah için en az 3 nokta önerilir.", shape_id),
-                "Güzergahın tüm dönüm noktalarını shapes.txt'e ekleyin.",
-            ));
             continue;
         }
-        if n_pts == 2 {
-            // SHP_007: çok az noktalı shape (< 3)
-            notices.push(k5_notice(ctr, "SHP_007", EntityType::Shape,
-                Some(shape_id.clone()), Some(shape_id.clone()),
-                "shapes.txt", first_line, Some("shape_pt_sequence"),
-                Some("2".to_string()), Some(">= 3".to_string()),
-                format!("'{}' güzergah şekli yalnızca 2 noktadan oluşuyor; anlamlı bir güzergah için en az 3 nokta önerilir.", shape_id),
-                "Güzergahın tüm dönüm noktalarını shapes.txt'e ekleyin.",
-            ));
-            // 2 noktalı shape'in geometry'sini yine de hesapla
-        }
+        // n_pts == 2: geçerli düz segment (GTFS ≥3 nokta dayatmaz; feribat/kısa
+        // düz hat meşru). Geometri aşağıda tek segment olarak hesaplanır.
 
         let mut segment_distances_km: Vec<f64> = Vec::with_capacity(point_indices.len() - 1);
         let mut total_km = 0.0f64;

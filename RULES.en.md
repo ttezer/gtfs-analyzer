@@ -2,7 +2,7 @@
 
 🇹🇷 [Türkçe](RULES.md) · 🇬🇧 **English** · 🇯🇵 [日本語](RULES.ja.md)
 
-538 rules, 37 groups. Each rule is identified by a unique ID, severity level, and class.
+537 rules, 37 groups. Each rule is identified by a unique ID, severity level, and class.
 Severity levels: **CRITICAL** (publish blocker) · **HIGH** · **MEDIUM** · **LOW** · **INFO**
 Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Quality** (GTFS Quality) · **Analytics** (GTFS Analytics)
 
@@ -38,6 +38,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | ARC_026 | Malformed end-of-line characters | MEDIUM | Interop |
 | ARC_027 | ZIP entry lacks user read permission | INFO | Interop |
 | ARC_028 | GTFS publishing URL does not end with a .zip filename | LOW | Quality |
+| ARC_029 | Zip-bomb protection triggered | CRITICAL | Spec |
 
 ## BKR — Booking Rules
 
@@ -165,7 +166,6 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | TRP_006 | wheelchair_accessible invalid | LOW | Spec |
 | TRP_007 | bikes_allowed invalid | LOW | Spec |
 | TRP_032 | cars_allowed invalid | LOW | Spec |
-| TRP_033 | trip_id exceeds the recommended length | INFO | Quality |
 | TRP_009 | Trip has no time-stamped stops | HIGH | Quality |
 | TRP_011 | Trip headsign not set | HIGH | Quality |
 | TRP_012 | direction_id missing on bidirectional route | LOW | Quality |
@@ -310,7 +310,6 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | SHP_004 | shape_pt_sequence missing or invalid | CRITICAL | Spec |
 | SHP_005 | shape_dist_traveled decreases | CRITICAL | Spec |
 | SHP_006 | Shape consists of a single point only | CRITICAL | Spec |
-| SHP_007 | Shape contains too few points | CRITICAL | Spec |
 | SHP_008 | Duplicate shape_pt_sequence | CRITICAL | Spec |
 | SHP_009 | Shape self-intersects | INFO | Analytics |
 | SHP_010 | Repeated shape point (consecutive identical coordinates) | LOW | Quality |

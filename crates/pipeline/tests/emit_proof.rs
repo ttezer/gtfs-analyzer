@@ -1119,8 +1119,6 @@ fn fixtures() -> Vec<Fixture> {
         //    yazılamaz → debt'te bırakıldı. ─────────────────────────────────────
         // SHP_006: tek noktalı shape (k5).
         fx("SHP_006", vec![("shapes.txt", "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\nSH1,41.0,29.0,1\n")]),
-        // SHP_007: < 3 noktalı shape (k5).
-        fx("SHP_007", vec![("shapes.txt", "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\nSH1,41.0,29.0,1\nSH1,41.1,29.1,2\n")]),
         // SHP_009: kendisiyle kesişen shape — seg(2→3) ile seg(4→5) kesişir (k6).
         // (4 nokta yetmez: tek karşılaştırma (0,n-2) "bitişik uç" guard'ıyla atlanır.)
         fx("SHP_009", vec![("shapes.txt", "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\nSH1,40.0,40.0,1\nSH1,40.0,40.1,2\nSH1,40.1,40.1,3\nSH1,40.05,40.15,4\nSH1,40.05,40.05,5\n")]),

@@ -449,7 +449,7 @@ function hasMapCoords(notice: Notice, nameIndex: NameIndex): boolean {
   // Shape koordinatı gerektiren kurallar: entity_id = shape_id
   // Büyük feed modunda (map_data_deferred) shape_coords boştur; geometri harita
   // ikonuna tıklandığında on-demand çekilir → eid varsa ikon yine gösterilir.
-  if (['SHP_007','SHP_009','SHP_010','SHP_012','SHP_014','SHP_015','SHP_016','SHP_018','SHP_019','SHP_020','GEO_006','GEO_007'].includes(notice.rule_id)) {
+  if (['SHP_009','SHP_010','SHP_012','SHP_014','SHP_015','SHP_016','SHP_018','SHP_019','SHP_020','GEO_006','GEO_007'].includes(notice.rule_id)) {
     return !!(eid && (eid in nameIndex.shape_coords || nameIndex.map_data_deferred));
   }
   // Trip shape gerektiren kurallar: entity_id = trip_id
@@ -480,7 +480,7 @@ function hasMapCoords(notice: Notice, nameIndex: NameIndex): boolean {
 // entity_id = shape_id olan kurallar + details.shape_id taşıyan SHP_017/SHP_022.
 // Trip-bağlamlı kurallar (trip→shape gerektirir) bu turda kapsam dışı → '' döner.
 const SHAPE_ENTITY_RULES = new Set([
-  'SHP_007','SHP_009','SHP_010','SHP_012','SHP_014','SHP_015','SHP_016',
+  'SHP_009','SHP_010','SHP_012','SHP_014','SHP_015','SHP_016',
   'SHP_018','SHP_019','SHP_020','GEO_006','GEO_007',
 ]);
 function shapeIdForNotice(notice: Notice): string {
@@ -792,16 +792,6 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
       .map(id => stopPin(id, nameIndex, true))
       .filter((p): p is MapPin => p !== null)
       .map(p => ({ ...p, small: true }));
-  }
-
-  // SHP_007: az noktalı shape (1-2 nokta) — shape + duraklar
-  if (notice.rule_id === 'SHP_007') {
-    const polyline = entityId ? (nameIndex.shape_coords[entityId] ?? []) : [];
-    const pins = shapeStopPins(entityId);
-    const legendItems: Array<{ color: string; label: string }> = [];
-    if (polyline.length > 1) legendItems.push({ color: '#f59e0b', label: t('fix.map.route_shape') });
-    if (pins.length > 0) legendItems.push({ color: '#2563eb', label: t('fix.map.trip_stops') });
-    return { pins, polyline: polyline.length > 1 ? polyline : undefined, legendItems, showArrows: polyline.length > 1 };
   }
 
   // SHP_012: shape, durak konumlarından uzak — shape + duraklar
@@ -1453,7 +1443,7 @@ export function attachFixListeners(root: HTMLElement, result?: ValidationResult,
           }
         }
         if (opts.pins.length === 0 && !opts.polyline && !(opts.extraPolylines?.length)) return;
-        const shapeIdRules = new Set(['SHP_007','SHP_009','SHP_010','SHP_012','SHP_014','SHP_015','SHP_016','SHP_018','SHP_019','SHP_020','SHP_027','GEO_006','GEO_007']);
+        const shapeIdRules = new Set(['SHP_009','SHP_010','SHP_012','SHP_014','SHP_015','SHP_016','SHP_018','SHP_019','SHP_020','SHP_027','GEO_006','GEO_007']);
         const eid = notice.entity_id ?? '';
         let entityLabel: string;
         if (shapeIdRules.has(notice.rule_id)) {

@@ -782,7 +782,6 @@ const en: LocaleShape = {
     'SHP_004': "Shape '{entity_id}': shape_pt_sequence is missing or invalid.",
     'SHP_005': "Shape '{entity_id}': shape_dist_traveled decreases.",
     'SHP_006': "Shape '{entity_id}' consists of a single point only (minimum 2 required).",
-    'SHP_007': "Shape '{entity_id}' has too few points (found: {observed_value}, expected: {expected_value}).",
     'SHP_008': "Shape '{entity_id}': duplicate shape_pt_sequence value.",
     'SHP_009': "Shape '{entity_id}' self-intersects.",
     'SHP_010': "Shape '{entity_id}': consecutive identical coordinates.",
@@ -1669,7 +1668,6 @@ const en: LocaleShape = {
     'RTS_001': 'Assign a unique route_id to each route record.',
     // SHP
     'SHP_006': 'Add at least one more point to the shape in shapes.txt (minimum 2 total).',
-    'SHP_007': 'Add all significant turning points to the shape in shapes.txt.',
     'SHP_010': 'Remove the repeated consecutive coordinate from the shape.',
     'SHP_018': 'Remove the unused shape or assign it to a trip via shape_id in trips.txt.',
     // STM
@@ -1950,7 +1948,6 @@ const en: LocaleShape = {
     'SHP_004': 'shape_pt_sequence missing or invalid',
     'SHP_005': 'shape_dist_traveled decreases',
     'SHP_006': 'Shape consists of a single point only',
-    'SHP_007': 'Shape contains too few points',
     'SHP_008': 'Duplicate shape_pt_sequence',
     'SHP_009': 'Shape self-intersects',
     'SHP_010': 'Repeated shape point (consecutive identical coordinates)',

@@ -2,7 +2,7 @@
 
 🇹🇷 **Türkçe** · 🇬🇧 [English](RULES.en.md) · 🇯🇵 [日本語](RULES.ja.md)
 
-538 kural, 37 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
+537 kural, 37 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
 Önem seviyeleri: **KRİTİK** (yayın engelleyici) · **YÜKSEK** · **ORTA** · **DÜŞÜK** · **BİLGİ**
 Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · **Quality** (GTFS Kalitesi) · **Analytics** (GTFS Analitiği)
 
@@ -38,6 +38,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | ARC_026 | Dosyada hatalı satır sonu karakteri | ORTA | Interop |
 | ARC_027 | ZIP girdisinde kullanıcı okuma izni yok | BİLGİ | Interop |
 | ARC_028 | GTFS yayın URL'si .zip dosya adıyla bitmiyor | DÜŞÜK | Quality |
+| ARC_029 | Sıkıştırma koruması: arşiv zip-bomb sınırını aştı | KRİTİK | Spec |
 
 ## BKR — Booking Rules (Rezervasyon Kuralları)
 
@@ -165,7 +166,6 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | TRP_006 | wheelchair_accessible geçersiz | DÜŞÜK | Spec |
 | TRP_007 | bikes_allowed geçersiz | DÜŞÜK | Spec |
 | TRP_032 | cars_allowed geçersiz | DÜŞÜK | Spec |
-| TRP_033 | trip_id önerilen uzunluk eşiğini aşıyor | BİLGİ | Quality |
 | TRP_009 | Seferde zaman damgalı durak yok | YÜKSEK | Quality |
 | TRP_011 | Sefer yön adı girilmemiş | YÜKSEK | Quality |
 | TRP_012 | Çift yönlü rotada direction_id eksik | DÜŞÜK | Quality |
@@ -310,7 +310,6 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | SHP_004 | shape_pt_sequence eksik veya geçersiz | KRİTİK | Spec |
 | SHP_005 | shape_dist_traveled geriye gidiyor | KRİTİK | Spec |
 | SHP_006 | Güzergah şekli yalnızca tek noktadan oluşuyor | KRİTİK | Spec |
-| SHP_007 | Güzergah şekli çok az nokta içeriyor (SHP_006 ile örtüşebilir: tek nokta her iki kural tarafından da tetiklenir) | KRİTİK | Spec |
 | SHP_008 | shape_pt_sequence yineleniyor | KRİTİK | Spec |
 | SHP_009 | Güzergah şekli kendisiyle kesişiyor | BİLGİ | Analytics |
 | SHP_010 | Tekrarlanan shape noktası (ardışık özdeş koordinat) | DÜŞÜK | Quality |
