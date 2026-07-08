@@ -38,6 +38,8 @@ type PendingEntry = {
 // ── Worker ────────────────────────────────────────────────────────────────────
 
 const pending = new Map<number, PendingEntry>();
+// Harita ikonu on-demand shape isteği — hafif, callback/timeout gerektirmez.
+const shapePending = new Map<number, (coords: [number, number][]) => void>();
 let   nextId  = 1;
 let   worker  = createWorker();
 
@@ -59,6 +61,13 @@ function createWorker(): Worker {
 
 function onWorkerMessage(event: MessageEvent<WorkerMsg>): void {
   const msg = event.data;
+
+  if (msg.type === 'shape-coords-result') {
+    const resolve = shapePending.get(msg.id);
+    if (resolve) { shapePending.delete(msg.id); resolve(msg.coords); }
+    return;
+  }
+
   const entry = pending.get(msg.id);
   if (!entry) return;
 
@@ -132,6 +141,20 @@ export function validateFile(
       forceMemory64: FORCE_MEMORY64,
       forceWasm32: FORCE_WASM32,
     } satisfies ValidateRequest, [buffer]);
+  });
+}
+
+// Büyük feed modunda harita ikonu için tek shape'in noktalarını worker'dan çeker.
+// Cache yoksa veya shape bulunamazsa boş dizi döner (harita şekilsiz açılır).
+export function requestShapeCoords(shapeId: string): Promise<[number, number][]> {
+  const id = nextId++;
+  return new Promise<[number, number][]>((resolve) => {
+    shapePending.set(id, resolve);
+    worker.postMessage({ id, type: 'shape-coords', shapeId });
+    // Worker beklenmedik şekilde ölürse takılmasın — 10 sn sonra boş dön.
+    setTimeout(() => {
+      if (shapePending.has(id)) { shapePending.delete(id); resolve([]); }
+    }, 10_000);
   });
 }
 

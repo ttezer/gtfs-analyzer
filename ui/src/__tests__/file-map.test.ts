@@ -58,6 +58,7 @@ function validationResult(notices: Notice[]): ValidationResult {
       trip_stops: {},
       shape_trips: {},
       route_shapes: {},
+      map_data_deferred: false,
     },
     metrics: {
       stop_count: 0,

@@ -24,6 +24,9 @@ pub struct NameIndex {
     pub trip_stops:   HashMap<String, Vec<String>>,        // trip_id  → [stop_id, ...] stop_sequence sıralı
     pub shape_trips:  HashMap<String, String>,             // shape_id → ilk trip_id (shape durakları için)
     pub route_shapes: HashMap<String, Vec<String>>,        // route_id → [shape_id, ...] (terminus haritası için)
+    /// Büyük feed modunda harita geometrisi (shape_coords vb.) peşinen serialize
+    /// EDİLMEZ; UI ikona tıklayınca WASM'dan on-demand çeker (shape_coords_of).
+    pub map_data_deferred: bool,
 }
 
 /// Tüm pipeline çıktısı — notices + raporlar + metrikler.

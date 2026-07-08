@@ -1,6 +1,7 @@
 ﻿import type { ValidationResult, Notice, R9Item, NameIndex, Severity } from '../types';
 import { SEVERITY_TR, SEVERITY_COLOR, RULE_CLASS_TR, t, tMsg, tRemediation } from '../i18n';
 import { openMapModal, type MapPin, type MapOptions } from '../map-modal';
+import { requestShapeCoords } from '../validator-client';
 import { openPatternModal } from '../pattern-modal';
 import { escHtml } from '../escape';
 import { SEVERITY_ORDER, SEVERITY_RANK } from '../severity-order';
@@ -446,8 +447,10 @@ function hasMapCoords(notice: Notice, nameIndex: NameIndex): boolean {
     return !!(eid && (eid in nameIndex.trip_shapes || eid in nameIndex.trip_stops));
   }
   // Shape koordinatı gerektiren kurallar: entity_id = shape_id
+  // Büyük feed modunda (map_data_deferred) shape_coords boştur; geometri harita
+  // ikonuna tıklandığında on-demand çekilir → eid varsa ikon yine gösterilir.
   if (['SHP_007','SHP_009','SHP_010','SHP_012','SHP_014','SHP_015','SHP_016','SHP_018','SHP_019','SHP_020','GEO_006','GEO_007'].includes(notice.rule_id)) {
-    return !!(eid && eid in nameIndex.shape_coords);
+    return !!(eid && (eid in nameIndex.shape_coords || nameIndex.map_data_deferred));
   }
   // Trip shape gerektiren kurallar: entity_id = trip_id
   if (['STM_012','STM_026','STM_033'].includes(notice.rule_id)) {
@@ -471,6 +474,19 @@ function hasMapCoords(notice: Notice, nameIndex: NameIndex): boolean {
     return !!(eid && (nameIndex.route_shapes[eid]?.length ?? 0) > 0);
   }
   return false;
+}
+
+// Büyük feed modunda haritaya on-demand çekilecek shape_id'yi notice'tan çıkarır.
+// entity_id = shape_id olan kurallar + details.shape_id taşıyan SHP_017/SHP_022.
+// Trip-bağlamlı kurallar (trip→shape gerektirir) bu turda kapsam dışı → '' döner.
+const SHAPE_ENTITY_RULES = new Set([
+  'SHP_007','SHP_009','SHP_010','SHP_012','SHP_014','SHP_015','SHP_016',
+  'SHP_018','SHP_019','SHP_020','GEO_006','GEO_007',
+]);
+function shapeIdForNotice(notice: Notice): string {
+  if (SHAPE_ENTITY_RULES.has(notice.rule_id)) return notice.entity_id ?? '';
+  if (notice.rule_id === 'SHP_017' || notice.rule_id === 'SHP_022') return notice.details?.['shape_id'] ?? '';
+  return '';
 }
 
 function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
@@ -1414,12 +1430,28 @@ export function attachFixListeners(root: HTMLElement, result?: ValidationResult,
   if (result) {
     const noticeMap = new Map<string, Notice>(result.notices.map(n => [n.id, n]));
     root.querySelectorAll<HTMLButtonElement>('.map-pin-btn').forEach(btn => {
-      btn.addEventListener('click', e => {
+      btn.addEventListener('click', async e => {
         e.stopPropagation();
         const noticeId = btn.dataset['noticeId'] ?? '';
         const notice = noticeMap.get(noticeId);
         if (!notice) return;
         const opts = buildMapOptions(notice, result.name_index);
+        // Büyük feed modunda shape geometrisi peşinen serialize edilmez; polyline
+        // eksikse ilgili shape'i worker'dan on-demand çekip enjekte et.
+        if (result.name_index.map_data_deferred && (!opts.polyline || opts.polyline.length < 2)) {
+          const shapeId = shapeIdForNotice(notice);
+          if (shapeId) {
+            const coords = await requestShapeCoords(shapeId);
+            if (coords.length > 1) {
+              opts.polyline = coords;
+              opts.showArrows = true;
+              const hasShapeLegend = (opts.legendItems ?? []).some(l => l.color === '#f59e0b');
+              if (!hasShapeLegend) {
+                opts.legendItems = [{ color: '#f59e0b', label: t('fix.map.route_shape') }, ...(opts.legendItems ?? [])];
+              }
+            }
+          }
+        }
         if (opts.pins.length === 0 && !opts.polyline && !(opts.extraPolylines?.length)) return;
         const shapeIdRules = new Set(['SHP_007','SHP_009','SHP_010','SHP_012','SHP_014','SHP_015','SHP_016','SHP_018','SHP_019','SHP_020','SHP_027','GEO_006','GEO_007']);
         const eid = notice.entity_id ?? '';

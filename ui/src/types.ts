@@ -134,6 +134,7 @@ export interface NameIndex {
   trip_stops: Record<string, string[]>;             // trip_id → [stop_id, ...] sıralı
   shape_trips: Record<string, string>;              // shape_id → ilk trip_id
   route_shapes: Record<string, string[]>;           // route_id → [shape_id, ...]
+  map_data_deferred: boolean;                        // büyük feed: shape geometrisi on-demand (shape_coords_of)
 }
 
 export interface ValidationResult {

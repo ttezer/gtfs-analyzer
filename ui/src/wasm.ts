@@ -123,6 +123,15 @@ export function getCachedFileStats(cache: CachedState): FileInfo[] {
   }
 }
 
+// Büyük feed modunda tek shape'in [[lat, lon]] noktalarını on-demand çeker.
+export function shapeCoordsOf(cache: CachedState, shapeId: string): [number, number][] {
+  try {
+    return JSON.parse(loaded().shape_coords_of(cache, shapeId)) as [number, number][];
+  } catch {
+    return [];
+  }
+}
+
 export function runPrepare(zip: Uint8Array, configDelta: string, onStage: (name: string, elapsedMs: number) => void): CachedState {
   const cb = (name: string, elapsedMs: number) => onStage(name, elapsedMs);
   try {

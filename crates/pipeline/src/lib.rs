@@ -268,7 +268,7 @@ pub fn build_name_index(records: &EntityRecords) -> gtfs_core::NameIndex {
         map
     };
 
-    gtfs_core::NameIndex { stops, routes, trips, trip_routes, trip_directions, stop_coords, trip_first_dep, shape_routes, shape_coords, trip_shapes, trip_stops, shape_trips, route_shapes }
+    gtfs_core::NameIndex { stops, routes, trips, trip_routes, trip_directions, stop_coords, trip_first_dep, shape_routes, shape_coords, trip_shapes, trip_stops, shape_trips, route_shapes, map_data_deferred: skip_shape_coords }
 }
 
 pub fn collect_file_stats(files: &RawFiles) -> Vec<FileInfo> {

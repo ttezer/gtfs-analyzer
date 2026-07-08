@@ -156,6 +156,24 @@ pub fn get_cached_file_stats(cache: &CachedState) -> JsValue {
     JsValue::from_str(&serde_json::to_string(&cache.file_stats).unwrap_or_else(|_| "[]".into()))
 }
 
+/// Tek bir shape'in sıralı `[[lat, lon], ...]` nokta listesini JSON döner.
+/// Büyük feed modunda name_index.shape_coords peşinen serialize edilmez; UI harita
+/// ikonuna tıklayınca yalnız ilgili shape'i BURADAN çeker (records bellekte canlı).
+/// Bulunamazsa/geometri yoksa `[]`.
+#[wasm_bindgen]
+pub fn shape_coords_of(cache: &CachedState, shape_id: &str) -> JsValue {
+    let mut pts: Vec<(u32, f64, f64)> = cache
+        .records
+        .shapes
+        .iter()
+        .filter(|s| s.shape_id.as_str() == shape_id)
+        .filter_map(|s| Some((s.shape_pt_sequence.unwrap_or(0), s.shape_pt_lat?, s.shape_pt_lon?)))
+        .collect();
+    pts.sort_unstable_by_key(|&(seq, _, _)| seq);
+    let coords: Vec<[f64; 2]> = pts.into_iter().map(|(_, lat, lon)| [lat, lon]).collect();
+    JsValue::from_str(&serde_json::to_string(&coords).unwrap_or_else(|_| "[]".into()))
+}
+
 /// Tam pipeline: K1–K7 tek seferde (config panel kullanmayan akış için).
 #[wasm_bindgen]
 pub fn validate(zip_bytes: &[u8], config_delta_json: &str) -> JsValue {

@@ -6,6 +6,7 @@ import {
   runPrepare,
   runRerun,
   getCachedFileStats,
+  shapeCoordsOf,
   extractOk,
   extractFatal,
   engineMode,
@@ -16,9 +17,10 @@ import type { FatalError, ValidationResult } from './types';
 
 // ── İstek tipleri ─────────────────────────────────────────────────────────────
 
-type ValidateRequest = { id: number; type: 'validate'; buffer: ArrayBuffer; configDelta: string; forceSerial?: boolean; forceMemory64?: boolean; forceWasm32?: boolean };
-type RerunRequest    = { id: number; type: 'rerun';    configDelta: string };
-type WorkerRequest   = ValidateRequest | RerunRequest;
+type ValidateRequest   = { id: number; type: 'validate'; buffer: ArrayBuffer; configDelta: string; forceSerial?: boolean; forceMemory64?: boolean; forceWasm32?: boolean };
+type RerunRequest      = { id: number; type: 'rerun';    configDelta: string };
+type ShapeCoordsRequest = { id: number; type: 'shape-coords'; shapeId: string };
+type WorkerRequest     = ValidateRequest | RerunRequest | ShapeCoordsRequest;
 
 // ── Yanıt tipleri ─────────────────────────────────────────────────────────────
 
@@ -28,8 +30,9 @@ export type StageDoneMsg = { id: number; type: 'stage';     stage: string; elaps
 export type EngineMsg    = { id: number; type: 'engine';    mode: EngineMode };
 export type ResultMsg    = { id: number; type: 'result'; ok: true;  result: ValidationResult }
                          | { id: number; type: 'result'; ok: false; error: FatalError };
+export type ShapeCoordsMsg = { id: number; type: 'shape-coords-result'; coords: [number, number][] };
 
-export type WorkerMsg = FileListMsg | FileDoneMsg | StageDoneMsg | EngineMsg | ResultMsg;
+export type WorkerMsg = FileListMsg | FileDoneMsg | StageDoneMsg | EngineMsg | ResultMsg | ShapeCoordsMsg;
 
 // ── Durum ─────────────────────────────────────────────────────────────────────
 
@@ -46,6 +49,13 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
       req.type === 'validate' ? (req.forceMemory64 ?? false) : false,
       req.type === 'validate' ? (req.forceWasm32 ?? false) : false,
     );
+
+    // Harita ikonu: büyük feed'de shape geometrisini on-demand çek (cache canlı).
+    if (req.type === 'shape-coords') {
+      const coords = cache ? shapeCoordsOf(cache, req.shapeId) : [];
+      send<ShapeCoordsMsg>({ id: req.id, type: 'shape-coords-result', coords });
+      return;
+    }
 
     if (req.type === 'validate') {
       send<EngineMsg>({ id: req.id, type: 'engine', mode: engineMode() });
