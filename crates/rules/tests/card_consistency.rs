@@ -413,3 +413,69 @@ fn code_references_point_to_rule() {
         problems.join("\n")
     );
 }
+
+/// TEMPLATE.md iskelet uyumu (yapısal): her kartın Karar/Düzeltme satırı, 9 künye
+/// alanı ve çekirdek bölüm başlıklarını taşıdığını denetler. Proza değil YAPI kontrol
+/// edilir. Opsiyonel-doğası gereği bloklar (Bağımlılık, Dış araç eşleşmesi, GTFS spec
+/// referansı) zorunlu DEĞİL — her kurala anlamlı gelmez, filler üretmemek için.
+#[test]
+fn card_template_shape() {
+    // (etiket, kartta aranan alt-dize)
+    let kunye = [
+        "Grup", "Önem", "Sınıf", "Aşama", "Varlık",
+        "Kimlik alanı", "Skor tabanı", "Görünürlük", "Bloke ettiği kurallar",
+    ];
+    // Başlık-seviyesinden bağımsız (## veya ###) aranan çekirdek bölümler.
+    let sections = [
+        "Tetikleme koşulu",
+        "Yanlış pozitif / negatif",
+        "Karışan komşular",
+        "Mesaj & çözüm önerisi",
+        "R9 Kural Mesajı",
+        "Ölçülen alan / değer",
+        "Kod değiştirirken minimum test matrisi",
+        "Teknik ek",
+        "Skora katkı",
+        "Hangi raporlarda görünür",
+        "Kod referansı",
+    ];
+
+    let mut problems: Vec<String> = Vec::new();
+    for rule in RULES {
+        let path = card_path(rule.id);
+        let Ok(text) = fs::read_to_string(&path) else {
+            problems.push(format!("{}: KART YOK", rule.id));
+            continue;
+        };
+        let mut missing: Vec<String> = Vec::new();
+
+        // Başlık metinlerini topla (#/##/### fark etmez) — seviye-agnostik eşleşme.
+        let headings: Vec<String> = text.lines()
+            .filter(|l| l.trim_start().starts_with('#'))
+            .map(|l| l.trim_start_matches('#').trim().to_string())
+            .collect();
+
+        // Karar satırı — bold (`**Karar:**`) veya düz (`> Karar:`) kabul edilir;
+        // korpus çoğunlukla düz kullanıyor, format churn'ü için zorlamıyoruz.
+        if !text.contains("Karar:") { missing.push("Karar".into()); }
+        // Künye alanları
+        for k in kunye {
+            if kunye_value(&text, k).is_none() { missing.push(format!("künye:{k}")); }
+        }
+        // Çekirdek bölümler (başlık-seviyesi bağımsız)
+        for s in sections {
+            if !headings.iter().any(|h| h.contains(s)) { missing.push(s.to_string()); }
+        }
+
+        if !missing.is_empty() {
+            problems.push(format!("{}: eksik → {}", rule.id, missing.join(", ")));
+        }
+    }
+
+    assert!(
+        problems.is_empty(),
+        "\n{} kart TEMPLATE iskeletine uymuyor:\n{}\n",
+        problems.len(),
+        problems.join("\n")
+    );
+}
