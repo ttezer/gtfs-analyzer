@@ -203,13 +203,6 @@ pub fn validate_trips(file: &RawFile, zip_bytes: Option<&[u8]>) -> (Vec<TripReco
                 "Her sefere benzersiz bir trip_id atayın.",
             ));
         }
-        if trip_id.len() > 40 {
-            notices.push(make_k2_notice(&mut counter, "TRP_033", EntityType::Trip, entity_id.clone(),
-                None, &file.name, Some(line), Some("trip_id"), Some(trip_id.len().to_string()),
-                Some("≤40 bayt".to_string()),
-                format!("trip_id '{}' {} bayt; önerilen 40 bayt eşiğini aşıyor.", trip_id, trip_id.len()),
-                "Daha kısa, kararlı bir trip_id üretin."));
-        }
 
         let route_idx = intern_idx(get_col(row, cols.route_id), &mut interns.route_ids, &mut route_map);
         let service_idx = intern_idx(get_col(row, cols.service_id), &mut interns.service_ids, &mut service_map);
@@ -562,14 +555,6 @@ mod tests {
         let (_, _ti, notices) = validate_trips(&file, None);
         assert!(!notices.iter().any(|n| n.rule_id == "TRP_032"));
     }
-    #[test]
-    fn long_trip_id_produces_trp_033() {
-        let id = "x".repeat(41);
-        let file = make_file(vec!["route_id", "service_id", "trip_id"], vec![vec!["R1", "SVC1", id.as_str()]]);
-        let (_, _, notices) = validate_trips(&file, None);
-        assert!(notices.iter().any(|n| n.rule_id == "TRP_033"));
-    }
-
     #[test]
     fn valid_direction_id_zero_produces_no_notice() {
         let file = make_file(

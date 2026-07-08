@@ -1830,7 +1830,6 @@ const en: LocaleShape = {
     'TRP_006': 'wheelchair_accessible invalid',
     'TRP_007': 'bikes_allowed invalid',
     'TRP_032': 'cars_allowed invalid',
-    'TRP_033': 'trip_id exceeds the recommended length',
     'TRP_009': 'Trip has no time-stamped stops',
     'TRP_011': 'Trip headsign not set',
     'TRP_012': 'direction_id missing on bidirectional route',

@@ -1784,7 +1784,6 @@ const ja: LocaleShape = {
     'TRP_006': 'wheelchair_accessibleが無効',
     'TRP_007': 'bikes_allowedが無効',
     'TRP_032': 'cars_allowedが無効',
-    'TRP_033': 'trip_idが推奨長を超えている',
     'TRP_009': '時刻スタンプ付き停留所なし',
     'TRP_011': 'trip_headsignが未設定',
     'TRP_012': '双方向路線でdirection_idが不足',

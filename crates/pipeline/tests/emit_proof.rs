@@ -1028,7 +1028,6 @@ fn fixtures() -> Vec<Fixture> {
         fx("TRP_028", vec![("trips.txt", "route_id,service_id,trip_id,wheelchair_accessible\nR1,SVC1,T1,1\nR1,SVC1,T2,\n")]),
         // TRP_029: hiçbir seferde wheelchair_accessible yok — base tetikler (k6).
         fx("TRP_029", vec![]),
-        fx("TRP_033", vec![("trips.txt", "route_id,service_id,trip_id\nR1,SVC1,xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n")]),
 
         // ── TRN grubu (kalan: k4 + k2) ─────────────────────────────────────────
         // TRN_004: record_id başvurulan tabloda yok (k4).

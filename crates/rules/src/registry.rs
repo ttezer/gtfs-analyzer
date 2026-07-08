@@ -388,8 +388,6 @@ pub static RULES: &[RuleMeta] = &[
         "bikes_allowed geçersiz"),
     r!("TRP_032", Dusuk,  Spec, 1, &[], Some("trip_id"), VS, Entity,
         "cars_allowed geçersiz"),
-    r!("TRP_033", Bilgi, Quality, 1, &[], Some("trip_id"), VS, Entity,
-        "trip_id önerilen uzunluk eşiğini aşıyor"),
     r!("TRP_009", Yuksek, Quality, 2,
         &["OPR_006","OPR_007"],
         Some("trip_id"), VS, Entity,
