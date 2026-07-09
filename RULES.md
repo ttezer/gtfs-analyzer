@@ -13,27 +13,27 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | Kural | Başlık | Önem | Sınıf |
 |---|---|---|---|
 | ARC_001 | ZIP arşivi açılamadı | KRİTİK | Spec |
-| ARC_002 | Dosya UTF-8 ile okunamıyor | KRİTİK | Spec |
+| ARC_002 | Dosya UTF-8 ile okunamıyor | KRİTİK | Quality |
 | ARC_003 | İsteğe bağlı dosyada UTF-8 kodlama hatası | ORTA | Quality |
 | ARC_004 | Zorunlu dosya eksik | KRİTİK | Spec |
 | ARC_006 | İsteğe bağlı GTFS dosyası mevcut | BİLGİ | Quality |
 | ARC_007 | GTFS dışı tanınmayan dosya | BİLGİ | Quality |
 | ARC_008 | Takvim dosyası eksik (calendar.txt ve calendar_dates.txt) | KRİTİK | Spec |
-| ARC_009 | Dosyada veri satırı yok | KRİTİK | Spec |
+| ARC_009 | Dosyada veri satırı yok | KRİTİK | Quality |
 | ARC_010 | Dosya UTF-8 BOM içeriyor | ORTA | Interop |
 | ARC_011 | Dosya boyutu (bilgi) | BİLGİ | Analytics |
 | ARC_012 | Satır sütun sayısı başlıkla uyuşmuyor | KRİTİK | Spec |
 | ARC_013 | CSV ayrıştırma hatası | KRİTİK | Spec |
 | ARC_014 | Başlıkta baştaki/sondaki boşluk | ORTA | Quality |
-| ARC_015 | Yinelenen başlık sütunu | KRİTİK | Spec |
+| ARC_015 | Yinelenen başlık sütunu | KRİTİK | Quality |
 | ARC_025 | Zorunlu sütun başlıkta hiç yok (header'da eksik) | KRİTİK | Spec |
 | ARC_017 | Bilinmeyen sütun (GTFS spesifikasyonunda tanımlı değil) | BİLGİ | Quality |
 | ARC_018 | Boş veri satırı | ORTA | Quality |
-| ARC_019 | Başlıkta boş sütun adı | YÜKSEK | Spec |
+| ARC_019 | Başlıkta boş sütun adı | YÜKSEK | Quality |
 | ARC_020 | Önerilen GTFS dosyası eksik (shapes.txt veya feed_info.txt) | DÜŞÜK | Quality |
 | ARC_021 | Alanda yazdırılamaz veya sorunlu karakter | DÜŞÜK | Quality |
 | ARC_022 | Dosya satır sayısı 1.000.000 sınırını aşıyor | DÜŞÜK | Quality |
-| ARC_023 | ZIP içinde nested ZIP dosyası — GTFS formatında desteklenmez | ORTA | Spec |
+| ARC_023 | ZIP içinde nested ZIP dosyası — GTFS formatında desteklenmez | ORTA | Quality |
 | ARC_024 | GTFS .txt dosyası ZIP içinde alt dizinde — standart parser'lar tarafından atlanır | ORTA | Spec |
 | ARC_026 | Dosyada hatalı satır sonu karakteri | ORTA | Interop |
 | ARC_027 | ZIP girdisinde kullanıcı okuma izni yok | BİLGİ | Interop |

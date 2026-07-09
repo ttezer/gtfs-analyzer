@@ -13,27 +13,27 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | Rule | Title | Severity | Class |
 |---|---|---|---|
 | ARC_001 | ZIP archive could not be opened | CRITICAL | Spec |
-| ARC_002 | File cannot be read as UTF-8 | CRITICAL | Spec |
+| ARC_002 | File cannot be read as UTF-8 | CRITICAL | Quality |
 | ARC_003 | UTF-8 encoding error in optional file | MEDIUM | Quality |
 | ARC_004 | Required file missing | CRITICAL | Spec |
 | ARC_006 | Optional GTFS file present | INFO | Quality |
 | ARC_007 | Unrecognized non-GTFS file | INFO | Quality |
 | ARC_008 | Calendar file missing (calendar.txt and calendar_dates.txt) | CRITICAL | Spec |
-| ARC_009 | File has no data rows | CRITICAL | Spec |
+| ARC_009 | File has no data rows | CRITICAL | Quality |
 | ARC_010 | File contains UTF-8 BOM | MEDIUM | Interop |
 | ARC_011 | File size (info) | INFO | Analytics |
 | ARC_012 | Row column count does not match header | CRITICAL | Spec |
 | ARC_013 | CSV parse error | CRITICAL | Spec |
 | ARC_014 | Leading/trailing whitespace in header | MEDIUM | Quality |
-| ARC_015 | Duplicate header column | CRITICAL | Spec |
+| ARC_015 | Duplicate header column | CRITICAL | Quality |
 | ARC_025 | Required column missing from header | CRITICAL | Spec |
 | ARC_017 | Unknown column (not defined in GTFS specification) | INFO | Quality |
 | ARC_018 | Empty data row | MEDIUM | Quality |
-| ARC_019 | Empty column name in header | HIGH | Spec |
+| ARC_019 | Empty column name in header | HIGH | Quality |
 | ARC_020 | Recommended GTFS file missing (shapes.txt or feed_info.txt) | LOW | Quality |
 | ARC_021 | Non-printable or problematic character in field | LOW | Quality |
 | ARC_022 | File row count exceeds 1,000,000 limit | LOW | Quality |
-| ARC_023 | Nested ZIP file inside GTFS archive | MEDIUM | Spec |
+| ARC_023 | Nested ZIP file inside GTFS archive | MEDIUM | Quality |
 | ARC_024 | GTFS .txt file in subdirectory (will not be parsed) | MEDIUM | Spec |
 | ARC_026 | Malformed end-of-line characters | MEDIUM | Interop |
 | ARC_027 | ZIP entry lacks user read permission | INFO | Interop |

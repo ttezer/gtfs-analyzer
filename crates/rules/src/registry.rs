@@ -89,9 +89,9 @@ pub static RULES: &[RuleMeta] = &[
     // ── ARC: Arşiv / Dosya Seviyesi ────────────────────────────────────────────
     r!("ARC_001", Kritik, Spec, 1, &[], None, VS_K, Feed,
         "ZIP arşivi açılamadı"),
-    r!("ARC_002", Kritik, Spec, 1,
+    r!("ARC_002", Kritik, Quality, 1,
         &["ARC_010","AGN_003","AGN_009","RTS_009","FIN_008","ATR_010","STP_022","DQ_016"],
-        None, VS_K, File,
+        None, VS, File,
         "Dosya UTF-8 ile okunamıyor"),
     r!("ARC_003", Orta,   Quality, 1, &[], None, VS, File,
         "İsteğe bağlı dosyada UTF-8 kodlama hatası"),
@@ -105,7 +105,7 @@ pub static RULES: &[RuleMeta] = &[
         "GTFS dışı tanınmayan dosya"),
     r!("ARC_008", Kritik, Spec,    1, &[], None, VS_K, Feed,
         "Takvim dosyası eksik (calendar.txt ve calendar_dates.txt)"),
-    r!("ARC_009", Kritik, Spec,    1, &[], None, VS_K, File,
+    r!("ARC_009", Kritik, Quality, 1, &[], None, VS, File,
         "Dosyada veri satırı yok"),
     r!("ARC_010", Orta,   Interop, 1, &[], None, VI, File,
         "Dosya UTF-8 BOM içeriyor"),
@@ -119,7 +119,7 @@ pub static RULES: &[RuleMeta] = &[
         "CSV ayrıştırma hatası"),
     r!("ARC_014", Orta,   Quality, 1, &[], None, VS, Field,
         "Başlıkta baştaki/sondaki boşluk"),
-    r!("ARC_015", Kritik, Spec,    1, &[], None, VS_K, Field,
+    r!("ARC_015", Kritik, Quality, 1, &[], None, VS, Field,
         "Yinelenen başlık sütunu"),
     r!("ARC_025", Kritik, Spec,    1, &[], None, VS_K, Field,
         "Zorunlu sütun başlıkta hiç yok (header'da eksik)"),
@@ -127,7 +127,7 @@ pub static RULES: &[RuleMeta] = &[
         "Bilinmeyen sütun (GTFS spesifikasyonunda tanımlı değil)"),
     r!("ARC_018", Orta,   Quality, 1, &[], None, VS, Row,
         "Boş veri satırı"),
-    r!("ARC_019", Yuksek, Spec,    1, &[], None, VS, File,
+    r!("ARC_019", Yuksek, Quality, 1, &[], None, VS, File,
         "Başlıkta boş sütun adı"),
     r!("ARC_020", Dusuk,  Quality, 1, &[], None, VS, Feed,
         "Önerilen GTFS dosyası eksik (shapes.txt veya feed_info.txt)"),
@@ -135,7 +135,7 @@ pub static RULES: &[RuleMeta] = &[
         "Alanda yazdırılamaz veya sorunlu karakter"),
     r!("ARC_022", Dusuk,  Quality, 1, &[], None, VS, File,
         "Dosya satır sayısı 1.000.000 sınırını aşıyor"),
-    r!("ARC_023", Orta,   Spec,    2, &[], None, VS, File,
+    r!("ARC_023", Orta,   Quality, 2, &[], None, VS, File,
         "ZIP içinde nested ZIP dosyası — GTFS formatında desteklenmez"),
     r!("ARC_024", Orta,   Spec,    2, &[], None, VS, File,
         "GTFS .txt dosyası ZIP içinde alt dizinde — standart parser'lar tarafından atlanır"),
@@ -1938,12 +1938,12 @@ mod tests {
     /// (docs/audits/spec-authority-inventory-reconciled.csv — başlangıç 45; Faz 3 parti 1
     /// SHP_006/RTS_009/TRF_018 → 42; parti 2 STM_007/STM_008/CAL_005 → 39; parti 3
     /// FRQ_005/TFR_004/RCT_005/BKR_011/STM_034/STM_038 → 33; parti 4 (Analytics)
-    /// FRQ_011/PDW_006/TFR_005/TRP_022/XFL_006 → 28). Faz 3 bu
+    /// FRQ_011/PDW_006/TFR_005/TRP_022/XFL_006 → 28; parti 5
+    /// ARC_002/ARC_009/ARC_015/ARC_019/ARC_023 → 23). Faz 3 bu
     /// kuralların sınıfını düzelttikçe `rule_class==Spec` filtresi onları dışlar ve
     /// listeden çıkarılır; Faz 4'te liste BOŞALIR (hard-fail). Yeni ekleme YAPILMAZ.
     const SPEC_AUTHORITY_ALLOWLIST: &[&str] = &[
-        "ARC_002", "ARC_009", "ARC_015", "ARC_019", "ARC_023", "ARC_029", "ATR_001", "ATR_009",
-        "CLD_005", "JPN_002", "JPN_003", "JPN_004",
+        "ARC_029", "ATR_001", "ATR_009", "CLD_005", "JPN_002", "JPN_003", "JPN_004",
         "JPN_005", "JPN_011", "PTH_011", "PTH_014",
         "SHP_028", "STM_023", "STM_033", "STP_027",
         "TRF_013", "TRF_015", "TRF_016", "TRF_017", "TRF_019",
