@@ -55,15 +55,15 @@ Feed: `mdb-53` (MobilityDatabase, 2026-06-25 snapshot; validity range: 2026-01-1
 
 | | MobilityData | GTFS Guru | GTFS Analyzer |
 |---|---:|---:|---:|
-| Total notices | 2,733 | 2,664 | 1,062 |
+| Total notices | 2,733 | 2,664 | 1,054 |
 | Critical / Error | 2 | 1 | 2 |
-| High / Warning | 2,655 | 2,656 | 2 |
-| Medium | — | — | 30 |
-| Low | — | — | 78 |
-| Info | 76 | 7 | 950 |
+| High / Warning | 2,655 | 2,656 | 8 |
+| Medium | — | — | 24 |
+| Low | — | — | 73 |
+| Info | 76 | 7 | 947 |
 | Distinct rule types triggered | 13 | 10 | **49** |
 | Publish score | — | — | **92.6 / 100** |
-| Overall score | — | — | **86.3 / 100** |
+| Overall score | — | — | **87.1 / 100** |
 
 #### TriMet (Portland, Oregon)
 
@@ -71,15 +71,15 @@ Feed: `mdb-247` (MobilityDatabase, 2026-06-26 snapshot; validity range: 2026-05-
 
 | | MobilityData | GTFS Guru | GTFS Analyzer |
 |---|---:|---:|---:|
-| Total notices | 968 | 1,029 | 7,899 |
+| Total notices | 968 | 1,029 | 7,884 |
 | Critical / Error | 908 | 908 | 7 |
-| High / Warning | 47 | 112 | 1,408 |
-| Medium | — | — | 195 |
-| Low | — | — | 2,222 |
-| Info | 13 | 9 | 4,067 |
-| Distinct rule types triggered | 10 | 9 | **57** |
+| High / Warning | 47 | 112 | 1,391 |
+| Medium | — | — | 181 |
+| Low | — | — | 2,209 |
+| Info | 13 | 9 | 4,096 |
+| Distinct rule types triggered | 10 | 9 | **60** |
 | Publish score | — | — | **89.3 / 100** |
-| Overall score | — | — | **78.4 / 100** |
+| Overall score | — | — | **79.1 / 100** |
 
 > ⚠️ **Overlapping block trips:** This feed's dominant finding is trips that overlap in time within the same block (908 *errors* in MobilityData and GTFS Guru). GTFS Analyzer catches this with TRP_022 (770) but counts a conflict only for services active on the same day (calendar-intersection guard); severity classification differs across tools (not critical in Analyzer).
 >
@@ -91,15 +91,15 @@ Feed: `mdb-3175` (MobilityDatabase, 2026-06-27 snapshot; validity range: 2026-06
 
 | | MobilityData | GTFS Guru | GTFS Analyzer |
 |---|---:|---:|---:|
-| Total notices | 2,403 | 4,145 | 3,808 |
+| Total notices | 2,403 | 4,145 | 3,117 |
 | Critical / Error | 0 | 0 | 0 |
-| High / Warning | 300 | 4,136 | 18 |
-| Medium | — | — | 1,549 |
-| Low | — | — | 1,249 |
-| Info | 2,103 | 9 | 992 |
-| Distinct rule types triggered | 9 | 6 | **64** |
-| Publish score | — | — | **94.3 / 100** |
-| Overall score | — | — | **77.0 / 100** |
+| High / Warning | 300 | 4,136 | 19 |
+| Medium | — | — | 1,011 |
+| Low | — | — | 1,091 |
+| Info | 2,103 | 9 | 996 |
+| Distinct rule types triggered | 9 | 6 | **63** |
+| Publish score | — | — | **100 / 100** |
+| Overall score | — | — | **80.8 / 100** |
 
 > 🗾 **Spec-clean but operationally dense:** All three tools report 0 critical — the feed is specification-clean. The difference is in the analytics layer: most of GTFS Analyzer's medium/low findings are operational signals from the three-year validity window (2026–2029) and dense network/shape patterns, which MobilityData and GTFS Guru largely summarize as warnings/info.
 
@@ -207,10 +207,10 @@ Setting `stop_name_best_practices=true` in the config delta enables the language
 
 ### Publish Score (0–100)
 
-Measures how consumable the feed is by transit applications. The score **starts at 100**; each blocker issue deducts a penalty proportional to the rule's weight and remediation cost.
+Measures whether the feed is publishable per the official GTFS Schedule Reference. The score **starts at 100**; each publication-blocking issue deducts a penalty proportional to the rule's weight and remediation cost.
 
 **How the score is computed:**
-- Only `Spec` and `Interop` class issues at `Critical` and `High` severity affect the Publish Score.
+- Only `Spec` class issues at `Critical` severity (the official GTFS spec gate) affect the Publish Score. `Interop` compatibility signals are reported separately (Interop Score / R8).
 - If the same rule fires multiple times, the penalty is capped at **2×**; a single issue cannot drive the score to zero.
 - **0–40:** Feed is likely unusable. Blocker errors present.
 - **40–70:** Partial issues; some applications may reject the feed.
@@ -450,7 +450,7 @@ gtfs-validator/
 │   ├── config/     # Configuration types
 │   ├── core/       # Shared data structures and result model
 │   ├── pipeline/   # Validation pipeline (k1–k7 stages)
-│   ├── rules/      # Rule definitions and registry (538 rules, 37 groups)
+│   ├── rules/      # Rule definitions and registry (537 rules, 37 groups)
 │   └── wasm/       # wasm-bindgen WASM output
 └── ui/             # Vite + TypeScript frontend
     ├── pkg/          # wasm-pack output (generated, committed)

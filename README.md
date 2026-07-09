@@ -55,15 +55,15 @@ Feed: `mdb-53` (MobilityDatabase, 2026-06-25 anlık görüntüsü; geçerlilik a
 
 | | MobilityData | GTFS Guru | GTFS Analyzer |
 |---|---:|---:|---:|
-| Toplam notice | 2.733 | 2.664 | 1.062 |
+| Toplam notice | 2.733 | 2.664 | 1.054 |
 | Kritik / Error | 2 | 1 | 2 |
-| Yüksek / Warning | 2.655 | 2.656 | 2 |
-| Orta | — | — | 30 |
-| Düşük | — | — | 78 |
-| Bilgi / Info | 76 | 7 | 950 |
+| Yüksek / Warning | 2.655 | 2.656 | 8 |
+| Orta | — | — | 24 |
+| Düşük | — | — | 73 |
+| Bilgi / Info | 76 | 7 | 947 |
 | Tetiklenen kural tipi | 13 | 10 | **49** |
 | Yayın skoru | — | — | **92,6 / 100** |
-| Genel skor | — | — | **86,3 / 100** |
+| Genel skor | — | — | **87,1 / 100** |
 
 #### TriMet (Portland, Oregon)
 
@@ -71,15 +71,15 @@ Feed: `mdb-247` (MobilityDatabase, 2026-06-26 anlık görüntüsü; geçerlilik 
 
 | | MobilityData | GTFS Guru | GTFS Analyzer |
 |---|---:|---:|---:|
-| Toplam notice | 968 | 1.029 | 7.899 |
+| Toplam notice | 968 | 1.029 | 7.884 |
 | Kritik / Error | 908 | 908 | 7 |
-| Yüksek / Warning | 47 | 112 | 1.408 |
-| Orta | — | — | 195 |
-| Düşük | — | — | 2.222 |
-| Bilgi / Info | 13 | 9 | 4.067 |
-| Tetiklenen kural tipi | 10 | 9 | **57** |
+| Yüksek / Warning | 47 | 112 | 1.391 |
+| Orta | — | — | 181 |
+| Düşük | — | — | 2.209 |
+| Bilgi / Info | 13 | 9 | 4.096 |
+| Tetiklenen kural tipi | 10 | 9 | **60** |
 | Yayın skoru | — | — | **89,3 / 100** |
-| Genel skor | — | — | **78,4 / 100** |
+| Genel skor | — | — | **79,1 / 100** |
 
 > ⚠️ **Çakışan blok seferleri:** Bu feed'in baskın bulgusu, aynı blokta zaman bakımından çakışan seferler (MobilityData ve GTFS Guru'da 908 *error*). GTFS Analyzer bunu TRP_022 ile yakalar (770) ancak yalnızca aynı gün aktif servisleri çakışma sayar (takvim-kesişim guard'ı); önem sınıflandırması araçlar arasında farklılık gösterir (Analyzer'da kritik değil).
 >
@@ -91,15 +91,15 @@ Feed: `mdb-3175` (MobilityDatabase, 2026-06-27 anlık görüntüsü; geçerlilik
 
 | | MobilityData | GTFS Guru | GTFS Analyzer |
 |---|---:|---:|---:|
-| Toplam notice | 2.403 | 4.145 | 3.808 |
+| Toplam notice | 2.403 | 4.145 | 3.117 |
 | Kritik / Error | 0 | 0 | 0 |
-| Yüksek / Warning | 300 | 4.136 | 18 |
-| Orta | — | — | 1.549 |
-| Düşük | — | — | 1.249 |
-| Bilgi / Info | 2.103 | 9 | 992 |
-| Tetiklenen kural tipi | 9 | 6 | **64** |
-| Yayın skoru | — | — | **94,3 / 100** |
-| Genel skor | — | — | **77,0 / 100** |
+| Yüksek / Warning | 300 | 4.136 | 19 |
+| Orta | — | — | 1.011 |
+| Düşük | — | — | 1.091 |
+| Bilgi / Info | 2.103 | 9 | 996 |
+| Tetiklenen kural tipi | 9 | 6 | **63** |
+| Yayın skoru | — | — | **100 / 100** |
+| Genel skor | — | — | **80,8 / 100** |
 
 > 🗾 **Spec-temiz ama operasyonel olarak yoğun:** Üç araç da 0 kritik bulur — feed spec açısından temiz. Fark analitik katmanda: GTFS Analyzer'ın orta/düşük bulgularının çoğu 3 yıllık geçerlilik penceresi (2026–2029) ve yoğun şebeke/şekil desenlerinden gelen operasyonel sinyallerdir; MobilityData ve GTFS Guru bu feed'i ağırlıkla uyarı/bilgi olarak özetler.
 
@@ -450,7 +450,7 @@ gtfs-validator/
 │   ├── config/     # Yapılandırma tipleri
 │   ├── core/       # Ortak veri yapıları ve sonuç modeli
 │   ├── pipeline/   # Doğrulama pipeline'ı (k1–k7 aşamaları)
-│   ├── rules/      # Kural tanımları ve registry (538 kural, 37 grup)
+│   ├── rules/      # Kural tanımları ve registry (537 kural, 37 grup)
 │   └── wasm/       # wasm-bindgen WASM çıktısı
 └── ui/             # Vite + TypeScript frontend
     ├── pkg/          # wasm-pack çıktısı (üretilen, commit'lenmiş)
