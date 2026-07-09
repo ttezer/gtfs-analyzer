@@ -8,6 +8,7 @@
 | Grup | GRP — Grup adı |
 | Önem | Kritik/Yüksek/Orta/Düşük/Bilgi |
 | Sınıf | Spec/Quality/Interop/Analytics |
+| Otorite kaynağı | GTFS_SPEC / GTFS_BEST_PRACTICE / MOBILITYDATA_PARITY / GTFS_GURU_PARITY / GOOGLE_TRANSIT_INTEROP / REGIONAL_PROFILE / PROJECT_QUALITY / PROJECT_ANALYTICS / UNKNOWN |
 | Aşama | K1/K2/K3/K4/K6/K7 |
 | Varlık | Feed/File/Entity/Row |
 | Kimlik alanı | `scope_key` veya - |

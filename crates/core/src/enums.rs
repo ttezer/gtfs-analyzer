@@ -39,6 +39,44 @@ pub enum RuleClass {
     Analytics,
 }
 
+/// Bir kuralın **otorite kaynağı** — sınıfın (`RuleClass`) meşruiyet dayanağı.
+///
+/// Sınıf otorite bütünlüğü (docs/audits/spec-authority-inventory-reconciled.csv):
+/// `Spec` sınıfı YALNIZCA `GtfsSpec` kaynağıyla meşrudur. Diğer kaynaklar Spec üretemez.
+/// Eşleme: GtfsSpec→Spec | GtfsBestPractice→Quality | MobilitydataParity/GtfsGuruParity/
+/// GoogleTransitInterop/RegionalProfile→Interop | ProjectQuality→Quality |
+/// ProjectAnalytics→Analytics | Unknown→asla Spec.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum AuthoritySource {
+    /// Resmi GTFS Schedule Reference'ta açık normatif hüküm (required/enum/FK/uniqueness/format).
+    #[serde(rename = "GTFS_SPEC")]
+    GtfsSpec,
+    /// Resmi GTFS Best Practices dokümanı — normatif spec DEĞİL.
+    #[serde(rename = "GTFS_BEST_PRACTICE")]
+    GtfsBestPractice,
+    /// MobilityData validator paritesi (yalnız interop sinyali).
+    #[serde(rename = "MOBILITYDATA_PARITY")]
+    MobilitydataParity,
+    /// GTFS Guru paritesi (yalnız interop sinyali).
+    #[serde(rename = "GTFS_GURU_PARITY")]
+    GtfsGuruParity,
+    /// Google Transit tüketici davranışı.
+    #[serde(rename = "GOOGLE_TRANSIT_INTEROP")]
+    GoogleTransitInterop,
+    /// Bölgesel profil (ör. GTFS-JP) — resmi Schedule Reference değil.
+    #[serde(rename = "REGIONAL_PROFILE")]
+    RegionalProfile,
+    /// Proje-özel veri kalitesi / okunabilirlik kontrolü.
+    #[serde(rename = "PROJECT_QUALITY")]
+    ProjectQuality,
+    /// Proje-özel istatistiksel / operasyonel sinyal.
+    #[serde(rename = "PROJECT_ANALYTICS")]
+    ProjectAnalytics,
+    /// Otorite henüz belirlenmedi — asla Spec olamaz.
+    #[serde(rename = "UNKNOWN")]
+    Unknown,
+}
+
 /// Bir notice'ın hangi GTFS entity granülaritesinde üretildiğini belirtir.
 ///
 /// Strateji (architecture Bölüm 3):
