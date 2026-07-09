@@ -43,7 +43,7 @@ pub enum RuleClass {
 ///
 /// Sınıf otorite bütünlüğü (docs/audits/spec-authority-inventory-reconciled.csv):
 /// `Spec` sınıfı YALNIZCA `GtfsSpec` kaynağıyla meşrudur. Diğer kaynaklar Spec üretemez.
-/// Eşleme: GtfsSpec→Spec | GtfsBestPractice→Quality | MobilitydataParity/GtfsGuruParity/
+/// Eşleme: GtfsSpec→Spec | GtfsBestPractice→Quality | MobilitydataParity/
 /// GoogleTransitInterop/RegionalProfile→Interop | ProjectQuality→Quality |
 /// ProjectAnalytics→Analytics | Unknown→asla Spec.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -57,9 +57,6 @@ pub enum AuthoritySource {
     /// MobilityData validator paritesi (yalnız interop sinyali).
     #[serde(rename = "MOBILITYDATA_PARITY")]
     MobilitydataParity,
-    /// GTFS Guru paritesi (yalnız interop sinyali).
-    #[serde(rename = "GTFS_GURU_PARITY")]
-    GtfsGuruParity,
     /// Google Transit tüketici davranışı.
     #[serde(rename = "GOOGLE_TRANSIT_INTEROP")]
     GoogleTransitInterop,
