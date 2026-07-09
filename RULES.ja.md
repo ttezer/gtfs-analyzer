@@ -340,7 +340,7 @@
 | FRQ_002 | start_timeが無効 | 致命的 | 仕様 |
 | FRQ_003 | end_timeが無効 | 致命的 | 仕様 |
 | FRQ_004 | headway_secsが不足または無効 | 致命的 | 仕様 |
-| FRQ_005 | end_timeがstart_timeより前 | 致命的 | 相互運用 |
+| FRQ_005 | end_timeがstart_timeより前 | 致命的 | 品質 |
 | FRQ_006 | headway_secsが長すぎる | 中 | 分析 |
 | FRQ_007 | exact_timesが無効 | 中 | 仕様 |
 | FRQ_008 | headway_secsがゼロ（無効な頻度） | 致命的 | 仕様 |
@@ -417,7 +417,7 @@
 | RCT_002 | rider_category_nameが不足 | 致命的 | 仕様 |
 | RCT_003 | is_default_fare_categoryが無効 | 致命的 | 仕様 |
 | RCT_004 | min_ageまたはmax_ageが無効 | 中 | 仕様 |
-| RCT_005 | max_ageがmin_ageより小さい | 中 | 相互運用 |
+| RCT_005 | max_ageがmin_ageより小さい | 中 | 品質 |
 | RCT_006 | 同一fare_productにデフォルトのrider_categoryが複数 | 中 | 仕様 |
 
 ## FMD — 運賃メディア（Fare Media, Fares v2）
@@ -493,8 +493,8 @@
 | TFR_001 | timeframe_group_idが不足 | 致命的 | 仕様 |
 | TFR_002 | service_idが存在しない | 致命的 | 仕様 |
 | TFR_003 | start_timeまたはend_timeの形式が無効 | 高 | 仕様 |
-| TFR_004 | end_timeがstart_timeより前 | 中 | 相互運用 |
-| TFR_005 | 同一グループ・service_id内で時間範囲が重複 | 中 | 分析 |
+| TFR_004 | end_timeがstart_timeより前 | 中 | 品質 |
+| TFR_005 | 同一グループ・service_id内で時間範囲が重複 | 中 | 相互運用 |
 
 ## PTH — 経路（Pathways）
 

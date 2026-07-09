@@ -340,7 +340,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | FRQ_002 | start_time invalid | CRITICAL | Spec |
 | FRQ_003 | end_time invalid | CRITICAL | Spec |
 | FRQ_004 | headway_secs missing or invalid | CRITICAL | Spec |
-| FRQ_005 | end_time is before start_time | CRITICAL | Interop |
+| FRQ_005 | end_time is before start_time | CRITICAL | Quality |
 | FRQ_006 | headway_secs too long | MEDIUM | Analytics |
 | FRQ_007 | exact_times invalid | MEDIUM | Spec |
 | FRQ_008 | headway_secs is zero (invalid frequency) | CRITICAL | Spec |
@@ -417,7 +417,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | RCT_002 | rider_category_name missing | CRITICAL | Spec |
 | RCT_003 | is_default_fare_category invalid | CRITICAL | Spec |
 | RCT_004 | min_age or max_age invalid | MEDIUM | Spec |
-| RCT_005 | max_age less than min_age | MEDIUM | Interop |
+| RCT_005 | max_age less than min_age | MEDIUM | Quality |
 | RCT_006 | Multiple default rider categories per fare_product | MEDIUM | Spec |
 
 ## FMD — Fare Media (Fares v2)
@@ -493,8 +493,8 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | TFR_001 | timeframe_group_id missing | CRITICAL | Spec |
 | TFR_002 | service_id not found | CRITICAL | Spec |
 | TFR_003 | start_time or end_time format error | HIGH | Spec |
-| TFR_004 | end_time less than start_time | MEDIUM | Interop |
-| TFR_005 | Overlapping time ranges within same group and service_id | MEDIUM | Analytics |
+| TFR_004 | end_time less than start_time | MEDIUM | Quality |
+| TFR_005 | Overlapping time ranges within same group and service_id | MEDIUM | Interop |
 
 ## PTH — Pathways
 

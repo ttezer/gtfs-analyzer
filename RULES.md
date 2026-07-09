@@ -340,7 +340,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | FRQ_002 | start_time geçersiz | KRİTİK | Spec |
 | FRQ_003 | end_time geçersiz | KRİTİK | Spec |
 | FRQ_004 | headway_secs eksik veya geçersiz | KRİTİK | Spec |
-| FRQ_005 | end_time start_time'dan önce | KRİTİK | Interop |
+| FRQ_005 | end_time start_time'dan önce | KRİTİK | Quality |
 | FRQ_006 | headway_secs çok uzun | ORTA | Analytics |
 | FRQ_007 | exact_times geçersiz | ORTA | Spec |
 | FRQ_008 | headway_secs sıfır (geçersiz frekans) | KRİTİK | Spec |
@@ -417,7 +417,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | RCT_002 | rider_category_name eksik | KRİTİK | Spec |
 | RCT_003 | is_default_fare_category geçersiz | KRİTİK | Spec |
 | RCT_004 | min_age veya max_age geçersiz | ORTA | Spec |
-| RCT_005 | max_age min_age'den küçük | ORTA | Interop |
+| RCT_005 | max_age min_age'den küçük | ORTA | Quality |
 | RCT_006 | fare_product başına birden fazla varsayılan yolcu kategorisi | ORTA | Spec |
 
 ## FMD — Fare Media (Ücret Medyası, Fares v2)
@@ -493,8 +493,8 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | TFR_001 | timeframe_group_id eksik | KRİTİK | Spec |
 | TFR_002 | service_id bulunamadı | KRİTİK | Spec |
 | TFR_003 | start_time veya end_time format hatası | YÜKSEK | Spec |
-| TFR_004 | end_time start_time'dan küçük | ORTA | Interop |
-| TFR_005 | Aynı grup ve service_id içinde örtüşen zaman aralıkları | ORTA | Analytics |
+| TFR_004 | end_time start_time'dan küçük | ORTA | Quality |
+| TFR_005 | Aynı grup ve service_id içinde örtüşen zaman aralıkları | ORTA | Interop |
 
 ## PTH — Pathways (Geçitler)
 
