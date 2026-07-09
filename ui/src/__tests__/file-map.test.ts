@@ -84,9 +84,7 @@ function validationResult(notices: Notice[]): ValidationResult {
     reports: {
       r1: {
         publishable: true,
-        conditional: false,
         blocker_notice_ids: [],
-        conditional_blocker_notice_ids: [],
       },
       r2: { items: [] },
       r3: { items: [] },

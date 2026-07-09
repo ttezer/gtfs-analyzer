@@ -172,13 +172,10 @@ pub enum ReportId {
 /// R9 remediation queue etiketleri — koşullar architecture Bölüm 5'te tanımlı.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum R9Label {
-    /// KRİTİK + (SPEC veya INTEROP) — feed yayınlanabilirliğini kesin engelleyen hata
+    /// KRİTİK + SPEC — resmi GTFS spec yayınlanabilirliğini kesin engelleyen hata
     #[serde(rename = "blocker")]
     Blocker,
-    /// YÜKSEK + INTEROP — journey planner degraded davranış riski
-    #[serde(rename = "conditional_blocker")]
-    ConditionalBlocker,
-    /// INTEROP sınıfı, blocker/conditional_blocker dışı
+    /// INTEROP sınıfı — tüketici/interop uyumluluk sinyali (yayın-engeli değil)
     #[serde(rename = "interop")]
     Interop,
     /// realized_dependent_count > 2

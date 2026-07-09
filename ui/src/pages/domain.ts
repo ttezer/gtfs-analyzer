@@ -79,24 +79,6 @@ function renderR1Card(r1: ValidationResult['reports']['r1'], result: ValidationR
       </div>`;
   }
 
-  if (r1.conditional) {
-    const conds = r1.conditional_blocker_notice_ids
-      .slice(0, 5)
-      .map(id => {
-        const n = noticeMap.get(id);
-        return n ? `<li><code>${escHtml(n.rule_id)}</code> — ${escHtml(t('rule.' + n.rule_id))}</li>` : '';
-      }).join('');
-    return `
-      <div class="rpt-r1 rpt-r1-conditional">
-        <div class="rpt-r1-icon">⚠</div>
-        <div class="rpt-r1-body">
-          <strong>${t('domain.r1_conditional_title')}</strong>
-          <span>${t('domain.r1_conditional_desc', { n: r1.conditional_blocker_notice_ids.length })}</span>
-          ${conds ? `<ul class="rpt-r1-list">${conds}</ul>` : ''}
-        </div>
-      </div>`;
-  }
-
   return `
     <div class="rpt-r1 rpt-r1-ok">
       <div class="rpt-r1-icon">✓</div>

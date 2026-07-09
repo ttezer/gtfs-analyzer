@@ -334,7 +334,7 @@ function buildCsv(result: ValidationResult): string {
 function buildReportHtml(result: ValidationResult, fileName: string, ts: string): string {
   const { r1, r5 } = result.reports;
   const publishLabel = r1.publishable
-    ? (r1.conditional ? t('export.html.publishable_cond') : t('export.html.publishable_ok'))
+    ? t('export.html.publishable_ok')
     : t('export.html.publishable_blocked');
 
   const noticeRows = result.notices.map(n => `

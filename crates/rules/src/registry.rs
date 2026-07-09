@@ -10,7 +10,9 @@ use gtfs_core::{AuthoritySource, DedupLevel, ReportId, RuleClass, Severity};
 
 // ── Statik rapor görünüm kümeleri ────────────────────────────────────────────
 //
-// R1 → blocker/conditional_blocker: KRİTİK+(Spec|Interop) veya YÜKSEK+Interop
+// R1 → yayın-engeli (build_r1): YALNIZ KRİTİK+Spec (resmi GTFS spec kapısı).
+//      NOT: aşağıdaki VS_K/VI_K report_views hâlâ R1 listeliyor — bu görünüm-metadata'sı,
+//      runtime R1 otoritesi DEĞİL (build_r1 belirler). report_views/R1 uzlaşımı Faz 4'te.
 // R2 → tüm notice'lar (filtrelenebilir)
 // R3 → ANALYTICS sınıfı
 // R4 → GEO ailesi + SHP_014/016 (coğrafi doğruluk)
@@ -23,7 +25,7 @@ use gtfs_core::{AuthoritySource, DedupLevel, ReportId, RuleClass, Severity};
 const VS_K: &[ReportId] = &[R1, R2, R5, R9];
 /// Spec veya Quality, non-blocker
 const VS: &[ReportId] = &[R2, R5, R9];
-/// Interop + KRİTİK veya YÜKSEK → Blocker/ConditionalBlocker → R1 + R8
+/// Interop + KRİTİK veya YÜKSEK → R8 (+ eski R1 görünüm-metadata'sı; runtime R1 değil, bkz build_r1)
 const VI_K: &[ReportId] = &[R1, R2, R5, R8, R9];
 /// Interop + düşük severity (ORTA/DÜŞÜK/BİLGİ) → R8, no R1
 const VI: &[ReportId] = &[R2, R5, R8, R9];

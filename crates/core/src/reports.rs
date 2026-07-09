@@ -1,15 +1,13 @@
 use serde::{Deserialize, Serialize};
 use crate::{R9Label, ReportItem};
 
-/// R1: Yayınlanabilirlik kararı.
-/// KRİTİK+SPEC/INTEROP → red; YÜKSEK+INTEROP → koşullu; diğer → yeşil.
+/// R1: Yayınlanabilirlik kararı — resmi GTFS spec kapısı.
+/// Yalnız `Spec + Kritik` (otorite `GtfsSpec`) yayını engeller; diğer sınıflar (Interop/
+/// Quality/Analytics) R1'i etkilemez. Interop/tüketici hazırlığı ayrı: R8 + interop_score.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct R1Report {
     pub publishable: bool,
-    /// true ise conditional_blocker bulguları mevcut — uyarıyla yayın.
-    pub conditional: bool,
     pub blocker_notice_ids: Vec<String>,
-    pub conditional_blocker_notice_ids: Vec<String>,
 }
 
 /// R2: Tüm notice'ların teknik listesi — file/line/field/observed_value ile birlikte.

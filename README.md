@@ -207,10 +207,10 @@ Config delta içinde `stop_name_best_practices=true` verilirse dil-bağımlı `S
 
 ### Yayın Skoru (0–100)
 
-Feed'in toplu taşıma uygulamaları tarafından tüketilebilirlik durumunu ölçer. Skor **100'den başlar**; bulunan her blocker sorun, kuralın ağırlığı ve düzeltme maliyetiyle orantılı bir ceza düşürür.
+Feed'in resmi GTFS Schedule Reference'a göre yayınlanabilirlik durumunu ölçer. Skor **100'den başlar**; yayını engelleyen her sorun, kuralın ağırlığı ve düzeltme maliyetiyle orantılı bir ceza düşürür.
 
 **Skor nasıl oluşur:**
-- Yalnızca `Spec` ve `Interop` sınıfındaki `Kritik` ve `Yüksek` seviyeli sorunlar Yayın Skorunu etkiler.
+- Yalnızca `Spec` sınıfındaki `Kritik` seviyeli sorunlar (resmi GTFS spec kapısı) Yayın Skorunu etkiler. `Interop` uyumluluk sinyalleri ayrı raporlanır (Interop Skoru / R8).
 - Aynı kural birden fazla kez tetiklenirse ceza **en fazla 2 katıyla** sınırlıdır; tek bir sorunun tüm skoru sıfırlaması engellenir.
 - **0–40:** Feed büyük olasılıkla tüketilemez. Blocker hatalar var.
 - **40–70:** Kısmi sorunlar mevcut, bazı uygulamalar reddedebilir.

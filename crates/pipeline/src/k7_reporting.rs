@@ -360,12 +360,11 @@ fn compute_priority_score(severity: Severity, realized_dep: u32, affected: u32, 
 fn r9_labels(severity: Severity, rule_class: RuleClass, realized_dep: u32, fix_effort: f64, affected: u32) -> Vec<R9Label> {
     let mut labels = vec![];
 
+    // R1 ile hizalı: yalnız Spec+Kritik gerçek yayın-engeli (Blocker). Interop her
+    // severity'de tüketici uyumluluk sinyali (Interop), yayın-engeli değil.
     match (severity, rule_class) {
-        (Severity::Kritik, RuleClass::Spec | RuleClass::Interop) => {
+        (Severity::Kritik, RuleClass::Spec) => {
             labels.push(R9Label::Blocker);
-        }
-        (Severity::Yuksek, RuleClass::Interop) => {
-            labels.push(R9Label::ConditionalBlocker);
         }
         (_, RuleClass::Interop) => {
             labels.push(R9Label::Interop);
@@ -404,8 +403,6 @@ fn r9_labels(severity: Severity, rule_class: RuleClass, realized_dep: u32, fix_e
 fn bucket_rank(labels: &[R9Label]) -> u8 {
     if labels.contains(&R9Label::Blocker) {
         0
-    } else if labels.contains(&R9Label::ConditionalBlocker) {
-        1
     } else if labels.contains(&R9Label::Interop) {
         2
     } else if labels.contains(&R9Label::Propagation) {
@@ -550,24 +547,14 @@ fn build_report_set(notices: &[Notice], resolution: &SymptomResolution) -> Repor
 }
 
 fn build_r1(notices: &[Notice]) -> R1Report {
-    let mut blockers = vec![];
-    let mut conditional_blockers = vec![];
-    for n in notices {
-        if matches!(n.severity, Severity::Kritik)
-            && matches!(n.rule_class, RuleClass::Spec | RuleClass::Interop)
-        {
-            blockers.push(n.id.clone());
-        } else if matches!(n.severity, Severity::Yuksek)
-            && n.rule_class == RuleClass::Interop
-        {
-            conditional_blockers.push(n.id.clone());
-        }
-    }
+    let blockers: Vec<String> = notices
+        .iter()
+        .filter(|n| is_pub_relevant(n))
+        .map(|n| n.id.clone())
+        .collect();
     R1Report {
         publishable: blockers.is_empty(),
-        conditional: blockers.is_empty() && !conditional_blockers.is_empty(),
         blocker_notice_ids: blockers,
-        conditional_blocker_notice_ids: conditional_blockers,
     }
 }
 
@@ -615,12 +602,14 @@ fn build_r4(notices: &[Notice]) -> R4Report {
     }
 }
 
-/// Blocker-eligible notice: Kritik SPEC/INTEROP veya Yüksek INTEROP.
-/// Bu notice'lar R1 yayın kararını etkiler; pub_score ve pub_score_delta için kullanılır.
+/// Yayın-engeli notice: yalnız `Spec + Kritik` (resmi GTFS spec kapısı).
+/// R1 yayın kararını ve pub_score/pub_score_delta'yı bu belirler.
+/// `rule_class==Spec` ⟺ `authority==GtfsSpec` registry gate'iyle
+/// (`spec_class_requires_gtfs_spec_authority`) garanti olduğundan runtime otorite kontrolü
+/// gereksiz. Interop/Quality/Analytics ASLA yayın-engeli değil — tüketici/interop hazırlığı
+/// R8 + interop_score'da raporlanır.
 fn is_pub_relevant(n: &Notice) -> bool {
-    matches!(n.severity, Severity::Kritik)
-        && matches!(n.rule_class, RuleClass::Spec | RuleClass::Interop)
-        || matches!(n.severity, Severity::Yuksek) && n.rule_class == RuleClass::Interop
+    matches!(n.severity, Severity::Kritik) && n.rule_class == RuleClass::Spec
 }
 
 fn build_r5(notices: &[Notice]) -> R5Report {
@@ -1080,21 +1069,20 @@ mod tests {
     // ── R1 ────────────────────────────────────────────────────────────────────
 
     #[test]
-    fn r1_blocker_makes_not_publishable() {
+    fn r1_spec_kritik_makes_not_publishable() {
         let n = notice("n1", "X", Severity::Kritik, RuleClass::Spec);
         let r = build_r1(&[n]);
         assert!(!r.publishable);
-        assert!(!r.conditional);
         assert_eq!(r.blocker_notice_ids.len(), 1);
     }
 
     #[test]
-    fn r1_conditional_blocker_publishable_with_warning() {
+    fn r1_high_interop_is_publishable() {
+        // Faz 4: Interop artık yayın-engeli değil (yalnız Spec+Kritik).
         let n = notice("n1", "X", Severity::Yuksek, RuleClass::Interop);
         let r = build_r1(&[n]);
         assert!(r.publishable);
-        assert!(r.conditional);
-        assert_eq!(r.conditional_blocker_notice_ids.len(), 1);
+        assert!(r.blocker_notice_ids.is_empty());
     }
 
     #[test]
@@ -1102,15 +1090,15 @@ mod tests {
         let n = notice("n1", "X", Severity::Orta, RuleClass::Quality);
         let r = build_r1(&[n]);
         assert!(r.publishable);
-        assert!(!r.conditional);
     }
 
     #[test]
-    fn r1_kritik_interop_is_blocker() {
+    fn r1_kritik_interop_is_publishable() {
+        // Faz 4: Kritik Interop bile yayını engellemez (spec kapısı değil).
         let n = notice("n1", "X", Severity::Kritik, RuleClass::Interop);
         let r = build_r1(&[n]);
-        assert!(!r.publishable);
-        assert!(!r.conditional);
+        assert!(r.publishable);
+        assert!(r.blocker_notice_ids.is_empty());
     }
 
     // ── R9 ────────────────────────────────────────────────────────────────────
@@ -1132,18 +1120,21 @@ mod tests {
     }
 
     #[test]
-    fn r9_bucket_order_blocker_before_conditional_before_interop() {
+    fn r9_bucket_order_blocker_before_interop() {
+        // Faz 4: yalnız Spec+Kritik → Blocker. Interop (Kritik dahil) → Interop bucket;
+        // bucket içinde priority_score'a göre (yüksek severity önce) sıralanır.
         let interop_low  = notice("i1", "INTEROP_LOW",  Severity::Orta,   RuleClass::Interop);
-        let cond_block   = notice("cb", "COND_BLOCK",   Severity::Yuksek, RuleClass::Interop);
+        let interop_high = notice("ih", "INTEROP_HIGH", Severity::Yuksek, RuleClass::Interop);
         let blocker      = notice("bl", "BLOCKER",      Severity::Kritik, RuleClass::Spec);
 
-        let resolution = resolve_symptoms(&[interop_low.clone(), cond_block.clone(), blocker.clone()]);
-        let r9 = build_r9(&[interop_low, cond_block, blocker], &resolution);
+        let resolution = resolve_symptoms(&[interop_low.clone(), interop_high.clone(), blocker.clone()]);
+        let r9 = build_r9(&[interop_low, interop_high, blocker], &resolution);
 
         assert_eq!(r9.items.len(), 3);
-        assert!(r9.items[0].labels.contains(&R9Label::Blocker),          "ilk sıra: blocker");
-        assert!(r9.items[1].labels.contains(&R9Label::ConditionalBlocker), "ikinci sıra: conditional_blocker");
-        assert!(r9.items[2].labels.contains(&R9Label::Interop),          "üçüncü sıra: interop");
+        assert!(r9.items[0].labels.contains(&R9Label::Blocker), "ilk sıra: blocker");
+        assert!(r9.items[1].labels.contains(&R9Label::Interop), "ikinci sıra: interop (yüksek)");
+        assert!(r9.items[2].labels.contains(&R9Label::Interop), "üçüncü sıra: interop (orta)");
+        assert_eq!(r9.items[1].rule_id, "INTEROP_HIGH", "yüksek interop, orta'dan önce");
     }
 
     #[test]

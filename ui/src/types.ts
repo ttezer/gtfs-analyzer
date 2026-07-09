@@ -14,7 +14,7 @@ export type FatalCode  =
   | 'ZipUnreadable' | 'Utf8Critical' | 'NoRequiredFiles'
   | 'CsvMalformed'  | 'DecompressionLimit' | 'ResourceLimit' | 'InvalidInput';
 export type R9Label    =
-  | 'blocker' | 'conditional_blocker' | 'interop' | 'propagation' | 'quick-win'
+  | 'blocker' | 'interop' | 'propagation' | 'quick-win'
   | 'quality' | 'widespread' | 'analytics' | 'hard' | 'single' | 'high-impact';
 export type ReportId   = 'R1' | 'R2' | 'R3' | 'R4' | 'R5' | 'R7' | 'R8' | 'R9';
 
@@ -50,9 +50,7 @@ export interface ReportItem {
 
 export interface R1Report {
   publishable: boolean;
-  conditional: boolean;
   blocker_notice_ids: string[];
-  conditional_blocker_notice_ids: string[];
 }
 export interface R2Report { items: ReportItem[]; }
 export interface R3Report { items: ReportItem[]; }
