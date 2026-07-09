@@ -136,7 +136,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | RTS_006 | route_color invalid hex color | MEDIUM | Spec |
 | RTS_007 | route_text_color invalid hex color | LOW | Quality |
 | RTS_008 | Route color and text color have low contrast | MEDIUM | Quality |
-| RTS_009 | route_short_name and route_long_name are identical | LOW | Spec |
+| RTS_009 | route_short_name and route_long_name are identical | LOW | Quality |
 | RTS_010 | route_short_name too long | LOW | Quality |
 | RTS_011 | route_long_name too long | LOW | Quality |
 | RTS_012 | Route with no trips | MEDIUM | Quality |
@@ -309,7 +309,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | SHP_003 | shape_pt_lon missing or invalid | CRITICAL | Spec |
 | SHP_004 | shape_pt_sequence missing or invalid | CRITICAL | Spec |
 | SHP_005 | shape_dist_traveled decreases | CRITICAL | Spec |
-| SHP_006 | Shape consists of a single point only | CRITICAL | Spec |
+| SHP_006 | Shape consists of a single point only | MEDIUM | Quality |
 | SHP_008 | Duplicate shape_pt_sequence | CRITICAL | Spec |
 | SHP_009 | Shape self-intersects | INFO | Analytics |
 | SHP_010 | Repeated shape point (consecutive identical coordinates) | LOW | Quality |
@@ -369,7 +369,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | TRF_015 | in-seat transfer invalid | HIGH | Spec |
 | TRF_016 | Transfer condition conflicting | MEDIUM | Spec |
 | TRF_017 | Trip transfer on wrong route | HIGH | Spec |
-| TRF_018 | Trip transfer references the same trip | HIGH | Spec |
+| TRF_018 | Trip transfer references the same trip | MEDIUM | Quality |
 | TRF_019 | Different route_type in in-seat transfer | MEDIUM | Spec |
 | TRF_020 | Transfer walking speed is too fast | MEDIUM | Quality |
 

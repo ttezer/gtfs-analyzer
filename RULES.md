@@ -136,7 +136,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | RTS_006 | route_color geçersiz hex renk | ORTA | Spec |
 | RTS_007 | route_text_color geçersiz hex renk | DÜŞÜK | Quality |
 | RTS_008 | Hat rengi ve metin rengi kontrast düşük | ORTA | Quality |
-| RTS_009 | route_short_name ve route_long_name birbirinin aynısı | DÜŞÜK | Spec |
+| RTS_009 | route_short_name ve route_long_name birbirinin aynısı | DÜŞÜK | Quality |
 | RTS_010 | route_short_name çok uzun | DÜŞÜK | Quality |
 | RTS_011 | route_long_name çok uzun | DÜŞÜK | Quality |
 | RTS_012 | Seferi olmayan hat | ORTA | Quality |
@@ -309,7 +309,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | SHP_003 | shape_pt_lon eksik veya geçersiz | KRİTİK | Spec |
 | SHP_004 | shape_pt_sequence eksik veya geçersiz | KRİTİK | Spec |
 | SHP_005 | shape_dist_traveled geriye gidiyor | KRİTİK | Spec |
-| SHP_006 | Güzergah şekli yalnızca tek noktadan oluşuyor | KRİTİK | Spec |
+| SHP_006 | Güzergah şekli yalnızca tek noktadan oluşuyor | ORTA | Quality |
 | SHP_008 | shape_pt_sequence yineleniyor | KRİTİK | Spec |
 | SHP_009 | Güzergah şekli kendisiyle kesişiyor | BİLGİ | Analytics |
 | SHP_010 | Tekrarlanan shape noktası (ardışık özdeş koordinat) | DÜŞÜK | Quality |
@@ -369,7 +369,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | TRF_015 | in-seat aktarma geçersiz | YÜKSEK | Spec |
 | TRF_016 | Aktarma koşulu çelişkili | ORTA | Spec |
 | TRF_017 | Sefer aktarması yanlış hat | YÜKSEK | Spec |
-| TRF_018 | Sefer aktarması aynı seferi gösteriyor | YÜKSEK | Spec |
+| TRF_018 | Sefer aktarması aynı seferi gösteriyor | ORTA | Quality |
 | TRF_019 | In-seat aktarmada farklı route_type | ORTA | Spec |
 | TRF_020 | Aktarma için gereken yürüme hızı çok yüksek | ORTA | Quality |
 

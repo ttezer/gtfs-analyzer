@@ -334,7 +334,7 @@ pub static RULES: &[RuleMeta] = &[
         "route_text_color geçersiz hex renk"),
     r!("RTS_008", Orta,   Quality, 1, &[], Some("route_id"), VS, Entity,
         "Hat rengi ve metin rengi kontrast düşük"),
-    r!("RTS_009", Dusuk,  Spec, 1, &[], Some("route_id"), VS, Entity,
+    r!("RTS_009", Dusuk,  Quality, 1, &[], Some("route_id"), VS, Entity,
         "route_short_name ve route_long_name birbirinin aynısı"),
     r!("RTS_010", Dusuk,  Quality, 1, &[], Some("route_id"), VS, Entity,
         "route_short_name çok uzun"),
@@ -666,9 +666,9 @@ pub static RULES: &[RuleMeta] = &[
         &["SHP_009","SHP_011","SHP_012","GEO_006","GEO_007"],
         Some("shape_id"), VS_K, Row,
         "shape_dist_traveled geriye gidiyor"),
-    r!("SHP_006", Kritik, Spec, 2,
+    r!("SHP_006", Orta,   Quality, 2,
         &["SHP_017","STM_015","STM_016"],
-        Some("shape_id"), VS_K, Entity,
+        Some("shape_id"), VS, Entity,
         "Güzergah şekli yalnızca tek noktadan oluşuyor"),
     r!("SHP_008", Kritik, Spec, 3, &[], Some("shape_id"), VS_K, Entity,
         "shape_pt_sequence yineleniyor"),
@@ -780,7 +780,7 @@ pub static RULES: &[RuleMeta] = &[
     // önlemek için TRF_017 kök kuraldır ve XFL_020'yi semptom olarak bastırır.
     r!("TRF_017", Yuksek, Spec, 2, &["XFL_020"], None, VS, Row,
         "Sefer aktarması yanlış hat"),
-    r!("TRF_018", Yuksek, Spec, 2, &[], None, VS, Row,
+    r!("TRF_018", Orta,   Quality, 2, &[], None, VS, Row,
         "Sefer aktarması aynı seferi gösteriyor"),
     r!("TRF_019", Orta, Spec, 2, &[], None, VS, Row,
         "In-seat aktarmada farklı route_type"),
@@ -1935,15 +1935,16 @@ mod tests {
     use super::*;
 
     /// Faz 2 warn-modu: `Sınıf=Spec` ama `authority≠GtfsSpec` olan MEVCUT kurallar
-    /// (docs/audits/spec-authority-inventory-reconciled.csv — 45 kayıt). Faz 3 bu
+    /// (docs/audits/spec-authority-inventory-reconciled.csv — başlangıç 45 kayıt; Faz 3
+    /// parti 1'de SHP_006/RTS_009/TRF_018 düşürüldü → 42). Faz 3 bu
     /// kuralların sınıfını düzelttikçe `rule_class==Spec` filtresi onları dışlar ve
     /// listeden çıkarılır; Faz 4'te liste BOŞALIR (hard-fail). Yeni ekleme YAPILMAZ.
     const SPEC_AUTHORITY_ALLOWLIST: &[&str] = &[
         "ARC_002", "ARC_009", "ARC_015", "ARC_019", "ARC_023", "ARC_029", "ATR_001", "ATR_009",
         "BKR_011", "CAL_005", "CLD_005", "FRQ_005", "FRQ_011", "JPN_002", "JPN_003", "JPN_004",
-        "JPN_005", "JPN_011", "PDW_006", "PTH_011", "PTH_014", "RCT_005", "RTS_009", "SHP_006",
+        "JPN_005", "JPN_011", "PDW_006", "PTH_011", "PTH_014", "RCT_005",
         "SHP_028", "STM_007", "STM_008", "STM_023", "STM_033", "STM_034", "STM_038", "STP_027",
-        "TFR_004", "TFR_005", "TRF_013", "TRF_015", "TRF_016", "TRF_017", "TRF_018", "TRF_019",
+        "TFR_004", "TFR_005", "TRF_013", "TRF_015", "TRF_016", "TRF_017", "TRF_019",
         "TRP_017", "TRP_019", "TRP_022", "XFL_002", "XFL_006",
     ];
 

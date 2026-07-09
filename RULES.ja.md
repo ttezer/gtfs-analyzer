@@ -136,7 +136,7 @@
 | RTS_006 | route_colorが有効な16進カラーでない | 中 | 仕様 |
 | RTS_007 | route_text_colorが有効な16進カラーでない | 低 | 品質 |
 | RTS_008 | route_colorとroute_text_colorのコントラストが不十分 | 中 | 品質 |
-| RTS_009 | route_short_nameとroute_long_nameが同一 | 低 | 仕様 |
+| RTS_009 | route_short_nameとroute_long_nameが同一 | 低 | 品質 |
 | RTS_010 | route_short_nameが長すぎる | 低 | 品質 |
 | RTS_011 | route_long_nameが長すぎる | 低 | 品質 |
 | RTS_012 | 便のない路線 | 中 | 品質 |
@@ -309,7 +309,7 @@
 | SHP_003 | shape_pt_lonが不足または無効 | 致命的 | 仕様 |
 | SHP_004 | shape_pt_sequenceが不足または無効 | 致命的 | 仕様 |
 | SHP_005 | shape_dist_traveledが減少 | 致命的 | 仕様 |
-| SHP_006 | 形状点が1つしかない（最小2点必要） | 致命的 | 仕様 |
+| SHP_006 | 形状点が1つしかない（最小2点必要） | 中 | 品質 |
 | SHP_008 | shape_pt_sequence値が重複 | 致命的 | 仕様 |
 | SHP_009 | 形状が自己交差している | 情報 | 分析 |
 | SHP_010 | 連続する座標が同一 | 低 | 品質 |
@@ -369,7 +369,7 @@
 | TRF_015 | 席内乗換が無効 | 高 | 仕様 |
 | TRF_016 | 乗換条件が競合 | 中 | 仕様 |
 | TRF_017 | 乗換が誤った路線を参照 | 高 | 仕様 |
-| TRF_018 | from_trip_idとto_trip_idが同一の便 | 高 | 仕様 |
+| TRF_018 | from_trip_idとto_trip_idが同一の便 | 中 | 品質 |
 | TRF_019 | 席内乗換で異なるroute_type | 中 | 仕様 |
 | TRF_020 | 乗継に必要な歩行速度が速すぎる | 中 | 品質 |
 
