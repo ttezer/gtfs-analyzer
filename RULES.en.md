@@ -176,7 +176,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | TRP_019 | shape_id missing with continuous service active | HIGH | Spec |
 | TRP_020 | trip_headsign matches intermediate stop name | INFO | Analytics |
 | TRP_021 | Bicycle allowance (bikes_allowed) not specified | INFO | Quality |
-| TRP_022 | Overlapping trip times within block | HIGH | Spec |
+| TRP_022 | Overlapping trip times within block | HIGH | Interop |
 | TRP_023 | No active trips in the next 7 days | LOW | Quality |
 | TRP_024 | Inconsistent route type within block | LOW | Interop |
 | TRP_025 | High proportion of trips without wheelchair accessibility information | INFO | Quality |
@@ -245,7 +245,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 
 | Rule | Title | Severity | Class |
 |---|---|---|---|
-| PDW_006 | Overlapping pickup/drop-off window for same trip+zone | MEDIUM | Spec |
+| PDW_006 | Overlapping pickup/drop-off window for same trip+zone | MEDIUM | Analytics |
 
 ## LOC — locations.geojson
 
@@ -346,7 +346,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | FRQ_008 | headway_secs is zero (invalid frequency) | CRITICAL | Spec |
 | FRQ_009 | Frequency interval too short | MEDIUM | Quality |
 | FRQ_010 | Very high frequency (bunching risk) | INFO | Analytics |
-| FRQ_011 | Overlapping frequency periods | HIGH | Spec |
+| FRQ_011 | Overlapping frequency periods | HIGH | Interop |
 
 ## TRF — Transfers
 
@@ -494,7 +494,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | TFR_002 | service_id not found | CRITICAL | Spec |
 | TFR_003 | start_time or end_time format error | HIGH | Spec |
 | TFR_004 | end_time less than start_time | MEDIUM | Interop |
-| TFR_005 | Overlapping time ranges within same group and service_id | MEDIUM | Spec |
+| TFR_005 | Overlapping time ranges within same group and service_id | MEDIUM | Analytics |
 
 ## PTH — Pathways
 
@@ -605,7 +605,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | XFL_003 | shape_id undefined | HIGH | Spec |
 | XFL_004 | Undefined route_id in fare_rules | CRITICAL | Spec |
 | XFL_005 | Undefined stop_id in stop_times | CRITICAL | Spec |
-| XFL_006 | service_id contains only cancellation exceptions (no active days) | MEDIUM | Spec |
+| XFL_006 | service_id contains only cancellation exceptions (no active days) | MEDIUM | Analytics |
 | XFL_007 | agency_id not found | CRITICAL | Spec |
 | XFL_009 | level_id invalid | CRITICAL | Spec |
 | XFL_010 | Undefined trip_id in frequencies | CRITICAL | Spec |

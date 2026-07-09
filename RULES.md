@@ -176,7 +176,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | TRP_019 | Continuous servis aktifken shape_id eksik | YÜKSEK | Spec |
 | TRP_020 | trip_headsign ara durak adıyla eşleşiyor | BİLGİ | Analytics |
 | TRP_021 | Bisiklet izni (bikes_allowed) belirtilmemiş | BİLGİ | Quality |
-| TRP_022 | Block içinde çakışan sefer saatleri | YÜKSEK | Spec |
+| TRP_022 | Block içinde çakışan sefer saatleri | YÜKSEK | Interop |
 | TRP_023 | Önümüzdeki 7 günde aktif sefer yok | DÜŞÜK | Quality |
 | TRP_024 | Block içinde tutarsız rota tipi | DÜŞÜK | Interop |
 | TRP_025 | Tekerlekli sandalye erişilebilirlik bilgisi eksik seferlerin oranı yüksek | BİLGİ | Quality |
@@ -245,7 +245,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 
 | Kural | Başlık | Önem | Sınıf |
 |---|---|---|---|
-| PDW_006 | Aynı trip+zone'da örtüşen pickup/drop-off penceresi | ORTA | Spec |
+| PDW_006 | Aynı trip+zone'da örtüşen pickup/drop-off penceresi | ORTA | Analytics |
 
 ## LOC — locations.geojson
 
@@ -346,7 +346,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | FRQ_008 | headway_secs sıfır (geçersiz frekans) | KRİTİK | Spec |
 | FRQ_009 | Frekans aralığı çok kısa | ORTA | Quality |
 | FRQ_010 | Çok sık frekans (sıkışma riski) | BİLGİ | Analytics |
-| FRQ_011 | Aynı trip için frequencies dönemleri zaman aralığı çakışıyor | YÜKSEK | Spec |
+| FRQ_011 | Aynı trip için frequencies dönemleri zaman aralığı çakışıyor | YÜKSEK | Interop |
 
 ## TRF — Transfers (Aktarmalar)
 
@@ -494,7 +494,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | TFR_002 | service_id bulunamadı | KRİTİK | Spec |
 | TFR_003 | start_time veya end_time format hatası | YÜKSEK | Spec |
 | TFR_004 | end_time start_time'dan küçük | ORTA | Interop |
-| TFR_005 | Aynı grup ve service_id içinde örtüşen zaman aralıkları | ORTA | Spec |
+| TFR_005 | Aynı grup ve service_id içinde örtüşen zaman aralıkları | ORTA | Analytics |
 
 ## PTH — Pathways (Geçitler)
 
@@ -605,7 +605,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | XFL_003 | shape_id tanımsız | YÜKSEK | Spec |
 | XFL_004 | fare_rules'ta tanımsız route_id | KRİTİK | Spec |
 | XFL_005 | stop_times'ta tanımsız stop_id | KRİTİK | Spec |
-| XFL_006 | service_id yalnızca iptal istisnası içeriyor (aktif gün yok) | ORTA | Spec |
+| XFL_006 | service_id yalnızca iptal istisnası içeriyor (aktif gün yok) | ORTA | Analytics |
 | XFL_007 | agency_id bulunamadı | KRİTİK | Spec |
 | XFL_009 | level_id geçersiz | KRİTİK | Spec |
 | XFL_010 | frequencies'te tanımsız trip_id | KRİTİK | Spec |

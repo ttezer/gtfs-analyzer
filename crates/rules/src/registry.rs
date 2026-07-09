@@ -414,7 +414,7 @@ pub static RULES: &[RuleMeta] = &[
         "trip_headsign ara durak adıyla eşleşiyor"),
     r!("TRP_021", Bilgi,  Quality, 1, &[], Some("trip_id"), VS, Entity,
         "Bisiklet izni (bikes_allowed) belirtilmemiş"),
-    r!("TRP_022", Yuksek, Spec,    3, &[], Some("trip_id"), VS, Entity,
+    r!("TRP_022", Yuksek, Interop, 3, &[], Some("trip_id"), VI, Entity,
         "Block içinde çakışan sefer saatleri"),
     // Feed genelinde 7 günde hiç aktif sefer yoksa TRP_023 (feed-level, None scope)
     // tek kök mesajdır ve her sefer için tekrar eden TRP_030 spam'ini bastırır.
@@ -553,7 +553,7 @@ pub static RULES: &[RuleMeta] = &[
         "Çok sayıda ardışık durakta aynı zaman"),
 
     // ── PDW: Pickup/Drop-off Window ──────────────────────────────────────────
-    r!("PDW_006", Orta, Spec, 2, &[], Some("trip_id"), VS, Entity,
+    r!("PDW_006", Orta, Analytics, 2, &[], Some("trip_id"), VA, Entity,
         "Aynı trip+zone'da örtüşen pickup/drop-off penceresi"),
 
     // ── LOC: locations.geojson ───────────────────────────────────────────────
@@ -734,7 +734,7 @@ pub static RULES: &[RuleMeta] = &[
         "Frekans aralığı çok kısa"),
     r!("FRQ_010", Bilgi,  Analytics, 1, &[], Some("trip_id"), VA, Row,
         "Çok sık frekans (sıkışma riski)"),
-    r!("FRQ_011", Yuksek, Spec, 2, &[], Some("trip_id"), VS, Row,
+    r!("FRQ_011", Yuksek, Interop, 2, &[], Some("trip_id"), VI, Row,
         "Aynı trip için frequencies dönemleri zaman aralığı çakışıyor"),
 
     // ── TRF: Transfers ─────────────────────────────────────────────────────────
@@ -941,7 +941,7 @@ pub static RULES: &[RuleMeta] = &[
         "start_time veya end_time format hatası"),
     r!("TFR_004", Orta,   Interop, 1, &[], Some("timeframe_group_id"), VI, Row,
         "end_time start_time'dan küçük"),
-    r!("TFR_005", Orta,   Spec, 1, &[], Some("timeframe_group_id"), VS, Row,
+    r!("TFR_005", Orta,   Analytics, 1, &[], Some("timeframe_group_id"), VA, Row,
         "Aynı grup ve service_id içinde örtüşen zaman aralıkları"),
 
     // ── PTH: Pathways ──────────────────────────────────────────────────────────
@@ -1134,7 +1134,7 @@ pub static RULES: &[RuleMeta] = &[
         &["STP_012","DQ_005c"],
         Some("stop_id"), VS_K, Entity,
         "stop_times'ta tanımsız stop_id"),
-    r!("XFL_006", Orta,   Spec, 2, &[], Some("service_id"), VS, Entity,
+    r!("XFL_006", Orta,   Analytics, 2, &[], Some("service_id"), VA, Entity,
         "service_id yalnızca iptal istisnası içeriyor (aktif gün yok)"),
     r!("XFL_007", Kritik, Spec, 1, &[], Some("agency_id"), VS_K, Entity,
         "agency_id bulunamadı"),
@@ -1550,7 +1550,7 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("FRQ_008", GtfsSpec),
     ("FRQ_009", ProjectQuality),
     ("FRQ_010", ProjectAnalytics),
-    ("FRQ_011", ProjectAnalytics),
+    ("FRQ_011", MobilitydataParity),
     ("FTR_001", GtfsSpec),
     ("FTR_002", GtfsSpec),
     ("FTR_003", GtfsSpec),
@@ -1863,7 +1863,7 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("TRP_019", ProjectQuality),
     ("TRP_020", ProjectAnalytics),
     ("TRP_021", ProjectQuality),
-    ("TRP_022", ProjectAnalytics),
+    ("TRP_022", MobilitydataParity),
     ("TRP_023", ProjectQuality),
     ("TRP_024", MobilitydataParity),
     ("TRP_025", ProjectQuality),
@@ -1937,16 +1937,17 @@ mod tests {
     /// Faz 2 warn-modu: `Sınıf=Spec` ama `authority≠GtfsSpec` olan MEVCUT kurallar
     /// (docs/audits/spec-authority-inventory-reconciled.csv — başlangıç 45; Faz 3 parti 1
     /// SHP_006/RTS_009/TRF_018 → 42; parti 2 STM_007/STM_008/CAL_005 → 39; parti 3
-    /// FRQ_005/TFR_004/RCT_005/BKR_011/STM_034/STM_038 → 33). Faz 3 bu
+    /// FRQ_005/TFR_004/RCT_005/BKR_011/STM_034/STM_038 → 33; parti 4 (Analytics)
+    /// FRQ_011/PDW_006/TFR_005/TRP_022/XFL_006 → 28). Faz 3 bu
     /// kuralların sınıfını düzelttikçe `rule_class==Spec` filtresi onları dışlar ve
     /// listeden çıkarılır; Faz 4'te liste BOŞALIR (hard-fail). Yeni ekleme YAPILMAZ.
     const SPEC_AUTHORITY_ALLOWLIST: &[&str] = &[
         "ARC_002", "ARC_009", "ARC_015", "ARC_019", "ARC_023", "ARC_029", "ATR_001", "ATR_009",
-        "CLD_005", "FRQ_011", "JPN_002", "JPN_003", "JPN_004",
-        "JPN_005", "JPN_011", "PDW_006", "PTH_011", "PTH_014",
+        "CLD_005", "JPN_002", "JPN_003", "JPN_004",
+        "JPN_005", "JPN_011", "PTH_011", "PTH_014",
         "SHP_028", "STM_023", "STM_033", "STP_027",
-        "TFR_005", "TRF_013", "TRF_015", "TRF_016", "TRF_017", "TRF_019",
-        "TRP_017", "TRP_019", "TRP_022", "XFL_002", "XFL_006",
+        "TRF_013", "TRF_015", "TRF_016", "TRF_017", "TRF_019",
+        "TRP_017", "TRP_019", "XFL_002",
     ];
 
     #[test]
