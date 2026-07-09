@@ -1,0 +1,279 @@
+id,mevcut_sınıf,mevcut_severity,R1_mi,önerilen_sınıf,authority_source,confidence,spec_anchor,normatif_ibare,gerekçe,notlar
+AGN_001,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#agencytxt,Required alan/dosya,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),agency.txt dosyası eksik
+AGN_002,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#agencytxt,Required alan/dosya,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),agency_name eksik
+AGN_003,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#agencytxt,Required + format/enum,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),agency_url eksik veya geçersiz
+AGN_004,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#agencytxt,Required + format/enum,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),agency_timezone eksik veya geçersiz
+AGN_006,Spec,Dusuk,hayır,Spec,GTFS_SPEC,HIGH,#agencytxt,Enum / format kısıtı,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),agency_lang geçersiz
+AGN_008,Spec,Dusuk,hayır,Spec,GTFS_SPEC,HIGH,#agencytxt,Enum / format kısıtı,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),agency_fare_url geçersiz
+AGN_009,Spec,Dusuk,hayır,Spec,GTFS_SPEC,HIGH,#agencytxt,Enum / format kısıtı,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),agency_email geçersiz
+AGN_010,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#agencytxt,Birincil anahtar benzersizliği (uniqueness),Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),agency_id yineleniyor
+AGN_011,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#agencytxt,Required alan/dosya,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),Birden fazla kuruluşta agency_id yok
+AGN_014,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#agencytxt,Required alan/dosya,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),Birden fazla kuruluş var ama agency.txt'de agency_id eksik
+ARC_001,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#dataset_files,Normatif kısıt,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),ZIP arşivi açılamadı
+ARC_002,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#dataset_files,Normatif kısıt,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),Dosya UTF-8 ile okunamıyor
+ARC_004,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#dataset_files,Required alan/dosya,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),Zorunlu dosya eksik
+ARC_008,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#dataset_files,Required alan/dosya,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),Takvim dosyası eksik (calendar.txt ve calendar_dates.txt)
+ARC_009,Spec,Kritik,EVET,Spec,GTFS_SPEC,MEDIUM,#dataset_files,Required dosya boş olamaz (koşullu),"Zorunlu dosyada satır yoksa Spec; opsiyonel dosyada değil — koşullu, kartı incele",Dosyada veri satırı yok
+ARC_012,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#dataset_files,Normatif kısıt,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),Satır sütun sayısı başlıkla uyuşmuyor
+ARC_013,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#dataset_files,Normatif kısıt,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),CSV ayrıştırma hatası
+ARC_015,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#dataset_files,Normatif kısıt,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),Yinelenen başlık sütunu
+ARC_019,Spec,Yuksek,hayır,Spec,GTFS_SPEC,HIGH,#dataset_files,Normatif kısıt,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),Başlıkta boş sütun adı
+ARC_023,Spec,Orta,hayır,Quality,PROJECT_QUALITY,MEDIUM,—,yok,Nested ZIP spec'te açıkça yasaklı değil; parser uyumu → kalite/interop,ZIP içinde nested ZIP dosyası — GTFS formatında desteklenmez
+ARC_024,Spec,Orta,hayır,Interop,MOBILITYDATA_PARITY,MEDIUM,—,yok,"Alt-dizin .txt: spec açık norm yok; ""standart parser atlar"" = interop",GTFS .txt dosyası ZIP içinde alt dizinde — standart parser'lar tarafından atlanır
+ARC_025,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#dataset_files,Required alan/dosya,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),Zorunlu sütun başlıkta hiç yok (header'da eksik)
+ARC_029,Spec,Kritik,EVET,Quality,PROJECT_QUALITY,LOW,—,yok,"Zip-bomb koruması proje-özel güvenlik kontrolü; GTFS normu DEĞİL (fatal guard, sınıfı tartışılmalı)",Sıkıştırma koruması: arşiv zip-bomb sınırını aştı
+ARS_001,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#areastxt,Birincil anahtar benzersizliği (uniqueness),Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),area_id yineleniyor
+ATR_001,Spec,Yuksek,hayır,Quality,PROJECT_QUALITY,LOW,#attributionstxt,yok,"attribution_id spec'te Optional — ""eksik"" Spec ihlali olamaz; kartı incele",attribution_id eksik
+ATR_002,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#attributionstxt,Required alan/dosya,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),organization_name eksik
+ATR_003,Spec,Yuksek,hayır,Spec,GTFS_SPEC,HIGH,#attributionstxt,Normatif kısıt,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),Attribution rolü tanımlanmamış
+ATR_004,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#attributionstxt,Enum / format kısıtı,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),is_producer geçersiz
+ATR_005,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#attributionstxt,Enum / format kısıtı,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),is_operator geçersiz
+ATR_006,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#attributionstxt,Enum / format kısıtı,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),is_authority geçersiz
+ATR_007,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#attributionstxt,Enum / format kısıtı,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),attribution_url geçersiz
+ATR_008,Spec,Dusuk,hayır,Spec,GTFS_SPEC,HIGH,#attributionstxt,Enum / format kısıtı,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),attribution_email geçersiz
+ATR_009,Spec,Yuksek,hayır,Quality,PROJECT_QUALITY,MEDIUM,#attributionstxt,yok,attribution_phone serbest metin; spec'te katı format normu yok,attribution_phone geçersiz
+ATR_010,Spec,Dusuk,hayır,Spec,GTFS_SPEC,HIGH,#attributionstxt,Yabancı anahtar (foreign key),Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),agency_id bulunamadı
+BKR_001,Spec,Yuksek,hayır,Spec,GTFS_SPEC,HIGH,#booking_rulestxt,Normatif kısıt,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),Önceki gün rezervasyon alanı yasak bağlamda dolu
+BKR_002,Spec,Yuksek,hayır,Spec,GTFS_SPEC,HIGH,#booking_rulestxt,Normatif kısıt,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),prior_notice_start_day yalnızca prior_notice_last_day ile kullanılabilir
+BKR_003,Spec,Yuksek,hayır,Spec,GTFS_SPEC,HIGH,#booking_rulestxt,Normatif kısıt,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),prior_notice_start_time yalnızca prior_notice_start_day ile kullanılabilir
+BKR_004,Spec,Yuksek,hayır,Spec,GTFS_SPEC,HIGH,#booking_rulestxt,Normatif kısıt,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),Anlık rezervasyonda prior_notice alanları yasak
+BKR_005,Spec,Orta,hayır,Spec,GTFS_SPEC,HIGH,#booking_rulestxt,Normatif kısıt,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),prior_notice_duration_max yalnızca booking_type=1 ile geçerli (booking_type=0/2 ile yasak)
+BKR_006,Spec,Yuksek,hayır,Spec,GTFS_SPEC,HIGH,#booking_rulestxt,Enum / format kısıtı,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),prior_notice_duration_min geçersiz (≤ 0 veya sayısal değil)
+BKR_007,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#booking_rulestxt,Normatif kısıt,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),booking_type=1 için prior_notice_duration_min zorunlu
+BKR_008,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#booking_rulestxt,Normatif kısıt,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),booking_type=2 için prior_notice_last_day zorunlu
+BKR_009,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#booking_rulestxt,Normatif kısıt,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),booking_type=2 için prior_notice_last_time zorunlu
+BKR_010,Spec,Yuksek,hayır,Spec,GTFS_SPEC,HIGH,#booking_rulestxt,Normatif kısıt,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),prior_notice_start_day belirtilmişse prior_notice_start_time zorunlu
+BKR_011,Spec,Yuksek,hayır,Interop,MOBILITYDATA_PARITY,MEDIUM,#booking_rulestxt,yok,last_day>start_day pencere-mantığı; spec açık sayısal ordering normu net değil,prior_notice_last_day > prior_notice_start_day: rezervasyon penceresi geçersiz
+CAL_001,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#calendartxt,Birincil anahtar benzersizliği (uniqueness),Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),service_id yineleniyor
+CAL_002,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#calendartxt,Enum / format kısıtı,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),Takvim gün alanı geçersiz değer
+CAL_003,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#calendartxt,Required + format/enum,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),start_date eksik veya geçersiz format
+CAL_004,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#calendartxt,Required + format/enum,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),end_date eksik veya geçersiz format
+CAL_005,Spec,Kritik,EVET,Interop,MOBILITYDATA_PARITY,MEDIUM,#calendartxt,yok,start>end: spec açık ordering normu yok; MD ERROR paritesi — anchor bulunursa Spec'e döner,start_date end_date'den sonra
+CAL_022,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#calendartxt,Required alan/dosya,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),service_id eksik
+CLD_001,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#calendar_datestxt,Required alan/dosya,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),service_id eksik
+CLD_002,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#calendar_datestxt,Required + format/enum,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),date eksik veya geçersiz format
+CLD_003,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#calendar_datestxt,Required + format/enum,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),exception_type eksik veya geçersiz
+CLD_005,Spec,Kritik,EVET,Quality,PROJECT_QUALITY,MEDIUM,—,yok,"""Makul yıl aralığı"" heuristik eşik; spec yalnız YYYYMMDD format ister, aralık değil",Tarih makul yıl aralığı dışında
+DQ_021,Spec,Yuksek,EVET,Spec,GTFS_SPEC,HIGH,#term_definitions,Birincil anahtar benzersizliği (uniqueness),Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),Birincil anahtar yineleniyor — genel ikincil sinyal (STP_001/RTS_001 gibi entity-level kurallarla örtüşebilir)
+FAR_001,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#fare_attributestxt,Birincil anahtar benzersizliği (uniqueness),Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),fare_id yineleniyor
+FAR_002,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#fare_attributestxt,Required + format/enum,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),price eksik veya geçersiz
+FAR_003,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#fare_attributestxt,Required alan/dosya,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),currency_type eksik
+FAR_004,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#fare_attributestxt,Enum / format kısıtı,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),payment_method geçersiz
+FAR_005,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#fare_attributestxt,Enum / format kısıtı,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),transfers geçersiz
+FAR_006,Spec,Orta,hayır,Spec,GTFS_SPEC,HIGH,#fare_attributestxt,Enum / format kısıtı,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),transfer_duration geçersiz
+FAR_008,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#fare_attributestxt,Yabancı anahtar (foreign key),Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),agency_id bulunamadı
+FAR_011,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#fare_attributestxt,Required alan/dosya,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),payment_method eksik
+FAR_012,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#fare_attributestxt,Required alan/dosya,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),fare_id eksik
+FIN_001,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#feed_infotxt,Required alan/dosya,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),feed_publisher_name eksik
+FIN_002,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#feed_infotxt,Required + format/enum,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),feed_publisher_url eksik veya geçersiz
+FIN_003,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#feed_infotxt,Required alan/dosya,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),feed_lang eksik
+FIN_004,Spec,Orta,hayır,Spec,GTFS_SPEC,HIGH,#feed_infotxt,Enum / format kısıtı,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),default_lang geçersiz
+FIN_005,Spec,Orta,hayır,Spec,GTFS_SPEC,HIGH,#feed_infotxt,Enum / format kısıtı,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),feed_start_date geçersiz
+FIN_006,Spec,Yuksek,hayır,Spec,GTFS_SPEC,HIGH,#feed_infotxt,Enum / format kısıtı,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),feed_end_date geçersiz format (geçmiş tarih için FIN_010 kullanın)
+FIN_008,Spec,Dusuk,hayır,Spec,GTFS_SPEC,HIGH,#feed_infotxt,Enum / format kısıtı,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),feed_contact_email geçersiz
+FIN_009,Spec,Dusuk,hayır,Spec,GTFS_SPEC,HIGH,#feed_infotxt,Enum / format kısıtı,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),feed_contact_url geçersiz
+FLG_001,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#fare_leg_rulestxt,Yabancı anahtar (foreign key),Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),fare_product_id bulunamadı
+FLG_002,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#fare_leg_rulestxt,Yabancı anahtar (foreign key),Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),network_id bulunamadı
+FLG_003,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#fare_leg_rulestxt,Yabancı anahtar (foreign key),Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),from_area_id bulunamadı
+FLG_004,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#fare_leg_rulestxt,Yabancı anahtar (foreign key),Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),to_area_id bulunamadı
+FLG_005,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#fare_leg_rulestxt,Yabancı anahtar (foreign key),Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),from_timeframe_group_id bulunamadı
+FLG_006,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#fare_leg_rulestxt,Yabancı anahtar (foreign key),Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),to_timeframe_group_id bulunamadı
+FLG_007,Spec,Orta,hayır,Spec,GTFS_SPEC,HIGH,#fare_leg_rulestxt,Enum / format kısıtı,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),rule_priority geçersiz
+FMD_001,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#fare_mediatxt,Birincil anahtar benzersizliği (uniqueness),Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),fare_media_id yineleniyor
+FMD_002,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#fare_mediatxt,Required + format/enum,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),fare_media_type eksik veya geçersiz
+FPD_001,Spec,Kritik,EVET,Spec,GTFS_SPEC,MEDIUM,#fare_productstxt,Birincil anahtar (bileşik),fare_products PK bileşiktir (fare_product_id+rider_category_id+fare_media_id); yalnız fare_product_id yinelenmesi ihlal olmayabilir — kartı incele,fare_product_id yineleniyor
+FPD_002,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#fare_productstxt,Required alan/dosya,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),amount eksik veya negatif
+FPD_003,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#fare_productstxt,Enum / format kısıtı,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),currency geçersiz ISO 4217 kodu
+FPD_004,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#fare_productstxt,Yabancı anahtar (foreign key),Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),fare_media_id bulunamadı
+FPD_005,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#fare_productstxt,Yabancı anahtar (foreign key),Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),rider_category_id bulunamadı
+FPD_006,Spec,Orta,hayır,Spec,GTFS_SPEC,MEDIUM,#fare_productstxt,Koşullu kısıt,Tek varsayılan rider kategorisi kısıtı türetilmiş; spec ibaresi doğrulanmalı,Bir fare_product için birden fazla varsayılan rider category
+FRL_001,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#fare_rulestxt,Yabancı anahtar (foreign key),Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),fare_id bulunamadı
+FRL_002,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#fare_rulestxt,Yabancı anahtar (foreign key),Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),route_id bulunamadı
+FRL_003,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#fare_rulestxt,Enum / format kısıtı,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),origin_id geçersiz
+FRL_004,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#fare_rulestxt,Enum / format kısıtı,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),destination_id geçersiz
+FRL_005,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#fare_rulestxt,Enum / format kısıtı,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),contains_id geçersiz
+FRQ_001,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#frequenciestxt,Yabancı anahtar (foreign key),Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),trip_id bulunamadı
+FRQ_002,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#frequenciestxt,Enum / format kısıtı,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),start_time geçersiz
+FRQ_003,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#frequenciestxt,Enum / format kısıtı,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),end_time geçersiz
+FRQ_004,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#frequenciestxt,Required + format/enum,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),headway_secs eksik veya geçersiz
+FRQ_005,Spec,Kritik,EVET,Interop,MOBILITYDATA_PARITY,MEDIUM,#frequenciestxt,yok,end<start: spec açık ordering normu yok; MD paritesi,end_time start_time'dan önce
+FRQ_007,Spec,Orta,hayır,Spec,GTFS_SPEC,HIGH,#frequenciestxt,Enum / format kısıtı,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),exact_times geçersiz
+FRQ_008,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#frequenciestxt,Enum / format kısıtı,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),headway_secs sıfır (geçersiz frekans)
+FRQ_011,Spec,Yuksek,hayır,Analytics,PROJECT_ANALYTICS,MEDIUM,—,yok,Çakışan frequency dönemleri türetilmiş tutarlılık; spec açık norm yok,Aynı trip için frequencies dönemleri zaman aralığı çakışıyor
+FTR_001,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#fare_transfer_rulestxt,Required + format/enum,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),fare_transfer_type eksik veya geçersiz
+FTR_002,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#fare_transfer_rulestxt,Yabancı anahtar (foreign key),Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),from_leg_group_id bulunamadı
+FTR_003,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#fare_transfer_rulestxt,Yabancı anahtar (foreign key),Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),to_leg_group_id bulunamadı
+FTR_004,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#fare_transfer_rulestxt,Yabancı anahtar (foreign key),Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),fare_product_id bulunamadı
+FTR_005,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#fare_transfer_rulestxt,Enum / format kısıtı,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),duration_limit_type geçersiz
+FTR_006,Spec,Orta,hayır,Spec,GTFS_SPEC,HIGH,#fare_transfer_rulestxt,Enum / format kısıtı,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),duration_limit geçersiz
+FTR_007,Spec,Orta,hayır,Spec,GTFS_SPEC,HIGH,#fare_transfer_rulestxt,Normatif kısıt,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),duration_limit_type duration_limit olmadan tanımlı
+FTR_008,Spec,Orta,hayır,Spec,GTFS_SPEC,HIGH,#fare_transfer_rulestxt,Enum / format kısıtı,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),transfer_count geçersiz
+FTR_009,Spec,Orta,hayır,Spec,GTFS_SPEC,HIGH,#fare_transfer_rulestxt,Normatif kısıt,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),leg grupları aynıyken transfer_count zorunlu
+FTR_010,Spec,Orta,hayır,Spec,GTFS_SPEC,HIGH,#fare_transfer_rulestxt,Normatif kısıt,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),leg grupları farklıyken transfer_count tanımlanamaz
+FTR_011,Spec,Orta,hayır,Spec,GTFS_SPEC,HIGH,#fare_transfer_rulestxt,Required alan/dosya,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),duration_limit tanımlı ama duration_limit_type eksik
+JPN_002,Spec,Yuksek,hayır,Interop,UNKNOWN,MEDIUM,—,yok,GTFS-JP profil kuralı — resmi GTFS spec değil; enum'a REGIONAL_PROFILE gerekebilir,GTFS-JP: jp_office_id office_jp.txt'te tanımlı değil
+JPN_003,Spec,Yuksek,hayır,Interop,UNKNOWN,MEDIUM,—,yok,GTFS-JP profil FK — resmi GTFS spec değil,GTFS-JP: agency_jp.agency_id agency.txt'te tanımlı değil
+JPN_004,Spec,Yuksek,hayır,Interop,UNKNOWN,MEDIUM,—,yok,GTFS-JP profil zorunluluğu — resmi GTFS spec değil,GTFS-JP: translations.txt eksik (profil zorunlu kılar)
+JPN_005,Spec,Yuksek,hayır,Interop,UNKNOWN,MEDIUM,—,yok,GTFS-JP profil zorunlu alan — resmi GTFS spec değil,GTFS-JP: office_jp.office_name boş (zorunlu alan)
+JPN_011,Spec,Yuksek,hayır,Interop,UNKNOWN,MEDIUM,—,yok,GTFS-JP profil kuralı — resmi GTFS spec değil,GTFS-JP: tek işletici olsa bile agency_id zorunlu
+LOC_001,Spec,Yuksek,hayır,Spec,GTFS_SPEC,HIGH,#locationsgeojson,Enum / format kısıtı,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),locations.geojson'da bilinmeyen veya geçersiz geometri tipi
+LOC_002,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#locationsgeojson,Required alan/dosya,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),Feature'da geometry null veya eksik — GTFS Flex gerektiriyor
+LOC_003,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#locationsgeojson,Yabancı anahtar (foreign key),Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),Feature'da 'id' property eksik — stop_times çapraz referansı için zorunlu
+LOC_004,Spec,Orta,hayır,Spec,GTFS_SPEC,HIGH,#locationsgeojson,Normatif kısıt,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),Polygon ring kapalı değil (ilk != son nokta)
+LOC_007,Spec,Orta,hayır,Spec,GTFS_SPEC,HIGH,#locationsgeojson,Yabancı anahtar (foreign key),Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),FeatureCollection içinde yinelenen 'id' değeri — Flex referansı belirsizleşir
+LVL_001,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#levelstxt,Birincil anahtar benzersizliği (uniqueness),Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),level_id yineleniyor
+LVL_002,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#levelstxt,Enum / format kısıtı,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),level_index geçersiz
+LVL_007,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#levelstxt,Required alan/dosya,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),level_index eksik
+LVL_008,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#levelstxt,Required alan/dosya,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),level_id eksik
+NET_001,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#networkstxt,Birincil anahtar benzersizliği (uniqueness),Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),network_id yineleniyor
+PDW_006,Spec,Orta,hayır,Analytics,PROJECT_ANALYTICS,MEDIUM,—,yok,Örtüşen pickup/dropoff penceresi türetilmiş; spec açık norm yok,Aynı trip+zone'da örtüşen pickup/drop-off penceresi
+PTH_001,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#pathwaystxt,Birincil anahtar benzersizliği (uniqueness),Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),pathway_id yineleniyor
+PTH_002,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#pathwaystxt,Yabancı anahtar (foreign key),Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),from_stop_id bulunamadı
+PTH_003,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#pathwaystxt,Yabancı anahtar (foreign key),Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),to_stop_id bulunamadı
+PTH_004,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#pathwaystxt,Required + format/enum,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),pathway_mode eksik veya geçersiz
+PTH_005,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#pathwaystxt,Required alan/dosya,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),is_bidirectional eksik
+PTH_006,Spec,Orta,hayır,Spec,GTFS_SPEC,HIGH,#pathwaystxt,Enum / format kısıtı,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),length geçersiz
+PTH_007,Spec,Orta,hayır,Spec,GTFS_SPEC,HIGH,#pathwaystxt,Enum / format kısıtı,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),traversal_time geçersiz
+PTH_010,Spec,Dusuk,hayır,Spec,GTFS_SPEC,HIGH,#pathwaystxt,Enum / format kısıtı,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),min_width geçersiz
+PTH_011,Spec,Yuksek,hayır,Quality,PROJECT_QUALITY,MEDIUM,—,yok,Pathway döngüsü türetilmiş graf analizi; spec açık norm yok,Geçit döngü oluşturuyor
+PTH_014,Spec,Kritik,EVET,Quality,PROJECT_QUALITY,MEDIUM,—,yok,İstasyon sınırını aşma türetilmiş; spec açık norm doğrulanmalı,Geçit istasyon sınırını aşıyor
+PTH_016,Spec,Yuksek,hayır,Spec,GTFS_SPEC,HIGH,#pathwaystxt,Normatif kısıt,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),Çıkış kapısı çift yönlü tanımlanmış
+PTH_017,Spec,Orta,hayır,Spec,GTFS_SPEC,MEDIUM,#pathwaystxt,Format/koşul,max_slope bağlam kısıtı; spec ibaresi doğrulanmalı,max_slope geçersiz bağlam
+PTH_020,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#pathwaystxt,Required alan/dosya,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),pathway_id eksik
+PTH_021,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#pathwaystxt,Required alan/dosya,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),from_stop_id eksik
+PTH_022,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#pathwaystxt,Required alan/dosya,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),to_stop_id eksik
+PTH_023,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#pathwaystxt,Required alan/dosya,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),pathway_mode eksik
+PTH_024,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#pathwaystxt,Required alan/dosya,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),is_bidirectional eksik
+RCT_001,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#rider_categoriestxt,Birincil anahtar benzersizliği (uniqueness),Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),rider_category_id yineleniyor
+RCT_002,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#rider_categoriestxt,Required alan/dosya,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),rider_category_name eksik
+RCT_003,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#rider_categoriestxt,Enum / format kısıtı,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),is_default_fare_category geçersiz
+RCT_004,Spec,Orta,hayır,Spec,GTFS_SPEC,HIGH,#rider_categoriestxt,Enum / format kısıtı,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),min_age veya max_age geçersiz
+RCT_005,Spec,Orta,hayır,Interop,MOBILITYDATA_PARITY,MEDIUM,#rider_categoriestxt,yok,max_age<min_age: spec açık ordering normu yok,max_age min_age'den küçük
+RCT_006,Spec,Orta,hayır,Spec,GTFS_SPEC,MEDIUM,#rider_categoriestxt,Koşullu kısıt,Tek varsayılan kategori kısıtı; spec ibaresi doğrulanmalı,fare_product başına birden fazla varsayılan yolcu kategorisi
+RTS_001,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#routestxt,Birincil anahtar benzersizliği (uniqueness),Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),route_id yineleniyor
+RTS_002,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#routestxt,Yabancı anahtar (foreign key),Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),agency_id bulunamadı
+RTS_003,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#routestxt,Required alan/dosya,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),route_short_name ve route_long_name ikisi de eksik
+RTS_004,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#routestxt,Required + format/enum,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),route_type eksik veya geçersiz
+RTS_005,Spec,Orta,hayır,Spec,GTFS_SPEC,HIGH,#routestxt,Enum / format kısıtı,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),route_url geçersiz
+RTS_006,Spec,Orta,hayır,Spec,GTFS_SPEC,HIGH,#routestxt,Enum / format kısıtı,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),route_color geçersiz hex renk
+RTS_009,Spec,Dusuk,hayır,Quality,GTFS_BEST_PRACTICE,LOW,—,yok,short==long ad: best-practice/okunabilirlik; spec ihlali DEĞİL,route_short_name ve route_long_name birbirinin aynısı
+RTS_013,Spec,Dusuk,hayır,Spec,GTFS_SPEC,HIGH,#routestxt,Enum / format kısıtı,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),continuous_pickup geçersiz
+RTS_018,Spec,Dusuk,hayır,Spec,GTFS_SPEC,HIGH,#routestxt,Enum / format kısıtı,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),continuous_drop_off geçersiz
+SAR_001,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#stop_areastxt,Yabancı anahtar (foreign key),Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),area_id bulunamadı
+SAR_002,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#stop_areastxt,Yabancı anahtar (foreign key),Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),stop_id bulunamadı
+SHP_001,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#shapestxt,Required alan/dosya,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),shape_id eksik
+SHP_002,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#shapestxt,Required + format/enum,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),shape_pt_lat eksik veya geçersiz
+SHP_003,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#shapestxt,Required + format/enum,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),shape_pt_lon eksik veya geçersiz
+SHP_004,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#shapestxt,Required + format/enum,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),shape_pt_sequence eksik veya geçersiz
+SHP_005,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#shapestxt,Normatif kısıt,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),shape_dist_traveled geriye gidiyor
+SHP_006,Spec,Kritik,EVET,Quality,PROJECT_QUALITY,LOW,#shapestxt,yok,Tek-nokta shape: spec ≥2 nokta normu YOK; çizilemezlik proje-özel kalite (SHP_007 emsali),Güzergah şekli yalnızca tek noktadan oluşuyor
+SHP_008,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#shapestxt,Birincil anahtar benzersizliği (uniqueness),Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),shape_pt_sequence yineleniyor
+SHP_028,Spec,Yuksek,hayır,Quality,PROJECT_QUALITY,MEDIUM,#shapestxt,yok,Aynı dist farklı koordinat türetilmiş tutarlılık; spec açık norm yok,Ardışık iki shape noktası aynı shape_dist_traveled ama farklı koordinat (mesafe artmadan konum değişmiş)
+STM_001,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#stop_timestxt,Yabancı anahtar (foreign key),Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),trip_id bulunamadı
+STM_002,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#stop_timestxt,Yabancı anahtar (foreign key),Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),stop_id bulunamadı
+STM_003,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#stop_timestxt,Enum / format kısıtı,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),arrival_time geçersiz format
+STM_004,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#stop_timestxt,Enum / format kısıtı,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),departure_time geçersiz format
+STM_005,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#stop_timestxt,Required + format/enum,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),stop_sequence eksik veya geçersiz
+STM_006,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#stop_timestxt,Required alan/dosya,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),stop_id eksik (stop_times)
+STM_007,Spec,Yuksek,hayır,Interop,MOBILITYDATA_PARITY,MEDIUM,#stop_timestxt,yok,departure<arrival: spec açık norm yok; güçlü mantık + MD paritesi,Kalkış saati varış saatinden önce (departure_time < arrival_time)
+STM_008,Spec,Kritik,EVET,Interop,MOBILITYDATA_PARITY,MEDIUM,#stop_timestxt,yok,Duraklar arası zaman geri: spec açık monotonluk normu YOK; MD ERROR paritesi (şu an Kritik+R1 — büyük etki),Duraklar arası zaman geriye gidiyor
+STM_009,Spec,Yuksek,hayır,Spec,GTFS_SPEC,HIGH,#stop_timestxt,Enum / format kısıtı,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),pickup_type geçersiz
+STM_010,Spec,Yuksek,hayır,Spec,GTFS_SPEC,HIGH,#stop_timestxt,Enum / format kısıtı,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),drop_off_type geçersiz
+STM_015,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#stop_timestxt,Required alan/dosya,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),İlk duraklama noktası yok
+STM_016,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#stop_timestxt,Required alan/dosya,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),Son duraklama noktası yok
+STM_018,Spec,Orta,hayır,Spec,GTFS_SPEC,HIGH,#stop_timestxt,Enum / format kısıtı,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),continuous_pickup geçersiz (stop_times)
+STM_019,Spec,Orta,hayır,Spec,GTFS_SPEC,HIGH,#stop_timestxt,Enum / format kısıtı,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),continuous_drop_off geçersiz (stop_times)
+STM_022,Spec,Orta,hayır,Spec,GTFS_SPEC,HIGH,#stop_timestxt,Enum / format kısıtı,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),timepoint geçersiz
+STM_023,Spec,Dusuk,EVET,Quality,PROJECT_QUALITY,MEDIUM,—,yok,"Dosya satır sırası: spec sıralamayı stop_sequence'e bağlar, dosya-satır sırası normu yok",stop_times satır sıralaması bozuk
+STM_030,Spec,Dusuk,hayır,Spec,GTFS_SPEC,HIGH,#stop_timestxt,Normatif kısıt,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),shape_dist_traveled negatif
+STM_033,Spec,Yuksek,hayır,Interop,MOBILITYDATA_PARITY,MEDIUM,#stop_timestxt,yok,Tek-duraklı sefer: spec ≥2 durak normu net değil; MD unusable_trip WARNING,Tek duraklı sefer (kullanılamaz)
+STM_034,Spec,Orta,hayır,Interop,MOBILITYDATA_PARITY,MEDIUM,#stop_timestxt,yok,Yalnız biri tanımlı arrival/departure: spec açık yasak yok,Varış veya kalkış zamanından yalnızca biri tanımlı
+STM_037,Spec,Yuksek,hayır,Spec,GTFS_SPEC,HIGH,#stop_timestxt,Normatif kısıt,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),Flex penceresinde arrival_time/departure_time yasak
+STM_038,Spec,Yuksek,hayır,Interop,MOBILITYDATA_PARITY,MEDIUM,#stop_timestxt,yok,start_window>end_window: spec açık ordering normu net değil,start_pickup_drop_off_window > end_pickup_drop_off_window
+STM_039,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#stop_timestxt,Required alan/dosya,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),Flex bağlamında pickup/drop_off penceresi eksik
+STM_040,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#stop_timestxt,Required alan/dosya,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),Flex stop_times'ta pickup/drop_off_booking_rule_id eksik
+STM_041,Spec,Yuksek,hayır,Spec,GTFS_SPEC,HIGH,#stop_timestxt,Normatif kısıt,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),stop_id ile location_id/group_id aynı anda kullanılamaz
+STM_046,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#stop_timestxt,Required alan/dosya,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),trip_id eksik
+STM_047,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#stop_timestxt,Required alan/dosya,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),Kesin zaman noktasında (timepoint=1) arrival_time/departure_time eksik
+STM_051,Spec,Yuksek,hayır,Spec,GTFS_SPEC,HIGH,#stop_timestxt,Normatif kısıt,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),Flex penceresi tanımlıyken pickup_type=0/3 yasak (talep-üzerine değerler gerekli)
+STM_052,Spec,Yuksek,hayır,Spec,GTFS_SPEC,HIGH,#stop_timestxt,Normatif kısıt,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),Flex penceresi tanımlıyken drop_off_type=0 yasak (talep-üzerine değer gerekli)
+STP_001,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#stopstxt,Birincil anahtar benzersizliği (uniqueness),Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),stop_id yineleniyor
+STP_002,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#stopstxt,Normatif kısıt,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),stop_id boş
+STP_003,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#stopstxt,Required alan/dosya,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),stop_name eksik veya stop_lat/stop_lon aralık dışı (aynı ID altında iki ayrı koşul)
+STP_004,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#stopstxt,Normatif kısıt,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),stop_lat sayısal değil
+STP_006,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#stopstxt,Required alan/dosya,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),stop_lat eksik
+STP_007,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#stopstxt,Required alan/dosya,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),stop_lon eksik
+STP_008,Spec,Yuksek,hayır,Spec,GTFS_SPEC,HIGH,#stopstxt,Enum / format kısıtı,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),location_type geçersiz
+STP_009,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#stopstxt,Yabancı anahtar (foreign key),Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),parent_station bulunamadı
+STP_010,Spec,Yuksek,hayır,Spec,GTFS_SPEC,HIGH,#stopstxt,Normatif kısıt,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),parent_station location_type=1 değil
+STP_011,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#stopstxt,Normatif kısıt,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),Giriş/çıkış/boarding için parent_station zorunlu
+STP_012,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#stopstxt,Normatif kısıt,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),stop_times'ta istasyon veya giriş kullanılmış
+STP_013,Spec,Dusuk,hayır,Spec,GTFS_SPEC,HIGH,#stopstxt,Enum / format kısıtı,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),wheelchair_boarding geçersiz
+STP_014,Spec,Orta,hayır,Spec,GTFS_SPEC,HIGH,#stopstxt,Enum / format kısıtı,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),stop_timezone geçersiz
+STP_015,Spec,Orta,hayır,Spec,GTFS_SPEC,HIGH,#stopstxt,Yabancı anahtar (foreign key),Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),level_id bulunamadı
+STP_018,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#stopstxt,Required alan/dosya,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),Hiç durak yok
+STP_026,Spec,Dusuk,hayır,Quality,PROJECT_QUALITY,MEDIUM,#stopstxt,yok,stop_access resmi GTFS Schedule'da yerleşik değil (öneri/uzantı) — doğrula,stop_access geçersiz değer
+STP_027,Spec,Orta,hayır,Quality,PROJECT_QUALITY,MEDIUM,—,yok,Pathway istasyonunda stop_access türetilmiş öneri,Pathway istasyonunda stop_access belirtilmemiş
+STP_036,Spec,Dusuk,hayır,Spec,GTFS_SPEC,HIGH,#stopstxt,Normatif kısıt,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),İstasyonun (location_type=1) parent_station'ı var
+TFR_001,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#timeframestxt,Required alan/dosya,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),timeframe_group_id eksik
+TFR_002,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#timeframestxt,Yabancı anahtar (foreign key),Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),service_id bulunamadı
+TFR_003,Spec,Yuksek,hayır,Spec,GTFS_SPEC,HIGH,#timeframestxt,Enum / format kısıtı,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),start_time veya end_time format hatası
+TFR_004,Spec,Orta,hayır,Interop,MOBILITYDATA_PARITY,MEDIUM,#timeframestxt,yok,end<start: spec açık ordering normu yok,end_time start_time'dan küçük
+TFR_005,Spec,Orta,hayır,Analytics,PROJECT_ANALYTICS,MEDIUM,—,yok,Örtüşen zaman aralıkları türetilmiş; spec açık norm yok,Aynı grup ve service_id içinde örtüşen zaman aralıkları
+TRF_001,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#transferstxt,Required alan/dosya,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),from_stop_id eksik
+TRF_002,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#transferstxt,Required alan/dosya,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),to_stop_id eksik
+TRF_003,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#transferstxt,Yabancı anahtar (foreign key),Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),from_stop_id veya to_stop_id bulunamadı
+TRF_004,Spec,Yuksek,hayır,Spec,GTFS_SPEC,HIGH,#transferstxt,Enum / format kısıtı,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),transfer_type geçersiz
+TRF_005,Spec,Kritik,EVET,Spec,GTFS_SPEC,MEDIUM,#transferstxt,Koşullu required,"min_transfer_time yalnız transfer_type=2 için required — ""eksik"" koşullu, over-fire riski; kartı incele",min_transfer_time eksik
+TRF_006,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#transferstxt,Yabancı anahtar (foreign key),Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),from_trip_id bulunamadı
+TRF_007,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#transferstxt,Yabancı anahtar (foreign key),Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),to_trip_id bulunamadı
+TRF_008,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#transferstxt,Yabancı anahtar (foreign key),Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),from_route_id bulunamadı
+TRF_009,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#transferstxt,Yabancı anahtar (foreign key),Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),to_route_id bulunamadı
+TRF_013,Spec,Kritik,EVET,Interop,MOBILITYDATA_PARITY,MEDIUM,#transferstxt,yok,transfer_type bağlam uyumu türetilmiş,Aktarma türü bağlamla uyumsuz
+TRF_014,Spec,Yuksek,hayır,Spec,GTFS_SPEC,MEDIUM,#transferstxt,Koşullu,in-seat (type 4/5) sefer gereksinimi; spec ibaresi doğrulanmalı,in-seat aktarma için sefer yok
+TRF_015,Spec,Yuksek,hayır,Interop,MOBILITYDATA_PARITY,MEDIUM,#transferstxt,yok,in-seat geçersiz türetilmiş,in-seat aktarma geçersiz
+TRF_016,Spec,Orta,hayır,Interop,MOBILITYDATA_PARITY,MEDIUM,#transferstxt,yok,Çelişkili aktarma koşulu türetilmiş,Aktarma koşulu çelişkili
+TRF_017,Spec,Yuksek,hayır,Interop,MOBILITYDATA_PARITY,MEDIUM,#transferstxt,yok,Sefer aktarması yanlış hat türetilmiş; spec ibaresi doğrulanmalı,Sefer aktarması yanlış hat
+TRF_018,Spec,Yuksek,hayır,Quality,PROJECT_QUALITY,LOW,#transferstxt,yok,from_trip==to_trip: spec açık yasak YOK; anlamsız-veri kalite kuralı,Sefer aktarması aynı seferi gösteriyor
+TRF_019,Spec,Orta,hayır,Interop,MOBILITYDATA_PARITY,MEDIUM,#transferstxt,yok,in-seat farklı route_type türetilmiş,In-seat aktarmada farklı route_type
+TRN_001,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#translationstxt,Enum / format kısıtı,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),table_name geçersiz değer
+TRN_002,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#translationstxt,Enum / format kısıtı,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),field_name bu tablo için geçersiz
+TRN_003,Spec,Orta,hayır,Spec,GTFS_SPEC,HIGH,#translationstxt,Enum / format kısıtı,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),language geçersiz
+TRN_004,Spec,Yuksek,hayır,Spec,GTFS_SPEC,HIGH,#translationstxt,Yabancı anahtar (foreign key),Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),record_id bulunamadı
+TRN_005,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#translationstxt,Birincil anahtar benzersizliği (uniqueness),Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),Çeviri yineleniyor
+TRN_006,Spec,Kritik,EVET,Spec,GTFS_SPEC,MEDIUM,#translationstxt,Tutarlılık,Çelişkili çeviri türetilmiş tutarlılık; spec ibaresi doğrulanmalı,Çeviri kaydı çelişkili
+TRN_009,Spec,Yuksek,hayır,Spec,GTFS_SPEC,HIGH,#translationstxt,Normatif kısıt,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),record_id ve field_value aynı anda kullanılamaz
+TRN_010,Spec,Yuksek,hayır,Spec,GTFS_SPEC,MEDIUM,#translationstxt,Koşullu,record_sub_id koşulu; spec ibaresi doğrulanmalı,record_sub_id geçersiz
+TRN_011,Spec,Yuksek,hayır,Spec,GTFS_SPEC,MEDIUM,#translationstxt,Koşullu forbidden,Çevrilebilir alan kısıtı; spec ibaresi doğrulanmalı,field_name çevrilebilir değil
+TRN_013,Spec,Yuksek,hayır,Spec,GTFS_SPEC,MEDIUM,#translationstxt,Koşullu forbidden,feed_info çevirisinde id yasağı; spec ibaresi doğrulanmalı,feed_info çevirisinde kimlik alanı kullanılamaz
+TRN_014,Spec,Yuksek,hayır,Spec,GTFS_SPEC,HIGH,#translationstxt,Normatif kısıt,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),record_sub_id yalnızca stop_times için geçerli
+TRP_001,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#tripstxt,Birincil anahtar benzersizliği (uniqueness),Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),trip_id eksik veya yineleniyor
+TRP_002,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#tripstxt,Yabancı anahtar (foreign key),Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),route_id bulunamadı
+TRP_003,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#tripstxt,Yabancı anahtar (foreign key),Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),service_id bulunamadı
+TRP_004,Spec,Yuksek,hayır,Spec,GTFS_SPEC,HIGH,#tripstxt,Yabancı anahtar (foreign key),Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),shape_id bulunamadı
+TRP_005,Spec,Orta,hayır,Spec,GTFS_SPEC,HIGH,#tripstxt,Enum / format kısıtı,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),direction_id geçersiz
+TRP_006,Spec,Dusuk,hayır,Spec,GTFS_SPEC,HIGH,#tripstxt,Enum / format kısıtı,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),wheelchair_accessible geçersiz
+TRP_007,Spec,Dusuk,hayır,Spec,GTFS_SPEC,HIGH,#tripstxt,Enum / format kısıtı,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),bikes_allowed geçersiz
+TRP_017,Spec,Orta,hayır,Interop,MOBILITYDATA_PARITY,MEDIUM,#tripstxt,yok,Frekans tabanlı sefer stop_times gereksinimi türetilmiş,Frekans tabanlı sefer stop_times'ta eksik
+TRP_019,Spec,Yuksek,hayır,Spec,GTFS_SPEC,MEDIUM,#tripstxt,Koşullu,continuous servis shape gereksinimi; spec ibaresi doğrulanmalı,Continuous servis aktifken shape_id eksik
+TRP_022,Spec,Yuksek,hayır,Analytics,PROJECT_ANALYTICS,MEDIUM,—,yok,Block içi çakışan sefer türetilmiş operasyonel; spec açık norm yok,Block içinde çakışan sefer saatleri
+TRP_031,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#tripstxt,Required alan/dosya,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),route_id eksik
+TRP_032,Spec,Dusuk,hayır,Quality,PROJECT_QUALITY,MEDIUM,#tripstxt,yok,cars_allowed resmi GTFS Schedule'da yerleşik değil (uzantı) — doğrula,cars_allowed geçersiz
+XFL_001,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#cross-file,Required alan/dosya,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),calendar ve calendar_dates'te service_id yok
+XFL_002,Spec,Yuksek,hayır,Interop,MOBILITYDATA_PARITY,MEDIUM,#tripstxt,yok,stop_times'sız sefer: spec açık norm net değil; MD paritesi,Seferin stop_times kaydı yok
+XFL_003,Spec,Yuksek,hayır,Spec,GTFS_SPEC,HIGH,#cross-file,Yabancı anahtar (foreign key),Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),shape_id tanımsız
+XFL_004,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#cross-file,Yabancı anahtar (foreign key),Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),fare_rules'ta tanımsız route_id
+XFL_005,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#cross-file,Yabancı anahtar (foreign key),Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),stop_times'ta tanımsız stop_id
+XFL_006,Spec,Orta,hayır,Analytics,PROJECT_ANALYTICS,MEDIUM,—,yok,Yalnız iptal-istisnalı service_id türetilmiş; spec açık norm yok,service_id yalnızca iptal istisnası içeriyor (aktif gün yok)
+XFL_007,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#cross-file,Yabancı anahtar (foreign key),Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),agency_id bulunamadı
+XFL_009,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#cross-file,Enum / format kısıtı,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),level_id geçersiz
+XFL_010,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#cross-file,Yabancı anahtar (foreign key),Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),frequencies'te tanımsız trip_id
+XFL_015,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#cross-file,Yabancı anahtar (foreign key),Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),Attribution'da geçersiz referans
+XFL_016,Spec,Yuksek,hayır,Spec,GTFS_SPEC,MEDIUM,#translationstxt,Koşullu FK,feed_info referansı ama dosya eksik; koşullu — kartı incele,Çeviri feed_info'ya referans veriyor ama feed_info.txt eksik
+XFL_019,Spec,Orta,hayır,Spec,GTFS_SPEC,HIGH,#cross-file,Normatif kısıt,Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),Ağ tanımı iki ayrı dosyada (routes.network_id + route_networks.txt)
+XFL_020,Spec,Yuksek,hayır,Spec,GTFS_SPEC,MEDIUM,#transferstxt,Bileşik FK,(trip/route) çifti geçerliliği; koşullu — spec ibaresi doğrulanmalı,"Transfers'de geçersiz (from_trip_id/to_trip_id, route_id) çifti"
+XFL_021,Spec,Yuksek,hayır,Spec,GTFS_SPEC,MEDIUM,#transferstxt,Bileşik FK,(trip/stop) çifti geçerliliği; koşullu — spec ibaresi doğrulanmalı,"Transfers'de geçersiz (from_trip_id/to_trip_id, stop_id) çifti"
+XFL_022,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#cross-file,Yabancı anahtar (foreign key),Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),location_group_id bulunamadı (location_group_stops)
+XFL_023,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#cross-file,Yabancı anahtar (foreign key),Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),stop_id bulunamadı (location_group_stops)
+XFL_024,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#cross-file,Yabancı anahtar (foreign key),Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),location_group_id bulunamadı (stop_times)
+XFL_025,Spec,Kritik,EVET,Spec,GTFS_SPEC,HIGH,#cross-file,Yabancı anahtar (foreign key),Açık GTFS normatif kısıt (required/enum/FK/uniqueness/format),location_id bulunamadı (locations.geojson)
