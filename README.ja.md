@@ -153,6 +153,17 @@ GTFS Analyzer は Web アプリケーションです — インストール不�
 
 検証のしきい値は、アップロード画面の**分析のしきい値**セクションからカスタマイズできます。変更した値は次回の ZIP アップロード時に有効になります。リセットボタンでデフォルト値に戻せます。
 
+### ルールのクラスと権威ソース
+
+各ルールは4つのクラスのいずれかに分類されます。クラスは検出結果の**権威ソース**（正当性の根拠）を反映し、ユーザーはその検出が本当の GTFS Spec 違反なのか、相互運用性・品質・分析シグナルなのかを一目で判断できます:
+
+- **Spec** — 公式の **GTFS Schedule Reference** が明示的に必須・禁止・無効と定めるケースのみ（required / conditionally required / conditionally forbidden フィールド、enum 値、外部キー、一意性、フォーマット制約）。他のソースは `Spec` を生成しません。
+- **Interop** — MobilityData、GTFS Guru、Google Transit、または地域プロファイル（例: GTFS-JP）などの消費者/バリデータ挙動との互換性シグナル。
+- **Quality** — GTFS ベストプラクティス、データ品質、可読性、一貫性、制作品質のチェック。
+- **Analytics** — 統計的・運用的・パフォーマンス・分析目的のシグナル。
+
+各ルールには機械可読な**権威ソース**（`authority_source`）フィールドもあります（`GTFS_SPEC`、`MOBILITYDATA_PARITY`、`REGIONAL_PROFILE`、`PROJECT_QUALITY` など）。不変条件: **`Spec` クラスは `authority_source = GTFS_SPEC` の場合にのみ正当**であり、MobilityData/Guru/Google とのパリティ、ベストプラクティス、プロジェクト固有のヒューリスティックだけでは Spec の証拠になりません。監査台帳: [`docs/audits/spec-authority-inventory-reconciled.csv`](docs/audits/spec-authority-inventory-reconciled.csv)。
+
 ### オプションプロファイルとソースURL
 
 config deltaで`stop_name_best_practices=true`を設定すると、言語依存の`STP_040`と`STP_041`が有効になります。誤検出の可能性があるためデフォルトでは無効です。URLベースの統合では`source_url`メタデータを指定でき、`ARC_028`が恒久的な公開URLに`.zip`ファイル名を含むことを確認します。ファイルアップロードのみの場合、このチェックは実行されません。coreエンジンはフィード内URLへ通信せず、HTTP到達性チェックには明示的にopt-inする別online adapterが必要です。

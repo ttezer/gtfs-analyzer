@@ -153,6 +153,17 @@ shown on the upload screen. For diagnostics, use `?wasm32=1`, `?wasm64=1`, or `?
 
 Validation thresholds can be customized from the **Analysis Thresholds** section on the upload screen. Changed values take effect on the next ZIP upload; the reset button restores defaults.
 
+### Rule Classes and Authority Source
+
+Every rule falls into one of four classes. The class reflects the finding's **authority source** (its basis of legitimacy), so a user can tell at a glance whether a finding is a real GTFS Spec violation or an interoperability/quality/analytics signal:
+
+- **Spec** — only cases that the official **GTFS Schedule Reference** explicitly requires, forbids, or renders invalid (required / conditionally required / conditionally forbidden fields, enum values, foreign keys, uniqueness, format constraints). No other source produces `Spec`.
+- **Interop** — compatibility signals with consumer/validator behavior such as MobilityData, GTFS Guru, Google Transit, or a regional profile (e.g., GTFS-JP).
+- **Quality** — GTFS best-practice, data quality, readability, consistency, and production-quality checks.
+- **Analytics** — statistical, operational, performance, or analysis-oriented signals.
+
+Each rule also carries a machine-readable **authority source** (`authority_source`) field (`GTFS_SPEC`, `MOBILITYDATA_PARITY`, `REGIONAL_PROFILE`, `PROJECT_QUALITY`, etc.). Invariant: **the `Spec` class is legitimate only with `authority_source = GTFS_SPEC`**; parity with MobilityData/Guru/Google, best-practice, or project-specific heuristics is not on its own proof of Spec. Audit ledger: [`docs/audits/spec-authority-inventory-reconciled.csv`](docs/audits/spec-authority-inventory-reconciled.csv).
+
 ### Optional Profiles and Source URL
 
 Setting `stop_name_best_practices=true` in the config delta enables the language-dependent `STP_040` and `STP_041` checks; they are disabled by default because of their false-positive risk. URL-based integrations may provide `source_url` metadata, allowing `ARC_028` to verify that the permanent publishing URL contains a `.zip` filename. Upload-only validation skips this check. The core engine never requests URLs found inside a feed; HTTP availability checks require a separate, explicitly opt-in online adapter.
