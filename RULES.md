@@ -38,7 +38,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | ARC_026 | Dosyada hatalı satır sonu karakteri | ORTA | Interop |
 | ARC_027 | ZIP girdisinde kullanıcı okuma izni yok | BİLGİ | Interop |
 | ARC_028 | GTFS yayın URL'si .zip dosya adıyla bitmiyor | DÜŞÜK | Quality |
-| ARC_029 | Sıkıştırma koruması: arşiv zip-bomb sınırını aştı | KRİTİK | Spec |
+| ARC_029 | Sıkıştırma koruması: arşiv zip-bomb sınırını aştı | KRİTİK | Quality |
 
 ## BKR — Booking Rules (Rezervasyon Kuralları)
 

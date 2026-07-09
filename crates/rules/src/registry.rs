@@ -145,7 +145,7 @@ pub static RULES: &[RuleMeta] = &[
         "ZIP girdisinde kullanıcı okuma izni yok"),
     r!("ARC_028", Dusuk, Quality, 1, &[], None, VS, Feed,
         "GTFS yayın URL'si .zip dosya adıyla bitmiyor"),
-    r!("ARC_029", Kritik, Spec, 1, &[], None, VS_K, File,
+    r!("ARC_029", Kritik, Quality, 1, &[], None, VS, File,
         "Sıkıştırma koruması: arşiv zip-bomb sınırını aştı"),
 
     // ── BKR: Booking Rules ─────────────────────────────────────────────────────
@@ -1943,13 +1943,10 @@ mod tests {
     /// CLD_005/PTH_011/PTH_014/SHP_028/STM_023/TRP_019 → 17; parti 7
     /// JPN_002/JPN_003/JPN_004/JPN_005/JPN_011 → 12; parti 8
     /// ATR_001/ATR_009/STP_027 → 9; parti 9
-    /// STM_033/TRF_013/TRF_015/TRF_016/TRF_017/TRF_019/TRP_017/XFL_002 → 1).
-    /// Faz 3 bu
-    /// kuralların sınıfını düzelttikçe `rule_class==Spec` filtresi onları dışlar ve
-    /// listeden çıkarılır; Faz 4'te liste BOŞALIR (hard-fail). Yeni ekleme YAPILMAZ.
-    const SPEC_AUTHORITY_ALLOWLIST: &[&str] = &[
-        "ARC_029",
-    ];
+    /// STM_033/TRF_013/TRF_015/TRF_016/TRF_017/TRF_019/TRP_017/XFL_002 → 1; parti 10
+    /// ARC_029 → 0). Faz 3 sonunda liste boşaldı; Faz 4'te bu warn-modu hard-fail'e
+    /// çevrilir. Yeni ekleme YAPILMAZ.
+    const SPEC_AUTHORITY_ALLOWLIST: &[&str] = &[];
 
     #[test]
     fn no_duplicate_ids() {
@@ -1975,8 +1972,8 @@ mod tests {
     }
 
     /// Otorite bütünlüğü çekirdek değişmezi: hiçbir kural `Spec` sınıfındayken
-    /// authority_source ≠ GtfsSpec olamaz. Faz 3 sınıfları düzeltene dek mevcut
-    /// ihlaller `SPEC_AUTHORITY_ALLOWLIST`'te tutulur (warn-modu); liste Faz 4'te boşalır.
+    /// authority_source ≠ GtfsSpec olamaz. Faz 3 sonunda mevcut ihlaller
+    /// temizlendi; allowlist boş kalır.
     #[test]
     fn spec_class_requires_gtfs_spec_authority() {
         let violations: Vec<&str> = RULES

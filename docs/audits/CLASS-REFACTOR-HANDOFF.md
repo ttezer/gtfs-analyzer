@@ -65,8 +65,8 @@ forbidden / enum / foreign-key / uniqueness / format) `Spec` olabilir. Şüpheli
 - **round2=true** kurallar: hedef sınıf provisional (anchor/parite belirsiz). Emin değilsen güvenli iniş **Quality**;
   ASLA Spec bırakma. Açık anlaşmazlıklar (anchor avı gerek): ATR_001 (attribution_id spec'te Optional mı?),
   ATR_009 (phone format normu yok), PTH_011/014 (türetilmiş graf), STP_027 (stop_access).
-- **ARC_029 = FatalCode** (zip-bomb koruması, `k1_parse.rs` fatal yolu). Normal notice değil; class değişiminin
-  fatal-yolu etkisi belirsiz → **en sona bırak, dikkatli test et** (veya kullanıcıya sor).
+- **ARC_029 = FatalCode** (zip-bomb koruması, `k1_parse.rs` fatal yolu). Batch 10'da sınıfı Quality yapıldı;
+  fatal davranış koduna dokunulmadı. Gelecekte fatal-yol değişikliği ayrı ve dikkatli test edilmeli.
 - **JPN_*** (5 kural) → `RegionalProfile` authority + `Interop` sınıf (GTFS-JP resmi Schedule değil; enum'da
   `RegionalProfile` var). AUTHORITY tablosunda "REGIONAL_PROFILE(öneri)..." gibi kirli string OLABİLİR — temiz
   `RegionalProfile` enum'una çek.
@@ -79,7 +79,9 @@ forbidden / enum / foreign-key / uniqueness / format) `Spec` olabilir. Şüpheli
 - Küçük-harf sonekli ID'ler var: **DQ_005b, DQ_005c** (regex kullanırsan `[A-Za-z0-9_]`).
 - `docs/rules/README.md` amacı, `TEMPLATE.md` formatı; kural davranışı öğrenmenin ilk durağı ilgili karttır.
 
-## 6) KALAN 28 WORKLIST (ledger hedefi; Interop olanları MUTLAKA MD-doğrula)
+## 6) TAMAMLANAN FAZ 3 WORKLIST (başlangıçta kalan 28; Interop olanlar MD-doğrulandı)
+Faz 3 sonunda `SPEC_AUTHORITY_ALLOWLIST` boşaldı; aşağıdaki tablo başlangıç worklist'inin izidir.
+
 | ID | Hedef (ledger) | Not / MD-doğrula? |
 |---|---|---|
 | ARC_002 | Quality/GTFS_BEST_PRACTICE | UTF-8 "should" (spec fetch teyitli) |
@@ -110,6 +112,7 @@ forbidden / enum / foreign-key / uniqueness / format) `Spec` olabilir. Şüpheli
 - 2026-07-09 · Codex · batch 7 GTFS-JP regional profile reclass (`JPN_002/003/004/005/011`) · allowlist 17→12 · `REGIONAL_PROFILE` + Interop/VI.
 - 2026-07-09 · Codex · batch 8 attribution/stop_access quality reclass (`ATR_001/ATR_009/STP_027`) · allowlist 12→9 · MD-doğrulama isteyenler + fatal `ARC_029` kaldı.
 - 2026-07-09 · Codex · batch 9 MD-verified interop + two quality corrections (`STM_033/TRF_013/TRF_015/TRF_016/TRF_017/TRF_019/TRP_017/XFL_002`) · allowlist 9→1 · MD canlı doğrulama: `TRF_013/TRF_015` birebir parite yok → Quality; kalanlar MD notice adına bağlandı.
+- 2026-07-09 · Codex · batch 10 fatal archive guard quality reclass (`ARC_029`) · allowlist 1→0 · fatal davranış koduna dokunulmadı; sınıf/rapor görünürlüğü registry-driven güncellendi.
 - <tarih> · <ai> · <parti> · <commit> · <allowlist kaç kaldı> · <not>
 
 ## 8) SONRA (Faz 3 bitince)

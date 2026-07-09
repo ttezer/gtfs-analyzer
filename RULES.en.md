@@ -38,7 +38,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | ARC_026 | Malformed end-of-line characters | MEDIUM | Interop |
 | ARC_027 | ZIP entry lacks user read permission | INFO | Interop |
 | ARC_028 | GTFS publishing URL does not end with a .zip filename | LOW | Quality |
-| ARC_029 | Zip-bomb protection triggered | CRITICAL | Spec |
+| ARC_029 | Zip-bomb protection triggered | CRITICAL | Quality |
 
 ## BKR — Booking Rules
 
