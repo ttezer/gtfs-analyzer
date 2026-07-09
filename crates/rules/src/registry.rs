@@ -33,13 +33,13 @@ const VI: &[ReportId] = &[R2, R5, R8, R9];
 const VA: &[ReportId] = &[R2, R3, R5, R9];
 
 // Coğrafi ek (R4)
-/// Interop + (KRİTİK|YÜKSEK) + Geo → R1+R4+R8
+/// Interop + Geo → R4+R8 (+ eski R1 görünüm-metadata'sı; runtime R1 değil, bkz build_r1)
 const VI_K_GEO: &[ReportId] = &[R1, R2, R4, R5, R8, R9];
 /// Analytics + Geo → R3+R4+R9
 const VA_GEO: &[ReportId] = &[R2, R3, R4, R5, R9];
 
 // Erişilebilirlik eki (R7)
-/// Interop + (KRİTİK|YÜKSEK) + Accessibility → R1+R7+R8
+/// Interop + Accessibility → R7+R8 (+ eski R1 görünüm-metadata'sı; runtime R1 değil, bkz build_r1)
 const VI_K_ACC: &[ReportId] = &[R1, R2, R5, R7, R8, R9];
 /// Analytics + Accessibility → R3+R7+R9
 const VA_ACC: &[ReportId] = &[R2, R3, R5, R7, R9];
@@ -2068,10 +2068,10 @@ mod tests {
     #[test]
     fn blocker_rules_have_r1() {
         use gtfs_core::{RuleClass::Spec, ReportId::R1, Severity::Kritik};
-        // Otorite bütünlüğü (Faz 3+): R1 yayın-engeli yalnız `Spec` + `Kritik` kurallarda.
-        // Interop artık R1 ÜRETMEZ (mandate: R1 = GtfsSpec + Spec + Kritik). Eski
-        // "Kritik/Yüksek Interop → R1" konvansiyonu kaldırıldı; tam kod-düzeyi otorite
-        // bağlaması (is_pub_relevant/build_r1) Faz 4'te yapılacak.
+        // Otorite bütünlüğü (Faz 4): R1 yayın-engeli yalnız `Spec` + `Kritik`.
+        // build_r1/is_pub_relevant artık YALNIZ Spec+Kritik kapısını kullanır (Interop
+        // R1 üretmez). report_views/R1 metadata temizliği ayrı WP. Bu test yalnız
+        // Spec+Kritik kuralların report_views'ında R1 bulunduğunu doğrular (tersini değil).
         for rule in RULES {
             if rule.severity == Kritik && rule.rule_class == Spec {
                 assert!(
