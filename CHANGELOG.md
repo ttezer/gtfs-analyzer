@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-07-09
+
+> **Scores are not comparable to 0.3.x.** This release recalibrates how rules are
+> classified and how the Publication Score is computed. A feed's numbers can move
+> substantially even though nothing about the feed itself changed. Re-baseline any
+> Golden snapshots after upgrading.
+
+### Changed
+- Rule classification is now authority-based. The `Spec` class is reserved for cases the
+  official GTFS Schedule Reference explicitly requires, forbids, or invalidates (required /
+  conditionally required / conditionally forbidden fields, enum values, foreign keys,
+  uniqueness, format constraints). Rules previously labelled `Spec` on weaker grounds
+  (MobilityData parity, best practice, or derived/project-specific checks) were reclassified
+  to `Interop`, `Quality`, or `Analytics` to match their real authority. Detection is
+  unchanged — the same issues are still reported; only the class label and its scoring weight
+  moved. The overall score (Spec 40% / Interop 30% / Quality 20% / Analytics 10%) shifts
+  accordingly.
+- The Publication Score and the R1 publishability decision now gate on `Spec + Critical`
+  only — the official GTFS specification gate. `Interop` findings (even Critical/High) no
+  longer block publication or lower the Publication Score; interoperability readiness is
+  reported separately through the Interop Score and R8. This also removes the artificial
+  Publication-Score drop that occurred when a rule moved between the `Spec` and `Interop`
+  classes.
+
+### Removed
+- The "conditionally publishable" state (R1 conditional blocker / `ConditionalBlocker`
+  label). A feed is now either spec-publishable or not; consumer-compatibility warnings are
+  surfaced via the Interop Score, R8, and the R9 `interop` label.
+
 ## [0.3.1] - 2026-07-02
 
 ### Fixed
