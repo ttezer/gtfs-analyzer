@@ -54,7 +54,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | BKR_008 | booking_type=2 için prior_notice_last_day zorunlu | KRİTİK | Spec |
 | BKR_009 | booking_type=2 için prior_notice_last_time zorunlu | KRİTİK | Spec |
 | BKR_010 | prior_notice_start_day belirtilmişse prior_notice_start_time zorunlu | YÜKSEK | Spec |
-| BKR_011 | prior_notice_last_day > prior_notice_start_day: rezervasyon penceresi geçersiz | YÜKSEK | Spec |
+| BKR_011 | prior_notice_last_day > prior_notice_start_day: rezervasyon penceresi geçersiz | YÜKSEK | Interop |
 
 ## AGN — Agency (İşletici)
 
@@ -220,11 +220,11 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | STM_030 | shape_dist_traveled negatif | DÜŞÜK | Spec |
 | STM_032 | Aynı seferde yinelenen stop_sequence değeri | DÜŞÜK | Quality |
 | STM_033 | Tek duraklı sefer (kullanılamaz) | YÜKSEK | Spec |
-| STM_034 | Varış veya kalkış zamanından yalnızca biri tanımlı | ORTA | Spec |
+| STM_034 | Varış veya kalkış zamanından yalnızca biri tanımlı | ORTA | Interop |
 | STM_035 | Aynı durak ardışık iki kez ziyaret ediliyor (terminal/döngü) | BİLGİ | Analytics |
 | STM_036 | stop_times trip_id + stop_sequence'a göre sıralı değil (unsorted_stop_times) | BİLGİ | Quality |
 | STM_037 | Flex penceresinde arrival_time/departure_time yasak | YÜKSEK | Spec |
-| STM_038 | start_pickup_drop_off_window > end_pickup_drop_off_window | YÜKSEK | Spec |
+| STM_038 | start_pickup_drop_off_window > end_pickup_drop_off_window | YÜKSEK | Interop |
 | STM_039 | Flex bağlamında pickup/drop_off penceresi eksik | KRİTİK | Spec |
 | STM_040 | Flex stop_times'ta pickup/drop_off_booking_rule_id eksik | KRİTİK | Spec |
 | STM_041 | stop_id ile location_id/group_id aynı anda kullanılamaz | YÜKSEK | Spec |
@@ -340,7 +340,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | FRQ_002 | start_time geçersiz | KRİTİK | Spec |
 | FRQ_003 | end_time geçersiz | KRİTİK | Spec |
 | FRQ_004 | headway_secs eksik veya geçersiz | KRİTİK | Spec |
-| FRQ_005 | end_time start_time'dan önce | KRİTİK | Spec |
+| FRQ_005 | end_time start_time'dan önce | KRİTİK | Interop |
 | FRQ_006 | headway_secs çok uzun | ORTA | Analytics |
 | FRQ_007 | exact_times geçersiz | ORTA | Spec |
 | FRQ_008 | headway_secs sıfır (geçersiz frekans) | KRİTİK | Spec |
@@ -417,7 +417,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | RCT_002 | rider_category_name eksik | KRİTİK | Spec |
 | RCT_003 | is_default_fare_category geçersiz | KRİTİK | Spec |
 | RCT_004 | min_age veya max_age geçersiz | ORTA | Spec |
-| RCT_005 | max_age min_age'den küçük | ORTA | Spec |
+| RCT_005 | max_age min_age'den küçük | ORTA | Interop |
 | RCT_006 | fare_product başına birden fazla varsayılan yolcu kategorisi | ORTA | Spec |
 
 ## FMD — Fare Media (Ücret Medyası, Fares v2)
@@ -493,7 +493,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | TFR_001 | timeframe_group_id eksik | KRİTİK | Spec |
 | TFR_002 | service_id bulunamadı | KRİTİK | Spec |
 | TFR_003 | start_time veya end_time format hatası | YÜKSEK | Spec |
-| TFR_004 | end_time start_time'dan küçük | ORTA | Spec |
+| TFR_004 | end_time start_time'dan küçük | ORTA | Interop |
 | TFR_005 | Aynı grup ve service_id içinde örtüşen zaman aralıkları | ORTA | Spec |
 
 ## PTH — Pathways (Geçitler)

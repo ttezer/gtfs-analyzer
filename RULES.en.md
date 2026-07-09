@@ -54,7 +54,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | BKR_008 | prior_notice_last_day required for booking_type=2 | CRITICAL | Spec |
 | BKR_009 | prior_notice_last_time required for booking_type=2 | CRITICAL | Spec |
 | BKR_010 | prior_notice_start_time required when prior_notice_start_day is set | HIGH | Spec |
-| BKR_011 | prior_notice_last_day > prior_notice_start_day: invalid booking window | HIGH | Spec |
+| BKR_011 | prior_notice_last_day > prior_notice_start_day: invalid booking window | HIGH | Interop |
 
 ## AGN — Agency
 
@@ -220,11 +220,11 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | STM_030 | shape_dist_traveled is negative | LOW | Spec |
 | STM_032 | Duplicate stop_sequence within trip | LOW | Quality |
 | STM_033 | Single-stop trip (unusable) | HIGH | Spec |
-| STM_034 | Only one of arrival or departure time defined | MEDIUM | Spec |
+| STM_034 | Only one of arrival or departure time defined | MEDIUM | Interop |
 | STM_035 | Same stop visited twice consecutively (terminal/loop) | INFO | Analytics |
 | STM_036 | stop_times not sorted by trip_id + stop_sequence (unsorted_stop_times) | INFO | Quality |
 | STM_037 | arrival_time/departure_time prohibited in Flex window | HIGH | Spec |
-| STM_038 | start_pickup_drop_off_window > end_pickup_drop_off_window | HIGH | Spec |
+| STM_038 | start_pickup_drop_off_window > end_pickup_drop_off_window | HIGH | Interop |
 | STM_039 | Pickup/drop-off window missing in Flex context | CRITICAL | Spec |
 | STM_040 | pickup/drop_off_booking_rule_id missing in Flex stop_times | CRITICAL | Spec |
 | STM_041 | stop_id and location_id/group_id cannot be used together | HIGH | Spec |
@@ -340,7 +340,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | FRQ_002 | start_time invalid | CRITICAL | Spec |
 | FRQ_003 | end_time invalid | CRITICAL | Spec |
 | FRQ_004 | headway_secs missing or invalid | CRITICAL | Spec |
-| FRQ_005 | end_time is before start_time | CRITICAL | Spec |
+| FRQ_005 | end_time is before start_time | CRITICAL | Interop |
 | FRQ_006 | headway_secs too long | MEDIUM | Analytics |
 | FRQ_007 | exact_times invalid | MEDIUM | Spec |
 | FRQ_008 | headway_secs is zero (invalid frequency) | CRITICAL | Spec |
@@ -417,7 +417,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | RCT_002 | rider_category_name missing | CRITICAL | Spec |
 | RCT_003 | is_default_fare_category invalid | CRITICAL | Spec |
 | RCT_004 | min_age or max_age invalid | MEDIUM | Spec |
-| RCT_005 | max_age less than min_age | MEDIUM | Spec |
+| RCT_005 | max_age less than min_age | MEDIUM | Interop |
 | RCT_006 | Multiple default rider categories per fare_product | MEDIUM | Spec |
 
 ## FMD — Fare Media (Fares v2)
@@ -493,7 +493,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | TFR_001 | timeframe_group_id missing | CRITICAL | Spec |
 | TFR_002 | service_id not found | CRITICAL | Spec |
 | TFR_003 | start_time or end_time format error | HIGH | Spec |
-| TFR_004 | end_time less than start_time | MEDIUM | Spec |
+| TFR_004 | end_time less than start_time | MEDIUM | Interop |
 | TFR_005 | Overlapping time ranges within same group and service_id | MEDIUM | Spec |
 
 ## PTH — Pathways

@@ -54,7 +54,7 @@
 | BKR_008 | booking_type=2でprior_notice_last_dayが必須 | 致命的 | 仕様 |
 | BKR_009 | booking_type=2でprior_notice_last_timeが必須 | 致命的 | 仕様 |
 | BKR_010 | prior_notice_start_day設定時にprior_notice_start_timeが必須 | 高 | 仕様 |
-| BKR_011 | prior_notice_start_day > prior_notice_last_day（無効な予約ウィンドウ） | 高 | 仕様 |
+| BKR_011 | prior_notice_start_day > prior_notice_last_day（無効な予約ウィンドウ） | 高 | 相互運用 |
 
 ## AGN — 事業者（Agency）
 
@@ -220,11 +220,11 @@
 | STM_030 | shape_dist_traveledが負の値 | 低 | 仕様 |
 | STM_032 | 便内でstop_sequenceが重複 | 低 | 品質 |
 | STM_033 | 便に停留所が1つしかなく使用不可 | 高 | 仕様 |
-| STM_034 | arrival_timeとdeparture_timeのいずれか一方のみ定義 | 中 | 仕様 |
+| STM_034 | arrival_timeとdeparture_timeのいずれか一方のみ定義 | 中 | 相互運用 |
 | STM_035 | 同じ停留所に連続して停車（折返し・ループ） | 情報 | 分析 |
 | STM_036 | stop_timesがtrip_id + stop_sequenceでソートされていない | 情報 | 品質 |
 | STM_037 | Flexの乗降ウィンドウ内に時刻が設定されている | 高 | 仕様 |
-| STM_038 | start_pickup_drop_off_window > end_pickup_drop_off_window | 高 | 仕様 |
+| STM_038 | start_pickup_drop_off_window > end_pickup_drop_off_window | 高 | 相互運用 |
 | STM_039 | Flexコンテキストで乗降ウィンドウが不足 | 致命的 | 仕様 |
 | STM_040 | Flex stop_timesで予約ルールIDが不足 | 致命的 | 仕様 |
 | STM_041 | stop_idとlocation_id/group_idの同時使用不可 | 高 | 仕様 |
@@ -340,7 +340,7 @@
 | FRQ_002 | start_timeが無効 | 致命的 | 仕様 |
 | FRQ_003 | end_timeが無効 | 致命的 | 仕様 |
 | FRQ_004 | headway_secsが不足または無効 | 致命的 | 仕様 |
-| FRQ_005 | end_timeがstart_timeより前 | 致命的 | 仕様 |
+| FRQ_005 | end_timeがstart_timeより前 | 致命的 | 相互運用 |
 | FRQ_006 | headway_secsが長すぎる | 中 | 分析 |
 | FRQ_007 | exact_timesが無効 | 中 | 仕様 |
 | FRQ_008 | headway_secsがゼロ（無効な頻度） | 致命的 | 仕様 |
@@ -417,7 +417,7 @@
 | RCT_002 | rider_category_nameが不足 | 致命的 | 仕様 |
 | RCT_003 | is_default_fare_categoryが無効 | 致命的 | 仕様 |
 | RCT_004 | min_ageまたはmax_ageが無効 | 中 | 仕様 |
-| RCT_005 | max_ageがmin_ageより小さい | 中 | 仕様 |
+| RCT_005 | max_ageがmin_ageより小さい | 中 | 相互運用 |
 | RCT_006 | 同一fare_productにデフォルトのrider_categoryが複数 | 中 | 仕様 |
 
 ## FMD — 運賃メディア（Fare Media, Fares v2）
@@ -493,7 +493,7 @@
 | TFR_001 | timeframe_group_idが不足 | 致命的 | 仕様 |
 | TFR_002 | service_idが存在しない | 致命的 | 仕様 |
 | TFR_003 | start_timeまたはend_timeの形式が無効 | 高 | 仕様 |
-| TFR_004 | end_timeがstart_timeより前 | 中 | 仕様 |
+| TFR_004 | end_timeがstart_timeより前 | 中 | 相互運用 |
 | TFR_005 | 同一グループ・service_id内で時間範囲が重複 | 中 | 仕様 |
 
 ## PTH — 経路（Pathways）

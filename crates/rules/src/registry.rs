@@ -169,7 +169,7 @@ pub static RULES: &[RuleMeta] = &[
         "booking_type=2 için prior_notice_last_time zorunlu"),
     r!("BKR_010", Yuksek, Spec, 1, &[], Some("booking_rule_id"), VS, Entity,
         "prior_notice_start_day belirtilmişse prior_notice_start_time zorunlu"),
-    r!("BKR_011", Yuksek, Spec, 1, &[], Some("booking_rule_id"), VS, Entity,
+    r!("BKR_011", Yuksek, Interop, 1, &[], Some("booking_rule_id"), VI, Entity,
         "prior_notice_last_day > prior_notice_start_day: rezervasyon penceresi geçersiz"),
 
     // ── AGN: Agency ────────────────────────────────────────────────────────────
@@ -511,7 +511,7 @@ pub static RULES: &[RuleMeta] = &[
         "Aynı seferde yinelenen stop_sequence değeri"),
     r!("STM_033", Yuksek, Spec, 2, &[], Some("trip_id"), VS, Entity,
         "Tek duraklı sefer (kullanılamaz)"),
-    r!("STM_034", Orta,   Spec, 2, &[], Some("trip_id"), VS, Row,
+    r!("STM_034", Orta,   Interop, 2, &[], Some("trip_id"), VI, Row,
         "Varış veya kalkış zamanından yalnızca biri tanımlı"),
     r!("STM_035", Bilgi,  Analytics, 1, &[], Some("trip_id"), VS, Row,
         "Aynı durak ardışık iki kez ziyaret ediliyor (terminal/döngü)"),
@@ -519,7 +519,7 @@ pub static RULES: &[RuleMeta] = &[
         "stop_times trip_id + stop_sequence'a göre sıralı değil (unsorted_stop_times)"),
     r!("STM_037", Yuksek, Spec, 1, &[], Some("trip_id"), VS, Entity,
         "Flex penceresinde arrival_time/departure_time yasak"),
-    r!("STM_038", Yuksek, Spec, 1, &[], Some("trip_id"), VS, Entity,
+    r!("STM_038", Yuksek, Interop, 1, &[], Some("trip_id"), VI, Entity,
         "start_pickup_drop_off_window > end_pickup_drop_off_window"),
     r!("STM_039", Kritik, Spec, 1, &[], Some("trip_id"), VS_K, Entity,
         "Flex bağlamında pickup/drop_off penceresi eksik"),
@@ -722,7 +722,7 @@ pub static RULES: &[RuleMeta] = &[
         "end_time geçersiz"),
     r!("FRQ_004", Kritik, Spec, 2, &[], Some("trip_id"), VS_K, Row,
         "headway_secs eksik veya geçersiz"),
-    r!("FRQ_005", Kritik, Spec, 2, &[], Some("trip_id"), VS_K, Row,
+    r!("FRQ_005", Kritik, Interop, 2, &[], Some("trip_id"), VI, Row,
         "end_time start_time'dan önce"),
     r!("FRQ_006", Orta,   Analytics, 2, &[], Some("trip_id"), VA, Row,
         "headway_secs çok uzun"),
@@ -847,7 +847,7 @@ pub static RULES: &[RuleMeta] = &[
         "is_default_fare_category geçersiz"),
     r!("RCT_004", Orta,   Spec, 1, &[], Some("rider_category_id"), VS, Row,
         "min_age veya max_age geçersiz"),
-    r!("RCT_005", Orta,   Spec, 1, &[], Some("rider_category_id"), VS, Row,
+    r!("RCT_005", Orta,   Interop, 1, &[], Some("rider_category_id"), VI, Row,
         "max_age min_age'den küçük"),
     r!("RCT_006", Orta,   Spec, 2, &[], Some("fare_product_id"), VS, Entity,
         "fare_product başına birden fazla varsayılan yolcu kategorisi"),
@@ -939,7 +939,7 @@ pub static RULES: &[RuleMeta] = &[
         "service_id bulunamadı"),
     r!("TFR_003", Yuksek, Spec, 1, &[], Some("timeframe_group_id"), VS, Row,
         "start_time veya end_time format hatası"),
-    r!("TFR_004", Orta,   Spec, 1, &[], Some("timeframe_group_id"), VS, Row,
+    r!("TFR_004", Orta,   Interop, 1, &[], Some("timeframe_group_id"), VI, Row,
         "end_time start_time'dan küçük"),
     r!("TFR_005", Orta,   Spec, 1, &[], Some("timeframe_group_id"), VS, Row,
         "Aynı grup ve service_id içinde örtüşen zaman aralıkları"),
@@ -1936,15 +1936,16 @@ mod tests {
 
     /// Faz 2 warn-modu: `Sınıf=Spec` ama `authority≠GtfsSpec` olan MEVCUT kurallar
     /// (docs/audits/spec-authority-inventory-reconciled.csv — başlangıç 45; Faz 3 parti 1
-    /// SHP_006/RTS_009/TRF_018 → 42; parti 2 STM_007/STM_008/CAL_005 → 39). Faz 3 bu
+    /// SHP_006/RTS_009/TRF_018 → 42; parti 2 STM_007/STM_008/CAL_005 → 39; parti 3
+    /// FRQ_005/TFR_004/RCT_005/BKR_011/STM_034/STM_038 → 33). Faz 3 bu
     /// kuralların sınıfını düzelttikçe `rule_class==Spec` filtresi onları dışlar ve
     /// listeden çıkarılır; Faz 4'te liste BOŞALIR (hard-fail). Yeni ekleme YAPILMAZ.
     const SPEC_AUTHORITY_ALLOWLIST: &[&str] = &[
         "ARC_002", "ARC_009", "ARC_015", "ARC_019", "ARC_023", "ARC_029", "ATR_001", "ATR_009",
-        "BKR_011", "CLD_005", "FRQ_005", "FRQ_011", "JPN_002", "JPN_003", "JPN_004",
-        "JPN_005", "JPN_011", "PDW_006", "PTH_011", "PTH_014", "RCT_005",
-        "SHP_028", "STM_023", "STM_033", "STM_034", "STM_038", "STP_027",
-        "TFR_004", "TFR_005", "TRF_013", "TRF_015", "TRF_016", "TRF_017", "TRF_019",
+        "CLD_005", "FRQ_011", "JPN_002", "JPN_003", "JPN_004",
+        "JPN_005", "JPN_011", "PDW_006", "PTH_011", "PTH_014",
+        "SHP_028", "STM_023", "STM_033", "STP_027",
+        "TFR_005", "TRF_013", "TRF_015", "TRF_016", "TRF_017", "TRF_019",
         "TRP_017", "TRP_019", "TRP_022", "XFL_002", "XFL_006",
     ];
 
