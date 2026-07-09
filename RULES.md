@@ -173,7 +173,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | TRP_014 | trip_short_name çok uzun | BİLGİ | Quality |
 | TRP_015 | block_id grubunda tek sefer | DÜŞÜK | Quality |
 | TRP_017 | Frekans tabanlı sefer stop_times'ta eksik | ORTA | Spec |
-| TRP_019 | Continuous servis aktifken shape_id eksik | YÜKSEK | Spec |
+| TRP_019 | Continuous servis aktifken shape_id eksik | YÜKSEK | Quality |
 | TRP_020 | trip_headsign ara durak adıyla eşleşiyor | BİLGİ | Analytics |
 | TRP_021 | Bisiklet izni (bikes_allowed) belirtilmemiş | BİLGİ | Quality |
 | TRP_022 | Block içinde çakışan sefer saatleri | YÜKSEK | Interop |
@@ -210,7 +210,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | STM_020 | Sıfır geçiş süresi (mesafe > 200m) | YÜKSEK | Quality |
 | STM_021 | Duraklar arası mesafe sıfır veya negatif | YÜKSEK | Quality |
 | STM_022 | timepoint geçersiz | ORTA | Spec |
-| STM_023 | stop_times satır sıralaması bozuk | DÜŞÜK | Spec |
+| STM_023 | stop_times satır sıralaması bozuk | DÜŞÜK | Quality |
 | STM_024 | shape_dist_traveled birim tutarsızlığı | BİLGİ | Quality |
 | STM_025 | Kısa segment zamanlaması | BİLGİ | Analytics |
 | STM_026 | Durak arası mesafe aşırı uzun | YÜKSEK | Quality |
@@ -296,7 +296,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | CLD_002 | date eksik veya geçersiz format | KRİTİK | Spec |
 | CLD_003 | exception_type eksik veya geçersiz | KRİTİK | Spec |
 | CLD_004 | calendar_dates-only serviste aktif gün (exception_type=1) tanımlı değil | YÜKSEK | Interop |
-| CLD_005 | Tarih makul yıl aralığı dışında | KRİTİK | Spec |
+| CLD_005 | Tarih makul yıl aralığı dışında | KRİTİK | Quality |
 | CLD_006 | Çok fazla istisna günü | ORTA | Quality |
 | CLD_007 | Aşırı takvim istisnası | BİLGİ | Analytics |
 
@@ -329,7 +329,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | SHP_025 | Sefer stop_times mesafesi şeklin toplam mesafesini aşıyor | ORTA | Quality |
 | SHP_026 | Shape aşırı fazla noktaya sahip (>5000) — tüketici render performansını etkiler | BİLGİ | Analytics |
 | SHP_027 | Shape birden fazla durak desenine atanmış — olası yanlış shape ataması | BİLGİ | Analytics |
-| SHP_028 | Ardışık iki shape noktası aynı shape_dist_traveled ama farklı koordinat (mesafe artmadan konum değişmiş) | YÜKSEK | Spec |
+| SHP_028 | Ardışık iki shape noktası aynı shape_dist_traveled ama farklı koordinat (mesafe artmadan konum değişmiş) | YÜKSEK | Quality |
 | SHP_029 | Aynı shape_dist_traveled, farklı ama çok yakın koordinatlı ardışık shape noktaları (eşik altı) | BİLGİ | Quality |
 
 ## FRQ — Frequencies (Frekanslar)
@@ -510,10 +510,10 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | PTH_008 | stair_count eksik | DÜŞÜK | Quality |
 | PTH_009 | max_slope eksik | DÜŞÜK | Quality |
 | PTH_010 | min_width geçersiz | DÜŞÜK | Spec |
-| PTH_011 | Geçit döngü oluşturuyor | YÜKSEK | Spec |
+| PTH_011 | Geçit döngü oluşturuyor | YÜKSEK | Quality |
 | PTH_012 | İstasyona erişilebilir yol yok | YÜKSEK | Interop |
 | PTH_013 | Erişilebilir yol analizi | BİLGİ | Analytics |
-| PTH_014 | Geçit istasyon sınırını aşıyor | KRİTİK | Spec |
+| PTH_014 | Geçit istasyon sınırını aşıyor | KRİTİK | Quality |
 | PTH_015 | Geçit hedefi erişilemeyen durakta | ORTA | Analytics |
 | PTH_016 | Çıkış kapısı çift yönlü tanımlanmış | YÜKSEK | Spec |
 | PTH_017 | max_slope geçersiz bağlam | ORTA | Spec |

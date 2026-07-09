@@ -106,6 +106,7 @@ forbidden / enum / foreign-key / uniqueness / format) `Spec` olabilir. Şüpheli
 ## 7) İLERLEME GÜNLÜĞÜ (buraya EKLE — her parti sonrası)
 - 2026-07-09 · Claude · batch 1-4 + MD-doğrulama düzeltmesi (`cc37aa2`) · allowlist 45→28.
 - 2026-07-09 · Codex · batch 5 ARC quality reclass (`ARC_002/009/015/019/023`) · allowlist 28→23 · fatal `ARC_029` sona bırakıldı.
+- 2026-07-09 · Codex · batch 6 derived quality reclass (`CLD_005/PTH_011/PTH_014/SHP_028/STM_023/TRP_019`) · allowlist 23→17 · MD-doğrulama isteyenler sonraya bırakıldı.
 - <tarih> · <ai> · <parti> · <commit> · <allowlist kaç kaldı> · <not>
 
 ## 8) SONRA (Faz 3 bitince)

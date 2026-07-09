@@ -173,7 +173,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | TRP_014 | trip_short_name too long | INFO | Quality |
 | TRP_015 | Single trip in block_id group | LOW | Quality |
 | TRP_017 | Frequency-based trip missing from stop_times | MEDIUM | Spec |
-| TRP_019 | shape_id missing with continuous service active | HIGH | Spec |
+| TRP_019 | shape_id missing with continuous service active | HIGH | Quality |
 | TRP_020 | trip_headsign matches intermediate stop name | INFO | Analytics |
 | TRP_021 | Bicycle allowance (bikes_allowed) not specified | INFO | Quality |
 | TRP_022 | Overlapping trip times within block | HIGH | Interop |
@@ -210,7 +210,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | STM_020 | Zero travel time (distance > 200m) | HIGH | Quality |
 | STM_021 | Distance between stops is zero or negative | HIGH | Quality |
 | STM_022 | timepoint invalid | MEDIUM | Spec |
-| STM_023 | stop_times row ordering corrupted | LOW | Spec |
+| STM_023 | stop_times row ordering corrupted | LOW | Quality |
 | STM_024 | shape_dist_traveled unit inconsistency | INFO | Quality |
 | STM_025 | Short segment timing | INFO | Analytics |
 | STM_026 | Excessive distance between stops | HIGH | Quality |
@@ -296,7 +296,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | CLD_002 | date invalid format | CRITICAL | Spec |
 | CLD_003 | exception_type missing or invalid | CRITICAL | Spec |
 | CLD_004 | Calendar-dates-only service has no active dates | HIGH | Interop |
-| CLD_005 | Date out of range | CRITICAL | Spec |
+| CLD_005 | Date out of range | CRITICAL | Quality |
 | CLD_006 | Too many exception days | MEDIUM | Quality |
 | CLD_007 | Excessive calendar exceptions | INFO | Analytics |
 
@@ -329,7 +329,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | SHP_025 | Trip stop_times distance exceeds total shape distance | MEDIUM | Quality |
 | SHP_026 | Shape has extreme point count (>5,000) | INFO | Analytics |
 | SHP_027 | Shape assigned to multiple stop patterns | INFO | Analytics |
-| SHP_028 | Same shape_dist_traveled with different coordinates | HIGH | Spec |
+| SHP_028 | Same shape_dist_traveled with different coordinates | HIGH | Quality |
 | SHP_029 | Same shape_dist_traveled, tiny coordinate difference | INFO | Quality |
 
 ## FRQ — Frequencies
@@ -510,10 +510,10 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | PTH_008 | stair_count missing | LOW | Quality |
 | PTH_009 | max_slope missing | LOW | Quality |
 | PTH_010 | min_width invalid | LOW | Spec |
-| PTH_011 | Pathway forms a loop | HIGH | Spec |
+| PTH_011 | Pathway forms a loop | HIGH | Quality |
 | PTH_012 | No accessible pathway to station | HIGH | Interop |
 | PTH_013 | Accessible pathway analysis | INFO | Analytics |
-| PTH_014 | Pathway crosses station boundary | CRITICAL | Spec |
+| PTH_014 | Pathway crosses station boundary | CRITICAL | Quality |
 | PTH_015 | Pathway leads to an unreachable stop | MEDIUM | Analytics |
 | PTH_016 | Exit defined as bidirectional | HIGH | Spec |
 | PTH_017 | max_slope invalid context | MEDIUM | Spec |

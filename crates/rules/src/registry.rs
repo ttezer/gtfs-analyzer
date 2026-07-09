@@ -408,7 +408,7 @@ pub static RULES: &[RuleMeta] = &[
         "block_id grubunda tek sefer"),
     r!("TRP_017", Orta,   Spec, 1, &[], Some("trip_id"), VS, Entity,
         "Frekans tabanlı sefer stop_times'ta eksik"),
-    r!("TRP_019", Yuksek, Spec, 1, &[], Some("trip_id"), VS, Entity,
+    r!("TRP_019", Yuksek, Quality, 1, &[], Some("trip_id"), VS, Entity,
         "Continuous servis aktifken shape_id eksik"),
     r!("TRP_020", Bilgi,  Analytics, 1, &[], Some("trip_id"), VA, Entity,
         "trip_headsign ara durak adıyla eşleşiyor"),
@@ -491,7 +491,7 @@ pub static RULES: &[RuleMeta] = &[
         "Duraklar arası mesafe sıfır veya negatif"),
     r!("STM_022", Orta,   Spec, 1, &[], Some("trip_id"), VS, Row,
         "timepoint geçersiz"),
-    r!("STM_023", Dusuk, Spec, 3, &[], Some("trip_id"), VS_K, Row,
+    r!("STM_023", Dusuk, Quality, 3, &[], Some("trip_id"), VS, Row,
         "stop_times satır sıralaması bozuk"),
     r!("STM_024", Bilgi,  Quality, 2, &[], Some("trip_id"), VS, Row,
         "shape_dist_traveled birim tutarsızlığı"),
@@ -642,7 +642,7 @@ pub static RULES: &[RuleMeta] = &[
         "exception_type eksik veya geçersiz"),
     r!("CLD_004", Yuksek, Interop, 2, &[], Some("service_id"), VI_K, Row,
         "calendar_dates-only serviste aktif gün (exception_type=1) tanımlı değil"),
-    r!("CLD_005", Kritik, Spec, 2, &[], Some("service_id"), VS_K, Row,
+    r!("CLD_005", Kritik, Quality, 2, &[], Some("service_id"), VS, Row,
         "Tarih makul yıl aralığı dışında"),
     r!("CLD_006", Orta,   Quality, 1, &[], Some("service_id"), VS, Row,
         "Çok fazla istisna günü"),
@@ -708,7 +708,7 @@ pub static RULES: &[RuleMeta] = &[
         "Shape aşırı fazla noktaya sahip (>5000) — tüketici render performansını etkiler"),
     r!("SHP_027", Bilgi,  Analytics, 1, &[], Some("shape_id"), VA_GEO, Entity,
         "Shape birden fazla durak desenine atanmış — olası yanlış shape ataması"),
-    r!("SHP_028", Yuksek, Spec, 2, &[], Some("shape_id"), VS, Entity,
+    r!("SHP_028", Yuksek, Quality, 2, &[], Some("shape_id"), VS, Entity,
         "Ardışık iki shape noktası aynı shape_dist_traveled ama farklı koordinat (mesafe artmadan konum değişmiş)"),
     r!("SHP_029", Bilgi,  Quality, 2, &[], Some("shape_id"), VS, Entity,
         "Aynı shape_dist_traveled, farklı ama çok yakın koordinatlı ardışık shape noktaları (eşik altı)"),
@@ -974,7 +974,7 @@ pub static RULES: &[RuleMeta] = &[
         "max_slope eksik"),
     r!("PTH_010", Dusuk,  Spec, 1, &[], Some("pathway_id"), VS, Entity,
         "min_width geçersiz"),
-    r!("PTH_011", Yuksek, Spec, 3, &[], Some("pathway_id"), VS, Entity,
+    r!("PTH_011", Yuksek, Quality, 3, &[], Some("pathway_id"), VS, Entity,
         "Geçit döngü oluşturuyor"),
     r!("PTH_012", Yuksek, Interop, 3,
         &["PTH_013"],
@@ -982,7 +982,7 @@ pub static RULES: &[RuleMeta] = &[
         "İstasyona erişilebilir yol yok"),
     r!("PTH_013", Bilgi,  Analytics, 3, &[], Some("stop_id"), VA_ACC, Entity,
         "Erişilebilir yol analizi"),
-    r!("PTH_014", Kritik, Spec, 1, &[], Some("pathway_id"), VS_K, Entity,
+    r!("PTH_014", Kritik, Quality, 1, &[], Some("pathway_id"), VS, Entity,
         "Geçit istasyon sınırını aşıyor"),
     r!("PTH_015", Orta,   Analytics, 2, &[], Some("pathway_id"), VA, Entity,
         "Geçit hedefi erişilemeyen durakta"),
@@ -1939,15 +1939,15 @@ mod tests {
     /// SHP_006/RTS_009/TRF_018 → 42; parti 2 STM_007/STM_008/CAL_005 → 39; parti 3
     /// FRQ_005/TFR_004/RCT_005/BKR_011/STM_034/STM_038 → 33; parti 4 (Analytics)
     /// FRQ_011/PDW_006/TFR_005/TRP_022/XFL_006 → 28; parti 5
-    /// ARC_002/ARC_009/ARC_015/ARC_019/ARC_023 → 23). Faz 3 bu
+    /// ARC_002/ARC_009/ARC_015/ARC_019/ARC_023 → 23; parti 6
+    /// CLD_005/PTH_011/PTH_014/SHP_028/STM_023/TRP_019 → 17). Faz 3 bu
     /// kuralların sınıfını düzelttikçe `rule_class==Spec` filtresi onları dışlar ve
     /// listeden çıkarılır; Faz 4'te liste BOŞALIR (hard-fail). Yeni ekleme YAPILMAZ.
     const SPEC_AUTHORITY_ALLOWLIST: &[&str] = &[
-        "ARC_029", "ATR_001", "ATR_009", "CLD_005", "JPN_002", "JPN_003", "JPN_004",
-        "JPN_005", "JPN_011", "PTH_011", "PTH_014",
-        "SHP_028", "STM_023", "STM_033", "STP_027",
+        "ARC_029", "ATR_001", "ATR_009", "JPN_002", "JPN_003", "JPN_004",
+        "JPN_005", "JPN_011", "STM_033", "STP_027",
         "TRF_013", "TRF_015", "TRF_016", "TRF_017", "TRF_019",
-        "TRP_017", "TRP_019", "XFL_002",
+        "TRP_017", "XFL_002",
     ];
 
     #[test]
