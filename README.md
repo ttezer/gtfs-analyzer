@@ -162,7 +162,7 @@ Her kural dört sınıftan birine ayrılır. Sınıf, bulgunun **otorite kaynağ
 - **Quality** — GTFS best-practice, veri kalitesi, okunabilirlik, tutarlılık ve üretim kalitesi kontrolleri.
 - **Analytics** — istatistiksel, operasyonel, performans veya analiz amaçlı sinyaller.
 
-Her kuralın ayrıca makine-okunur bir **otorite kaynağı** (`authority_source`) alanı vardır (`GTFS_SPEC`, `MOBILITYDATA_PARITY`, `REGIONAL_PROFILE`, `PROJECT_QUALITY` vb.). Değişmez kural: **`Spec` sınıfı yalnızca `authority_source = GTFS_SPEC` ile meşrudur**; MobilityData/Guru/Google paritesi, best-practice veya proje-özel sezgi tek başına Spec kanıtı değildir. Denetim defteri: [`docs/audits/spec-authority-inventory-reconciled.csv`](docs/audits/spec-authority-inventory-reconciled.csv).
+Her kuralın ayrıca makine-okunur bir **otorite kaynağı** (`authority_source`) alanı vardır (`GTFS_SPEC`, `MOBILITYDATA_PARITY`, `REGIONAL_PROFILE`, `PROJECT_QUALITY` vb.). Değişmez kural: **`Spec` sınıfı yalnızca `authority_source = GTFS_SPEC` ile meşrudur**; MobilityData/Guru/Google paritesi, best-practice veya proje-özel sezgi tek başına Spec kanıtı değildir.
 
 ### İsteğe Bağlı Profiller ve Kaynak URL
 

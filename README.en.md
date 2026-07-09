@@ -162,7 +162,7 @@ Every rule falls into one of four classes. The class reflects the finding's **au
 - **Quality** — GTFS best-practice, data quality, readability, consistency, and production-quality checks.
 - **Analytics** — statistical, operational, performance, or analysis-oriented signals.
 
-Each rule also carries a machine-readable **authority source** (`authority_source`) field (`GTFS_SPEC`, `MOBILITYDATA_PARITY`, `REGIONAL_PROFILE`, `PROJECT_QUALITY`, etc.). Invariant: **the `Spec` class is legitimate only with `authority_source = GTFS_SPEC`**; parity with MobilityData/Guru/Google, best-practice, or project-specific heuristics is not on its own proof of Spec. Audit ledger: [`docs/audits/spec-authority-inventory-reconciled.csv`](docs/audits/spec-authority-inventory-reconciled.csv).
+Each rule also carries a machine-readable **authority source** (`authority_source`) field (`GTFS_SPEC`, `MOBILITYDATA_PARITY`, `REGIONAL_PROFILE`, `PROJECT_QUALITY`, etc.). Invariant: **the `Spec` class is legitimate only with `authority_source = GTFS_SPEC`**; parity with MobilityData/Guru/Google, best-practice, or project-specific heuristics is not on its own proof of Spec.
 
 ### Optional Profiles and Source URL
 

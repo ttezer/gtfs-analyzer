@@ -1369,7 +1369,7 @@ pub fn get_rule(id: &str) -> Option<&'static RuleMeta> {
     rule_index().get(id).copied()
 }
 
-/// Kural ID → otorite kaynağı (docs/audits/spec-authority-inventory-reconciled.csv'den üretildi).
+/// Kural ID → otorite kaynağı (otorite denetim defterinden üretildi; yerelde notgit/audits/).
 /// Sınıf otorite bütünlüğü SSOT: `Spec` sınıfı YALNIZ `GtfsSpec` ile meşrudur. r!() çağrılarına
 /// dokunmadan tutulur; kapsam/tekillik `authority_covers_all_rules` testiyle denetlenir.
 static AUTHORITY: &[(&str, AuthoritySource)] = &[
@@ -1937,7 +1937,7 @@ mod tests {
     use super::*;
 
     /// Faz 2 warn-modu: `Sınıf=Spec` ama `authority≠GtfsSpec` olan MEVCUT kurallar
-    /// (docs/audits/spec-authority-inventory-reconciled.csv — başlangıç 45; Faz 3 parti 1
+    /// (otorite denetim defteri, yerelde notgit/audits/ — başlangıç 45; Faz 3 parti 1
     /// SHP_006/RTS_009/TRF_018 → 42; parti 2 STM_007/STM_008/CAL_005 → 39; parti 3
     /// FRQ_005/TFR_004/RCT_005/BKR_011/STM_034/STM_038 → 33; parti 4 (Analytics)
     /// FRQ_011/PDW_006/TFR_005/TRP_022/XFL_006 → 28; parti 5

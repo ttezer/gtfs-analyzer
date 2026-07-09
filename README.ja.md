@@ -162,7 +162,7 @@ GTFS Analyzer は Web アプリケーションです — インストール不�
 - **Quality** — GTFS ベストプラクティス、データ品質、可読性、一貫性、制作品質のチェック。
 - **Analytics** — 統計的・運用的・パフォーマンス・分析目的のシグナル。
 
-各ルールには機械可読な**権威ソース**（`authority_source`）フィールドもあります（`GTFS_SPEC`、`MOBILITYDATA_PARITY`、`REGIONAL_PROFILE`、`PROJECT_QUALITY` など）。不変条件: **`Spec` クラスは `authority_source = GTFS_SPEC` の場合にのみ正当**であり、MobilityData/Guru/Google とのパリティ、ベストプラクティス、プロジェクト固有のヒューリスティックだけでは Spec の証拠になりません。監査台帳: [`docs/audits/spec-authority-inventory-reconciled.csv`](docs/audits/spec-authority-inventory-reconciled.csv)。
+各ルールには機械可読な**権威ソース**（`authority_source`）フィールドもあります（`GTFS_SPEC`、`MOBILITYDATA_PARITY`、`REGIONAL_PROFILE`、`PROJECT_QUALITY` など）。不変条件: **`Spec` クラスは `authority_source = GTFS_SPEC` の場合にのみ正当**であり、MobilityData/Guru/Google とのパリティ、ベストプラクティス、プロジェクト固有のヒューリスティックだけでは Spec の証拠になりません。
 
 ### オプションプロファイルとソースURL
 

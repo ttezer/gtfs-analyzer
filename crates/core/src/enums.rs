@@ -41,7 +41,7 @@ pub enum RuleClass {
 
 /// Bir kuralın **otorite kaynağı** — sınıfın (`RuleClass`) meşruiyet dayanağı.
 ///
-/// Sınıf otorite bütünlüğü (docs/audits/spec-authority-inventory-reconciled.csv):
+/// Sınıf otorite bütünlüğü (otorite denetim defterinden; yerelde notgit/audits/):
 /// `Spec` sınıfı YALNIZCA `GtfsSpec` kaynağıyla meşrudur. Diğer kaynaklar Spec üretemez.
 /// Eşleme: GtfsSpec→Spec | GtfsBestPractice→Quality | MobilitydataParity/
 /// GoogleTransitInterop/RegionalProfile→Interop | ProjectQuality→Quality |

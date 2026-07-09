@@ -46,3 +46,4 @@ Thumbs.db
 .env.local
 CLAUDE.md
 .claude/
+/docs/audits/
