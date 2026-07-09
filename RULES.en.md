@@ -172,7 +172,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | TRP_013 | Route has only one trip | LOW | Quality |
 | TRP_014 | trip_short_name too long | INFO | Quality |
 | TRP_015 | Single trip in block_id group | LOW | Quality |
-| TRP_017 | Frequency-based trip missing from stop_times | MEDIUM | Spec |
+| TRP_017 | Frequency-based trip missing from stop_times | MEDIUM | Interop |
 | TRP_019 | shape_id missing with continuous service active | HIGH | Quality |
 | TRP_020 | trip_headsign matches intermediate stop name | INFO | Analytics |
 | TRP_021 | Bicycle allowance (bikes_allowed) not specified | INFO | Quality |
@@ -219,7 +219,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | STM_029 | Trip duration too short | MEDIUM | Analytics |
 | STM_030 | shape_dist_traveled is negative | LOW | Spec |
 | STM_032 | Duplicate stop_sequence within trip | LOW | Quality |
-| STM_033 | Single-stop trip (unusable) | HIGH | Spec |
+| STM_033 | Single-stop trip (unusable) | HIGH | Interop |
 | STM_034 | Only one of arrival or departure time defined | MEDIUM | Interop |
 | STM_035 | Same stop visited twice consecutively (terminal/loop) | INFO | Analytics |
 | STM_036 | stop_times not sorted by trip_id + stop_sequence (unsorted_stop_times) | INFO | Quality |
@@ -364,13 +364,13 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | TRF_010 | Transfer time too long | MEDIUM | Analytics |
 | TRF_011 | Transfer defined but distance is far | INFO | Quality |
 | TRF_012 | Duplicate transfer record | MEDIUM | Quality |
-| TRF_013 | Transfer type inconsistent with context | CRITICAL | Spec |
+| TRF_013 | Transfer type inconsistent with context | CRITICAL | Quality |
 | TRF_014 | No trip for in-seat transfer | HIGH | Spec |
-| TRF_015 | in-seat transfer invalid | HIGH | Spec |
-| TRF_016 | Transfer condition conflicting | MEDIUM | Spec |
-| TRF_017 | Trip transfer on wrong route | HIGH | Spec |
+| TRF_015 | in-seat transfer invalid | HIGH | Quality |
+| TRF_016 | Transfer condition conflicting | MEDIUM | Interop |
+| TRF_017 | Trip transfer on wrong route | HIGH | Interop |
 | TRF_018 | Trip transfer references the same trip | MEDIUM | Quality |
-| TRF_019 | Different route_type in in-seat transfer | MEDIUM | Spec |
+| TRF_019 | Different route_type in in-seat transfer | MEDIUM | Interop |
 | TRF_020 | Transfer walking speed is too fast | MEDIUM | Quality |
 
 ## GGL — Google Transit Compatibility
@@ -601,7 +601,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | Rule | Title | Severity | Class |
 |---|---|---|---|
 | XFL_001 | service_id missing from both calendar and calendar_dates | CRITICAL | Spec |
-| XFL_002 | Trip has no stop_times records | HIGH | Spec |
+| XFL_002 | Trip has no stop_times records | HIGH | Interop |
 | XFL_003 | shape_id undefined | HIGH | Spec |
 | XFL_004 | Undefined route_id in fare_rules | CRITICAL | Spec |
 | XFL_005 | Undefined stop_id in stop_times | CRITICAL | Spec |

@@ -406,7 +406,7 @@ pub static RULES: &[RuleMeta] = &[
         "trip_short_name çok uzun"),
     r!("TRP_015", Dusuk,  Quality, 1, &[], Some("trip_id"), VS, Entity,
         "block_id grubunda tek sefer"),
-    r!("TRP_017", Orta,   Spec, 1, &[], Some("trip_id"), VS, Entity,
+    r!("TRP_017", Orta,   Interop, 1, &[], Some("trip_id"), VI, Entity,
         "Frekans tabanlı sefer stop_times'ta eksik"),
     r!("TRP_019", Yuksek, Quality, 1, &[], Some("trip_id"), VS, Entity,
         "Continuous servis aktifken shape_id eksik"),
@@ -509,7 +509,7 @@ pub static RULES: &[RuleMeta] = &[
         "shape_dist_traveled negatif"),
     r!("STM_032", Dusuk,  Quality, 1, &[], Some("trip_id"), VS, Row,
         "Aynı seferde yinelenen stop_sequence değeri"),
-    r!("STM_033", Yuksek, Spec, 2, &[], Some("trip_id"), VS, Entity,
+    r!("STM_033", Yuksek, Interop, 2, &[], Some("trip_id"), VI, Entity,
         "Tek duraklı sefer (kullanılamaz)"),
     r!("STM_034", Orta,   Interop, 2, &[], Some("trip_id"), VI, Row,
         "Varış veya kalkış zamanından yalnızca biri tanımlı"),
@@ -768,21 +768,21 @@ pub static RULES: &[RuleMeta] = &[
         "Aktarma tanımlandı ama mesafe uzak"),
     r!("TRF_012", Orta,   Quality, 1, &[], None, VS, Row,
         "Yinelenen aktarma kaydı"),
-    r!("TRF_013", Kritik, Spec, 2, &[], None, VS_K, Row,
+    r!("TRF_013", Kritik, Quality, 2, &[], None, VS, Row,
         "Aktarma türü bağlamla uyumsuz"),
     r!("TRF_014", Yuksek, Spec, 2, &[], None, VS, Row,
         "in-seat aktarma için sefer yok"),
-    r!("TRF_015", Yuksek, Spec, 2, &[], None, VS, Row,
+    r!("TRF_015", Yuksek, Quality, 2, &[], None, VS, Row,
         "in-seat aktarma geçersiz"),
-    r!("TRF_016", Orta,   Spec, 2, &[], None, VS, Row,
+    r!("TRF_016", Orta,   Interop, 2, &[], None, VI, Row,
         "Aktarma koşulu çelişkili"),
     // XFL_020 aynı (trip, route) uyumsuzluğunu kontrol eder; çift raporlamayı
     // önlemek için TRF_017 kök kuraldır ve XFL_020'yi semptom olarak bastırır.
-    r!("TRF_017", Yuksek, Spec, 2, &["XFL_020"], None, VS, Row,
+    r!("TRF_017", Yuksek, Interop, 2, &["XFL_020"], None, VI, Row,
         "Sefer aktarması yanlış hat"),
     r!("TRF_018", Orta,   Quality, 2, &[], None, VS, Row,
         "Sefer aktarması aynı seferi gösteriyor"),
-    r!("TRF_019", Orta, Spec, 2, &[], None, VS, Row,
+    r!("TRF_019", Orta, Interop, 2, &[], None, VI, Row,
         "In-seat aktarmada farklı route_type"),
     r!("TRF_020", Orta, Quality, 2, &[], Some("from_stop_id|to_stop_id"), VS, Row,
         "Aktarma için gereken yürüme hızı çok yüksek"),
@@ -1124,7 +1124,7 @@ pub static RULES: &[RuleMeta] = &[
         &["CAL_009","DQ_005","OPR_011","OPR_016"],
         Some("service_id"), VS_K, Entity,
         "calendar ve calendar_dates'te service_id yok"),
-    r!("XFL_002", Yuksek, Spec, 1, &[], Some("trip_id"), VS, Entity,
+    r!("XFL_002", Yuksek, Interop, 1, &[], Some("trip_id"), VI, Entity,
         "Seferin stop_times kaydı yok"),
     r!("XFL_003", Yuksek, Spec, 1, &[], Some("trip_id"), VS, Entity,
         "shape_id tanımsız"),
@@ -1825,9 +1825,9 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("TRF_010", ProjectAnalytics),
     ("TRF_011", ProjectQuality),
     ("TRF_012", ProjectQuality),
-    ("TRF_013", MobilitydataParity),
+    ("TRF_013", ProjectQuality),
     ("TRF_014", GtfsSpec),
-    ("TRF_015", MobilitydataParity),
+    ("TRF_015", ProjectQuality),
     ("TRF_016", MobilitydataParity),
     ("TRF_017", MobilitydataParity),
     ("TRF_018", ProjectQuality),
@@ -1942,13 +1942,13 @@ mod tests {
     /// ARC_002/ARC_009/ARC_015/ARC_019/ARC_023 → 23; parti 6
     /// CLD_005/PTH_011/PTH_014/SHP_028/STM_023/TRP_019 → 17; parti 7
     /// JPN_002/JPN_003/JPN_004/JPN_005/JPN_011 → 12; parti 8
-    /// ATR_001/ATR_009/STP_027 → 9). Faz 3 bu
+    /// ATR_001/ATR_009/STP_027 → 9; parti 9
+    /// STM_033/TRF_013/TRF_015/TRF_016/TRF_017/TRF_019/TRP_017/XFL_002 → 1).
+    /// Faz 3 bu
     /// kuralların sınıfını düzelttikçe `rule_class==Spec` filtresi onları dışlar ve
     /// listeden çıkarılır; Faz 4'te liste BOŞALIR (hard-fail). Yeni ekleme YAPILMAZ.
     const SPEC_AUTHORITY_ALLOWLIST: &[&str] = &[
-        "ARC_029", "STM_033",
-        "TRF_013", "TRF_015", "TRF_016", "TRF_017", "TRF_019",
-        "TRP_017", "XFL_002",
+        "ARC_029",
     ];
 
     #[test]

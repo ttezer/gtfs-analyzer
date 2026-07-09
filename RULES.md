@@ -172,7 +172,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | TRP_013 | Hat tek seferlik | DÜŞÜK | Quality |
 | TRP_014 | trip_short_name çok uzun | BİLGİ | Quality |
 | TRP_015 | block_id grubunda tek sefer | DÜŞÜK | Quality |
-| TRP_017 | Frekans tabanlı sefer stop_times'ta eksik | ORTA | Spec |
+| TRP_017 | Frekans tabanlı sefer stop_times'ta eksik | ORTA | Interop |
 | TRP_019 | Continuous servis aktifken shape_id eksik | YÜKSEK | Quality |
 | TRP_020 | trip_headsign ara durak adıyla eşleşiyor | BİLGİ | Analytics |
 | TRP_021 | Bisiklet izni (bikes_allowed) belirtilmemiş | BİLGİ | Quality |
@@ -219,7 +219,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | STM_029 | Sefer süresi çok kısa | ORTA | Analytics |
 | STM_030 | shape_dist_traveled negatif | DÜŞÜK | Spec |
 | STM_032 | Aynı seferde yinelenen stop_sequence değeri | DÜŞÜK | Quality |
-| STM_033 | Tek duraklı sefer (kullanılamaz) | YÜKSEK | Spec |
+| STM_033 | Tek duraklı sefer (kullanılamaz) | YÜKSEK | Interop |
 | STM_034 | Varış veya kalkış zamanından yalnızca biri tanımlı | ORTA | Interop |
 | STM_035 | Aynı durak ardışık iki kez ziyaret ediliyor (terminal/döngü) | BİLGİ | Analytics |
 | STM_036 | stop_times trip_id + stop_sequence'a göre sıralı değil (unsorted_stop_times) | BİLGİ | Quality |
@@ -364,13 +364,13 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | TRF_010 | Aktarma süresi çok uzun | ORTA | Analytics |
 | TRF_011 | Aktarma tanımlandı ama mesafe uzak | BİLGİ | Quality |
 | TRF_012 | Yinelenen aktarma kaydı | ORTA | Quality |
-| TRF_013 | Aktarma türü bağlamla uyumsuz | KRİTİK | Spec |
+| TRF_013 | Aktarma türü bağlamla uyumsuz | KRİTİK | Quality |
 | TRF_014 | in-seat aktarma için sefer yok | YÜKSEK | Spec |
-| TRF_015 | in-seat aktarma geçersiz | YÜKSEK | Spec |
-| TRF_016 | Aktarma koşulu çelişkili | ORTA | Spec |
-| TRF_017 | Sefer aktarması yanlış hat | YÜKSEK | Spec |
+| TRF_015 | in-seat aktarma geçersiz | YÜKSEK | Quality |
+| TRF_016 | Aktarma koşulu çelişkili | ORTA | Interop |
+| TRF_017 | Sefer aktarması yanlış hat | YÜKSEK | Interop |
 | TRF_018 | Sefer aktarması aynı seferi gösteriyor | ORTA | Quality |
-| TRF_019 | In-seat aktarmada farklı route_type | ORTA | Spec |
+| TRF_019 | In-seat aktarmada farklı route_type | ORTA | Interop |
 | TRF_020 | Aktarma için gereken yürüme hızı çok yüksek | ORTA | Quality |
 
 ## GGL — Google Transit Uyumluluğu
@@ -601,7 +601,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | Kural | Başlık | Önem | Sınıf |
 |---|---|---|---|
 | XFL_001 | calendar ve calendar_dates'te service_id yok | KRİTİK | Spec |
-| XFL_002 | Seferin stop_times kaydı yok | YÜKSEK | Spec |
+| XFL_002 | Seferin stop_times kaydı yok | YÜKSEK | Interop |
 | XFL_003 | shape_id tanımsız | YÜKSEK | Spec |
 | XFL_004 | fare_rules'ta tanımsız route_id | KRİTİK | Spec |
 | XFL_005 | stop_times'ta tanımsız stop_id | KRİTİK | Spec |
