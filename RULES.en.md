@@ -108,7 +108,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | STP_024 | stop_access invalid | INFO | Quality |
 | STP_025 | stop_name has leading or trailing whitespace | MEDIUM | Quality |
 | STP_026 | stop_access invalid value | LOW | Spec |
-| STP_027 | stop_access not set on pathway station | MEDIUM | Spec |
+| STP_027 | stop_access not set on pathway station | MEDIUM | Quality |
 | STP_028 | stop_code too long | INFO | Quality |
 | STP_029 | Stop inside station but coordinate too far | MEDIUM | Quality |
 | STP_030 | Parent station has no child stops | MEDIUM | Quality |
@@ -585,7 +585,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 
 | Rule | Title | Severity | Class |
 |---|---|---|---|
-| ATR_001 | attribution_id missing | HIGH | Spec |
+| ATR_001 | attribution_id missing | HIGH | Quality |
 | ATR_002 | organization_name missing | CRITICAL | Spec |
 | ATR_003 | Attribution role not defined | HIGH | Spec |
 | ATR_004 | is_producer invalid | CRITICAL | Spec |
@@ -593,7 +593,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | ATR_006 | is_authority invalid | CRITICAL | Spec |
 | ATR_007 | attribution_url invalid | CRITICAL | Spec |
 | ATR_008 | attribution_email invalid | LOW | Spec |
-| ATR_009 | attribution_phone invalid | HIGH | Spec |
+| ATR_009 | attribution_phone invalid | HIGH | Quality |
 | ATR_010 | agency_id not found | LOW | Spec |
 
 ## XFL — Cross-File / Semantic

@@ -278,7 +278,7 @@ pub static RULES: &[RuleMeta] = &[
         &["STP_027","PTH_012"],
         Some("stop_id"), VS_ACC, Entity,
         "stop_access geçersiz değer"),
-    r!("STP_027", Orta,   Spec, 1,
+    r!("STP_027", Orta,   Quality, 1,
         &["PTH_012","PTH_013"],
         Some("stop_id"), VS_ACC, Entity,
         "Pathway istasyonunda stop_access belirtilmemiş"),
@@ -1098,7 +1098,7 @@ pub static RULES: &[RuleMeta] = &[
         "record_sub_id yalnızca stop_times için geçerli"),
 
     // ── ATR: Attributions ──────────────────────────────────────────────────────
-    r!("ATR_001", Yuksek, Spec, 1, &[], Some("attribution_id"), VS, Entity,
+    r!("ATR_001", Yuksek, Quality, 1, &[], Some("attribution_id"), VS, Entity,
         "attribution_id eksik"),
     r!("ATR_002", Kritik, Spec, 1, &[], Some("attribution_id"), VS_K, Entity,
         "organization_name eksik"),
@@ -1114,7 +1114,7 @@ pub static RULES: &[RuleMeta] = &[
         "attribution_url geçersiz"),
     r!("ATR_008", Dusuk,  Spec, 1, &[], Some("attribution_id"), VS, Entity,
         "attribution_email geçersiz"),
-    r!("ATR_009", Yuksek, Spec, 1, &[], Some("attribution_id"), VS, Entity,
+    r!("ATR_009", Yuksek, Quality, 1, &[], Some("attribution_id"), VS, Entity,
         "attribution_phone geçersiz"),
     r!("ATR_010", Dusuk,  Spec, 1, &[], Some("attribution_id"), VS, Entity,
         "agency_id bulunamadı"),
@@ -1941,11 +1941,12 @@ mod tests {
     /// FRQ_011/PDW_006/TFR_005/TRP_022/XFL_006 → 28; parti 5
     /// ARC_002/ARC_009/ARC_015/ARC_019/ARC_023 → 23; parti 6
     /// CLD_005/PTH_011/PTH_014/SHP_028/STM_023/TRP_019 → 17; parti 7
-    /// JPN_002/JPN_003/JPN_004/JPN_005/JPN_011 → 12). Faz 3 bu
+    /// JPN_002/JPN_003/JPN_004/JPN_005/JPN_011 → 12; parti 8
+    /// ATR_001/ATR_009/STP_027 → 9). Faz 3 bu
     /// kuralların sınıfını düzelttikçe `rule_class==Spec` filtresi onları dışlar ve
     /// listeden çıkarılır; Faz 4'te liste BOŞALIR (hard-fail). Yeni ekleme YAPILMAZ.
     const SPEC_AUTHORITY_ALLOWLIST: &[&str] = &[
-        "ARC_029", "ATR_001", "ATR_009", "STM_033", "STP_027",
+        "ARC_029", "STM_033",
         "TRF_013", "TRF_015", "TRF_016", "TRF_017", "TRF_019",
         "TRP_017", "XFL_002",
     ];

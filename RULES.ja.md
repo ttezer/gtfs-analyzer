@@ -108,7 +108,7 @@
 | STP_024 | stop_accessが無効 | 情報 | 品質 |
 | STP_025 | stop_nameに先頭または末尾の空白 | 中 | 品質 |
 | STP_026 | stop_accessが有効な列挙値でない | 低 | 仕様 |
-| STP_027 | 経路接続駅でstop_accessが未設定 | 中 | 仕様 |
+| STP_027 | 経路接続駅でstop_accessが未設定 | 中 | 品質 |
 | STP_028 | stop_codeが長すぎる | 情報 | 品質 |
 | STP_029 | 停留所が親駅から遠い | 中 | 品質 |
 | STP_030 | 子停留所のない駅 | 中 | 品質 |
@@ -585,7 +585,7 @@
 
 | ルール | タイトル | 重要度 | クラス |
 |---|---|---|---|
-| ATR_001 | attribution_idが不足 | 高 | 仕様 |
+| ATR_001 | attribution_idが不足 | 高 | 品質 |
 | ATR_002 | organization_nameが不足 | 致命的 | 仕様 |
 | ATR_003 | ロールが未定義（is_producer・is_operator・is_authority） | 高 | 仕様 |
 | ATR_004 | is_producerが無効 | 致命的 | 仕様 |
@@ -593,7 +593,7 @@
 | ATR_006 | is_authorityが無効 | 致命的 | 仕様 |
 | ATR_007 | attribution_urlが無効 | 致命的 | 仕様 |
 | ATR_008 | attribution_emailが無効 | 低 | 仕様 |
-| ATR_009 | attribution_phoneが無効 | 高 | 仕様 |
+| ATR_009 | attribution_phoneが無効 | 高 | 品質 |
 | ATR_010 | agency_idが存在しない | 低 | 仕様 |
 
 ## XFL — クロスファイル / 意味的整合性

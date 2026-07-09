@@ -108,6 +108,7 @@ forbidden / enum / foreign-key / uniqueness / format) `Spec` olabilir. Şüpheli
 - 2026-07-09 · Codex · batch 5 ARC quality reclass (`ARC_002/009/015/019/023`) · allowlist 28→23 · fatal `ARC_029` sona bırakıldı.
 - 2026-07-09 · Codex · batch 6 derived quality reclass (`CLD_005/PTH_011/PTH_014/SHP_028/STM_023/TRP_019`) · allowlist 23→17 · MD-doğrulama isteyenler sonraya bırakıldı.
 - 2026-07-09 · Codex · batch 7 GTFS-JP regional profile reclass (`JPN_002/003/004/005/011`) · allowlist 17→12 · `REGIONAL_PROFILE` + Interop/VI.
+- 2026-07-09 · Codex · batch 8 attribution/stop_access quality reclass (`ATR_001/ATR_009/STP_027`) · allowlist 12→9 · MD-doğrulama isteyenler + fatal `ARC_029` kaldı.
 - <tarih> · <ai> · <parti> · <commit> · <allowlist kaç kaldı> · <not>
 
 ## 8) SONRA (Faz 3 bitince)

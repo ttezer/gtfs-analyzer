@@ -108,7 +108,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | STP_024 | stop_access enum aralığı dışında değer (K2 ham alan kontrolü) | BİLGİ | Quality |
 | STP_025 | stop_name baştaki veya sondaki boşluk içeriyor | ORTA | Quality |
 | STP_026 | stop_access geçersiz değer | DÜŞÜK | Spec |
-| STP_027 | Pathway istasyonunda stop_access belirtilmemiş | ORTA | Spec |
+| STP_027 | Pathway istasyonunda stop_access belirtilmemiş | ORTA | Quality |
 | STP_028 | stop_code çok uzun | BİLGİ | Quality |
 | STP_029 | Durak istasyon içinde ama koordinat çok uzakta | ORTA | Quality |
 | STP_030 | Üst istasyonun alt durağı yok | ORTA | Quality |
@@ -585,7 +585,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 
 | Kural | Başlık | Önem | Sınıf |
 |---|---|---|---|
-| ATR_001 | attribution_id eksik | YÜKSEK | Spec |
+| ATR_001 | attribution_id eksik | YÜKSEK | Quality |
 | ATR_002 | organization_name eksik | KRİTİK | Spec |
 | ATR_003 | Attribution rolü tanımlanmamış | YÜKSEK | Spec |
 | ATR_004 | is_producer geçersiz | KRİTİK | Spec |
@@ -593,7 +593,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | ATR_006 | is_authority geçersiz | KRİTİK | Spec |
 | ATR_007 | attribution_url geçersiz | KRİTİK | Spec |
 | ATR_008 | attribution_email geçersiz | DÜŞÜK | Spec |
-| ATR_009 | attribution_phone geçersiz | YÜKSEK | Spec |
+| ATR_009 | attribution_phone geçersiz | YÜKSEK | Quality |
 | ATR_010 | agency_id bulunamadı | DÜŞÜK | Spec |
 
 ## XFL — Cross-File / Semantik
