@@ -459,9 +459,9 @@ pub static RULES: &[RuleMeta] = &[
         &["STM_007","STM_008","STM_012","STM_013","STM_014","STM_028","STM_029","OPR_008"],
         Some("trip_id"), VS_K, Row,
         "stop_id eksik (stop_times)"),
-    r!("STM_007", Yuksek, Spec, 2, &[], Some("trip_id"), VS, Row,
+    r!("STM_007", Yuksek, Interop, 2, &[], Some("trip_id"), VI, Row,
         "Kalkış saati varış saatinden önce (departure_time < arrival_time)"),
-    r!("STM_008", Kritik, Spec, 2, &[], Some("trip_id"), VS_K, Row,
+    r!("STM_008", Kritik, Interop, 2, &[], Some("trip_id"), VI, Row,
         "Duraklar arası zaman geriye gidiyor"),
     r!("STM_009", Yuksek, Spec, 1, &[], Some("trip_id"), VS, Row,
         "pickup_type geçersiz"),
@@ -589,7 +589,7 @@ pub static RULES: &[RuleMeta] = &[
         &["CAL_005","CAL_008","CAL_009","CAL_010","CAL_012","FIN_010","DQ_006"],
         Some("service_id"), VS_K, Entity,
         "end_date eksik veya geçersiz format"),
-    r!("CAL_005", Kritik, Spec, 2, &[], Some("service_id"), VS_K, Entity,
+    r!("CAL_005", Kritik, Interop, 2, &[], Some("service_id"), VI, Entity,
         "start_date end_date'den sonra"),
     r!("CAL_006", Bilgi,  Quality, 2, &[], Some("service_id"), VS, Entity,
         "Haftalık bazda tüm günler pasif (calendar_dates ile override mümkün)"),
@@ -1935,15 +1935,15 @@ mod tests {
     use super::*;
 
     /// Faz 2 warn-modu: `Sınıf=Spec` ama `authority≠GtfsSpec` olan MEVCUT kurallar
-    /// (docs/audits/spec-authority-inventory-reconciled.csv — başlangıç 45 kayıt; Faz 3
-    /// parti 1'de SHP_006/RTS_009/TRF_018 düşürüldü → 42). Faz 3 bu
+    /// (docs/audits/spec-authority-inventory-reconciled.csv — başlangıç 45; Faz 3 parti 1
+    /// SHP_006/RTS_009/TRF_018 → 42; parti 2 STM_007/STM_008/CAL_005 → 39). Faz 3 bu
     /// kuralların sınıfını düzelttikçe `rule_class==Spec` filtresi onları dışlar ve
     /// listeden çıkarılır; Faz 4'te liste BOŞALIR (hard-fail). Yeni ekleme YAPILMAZ.
     const SPEC_AUTHORITY_ALLOWLIST: &[&str] = &[
         "ARC_002", "ARC_009", "ARC_015", "ARC_019", "ARC_023", "ARC_029", "ATR_001", "ATR_009",
-        "BKR_011", "CAL_005", "CLD_005", "FRQ_005", "FRQ_011", "JPN_002", "JPN_003", "JPN_004",
+        "BKR_011", "CLD_005", "FRQ_005", "FRQ_011", "JPN_002", "JPN_003", "JPN_004",
         "JPN_005", "JPN_011", "PDW_006", "PTH_011", "PTH_014", "RCT_005",
-        "SHP_028", "STM_007", "STM_008", "STM_023", "STM_033", "STM_034", "STM_038", "STP_027",
+        "SHP_028", "STM_023", "STM_033", "STM_034", "STM_038", "STP_027",
         "TFR_004", "TFR_005", "TRF_013", "TRF_015", "TRF_016", "TRF_017", "TRF_019",
         "TRP_017", "TRP_019", "TRP_022", "XFL_002", "XFL_006",
     ];
@@ -2065,20 +2065,16 @@ mod tests {
 
     #[test]
     fn blocker_rules_have_r1() {
-        use gtfs_core::{
-            RuleClass::{Interop, Spec},
-            ReportId::R1,
-            Severity::{Kritik, Yuksek},
-        };
+        use gtfs_core::{RuleClass::Spec, ReportId::R1, Severity::Kritik};
+        // Otorite bütünlüğü (Faz 3+): R1 yayın-engeli yalnız `Spec` + `Kritik` kurallarda.
+        // Interop artık R1 ÜRETMEZ (mandate: R1 = GtfsSpec + Spec + Kritik). Eski
+        // "Kritik/Yüksek Interop → R1" konvansiyonu kaldırıldı; tam kod-düzeyi otorite
+        // bağlaması (is_pub_relevant/build_r1) Faz 4'te yapılacak.
         for rule in RULES {
-            let is_blocker = rule.severity == Kritik
-                && (rule.rule_class == Spec || rule.rule_class == Interop);
-            let is_cond_blocker =
-                rule.severity == Yuksek && rule.rule_class == Interop;
-            if is_blocker || is_cond_blocker {
+            if rule.severity == Kritik && rule.rule_class == Spec {
                 assert!(
                     rule.report_views.contains(&R1),
-                    "{}: blocker/conditional_blocker kural R1'i içermeli", rule.id
+                    "{}: Spec+Kritik kural R1'i içermeli", rule.id
                 );
             }
         }

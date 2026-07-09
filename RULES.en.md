@@ -195,8 +195,8 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | STM_004 | departure_time invalid format | CRITICAL | Spec |
 | STM_005 | stop_sequence missing or invalid | CRITICAL | Spec |
 | STM_006 | stop_id missing (stop_times) | CRITICAL | Spec |
-| STM_007 | Departure time before arrival time | HIGH | Spec |
-| STM_008 | Time decreases between stops | CRITICAL | Spec |
+| STM_007 | Departure time before arrival time | HIGH | Interop |
+| STM_008 | Time decreases between stops | CRITICAL | Interop |
 | STM_009 | pickup_type invalid | HIGH | Spec |
 | STM_010 | drop_off_type invalid | HIGH | Spec |
 | STM_012 | Unrealistic speed between stops | HIGH | Interop |
@@ -267,7 +267,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | CAL_002 | Calendar day field invalid value | CRITICAL | Spec |
 | CAL_003 | start_date invalid | CRITICAL | Spec |
 | CAL_004 | end_date invalid | CRITICAL | Spec |
-| CAL_005 | start_date is after end_date | CRITICAL | Spec |
+| CAL_005 | start_date is after end_date | CRITICAL | Interop |
 | CAL_006 | Weekly schedule has all days disabled | INFO | Quality |
 | CAL_007 | Gap in service period | MEDIUM | Analytics |
 | CAL_008 | Service expires soon | HIGH | Analytics |

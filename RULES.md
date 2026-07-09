@@ -195,8 +195,8 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | STM_004 | departure_time geçersiz format | KRİTİK | Spec |
 | STM_005 | stop_sequence eksik veya geçersiz | KRİTİK | Spec |
 | STM_006 | stop_id eksik (stop_times) | KRİTİK | Spec |
-| STM_007 | Kalkış saati varış saatinden önce (departure_time < arrival_time) | YÜKSEK | Spec |
-| STM_008 | Duraklar arası zaman geriye gidiyor | KRİTİK | Spec |
+| STM_007 | Kalkış saati varış saatinden önce (departure_time < arrival_time) | YÜKSEK | Interop |
+| STM_008 | Duraklar arası zaman geriye gidiyor | KRİTİK | Interop |
 | STM_009 | pickup_type geçersiz | YÜKSEK | Spec |
 | STM_010 | drop_off_type geçersiz | YÜKSEK | Spec |
 | STM_012 | Duraklar arası hız gerçekçi değil | YÜKSEK | Interop |
@@ -267,7 +267,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | CAL_002 | Takvim gün alanı geçersiz değer | KRİTİK | Spec |
 | CAL_003 | start_date eksik veya geçersiz format | KRİTİK | Spec |
 | CAL_004 | end_date eksik veya geçersiz format | KRİTİK | Spec |
-| CAL_005 | start_date end_date'den sonra | KRİTİK | Spec |
+| CAL_005 | start_date end_date'den sonra | KRİTİK | Interop |
 | CAL_006 | Haftalık bazda tüm günler pasif (calendar_dates ile override mümkün) | BİLGİ | Quality |
 | CAL_007 | Servis döneminde boşluk | ORTA | Analytics |
 | CAL_008 | Servis tarihi yakında sona eriyor | YÜKSEK | Analytics |

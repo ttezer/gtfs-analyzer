@@ -195,8 +195,8 @@
 | STM_004 | departure_timeの形式エラー | 致命的 | 仕様 |
 | STM_005 | stop_sequenceが不足または無効 | 致命的 | 仕様 |
 | STM_006 | stop_idが不足 | 致命的 | 仕様 |
-| STM_007 | 出発時刻が到着時刻より前（departure_time < arrival_time） | 高 | 仕様 |
-| STM_008 | 停留所間で時刻が逆転 | 致命的 | 仕様 |
+| STM_007 | 出発時刻が到着時刻より前（departure_time < arrival_time） | 高 | 相互運用 |
+| STM_008 | 停留所間で時刻が逆転 | 致命的 | 相互運用 |
 | STM_009 | pickup_typeが無効 | 高 | 仕様 |
 | STM_010 | drop_off_typeが無効 | 高 | 仕様 |
 | STM_012 | 非現実的な速度 | 高 | 相互運用 |
@@ -267,7 +267,7 @@
 | CAL_002 | 曜日フィールドの値が無効 | 致命的 | 仕様 |
 | CAL_003 | start_dateが欠落または無効な形式 | 致命的 | 仕様 |
 | CAL_004 | end_dateが欠落または無効な形式 | 致命的 | 仕様 |
-| CAL_005 | start_dateがend_dateより後 | 致命的 | 仕様 |
+| CAL_005 | start_dateがend_dateより後 | 致命的 | 相互運用 |
 | CAL_006 | 週次スケジュールで全曜日が無効 | 情報 | 品質 |
 | CAL_007 | サービス期間に空白あり | 中 | 分析 |
 | CAL_008 | サービス期間が間もなく終了 | 高 | 分析 |
