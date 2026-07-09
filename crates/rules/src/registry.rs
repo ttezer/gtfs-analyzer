@@ -1329,13 +1329,13 @@ pub static RULES: &[RuleMeta] = &[
     // ── JPN — GTFS-JP (Japonya profili) kuralları; yalnız GTFS-JP feed'lerde ────
     r!("JPN_001", Orta,   Quality, 2, &[], Some("stop_id"), VS, Entity,
         "GTFS-JP: durak adının kana (ja-Hrkt) okuması eksik"),
-    r!("JPN_002", Yuksek, Spec,    1, &[], Some("trip_id"), VS, Entity,
+    r!("JPN_002", Yuksek, Interop, 1, &[], Some("trip_id"), VI, Entity,
         "GTFS-JP: jp_office_id office_jp.txt'te tanımlı değil"),
-    r!("JPN_003", Yuksek, Spec,    1, &[], Some("agency_id"), VS, Entity,
+    r!("JPN_003", Yuksek, Interop, 1, &[], Some("agency_id"), VI, Entity,
         "GTFS-JP: agency_jp.agency_id agency.txt'te tanımlı değil"),
-    r!("JPN_004", Yuksek, Spec,    2, &[], None, VS, Feed,
+    r!("JPN_004", Yuksek, Interop, 2, &[], None, VI, Feed,
         "GTFS-JP: translations.txt eksik (profil zorunlu kılar)"),
-    r!("JPN_005", Yuksek, Spec,    1, &[], Some("office_id"), VS, Entity,
+    r!("JPN_005", Yuksek, Interop, 1, &[], Some("office_id"), VI, Entity,
         "GTFS-JP: office_jp.office_name boş (zorunlu alan)"),
     r!("JPN_006", Orta,   Quality, 2, &[], None, VS, Feed,
         "GTFS-JP: fare_attributes/fare_rules eksik (profil zorunlu kılar)"),
@@ -1347,7 +1347,7 @@ pub static RULES: &[RuleMeta] = &[
         "GTFS-JP: trip_headsign kana (ja-Hrkt) okuması eksik"),
     r!("JPN_010", Orta,   Quality, 2, &[], Some("agency_id"), VS, Entity,
         "GTFS-JP: işletici adının (agency_name) kana (ja-Hrkt) okuması eksik"),
-    r!("JPN_011", Yuksek, Spec,    1, &[], None, VS, Feed,
+    r!("JPN_011", Yuksek, Interop, 1, &[], None, VI, Feed,
         "GTFS-JP: tek işletici olsa bile agency_id zorunlu"),
 ];
 
@@ -1940,12 +1940,12 @@ mod tests {
     /// FRQ_005/TFR_004/RCT_005/BKR_011/STM_034/STM_038 → 33; parti 4 (Analytics)
     /// FRQ_011/PDW_006/TFR_005/TRP_022/XFL_006 → 28; parti 5
     /// ARC_002/ARC_009/ARC_015/ARC_019/ARC_023 → 23; parti 6
-    /// CLD_005/PTH_011/PTH_014/SHP_028/STM_023/TRP_019 → 17). Faz 3 bu
+    /// CLD_005/PTH_011/PTH_014/SHP_028/STM_023/TRP_019 → 17; parti 7
+    /// JPN_002/JPN_003/JPN_004/JPN_005/JPN_011 → 12). Faz 3 bu
     /// kuralların sınıfını düzelttikçe `rule_class==Spec` filtresi onları dışlar ve
     /// listeden çıkarılır; Faz 4'te liste BOŞALIR (hard-fail). Yeni ekleme YAPILMAZ.
     const SPEC_AUTHORITY_ALLOWLIST: &[&str] = &[
-        "ARC_029", "ATR_001", "ATR_009", "JPN_002", "JPN_003", "JPN_004",
-        "JPN_005", "JPN_011", "STM_033", "STP_027",
+        "ARC_029", "ATR_001", "ATR_009", "STM_033", "STP_027",
         "TRF_013", "TRF_015", "TRF_016", "TRF_017", "TRF_019",
         "TRP_017", "XFL_002",
     ];

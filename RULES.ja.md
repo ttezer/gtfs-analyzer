@@ -719,13 +719,13 @@
 | ルール | タイトル | 重要度 | クラス |
 |---|---|---|---|
 | JPN_001 | GTFS-JP：停留所名のかな（ja-Hrkt）読みが欠落 | 中 | 品質 |
-| JPN_002 | GTFS-JP：jp_office_id が office_jp.txt に未定義 | 高 | 仕様 |
-| JPN_003 | GTFS-JP：agency_jp の agency_id が agency.txt に未定義 | 高 | 仕様 |
-| JPN_004 | GTFS-JP：translations.txt が欠如 | 高 | 仕様 |
-| JPN_005 | GTFS-JP：office_jp の office_name が空 | 高 | 仕様 |
+| JPN_002 | GTFS-JP：jp_office_id が office_jp.txt に未定義 | 高 | 相互運用 |
+| JPN_003 | GTFS-JP：agency_jp の agency_id が agency.txt に未定義 | 高 | 相互運用 |
+| JPN_004 | GTFS-JP：translations.txt が欠如 | 高 | 相互運用 |
+| JPN_005 | GTFS-JP：office_jp の office_name が空 | 高 | 相互運用 |
 | JPN_006 | GTFS-JP：運賃ファイルが欠如 | 中 | 品質 |
 | JPN_007 | GTFS-JP：feed_info.txt が欠如 | 中 | 品質 |
 | JPN_008 | GTFS-JP：route_long_name のかな読みが欠如 | 中 | 品質 |
 | JPN_009 | GTFS-JP：trip_headsign のかな読みが欠如 | 中 | 品質 |
 | JPN_010 | GTFS-JP：agency_name のかな読みが欠如 | 中 | 品質 |
-| JPN_011 | GTFS-JP：事業者が1つでもagency_idが必須 | 高 | 仕様 |
+| JPN_011 | GTFS-JP：事業者が1つでもagency_idが必須 | 高 | 相互運用 |

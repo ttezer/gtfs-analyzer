@@ -719,13 +719,13 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | Rule | Title | Severity | Class |
 |---|---|---|---|
 | JPN_001 | GTFS-JP: stop name missing kana (ja-Hrkt) reading | MEDIUM | Quality |
-| JPN_002 | GTFS-JP: jp_office_id not defined in office_jp.txt | HIGH | Spec |
-| JPN_003 | GTFS-JP: agency_jp agency_id not defined in agency.txt | HIGH | Spec |
-| JPN_004 | GTFS-JP: translations.txt missing | HIGH | Spec |
-| JPN_005 | GTFS-JP: office_jp office_name empty | HIGH | Spec |
+| JPN_002 | GTFS-JP: jp_office_id not defined in office_jp.txt | HIGH | Interop |
+| JPN_003 | GTFS-JP: agency_jp agency_id not defined in agency.txt | HIGH | Interop |
+| JPN_004 | GTFS-JP: translations.txt missing | HIGH | Interop |
+| JPN_005 | GTFS-JP: office_jp office_name empty | HIGH | Interop |
 | JPN_006 | GTFS-JP: fare files missing | MEDIUM | Quality |
 | JPN_007 | GTFS-JP: feed_info.txt missing | MEDIUM | Quality |
 | JPN_008 | GTFS-JP: route_long_name kana reading missing | MEDIUM | Quality |
 | JPN_009 | GTFS-JP: trip_headsign kana reading missing | MEDIUM | Quality |
 | JPN_010 | GTFS-JP: agency_name kana reading missing | MEDIUM | Quality |
-| JPN_011 | GTFS-JP: agency_id required even with one agency | HIGH | Spec |
+| JPN_011 | GTFS-JP: agency_id required even with one agency | HIGH | Interop |

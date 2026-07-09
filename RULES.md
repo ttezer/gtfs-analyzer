@@ -719,13 +719,13 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | Kural | Başlık | Önem | Sınıf |
 |---|---|---|---|
 | JPN_001 | GTFS-JP: durak adının kana (ja-Hrkt) okuması eksik | ORTA | Quality |
-| JPN_002 | GTFS-JP: jp_office_id office_jp.txt'te tanımlı değil | YÜKSEK | Spec |
-| JPN_003 | GTFS-JP: agency_jp.agency_id agency.txt'te tanımlı değil | YÜKSEK | Spec |
-| JPN_004 | GTFS-JP: translations.txt eksik (profil zorunlu kılar) | YÜKSEK | Spec |
-| JPN_005 | GTFS-JP: office_jp.office_name boş (zorunlu alan) | YÜKSEK | Spec |
+| JPN_002 | GTFS-JP: jp_office_id office_jp.txt'te tanımlı değil | YÜKSEK | Interop |
+| JPN_003 | GTFS-JP: agency_jp.agency_id agency.txt'te tanımlı değil | YÜKSEK | Interop |
+| JPN_004 | GTFS-JP: translations.txt eksik (profil zorunlu kılar) | YÜKSEK | Interop |
+| JPN_005 | GTFS-JP: office_jp.office_name boş (zorunlu alan) | YÜKSEK | Interop |
 | JPN_006 | GTFS-JP: fare_attributes/fare_rules eksik (profil zorunlu kılar) | ORTA | Quality |
 | JPN_007 | GTFS-JP: feed_info.txt eksik (profil zorunlu kılar) | ORTA | Quality |
 | JPN_008 | GTFS-JP: hat adının (route_long_name) kana (ja-Hrkt) okuması eksik | ORTA | Quality |
 | JPN_009 | GTFS-JP: trip_headsign kana (ja-Hrkt) okuması eksik | ORTA | Quality |
 | JPN_010 | GTFS-JP: işletici adının (agency_name) kana (ja-Hrkt) okuması eksik | ORTA | Quality |
-| JPN_011 | GTFS-JP: tek işletici olsa bile agency_id zorunlu | YÜKSEK | Spec |
+| JPN_011 | GTFS-JP: tek işletici olsa bile agency_id zorunlu | YÜKSEK | Interop |
