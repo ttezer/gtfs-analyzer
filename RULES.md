@@ -35,8 +35,8 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | ARC_022 | Dosya satır sayısı 1.000.000 sınırını aşıyor | DÜŞÜK | Quality |
 | ARC_023 | ZIP içinde nested ZIP dosyası — GTFS formatında desteklenmez | ORTA | Quality |
 | ARC_024 | GTFS .txt dosyası ZIP içinde alt dizinde — standart parser'lar tarafından atlanır | ORTA | Spec |
-| ARC_026 | Dosyada hatalı satır sonu karakteri | ORTA | Interop |
-| ARC_027 | ZIP girdisinde kullanıcı okuma izni yok | BİLGİ | Interop |
+| ARC_026 | Dosyada hatalı satır sonu karakteri | ORTA | Quality |
+| ARC_027 | ZIP girdisinde kullanıcı okuma izni yok | BİLGİ | Quality |
 | ARC_028 | GTFS yayın URL'si .zip dosya adıyla bitmiyor | DÜŞÜK | Quality |
 | ARC_029 | Sıkıştırma koruması: arşiv zip-bomb sınırını aştı | KRİTİK | Quality |
 
@@ -146,7 +146,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | RTS_018 | continuous_drop_off geçersiz | DÜŞÜK | Spec |
 | RTS_019 | Yinelenen hat adı | ORTA | Quality |
 | RTS_020 | Hat ve acente aynı URL'yi paylaşıyor | BİLGİ | Quality |
-| RTS_021 | Kısa hat adı Google Transit eşiğini (6 karakter) aşıyor | DÜŞÜK | Interop |
+| RTS_021 | Kısa hat adı Google Transit eşiğini (6 karakter) aşıyor | DÜŞÜK | Quality |
 | RTS_022 | Uzun hat adı kısa adı içeriyor | DÜŞÜK | Quality |
 | RTS_023 | Uzun hat adı ve açıklaması aynı | BİLGİ | Quality |
 | RTS_024 | route_cemv_support geçersiz | DÜŞÜK | Quality |
@@ -377,8 +377,8 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 
 | Kural | Başlık | Önem | Sınıf |
 |---|---|---|---|
-| GGL_001 | transfer_type=4/5 Google Transit tarafından desteklenmiyor | DÜŞÜK | Interop |
-| GGL_002 | ic_price (Google-özel) geçersiz değer | DÜŞÜK | Interop |
+| GGL_001 | transfer_type=4/5 Google Transit tarafından desteklenmiyor | DÜŞÜK | Quality |
+| GGL_002 | ic_price (Google-özel) geçersiz değer | DÜŞÜK | Quality |
 
 ## FAR — Fare Attributes (Ücret Özellikleri)
 

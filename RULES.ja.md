@@ -35,8 +35,8 @@
 | ARC_022 | ファイルの行数が上限（100万行）を超過 | 低 | 品質 |
 | ARC_023 | GTFSアーカイブ内のネストされたZIPファイル | 中 | 品質 |
 | ARC_024 | サブディレクトリ内のGTFS .txtファイル（読み込み不可） | 中 | 仕様 |
-| ARC_026 | 不正な改行文字 | 中 | 相互運用 |
-| ARC_027 | ZIPエントリにユーザー読み取り権限がない | 情報 | 相互運用 |
+| ARC_026 | 不正な改行文字 | 中 | 品質 |
+| ARC_027 | ZIPエントリにユーザー読み取り権限がない | 情報 | 品質 |
 | ARC_028 | GTFS公開URLが.zipファイル名で終わっていない | 低 | 品質 |
 | ARC_029 | Zip爆弾保護：アーカイブがzip爆弾の上限を超えました | 致命的 | 品質 |
 
@@ -146,7 +146,7 @@
 | RTS_018 | continuous_drop_offが無効 | 低 | 仕様 |
 | RTS_019 | 路線名が重複 | 中 | 品質 |
 | RTS_020 | 路線URLと事業者URLが同一 | 情報 | 品質 |
-| RTS_021 | route_short_nameがGoogleトランジットの上限（6文字）を超過 | 低 | 相互運用 |
+| RTS_021 | route_short_nameがGoogleトランジットの上限（6文字）を超過 | 低 | 品質 |
 | RTS_022 | route_long_nameにroute_short_nameが含まれている | 低 | 品質 |
 | RTS_023 | route_long_nameとroute_descが同一 | 情報 | 品質 |
 | RTS_024 | cemv_supportが無効（路線） | 低 | 品質 |
@@ -377,8 +377,8 @@
 
 | ルール | タイトル | 重要度 | クラス |
 |---|---|---|---|
-| GGL_001 | transfer_type=4/5はGoogleトランジット非対応 | 低 | 相互運用 |
-| GGL_002 | ic_priceが無効な値 | 低 | 相互運用 |
+| GGL_001 | transfer_type=4/5はGoogleトランジット非対応 | 低 | 品質 |
+| GGL_002 | ic_priceが無効な値 | 低 | 品質 |
 
 ## FAR — 運賃属性（Fare Attributes）
 

@@ -35,8 +35,8 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | ARC_022 | File row count exceeds 1,000,000 limit | LOW | Quality |
 | ARC_023 | Nested ZIP file inside GTFS archive | MEDIUM | Quality |
 | ARC_024 | GTFS .txt file in subdirectory (will not be parsed) | MEDIUM | Spec |
-| ARC_026 | Malformed end-of-line characters | MEDIUM | Interop |
-| ARC_027 | ZIP entry lacks user read permission | INFO | Interop |
+| ARC_026 | Malformed end-of-line characters | MEDIUM | Quality |
+| ARC_027 | ZIP entry lacks user read permission | INFO | Quality |
 | ARC_028 | GTFS publishing URL does not end with a .zip filename | LOW | Quality |
 | ARC_029 | Zip-bomb protection triggered | CRITICAL | Quality |
 
@@ -146,7 +146,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | RTS_018 | continuous_drop_off invalid | LOW | Spec |
 | RTS_019 | Duplicate route name | MEDIUM | Quality |
 | RTS_020 | Route and agency share the same URL | INFO | Quality |
-| RTS_021 | route_short_name exceeds Google Transit limit (6 characters) | LOW | Interop |
+| RTS_021 | route_short_name exceeds Google Transit limit (6 characters) | LOW | Quality |
 | RTS_022 | route_long_name contains route_short_name | LOW | Quality |
 | RTS_023 | route_long_name and description are identical | INFO | Quality |
 | RTS_024 | cemv_support invalid (route) | LOW | Quality |
@@ -377,8 +377,8 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 
 | Rule | Title | Severity | Class |
 |---|---|---|---|
-| GGL_001 | transfer_type=4/5 not supported by Google Transit | LOW | Interop |
-| GGL_002 | ic_price (Google-specific) invalid value | LOW | Interop |
+| GGL_001 | transfer_type=4/5 not supported by Google Transit | LOW | Quality |
+| GGL_002 | ic_price (Google-specific) invalid value | LOW | Quality |
 
 ## FAR — Fare Attributes
 
