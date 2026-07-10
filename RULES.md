@@ -623,8 +623,8 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | XFL_023 | stop_id bulunamadı (location_group_stops) | KRİTİK | Spec |
 | XFL_024 | location_group_id bulunamadı (stop_times) | KRİTİK | Spec |
 | XFL_025 | location_id bulunamadı (locations.geojson) | KRİTİK | Spec |
-| XFL_026 | route cemv_support=1 ama uygulanabilir contactless fare product yok | ORTA | Interop |
-| XFL_027 | route cemv_support=2 ama uygulanabilir contactless fare product var | ORTA | Interop |
+| XFL_026 | route cemv_support=1 ama uygulanabilir contactless fare product yok | ORTA | Quality |
+| XFL_027 | route cemv_support=2 ama uygulanabilir contactless fare product var | ORTA | Quality |
 | XFL_028 | agency cemv_support=1 ama Fares v2'de contactless media yok | BİLGİ | Quality |
 | XFL_029 | route cemv_support=1 ama Fares v2'de contactless media yok | BİLGİ | Quality |
 | XFL_030 | contactless fare media var ama hiç cemv_support=1 yok | BİLGİ | Quality |

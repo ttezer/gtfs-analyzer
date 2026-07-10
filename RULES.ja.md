@@ -623,8 +623,8 @@
 | XFL_023 | stop_idが存在しない（location_group_stops） | 致命的 | 仕様 |
 | XFL_024 | location_group_idが存在しない（stop_times） | 致命的 | 仕様 |
 | XFL_025 | location_idが存在しない（locations.geojson） | 致命的 | 仕様 |
-| XFL_026 | 路線cemv=1だが適用可能なcontactless productなし | 中 | 相互運用 |
-| XFL_027 | 路線cemv=2だが適用可能なcontactless productあり | 中 | 相互運用 |
+| XFL_026 | 路線cemv=1だが適用可能なcontactless productなし | 中 | 品質 |
+| XFL_027 | 路線cemv=2だが適用可能なcontactless productあり | 中 | 品質 |
 | XFL_028 | agency cemv=1だがcontactless mediaなし | 情報 | 品質 |
 | XFL_029 | route cemv=1だがcontactless mediaなし | 情報 | 品質 |
 | XFL_030 | contactless mediaありだがcemv=1なし | 情報 | 品質 |

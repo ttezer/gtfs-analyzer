@@ -623,8 +623,8 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | XFL_023 | stop_id not found (location_group_stops) | CRITICAL | Spec |
 | XFL_024 | location_group_id not found (stop_times) | CRITICAL | Spec |
 | XFL_025 | location_id not found (locations.geojson) | CRITICAL | Spec |
-| XFL_026 | route cemv=1 but no applicable contactless product | MEDIUM | Interop |
-| XFL_027 | route cemv=2 but applicable contactless product | MEDIUM | Interop |
+| XFL_026 | route cemv=1 but no applicable contactless product | MEDIUM | Quality |
+| XFL_027 | route cemv=2 but applicable contactless product | MEDIUM | Quality |
 | XFL_028 | agency cemv=1 but no contactless media | INFO | Quality |
 | XFL_029 | route cemv=1 but no contactless media | INFO | Quality |
 | XFL_030 | contactless media but no cemv=1 | INFO | Quality |
