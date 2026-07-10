@@ -42,7 +42,7 @@ GTFS Validator & Analyzer extends specification validation with operational qual
 | Fares v2 validation | Partial | ❌ | ✅ |
 | GTFS-JP profile validation | ❌ | ❌ | ✅ |
 | Output formats | HTML, JSON | HTML, JSON | HTML, CSV, JSON, PDF |
-| Platform | Web | Web, CLI, Desktop | Web *(CLI, Desktop planned)* |
+| Platform | Web | Web, CLI, Desktop | Web, CLI *(Desktop planned)* |
 | **Total rules** | **178** | **~120** | **538** |
 
 ### Feed Analysis Examples
@@ -146,6 +146,44 @@ shown on the upload screen. For diagnostics, use `?wasm32=1`, `?wasm64=1`, or `?
 4. To compare an earlier analysis, open **Compare** and upload its Golden JSON. Fixed, new, decreased, and increased rules are shown alongside score, feed-date, and normalized notice-density changes.
 
 > To self-host or set up a development environment, see [Developer Setup](#developer-setup).
+
+---
+
+## CLI (Terminal)
+
+Besides the web UI, you can run the same validation core (`gtfs_pipeline::validate_bytes`) from a terminal — for Python/automation integration.
+
+```bash
+# From source
+cargo run -p gtfs-cli -- validate feed.zip --json
+
+# Release binary
+cargo build --release -p gtfs-cli
+target/release/gtfs-analyzer validate feed.zip --json
+```
+
+| Flag | Description |
+|---|---|
+| `--json` | Writes the full `ValidateResult` as JSON to stdout |
+| `--summary` | Short summary: status, notice count, scores (default) |
+| `--rule SHP_010` | Only notices for the given rule |
+| `--severity critical` | Filter by severity (critical/high/medium/low/info) |
+| `--config config.json` | Apply a JSON config delta (on top of `ValidatorConfig::default()`) |
+| `--today 20260710` | Pin the analysis "today" (for calendar rules) |
+
+**Exit codes:** `0` no notices · `1` notices present · `2` fatal or config/file error. In JSON mode stdout is JSON only; errors go to stderr.
+
+```python
+import json, subprocess
+
+proc = subprocess.run(
+    ["target/release/gtfs-analyzer", "validate", "feed.zip", "--json"],
+    text=True, capture_output=True,
+)
+# exit 1 means "has notices", not failure — do NOT use check=True
+data = json.loads(proc.stdout)
+result = data["Ok"] if "Ok" in data else data["Fatal"]  # top key is the enum variant
+```
 
 ---
 

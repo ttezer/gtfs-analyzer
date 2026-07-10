@@ -42,7 +42,7 @@ GTFS Validator & Analyzer は、仕様検証を運用品質分析へと拡張し
 | Fares v2 検証 | 部分的 | ❌ | ✅ |
 | GTFS-JP プロファイル検証 | ❌ | ❌ | ✅ |
 | 出力形式 | HTML, JSON | HTML, JSON | HTML, CSV, JSON, PDF |
-| プラットフォーム | Web | Web, CLI, デスクトップ | Web *（CLI・デスクトップは計画中）* |
+| プラットフォーム | Web | Web, CLI, デスクトップ | Web, CLI *（デスクトップは計画中）* |
 | **総ルール数** | **178** | **~120** | **538** |
 
 ### フィード分析の例
@@ -146,6 +146,44 @@ GTFS Analyzer は Web アプリケーションです — インストール不�
 4. 以前の解析と比較するには、**比較**タブで旧 Golden JSON をアップロードします。修正済み・新規・減少・増加ルールに加え、スコア、フィード期間、正規化した通知密度の変化を表示します。
 
 > セルフホスティングや開発環境の構築については、[開発者セットアップ](#開発者セットアップ)をご参照ください。
+
+---
+
+## CLI（ターミナル）
+
+Web UI に加えて、同じ検証コア（`gtfs_pipeline::validate_bytes`）をターミナルから実行できます — Python/自動化連携向け。
+
+```bash
+# ソースから
+cargo run -p gtfs-cli -- validate feed.zip --json
+
+# リリースバイナリ
+cargo build --release -p gtfs-cli
+target/release/gtfs-analyzer validate feed.zip --json
+```
+
+| フラグ | 説明 |
+|---|---|
+| `--json` | `ValidateResult` 全体を JSON として stdout に出力 |
+| `--summary` | 短い要約：ステータス、通知数、スコア（デフォルト） |
+| `--rule SHP_010` | 指定ルールの通知のみ |
+| `--severity critical` | 重大度でフィルタ（critical/high/medium/low/info） |
+| `--config config.json` | JSON config デルタを適用（`ValidatorConfig::default()` の上に） |
+| `--today 20260710` | 解析の「今日」を固定（カレンダールール用） |
+
+**終了コード：** `0` 通知なし · `1` 通知あり · `2` 致命的エラーまたは config/ファイルエラー。JSON モードでは stdout は JSON のみ、エラーは stderr。
+
+```python
+import json, subprocess
+
+proc = subprocess.run(
+    ["target/release/gtfs-analyzer", "validate", "feed.zip", "--json"],
+    text=True, capture_output=True,
+)
+# exit 1 は「通知あり」であり失敗ではない — check=True は使わない
+data = json.loads(proc.stdout)
+result = data["Ok"] if "Ok" in data else data["Fatal"]  # トップキーは enum バリアント
+```
 
 ---
 

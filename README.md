@@ -42,7 +42,7 @@ GTFS Validator & Analyzer, spesifikasyon doğrulamasını operasyonel kalite ana
 | Fares v2 doğrulama | Kısmi | ❌ | ✅ |
 | GTFS-JP profil doğrulama | ❌ | ❌ | ✅ |
 | Çıktı formatı | HTML, JSON | HTML, JSON | HTML, CSV, JSON, PDF |
-| Platform | Web | Web, CLI, Desktop | Web *(CLI, Desktop planlanmış)* |
+| Platform | Web | Web, CLI, Desktop | Web, CLI *(Desktop planlanmış)* |
 | **Toplam kural** | **178** | **~120** | **538** |
 
 ### Feed Analizi Örnekleri
@@ -146,6 +146,44 @@ ekranında gösterilir. Hata ayıklamak için `?wasm32=1`, `?wasm64=1` veya `?se
 4. Önceki bir analizi karşılaştırmak için **Karşılaştır** sekmesinden eski Golden JSON'u yükleyin. Düzeltilen, yeni, azalan ve artan kurallar; skorlar, feed tarihleri ve normalize edilmiş notice yoğunlukları birlikte gösterilir.
 
 > Kendi sunucunuzda barındırmak veya geliştirme ortamı kurmak için [Geliştirici Kurulumu](#geliştirici-kurulumu) bölümüne bakın.
+
+---
+
+## CLI (Terminal)
+
+Web arayüzü dışında, aynı doğrulama çekirdeğini (`gtfs_pipeline::validate_bytes`) terminalden çalıştırabilirsiniz — Python/otomasyon entegrasyonu için.
+
+```bash
+# Kaynaktan
+cargo run -p gtfs-cli -- validate feed.zip --json
+
+# Release binary
+cargo build --release -p gtfs-cli
+target/release/gtfs-analyzer validate feed.zip --json
+```
+
+| Bayrak | Açıklama |
+|---|---|
+| `--json` | Tüm `ValidateResult`'ı JSON olarak stdout'a yazar |
+| `--summary` | Kısa özet: durum, notice sayısı, skorlar (varsayılan) |
+| `--rule SHP_010` | Yalnızca verilen kural için notice'lar |
+| `--severity critical` | Önem filtresi (critical/high/medium/low/info) |
+| `--config config.json` | JSON config delta uygular (`ValidatorConfig::default()` üzerine) |
+| `--today 20260710` | Analiz "bugün"ünü sabitler (takvim kuralları için) |
+
+**Exit kodları:** `0` notice yok · `1` notice var · `2` fatal ya da config/dosya hatası. JSON modunda stdout yalnızca JSON'dur; hatalar stderr'e yazılır.
+
+```python
+import json, subprocess
+
+proc = subprocess.run(
+    ["target/release/gtfs-analyzer", "validate", "feed.zip", "--json"],
+    text=True, capture_output=True,
+)
+# exit 1 = "notice var", hata değil — check=True KULLANMAYIN
+data = json.loads(proc.stdout)
+result = data["Ok"] if "Ok" in data else data["Fatal"]  # üst anahtar enum varyantı
+```
 
 ---
 
