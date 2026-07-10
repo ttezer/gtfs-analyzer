@@ -486,13 +486,7 @@ fn card_template_shape() {
 // GTFS Schedule Reference'a anchor'lı link (`gtfs.org/...#...`) taşımalı. Bare dosya
 // linki veya referanssız Spec = iddia kanıtsız. Allowlist Faz 4 boyunca karttan karta
 // düşürülür; boşalınca gate tam devrede. Yeni ekleme YAPILMAZ.
-const SPEC_ANCHOR_ALLOWLIST: &[&str] = &[
-    "ARC_001", "ARC_004", "ARC_008", "ARC_012", "ARC_013", "ARC_024", "ARC_025",
-    "CAL_001", "CAL_002", "CAL_003", "CAL_004", "CAL_022", "CLD_001", "CLD_002",
-    "CLD_003", "DQ_021", "FAR_011", "FAR_012", "LVL_007", "LVL_008", "PTH_020",
-    "PTH_021", "PTH_022", "PTH_023", "PTH_024", "STM_046", "STM_051", "STM_052",
-    "TRP_031",
-];
+const SPEC_ANCHOR_ALLOWLIST: &[&str] = &[];
 
 /// Bir metin bölümünde `gtfs.org/...#...` (bölüm/alan anchor'lı) bir URL var mı.
 fn has_gtfs_anchor(section: &str) -> bool {
