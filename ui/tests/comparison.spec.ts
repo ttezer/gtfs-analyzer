@@ -7,8 +7,8 @@ const FIXTURE_ZIP = path.join(path.dirname(fileURLToPath(import.meta.url)), 'fix
 test('analyzed feed can be compared with an older Golden v4 snapshot', async ({ page }) => {
   await page.goto('/?wasm32=1&serial=1');
   await page.locator('#file-input').setInputFiles(FIXTURE_ZIP);
-  await expect(page.locator('#drop-zone.loading')).toBeVisible({ timeout: 5_000 });
   await expect(page.locator('#drop-zone.loading')).not.toBeVisible({ timeout: 25_000 });
+  await expect(page.locator('#btn-report')).toBeEnabled();
   await page.locator('#btn-report').click();
   await page.locator('[data-page="compare"]').click();
   await expect(page.getByText('Sürüm Karşılaştırması', { exact: true })).toBeVisible();
