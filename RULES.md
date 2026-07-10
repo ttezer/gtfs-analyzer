@@ -204,7 +204,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | STM_014 | Segmentte aşırı hız | YÜKSEK | Analytics |
 | STM_015 | İlk duraklama noktası yok | KRİTİK | Spec |
 | STM_016 | Son duraklama noktası yok | KRİTİK | Spec |
-| STM_017 | Sefer saatlerinde güzergah mesafesi eksik | ORTA | Interop |
+| STM_017 | Sefer saatlerinde güzergah mesafesi eksik | ORTA | Quality |
 | STM_018 | continuous_pickup geçersiz (stop_times) | ORTA | Spec |
 | STM_019 | continuous_drop_off geçersiz (stop_times) | ORTA | Spec |
 | STM_020 | Sıfır geçiş süresi (mesafe > 200m) | YÜKSEK | Quality |
@@ -271,7 +271,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | CAL_006 | Haftalık bazda tüm günler pasif (calendar_dates ile override mümkün) | BİLGİ | Quality |
 | CAL_007 | Servis döneminde boşluk | ORTA | Analytics |
 | CAL_008 | Servis tarihi yakında sona eriyor | YÜKSEK | Analytics |
-| CAL_009 | Feed'deki tüm takvim dönemleri sona ermiş | KRİTİK | Interop |
+| CAL_009 | Feed'deki tüm takvim dönemleri sona ermiş | KRİTİK | Quality |
 | CAL_010 | Serviste aktif gün sayısı çok az | ORTA | Analytics |
 | CAL_011 | Kullanılmayan servis | DÜŞÜK | Quality |
 | CAL_012 | Yakın gelecekte servis boşluğu var | BİLGİ | Analytics |
@@ -295,7 +295,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | CLD_001 | service_id eksik | KRİTİK | Spec |
 | CLD_002 | date eksik veya geçersiz format | KRİTİK | Spec |
 | CLD_003 | exception_type eksik veya geçersiz | KRİTİK | Spec |
-| CLD_004 | calendar_dates-only serviste aktif gün (exception_type=1) tanımlı değil | YÜKSEK | Interop |
+| CLD_004 | calendar_dates-only serviste aktif gün (exception_type=1) tanımlı değil | YÜKSEK | Quality |
 | CLD_005 | Tarih makul yıl aralığı dışında | KRİTİK | Quality |
 | CLD_006 | Çok fazla istisna günü | ORTA | Quality |
 | CLD_007 | Aşırı takvim istisnası | BİLGİ | Analytics |
@@ -684,9 +684,9 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 |---|---|---|---|
 | DQ_003 | Hat açıklaması eksik | BİLGİ | Quality |
 | DQ_004 | Hat URL'si eksik | BİLGİ | Quality |
-| DQ_005 | Geçerli servis dönemi yok | YÜKSEK | Interop |
-| DQ_005b | Hiçbir seferin durak zamanı yok | YÜKSEK | Interop |
-| DQ_005c | Koordinatsız durak oranı çok yüksek | YÜKSEK | Interop |
+| DQ_005 | Geçerli servis dönemi yok | YÜKSEK | Quality |
+| DQ_005b | Hiçbir seferin durak zamanı yok | YÜKSEK | Quality |
+| DQ_005c | Koordinatsız durak oranı çok yüksek | YÜKSEK | Quality |
 | DQ_006 | Şekil olmayan sefer oranı çok yüksek | YÜKSEK | Quality |
 | DQ_009 | Seferlerde durak zamanı yok | BİLGİ | Quality |
 | DQ_010 | Acente hiçbir hatta kullanılmıyor | BİLGİ | Quality |

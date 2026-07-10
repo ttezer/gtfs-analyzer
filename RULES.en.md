@@ -204,7 +204,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | STM_014 | Excessive speed in segment | HIGH | Analytics |
 | STM_015 | Missing first timepoint | CRITICAL | Spec |
 | STM_016 | Missing last timepoint | CRITICAL | Spec |
-| STM_017 | Shape distance missing in stop times | MEDIUM | Interop |
+| STM_017 | Shape distance missing in stop times | MEDIUM | Quality |
 | STM_018 | continuous_pickup invalid (stop_times) | MEDIUM | Spec |
 | STM_019 | continuous_drop_off invalid (stop_times) | MEDIUM | Spec |
 | STM_020 | Zero travel time (distance > 200m) | HIGH | Quality |
@@ -271,7 +271,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | CAL_006 | Weekly schedule has all days disabled | INFO | Quality |
 | CAL_007 | Gap in service period | MEDIUM | Analytics |
 | CAL_008 | Service expires soon | HIGH | Analytics |
-| CAL_009 | All feed services have expired | CRITICAL | Interop |
+| CAL_009 | All feed services have expired | CRITICAL | Quality |
 | CAL_010 | Service has too few active days | MEDIUM | Analytics |
 | CAL_011 | Unused service | LOW | Quality |
 | CAL_012 | Service gap in the near future | INFO | Analytics |
@@ -295,7 +295,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | CLD_001 | service_id missing | CRITICAL | Spec |
 | CLD_002 | date invalid format | CRITICAL | Spec |
 | CLD_003 | exception_type missing or invalid | CRITICAL | Spec |
-| CLD_004 | Calendar-dates-only service has no active dates | HIGH | Interop |
+| CLD_004 | Calendar-dates-only service has no active dates | HIGH | Quality |
 | CLD_005 | Date out of range | CRITICAL | Quality |
 | CLD_006 | Too many exception days | MEDIUM | Quality |
 | CLD_007 | Excessive calendar exceptions | INFO | Analytics |
@@ -684,9 +684,9 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 |---|---|---|---|
 | DQ_003 | Route description missing | INFO | Quality |
 | DQ_004 | Route URL missing | INFO | Quality |
-| DQ_005 | No valid service period | HIGH | Interop |
-| DQ_005b | No trip has stop times | HIGH | Interop |
-| DQ_005c | High proportion of stops without coordinates | HIGH | Interop |
+| DQ_005 | No valid service period | HIGH | Quality |
+| DQ_005b | No trip has stop times | HIGH | Quality |
+| DQ_005c | High proportion of stops without coordinates | HIGH | Quality |
 | DQ_006 | High proportion of trips without shapes | HIGH | Quality |
 | DQ_009 | No stop times in trips | INFO | Quality |
 | DQ_010 | Agency not used by any route | INFO | Quality |
