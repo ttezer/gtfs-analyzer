@@ -1935,19 +1935,9 @@ impl RuleMeta {
 mod tests {
     use super::*;
 
-    /// Faz 2 warn-modu: `Sınıf=Spec` ama `authority≠GtfsSpec` olan MEVCUT kurallar
-    /// (otorite denetim defteri, yerelde notgit/audits/ — başlangıç 45; Faz 3 parti 1
-    /// SHP_006/RTS_009/TRF_018 → 42; parti 2 STM_007/STM_008/CAL_005 → 39; parti 3
-    /// FRQ_005/TFR_004/RCT_005/BKR_011/STM_034/STM_038 → 33; parti 4 (Analytics)
-    /// FRQ_011/PDW_006/TFR_005/TRP_022/XFL_006 → 28; parti 5
-    /// ARC_002/ARC_009/ARC_015/ARC_019/ARC_023 → 23; parti 6
-    /// CLD_005/PTH_011/PTH_014/SHP_028/STM_023/TRP_019 → 17; parti 7
-    /// JPN_002/JPN_003/JPN_004/JPN_005/JPN_011 → 12; parti 8
-    /// ATR_001/ATR_009/STP_027 → 9; parti 9
-    /// STM_033/TRF_013/TRF_015/TRF_016/TRF_017/TRF_019/TRP_017/XFL_002 → 1; parti 10
-    /// ARC_029 → 0). Faz 3 sonunda liste boşaldı; Faz 4'te bu warn-modu hard-fail'e
-    /// çevrilir. Yeni ekleme YAPILMAZ.
-    const SPEC_AUTHORITY_ALLOWLIST: &[&str] = &[];
+    /// Otorite gate (Faz 3'te tamamlandı, Faz 4'te hard-fail): `Sınıf=Spec` YALNIZCA
+    /// `authority=GtfsSpec` ile meşrudur. Faz 1-3 boyunca 45→0 uyumsuz kural düşürüldü
+    /// (parti tarihçesi: `notgit/audits/`). Artık istisna/allowlist YOK — ihlal = CI kırmızı.
 
     #[test]
     fn no_duplicate_ids() {
@@ -1982,7 +1972,6 @@ mod tests {
             .filter(|r| r.rule_class == RuleClass::Spec)
             .filter(|r| authority_source(r.id) != AuthoritySource::GtfsSpec)
             .map(|r| r.id)
-            .filter(|id| !SPEC_AUTHORITY_ALLOWLIST.contains(id))
             .collect();
         assert!(
             violations.is_empty(),

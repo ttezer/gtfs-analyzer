@@ -479,3 +479,69 @@ fn card_template_shape() {
         problems.join("\n")
     );
 }
+
+// ── CI koşul #6: Spec kuralı kartında alan-düzeyi GTFS spec anchor'ı zorunlu ──────
+//
+// `Sınıf=Spec` bir otorite iddiasıdır → kart "GTFS spec referansı" bölümünde resmi
+// GTFS Schedule Reference'a anchor'lı link (`gtfs.org/...#...`) taşımalı. Bare dosya
+// linki veya referanssız Spec = iddia kanıtsız. Allowlist Faz 4 boyunca karttan karta
+// düşürülür; boşalınca gate tam devrede. Yeni ekleme YAPILMAZ.
+const SPEC_ANCHOR_ALLOWLIST: &[&str] = &[
+    "ARC_001", "ARC_004", "ARC_008", "ARC_012", "ARC_013", "ARC_024", "ARC_025",
+    "CAL_001", "CAL_002", "CAL_003", "CAL_004", "CAL_022", "CLD_001", "CLD_002",
+    "CLD_003", "DQ_021", "FAR_011", "FAR_012", "LVL_007", "LVL_008", "PTH_020",
+    "PTH_021", "PTH_022", "PTH_023", "PTH_024", "STM_046", "STM_051", "STM_052",
+    "TRP_031",
+];
+
+/// Bir metin bölümünde `gtfs.org/...#...` (bölüm/alan anchor'lı) bir URL var mı.
+fn has_gtfs_anchor(section: &str) -> bool {
+    let mut rest = section;
+    while let Some(pos) = rest.find("gtfs.org/") {
+        let after = &rest[pos..];
+        let end = after
+            .find(|c: char| c.is_whitespace() || c == ')')
+            .unwrap_or(after.len());
+        if after[..end].contains('#') {
+            return true;
+        }
+        rest = &after[end.max(1)..];
+    }
+    false
+}
+
+/// "### GTFS spec referansı" başlığından sonraki `###`/`## ` veya dosya sonuna kadar.
+fn spec_ref_section(text: &str) -> &str {
+    const H: &str = "### GTFS spec referansı";
+    let Some(start) = text.find(H) else { return "" };
+    let body = &text[start + H.len()..];
+    let end = body
+        .find("\n### ")
+        .or_else(|| body.find("\n## "))
+        .unwrap_or(body.len());
+    &body[..end]
+}
+
+#[test]
+fn spec_rules_cite_field_anchor() {
+    let mut problems: Vec<&str> = Vec::new();
+    for rule in RULES {
+        if format!("{:?}", rule.rule_class) != "Spec" {
+            continue;
+        }
+        if SPEC_ANCHOR_ALLOWLIST.contains(&rule.id) {
+            continue;
+        }
+        let Ok(text) = fs::read_to_string(card_path(rule.id)) else { continue };
+        if !has_gtfs_anchor(spec_ref_section(&text)) {
+            problems.push(rule.id);
+        }
+    }
+    assert!(
+        problems.is_empty(),
+        "\n{} Spec kuralı kartında alan-düzeyi `gtfs.org/...#anchor` YOK \
+         (kart 'GTFS spec referansı' bölümüne anchor'lı link ekle):\n{:?}\n",
+        problems.len(),
+        problems
+    );
+}
