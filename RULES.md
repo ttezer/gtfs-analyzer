@@ -20,7 +20,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | ARC_007 | GTFS dışı tanınmayan dosya | BİLGİ | Quality |
 | ARC_008 | Takvim dosyası eksik (calendar.txt ve calendar_dates.txt) | KRİTİK | Spec |
 | ARC_009 | Dosyada veri satırı yok | KRİTİK | Quality |
-| ARC_010 | Dosya UTF-8 BOM içeriyor | ORTA | Interop |
+| ARC_010 | Dosya UTF-8 BOM içeriyor | ORTA | Quality |
 | ARC_011 | Dosya boyutu (bilgi) | BİLGİ | Analytics |
 | ARC_012 | Satır sütun sayısı başlıkla uyuşmuyor | KRİTİK | Spec |
 | ARC_013 | CSV ayrıştırma hatası | KRİTİK | Spec |
@@ -178,7 +178,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | TRP_021 | Bisiklet izni (bikes_allowed) belirtilmemiş | BİLGİ | Quality |
 | TRP_022 | Block içinde çakışan sefer saatleri | YÜKSEK | Interop |
 | TRP_023 | Önümüzdeki 7 günde aktif sefer yok | DÜŞÜK | Quality |
-| TRP_024 | Block içinde tutarsız rota tipi | DÜŞÜK | Interop |
+| TRP_024 | Block içinde tutarsız rota tipi | DÜŞÜK | Quality |
 | TRP_025 | Tekerlekli sandalye erişilebilirlik bilgisi eksik seferlerin oranı yüksek | BİLGİ | Quality |
 | TRP_026 | Aktif tarihi olmayan sefer (service_id geçerli ama aktif gün seti boş) | ORTA | Analytics |
 | TRP_028 | Bazı seferler tekerlekli sandalye erişilebilirliği işaretlememiş | ORTA | Quality |
@@ -228,7 +228,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | STM_039 | Flex bağlamında pickup/drop_off penceresi eksik | KRİTİK | Spec |
 | STM_040 | Flex stop_times'ta pickup/drop_off_booking_rule_id eksik | KRİTİK | Spec |
 | STM_041 | stop_id ile location_id/group_id aynı anda kullanılamaz | YÜKSEK | Spec |
-| STM_042 | stop_headsign Google Transit tarafından desteklenmeyen karakter içeriyor | DÜŞÜK | Interop |
+| STM_042 | stop_headsign Google Transit tarafından desteklenmeyen karakter içeriyor | DÜŞÜK | Quality |
 | STM_043 | Sefer aşırı fazla durağa sahip (>200) — olası veri birleştirme hatası | BİLGİ | Analytics |
 | STM_044 | Feed stop_times satır sayısı 2 milyonu aşıyor — WASM bellek/performans uyarısı | BİLGİ | Analytics |
 | STM_045 | Seferin hareket saati servis günü penceresini aşıyor — olası veri anomalisi | ORTA | Quality |
@@ -317,13 +317,13 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | SHP_012 | Güzergah şekli sefer duraklarından çok uzak | YÜKSEK | Analytics |
 | SHP_014 | İlk veya son durak güzergah ucundan uzakta | BİLGİ | Analytics |
 | SHP_015 | Güzergah şekli istatistiksel olarak çok az nokta | ORTA | Quality |
-| SHP_016 | Güzergah şekli yön bilgisiyle uyumsuz | YÜKSEK | Interop |
+| SHP_016 | Güzergah şekli yön bilgisiyle uyumsuz | YÜKSEK | Quality |
 | SHP_017 | Durak sırası güzergah şekliyle çelişiyor | BİLGİ | Analytics |
 | SHP_018 | Güzergah şekli sefer tarafından referanslanmıyor | DÜŞÜK | Quality |
 | SHP_019 | Güzergah şeklinin seferleri durak zamanı içermiyor | ORTA | Quality |
 | SHP_020 | Güzergah şeklinde tekrarlayan nokta | BİLGİ | Analytics |
 | SHP_021 | shape_dist_traveled negatif değer | DÜŞÜK | Quality |
-| SHP_022 | Durak güzergah şeklinde belirsiz konumda | YÜKSEK | Interop |
+| SHP_022 | Durak güzergah şeklinde belirsiz konumda | YÜKSEK | Quality |
 | SHP_023 | shape_dist_traveled aynı değere sahip art arda iki nokta aynı koordinatta | ORTA | Quality |
 | SHP_024 | Duraktan şekle mesafe shape_dist_traveled ile tutarsız | ORTA | Quality |
 | SHP_025 | Sefer stop_times mesafesi şeklin toplam mesafesini aşıyor | ORTA | Quality |
@@ -611,7 +611,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | XFL_010 | frequencies'te tanımsız trip_id | KRİTİK | Spec |
 | XFL_011 | Takvim tarihleri feed_info aralığı dışında | ORTA | Interop |
 | XFL_012 | Çalıştırılabilir seferi olmayan hat (stop_times veya aktif servis bağlamı eksik) | YÜKSEK | Quality |
-| XFL_013 | shape_id birden fazla yönde kullanılıyor | YÜKSEK | Interop |
+| XFL_013 | shape_id birden fazla yönde kullanılıyor | YÜKSEK | Quality |
 | XFL_014 | Geçersiz çeviri referansı (kaynak kayıt bulunamadı) | ORTA | Quality |
 | XFL_015 | Attribution'da geçersiz referans | KRİTİK | Spec |
 | XFL_016 | Çeviri feed_info'ya referans veriyor ama feed_info.txt eksik | YÜKSEK | Spec |

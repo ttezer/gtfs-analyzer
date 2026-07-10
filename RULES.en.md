@@ -20,7 +20,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | ARC_007 | Unrecognized non-GTFS file | INFO | Quality |
 | ARC_008 | Calendar file missing (calendar.txt and calendar_dates.txt) | CRITICAL | Spec |
 | ARC_009 | File has no data rows | CRITICAL | Quality |
-| ARC_010 | File contains UTF-8 BOM | MEDIUM | Interop |
+| ARC_010 | File contains UTF-8 BOM | MEDIUM | Quality |
 | ARC_011 | File size (info) | INFO | Analytics |
 | ARC_012 | Row column count does not match header | CRITICAL | Spec |
 | ARC_013 | CSV parse error | CRITICAL | Spec |
@@ -178,7 +178,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | TRP_021 | Bicycle allowance (bikes_allowed) not specified | INFO | Quality |
 | TRP_022 | Overlapping trip times within block | HIGH | Interop |
 | TRP_023 | No active trips in the next 7 days | LOW | Quality |
-| TRP_024 | Inconsistent route type within block | LOW | Interop |
+| TRP_024 | Inconsistent route type within block | LOW | Quality |
 | TRP_025 | High proportion of trips without wheelchair accessibility information | INFO | Quality |
 | TRP_026 | Trip with empty active-date set | MEDIUM | Analytics |
 | TRP_028 | Some trips have not set wheelchair accessibility | MEDIUM | Quality |
@@ -228,7 +228,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | STM_039 | Pickup/drop-off window missing in Flex context | CRITICAL | Spec |
 | STM_040 | pickup/drop_off_booking_rule_id missing in Flex stop_times | CRITICAL | Spec |
 | STM_041 | stop_id and location_id/group_id cannot be used together | HIGH | Spec |
-| STM_042 | stop_headsign contains characters unsupported by Google Transit | LOW | Interop |
+| STM_042 | stop_headsign contains characters unsupported by Google Transit | LOW | Quality |
 | STM_043 | Trip has extreme stop count (>200) | INFO | Analytics |
 | STM_044 | Feed stop_times exceeds 2,000,000 rows (WASM performance warning) | INFO | Analytics |
 | STM_045 | Trip departure time exceeds the service day window | MEDIUM | Quality |
@@ -317,13 +317,13 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | SHP_012 | Shape too far from trip stops | HIGH | Analytics |
 | SHP_014 | First or last stop far from shape endpoint | INFO | Analytics |
 | SHP_015 | Shape has statistically too few points | MEDIUM | Quality |
-| SHP_016 | Shape direction inconsistent with trip direction | HIGH | Interop |
+| SHP_016 | Shape direction inconsistent with trip direction | HIGH | Quality |
 | SHP_017 | Stop sequence conflicts with shape | INFO | Analytics |
 | SHP_018 | Shape not referenced by any trip | LOW | Quality |
 | SHP_019 | Shape's trips have no stop times | MEDIUM | Quality |
 | SHP_020 | Repeated point in shape | INFO | Analytics |
 | SHP_021 | shape_dist_traveled negative value | LOW | Quality |
-| SHP_022 | Stop position ambiguous on shape | HIGH | Interop |
+| SHP_022 | Stop position ambiguous on shape | HIGH | Quality |
 | SHP_023 | Consecutive points with same shape_dist_traveled at same coordinates | MEDIUM | Quality |
 | SHP_024 | Stop-to-shape distance inconsistent with shape_dist_traveled | MEDIUM | Quality |
 | SHP_025 | Trip stop_times distance exceeds total shape distance | MEDIUM | Quality |
@@ -611,7 +611,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | XFL_010 | Undefined trip_id in frequencies | CRITICAL | Spec |
 | XFL_011 | Calendar dates outside feed_info range | MEDIUM | Interop |
 | XFL_012 | Route with no operational trips | HIGH | Quality |
-| XFL_013 | shape_id used in multiple directions | HIGH | Interop |
+| XFL_013 | shape_id used in multiple directions | HIGH | Quality |
 | XFL_014 | Invalid translation reference (source record not found) | MEDIUM | Quality |
 | XFL_015 | Invalid reference in attribution | CRITICAL | Spec |
 | XFL_016 | Translation references feed_info but feed_info.txt is missing | HIGH | Spec |
