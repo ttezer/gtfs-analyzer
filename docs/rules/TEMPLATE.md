@@ -13,7 +13,7 @@
 | Varlık | Feed/File/Entity/Row |
 | Kimlik alanı | `scope_key` veya - |
 | Skor tabanı | n |
-| Görünürlük | VS_K/VS/VI_K/VI/VA (`R...`) |
+| Görünürlük | VS_K/VS/VI/VA (+ _GEO/_ACC varyantları) (`R...`) |
 | Bloke ettiği kurallar | `RULE_X`, `RULE_Y` veya - |
 
 ## Tetikleme koşulu (kesin mantık)

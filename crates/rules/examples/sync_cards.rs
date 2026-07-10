@@ -19,12 +19,12 @@ fn views_token(views: &[ReportId]) -> &'static str {
     let m = |a: &[&str]| a.iter().map(|x| x.to_string()).collect::<BTreeSet<String>>();
     if s == m(&["R1", "R2", "R5", "R9"]) { "VS_K" }
     else if s == m(&["R2", "R5", "R9"]) { "VS" }
-    else if s == m(&["R1", "R2", "R5", "R8", "R9"]) { "VI_K" }
     else if s == m(&["R2", "R5", "R8", "R9"]) { "VI" }
     else if s == m(&["R2", "R3", "R5", "R9"]) { "VA" }
-    else if s == m(&["R1", "R2", "R4", "R5", "R8", "R9"]) { "VI_K_GEO" }
+    else if s == m(&["R2", "R4", "R5", "R8", "R9"]) { "VI_GEO" }
+    else if s == m(&["R2", "R4", "R5", "R9"]) { "VS_GEO" }
     else if s == m(&["R2", "R3", "R4", "R5", "R9"]) { "VA_GEO" }
-    else if s == m(&["R1", "R2", "R5", "R7", "R8", "R9"]) { "VI_K_ACC" }
+    else if s == m(&["R2", "R5", "R7", "R8", "R9"]) { "VI_ACC" }
     else if s == m(&["R2", "R3", "R5", "R7", "R9"]) { "VA_ACC" }
     else if s == m(&["R2", "R5", "R7", "R9"]) { "VS_ACC" }
     else { "?" }

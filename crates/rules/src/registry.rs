@@ -10,9 +10,8 @@ use gtfs_core::{AuthoritySource, DedupLevel, ReportId, RuleClass, Severity};
 
 // ── Statik rapor görünüm kümeleri ────────────────────────────────────────────
 //
-// R1 → yayın-engeli (build_r1): YALNIZ KRİTİK+Spec (resmi GTFS spec kapısı).
-//      NOT: aşağıdaki VS_K/VI_K report_views hâlâ R1 listeliyor — bu görünüm-metadata'sı,
-//      runtime R1 otoritesi DEĞİL (build_r1 belirler). report_views/R1 uzlaşımı Faz 4'te.
+// R1 → yayın-engeli (build_r1): YALNIZ KRİTİK+Spec (resmi GTFS spec kapısı). Interop/Quality/
+//      Analytics ASLA R1. R1'i taşıyan TEK görünüm VS_K (Spec+Kritik).
 // R2 → tüm notice'lar (filtrelenebilir)
 // R3 → ANALYTICS sınıfı
 // R4 → GEO ailesi + SHP_014/016 (coğrafi doğruluk)
@@ -21,26 +20,26 @@ use gtfs_core::{AuthoritySource, DedupLevel, ReportId, RuleClass, Severity};
 // R8 → yalnızca INTEROP sınıfı
 // R9 → remediation queue (tüm sınıflar dahil ANALYTICS)
 
-/// Spec + KRİTİK → Blocker → R1
+/// Spec + KRİTİK → Blocker → R1 (R1 taşıyan TEK görünüm)
 const VS_K: &[ReportId] = &[R1, R2, R5, R9];
 /// Spec veya Quality, non-blocker
 const VS: &[ReportId] = &[R2, R5, R9];
-/// Interop + KRİTİK veya YÜKSEK → R8 (+ eski R1 görünüm-metadata'sı; runtime R1 değil, bkz build_r1)
-const VI_K: &[ReportId] = &[R1, R2, R5, R8, R9];
-/// Interop + düşük severity (ORTA/DÜŞÜK/BİLGİ) → R8, no R1
+/// Interop (her severity) → R8; R1 yok (yayın-engeli değil)
 const VI: &[ReportId] = &[R2, R5, R8, R9];
 /// Analytics → R3 (operasyonel kalite) + R9 (tüm notice'lar)
 const VA: &[ReportId] = &[R2, R3, R5, R9];
 
 // Coğrafi ek (R4)
-/// Interop + Geo → R4+R8 (+ eski R1 görünüm-metadata'sı; runtime R1 değil, bkz build_r1)
-const VI_K_GEO: &[ReportId] = &[R1, R2, R4, R5, R8, R9];
+/// Interop + Geo → R4+R8 (R1 yok)
+const VI_GEO: &[ReportId] = &[R2, R4, R5, R8, R9];
+/// Quality + Geo → R4 (R1/R8 yok)
+const VS_GEO: &[ReportId] = &[R2, R4, R5, R9];
 /// Analytics + Geo → R3+R4+R9
 const VA_GEO: &[ReportId] = &[R2, R3, R4, R5, R9];
 
 // Erişilebilirlik eki (R7)
-/// Interop + Accessibility → R7+R8 (+ eski R1 görünüm-metadata'sı; runtime R1 değil, bkz build_r1)
-const VI_K_ACC: &[ReportId] = &[R1, R2, R5, R7, R8, R9];
+/// Interop + Accessibility → R7+R8 (R1 yok)
+const VI_ACC: &[ReportId] = &[R2, R5, R7, R8, R9];
 /// Analytics + Accessibility → R3+R7+R9
 const VA_ACC: &[ReportId] = &[R2, R3, R5, R7, R9];
 /// Spec/Quality + Accessibility → R7
@@ -469,7 +468,7 @@ pub static RULES: &[RuleMeta] = &[
         "pickup_type geçersiz"),
     r!("STM_010", Yuksek, Spec, 1, &[], Some("trip_id"), VS, Row,
         "drop_off_type geçersiz"),
-    r!("STM_012", Yuksek, Interop, 2, &[], Some("trip_id"), VI_K, Row,
+    r!("STM_012", Yuksek, Interop, 2, &[], Some("trip_id"), VI, Row,
         "Duraklar arası hız gerçekçi değil"),
     r!("STM_013", Yuksek, Quality, 2, &[], Some("trip_id"), VS, Row,
         "Karışık varış/kalkış zamanları"),
@@ -501,7 +500,7 @@ pub static RULES: &[RuleMeta] = &[
         "Kısa segment zamanlaması"),
     r!("STM_026", Yuksek, Quality, 2, &[], Some("trip_id"), VS, Row,
         "Durak arası mesafe aşırı uzun"),
-    r!("STM_027", Yuksek, Interop, 3, &[], Some("trip_id"), VI_K, Row,
+    r!("STM_027", Yuksek, Interop, 3, &[], Some("trip_id"), VI, Row,
         "shape_dist_traveled monoton artmıyor"),
     r!("STM_028", Yuksek, Analytics, 2, &[], Some("trip_id"), VA, Row,
         "Sefer süresi çok uzun"),
@@ -599,7 +598,7 @@ pub static RULES: &[RuleMeta] = &[
         "Servis döneminde boşluk"),
     r!("CAL_008", Yuksek, Analytics, 2, &[], Some("service_id"), VA, Entity,
         "Servis tarihi yakında sona eriyor"),
-    r!("CAL_009", Kritik, Interop, 2, &[], Some("service_id"), VI_K, Entity,
+    r!("CAL_009", Kritik, Interop, 2, &[], Some("service_id"), VI, Entity,
         "Feed'deki tüm takvim dönemleri sona ermiş"),
     r!("CAL_010", Orta,   Analytics, 2, &[], Some("service_id"), VA, Entity,
         "Serviste aktif gün sayısı çok az"),
@@ -642,7 +641,7 @@ pub static RULES: &[RuleMeta] = &[
         &["CLD_005","CLD_006","CLD_007"],
         Some("service_id"), VS_K, Row,
         "exception_type eksik veya geçersiz"),
-    r!("CLD_004", Yuksek, Interop, 2, &[], Some("service_id"), VI_K, Row,
+    r!("CLD_004", Yuksek, Interop, 2, &[], Some("service_id"), VI, Row,
         "calendar_dates-only serviste aktif gün (exception_type=1) tanımlı değil"),
     r!("CLD_005", Kritik, Quality, 2, &[], Some("service_id"), VS, Row,
         "Tarih makul yıl aralığı dışında"),
@@ -686,7 +685,7 @@ pub static RULES: &[RuleMeta] = &[
         "İlk veya son durak güzergah ucundan uzakta"),
     r!("SHP_015", Orta,   Quality, 2, &[], Some("shape_id"), VS, Entity,
         "Güzergah şekli istatistiksel olarak çok az nokta"),
-    r!("SHP_016", Yuksek, Interop, 2, &[], Some("shape_id"), VI_K_GEO, Entity,
+    r!("SHP_016", Yuksek, Interop, 2, &[], Some("shape_id"), VI_GEO, Entity,
         "Güzergah şekli yön bilgisiyle uyumsuz"),
     r!("SHP_017", Bilgi,  Analytics, 3, &[], Some("shape_id"), VA_GEO, Entity,
         "Durak sırası güzergah şekliyle çelişiyor"),
@@ -698,7 +697,7 @@ pub static RULES: &[RuleMeta] = &[
         "Güzergah şeklinde tekrarlayan nokta"),
     r!("SHP_021", Dusuk,  Quality, 1, &[], Some("shape_id"), VS, Entity,
         "shape_dist_traveled negatif değer"),
-    r!("SHP_022", Yuksek, Interop, 2, &[], Some("stop_id"), VI_K, Entity,
+    r!("SHP_022", Yuksek, Interop, 2, &[], Some("stop_id"), VI, Entity,
         "Durak güzergah şeklinde belirsiz konumda"),
     r!("SHP_023", Orta,   Quality, 2, &[], Some("shape_id"), VS, Entity,
         "shape_dist_traveled aynı değere sahip art arda iki nokta aynı koordinatta"),
@@ -980,7 +979,7 @@ pub static RULES: &[RuleMeta] = &[
         "Geçit döngü oluşturuyor"),
     r!("PTH_012", Yuksek, Interop, 3,
         &["PTH_013"],
-        Some("stop_id"), VI_K_ACC, Entity,
+        Some("stop_id"), VI_ACC, Entity,
         "İstasyona erişilebilir yol yok"),
     r!("PTH_013", Bilgi,  Analytics, 3, &[], Some("stop_id"), VA_ACC, Entity,
         "Erişilebilir yol analizi"),
@@ -1153,7 +1152,7 @@ pub static RULES: &[RuleMeta] = &[
         "Çalıştırılabilir seferi olmayan hat (stop_times veya aktif servis bağlamı eksik)"),
     r!("XFL_013", Yuksek, Interop, 2,
         &["SHP_017","STM_017"],
-        None, VI_K, Feed,
+        None, VI, Feed,
         "shape_id birden fazla yönde kullanılıyor"),
     r!("XFL_014", Orta,   Quality, 1, &[], None, VS, Feed,
         "Geçersiz çeviri referansı (kaynak kayıt bulunamadı)"),
@@ -1245,7 +1244,7 @@ pub static RULES: &[RuleMeta] = &[
         "Güzergah şeklinde büyük atlama"),
     r!("GEO_007", Yuksek, Analytics, 3, &[], Some("shape_id"), VA_GEO, Entity,
         "Güzergah şeklinde kritik atlama (3× eşik)"),
-    r!("GEO_009", Yuksek, Quality,   3, &[], Some("stop_id"), VI_K_GEO, Entity,
+    r!("GEO_009", Yuksek, Quality,   3, &[], Some("stop_id"), VS_GEO, Entity,
         "Durak shape güzergahından çok uzakta"),
     r!("GEO_012", Orta,   Analytics, 2, &[], Some("stop_id"), VA_GEO, Entity,
         "Duraksallar kümelenmesi (çok yakın duraklar)"),
@@ -1277,11 +1276,11 @@ pub static RULES: &[RuleMeta] = &[
         "Hat açıklaması eksik"),
     r!("DQ_004",  Bilgi,  Quality,  1, &[], Some("route_id"), VS, Entity,
         "Hat URL'si eksik"),
-    r!("DQ_005",  Yuksek, Interop,  2, &[], None, VI_K, Feed,
+    r!("DQ_005",  Yuksek, Interop,  2, &[], None, VI, Feed,
         "Geçerli servis dönemi yok"),
-    r!("DQ_005b", Yuksek, Interop,  2, &["DQ_009"], None, VI_K, Feed,
+    r!("DQ_005b", Yuksek, Interop,  2, &["DQ_009"], None, VI, Feed,
         "Hiçbir seferin durak zamanı yok"),
-    r!("DQ_005c", Yuksek, Interop,  2, &[], None, VI_K, Feed,
+    r!("DQ_005c", Yuksek, Interop,  2, &[], None, VI, Feed,
         "Koordinatsız durak oranı çok yüksek"),
     r!("DQ_006",  Yuksek, Quality,  2, &[], None, VS, Feed,
         "Şekil olmayan sefer oranı çok yüksek"),
