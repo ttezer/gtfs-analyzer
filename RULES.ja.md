@@ -228,7 +228,7 @@
 | STM_039 | Flexコンテキストで乗降ウィンドウが不足 | 致命的 | 仕様 |
 | STM_040 | Flex stop_timesで予約ルールIDが不足 | 致命的 | 仕様 |
 | STM_041 | stop_idとlocation_id/group_idの同時使用不可 | 高 | 仕様 |
-| STM_042 | stop_headsignにGoogleトランジット非対応の文字 | 低 | 品質 |
+| STM_042 | stop_headsignにGoogleトランジット非対応の文字 | 低 | 相互運用 |
 | STM_043 | 便の停留所数が極端に多い（>200） | 情報 | 分析 |
 | STM_044 | stop_times行数が200万超（WASMパフォーマンス警告） | 情報 | 分析 |
 | STM_045 | 便の出発時刻がサービス日の範囲を超過 | 中 | 品質 |
@@ -377,8 +377,8 @@
 
 | ルール | タイトル | 重要度 | クラス |
 |---|---|---|---|
-| GGL_001 | transfer_type=4/5はGoogleトランジット非対応 | 低 | 品質 |
-| GGL_002 | ic_priceが無効な値 | 低 | 品質 |
+| GGL_001 | transfer_type=4/5はGoogleトランジット非対応 | 低 | 相互運用 |
+| GGL_002 | ic_priceが無効な値 | 低 | 相互運用 |
 
 ## FAR — 運賃属性（Fare Attributes）
 

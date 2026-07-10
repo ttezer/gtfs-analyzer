@@ -228,7 +228,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | STM_039 | Pickup/drop-off window missing in Flex context | CRITICAL | Spec |
 | STM_040 | pickup/drop_off_booking_rule_id missing in Flex stop_times | CRITICAL | Spec |
 | STM_041 | stop_id and location_id/group_id cannot be used together | HIGH | Spec |
-| STM_042 | stop_headsign contains characters unsupported by Google Transit | LOW | Quality |
+| STM_042 | stop_headsign contains characters unsupported by Google Transit | LOW | Interop |
 | STM_043 | Trip has extreme stop count (>200) | INFO | Analytics |
 | STM_044 | Feed stop_times exceeds 2,000,000 rows (WASM performance warning) | INFO | Analytics |
 | STM_045 | Trip departure time exceeds the service day window | MEDIUM | Quality |
@@ -377,8 +377,8 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 
 | Rule | Title | Severity | Class |
 |---|---|---|---|
-| GGL_001 | transfer_type=4/5 not supported by Google Transit | LOW | Quality |
-| GGL_002 | ic_price (Google-specific) invalid value | LOW | Quality |
+| GGL_001 | transfer_type=4/5 not supported by Google Transit | LOW | Interop |
+| GGL_002 | ic_price (Google-specific) invalid value | LOW | Interop |
 
 ## FAR — Fare Attributes
 

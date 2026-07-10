@@ -228,7 +228,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | STM_039 | Flex bağlamında pickup/drop_off penceresi eksik | KRİTİK | Spec |
 | STM_040 | Flex stop_times'ta pickup/drop_off_booking_rule_id eksik | KRİTİK | Spec |
 | STM_041 | stop_id ile location_id/group_id aynı anda kullanılamaz | YÜKSEK | Spec |
-| STM_042 | stop_headsign Google Transit tarafından desteklenmeyen karakter içeriyor | DÜŞÜK | Quality |
+| STM_042 | stop_headsign Google Transit tarafından desteklenmeyen karakter içeriyor | DÜŞÜK | Interop |
 | STM_043 | Sefer aşırı fazla durağa sahip (>200) — olası veri birleştirme hatası | BİLGİ | Analytics |
 | STM_044 | Feed stop_times satır sayısı 2 milyonu aşıyor — WASM bellek/performans uyarısı | BİLGİ | Analytics |
 | STM_045 | Seferin hareket saati servis günü penceresini aşıyor — olası veri anomalisi | ORTA | Quality |
@@ -377,8 +377,8 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 
 | Kural | Başlık | Önem | Sınıf |
 |---|---|---|---|
-| GGL_001 | transfer_type=4/5 Google Transit tarafından desteklenmiyor | DÜŞÜK | Quality |
-| GGL_002 | ic_price (Google-özel) geçersiz değer | DÜŞÜK | Quality |
+| GGL_001 | transfer_type=4/5 Google Transit tarafından desteklenmiyor | DÜŞÜK | Interop |
+| GGL_002 | ic_price (Google-özel) geçersiz değer | DÜŞÜK | Interop |
 
 ## FAR — Fare Attributes (Ücret Özellikleri)
 

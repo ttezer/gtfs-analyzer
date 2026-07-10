@@ -3,8 +3,8 @@ use gtfs_core::ReportId::{R1, R2, R3, R4, R5, R7, R8, R9};
 use gtfs_core::RuleClass::{Analytics, Interop, Quality, Spec};
 use gtfs_core::Severity::{Bilgi, Dusuk, Kritik, Orta, Yuksek};
 use gtfs_core::AuthoritySource::{
-    GtfsBestPractice, GtfsSpec, MobilitydataParity, ProjectAnalytics, ProjectQuality,
-    RegionalProfile,
+    GoogleTransitInterop, GtfsBestPractice, GtfsSpec, MobilitydataParity, ProjectAnalytics,
+    ProjectQuality, RegionalProfile,
 };
 use gtfs_core::{AuthoritySource, DedupLevel, ReportId, RuleClass, Severity};
 
@@ -528,7 +528,7 @@ pub static RULES: &[RuleMeta] = &[
         "Flex stop_times'ta pickup/drop_off_booking_rule_id eksik"),
     r!("STM_041", Yuksek, Spec, 1, &[], Some("trip_id"), VS, Entity,
         "stop_id ile location_id/group_id aynı anda kullanılamaz"),
-    r!("STM_042", Dusuk, Quality, 1, &[], Some("trip_id"), VS, Row,
+    r!("STM_042", Dusuk, Interop, 1, &[], Some("trip_id"), VI, Row,
         "stop_headsign Google Transit tarafından desteklenmeyen karakter içeriyor"),
     r!("STM_043", Bilgi,  Analytics, 1, &[], Some("trip_id"), VA, Entity,
         "Sefer aşırı fazla durağa sahip (>200) — olası veri birleştirme hatası"),
@@ -789,9 +789,9 @@ pub static RULES: &[RuleMeta] = &[
         "Aktarma için gereken yürüme hızı çok yüksek"),
 
     // ── GGL: Google Transit Uyumluluk Kuralları ───────────────────────────────
-    r!("GGL_001", Dusuk, Quality, 1, &[], None, VS, Row,
+    r!("GGL_001", Dusuk, Interop, 1, &[], None, VI, Row,
         "transfer_type=4/5 Google Transit tarafından desteklenmiyor"),
-    r!("GGL_002", Dusuk, Quality, 1, &[], None, VS, Row,
+    r!("GGL_002", Dusuk, Interop, 1, &[], None, VI, Row,
         "ic_price (Google-özel) geçersiz değer"),
 
     // ── FAR: Fare Attributes ───────────────────────────────────────────────────
@@ -1578,8 +1578,8 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("GEO_020", ProjectQuality),
     ("GEO_021", ProjectAnalytics),
     ("GEO_022", ProjectQuality),
-    ("GGL_001", ProjectQuality),
-    ("GGL_002", ProjectQuality),
+    ("GGL_001", GoogleTransitInterop),
+    ("GGL_002", GoogleTransitInterop),
     ("JPN_001", ProjectQuality),
     ("JPN_002", RegionalProfile),
     ("JPN_003", RegionalProfile),
@@ -1756,7 +1756,7 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("STM_039", GtfsSpec),
     ("STM_040", GtfsSpec),
     ("STM_041", GtfsSpec),
-    ("STM_042", ProjectQuality),
+    ("STM_042", GoogleTransitInterop),
     ("STM_043", ProjectAnalytics),
     ("STM_044", ProjectAnalytics),
     ("STM_045", ProjectQuality),
