@@ -30,8 +30,6 @@ const VI: &[ReportId] = &[R2, R5, R8, R9];
 const VA: &[ReportId] = &[R2, R3, R5, R9];
 
 // Coğrafi ek (R4)
-/// Interop + Geo → R4+R8 (R1 yok)
-const VI_GEO: &[ReportId] = &[R2, R4, R5, R8, R9];
 /// Quality + Geo → R4 (R1/R8 yok)
 const VS_GEO: &[ReportId] = &[R2, R4, R5, R9];
 /// Analytics + Geo → R3+R4+R9
