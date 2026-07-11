@@ -478,14 +478,19 @@ function hasMapCoords(notice: Notice, nameIndex: NameIndex): boolean {
 
 // Büyük feed modunda haritaya on-demand çekilecek shape_id'yi notice'tan çıkarır.
 // entity_id = shape_id olan kurallar + details.shape_id taşıyan SHP_017/SHP_022.
-// Trip-bağlamlı kurallar (trip→shape gerektirir) bu turda kapsam dışı → '' döner.
+// Trip-bağlamlı kurallar (entity_id = trip_id): shape_id trip_shapes'ten çözülür.
+// large_feed_mode'da trip_shapes boştur → '' döner (harita zaten boş, by-design).
 const SHAPE_ENTITY_RULES = new Set([
   'SHP_009','SHP_010','SHP_012','SHP_014','SHP_015','SHP_016',
   'SHP_018','SHP_019','SHP_020','GEO_006','GEO_007',
 ]);
-function shapeIdForNotice(notice: Notice): string {
+function shapeIdForNotice(notice: Notice, nameIndex: NameIndex): string {
   if (SHAPE_ENTITY_RULES.has(notice.rule_id)) return notice.entity_id ?? '';
   if (notice.rule_id === 'SHP_017' || notice.rule_id === 'SHP_022') return notice.details?.['shape_id'] ?? '';
+  // buildMapOptions bu kurallarda shape'i trip_shapes[trip_id] ile çiziyor (STM_014/008/020/025/
+  // 012/026/033/035, OPR_007/008, STM_017, generic trip). Deferred modda on-demand için aynı yolu izle.
+  const eid = notice.entity_id ?? '';
+  if (eid && eid in nameIndex.trip_shapes) return nameIndex.trip_shapes[eid] ?? '';
   return '';
 }
 
@@ -1429,7 +1434,7 @@ export function attachFixListeners(root: HTMLElement, result?: ValidationResult,
         // Büyük feed modunda shape geometrisi peşinen serialize edilmez; polyline
         // eksikse ilgili shape'i worker'dan on-demand çekip enjekte et.
         if (result.name_index.map_data_deferred && (!opts.polyline || opts.polyline.length < 2)) {
-          const shapeId = shapeIdForNotice(notice);
+          const shapeId = shapeIdForNotice(notice, result.name_index);
           if (shapeId) {
             const coords = await requestShapeCoords(shapeId);
             if (coords.length > 1) {
