@@ -1858,7 +1858,7 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("TRP_013", ProjectQuality),
     ("TRP_014", ProjectQuality),
     ("TRP_015", ProjectQuality),
-    ("TRP_017", MobilitydataParity),
+    ("TRP_017", ProjectQuality),
     ("TRP_019", ProjectQuality),
     ("TRP_020", ProjectAnalytics),
     ("TRP_021", ProjectQuality),
@@ -1896,8 +1896,8 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("XFL_016", GtfsSpec),
     ("XFL_017", ProjectQuality),
     ("XFL_019", GtfsSpec),
-    ("XFL_020", GtfsSpec),
-    ("XFL_021", GtfsSpec),
+    ("XFL_020", ProjectQuality),
+    ("XFL_021", ProjectQuality),
     ("XFL_022", GtfsSpec),
     ("XFL_023", GtfsSpec),
     ("XFL_024", GtfsSpec),
@@ -1974,6 +1974,47 @@ mod tests {
         assert!(
             violations.is_empty(),
             "Spec sınıfı ama authority≠GtfsSpec ve allowlist'te değil: {violations:?}"
+        );
+    }
+
+    /// Sınıf ⟺ otorite biconditional'i: her kuralın `rule_class`'ı, `authority_source`'unun
+    /// beklenen sınıfıyla birebir eşleşmeli. `spec_class_requires_gtfs_spec_authority`'nin
+    /// güçlendirilmiş hâli — yalnız Spec⟹GtfsSpec'i değil, ters yönü de yakalar (ör. sınıf
+    /// Quality'e düşürülüp AUTHORITY tablosu GtfsSpec/MobilitydataParity'de unutulursa).
+    #[test]
+    fn class_matches_authority_source() {
+        use AuthoritySource::*;
+        use RuleClass::*;
+        // authority → beklenen sınıf. Unknown: sabit sınıf yok, tek değişmez "asla Spec".
+        fn expected(a: AuthoritySource) -> Option<RuleClass> {
+            match a {
+                GtfsSpec => Some(Spec),
+                GtfsBestPractice | ProjectQuality => Some(Quality),
+                MobilitydataParity | GoogleTransitInterop | RegionalProfile => Some(Interop),
+                ProjectAnalytics => Some(Analytics),
+                Unknown => None,
+            }
+        }
+        let violations: Vec<String> = RULES
+            .iter()
+            .filter_map(|r| {
+                let a = authority_source(r.id);
+                match expected(a) {
+                    Some(c) if r.rule_class != c => Some(format!(
+                        "{}: class={:?} ama authority={a:?} → beklenen class={c:?}",
+                        r.id, r.rule_class
+                    )),
+                    None if r.rule_class == Spec => {
+                        Some(format!("{}: authority=Unknown asla Spec olamaz", r.id))
+                    }
+                    _ => None,
+                }
+            })
+            .collect();
+        assert!(
+            violations.is_empty(),
+            "sınıf↔otorite tutarsızlıkları:\n{}",
+            violations.join("\n")
         );
     }
 
