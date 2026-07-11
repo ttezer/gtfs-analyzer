@@ -15,12 +15,14 @@ Because of this design, the most relevant security concerns are:
 
 ## Supported versions
 
-The project is pre-1.0. Security fixes are applied to the latest `main` / `0.1.x` release.
+The project is pre-1.0 and rolls forward: security fixes land on the latest release
+(`main`) only. There are no maintenance branches for older versions — if you are on an
+earlier release, upgrade to the latest.
 
-| Version | Supported |
-|---------|-----------|
-| 0.1.x   | ✅        |
-| < 0.1   | ❌        |
+| Version         | Supported |
+|-----------------|-----------|
+| 0.5.x (latest)  | ✅        |
+| < 0.5           | ❌        |
 
 ## Reporting a vulnerability
 
