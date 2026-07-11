@@ -7,6 +7,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-07-11
+
+> **Scores are not comparable to 0.4.0.** This release continues the authority-based
+> reclassification started in 0.4.0: more rules moved between classes, so a feed's Overall
+> and Publication scores can shift even though the feed is unchanged and detection is
+> identical. Re-baseline any Golden snapshots after upgrading.
+
+### Added
+- **Command-line interface.** A new `gtfs-cli` crate ships the `gtfs-analyzer` binary:
+  `gtfs-analyzer validate feed.zip` with `--json`, `--summary`, `--rule <ID>`,
+  `--severity <level>`, `--config <file>`, `--today <YYYYMMDD>`. Exit codes: `0` no notices,
+  `1` notices present, `2` fatal / config error. It runs the same validation core as the web
+  app — no separate logic.
+
+### Changed
+- **Authority-based classification completed.** Every `Spec` rule card must now cite an
+  explicit `gtfs.org` field anchor, enforced by a test gate (the earlier warn-mode was
+  retired). Rules lacking an explicit GTFS Schedule normative basis were reclassified off
+  `Spec`/`Interop`:
+  - Interop rules matching only project-specific behaviour (no MobilityData / Google /
+    regional parity) moved to `Quality` or `Analytics`.
+  - `XFL_020` / `XFL_021` (transfers cross-file consistency): `Spec` → `Quality` — no explicit
+    `transfers.txt` normative clause and no verified external parity.
+  - `TRP_017` (frequencies trip missing `stop_times`): `Interop` → `Quality` — MobilityData's
+    `unused_trip` is a different condition, so there is no exact-notice parity.
+  - Google Transit checks are grouped under a dedicated `GoogleTransitInterop` authority.
+  - Detection is unchanged throughout — the same issues are still reported; only class labels
+    and their scoring weights moved.
+- `ATR_009` was mislabelled "attribution_phone invalid"; it actually flags rows where more
+  than one of `agency_id` / `route_id` / `trip_id` is set. Registry title, rule message, and
+  the en/tr/ja locales were corrected (no behaviour change).
+- Interop rules no longer appear in the R1 publishability report (view-metadata cleanup).
+
+### Fixed
+- On the file map, shape geometry for trip-context rules (e.g. STM_014, OPR_007, STM_017) is
+  now fetched on demand in deferred (large-shape) mode, so the route line renders alongside
+  the stop pins instead of pins alone.
+
+### Internal
+- Classification audit ledgers are kept out of the public repository.
+
 ## [0.4.0] - 2026-07-09
 
 > **Scores are not comparable to 0.3.x.** This release recalibrates how rules are
