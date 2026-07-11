@@ -1004,7 +1004,7 @@ const tr = {
     'ATR_006': 'is_authority geçersiz',
     'ATR_007': 'attribution_url geçersiz',
     'ATR_008': 'attribution_email geçersiz',
-    'ATR_009': 'attribution_phone geçersiz',
+    'ATR_009': 'attribution hedef alanları birlikte kullanılmış',
     'ATR_010': 'agency_id bulunamadı',
     // XFL
     'XFL_001': "calendar ve calendar_dates'te service_id yok",

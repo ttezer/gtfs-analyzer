@@ -973,7 +973,7 @@ const ja: LocaleShape = {
     'ATR_006': "帰属'{entity_id}'：is_authority'{observed_value}'が無効です。",
     'ATR_007': "帰属'{entity_id}'：attribution_urlが無効です。",
     'ATR_008': "帰属'{entity_id}'：attribution_emailが無効です。",
-    'ATR_009': "帰属'{entity_id}'：attribution_phoneが無効です。",
+    'ATR_009': "帰属'{entity_id}'：agency_id・route_id・trip_idのうち複数が設定されています。",
     'ATR_010': "帰属'{entity_id}'：agency_id'{observed_value}'が見つかりません。",
     // XFL
     'XFL_001': "サービス'{entity_id}'がcalendar.txtまたはcalendar_dates.txtに見つかりません。",
@@ -2114,7 +2114,7 @@ const ja: LocaleShape = {
     'ATR_006': 'is_authorityが無効',
     'ATR_007': 'attribution_urlが無効',
     'ATR_008': 'attribution_emailが無効',
-    'ATR_009': 'attribution_phoneが無効',
+    'ATR_009': '帰属参照フィールドが複数設定',
     'ATR_010': 'agency_idが存在しない',
     // XFL
     'XFL_001': 'service_idがcalendar.txtまたはcalendar_dates.txtに存在しない',

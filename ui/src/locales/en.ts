@@ -992,7 +992,7 @@ const en: LocaleShape = {
     'ATR_006': "Attribution '{entity_id}': is_authority '{observed_value}' is invalid.",
     'ATR_007': "Attribution '{entity_id}': attribution_url is invalid.",
     'ATR_008': "Attribution '{entity_id}': attribution_email is invalid.",
-    'ATR_009': "Attribution '{entity_id}': attribution_phone is invalid.",
+    'ATR_009': "Attribution '{entity_id}': more than one of agency_id, route_id, trip_id is set.",
     'ATR_010': "Attribution '{entity_id}': agency_id '{observed_value}' not found.",
     // XFL
     'XFL_001': "Service '{entity_id}' not found in calendar.txt or calendar_dates.txt.",
@@ -2160,7 +2160,7 @@ const en: LocaleShape = {
     'ATR_006': 'is_authority invalid',
     'ATR_007': 'attribution_url invalid',
     'ATR_008': 'attribution_email invalid',
-    'ATR_009': 'attribution_phone invalid',
+    'ATR_009': 'multiple attribution reference fields set',
     'ATR_010': 'agency_id not found',
     // XFL
     'XFL_001': 'service_id missing from both calendar and calendar_dates',

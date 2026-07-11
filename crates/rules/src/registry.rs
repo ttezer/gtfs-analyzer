@@ -405,7 +405,7 @@ pub static RULES: &[RuleMeta] = &[
         "trip_short_name çok uzun"),
     r!("TRP_015", Dusuk,  Quality, 1, &[], Some("trip_id"), VS, Entity,
         "block_id grubunda tek sefer"),
-    r!("TRP_017", Orta,   Interop, 1, &[], Some("trip_id"), VI, Entity,
+    r!("TRP_017", Orta,   Quality, 1, &[], Some("trip_id"), VS, Entity,
         "Frekans tabanlı sefer stop_times'ta eksik"),
     r!("TRP_019", Yuksek, Quality, 1, &[], Some("trip_id"), VS, Entity,
         "Continuous servis aktifken shape_id eksik"),
@@ -1114,7 +1114,7 @@ pub static RULES: &[RuleMeta] = &[
     r!("ATR_008", Dusuk,  Spec, 1, &[], Some("attribution_id"), VS, Entity,
         "attribution_email geçersiz"),
     r!("ATR_009", Yuksek, Quality, 1, &[], Some("attribution_id"), VS, Entity,
-        "attribution_phone geçersiz"),
+        "attribution hedef alanları (agency/route/trip) birlikte kullanılmış"),
     r!("ATR_010", Dusuk,  Spec, 1, &[], Some("attribution_id"), VS, Entity,
         "agency_id bulunamadı"),
 
