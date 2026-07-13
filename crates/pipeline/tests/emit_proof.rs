@@ -1451,6 +1451,34 @@ fn each_fixture_actually_emits_its_rule() {
     assert!(failures.is_empty(), "Emit etmeyen fixture(lar):\n{}", failures.join("\n"));
 }
 
+// FLG_002 regresyon: network_id networks.txt yerine routes.txt.network_id sütunuyla
+// tanımlanmışsa (GTFS Fares v2, ikinci geçerli kaynak) FLG_002 yanlış pozitif ÜRETMEMELİ.
+#[test]
+fn flg_002_network_id_from_routes_txt_is_not_a_false_positive() {
+    let routes = "route_id,agency_id,route_short_name,route_type,network_id\nR1,1,101,3,TRAM\n";
+    let flr = "leg_group_id,network_id\nLG1,TRAM\n";
+    let files = with_opts(
+        &[("routes.txt", routes), ("fare_leg_rules.txt", flr)],
+        &[],
+        &[],
+    );
+    let emitted = emitted_rules(&files, &ValidatorConfig::default());
+    assert!(
+        !emitted.contains("FLG_002"),
+        "routes.txt.network_id ile tanımlı TRAM için FLG_002 tetiklenmemeli, emit: {:?}",
+        emitted,
+    );
+}
+
+// FLG_002 pozitif kontrol: network_id hiçbir kaynakta yoksa yine de tetiklenmeli.
+#[test]
+fn flg_002_still_fires_for_truly_undefined_network_id() {
+    let flr = "leg_group_id,network_id\nLG1,NOPE\n";
+    let files = with_opts(&[("fare_leg_rules.txt", flr)], &[], &[]);
+    let emitted = emitted_rules(&files, &ValidatorConfig::default());
+    assert!(emitted.contains("FLG_002"), "tanımsız network_id FLG_002 üretmeli, emit: {:?}", emitted);
+}
+
 #[test]
 fn coverage_debt_matches_ledger() {
     let canonical: BTreeSet<&str> = RULES.iter().map(|r| r.id).collect();

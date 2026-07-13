@@ -489,6 +489,15 @@ fn build_fares_v2(
         }
     }
 
+    // network_id yalnız networks.txt'te değil, routes.txt'teki network_id sütunuyla da
+    // tanımlanabilir (GTFS Fares v2). NET_001 döngüsünden SONRA eklenir; böylece NET_001
+    // tekillik kontrolü yalnız networks.txt satırlarını görür, FLG_002 ise tam kümeye bakar.
+    for rec in &records.routes {
+        if let Some(nid) = rec.network_id.as_deref().filter(|s| !s.is_empty()) {
+            map.network_ids.insert(nid.to_string());
+        }
+    }
+
     // RCT_001: rider_category_id tekil
     for rec in &records.rider_categories {
         if rec.rider_category_id.is_empty() {
