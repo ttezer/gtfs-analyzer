@@ -13,7 +13,7 @@ GTFS Validator & Analyzer does not merely check whether a file conforms to the s
 
 Every finding is tagged with a rule code, an analysis class, and a severity level. Thanks to the Spec · Interop · Quality · Analytics classes and the Critical → Info severity levels, thousands of findings can be filtered, prioritized, and handled systematically. The tool also automatically detects the GTFS features used by the feed — Shapes, Transfers, Fares, Headsigns, Flex, and the like — and includes them in the report.
 
-GTFS Validator & Analyzer extends specification validation with operational quality analysis. Frequency inconsistencies per route, anomalous speed segments, isolated stops, gaps in service patterns, andnetwork topology problems are examined with 538 distinct validation and analysis rules. Results are summarized with two scores — the Publish Score (blocking issues only) and the Overall Score (weighted average of all four classes) — computed with different formulas for different purposes. The prioritized fix queue shows which issues should be addressed first and the likely impact of each fix on the score.
+GTFS Validator & Analyzer extends specification validation with operational quality analysis. Frequency inconsistencies per route, anomalous speed segments, isolated stops, gaps in service patterns, andnetwork topology problems are examined with 537 distinct validation and analysis rules. Results are summarized with two scores — the Publish Score (blocking issues only) and the Overall Score (weighted average of all four classes) — computed with different formulas for different purposes. The prioritized fix queue shows which issues should be addressed first and the likely impact of each fix on the score.
 
 **Who is it for?**
 
@@ -43,11 +43,11 @@ GTFS Validator & Analyzer extends specification validation with operational qual
 | GTFS-JP profile validation | ❌ | ❌ | ✅ |
 | Output formats | HTML, JSON | HTML, JSON | HTML, CSV, JSON, PDF |
 | Platform | Web | Web, CLI, Desktop | Web, CLI *(Desktop planned)* |
-| **Total rules** | **178** | **~120** | **538** |
+| **Total rules** | **178** | **~120** | **537** |
 
 ### Feed Analysis Examples
 
-The same feeds were compared with two validators: MobilityData gtfs-validator v8.0.1 · GTFS Analyzer v0.5.0. (Figures are a snapshot from a run on 2026-07-11; because some rules are date-dependent, running on a different day may produce small deviations.)
+The same feeds were compared with two validators: MobilityData gtfs-validator v8.0.1 · GTFS Analyzer v0.5.0. (GTFS Analyzer figures are a snapshot from a run on 2026-07-13; because some rules are date-dependent, running on a different day may produce small deviations.)
 
 #### BART (Bay Area Rapid Transit, San Francisco)
 
@@ -71,19 +71,19 @@ Feed: `mdb-247` (MobilityDatabase, 2026-07-10 snapshot; validity range: 2026-06-
 
 | | MobilityData | GTFS Analyzer |
 |---|---:|---:|
-| Total notices | 972 | 6,992 |
-| Critical / Error | 908 | 7 |
-| High / Warning | 51 | 1,280 |
+| Total notices | 972 | 6,981 |
+| Critical / Error | 908 | 0 |
+| High / Warning | 51 | 1,278 |
 | Medium | — | 177 |
-| Low | — | 1,908 |
+| Low | — | 1,906 |
 | Info | 13 | 3,620 |
-| Distinct rule types triggered | 9 | **57** |
-| Publish score | — | **89.3 / 100** |
-| Overall score | — | **79.6 / 100** |
+| Distinct rule types triggered | 9 | **55** |
+| Publish score | — | **100 / 100** |
+| Overall score | — | **83.4 / 100** |
 
 > ⚠️ **Overlapping block trips:** This feed's dominant finding is trips that overlap in time within the same block (908 *errors* in MobilityData). GTFS Analyzer catches this with TRP_022 (770) but counts a conflict only for services active on the same day (calendar-intersection guard); severity classification differs across tools (not critical in Analyzer).
 >
-> ⚠️ **Fares v2:** GTFS Analyzer reports Fares v2 referential-integrity problems as critical — for example, a `network_id` in `fare_leg_rules.txt` not defined in `networks.txt` (detailed coverage via the FAR/FPD/FLG/FTR/RCT/FMD groups). MobilityData also validates Fares v2 (schema + referential integrity + fare_transfer/products/media/timeframes rules), though coverage and severity classification differ.
+> ⚠️ **Fares v2:** This feed assigns networks via the `network_id` column in `routes.txt` (there is no `networks.txt` — a valid GTFS Fares v2 method). GTFS Analyzer resolves `network_id` references in `fare_leg_rules.txt` against all three sources (`networks.txt`, `routes.txt`, `route_networks.txt`), so it raises no false critical for valid definitions (0 critical on this feed). Genuinely undefined `network_id` values and similar Fares v2 referential-integrity problems are still reported as critical (FAR/FPD/FLG/FTR/RCT/FMD groups). MobilityData also validates Fares v2 (schema + referential integrity + fare_transfer/products/media/timeframes rules), though coverage and severity classification differ.
 
 #### Tokyo Toei (Tokyo Metropolitan Bureau of Transportation)
 
@@ -91,15 +91,15 @@ Feed: `mdb-3175` (MobilityDatabase, 2026-07-11 snapshot; validity range: 2026-07
 
 | | MobilityData | GTFS Analyzer |
 |---|---:|---:|
-| Total notices | 2,404 | 3,206 |
+| Total notices | 2,404 | 3,168 |
 | Critical / Error | 0 | 0 |
 | High / Warning | 300 | 20 |
 | Medium | — | 1,014 |
-| Low | — | 1,182 |
-| Info | 2,104 | 990 |
-| Distinct rule types triggered | 9 | **61** |
+| Low | — | 1,142 |
+| Info | 2,104 | 992 |
+| Distinct rule types triggered | 9 | **62** |
 | Publish score | — | **100 / 100** |
-| Overall score | — | **83.7 / 100** |
+| Overall score | — | **83.8 / 100** |
 
 > 🗾 **Spec-clean but operationally dense:** Both tools report 0 critical — the feed is specification-clean. The difference is in the analytics layer: most of GTFS Analyzer's medium/low findings are operational signals from the three-year validity window (2026–2029) and dense network/shape patterns, which MobilityData largely summarizes as warnings/info.
 

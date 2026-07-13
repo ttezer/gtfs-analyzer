@@ -13,7 +13,7 @@ GTFS Validator & Analyzer yalnızca dosyanın spesifikasyona uygun olup olmadı�
 
 Her bulgu; kural kodu, analiz sınıfı ve önem seviyesiyle etiketlenir. Spec · Interop · Quality · Analytics sınıfları ile Kritik → Bilgi önem seviyeleri sayesinde binlerce bulgu filtrelenebilir, önceliklendirilebilir ve sistematik biçimde ele alınabilir. Araç ayrıca feed'in kullandığı GTFS özelliklerini — Shapes, Transfers, Fares, Headsigns, Flex ve benzerlerini — otomatik olarak tespit ederek rapora dahil eder.
 
-GTFS Validator & Analyzer, spesifikasyon doğrulamasını operasyonel kalite analiziyle genişletir. Hat bazında sefer sıklığı tutarsızlıkları, anormal hız segmentleri, izole duraklar,servis desenlerindeki boşluklar ve ağ topolojisi problemleri 538 farklı doğrulama ve analiz kuralıyla incelenir. Sonuçlar, uyumluluk ve kaliteyi ayrı ayrı değerlendiren skorlarla özetlenir. Önceliklendirilmiş düzeltme kuyruğu ise hangi sorunların önce ele alınması gerektiğini ve yapılacak düzeltmelerin skora olası etkisini gösterir.
+GTFS Validator & Analyzer, spesifikasyon doğrulamasını operasyonel kalite analiziyle genişletir. Hat bazında sefer sıklığı tutarsızlıkları, anormal hız segmentleri, izole duraklar,servis desenlerindeki boşluklar ve ağ topolojisi problemleri 537 farklı doğrulama ve analiz kuralıyla incelenir. Sonuçlar, uyumluluk ve kaliteyi ayrı ayrı değerlendiren skorlarla özetlenir. Önceliklendirilmiş düzeltme kuyruğu ise hangi sorunların önce ele alınması gerektiğini ve yapılacak düzeltmelerin skora olası etkisini gösterir.
 
 **Kimler için?**
 
@@ -43,11 +43,11 @@ GTFS Validator & Analyzer, spesifikasyon doğrulamasını operasyonel kalite ana
 | GTFS-JP profil doğrulama | ❌ | ❌ | ✅ |
 | Çıktı formatı | HTML, JSON | HTML, JSON | HTML, CSV, JSON, PDF |
 | Platform | Web | Web, CLI, Desktop | Web, CLI *(Desktop planlanmış)* |
-| **Toplam kural** | **178** | **~120** | **538** |
+| **Toplam kural** | **178** | **~120** | **537** |
 
 ### Feed Analizi Örnekleri
 
-Aynı feed'ler iki validator ile karşılaştırıldı: MobilityData gtfs-validator v8.0.1 · GTFS Analyzer v0.5.0. (Sayılar 2026-07-11 tarihli çalıştırmanın anlık görüntüsüdür; tarihe bağlı kurallar nedeniyle farklı bir günde çalıştırma küçük sapmalar verebilir.)
+Aynı feed'ler iki validator ile karşılaştırıldı: MobilityData gtfs-validator v8.0.1 · GTFS Analyzer v0.5.0. (GTFS Analyzer sayıları 2026-07-13 tarihli çalıştırmanın anlık görüntüsüdür; tarihe bağlı kurallar nedeniyle farklı bir günde çalıştırma küçük sapmalar verebilir.)
 
 #### BART (Bay Area Rapid Transit, San Francisco)
 
@@ -71,19 +71,19 @@ Feed: `mdb-247` (MobilityDatabase, 2026-07-10 anlık görüntüsü; geçerlilik 
 
 | | MobilityData | GTFS Analyzer |
 |---|---:|---:|
-| Toplam notice | 972 | 6.992 |
-| Kritik / Error | 908 | 7 |
-| Yüksek / Warning | 51 | 1.280 |
+| Toplam notice | 972 | 6.981 |
+| Kritik / Error | 908 | 0 |
+| Yüksek / Warning | 51 | 1.278 |
 | Orta | — | 177 |
-| Düşük | — | 1.908 |
+| Düşük | — | 1.906 |
 | Bilgi / Info | 13 | 3.620 |
-| Tetiklenen kural tipi | 9 | **57** |
-| Yayın skoru | — | **89,3 / 100** |
-| Genel skor | — | **79,6 / 100** |
+| Tetiklenen kural tipi | 9 | **55** |
+| Yayın skoru | — | **100 / 100** |
+| Genel skor | — | **83,4 / 100** |
 
 > ⚠️ **Çakışan blok seferleri:** Bu feed'in baskın bulgusu, aynı blokta zaman bakımından çakışan seferler (MobilityData'da 908 *error*). GTFS Analyzer bunu TRP_022 ile yakalar (770) ancak yalnızca aynı gün aktif servisleri çakışma sayar (takvim-kesişim guard'ı); önem sınıflandırması araçlar arasında farklılık gösterir (Analyzer'da kritik değil).
 >
-> ⚠️ **Fares v2:** GTFS Analyzer, `fare_leg_rules.txt` içinde `networks.txt`'te tanımsız `network_id` gibi Fares v2 referans bütünlüğü sorunlarını kritik olarak raporlar (FAR/FPD/FLG/FTR/RCT/FMD grupları ile ayrıntılı kapsam). MobilityData da Fares v2'yi doğrular (şema + referans bütünlüğü + fare_transfer/products/media/timeframes kuralları), ancak kapsam ve önem sınıflandırması farklılık gösterir.
+> ⚠️ **Fares v2:** Bu feed ağ atamasını `routes.txt`'teki `network_id` sütunuyla yapar (`networks.txt` yok — geçerli bir GTFS Fares v2 yöntemi). GTFS Analyzer `fare_leg_rules.txt` içindeki `network_id` referanslarını üç kaynağın tümünden (`networks.txt`, `routes.txt`, `route_networks.txt`) çözer; bu nedenle geçerli tanımlarda yanlış kritik üretmez (bu feed'de 0 kritik). Gerçekten tanımsız `network_id` gibi Fares v2 referans bütünlüğü sorunları ise kritik olarak raporlanır (FAR/FPD/FLG/FTR/RCT/FMD grupları). MobilityData da Fares v2'yi doğrular (şema + referans bütünlüğü + fare_transfer/products/media/timeframes kuralları), ancak kapsam ve önem sınıflandırması farklılık gösterir.
 
 #### Tokyo Toei (Tokyo Metropolitan Bureau of Transportation)
 
@@ -91,15 +91,15 @@ Feed: `mdb-3175` (MobilityDatabase, 2026-07-11 anlık görüntüsü; geçerlilik
 
 | | MobilityData | GTFS Analyzer |
 |---|---:|---:|
-| Toplam notice | 2.404 | 3.206 |
+| Toplam notice | 2.404 | 3.168 |
 | Kritik / Error | 0 | 0 |
 | Yüksek / Warning | 300 | 20 |
 | Orta | — | 1.014 |
-| Düşük | — | 1.182 |
-| Bilgi / Info | 2.104 | 990 |
-| Tetiklenen kural tipi | 9 | **61** |
+| Düşük | — | 1.142 |
+| Bilgi / Info | 2.104 | 992 |
+| Tetiklenen kural tipi | 9 | **62** |
 | Yayın skoru | — | **100 / 100** |
-| Genel skor | — | **83,7 / 100** |
+| Genel skor | — | **83,8 / 100** |
 
 > 🗾 **Spec-temiz ama operasyonel olarak yoğun:** Her iki araç da 0 kritik bulur — feed spec açısından temiz. Fark analitik katmanda: GTFS Analyzer'ın orta/düşük bulgularının çoğu 3 yıllık geçerlilik penceresi (2026–2029) ve yoğun şebeke/şekil desenlerinden gelen operasyonel sinyallerdir; MobilityData bu feed'i ağırlıkla uyarı/bilgi olarak özetler.
 
