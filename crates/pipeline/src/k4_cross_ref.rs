@@ -2005,8 +2005,8 @@ fn check_fares_v2(
                     ctr, "FLG_002", EntityType::Row, eid.clone(), eid.clone(),
                     "fare_leg_rules.txt", Some(rec.line), Some("network_id"),
                     Some(nid.clone()), None,
-                    format!("'{}' ag kodu networks.txt/routes.txt te tanimli degil.", nid),
-                    "Gecerli bir network_id kullanin (networks.txt veya routes.txt).",
+                    format!("'{}' ag kodu networks.txt/routes.txt/route_networks.txt te tanimli degil.", nid),
+                    "Gecerli bir network_id kullanin (networks.txt, routes.txt veya route_networks.txt).",
                 ));
             }
         }

@@ -20,6 +20,7 @@ pub mod office_jp;
 pub mod pathways;
 pub mod rider_categories;
 pub mod location_groups;
+pub mod route_networks;
 pub mod routes;
 pub mod shapes;
 pub mod stop_areas;
@@ -54,6 +55,7 @@ use networks::{parse_networks, NetworkRecord};
 use office_jp::{parse_office_jp, OfficeJpRecord};
 use pathways::{validate_pathways, PathwayRecord};
 use rider_categories::{validate_rider_categories, RiderCategoryRecord};
+use route_networks::{parse_route_networks, RouteNetworkRecord};
 use routes::{validate_routes, RouteRecord};
 use shapes::{validate_shapes, ShapePointRecord};
 use stop_areas::{parse_stop_areas, StopAreaRecord};
@@ -92,6 +94,7 @@ pub struct EntityRecords {
     pub pathways: Vec<PathwayRecord>,
     pub rider_categories: Vec<RiderCategoryRecord>,
     pub routes: Vec<RouteRecord>,
+    pub route_networks: Vec<RouteNetworkRecord>,
     pub shapes: Vec<ShapePointRecord>,
     pub stop_areas: Vec<StopAreaRecord>,
     pub stops: Vec<StopRecord>,
@@ -336,6 +339,10 @@ pub fn validate(mut files: RawFiles, zip_bytes: Option<&[u8]>) -> K2Result {
     }
 
     records.has_route_networks_file = files.contains_key("route_networks.txt");
+    if let Some(file) = files.get("route_networks.txt") {
+        let _t = Timer::start("K2::route_networks");
+        records.route_networks = parse_route_networks(file);
+    }
 
     // #15 W2: diğer tüm ham dosyalar parse edildi; stop_times index'ini kurmadan ÖNCE
     // k1.files'in kalanını (büyük shapes raw dahil) bırak → K2 peak'i ~K1-raw kadar düşer.

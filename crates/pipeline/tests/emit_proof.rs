@@ -1470,6 +1470,25 @@ fn flg_002_network_id_from_routes_txt_is_not_a_false_positive() {
     );
 }
 
+// FLG_002 regresyon: network_id route_networks.txt satırıyla tanımlanmışsa (GTFS Fares v2,
+// üçüncü geçerli kaynak) FLG_002 yanlış pozitif ÜRETMEMELİ.
+#[test]
+fn flg_002_network_id_from_route_networks_txt_is_not_a_false_positive() {
+    let route_networks = "network_id,route_id\nTRAM,R1\n";
+    let flr = "leg_group_id,network_id\nLG1,TRAM\n";
+    let files = with_opts(
+        &[("route_networks.txt", route_networks), ("fare_leg_rules.txt", flr)],
+        &[],
+        &[],
+    );
+    let emitted = emitted_rules(&files, &ValidatorConfig::default());
+    assert!(
+        !emitted.contains("FLG_002"),
+        "route_networks.txt ile tanımlı TRAM için FLG_002 tetiklenmemeli, emit: {:?}",
+        emitted,
+    );
+}
+
 // FLG_002 pozitif kontrol: network_id hiçbir kaynakta yoksa yine de tetiklenmeli.
 #[test]
 fn flg_002_still_fires_for_truly_undefined_network_id() {
