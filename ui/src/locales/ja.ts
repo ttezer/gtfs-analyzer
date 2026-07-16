@@ -672,7 +672,7 @@ const ja: LocaleShape = {
     'STM_010': "便'{entity_id}'：drop_off_type'{observed_value}'が無効です。",
     'STM_012': "便'{entity_id}'：非現実的な速度 — {observed_value}（制限：{expected_value}）。",
     'STM_013': "便'{entity_id}'：時刻カバレッジが混在しています — 一部の中間停留所に到着/出発時刻がありません。",
-    'STM_014': "便'{entity_id}'：区間の速度が超過しています — {observed_value}（制限：{expected_value}）。",
+    'STM_014': "路線'{route_label}'（方向{direction_id}）：停留所{stop_a}〜{stop_b}間の速度が{trip_count}便で超過しています — {observed_value}（制限：{expected_value}）。",
     'STM_015': "便'{entity_id}'：最初の停留所にdeparture_timeがありません。",
     'STM_016': "便'{entity_id}'：最後の停留所にarrival_timeがありません。",
     'STM_017': "shapeを参照する便のstop_timesにshape_dist_traveledがないため、shape上の停留所位置を検証できません。",

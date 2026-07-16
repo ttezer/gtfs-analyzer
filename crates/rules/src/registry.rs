@@ -470,7 +470,10 @@ pub static RULES: &[RuleMeta] = &[
         "Duraklar arası hız gerçekçi değil"),
     r!("STM_013", Yuksek, Quality, 2, &[], Some("trip_id"), VS, Row,
         "Karışık varış/kalkış zamanları"),
-    r!("STM_014", Yuksek, Analytics, 3, &[], Some("trip_id"), VA, Row,
+    // Emit (hat, yön, segment) başına toplulanır → Entity; entity_id bileşik segment
+    // anahtarı, scope_key route_id (UI hat filtresi). Eski hâl: Row/trip_id, aynı
+    // segmenti her seferde tekrar raporluyordu (TriMet'te 604×).
+    r!("STM_014", Yuksek, Analytics, 3, &[], Some("route_id"), VA, Entity,
         "Segmentte aşırı hız"),
     r!("STM_015", Kritik, Spec, 2,
         &["STM_016","STM_017","XFL_013","SHP_017"],

@@ -442,6 +442,29 @@ impl<'a> StopTimesIndex<'a> {
 
 // ── WP-09a: Hız anomalisi + trip süresi ──────────────────────────────────────
 
+/// STM_014 pattern toplulaması: (hat, yön, segment) başına biriken hız aşımları.
+///
+/// Aynı fiziksel segment o segmentten geçen HER seferde ayrı ayrı tetikleniyordu;
+/// TriMet'te 604 notice'ın tamamı tek segmentten (Route 20, durak 241→255) geliyordu
+/// ve hepsi aynı kök nedeni (segmentin schedule/shape tutarsızlığı) gösteriyordu.
+/// Tespit mantığı DEĞİŞMEDİ — yalnız emit pattern düzeyinde toplanır.
+/// (Güvenilirlik Sprint'i Checkpoint 6 kararı: "doğruluk sorunu değil, sunum ve
+/// dedup ergonomisi sorunu; pattern-level gruplama olarak ele alınabilir".)
+struct Stm014Seg<'a> {
+    route_label: &'a str,
+    seq_a: u32,
+    seq_b: u32,
+    threshold: f64,
+    /// En küçük stop_times satırı — deterministik çıktı için (map sırası rastgele).
+    line: u64,
+    speed_min: f64,
+    speed_max: f64,
+    trips: Vec<&'a str>,
+}
+
+/// details["trips"] listesinde gösterilecek örnek sefer sayısı (tam sayı trip_count'ta).
+const STM014_TRIP_SAMPLE: usize = 12;
+
 fn check_speed_and_duration(
     records: &EntityRecords,
     config: &ValidatorConfig,
@@ -614,6 +637,10 @@ fn check_speed_and_duration(
     let mut arc_cache: FxHashMap<(&str, &str), f64> = FxHashMap::default();
     // STM_038: aynı satırda 00:xx kalkış (gece-yarısı) yüzünden STM_007'den elenen durak sayısı.
     let mut stm007_midnight_count = 0u32;
+
+    // STM_014 birikimi: (route_id, direction, stop_a, stop_b) → segment özeti.
+    // Döngü içinde emit YOK; döngü bitince sıralı olarak tek tek üretilir.
+    let mut stm014_segs: FxHashMap<(&str, &str, &str, &str), Stm014Seg<'_>> = FxHashMap::default();
 
     { let _t = Timer::start("K6::sd::loop");
     for (&trip_id, stimes) in &idx.by_trip {
@@ -972,27 +999,23 @@ fn check_speed_and_duration(
             }
 
             if speed > threshold {
-                notices.push(k6_notice(
-                    ctr,
-                    "STM_014",
-                    EntityType::Trip,
-                    Some(trip_id.to_string()),
-                    Some(trip_id.to_string()),
-                    "stop_times.txt",
-                    Some(b.line as u64),
-                    Some("arrival_time"),
-                    Some(format!("{speed:.1} km/h ({} → {})", idx.stop_id_of(a), idx.stop_id_of(b))),
-                    Some(format!("≤ {threshold:.0} km/h")),
-                    format!(
-                        "'{route_label}' kodlu hattın {dir_sd} yönünde {svc_sd} çalışma takviminde \
-                        '{trip_id}'{dep_suffix} seferindeki durak sırası {}-{} arası hız {:.1} km/h — eşik {:.0} km/h.",
-                        a.stop_sequence().unwrap_or(0),
-                        b.stop_sequence().unwrap_or(0),
-                        speed,
-                        threshold
-                    ),
-                    "Zaman damgalarını veya durak koordinatlarını doğrulayın; ardışık stop_times arasındaki hız eşiği aşıyor.",
-                ));
+                // Emit ertelenir: aynı (hat, yön, segment) için tek notice üretilecek.
+                let seg = stm014_segs
+                    .entry((route, dir_sd, idx.stop_id_of(a), idx.stop_id_of(b)))
+                    .or_insert_with(|| Stm014Seg {
+                        route_label,
+                        seq_a: a.stop_sequence().unwrap_or(0),
+                        seq_b: b.stop_sequence().unwrap_or(0),
+                        threshold,
+                        line: b.line as u64,
+                        speed_min: speed,
+                        speed_max: speed,
+                        trips: Vec::new(),
+                    });
+                seg.speed_min = seg.speed_min.min(speed);
+                seg.speed_max = seg.speed_max.max(speed);
+                seg.line = seg.line.min(b.line as u64);
+                seg.trips.push(trip_id);
 
                 if speed > trip_max_speed {
                     trip_max_speed = speed;
@@ -1072,6 +1095,76 @@ fn check_speed_and_duration(
         }
     }
     } // K6::sd::loop
+
+    // ── STM_014: biriken segmentleri tek tek emit et ─────────────────────────
+    // FxHashMap iterasyonu sırasız → anahtara göre sırala (golden determinizmi).
+    {
+        let _t = Timer::start("K6::sd::stm014_emit");
+        let mut keys: Vec<(&str, &str, &str, &str)> = stm014_segs.keys().copied().collect();
+        keys.sort_unstable();
+        for key in keys {
+            let seg = &stm014_segs[&key];
+            let (route, dir, stop_a, stop_b) = key;
+            let n_trips = seg.trips.len();
+            let Stm014Seg { route_label, seq_a, seq_b, threshold, line, speed_min, speed_max, .. } = *seg;
+
+            // Sefer listesi deterministik + tekilleştirilmiş (aynı sefer segmenti bir kez geçer,
+            // ama loop hatlarda tekrar edebilir).
+            let mut trips: Vec<&str> = seg.trips.clone();
+            trips.sort_unstable();
+            trips.dedup();
+
+            let observed = if (speed_max - speed_min).abs() < 0.05 {
+                format!("{speed_max:.1} km/h ({stop_a} → {stop_b})")
+            } else {
+                format!("{speed_min:.1}-{speed_max:.1} km/h ({stop_a} → {stop_b})")
+            };
+            let msg = if n_trips == 1 {
+                format!(
+                    "'{route_label}' kodlu hattın {dir} yönünde '{}' seferinde durak sırası {seq_a}-{seq_b} \
+                    arası hız {speed_max:.1} km/h — eşik {threshold:.0} km/h.",
+                    trips[0]
+                )
+            } else {
+                format!(
+                    "'{route_label}' kodlu hattın {dir} yönünde durak sırası {seq_a}-{seq_b} arası hız eşiği \
+                    {n_trips} seferde aşılıyor — {speed_min:.1}-{speed_max:.1} km/h, eşik {threshold:.0} km/h. \
+                    Tek segment, tek kök neden: seferler ayrı ayrı listelenmez."
+                )
+            };
+            let mut n = k6_notice(
+                ctr,
+                "STM_014",
+                EntityType::Route,
+                // entity_id segmenti BENZERSİZ tanımlamalı: dedup=Entity olduğu için
+                // aynı hattaki farklı segmentler aksi halde birbirini yutar.
+                Some(format!("{route}:{dir}:{stop_a}→{stop_b}")),
+                // scope_key = route_id → UI'da hat bazlı filtre çalışmaya devam eder.
+                Some(route.to_string()),
+                "stop_times.txt",
+                Some(line),
+                Some("arrival_time"),
+                Some(observed),
+                Some(format!("≤ {threshold:.0} km/h")),
+                msg,
+                "Zaman damgalarını veya durak koordinatlarını doğrulayın; ardışık stop_times arasındaki hız eşiği aşıyor.",
+            );
+            let mut d = std::collections::HashMap::new();
+            d.insert("stop_a".to_string(), stop_a.to_string());
+            d.insert("stop_b".to_string(), stop_b.to_string());
+            d.insert("route_id".to_string(), route.to_string());
+            // route_label = route_short_name (yoksa route_id) — EN/JA şablonları
+            // diğer route-scoped kurallarla aynı biçimde {route_label} kullanır.
+            d.insert("route_label".to_string(), route_label.to_string());
+            d.insert("direction_id".to_string(), dir.to_string());
+            d.insert("trip_count".to_string(), trips.len().to_string());
+            d.insert("speed_min".to_string(), format!("{speed_min:.1}"));
+            d.insert("speed_max".to_string(), format!("{speed_max:.1}"));
+            d.insert("trips".to_string(), trips.iter().take(STM014_TRIP_SAMPLE).copied().collect::<Vec<_>>().join(","));
+            n.details = Some(d);
+            notices.push(n);
+        }
+    }
 
     // STM_048 / STM_049: gece yarısı sonrası saatleri 00:xx yazan feed'ler için bilgi notu.
     // STM_048 = duraklar arası (normalize edilen trip'ler); STM_049 = aynı satır (00:xx kalkış).
@@ -7608,6 +7701,65 @@ mod tests {
         );
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
         assert!(result.notices.iter().any(|n| n.rule_id == "STM_014"), "STM_014 olmalı");
+    }
+
+    // Toplulaştırma (Güvenilirlik Sprint'i Checkpoint 6): aynı fiziksel segment o
+    // segmentten geçen her seferde ayrı notice üretiyordu (TriMet'te tek segment 604×).
+    #[test]
+    fn stm_014_aggregates_same_segment_across_trips() {
+        // Aynı hat/yön, AYNI A→B segmenti, 3 sefer → 3 değil 1 notice.
+        let records = records_with(
+            vec![stop("A", 41.0, 29.0), stop("B", 39.9, 32.9)],
+            vec![route("R1", 3)],
+            vec![trip("T1", "R1"), trip("T2", "R1"), trip("T3", "R1")],
+            vec![
+                stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
+                stoptime("T1", 2, "B", (10, 0, 0), (10, 0, 0), 3),   // ~175 km/h
+                stoptime("T2", 1, "A", (9, 0, 0), (9, 0, 0), 4),
+                stoptime("T2", 2, "B", (11, 30, 0), (11, 30, 0), 5), // ~140 km/h (daha yavaş)
+                stoptime("T3", 1, "A", (12, 0, 0), (12, 0, 0), 6),
+                stoptime("T3", 2, "B", (14, 0, 0), (14, 0, 0), 7),   // ~175 km/h
+            ],
+        );
+        let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
+        let hits: Vec<_> = result.notices.iter().filter(|n| n.rule_id == "STM_014").collect();
+        assert_eq!(hits.len(), 1, "tek segment → tek notice, alınan: {}", hits.len());
+
+        let d = hits[0].details.as_ref().expect("details olmalı");
+        assert_eq!(d.get("trip_count").map(String::as_str), Some("3"), "3 sefer sayılmalı");
+        assert_eq!(d.get("stop_a").map(String::as_str), Some("A"));
+        assert_eq!(d.get("stop_b").map(String::as_str), Some("B"));
+        // Örnek sefer listesi deterministik ve sıralı
+        assert_eq!(d.get("trips").map(String::as_str), Some("T1,T2,T3"));
+        // Hız aralığı en yavaş/en hızlı seferi kapsamalı (tek değere çökmemeli)
+        let (lo, hi) = (
+            d["speed_min"].parse::<f64>().unwrap(),
+            d["speed_max"].parse::<f64>().unwrap(),
+        );
+        assert!(lo < hi, "hız aralığı olmalı, alınan {lo}-{hi}");
+        // scope_key hat bazlı filtre için route_id kalmalı
+        assert_eq!(hits[0].scope_key.as_deref(), Some("R1"));
+    }
+
+    #[test]
+    fn stm_014_keeps_distinct_segments_separate() {
+        // Aynı hatta İKİ ayrı bozuk segment (A→B ve B→C) → dedup=Entity onları
+        // yutmamalı; entity_id bileşik olduğu için 2 notice çıkmalı.
+        let records = records_with(
+            vec![stop("A", 41.0, 29.0), stop("B", 39.9, 32.9), stop("C", 41.0, 29.0)],
+            vec![route("R1", 3)],
+            vec![trip("T1", "R1")],
+            vec![
+                stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
+                stoptime("T1", 2, "B", (10, 0, 0), (10, 0, 0), 3), // A→B ~175 km/h
+                stoptime("T1", 3, "C", (12, 0, 0), (12, 0, 0), 4), // B→C ~175 km/h
+            ],
+        );
+        let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
+        let hits: Vec<_> = result.notices.iter().filter(|n| n.rule_id == "STM_014").collect();
+        assert_eq!(hits.len(), 2, "iki farklı segment ayrı kalmalı, alınan: {}", hits.len());
+        let ids: Vec<_> = hits.iter().filter_map(|n| n.entity_id.as_deref()).collect();
+        assert_ne!(ids[0], ids[1], "entity_id'ler benzersiz olmalı (dedup yutmasın): {ids:?}");
     }
 
     #[test]
