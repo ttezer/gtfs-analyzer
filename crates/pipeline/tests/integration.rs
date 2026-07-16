@@ -967,3 +967,72 @@ fn xfl026_silent_when_route_coverage_unresolvable() {
         other => panic!("Ok bekleniyordu: {other:?}"),
     }
 }
+
+// ── ARC_029: decompression guard (zip-bomb) uçtan uca ─────────────────────────
+// #46 guard'ı GuardedReader seviyesinde birim-testli (decompress_guard.rs), ancak
+// DEFAULT_DECOMPRESSION_LIMITS ile validate_bytes üzerinden kablolamayı hiçbir test
+// doğrulamıyordu. Bu testler ARC_029'un iki ayrı read_fatal çağrı yerini kanıtlar:
+// zip-stream yolu (stop_times/trips/calendar_dates) ve read_to_end yolu (diğer .txt).
+//
+// Tetikleme koşulu (DEFAULT): entry_decompressed > ratio_floor (16 MiB) VE
+// entry_decompressed > 80 × entry_compressed. Sıfır baytlar ~1000:1 sıkışır.
+const BOMB_DECOMPRESSED: usize = 24 * 1024 * 1024; // 16 MiB ratio_floor'un üstünde
+
+fn bomb_payload() -> Vec<u8> {
+    vec![b'\n'; BOMB_DECOMPRESSED]
+}
+
+fn assert_decompression_limit(result: ValidateResult, ctx: &str) {
+    match result {
+        ValidateResult::Fatal(e) => assert_eq!(
+            e.code,
+            FatalCode::DecompressionLimit,
+            "{ctx}: beklenen DecompressionLimit, alınan {:?} ({})", e.code, e.message,
+        ),
+        other => panic!("{ctx}: Fatal(DecompressionLimit) beklendi, alınan: {other:?}"),
+    }
+}
+
+#[test]
+fn arc029_zip_bomb_in_streamed_file_returns_fatal_decompression_limit() {
+    let bomb = bomb_payload();
+    let mut files = base_files();
+    // stop_times.txt = #38 zip-stream yolu (k1_parse.rs read_fatal çağrı yeri 1)
+    files.retain(|(n, _)| *n != "stop_times.txt");
+    files.push(("stop_times.txt", &bomb));
+    let zip = make_zip(&files);
+    assert_decompression_limit(
+        validate_bytes(&zip, &ValidatorConfig::default(), TODAY),
+        "stop_times.txt (zip-stream yolu)",
+    );
+}
+
+#[test]
+fn arc029_zip_bomb_in_buffered_file_returns_fatal_decompression_limit() {
+    let bomb = bomb_payload();
+    let mut files = base_files();
+    // shapes.txt = read_to_end yolu (k1_parse.rs read_fatal çağrı yeri 2)
+    files.push(("shapes.txt", &bomb));
+    let zip = make_zip(&files);
+    assert_decompression_limit(
+        validate_bytes(&zip, &ValidatorConfig::default(), TODAY),
+        "shapes.txt (read_to_end yolu)",
+    );
+}
+
+#[test]
+fn arc029_legitimate_small_high_ratio_file_does_not_trip_guard() {
+    // FP guard: ratio_floor'un ALTINDA kalan çok-sıkışan meşru dosya bombaya sayılmaz.
+    // (#46 kapanışında dış katılımcının işaret ettiği "meşru-yüksek-oran" riski.)
+    let small_high_ratio = vec![b'\n'; 1024 * 1024]; // 1 MiB << 16 MiB floor, oran ~1000:1
+    let mut files = base_files();
+    files.push(("shapes.txt", &small_high_ratio));
+    let zip = make_zip(&files);
+    match validate_bytes(&zip, &ValidatorConfig::default(), TODAY) {
+        ValidateResult::Fatal(e) => panic!(
+            "Meşru yüksek-oranlı küçük dosya guard'ı tetiklememeli, alınan: {:?} ({})",
+            e.code, e.message,
+        ),
+        ValidateResult::Ok(_) => {}
+    }
+}

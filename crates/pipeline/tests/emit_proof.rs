@@ -101,6 +101,10 @@ fn fx_cfg(rule: &'static str, overrides: Vec<(&'static str, &'static str)>, conf
 /// Notice olarak emit edilmeyen kurallar (fatal yol veya dinamik) — proof'tan muaf.
 const PROOF_ALLOWLIST: &[&str] = &[
     "ARC_001", // fatal FatalCode::ZipUnreadable (Notice değil)
+    "ARC_029", // fatal FatalCode::DecompressionLimit (Notice değil) — bu harness notice arar,
+               // ARC_029 ise decompression guard tetiklenince Fatal döner. Gerçek uçtan uca kanıt
+               // integration.rs::arc029_* testlerinde (DEFAULT limitlerle iki read_fatal yolu +
+               // ratio_floor FP guard'ı). Borç DEĞİL: yapısal olarak notice fixture'ı yazılamaz.
     "ARC_004", // ARC_004 notice'ı emit edilir AMA hemen FatalCode::NoRequiredFiles döner →
                // ValidateResult::Fatal, notices kaybolur. Bu harness'ta yapısal olarak kanıtlanamaz.
     "AGN_001", // "agency.txt eksik" — FİİLEN HİÇ emit edilmez (ne Notice ne fatal rule_id).
@@ -121,7 +125,9 @@ const PROOF_ALLOWLIST: &[&str] = &[
 //   STM_044  — > 2.000.000 stop_times satırı gerektirir.
 //   VAT_006  — feed'de >= 50 sefer gerektirir (inline pratik değil).
 //   ARC_027  — ZIP entry Unix izin metadata'sı gerektirir (fixture üretmiyor).
-// ARC_001/ARC_004 PROOF_ALLOWLIST'te (Fatal yol). Diğerleri coverage_debt.txt'te bilinçli bırakıldı.
+// ARC_001/ARC_004/ARC_029 PROOF_ALLOWLIST'te (Fatal yol). Diğerleri coverage_debt.txt'te bilinçli
+// bırakıldı. NOT (2026-07-16): ARC_029 borç ledger'ındaydı ama borç DEĞİLDİ — ARC_001 gibi Fatal
+// yol; allowlist'e taşındı, uçtan uca kanıtı integration.rs::arc029_*'ta.
 
 // #28 Grup 1 yardımcıları ─────────────────────────────────────────────────────
 // OPSİYONEL dosyada (feed_info.txt) geçersiz UTF-8 (0xFF/0xFE) → ARC_002 + ARC_003 (fatal değil).
