@@ -188,14 +188,41 @@ pub fn shape_coords_of(cache: &CachedState, shape_id: &str) -> JsValue {
 }
 
 /// Tam pipeline: K1–K7 tek seferde (config panel kullanmayan akış için).
+/// `today` = tarayıcının yerel tarihi; deterministik çıktı için
+/// [`validate_with_today`] kullanın.
 #[wasm_bindgen]
 pub fn validate(zip_bytes: &[u8], config_delta_json: &str) -> JsValue {
-    let today = today_yyyymmdd();
+    validate_with_today(zip_bytes, config_delta_json, today_yyyymmdd())
+}
+
+/// [`validate`] ile AYNI pipeline; farkı yalnız `today`'in dışarıdan verilmesi.
+///
+/// Takvim/servis kuralları (CAL_*, OPR_*) "bugün"e görelidir; `validate` bunu
+/// `js_sys::Date`'ten okur, dolayısıyla çıktı koşulduğu güne bağlıdır. Golden
+/// baseline üretimi ve testler için tarihi sabitleyip deterministik sonuç almak
+/// gerekir (native CLI'daki `--today` bayrağının karşılığı).
+///
+/// `today` formatı `YYYYMMDD` (ör. 20260716). Geçersiz değer Fatal döner.
+#[wasm_bindgen]
+pub fn validate_with_today(zip_bytes: &[u8], config_delta_json: &str, today: u32) -> JsValue {
+    if !is_valid_yyyymmdd(today) {
+        return to_js(&ValidateResult::Fatal(FatalError {
+            code: FatalCode::InvalidInput,
+            message: format!("Geçersiz 'today' değeri: {today} (beklenen YYYYMMDD, ör. 20260716)"),
+        }));
+    }
     let config = match parse_config(config_delta_json) {
         Ok(c) => c,
         Err(e) => return to_js(&ValidateResult::Fatal(e)),
     };
     to_js(&run_full_pipeline(zip_bytes, &config, today))
+}
+
+/// Kaba YYYYMMDD sağlaması: pipeline'a anlamsız tarih girip sessizce saçma
+/// takvim sonucu üretmesindense erken Fatal ver.
+fn is_valid_yyyymmdd(v: u32) -> bool {
+    let (y, m, d) = (v / 10000, (v / 100) % 100, v % 100);
+    (1970..=9999).contains(&y) && (1..=12).contains(&m) && (1..=31).contains(&d)
 }
 
 /// K1–K5'i çalıştırır.
@@ -513,8 +540,24 @@ fn today_yyyymmdd() -> u32 {
 
 #[cfg(test)]
 mod tests {
-    use super::cap_per_rule;
+    use super::{cap_per_rule, is_valid_yyyymmdd};
     use gtfs_core::{EntityType, Notice, RuleClass, Severity};
+
+    #[test]
+    fn yyyymmdd_validation_accepts_real_dates_and_rejects_junk() {
+        assert!(is_valid_yyyymmdd(20260716));
+        assert!(is_valid_yyyymmdd(19700101));
+        assert!(is_valid_yyyymmdd(20261231));
+        // Ay/gün alanı sınır dışı
+        assert!(!is_valid_yyyymmdd(20261301), "ay 13 reddedilmeli");
+        assert!(!is_valid_yyyymmdd(20260732), "gün 32 reddedilmeli");
+        assert!(!is_valid_yyyymmdd(20260700), "gün 0 reddedilmeli");
+        assert!(!is_valid_yyyymmdd(20260016), "ay 0 reddedilmeli");
+        // Yıl alanı: Unix epoch öncesi ve 4 hanenin altı
+        assert!(!is_valid_yyyymmdd(19691231), "1970 öncesi reddedilmeli");
+        assert!(!is_valid_yyyymmdd(0), "sıfır reddedilmeli");
+        assert!(!is_valid_yyyymmdd(20260716 / 10), "kısa/bozuk sayı reddedilmeli");
+    }
 
     fn trip_notice(id: &str) -> Notice {
         Notice {
