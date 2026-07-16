@@ -172,7 +172,7 @@
 | TRP_013 | 路線に便が1本のみ | 低 | 品質 |
 | TRP_014 | trip_short_nameが長すぎる | 情報 | 品質 |
 | TRP_015 | block内で唯一の便 | 低 | 品質 |
-| TRP_017 | 頻度ベースの便にstop_timesなし | 中 | 相互運用 |
+| TRP_017 | 頻度ベースの便にstop_timesなし | 中 | 品質 |
 | TRP_019 | 連続サービス中にshape_idが必須 | 高 | 品質 |
 | TRP_020 | trip_headsignが中間停留所名と一致 | 情報 | 分析 |
 | TRP_021 | bikes_allowed（自転車可否）が未設定 | 情報 | 品質 |
@@ -593,7 +593,7 @@
 | ATR_006 | is_authorityが無効 | 致命的 | 仕様 |
 | ATR_007 | attribution_urlが無効 | 致命的 | 仕様 |
 | ATR_008 | attribution_emailが無効 | 低 | 仕様 |
-| ATR_009 | attribution_phoneが無効 | 高 | 品質 |
+| ATR_009 | 帰属参照フィールドが複数設定 | 高 | 品質 |
 | ATR_010 | agency_idが存在しない | 低 | 仕様 |
 
 ## XFL — クロスファイル / 意味的整合性
@@ -617,8 +617,8 @@
 | XFL_016 | 翻訳でfeed_infoを参照しているがfeed_info.txtなし | 高 | 仕様 |
 | XFL_017 | route_cemv_supportとagency_cemv_supportが競合 | 低 | 品質 |
 | XFL_019 | ネットワーク割り当てが2か所に定義されている | 中 | 仕様 |
-| XFL_020 | （from_trip_id/to_trip_id, route_id）の組み合わせが無効 | 高 | 仕様 |
-| XFL_021 | （from_trip_id/to_trip_id, stop_id）の組み合わせが無効 | 高 | 仕様 |
+| XFL_020 | （from_trip_id/to_trip_id, route_id）の組み合わせが無効 | 高 | 品質 |
+| XFL_021 | （from_trip_id/to_trip_id, stop_id）の組み合わせが無効 | 高 | 品質 |
 | XFL_022 | location_group_idが存在しない | 致命的 | 仕様 |
 | XFL_023 | stop_idが存在しない（location_group_stops） | 致命的 | 仕様 |
 | XFL_024 | location_group_idが存在しない（stop_times） | 致命的 | 仕様 |

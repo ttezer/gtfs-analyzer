@@ -172,7 +172,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | TRP_013 | Route has only one trip | LOW | Quality |
 | TRP_014 | trip_short_name too long | INFO | Quality |
 | TRP_015 | Single trip in block_id group | LOW | Quality |
-| TRP_017 | Frequency-based trip missing from stop_times | MEDIUM | Interop |
+| TRP_017 | Frequency-based trip missing from stop_times | MEDIUM | Quality |
 | TRP_019 | shape_id missing with continuous service active | HIGH | Quality |
 | TRP_020 | trip_headsign matches intermediate stop name | INFO | Analytics |
 | TRP_021 | Bicycle allowance (bikes_allowed) not specified | INFO | Quality |
@@ -593,7 +593,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | ATR_006 | is_authority invalid | CRITICAL | Spec |
 | ATR_007 | attribution_url invalid | CRITICAL | Spec |
 | ATR_008 | attribution_email invalid | LOW | Spec |
-| ATR_009 | attribution_phone invalid | HIGH | Quality |
+| ATR_009 | multiple attribution reference fields set | HIGH | Quality |
 | ATR_010 | agency_id not found | LOW | Spec |
 
 ## XFL — Cross-File / Semantic
@@ -617,8 +617,8 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | XFL_016 | Translation references feed_info but feed_info.txt is missing | HIGH | Spec |
 | XFL_017 | route_cemv_support conflicts with agency_cemv_support | LOW | Quality |
 | XFL_019 | Network defined in two separate files (routes.network_id + route_networks.txt) | MEDIUM | Spec |
-| XFL_020 | Invalid (from_trip_id/to_trip_id, route_id) pair in transfers | HIGH | Spec |
-| XFL_021 | Invalid (from_trip_id/to_trip_id, stop_id) pair in transfers | HIGH | Spec |
+| XFL_020 | Invalid (from_trip_id/to_trip_id, route_id) pair in transfers | HIGH | Quality |
+| XFL_021 | Invalid (from_trip_id/to_trip_id, stop_id) pair in transfers | HIGH | Quality |
 | XFL_022 | location_group_id not found | CRITICAL | Spec |
 | XFL_023 | stop_id not found (location_group_stops) | CRITICAL | Spec |
 | XFL_024 | location_group_id not found (stop_times) | CRITICAL | Spec |

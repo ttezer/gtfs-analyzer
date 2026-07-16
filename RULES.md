@@ -172,7 +172,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | TRP_013 | Hat tek seferlik | DÜŞÜK | Quality |
 | TRP_014 | trip_short_name çok uzun | BİLGİ | Quality |
 | TRP_015 | block_id grubunda tek sefer | DÜŞÜK | Quality |
-| TRP_017 | Frekans tabanlı sefer stop_times'ta eksik | ORTA | Interop |
+| TRP_017 | Frekans tabanlı sefer stop_times'ta eksik | ORTA | Quality |
 | TRP_019 | Continuous servis aktifken shape_id eksik | YÜKSEK | Quality |
 | TRP_020 | trip_headsign ara durak adıyla eşleşiyor | BİLGİ | Analytics |
 | TRP_021 | Bisiklet izni (bikes_allowed) belirtilmemiş | BİLGİ | Quality |
@@ -593,7 +593,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | ATR_006 | is_authority geçersiz | KRİTİK | Spec |
 | ATR_007 | attribution_url geçersiz | KRİTİK | Spec |
 | ATR_008 | attribution_email geçersiz | DÜŞÜK | Spec |
-| ATR_009 | attribution_phone geçersiz | YÜKSEK | Quality |
+| ATR_009 | attribution hedef alanları (agency/route/trip) birlikte kullanılmış | YÜKSEK | Quality |
 | ATR_010 | agency_id bulunamadı | DÜŞÜK | Spec |
 
 ## XFL — Cross-File / Semantik
@@ -617,8 +617,8 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | XFL_016 | Çeviri feed_info'ya referans veriyor ama feed_info.txt eksik | YÜKSEK | Spec |
 | XFL_017 | route_cemv_support ile agency_cemv_support çelişiyor | DÜŞÜK | Quality |
 | XFL_019 | Ağ tanımı iki ayrı dosyada (routes.network_id + route_networks.txt) | ORTA | Spec |
-| XFL_020 | Transfers'de geçersiz (from_trip_id/to_trip_id, route_id) çifti | YÜKSEK | Spec |
-| XFL_021 | Transfers'de geçersiz (from_trip_id/to_trip_id, stop_id) çifti | YÜKSEK | Spec |
+| XFL_020 | Transfers'de geçersiz (from_trip_id/to_trip_id, route_id) çifti | YÜKSEK | Quality |
+| XFL_021 | Transfers'de geçersiz (from_trip_id/to_trip_id, stop_id) çifti | YÜKSEK | Quality |
 | XFL_022 | location_group_id bulunamadı (location_group_stops) | KRİTİK | Spec |
 | XFL_023 | stop_id bulunamadı (location_group_stops) | KRİTİK | Spec |
 | XFL_024 | location_group_id bulunamadı (stop_times) | KRİTİK | Spec |
