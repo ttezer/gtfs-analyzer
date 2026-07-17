@@ -358,7 +358,7 @@ pub static RULES: &[RuleMeta] = &[
     r!("RTS_022", Dusuk,  Quality, 1, &[], Some("route_id"), VS, Entity,
         "Uzun hat adı kısa adı içeriyor"),
     r!("RTS_023", Bilgi,  Quality, 1, &[], Some("route_id"), VS, Entity,
-        "Uzun hat adı ve açıklaması aynı"),
+        "Hat açıklaması hat adının kopyası"),
     r!("RTS_024", Dusuk,  Quality, 1, &[], Some("route_id"), VS, Entity,
         "route_cemv_support geçersiz"),
     r!("RTS_025", Bilgi,  Quality, 1, &[], Some("agency_id"), VS, Entity,

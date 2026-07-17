@@ -148,7 +148,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | RTS_020 | Route and agency share the same URL | INFO | Quality |
 | RTS_021 | route_short_name exceeds Google Transit limit (6 characters) | LOW | Quality |
 | RTS_022 | route_long_name contains route_short_name | LOW | Quality |
-| RTS_023 | route_long_name and description are identical | INFO | Quality |
+| RTS_023 | route_desc repeats a route name | INFO | Quality |
 | RTS_024 | cemv_support invalid (route) | LOW | Quality |
 | RTS_025 | routes.txt agency_id empty (recommended) | INFO | Quality |
 | RTS_026 | Duplicate short route name | INFO | Quality |

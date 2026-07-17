@@ -628,7 +628,7 @@ const ja: LocaleShape = {
     'RTS_020': "路線'{entity_id}'：route_urlとagency_urlが同じです。",
     'RTS_021': "路線'{entity_id}'：route_short_nameがGoogleトランジットの6文字制限を超えています。",
     'RTS_022': "路線'{entity_id}'：route_long_nameにroute_short_nameが含まれています。",
-    'RTS_023': "路線'{entity_id}'：route_long_nameとroute_descが同じです。",
+    'RTS_023': "路線'{entity_id}'：route_descが{matched_field}と同じです — '{observed_value}'。",
     'RTS_026': "路線'{entity_id}'：route_short_name '{observed_value}' が異なる長い名前の路線で共有されています：{conflicting_routes}。",
     'RTS_027': "路線'{entity_id}'：route_long_name '{observed_value}' が異なる短い名前の路線で共有されています：{conflicting_routes}。",
     // TRP
@@ -1413,7 +1413,7 @@ const ja: LocaleShape = {
     'RTS_022': 'route_long_nameが短い名前を繰り返さないように編集してください。',
     'RTS_026': '路線番号がバリエーション／方向で意図的に再利用されている場合は無視してください。そうでなければ一意にしてください。',
     'RTS_027': '長い名前が意図的に共有されている場合は無視してください。そうでなければ各路線に識別できる名前を付けてください。',
-    'RTS_023': 'route_descはroute_long_nameとは異なる、より説明的な内容にしてください。',
+    'RTS_023': 'route_descは路線名の繰り返しではなく、路線の説明を記載してください。',
     // SHP
     'SHP_001': 'shape_idフィールドを入力してください。',
     'SHP_002': 'shape_pt_latに-90〜90の値を入力してください。',
@@ -1766,7 +1766,7 @@ const ja: LocaleShape = {
     'RTS_020': '路線URLと事業者URLが同一',
     'RTS_021': 'route_short_nameがGoogleトランジットの上限（6文字）を超過',
     'RTS_022': 'route_long_nameにroute_short_nameが含まれている',
-    'RTS_023': 'route_long_nameとroute_descが同一',
+    'RTS_023': 'route_descが路線名の繰り返し',
     'RTS_026': '短い路線名の重複',
     'RTS_027': '長い路線名の重複',
     // TRP

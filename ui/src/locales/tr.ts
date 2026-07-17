@@ -658,7 +658,7 @@ const tr = {
     'RTS_020': "Hat ve acente aynı URL'yi paylaşıyor",
     'RTS_021': 'Kısa hat adı Google Transit eşiğini (6 karakter) aşıyor',
     'RTS_022': 'Uzun hat adı kısa adı içeriyor',
-    'RTS_023': 'Uzun hat adı ve açıklaması aynı',
+    'RTS_023': 'Hat açıklaması hat adının kopyası',
     // TRP
     'TRP_001': 'trip_id eksik veya yineleniyor',
     'TRP_002': 'route_id bulunamadı',

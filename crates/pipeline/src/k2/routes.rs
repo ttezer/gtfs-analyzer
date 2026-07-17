@@ -259,17 +259,24 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
             let matches_long = matches!((&route_long_name, &dl), (Some(l), Some(d)) if &l.to_lowercase() == d);
             let matches_short = matches!((&route_short_name, &dl), (Some(s), Some(d)) if &s.to_lowercase() == d);
             if let (Some(d), true) = (&route_desc, matches_long || matches_short) {
-                let (field_tr, value) = match (matches_long, matches_short) {
-                    (true, true) => ("route_long_name ve route_short_name", d.as_str()),
-                    (true, false) => ("route_long_name", d.as_str()),
-                    _ => ("route_short_name", d.as_str()),
+                // Eşleşen alan adı `details.matched_field`'e yazılır: mesaj şablonları
+                // (tr/en/ja) hangi alanın kopyalandığını buradan okur — locale'de sabit
+                // "route_long_name" yazmak short_name vakalarında YANLIŞ BİLGİ olurdu.
+                let matched_field = match (matches_long, matches_short) {
+                    (true, true) => "route_long_name, route_short_name",
+                    (true, false) => "route_long_name",
+                    _ => "route_short_name",
                 };
-                notices.push(make_k2_notice(
+                let mut n = make_k2_notice(
                     &mut counter, "RTS_023", EntityType::Route, entity_id.clone(), Some(&row_map),
                     &file.name, Some(line), Some("route_desc"), Some(d.clone()), None,
-                    format!("'{route_id}' hattının route_desc değeri {field_tr} ile aynı: '{value}'."),
+                    format!("'{route_id}' hattının route_desc değeri {matched_field} ile aynı: '{d}'."),
                     "route_desc, hat adlarından farklı ve daha açıklayıcı bir açıklama içermelidir.",
-                ));
+                );
+                n.details = Some(std::collections::HashMap::from([
+                    ("matched_field".to_string(), matched_field.to_string()),
+                ]));
+                notices.push(n);
             }
         }
 

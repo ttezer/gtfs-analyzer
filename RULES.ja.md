@@ -148,7 +148,7 @@
 | RTS_020 | 路線URLと事業者URLが同一 | 情報 | 品質 |
 | RTS_021 | route_short_nameがGoogleトランジットの上限（6文字）を超過 | 低 | 品質 |
 | RTS_022 | route_long_nameにroute_short_nameが含まれている | 低 | 品質 |
-| RTS_023 | route_long_nameとroute_descが同一 | 情報 | 品質 |
+| RTS_023 | route_descが路線名の繰り返し | 情報 | 品質 |
 | RTS_024 | cemv_supportが無効（路線） | 低 | 品質 |
 | RTS_025 | routes.txtのagency_idが空（推奨） | 情報 | 品質 |
 | RTS_026 | 短い路線名の重複 | 情報 | 品質 |

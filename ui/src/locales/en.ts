@@ -647,7 +647,7 @@ const en: LocaleShape = {
     'RTS_020': "Route '{entity_id}': route_url and agency_url are identical.",
     'RTS_021': "Route '{entity_id}': route_short_name exceeds Google Transit's 6-character limit.",
     'RTS_022': "Route '{entity_id}': route_long_name contains the route_short_name.",
-    'RTS_023': "Route '{entity_id}': route_long_name and route_desc are identical.",
+    'RTS_023': "Route '{entity_id}': route_desc repeats {matched_field} — '{observed_value}'.",
     'RTS_026': "Route '{entity_id}': route_short_name '{observed_value}' is shared by routes with different long names: {conflicting_routes}.",
     'RTS_027': "Route '{entity_id}': route_long_name '{observed_value}' is shared by routes with different short names: {conflicting_routes}.",
     // TRP
@@ -1334,7 +1334,7 @@ const en: LocaleShape = {
     'RTS_018': 'Set the field to a valid GTFS continuous service value (0–3).',
     'RTS_019': 'Give each route a unique short or long name, or document intentional sharing.',
     'RTS_021': 'Keep route_short_name under 6 characters for Google Transit compatibility.',
-    'RTS_023': 'route_desc should contain a description different from and more descriptive than route_long_name.',
+    'RTS_023': 'route_desc should describe the route, not repeat its name.',
     // TRP (field-level)
     'TRP_001': 'Assign a unique trip_id to each trip.',
     'TRP_002': 'Use a valid route_id.',
@@ -1812,7 +1812,7 @@ const en: LocaleShape = {
     'RTS_020': 'Route and agency share the same URL',
     'RTS_021': 'route_short_name exceeds Google Transit limit (6 characters)',
     'RTS_022': 'route_long_name contains route_short_name',
-    'RTS_023': 'route_long_name and description are identical',
+    'RTS_023': 'route_desc repeats a route name',
     'RTS_026': 'Duplicate short route name',
     'RTS_027': 'Duplicate long route name',
     // TRP

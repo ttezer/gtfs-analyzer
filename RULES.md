@@ -148,7 +148,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | RTS_020 | Hat ve acente aynı URL'yi paylaşıyor | BİLGİ | Quality |
 | RTS_021 | Kısa hat adı Google Transit eşiğini (6 karakter) aşıyor | DÜŞÜK | Quality |
 | RTS_022 | Uzun hat adı kısa adı içeriyor | DÜŞÜK | Quality |
-| RTS_023 | Uzun hat adı ve açıklaması aynı | BİLGİ | Quality |
+| RTS_023 | Hat açıklaması hat adının kopyası | BİLGİ | Quality |
 | RTS_024 | route_cemv_support geçersiz | DÜŞÜK | Quality |
 | RTS_025 | routes.txt'te agency_id boş (önerilen alan) | BİLGİ | Quality |
 | RTS_026 | Yinelenen kısa hat adı | BİLGİ | Quality |
