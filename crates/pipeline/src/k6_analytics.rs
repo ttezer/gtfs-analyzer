@@ -5234,8 +5234,18 @@ fn check_remaining_analytics(
     {
         let _t30 = Timer::start("K6::rem::stp_030");
 
-        // Hangi station_id'lerin çocuğu var?
+        // Hangi station_id'lerin PERONU var? (location_type 0 veya boş)
+        //
+        // Yalnız peron sayılır: `parent_station` giriş/çıkış (2), genel düğüm (3) gibi
+        // kayıtlarca da yazılır, ama sefer yalnız PERONDA durur. Sadece girişi olup
+        // peronu olmayan istasyon işlevsizdir — kartın kararı da "en az bir durak/platform
+        // tarafından kullanılmalı" der.
+        //
+        // Filtre yokken her çocuk sayılıyordu → 250-feed corpus, mdb-2933: `MTR-POA` (Po Lam)
+        // istasyonunun 6 çocuğunun HEPSİ location_type=2 (giriş), peronu YOK; biz susuyorduk,
+        // MobilityData `unused_station` ile işaretliyordu.
         let stations_with_children: HashSet<&str> = records.stops.iter()
+            .filter(|s| matches!(s.location_type, None | Some(0)))
             .filter_map(|s| {
                 s.row.get("parent_station")
                     .map(|p| p.trim())
@@ -5260,10 +5270,11 @@ fn check_remaining_analytics(
                     None,
                     None,
                     format!(
-                        "'{}' kodlu '{}' istasyonu hiçbir durağın parent_station'ı olarak kullanılmıyor.",
+                        "'{}' kodlu '{}' istasyonunun hiç peronu yok — hiçbir durak (location_type=0) \
+                         onu parent_station olarak kullanmıyor; yalnız giriş/düğüm kayıtları bağlı olabilir.",
                         stop.stop_id, sname
                     ),
-                    "Bu istasyona bağlı fiziksel duraklar için parent_station alanını doldurun veya istasyonu kaldırın.",
+                    "İstasyona bağlı peronlarda (location_type=0) parent_station alanını doldurun veya istasyonu kaldırın.",
                 ));
             }
         }
@@ -10008,6 +10019,29 @@ mod tests {
     }
 
     // ── STP_030: hiç çocuğu olmayan üst istasyon ─────────────────────────────
+
+    /// Yalnız GİRİŞİ olan (peronu olmayan) istasyon da STP_030'dur: sefer perona durur,
+    /// girişe değil. Corpus kanıtı (mdb-2933): `MTR-POA`'nın 6 çocuğu da location_type=2
+    /// (giriş); biz susuyorduk, MD `unused_station` ile işaretliyordu.
+    #[test]
+    fn station_with_only_entrances_produces_stp_030() {
+        let mut station = stop("PS1", 41.0, 29.0);
+        station.location_type = Some(1);
+        let mut entrance = stop("E1", 41.0, 29.0);
+        entrance.location_type = Some(2); // giriş/çıkış — peron DEĞİL
+        entrance.row.insert("parent_station".to_string(), "PS1".to_string());
+        let records = records_with(
+            vec![station, entrance, stop("A", 41.0, 29.0)],
+            vec![route("R1", 3)],
+            vec![trip("T1", "R1")],
+            vec![stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2)],
+        );
+        let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
+        assert!(
+            result.notices.iter().any(|n| n.rule_id == "STP_030" && n.entity_id.as_deref() == Some("PS1")),
+            "yalnız girişi olan istasyon STP_030 üretmeli (peron yok)"
+        );
+    }
 
     #[test]
     fn station_without_children_produces_stp_030() {
