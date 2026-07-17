@@ -3038,6 +3038,20 @@ fn check_route_trip_quality(
             // seferler to_lowercase tahsisi ödemez.
             let headsign_lc = headsign.to_lowercase();
 
+            // Headsign SON DURAĞIN ADIYLA eşleşiyorsa yön adı DOĞRUDUR → tüm sefer atlanır.
+            // Kuralın tanımı "headsign son durak DEĞİL, bir ara durakla eşleşiyor"; son durakla
+            // eşleşiyorsa yanıltıcılık yoktur.
+            //
+            // Aşağıdaki döngü terminali `stop_id` ile eler ama eşleşmeyi İSİM ile yapar. Aynı
+            // ada sahip FARKLI stop_id'ler (ayrı peron/yön kayıtları, ortak parent_station YOK)
+            // bu filtreden geçip ad-eşleşmesi üretiyordu → yanlış pozitif. station_counts
+            // bastırması da kurtarmıyor: iki kayıt ayrı "etkin istasyon" sayıldığı için sayaç 1.
+            //
+            // Corpus kanıtı (mdb-1294, Roma): headsign 'CIMITERO LAURENTINO' hem 34. hem SON (38.)
+            // durakta geçiyor; son durak eşleştiği için headsign doğru. Biz 9.162 sefer
+            // işaretliyorduk, MD yalnız 19 (gerçekten ara durakta bitenler).
+            if stop_name_lc.get(terminal_stop_id) == Some(&headsign_lc) { continue; }
+
             // station_counts (sefer içinde her etkin istasyonun geçiş sayısı) yalnız ilk ad-eşleşmesinde
             // TEMBEL kurulur (counts_built). Eşleşen durak birden fazla geçiyorsa meşru uç/dönüş noktası
             // (ör. havalimanı wye) → o eşleşme bastırılır. Alakasız durak tekrarı başka eşleşmeyi bastırmaz.
@@ -10029,6 +10043,38 @@ mod tests {
     }
 
     // ── TRP_020: headsign ara durak adıyla eşleşiyor ────────────────────────
+
+    /// Headsign SON DURAĞIN adıyla eşleşiyorsa, aynı ad bir ara durakta da geçse bile
+    /// yön adı DOĞRUdur → TRP_020 üretilmemeli.
+    ///
+    /// Eski kod terminali `stop_id` ile eliyor ama eşleşmeyi İSİM ile yapıyordu; aynı ada
+    /// sahip farklı stop_id (ayrı peron/yön kaydı, ortak parent YOK) filtreden geçiyordu.
+    /// Corpus kanıtı (mdb-1294, Roma): 9.162 sefer işaretleniyordu, MD 19.
+    #[test]
+    fn headsign_matching_terminal_name_is_not_trp_020_even_if_name_repeats() {
+        let mut a = stop("A", 41.0, 29.0);
+        a.stop_name = Some("Başlangıç".into());
+        // Ara durak ile terminal AYNI ADA sahip, FARKLI stop_id, parent YOK.
+        let mut mid = stop("M", 41.05, 29.05);
+        mid.stop_name = Some("Cimitero".into());
+        let mut term = stop("T", 41.1, 29.1);
+        term.stop_name = Some("Cimitero".into());
+        let records = records_with(
+            vec![a, mid, term],
+            vec![route("R1", 3)],
+            vec![trip_hs("T1", "R1", "Cimitero")], // headsign = SON durağın adı → doğru
+            vec![
+                stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
+                stoptime("T1", 2, "M", (8, 5, 0), (8, 5, 0), 3),
+                stoptime("T1", 3, "T", (8, 10, 0), (8, 10, 0), 4),
+            ],
+        );
+        let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
+        assert!(
+            !result.notices.iter().any(|n| n.rule_id == "TRP_020"),
+            "headsign son durağın adıyla eşleşiyor → yön adı doğru, TRP_020 olmamalı"
+        );
+    }
 
     #[test]
     fn headsign_matches_intermediate_stop_produces_trp_020() {
