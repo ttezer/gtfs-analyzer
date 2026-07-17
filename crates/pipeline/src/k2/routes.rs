@@ -310,14 +310,29 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
     // → MobilityData `duplicate_route_name` ile hizalı; (kısa|uzun) tek-başına eşleşme FP üretiyordu.
     // Çakışan (kısa,uzun) çift başına TEK notice; adı paylaşan tüm hatları (route_id) listeler.
     {
-        let mut name_groups: HashMap<(String, String), Vec<(String, u64)>> = HashMap::new();
+        // Anahtar (kısa, uzun, TÜR, AJANS): "ayırt edilemez kopya" iddiası ancak aynı
+        // taşıma türü VE aynı işletmeci içinde kurulabilir. İki ayrı ajansın "10" numaralı
+        // hattı olması olağandır (yolcu ajansa göre ayırt eder); bir otobüs "10" ile bir
+        // tramvay "10" da moda göre ayrılır. GTFS/MobilityData da bunu böyle tanımlar:
+        // "All routes of the same route_type with the same agency_id should have unique
+        // combinations of route_short_name and route_long_name."
+        //
+        // Tür/ajans anahtarda YOKKEN yanlış pozitif üretiyordu — 250-feed corpus, mdb-1091
+        // (Lüksemburg): 32 gruptan 29'u farklı route_type/agency_id taşıyordu (ör. "10" →
+        // LU::Authority:16:: ve LU::Authority:26::). Anahtar tamamlanınca 32 → 3 = MD ile birebir.
+        type NameKey = (String, String, Option<u32>, String);
+        let mut name_groups: HashMap<NameKey, Vec<(String, u64)>> = HashMap::new();
         for rec in &records {
             let sn = rec.route_short_name.as_deref().unwrap_or("").trim().to_lowercase();
             let ln = rec.route_long_name.as_deref().unwrap_or("").trim().to_lowercase();
             if sn.is_empty() && ln.is_empty() { continue; }
-            name_groups.entry((sn, ln)).or_default().push((rec.route_id.clone(), rec.line));
+            let agency = rec.agency_id.as_deref().unwrap_or("").trim().to_string();
+            name_groups
+                .entry((sn, ln, rec.route_type, agency))
+                .or_default()
+                .push((rec.route_id.clone(), rec.line));
         }
-        // Deterministik çıktı için (kısa,uzun) anahtarına göre sırala.
+        // Deterministik çıktı için anahtara göre sırala.
         let mut groups: Vec<_> = name_groups.into_iter().filter(|(_, e)| e.len() >= 2).collect();
         groups.sort_by(|a, b| a.0.cmp(&b.0));
         for (_key, entries) in &groups {
@@ -506,6 +521,59 @@ mod tests {
         );
         let (_, notices) = validate_routes(&file);
         assert!(notices.iter().any(|n| n.rule_id == "RTS_006"));
+    }
+
+    /// Aynı ad FARKLI AJANSTA kopya değildir — iki işletmecinin "10" hattı olması olağan.
+    /// Corpus kanıtı (mdb-1091, Lüksemburg): 32 gruptan 29'u farklı ajans/tür; anahtar
+    /// tamamlanınca 32 → 3 = MobilityData ile birebir.
+    #[test]
+    fn same_name_different_agency_is_not_rts_019() {
+        let file = make_file(
+            vec!["route_id", "agency_id", "route_short_name", "route_long_name", "route_type"],
+            vec![
+                vec!["R1", "A1", "10", "", "3"],
+                vec!["R2", "A2", "10", "", "3"], // farklı ajans → kopya DEĞİL
+            ],
+        );
+        let (_, notices) = validate_routes(&file);
+        assert!(
+            !notices.iter().any(|n| n.rule_id == "RTS_019"),
+            "farklı ajansın aynı hat numarası kopya sayılmamalı"
+        );
+    }
+
+    /// Aynı ad FARKLI TÜRDE de kopya değildir — otobüs "10" ile tramvay "10" moda göre ayrılır.
+    #[test]
+    fn same_name_different_route_type_is_not_rts_019() {
+        let file = make_file(
+            vec!["route_id", "agency_id", "route_short_name", "route_long_name", "route_type"],
+            vec![
+                vec!["R1", "A1", "10", "Merkez", "3"], // otobüs
+                vec!["R2", "A1", "10", "Merkez", "0"], // tramvay
+            ],
+        );
+        let (_, notices) = validate_routes(&file);
+        assert!(
+            !notices.iter().any(|n| n.rule_id == "RTS_019"),
+            "farklı taşıma türünün aynı adı kopya sayılmamalı"
+        );
+    }
+
+    /// AYNI ajans + AYNI tür + aynı ad → gerçek kopya, tetiklemeli (fix bunu bozmamalı).
+    #[test]
+    fn same_name_same_agency_and_type_is_rts_019() {
+        let file = make_file(
+            vec!["route_id", "agency_id", "route_short_name", "route_long_name", "route_type"],
+            vec![
+                vec!["R1", "A1", "10", "Merkez", "3"],
+                vec!["R2", "A1", "10", "Merkez", "3"],
+            ],
+        );
+        let (_, notices) = validate_routes(&file);
+        assert_eq!(
+            notices.iter().filter(|n| n.rule_id == "RTS_019").count(), 1,
+            "aynı ajans+tür+ad gerçek kopya → RTS_019 üretmeli"
+        );
     }
 
     #[test]
