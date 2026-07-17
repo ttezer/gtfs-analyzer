@@ -1,6 +1,5 @@
 import { defineConfig } from 'vite';
 import wasm from 'vite-plugin-wasm';
-import topLevelAwait from 'vite-plugin-top-level-await';
 import { readFileSync } from 'node:fs';
 
 // Build-time sabiti: package.json sürümü (debug bundle / about için).
@@ -14,7 +13,7 @@ const coopCoep = {
 };
 
 export default defineConfig({
-  plugins: [wasm(), topLevelAwait()],
+  plugins: [wasm()],
   base: './',
   define: { __APP_VERSION__: JSON.stringify(pkgVersion) },
   server: { headers: coopCoep },
@@ -25,7 +24,7 @@ export default defineConfig({
   // plugin'leri worker derlemesinde de gerekli (worker içindeki .wasm importu için).
   worker: {
     format: 'es',
-    plugins: () => [wasm(), topLevelAwait()],
+    plugins: () => [wasm()],
   },
   build: {
     target: 'esnext',
