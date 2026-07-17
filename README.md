@@ -436,7 +436,7 @@ Her kural `GRUP_NNN` formatında kodlanır. Gruplar GTFS dosya ve bileşen sın�
 
 - **Rust** — GNU toolchain (`stable-x86_64-pc-windows-gnu`), MinGW gcc
 - **wasm-pack** — WASM derleme aracı
-- **Node.js** 18+
+- **Node.js** 20.19+ (22.12+ önerilir)
 
 > **Windows notu:** MSVC toolchain yerine GNU toolchain gereklidir. WASM build'i sırasında `wasm-opt` binary'si indirilmekte olup bu adım MSVC linker ile uyumsuz çalışmaktadır. MinGW `gcc` linker'ın PATH'te bulunması gerekir.
 

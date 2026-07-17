@@ -436,7 +436,7 @@ Each rule is coded as `GROUP_NNN`. Groups follow GTFS file and component boundar
 
 - **Rust** — GNU toolchain (`stable-x86_64-pc-windows-gnu`), MinGW gcc
 - **wasm-pack** — WASM build tool
-- **Node.js** 18+
+- **Node.js** 20.19+ (22.12+ recommended)
 
 > **Windows note:** The GNU toolchain is required instead of MSVC. During the WASM build, `wasm-opt` is downloaded and this step is incompatible with the MSVC linker. MinGW `gcc` must be on the PATH.
 
