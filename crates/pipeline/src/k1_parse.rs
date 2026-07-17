@@ -144,6 +144,29 @@ fn read_fatal<R: Read>(guarded: &GuardedReader<'_, R>, raw_name: &str, e: &std::
     }
 }
 
+/// Kısmi okunan tamponu son TAM UTF-8 karakter sınırına kırpar.
+///
+/// YALNIZ `is_zip_stream` (8 KB başlık okuması) için çağrılır: oradaki eksik kuyruk
+/// BİZİM kesme noktamızın eseridir, dosyanın kusuru değil.
+///
+/// **Gerçek bozuk baytları GİZLEMEZ.** `Utf8Error` iki durumu ayırır:
+/// - `error_len() == None`  → "girdi beklenmedik şekilde bitti" = yarım karakter
+///   (yalnızca tamponun EN SONUNDA olabilir) → kırp, sorun yok.
+/// - `error_len() == Some(n)` → gövdede geçersiz bayt dizisi → DOKUNMA; ARC_002 /
+///   Utf8Critical eskisi gibi tetiklenir.
+/// `from_utf8` İLK hatayı bildirdiğinden, gövdede gerçek bir hata varsa `Some` döner
+/// ve kırpma yapılmaz — yani gerçek ihlal her zaman kazanır.
+///
+/// Regresyon: mdb-3176 (JP), mdb-1834 (LT), mdb-1831 (TH) — üçü de geçerli UTF-8
+/// trips.txt'e sahipken 8190-8191. bayttaki kesik yüzünden feed'i fatal ediyordu.
+fn truncate_to_utf8_boundary(buf: &mut Vec<u8>) {
+    if let Err(e) = std::str::from_utf8(buf) {
+        if e.error_len().is_none() {
+            buf.truncate(e.valid_up_to());
+        }
+    }
+}
+
 fn strip_bom(bytes: &[u8]) -> (&[u8], bool) {
     if bytes.starts_with(UTF8_BOM) {
         (&bytes[3..], true)
@@ -647,6 +670,10 @@ pub fn parse(zip_bytes: &[u8]) -> Result<K1Result, FatalError> {
                 }
                 malformed_eol |= previous_was_cr;
                 if malformed_eol { notices.push(make_notice(&mut counter, "ARC_026", EntityType::File, Some(raw_name.clone()), Some(&raw_name), None, None, Some("CR not followed by LF".to_string()), format!("'{raw_name}' CRLF veya LF dışında satır sonu içeriyor."), "Satır sonlarını LF ya da CRLF olarak yeniden yazın.")); }
+                // 8192'lik kesme çok baytlı bir UTF-8 karakterini ortadan bölebilir.
+                // Kırpılmazsa aşağıdaki from_utf8 GEÇERLİ dosyayı bozuk sanar ve
+                // zorunlu dosyada Utf8Critical → feed tümüyle reddedilirdi.
+                truncate_to_utf8_boundary(&mut raw_vec);
             } else if let Err(e) = guarded.read_to_end(&mut raw_vec) {
                 return Err(read_fatal(&guarded, &raw_name, &e));
             }
@@ -1414,6 +1441,73 @@ mod tests {
         let err = parse(&zip).expect_err("agency.txt eksik Fatal olmalı");
         assert_eq!(err.code, FatalCode::NoRequiredFiles);
         assert!(err.message.contains("agency.txt"), "{}", err.message);
+    }
+
+    /// 8192. bayta denk gelen çok baytlı karakter, GEÇERLİ bir feed'i fatal etmemeli.
+    ///
+    /// Gerçek vaka: 250-feed corpus koşumunda 3 feed (JP/LT/TH) yalnız bu yüzden
+    /// reddediliyordu; MD aynı feed'lerde 0 error raporluyordu. trips.txt #38 ile
+    /// kısmi (8 KB) okunur → kesme noktası karakteri bölünce dosya bozuk sanılıyordu.
+    /// Yalnız ASCII-dışı trips.txt'i olan feed'leri vurur (ASCII corpus asla yakalamaz).
+    #[test]
+    fn multibyte_char_across_partial_read_boundary_is_not_fatal() {
+        // Kesim K1'de tam 8192 baytta. 3 baytlık 'あ' 8190'da başlarsa baytları
+        // 8190/8191/8192'ye düşer → tampon ilk ikisini alır, üçüncüsü kesilir.
+        let mut trips = String::from("route_id,service_id,trip_id,trip_headsign\n");
+        let mut i = 0;
+        while trips.len() + 24 < 8_190 {
+            trips.push_str(&format!("R1,SVC1,T{i},AAA\n"));
+            i += 1;
+        }
+        while trips.len() < 8_190 {
+            trips.push('A'); // tam 8190'a hizala
+        }
+        assert_eq!(trips.len(), 8_190, "test kurgusu: hizalama");
+        trips.push('あ'); // baytlar 8190,8191,8192 → 8192'deki kesim ORTADAN böler
+        trips.push('\n');
+        let trips_bytes = trips.as_bytes().to_vec();
+        assert!(trips_bytes.len() > 8_192, "test kurgusu: dosya 8KB'ı aşmalı");
+        assert!(
+            std::str::from_utf8(&trips_bytes[..8_192]).is_err(),
+            "test kurgusu: ilk 8192 bayt çok baytlı karakteri bölmeli (yoksa test bugu kanıtlamaz)"
+        );
+        assert!(std::str::from_utf8(&trips_bytes).is_ok(), "test kurgusu: dosya BÜTÜN olarak geçerli UTF-8");
+
+        let zip = zip_with_files(&[
+            ("agency.txt",     b"agency_id,agency_name,agency_url,agency_timezone\n1,Test,http://x.com,UTC\n"),
+            ("stops.txt",      b"stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\n"),
+            ("routes.txt",     b"route_id,agency_id,route_short_name,route_type\nR1,1,101,3\n"),
+            ("trips.txt",      &trips_bytes),
+            ("stop_times.txt", b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT0,08:00:00,08:00:00,S1,1\n"),
+            ("calendar.txt",   b"service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,0,0,20240101,20241231\n"),
+        ]);
+        let res = parse(&zip);
+        assert!(res.is_ok(), "geçerli UTF-8 feed fatal olmamalı: {:?}", res.err());
+        let notices = &res.unwrap().notices;
+        assert!(
+            !notices.iter().any(|n| n.rule_id == "ARC_002"),
+            "geçerli dosyada ARC_002 (UTF-8 ihlali) üretilmemeli"
+        );
+    }
+
+    /// Kırpma, GÖVDEDEKİ gerçek bozuk baytları gizlememeli — kısmi okunan dosyada bile.
+    #[test]
+    fn genuinely_invalid_utf8_in_streamed_file_still_fatal() {
+        let mut trips: Vec<u8> = b"route_id,service_id,trip_id\n".to_vec();
+        trips.extend_from_slice(b"R1,SVC1,\xFF\xFE_bozuk\n"); // gövdede geçersiz dizi
+        while trips.len() < 9_000 {
+            trips.extend_from_slice(b"R1,SVC1,T\n");
+        }
+        let zip = zip_with_files(&[
+            ("agency.txt",     b"agency_id,agency_name,agency_url,agency_timezone\n1,Test,http://x.com,UTC\n"),
+            ("stops.txt",      b"stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\n"),
+            ("routes.txt",     b"route_id,agency_id,route_short_name,route_type\nR1,1,101,3\n"),
+            ("trips.txt",      &trips),
+            ("stop_times.txt", b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT0,08:00:00,08:00:00,S1,1\n"),
+            ("calendar.txt",   b"service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,0,0,20240101,20241231\n"),
+        ]);
+        let err = parse(&zip).expect_err("gövdedeki gerçek UTF-8 ihlali hâlâ Fatal olmalı");
+        assert_eq!(err.code, FatalCode::Utf8Critical);
     }
 
     #[test]
