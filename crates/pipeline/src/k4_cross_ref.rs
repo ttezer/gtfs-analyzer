@@ -1743,25 +1743,22 @@ fn check_fare_rules(
         ));
     }
 
+    // FK ihlali toplayıcıları: (kimlik) → (ilk satır, kaç satırda tekrarladı).
+    // BTreeMap → deterministik emit sırası.
+    let mut frl001_bad: std::collections::BTreeMap<&str, (u64, u64)> = Default::default();
+    let mut frl_zone_bad: std::collections::BTreeMap<(&str, &str, &str), (String, u64, u64)> =
+        Default::default();
+
     for rec in &records.fare_rules {
         let eid = Some(rec.fare_id.clone());
 
-        // FRL_001: fare_id referansı
+        // FRL_001: fare_id referansı — DISTINCT kimlik başına tek notice (aşağıda emit).
+        // Bir tanımsız fare_id feed'de binlerce satırda tekrar eder: mdb-2837'de
+        // fare_attributes.txt HİÇ YOK ve fare_rules 1.128.840 satır → satır-başına emit
+        // 1,1M notice üretiyordu (tek kök neden). STM_002 aynı FK ihlalini zaten
+        // distinct stop_id başına toplar; FRL ailesi de öyle.
         if !rec.fare_id.is_empty() && !map.fare_attrs.contains_key(rec.fare_id.as_str()) {
-            notices.push(notice(
-                ctr,
-                "FRL_001",
-                EntityType::Fare,
-                eid.clone(),
-                eid.clone(),
-                "fare_rules.txt",
-                Some(rec.line),
-                Some("fare_id"),
-                Some(rec.fare_id.clone()),
-                None,
-                format!("'{}' ücret tarifesi fare_attributes.txt'te tanımlı değil.", rec.fare_id),
-                "Geçerli bir fare_id kullanın.",
-            ));
+            frl001_bad.entry(rec.fare_id.as_str()).or_insert((rec.line, 0)).1 += 1;
         }
 
         // FRL_002: route_id referansı (varsa)
@@ -1784,7 +1781,7 @@ fn check_fare_rules(
             }
         }
 
-        // FRL_003-005: zone_id referansları
+        // FRL_003-005: zone_id referansları — DISTINCT (kural, zone_id) başına tek notice.
         for (rule, field, opt_id) in [
             ("FRL_003", "origin_id", &rec.origin_id),
             ("FRL_004", "destination_id", &rec.destination_id),
@@ -1792,20 +1789,10 @@ fn check_fare_rules(
         ] {
             if let Some(ref zid) = opt_id {
                 if !map.zone_ids.contains(zid.as_str()) {
-                    notices.push(notice(
-                        ctr,
-                        rule,
-                        EntityType::Fare,
-                        eid.clone(),
-                        eid.clone(),
-                        "fare_rules.txt",
-                        Some(rec.line),
-                        Some(field),
-                        Some(zid.clone()),
-                        None,
-                        format!("{field} '{zid}' stops.txt'te tanımlı bir zone_id değil."),
-                        "Geçerli bir zone_id kullanın.",
-                    ));
+                    frl_zone_bad
+                        .entry((rule, field, zid.as_str()))
+                        .or_insert((rec.fare_id.clone(), rec.line, 0))
+                        .2 += 1;
                 }
             }
         }
@@ -1834,6 +1821,28 @@ fn check_fare_rules(
                 "En az bir ayrıştırıcı kriter (route_id, origin_id, destination_id veya contains_id) belirtin.",
             ));
         }
+    }
+
+    // ── FRL_001/003/004/005: biriken FK ihlallerini DISTINCT kimlik başına emit et ──
+    // observed = kaç satırda tekrarladığı; satır = ilk görüldüğü yer.
+    for (fare_id, (line, rows)) in &frl001_bad {
+        let eid = Some((*fare_id).to_string());
+        notices.push(notice(
+            ctr, "FRL_001", EntityType::Fare, eid.clone(), eid,
+            "fare_rules.txt", Some(*line), Some("fare_id"),
+            Some(format!("{fare_id} ({rows} satır)")), None,
+            format!("'{fare_id}' ücret tarifesi fare_attributes.txt'te tanımlı değil ({rows} fare_rules satırında kullanılıyor)."),
+            "Geçerli bir fare_id kullanın ya da fare_attributes.txt'e tanımını ekleyin.",
+        ));
+    }
+    for ((rule, field, zid), (fare_id, line, rows)) in &frl_zone_bad {
+        notices.push(notice(
+            ctr, rule, EntityType::Fare, Some(fare_id.clone()), Some(fare_id.clone()),
+            "fare_rules.txt", Some(*line), Some(field),
+            Some(format!("{zid} ({rows} satır)")), None,
+            format!("{field} '{zid}' stops.txt'te tanımlı bir zone_id değil ({rows} fare_rules satırında kullanılıyor)."),
+            "Geçerli bir zone_id kullanın.",
+        ));
     }
 
     // FRL_008: ücret sistemi route tabanlı ama bazı hatlar kapsam dışı
@@ -4049,6 +4058,49 @@ mod tests {
         }];
         let result = check(&recs, &map, 20260515);
         assert!(result.notices.iter().any(|n| n.rule_id == "FRL_001"));
+    }
+
+    /// Aynı tanımsız fare_id yüzlerce satırda geçse de DISTINCT kimlik başına TEK notice.
+    /// Gerçek vaka (mdb-2837): fare_attributes.txt hiç yok + 1.128.840 fare_rules satırı →
+    /// satır-başına emit 1,1M notice ve 178 sn üretiyordu; distinct'e çevrilince 486 ve 2,8 sn.
+    #[test]
+    fn repeated_invalid_fare_ref_produces_one_frl_001_per_distinct_id() {
+        let (mut recs, map) = empty();
+        recs.fare_rules = (0..50)
+            .map(|i| FareRuleRecord {
+                fare_id: if i % 2 == 0 { "MISSING_A".into() } else { "MISSING_B".into() },
+                route_id: None, origin_id: None,
+                destination_id: None, contains_id: None,
+                row: Default::default(), line: (i + 2) as u64,
+            })
+            .collect();
+        let result = check(&recs, &map, 20260515);
+        let hits: Vec<_> = result.notices.iter().filter(|n| n.rule_id == "FRL_001").collect();
+        assert_eq!(hits.len(), 2, "2 distinct fare_id → 2 notice, alınan: {}", hits.len());
+        // Satır sayısı bilgisi korunmalı (25'er kez tekrar ediyor)
+        assert!(hits.iter().all(|n| n.message.contains("25 fare_rules")),
+            "mesaj kaç satırda tekrarladığını taşımalı: {:?}",
+            hits.iter().map(|n| &n.message).collect::<Vec<_>>());
+    }
+
+    /// Tanımsız zone_id de distinct başına tek notice (FRL_003/004).
+    #[test]
+    fn repeated_invalid_zone_ref_produces_one_notice_per_distinct_zone() {
+        let (mut recs, mut map) = empty();
+        map.fare_attrs.insert("F1".into(), Default::default());
+        recs.fare_rules = (0..30)
+            .map(|i| FareRuleRecord {
+                fare_id: "F1".into(),
+                route_id: None,
+                origin_id: Some("NO_ZONE".into()),
+                destination_id: Some("NO_ZONE".into()),
+                contains_id: None,
+                row: Default::default(), line: (i + 2) as u64,
+            })
+            .collect();
+        let result = check(&recs, &map, 20260515);
+        assert_eq!(result.notices.iter().filter(|n| n.rule_id == "FRL_003").count(), 1);
+        assert_eq!(result.notices.iter().filter(|n| n.rule_id == "FRL_004").count(), 1);
     }
 
     // �"?�"? LVL_004 �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?
