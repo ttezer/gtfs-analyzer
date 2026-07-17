@@ -800,20 +800,28 @@ fn check_speed_and_duration(
                     (Some((la1, lo1)), Some((la2, lo2))) => haversine_km(la1, lo1, la2, lo2),
                     _ => 0.0,
                 };
-                // Her iki zaman tam dakika (saniye=0) ve duraklar 1 km'den yakın:
-                // dakika yuvarlama gürültüsü olabilir — atla.
-                // Duraklar 1 km'den uzaksa sıfır süre gerçek bir hata; STM_012 ateşle.
+                // Her iki zaman tam dakika (saniye=0) → gerçek geçiş süresi bilinmiyor:
+                // yuvarlama yüzünden 0-59 sn arası herhangi bir şey olabilir. Bu yüzden
+                // "imkânsız" diyebilmek için mesafe, TAM BİR DAKİKA geçmiş olsa BİLE
+                // rota tipinin azami hızını aşmalı → eşik = max_speed_kmh / 60.
+                //
+                // Sabit 1.0 km eşiği YANLIŞ POZİTİF üretiyordu: 1.1 km bir otobüs için
+                // 60 sn'de 66 km/h eder — gayet olağan, "fiziksel olarak imkânsız" değil.
+                // 250-feed corpus kanıtı (mdb-2155): 42 bulgunun 41'i 1.1-1.5 km = FP;
+                // gerçek olan tek vaka 29.4 km (1764 km/h) ve MD de YALNIZ onu raporluyor.
+                let impossible_km = threshold / 60.0;
                 if dep_secs == 0 && arr_secs == 0 {
-                    if dist_km >= 1.0 {
+                    if dist_km >= impossible_km {
                         let mut n012 = k6_notice(
                             ctr, "STM_012", EntityType::Trip,
                             Some(trip_id.to_string()), Some(trip_id.to_string()),
                             "stop_times.txt", Some(b.line as u64), Some("arrival_time"),
-                            Some(format!("sifir sure, {dist_km:.1} km")),
-                            Some("<= 700 km/h".to_string()),
-                            format!("trip_id '{trip_id}'{dep_suffix} stop_sequence {}-{} arasi gecis suresi sifir ama mesafe {dist_km:.1} km — fiziksel olarak imkansiz.",
-                                a.stop_sequence().unwrap_or(0), b.stop_sequence().unwrap_or(0)),
-                            "stop_times.txt zaman degerlerini dogrulayin; ayni dakikada cok uzak iki durak olamaz.",
+                            Some(format!("sıfır süre, {dist_km:.1} km")),
+                            Some(format!("< {impossible_km:.1} km (aynı dakika içinde)")),
+                            format!("trip_id '{trip_id}'{dep_suffix} stop_sequence {}-{} arası geçiş süresi sıfır ama mesafe {dist_km:.1} km — aynı dakika içinde kapatılamaz (≥ {:.0} km/h gerekirdi, eşik {threshold:.0} km/h).",
+                                a.stop_sequence().unwrap_or(0), b.stop_sequence().unwrap_or(0),
+                                dist_km * 60.0),
+                            "stop_times.txt zaman değerlerini doğrulayın; iki durak aynı dakikaya yazılmış ama aralarındaki mesafe bir dakikada alınamaz.",
                         );
                         let mut d = std::collections::HashMap::new();
                         d.insert("stop_a".to_string(), idx.stop_id_of(a).to_string());
@@ -7884,6 +7892,65 @@ mod tests {
         );
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
         assert!(result.notices.iter().any(|n| n.rule_id == "STM_029"));
+    }
+
+    // ── STM_012: tam-dakika sıfır süre — eşik rota tipine bağlı ───────────────
+    // Her iki zaman da tam dakikaysa gerçek geçiş süresi bilinmez (0-59 sn). "İmkânsız"
+    // diyebilmek için mesafe, tam bir dakika geçse bile azami hızı aşmalı → max_speed/60.
+    // Corpus kanıtı (mdb-2155): sabit 1.0 km eşiği 42 bulgunun 41'ini FP yapıyordu.
+
+    #[test]
+    fn whole_minute_zero_gap_below_one_minute_reach_is_not_stm_012() {
+        // ~1.1 km / otobüs: tam dakikada 66 km/h eder — olağan, eşik 120 → SUSMALI.
+        let records = records_with(
+            vec![stop("A", 41.0, 29.0), stop("B", 41.0099, 29.0)],
+            vec![route("R1", 3)], // bus → 120 km/h → imkânsızlık sınırı 2.0 km
+            vec![trip("T1", "R1")],
+            vec![
+                stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
+                stoptime("T1", 2, "B", (8, 0, 0), (8, 0, 0), 3),
+            ],
+        );
+        let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
+        let hits: Vec<_> = result.notices.iter().filter(|n| n.rule_id == "STM_012").collect();
+        assert!(hits.is_empty(), "dakika yuvarlaması ile açıklanabilen mesafe FP olmamalı: {:?}",
+                hits.iter().map(|n| &n.observed_value).collect::<Vec<_>>());
+    }
+
+    #[test]
+    fn whole_minute_zero_gap_beyond_one_minute_reach_is_stm_012() {
+        // ~29 km / otobüs: tam dakikada bile ~1740 km/h gerekir → GERÇEK hata, fire etmeli.
+        // (mdb-2155'te MD'nin de bulduğu tek vaka bu sınıftı.)
+        let records = records_with(
+            vec![stop("A", 41.0, 29.0), stop("B", 41.26, 29.0)],
+            vec![route("R1", 3)],
+            vec![trip("T1", "R1")],
+            vec![
+                stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
+                stoptime("T1", 2, "B", (8, 0, 0), (8, 0, 0), 3),
+            ],
+        );
+        let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
+        assert!(result.notices.iter().any(|n| n.rule_id == "STM_012"),
+                "bir dakikada alınamayacak mesafe STM_012 üretmeli");
+    }
+
+    #[test]
+    fn whole_minute_zero_gap_threshold_follows_route_type() {
+        // Aynı ~1.1 km mesafe, teleferik (30 km/h → sınır 0.5 km) için İMKÂNSIZ.
+        // Eşik sabit olsaydı bu vaka kaçardı; rota tipine bağlı olduğu için yakalanır.
+        let records = records_with(
+            vec![stop("A", 41.0, 29.0), stop("B", 41.0099, 29.0)],
+            vec![route("R1", 6)], // teleferik
+            vec![trip("T1", "R1")],
+            vec![
+                stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
+                stoptime("T1", 2, "B", (8, 0, 0), (8, 0, 0), 3),
+            ],
+        );
+        let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
+        assert!(result.notices.iter().any(|n| n.rule_id == "STM_012"),
+                "teleferik için 1.1 km bir dakikada alınamaz → STM_012 olmalı");
     }
 
     // ── STM_020: sıfır seyahat süresi ─────────────────────────────────────────
