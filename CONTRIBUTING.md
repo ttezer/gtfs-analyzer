@@ -20,7 +20,7 @@ never sent to a server.
   rustup target add wasm32-unknown-unknown --toolchain nightly
   ```
 - **wasm-pack** — `curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh`
-- **Node.js 20.19+** (22.12+ recommended) and npm.
+- **Node.js** — a maintained LTS release (exact range in `ui/package.json` `engines`) and npm.
 
 ## Setup & build
 

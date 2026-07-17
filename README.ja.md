@@ -436,7 +436,7 @@ GTFS-JP フィードの場合、**JPN** グループのルールは公式の [GT
 
 - **Rust** — GNU ツールチェーン（`stable-x86_64-pc-windows-gnu`）、MinGW gcc
 - **wasm-pack** — WASM ビルドツール
-- **Node.js** 20.19 以上（22.12 以上を推奨）
+- **Node.js** — メンテナンス中の LTS リリース（正確な範囲は `ui/package.json` の `engines` を参照）
 
 > **Windows の注意：** MSVC の代わりに GNU ツールチェーンが必要です。WASM ビルド時に `wasm-opt` がダウンロードされますが、このステップは MSVC リンカーと非互換です。MinGW の `gcc` が PATH に含まれている必要があります。
 
