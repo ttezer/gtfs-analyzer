@@ -243,14 +243,32 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
             .filter(|v| !v.is_empty())
             .map(str::to_string);
 
-        // RTS_023: route_long_name == route_desc (same_name_and_description_for_route)
-        if let (Some(ref l), Some(ref d)) = (&route_long_name, &route_desc) {
-            if l.to_lowercase() == d.to_lowercase() {
+        // RTS_023: route_desc, route_long_name VEYA route_short_name ile aynı
+        // (MD `same_name_and_description_for_route`; MD örnekleri `specifiedField` ile
+        // hangi alanın eşleştiğini söyler ve her İKİ alanı da denetler).
+        //
+        // route_short_name kolu 2026-07-17'de eklendi: yalnız long_name'e bakmak gerçek
+        // bir KAPSAM BOŞLUĞUYDU — 250-feed corpus'ta mdb-2898'de MD 436 bulgu verirken biz
+        // 0 veriyorduk ve 436'sının da `specifiedField` değeri route_short_name'di
+        // (route_desc="EXT" ↔ route_short_name="EXT" gibi).
+        //
+        // Her iki alan da eşleşse bile hat başına TEK notice (aynı kök neden: açıklama
+        // bir adın kopyası); hangi alan(lar) eşleşti mesajda yazar.
+        {
+            let dl = route_desc.as_ref().map(|d| d.to_lowercase());
+            let matches_long = matches!((&route_long_name, &dl), (Some(l), Some(d)) if &l.to_lowercase() == d);
+            let matches_short = matches!((&route_short_name, &dl), (Some(s), Some(d)) if &s.to_lowercase() == d);
+            if let (Some(d), true) = (&route_desc, matches_long || matches_short) {
+                let (field_tr, value) = match (matches_long, matches_short) {
+                    (true, true) => ("route_long_name ve route_short_name", d.as_str()),
+                    (true, false) => ("route_long_name", d.as_str()),
+                    _ => ("route_short_name", d.as_str()),
+                };
                 notices.push(make_k2_notice(
                     &mut counter, "RTS_023", EntityType::Route, entity_id.clone(), Some(&row_map),
                     &file.name, Some(line), Some("route_desc"), Some(d.clone()), None,
-                    format!("'{}' hattının route_long_name ve route_desc değerleri aynı: '{l}'.", route_id),
-                    "route_desc, route_long_name'den farklı ve daha açıklayıcı bir açıklama içermelidir.",
+                    format!("'{route_id}' hattının route_desc değeri {field_tr} ile aynı: '{value}'."),
+                    "route_desc, hat adlarından farklı ve daha açıklayıcı bir açıklama içermelidir.",
                 ));
             }
         }
@@ -526,6 +544,44 @@ mod tests {
     /// Aynı ad FARKLI AJANSTA kopya değildir — iki işletmecinin "10" hattı olması olağan.
     /// Corpus kanıtı (mdb-1091, Lüksemburg): 32 gruptan 29'u farklı ajans/tür; anahtar
     /// tamamlanınca 32 → 3 = MobilityData ile birebir.
+    /// route_desc == route_short_name de RTS_023'tür (MD `same_name_and_description_for_route`
+    /// her iki adı da denetler). Yalnız long_name'e bakmak kapsam boşluğuydu: mdb-2898'de
+    /// MD 436 bulgu verirken biz 0 veriyorduk, 436'sı da short_name eşleşmesiydi.
+    #[test]
+    fn route_desc_equal_to_short_name_produces_rts_023() {
+        let file = make_file(
+            vec!["route_id", "route_short_name", "route_long_name", "route_desc", "route_type"],
+            vec![vec!["R1", "EXT", "Merkez - Sahil", "EXT", "3"]],
+        );
+        let (_, notices) = validate_routes(&file);
+        assert_eq!(notices.iter().filter(|n| n.rule_id == "RTS_023").count(), 1,
+            "route_desc == route_short_name → RTS_023 olmalı");
+    }
+
+    /// Her iki ad da eşleşse bile hat başına TEK notice (aynı kök neden).
+    #[test]
+    fn route_desc_equal_to_both_names_produces_single_rts_023() {
+        let file = make_file(
+            vec!["route_id", "route_short_name", "route_long_name", "route_desc", "route_type"],
+            vec![vec!["R1", "X", "X", "X", "3"]],
+        );
+        let (_, notices) = validate_routes(&file);
+        assert_eq!(notices.iter().filter(|n| n.rule_id == "RTS_023").count(), 1,
+            "iki alan da eşleşse bile tek notice");
+    }
+
+    /// route_desc farklıysa tetiklememeli (fix aşırı-tetiklememeli).
+    #[test]
+    fn route_desc_different_from_names_is_not_rts_023() {
+        let file = make_file(
+            vec!["route_id", "route_short_name", "route_long_name", "route_desc", "route_type"],
+            vec![vec!["R1", "10", "Merkez - Sahil", "Sahil boyunca ekspres", "3"]],
+        );
+        let (_, notices) = validate_routes(&file);
+        assert!(!notices.iter().any(|n| n.rule_id == "RTS_023"),
+            "gerçekten açıklayıcı route_desc tetiklememeli");
+    }
+
     #[test]
     fn same_name_different_agency_is_not_rts_019() {
         let file = make_file(
