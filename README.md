@@ -47,7 +47,7 @@ GTFS Validator & Analyzer, spesifikasyon doğrulamasını operasyonel kalite ana
 
 ### Feed Analizi Örnekleri
 
-Aynı feed'ler iki validator ile karşılaştırıldı: MobilityData gtfs-validator v8.0.1 · GTFS Analyzer v0.5.0. (GTFS Analyzer sayıları 2026-07-13 tarihli çalıştırmanın anlık görüntüsüdür; tarihe bağlı kurallar nedeniyle farklı bir günde çalıştırma küçük sapmalar verebilir.)
+Aynı feed'ler iki validator ile karşılaştırıldı: MobilityData gtfs-validator v8.0.1 · GTFS Analyzer v0.6.0. (GTFS Analyzer sayıları 2026-07-16 tarihli çalıştırmanın anlık görüntüsüdür; tarihe bağlı kurallar nedeniyle farklı bir günde çalıştırma küçük sapmalar verebilir.)
 
 #### BART (Bay Area Rapid Transit, San Francisco)
 
@@ -71,15 +71,15 @@ Feed: `mdb-247` (MobilityDatabase, 2026-07-10 anlık görüntüsü; geçerlilik 
 
 | | MobilityData | GTFS Analyzer |
 |---|---:|---:|
-| Toplam notice | 972 | 6.981 |
+| Toplam notice | 972 | 6.486 |
 | Kritik / Error | 908 | 0 |
-| Yüksek / Warning | 51 | 1.278 |
+| Yüksek / Warning | 51 | 783 |
 | Orta | — | 177 |
 | Düşük | — | 1.906 |
 | Bilgi / Info | 13 | 3.620 |
 | Tetiklenen kural tipi | 9 | **55** |
 | Yayın skoru | — | **100 / 100** |
-| Genel skor | — | **83,4 / 100** |
+| Genel skor | — | **83,6 / 100** |
 
 > ⚠️ **Çakışan blok seferleri:** Bu feed'in baskın bulgusu, aynı blokta zaman bakımından çakışan seferler (MobilityData'da 908 *error*). GTFS Analyzer bunu TRP_022 ile yakalar (770) ancak yalnızca aynı gün aktif servisleri çakışma sayar (takvim-kesişim guard'ı); önem sınıflandırması araçlar arasında farklılık gösterir (Analyzer'da kritik değil).
 >
@@ -91,11 +91,11 @@ Feed: `mdb-3175` (MobilityDatabase, 2026-07-11 anlık görüntüsü; geçerlilik
 
 | | MobilityData | GTFS Analyzer |
 |---|---:|---:|
-| Toplam notice | 2.404 | 3.168 |
+| Toplam notice | 2.404 | 3.157 |
 | Kritik / Error | 0 | 0 |
 | Yüksek / Warning | 300 | 20 |
 | Orta | — | 1.014 |
-| Düşük | — | 1.142 |
+| Düşük | — | 1.131 |
 | Bilgi / Info | 2.104 | 992 |
 | Tetiklenen kural tipi | 9 | **62** |
 | Yayın skoru | — | **100 / 100** |

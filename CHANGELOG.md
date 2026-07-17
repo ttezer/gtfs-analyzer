@@ -7,6 +7,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-07-17
+
+> **Scores are not comparable to 0.5.0.** Two changes move a feed's numbers even though the
+> feed is unchanged: `FLG_002` no longer reports false criticals for networks declared
+> outside `networks.txt`, and `STM_014` now reports one finding per route/direction/segment
+> instead of one per trip. Detection is unchanged in both cases. Re-baseline any Golden
+> snapshots after upgrading.
+
+### Added
+- **`validate_with_today` (WASM).** The browser evaluated calendar rules against the machine's
+  clock, so a run could not be reproduced later and a diff mixed code changes with the date
+  shift. The date can now be supplied explicitly, mirroring the CLI's `--today`. `validate`
+  delegates to it, so there is one code path and no behaviour change.
+
+### Fixed
+- **Valid feeds were rejected outright when a header read split a UTF-8 character.** K1 reads
+  only the first 8 KB of `trips.txt`, `stop_times.txt` and `calendar_dates.txt`; when that cut
+  landed inside a multi-byte character, the truncated tail was read as invalid encoding and a
+  required file turned it into a fatal error — the feed produced no analysis at all. Only feeds
+  carrying non-ASCII text in those files were affected, and only when the byte offset fell
+  unluckily. Found by running 250 feeds from the MobilityData catalogue: Japanese, Lithuanian
+  and Thai feeds were rejected while MobilityData reported two of them with zero errors.
+- **`FLG_002` reported false criticals for valid Fares v2 networks.** A `network_id` may be
+  declared in `networks.txt`, in `routes.txt`, or in `route_networks.txt`; only the first was
+  recognised, so feeds declaring networks the other way had every `fare_leg_rules` reference
+  flagged as an undefined network. `route_networks.txt` is now parsed rather than merely
+  detected. On TriMet this removed all 7 criticals and raised the Publication Score from 89.3
+  to 100.
+
+### Changed
+- **`STM_014` findings are grouped per route, direction and segment.** A single bad segment
+  produced one finding per trip crossing it — on TriMet, 497 findings all pointed at the same
+  two segments. Each finding now carries the affected trip count, a trip sample and the speed
+  range. Thresholds, severity and detection are unchanged; only presentation.
+
+### Internal
+- `RULES.md` / `RULES.en.md` / `RULES.ja.md` are generated from the rule registry, but nothing
+  enforced regeneration and they had drifted. A test now ties both together.
+- `ARC_029` (decompression guard) is proven end-to-end: a zip bomb reaching the validator
+  returns the expected fatal, and a legitimate small high-ratio file does not trip the guard.
+
 ## [0.5.0] - 2026-07-11
 
 > **Scores are not comparable to 0.4.0.** This release continues the authority-based

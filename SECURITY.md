@@ -21,8 +21,8 @@ earlier release, upgrade to the latest.
 
 | Version         | Supported |
 |-----------------|-----------|
-| 0.5.x (latest)  | ✅        |
-| < 0.5           | ❌        |
+| 0.6.x (latest)  | ✅        |
+| < 0.6           | ❌        |
 
 ## Reporting a vulnerability
 

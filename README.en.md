@@ -47,7 +47,7 @@ GTFS Validator & Analyzer extends specification validation with operational qual
 
 ### Feed Analysis Examples
 
-The same feeds were compared with two validators: MobilityData gtfs-validator v8.0.1 · GTFS Analyzer v0.5.0. (GTFS Analyzer figures are a snapshot from a run on 2026-07-13; because some rules are date-dependent, running on a different day may produce small deviations.)
+The same feeds were compared with two validators: MobilityData gtfs-validator v8.0.1 · GTFS Analyzer v0.6.0. (GTFS Analyzer figures are a snapshot from a run on 2026-07-16; because some rules are date-dependent, running on a different day may produce small deviations.)
 
 #### BART (Bay Area Rapid Transit, San Francisco)
 
@@ -71,15 +71,15 @@ Feed: `mdb-247` (MobilityDatabase, 2026-07-10 snapshot; validity range: 2026-06-
 
 | | MobilityData | GTFS Analyzer |
 |---|---:|---:|
-| Total notices | 972 | 6,981 |
+| Total notices | 972 | 6,486 |
 | Critical / Error | 908 | 0 |
-| High / Warning | 51 | 1,278 |
+| High / Warning | 51 | 783 |
 | Medium | — | 177 |
 | Low | — | 1,906 |
 | Info | 13 | 3,620 |
 | Distinct rule types triggered | 9 | **55** |
 | Publish score | — | **100 / 100** |
-| Overall score | — | **83.4 / 100** |
+| Overall score | — | **83.6 / 100** |
 
 > ⚠️ **Overlapping block trips:** This feed's dominant finding is trips that overlap in time within the same block (908 *errors* in MobilityData). GTFS Analyzer catches this with TRP_022 (770) but counts a conflict only for services active on the same day (calendar-intersection guard); severity classification differs across tools (not critical in Analyzer).
 >
@@ -91,11 +91,11 @@ Feed: `mdb-3175` (MobilityDatabase, 2026-07-11 snapshot; validity range: 2026-07
 
 | | MobilityData | GTFS Analyzer |
 |---|---:|---:|
-| Total notices | 2,404 | 3,168 |
+| Total notices | 2,404 | 3,157 |
 | Critical / Error | 0 | 0 |
 | High / Warning | 300 | 20 |
 | Medium | — | 1,014 |
-| Low | — | 1,142 |
+| Low | — | 1,131 |
 | Info | 2,104 | 992 |
 | Distinct rule types triggered | 9 | **62** |
 | Publish score | — | **100 / 100** |
