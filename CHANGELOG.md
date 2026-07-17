@@ -9,11 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.6.0] - 2026-07-17
 
-> **Scores are not comparable to 0.5.0.** Two changes move a feed's numbers even though the
-> feed is unchanged: `FLG_002` no longer reports false criticals for networks declared
-> outside `networks.txt`, and `STM_014` now reports one finding per route/direction/segment
-> instead of one per trip. Detection is unchanged in both cases. Re-baseline any Golden
-> snapshots after upgrading.
+> **Scores are not comparable to 0.5.0.** Several changes move a feed's numbers even though
+> the feed is unchanged: false positives were removed from five rules and two rules were
+> regrouped. Re-baseline any Golden snapshots after upgrading.
+
+This release is the result of running 250 feeds sampled across 71 countries from the
+MobilityData catalogue and comparing every finding against MobilityData's own report for the
+same snapshot. Our test corpus had been three feeds — BART, Tokyo Toei, TriMet — and every
+bug below is one that corpus could not surface: they need non-ASCII text, minute-rounded
+times, a repeated stop name, a `", "` separator, or a multi-agency feed.
 
 ### Added
 - **`validate_with_today` (WASM).** The browser evaluated calendar rules against the machine's
@@ -35,12 +39,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   flagged as an undefined network. `route_networks.txt` is now parsed rather than merely
   detected. On TriMet this removed all 7 criticals and raised the Publication Score from 89.3
   to 100.
+- **`STM_012` called a stop pair impossible on a fixed 1 km distance.** When two stops share a
+  whole-minute timestamp the real travel time is unknown — minute rounding hides anything from
+  0 to 59 seconds — yet a bus covering 1.1 km within that minute only needs 66 km/h. The
+  distance must now be unreachable even if a full minute had elapsed
+  (`max_speed_kmh(route_type) / 60`), so the check tightens for slow modes (cable car: 0.5 km)
+  and relaxes for fast ones (rail: 5 km). One corpus feed drops from 42 findings to the single
+  29.4 km jump that MobilityData also reports.
+- **`TRP_020` flagged headsigns that correctly name the last stop.** The rule excluded the
+  terminal by `stop_id` but matched candidates by name, so a trip was flagged whenever an
+  earlier stop shared the terminal's name — separate platform records carry different ids. One
+  feed drops from 9,162 findings to 171 (MobilityData: 19); on Tokyo Toei all 156 findings were
+  this false positive and are now gone.
+- **`RTS_019` treated different operators' route numbers as duplicates.** Two agencies each
+  running a route "10", or a bus "10" beside a tram "10", are ordinary — a passenger tells them
+  apart by operator or mode, and GTFS scopes name uniqueness to one `route_type` under one
+  `agency_id`. Both are now part of the key; one corpus feed drops from 32 findings to 3,
+  matching MobilityData exactly.
+- **`STP_030` counted entrances as a station's children.** `parent_station` is also written by
+  entrances and generic nodes, but a vehicle only stops at a platform, so a station holding six
+  entrances and no platform was silently accepted. Only `location_type` 0 or empty now counts,
+  and the message says the station has no platform instead of claiming nothing references it.
+- **`RTS_023` ignored `route_desc` that repeats the short name.** It compared only against
+  `route_long_name`; MobilityData checks both names. On one corpus feed all 436 of its findings
+  were short-name matches and we reported none. The rule and its title in all three languages
+  now say `route_desc` repeats *a route name*, and the message names the field that matched.
 
 ### Changed
 - **`STM_014` findings are grouped per route, direction and segment.** A single bad segment
   produced one finding per trip crossing it — on TriMet, 497 findings all pointed at the same
   two segments. Each finding now carries the affected trip count, a trip sample and the speed
   range. Thresholds, severity and detection are unchanged; only presentation.
+- **`DQ_016` reports one summary per file instead of one finding per row.** Leading and
+  trailing whitespace is a single producer habit — most often writing `", "` as the separator —
+  and it then appears on every row of every file. One corpus feed produced 2,361,873 findings,
+  98.6% of its total, against MobilityData's 12, which is the volume that exhausts browser
+  memory. The detection is unchanged and still correct (RFC 4180 makes the space part of the
+  field; MobilityData's parser trims it): each finding now carries the affected row count and
+  the columns involved. That feed drops to 7 findings and its total from 2.4M to 43k.
 
 ### Internal
 - `RULES.md` / `RULES.en.md` / `RULES.ja.md` are generated from the rule registry, but nothing
