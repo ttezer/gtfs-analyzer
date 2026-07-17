@@ -1067,7 +1067,7 @@ const en: LocaleShape = {
     'DQ_011':  'Only one stop exists in the feed.',
     'DQ_012':  'Multiple agencies present but agency_id is not used.',
     'DQ_013':  "Feed has too few trips ({observed_value}).",
-    'DQ_016':  "'{entity_id}' (line {line}): leading/trailing whitespace in field(s) '{field}'.",
+    'DQ_016':  "{observed_value} in '{entity_id}' have leading/trailing whitespace — affected columns: {field}.",
     'DQ_017':  "Suspicious coordinates near (0,0): {observed_value} stops.",
     'DQ_018':  "All-caps value in recommended field '{field}' of '{entity_id}'.",
     'DQ_019':  "All-lowercase value in recommended field '{field}' of '{entity_id}'.",

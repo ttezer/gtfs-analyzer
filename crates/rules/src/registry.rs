@@ -1295,7 +1295,10 @@ pub static RULES: &[RuleMeta] = &[
         "Çok fazla acente, agency_id kullanılmıyor"),
     r!("DQ_013",  Orta,   Quality,  1, &[], None, VS, Feed,
         "Çok az sefer"),
-    r!("DQ_016",  Orta,   Quality,  1, &[], None, VS, Row,
+    // Emit DOSYA başına tek özet → Varlık=File. Eski hâl Row idi ve baş/son boşluk tek bir
+    // üretici alışkanlığı (ör. ayraç ', ') olduğu için dosyanın HER satırında çıkıyordu:
+    // mdb-992'de 2.361.873 notice (MD: 12) → tarayıcı OOM riski. STM_050 ile aynı karar.
+    r!("DQ_016",  Orta,   Quality,  1, &[], None, VS, File,
         "Değerde fazladan boşluk karakteri"),
     r!("DQ_017",  Bilgi,  Quality,  1, &[], None, VS, Feed,
         "Şüpheli koordinat değeri"),

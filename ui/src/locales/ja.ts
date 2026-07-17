@@ -1048,7 +1048,7 @@ const ja: LocaleShape = {
     'DQ_011':  'フィードに停留所が1つしかありません。',
     'DQ_012':  '複数の事業者が存在しますが、agency_idが使用されていません。',
     'DQ_013':  "フィードの便数が少なすぎます（{observed_value}）。",
-    'DQ_016':  "'{entity_id}'（行{line}）：フィールド'{field}'に先頭または末尾の空白があります。",
+    'DQ_016':  "'{entity_id}'：{observed_value}に先頭または末尾の空白があります — 対象列：{field}。",
     'DQ_017':  "(0,0)付近の疑わしい座標：{observed_value}停留所。",
     'DQ_018':  "'{entity_id}'の推奨フィールド'{field}'がすべて大文字です。",
     'DQ_019':  "'{entity_id}'の推奨フィールド'{field}'がすべて小文字です。",

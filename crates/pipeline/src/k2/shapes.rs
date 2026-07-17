@@ -72,6 +72,7 @@ pub fn validate_shapes(file: &RawFile) -> (Vec<ShapePointRecord>, Vec<gtfs_core:
     let mut arc021_fired = false;
     let mut seen_seq_by_shape: HashMap<String, HashSet<u32>> = HashMap::new();
     let mut total_rows: usize = 0;
+    let mut dq016 = crate::k1_parse::Dq016Acc::default();
 
     {
         // Satır işleyici — hem stream (raw_text) hem rows fallback yolundan çağrılır.
@@ -145,29 +146,8 @@ pub fn validate_shapes(file: &RawFile) -> (Vec<ShapePointRecord>, Vec<gtfs_core:
             }
 
             // DQ_016: değerlerde baştaki/sondaki boşluk
-            {
-                let eid016: String = dq016_pk_idx
-                    .and_then(|i| row.get(i))
-                    .map(|v| v.as_ref())
-                    .filter(|v: &&str| !v.is_empty())
-                    .unwrap_or(&file.name)
-                    .to_string();
-                let ws_fields: Vec<&str> = row.iter().enumerate()
-                    .filter(|(_, v)| { let s: &str = v.as_ref(); s != s.trim() })
-                    .filter_map(|(i, _)| file.headers.get(i).map(|s| s.as_str()))
-                    .filter(|name| !crate::k1_parse::dq016_is_typed_column(name))
-                    .collect();
-                if !ws_fields.is_empty() {
-                    let fields_str = ws_fields.join(", ");
-                    notices.push(make_k2_notice(
-                        &mut counter, "DQ_016", EntityType::Row, Some(eid016.clone()),
-                        None, &file.name, Some(line), Some(fields_str.as_str()),
-                        Some(format!("{line}")), None,
-                        format!("'{}' kaydında ({}, satır {line}): '{}' alanlarında baştaki/sondaki boşluk var.", eid016, file.name, fields_str),
-                        "Değerlerdeki gereksiz baştaki/sondaki boşlukları kaldırın.",
-                    ));
-                }
-            }
+            // DQ_016: dosya-seviyesi birikim; emit döngü sonrası TEK özet (patlama önlemi).
+            dq016.observe(line, row.iter().map(|v| v.as_ref()), &file.headers);
 
             // ── Shape-özel kurallar ──
             let shape_id = get_col(row, cols.shape_id).to_string();
@@ -387,6 +367,15 @@ pub fn validate_shapes(file: &RawFile) -> (Vec<ShapePointRecord>, Vec<gtfs_core:
         );
         n.severity = Severity::Bilgi;
         notices.push(n);
+    }
+
+    // DQ_016: DOSYA başına TEK özet (satır-başına değil — patlama önlemi).
+    if let Some((observed, msg, cols)) = dq016.summary(&file.name) {
+        notices.push(make_k2_notice(
+            &mut counter, "DQ_016", EntityType::File, Some(file.name.clone()),
+            None, &file.name, dq016.first_line, Some(cols.as_str()),
+            Some(observed), None, msg, crate::k1_parse::DQ016_REMEDIATION,
+        ));
     }
 
     (records, notices)

@@ -384,6 +384,70 @@ fn arc009_critical(filename: &str) -> bool {
 /// desc, kod) — join'i kırar ya da görünür. Zaman/tarih/sayı/koordinat/sequence/enum alanlarında
 /// boşluk parser'ca tolere edilir ve zararsızdır; MobilityData da bu tipli alanları işaretlemez
 /// (ör. mdb-2 arrival_time ' 6:04:00' → MD 0, bizde 65.747 over-fire idi). Tipli sütunları muaf tut.
+/// DQ_016 dosya-seviyesi toplayıcı: boşluklu satır sayısı + etkilenen sütun kümesi.
+///
+/// **Neden özet, satır-başına değil:** baş/son boşluk tek bir ÜRETİCİ ALIŞKANLIĞIDIR
+/// (en sık: ayraç olarak `,` yerine `, ` yazmak) → dosyanın HER satırında çıkar.
+/// Satır-başına emit `mdb-992`'de **2.361.873** notice üretiyordu (feed toplamının
+/// %98,6'sı; MobilityData aynı feed'de 12) — tarayıcıyı OOM eden STM_050 vakasının
+/// aynısı. Tespit doğru (RFC 4180'e göre o boşluk alanın parçası), sorun sunum.
+///
+/// Üç emit sitesi de (K1 genel, K2 stop_times, K2 shapes) bunu kullanır.
+#[derive(Default)]
+pub(crate) struct Dq016Acc {
+    pub rows: u64,
+    pub cols: std::collections::BTreeSet<String>,
+    pub first_line: Option<u64>,
+    last_line: u64,
+}
+
+impl Dq016Acc {
+    /// Bir satırı işler. `values`/`headers` aynı sırada olmalı.
+    pub fn observe<'a>(
+        &mut self,
+        line: u64,
+        values: impl Iterator<Item = &'a str>,
+        headers: &[String],
+    ) {
+        for (i, s) in values.enumerate() {
+            if s == s.trim() {
+                continue;
+            }
+            let Some(name) = headers.get(i).map(|h| h.as_str()) else { continue };
+            if dq016_is_typed_column(name) {
+                continue;
+            }
+            if self.last_line != line || self.rows == 0 {
+                self.last_line = line;
+                self.rows += 1;
+                if self.first_line.is_none() {
+                    self.first_line = Some(line);
+                }
+            }
+            self.cols.insert(name.to_string());
+        }
+    }
+
+    /// Özet metni: (observed, mesaj, sütun listesi). Boşsa `None`.
+    pub fn summary(&self, file_name: &str) -> Option<(String, String, String)> {
+        if self.rows == 0 {
+            return None;
+        }
+        let cols = self.cols.iter().map(String::as_str).collect::<Vec<_>>().join(", ");
+        Some((
+            format!("{} satır", self.rows),
+            format!(
+                "'{file_name}' dosyasında {} satırda baştaki/sondaki boşluk var; etkilenen sütunlar: {cols}.",
+                self.rows
+            ),
+            cols,
+        ))
+    }
+}
+
+pub(crate) const DQ016_REMEDIATION: &str =
+    "Değerlerdeki gereksiz baştaki/sondaki boşlukları kaldırın; ayraç olarak ', ' değil ',' kullanın.";
+
 pub(crate) fn dq016_is_typed_column(name: &str) -> bool {
     if name.ends_with("_time") || name.ends_with("_date") || name.ends_with("_sequence")
         || name.ends_with("_lat") || name.ends_with("_lon") || name.ends_with("_secs")
@@ -940,6 +1004,8 @@ pub fn parse(zip_bytes: &[u8]) -> Result<K1Result, FatalError> {
 
         // DQ_016: birincil anahtar sütun indeksi döngü-değişmezdir — döngü dışında bir kez hesapla.
         let dq016_pk_idx = headers.iter().position(|h| h.ends_with("_id"));
+        let _ = dq016_pk_idx; // özet dosya seviyesinde → satır kimliği gerekmiyor
+        let mut dq016 = Dq016Acc::default();
         let mut rows: Vec<Vec<SmolStr>> = Vec::new();
         let mut arc021_fired = false;
         for (row_idx, row) in records.into_iter().enumerate() {
@@ -1017,37 +1083,20 @@ pub fn parse(zip_bytes: &[u8]) -> Result<K1Result, FatalError> {
             }
 
             // DQ_016: değerlerde fazladan boşluk — alan ve satır bazında
-            {
-                let pk_idx = dq016_pk_idx;
-                let eid: String = pk_idx
-                    .and_then(|i| row.get(i))
-                    .map(|v| v.as_str())
-                    .filter(|v| !v.is_empty())
-                    .unwrap_or(&raw_name)
-                    .to_string();
-                let ws_fields: Vec<&str> = row.iter().enumerate()
-                    .filter(|(_, v)| { let s = v.as_str(); s != s.trim() })
-                    .filter_map(|(i, _)| headers.get(i).map(|s| s.as_str()))
-                    .filter(|name| !dq016_is_typed_column(name))
-                    .collect();
-                if !ws_fields.is_empty() {
-                    let fields_str = ws_fields.join(", ");
-                    notices.push(make_notice(
-                        &mut counter, "DQ_016",
-                        EntityType::Row,
-                        Some(eid.clone()),
-                        Some(raw_name.as_str()),
-                        Some(line_num),
-                        Some(fields_str.as_str()),
-                        Some(format!("{line_num}")),
-                        format!("'{}' kaydında ({}, satır {line_num}): '{}' alanlarında baştaki/sondaki boşluk var.",
-                            eid, raw_name, fields_str),
-                        "Değerlerdeki gereksiz baştaki/sondaki boşlukları kaldırın.",
-                    ));
-                }
-            }
+            // DQ_016: dosya-seviyesi birikim; emit döngü sonrası TEK özet.
+            dq016.observe(line_num, row.iter().map(|v| v.as_str()), &headers);
 
             rows.push(row);
+        }
+
+        // DQ_016: DOSYA başına TEK özet (satır-başına DEĞİL — patlama önlemi, STM_050 deseni).
+        if let Some((observed, msg, cols)) = dq016.summary(&raw_name) {
+            notices.push(make_notice(
+                &mut counter, "DQ_016",
+                EntityType::File, Some(raw_name.clone()),
+                Some(raw_name.as_str()), dq016.first_line, Some(cols.as_str()),
+                Some(observed), msg, DQ016_REMEDIATION,
+            ));
         }
 
         // ARC_022: Dosya satır sayısı limiti (stream_mode'da K2 üretir — rows burada boş)

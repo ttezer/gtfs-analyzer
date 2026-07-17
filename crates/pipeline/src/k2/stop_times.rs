@@ -808,6 +808,7 @@ pub fn validate_stop_times(file: &RawFile, zip_bytes: Option<&[u8]>) -> (StopTim
     // STM_050: boş-timepoint satır sayısı. Satır-başına notice DEĞİL (büyük feed'lerde milyonlarca
     // notice → tarayıcı OOM, bkz. Kocaeli 2.4M); döngü sonunda TEK feed-seviyesi özet emit edilir.
     let mut stm050_empty: u32 = 0;
+    let mut dq016 = crate::k1_parse::Dq016Acc::default();
     // OOM/perf (Aşama 1b): per-trip Vec YOK. Tüm satırlar (trip_idx etiketli) tek flat buffer'da
     // dosya sırasında toplanır; finalize'da counting-placement ile trip'e göre gruplanır.
     // #15 W1: tag'siz CompactStopTime + paralel row_trip → finalize'da in-place permütasyon
@@ -908,29 +909,8 @@ pub fn validate_stop_times(file: &RawFile, zip_bytes: Option<&[u8]>) -> (StopTim
             }
 
             // DQ_016: değerlerde baştaki/sondaki boşluk
-            {
-                let eid016: String = dq016_pk_idx
-                    .and_then(|i| row.get(i))
-                    .map(|v| v.as_ref())
-                    .filter(|v: &&str| !v.is_empty())
-                    .unwrap_or(&file.name)
-                    .to_string();
-                let ws_fields: Vec<&str> = row.iter().enumerate()
-                    .filter(|(_, v)| { let s: &str = v.as_ref(); s != s.trim() })
-                    .filter_map(|(i, _)| file.headers.get(i).map(|s| s.as_str()))
-                    .filter(|name| !crate::k1_parse::dq016_is_typed_column(name))
-                    .collect();
-                if !ws_fields.is_empty() {
-                    let fields_str = ws_fields.join(", ");
-                    notices.push(make_k2_notice(
-                        &mut counter, "DQ_016", EntityType::Row, Some(eid016.clone()),
-                        None, &file.name, Some(line), Some(fields_str.as_str()),
-                        Some(format!("{line}")), None,
-                        format!("'{}' kaydında ({}, satır {line}): '{}' alanlarında baştaki/sondaki boşluk var.", eid016, file.name, fields_str),
-                        "Değerlerdeki gereksiz baştaki/sondaki boşlukları kaldırın.",
-                    ));
-                }
-            }
+            // DQ_016: dosya-seviyesi birikim; emit döngü sonrası TEK özet (patlama önlemi).
+            dq016.observe(line, row.iter().map(|v| v.as_ref()), &file.headers);
 
             // ── Mevcut STM_* doğrulamaları + index ──
             let trip_id_raw = get_col(row, cols.trip_id);
@@ -1462,6 +1442,15 @@ pub fn validate_stop_times(file: &RawFile, zip_bytes: Option<&[u8]>) -> (StopTim
             None, None,
             format!("'{}' dosyasında başlık satırı var ama veri satırı yok.", file.name),
             "Dosyaya en az bir veri satırı ekleyin.",
+        ));
+    }
+
+    // DQ_016: DOSYA başına TEK özet (satır-başına değil — patlama önlemi).
+    if let Some((observed, msg, cols)) = dq016.summary(&file.name) {
+        notices.push(make_k2_notice(
+            &mut counter, "DQ_016", EntityType::File, Some(file.name.clone()),
+            None, &file.name, dq016.first_line, Some(cols.as_str()),
+            Some(observed), None, msg, crate::k1_parse::DQ016_REMEDIATION,
         ));
     }
 
