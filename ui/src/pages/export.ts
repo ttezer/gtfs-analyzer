@@ -1,4 +1,4 @@
-import type { ValidationResult } from '../types';
+import type { Notice, ValidationResult } from '../types';
 import { SEVERITY_TR, RULE_CLASS_TR, t, tMsg, getLocale } from '../i18n';
 import { augmentRouteLabels } from './fix';
 import { getState } from '../state';
@@ -316,7 +316,7 @@ export function renderExport(
   });
   root.querySelector('#btn-export-csv')!.addEventListener('click',  () => dl('﻿' + makeCsv(), 'text/csv; charset=utf-8', 'csv'));
   root.querySelector('#btn-export-json')!.addEventListener('click', () => dl(makeJson(), 'application/json', 'json'));
-  root.querySelector('#btn-export-pdf')!.addEventListener('click', () => printHtml(buildReportHtml(result, fileName, now, PRINT_MAX_ROWS)));
+  root.querySelector('#btn-export-pdf')!.addEventListener('click', () => printHtml(buildReportHtml(result, fileName, now, PRINT_EXAMPLES_PER_RULE)));
   root.querySelector('#btn-debug-json')!.addEventListener('click', () =>
     triggerDownload(new Blob([makeDebug()], { type: 'application/json' }), fileName.replace(/\.zip$/i, `-debug-${fnTs}.json`)));
   root.querySelector('#btn-golden-json')!.addEventListener('click', () => {
@@ -372,37 +372,29 @@ function buildCsv(result: ValidationResult): string {
   return [header.map(csvCell).join(','), ...rows].join('\r\n');
 }
 
-/// Yazdırma yolunda bulgu tablosunun satır tavanı.
+/// Yazdırma yolunda kural başına gösterilecek örnek bulgu sayısı.
 ///
-/// İndirilen HTML sınırsızdır — tarayıcı onu yalnızca ekranda dizer. Yazdırma ise BAŞKA bir
-/// iş: belgeyi A4 sayfalarına bölüp her sayfayı rasterize eder. VBB Berlin'de tablo 22.904
-/// satır (~206.000 DOM düğümü, ~500 sayfa) ve rapor sekmesi render'ı geçtikten SONRA, tam
-/// yazdırma önizlemesi üretilirken çöküyordu. Tam liste CSV/JSON çıktılarında duruyor.
-const PRINT_MAX_ROWS = 2_000;
+/// İndirilen HTML her bulguyu listeler — tarayıcı onu yalnızca ekranda dizer. Yazdırma ise
+/// BAŞKA bir iş: belgeyi A4 sayfalarına bölüp her sayfayı rasterize eder. VBB Berlin'de
+/// tablo 22.904 satır (~206.000 DOM düğümü) ve rapor sekmesi render'ı geçtikten SONRA,
+/// yazdırma önizlemesi üretilirken çöküyordu.
+///
+/// Düz satır tavanı bu işi ÇÖZMEDİ: aynı feed'de önem sıralı ilk 2.000 satır 96 kuralın
+/// yalnızca 8'ini temsil ediyordu, çünkü 500 kritik bulgunun tamamı tek bir kuraldan
+/// (PTH_014) geliyor. Önem başına kota da 15/96'da kalıyor ve belgeyi uzatıyor.
+/// Kural bazında toplama ise 96/96 kuralı ~238 satırda veriyor — motorun STM_014/DQ_016'da
+/// zaten uyguladığı ilke. Tam liste CSV/JSON çıktılarında duruyor.
+const PRINT_EXAMPLES_PER_RULE = 3;
 
-function buildReportHtml(result: ValidationResult, fileName: string, ts: string, maxRows?: number): string {
+const SEVERITY_RANK: Record<string, number> = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3, INFO: 4 };
+
+function buildReportHtml(result: ValidationResult, fileName: string, ts: string, examplesPerRule?: number): string {
   const { r1, r5 } = result.reports;
   const publishLabel = r1.publishable
     ? t('export.html.publishable_ok')
     : t('export.html.publishable_blocked');
 
-  // Kırpma varsa ÖNCE öneme göre sırala: notice'lar kural/emisyon sırasında gelir ve o sıra
-  // önemle ilgisizdir — VBB Berlin'de ilk 2.000 satır tümüyle INFO/LOW/MEDIUM çıkıyor, 500
-  // kritik ve 2.035 yüksek bulgunun HİÇBİRİ yazdırılana girmiyordu. Kırpılmış bir raporun
-  // atlaması gereken şey en önemsiz olanlardır. Kırpma yoksa dosya sırası korunur.
-  const rank: Record<string, number> = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3, INFO: 4 };
-  const truncating = maxRows != null && result.notices.length > maxRows;
-  const shown = truncating
-    ? [...result.notices]
-        .sort((a, b) => (rank[a.severity] ?? 9) - (rank[b.severity] ?? 9))
-        .slice(0, maxRows)
-    : result.notices;
-  const omitted = result.notices.length - shown.length;
-  const truncationNote = omitted > 0
-    ? `<p style="margin:.4rem 0 .8rem;padding:.5rem .7rem;border-radius:.3rem;background:#fff8df;color:#8b5a00;font-size:.82rem">${escHtml(t('export.html.print_truncated', { shown: fmtInt(shown.length), omitted: fmtInt(omitted) }))}</p>`
-    : '';
-
-  const noticeRows = shown.map(n => `
+  const cell = (n: Notice): string => `
     <tr>
       <td>${escHtml(n.rule_id)}</td>
       <td>${SEVERITY_TR[n.severity]}</td>
@@ -412,7 +404,45 @@ function buildReportHtml(result: ValidationResult, fileName: string, ts: string,
       <td>${n.file ? escHtml(n.file) : ''}</td>
       <td>${n.service_id ? escHtml(n.service_id) : ''}</td>
       <td>${n.line ?? ''}</td>
-    </tr>`).join('');
+    </tr>`;
+
+  let noticeRows: string;
+  let truncationNote = '';
+
+  if (examplesPerRule == null) {
+    noticeRows = result.notices.map(cell).join(''); // indirilen HTML: her bulgu
+  } else {
+    const byRule = new Map<string, Notice[]>();
+    for (const n of result.notices) {
+      const list = byRule.get(n.rule_id);
+      if (list) list.push(n); else byRule.set(n.rule_id, [n]);
+    }
+    // Kural sırası: önce önem, sonra kural kimliği → deterministik ve okunur.
+    const groups = [...byRule.entries()].sort((a, b) =>
+      (SEVERITY_RANK[a[1][0]!.severity] ?? 9) - (SEVERITY_RANK[b[1][0]!.severity] ?? 9)
+      || a[0].localeCompare(b[0]));
+
+    noticeRows = groups.map(([ruleId, list]) => {
+      const head = list[0]!;
+      // Gerçek toplam cap'ten önceki sayıdır; gösterilen liste kural başına cap'li olabilir.
+      const total = result.capped_totals?.[ruleId] ?? list.length;
+      const examples = list.slice(0, examplesPerRule);
+      const label = t('export.html.rule_group', {
+        rule: ruleId,
+        severity: SEVERITY_TR[head.severity],
+        cls: RULE_CLASS_TR[head.rule_class],
+        count: fmtInt(total),
+      });
+      const more = total > examples.length
+        ? ` <span style="color:#64748b;font-weight:400">· ${escHtml(t('export.html.rule_examples', { shown: fmtInt(examples.length) }))}</span>`
+        : '';
+      return `
+    <tr><td colspan="8" style="background:#f1f5f9;font-weight:600">${escHtml(label)}${more}</td></tr>`
+        + examples.map(cell).join('');
+    }).join('');
+
+    truncationNote = `<p style="margin:.4rem 0 .8rem;padding:.5rem .7rem;border-radius:.3rem;background:#fff8df;color:#8b5a00;font-size:.82rem">${escHtml(t('export.html.print_grouped', { examples: String(examplesPerRule), rules: fmtInt(groups.length), total: fmtInt(result.notices.length) }))}</p>`;
+  }
 
   const breakdown = t('export.html.breakdown', {
     spec    : r5.spec_score.toFixed(1),
