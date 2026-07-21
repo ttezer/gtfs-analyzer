@@ -1,4 +1,4 @@
-﻿use std::collections::{HashMap, HashSet};
+﻿use std::collections::{BTreeSet, HashMap, HashSet};
 use rustc_hash::{FxHashMap, FxHashSet};
 use smol_str::SmolStr;
 
@@ -4823,6 +4823,41 @@ fn check_remaining_analytics(
                     ));
                 }
             }
+        }
+    }
+
+    // ── TRP_033: bir blokta birden fazla route_type ───────────────────────────
+    // block_id "bu seferler aynı araçla, sırayla yapılır" demektir. Bir araç mod
+    // değiştiremeyeceğine göre blok içindeki tüm seferlerin route_type'ı aynı olmalıdır;
+    // farklıysa block_id ya yanlış atanmıştır ya da route_type yanlış girilmiştir.
+    // Blok BAŞINA tek notice: sefer başına üretmek büyük bloklarda yüzlerce tekrar demekti.
+    {
+        let route_type_of: HashMap<&str, u32> = records.routes.iter()
+            .filter_map(|r| r.route_type.map(|t| (r.route_id.as_str(), t)))
+            .collect();
+        // block_id → (route_type'lar, ilk sefer, ilk satır)
+        let mut blocks: HashMap<&str, (BTreeSet<u32>, &str, u64)> = HashMap::new();
+        for t in &records.trips {
+            let Some(bid) = ti_rem.block_id(t).filter(|b| !b.is_empty()) else { continue };
+            let Some(&rt) = route_type_of.get(ti_rem.route_id(t)) else { continue };
+            let entry = blocks.entry(bid).or_insert_with(|| (BTreeSet::new(), t.trip_id.as_str(), t.line as u64));
+            entry.0.insert(rt);
+        }
+        let mut mixed: Vec<(&str, &BTreeSet<u32>, &str, u64)> = blocks.iter()
+            .filter(|(_, (types, _, _))| types.len() > 1)
+            .map(|(bid, (types, trip, line))| (*bid, types, *trip, *line))
+            .collect();
+        mixed.sort_by(|a, b| a.0.cmp(b.0)); // HashMap sırası deterministik değil
+        for (bid, types, trip_id, line) in mixed {
+            let list = types.iter().map(u32::to_string).collect::<Vec<_>>().join(", ");
+            notices.push(k6_notice(
+                ctr, "TRP_033", EntityType::Trip,
+                Some(bid.to_string()), Some(bid.to_string()),
+                "trips.txt", Some(line), Some("block_id"),
+                Some(list.clone()), Some("tek route_type".to_string()),
+                format!("'{bid}' bloğundaki seferler {} farklı route_type taşıyor ({list}) — aynı araç mod değiştiremez (ör. '{trip_id}').", types.len()),
+                "Blok zincirini tek moda ayırın ya da yanlış girilmiş route_type değerini düzeltin.",
+            ));
         }
     }
 
@@ -11008,6 +11043,99 @@ mod tests {
         assert_eq!(found.len(), 1);
         assert_eq!(found[0].entity_type, EntityType::Route);
         assert!(found[0].observed_value.as_deref().unwrap_or("").contains("2 sefer"));
+    }
+
+    // ── TRP_033 · blokta karışık route_type ───────────────────────────────────
+
+    /// `trip()` + block_id ataması. `block_idx == 0` "block_id yok" demektir, bu yüzden
+    /// intern tablosunun 0. yuvası boş bırakılır ve gerçek değerler 1'den başlar.
+    fn blocked_trip(trip_id: &str, route_id: &str, block_id: &str) -> TripRecord {
+        let mut t = trip(trip_id, route_id);
+        t.block_idx = TEST_TI.with(|cell| {
+            let mut ti = cell.borrow_mut();
+            if ti.block_ids.is_empty() { ti.block_ids.push(SmolStr::default()); }
+            match ti.block_ids.iter().position(|b| b == block_id) {
+                Some(i) => i as u32,
+                None => { ti.block_ids.push(SmolStr::new(block_id)); (ti.block_ids.len() - 1) as u32 }
+            }
+        });
+        t
+    }
+
+    #[test]
+    fn mixed_route_types_in_one_block_produce_trp_033() {
+        // Aynı blok: biri otobüs (3), biri tramvay (0) → araç mod değiştiremez.
+        let records = records_with(
+            vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1)],
+            vec![route("BUS", 3), route("TRAM", 0)],
+            vec![blocked_trip("T1", "BUS", "B1"), blocked_trip("T2", "TRAM", "B1")],
+            vec![
+                stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
+                stoptime("T1", 2, "B", (8, 10, 0), (8, 10, 0), 3),
+                stoptime("T2", 1, "A", (9, 0, 0), (9, 0, 0), 4),
+                stoptime("T2", 2, "B", (9, 10, 0), (9, 10, 0), 5),
+            ],
+        );
+        let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
+        let hits: Vec<_> = result.notices.iter().filter(|n| n.rule_id == "TRP_033").collect();
+        assert_eq!(hits.len(), 1, "blok başına tek notice beklenir");
+        assert_eq!(hits[0].entity_id.as_deref(), Some("B1"), "notice bloğa ait olmalı");
+        assert_eq!(hits[0].observed_value.as_deref(), Some("0, 3"), "route_type'lar sıralı listelenmeli");
+    }
+
+    #[test]
+    fn consistent_block_produces_no_trp_033() {
+        let records = records_with(
+            vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1)],
+            vec![route("R1", 3), route("R2", 3)], // iki farklı hat, AYNI mod
+            vec![blocked_trip("T1", "R1", "B1"), blocked_trip("T2", "R2", "B1")],
+            vec![
+                stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
+                stoptime("T1", 2, "B", (8, 10, 0), (8, 10, 0), 3),
+                stoptime("T2", 1, "A", (9, 0, 0), (9, 0, 0), 4),
+                stoptime("T2", 2, "B", (9, 10, 0), (9, 10, 0), 5),
+            ],
+        );
+        let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
+        assert!(result.notices.iter().all(|n| n.rule_id != "TRP_033"),
+            "aynı moddaki blok bulgu ÜRETMEMELİ");
+    }
+
+    #[test]
+    fn trp_033_reports_each_block_once_not_each_trip() {
+        // Tek blokta 6 sefer karışık mod → 6 değil 1 notice (STM_014 dersi).
+        let mut trips = Vec::new();
+        let mut times = Vec::new();
+        for i in 0..6u32 {
+            let id = format!("T{i}");
+            trips.push(blocked_trip(&id, if i % 2 == 0 { "BUS" } else { "TRAM" }, "B1"));
+            times.push(stoptime(&id, 1, "A", (8, 0, 0), (8, 0, 0), (i * 2 + 2) as u64));
+            times.push(stoptime(&id, 2, "B", (8, 10, 0), (8, 10, 0), (i * 2 + 3) as u64));
+        }
+        let records = records_with(
+            vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1)],
+            vec![route("BUS", 3), route("TRAM", 0)], trips, times,
+        );
+        let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
+        assert_eq!(result.notices.iter().filter(|n| n.rule_id == "TRP_033").count(), 1);
+    }
+
+    #[test]
+    fn trips_without_block_id_are_ignored_by_trp_033() {
+        let records = records_with(
+            vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1)],
+            vec![route("BUS", 3), route("TRAM", 0)],
+            vec![trip("T1", "BUS"), trip("T2", "TRAM")], // block_id YOK
+            vec![
+                stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
+                stoptime("T1", 2, "B", (8, 10, 0), (8, 10, 0), 3),
+                stoptime("T2", 1, "A", (9, 0, 0), (9, 0, 0), 4),
+                stoptime("T2", 2, "B", (9, 10, 0), (9, 10, 0), 5),
+            ],
+        );
+        let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
+        assert!(result.notices.iter().all(|n| n.rule_id != "TRP_033"),
+            "block_id'siz seferler bu kuralın konusu değil");
     }
 
     // ── ARC_020 · DRT muafiyeti ───────────────────────────────────────────────

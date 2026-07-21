@@ -682,6 +682,7 @@ const en: LocaleShape = {
     'TRP_029': "None of the trips have wheelchair accessibility information ({observed_value} trips).",
     'CAL_024': "Service '{entity_id}' has no active dates in the next 7 days; {observed_value} trips are affected.",
     'TRP_031': 'trips.txt: route_id is missing.',
+    'TRP_033': 'Block {observed} chains trips of different route types; one vehicle cannot change mode.',
     // STM
     'STM_001': "trip_id '{entity_id}' not found in trips.txt.",
     'STM_002': "stop_id '{entity_id}' not found in stops.txt.",
@@ -1252,6 +1253,7 @@ const en: LocaleShape = {
     'TRP_029': 'Report wheelchair accessibility using the wheelchair_accessible field (1=accessible, 2=not accessible).',
     'CAL_024': 'Update the service calendar or publish a new feed.',
     'TRP_031': 'Assign a valid route_id to every trip.',
+    'TRP_033': 'Split the block into a single mode, or correct the route_type that was entered wrongly.',
     // VAT
     'VAT_001': 'Merge the two routes or differentiate them with distinct alignments.',
     'VAT_002': 'Add transfer records for this stop in transfers.txt (use transfer_type=2 to specify wait time).',
@@ -1847,6 +1849,7 @@ const en: LocaleShape = {
     'TRP_029': 'No trips report wheelchair accessibility',
     'CAL_024': 'Calendar inactive in the next 7 days',
     'TRP_031': 'route_id missing',
+    'TRP_033': 'Trips sharing a block_id carry different route types',
     // STM
     'STM_001': 'trip_id not found',
     'STM_002': 'stop_id not found',

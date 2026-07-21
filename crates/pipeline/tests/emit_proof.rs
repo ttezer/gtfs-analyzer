@@ -1030,6 +1030,12 @@ fn fixtures() -> Vec<Fixture> {
         fx("TRP_025", vec![]),
         // TRP_026: servisin hiç aktif tarihi yok (k6).
         fx("TRP_026", vec![("calendar.txt", "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,0,0,0,0,0,0,0,20250101,20271231\n")]),
+        // TRP_033: aynı blokta otobüs (3) ve tramvay (0) — bir araç mod değiştiremez (k6).
+        fx("TRP_033", vec![
+            ("routes.txt", "route_id,agency_id,route_short_name,route_type\nR1,1,101,3\nR2,1,102,0\n"),
+            ("trips.txt",  "route_id,service_id,trip_id,block_id\nR1,SVC1,T1,B1\nR2,SVC1,T2,B1\n"),
+            ("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\nT1,08:10:00,08:10:00,S2,2\nT2,09:00:00,09:00:00,S1,1\nT2,09:10:00,09:10:00,S2,2\n"),
+        ]),
         // TRP_028: bazı seferlerde wheelchair_accessible eksik (k6).
         fx("TRP_028", vec![("trips.txt", "route_id,service_id,trip_id,wheelchair_accessible\nR1,SVC1,T1,1\nR1,SVC1,T2,\n")]),
         // TRP_029: hiçbir seferde wheelchair_accessible yok — base tetikler (k6).

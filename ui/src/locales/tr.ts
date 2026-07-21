@@ -691,6 +691,7 @@ const tr = {
     'TRP_029': 'Hiçbir sefer tekerlekli sandalye erişilebilirliği bildirmemiş',
     'CAL_024': 'Takvim önümüzdeki 7 günde aktif değil',
     'TRP_031': 'route_id eksik',
+    'TRP_033': "Aynı block_id'yi paylaşan seferler farklı route_type taşıyor",
     // STM
     'STM_001': 'trip_id bulunamadı',
     'STM_002': 'stop_id bulunamadı',

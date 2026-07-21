@@ -2,7 +2,7 @@
 
 🇹🇷 **Türkçe** · 🇬🇧 [English](RULES.en.md) · 🇯🇵 [日本語](RULES.ja.md)
 
-537 kural, 37 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
+538 kural, 37 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
 Önem seviyeleri: **KRİTİK** (yayın engelleyici) · **YÜKSEK** · **ORTA** · **DÜŞÜK** · **BİLGİ**
 Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · **Quality** (GTFS Kalitesi) · **Analytics** (GTFS Analitiği)
 
@@ -184,6 +184,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | TRP_028 | Bazı seferler tekerlekli sandalye erişilebilirliği işaretlememiş | ORTA | Quality |
 | TRP_029 | Hiçbir sefer tekerlekli sandalye erişilebilirliği bildirmemiş | BİLGİ | Quality |
 | TRP_031 | route_id eksik | KRİTİK | Spec |
+| TRP_033 | Aynı block_id'yi paylaşan seferler farklı route_type taşıyor | ORTA | Quality |
 
 ## STM — Stop Times (Geçiş Zamanları)
 

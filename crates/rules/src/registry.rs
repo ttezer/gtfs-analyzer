@@ -432,6 +432,11 @@ pub static RULES: &[RuleMeta] = &[
         "Hiçbir sefer tekerlekli sandalye erişilebilirliği bildirmemiş"),
     r!("TRP_031", Kritik, Spec, 1, &[], Some("route_id"), VS_K, Entity,
         "route_id eksik"),
+    // Blok = aynı araca zincirlenen seferler. Araç mod değiştiremeyeceği için bir blok
+    // içinde farklı route_type görmek modelleme hatasına işaret eder. Blok BAŞINA tek
+    // notice (STM_014 dersi: sefer başına üretmek yüzlerce tekrar demekti).
+    r!("TRP_033", Orta,  Quality, 2, &[], Some("block_id"), VS, Entity,
+        "Aynı block_id'yi paylaşan seferler farklı route_type taşıyor"),
 
     // ── STM: Stop Times ────────────────────────────────────────────────────────
     r!("STM_001", Kritik, Spec, 1,
@@ -1877,6 +1882,8 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("TRP_029", ProjectQuality),
     ("TRP_031", GtfsSpec),
     ("TRP_032", GtfsSpec),
+    // Spec bir blokta tek mod şartını AÇIKÇA yazmaz → GtfsSpec DEĞİL, proje kararı.
+    ("TRP_033", ProjectQuality),
     ("VAT_001", ProjectAnalytics),
     ("VAT_002", ProjectAnalytics),
     ("VAT_003", ProjectAnalytics),
