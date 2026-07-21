@@ -68,7 +68,6 @@ pub fn validate_shapes(file: &RawFile) -> (Vec<ShapePointRecord>, Vec<gtfs_core:
 
     let cols = Cols::from_headers(&file.headers);
     let header_count = file.headers.len();
-    let dq016_pk_idx = file.headers.iter().position(|h| h.ends_with("_id"));
     let mut arc021_fired = false;
     let mut seen_seq_by_shape: HashMap<String, HashSet<u32>> = HashMap::new();
     let mut total_rows: usize = 0;

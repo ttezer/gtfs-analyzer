@@ -787,8 +787,6 @@ pub fn validate_stop_times(file: &RawFile, zip_bytes: Option<&[u8]>) -> (StopTim
         || cols.pickup_booking_rule_id.is_some()
         || cols.drop_off_booking_rule_id.is_some();
     let header_count = file.headers.len();
-    // DQ_016: ilk "*_id" sütunu (döngü dışında bir kez)
-    let dq016_pk_idx = file.headers.iter().position(|h| h.ends_with("_id"));
     // Intern cache: unique long (>22 byte) trip_id başına bir Arc alloc
     let mut trip_id_cache: FxHashMap<String, SmolStr> = FxHashMap::default();
     // #38: stop_id intern tablosu (SmolStr yerine u32 indeks → CompactStopTime 4B stop alanı)
