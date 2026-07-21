@@ -186,23 +186,34 @@ export function renderExport(
   const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
   const fnTs = now.replace(/[: ]/g, '-');
 
-  // İçerikleri bir kez üret → hem tahmini boyut hem indirme bunları kullanır (çift iş yok).
-  const htmlStr = buildReportHtml(result, fileName, now);
-  const csvStr  = buildCsv(result);
-  const jsonStr = JSON.stringify(result, null, 2);
-  const summary = buildSummaryData(result, fileName, now);
-  const summaryMd = summaryMarkdown(summary);
-  const summaryImg = summaryPng(summary);
-  const debugStr = buildDebugBundle(result, fileName, getState().fileSize, now);
-  const generatedAt = getState().generatedAt ?? new Date();
-  // İndirilen golden git-tracked regresyon baseline'ı olarak kullanılır → deterministik
-  // (per-saniye generated_at atlanır; validate_date gün granülü kalır). #42
-  const goldenStr = buildGoldenSnapshot(result, fileName, generatedAt, getState().configDelta, getLastEngineMode() ?? 'unknown', { deterministic: true });
+  // Dışa aktarım içerikleri TALEP ÜZERİNE üretilir, açılışta DEĞİL.
+  //
+  // Eskiden dokuzu birden burada kurulur ve tıklama handler'larının closure'ında canlı
+  // kalırdı. VBB Berlin'de tek başına girintili JSON 40 MB; feed'i doğrulamış bir sekme
+  // zaten ~2,6 GB analiz durumu taşıdığı için hiç indirilmeyecek içerikleri bellekte
+  // tutmanın bedeli yüksek. Artık her biri lazım olduğu anda kurulur ve iş bitince
+  // bırakılır → aynı anda en fazla BİRİ bellekte olur.
   const appVersion = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'dev';
   const engineMode = getLastEngineMode() ?? 'unknown';
-  const defaultExecutiveHtml = buildExecutiveReportHtml(buildExecutiveReportModel({
-    result, fileName, generatedAt: now, locale: getLocale(), appVersion, engineMode,
+  const generatedAt = getState().generatedAt ?? new Date();
+
+  const makeHtml = () => buildReportHtml(result, fileName, now);
+  const makeCsv  = () => buildCsv(result);
+  const makeJson = () => JSON.stringify(result, null, 2);
+  const makeDebug = () => buildDebugBundle(result, fileName, getState().fileSize, now);
+  // İndirilen golden git-tracked regresyon baseline'ı olarak kullanılır → deterministik
+  // (per-saniye generated_at atlanır; validate_date gün granülü kalır). #42
+  const makeGolden = () => buildGoldenSnapshot(result, fileName, generatedAt, getState().configDelta, getLastEngineMode() ?? 'unknown', { deterministic: true });
+  const makeExecutive = (locale: Locale) => buildExecutiveReportHtml(buildExecutiveReportModel({
+    result, fileName, generatedAt: now, locale, appVersion, engineMode,
   }));
+
+  // Boyut etiketi için üret-ölç-BIRAK: ölçülen string closure'da tutulmaz, tıklandığında
+  // yeniden kurulur. Yeniden kurma maliyeti, 40 MB'ı sayfa boyunca canlı tutmaya yeğdir.
+  const sizeLabel = (build: () => string): string => formatBytes(byteLen(build()));
+
+  const summary = buildSummaryData(result, fileName, now);
+  const summaryImg = summaryPng(summary); // <img src> olarak GÖSTERİLİYOR → eager kalmalı
 
   const { r5 } = result.reports;
   const fmtScore = (n: number) => new Intl.NumberFormat(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(n);
@@ -260,11 +271,11 @@ export function renderExport(
               </select>
             </label>
             <button id="btn-export-executive" class="btn btn-primary exp-card-btn">${t('export.card.executive.action')}</button>
-            <p class="exp-card-size"><span class="exp-i">ⓘ</span> ${t('export.est_size')} <strong>${formatBytes(byteLen(defaultExecutiveHtml))}</strong></p>
+            <p class="exp-card-size"><span class="exp-i">ⓘ</span> ${t('export.est_size')} <strong>${sizeLabel(() => makeExecutive(getLocale()))}</strong></p>
           </div>
-          ${card('btn-export-html', ICON.doc,   'doc', t('export.card.html.title'), '', t('export.card.html.desc'), t('export.download'), false, formatBytes(byteLen(htmlStr)))}
-          ${card('btn-export-csv',  ICON.csv,   'csv', t('export.card.csv.title'),  '',                       t('export.card.csv.desc'),  t('export.download'), false, formatBytes(byteLen(csvStr)))}
-          ${card('btn-export-json', ICON.braces,'json',t('export.card.json.title'), '',                       t('export.card.json.desc'), t('export.download'), false, formatBytes(byteLen(jsonStr)))}
+          ${card('btn-export-html', ICON.doc,   'doc', t('export.card.html.title'), '', t('export.card.html.desc'), t('export.download'), false, sizeLabel(makeHtml))}
+          ${card('btn-export-csv',  ICON.csv,   'csv', t('export.card.csv.title'),  '',                       t('export.card.csv.desc'),  t('export.download'), false, sizeLabel(makeCsv))}
+          ${card('btn-export-json', ICON.braces,'json',t('export.card.json.title'), '',                       t('export.card.json.desc'), t('export.download'), false, sizeLabel(makeJson))}
           ${card('btn-export-pdf',  ICON.print, 'pdf', t('export.card.pdf.title'),  '',                       t('export.card.pdf.desc'),  t('export.print'),    false, t('export.size.browser'))}
         </div>
 
@@ -297,29 +308,29 @@ export function renderExport(
   const dl = (s: string, mime: string, ext: string) =>
     triggerDownload(new Blob([s], { type: mime }), fileName.replace(/\.zip$/i, `-report-${fnTs}.${ext}`));
 
-  root.querySelector('#btn-export-html')!.addEventListener('click', () => dl(htmlStr, 'text/html; charset=utf-8', 'html'));
+  root.querySelector('#btn-export-html')!.addEventListener('click', () => dl(makeHtml(), 'text/html; charset=utf-8', 'html'));
   root.querySelector('#btn-export-executive')!.addEventListener('click', () => {
     const locale = root.querySelector<HTMLSelectElement>('#executive-report-locale')!.value as Locale;
     const model = buildExecutiveReportModel({ result, fileName, generatedAt: now, locale, appVersion, engineMode });
     printHtml(buildExecutiveReportHtml(model), locale, false);
   });
-  root.querySelector('#btn-export-csv')!.addEventListener('click',  () => dl('﻿' + csvStr, 'text/csv; charset=utf-8', 'csv'));
-  root.querySelector('#btn-export-json')!.addEventListener('click', () => dl(jsonStr, 'application/json', 'json'));
-  root.querySelector('#btn-export-pdf')!.addEventListener('click', () => printHtml(htmlStr));
+  root.querySelector('#btn-export-csv')!.addEventListener('click',  () => dl('﻿' + makeCsv(), 'text/csv; charset=utf-8', 'csv'));
+  root.querySelector('#btn-export-json')!.addEventListener('click', () => dl(makeJson(), 'application/json', 'json'));
+  root.querySelector('#btn-export-pdf')!.addEventListener('click', () => printHtml(makeHtml()));
   root.querySelector('#btn-debug-json')!.addEventListener('click', () =>
-    triggerDownload(new Blob([debugStr], { type: 'application/json' }), fileName.replace(/\.zip$/i, `-debug-${fnTs}.json`)));
+    triggerDownload(new Blob([makeDebug()], { type: 'application/json' }), fileName.replace(/\.zip$/i, `-debug-${fnTs}.json`)));
   root.querySelector('#btn-golden-json')!.addEventListener('click', () => {
     // İndirme adı: <feed adı>_<indirme tarihi>_<sürüm>.json. Sürüm hem dosya adında (kolay
     // ayırt etme) hem JSON içeriğinde (app_version) bulunur.
     const date = generatedAt.toISOString().slice(0, 19).replace(/[:T]/g, '-');
     const ver = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'dev';
-    triggerDownload(new Blob([goldenStr], { type: 'application/json' }), fileName.replace(/\.zip$/i, `_${date}_${ver}.json`));
+    triggerDownload(new Blob([makeGolden()], { type: 'application/json' }), fileName.replace(/\.zip$/i, `_${date}_${ver}.json`));
   });
 
   const copyBtn = root.querySelector<HTMLButtonElement>('#btn-summary-copy')!;
   copyBtn.addEventListener('click', async () => {
     try {
-      await navigator.clipboard.writeText(summaryMd);
+      await navigator.clipboard.writeText(summaryMarkdown(summary));
       const old = copyBtn.textContent;
       copyBtn.textContent = t('export.summary.copied');
       setTimeout(() => { copyBtn.textContent = old; }, 1500);
