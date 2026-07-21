@@ -114,6 +114,22 @@ describe('executive report', () => {
     expect(html).toContain('harici bir API gerekmez');
   });
 
+  // Bir CSS sözdizimi hatası (kapanmayan kural) ikinci bir <style> bloğu tarafından
+  // maskelenmişti: hata sessizce kuralları yutuyordu ama görünüm bozulmuyordu. Tek blok
+  // + denge kontrolü bu sınıfı yakalar.
+  it('emits exactly one stylesheet with balanced braces', () => {
+    const html = buildExecutiveReportHtml(build('en'));
+    const styles = html.match(/<style[^>]*>[\s\S]*?<\/style>/g) ?? [];
+    expect(styles).toHaveLength(1);
+    const css = styles[0] ?? '';
+    expect(css.split('{').length).toBe(css.split('}').length);
+  });
+
+  it('numbers every page section distinctly', () => {
+    const eyebrows = (buildExecutiveReportHtml(build('en')).match(/class="eyebrow">(\d\d)(?!\s*·)/g) ?? []);
+    expect(new Set(eyebrows).size).toBe(eyebrows.length);
+  });
+
   it('uses an independent print stylesheet, colored cards, and no fragile tables', () => {
     const html = buildExecutiveReportHtml(build('en'));
     expect(html).toContain('id="executive-print-layout"');
