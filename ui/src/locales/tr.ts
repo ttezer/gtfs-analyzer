@@ -461,7 +461,7 @@ const tr = {
     'export.html.pub_score'           : 'Yayın Skoru',
     'export.html.total'               : 'Toplam Bulgu',
     'export.html.h2_findings'         : 'Bulgular',
-    'export.html.print_truncated'     : 'Yazdırma için ilk {shown} bulgu gösteriliyor; {omitted} bulgu atlandı. Tam liste CSV ve JSON çıktılarında yer alır.',
+    'export.html.print_truncated'     : 'Yazdırma için en önemli {shown} bulgu gösteriliyor; {omitted} bulgu atlandı. Tam liste CSV ve JSON çıktılarında yer alır.',
     'export.html.publishable_ok'      : 'Yayına Uygun',
     'export.html.publishable_blocked' : 'Yayınlanması Tavsiye Edilmez',
     'export.html.breakdown'           : 'GTFS Geçerliliği {spec} · GTFS Uyumluluğu {interop} · GTFS Kalitesi {quality} · GTFS Analitiği {analytics}',

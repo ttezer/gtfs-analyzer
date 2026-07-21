@@ -386,8 +386,16 @@ function buildReportHtml(result: ValidationResult, fileName: string, ts: string,
     ? t('export.html.publishable_ok')
     : t('export.html.publishable_blocked');
 
-  const shown = maxRows != null && result.notices.length > maxRows
-    ? result.notices.slice(0, maxRows)
+  // Kırpma varsa ÖNCE öneme göre sırala: notice'lar kural/emisyon sırasında gelir ve o sıra
+  // önemle ilgisizdir — VBB Berlin'de ilk 2.000 satır tümüyle INFO/LOW/MEDIUM çıkıyor, 500
+  // kritik ve 2.035 yüksek bulgunun HİÇBİRİ yazdırılana girmiyordu. Kırpılmış bir raporun
+  // atlaması gereken şey en önemsiz olanlardır. Kırpma yoksa dosya sırası korunur.
+  const rank: Record<string, number> = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3, INFO: 4 };
+  const truncating = maxRows != null && result.notices.length > maxRows;
+  const shown = truncating
+    ? [...result.notices]
+        .sort((a, b) => (rank[a.severity] ?? 9) - (rank[b.severity] ?? 9))
+        .slice(0, maxRows)
     : result.notices;
   const omitted = result.notices.length - shown.length;
   const truncationNote = omitted > 0
