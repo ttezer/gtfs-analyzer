@@ -3712,9 +3712,12 @@ fn check_data_quality(
     // ARC_020: önerilen dosyalar eksik (missing_recommended_file)
     // GTFS en iyi uygulamalarına göre shapes.txt ve feed_info.txt önerilir.
     if feed_has_content {
-        let has_shapes = !records.shapes.is_empty();
-        let has_feed_info = !records.feed_info.is_empty();
-        if !has_shapes && !has_feed_info {
+        // shapes.txt'in amacı sabit hat geometrisini çizmektir. Feed tümüyle talep-duyarlı
+        // (DRT/flex) ise çizilecek güzergâh yoktur → shapes.txt yokluğu bulgu değildir.
+        // feed_info.txt beklentisi DRT'den etkilenmez, ayrı değerlendirilir.
+        let missing_shapes = records.shapes.is_empty() && !feed_is_demand_responsive_only(records);
+        let missing_feed_info = records.feed_info.is_empty();
+        if missing_shapes && missing_feed_info {
             notices.push(k6_notice(
                 ctr, "ARC_020", EntityType::Feed,
                 None, None, "shapes.txt/feed_info.txt", None, None,
@@ -3722,7 +3725,7 @@ fn check_data_quality(
                 "Feed'de shapes.txt ve feed_info.txt dosyaları yok — her ikisi de önerilir.".to_string(),
                 "shapes.txt ile güzergah geometrisi ve feed_info.txt ile yayıncı bilgisi ekleyin.",
             ));
-        } else if !has_shapes {
+        } else if missing_shapes {
             notices.push(k6_notice(
                 ctr, "ARC_020", EntityType::Feed,
                 None, None, "shapes.txt", None, None,
@@ -3730,7 +3733,7 @@ fn check_data_quality(
                 "Feed'de shapes.txt dosyası yok — güzergah geometrisi için önerilir.".to_string(),
                 "shapes.txt dosyası oluşturarak güzergah geometrisi ekleyin.",
             ));
-        } else if !has_feed_info {
+        } else if missing_feed_info {
             notices.push(k6_notice(
                 ctr, "ARC_020", EntityType::Feed,
                 None, None, "feed_info.txt", None, None,
@@ -3740,6 +3743,28 @@ fn check_data_quality(
             ));
         }
     }
+}
+
+/// Feed tümüyle talep-duyarlı (DRT/flex) mi?
+///
+/// Koşul: stop_times.txt'te `stop_id` taşıyan HİÇBİR satır yok, buna karşılık en az bir
+/// satır `location_id` (alan-tabanlı DRT) veya `location_group_id` (sabit-duraklı DRT)
+/// ile hizmet alanı tanımlıyor.
+///
+/// Kasıtlı olarak SIKI: tek bir sabit duraklı sefer bile varsa feed DRT sayılmaz, çünkü o
+/// sefer için çizilecek güzergâh geometrisi vardır ve shapes.txt beklentisi sürer.
+/// "En az bir flex satırı" gibi gevşek bir ölçüt, ağırlıklı olarak sabit hatlı bir feed'de
+/// shapes.txt eksikliğini sessizce örterdi.
+///
+/// Maliyet: `stop_id_set` kontrolü O(1); `flex_map` feed'lerin büyük çoğunluğunda boştur.
+fn feed_is_demand_responsive_only(records: &EntityRecords) -> bool {
+    let idx = &records.stop_times_index;
+    if idx.total_rows == 0 || !idx.stop_id_set.is_empty() {
+        return false;
+    }
+    idx.flex_map
+        .values()
+        .any(|f| f.location_id.is_some() || f.location_group_id.is_some())
 }
 
 // ── Eksik K6 kurallar (STM_017, GEO_007/009/012/013, SHP_013, DQ_005b/005c/010,
@@ -10983,5 +11008,134 @@ mod tests {
         assert_eq!(found.len(), 1);
         assert_eq!(found[0].entity_type, EntityType::Route);
         assert!(found[0].observed_value.as_deref().unwrap_or("").contains("2 sefer"));
+    }
+
+    // ── ARC_020 · DRT muafiyeti ───────────────────────────────────────────────
+    // shapes.txt sabit hat geometrisi içindir; tümüyle talep-duyarlı bir feed'de
+    // beklenmez. Muafiyet KASITLI olarak sıkı: tek bir sabit duraklı sefer bile
+    // varsa shapes.txt beklentisi sürer.
+
+    /// `stoptime` yardımcısının DRT karşılığı: stop_id boş, hizmet alanı flex alanla verilir.
+    fn drt_stoptime(
+        trip_id: &str, seq: u32, location_id: Option<&str>, location_group_id: Option<&str>, line: u64,
+    ) -> StopTimeRecord {
+        StopTimeRecord {
+            trip_id: trip_id.into(),
+            stop_id: "".into(),
+            stop_sequence: Some(seq),
+            location_id: location_id.map(|s| s.into()),
+            location_group_id: location_group_id.map(|s| s.into()),
+            line,
+            ..Default::default()
+        }
+    }
+
+    fn feed_info_row() -> crate::k2::feed_info::FeedInfoRecord {
+        crate::k2::feed_info::FeedInfoRecord {
+            feed_publisher_name: "P".into(),
+            feed_publisher_url: "https://example.org".into(),
+            feed_lang: "tr".into(),
+            feed_start_date: None,
+            feed_end_date: None,
+            feed_version: None,
+            feed_contact_email: None,
+            feed_contact_url: None,
+            row: Default::default(),
+            line: 2,
+        }
+    }
+
+    fn arc_020_files(records: &crate::k2::EntityRecords) -> Vec<String> {
+        let result = analyze(records, &empty_derived(), &default_config(), 20260514);
+        result.notices.iter()
+            .filter(|n| n.rule_id == "ARC_020")
+            .map(|n| n.file.clone().unwrap_or_default())
+            .collect()
+    }
+
+    #[test]
+    fn arc_020_reports_missing_shapes_on_fixed_stop_feed() {
+        let mut records = records_with(
+            vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1)],
+            vec![route("R1", 3)], vec![trip("T1", "R1")],
+            vec![
+                stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
+                stoptime("T1", 2, "B", (8, 10, 0), (8, 10, 0), 3),
+            ],
+        );
+        records.feed_info = vec![feed_info_row()];
+        assert_eq!(arc_020_files(&records), vec!["shapes.txt".to_string()],
+            "sabit duraklı feed'de shapes.txt eksikliği raporlanmalı");
+    }
+
+    #[test]
+    fn arc_020_skips_shapes_for_zone_based_drt() {
+        use crate::k2::stop_times::StopTimesIndex;
+        let stoptimes = vec![
+            drt_stoptime("T1", 1, Some("zone_1"), None, 2),
+            drt_stoptime("T1", 2, Some("zone_2"), None, 3),
+        ];
+        let mut records = records_with(
+            vec![stop("A", 41.0, 29.0)], vec![route("R1", 3)], vec![trip("T1", "R1")],
+            stoptimes.clone(),
+        );
+        records.stop_times_index = StopTimesIndex::from_records(&stoptimes);
+        records.feed_info = vec![feed_info_row()];
+        assert!(arc_020_files(&records).is_empty(),
+            "alan-tabanlı DRT feed'inde shapes.txt beklenmez");
+    }
+
+    #[test]
+    fn arc_020_skips_shapes_for_fixed_stops_drt() {
+        use crate::k2::stop_times::StopTimesIndex;
+        let stoptimes = vec![
+            drt_stoptime("T1", 1, None, Some("lg_1"), 2),
+            drt_stoptime("T1", 2, None, Some("lg_2"), 3),
+        ];
+        let mut records = records_with(
+            vec![stop("A", 41.0, 29.0)], vec![route("R1", 3)], vec![trip("T1", "R1")],
+            stoptimes.clone(),
+        );
+        records.stop_times_index = StopTimesIndex::from_records(&stoptimes);
+        records.feed_info = vec![feed_info_row()];
+        records.location_groups = vec![crate::k2::location_groups::LocationGroupRecord {
+            location_group_id: "lg_1".into(), line: 2,
+        }];
+        assert!(arc_020_files(&records).is_empty(),
+            "sabit-duraklı DRT feed'inde shapes.txt beklenmez");
+    }
+
+    #[test]
+    fn arc_020_still_reports_missing_shapes_when_drt_is_partial() {
+        use crate::k2::stop_times::StopTimesIndex;
+        // Tek bir sabit duraklı sefer → feed DRT-only değil, shapes.txt beklentisi sürer.
+        let stoptimes = vec![
+            drt_stoptime("T1", 1, Some("zone_1"), None, 2),
+            stoptime("T2", 1, "A", (8, 0, 0), (8, 0, 0), 3),
+            stoptime("T2", 2, "B", (8, 10, 0), (8, 10, 0), 4),
+        ];
+        let mut records = records_with(
+            vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1)],
+            vec![route("R1", 3)], vec![trip("T1", "R1"), trip("T2", "R1")],
+            stoptimes.clone(),
+        );
+        records.stop_times_index = StopTimesIndex::from_records(&stoptimes);
+        records.feed_info = vec![feed_info_row()];
+        assert_eq!(arc_020_files(&records), vec!["shapes.txt".to_string()],
+            "karışık feed'de shapes.txt eksikliği raporlanmalı");
+    }
+
+    #[test]
+    fn arc_020_still_reports_missing_feed_info_on_drt_feed() {
+        use crate::k2::stop_times::StopTimesIndex;
+        // DRT muafiyeti YALNIZ shapes.txt kolunu düşürür; feed_info.txt beklentisi sürer.
+        let stoptimes = vec![drt_stoptime("T1", 1, Some("zone_1"), None, 2)];
+        let mut records = records_with(
+            vec![stop("A", 41.0, 29.0)], vec![route("R1", 3)], vec![trip("T1", "R1")],
+            stoptimes.clone(),
+        );
+        records.stop_times_index = StopTimesIndex::from_records(&stoptimes);
+        assert_eq!(arc_020_files(&records), vec!["feed_info.txt".to_string()],
+            "DRT feed'inde bile feed_info.txt eksikliği raporlanmalı");
     }
 }

@@ -327,6 +327,18 @@ impl StopTimesIndex {
             if let Some(ref hs) = st.stop_headsign {
                 idx.stop_headsigns.insert(st.line as u32, hs.clone());
             }
+            // flex side map — streaming yolun (build_index) yaptığının aynısı; fixture'lardan
+            // kurulan index'te de location_id/location_group_id görünür olsun diye.
+            if let Some(flex) = build_flex(
+                st.start_pickup_drop_off_window,
+                st.end_pickup_drop_off_window,
+                st.location_id.clone(),
+                st.location_group_id.clone(),
+                st.pickup_booking_rule_id.clone(),
+                st.drop_off_booking_rule_id.clone(),
+            ) {
+                idx.flex_map.insert(st.line as u32, flex);
+            }
             by_trip.entry(st.trip_id.clone()).or_default().push(CompactStopTime {
                 stop_idx,
                 arrival_secs:   st.arrival_time.map(|(h,m,s)| h*3600+m*60+s).unwrap_or(u32::MAX),
