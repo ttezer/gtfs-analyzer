@@ -144,6 +144,23 @@ shown on the upload screen. For diagnostics, use `?wasm32=1`, `?wasm64=1`, or `?
 2. Validation starts automatically; progress is shown step by step on screen.
 3. When complete, the Publish and Overall scores appear with the detailed report tabs.
 4. To compare an earlier analysis, open **Compare** and upload its Golden JSON. Fixed, new, decreased, and increased rules are shown alongside score, feed-date, and normalized notice-density changes.
+5. For a shareable deliverable, open **Export → Executive PDF Report**, choose the report language, and use **Print / Save PDF** in the preview.
+
+### Executive PDF Report
+
+The **Executive PDF Report** turns detailed validation results into a readable, color-coded, A4-ready document for decision-makers and feed producers. It is generated exclusively from **GTFS Analyzer** results and does not include output from another validator or an external comparison.
+
+The report includes:
+
+- publication status, Publish Score, Overall Score, and the Spec · Interop · Quality · Analytics components;
+- a feed profile covering stops, routes, trips, shapes, service days, and date ranges;
+- deduplicated **P0 / P1 / P2** actions that combine R1 publication blockers with the R9 impact/effort ranking;
+- evidence, impact, recommended remediation, actual affected-instance count, and potential score gain for every priority finding;
+- feed-specific structural insights, a phased remediation plan, severity/class distributions, and a technical appendix.
+
+Even when the UI retains a limited number of finding examples for performance, the report uses **actual aggregate counts** from `capped_totals` when available. The document can be generated in Turkish, English, or Japanese, independently of the UI language. Generation and printing happen entirely in the browser: the GTFS data is not uploaded to a server, and no external API is required.
+
+> Report scores assess the uploaded GTFS feed; they do not rate the performance or accuracy of GTFS Analyzer itself.
 
 > To self-host or set up a development environment, see [Developer Setup](#developer-setup).
 

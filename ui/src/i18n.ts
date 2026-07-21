@@ -11,6 +11,7 @@ export type Locale = keyof typeof LOCALES;
 // ── Locale state ──────────────────────────────────────────────────────────────
 
 let _locale: Locale = (() => {
+  if (typeof localStorage === 'undefined') return 'tr';
   const s = localStorage.getItem('gtfs-locale');
   return (s && s in LOCALES) ? s as Locale : 'tr';
 })();
@@ -24,7 +25,7 @@ export function getLocale(): Locale { return _locale; }
 
 export function setLocale(l: Locale): void {
   _locale = l;
-  localStorage.setItem('gtfs-locale', l);
+  if (typeof localStorage !== 'undefined') localStorage.setItem('gtfs-locale', l);
   if (typeof document !== 'undefined') document.documentElement.lang = l;
   _syncDicts();
 }
@@ -50,11 +51,16 @@ export const SEVERITY_COLOR: Record<Severity, string> = {
 // ── t() — translate with optional {param} interpolation ──────────────────────
 
 export function t(key: string, params?: Record<string, string | number>): string {
+  return tForLocale(_locale, key, params);
+}
+
+/** Translate without mutating the application's active locale. */
+export function tForLocale(locale: Locale, key: string, params?: Record<string, string | number>): string {
   if (key.startsWith('rule.')) {
     const ruleId = key.slice(5);
-    return LOCALES[_locale].ruleTitles[ruleId] ?? LOCALES.en.ruleTitles[ruleId] ?? LOCALES.tr.ruleTitles[ruleId] ?? ruleId;
+    return LOCALES[locale].ruleTitles[ruleId] ?? LOCALES.en.ruleTitles[ruleId] ?? LOCALES.tr.ruleTitles[ruleId] ?? ruleId;
   }
-  let s = LOCALES[_locale].ui[key] ?? LOCALES.en.ui[key] ?? LOCALES.tr.ui[key] ?? key;
+  let s = LOCALES[locale].ui[key] ?? LOCALES.en.ui[key] ?? LOCALES.tr.ui[key] ?? key;
   if (params) {
     for (const [k, v] of Object.entries(params)) {
       s = s.split(`{${k}}`).join(String(v));
@@ -90,20 +96,38 @@ function _noticeParams(n: NoticeLike): Record<string, string> {
 }
 
 export function tMsg(n: NoticeLike): string {
-  if (_locale === 'tr') return n.message;
+  return tMsgForLocale(_locale, n);
+}
+
+/** Translate a notice without mutating the application's active locale. */
+export function tMsgForLocale(locale: Locale, n: NoticeLike): string {
+  if (locale === 'tr') return n.message;
   // JA: kendi mesajı yoksa EN şablonuna fallback
-  const tpl = LOCALES[_locale].ruleMessages[n.rule_id] ?? LOCALES.en.ruleMessages[n.rule_id];
+  const tpl = LOCALES[locale].ruleMessages[n.rule_id] ?? LOCALES.en.ruleMessages[n.rule_id];
   if (!tpl) return n.message;
   const params = _noticeParams(n);
   return tpl.replace(/\{(\w+)\}/g, (_, k) => params[k] ?? '');
 }
 
 export function tRemediation(n: { rule_id: string; remediation?: string | null }): string {
-  if (_locale === 'tr') return n.remediation ?? '';
+  return tRemediationForLocale(_locale, n);
+}
+
+/** Translate remediation text without mutating the application's active locale. */
+export function tRemediationForLocale(locale: Locale, n: { rule_id: string; remediation?: string | null }): string {
+  if (locale === 'tr') return n.remediation ?? '';
   // Mevcut locale → EN → TR (Rust mesajı)
-  return LOCALES[_locale].ruleRemediations[n.rule_id]
+  return LOCALES[locale].ruleRemediations[n.rule_id]
     ?? LOCALES.en.ruleRemediations[n.rule_id]
     ?? n.remediation ?? '';
+}
+
+export function severityForLocale(locale: Locale, severity: Severity): string {
+  return LOCALES[locale].severity[severity] ?? severity;
+}
+
+export function ruleClassForLocale(locale: Locale, ruleClass: RuleClass): string {
+  return LOCALES[locale].ruleClass[ruleClass] ?? ruleClass;
 }
 
 // ── Internal sync ─────────────────────────────────────────────────────────────

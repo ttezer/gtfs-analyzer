@@ -5,6 +5,8 @@ import { getState } from '../state';
 import { getLastEngineMode } from '../validator-client';
 import { getLogs, getActions } from '../debug-buffer';
 import { buildGoldenSnapshot } from '../golden';
+import { buildExecutiveReportHtml, buildExecutiveReportModel } from '../executive-report';
+import type { Locale } from '../i18n';
 
 // Bayt → insan-okur boyut (yerel ondalık ayraçla). Tahmini dışa aktarım boyutu için.
 function formatBytes(b: number): string {
@@ -195,6 +197,11 @@ export function renderExport(
   // İndirilen golden git-tracked regresyon baseline'ı olarak kullanılır → deterministik
   // (per-saniye generated_at atlanır; validate_date gün granülü kalır). #42
   const goldenStr = buildGoldenSnapshot(result, fileName, generatedAt, getState().configDelta, getLastEngineMode() ?? 'unknown', { deterministic: true });
+  const appVersion = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'dev';
+  const engineMode = getLastEngineMode() ?? 'unknown';
+  const defaultExecutiveHtml = buildExecutiveReportHtml(buildExecutiveReportModel({
+    result, fileName, generatedAt: now, locale: getLocale(), appVersion, engineMode,
+  }));
 
   const { r5 } = result.reports;
   const fmtScore = (n: number) => new Intl.NumberFormat(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(n);
@@ -237,7 +244,24 @@ export function renderExport(
         <p class="exp-formats-sub">${t('export.formats.subtitle')}</p>
 
         <div class="exp-grid">
-          ${card('btn-export-html', ICON.doc,   'doc', t('export.card.html.title'), t('export.recommended'), t('export.card.html.desc'), t('export.download'), true,  formatBytes(byteLen(htmlStr)))}
+          <div class="exp-card exp-card-rec">
+            <div class="exp-card-head">
+              <span class="exp-card-icon exp-icon-pdf">${ICON.print}</span>
+              <span class="exp-card-title">${t('export.card.executive.title')}</span>
+              <span class="exp-rec-badge">${t('export.recommended')}</span>
+            </div>
+            <p class="exp-card-desc">${t('export.card.executive.desc')}</p>
+            <label class="exp-report-language" for="executive-report-locale">${t('export.card.executive.language')}
+              <select id="executive-report-locale">
+                <option value="tr"${getLocale() === 'tr' ? ' selected' : ''}>Türkçe</option>
+                <option value="en"${getLocale() === 'en' ? ' selected' : ''}>English</option>
+                <option value="ja"${getLocale() === 'ja' ? ' selected' : ''}>日本語</option>
+              </select>
+            </label>
+            <button id="btn-export-executive" class="btn btn-primary exp-card-btn">${t('export.card.executive.action')}</button>
+            <p class="exp-card-size"><span class="exp-i">ⓘ</span> ${t('export.est_size')} <strong>${formatBytes(byteLen(defaultExecutiveHtml))}</strong></p>
+          </div>
+          ${card('btn-export-html', ICON.doc,   'doc', t('export.card.html.title'), '', t('export.card.html.desc'), t('export.download'), false, formatBytes(byteLen(htmlStr)))}
           ${card('btn-export-csv',  ICON.csv,   'csv', t('export.card.csv.title'),  '',                       t('export.card.csv.desc'),  t('export.download'), false, formatBytes(byteLen(csvStr)))}
           ${card('btn-export-json', ICON.braces,'json',t('export.card.json.title'), '',                       t('export.card.json.desc'), t('export.download'), false, formatBytes(byteLen(jsonStr)))}
           ${card('btn-export-pdf',  ICON.print, 'pdf', t('export.card.pdf.title'),  '',                       t('export.card.pdf.desc'),  t('export.print'),    false, t('export.size.browser'))}
@@ -273,6 +297,11 @@ export function renderExport(
     triggerDownload(new Blob([s], { type: mime }), fileName.replace(/\.zip$/i, `-report-${fnTs}.${ext}`));
 
   root.querySelector('#btn-export-html')!.addEventListener('click', () => dl(htmlStr, 'text/html; charset=utf-8', 'html'));
+  root.querySelector('#btn-export-executive')!.addEventListener('click', () => {
+    const locale = root.querySelector<HTMLSelectElement>('#executive-report-locale')!.value as Locale;
+    const model = buildExecutiveReportModel({ result, fileName, generatedAt: now, locale, appVersion, engineMode });
+    printHtml(buildExecutiveReportHtml(model), locale, false);
+  });
   root.querySelector('#btn-export-csv')!.addEventListener('click',  () => dl('﻿' + csvStr, 'text/csv; charset=utf-8', 'csv'));
   root.querySelector('#btn-export-json')!.addEventListener('click', () => dl(jsonStr, 'application/json', 'json'));
   root.querySelector('#btn-export-pdf')!.addEventListener('click', () => printHtml(htmlStr));
@@ -424,13 +453,19 @@ function buildReportHtml(result: ValidationResult, fileName: string, ts: string)
 }
 
 // Önceden üretilmiş raporu yazdırma penceresinde açar (PDF = tarayıcı yazdırma diyaloğu).
-function printHtml(html: string): void {
+function printHtml(html: string, locale = getLocale(), autoPrint = true): void {
   const win = window.open('', '_blank');
   if (!win) { alert(t('export.popup_blocked')); return; }
   win.document.write(html);
   win.document.close();
-  win.focus();
-  win.print();
+  win.document.documentElement.lang = locale;
+  if (!autoPrint) { win.focus(); return; }
+  const openPrintDialog = () => win.requestAnimationFrame(() => win.requestAnimationFrame(() => {
+    win.focus();
+    win.print();
+  }));
+  if (win.document.readyState === 'complete') openPrintDialog();
+  else win.addEventListener('load', openPrintDialog, { once: true });
 }
 
 function triggerDownload(blob: Blob, name: string): void {
