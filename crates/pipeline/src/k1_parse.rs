@@ -578,6 +578,47 @@ fn known_columns(filename: &str) -> &'static [&'static str] {
     }
 }
 
+/// Tek bir üst klasöre sarılmış feed'in kök önekini döndürür (ör. `"TEST GTFS/"`).
+///
+/// Bazı yayıncılar ZIP'i tek bir klasörle paketliyor: `TEST GTFS/agency.txt`. Spec
+/// dosyaların kökte olmasını ister, dolayısıyla bunlar ARC_024 alır — ama katı davranmak
+/// kullanıcıya ARC_004 fatal'ı ve **sıfır analiz** verir, oysa feed'in kendisi geçerlidir.
+///
+/// Hoşgörü KASITLI olarak dar; şu üç koşulun hepsi gerekir:
+/// 1. Kökte hiç `.txt` yok (varsa feed sarılı değildir, dokunma),
+/// 2. tüm `.txt` girdileri TEK ve AYNI üst klasörün DOĞRUDAN altında (iki kat derinlik yok),
+/// 3. o klasör zorunlu GTFS dosyalarının tamamını taşıyor.
+///
+/// Aksi halde `None` → eski davranış. Böylece "GTFS olmayan repo zip'i" (ör. tek klasör
+/// içinde `.csv`'ler) hâlâ fatal olur; hoşgörü yalnız gerçekten geçerli feed'i kurtarır.
+fn detect_wrapped_root(entry_names: &[String]) -> Option<String> {
+    let normalized: Vec<String> = entry_names.iter().map(|n| n.replace('\\', "/")).collect();
+    let txt = || normalized.iter().filter(|n| n.ends_with(".txt"));
+
+    if txt().any(|n| !n.contains('/')) {
+        return None; // kökte .txt var → sarılı değil
+    }
+
+    let mut prefix: Option<&str> = None;
+    for name in txt() {
+        let (dir, rest) = name.split_once('/')?;
+        if rest.contains('/') {
+            return None; // ikinci seviye alt dizin → hoşgörü yok
+        }
+        match prefix {
+            None => prefix = Some(dir),
+            Some(p) if p == dir => {}
+            Some(_) => return None, // birden fazla üst klasör
+        }
+    }
+
+    let dir = prefix?;
+    REQUIRED_FILES
+        .iter()
+        .all(|f| normalized.iter().any(|n| n == &format!("{dir}/{f}")))
+        .then(|| format!("{dir}/"))
+}
+
 // ── Ana parse fonksiyonu ──────────────────────────────────────────────────────
 
 /// K1 Parse katmanı. ZIP baytlarından ham dosya haritası ve ARC_* notice'ları üretir.
@@ -603,7 +644,11 @@ pub fn parse(zip_bytes: &[u8]) -> Result<K1Result, FatalError> {
     // calendar.txt servisi tanımlıyorsa bu KRİTİK değildir (calendar_dates şartlı zorunludur,
     // calendar.txt varken opsiyoneldir). Döngü-sırasından bağımsız olsun diye önceden hesaplanır.
     // calendar.txt YOKSA boş calendar_dates "hiç servis tanımı yok" demektir → ARC_009 kalır.
-    let has_calendar_txt = archive.file_names().any(|n| n == "calendar.txt");
+    // Tek üst klasöre sarılmış feed → o klasörü kök kabul et (detay: detect_wrapped_root).
+    let entry_names: Vec<String> = archive.file_names().map(str::to_string).collect();
+    let root_prefix = detect_wrapped_root(&entry_names);
+    let calendar_entry = format!("{}calendar.txt", root_prefix.as_deref().unwrap_or(""));
+    let has_calendar_txt = entry_names.iter().any(|n| n.replace('\\', "/") == calendar_entry);
 
     let mut notices: Vec<Notice> = Vec::new();
     let mut counter: u32 = 0;
@@ -622,7 +667,28 @@ pub fn parse(zip_bytes: &[u8]) -> Result<K1Result, FatalError> {
             message: format!("ZIP dosyası okunamadı (index {i}): {e}"),
         })?;
 
-        let raw_name = zf.name().to_string();
+        let entry_name = zf.name().to_string();
+        // Sarılı feed'de kök öneki düşülür; sonraki tüm mantık dosyayı kökteymiş gibi görür.
+        // Bulgu mesajları yine ZIP'teki GERÇEK yolu gösterir (entry_name).
+        let raw_name = match &root_prefix {
+            Some(prefix) => entry_name.replace('\\', "/").strip_prefix(prefix.as_str())
+                .map_or_else(|| entry_name.clone(), str::to_string),
+            None => entry_name.clone(),
+        };
+        if raw_name.is_empty() {
+            continue; // sarılı feed'in klasör girdisinin kendisi
+        }
+        // Hoşgörü uygulandı: dosya işlenecek ama alt dizinde olduğu yine de bulgudur.
+        if raw_name != entry_name && raw_name.ends_with(".txt") {
+            notices.push(make_notice(
+                &mut counter, "ARC_024",
+                EntityType::File, Some(entry_name.clone()),
+                Some(&entry_name), None, None,
+                Some(entry_name.clone()),
+                format!("'{entry_name}' alt dizinde bulunuyor — GTFS dosyaları ZIP kök dizininde düz olmalıdır."),
+                "Dosyayı ZIP'in kök dizinine taşıyın.",
+            ));
+        }
         if raw_name.ends_with(".txt") && zf.unix_mode().is_some_and(|mode| mode & 0o400 == 0) {
             notices.push(make_notice(&mut counter, "ARC_027", EntityType::File, Some(raw_name.clone()),
                 Some(&raw_name), None, None, zf.unix_mode().map(|m| format!("{m:o}")),
@@ -1490,6 +1556,69 @@ mod tests {
         let err = parse(&zip).expect_err("agency.txt eksik Fatal olmalı");
         assert_eq!(err.code, FatalCode::NoRequiredFiles);
         assert!(err.message.contains("agency.txt"), "{}", err.message);
+    }
+
+    // ── Tek üst klasöre sarılmış feed (detect_wrapped_root) ───────────────────
+    // Gerçek vaka mdb-1814: `TEST GTFS/agency.txt` … geçerli feed, tek klasöre sarılı.
+    // Katı davranış kullanıcıya sıfır analiz veriyordu. Hoşgörü DAR; aşağıdaki testler
+    // hem kurtarmayı hem de karşıt örneklerin fatal kalmasını sabitler.
+
+    /// Minimal ama TAM bir feed; `prefix` verilirse her dosya o klasörün altına konur.
+    fn wrapped_feed_zip(prefix: &str) -> Vec<u8> {
+        let p = |name: &str| format!("{prefix}{name}");
+        let files: Vec<(String, &[u8])> = vec![
+            (p("agency.txt"),     b"agency_id,agency_name,agency_url,agency_timezone\n1,A,https://e.org,Europe/Istanbul\n" as &[u8]),
+            (p("stops.txt"),      b"stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\n"),
+            (p("routes.txt"),     b"route_id,agency_id,route_short_name,route_type\nR1,1,101,3\n"),
+            (p("trips.txt"),      b"route_id,service_id,trip_id\nR1,SVC1,T1\n"),
+            (p("stop_times.txt"), b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\n"),
+            (p("calendar.txt"),   b"service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,0,0,20240101,20241231\n"),
+        ];
+        zip_with_files(&files.iter().map(|(n, c)| (n.as_str(), *c)).collect::<Vec<_>>())
+    }
+
+    #[test]
+    fn feed_wrapped_in_single_folder_is_parsed_and_reported() {
+        let k1 = parse(&wrapped_feed_zip("TEST GTFS/")).expect("sarılı geçerli feed fatal OLMAMALI");
+        // Dosyalar kökteymiş gibi görünür → zorunlu dosya kontrolü geçer.
+        for required in REQUIRED_FILES {
+            assert!(k1.files.contains_key(*required), "'{required}' kök adıyla görünmeli");
+        }
+        // Alt dizinde olmaları yine de bulgudur ve GERÇEK yolu gösterir.
+        let arc024: Vec<_> = k1.notices.iter().filter(|n| n.rule_id == "ARC_024").collect();
+        assert_eq!(arc024.len(), 6, "her .txt için bir ARC_024 beklenir");
+        assert!(arc024.iter().all(|n| n.file.as_deref().is_some_and(|f| f.starts_with("TEST GTFS/"))),
+            "ARC_024 ZIP'teki gerçek yolu göstermeli");
+    }
+
+    #[test]
+    fn wrapped_root_is_rejected_when_required_files_are_missing() {
+        // GitHub repo zip'i (gerçek vaka mdb-3135): tek klasör ama GTFS değil → fatal kalmalı.
+        let zip = zip_with_files(&[
+            ("honduras-transit-main/agency.csv", b"a,b\n1,2\n" as &[u8]),
+            ("honduras-transit-main/README.md",  b"# repo\n"),
+        ]);
+        let err = parse(&zip).expect_err("GTFS olmayan sarılı zip fatal kalmalı");
+        assert_eq!(err.code, FatalCode::NoRequiredFiles);
+    }
+
+    #[test]
+    fn wrapped_root_is_rejected_when_more_than_one_folder_holds_txt() {
+        let mut files: Vec<(String, &[u8])> = Vec::new();
+        for (i, name) in REQUIRED_FILES.iter().enumerate() {
+            // Zorunlu dosyalar İKİ ayrı klasöre dağıtılmış → hangisi kök belirsiz, hoşgörü yok.
+            files.push((format!("dir{}/{name}", i % 2), b"x\n" as &[u8]));
+        }
+        let zip = zip_with_files(&files.iter().map(|(n, c)| (n.as_str(), *c)).collect::<Vec<_>>());
+        let err = parse(&zip).expect_err("birden fazla üst klasör fatal kalmalı");
+        assert_eq!(err.code, FatalCode::NoRequiredFiles);
+    }
+
+    #[test]
+    fn root_level_feed_is_untouched_by_the_wrapper_tolerance() {
+        let k1 = parse(&wrapped_feed_zip("")).expect("normal feed geçerli");
+        assert!(k1.notices.iter().all(|n| n.rule_id != "ARC_024"),
+            "kökteki feed ARC_024 ALMAMALI");
     }
 
     /// 8192. bayta denk gelen çok baytlı karakter, GEÇERLİ bir feed'i fatal etmemeli.
