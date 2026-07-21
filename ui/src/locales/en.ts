@@ -462,6 +462,7 @@ const en: LocaleShape = {
     'export.html.pub_score'           : 'Publish Score',
     'export.html.total'               : 'Total Findings',
     'export.html.h2_findings'         : 'Findings',
+    'export.html.print_truncated'     : 'Printing shows the first {shown} findings; {omitted} were left out. The full list is in the CSV and JSON exports.',
     'export.html.publishable_ok'      : 'Ready to Publish',
     'export.html.publishable_blocked' : 'Not Recommended for Publishing',
     'export.html.breakdown'           : 'GTFS Validity {spec} · GTFS Interop. {interop} · GTFS Quality {quality} · GTFS Analytics {analytics}',

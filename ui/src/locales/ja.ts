@@ -448,6 +448,7 @@ const ja: LocaleShape = {
     'export.html.pub_score'           : '公開スコア',
     'export.html.total'               : '合計検出数',
     'export.html.h2_findings'         : '検出結果',
+    'export.html.print_truncated'     : '印刷では最初の{shown}件を表示しています（{omitted}件は省略）。全件はCSVおよびJSONの出力に含まれます。',
     'export.html.publishable_ok'      : '公開可能',
     'export.html.publishable_blocked' : '公開非推奨',
     'export.html.breakdown'           : 'GTFS仕様 {spec} · 相互運用 {interop} · データ品質 {quality} · 分析 {analytics}',

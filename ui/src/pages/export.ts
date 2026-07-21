@@ -316,7 +316,7 @@ export function renderExport(
   });
   root.querySelector('#btn-export-csv')!.addEventListener('click',  () => dl('﻿' + makeCsv(), 'text/csv; charset=utf-8', 'csv'));
   root.querySelector('#btn-export-json')!.addEventListener('click', () => dl(makeJson(), 'application/json', 'json'));
-  root.querySelector('#btn-export-pdf')!.addEventListener('click', () => printHtml(makeHtml()));
+  root.querySelector('#btn-export-pdf')!.addEventListener('click', () => printHtml(buildReportHtml(result, fileName, now, PRINT_MAX_ROWS)));
   root.querySelector('#btn-debug-json')!.addEventListener('click', () =>
     triggerDownload(new Blob([makeDebug()], { type: 'application/json' }), fileName.replace(/\.zip$/i, `-debug-${fnTs}.json`)));
   root.querySelector('#btn-golden-json')!.addEventListener('click', () => {
@@ -372,13 +372,29 @@ function buildCsv(result: ValidationResult): string {
   return [header.map(csvCell).join(','), ...rows].join('\r\n');
 }
 
-function buildReportHtml(result: ValidationResult, fileName: string, ts: string): string {
+/// Yazdırma yolunda bulgu tablosunun satır tavanı.
+///
+/// İndirilen HTML sınırsızdır — tarayıcı onu yalnızca ekranda dizer. Yazdırma ise BAŞKA bir
+/// iş: belgeyi A4 sayfalarına bölüp her sayfayı rasterize eder. VBB Berlin'de tablo 22.904
+/// satır (~206.000 DOM düğümü, ~500 sayfa) ve rapor sekmesi render'ı geçtikten SONRA, tam
+/// yazdırma önizlemesi üretilirken çöküyordu. Tam liste CSV/JSON çıktılarında duruyor.
+const PRINT_MAX_ROWS = 2_000;
+
+function buildReportHtml(result: ValidationResult, fileName: string, ts: string, maxRows?: number): string {
   const { r1, r5 } = result.reports;
   const publishLabel = r1.publishable
     ? t('export.html.publishable_ok')
     : t('export.html.publishable_blocked');
 
-  const noticeRows = result.notices.map(n => `
+  const shown = maxRows != null && result.notices.length > maxRows
+    ? result.notices.slice(0, maxRows)
+    : result.notices;
+  const omitted = result.notices.length - shown.length;
+  const truncationNote = omitted > 0
+    ? `<p style="margin:.4rem 0 .8rem;padding:.5rem .7rem;border-radius:.3rem;background:#fff8df;color:#8b5a00;font-size:.82rem">${escHtml(t('export.html.print_truncated', { shown: fmtInt(shown.length), omitted: fmtInt(omitted) }))}</p>`
+    : '';
+
+  const noticeRows = shown.map(n => `
     <tr>
       <td>${escHtml(n.rule_id)}</td>
       <td>${SEVERITY_TR[n.severity]}</td>
@@ -443,6 +459,7 @@ function buildReportHtml(result: ValidationResult, fileName: string, ts: string)
   </div>
 
   <h2>${t('export.html.h2_findings')}</h2>
+  ${truncationNote}
   <table>
     <thead><tr>
       <th>${t('export.html.th.rule')}</th>
