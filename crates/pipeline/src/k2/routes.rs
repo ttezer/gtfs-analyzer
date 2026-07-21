@@ -329,6 +329,16 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
         });
     }
 
+    // Aşağıdaki yinelenen-ad kontrolleri her grubun anchor route kaydına tekrar erişir.
+    // `records.iter().find(...)` kullanmak, çok sayıda route ve yinelenen grup içeren
+    // feed'lerde O(grup × route) davranışı üretir (VlakEShopAll: 64.711 grup × 321.962
+    // route). İlk kaydı koruyan bu indeks mevcut semantiği değiştirmeden lookup'u O(1)
+    // yapar; yinelenen route_id varsa önceki doğrusal `find` gibi ilk satır kazanır.
+    let mut route_by_id: HashMap<&str, &RouteRecord> = HashMap::with_capacity(records.len());
+    for rec in &records {
+        route_by_id.entry(rec.route_id.as_str()).or_insert(rec);
+    }
+
     // RTS_019: Yinelenen hat adı — bir hat başka biriyle HEM route_short_name HEM route_long_name
     // bakımından aynıysa (gerçek kopya hat). Yalnız kısa VEYA yalnız uzun adı paylaşmak NORMALDİR
     // (aynı hat numarası varyant/yön için tekrar kullanılır; farklı hatlar aynı uzun adı taşıyabilir)
@@ -363,7 +373,7 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
         for (_key, entries) in &groups {
             let group_str = entries.iter().map(|(id, _)| id.as_str()).collect::<Vec<_>>().join(", ");
             let (anchor_id, anchor_line) = &entries[0];
-            let anchor = records.iter().find(|r| &r.route_id == anchor_id);
+            let anchor = route_by_id.get(anchor_id.as_str()).copied();
             let sn_disp = anchor.and_then(|r| r.route_short_name.as_deref()).unwrap_or("");
             let ln_disp = anchor.and_then(|r| r.route_long_name.as_deref()).unwrap_or("");
             let display = match (sn_disp.is_empty(), ln_disp.is_empty()) {
@@ -407,7 +417,7 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
         for (_sn, entries) in &groups {
             let group_str = entries.iter().map(|(id, _, _)| id.as_str()).collect::<Vec<_>>().join(", ");
             let (anchor_id, _, anchor_line) = &entries[0];
-            let sn_disp = records.iter().find(|r| &r.route_id == anchor_id)
+            let sn_disp = route_by_id.get(anchor_id.as_str()).copied()
                 .and_then(|r| r.route_short_name.as_deref()).unwrap_or("");
             let mut n = make_k2_notice(
                 &mut counter, "RTS_026", EntityType::Route,
@@ -444,7 +454,7 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
         for (_ln, entries) in &groups {
             let group_str = entries.iter().map(|(id, _, _)| id.as_str()).collect::<Vec<_>>().join(", ");
             let (anchor_id, _, anchor_line) = &entries[0];
-            let ln_disp = records.iter().find(|r| &r.route_id == anchor_id)
+            let ln_disp = route_by_id.get(anchor_id.as_str()).copied()
                 .and_then(|r| r.route_long_name.as_deref()).unwrap_or("");
             let mut n = make_k2_notice(
                 &mut counter, "RTS_027", EntityType::Route,
@@ -714,6 +724,55 @@ mod tests {
         let (_, notices) = validate_routes(&file);
         assert_eq!(notices.iter().filter(|n| n.rule_id == "RTS_019").count(), 1,
             "Aynı short_name → tek RTS_019");
+    }
+
+    #[test]
+    fn many_duplicate_route_groups_do_not_rescan_all_records() {
+        // 20 bin ayrı yinelenen grup, toplam 40 bin route. Anchor kaydı her grup için
+        // `records.iter().find` ile aranırsa ~800 milyon karşılaştırmaya çıkar; indeksli
+        // uygulama route sayısıyla doğrusal büyür. Geniş süre payı yavaş CI makinelerini
+        // tolere ederken karesel regresyonu yakalar.
+        const GROUPS: usize = 20_000;
+        let mut rows = Vec::with_capacity(GROUPS * 2);
+        for group in 0..GROUPS {
+            let name = format!("N{group}");
+            for member in 0..2 {
+                rows.push(vec![
+                    smol_str::SmolStr::from(format!("R{group}_{member}")),
+                    smol_str::SmolStr::from(name.as_str()),
+                    smol_str::SmolStr::from(name.as_str()),
+                    smol_str::SmolStr::from("2"),
+                ]);
+            }
+        }
+        let file = RawFile {
+            name: "routes.txt".to_string(),
+            headers: [
+                "route_id",
+                "route_short_name",
+                "route_long_name",
+                "route_type",
+            ]
+            .into_iter()
+            .map(str::to_string)
+            .collect(),
+            rows,
+            bytes: 0,
+            raw_text: None,
+        };
+
+        let started = std::time::Instant::now();
+        let (_, notices) = validate_routes(&file);
+        let elapsed = started.elapsed();
+
+        assert_eq!(
+            notices.iter().filter(|n| n.rule_id == "RTS_019").count(),
+            GROUPS,
+        );
+        assert!(
+            elapsed < std::time::Duration::from_secs(10),
+            "40 bin route doğrulaması doğrusal kalmalı; geçen süre: {elapsed:?}",
+        );
     }
 
     #[test]

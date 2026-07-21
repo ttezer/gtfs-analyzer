@@ -107,6 +107,44 @@ pub fn dedup(notices: Vec<Notice>) -> Vec<Notice> {
     out
 }
 
+/// Notice'ları kararlı biçimde dedup ederken kural başına yalnızca gösterilecek
+/// temsilcileri saklar. Böylece milyonlarca dedup edilmiş Notice için ikinci bir
+/// büyük Vec ayrılmaz; `totals` yine cap öncesindeki gerçek distinct sayıları taşır.
+pub fn dedup_and_cap_by_rule<F>(
+    mut notices: Vec<Notice>,
+    cap_for_rule: F,
+) -> (Vec<Notice>, HashMap<String, u32>)
+where
+    F: Fn(&str) -> usize,
+{
+    notices.sort_unstable_by(|a, b| notice_order_key(a).cmp(&notice_order_key(b)));
+
+    let mut seen: FxHashSet<String> = FxHashSet::default();
+    seen.reserve(notices.len());
+    let mut kept = Vec::new();
+    let mut totals: HashMap<String, u32> = HashMap::new();
+    let mut key_buf = String::with_capacity(128);
+
+    for notice in notices {
+        let level = get_rule(&notice.rule_id)
+            .map(|m| m.dedup_level)
+            .unwrap_or(DedupLevel::Row);
+        key_buf.clear();
+        write_dedup_key(&mut key_buf, &notice, level);
+        if !seen.insert(key_buf.clone()) {
+            continue;
+        }
+
+        let total = totals.entry(notice.rule_id.clone()).or_insert(0);
+        *total += 1;
+        if (*total as usize) <= cap_for_rule(&notice.rule_id) {
+            kept.push(notice);
+        }
+    }
+
+    (kept, totals)
+}
+
 // Separator olarak \x00 kullanılır — GTFS ID'leri, dosya adları ve alan adları
 // null byte içeremez; bu sayede entity_id/file/field değerlerindeki '|' gibi
 // karakterlerden kaynaklanan çakışmalar önlenir.
@@ -904,6 +942,28 @@ mod tests {
         n1.file = Some("stops.txt".into()); n1.line = Some(5);
         n2.file = Some("stops.txt".into()); n2.line = Some(6);
         assert_eq!(dedup(vec![n1, n2]).len(), 2);
+    }
+
+    #[test]
+    fn dedup_and_cap_keeps_real_totals_without_materializing_all_notices() {
+        let mut notices = Vec::new();
+        for line in [4, 2, 3, 2, 1] {
+            let mut n = notice(
+                &format!("n{line}"),
+                "ARC_018",
+                Severity::Yuksek,
+                RuleClass::Spec,
+            );
+            n.file = Some("stops.txt".into());
+            n.line = Some(line);
+            notices.push(n);
+        }
+
+        let (kept, totals) = dedup_and_cap_by_rule(notices, |_| 2);
+
+        assert_eq!(totals.get("ARC_018"), Some(&4));
+        assert_eq!(kept.len(), 2);
+        assert_eq!(kept.iter().map(|n| n.line).collect::<Vec<_>>(), vec![Some(1), Some(2)]);
     }
 
     // ARC_014 → Field dedup

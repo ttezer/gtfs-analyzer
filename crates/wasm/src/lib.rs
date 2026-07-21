@@ -494,16 +494,13 @@ fn cap_per_rule(notices: &mut Vec<gtfs_core::Notice>) -> std::collections::HashM
     // Cap ham notice'lara değil distinct entity'lere uygulanır → gösterilen temsilciler
     // thread-bağımsız ve kümelenme olmaz (ör. OPR_005 cap'e çarpsa bile distinct route
     // sayısı korunur). dedup içinde notice_order_key ile kararlı sıralama yapılır.
-    *notices = gtfs_pipeline::k7_reporting::dedup(std::mem::take(notices));
-    // Golden sayımları ve skor ölçeklemesi ham emisyonu değil, native K7 ile aynı
-    // dedup edilmiş gerçek notice sayısını taşımalı.
-    let real_totals = count_totals(notices);
-    let mut counts: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
-    notices.retain(|n| {
-        let c = counts.entry(n.rule_id.clone()).or_insert(0);
-        *c += 1;
-        *c <= cap_for_rule(&n.rule_id)
-    });
+    // Dedup + cap tek geçişte yapılır: dedup edilmiş milyonlarca Notice için ikinci
+    // bir tam boy Vec ayırmadan gerçek distinct toplamları korur.
+    let (kept, real_totals) = gtfs_pipeline::k7_reporting::dedup_and_cap_by_rule(
+        std::mem::take(notices),
+        cap_for_rule,
+    );
+    *notices = kept;
     real_totals
 }
 
