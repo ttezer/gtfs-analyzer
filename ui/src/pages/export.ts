@@ -7,6 +7,7 @@ import { getLogs, getActions } from '../debug-buffer';
 import { buildGoldenSnapshot } from '../golden';
 import { buildExecutiveReportHtml, buildExecutiveReportModel } from '../executive-report';
 import type { Locale } from '../i18n';
+import { withAutoPrint, withLang } from '../print-doc';
 
 // Bayt → insan-okur boyut (yerel ondalık ayraçla). Tahmini dışa aktarım boyutu için.
 function formatBytes(b: number): string {
@@ -453,19 +454,25 @@ function buildReportHtml(result: ValidationResult, fileName: string, ts: string)
 }
 
 // Önceden üretilmiş raporu yazdırma penceresinde açar (PDF = tarayıcı yazdırma diyaloğu).
+/// Üretilmiş raporu ayrı bir sekmede açar (PDF = tarayıcının yazdırma diyaloğu).
+///
+/// Rapor bir Blob URL'ine yazılır ve pencere `noopener` ile açılır — `document.write` ile
+/// aynı origin'e popup açmak YERİNE. Sebep: aynı origin'li popup açan sayfayla AYNI render
+/// sürecini paylaşır. VBB Berlin gibi bir feed doğrulandıktan sonra süreç ~2,6 GB'lık analiz
+/// yığınını taşıyor (WASM belleği geri verilmez, cache kayıtları canlı tutar); o noktada
+/// ikinci bir belge açmak ikisini birden düşürüyordu. `noopener` yeni bir tarayıcı bağlam
+/// grubu açar → ayrı süreç, kendi bellek bütçesi; rapor sekmesi artık uygulamayı yanında
+/// götüremez.
+///
+/// ⚠️ Bedeli: `noopener` verildiğinde `window.open` spec gereği DAİMA `null` döner, yani
+/// popup engellendi mi anlaşılamaz. Engellenme uyarısı bu yüzden kalktı; çağrı doğrudan
+/// tıklama handler'ından yapıldığı için engellenme pratikte beklenmiyor.
 function printHtml(html: string, locale = getLocale(), autoPrint = true): void {
-  const win = window.open('', '_blank');
-  if (!win) { alert(t('export.popup_blocked')); return; }
-  win.document.write(html);
-  win.document.close();
-  win.document.documentElement.lang = locale;
-  if (!autoPrint) { win.focus(); return; }
-  const openPrintDialog = () => win.requestAnimationFrame(() => win.requestAnimationFrame(() => {
-    win.focus();
-    win.print();
-  }));
-  if (win.document.readyState === 'complete') openPrintDialog();
-  else win.addEventListener('load', openPrintDialog, { once: true });
+  const doc = withLang(autoPrint ? withAutoPrint(html) : html, locale);
+  const url = URL.createObjectURL(new Blob([doc], { type: 'text/html;charset=utf-8' }));
+  window.open(url, '_blank', 'noopener');
+  // Sekme belgeyi yükleyene kadar URL yaşamalı; erken revoke boş sayfa verir.
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
 
 function triggerDownload(blob: Blob, name: string): void {
