@@ -2,12 +2,12 @@ import { describe, expect, it } from 'vitest';
 import { buildExecutiveReportHtml, buildExecutiveReportModel } from '../executive-report';
 import type { Notice, R9Item, ValidationResult } from '../types';
 
-function notice(ruleId: string, severity: Notice['severity'] = 'MEDIUM', index = 1): Notice {
+function notice(ruleId: string, severity: Notice['severity'] = 'MEDIUM', index = 1, ruleClass?: Notice['rule_class']): Notice {
   return {
     id: `${ruleId}-${index}`,
     rule_id: ruleId,
     severity,
-    rule_class: severity === 'CRITICAL' ? 'SPEC' : 'QUALITY',
+    rule_class: ruleClass ?? (severity === 'CRITICAL' ? 'SPEC' : 'QUALITY'),
     entity_type: 'Row',
     entity_id: `entity-${index}`,
     scope_key: null,
@@ -99,10 +99,53 @@ describe('executive report', () => {
     expect(model.fileStats).toHaveLength(20);
   });
 
+  it('keeps a critical quality finding out of P0 when R1 has no blocker', () => {
+    const vbb = result();
+    vbb.notices = [notice('PTH_014', 'CRITICAL', 1, 'QUALITY')];
+    vbb.reports.r1 = { publishable: true, blocker_notice_ids: [] };
+    vbb.reports.r5 = { score: 55.4, pub_score: 100, spec_score: 100, interop_score: 88.5, quality_score: 32.8, analytics_score: 37.7 };
+    vbb.reports.r9.items = [priority('PTH_014', ['quality', 'high-impact'], 1_043)];
+    vbb.capped_totals = { PTH_014: 1_043 };
+
+    const model = buildExecutiveReportModel({ result: vbb, fileName: 'vbb.zip', generatedAt: 'now', locale: 'tr', appVersion: 'dev', engineMode: 'test' });
+    const finding = model.findings[0];
+    expect(finding?.priority).toBe('P1');
+    expect(finding?.impact).toContain('tek başına yayın engeli değildir');
+    expect(finding?.impact).not.toContain('doğrudan engeller');
+    expect(model.plan.find(phase => phase.priority === 'P0')).toMatchObject({ empty: true, ruleCount: 0, findingCount: 0 });
+    expect(model.plan.find(phase => phase.priority === 'P1')).toMatchObject({ empty: false, ruleCount: 1, findingCount: 1_043 });
+    expect(model.summary).toContain('Yayın engeli bulunmadı');
+  });
+
+  it('labels class totals as finding counts and renders a feed-specific plan', () => {
+    const vbb = result();
+    vbb.notices = [notice('PTH_014', 'CRITICAL', 1, 'QUALITY')];
+    vbb.reports.r1 = { publishable: true, blocker_notice_ids: [] };
+    vbb.reports.r5.pub_score = 100;
+    vbb.reports.r5.spec_score = 100;
+    vbb.reports.r9.items = [priority('PTH_014', ['quality', 'high-impact'], 1_043)];
+    vbb.capped_totals = { PTH_014: 1_043 };
+
+    const html = buildExecutiveReportHtml(buildExecutiveReportModel({ result: vbb, fileName: 'vbb.zip', generatedAt: 'now', locale: 'tr', appVersion: 'dev', engineMode: 'test' }));
+    expect(html).toContain('değerler skor değil');
+    expect(html).toContain('0 <small>bulgu</small>');
+    expect(html).toContain('Bulgu yok');
+    expect(html).toContain('1.043 bulgu');
+    expect(html).toContain('PTH_014');
+    expect(html).toContain('R1 yayın engeli bulunmadı; P0 aksiyonu gerekmiyor.');
+    expect(html).not.toContain('Kritik yapısal ve zorunlu alan sorunlarını giderin.');
+  });
+
   it('renders independent Turkish, English, and Japanese reports', () => {
-    expect(buildExecutiveReportHtml(build('tr'))).toContain('Yönetici Özeti');
-    expect(buildExecutiveReportHtml(build('en'))).toContain('Executive Summary');
-    expect(buildExecutiveReportHtml(build('ja'))).toContain('エグゼクティブサマリー');
+    const tr = buildExecutiveReportHtml(build('tr'));
+    const en = buildExecutiveReportHtml(build('en'));
+    const ja = buildExecutiveReportHtml(build('ja'));
+    expect(tr).toContain('Yönetici Özeti');
+    expect(en).toContain('Executive Summary');
+    expect(ja).toContain('エグゼクティブサマリー');
+    expect(tr).toContain('Feed’e Özel İyileştirme Planı');
+    expect(en).toContain('Feed-Specific Remediation Plan');
+    expect(ja).toContain('フィード固有の改善計画');
   });
 
   it('escapes feed-derived content and contains no external-validator branding', () => {

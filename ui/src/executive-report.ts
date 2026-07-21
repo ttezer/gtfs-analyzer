@@ -28,6 +28,28 @@ export interface ExecutiveFinding {
   effort: number;
 }
 
+export interface ExecutivePlanItem {
+  ruleId: string;
+  title: string;
+  count: number;
+  action: string;
+}
+
+export interface ExecutivePlanPhase {
+  priority: ExecutivePriority;
+  title: string;
+  empty: boolean;
+  summary: string;
+  exitCriterion: string;
+  ruleCount: number;
+  findingCount: number;
+  effort: number;
+  scoreDelta: number;
+  publishScoreDelta: number;
+  items: ExecutivePlanItem[];
+  remainingRuleCount: number;
+}
+
 export interface ExecutiveReportModel {
   locale: Locale;
   fileName: string;
@@ -35,6 +57,7 @@ export interface ExecutiveReportModel {
   appVersion: string;
   engineMode: string;
   publishable: boolean;
+  summary: string;
   scores: {
     overall: number;
     publish: number;
@@ -63,6 +86,7 @@ export interface ExecutiveReportModel {
     byClass: Array<{ code: RuleClass; label: string; count: number }>;
   };
   findings: ExecutiveFinding[];
+  plan: ExecutivePlanPhase[];
   insights: string[];
   topRules: Array<{ ruleId: string; title: string; severity: string; classLabel: string; count: number }>;
   fileStats: Array<{ name: string; rows: number }>;
@@ -78,6 +102,7 @@ interface BuildOptions {
 }
 
 const MAX_FINDINGS = 8;
+const MAX_PLAN_RULES_PER_PHASE = 2;
 const MAX_TOP_RULES = 8;
 const MAX_FILE_STATS = 20;
 
@@ -89,33 +114,39 @@ const REPORT_TEXT = {
     confidential: 'Karar desteği için hazırlanmıştır',
     executiveSummary: 'Yönetici Özeti',
     ready: 'Yayına hazır', blocked: 'Yayın engelli',
-    summaryReady: 'Analiz, yayını engelleyen bir bulgu tespit etmedi. Öncelikli kalite iyileştirmeleri yine de planlanmalıdır.',
-    summaryBlocked: 'Feed, yayın öncesinde giderilmesi gereken engelleyici bulgular içeriyor. Önce P0 maddelerini kapatın ve analizi yeniden çalıştırın.',
-    actualFindings: 'Gerçek bulgu örneği', ruleTypes: 'Etkilenen kural', selectedActions: 'Öncelikli aksiyon',
+    summaryReady: 'Yayın engeli bulunmadı. {findings} bulgu, {rules} kural altında izlenmelidir; Genel Skor {score}/100.',
+    summaryBlocked: '{blockers} yayın engeli tespit edildi. Önce P0 maddelerini kapatın ve analizi yeniden çalıştırın.',
+    actualFindings: 'Toplam bulgu', ruleTypes: 'Etkilenen kural', selectedActions: 'Öncelikli aksiyon',
     scoreNote: 'Skorlar GTFS feed’ini değerlendirir; GTFS Analyzer ürününün performansını veya doğruluğunu puanlamaz.',
     feedProfile: 'Feed Profili ve Skorlar', feedProfileIntro: 'Bu görünüm, feed ölçeğini ve yayın/kalite risklerini tek sayfada özetler.',
     stops: 'Durak', routes: 'Hat', trips: 'Sefer', shapes: 'Shape', activeDays: 'Aktif servis günü', dailyTrips: 'Ort. günlük sefer',
     feedRange: 'Feed geçerlilik aralığı', serviceRange: 'Gerçek servis aralığı', files: 'Dosya',
     publishScore: 'Yayın Skoru', overallScore: 'Genel Skor', spec: 'Spec', interop: 'Interop', quality: 'Quality', analytics: 'Analytics',
     prioritizedFindings: 'Öncelikli Bulgular', prioritizedIntro: 'R1 yayın engelleri ile R9 etki/efor sıralaması birleştirilmiştir. Aynı kural tek aksiyon altında toplanır.',
-    evidence: 'Kanıt', why: 'Neden önemli', action: 'Önerilen aksiyon', affected: 'Etkilenen örnek', effort: 'Efor', scoreImpact: 'Skor etkisi',
+    evidence: 'Kanıt', why: 'Neden önemli', action: 'Önerilen aksiyon', affected: 'Bulgu adedi', effort: 'Efor', scoreImpact: 'Skor etkisi',
     noFindings: 'Önceliklendirilecek bulgu bulunamadı.',
-    diagnosticCoverage: 'Tanısal Kapsam', coverageIntro: 'GTFS Analyzer; spesifikasyon uygunluğu, sistemler arası uyumluluk, veri kalitesi ve analitik kullanılabilirliği birlikte inceler.',
+    diagnosticCoverage: 'Bulgu Sınıfı Dağılımı', coverageIntro: 'Aşağıdaki değerler skor değil, her analiz sınıfındaki gerçek bulgu adetleridir. Sıfır bulgu olumlu sonuçtur.',
+    findingUnit: 'bulgu', noClassFindings: 'Bulgu yok',
     feedInsights: 'Feed’e Özel İçgörüler', noInsight: 'Ek yapısal risk sinyali tespit edilmedi.',
-    remediationPlan: 'İyileştirme Planı', remediationIntro: 'Aksiyonlar bağımlılık ve yayın etkisine göre aşamalandırılmıştır.',
-    phase: 'Aşama', objective: 'Hedef', exit: 'Tamamlanma ölçütü',
-    phase0: 'P0 · Yayın engelleri', phase0Obj: 'Kritik yapısal ve zorunlu alan sorunlarını giderin.', phase0Exit: 'R1 yayın engeli kalmaz; analiz yeniden çalıştırılır.',
-    phase1: 'P1 · Uyumluluk ve yayılım', phase1Obj: 'Çok sayıda kaydı veya tüketiciyi etkileyen sorunları düzeltin.', phase1Exit: 'Yüksek etkili R9 maddeleri kapanır ve örnek veri doğrulanır.',
-    phase2: 'P2 · Kalite geliştirme', phase2Obj: 'Sunum, erişilebilirlik ve analitik kaliteyi iyileştirin.', phase2Exit: 'Kalan bulgular kabul edilir veya sahip/tarih ile planlanır.',
+    remediationPlan: 'Feed’e Özel İyileştirme Planı', remediationIntro: 'Aşamalar bu feed’in gerçek R1 yayın engelleri ve R9 öncelik verilerinden oluşturulmuştur.',
+    phase0: 'P0 · Yayın engelleri', phase1: 'P1 · Yüksek öncelikli iyileştirmeler', phase2: 'P2 · Kalite geliştirme',
+    phaseEmptyP0: 'R1 yayın engeli bulunmadı; P0 aksiyonu gerekmiyor.', phaseEmptyP1: 'P1 düzeyinde öncelikli bulgu bulunmadı.', phaseEmptyP2: 'P2 düzeyinde iyileştirme bulgusu bulunmadı.',
+    phaseMeta: '{rules} kural · {findings} bulgu · toplam efor {effort}',
+    phaseScoreGain: 'Tahmini Genel Skor kazanımı: +{score}', phasePublishGain: 'Tahmini Yayın Skoru kazanımı: +{score}',
+    phaseMore: '+{count} ek kural bu aşamaya dahildir.',
+    phaseExit: 'Tamamlanma ölçütü',
+    phaseExitRules: 'Bu aşamadaki {rules} kural için mevcut {findings} bulgu 0’a iner veya kabul edilen istisna olarak belgelenir; analiz yeniden çalıştırılır.',
     appendix: 'Teknik Ek', appendixIntro: 'Aşağıdaki sayılar gösterim sınırı yerine mümkün olduğunda gerçek kural toplamlarını kullanır.',
-    severityDistribution: 'Önem Dağılımı', classDistribution: 'Analiz Sınıfı Dağılımı', topRules: 'En Yüksek Hacimli Kurallar', fileInventory: 'Dosya Envanteri',
+    severityDistribution: 'Önem Dağılımı', classDistribution: 'Sınıfa Göre Bulgu Dağılımı', topRules: 'En Yüksek Hacimli Kurallar', fileInventory: 'Dosya Envanteri',
     rule: 'Kural', severity: 'Önem', class: 'Sınıf', count: 'Sayı', file: 'Dosya', rows: 'Satır',
     cappedNote: 'Arayüzde gösterilen {displayed} örneğe karşılık gerçek toplam {actual} olarak hesaplandı.',
     offline: 'Bu rapor tarayıcıda, yüklenen feed ve GTFS Analyzer sonuçları kullanılarak yerel olarak oluşturulmuştur; harici bir API gerekmez.',
     unknown: 'Bilinmiyor', notAvailable: 'Mevcut değil',
-    impactP0: 'Yayınlanabilirliği doğrudan engeller ve tüketici sistemlerinde feed’in reddedilmesine yol açabilir.',
-    impactP1: 'Sistemler arası uyumluluğu veya çok sayıda kaydın güvenilir kullanımını etkileyebilir.',
-    impactP2: 'Yolcu deneyimi, bakım kolaylığı veya analitik sonuçların kalitesini düşürebilir.',
+    impactP0: '“{rule}” kuralındaki {count} bulgu R1 yayın kapısını doğrudan etkiler ve tüketici sistemlerinde feed’in reddedilmesine yol açabilir.',
+    impactSpec: '“{rule}” kuralındaki {count} bulgu GTFS spesifikasyonuna uygunluğu etkiler; zorunluluk düzeyi ve yayın etkisi kural bağlamında değerlendirilmelidir.',
+    impactInterop: '“{rule}” kuralındaki {count} bulgu tüketici sistemlerin feed’i tutarlı yorumlamasını ve sistemler arası uyumluluğu etkileyebilir.',
+    impactQuality: '“{rule}” kuralındaki {count} bulgu veri modelinin güvenilirliğini, yolcu deneyimini veya bakım kalitesini düşürebilir; tek başına yayın engeli değildir.',
+    impactAnalytics: '“{rule}” kuralındaki {count} bulgu planlama, performans ölçümü veya diğer analitik çıktıların doğruluğunu etkileyebilir; tek başına yayın engeli değildir.',
     insightRouteTrip: 'Hat sayısı sefer sayısıyla birebir aynı ({count}). Bu, sefer başına ayrı hat üretildiğine işaret edebilir; route modellemesini gözden geçirin.',
     insightNoShapes: '{trips} sefer olmasına rağmen shape bulunmuyor. Harita gösterimi, mesafe ve güzergah tabanlı analizler sınırlı kalabilir.',
     insightNoService: 'Geçerli bir gerçek servis tarih aralığı hesaplanamadı. Takvim ve istisna kayıtlarını doğrulayın.',
@@ -129,33 +160,39 @@ const REPORT_TEXT = {
     confidential: 'Prepared for decision support',
     executiveSummary: 'Executive Summary',
     ready: 'Ready to publish', blocked: 'Publication blocked',
-    summaryReady: 'The analysis found no publication blocker. Prioritized quality improvements should still be planned.',
-    summaryBlocked: 'The feed contains blockers that must be resolved before publication. Close P0 items first and rerun the analysis.',
-    actualFindings: 'Actual finding instances', ruleTypes: 'Affected rules', selectedActions: 'Priority actions',
+    summaryReady: 'No publication blocker was found. {findings} findings across {rules} rules remain to be managed; Overall Score is {score}/100.',
+    summaryBlocked: '{blockers} publication blockers were found. Close P0 items first and rerun the analysis.',
+    actualFindings: 'Total findings', ruleTypes: 'Affected rules', selectedActions: 'Priority actions',
     scoreNote: 'Scores assess the GTFS feed; they do not rate the performance or accuracy of GTFS Analyzer.',
     feedProfile: 'Feed Profile and Scores', feedProfileIntro: 'This view summarizes feed scale and publication/quality risk on one page.',
     stops: 'Stops', routes: 'Routes', trips: 'Trips', shapes: 'Shapes', activeDays: 'Active service days', dailyTrips: 'Avg. daily trips',
     feedRange: 'Feed validity range', serviceRange: 'Actual service range', files: 'Files',
     publishScore: 'Publish Score', overallScore: 'Overall Score', spec: 'Spec', interop: 'Interop', quality: 'Quality', analytics: 'Analytics',
     prioritizedFindings: 'Prioritized Findings', prioritizedIntro: 'R1 publication blockers are combined with R9 impact/effort ranking. Each rule is consolidated into one action.',
-    evidence: 'Evidence', why: 'Why it matters', action: 'Recommended action', affected: 'Affected instances', effort: 'Effort', scoreImpact: 'Score impact',
+    evidence: 'Evidence', why: 'Why it matters', action: 'Recommended action', affected: 'Finding count', effort: 'Effort', scoreImpact: 'Score impact',
     noFindings: 'No findings require prioritization.',
-    diagnosticCoverage: 'Diagnostic Coverage', coverageIntro: 'GTFS Analyzer evaluates specification compliance, interoperability, data quality, and analytical usability together.',
+    diagnosticCoverage: 'Findings by Analysis Class', coverageIntro: 'The values below are finding counts, not scores. Zero findings is a positive result.',
+    findingUnit: 'findings', noClassFindings: 'No findings',
     feedInsights: 'Feed-Specific Insights', noInsight: 'No additional structural risk signal was identified.',
-    remediationPlan: 'Remediation Plan', remediationIntro: 'Actions are phased by dependency and publication impact.',
-    phase: 'Phase', objective: 'Objective', exit: 'Exit criterion',
-    phase0: 'P0 · Publication blockers', phase0Obj: 'Resolve critical structural and required-field issues.', phase0Exit: 'No R1 blocker remains; rerun the analysis.',
-    phase1: 'P1 · Interoperability and propagation', phase1Obj: 'Fix issues affecting many records or consuming systems.', phase1Exit: 'High-impact R9 items are closed and sample data is verified.',
-    phase2: 'P2 · Quality improvement', phase2Obj: 'Improve presentation, accessibility, and analytical quality.', phase2Exit: 'Remaining findings are accepted or assigned an owner and date.',
+    remediationPlan: 'Feed-Specific Remediation Plan', remediationIntro: 'Phases are generated from this feed’s actual R1 publication blockers and R9 priority data.',
+    phase0: 'P0 · Publication blockers', phase1: 'P1 · High-priority improvements', phase2: 'P2 · Quality improvement',
+    phaseEmptyP0: 'No R1 publication blocker was found; no P0 action is required.', phaseEmptyP1: 'No P1 priority finding was found.', phaseEmptyP2: 'No P2 improvement finding was found.',
+    phaseMeta: '{rules} rules · {findings} findings · total effort {effort}',
+    phaseScoreGain: 'Estimated Overall Score gain: +{score}', phasePublishGain: 'Estimated Publish Score gain: +{score}',
+    phaseMore: '+{count} additional rules are included in this phase.',
+    phaseExit: 'Exit criterion',
+    phaseExitRules: 'The current {findings} findings across {rules} rules reach zero or are documented as accepted exceptions; rerun the analysis.',
     appendix: 'Technical Appendix', appendixIntro: 'The counts below use actual rule totals, rather than display caps, whenever available.',
-    severityDistribution: 'Severity Distribution', classDistribution: 'Analysis Class Distribution', topRules: 'Highest-Volume Rules', fileInventory: 'File Inventory',
+    severityDistribution: 'Severity Distribution', classDistribution: 'Finding Distribution by Class', topRules: 'Highest-Volume Rules', fileInventory: 'File Inventory',
     rule: 'Rule', severity: 'Severity', class: 'Class', count: 'Count', file: 'File', rows: 'Rows',
     cappedNote: 'The actual total is {actual}, compared with {displayed} instances retained for display.',
     offline: 'This report was generated locally in the browser from the uploaded feed and GTFS Analyzer results; no external API is required.',
     unknown: 'Unknown', notAvailable: 'Not available',
-    impactP0: 'Directly blocks publication and may cause consuming systems to reject the feed.',
-    impactP1: 'May affect interoperability or the reliable use of a large number of records.',
-    impactP2: 'May reduce rider experience, maintainability, or the quality of analytical outputs.',
+    impactP0: 'The {count} “{rule}” findings directly affect the R1 publication gate and may cause consuming systems to reject the feed.',
+    impactSpec: 'The {count} “{rule}” findings affect GTFS specification compliance; the requirement level and publication impact must be evaluated in the rule context.',
+    impactInterop: 'The {count} “{rule}” findings may affect consistent interpretation by consuming systems and cross-system interoperability.',
+    impactQuality: 'The {count} “{rule}” findings may reduce data-model reliability, rider experience, or maintainability; they are not publication blockers by themselves.',
+    impactAnalytics: 'The {count} “{rule}” findings may affect the accuracy of planning, performance measurement, or other analytical outputs; they are not publication blockers by themselves.',
     insightRouteTrip: 'Route count exactly matches trip count ({count}). This may indicate one route per trip; review the route model.',
     insightNoShapes: 'There are {trips} trips but no shapes. Map display, distance, and route-based analysis may remain limited.',
     insightNoService: 'No valid actual service date range could be calculated. Verify calendar and exception records.',
@@ -169,33 +206,39 @@ const REPORT_TEXT = {
     confidential: '意思決定支援用',
     executiveSummary: 'エグゼクティブサマリー',
     ready: '公開可能', blocked: '公開不可',
-    summaryReady: '解析では公開を妨げる問題は検出されませんでした。優先度の高い品質改善は引き続き計画してください。',
-    summaryBlocked: '公開前に解決すべきブロッカーがあります。まずP0項目を解消し、解析を再実行してください。',
-    actualFindings: '実際の指摘件数', ruleTypes: '該当ルール', selectedActions: '優先アクション',
+    summaryReady: '公開ブロッカーはありません。{rules}ルール、{findings}件の指摘を管理する必要があり、総合スコアは{score}/100です。',
+    summaryBlocked: '{blockers}件の公開ブロッカーがあります。まずP0項目を解消し、解析を再実行してください。',
+    actualFindings: '指摘総数', ruleTypes: '該当ルール', selectedActions: '優先アクション',
     scoreNote: 'スコアはGTFSフィードを評価するものであり、GTFS Analyzer自体の性能や精度を評価するものではありません。',
     feedProfile: 'フィード概要とスコア', feedProfileIntro: 'フィード規模と公開・品質リスクを1ページにまとめます。',
     stops: '停留所', routes: '路線', trips: '便', shapes: 'シェープ', activeDays: '運行日数', dailyTrips: '1日平均便数',
     feedRange: 'フィード有効期間', serviceRange: '実サービス期間', files: 'ファイル',
     publishScore: '公開スコア', overallScore: '総合スコア', spec: '仕様', interop: '相互運用性', quality: '品質', analytics: '分析',
     prioritizedFindings: '優先度付き指摘', prioritizedIntro: 'R1の公開ブロッカーとR9の影響度・工数順位を統合し、同一ルールを1つのアクションにまとめています。',
-    evidence: '根拠', why: '重要な理由', action: '推奨アクション', affected: '影響件数', effort: '工数', scoreImpact: 'スコア影響',
+    evidence: '根拠', why: '重要な理由', action: '推奨アクション', affected: '指摘件数', effort: '工数', scoreImpact: 'スコア影響',
     noFindings: '優先対応が必要な指摘はありません。',
-    diagnosticCoverage: '診断範囲', coverageIntro: 'GTFS Analyzerは、仕様準拠、相互運用性、データ品質、分析での利用可能性を総合的に確認します。',
+    diagnosticCoverage: '解析クラス別の指摘分布', coverageIntro: '以下の値はスコアではなく、解析クラスごとの実際の指摘件数です。0件は良好な結果です。',
+    findingUnit: '件の指摘', noClassFindings: '指摘なし',
     feedInsights: 'フィード固有の洞察', noInsight: '追加の構造的リスクシグナルは検出されませんでした。',
-    remediationPlan: '改善計画', remediationIntro: '依存関係と公開への影響に基づいて段階化しています。',
-    phase: 'フェーズ', objective: '目的', exit: '完了条件',
-    phase0: 'P0 · 公開ブロッカー', phase0Obj: '重大な構造問題と必須フィールド問題を解決します。', phase0Exit: 'R1ブロッカーがなくなった状態で解析を再実行します。',
-    phase1: 'P1 · 相互運用性と波及', phase1Obj: '多数のレコードや利用システムに影響する問題を修正します。', phase1Exit: '影響度の高いR9項目を解消し、サンプルデータを検証します。',
-    phase2: 'P2 · 品質改善', phase2Obj: '表示、アクセシビリティ、分析品質を改善します。', phase2Exit: '残りの指摘を受容するか、担当者と期限を設定します。',
+    remediationPlan: 'フィード固有の改善計画', remediationIntro: '各フェーズは、このフィードの実際のR1公開ブロッカーとR9優先度データから生成されます。',
+    phase0: 'P0 · 公開ブロッカー', phase1: 'P1 · 優先度の高い改善', phase2: 'P2 · 品質改善',
+    phaseEmptyP0: 'R1公開ブロッカーはなく、P0対応は不要です。', phaseEmptyP1: 'P1優先度の指摘はありません。', phaseEmptyP2: 'P2改善の指摘はありません。',
+    phaseMeta: '{rules}ルール · {findings}件の指摘 · 合計工数 {effort}',
+    phaseScoreGain: '総合スコアの推定改善: +{score}', phasePublishGain: '公開スコアの推定改善: +{score}',
+    phaseMore: 'このフェーズには他に{count}ルールが含まれます。',
+    phaseExit: '完了条件',
+    phaseExitRules: 'このフェーズの{rules}ルール、{findings}件の指摘を0件にするか、受容済み例外として記録し、解析を再実行します。',
     appendix: '技術付録', appendixIntro: '以下は可能な限り表示上限ではなく、ルールごとの実件数を使用しています。',
-    severityDistribution: '重要度分布', classDistribution: '解析クラス分布', topRules: '件数の多いルール', fileInventory: 'ファイル一覧',
+    severityDistribution: '重要度分布', classDistribution: 'クラス別の指摘分布', topRules: '件数の多いルール', fileInventory: 'ファイル一覧',
     rule: 'ルール', severity: '重要度', class: 'クラス', count: '件数', file: 'ファイル', rows: '行数',
     cappedNote: '表示用に保持された{displayed}件に対し、実際の合計は{actual}件です。',
     offline: 'このレポートはアップロードされたフィードとGTFS Analyzerの結果からブラウザ内でローカル生成され、外部APIを必要としません。',
     unknown: '不明', notAvailable: '該当なし',
-    impactP0: '公開を直接妨げ、利用システムでフィードが拒否される可能性があります。',
-    impactP1: '相互運用性または多数のレコードの信頼できる利用に影響する可能性があります。',
-    impactP2: '利用者体験、保守性、分析結果の品質を低下させる可能性があります。',
+    impactP0: '「{rule}」の{count}件の指摘はR1公開ゲートに直接影響し、利用システムでフィードが拒否される可能性があります。',
+    impactSpec: '「{rule}」の{count}件の指摘はGTFS仕様への準拠に影響します。要件レベルと公開への影響はルールの文脈で評価する必要があります。',
+    impactInterop: '「{rule}」の{count}件の指摘は、利用システムによる一貫した解釈やシステム間の相互運用性に影響する可能性があります。',
+    impactQuality: '「{rule}」の{count}件の指摘は、データモデルの信頼性、利用者体験、保守性を低下させる可能性がありますが、単独では公開ブロッカーではありません。',
+    impactAnalytics: '「{rule}」の{count}件の指摘は、計画、性能測定、その他の分析結果の正確性に影響する可能性がありますが、単独では公開ブロッカーではありません。',
     insightRouteTrip: '路線数と便数が完全に一致しています（{count}）。便ごとに路線を作成している可能性があるため、路線モデルを確認してください。',
     insightNoShapes: '{trips}便ありますがシェープがありません。地図表示、距離、経路ベースの解析が制限される可能性があります。',
     insightNoService: '有効な実サービス期間を算出できませんでした。calendarと例外レコードを確認してください。',
@@ -226,10 +269,18 @@ function dateRange(start: number | null, end: number | null, missing: string): s
 
 function priorityFor(item: R9Item | undefined, blocker: boolean, notice: Notice): ExecutivePriority {
   if (blocker) return 'P0';
-  if (notice.severity === 'CRITICAL') return 'P0';
-  if (notice.severity === 'HIGH' || item?.labels.some(label =>
+  if (notice.severity === 'CRITICAL' || notice.severity === 'HIGH' || (item?.pub_score_delta ?? 0) > 0 || item?.labels.some(label =>
     label === 'interop' || label === 'propagation' || label === 'widespread' || label === 'high-impact')) return 'P1';
   return 'P2';
+}
+
+function impactFor(copy: ReportText, priority: ExecutivePriority, ruleClass: RuleClass, ruleTitle: string, count: string): string {
+  const template = priority === 'P0' ? copy.impactP0
+    : ruleClass === 'SPEC' ? copy.impactSpec
+      : ruleClass === 'INTEROP' ? copy.impactInterop
+        : ruleClass === 'QUALITY' ? copy.impactQuality
+          : copy.impactAnalytics;
+  return replace(template, { rule: ruleTitle, count });
 }
 
 function priorityRank(priority: ExecutivePriority): number {
@@ -240,6 +291,7 @@ export function buildExecutiveReportModel(options: BuildOptions): ExecutiveRepor
   const { result, fileName, generatedAt, locale, appVersion, engineMode } = options;
   const copy = REPORT_TEXT[locale];
   const number = new Intl.NumberFormat(INTL_LOCALE[locale]);
+  const decimal = new Intl.NumberFormat(INTL_LOCALE[locale], { minimumFractionDigits: 1, maximumFractionDigits: 1 });
   const noticesById = new Map(result.notices.map(notice => [notice.id, notice]));
   const noticeByRule = new Map<string, Notice>();
   for (const notice of result.notices) if (!noticeByRule.has(notice.rule_id)) noticeByRule.set(notice.rule_id, notice);
@@ -268,23 +320,25 @@ export function buildExecutiveReportModel(options: BuildOptions): ExecutiveRepor
   for (const item of result.reports.r9.items) if (!orderedRules.includes(item.rule_id)) orderedRules.push(item.rule_id);
   for (const notice of result.notices) if (!orderedRules.includes(notice.rule_id)) orderedRules.push(notice.rule_id);
 
-  const findings = orderedRules.flatMap((ruleId): ExecutiveFinding[] => {
+  const allFindings = orderedRules.flatMap((ruleId): ExecutiveFinding[] => {
     const notice = noticeByRule.get(ruleId);
     if (!notice) return [];
     const item = r9ByRule.get(ruleId);
     const priority = priorityFor(item, blockerRules.has(ruleId) || blockerIds.has(notice.id), notice);
     const action = tRemediationForLocale(locale, notice) || copy.notAvailable;
+    const title = tForLocale(locale, `rule.${ruleId}`);
+    const actualCount = actualByRule.get(ruleId) ?? 1;
     return [{
       priority,
       ruleId,
-      title: tForLocale(locale, `rule.${ruleId}`),
+      title,
       severity: notice.severity,
       severityLabel: severityForLocale(locale, notice.severity),
       ruleClass: notice.rule_class,
       classLabel: ruleClassForLocale(locale, notice.rule_class),
-      actualCount: actualByRule.get(ruleId) ?? 1,
+      actualCount,
       evidence: tMsgForLocale(locale, notice),
-      impact: priority === 'P0' ? copy.impactP0 : priority === 'P1' ? copy.impactP1 : copy.impactP2,
+      impact: impactFor(copy, priority, notice.rule_class, title, number.format(actualCount)),
       action,
       scoreDelta: item?.score_delta ?? 0,
       publishScoreDelta: item?.pub_score_delta ?? 0,
@@ -295,7 +349,8 @@ export function buildExecutiveReportModel(options: BuildOptions): ExecutiveRepor
     if (priority !== 0) return priority;
     const r9 = (r9ByRule.get(b.ruleId)?.priority_score ?? 0) - (r9ByRule.get(a.ruleId)?.priority_score ?? 0);
     return r9 !== 0 ? r9 : b.actualCount - a.actualCount || a.ruleId.localeCompare(b.ruleId);
-  }).slice(0, MAX_FINDINGS);
+  });
+  const findings = allFindings.slice(0, MAX_FINDINGS);
 
   const insights: string[] = [];
   if (result.metrics.route_count > 1000 && result.metrics.route_count === result.metrics.trip_count) {
@@ -322,9 +377,66 @@ export function buildExecutiveReportModel(options: BuildOptions): ExecutiveRepor
     })
     .slice(0, MAX_TOP_RULES);
 
+  const phaseTitle = (priority: ExecutivePriority): string =>
+    priority === 'P0' ? copy.phase0 : priority === 'P1' ? copy.phase1 : copy.phase2;
+  const emptyPhaseText = (priority: ExecutivePriority): string =>
+    priority === 'P0' ? copy.phaseEmptyP0 : priority === 'P1' ? copy.phaseEmptyP1 : copy.phaseEmptyP2;
+  let remainingOverallGain = Math.max(0, 100 - result.reports.r5.score);
+  let remainingPublishGain = Math.max(0, 100 - result.reports.r5.pub_score);
+  const plan = (['P0', 'P1', 'P2'] as ExecutivePriority[]).map((priority): ExecutivePlanPhase => {
+    const phaseFindings = allFindings.filter(finding => finding.priority === priority);
+    const findingCount = phaseFindings.reduce((sum, finding) => sum + finding.actualCount, 0);
+    const effort = phaseFindings.reduce((sum, finding) => sum + finding.effort, 0);
+    const scoreDelta = Math.min(remainingOverallGain, phaseFindings.reduce((sum, finding) => sum + finding.scoreDelta, 0));
+    const publishScoreDelta = Math.min(remainingPublishGain, phaseFindings.reduce((sum, finding) => sum + finding.publishScoreDelta, 0));
+    remainingOverallGain -= scoreDelta;
+    remainingPublishGain -= publishScoreDelta;
+    const empty = phaseFindings.length === 0;
+    const summaryParts = empty ? [emptyPhaseText(priority)] : [replace(copy.phaseMeta, {
+      rules: number.format(phaseFindings.length),
+      findings: number.format(findingCount),
+      effort: decimal.format(effort),
+    })];
+    if (!empty && scoreDelta > 0) summaryParts.push(replace(copy.phaseScoreGain, { score: decimal.format(scoreDelta) }));
+    if (!empty && publishScoreDelta > 0) summaryParts.push(replace(copy.phasePublishGain, { score: decimal.format(publishScoreDelta) }));
+    const items = phaseFindings.slice(0, MAX_PLAN_RULES_PER_PHASE).map(finding => ({
+      ruleId: finding.ruleId,
+      title: finding.title,
+      count: finding.actualCount,
+      action: finding.action,
+    }));
+    return {
+      priority,
+      title: phaseTitle(priority),
+      empty,
+      summary: summaryParts.join(' · '),
+      exitCriterion: empty ? '' : replace(copy.phaseExitRules, {
+        rules: number.format(phaseFindings.length),
+        findings: number.format(findingCount),
+      }),
+      ruleCount: phaseFindings.length,
+      findingCount,
+      effort,
+      scoreDelta,
+      publishScoreDelta,
+      items,
+      remainingRuleCount: Math.max(0, phaseFindings.length - items.length),
+    };
+  });
+  const blockerFindingCount = allFindings
+    .filter(finding => finding.priority === 'P0')
+    .reduce((sum, finding) => sum + finding.actualCount, 0);
+  const summary = replace(result.reports.r1.publishable ? copy.summaryReady : copy.summaryBlocked, {
+    findings: number.format(actualTotal),
+    rules: number.format(actualByRule.size),
+    score: decimal.format(result.reports.r5.score),
+    blockers: number.format(blockerFindingCount),
+  });
+
   return {
     locale, fileName, generatedAt, appVersion, engineMode,
     publishable: result.reports.r1.publishable,
+    summary,
     scores: {
       overall: result.reports.r5.score,
       publish: result.reports.r5.pub_score,
@@ -353,6 +465,7 @@ export function buildExecutiveReportModel(options: BuildOptions): ExecutiveRepor
       byClass: CLASSES.map(code => ({ code, label: ruleClassForLocale(locale, code), count: actualByClass.get(code) ?? 0 })),
     },
     findings,
+    plan,
     insights: insights.slice(0, 4),
     topRules,
     fileStats: [...result.metrics.file_stats]
@@ -393,6 +506,15 @@ export function buildExecutiveReportHtml(model: ExecutiveReportModel): string {
       </div>
       <footer>${e(copy.effort)}: <strong>${d(finding.effort)}</strong><span>·</span>${e(copy.scoreImpact)}: <strong>+${d(finding.scoreDelta)}</strong>${finding.publishScoreDelta > 0 ? ` <span>·</span> ${e(copy.publishScore)}: <strong>+${d(finding.publishScoreDelta)}</strong>` : ''}</footer>
     </article>`);
+  const planCards = model.plan.map(phase => `
+    <article class="phase-card phase-${phase.priority.toLowerCase()}${phase.empty ? ' phase-empty' : ''}">
+      <header><strong>${e(phase.title)}</strong>${phase.empty ? `<b>${e(copy.noClassFindings)}</b>` : ''}</header>
+      <p class="phase-summary">${e(phase.summary)}</p>
+      ${phase.items.length ? `<div class="phase-rules">${phase.items.map(item => `
+        <section><div><code>${e(item.ruleId)}</code><strong>${e(item.title)}</strong><b>${n(item.count)} ${e(copy.findingUnit)}</b></div><p>${e(item.action)}</p></section>`).join('')}</div>` : ''}
+      ${phase.remainingRuleCount > 0 ? `<p class="phase-more">${e(replace(copy.phaseMore, { count: n(phase.remainingRuleCount) }))}</p>` : ''}
+      ${phase.exitCriterion ? `<footer><span>${e(copy.phaseExit)}</span><p>${e(phase.exitCriterion)}</p></footer>` : ''}
+    </article>`).join('');
   const distribution = (rows: Array<{ code: string; label: string; count: number }>): string => rows.map(row => {
     const pct = model.totals.actual > 0 ? Math.max(1, row.count / model.totals.actual * 100) : 0;
     return `<div class="bar-row bar-${e(row.code.toLowerCase())}"><span>${e(row.label)}</span><div><i style="width:${pct.toFixed(2)}%"></i></div><strong>${n(row.count)}</strong></div>`;
@@ -500,7 +622,10 @@ export function buildExecutiveReportHtml(model: ExecutiveReportModel): string {
     .coverage-card:nth-child(3) { border-left-color: var(--green); background: #f1faf5; }
     .coverage-card:nth-child(4) { border-left-color: var(--violet); background: #f7f4fb; }
     .coverage-card strong { display: block; font-size: 16pt; }
+    .coverage-card strong small { color: var(--muted); font-size: 8pt; font-weight: 700; }
     .coverage-card span { color: var(--muted); font-size: 8.5pt; }
+    .coverage-card > b { display: inline-block; margin-top: 2mm; padding: .5mm 2mm; border-radius: 99px; background: #dff5e9; color: #16734f; font-size: 7pt; }
+    .coverage-card.coverage-clean { border-left-color: var(--green); background: #effaf5; }
     .insights { margin-top: 7mm; }
     .insights li { margin-bottom: 3mm; padding-left: 2mm; }
     .plan-cards { display: grid; grid-template-columns: 1fr; gap: 3mm; margin-top: 5mm; }
@@ -508,6 +633,20 @@ export function buildExecutiveReportHtml(model: ExecutiveReportModel): string {
     .phase-card strong { display: block; margin-bottom: 2mm; font-size: 11pt; }
     .phase-card span { display: block; color: var(--muted); font-size: 7pt; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
     .phase-card p { margin: 1mm 0 2mm; font-size: 8.5pt; }
+    .phase-card > header { display: flex; align-items: center; justify-content: space-between; gap: 4mm; }
+    .phase-card > header > b { padding: .5mm 2mm; border-radius: 99px; background: #dff5e9; color: #16734f; font-size: 7pt; }
+    .phase-card .phase-summary { color: #445268; }
+    .phase-rules { display: grid; grid-template-columns: 1fr 1fr; gap: 2mm; margin: 2mm 0; }
+    .phase-rules section { padding: 2.5mm; border: 1px solid #dfe6ed; border-radius: 2.5mm; background: #fff; }
+    .phase-rules section > div { display: grid; grid-template-columns: auto 1fr auto; align-items: start; gap: 2mm; }
+    .phase-rules code { color: var(--blue); font-size: 7.5pt; font-weight: 900; }
+    .phase-rules strong { display: inline; margin: 0; font-size: 8pt; }
+    .phase-rules b { color: var(--blue); font-size: 7.5pt; white-space: nowrap; }
+    .phase-rules p { margin: 1.5mm 0 0; color: #445268; font-size: 7.5pt; }
+    .phase-card > footer { margin-top: 2mm; padding-top: 2mm; border-top: 1px solid #dfe6ed; }
+    .phase-card > footer span { color: var(--blue); }
+    .phase-card .phase-more { color: var(--muted); font-size: 7.5pt; }
+    .phase-card.phase-empty { border-left-color: var(--green); background: #effaf5; }
     .phase-p0 { border-left-color: var(--red); background: #fff5f5; }
     .phase-p1 { border-left-color: var(--amber); background: #fffaed; }
     .phase-p2 { border-left-color: var(--blue); background: #f2f8fb; }
@@ -552,13 +691,13 @@ export function buildExecutiveReportHtml(model: ExecutiveReportModel): string {
       <div><span>${e(copy.version)}</span><strong>${e(model.appVersion)}</strong></div>
       <div><span>${e(copy.engine)}</span><strong>${e(model.engineMode || copy.unknown)}</strong></div>
     </div>
-    <div class="status-panel"><strong>${e(model.publishable ? copy.ready : copy.blocked)}</strong><p>${e(model.publishable ? copy.summaryReady : copy.summaryBlocked)}</p></div>
+    <div class="status-panel"><strong>${e(model.publishable ? copy.ready : copy.blocked)}</strong><p>${e(model.summary)}</p></div>
     <div class="page-number">01</div>
   </section>
 
   <section class="page">
     <div class="section-head"><div><p class="eyebrow">01</p><h2>${e(copy.executiveSummary)}</h2></div><div class="brand"><span class="brand-mark">GA</span>GTFS Analyzer</div></div>
-    <div class="status-panel" style="margin-top:0"><strong>${e(model.publishable ? copy.ready : copy.blocked)}</strong><p>${e(model.publishable ? copy.summaryReady : copy.summaryBlocked)}</p></div>
+    <div class="status-panel" style="margin-top:0"><strong>${e(model.publishable ? copy.ready : copy.blocked)}</strong><p>${e(model.summary)}</p></div>
     <div class="kpi-grid">
       <div class="kpi"><strong>${n(model.totals.actual)}</strong><span>${e(copy.actualFindings)}</span></div>
       <div class="kpi"><strong>${n(model.totals.ruleTypes)}</strong><span>${e(copy.ruleTypes)}</span></div>
@@ -587,13 +726,9 @@ export function buildExecutiveReportHtml(model: ExecutiveReportModel): string {
 
   <section class="page">
     <div class="section-head"><div><p class="eyebrow">04</p><h2>${e(copy.diagnosticCoverage)}</h2><p class="muted">${e(copy.coverageIntro)}</p></div><div class="brand"><span class="brand-mark">GA</span>GTFS Analyzer</div></div>
-    <div class="coverage">${model.totals.byClass.map(row => `<div class="coverage-card"><strong>${n(row.count)}</strong><span>${e(row.label)}</span></div>`).join('')}</div>
+    <div class="coverage">${model.totals.byClass.map(row => `<div class="coverage-card${row.count === 0 ? ' coverage-clean' : ''}"><strong>${n(row.count)} <small>${e(copy.findingUnit)}</small></strong><span>${e(row.label)}</span>${row.count === 0 ? `<b>${e(copy.noClassFindings)}</b>` : ''}</div>`).join('')}</div>
     <h2 style="margin-top:10mm">${e(copy.remediationPlan)}</h2><p class="muted">${e(copy.remediationIntro)}</p>
-    <div class="plan-cards">
-      <article class="phase-card phase-p0"><strong>${e(copy.phase0)}</strong><span>${e(copy.objective)}</span><p>${e(copy.phase0Obj)}</p><span>${e(copy.exit)}</span><p>${e(copy.phase0Exit)}</p></article>
-      <article class="phase-card phase-p1"><strong>${e(copy.phase1)}</strong><span>${e(copy.objective)}</span><p>${e(copy.phase1Obj)}</p><span>${e(copy.exit)}</span><p>${e(copy.phase1Exit)}</p></article>
-      <article class="phase-card phase-p2"><strong>${e(copy.phase2)}</strong><span>${e(copy.objective)}</span><p>${e(copy.phase2Obj)}</p><span>${e(copy.exit)}</span><p>${e(copy.phase2Exit)}</p></article>
-    </div>
+    <div class="plan-cards">${planCards}</div>
     <div class="page-number">${pageNumber(coveragePage)}</div>
   </section>
 
