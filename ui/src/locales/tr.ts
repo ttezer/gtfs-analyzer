@@ -801,7 +801,6 @@ const tr = {
     'SHP_008': 'shape_pt_sequence yineleniyor',
     'SHP_009': 'Güzergah şekli kendisiyle kesişiyor',
     'SHP_010': 'Tekrarlanan shape noktası (ardışık özdeş koordinat)',
-    'SHP_011': 'Güzergah şeklinde büyük boşluk',
     'SHP_012': 'Güzergah şekli sefer duraklarından çok uzak',
     'SHP_014': 'İlk veya son durak güzergah ucundan uzakta',
     'SHP_015': 'Güzergah şekli istatistiksel olarak çok az nokta',

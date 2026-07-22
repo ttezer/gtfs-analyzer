@@ -791,7 +791,6 @@ const en: LocaleShape = {
     'SHP_008': "Shape '{entity_id}': duplicate shape_pt_sequence value.",
     'SHP_009': "Shape '{entity_id}' self-intersects.",
     'SHP_010': "Shape '{entity_id}': consecutive identical coordinates.",
-    'SHP_011': "Shape '{entity_id}': large gap between consecutive points.",
     'SHP_012': "Shape '{entity_id}' is too far from the trip stops.",
     'SHP_014': "Shape '{entity_id}': first or last stop is far from the shape endpoint.",
     'SHP_015': "Shape '{entity_id}' has statistically too few points.",
@@ -1197,7 +1196,6 @@ const en: LocaleShape = {
     'RTS_027': 'Ignore if the long name is shared intentionally; otherwise give each route a distinguishing name.',
     // SHP
     'SHP_009': 'Fix intersecting segments in the route shape.',
-    'SHP_011': 'Add intermediate shape points to close the large gap.',
     'SHP_012': 'Move shapes.txt points closer to stop locations.',
     'SHP_014': 'No action is needed if this endpoint extension is intentional; otherwise verify the shape endpoint and terminal stop.',
     'SHP_015': 'Add more points to the route shape.',
@@ -1959,7 +1957,6 @@ const en: LocaleShape = {
     'SHP_008': 'Duplicate shape_pt_sequence',
     'SHP_009': 'Shape self-intersects',
     'SHP_010': 'Repeated shape point (consecutive identical coordinates)',
-    'SHP_011': 'Large gap in shape',
     'SHP_012': 'Shape too far from trip stops',
     'SHP_014': 'First or last stop far from shape endpoint',
     'SHP_015': 'Shape has statistically too few points',

@@ -1776,8 +1776,16 @@ fn check_geo_analytics(
     // GEO_007: aynı — GEO_006'dan biraz farklı ciddiyette ama aynı kontrol
     let _tg6 = Timer::start("K6::geo::geo_006");
     let max_jump_km = config.max_shape_jump_km;
+    // GEO_007 aynı segmentleri 3× eşikle tarıyor. Eskiden iki koşul birbirini
+    // dışlamıyordu → 3× üstü bir atlama HEM GEO_006 HEM GEO_007 üretiyor, aynı segment
+    // iki kez raporlanıp R5 skorunda iki kez sayılıyordu. Artık katmanlı: bu aralık
+    // GEO_006'nın, üstü GEO_007'nin.
+    let severe_km = max_jump_km * 3.0;
     for (shape_id, seg) in &derived.shape_geometry.shapes {
         for (i, &dist) in seg.segment_distances_km.iter().enumerate() {
+            if dist > severe_km {
+                continue; // → GEO_007
+            }
             if dist > max_jump_km {
                 notices.push(k6_notice(
                     ctr,
@@ -3884,38 +3892,12 @@ fn check_remaining_analytics(
     };
     drop(_tb);
 
-    // ── SHP_011: ardışık shape noktaları arası büyük atlama ───────────────────
-    {
-        let _t11 = Timer::start("K6::rem::shp_011");
-        let threshold_km = config.max_shape_jump_km;
-        let mut shp011_fired: FxHashSet<&str> = FxHashSet::default();
-        for (shape_id, seg) in &derived.shape_geometry.shapes {
-            if shp011_fired.contains(shape_id.as_str()) { continue; }
-            for &d in &seg.segment_distances_km {
-                if d > threshold_km {
-                    shp011_fired.insert(shape_id.as_str());
-                    notices.push(k6_notice(
-                        ctr,
-                        "SHP_011",
-                        EntityType::Shape,
-                        Some(shape_id.clone()),
-                        Some(shape_id.clone()),
-                        "shapes.txt",
-                        None,
-                        None,
-                        Some(format!("{d:.2}km")),
-                        Some(format!("≤ {threshold_km:.1}km")),
-                        format!(
-                            "'{}' güzergah şeklinde ardışık iki nokta arası {d:.2} km — eşik {threshold_km:.1} km aşıldı.",
-                            shape_id
-                        ),
-                        "Güzergah şekline ara noktalar ekleyerek büyük atlama noktasını kapatın.",
-                    ));
-                    break;
-                }
-            }
-        }
-    }
+    // SHP_011 KALDIRILDI (2026-07-22): GEO_006 ile aynı veriyi (segment_distances_km),
+    // aynı eşikle (config.max_shape_jump_km) tarıyordu. GEO_006 dedup_level=Entity +
+    // scope=shape_id olduğundan K7 onu zaten shape başına tek notice'a indiriyor —
+    // SHP_011'in "shape başına özet" rolü diye bir şey yoktu, iki kural dedup sonrası
+    // birebir aynı çıktıyı veriyordu. İki kuralın kartlarındaki "karışan komşular"
+    // tabloları da birbirini anmıyordu: örtüşme belgelenmiş bir tasarım değil, kazaydı.
 
     // ── SHP_023: aynı dist_traveled ve koordinatlara sahip ardışık iki shape noktası ─
     // (equal_shape_distance_same_coordinates)
@@ -9255,7 +9237,7 @@ mod tests {
     fn severe_shape_jump_produces_geo_007() {
         use crate::k5_derived::{ShapeGeometry, ShapeSegments};
         let mut derived = DerivedData::default();
-        // max_shape_jump_km default = 5.0 → severe = 15.0 → 50 km segment tetikler
+        // max_shape_jump_km default = 10.0 → severe = 30.0 → 50 km segment tetikler
         derived.shape_geometry = ShapeGeometry {
             shapes: [("S1".to_string(), ShapeSegments {
                 segment_distances_km: vec![50.0],
@@ -9266,6 +9248,55 @@ mod tests {
         let records = crate::k2::EntityRecords::default();
         let result = analyze(&records, &derived, &default_config(), 20260514);
         assert!(result.notices.iter().any(|n| n.rule_id == "GEO_007"), "GEO_007 olmalı");
+    }
+
+    /// 3× eşiği aşan segment YALNIZ GEO_007 üretmeli.
+    ///
+    /// Eskiden iki koşul birbirini dışlamıyordu: aynı segment hem GEO_006 hem GEO_007
+    /// üretiyor, kullanıcı aynı atlamayı iki kez görüyor ve R5 skorunda iki kez
+    /// sayılıyordu. SHP_011 de aynı eşikle üçüncü kez raporluyordu (kaldırıldı).
+    #[test]
+    fn severe_shape_jump_produces_geo_007_only_not_geo_006() {
+        use crate::k5_derived::{ShapeGeometry, ShapeSegments};
+        let mut derived = DerivedData::default();
+        // default max_shape_jump_km = 10.0 → severe = 30.0; 50 km ikisinin de üstünde
+        derived.shape_geometry = ShapeGeometry {
+            shapes: [("S1".to_string(), ShapeSegments {
+                segment_distances_km: vec![50.0],
+                total_length_km: 50.0,
+                bbox: (41.0, 41.5, 29.0, 29.5),
+            })].into_iter().collect(),
+        };
+        let records = crate::k2::EntityRecords::default();
+        let result = analyze(&records, &derived, &default_config(), 20260514);
+        assert!(result.notices.iter().any(|n| n.rule_id == "GEO_007"), "GEO_007 olmalı");
+        assert!(
+            !result.notices.iter().any(|n| n.rule_id == "GEO_006"),
+            "3× eşik üstü segment GEO_006 ÜRETMEMELİ (GEO_007'nin işi)"
+        );
+        assert!(
+            !result.notices.iter().any(|n| n.rule_id == "SHP_011"),
+            "SHP_011 kaldırıldı — GEO_006 ile aynı eşiği tarıyordu"
+        );
+    }
+
+    /// Eşik ile 3× arasındaki segment GEO_006 üretir, GEO_007 üretmez (alt katman).
+    #[test]
+    fn moderate_shape_jump_produces_geo_006_only() {
+        use crate::k5_derived::{ShapeGeometry, ShapeSegments};
+        let mut derived = DerivedData::default();
+        // default max_shape_jump_km = 10.0 → severe = 30.0; 15 km ikisinin arasında
+        derived.shape_geometry = ShapeGeometry {
+            shapes: [("S1".to_string(), ShapeSegments {
+                segment_distances_km: vec![15.0],
+                total_length_km: 15.0,
+                bbox: (41.0, 41.5, 29.0, 29.5),
+            })].into_iter().collect(),
+        };
+        let records = crate::k2::EntityRecords::default();
+        let result = analyze(&records, &derived, &default_config(), 20260514);
+        assert!(result.notices.iter().any(|n| n.rule_id == "GEO_006"), "GEO_006 olmalı");
+        assert!(!result.notices.iter().any(|n| n.rule_id == "GEO_007"), "GEO_007 olmamalı");
     }
 
     #[test]

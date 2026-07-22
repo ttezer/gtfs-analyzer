@@ -2,7 +2,7 @@
 
 🇹🇷 **Türkçe** · 🇬🇧 [English](RULES.en.md) · 🇯🇵 [日本語](RULES.ja.md)
 
-538 kural, 37 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
+537 kural, 37 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
 Önem seviyeleri: **KRİTİK** (yayın engelleyici) · **YÜKSEK** · **ORTA** · **DÜŞÜK** · **BİLGİ**
 Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · **Quality** (GTFS Kalitesi) · **Analytics** (GTFS Analitiği)
 
@@ -314,7 +314,6 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | SHP_008 | shape_pt_sequence yineleniyor | KRİTİK | Spec |
 | SHP_009 | Güzergah şekli kendisiyle kesişiyor | BİLGİ | Analytics |
 | SHP_010 | Tekrarlanan shape noktası (ardışık özdeş koordinat) | DÜŞÜK | Quality |
-| SHP_011 | Güzergah şeklinde büyük boşluk | ORTA | Analytics |
 | SHP_012 | Güzergah şekli sefer duraklarından çok uzak | YÜKSEK | Analytics |
 | SHP_014 | İlk veya son durak güzergah ucundan uzakta | BİLGİ | Analytics |
 | SHP_015 | Güzergah şekli istatistiksel olarak çok az nokta | ORTA | Quality |

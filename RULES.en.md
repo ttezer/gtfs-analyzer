@@ -2,7 +2,7 @@
 
 🇹🇷 [Türkçe](RULES.md) · 🇬🇧 **English** · 🇯🇵 [日本語](RULES.ja.md)
 
-538 rules, 37 groups. Each rule is identified by a unique ID, severity level, and class.
+537 rules, 37 groups. Each rule is identified by a unique ID, severity level, and class.
 Severity levels: **CRITICAL** (publish blocker) · **HIGH** · **MEDIUM** · **LOW** · **INFO**
 Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Quality** (GTFS Quality) · **Analytics** (GTFS Analytics)
 
@@ -314,7 +314,6 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | SHP_008 | Duplicate shape_pt_sequence | CRITICAL | Spec |
 | SHP_009 | Shape self-intersects | INFO | Analytics |
 | SHP_010 | Repeated shape point (consecutive identical coordinates) | LOW | Quality |
-| SHP_011 | Large gap in shape | MEDIUM | Analytics |
 | SHP_012 | Shape too far from trip stops | HIGH | Analytics |
 | SHP_014 | First or last stop far from shape endpoint | INFO | Analytics |
 | SHP_015 | Shape has statistically too few points | MEDIUM | Quality |
