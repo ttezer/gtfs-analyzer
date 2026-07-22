@@ -12,12 +12,9 @@
 use gtfs_core::{EntityType, Notice};
 use gtfs_rules::get_rule;
 
-/// `id_prefix = None` → id `{rule}#{n}` biçiminde üretilir.
-///
-/// Bu K5'in **mevcut** davranışıdır: diğer katmanlar `k1/`…`k6/` öneki basarken K5
-/// atlamış. Kozmetik bir tutarsızlık (benzersizlik bozulmuyor, diğerleri hep önekli)
-/// ama düzeltmek `notice.id` string'ini değiştirip golden re-baseline gerektiriyor —
-/// bir sonraki re-baseline'a kadar bilinçli olarak korunuyor.
+/// `id_prefix = None` → id `{rule}#{n}` biçiminde üretilir (artık kullanan yok;
+/// altı katman da kendi `kN/` önekini basıyor). Parametre, önek basmayan bir çağıran
+/// eklenirse diye korunuyor.
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn build(
     layer: &str,

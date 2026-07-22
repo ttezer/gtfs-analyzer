@@ -106,7 +106,7 @@ fn k5_notice(
     remediation: &str,
 ) -> Notice {
     crate::notice_factory::build(
-        "K5", None, ctr, rule_id, entity_type, entity_id, scope_key,
+        "K5", Some("k5"), ctr, rule_id, entity_type, entity_id, scope_key,
         Some(file.to_string()), line, field.map(str::to_string),
         observed, expected, message, remediation,
     )
