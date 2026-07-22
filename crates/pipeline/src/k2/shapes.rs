@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet};
 
 use gtfs_core::{EntityType, Severity};
 
-use super::common::make_k2_notice;
+use super::common::{get_col, make_k2_notice, parse_f64_col, parse_u32_col};
 use super::stop_times::next_csv_record;
 use crate::k1_parse::RawFile;
 
@@ -36,21 +36,6 @@ impl Cols {
             shape_dist_traveled: pos("shape_dist_traveled"),
         }
     }
-}
-
-#[inline]
-fn get_col<'a>(row: &'a [Cow<'_, str>], col: Option<usize>) -> &'a str {
-    col.and_then(|i| row.get(i)).map(|s| s.as_ref().trim()).unwrap_or("")
-}
-
-fn parse_f64_raw(raw: &str) -> Result<Option<f64>, ()> {
-    if raw.is_empty() { return Ok(None); }
-    raw.parse::<f64>().map(Some).map_err(|_| ())
-}
-
-fn parse_u32_raw(raw: &str) -> Result<Option<u32>, ()> {
-    if raw.is_empty() { return Ok(None); }
-    raw.parse::<u32>().map(Some).map_err(|_| ())
 }
 
 pub fn validate_shapes(file: &RawFile) -> (Vec<ShapePointRecord>, Vec<gtfs_core::Notice>) {
@@ -165,7 +150,7 @@ pub fn validate_shapes(file: &RawFile) -> (Vec<ShapePointRecord>, Vec<gtfs_core:
 
             // SHP_004: shape_pt_sequence required
             let seq_raw = get_col(row, cols.shape_pt_sequence);
-            let shape_pt_sequence = match parse_u32_raw(seq_raw) {
+            let shape_pt_sequence = match parse_u32_col(seq_raw) {
                 Ok(v) => {
                     if v.is_none() && file.headers.iter().any(|h| h == "shape_pt_sequence") {
                         notices.push(make_k2_notice(
@@ -205,7 +190,7 @@ pub fn validate_shapes(file: &RawFile) -> (Vec<ShapePointRecord>, Vec<gtfs_core:
 
             // SHP_002: shape_pt_lat required, in range [-90, 90]
             let lat_raw = get_col(row, cols.shape_pt_lat);
-            let shape_pt_lat = match parse_f64_raw(lat_raw) {
+            let shape_pt_lat = match parse_f64_col(lat_raw) {
                 Ok(None) => {
                     if file.headers.iter().any(|h| h == "shape_pt_lat") {
                         notices.push(make_k2_notice(
@@ -244,7 +229,7 @@ pub fn validate_shapes(file: &RawFile) -> (Vec<ShapePointRecord>, Vec<gtfs_core:
 
             // SHP_003: shape_pt_lon required, in range [-180, 180]
             let lon_raw = get_col(row, cols.shape_pt_lon);
-            let shape_pt_lon = match parse_f64_raw(lon_raw) {
+            let shape_pt_lon = match parse_f64_col(lon_raw) {
                 Ok(None) => {
                     if file.headers.iter().any(|h| h == "shape_pt_lon") {
                         notices.push(make_k2_notice(
@@ -283,7 +268,7 @@ pub fn validate_shapes(file: &RawFile) -> (Vec<ShapePointRecord>, Vec<gtfs_core:
 
             // shape_dist_traveled: optional, non-negative (SHP_021)
             let sdt_raw = get_col(row, cols.shape_dist_traveled);
-            let shape_dist_traveled = match parse_f64_raw(sdt_raw) {
+            let shape_dist_traveled = match parse_f64_col(sdt_raw) {
                 Ok(v) => {
                     if let Some(d) = v {
                         if d < 0.0 {

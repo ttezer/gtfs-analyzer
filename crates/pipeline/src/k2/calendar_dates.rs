@@ -5,7 +5,7 @@ use gtfs_core::EntityType;
 use rustc_hash::FxHashMap;
 use smol_str::SmolStr;
 
-use super::common::make_k2_notice;
+use super::common::{get_col, make_k2_notice};
 use super::stop_times::{next_csv_record, ZipCsvReader};
 use crate::k1_parse::RawFile;
 
@@ -59,11 +59,6 @@ impl Cols {
             exception_type: pos("exception_type"),
         }
     }
-}
-
-#[inline]
-fn get_col<'a>(row: &'a [Cow<'_, str>], col: Option<usize>) -> &'a str {
-    col.and_then(|i| row.get(i)).map(|s| s.as_ref().trim()).unwrap_or("")
 }
 
 fn parse_date_raw(raw: &str) -> Result<Option<(u32, u32, u32)>, String> {

@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::collections::HashMap;
 
 use gtfs_core::{EntityType, Notice};
@@ -62,6 +63,42 @@ pub fn get_trimmed_field<'a>(row: &'a RowMap, field: &str) -> Option<&'a str> {
 
 pub fn has_nonempty_field(row: &RowMap, field: &str) -> bool {
     get_trimmed_field(row, field).is_some_and(|v| !v.is_empty())
+}
+
+// ── Streaming (stream_mode) yol yardımcıları ─────────────────────────────────
+//
+// Yukarıdaki `RowMap` tabanlı okuyucular satırı önce map'e çevirir. Streaming yolda
+// satır ham `Cow` dilimi olarak gelir ve sütuna indeksle erişilir (map kurulmaz —
+// stop_times/shapes ölçeğinde tahsis maliyeti kabul edilemez). İki katman bilinçli
+// olarak ayrı; aşağıdakiler `_col` sonekiyle ayırt edilir.
+
+/// Cow dilimden sütun değeri: indeks yoksa veya satır kısaysa boş string.
+///
+/// `#[inline]` bilinçli: stop_times ölçeğinde (6M+ satır) satır başına birkaç kez
+/// çağrılıyor — crate-içi olsa da çağrı maliyeti ölçülebilir.
+#[inline]
+pub fn get_col<'a>(row: &'a [Cow<'_, str>], col: Option<usize>) -> &'a str {
+    col.and_then(|i| row.get(i)).map(|s| s.as_ref().trim()).unwrap_or("")
+}
+
+/// Ham değerden u32. Boş → `Ok(None)`, geçersiz → `Err(())`.
+/// Hata mesajı ÜRETMEZ — mesaj gerekiyorsa çağıran taraf kurar
+/// (bkz. `parse_u32`, `RowMap` sürümü hata metnini kendi döndürür).
+#[allow(clippy::result_unit_err)]
+pub fn parse_u32_col(raw: &str) -> Result<Option<u32>, ()> {
+    if raw.is_empty() {
+        return Ok(None);
+    }
+    raw.parse::<u32>().map(Some).map_err(|_| ())
+}
+
+/// Ham değerden f64. Boş → `Ok(None)`, geçersiz → `Err(())`.
+#[allow(clippy::result_unit_err)]
+pub fn parse_f64_col(raw: &str) -> Result<Option<f64>, ()> {
+    if raw.is_empty() {
+        return Ok(None);
+    }
+    raw.parse::<f64>().map(Some).map_err(|_| ())
 }
 
 pub fn parse_f64(row: &RowMap, field: &str) -> Result<Option<f64>, String> {

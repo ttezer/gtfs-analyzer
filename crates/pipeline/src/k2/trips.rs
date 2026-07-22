@@ -5,7 +5,7 @@ use gtfs_core::EntityType;
 use rustc_hash::FxHashMap;
 use smol_str::SmolStr;
 
-use super::common::make_k2_notice;
+use super::common::{get_col, make_k2_notice, parse_f64_col, parse_u32_col};
 use super::stop_times::{next_csv_record, ZipCsvReader};
 use crate::k1_parse::RawFile;
 
@@ -143,21 +143,6 @@ impl Cols {
     }
 }
 
-#[inline]
-fn get_col<'a>(row: &'a [Cow<'_, str>], col: Option<usize>) -> &'a str {
-    col.and_then(|i| row.get(i)).map(|s| s.as_ref().trim()).unwrap_or("")
-}
-
-fn parse_u32_raw(raw: &str) -> Result<Option<u32>, ()> {
-    if raw.is_empty() { return Ok(None); }
-    raw.parse::<u32>().map(Some).map_err(|_| ())
-}
-
-fn parse_f64_raw(raw: &str) -> Result<Option<f64>, ()> {
-    if raw.is_empty() { return Ok(None); }
-    raw.parse::<f64>().map(Some).map_err(|_| ())
-}
-
 pub fn validate_trips(file: &RawFile, zip_bytes: Option<&[u8]>) -> (Vec<TripRecord>, TripInternTable, Vec<gtfs_core::Notice>) {
     // #38: trips.txt K1'de yalnızca başlık okunur; K2 zip_bytes'tan stream eder.
     // Eski rows yolu test/legacy fallback olarak korunur.
@@ -242,7 +227,7 @@ pub fn validate_trips(file: &RawFile, zip_bytes: Option<&[u8]>) -> (Vec<TripReco
 
         // TRP_005: direction_id 0 veya 1 olmalı
         let dir_raw = get_col(row, cols.direction_id);
-        let direction_id = match parse_u32_raw(dir_raw) {
+        let direction_id = match parse_u32_col(dir_raw) {
             Ok(v) => {
                 if let Some(val) = v {
                     if val > 1 {
@@ -271,7 +256,7 @@ pub fn validate_trips(file: &RawFile, zip_bytes: Option<&[u8]>) -> (Vec<TripReco
 
         // TRP_006: wheelchair_accessible 0, 1 veya 2 olmalı
         let wc_raw = get_col(row, cols.wheelchair_accessible);
-        let wheelchair_accessible = match parse_u32_raw(wc_raw) {
+        let wheelchair_accessible = match parse_u32_col(wc_raw) {
             Ok(v) => {
                 if let Some(val) = v {
                     if val > 2 {
@@ -291,7 +276,7 @@ pub fn validate_trips(file: &RawFile, zip_bytes: Option<&[u8]>) -> (Vec<TripReco
 
         // TRP_007: bikes_allowed 0, 1 veya 2 olmalı
         let ba_raw = get_col(row, cols.bikes_allowed);
-        let bikes_allowed = match parse_u32_raw(ba_raw) {
+        let bikes_allowed = match parse_u32_col(ba_raw) {
             Ok(v) => {
                 if let Some(val) = v {
                     if val > 2 {
@@ -324,7 +309,7 @@ pub fn validate_trips(file: &RawFile, zip_bytes: Option<&[u8]>) -> (Vec<TripReco
 
         // TRP_032: cars_allowed 0, 1 veya 2 olmalı
         let ca_raw = get_col(row, cols.cars_allowed);
-        let cars_allowed = match parse_u32_raw(ca_raw) {
+        let cars_allowed = match parse_u32_col(ca_raw) {
             Ok(v) => {
                 if let Some(val) = v {
                     if val > 2 {
@@ -342,8 +327,8 @@ pub fn validate_trips(file: &RawFile, zip_bytes: Option<&[u8]>) -> (Vec<TripReco
             Err(_) => None,
         };
 
-        let safe_duration_factor = parse_f64_raw(get_col(row, cols.safe_duration_factor)).ok().flatten();
-        let safe_duration_offset = parse_u32_raw(get_col(row, cols.safe_duration_offset)).ok().flatten();
+        let safe_duration_factor = parse_f64_col(get_col(row, cols.safe_duration_factor)).ok().flatten();
+        let safe_duration_offset = parse_u32_col(get_col(row, cols.safe_duration_offset)).ok().flatten();
 
         records.push(TripRecord {
             trip_id,

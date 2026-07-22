@@ -4,7 +4,7 @@ use smol_str::SmolStr;
 use std::borrow::Cow;
 use std::io::{BufReader, Cursor, Read};
 
-use super::common::make_k2_notice;
+use super::common::{get_col, make_k2_notice};
 use crate::k1_parse::RawFile;
 
 // ── CompactStopTime: 24B flat per row — trip_id taşımaz ──────────────────────
@@ -435,11 +435,6 @@ impl Cols {
             drop_off_booking_rule_id:     pos("drop_off_booking_rule_id"),
         }
     }
-}
-
-#[inline]
-fn get_col<'a>(row: &'a [Cow<'_, str>], col: Option<usize>) -> &'a str {
-    col.and_then(|i| row.get(i)).map(|s| s.as_ref().trim()).unwrap_or("")
 }
 
 // ── Parser yardımcıları (RowMap olmaksızın) ──────────────────────────────────
