@@ -2,7 +2,7 @@
 
 🇹🇷 [Türkçe](RULES.md) · 🇬🇧 **English** · 🇯🇵 [日本語](RULES.ja.md)
 
-537 rules, 37 groups. Each rule is identified by a unique ID, severity level, and class.
+536 rules, 37 groups. Each rule is identified by a unique ID, severity level, and class.
 Severity levels: **CRITICAL** (publish blocker) · **HIGH** · **MEDIUM** · **LOW** · **INFO**
 Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Quality** (GTFS Quality) · **Analytics** (GTFS Analytics)
 
@@ -211,7 +211,6 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | STM_020 | Zero travel time (distance > 200m) | HIGH | Quality |
 | STM_021 | Distance between stops is zero or negative | HIGH | Quality |
 | STM_022 | timepoint invalid | MEDIUM | Spec |
-| STM_023 | stop_times row ordering corrupted | LOW | Quality |
 | STM_024 | shape_dist_traveled unit inconsistency | INFO | Quality |
 | STM_025 | Short segment timing | INFO | Analytics |
 | STM_026 | Excessive distance between stops | HIGH | Quality |

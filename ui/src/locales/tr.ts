@@ -719,7 +719,6 @@ const tr = {
     'STM_020': 'Sıfır geçiş süresi (mesafe > 200m)',
     'STM_021': 'Duraklar arası mesafe sıfır veya negatif',
     'STM_022': 'timepoint geçersiz',
-    'STM_023': 'stop_times satır sıralaması bozuk',
     'STM_024': 'shape_dist_traveled birim tutarsızlığı',
     'STM_025': 'Kısa segment zamanlaması',
     'STM_026': 'Durak arası mesafe aşırı uzun',

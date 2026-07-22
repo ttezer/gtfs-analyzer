@@ -566,20 +566,13 @@ fn check_speed_and_duration(
 
     // STM_036: stop_times trip_id + stop_sequence'a göre sıralı/gruplu değil (MD unsorted_stop_times,
     // INFO — benign: pipeline zaten sequence'e göre yeniden sıralar). İki alt-vaka:
-    //   (a) sequence AZALIYOR (K2'de tespit, unsorted_seq_trips)
+    //   (a) sequence AZALIYOR — K2'de tespit VE emit edilir (k2/stop_times.rs). Emit orada
+    //       çünkü prev_stop/curr_stop yalnız satır okuma anında elde; buraya taşımak
+    //       unsorted_seq_trips tuple'ına iki SmolStr eklemeyi gerektirirdi (~+%120 bellek).
+    //       Burada o trip'ler yalnızca (b)'den ELENMEK için okunur, ikinci notice üretilmez.
     //   (b) satırlar DAĞINIK (araya başka trip girmiş; sequence artsa bile gruplu değil)
-    let mut stm036_seen: std::collections::HashSet<&str> = std::collections::HashSet::new();
-    for (trip_id, prev_seq, curr_seq, line_no) in idx.unsorted_seq_trips.iter() {
-        stm036_seen.insert(trip_id.as_str());
-        notices.push(k6_notice(
-            ctr, "STM_036", EntityType::Trip,
-            Some(trip_id.to_string()), Some(trip_id.to_string()),
-            "stop_times.txt", Some(*line_no), Some("stop_sequence"),
-            Some(format!("stop_sequence {prev_seq}→{curr_seq} azalıyor")), Some("artan + gruplu".to_string()),
-            format!("'{trip_id}' seferinde stop_times satır sırası bozuk: stop_sequence {prev_seq}'den {curr_seq}'e düşüyor."),
-            "stop_times.txt'i trip_id ve stop_sequence'a göre sıralayın.",
-        ));
-    }
+    let stm036_seen: std::collections::HashSet<&str> =
+        idx.unsorted_seq_trips.iter().map(|(trip_id, ..)| trip_id.as_str()).collect();
     // (b) non-contiguous: finalize edilmiş index'te trip satırlarının CSV line'ları ardışık mı
     // (max-min+1 == satır sayısı) — değilse araya başka trip girmiş. Deterministik olsun diye ilk-satıra göre sıralanır.
     let mut noncontig: Vec<(&str, u32, u32)> = Vec::new();

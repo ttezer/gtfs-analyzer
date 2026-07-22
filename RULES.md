@@ -2,7 +2,7 @@
 
 🇹🇷 **Türkçe** · 🇬🇧 [English](RULES.en.md) · 🇯🇵 [日本語](RULES.ja.md)
 
-537 kural, 37 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
+536 kural, 37 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
 Önem seviyeleri: **KRİTİK** (yayın engelleyici) · **YÜKSEK** · **ORTA** · **DÜŞÜK** · **BİLGİ**
 Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · **Quality** (GTFS Kalitesi) · **Analytics** (GTFS Analitiği)
 
@@ -211,7 +211,6 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | STM_020 | Sıfır geçiş süresi (mesafe > 200m) | YÜKSEK | Quality |
 | STM_021 | Duraklar arası mesafe sıfır veya negatif | YÜKSEK | Quality |
 | STM_022 | timepoint geçersiz | ORTA | Spec |
-| STM_023 | stop_times satır sıralaması bozuk | DÜŞÜK | Quality |
 | STM_024 | shape_dist_traveled birim tutarsızlığı | BİLGİ | Quality |
 | STM_025 | Kısa segment zamanlaması | BİLGİ | Analytics |
 | STM_026 | Durak arası mesafe aşırı uzun | YÜKSEK | Quality |

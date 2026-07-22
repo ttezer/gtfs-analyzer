@@ -667,9 +667,9 @@ pub(super) fn next_csv_record<'a>(text: &'a str, pos: &mut usize, out: &mut Vec<
 struct TripAgg {
     idx: u32,
     first_line: u32,
-    last_seq: u32,              // u32::MAX = None; STM_023 sıralama takibi
+    last_seq: u32,              // u32::MAX = None; STM_036 sıralama takibi
     last_stop: SmolStr,         // boş = None; last_seq'i ayarlayan durak
-    stm023_fired: bool,
+    unsorted_fired: bool,
     continuous: bool,
     // stop_idx_set KALDIRILDI (#38 peak-2): 3M trip × ~80B heap → ~240 MB ekstra peak.
     // trip_stop_set finalize SONRASI sorted rows'dan inşa edilir (semantik fark yok).
@@ -936,13 +936,15 @@ pub fn validate_stop_times(file: &RawFile, zip_bytes: Option<&[u8]>) -> (StopTim
             }
         };
 
-        // STM_023: per-trip sıralama takibi. STM_032 (duplicate seq) post-finalize'a taşındı.
+        // STM_036: per-trip sıralama takibi. STM_032 (duplicate seq) post-finalize'a taşındı.
         if let Some(seq) = stop_sequence {
             let cur_stop = get_col(row, cols.stop_id);
             let next_idx = trips_agg.len() as u32;
             let agg = trips_agg.entry(trip_id.clone()).or_insert_with(|| TripAgg::new(line, next_idx));
-            // STM_023: dosya satır sırası stop_sequence sırasıyla uyuşmuyor
-            if !agg.stm023_fired {
+            // STM_036 (a) alt-vakası: dosya satır sırası stop_sequence sırasıyla uyuşmuyor.
+            // Trip başına TEK atış — MD unsorted_stop_times paritesi buna dayanır.
+            // (b) alt-vakası (dağınık satırlar) K6'da, finalize edilmiş index üzerinden.
+            if !agg.unsorted_fired {
                 if agg.last_seq != u32::MAX {
                     let last = agg.last_seq;
                     if seq < last {
@@ -951,9 +953,13 @@ pub fn validate_stop_times(file: &RawFile, zip_bytes: Option<&[u8]>) -> (StopTim
                         // hangi duraktan sonra yazılmış. prev_stop = max'ı ayarlayan satırın durağı.
                         let prev_stop = agg.last_stop.clone();
                         let mut n = make_k2_notice(
-                            &mut counter, "STM_023", EntityType::Trip, eid(),
+                            &mut counter, "STM_036", EntityType::Trip, eid(),
                             None, &file.name, Some(line), Some("stop_sequence"),
-                            Some(seq.to_string()), Some(format!("> {last}")),
+                            // observed/expected durak bilgisini de taşır: STM_036'nın locale
+                            // şablonu (b) alt-vakasıyla ortak, bu yüzden şablona durak
+                            // placeholder'ı EKLENEMEZ — bilgi observed/expected içinde gider.
+                            Some(format!("{seq} @ '{cur_stop}'")),
+                            Some(format!("> {last} @ '{prev_stop}'")),
                             format!(
                                 "'{}' seferinde stop_times satır sırası bozuk: stop_sequence {seq} olan '{}' durağı, daha büyük stop_sequence {last} olan '{}' durağından sonra yazılmış. Satırlar artan stop_sequence sırasında olmalı.",
                                 trip_id, cur_stop, prev_stop
@@ -967,7 +973,7 @@ pub fn validate_stop_times(file: &RawFile, zip_bytes: Option<&[u8]>) -> (StopTim
                         d.insert("prev_seq".to_string(), last.to_string());
                         n.details = Some(d);
                         notices.push(n);
-                        agg.stm023_fired = true;
+                        agg.unsorted_fired = true;
                         unsorted_seq_trips.push((trip_id.clone(), last, seq, line));
                     } else if seq > last {
                         agg.last_seq = seq;
@@ -1826,7 +1832,7 @@ mod tests {
             notices.iter().map(|n| &n.rule_id).collect::<Vec<_>>());
     }
 
-    // ── STM_023/032 + finalize çıktı alanları (K2 hashmap-birleştirme refactor güvenlik ağı) ──
+    // ── STM_036/032 + finalize çıktı alanları (K2 hashmap-birleştirme refactor güvenlik ağı) ──
     #[test]
     fn duplicate_stop_sequence_produces_stm_032() {
         let file = make_file(
@@ -1841,7 +1847,7 @@ mod tests {
     }
 
     #[test]
-    fn out_of_order_stop_sequence_produces_stm_023() {
+    fn out_of_order_stop_sequence_produces_stm_036() {
         let file = make_file(
             vec!["trip_id", "arrival_time", "departure_time", "stop_id", "stop_sequence"],
             vec![
@@ -1850,8 +1856,9 @@ mod tests {
             ],
         );
         let (idx, notices) = validate_stop_times(&file, None);
-        assert!(notices.iter().any(|n| n.rule_id == "STM_023"), "STM_023 bekleniyor: {:?}", notices);
-        assert_eq!(idx.unsorted_seq_trips.len(), 1, "STM_023 unsorted_seq_trips'e bir kayıt eklemeli");
+        let stm036: Vec<_> = notices.iter().filter(|n| n.rule_id == "STM_036").collect();
+        assert_eq!(stm036.len(), 1, "STM_036 trip başına TEK kez üretilmeli: {:?}", notices);
+        assert_eq!(idx.unsorted_seq_trips.len(), 1, "STM_036 unsorted_seq_trips'e bir kayıt eklemeli");
     }
 
     #[test]
