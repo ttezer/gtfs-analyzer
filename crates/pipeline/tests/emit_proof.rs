@@ -637,8 +637,6 @@ fn fixtures() -> Vec<Fixture> {
         fx("OPR_016", vec![("calendar.txt", "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,0,0,0,0,0,0,0,20260518,20260524\n")]),
         // OPR_017: sefer çok kısa mesafe (< 100m, shape'siz → durak koordinatı).
         fx("OPR_017", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,40.0,40.0\nS2,Stop2,40.0005,40.0\n")]),
-        // OPR_018: servis dönemi < 3 aktif gün (2 günlük pencere).
-        fx("OPR_018", vec![("calendar.txt", "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,1,1,20260518,20260519\n")]),
         // OPR_019: hatta aynı (exception'sız) günde >1 aktif servis.
         fx("OPR_019", vec![
             ("calendar.txt", "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,1,1,20260518,20260524\nSVC2,1,1,1,1,1,1,1,20260518,20260524\n"),

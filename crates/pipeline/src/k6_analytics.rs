@@ -5613,29 +5613,10 @@ fn check_remaining_analytics(
         }
     }
 
-    // ── OPR_018: servis dönemi çok kısa (< 3 aktif gün) ─────────────────────
-    {
-        let _t18 = Timer::start("K6::rem::opr_018");
-        const MIN_DAYS: usize = 3;
-        let used_services_18: FxHashSet<&str> = records.trips.iter()
-            .filter(|t| !ti_rem.service_id(t).is_empty())
-            .map(|t| ti_rem.service_id(t))
-            .collect();
-        for (svc_id, dates) in &derived.calendar_bitmap.active_dates {
-            if dates.is_empty() { continue; } // OPR_011 zaten yakaladı
-            if dates.len() >= MIN_DAYS { continue; }
-            if !used_services_18.contains(svc_id.as_str()) { continue; }
-            notices.push(k6_notice(
-                ctr, "OPR_018", EntityType::Service,
-                Some(svc_id.clone()), Some(svc_id.clone()),
-                "calendar.txt", None, None,
-                Some(format!("{}", dates.len())),
-                Some(format!("≥ {MIN_DAYS}")),
-                format!("'{svc_id}' takviminde yalnızca {} aktif gün var.", dates.len()),
-                "Servis dönemi planlamasını gözden geçirin; çok kısa servisler beklenmedik davranışlara yol açabilir.",
-            ));
-        }
-    }
+    // OPR_018 (servis dönemi < 3 aktif gün) KALDIRILDI (2026-07-23): CAL_010'un
+    // saf alt kümesiydi. CAL_010 `total_days <= service_gap_days` (config min 3)
+    // ile 1-2 aktif günlü servisleri zaten yakalar; aynı severity/sınıf/skor/mesaj.
+    // Bkz. docs/rules/CAL/CAL_010.md değişiklik notu.
 
     // ── OPR_010: hatta erişilebilirlik / bisiklet politikası tutarsız ─────────
     {

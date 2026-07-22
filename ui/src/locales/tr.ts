@@ -1051,7 +1051,6 @@ const tr = {
     'OPR_015': 'Hat yalnızca tek güzergahla işliyor',
     'OPR_016': 'Feed genelinde aktif servis yok',
     'OPR_017': 'Sefer çok kısa mesafe',
-    'OPR_018': 'Servis dönemi çok kısa',
     'OPR_019': 'Rota takvim çakışması (aynı günde birden fazla servis)',
     'OPR_020': 'Rota exception günü çakışması',
     'OPR_021': 'Takvim override çakışması: override ve base eş zamanlı aktif',

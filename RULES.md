@@ -2,7 +2,7 @@
 
 🇹🇷 **Türkçe** · 🇬🇧 [English](RULES.en.md) · 🇯🇵 [日本語](RULES.ja.md)
 
-536 kural, 37 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
+535 kural, 37 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
 Önem seviyeleri: **KRİTİK** (yayın engelleyici) · **YÜKSEK** · **ORTA** · **DÜŞÜK** · **BİLGİ**
 Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · **Quality** (GTFS Kalitesi) · **Analytics** (GTFS Analitiği)
 
@@ -648,7 +648,6 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | OPR_015 | Hat yalnızca tek güzergahla işliyor | BİLGİ | Analytics |
 | OPR_016 | Feed genelinde aktif servis yok | BİLGİ | Analytics |
 | OPR_017 | Sefer çok kısa mesafe | ORTA | Analytics |
-| OPR_018 | Servis dönemi çok kısa | ORTA | Analytics |
 | OPR_019 | Rota takvim çakışması (aynı günde birden fazla servis) | BİLGİ | Analytics |
 | OPR_020 | Rota exception günü çakışması | YÜKSEK | Analytics |
 | OPR_021 | Takvim override çakışması: override ve base eş zamanlı aktif | YÜKSEK | Analytics |

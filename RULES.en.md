@@ -2,7 +2,7 @@
 
 🇹🇷 [Türkçe](RULES.md) · 🇬🇧 **English** · 🇯🇵 [日本語](RULES.ja.md)
 
-536 rules, 37 groups. Each rule is identified by a unique ID, severity level, and class.
+535 rules, 37 groups. Each rule is identified by a unique ID, severity level, and class.
 Severity levels: **CRITICAL** (publish blocker) · **HIGH** · **MEDIUM** · **LOW** · **INFO**
 Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Quality** (GTFS Quality) · **Analytics** (GTFS Analytics)
 
@@ -648,7 +648,6 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | OPR_015 | Route operates with a single shape only | INFO | Analytics |
 | OPR_016 | No active service across the entire feed | INFO | Analytics |
 | OPR_017 | Trip distance too short | MEDIUM | Analytics |
-| OPR_018 | Service period too short | MEDIUM | Analytics |
 | OPR_019 | Route calendar overlap (multiple services on same day) | INFO | Analytics |
 | OPR_020 | Route exception day overlap | HIGH | Analytics |
 | OPR_021 | Calendar override conflict: override and base simultaneously active | HIGH | Analytics |
