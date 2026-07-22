@@ -4,7 +4,6 @@ use smol_str::SmolStr;
 
 use gtfs_config::ValidatorConfig;
 use gtfs_core::{EntityType, Notice};
-use gtfs_rules::get_rule;
 
 use crate::k2::stop_times::CompactStopTime;
 use crate::k2::stop_times::StopTimesIndex as K2StopTimesIndex;
@@ -124,29 +123,11 @@ fn k6_notice(
     message: String,
     remediation: &str,
 ) -> Notice {
-    *ctr += 1;
-    let meta = get_rule(rule_id).unwrap_or_else(|| panic!("K6: bilinmeyen rule_id {rule_id}"));
-    Notice {
-        id: format!("k6/{rule_id}#{ctr}"),
-        rule_id: rule_id.to_string(),
-        severity: meta.severity,
-        rule_class: meta.rule_class,
-        entity_type,
-        entity_id,
-        scope_key,
-        file: Some(file.to_string()),
-        line,
-        field: field.map(str::to_string),
-        observed_value: observed,
-        expected_value: expected,
-        details: None,
-        title: meta.title.to_string(),
-        message,
-        remediation: remediation.to_string(),
-        blocks: meta.blocks.iter().map(|s| s.to_string()).collect(),
-        base_effort: meta.base_effort,
-        service_id: None,
-    }
+    crate::notice_factory::build(
+        "K6", Some("k6"), ctr, rule_id, entity_type, entity_id, scope_key,
+        Some(file.to_string()), line, field.map(str::to_string),
+        observed, expected, message, remediation,
+    )
 }
 
 // ── Yardımcı fonksiyonlar ─────────────────────────────────────────────────────

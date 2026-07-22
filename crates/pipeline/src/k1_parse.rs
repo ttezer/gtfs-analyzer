@@ -3,7 +3,6 @@ use std::io::Read;
 
 use crate::decompress_guard::{GuardedReader, DEFAULT_DECOMPRESSION_LIMITS};
 use gtfs_core::{EntityType, FatalCode, FatalError, Notice, Severity};
-use gtfs_rules::get_rule;
 use smol_str::SmolStr;
 
 /// Debug-only K1 izleme. Release WASM derlemesinde (debug_assertions kapalı) ve
@@ -86,29 +85,12 @@ fn make_notice(
     message: String,
     remediation: &str,
 ) -> Notice {
-    *counter += 1;
-    let meta = get_rule(rule_id).unwrap_or_else(|| panic!("K1: bilinmeyen rule_id {rule_id}"));
-    Notice {
-        id: format!("k1/{rule_id}#{counter}"),
-        rule_id: rule_id.to_string(),
-        severity: meta.severity,
-        rule_class: meta.rule_class,
-        entity_type,
-        entity_id,
-        scope_key: None,
-        file: file.map(str::to_string),
-        line,
-        field: field.map(str::to_string),
-        observed_value,
-        expected_value: None,
-        details: None,
-        title: meta.title.to_string(),
-        message,
-        remediation: remediation.to_string(),
-        blocks: meta.blocks.iter().map(|s| s.to_string()).collect(),
-        base_effort: meta.base_effort,
-        service_id: None,
-    }
+    // K1 scope_key ve expected_value üretmez — ikisi de sabit None.
+    crate::notice_factory::build(
+        "K1", Some("k1"), counter, rule_id, entity_type, entity_id, None,
+        file.map(str::to_string), line, field.map(str::to_string),
+        observed_value, None, message, remediation,
+    )
 }
 
 // ── UTF-8 BOM ─────────────────────────────────────────────────────────────────
@@ -1519,6 +1501,9 @@ fn check_polygon_rings(
 #[cfg(test)]
 mod tests {
     use super::*;
+    // Notice üretimi notice_factory'ye taşındıktan sonra get_rule yalnız burada
+    // (all_notices_have_valid_rule_ids) kullanılıyor.
+    use gtfs_rules::get_rule;
     use std::io::Write;
     use zip::write::SimpleFileOptions;
 

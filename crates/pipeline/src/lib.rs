@@ -6,6 +6,7 @@ pub mod k5_derived;
 pub mod k6_analytics;
 pub mod k7_reporting;
 pub mod decompress_guard;
+pub(crate) mod notice_factory;
 pub(crate) mod timing;
 
 pub use k1_parse::{parse, K1Result, RawFile, RawFiles};

@@ -315,33 +315,17 @@ pub fn make_k2_notice(
     message: String,
     remediation: &str,
 ) -> Notice {
-    *counter += 1;
+    // K2'ye özgü: scope_key satırdan, kuralın kendi scope_key_field tanımına göre türetilir.
     let meta = get_rule(rule_id).unwrap_or_else(|| panic!("K2: bilinmeyen rule_id {rule_id}"));
-
     let scope_key = row
         .and_then(|r| derive_scope_key(r, meta.scope_key_field))
         .or_else(|| entity_id.clone());
-    Notice {
-        id: format!("k2/{rule_id}#{counter}"),
-        rule_id: rule_id.to_string(),
-        severity: meta.severity,
-        rule_class: meta.rule_class,
-        entity_type,
-        entity_id,
-        scope_key,
-        file: Some(file.to_string()),
-        line,
-        field: field.map(str::to_string),
-        observed_value,
-        expected_value,
-        details: None,
-        title: meta.title.to_string(),
-        message,
-        remediation: remediation.to_string(),
-        blocks: meta.blocks.iter().map(|s| s.to_string()).collect(),
-        base_effort: meta.base_effort,
-        service_id: None,
-    }
+
+    crate::notice_factory::build(
+        "K2", Some("k2"), counter, rule_id, entity_type, entity_id, scope_key,
+        Some(file.to_string()), line, field.map(str::to_string),
+        observed_value, expected_value, message, remediation,
+    )
 }
 
 #[cfg(test)]

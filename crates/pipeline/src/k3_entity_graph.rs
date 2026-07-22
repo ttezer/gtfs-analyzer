@@ -1,7 +1,6 @@
 ﻿use std::collections::{HashMap, HashSet};
 
 use gtfs_core::{EntityType, Notice};
-use gtfs_rules::get_rule;
 
 use crate::k2::EntityRecords;
 
@@ -20,29 +19,12 @@ fn make_notice(
     message: String,
     remediation: &str,
 ) -> Notice {
-    *counter += 1;
-    let meta = get_rule(rule_id).unwrap_or_else(|| panic!("K3: bilinmeyen rule_id {rule_id}"));
-    Notice {
-        id: format!("k3/{rule_id}#{counter}"),
-        rule_id: rule_id.to_string(),
-        severity: meta.severity,
-        rule_class: meta.rule_class,
-        entity_type,
-        entity_id,
-        scope_key,
-        file: Some(file.to_string()),
-        line: Some(line),
-        field: Some(field.to_string()),
-        observed_value,
-        expected_value: Some("unique".to_string()),
-        details: None,
-        title: meta.title.to_string(),
-        message,
-        remediation: remediation.to_string(),
-        blocks: meta.blocks.iter().map(|s| s.to_string()).collect(),
-        base_effort: meta.base_effort,
-        service_id: None,
-    }
+    // K3 yalnız benzersizlik (PK tekrarı) ihlali üretir → expected_value sabit "unique".
+    crate::notice_factory::build(
+        "K3", Some("k3"), counter, rule_id, entity_type, entity_id, scope_key,
+        Some(file.to_string()), Some(line), Some(field.to_string()),
+        observed_value, Some("unique".to_string()), message, remediation,
+    )
 }
 
 // ── Tip tanımları ──────────────────────────────────────────────────────────────
