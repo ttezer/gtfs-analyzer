@@ -448,6 +448,74 @@ impl Dq016Acc {
 pub(crate) const DQ016_REMEDIATION: &str =
     "Değerlerdeki gereksiz baştaki/sondaki boşlukları kaldırın; ayraç olarak ', ' değil ',' kullanın.";
 
+// ── ARC_012 / ARC_021: K1 ↔ K2-stream ortak mantığı ──────────────────────────
+//
+// stream_mode'da bu kontroller K1'den K2'ye taşındı, ama iki hedefe (stop_times,
+// shapes) ayrı ayrı KOPYALANMIŞTI — üç yerde birebir aynı predicate ve aynı kullanıcı
+// mesajı. Eşik/aralık listesine dokunmak üç dosya düzenlemek demekti; ikisini unutmak
+// sessizce sapma üretirdi. DQ016_ACC ile aynı gerekçe: tek tanım, üç çağıran.
+
+/// ARC_012: satırın sütun sayısı başlıktan farklı mı?
+///
+/// `None` → sorun yok. `Some((mesaj, öneri, observed, bilgi_mi))`; `bilgi_mi=true`
+/// ise satır KISA (sondaki opsiyonel alanlar atlanmış — geçerli CSV pratiği, severity
+/// Bilgi'ye düşürülür), `false` ise FAZLA alan var (kaçmamış virgül → nominal severity).
+pub(crate) fn arc012_check(
+    file_name: &str,
+    line: u64,
+    row_len: usize,
+    header_count: usize,
+) -> Option<(String, &'static str, String, bool)> {
+    if row_len == header_count {
+        return None;
+    }
+    let short = row_len < header_count;
+    let (msg, tip) = if short {
+        let missing = header_count - row_len;
+        (
+            format!("'{file_name}' {line}. satırda sondaki {missing} isteğe bağlı alan atlanmış ({row_len} sütun, başlık: {header_count})."),
+            "CSV'de sondaki boş alanlar atlanabilir; zorunlu alanlar boş bırakılmamalıdır.",
+        )
+    } else {
+        (
+            format!("'{file_name}' {line}. satırda fazla alan: {row_len} (beklenen {header_count}) — kaçmamış virgül veya format hatası."),
+            "Her satırın başlık sayısı kadar virgülle ayrılmış değer içerdiğinden emin olun.",
+        )
+    };
+    Some((msg, tip, format!("{row_len} sütun (beklenen {header_count})"), short))
+}
+
+/// ARC_021: satırda yazdırılamaz/sorunlu karakter arar, ilk bulunanın kod noktasını döner.
+///
+/// Geçerli Unicode harf/rakam/boşluk (Japonca, Türkçe vb.) sorun DEĞİLDİR — yalnızca
+/// kontrol karakterleri, DEL, yedek alanlar (surrogate) ve özel kullanım alanı işaretlenir.
+pub(crate) fn arc021_bad_char<'a>(values: impl Iterator<Item = &'a str>) -> Option<u32> {
+    for val in values {
+        for ch in val.chars() {
+            if ch.is_alphanumeric() || ch.is_whitespace() {
+                continue;
+            }
+            let cp = ch as u32;
+            let is_bad = (cp < 32 && cp != 9)
+                || cp == 127
+                || (0xD800..=0xDFFF).contains(&cp)
+                || (0xE000..=0xF8FF).contains(&cp)
+                || (0xFFF0..=0xFFFF).contains(&cp);
+            if is_bad {
+                return Some(cp);
+            }
+        }
+    }
+    None
+}
+
+pub(crate) fn arc021_message(file_name: &str, cp: u32) -> String {
+    format!("'{file_name}' dosyasında ASCII dışı veya yazdırılamaz karakter içeren değer var (U+{cp:04X}).")
+}
+
+pub(crate) const ARC021_REMEDIATION: &str =
+    "Tüm alan değerlerinin yazdırılabilir ASCII karakter içerdiğinden emin olun.";
+
 pub(crate) fn dq016_is_typed_column(name: &str) -> bool {
     if name.ends_with("_time") || name.ends_with("_date") || name.ends_with("_sequence")
         || name.ends_with("_lat") || name.ends_with("_lon") || name.ends_with("_secs")
@@ -1080,27 +1148,17 @@ pub fn parse(zip_bytes: &[u8]) -> Result<K1Result, FatalError> {
             // ARC_012: Sütun sayısı tutarsız
             // row < header: sondaki boş isteğe bağlı alanlar atlanmış — geçerli CSV pratiği → BİLGİ
             // row > header: fazla alan — kaçmamış virgül veya format hatası → KRİTİK
-            if row.len() != header_count {
-                let missing = header_count.saturating_sub(row.len());
-                let (msg, tip) = if row.len() < header_count {
-                    (
-                        format!("'{raw_name}' {line_num}. satırda sondaki {missing} isteğe bağlı alan atlanmış ({} sütun, başlık: {header_count}).", row.len()),
-                        "CSV'de sondaki boş alanlar atlanabilir; zorunlu alanlar boş bırakılmamalıdır.",
-                    )
-                } else {
-                    (
-                        format!("'{raw_name}' {line_num}. satırda fazla alan: {} (beklenen {header_count}) — kaçmamış virgül veya format hatası.", row.len()),
-                        "Her satırın başlık sayısı kadar virgülle ayrılmış değer içerdiğinden emin olun.",
-                    )
-                };
+            if let Some((msg, tip, observed, is_info)) =
+                arc012_check(&raw_name, line_num, row.len(), header_count)
+            {
                 let mut n = make_notice(
                     &mut counter, "ARC_012",
                     EntityType::File, Some(raw_name.clone()),
                     Some(&raw_name), Some(line_num), None,
-                    Some(format!("{} sütun (beklenen {})", row.len(), header_count)),
-                    msg, &tip,
+                    Some(observed),
+                    msg, tip,
                 );
-                if row.len() < header_count {
+                if is_info {
                     n.severity = Severity::Bilgi;
                 }
                 notices.push(n);
@@ -1121,30 +1179,16 @@ pub fn parse(zip_bytes: &[u8]) -> Result<K1Result, FatalError> {
 
             // ARC_021: yazdırılamaz veya sorunlu karakter — geçerli Unicode metni (Japonca vb.) hariç
             if !arc021_fired {
-                'arc021: for val in row.iter() {
-                    for ch in val.chars() {
-                        let cp = ch as u32;
-                        // Geçerli Unicode harf/rakam/boşluk → sorun değil
-                        if ch.is_alphanumeric() || ch.is_whitespace() { continue; }
-                        // Sorunlu: kontrol karakterleri, DEL, yedek alanlar, özel kullanım alanı
-                        let is_bad = (cp < 32 && cp != 9)
-                            || cp == 127
-                            || (0xD800..=0xDFFF).contains(&cp)
-                            || (0xE000..=0xF8FF).contains(&cp)
-                            || (0xFFF0..=0xFFFF).contains(&cp);
-                        if is_bad {
-                            arc021_fired = true;
-                            notices.push(make_notice(
-                                &mut counter, "ARC_021",
-                                EntityType::File, Some(raw_name.clone()),
-                                Some(&raw_name), Some(line_num), None,
-                                Some(format!("U+{cp:04X}")),
-                                format!("'{raw_name}' dosyasında ASCII dışı veya yazdırılamaz karakter içeren değer var (U+{cp:04X})."),
-                                "Tüm alan değerlerinin yazdırılabilir ASCII karakter içerdiğinden emin olun.",
-                            ));
-                            break 'arc021;
-                        }
-                    }
+                if let Some(cp) = arc021_bad_char(row.iter().map(|v| v.as_str())) {
+                    arc021_fired = true;
+                    notices.push(make_notice(
+                        &mut counter, "ARC_021",
+                        EntityType::File, Some(raw_name.clone()),
+                        Some(&raw_name), Some(line_num), None,
+                        Some(format!("U+{cp:04X}")),
+                        arc021_message(&raw_name, cp),
+                        ARC021_REMEDIATION,
+                    ));
                 }
             }
 

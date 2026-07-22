@@ -63,26 +63,16 @@ pub fn validate_shapes(file: &RawFile) -> (Vec<ShapePointRecord>, Vec<gtfs_core:
         let mut process = |row: &[Cow<'_, str>], line: u64| {
             // ── Taşınan generic dosya/satır-seviye notice'lar (K1'den) ──
             // ARC_012: sütun sayısı tutarsız
-            if row.len() != header_count {
-                let missing = header_count.saturating_sub(row.len());
-                let (msg, tip) = if row.len() < header_count {
-                    (
-                        format!("'{}' {line}. satırda sondaki {missing} isteğe bağlı alan atlanmış ({} sütun, başlık: {header_count}).", file.name, row.len()),
-                        "CSV'de sondaki boş alanlar atlanabilir; zorunlu alanlar boş bırakılmamalıdır.",
-                    )
-                } else {
-                    (
-                        format!("'{}' {line}. satırda fazla alan: {} (beklenen {header_count}) — kaçmamış virgül veya format hatası.", file.name, row.len()),
-                        "Her satırın başlık sayısı kadar virgülle ayrılmış değer içerdiğinden emin olun.",
-                    )
-                };
+            if let Some((msg, tip, observed, is_info)) =
+                crate::k1_parse::arc012_check(&file.name, line, row.len(), header_count)
+            {
                 let mut n = make_k2_notice(
                     &mut counter, "ARC_012", EntityType::File, Some(file.name.clone()),
                     None, &file.name, Some(line), None,
-                    Some(format!("{} sütun (beklenen {header_count})", row.len())), None,
+                    Some(observed), None,
                     msg, tip,
                 );
-                if row.len() < header_count {
+                if is_info {
                     n.severity = Severity::Bilgi;
                 }
                 notices.push(n);
@@ -103,29 +93,15 @@ pub fn validate_shapes(file: &RawFile) -> (Vec<ShapePointRecord>, Vec<gtfs_core:
 
             // ARC_021: yazdırılamaz/sorunlu karakter — dosya başına bir kez
             if !arc021_fired {
-                'arc021: for val in row.iter() {
-                    for ch in val.chars() {
-                        let cp = ch as u32;
-                        if ch.is_alphanumeric() || ch.is_whitespace() {
-                            continue;
-                        }
-                        let is_bad = (cp < 32 && cp != 9)
-                            || cp == 127
-                            || (0xD800..=0xDFFF).contains(&cp)
-                            || (0xE000..=0xF8FF).contains(&cp)
-                            || (0xFFF0..=0xFFFF).contains(&cp);
-                        if is_bad {
-                            arc021_fired = true;
-                            notices.push(make_k2_notice(
-                                &mut counter, "ARC_021", EntityType::File, Some(file.name.clone()),
-                                None, &file.name, Some(line), None,
-                                Some(format!("U+{cp:04X}")), None,
-                                format!("'{}' dosyasında ASCII dışı veya yazdırılamaz karakter içeren değer var (U+{cp:04X}).", file.name),
-                                "Tüm alan değerlerinin yazdırılabilir ASCII karakter içerdiğinden emin olun.",
-                            ));
-                            break 'arc021;
-                        }
-                    }
+                if let Some(cp) = crate::k1_parse::arc021_bad_char(row.iter().map(|v| v.as_ref())) {
+                    arc021_fired = true;
+                    notices.push(make_k2_notice(
+                        &mut counter, "ARC_021", EntityType::File, Some(file.name.clone()),
+                        None, &file.name, Some(line), None,
+                        Some(format!("U+{cp:04X}")), None,
+                        crate::k1_parse::arc021_message(&file.name, cp),
+                        crate::k1_parse::ARC021_REMEDIATION,
+                    ));
                 }
             }
 
