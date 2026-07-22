@@ -133,7 +133,7 @@ fn k5_notice(
 
 // ── Haversine mesafe (km) ─────────────────────────────────────────────────────
 
-fn haversine_km(lat1: f64, lon1: f64, lat2: f64, lon2: f64) -> f64 {
+pub(crate) fn haversine_km(lat1: f64, lon1: f64, lat2: f64, lon2: f64) -> f64 {
     const R: f64 = 6371.0;
     let dlat = (lat2 - lat1).to_radians();
     let dlon = (lon2 - lon1).to_radians();
@@ -145,7 +145,7 @@ fn haversine_km(lat1: f64, lon1: f64, lat2: f64, lon2: f64) -> f64 {
 // ── WP-08b: Calendar bitmap ───────────────────────────────────────────────────
 
 /// YYYYMMDD tuple → Julian Day Number.
-fn ymd_to_jdn(y: u32, m: u32, d: u32) -> u32 {
+pub(crate) fn ymd_to_jdn(y: u32, m: u32, d: u32) -> u32 {
     let a = (14u32.wrapping_sub(m)) / 12;
     let yr = y + 4800 - a;
     let mo = m + 12 * a - 3;
@@ -153,7 +153,7 @@ fn ymd_to_jdn(y: u32, m: u32, d: u32) -> u32 {
 }
 
 /// Julian Day Number → YYYYMMDD.
-fn jdn_to_yyyymmdd(jdn: u32) -> u32 {
+pub(crate) fn jdn_to_yyyymmdd(jdn: u32) -> u32 {
     let a = jdn + 32044;
     let b = (4 * a + 3) / 146097;
     let c = a - (146097 * b) / 4;

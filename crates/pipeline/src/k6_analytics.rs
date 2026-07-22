@@ -199,14 +199,9 @@ fn is_all_lower(s: &str) -> bool {
     n >= 3
 }
 
-fn haversine_km(lat1: f64, lon1: f64, lat2: f64, lon2: f64) -> f64 {
-    const R: f64 = 6371.0;
-    let dlat = (lat2 - lat1).to_radians();
-    let dlon = (lon2 - lon1).to_radians();
-    let a = (dlat / 2.0).sin().powi(2)
-        + lat1.to_radians().cos() * lat2.to_radians().cos() * (dlon / 2.0).sin().powi(2);
-    2.0 * R * a.sqrt().asin()
-}
+// haversine_km / ymd_to_jdn / jdn_to_yyyymmdd → k5_derived (tek kanonik tanım).
+// Buradaki kopyaları k5'inkilerle birebir aynıydı; k5 sürümü test kapsamında.
+use crate::k5_derived::{haversine_km, jdn_to_yyyymmdd, ymd_to_jdn};
 
 /// Bir durağın (slat, slon) bir shape polyline'ına olan minimum mesafesini metre cinsinden döner.
 /// Her segment için dik-mesafe (perpendicular projection) hesaplanır; projeksiyon segment
@@ -1448,7 +1443,7 @@ fn check_calendar_analytics(
     // arasında toplanır (#30) → gap başına tek notice, etkilenen service_id'ler listelenir.
     // near_future imzanın (bugüne bağlı) fonksiyonudur, servise değil → her imza tekdüze
     // CAL_007 ya da CAL_012 üretir. Emit döngü SONRASINDA yapılır.
-    let today_jdn = yyyymmdd_to_approx_jdn(today_yyyymmdd);
+    let today_jdn = yyyymmdd_to_jdn(today_yyyymmdd);
     let gap_threshold = config.service_gap_days;   // CAL_010: çok-kısa servis eşiği (aktif gün)
     let big_gap_threshold = config.big_gap_days;   // CAL_007/012: büyük-boşluk eşiği (MD ≈ 14)
     let mut gap_services: std::collections::BTreeMap<(u32, u32), Vec<&str>> =
@@ -1484,8 +1479,8 @@ fn check_calendar_analytics(
         // MobilityData big_gap_in_service PER-SERVICE'tir (feed-level union DEĞİL). Boşluklar
         // (gap_start, gap_end) imzasıyla TÜM servisler arasında toplanır (#30) → emit döngü SONRASI.
         for pair in sorted.windows(2) {
-            let gap_days = yyyymmdd_to_approx_jdn(pair[1])
-                .saturating_sub(yyyymmdd_to_approx_jdn(pair[0]))
+            let gap_days = yyyymmdd_to_jdn(pair[1])
+                .saturating_sub(yyyymmdd_to_jdn(pair[0]))
                 .saturating_sub(1);
             if gap_days >= big_gap_threshold {
                 gap_services.entry((pair[0], pair[1])).or_default().push(service_id.as_str());
@@ -1502,7 +1497,7 @@ fn check_calendar_analytics(
             if min_d <= today_yyyymmdd && max_d >= today_yyyymmdd {
                 let window_end_jdn = today_jdn + config.upcoming_service_days;
                 let has_upcoming = sorted.iter().any(|&d| {
-                    let jdn = yyyymmdd_to_approx_jdn(d);
+                    let jdn = yyyymmdd_to_jdn(d);
                     jdn >= today_jdn && jdn <= window_end_jdn
                 });
                 let trip_count = service_trip_counts.get(service_id.as_str()).copied().unwrap_or(0);
@@ -1533,8 +1528,8 @@ fn check_calendar_analytics(
     for ((gap_from, gap_to), mut svcs) in gap_services {
         svcs.sort_unstable();
         svcs.dedup();
-        let a_jdn = yyyymmdd_to_approx_jdn(gap_from);
-        let b_jdn = yyyymmdd_to_approx_jdn(gap_to);
+        let a_jdn = yyyymmdd_to_jdn(gap_from);
+        let b_jdn = yyyymmdd_to_jdn(gap_to);
         let gap_days = b_jdn.saturating_sub(a_jdn).saturating_sub(1);
         // Boşluk bugün/yakın gelecekle (bugünden +30 gün) örtüşüyor mu?
         let near_future =
@@ -1611,8 +1606,8 @@ fn check_calendar_analytics(
             // birleşik active_dates'e göre CAL_017 döngüsünde hesaplanır; böylece
             // calendar_dates ile ileri taşınan servisler yanlış "dolmuş" sayılmaz (FP fix).
             let warning_days = config.feed_expiry_warning_days;
-            let end_jdn = yyyymmdd_to_approx_jdn(end_yyyymmdd);
-            let today_jdn = yyyymmdd_to_approx_jdn(today_yyyymmdd);
+            let end_jdn = yyyymmdd_to_jdn(end_yyyymmdd);
+            let today_jdn = yyyymmdd_to_jdn(today_yyyymmdd);
             if end_jdn > today_jdn && end_jdn - today_jdn <= warning_days {
                 notices.push(k6_notice(
                     ctr,
@@ -1764,13 +1759,13 @@ fn check_calendar_analytics(
         }
 
         // CAL_016: en geç aktif tarih 2 yıldan fazla ileriye uzanıyor
-        let today_jdn = yyyymmdd_to_approx_jdn(today_yyyymmdd);
+        let today_jdn = yyyymmdd_to_jdn(today_yyyymmdd);
         let far_future_jdn = today_jdn + 730;
         let max_date = derived.calendar_bitmap.active_dates.values()
             .flat_map(|s| s.iter().copied())
             .max();
         if let Some(last) = max_date {
-            let last_jdn = yyyymmdd_to_approx_jdn(last);
+            let last_jdn = yyyymmdd_to_jdn(last);
             if last_jdn > far_future_jdn {
                 notices.push(k6_notice(
                     ctr, "CAL_016", EntityType::Feed,
@@ -2458,10 +2453,10 @@ fn check_operational_analytics(
 
     // TRP_023: önümüzdeki 7 günde aktif sefer yok
     if today_yyyymmdd > 0 && !records.trips.is_empty() {
-        let today_jdn = yyyymmdd_to_approx_jdn(today_yyyymmdd);
+        let today_jdn = yyyymmdd_to_jdn(today_yyyymmdd);
         let active_in_7days = derived.calendar_bitmap.active_dates.values().any(|dates| {
             dates.iter().any(|&d| {
-                let djdn = yyyymmdd_to_approx_jdn(d);
+                let djdn = yyyymmdd_to_jdn(d);
                 djdn >= today_jdn && djdn < today_jdn + 7
             })
         });
@@ -2480,7 +2475,7 @@ fn check_operational_analytics(
     // (Aynı aktif-olmayan takvim binlerce sefere yayılır; aksiyon birimi service_id'dir,
     // sefer değil — bu yüzden sefer-başına notice yerine takvim-başına tek özet üretilir.)
     if today_yyyymmdd > 0 && !records.trips.is_empty() {
-        let today_jdn = yyyymmdd_to_approx_jdn(today_yyyymmdd);
+        let today_jdn = yyyymmdd_to_jdn(today_yyyymmdd);
         // service_id → (etkilenen sefer sayısı, ilk trip satırı)
         let mut inactive_by_service: FxHashMap<&str, (u32, u64)> = FxHashMap::default();
         for trip in &records.trips {
@@ -2488,7 +2483,7 @@ fn check_operational_analytics(
             let active_in_7 = derived.calendar_bitmap.active_dates
                 .get(ti_opr.service_id(trip))
                 .map(|dates| dates.iter().any(|&d| {
-                    let djdn = yyyymmdd_to_approx_jdn(d);
+                    let djdn = yyyymmdd_to_jdn(d);
                     djdn >= today_jdn && djdn < today_jdn + 7
                 }))
                 .unwrap_or(false);
@@ -3556,8 +3551,8 @@ fn check_data_quality(
             // FIN_017: feed_end_date çok uzak gelecekte (> 2 yıl)
             if let Some((ey, em, ed)) = fi.feed_end_date {
                 let end = ey * 10000 + em * 100 + ed;
-                let today_jdn = yyyymmdd_to_approx_jdn(today_yyyymmdd);
-                let end_jdn   = yyyymmdd_to_approx_jdn(end);
+                let today_jdn = yyyymmdd_to_jdn(today_yyyymmdd);
+                let end_jdn   = yyyymmdd_to_jdn(end);
                 if end_jdn > today_jdn + 730 {
                     notices.push(k6_notice(
                         ctr, "FIN_017", EntityType::Feed,
@@ -3591,8 +3586,8 @@ fn check_data_quality(
                 if let Some((ey, em, ed)) = fi.feed_end_date {
                     let end = ey * 10000 + em * 100 + ed;
                     if end >= today_yyyymmdd {
-                        let today_jdn = yyyymmdd_to_approx_jdn(today_yyyymmdd);
-                        let end_jdn   = yyyymmdd_to_approx_jdn(end);
+                        let today_jdn = yyyymmdd_to_jdn(today_yyyymmdd);
+                        let end_jdn   = yyyymmdd_to_jdn(end);
                         let days_left = end_jdn.saturating_sub(today_jdn);
                         if days_left <= 7 && days_left > 0 {
                             notices.push(k6_notice(
@@ -3613,8 +3608,8 @@ fn check_data_quality(
     // FIN_020: Feed geçerlilik penceresi < 7 gün
     if let Some(fi) = records.feed_info.first() {
         if let (Some((sy, sm, sd)), Some((ey, em, ed))) = (fi.feed_start_date, fi.feed_end_date) {
-            let start_jdn = yyyymmdd_to_approx_jdn(sy * 10000 + sm * 100 + sd);
-            let end_jdn   = yyyymmdd_to_approx_jdn(ey * 10000 + em * 100 + ed);
+            let start_jdn = yyyymmdd_to_jdn(sy * 10000 + sm * 100 + sd);
+            let end_jdn   = yyyymmdd_to_jdn(ey * 10000 + em * 100 + ed);
             let span_days = end_jdn.saturating_sub(start_jdn);
             if span_days < 7 {
                 notices.push(k6_notice(
@@ -3631,8 +3626,8 @@ fn check_data_quality(
     // CAL_020: Feed geçerlilik penceresi > 5 yıl (yaklaşık 1825 gün)
     if let Some(fi) = records.feed_info.first() {
         if let (Some((sy, sm, sd)), Some((ey, em, ed))) = (fi.feed_start_date, fi.feed_end_date) {
-            let start_jdn = yyyymmdd_to_approx_jdn(sy * 10000 + sm * 100 + sd);
-            let end_jdn   = yyyymmdd_to_approx_jdn(ey * 10000 + em * 100 + ed);
+            let start_jdn = yyyymmdd_to_jdn(sy * 10000 + sm * 100 + sd);
+            let end_jdn   = yyyymmdd_to_jdn(ey * 10000 + em * 100 + ed);
             let span_days = end_jdn.saturating_sub(start_jdn);
             if span_days > 1825 {
                 notices.push(k6_notice(
@@ -6251,33 +6246,16 @@ fn segments_cross(a: (f64, f64), b: (f64, f64), c: (f64, f64), d: (f64, f64)) ->
     false
 }
 
-/// Yaklaşık Julian Day Number hesabı (gap/expiry karşılaştırması için yeterli).
-/// k5_derived::ymd_to_jdn ile aynı formül; burada u32 döndürür.
-fn yyyymmdd_to_approx_jdn(yyyymmdd: u32) -> u32 {
+/// Paketlenmiş YYYYMMDD → Julian Day Number. Formül `k5_derived::ymd_to_jdn`'de;
+/// burada yalnızca u32 açma + geçersiz tarih (0 bileşen) koruması var.
+fn yyyymmdd_to_jdn(yyyymmdd: u32) -> u32 {
     let y = yyyymmdd / 10000;
     let m = (yyyymmdd / 100) % 100;
     let d = yyyymmdd % 100;
     if y == 0 || m == 0 || d == 0 {
         return 0;
     }
-    let a = (14u32.wrapping_sub(m)) / 12;
-    let yr = y + 4800 - a;
-    let mo = m + 12 * a - 3;
-    d + (153 * mo + 2) / 5 + 365 * yr + yr / 4 - yr / 100 + yr / 400 - 32045
-}
-
-/// Julian Day Number → YYYYMMDD (yyyymmdd_to_approx_jdn'in tersi).
-fn jdn_to_yyyymmdd_k6(jdn: u32) -> u32 {
-    let a = jdn + 32044;
-    let b = (4 * a + 3) / 146097;
-    let c = a - (146097 * b) / 4;
-    let d = (4 * c + 3) / 1461;
-    let e = c - (1461 * d) / 4;
-    let m = (5 * e + 2) / 153;
-    let day = e - (153 * m + 2) / 5 + 1;
-    let month = m + 3 - 12 * (m / 10);
-    let year = 100 * b + d - 4800 + m / 10;
-    year * 10000 + month * 100 + day
+    ymd_to_jdn(y, m, d)
 }
 
 fn format_hms(total_secs: u32) -> String {
@@ -6452,15 +6430,15 @@ fn check_calendar_override_analytics(
         let base_svc_set: FxHashSet<&str> = rule.base_service_ids.iter().map(|s| s.as_str()).collect();
         let override_svc_set: FxHashSet<&str> = rule.override_service_ids.iter().map(|s| s.as_str()).collect();
 
-        let start_jdn = yyyymmdd_to_approx_jdn(rule.start_date);
-        let end_jdn = yyyymmdd_to_approx_jdn(rule.end_date);
+        let start_jdn = yyyymmdd_to_jdn(rule.start_date);
+        let end_jdn = yyyymmdd_to_jdn(rule.end_date);
 
         let mut dates_021: Vec<u32> = Vec::new();
         let mut dates_022: Vec<u32> = Vec::new();
         let mut dates_023: Vec<u32> = Vec::new();
 
         for jdn in start_jdn..=end_jdn {
-            let date = jdn_to_yyyymmdd_k6(jdn);
+            let date = jdn_to_yyyymmdd(jdn);
             let base_active = base_svc_set.iter().any(|&s| {
                 derived.calendar_bitmap.active_dates.get(s)
                     .is_some_and(|set| set.contains(&date))
@@ -6545,7 +6523,7 @@ fn check_calendar_override_analytics(
             let has_weekend = service_ids.iter().any(|&svc| {
                 derived.calendar_bitmap.active_dates.get(svc)
                     .is_some_and(|dates| dates.iter().any(|&d| {
-                        let jdn = yyyymmdd_to_approx_jdn(d);
+                        let jdn = yyyymmdd_to_jdn(d);
                         jdn % 7 == 5 || jdn % 7 == 6 // Cumartesi=5, Pazar=6
                     }))
             });
@@ -6579,8 +6557,8 @@ fn check_calendar_override_analytics(
             let mut gap_end = 0u32;
             for w in sorted.windows(2) {
                 // CAL_007 ile aynı sayım: iki tarih arasındaki eksik günler (dışlayıcı)
-                let d = yyyymmdd_to_approx_jdn(w[1])
-                    .saturating_sub(yyyymmdd_to_approx_jdn(w[0]))
+                let d = yyyymmdd_to_jdn(w[1])
+                    .saturating_sub(yyyymmdd_to_jdn(w[0]))
                     .saturating_sub(1);
                 if d > max_gap { max_gap = d; gap_start = w[0]; gap_end = w[1]; }
             }
