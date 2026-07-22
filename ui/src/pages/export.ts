@@ -8,15 +8,10 @@ import { buildGoldenSnapshot } from '../golden';
 import { buildExecutiveReportHtml, buildExecutiveReportModel } from '../executive-report';
 import type { Locale } from '../i18n';
 import { withAutoPrint, withLang } from '../print-doc';
+import { escHtml } from '../escape';
+import { formatBytes } from '../format';
 
 // Bayt → insan-okur boyut (yerel ondalık ayraçla). Tahmini dışa aktarım boyutu için.
-function formatBytes(b: number): string {
-  if (b < 1024) return `${b} B`;
-  if (b < 1024 * 1024) return `${Math.round(b / 1024)} KB`;
-  const mb = b / (1024 * 1024);
-  return `${new Intl.NumberFormat(undefined, { maximumFractionDigits: 1 }).format(mb)} MB`;
-}
-
 const byteLen = (s: string): number => new TextEncoder().encode(s).length;
 
 // Locale-duyarlı sayı biçimi (binlik ayraç tr "2.935.811" / en "2,935,811" / ja "2,935,811").
@@ -548,8 +543,4 @@ function triggerDownload(blob: Blob, name: string): void {
   a.download = name;
   a.click();
   URL.revokeObjectURL(url);
-}
-
-function escHtml(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }

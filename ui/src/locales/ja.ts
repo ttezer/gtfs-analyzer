@@ -317,6 +317,8 @@ const ja: LocaleShape = {
     'fix.pattern_btn'       : '運行パターンを表示',
     'fix.pattern.title'     : '運行パターン',
     'fix.pattern.close'     : '閉じる',
+    'fix.map.title'         : '地図',
+    'fix.map.close'         : '閉じる',
     'fix.pattern.none'      : 'この路線に停留所順が判明している便がありません。',
     'fix.pattern.pat_n'     : 'パターン{n}',
     'fix.pattern.trips'     : '{n}便',

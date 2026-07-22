@@ -5,6 +5,7 @@ import { renderApp } from '../main';
 import { validateFile } from '../validator-client';
 import type { EngineMode } from '../wasm';
 import { validateFeedUrl, urlFileName, isZipSignature } from './url-helpers';
+import { escHtml } from '../escape';
 
 const STAGE_ORDER = ['K1', 'K2', 'K3', 'K4', 'K5', 'K6', 'K7'];
 let activeEngine: EngineMode | null = null;
@@ -683,8 +684,4 @@ function formatCount(n: number): string {
 function pluralUnit(label: string, count: number): string {
   if (getLocale() !== 'en') return label;
   return new Intl.PluralRules('en').select(count) === 'one' ? label : `${label}s`;
-}
-
-function escHtml(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }

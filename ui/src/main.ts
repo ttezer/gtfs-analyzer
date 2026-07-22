@@ -7,6 +7,7 @@ import { renderExport } from './pages/export';
 import { renderCompare } from './pages/compare';
 import { getLocale, setLocale, t } from './i18n';
 import { initDebugBuffer } from './debug-buffer';
+import { escHtml } from './escape';
 import type { AppPage } from './state';
 
 // ── Dark mode ─────────────────────────────────────────────────────────────────
@@ -174,10 +175,6 @@ export function renderApp(): void {
     case 'export': renderExport(pageRoot, state.result, state.fileName); break;
     case 'compare': renderCompare(pageRoot, state.result, state.fileName, state.generatedAt ?? new Date(), state.configDelta); break;
   }
-}
-
-function escHtml(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 initDebugBuffer();

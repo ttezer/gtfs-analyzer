@@ -2,6 +2,7 @@
 
 import * as L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { t } from './i18n';
 
 export interface MapPin {
   lat: number;
@@ -172,10 +173,10 @@ function ensureOverlay(): void {
   overlay = document.createElement('div');
   overlay.className = 'mm-overlay mm-hidden';
   overlay.innerHTML = `
-    <div class="mm-box" role="dialog" aria-modal="true" aria-label="Harita">
+    <div class="mm-box" role="dialog" aria-modal="true" aria-label="${t('fix.map.title')}">
       <div class="mm-header">
         <span class="mm-title"></span>
-        <button class="mm-close" title="Kapat" aria-label="Kapat">✕</button>
+        <button class="mm-close" title="${t('fix.map.close')}" aria-label="${t('fix.map.close')}">✕</button>
       </div>
       <div class="mm-map"></div>
       <div class="mm-legend"></div>

@@ -25,12 +25,6 @@ function csvCell(v: string | number | null | undefined): string {
     : safe;
 }
 
-// ── escHtml (fix.ts / export.ts'ten inline) ───────────────────────────────────
-
-function escHtml(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-}
-
 // ── Testler ───────────────────────────────────────────────────────────────────
 
 describe('parseConfigDelta', () => {
@@ -120,24 +114,4 @@ describe('csvCell', () => {
   });
 });
 
-describe('escHtml', () => {
-  it('& → &amp;', () => {
-    expect(escHtml('a & b')).toBe('a &amp; b');
-  });
-
-  it('< ve > → &lt; &gt;', () => {
-    expect(escHtml('<script>')).toBe('&lt;script&gt;');
-  });
-
-  it('> → &gt;', () => {
-    expect(escHtml('a > b')).toBe('a &gt; b');
-  });
-
-  it('XSS girişimi engellenir', () => {
-    expect(escHtml('<img src=x onerror=alert(1)>')).toBe('&lt;img src=x onerror=alert(1)&gt;');
-  });
-
-  it('temiz string değişmez', () => {
-    expect(escHtml('hello world')).toBe('hello world');
-  });
-});
+// escHtml testleri → escape.test.ts (kanonik, tırnak kaçışlamayı da kapsar)

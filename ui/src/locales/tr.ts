@@ -327,6 +327,8 @@ const tr = {
     'fix.pattern_btn'       : 'Sefer desenlerini göster',
     'fix.pattern.title'     : 'Sefer Desenleri',
     'fix.pattern.close'     : 'Kapat',
+    'fix.map.title'         : 'Harita',
+    'fix.map.close'         : 'Kapat',
     'fix.pattern.none'      : 'Bu hatta durak dizisi bilinen sefer yok.',
     'fix.pattern.pat_n'     : 'Desen {n}',
     'fix.pattern.trips'     : '{n} sefer',

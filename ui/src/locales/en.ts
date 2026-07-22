@@ -328,6 +328,8 @@ const en: LocaleShape = {
     'fix.pattern_btn'       : 'Show trip patterns',
     'fix.pattern.title'     : 'Trip Patterns',
     'fix.pattern.close'     : 'Close',
+    'fix.map.title'         : 'Map',
+    'fix.map.close'         : 'Close',
     'fix.pattern.none'      : 'No trips with a known stop sequence on this route.',
     'fix.pattern.pat_n'     : 'Pattern {n}',
     'fix.pattern.trips'     : '{n} trips',

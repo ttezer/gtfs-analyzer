@@ -2,6 +2,8 @@ import type { ValidationResult, R5Report, FeedMetrics } from '../types';
 import { t } from '../i18n';
 import { getState, setPage, setFixClassFilter } from '../state';
 import { fmtServiceDate, inclusiveDaySpan, dayOffset, fmtTimestamp } from '../dates';
+import { escHtml } from '../escape';
+import { formatBytes } from '../format';
 
 export function renderDomain(root: HTMLElement, result: ValidationResult): void {
   const { r1, r5 } = result.reports;
@@ -229,12 +231,6 @@ function renderMetrics(m: FeedMetrics): string {
     </div>`;
 }
 
-function formatBytes(b: number): string {
-  if (b < 1024) return `${b} B`;
-  if (b < 1024 * 1024) return `${(b / 1024).toFixed(1)} KB`;
-  return `${(b / 1024 / 1024).toFixed(1)} MB`;
-}
-
 // ── Feed takvimi: geçerlilik penceresi (F1) + servis kapsama görseli (F2) + zaman damgası (F3) ──
 
 function renderFeedCalendar(m: FeedMetrics): string {
@@ -319,8 +315,4 @@ function renderTimelineBar(fs: number | null, fe: number | null, ss: number | nu
       </div>
       ${legend}
     </div>`;
-}
-
-function escHtml(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
