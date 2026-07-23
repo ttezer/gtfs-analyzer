@@ -2,7 +2,7 @@
 
 🇹🇷 [Türkçe](RULES.md) · 🇬🇧 **English** · 🇯🇵 [日本語](RULES.ja.md)
 
-535 rules, 37 groups. Each rule is identified by a unique ID, severity level, and class.
+532 rules, 37 groups. Each rule is identified by a unique ID, severity level, and class.
 Severity levels: **CRITICAL** (publish blocker) · **HIGH** · **MEDIUM** · **LOW** · **INFO**
 Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Quality** (GTFS Quality) · **Analytics** (GTFS Analytics)
 
@@ -136,7 +136,6 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | RTS_006 | route_color invalid hex color | MEDIUM | Spec |
 | RTS_007 | route_text_color invalid hex color | LOW | Quality |
 | RTS_008 | Route color and text color have low contrast | MEDIUM | Quality |
-| RTS_009 | route_short_name and route_long_name are identical | LOW | Quality |
 | RTS_010 | route_short_name too long | LOW | Quality |
 | RTS_011 | route_long_name too long | LOW | Quality |
 | RTS_012 | Route with no trips | MEDIUM | Quality |
@@ -166,7 +165,6 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | TRP_006 | wheelchair_accessible invalid | LOW | Spec |
 | TRP_007 | bikes_allowed invalid | LOW | Spec |
 | TRP_032 | cars_allowed invalid | LOW | Spec |
-| TRP_009 | Trip has no time-stamped stops | HIGH | Quality |
 | TRP_011 | Trip headsign not set | HIGH | Quality |
 | TRP_012 | direction_id missing on bidirectional route | LOW | Quality |
 | TRP_013 | Route has only one trip | LOW | Quality |
@@ -706,7 +704,6 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | VAT_001 | Route shape similarity (likely duplicate route) | MEDIUM | Analytics |
 | VAT_002 | Transfer hub undefined — many routes pass but no transfers defined | INFO | Analytics |
 | VAT_003 | Trip duration statistical outlier | LOW | Analytics |
-| VAT_004 | Route service asymmetry — route only operates on weekdays | INFO | Analytics |
 | VAT_005 | Isolated stop cluster — stops disconnected from main network component | MEDIUM | Analytics |
 | VAT_006 | Service density imbalance — single route accounts for large proportion of feed trips | INFO | Analytics |
 | VAT_007 | Terminal transfer missing — another route serves the terminus but no transfer defined | INFO | Analytics |

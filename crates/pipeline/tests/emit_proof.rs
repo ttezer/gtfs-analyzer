@@ -340,7 +340,6 @@ fn fixtures() -> Vec<Fixture> {
         fx("RTS_004", vec![("routes.txt", "route_id,agency_id,route_short_name,route_type\nR1,1,101,9999\n")]),
         fx("RTS_005", vec![("routes.txt", "route_id,agency_id,route_short_name,route_type,route_url\nR1,1,101,3,notaurl\n")]),
         fx("RTS_006", vec![("routes.txt", "route_id,agency_id,route_short_name,route_type,route_color\nR1,1,101,3,XYZ\n")]),
-        fx("RTS_009", vec![("routes.txt", "route_id,agency_id,route_short_name,route_long_name,route_type\nR1,1,ABC,ABC,3\n")]),
         fx("RTS_013", vec![("routes.txt", "route_id,agency_id,route_short_name,route_type,continuous_pickup\nR1,1,101,3,9\n")]),
         fx("RTS_018", vec![("routes.txt", "route_id,agency_id,route_short_name,route_type,continuous_drop_off\nR1,1,101,3,9\n")]),
         // RTS_026: aynı kısa ad, FARKLI uzun ad (→ RTS_019 değil, Bilgi).
@@ -982,8 +981,6 @@ fn fixtures() -> Vec<Fixture> {
         fx("TRP_003", vec![("trips.txt", "route_id,service_id,trip_id\nR1,SVCX,T1\n")]),
         // TRP_004: shape_id shapes.txt'te yok (k4).
         fx("TRP_004", vec![("trips.txt", "route_id,service_id,trip_id,shape_id\nR1,SVC1,T1,SHNOPE\n")]),
-        // TRP_009: stop_times var ama hiç zaman bilgisi yok (k6).
-        fx("TRP_009", vec![("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,,,S1,1\nT1,,,S2,2\n")]),
         // TRP_011: trip_headsign + trip_short_name yok VE route da adsız (route-telafi guard #29).
         // (Base route_short_name=101 → guard eler; route adsız feed gerekiyor.)
         fx("TRP_011", vec![("routes.txt", "route_id,agency_id,route_type\nR1,1,3\n")]),
@@ -1379,8 +1376,6 @@ fn fixtures() -> Vec<Fixture> {
             ("shapes.txt", "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\nSH1,41.0,29.0,1\nSH1,41.1,29.1,2\n"),
             ("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\nT1,08:10:00,08:10:00,S2,2\nT2,08:05:00,08:05:00,S1,1\nT2,08:15:00,08:15:00,S2,2\nT3,08:10:00,08:10:00,S1,1\nT3,08:20:00,08:20:00,S2,2\nT4,08:15:00,08:15:00,S1,1\nT4,08:25:00,08:25:00,S2,2\nT5,08:20:00,08:20:00,S1,1\nT5,08:30:00,08:30:00,S2,2\nT6,08:25:00,08:25:00,S1,1\nT6,09:15:00,09:15:00,S2,2\n"),
         ]),
-        // VAT_004: hat hafta içi >= 5 sefer, hafta sonu sıfır (base takvim Pzt-Cum).
-        fx("VAT_004", vec![("trips.txt", "route_id,service_id,trip_id\nR1,SVC1,T1\nR1,SVC1,T2\nR1,SVC1,T3\nR1,SVC1,T4\nR1,SVC1,T5\n")]),
         // VAT_005: ana şebekeden kopuk izole durak kümesi (BFS bileşen).
         fx("VAT_005", vec![
             ("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\nS2,Stop2,41.01,29.01\nS3,Stop3,41.02,29.02\nS4,Stop4,41.03,29.03\nS5,Iso1,10.0,10.0\nS6,Iso2,10.01,10.01\n"),

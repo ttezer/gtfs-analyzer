@@ -69,17 +69,10 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
             ));
         }
 
-        // RTS_009: short_name ve long_name birbirinin aynısı
-        if let (Some(ref s), Some(ref l)) = (&route_short_name, &route_long_name) {
-            if s.to_lowercase() == l.to_lowercase() {
-                notices.push(make_k2_notice(
-                    &mut counter, "RTS_009", EntityType::Route, entity_id.clone(), Some(&row_map),
-                    &file.name, Some(line), Some("route_long_name"), Some(l.clone()), None,
-                    format!("'{}' hattında route_short_name ve route_long_name aynı değer: '{s}'.", route_id),
-                    "route_long_name, route_short_name'den farklı ve daha açıklayıcı olmalıdır.",
-                ));
-            }
-        }
+        // RTS_009 (short == long) KALDIRILDI (2026-07-23): RTS_022'nin (K6,
+        // route_long_name_contains_short_name) saf alt kümesiydi — eşitlik de bir
+        // "içerme" vakasıdır. RTS_022 MD paritesi taşır ve eşitliği zaten yakalar;
+        // RTS_009 kaldırılınca parite korunur (RTS_022'ye dokunulmadı).
 
         // RTS_010: route_short_name çok uzun (>12 karakter)
         if let Some(ref s) = route_short_name {

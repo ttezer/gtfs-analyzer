@@ -322,7 +322,7 @@ const STOP_ID_RULES = new Set([
 const TRIP_ID_RULES = new Set([
   // TRP grubu
   'TRP_001','TRP_002','TRP_003','TRP_004','TRP_005','TRP_006','TRP_007','TRP_008',
-  'TRP_009','TRP_010','TRP_011','TRP_012','TRP_013','TRP_014','TRP_015','TRP_016',
+  'TRP_010','TRP_011','TRP_012','TRP_013','TRP_014','TRP_015','TRP_016',
   'TRP_017','TRP_018','TRP_019','TRP_020',
   // FRQ grubu
   'FRQ_001','FRQ_002','FRQ_003','FRQ_004','FRQ_005','FRQ_006','FRQ_007','FRQ_008','FRQ_009',
@@ -343,10 +343,10 @@ const TRIP_ID_RULES = new Set([
 const ROUTE_ID_RULES = new Set([
   // RTS grubu
   'RTS_001','RTS_002','RTS_003','RTS_004','RTS_005','RTS_006','RTS_007','RTS_008',
-  'RTS_009','RTS_010','RTS_011','RTS_012','RTS_013','RTS_015','RTS_016','RTS_017',
+  'RTS_010','RTS_011','RTS_012','RTS_013','RTS_015','RTS_016','RTS_017',
   'RTS_018','RTS_019','RTS_020','RTS_021','RTS_022','RTS_023',
   // VAT grubu — hat bazlı
-  'VAT_001','VAT_004',
+  'VAT_001',
   // OPR grubu — hat bazlı
   'OPR_001','OPR_002','OPR_003',
 ]);

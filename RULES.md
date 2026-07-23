@@ -2,7 +2,7 @@
 
 🇹🇷 **Türkçe** · 🇬🇧 [English](RULES.en.md) · 🇯🇵 [日本語](RULES.ja.md)
 
-535 kural, 37 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
+532 kural, 37 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
 Önem seviyeleri: **KRİTİK** (yayın engelleyici) · **YÜKSEK** · **ORTA** · **DÜŞÜK** · **BİLGİ**
 Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · **Quality** (GTFS Kalitesi) · **Analytics** (GTFS Analitiği)
 
@@ -136,7 +136,6 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | RTS_006 | route_color geçersiz hex renk | ORTA | Spec |
 | RTS_007 | route_text_color geçersiz hex renk | DÜŞÜK | Quality |
 | RTS_008 | Hat rengi ve metin rengi kontrast düşük | ORTA | Quality |
-| RTS_009 | route_short_name ve route_long_name birbirinin aynısı | DÜŞÜK | Quality |
 | RTS_010 | route_short_name çok uzun | DÜŞÜK | Quality |
 | RTS_011 | route_long_name çok uzun | DÜŞÜK | Quality |
 | RTS_012 | Seferi olmayan hat | ORTA | Quality |
@@ -166,7 +165,6 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | TRP_006 | wheelchair_accessible geçersiz | DÜŞÜK | Spec |
 | TRP_007 | bikes_allowed geçersiz | DÜŞÜK | Spec |
 | TRP_032 | cars_allowed geçersiz | DÜŞÜK | Spec |
-| TRP_009 | Seferde zaman damgalı durak yok | YÜKSEK | Quality |
 | TRP_011 | Sefer yön adı girilmemiş | YÜKSEK | Quality |
 | TRP_012 | Çift yönlü rotada direction_id eksik | DÜŞÜK | Quality |
 | TRP_013 | Hat tek seferlik | DÜŞÜK | Quality |
@@ -706,7 +704,6 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | VAT_001 | Hat güzergah benzerliği (muhtemel kopya hat) | ORTA | Analytics |
 | VAT_002 | Aktarma merkezi tanımsız — çok sayıda hat geçiyor ama aktarma yok | BİLGİ | Analytics |
 | VAT_003 | Sefer süresi istatistiksel aykırı değer | DÜŞÜK | Analytics |
-| VAT_004 | Hat hizmet asimetrisi — hat yalnızca hafta içi çalışıyor | BİLGİ | Analytics |
 | VAT_005 | İzole durak kümesi — ağ grafiğinde ana bileşenden kopuk duraklar | ORTA | Analytics |
 | VAT_006 | Hizmet yoğunluğu dengesizliği — tek hat feed sefer sayısının büyük bölümünü oluşturuyor | BİLGİ | Analytics |
 | VAT_007 | Terminus aktarma eksikliği — terminal durağa başka hat geliyor ama aktarma tanımlı değil | BİLGİ | Analytics |

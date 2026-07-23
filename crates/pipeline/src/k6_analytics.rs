@@ -333,7 +333,6 @@ fn max_speed_kmh(route_type: u32, cfg: &ValidatorConfig) -> f64 {
 struct StopTimesIndex<'a> {
     by_trip: FxHashMap<&'a str, &'a [CompactStopTime]>,
     trip_first_dep: FxHashMap<&'a str, u32>,
-    trip_has_time: FxHashSet<&'a str>,
     stop_shapes: FxHashMap<&'a str, Vec<&'a str>>,
     trips_missing_sdt: FxHashMap<&'a str, u64>,
     // STM_036: K2'de tespit edilen sırasız stop_sequence bilgisi
@@ -375,15 +374,10 @@ impl<'a> StopTimesIndex<'a> {
             v.dedup();
         }
 
-        // Post-build: trip_has_time + trips_missing_sdt
-        let mut trip_has_time: FxHashSet<&'a str> = FxHashSet::default();
+        // Post-build: trips_missing_sdt
         let mut trips_missing_sdt: FxHashMap<&'a str, u64> = FxHashMap::default();
-        trip_has_time.reserve(n_trips);
         trips_missing_sdt.reserve(n_trips / 4);
         for (&tid, v) in &by_trip {
-            if v.iter().any(|s| s.arrival_time().is_some() || s.departure_time().is_some()) {
-                trip_has_time.insert(tid);
-            }
             if trip_shape.contains_key(tid) {
                 if let Some(st) = v.iter().find(|s| s.shape_dist_traveled().is_none()) {
                     trips_missing_sdt.insert(tid, st.line as u64);
@@ -403,7 +397,6 @@ impl<'a> StopTimesIndex<'a> {
         Self {
             by_trip,
             trip_first_dep,
-            trip_has_time,
             stop_shapes,
             trips_missing_sdt,
             unsorted_seq_trips: &k2.unsorted_seq_trips,
@@ -2053,6 +2046,10 @@ fn check_geo_analytics(
     for stop in &records.stops {
         if stop.stop_id.is_empty() { continue; }
         let (Some(lat), Some(lon)) = (stop.stop_lat, stop.stop_lon) else { continue };
+        // Null Island (0,0) da tam sayıdır ama GEO_016 daha spesifik yakalıyor → çift
+        // emit olmasın. Diğer tam-sayı koordinatlar (ör. 41.0,29.0 düşük hassasiyet)
+        // GEO_016 kapsamı dışında, GEO_019 olarak raporlanmaya devam eder.
+        if lat.abs() < 0.1 && lon.abs() < 0.1 { continue; }
         if (lat - lat.round()).abs() < 1e-9 && (lon - lon.round()).abs() < 1e-9 {
             let name = stop.stop_name.as_deref().filter(|s| !s.is_empty()).unwrap_or(&stop.stop_id);
             notices.push(k6_notice(
@@ -2819,38 +2816,11 @@ fn check_route_trip_quality(
         })
         .collect();
 
-    // TRP_009: trip → çok az durak (< 2 faaliyetli zaman noktası)
-    // Not: OPR_006 tek-duraklı tipleri zaten yakalıyor; TRP_009 "en az 1 zaman noktası yok" için
-    let _t1 = Timer::start("K6::rtq::trp_009");
-    for trip in &records.trips {
-        let count = idx.by_trip.get(trip.trip_id.as_str()).map(|v| v.len()).unwrap_or(0);
-        if count == 0 {
-            continue; // XFL_002 K4'te yakaladı
-        }
-        let times_present = idx.trip_has_time.contains(trip.trip_id.as_str());
-        if !times_present && count > 0 {
-            notices.push(k6_notice(
-                ctr,
-                "TRP_009",
-                EntityType::Trip,
-                Some(trip.trip_id.to_string()),
-                Some(trip.trip_id.to_string()),
-                "stop_times.txt",
-                None,
-                None,
-                None,
-                None,
-                {
-                    let rid = ti_rtq.route_id(trip);
-                    let rname = route_short.get(rid).copied().unwrap_or(rid);
-                    let dep = trip_first_dep.get(trip.trip_id.as_str()).map(|s| format!(" {} kalkışlı", s)).unwrap_or_default();
-                    format!("'{}' hattının{dep} seferinde stop_times kaydı var ama hiçbirinde zaman bilgisi girilmemiş.", rname)
-                },
-                "stop_times'a geçerli arrival/departure_time ekleyin.",
-            ));
-        }
-    }
-    drop(_t1);
+    // TRP_009 (seferde hiç zaman damgalı durak yok) KALDIRILDI (2026-07-23):
+    // STM_015'in (GtfsSpec — ilk durakta departure_time zorunlu) saf alt kümesiydi.
+    // "Hiç zaman yok" ⟹ ilk durakta da departure yok ⟹ STM_015 zaten ateşler.
+    // STM_015 daha güçlü otorite (Spec > Quality) ve GTFS zorunlu-alan ihlalini
+    // işaret ediyor; TRP_009 (ProjectQuality) ek bilgi/otorite katmıyordu.
 
     // TRP_013: route başına çok az trip (= 1) — frekans sorunu
     let _t2 = Timer::start("K6::rtq::trp_013");
@@ -7178,55 +7148,13 @@ fn check_vat_analytics(
         }
     }
 
-    // ── VAT_004: Hat hizmet asimetrisi (hafta içi ≥ 5 sefer, hafta sonu sıfır) ──
-    {
-        // service_id → (has_weekday, has_weekend) — calendar.txt'ten
-        // days[0..4]=Mon-Fri, days[5]=Sat, days[6]=Sun
-        let mut svc_weekday: FxHashMap<&str, bool> = FxHashMap::default();
-        let mut svc_weekend: FxHashMap<&str, bool> = FxHashMap::default();
-        for cal in &records.calendars {
-            let has_wd = cal.days[0..5].iter().any(|d| *d == Some(1));
-            let has_we = cal.days[5..7].iter().any(|d| *d == Some(1));
-            svc_weekday.insert(cal.service_id.as_str(), has_wd);
-            svc_weekend.insert(cal.service_id.as_str(), has_we);
-        }
-
-        // route_id → (weekday_trip_count, weekend_trip_count)
-        let mut route_wd: FxHashMap<&str, u32> = FxHashMap::default();
-        let mut route_we: FxHashMap<&str, u32> = FxHashMap::default();
-
-        for trip in &records.trips {
-            let route = ti_vat.route_id(trip);
-            let svc = ti_vat.service_id(trip);
-            let has_wd = svc_weekday.get(svc).copied().unwrap_or(false);
-            let has_we = svc_weekend.get(svc).copied().unwrap_or(false);
-            if has_wd { *route_wd.entry(route).or_insert(0) += 1; }
-            if has_we { *route_we.entry(route).or_insert(0) += 1; }
-        }
-
-        for route in &records.routes {
-            let rid = route.route_id.as_str();
-            let wd = route_wd.get(rid).copied().unwrap_or(0);
-            let we = route_we.get(rid).copied().unwrap_or(0);
-            if wd >= 5 && we == 0 {
-                let label = route_label.get(rid).copied().unwrap_or(rid);
-                notices.push(k6_notice(
-                    ctr,
-                    "VAT_004",
-                    EntityType::Route,
-                    Some(rid.to_string()),
-                    None,
-                    "routes.txt",
-                    None,
-                    Some("route_id"),
-                    Some(format!("{wd} hafta içi, 0 hafta sonu")),
-                    None,
-                    format!("'{label}' hattı haftanın 5 günü {wd} sefer çalışıyor; hafta sonu calendar kaydı tanımlı değil."),
-                    "Hafta sonu hizmet yoksa bu bilgi notudur. Eksik sefer varsa calendar.txt'i güncelleyin.",
-                ));
-            }
-        }
-    }
+    // VAT_004 (hat hafta içi ≥5 sefer, hafta sonu calendar kaydı yok) KALDIRILDI
+    // (2026-07-23): OPR_004'ün (hattın aktif servislerinde hafta sonu yok) daha
+    // yanlış versiyonuydu. VAT_004 ham calendar.txt bayraklarına bakıyor,
+    // calendar_dates.txt istisnalarını GÖRMÜYORDU → hafta sonu yalnız exception ile
+    // tanımlanan hatta yanlış-pozitif. OPR_004 türetilmiş bitmap (calendar_dates
+    // dahil) kullanır, daha doğru. İkisi de BİLGİ (weight 0, skor nötr), MD paritesi
+    // yok. Pratikte VAT_004 ⊂ OPR_004 (corpus %99,6 örtüşme).
 
     // ── VAT_005: İzole durak kümesi (BFS bağlı bileşenler) ─────────────────
     {
@@ -10816,32 +10744,6 @@ mod tests {
         // Gerçek owl anomalisi gece bandına göre yine yakalanmalı.
         assert!(flagged.contains("WINC"),
             "gece bandı için anormal (40dk) owl seferi işaretlenmeli");
-    }
-
-    #[test]
-    fn weekday_only_route_produces_vat_004() {
-        use crate::k2::calendar::CalendarRecord;
-        let mut r = crate::k2::EntityRecords::default();
-        r.stops = vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1)];
-        r.routes = vec![route("R1", 3)];
-        r.calendars = vec![CalendarRecord {
-            service_id: "WEEKDAY".into(),
-            days: [Some(1), Some(1), Some(1), Some(1), Some(1), Some(0), Some(0)], // Mon-Fri
-            start_date: None,
-            end_date: None,
-            row: Default::default(),
-            line: 2,
-        }];
-        r.trips = (1..=5u32).map(|i| {
-            trip_svc(&format!("T{i}"), "WEEKDAY")
-        }).collect();
-        r.trip_interns = take_ti();
-        r.stop_times = (1..=5u32).flat_map(|i| vec![
-            stoptime(&format!("T{i}"), 1, "A", (i+7, 0, 0), (i+7, 0, 0), 2),
-            stoptime(&format!("T{i}"), 2, "B", (i+7, 30, 0), (i+7, 30, 0), 3),
-        ]).collect();
-        let result = analyze(&r, &empty_derived(), &default_config(), 20260514);
-        assert!(result.notices.iter().any(|n| n.rule_id == "VAT_004"), "VAT_004 olmalı");
     }
 
     #[test]
