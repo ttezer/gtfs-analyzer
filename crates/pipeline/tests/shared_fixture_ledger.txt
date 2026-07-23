@@ -1,0 +1,44 @@
+# Aynı fixture gövdesini paylaşan kural çiftleri (G2 duplikasyon-erken-uyarı).
+# Bugünkü iki kaçışın ortak imzası: STM_023/STM_036 ve OPR_006/STM_033 için
+# emit_proof'ta BİREBİR aynı fixture kayıtlıydı ve salt-kapsama testi yeşildi.
+# YENİ satır = ya meşru (aynı senaryo doğal olarak birden çok kuralı ilgilendirir)
+# ya DUPLİKASYON (aynı olgu iki kez). Şüpheliyse kaldır/katmanla; değilse işle.
+ARC_002 ARC_003
+ARC_006 FIN_007
+ARC_009 STP_018
+ATR_010 XFL_015
+CAL_006 CAL_018
+CAL_006 RTS_016
+CAL_006 TRP_026
+CAL_009 DQ_005
+CAL_015 CAL_017
+CAL_018 RTS_016
+CAL_018 TRP_026
+CAL_024 TRP_023
+DQ_005b DQ_009
+DQ_005b XFL_012
+DQ_009 XFL_012
+DQ_016 STP_025
+FAR_009 FRL_006
+GEO_015 JPN_001
+GEO_015 JPN_006
+GEO_015 JPN_010
+GGL_001 TRF_013
+JPN_001 JPN_006
+JPN_001 JPN_010
+JPN_004 JPN_007
+JPN_006 JPN_010
+OPR_006 STM_033
+OPR_011 TRP_003
+OPR_011 XFL_001
+OPR_015 XFL_013
+OPR_021 OPR_022
+OPR_021 OPR_023
+OPR_022 OPR_023
+RTS_002 XFL_007
+RTS_003 TRP_011
+RTS_016 TRP_026
+STP_015 XFL_009
+STP_040 STP_041
+TRF_017 XFL_020
+TRP_003 XFL_001

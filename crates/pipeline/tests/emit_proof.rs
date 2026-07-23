@@ -1453,6 +1453,79 @@ fn each_fixture_actually_emits_its_rule() {
     assert!(failures.is_empty(), "Emit etmeyen fixture(lar):\n{}", failures.join("\n"));
 }
 
+/// Aynı fixture gövdesini (overrides+removes+raw+config) paylaşan farklı kurallar.
+/// Bugünkü iki duplikasyon kaçışının ORTAK imzası tam buydu: STM_023/STM_036 ve
+/// OPR_006/STM_033 için `emit_proof.rs`'te BİREBİR aynı fixture kayıtlıydı ve
+/// `each_fixture_actually_emits_its_rule` (salt kapsama) ikisini de yeşil geçirdi.
+///
+/// Aynı gövde iki farklı kuralı tetikliyorsa ya (a) meşru — aynı senaryo doğal
+/// olarak birden çok kuralı ilgilendiriyor (allowlist'te gerekçesiyle) ya da
+/// (b) DUPLİKASYON — iki kural aynı olguyu raporluyor (SILINMELI/katmanlanmalı).
+/// Boş gövde (`vec![]`, base feed'i olduğu gibi kullananlar) hariç tutulur —
+/// base zaten ~15 kural üretir, hepsi aynı boş gövdeyi paylaşır (meşru).
+#[test]
+fn shared_fixture_bodies_match_ledger() {
+    let fxs = fixtures();
+    let mut by_body: std::collections::HashMap<String, Vec<&str>> =
+        std::collections::HashMap::new();
+    for f in &fxs {
+        // Boş gövde = base feed doğal çıktısı (base zaten ~15 kural üretir, hepsi
+        // aynı boş gövdeyi paylaşır) — atla.
+        if f.overrides.is_empty() && f.removes.is_empty() && f.raw.is_empty() {
+            continue;
+        }
+        let key = format!("{:?}|{:?}|{:?}", f.overrides, f.removes, f.raw);
+        by_body.entry(key).or_default().push(f.rule);
+    }
+
+    let mut pairs: Vec<String> = Vec::new();
+    for rules in by_body.values() {
+        if rules.len() < 2 {
+            continue;
+        }
+        let mut sorted = rules.clone();
+        sorted.sort_unstable();
+        for i in 0..sorted.len() {
+            for j in (i + 1)..sorted.len() {
+                pairs.push(format!("{} {}", sorted[i], sorted[j]));
+            }
+        }
+    }
+    pairs.sort_unstable();
+    pairs.dedup();
+
+    let ledger_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests").join("shared_fixture_ledger.txt");
+    let ledger_raw = std::fs::read_to_string(&ledger_path).unwrap_or_default();
+    let ledger: Vec<String> = ledger_raw
+        .lines()
+        .map(str::trim)
+        .filter(|l| !l.is_empty() && !l.starts_with('#'))
+        .map(str::to_string)
+        .collect();
+
+    if pairs != ledger {
+        if std::env::var("UPDATE_LEDGER").is_ok() {
+            let header = "# Aynı fixture gövdesini paylaşan kural çiftleri (G2 duplikasyon-erken-uyarı).\n\
+                          # Bugünkü iki kaçışın ortak imzası: STM_023/STM_036 ve OPR_006/STM_033 için\n\
+                          # emit_proof'ta BİREBİR aynı fixture kayıtlıydı ve salt-kapsama testi yeşildi.\n\
+                          # YENİ satır = ya meşru (aynı senaryo doğal olarak birden çok kuralı ilgilendirir)\n\
+                          # ya DUPLİKASYON (aynı olgu iki kez). Şüpheliyse kaldır/katmanla; değilse işle.\n";
+            std::fs::write(&ledger_path, format!("{header}{}\n", pairs.join("\n"))).unwrap();
+            return;
+        }
+        let added: Vec<&String> = pairs.iter().filter(|p| !ledger.contains(p)).collect();
+        let removed: Vec<&String> = ledger.iter().filter(|l| !pairs.contains(l)).collect();
+        panic!(
+            "shared_fixture_ledger güncel değil ({} hesaplanan, {} ledger).\n\
+             YENİ aynı-gövde çifti (olası DUPLİKASYON — adjudicate et!): {:#?}\n\
+             Ledger'da fazla (fixture değişti/kalktı): {:#?}\n\
+             Düzeltmek için: UPDATE_LEDGER=1 cargo test -p gtfs-pipeline --test emit_proof shared_fixture_bodies_match_ledger",
+            pairs.len(), ledger.len(), added, removed,
+        );
+    }
+}
+
 // FLG_002 regresyon: network_id networks.txt yerine routes.txt.network_id sütunuyla
 // tanımlanmışsa (GTFS Fares v2, ikinci geçerli kaynak) FLG_002 yanlış pozitif ÜRETMEMELİ.
 #[test]
