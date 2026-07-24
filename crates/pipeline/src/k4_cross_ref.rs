@@ -851,6 +851,12 @@ fn check_trips(
 
 // �"?�"? PTH_014: pathway_id referans bütünlü�Yü �?" aynı istasyon cross-ref �"?�"?�"?�"?�"?�"?�"?�"?�"?
 
+/// PTH_014: bu mesafenin altındaki cross-station pathway'ler komşu durakların
+/// gerçekçi yürüme bağlantısı sayılır ve bastırılır (VBB Potsdam "Platz der
+/// Einheit" alt-durakları ~150 m). Bu mesafenin üstü olası yanlış stop_id
+/// referansıdır ve tetiklenir.
+const PTH014_WALK_MAX_M: f64 = 300.0;
+
 fn check_pathways(
     records: &EntityRecords,
     _map: &EntityMap,
@@ -880,15 +886,50 @@ fn check_pathways(
         .map(|s| (s.stop_id.as_str(), s.location_type))
         .collect();
 
+    // stop_id → (lat, lon) — kısa mesafe guard'ı için (yalnız ikisi de dolu olanlar)
+    let stop_coord: HashMap<&str, (f64, f64)> = records
+        .stops
+        .iter()
+        .filter_map(|s| match (s.stop_lat, s.stop_lon) {
+            (Some(la), Some(lo)) => Some((s.stop_id.as_str(), (la, lo))),
+            _ => None,
+        })
+        .collect();
+
     // PTH_014: from_stop_id ve to_stop_id farklı istasyonlara ait �?' referans bütünlü�Yü ihlali
     for rec in &records.pathways {
         if rec.pathway_id.is_empty() {
+            continue;
+        }
+        // A-daraltma (2026-07-24, VBB mdb-782): location_type=2 (giriş/çıkış)
+        // istasyonun dış-dünya sınırıdır. Bir ucu girişse pathway sokak üzerinden
+        // komşu istasyona geçebilir — bu meşru bir aktarma yürüyüşüdür (VBB rail
+        // istasyonları Alexanderplatz/Spandau vb. bu deseni yaygın kullanır), hata
+        // değil. İstasyon sınırını aşmak yalnız iki uç da İÇ konumken (peron=0 /
+        // generic node=3 / boarding area=4) topoloji sorunu sayılır.
+        let from_lt = stop_loc.get(rec.from_stop_id.as_str()).and_then(|l| *l);
+        let to_lt = stop_loc.get(rec.to_stop_id.as_str()).and_then(|l| *l);
+        if from_lt == Some(2) || to_lt == Some(2) {
             continue;
         }
         let from_station = station_context(rec.from_stop_id.as_str(), &stop_parent, &stop_loc);
         let to_station = station_context(rec.to_stop_id.as_str(), &stop_parent, &stop_loc);
         if let (Some(fs), Some(ts)) = (from_station, to_station) {
             if fs != ts {
+                // Kısa mesafeli cross-station pathway: komşu durakların gerçekçi
+                // yürüme bağlantısıdır (VBB Potsdam "Platz der Einheit/West" ↔
+                // ".../Bildungsforum" ~150 m), topoloji hatası değil → atla. Yalnız
+                // uçlar birbirinden uzaksa (olası yanlış stop_id referansı) tetiklenir.
+                if let (Some(&(la, lo)), Some(&(lb, lob))) = (
+                    stop_coord.get(rec.from_stop_id.as_str()),
+                    stop_coord.get(rec.to_stop_id.as_str()),
+                ) {
+                    if crate::k5_derived::haversine_km(la, lo, lb, lob) * 1000.0
+                        <= PTH014_WALK_MAX_M
+                    {
+                        continue;
+                    }
+                }
                 let mut n = notice(
                     ctr,
                     "PTH_014",
@@ -4210,6 +4251,91 @@ mod tests {
         assert!(
             result.notices.iter().any(|n| n.rule_id == "PTH_014"),
             "gerçek cross-station geçidinde PTH_014 çıkmalı"
+        );
+    }
+
+    #[test]
+    fn pth_014_entrance_cross_station_suppressed() {
+        // A-daraltma (VBB mdb-782): iki farklı istasyonun GİRİŞLERİ (lt=2) arası
+        // pathway, sokak seviyesinde meşru bir aktarma yürüyüşüdür (Alexanderplatz
+        // ↔ Memhardstr., Spandau ↔ Rathaus Spandau gibi) → PTH_014 ÇIKMAMALI.
+        let (mut recs, map) = empty();
+        recs.stops = vec![
+            stop_ctx("A", Some(1), ""),
+            stop_ctx("B", Some(1), ""),
+            stop_ctx("EA", Some(2), "A"), // A istasyonunun girişi
+            stop_ctx("EB", Some(2), "B"), // B istasyonunun girişi
+        ];
+        recs.pathways = vec![PathwayRecord {
+            pathway_id: "P1".into(),
+            from_stop_id: "EA".into(),
+            to_stop_id: "EB".into(),
+            pathway_mode: Some(1), is_bidirectional: Some(1),
+            length: None, traversal_time: None,
+            stair_count: None, max_slope: None, min_width: None,
+            row: Default::default(), line: 2,
+        }];
+        let result = check(&recs, &map, 20260515);
+        assert!(
+            !result.notices.iter().any(|n| n.rule_id == "PTH_014"),
+            "giriş↔giriş istasyon-arası pathway PTH_014 üretmemeli (meşru aktarma)"
+        );
+    }
+
+    #[test]
+    fn pth_014_short_distance_cross_station_suppressed() {
+        // İç konum (peron) ↔ iç konum, farklı istasyon AMA uçlar ~110 m yakın
+        // (VBB Potsdam "Platz der Einheit" alt-durakları deseni) → meşru yürüyüş,
+        // PTH_014 ÇIKMAMALI (mesafe guard'ı).
+        let (mut recs, map) = empty();
+        let mut pa = stop_ctx("PA", Some(0), "A");
+        pa.stop_lat = Some(52.4000);
+        pa.stop_lon = Some(13.0000);
+        let mut pb = stop_ctx("PB", Some(0), "B");
+        pb.stop_lat = Some(52.4010); // ~111 m kuzey
+        pb.stop_lon = Some(13.0000);
+        recs.stops = vec![stop_ctx("A", Some(1), ""), stop_ctx("B", Some(1), ""), pa, pb];
+        recs.pathways = vec![PathwayRecord {
+            pathway_id: "P1".into(),
+            from_stop_id: "PA".into(),
+            to_stop_id: "PB".into(),
+            pathway_mode: Some(1), is_bidirectional: Some(1),
+            length: None, traversal_time: None,
+            stair_count: None, max_slope: None, min_width: None,
+            row: Default::default(), line: 2,
+        }];
+        let result = check(&recs, &map, 20260515);
+        assert!(
+            !result.notices.iter().any(|n| n.rule_id == "PTH_014"),
+            "kısa mesafeli (~110 m) cross-station pathway PTH_014 üretmemeli"
+        );
+    }
+
+    #[test]
+    fn pth_014_far_distance_cross_station_fires() {
+        // İç↔iç, farklı istasyon VE uçlar uzak (~5.5 km) → olası yanlış stop_id
+        // referansı, PTH_014 ÇIKMALI (mesafe guard'ı bastırmamalı).
+        let (mut recs, map) = empty();
+        let mut pa = stop_ctx("PA", Some(0), "A");
+        pa.stop_lat = Some(52.4000);
+        pa.stop_lon = Some(13.0000);
+        let mut pb = stop_ctx("PB", Some(0), "B");
+        pb.stop_lat = Some(52.4500); // ~5.5 km kuzey
+        pb.stop_lon = Some(13.0000);
+        recs.stops = vec![stop_ctx("A", Some(1), ""), stop_ctx("B", Some(1), ""), pa, pb];
+        recs.pathways = vec![PathwayRecord {
+            pathway_id: "P1".into(),
+            from_stop_id: "PA".into(),
+            to_stop_id: "PB".into(),
+            pathway_mode: Some(1), is_bidirectional: Some(1),
+            length: None, traversal_time: None,
+            stair_count: None, max_slope: None, min_width: None,
+            row: Default::default(), line: 2,
+        }];
+        let result = check(&recs, &map, 20260515);
+        assert!(
+            result.notices.iter().any(|n| n.rule_id == "PTH_014"),
+            "uzak (~5.5 km) cross-station pathway PTH_014 üretmeli"
         );
     }
 
