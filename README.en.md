@@ -55,15 +55,15 @@ Feed: `mdb-53` (MobilityDatabase, 2026-07-15 snapshot; validity range: 2026-01-1
 
 | | MobilityData | GTFS Analyzer |
 |---|---:|---:|
-| Total notices | 2,745 | 1,231 |
+| Total notices | 2,745 | 1,227 |
 | Critical / Error | 2 | 2 |
 | High / Warning | 2,656 | 4 |
 | Medium | — | 21 |
-| Low | — | 69 |
+| Low | — | 65 |
 | Info | 87 | 1,135 |
-| Distinct rule types triggered | 12 | **46** |
+| Distinct rule types triggered | 12 | **45** |
 | Publish score | — | **92.6 / 100** |
-| Overall score | — | **90.4 / 100** |
+| Overall score | — | **90.6 / 100** |
 
 #### TriMet (Portland, Oregon)
 
@@ -71,12 +71,12 @@ Feed: `mdb-247` (MobilityDatabase, 2026-07-15 snapshot; validity range: 2026-07-
 
 | | MobilityData | GTFS Analyzer |
 |---|---:|---:|
-| Total notices | 970 | 6,409 |
+| Total notices | 970 | 6,356 |
 | Critical / Error | 908 | 0 |
 | High / Warning | 49 | 795 |
 | Medium | — | 117 |
-| Low | — | 1,909 |
-| Info | 13 | 3,588 |
+| Low | — | 1,908 |
+| Info | 13 | 3,536 |
 | Distinct rule types triggered | 9 | **54** |
 | Publish score | — | **100 / 100** |
 | Overall score | — | **84.1 / 100** |
@@ -91,15 +91,15 @@ Feed: `mdb-3175` (MobilityDatabase, 2026-07-24 snapshot; validity range: 2026-07
 
 | | MobilityData | GTFS Analyzer |
 |---|---:|---:|
-| Total notices | 2,458 | 2,939 |
+| Total notices | 2,458 | 2,773 |
 | Critical / Error | 0 | 0 |
 | High / Warning | 330 | 22 |
-| Medium | — | 965 |
-| Low | — | 1,142 |
-| Info | 2,128 | 810 |
-| Distinct rule types triggered | 9 | **56** |
+| Medium | — | 964 |
+| Low | — | 1,120 |
+| Info | 2,128 | 667 |
+| Distinct rule types triggered | 9 | **55** |
 | Publish score | — | **100 / 100** |
-| Overall score | — | **84.0 / 100** |
+| Overall score | — | **84.2 / 100** |
 
 > 🗾 **Spec-clean but operationally dense:** Both tools report 0 critical — the feed is specification-clean. The difference is in the analytics layer: most of GTFS Analyzer's medium/low findings are operational signals from the three-year validity window (2026–2029) and dense network/shape patterns, which MobilityData largely summarizes as warnings/info.
 
@@ -109,15 +109,15 @@ Feed: `mdb-782` (MobilityDatabase, 2026-07-23 snapshot; validity range: 2026-07-
 
 | | MobilityData | GTFS Analyzer |
 |---|---:|---:|
-| Total notices | 11,912 | 52,359 |
+| Total notices | 11,912 | 28,380 |
 | Critical / Error | 0 | 0 |
-| High / Warning | 11,193 | 2,449 |
-| Medium | — | 10,764 |
-| Low | — | 12,026 |
-| Info | 719 | 27,120 |
+| High / Warning | 11,193 | 2,436 |
+| Medium | — | 7,439 |
+| Low | — | 8,530 |
+| Info | 719 | 9,975 |
 | Distinct rule types triggered | 19 | **97** |
 | Publish score | — | **100 / 100** |
-| Overall score | — | **77.1 / 100** |
+| Overall score | — | **77.8 / 100** |
 
 > 🇩🇪 **Large feed, different focus:** Both tools report 0 critical — the feed is specification-clean. More than half of MobilityData's total (`non_ascii_or_non_printable_char`, 6,810) is the legitimate ü/ö/ä/ß characters in the feed's German text; GTFS Analyzer does not flag valid Unicode letters, only non-printable/control characters. GTFS Analyzer's volume instead comes from operational/geometric analytics MobilityData does not have (shape, stop, statistical duration). On core checks the two align: `stop_without_stop_time` (STP_020) and `service_has_no_active_day_of_the_week` (CAL_006) match exactly at 1,411 and 991.
 
