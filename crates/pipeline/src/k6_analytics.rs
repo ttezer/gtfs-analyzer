@@ -1811,16 +1811,38 @@ fn check_geo_analytics(
 
         for i in 0..sorted_stops.len() {
             let (la_i, lo_i, sa) = sorted_stops[i];
+            // Null Island (|lat|<0.1 ∧ |lon|<0.1) atlanır: koordinat placeholder'dır ve kök
+            // neden GEO_016'nın alanıdır (durak başına raporlar). Burada kıyaslamak hem çifte
+            // raporlama hem KUADRATİK patlamadır — VlakEShop: (0,0)'da 983 durak → 482.653
+            // çift-notice üretilip dedup'ta atılıyordu; daha büyük bir küme WASM'ı OOM eder.
+            if la_i.abs() < 0.1 && lo_i.abs() < 0.1 {
+                continue;
+            }
             for j in (i + 1)..sorted_stops.len() {
                 let (la_j, lo_j, sb) = sorted_stops[j];
                 if la_j - la_i > lat_band {
                     break;
+                }
+                // Yalnız BİNİLEBİLİR duraklar (location_type boş/0) kıyaslanır: istasyon
+                // iskeleti (station=1, giriş=2, node=3, boarding area=4) durak değildir.
+                // Bir girişin sokak durağıyla aynı koordinata konması modelleme tercihidir,
+                // veri hatası değil (VBB: 3093 giriş↔durak aynı-koordinat FP'si) — "durakları
+                // birleştirin" tavsiyesi bu çiftlerde düpedüz yanlış olurdu.
+                if sa.location_type.unwrap_or(0) != 0 || sb.location_type.unwrap_or(0) != 0 {
+                    continue;
                 }
                 // parent/child istisnası: çocuk durak, ait olduğu istasyonla aynı/çok
                 // yakın konumda olabilir — bu normal GTFS modellemesidir, FP üretmeyelim.
                 let pa = sa.row.get("parent_station").map(|s| s.trim()).filter(|s| !s.is_empty());
                 let pb = sb.row.get("parent_station").map(|s| s.trim()).filter(|s| !s.is_empty());
                 if pa == Some(sb.stop_id.as_str()) || pb == Some(sa.stop_id.as_str()) {
+                    continue;
+                }
+                // Kardeş muafiyeti: aynı istasyonun iki çocuğu (iki peron) hiyerarşi
+                // modellemesinin tanımı gereği birbirine yakındır — station-hierarchy
+                // kullanan feed'lerde bu çiftler FP'nin ana kaynağıydı (VBB: yakın
+                // çiftlerin %88'i aynı-parent kardeşiydi).
+                if pa.is_some() && pa == pb {
                     continue;
                 }
                 let dist_km = haversine_km(la_i, lo_i, la_j, lo_j);
@@ -8737,6 +8759,50 @@ mod tests {
         };
         let result = analyze(&records, &derived, &default_config(), 20260514);
         assert!(result.notices.iter().any(|n| n.rule_id == "STP_017"), "STP_017 olmalı");
+    }
+
+    #[test]
+    fn sibling_platforms_same_parent_no_stp_016_017() {
+        use crate::k5_derived::SpatialIndex;
+        // Aynı istasyonun iki peronu (aynı parent_station) 4 m arayla, hatta aynı
+        // koordinatta olabilir — station-hierarchy modellemesi, FP üretmemeli (VBB dersi).
+        let mut records = crate::k2::EntityRecords::default();
+        let mut pa = stop("PA", 41.0, 29.0);
+        pa.row.insert("parent_station".to_string(), "ST".to_string());
+        let mut pb = stop("PB", 41.0, 29.0); // aynı koordinat
+        pb.row.insert("parent_station".to_string(), "ST".to_string());
+        records.stops = vec![pa, pb];
+        let mut derived = DerivedData::default();
+        derived.spatial_index = SpatialIndex {
+            grid: [((82i32, 58i32), vec![0usize, 1usize])].into_iter().collect(),
+            cell_deg: 0.5,
+        };
+        let result = analyze(&records, &derived, &default_config(), 20260514);
+        assert!(
+            !result.notices.iter().any(|n| n.rule_id == "STP_016" || n.rule_id == "STP_017"),
+            "aynı-parent kardeş peronlar STP_016/017 üretmemeli"
+        );
+    }
+
+    #[test]
+    fn entrance_at_stop_coordinate_no_stp_016() {
+        use crate::k5_derived::SpatialIndex;
+        // Giriş düğümü (location_type=2) bir sokak durağıyla aynı koordinatta —
+        // modelleme tercihi; "durakları birleştirin" tavsiyesi yanlış olur (VBB: 3093 çift).
+        let mut records = crate::k2::EntityRecords::default();
+        let mut ent = stop("E1", 41.0, 29.0);
+        ent.location_type = Some(2);
+        records.stops = vec![ent, stop("B", 41.0, 29.0)];
+        let mut derived = DerivedData::default();
+        derived.spatial_index = SpatialIndex {
+            grid: [((82i32, 58i32), vec![0usize, 1usize])].into_iter().collect(),
+            cell_deg: 0.5,
+        };
+        let result = analyze(&records, &derived, &default_config(), 20260514);
+        assert!(
+            !result.notices.iter().any(|n| n.rule_id == "STP_016" || n.rule_id == "STP_017"),
+            "giriş↔durak aynı-koordinat çifti STP_016/017 üretmemeli"
+        );
     }
 
     // ── WP-09c: OPR_006 / OPR_007 ───────────────────────────────────────────
