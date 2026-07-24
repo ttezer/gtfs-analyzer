@@ -647,7 +647,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | OPR_016 | Feed genelinde aktif servis yok | BİLGİ | Analytics |
 | OPR_017 | Sefer çok kısa mesafe | ORTA | Analytics |
 | OPR_019 | Rota takvim çakışması (aynı günde birden fazla servis) | BİLGİ | Analytics |
-| OPR_020 | Rota exception günü çakışması | YÜKSEK | Analytics |
+| OPR_020 | Rota exception günü çakışması | DÜŞÜK | Analytics |
 | OPR_021 | Takvim override çakışması: override ve base eş zamanlı aktif | YÜKSEK | Analytics |
 | OPR_022 | Takvim override uygulanmamış: override gününde base servis çalışıyor | YÜKSEK | Analytics |
 | OPR_023 | Takvim override boşluğu: pencere içinde hiçbir servis aktif değil | ORTA | Analytics |

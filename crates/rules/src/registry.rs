@@ -1225,7 +1225,11 @@ pub static RULES: &[RuleMeta] = &[
         "Sefer çok kısa mesafe"),
     r!("OPR_019", Bilgi,  Analytics, 2, &[], Some("route_id"),   VA, Entity,
         "Rota takvim çakışması (aynı günde birden fazla servis)"),
-    r!("OPR_020", Yuksek, Analytics, 2, &[], Some("route_id"),   VA, Entity,
+    // OPR_020 2026-07-24: Yuksek→Dusuk. Kural base↔override ilişkisini kanıtlayamaz;
+    // "günde 2+ aktif servis + biri exception'lı" meşru çok-varyant modellemede de
+    // görülür (VBB: rotaların %74'ü ateşliyor). Kartın kendi FP notu bunu kabul ediyor.
+    // HIGH "muhtemel gerçek sorun" der; doyuma ulaşan kabul-edilmiş-FP heuristiğe uymaz.
+    r!("OPR_020", Dusuk, Analytics, 2, &[], Some("route_id"),   VA, Entity,
         "Rota exception günü çakışması"),
     r!("OPR_021", Yuksek, Analytics, 3, &[], Some("route_id"),   VA, Entity,
         "Takvim override çakışması: override ve base eş zamanlı aktif"),

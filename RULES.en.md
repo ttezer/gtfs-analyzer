@@ -647,7 +647,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | OPR_016 | No active service across the entire feed | INFO | Analytics |
 | OPR_017 | Trip distance too short | MEDIUM | Analytics |
 | OPR_019 | Route calendar overlap (multiple services on same day) | INFO | Analytics |
-| OPR_020 | Route exception day overlap | HIGH | Analytics |
+| OPR_020 | Route exception day overlap | LOW | Analytics |
 | OPR_021 | Calendar override conflict: override and base simultaneously active | HIGH | Analytics |
 | OPR_022 | Calendar override not applied: base service running on override day | HIGH | Analytics |
 | OPR_023 | Calendar override gap: no service active within window | MEDIUM | Analytics |
