@@ -99,14 +99,34 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
                 ));
             }
 
-            // BKR_001: booking_type≠2 iken prior_notice_last_day/start_day yasak
-            if btype != 2 && (has_last_day || has_start_day) {
+            // BKR_001: prior_notice_last_day yalnız booking_type=2 için tanımlanabilir
+            // (spec booking_rules.txt: "Required for booking_type=2. Forbidden otherwise").
+            if btype != 2 && has_last_day {
                 notices.push(make_k2_notice(
                     &mut ctr, "BKR_001", EntityType::Row, entity_id.clone(), Some(&row_map),
                     &file.name, Some(line), Some("prior_notice_last_day"),
                     Some(btype_str.clone()), Some("2".to_string()),
-                    format!("booking_type={} iken prior_notice_last_day/start_day alanları yasaktır.", btype),
-                    "Önceki gün bazlı alanları yalnızca booking_type=2 ile kullanın.",
+                    format!("booking_type={btype} iken prior_notice_last_day yasaktır; bu alan yalnızca booking_type=2 ile kullanılır."),
+                    "prior_notice_last_day alanını yalnızca booking_type=2 ile kullanın ya da booking_type değerini düzeltin.",
+                ));
+            }
+            // BKR_001: prior_notice_start_day SADECE booking_type=0'da, veya booking_type=1
+            // + prior_notice_duration_max tanımlıyken yasaktır. Spec: "Forbidden for
+            // booking_type=0. Forbidden for booking_type=1 if prior_notice_duration_max is
+            // defined. Optional otherwise." → type=1 (duration_max'sız) ve type=2'de MEŞRU.
+            // (Eski koşul btype≠2 tüm type=1+start_day'i yanlışça yasaklıyordu — FP fix.)
+            if has_start_day && (btype == 0 || (btype == 1 && has_duration_max)) {
+                let neden = if btype == 0 {
+                    "booking_type=0"
+                } else {
+                    "booking_type=1 ve prior_notice_duration_max tanımlı"
+                };
+                notices.push(make_k2_notice(
+                    &mut ctr, "BKR_001", EntityType::Row, entity_id.clone(), Some(&row_map),
+                    &file.name, Some(line), Some("prior_notice_start_day"),
+                    Some(btype_str.clone()), Some("(boş)".to_string()),
+                    format!("{neden} iken prior_notice_start_day yasaktır."),
+                    "prior_notice_start_day alanını kaldırın ya da booking_type / prior_notice_duration_max değerlerini düzeltin.",
                 ));
             }
 
@@ -277,6 +297,35 @@ mod tests {
         );
         let (_, notices) = validate_booking_rules(&file);
         assert!(notices.iter().any(|n| n.rule_id == "BKR_001"), "BKR_001 bekleniyor");
+    }
+
+    #[test]
+    fn bkr_001_start_day_allowed_for_type1_without_duration_max() {
+        // Spec: prior_notice_start_day type=1'de yalnız prior_notice_duration_max
+        // tanımlıysa yasak; yoksa Optional → BKR_001 ÇIKMAMALI (FP fix, 2026-07-24).
+        let file = make_file(
+            vec!["booking_rule_id", "booking_type", "prior_notice_duration_min", "prior_notice_start_day", "prior_notice_start_time"],
+            vec![vec!["BR1", "1", "30", "2", "00:00:00"]],
+        );
+        let (_, notices) = validate_booking_rules(&file);
+        assert!(
+            !notices.iter().any(|n| n.rule_id == "BKR_001"),
+            "type=1 + start_day (duration_max yok) BKR_001 üretmemeli (FP fix)"
+        );
+    }
+
+    #[test]
+    fn bkr_001_start_day_forbidden_for_type1_with_duration_max() {
+        // duration_max tanımlıyken start_day yasaklanır.
+        let file = make_file(
+            vec!["booking_rule_id", "booking_type", "prior_notice_duration_min", "prior_notice_duration_max", "prior_notice_start_day", "prior_notice_start_time", "prior_notice_last_day", "prior_notice_last_time"],
+            vec![vec!["BR1", "1", "30", "60", "2", "00:00:00", "2", "17:00:00"]],
+        );
+        let (_, notices) = validate_booking_rules(&file);
+        assert!(
+            notices.iter().any(|n| n.rule_id == "BKR_001" && n.field.as_deref() == Some("prior_notice_start_day")),
+            "type=1 + duration_max + start_day BKR_001 üretmeli"
+        );
     }
 
     #[test]
