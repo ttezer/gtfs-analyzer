@@ -103,6 +103,24 @@ Feed: `mdb-3175` (MobilityDatabase, 2026-07-24 snapshot; validity range: 2026-07
 
 > 🗾 **Spec-clean but operationally dense:** Both tools report 0 critical — the feed is specification-clean. The difference is in the analytics layer: most of GTFS Analyzer's medium/low findings are operational signals from the three-year validity window (2026–2029) and dense network/shape patterns, which MobilityData largely summarizes as warnings/info.
 
+#### VBB (Berlin-Brandenburg Transport Association)
+
+Feed: `mdb-782` (MobilityDatabase, 2026-07-23 snapshot; validity range: 2026-07-21–2026-12-12) · 1,262 routes, 41,949 stops, 253,494 trips, 14,084 shapes · ~75 MB. This feed is too large for MobilityData's hosted web validator; the MobilityData figures come from a report produced with its desktop application. GTFS Analyzer validates the feed directly in the browser (~15 s).
+
+| | MobilityData | GTFS Analyzer |
+|---|---:|---:|
+| Total notices | 11,912 | 52,359 |
+| Critical / Error | 0 | 0 |
+| High / Warning | 11,193 | 2,449 |
+| Medium | — | 10,764 |
+| Low | — | 12,026 |
+| Info | 719 | 27,120 |
+| Distinct rule types triggered | 19 | **97** |
+| Publish score | — | **100 / 100** |
+| Overall score | — | **77.1 / 100** |
+
+> 🇩🇪 **Large feed, different focus:** Both tools report 0 critical — the feed is specification-clean. More than half of MobilityData's total (`non_ascii_or_non_printable_char`, 6,810) is the legitimate ü/ö/ä/ß characters in the feed's German text; GTFS Analyzer does not flag valid Unicode letters, only non-printable/control characters. GTFS Analyzer's volume instead comes from operational/geometric analytics MobilityData does not have (shape, stop, statistical duration). On core checks the two align: `stop_without_stop_time` (STP_020) and `service_has_no_active_day_of_the_week` (CAL_006) match exactly at 1,411 and 991.
+
 ---
 
 ## GTFS-JP Support

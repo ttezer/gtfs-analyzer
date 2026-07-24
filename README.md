@@ -103,6 +103,24 @@ Feed: `mdb-3175` (MobilityDatabase, 2026-07-24 anlık görüntüsü; geçerlilik
 
 > 🗾 **Spec-temiz ama operasyonel olarak yoğun:** Her iki araç da 0 kritik bulur — feed spec açısından temiz. Fark analitik katmanda: GTFS Analyzer'ın orta/düşük bulgularının çoğu 3 yıllık geçerlilik penceresi (2026–2029) ve yoğun şebeke/şekil desenlerinden gelen operasyonel sinyallerdir; MobilityData bu feed'i ağırlıkla uyarı/bilgi olarak özetler.
 
+#### VBB (Berlin-Brandenburg Ulaşım Birliği)
+
+Feed: `mdb-782` (MobilityDatabase, 2026-07-23 anlık görüntüsü; geçerlilik aralığı: 2026-07-21–2026-12-12) · 1.262 hat, 41.949 durak, 253.494 sefer, 14.084 shape · ~75 MB. Bu feed, MobilityData'nın barındırılan web doğrulayıcısının işleyemeyeceği kadar büyüktür; MobilityData sayıları masaüstü uygulamasıyla üretilen rapordandır. GTFS Analyzer feed'i doğrudan tarayıcıda (~15 sn) doğrular.
+
+| | MobilityData | GTFS Analyzer |
+|---|---:|---:|
+| Toplam notice | 11.912 | 52.359 |
+| Kritik / Error | 0 | 0 |
+| Yüksek / Warning | 11.193 | 2.449 |
+| Orta | — | 10.764 |
+| Düşük | — | 12.026 |
+| Bilgi / Info | 719 | 27.120 |
+| Tetiklenen kural tipi | 19 | **97** |
+| Yayın skoru | — | **100 / 100** |
+| Genel skor | — | **77,1 / 100** |
+
+> 🇩🇪 **Büyük feed, farklı odak:** Her iki araç da 0 kritik bulur — feed spec açısından temizdir. MobilityData toplamının yarıdan fazlası (`non_ascii_or_non_printable_char`, 6.810) feed'in Almanca metnindeki meşru ü/ö/ä/ß karakterleridir; GTFS Analyzer geçerli Unicode harfleri işaretlemez, yalnız yazdırılamaz/kontrol karakterlerini. GTFS Analyzer'ın hacmi ise MobilityData'da bulunmayan operasyonel/geometrik analitiğe (şekil, durak, istatistiksel süre) dayanır. Çekirdek kontrollerde iki araç hizalıdır: `stop_without_stop_time` (STP_020) ve `service_has_no_active_day_of_the_week` (CAL_006) sırasıyla 1.411 ve 991 ile birebir eşleşir.
+
 ---
 
 ## GTFS-JP Desteği
