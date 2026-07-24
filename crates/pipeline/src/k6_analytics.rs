@@ -948,14 +948,19 @@ fn check_speed_and_duration(
 
             let speed = dist_km / (dt_sec as f64 / 3600.0);
 
-            // STM_012: fiziksel olarak imkansız hız (mutlak üst sınır 700 km/h)
-            if speed > 700.0 {
+            // STM_012: fiziksel olarak imkansız hız (mutlak üst sınır 700 km/h).
+            // "İmkânsız" iddiası ALT-SINIR mesafeyle (haversine, kuş uçuşu) kanıtlanır:
+            // gerçek yol ≥ düz çizgi her zaman doğrudur; shape-projeksiyonu ise yanlış
+            // segmente eşleşip şişebilir (4× tavana kadar). Projeksiyonlu hız 700'ü
+            // aşıp haversine aşmıyorsa vaka "imkânsız" değil "aşırı"dır → STM_014'e düşer.
+            let hav_speed = haver_km / (dt_sec as f64 / 3600.0);
+            if hav_speed > 700.0 {
                 let mut n012 = k6_notice(
                     ctr, "STM_012", EntityType::Trip,
                     Some(trip_id.to_string()), Some(trip_id.to_string()),
                     "stop_times.txt", Some(b.line as u64), Some("arrival_time"),
-                    Some(format!("{speed:.0} km/h")), Some("<= 700 km/h".to_string()),
-                    format!("trip_id '{trip_id}'{dep_suffix} stop_sequence {}-{} arası hız {speed:.0} km/h — fiziksel olarak imkansız.",
+                    Some(format!("{hav_speed:.0} km/h")), Some("<= 700 km/h".to_string()),
+                    format!("trip_id '{trip_id}'{dep_suffix} stop_sequence {}-{} arası hız {hav_speed:.0} km/h (kuş uçuşu alt sınır) — fiziksel olarak imkansız.",
                         a.stop_sequence().unwrap_or(0), b.stop_sequence().unwrap_or(0)),
                     "stop_times.txt zaman ve stops.txt koordinat verilerini doğrulayın.",
                 );
@@ -5758,19 +5763,24 @@ fn check_remaining_analytics(
     }
 
     // ── SHP_020: şekilde ardışık olmayan tekrarlayan nokta ────────────────────
+    // Doyum agregasyonu (SHP_010 emsali, #48): OSM-türevi polyline üreticileri
+    // metre-altı mikro-jitter yüzünden shape'lerin çoğunda tetikler (VBB %66,
+    // mdb-1993 %83 — apex medyan 1 m, yani U-dönüşü değil nokta gürültüsü).
+    // Eşik üstünde shape-başına INFO seli yerine tek feed-özet üretilir.
     {
         let _t20b = Timer::start("K6::rem::shp_020");
         const DUP_THRESHOLD_DEG: f64 = 1e-6;
+        const SHP020_AGG_THRESHOLD: usize = 50;
+        let mut shp020_pending: Vec<Notice> = Vec::new();
         for (shape_id, pts) in &shape_coords {
             // Sadece ardışık çiftleri değil, küçük bir pencere içinde kontrol et
-            let mut fired = false;
             'outer: for i in 0..pts.len() {
                 for j in (i + 2)..pts.len().min(i + 10) {
                     let dlat = (pts[i].0 - pts[j].0).abs();
                     let dlon = (pts[i].1 - pts[j].1).abs();
                     if dlat < DUP_THRESHOLD_DEG && dlon < DUP_THRESHOLD_DEG {
                         let prefix = shp_route_prefix(shape_route_labels.get(*shape_id).map(|v| v.as_slice()).unwrap_or(&[]));
-                        notices.push(k6_notice(
+                        shp020_pending.push(k6_notice(
                             ctr, "SHP_020", EntityType::Shape,
                             Some(shape_id.to_string()), Some(shape_id.to_string()),
                             "shapes.txt", None, Some("shape_pt_lat|shape_pt_lon"),
@@ -5782,29 +5792,50 @@ fn check_remaining_analytics(
                             ),
                             "Güzergah şeklindeki tekrarlayan noktaları temizleyin.",
                         ));
-                        fired = true;
                         break 'outer;
                     }
                 }
             }
-            let _ = fired;
+        }
+        let n20 = shp020_pending.len();
+        if n20 > SHP020_AGG_THRESHOLD {
+            let examples: Vec<String> = shp020_pending.iter()
+                .filter_map(|x| x.entity_id.clone()).take(5).collect();
+            let mut notice = k6_notice(
+                ctr, "SHP_020", EntityType::Feed, None, None,
+                "shapes.txt", None, Some("shape_pt_lat|shape_pt_lon"),
+                Some(n20.to_string()), None,
+                format!("{n20} güzergah şeklinde tekrarlayan (neredeyse özdeş) nokta var — üretici kaynaklı yoğun nokta gürültüsü."),
+                "Güzergah üretim sürecinde tekrarlayan noktaları eleyin; tek tek shape incelemesi gerekmez.",
+            );
+            let mut d = std::collections::HashMap::new();
+            d.insert("affected_shapes".to_string(), n20.to_string());
+            if !examples.is_empty() { d.insert("example_shapes".to_string(), examples.join(", ")); }
+            notice.details = Some(d);
+            notices.push(notice);
+        } else {
+            notices.append(&mut shp020_pending);
         }
     }
 
     // ── SHP_009: güzergah şekli kendisiyle kesişiyor ──────────────────────────
+    // Doyum agregasyonu (SHP_010 emsali): kesişmelerin çoğu kavşak/durak cebindeki
+    // yakın-segment mikro-kesişmedir (VBB: %73'ü j-i≤5, medyan 34 m aralık; feed'in
+    // %55'i tetikliyordu). Eşik üstünde shape-başına sel yerine tek feed-özet.
     {
         let _t09b = Timer::start("K6::rem::shp_009");
+        const SHP009_AGG_THRESHOLD: usize = 50;
+        let mut shp009_pending: Vec<Notice> = Vec::new();
         for (shape_id, pts) in &shape_coords {
             if pts.len() < 4 { continue; }
             // O(n²) segment-crossing: büyük shape'lerde maksimum 300 segment kontrol et
             let n = pts.len().min(301);
-            let mut crossed = false;
             'seg_outer: for i in 0..n.saturating_sub(1) {
                 for j in i + 2..n.saturating_sub(1) {
                     if i == 0 && j == n - 2 { continue; } // bitişik uçlar
                     if segments_cross(pts[i], pts[i+1], pts[j], pts[j+1]) {
                         let prefix = shp_route_prefix(shape_route_labels.get(*shape_id).map(|v| v.as_slice()).unwrap_or(&[]));
-                        notices.push(k6_notice(
+                        shp009_pending.push(k6_notice(
                             ctr, "SHP_009", EntityType::Shape,
                             Some(shape_id.to_string()), Some(shape_id.to_string()),
                             "shapes.txt", None, Some("shape_pt_lat|shape_pt_lon"),
@@ -5815,12 +5846,29 @@ fn check_remaining_analytics(
                             ),
                             "Güzergah şeklindeki kesişen segmentleri düzeltin.",
                         ));
-                        crossed = true;
                         break 'seg_outer;
                     }
                 }
             }
-            let _ = crossed;
+        }
+        let n09 = shp009_pending.len();
+        if n09 > SHP009_AGG_THRESHOLD {
+            let examples: Vec<String> = shp009_pending.iter()
+                .filter_map(|x| x.entity_id.clone()).take(5).collect();
+            let mut notice = k6_notice(
+                ctr, "SHP_009", EntityType::Feed, None, None,
+                "shapes.txt", None, Some("shape_pt_lat|shape_pt_lon"),
+                Some(n09.to_string()), None,
+                format!("{n09} güzergah şekli kendisiyle kesişiyor — çoğu kavşak/durak geometrisindeki yakın-segment mikro-kesişmedir."),
+                "Güzergah üretim sürecini gözden geçirin; tek tek shape incelemesi gerekmez.",
+            );
+            let mut d = std::collections::HashMap::new();
+            d.insert("affected_shapes".to_string(), n09.to_string());
+            if !examples.is_empty() { d.insert("example_shapes".to_string(), examples.join(", ")); }
+            notice.details = Some(d);
+            notices.push(notice);
+        } else {
+            notices.append(&mut shp009_pending);
         }
     }
 
@@ -7887,6 +7935,105 @@ mod tests {
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
         assert!(result.notices.iter().any(|n| n.rule_id == "STM_012"),
                 "bir dakikada alınamayacak mesafe STM_012 üretmeli");
+    }
+
+    #[test]
+    fn projected_speed_above_700_but_haversine_below_is_not_stm_012() {
+        use crate::k2::shapes::ShapePointRecord;
+        // Duraklar kuş uçuşu ~0.5 km, 6 sn → hav ~300 km/h (≤700). Shape yolu ~1.5 km
+        // (3× dolambaç, 4× tavanın altında) → projeksiyonlu hız ~900 km/h. "İmkânsız"
+        // iddiası alt-sınırla (haversine) kanıtlanmadığından STM_012 ÇIKMAMALI;
+        // vaka aşırı-hız olarak STM_014'e düşmeli.
+        let mut records = records_with(
+            vec![stop("A", 41.0, 29.0), stop("B", 41.0045, 29.0)],
+            vec![route("R1", 3)],
+            vec![trip_sh("T1", "R1", "S1")],
+            vec![
+                stoptime("T1", 1, "A", (8,0,0), (8,0,0), 2),
+                stoptime("T1", 2, "B", (8,0,6), (8,0,6), 3),
+            ],
+        );
+        records.shapes = vec![
+            ShapePointRecord { shape_id: "S1".into(), shape_pt_lat: Some(41.0), shape_pt_lon: Some(29.0),
+                shape_pt_sequence: Some(1), shape_dist_traveled: None, line: 2 },
+            ShapePointRecord { shape_id: "S1".into(), shape_pt_lat: Some(41.0), shape_pt_lon: Some(29.006),
+                shape_pt_sequence: Some(2), shape_dist_traveled: None, line: 3 },
+            ShapePointRecord { shape_id: "S1".into(), shape_pt_lat: Some(41.0045), shape_pt_lon: Some(29.006),
+                shape_pt_sequence: Some(3), shape_dist_traveled: None, line: 4 },
+            ShapePointRecord { shape_id: "S1".into(), shape_pt_lat: Some(41.0045), shape_pt_lon: Some(29.0),
+                shape_pt_sequence: Some(4), shape_dist_traveled: None, line: 5 },
+        ];
+        let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
+        assert!(
+            !result.notices.iter().any(|n| n.rule_id == "STM_012"),
+            "haversine ≤700 iken STM_012 çıkmamalı (imkânsızlık alt-sınırla kanıtlanır)"
+        );
+        assert!(
+            result.notices.iter().any(|n| n.rule_id == "STM_014"),
+            "aşırı hız STM_014 olarak raporlanmalı"
+        );
+    }
+
+    #[test]
+    fn shp_020_saturation_aggregates_to_single_feed_notice() {
+        use crate::k2::shapes::ShapePointRecord;
+        // 51 shape'te tekrar noktası (eşik 50 üstü) → shape-başına 51 yerine TEK
+        // feed-özet SHP_020 (SHP_010 emsali; VBB %66 doyum dersi).
+        let mut records = records_with(
+            vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1)],
+            vec![route("R1", 3)],
+            vec![trip_sh("T1", "R1", "S0")],
+            vec![
+                stoptime("T1", 1, "A", (8,0,0), (8,0,0), 2),
+                stoptime("T1", 2, "B", (8,30,0), (8,30,0), 3),
+            ],
+        );
+        let mut shapes = Vec::new();
+        for k in 0..51u32 {
+            let sid = format!("S{k}");
+            // apex deseni: 1. ve 3. nokta özdeş
+            shapes.push(ShapePointRecord { shape_id: sid.clone(), shape_pt_lat: Some(41.0), shape_pt_lon: Some(29.0),
+                shape_pt_sequence: Some(1), shape_dist_traveled: None, line: 2 });
+            shapes.push(ShapePointRecord { shape_id: sid.clone(), shape_pt_lat: Some(41.001), shape_pt_lon: Some(29.0),
+                shape_pt_sequence: Some(2), shape_dist_traveled: None, line: 3 });
+            shapes.push(ShapePointRecord { shape_id: sid, shape_pt_lat: Some(41.0), shape_pt_lon: Some(29.0),
+                shape_pt_sequence: Some(3), shape_dist_traveled: None, line: 4 });
+        }
+        records.shapes = shapes;
+        let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
+        let hits: Vec<_> = result.notices.iter().filter(|n| n.rule_id == "SHP_020").collect();
+        assert_eq!(hits.len(), 1, "eşik üstünde tek feed-özet SHP_020 beklenir");
+        assert!(hits[0].entity_id.is_none(), "özet notice feed-seviyesi olmalı (entity_id yok)");
+    }
+
+    #[test]
+    fn shp_009_saturation_aggregates_to_single_feed_notice() {
+        use crate::k2::shapes::ShapePointRecord;
+        // 51 shape'te kendisiyle kesişme → TEK feed-özet SHP_009.
+        let mut records = records_with(
+            vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1)],
+            vec![route("R1", 3)],
+            vec![trip_sh("T1", "R1", "X0")],
+            vec![
+                stoptime("T1", 1, "A", (8,0,0), (8,0,0), 2),
+                stoptime("T1", 2, "B", (8,30,0), (8,30,0), 3),
+            ],
+        );
+        let mut shapes = Vec::new();
+        for k in 0..51u32 {
+            let sid = format!("X{k}");
+            // 5 nokta; segment 0 (p1→p2) ile segment 2 (p3→p4) X biçiminde kesişir
+            let pts = [(41.000, 29.000), (41.010, 29.010), (41.010, 29.000), (41.000, 29.010), (41.020, 29.020)];
+            for (i, (la, lo)) in pts.iter().enumerate() {
+                shapes.push(ShapePointRecord { shape_id: sid.clone(), shape_pt_lat: Some(*la), shape_pt_lon: Some(*lo),
+                    shape_pt_sequence: Some(i as u32 + 1), shape_dist_traveled: None, line: 2 + i as u64 });
+            }
+        }
+        records.shapes = shapes;
+        let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
+        let hits: Vec<_> = result.notices.iter().filter(|n| n.rule_id == "SHP_009").collect();
+        assert_eq!(hits.len(), 1, "eşik üstünde tek feed-özet SHP_009 beklenir");
+        assert!(hits[0].entity_id.is_none(), "özet notice feed-seviyesi olmalı (entity_id yok)");
     }
 
     #[test]
