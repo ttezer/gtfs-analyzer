@@ -4379,10 +4379,29 @@ fn check_remaining_analytics(
                 let first_idx = cell_stops[0];
                 if let Some(anchor) = records.stops.get(first_idx) {
                     let Some((alat, alon)) = anchor.stop_lat.zip(anchor.stop_lon) else { continue };
+                    // STP_016/017 ile TUTARLI guard'lar (2026-07-24): kümelenme yalnız
+                    // BİNİLEBİLİR duraklar arasında anlamlıdır. İstasyon iskeleti (giriş=2,
+                    // node=3, boarding=4) ve aynı istasyonun kardeş peronları hiyerarşi
+                    // modellemesi gereği zaten yakındır; Null Island placeholder kümesinin
+                    // kök nedeni GEO_016'dır.
+                    if alat.abs() < 0.1 && alon.abs() < 0.1 { continue; }
+                    if anchor.location_type.unwrap_or(0) != 0 { continue; }
+                    let anchor_parent = anchor.row.get("parent_station")
+                        .map(|s| s.trim()).filter(|s| !s.is_empty());
                     let nearby = cell_stops
                         .iter()
                         .filter(|&&i| {
                             i != first_idx && records.stops.get(i).map(|s| {
+                                if s.location_type.unwrap_or(0) != 0 { return false; }
+                                let p = s.row.get("parent_station")
+                                    .map(|v| v.trim()).filter(|v| !v.is_empty());
+                                // parent/child ya da aynı-parent kardeş → kümeye sayma
+                                if p == Some(anchor.stop_id.as_str())
+                                    || anchor_parent == Some(s.stop_id.as_str())
+                                    || (anchor_parent.is_some() && anchor_parent == p)
+                                {
+                                    return false;
+                                }
                                 s.stop_lat.zip(s.stop_lon)
                                     .map(|(la, lo)| haversine_km(alat, alon, la, lo) < cluster_km)
                                     .unwrap_or(false)
@@ -8953,6 +8972,50 @@ mod tests {
         assert!(
             !result.notices.iter().any(|n| n.rule_id == "STP_016" || n.rule_id == "STP_017"),
             "giriş↔durak aynı-koordinat çifti STP_016/017 üretmemeli"
+        );
+    }
+
+    #[test]
+    fn geo_012_sibling_platforms_not_counted_as_cluster() {
+        use crate::k5_derived::SpatialIndex;
+        // Bir istasyonun 3 kardeş peronu (aynı parent) + istasyonun kendisi aynı
+        // noktada — hiyerarşi modellemesi, küme değil (STP_016/017 ile tutarlı).
+        let mut records = crate::k2::EntityRecords::default();
+        let mut st = stop("ST", 41.0, 29.0);
+        st.location_type = Some(1);
+        let mk = |id: &str| {
+            let mut s = stop(id, 41.0, 29.0);
+            s.row.insert("parent_station".to_string(), "ST".to_string());
+            s
+        };
+        records.stops = vec![mk("PA"), mk("PB"), mk("PC"), st];
+        let mut derived = DerivedData::default();
+        derived.spatial_index = SpatialIndex {
+            grid: [((82i32, 58i32), vec![0usize, 1, 2, 3])].into_iter().collect(),
+            cell_deg: 0.5,
+        };
+        let result = analyze(&records, &derived, &default_config(), 20260514);
+        assert!(
+            !result.notices.iter().any(|n| n.rule_id == "GEO_012"),
+            "aynı-parent kardeş peronlar GEO_012 kümesi sayılmamalı"
+        );
+    }
+
+    #[test]
+    fn geo_012_independent_stops_still_cluster() {
+        use crate::k5_derived::SpatialIndex;
+        // Parent'sız, binilebilir 3 durak aynı noktada → gerçek küme, GEO_012 ÇIKMALI.
+        let mut records = crate::k2::EntityRecords::default();
+        records.stops = vec![stop("A", 41.0, 29.0), stop("B", 41.0, 29.0), stop("C", 41.0, 29.0)];
+        let mut derived = DerivedData::default();
+        derived.spatial_index = SpatialIndex {
+            grid: [((82i32, 58i32), vec![0usize, 1, 2])].into_iter().collect(),
+            cell_deg: 0.5,
+        };
+        let result = analyze(&records, &derived, &default_config(), 20260514);
+        assert!(
+            result.notices.iter().any(|n| n.rule_id == "GEO_012"),
+            "bağımsız 3 yakın durak GEO_012 üretmeli"
         );
     }
 
