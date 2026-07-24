@@ -86,7 +86,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | STP_002 | stop_id boş | KRİTİK | Spec |
 | STP_003 | stop_name eksik veya stop_lat/stop_lon aralık dışı (aynı ID altında iki ayrı koşul) | KRİTİK | Spec |
 | STP_004 | stop_lat sayısal değil | KRİTİK | Spec |
-| STP_005 | stop_lon geçersiz veya aralık dışı | KRİTİK | Quality |
+| STP_005 | stop_lon geçersiz veya aralık dışı | KRİTİK | Spec |
 | STP_006 | stop_lat eksik | KRİTİK | Spec |
 | STP_007 | stop_lon eksik | KRİTİK | Spec |
 | STP_008 | location_type geçersiz | YÜKSEK | Spec |

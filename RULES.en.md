@@ -86,7 +86,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | STP_002 | stop_id is empty | CRITICAL | Spec |
 | STP_003 | stop_name missing or stop_lat out of range | CRITICAL | Spec |
 | STP_004 | stop_lat is not numeric | CRITICAL | Spec |
-| STP_005 | stop_lon invalid or out of range | CRITICAL | Quality |
+| STP_005 | stop_lon invalid or out of range | CRITICAL | Spec |
 | STP_006 | stop_lat missing | CRITICAL | Spec |
 | STP_007 | stop_lon missing | CRITICAL | Spec |
 | STP_008 | location_type invalid | HIGH | Spec |

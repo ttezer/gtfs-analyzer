@@ -223,7 +223,12 @@ pub static RULES: &[RuleMeta] = &[
         &["STP_021","GEO_002","GEO_009","GEO_012","STP_016","STP_017"],
         Some("stop_id"), VS_K, Entity,
         "stop_lat sayısal değil"),
-    r!("STP_005", Kritik, Quality, 2, &[], Some("stop_id"), VS, Entity,
+    // STP_005 lat-ikizleriyle (STP_003/004/006/007) AYNI spec cümlesine dayanır;
+    // 2026-07-24 hizalaması: Quality→Spec, VS→VS_K, blocks eklendi (bozuk lon
+    // koordinat-türevi GEO/yakınlık kurallarını maskeler — lat ile simetrik).
+    r!("STP_005", Kritik, Spec, 2,
+        &["STP_021","GEO_002","GEO_009","GEO_012","STP_016","STP_017"],
+        Some("stop_id"), VS_K, Entity,
         "stop_lon geçersiz veya aralık dışı"),
     r!("STP_006", Kritik, Spec, 2,
         &["GEO_002","GEO_009","GEO_012","STP_016","STP_017"],
@@ -1763,7 +1768,7 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("STP_002", GtfsSpec),
     ("STP_003", GtfsSpec),
     ("STP_004", GtfsSpec),
-    ("STP_005", ProjectQuality),
+    ("STP_005", GtfsSpec),
     ("STP_006", GtfsSpec),
     ("STP_007", GtfsSpec),
     ("STP_008", GtfsSpec),
