@@ -1824,11 +1824,15 @@ fn check_geo_analytics(
                     break;
                 }
                 // Yalnız BİNİLEBİLİR duraklar (location_type boş/0) kıyaslanır: istasyon
-                // iskeleti (station=1, giriş=2, node=3, boarding area=4) durak değildir.
-                // Bir girişin sokak durağıyla aynı koordinata konması modelleme tercihidir,
-                // veri hatası değil (VBB: 3093 giriş↔durak aynı-koordinat FP'si) — "durakları
-                // birleştirin" tavsiyesi bu çiftlerde düpedüz yanlış olurdu.
-                if sa.location_type.unwrap_or(0) != 0 || sb.location_type.unwrap_or(0) != 0 {
+                // iskeleti (giriş=2, node=3, boarding area=4) durak değildir. Bir girişin
+                // sokak durağıyla aynı koordinata konması modelleme tercihidir, veri hatası
+                // değil (VBB: 3093 giriş↔durak aynı-koordinat FP'si) — "durakları birleştirin"
+                // tavsiyesi bu çiftlerde düpedüz yanlış olurdu.
+                // İSTİSNA: istasyon↔istasyon (1↔1) çifti kıyasta KALIR — iki ayrı istasyonun
+                // aynı/çok yakın noktada olması duplikat-istasyon şüphesidir (review K1b).
+                let lt_a = sa.location_type.unwrap_or(0);
+                let lt_b = sb.location_type.unwrap_or(0);
+                if !(lt_a == 0 && lt_b == 0) && !(lt_a == 1 && lt_b == 1) {
                     continue;
                 }
                 // parent/child istisnası: çocuk durak, ait olduğu istasyonla aynı/çok
@@ -8802,6 +8806,29 @@ mod tests {
         assert!(
             !result.notices.iter().any(|n| n.rule_id == "STP_016" || n.rule_id == "STP_017"),
             "giriş↔durak aynı-koordinat çifti STP_016/017 üretmemeli"
+        );
+    }
+
+    #[test]
+    fn duplicate_stations_same_coordinate_produce_stp_016() {
+        use crate::k5_derived::SpatialIndex;
+        // İki AYRI istasyon (location_type=1) tam aynı koordinatta — duplikat-istasyon
+        // şüphesi; iskelet muafiyeti bu çifti YUTMAMALI (review K1b istisnası).
+        let mut records = crate::k2::EntityRecords::default();
+        let mut s1 = stop("ST1", 41.0, 29.0);
+        s1.location_type = Some(1);
+        let mut s2 = stop("ST2", 41.0, 29.0);
+        s2.location_type = Some(1);
+        records.stops = vec![s1, s2];
+        let mut derived = DerivedData::default();
+        derived.spatial_index = SpatialIndex {
+            grid: [((82i32, 58i32), vec![0usize, 1usize])].into_iter().collect(),
+            cell_deg: 0.5,
+        };
+        let result = analyze(&records, &derived, &default_config(), 20260514);
+        assert!(
+            result.notices.iter().any(|n| n.rule_id == "STP_016"),
+            "istasyon↔istasyon aynı-koordinat çifti STP_016 üretmeli"
         );
     }
 

@@ -492,11 +492,14 @@ pub(crate) fn arc021_bad_char<'a>(values: impl Iterator<Item = &'a str>) -> Opti
 }
 
 pub(crate) fn arc021_message(file_name: &str, cp: u32) -> String {
-    format!("'{file_name}' dosyasında ASCII dışı veya yazdırılamaz karakter içeren değer var (U+{cp:04X}).")
+    // "ASCII dışı" DEME: kural geçerli Unicode harfleri (ü, ö, 漢字…) bilerek muaf tutar;
+    // yalnız kontrol/DEL/surrogate/private-use işaretlenir. Mesaj yaptığından fazlasını
+    // iddia etmemeli (VBB Almanca metin tartışması, 2026-07-24).
+    format!("'{file_name}' dosyasında yazdırılamaz veya sorunlu karakter içeren değer var (U+{cp:04X}).")
 }
 
 pub(crate) const ARC021_REMEDIATION: &str =
-    "Tüm alan değerlerinin yazdırılabilir ASCII karakter içerdiğinden emin olun.";
+    "Alan değerlerindeki kontrol/yazdırılamaz karakterleri kaldırın; geçerli Unicode harfler (ü, ö, 漢字 vb.) sorun değildir.";
 
 pub(crate) fn dq016_is_typed_column(name: &str) -> bool {
     if name.ends_with("_time") || name.ends_with("_date") || name.ends_with("_sequence")
