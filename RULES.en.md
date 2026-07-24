@@ -25,7 +25,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | ARC_012 | Row column count does not match header | CRITICAL | Spec |
 | ARC_013 | CSV parse error | CRITICAL | Spec |
 | ARC_014 | Leading/trailing whitespace in header | MEDIUM | Quality |
-| ARC_015 | Duplicate header column | CRITICAL | Quality |
+| ARC_015 | Duplicate header column | CRITICAL | Interop |
 | ARC_025 | Required column missing from header | CRITICAL | Spec |
 | ARC_017 | Unknown column (not defined in GTFS specification) | INFO | Quality |
 | ARC_018 | Empty data row | MEDIUM | Quality |

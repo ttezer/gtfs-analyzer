@@ -25,7 +25,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | ARC_012 | Satır sütun sayısı başlıkla uyuşmuyor | KRİTİK | Spec |
 | ARC_013 | CSV ayrıştırma hatası | KRİTİK | Spec |
 | ARC_014 | Başlıkta baştaki/sondaki boşluk | ORTA | Quality |
-| ARC_015 | Yinelenen başlık sütunu | KRİTİK | Quality |
+| ARC_015 | Yinelenen başlık sütunu | KRİTİK | Interop |
 | ARC_025 | Zorunlu sütun başlıkta hiç yok (header'da eksik) | KRİTİK | Spec |
 | ARC_017 | Bilinmeyen sütun (GTFS spesifikasyonunda tanımlı değil) | BİLGİ | Quality |
 | ARC_018 | Boş veri satırı | ORTA | Quality |
