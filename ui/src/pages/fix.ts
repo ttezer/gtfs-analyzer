@@ -309,8 +309,10 @@ const STOP_ID_RULES = new Set([
   'STP_010','STP_011','STP_012','STP_013','STP_014','STP_015','STP_016',
   'STP_017','STP_018','STP_019','STP_020','STP_021','STP_022','STP_023',
   'STP_024','STP_025','STP_026','STP_027','STP_028','STP_029','STP_030',
-  'GEO_001','GEO_002','GEO_003','GEO_004','GEO_005',
-  'GEO_009','GEO_010','GEO_011','GEO_012','GEO_014','GEO_015',
+  // NOT: GEO_001/003/004/005 emekli, GEO_010/011 yalnız R4 görüntü etiketi
+  // (k7_reporting::r4_display_label — notice.rule_id hep SHP_014/016 kalır), GEO_014
+  // feed seviyesi (entity_id yok) → hiçbiri gerçek bir notice ile eşleşmiyordu, kaldırıldı.
+  'GEO_002','GEO_009','GEO_012','GEO_015','GEO_016','GEO_019','GEO_022',
   'PTH_012','PTH_013','PTH_015','PTH_016','PTH_017','PTH_018','PTH_019',
   'LVL_006',
   'SHP_022','SHP_024',
@@ -388,9 +390,15 @@ function hasMapCoords(notice: Notice, nameIndex: NameIndex): boolean {
   if (STOP_ID_RULES.has(notice.rule_id)) {
     return !!(eid && eid in nameIndex.stop_coords);
   }
-  // GEO_013: feed seviyesi — stop_coords tablosu boş değilse ikon göster
-  if (notice.rule_id === 'GEO_013') {
+  // Feed seviyesi coğrafi kurallar — kanıt "tüm durakların dağılımı": GEO_013 (özet),
+  // GEO_018 (hepsi 200m içinde), GEO_021 (koordinat paylaşımı). stop_coords doluysa göster.
+  if (['GEO_013','GEO_018','GEO_021'].includes(notice.rule_id)) {
     return Object.keys(nameIndex.stop_coords).length > 0;
+  }
+  // GEO_017 / GEO_020: shape kuralları ama pin observed_value'daki "lat,lon"dan gelir
+  // (deferred modda shape_coords boş olsa bile harita anlamlı).
+  if (notice.rule_id === 'GEO_017' || notice.rule_id === 'GEO_020') {
+    return /^-?\d+(\.\d+)?,-?\d+(\.\d+)?$/.test((notice.observed_value ?? '').trim());
   }
   // SHP_017: details'tan bad_stop veya ctx
   if (notice.rule_id === 'SHP_017') {
@@ -639,11 +647,14 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
     return { pins, polyline: polyline.length > 1 ? polyline : undefined, legendItems, showArrows: true };
   }
 
-  // GEO_006: shape atlama — tam polyline + atlama noktaları kırmızı pin
-  if (notice.rule_id === 'GEO_006') {
+  // GEO_006 / GEO_007: shape atlaması — shape gri, ATLAYAN SEGMENT kırmızı + iki uç pin.
+  // Atlama zaten polyline'ın bir parçası olarak çiziliyordu; aynı renkte olduğu için hangi
+  // parçanın hata olduğu görülmüyordu. Segment ayrı renkle üstüne çizilip ona zoom yapılır.
+  if (notice.rule_id === 'GEO_006' || notice.rule_id === 'GEO_007') {
     const polyline = entityId ? (nameIndex.shape_coords[entityId] ?? []) : [];
     const m = notice.observed_value?.match(/segment\s+(\d+)→(\d+)/);
     const pins: MapPin[] = [];
+    const extraPolylines: Array<{ coords: [number, number][]; color: string; weight: number; zoomTo: boolean }> = [];
     if (m && polyline.length > 0) {
       const idxA = parseInt(m[1], 10);
       const idxB = parseInt(m[2], 10);
@@ -651,14 +662,26 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
       const ptB = polyline[idxB];
       if (ptA) pins.push({ lat: ptA[0], lon: ptA[1], label: `<strong>${t('fix.map.pin.jump_start')}</strong><br>Segment ${idxA}`, primary: true });
       if (ptB) pins.push({ lat: ptB[0], lon: ptB[1], label: `<strong>${t('fix.map.pin.jump_end')}</strong><br>Segment ${idxB}`, primary: false });
+      if (ptA && ptB) {
+        extraPolylines.push({ coords: [[ptA[0], ptA[1]], [ptB[0], ptB[1]]], color: '#dc2626', weight: 5, zoomTo: true });
+      }
     }
     const legendItems: Array<{ color: string; label: string }> = [];
-    if (polyline.length > 1) legendItems.push({ color: '#f59e0b', label: t('fix.map.route_shape') });
+    if (polyline.length > 1) legendItems.push({ color: '#9ca3af', label: t('fix.map.route_shape') });
+    if (extraPolylines.length > 0) legendItems.push({ color: '#dc2626', label: t('fix.map.jump_segment') });
     if (pins.length > 0) {
-      legendItems.push({ color: '#dc2626', label: t('fix.map.jump_start') });
-      legendItems.push({ color: '#2563eb', label: t('fix.map.jump_end') });
+      // Renkler pinlerle aynı olmalı: başlangıç primary(mavi), bitiş referans(kırmızı).
+      legendItems.push({ color: '#2563eb', label: t('fix.map.jump_start') });
+      legendItems.push({ color: '#dc2626', label: t('fix.map.jump_end') });
     }
-    return { pins, polyline: polyline.length > 1 ? polyline : undefined, legendItems, showArrows: false };
+    return {
+      pins,
+      polyline: polyline.length > 1 ? polyline : undefined,
+      polylineColor: '#9ca3af',
+      extraPolylines,
+      legendItems,
+      showArrows: false,
+    };
   }
 
   // SHP_020: ardışık olmayan tekrarlayan nokta — polyline + kırmızı pin
@@ -1196,8 +1219,35 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
     return { pins, extraPolylines, legendItems, showArrows: false };
   }
 
-  // GEO_013: feed'deki tüm durakları küçük pinlerle göster
-  if (notice.rule_id === 'GEO_013') {
+  // GEO_017 / GEO_020: shape geometri hatası — observed_value'daki koordinata kırmızı pin.
+  // GEO_020'de shape'in TÜM noktaları aynı yerde olduğu için polyline çizilse bile
+  // görünmez (sıfır uzunluk); tek pin doğru gösterim. GEO_017'de shape varsa arkaya çizilir.
+  if (notice.rule_id === 'GEO_017' || notice.rule_id === 'GEO_020') {
+    const m = (notice.observed_value ?? '').trim().match(/^(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)$/);
+    const pins: MapPin[] = [];
+    if (m) {
+      const plat = parseFloat(m[1]);
+      const plon = parseFloat(m[2]);
+      if (!isNaN(plat) && !isNaN(plon)) {
+        const label = notice.rule_id === 'GEO_020'
+          ? t('fix.map.degenerate_shape')
+          : t('fix.map.null_island_point');
+        pins.push({ lat: plat, lon: plon, label: `<strong>${label}</strong><br><code>${escHtml(entityId)}</code><br><code>${escHtml(m[1])}, ${escHtml(m[2])}</code>`, primary: false });
+      }
+    }
+    const polyline = notice.rule_id === 'GEO_017' && entityId ? (nameIndex.shape_coords[entityId] ?? []) : [];
+    const legendItems: Array<{ color: string; label: string }> = [];
+    if (polyline.length > 1) legendItems.push({ color: '#f59e0b', label: t('fix.map.route_shape') });
+    if (pins.length > 0) {
+      legendItems.push({ color: '#dc2626', label: notice.rule_id === 'GEO_020' ? t('fix.map.degenerate_shape') : t('fix.map.null_island_point') });
+    }
+    return { pins, polyline: polyline.length > 1 ? polyline : undefined, legendItems };
+  }
+
+  // GEO_013 / GEO_018 / GEO_021: feed'deki tüm durakları küçük pinlerle göster.
+  // Üçünün de kanıtı dağılımın kendisi: özet (013), hepsi 200m içinde (018),
+  // koordinatların üst üste yığılması (021).
+  if (['GEO_013','GEO_018','GEO_021'].includes(notice.rule_id)) {
     const pins: MapPin[] = Object.entries(nameIndex.stop_coords).map(([stopId, coord]) => ({
       lat: coord[0],
       lon: coord[1],
@@ -1289,6 +1339,28 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
       ? [{ color: '#2563eb', label: `${t('fix.map.stop')} 1` }, { color: '#dc2626', label: `${t('fix.map.stop')} 2` }]
       : [];
     return { pins, legendItems };
+  }
+
+  // GEO_002: uzak durak + feed medianı + aradaki mesafe çizgisi.
+  // Tek pin anlamsızdı: kural "feed medianından X km" diyor ama referans nokta
+  // haritada yoktu. med_lat/med_lon notice.details'tan gelir (k6_analytics).
+  if (notice.rule_id === 'GEO_002') {
+    const medLat = parseFloat(notice.details?.['med_lat'] ?? '');
+    const medLon = parseFloat(notice.details?.['med_lon'] ?? '');
+    const distKm = notice.details?.['dist_km'] ?? '';
+    const pins: MapPin[] = [
+      { lat, lon, label: `<strong>${escHtml(stopName)}</strong><br><code>${escHtml(entityId)}</code>${distKm ? `<br>${t('fix.map.far_from_median', { km: distKm })}` : ''}`, primary: false },
+    ];
+    const extraPolylines: Array<{ coords: [number, number][]; color: string; weight: number; zoomTo: boolean }> = [];
+    const legendItems: Array<{ color: string; label: string }> = [
+      { color: '#dc2626', label: t('fix.map.far_stop') },
+    ];
+    if (!isNaN(medLat) && !isNaN(medLon)) {
+      pins.push({ lat: medLat, lon: medLon, label: `<strong>${t('fix.map.feed_median')}</strong>`, primary: true });
+      extraPolylines.push({ coords: [[lat, lon], [medLat, medLon]], color: '#dc2626', weight: 2, zoomTo: false });
+      legendItems.push({ color: '#2563eb', label: t('fix.map.feed_median') });
+    }
+    return { pins, extraPolylines, legendItems };
   }
 
   // GEO_009: durak pin + shape polyline
@@ -1430,19 +1502,28 @@ export function attachFixListeners(root: HTMLElement, result?: ValidationResult,
         const noticeId = btn.dataset['noticeId'] ?? '';
         const notice = noticeMap.get(noticeId);
         if (!notice) return;
-        const opts = buildMapOptions(notice, result.name_index);
-        // Büyük feed modunda shape geometrisi peşinen serialize edilmez; polyline
-        // eksikse ilgili shape'i worker'dan on-demand çekip enjekte et.
+        let opts = buildMapOptions(notice, result.name_index);
+        // Büyük feed modunda shape geometrisi peşinen serialize edilmez. Geometriyi
+        // worker'dan çekip name_index'e yazdıktan sonra buildMapOptions'ı YENİDEN
+        // çalıştırıyoruz: kural-özel işaretler (GEO_006/007 atlama segmenti + uç pinleri,
+        // SHP_009/010/020 pinleri) polyline'dan TÜRETİLİYOR; yalnızca opts.polyline'ı
+        // enjekte etmek onları boş bırakıyordu (VBB'de harita çizgi gösterip hatayı
+        // işaretlemiyordu).
         if (result.name_index.map_data_deferred && (!opts.polyline || opts.polyline.length < 2)) {
           const shapeId = shapeIdForNotice(notice, result.name_index);
           if (shapeId) {
             const coords = await requestShapeCoords(shapeId);
             if (coords.length > 1) {
-              opts.polyline = coords;
-              opts.showArrows = true;
-              const hasShapeLegend = (opts.legendItems ?? []).some(l => l.color === '#f59e0b');
-              if (!hasShapeLegend) {
-                opts.legendItems = [{ color: '#f59e0b', label: t('fix.map.route_shape') }, ...(opts.legendItems ?? [])];
+              result.name_index.shape_coords[shapeId] = coords; // oturum içi cache
+              opts = buildMapOptions(notice, result.name_index);
+              // Kuralın kendi dalı geometriyi kullanmıyorsa (generic yollar) yine de çiz.
+              if (!opts.polyline || opts.polyline.length < 2) {
+                opts.polyline = coords;
+                opts.showArrows = true;
+                const hasShapeLegend = (opts.legendItems ?? []).some(l => l.color === '#f59e0b');
+                if (!hasShapeLegend) {
+                  opts.legendItems = [{ color: '#f59e0b', label: t('fix.map.route_shape') }, ...(opts.legendItems ?? [])];
+                }
               }
             }
           }

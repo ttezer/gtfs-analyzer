@@ -1918,12 +1918,41 @@ fn check_geo_analytics(
         let med_lat = lats[lats.len() / 2];
         let med_lon = lons[lons.len() / 2];
 
+        // Eşik: mutlak 200 km DEĞİL, feed'in kendi ölçeğine göreli (2026-07-25).
+        // Ölçüm (VBB mdb-782, 41.949 durak): p50 21,8 km · p99 132,3 km · p99,9 189,2 km ·
+        // max 294 km. Sabit 200 km feed'in KENDİ kuyruğunun içinde kalıyordu → 20 bulgunun
+        // 20'si de gerçek istasyondu (Berlin–Wrocław Kulturzug koridoru, Stralsund/Wismar
+        // Baltık hattı, Zittau sınır hattı). Yani kural "aykırı koordinat" değil "geniş feed"
+        // tespit ediyordu — GEO_014'ün zaten bildirdiği şeyi hata olarak raporlamak.
+        //
+        // Gerçek koordinat hataları bu eşiğin ÇOK ötesinde kalır: lat/lon takası Berlin için
+        // ~4.900 km, işaret hatası ~5.800 km, (0,0) ~5.800 km (o zaten GEO_016).
+        // Küçük örneklemde p99 aykırı değerin KENDİSİ olur → en az 100 durak şartı.
+        const GEO002_MIN_KM: f64 = 200.0;
+        const GEO002_P99_FACTOR: f64 = 3.0;
+        const GEO002_MIN_SAMPLE: usize = 100;
+        let threshold_km = if coords.len() >= GEO002_MIN_SAMPLE {
+            let mut dists: Vec<f64> = coords.iter()
+                .map(|&(la, lo)| haversine_km(med_lat, med_lon, la, lo))
+                .collect();
+            dists.sort_by(f64::total_cmp);
+            let p99 = dists[((dists.len() as f64) * 0.99) as usize];
+            (p99 * GEO002_P99_FACTOR).max(GEO002_MIN_KM)
+        } else {
+            GEO002_MIN_KM
+        };
+
         for stop in &records.stops {
+            if stop.stop_id.is_empty() { continue; }
             let (Some(lat), Some(lon)) = (stop.stop_lat, stop.stop_lon) else { continue };
-            // Median'dan > 200 km uzakta olan duraklar → potansiyel koordinat hatası
+            // Null Island guard (STP_016/017, GEO_012, GEO_019 ile TUTARLI): (0,0) yakını
+            // koordinat bir placeholder'dır ve median'dan kaçınılmaz olarak >200km uzaktır.
+            // Kök nedeni GEO_016 raporlar; burada tekrar etmek aynı durağı iki kez sayardı.
+            if lat.abs() < 0.1 && lon.abs() < 0.1 { continue; }
+            // Eşiğin üstündeki duraklar → potansiyel koordinat hatası
             let d = haversine_km(med_lat, med_lon, lat, lon);
-            if d > 200.0 {
-                notices.push(k6_notice(
+            if d > threshold_km {
+                let mut n = k6_notice(
                     ctr,
                     "GEO_002",
                     EntityType::Stop,
@@ -1933,11 +1962,20 @@ fn check_geo_analytics(
                     Some(stop.line as u64),
                     Some("stop_lat|stop_lon"),
                     Some(format!("({lat:.5},{lon:.5}) — median'dan {d:.0}km")),
-                    Some("≤ 200km (feed medianından)".to_string()),
-                    format!("'{}' durağı (kod: '{}') feed medianından {d:.0}km uzakta — koordinat hatası olabilir.",
+                    Some(format!("≤ {threshold_km:.0}km (feed medianından)")),
+                    format!("'{}' durağı (kod: '{}') feed medianından {d:.0}km uzakta (eşik {threshold_km:.0}km) — koordinat hatası olabilir.",
                         stop.stop_name.as_deref().unwrap_or(stop.stop_id.as_str()), stop.stop_id),
                     "stop_lat ve stop_lon değerlerini doğrulayın.",
-                ));
+                );
+                // Harita referansı: kural "median'a göre uzaklık" diyor ama median koordinatı
+                // notice'ta taşınmadığı için UI tek bir pin çizip "neye göre uzak" sorusunu
+                // cevapsız bırakıyordu. Median artık details'ta.
+                n.details = Some([
+                    ("med_lat".to_string(), format!("{med_lat:.6}")),
+                    ("med_lon".to_string(), format!("{med_lon:.6}")),
+                    ("dist_km".to_string(), format!("{d:.1}")),
+                ].into_iter().collect());
+                notices.push(n);
             }
         }
     }
@@ -2096,11 +2134,15 @@ fn check_geo_analytics(
 
     // GEO_020: Shape'in tüm noktaları aynı koordinatta (dejenere geometri)
     {
+        // Nokta sayısı AYNI geçişte toplanır: eskiden her dejenere shape için
+        // `records.shapes.iter().filter(...).count()` çağrılıyordu → O(dejenere × tüm nokta).
         let mut shape_first: HashMap<String, (f64, f64)> = HashMap::new();
+        let mut shape_counts: HashMap<String, usize> = HashMap::new();
         let mut shape_varied: HashSet<String> = HashSet::new();
         for pt in &records.shapes {
-            if shape_varied.contains(&pt.shape_id) { continue; }
             let (Some(lat), Some(lon)) = (pt.shape_pt_lat, pt.shape_pt_lon) else { continue };
+            *shape_counts.entry(pt.shape_id.clone()).or_insert(0) += 1;
+            if shape_varied.contains(&pt.shape_id) { continue; }
             if let Some(&(first_lat, first_lon)) = shape_first.get(&pt.shape_id) {
                 if (lat - first_lat).abs() > 1e-8 || (lon - first_lon).abs() > 1e-8 {
                     shape_varied.insert(pt.shape_id.clone());
@@ -2109,9 +2151,19 @@ fn check_geo_analytics(
                 shape_first.insert(pt.shape_id.clone(), (lat, lon));
             }
         }
-        for (shape_id, (lat, lon)) in &shape_first {
-            if shape_varied.contains(shape_id) { continue; }
-            let count = records.shapes.iter().filter(|p| &p.shape_id == shape_id).count();
+        // Determinizm: HashMap sırası rastgeledir (k7 sıralaması maskeler ama emit sırası
+        // sabit olsun — yeni kural kontrol listesi 4. madde).
+        let mut degenerate: Vec<(&String, &(f64, f64))> = shape_first
+            .iter()
+            .filter(|(sid, _)| !shape_varied.contains(*sid))
+            .collect();
+        degenerate.sort_by(|a, b| a.0.cmp(b.0));
+        for (shape_id, (lat, lon)) in degenerate {
+            // Tüm noktaları (0,0) olan shape'in kök nedeni placeholder koordinattır ve
+            // GEO_017 onu daha spesifik olarak raporlar (GEO_016/GEO_019 ikilisiyle aynı
+            // iş bölümü) → burada çift emit edilmez.
+            if lat.abs() < 0.1 && lon.abs() < 0.1 { continue; }
+            let count = shape_counts.get(shape_id).copied().unwrap_or(0);
             if count >= 2 {
                 notices.push(k6_notice(
                     ctr, "GEO_020", EntityType::Shape,
@@ -4375,17 +4427,27 @@ fn check_remaining_analytics(
                 .count();
 
             if cluster_count >= 3 {
-                // Merkez durağı bul (hücredeki ilk)
-                let first_idx = cell_stops[0];
+                // Merkez durak: hücredeki İLK UYGUN durak.
+                // STP_016/017 ile TUTARLI guard'lar (2026-07-24): kümelenme yalnız
+                // BİNİLEBİLİR duraklar arasında anlamlıdır. İstasyon iskeleti (giriş=2,
+                // node=3, boarding=4) ve aynı istasyonun kardeş peronları hiyerarşi
+                // modellemesi gereği zaten yakındır; Null Island placeholder kümesinin
+                // kök nedeni GEO_016'dır.
+                //
+                // ⚠️ 2026-07-25: guard'lar önce yalnız `cell_stops[0]`'a uygulanıp `continue`
+                // ile TÜM HÜCREYİ atlıyordu → hücrenin ilk durağı istasyon/placeholder ise
+                // içindeki gerçek küme hiç görülmüyordu (yanlış negatif). Artık uygun olmayan
+                // anchor atlanır, hücredeki bir sonraki binilebilir durak denenir.
+                let anchor_entry = cell_stops.iter().copied().find(|&i| {
+                    records.stops.get(i).is_some_and(|s| {
+                        if s.location_type.unwrap_or(0) != 0 { return false; }
+                        s.stop_lat.zip(s.stop_lon)
+                            .is_some_and(|(la, lo)| !(la.abs() < 0.1 && lo.abs() < 0.1))
+                    })
+                });
+                let Some(first_idx) = anchor_entry else { continue };
                 if let Some(anchor) = records.stops.get(first_idx) {
                     let Some((alat, alon)) = anchor.stop_lat.zip(anchor.stop_lon) else { continue };
-                    // STP_016/017 ile TUTARLI guard'lar (2026-07-24): kümelenme yalnız
-                    // BİNİLEBİLİR duraklar arasında anlamlıdır. İstasyon iskeleti (giriş=2,
-                    // node=3, boarding=4) ve aynı istasyonun kardeş peronları hiyerarşi
-                    // modellemesi gereği zaten yakındır; Null Island placeholder kümesinin
-                    // kök nedeni GEO_016'dır.
-                    if alat.abs() < 0.1 && alon.abs() < 0.1 { continue; }
-                    if anchor.location_type.unwrap_or(0) != 0 { continue; }
                     let anchor_parent = anchor.row.get("parent_station")
                         .map(|s| s.trim()).filter(|s| !s.is_empty());
                     let nearby = cell_stops
@@ -9020,6 +9082,30 @@ mod tests {
     }
 
     #[test]
+    fn geo_012_finds_cluster_when_first_cell_stop_is_a_station() {
+        use crate::k5_derived::SpatialIndex;
+        // Hücrenin İLK durağı istasyon (lt=1) — eski kod guard'ı görüp `continue` ile
+        // hücreyi tümüyle atlıyordu ve arkasındaki gerçek kümeyi kaçırıyordu.
+        // Artık uygun olmayan anchor atlanır, sıradaki binilebilir durak anchor olur.
+        let mut records = crate::k2::EntityRecords::default();
+        let mut station = stop("ST", 41.0, 29.0);
+        station.location_type = Some(1);
+        records.stops = vec![
+            station,
+            stop("A", 41.0, 29.0), stop("B", 41.0, 29.0), stop("C", 41.0, 29.0),
+        ];
+        let mut derived = DerivedData::default();
+        derived.spatial_index = SpatialIndex {
+            grid: [((82i32, 58i32), vec![0usize, 1, 2, 3])].into_iter().collect(),
+            cell_deg: 0.5,
+        };
+        let result = analyze(&records, &derived, &default_config(), 20260514);
+        let n = result.notices.iter().find(|n| n.rule_id == "GEO_012")
+            .expect("ilk durak istasyon olsa da arkadaki gerçek küme GEO_012 üretmeli");
+        assert_eq!(n.entity_id.as_deref(), Some("A"), "anchor ilk BİNİLEBİLİR durak olmalı");
+    }
+
+    #[test]
     fn duplicate_stations_same_coordinate_produce_stp_016() {
         use crate::k5_derived::SpatialIndex;
         // İki AYRI istasyon (location_type=1) tam aynı koordinatta — duplikat-istasyon
@@ -10048,6 +10134,83 @@ mod tests {
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
         let ids: Vec<&str> = result.notices.iter().map(|n| n.rule_id.as_str()).collect();
         assert!(ids.contains(&"GEO_022"), "kutba yakın durak (lat 89.5) → GEO_022: {:?}", ids);
+    }
+
+    // ── GEO_002: median referansı + Null Island guard ────────────────────────
+    #[test]
+    fn geo_002_carries_median_in_details() {
+        // 3 durak İstanbul'da, 1 durak ~2000 km ötede → uzaktaki GEO_002 üretir ve
+        // notice median koordinatını taşımalı (harita "neye göre uzak" gösterebilsin).
+        let records = records_with(
+            vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1), stop("C", 41.2, 29.2),
+                 stop("FAR", 52.5, 13.4)],
+            vec![route("R1", 3)],
+            vec![trip("T1", "R1")],
+            vec![
+                stoptime("T1", 1, "A", (8,0,0), (8,0,0), 2),
+                stoptime("T1", 2, "B", (8,10,0), (8,10,0), 3),
+            ],
+        );
+        let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
+        let n = result.notices.iter().find(|n| n.rule_id == "GEO_002")
+            .expect("uzak durak GEO_002 üretmeli");
+        assert_eq!(n.entity_id.as_deref(), Some("FAR"));
+        let d = n.details.as_ref().expect("details olmalı");
+        assert!(d.contains_key("med_lat") && d.contains_key("med_lon"), "median details'ta olmalı: {d:?}");
+        assert!(d.get("dist_km").is_some_and(|v| v.parse::<f64>().unwrap_or(0.0) > 200.0));
+    }
+
+    #[test]
+    fn geo_002_threshold_is_relative_to_feed_extent() {
+        // VBB ölçümünün modeli: bölgesel/sınır-ötesi feed, duraklar ~280 km'ye yayılmış.
+        // Sabit 200 km eşiği bu feed'de 20 GERÇEK istasyonu hata sayıyordu; göreli eşik
+        // (3 × p99) bu dağılımda sessiz kalmalı.
+        let mut stops: Vec<_> = (0..120)
+            .map(|i| stop(&format!("S{i}"), 52.5 + (i as f64) * 0.02, 13.4))
+            .collect();
+        stops.push(stop("FAR", 55.0, 13.4)); // ~278 km — koridorun ucu, gerçek istasyon
+        let records = records_with(stops, vec![route("R1", 3)], vec![trip("T1", "R1")], vec![]);
+        let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
+        assert!(!result.notices.iter().any(|n| n.rule_id == "GEO_002"),
+            "geniş yayılımlı feed'de koridor ucundaki durak GEO_002 üretmemeli: {:?}",
+            result.notices.iter().filter(|n| n.rule_id == "GEO_002")
+                .map(|n| (&n.entity_id, &n.observed_value)).collect::<Vec<_>>());
+    }
+
+    #[test]
+    fn geo_002_still_fires_for_real_outlier_in_compact_feed() {
+        // Kompakt feed (~5 km) + tek bir aykırı durak (~2000 km) → gerçek koordinat hatası,
+        // göreli eşik taban 200 km'ye düşer ve kural ateşlemeye devam eder.
+        let mut stops: Vec<_> = (0..120)
+            .map(|i| stop(&format!("S{i}"), 41.0 + (i as f64) * 0.0004, 29.0))
+            .collect();
+        stops.push(stop("BROKEN", 52.5, 13.4));
+        let records = records_with(stops, vec![route("R1", 3)], vec![trip("T1", "R1")], vec![]);
+        let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
+        let n = result.notices.iter().find(|n| n.rule_id == "GEO_002")
+            .expect("kompakt feed'deki aykırı durak GEO_002 üretmeli");
+        assert_eq!(n.entity_id.as_deref(), Some("BROKEN"));
+    }
+
+    #[test]
+    fn geo_002_skips_null_island_stop() {
+        // (0,0) placeholder median'dan kaçınılmaz olarak >200km uzaktır; kök nedeni
+        // GEO_016'dır → GEO_002 çift emit etmemeli (STP_016/017, GEO_012 ile tutarlı).
+        let records = records_with(
+            vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1), stop("C", 41.2, 29.2),
+                 stop("NULL", 0.0, 0.0)],
+            vec![route("R1", 3)],
+            vec![trip("T1", "R1")],
+            vec![
+                stoptime("T1", 1, "A", (8,0,0), (8,0,0), 2),
+                stoptime("T1", 2, "B", (8,10,0), (8,10,0), 3),
+            ],
+        );
+        let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
+        assert!(!result.notices.iter().any(|n| n.rule_id == "GEO_002"),
+            "Null Island durağı GEO_002 üretmemeli: {:?}",
+            result.notices.iter().map(|n| (&n.rule_id, &n.entity_id)).collect::<Vec<_>>());
+        assert!(result.notices.iter().any(|n| n.rule_id == "GEO_016"), "GEO_016 üretilmeli");
     }
 
     #[test]
