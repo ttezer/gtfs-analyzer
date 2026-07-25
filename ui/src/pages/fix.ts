@@ -494,7 +494,7 @@ const SHAPE_ENTITY_RULES = new Set([
 ]);
 function shapeIdForNotice(notice: Notice, nameIndex: NameIndex): string {
   if (SHAPE_ENTITY_RULES.has(notice.rule_id)) return notice.entity_id ?? '';
-  if (notice.rule_id === 'SHP_017' || notice.rule_id === 'SHP_022') return notice.details?.['shape_id'] ?? '';
+  if (['SHP_017','SHP_022','GEO_009'].includes(notice.rule_id)) return notice.details?.['shape_id'] ?? '';
   // buildMapOptions bu kurallarda shape'i trip_shapes[trip_id] ile çiziyor (STM_014/008/020/025/
   // 012/026/033/035, OPR_007/008, STM_017, generic trip). Deferred modda on-demand için aynı yolu izle.
   const eid = notice.entity_id ?? '';
@@ -1363,9 +1363,11 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
     return { pins, extraPolylines, legendItems };
   }
 
-  // GEO_009: durak pin + shape polyline
+  // GEO_009: durak pin + shape polyline. shape_id details'tan gelir; eski raporlarla
+  // uyum için observed_value regex'i fallback olarak durur.
   if (notice.rule_id === 'GEO_009') {
-    const shapeId = notice.observed_value?.match(/\(shape '([^']+)'\)/)?.[1] ?? '';
+    const shapeId = notice.details?.['shape_id']
+      ?? notice.observed_value?.match(/\(shape '([^']+)'\)/)?.[1] ?? '';
     const polyline = shapeId ? (nameIndex.shape_coords[shapeId] ?? []) : [];
     const legendItems: Array<{ color: string; label: string }> = [
       { color: '#2563eb', label: t('fix.map.stop') },

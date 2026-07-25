@@ -4246,9 +4246,17 @@ fn check_remaining_analytics(
                         stop_id, stop_name, config.stop_far_from_shape_m),
                     "Durak koordinatlarını veya güzergah noktalarını düzeltin.",
                 );
+                // shape_id details'ta TAŞINIR (2026-07-25): entity durak olduğu için shape
+                // yalnız observed_value metnindeydi ("… (shape 'X')"). Büyük feed modunda
+                // name_index harita verisini notice'lardaki id'lere göre filtreliyor; metnin
+                // içindeki id görünmediği için o shape serialize edilmiyor ve harita
+                // güzergahı ÇİZEMİYORDU. UI artık details'tan okur (regex fallback duruyor).
+                let mut det: std::collections::HashMap<String, String> =
+                    [("shape_id".to_string(), shape_id.to_string())].into_iter().collect();
                 if let Some(dep) = &example_dep {
-                    notice.details = Some([("example_dep".to_string(), dep.clone())].into_iter().collect());
+                    det.insert("example_dep".to_string(), dep.clone());
                 }
+                notice.details = Some(det);
                 notices.push(notice);
                 // SHP_013 kaldırıldı — GEO_009 ile aynı fiziksel koşulu raporluyordu (çift sayım)
             }
@@ -6022,9 +6030,15 @@ fn check_shp012(
 
         // Perf: (shape_id, stop_id) → polyline mesafesi MEMOIZE edilir. Aynı shape'i kullanan
         // onlarca sefer aynı (shape,durak) mesafesini tekrar tekrar hesaplıyordu; pahalı
-        // point_to_polyline yalnızca BENZERSİZ çift başına bir kez çalışır. Sayım semantiği
-        // (sefer-durak örneği başına artış) AYNI kalır → notice sayısı/değeri/skor DEĞİŞMEZ.
-        let mut shape_stop_violations: FxHashMap<&str, u32> = FxHashMap::default();
+        // point_to_polyline yalnızca BENZERSİZ çift başına bir kez çalışır.
+        //
+        // ⚠️ 2026-07-25: sayaç eskiden SEFER-DURAK ÖRNEĞİ başına artıyor ama mesaj bunu
+        // "durak" diye yazıyordu. VBB'de shape '10342' 579 sefer tarafından kullanılıyor ve
+        // sefer başına 1 durak uzaktı → mesaj "579 duraktan >100m uzakta" diyordu; gerçek
+        // sayı 1'di (579× şişme, kuralı okunamaz hâle getiriyordu). Artık BENZERSİZ durak
+        // sayılır. Notice hacmi değişmez (dedup Entity: shape başına tek notice) → skor da
+        // değişmez; yalnız observed_value/mesajdaki sayı doğrulanır.
+        let mut shape_stop_violations: FxHashMap<&str, FxHashSet<&str>> = FxHashMap::default();
         let mut dist_cache: FxHashMap<(&str, &str), f64> = FxHashMap::default();
         for trip in &records.trips {
             let Some(shape_id) = ti_shp012.shape_id(trip).filter(|s| !s.is_empty()) else { continue };
@@ -6056,12 +6070,16 @@ fn check_shp012(
                         point_to_polyline_dist_m(slat, slon, pts)
                     });
                 if min_dist_m > shp_stop_threshold_m {
-                    *shape_stop_violations.entry(shape_id).or_insert(0) += 1;
+                    shape_stop_violations.entry(shape_id).or_default().insert(stop_id);
                 }
             }
         }
 
-        for (shape_id, viol_count) in &shape_stop_violations {
+        // Determinizm: FxHashMap sırası insertion'a bağlı; shape_id'ye göre sırala.
+        let mut viol_sorted: Vec<(&&str, usize)> = shape_stop_violations
+            .iter().map(|(sid, set)| (sid, set.len())).collect();
+        viol_sorted.sort_by(|a, b| a.0.cmp(b.0));
+        for (shape_id, viol_count) in viol_sorted {
             notices.push(k6_notice(
                 ctr, "SHP_012", EntityType::Shape,
                 Some(shape_id.to_string()), Some(shape_id.to_string()),
@@ -9625,8 +9643,44 @@ mod tests {
         ];
         // default stop_far_from_shape_m = 150.0 → 350 000 m >> 150 m
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
-        assert!(result.notices.iter().any(|n| n.rule_id == "GEO_009"), "GEO_009 olmalı");
+        let n = result.notices.iter().find(|n| n.rule_id == "GEO_009").expect("GEO_009 olmalı");
         assert!(!result.notices.iter().any(|n| n.rule_id == "SHP_013"), "SHP_013 artık üretilmemeli");
+        // shape_id details'ta taşınmalı: büyük feed modunda name_index harita verisini
+        // notice'lardaki id'lere göre filtreliyor; yalnız mesaj metnindeki id görünmez.
+        assert_eq!(n.details.as_ref().and_then(|d| d.get("shape_id")).map(String::as_str), Some("S1"));
+    }
+
+    #[test]
+    fn shp_012_counts_distinct_stops_not_trip_occurrences() {
+        use crate::k2::shapes::ShapePointRecord;
+        // AYNI shape'i kullanan 3 sefer, hepsinde AYNI uzak durak.
+        // Eski sayaç sefer-durak örneği sayıyordu → "3 durak" derdi; doğrusu 1.
+        // (VBB'de shape '10342' 579 sefer × 1 uzak durak = "579 duraktan uzakta" oluyordu.)
+        let mut records = records_with(
+            vec![stop("NEAR", 41.0, 29.0), stop("FAR", 41.5, 29.5)],
+            vec![route("R1", 3)],
+            vec![trip_sh("T1", "R1", "S1"), trip_sh("T2", "R1", "S1"), trip_sh("T3", "R1", "S1")],
+            vec![
+                stoptime("T1", 1, "NEAR", (8,0,0), (8,0,0), 2),
+                stoptime("T1", 2, "FAR",  (8,10,0), (8,10,0), 3),
+                stoptime("T2", 1, "NEAR", (9,0,0), (9,0,0), 4),
+                stoptime("T2", 2, "FAR",  (9,10,0), (9,10,0), 5),
+                stoptime("T3", 1, "NEAR", (10,0,0), (10,0,0), 6),
+                stoptime("T3", 2, "FAR",  (10,10,0), (10,10,0), 7),
+            ],
+        );
+        records.shapes = vec![
+            ShapePointRecord { shape_id: "S1".into(), shape_pt_lat: Some(41.0), shape_pt_lon: Some(29.0),
+                shape_pt_sequence: Some(1), shape_dist_traveled: None, line: 2 },
+            ShapePointRecord { shape_id: "S1".into(), shape_pt_lat: Some(41.001), shape_pt_lon: Some(29.001),
+                shape_pt_sequence: Some(2), shape_dist_traveled: None, line: 3 },
+        ];
+        let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
+        let n = result.notices.iter().find(|n| n.rule_id == "SHP_012")
+            .expect("uzak durak SHP_012 üretmeli");
+        let obs = n.observed_value.as_deref().unwrap_or("");
+        assert!(obs.starts_with("1 "), "benzersiz durak sayılmalı (sefer örneği değil): {obs}");
+        assert!(n.message.contains("1 duraktan"), "mesaj da benzersiz sayıyı yazmalı: {}", n.message);
     }
 
     #[test]
