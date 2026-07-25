@@ -499,6 +499,9 @@ function shapeIdForNotice(notice: Notice, nameIndex: NameIndex): string {
   // 012/026/033/035, OPR_007/008, STM_017, generic trip). Deferred modda on-demand için aynı yolu izle.
   const eid = notice.entity_id ?? '';
   if (eid && eid in nameIndex.trip_shapes) return nameIndex.trip_shapes[eid] ?? '';
+  // Hat kuralları: geometri büyük feed'de serialize edilmiyor; hattın ilk shape'i çekilir
+  // (hat haritası 4 shape'e kadar çizer, deferred modda bir tanesiyle açılır).
+  if (ROUTE_ID_RULES.has(notice.rule_id)) return nameIndex.route_shapes[eid]?.[0] ?? '';
   return '';
 }
 

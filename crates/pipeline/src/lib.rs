@@ -137,8 +137,14 @@ pub(crate) fn build_name_index_impl(
     // Bellek notice sayısıyla sınırlıdır (feed büyüklüğüyle değil) — VBB'de 282k sefer yerine
     // birkaç bin. Küçük/normal feed'de DAVRANIŞ DEĞİŞMEZ (filtre "hepsi"ne eşittir).
     const SHAPE_PT_CAP: usize = 800_000;
-    // shape_coords büyük feed'de yine kısmi kalır (yalnız ilgili shape'ler) → UI eksik
-    // geometriyi on-demand çekmeye devam etsin diye bayrak korunur.
+    // ⚠️ ID'ler UCUZ, GEOMETRİ PAHALI (2026-07-25 ölçümü). shape_coords'u notice'lara göre
+    // filtreleyip serialize etmeyi denedim: VBB'de bir HAT notice'ı (OPR_001=3004) o hattın
+    // tüm seferlerini, onlar da tüm shape'lerini çekince filtre "hepsi"ne dönüştü ve to_js
+    // 3079 → 3591 MB (+512 MB, 4 GB tavanına tehlikeli yakın) sıçradı — 4,7M shape noktası.
+    // Geometri büyük feed'de HİÇ serialize edilmez; UI tek notice için on-demand çeker
+    // (requestShapeCoords + buildMapOptions yeniden çalışır). Filtre yalnız id map'lerinde:
+    // trip_stops/trip_shapes/shape_trips/route_shapes birkaç yüz KB, harita ikonunu ve
+    // durakları geri getiren de zaten onlar.
     let skip_shape_coords = records.shapes.len() > SHAPE_PT_CAP || large_feed_mode;
 
     // Notice'larda geçen TÜM id adayları (entity_id + details değerleri). Kural bazlı bilgi
@@ -176,11 +182,29 @@ pub(crate) fn build_name_index_impl(
         for t in &records.trips {
             let tid = t.trip_id.as_str();
             let sid = ti_f.shape_id(t).unwrap_or("");
+            // Hat adayı seferleri İÇERİ ÇEKMEZ: UI'nin hat haritası yalnız route_shapes →
+            // shape çizer, durak göstermez. Çekseydi tek hat notice'ı o hattın yüzlerce
+            // seferini ve shape'ini sürükler, filtre anlamını yitirirdi.
             let shape_hit = !sid.is_empty() && (cand.contains(sid) || want_shape.contains(sid));
-            if cand.contains(tid) || cand.contains(ti_f.route_id(t)) || shape_hit {
+            if cand.contains(tid) || shape_hit {
                 want_trip.insert(tid);
                 if !sid.is_empty() { want_shape.insert(sid); }
             }
+        }
+        // 3) Hat adayları: yalnız SHAPE id'leri (sefer yok, geometri zaten serialize edilmiyor).
+        //    UI hat haritasında en fazla 4 shape çiziyor → hat başına 4 ile sınırlanır.
+        //    Seferler 2. adımdan sonra kararlaştığı için bu geçiş AYRI: buradan eklenen
+        //    shape'ler yeni sefer sürüklemesin.
+        let mut per_route: std::collections::HashMap<&str, u8> = std::collections::HashMap::new();
+        for t in &records.trips {
+            let rid = ti_f.route_id(t);
+            if !cand.contains(rid) { continue; }
+            let Some(sid) = ti_f.shape_id(t).filter(|s| !s.is_empty()) else { continue };
+            if want_shape.contains(sid) { continue; }
+            let n = per_route.entry(rid).or_insert(0);
+            if *n >= 4 { continue; }
+            *n += 1;
+            want_shape.insert(sid);
         }
     }
     let keep_trip = |id: &str| !large_feed_mode || want_trip.contains(id);
@@ -265,9 +289,7 @@ pub(crate) fn build_name_index_impl(
 
     // shape_id → sıralı [[lat, lon]] nokta listesi (harita çizimi için).
     // #15: çok büyük feed'de atlanır (serialize OOM önlemi).
-    // #15: eşik üstünde TÜM shape'ler değil, yalnız notice'a değenler serialize edilir
-    // (VBB: 4,7M nokta yerine birkaç yüz shape). Eksik kalanı UI on-demand çeker.
-    let shape_coords: HashMap<String, Vec<[f64; 2]>> = if records.shapes.len() > SHAPE_PT_CAP && !large_feed_mode { HashMap::new() } else {
+    let shape_coords: HashMap<String, Vec<[f64; 2]>> = if skip_shape_coords { HashMap::new() } else {
         let mut pts: Vec<(&str, u32, f64, f64)> = records.shapes.iter()
             .filter(|s| keep_shape(s.shape_id.as_str()))
             .filter_map(|s| {
@@ -427,6 +449,35 @@ mod name_index_tests {
             "shape'in temsilci seferi olmalı");
         assert!(idx.trip_stops.contains_key("T2"), "o seferin durakları olmalı (yoksa 'shape var, durak yok')");
         assert!(!idx.trip_stops.contains_key("T1"), "ilgisiz sefer dışarıda");
+    }
+
+    #[test]
+    fn large_feed_never_serializes_shape_geometry() {
+        // BELLEK KORUMASI: geometri büyük feed'de JSON'a girmez (VBB'de +512 MB ölçüldü).
+        // UI eksik geometriyi on-demand çeker; map_data_deferred bunun bayrağıdır.
+        let mut recs = records();
+        recs.shapes = vec![crate::k2::shapes::ShapePointRecord {
+            shape_id: "SH1".into(), shape_pt_lat: Some(41.0), shape_pt_lon: Some(29.0),
+            shape_pt_sequence: Some(1), shape_dist_traveled: None, line: 2,
+        }];
+        let idx = build_name_index_impl(&recs, &[notice_for("T1")], true);
+        assert!(idx.shape_coords.is_empty(), "büyük feed'de geometri serialize edilmemeli");
+        assert!(idx.map_data_deferred, "UI on-demand çekebilmek için bayrağı görmeli");
+        // Küçük feed'de geometri yerinde:
+        let small = build_name_index_impl(&recs, &[], false);
+        assert!(small.shape_coords.contains_key("SH1"));
+    }
+
+    #[test]
+    fn large_feed_route_notice_does_not_drag_in_trips() {
+        // Hat notice'ı hattın YÜZLERCE seferini çekerse filtre anlamını yitirir (VBB'de
+        // OPR_001=3004 hat notice'ı feed'in tamamını içeri almıştı).
+        let recs = records();
+        let mut n = notice_for("R1");
+        n.rule_id = "RTS_012".into();
+        let idx = build_name_index_impl(&recs, &[n], true);
+        assert!(idx.trip_stops.is_empty(), "hat notice'ı sefer duraklarını çekmemeli: {:?}", idx.trip_stops.keys().collect::<Vec<_>>());
+        assert!(!idx.route_shapes.is_empty(), "ama hattın shape id'leri kalmalı (harita ikonu)");
     }
 
     #[test]
