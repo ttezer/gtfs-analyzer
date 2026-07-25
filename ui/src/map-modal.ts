@@ -19,7 +19,7 @@ let leafletMap: L.Map | null = null;
 export interface MapOptions {
   pins: MapPin[];
   polyline?: [number, number][];  // shape çizgisi (ana renk)
-  polylineColor?: string;         // ana çizgi rengi (varsayılan turuncu; vurgulu segment varken gri)
+  polylineColor?: string;         // ana çizgi rengi (varsayılan turuncu; vurgulu segment varken siyah)
   extraPolylines?: Array<{        // ek renkli segmentler (bozuk segment vurgusu gibi)
     coords: [number, number][];
     color: string;
@@ -53,7 +53,14 @@ export function openMapModal(title: string, opts: MapOptions): void {
 
   // Shape polyline (arka planda, pinlerden önce)
   if (opts.polyline && opts.polyline.length > 1) {
-    L.polyline(opts.polyline, { color: opts.polylineColor ?? '#f59e0b', weight: 3, opacity: 0.8 }).addTo(leafletMap);
+    // Vurgulu (siyah) taban çizgi biraz daha kalın ve tam opak: gri denemesinde çizgi
+    // harita altlığında kaybolmuştu.
+    const isBase = opts.polylineColor !== undefined;
+    L.polyline(opts.polyline, {
+      color: opts.polylineColor ?? '#f59e0b',
+      weight: isBase ? 4 : 3,
+      opacity: isBase ? 0.95 : 0.8,
+    }).addTo(leafletMap);
     for (const pt of opts.polyline) bounds.push(pt);
 
     // Yön okları — her ~250m'de bir küçük üçgen

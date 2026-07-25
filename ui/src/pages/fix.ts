@@ -505,6 +505,11 @@ function shapeIdForNotice(notice: Notice, nameIndex: NameIndex): string {
   return '';
 }
 
+// Vurgulu segmenti olan haritalarda TABAN çizgi rengi. Gri (#9ca3af) denendi ve BAŞARISIZ:
+// harita altlığı Google "terrain" (lyrs=p) ve o da gri tonlu → çizgi arka planla kaynaşıp
+// görünmez oluyordu. Siyah her altlıkta okunur ve kırmızı hata segmentiyle yarışmaz.
+const SHAPE_BASE_COLOR = '#111827';
+
 function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
   const entityId = notice.entity_id ?? '';
 
@@ -673,7 +678,7 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
       }
     }
     const legendItems: Array<{ color: string; label: string }> = [];
-    if (polyline.length > 1) legendItems.push({ color: '#9ca3af', label: t('fix.map.route_shape') });
+    if (polyline.length > 1) legendItems.push({ color: SHAPE_BASE_COLOR, label: t('fix.map.route_shape') });
     if (extraPolylines.length > 0) legendItems.push({ color: '#dc2626', label: t('fix.map.jump_segment') });
     if (pins.length > 0) {
       // Renkler pinlerle aynı olmalı: başlangıç primary(mavi), bitiş referans(kırmızı).
@@ -683,7 +688,7 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
     return {
       pins,
       polyline: polyline.length > 1 ? polyline : undefined,
-      polylineColor: '#9ca3af',
+      polylineColor: SHAPE_BASE_COLOR,
       extraPolylines,
       legendItems,
       showArrows: false,
@@ -739,7 +744,7 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
     const shapeId = entityId ? (nameIndex.trip_shapes[entityId] ?? '') : '';
     const polyline = shapeId ? (nameIndex.shape_coords[shapeId] ?? []) : [];
     const legendItems: Array<{ color: string; label: string }> = [];
-    if (polyline.length > 1) legendItems.push({ color: '#9ca3af', label: t('fix.map.route_shape') });
+    if (polyline.length > 1) legendItems.push({ color: SHAPE_BASE_COLOR, label: t('fix.map.route_shape') });
 
     // Tüm bozuk segmentleri topla (bad_seg_0_a/b, bad_seg_1_a/b, ...)
     const extraPolylines: Array<{ coords: [number, number][]; color: string; weight: number; zoomTo: boolean }> = [];
@@ -776,6 +781,7 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
     return {
       pins,
       polyline: polyline.length > 1 ? polyline.map(p => [p[0], p[1]] as [number, number]) : undefined,
+      polylineColor: SHAPE_BASE_COLOR,
       extraPolylines,
       legendItems,
       showArrows: false,
