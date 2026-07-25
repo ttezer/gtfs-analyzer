@@ -38,6 +38,8 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
     let mut notices = Vec::new();
     let mut records = Vec::new();
     let mut ctr = 0u32;
+    // BKR_019: booking_rule_id birincil anahtardır (spec "Primary key (booking_rule_id)").
+    let mut seen_ids: std::collections::HashSet<String> = std::collections::HashSet::new();
 
     for (row_idx, row) in file.rows.iter().enumerate() {
         let line = (row_idx + 2) as u64;
@@ -46,8 +48,48 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
         let id = get_trimmed_field(&row_map, "booking_rule_id").unwrap_or("").to_string();
         let entity_id = (!id.is_empty()).then_some(id.clone());
 
+        // BKR_019: booking_rule_id eksik (boş) veya yineleniyor.
+        // Sütun başlıkta hiç yoksa ARC_025 devralır (RTS_004 deseni) → burada susulur.
+        if id.is_empty() {
+            if get_trimmed_field(&row_map, "booking_rule_id") == Some("") {
+                notices.push(make_k2_notice(
+                    &mut ctr, "BKR_019", EntityType::Row, None, Some(&row_map),
+                    &file.name, Some(line), Some("booking_rule_id"),
+                    Some(String::new()), None,
+                    "booking_rule_id zorunludur.".to_string(),
+                    "Her rezervasyon kuralına benzersiz bir booking_rule_id verin.",
+                ));
+            }
+        } else if !seen_ids.insert(id.clone()) {
+            notices.push(make_k2_notice(
+                &mut ctr, "BKR_019", EntityType::Row, entity_id.clone(), Some(&row_map),
+                &file.name, Some(line), Some("booking_rule_id"),
+                Some(id.clone()), None,
+                format!("booking_rule_id '{id}' yineleniyor; bu alan dosyanın birincil anahtarıdır."),
+                "Her satıra benzersiz bir booking_rule_id verin.",
+            ));
+        }
+
         let btype_str = get_trimmed_field(&row_map, "booking_type").unwrap_or("").to_string();
         let booking_type: Option<u8> = btype_str.parse::<u8>().ok().filter(|&v| v <= 2);
+
+        // BKR_016: booking_type eksik veya geçersiz (spec: Required, enum 0/1/2).
+        // Sütun başlıkta yoksa ARC_025 devralır → yalnız sütun VARKEN denetlenir (RTS_004 deseni).
+        // ⚠️ booking_type okunamadığında SEKİZ tür-bağımlı kural (BKR_001/004/005/007/008/009/012/014)
+        // sessizce devre dışı kalır — bu yüzden `blocks` listesi o kuralları sayar.
+        if booking_type.is_none() && get_trimmed_field(&row_map, "booking_type").is_some() {
+            let (observed, message) = if btype_str.is_empty() {
+                (String::new(), "booking_type zorunludur.".to_string())
+            } else {
+                (btype_str.clone(), format!("booking_type '{btype_str}' geçerli bir değer değil (0, 1 veya 2 olmalıdır)."))
+            };
+            notices.push(make_k2_notice(
+                &mut ctr, "BKR_016", EntityType::Row, entity_id.clone(), Some(&row_map),
+                &file.name, Some(line), Some("booking_type"),
+                Some(observed), Some("0-2".to_string()), message,
+                "booking_type alanını 0 (anlık), 1 (aynı gün) veya 2 (önceki gün) yapın.",
+            ));
+        }
 
         let has_duration_min = has_field(&row_map, "prior_notice_duration_min");
         let has_duration_max = has_field(&row_map, "prior_notice_duration_max");
@@ -420,6 +462,85 @@ mod tests {
         );
         let (_, notices) = validate_booking_rules(&file);
         assert!(notices.iter().any(|n| n.rule_id == "BKR_002"), "BKR_002 bekleniyor");
+    }
+
+    // ── BKR_016/019 (issue #58: dosya bütünlüğü — zorunlu enum + birincil anahtar) ──
+    #[test]
+    fn bkr_016_invalid_booking_type() {
+        let file = make_file(
+            vec!["booking_rule_id", "booking_type"],
+            vec![vec!["BR1", "7"]],
+        );
+        let (_, notices) = validate_booking_rules(&file);
+        let n = notices.iter().find(|n| n.rule_id == "BKR_016").expect("BKR_016 bekleniyor");
+        assert_eq!(n.observed_value.as_deref(), Some("7"));
+    }
+
+    #[test]
+    fn bkr_016_empty_booking_type() {
+        let file = make_file(
+            vec!["booking_rule_id", "booking_type"],
+            vec![vec!["BR1", ""]],
+        );
+        let (_, notices) = validate_booking_rules(&file);
+        assert!(notices.iter().any(|n| n.rule_id == "BKR_016"), "boş booking_type → BKR_016");
+    }
+
+    #[test]
+    fn bkr_016_silent_when_column_absent() {
+        // Sütun başlıkta yoksa ARC_025 devralır (RTS_004 deseni) → satır başına BKR_016 yağmuru olmaz.
+        let file = make_file(
+            vec!["booking_rule_id"],
+            vec![vec!["BR1"]],
+        );
+        let (_, notices) = validate_booking_rules(&file);
+        assert!(!notices.iter().any(|n| n.rule_id == "BKR_016"),
+            "booking_type sütunu yokken BKR_016 üretilmemeli: {:?}",
+            notices.iter().map(|n| &n.rule_id).collect::<Vec<_>>());
+    }
+
+    #[test]
+    fn bkr_016_silent_for_valid_types() {
+        for t in ["0", "1", "2"] {
+            let file = make_file(
+                vec!["booking_rule_id", "booking_type", "prior_notice_duration_min", "prior_notice_last_day", "prior_notice_last_time"],
+                vec![vec!["BR1", t, if t == "1" { "30" } else { "" }, if t == "2" { "3" } else { "" }, if t == "2" { "12:00:00" } else { "" }]],
+            );
+            let (_, notices) = validate_booking_rules(&file);
+            assert!(!notices.iter().any(|n| n.rule_id == "BKR_016"), "booking_type={t} geçerli");
+        }
+    }
+
+    #[test]
+    fn bkr_019_duplicate_booking_rule_id() {
+        let file = make_file(
+            vec!["booking_rule_id", "booking_type", "prior_notice_duration_min"],
+            vec![vec!["BR1", "1", "30"], vec!["BR1", "1", "45"]],
+        );
+        let (_, notices) = validate_booking_rules(&file);
+        let dups: Vec<_> = notices.iter().filter(|n| n.rule_id == "BKR_019").collect();
+        assert_eq!(dups.len(), 1, "yalnız İKİNCİ satır BKR_019 üretmeli: {dups:?}");
+        assert_eq!(dups[0].line, Some(3));
+    }
+
+    #[test]
+    fn bkr_019_missing_booking_rule_id() {
+        let file = make_file(
+            vec!["booking_rule_id", "booking_type", "prior_notice_duration_min"],
+            vec![vec!["", "1", "30"]],
+        );
+        let (_, notices) = validate_booking_rules(&file);
+        assert!(notices.iter().any(|n| n.rule_id == "BKR_019"), "boş booking_rule_id → BKR_019");
+    }
+
+    #[test]
+    fn bkr_019_silent_for_unique_ids() {
+        let file = make_file(
+            vec!["booking_rule_id", "booking_type", "prior_notice_duration_min"],
+            vec![vec!["BR1", "1", "30"], vec!["BR2", "1", "45"]],
+        );
+        let (_, notices) = validate_booking_rules(&file);
+        assert!(!notices.iter().any(|n| n.rule_id == "BKR_019"), "benzersiz id → BKR_019 yok");
     }
 
     // ── BKR_012/013/014 (issue #56: spec presence matrisindeki üç boşluk) ──

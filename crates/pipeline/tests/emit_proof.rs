@@ -253,6 +253,18 @@ fn fixtures() -> Vec<Fixture> {
         fx("BKR_014", vec![("booking_rules.txt", "booking_rule_id,booking_type,prior_notice_duration_min,prior_notice_service_id\nBR1,1,30,SVC1\n")]),
         // BKR_015: type=2'de alan meşru ama servis calendar'da yok (k4 cross-ref).
         fx("BKR_015", vec![("booking_rules.txt", "booking_rule_id,booking_type,prior_notice_last_day,prior_notice_last_time,prior_notice_service_id\nBR1,2,3,12:00:00,MISSING_SVC\n")]),
+        // BKR_016: booking_type enum dışı. BKR_019: booking_rule_id yineleniyor.
+        fx("BKR_016", vec![("booking_rules.txt", "booking_rule_id,booking_type\nBR1,7\n")]),
+        fx("BKR_019", vec![("booking_rules.txt", "booking_rule_id,booking_type,prior_notice_duration_min\nBR1,1,30\nBR1,1,45\n")]),
+        // BKR_017/018: stop_times'taki booking_rule_id booking_rules.txt'te yok (k4 cross-ref).
+        fx("BKR_017", vec![
+            ("booking_rules.txt", "booking_rule_id,booking_type,prior_notice_duration_min\nBR1,1,30\n"),
+            ("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence,location_id,start_pickup_drop_off_window,end_pickup_drop_off_window,pickup_booking_rule_id\nT1,08:00:00,08:00:00,S1,1,,,,\nT1,,,,2,LOC1,09:00:00,10:00:00,MISSING_BR\n"),
+        ]),
+        fx("BKR_018", vec![
+            ("booking_rules.txt", "booking_rule_id,booking_type,prior_notice_duration_min\nBR1,1,30\n"),
+            ("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence,location_id,start_pickup_drop_off_window,end_pickup_drop_off_window,drop_off_booking_rule_id\nT1,08:00:00,08:00:00,S1,1,,,,\nT1,,,,2,LOC1,09:00:00,10:00:00,MISSING_BR\n"),
+        ]),
 
         // ── ARS: areas.txt area_id tekrarı ─────────────────────────────────────
         fx("ARS_001", vec![("areas.txt", "area_id,area_name\nA1,Area1\nA1,Area2\n")]),

@@ -2,7 +2,7 @@
 
 🇹🇷 [Türkçe](RULES.md) · 🇬🇧 **English** · 🇯🇵 [日本語](RULES.ja.md)
 
-539 rules, 37 groups. Each rule is identified by a unique ID, severity level, and class.
+543 rules, 37 groups. Each rule is identified by a unique ID, severity level, and class.
 Severity levels: **CRITICAL** (publish blocker) · **HIGH** · **MEDIUM** · **LOW** · **INFO**
 Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Quality** (GTFS Quality) · **Analytics** (GTFS Analytics)
 
@@ -59,6 +59,10 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | BKR_013 | prior_notice_last_time only valid with prior_notice_last_day | HIGH | Spec |
 | BKR_014 | prior_notice_service_id only valid with booking_type=2 | HIGH | Spec |
 | BKR_015 | prior_notice_service_id not found (calendar/calendar_dates) | CRITICAL | Spec |
+| BKR_016 | booking_type missing or invalid | CRITICAL | Spec |
+| BKR_017 | pickup_booking_rule_id not found (booking_rules) | CRITICAL | Spec |
+| BKR_018 | drop_off_booking_rule_id not found (booking_rules) | CRITICAL | Spec |
+| BKR_019 | booking_rule_id missing or duplicated | CRITICAL | Spec |
 
 ## AGN — Agency
 

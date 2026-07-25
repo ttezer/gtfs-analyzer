@@ -561,6 +561,10 @@ const ja: LocaleShape = {
     'BKR_013': "予約ルール'{entity_id}'：prior_notice_last_timeにはprior_notice_last_dayが必要です。",
     'BKR_014': "予約ルール'{entity_id}'：prior_notice_service_idはbooking_type=2のみ使用できます。",
     'BKR_015': "予約ルール'{entity_id}'：prior_notice_service_id '{observed_value}' がcalendar.txtまたはcalendar_dates.txtに定義されていません。",
+    'BKR_016': "予約ルール'{entity_id}'：booking_type '{observed_value}' が未設定または0/1/2以外です。",
+    'BKR_017': "stop_times.pickup_booking_rule_idが参照する予約ルール'{entity_id}'はbooking_rules.txtに定義されていません。",
+    'BKR_018': "stop_times.drop_off_booking_rule_idが参照する予約ルール'{entity_id}'はbooking_rules.txtに定義されていません。",
+    'BKR_019': "予約ルール'{entity_id}'：booking_rule_idが未設定または重複しています。",
     // AGN
     'AGN_001': 'agency.txtがありません。',
     'AGN_002': "事業者'{entity_id}'：agency_nameがありません。",
@@ -1161,6 +1165,10 @@ const ja: LocaleShape = {
     'BKR_013': 'prior_notice_last_dayを追加するか、prior_notice_last_timeを削除してください。',
     'BKR_014': 'prior_notice_service_idを削除するか、booking_typeを2（前日予約）にしてください。',
     'BKR_015': '既存のservice_idを参照するか、prior_notice_service_idを空にしてください。',
+    'BKR_016': 'booking_typeを0（リアルタイム）、1（当日）、2（前日）のいずれかにしてください。',
+    'BKR_017': '既存のbooking_rule_idを参照するか、booking_rules.txtにルールを追加してください。',
+    'BKR_018': '既存のbooking_rule_idを参照するか、booking_rules.txtにルールを追加してください。',
+    'BKR_019': '各予約ルールに空でない一意のbooking_rule_idを付けてください。',
     // CAL
     'CAL_001': '各カレンダーレコードに一意のservice_idを割り当ててください。',
     'CAL_002': '各曜日フィールドを0または1に設定してください。',
@@ -1700,6 +1708,10 @@ const ja: LocaleShape = {
     'BKR_013': 'prior_notice_last_timeにprior_notice_last_dayが必要',
     'BKR_014': 'prior_notice_service_idはbooking_type=2のみ有効',
     'BKR_015': 'prior_notice_service_idが見つかりません（calendar/calendar_dates）',
+    'BKR_016': 'booking_typeが未設定または無効',
+    'BKR_017': 'pickup_booking_rule_idが見つかりません（booking_rules）',
+    'BKR_018': 'drop_off_booking_rule_idが見つかりません（booking_rules）',
+    'BKR_019': 'booking_rule_idが未設定または重複',
     // AGN
     'AGN_001': 'agency.txtが不足',
     'AGN_002': 'agency_nameが不足',

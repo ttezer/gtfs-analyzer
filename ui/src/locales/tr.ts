@@ -586,6 +586,10 @@ const tr = {
     'BKR_013': 'prior_notice_last_time yalnızca prior_notice_last_day ile kullanılabilir',
     'BKR_014': 'prior_notice_service_id yalnızca booking_type=2 ile kullanılabilir',
     'BKR_015': 'prior_notice_service_id bulunamadı (calendar/calendar_dates)',
+    'BKR_016': 'booking_type eksik veya geçersiz',
+    'BKR_017': 'pickup_booking_rule_id bulunamadı (booking_rules)',
+    'BKR_018': 'drop_off_booking_rule_id bulunamadı (booking_rules)',
+    'BKR_019': 'booking_rule_id eksik veya yineleniyor',
     // AGN
     'AGN_001': 'agency.txt dosyası eksik',
     'AGN_002': 'agency_name eksik',

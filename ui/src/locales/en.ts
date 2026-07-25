@@ -580,6 +580,10 @@ const en: LocaleShape = {
     'BKR_013': "Booking rule '{entity_id}': prior_notice_last_time requires prior_notice_last_day.",
     'BKR_014': "Booking rule '{entity_id}': prior_notice_service_id is only allowed with booking_type=2.",
     'BKR_015': "Booking rule '{entity_id}': prior_notice_service_id '{observed_value}' is not defined in calendar.txt or calendar_dates.txt.",
+    'BKR_016': "Booking rule '{entity_id}': booking_type '{observed_value}' is missing or not one of 0, 1, 2.",
+    'BKR_017': "Booking rule '{entity_id}' referenced by stop_times.pickup_booking_rule_id is not defined in booking_rules.txt.",
+    'BKR_018': "Booking rule '{entity_id}' referenced by stop_times.drop_off_booking_rule_id is not defined in booking_rules.txt.",
+    'BKR_019': "Booking rule '{entity_id}': booking_rule_id is missing or duplicated.",
     // AGN
     'AGN_001': 'agency.txt is missing.',
     'AGN_002': "Agency '{entity_id}': agency_name is missing.",
@@ -1505,6 +1509,10 @@ const en: LocaleShape = {
     'BKR_013': 'Add prior_notice_last_day or remove prior_notice_last_time.',
     'BKR_014': 'Remove prior_notice_service_id or set booking_type to 2 (prior-day booking).',
     'BKR_015': 'Reference an existing service_id or leave prior_notice_service_id empty.',
+    'BKR_016': 'Set booking_type to 0 (real time), 1 (same day) or 2 (prior day).',
+    'BKR_017': 'Reference an existing booking_rule_id or add the rule to booking_rules.txt.',
+    'BKR_018': 'Reference an existing booking_rule_id or add the rule to booking_rules.txt.',
+    'BKR_019': 'Give every booking rule a unique, non-empty booking_rule_id.',
     // FLG
     'FLG_001': 'Use a valid fare_product_id.',
     'FLG_002': 'Use a valid network_id.',
@@ -1746,6 +1754,10 @@ const en: LocaleShape = {
     'BKR_013': 'prior_notice_last_time only valid with prior_notice_last_day',
     'BKR_014': 'prior_notice_service_id only valid with booking_type=2',
     'BKR_015': 'prior_notice_service_id not found (calendar/calendar_dates)',
+    'BKR_016': 'booking_type missing or invalid',
+    'BKR_017': 'pickup_booking_rule_id not found (booking_rules)',
+    'BKR_018': 'drop_off_booking_rule_id not found (booking_rules)',
+    'BKR_019': 'booking_rule_id missing or duplicated',
     // AGN
     'AGN_001': 'agency.txt file missing',
     'AGN_002': 'agency_name missing',

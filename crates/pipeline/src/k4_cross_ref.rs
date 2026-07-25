@@ -823,6 +823,50 @@ fn check_booking_rules(
     notices: &mut Vec<Notice>,
     ctr: &mut u32,
 ) {
+    // BKR_017/018: stop_times.pickup/drop_off_booking_rule_id → booking_rules.booking_rule_id.
+    // Spec (stop_times.txt): iki alan da "Foreign ID referencing booking_rules.booking_rule_id".
+    // XFL_024/025 ile aynı desen: alan başına ayrı kural, id başına tek notice (dedup).
+    // flex_map feed'lerin ~%99'unda boş → gate ile satır taraması tümüyle atlanır.
+    let idx = &records.stop_times_index;
+    if !idx.flex_map.is_empty() {
+        let known: HashSet<&str> = records
+            .booking_rules
+            .iter()
+            .map(|b| b.booking_rule_id.as_str())
+            .filter(|s| !s.is_empty())
+            .collect();
+        let mut seen_pickup: HashSet<&str> = HashSet::new();
+        let mut seen_drop_off: HashSet<&str> = HashSet::new();
+        for st in &idx.rows {
+            let Some(flex) = idx.flex_of(st) else { continue };
+            for (rule_id, field, value, seen) in [
+                ("BKR_017", "pickup_booking_rule_id", &flex.pickup_booking_rule_id, &mut seen_pickup),
+                ("BKR_018", "drop_off_booking_rule_id", &flex.drop_off_booking_rule_id, &mut seen_drop_off),
+            ] {
+                let Some(br) = value.as_ref().map(|s| s.as_str()).filter(|s| !s.is_empty()) else {
+                    continue;
+                };
+                if known.contains(br) || !seen.insert(br) {
+                    continue;
+                }
+                notices.push(notice(
+                    ctr,
+                    rule_id,
+                    EntityType::Row,
+                    Some(br.to_string()),
+                    Some(br.to_string()),
+                    "stop_times.txt",
+                    Some(st.line as u64),
+                    Some(field),
+                    Some(br.to_string()),
+                    None,
+                    format!("'{br}' rezervasyon kuralı booking_rules.txt'te tanımlı değil."),
+                    "Geçerli bir booking_rule_id kullanın ya da kuralı booking_rules.txt'e ekleyin.",
+                ));
+            }
+        }
+    }
+
     for rec in &records.booking_rules {
         let Some(svc) = rec.prior_notice_service_id.as_deref().filter(|s| !s.is_empty()) else {
             continue;
@@ -3991,6 +4035,53 @@ mod tests {
             row: Default::default(),
             line: 2,
         }
+    }
+
+    /// stop_times index'i tek Flex satırdan kurar (pickup/drop_off booking_rule_id ile).
+    fn stm_index_with_booking_rules(pickup: Option<&str>, drop_off: Option<&str>) -> crate::k2::stop_times::StopTimesIndex {
+        use crate::k2::stop_times::{StopTimeRecord, StopTimesIndex};
+        StopTimesIndex::from_records(&[StopTimeRecord {
+            trip_id: "T1".into(),
+            stop_sequence: Some(1),
+            start_pickup_drop_off_window: Some((9, 0, 0)),
+            end_pickup_drop_off_window: Some((17, 0, 0)),
+            location_id: Some("Z1".into()),
+            pickup_booking_rule_id: pickup.map(Into::into),
+            drop_off_booking_rule_id: drop_off.map(Into::into),
+            line: 2,
+            ..Default::default()
+        }])
+    }
+
+    #[test]
+    fn unknown_pickup_booking_rule_produces_bkr_017() {
+        let (mut recs, map) = empty();
+        recs.booking_rules = vec![booking_rule("BR1", Some(2), None)];
+        recs.stop_times_index = stm_index_with_booking_rules(Some("MISSING_BR"), None);
+        let result = check(&recs, &map, 20260515);
+        let n = result.notices.iter().find(|n| n.rule_id == "BKR_017").expect("BKR_017 bekleniyor");
+        assert_eq!(n.file.as_deref(), Some("stop_times.txt"));
+        assert_eq!(n.field.as_deref(), Some("pickup_booking_rule_id"));
+    }
+
+    #[test]
+    fn unknown_drop_off_booking_rule_produces_bkr_018() {
+        let (mut recs, map) = empty();
+        recs.booking_rules = vec![booking_rule("BR1", Some(2), None)];
+        recs.stop_times_index = stm_index_with_booking_rules(None, Some("MISSING_BR"));
+        let result = check(&recs, &map, 20260515);
+        assert!(result.notices.iter().any(|n| n.rule_id == "BKR_018"
+            && n.field.as_deref() == Some("drop_off_booking_rule_id")), "BKR_018 bekleniyor");
+    }
+
+    #[test]
+    fn known_booking_rule_silent_for_bkr_017_018() {
+        let (mut recs, map) = empty();
+        recs.booking_rules = vec![booking_rule("BR1", Some(2), None)];
+        recs.stop_times_index = stm_index_with_booking_rules(Some("BR1"), Some("BR1"));
+        let result = check(&recs, &map, 20260515);
+        assert!(!result.notices.iter().any(|n| n.rule_id == "BKR_017" || n.rule_id == "BKR_018"),
+            "tanımlı booking_rule_id → notice yok");
     }
 
     #[test]
