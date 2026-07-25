@@ -579,6 +579,7 @@ const en: LocaleShape = {
     'BKR_012': "Booking rule '{entity_id}': prior_notice_duration_min is forbidden when booking_type=2.",
     'BKR_013': "Booking rule '{entity_id}': prior_notice_last_time requires prior_notice_last_day.",
     'BKR_014': "Booking rule '{entity_id}': prior_notice_service_id is only allowed with booking_type=2.",
+    'BKR_015': "Booking rule '{entity_id}': prior_notice_service_id '{observed_value}' is not defined in calendar.txt or calendar_dates.txt.",
     // AGN
     'AGN_001': 'agency.txt is missing.',
     'AGN_002': "Agency '{entity_id}': agency_name is missing.",
@@ -1503,6 +1504,7 @@ const en: LocaleShape = {
     'BKR_012': 'prior_notice_duration_min can only be used with booking_type=1 (same-day).',
     'BKR_013': 'Add prior_notice_last_day or remove prior_notice_last_time.',
     'BKR_014': 'Remove prior_notice_service_id or set booking_type to 2 (prior-day booking).',
+    'BKR_015': 'Reference an existing service_id or leave prior_notice_service_id empty.',
     // FLG
     'FLG_001': 'Use a valid fare_product_id.',
     'FLG_002': 'Use a valid network_id.',
@@ -1743,6 +1745,7 @@ const en: LocaleShape = {
     'BKR_012': 'prior_notice_duration_min forbidden with booking_type=2',
     'BKR_013': 'prior_notice_last_time only valid with prior_notice_last_day',
     'BKR_014': 'prior_notice_service_id only valid with booking_type=2',
+    'BKR_015': 'prior_notice_service_id not found (calendar/calendar_dates)',
     // AGN
     'AGN_001': 'agency.txt file missing',
     'AGN_002': 'agency_name missing',

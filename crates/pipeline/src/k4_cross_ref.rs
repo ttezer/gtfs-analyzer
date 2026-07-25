@@ -146,6 +146,7 @@ pub fn check(records: &EntityRecords, entity_map: &EntityMap, today: u32) -> K4R
     { let _t = Timer::start("K4::routes");         check_routes(records, map, &mut notices, &mut ctr, &stm_flex_window_trips); }
     { let _t = Timer::start("K4::trips");          check_trips(records, map, &mut notices, &mut ctr, &stm_trip_continuous); }
     { let _t = Timer::start("K4::pathways");       check_pathways(records, map, &mut notices, &mut ctr); }
+    { let _t = Timer::start("K4::booking_rules");  check_booking_rules(records, map, &mut notices, &mut ctr); }
     { let _t = Timer::start("K4::calendar");       check_calendar(records, map, &mut notices, &mut ctr, today); }
     { let _t = Timer::start("K4::calendar_dates"); check_calendar_dates(records, map, &mut notices, &mut ctr); }
     { let _t = Timer::start("K4::frequencies");    check_frequencies(records, map, &mut notices, &mut ctr, &stm_trips_in_stm); }
@@ -803,6 +804,50 @@ fn check_routes(
                 ));
             }
         }
+    }
+}
+
+// ── BKR_015: booking_rules.prior_notice_service_id → calendar/calendar_dates ──
+
+/// BKR_015: `prior_notice_service_id`, `calendar.service_id`'ye foreign key'dir
+/// (spec booking_rules.txt: "Foreign ID referencing `calendar.service_id`").
+/// Tanımsız bir referans, bildirim gününün hangi servis takvimine göre sayılacağını
+/// belirsiz bırakır.
+///
+/// `booking_type` 0 veya 1 iken alan zaten YASAKTIR ve BKR_014 üretilir; aynı alan için
+/// ikinci bir notice çıkmasın diye BKR_015 o satırlarda susar (type=2 ve türü okunamayan
+/// satırlar denetlenir).
+fn check_booking_rules(
+    records: &EntityRecords,
+    map: &EntityMap,
+    notices: &mut Vec<Notice>,
+    ctr: &mut u32,
+) {
+    for rec in &records.booking_rules {
+        let Some(svc) = rec.prior_notice_service_id.as_deref().filter(|s| !s.is_empty()) else {
+            continue;
+        };
+        if matches!(rec.booking_type, Some(0) | Some(1)) {
+            continue; // alan bu türlerde yasak → BKR_014
+        }
+        if map.services.contains(svc) {
+            continue;
+        }
+        let eid = (!rec.booking_rule_id.is_empty()).then(|| rec.booking_rule_id.clone());
+        notices.push(notice(
+            ctr,
+            "BKR_015",
+            EntityType::Row,
+            eid.clone(),
+            eid,
+            "booking_rules.txt",
+            Some(rec.line),
+            Some("prior_notice_service_id"),
+            Some(svc.to_string()),
+            None,
+            format!("service_id '{svc}' calendar veya calendar_dates'te tanımlı değil."),
+            "Geçerli bir service_id kullanın ya da prior_notice_service_id alanını boş bırakın.",
+        ));
     }
 }
 
@@ -3928,6 +3973,65 @@ mod tests {
         assert_eq!(d.get("fwd_routes").map(String::as_str), Some("R1, R2"));
         assert_eq!(d.get("bwd_routes").map(String::as_str), Some("R1"));
         assert_eq!(d.get("bwd_services").map(String::as_str), Some("SAT"));
+    }
+
+    // ── BKR_015: prior_notice_service_id → calendar/calendar_dates ──────────────
+
+    fn booking_rule(id: &str, btype: Option<u8>, svc: Option<&str>) -> crate::k2::booking_rules::BookingRuleRecord {
+        crate::k2::booking_rules::BookingRuleRecord {
+            booking_rule_id: id.into(),
+            booking_type: btype,
+            prior_notice_duration_min: None,
+            prior_notice_duration_max: None,
+            prior_notice_last_day: None,
+            prior_notice_last_time: None,
+            prior_notice_start_day: None,
+            prior_notice_start_time: None,
+            prior_notice_service_id: svc.map(str::to_string),
+            row: Default::default(),
+            line: 2,
+        }
+    }
+
+    #[test]
+    fn unknown_prior_notice_service_produces_bkr_015() {
+        let (mut recs, map) = empty();
+        recs.booking_rules = vec![booking_rule("BR1", Some(2), Some("MISSING_SVC"))];
+        let result = check(&recs, &map, 20260515);
+        let n = result.notices.iter().find(|n| n.rule_id == "BKR_015")
+            .expect("BKR_015 bekleniyor");
+        assert_eq!(n.file.as_deref(), Some("booking_rules.txt"));
+        assert_eq!(n.field.as_deref(), Some("prior_notice_service_id"));
+    }
+
+    #[test]
+    fn known_prior_notice_service_silent_for_bkr_015() {
+        let (mut recs, mut map) = empty();
+        map.services.insert("SVC1".to_string());
+        recs.booking_rules = vec![booking_rule("BR1", Some(2), Some("SVC1"))];
+        let result = check(&recs, &map, 20260515);
+        assert!(!result.notices.iter().any(|n| n.rule_id == "BKR_015"),
+            "tanımlı service_id → BKR_015 üretilmemeli");
+    }
+
+    #[test]
+    fn bkr_015_defers_to_bkr_014_when_field_is_forbidden() {
+        // booking_type=1'de alan zaten yasak (BKR_014, K2) → aynı alan için ikinci notice yok.
+        let (mut recs, map) = empty();
+        recs.booking_rules = vec![booking_rule("BR1", Some(1), Some("MISSING_SVC"))];
+        let result = check(&recs, &map, 20260515);
+        assert!(!result.notices.iter().any(|n| n.rule_id == "BKR_015"),
+            "type=1'de BKR_015 susmalı (BKR_014 kapsıyor)");
+    }
+
+    #[test]
+    fn bkr_015_checks_rows_with_unreadable_booking_type() {
+        // booking_type okunamıyorsa BKR_014 de susar → referans denetimsiz kalmasın.
+        let (mut recs, map) = empty();
+        recs.booking_rules = vec![booking_rule("BR1", None, Some("MISSING_SVC"))];
+        let result = check(&recs, &map, 20260515);
+        assert!(result.notices.iter().any(|n| n.rule_id == "BKR_015"),
+            "booking_type okunamayan satırda BKR_015 çalışmalı");
     }
 
     #[test]

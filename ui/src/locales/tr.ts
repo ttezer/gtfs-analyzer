@@ -585,6 +585,7 @@ const tr = {
     'BKR_012': 'booking_type=2 iken prior_notice_duration_min yasak',
     'BKR_013': 'prior_notice_last_time yalnızca prior_notice_last_day ile kullanılabilir',
     'BKR_014': 'prior_notice_service_id yalnızca booking_type=2 ile kullanılabilir',
+    'BKR_015': 'prior_notice_service_id bulunamadı (calendar/calendar_dates)',
     // AGN
     'AGN_001': 'agency.txt dosyası eksik',
     'AGN_002': 'agency_name eksik',

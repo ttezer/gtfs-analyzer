@@ -178,6 +178,8 @@ pub static RULES: &[RuleMeta] = &[
         "prior_notice_last_time yalnızca prior_notice_last_day ile kullanılabilir"),
     r!("BKR_014", Yuksek, Spec, 1, &[], Some("booking_rule_id"), VS, Entity,
         "prior_notice_service_id yalnızca booking_type=2 ile kullanılabilir"),
+    r!("BKR_015", Kritik, Spec, 1, &[], Some("booking_rule_id"), VS_K, Entity,
+        "prior_notice_service_id bulunamadı (calendar/calendar_dates)"),
 
     // ── AGN: Agency ────────────────────────────────────────────────────────────
     r!("AGN_001", Kritik, Spec, 1,
@@ -1459,6 +1461,7 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("BKR_012", GtfsSpec),
     ("BKR_013", GtfsSpec),
     ("BKR_014", GtfsSpec),
+    ("BKR_015", GtfsSpec),
     ("CAL_001", GtfsSpec),
     ("CAL_002", GtfsSpec),
     ("CAL_003", GtfsSpec),
