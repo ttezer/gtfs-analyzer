@@ -6076,11 +6076,17 @@ fn check_shp012(
         }
 
         // Determinizm: FxHashMap sırası insertion'a bağlı; shape_id'ye göre sırala.
-        let mut viol_sorted: Vec<(&&str, usize)> = shape_stop_violations
-            .iter().map(|(sid, set)| (sid, set.len())).collect();
+        let mut viol_sorted: Vec<(&&str, &FxHashSet<&str>)> = shape_stop_violations.iter().collect();
         viol_sorted.sort_by(|a, b| a.0.cmp(b.0));
-        for (shape_id, viol_count) in viol_sorted {
-            notices.push(k6_notice(
+        // Haritada hatalı durakları AYRI RENKTE göstermek için id listesi details'ta taşınır.
+        // Sınır: harita okunabilirliği için ilk 25 (sıralı, deterministik); sayı mesajda zaten var.
+        const SHP012_MAX_LISTED: usize = 25;
+        for (shape_id, viol_set) in viol_sorted {
+            let viol_count = viol_set.len();
+            let mut far: Vec<&str> = viol_set.iter().copied().collect();
+            far.sort_unstable();
+            far.truncate(SHP012_MAX_LISTED);
+            let mut n = k6_notice(
                 ctr, "SHP_012", EntityType::Shape,
                 Some(shape_id.to_string()), Some(shape_id.to_string()),
                 "shapes.txt", None, Some("shape_pt_lat|shape_pt_lon"),
@@ -6089,7 +6095,9 @@ fn check_shp012(
                     "'{shape_id}' güzergah şekli {viol_count} duraktan >{shp_stop_threshold_m:.0}m uzakta — güzergah doğru çizilmemiş olabilir."
                 ),
                 "shapes.txt noktalarını durak konumlarına yaklaştırın.",
-            ));
+            );
+            n.details = Some([("far_stops".to_string(), far.join(","))].into_iter().collect());
+            notices.push(n);
         }
     }
 }
@@ -9681,6 +9689,11 @@ mod tests {
         let obs = n.observed_value.as_deref().unwrap_or("");
         assert!(obs.starts_with("1 "), "benzersiz durak sayılmalı (sefer örneği değil): {obs}");
         assert!(n.message.contains("1 duraktan"), "mesaj da benzersiz sayıyı yazmalı: {}", n.message);
+        // Harita hatalı durağı AYRI RENKTE göstersin diye id'ler details'ta taşınır.
+        assert_eq!(
+            n.details.as_ref().and_then(|d| d.get("far_stops")).map(String::as_str),
+            Some("FAR"),
+        );
     }
 
     #[test]

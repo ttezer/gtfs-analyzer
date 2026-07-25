@@ -362,6 +362,8 @@ const ja: LocaleShape = {
     'fix.map.isolated_stops'       : '孤立した停留所',
     'fix.map.jump_segment'         : 'ジャンプ区間',
     'fix.map.far_stop'             : '遠く離れた停留所',
+    'fix.map.far_stop_from_shape'  : '経路から離れた停留所',
+    'fix.map.pin.far_from_shape'   : '経路から離れています',
     'fix.map.degenerate_shape'     : 'すべての点がこの座標',
     'fix.map.null_island_point'    : 'Null Island付近の点',
     'fix.map.feed_median'          : 'フィードの中央値（中心）',

@@ -374,6 +374,8 @@ const en: LocaleShape = {
     'fix.map.isolated_stops'       : 'Isolated stops',
     'fix.map.jump_segment'         : 'Jumping segment',
     'fix.map.far_stop'             : 'Distant stop',
+    'fix.map.far_stop_from_shape'  : 'Stop far from the shape',
+    'fix.map.pin.far_from_shape'   : 'Far from the shape',
     'fix.map.degenerate_shape'     : 'All points at this coordinate',
     'fix.map.null_island_point'    : 'Point near Null Island',
     'fix.map.feed_median'          : 'Feed median (centre)',

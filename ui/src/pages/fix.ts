@@ -666,7 +666,10 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
       if (ptA) pins.push({ lat: ptA[0], lon: ptA[1], label: `<strong>${t('fix.map.pin.jump_start')}</strong><br>Segment ${idxA}`, primary: true });
       if (ptB) pins.push({ lat: ptB[0], lon: ptB[1], label: `<strong>${t('fix.map.pin.jump_end')}</strong><br>Segment ${idxB}`, primary: false });
       if (ptA && ptB) {
-        extraPolylines.push({ coords: [[ptA[0], ptA[1]], [ptB[0], ptB[1]]], color: '#dc2626', weight: 5, zoomTo: true });
+        // zoomTo YOK (2026-07-25): segmente zoom yapmak shape'in geri kalanını ekran dışına
+        // atıyor ve geriye bağlamsız tek çizgi kalıyordu ("haritada gözükmüyor"). Görünüm
+        // tüm shape'e sığdırılır; atlama rengiyle ve kalınlığıyla ayrışır.
+        extraPolylines.push({ coords: [[ptA[0], ptA[1]], [ptB[0], ptB[1]]], color: '#dc2626', weight: 7, zoomTo: false });
       }
     }
     const legendItems: Array<{ color: string; label: string }> = [];
@@ -825,13 +828,27 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
       .map(p => ({ ...p, small: true }));
   }
 
-  // SHP_012: shape, durak konumlarından uzak — shape + duraklar
+  // SHP_012: shape + duraklar; EŞİĞİ AŞAN duraklar kırmızı ve büyük (details.far_stops).
   if (notice.rule_id === 'SHP_012') {
     const polyline = entityId ? (nameIndex.shape_coords[entityId] ?? []) : [];
-    const pins = shapeStopPins(entityId);
+    const far = new Set((notice.details?.['far_stops'] ?? '').split(',').map(s => s.trim()).filter(Boolean));
+    const tripId = nameIndex.shape_trips[entityId] ?? '';
+    const stopIds = tripId ? (nameIndex.trip_stops[tripId] ?? []) : [];
+    const pins: MapPin[] = [];
+    for (const id of stopIds) {
+      if (far.has(id)) continue;                       // uzak duraklar aşağıda, üstte kalsın
+      const p = stopPin(id, nameIndex, true);
+      if (p) pins.push({ ...p, small: true });
+    }
+    let farDrawn = 0;
+    for (const id of far) {
+      const p = stopPin(id, nameIndex, false, t('fix.map.pin.far_from_shape'));
+      if (p) { pins.push(p); farDrawn++; }
+    }
     const legendItems: Array<{ color: string; label: string }> = [];
     if (polyline.length > 1) legendItems.push({ color: '#f59e0b', label: t('fix.map.route_shape') });
-    if (pins.length > 0) legendItems.push({ color: '#2563eb', label: t('fix.map.trip_stops') });
+    if (pins.length > farDrawn) legendItems.push({ color: '#2563eb', label: t('fix.map.trip_stops') });
+    if (farDrawn > 0) legendItems.push({ color: '#dc2626', label: t('fix.map.far_stop_from_shape') });
     return { pins, polyline: polyline.length > 1 ? polyline : undefined, legendItems, showArrows: true };
   }
 

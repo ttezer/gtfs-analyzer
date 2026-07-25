@@ -373,6 +373,8 @@ const tr = {
     'fix.map.isolated_stops'       : 'İzole duraklar',
     'fix.map.jump_segment'         : 'Atlayan segment',
     'fix.map.far_stop'             : 'Uzak durak',
+    'fix.map.far_stop_from_shape'  : 'Güzergahtan uzak durak',
+    'fix.map.pin.far_from_shape'   : 'Güzergahtan uzak',
     'fix.map.degenerate_shape'     : 'Tüm noktalar bu koordinatta',
     'fix.map.null_island_point'    : 'Null Island yakını nokta',
     'fix.map.feed_median'          : 'Feed medianı (merkez)',
