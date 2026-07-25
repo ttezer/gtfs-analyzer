@@ -97,32 +97,94 @@ pub fn validate_bytes(zip: &[u8], config: &ValidatorConfig, today: u32) -> Valid
         report_k7(all, &k2.records, &k5.derived, file_stats, false)
     };
 
+    // name_index harita verisini notice'lara göre filtreler (büyük feed modu) → notice'lar
+    // ödünç verilirken taşınmamalı.
+    let name_index = build_name_index(&k2.records, &k7.notices);
     ValidateResult::Ok(ValidationResult {
         notices: k7.notices,
         reports: k7.reports,
         metrics: k7.metrics,
-        name_index: build_name_index(&k2.records),
+        name_index,
         capped_totals: std::collections::HashMap::new(),
     })
 }
 
-pub fn build_name_index(records: &EntityRecords) -> gtfs_core::NameIndex {
+pub fn build_name_index(records: &EntityRecords, notices: &[gtfs_core::Notice]) -> gtfs_core::NameIndex {
+    const LARGE_FEED_TRIP_CAP: usize = 60_000;
+    build_name_index_impl(records, notices, records.trips.len() > LARGE_FEED_TRIP_CAP)
+}
+
+/// [`build_name_index`]'in gövdesi; `large_feed_mode` testten zorlanabilsin diye ayrıldı
+/// (eşik 60.000 sefer — birim testte o hacmi kurmak pratik değil).
+pub(crate) fn build_name_index_impl(
+    records: &EntityRecords,
+    notices: &[gtfs_core::Notice],
+    large_feed_mode: bool,
+) -> gtfs_core::NameIndex {
     use std::collections::HashMap;
 
     // ── BÜYÜK FEED BELLEK MODU (#15 large_feed_memory_mode) ──────────────────────
     // Çok büyük feed'de name_index'in ağır alanları sonucu JS'e serialize ederken (to_js)
     // belleği patlatıyor (yüz MB+ JSON, 4 GB tavanını aşıp OOM). DETERMİNİSTİK eşik (entity
-    // sayısı — runtime bellek DEĞİL; reprodüksiyon için). Eşik üstünde:
-    //  - HARİTA verisi (shape_coords, trip_stops, trip_shapes, shape_*) atlanır (o ölçekte
-    //    harita zaten çizilemez),
-    //  - PER-TRIP ETİKET map'leri (trips/trip_routes/trip_directions/trip_first_dep) atlanır
-    //    → UI/rapor notice'larında etiket yerine ham ID gösterir (sessiz fallback, kırık değil).
-    // KORUNAN (küçük + yüksek değer): stops (durak adı), routes (hat adı), stop_coords (durak pini).
-    // Küçük/normal feed'de DAVRANIŞ DEĞİŞMEZ (eşik altı → tüm map'ler dolu).
+    // sayısı — runtime bellek DEĞİL; reprodüksiyon için).
+    //
+    // 2026-07-25 DÜZELTME — eşik üstünde bu map'ler TÜMÜYLE boşaltılıyordu ve gerekçe
+    // "o ölçekte harita zaten çizilemez"di. Yanlıştı: harita TEK bir notice için açılıyor,
+    // feed'in tamamı için değil. VBB'de (282k sefer) sonuç şuydu: shape kurallarında duraklar
+    // görünmüyor, sefer/hat kurallarında harita ikonu hiç çıkmıyordu.
+    //
+    // Artık boşaltma yerine FİLTRE: yalnız bir notice'ta geçen varlıklar için doldurulur.
+    // Bellek notice sayısıyla sınırlıdır (feed büyüklüğüyle değil) — VBB'de 282k sefer yerine
+    // birkaç bin. Küçük/normal feed'de DAVRANIŞ DEĞİŞMEZ (filtre "hepsi"ne eşittir).
     const SHAPE_PT_CAP: usize = 800_000;
-    const LARGE_FEED_TRIP_CAP: usize = 60_000;
-    let large_feed_mode = records.trips.len() > LARGE_FEED_TRIP_CAP;
+    // shape_coords büyük feed'de yine kısmi kalır (yalnız ilgili shape'ler) → UI eksik
+    // geometriyi on-demand çekmeye devam etsin diye bayrak korunur.
     let skip_shape_coords = records.shapes.len() > SHAPE_PT_CAP || large_feed_mode;
+
+    // Notice'larda geçen TÜM id adayları (entity_id + details değerleri). Kural bazlı bilgi
+    // gerektirmez: SHP_014'ün details.trip_id'si, SHP_027'nin pattern_trips'i, OPR_008'in
+    // bad_seg durakları hep buradan gelir. Aday havuzu sonra gerçek id kümeleriyle kesiştirilir.
+    let mut cand: std::collections::HashSet<&str> = std::collections::HashSet::new();
+    if large_feed_mode {
+        for n in notices {
+            if let Some(e) = n.entity_id.as_deref() { cand.insert(e); }
+            if let Some(d) = &n.details {
+                for v in d.values() {
+                    // Virgülle ayrılmış id listeleri (ctx_a/ctx_b/stops/pattern_trips)
+                    for part in v.split(',') {
+                        let p = part.trim();
+                        if !p.is_empty() { cand.insert(p); }
+                    }
+                }
+            }
+        }
+    }
+    // İlgi kümeleri — büyük feed modunda notice'lara, aksi hâlde "hepsi"ne karşılık gelir.
+    let ti_f = &records.trip_interns;
+    let mut want_trip: std::collections::HashSet<&str> = std::collections::HashSet::new();
+    let mut want_shape: std::collections::HashSet<&str> = std::collections::HashSet::new();
+    if large_feed_mode {
+        // 1) Doğrudan shape entity'li notice'lar (SHP_*/GEO_006/007). Tek geçişte kesiştirilir —
+        //    aday başına shapes.txt taramak O(aday × nokta) olurdu (VBB'de 4,7M nokta).
+        for p in &records.shapes {
+            let sid = p.shape_id.as_str();
+            if cand.contains(sid) { want_shape.insert(sid); }
+        }
+        // 2) Seferler: notice sefere, hattına ya da shape'ine değiyorsa tut. Shape entity'li
+        //    kurallarda duraklar shape_trips → trip_stops üzerinden çizildiği için o shape'in
+        //    temsilci seferi de tutulmalı (yoksa "shape var, durak yok" durumu sürerdi).
+        for t in &records.trips {
+            let tid = t.trip_id.as_str();
+            let sid = ti_f.shape_id(t).unwrap_or("");
+            let shape_hit = !sid.is_empty() && (cand.contains(sid) || want_shape.contains(sid));
+            if cand.contains(tid) || cand.contains(ti_f.route_id(t)) || shape_hit {
+                want_trip.insert(tid);
+                if !sid.is_empty() { want_shape.insert(sid); }
+            }
+        }
+    }
+    let keep_trip = |id: &str| !large_feed_mode || want_trip.contains(id);
+    let keep_shape = |id: &str| !large_feed_mode || want_shape.contains(id);
 
     let stops: HashMap<String, String> = records.stops.iter()
         .filter_map(|r| r.stop_name.as_ref().map(|n| (r.stop_id.clone(), n.clone())))
@@ -142,24 +204,21 @@ pub fn build_name_index(records: &EntityRecords) -> gtfs_core::NameIndex {
     let ti = &records.trip_interns;
 
     // Per-trip etiket map'leri (#15): büyük feed modunda atlanır → notice'lar ham trip_id gösterir.
-    let trips: HashMap<String, String> = if large_feed_mode { HashMap::new() } else {
-        records.trips.iter()
-            .filter_map(|r| ti.headsign(r).map(|h| (r.trip_id.to_string(), h.to_string())))
-            .collect()
-    };
+    let trips: HashMap<String, String> = records.trips.iter()
+        .filter(|r| keep_trip(r.trip_id.as_str()))
+        .filter_map(|r| ti.headsign(r).map(|h| (r.trip_id.to_string(), h.to_string())))
+        .collect();
 
-    let trip_routes: HashMap<String, String> = if large_feed_mode { HashMap::new() } else {
-        records.trips.iter()
-            .map(|r| (r.trip_id.to_string(), ti.route_id(r).to_string()))
-            .collect()
-    };
+    let trip_routes: HashMap<String, String> = records.trips.iter()
+        .filter(|r| keep_trip(r.trip_id.as_str()))
+        .map(|r| (r.trip_id.to_string(), ti.route_id(r).to_string()))
+        .collect();
 
     // trip_id → direction_id ("0"/"1"); yön bilgisi olmayan sefer dahil edilmez.
-    let trip_directions: HashMap<String, String> = if large_feed_mode { HashMap::new() } else {
-        records.trips.iter()
-            .filter_map(|r| r.direction_id.map(|d| (r.trip_id.to_string(), d.to_string())))
-            .collect()
-    };
+    let trip_directions: HashMap<String, String> = records.trips.iter()
+        .filter(|r| keep_trip(r.trip_id.as_str()))
+        .filter_map(|r| r.direction_id.map(|d| (r.trip_id.to_string(), d.to_string())))
+        .collect();
 
     let stop_coords: HashMap<String, [f64; 2]> = records.stops.iter()
         .filter_map(|r| {
@@ -172,22 +231,22 @@ pub fn build_name_index(records: &EntityRecords) -> gtfs_core::NameIndex {
         .collect();
 
     // trip_id → ilk kalkış saati "HH:MM" (büyük feed modunda atlanır)
-    let trip_first_dep: HashMap<String, String> = if large_feed_mode { HashMap::new() } else {
-        records.stop_times_index.iter_trips()
-            .filter_map(|(trip_id, stops)| {
-                stops.first()
-                    .and_then(|s| s.departure_time())
-                    .map(|(h, m, _)| (trip_id.to_string(), format!("{:02}:{:02}", h % 24, m)))
-            })
-            .collect()
-    };
+    let trip_first_dep: HashMap<String, String> = records.stop_times_index.iter_trips()
+        .filter(|(trip_id, _)| keep_trip(trip_id.as_str()))
+        .filter_map(|(trip_id, stops)| {
+            stops.first()
+                .and_then(|s| s.departure_time())
+                .map(|(h, m, _)| (trip_id.to_string(), format!("{:02}:{:02}", h % 24, m)))
+        })
+        .collect();
 
     // shape_id → benzersiz [[route_id, yön]] listesi (harita; büyük feed modunda atlanır)
-    let shape_routes: HashMap<String, Vec<[String; 2]>> = if large_feed_mode { HashMap::new() } else {
+    let shape_routes: HashMap<String, Vec<[String; 2]>> = {
         let mut seen: std::collections::HashSet<(String, String, String)> = std::collections::HashSet::new();
         let mut map: HashMap<String, Vec<[String; 2]>> = HashMap::new();
         for trip in &records.trips {
             let Some(shape_id) = ti.shape_id(trip) else { continue };
+            if !keep_shape(shape_id) { continue; }
             let rid = ti.route_id(trip);
             let dir = match trip.direction_id {
                 Some(0) => "Gidiş",
@@ -206,8 +265,11 @@ pub fn build_name_index(records: &EntityRecords) -> gtfs_core::NameIndex {
 
     // shape_id → sıralı [[lat, lon]] nokta listesi (harita çizimi için).
     // #15: çok büyük feed'de atlanır (serialize OOM önlemi).
-    let shape_coords: HashMap<String, Vec<[f64; 2]>> = if skip_shape_coords { HashMap::new() } else {
+    // #15: eşik üstünde TÜM shape'ler değil, yalnız notice'a değenler serialize edilir
+    // (VBB: 4,7M nokta yerine birkaç yüz shape). Eksik kalanı UI on-demand çeker.
+    let shape_coords: HashMap<String, Vec<[f64; 2]>> = if records.shapes.len() > SHAPE_PT_CAP && !large_feed_mode { HashMap::new() } else {
         let mut pts: Vec<(&str, u32, f64, f64)> = records.shapes.iter()
+            .filter(|s| keep_shape(s.shape_id.as_str()))
             .filter_map(|s| {
                 let lat = s.shape_pt_lat?;
                 let lon = s.shape_pt_lon?;
@@ -223,32 +285,31 @@ pub fn build_name_index(records: &EntityRecords) -> gtfs_core::NameIndex {
     };
 
     // trip_id → shape_id (harita; büyük feed modunda atlanır)
-    let trip_shapes: HashMap<String, String> = if large_feed_mode { HashMap::new() } else {
-        records.trips.iter()
-            .filter_map(|t| ti.shape_id(t).map(|s| (t.trip_id.to_string(), s.to_string())))
-            .collect()
-    };
+    let trip_shapes: HashMap<String, String> = records.trips.iter()
+        .filter(|t| keep_trip(t.trip_id.as_str()))
+        .filter_map(|t| ti.shape_id(t).map(|s| (t.trip_id.to_string(), s.to_string())))
+        .collect();
 
-    // trip_id → [stop_id, ...] stop_sequence sıralı (harita; büyük feed modunda atlanır)
-    let trip_stops: HashMap<String, Vec<String>> = if large_feed_mode { HashMap::new() } else {
-        records.stop_times_index.iter_trips()
-            .map(|(trip_id, stops)| {
-                let stm_idx = &records.stop_times_index;
-                let mut ids: Vec<String> = stops.iter()
-                    .filter(|s| s.stop_idx != u32::MAX)
-                    .map(|s| stm_idx.stop_id_of(s).to_string())
-                    .collect();
-                ids.dedup();
-                (trip_id.to_string(), ids)
-            })
-            .collect()
-    };
+    // trip_id → [stop_id, ...] stop_sequence sıralı (harita; büyük feed'de notice'a değenler)
+    let trip_stops: HashMap<String, Vec<String>> = records.stop_times_index.iter_trips()
+        .filter(|(trip_id, _)| keep_trip(trip_id.as_str()))
+        .map(|(trip_id, stops)| {
+            let stm_idx = &records.stop_times_index;
+            let mut ids: Vec<String> = stops.iter()
+                .filter(|s| s.stop_idx != u32::MAX)
+                .map(|s| stm_idx.stop_id_of(s).to_string())
+                .collect();
+            ids.dedup();
+            (trip_id.to_string(), ids)
+        })
+        .collect();
 
     // shape_id → ilk trip_id (harita; büyük feed modunda atlanır)
-    let shape_trips: HashMap<String, String> = if large_feed_mode { HashMap::new() } else {
+    let shape_trips: HashMap<String, String> = {
         let mut map: HashMap<String, String> = HashMap::new();
         for t in &records.trips {
             if let Some(shape_id) = ti.shape_id(t) {
+                if !keep_shape(shape_id) || !keep_trip(t.trip_id.as_str()) { continue; }
                 map.entry(shape_id.to_string()).or_insert_with(|| t.trip_id.to_string());
             }
         }
@@ -256,10 +317,11 @@ pub fn build_name_index(records: &EntityRecords) -> gtfs_core::NameIndex {
     };
 
     // route_id → [distinct shape_ids] (terminus haritası; büyük feed modunda atlanır)
-    let route_shapes: HashMap<String, Vec<String>> = if large_feed_mode { HashMap::new() } else {
+    let route_shapes: HashMap<String, Vec<String>> = {
         let mut map: HashMap<String, Vec<String>> = HashMap::new();
         for t in &records.trips {
             if let Some(shape_id) = ti.shape_id(t) {
+                if !keep_shape(shape_id) { continue; }
                 let v = map.entry(ti.route_id(t).to_string()).or_default();
                 if !v.iter().any(|s: &String| s == shape_id) {
                     v.push(shape_id.to_string());
@@ -283,4 +345,99 @@ pub fn collect_file_stats(files: &RawFiles) -> Vec<FileInfo> {
         .collect();
     stats.sort_by(|a, b| a.name.cmp(&b.name));
     stats
+}
+
+#[cfg(test)]
+mod name_index_tests {
+    use super::*;
+    use crate::k2::stop_times::{StopTimeRecord, StopTimesIndex};
+    use crate::k2::trips::TripInternTable;
+
+    /// İki sefer (T1/T2) + iki shape (SH1/SH2); yalnız T1'in bir notice'ı var.
+    fn records() -> EntityRecords {
+        let mut recs = EntityRecords::default();
+        let mut ti = TripInternTable::new();
+        for (tid, sid) in [("T1", "SH1"), ("T2", "SH2")] {
+            let ri = ti.route_ids.len() as u32; ti.route_ids.push("R1".into());
+            let si = ti.service_ids.len() as u32; ti.service_ids.push("SVC".into());
+            let sh = ti.shape_ids.len() as u32; ti.shape_ids.push(sid.into());
+            recs.trips.push(crate::k2::trips::TripRecord {
+                trip_id: tid.into(), route_idx: ri, service_idx: si, shape_idx: sh,
+                headsign_idx: 0, short_name_idx: 0, block_idx: 0, jp_office_idx: 0,
+                direction_id: None, wheelchair_accessible: None,
+                bikes_allowed: None, cars_allowed: None,
+                safe_duration_factor: None, safe_duration_offset: None,
+                line: 2,
+            });
+        }
+        recs.trip_interns = ti;
+        recs.stop_times_index = StopTimesIndex::from_records(&[
+            StopTimeRecord { trip_id: "T1".into(), stop_id: "S1".into(), stop_sequence: Some(1), line: 2, ..Default::default() },
+            StopTimeRecord { trip_id: "T1".into(), stop_id: "S2".into(), stop_sequence: Some(2), line: 3, ..Default::default() },
+            StopTimeRecord { trip_id: "T2".into(), stop_id: "S3".into(), stop_sequence: Some(1), line: 4, ..Default::default() },
+        ]);
+        recs
+    }
+
+    fn notice_for(entity: &str) -> gtfs_core::Notice {
+        gtfs_core::Notice {
+            id: "n1".into(),
+            rule_id: "STM_017".into(),
+            severity: gtfs_core::Severity::Bilgi,
+            rule_class: gtfs_core::RuleClass::Quality,
+            entity_type: gtfs_core::EntityType::Trip,
+            entity_id: Some(entity.to_string()),
+            scope_key: None, file: None, line: None, field: None,
+            observed_value: None, expected_value: None, details: None,
+            title: String::new(), message: String::new(), remediation: String::new(),
+            blocks: vec![], base_effort: 1, service_id: None,
+        }
+    }
+
+    #[test]
+    fn small_feed_keeps_every_map_entry() {
+        let recs = records();
+        let idx = build_name_index_impl(&recs, &[], false);
+        assert!(idx.trip_stops.contains_key("T1") && idx.trip_stops.contains_key("T2"),
+            "küçük feed'de filtre uygulanmamalı");
+        assert!(!idx.map_data_deferred);
+    }
+
+    #[test]
+    fn large_feed_keeps_only_entities_referenced_by_notices() {
+        // ESKİ DAVRANIŞ: bu map'ler tümüyle BOŞTU → harita ikonu hiç çıkmıyordu.
+        let recs = records();
+        let idx = build_name_index_impl(&recs, &[notice_for("T1")], true);
+        assert!(idx.trip_stops.contains_key("T1"), "notice'lı sefer haritada çizilebilmeli");
+        assert_eq!(idx.trip_stops.get("T1").map(|v| v.len()), Some(2));
+        assert!(!idx.trip_stops.contains_key("T2"), "notice'sız sefer bellek için dışarıda kalmalı");
+        assert_eq!(idx.trip_shapes.get("T1").map(String::as_str), Some("SH1"));
+        assert!(!idx.trip_shapes.contains_key("T2"));
+    }
+
+    #[test]
+    fn large_feed_resolves_shape_entity_to_its_trip_stops() {
+        // Shape entity'li kural (SHP_012/GEO_006): duraklar shape_trips → trip_stops
+        // üzerinden çizilir; shape'in temsilci seferi de tutulmalı.
+        let recs = records();
+        let mut n = notice_for("SH2");
+        n.rule_id = "SHP_012".into();
+        let idx = build_name_index_impl(&recs, &[n], true);
+        assert_eq!(idx.shape_trips.get("SH2").map(String::as_str), Some("T2"),
+            "shape'in temsilci seferi olmalı");
+        assert!(idx.trip_stops.contains_key("T2"), "o seferin durakları olmalı (yoksa 'shape var, durak yok')");
+        assert!(!idx.trip_stops.contains_key("T1"), "ilgisiz sefer dışarıda");
+    }
+
+    #[test]
+    fn large_feed_resolves_route_entity_to_its_shapes() {
+        // Hat entity'li kural (OPR_001/RTS_*): route_shapes boş kalırsa ikon hiç çıkmaz.
+        let recs = records();
+        let mut n = notice_for("R1");
+        n.rule_id = "RTS_012".into();
+        let idx = build_name_index_impl(&recs, &[n], true);
+        let shapes = idx.route_shapes.get("R1").cloned().unwrap_or_default();
+        assert!(shapes.contains(&"SH1".to_string()) && shapes.contains(&"SH2".to_string()),
+            "hattın shape'leri çözülmeli: {shapes:?}");
+    }
 }

@@ -273,11 +273,13 @@ pub fn rerun_k6_k7(cache: &CachedState, config_delta_json: &str, on_stage: &js_s
 
     scale_r9_deltas(&mut k7.reports, &real_totals);
     let capped_totals = build_capped_totals(&real_totals);
+    // Harita verisi notice'lara göre filtrelenir (büyük feed modu) → önce name_index.
+    let name_index = build_name_index(&cache.records, &k7.notices);
     let result = ValidateResult::Ok(ValidationResult {
         notices: k7.notices,
         reports: k7.reports,
         metrics: k7.metrics,
-        name_index: build_name_index(&cache.records),
+        name_index,
         capped_totals,
     });
     // #15: sonucu JS'e serialize etmek (to_js) büyük feed'de belleğin son sıçraması;
@@ -357,11 +359,12 @@ fn run_full_pipeline(zip_bytes: &[u8], config: &ValidatorConfig, today: u32) -> 
     // 4) Cap'e çarpan kurallarda score delta'yı gerçek toplam oranıyla ölçekle
     scale_r9_deltas(&mut k7.reports, &real_totals);
     let capped_totals = build_capped_totals(&real_totals);
+    let name_index = build_name_index(&k2.records, &k7.notices);
     ValidateResult::Ok(ValidationResult {
         notices: k7.notices,
         reports: k7.reports,
         metrics: k7.metrics,
-        name_index: build_name_index(&k2.records),
+        name_index,
         capped_totals,
     })
 }
