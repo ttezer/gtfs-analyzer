@@ -557,6 +557,9 @@ const ja: LocaleShape = {
     'BKR_009': "予約ルール'{entity_id}'：booking_type=2にはprior_notice_last_timeが必要です。",
     'BKR_010': "予約ルール'{entity_id}'：prior_notice_start_dayが設定されている場合はprior_notice_start_timeが必要です。",
     'BKR_011': "予約ルール'{entity_id}'：prior_notice_last_day > prior_notice_start_day — 無効な予約ウィンドウです。",
+    'BKR_012': "予約ルール'{entity_id}'：booking_type=2ではprior_notice_duration_minは禁止です。",
+    'BKR_013': "予約ルール'{entity_id}'：prior_notice_last_timeにはprior_notice_last_dayが必要です。",
+    'BKR_014': "予約ルール'{entity_id}'：prior_notice_service_idはbooking_type=2のみ使用できます。",
     // AGN
     'AGN_001': 'agency.txtがありません。',
     'AGN_002': "事業者'{entity_id}'：agency_nameがありません。",
@@ -1153,6 +1156,9 @@ const ja: LocaleShape = {
     'BKR_009': '最終通知日の時刻（HH:MM:SS）を入力してください。',
     'BKR_010': '早期予約ウィンドウの開始時刻（HH:MM:SS）を入力してください。',
     'BKR_011': 'prior_notice_start_dayをprior_notice_last_day以上に設定してください。',
+    'BKR_012': 'prior_notice_duration_minはbooking_type=1（当日）の場合にのみ使用できます。',
+    'BKR_013': 'prior_notice_last_dayを追加するか、prior_notice_last_timeを削除してください。',
+    'BKR_014': 'prior_notice_service_idを削除するか、booking_typeを2（前日予約）にしてください。',
     // CAL
     'CAL_001': '各カレンダーレコードに一意のservice_idを割り当ててください。',
     'CAL_002': '各曜日フィールドを0または1に設定してください。',
@@ -1688,6 +1694,9 @@ const ja: LocaleShape = {
     'BKR_009': 'booking_type=2でprior_notice_last_timeが必須',
     'BKR_010': 'prior_notice_start_day設定時にprior_notice_start_timeが必須',
     'BKR_011': 'prior_notice_start_day > prior_notice_last_day（無効な予約ウィンドウ）',
+    'BKR_012': 'booking_type=2でprior_notice_duration_min禁止',
+    'BKR_013': 'prior_notice_last_timeにprior_notice_last_dayが必要',
+    'BKR_014': 'prior_notice_service_idはbooking_type=2のみ有効',
     // AGN
     'AGN_001': 'agency.txtが不足',
     'AGN_002': 'agency_nameが不足',

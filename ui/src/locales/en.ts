@@ -576,6 +576,9 @@ const en: LocaleShape = {
     'BKR_009': "Booking rule '{entity_id}': prior_notice_last_time is required for booking_type=2.",
     'BKR_010': "Booking rule '{entity_id}': prior_notice_start_time is required when prior_notice_start_day is set.",
     'BKR_011': "Booking rule '{entity_id}': prior_notice_last_day > prior_notice_start_day — invalid booking window.",
+    'BKR_012': "Booking rule '{entity_id}': prior_notice_duration_min is forbidden when booking_type=2.",
+    'BKR_013': "Booking rule '{entity_id}': prior_notice_last_time requires prior_notice_last_day.",
+    'BKR_014': "Booking rule '{entity_id}': prior_notice_service_id is only allowed with booking_type=2.",
     // AGN
     'AGN_001': 'agency.txt is missing.',
     'AGN_002': "Agency '{entity_id}': agency_name is missing.",
@@ -1497,6 +1500,9 @@ const en: LocaleShape = {
     'BKR_009': 'Enter the time of the last notice day (HH:MM:SS).',
     'BKR_010': 'Enter the start time of the early booking window (HH:MM:SS).',
     'BKR_011': 'Set prior_notice_start_day to be greater than or equal to prior_notice_last_day.',
+    'BKR_012': 'prior_notice_duration_min can only be used with booking_type=1 (same-day).',
+    'BKR_013': 'Add prior_notice_last_day or remove prior_notice_last_time.',
+    'BKR_014': 'Remove prior_notice_service_id or set booking_type to 2 (prior-day booking).',
     // FLG
     'FLG_001': 'Use a valid fare_product_id.',
     'FLG_002': 'Use a valid network_id.',
@@ -1734,6 +1740,9 @@ const en: LocaleShape = {
     'BKR_009': 'prior_notice_last_time required for booking_type=2',
     'BKR_010': 'prior_notice_start_time required when prior_notice_start_day is set',
     'BKR_011': 'prior_notice_last_day > prior_notice_start_day: invalid booking window',
+    'BKR_012': 'prior_notice_duration_min forbidden with booking_type=2',
+    'BKR_013': 'prior_notice_last_time only valid with prior_notice_last_day',
+    'BKR_014': 'prior_notice_service_id only valid with booking_type=2',
     // AGN
     'AGN_001': 'agency.txt file missing',
     'AGN_002': 'agency_name missing',

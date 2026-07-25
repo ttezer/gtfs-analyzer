@@ -55,6 +55,7 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
         let has_last_time   = has_field(&row_map, "prior_notice_last_time");
         let has_start_day   = has_field(&row_map, "prior_notice_start_day");
         let has_start_time  = has_field(&row_map, "prior_notice_start_time");
+        let has_service_id  = has_field(&row_map, "prior_notice_service_id");
 
         let duration_min = opt_int(&row_map, "prior_notice_duration_min");
         let duration_max = opt_int(&row_map, "prior_notice_duration_max");
@@ -85,6 +86,34 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
                     Some("(boş)".to_string()),
                     "booking_type=2 iken prior_notice_duration_max yasaktır.".to_string(),
                     "prior_notice_duration_max yalnızca booking_type=1 (aynı gün) ile kullanılabilir.",
+                ));
+            }
+
+            // BKR_012: booking_type=2 iken prior_notice_duration_min yasak.
+            // Spec (booking_rules.txt): "Required for booking_type=1. Forbidden otherwise."
+            // type=0 kolu BKR_004'te (tüm prior_notice alanları) — burada tekrar edilmez.
+            // BKR_005'in (duration_max) birebir aynası.
+            if btype == 2 && has_duration_min {
+                notices.push(make_k2_notice(
+                    &mut ctr, "BKR_012", EntityType::Row, entity_id.clone(), Some(&row_map),
+                    &file.name, Some(line), Some("prior_notice_duration_min"),
+                    get_trimmed_field(&row_map, "prior_notice_duration_min").map(str::to_string),
+                    Some("(boş)".to_string()),
+                    "booking_type=2 iken prior_notice_duration_min yasaktır.".to_string(),
+                    "prior_notice_duration_min yalnızca booking_type=1 (aynı gün) ile kullanılabilir.",
+                ));
+            }
+
+            // BKR_014: prior_notice_service_id yalnızca booking_type=2 ile kullanılabilir.
+            // Spec: "Optional if booking_type=2. Forbidden otherwise."
+            // BKR_004 bu alanı KAPSAMAZ (yalnız altı prior_notice_* alanı) → type=0 da buraya dahil.
+            if btype != 2 && has_service_id {
+                notices.push(make_k2_notice(
+                    &mut ctr, "BKR_014", EntityType::Row, entity_id.clone(), Some(&row_map),
+                    &file.name, Some(line), Some("prior_notice_service_id"),
+                    Some(btype_str.clone()), Some("2".to_string()),
+                    format!("booking_type={btype} iken prior_notice_service_id yasaktır; bu alan yalnızca booking_type=2 ile kullanılır."),
+                    "prior_notice_service_id alanını kaldırın ya da booking_type değerini 2 (önceki gün rezervasyonu) yapın.",
                 ));
             }
 
@@ -198,6 +227,20 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
                 get_trimmed_field(&row_map, "prior_notice_start_time").map(str::to_string), None,
                 "prior_notice_start_time yalnızca prior_notice_start_day ile birlikte kullanılabilir.".to_string(),
                 "prior_notice_start_day ekleyin ya da prior_notice_start_time kaldırın.",
+            ));
+        }
+
+        // BKR_013: prior_notice_last_time dolu ama prior_notice_last_day yok.
+        // Spec: "Required if prior_notice_last_day is defined. Forbidden otherwise."
+        // BKR_003'ün (start_time ↔ start_day) birebir aynası; BKR_003 gibi booking_type'tan
+        // BAĞIMSIZ çalışır (booking_type okunamayan satırlarda da geçerli bir spec ihlali).
+        if has_last_time && !has_last_day {
+            notices.push(make_k2_notice(
+                &mut ctr, "BKR_013", EntityType::Row, entity_id.clone(), Some(&row_map),
+                &file.name, Some(line), Some("prior_notice_last_time"),
+                get_trimmed_field(&row_map, "prior_notice_last_time").map(str::to_string), None,
+                "prior_notice_last_time yalnızca prior_notice_last_day ile birlikte kullanılabilir.".to_string(),
+                "prior_notice_last_day ekleyin ya da prior_notice_last_time kaldırın.",
             ));
         }
 
@@ -377,6 +420,76 @@ mod tests {
         );
         let (_, notices) = validate_booking_rules(&file);
         assert!(notices.iter().any(|n| n.rule_id == "BKR_002"), "BKR_002 bekleniyor");
+    }
+
+    // ── BKR_012/013/014 (issue #56: spec presence matrisindeki üç boşluk) ──
+    #[test]
+    fn bkr_012_duration_min_forbidden_for_type2() {
+        let file = make_file(
+            vec!["booking_rule_id", "booking_type", "prior_notice_last_day", "prior_notice_last_time", "prior_notice_duration_min"],
+            vec![vec!["BR1", "2", "3", "12:00:00", "30"]],
+        );
+        let (_, notices) = validate_booking_rules(&file);
+        assert!(notices.iter().any(|n| n.rule_id == "BKR_012"), "BKR_012 bekleniyor: {:?}",
+            notices.iter().map(|n| &n.rule_id).collect::<Vec<_>>());
+    }
+
+    #[test]
+    fn bkr_012_silent_for_type1_where_duration_min_is_required() {
+        let file = make_file(
+            vec!["booking_rule_id", "booking_type", "prior_notice_duration_min"],
+            vec![vec!["BR1", "1", "30"]],
+        );
+        let (_, notices) = validate_booking_rules(&file);
+        assert!(!notices.iter().any(|n| n.rule_id == "BKR_012"),
+            "type=1'de duration_min ZORUNLU → BKR_012 çıkmamalı: {:?}",
+            notices.iter().map(|n| &n.rule_id).collect::<Vec<_>>());
+    }
+
+    #[test]
+    fn bkr_013_last_time_without_last_day() {
+        // type=1 + last_time: bugüne kadar hiçbir kural yakalamıyordu (issue #56/B).
+        let file = make_file(
+            vec!["booking_rule_id", "booking_type", "prior_notice_duration_min", "prior_notice_last_time"],
+            vec![vec!["BR1", "1", "30", "17:00:00"]],
+        );
+        let (_, notices) = validate_booking_rules(&file);
+        assert!(notices.iter().any(|n| n.rule_id == "BKR_013"), "BKR_013 bekleniyor: {:?}",
+            notices.iter().map(|n| &n.rule_id).collect::<Vec<_>>());
+    }
+
+    #[test]
+    fn bkr_013_silent_when_last_day_present() {
+        let file = make_file(
+            vec!["booking_rule_id", "booking_type", "prior_notice_last_day", "prior_notice_last_time"],
+            vec![vec!["BR1", "2", "3", "12:00:00"]],
+        );
+        let (_, notices) = validate_booking_rules(&file);
+        assert!(!notices.iter().any(|n| n.rule_id == "BKR_013"),
+            "last_day varken BKR_013 çıkmamalı: {:?}",
+            notices.iter().map(|n| &n.rule_id).collect::<Vec<_>>());
+    }
+
+    #[test]
+    fn bkr_014_service_id_forbidden_for_type1() {
+        let file = make_file(
+            vec!["booking_rule_id", "booking_type", "prior_notice_duration_min", "prior_notice_service_id"],
+            vec![vec!["BR1", "1", "30", "SVC1"]],
+        );
+        let (_, notices) = validate_booking_rules(&file);
+        assert!(notices.iter().any(|n| n.rule_id == "BKR_014"), "BKR_014 bekleniyor: {:?}",
+            notices.iter().map(|n| &n.rule_id).collect::<Vec<_>>());
+    }
+
+    #[test]
+    fn bkr_014_silent_for_type2() {
+        // Spec: "Optional if booking_type=2" → geçerli kullanım.
+        let file = make_file(
+            vec!["booking_rule_id", "booking_type", "prior_notice_last_day", "prior_notice_last_time", "prior_notice_service_id"],
+            vec![vec!["BR1", "2", "3", "12:00:00", "SVC1"]],
+        );
+        let (_, notices) = validate_booking_rules(&file);
+        assert!(notices.is_empty(), "type=2 + service_id geçerli, notice olmamalı: {:?}", notices);
     }
 
     #[test]

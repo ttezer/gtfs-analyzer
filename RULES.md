@@ -2,7 +2,7 @@
 
 🇹🇷 **Türkçe** · 🇬🇧 [English](RULES.en.md) · 🇯🇵 [日本語](RULES.ja.md)
 
-535 kural, 37 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
+538 kural, 37 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
 Önem seviyeleri: **KRİTİK** (yayın engelleyici) · **YÜKSEK** · **ORTA** · **DÜŞÜK** · **BİLGİ**
 Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · **Quality** (GTFS Kalitesi) · **Analytics** (GTFS Analitiği)
 
@@ -55,6 +55,9 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | BKR_009 | booking_type=2 için prior_notice_last_time zorunlu | KRİTİK | Spec |
 | BKR_010 | prior_notice_start_day belirtilmişse prior_notice_start_time zorunlu | YÜKSEK | Spec |
 | BKR_011 | prior_notice_last_day > prior_notice_start_day: rezervasyon penceresi geçersiz | YÜKSEK | Interop |
+| BKR_012 | booking_type=2 iken prior_notice_duration_min yasak | ORTA | Spec |
+| BKR_013 | prior_notice_last_time yalnızca prior_notice_last_day ile kullanılabilir | YÜKSEK | Spec |
+| BKR_014 | prior_notice_service_id yalnızca booking_type=2 ile kullanılabilir | YÜKSEK | Spec |
 
 ## AGN — Agency (İşletici)
 

@@ -2,7 +2,7 @@
 
 🇹🇷 [Türkçe](RULES.md) · 🇬🇧 [English](RULES.en.md) · 🇯🇵 **日本語**
 
-535ルール、37グループ。各ルールは一意のID、重要度、クラスで定義されます。
+538ルール、37グループ。各ルールは一意のID、重要度、クラスで定義されます。
 重要度: **致命的**（公開ブロッカー）· **高** · **中** · **低** · **情報**
 クラス: **仕様**（GTFS妥当性）· **相互運用**（GTFSインターオペラビリティ）· **品質**（GTFS品質）· **分析**（GTFSアナリティクス）
 
@@ -55,6 +55,9 @@
 | BKR_009 | booking_type=2でprior_notice_last_timeが必須 | 致命的 | 仕様 |
 | BKR_010 | prior_notice_start_day設定時にprior_notice_start_timeが必須 | 高 | 仕様 |
 | BKR_011 | prior_notice_start_day > prior_notice_last_day（無効な予約ウィンドウ） | 高 | 相互運用 |
+| BKR_012 | booking_type=2でprior_notice_duration_min禁止 | 中 | 仕様 |
+| BKR_013 | prior_notice_last_timeにprior_notice_last_dayが必要 | 高 | 仕様 |
+| BKR_014 | prior_notice_service_idはbooking_type=2のみ有効 | 高 | 仕様 |
 
 ## AGN — 事業者（Agency）
 
