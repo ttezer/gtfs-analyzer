@@ -658,6 +658,7 @@ const en: LocaleShape = {
     'RTS_023': "Route '{entity_id}': route_desc repeats {matched_field} — '{observed_value}'.",
     'RTS_026': "Route '{entity_id}': route_short_name '{observed_value}' is shared by routes with different long names: {conflicting_routes}.",
     'RTS_027': "Route '{entity_id}': route_long_name '{observed_value}' is shared by routes with different short names: {conflicting_routes}.",
+    'RTS_028': "Route '{entity_id}': a trip of this route defines a Flex pickup/drop-off window, so continuous_pickup/continuous_drop_off {observed_value} is forbidden.",
     // TRP
     'TRP_001': "Duplicate trip_id: '{entity_id}'.",
     'TRP_002': "Trip '{entity_id}': route_id '{observed_value}' not found in routes.txt.",
@@ -736,6 +737,8 @@ const en: LocaleShape = {
     'STM_050': "{observed_value} stop_times rows have the timepoint column present but empty; an empty timepoint is implicitly treated as exact (1), so approximate times may look exact.",
     'STM_051': "Trip '{entity_id}': pickup_type 0 (regular) or 3 (driver-coordinated) is forbidden when a Flex pickup/drop-off window is defined.",
     'STM_052': "Trip '{entity_id}': drop_off_type 0 (regular) is forbidden when a Flex pickup/drop-off window is defined.",
+    'STM_054': "Trip '{entity_id}': continuous_pickup {observed_value} is forbidden when a Flex pickup/drop-off window is defined on the same stop_time.",
+    'STM_055': "Trip '{entity_id}': continuous_drop_off {observed_value} is forbidden when a Flex pickup/drop-off window is defined on the same stop_time.",
     // PDW
     'PDW_006': "Trip '{entity_id}': overlapping pickup/drop-off windows for the same trip+zone.",
     // LOC
@@ -1188,6 +1191,7 @@ const en: LocaleShape = {
     'RTS_022': 'Edit route_long_name so it does not repeat the short name.',
     'RTS_026': 'Ignore if the route number is intentionally reused for variants/directions; otherwise make it unique.',
     'RTS_027': 'Ignore if the long name is shared intentionally; otherwise give each route a distinguishing name.',
+    'RTS_028': 'Set continuous_pickup/continuous_drop_off to 1 or leave them empty on routes whose trips use Flex windows.',
     // SHP
     'SHP_009': 'Fix intersecting segments in the route shape.',
     'SHP_012': 'Move shapes.txt points closer to stop locations.',
@@ -1379,6 +1383,8 @@ const en: LocaleShape = {
     'STM_050': 'Set timepoint explicitly to 0 (approximate) or 1 (exact) for this stop_time.',
     'STM_051': 'Use pickup_type 1 (none) or 2 (phone agency) on stop_times that have a Flex window.',
     'STM_052': 'Use drop_off_type 1 (none) or 2 (phone agency) on stop_times that have a Flex window.',
+    'STM_054': 'Set continuous_pickup to 1 or leave it empty on stop_times that have a Flex window.',
+    'STM_055': 'Set continuous_drop_off to 1 or leave it empty on stop_times that have a Flex window.',
     'STM_042': 'Remove the characters ! $ % \\ * = _ from the stop_headsign value.',
     // SHP (field-level)
     'SHP_001': 'Fill in the shape_id field.',
@@ -1813,6 +1819,7 @@ const en: LocaleShape = {
     'RTS_023': 'route_desc repeats a route name',
     'RTS_026': 'Duplicate short route name',
     'RTS_027': 'Duplicate long route name',
+    'RTS_028': 'continuous_pickup/drop_off forbidden on a Flex route',
     // TRP
     'TRP_001': 'trip_id missing or duplicate',
     'TRP_002': 'route_id not found',
@@ -1892,6 +1899,8 @@ const en: LocaleShape = {
     'STM_051': 'pickup_type 0/3 forbidden with Flex window',
     'STM_052': 'drop_off_type 0 forbidden with Flex window',
     'STM_053': 'Many consecutive stops have the same time',
+    'STM_054': 'continuous_pickup forbidden with Flex window',
+    'STM_055': 'continuous_drop_off forbidden with Flex window',
     // PDW
     'PDW_006': 'Overlapping pickup/drop-off window for same trip+zone',
     // LOC

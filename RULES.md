@@ -2,7 +2,7 @@
 
 🇹🇷 **Türkçe** · 🇬🇧 [English](RULES.en.md) · 🇯🇵 [日本語](RULES.ja.md)
 
-532 kural, 37 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
+535 kural, 37 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
 Önem seviyeleri: **KRİTİK** (yayın engelleyici) · **YÜKSEK** · **ORTA** · **DÜŞÜK** · **BİLGİ**
 Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · **Quality** (GTFS Kalitesi) · **Analytics** (GTFS Analitiği)
 
@@ -152,6 +152,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | RTS_025 | routes.txt'te agency_id boş (önerilen alan) | BİLGİ | Quality |
 | RTS_026 | Yinelenen kısa hat adı | BİLGİ | Quality |
 | RTS_027 | Yinelenen uzun hat adı | BİLGİ | Quality |
+| RTS_028 | Flex pencereli rotada continuous_pickup/drop_off yasak | YÜKSEK | Interop |
 
 ## TRP — Trips (Seferler)
 
@@ -238,6 +239,8 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | STM_051 | Flex penceresi tanımlıyken pickup_type=0/3 yasak (talep-üzerine değerler gerekli) | YÜKSEK | Spec |
 | STM_052 | Flex penceresi tanımlıyken drop_off_type=0 yasak (talep-üzerine değer gerekli) | YÜKSEK | Spec |
 | STM_053 | Çok sayıda ardışık durakta aynı zaman | ORTA | Quality |
+| STM_054 | Flex penceresi tanımlıyken continuous_pickup 1/boş dışında yasak | YÜKSEK | Spec |
+| STM_055 | Flex penceresi tanımlıyken continuous_drop_off 1/boş dışında yasak | YÜKSEK | Spec |
 
 ## PDW — Pickup/Drop-off Window
 

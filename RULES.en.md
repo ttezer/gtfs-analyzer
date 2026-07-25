@@ -2,7 +2,7 @@
 
 🇹🇷 [Türkçe](RULES.md) · 🇬🇧 **English** · 🇯🇵 [日本語](RULES.ja.md)
 
-532 rules, 37 groups. Each rule is identified by a unique ID, severity level, and class.
+535 rules, 37 groups. Each rule is identified by a unique ID, severity level, and class.
 Severity levels: **CRITICAL** (publish blocker) · **HIGH** · **MEDIUM** · **LOW** · **INFO**
 Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Quality** (GTFS Quality) · **Analytics** (GTFS Analytics)
 
@@ -152,6 +152,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | RTS_025 | routes.txt agency_id empty (recommended) | INFO | Quality |
 | RTS_026 | Duplicate short route name | INFO | Quality |
 | RTS_027 | Duplicate long route name | INFO | Quality |
+| RTS_028 | continuous_pickup/drop_off forbidden on a Flex route | HIGH | Interop |
 
 ## TRP — Trips
 
@@ -238,6 +239,8 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | STM_051 | pickup_type 0/3 forbidden with Flex window | HIGH | Spec |
 | STM_052 | drop_off_type 0 forbidden with Flex window | HIGH | Spec |
 | STM_053 | Many consecutive stops have the same time | MEDIUM | Quality |
+| STM_054 | continuous_pickup forbidden with Flex window | HIGH | Spec |
+| STM_055 | continuous_drop_off forbidden with Flex window | HIGH | Spec |
 
 ## PDW — Pickup/Drop-off Window
 

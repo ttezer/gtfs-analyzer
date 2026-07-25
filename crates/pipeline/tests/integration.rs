@@ -216,6 +216,83 @@ fn trp_019_fires_when_stop_time_enables_continuous_service() {
     }
 }
 
+// ── RTS_028: rotanın herhangi bir seferinde Flex penceresi varken routes.continuous_* ─────
+// Rota kapsamlı koşul (MD `forbidden_continuous_pickup_drop_off` paritesi). İhlal eden satır
+// stop_times'ta DEĞİL routes.txt'te; pencereyi taşıyan sefer başka bir satır olabilir.
+
+// T1'in 2. durağı Flex pencereli (T1 → R1) — R1 böylece "Flex rotası" olur.
+static STOP_TIMES_FLEX_WINDOW: &[u8] =
+    b"trip_id,arrival_time,departure_time,stop_id,stop_sequence,location_id,start_pickup_drop_off_window,end_pickup_drop_off_window,pickup_booking_rule_id\n\
+      T1,08:00:00,08:00:00,S1,1,,,,\n\
+      T1,,,,2,Z1,09:00:00,17:00:00,BR1\n";
+
+#[test]
+fn rts_028_fires_when_route_has_flex_window_trip_and_continuous_pickup() {
+    const ROUTES_CONTINUOUS: &[u8] =
+        b"route_id,agency_id,route_short_name,route_type,continuous_pickup\n\
+          R1,1,101,3,0\n";
+
+    let mut files = base_files();
+    files[2] = ("routes.txt", ROUTES_CONTINUOUS);
+    files[4] = ("stop_times.txt", STOP_TIMES_FLEX_WINDOW);
+
+    match run(&files) {
+        ValidateResult::Ok(vr) => {
+            let n = vr.notices.iter().find(|n| n.rule_id == "RTS_028");
+            assert!(
+                n.is_some(),
+                "RTS_028 olmalı (rotanın seferinde Flex penceresi + continuous_pickup=0). Mevcut: {:?}",
+                vr.notices.iter().map(|n| n.rule_id.as_str()).collect::<Vec<_>>(),
+            );
+            let n = n.unwrap();
+            assert_eq!(n.file.as_deref(), Some("routes.txt"), "ihlal routes.txt'te raporlanmalı");
+            assert_eq!(n.field.as_deref(), Some("continuous_pickup"));
+        }
+        _ => panic!("ValidateResult::Ok beklendi"),
+    }
+}
+
+#[test]
+fn rts_028_silent_when_route_has_no_flex_window() {
+    // continuous_pickup=0 ama hiçbir seferde pencere yok → spec'e göre Optional.
+    const ROUTES_CONTINUOUS: &[u8] =
+        b"route_id,agency_id,route_short_name,route_type,continuous_pickup\n\
+          R1,1,101,3,0\n";
+
+    let mut files = base_files();
+    files[2] = ("routes.txt", ROUTES_CONTINUOUS);
+
+    match run(&files) {
+        ValidateResult::Ok(vr) => assert!(
+            !vr.notices.iter().any(|n| n.rule_id == "RTS_028"),
+            "Flex penceresi olmayan rotada RTS_028 üretilmemeli: {:?}",
+            vr.notices.iter().map(|n| n.rule_id.as_str()).collect::<Vec<_>>(),
+        ),
+        _ => panic!("ValidateResult::Ok beklendi"),
+    }
+}
+
+#[test]
+fn rts_028_silent_when_continuous_is_one() {
+    // Flex pencereli rota ama continuous_pickup=1 (izinli değer) → sessiz.
+    const ROUTES_CONTINUOUS: &[u8] =
+        b"route_id,agency_id,route_short_name,route_type,continuous_pickup,continuous_drop_off\n\
+          R1,1,101,3,1,\n";
+
+    let mut files = base_files();
+    files[2] = ("routes.txt", ROUTES_CONTINUOUS);
+    files[4] = ("stop_times.txt", STOP_TIMES_FLEX_WINDOW);
+
+    match run(&files) {
+        ValidateResult::Ok(vr) => assert!(
+            !vr.notices.iter().any(|n| n.rule_id == "RTS_028"),
+            "continuous_pickup=1 → RTS_028 üretilmemeli: {:?}",
+            vr.notices.iter().map(|n| n.rule_id.as_str()).collect::<Vec<_>>(),
+        ),
+        _ => panic!("ValidateResult::Ok beklendi"),
+    }
+}
+
 #[test]
 fn transfer_stop_requirements_cover_recommended_and_in_seat_types() {
     for transfer_type in ["0", "1", "2", "3"] {

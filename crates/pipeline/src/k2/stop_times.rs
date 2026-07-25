@@ -1226,6 +1226,31 @@ pub fn validate_stop_times(file: &RawFile, zip_bytes: Option<&[u8]>) -> (StopTim
                     "Flex penceresi olan stop_times satırlarında drop_off_type'ı 1 (iniş yok) veya 2 (telefonla) yapın.",
                 ));
             }
+            // STM_054/055: Flex penceresi tanımlı iken continuous_pickup/continuous_drop_off
+            // 1 (veya boş) dışında yasak. GTFS spec [Kesin]: stop_times tarafındaki koşul SATIR
+            // kapsamlıdır ("Forbidden if start/end_pickup_drop_off_window are defined") — routes
+            // tarafındaki rota-kapsamlı koşul (RTS_028, K4) ile karıştırılmamalı.
+            // Enum dışı değerler (>3) STM_018/019'un işi; burada çift emit etmemek için elenir.
+            if matches!(continuous_pickup, Some(0) | Some(2) | Some(3)) {
+                let cp = continuous_pickup.unwrap();
+                notices.push(make_k2_notice(
+                    &mut counter, "STM_054", EntityType::Trip, eid(),
+                    None, &file.name, Some(line), Some("continuous_pickup"),
+                    Some(cp.to_string()), Some("1 veya boş".to_string()),
+                    format!("trip_id '{trip_id}' Flex penceresi tanımlı iken continuous_pickup={cp} yasaktır."),
+                    "Flex penceresi olan stop_times satırlarında continuous_pickup'ı 1 yapın veya alanı boş bırakın.",
+                ));
+            }
+            if matches!(continuous_drop_off, Some(0) | Some(2) | Some(3)) {
+                let cd = continuous_drop_off.unwrap();
+                notices.push(make_k2_notice(
+                    &mut counter, "STM_055", EntityType::Trip, eid(),
+                    None, &file.name, Some(line), Some("continuous_drop_off"),
+                    Some(cd.to_string()), Some("1 veya boş".to_string()),
+                    format!("trip_id '{trip_id}' Flex penceresi tanımlı iken continuous_drop_off={cd} yasaktır."),
+                    "Flex penceresi olan stop_times satırlarında continuous_drop_off'u 1 yapın veya alanı boş bırakın.",
+                ));
+            }
         }
 
         // STM_038: start_window > end_window
@@ -1830,6 +1855,67 @@ mod tests {
         assert!(!notices.iter().any(|n| n.rule_id == "STM_051"),
             "Flex penceresi yok → pickup_type=0 STM_051 üretmemeli: {:?}",
             notices.iter().map(|n| &n.rule_id).collect::<Vec<_>>());
+    }
+
+    // ── STM_054/055: Flex penceresi + continuous_pickup/drop_off (satır kapsamlı) ──
+    #[test]
+    fn flex_window_forbidden_continuous_pickup_produces_stm_054() {
+        let file = make_file(
+            vec!["trip_id", "stop_sequence", "location_id", "start_pickup_drop_off_window", "end_pickup_drop_off_window", "pickup_type", "continuous_pickup"],
+            vec![vec!["T1", "1", "Z1", "08:00:00", "18:00:00", "2", "0"]],
+        );
+        let (_, notices) = validate_stop_times(&file, None);
+        let ids: Vec<&str> = notices.iter().map(|n| n.rule_id.as_str()).collect();
+        assert!(ids.contains(&"STM_054"), "Flex penceresi + continuous_pickup=0 → STM_054: {ids:?}");
+    }
+
+    #[test]
+    fn flex_window_forbidden_continuous_drop_off_produces_stm_055() {
+        let file = make_file(
+            vec!["trip_id", "stop_sequence", "location_id", "start_pickup_drop_off_window", "end_pickup_drop_off_window", "drop_off_type", "continuous_drop_off"],
+            vec![vec!["T1", "1", "Z1", "08:00:00", "18:00:00", "2", "3"]],
+        );
+        let (_, notices) = validate_stop_times(&file, None);
+        let ids: Vec<&str> = notices.iter().map(|n| n.rule_id.as_str()).collect();
+        assert!(ids.contains(&"STM_055"), "Flex penceresi + continuous_drop_off=3 → STM_055: {ids:?}");
+    }
+
+    #[test]
+    fn flex_window_continuous_one_or_empty_silent_for_stm_054_055() {
+        // 1 → izinli; boş → izinli (örtük 1 sayılır, susulur).
+        let file = make_file(
+            vec!["trip_id", "stop_sequence", "location_id", "start_pickup_drop_off_window", "end_pickup_drop_off_window", "continuous_pickup", "continuous_drop_off"],
+            vec![vec!["T1", "1", "Z1", "08:00:00", "18:00:00", "1", ""]],
+        );
+        let (_, notices) = validate_stop_times(&file, None);
+        let ids: Vec<&str> = notices.iter().map(|n| n.rule_id.as_str()).collect();
+        assert!(!ids.contains(&"STM_054") && !ids.contains(&"STM_055"),
+            "continuous 1/boş → STM_054/055 üretmemeli: {ids:?}");
+    }
+
+    #[test]
+    fn no_flex_window_continuous_zero_silent_for_stm_054() {
+        // Pencere yoksa continuous_pickup=0 tümüyle geçerlidir (rota-kapsamlı koşul RTS_028'in işi).
+        let file = make_file(
+            vec!["trip_id", "arrival_time", "departure_time", "stop_id", "stop_sequence", "continuous_pickup"],
+            vec![vec!["T1", "08:00:00", "08:00:00", "S1", "1", "0"]],
+        );
+        let (_, notices) = validate_stop_times(&file, None);
+        let ids: Vec<&str> = notices.iter().map(|n| n.rule_id.as_str()).collect();
+        assert!(!ids.contains(&"STM_054"), "Flex penceresi yok → STM_054 üretmemeli: {ids:?}");
+    }
+
+    #[test]
+    fn invalid_continuous_enum_with_flex_window_only_produces_stm_018() {
+        // 9 = enum dışı → STM_018'in işi; STM_054 çift emit ETMEMELİ.
+        let file = make_file(
+            vec!["trip_id", "stop_sequence", "location_id", "start_pickup_drop_off_window", "end_pickup_drop_off_window", "continuous_pickup"],
+            vec![vec!["T1", "1", "Z1", "08:00:00", "18:00:00", "9"]],
+        );
+        let (_, notices) = validate_stop_times(&file, None);
+        let ids: Vec<&str> = notices.iter().map(|n| n.rule_id.as_str()).collect();
+        assert!(ids.contains(&"STM_018"), "continuous_pickup=9 → STM_018: {ids:?}");
+        assert!(!ids.contains(&"STM_054"), "enum dışı değer STM_054'ü de tetiklememeli: {ids:?}");
     }
 
     // ── STM_036/032 + finalize çıktı alanları (K2 hashmap-birleştirme refactor güvenlik ağı) ──

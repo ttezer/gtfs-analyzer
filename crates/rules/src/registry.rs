@@ -372,6 +372,8 @@ pub static RULES: &[RuleMeta] = &[
         "Yinelenen kısa hat adı"),
     r!("RTS_027", Bilgi,  Quality, 1, &[], Some("route_id"), VS, Row,
         "Yinelenen uzun hat adı"),
+    r!("RTS_028", Yuksek, Interop, 1, &[], Some("route_id"), VI, Entity,
+        "Flex pencereli rotada continuous_pickup/drop_off yasak"),
 
     // ── TRP: Trips ─────────────────────────────────────────────────────────────
     r!("TRP_001", Kritik, Spec, 1,
@@ -557,6 +559,10 @@ pub static RULES: &[RuleMeta] = &[
         "Flex penceresi tanımlıyken drop_off_type=0 yasak (talep-üzerine değer gerekli)"),
     r!("STM_053", Orta, Quality, 2, &[], Some("trip_id"), VS, Entity,
         "Çok sayıda ardışık durakta aynı zaman"),
+    r!("STM_054", Yuksek, Spec, 1, &[], Some("trip_id"), VS, Entity,
+        "Flex penceresi tanımlıyken continuous_pickup 1/boş dışında yasak"),
+    r!("STM_055", Yuksek, Spec, 1, &[], Some("trip_id"), VS, Entity,
+        "Flex penceresi tanımlıyken continuous_drop_off 1/boş dışında yasak"),
 
     // ── PDW: Pickup/Drop-off Window ──────────────────────────────────────────
     r!("PDW_006", Orta, Analytics, 2, &[], Some("trip_id"), VA, Entity,
@@ -1692,6 +1698,7 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("RTS_025", ProjectQuality),
     ("RTS_026", ProjectQuality),
     ("RTS_027", ProjectQuality),
+    ("RTS_028", MobilitydataParity),
     ("SAR_001", GtfsSpec),
     ("SAR_002", GtfsSpec),
     ("SHP_001", GtfsSpec),
@@ -1770,6 +1777,8 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("STM_051", GtfsSpec),
     ("STM_052", GtfsSpec),
     ("STM_053", ProjectQuality),
+    ("STM_054", GtfsSpec),
+    ("STM_055", GtfsSpec),
     ("STP_001", GtfsSpec),
     ("STP_002", GtfsSpec),
     ("STP_003", GtfsSpec),

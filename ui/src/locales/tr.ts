@@ -599,6 +599,7 @@ const tr = {
     'RTS_025': 'routes.txt agency_id boş (önerilen)',
     'RTS_026': 'Yinelenen kısa hat adı',
     'RTS_027': 'Yinelenen uzun hat adı',
+    'RTS_028': 'Flex pencereli rotada continuous_pickup/drop_off yasak',
     'AGN_013': 'Feed dili ve ajans dili uyuşmuyor',
     'AGN_014': 'Birden fazla kuruluş var ama agency.txt agency_id eksik',
     'AGN_015': 'agency_url güvensiz http (https önerilir)',
@@ -746,6 +747,8 @@ const tr = {
     'STM_051': 'Flex penceresinde pickup_type=0/3 yasak',
     'STM_052': 'Flex penceresinde drop_off_type=0 yasak',
     'STM_053': 'Çok sayıda ardışık durakta aynı zaman',
+    'STM_054': 'Flex penceresinde continuous_pickup yasak',
+    'STM_055': 'Flex penceresinde continuous_drop_off yasak',
     // PDW
     'PDW_006': "Aynı trip+zone'da örtüşen pickup/drop-off penceresi",
     // LOC

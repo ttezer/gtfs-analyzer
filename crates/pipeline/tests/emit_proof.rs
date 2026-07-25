@@ -346,6 +346,11 @@ fn fixtures() -> Vec<Fixture> {
         fx("RTS_026", vec![("routes.txt", "route_id,agency_id,route_short_name,route_long_name,route_type\nR1,1,100,Line North,3\nR2,1,100,Line South,3\n")]),
         // RTS_027: aynı uzun ad, FARKLI kısa ad (→ RTS_019 değil, Bilgi).
         fx("RTS_027", vec![("routes.txt", "route_id,agency_id,route_short_name,route_long_name,route_type\nR1,1,10,City Line,3\nR2,1,20,City Line,3\n")]),
+        // RTS_028: rotanın bir seferinde Flex penceresi var → routes.continuous_pickup=0 yasak (K4).
+        fx("RTS_028", vec![
+            ("routes.txt", "route_id,agency_id,route_short_name,route_type,continuous_pickup\nR1,1,101,3,0\n"),
+            ("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence,location_id,start_pickup_drop_off_window,end_pickup_drop_off_window,pickup_booking_rule_id\nT1,08:00:00,08:00:00,S1,1,,,,\nT1,,,,2,LOC1,09:00:00,10:00:00,BR1\n"),
+        ]),
 
         // ── TRP grubu (trips.txt; K2 alan kontrolleri) ─────────────────────────
         fx("TRP_001", vec![("trips.txt", "route_id,service_id,trip_id\nR1,SVC1,\n")]),
@@ -399,6 +404,9 @@ fn fixtures() -> Vec<Fixture> {
         fx("STM_041", vec![("stop_times.txt", "trip_id,stop_id,stop_sequence,location_id,start_pickup_drop_off_window,end_pickup_drop_off_window,pickup_booking_rule_id\nT1,S1,1,LOC1,09:00:00,10:00:00,BR1\n")]),
         fx("STM_051", vec![("stop_times.txt", "trip_id,stop_sequence,location_id,start_pickup_drop_off_window,end_pickup_drop_off_window,pickup_booking_rule_id,pickup_type\nT1,1,LOC1,09:00:00,10:00:00,BR1,0\n")]),
         fx("STM_052", vec![("stop_times.txt", "trip_id,stop_sequence,location_id,start_pickup_drop_off_window,end_pickup_drop_off_window,pickup_booking_rule_id,drop_off_type\nT1,1,LOC1,09:00:00,10:00:00,BR1,0\n")]),
+        // STM_054/055: Flex penceresi tanımlıyken continuous_pickup/drop_off 1/boş dışında (satır kapsamlı).
+        fx("STM_054", vec![("stop_times.txt", "trip_id,stop_sequence,location_id,start_pickup_drop_off_window,end_pickup_drop_off_window,pickup_booking_rule_id,continuous_pickup\nT1,1,LOC1,09:00:00,10:00:00,BR1,0\n")]),
+        fx("STM_055", vec![("stop_times.txt", "trip_id,stop_sequence,location_id,start_pickup_drop_off_window,end_pickup_drop_off_window,pickup_booking_rule_id,continuous_drop_off\nT1,1,LOC1,09:00:00,10:00:00,BR1,2\n")]),
 
         // ── PTH grubu (pathways.txt; base'te yok, eklenir) ─────────────────────
         // K2 satır kontrolleri (k2/pathways.rs). Temiz satır şablonu: mode=3, bidir=0.

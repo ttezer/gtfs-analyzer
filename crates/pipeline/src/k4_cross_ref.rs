@@ -23,7 +23,8 @@ pub fn check(records: &EntityRecords, entity_map: &EntityMap, today: u32) -> K4R
     let map = entity_map;
 
     // stop_times geçişi → StopTimesIndex üzerinden (Vec<StopTimeRecord> taranmaz)
-    let (stm_used_stop_ids, stm_trip_continuous, stm_trips_in_stm, stm_trip_stm_count, stm_bad_stop_ids) = {
+    let (stm_used_stop_ids, stm_trip_continuous, stm_trips_in_stm, stm_trip_stm_count,
+         stm_bad_stop_ids, stm_flex_window_trips) = {
         let _t = Timer::start("K4::stop_times");
         let idx = &records.stop_times_index;
 
@@ -118,12 +119,31 @@ pub fn check(records: &EntityRecords, entity_map: &EntityMap, today: u32) -> K4R
             .map(|(k, v)| (k.as_str(), v.len() as u32))
             .collect();
 
-        (used_stop_ids, trip_continuous, trips_in_stm, trip_stm_count, bad_stop_ids)
+        // RTS_028: Flex pencereli (start/end_pickup_drop_off_window dolu) sefer kümesi.
+        // flex_map feed'lerin ~%99'unda boştur → gate sayesinde milyonlarca satırlık
+        // tarama tümüyle atlanır (VBB 6,1M stop_times'ta sıfır maliyet).
+        let flex_window_trips: HashSet<&str> = if idx.flex_map.is_empty() {
+            HashSet::new()
+        } else {
+            idx.iter_trips()
+                .filter(|(_, stops)| {
+                    stops.iter().any(|st| {
+                        idx.flex_of(st).is_some_and(|f| {
+                            f.start_pickup_drop_off_window.is_some()
+                                || f.end_pickup_drop_off_window.is_some()
+                        })
+                    })
+                })
+                .map(|(tid, _)| tid.as_str())
+                .collect()
+        };
+
+        (used_stop_ids, trip_continuous, trips_in_stm, trip_stm_count, bad_stop_ids, flex_window_trips)
     };
 
     { let _t = Timer::start("K4::agencies");       check_agencies(records, map, &mut notices, &mut ctr); }
     { let _t = Timer::start("K4::stops");          check_stops(records, map, &mut notices, &mut ctr, &stm_used_stop_ids); }
-    { let _t = Timer::start("K4::routes");         check_routes(records, map, &mut notices, &mut ctr); }
+    { let _t = Timer::start("K4::routes");         check_routes(records, map, &mut notices, &mut ctr, &stm_flex_window_trips); }
     { let _t = Timer::start("K4::trips");          check_trips(records, map, &mut notices, &mut ctr, &stm_trip_continuous); }
     { let _t = Timer::start("K4::pathways");       check_pathways(records, map, &mut notices, &mut ctr); }
     { let _t = Timer::start("K4::calendar");       check_calendar(records, map, &mut notices, &mut ctr, today); }
@@ -672,6 +692,7 @@ fn check_routes(
     map: &EntityMap,
     notices: &mut Vec<Notice>,
     ctr: &mut u32,
+    flex_window_trips: &HashSet<&str>,
 ) {
     // RTS_002: agency_id referansı
     for rec in &records.routes {
@@ -730,6 +751,57 @@ fn check_routes(
                 },
                 "Kullanılmayan rotayı silin veya bu rotaya bir sefer ekleyin.",
             ));
+        }
+    }
+
+    // RTS_028: rotanın HERHANGİ bir seferinde Flex penceresi varsa routes.continuous_pickup /
+    // continuous_drop_off 1 (veya boş) dışında olamaz. GTFS spec [Kesin]: "Any value other than 1
+    // or empty is Forbidden if stop_times.start/end_pickup_drop_off_window are defined for any
+    // trip of this route." MD `forbidden_continuous_pickup_drop_off` (ERROR) paritesi: MD de İKİ
+    // alanı TEK notice'ta ele alır → burada da alan başına ayrı kural YOK (parite bozulmasın).
+    // stop_times.continuous_* için koşul satır kapsamlıdır ve STM_054/055'in (K2) işidir.
+    if !flex_window_trips.is_empty() {
+        let ti = &records.trip_interns;
+        // route_id → o rotanın Flex pencereli ilk seferi (mesajda örnek olarak gösterilir).
+        // trips Vec sırası deterministik → çıktı deterministik.
+        let mut flex_routes: HashMap<&str, &str> = HashMap::new();
+        for t in &records.trips {
+            if flex_window_trips.contains(t.trip_id.as_str()) {
+                flex_routes.entry(ti.route_id(t)).or_insert(t.trip_id.as_str());
+            }
+        }
+        for rec in &records.routes {
+            if rec.route_id.is_empty() {
+                continue;
+            }
+            let Some(&sample_trip) = flex_routes.get(rec.route_id.as_str()) else { continue };
+            // Enum dışı değerler (>3) RTS_013/018'in işi; burada çift emit edilmez.
+            let bad = if matches!(rec.continuous_pickup, Some(0) | Some(2) | Some(3)) {
+                Some(("continuous_pickup", rec.continuous_pickup.unwrap()))
+            } else if matches!(rec.continuous_drop_off, Some(0) | Some(2) | Some(3)) {
+                Some(("continuous_drop_off", rec.continuous_drop_off.unwrap()))
+            } else {
+                None
+            };
+            if let Some((field, value)) = bad {
+                notices.push(notice(
+                    ctr,
+                    "RTS_028",
+                    EntityType::Route,
+                    Some(rec.route_id.clone()),
+                    Some(rec.route_id.clone()),
+                    "routes.txt",
+                    Some(rec.line),
+                    Some(field),
+                    Some(value.to_string()),
+                    Some("1 veya boş".to_string()),
+                    format!(
+                        "'{}' hattının '{}' seferinde Flex penceresi tanımlı — {field}={value} yasaktır.",
+                        rec.route_id, sample_trip
+                    ),
+                    "Flex (talep-üzerine) pencereli rotalarda continuous_pickup/continuous_drop_off alanını 1 yapın veya boş bırakın.",
+                ));
+            }
         }
     }
 }

@@ -2,7 +2,7 @@
 
 🇹🇷 [Türkçe](RULES.md) · 🇬🇧 [English](RULES.en.md) · 🇯🇵 **日本語**
 
-532ルール、37グループ。各ルールは一意のID、重要度、クラスで定義されます。
+535ルール、37グループ。各ルールは一意のID、重要度、クラスで定義されます。
 重要度: **致命的**（公開ブロッカー）· **高** · **中** · **低** · **情報**
 クラス: **仕様**（GTFS妥当性）· **相互運用**（GTFSインターオペラビリティ）· **品質**（GTFS品質）· **分析**（GTFSアナリティクス）
 
@@ -152,6 +152,7 @@
 | RTS_025 | routes.txtのagency_idが空（推奨） | 情報 | 品質 |
 | RTS_026 | 短い路線名の重複 | 情報 | 品質 |
 | RTS_027 | 長い路線名の重複 | 情報 | 品質 |
+| RTS_028 | Flex路線でcontinuous_pickup/drop_off禁止 | 高 | 相互運用 |
 
 ## TRP — 便（Trips）
 
@@ -238,6 +239,8 @@
 | STM_051 | Flexウィンドウでpickup_type 0/3禁止 | 高 | 仕様 |
 | STM_052 | Flexウィンドウでdrop_off_type 0禁止 | 高 | 仕様 |
 | STM_053 | 多数の連続停留所が同じ時刻 | 中 | 品質 |
+| STM_054 | Flexウィンドウでcontinuous_pickup禁止 | 高 | 仕様 |
+| STM_055 | Flexウィンドウでcontinuous_drop_off禁止 | 高 | 仕様 |
 
 ## PDW — 乗降ウィンドウ（Pickup/Drop-off Window）
 
