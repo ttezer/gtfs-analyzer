@@ -12,6 +12,11 @@ path = "src/main.rs"
 gtfs-core = { path = "../core" }
 gtfs-pipeline = { path = "../pipeline" }
 gtfs-config = { path = "../config" }
+gtfs-rules = { path = "../rules" }
+serde = { workspace = true }
 serde_json = { workspace = true }
 clap = { version = "4", features = ["derive"] }
 chrono = "0.4"
+
+[dev-dependencies]
+zip = { workspace = true }

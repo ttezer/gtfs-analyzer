@@ -197,16 +197,37 @@ cargo build --release -p gtfs-cli
 target/release/gtfs-analyzer validate feed.zip --json
 ```
 
+### `validate` — feed doğrulama
+
 | Bayrak | Açıklama |
 |---|---|
-| `--json` | Tüm `ValidateResult`'ı JSON olarak stdout'a yazar |
-| `--summary` | Kısa özet: durum, notice sayısı, skorlar (varsayılan) |
+| `--json` | Sonucun tamamını JSON olarak yazar |
+| `--summary` | Kısa özet: durum, notice sayısı, skorlar (varsayılan; `--json` ile birlikte kullanılamaz) |
 | `--rule SHP_010` | Yalnızca verilen kural için notice'lar |
-| `--severity critical` | Önem filtresi (critical/high/medium/low/info) |
+| `--severity critical` | Tam olarak bu öneme sahip notice'lar (critical/high/medium/low/info) |
+| `--min-severity high` | Bu önem ve daha ağırı (critical en ağır) |
+| `--class spec` | Yalnızca bu kural sınıfları — `spec,interop,quality,analytics`, virgülle çoklu |
+| `--fail-on critical` | Exit 1 **yalnızca** bu önem ve daha ağırı varsa |
+| `--fail-on-class spec` | Exit 1 yalnızca bu sınıflarda notice varsa |
+| `--pretty` | JSON'ı girintili yazar (`--json` gerektirir) |
+| `--include-name-index` | `name_index`'i (durak/hat/shape arama tabloları) JSON'a dahil eder |
+| `-o rapor.json` | Çıktıyı stdout yerine dosyaya yazar |
 | `--config config.json` | JSON config delta uygular (`ValidatorConfig::default()` üzerine) |
 | `--today 20260710` | Analiz "bugün"ünü sabitler (takvim kuralları için) |
 
-**Exit kodları:** `0` notice yok · `1` notice var · `2` fatal ya da config/dosya hatası. JSON modunda stdout yalnızca JSON'dur; hatalar stderr'e yazılır.
+**Filtreler yalnızca görüntülemeyi daraltır.** `notices` ve R2–R9 listeleri filtrelenir; **R1 yayınlanabilirlik kararı ve R5 skorları her zaman tüm feed'i** anlatır. Filtre uygulandığında JSON'a `filtered` alanı, özete `filter:` satırı eklenir.
+
+`name_index` varsayılan olarak **çıktıya dahil edilmez**: büyük feed'lerde shape/durak koordinat tabloları JSON'un neredeyse tamamını kaplar. Gerekiyorsa `--include-name-index` ile açın.
+
+**Exit kodları:** `0` notice yok · `1` notice var · `2` fatal ya da config/dosya hatası. `--fail-on*` verildiğinde `1` yalnızca eşleşen notice varsa döner; diğer bulgular raporlanır ama koşuyu düşürmez. JSON modunda stdout yalnızca JSON'dur; hatalar stderr'e yazılır.
+
+```bash
+# CI kapısı: yalnız resmi GTFS Spec ihlalleri koşuyu düşürsün
+gtfs-analyzer validate feed.zip --fail-on-class spec
+
+# Yalnız Spec bulgularını raporla (skorlar yine tüm feed'i anlatır)
+gtfs-analyzer validate feed.zip --class spec --json --pretty -o spec.json
+```
 
 ```python
 import json, subprocess
@@ -217,8 +238,23 @@ proc = subprocess.run(
 )
 # exit 1 = "notice var", hata değil — check=True KULLANMAYIN
 data = json.loads(proc.stdout)
-result = data["Ok"] if "Ok" in data else data["Fatal"]  # üst anahtar enum varyantı
+if data["status"] == "fatal":
+    raise SystemExit(f'{data["code"]}: {data["message"]}')
+for n in data["notices"]:
+    print(n["rule_id"], n["severity"], n["rule_class"])
 ```
+
+### `rules` — kural kaydı
+
+Doğrulama çalıştırmadan tüm kural kaydını listeler; entegre eden projenin kural sözlüğü için.
+
+```bash
+gtfs-analyzer rules --class spec --severity critical
+gtfs-analyzer rules --rule STM_004 --json --pretty
+```
+
+Alanlar: `id`, `severity`, `class`, `authority_source`, `base_effort`, `blocks`, `title`.
+`--class` / `--severity` / `--min-severity` / `--rule` filtreleri `validate` ile aynı anlamdadır.
 
 ---
 

@@ -197,16 +197,37 @@ cargo build --release -p gtfs-cli
 target/release/gtfs-analyzer validate feed.zip --json
 ```
 
+### `validate` — feed validation
+
 | Flag | Description |
 |---|---|
-| `--json` | Writes the full `ValidateResult` as JSON to stdout |
-| `--summary` | Short summary: status, notice count, scores (default) |
+| `--json` | Writes the full result as JSON |
+| `--summary` | Short summary: status, notice count, scores (default; cannot be combined with `--json`) |
 | `--rule SHP_010` | Only notices for the given rule |
-| `--severity critical` | Filter by severity (critical/high/medium/low/info) |
+| `--severity critical` | Notices with exactly this severity (critical/high/medium/low/info) |
+| `--min-severity high` | This severity and anything worse (critical is the worst) |
+| `--class spec` | Only these rule classes — `spec,interop,quality,analytics`, comma separated |
+| `--fail-on critical` | Exit 1 **only** when this severity or worse is present |
+| `--fail-on-class spec` | Exit 1 only when a notice in these classes is present |
+| `--pretty` | Indent the JSON output (requires `--json`) |
+| `--include-name-index` | Include `name_index` (stop/route/shape lookup tables) in the JSON |
+| `-o report.json` | Write the output to a file instead of stdout |
 | `--config config.json` | Apply a JSON config delta (on top of `ValidatorConfig::default()`) |
 | `--today 20260710` | Pin the analysis "today" (for calendar rules) |
 
-**Exit codes:** `0` no notices · `1` notices present · `2` fatal or config/file error. In JSON mode stdout is JSON only; errors go to stderr.
+**Filters only narrow what is displayed.** `notices` and the R2–R9 lists are filtered; **the R1 publish verdict and the R5 scores always describe the whole feed**. When a filter is active the JSON gains a `filtered` field and the summary a `filter:` line.
+
+`name_index` is **omitted by default**: on large feeds the stop/shape coordinate tables dominate the payload. Pass `--include-name-index` when you need it.
+
+**Exit codes:** `0` no notices · `1` notices present · `2` fatal or config/file error. With `--fail-on*`, `1` is returned only for a matching notice; other findings are still reported but do not fail the run. In JSON mode stdout is JSON only; errors go to stderr.
+
+```bash
+# CI gate: fail only on official GTFS Spec violations
+gtfs-analyzer validate feed.zip --fail-on-class spec
+
+# Report Spec findings only (scores still describe the whole feed)
+gtfs-analyzer validate feed.zip --class spec --json --pretty -o spec.json
+```
 
 ```python
 import json, subprocess
@@ -217,8 +238,23 @@ proc = subprocess.run(
 )
 # exit 1 means "has notices", not failure — do NOT use check=True
 data = json.loads(proc.stdout)
-result = data["Ok"] if "Ok" in data else data["Fatal"]  # top key is the enum variant
+if data["status"] == "fatal":
+    raise SystemExit(f'{data["code"]}: {data["message"]}')
+for n in data["notices"]:
+    print(n["rule_id"], n["severity"], n["rule_class"])
 ```
+
+### `rules` — rule registry
+
+Lists the whole rule registry without running a validation — meant as the rule dictionary for integrating projects.
+
+```bash
+gtfs-analyzer rules --class spec --severity critical
+gtfs-analyzer rules --rule STM_004 --json --pretty
+```
+
+Fields: `id`, `severity`, `class`, `authority_source`, `base_effort`, `blocks`, `title`.
+The `--class` / `--severity` / `--min-severity` / `--rule` filters mean the same as in `validate`.
 
 ---
 

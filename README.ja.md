@@ -197,16 +197,37 @@ cargo build --release -p gtfs-cli
 target/release/gtfs-analyzer validate feed.zip --json
 ```
 
+### `validate` — フィード検証
+
 | フラグ | 説明 |
 |---|---|
-| `--json` | `ValidateResult` 全体を JSON として stdout に出力 |
-| `--summary` | 短い要約：ステータス、通知数、スコア（デフォルト） |
+| `--json` | 結果全体を JSON として出力 |
+| `--summary` | 短い要約：ステータス、通知数、スコア（デフォルト。`--json` とは併用不可） |
 | `--rule SHP_010` | 指定ルールの通知のみ |
-| `--severity critical` | 重大度でフィルタ（critical/high/medium/low/info） |
+| `--severity critical` | この重大度に完全一致する通知のみ（critical/high/medium/low/info） |
+| `--min-severity high` | この重大度以上（critical が最も重い） |
+| `--class spec` | 指定したルールクラスのみ — `spec,interop,quality,analytics`、カンマ区切りで複数可 |
+| `--fail-on critical` | この重大度以上が存在する場合**のみ** exit 1 |
+| `--fail-on-class spec` | 指定クラスの通知が存在する場合のみ exit 1 |
+| `--pretty` | JSON をインデント出力（`--json` が必要） |
+| `--include-name-index` | `name_index`（停留所/路線/shape の参照表）を JSON に含める |
+| `-o report.json` | stdout ではなくファイルに出力 |
 | `--config config.json` | JSON config デルタを適用（`ValidatorConfig::default()` の上に） |
 | `--today 20260710` | 解析の「今日」を固定（カレンダールール用） |
 
-**終了コード：** `0` 通知なし · `1` 通知あり · `2` 致命的エラーまたは config/ファイルエラー。JSON モードでは stdout は JSON のみ、エラーは stderr。
+**フィルタは表示を絞るだけです。** `notices` と R2–R9 のリストはフィルタされますが、**R1 の公開可否判定と R5 のスコアは常にフィード全体**を表します。フィルタ適用時は JSON に `filtered` フィールド、要約に `filter:` 行が追加されます。
+
+`name_index` は**デフォルトでは出力されません**：大規模フィードでは停留所/shape の座標表がペイロードの大半を占めるためです。必要な場合は `--include-name-index` を指定してください。
+
+**終了コード：** `0` 通知なし · `1` 通知あり · `2` 致命的エラーまたは config/ファイルエラー。`--fail-on*` を指定した場合、`1` は一致する通知があるときのみ返り、その他の指摘は報告されますが実行を失敗させません。JSON モードでは stdout は JSON のみ、エラーは stderr。
+
+```bash
+# CI ゲート：公式 GTFS Spec 違反のみで失敗させる
+gtfs-analyzer validate feed.zip --fail-on-class spec
+
+# Spec の指摘のみを出力（スコアはフィード全体を表す）
+gtfs-analyzer validate feed.zip --class spec --json --pretty -o spec.json
+```
 
 ```python
 import json, subprocess
@@ -217,8 +238,23 @@ proc = subprocess.run(
 )
 # exit 1 は「通知あり」であり失敗ではない — check=True は使わない
 data = json.loads(proc.stdout)
-result = data["Ok"] if "Ok" in data else data["Fatal"]  # トップキーは enum バリアント
+if data["status"] == "fatal":
+    raise SystemExit(f'{data["code"]}: {data["message"]}')
+for n in data["notices"]:
+    print(n["rule_id"], n["severity"], n["rule_class"])
 ```
+
+### `rules` — ルールレジストリ
+
+検証を実行せずにルールレジストリ全体を一覧します — 連携するプロジェクトのルール辞書用です。
+
+```bash
+gtfs-analyzer rules --class spec --severity critical
+gtfs-analyzer rules --rule STM_004 --json --pretty
+```
+
+フィールド：`id`、`severity`、`class`、`authority_source`、`base_effort`、`blocks`、`title`。
+`--class` / `--severity` / `--min-severity` / `--rule` フィルタの意味は `validate` と同じです。
 
 ---
 

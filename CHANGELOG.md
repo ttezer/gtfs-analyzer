@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **`--class` filter (CLI).** Notices can be narrowed to one or more rule classes
+  (`spec,interop,quality,analytics`), so a consumer can ask for the official GTFS Spec
+  violations alone without post-processing the JSON.
+- **`--min-severity` (CLI).** `--severity` matches one severity exactly; the new flag keeps
+  that severity and everything worse, which is what a "critical and high" sweep needs.
+- **`--fail-on` / `--fail-on-class` (CLI).** Exit 1 previously meant "any notice at all",
+  including INFO — true for essentially every real feed, which made the exit code useless as
+  a CI gate. These flags scope the failure to what the pipeline is actually gating on.
+- **`rules` subcommand (CLI).** Lists the rule registry (`id`, `severity`, `class`,
+  `authority_source`, `base_effort`, `blocks`, `title`) as text or JSON, so an integrating
+  project can build its rule dictionary without scraping the docs.
+- **`--version`, `--pretty`, `-o/--output` (CLI).** The binary had no version flag at all.
+- **CLI test suite.** The crate shipped without tests; exit codes, filter semantics, the JSON
+  envelope and the registry listing are now covered.
+
+### Changed
+- **BREAKING — the `--json` envelope is flat.** Output was the raw serde form of the
+  `ValidateResult` enum, so consumers had to unwrap `{"Ok":{…}}` or `{"Fatal":{…}}`. It is now
+  a flat object tagged by a `status` field (`"ok"` / `"fatal"`), with the validation result's
+  fields at the top level. The enum representation is unchanged at the WASM/UI boundary.
+- **BREAKING — `name_index` is no longer included in `--json` by default.** The stop, route and
+  shape lookup tables (including full shape geometry) dominated the payload on large feeds
+  while most automation never reads them. Pass `--include-name-index` to restore it.
+- **BREAKING — `--summary` and `--json` are now mutually exclusive.** Passing both used to
+  silently ignore `--summary`.
+
+### Fixed
+- **CLI filters no longer flip the publish verdict.** `--rule` / `--severity` recomputed R1
+  over the filtered subset, so hiding the critical SPEC notices reported `publishable: true`
+  for a feed with publish blockers — while the R5 scores, left untouched, still showed the
+  penalty. Filters are display-only now: R1 and R5 always describe the whole feed, and the
+  active filter is disclosed in the output (`filtered` in JSON, `filter:` in the summary).
+
 ## [0.6.0] - 2026-07-17
 
 > **Scores are not comparable to 0.5.0.** Several changes move a feed's numbers even though

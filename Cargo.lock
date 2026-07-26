@@ -323,7 +323,10 @@ dependencies = [
  "gtfs-config",
  "gtfs-core",
  "gtfs-pipeline",
+ "gtfs-rules",
+ "serde",
  "serde_json",
+ "zip",
 ]
 
 [[package]]

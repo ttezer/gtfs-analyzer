@@ -1,15 +1,19 @@
 use std::collections::HashSet;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 use chrono::{Datelike, Local};
 use clap::{Args, Parser, Subcommand, ValueEnum};
 use gtfs_config::{merge_delta, ValidatorConfig};
-use gtfs_core::{Severity, ValidateResult, ValidationResult};
+use gtfs_core::{
+    AuthoritySource, NameIndex, Notice, RuleClass, Severity, ValidateResult, ValidationResult,
+};
 use gtfs_pipeline::validate_bytes;
+use gtfs_rules::RULES;
+use serde::Serialize;
 
 #[derive(Debug, Parser)]
-#[command(name = "gtfs-analyzer")]
+#[command(name = "gtfs-analyzer", version)]
 #[command(about = "GTFS feed validator CLI")]
 struct Cli {
     #[command(subcommand)]
@@ -20,6 +24,8 @@ struct Cli {
 enum Command {
     /// Validate a GTFS ZIP feed.
     Validate(ValidateArgs),
+    /// List the rule registry (id, severity, class, authority source, title).
+    Rules(RulesArgs),
 }
 
 #[derive(Debug, Args)]
@@ -27,21 +33,50 @@ struct ValidateArgs {
     /// Path to the GTFS ZIP feed.
     feed: PathBuf,
 
-    /// Emit the full ValidateResult as JSON.
+    /// Emit the full result as JSON.
     #[arg(long)]
     json: bool,
 
     /// Emit a short text summary. This is also the default when --json is absent.
-    #[arg(long)]
+    #[arg(long, conflicts_with = "json")]
     summary: bool,
 
     /// Keep only notices with this rule id.
     #[arg(long)]
     rule: Option<String>,
 
-    /// Keep only notices with this severity.
-    #[arg(long)]
+    /// Keep only notices with exactly this severity.
+    #[arg(long, conflicts_with = "min_severity")]
     severity: Option<SeverityArg>,
+
+    /// Keep notices at this severity or worse (critical is the worst).
+    #[arg(long)]
+    min_severity: Option<SeverityArg>,
+
+    /// Keep only notices in these rule classes (repeatable, comma separated).
+    #[arg(long, value_delimiter = ',')]
+    class: Vec<RuleClassArg>,
+
+    /// Exit 1 only when a notice at this severity or worse exists.
+    #[arg(long)]
+    fail_on: Option<SeverityArg>,
+
+    /// Exit 1 only when a notice in one of these rule classes exists.
+    #[arg(long, value_delimiter = ',')]
+    fail_on_class: Vec<RuleClassArg>,
+
+    /// Pretty-print the JSON output.
+    #[arg(long, requires = "json")]
+    pretty: bool,
+
+    /// Include name_index (stop/route/shape lookup tables) in the JSON output.
+    /// Omitted by default: on large feeds it dominates the payload.
+    #[arg(long, requires = "json")]
+    include_name_index: bool,
+
+    /// Write the output to this file instead of stdout.
+    #[arg(long, short = 'o')]
+    output: Option<PathBuf>,
 
     /// JSON config delta to merge over ValidatorConfig::default().
     #[arg(long)]
@@ -52,7 +87,38 @@ struct ValidateArgs {
     today: Option<u32>,
 }
 
-#[derive(Debug, Clone, Copy, ValueEnum)]
+#[derive(Debug, Args)]
+struct RulesArgs {
+    /// Emit the registry as JSON.
+    #[arg(long)]
+    json: bool,
+
+    /// Keep only rules in these classes (repeatable, comma separated).
+    #[arg(long, value_delimiter = ',')]
+    class: Vec<RuleClassArg>,
+
+    /// Keep only rules with exactly this severity.
+    #[arg(long, conflicts_with = "min_severity")]
+    severity: Option<SeverityArg>,
+
+    /// Keep rules at this severity or worse (critical is the worst).
+    #[arg(long)]
+    min_severity: Option<SeverityArg>,
+
+    /// Keep only the rule with this id.
+    #[arg(long)]
+    rule: Option<String>,
+
+    /// Pretty-print the JSON output.
+    #[arg(long, requires = "json")]
+    pretty: bool,
+
+    /// Write the output to this file instead of stdout.
+    #[arg(long, short = 'o')]
+    output: Option<PathBuf>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
 enum SeverityArg {
     Critical,
     High,
@@ -73,10 +139,127 @@ impl From<SeverityArg> for Severity {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+enum RuleClassArg {
+    Spec,
+    Interop,
+    Quality,
+    Analytics,
+}
+
+impl From<RuleClassArg> for RuleClass {
+    fn from(value: RuleClassArg) -> Self {
+        match value {
+            RuleClassArg::Spec => RuleClass::Spec,
+            RuleClassArg::Interop => RuleClass::Interop,
+            RuleClassArg::Quality => RuleClass::Quality,
+            RuleClassArg::Analytics => RuleClass::Analytics,
+        }
+    }
+}
+
+/// Machine-readable severity token; matches the `Severity` serde representation.
+fn severity_str(severity: Severity) -> &'static str {
+    match severity {
+        Severity::Kritik => "CRITICAL",
+        Severity::Yuksek => "HIGH",
+        Severity::Orta => "MEDIUM",
+        Severity::Dusuk => "LOW",
+        Severity::Bilgi => "INFO",
+    }
+}
+
+/// Machine-readable rule class token; matches the `RuleClass` serde representation.
+fn class_str(class: RuleClass) -> &'static str {
+    match class {
+        RuleClass::Spec => "SPEC",
+        RuleClass::Interop => "INTEROP",
+        RuleClass::Quality => "QUALITY",
+        RuleClass::Analytics => "ANALYTICS",
+    }
+}
+
+fn authority_str(source: AuthoritySource) -> &'static str {
+    match source {
+        AuthoritySource::GtfsSpec => "GTFS_SPEC",
+        AuthoritySource::GtfsBestPractice => "GTFS_BEST_PRACTICE",
+        AuthoritySource::MobilitydataParity => "MOBILITYDATA_PARITY",
+        AuthoritySource::GoogleTransitInterop => "GOOGLE_TRANSIT_INTEROP",
+        AuthoritySource::RegionalProfile => "REGIONAL_PROFILE",
+        AuthoritySource::ProjectQuality => "PROJECT_QUALITY",
+        AuthoritySource::ProjectAnalytics => "PROJECT_ANALYTICS",
+        AuthoritySource::Unknown => "UNKNOWN",
+    }
+}
+
 fn main() -> ExitCode {
     let cli = Cli::parse();
     match cli.command {
         Command::Validate(args) => run_validate(args),
+        Command::Rules(args) => run_rules(args),
+    }
+}
+
+// ── validate ──────────────────────────────────────────────────────────────────
+
+/// Notice-level filters. These are *display* filters: they never change the
+/// publish decision (R1) or the scores (R5), which always describe the whole feed.
+#[derive(Debug, Default)]
+struct Filters {
+    rule: Option<String>,
+    severity: Option<Severity>,
+    min_severity: Option<Severity>,
+    classes: Vec<RuleClass>,
+}
+
+impl Filters {
+    fn is_empty(&self) -> bool {
+        self.rule.is_none()
+            && self.severity.is_none()
+            && self.min_severity.is_none()
+            && self.classes.is_empty()
+    }
+
+    fn matches(&self, notice: &Notice) -> bool {
+        if let Some(rule) = &self.rule {
+            if notice.rule_id != *rule {
+                return false;
+            }
+        }
+        if let Some(wanted) = self.severity {
+            if notice.severity != wanted {
+                return false;
+            }
+        }
+        // `Severity` orders worst-first (Kritik is the smallest variant), so
+        // "at least as severe as X" is `notice.severity <= X`.
+        if let Some(floor) = self.min_severity {
+            if notice.severity > floor {
+                return false;
+            }
+        }
+        if !self.classes.is_empty() && !self.classes.contains(&notice.rule_class) {
+            return false;
+        }
+        true
+    }
+
+    fn describe(&self) -> Vec<String> {
+        let mut parts = Vec::new();
+        if let Some(rule) = &self.rule {
+            parts.push(format!("rule={rule}"));
+        }
+        if let Some(severity) = self.severity {
+            parts.push(format!("severity={}", severity_str(severity)));
+        }
+        if let Some(floor) = self.min_severity {
+            parts.push(format!("min_severity={}", severity_str(floor)));
+        }
+        if !self.classes.is_empty() {
+            let joined: Vec<&str> = self.classes.iter().map(|c| class_str(*c)).collect();
+            parts.push(format!("class={}", joined.join(",")));
+        }
+        parts
     }
 }
 
@@ -95,22 +278,44 @@ fn run_validate(args: ValidateArgs) -> ExitCode {
 
     let today = args.today.unwrap_or_else(today_yyyymmdd);
     let mut result = validate_bytes(&zip_bytes, &config, today);
-    apply_filters(
-        &mut result,
-        args.rule.as_deref(),
-        args.severity.map(Into::into),
-    );
 
-    if args.json {
-        match serde_json::to_string(&result) {
-            Ok(json) => println!("{json}"),
+    let filters = Filters {
+        rule: args.rule.clone(),
+        severity: args.severity.map(Into::into),
+        min_severity: args.min_severity.map(Into::into),
+        classes: args.class.iter().copied().map(Into::into).collect(),
+    };
+    apply_filters(&mut result, &filters);
+
+    if !args.include_name_index {
+        if let ValidateResult::Ok(vr) = &mut result {
+            vr.name_index = NameIndex::default();
+        }
+    }
+
+    let rendered = if args.json {
+        match render_json(&result, &filters, args.pretty) {
+            Ok(json) => json,
             Err(err) => return cli_error(format!("failed to serialize result as JSON: {err}")),
         }
     } else {
-        print_summary(&result);
+        render_summary(&result, &filters)
+    };
+
+    if let Err(err) = write_output(&rendered, args.output.as_deref()) {
+        return cli_error(err);
     }
 
-    exit_code(&result)
+    exit_code(
+        &result,
+        args.fail_on.map(Into::into),
+        &args
+            .fail_on_class
+            .iter()
+            .copied()
+            .map(Into::into)
+            .collect::<Vec<RuleClass>>(),
+    )
 }
 
 fn load_config(path: Option<&PathBuf>) -> Result<ValidatorConfig, String> {
@@ -124,32 +329,28 @@ fn load_config(path: Option<&PathBuf>) -> Result<ValidatorConfig, String> {
     merge_delta(&base, &delta).map_err(|err| format!("invalid config '{}': {err}", path.display()))
 }
 
-fn apply_filters(result: &mut ValidateResult, rule: Option<&str>, severity: Option<Severity>) {
+fn apply_filters(result: &mut ValidateResult, filters: &Filters) {
     let ValidateResult::Ok(vr) = result else {
         return;
     };
 
-    if rule.is_none() && severity.is_none() {
+    if filters.is_empty() {
         return;
     }
 
-    vr.notices.retain(|notice| {
-        rule.map_or(true, |wanted| notice.rule_id == wanted)
-            && severity.map_or(true, |wanted| notice.severity == wanted)
-    });
-
+    vr.notices.retain(|notice| filters.matches(notice));
     prune_reports(vr);
 }
 
+/// Drops report rows whose notice was filtered out.
+///
+/// R1 (`publishable` / `blocker_notice_ids`) and R5 (scores) are deliberately
+/// left alone: they are verdicts about the whole feed. Recomputing them over a
+/// filtered subset used to report `publishable: true` for a feed with critical
+/// blockers whenever a `--rule`/`--severity` filter hid them.
 fn prune_reports(vr: &mut ValidationResult) {
     let kept_notice_ids: HashSet<&str> =
         vr.notices.iter().map(|notice| notice.id.as_str()).collect();
-
-    vr.reports
-        .r1
-        .blocker_notice_ids
-        .retain(|id| kept_notice_ids.contains(id.as_str()));
-    vr.reports.r1.publishable = vr.reports.r1.blocker_notice_ids.is_empty();
 
     vr.reports
         .r2
@@ -183,34 +384,231 @@ fn prune_reports(vr: &mut ValidationResult) {
         .retain(|item| !item.notice_ids.is_empty());
 }
 
-fn print_summary(result: &ValidateResult) {
+// ── output ────────────────────────────────────────────────────────────────────
+
+/// Flat JSON envelope. Deliberately *not* `ValidateResult`'s serde shape: that
+/// one is an externally tagged enum (`{"Ok":{…}}` / `{"Fatal":{…}}`) consumed by
+/// the WASM/UI boundary, which must keep its representation.
+#[derive(Serialize)]
+struct JsonOk<'a> {
+    status: &'static str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    filtered: Option<FilterMeta>,
+    #[serde(flatten)]
+    result: &'a ValidationResult,
+}
+
+#[derive(Serialize)]
+struct JsonFatal<'a> {
+    status: &'static str,
+    code: &'a gtfs_core::FatalCode,
+    message: &'a str,
+}
+
+#[derive(Serialize)]
+struct FilterMeta {
+    applied: Vec<String>,
+    note: &'static str,
+}
+
+const FILTER_NOTE: &str =
+    "notices and reports r2-r9 are filtered; r1 publishability and r5 scores describe the whole feed";
+
+fn filter_meta(filters: &Filters) -> Option<FilterMeta> {
+    if filters.is_empty() {
+        return None;
+    }
+    Some(FilterMeta {
+        applied: filters.describe(),
+        note: FILTER_NOTE,
+    })
+}
+
+fn render_json(
+    result: &ValidateResult,
+    filters: &Filters,
+    pretty: bool,
+) -> Result<String, serde_json::Error> {
     match result {
         ValidateResult::Fatal(err) => {
-            println!("status: FATAL");
-            println!("fatal_code: {:?}", err.code);
-            println!("fatal_message: {}", err.message);
+            let payload = JsonFatal {
+                status: "fatal",
+                code: &err.code,
+                message: &err.message,
+            };
+            serialize(&payload, pretty)
         }
         ValidateResult::Ok(vr) => {
-            println!("status: OK");
-            println!("notices: {}", vr.notices.len());
-            println!("publishable: {}", vr.reports.r1.publishable);
-            println!("score: {:.1}", vr.reports.r5.score);
-            println!("pub_score: {:.1}", vr.reports.r5.pub_score);
-            println!("spec_score: {:.1}", vr.reports.r5.spec_score);
-            println!("interop_score: {:.1}", vr.reports.r5.interop_score);
-            println!("quality_score: {:.1}", vr.reports.r5.quality_score);
-            println!("analytics_score: {:.1}", vr.reports.r5.analytics_score);
+            let payload = JsonOk {
+                status: "ok",
+                filtered: filter_meta(filters),
+                result: vr,
+            };
+            serialize(&payload, pretty)
         }
     }
 }
 
-fn exit_code(result: &ValidateResult) -> ExitCode {
-    match result {
-        ValidateResult::Fatal(_) => ExitCode::from(2),
-        ValidateResult::Ok(vr) if vr.notices.is_empty() => ExitCode::SUCCESS,
-        ValidateResult::Ok(_) => ExitCode::from(1),
+fn serialize<T: Serialize>(value: &T, pretty: bool) -> Result<String, serde_json::Error> {
+    if pretty {
+        serde_json::to_string_pretty(value)
+    } else {
+        serde_json::to_string(value)
     }
 }
+
+fn render_summary(result: &ValidateResult, filters: &Filters) -> String {
+    let mut out = String::new();
+    match result {
+        ValidateResult::Fatal(err) => {
+            out.push_str("status: FATAL\n");
+            out.push_str(&format!("fatal_code: {:?}\n", err.code));
+            out.push_str(&format!("fatal_message: {}\n", err.message));
+        }
+        ValidateResult::Ok(vr) => {
+            out.push_str("status: OK\n");
+            out.push_str(&format!("notices: {}\n", vr.notices.len()));
+            if !filters.is_empty() {
+                out.push_str(&format!("filter: {}\n", filters.describe().join(" ")));
+                out.push_str(&format!("filter_note: {FILTER_NOTE}\n"));
+            }
+            out.push_str(&format!("publishable: {}\n", vr.reports.r1.publishable));
+            out.push_str(&format!("score: {:.1}\n", vr.reports.r5.score));
+            out.push_str(&format!("pub_score: {:.1}\n", vr.reports.r5.pub_score));
+            out.push_str(&format!("spec_score: {:.1}\n", vr.reports.r5.spec_score));
+            out.push_str(&format!(
+                "interop_score: {:.1}\n",
+                vr.reports.r5.interop_score
+            ));
+            out.push_str(&format!(
+                "quality_score: {:.1}\n",
+                vr.reports.r5.quality_score
+            ));
+            out.push_str(&format!(
+                "analytics_score: {:.1}\n",
+                vr.reports.r5.analytics_score
+            ));
+        }
+    }
+    out
+}
+
+fn write_output(text: &str, path: Option<&Path>) -> Result<(), String> {
+    match path {
+        Some(path) => std::fs::write(path, text)
+            .map_err(|err| format!("failed to write '{}': {err}", path.display())),
+        None => {
+            print!("{text}");
+            Ok(())
+        }
+    }
+}
+
+/// `0` clean · `1` findings · `2` fatal or CLI error.
+///
+/// Without `--fail-on*` any notice yields 1 (historical behaviour). With them,
+/// only a matching notice does — the rest are reported but do not fail the run.
+fn exit_code(
+    result: &ValidateResult,
+    fail_on: Option<Severity>,
+    fail_on_class: &[RuleClass],
+) -> ExitCode {
+    let vr = match result {
+        ValidateResult::Fatal(_) => return ExitCode::from(2),
+        ValidateResult::Ok(vr) => vr,
+    };
+
+    if fail_on.is_none() && fail_on_class.is_empty() {
+        return if vr.notices.is_empty() {
+            ExitCode::SUCCESS
+        } else {
+            ExitCode::from(1)
+        };
+    }
+
+    let hit = vr.notices.iter().any(|notice| {
+        fail_on.is_some_and(|floor| notice.severity <= floor)
+            || fail_on_class.contains(&notice.rule_class)
+    });
+    if hit {
+        ExitCode::from(1)
+    } else {
+        ExitCode::SUCCESS
+    }
+}
+
+// ── rules ─────────────────────────────────────────────────────────────────────
+
+#[derive(Serialize)]
+struct RuleRow {
+    id: &'static str,
+    severity: &'static str,
+    class: &'static str,
+    authority_source: &'static str,
+    base_effort: u8,
+    blocks: &'static [&'static str],
+    title: &'static str,
+}
+
+fn run_rules(args: RulesArgs) -> ExitCode {
+    let severity: Option<Severity> = args.severity.map(Into::into);
+    let min_severity: Option<Severity> = args.min_severity.map(Into::into);
+    let classes: Vec<RuleClass> = args.class.iter().copied().map(Into::into).collect();
+
+    let rows: Vec<RuleRow> = RULES
+        .iter()
+        .filter(|meta| {
+            args.rule.as_deref().is_none_or(|id| meta.id == id)
+                && severity.is_none_or(|wanted| meta.severity == wanted)
+                && min_severity.is_none_or(|floor| meta.severity <= floor)
+                && (classes.is_empty() || classes.contains(&meta.rule_class))
+        })
+        .map(|meta| RuleRow {
+            id: meta.id,
+            severity: severity_str(meta.severity),
+            class: class_str(meta.rule_class),
+            authority_source: authority_str(meta.authority_source()),
+            base_effort: meta.base_effort,
+            blocks: meta.blocks,
+            title: meta.title,
+        })
+        .collect();
+
+    if let Some(id) = &args.rule {
+        if rows.is_empty() {
+            return cli_error(format!("unknown rule id '{id}'"));
+        }
+    }
+
+    let rendered = if args.json {
+        match serialize(&rows, args.pretty) {
+            Ok(json) => format!("{json}\n"),
+            Err(err) => return cli_error(format!("failed to serialize rules as JSON: {err}")),
+        }
+    } else {
+        render_rules_table(&rows)
+    };
+
+    if let Err(err) = write_output(&rendered, args.output.as_deref()) {
+        return cli_error(err);
+    }
+
+    ExitCode::SUCCESS
+}
+
+fn render_rules_table(rows: &[RuleRow]) -> String {
+    let mut out = String::new();
+    for row in rows {
+        out.push_str(&format!(
+            "{:<10} {:<8} {:<9} {:<22} {}\n",
+            row.id, row.severity, row.class, row.authority_source, row.title
+        ));
+    }
+    out.push_str(&format!("\n{} rules\n", rows.len()));
+    out
+}
+
+// ── shared ────────────────────────────────────────────────────────────────────
 
 fn cli_error(message: String) -> ExitCode {
     eprintln!("error: {message}");
