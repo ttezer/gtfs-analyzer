@@ -47,7 +47,7 @@ GTFS Validator & Analyzer, spesifikasyon doğrulamasını operasyonel kalite ana
 
 ### Feed Analizi Örnekleri
 
-Aynı feed'ler iki validator ile karşılaştırıldı: MobilityData gtfs-validator v8.0.1 · GTFS Analyzer v0.6.0. (GTFS Analyzer sayıları 2026-07-24 tarihli çalıştırmanın anlık görüntüsüdür; tarihe bağlı kurallar nedeniyle farklı bir günde çalıştırma küçük sapmalar verebilir.)
+Aynı feed'ler iki validator ile karşılaştırıldı: MobilityData gtfs-validator v8.0.1 · GTFS Analyzer v0.7.0. (GTFS Analyzer sayıları 2026-07-24 tarihli çalıştırmanın anlık görüntüsüdür; tarihe bağlı kurallar nedeniyle farklı bir günde çalıştırma küçük sapmalar verebilir.)
 
 #### BART (Bay Area Rapid Transit, San Francisco)
 

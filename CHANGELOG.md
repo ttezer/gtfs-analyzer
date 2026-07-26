@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-07-26
+
+> **Scores are unchanged.** No rule, threshold or pipeline stage was touched in this release:
+> `core`, `rules`, `pipeline`, `config` and `wasm` are byte-for-byte the 0.6.0 logic. A feed
+> validated with 0.7.0 produces exactly the 0.6.0 numbers, so no Golden re-baseline is needed.
+
+This release is about the command-line interface. The CLI existed as a thin wrapper — one
+subcommand, six flags, no tests — which was enough to run a validation by hand but not enough
+to build on: its exit code could not gate CI, its findings could not be narrowed to the
+official GTFS Spec, its JSON forced consumers to unwrap an enum, and it had no English or
+Japanese output at all. The web UI, meanwhile, had all of that.
+
 ### Added
 - **`--class` filter (CLI).** Notices can be narrowed to one or more rule classes
   (`spec,interop,quality,analytics`), so a consumer can ask for the official GTFS Spec
