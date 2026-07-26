@@ -220,6 +220,10 @@ target/release/gtfs-analyzer validate feed.zip --json
 
 `name_index` is **omitted by default**: on large feeds the stop/shape coordinate tables dominate the payload. Pass `--include-name-index` when you need it.
 
+Pass `-` instead of a path to read the ZIP from **stdin**: `curl -sL <url> | gtfs-analyzer validate - --json`. (The ZIP central directory lives at the end of the file, so the archive is buffered in memory rather than streamed.)
+
+> **Counts differ from the web UI.** The browser caps how many findings it keeps per rule for performance (the real totals are reported in `capped_totals`). The CLI applies **no such cap** — the same feed yields more notices and unscaled R9 impact figures. This is expected; do not compare the two outputs count by count.
+
 **Exit codes:** `0` no notices · `1` notices present · `2` fatal or config/file error. With `--fail-on*`, `1` is returned only for a matching notice; other findings are still reported but do not fail the run. In JSON mode stdout is JSON only; errors go to stderr.
 
 ```bash

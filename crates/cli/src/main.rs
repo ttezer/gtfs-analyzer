@@ -33,7 +33,7 @@ enum Command {
 
 #[derive(Debug, Args)]
 struct ValidateArgs {
-    /// Path to the GTFS ZIP feed.
+    /// Path to the GTFS ZIP feed, or `-` to read it from stdin.
     feed: PathBuf,
 
     /// Emit the full result as JSON.
@@ -275,9 +275,9 @@ impl Filters {
 }
 
 fn run_validate(args: ValidateArgs) -> ExitCode {
-    let zip_bytes = match std::fs::read(&args.feed) {
+    let zip_bytes = match read_feed(&args.feed) {
         Ok(bytes) => bytes,
-        Err(err) => return cli_error(format!("failed to read '{}': {err}", args.feed.display())),
+        Err(err) => return cli_error(err),
     };
 
     let config = match load_config(args.config.as_ref()) {
@@ -341,6 +341,21 @@ fn run_validate(args: ValidateArgs) -> ExitCode {
             .map(Into::into)
             .collect::<Vec<RuleClass>>(),
     )
+}
+
+/// Reads the feed ZIP, or the whole of stdin when the path is `-`.
+///
+/// The pipeline needs the archive as one buffer (the ZIP central directory sits
+/// at the end), so a piped feed is read to memory rather than streamed.
+fn read_feed(path: &Path) -> Result<Vec<u8>, String> {
+    if path.as_os_str() == "-" {
+        let mut buf = Vec::new();
+        return std::io::Read::read_to_end(&mut std::io::stdin().lock(), &mut buf)
+            .map(|_| buf)
+            .map_err(|err| format!("failed to read the feed from stdin: {err}"));
+    }
+
+    std::fs::read(path).map_err(|err| format!("failed to read '{}': {err}", path.display()))
 }
 
 fn load_config(path: Option<&PathBuf>) -> Result<ValidatorConfig, String> {

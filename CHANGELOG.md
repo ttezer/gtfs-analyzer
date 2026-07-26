@@ -27,6 +27,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and classes stay machine-readable in every language. The dictionaries are derived from
   `ui/src/locales/{en,ja}.ts` by `npm run locales:export` and embedded in the binary; the
   locale files remain the single source of truth and `locale-parity.test.ts` fails on drift.
+- **Feed from stdin (CLI).** `validate -` reads the ZIP from standard input, so a feed can be
+  piped straight from `curl` without a temporary file.
 - **CLI test suite.** The crate shipped without tests; exit codes, filter semantics, the JSON
   envelope and the registry listing are now covered.
 

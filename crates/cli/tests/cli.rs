@@ -129,6 +129,42 @@ fn missing_feed_file_is_a_cli_error() {
 }
 
 #[test]
+fn feed_can_be_piped_through_stdin() {
+    use std::process::Stdio;
+
+    let mut child = Command::new(env!("CARGO_BIN_EXE_gtfs-analyzer"))
+        .args([
+            "validate", "-", "--today", TODAY, "--json", "--class", "spec",
+        ])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .spawn()
+        .expect("failed to spawn gtfs-analyzer");
+
+    child
+        .stdin
+        .take()
+        .unwrap()
+        .write_all(&make_zip(&base_files(TRIPS_DANGLING_ROUTE)))
+        .unwrap();
+
+    let out = child.wait_with_output().unwrap();
+    let json = json_of(&out);
+
+    assert_eq!(json["status"], "ok");
+    assert!(!json["notices"].as_array().unwrap().is_empty());
+    // Same feed on disk must give the same verdict.
+    let from_disk = json_of(&validate(
+        &feed_with_critical(),
+        &["--json", "--class", "spec"],
+    ));
+    assert_eq!(
+        json["notices"].as_array().unwrap().len(),
+        from_disk["notices"].as_array().unwrap().len()
+    );
+}
+
+#[test]
 fn corrupt_zip_is_fatal_with_exit_2() {
     let path = std::env::temp_dir().join("gtfs-cli-test-corrupt.zip");
     std::fs::write(&path, b"not a zip at all").unwrap();

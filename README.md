@@ -220,6 +220,10 @@ target/release/gtfs-analyzer validate feed.zip --json
 
 `name_index` varsayılan olarak **çıktıya dahil edilmez**: büyük feed'lerde shape/durak koordinat tabloları JSON'un neredeyse tamamını kaplar. Gerekiyorsa `--include-name-index` ile açın.
 
+Feed yolu yerine `-` verilirse ZIP **stdin'den** okunur: `curl -sL <url> | gtfs-analyzer validate - --json`. (ZIP merkezi dizini dosyanın sonunda olduğundan arşiv belleğe alınır, akış hâlinde işlenmez.)
+
+> **Arayüzle sayı farkı:** Tarayıcı, kural başına bulgu örneklerini performans için sınırlar (gerçek toplamlar `capped_totals`'ta bildirilir). CLI bu sınırı **uygulamaz** — aynı feed'de daha çok notice ve sınırlanmamış R9 etki değerleri döner. Fark beklenen davranıştır; iki çıktıyı doğrudan sayı sayı karşılaştırmayın.
+
 **Exit kodları:** `0` notice yok · `1` notice var · `2` fatal ya da config/dosya hatası. `--fail-on*` verildiğinde `1` yalnızca eşleşen notice varsa döner; diğer bulgular raporlanır ama koşuyu düşürmez. JSON modunda stdout yalnızca JSON'dur; hatalar stderr'e yazılır.
 
 ```bash
