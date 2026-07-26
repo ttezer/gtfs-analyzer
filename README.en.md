@@ -212,6 +212,7 @@ target/release/gtfs-analyzer validate feed.zip --json
 | `--pretty` | Indent the JSON output (requires `--json`) |
 | `--include-name-index` | Include `name_index` (stop/route/shape lookup tables) in the JSON |
 | `-o report.json` | Write the output to a file instead of stdout |
+| `--lang en` | Language of the finding texts: `tr` (default) / `en` / `ja` |
 | `--config config.json` | Apply a JSON config delta (on top of `ValidatorConfig::default()`) |
 | `--today 20260710` | Pin the analysis "today" (for calendar rules) |
 
@@ -255,6 +256,15 @@ gtfs-analyzer rules --rule STM_004 --json --pretty
 
 Fields: `id`, `severity`, `class`, `authority_source`, `base_effort`, `blocks`, `title`.
 The `--class` / `--severity` / `--min-severity` / `--rule` filters mean the same as in `validate`.
+`--lang` applies here too (rule titles).
+
+### Output language
+
+The validation core emits its finding texts in Turkish; `--lang en` / `--lang ja` replace them using the **same translation dictionaries the web UI uses**. Rule ids, severities and classes (`CRITICAL`, `SPEC`) stay machine-readable in every language — only `title`, `message` and `remediation` are translated.
+
+When a rule has no translation the chain is: requested language → English → Turkish (the core's own text), so the output is never blank.
+
+The dictionaries are derived from `ui/src/locales/{en,ja}.ts` into `crates/cli/locales/*.json` by `npm run locales:export` and embedded in the CLI binary. If a locale is edited without re-running the export, `locale-parity.test.ts` fails in CI — the locale files remain the single source of truth.
 
 ---
 

@@ -7,6 +7,9 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
+    // locale-parity.test.ts, Rust CLI'ye gömülen türetilmiş sözlükleri
+    // (crates/cli/locales/*.json) doğrudan import ederek drift'i yakalar.
+    "resolveJsonModule": true,
     "lib": ["ESNext", "DOM"],
     "skipLibCheck": true
   },

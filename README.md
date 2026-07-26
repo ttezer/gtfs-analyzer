@@ -212,6 +212,7 @@ target/release/gtfs-analyzer validate feed.zip --json
 | `--pretty` | JSON'ı girintili yazar (`--json` gerektirir) |
 | `--include-name-index` | `name_index`'i (durak/hat/shape arama tabloları) JSON'a dahil eder |
 | `-o rapor.json` | Çıktıyı stdout yerine dosyaya yazar |
+| `--lang en` | Bulgu metinlerinin dili: `tr` (varsayılan) / `en` / `ja` |
 | `--config config.json` | JSON config delta uygular (`ValidatorConfig::default()` üzerine) |
 | `--today 20260710` | Analiz "bugün"ünü sabitler (takvim kuralları için) |
 
@@ -255,6 +256,15 @@ gtfs-analyzer rules --rule STM_004 --json --pretty
 
 Alanlar: `id`, `severity`, `class`, `authority_source`, `base_effort`, `blocks`, `title`.
 `--class` / `--severity` / `--min-severity` / `--rule` filtreleri `validate` ile aynı anlamdadır.
+`--lang` burada da geçerlidir (kural başlıkları).
+
+### Çıktı dili
+
+Doğrulama çekirdeği bulgu metinlerini Türkçe üretir; `--lang en` / `--lang ja` bunları arayüzün kullandığı **aynı çeviri sözlükleriyle** değiştirir. Kural ID'leri, önem ve sınıf değerleri (`CRITICAL`, `SPEC`) her dilde makine-okunur sabit kalır; yalnızca `title`, `message` ve `remediation` çevrilir.
+
+Bir kuralın çevirisi yoksa sıra şudur: istenen dil → İngilizce → Türkçe (çekirdeğin ürettiği metin). Böylece çıktı hiçbir zaman boş kalmaz.
+
+Sözlükler `ui/src/locales/{en,ja}.ts` dosyalarından `npm run locales:export` ile `crates/cli/locales/*.json` içine türetilir ve CLI binary'sine gömülür. Locale güncellenip export çalıştırılmazsa `locale-parity.test.ts` CI'da kırmızı yanar — tek kaynak locale dosyalarıdır.
 
 ---
 

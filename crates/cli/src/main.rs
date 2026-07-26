@@ -12,6 +12,9 @@ use gtfs_pipeline::validate_bytes;
 use gtfs_rules::RULES;
 use serde::Serialize;
 
+mod i18n;
+use i18n::{LangArg, Translator};
+
 #[derive(Debug, Parser)]
 #[command(name = "gtfs-analyzer", version)]
 #[command(about = "GTFS feed validator CLI")]
@@ -78,6 +81,10 @@ struct ValidateArgs {
     #[arg(long, short = 'o')]
     output: Option<PathBuf>,
 
+    /// Language for notice titles, messages and remediations.
+    #[arg(long, value_enum, default_value = "tr")]
+    lang: LangArg,
+
     /// JSON config delta to merge over ValidatorConfig::default().
     #[arg(long)]
     config: Option<PathBuf>,
@@ -116,6 +123,10 @@ struct RulesArgs {
     /// Write the output to this file instead of stdout.
     #[arg(long, short = 'o')]
     output: Option<PathBuf>,
+
+    /// Language for rule titles.
+    #[arg(long, value_enum, default_value = "tr")]
+    lang: LangArg,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
@@ -274,6 +285,13 @@ fn run_validate(args: ValidateArgs) -> ExitCode {
         Err(err) => return cli_error(err),
     };
 
+    // Parsed before the pipeline runs: a broken dictionary should fail fast
+    // rather than after a multi-minute validation.
+    let translator = match Translator::new(args.lang) {
+        Ok(translator) => translator,
+        Err(err) => return cli_error(err),
+    };
+
     suppress_pipeline_timing_by_default();
 
     let today = args.today.unwrap_or_else(today_yyyymmdd);
@@ -286,6 +304,13 @@ fn run_validate(args: ValidateArgs) -> ExitCode {
         classes: args.class.iter().copied().map(Into::into).collect(),
     };
     apply_filters(&mut result, &filters);
+
+    // After filtering: no point translating notices that were dropped.
+    if let (Some(translator), ValidateResult::Ok(vr)) = (&translator, &mut result) {
+        for notice in &mut vr.notices {
+            translator.translate(notice);
+        }
+    }
 
     if !args.include_name_index {
         if let ValidateResult::Ok(vr) = &mut result {
@@ -540,20 +565,25 @@ fn exit_code(
 // ── rules ─────────────────────────────────────────────────────────────────────
 
 #[derive(Serialize)]
-struct RuleRow {
+struct RuleRow<'a> {
     id: &'static str,
     severity: &'static str,
     class: &'static str,
     authority_source: &'static str,
     base_effort: u8,
     blocks: &'static [&'static str],
-    title: &'static str,
+    title: &'a str,
 }
 
 fn run_rules(args: RulesArgs) -> ExitCode {
     let severity: Option<Severity> = args.severity.map(Into::into);
     let min_severity: Option<Severity> = args.min_severity.map(Into::into);
     let classes: Vec<RuleClass> = args.class.iter().copied().map(Into::into).collect();
+
+    let translator = match Translator::new(args.lang) {
+        Ok(translator) => translator,
+        Err(err) => return cli_error(err),
+    };
 
     let rows: Vec<RuleRow> = RULES
         .iter()
@@ -570,7 +600,10 @@ fn run_rules(args: RulesArgs) -> ExitCode {
             authority_source: authority_str(meta.authority_source()),
             base_effort: meta.base_effort,
             blocks: meta.blocks,
-            title: meta.title,
+            title: match &translator {
+                Some(translator) => translator.rule_title(meta.id, meta.title),
+                None => meta.title,
+            },
         })
         .collect();
 

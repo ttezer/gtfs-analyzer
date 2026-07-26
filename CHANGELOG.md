@@ -20,6 +20,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `authority_source`, `base_effort`, `blocks`, `title`) as text or JSON, so an integrating
   project can build its rule dictionary without scraping the docs.
 - **`--version`, `--pretty`, `-o/--output` (CLI).** The binary had no version flag at all.
+- **`--lang tr|en|ja` (CLI).** The pipeline emits its finding texts in Turkish, so the CLI —
+  unlike the web UI — had no English or Japanese output at all. Notice titles, messages and
+  remediations are now translated through the very dictionaries the UI uses, with the UI's
+  fallback chain (requested language → English → the pipeline's Turkish). Rule ids, severities
+  and classes stay machine-readable in every language. The dictionaries are derived from
+  `ui/src/locales/{en,ja}.ts` by `npm run locales:export` and embedded in the binary; the
+  locale files remain the single source of truth and `locale-parity.test.ts` fails on drift.
 - **CLI test suite.** The crate shipped without tests; exit codes, filter semantics, the JSON
   envelope and the registry listing are now covered.
 

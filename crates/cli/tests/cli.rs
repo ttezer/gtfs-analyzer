@@ -5,7 +5,7 @@
 //! by `gtfs-pipeline`'s integration tests.
 
 use std::io::Write as _;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 
 use zip::write::SimpleFileOptions;
@@ -52,10 +52,20 @@ fn base_files(trips: &'static [u8]) -> Vec<(&'static str, &'static [u8])> {
     ]
 }
 
-/// Writes a fixture ZIP next to the test binary and returns its path.
+/// Writes a fixture ZIP to the temp dir and returns its path.
+///
+/// Tests run in parallel and several share a fixture, so the write goes to a
+/// per-caller temp name and is then renamed into place: a plain `fs::write`
+/// truncates the file a concurrent test may already be reading.
 fn write_feed(name: &str, files: &[(&str, &[u8])]) -> PathBuf {
     let path = std::env::temp_dir().join(format!("gtfs-cli-test-{name}.zip"));
-    std::fs::write(&path, make_zip(files)).unwrap();
+    let staging = std::env::temp_dir().join(format!(
+        "gtfs-cli-test-{name}.{:?}.tmp",
+        std::thread::current().id()
+    ));
+
+    std::fs::write(&staging, make_zip(files)).unwrap();
+    std::fs::rename(&staging, &path).unwrap();
     path
 }
 
@@ -76,7 +86,7 @@ fn run(args: &[&str]) -> Output {
         .expect("failed to run gtfs-analyzer")
 }
 
-fn validate(feed: &PathBuf, extra: &[&str]) -> Output {
+fn validate(feed: &Path, extra: &[&str]) -> Output {
     let mut args = vec!["validate", feed.to_str().unwrap(), "--today", TODAY];
     args.extend_from_slice(extra);
     run(&args)
@@ -367,4 +377,71 @@ fn rules_text_output_ends_with_a_count() {
     let out = run(&["rules", "--class", "spec"]);
     let text = stdout_of(&out);
     assert!(text.trim_end().ends_with("rules"));
+}
+
+// ── --lang ────────────────────────────────────────────────────────────────────
+
+/// The fixture's blocker is TRP_002; its notice carries `{entity_id}`-style
+/// placeholders, so this also proves interpolation survives the CLI path.
+fn first_spec_notice(feed: &Path, lang: &str) -> serde_json::Value {
+    let out = validate(feed, &["--json", "--class", "spec", "--lang", lang]);
+    json_of(&out)["notices"][0].clone()
+}
+
+#[test]
+fn lang_defaults_to_the_pipelines_turkish_text() {
+    let feed = feed_with_critical();
+    let default = first_spec_notice(&feed, "tr");
+    let explicit = json_of(&validate(&feed, &["--json", "--class", "spec"]))["notices"][0].clone();
+
+    assert_eq!(default["title"], explicit["title"]);
+    assert_eq!(default["message"], explicit["message"]);
+}
+
+#[test]
+fn lang_en_translates_title_message_and_remediation() {
+    let feed = feed_with_critical();
+    let tr = first_spec_notice(&feed, "tr");
+    let en = first_spec_notice(&feed, "en");
+
+    assert_eq!(en["rule_id"], tr["rule_id"], "same notice, different text");
+    for field in ["title", "message", "remediation"] {
+        assert_ne!(en[field], tr[field], "{field} should be translated");
+        assert!(
+            en[field].as_str().unwrap().is_ascii(),
+            "expected English {field}, got: {}",
+            en[field]
+        );
+    }
+    // Placeholders resolved from the notice, not left as `{entity_id}`.
+    let message = en["message"].as_str().unwrap();
+    assert!(!message.contains('{'), "unfilled placeholder in: {message}");
+    assert!(message.contains("R9"), "entity not interpolated: {message}");
+}
+
+#[test]
+fn lang_ja_differs_from_both_tr_and_en() {
+    let feed = feed_with_critical();
+    let ja = first_spec_notice(&feed, "ja");
+
+    assert_ne!(ja["message"], first_spec_notice(&feed, "tr")["message"]);
+    assert_ne!(ja["message"], first_spec_notice(&feed, "en")["message"]);
+    assert!(!ja["message"].as_str().unwrap().contains('{'));
+}
+
+#[test]
+fn rules_subcommand_honours_lang() {
+    let tr = json_of(&run(&["rules", "--json", "--rule", "TRP_002"]));
+    let en = json_of(&run(&[
+        "rules", "--json", "--rule", "TRP_002", "--lang", "en",
+    ]));
+
+    assert_ne!(en[0]["title"], tr[0]["title"]);
+    assert!(en[0]["title"].as_str().unwrap().is_ascii());
+}
+
+#[test]
+fn unknown_lang_is_rejected() {
+    let out = validate(&feed_ok(), &["--lang", "de"]);
+    assert_eq!(code(&out), 2);
 }

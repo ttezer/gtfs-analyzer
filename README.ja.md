@@ -212,6 +212,7 @@ target/release/gtfs-analyzer validate feed.zip --json
 | `--pretty` | JSON をインデント出力（`--json` が必要） |
 | `--include-name-index` | `name_index`（停留所/路線/shape の参照表）を JSON に含める |
 | `-o report.json` | stdout ではなくファイルに出力 |
+| `--lang en` | 指摘テキストの言語：`tr`（デフォルト）/ `en` / `ja` |
 | `--config config.json` | JSON config デルタを適用（`ValidatorConfig::default()` の上に） |
 | `--today 20260710` | 解析の「今日」を固定（カレンダールール用） |
 
@@ -255,6 +256,15 @@ gtfs-analyzer rules --rule STM_004 --json --pretty
 
 フィールド：`id`、`severity`、`class`、`authority_source`、`base_effort`、`blocks`、`title`。
 `--class` / `--severity` / `--min-severity` / `--rule` フィルタの意味は `validate` と同じです。
+`--lang` はここでも有効です（ルールのタイトル）。
+
+### 出力言語
+
+検証コアは指摘テキストをトルコ語で生成します。`--lang en` / `--lang ja` は、**Web UI と同じ翻訳辞書**を使ってそれらを置き換えます。ルール ID、重大度、クラス（`CRITICAL`、`SPEC`）はどの言語でも機械可読な値のままで、翻訳されるのは `title`、`message`、`remediation` のみです。
+
+ルールの翻訳がない場合の順序は、指定言語 → 英語 → トルコ語（コアが生成したテキスト）です。出力が空になることはありません。
+
+辞書は `npm run locales:export` により `ui/src/locales/{en,ja}.ts` から `crates/cli/locales/*.json` へ生成され、CLI バイナリに埋め込まれます。locale を更新して export を実行しなかった場合は `locale-parity.test.ts` が CI で失敗します — 単一の情報源は locale ファイルです。
 
 ---
 
