@@ -188,13 +188,24 @@ Even when the UI retains a limited number of finding examples for performance, t
 
 Besides the web UI, you can run the same validation core (`gtfs_pipeline::validate_bytes`) from a terminal — for Python/automation integration.
 
-```bash
-# From source
-cargo run -p gtfs-cli -- validate feed.zip --json
+### Installation
 
-# Release binary
+Without installing Rust: download the archive for your platform from [Releases](https://github.com/ttezer/gtfs-analyzer/releases) (`x86_64-linux`, `aarch64-macos`, `x86_64-windows`), unpack it and put the `gtfs-analyzer` binary on your `PATH`.
+
+```bash
+# Linux / macOS — latest release
+curl -sL https://github.com/ttezer/gtfs-analyzer/releases/latest/download/gtfs-analyzer-x86_64-linux.tar.gz | tar xz
+./gtfs-analyzer --version
+```
+
+To build from source:
+
+```bash
 cargo build --release -p gtfs-cli
 target/release/gtfs-analyzer validate feed.zip --json
+
+# or directly
+cargo run -p gtfs-cli -- validate feed.zip --json
 ```
 
 ### `validate` — feed validation

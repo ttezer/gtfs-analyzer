@@ -188,13 +188,24 @@ GTFS Analyzer は Web アプリケーションです — インストール不�
 
 Web UI に加えて、同じ検証コア（`gtfs_pipeline::validate_bytes`）をターミナルから実行できます — Python/自動化連携向け。
 
-```bash
-# ソースから
-cargo run -p gtfs-cli -- validate feed.zip --json
+### インストール
 
-# リリースバイナリ
+Rust をインストールせずに使う場合：[Releases](https://github.com/ttezer/gtfs-analyzer/releases) からお使いのプラットフォーム向けアーカイブ（`x86_64-linux`、`aarch64-macos`、`x86_64-windows`）をダウンロードし、展開して `gtfs-analyzer` バイナリを `PATH` に配置します。
+
+```bash
+# Linux / macOS — 最新リリース
+curl -sL https://github.com/ttezer/gtfs-analyzer/releases/latest/download/gtfs-analyzer-x86_64-linux.tar.gz | tar xz
+./gtfs-analyzer --version
+```
+
+ソースからビルドする場合：
+
+```bash
 cargo build --release -p gtfs-cli
 target/release/gtfs-analyzer validate feed.zip --json
+
+# または直接
+cargo run -p gtfs-cli -- validate feed.zip --json
 ```
 
 ### `validate` — フィード検証

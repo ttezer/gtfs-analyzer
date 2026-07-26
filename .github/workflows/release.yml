@@ -1,0 +1,128 @@
+name: Release
+
+# Sürüm tag'i push edildiğinde CLI binary'lerini derleyip GitHub Release'e yükler.
+# Amaç: entegre eden projelerin Rust toolchain kurmadan gtfs-analyzer'ı çalıştırabilmesi.
+#
+# Akış: önce TASLAK release açılır → matris her platformun asset'ini oraya yükler →
+# hepsi başarılıysa taslak yayına alınır. Böylece bir platform derlenemezse yarım
+# bir release yayınlanmaz.
+#
+# Web arayüzü bu workflow'dan etkilenmez; onu ci.yml'deki deploy job'ı yayınlar.
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+jobs:
+  create-release:
+    name: Taslak Release aç
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Taslak release oluştur
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ github.ref_name }}" \
+            --draft \
+            --title "${{ github.ref_name }}" \
+            --generate-notes
+
+  build:
+    name: ${{ matrix.asset }}
+    needs: create-release
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            asset: gtfs-analyzer-x86_64-linux.tar.gz
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            asset: gtfs-analyzer-aarch64-macos.tar.gz
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            asset: gtfs-analyzer-x86_64-windows.zip
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Rust toolchain kur
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Cargo cache
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-release-${{ matrix.target }}-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-release-${{ matrix.target }}-
+
+      # Release profili lto="fat" + codegen-units=1 kullanır (Cargo.toml).
+      - name: CLI derle
+        run: cargo build --release -p gtfs-cli --target ${{ matrix.target }}
+
+      # Yüklenen binary'nin gerçekten çalıştığını ve sürümünün tag ile eşleştiğini
+      # doğrula — yanlış sürüm yayınlamak sessiz ve pahalı bir hatadır.
+      - name: Binary'yi doğrula ve arşivi hazırla
+        shell: bash
+        run: |
+          NAME=gtfs-analyzer
+          if [ "${{ runner.os }}" = "Windows" ]; then NAME=gtfs-analyzer.exe; fi
+          BIN="target/${{ matrix.target }}/release/$NAME"
+
+          # Duman testi: binary çalışıyor mu, kural kaydı okunabiliyor mu.
+          "$BIN" --version
+          "$BIN" rules --class spec --severity critical | tail -1
+
+          # Tag ile Cargo.toml sürümü ayrışmışsa yanlış sürüm yayınlamaktansa kır.
+          EXPECTED="${GITHUB_REF_NAME#v}"
+          ACTUAL="$("$BIN" --version | awk '{print $2}')"
+          if [ "$EXPECTED" != "$ACTUAL" ]; then
+            echo "sürüm uyuşmuyor: tag=$EXPECTED binary=$ACTUAL (crates/cli/Cargo.toml güncellendi mi?)"
+            exit 1
+          fi
+
+          mkdir stage
+          cp "$BIN" LICENSE README.md README.en.md README.ja.md stage/
+
+      - name: Arşivle (tar.gz)
+        if: runner.os != 'Windows'
+        run: tar -czf "${{ matrix.asset }}" -C stage .
+
+      - name: Arşivle (zip)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: (cd stage && 7z a "../${{ matrix.asset }}" .)
+
+      - name: Taslak release'e yükle
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "${{ github.ref_name }}" "${{ matrix.asset }}" --clobber
+
+  publish:
+    name: Release'i yayına al
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Taslağı yayınla
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release edit "${{ github.ref_name }}" --draft=false

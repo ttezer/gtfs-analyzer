@@ -188,13 +188,24 @@ Arayüzde performans için sınırlandırılmış bulgu örnekleri bulunsa bile 
 
 Web arayüzü dışında, aynı doğrulama çekirdeğini (`gtfs_pipeline::validate_bytes`) terminalden çalıştırabilirsiniz — Python/otomasyon entegrasyonu için.
 
-```bash
-# Kaynaktan
-cargo run -p gtfs-cli -- validate feed.zip --json
+### Kurulum
 
-# Release binary
+Rust kurmadan: [Releases](https://github.com/ttezer/gtfs-analyzer/releases) sayfasından platformunuza uygun arşivi indirin (`x86_64-linux`, `aarch64-macos`, `x86_64-windows`), açın ve `gtfs-analyzer` binary'sini `PATH`'inize koyun.
+
+```bash
+# Linux / macOS — en son sürüm
+curl -sL https://github.com/ttezer/gtfs-analyzer/releases/latest/download/gtfs-analyzer-x86_64-linux.tar.gz | tar xz
+./gtfs-analyzer --version
+```
+
+Kaynaktan derlemek için:
+
+```bash
 cargo build --release -p gtfs-cli
 target/release/gtfs-analyzer validate feed.zip --json
+
+# ya da doğrudan
+cargo run -p gtfs-cli -- validate feed.zip --json
 ```
 
 ### `validate` — feed doğrulama
