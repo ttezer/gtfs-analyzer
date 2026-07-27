@@ -2,7 +2,7 @@ use gtfs_core::{EntityType, Notice, Severity};
 use rustc_hash::{FxHashMap, FxHashSet};
 use smol_str::SmolStr;
 use std::borrow::Cow;
-use std::io::{BufReader, Cursor, Read};
+use std::io::{Cursor, Read};
 
 use super::common::{get_col, make_k2_notice};
 use crate::k1_parse::RawFile;
@@ -707,13 +707,26 @@ fn count_zip_rows(zb: &[u8], file_name: &str) -> Option<usize> {
 // #38: Büyük dosyalar (stop_times, trips, calendar_dates) K2 ZIP'ten satır satır okur.
 // trips ve calendar_dates da aynı struct'ı kullanır (pub(crate)).
 pub(crate) struct ZipCsvReader<R: Read> {
-    inner: BufReader<R>,
+    inner: R,
+    /// 64 KB okuma penceresi. `BufReader` yerine doğrudan tutulur: eskiden her bayt
+    /// `BufReader::read(&mut [0u8; 1])` ile alınıyordu — stop_times.txt'in 402 MB'ı için
+    /// ~402 milyon `read` çağrısı. Şimdi bayt başına yalnız indeks ilerlemesi var,
+    /// gerçek okuma 64 KB'da bir yapılır.
+    buf: Box<[u8]>,
+    pos: usize,
+    filled: usize,
     pending: Option<u8>,
 }
 
 impl<R: Read> ZipCsvReader<R> {
     pub(crate) fn new(r: R) -> Self {
-        Self { inner: BufReader::with_capacity(65536, r), pending: None }
+        Self {
+            inner: r,
+            buf: vec![0u8; 65536].into_boxed_slice(),
+            pos: 0,
+            filled: 0,
+            pending: None,
+        }
     }
 
     #[inline(always)]
@@ -721,11 +734,19 @@ impl<R: Read> ZipCsvReader<R> {
         if let Some(b) = self.pending.take() {
             return Some(b);
         }
-        let mut buf = [0u8; 1];
-        match self.inner.read(&mut buf) {
-            Ok(1) => Some(buf[0]),
-            _ => None,
+        if self.pos == self.filled {
+            // Kısa okuma normaldir (deflate akışı): 0 = EOF, hata = akış sonu.
+            match self.inner.read(&mut self.buf) {
+                Ok(0) | Err(_) => return None,
+                Ok(n) => {
+                    self.filled = n;
+                    self.pos = 0;
+                }
+            }
         }
+        let b = self.buf[self.pos];
+        self.pos += 1;
+        Some(b)
     }
 
     /// `out[fi]`'yi yazıma hazırlar: varsa içeriğini boşaltır (KAPASİTE KORUNUR),

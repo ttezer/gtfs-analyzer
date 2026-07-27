@@ -12,6 +12,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > unaffected. Re-baseline Golden snapshots that contain it.
 
 ### Changed
+- **The CSV reader no longer calls `read` once per byte.** `ZipCsvReader::next_byte` pulled a
+  single byte at a time through `BufReader::read(&mut [0u8; 1])` — roughly 402 million calls for
+  stop_times.txt alone on VBB. The reader now owns its 64 KB window and advances an index,
+  touching the underlying stream once per window. The CSV state machine is untouched. Measured
+  on VBB across three warm runs: K2::stop_times 3,903 → ~3,577 ms, K2-validate 5,117 → ~4,665 ms,
+  wall clock ~10.2 → ~9.2-9.5 s. Output byte-identical.
 - **The CSV reader reuses its field buffers.** `ZipCsvReader::next_record` allocated a fresh
   `Vec` per field and dropped its capacity through `mem::take` on every delimiter — about 57
   million allocations on a feed the size of VBB (5.68M rows × ~10 fields). The buffers are now
