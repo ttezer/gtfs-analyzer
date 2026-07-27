@@ -586,6 +586,10 @@ pub static RULES: &[RuleMeta] = &[
         "Flex penceresi tanımlıyken continuous_pickup 1/boş dışında yasak"),
     r!("STM_055", Yuksek, Spec, 1, &[], Some("trip_id"), VS, Entity,
         "Flex penceresi tanımlıyken continuous_drop_off 1/boş dışında yasak"),
+    // MD paritesi: `decreasing_or_equal_stop_time_distance` (ERROR). GTFS Reference,
+    // stop_times.shape_dist_traveled için stop_sequence boyunca ARTAN değer şart koşar.
+    r!("STM_056", Kritik, Spec, 1, &[], Some("trip_id"), VS_K, Row,
+        "shape_dist_traveled artmıyor"),
 
     // ── PDW: Pickup/Drop-off Window ──────────────────────────────────────────
     r!("PDW_006", Orta, Analytics, 2, &[], Some("trip_id"), VA, Entity,
@@ -1792,6 +1796,7 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("STM_053", ProjectQuality),
     ("STM_054", GtfsSpec),
     ("STM_055", GtfsSpec),
+    ("STM_056", GtfsSpec),
     ("STP_001", GtfsSpec),
     ("STP_002", GtfsSpec),
     ("STP_003", GtfsSpec),

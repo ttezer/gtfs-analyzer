@@ -1282,6 +1282,8 @@ fn fixtures() -> Vec<Fixture> {
         ]),
         // STM_032: (trip_id, stop_sequence) tekrarı (k2).
         fx("STM_032", vec![("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\nT1,08:10:00,08:10:00,S2,1\n")]),
+        // STM_056: ardışık shape_dist_traveled artmıyor (ikinci değer birinciye eşit).
+        fx("STM_056", vec![("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence,shape_dist_traveled\nT1,08:00:00,08:00:00,S1,1,100.0\nT1,08:10:00,08:10:00,S2,2,100.0\n")]),
         // STM_033: tek duraklı sefer (k4).
         fx("STM_033", vec![("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\n")]),
         // STM_035: aynı durak ardışık iki kez (k6).

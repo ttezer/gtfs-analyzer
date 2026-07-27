@@ -1817,8 +1817,12 @@ pub fn validate_stop_times(file: &RawFile, zip_bytes: Option<&[u8]>) -> (StopTim
     // Process closure'da değil (seen_seq set kaldırıldı); burada windows(2) ile O(n) tespit.
     {
         let _t_032 = crate::timing::Timer::start("K2::st::fin::stm032");
-        for (tid, agg) in &st.trips_agg {
+        // trips_agg bir HashMap; emisyon sırası deterministik olsun diye trip_id'ye göre gez.
+        let mut tids: Vec<&SmolStr> = st.trips_agg.keys().collect();
+        tids.sort_unstable();
+        for tid in tids {
             if tid.is_empty() { continue; }
+            let agg = &st.trips_agg[tid];
             let (s, e) = (offsets[agg.idx as usize] as usize, offsets[agg.idx as usize + 1] as usize);
             for w in rows[s..e].windows(2) {
                 let (a, b) = (&w[0], &w[1]);
@@ -1829,6 +1833,21 @@ pub fn validate_stop_times(file: &RawFile, zip_bytes: Option<&[u8]>) -> (StopTim
                         Some(b.sequence.to_string()), None,
                         format!("trip_id '{}' için stop_sequence {} tekrar ediyor.", tid, b.sequence),
                         "Her (trip_id, stop_sequence) çifti stop_times.txt'te benzersiz olmalıdır.",
+                    ));
+                }
+                // STM_056 (MD `decreasing_or_equal_stop_time_distance`): stop_sequence boyunca
+                // shape_dist_traveled ARTMALI. Yalnız iki satırda da değer varsa karşılaştırılır;
+                // eksik değer STM_017'nin konusudur. NaN karşılaştırması false döner, guard şart.
+                if a.dist_f32.is_finite() && b.dist_f32.is_finite() && b.dist_f32 <= a.dist_f32 {
+                    st.notices.push(make_k2_notice(
+                        &mut st.counter, "STM_056", EntityType::Trip, Some(tid.to_string()),
+                        None, &file.name, Some(b.line as u64), Some("shape_dist_traveled"),
+                        Some(format!("{}", b.dist_f32)), Some(format!("> {}", a.dist_f32)),
+                        format!(
+                            "'{}' seferinde shape_dist_traveled artmıyor: stop_sequence {} değeri {}, önceki durakta {}. Değerler stop_sequence boyunca artmalıdır.",
+                            tid, b.sequence, b.dist_f32, a.dist_f32
+                        ),
+                        "stop_times.txt'te shape_dist_traveled değerlerini stop_sequence sırasına göre artan biçimde düzeltin.",
                     ));
                 }
             }
@@ -2216,6 +2235,46 @@ mod tests {
         );
         let (_, notices) = validate_stop_times(&file, None);
         assert!(notices.iter().any(|n| n.rule_id == "STM_032"), "STM_032 bekleniyor: {:?}", notices);
+    }
+
+    #[test]
+    fn non_increasing_shape_dist_produces_stm_056() {
+        let cols = vec!["trip_id", "arrival_time", "departure_time", "stop_id", "stop_sequence", "shape_dist_traveled"];
+        // eşit değer
+        let file = make_file(cols.clone(), vec![
+            vec!["T1", "08:00:00", "08:00:00", "S1", "1", "100.0"],
+            vec!["T1", "08:10:00", "08:10:00", "S2", "2", "100.0"],
+        ]);
+        let (_, notices) = validate_stop_times(&file, None);
+        assert!(notices.iter().any(|n| n.rule_id == "STM_056"), "eşit değer STM_056 üretmeli: {notices:?}");
+
+        // azalan değer
+        let file = make_file(cols.clone(), vec![
+            vec!["T1", "08:00:00", "08:00:00", "S1", "1", "250.0"],
+            vec!["T1", "08:10:00", "08:10:00", "S2", "2", "100.0"],
+        ]);
+        let (_, notices) = validate_stop_times(&file, None);
+        assert!(notices.iter().any(|n| n.rule_id == "STM_056"), "azalan değer STM_056 üretmeli");
+    }
+
+    #[test]
+    fn increasing_or_missing_shape_dist_no_stm_056() {
+        let cols = vec!["trip_id", "arrival_time", "departure_time", "stop_id", "stop_sequence", "shape_dist_traveled"];
+        // artan → temiz
+        let file = make_file(cols.clone(), vec![
+            vec!["T1", "08:00:00", "08:00:00", "S1", "1", "100.0"],
+            vec!["T1", "08:10:00", "08:10:00", "S2", "2", "250.0"],
+        ]);
+        let (_, notices) = validate_stop_times(&file, None);
+        assert!(!notices.iter().any(|n| n.rule_id == "STM_056"), "artan değer temiz olmalı");
+
+        // biri eksik → karşılaştırma yapılmaz (STM_017 kapsamı)
+        let file = make_file(cols, vec![
+            vec!["T1", "08:00:00", "08:00:00", "S1", "1", "100.0"],
+            vec!["T1", "08:10:00", "08:10:00", "S2", "2", ""],
+        ]);
+        let (_, notices) = validate_stop_times(&file, None);
+        assert!(!notices.iter().any(|n| n.rule_id == "STM_056"), "eksik değerde STM_056 olmamalı");
     }
 
     #[test]

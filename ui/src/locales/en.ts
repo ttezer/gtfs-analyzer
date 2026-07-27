@@ -754,6 +754,7 @@ const en: LocaleShape = {
     'STM_051': "Trip '{entity_id}': pickup_type 0 (regular) or 3 (driver-coordinated) is forbidden when a Flex pickup/drop-off window is defined.",
     'STM_052': "Trip '{entity_id}': drop_off_type 0 (regular) is forbidden when a Flex pickup/drop-off window is defined.",
     'STM_054': "Trip '{entity_id}': continuous_pickup {observed_value} is forbidden when a Flex pickup/drop-off window is defined on the same stop_time.",
+    'STM_056': "Trip '{entity_id}': shape_dist_traveled does not increase — value {observed_value} is not greater than the previous stop's value.",
     'STM_055': "Trip '{entity_id}': continuous_drop_off {observed_value} is forbidden when a Flex pickup/drop-off window is defined on the same stop_time.",
     // PDW
     'PDW_006': "Trip '{entity_id}': overlapping pickup/drop-off windows for the same trip+zone.",
@@ -1393,6 +1394,7 @@ const en: LocaleShape = {
     'STM_051': 'Use pickup_type 1 (none) or 2 (phone agency) on stop_times that have a Flex window.',
     'STM_052': 'Use drop_off_type 1 (none) or 2 (phone agency) on stop_times that have a Flex window.',
     'STM_054': 'Set continuous_pickup to 1 or leave it empty on stop_times that have a Flex window.',
+    'STM_056': 'Correct shape_dist_traveled in stop_times.txt so the values increase along stop_sequence.',
     'STM_055': 'Set continuous_drop_off to 1 or leave it empty on stop_times that have a Flex window.',
     'STM_042': 'Remove the characters ! $ % \\ * = _ from the stop_headsign value.',
     // SHP (field-level)
@@ -1918,6 +1920,7 @@ const en: LocaleShape = {
     'STM_052': 'drop_off_type 0 forbidden with Flex window',
     'STM_053': 'Many consecutive stops have the same time',
     'STM_054': 'continuous_pickup forbidden with Flex window',
+    'STM_056': 'shape_dist_traveled does not increase',
     'STM_055': 'continuous_drop_off forbidden with Flex window',
     // PDW
     'PDW_006': 'Overlapping pickup/drop-off window for same trip+zone',

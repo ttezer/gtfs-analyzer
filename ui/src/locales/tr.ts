@@ -764,6 +764,7 @@ const tr = {
     'STM_052': 'Flex penceresinde drop_off_type=0 yasak',
     'STM_053': 'Çok sayıda ardışık durakta aynı zaman',
     'STM_054': 'Flex penceresinde continuous_pickup yasak',
+    'STM_056': 'shape_dist_traveled artmıyor',
     'STM_055': 'Flex penceresinde continuous_drop_off yasak',
     // PDW
     'PDW_006': "Aynı trip+zone'da örtüşen pickup/drop-off penceresi",
