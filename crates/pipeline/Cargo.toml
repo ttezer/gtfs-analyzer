@@ -18,6 +18,13 @@ rustc-hash = "2"
 rayon = { version = "1", optional = true }
 
 [features]
+# Native'de VARSAYILAN AÇIK: VBB (5,7M stop_times) ölçümünde K6 4.889ms → 2.634ms (1,86×),
+# toplam 13,07s → 11,07s; notice çıktısı bit-özdeş doğrulandı (baseline diff temiz).
+# WASM bu varsayılanı ALMAZ (crates/wasm `default-features = false` ile bağlar): orada
+# thread kurulumu ayrı (`threads` feature → wasm-bindgen-rayon) ve wasm32-threaded ölçümü
+# K2'yi yavaşlatıp net kayıp veriyordu.
+default = ["parallel"]
+
 # K6 check'lerini iş-parçacıkları arası paralel çalıştırır (native: gerçek threadler).
 # Çıktı seri ile BİREBİR (renumber + kanonik birleştirme). WASM'da ayrı thread kurulumu gerekir.
 parallel = ["dep:rayon"]

@@ -9,7 +9,9 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 gtfs-core = { path = "../core" }
-gtfs-pipeline = { path = "../pipeline" }
+# default-features = false: pipeline'ın native varsayılanı `parallel`'dir (rayon). WASM'da
+# thread'ler ayrı kurulur — aşağıdaki `threads` feature'ı üzerinden. Varsayılan WASM yolu seri.
+gtfs-pipeline = { path = "../pipeline", default-features = false }
 gtfs-config = { path = "../config" }
 wasm-bindgen = { workspace = true }
 js-sys = "0.3"

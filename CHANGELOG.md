@@ -12,6 +12,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > unaffected. Re-baseline Golden snapshots that contain it.
 
 ### Changed
+- **K6 analytics now runs in parallel by default on native targets.** The machinery had been in
+  place but behind an off-by-default feature flag, so every CLI run evaluated the fifteen
+  independent K6 checks on a single core. Measured on VBB (5.68M stop_times, 602 MB expanded):
+  K6 4,889 ms → 2,546 ms (1.92×), wall clock 13.07 s → 11.14 s. The notice output is
+  byte-identical — the checks already merged in canonical order and renumbered against a single
+  counter, which is what made the flag safe to flip. Peak RSS rises 2.39 → 2.85 GB.
+  WebAssembly is unaffected: `crates/wasm` now pins `default-features = false`, so the browser
+  keeps its serial path and its own `threads` feature governs parallelism there. On small feeds
+  the change is invisible (TriMet: 4.76 → 4.68 s) because K6 is not the bottleneck at that size.
 - **`TRP_025` no longer fires when `TRP_029` does.** TRP_029 reports that *no* trip declares
   `wheelchair_accessible`; TRP_025 reports that *over 80%* of them don't. 100% is above 80%, so
   a feed with no accessibility data at all produced both findings for one fact. TRP_025 is now
