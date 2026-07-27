@@ -95,7 +95,7 @@ pub static RULES: &[RuleMeta] = &[
     r!("ARC_003", Orta,   Quality, 1, &[], None, VS, File,
         "İsteğe bağlı dosyada UTF-8 kodlama hatası"),
     r!("ARC_004", Kritik, Spec, 1,
-        &["XFL_007","STM_002","XFL_002","DQ_005","DQ_005b"],
+        &["RTS_002","STM_002","XFL_002","DQ_005","DQ_005b"],
         None, VS_K, Feed,
         "Zorunlu dosya eksik"),
     r!("ARC_006", Bilgi,  Quality, 1, &[], None, VS, File,
@@ -193,7 +193,7 @@ pub static RULES: &[RuleMeta] = &[
 
     // ── AGN: Agency ────────────────────────────────────────────────────────────
     r!("AGN_001", Kritik, Spec, 1,
-        &["RTS_002","XFL_007"], None, VS_K, Feed,
+        &["RTS_002"], None, VS_K, Feed,
         "agency.txt dosyası eksik"),
     r!("AGN_002", Kritik, Spec, 1, &[], Some("agency_id"), VS_K, Entity,
         "agency_name eksik"),
@@ -276,7 +276,9 @@ pub static RULES: &[RuleMeta] = &[
         "wheelchair_boarding geçersiz"),
     r!("STP_014", Orta,   Spec, 1, &[], Some("stop_id"), VS, Entity,
         "stop_timezone geçersiz"),
-    r!("STP_015", Orta,   Spec, 1, &[], Some("stop_id"), VS, Entity,
+    // Kritik: kaldırılan XFL_009 aynı level_id FK ihlalini Kritik raporluyordu;
+    // severity düşürülseydi bu ihlal R1 yayın kapısından çıkardı.
+    r!("STP_015", Kritik, Spec, 1, &[], Some("stop_id"), VS_K, Entity,
         "level_id bulunamadı"),
     r!("STP_016", Orta,   Quality, 2, &[], Some("stop_id"), VS, Entity,
         "İki durak tam aynı koordinatta"),
@@ -337,11 +339,11 @@ pub static RULES: &[RuleMeta] = &[
 
     // ── RTS: Routes ────────────────────────────────────────────────────────────
     r!("RTS_001", Kritik, Spec, 1,
-        &["TRP_002","XFL_007","FRL_002","ATR_006"],
+        &["TRP_002","FRL_002","ATR_006"],
         Some("route_id"), VS_K, Entity,
         "route_id yineleniyor"),
     r!("RTS_002", Kritik, Spec, 1,
-        &["XFL_007"],
+        &[],
         Some("route_id"), VS_K, Entity,
         "agency_id bulunamadı"),
     r!("RTS_003", Kritik, Spec, 1,
@@ -395,17 +397,18 @@ pub static RULES: &[RuleMeta] = &[
 
     // ── TRP: Trips ─────────────────────────────────────────────────────────────
     r!("TRP_001", Kritik, Spec, 1,
-        &["STM_001","FRQ_001","XFL_002","XFL_010","OPR_006","OPR_007"],
+        &["STM_001","FRQ_001","XFL_002","OPR_006","OPR_007"],
         Some("trip_id"), VS_K, Entity,
         "trip_id eksik veya yineleniyor"),
     r!("TRP_002", Kritik, Spec, 1, &[], Some("trip_id"), VS_K, Entity,
         "route_id bulunamadı"),
+    // OPR_016, kaldırılan XFL_001'den devralındı (aynı service_id FK ihlali).
     r!("TRP_003", Kritik, Spec, 1,
-        &["DQ_005","DQ_005b","CAL_009","CAL_012","OPR_011"],
+        &["DQ_005","DQ_005b","CAL_009","CAL_012","OPR_011","OPR_016"],
         Some("trip_id"), VS_K, Entity,
         "service_id bulunamadı"),
     r!("TRP_004", Yuksek, Spec, 1,
-        &["XFL_003","SHP_014","SHP_016","SHP_017","STM_015","STM_016","STM_027"],
+        &["SHP_014","SHP_016","SHP_017","STM_015","STM_016","STM_027"],
         Some("shape_id"), VS, Entity,
         "shape_id bulunamadı"),
     r!("TRP_005", Orta,   Spec, 1, &[], Some("trip_id"), VS, Entity,
@@ -606,7 +609,7 @@ pub static RULES: &[RuleMeta] = &[
 
     // ── CAL: Calendar ──────────────────────────────────────────────────────────
     r!("CAL_001", Kritik, Spec, 1,
-        &["TRP_003","XFL_001","CAL_009","DQ_005"],
+        &["TRP_003","CAL_009","DQ_005"],
         Some("service_id"), VS_K, Entity,
         "service_id yineleniyor"),
     r!("CAL_002", Kritik, Spec, 1,
@@ -1039,7 +1042,7 @@ pub static RULES: &[RuleMeta] = &[
 
     // ── LVL: Levels ────────────────────────────────────────────────────────────
     r!("LVL_001", Kritik, Spec, 1,
-        &["STP_015","XFL_009"],
+        &["STP_015"],
         Some("level_id"), VS_K, Entity,
         "level_id yineleniyor"),
     r!("LVL_002", Kritik, Spec, 1, &[], Some("level_id"), VS_K, Entity,
@@ -1150,24 +1153,10 @@ pub static RULES: &[RuleMeta] = &[
         "agency_id bulunamadı"),
 
     // ── XFL: Çapraz Dosya / Semantik ───────────────────────────────────────────
-    r!("XFL_001", Kritik, Spec, 1,
-        &["CAL_009","DQ_005","OPR_011","OPR_016"],
-        Some("service_id"), VS_K, Entity,
-        "calendar ve calendar_dates'te service_id yok"),
     r!("XFL_002", Yuksek, Interop, 1, &[], Some("trip_id"), VI, Entity,
         "Seferin stop_times kaydı yok"),
-    r!("XFL_003", Yuksek, Spec, 1, &[], Some("trip_id"), VS, Entity,
-        "shape_id tanımsız"),
-    r!("XFL_004", Kritik, Spec, 1, &[], Some("route_id"), VS_K, Entity,
-        "fare_rules'ta tanımsız route_id"),
     r!("XFL_006", Orta,   Analytics, 2, &[], Some("service_id"), VA, Entity,
         "service_id yalnızca iptal istisnası içeriyor (aktif gün yok)"),
-    r!("XFL_007", Kritik, Spec, 1, &[], Some("agency_id"), VS_K, Entity,
-        "agency_id bulunamadı"),
-    r!("XFL_009", Kritik, Spec, 1, &[], Some("level_id"), VS_K, Entity,
-        "level_id geçersiz"),
-    r!("XFL_010", Kritik, Spec, 1, &[], Some("trip_id"), VS_K, Entity,
-        "frequencies'te tanımsız trip_id"),
     // XFL_011 (Interop, iki feed tarihi de zorunlu) ile CAL_019 (Quality) aynı
     // ham calendar–feed_info karşılaştırmasını yapar. XFL_011 tetiklendiğinde
     // aynı service_id scope'undaki CAL_019 semptom olarak bastırılır (çift rapor önlenir).
@@ -1916,14 +1905,8 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("VAT_006", ProjectAnalytics),
     ("VAT_007", ProjectAnalytics),
     ("VAT_008", ProjectAnalytics),
-    ("XFL_001", GtfsSpec),
     ("XFL_002", MobilitydataParity),
-    ("XFL_003", GtfsSpec),
-    ("XFL_004", GtfsSpec),
     ("XFL_006", ProjectAnalytics),
-    ("XFL_007", GtfsSpec),
-    ("XFL_009", GtfsSpec),
-    ("XFL_010", GtfsSpec),
     ("XFL_011", MobilitydataParity),
     ("XFL_012", ProjectQuality),
     ("XFL_013", ProjectQuality),

@@ -679,22 +679,10 @@ fn fixtures() -> Vec<Fixture> {
         ]),
 
         // ── XFL grubu (cross-file FK; k4_cross_ref::check_xfl + cemv/fares v2) ──
-        // XFL_001: trip service_id calendar/calendar_dates'te yok.
-        fx("XFL_001", vec![("trips.txt", "route_id,service_id,trip_id\nR1,SVCX,T1\n")]),
         // XFL_002: trip'in stop_times kaydı yok (T2).
         fx("XFL_002", vec![("trips.txt", "route_id,service_id,trip_id\nR1,SVC1,T1\nR1,SVC1,T2\n")]),
-        // XFL_003: trip shape_id shapes.txt'te yok.
-        fx("XFL_003", vec![("trips.txt", "route_id,service_id,trip_id,shape_id\nR1,SVC1,T1,NOPE\n")]),
-        // XFL_004: fare_rules route_id routes.txt'te yok.
-        fx("XFL_004", vec![("fare_rules.txt", "fare_id,route_id\nF1,NOPE\n")]),
         // XFL_006: calendar_dates yalnız exception_type=2 ve calendar'da yok.
         fx("XFL_006", vec![("calendar_dates.txt", "service_id,date,exception_type\nSVCZ,20260601,2\n")]),
-        // XFL_007: route agency_id agency.txt'te yok.
-        fx("XFL_007", vec![("routes.txt", "route_id,agency_id,route_short_name,route_type\nR1,NOPE,101,3\n")]),
-        // XFL_009: stop level_id levels.txt'te yok.
-        fx("XFL_009", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon,level_id\nS1,Stop1,41.0,29.0,NOPE\nS2,Stop2,41.1,29.1,\n")]),
-        // XFL_010: frequencies trip_id trips.txt'te yok.
-        fx("XFL_010", vec![("frequencies.txt", "trip_id,start_time,end_time,headway_secs\nNOPE,08:00:00,10:00:00,600\n")]),
         // XFL_011: calendar aralığı feed_info penceresiyle tutarsız (cal_start < feed_start).
         fx("XFL_011", vec![("feed_info.txt", "feed_publisher_name,feed_publisher_url,feed_lang,feed_start_date,feed_end_date\nPub,https://x.example,en,20250601,20271231\n")]),
         // XFL_012: route'un tüm seferlerinin stop_times'ı yok (boş stop_times).

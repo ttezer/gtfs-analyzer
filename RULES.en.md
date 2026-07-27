@@ -2,7 +2,7 @@
 
 🇹🇷 [Türkçe](RULES.md) · 🇬🇧 **English** · 🇯🇵 [日本語](RULES.ja.md)
 
-542 rules, 37 groups. Each rule is identified by a unique ID, severity level, and class.
+536 rules, 37 groups. Each rule is identified by a unique ID, severity level, and class.
 Severity levels: **CRITICAL** (publish blocker) · **HIGH** · **MEDIUM** · **LOW** · **INFO**
 Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Quality** (GTFS Quality) · **Analytics** (GTFS Analytics)
 
@@ -104,7 +104,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | STP_012 | Station or entrance used in stop_times | CRITICAL | Spec |
 | STP_013 | wheelchair_boarding invalid | LOW | Spec |
 | STP_014 | stop_timezone invalid | MEDIUM | Spec |
-| STP_015 | level_id not found | MEDIUM | Spec |
+| STP_015 | level_id not found | CRITICAL | Spec |
 | STP_016 | Two stops at identical coordinates | MEDIUM | Quality |
 | STP_017 | Two stops too close together | LOW | Quality |
 | STP_018 | No stops found | CRITICAL | Spec |
@@ -608,14 +608,8 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 
 | Rule | Title | Severity | Class |
 |---|---|---|---|
-| XFL_001 | service_id missing from both calendar and calendar_dates | CRITICAL | Spec |
 | XFL_002 | Trip has no stop_times records | HIGH | Interop |
-| XFL_003 | shape_id undefined | HIGH | Spec |
-| XFL_004 | Undefined route_id in fare_rules | CRITICAL | Spec |
 | XFL_006 | service_id contains only cancellation exceptions (no active days) | MEDIUM | Analytics |
-| XFL_007 | agency_id not found | CRITICAL | Spec |
-| XFL_009 | level_id invalid | CRITICAL | Spec |
-| XFL_010 | Undefined trip_id in frequencies | CRITICAL | Spec |
 | XFL_011 | Calendar dates outside feed_info range | MEDIUM | Interop |
 | XFL_012 | Route with no operational trips | HIGH | Quality |
 | XFL_013 | shape_id used in multiple directions | HIGH | Quality |

@@ -12,6 +12,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > unaffected. Re-baseline Golden snapshots that contain it.
 
 ### Removed
+- **Five more `XFL_*` rules that restated a foreign-key violation another rule already
+  reported.** `XFL_005` turned out not to be an isolated mistake but a family pattern: of the
+  nine XFL rules emitting a feed-level summary, six were summarising a set that a per-row rule
+  had already flagged, under the same severity and class.
+
+  | Removed | Kept | Shared condition |
+  |---|---|---|
+  | `XFL_001` | `TRP_003` | `trips.service_id` not in calendar/calendar_dates |
+  | `XFL_003` | `TRP_004` | `trips.shape_id` not in shapes |
+  | `XFL_004` | `FRL_002` | `fare_rules.route_id` not in routes |
+  | `XFL_007` | `RTS_002` | `routes.agency_id` not in agency |
+  | `XFL_009` | `STP_015` | `stops.level_id` not in levels |
+  | `XFL_010` | `FRQ_001` | `frequencies.trip_id` not in trips |
+
+  `XFL_007` and `RTS_002` even carried the same title. On a feed holding one of each violation
+  the duplication cost 4 spurious publish blockers and 13.3 points of publication score
+  (58.1 → 71.4, measured). The per-row rule survives in every case: it reports the offending
+  line and names the entity, where the XFL summary only restated the same set feed-wide.
+
+  `STP_015` is raised from Medium to Critical: `XFL_009` reported the same violation as
+  Critical, so leaving `STP_015` at Medium would have quietly dropped `level_id` integrity out
+  of the R1 publish gate. Blocks entries move to the surviving twin (`OPR_016` to `TRP_003`), and
+  the blocks lists naming a removed rule now name its twin. Rule count: 542 → 536.
 - **`XFL_005` — it reported the same violation as `STM_002`.** Both fired on a `stop_id` used in
   `stop_times.txt` but missing from `stops.txt`, and not by coincidence: the `bad_stop_ids` set
   was built inside the `STM_002` loop and handed to `check_xfl`, so XFL_005's input *was*

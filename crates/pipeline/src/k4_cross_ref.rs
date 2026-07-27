@@ -3014,36 +3014,6 @@ fn check_xfl(
     trip_stm_count: &HashMap<&str, u32>,
 ) {
     let ti_xfl = &records.trip_interns;
-    // XFL_001: tüm service_id'ler calendar/calendar_dates'te tanımlı (feed-level özet)
-    {
-        let bad: Vec<&str> = records
-            .trips
-            .iter()
-            .filter(|t| !ti_xfl.service_id(t).is_empty() && !map.services.contains(ti_xfl.service_id(t)))
-            .map(|t| ti_xfl.service_id(t))
-            .collect::<HashSet<_>>()
-            .into_iter()
-            .collect();
-        if !bad.is_empty() {
-            notices.push(notice(
-                ctr,
-                "XFL_001",
-                EntityType::Feed,
-                None,
-                None,
-                "trips.txt",
-                None,
-                Some("service_id"),
-                Some(bad.join(", ")),
-                None,
-                format!(
-                    "Şu service_id'ler calendar veya calendar_dates'te tanımlı değil: {}.",
-                    bad.join(", ")
-                ),
-                "Eksik servis tanımlarını calendar.txt veya calendar_dates.txt'e ekleyin.",
-            ));
-        }
-    }
 
     // XFL_002: her trip'in stop_times'ta kaydı var
     {
@@ -3109,40 +3079,6 @@ fn check_xfl(
     // iş gibi görünüyordu. STM_002 satır numarası taşıdığı ve distinct stop_id başına
     // toplandığı için korunan taraf o oldu; XFL_005'in blocks'u STM_002'ye devredildi.
 
-    // XFL_007: routes'taki agency_id'ler agency'de mevcut (feed-level özet)
-    {
-        let bad: HashSet<String> = records
-            .routes
-            .iter()
-            .filter(|r| {
-                r.agency_id
-                    .as_deref()
-                    .map(|a| !a.is_empty() && !map.agencies.contains_key(a))
-                    .unwrap_or(false)
-            })
-            .filter_map(|r| r.agency_id.clone())
-            .collect();
-        if !bad.is_empty() {
-            let bad_list: Vec<&str> = bad.iter().map(String::as_str).collect();
-            notices.push(notice(
-                ctr,
-                "XFL_007",
-                EntityType::Feed,
-                None,
-                None,
-                "routes.txt",
-                None,
-                Some("agency_id"),
-                Some(bad_list.join(", ")),
-                None,
-                format!(
-                    "routes.txt'te agency.txt'te tanımlı olmayan agency_id'ler var: {}.",
-                    bad_list.join(", ")
-                ),
-                "Eksik işletici tanımlarını agency.txt'e ekleyin.",
-            ));
-        }
-    }
 
     // PTH_002 / PTH_003: pathway'deki from/to stop_id stops.txt'te mevcut
     {
@@ -3171,89 +3107,8 @@ fn check_xfl(
         }
     }
 
-    // XFL_009: stops'taki level_id'ler levels'ta mevcut
-    {
-        for rec in &records.stops {
-            if let Some(ref lid) = rec.level_id {
-                if !lid.is_empty() && !map.levels.contains_key(lid.as_str()) {
-                    notices.push(notice(
-                        ctr,
-                        "XFL_009",
-                        EntityType::Stop,
-                        Some(rec.stop_id.clone()),
-                        Some(rec.stop_id.clone()),
-                        "stops.txt",
-                        Some(rec.line),
-                        Some("level_id"),
-                        Some(lid.clone()),
-                        None,
-                        format!("level_id '{lid}' levels.txt'te tanımlı değil."),
-                        "Geçerli bir level_id kullanın veya levels.txt'e bu kaydı ekleyin.",
-                    ));
-                }
-            }
-        }
-    }
 
-    // XFL_010: frequencies'teki trip_id'ler trips'te mevcut (feed-level özet)
-    {
-        let bad: HashSet<&str> = records
-            .frequencies
-            .iter()
-            .filter(|f| !f.trip_id.is_empty() && !map.trips.contains_key(f.trip_id.as_str()))
-            .map(|f| f.trip_id.as_str())
-            .collect();
-        if !bad.is_empty() {
-            let bad_list: Vec<&str> = bad.into_iter().collect();
-            notices.push(notice(
-                ctr,
-                "XFL_010",
-                EntityType::Feed,
-                None,
-                None,
-                "frequencies.txt",
-                None,
-                Some("trip_id"),
-                Some(bad_list.join(", ")),
-                None,
-                format!(
-                    "frequencies.txt'te trips.txt'te tanımlı olmayan trip_id'ler var: {}.",
-                    bad_list.join(", ")
-                ),
-                "Eksik seferleri trips.txt'e ekleyin.",
-            ));
-        }
-    }
 
-    // XFL_003: trips'teki shape_id'ler shapes'te mevcut (feed-level özet)
-    {
-        let bad: HashSet<&str> = records
-            .trips
-            .iter()
-            .filter_map(|t| ti_xfl.shape_id(t))
-            .filter(|sid| !sid.is_empty() && !map.shape_points.contains_key(*sid))
-            .collect();
-        if !bad.is_empty() {
-            let bad_list: Vec<&str> = bad.into_iter().collect();
-            notices.push(notice(
-                ctr,
-                "XFL_003",
-                EntityType::Feed,
-                None,
-                None,
-                "trips.txt",
-                None,
-                Some("shape_id"),
-                Some(bad_list.join(", ")),
-                None,
-                format!(
-                    "trips.txt'te shapes.txt'te tanımlı olmayan shape_id'ler var: {}.",
-                    bad_list.join(", ")
-                ),
-                "Eksik şekilleri shapes.txt'e ekleyin veya trips.txt'teki shape_id referanslarını kaldırın.",
-            ));
-        }
-    }
 
     // SHP_019: shape trip(ler) tarafından referanslanmış ama o trip'lerin hiçbirinin stop_times'ı yok
     {
@@ -3294,35 +3149,6 @@ fn check_xfl(
         }
     }
 
-    // XFL_004: fare_rules'daki route_id'ler routes'ta mevcut (feed-level özet)
-    {
-        let bad: HashSet<&str> = records
-            .fare_rules
-            .iter()
-            .filter_map(|r| r.route_id.as_deref())
-            .filter(|rid| !rid.is_empty() && !map.routes.contains_key(*rid))
-            .collect();
-        if !bad.is_empty() {
-            let bad_list: Vec<&str> = bad.into_iter().collect();
-            notices.push(notice(
-                ctr,
-                "XFL_004",
-                EntityType::Feed,
-                None,
-                None,
-                "fare_rules.txt",
-                None,
-                Some("route_id"),
-                Some(bad_list.join(", ")),
-                None,
-                format!(
-                    "fare_rules.txt'te routes.txt'te tanımlı olmayan route_id'ler var: {}.",
-                    bad_list.join(", ")
-                ),
-                "Eksik rotaları routes.txt'e ekleyin veya fare_rules.txt'teki referansları kaldırın.",
-            ));
-        }
-    }
 
     // XFL_006: calendar_dates'te yalnızca exception_type=2 olan ve calendar.txt'te de bulunmayan service_id'ler
     {
@@ -4590,14 +4416,14 @@ mod tests {
     // �"?�"? XFL_009 �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?
 
     #[test]
-    fn stop_with_missing_level_produces_xfl_009() {
+    fn stop_with_missing_level_produces_stp_015() {
         let (mut recs, _map) = empty();
         recs.stops = vec![StopRecord {
             level_id: Some("MISSING_LEVEL".into()),
             ..stop("S1")
         }];
         let result = check(&recs, &EntityMap::default(), 20260515);
-        assert!(result.notices.iter().any(|n| n.rule_id == "XFL_009"));
+        assert!(result.notices.iter().any(|n| n.rule_id == "STP_015"));
     }
 
     // �"?�"? AGN_005 �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?
@@ -5083,13 +4909,13 @@ mod tests {
     // �"?�"? XFL_003 �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?
 
     #[test]
-    fn trip_with_missing_shape_produces_xfl_003() {
+    fn trip_with_missing_shape_produces_trp_004() {
         let (mut recs, map) = empty();
         let mut ti = TripInternTable::new();
         recs.trips = vec![trip_s(&mut ti, "T1", "R1", "SVC1", "MISSING_SHAPE", None)];
         recs.trip_interns = ti;
         let result = check(&recs, &map, 20260515);
-        assert!(result.notices.iter().any(|n| n.rule_id == "XFL_003"));
+        assert!(result.notices.iter().any(|n| n.rule_id == "TRP_004"));
     }
 
     // ── SHP_019: shape trip tarafından referanslanmış ama trip'lerin stop_times'ı yok ────────
@@ -5159,7 +4985,7 @@ mod tests {
     //�"?�"? XFL_004 �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?
 
     #[test]
-    fn fare_rule_with_missing_route_produces_xfl_004() {
+    fn fare_rule_with_missing_route_produces_frl_002() {
         use crate::k2::fare_rules::FareRuleRecord;
         let (mut recs, map) = empty();
         recs.fare_rules = vec![FareRuleRecord {
@@ -5169,7 +4995,7 @@ mod tests {
             row: Default::default(), line: 2,
         }];
         let result = check(&recs, &map, 20260515);
-        assert!(result.notices.iter().any(|n| n.rule_id == "XFL_004"));
+        assert!(result.notices.iter().any(|n| n.rule_id == "FRL_002"));
     }
 
     // �"?�"? XFL_006 �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?

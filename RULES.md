@@ -2,7 +2,7 @@
 
 🇹🇷 **Türkçe** · 🇬🇧 [English](RULES.en.md) · 🇯🇵 [日本語](RULES.ja.md)
 
-542 kural, 37 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
+536 kural, 37 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
 Önem seviyeleri: **KRİTİK** (yayın engelleyici) · **YÜKSEK** · **ORTA** · **DÜŞÜK** · **BİLGİ**
 Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · **Quality** (GTFS Kalitesi) · **Analytics** (GTFS Analitiği)
 
@@ -104,7 +104,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | STP_012 | stop_times'ta istasyon veya giriş kullanılmış | KRİTİK | Spec |
 | STP_013 | wheelchair_boarding geçersiz | DÜŞÜK | Spec |
 | STP_014 | stop_timezone geçersiz | ORTA | Spec |
-| STP_015 | level_id bulunamadı | ORTA | Spec |
+| STP_015 | level_id bulunamadı | KRİTİK | Spec |
 | STP_016 | İki durak tam aynı koordinatta | ORTA | Quality |
 | STP_017 | İki durak birbirine çok yakın | DÜŞÜK | Quality |
 | STP_018 | Hiç durak yok | KRİTİK | Spec |
@@ -608,14 +608,8 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 
 | Kural | Başlık | Önem | Sınıf |
 |---|---|---|---|
-| XFL_001 | calendar ve calendar_dates'te service_id yok | KRİTİK | Spec |
 | XFL_002 | Seferin stop_times kaydı yok | YÜKSEK | Interop |
-| XFL_003 | shape_id tanımsız | YÜKSEK | Spec |
-| XFL_004 | fare_rules'ta tanımsız route_id | KRİTİK | Spec |
 | XFL_006 | service_id yalnızca iptal istisnası içeriyor (aktif gün yok) | ORTA | Analytics |
-| XFL_007 | agency_id bulunamadı | KRİTİK | Spec |
-| XFL_009 | level_id geçersiz | KRİTİK | Spec |
-| XFL_010 | frequencies'te tanımsız trip_id | KRİTİK | Spec |
 | XFL_011 | Takvim tarihleri feed_info aralığı dışında | ORTA | Interop |
 | XFL_012 | Çalıştırılabilir seferi olmayan hat (stop_times veya aktif servis bağlamı eksik) | YÜKSEK | Quality |
 | XFL_013 | shape_id birden fazla yönde kullanılıyor | YÜKSEK | Quality |
