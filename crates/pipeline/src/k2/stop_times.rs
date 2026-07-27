@@ -923,7 +923,7 @@ pub fn validate_stop_times(file: &RawFile, zip_bytes: Option<&[u8]>) -> (StopTim
     {
         // Satır işleyici — hem stream (raw_text) hem rows yolundan çağrılır.
         // Tüm değişken durum closure ile yakalanır (notices, counter, index, caches).
-        let mut process = |row: &[Cow<'_, str>], line: u64| {
+        let mut process = |st: &mut StChunk, row: &[Cow<'_, str>], line: u64| {
             // ── Taşınan dosya/satır-seviye notice'lar (K1'den) — eksik veri YOK ──
             // ARC_012: sütun sayısı tutarsız
             if let Some((msg, tip, observed, is_info)) =
@@ -1446,7 +1446,7 @@ pub fn validate_stop_times(file: &RawFile, zip_bytes: Option<&[u8]>) -> (StopTim
                     header_skipped = true;
                     continue;
                 }
-                process(&buf, (data_idx + 2) as u64);
+                process(&mut st, &buf, (data_idx + 2) as u64);
                 data_idx += 1;
             }
         } else if let Some(zb) = zip_bytes {
@@ -1496,7 +1496,7 @@ pub fn validate_stop_times(file: &RawFile, zip_bytes: Option<&[u8]>) -> (StopTim
                                         Err(_) => Cow::Owned(String::from_utf8_lossy(f).into_owned()),
                                     })
                                     .collect();
-                                process(&cow_row, zip_line);
+                                process(&mut st, &cow_row, zip_line);
                                 zip_line += 1;
                             }
                         }
@@ -1509,7 +1509,7 @@ pub fn validate_stop_times(file: &RawFile, zip_bytes: Option<&[u8]>) -> (StopTim
             for (row_idx, row) in file.rows.iter().enumerate() {
                 let cow_row: Vec<Cow<'_, str>> =
                     row.iter().map(|s| Cow::Borrowed(s.as_str())).collect();
-                process(&cow_row, (row_idx + 2) as u64);
+                process(&mut st, &cow_row, (row_idx + 2) as u64);
             }
         }
     }
