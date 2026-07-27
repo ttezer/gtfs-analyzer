@@ -59,14 +59,14 @@ test('bozuk ZIP dosyası hata kartı gösteriyor', async ({ page }) => {
   await expect(status).toBeVisible({ timeout: 15_000 });
 });
 
-test('512 MB üzeri dosya reddediliyor', async ({ page }) => {
+test('1024 MB üzeri dosya reddediliyor', async ({ page }) => {
   await page.goto('/');
 
   // Playwright setInputFiles buffer limiti 50 MB — JS tarafında sahte File inject et
   await page.evaluate(() => {
     const input = document.querySelector('#file-input') as HTMLInputElement;
     const fakeFile = new File([new ArrayBuffer(1)], 'huge.zip', { type: 'application/zip' });
-    Object.defineProperty(fakeFile, 'size', { value: 513 * 1024 * 1024 });
+    Object.defineProperty(fakeFile, 'size', { value: 1025 * 1024 * 1024 });
     const dt = new DataTransfer();
     dt.items.add(fakeFile);
     input.files = dt.files;
@@ -75,5 +75,5 @@ test('512 MB üzeri dosya reddediliyor', async ({ page }) => {
 
   const status = page.locator('.upload-status.error');
   await expect(status).toBeVisible({ timeout: 5_000 });
-  await expect(status).toContainText('512 MB');
+  await expect(status).toContainText('1024 MB');
 });

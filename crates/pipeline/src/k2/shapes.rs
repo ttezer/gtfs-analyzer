@@ -400,7 +400,7 @@ mod tests {
             vec!["shape_id", "shape_pt_lat", "shape_pt_lon", "shape_pt_sequence"],
             vec![vec!["SHP1", "41.0", "29.0", "1"]],
         );
-        let (records, notices) = validate_shapes(&file);
+        let (records, notices) = validate_shapes(&file, None);
         assert_eq!(records.len(), 1);
         assert!(notices.is_empty(), "Geçerli shape noktası notice üretmemeli: {:?}", notices);
     }
@@ -411,7 +411,7 @@ mod tests {
             vec!["shape_id", "shape_pt_lat", "shape_pt_lon", "shape_pt_sequence"],
             vec![vec!["SHP1", "999.0", "29.0", "1"]],
         );
-        let (_, notices) = validate_shapes(&file);
+        let (_, notices) = validate_shapes(&file, None);
         assert!(notices.iter().any(|n| n.rule_id == "SHP_002"));
     }
 
@@ -421,7 +421,7 @@ mod tests {
             vec!["shape_id", "shape_pt_lat", "shape_pt_lon", "shape_pt_sequence"],
             vec![vec!["SHP1", "41.0", "999.0", "1"]],
         );
-        let (_, notices) = validate_shapes(&file);
+        let (_, notices) = validate_shapes(&file, None);
         assert!(notices.iter().any(|n| n.rule_id == "SHP_003"));
     }
 
@@ -431,7 +431,7 @@ mod tests {
             vec!["shape_id", "shape_pt_lat", "shape_pt_lon", "shape_pt_sequence"],
             vec![vec!["SHP1", "41.0", "29.0", ""]],
         );
-        let (_, notices) = validate_shapes(&file);
+        let (_, notices) = validate_shapes(&file, None);
         assert!(notices.iter().any(|n| n.rule_id == "SHP_004"));
     }
 
@@ -447,7 +447,7 @@ mod tests {
         ];
 
         // rows fallback yolu
-        let (rec_a, not_a) = validate_shapes(&make_file(headers.clone(), rows.clone()));
+        let (rec_a, not_a) = validate_shapes(&make_file(headers.clone(), rows.clone()), None);
 
         // raw_text streaming yolu (K1 stream_mode'un ürettiği biçim)
         let mut text = headers.join(",");
@@ -463,7 +463,7 @@ mod tests {
             bytes: 0,
             raw_text: Some(text),
         };
-        let (rec_b, not_b) = validate_shapes(&file_stream);
+        let (rec_b, not_b) = validate_shapes(&file_stream, None);
 
         assert_eq!(rec_a.len(), rec_b.len(), "record sayısı iki yolda aynı");
         let lines_a: Vec<u64> = rec_a.iter().map(|r| r.line).collect();
