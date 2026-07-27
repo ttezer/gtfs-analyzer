@@ -619,8 +619,8 @@
 | XFL_016 | 翻訳でfeed_infoを参照しているがfeed_info.txtなし | 高 | 仕様 |
 | XFL_017 | route_cemv_supportとagency_cemv_supportが競合 | 低 | 品質 |
 | XFL_019 | ネットワーク割り当てが2か所に定義されている | 中 | 仕様 |
-| XFL_020 | （from_trip_id/to_trip_id, route_id）の組み合わせが無効 | 高 | 品質 |
-| XFL_021 | （from_trip_id/to_trip_id, stop_id）の組み合わせが無効 | 高 | 品質 |
+| XFL_020 | （from_trip_id/to_trip_id, route_id）の組み合わせが無効 | 致命的 | 仕様 |
+| XFL_021 | （from_trip_id/to_trip_id, stop_id）の組み合わせが無効 | 高 | 相互運用 |
 | XFL_022 | location_group_idが存在しない | 致命的 | 仕様 |
 | XFL_023 | stop_idが存在しない（location_group_stops） | 致命的 | 仕様 |
 | XFL_024 | location_group_idが存在しない（stop_times） | 致命的 | 仕様 |

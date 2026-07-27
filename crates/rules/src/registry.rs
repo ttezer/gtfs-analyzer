@@ -1182,9 +1182,16 @@ pub static RULES: &[RuleMeta] = &[
         "route_cemv_support ile agency_cemv_support çelişiyor"),
     r!("XFL_019", Orta,   Spec, 2, &[], None, VS, Feed,
         "Ağ tanımı iki ayrı dosyada (routes.network_id + route_networks.txt)"),
-    r!("XFL_020", Yuksek, Quality, 2, &[], None, VS, Row,
+    // XFL_020 → Spec: GTFS Reference transfers.txt NORMATİF — "If both from_trip_id and
+    // from_route_id are defined, the trip_id MUST BELONG TO the route_id" (to_* için aynı).
+    // MD karşılığı `transfer_with_invalid_trip_and_route` (ERROR).
+    r!("XFL_020", Kritik, Spec, 2, &[], None, VS_K, Row,
         "Transfers'de geçersiz (from_trip_id/to_trip_id, route_id) çifti"),
-    r!("XFL_021", Yuksek, Quality, 2, &[], None, VS, Row,
+    // XFL_021 → INTEROP, Spec DEĞİL: spec yalnız "the transfer will APPLY TO the arriving trip
+    // for the given from_stop_id" der; "trip stop'u içermeli" normatif hükmü YOKTUR (2026-07-27'de
+    // reference metninden doğrulandı). MD bunu ERROR sayıyor ve notice paritesi BİREBİR
+    // (`transfer_with_invalid_trip_and_stop`, Entur mdb-1078'de 12/12) → sınıf Interop.
+    r!("XFL_021", Yuksek, Interop, 2, &[], None, VI, Row,
         "Transfers'de geçersiz (from_trip_id/to_trip_id, stop_id) çifti"),
     r!("XFL_022", Kritik, Spec, 1, &[], Some("location_group_id"), VS_K, Row,
         "location_group_id bulunamadı (location_group_stops)"),
@@ -1920,8 +1927,8 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("XFL_016", GtfsSpec),
     ("XFL_017", ProjectQuality),
     ("XFL_019", GtfsSpec),
-    ("XFL_020", ProjectQuality),
-    ("XFL_021", ProjectQuality),
+    ("XFL_020", GtfsSpec),
+    ("XFL_021", MobilitydataParity),
     ("XFL_022", GtfsSpec),
     ("XFL_023", GtfsSpec),
     ("XFL_024", GtfsSpec),

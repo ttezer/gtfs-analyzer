@@ -619,8 +619,8 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | XFL_016 | Translation references feed_info but feed_info.txt is missing | HIGH | Spec |
 | XFL_017 | route_cemv_support conflicts with agency_cemv_support | LOW | Quality |
 | XFL_019 | Network defined in two separate files (routes.network_id + route_networks.txt) | MEDIUM | Spec |
-| XFL_020 | Invalid (from_trip_id/to_trip_id, route_id) pair in transfers | HIGH | Quality |
-| XFL_021 | Invalid (from_trip_id/to_trip_id, stop_id) pair in transfers | HIGH | Quality |
+| XFL_020 | Invalid (from_trip_id/to_trip_id, route_id) pair in transfers | CRITICAL | Spec |
+| XFL_021 | Invalid (from_trip_id/to_trip_id, stop_id) pair in transfers | HIGH | Interop |
 | XFL_022 | location_group_id not found | CRITICAL | Spec |
 | XFL_023 | stop_id not found (location_group_stops) | CRITICAL | Spec |
 | XFL_024 | location_group_id not found (stop_times) | CRITICAL | Spec |
