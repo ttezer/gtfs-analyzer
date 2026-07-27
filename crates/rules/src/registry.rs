@@ -803,7 +803,10 @@ pub static RULES: &[RuleMeta] = &[
         "Aktarma süresi çok uzun"),
     r!("TRF_011", Bilgi,  Quality, 2, &[], Some("from_stop_id|to_stop_id"), VS, Row,
         "Aktarma tanımlandı ama mesafe uzak"),
-    r!("TRF_012", Orta,   Quality, 1, &[], None, VS, Row,
+    // GTFS Reference transfers.txt NORMATİF: "Primary key (from_stop_id, to_stop_id,
+    // from_trip_id, to_trip_id, from_route_id, to_route_id)". Birincil anahtarın tekilliği
+    // spec hükmüdür → Quality DEĞİL Spec. TRF_012 bu anahtarın trip/route'suz alt vakası.
+    r!("TRF_012", Kritik, Spec, 1, &[], None, VS_K, Row,
         "Yinelenen aktarma kaydı"),
     r!("TRF_013", Kritik, Quality, 2, &[], None, VS, Row,
         "Aktarma türü bağlamla uyumsuz"),
@@ -811,7 +814,10 @@ pub static RULES: &[RuleMeta] = &[
         "in-seat aktarma için sefer yok"),
     r!("TRF_015", Yuksek, Quality, 2, &[], None, VS, Row,
         "in-seat aktarma geçersiz"),
-    r!("TRF_016", Orta,   Interop, 2, &[], None, VI, Row,
+    // Aynı primary-key hükmü, tam kombinasyon hâli. MD karşılığı `duplicate_key` (ERROR);
+    // Entur mdb-1078'de MD 10, bu proje 10 → birebir parite. Spec normu olduğu için sınıf
+    // Interop DEĞİL Spec (MD paritesi tek başına sınıfı belirlemez, spec metni belirler).
+    r!("TRF_016", Kritik, Spec, 2, &[], None, VS_K, Row,
         "Aktarma koşulu çelişkili"),
     // XFL_020 aynı (trip, route) uyumsuzluğunu kontrol eder; çift raporlamayı
     // önlemek için TRF_017 kök kuraldır ve XFL_020'yi semptom olarak bastırır.
@@ -1861,11 +1867,11 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("TRF_009", GtfsSpec),
     ("TRF_010", ProjectAnalytics),
     ("TRF_011", ProjectQuality),
-    ("TRF_012", ProjectQuality),
+    ("TRF_012", GtfsSpec),
     ("TRF_013", ProjectQuality),
     ("TRF_014", GtfsSpec),
     ("TRF_015", ProjectQuality),
-    ("TRF_016", MobilitydataParity),
+    ("TRF_016", GtfsSpec),
     ("TRF_017", MobilitydataParity),
     ("TRF_018", ProjectQuality),
     ("TRF_019", MobilitydataParity),

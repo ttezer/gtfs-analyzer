@@ -372,11 +372,11 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | TRF_009 | to_route_id not found | CRITICAL | Spec |
 | TRF_010 | Transfer time too long | MEDIUM | Analytics |
 | TRF_011 | Transfer defined but distance is far | INFO | Quality |
-| TRF_012 | Duplicate transfer record | MEDIUM | Quality |
+| TRF_012 | Duplicate transfer record | CRITICAL | Spec |
 | TRF_013 | Transfer type inconsistent with context | CRITICAL | Quality |
 | TRF_014 | No trip for in-seat transfer | HIGH | Spec |
 | TRF_015 | in-seat transfer invalid | HIGH | Quality |
-| TRF_016 | Transfer condition conflicting | MEDIUM | Interop |
+| TRF_016 | Transfer condition conflicting | CRITICAL | Spec |
 | TRF_017 | Trip transfer on wrong route | HIGH | Interop |
 | TRF_018 | Trip transfer references the same trip | MEDIUM | Quality |
 | TRF_019 | Different route_type in in-seat transfer | MEDIUM | Interop |

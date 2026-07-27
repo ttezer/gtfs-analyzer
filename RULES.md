@@ -372,11 +372,11 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | TRF_009 | to_route_id bulunamadı | KRİTİK | Spec |
 | TRF_010 | Aktarma süresi çok uzun | ORTA | Analytics |
 | TRF_011 | Aktarma tanımlandı ama mesafe uzak | BİLGİ | Quality |
-| TRF_012 | Yinelenen aktarma kaydı | ORTA | Quality |
+| TRF_012 | Yinelenen aktarma kaydı | KRİTİK | Spec |
 | TRF_013 | Aktarma türü bağlamla uyumsuz | KRİTİK | Quality |
 | TRF_014 | in-seat aktarma için sefer yok | YÜKSEK | Spec |
 | TRF_015 | in-seat aktarma geçersiz | YÜKSEK | Quality |
-| TRF_016 | Aktarma koşulu çelişkili | ORTA | Interop |
+| TRF_016 | Aktarma koşulu çelişkili | KRİTİK | Spec |
 | TRF_017 | Sefer aktarması yanlış hat | YÜKSEK | Interop |
 | TRF_018 | Sefer aktarması aynı seferi gösteriyor | ORTA | Quality |
 | TRF_019 | In-seat aktarmada farklı route_type | ORTA | Interop |
