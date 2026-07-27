@@ -12,6 +12,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > unaffected. Re-baseline Golden snapshots that contain it.
 
 ### Changed
+- **The CSV reader reuses its field buffers.** `ZipCsvReader::next_record` allocated a fresh
+  `Vec` per field and dropped its capacity through `mem::take` on every delimiter — about 57
+  million allocations on a feed the size of VBB (5.68M rows × ~10 fields). The buffers are now
+  cleared and refilled in place. Measured on VBB: K2::stop_times 4,859 ms → 3,903 ms, wall clock
+  11.14 s → 10.23 s, and peak RSS drops 2.85 → 2.55 GB. Field contents, field count and order
+  are unchanged; the notice output is byte-identical.
 - **K6 analytics now runs in parallel by default on native targets.** The machinery had been in
   place but behind an off-by-default feature flag, so every CLI run evaluated the fifteen
   independent K6 checks on a single core. Measured on VBB (5.68M stop_times, 602 MB expanded):

@@ -728,17 +728,48 @@ impl<R: Read> ZipCsvReader<R> {
         }
     }
 
+    /// `out[fi]`'yi yazıma hazırlar: varsa içeriğini boşaltır (KAPASİTE KORUNUR),
+    /// yoksa yeni tampon ekler.
+    #[inline(always)]
+    fn begin_field(out: &mut Vec<Vec<u8>>, fi: usize) {
+        match out.get_mut(fi) {
+            Some(f) => f.clear(),
+            None => out.push(Vec::new()),
+        }
+    }
+
     /// Sonraki CSV kaydını `out`'a yazar (ham bayt alanları). EOF'ta false döner.
+    ///
+    /// Alan tamponları KORUNUR: `out` içindeki `Vec`'ler drop edilmez, `clear`
+    /// edilip yeniden doldurulur. Önceki sürüm her alan için `Vec::new()` açıp
+    /// `mem::take` ile kapasiteyi çöpe atıyordu; VBB'de (5,68M satır × ~10 alan)
+    /// bu ~57M tahsis demekti. Alan içerikleri, alan sayısı ve sıra birebir aynı.
     pub(crate) fn next_record(&mut self, out: &mut Vec<Vec<u8>>) -> bool {
-        out.clear();
-        let mut field: Vec<u8> = Vec::new();
+        let mut fi: usize = 0;
+        Self::begin_field(out, fi);
         let mut in_quotes = false;
         let mut started = false;
+        // Alanı kapat ve sonrakini hazırla.
+        macro_rules! commit {
+            () => {{
+                fi += 1;
+                Self::begin_field(out, fi);
+            }};
+        }
+        // Kaydı bitir: kullanılan alan sayısı fi + 1 (son alan henüz kapatılmadı).
+        macro_rules! finish {
+            () => {{
+                fi += 1;
+                out.truncate(fi);
+                return true;
+            }};
+        }
         loop {
             let b = match self.next_byte() {
                 Some(b) => b,
                 None => {
-                    if started { out.push(field); return true; }
+                    if started { finish!(); }
+                    out.clear();
                     return false;
                 }
             };
@@ -746,35 +777,33 @@ impl<R: Read> ZipCsvReader<R> {
             if in_quotes {
                 if b == b'"' {
                     match self.next_byte() {
-                        Some(b'"') => field.push(b'"'),
-                        Some(b',') => { in_quotes = false; out.push(std::mem::take(&mut field)); }
-                        Some(b'\n') => { out.push(std::mem::take(&mut field)); return true; }
+                        Some(b'"') => out[fi].push(b'"'),
+                        Some(b',') => { in_quotes = false; commit!(); }
+                        Some(b'\n') => { finish!(); }
                         Some(b'\r') => {
                             if let Some(lf) = self.next_byte() {
                                 if lf != b'\n' { self.pending = Some(lf); }
                             }
-                            out.push(std::mem::take(&mut field));
-                            return true;
+                            finish!();
                         }
                         Some(other) => { in_quotes = false; self.pending = Some(other); }
-                        None => { out.push(std::mem::take(&mut field)); return true; }
+                        None => { finish!(); }
                     }
                 } else {
-                    field.push(b); // embedded \n, vb. dahil
+                    out[fi].push(b); // embedded \n, vb. dahil
                 }
             } else {
                 match b {
                     b'"' => { in_quotes = true; }
-                    b',' => { out.push(std::mem::take(&mut field)); }
-                    b'\n' => { out.push(std::mem::take(&mut field)); return true; }
+                    b',' => { commit!(); }
+                    b'\n' => { finish!(); }
                     b'\r' => {
                         if let Some(lf) = self.next_byte() {
                             if lf != b'\n' { self.pending = Some(lf); }
                         }
-                        out.push(std::mem::take(&mut field));
-                        return true;
+                        finish!();
                     }
-                    _ => field.push(b),
+                    _ => out[fi].push(b),
                 }
             }
         }
