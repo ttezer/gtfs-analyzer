@@ -2750,7 +2750,10 @@ fn check_operational_analytics(
         let total = records.trips.iter().filter(|t| !t.trip_id.is_empty()).count();
         if total > 0 {
             let ratio = unknown as f64 / total as f64;
-            if ratio > 0.80 {
+            // unknown < total: %100 eksiklik TRP_029'un kapsamı. Guard olmadan TRP_029 her
+            // tetiklendiğinde TRP_025 de tetikleniyordu (%100 > %80), yani aynı feed-level
+            // olgu iki INFO notice üretiyordu. Şimdi TRP_025 = %80–99, TRP_029 = %100.
+            if ratio > 0.80 && unknown < total {
                 notices.push(k6_notice(
                     ctr, "TRP_025", EntityType::Feed,
                     None, None, "trips.txt", None, Some("wheelchair_accessible"),

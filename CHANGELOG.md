@@ -11,6 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > from `stops.txt` was penalised twice; it is now counted once. Feeds without that error are
 > unaffected. Re-baseline Golden snapshots that contain it.
 
+### Changed
+- **`TRP_025` no longer fires when `TRP_029` does.** TRP_029 reports that *no* trip declares
+  `wheelchair_accessible`; TRP_025 reports that *over 80%* of them don't. 100% is above 80%, so
+  a feed with no accessibility data at all produced both findings for one fact. TRP_025 is now
+  scoped to 80–99% and TRP_029 keeps the 100% case, so each threshold reports once.
+
 ### Removed
 - **Five more `XFL_*` rules that restated a foreign-key violation another rule already
   reported.** `XFL_005` turned out not to be an isolated mistake but a family pattern: of the
