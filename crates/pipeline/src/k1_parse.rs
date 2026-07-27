@@ -411,6 +411,19 @@ impl Dq016Acc {
     }
 
     /// Özet metni: (observed, mesaj, sütun listesi). Boşsa `None`.
+    /// Başka bir parçadan biriken sayaçları katar (stop_times chunk birleştirmesi).
+    /// `other` dosyada DAHA SONRA gelen parçadır; `first_line` en küçüğü, `last_line`
+    /// en büyüğü tutar, `rows` toplanır, `cols` birleşir.
+    pub(crate) fn merge(&mut self, other: Dq016Acc) {
+        self.rows += other.rows;
+        self.cols.extend(other.cols);
+        self.first_line = match (self.first_line, other.first_line) {
+            (Some(a), Some(b)) => Some(a.min(b)),
+            (a, b) => a.or(b),
+        };
+        self.last_line = self.last_line.max(other.last_line);
+    }
+
     pub fn summary(&self, file_name: &str) -> Option<(String, String, String)> {
         if self.rows == 0 {
             return None;

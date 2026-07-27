@@ -874,6 +874,93 @@ struct StChunk {
     row_trip: Vec<u32>,
 }
 
+impl StChunk {
+    /// Dosyada DAHA SONRA gelen `other` parçasını bu parçaya katar.
+    ///
+    /// İki yeniden eşleme (remap) zorunlu: `stop_id` ve trip indeksleri parça-yerel
+    /// üretilir, ama `CompactStopTime.stop_idx` ve `row_trip` bu sayıları GÖVDEDE taşır.
+    /// Her ikisi de `other`ın tablosundan bu parçanın tablosuna çevrilir.
+    ///
+    /// Chunk sınırı TRIP DEĞİŞİMİNDE kurulduğu için normal feed'de aynı trip iki parçaya
+    /// düşmez. Düşerse (aynı trip'in satırları dosyada dağınıksa) `TripAgg` alanları
+    /// birleştirilir; bu durumda dosya sırası zaten bozuktur ve STM_036 onu ayrıca raporlar.
+    fn merge(&mut self, other: StChunk) {
+        // ── stop_id intern: yerel indeks → global indeks ────────────────────────
+        let mut stop_remap: Vec<u32> = Vec::with_capacity(other.stop_intern.len());
+        for sid in other.stop_intern {
+            let next = self.stop_intern.len() as u32;
+            let gidx = *self.stop_id_to_idx.entry(sid.clone()).or_insert_with(|| {
+                self.stop_intern.push(sid);
+                next
+            });
+            stop_remap.push(gidx);
+        }
+
+        // ── trip indeksleri: yerel → global (TripAgg.idx üzerinden) ────────────
+        let mut trip_remap: Vec<u32> = vec![u32::MAX; other.trips_agg.len()];
+        // Yerel idx sırasında dolaş: `idx` atama sırası = ilk görülme sırası.
+        let mut others: Vec<(SmolStr, TripAgg)> = other.trips_agg.into_iter().collect();
+        others.sort_unstable_by_key(|(_, a)| a.idx);
+        for (tid, agg) in others {
+            let local = agg.idx as usize;
+            let next = self.trips_agg.len() as u32;
+            match self.trips_agg.get_mut(&tid) {
+                Some(cur) => {
+                    // Aynı trip iki parçada: `other` sonra geldiği için son durum onunkidir.
+                    if agg.last_seq != u32::MAX {
+                        cur.last_seq = agg.last_seq;
+                        cur.last_stop = agg.last_stop;
+                    }
+                    cur.unsorted_fired |= agg.unsorted_fired;
+                    cur.continuous |= agg.continuous;
+                    cur.first_line = cur.first_line.min(agg.first_line);
+                    if local < trip_remap.len() { trip_remap[local] = cur.idx; }
+                }
+                None => {
+                    let mut moved = agg;
+                    moved.idx = next;
+                    self.trips_agg.insert(tid, moved);
+                    if local < trip_remap.len() { trip_remap[local] = next; }
+                }
+            }
+        }
+
+        // ── gövdeyi taşı, indeksleri çevir ─────────────────────────────────────
+        self.all_rows.reserve(other.all_rows.len());
+        for mut row in other.all_rows {
+            if row.stop_idx != u32::MAX {
+                row.stop_idx = stop_remap[row.stop_idx as usize];
+            }
+            self.all_rows.push(row);
+        }
+        self.row_trip.reserve(other.row_trip.len());
+        for t in other.row_trip {
+            self.row_trip.push(if (t as usize) < trip_remap.len() { trip_remap[t as usize] } else { t });
+        }
+
+        // ── toplanabilir / birleşebilir durum ──────────────────────────────────
+        // arc021: "dosya başına BİR kez". Bu parça zaten ateşlediyse `other`ınkiler düşer —
+        // filtre extend'den ÖNCE, yoksa kendi notice'ımızı da silerdik.
+        let mut incoming = other.notices;
+        if self.arc021_fired {
+            incoming.retain(|n| n.rule_id != "ARC_021");
+        }
+        self.notices.extend(incoming);
+        self.arc021_fired |= other.arc021_fired;
+        self.counter += other.counter;
+        self.trip_id_cache.extend(other.trip_id_cache);
+        self.stop_headsigns.extend(other.stop_headsigns); // anahtar = CSV satırı, çakışmaz
+        self.flex_map.extend(other.flex_map);
+        for (sid, line) in other.stop_first_line {
+            self.stop_first_line.entry(sid).and_modify(|l| *l = (*l).min(line)).or_insert(line);
+        }
+        self.total_rows += other.total_rows;
+        self.unsorted_seq_trips.extend(other.unsorted_seq_trips);
+        self.stm050_empty += other.stm050_empty;
+        self.dq016.merge(other.dq016);
+    }
+}
+
 pub fn validate_stop_times(file: &RawFile, zip_bytes: Option<&[u8]>) -> (StopTimesIndex, Vec<gtfs_core::Notice>) {
     let mut st = StChunk::default();
     let cols = Cols::from_headers(&file.headers);
@@ -1476,6 +1563,16 @@ pub fn validate_stop_times(file: &RawFile, zip_bytes: Option<&[u8]>) -> (StopTim
                             let mut raw_fields: Vec<Vec<u8>> = Vec::with_capacity(header_count + 1);
                             let mut zip_line: u64 = 2;
                             let mut header_skipped = false;
+                            // ── Parçalama (Adım 2: SERİ) ────────────────────────────────
+                            // Sınır TRIP DEĞİŞİMİNDE kurulur: stop_times trip'e göre gruplu
+                            // olduğundan aynı trip iki parçaya düşmez, dolayısıyla STM_036'nın
+                            // parça-sınırı sorunu doğmaz. Şu an paralellik YOK; amaç `merge`
+                            // yolunun çıktıyı birebir koruduğunu tek başına kanıtlamak.
+                            const CHUNK_ROWS: usize = 500_000;
+                            let mut chunks: Vec<StChunk> = Vec::new();
+                            let mut cur = StChunk::default();
+                            let mut rows_in_chunk: usize = 0;
+                            let mut boundary_trip: Option<SmolStr> = None;
                             while csv_reader.next_record(&mut raw_fields) {
                                 if raw_fields.len() == 1 && raw_fields[0].is_empty() {
                                     continue;
@@ -1496,8 +1593,31 @@ pub fn validate_stop_times(file: &RawFile, zip_bytes: Option<&[u8]>) -> (StopTim
                                         Err(_) => Cow::Owned(String::from_utf8_lossy(f).into_owned()),
                                     })
                                     .collect();
-                                process(&mut st, &cow_row, zip_line);
+                                // Sınıra gelindiyse trip değişimini BEKLE, sonra böl.
+                                if rows_in_chunk >= CHUNK_ROWS {
+                                    let tid = get_col(&cow_row, cols.trip_id);
+                                    match &boundary_trip {
+                                        None => boundary_trip = Some(SmolStr::from(tid)),
+                                        Some(b) if b.as_str() != tid => {
+                                            chunks.push(std::mem::take(&mut cur));
+                                            rows_in_chunk = 0;
+                                            boundary_trip = None;
+                                        }
+                                        _ => {}
+                                    }
+                                }
+                                process(&mut cur, &cow_row, zip_line);
+                                rows_in_chunk += 1;
                                 zip_line += 1;
+                            }
+                            chunks.push(cur);
+                            // Dosya sırasında birleştir: ilki temel, sonrakiler katılır.
+                            let mut it = chunks.into_iter();
+                            if let Some(first) = it.next() {
+                                st = first;
+                            }
+                            for c in it {
+                                st.merge(c);
                             }
                         }
                     }
