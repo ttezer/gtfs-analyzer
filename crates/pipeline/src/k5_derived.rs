@@ -338,8 +338,12 @@ fn build_shape_geometry(
     const SHP010_AGG_THRESHOLD: usize = 50;
     let n10 = shp010_pending.len();
     if n10 > SHP010_AGG_THRESHOLD {
-        let examples: Vec<String> = shp010_pending.iter()
-            .filter_map(|x| x.entity_id.clone()).take(5).collect();
+        // shp010_pending, shape_points (HashMap) iterasyon sırasında dolduğu için ham
+        // `take(5)` her koşuda başka örnekler veriyordu. Önce sırala, sonra ilk 5'i al.
+        let mut examples: Vec<String> = shp010_pending.iter()
+            .filter_map(|x| x.entity_id.clone()).collect();
+        examples.sort_unstable();
+        examples.truncate(5);
         let mut notice = k5_notice(
             ctr, "SHP_010", EntityType::Feed, None, None,
             "shapes.txt", None, Some("shape_pt_lat|shape_pt_lon"),

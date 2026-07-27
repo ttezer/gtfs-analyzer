@@ -1113,3 +1113,58 @@ fn arc029_legitimate_small_high_ratio_file_does_not_trip_guard() {
         ValidateResult::Ok(_) => {}
     }
 }
+
+// ── Determinizm kapısı ────────────────────────────────────────────────────────
+// Aynı feed, aynı `today` → BİREBİR aynı çıktı. Bu güvence 2026-07-27'ye kadar YOKTU:
+// notice içerikleri ve id'leri koşudan koşuya değişiyordu, çünkü emisyon sırası HashMap
+// iterasyonuna bağlıydı ve dedup'ın keep-first temsilcisi o sıradan seçiliyordu (VBB'de
+// 829 kayıt oynuyordu). Golden karşılaştırma ve A/B ölçümleri bu yüzden güvenilmezdi.
+#[test]
+fn same_feed_twice_produces_identical_output() {
+    // Nondeterminizmi tetikleyen desenleri içerir: aynı seferde TEKRARLANAN durak (OPR_007),
+    // birden çok shape (SHP/GEO aileleri), birden çok hat+servis (OPR_001/003/024).
+    let shapes = b"shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\n\
+        S1,41.0,29.0,1\nS1,41.0,29.0,2\nS1,41.5,29.5,3\n\
+        S2,40.0,28.0,1\nS2,40.0,28.0,2\nS2,40.9,28.9,3\n\
+        S3,39.0,27.0,1\nS3,39.0,27.0,2\nS3,39.8,27.8,3\n" as &[u8];
+    let routes = b"route_id,agency_id,route_short_name,route_type\nR1,1,101,3\nR2,1,102,3\nR3,1,103,3\n" as &[u8];
+    let trips = b"route_id,service_id,trip_id,shape_id\n\
+        R1,SVC1,T1,S1\nR2,SVC1,T2,S2\nR3,SVC1,T3,S3\n" as &[u8];
+    // T1: S1 durağı iki kez, aralarında başka durak → OPR_007 adayı (birden çok tekrar olası)
+    let stop_times = b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
+        T1,08:00:00,08:00:00,S1,1\nT1,08:05:00,08:05:00,S2,2\nT1,08:10:00,08:10:00,S1,3\n\
+        T2,09:00:00,09:00:00,S1,1\nT2,09:30:00,09:30:00,S2,2\n\
+        T3,10:00:00,10:00:00,S2,1\nT3,10:30:00,10:30:00,S1,2\n" as &[u8];
+
+    let mut files = base_files();
+    files.retain(|(n, _)| *n != "trips.txt" && *n != "stop_times.txt" && *n != "routes.txt");
+    files.push(("routes.txt", routes));
+    files.push(("trips.txt", trips));
+    files.push(("stop_times.txt", stop_times));
+    files.push(("shapes.txt", shapes));
+    let zip = make_zip(&files);
+
+    // Kapsam: notice'ın ANLAM taşıyan alanları — hangi bulgu, hangi varlık, hangi değer ve
+    // hangi id. Ham JSON KARŞILAŞTIRILMIYOR, çünkü `Notice.details` ve `NameIndex` alanları
+    // `HashMap`; serde bunları yazarken anahtar sırası her koşuda değişir. O fark içeriği
+    // değil yalnız serileştirme sırasını etkiler (ayrı iş olarak not edildi).
+    let render = || match validate_bytes(&zip, &ValidatorConfig::default(), TODAY) {
+        ValidateResult::Ok(vr) => vr.notices.iter()
+            .map(|n| format!("{}|{}|{}|{}", n.id, n.rule_id,
+                 n.entity_id.as_deref().unwrap_or("-"), n.observed_value.as_deref().unwrap_or("-")))
+            .collect::<Vec<_>>(),
+        ValidateResult::Fatal(e) => panic!("beklenmeyen fatal: {:?} {}", e.code, e.message),
+    };
+
+    // Aynı SÜREÇ içinde tekrar: Rust'ta her HashMap örneği kendi tohumunu aldığı için bu,
+    // ayrı süreçlerde koşmaktan daha sıkı bir kapıdır.
+    let first = render();
+    for run in 2..=4 {
+        let cur = render();
+        if cur != first {
+            let d: Vec<String> = first.iter().zip(cur.iter()).filter(|(a, b)| a != b)
+                .take(3).map(|(a, b)| format!("\n  1. koşu: {a}\n  {run}. koşu: {b}")).collect();
+            panic!("çıktı deterministik değil:{}", d.join(""));
+        }
+    }
+}

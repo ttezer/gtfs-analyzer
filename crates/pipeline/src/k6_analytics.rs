@@ -1344,6 +1344,10 @@ fn check_route_headway(
     let bunching_secs = config.bunching_threshold_min * 60;
 
     // OPR_001: hattın tamamında en büyük ardışık kalkış boşluğu eşiği aşıyor mu?
+    // HashMap iterasyon sırası her süreçte değişir; aynı entity_id'ye düşen bulgulardan
+    // hangisinin dedup temsilcisi olacağı buna bağlı kalmasın diye anahtara göre sırala.
+    let mut route_departures: Vec<_> = route_departures.into_iter().collect();
+    route_departures.sort_unstable_by_key(|(k, _)| *k);
     for ((route_id, direction_key, service_id), mut deps) in route_departures {
         deps.sort_unstable();
         deps.dedup();
@@ -1383,6 +1387,9 @@ fn check_route_headway(
 
     // OPR_003: aynı kalkış durağında ardışık seferler arası en küçük pozitif aralık
     // sıkışma eşiğinin altında mı?
+    // HashMap iterasyonu → dedup temsilcisi nondeterministik olurdu; anahtara göre sırala.
+    let mut route_stop_departures: Vec<_> = route_stop_departures.into_iter().collect();
+    route_stop_departures.sort_unstable_by_key(|(k, _)| *k);
     for ((route_id, direction_key, service_id, _first_stop, _pattern), mut deps) in route_stop_departures {
         deps.sort_unstable();
         // dedup suppresses cross-day repeated departure times for the same
@@ -2434,8 +2441,13 @@ fn check_operational_analytics(
             let last  = sorted_stops.last() .map(|st| idx.stop_id_of(st)).unwrap_or("");
             let is_ring = !first.is_empty() && first == last;
 
-            if let Some((&dup_stop, &count)) = stop_counts.iter().find(|(&sid, &c)| c > 1 && !(is_ring && sid == first) && {
+            // `find` YERİNE `min_by_key`: `stop_counts` bir HashMap ve bir seferde birden çok
+            // tekrarlanan durak olabiliyor — `find` hangisini bulacağını iterasyon sırasına
+            // bırakıyordu, o da her süreçte değiştiği için aynı feed iki farklı durak
+            // raporluyordu (VBB'de 306 sefer). stop_id'ye göre en küçük olan deterministiktir.
+            if let Some((&dup_stop, &count)) = stop_counts.iter().filter(|(&sid, &c)| c > 1 && !(is_ring && sid == first) && {
                 let mut prev = None; sorted_stops.iter().enumerate().filter(|(_, st)| idx.stop_id_of(st) == sid).any(|(i, _)| prev.replace(i).is_some_and(|p| i > p + 1)) })
+                .min_by_key(|(&sid, _)| sid)
             {
                 let route = trip_to_route.get(trip_id).copied().unwrap_or(trip_id);
                 let stop_name = stop_name_map.get(dup_stop).copied().unwrap_or(dup_stop);
@@ -7566,7 +7578,10 @@ fn check_vat_analytics(
                 *rs_trip_counts.entry((ti_vat.route_id(t), ti_vat.service_id(t))).or_default() += 1;
             }
         }
-        for ((route_id, service_id), count) in &rs_trip_counts {
+        // HashMap iterasyonu → sırala (dedup temsilcisi deterministik olsun).
+        let mut rs_trip_counts_sorted: Vec<_> = rs_trip_counts.iter().collect();
+        rs_trip_counts_sorted.sort_unstable_by_key(|(k, _)| **k);
+        for ((route_id, service_id), count) in rs_trip_counts_sorted {
             if *count > config.max_trips_per_route {
                 let mut n = k6_notice(
                     ctr, "OPR_024", EntityType::Route,

@@ -30,12 +30,21 @@ pub fn report(
 ) -> K7Result {
     use crate::timing::Timer;
     let all_notices      = { let _t = Timer::start("K7::fill_service_ids"); fill_service_ids(all_notices, records) };
-    let notices          = if already_deduped {
+    let mut notices      = if already_deduped {
         all_notices
     } else {
         let _t = Timer::start("K7::dedup");
         dedup(all_notices)
     };
+    // Determinizm: id'ler katmanların EMİSYON sırasından geliyordu ve o sıra HashMap
+    // iterasyonlarına bağlı olduğu için koşudan koşuya kayıyordu (içerik aynı, id farklı).
+    // Dedup çıktısı `notice_order_key` ile kararlı sıralı olduğundan, id'ler burada yeniden
+    // atanınca deterministik olur. Katman öneki (k1/k2/…) korunur; raporlar bu listeden
+    // sonra kurulduğu için referanslar tutarlı kalır.
+    for (i, n) in notices.iter_mut().enumerate() {
+        let prefix = n.id.split('/').next().unwrap_or("k").to_string();
+        n.id = format!("{prefix}/{}#{}", n.rule_id, i + 1);
+    }
     let resolution       = { let _t = Timer::start("K7::resolve_symptoms"); resolve_symptoms(&notices) };
     let reports          = { let _t = Timer::start("K7::build_reports");    build_report_set(&notices, &resolution) };
     let mut metrics      = { let _t = Timer::start("K7::build_metrics");    build_metrics(&notices, records, derived, file_stats) };
@@ -87,7 +96,9 @@ pub fn notice_order_key(n: &Notice) -> (&str, &str, &str, u64, &str, &str, &str)
 pub fn dedup(notices: Vec<Notice>) -> Vec<Notice> {
     // Determinizm: keep-first temsilcisi thread-bağımsız olsun diye önce kararlı sırala.
     let mut notices = notices;
-    notices.sort_unstable_by(|a, b| notice_order_key(a).cmp(&notice_order_key(b)));
+    // STABLE olmak ZORUNDA: eşit anahtarlı iki bulgudan hangisinin keep-first temsilcisi
+    // olacağı aksi halde girdi permütasyonuna, o da HashMap iterasyonuna kalır (nondeterminizm).
+    notices.sort_by(|a, b| notice_order_key(a).cmp(&notice_order_key(b)));
     let mut seen: FxHashSet<String> = FxHashSet::default();
     seen.reserve(notices.len());
     let mut out: Vec<Notice> = Vec::with_capacity(notices.len());
@@ -117,7 +128,9 @@ pub fn dedup_and_cap_by_rule<F>(
 where
     F: Fn(&str) -> usize,
 {
-    notices.sort_unstable_by(|a, b| notice_order_key(a).cmp(&notice_order_key(b)));
+    // STABLE olmak ZORUNDA: eşit anahtarlı iki bulgudan hangisinin keep-first temsilcisi
+    // olacağı aksi halde girdi permütasyonuna, o da HashMap iterasyonuna kalır (nondeterminizm).
+    notices.sort_by(|a, b| notice_order_key(a).cmp(&notice_order_key(b)));
 
     let mut seen: FxHashSet<String> = FxHashSet::default();
     seen.reserve(notices.len());

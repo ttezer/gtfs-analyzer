@@ -11,6 +11,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > from `stops.txt` was penalised twice; it is now counted once. Feeds without that error are
 > unaffected. Re-baseline Golden snapshots that contain it.
 
+### Fixed
+- **Validation output was not deterministic.** The same binary, given the same feed and the same
+  `--today`, produced different results from one run to the next: on VBB, 829 notices differed
+  between two runs of the identical build. This predates the parallel work — it reproduced on a
+  fully serial commit — and it quietly undermined golden snapshots, MobilityData parity
+  measurements and any A/B comparison.
+
+  The chain: several rules emit from a `HashMap`, whose iteration order differs per process.
+  `dedup` then picked its keep-first representative from that order, using `sort_unstable_by` —
+  whose own comment claimed to sort "stably" — over a key that could not tell two findings apart
+  (`GEO_006` puts the segment only in `observed_value`; `line` is `None`). So which of a shape's
+  two jump segments survived was decided by hash seeding.
+
+  Fixed at each link: `dedup` sorts stably; notices are renumbered *after* dedup so ids follow
+  the sorted order rather than emission order; `OPR_007` selects its duplicate stop by smallest
+  `stop_id` instead of `HashMap::find`; and the `OPR_001`, `OPR_003`, `OPR_024` and `SHP_010`
+  emission sites sort their keys before iterating. Verified on three feeds: VBB, TCDD and TriMet
+  now produce byte-identical JSON across runs. A regression test validates the same feed four
+  times in one process, which is stricter than separate runs because each `HashMap` instance is
+  seeded independently.
+
+  Two serialisation-order gaps remain, tracked separately: `Notice.details` and `NameIndex` are
+  `HashMap`s, so serde writes their keys in varying order. That affects byte output only, not
+  which findings are produced.
+
 ### Changed
 - **`STM_028` gets a separate, higher threshold for rail — and reports it as info.** A single
   24-hour limit was wrong for long-distance rail: on the TCDD feed it fired six times and was
