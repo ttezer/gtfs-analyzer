@@ -687,8 +687,6 @@ fn fixtures() -> Vec<Fixture> {
         fx("XFL_003", vec![("trips.txt", "route_id,service_id,trip_id,shape_id\nR1,SVC1,T1,NOPE\n")]),
         // XFL_004: fare_rules route_id routes.txt'te yok.
         fx("XFL_004", vec![("fare_rules.txt", "fare_id,route_id\nF1,NOPE\n")]),
-        // XFL_005: stop_times stop_id stops.txt'te yok.
-        fx("XFL_005", vec![("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\nT1,08:10:00,08:10:00,NOPE,2\n")]),
         // XFL_006: calendar_dates yalnız exception_type=2 ve calendar'da yok.
         fx("XFL_006", vec![("calendar_dates.txt", "service_id,date,exception_type\nSVCZ,20260601,2\n")]),
         // XFL_007: route agency_id agency.txt'te yok.

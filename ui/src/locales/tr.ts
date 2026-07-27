@@ -1036,7 +1036,6 @@ const tr = {
     'XFL_002': 'Seferin stop_times kaydı yok',
     'XFL_003': 'shape_id tanımsız',
     'XFL_004': "fare_rules'ta tanımsız route_id",
-    'XFL_005': "stop_times'ta tanımsız stop_id",
     'XFL_006': 'service_id yalnızca iptal istisnası içeriyor (aktif gün yok)',
     'XFL_007': 'agency_id bulunamadı',
     'XFL_009': 'level_id geçersiz',

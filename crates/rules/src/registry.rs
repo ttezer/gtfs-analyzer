@@ -95,7 +95,7 @@ pub static RULES: &[RuleMeta] = &[
     r!("ARC_003", Orta,   Quality, 1, &[], None, VS, File,
         "İsteğe bağlı dosyada UTF-8 kodlama hatası"),
     r!("ARC_004", Kritik, Spec, 1,
-        &["XFL_007","XFL_005","XFL_002","DQ_005","DQ_005b"],
+        &["XFL_007","STM_002","XFL_002","DQ_005","DQ_005b"],
         None, VS_K, Feed,
         "Zorunlu dosya eksik"),
     r!("ARC_006", Bilgi,  Quality, 1, &[], None, VS, File,
@@ -230,7 +230,7 @@ pub static RULES: &[RuleMeta] = &[
 
     // ── STP: Stops ─────────────────────────────────────────────────────────────
     r!("STP_001", Kritik, Spec, 1,
-        &["STP_009","STM_002","XFL_005","PTH_002","PTH_003","GEO_002"],
+        &["STP_009","STM_002","PTH_002","PTH_003","GEO_002"],
         Some("stop_id"), VS_K, Entity,
         "stop_id yineleniyor"),
     r!("STP_002", Kritik, Spec, 1, &[], Some("stop_id"), VS_K, Entity,
@@ -464,8 +464,10 @@ pub static RULES: &[RuleMeta] = &[
         &["STM_008","STM_013","STM_014","STM_027","OPR_001","OPR_008"],
         Some("trip_id"), VS_K, Row,
         "trip_id bulunamadı"),
+    // blocks: STP_012 + DQ_005c, kaldırılan XFL_005'ten devralındı — aynı FK ihlalini
+    // feed-level özet olarak tekrarlıyordu (bkz. CHANGELOG 0.8.0).
     r!("STM_002", Kritik, Spec, 1,
-        &["STM_007","STM_012","GEO_002","OPR_014"],
+        &["STM_007","STM_012","GEO_002","OPR_014","STP_012","DQ_005c"],
         Some("stop_id"), VS_K, Row,
         "stop_id bulunamadı"),
     r!("STM_003", Kritik, Spec, 1,
@@ -1158,10 +1160,6 @@ pub static RULES: &[RuleMeta] = &[
         "shape_id tanımsız"),
     r!("XFL_004", Kritik, Spec, 1, &[], Some("route_id"), VS_K, Entity,
         "fare_rules'ta tanımsız route_id"),
-    r!("XFL_005", Kritik, Spec, 1,
-        &["STP_012","DQ_005c"],
-        Some("stop_id"), VS_K, Entity,
-        "stop_times'ta tanımsız stop_id"),
     r!("XFL_006", Orta,   Analytics, 2, &[], Some("service_id"), VA, Entity,
         "service_id yalnızca iptal istisnası içeriyor (aktif gün yok)"),
     r!("XFL_007", Kritik, Spec, 1, &[], Some("agency_id"), VS_K, Entity,
@@ -1922,7 +1920,6 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("XFL_002", MobilitydataParity),
     ("XFL_003", GtfsSpec),
     ("XFL_004", GtfsSpec),
-    ("XFL_005", GtfsSpec),
     ("XFL_006", ProjectAnalytics),
     ("XFL_007", GtfsSpec),
     ("XFL_009", GtfsSpec),

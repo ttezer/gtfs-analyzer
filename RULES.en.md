@@ -2,7 +2,7 @@
 
 🇹🇷 [Türkçe](RULES.md) · 🇬🇧 **English** · 🇯🇵 [日本語](RULES.ja.md)
 
-543 rules, 37 groups. Each rule is identified by a unique ID, severity level, and class.
+542 rules, 37 groups. Each rule is identified by a unique ID, severity level, and class.
 Severity levels: **CRITICAL** (publish blocker) · **HIGH** · **MEDIUM** · **LOW** · **INFO**
 Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Quality** (GTFS Quality) · **Analytics** (GTFS Analytics)
 
@@ -612,7 +612,6 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | XFL_002 | Trip has no stop_times records | HIGH | Interop |
 | XFL_003 | shape_id undefined | HIGH | Spec |
 | XFL_004 | Undefined route_id in fare_rules | CRITICAL | Spec |
-| XFL_005 | Undefined stop_id in stop_times | CRITICAL | Spec |
 | XFL_006 | service_id contains only cancellation exceptions (no active days) | MEDIUM | Analytics |
 | XFL_007 | agency_id not found | CRITICAL | Spec |
 | XFL_009 | level_id invalid | CRITICAL | Spec |

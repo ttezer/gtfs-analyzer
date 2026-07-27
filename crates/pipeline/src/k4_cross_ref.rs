@@ -24,7 +24,7 @@ pub fn check(records: &EntityRecords, entity_map: &EntityMap, today: u32) -> K4R
 
     // stop_times geçişi → StopTimesIndex üzerinden (Vec<StopTimeRecord> taranmaz)
     let (stm_used_stop_ids, stm_trip_continuous, stm_trips_in_stm, stm_trip_stm_count,
-         stm_bad_stop_ids, stm_flex_window_trips) = {
+         stm_flex_window_trips) = {
         let _t = Timer::start("K4::stop_times");
         let idx = &records.stop_times_index;
 
@@ -49,11 +49,11 @@ pub fn check(records: &EntityRecords, entity_map: &EntityMap, today: u32) -> K4R
             }
         }
 
-        // STM_002: stop_id stop_times'ta var ama stops.txt'te yok
-        let mut bad_stop_ids: HashSet<&str> = HashSet::new();
+        // STM_002: stop_id stop_times'ta var ama stops.txt'te yok.
+        // Distinct stop_id başına tek notice — aynı eksik durak binlerce satırda geçse de
+        // tek kayıt (bkz. FRL_001'deki aynı desen).
         for stop_id in &idx.stop_id_set {
             if !map.stops.contains_key(stop_id.as_str()) {
-                bad_stop_ids.insert(stop_id.as_str());
                 let line = idx.stop_first_line.get(stop_id).copied();
                 notices.push(notice(
                     &mut ctr,
@@ -138,7 +138,7 @@ pub fn check(records: &EntityRecords, entity_map: &EntityMap, today: u32) -> K4R
                 .collect()
         };
 
-        (used_stop_ids, trip_continuous, trips_in_stm, trip_stm_count, bad_stop_ids, flex_window_trips)
+        (used_stop_ids, trip_continuous, trips_in_stm, trip_stm_count, flex_window_trips)
     };
 
     { let _t = Timer::start("K4::agencies");       check_agencies(records, map, &mut notices, &mut ctr); }
@@ -158,7 +158,7 @@ pub fn check(records: &EntityRecords, entity_map: &EntityMap, today: u32) -> K4R
     { let _t = Timer::start("K4::translations");   check_translations(records, map, &mut notices, &mut ctr); }
     { let _t = Timer::start("K4::gtfs_jp");         check_gtfs_jp(records, &mut notices, &mut ctr); }
     { let _t = Timer::start("K4::attributions");   check_attributions(records, map, &mut notices, &mut ctr); }
-    { let _t = Timer::start("K4::xfl");            check_xfl(records, map, &mut notices, &mut ctr, &stm_trips_in_stm, &stm_trip_stm_count, &stm_bad_stop_ids); }
+    { let _t = Timer::start("K4::xfl");            check_xfl(records, map, &mut notices, &mut ctr, &stm_trips_in_stm, &stm_trip_stm_count); }
     { let _t = Timer::start("K4::stm_shape_dist"); check_stm_shape_dist(records, &mut notices, &mut ctr); }
 
     // XFL_026-030: cemv_support ↔ Fares v2 contactless media tutarlılığı (feed-level)
@@ -3012,7 +3012,6 @@ fn check_xfl(
     ctr: &mut u32,
     trips_in_stm: &HashSet<&str>,
     trip_stm_count: &HashMap<&str, u32>,
-    bad_stop_ids: &HashSet<&str>,
 ) {
     let ti_xfl = &records.trip_interns;
     // XFL_001: tüm service_id'ler calendar/calendar_dates'te tanımlı (feed-level özet)
@@ -3104,29 +3103,11 @@ fn check_xfl(
         }
     }
 
-    // XFL_005: stop_times'taki stop_id'ler stops'ta mevcut (feed-level özet)
-    {
-        if !bad_stop_ids.is_empty() {
-            let bad_list: Vec<&str> = bad_stop_ids.iter().copied().collect();
-            notices.push(notice(
-                ctr,
-                "XFL_005",
-                EntityType::Feed,
-                None,
-                None,
-                "stop_times.txt",
-                None,
-                Some("stop_id"),
-                Some(bad_list.join(", ")),
-                None,
-                format!(
-                    "stop_times.txt'te stops.txt'te tanımlı olmayan stop_id'ler var: {}.",
-                    bad_list.join(", ")
-                ),
-                "Eksik durakları stops.txt'e ekleyin.",
-            ));
-        }
-    }
+    // XFL_005 KALDIRILDI (0.8.0): stop_times→stops FK ihlalini STM_002 ile birebir aynı
+    // kümeden (`bad_stop_ids`) raporluyordu. İkisi de Kritik+Spec olduğu için tek eksik
+    // durak iki R1 blocker'ı ve iki pub_score cezası üretiyordu; R9 kuyruğunda da iki ayrı
+    // iş gibi görünüyordu. STM_002 satır numarası taşıdığı ve distinct stop_id başına
+    // toplandığı için korunan taraf o oldu; XFL_005'in blocks'u STM_002'ye devredildi.
 
     // XFL_007: routes'taki agency_id'ler agency'de mevcut (feed-level özet)
     {

@@ -2,7 +2,7 @@
 
 🇹🇷 **Türkçe** · 🇬🇧 [English](RULES.en.md) · 🇯🇵 [日本語](RULES.ja.md)
 
-543 kural, 37 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
+542 kural, 37 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
 Önem seviyeleri: **KRİTİK** (yayın engelleyici) · **YÜKSEK** · **ORTA** · **DÜŞÜK** · **BİLGİ**
 Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · **Quality** (GTFS Kalitesi) · **Analytics** (GTFS Analitiği)
 
@@ -612,7 +612,6 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | XFL_002 | Seferin stop_times kaydı yok | YÜKSEK | Interop |
 | XFL_003 | shape_id tanımsız | YÜKSEK | Spec |
 | XFL_004 | fare_rules'ta tanımsız route_id | KRİTİK | Spec |
-| XFL_005 | stop_times'ta tanımsız stop_id | KRİTİK | Spec |
 | XFL_006 | service_id yalnızca iptal istisnası içeriyor (aktif gün yok) | ORTA | Analytics |
 | XFL_007 | agency_id bulunamadı | KRİTİK | Spec |
 | XFL_009 | level_id geçersiz | KRİTİK | Spec |

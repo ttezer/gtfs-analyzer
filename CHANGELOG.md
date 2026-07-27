@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+> **Scores move on feeds with a missing stop.** A `stop_id` used in `stop_times.txt` but absent
+> from `stops.txt` was penalised twice; it is now counted once. Feeds without that error are
+> unaffected. Re-baseline Golden snapshots that contain it.
+
+### Removed
+- **`XFL_005` — it reported the same violation as `STM_002`.** Both fired on a `stop_id` used in
+  `stop_times.txt` but missing from `stops.txt`, and not by coincidence: the `bad_stop_ids` set
+  was built inside the `STM_002` loop and handed to `check_xfl`, so XFL_005's input *was*
+  STM_002's output. Both were Critical/Spec, so one missing stop produced two R1 publish
+  blockers, two penalties against the publication score, and two separate entries in the R9 fix
+  queue — while a single edit to `stops.txt` closed both. On a real feed with one missing stop
+  this cost 6.4 points of publication score. `STM_002` is the surviving rule: it carries the
+  line number and aggregates per distinct `stop_id`, whereas XFL_005 only summarised the same
+  set feed-wide. XFL_005's `blocks` entries (`STP_012`, `DQ_005c`) moved to `STM_002`, and the
+  `ARC_004` blocks list now names `STM_002` in its place. Rule count: 543 → 542.
+
 ## [0.7.0] - 2026-07-26
 
 > **Scores are unchanged.** No rule, threshold or pipeline stage was touched in this release:
