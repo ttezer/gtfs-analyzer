@@ -4,7 +4,7 @@ use std::collections::{HashMap, HashSet};
 use gtfs_core::{EntityType, Severity};
 
 use super::common::{get_col, make_k2_notice, parse_f64_col, parse_u32_col};
-use super::stop_times::next_csv_record;
+use super::stop_times::{next_csv_record, ZipCsvReader};
 use crate::k1_parse::RawFile;
 
 #[derive(Debug, Clone)]
@@ -38,7 +38,7 @@ impl Cols {
     }
 }
 
-pub fn validate_shapes(file: &RawFile) -> (Vec<ShapePointRecord>, Vec<gtfs_core::Notice>) {
+pub fn validate_shapes(file: &RawFile, zip_bytes: Option<&[u8]>) -> (Vec<ShapePointRecord>, Vec<gtfs_core::Notice>) {
     // #15 W3: shapes.txt K1'de stream edilir (RawFile.rows boş, gövde raw_text'te). Burada
     // streaming parse edilir; K1'in per-satır generic notice'ları (ARC_012/018/021, DQ_016)
     // bu geçişe taşındı (stop_times deseni — aynı line/severity/rule davranışı). Eski rows
@@ -47,7 +47,12 @@ pub fn validate_shapes(file: &RawFile) -> (Vec<ShapePointRecord>, Vec<gtfs_core:
     // #15: records Vec'ini önceden boyutlandır — doubling realloc'un geçici 2× peak'i
     // shape-ağır feed'lerde ~500 MB tepe yaratıyordu (K1 stream'i düşünce açığa çıktı).
     // Satır ~30 bayt (shape_id,lat,lon,seq[,dist]) → muhafazakâr sayı tahmini. Yalnız KAPASİTE.
-    let est_rows = file.raw_text.as_ref().map(|t| t.len() / 30).unwrap_or(file.rows.len());
+    // ZIP-stream yolunda raw_text YOKtur; satır sayısını sıkıştırılmamış boyuttan tahmin et
+    // (satır ~30 bayt). Yalnız KAPASİTE — eleman değeri/sırası etkilenmez.
+    let est_rows = zip_bytes
+        .map(|_| (file.bytes as usize / 30).max(1))
+        .or_else(|| file.raw_text.as_ref().map(|t| t.len() / 30))
+        .unwrap_or(file.rows.len());
     let mut records: Vec<ShapePointRecord> = Vec::with_capacity(est_rows);
     let mut counter = 0u32;
 
@@ -276,8 +281,41 @@ pub fn validate_shapes(file: &RawFile) -> (Vec<ShapePointRecord>, Vec<gtfs_core:
             });
         };
 
-        // ── Sürücü: stream raw_text (başlığı atla) veya rows fallback ──
-        if let Some(text) = &file.raw_text {
+        // ── Sürücü: zip_bytes → ZIP stream; raw_text → string stream; rows → fallback ──
+        // ZIP yolu #15/#38 deseni: gövde K1'de belleğe ALINMAZ, burada satır satır okunur.
+        // shapes.txt bazı feed'lerde tek başına GB'larca (mdb-1078: 2,65 GB) — K1'de
+        // raw_text olarak tutulması tepe belleği ikiye katlıyordu.
+        if let Some(zb) = zip_bytes {
+            let cursor = std::io::Cursor::new(zb);
+            match zip::ZipArchive::new(cursor) {
+                Err(_) => {}
+                Ok(mut archive) => {
+                    if let Ok(entry) = archive.by_name(&file.name) {
+                        let mut rdr = ZipCsvReader::new(entry);
+                        let mut fields: Vec<Vec<u8>> = Vec::with_capacity(8);
+                        let mut line: u64 = 2;
+                        let mut header_skipped = false;
+                        while rdr.next_record(&mut fields) {
+                            if fields.len() == 1 && fields[0].is_empty() {
+                                continue;
+                            }
+                            if !header_skipped {
+                                header_skipped = true;
+                                continue;
+                            }
+                            let row: Vec<Cow<'_, str>> = fields.iter()
+                                .map(|f| match std::str::from_utf8(f) {
+                                    Ok(x) => Cow::Borrowed(x),
+                                    Err(_) => Cow::Owned(String::from_utf8_lossy(f).into_owned()),
+                                })
+                                .collect();
+                            process(&row, line);
+                            line += 1;
+                        }
+                    }
+                }
+            }
+        } else if let Some(text) = &file.raw_text {
             let mut pos = 0usize;
             let mut buf: Vec<Cow<'_, str>> = Vec::with_capacity(8);
             let mut data_idx = 0usize;

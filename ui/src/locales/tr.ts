@@ -114,7 +114,7 @@ const tr = {
     'upload.settings_saved'   : 'Ayarlar kaydedildi. Yeni ZIP yükleyince uygulanır.',
     'upload.settings_reset'   : 'Varsayılanlara döndürüldü.',
     'upload.error_zip'        : 'Yalnızca .zip uzantılı dosyalar kabul edilir.',
-    'upload.error_size'       : 'Dosya çok büyük ({mb} MB). Maksimum izin verilen boyut: 512 MB.',
+    'upload.error_size'       : 'Dosya çok büyük ({mb} MB). Maksimum izin verilen boyut: 1024 MB.',
     'upload.url_placeholder'  : 'https://…/gtfs.zip',
     'upload.url_aria'         : 'Feed URL’si',
     'upload.url_load'         : 'URL’den Yükle',

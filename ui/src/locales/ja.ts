@@ -112,7 +112,7 @@ const ja: LocaleShape = {
     'upload.settings_saved'   : '設定を保存しました。次のZIPアップロード時に適用されます。',
     'upload.settings_reset'   : 'デフォルト値にリセットしました。',
     'upload.error_zip'        : '.zipファイルのみ受け付けています。',
-    'upload.error_size'       : 'ファイルが大きすぎます（{mb} MB）。最大サイズ: 512 MB。',
+    'upload.error_size'       : 'ファイルが大きすぎます（{mb} MB）。最大サイズ: 1024 MB。',
     'upload.url_placeholder'  : 'https://…/gtfs.zip',
     'upload.url_aria'         : 'フィードURL',
     'upload.url_load'         : 'URLから読み込む',

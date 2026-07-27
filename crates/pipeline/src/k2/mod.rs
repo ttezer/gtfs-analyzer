@@ -226,7 +226,7 @@ pub fn validate(mut files: RawFiles, zip_bytes: Option<&[u8]>) -> K2Result {
 
     if let Some(file) = files.get("shapes.txt") {
         let _t = Timer::start("K2::shapes");
-        let (shape_records, shape_notices) = validate_shapes(file);
+        let (shape_records, shape_notices) = validate_shapes(file, zip_bytes);
         records.shapes = shape_records;
         notices.extend(shape_notices);
         records.streaming_row_counts.insert("shapes.txt".to_string(), records.shapes.len() as u64);

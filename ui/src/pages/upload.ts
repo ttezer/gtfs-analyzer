@@ -335,7 +335,7 @@ function resetSettings(root: HTMLElement): void {
 
 // ── Dosya işleme ─────────────────────────────────────────────────────────────
 
-const MAX_FILE_BYTES = 512 * 1024 * 1024;
+const MAX_FILE_BYTES = 1024 * 1024 * 1024;
 
 async function handleFile(file: File, root: HTMLElement, errorEl: HTMLElement): Promise<void> {
   if (!file.name.endsWith('.zip')) {

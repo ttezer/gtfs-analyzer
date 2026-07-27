@@ -827,7 +827,7 @@ pub fn parse(zip_bytes: &[u8]) -> Result<K1Result, FatalError> {
         let uncompressed_hint = zf.size() as usize;
         // #38: Büyük dosyalar K2 ZIP stream eder; K1 yalnızca başlık satırını okur.
         // stop_times, trips, calendar_dates için 8 KB partial read; raw_text=None.
-        let is_zip_stream = matches!(raw_name.as_str(), "stop_times.txt" | "trips.txt" | "calendar_dates.txt");
+        let is_zip_stream = matches!(raw_name.as_str(), "stop_times.txt" | "shapes.txt" | "trips.txt" | "calendar_dates.txt");
         let _is_stop_times = raw_name == "stop_times.txt"; // legacy: sadece ARC_011 bytes için artık is_zip_stream
         // Alloc'dan ÖNCE log: crash olursa son satır hangi dosyada OOM çıktığını gösterir.
         crate::timing::mem_note(&format!(
