@@ -33,6 +33,7 @@ const DEF_FEED_EXPIRY_WARNING_DAYS: u32 =  30;
 const DEF_SERVICE_GAP_DAYS:         u32 =   7;
 const DEF_UPCOMING_SERVICE_DAYS:    u32 =   7;
 const DEF_MAX_TRIP_DURATION_HOURS:  f64 =  24.0;
+const DEF_MAX_TRIP_DURATION_HOURS_RAIL: f64 = 48.0;
 const DEF_MIN_TRIP_DURATION_SEC:    u32 =  60;
 const DEF_MAX_HEADWAY_WARNING_MIN:  u32 = 240;
 const DEF_BUNCHING_THRESHOLD_MIN:   u32 =   2;
@@ -73,6 +74,10 @@ pub struct ValidatorConfig {
     /// CAL_021: bugünden itibaren kaç gün içinde aktif sefer aranır (operasyonel tazelik penceresi).
     pub upcoming_service_days:    u32,
     pub max_trip_duration_hours:  f64,
+    /// STM_028: raylı türlerde (route_type 2/12/100-117) ayrı üst eşik. Uzun mesafe tren
+    /// tarifeleri 24 saati meşru olarak aşar — Ankara-Kars 26:26, Ankara-Tatvan 26:37 gerçek
+    /// seferlerdir. Şehir içi türlerde 24 saat korunur; orada o süre veri hatası işaretidir.
+    pub max_trip_duration_hours_rail: f64,
     pub min_trip_duration_sec:    u32,
     pub max_headway_warning_min:  u32,
     pub bunching_threshold_min:   u32,
@@ -125,6 +130,7 @@ impl Default for ValidatorConfig {
             big_gap_days:             DEF_BIG_GAP_DAYS,
             upcoming_service_days:    DEF_UPCOMING_SERVICE_DAYS,
             max_trip_duration_hours:  DEF_MAX_TRIP_DURATION_HOURS,
+            max_trip_duration_hours_rail: DEF_MAX_TRIP_DURATION_HOURS_RAIL,
             min_trip_duration_sec:    DEF_MIN_TRIP_DURATION_SEC,
             max_headway_warning_min:  DEF_MAX_HEADWAY_WARNING_MIN,
             bunching_threshold_min:   DEF_BUNCHING_THRESHOLD_MIN,
@@ -203,6 +209,7 @@ fn validate_ranges(cfg: &ValidatorConfig) -> Result<(), String> {
     chk_u32!(cfg.big_gap_days,             "big_gap_days",                 7,    60);
     chk_u32!(cfg.upcoming_service_days,    "upcoming_service_days",        1,    90);
     chk_f64!(cfg.max_trip_duration_hours,  "max_trip_duration_hours",    8.0,    72.0);
+    chk_f64!(cfg.max_trip_duration_hours_rail, "max_trip_duration_hours_rail", 8.0, 168.0);
     chk_u32!(cfg.min_trip_duration_sec,    "min_trip_duration_sec",       10,   300);
     chk_u32!(cfg.max_headway_warning_min,  "max_headway_warning_min",     60,   720);
     chk_u32!(cfg.bunching_threshold_min,   "bunching_threshold_min",       1,    10);
@@ -238,7 +245,7 @@ pub fn merge_delta(base: &ValidatorConfig, delta_json: &str) -> Result<Validator
         "max_speed_rail_kmh", "max_speed_ferry_kmh", "max_speed_cablecar_kmh",
         "min_transfer_time_sec", "max_transfer_distance_m", "max_shape_jump_km",
         "stop_too_close_m", "stop_far_from_shape_m", "stop_far_from_parent_m", "feed_expiry_warning_days",
-        "service_gap_days", "big_gap_days", "upcoming_service_days", "max_trip_duration_hours", "min_trip_duration_sec",
+        "service_gap_days", "big_gap_days", "upcoming_service_days", "max_trip_duration_hours", "max_trip_duration_hours_rail", "min_trip_duration_sec",
         "max_headway_warning_min", "bunching_threshold_min", "rail_stop_distance_km",
         "max_trips_per_route", "duration_outlier_sigma", "headway_outlier_sigma", "service_day_start_hour",
         "max_calendar_future_years", "source_url", "stop_name_best_practices", "rural_route_ids", "calendar_override_rules",
@@ -302,6 +309,7 @@ pub fn merge_delta(base: &ValidatorConfig, delta_json: &str) -> Result<Validator
     apply_u32!("big_gap_days",             cfg.big_gap_days);
     apply_u32!("upcoming_service_days",    cfg.upcoming_service_days);
     apply_f64!("max_trip_duration_hours",  cfg.max_trip_duration_hours);
+    apply_f64!("max_trip_duration_hours_rail", cfg.max_trip_duration_hours_rail);
     apply_u32!("min_trip_duration_sec",    cfg.min_trip_duration_sec);
     apply_u32!("max_headway_warning_min",  cfg.max_headway_warning_min);
     apply_u32!("bunching_threshold_min",   cfg.bunching_threshold_min);

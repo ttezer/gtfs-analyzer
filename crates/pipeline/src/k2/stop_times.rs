@@ -923,7 +923,7 @@ pub fn validate_stop_times(file: &RawFile, zip_bytes: Option<&[u8]>) -> (StopTim
     {
         // Satır işleyici — hem stream (raw_text) hem rows yolundan çağrılır.
         // Tüm değişken durum closure ile yakalanır (notices, counter, index, caches).
-        let mut process = |st: &mut StChunk, row: &[Cow<'_, str>], line: u64| {
+        let process = |st: &mut StChunk, row: &[Cow<'_, str>], line: u64| {
             // ── Taşınan dosya/satır-seviye notice'lar (K1'den) — eksik veri YOK ──
             // ARC_012: sütun sayısı tutarsız
             if let Some((msg, tip, observed, is_info)) =

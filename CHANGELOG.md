@@ -12,6 +12,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > unaffected. Re-baseline Golden snapshots that contain it.
 
 ### Changed
+- **`STM_028` gets a separate, higher threshold for rail — and reports it as info.** A single
+  24-hour limit was wrong for long-distance rail: on the TCDD feed it fired six times and was
+  wrong every time. Ankara–Kars runs 26:26, Ankara–Tatvan 26:37 and Kurtalan–Ankara 27:25 — real
+  timetables, confirmed by the feed's author. Rail route types (2, 12 and the extended 100–117
+  range) now use `max_trip_duration_hours_rail`, defaulting to 48 hours, and the notice drops to
+  Info severity there: a train exceeding a day is worth seeing, not worth alarming over. Urban
+  types keep the 24-hour limit at High, where that duration really does indicate a data error —
+  verified in the same measurement: TCDD went 6 → 0 while VBB's single non-rail 27:25 finding
+  stayed High. The remediation text is now one string covering both cases, because the locale
+  dictionaries hold a single remediation per rule and a conditional variant could not be
+  expressed under `--lang en/ja`.
 - **CSV fields are borrowed instead of copied into owned `String`s.** Each parsed row built a
   `Vec<String>`, copying every field, and then wrapped those in a `Vec<Cow<str>>` — twelve
   allocations per row where one suffices. The comment justified it with "borrowing is not

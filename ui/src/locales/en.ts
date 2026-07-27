@@ -1230,7 +1230,7 @@ const en: LocaleShape = {
     'STM_025': 'No action is needed if this timing is intentional; otherwise verify the stop_times.txt values.',
     'STM_026': 'Verify stops.txt coordinates and stop_times.txt sequence.',
     'STM_027': 'Fix shape_dist_traveled values so they increase monotonically along the sequence.',
-    'STM_028': 'Split the trip into shorter segments or verify stop_times data.',
+    'STM_028': 'Verify the first departure and last arrival times: this duration is normal for long-distance schedules but signals a data error on urban routes.',
     'STM_029': 'Check stop_times time values; the trip should not be this short.',
     'STM_035': 'Expected for terminal or loop routes. Otherwise, remove the duplicate row in stop_times.txt.',
     'STM_036': 'Sort stop_times.txt by trip_id and stop_sequence.',

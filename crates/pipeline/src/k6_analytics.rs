@@ -308,6 +308,21 @@ fn is_rail_route_type(route_type: u32) -> bool {
     route_type == 2 || route_type == 12 || (100..=117).contains(&route_type)
 }
 
+/// route_type → STM_028 sefer süresi üst eşiği (saniye).
+///
+/// Raylı türlerde ayrı (ve yüksek) eşik: uzun mesafe tren tarifeleri 24 saati MEŞRU olarak
+/// aşar. TCDD feed'inde Ankara-Kars 26:26, Ankara-Tatvan 26:37, Kurtalan-Ankara 27:25 —
+/// altısı da gerçek tarife, veri hatası değil (feed sahibinden doğrulandı). Şehir içi
+/// türlerde 24 saat korunur; tramvay/metroda o süre veri hatası işaretidir.
+fn max_trip_duration_secs(route_type: u32, cfg: &ValidatorConfig) -> u32 {
+    let hours = if is_rail_route_type(route_type) {
+        cfg.max_trip_duration_hours_rail
+    } else {
+        cfg.max_trip_duration_hours
+    };
+    (hours * 3600.0) as u32
+}
+
 /// route_type → config'ten hız eşiği (km/h).
 /// #15/MD-kalibrasyon: STANDART (0-7,11,12) VE GENİŞLETİLMİŞ Avrupa route_type'larını (100-1700)
 /// doğru kategoriye eşler. Eski sürüm yalnız standartları tanıyordu → VBB Berlin gibi tamamı
@@ -670,10 +685,14 @@ fn check_speed_and_duration(
         if let (Some(dep), Some(arr)) = (first_dep, last_arr) {
             if arr >= dep {
                 let duration_sec = arr - dep;
-                let max_sec = (config.max_trip_duration_hours * 3600.0) as u32;
+                // Raylı türlerde ayrı eşik + Bilgi severity: 24 saati aşan tren seferi
+                // meşrudur, sinyal "bak ama panikleme" düzeyindedir.
+                let rt = trip_route_type.get(trip_id).copied().unwrap_or(u32::MAX);
+                let is_rail = is_rail_route_type(rt);
+                let max_sec = max_trip_duration_secs(rt, config);
 
                 if duration_sec > max_sec {
-                    notices.push(k6_notice(
+                    let mut n = k6_notice(
                         ctr,
                         "STM_028",
                         EntityType::Trip,
@@ -688,8 +707,14 @@ fn check_speed_and_duration(
                             route,
                             if dep_str.is_empty() { String::new() } else { format!(" {dep_str}") },
                             format_hms(duration_sec), format_hms(max_sec)),
-                        "Seferi daha kısa parçalara bölün ya da stop_times verilerini doğrulayın.",
-                    ));
+                        // Tek metin: locale sözlüğünde kural başına TEK remediation anahtarı var,
+                        // koşullu varyant --lang en/ja'da temsil edilemez (bkz. i18n mimarisi).
+                        "İlk kalkış ve son varış saatlerini doğrulayın; uzun mesafe tarifelerinde bu süre olağandır, şehir içi hatlarda veri hatası işaretidir.",
+                    );
+                    if is_rail {
+                        n.severity = gtfs_core::Severity::Bilgi;
+                    }
+                    notices.push(n);
                 }
 
                 if duration_sec < config.min_trip_duration_sec {
@@ -7971,6 +7996,41 @@ mod tests {
         );
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
         assert!(result.notices.iter().any(|n| n.rule_id == "STM_028"));
+    }
+
+    #[test]
+    fn long_rail_trip_under_rail_threshold_no_stm_028() {
+        // 30 saatlik TREN seferi: şehir içi eşiği (24s) aşar ama raylı eşiğin (48s) altında.
+        // Gerçek vaka: TCDD Ankara-Kars 26:26, Ankara-Tatvan 26:37 — meşru tarifeler.
+        let records = records_with(
+            vec![stop("A", 41.0, 29.0), stop("B", 41.01, 29.01)],
+            vec![route("R1", 2)], // 2 = Rail
+            vec![trip("T1", "R1")],
+            vec![
+                stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
+                stoptime("T1", 2, "B", (38, 0, 0), (38, 0, 0), 3),
+            ],
+        );
+        let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
+        assert!(!result.notices.iter().any(|n| n.rule_id == "STM_028"));
+    }
+
+    #[test]
+    fn very_long_rail_trip_produces_stm_028_as_info() {
+        // 50 saat: raylı eşiği de aşar → notice VAR, ama severity Bilgi (şehir içi HIGH değil).
+        let records = records_with(
+            vec![stop("A", 41.0, 29.0), stop("B", 41.01, 29.01)],
+            vec![route("R1", 2)],
+            vec![trip("T1", "R1")],
+            vec![
+                stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
+                stoptime("T1", 2, "B", (58, 0, 0), (58, 0, 0), 3),
+            ],
+        );
+        let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
+        let n = result.notices.iter().find(|n| n.rule_id == "STM_028")
+            .expect("50 saatlik tren seferi raylı eşiği de aşar");
+        assert_eq!(n.severity, gtfs_core::Severity::Bilgi);
     }
 
     #[test]
