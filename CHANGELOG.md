@@ -11,6 +11,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > from `stops.txt` was penalised twice; it is now counted once. Feeds without that error are
 > unaffected. Re-baseline Golden snapshots that contain it.
 
+### Changed
+- **stop_times is now parsed in parallel on native targets.** It was the single largest stage
+  left — 2.8 s of a 8.4 s run on VBB, with most cores idle while it ran. The ZIP entry is now
+  decompressed once, split at line boundaries that are then aligned to a trip change, and the
+  pieces are parsed concurrently before being merged. Aligning to trip boundaries matters:
+  stop_times is grouped by trip, so no trip spans two pieces and STM_036's ordering state never
+  has to be reconciled across a split. Measured on VBB (5.68M rows): K2::stop_times 2,820 →
+  ~1,405 ms (2.0×), K2-validate 4,665 → ~2,467 ms, wall clock ~8.4 → ~6.9 s, peak RSS 2.50 →
+  2.73 GB. Output is byte-identical to the serial path. WebAssembly keeps streaming row by row,
+  as before.
+
 ### Fixed
 - **Validation output was not deterministic.** The same binary, given the same feed and the same
   `--today`, produced different results from one run to the next: on VBB, 829 notices differed

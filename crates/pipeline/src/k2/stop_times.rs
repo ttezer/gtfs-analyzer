@@ -874,6 +874,59 @@ struct StChunk {
     row_trip: Vec<u32>,
 }
 
+/// Gövdeyi `n` parçaya böler. Her sınır bir SATIR başına ve TRIP DEĞİŞİMİNE hizalanır:
+/// stop_times trip'e göre gruplu olduğundan aynı trip iki parçaya düşmez, böylece STM_036'nın
+/// sıra durumu (last_seq/last_stop) parça sınırında kopmaz.
+/// Döner: (bayt_başı, bayt_sonu, ilk_satır_numarası). Başlık satırı atlanmıştır.
+#[cfg(feature = "parallel")]
+fn split_body_at_trip_boundaries(body: &[u8], trip_col: Option<usize>, n: usize) -> Vec<(usize, usize, u64)> {
+    // Satırın `trip_col`'uncu alanını kaba okur (tırnak yok varsayımı; trip_id'de nadirdir).
+    // Okunamazsa None döner ve sınır bir satır ileri kayar — muhafazakâr taraf.
+    fn trip_of(line: &[u8], col: usize) -> Option<&[u8]> {
+        line.split(|&b| b == b',').nth(col)
+    }
+    let Some(tcol) = trip_col else { return Vec::new() };
+    let header_end = match body.iter().position(|&b| b == b'\n') { Some(i) => i + 1, None => return Vec::new() };
+    if n <= 1 || body.len() - header_end < 4 * 1024 * 1024 {
+        return vec![(header_end, body.len(), 2)];
+    }
+
+    // Satır başlangıçları + numaraları tek geçişte.
+    let mut starts: Vec<usize> = Vec::new();
+    starts.push(header_end);
+    for (i, &b) in body.iter().enumerate().skip(header_end) {
+        if b == b'\n' && i + 1 < body.len() { starts.push(i + 1); }
+    }
+    if starts.len() < n { return vec![(header_end, body.len(), 2)]; }
+
+    let per = starts.len() / n;
+    let mut out: Vec<(usize, usize, u64)> = Vec::with_capacity(n);
+    let mut cut_idx = 0usize;
+    while cut_idx < starts.len() {
+        let mut next = (cut_idx + per).min(starts.len());
+        // Sınırı trip değişimine hizala.
+        if next < starts.len() {
+            let line_of = |i: usize| -> &[u8] {
+                let s = starts[i];
+                let e = if i + 1 < starts.len() { starts[i + 1] } else { body.len() };
+                &body[s..e]
+            };
+            let prev_trip = trip_of(line_of(next.saturating_sub(1)), tcol).map(|t| t.to_vec());
+            while next < starts.len() {
+                let cur = trip_of(line_of(next), tcol).map(|t| t.to_vec());
+                if cur != prev_trip { break; }
+                next += 1;
+            }
+        }
+        let byte_start = starts[cut_idx];
+        let byte_end = if next < starts.len() { starts[next] } else { body.len() };
+        out.push((byte_start, byte_end, cut_idx as u64 + 2));
+        if next >= starts.len() { break; }
+        cut_idx = next;
+    }
+    out
+}
+
 impl StChunk {
     /// Dosyada DAHA SONRA gelen `other` parçasını bu parçaya katar.
     ///
@@ -1558,6 +1611,39 @@ pub fn validate_stop_times(file: &RawFile, zip_bytes: Option<&[u8]>) -> (StopTim
                                 "ZIP arşivini kontrol edin.",
                             ));
                         }
+                        #[cfg(feature = "parallel")]
+                        Ok(mut entry) => {
+                            use rayon::prelude::*;
+                            // Deflate akışı rastgele erişilemez → gövdeyi bir kez aç, sonra
+                            // satır/trip sınırlarında bölüp parçaları paralel ayrıştır.
+                            let mut body: Vec<u8> = Vec::with_capacity(file.bytes as usize + 1);
+                            if entry.read_to_end(&mut body).is_ok() {
+                                let n = std::thread::available_parallelism().map(|v| v.get()).unwrap_or(4);
+                                let ranges = split_body_at_trip_boundaries(&body, cols.trip_id, n);
+                                let parts: Vec<StChunk> = ranges.par_iter().map(|&(bs, be, first_line)| {
+                                    let mut c = StChunk::default();
+                                    let mut rdr = ZipCsvReader::new(Cursor::new(&body[bs..be]));
+                                    let mut fields: Vec<Vec<u8>> = Vec::with_capacity(header_count + 1);
+                                    let mut line = first_line;
+                                    while rdr.next_record(&mut fields) {
+                                        if fields.len() == 1 && fields[0].is_empty() { continue; }
+                                        let row: Vec<Cow<'_, str>> = fields.iter()
+                                            .map(|f| match std::str::from_utf8(f) {
+                                                Ok(x) => Cow::Borrowed(x),
+                                                Err(_) => Cow::Owned(String::from_utf8_lossy(f).into_owned()),
+                                            })
+                                            .collect();
+                                        process(&mut c, &row, line);
+                                        line += 1;
+                                    }
+                                    c
+                                }).collect();
+                                let mut it = parts.into_iter();
+                                if let Some(first) = it.next() { st = first; }
+                                for c in it { st.merge(c); }
+                            }
+                        }
+                        #[cfg(not(feature = "parallel"))]
                         Ok(entry) => {
                             let mut csv_reader = ZipCsvReader::new(entry);
                             let mut raw_fields: Vec<Vec<u8>> = Vec::with_capacity(header_count + 1);
