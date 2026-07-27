@@ -12,6 +12,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > unaffected. Re-baseline Golden snapshots that contain it.
 
 ### Changed
+- **CSV fields are borrowed instead of copied into owned `String`s.** Each parsed row built a
+  `Vec<String>`, copying every field, and then wrapped those in a `Vec<Cow<str>>` — twelve
+  allocations per row where one suffices. The comment justified it with "borrowing is not
+  possible because raw_fields is reused on the next iteration", but the borrow ends when
+  `process` returns, well before the buffer is refilled. Fields are now `Cow::Borrowed` on the
+  common path, falling back to owned only for the rare invalid-UTF-8 line. Measured on VBB over
+  three warm runs: K2::stop_times ~3,577 → ~2,916 ms, wall clock ~9.2 → ~8.7 s. Output
+  byte-identical.
 - **The CSV reader no longer calls `read` once per byte.** `ZipCsvReader::next_byte` pulled a
   single byte at a time through `BufReader::read(&mut [0u8; 1])` — roughly 402 million calls for
   stop_times.txt alone on VBB. The reader now owns its 64 KB window and advances an index,

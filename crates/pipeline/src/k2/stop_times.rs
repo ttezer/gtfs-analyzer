@@ -1456,16 +1456,18 @@ pub fn validate_stop_times(file: &RawFile, zip_bytes: Option<&[u8]>) -> (StopTim
                                     header_skipped = true;
                                     continue;
                                 }
-                                // Her satır için alan başına owned String (raw_fields sonraki
-                                // iterasyonda yeniden kullanıldığından borrow mümkün değil).
-                                let strings: Vec<String> = raw_fields.iter()
+                                // Alanlar `raw_fields`ten ÖDÜNÇ alınır: geçerli UTF-8'de kopya
+                                // yok. `cow_row` `process` dönüşünde düşer, dolayısıyla bir
+                                // sonraki `next_record(&mut raw_fields)` ile çakışmaz. (Eskiden
+                                // her alan `to_owned()` ile kopyalanıyordu — VBB'de satır başına
+                                // 1 Vec + ~10 String, yani ~68M tahsis.) Bozuk UTF-8 nadir
+                                // istisnadır ve yalnız o satırda `Cow::Owned`a düşer.
+                                let cow_row: Vec<Cow<'_, str>> = raw_fields.iter()
                                     .map(|f| match std::str::from_utf8(f) {
-                                        Ok(s) => s.to_owned(),
-                                        Err(_) => String::from_utf8_lossy(f).into_owned(),
+                                        Ok(s) => Cow::Borrowed(s),
+                                        Err(_) => Cow::Owned(String::from_utf8_lossy(f).into_owned()),
                                     })
                                     .collect();
-                                let cow_row: Vec<Cow<'_, str>> =
-                                    strings.iter().map(|s| Cow::Borrowed(s.as_str())).collect();
                                 process(&cow_row, zip_line);
                                 zip_line += 1;
                             }
