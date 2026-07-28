@@ -2,7 +2,7 @@
 
 🇹🇷 [Türkçe](RULES.md) · 🇬🇧 **English** · 🇯🇵 [日本語](RULES.ja.md)
 
-537 rules, 37 groups. Each rule is identified by a unique ID, severity level, and class.
+538 rules, 37 groups. Each rule is identified by a unique ID, severity level, and class.
 Severity levels: **CRITICAL** (publish blocker) · **HIGH** · **MEDIUM** · **LOW** · **INFO**
 Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Quality** (GTFS Quality) · **Analytics** (GTFS Analytics)
 
@@ -504,6 +504,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | TFR_003 | start_time or end_time format error | HIGH | Spec |
 | TFR_004 | end_time less than start_time | MEDIUM | Quality |
 | TFR_005 | Overlapping time ranges within same group and service_id | MEDIUM | Interop |
+| TFR_006 | start_time or end_time greater than 24:00:00 | CRITICAL | Spec |
 
 ## PTH — Pathways
 

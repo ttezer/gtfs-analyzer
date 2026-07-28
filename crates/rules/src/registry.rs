@@ -986,6 +986,8 @@ pub static RULES: &[RuleMeta] = &[
         "end_time start_time'dan küçük"),
     r!("TFR_005", Orta,   Interop, 1, &[], Some("timeframe_group_id"), VI, Row,
         "Aynı grup ve service_id içinde örtüşen zaman aralıkları"),
+    r!("TFR_006", Kritik, Spec, 1, &[], Some("timeframe_group_id"), VS_K, Row,
+        "start_time veya end_time 24:00:00'dan büyük"),
 
     // ── PTH: Pathways ──────────────────────────────────────────────────────────
     r!("PTH_001", Kritik, Spec, 1, &[], Some("pathway_id"), VS_K, Entity,
@@ -1856,6 +1858,7 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("TFR_003", GtfsSpec),
     ("TFR_004", ProjectQuality),
     ("TFR_005", MobilitydataParity),
+    ("TFR_006", GtfsSpec),
     ("TRF_001", GtfsSpec),
     ("TRF_002", GtfsSpec),
     ("TRF_003", GtfsSpec),

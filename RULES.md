@@ -2,7 +2,7 @@
 
 🇹🇷 **Türkçe** · 🇬🇧 [English](RULES.en.md) · 🇯🇵 [日本語](RULES.ja.md)
 
-537 kural, 37 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
+538 kural, 37 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
 Önem seviyeleri: **KRİTİK** (yayın engelleyici) · **YÜKSEK** · **ORTA** · **DÜŞÜK** · **BİLGİ**
 Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · **Quality** (GTFS Kalitesi) · **Analytics** (GTFS Analitiği)
 
@@ -504,6 +504,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | TFR_003 | start_time veya end_time format hatası | YÜKSEK | Spec |
 | TFR_004 | end_time start_time'dan küçük | ORTA | Quality |
 | TFR_005 | Aynı grup ve service_id içinde örtüşen zaman aralıkları | ORTA | Interop |
+| TFR_006 | start_time veya end_time 24:00:00'dan büyük | KRİTİK | Spec |
 
 ## PTH — Pathways (Geçitler)
 

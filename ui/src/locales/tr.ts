@@ -959,6 +959,7 @@ const tr = {
     'TFR_003': 'start_time veya end_time format hatası',
     'TFR_004': "end_time start_time'dan küçük",
     'TFR_005': 'Aynı grup ve service_id içinde örtüşen zaman aralıkları',
+    'TFR_006': "start_time veya end_time 24:00:00'dan büyük",
     // PTH
     'PTH_001': 'pathway_id yineleniyor',
     'PTH_002': 'from_stop_id bulunamadı',

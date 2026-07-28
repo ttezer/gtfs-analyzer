@@ -67,9 +67,29 @@ pub fn validate_timeframes(
             }
         };
 
+        // TFR_006: spec `timeframes.txt` start_time/end_time — "Values greater than 24:00:00
+        // are forbidden". 24:00:00'ın kendisi geçerlidir, üstü değil. parse_gtfs_time saat
+        // bölümüne üst sınır koymaz (25:10:05 bilinçli olarak kabul edilir), bu yüzden sınır
+        // burada ayrıca denetlenir. Saniyeye çevirmeden karşılaştırılır: çok büyük saat
+        // değerlerinde `hour * 3600` u32'de taşar.
+        for (field, parsed) in [("start_time", start_time), ("end_time", end_time)] {
+            let Some((hour, minute, second)) = parsed else { continue };
+            if hour > 24 || (hour == 24 && (minute > 0 || second > 0)) {
+                notices.push(make_k2_notice(
+                    &mut counter, "TFR_006", EntityType::Row, entity_id.clone(), Some(&row_map),
+                    &file.name, Some(line), Some(field),
+                    get_trimmed_field(&row_map, field).map(str::to_string),
+                    Some("<= 24:00:00".to_string()),
+                    format!("{field} değeri 24:00:00'dan büyük olamaz."),
+                    "timeframes.txt'te start_time/end_time değerlerini 24:00:00 ve altına indirin.",
+                ));
+            }
+        }
+
         if let (Some(st), Some(et)) = (start_time, end_time) {
-            let st_secs = st.0 * 3600 + st.1 * 60 + st.2;
-            let et_secs = et.0 * 3600 + et.1 * 60 + et.2;
+            // u64: parse_gtfs_time saat bölümüne üst sınır koymaz, `hour * 3600` u32'de taşar.
+            let st_secs = st.0 as u64 * 3600 + st.1 as u64 * 60 + st.2 as u64;
+            let et_secs = et.0 as u64 * 3600 + et.1 as u64 * 60 + et.2 as u64;
             if et_secs <= st_secs {
                 notices.push(make_k2_notice(
                     &mut counter, "TFR_004", EntityType::Row, entity_id.clone(), Some(&row_map),
@@ -94,11 +114,11 @@ pub fn validate_timeframes(
 
     // TFR_005: aynı (timeframe_group_id, service_id) grubunda örtüşen zaman aralıkları
     // Gruplama: key → Vec<(start_secs, end_secs, line)>
-    let mut groups: HashMap<(&str, &str), Vec<(u32, u32, u64)>> = HashMap::new();
+    let mut groups: HashMap<(&str, &str), Vec<(u64, u64, u64)>> = HashMap::new();
     for rec in &records {
         if let (Some(st), Some(et)) = (rec.start_time, rec.end_time) {
-            let st_secs = st.0 * 3600 + st.1 * 60 + st.2;
-            let et_secs = et.0 * 3600 + et.1 * 60 + et.2;
+            let st_secs = st.0 as u64 * 3600 + st.1 as u64 * 60 + st.2 as u64;
+            let et_secs = et.0 as u64 * 3600 + et.1 as u64 * 60 + et.2 as u64;
             groups
                 .entry((rec.timeframe_group_id.as_str(), rec.service_id.as_str()))
                 .or_default()
@@ -127,4 +147,58 @@ pub fn validate_timeframes(
     }
 
     (records, notices)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::k1_parse::RawFile;
+
+    fn make_file(rows: Vec<Vec<&str>>) -> RawFile {
+        use smol_str::SmolStr;
+        RawFile {
+            name: "timeframes.txt".to_string(),
+            headers: ["timeframe_group_id", "start_time", "end_time", "service_id"]
+                .iter()
+                .map(|h| h.to_string())
+                .collect(),
+            rows: rows.into_iter().map(|r| r.into_iter().map(SmolStr::new).collect()).collect(),
+            bytes: 0,
+            raw_text: None,
+        }
+    }
+
+    fn tfr_006_count(rows: Vec<Vec<&str>>) -> usize {
+        let (_, notices) = validate_timeframes(&make_file(rows));
+        notices.iter().filter(|n| n.rule_id == "TFR_006").count()
+    }
+
+    #[test]
+    fn tfr_006_allows_exactly_twenty_four_hours() {
+        // Spec: "Values greater than 24:00:00 are forbidden" — 24:00:00'ın KENDİSİ geçerli.
+        assert_eq!(tfr_006_count(vec![vec!["TG1", "08:00:00", "24:00:00", "SVC1"]]), 0);
+    }
+
+    #[test]
+    fn tfr_006_flags_one_second_past_twenty_four_hours() {
+        assert_eq!(tfr_006_count(vec![vec!["TG1", "08:00:00", "24:00:01", "SVC1"]]), 1);
+    }
+
+    #[test]
+    fn tfr_006_flags_start_and_end_separately() {
+        assert_eq!(tfr_006_count(vec![vec!["TG1", "25:00:00", "26:00:00", "SVC1"]]), 2);
+    }
+
+    #[test]
+    fn tfr_006_ignores_normal_and_empty_times() {
+        assert_eq!(tfr_006_count(vec![vec!["TG1", "08:00:00", "12:00:00", "SVC1"]]), 0);
+        // Boş değer spec'te 00:00:00 sayılır; parse None döner, kural konusu değildir.
+        assert_eq!(tfr_006_count(vec![vec!["TG1", "", "", "SVC1"]]), 0);
+    }
+
+    #[test]
+    fn tfr_006_does_not_overflow_on_huge_hour() {
+        // hour * 3600 u32'de taşardı; karşılaştırma saniyeye çevirmeden yapılıyor.
+        assert_eq!(tfr_006_count(vec![vec!["TG1", "9999999:00:00", "08:00:00", "SVC1"]]), 1);
+    }
 }

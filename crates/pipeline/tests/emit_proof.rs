@@ -340,6 +340,7 @@ fn fixtures() -> Vec<Fixture> {
         fx("TFR_003", vec![("timeframes.txt", "timeframe_group_id,start_time,end_time,service_id\nTG1,notatime,10:00:00,SVC1\n")]),
         fx("TFR_004", vec![("timeframes.txt", "timeframe_group_id,start_time,end_time,service_id\nTG1,10:00:00,08:00:00,SVC1\n")]),
         fx("TFR_005", vec![("timeframes.txt", "timeframe_group_id,start_time,end_time,service_id\nTG1,08:00:00,12:00:00,SVC1\nTG1,10:00:00,14:00:00,SVC1\n")]),
+        fx("TFR_006", vec![("timeframes.txt", "timeframe_group_id,start_time,end_time,service_id\nTG1,25:00:00,26:00:00,SVC1\n")]),
 
         // ── STP grubu (stops.txt; K2 alan kontrolleri) ─────────────────────────
         fx("STP_002", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\n,Stop1,41.0,29.0\nS2,Stop2,41.1,29.1\n")]),

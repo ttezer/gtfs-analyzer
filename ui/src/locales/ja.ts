@@ -928,6 +928,7 @@ const ja: LocaleShape = {
     'TFR_003': "時間帯'{entity_id}'：start_timeまたはend_timeの形式が無効です。",
     'TFR_004': "時間帯'{entity_id}'：end_timeがstart_timeより前です。",
     'TFR_005': "時間帯'{entity_id}'：同じグループとservice_id内で時間範囲が重複しています。",
+    'TFR_006': "時間帯'{entity_id}'：{field}は24:00:00を超えてはいけません。",
     // PTH
     'PTH_001': "pathway_idが重複しています：'{entity_id}'。",
     'PTH_002': "経路'{entity_id}'：from_stop_idが見つかりません。",
@@ -1563,6 +1564,7 @@ const ja: LocaleShape = {
     'TFR_003': 'HH:MM:SS形式で有効な時刻を入力してください。',
     'TFR_004': 'end_timeをstart_timeより後の時刻に設定してください。',
     'TFR_005': '同一グループとservice_id内の時間間隔が重複しないようにしてください。',
+    'TFR_006': 'timeframes.txtのstart_time／end_timeの値を24:00:00以下にしてください。',
     // TRF
     'TRF_001': '乗換レコードにfrom_stop_idを追加してください。',
     'TRF_002': '乗換レコードにto_stop_idを追加してください。',
@@ -2069,6 +2071,7 @@ const ja: LocaleShape = {
     'TFR_003': 'start_timeまたはend_timeの形式が無効',
     'TFR_004': 'end_timeがstart_timeより前',
     'TFR_005': '同一グループ・service_id内で時間範囲が重複',
+    'TFR_006': 'start_timeまたはend_timeが24:00:00超',
     // PTH
     'PTH_001': 'pathway_idが重複',
     'PTH_002': 'from_stop_idが存在しない',
