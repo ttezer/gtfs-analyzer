@@ -504,6 +504,39 @@ pub(crate) fn arc021_bad_char<'a>(values: impl Iterator<Item = &'a str>) -> Opti
     None
 }
 
+/// ARC_030: alan değerinde sekme, satır sonu veya satır başı arar; ilk bulunanı döner.
+///
+/// GTFS spec, Dataset Files: "Field values must not contain tabs, carriage returns or new
+/// lines." ARC_021 bu üçünü BİLEREK kaçırır (`is_whitespace()` muafiyeti, ayrıca `cp != 9`):
+/// o kural bozuk/yazdırılamaz karakterleri hedefler ve geçerli metni muaf tutar. Buradaki üç
+/// karakter ise geçerli metinde de görülebilir, ama spec onları açıkça yasaklar. İki kural
+/// aynı olguyu ölçmez.
+///
+/// Bayt taraması UTF-8 güvenlidir: TAB/LF/CR ASCII'dir, çok baytlı karakterlerin devam
+/// baytları 0x80 ve üzerindedir. `chars()` yerine `bytes()` bilinçli — bu K1 sıcak yolu.
+pub(crate) fn arc030_bad_whitespace<'a>(values: impl Iterator<Item = &'a str>) -> Option<u32> {
+    for val in values {
+        for b in val.bytes() {
+            if b == b'\t' || b == b'\n' || b == b'\r' {
+                return Some(b as u32);
+            }
+        }
+    }
+    None
+}
+
+pub(crate) fn arc030_message(file_name: &str, cp: u32) -> String {
+    let kind = match cp {
+        9 => "sekme (TAB)",
+        10 => "satır sonu (LF)",
+        _ => "satır başı (CR)",
+    };
+    format!("'{file_name}' dosyasında bir alan değeri {kind} karakteri içeriyor (U+{cp:04X}).")
+}
+
+pub(crate) const ARC030_REMEDIATION: &str =
+    "Alan değerlerindeki sekme ve satır sonu karakterlerini kaldırın; çok satırlı metni tek satıra indirin.";
+
 pub(crate) fn arc021_message(file_name: &str, cp: u32) -> String {
     // "ASCII dışı" DEME: kural geçerli Unicode harfleri (ü, ö, 漢字…) bilerek muaf tutar;
     // yalnız kontrol/DEL/surrogate/private-use işaretlenir. Mesaj yaptığından fazlasını
@@ -1140,6 +1173,7 @@ pub fn parse(zip_bytes: &[u8]) -> Result<K1Result, FatalError> {
         let mut dq016 = Dq016Acc::default();
         let mut rows: Vec<Vec<SmolStr>> = Vec::new();
         let mut arc021_fired = false;
+        let mut arc030_fired = false;
         for (row_idx, row) in records.into_iter().enumerate() {
             let line_num = (row_idx + 2) as u64;
 
@@ -1186,6 +1220,21 @@ pub fn parse(zip_bytes: &[u8]) -> Result<K1Result, FatalError> {
                         Some(format!("U+{cp:04X}")),
                         arc021_message(&raw_name, cp),
                         ARC021_REMEDIATION,
+                    ));
+                }
+            }
+
+            // ARC_030: alan değerinde sekme/satır sonu — spec bunları açıkça yasaklar.
+            if !arc030_fired {
+                if let Some(cp) = arc030_bad_whitespace(row.iter().map(|v| v.as_str())) {
+                    arc030_fired = true;
+                    notices.push(make_notice(
+                        &mut counter, "ARC_030",
+                        EntityType::File, Some(raw_name.clone()),
+                        Some(&raw_name), Some(line_num), None,
+                        Some(format!("U+{cp:04X}")),
+                        arc030_message(&raw_name, cp),
+                        ARC030_REMEDIATION,
                     ));
                 }
             }
@@ -2059,6 +2108,39 @@ mod tests {
         ]);
         let k1 = parse(&zip).unwrap();
         assert!(k1.notices.iter().any(|n| n.rule_id == "ARC_021"), "ARC_021 bekleniyor");
+    }
+
+    #[test]
+    fn arc_030_fires_for_newline_inside_quoted_value() {
+        // Tırnak içindeki satır sonu alan değerinin parçası olur; spec bunu yasaklar.
+        let zip = zip_with_files(&[
+            ("agency.txt",     "agency_id,agency_name,agency_url,agency_timezone\n1,\"Test\nTransit\",http://x.com,UTC\n".as_bytes()),
+            ("stops.txt",      b"stop_id,stop_name,stop_lat,stop_lon\nS1,Durak,41.0,29.0\n"),
+            ("routes.txt",     b"route_id,agency_id,route_short_name,route_type\nR1,1,101,3\n"),
+            ("trips.txt",      b"route_id,service_id,trip_id\nR1,SVC1,T1\n"),
+            ("stop_times.txt", b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\n"),
+            ("calendar.txt",   b"service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,0,0,20240101,20241231\n"),
+        ]);
+        let k1 = parse(&zip).unwrap();
+        assert!(k1.notices.iter().any(|n| n.rule_id == "ARC_030"), "ARC_030 bekleniyor");
+        // ARC_021 bu karakteri bilerek muaf tutar; iki kural çakışmamalı.
+        assert!(!k1.notices.iter().any(|n| n.rule_id == "ARC_021"), "ARC_021 tetiklenmemeli");
+    }
+
+    #[test]
+    fn arc_030_fires_for_tab_inside_value() {
+        // Spec sekmeyi de yasaklar: "must not contain tabs, carriage returns or new lines".
+        assert_eq!(arc030_bad_whitespace(["ab\tcd"].into_iter()), Some(9));
+        assert_eq!(arc030_bad_whitespace(["ab\rcd"].into_iter()), Some(13));
+        assert_eq!(arc030_bad_whitespace(["ab\ncd"].into_iter()), Some(10));
+    }
+
+    #[test]
+    fn arc_030_silent_for_normal_and_unicode_values() {
+        // Boşluk, Türkçe/Japonca metin ve noktalama sorun değildir.
+        assert_eq!(arc030_bad_whitespace(["Şişli Durağı", "東京駅", "a, b"].into_iter()), None);
+        let k1 = parse(&minimal_gtfs_zip()).unwrap();
+        assert!(!k1.notices.iter().any(|n| n.rule_id == "ARC_030"), "ARC_030 tetiklenmemeli");
     }
 
     #[test]

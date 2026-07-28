@@ -2,7 +2,7 @@
 
 🇹🇷 [Türkçe](RULES.md) · 🇬🇧 **English** · 🇯🇵 [日本語](RULES.ja.md)
 
-539 rules, 37 groups. Each rule is identified by a unique ID, severity level, and class.
+540 rules, 37 groups. Each rule is identified by a unique ID, severity level, and class.
 Severity levels: **CRITICAL** (publish blocker) · **HIGH** · **MEDIUM** · **LOW** · **INFO**
 Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Quality** (GTFS Quality) · **Analytics** (GTFS Analytics)
 
@@ -39,6 +39,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | ARC_027 | ZIP entry lacks user read permission | INFO | Quality |
 | ARC_028 | GTFS publishing URL does not end with a .zip filename | LOW | Quality |
 | ARC_029 | Zip-bomb protection triggered | CRITICAL | Quality |
+| ARC_030 | Tab or line break in a field value | HIGH | Spec |
 
 ## BKR — Booking Rules
 

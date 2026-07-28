@@ -59,6 +59,7 @@ pub fn validate_shapes(file: &RawFile, zip_bytes: Option<&[u8]>) -> (Vec<ShapePo
     let cols = Cols::from_headers(&file.headers);
     let header_count = file.headers.len();
     let mut arc021_fired = false;
+    let mut arc030_fired = false;
     let mut seen_seq_by_shape: HashMap<String, HashSet<u32>> = HashMap::new();
     let mut total_rows: usize = 0;
     let mut dq016 = crate::k1_parse::Dq016Acc::default();
@@ -106,6 +107,20 @@ pub fn validate_shapes(file: &RawFile, zip_bytes: Option<&[u8]>) -> (Vec<ShapePo
                         Some(format!("U+{cp:04X}")), None,
                         crate::k1_parse::arc021_message(&file.name, cp),
                         crate::k1_parse::ARC021_REMEDIATION,
+                    ));
+                }
+            }
+
+            // ARC_030: alan değerinde sekme/satır sonu — dosya başına bir kez
+            if !arc030_fired {
+                if let Some(cp) = crate::k1_parse::arc030_bad_whitespace(row.iter().map(|v| v.as_ref())) {
+                    arc030_fired = true;
+                    notices.push(make_k2_notice(
+                        &mut counter, "ARC_030", EntityType::File, Some(file.name.clone()),
+                        None, &file.name, Some(line), None,
+                        Some(format!("U+{cp:04X}")), None,
+                        crate::k1_parse::arc030_message(&file.name, cp),
+                        crate::k1_parse::ARC030_REMEDIATION,
                     ));
                 }
             }

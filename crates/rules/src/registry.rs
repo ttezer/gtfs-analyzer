@@ -148,6 +148,8 @@ pub static RULES: &[RuleMeta] = &[
         "GTFS yayın URL'si .zip dosya adıyla bitmiyor"),
     r!("ARC_029", Kritik, Quality, 1, &[], None, VS, File,
         "Sıkıştırma koruması: arşiv zip-bomb sınırını aştı"),
+    r!("ARC_030", Yuksek, Spec, 1, &[], None, VS, File,
+        "Alan değerinde sekme veya satır sonu karakteri"),
 
     // ── BKR: Booking Rules ─────────────────────────────────────────────────────
     r!("BKR_001", Yuksek, Spec, 1, &[], Some("booking_rule_id"), VS, Entity,
@@ -1454,6 +1456,7 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("ARC_027", ProjectQuality),
     ("ARC_028", ProjectQuality),
     ("ARC_029", ProjectQuality),
+    ("ARC_030", GtfsSpec),
     ("ARS_001", GtfsSpec),
     ("ATR_001", ProjectQuality),
     ("ATR_002", GtfsSpec),

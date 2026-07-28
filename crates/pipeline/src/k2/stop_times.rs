@@ -864,6 +864,7 @@ struct StChunk {
     total_rows: usize,
     unsorted_seq_trips: Vec<(SmolStr, u32, u32, u64)>,
     arc021_fired: bool,
+    arc030_fired: bool,
     /// STM_050: boş-timepoint satır sayısı. Satır-başına notice DEĞİL (büyük feed'lerde
     /// milyonlarca notice → tarayıcı OOM); döngü sonunda TEK feed-seviyesi özet emit edilir.
     stm050_empty: u32,
@@ -998,8 +999,12 @@ impl StChunk {
         if self.arc021_fired {
             incoming.retain(|n| n.rule_id != "ARC_021");
         }
+        if self.arc030_fired {
+            incoming.retain(|n| n.rule_id != "ARC_030");
+        }
         self.notices.extend(incoming);
         self.arc021_fired |= other.arc021_fired;
+        self.arc030_fired |= other.arc030_fired;
         self.counter += other.counter;
         self.trip_id_cache.extend(other.trip_id_cache);
         self.stop_headsigns.extend(other.stop_headsigns); // anahtar = CSV satırı, çakışmaz
@@ -1103,6 +1108,20 @@ pub fn validate_stop_times(file: &RawFile, zip_bytes: Option<&[u8]>) -> (StopTim
                         Some(format!("U+{cp:04X}")), None,
                         crate::k1_parse::arc021_message(&file.name, cp),
                         crate::k1_parse::ARC021_REMEDIATION,
+                    ));
+                }
+            }
+
+            // ARC_030: alan değerinde sekme/satır sonu — dosya başına bir kez
+            if !st.arc030_fired {
+                if let Some(cp) = crate::k1_parse::arc030_bad_whitespace(row.iter().map(|v| v.as_ref())) {
+                    st.arc030_fired = true;
+                    st.notices.push(make_k2_notice(
+                        &mut st.counter, "ARC_030", EntityType::File, Some(file.name.clone()),
+                        None, &file.name, Some(line), None,
+                        Some(format!("U+{cp:04X}")), None,
+                        crate::k1_parse::arc030_message(&file.name, cp),
+                        crate::k1_parse::ARC030_REMEDIATION,
                     ));
                 }
             }

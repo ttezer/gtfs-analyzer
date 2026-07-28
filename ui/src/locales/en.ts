@@ -561,6 +561,7 @@ const en: LocaleShape = {
     'ARC_012': 'Row column count does not match the header ({observed_value} vs {expected_value}).',
     'ARC_013': "CSV parse error in '{entity_id}': {observed_value}.",
     'ARC_029': "Decompression guard tripped for '{entity_id}': the archive exceeded the zip-bomb safety limit ({observed_value}).",
+    'ARC_030': "A field value in '{entity_id}' contains a tab, carriage return or new line ({observed_value}).",
     'ARC_014': "Header field '{observed_value}' has leading or trailing whitespace.",
     'ARC_015': "Duplicate header column: '{observed_value}'.",
     'ARC_025': "Required column '{field}' is missing from the header.",
@@ -1616,6 +1617,7 @@ const en: LocaleShape = {
     'ARC_012': 'Ensure each row contains exactly as many comma-separated values as the header.',
     'ARC_013': 'Check the CSV format; ensure all quoted fields are properly closed.',
     'ARC_029': 'The archive expanded past the allowed decompressed-size/ratio limits. Verify the feed is not malformed or maliciously compressed.',
+    'ARC_030': 'Remove tabs and line breaks from field values; collapse multi-line text onto a single line.',
     'ARC_014': 'Remove leading and trailing whitespace from CSV header field names.',
     'ARC_015': 'Remove the duplicate column from the header row.',
     'ARC_025': 'Add the required column to the header.',
@@ -1738,6 +1740,7 @@ const en: LocaleShape = {
     'ARC_027': 'ZIP entry lacks user read permission',
     'ARC_028': 'GTFS publishing URL does not end with a .zip filename',
     'ARC_029': 'Zip-bomb protection triggered',
+    'ARC_030': 'Tab or line break in a field value',
     // BKR
     'BKR_001': 'Prior-day booking field set in prohibited context',
     'BKR_002': 'prior_notice_start_day only valid with prior_notice_last_day',

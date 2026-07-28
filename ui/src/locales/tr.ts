@@ -578,6 +578,7 @@ const tr = {
     'ARC_027': 'ZIP girdisinde kullanıcı okuma izni yok',
     'ARC_028': "GTFS yayın URL'si .zip dosya adıyla bitmiyor",
     'ARC_029': 'Sıkıştırma koruması: arşiv zip-bomb sınırını aştı',
+    'ARC_030': 'Alan değerinde sekme veya satır sonu karakteri',
     // BKR
     'BKR_001': 'Önceki gün rezervasyon alanı yasak bağlamda dolu',
     'BKR_002': 'prior_notice_start_day yalnızca prior_notice_last_day ile kullanılabilir',
