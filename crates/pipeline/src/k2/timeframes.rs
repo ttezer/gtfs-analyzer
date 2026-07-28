@@ -67,6 +67,29 @@ pub fn validate_timeframes(
             }
         };
 
+        // TFR_007: spec her iki alan için simetrik koşullu zorunluluk koyar — start_time
+        // "Required if timeframes.end_time is defined. - Forbidden otherwise", end_time için
+        // aynısı ters yönde. Yani ikisi de boş olabilir (spec'e göre 00:00:00–24:00:00, tüm
+        // gün) ya da ikisi de dolu olabilir; YALNIZCA BİRİ dolu olamaz.
+        // Parse edilmiş değere DEĞİL ham alana bakılır: biçim hatasında parse None döner ve
+        // TFR_003 zaten emit edilmiştir, buradan ikinci bir notice çıkmamalıdır.
+        let start_raw_empty = get_trimmed_field(&row_map, "start_time").unwrap_or("").is_empty();
+        let end_raw_empty = get_trimmed_field(&row_map, "end_time").unwrap_or("").is_empty();
+        if start_raw_empty != end_raw_empty {
+            let (missing, present) = if start_raw_empty {
+                ("start_time", "end_time")
+            } else {
+                ("end_time", "start_time")
+            };
+            notices.push(make_k2_notice(
+                &mut counter, "TFR_007", EntityType::Row, entity_id.clone(), Some(&row_map),
+                &file.name, Some(line), Some(missing), Some(String::new()),
+                Some("dolu".to_string()),
+                format!("{present} tanımlıyken {missing} da tanımlanmalıdır."),
+                "timeframes.txt'te start_time ve end_time alanlarını birlikte doldurun veya ikisini de boş bırakın.",
+            ));
+        }
+
         // TFR_006: spec `timeframes.txt` start_time/end_time — "Values greater than 24:00:00
         // are forbidden". 24:00:00'ın kendisi geçerlidir, üstü değil. parse_gtfs_time saat
         // bölümüne üst sınır koymaz (25:10:05 bilinçli olarak kabul edilir), bu yüzden sınır
@@ -194,6 +217,34 @@ mod tests {
         assert_eq!(tfr_006_count(vec![vec!["TG1", "08:00:00", "12:00:00", "SVC1"]]), 0);
         // Boş değer spec'te 00:00:00 sayılır; parse None döner, kural konusu değildir.
         assert_eq!(tfr_006_count(vec![vec!["TG1", "", "", "SVC1"]]), 0);
+    }
+
+    fn tfr_007_count(rows: Vec<Vec<&str>>) -> usize {
+        let (_, notices) = validate_timeframes(&make_file(rows));
+        notices.iter().filter(|n| n.rule_id == "TFR_007").count()
+    }
+
+    #[test]
+    fn tfr_007_flags_only_one_side_specified() {
+        assert_eq!(tfr_007_count(vec![vec!["TG1", "08:00:00", "", "SVC1"]]), 1);
+        assert_eq!(tfr_007_count(vec![vec!["TG1", "", "12:00:00", "SVC1"]]), 1);
+    }
+
+    #[test]
+    fn tfr_007_allows_both_present_or_both_empty() {
+        assert_eq!(tfr_007_count(vec![vec!["TG1", "08:00:00", "12:00:00", "SVC1"]]), 0);
+        // Spec: boş start_time = 00:00:00, boş end_time = 24:00:00 → ikisi birden boşsa tüm gün.
+        assert_eq!(tfr_007_count(vec![vec!["TG1", "", "", "SVC1"]]), 0);
+    }
+
+    #[test]
+    fn tfr_007_does_not_double_report_a_format_error() {
+        // Biçim hatasında parse None döner ama alan DOLUDUR; TFR_003 emit edilir, TFR_007 edilmez.
+        let (_, notices) = validate_timeframes(&make_file(vec![vec![
+            "TG1", "notatime", "12:00:00", "SVC1",
+        ]]));
+        assert_eq!(notices.iter().filter(|n| n.rule_id == "TFR_003").count(), 1);
+        assert_eq!(notices.iter().filter(|n| n.rule_id == "TFR_007").count(), 0);
     }
 
     #[test]

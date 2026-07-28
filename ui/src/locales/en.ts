@@ -948,6 +948,7 @@ const en: LocaleShape = {
     'TFR_004': "Timeframe '{entity_id}': end_time is less than start_time.",
     'TFR_005': "Timeframe '{entity_id}': overlapping time ranges within the same group and service_id.",
     'TFR_006': "Timeframe '{entity_id}': {field} must not be greater than 24:00:00.",
+    'TFR_007': "Timeframe '{entity_id}': {field} must also be defined when the other time is set.",
     // PTH
     'PTH_001': "Duplicate pathway_id: '{entity_id}'.",
     'PTH_002': "Pathway '{entity_id}': from_stop_id not found.",
@@ -1553,6 +1554,7 @@ const en: LocaleShape = {
     'TFR_004': 'Set end_time to be after start_time.',
     'TFR_005': 'Ensure time intervals within the same group and service_id do not overlap.',
     'TFR_006': 'Lower the start_time/end_time values in timeframes.txt to 24:00:00 or below.',
+    'TFR_007': 'Fill in start_time and end_time together in timeframes.txt, or leave both empty.',
     // TRN
     'TRN_001': 'Use a valid GTFS table name for table_name.',
     'TRN_002': 'Use a valid translatable field name for the selected table_name.',
@@ -2118,6 +2120,7 @@ const en: LocaleShape = {
     'TFR_004': 'end_time less than start_time',
     'TFR_005': 'Overlapping time ranges within same group and service_id',
     'TFR_006': 'start_time or end_time greater than 24:00:00',
+    'TFR_007': 'Only one of start_time and end_time is specified',
     // PTH
     'PTH_001': 'Duplicate pathway_id',
     'PTH_002': 'from_stop_id not found',
