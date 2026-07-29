@@ -2,7 +2,7 @@
 
 🇹🇷 **Türkçe** · 🇬🇧 [English](RULES.en.md) · 🇯🇵 [日本語](RULES.ja.md)
 
-542 kural, 37 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
+541 kural, 37 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
 Önem seviyeleri: **KRİTİK** (yayın engelleyici) · **YÜKSEK** · **ORTA** · **DÜŞÜK** · **BİLGİ**
 Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · **Quality** (GTFS Kalitesi) · **Analytics** (GTFS Analitiği)
 
@@ -211,8 +211,8 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | STM_012 | Duraklar arası hız gerçekçi değil | YÜKSEK | Interop |
 | STM_013 | Karışık varış/kalkış zamanları | YÜKSEK | Quality |
 | STM_014 | Segmentte aşırı hız | YÜKSEK | Analytics |
-| STM_015 | İlk duraklama noktası yok | KRİTİK | Spec |
-| STM_016 | Son duraklama noktası yok | KRİTİK | Spec |
+| STM_015 | İlk durakta zorunlu zaman alanı eksik | KRİTİK | Spec |
+| STM_016 | Son durakta zorunlu zaman alanı eksik | KRİTİK | Spec |
 | STM_017 | Sefer saatlerinde güzergah mesafesi eksik | ORTA | Quality |
 | STM_018 | continuous_pickup geçersiz (stop_times) | ORTA | Spec |
 | STM_019 | continuous_drop_off geçersiz (stop_times) | ORTA | Spec |
@@ -222,7 +222,6 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | STM_024 | shape_dist_traveled birim tutarsızlığı | BİLGİ | Quality |
 | STM_025 | Kısa segment zamanlaması | BİLGİ | Analytics |
 | STM_026 | Durak arası mesafe aşırı uzun | YÜKSEK | Quality |
-| STM_027 | shape_dist_traveled monoton artmıyor | YÜKSEK | Interop |
 | STM_028 | Sefer süresi çok uzun | YÜKSEK | Analytics |
 | STM_029 | Sefer süresi çok kısa | ORTA | Analytics |
 | STM_030 | shape_dist_traveled negatif | DÜŞÜK | Spec |

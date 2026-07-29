@@ -2,7 +2,7 @@
 
 🇹🇷 [Türkçe](RULES.md) · 🇬🇧 **English** · 🇯🇵 [日本語](RULES.ja.md)
 
-542 rules, 37 groups. Each rule is identified by a unique ID, severity level, and class.
+541 rules, 37 groups. Each rule is identified by a unique ID, severity level, and class.
 Severity levels: **CRITICAL** (publish blocker) · **HIGH** · **MEDIUM** · **LOW** · **INFO**
 Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Quality** (GTFS Quality) · **Analytics** (GTFS Analytics)
 
@@ -211,8 +211,8 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | STM_012 | Unrealistic speed between stops | HIGH | Interop |
 | STM_013 | Mixed arrival/departure times | HIGH | Quality |
 | STM_014 | Excessive speed in segment | HIGH | Analytics |
-| STM_015 | Missing first timepoint | CRITICAL | Spec |
-| STM_016 | Missing last timepoint | CRITICAL | Spec |
+| STM_015 | First stop is missing a required time | CRITICAL | Spec |
+| STM_016 | Last stop is missing a required time | CRITICAL | Spec |
 | STM_017 | Shape distance missing in stop times | MEDIUM | Quality |
 | STM_018 | continuous_pickup invalid (stop_times) | MEDIUM | Spec |
 | STM_019 | continuous_drop_off invalid (stop_times) | MEDIUM | Spec |
@@ -222,7 +222,6 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | STM_024 | shape_dist_traveled unit inconsistency | INFO | Quality |
 | STM_025 | Short segment timing | INFO | Analytics |
 | STM_026 | Excessive distance between stops | HIGH | Quality |
-| STM_027 | shape_dist_traveled not monotonically increasing | HIGH | Interop |
 | STM_028 | Trip duration too long | HIGH | Analytics |
 | STM_029 | Trip duration too short | MEDIUM | Analytics |
 | STM_030 | shape_dist_traveled is negative | LOW | Spec |

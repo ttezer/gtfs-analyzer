@@ -410,7 +410,7 @@ pub static RULES: &[RuleMeta] = &[
         Some("trip_id"), VS_K, Entity,
         "service_id bulunamadı"),
     r!("TRP_004", Yuksek, Spec, 1,
-        &["SHP_014","SHP_016","SHP_017","STM_015","STM_016","STM_027"],
+        &["SHP_014","SHP_016","SHP_017","STM_015","STM_016"],
         Some("shape_id"), VS, Entity,
         "shape_id bulunamadı"),
     r!("TRP_005", Orta,   Spec, 1, &[], Some("trip_id"), VS, Entity,
@@ -466,7 +466,7 @@ pub static RULES: &[RuleMeta] = &[
 
     // ── STM: Stop Times ────────────────────────────────────────────────────────
     r!("STM_001", Kritik, Spec, 1,
-        &["STM_008","STM_013","STM_014","STM_027","OPR_001","OPR_008"],
+        &["STM_008","STM_013","STM_014","STM_056","OPR_001","OPR_008"],
         Some("trip_id"), VS_K, Row,
         "trip_id bulunamadı"),
     // blocks: STP_012 + DQ_005c, kaldırılan XFL_005'ten devralındı — aynı FK ihlalini
@@ -476,11 +476,11 @@ pub static RULES: &[RuleMeta] = &[
         Some("stop_id"), VS_K, Row,
         "stop_id bulunamadı"),
     r!("STM_003", Kritik, Spec, 1,
-        &["STM_004","STM_008","STM_027","SHP_014"],
+        &["STM_004","STM_008","STM_056","SHP_014"],
         Some("trip_id"), VS_K, Row,
         "arrival_time geçersiz format"),
     r!("STM_004", Kritik, Spec, 1,
-        &["STM_008","STM_012","STM_027"],
+        &["STM_008","STM_012","STM_056"],
         Some("trip_id"), VS_K, Row,
         "departure_time geçersiz format"),
     r!("STM_005", Kritik, Spec, 2,
@@ -511,9 +511,9 @@ pub static RULES: &[RuleMeta] = &[
     r!("STM_015", Kritik, Spec, 2,
         &["STM_016","STM_017","XFL_013","SHP_017"],
         Some("trip_id"), VS_K, Row,
-        "İlk duraklama noktası yok"),
+        "İlk durakta zorunlu zaman alanı eksik"),
     r!("STM_016", Kritik, Spec, 2, &[], Some("trip_id"), VS_K, Row,
-        "Son duraklama noktası yok"),
+        "Son durakta zorunlu zaman alanı eksik"),
     r!("STM_017", Orta,   Quality, 3, &[], Some("trip_id"), VS, Row,
         "Sefer saatlerinde güzergah mesafesi eksik"),
     r!("STM_018", Orta,   Spec, 1, &[], Some("trip_id"), VS, Row,
@@ -532,8 +532,6 @@ pub static RULES: &[RuleMeta] = &[
         "Kısa segment zamanlaması"),
     r!("STM_026", Yuksek, Quality, 2, &[], Some("trip_id"), VS, Row,
         "Durak arası mesafe aşırı uzun"),
-    r!("STM_027", Yuksek, Interop, 3, &[], Some("trip_id"), VI, Row,
-        "shape_dist_traveled monoton artmıyor"),
     r!("STM_028", Yuksek, Analytics, 2, &[], Some("trip_id"), VA, Row,
         "Sefer süresi çok uzun"),
     r!("STM_029", Orta,   Analytics, 2, &[], Some("trip_id"), VA, Row,
@@ -1792,7 +1790,6 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("STM_024", ProjectQuality),
     ("STM_025", ProjectAnalytics),
     ("STM_026", ProjectQuality),
-    ("STM_027", MobilitydataParity),
     ("STM_028", ProjectAnalytics),
     ("STM_029", ProjectAnalytics),
     ("STM_030", GtfsSpec),
@@ -2086,12 +2083,14 @@ mod tests {
         assert!(get_rule("DQ_007").is_none());
         assert!(get_rule("DQ_008").is_none());
         assert!(get_rule("DQ_015").is_none());
+        // STM_027 (2026-07-28): STM_056 ile aynı olgu, duplikasyon nedeniyle kaldırıldı.
+        assert!(get_rule("STM_027").is_none());
     }
 
     #[test]
     fn blocks_only_canonical_ids() {
         let view_ids = ["GEO_008", "GEO_010", "GEO_011"];
-        let removed_ids = ["STM_011","TRP_010","GEO_001","GEO_005","DQ_007","DQ_008","DQ_015"];
+        let removed_ids = ["STM_011","TRP_010","GEO_001","GEO_005","DQ_007","DQ_008","DQ_015","STM_027"];
         for rule in RULES {
             for &b in rule.blocks {
                 assert!(!view_ids.contains(&b),

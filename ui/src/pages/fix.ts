@@ -333,7 +333,7 @@ const TRIP_ID_RULES = new Set([
   'STM_009','STM_010','STM_011','STM_013','STM_015','STM_016','STM_018','STM_019',
   // STM_036 (satır sıralaması) coğrafi değil — durak konumları doğru, yalnız dosya satır
   // sırası bozuk; harita yanıltıcı (boş/normal görünür). Bilinçli olarak haritasız.
-  'STM_021','STM_022','STM_024','STM_027','STM_028','STM_029','STM_030',
+  'STM_021','STM_022','STM_024','STM_028','STM_029','STM_030',
   'STM_031','STM_032','STM_034',
   // VAT grubu — sefer bazlı
   'VAT_003',

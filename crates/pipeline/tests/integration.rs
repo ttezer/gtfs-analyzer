@@ -1168,3 +1168,57 @@ fn same_feed_twice_produces_identical_output() {
         }
     }
 }
+
+// ── STM_015/016: Flex guard ve ilk/son durak kapsamı ──────────────────────────
+// Spec, arrival_time/departure_time için "Forbidden when start_pickup_drop_off_window or
+// end_pickup_drop_off_window are defined" der. Flex seferde eksik zaman alanı ihlal DEĞİL,
+// beklenen durumdur; guard'sız hâlde bu iki kural her Flex seferde yanlış pozitif üretirdi.
+
+#[test]
+fn stm015_016_silent_for_flex_pickup_drop_off_window() {
+    static FLEX_STOP_TIMES: &[u8] =
+        b"trip_id,stop_id,stop_sequence,start_pickup_drop_off_window,end_pickup_drop_off_window\n\
+          T1,S1,1,08:00:00,12:00:00\nT1,S2,2,08:00:00,12:00:00\n";
+    let mut files = base_files();
+    files[4] = ("stop_times.txt", FLEX_STOP_TIMES);
+
+    match run(&files) {
+        ValidateResult::Ok(vr) => {
+            let hits: Vec<&str> = vr
+                .notices
+                .iter()
+                .map(|n| n.rule_id.as_str())
+                .filter(|id| *id == "STM_015" || *id == "STM_016")
+                .collect();
+            assert!(
+                hits.is_empty(),
+                "Flex pencereli seferde STM_015/016 üretilmemeli, çıkanlar: {hits:?}",
+            );
+        }
+        other => panic!("ValidateResult::Ok beklendi, gelen: {other:?}"),
+    }
+}
+
+#[test]
+fn stm015_016_fire_when_only_one_edge_time_is_missing() {
+    // İlk durakta arrival var/departure yok, son durakta departure var/arrival yok.
+    // Genişletme öncesi bu iki durumun ikisi de sessiz kalıyordu.
+    static EDGE_STOP_TIMES: &[u8] =
+        b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
+          T1,08:00:00,,S1,1\nT1,,08:10:00,S2,2\n";
+    let mut files = base_files();
+    files[4] = ("stop_times.txt", EDGE_STOP_TIMES);
+
+    match run(&files) {
+        ValidateResult::Ok(vr) => {
+            for want in ["STM_015", "STM_016"] {
+                assert!(
+                    vr.notices.iter().any(|n| n.rule_id == want),
+                    "{want} bekleniyor. Mevcut: {:?}",
+                    vr.notices.iter().map(|n| n.rule_id.as_str()).collect::<Vec<_>>(),
+                );
+            }
+        }
+        other => panic!("ValidateResult::Ok beklendi, gelen: {other:?}"),
+    }
+}

@@ -1279,8 +1279,6 @@ fn fixtures() -> Vec<Fixture> {
             ("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,40.0,40.0\nS2,Stop2,41.0,40.0\n"),
             ("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\nT1,10:00:00,10:00:00,S2,2\n"),
         ]),
-        // STM_027: shape_dist_traveled azalıyor (k6).
-        fx("STM_027", vec![("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence,shape_dist_traveled\nT1,08:00:00,08:00:00,S1,1,1000\nT1,08:10:00,08:10:00,S2,2,500\n")]),
         // STM_028: trip süresi > 24 saat (k6).
         fx("STM_028", vec![("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\nT1,33:00:00,33:00:00,S2,2\n")]),
         // STM_029: trip süresi < 60s (k6).

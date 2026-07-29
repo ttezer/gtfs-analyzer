@@ -2817,58 +2817,74 @@ fn check_stoptimes_derived(
         // trip_id zenginleştirme: ilk kalkış saati eki (" 08:15 kalkışlı"); bilinmiyorsa boş.
         let dep_suffix = stimes.first().and_then(|s| s.departure_time())
             .map(|(h, m, _)| format!(" {h:02}:{m:02} kalkışlı")).unwrap_or_default();
-        if stimes.first().and_then(|s| s.departure_time()).is_none() {
-            notices.push(k6_notice(
-                ctr, "STM_015", EntityType::Trip,
-                Some(trip_id.to_string()), Some(trip_id.to_string()),
-                "stop_times.txt", stimes.first().map(|s| s.line as u64),
-                Some("departure_time"), None, Some("HH:MM:SS".to_string()),
-                format!("trip_id '{trip_id}' seferinin ilk durağında departure_time eksik."),
-                "İlk stop_times satırına departure_time girin.",
-            ));
+        // Flex guard: spec, `start_pickup_drop_off_window` veya `end_pickup_drop_off_window`
+        // tanımlıyken arrival_time/departure_time'ı YASAKLAR ("Forbidden when ... are
+        // defined"). Böyle bir kayıtta eksik zaman alanı ihlal değil, beklenen durumdur;
+        // guard olmadan STM_015/016 her Flex seferde yanlış pozitif üretirdi.
+        let is_flex = |st: &CompactStopTime| {
+            idx.k2.flex_of(st).is_some_and(|f| {
+                f.start_pickup_drop_off_window.is_some() || f.end_pickup_drop_off_window.is_some()
+            })
+        };
+
+        // Kapsam: spec `arrival_time` için "Required for the first and last stop in a trip"
+        // der; `departure_time`'da bu madde YOKTUR (yalnız timepoint=1'de zorunlu). Yine de
+        // ilk/son durakta iki alan birlikte beklenir — spec "If there are not separate times
+        // ... enter the same value" der ve MD `missing_trip_edge` ikisini birden arar. Bu
+        // yüzden kural iki alanı da denetler; ihlal eden alan `field`'da taşınır.
+        if let Some(first) = stimes.first() {
+            if !is_flex(first) {
+                let missing = if first.arrival_time().is_none() {
+                    Some("arrival_time")
+                } else if first.departure_time().is_none() {
+                    Some("departure_time")
+                } else {
+                    None
+                };
+                if let Some(field) = missing {
+                    notices.push(k6_notice(
+                        ctr, "STM_015", EntityType::Trip,
+                        Some(trip_id.to_string()), Some(trip_id.to_string()),
+                        "stop_times.txt", Some(first.line as u64),
+                        Some(field), None, Some("HH:MM:SS".to_string()),
+                        format!("trip_id '{trip_id}' seferinin ilk durağında {field} eksik."),
+                        "İlk stop_times satırına arrival_time ve departure_time girin.",
+                    ));
+                }
+            }
         }
-        if stimes.last().and_then(|s| s.arrival_time()).is_none() {
-            notices.push(k6_notice(
-                ctr, "STM_016", EntityType::Trip,
-                Some(trip_id.to_string()), Some(trip_id.to_string()),
-                "stop_times.txt", stimes.last().map(|s| s.line as u64),
-                Some("arrival_time"), None, Some("HH:MM:SS".to_string()),
-                format!("trip_id '{trip_id}'{dep_suffix} seferinin son durağında arrival_time eksik."),
-                "Son stop_times satırına arrival_time girin.",
-            ));
+        if let Some(last) = stimes.last() {
+            if !is_flex(last) {
+                let missing = if last.arrival_time().is_none() {
+                    Some("arrival_time")
+                } else if last.departure_time().is_none() {
+                    Some("departure_time")
+                } else {
+                    None
+                };
+                if let Some(field) = missing {
+                    notices.push(k6_notice(
+                        ctr, "STM_016", EntityType::Trip,
+                        Some(trip_id.to_string()), Some(trip_id.to_string()),
+                        "stop_times.txt", Some(last.line as u64),
+                        Some(field), None, Some("HH:MM:SS".to_string()),
+                        format!("trip_id '{trip_id}'{dep_suffix} seferinin son durağında {field} eksik."),
+                        "Son stop_times satırına arrival_time ve departure_time girin.",
+                    ));
+                }
+            }
         }
     }
 
-    // STM_027: shape_dist_traveled monoton artmıyor
     for (&trip_id, stimes) in &idx.by_trip {
         let dep_suffix = stimes.first().and_then(|s| s.departure_time())
             .map(|(h, m, _)| format!(" {h:02}:{m:02} kalkışlı")).unwrap_or_default();
 
-        // STM_027
-        let mut prev_dist: Option<f64> = None;
-        for st in stimes.iter() {
-            let Some(dist) = st.shape_dist_traveled() else { continue };
-            if let Some(prev) = prev_dist {
-                if dist < prev - 1e-6 {
-                    notices.push(k6_notice(
-                        ctr,
-                        "STM_027",
-                        EntityType::Trip,
-                        Some(trip_id.to_string()),
-                        Some(trip_id.to_string()),
-                        "stop_times.txt",
-                        Some(st.line as u64),
-                        Some("shape_dist_traveled"),
-                        Some(format!("{dist:.4}")),
-                        Some(format!("≥ {prev:.4} (önceki değer)")),
-                        format!("'{trip_id}'{dep_suffix} seferinde güzergah mesafesi (shape_dist_traveled) azalıyor: {prev:.4} → {dist:.4}."),
-                        "shape_dist_traveled değerlerini dizi boyunca sıralı olarak düzeltin.",
-                    ));
-                    break; // trip başına bir kez
-                }
-            }
-            prev_dist = Some(dist);
-        }
+        // STM_027 KALDIRILDI (2026-07-28): STM_056 ile aynı olguyu ölçüyordu. STM_056 spec'i
+        // birebir izler (artmayan = azalan VEYA eşit), satır başına emit eder ve K2'de çalışır;
+        // STM_027 yalnız kesin azalmayı yakalıyor, trip başına bir kez emit ediyordu. Azalma
+        // durumunda ikisi de tetiklendiği için MD'nin tek notice'ı (`decreasing_or_equal_stop_
+        // time_distance`) iki kez sayılıyordu.
 
         // STM_013: bazı stop_times'ta arrival/departure var, bazılarında yok (karışık)
         let has_time: Vec<bool> = stimes
@@ -9290,21 +9306,6 @@ mod tests {
         st
     }
 
-    #[test]
-    fn non_monotone_dist_produces_stm_027() {
-        let records = records_with(
-            vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1), stop("C", 41.2, 29.2)],
-            vec![route("R1", 3)],
-            vec![trip("T1", "R1")],
-            vec![
-                stoptime_with_dist("T1", 1, "A", (8,0,0), (8,0,0), 0.0, 2),
-                stoptime_with_dist("T1", 2, "B", (8,10,0), (8,10,0), 1.0, 3),
-                stoptime_with_dist("T1", 3, "C", (8,20,0), (8,20,0), 0.5, 4), // geriye gidiş
-            ],
-        );
-        let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
-        assert!(result.notices.iter().any(|n| n.rule_id == "STM_027"));
-    }
 
     #[test]
     fn monotone_dist_no_stm_027() {
