@@ -1222,3 +1222,46 @@ fn stm015_016_fire_when_only_one_edge_time_is_missing() {
         other => panic!("ValidateResult::Ok beklendi, gelen: {other:?}"),
     }
 }
+
+// ── STM_057: Flex konumu için iki stop_times kaydı şartı ──────────────────────
+// Spec: "Travel within the same location group or GeoJSON location requires two records
+// in stop_times.txt with the same location_group_id or location_id."
+
+#[test]
+fn stm057_silent_when_flex_location_has_two_records() {
+    static TWO_RECORDS: &[u8] =
+        b"trip_id,stop_sequence,location_id,start_pickup_drop_off_window,end_pickup_drop_off_window\n\
+          T1,1,LOC1,08:00:00,12:00:00\nT1,2,LOC1,08:00:00,12:00:00\n";
+    let mut files = base_files();
+    files[4] = ("stop_times.txt", TWO_RECORDS);
+
+    match run(&files) {
+        ValidateResult::Ok(vr) => assert!(
+            !vr.notices.iter().any(|n| n.rule_id == "STM_057"),
+            "İki kayıt varsa STM_057 üretilmemeli",
+        ),
+        other => panic!("ValidateResult::Ok beklendi, gelen: {other:?}"),
+    }
+}
+
+#[test]
+fn stm057_fires_per_zone_not_per_trip() {
+    // LOC1 iki kayıtlı (temiz), LOC2 tek kayıtlı (ihlal) → yalnız LOC2 raporlanmalı.
+    static MIXED: &[u8] =
+        b"trip_id,stop_sequence,location_id,start_pickup_drop_off_window,end_pickup_drop_off_window\n\
+          T1,1,LOC1,08:00:00,12:00:00\nT1,2,LOC1,08:00:00,12:00:00\nT1,3,LOC2,08:00:00,12:00:00\n";
+    let mut files = base_files();
+    files[4] = ("stop_times.txt", MIXED);
+
+    match run(&files) {
+        ValidateResult::Ok(vr) => {
+            let hits: Vec<_> = vr.notices.iter().filter(|n| n.rule_id == "STM_057").collect();
+            assert_eq!(hits.len(), 1, "yalnız LOC2 için bir notice bekleniyor");
+            assert!(
+                hits[0].message.contains("LOC2"),
+                "notice LOC2'yi göstermeli, gelen: {}", hits[0].message,
+            );
+        }
+        other => panic!("ValidateResult::Ok beklendi, gelen: {other:?}"),
+    }
+}

@@ -2,7 +2,7 @@
 
 🇹🇷 [Türkçe](RULES.md) · 🇬🇧 **English** · 🇯🇵 [日本語](RULES.ja.md)
 
-541 rules, 37 groups. Each rule is identified by a unique ID, severity level, and class.
+542 rules, 37 groups. Each rule is identified by a unique ID, severity level, and class.
 Severity levels: **CRITICAL** (publish blocker) · **HIGH** · **MEDIUM** · **LOW** · **INFO**
 Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Quality** (GTFS Quality) · **Analytics** (GTFS Analytics)
 
@@ -249,6 +249,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | STM_053 | Many consecutive stops have the same time | MEDIUM | Quality |
 | STM_054 | continuous_pickup forbidden with Flex window | HIGH | Spec |
 | STM_055 | continuous_drop_off forbidden with Flex window | HIGH | Spec |
+| STM_057 | Only one stop_times record for a Flex location | CRITICAL | Spec |
 | STM_056 | shape_dist_traveled does not increase | CRITICAL | Spec |
 
 ## PDW — Pickup/Drop-off Window

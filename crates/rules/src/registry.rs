@@ -588,6 +588,8 @@ pub static RULES: &[RuleMeta] = &[
         "Flex penceresi tanımlıyken continuous_drop_off 1/boş dışında yasak"),
     // MD paritesi: `decreasing_or_equal_stop_time_distance` (ERROR). GTFS Reference,
     // stop_times.shape_dist_traveled için stop_sequence boyunca ARTAN değer şart koşar.
+    r!("STM_057", Kritik, Spec, 1, &[], Some("trip_id"), VS_K, Row,
+        "Flex konumu için tek stop_times kaydı"),
     r!("STM_056", Kritik, Spec, 1, &[], Some("trip_id"), VS_K, Row,
         "shape_dist_traveled artmıyor"),
 
@@ -1818,6 +1820,7 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("STM_054", GtfsSpec),
     ("STM_055", GtfsSpec),
     ("STM_056", GtfsSpec),
+    ("STM_057", GtfsSpec),
     ("STP_001", GtfsSpec),
     ("STP_002", GtfsSpec),
     ("STP_003", GtfsSpec),

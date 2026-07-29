@@ -2853,6 +2853,41 @@ fn check_stoptimes_derived(
                 }
             }
         }
+        // STM_057: spec, `stop_times.txt` location_group_id/location_id için "Travel within
+        // the same location group or GeoJSON location requires TWO records in stop_times.txt
+        // with the same location_group_id or location_id" der — biri biniş, biri iniş ucu.
+        // Tek kayıt kalan bir Flex konumu, o konumdaki yolculuğu tanımsız bırakır.
+        // BTreeMap: emit sırası deterministik olmalı.
+        {
+            let mut zone_rows: std::collections::BTreeMap<(&str, &str), (usize, u64)> =
+                std::collections::BTreeMap::new();
+            for st in stimes.iter() {
+                let Some(flex) = idx.k2.flex_of(st) else { continue };
+                for (field, value) in [
+                    ("location_group_id", flex.location_group_id.as_ref()),
+                    ("location_id", flex.location_id.as_ref()),
+                ] {
+                    let Some(v) = value else { continue };
+                    zone_rows
+                        .entry((field, v.as_str()))
+                        .or_insert((0, st.line as u64))
+                        .0 += 1;
+                }
+            }
+            for ((field, zone_id), (count, line)) in zone_rows {
+                if count == 1 {
+                    notices.push(k6_notice(
+                        ctr, "STM_057", EntityType::Trip,
+                        Some(trip_id.to_string()), Some(trip_id.to_string()),
+                        "stop_times.txt", Some(line),
+                        Some(field), Some("1".to_string()), Some("2".to_string()),
+                        format!("trip_id '{trip_id}' seferinde {field} '{zone_id}' için yalnızca bir stop_times kaydı var; aynı konum için iki kayıt gerekir."),
+                        "Aynı location_group_id/location_id için biniş ve iniş uçlarını temsil eden iki stop_times kaydı girin.",
+                    ));
+                }
+            }
+        }
+
         if let Some(last) = stimes.last() {
             if !is_flex(last) {
                 let missing = if last.arrival_time().is_none() {
