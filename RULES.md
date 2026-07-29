@@ -211,8 +211,8 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | STM_012 | Duraklar arası hız gerçekçi değil | YÜKSEK | Interop |
 | STM_013 | Karışık varış/kalkış zamanları | YÜKSEK | Quality |
 | STM_014 | Segmentte aşırı hız | YÜKSEK | Analytics |
-| STM_015 | İlk durakta zorunlu zaman alanı eksik | KRİTİK | Spec |
-| STM_016 | Son durakta zorunlu zaman alanı eksik | KRİTİK | Spec |
+| STM_015 | İlk durakta arrival_time eksik | KRİTİK | Spec |
+| STM_016 | Son durakta arrival_time eksik | KRİTİK | Spec |
 | STM_017 | Sefer saatlerinde güzergah mesafesi eksik | ORTA | Quality |
 | STM_018 | continuous_pickup geçersiz (stop_times) | ORTA | Spec |
 | STM_019 | continuous_drop_off geçersiz (stop_times) | ORTA | Spec |

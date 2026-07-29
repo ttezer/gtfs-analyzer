@@ -211,8 +211,8 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | STM_012 | Unrealistic speed between stops | HIGH | Interop |
 | STM_013 | Mixed arrival/departure times | HIGH | Quality |
 | STM_014 | Excessive speed in segment | HIGH | Analytics |
-| STM_015 | First stop is missing a required time | CRITICAL | Spec |
-| STM_016 | Last stop is missing a required time | CRITICAL | Spec |
+| STM_015 | First stop is missing arrival_time | CRITICAL | Spec |
+| STM_016 | Last stop is missing arrival_time | CRITICAL | Spec |
 | STM_017 | Shape distance missing in stop times | MEDIUM | Quality |
 | STM_018 | continuous_pickup invalid (stop_times) | MEDIUM | Spec |
 | STM_019 | continuous_drop_off invalid (stop_times) | MEDIUM | Spec |

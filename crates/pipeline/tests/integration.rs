@@ -1200,9 +1200,10 @@ fn stm015_016_silent_for_flex_pickup_drop_off_window() {
 }
 
 #[test]
-fn stm015_016_fire_when_only_one_edge_time_is_missing() {
-    // İlk durakta arrival var/departure yok, son durakta departure var/arrival yok.
-    // Genişletme öncesi bu iki durumun ikisi de sessiz kalıyordu.
+fn stm015_016_cover_arrival_only_departure_left_to_stm034() {
+    // İlk durakta arrival var/departure yok → STM_015 DEĞİL (spec departure'ı zorunlu
+    // kılmaz); bu vakayı STM_034 ("yalnız biri tanımlı") zaten karşılar.
+    // Son durakta departure var/arrival yok → STM_016 (spec arrival'ı zorunlu kılar).
     static EDGE_STOP_TIMES: &[u8] =
         b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
           T1,08:00:00,,S1,1\nT1,,08:10:00,S2,2\n";
@@ -1211,13 +1212,10 @@ fn stm015_016_fire_when_only_one_edge_time_is_missing() {
 
     match run(&files) {
         ValidateResult::Ok(vr) => {
-            for want in ["STM_015", "STM_016"] {
-                assert!(
-                    vr.notices.iter().any(|n| n.rule_id == want),
-                    "{want} bekleniyor. Mevcut: {:?}",
-                    vr.notices.iter().map(|n| n.rule_id.as_str()).collect::<Vec<_>>(),
-                );
-            }
+            let ids: Vec<&str> = vr.notices.iter().map(|n| n.rule_id.as_str()).collect();
+            assert!(!ids.contains(&"STM_015"), "ilk durakta arrival var → STM_015 olmamalı: {ids:?}");
+            assert!(ids.contains(&"STM_016"), "son durakta arrival yok → STM_016 bekleniyor: {ids:?}");
+            assert!(ids.contains(&"STM_034"), "departure tarafını STM_034 karşılamalı: {ids:?}");
         }
         other => panic!("ValidateResult::Ok beklendi, gelen: {other:?}"),
     }

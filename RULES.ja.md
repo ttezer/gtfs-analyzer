@@ -211,8 +211,8 @@
 | STM_012 | 非現実的な速度 | 高 | 相互運用 |
 | STM_013 | 時刻カバレッジが混在 | 高 | 品質 |
 | STM_014 | セグメントで速度超過 | 高 | 分析 |
-| STM_015 | 最初の停留所に必須の時刻がない | 致命的 | 仕様 |
-| STM_016 | 最後の停留所に必須の時刻がない | 致命的 | 仕様 |
+| STM_015 | 最初の停留所にarrival_timeがない | 致命的 | 仕様 |
+| STM_016 | 最後の停留所にarrival_timeがない | 致命的 | 仕様 |
 | STM_017 | stop_timesにshape_dist_traveledなし | 中 | 品質 |
 | STM_018 | stop_timesのcontinuous_pickupが無効 | 中 | 仕様 |
 | STM_019 | stop_timesのcontinuous_drop_offが無効 | 中 | 仕様 |

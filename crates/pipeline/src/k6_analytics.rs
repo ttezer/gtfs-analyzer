@@ -2827,32 +2827,29 @@ fn check_stoptimes_derived(
             })
         };
 
-        // Kapsam: spec `arrival_time` için "Required for the first and last stop in a trip"
-        // der; `departure_time`'da bu madde YOKTUR (yalnız timepoint=1'de zorunlu). Yine de
-        // ilk/son durakta iki alan birlikte beklenir — spec "If there are not separate times
-        // ... enter the same value" der ve MD `missing_trip_edge` ikisini birden arar. Bu
-        // yüzden kural iki alanı da denetler; ihlal eden alan `field`'da taşınır.
+        // Otorite ayrımı (2026-07-29): spec `arrival_time` için "Required for the first and
+        // last stop in a trip" der — NORMATİF. `departure_time`'da böyle bir madde YOKTUR
+        // (yalnız timepoint=1'de zorunlu); MD `missing_trip_edge` yine de ikisini birden
+        // arar ve gerekçesini spec'in "enter the same value" ÖNERİSİNE dayandırır.
+        // Bu yüzden iki olgu iki ayrı kuraldır:
+        //   STM_015/016 → arrival_time (Spec, normatif hüküm)
+        //   STM_034     → "yalnız biri tanımlı" (Interop, K2) departure_time tarafını
+        //                 ZATEN kapsar; ayrı bir kural gerekmez.
+        // Tek kuralda birleştirilirse Spec sınıfı normatif olmayan bir vakayı da R1 yayın
+        // kapısına sokardı.
         if let Some(first) = stimes.first() {
-            if !is_flex(first) {
-                let missing = if first.arrival_time().is_none() {
-                    Some("arrival_time")
-                } else if first.departure_time().is_none() {
-                    Some("departure_time")
-                } else {
-                    None
-                };
-                if let Some(field) = missing {
-                    notices.push(k6_notice(
-                        ctr, "STM_015", EntityType::Trip,
-                        Some(trip_id.to_string()), Some(trip_id.to_string()),
-                        "stop_times.txt", Some(first.line as u64),
-                        Some(field), None, Some("HH:MM:SS".to_string()),
-                        format!("trip_id '{trip_id}' seferinin ilk durağında {field} eksik."),
-                        "İlk stop_times satırına arrival_time ve departure_time girin.",
-                    ));
-                }
+            if !is_flex(first) && first.arrival_time().is_none() {
+                notices.push(k6_notice(
+                    ctr, "STM_015", EntityType::Trip,
+                    Some(trip_id.to_string()), Some(trip_id.to_string()),
+                    "stop_times.txt", Some(first.line as u64),
+                    Some("arrival_time"), None, Some("HH:MM:SS".to_string()),
+                    format!("trip_id '{trip_id}' seferinin ilk durağında arrival_time eksik."),
+                    "İlk stop_times satırına arrival_time girin.",
+                ));
             }
         }
+
         // STM_057: spec, `stop_times.txt` location_group_id/location_id için "Travel within
         // the same location group or GeoJSON location requires TWO records in stop_times.txt
         // with the same location_group_id or location_id" der — biri biniş, biri iniş ucu.
@@ -2889,24 +2886,15 @@ fn check_stoptimes_derived(
         }
 
         if let Some(last) = stimes.last() {
-            if !is_flex(last) {
-                let missing = if last.arrival_time().is_none() {
-                    Some("arrival_time")
-                } else if last.departure_time().is_none() {
-                    Some("departure_time")
-                } else {
-                    None
-                };
-                if let Some(field) = missing {
-                    notices.push(k6_notice(
-                        ctr, "STM_016", EntityType::Trip,
-                        Some(trip_id.to_string()), Some(trip_id.to_string()),
-                        "stop_times.txt", Some(last.line as u64),
-                        Some(field), None, Some("HH:MM:SS".to_string()),
-                        format!("trip_id '{trip_id}'{dep_suffix} seferinin son durağında {field} eksik."),
-                        "Son stop_times satırına arrival_time ve departure_time girin.",
-                    ));
-                }
+            if !is_flex(last) && last.arrival_time().is_none() {
+                notices.push(k6_notice(
+                    ctr, "STM_016", EntityType::Trip,
+                    Some(trip_id.to_string()), Some(trip_id.to_string()),
+                    "stop_times.txt", Some(last.line as u64),
+                    Some("arrival_time"), None, Some("HH:MM:SS".to_string()),
+                    format!("trip_id '{trip_id}'{dep_suffix} seferinin son durağında arrival_time eksik."),
+                    "Son stop_times satırına arrival_time girin.",
+                ));
             }
         }
     }
