@@ -51,19 +51,19 @@ The same feeds were compared with two validators: MobilityData gtfs-validator v8
 
 #### BART (Bay Area Rapid Transit, San Francisco)
 
-Feed: `mdb-53` (MobilityDatabase, 2026-07-15 snapshot; validity range: 2026-01-12–2026-08-30) · 14 routes, 287 stops, 7,036 trips.
+Feed: `mdb-53` (MobilityDatabase, 2026-07-29 snapshot; validity range: 2026-01-12–2026-08-30) · 14 routes, 287 stops, 2,689 trips.
 
 | | MobilityData | GTFS Analyzer |
 |---|---:|---:|
-| Total notices | 2,745 | 1,227 |
+| Total notices | 2,697 | 589 |
 | Critical / Error | 2 | 2 |
-| High / Warning | 2,656 | 4 |
-| Medium | — | 21 |
-| Low | — | 65 |
-| Info | 87 | 1,135 |
-| Distinct rule types triggered | 12 | **45** |
+| High / Warning | 2,653 | 1 |
+| Medium | — | 7 |
+| Low | — | 44 |
+| Info | 42 | 535 |
+| Distinct rule types triggered | 13 | **40** |
 | Publish score | — | **92.6 / 100** |
-| Overall score | — | **90.6 / 100** |
+| Overall score | — | **89.7 / 100** |
 
 #### TriMet (Portland, Oregon)
 
@@ -71,15 +71,15 @@ Feed: `mdb-247` (MobilityDatabase, 2026-07-15 snapshot; validity range: 2026-07-
 
 | | MobilityData | GTFS Analyzer |
 |---|---:|---:|
-| Total notices | 970 | 6,356 |
+| Total notices | 970 | 6,352 |
 | Critical / Error | 908 | 0 |
-| High / Warning | 49 | 795 |
+| High / Warning | 49 | 789 |
 | Medium | — | 117 |
-| Low | — | 1,908 |
-| Info | 13 | 3,536 |
+| Low | — | 1,907 |
+| Info | 13 | 3,539 |
 | Distinct rule types triggered | 9 | **54** |
 | Publish score | — | **100 / 100** |
-| Overall score | — | **84.1 / 100** |
+| Overall score | — | **84.2 / 100** |
 
 > ⚠️ **Overlapping block trips:** This feed's dominant finding is trips that overlap in time within the same block (908 *errors* in MobilityData). GTFS Analyzer catches the same issue with TRP_022; both tools count a conflict only for services active on the same day (calendar intersection). The difference is the counting unit: MobilityData reports one notice per overlapping trip **pair** (908), while GTFS Analyzer collapses repeated overlaps of the same trip into a single record (770), suppressing repetition within busy blocks. Severity classification also differs (not critical in Analyzer).
 >
@@ -87,39 +87,39 @@ Feed: `mdb-247` (MobilityDatabase, 2026-07-15 snapshot; validity range: 2026-07-
 
 #### Tokyo Toei (Tokyo Metropolitan Bureau of Transportation)
 
-Feed: `mdb-3175` (MobilityDatabase, 2026-07-24 snapshot; validity range: 2026-07-24–2029-07-23) · 151 routes, 5,370 stops, 67,661 trips.
+Feed: `mdb-3175` (MobilityDatabase, 2026-07-29 snapshot; validity range: 2026-07-29–2029-07-28) · 151 routes, 5,370 stops, 68,817 trips.
 
 | | MobilityData | GTFS Analyzer |
 |---|---:|---:|
-| Total notices | 2,458 | 2,773 |
+| Total notices | 2,666 | 2,760 |
 | Critical / Error | 0 | 0 |
-| High / Warning | 330 | 22 |
+| High / Warning | 330 | 12 |
 | Medium | — | 964 |
 | Low | — | 1,120 |
-| Info | 2,128 | 667 |
+| Info | 2,336 | 664 |
 | Distinct rule types triggered | 9 | **55** |
 | Publish score | — | **100 / 100** |
-| Overall score | — | **84.2 / 100** |
+| Overall score | — | **84.5 / 100** |
 
 > 🗾 **Spec-clean but operationally dense:** Both tools report 0 critical — the feed is specification-clean. The difference is in the analytics layer: most of GTFS Analyzer's medium/low findings are operational signals from the three-year validity window (2026–2029) and dense network/shape patterns, which MobilityData largely summarizes as warnings/info.
 
 #### VBB (Berlin-Brandenburg Transport Association)
 
-Feed: `mdb-782` (MobilityDatabase, 2026-07-23 snapshot; validity range: 2026-07-21–2026-12-12) · 1,262 routes, 41,949 stops, 253,494 trips, 14,084 shapes · ~75 MB. This feed is too large for MobilityData's hosted web validator; the MobilityData figures come from a report produced with its desktop application. GTFS Analyzer validates the feed directly in the browser (~15 s).
+Feed: `mdb-782` (MobilityDatabase, 2026-07-25 snapshot; validity range: 2026-07-23–2026-12-12) · 1,274 routes, 41,961 stops, 258,524 trips, 14,485 shapes · ~75 MB. This feed is too large for MobilityData's hosted web validator; the MobilityData figures come from a report produced with its desktop application. GTFS Analyzer validates the feed directly in the browser (~15 s).
 
 | | MobilityData | GTFS Analyzer |
 |---|---:|---:|
-| Total notices | 11,912 | 28,380 |
+| Total notices | 11,950 | 28,540 |
 | Critical / Error | 0 | 0 |
-| High / Warning | 11,193 | 2,436 |
-| Medium | — | 7,439 |
-| Low | — | 8,530 |
-| Info | 719 | 9,975 |
-| Distinct rule types triggered | 19 | **97** |
+| High / Warning | 11,249 | 1,484 |
+| Medium | — | 7,516 |
+| Low | — | 9,337 |
+| Info | 701 | 10,203 |
+| Distinct rule types triggered | 17 | **95** |
 | Publish score | — | **100 / 100** |
-| Overall score | — | **77.8 / 100** |
+| Overall score | — | **78.2 / 100** |
 
-> 🇩🇪 **Large feed, different focus:** Both tools report 0 critical — the feed is specification-clean. More than half of MobilityData's total (`non_ascii_or_non_printable_char`, 6,810) is the legitimate ü/ö/ä/ß characters in the feed's German text; GTFS Analyzer does not flag valid Unicode letters, only non-printable/control characters. GTFS Analyzer's volume instead comes from operational/geometric analytics MobilityData does not have (shape, stop, statistical duration). On core checks the two align: `stop_without_stop_time` (STP_020) and `service_has_no_active_day_of_the_week` (CAL_006) match exactly at 1,411 and 991.
+> 🇩🇪 **Large feed, different focus:** Both tools report 0 critical — the feed is specification-clean. More than half of MobilityData's total (`non_ascii_or_non_printable_char`, 6,813) is the legitimate ü/ö/ä/ß characters in the feed's German text; GTFS Analyzer does not flag valid Unicode letters, only non-printable/control characters. GTFS Analyzer's volume instead comes from operational/geometric analytics MobilityData does not have (shape, stop, statistical duration). On core checks the two align: `stop_without_stop_time` (STP_020) and `service_has_no_active_day_of_the_week` (CAL_006) match exactly at 1,398 and 1,035.
 
 ---
 

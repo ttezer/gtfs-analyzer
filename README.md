@@ -51,19 +51,19 @@ Aynı feed'ler iki validator ile karşılaştırıldı: MobilityData gtfs-valida
 
 #### BART (Bay Area Rapid Transit, San Francisco)
 
-Feed: `mdb-53` (MobilityDatabase, 2026-07-15 anlık görüntüsü; geçerlilik aralığı: 2026-01-12–2026-08-30) · 14 hat, 287 durak, 7.036 sefer.
+Feed: `mdb-53` (MobilityDatabase, 2026-07-29 anlık görüntüsü; geçerlilik aralığı: 2026-01-12–2026-08-30) · 14 hat, 287 durak, 2.689 sefer.
 
 | | MobilityData | GTFS Analyzer |
 |---|---:|---:|
-| Toplam notice | 2.745 | 1.227 |
+| Toplam notice | 2.697 | 589 |
 | Kritik / Error | 2 | 2 |
-| Yüksek / Warning | 2.656 | 4 |
-| Orta | — | 21 |
-| Düşük | — | 65 |
-| Bilgi / Info | 87 | 1.135 |
-| Tetiklenen kural tipi | 12 | **45** |
+| Yüksek / Warning | 2.653 | 1 |
+| Orta | — | 7 |
+| Düşük | — | 44 |
+| Bilgi / Info | 42 | 535 |
+| Tetiklenen kural tipi | 13 | **40** |
 | Yayın skoru | — | **92,6 / 100** |
-| Genel skor | — | **90,6 / 100** |
+| Genel skor | — | **89,7 / 100** |
 
 #### TriMet (Portland, Oregon)
 
@@ -71,15 +71,15 @@ Feed: `mdb-247` (MobilityDatabase, 2026-07-15 anlık görüntüsü; geçerlilik 
 
 | | MobilityData | GTFS Analyzer |
 |---|---:|---:|
-| Toplam notice | 970 | 6.356 |
+| Toplam notice | 970 | 6.352 |
 | Kritik / Error | 908 | 0 |
-| Yüksek / Warning | 49 | 795 |
+| Yüksek / Warning | 49 | 789 |
 | Orta | — | 117 |
-| Düşük | — | 1.908 |
-| Bilgi / Info | 13 | 3.536 |
+| Düşük | — | 1.907 |
+| Bilgi / Info | 13 | 3.539 |
 | Tetiklenen kural tipi | 9 | **54** |
 | Yayın skoru | — | **100 / 100** |
-| Genel skor | — | **84,1 / 100** |
+| Genel skor | — | **84,2 / 100** |
 
 > ⚠️ **Çakışan blok seferleri:** Bu feed'in baskın bulgusu, aynı blokta zaman bakımından çakışan seferler (MobilityData'da 908 *error*). GTFS Analyzer aynı olguyu TRP_022 ile yakalar; iki araç da yalnızca aynı gün aktif servisleri çakışma sayar (takvim-kesişim). Fark sayım birimindedir: MobilityData çakışan her sefer **çiftini** ayrı sayar (908), GTFS Analyzer ise aynı sefere ait tekrarlı çakışmaları tek kayda indirir (770) — yoğun bloklardaki tekrarı bastırır. Önem sınıflandırması da farklıdır (Analyzer'da kritik değil).
 >
@@ -87,39 +87,39 @@ Feed: `mdb-247` (MobilityDatabase, 2026-07-15 anlık görüntüsü; geçerlilik 
 
 #### Tokyo Toei (Tokyo Metropolitan Bureau of Transportation)
 
-Feed: `mdb-3175` (MobilityDatabase, 2026-07-24 anlık görüntüsü; geçerlilik aralığı: 2026-07-24–2029-07-23) · 151 hat, 5.370 durak, 67.661 sefer.
+Feed: `mdb-3175` (MobilityDatabase, 2026-07-29 anlık görüntüsü; geçerlilik aralığı: 2026-07-29–2029-07-28) · 151 hat, 5.370 durak, 68.817 sefer.
 
 | | MobilityData | GTFS Analyzer |
 |---|---:|---:|
-| Toplam notice | 2.458 | 2.773 |
+| Toplam notice | 2.666 | 2.760 |
 | Kritik / Error | 0 | 0 |
-| Yüksek / Warning | 330 | 22 |
+| Yüksek / Warning | 330 | 12 |
 | Orta | — | 964 |
 | Düşük | — | 1.120 |
-| Bilgi / Info | 2.128 | 667 |
+| Bilgi / Info | 2.336 | 664 |
 | Tetiklenen kural tipi | 9 | **55** |
 | Yayın skoru | — | **100 / 100** |
-| Genel skor | — | **84,2 / 100** |
+| Genel skor | — | **84,5 / 100** |
 
 > 🗾 **Spec-temiz ama operasyonel olarak yoğun:** Her iki araç da 0 kritik bulur — feed spec açısından temiz. Fark analitik katmanda: GTFS Analyzer'ın orta/düşük bulgularının çoğu 3 yıllık geçerlilik penceresi (2026–2029) ve yoğun şebeke/şekil desenlerinden gelen operasyonel sinyallerdir; MobilityData bu feed'i ağırlıkla uyarı/bilgi olarak özetler.
 
 #### VBB (Berlin-Brandenburg Ulaşım Birliği)
 
-Feed: `mdb-782` (MobilityDatabase, 2026-07-23 anlık görüntüsü; geçerlilik aralığı: 2026-07-21–2026-12-12) · 1.262 hat, 41.949 durak, 253.494 sefer, 14.084 shape · ~75 MB. Bu feed, MobilityData'nın barındırılan web doğrulayıcısının işleyemeyeceği kadar büyüktür; MobilityData sayıları masaüstü uygulamasıyla üretilen rapordandır. GTFS Analyzer feed'i doğrudan tarayıcıda (~15 sn) doğrular.
+Feed: `mdb-782` (MobilityDatabase, 2026-07-25 anlık görüntüsü; geçerlilik aralığı: 2026-07-23–2026-12-12) · 1.274 hat, 41.961 durak, 258.524 sefer, 14.485 shape · ~75 MB. Bu feed, MobilityData'nın barındırılan web doğrulayıcısının işleyemeyeceği kadar büyüktür; MobilityData sayıları masaüstü uygulamasıyla üretilen rapordandır. GTFS Analyzer feed'i doğrudan tarayıcıda (~15 sn) doğrular.
 
 | | MobilityData | GTFS Analyzer |
 |---|---:|---:|
-| Toplam notice | 11.912 | 28.380 |
+| Toplam notice | 11.950 | 28.540 |
 | Kritik / Error | 0 | 0 |
-| Yüksek / Warning | 11.193 | 2.436 |
-| Orta | — | 7.439 |
-| Düşük | — | 8.530 |
-| Bilgi / Info | 719 | 9.975 |
-| Tetiklenen kural tipi | 19 | **97** |
+| Yüksek / Warning | 11.249 | 1.484 |
+| Orta | — | 7.516 |
+| Düşük | — | 9.337 |
+| Bilgi / Info | 701 | 10.203 |
+| Tetiklenen kural tipi | 17 | **95** |
 | Yayın skoru | — | **100 / 100** |
-| Genel skor | — | **77,8 / 100** |
+| Genel skor | — | **78,2 / 100** |
 
-> 🇩🇪 **Büyük feed, farklı odak:** Her iki araç da 0 kritik bulur — feed spec açısından temizdir. MobilityData toplamının yarıdan fazlası (`non_ascii_or_non_printable_char`, 6.810) feed'in Almanca metnindeki meşru ü/ö/ä/ß karakterleridir; GTFS Analyzer geçerli Unicode harfleri işaretlemez, yalnız yazdırılamaz/kontrol karakterlerini. GTFS Analyzer'ın hacmi ise MobilityData'da bulunmayan operasyonel/geometrik analitiğe (şekil, durak, istatistiksel süre) dayanır. Çekirdek kontrollerde iki araç hizalıdır: `stop_without_stop_time` (STP_020) ve `service_has_no_active_day_of_the_week` (CAL_006) sırasıyla 1.411 ve 991 ile birebir eşleşir.
+> 🇩🇪 **Büyük feed, farklı odak:** Her iki araç da 0 kritik bulur — feed spec açısından temizdir. MobilityData toplamının yarıdan fazlası (`non_ascii_or_non_printable_char`, 6.813) feed'in Almanca metnindeki meşru ü/ö/ä/ß karakterleridir; GTFS Analyzer geçerli Unicode harfleri işaretlemez, yalnız yazdırılamaz/kontrol karakterlerini. GTFS Analyzer'ın hacmi ise MobilityData'da bulunmayan operasyonel/geometrik analitiğe (şekil, durak, istatistiksel süre) dayanır. Çekirdek kontrollerde iki araç hizalıdır: `stop_without_stop_time` (STP_020) ve `service_has_no_active_day_of_the_week` (CAL_006) sırasıyla 1.398 ve 1.035 ile birebir eşleşir.
 
 ---
 
