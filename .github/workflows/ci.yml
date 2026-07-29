@@ -205,8 +205,37 @@ jobs:
         with:
           tool: cargo-audit
 
-      - name: cargo audit (Rust bağımlılıkları — RustSec)
-        run: cargo audit
+      # Ağ hatasını gerçek bulgudan AYIRIR: cargo-audit geçerli JSON ürettiyse tarama
+      # gerçekten koştu (bulgu varsa fail). JSON üretemediyse advisory-db'ye ulaşılamamıştır
+      # → 3 denemeye kadar tekrar; sonrasında uyarı basılır ama job kırmızı yanmaz
+      # (ağa ulaşamamak zafiyet kanıtı değildir; sonraki push'ta yeniden denenir).
+      - name: cargo audit (Rust bağımlılıkları — RustSec, ağ hatasına dayanıklı)
+        run: |
+          set -uo pipefail
+          for attempt in 1 2 3; do
+            cargo audit --json > cargo-audit.json 2> cargo-audit.err
+            code=$?
+            # Kriter bilinçli olarak GENİŞ: "stdout geçerli JSON mu?". cargo-audit ağ hatasında
+            # stdout'a JSON basmaz (stderr'e insan-okunur hata yazar), dolayısıyla JSON varsa
+            # tarama koşmuştur. Şema alan adına (`vulnerabilities`) bağlanmıyoruz: alan adı
+            # değişirse temiz koşu yanlışlıkla "ağ hatası" sayılır ve kapı SESSİZCE atlanırdı.
+            # Bu kriterle yanılma yönü güvenli taraftadır (fail eder, sessizce geçmez).
+            if jq -e . cargo-audit.json > /dev/null 2>&1; then
+              if [ "$code" -ne 0 ]; then
+                echo "::error::cargo audit gerçek bulgu raporladı (ağ hatası değil)."
+                cat cargo-audit.err || true
+                jq '.vulnerabilities' cargo-audit.json || true
+                exit 1
+              fi
+              echo "cargo audit temiz (deneme $attempt)."
+              exit 0
+            fi
+            echo "::notice::cargo audit advisory veritabanına ulaşamadı (deneme $attempt/3):"
+            cat cargo-audit.err || true
+            if [ "$attempt" -lt 3 ]; then sleep $((attempt * 10)); fi
+          done
+          echo "::warning::cargo audit 3 denemede de advisory veritabanına ulaşamadı — AĞ HATASI, zafiyet kanıtı DEĞİL. Tarama yapılamadı, adım atlandı."
+          echo "⚠️ **cargo audit koşamadı**: advisory veritabanına 3 denemede de ulaşılamadı (ağ). Rust bağımlılıkları bu koşuda TARANMADI." >> "$GITHUB_STEP_SUMMARY"
 
       - name: Node.js kur
         uses: actions/setup-node@v6
@@ -218,9 +247,35 @@ jobs:
       # Üretim (runtime) bağımlılıkları → BLOCKING. Deploy edilen statik sitenin npm runtime
       # bağımlılığı olmadığından bu adım bugün temiz geçer; ama ileride eklenecek bir runtime
       # açığı CI'ı kırar — gerçek güvenlik kapısı budur. (cargo audit shipped Rust deps → blocking.)
-      - name: npm audit (üretim bağımlılıkları — blocking)
+      # Ağ hatasını gerçek bulgudan AYIRIR (2026-07-29'da `advisories/bulk → ECONNRESET`
+      # ana dalı kırmızı yakmıştı): npm audit --json `.metadata.vulnerabilities` ürettiyse
+      # tarama gerçekten koştu → exit code'a güven (high/critical → fail). Üretemediyse
+      # (`.error` döner) registry'ye ulaşılamamıştır → 3 denemeye kadar tekrar; sonrasında
+      # uyarı basılır ama job kırmızı yanmaz. Rerun ihtiyacı böylece ortadan kalkar.
+      - name: npm audit (üretim bağımlılıkları — blocking, ağ hatasına dayanıklı)
         working-directory: ui
-        run: npm audit --omit=dev --audit-level=high
+        run: |
+          set -uo pipefail
+          mkdir -p audit
+          for attempt in 1 2 3; do
+            npm audit --omit=dev --audit-level=high --json > audit/npm-audit-prod.json 2> audit/npm-audit-prod.err
+            code=$?
+            if jq -e '.metadata.vulnerabilities' audit/npm-audit-prod.json > /dev/null 2>&1; then
+              if [ "$code" -ne 0 ]; then
+                echo "::error::npm audit üretim bağımlılıklarında high/critical açık buldu (ağ hatası değil)."
+                npm audit --omit=dev --audit-level=high || true
+                exit 1
+              fi
+              echo "npm audit (üretim) temiz (deneme $attempt)."
+              exit 0
+            fi
+            echo "::notice::npm audit registry advisory endpoint'ine ulaşamadı (deneme $attempt/3):"
+            jq -r '.error | "\(.code // "?"): \(.summary // "?")"' audit/npm-audit-prod.json 2>/dev/null || true
+            cat audit/npm-audit-prod.err || true
+            if [ "$attempt" -lt 3 ]; then sleep $((attempt * 10)); fi
+          done
+          echo "::warning::npm audit 3 denemede de registry advisory endpoint'ine ulaşamadı — AĞ HATASI, zafiyet kanıtı DEĞİL. Tarama yapılamadı, adım atlandı."
+          echo "⚠️ **npm audit (üretim) koşamadı**: registry advisory endpoint'ine 3 denemede de ulaşılamadı (ağ). Üretim bağımlılıkları bu koşuda TARANMADI." >> "$GITHUB_STEP_SUMMARY"
 
       # Dev/build araç zinciri bulguları → NON-BLOCKING. Bunlar yalnızca lokal dev/build'i
       # etkiler (Vitest/esbuild/vite dev-server); deploy edilen statik artefakt etkilenmez.
