@@ -105,14 +105,26 @@ pub fn validate_shapes(file: &RawFile, zip_bytes: Option<&[u8]>) -> (Vec<ShapePo
     let mut notices = Vec::new();
     // #15: records Vec'ini önceden boyutlandır — doubling realloc'un geçici 2× peak'i
     // shape-ağır feed'lerde ~500 MB tepe yaratıyordu (K1 stream'i düşünce açığa çıktı).
-    // Satır ~30 bayt (shape_id,lat,lon,seq[,dist]) → muhafazakâr sayı tahmini. Yalnız KAPASİTE.
-    // ZIP-stream yolunda raw_text YOKtur; satır sayısını sıkıştırılmamış boyuttan tahmin et
-    // (satır ~30 bayt). Yalnız KAPASİTE — eleman değeri/sırası etkilenmez.
-    let est_rows = zip_bytes
-        .map(|_| (file.bytes as usize / 30).max(1))
-        .or_else(|| file.raw_text.as_ref().map(|t| t.len() / 30))
-        .unwrap_or(file.rows.len());
-    let mut records: Vec<ShapePointRecord> = Vec::with_capacity(est_rows);
+    //
+    // Eski tahmin SABİT "satır ~30 bayt" varsayıyordu. Entur'da (mdb-1078) gerçek ortalama
+    // 67,9 bayt çıktı — uzun NeTEx shape_id'leri yüzünden — ve tahmin 2,26× şişti:
+    // 92,7M slot ayrıldı, 40,9M kullanıldı, ~2,7 GB hiç dokunulmadan duruyordu.
+    // Böleni büyütmek çözüm DEĞİL: kısa shape_id'li feed'lerde bu kez tahmin düşük kalır,
+    // Vec doubling'e girer ve kopyalama anında eski+yeni tampon birlikte canlı olur (tepe artar).
+    // Bunun yerine ilk SAMPLE_ROWS satırın GERÇEK uzunluğundan ortalama ölçülüp kapasite
+    // bir kez ondan türetilir; feed'e uyarlanır. Yalnız KAPASİTE — eleman değeri/sırası etkilenmez.
+    const SAMPLE_ROWS: usize = 4096;
+    let stream_bytes: Option<usize> = zip_bytes
+        .map(|_| file.bytes as usize)
+        .or_else(|| file.raw_text.as_ref().map(|t| t.len()));
+    let mut sampled_bytes: usize = 0;
+    let mut capacity_set = false;
+    let mut records: Vec<ShapePointRecord> = match stream_bytes {
+        // Stream yolu: örnekleme bitince tek seferde reserve edilir.
+        Some(_) => Vec::new(),
+        // rows fallback: satır sayısı zaten kesin.
+        None => Vec::with_capacity(file.rows.len()),
+    };
     let mut counter = 0u32;
 
     let cols = Cols::from_headers(&file.headers);
@@ -155,6 +167,23 @@ pub fn validate_shapes(file: &RawFile, zip_bytes: Option<&[u8]>) -> (Vec<ShapePo
                 return;
             }
             total_rows += 1;
+
+            // Kapasite örneklemesi (yalnız stream yolu): ilk SAMPLE_ROWS satırın gerçek
+            // uzunluğundan ortalama çıkarılır, kalan kapasite TEK seferde ayrılır. Böylece
+            // ne sabit-varsayım şişmesi ne de doubling'in geçici 2× tepesi oluşur.
+            // %5 pay bırakılır: tahmin biraz düşük kalırsa realloc'a düşmeyelim.
+            if !capacity_set {
+                if let Some(total) = stream_bytes {
+                    // alan uzunlukları + ayraç/satır sonu ≈ ham satır baytı
+                    sampled_bytes += row.iter().map(|v| v.len()).sum::<usize>() + row.len();
+                    if total_rows >= SAMPLE_ROWS {
+                        let avg = (sampled_bytes / total_rows).max(1);
+                        let est = (total / avg).saturating_mul(105) / 100;
+                        records.reserve(est.saturating_sub(records.len()));
+                        capacity_set = true;
+                    }
+                }
+            }
 
             // ARC_021: yazdırılamaz/sorunlu karakter — dosya başına bir kez
             if !arc021_fired {
@@ -542,5 +571,53 @@ mod tests {
         rules_b.sort();
         assert_eq!(rules_a, rules_b, "iki yol aynı notice kümesi");
         assert!(rules_b.contains(&"SHP_002") && rules_b.contains(&"SHP_008"));
+    }
+
+    /// Kapasite tahmini feed'in GERÇEK satır uzunluğuna uymalı.
+    /// Regresyon: sabit "satır ~30 bayt" varsayımı Entur'da (uzun NeTEx shape_id'leri,
+    /// gerçek ortalama 67,9 B) 2,26× fazla ayırıyor ve ~2,7 GB'ı hiç kullanmadan tutuyordu.
+    fn stream_file(text: String) -> RawFile {
+        RawFile {
+            name: "shapes.txt".to_string(),
+            headers: vec!["shape_id", "shape_pt_lat", "shape_pt_lon", "shape_pt_sequence"]
+                .into_iter().map(str::to_string).collect(),
+            rows: Vec::new(),
+            bytes: text.len() as u32,
+            raw_text: Some(text),
+        }
+    }
+
+    #[test]
+    fn capacity_tracks_real_row_length_for_long_shape_ids() {
+        let n = 20_000;
+        let mut text = String::from("shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\n");
+        for i in 0..n {
+            // ~70 bayt/satır — eski sabit varsayımın (30 B) iki katından fazlası
+            text.push_str(&format!("RUT:JourneyPattern:{i:08}:long-netex-id,59.91,10.75,{i}\n"));
+        }
+        let (records, _) = validate_shapes(&stream_file(text), None);
+        assert_eq!(records.len(), n, "tüm satırlar okunmalı");
+        assert!(
+            records.capacity() < records.len() * 3 / 2,
+            "kapasite {} / satır {} — sabit-varsayım şişmesi geri gelmiş",
+            records.capacity(), records.len()
+        );
+    }
+
+    #[test]
+    fn capacity_does_not_starve_for_short_shape_ids() {
+        // Karşıt uç: kısa id'de tahmin DÜŞÜK kalmamalı, yoksa Vec doubling'e girip
+        // kopyalama anında eski+yeni tamponu birlikte canlı tutar (tepe artar).
+        let n = 20_000;
+        let mut text = String::from("shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\n");
+        for i in 0..n {
+            text.push_str(&format!("S{i},41.0,29.0,{i}\n"));
+        }
+        let (records, _) = validate_shapes(&stream_file(text), None);
+        assert_eq!(records.len(), n);
+        assert!(
+            records.capacity() >= records.len(),
+            "kapasite {} satır {} altına düşmüş", records.capacity(), records.len()
+        );
     }
 }
