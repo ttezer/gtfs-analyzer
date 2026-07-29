@@ -1351,7 +1351,7 @@ const en: LocaleShape = {
     'RTS_013': 'Set the field to a valid GTFS continuous service value (0–3).',
     'RTS_018': 'Set the field to a valid GTFS continuous service value (0–3).',
     'RTS_019': 'Give each route a unique short or long name, or document intentional sharing.',
-    'RTS_021': 'Keep route_short_name under 6 characters for Google Transit compatibility.',
+    'RTS_021': 'Keep route_short_name under 6 characters for Google Transit compatibility, or fill in route_long_name.',
     'RTS_023': 'route_desc should describe the route, not repeat its name.',
     // TRP (field-level)
     'TRP_001': 'Assign a unique trip_id to each trip.',

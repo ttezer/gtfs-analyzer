@@ -210,12 +210,15 @@ pub fn validate_trips(file: &RawFile, zip_bytes: Option<&[u8]>) -> (Vec<TripReco
         let short_name_raw = get_col(row, cols.trip_short_name);
 
         // TRP_014: trip_short_name çok uzun (>20 karakter)
-        if !short_name_raw.is_empty() && short_name_raw.len() > 20 {
+        // KARAKTER sayısı, BAYT değil: `str::len()` UTF-8 bayt döndürür ve çok baytlı
+        // alfabelerde (Türkçe, Japonca) eşiği erken tetikliyordu.
+        let short_name_chars = short_name_raw.chars().count();
+        if !short_name_raw.is_empty() && short_name_chars > 20 {
             notices.push(make_k2_notice(
                 &mut counter, "TRP_014", EntityType::Trip, entity_id.clone(),
                 None, &file.name, Some(line), Some("trip_short_name"),
-                Some(short_name_raw.len().to_string()), Some("≤20".to_string()),
-                format!("trip_short_name {} karakter; 20'yi aşmamalıdır.", short_name_raw.len()),
+                Some(short_name_chars.to_string()), Some("≤20".to_string()),
+                format!("trip_short_name {} karakter; 20'yi aşmamalıdır.", short_name_chars),
                 "trip_short_name'i kısaltın.",
             ));
         }

@@ -76,34 +76,43 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
 
         // RTS_010: route_short_name çok uzun (>12 karakter)
         if let Some(ref s) = route_short_name {
-            if s.len() > 12 {
+            // KARAKTER sayısı, BAYT değil. `str::len()` UTF-8 bayt döndürür: "Kızılay"
+            // 7 karakter ama 8 bayt, Japonca üç karakterlik bir kısa ad 9 bayttır. Eşik
+            // ve mesaj "karakter" dediği için Türkçe/Japonca feed'lerde bayt sayımı
+            // yanlış pozitif üretiyordu.
+            let char_len = s.chars().count();
+            if char_len > 12 {
                 notices.push(make_k2_notice(
                     &mut counter, "RTS_010", EntityType::Route, entity_id.clone(), Some(&row_map),
                     &file.name, Some(line), Some("route_short_name"),
-                    Some(s.len().to_string()), Some("≤12".to_string()),
-                    format!("'{}' hattının route_short_name değeri {} karakter; kısa isimler 12 karakteri aşmamalıdır.", route_id, s.len()),
+                    Some(char_len.to_string()), Some("≤12".to_string()),
+                    format!("'{}' hattının route_short_name değeri {} karakter; kısa isimler 12 karakteri aşmamalıdır.", route_id, char_len),
                     "route_short_name'i 12 karakterin altında tutun.",
                 ));
-            } else if s.len() > 6 {
-                // RTS_021: 6 karakterden uzun (Google Transit eşiği)
+            } else if char_len > 6 && route_long_name.as_ref().is_none_or(|l| l.trim().is_empty()) {
+                // RTS_021: 6 karakterden uzun (Google Transit eşiği).
+                // Google'ın kendi muafiyeti: `route_long_name` doluysa uyarı göz ardı
+                // edilebilir — uzun ad zaten okunabilir gösterimi taşır. Guard olmadan
+                // "Green Line" gibi meşru adlandırmalarda gereksiz gürültü üretiyordu.
                 notices.push(make_k2_notice(
                     &mut counter, "RTS_021", EntityType::Route, entity_id.clone(), Some(&row_map),
                     &file.name, Some(line), Some("route_short_name"),
-                    Some(s.len().to_string()), Some("≤6 (Google)".to_string()),
-                    format!("'{}' hattının route_short_name değeri {} karakter; Google Transit 6 karakteri tavsiye ediyor.", route_id, s.len()),
-                    "Google Transit uyumluluğu için route_short_name'i 6 karakterin altında tutun.",
+                    Some(char_len.to_string()), Some("≤6 (Google)".to_string()),
+                    format!("'{}' hattının route_short_name değeri {} karakter; Google Transit 6 karakteri tavsiye ediyor.", route_id, char_len),
+                    "Google Transit uyumluluğu için route_short_name'i 6 karakterin altında tutun ya da route_long_name'i doldurun.",
                 ));
             }
         }
 
         // RTS_011: route_long_name çok uzun (>100 karakter)
         if let Some(ref l) = route_long_name {
-            if l.len() > 100 {
+            let char_len = l.chars().count(); // bayt değil karakter — bkz. RTS_010/021 notu
+            if char_len > 100 {
                 notices.push(make_k2_notice(
                     &mut counter, "RTS_011", EntityType::Route, entity_id.clone(), Some(&row_map),
                     &file.name, Some(line), Some("route_long_name"),
-                    Some(l.len().to_string()), Some("≤100".to_string()),
-                    format!("'{}' hattının route_long_name değeri {} karakter; 100 karakteri aşıyor.", route_id, l.len()),
+                    Some(char_len.to_string()), Some("≤100".to_string()),
+                    format!("'{}' hattının route_long_name değeri {} karakter; 100 karakteri aşıyor.", route_id, char_len),
                     "route_long_name'i 100 karakterin altında tutun.",
                 ));
             }
@@ -518,6 +527,49 @@ mod tests {
         let (records, notices) = validate_routes(&file);
         assert_eq!(records.len(), 1);
         assert!(notices.is_empty(), "Geçerli rota notice üretmemeli: {:?}", notices);
+    }
+
+    fn ids(file: &RawFile) -> Vec<String> {
+        validate_routes(file).1.iter().map(|n| n.rule_id.clone()).collect()
+    }
+
+    #[test]
+    fn length_rules_count_characters_not_bytes() {
+        // "Kızılay" 7 karakter / 8 bayt; bayt sayımıyla 6'lık Google eşiği yanlış aşılırdı.
+        // route_long_name BOŞ bırakıldı ki RTS_021 muafiyeti devreye girmesin.
+        let f = make_file(
+            vec!["route_id", "route_short_name", "route_long_name", "route_type"],
+            vec![vec!["R1", "Kızıla", "", "3"]],   // 6 karakter / 7 bayt → eşik altı
+        );
+        assert!(!ids(&f).contains(&"RTS_021".to_string()), "6 karakter eşiği aşmamalı: {:?}", ids(&f));
+
+        // 12 karakterlik Japonca ad = 36 bayt; bayt sayımıyla RTS_010 yanlış tetiklenirdi.
+        let f = make_file(
+            vec!["route_id", "route_short_name", "route_long_name", "route_type"],
+            vec![vec!["R1", "東京都交通局都営バス系統", "", "3"]],
+        );
+        let got = ids(&f);
+        assert!(!got.contains(&"RTS_010".to_string()), "12 karakter >12 değildir: {got:?}");
+        assert!(got.contains(&"RTS_021".to_string()), "12 karakter Google eşiğini aşar: {got:?}");
+    }
+
+    #[test]
+    fn rts_021_is_waived_when_long_name_is_present() {
+        // Google'ın muafiyeti: route_long_name doluysa kısa ad uyarısı göz ardı edilebilir.
+        let with_long = make_file(
+            vec!["route_id", "route_short_name", "route_long_name", "route_type"],
+            vec![vec!["R1", "Green Line", "Green Line Downtown", "3"]],
+        );
+        assert!(!ids(&with_long).contains(&"RTS_021".to_string()),
+            "long_name doluyken RTS_021 üretilmemeli: {:?}", ids(&with_long));
+
+        // Boşluk-dolu long_name muafiyet saymaz.
+        let blank_long = make_file(
+            vec!["route_id", "route_short_name", "route_long_name", "route_type"],
+            vec![vec!["R1", "Green Line", "   ", "3"]],
+        );
+        assert!(ids(&blank_long).contains(&"RTS_021".to_string()),
+            "boş long_name muafiyet saymamalı: {:?}", ids(&blank_long));
     }
 
     #[test]
