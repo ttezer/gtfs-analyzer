@@ -44,6 +44,9 @@ pub fn analyze(
         };
     let k2_for_idx: &K2StopTimesIndex = fallback_k2_owned.as_ref().unwrap_or(&records.stop_times_index);
     let idx = { let _t = Timer::start("K6::idx::build"); StopTimesIndex::build(records, &trip_shape, k2_for_idx) };
+    // shape geometrisi: dört tüketici (speed_and_duration, remaining_analytics, shp012, shp022)
+    // için TEK kurulum. Bkz. ShapeIndex tanımındaki ölçüm notu.
+    let shape_idx = { let _t = Timer::start("K6::shape_idx::build"); ShapeIndex::build(records) };
 
     // Her bağımsız K6 check'i KENDİ (notices, ctr)'sini üretir; sonuçlar KANONİK sırada
     // (1→13) birleştirilir ve sondaki renumber id'leri tek-iş-parçacıklı global ctr ile
@@ -52,7 +55,7 @@ pub fn analyze(
     // bağımsız. `parallel` feature açıkken rayon::scope ile paralel, kapalıyken seri — AYNI çıktı.
     type K6Task<'a> = Box<dyn Fn() -> Vec<Notice> + Send + Sync + 'a>;
     let tasks: Vec<K6Task> = vec![
-        Box::new(|| { let _t = Timer::start("K6::speed_and_duration");    let mut v = Vec::new(); let mut c = 0u32; check_speed_and_duration(records, config, &idx, &mut v, &mut c); v }),
+        Box::new(|| { let _t = Timer::start("K6::speed_and_duration");    let mut v = Vec::new(); let mut c = 0u32; check_speed_and_duration(records, config, &idx, &shape_idx, &mut v, &mut c); v }),
         Box::new(|| { let _t = Timer::start("K6::frequency_headway");     let mut v = Vec::new(); let mut c = 0u32; check_frequency_headway(records, config, &mut v, &mut c); v }),
         Box::new(|| { let _t = Timer::start("K6::route_headway");         let mut v = Vec::new(); let mut c = 0u32; check_route_headway(records, config, &idx, &mut v, &mut c); v }),
         Box::new(|| { let _t = Timer::start("K6::calendar_analytics");    let mut v = Vec::new(); let mut c = 0u32; check_calendar_analytics(records, derived, config, today_yyyymmdd, &mut v, &mut c); v }),
@@ -61,9 +64,9 @@ pub fn analyze(
         Box::new(|| { let _t = Timer::start("K6::stoptimes_derived");     let mut v = Vec::new(); let mut c = 0u32; check_stoptimes_derived(&idx, &mut v, &mut c); v }),
         Box::new(|| { let _t = Timer::start("K6::route_trip_quality");    let mut v = Vec::new(); let mut c = 0u32; check_route_trip_quality(records, derived, &idx, &mut v, &mut c); v }),
         Box::new(|| { let _t = Timer::start("K6::data_quality");          let mut v = Vec::new(); let mut c = 0u32; check_data_quality(records, derived, config, today_yyyymmdd, &mut v, &mut c); v }),
-        Box::new(|| { let _t = Timer::start("K6::remaining_analytics");   let mut v = Vec::new(); let mut c = 0u32; check_remaining_analytics(records, derived, config, &idx, &mut v, &mut c); v }),
-        Box::new(|| { let _t = Timer::start("K6::shp012");                let mut v = Vec::new(); let mut c = 0u32; check_shp012(records, config, &idx, &mut v, &mut c); v }),
-        Box::new(|| { let _t = Timer::start("K6::shp022");                let mut v = Vec::new(); let mut c = 0u32; check_shp022(records, &idx, &mut v, &mut c); v }),
+        Box::new(|| { let _t = Timer::start("K6::remaining_analytics");   let mut v = Vec::new(); let mut c = 0u32; check_remaining_analytics(records, derived, config, &idx, &shape_idx, &mut v, &mut c); v }),
+        Box::new(|| { let _t = Timer::start("K6::shp012");                let mut v = Vec::new(); let mut c = 0u32; check_shp012(records, config, &idx, &shape_idx, &mut v, &mut c); v }),
+        Box::new(|| { let _t = Timer::start("K6::shp022");                let mut v = Vec::new(); let mut c = 0u32; check_shp022(records, &idx, &shape_idx, &mut v, &mut c); v }),
         Box::new(|| { let _t = Timer::start("K6::pathway_analytics");     let mut v = Vec::new(); let mut c = 0u32; check_pathway_analytics(records, derived, &mut v, &mut c); v }),
         Box::new(|| { let _t = Timer::start("K6::calendar_override");     let mut v = Vec::new(); let mut c = 0u32; check_calendar_override_analytics(records, derived, config, &mut v, &mut c); v }),
         Box::new(|| { let _t = Timer::start("K6::vat_analytics");         let mut v = Vec::new(); let mut c = 0u32; check_vat_analytics(records, derived, config, &idx, &mut v, &mut c); v }),
@@ -341,6 +344,63 @@ fn max_speed_kmh(route_type: u32, cfg: &ValidatorConfig) -> f64 {
     }
 }
 
+// ── Shared shape index (K6 tek geçiş) ───────────────────────────────────────
+// shape_id → seq-sıralı (lat, lon) + bbox. Bu kurulum daha önce check_remaining_analytics
+// (`rem::build_maps`), check_shp012 ve check_shp022 içinde BİREBİR ÜÇ KEZ kopyalanmıştı;
+// check_speed_and_duration (`sd::shape_setup`) de dördüncü bir varyantını kuruyordu.
+// Entur (mdb-1078, 40,9M shape noktası) ölçümü: build_maps 4,0s + shp012 ~3,0s +
+// shp022 ~3,0s — shp022 toplam süresinin %99,96'sı bu kurulumdu (2.993ms'nin body'si 1,26ms).
+// Paralel modda (wasm32-threads) üç kopya AYNI ANDA canlı olabildiği için bu paylaşım
+// tepe belleği de düşürür; seri modda tek kopya K6 boyunca canlı kalır (~16B/nokta).
+struct ShapeIndex<'a> {
+    coords: FxHashMap<&'a str, Vec<(f64, f64)>>,
+    bbox: FxHashMap<&'a str, [f64; 4]>,
+}
+
+impl<'a> ShapeIndex<'a> {
+    /// #15 (build_maps OOM/312s): shape_coords NOKTA-İNDEKSLERİYLE kurulur. Her noktayı
+    /// (u32,f64,f64)=24B ara tamponda gruplayıp sonra (f64,f64)=16B'ye kopyalamak transient
+    /// ~40B/nokta demekti; indeks (4B) + coords (16B) = ~20B/nokta tepe.
+    /// Sıralama STABLE (`sort_by_key`) — eşit `shape_pt_sequence`'ta dosya sırası korunur.
+    fn build(records: &'a EntityRecords) -> Self {
+        let mut shape_pt_idx: FxHashMap<&str, Vec<u32>> = FxHashMap::default();
+        for (i, sp) in records.shapes.iter().enumerate() {
+            if sp.shape_pt_lat.is_some() && sp.shape_pt_lon.is_some() {
+                shape_pt_idx.entry(sp.shape_id.as_str()).or_default().push(i as u32);
+            }
+        }
+        let n_shapes = shape_pt_idx.len();
+        let mut coords: FxHashMap<&str, Vec<(f64, f64)>> = FxHashMap::default();
+        let mut bbox: FxHashMap<&str, [f64; 4]> = FxHashMap::default();
+        coords.reserve(n_shapes);
+        bbox.reserve(n_shapes);
+        for (sid, mut idxs) in shape_pt_idx {
+            idxs.sort_by_key(|&i| records.shapes[i as usize].shape_pt_sequence.unwrap_or(0));
+            let pts: Vec<(f64, f64)> = idxs.iter()
+                .map(|&i| {
+                    let sp = &records.shapes[i as usize];
+                    (sp.shape_pt_lat.unwrap(), sp.shape_pt_lon.unwrap())
+                })
+                .collect();
+            if !pts.is_empty() {
+                let mut mn_lat = pts[0].0;
+                let mut mx_lat = pts[0].0;
+                let mut mn_lon = pts[0].1;
+                let mut mx_lon = pts[0].1;
+                for &(la, lo) in pts.iter().skip(1) {
+                    if la < mn_lat { mn_lat = la; }
+                    if la > mx_lat { mx_lat = la; }
+                    if lo < mn_lon { mn_lon = lo; }
+                    if lo > mx_lon { mx_lon = lo; }
+                }
+                bbox.insert(sid, [mn_lat, mx_lat, mn_lon, mx_lon]);
+            }
+            coords.insert(sid, pts);
+        }
+        Self { coords, bbox }
+    }
+}
+
 // ── Shared stop_times index (K6 tek geçiş) ──────────────────────────────────
 // Not: by_trip artık K2 StopTimesIndex'inden &CompactStopTime referansları taşıyor.
 // records.stop_times Vec<StopTimeRecord> taranmaz; sadece index kullanılır.
@@ -449,10 +509,11 @@ struct Stm014Seg<'a> {
 /// details["trips"] listesinde gösterilecek örnek sefer sayısı (tam sayı trip_count'ta).
 const STM014_TRIP_SAMPLE: usize = 12;
 
-fn check_speed_and_duration(
-    records: &EntityRecords,
+fn check_speed_and_duration<'a>(
+    records: &'a EntityRecords,
     config: &ValidatorConfig,
     idx: &StopTimesIndex<'_>,
+    shape_idx: &ShapeIndex<'a>,
     notices: &mut Vec<Notice>,
     ctr: &mut u32,
 ) {
@@ -539,22 +600,14 @@ fn check_speed_and_duration(
 
     // Shape-based segment distance altyapısı (hız hesabı için)
     // Öncelik: shape polyline projeksiyonu > haversine fallback
-    let (shape_pts_speed, shape_cum_speed, trip_shape_speed) = {
+    // shape noktaları K6 girişindeki paylaşılan ShapeIndex'ten ödünç alınır; burada yalnız
+    // kümülatif mesafe (haversine) hesaplanır. Eski yol 4. bir kopya kuruyor ve `sort_unstable`
+    // kullanıyordu → eşit `shape_pt_sequence`'ta sıra belirsizdi; paylaşılan index STABLE
+    // sıralı (dosya sırası korunur), dolayısıyla bu yol artık deterministik.
+    let shape_pts_speed = &shape_idx.coords;
+    let (shape_cum_speed, trip_shape_speed) = {
         let _t = Timer::start("K6::sd::shape_setup");
-        let mut unsorted: FxHashMap<&str, Vec<(u32, f64, f64)>> = FxHashMap::default();
-        for sp in &records.shapes {
-            if let (Some(lat), Some(lon)) = (sp.shape_pt_lat, sp.shape_pt_lon) {
-                unsorted.entry(sp.shape_id.as_str()).or_default()
-                    .push((sp.shape_pt_sequence.unwrap_or(0), lat, lon));
-            }
-        }
-        let shape_pts: FxHashMap<&str, Vec<(f64, f64)>> = unsorted.into_iter()
-            .map(|(sid, mut v)| {
-                v.sort_unstable_by_key(|&(seq, _, _)| seq);
-                (sid, v.into_iter().map(|(_, la, lo)| (la, lo)).collect())
-            })
-            .collect();
-        let shape_cum: FxHashMap<&str, Vec<f64>> = shape_pts.iter()
+        let shape_cum: FxHashMap<&str, Vec<f64>> = shape_pts_speed.iter()
             .map(|(&sid, pts)| {
                 let mut c = Vec::with_capacity(pts.len());
                 c.push(0.0_f64);
@@ -569,7 +622,7 @@ fn check_speed_and_duration(
                 .filter(|s| !s.is_empty())
                 .map(|s| (t.trip_id.as_str(), s)))
             .collect();
-        (shape_pts, shape_cum, trip_shape)
+        (shape_cum, trip_shape)
     };
 
     // STM_036: stop_times trip_id + stop_sequence'a göre sıralı/gruplu değil (MD unsorted_stop_times,
@@ -3879,58 +3932,23 @@ fn feed_is_demand_responsive_only(records: &EntityRecords) -> bool {
 // ── Eksik K6 kurallar (STM_017, GEO_007/009/012/013, SHP_013, DQ_005b/005c/010,
 //    RTS_017, TRP_012/015, OPR_005/013) ──────────────────────────────────────
 
-fn check_remaining_analytics(
-    records: &EntityRecords,
+fn check_remaining_analytics<'a>(
+    records: &'a EntityRecords,
     derived: &DerivedData,
     config: &ValidatorConfig,
     idx: &StopTimesIndex<'_>,
+    shape_idx: &ShapeIndex<'a>,
     notices: &mut Vec<Notice>,
     ctr: &mut u32,
 ) {
     use crate::timing::Timer;
     let ti_rem = &records.trip_interns;
 
-    // ── shape_id → sıralı (lat, lon) noktaları + bbox (tek pass) ────────────
+    // ── shape geometrisi: K6 girişindeki paylaşılan ShapeIndex'ten ödünç ────
     let _tb = Timer::start("K6::rem::build_maps");
-    // #15 (build_maps OOM/312s): shape_coords'u NOKTA-İNDEKSLERİYLE kur. Eski yol her noktayı
-    // (u32,f64,f64)=24B ara tamponda gruplayıp sonra (f64,f64)=16B'ye kopyalıyordu → transient
-    // ~40B/nokta. Devasa-shape feed'inde bu, K6 başındaki ~3.6 GB'ın üstüne binince 4 GB tavanı
-    // aşıp OOM ediyordu (ve allocator tavanda tıkanınca 312 sn). İndeks (4B) + coords (16B) =
-    // ~20B/nokta tepe. Çıktı (seq-sıralı lat,lon) BİREBİR aynı (stable sort, file-order ties).
-    let mut shape_pt_idx: FxHashMap<&str, Vec<u32>> = FxHashMap::default();
-    for (i, sp) in records.shapes.iter().enumerate() {
-        if sp.shape_pt_lat.is_some() && sp.shape_pt_lon.is_some() {
-            shape_pt_idx.entry(sp.shape_id.as_str()).or_default().push(i as u32);
-        }
-    }
-    let n_shapes = shape_pt_idx.len();
-    let mut shape_coords: FxHashMap<&str, Vec<(f64, f64)>> = FxHashMap::default();
-    let mut shape_bbox: FxHashMap<&str, [f64; 4]> = FxHashMap::default();
-    shape_coords.reserve(n_shapes);
-    shape_bbox.reserve(n_shapes);
-    for (sid, mut idxs) in shape_pt_idx {
-        idxs.sort_by_key(|&i| records.shapes[i as usize].shape_pt_sequence.unwrap_or(0));
-        let pts: Vec<(f64, f64)> = idxs.iter()
-            .map(|&i| {
-                let sp = &records.shapes[i as usize];
-                (sp.shape_pt_lat.unwrap(), sp.shape_pt_lon.unwrap())
-            })
-            .collect();
-        if !pts.is_empty() {
-            let mut mn_lat = pts[0].0;
-            let mut mx_lat = pts[0].0;
-            let mut mn_lon = pts[0].1;
-            let mut mx_lon = pts[0].1;
-            for &(la, lo) in pts.iter().skip(1) {
-                if la < mn_lat { mn_lat = la; }
-                if la > mx_lat { mx_lat = la; }
-                if lo < mn_lon { mn_lon = lo; }
-                if lo > mx_lon { mx_lon = lo; }
-            }
-            shape_bbox.insert(sid, [mn_lat, mx_lat, mn_lon, mx_lon]);
-        }
-        shape_coords.insert(sid, pts);
-    }
+    // Kurulum K6 girişinde TEK sefer yapıldı (bkz. ShapeIndex) — burada yalnız ödünç alınır.
+    let shape_coords = &shape_idx.coords;
+    let shape_bbox = &shape_idx.bbox;
 
     // ── stop_id → (lat, lon) ──────────────────────────────────────────────────
     let stop_coords: FxHashMap<&str, (f64, f64)> = records
@@ -5895,7 +5913,7 @@ fn check_remaining_analytics(
     {
         let _t15 = Timer::start("K6::rem::shp_015");
         const MIN_POINTS_PER_10KM: f64 = 2.0; // en az 2 nokta / 10km
-        for (shape_id, pts) in &shape_coords {
+        for (shape_id, pts) in shape_coords.iter() {
             if pts.len() < 3 {
                 notices.push(k6_notice(
                     ctr, "SHP_015", EntityType::Shape,
@@ -5940,7 +5958,7 @@ fn check_remaining_analytics(
         const DUP_THRESHOLD_DEG: f64 = 1e-6;
         const SHP020_AGG_THRESHOLD: usize = 50;
         let mut shp020_pending: Vec<Notice> = Vec::new();
-        for (shape_id, pts) in &shape_coords {
+        for (shape_id, pts) in shape_coords.iter() {
             // Sadece ardışık çiftleri değil, küçük bir pencere içinde kontrol et
             'outer: for i in 0..pts.len() {
                 for j in (i + 2)..pts.len().min(i + 10) {
@@ -5994,7 +6012,7 @@ fn check_remaining_analytics(
         let _t09b = Timer::start("K6::rem::shp_009");
         const SHP009_AGG_THRESHOLD: usize = 50;
         let mut shp009_pending: Vec<Notice> = Vec::new();
-        for (shape_id, pts) in &shape_coords {
+        for (shape_id, pts) in shape_coords.iter() {
             if pts.len() < 4 { continue; }
             // O(n²) segment-crossing: büyük shape'lerde maksimum 300 segment kontrol et
             let n = pts.len().min(301);
@@ -6048,54 +6066,18 @@ fn check_remaining_analytics(
 /// BİREBİR aynı (aynı sort_by_key, aynı bbox) → çıktı (notice sayısı/değeri/skor) özdeş.
 /// Kendi yerel cache'leri (shape_stop_violations, dist_cache) var; başka kontrolle paylaşılan
 /// mutable durum YOK → bağımsız task olarak güvenli, mevcut 13-task deseniyle aynı.
-fn check_shp012(
-    records: &EntityRecords,
+fn check_shp012<'a>(
+    records: &'a EntityRecords,
     config: &ValidatorConfig,
     idx: &StopTimesIndex<'_>,
+    shape_idx: &ShapeIndex<'a>,
     notices: &mut Vec<Notice>,
     ctr: &mut u32,
 ) {
     let ti_shp012 = &records.trip_interns;
-    // shape_id → sıralı (lat, lon) + bbox (build_maps ile birebir aynı kurulum)
-    // #15 (build_maps OOM/312s): shape_coords'u NOKTA-İNDEKSLERİYLE kur. Eski yol her noktayı
-    // (u32,f64,f64)=24B ara tamponda gruplayıp sonra (f64,f64)=16B'ye kopyalıyordu → transient
-    // ~40B/nokta. Devasa-shape feed'inde bu, K6 başındaki ~3.6 GB'ın üstüne binince 4 GB tavanı
-    // aşıp OOM ediyordu (ve allocator tavanda tıkanınca 312 sn). İndeks (4B) + coords (16B) =
-    // ~20B/nokta tepe. Çıktı (seq-sıralı lat,lon) BİREBİR aynı (stable sort, file-order ties).
-    let mut shape_pt_idx: FxHashMap<&str, Vec<u32>> = FxHashMap::default();
-    for (i, sp) in records.shapes.iter().enumerate() {
-        if sp.shape_pt_lat.is_some() && sp.shape_pt_lon.is_some() {
-            shape_pt_idx.entry(sp.shape_id.as_str()).or_default().push(i as u32);
-        }
-    }
-    let n_shapes = shape_pt_idx.len();
-    let mut shape_coords: FxHashMap<&str, Vec<(f64, f64)>> = FxHashMap::default();
-    let mut shape_bbox: FxHashMap<&str, [f64; 4]> = FxHashMap::default();
-    shape_coords.reserve(n_shapes);
-    shape_bbox.reserve(n_shapes);
-    for (sid, mut idxs) in shape_pt_idx {
-        idxs.sort_by_key(|&i| records.shapes[i as usize].shape_pt_sequence.unwrap_or(0));
-        let pts: Vec<(f64, f64)> = idxs.iter()
-            .map(|&i| {
-                let sp = &records.shapes[i as usize];
-                (sp.shape_pt_lat.unwrap(), sp.shape_pt_lon.unwrap())
-            })
-            .collect();
-        if !pts.is_empty() {
-            let mut mn_lat = pts[0].0;
-            let mut mx_lat = pts[0].0;
-            let mut mn_lon = pts[0].1;
-            let mut mx_lon = pts[0].1;
-            for &(la, lo) in pts.iter().skip(1) {
-                if la < mn_lat { mn_lat = la; }
-                if la > mx_lat { mx_lat = la; }
-                if lo < mn_lon { mn_lon = lo; }
-                if lo > mx_lon { mx_lon = lo; }
-            }
-            shape_bbox.insert(sid, [mn_lat, mx_lat, mn_lon, mx_lon]);
-        }
-        shape_coords.insert(sid, pts);
-    }
+    // Kurulum K6 girişinde TEK sefer yapıldı (bkz. ShapeIndex) — burada yalnız ödünç alınır.
+    let shape_coords = &shape_idx.coords;
+    let shape_bbox = &shape_idx.bbox;
     let stop_coords: FxHashMap<&str, (f64, f64)> = records
         .stops
         .iter()
@@ -6187,55 +6169,19 @@ fn check_shp012(
 /// (shape_coords/shape_bbox/stop_coords/stop_names/trip_shape_local) build_maps ile BİREBİR
 /// aynı kurulum; shape_cum yerel olarak yeniden kurulur (sadece memoization — aynı değerler).
 /// Dedup set'leri (shp022_seen/shp022_done) yerel → bağımsız task olarak güvenli, çıktı özdeş.
-fn check_shp022(
-    records: &EntityRecords,
+fn check_shp022<'a>(
+    records: &'a EntityRecords,
     idx: &StopTimesIndex<'_>,
+    shape_idx: &ShapeIndex<'a>,
     notices: &mut Vec<Notice>,
     ctr: &mut u32,
 ) {
     use crate::timing::Timer;
     let ti_shp022 = &records.trip_interns;
 
-    // ── build_maps ile birebir aynı kurulum (shape_coords + shape_bbox) ──────
-    // #15 (build_maps OOM/312s): shape_coords'u NOKTA-İNDEKSLERİYLE kur. Eski yol her noktayı
-    // (u32,f64,f64)=24B ara tamponda gruplayıp sonra (f64,f64)=16B'ye kopyalıyordu → transient
-    // ~40B/nokta. Devasa-shape feed'inde bu, K6 başındaki ~3.6 GB'ın üstüne binince 4 GB tavanı
-    // aşıp OOM ediyordu (ve allocator tavanda tıkanınca 312 sn). İndeks (4B) + coords (16B) =
-    // ~20B/nokta tepe. Çıktı (seq-sıralı lat,lon) BİREBİR aynı (stable sort, file-order ties).
-    let mut shape_pt_idx: FxHashMap<&str, Vec<u32>> = FxHashMap::default();
-    for (i, sp) in records.shapes.iter().enumerate() {
-        if sp.shape_pt_lat.is_some() && sp.shape_pt_lon.is_some() {
-            shape_pt_idx.entry(sp.shape_id.as_str()).or_default().push(i as u32);
-        }
-    }
-    let n_shapes = shape_pt_idx.len();
-    let mut shape_coords: FxHashMap<&str, Vec<(f64, f64)>> = FxHashMap::default();
-    let mut shape_bbox: FxHashMap<&str, [f64; 4]> = FxHashMap::default();
-    shape_coords.reserve(n_shapes);
-    shape_bbox.reserve(n_shapes);
-    for (sid, mut idxs) in shape_pt_idx {
-        idxs.sort_by_key(|&i| records.shapes[i as usize].shape_pt_sequence.unwrap_or(0));
-        let pts: Vec<(f64, f64)> = idxs.iter()
-            .map(|&i| {
-                let sp = &records.shapes[i as usize];
-                (sp.shape_pt_lat.unwrap(), sp.shape_pt_lon.unwrap())
-            })
-            .collect();
-        if !pts.is_empty() {
-            let mut mn_lat = pts[0].0;
-            let mut mx_lat = pts[0].0;
-            let mut mn_lon = pts[0].1;
-            let mut mx_lon = pts[0].1;
-            for &(la, lo) in pts.iter().skip(1) {
-                if la < mn_lat { mn_lat = la; }
-                if la > mx_lat { mx_lat = la; }
-                if lo < mn_lon { mn_lon = lo; }
-                if lo > mx_lon { mx_lon = lo; }
-            }
-            shape_bbox.insert(sid, [mn_lat, mx_lat, mn_lon, mx_lon]);
-        }
-        shape_coords.insert(sid, pts);
-    }
+    // Kurulum K6 girişinde TEK sefer yapıldı (bkz. ShapeIndex) — burada yalnız ödünç alınır.
+    let shape_coords = &shape_idx.coords;
+    let shape_bbox = &shape_idx.bbox;
     let stop_coords: FxHashMap<&str, (f64, f64)> = records
         .stops
         .iter()
