@@ -831,6 +831,8 @@ pub static RULES: &[RuleMeta] = &[
         "In-seat aktarmada farklı route_type"),
     r!("TRF_020", Orta, Quality, 2, &[], Some("from_stop_id|to_stop_id"), VS, Row,
         "Aktarma için gereken yürüme hızı çok yüksek"),
+    r!("TRF_021", Kritik, Spec, 1, &[], Some("from_stop_id|to_stop_id"), VS_K, Row,
+        "Aktarma uç noktası durak veya istasyon değil"),
 
     // ── GGL: Google Transit Uyumluluk Kuralları ───────────────────────────────
     r!("GGL_001", Dusuk, Interop, 1, &[], None, VI, Row,
@@ -1055,6 +1057,8 @@ pub static RULES: &[RuleMeta] = &[
         "is_bidirectional eksik"),
     r!("PTH_025", Dusuk, Quality, 1, &[], None, VS, Feed,
         "Önerilen pathway length bilgisi eksik"),
+    r!("PTH_026", Kritik, Spec, 1, &[], Some("pathway_id"), VS_K, Row,
+        "Pathway uç noktası istasyon"),
 
     // ── LVL: Levels ────────────────────────────────────────────────────────────
     r!("LVL_001", Kritik, Spec, 1,
@@ -1865,6 +1869,8 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("TFR_005", MobilitydataParity),
     ("TFR_006", GtfsSpec),
     ("TFR_007", GtfsSpec),
+    ("TRF_021", GtfsSpec),
+    ("PTH_026", GtfsSpec),
     ("TRF_001", GtfsSpec),
     ("TRF_002", GtfsSpec),
     ("TRF_003", GtfsSpec),

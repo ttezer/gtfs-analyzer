@@ -1724,6 +1724,30 @@ fn check_transfers(
             }
         }
 
+        // TRF_021: transfers uç noktası yalnızca durak (0) veya istasyon (1) olabilir. Spec:
+        // "Identifies a stop (location_type=0) or a station (location_type=1) where a
+        // connection between routes begins." Giriş/çıkış (2), ara düğüm (3) ve biniş alanı (4)
+        // aktarma referansı olamaz. Boş location_type spec'te 0 sayılır, geçerlidir.
+        // TRF_015 ile örtüşmez: o, type=4/5'te location_type=1'i yasaklar — farklı değer kümesi.
+        for (field, stop_id) in [
+            ("from_stop_id", rec.from_stop_id.as_str()),
+            ("to_stop_id", rec.to_stop_id.as_str()),
+        ] {
+            let Some(&sidx) = map.stops.get(stop_id) else { continue };
+            if matches!(records.stops[sidx].location_type, Some(2) | Some(3) | Some(4)) {
+                let lt = records.stops[sidx].location_type.unwrap_or(0);
+                notices.push(notice(
+                    ctr, "TRF_021", EntityType::Transfer,
+                    None, None, "transfers.txt", Some(rec.line), Some(field),
+                    Some(stop_id.to_string()), Some("location_type 0 veya 1".to_string()),
+                    format!(
+                        "{field} '{stop_id}' location_type={lt}; aktarma yalnızca durak (0) veya istasyon (1) referansı alabilir.",
+                    ),
+                    "transfers.txt'te giriş/çıkış, ara düğüm veya biniş alanı yerine durak ya da istasyon referansı kullanın.",
+                ));
+            }
+        }
+
         // TRF_015: type=4/5 için from/to_stop_id station (location_type=1) olamaz
         if matches!(ttype, Some(4) | Some(5)) {
             for (field, stop_id) in [
@@ -3101,6 +3125,41 @@ fn check_xfl(
                         None,
                         format!("{field} '{stop_id}' stops.txt'te tanımlı değil."),
                         "Geçerli bir stop_id kullanın.",
+                    ));
+                }
+            }
+        }
+    }
+
+    // PTH_026: pathway uç noktası istasyon olamaz. Spec, from_stop_id/to_stop_id için:
+    // "Must contain a stop_id that identifies a platform (location_type=0 or empty),
+    // entrance/exit (2), generic node (3) or boarding area (4). Values for stop_id that
+    // identify stations (location_type=1) ... are forbidden."
+    // Not: spec ayrıca stop_access=1 olan durakları da yasaklar; o ayrı bir olgudur ve
+    // burada KAPSAM DIŞIDIR (MD'de de ayrı notice).
+    {
+        for rec in &records.pathways {
+            for (field, stop_id) in [
+                ("from_stop_id", rec.from_stop_id.as_str()),
+                ("to_stop_id", rec.to_stop_id.as_str()),
+            ] {
+                let Some(&sidx) = map.stops.get(stop_id) else { continue };
+                if records.stops[sidx].location_type == Some(1) {
+                    notices.push(notice(
+                        ctr,
+                        "PTH_026",
+                        EntityType::Pathway,
+                        Some(rec.pathway_id.clone()),
+                        Some(rec.pathway_id.clone()),
+                        "pathways.txt",
+                        Some(rec.line),
+                        Some(field),
+                        Some(stop_id.to_string()),
+                        Some("location_type 0, 2, 3 veya 4".to_string()),
+                        format!(
+                            "{field} '{stop_id}' bir istasyon (location_type=1); pathway uç noktası peron, giriş/çıkış, ara düğüm veya biniş alanı olmalıdır.",
+                        ),
+                        "pathways.txt'te istasyon yerine peron (location_type=0), giriş/çıkış (2), ara düğüm (3) veya biniş alanı (4) referansı kullanın.",
                     ));
                 }
             }

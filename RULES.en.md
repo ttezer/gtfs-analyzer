@@ -2,7 +2,7 @@
 
 🇹🇷 [Türkçe](RULES.md) · 🇬🇧 **English** · 🇯🇵 [日本語](RULES.ja.md)
 
-540 rules, 37 groups. Each rule is identified by a unique ID, severity level, and class.
+542 rules, 37 groups. Each rule is identified by a unique ID, severity level, and class.
 Severity levels: **CRITICAL** (publish blocker) · **HIGH** · **MEDIUM** · **LOW** · **INFO**
 Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Quality** (GTFS Quality) · **Analytics** (GTFS Analytics)
 
@@ -382,6 +382,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | TRF_018 | Trip transfer references the same trip | MEDIUM | Quality |
 | TRF_019 | Different route_type in in-seat transfer | MEDIUM | Interop |
 | TRF_020 | Transfer walking speed is too fast | MEDIUM | Quality |
+| TRF_021 | Transfer endpoint is not a stop or station | CRITICAL | Spec |
 
 ## GGL — Google Transit Compatibility
 
@@ -537,6 +538,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | PTH_023 | pathway_mode missing | CRITICAL | Spec |
 | PTH_024 | is_bidirectional missing | CRITICAL | Spec |
 | PTH_025 | Recommended pathway length missing | LOW | Quality |
+| PTH_026 | Pathway endpoint is a station | CRITICAL | Spec |
 
 ## LVL — Levels
 

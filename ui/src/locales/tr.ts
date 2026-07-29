@@ -869,6 +869,7 @@ const tr = {
     'TRF_018': 'Sefer aktarması aynı seferi gösteriyor',
     'TRF_019': 'In-seat aktarmada farklı route_type',
     'TRF_020': 'Aktarma için gereken yürüme hızı çok yüksek',
+    'TRF_021': 'Aktarma uç noktası durak veya istasyon değil',
     // GGL
     'GGL_001': 'transfer_type=4/5 Google Transit tarafından desteklenmiyor',
     'GGL_002': 'ic_price (Google-özel) geçersiz değer',
@@ -891,6 +892,7 @@ const tr = {
     'PTH_023': 'pathway_mode eksik',
     'PTH_024': 'is_bidirectional eksik',
     'PTH_025': 'Önerilen pathway length bilgisi eksik',
+    'PTH_026': 'Pathway uç noktası istasyon',
     // FRL
     'FRL_001': 'fare_id bulunamadı',
     'FRL_002': 'route_id bulunamadı',

@@ -2,7 +2,7 @@
 
 🇹🇷 **Türkçe** · 🇬🇧 [English](RULES.en.md) · 🇯🇵 [日本語](RULES.ja.md)
 
-540 kural, 37 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
+542 kural, 37 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
 Önem seviyeleri: **KRİTİK** (yayın engelleyici) · **YÜKSEK** · **ORTA** · **DÜŞÜK** · **BİLGİ**
 Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · **Quality** (GTFS Kalitesi) · **Analytics** (GTFS Analitiği)
 
@@ -382,6 +382,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | TRF_018 | Sefer aktarması aynı seferi gösteriyor | ORTA | Quality |
 | TRF_019 | In-seat aktarmada farklı route_type | ORTA | Interop |
 | TRF_020 | Aktarma için gereken yürüme hızı çok yüksek | ORTA | Quality |
+| TRF_021 | Aktarma uç noktası durak veya istasyon değil | KRİTİK | Spec |
 
 ## GGL — Google Transit Uyumluluğu
 
@@ -537,6 +538,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | PTH_023 | pathway_mode eksik | KRİTİK | Spec |
 | PTH_024 | is_bidirectional eksik | KRİTİK | Spec |
 | PTH_025 | Önerilen pathway length bilgisi eksik | DÜŞÜK | Quality |
+| PTH_026 | Pathway uç noktası istasyon | KRİTİK | Spec |
 
 ## LVL — Levels (Katlar)
 

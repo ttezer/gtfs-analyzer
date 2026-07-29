@@ -452,6 +452,11 @@ fn fixtures() -> Vec<Fixture> {
         fx("PTH_001", vec![("pathways.txt", "pathway_id,from_stop_id,to_stop_id,pathway_mode,is_bidirectional\nP1,S1,S2,3,0\nP1,S2,S1,3,0\n")]),
         // K4: cross-ref (k4_cross_ref::check_pathways).
         fx("PTH_002", vec![("pathways.txt", "pathway_id,from_stop_id,to_stop_id,pathway_mode,is_bidirectional\nP1,NOPE,S2,3,0\n")]),
+        // PTH_026: pathway uç noktası istasyon (loc=1) olamaz (k4).
+        fx("PTH_026", vec![
+            ("stops.txt", "stop_id,stop_name,stop_lat,stop_lon,location_type\nS1,Station,41.0,29.0,1\nS2,Stop2,41.1,29.1,0\n"),
+            ("pathways.txt", "pathway_id,from_stop_id,to_stop_id,pathway_mode,is_bidirectional\nP1,S1,S2,3,0\n"),
+        ]),
         fx("PTH_003", vec![("pathways.txt", "pathway_id,from_stop_id,to_stop_id,pathway_mode,is_bidirectional\nP1,S1,NOPE,3,0\n")]),
         // PTH_014: from/to farklı istasyonlarda (parent_station ile çözülür).
         fx("PTH_014", vec![
@@ -1359,6 +1364,11 @@ fn fixtures() -> Vec<Fixture> {
             ("stops.txt", "stop_id,stop_name,stop_lat,stop_lon,location_type\nS1,Stop1,41.0,29.0,1\nS2,Stop2,41.1,29.1,0\n"),
             ("trips.txt", "route_id,service_id,trip_id\nR1,SVC1,T1\nR1,SVC1,T2\n"),
             ("transfers.txt", "from_stop_id,to_stop_id,transfer_type,from_trip_id,to_trip_id\nS1,S2,4,T1,T2\n"),
+        ]),
+        // TRF_021: aktarma uç noktası giriş/ara düğüm/biniş alanı olamaz (k4).
+        fx("TRF_021", vec![
+            ("stops.txt", "stop_id,stop_name,stop_lat,stop_lon,location_type\nS1,Entrance,41.0,29.0,2\nS2,Stop2,41.1,29.1,0\n"),
+            ("transfers.txt", "from_stop_id,to_stop_id,transfer_type\nS1,S2,1\n"),
         ]),
         // TRF_016: aynı (stop,trip,route) kombinasyonunda çakışan transfer (k4).
         fx("TRF_016", vec![("transfers.txt", "from_stop_id,to_stop_id,transfer_type,from_trip_id\nS1,S2,1,T1\nS1,S2,1,T1\n")]),
