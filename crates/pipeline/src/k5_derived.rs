@@ -221,7 +221,7 @@ fn build_shape_geometry(
     for (shape_id, point_indices) in &entity_map.shape_points {
         let n_pts = point_indices.len();
         if n_pts == 0 { continue; }
-        let first_line = point_indices.first().map(|&i| records.shapes[i].line);
+        let first_line = point_indices.first().map(|&i| records.shapes[i].line_u64());
         if n_pts == 1 {
             // SHP_006: tek noktalı shape
             notices.push(k5_notice(ctr, "SHP_006", EntityType::Shape,
@@ -258,13 +258,13 @@ fn build_shape_geometry(
             // SHP_005: shape_dist_traveled shape_pt_sequence ile artmalı. point_indices K3'te
             // sequence'a göre SIRALI olduğundan burada kontrol edilir — K2 dosya-satır sırasında
             // baksaydı (ve bakıyordu) sequence-dışı sıralı feed'lerde sahte "azalma" görürdü (FP fix).
-            if let Some(d) = pt.shape_dist_traveled {
+            if let Some(d) = pt.shape_dist_traveled() {
                 if let Some(prev) = prev_dist {
                     if d < prev - 1e-6 {
                         notices.push(k5_notice(
                             ctr, "SHP_005", EntityType::Shape,
                             Some(shape_id.clone()), Some(shape_id.clone()),
-                            "shapes.txt", Some(pt.line), Some("shape_dist_traveled"),
+                            "shapes.txt", Some(pt.line_u64()), Some("shape_dist_traveled"),
                             Some(format!("{d}")), Some(format!("≥ {prev} (önceki sıra)")),
                             format!("shape_id '{shape_id}' için shape_dist_traveled shape_pt_sequence ile azalıyor: {prev} → {d}."),
                             "shape_dist_traveled değerlerini her shape için shape_pt_sequence'e göre artan yazın.",
@@ -274,7 +274,7 @@ fn build_shape_geometry(
                 prev_dist = Some(d);
             }
 
-            let (lat, lon) = match (pt.shape_pt_lat, pt.shape_pt_lon) {
+            let (lat, lon) = match (pt.shape_pt_lat(), pt.shape_pt_lon()) {
                 (Some(la), Some(lo)) => (la, lo),
                 _ => {
                     // lat/lon yoksa geometri için bu noktayı atla; SHP_003/004 K2'de yakalandı.
@@ -301,7 +301,7 @@ fn build_shape_geometry(
                         Some(shape_id.clone()),
                         Some(shape_id.clone()),
                         "shapes.txt",
-                        Some(pt.line),
+                        Some(pt.line_u64()),
                         Some("shape_pt_lat|shape_pt_lon"),
                         Some(format!("({lat},{lon})")),
                         None,
@@ -320,7 +320,7 @@ fn build_shape_geometry(
 
             prev_lat = Some(lat);
             prev_lon = Some(lon);
-            prev_line = pt.line;
+            prev_line = pt.line_u64();
         }
 
         derived.shape_geometry.shapes.insert(
@@ -366,7 +366,7 @@ fn build_shape_geometry(
             // İlk noktanın satır numarasını bul
             let line = entity_map.shape_points[shape_id]
                 .first()
-                .map(|&i| records.shapes[i].line);
+                .map(|&i| records.shapes[i].line_u64());
             notices.push(k5_notice(
                 ctr,
                 "SHP_018",
@@ -475,22 +475,11 @@ mod tests {
     }
 
     fn shape_pt(shape_id: &str, seq: u32, lat: f64, lon: f64, line: u64) -> ShapePointRecord {
-        ShapePointRecord {
-            shape_id: shape_id.into(),
-            shape_pt_lat: Some(lat),
-            shape_pt_lon: Some(lon),
-            shape_pt_sequence: Some(seq),
-            shape_dist_traveled: None,
-            line,
-        }
+        ShapePointRecord::new(shape_id.into(), Some(lat), Some(lon), Some(seq), None, line as u32)
     }
 
     fn shape_pt_d(shape_id: &str, seq: u32, lat: f64, lon: f64, dist: f64, line: u64) -> ShapePointRecord {
-        ShapePointRecord {
-            shape_id: shape_id.into(),
-            shape_pt_lat: Some(lat), shape_pt_lon: Some(lon),
-            shape_pt_sequence: Some(seq), shape_dist_traveled: Some(dist), line,
-        }
+        ShapePointRecord::new(shape_id.into(), Some(lat), Some(lon), Some(seq), Some(dist), line as u32)
     }
 
     fn trip_with_shape(trip_id: &str, shape_id: &str) -> (TripRecord, crate::k2::trips::TripInternTable) {

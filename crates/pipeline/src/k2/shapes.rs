@@ -7,15 +7,74 @@ use super::common::{get_col, make_k2_notice, parse_f64_col, parse_u32_col};
 use super::stop_times::{next_csv_record, ZipCsvReader};
 use crate::k1_parse::RawFile;
 
+/// Tek bir shapes.txt noktası.
+///
+/// Bellek: Entur (mdb-1078) gibi feed'lerde 40,9M kayıt tutulur, yani her bayt ×40,9M.
+/// `Option<f64>`/`Option<u32>` sarmalayıcıları niche taşımadığı için alan başına 8 bayt
+/// israf ediyordu (88B/kayıt ≈ 3,6 GB). Alanlar `CompactStopTime` desenindeki gibi
+/// sentinel'e çevrildi; `Option` API'si accessor'larda korunuyor.
+///
+/// `shape_dist_traveled` BİLİNÇLİ olarak f64 kaldı (`CompactStopTime` orada f32 kullanır):
+/// SHP_005 monotonluğu `1e-6` toleransıyla bakıyor ve K4::stm_shape_dist bu değeri
+/// stop_times'ınkiyle karşılaştırıyor — 40,9M yoğun noktada f32 yuvarlaması gerçek
+/// artışları yutabilirdi.
 #[derive(Debug, Clone)]
 pub struct ShapePointRecord {
     pub shape_id: String,
-    pub shape_pt_lat: Option<f64>,
-    pub shape_pt_lon: Option<f64>,
-    pub shape_pt_sequence: Option<u32>,
-    pub shape_dist_traveled: Option<f64>,
-    pub line: u64,
+    /// NaN = alan yok/parse edilemedi
+    lat: f64,
+    /// NaN = alan yok/parse edilemedi
+    lon: f64,
+    /// u32::MAX = alan yok/parse edilemedi
+    seq: u32,
+    /// NaN = alan yok/parse edilemedi
+    dist: f64,
+    pub line: u32,
 }
+
+impl ShapePointRecord {
+    #[allow(clippy::too_many_arguments)]
+    pub fn new(
+        shape_id: String,
+        shape_pt_lat: Option<f64>,
+        shape_pt_lon: Option<f64>,
+        shape_pt_sequence: Option<u32>,
+        shape_dist_traveled: Option<f64>,
+        line: u32,
+    ) -> Self {
+        Self {
+            shape_id,
+            lat: shape_pt_lat.unwrap_or(f64::NAN),
+            lon: shape_pt_lon.unwrap_or(f64::NAN),
+            seq: shape_pt_sequence.unwrap_or(u32::MAX),
+            dist: shape_dist_traveled.unwrap_or(f64::NAN),
+            line,
+        }
+    }
+
+    #[inline]
+    pub fn shape_pt_lat(&self) -> Option<f64> {
+        if self.lat.is_nan() { None } else { Some(self.lat) }
+    }
+    #[inline]
+    pub fn shape_pt_lon(&self) -> Option<f64> {
+        if self.lon.is_nan() { None } else { Some(self.lon) }
+    }
+    #[inline]
+    pub fn shape_pt_sequence(&self) -> Option<u32> {
+        if self.seq == u32::MAX { None } else { Some(self.seq) }
+    }
+    #[inline]
+    pub fn shape_dist_traveled(&self) -> Option<f64> {
+        if self.dist.is_nan() { None } else { Some(self.dist) }
+    }
+    /// Notice API'si u64 bekler.
+    #[inline]
+    pub fn line_u64(&self) -> u64 { self.line as u64 }
+}
+
+// Boyut guard: 56B'ı aşarsa derleme kırılır (88B'dan indirildi; ×40,9M nokta ≈ 1,3 GB).
+const _: () = assert!(std::mem::size_of::<ShapePointRecord>() <= 56);
 
 struct Cols {
     shape_id: Option<usize>,
@@ -286,14 +345,7 @@ pub fn validate_shapes(file: &RawFile, zip_bytes: Option<&[u8]>) -> (Vec<ShapePo
             // shape_pt_sequence-sıralı noktalar üzerinde kontrol edilir. Dosya sırası ≠ sequence
             // olan geçerli feed'lerde eski dosya-sırası kontrolü sahte "azalma" (FP) üretiyordu.
 
-            records.push(ShapePointRecord {
-                shape_id,
-                shape_pt_lat,
-                shape_pt_lon,
-                shape_pt_sequence,
-                shape_dist_traveled,
-                line,
-            });
+            records.push(ShapePointRecord::new(shape_id, shape_pt_lat, shape_pt_lon, shape_pt_sequence, shape_dist_traveled, line as u32));
         };
 
         // ── Sürücü: zip_bytes → ZIP stream; raw_text → string stream; rows → fallback ──
@@ -481,8 +533,8 @@ mod tests {
         let (rec_b, not_b) = validate_shapes(&file_stream, None);
 
         assert_eq!(rec_a.len(), rec_b.len(), "record sayısı iki yolda aynı");
-        let lines_a: Vec<u64> = rec_a.iter().map(|r| r.line).collect();
-        let lines_b: Vec<u64> = rec_b.iter().map(|r| r.line).collect();
+        let lines_a: Vec<u64> = rec_a.iter().map(|r| r.line_u64()).collect();
+        let lines_b: Vec<u64> = rec_b.iter().map(|r| r.line_u64()).collect();
         assert_eq!(lines_a, lines_b, "line numaraları iki yolda aynı (2,3,4)");
         let mut rules_a: Vec<&str> = not_a.iter().map(|n| n.rule_id.as_str()).collect();
         let mut rules_b: Vec<&str> = not_b.iter().map(|n| n.rule_id.as_str()).collect();

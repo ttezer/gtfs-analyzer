@@ -317,7 +317,7 @@ fn build_shapes(records: &EntityRecords, map: &mut EntityMap) {
 
     // Her shape'i shape_pt_sequence'e göre sırala
     for (shape_id, mut indices) in raw {
-        indices.sort_by_key(|&i| records.shapes[i].shape_pt_sequence.unwrap_or(u32::MAX));
+        indices.sort_by_key(|&i| records.shapes[i].shape_pt_sequence().unwrap_or(u32::MAX));
         map.shape_points.insert(shape_id.to_string(), indices);
     }
 }
@@ -814,20 +814,8 @@ mod tests {
     fn shape_points_sorted_by_sequence() {
         let mut records = empty_records();
         records.shapes = vec![
-            ShapePointRecord {
-                shape_id: "SHP1".into(),
-                shape_pt_lat: Some(41.0), shape_pt_lon: Some(29.0),
-                shape_pt_sequence: Some(2),
-                shape_dist_traveled: None,
-                line: 3,
-            },
-            ShapePointRecord {
-                shape_id: "SHP1".into(),
-                shape_pt_lat: Some(41.1), shape_pt_lon: Some(29.1),
-                shape_pt_sequence: Some(1),
-                shape_dist_traveled: None,
-                line: 2,
-            },
+            ShapePointRecord::new("SHP1".into(), Some(41.0), Some(29.0), Some(2), None, 3),
+            ShapePointRecord::new("SHP1".into(), Some(41.1), Some(29.1), Some(1), None, 2),
         ];
         let result = build(&records);
         let pts = result.entity_map.shape_points.get("SHP1").unwrap();

@@ -3185,7 +3185,7 @@ fn check_xfl(
             if trip_ids.iter().all(|tid| !trips_in_stm.contains(*tid)) {
                 let line = records.shapes.iter()
                     .find(|sp| sp.shape_id.as_str() == *shape_id)
-                    .map(|sp| sp.line);
+                    .map(|sp| sp.line_u64());
                 let trip_count = trip_ids.len();
                 notices.push(notice(
                     ctr,
@@ -3670,7 +3670,7 @@ fn check_stm_shape_dist(
     // shape_id → o shape'teki max shape_dist_traveled
     let mut shape_max_dist: HashMap<&str, f64> = HashMap::new();
     for sp in &records.shapes {
-        if let Some(d) = sp.shape_dist_traveled {
+        if let Some(d) = sp.shape_dist_traveled() {
             let e = shape_max_dist.entry(sp.shape_id.as_str()).or_insert(0.0_f64);
             if d > *e {
                 *e = d;
@@ -4989,11 +4989,7 @@ mod tests {
         let mut ti = TripInternTable::new();
         recs.trips = vec![trip_s(&mut ti, "T1", "R1", "SVC1", "S1", None)];
         recs.trip_interns = ti;
-        recs.shapes = vec![ShapePointRecord {
-            shape_id: "S1".into(),
-            shape_pt_lat: Some(41.0), shape_pt_lon: Some(29.0),
-            shape_pt_sequence: Some(1), shape_dist_traveled: None, line: 2,
-        }];
+        recs.shapes = vec![ShapePointRecord::new("S1".into(), Some(41.0), Some(29.0), Some(1), None, 2)];
         // stop_times yok → SHP_019 ateşlenmeli
         let result = check(&recs, &map, 20260515);
         assert!(result.notices.iter().any(|n| n.rule_id == "SHP_019"), "SHP_019 olmalı: trip var ama stop_times yok");
@@ -5011,11 +5007,7 @@ mod tests {
         let mut ti = TripInternTable::new();
         recs.trips = vec![trip_s(&mut ti, "T1", "R1", "SVC1", "S1", None)];
         recs.trip_interns = ti;
-        recs.shapes = vec![ShapePointRecord {
-            shape_id: "S1".into(),
-            shape_pt_lat: Some(41.0), shape_pt_lon: Some(29.0),
-            shape_pt_sequence: Some(1), shape_dist_traveled: None, line: 2,
-        }];
+        recs.shapes = vec![ShapePointRecord::new("S1".into(), Some(41.0), Some(29.0), Some(1), None, 2)];
         recs.stop_times = vec![StopTimeRecord {
             trip_id: "T1".into(), stop_id: "STOP1".into(),
             stop_sequence: Some(1), line: 10,
@@ -5031,11 +5023,7 @@ mod tests {
     fn orphan_shape_no_shp_019() {
         use crate::k2::shapes::ShapePointRecord;
         let (mut recs, map) = empty();
-        recs.shapes = vec![ShapePointRecord {
-            shape_id: "ORPHAN".into(),
-            shape_pt_lat: Some(41.0), shape_pt_lon: Some(29.0),
-            shape_pt_sequence: Some(1), shape_dist_traveled: None, line: 2,
-        }];
+        recs.shapes = vec![ShapePointRecord::new("ORPHAN".into(), Some(41.0), Some(29.0), Some(1), None, 2)];
         // Hiç trip yok → SHP_018 ateşler, SHP_019 ateşlemez
         let result = check(&recs, &map, 20260515);
         assert!(!result.notices.iter().any(|n| n.rule_id == "SHP_019"), "orphan shape SHP_019 değil SHP_018 üretmeli");

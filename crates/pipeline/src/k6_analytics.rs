@@ -365,7 +365,7 @@ impl<'a> ShapeIndex<'a> {
     fn build(records: &'a EntityRecords) -> Self {
         let mut shape_pt_idx: FxHashMap<&str, Vec<u32>> = FxHashMap::default();
         for (i, sp) in records.shapes.iter().enumerate() {
-            if sp.shape_pt_lat.is_some() && sp.shape_pt_lon.is_some() {
+            if sp.shape_pt_lat().is_some() && sp.shape_pt_lon().is_some() {
                 shape_pt_idx.entry(sp.shape_id.as_str()).or_default().push(i as u32);
             }
         }
@@ -375,11 +375,11 @@ impl<'a> ShapeIndex<'a> {
         coords.reserve(n_shapes);
         bbox.reserve(n_shapes);
         for (sid, mut idxs) in shape_pt_idx {
-            idxs.sort_by_key(|&i| records.shapes[i as usize].shape_pt_sequence.unwrap_or(0));
+            idxs.sort_by_key(|&i| records.shapes[i as usize].shape_pt_sequence().unwrap_or(0));
             let pts: Vec<(f64, f64)> = idxs.iter()
                 .map(|&i| {
                     let sp = &records.shapes[i as usize];
-                    (sp.shape_pt_lat.unwrap(), sp.shape_pt_lon.unwrap())
+                    (sp.shape_pt_lat().unwrap(), sp.shape_pt_lon().unwrap())
                 })
                 .collect();
             if !pts.is_empty() {
@@ -2156,7 +2156,7 @@ fn check_geo_analytics(
         let mut flagged: HashSet<String> = HashSet::new();
         for pt in &records.shapes {
             if flagged.contains(&pt.shape_id) { continue; }
-            let (Some(lat), Some(lon)) = (pt.shape_pt_lat, pt.shape_pt_lon) else { continue };
+            let (Some(lat), Some(lon)) = (pt.shape_pt_lat(), pt.shape_pt_lon()) else { continue };
             if lat.abs() < 0.1 && lon.abs() < 0.1 {
                 flagged.insert(pt.shape_id.clone());
                 notices.push(k6_notice(
@@ -2225,7 +2225,7 @@ fn check_geo_analytics(
         let mut shape_counts: HashMap<String, usize> = HashMap::new();
         let mut shape_varied: HashSet<String> = HashSet::new();
         for pt in &records.shapes {
-            let (Some(lat), Some(lon)) = (pt.shape_pt_lat, pt.shape_pt_lon) else { continue };
+            let (Some(lat), Some(lon)) = (pt.shape_pt_lat(), pt.shape_pt_lon()) else { continue };
             *shape_counts.entry(pt.shape_id.clone()).or_insert(0) += 1;
             if shape_varied.contains(&pt.shape_id) { continue; }
             if let Some(&(first_lat, first_lon)) = shape_first.get(&pt.shape_id) {
@@ -4051,12 +4051,12 @@ fn check_remaining_analytics<'a>(
         // shape rebuild kalkar (asıl unreachable burada oluyordu). Çıktı/sıra BİREBİR aynı.
         let mut shape_pt_idx: FxHashMap<&str, Vec<u32>> = FxHashMap::default();
         for (i, sp) in records.shapes.iter().enumerate() {
-            if sp.shape_pt_lat.is_some() && sp.shape_pt_lon.is_some() {
+            if sp.shape_pt_lat().is_some() && sp.shape_pt_lon().is_some() {
                 shape_pt_idx.entry(sp.shape_id.as_str()).or_default().push(i as u32);
             }
         }
         for (_shape_id, idxs) in &mut shape_pt_idx {
-            idxs.sort_by_key(|&i| records.shapes[i as usize].shape_pt_sequence.unwrap_or(0));
+            idxs.sort_by_key(|&i| records.shapes[i as usize].shape_pt_sequence().unwrap_or(0));
         }
         for (shape_id, idxs) in &shape_pt_idx {
             // Shape başına HER TÜRDEN (SHP_023/028/029) en fazla BİR notice. Eskiden ilk eşit-dist
@@ -4070,8 +4070,8 @@ fn check_remaining_analytics<'a>(
                 if fired_023 && fired_028 && fired_029 { break; }
                 let pa = &records.shapes[w[0] as usize];
                 let pb = &records.shapes[w[1] as usize];
-                let (da, la, loa) = (pa.shape_dist_traveled, pa.shape_pt_lat.unwrap(), pa.shape_pt_lon.unwrap());
-                let (db, lb, lob) = (pb.shape_dist_traveled, pb.shape_pt_lat.unwrap(), pb.shape_pt_lon.unwrap());
+                let (da, la, loa) = (pa.shape_dist_traveled(), pa.shape_pt_lat().unwrap(), pa.shape_pt_lon().unwrap());
+                let (db, lb, lob) = (pb.shape_dist_traveled(), pb.shape_pt_lat().unwrap(), pb.shape_pt_lon().unwrap());
                 if let (Some(da_v), Some(db_v)) = (da, db) {
                     const EPS: f64 = 1e-9;
                     // SHP_028/029 koordinat-fark eşiği (~1.1m, 1e-5°): altı gürültü (WARNING),
@@ -4371,7 +4371,7 @@ fn check_remaining_analytics<'a>(
         // shape_id → sorted Vec<(dist, lat, lon)> — yalnızca dist_traveled olan noktalar
         let mut shape_sdt_pts: FxHashMap<&str, Vec<(f64, f64, f64)>> = FxHashMap::default();
         for sp in &records.shapes {
-            if let (Some(dist), Some(lat), Some(lon)) = (sp.shape_dist_traveled, sp.shape_pt_lat, sp.shape_pt_lon) {
+            if let (Some(dist), Some(lat), Some(lon)) = (sp.shape_dist_traveled(), sp.shape_pt_lat(), sp.shape_pt_lon()) {
                 shape_sdt_pts.entry(sp.shape_id.as_str()).or_default().push((dist, lat, lon));
             }
         }
@@ -4453,7 +4453,7 @@ fn check_remaining_analytics<'a>(
         // shape_id → max shape_dist_traveled değeri (shapes.txt'ten)
         let mut shape_max_sdt: FxHashMap<&str, f64> = FxHashMap::default();
         for sp in &records.shapes {
-            if let Some(d) = sp.shape_dist_traveled {
+            if let Some(d) = sp.shape_dist_traveled() {
                 let e = shape_max_sdt.entry(sp.shape_id.as_str()).or_insert(0.0);
                 if d > *e { *e = d; }
             }
@@ -4467,7 +4467,7 @@ fn check_remaining_analytics<'a>(
             for sp in &records.shapes {
                 if !sp.shape_id.is_empty() {
                     *shape_total.entry(sp.shape_id.as_str()).or_default() += 1;
-                    if sp.shape_dist_traveled.is_some() {
+                    if sp.shape_dist_traveled().is_some() {
                         *shape_with_sdt.entry(sp.shape_id.as_str()).or_default() += 1;
                     }
                 }
@@ -8124,14 +8124,10 @@ mod tests {
             ],
         );
         records.shapes = vec![
-            ShapePointRecord { shape_id: "S1".into(), shape_pt_lat: Some(41.0), shape_pt_lon: Some(29.0),
-                shape_pt_sequence: Some(1), shape_dist_traveled: None, line: 2 },
-            ShapePointRecord { shape_id: "S1".into(), shape_pt_lat: Some(41.0), shape_pt_lon: Some(29.006),
-                shape_pt_sequence: Some(2), shape_dist_traveled: None, line: 3 },
-            ShapePointRecord { shape_id: "S1".into(), shape_pt_lat: Some(41.0045), shape_pt_lon: Some(29.006),
-                shape_pt_sequence: Some(3), shape_dist_traveled: None, line: 4 },
-            ShapePointRecord { shape_id: "S1".into(), shape_pt_lat: Some(41.0045), shape_pt_lon: Some(29.0),
-                shape_pt_sequence: Some(4), shape_dist_traveled: None, line: 5 },
+            ShapePointRecord::new("S1".into(), Some(41.0), Some(29.0), Some(1), None, 2),
+            ShapePointRecord::new("S1".into(), Some(41.0), Some(29.006), Some(2), None, 3),
+            ShapePointRecord::new("S1".into(), Some(41.0045), Some(29.006), Some(3), None, 4),
+            ShapePointRecord::new("S1".into(), Some(41.0045), Some(29.0), Some(4), None, 5),
         ];
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
         assert!(
@@ -8162,12 +8158,9 @@ mod tests {
         for k in 0..51u32 {
             let sid = format!("S{k}");
             // apex deseni: 1. ve 3. nokta özdeş
-            shapes.push(ShapePointRecord { shape_id: sid.clone(), shape_pt_lat: Some(41.0), shape_pt_lon: Some(29.0),
-                shape_pt_sequence: Some(1), shape_dist_traveled: None, line: 2 });
-            shapes.push(ShapePointRecord { shape_id: sid.clone(), shape_pt_lat: Some(41.001), shape_pt_lon: Some(29.0),
-                shape_pt_sequence: Some(2), shape_dist_traveled: None, line: 3 });
-            shapes.push(ShapePointRecord { shape_id: sid, shape_pt_lat: Some(41.0), shape_pt_lon: Some(29.0),
-                shape_pt_sequence: Some(3), shape_dist_traveled: None, line: 4 });
+            shapes.push(ShapePointRecord::new(sid.clone(), Some(41.0), Some(29.0), Some(1), None, 2));
+            shapes.push(ShapePointRecord::new(sid.clone(), Some(41.001), Some(29.0), Some(2), None, 3));
+            shapes.push(ShapePointRecord::new(sid, Some(41.0), Some(29.0), Some(3), None, 4));
         }
         records.shapes = shapes;
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
@@ -8195,8 +8188,7 @@ mod tests {
             // 5 nokta; segment 0 (p1→p2) ile segment 2 (p3→p4) X biçiminde kesişir
             let pts = [(41.000, 29.000), (41.010, 29.010), (41.010, 29.000), (41.000, 29.010), (41.020, 29.020)];
             for (i, (la, lo)) in pts.iter().enumerate() {
-                shapes.push(ShapePointRecord { shape_id: sid.clone(), shape_pt_lat: Some(*la), shape_pt_lon: Some(*lo),
-                    shape_pt_sequence: Some(i as u32 + 1), shape_dist_traveled: None, line: 2 + i as u64 });
+                shapes.push(ShapePointRecord::new(sid.clone(), Some(*la), Some(*lo), Some(i as u32 + 1), None, 2 + i as u32));
             }
         }
         records.shapes = shapes;
@@ -9540,10 +9532,8 @@ mod tests {
             ],
         );
         records.shapes = vec![
-            ShapePointRecord { shape_id: "S1".into(), shape_pt_lat: Some(41.0), shape_pt_lon: Some(29.0),
-                shape_pt_sequence: Some(1), shape_dist_traveled: None, line: 2 },
-            ShapePointRecord { shape_id: "S1".into(), shape_pt_lat: Some(41.1), shape_pt_lon: Some(29.1),
-                shape_pt_sequence: Some(2), shape_dist_traveled: None, line: 3 },
+            ShapePointRecord::new("S1".into(), Some(41.0), Some(29.0), Some(1), None, 2),
+            ShapePointRecord::new("S1".into(), Some(41.1), Some(29.1), Some(2), None, 3),
         ];
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
         assert!(result.notices.iter().any(|n| n.rule_id == "STM_017"), "STM_017 olmalı");
@@ -9569,10 +9559,8 @@ mod tests {
             ],
         );
         records.shapes = vec![
-            ShapePointRecord { shape_id: "S1".into(), shape_pt_lat: Some(41.0), shape_pt_lon: Some(29.0),
-                shape_pt_sequence: Some(1), shape_dist_traveled: None, line: 2 },
-            ShapePointRecord { shape_id: "S1".into(), shape_pt_lat: Some(41.1), shape_pt_lon: Some(29.1),
-                shape_pt_sequence: Some(2), shape_dist_traveled: None, line: 3 },
+            ShapePointRecord::new("S1".into(), Some(41.0), Some(29.0), Some(1), None, 2),
+            ShapePointRecord::new("S1".into(), Some(41.1), Some(29.1), Some(2), None, 3),
         ];
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
         let stm017: Vec<_> = result.notices.iter().filter(|n| n.rule_id == "STM_017").collect();
@@ -9694,8 +9682,7 @@ mod tests {
             vec![stoptime("T1", 1, "IST", (8,0,0), (8,0,0), 2)],
         );
         records.shapes = vec![
-            ShapePointRecord { shape_id: "S1".into(), shape_pt_lat: Some(39.9), shape_pt_lon: Some(32.9),
-                shape_pt_sequence: Some(1), shape_dist_traveled: None, line: 2 },
+            ShapePointRecord::new("S1".into(), Some(39.9), Some(32.9), Some(1), None, 2),
         ];
         // default stop_far_from_shape_m = 150.0 → 350 000 m >> 150 m
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
@@ -9726,10 +9713,8 @@ mod tests {
             ],
         );
         records.shapes = vec![
-            ShapePointRecord { shape_id: "S1".into(), shape_pt_lat: Some(41.0), shape_pt_lon: Some(29.0),
-                shape_pt_sequence: Some(1), shape_dist_traveled: None, line: 2 },
-            ShapePointRecord { shape_id: "S1".into(), shape_pt_lat: Some(41.001), shape_pt_lon: Some(29.001),
-                shape_pt_sequence: Some(2), shape_dist_traveled: None, line: 3 },
+            ShapePointRecord::new("S1".into(), Some(41.0), Some(29.0), Some(1), None, 2),
+            ShapePointRecord::new("S1".into(), Some(41.001), Some(29.001), Some(2), None, 3),
         ];
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
         let n = result.notices.iter().find(|n| n.rule_id == "SHP_012")
@@ -9755,8 +9740,7 @@ mod tests {
         );
         // Shape noktası durağın hemen yanında (< 1 m)
         records.shapes = vec![
-            ShapePointRecord { shape_id: "S1".into(), shape_pt_lat: Some(41.0), shape_pt_lon: Some(29.0),
-                shape_pt_sequence: Some(1), shape_dist_traveled: None, line: 2 },
+            ShapePointRecord::new("S1".into(), Some(41.0), Some(29.0), Some(1), None, 2),
         ];
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
         assert!(!result.notices.iter().any(|n| n.rule_id == "GEO_009"));
@@ -10095,10 +10079,8 @@ mod tests {
             ],
         );
         records.shapes = vec![
-            ShapePointRecord { shape_id: "S1".into(), shape_pt_lat: Some(41.0), shape_pt_lon: Some(29.0),
-                shape_pt_sequence: Some(1), shape_dist_traveled: None, line: 2 },
-            ShapePointRecord { shape_id: "S1".into(), shape_pt_lat: Some(41.0), shape_pt_lon: Some(29.1),
-                shape_pt_sequence: Some(2), shape_dist_traveled: None, line: 3 },
+            ShapePointRecord::new("S1".into(), Some(41.0), Some(29.0), Some(1), None, 2),
+            ShapePointRecord::new("S1".into(), Some(41.0), Some(29.1), Some(2), None, 3),
         ];
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
         assert!(!result.notices.iter().any(|n| n.rule_id == "SHP_017"), "doğru sırada SHP_017 olmamalı");
@@ -10120,10 +10102,8 @@ mod tests {
             ],
         );
         records.shapes = vec![
-            ShapePointRecord { shape_id: "S1".into(), shape_pt_lat: Some(41.0), shape_pt_lon: Some(29.0),
-                shape_pt_sequence: Some(1), shape_dist_traveled: None, line: 2 },
-            ShapePointRecord { shape_id: "S1".into(), shape_pt_lat: Some(41.0), shape_pt_lon: Some(29.1),
-                shape_pt_sequence: Some(2), shape_dist_traveled: None, line: 3 },
+            ShapePointRecord::new("S1".into(), Some(41.0), Some(29.0), Some(1), None, 2),
+            ShapePointRecord::new("S1".into(), Some(41.0), Some(29.1), Some(2), None, 3),
         ];
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
         assert!(result.notices.iter().any(|n| n.rule_id == "SHP_016"), "tamamen ters shape → SHP_016 olmalı");
@@ -10167,10 +10147,8 @@ mod tests {
         );
         // Aynı shape_dist_traveled (100.0) ama farklı koordinat (Δ=0.1° ≫ eşik) → SHP_028
         records.shapes = vec![
-            ShapePointRecord { shape_id: "S1".into(), shape_pt_lat: Some(41.0), shape_pt_lon: Some(29.0),
-                shape_pt_sequence: Some(1), shape_dist_traveled: Some(100.0), line: 2 },
-            ShapePointRecord { shape_id: "S1".into(), shape_pt_lat: Some(41.0), shape_pt_lon: Some(29.1),
-                shape_pt_sequence: Some(2), shape_dist_traveled: Some(100.0), line: 3 },
+            ShapePointRecord::new("S1".into(), Some(41.0), Some(29.0), Some(1), Some(100.0), 2),
+            ShapePointRecord::new("S1".into(), Some(41.0), Some(29.1), Some(2), Some(100.0), 3),
         ];
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
         let ids: Vec<&str> = result.notices.iter().map(|n| n.rule_id.as_str()).collect();
@@ -10193,14 +10171,11 @@ mod tests {
             ],
         );
         records.shapes = vec![
-            ShapePointRecord { shape_id: "S1".into(), shape_pt_lat: Some(41.0),      shape_pt_lon: Some(29.0),
-                shape_pt_sequence: Some(1), shape_dist_traveled: Some(100.0), line: 2 },
+            ShapePointRecord::new("S1".into(), Some(41.0), Some(29.0), Some(1), Some(100.0), 2),
             // Δlat=5e-6 (< 1e-5 eşik) → SHP_029 (eşik-altı), ilk çift
-            ShapePointRecord { shape_id: "S1".into(), shape_pt_lat: Some(41.000005), shape_pt_lon: Some(29.0),
-                shape_pt_sequence: Some(2), shape_dist_traveled: Some(100.0), line: 3 },
+            ShapePointRecord::new("S1".into(), Some(41.000005), Some(29.0), Some(2), Some(100.0), 3),
             // 2. ile birebir aynı → SHP_023 (tekrar-nokta), ikinci çift
-            ShapePointRecord { shape_id: "S1".into(), shape_pt_lat: Some(41.000005), shape_pt_lon: Some(29.0),
-                shape_pt_sequence: Some(3), shape_dist_traveled: Some(100.0), line: 4 },
+            ShapePointRecord::new("S1".into(), Some(41.000005), Some(29.0), Some(3), Some(100.0), 4),
         ];
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
         let ids: Vec<&str> = result.notices.iter().map(|n| n.rule_id.as_str()).collect();
@@ -10224,10 +10199,8 @@ mod tests {
         );
         // Aynı dist, koordinat farkı eşik altı (Δ=1e-6° < 1e-5°) → SHP_029
         records.shapes = vec![
-            ShapePointRecord { shape_id: "S1".into(), shape_pt_lat: Some(41.0), shape_pt_lon: Some(29.0),
-                shape_pt_sequence: Some(1), shape_dist_traveled: Some(100.0), line: 2 },
-            ShapePointRecord { shape_id: "S1".into(), shape_pt_lat: Some(41.0), shape_pt_lon: Some(29.000001),
-                shape_pt_sequence: Some(2), shape_dist_traveled: Some(100.0), line: 3 },
+            ShapePointRecord::new("S1".into(), Some(41.0), Some(29.0), Some(1), Some(100.0), 2),
+            ShapePointRecord::new("S1".into(), Some(41.0), Some(29.000001), Some(2), Some(100.0), 3),
         ];
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
         let ids: Vec<&str> = result.notices.iter().map(|n| n.rule_id.as_str()).collect();
@@ -10385,10 +10358,8 @@ mod tests {
             ],
         );
         records.shapes = vec![
-            ShapePointRecord { shape_id: "S1".into(), shape_pt_lat: Some(41.0), shape_pt_lon: Some(29.0),
-                shape_pt_sequence: Some(1), shape_dist_traveled: None, line: 2 },
-            ShapePointRecord { shape_id: "S1".into(), shape_pt_lat: Some(41.0), shape_pt_lon: Some(29.1),
-                shape_pt_sequence: Some(2), shape_dist_traveled: None, line: 3 },
+            ShapePointRecord::new("S1".into(), Some(41.0), Some(29.0), Some(1), None, 2),
+            ShapePointRecord::new("S1".into(), Some(41.0), Some(29.1), Some(2), None, 3),
         ];
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
         assert!(!result.notices.iter().any(|n| n.rule_id == "SHP_016"),
@@ -10416,10 +10387,8 @@ mod tests {
             ],
         );
         records.shapes = vec![
-            ShapePointRecord { shape_id: "S1".into(), shape_pt_lat: Some(41.0), shape_pt_lon: Some(29.0),
-                shape_pt_sequence: Some(1), shape_dist_traveled: None, line: 2 },
-            ShapePointRecord { shape_id: "S1".into(), shape_pt_lat: Some(41.0), shape_pt_lon: Some(29.1),
-                shape_pt_sequence: Some(2), shape_dist_traveled: None, line: 3 },
+            ShapePointRecord::new("S1".into(), Some(41.0), Some(29.0), Some(1), None, 2),
+            ShapePointRecord::new("S1".into(), Some(41.0), Some(29.1), Some(2), None, 3),
         ];
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
         assert!(!result.notices.iter().any(|n| n.rule_id == "SHP_014"),
@@ -10441,10 +10410,8 @@ mod tests {
             ],
         );
         records.shapes = vec![
-            ShapePointRecord { shape_id: "S1".into(), shape_pt_lat: Some(41.0), shape_pt_lon: Some(29.0),
-                shape_pt_sequence: Some(1), shape_dist_traveled: None, line: 2 },
-            ShapePointRecord { shape_id: "S1".into(), shape_pt_lat: Some(41.0), shape_pt_lon: Some(29.1),
-                shape_pt_sequence: Some(2), shape_dist_traveled: None, line: 3 },
+            ShapePointRecord::new("S1".into(), Some(41.0), Some(29.0), Some(1), None, 2),
+            ShapePointRecord::new("S1".into(), Some(41.0), Some(29.1), Some(2), None, 3),
         ];
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
         assert!(result.notices.iter().any(|n| n.rule_id == "SHP_014"),
@@ -10468,12 +10435,9 @@ mod tests {
             ],
         );
         records.shapes = vec![
-            ShapePointRecord { shape_id: "S1".into(), shape_pt_lat: Some(41.0), shape_pt_lon: Some(29.0),
-                shape_pt_sequence: Some(1), shape_dist_traveled: None, line: 2 },
-            ShapePointRecord { shape_id: "S1".into(), shape_pt_lat: Some(41.0), shape_pt_lon: Some(29.05),
-                shape_pt_sequence: Some(2), shape_dist_traveled: None, line: 3 },
-            ShapePointRecord { shape_id: "S1".into(), shape_pt_lat: Some(41.0), shape_pt_lon: Some(29.1),
-                shape_pt_sequence: Some(3), shape_dist_traveled: None, line: 4 },
+            ShapePointRecord::new("S1".into(), Some(41.0), Some(29.0), Some(1), None, 2),
+            ShapePointRecord::new("S1".into(), Some(41.0), Some(29.05), Some(2), None, 3),
+            ShapePointRecord::new("S1".into(), Some(41.0), Some(29.1), Some(3), None, 4),
         ];
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
         assert!(result.notices.iter().any(|n| n.rule_id == "SHP_017"), "kısmi sıra ihlali → SHP_017 olmalı");
@@ -10502,12 +10466,9 @@ mod tests {
             ],
         );
         records.shapes = vec![
-            ShapePointRecord { shape_id: "S1".into(), shape_pt_lat: Some(41.0), shape_pt_lon: Some(29.00),
-                shape_pt_sequence: Some(1), shape_dist_traveled: None, line: 2 },
-            ShapePointRecord { shape_id: "S1".into(), shape_pt_lat: Some(41.0), shape_pt_lon: Some(29.05),
-                shape_pt_sequence: Some(2), shape_dist_traveled: None, line: 3 },
-            ShapePointRecord { shape_id: "S1".into(), shape_pt_lat: Some(41.0), shape_pt_lon: Some(29.10),
-                shape_pt_sequence: Some(3), shape_dist_traveled: None, line: 4 },
+            ShapePointRecord::new("S1".into(), Some(41.0), Some(29.00), Some(1), None, 2),
+            ShapePointRecord::new("S1".into(), Some(41.0), Some(29.05), Some(2), None, 3),
+            ShapePointRecord::new("S1".into(), Some(41.0), Some(29.10), Some(3), None, 4),
         ];
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
         assert!(!result.notices.iter().any(|n| n.rule_id == "SHP_017"),
@@ -10838,10 +10799,10 @@ mod tests {
         // shape: (0,0)→(1,0)→(1,0.001)→(0,0.001) — U benzeri
         // İki dikey kenar (lon=0 ve lon=0.001) stop'a ~5m uzaklıkta
         records.shapes = vec![
-            ShapePointRecord { shape_id: "SH1".into(), shape_pt_lat: Some(0.0), shape_pt_lon: Some(0.0),    shape_pt_sequence: Some(1), shape_dist_traveled: None, line: 2 },
-            ShapePointRecord { shape_id: "SH1".into(), shape_pt_lat: Some(1.0), shape_pt_lon: Some(0.0),    shape_pt_sequence: Some(2), shape_dist_traveled: None, line: 3 },
-            ShapePointRecord { shape_id: "SH1".into(), shape_pt_lat: Some(1.0), shape_pt_lon: Some(0.001),  shape_pt_sequence: Some(3), shape_dist_traveled: None, line: 4 },
-            ShapePointRecord { shape_id: "SH1".into(), shape_pt_lat: Some(0.0), shape_pt_lon: Some(0.001),  shape_pt_sequence: Some(4), shape_dist_traveled: None, line: 5 },
+            ShapePointRecord::new("SH1".into(), Some(0.0), Some(0.0), Some(1), None, 2),
+            ShapePointRecord::new("SH1".into(), Some(1.0), Some(0.0), Some(2), None, 3),
+            ShapePointRecord::new("SH1".into(), Some(1.0), Some(0.001), Some(3), None, 4),
+            ShapePointRecord::new("SH1".into(), Some(0.0), Some(0.001), Some(4), None, 5),
         ];
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
         assert!(
@@ -10869,10 +10830,10 @@ mod tests {
             ],
         );
         records.shapes = vec![
-            ShapePointRecord { shape_id: "SH1".into(), shape_pt_lat: Some(0.0), shape_pt_lon: Some(0.0),    shape_pt_sequence: Some(1), shape_dist_traveled: None, line: 2 },
-            ShapePointRecord { shape_id: "SH1".into(), shape_pt_lat: Some(1.0), shape_pt_lon: Some(0.0),    shape_pt_sequence: Some(2), shape_dist_traveled: None, line: 3 },
-            ShapePointRecord { shape_id: "SH1".into(), shape_pt_lat: Some(1.0), shape_pt_lon: Some(0.001),  shape_pt_sequence: Some(3), shape_dist_traveled: None, line: 4 },
-            ShapePointRecord { shape_id: "SH1".into(), shape_pt_lat: Some(0.0), shape_pt_lon: Some(0.001),  shape_pt_sequence: Some(4), shape_dist_traveled: None, line: 5 },
+            ShapePointRecord::new("SH1".into(), Some(0.0), Some(0.0), Some(1), None, 2),
+            ShapePointRecord::new("SH1".into(), Some(1.0), Some(0.0), Some(2), None, 3),
+            ShapePointRecord::new("SH1".into(), Some(1.0), Some(0.001), Some(3), None, 4),
+            ShapePointRecord::new("SH1".into(), Some(0.0), Some(0.001), Some(4), None, 5),
         ];
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
         assert!(
@@ -10899,9 +10860,9 @@ mod tests {
         );
         // Düz shape, stop sadece ilk segmente (~11m) yakın
         records.shapes = vec![
-            ShapePointRecord { shape_id: "SH2".into(), shape_pt_lat: Some(0.0), shape_pt_lon: Some(0.0),  shape_pt_sequence: Some(1), shape_dist_traveled: None, line: 2 },
-            ShapePointRecord { shape_id: "SH2".into(), shape_pt_lat: Some(1.0), shape_pt_lon: Some(0.0),  shape_pt_sequence: Some(2), shape_dist_traveled: None, line: 3 },
-            ShapePointRecord { shape_id: "SH2".into(), shape_pt_lat: Some(2.0), shape_pt_lon: Some(0.0),  shape_pt_sequence: Some(3), shape_dist_traveled: None, line: 4 },
+            ShapePointRecord::new("SH2".into(), Some(0.0), Some(0.0), Some(1), None, 2),
+            ShapePointRecord::new("SH2".into(), Some(1.0), Some(0.0), Some(2), None, 3),
+            ShapePointRecord::new("SH2".into(), Some(2.0), Some(0.0), Some(3), None, 4),
         ];
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
         assert!(
@@ -10976,10 +10937,10 @@ mod tests {
         // U shape: (41.0,29.0) → kuzeye (41.1,29.0) → (41.1,29.01) → güneye (41.0,29.01)
         // Arc ≈ 23 km vs haversine ~0.84 km → ratio ~27× → 4× eşiği aşar → fallback.
         records.shapes = vec![
-            ShapePointRecord { shape_id: "S1".into(), shape_pt_lat: Some(41.0), shape_pt_lon: Some(29.00), shape_pt_sequence: Some(1), shape_dist_traveled: None, line: 2 },
-            ShapePointRecord { shape_id: "S1".into(), shape_pt_lat: Some(41.1), shape_pt_lon: Some(29.00), shape_pt_sequence: Some(2), shape_dist_traveled: None, line: 3 },
-            ShapePointRecord { shape_id: "S1".into(), shape_pt_lat: Some(41.1), shape_pt_lon: Some(29.01), shape_pt_sequence: Some(3), shape_dist_traveled: None, line: 4 },
-            ShapePointRecord { shape_id: "S1".into(), shape_pt_lat: Some(41.0), shape_pt_lon: Some(29.01), shape_pt_sequence: Some(4), shape_dist_traveled: None, line: 5 },
+            ShapePointRecord::new("S1".into(), Some(41.0), Some(29.00), Some(1), None, 2),
+            ShapePointRecord::new("S1".into(), Some(41.1), Some(29.00), Some(2), None, 3),
+            ShapePointRecord::new("S1".into(), Some(41.1), Some(29.01), Some(3), None, 4),
+            ShapePointRecord::new("S1".into(), Some(41.0), Some(29.01), Some(4), None, 5),
         ];
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
         assert!(
@@ -11006,9 +10967,9 @@ mod tests {
         );
         // A(41.0,29.0) → orta nokta hafif doğuya (41.05,29.03) → B(41.1,29.0): kavisli ama ~1.2×
         records.shapes = vec![
-            ShapePointRecord { shape_id: "S1".into(), shape_pt_lat: Some(41.00), shape_pt_lon: Some(29.00), shape_pt_sequence: Some(1), shape_dist_traveled: None, line: 2 },
-            ShapePointRecord { shape_id: "S1".into(), shape_pt_lat: Some(41.05), shape_pt_lon: Some(29.03), shape_pt_sequence: Some(2), shape_dist_traveled: None, line: 3 },
-            ShapePointRecord { shape_id: "S1".into(), shape_pt_lat: Some(41.10), shape_pt_lon: Some(29.00), shape_pt_sequence: Some(3), shape_dist_traveled: None, line: 4 },
+            ShapePointRecord::new("S1".into(), Some(41.00), Some(29.00), Some(1), None, 2),
+            ShapePointRecord::new("S1".into(), Some(41.05), Some(29.03), Some(2), None, 3),
+            ShapePointRecord::new("S1".into(), Some(41.10), Some(29.00), Some(3), None, 4),
         ];
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
         assert!(

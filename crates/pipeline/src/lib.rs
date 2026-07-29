@@ -293,9 +293,9 @@ pub(crate) fn build_name_index_impl(
         let mut pts: Vec<(&str, u32, f64, f64)> = records.shapes.iter()
             .filter(|s| keep_shape(s.shape_id.as_str()))
             .filter_map(|s| {
-                let lat = s.shape_pt_lat?;
-                let lon = s.shape_pt_lon?;
-                Some((s.shape_id.as_str(), s.shape_pt_sequence.unwrap_or(0), lat, lon))
+                let lat = s.shape_pt_lat()?;
+                let lon = s.shape_pt_lon()?;
+                Some((s.shape_id.as_str(), s.shape_pt_sequence().unwrap_or(0), lat, lon))
             })
             .collect();
         pts.sort_unstable_by_key(|&(id, seq, _, _)| (id, seq));
@@ -456,10 +456,7 @@ mod name_index_tests {
         // BELLEK KORUMASI: geometri büyük feed'de JSON'a girmez (VBB'de +512 MB ölçüldü).
         // UI eksik geometriyi on-demand çeker; map_data_deferred bunun bayrağıdır.
         let mut recs = records();
-        recs.shapes = vec![crate::k2::shapes::ShapePointRecord {
-            shape_id: "SH1".into(), shape_pt_lat: Some(41.0), shape_pt_lon: Some(29.0),
-            shape_pt_sequence: Some(1), shape_dist_traveled: None, line: 2,
-        }];
+        recs.shapes = vec![crate::k2::shapes::ShapePointRecord::new("SH1".into(), Some(41.0), Some(29.0), Some(1), None, 2)];
         let idx = build_name_index_impl(&recs, &[notice_for("T1")], true);
         assert!(idx.shape_coords.is_empty(), "büyük feed'de geometri serialize edilmemeli");
         assert!(idx.map_data_deferred, "UI on-demand çekebilmek için bayrağı görmeli");
