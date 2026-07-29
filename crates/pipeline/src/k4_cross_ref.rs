@@ -3184,7 +3184,7 @@ fn check_xfl(
         for (shape_id, trip_ids) in &shape_to_trips {
             if trip_ids.iter().all(|tid| !trips_in_stm.contains(*tid)) {
                 let line = records.shapes.iter()
-                    .find(|sp| sp.shape_id.as_str() == *shape_id)
+                    .find(|sp| records.shape_interns.id(sp) == *shape_id)
                     .map(|sp| sp.line_u64());
                 let trip_count = trip_ids.len();
                 notices.push(notice(
@@ -3671,7 +3671,7 @@ fn check_stm_shape_dist(
     let mut shape_max_dist: HashMap<&str, f64> = HashMap::new();
     for sp in &records.shapes {
         if let Some(d) = sp.shape_dist_traveled() {
-            let e = shape_max_dist.entry(sp.shape_id.as_str()).or_insert(0.0_f64);
+            let e = shape_max_dist.entry(records.shape_interns.id(sp)).or_insert(0.0_f64);
             if d > *e {
                 *e = d;
             }
@@ -3786,6 +3786,7 @@ mod tests {
     use crate::k2::stop_times::{StopTimeRecord, StopTimesIndex};
     use crate::k2::transfers::TransferRecord;
     use crate::k2::trips::{TripRecord, TripInternTable};
+    use crate::k2::shapes::ShapeInternTable;
 
     fn empty() -> (EntityRecords, EntityMap) {
         (EntityRecords::default(), EntityMap::default())
@@ -4981,6 +4982,7 @@ mod tests {
 
     #[test]
     fn shape_with_trip_no_stm_produces_shp_019() {
+        let mut shape_ti = ShapeInternTable::new();
         use crate::k2::shapes::ShapePointRecord;
         let (mut recs, mut map) = empty();
         map.routes.insert("R1".into(), 0);
@@ -4989,7 +4991,8 @@ mod tests {
         let mut ti = TripInternTable::new();
         recs.trips = vec![trip_s(&mut ti, "T1", "R1", "SVC1", "S1", None)];
         recs.trip_interns = ti;
-        recs.shapes = vec![ShapePointRecord::new("S1".into(), Some(41.0), Some(29.0), Some(1), None, 2)];
+        recs.shapes = vec![ShapePointRecord::new(shape_ti.intern("S1"), Some(41.0), Some(29.0), Some(1), None, 2)];
+        recs.shape_interns = shape_ti.clone();
         // stop_times yok → SHP_019 ateşlenmeli
         let result = check(&recs, &map, 20260515);
         assert!(result.notices.iter().any(|n| n.rule_id == "SHP_019"), "SHP_019 olmalı: trip var ama stop_times yok");
@@ -4997,6 +5000,7 @@ mod tests {
 
     #[test]
     fn shape_with_trip_having_stm_no_shp_019() {
+        let mut shape_ti = ShapeInternTable::new();
         use crate::k2::shapes::ShapePointRecord;
         use crate::k2::stop_times::StopTimeRecord;
         let (mut recs, mut map) = empty();
@@ -5007,7 +5011,8 @@ mod tests {
         let mut ti = TripInternTable::new();
         recs.trips = vec![trip_s(&mut ti, "T1", "R1", "SVC1", "S1", None)];
         recs.trip_interns = ti;
-        recs.shapes = vec![ShapePointRecord::new("S1".into(), Some(41.0), Some(29.0), Some(1), None, 2)];
+        recs.shapes = vec![ShapePointRecord::new(shape_ti.intern("S1"), Some(41.0), Some(29.0), Some(1), None, 2)];
+        recs.shape_interns = shape_ti.clone();
         recs.stop_times = vec![StopTimeRecord {
             trip_id: "T1".into(), stop_id: "STOP1".into(),
             stop_sequence: Some(1), line: 10,
@@ -5021,9 +5026,11 @@ mod tests {
 
     #[test]
     fn orphan_shape_no_shp_019() {
+        let mut shape_ti = ShapeInternTable::new();
         use crate::k2::shapes::ShapePointRecord;
         let (mut recs, map) = empty();
-        recs.shapes = vec![ShapePointRecord::new("ORPHAN".into(), Some(41.0), Some(29.0), Some(1), None, 2)];
+        recs.shapes = vec![ShapePointRecord::new(shape_ti.intern("ORPHAN"), Some(41.0), Some(29.0), Some(1), None, 2)];
+        recs.shape_interns = shape_ti.clone();
         // Hiç trip yok → SHP_018 ateşler, SHP_019 ateşlemez
         let result = check(&recs, &map, 20260515);
         assert!(!result.notices.iter().any(|n| n.rule_id == "SHP_019"), "orphan shape SHP_019 değil SHP_018 üretmeli");

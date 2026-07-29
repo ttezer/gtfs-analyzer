@@ -58,6 +58,7 @@ use rider_categories::{validate_rider_categories, RiderCategoryRecord};
 use route_networks::{parse_route_networks, RouteNetworkRecord};
 use routes::{validate_routes, RouteRecord};
 use shapes::{validate_shapes, ShapePointRecord};
+pub use shapes::ShapeInternTable;
 use stop_areas::{parse_stop_areas, StopAreaRecord};
 use stops::{validate_stops, StopRecord};
 use stop_times::{validate_stop_times, StopTimeRecord};
@@ -96,6 +97,8 @@ pub struct EntityRecords {
     pub routes: Vec<RouteRecord>,
     pub route_networks: Vec<RouteNetworkRecord>,
     pub shapes: Vec<ShapePointRecord>,
+    /// shapes.txt shape_id intern tablosu (noktalar 4 baytlık indeks taşır)
+    pub shape_interns: ShapeInternTable,
     pub stop_areas: Vec<StopAreaRecord>,
     pub stops: Vec<StopRecord>,
     // Production'da BOŞ kalır — K2 artık Vec build etmez (bellek tasarrufu).
@@ -226,8 +229,9 @@ pub fn validate(mut files: RawFiles, zip_bytes: Option<&[u8]>) -> K2Result {
 
     if let Some(file) = files.get("shapes.txt") {
         let _t = Timer::start("K2::shapes");
-        let (shape_records, shape_notices) = validate_shapes(file, zip_bytes);
+        let (shape_records, shape_interns, shape_notices) = validate_shapes(file, zip_bytes);
         records.shapes = shape_records;
+        records.shape_interns = shape_interns;
         notices.extend(shape_notices);
         records.streaming_row_counts.insert("shapes.txt".to_string(), records.shapes.len() as u64);
         mem_log("K2 after shapes records");

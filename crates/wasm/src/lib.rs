@@ -179,7 +179,7 @@ pub fn shape_coords_of(cache: &CachedState, shape_id: &str) -> JsValue {
         .records
         .shapes
         .iter()
-        .filter(|s| s.shape_id.as_str() == shape_id)
+        .filter(|s| cache.records.shape_interns.id(s) == shape_id)
         .filter_map(|s| Some((s.shape_pt_sequence().unwrap_or(0), s.shape_pt_lat()?, s.shape_pt_lon()?)))
         .collect();
     pts.sort_unstable_by_key(|&(seq, _, _)| seq);

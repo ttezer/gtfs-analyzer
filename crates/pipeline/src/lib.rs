@@ -173,7 +173,7 @@ pub(crate) fn build_name_index_impl(
         // 1) Doğrudan shape entity'li notice'lar (SHP_*/GEO_006/007). Tek geçişte kesiştirilir —
         //    aday başına shapes.txt taramak O(aday × nokta) olurdu (VBB'de 4,7M nokta).
         for p in &records.shapes {
-            let sid = p.shape_id.as_str();
+            let sid = records.shape_interns.id(p);
             if cand.contains(sid) { want_shape.insert(sid); }
         }
         // 2) Seferler: notice sefere, hattına ya da shape'ine değiyorsa tut. Shape entity'li
@@ -291,11 +291,11 @@ pub(crate) fn build_name_index_impl(
     // #15: çok büyük feed'de atlanır (serialize OOM önlemi).
     let shape_coords: HashMap<String, Vec<[f64; 2]>> = if skip_shape_coords { HashMap::new() } else {
         let mut pts: Vec<(&str, u32, f64, f64)> = records.shapes.iter()
-            .filter(|s| keep_shape(s.shape_id.as_str()))
+            .filter(|s| keep_shape(records.shape_interns.id(s)))
             .filter_map(|s| {
                 let lat = s.shape_pt_lat()?;
                 let lon = s.shape_pt_lon()?;
-                Some((s.shape_id.as_str(), s.shape_pt_sequence().unwrap_or(0), lat, lon))
+                Some((records.shape_interns.id(s), s.shape_pt_sequence().unwrap_or(0), lat, lon))
             })
             .collect();
         pts.sort_unstable_by_key(|&(id, seq, _, _)| (id, seq));
@@ -374,6 +374,7 @@ mod name_index_tests {
     use super::*;
     use crate::k2::stop_times::{StopTimeRecord, StopTimesIndex};
     use crate::k2::trips::TripInternTable;
+    use crate::k2::shapes::ShapeInternTable;
 
     /// İki sefer (T1/T2) + iki shape (SH1/SH2); yalnız T1'in bir notice'ı var.
     fn records() -> EntityRecords {
@@ -453,10 +454,12 @@ mod name_index_tests {
 
     #[test]
     fn large_feed_never_serializes_shape_geometry() {
+        let mut shape_ti = ShapeInternTable::new();
         // BELLEK KORUMASI: geometri büyük feed'de JSON'a girmez (VBB'de +512 MB ölçüldü).
         // UI eksik geometriyi on-demand çeker; map_data_deferred bunun bayrağıdır.
         let mut recs = records();
-        recs.shapes = vec![crate::k2::shapes::ShapePointRecord::new("SH1".into(), Some(41.0), Some(29.0), Some(1), None, 2)];
+        recs.shapes = vec![crate::k2::shapes::ShapePointRecord::new(shape_ti.intern("SH1"), Some(41.0), Some(29.0), Some(1), None, 2)];
+        recs.shape_interns = shape_ti.clone();
         let idx = build_name_index_impl(&recs, &[notice_for("T1")], true);
         assert!(idx.shape_coords.is_empty(), "büyük feed'de geometri serialize edilmemeli");
         assert!(idx.map_data_deferred, "UI on-demand çekebilmek için bayrağı görmeli");

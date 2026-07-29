@@ -755,7 +755,7 @@ fn build_metrics(notices: &[Notice], records: &EntityRecords, derived: &DerivedD
     let shape_count = records
         .shapes
         .iter()
-        .map(|s| s.shape_id.as_str())
+        .map(|s| records.shape_interns.id(s))
         .collect::<FxHashSet<_>>()
         .len() as u32;
 

@@ -366,7 +366,7 @@ impl<'a> ShapeIndex<'a> {
         let mut shape_pt_idx: FxHashMap<&str, Vec<u32>> = FxHashMap::default();
         for (i, sp) in records.shapes.iter().enumerate() {
             if sp.shape_pt_lat().is_some() && sp.shape_pt_lon().is_some() {
-                shape_pt_idx.entry(sp.shape_id.as_str()).or_default().push(i as u32);
+                shape_pt_idx.entry(records.shape_interns.id(sp)).or_default().push(i as u32);
             }
         }
         let n_shapes = shape_pt_idx.len();
@@ -2153,18 +2153,19 @@ fn check_geo_analytics(
 
     // GEO_017: Shape noktası Null Island yakınında — her shape için en fazla 1 notice
     {
-        let mut flagged: HashSet<String> = HashSet::new();
+        let mut flagged: HashSet<u32> = HashSet::new();
         for pt in &records.shapes {
-            if flagged.contains(&pt.shape_id) { continue; }
+            if flagged.contains(&pt.shape_idx()) { continue; }
             let (Some(lat), Some(lon)) = (pt.shape_pt_lat(), pt.shape_pt_lon()) else { continue };
             if lat.abs() < 0.1 && lon.abs() < 0.1 {
-                flagged.insert(pt.shape_id.clone());
+                flagged.insert(pt.shape_idx());
+                let sid = records.shape_interns.id(pt);
                 notices.push(k6_notice(
                     ctr, "GEO_017", EntityType::Shape,
-                    Some(pt.shape_id.clone()), Some(pt.shape_id.clone()),
+                    Some(sid.to_string()), Some(sid.to_string()),
                     "shapes.txt", Some(pt.line as u64), Some("shape_pt_lat|shape_pt_lon"),
                     Some(format!("{lat:.6},{lon:.6}")), None,
-                    format!("'{}' şeklinde Null Island yakınında nokta bulundu ({lat:.6},{lon:.6}) — GPS veri hatası olabilir.", pt.shape_id),
+                    format!("'{sid}' şeklinde Null Island yakınında nokta bulundu ({lat:.6},{lon:.6}) — GPS veri hatası olabilir."),
                     "shapes.txt'deki sıfır değerli koordinatları kontrol edin.",
                 ));
             }
@@ -2221,38 +2222,45 @@ fn check_geo_analytics(
     {
         // Nokta sayısı AYNI geçişte toplanır: eskiden her dejenere shape için
         // `records.shapes.iter().filter(...).count()` çağrılıyordu → O(dejenere × tüm nokta).
-        let mut shape_first: HashMap<String, (f64, f64)> = HashMap::new();
-        let mut shape_counts: HashMap<String, usize> = HashMap::new();
-        let mut shape_varied: HashSet<String> = HashSet::new();
+        // Anahtar intern indeksi: eskiden her nokta için shape_id KLONLANIYORDU (40,9M String).
+        let mut shape_first: HashMap<u32, (f64, f64)> = HashMap::new();
+        let mut shape_counts: HashMap<u32, usize> = HashMap::new();
+        let mut shape_varied: HashSet<u32> = HashSet::new();
         for pt in &records.shapes {
             let (Some(lat), Some(lon)) = (pt.shape_pt_lat(), pt.shape_pt_lon()) else { continue };
-            *shape_counts.entry(pt.shape_id.clone()).or_insert(0) += 1;
-            if shape_varied.contains(&pt.shape_id) { continue; }
-            if let Some(&(first_lat, first_lon)) = shape_first.get(&pt.shape_id) {
+            let sidx = pt.shape_idx();
+            *shape_counts.entry(sidx).or_insert(0) += 1;
+            if shape_varied.contains(&sidx) { continue; }
+            if let Some(&(first_lat, first_lon)) = shape_first.get(&sidx) {
                 if (lat - first_lat).abs() > 1e-8 || (lon - first_lon).abs() > 1e-8 {
-                    shape_varied.insert(pt.shape_id.clone());
+                    shape_varied.insert(sidx);
                 }
             } else {
-                shape_first.insert(pt.shape_id.clone(), (lat, lon));
+                shape_first.insert(sidx, (lat, lon));
             }
         }
         // Determinizm: HashMap sırası rastgeledir (k7 sıralaması maskeler ama emit sırası
         // sabit olsun — yeni kural kontrol listesi 4. madde).
-        let mut degenerate: Vec<(&String, &(f64, f64))> = shape_first
+        let mut degenerate: Vec<(&u32, &(f64, f64))> = shape_first
             .iter()
-            .filter(|(sid, _)| !shape_varied.contains(*sid))
+            .filter(|(sidx, _)| !shape_varied.contains(*sidx))
             .collect();
-        degenerate.sort_by(|a, b| a.0.cmp(b.0));
-        for (shape_id, (lat, lon)) in degenerate {
+        // Sıralama METNE göre yapılır: intern indeksi dosya sırasıdır, alfabetik değil —
+        // indekse göre sıralamak emit sırasını sessizce değiştirirdi.
+        degenerate.sort_by(|a, b| {
+            records.shape_interns.id_at(*a.0).cmp(records.shape_interns.id_at(*b.0))
+        });
+        for (shape_idx, (lat, lon)) in degenerate {
+            let shape_id = records.shape_interns.id_at(*shape_idx);
             // Tüm noktaları (0,0) olan shape'in kök nedeni placeholder koordinattır ve
             // GEO_017 onu daha spesifik olarak raporlar (GEO_016/GEO_019 ikilisiyle aynı
             // iş bölümü) → burada çift emit edilmez.
             if lat.abs() < 0.1 && lon.abs() < 0.1 { continue; }
-            let count = shape_counts.get(shape_id).copied().unwrap_or(0);
+            let count = shape_counts.get(shape_idx).copied().unwrap_or(0);
             if count >= 2 {
                 notices.push(k6_notice(
                     ctr, "GEO_020", EntityType::Shape,
-                    Some(shape_id.clone()), Some(shape_id.clone()),
+                    Some(shape_id.to_string()), Some(shape_id.to_string()),
                     "shapes.txt", None, None,
                     Some(format!("{lat:.6},{lon:.6}")), None,
                     format!("'{shape_id}' şeklinin tüm {count} noktası ({lat:.6},{lon:.6}) koordinatında — dejenere geometri."),
@@ -2405,7 +2413,7 @@ fn check_geo_analytics(
     {
         let mut shape_counts: FxHashMap<&str, u32> = FxHashMap::default();
         for pt in &records.shapes {
-            *shape_counts.entry(pt.shape_id.as_str()).or_default() += 1;
+            *shape_counts.entry(records.shape_interns.id(pt)).or_default() += 1;
         }
         for (shape_id, count) in &shape_counts {
             if *count > 5000 {
@@ -4052,7 +4060,7 @@ fn check_remaining_analytics<'a>(
         let mut shape_pt_idx: FxHashMap<&str, Vec<u32>> = FxHashMap::default();
         for (i, sp) in records.shapes.iter().enumerate() {
             if sp.shape_pt_lat().is_some() && sp.shape_pt_lon().is_some() {
-                shape_pt_idx.entry(sp.shape_id.as_str()).or_default().push(i as u32);
+                shape_pt_idx.entry(records.shape_interns.id(sp)).or_default().push(i as u32);
             }
         }
         for (_shape_id, idxs) in &mut shape_pt_idx {
@@ -4372,7 +4380,7 @@ fn check_remaining_analytics<'a>(
         let mut shape_sdt_pts: FxHashMap<&str, Vec<(f64, f64, f64)>> = FxHashMap::default();
         for sp in &records.shapes {
             if let (Some(dist), Some(lat), Some(lon)) = (sp.shape_dist_traveled(), sp.shape_pt_lat(), sp.shape_pt_lon()) {
-                shape_sdt_pts.entry(sp.shape_id.as_str()).or_default().push((dist, lat, lon));
+                shape_sdt_pts.entry(records.shape_interns.id(sp)).or_default().push((dist, lat, lon));
             }
         }
         for pts in shape_sdt_pts.values_mut() {
@@ -4454,7 +4462,7 @@ fn check_remaining_analytics<'a>(
         let mut shape_max_sdt: FxHashMap<&str, f64> = FxHashMap::default();
         for sp in &records.shapes {
             if let Some(d) = sp.shape_dist_traveled() {
-                let e = shape_max_sdt.entry(sp.shape_id.as_str()).or_insert(0.0);
+                let e = shape_max_sdt.entry(records.shape_interns.id(sp)).or_insert(0.0);
                 if d > *e { *e = d; }
             }
         }
@@ -4465,10 +4473,10 @@ fn check_remaining_analytics<'a>(
             let mut shape_total: FxHashMap<&str, u32> = FxHashMap::default();
             let mut shape_with_sdt: FxHashMap<&str, u32> = FxHashMap::default();
             for sp in &records.shapes {
-                if !sp.shape_id.is_empty() {
-                    *shape_total.entry(sp.shape_id.as_str()).or_default() += 1;
+                if sp.shape_idx() != 0 {
+                    *shape_total.entry(records.shape_interns.id(sp)).or_default() += 1;
                     if sp.shape_dist_traveled().is_some() {
-                        *shape_with_sdt.entry(sp.shape_id.as_str()).or_default() += 1;
+                        *shape_with_sdt.entry(records.shape_interns.id(sp)).or_default() += 1;
                     }
                 }
             }
@@ -7650,6 +7658,7 @@ fn check_vat_analytics(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::k2::shapes::ShapeInternTable;
 
     #[test]
     fn max_speed_kmh_maps_extended_route_types() {
@@ -8109,6 +8118,7 @@ mod tests {
 
     #[test]
     fn projected_speed_above_700_but_haversine_below_is_not_stm_012() {
+        let mut shape_ti = ShapeInternTable::new();
         use crate::k2::shapes::ShapePointRecord;
         // Duraklar kuş uçuşu ~0.5 km, 6 sn → hav ~300 km/h (≤700). Shape yolu ~1.5 km
         // (3× dolambaç, 4× tavanın altında) → projeksiyonlu hız ~900 km/h. "İmkânsız"
@@ -8124,11 +8134,12 @@ mod tests {
             ],
         );
         records.shapes = vec![
-            ShapePointRecord::new("S1".into(), Some(41.0), Some(29.0), Some(1), None, 2),
-            ShapePointRecord::new("S1".into(), Some(41.0), Some(29.006), Some(2), None, 3),
-            ShapePointRecord::new("S1".into(), Some(41.0045), Some(29.006), Some(3), None, 4),
-            ShapePointRecord::new("S1".into(), Some(41.0045), Some(29.0), Some(4), None, 5),
+            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.0), Some(29.0), Some(1), None, 2),
+            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.0), Some(29.006), Some(2), None, 3),
+            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.0045), Some(29.006), Some(3), None, 4),
+            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.0045), Some(29.0), Some(4), None, 5),
         ];
+        records.shape_interns = shape_ti.clone();
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
         assert!(
             !result.notices.iter().any(|n| n.rule_id == "STM_012"),
@@ -8142,6 +8153,7 @@ mod tests {
 
     #[test]
     fn shp_020_saturation_aggregates_to_single_feed_notice() {
+        let mut shape_ti = ShapeInternTable::new();
         use crate::k2::shapes::ShapePointRecord;
         // 51 shape'te tekrar noktası (eşik 50 üstü) → shape-başına 51 yerine TEK
         // feed-özet SHP_020 (SHP_010 emsali; VBB %66 doyum dersi).
@@ -8158,11 +8170,12 @@ mod tests {
         for k in 0..51u32 {
             let sid = format!("S{k}");
             // apex deseni: 1. ve 3. nokta özdeş
-            shapes.push(ShapePointRecord::new(sid.clone(), Some(41.0), Some(29.0), Some(1), None, 2));
-            shapes.push(ShapePointRecord::new(sid.clone(), Some(41.001), Some(29.0), Some(2), None, 3));
-            shapes.push(ShapePointRecord::new(sid, Some(41.0), Some(29.0), Some(3), None, 4));
+            shapes.push(ShapePointRecord::new(shape_ti.intern(&sid), Some(41.0), Some(29.0), Some(1), None, 2));
+            shapes.push(ShapePointRecord::new(shape_ti.intern(&sid), Some(41.001), Some(29.0), Some(2), None, 3));
+            shapes.push(ShapePointRecord::new(shape_ti.intern(&sid), Some(41.0), Some(29.0), Some(3), None, 4));
         }
         records.shapes = shapes;
+        records.shape_interns = shape_ti.clone();
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
         let hits: Vec<_> = result.notices.iter().filter(|n| n.rule_id == "SHP_020").collect();
         assert_eq!(hits.len(), 1, "eşik üstünde tek feed-özet SHP_020 beklenir");
@@ -8171,6 +8184,7 @@ mod tests {
 
     #[test]
     fn shp_009_saturation_aggregates_to_single_feed_notice() {
+        let mut shape_ti = ShapeInternTable::new();
         use crate::k2::shapes::ShapePointRecord;
         // 51 shape'te kendisiyle kesişme → TEK feed-özet SHP_009.
         let mut records = records_with(
@@ -8188,10 +8202,11 @@ mod tests {
             // 5 nokta; segment 0 (p1→p2) ile segment 2 (p3→p4) X biçiminde kesişir
             let pts = [(41.000, 29.000), (41.010, 29.010), (41.010, 29.000), (41.000, 29.010), (41.020, 29.020)];
             for (i, (la, lo)) in pts.iter().enumerate() {
-                shapes.push(ShapePointRecord::new(sid.clone(), Some(*la), Some(*lo), Some(i as u32 + 1), None, 2 + i as u32));
+                shapes.push(ShapePointRecord::new(shape_ti.intern(&sid), Some(*la), Some(*lo), Some(i as u32 + 1), None, 2 + i as u32));
             }
         }
         records.shapes = shapes;
+        records.shape_interns = shape_ti.clone();
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
         let hits: Vec<_> = result.notices.iter().filter(|n| n.rule_id == "SHP_009").collect();
         assert_eq!(hits.len(), 1, "eşik üstünde tek feed-özet SHP_009 beklenir");
@@ -9521,6 +9536,7 @@ mod tests {
 
     #[test]
     fn trip_with_shape_but_no_dist_produces_stm_017() {
+        let mut shape_ti = ShapeInternTable::new();
         use crate::k2::shapes::ShapePointRecord;
         let mut records = records_with(
             vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1)],
@@ -9532,15 +9548,17 @@ mod tests {
             ],
         );
         records.shapes = vec![
-            ShapePointRecord::new("S1".into(), Some(41.0), Some(29.0), Some(1), None, 2),
-            ShapePointRecord::new("S1".into(), Some(41.1), Some(29.1), Some(2), None, 3),
+            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.0), Some(29.0), Some(1), None, 2),
+            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.1), Some(29.1), Some(2), None, 3),
         ];
+        records.shape_interns = shape_ti.clone();
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
         assert!(result.notices.iter().any(|n| n.rule_id == "STM_017"), "STM_017 olmalı");
     }
 
     #[test]
     fn stm_017_feed_wide_missing_aggregates_to_single_feed_notice() {
+        let mut shape_ti = ShapeInternTable::new();
         use crate::k2::shapes::ShapePointRecord;
         // İki trip de shape'i olup sdt eksik; feed genelinde sdt hiç yok →
         // trip-başına 2 yerine tek feed-seviyesi özet beklenir.
@@ -9559,9 +9577,10 @@ mod tests {
             ],
         );
         records.shapes = vec![
-            ShapePointRecord::new("S1".into(), Some(41.0), Some(29.0), Some(1), None, 2),
-            ShapePointRecord::new("S1".into(), Some(41.1), Some(29.1), Some(2), None, 3),
+            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.0), Some(29.0), Some(1), None, 2),
+            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.1), Some(29.1), Some(2), None, 3),
         ];
+        records.shape_interns = shape_ti.clone();
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
         let stm017: Vec<_> = result.notices.iter().filter(|n| n.rule_id == "STM_017").collect();
         assert_eq!(stm017.len(), 1, "feed-geneli eksiklikte tek STM_017 beklenir, alınan: {}", stm017.len());
@@ -9673,6 +9692,7 @@ mod tests {
 
     #[test]
     fn stop_far_from_shape_produces_geo_009() {
+        let mut shape_ti = ShapeInternTable::new();
         use crate::k2::shapes::ShapePointRecord;
         // Durak İstanbul'da, shape Ankara'da → ~350 km uzak
         let mut records = records_with(
@@ -9682,8 +9702,9 @@ mod tests {
             vec![stoptime("T1", 1, "IST", (8,0,0), (8,0,0), 2)],
         );
         records.shapes = vec![
-            ShapePointRecord::new("S1".into(), Some(39.9), Some(32.9), Some(1), None, 2),
+            ShapePointRecord::new(shape_ti.intern("S1"), Some(39.9), Some(32.9), Some(1), None, 2),
         ];
+        records.shape_interns = shape_ti.clone();
         // default stop_far_from_shape_m = 150.0 → 350 000 m >> 150 m
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
         let n = result.notices.iter().find(|n| n.rule_id == "GEO_009").expect("GEO_009 olmalı");
@@ -9695,6 +9716,7 @@ mod tests {
 
     #[test]
     fn shp_012_counts_distinct_stops_not_trip_occurrences() {
+        let mut shape_ti = ShapeInternTable::new();
         use crate::k2::shapes::ShapePointRecord;
         // AYNI shape'i kullanan 3 sefer, hepsinde AYNI uzak durak.
         // Eski sayaç sefer-durak örneği sayıyordu → "3 durak" derdi; doğrusu 1.
@@ -9713,9 +9735,10 @@ mod tests {
             ],
         );
         records.shapes = vec![
-            ShapePointRecord::new("S1".into(), Some(41.0), Some(29.0), Some(1), None, 2),
-            ShapePointRecord::new("S1".into(), Some(41.001), Some(29.001), Some(2), None, 3),
+            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.0), Some(29.0), Some(1), None, 2),
+            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.001), Some(29.001), Some(2), None, 3),
         ];
+        records.shape_interns = shape_ti.clone();
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
         let n = result.notices.iter().find(|n| n.rule_id == "SHP_012")
             .expect("uzak durak SHP_012 üretmeli");
@@ -9731,6 +9754,7 @@ mod tests {
 
     #[test]
     fn stop_near_shape_no_geo_009() {
+        let mut shape_ti = ShapeInternTable::new();
         use crate::k2::shapes::ShapePointRecord;
         let mut records = records_with(
             vec![stop("A", 41.0, 29.0)],
@@ -9740,8 +9764,9 @@ mod tests {
         );
         // Shape noktası durağın hemen yanında (< 1 m)
         records.shapes = vec![
-            ShapePointRecord::new("S1".into(), Some(41.0), Some(29.0), Some(1), None, 2),
+            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.0), Some(29.0), Some(1), None, 2),
         ];
+        records.shape_interns = shape_ti.clone();
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
         assert!(!result.notices.iter().any(|n| n.rule_id == "GEO_009"));
         assert!(!result.notices.iter().any(|n| n.rule_id == "SHP_013"));
@@ -10066,6 +10091,7 @@ mod tests {
 
     #[test]
     fn stops_in_correct_shape_order_no_shp_017() {
+        let mut shape_ti = ShapeInternTable::new();
         use crate::k2::shapes::ShapePointRecord;
         // Shape: (41.0,29.0) → (41.0,29.1) (doğuya giden düz çizgi)
         // Stop A: 29.0 (başlangıç), Stop B: 29.1 (bitiş) — doğru sıra
@@ -10079,15 +10105,17 @@ mod tests {
             ],
         );
         records.shapes = vec![
-            ShapePointRecord::new("S1".into(), Some(41.0), Some(29.0), Some(1), None, 2),
-            ShapePointRecord::new("S1".into(), Some(41.0), Some(29.1), Some(2), None, 3),
+            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.0), Some(29.0), Some(1), None, 2),
+            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.0), Some(29.1), Some(2), None, 3),
         ];
+        records.shape_interns = shape_ti.clone();
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
         assert!(!result.notices.iter().any(|n| n.rule_id == "SHP_017"), "doğru sırada SHP_017 olmamalı");
     }
 
     #[test]
     fn fully_reversed_shape_produces_shp_016_not_shp_017() {
+        let mut shape_ti = ShapeInternTable::new();
         use crate::k2::shapes::ShapePointRecord;
         // Shape: A(29.0) → B(29.1) — doğuya giden çizgi
         // stop_times: B önce, A sonra → shape tamamen ters takılmış → SHP_016
@@ -10102,9 +10130,10 @@ mod tests {
             ],
         );
         records.shapes = vec![
-            ShapePointRecord::new("S1".into(), Some(41.0), Some(29.0), Some(1), None, 2),
-            ShapePointRecord::new("S1".into(), Some(41.0), Some(29.1), Some(2), None, 3),
+            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.0), Some(29.0), Some(1), None, 2),
+            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.0), Some(29.1), Some(2), None, 3),
         ];
+        records.shape_interns = shape_ti.clone();
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
         assert!(result.notices.iter().any(|n| n.rule_id == "SHP_016"), "tamamen ters shape → SHP_016 olmalı");
         assert!(!result.notices.iter().any(|n| n.rule_id == "SHP_017"), "tamamen ters shape → SHP_017 olmamalı (SHP_016 öncelikli)");
@@ -10135,6 +10164,7 @@ mod tests {
 
     #[test]
     fn equal_dist_diff_coords_produces_shp_028() {
+        let mut shape_ti = ShapeInternTable::new();
         use crate::k2::shapes::ShapePointRecord;
         let mut records = records_with(
             vec![stop("A", 41.0, 29.0), stop("B", 41.0, 29.1)],
@@ -10147,9 +10177,10 @@ mod tests {
         );
         // Aynı shape_dist_traveled (100.0) ama farklı koordinat (Δ=0.1° ≫ eşik) → SHP_028
         records.shapes = vec![
-            ShapePointRecord::new("S1".into(), Some(41.0), Some(29.0), Some(1), Some(100.0), 2),
-            ShapePointRecord::new("S1".into(), Some(41.0), Some(29.1), Some(2), Some(100.0), 3),
+            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.0), Some(29.0), Some(1), Some(100.0), 2),
+            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.0), Some(29.1), Some(2), Some(100.0), 3),
         ];
+        records.shape_interns = shape_ti.clone();
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
         let ids: Vec<&str> = result.notices.iter().map(|n| n.rule_id.as_str()).collect();
         assert!(ids.contains(&"SHP_028"), "aynı dist + farklı koordinat → SHP_028: {:?}", ids);
@@ -10158,6 +10189,7 @@ mod tests {
 
     #[test]
     fn shape_with_both_below_threshold_and_repeat_fires_both_types() {
+        let mut shape_ti = ShapeInternTable::new();
         use crate::k2::shapes::ShapePointRecord;
         // Bir shape hem eşik-altı fark (SHP_029, ÖNCE) hem tekrar-nokta (SHP_023, SONRA) içeriyor.
         // Eski first-wins `break` SHP_023'ü kaçırırdı (Spelunca'da 6 kayıp); artık her tür bir kez.
@@ -10171,12 +10203,13 @@ mod tests {
             ],
         );
         records.shapes = vec![
-            ShapePointRecord::new("S1".into(), Some(41.0), Some(29.0), Some(1), Some(100.0), 2),
+            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.0), Some(29.0), Some(1), Some(100.0), 2),
             // Δlat=5e-6 (< 1e-5 eşik) → SHP_029 (eşik-altı), ilk çift
-            ShapePointRecord::new("S1".into(), Some(41.000005), Some(29.0), Some(2), Some(100.0), 3),
+            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.000005), Some(29.0), Some(2), Some(100.0), 3),
             // 2. ile birebir aynı → SHP_023 (tekrar-nokta), ikinci çift
-            ShapePointRecord::new("S1".into(), Some(41.000005), Some(29.0), Some(3), Some(100.0), 4),
+            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.000005), Some(29.0), Some(3), Some(100.0), 4),
         ];
+        records.shape_interns = shape_ti.clone();
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
         let ids: Vec<&str> = result.notices.iter().map(|n| n.rule_id.as_str()).collect();
         assert!(ids.contains(&"SHP_029"), "eşik-altı fark → SHP_029: {:?}", ids);
@@ -10187,6 +10220,7 @@ mod tests {
 
     #[test]
     fn equal_dist_tiny_coord_diff_produces_shp_029() {
+        let mut shape_ti = ShapeInternTable::new();
         use crate::k2::shapes::ShapePointRecord;
         let mut records = records_with(
             vec![stop("A", 41.0, 29.0), stop("B", 41.0, 29.1)],
@@ -10199,9 +10233,10 @@ mod tests {
         );
         // Aynı dist, koordinat farkı eşik altı (Δ=1e-6° < 1e-5°) → SHP_029
         records.shapes = vec![
-            ShapePointRecord::new("S1".into(), Some(41.0), Some(29.0), Some(1), Some(100.0), 2),
-            ShapePointRecord::new("S1".into(), Some(41.0), Some(29.000001), Some(2), Some(100.0), 3),
+            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.0), Some(29.0), Some(1), Some(100.0), 2),
+            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.0), Some(29.000001), Some(2), Some(100.0), 3),
         ];
+        records.shape_interns = shape_ti.clone();
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
         let ids: Vec<&str> = result.notices.iter().map(|n| n.rule_id.as_str()).collect();
         assert!(ids.contains(&"SHP_029"), "aynı dist + minik koordinat farkı → SHP_029: {:?}", ids);
@@ -10340,6 +10375,7 @@ mod tests {
 
     #[test]
     fn shape_reused_in_both_directions_no_shp_016() {
+        let mut shape_ti = ShapeInternTable::new();
         use crate::k2::shapes::ShapePointRecord;
         // S1: A(29.0) → B(29.1). T1 ileri (A→B), T2 aynı shape'i ters kullanıyor (B→A).
         // Bir ileri varyant olduğu için shape "ters çizilmiş" sayılmamalı (varyant-farkında min).
@@ -10358,9 +10394,10 @@ mod tests {
             ],
         );
         records.shapes = vec![
-            ShapePointRecord::new("S1".into(), Some(41.0), Some(29.0), Some(1), None, 2),
-            ShapePointRecord::new("S1".into(), Some(41.0), Some(29.1), Some(2), None, 3),
+            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.0), Some(29.0), Some(1), None, 2),
+            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.0), Some(29.1), Some(2), None, 3),
         ];
+        records.shape_interns = shape_ti.clone();
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
         assert!(!result.notices.iter().any(|n| n.rule_id == "SHP_016"),
             "ileri varyant varken shape ters sayılmamalı (SHP_016 yok)");
@@ -10368,6 +10405,7 @@ mod tests {
 
     #[test]
     fn shape_end_matches_one_variant_no_shp_014() {
+        let mut shape_ti = ShapeInternTable::new();
         use crate::k2::shapes::ShapePointRecord;
         // S1: A(29.0) → B(29.1). T1 tam (A→B, son durak B = shape sonu).
         // T2 kısa varyant (A→FAR, son durak shape sonundan çok uzak).
@@ -10387,9 +10425,10 @@ mod tests {
             ],
         );
         records.shapes = vec![
-            ShapePointRecord::new("S1".into(), Some(41.0), Some(29.0), Some(1), None, 2),
-            ShapePointRecord::new("S1".into(), Some(41.0), Some(29.1), Some(2), None, 3),
+            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.0), Some(29.0), Some(1), None, 2),
+            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.0), Some(29.1), Some(2), None, 3),
         ];
+        records.shape_interns = shape_ti.clone();
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
         assert!(!result.notices.iter().any(|n| n.rule_id == "SHP_014"),
             "shape sonu bir varyantın son durağıyla eşleşiyorsa SHP_014 yok");
@@ -10397,6 +10436,7 @@ mod tests {
 
     #[test]
     fn shape_end_far_from_all_variants_produces_shp_014() {
+        let mut shape_ti = ShapeInternTable::new();
         use crate::k2::shapes::ShapePointRecord;
         // S1: A(29.0) → B(29.1). Tek sefer T1'in son durağı C, shape sonundan çok uzak.
         // Hiçbir varyant shape sonuna yakın değil → SHP_014 ateşlemeli (regresyon koruması).
@@ -10410,9 +10450,10 @@ mod tests {
             ],
         );
         records.shapes = vec![
-            ShapePointRecord::new("S1".into(), Some(41.0), Some(29.0), Some(1), None, 2),
-            ShapePointRecord::new("S1".into(), Some(41.0), Some(29.1), Some(2), None, 3),
+            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.0), Some(29.0), Some(1), None, 2),
+            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.0), Some(29.1), Some(2), None, 3),
         ];
+        records.shape_interns = shape_ti.clone();
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
         assert!(result.notices.iter().any(|n| n.rule_id == "SHP_014"),
             "shape sonu hiçbir varyantın son durağına yakın değil → SHP_014");
@@ -10420,6 +10461,7 @@ mod tests {
 
     #[test]
     fn partial_shape_order_violation_produces_shp_017() {
+        let mut shape_ti = ShapeInternTable::new();
         use crate::k2::shapes::ShapePointRecord;
         // Shape: A(29.0) → B(29.05) → C(29.1) — 3 noktalı çizgi
         // stop_times: A(seq=1) → C(seq=2) → B(seq=3) → B, C'den sonra gelir ama shape'de önce
@@ -10435,16 +10477,18 @@ mod tests {
             ],
         );
         records.shapes = vec![
-            ShapePointRecord::new("S1".into(), Some(41.0), Some(29.0), Some(1), None, 2),
-            ShapePointRecord::new("S1".into(), Some(41.0), Some(29.05), Some(2), None, 3),
-            ShapePointRecord::new("S1".into(), Some(41.0), Some(29.1), Some(3), None, 4),
+            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.0), Some(29.0), Some(1), None, 2),
+            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.0), Some(29.05), Some(2), None, 3),
+            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.0), Some(29.1), Some(3), None, 4),
         ];
+        records.shape_interns = shape_ti.clone();
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
         assert!(result.notices.iter().any(|n| n.rule_id == "SHP_017"), "kısmi sıra ihlali → SHP_017 olmalı");
     }
 
     #[test]
     fn backtrack_that_recovers_no_shp_017() {
+        let mut shape_ti = ShapeInternTable::new();
         use crate::k2::shapes::ShapePointRecord;
         // Backtrack kurtarma filtresi (#17): doğuya giden düz shape 29.00 → 29.10 (lat 41.0).
         // stop_times: A(29.00) → B(29.03) → C(29.015: B'nin ~1.3km gerisi, >500m tolerans) → D(29.05).
@@ -10466,10 +10510,11 @@ mod tests {
             ],
         );
         records.shapes = vec![
-            ShapePointRecord::new("S1".into(), Some(41.0), Some(29.00), Some(1), None, 2),
-            ShapePointRecord::new("S1".into(), Some(41.0), Some(29.05), Some(2), None, 3),
-            ShapePointRecord::new("S1".into(), Some(41.0), Some(29.10), Some(3), None, 4),
+            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.0), Some(29.00), Some(1), None, 2),
+            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.0), Some(29.05), Some(2), None, 3),
+            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.0), Some(29.10), Some(3), None, 4),
         ];
+        records.shape_interns = shape_ti.clone();
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
         assert!(!result.notices.iter().any(|n| n.rule_id == "SHP_017"),
             "geri sıçrayıp 3 durak içinde toparlanan trip SHP_017 üretmemeli (backtrack kurtarma filtresi)");
@@ -10778,6 +10823,7 @@ mod tests {
 
     #[test]
     fn stop_near_two_shape_sections_produces_shp_022() {
+        let mut shape_ti = ShapeInternTable::new();
         // "U" şekli: gidip dönen hat — durak hem gidiş hem dönüş bölümüne yakın,
         // shape_dist_traveled YOK. #52: sıra KULLANILAMAZ olmalı (burada duplicate
         // stop_sequence=1) → konum belirsiz → SHP_022 beklenir.
@@ -10799,11 +10845,12 @@ mod tests {
         // shape: (0,0)→(1,0)→(1,0.001)→(0,0.001) — U benzeri
         // İki dikey kenar (lon=0 ve lon=0.001) stop'a ~5m uzaklıkta
         records.shapes = vec![
-            ShapePointRecord::new("SH1".into(), Some(0.0), Some(0.0), Some(1), None, 2),
-            ShapePointRecord::new("SH1".into(), Some(1.0), Some(0.0), Some(2), None, 3),
-            ShapePointRecord::new("SH1".into(), Some(1.0), Some(0.001), Some(3), None, 4),
-            ShapePointRecord::new("SH1".into(), Some(0.0), Some(0.001), Some(4), None, 5),
+            ShapePointRecord::new(shape_ti.intern("SH1"), Some(0.0), Some(0.0), Some(1), None, 2),
+            ShapePointRecord::new(shape_ti.intern("SH1"), Some(1.0), Some(0.0), Some(2), None, 3),
+            ShapePointRecord::new(shape_ti.intern("SH1"), Some(1.0), Some(0.001), Some(3), None, 4),
+            ShapePointRecord::new(shape_ti.intern("SH1"), Some(0.0), Some(0.001), Some(4), None, 5),
         ];
+        records.shape_interns = shape_ti.clone();
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
         assert!(
             result.notices.iter().any(|n| n.rule_id == "SHP_022"),
@@ -10814,6 +10861,7 @@ mod tests {
 
     #[test]
     fn stop_near_two_sections_valid_sequence_no_shp_022() {
+        let mut shape_ti = ShapeInternTable::new();
         // #52: AYNI U-şekli geometrisi ama stop_sequence GEÇERLİ (1,2 kesin artan) →
         // sıra-farkında eşleme belirsizliği çözer → SHP_022 ÇIKMAMALI (over-fire önlendi).
         use crate::k2::shapes::ShapePointRecord;
@@ -10830,11 +10878,12 @@ mod tests {
             ],
         );
         records.shapes = vec![
-            ShapePointRecord::new("SH1".into(), Some(0.0), Some(0.0), Some(1), None, 2),
-            ShapePointRecord::new("SH1".into(), Some(1.0), Some(0.0), Some(2), None, 3),
-            ShapePointRecord::new("SH1".into(), Some(1.0), Some(0.001), Some(3), None, 4),
-            ShapePointRecord::new("SH1".into(), Some(0.0), Some(0.001), Some(4), None, 5),
+            ShapePointRecord::new(shape_ti.intern("SH1"), Some(0.0), Some(0.0), Some(1), None, 2),
+            ShapePointRecord::new(shape_ti.intern("SH1"), Some(1.0), Some(0.0), Some(2), None, 3),
+            ShapePointRecord::new(shape_ti.intern("SH1"), Some(1.0), Some(0.001), Some(3), None, 4),
+            ShapePointRecord::new(shape_ti.intern("SH1"), Some(0.0), Some(0.001), Some(4), None, 5),
         ];
+        records.shape_interns = shape_ti.clone();
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
         assert!(
             !result.notices.iter().any(|n| n.rule_id == "SHP_022"),
@@ -10844,6 +10893,7 @@ mod tests {
 
     #[test]
     fn stop_near_one_shape_section_no_shp_022() {
+        let mut shape_ti = ShapeInternTable::new();
         // Düz hat — stop yalnızca bir bölüme yakın → SHP_022 olmamalı
         use crate::k2::shapes::ShapePointRecord;
         let t = trip_sh("T1", "R1", "SH2");
@@ -10860,10 +10910,11 @@ mod tests {
         );
         // Düz shape, stop sadece ilk segmente (~11m) yakın
         records.shapes = vec![
-            ShapePointRecord::new("SH2".into(), Some(0.0), Some(0.0), Some(1), None, 2),
-            ShapePointRecord::new("SH2".into(), Some(1.0), Some(0.0), Some(2), None, 3),
-            ShapePointRecord::new("SH2".into(), Some(2.0), Some(0.0), Some(3), None, 4),
+            ShapePointRecord::new(shape_ti.intern("SH2"), Some(0.0), Some(0.0), Some(1), None, 2),
+            ShapePointRecord::new(shape_ti.intern("SH2"), Some(1.0), Some(0.0), Some(2), None, 3),
+            ShapePointRecord::new(shape_ti.intern("SH2"), Some(2.0), Some(0.0), Some(3), None, 4),
         ];
+        records.shape_interns = shape_ti.clone();
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
         assert!(
             !result.notices.iter().any(|n| n.rule_id == "SHP_022"),
@@ -10920,6 +10971,7 @@ mod tests {
 
     #[test]
     fn pathological_shape_projection_falls_back_to_haversine() {
+        let mut shape_ti = ShapeInternTable::new();
         // Kuş uçuşu A→B ≈ 0.84 km. U biçimli shape projeksiyonu B'yi yanlış segmente
         // eşleştirip arc ≈ 23 km verir (27× kuş uçuşu). Bu YANLIŞ segment eşleşmesidir
         // (LA Metro grid bus rotalarındaki gibi). 4× kuralıyla haversine'e düşülmeli:
@@ -10937,11 +10989,12 @@ mod tests {
         // U shape: (41.0,29.0) → kuzeye (41.1,29.0) → (41.1,29.01) → güneye (41.0,29.01)
         // Arc ≈ 23 km vs haversine ~0.84 km → ratio ~27× → 4× eşiği aşar → fallback.
         records.shapes = vec![
-            ShapePointRecord::new("S1".into(), Some(41.0), Some(29.00), Some(1), None, 2),
-            ShapePointRecord::new("S1".into(), Some(41.1), Some(29.00), Some(2), None, 3),
-            ShapePointRecord::new("S1".into(), Some(41.1), Some(29.01), Some(3), None, 4),
-            ShapePointRecord::new("S1".into(), Some(41.0), Some(29.01), Some(4), None, 5),
+            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.0), Some(29.00), Some(1), None, 2),
+            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.1), Some(29.00), Some(2), None, 3),
+            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.1), Some(29.01), Some(3), None, 4),
+            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.0), Some(29.01), Some(4), None, 5),
         ];
+        records.shape_interns = shape_ti.clone();
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
         assert!(
             !result.notices.iter().any(|n| n.rule_id == "STM_012" || n.rule_id == "STM_014"),
@@ -10952,6 +11005,7 @@ mod tests {
 
     #[test]
     fn moderate_detour_within_ratio_still_uses_shape() {
+        let mut shape_ti = ShapeInternTable::new();
         // Makul detour: shape kuş uçuşunun 4× altında kalırsa shape mesafesi korunur.
         // A→B kuş uçuşu ~11.1 km; shape hafif kavisli ~13 km (≈1.2×) → 4× altında.
         // 13 km / 2 dk ≈ 390 km/h → 120 < 390 < 700 → STM_014 tetiklenir (shape kullanıldığının kanıtı).
@@ -10967,10 +11021,11 @@ mod tests {
         );
         // A(41.0,29.0) → orta nokta hafif doğuya (41.05,29.03) → B(41.1,29.0): kavisli ama ~1.2×
         records.shapes = vec![
-            ShapePointRecord::new("S1".into(), Some(41.00), Some(29.00), Some(1), None, 2),
-            ShapePointRecord::new("S1".into(), Some(41.05), Some(29.03), Some(2), None, 3),
-            ShapePointRecord::new("S1".into(), Some(41.10), Some(29.00), Some(3), None, 4),
+            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.00), Some(29.00), Some(1), None, 2),
+            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.05), Some(29.03), Some(2), None, 3),
+            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.10), Some(29.00), Some(3), None, 4),
         ];
+        records.shape_interns = shape_ti.clone();
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
         assert!(
             result.notices.iter().any(|n| n.rule_id == "STM_014"),

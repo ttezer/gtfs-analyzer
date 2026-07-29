@@ -309,10 +309,10 @@ fn build_shapes(records: &EntityRecords, map: &mut EntityMap) {
     // Önce her shape_id için ham indeksleri topla
     let mut raw: HashMap<&str, Vec<usize>> = HashMap::new();
     for (idx, rec) in records.shapes.iter().enumerate() {
-        if rec.shape_id.is_empty() {
+        if rec.shape_idx() == 0 {
             continue;
         }
-        raw.entry(rec.shape_id.as_str()).or_default().push(idx);
+        raw.entry(records.shape_interns.id(rec)).or_default().push(idx);
     }
 
     // Her shape'i shape_pt_sequence'e göre sırala
@@ -587,6 +587,7 @@ mod tests {
     use crate::k2::shapes::ShapePointRecord;
     use crate::k2::stops::StopRecord;
     use crate::k2::trips::TripRecord;
+    use crate::k2::shapes::ShapeInternTable;
 
     fn empty_records() -> EntityRecords {
         EntityRecords::default()
@@ -812,11 +813,13 @@ mod tests {
 
     #[test]
     fn shape_points_sorted_by_sequence() {
+        let mut shape_ti = ShapeInternTable::new();
         let mut records = empty_records();
         records.shapes = vec![
-            ShapePointRecord::new("SHP1".into(), Some(41.0), Some(29.0), Some(2), None, 3),
-            ShapePointRecord::new("SHP1".into(), Some(41.1), Some(29.1), Some(1), None, 2),
+            ShapePointRecord::new(shape_ti.intern("SHP1"), Some(41.0), Some(29.0), Some(2), None, 3),
+            ShapePointRecord::new(shape_ti.intern("SHP1"), Some(41.1), Some(29.1), Some(1), None, 2),
         ];
+        records.shape_interns = shape_ti.clone();
         let result = build(&records);
         let pts = result.entity_map.shape_points.get("SHP1").unwrap();
         // Sequence 1 → records.shapes[1], sequence 2 → records.shapes[0]

@@ -465,6 +465,7 @@ mod tests {
     use crate::k2::shapes::ShapePointRecord;
     use crate::k2::stops::StopRecord;
     use crate::k2::trips::TripRecord;
+    use crate::k2::shapes::ShapeInternTable;
 
     fn empty_records() -> EntityRecords {
         EntityRecords::default()
@@ -474,12 +475,12 @@ mod tests {
         EntityMap::default()
     }
 
-    fn shape_pt(shape_id: &str, seq: u32, lat: f64, lon: f64, line: u64) -> ShapePointRecord {
-        ShapePointRecord::new(shape_id.into(), Some(lat), Some(lon), Some(seq), None, line as u32)
+    fn shape_pt(ti: &mut ShapeInternTable, shape_id: &str, seq: u32, lat: f64, lon: f64, line: u64) -> ShapePointRecord {
+        ShapePointRecord::new(ti.intern(shape_id), Some(lat), Some(lon), Some(seq), None, line as u32)
     }
 
-    fn shape_pt_d(shape_id: &str, seq: u32, lat: f64, lon: f64, dist: f64, line: u64) -> ShapePointRecord {
-        ShapePointRecord::new(shape_id.into(), Some(lat), Some(lon), Some(seq), Some(dist), line as u32)
+    fn shape_pt_d(ti: &mut ShapeInternTable, shape_id: &str, seq: u32, lat: f64, lon: f64, dist: f64, line: u64) -> ShapePointRecord {
+        ShapePointRecord::new(ti.intern(shape_id), Some(lat), Some(lon), Some(seq), Some(dist), line as u32)
     }
 
     fn trip_with_shape(trip_id: &str, shape_id: &str) -> (TripRecord, crate::k2::trips::TripInternTable) {
@@ -522,13 +523,15 @@ mod tests {
 
     #[test]
     fn three_point_shape_produces_two_segments() {
+        let mut shape_ti = ShapeInternTable::new();
         let mut records = empty_records();
         let mut map = empty_map();
         records.shapes = vec![
-            shape_pt("S1", 1, 41.0, 29.0, 2),
-            shape_pt("S1", 2, 41.1, 29.1, 3),
-            shape_pt("S1", 3, 41.2, 29.2, 4),
+            shape_pt(&mut shape_ti, "S1", 1, 41.0, 29.0, 2),
+            shape_pt(&mut shape_ti, "S1", 2, 41.1, 29.1, 3),
+            shape_pt(&mut shape_ti, "S1", 3, 41.2, 29.2, 4),
         ];
+        records.shape_interns = shape_ti.clone();
         let (t1, ti1) = trip_with_shape("T1", "S1");
         records.trips = vec![t1];
         records.trip_interns = ti1;
@@ -544,14 +547,16 @@ mod tests {
 
     #[test]
     fn shp_005_no_false_positive_when_file_order_differs_from_sequence() {
+        let mut shape_ti = ShapeInternTable::new();
         // Dosyada seq 2 (dist 20) seq 1 (dist 10)'dan ÖNCE listelenmiş; K3 sequence'a göre sıralar.
         // Sequence-sıralı dist artıyor → SHP_005 ÇIKMAMALI (Athens mdb-3220 FP'sinin köku).
         let mut records = empty_records();
         let mut map = empty_map();
         records.shapes = vec![
-            shape_pt_d("S1", 2, 41.1, 29.1, 20.0, 2),
-            shape_pt_d("S1", 1, 41.0, 29.0, 10.0, 3),
+            shape_pt_d(&mut shape_ti, "S1", 2, 41.1, 29.1, 20.0, 2),
+            shape_pt_d(&mut shape_ti, "S1", 1, 41.0, 29.0, 10.0, 3),
         ];
+        records.shape_interns = shape_ti.clone();
         let (t1, ti1) = trip_with_shape("T1", "S1");
         records.trips = vec![t1]; records.trip_interns = ti1;
         map.shape_points.insert("S1".into(), vec![1, 0]); // sequence-sıralı: seq1, seq2
@@ -563,13 +568,15 @@ mod tests {
 
     #[test]
     fn shp_005_fires_on_true_sequence_decrease() {
+        let mut shape_ti = ShapeInternTable::new();
         // shape_pt_sequence sırasında gerçekten azalıyor (seq1=10 → seq2=5) → SHP_005 çıkmalı.
         let mut records = empty_records();
         let mut map = empty_map();
         records.shapes = vec![
-            shape_pt_d("S1", 1, 41.0, 29.0, 10.0, 2),
-            shape_pt_d("S1", 2, 41.1, 29.1, 5.0, 3),
+            shape_pt_d(&mut shape_ti, "S1", 1, 41.0, 29.0, 10.0, 2),
+            shape_pt_d(&mut shape_ti, "S1", 2, 41.1, 29.1, 5.0, 3),
         ];
+        records.shape_interns = shape_ti.clone();
         let (t1, ti1) = trip_with_shape("T1", "S1");
         records.trips = vec![t1]; records.trip_interns = ti1;
         map.shape_points.insert("S1".into(), vec![0, 1]);
@@ -581,12 +588,14 @@ mod tests {
 
     #[test]
     fn bounding_box_correct() {
+        let mut shape_ti = ShapeInternTable::new();
         let mut records = empty_records();
         let mut map = empty_map();
         records.shapes = vec![
-            shape_pt("S1", 1, 40.0, 28.0, 2),
-            shape_pt("S1", 2, 42.0, 30.0, 3),
+            shape_pt(&mut shape_ti, "S1", 1, 40.0, 28.0, 2),
+            shape_pt(&mut shape_ti, "S1", 2, 42.0, 30.0, 3),
         ];
+        records.shape_interns = shape_ti.clone();
         let (t1, ti1) = trip_with_shape("T1", "S1");
         records.trips = vec![t1];
         records.trip_interns = ti1;
@@ -605,13 +614,15 @@ mod tests {
 
     #[test]
     fn duplicate_coordinate_produces_shp_010() {
+        let mut shape_ti = ShapeInternTable::new();
         let mut records = empty_records();
         let mut map = empty_map();
         records.shapes = vec![
-            shape_pt("S1", 1, 41.0, 29.0, 2),
-            shape_pt("S1", 2, 41.0, 29.0, 3), // özdeş koordinat
-            shape_pt("S1", 3, 41.1, 29.1, 4),
+            shape_pt(&mut shape_ti, "S1", 1, 41.0, 29.0, 2),
+            shape_pt(&mut shape_ti, "S1", 2, 41.0, 29.0, 3), // özdeş koordinat
+            shape_pt(&mut shape_ti, "S1", 3, 41.1, 29.1, 4),
         ];
+        records.shape_interns = shape_ti.clone();
         let (t1, ti1) = trip_with_shape("T1", "S1");
         records.trips = vec![t1];
         records.trip_interns = ti1;
@@ -624,17 +635,19 @@ mod tests {
 
     #[test]
     fn shp_010_fires_once_per_shape_despite_many_duplicates() {
+        let mut shape_ti = ShapeInternTable::new();
         // #15 Mode A: bir shape'te ÇOK ardışık-tekrar nokta olsa da SHP_010 shape başına
         // TEK üretilmeli (dedup zaten teke indirir; ara-üretim patlamasını önle).
         let mut records = empty_records();
         let mut map = empty_map();
         records.shapes = vec![
-            shape_pt("S1", 1, 41.0, 29.0, 1),
-            shape_pt("S1", 2, 41.0, 29.0, 2), // dup 1
-            shape_pt("S1", 3, 41.0, 29.0, 3), // dup 2
-            shape_pt("S1", 4, 41.0, 29.0, 4), // dup 3
-            shape_pt("S1", 5, 41.1, 29.1, 5),
+            shape_pt(&mut shape_ti, "S1", 1, 41.0, 29.0, 1),
+            shape_pt(&mut shape_ti, "S1", 2, 41.0, 29.0, 2), // dup 1
+            shape_pt(&mut shape_ti, "S1", 3, 41.0, 29.0, 3), // dup 2
+            shape_pt(&mut shape_ti, "S1", 4, 41.0, 29.0, 4), // dup 3
+            shape_pt(&mut shape_ti, "S1", 5, 41.1, 29.1, 5),
         ];
+        records.shape_interns = shape_ti.clone();
         let (t1, ti1) = trip_with_shape("T1", "S1");
         records.trips = vec![t1];
         records.trip_interns = ti1;
@@ -648,6 +661,7 @@ mod tests {
 
     #[test]
     fn shp_010_high_volume_aggregates_to_single_feed_notice() {
+        let mut shape_ti = ShapeInternTable::new();
         // #48: ardışık-özdeş-koordinatlı shape sayısı yüksek (>50) → tek feed-özet.
         let mut records = empty_records();
         let mut map = empty_map();
@@ -656,11 +670,12 @@ mod tests {
             let sid = format!("S{i}");
             let base = shapes.len();
             // her shape: 2 özdeş nokta (dup) → SHP_010 tetikler
-            shapes.push(shape_pt(&sid, 1, 41.0, 29.0, 1));
-            shapes.push(shape_pt(&sid, 2, 41.0, 29.0, 2));
+            shapes.push(shape_pt(&mut shape_ti, &sid, 1, 41.0, 29.0, 1));
+            shapes.push(shape_pt(&mut shape_ti, &sid, 2, 41.0, 29.0, 2));
             map.shape_points.insert(sid.into(), vec![base, base + 1]);
         }
         records.shapes = shapes;
+        records.shape_interns = shape_ti.clone();
 
         let result = build(&records, &map);
         let shp010: Vec<_> = result.notices.iter().filter(|n| n.rule_id == "SHP_010").collect();
@@ -677,12 +692,14 @@ mod tests {
 
     #[test]
     fn orphan_shape_produces_shp_018() {
+        let mut shape_ti = ShapeInternTable::new();
         let mut records = empty_records();
         let mut map = empty_map();
         records.shapes = vec![
-            shape_pt("ORPHAN", 1, 41.0, 29.0, 2),
-            shape_pt("ORPHAN", 2, 41.1, 29.1, 3),
+            shape_pt(&mut shape_ti, "ORPHAN", 1, 41.0, 29.0, 2),
+            shape_pt(&mut shape_ti, "ORPHAN", 2, 41.1, 29.1, 3),
         ];
+        records.shape_interns = shape_ti.clone();
         // trips: shape'e referans yok
         map.shape_points.insert("ORPHAN".into(), vec![0, 1]);
 
@@ -692,12 +709,14 @@ mod tests {
 
     #[test]
     fn referenced_shape_does_not_produce_shp_018() {
+        let mut shape_ti = ShapeInternTable::new();
         let mut records = empty_records();
         let mut map = empty_map();
         records.shapes = vec![
-            shape_pt("S1", 1, 41.0, 29.0, 2),
-            shape_pt("S1", 2, 41.1, 29.1, 3),
+            shape_pt(&mut shape_ti, "S1", 1, 41.0, 29.0, 2),
+            shape_pt(&mut shape_ti, "S1", 2, 41.1, 29.1, 3),
         ];
+        records.shape_interns = shape_ti.clone();
         let (t1, ti1) = trip_with_shape("T1", "S1");
         records.trips = vec![t1];
         records.trip_interns = ti1;
