@@ -55,15 +55,15 @@ Feed: `mdb-53` (MobilityDatabase, 2026-07-29 snapshot; validity range: 2026-01-1
 
 | | MobilityData | GTFS Analyzer |
 |---|---:|---:|
-| Total notices | 2,697 | 589 |
+| Total notices | 2,697 | 581 |
 | Critical / Error | 2 | 2 |
 | High / Warning | 2,653 | 1 |
 | Medium | — | 7 |
-| Low | — | 44 |
+| Low | — | 36 |
 | Info | 42 | 535 |
-| Distinct rule types triggered | 13 | **40** |
+| Distinct rule types triggered | 13 | **39** |
 | Publish score | — | **92.6 / 100** |
-| Overall score | — | **89.7 / 100** |
+| Overall score | — | **90.0 / 100** |
 
 #### TriMet (Portland, Oregon)
 
@@ -91,15 +91,15 @@ Feed: `mdb-3175` (MobilityDatabase, 2026-07-29 snapshot; validity range: 2026-07
 
 | | MobilityData | GTFS Analyzer |
 |---|---:|---:|
-| Total notices | 2,666 | 2,760 |
+| Total notices | 2,666 | 2,614 |
 | Critical / Error | 0 | 0 |
 | High / Warning | 330 | 12 |
 | Medium | — | 964 |
-| Low | — | 1,120 |
+| Low | — | 974 |
 | Info | 2,336 | 664 |
-| Distinct rule types triggered | 9 | **55** |
+| Distinct rule types triggered | 9 | **54** |
 | Publish score | — | **100 / 100** |
-| Overall score | — | **84.5 / 100** |
+| Overall score | — | **84.8 / 100** |
 
 > 🗾 **Spec-clean but operationally dense:** Both tools report 0 critical — the feed is specification-clean. The difference is in the analytics layer: most of GTFS Analyzer's medium/low findings are operational signals from the three-year validity window (2026–2029) and dense network/shape patterns, which MobilityData largely summarizes as warnings/info.
 

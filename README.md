@@ -55,15 +55,15 @@ Feed: `mdb-53` (MobilityDatabase, 2026-07-29 anlık görüntüsü; geçerlilik a
 
 | | MobilityData | GTFS Analyzer |
 |---|---:|---:|
-| Toplam notice | 2.697 | 589 |
+| Toplam notice | 2.697 | 581 |
 | Kritik / Error | 2 | 2 |
 | Yüksek / Warning | 2.653 | 1 |
 | Orta | — | 7 |
-| Düşük | — | 44 |
+| Düşük | — | 36 |
 | Bilgi / Info | 42 | 535 |
-| Tetiklenen kural tipi | 13 | **40** |
+| Tetiklenen kural tipi | 13 | **39** |
 | Yayın skoru | — | **92,6 / 100** |
-| Genel skor | — | **89,7 / 100** |
+| Genel skor | — | **90,0 / 100** |
 
 #### TriMet (Portland, Oregon)
 
@@ -91,15 +91,15 @@ Feed: `mdb-3175` (MobilityDatabase, 2026-07-29 anlık görüntüsü; geçerlilik
 
 | | MobilityData | GTFS Analyzer |
 |---|---:|---:|
-| Toplam notice | 2.666 | 2.760 |
+| Toplam notice | 2.666 | 2.614 |
 | Kritik / Error | 0 | 0 |
 | Yüksek / Warning | 330 | 12 |
 | Orta | — | 964 |
-| Düşük | — | 1.120 |
+| Düşük | — | 974 |
 | Bilgi / Info | 2.336 | 664 |
-| Tetiklenen kural tipi | 9 | **55** |
+| Tetiklenen kural tipi | 9 | **54** |
 | Yayın skoru | — | **100 / 100** |
-| Genel skor | — | **84,5 / 100** |
+| Genel skor | — | **84,8 / 100** |
 
 > 🗾 **Spec-temiz ama operasyonel olarak yoğun:** Her iki araç da 0 kritik bulur — feed spec açısından temiz. Fark analitik katmanda: GTFS Analyzer'ın orta/düşük bulgularının çoğu 3 yıllık geçerlilik penceresi (2026–2029) ve yoğun şebeke/şekil desenlerinden gelen operasyonel sinyallerdir; MobilityData bu feed'i ağırlıkla uyarı/bilgi olarak özetler.
 
