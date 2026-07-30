@@ -12,6 +12,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > unaffected. Re-baseline Golden snapshots that contain it.
 
 ### Changed
+- **Shape geometry rules now use wider thresholds on rail routes.** Six rules — GEO_006,
+  GEO_007, GEO_009, SHP_012, SHP_014 and SHP_024 — measured every mode against thresholds
+  calibrated for street-running transit, and flagged legitimate rail geometry as an error.
+  Two assumptions break on rail. A station's `stop_lat`/`stop_lon` marks the platform or
+  building centre while the shape follows a single track centreline, so a 100 m tolerance
+  rejects a correct feed; and intercity track is legitimately simplified over long straight
+  runs, where 13.4 km between consecutive shape points is real geometry rather than a gap.
+  Rail shapes now use two new settings, `stop_far_from_shape_m_rail` (default 200 m) and
+  `max_shape_jump_km_rail` (default 30 km); the street-running defaults are unchanged at
+  100 m and 10 km. A shape counts as rail when **any** route using it is rail
+  (`route_type` 2, 12 or 100–117, the same definition `max_speed_rail_kmh` and
+  `max_trip_duration_hours_rail` already use), because a false positive here — calling
+  correct geometry an error — costs more than a missed one. Notice messages report the
+  threshold that was actually applied. Feeds containing rail routes will see fewer notices
+  from these six rules; re-baseline Golden snapshots for them.
 - **stop_times is now parsed in parallel on native targets.** It was the single largest stage
   left — 2.8 s of a 8.4 s run on VBB, with most cores idle while it ran. The ZIP entry is now
   decompressed once, split at line boundaries that are then aligned to a trip change, and the

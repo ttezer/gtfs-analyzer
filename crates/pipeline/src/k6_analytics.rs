@@ -47,6 +47,9 @@ pub fn analyze(
     // shape geometrisi: dört tüketici (speed_and_duration, remaining_analytics, shp012, shp022)
     // için TEK kurulum. Bkz. ShapeIndex tanımındaki ölçüm notu.
     let shape_idx = { let _t = Timer::start("K6::shape_idx::build"); ShapeIndex::build(records) };
+    // Raylı shape kümesi: geometri eşiklerini gevşeten üç tüketici (geo_analytics,
+    // remaining_analytics, shp012) için TEK kurulum — shape_idx emsali.
+    let rail_shapes = { let _t = Timer::start("K6::rail_shapes::build"); rail_shape_ids(records) };
 
     // Her bağımsız K6 check'i KENDİ (notices, ctr)'sini üretir; sonuçlar KANONİK sırada
     // (1→13) birleştirilir ve sondaki renumber id'leri tek-iş-parçacıklı global ctr ile
@@ -59,13 +62,13 @@ pub fn analyze(
         Box::new(|| { let _t = Timer::start("K6::frequency_headway");     let mut v = Vec::new(); let mut c = 0u32; check_frequency_headway(records, config, &mut v, &mut c); v }),
         Box::new(|| { let _t = Timer::start("K6::route_headway");         let mut v = Vec::new(); let mut c = 0u32; check_route_headway(records, config, &idx, &mut v, &mut c); v }),
         Box::new(|| { let _t = Timer::start("K6::calendar_analytics");    let mut v = Vec::new(); let mut c = 0u32; check_calendar_analytics(records, derived, config, today_yyyymmdd, &mut v, &mut c); v }),
-        Box::new(|| { let _t = Timer::start("K6::geo_analytics");         let mut v = Vec::new(); let mut c = 0u32; check_geo_analytics(records, derived, config, &mut v, &mut c); v }),
+        Box::new(|| { let _t = Timer::start("K6::geo_analytics");         let mut v = Vec::new(); let mut c = 0u32; check_geo_analytics(records, derived, config, &rail_shapes, &mut v, &mut c); v }),
         Box::new(|| { let _t = Timer::start("K6::operational_analytics"); let mut v = Vec::new(); let mut c = 0u32; check_operational_analytics(records, derived, config, &idx, today_yyyymmdd, &mut v, &mut c); v }),
         Box::new(|| { let _t = Timer::start("K6::stoptimes_derived");     let mut v = Vec::new(); let mut c = 0u32; check_stoptimes_derived(&idx, &mut v, &mut c); v }),
         Box::new(|| { let _t = Timer::start("K6::route_trip_quality");    let mut v = Vec::new(); let mut c = 0u32; check_route_trip_quality(records, derived, &idx, &mut v, &mut c); v }),
         Box::new(|| { let _t = Timer::start("K6::data_quality");          let mut v = Vec::new(); let mut c = 0u32; check_data_quality(records, derived, config, today_yyyymmdd, &mut v, &mut c); v }),
-        Box::new(|| { let _t = Timer::start("K6::remaining_analytics");   let mut v = Vec::new(); let mut c = 0u32; check_remaining_analytics(records, derived, config, &idx, &shape_idx, &mut v, &mut c); v }),
-        Box::new(|| { let _t = Timer::start("K6::shp012");                let mut v = Vec::new(); let mut c = 0u32; check_shp012(records, config, &idx, &shape_idx, &mut v, &mut c); v }),
+        Box::new(|| { let _t = Timer::start("K6::remaining_analytics");   let mut v = Vec::new(); let mut c = 0u32; check_remaining_analytics(records, derived, config, &idx, &shape_idx, &rail_shapes, &mut v, &mut c); v }),
+        Box::new(|| { let _t = Timer::start("K6::shp012");                let mut v = Vec::new(); let mut c = 0u32; check_shp012(records, config, &idx, &shape_idx, &rail_shapes, &mut v, &mut c); v }),
         Box::new(|| { let _t = Timer::start("K6::shp022");                let mut v = Vec::new(); let mut c = 0u32; check_shp022(records, &idx, &shape_idx, &mut v, &mut c); v }),
         Box::new(|| { let _t = Timer::start("K6::pathway_analytics");     let mut v = Vec::new(); let mut c = 0u32; check_pathway_analytics(records, derived, &mut v, &mut c); v }),
         Box::new(|| { let _t = Timer::start("K6::calendar_override");     let mut v = Vec::new(); let mut c = 0u32; check_calendar_override_analytics(records, derived, config, &mut v, &mut c); v }),
@@ -309,6 +312,66 @@ fn seg_min_dist_km(
 /// GTFS: 2=Rail, 12=Monorail, 100-117 genişletilmiş tren tipleri.
 fn is_rail_route_type(route_type: u32) -> bool {
     route_type == 2 || route_type == 12 || (100..=117).contains(&route_type)
+}
+
+/// Raylı bir route tarafından kullanılan shape_id'ler (GEO_006/007/009, SHP_012/014/024).
+///
+/// Ray geometrisi iki noktada şehir içi varsayımlarını bozar: (1) istasyonlarda durak
+/// koordinatı peron/bina merkezini gösterirken shape tek bir ray merkez-hattıdır, (2)
+/// şehirlerarası ray uzun düz kesimlerde meşru olarak sadeleştirilir. Bu shape'lerde
+/// `*_rail` eşikleri kullanılır.
+///
+/// **Karışık kullanımda gevşek yön seçilir:** shape'i kullanan HERHANGİ bir route raylıysa
+/// shape raylı sayılır. Bu kuralların yanlış-pozitifi (meşru geometriyi hata sanmak) yanlış
+/// -negatiften pahalıdır; proje genelindeki FP-kaçınma duruşuyla tutarlı.
+///
+/// Perf: rail route yoksa (feed'lerin çoğu) trips üzerinde hiç dolaşılmaz.
+fn rail_shape_ids(records: &EntityRecords) -> FxHashSet<&str> {
+    let rail_routes: FxHashSet<&str> = records
+        .routes
+        .iter()
+        .filter(|r| r.route_type.is_some_and(is_rail_route_type))
+        .map(|r| r.route_id.as_str())
+        .collect();
+    if rail_routes.is_empty() {
+        return FxHashSet::default();
+    }
+    let ti = &records.trip_interns;
+    let mut out: FxHashSet<&str> = FxHashSet::default();
+    for t in &records.trips {
+        if let Some(sid) = ti.shape_id(t).filter(|s| !s.is_empty()) {
+            if rail_routes.contains(ti.route_id(t)) {
+                out.insert(sid);
+            }
+        }
+    }
+    out
+}
+
+/// shape → durak-güzergah mesafe eşiği (m). Raylı shape'lerde `stop_far_from_shape_m_rail`.
+fn stop_shape_threshold_m(
+    shape_id: &str,
+    rail_shapes: &FxHashSet<&str>,
+    cfg: &ValidatorConfig,
+) -> f64 {
+    if rail_shapes.contains(shape_id) {
+        cfg.stop_far_from_shape_m_rail
+    } else {
+        cfg.stop_far_from_shape_m
+    }
+}
+
+/// shape → ardışık nokta sıçrama eşiği (km). Raylı shape'lerde `max_shape_jump_km_rail`.
+fn shape_jump_threshold_km(
+    shape_id: &str,
+    rail_shapes: &FxHashSet<&str>,
+    cfg: &ValidatorConfig,
+) -> f64 {
+    if rail_shapes.contains(shape_id) {
+        cfg.max_shape_jump_km_rail
+    } else {
+        cfg.max_shape_jump_km
+    }
 }
 
 /// route_type → STM_028 sefer süresi üst eşiği (saniye).
@@ -1842,6 +1905,7 @@ fn check_geo_analytics(
     records: &EntityRecords,
     derived: &DerivedData,
     config: &ValidatorConfig,
+    rail_shapes: &FxHashSet<&str>,
     notices: &mut Vec<Notice>,
     ctr: &mut u32,
 ) {
@@ -1851,13 +1915,14 @@ fn check_geo_analytics(
     // GEO_006: shape segmentleri arası büyük atlama (jump)
     // GEO_007: aynı — GEO_006'dan biraz farklı ciddiyette ama aynı kontrol
     let _tg6 = Timer::start("K6::geo::geo_006");
-    let max_jump_km = config.max_shape_jump_km;
     // GEO_007 aynı segmentleri 3× eşikle tarıyor. Eskiden iki koşul birbirini
     // dışlamıyordu → 3× üstü bir atlama HEM GEO_006 HEM GEO_007 üretiyor, aynı segment
     // iki kez raporlanıp R5 skorunda iki kez sayılıyordu. Artık katmanlı: bu aralık
     // GEO_006'nın, üstü GEO_007'nin.
-    let severe_km = max_jump_km * 3.0;
     for (shape_id, seg) in &derived.shape_geometry.shapes {
+        // Eşik shape başına: raylı güzergahlarda sadeleştirilmiş uzun düz kesimler meşrudur.
+        let max_jump_km = shape_jump_threshold_km(shape_id, rail_shapes, config);
+        let severe_km = max_jump_km * 3.0;
         for (i, &dist) in seg.segment_distances_km.iter().enumerate() {
             if dist > severe_km {
                 continue; // → GEO_007
@@ -3946,6 +4011,7 @@ fn check_remaining_analytics<'a>(
     config: &ValidatorConfig,
     idx: &StopTimesIndex<'_>,
     shape_idx: &ShapeIndex<'a>,
+    rail_shapes: &FxHashSet<&str>,
     notices: &mut Vec<Notice>,
     ctr: &mut u32,
 ) {
@@ -4212,8 +4278,9 @@ fn check_remaining_analytics<'a>(
     // ── GEO_007: çok büyük shape atlaması (severe jump = 3× eşik) ─────────────
     {
         let _tg7 = Timer::start("K6::rem::geo_007");
-        let severe_km = config.max_shape_jump_km * 3.0;
         for (shape_id, seg) in &derived.shape_geometry.shapes {
+            // GEO_006 ile aynı shape-başına eşik; katmanlama korunur (bu 3× üstü).
+            let severe_km = shape_jump_threshold_km(shape_id, rail_shapes, config) * 3.0;
             for (i, &dist) in seg.segment_distances_km.iter().enumerate() {
                 if dist > severe_km {
                     notices.push(k6_notice(
@@ -4263,21 +4330,22 @@ fn check_remaining_analytics<'a>(
 
     {
         let _tg9 = Timer::start("K6::rem::geo_009_shp_013");
-        let threshold_km = config.stop_far_from_shape_m / 1000.0;
-        let margin_lat_g = threshold_km / 111.0;
 
         for (&stop_id, shape_ids) in &idx.stop_shapes {
             let Some(&(slat, slon)) = stop_coords.get(stop_id) else { continue };
             let cos_lat = (slat.to_radians()).cos().max(0.001_f64);
             let scale_lon = 111.0 * cos_lat;
-            let threshold_sq = threshold_km * threshold_km;
-            let margin_lon = threshold_km / scale_lon;
-            let safe_sq = threshold_sq * 0.98;
 
-            // Her shape için mesafeyi hesapla — Option-1 filtresi tüm mesafeleri karşılaştırır
-            let dists: Vec<(&str, f64)> = shape_ids.iter().filter_map(|&sid| {
+            // Her shape için mesafeyi hesapla — Option-1 filtresi tüm mesafeleri karşılaştırır.
+            // Eşik shape BAŞINA (raylı/şehir içi) değiştiğinden bbox marjı, safe_sq kısayolu ve
+            // Option-1 karşılaştırması da eşikle birlikte taşınır; her shape kendi eşiğiyle ölçülür.
+            let dists: Vec<(&str, f64, f64)> = shape_ids.iter().filter_map(|&sid| {
                 let pts = shape_coords.get(sid)?;
                 if pts.is_empty() { return None; }
+                let threshold_km = stop_shape_threshold_m(sid, rail_shapes, config) / 1000.0;
+                let margin_lat_g = threshold_km / 111.0;
+                let margin_lon = threshold_km / scale_lon;
+                let safe_sq = threshold_km * threshold_km * 0.98;
                 let d = if let Some(&[bmin_la, bmax_la, bmin_lo, bmax_lo]) = shape_bbox.get(sid) {
                     if slat < bmin_la - margin_lat_g || slat > bmax_la + margin_lat_g
                         || slon < bmin_lo - margin_lon || slon > bmax_lo + margin_lon
@@ -4291,17 +4359,18 @@ fn check_remaining_analytics<'a>(
                 } else {
                     seg_min_dist_km(pts, slat, slon, scale_lon, safe_sq)
                 };
-                Some((sid, d))
+                Some((sid, d, threshold_km))
             }).collect();
 
-            for &(shape_id, min_dist_km) in &dists {
+            for &(shape_id, min_dist_km, threshold_km) in &dists {
                 if min_dist_km <= threshold_km { continue; }
 
-                // Option-1: aynı hattın başka shape'i bu durağı kapsıyorsa atla
+                // Option-1: aynı hattın başka shape'i bu durağı kapsıyorsa atla.
+                // Kardeş shape KENDİ eşiğiyle değerlendirilir (raylı kardeş daha geniş kapsar).
                 if let Some(rx) = shape_route_set.get(shape_id) {
-                    let covered = dists.iter().any(|&(sib, sib_dist)| {
+                    let covered = dists.iter().any(|&(sib, sib_dist, sib_thr)| {
                         sib != shape_id
-                            && sib_dist <= threshold_km
+                            && sib_dist <= sib_thr
                             && shape_route_set.get(sib)
                                 .map_or(false, |ry| rx.intersection(ry).next().is_some())
                     });
@@ -4346,9 +4415,9 @@ fn check_remaining_analytics<'a>(
                     stop_lines.get(stop_id).copied(),
                     Some("stop_lat|stop_lon"),
                     Some(format!("{dist_m:.1}m (shape '{shape_id}')")),
-                    Some(format!("≤ {:.0}m", config.stop_far_from_shape_m)),
+                    Some(format!("≤ {:.0}m", threshold_km * 1000.0)),
                     format!("'{}' kodlu '{}' durağı {ref_label} {dist_m:.1}m uzakta{dep_suffix} (eşik: {:.0}m).",
-                        stop_id, stop_name, config.stop_far_from_shape_m),
+                        stop_id, stop_name, threshold_km * 1000.0),
                     "Durak koordinatlarını veya güzergah noktalarını düzeltin.",
                 );
                 // shape_id details'ta TAŞINIR (2026-07-25): entity durak olduğu için shape
@@ -4374,7 +4443,6 @@ fn check_remaining_analytics<'a>(
     // belirlenen konumdaki şekil noktasına olan mesafe hesaplanır.
     {
         let _ts24 = Timer::start("K6::rem::shp_024");
-        let threshold_km = config.stop_far_from_shape_m / 1000.0;
 
         // shape_id → sorted Vec<(dist, lat, lon)> — yalnızca dist_traveled olan noktalar
         let mut shape_sdt_pts: FxHashMap<&str, Vec<(f64, f64, f64)>> = FxHashMap::default();
@@ -4398,6 +4466,8 @@ fn check_remaining_analytics<'a>(
                 Some(pts) if pts.len() >= 2 => pts,
                 _ => continue,
             };
+            // Eşik shape başına (raylı istasyonlarda peron-merkez sapması meşru).
+            let threshold_km = stop_shape_threshold_m(shape_id, rail_shapes, config) / 1000.0;
             let stimes = match idx.by_trip.get(trip.trip_id.as_str()) {
                 Some(v) => v,
                 None => continue,
@@ -4444,9 +4514,9 @@ fn check_remaining_analytics<'a>(
                         Some(stop_id.to_string()), Some(stop_id.to_string()),
                         "stop_times.txt", Some(st.line as u64), Some("shape_dist_traveled"),
                         Some(format!("{:.1}m shape '{shape_id}'daki sdt={sdt:.3}", dist_km * 1000.0)),
-                        Some(format!("≤ {:.0}m", config.stop_far_from_shape_m)),
+                        Some(format!("≤ {:.0}m", threshold_km * 1000.0)),
                         format!("'{}' durağı (shape_dist_traveled={sdt:.3}) shape_dist_traveled konumundan {:.1}m uzakta (eşik: {:.0}m).",
-                            stop_name, dist_km * 1000.0, config.stop_far_from_shape_m),
+                            stop_name, dist_km * 1000.0, threshold_km * 1000.0),
                         "stop_times.txt'deki shape_dist_traveled değerini ya da stop koordinatlarını düzeltin.",
                     ));
                 }
@@ -5285,7 +5355,6 @@ fn check_remaining_analytics<'a>(
     // shape başına min(dist) > eşik. En yakın varyant raporlanır. Deterministik.
     {
         let _t14 = Timer::start("K6::rem::shp_014");
-        let threshold_km = config.stop_far_from_shape_m / 1000.0;
         // shape_id → (min_dist_km, problem_stop, trip_id)
         let mut start_agg: FxHashMap<&str, (f64, String, String)> = FxHashMap::default();
         let mut end_agg:   FxHashMap<&str, (f64, String, String)> = FxHashMap::default();
@@ -5328,6 +5397,7 @@ fn check_remaining_analytics<'a>(
         start_ids.sort_unstable();
         for shape_id in start_ids {
             let (min_km, stop_id, trip_id) = &start_agg[shape_id];
+            let threshold_km = stop_shape_threshold_m(shape_id, rail_shapes, config) / 1000.0;
             if !min_km.is_finite() || *min_km <= threshold_km { continue; }
             let dist_m = *min_km * 1000.0;
             let sname = stop_names.get(stop_id.as_str()).copied().unwrap_or(stop_id.as_str());
@@ -5337,7 +5407,7 @@ fn check_remaining_analytics<'a>(
                 Some(shape_id.to_string()), Some(shape_id.to_string()),
                 "shapes.txt", None, Some("shape_pt_sequence"),
                 Some(format!("{dist_m:.0}m")),
-                Some(format!("≤ {:.0}m", config.stop_far_from_shape_m)),
+                Some(format!("≤ {:.0}m", threshold_km * 1000.0)),
                 format!(
                     "{prefix}'{}' güzergah şeklinin başlangıç noktası, en yakın seferin ilk durağı '{}' (kod: '{}') konumundan {dist_m:.0}m uzakta.",
                     shape_id, sname, stop_id
@@ -5356,6 +5426,7 @@ fn check_remaining_analytics<'a>(
         end_ids.sort_unstable();
         for shape_id in end_ids {
             let (min_km, stop_id, trip_id) = &end_agg[shape_id];
+            let threshold_km = stop_shape_threshold_m(shape_id, rail_shapes, config) / 1000.0;
             if !min_km.is_finite() || *min_km <= threshold_km { continue; }
             let dist_m = *min_km * 1000.0;
             let sname = stop_names.get(stop_id.as_str()).copied().unwrap_or(stop_id.as_str());
@@ -5365,7 +5436,7 @@ fn check_remaining_analytics<'a>(
                 Some(shape_id.to_string()), Some(shape_id.to_string()),
                 "shapes.txt", None, Some("shape_pt_sequence"),
                 Some(format!("{dist_m:.0}m")),
-                Some(format!("≤ {:.0}m", config.stop_far_from_shape_m)),
+                Some(format!("≤ {:.0}m", threshold_km * 1000.0)),
                 format!(
                     "{prefix}'{}' güzergah şeklinin bitiş noktası, en yakın seferin son durağı '{}' (kod: '{}') konumundan {dist_m:.0}m uzakta.",
                     shape_id, sname, stop_id
@@ -6079,6 +6150,7 @@ fn check_shp012<'a>(
     config: &ValidatorConfig,
     idx: &StopTimesIndex<'_>,
     shape_idx: &ShapeIndex<'a>,
+    rail_shapes: &FxHashSet<&str>,
     notices: &mut Vec<Notice>,
     ctr: &mut u32,
 ) {
@@ -6095,7 +6167,6 @@ fn check_shp012<'a>(
     // ── SHP_012 gövdesi (check_remaining_analytics'ten verbatim taşındı) ──────
     {
         let _t12b = crate::timing::Timer::start("K6::shp012::body");
-        let shp_stop_threshold_m: f64 = config.stop_far_from_shape_m;
 
         // Perf: (shape_id, stop_id) → polyline mesafesi MEMOIZE edilir. Aynı shape'i kullanan
         // onlarca sefer aynı (shape,durak) mesafesini tekrar tekrar hesaplıyordu; pahalı
@@ -6113,6 +6184,8 @@ fn check_shp012<'a>(
             let Some(shape_id) = ti_shp012.shape_id(trip).filter(|s| !s.is_empty()) else { continue };
             let Some(pts) = shape_coords.get(shape_id) else { continue };
             let Some(stimes) = idx.by_trip.get(trip.trip_id.as_str()) else { continue };
+            // Eşik shape başına: raylı güzergahlarda istasyon geometrisi daha geniş tolerans ister.
+            let shp_stop_threshold_m = stop_shape_threshold_m(shape_id, rail_shapes, config);
 
             for st in stimes.iter() {
                 let stop_id = idx.stop_id_of(st);
@@ -6152,6 +6225,7 @@ fn check_shp012<'a>(
         const SHP012_MAX_LISTED: usize = 25;
         for (shape_id, viol_set) in viol_sorted {
             let viol_count = viol_set.len();
+            let shp_stop_threshold_m = stop_shape_threshold_m(shape_id, rail_shapes, config);
             let mut far: Vec<&str> = viol_set.iter().copied().collect();
             far.sort_unstable();
             far.truncate(SHP012_MAX_LISTED);
@@ -9749,6 +9823,175 @@ mod tests {
         assert_eq!(
             n.details.as_ref().and_then(|d| d.get("far_stops")).map(String::as_str),
             Some("FAR"),
+        );
+    }
+
+    // ── WP-B: raylı geometri eşikleri ───────────────────────────────────────
+    //
+    // Ray geometrisinde durak koordinatı peron/bina merkezini, shape ise tek bir ray
+    // merkez-hattını gösterir; 100 m eşiği bu yapıda meşru sapmayı FP yapıyordu (TCDD
+    // geri bildirimi). route_type raylıysa `stop_far_from_shape_m_rail` (200 m) kullanılır.
+
+    /// Aynı geometri: otobüs hattında GEO_009/SHP_012 çıkar, raylı hatta ÇIKMAZ.
+    /// Durak shape'ten ~166 m uzakta — 100 m eşiğinin üstünde, 200 m rail eşiğinin altında.
+    #[test]
+    fn rail_route_widens_stop_shape_distance_threshold() {
+        use crate::k2::shapes::ShapePointRecord;
+
+        // route_type parametrik: 3 = otobüs, 2 = tren.
+        let build = |route_type: u32| {
+            let mut shape_ti = ShapeInternTable::new();
+            let mut records = records_with(
+                // Durak, shape hattının 0,0015° (~166 m) kuzeyinde.
+                vec![stop("P1", 41.0015, 29.005)],
+                vec![route("R1", route_type)],
+                vec![trip_sh("T1", "R1", "S1")],
+                vec![stoptime("T1", 1, "P1", (8, 0, 0), (8, 0, 0), 2)],
+            );
+            records.shapes = vec![
+                ShapePointRecord::new(shape_ti.intern("S1"), Some(41.0), Some(29.0), Some(1), None, 2),
+                ShapePointRecord::new(shape_ti.intern("S1"), Some(41.0), Some(29.01), Some(2), None, 3),
+            ];
+            records.shape_interns = shape_ti;
+            analyze(&records, &empty_derived(), &default_config(), 20260514)
+        };
+
+        let bus = build(3);
+        assert!(
+            bus.notices.iter().any(|n| n.rule_id == "GEO_009"),
+            "otobüs hattında 166 m > 100 m eşik → GEO_009 çıkmalı"
+        );
+        assert!(
+            bus.notices.iter().any(|n| n.rule_id == "SHP_012"),
+            "otobüs hattında 166 m > 100 m eşik → SHP_012 çıkmalı"
+        );
+
+        let rail = build(2);
+        assert!(
+            !rail.notices.iter().any(|n| n.rule_id == "GEO_009"),
+            "raylı hatta 166 m < 200 m rail eşiği → GEO_009 ÇIKMAMALI"
+        );
+        assert!(
+            !rail.notices.iter().any(|n| n.rule_id == "SHP_012"),
+            "raylı hatta 166 m < 200 m rail eşiği → SHP_012 ÇIKMAMALI"
+        );
+    }
+
+    /// Rail eşiğinin de bir üst sınırı var: 200 m'yi aşan sapma raylı hatta da yakalanır
+    /// (eşik gevşetildi, kapatılmadı).
+    #[test]
+    fn rail_threshold_still_catches_truly_far_stop() {
+        use crate::k2::shapes::ShapePointRecord;
+        let mut shape_ti = ShapeInternTable::new();
+        let mut records = records_with(
+            // 0,005° ≈ 555 m — rail eşiğinin (200 m) de üstünde.
+            vec![stop("P1", 41.005, 29.005)],
+            vec![route("R1", 2)],
+            vec![trip_sh("T1", "R1", "S1")],
+            vec![stoptime("T1", 1, "P1", (8, 0, 0), (8, 0, 0), 2)],
+        );
+        records.shapes = vec![
+            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.0), Some(29.0), Some(1), None, 2),
+            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.0), Some(29.01), Some(2), None, 3),
+        ];
+        records.shape_interns = shape_ti;
+        let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
+        let n = result.notices.iter().find(|n| n.rule_id == "GEO_009")
+            .expect("555 m raylı hatta da GEO_009 üretmeli");
+        // Mesaj/observed shape'in KENDİ eşiğini yazmalı (100 değil 200).
+        assert_eq!(n.expected_value.as_deref(), Some("≤ 200m"), "rail eşiği raporlanmalı");
+        assert!(n.message.contains("200m"), "mesaj rail eşiğini yazmalı: {}", n.message);
+    }
+
+    /// Şehirlerarası ray sadeleştirilmiş uzun düz kesimler içerir (Konya-Karaman 13,4 km):
+    /// otobüste GEO_006 çıkar, raylı hatta çıkmaz.
+    #[test]
+    fn rail_route_widens_shape_jump_threshold() {
+        use crate::k5_derived::{ShapeGeometry, ShapeSegments};
+        use crate::k2::shapes::ShapePointRecord;
+
+        let build = |route_type: u32| {
+            let mut shape_ti = ShapeInternTable::new();
+            let mut records = records_with(
+                vec![stop("A", 41.0, 29.0)],
+                vec![route("R1", route_type)],
+                vec![trip_sh("T1", "R1", "S1")],
+                vec![stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2)],
+            );
+            records.shapes = vec![
+                ShapePointRecord::new(shape_ti.intern("S1"), Some(41.0), Some(29.0), Some(1), None, 2),
+            ];
+            records.shape_interns = shape_ti;
+            let mut derived = DerivedData::default();
+            // 13,4 km: şehir içi eşiğin (10) üstünde, rail eşiğinin (30) altında.
+            derived.shape_geometry = ShapeGeometry {
+                shapes: [("S1".to_string(), ShapeSegments {
+                    segment_distances_km: vec![13.4],
+                    total_length_km: 13.4,
+                    bbox: (41.0, 41.5, 29.0, 29.5),
+                })].into_iter().collect(),
+            };
+            analyze(&records, &derived, &default_config(), 20260514)
+        };
+
+        assert!(
+            build(3).notices.iter().any(|n| n.rule_id == "GEO_006"),
+            "otobüs hattında 13,4 km > 10 km eşik → GEO_006 çıkmalı"
+        );
+        assert!(
+            !build(2).notices.iter().any(|n| n.rule_id == "GEO_006"),
+            "raylı hatta 13,4 km < 30 km rail eşiği → GEO_006 ÇIKMAMALI"
+        );
+    }
+
+    /// Genişletilmiş Avrupa kodları (100-117) da raylı sayılır — VBB/Entur gibi feed'ler
+    /// standart route_type kullanmaz. `is_rail_route_type` ile TEK tanım paylaşılır.
+    #[test]
+    fn extended_rail_route_types_use_rail_threshold() {
+        use crate::k2::shapes::ShapePointRecord;
+        let mut shape_ti = ShapeInternTable::new();
+        let mut records = records_with(
+            vec![stop("P1", 41.0015, 29.005)],
+            vec![route("R1", 109)], // 109 = banliyö treni (S-Bahn)
+            vec![trip_sh("T1", "R1", "S1")],
+            vec![stoptime("T1", 1, "P1", (8, 0, 0), (8, 0, 0), 2)],
+        );
+        records.shapes = vec![
+            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.0), Some(29.0), Some(1), None, 2),
+            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.0), Some(29.01), Some(2), None, 3),
+        ];
+        records.shape_interns = shape_ti;
+        let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
+        assert!(
+            !result.notices.iter().any(|n| n.rule_id == "GEO_009"),
+            "route_type 109 raylıdır → 166 m rail eşiği altında kalmalı"
+        );
+    }
+
+    /// Karışık kullanımda GEVŞEK yön: shape'i hem otobüs hem tren kullanıyorsa rail eşiği
+    /// geçerlidir. Bu kuralların FP'si (meşru geometriyi hata sanmak) FN'inden pahalıdır.
+    #[test]
+    fn mixed_use_shape_takes_the_looser_rail_threshold() {
+        use crate::k2::shapes::ShapePointRecord;
+        let mut shape_ti = ShapeInternTable::new();
+        let mut records = records_with(
+            vec![stop("P1", 41.0015, 29.005)],
+            vec![route("BUS", 3), route("RAIL", 2)],
+            vec![trip_sh("T1", "BUS", "S1"), trip_sh("T2", "RAIL", "S1")],
+            vec![
+                stoptime("T1", 1, "P1", (8, 0, 0), (8, 0, 0), 2),
+                stoptime("T2", 1, "P1", (9, 0, 0), (9, 0, 0), 3),
+            ],
+        );
+        records.shapes = vec![
+            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.0), Some(29.0), Some(1), None, 2),
+            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.0), Some(29.01), Some(2), None, 3),
+        ];
+        records.shape_interns = shape_ti;
+        let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
+        assert!(
+            !result.notices.iter().any(|n| n.rule_id == "GEO_009"),
+            "shape'i bir raylı hat da kullanıyorsa rail eşiği geçerli olmalı"
         );
     }
 

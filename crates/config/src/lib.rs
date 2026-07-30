@@ -26,8 +26,10 @@ const DEF_MAX_SPEED_CABLECAR_KMH:   f64 =  30.0;
 const DEF_MIN_TRANSFER_TIME_SEC:    u32 = 180;
 const DEF_MAX_TRANSFER_DISTANCE_M:  f64 = 500.0;
 const DEF_MAX_SHAPE_JUMP_KM:        f64 =  10.0;
+const DEF_MAX_SHAPE_JUMP_KM_RAIL:   f64 =  30.0;
 const DEF_STOP_TOO_CLOSE_M:         f64 =   5.0;
 const DEF_STOP_FAR_FROM_SHAPE_M:    f64 = 100.0;
+const DEF_STOP_FAR_FROM_SHAPE_M_RAIL: f64 = 200.0;
 const DEF_STOP_FAR_FROM_PARENT_M:   f64 = 150.0;
 const DEF_FEED_EXPIRY_WARNING_DAYS: u32 =  30;
 const DEF_SERVICE_GAP_DAYS:         u32 =   7;
@@ -61,8 +63,18 @@ pub struct ValidatorConfig {
     pub min_transfer_time_sec:    u32,
     pub max_transfer_distance_m:  f64,
     pub max_shape_jump_km:        f64,
+    /// GEO_006/007: raylı türlerde (route_type 2/12/100-117) ayrı sıçrama eşiği (km).
+    /// Şehirlerarası ray geometrisi uzun ve düz kesimlerde meşru olarak sadeleştirilir —
+    /// Konya-Karaman hattında iki ardışık shape noktası arası 13,4 km gerçek geometridir,
+    /// kopukluk değil. Şehir içi türlerde 10 km korunur; orada o boşluk eksik nokta işaretidir.
+    pub max_shape_jump_km_rail:   f64,
     pub stop_too_close_m:         f64,
     pub stop_far_from_shape_m:    f64,
+    /// GEO_009/SHP_012/014/024: raylı türlerde (route_type 2/12/100-117) ayrı durak-güzergah
+    /// mesafe eşiği (m). Tren istasyonlarında durak koordinatı peron/bina merkezini gösterirken
+    /// shape tek bir ray merkez-hattıdır; 100 m bu yapıda meşru sapmayı yanlış-pozitif yapar.
+    /// Şehir içi türlerde 100 m korunur.
+    pub stop_far_from_shape_m_rail: f64,
     pub stop_far_from_parent_m:   f64,
     pub feed_expiry_warning_days: u32,
     /// CAL_010: bir servisin toplam aktif gün sayısı bu eşiğin altındaysa "çok kısa servis".
@@ -122,8 +134,10 @@ impl Default for ValidatorConfig {
             min_transfer_time_sec:    DEF_MIN_TRANSFER_TIME_SEC,
             max_transfer_distance_m:  DEF_MAX_TRANSFER_DISTANCE_M,
             max_shape_jump_km:        DEF_MAX_SHAPE_JUMP_KM,
+            max_shape_jump_km_rail:   DEF_MAX_SHAPE_JUMP_KM_RAIL,
             stop_too_close_m:         DEF_STOP_TOO_CLOSE_M,
             stop_far_from_shape_m:    DEF_STOP_FAR_FROM_SHAPE_M,
+            stop_far_from_shape_m_rail: DEF_STOP_FAR_FROM_SHAPE_M_RAIL,
             stop_far_from_parent_m:   DEF_STOP_FAR_FROM_PARENT_M,
             feed_expiry_warning_days: DEF_FEED_EXPIRY_WARNING_DAYS,
             service_gap_days:         DEF_SERVICE_GAP_DAYS,
@@ -201,8 +215,10 @@ fn validate_ranges(cfg: &ValidatorConfig) -> Result<(), String> {
     chk_u32!(cfg.min_transfer_time_sec,    "min_transfer_time_sec",       30,   1800);
     chk_f64!(cfg.max_transfer_distance_m,  "max_transfer_distance_m",   50.0,  2000.0);
     chk_f64!(cfg.max_shape_jump_km,        "max_shape_jump_km",          1.0,    50.0);
+    chk_f64!(cfg.max_shape_jump_km_rail,   "max_shape_jump_km_rail",     1.0,   100.0);
     chk_f64!(cfg.stop_too_close_m,         "stop_too_close_m",           1.0,    20.0);
     chk_f64!(cfg.stop_far_from_shape_m,    "stop_far_from_shape_m",     20.0,   500.0);
+    chk_f64!(cfg.stop_far_from_shape_m_rail, "stop_far_from_shape_m_rail", 20.0, 1000.0);
     chk_f64!(cfg.stop_far_from_parent_m,  "stop_far_from_parent_m",    10.0,  1000.0);
     chk_u32!(cfg.feed_expiry_warning_days, "feed_expiry_warning_days",     1,    60);
     chk_u32!(cfg.service_gap_days,         "service_gap_days",             3,    30);
@@ -243,8 +259,8 @@ pub fn merge_delta(base: &ValidatorConfig, delta_json: &str) -> Result<Validator
     let known: &[&str] = &[
         "max_speed_bus_kmh", "max_speed_tram_kmh", "max_speed_metro_kmh",
         "max_speed_rail_kmh", "max_speed_ferry_kmh", "max_speed_cablecar_kmh",
-        "min_transfer_time_sec", "max_transfer_distance_m", "max_shape_jump_km",
-        "stop_too_close_m", "stop_far_from_shape_m", "stop_far_from_parent_m", "feed_expiry_warning_days",
+        "min_transfer_time_sec", "max_transfer_distance_m", "max_shape_jump_km", "max_shape_jump_km_rail",
+        "stop_too_close_m", "stop_far_from_shape_m", "stop_far_from_shape_m_rail", "stop_far_from_parent_m", "feed_expiry_warning_days",
         "service_gap_days", "big_gap_days", "upcoming_service_days", "max_trip_duration_hours", "max_trip_duration_hours_rail", "min_trip_duration_sec",
         "max_headway_warning_min", "bunching_threshold_min", "rail_stop_distance_km",
         "max_trips_per_route", "duration_outlier_sigma", "headway_outlier_sigma", "service_day_start_hour",
@@ -301,8 +317,10 @@ pub fn merge_delta(base: &ValidatorConfig, delta_json: &str) -> Result<Validator
     apply_u32!("min_transfer_time_sec",    cfg.min_transfer_time_sec);
     apply_f64!("max_transfer_distance_m",  cfg.max_transfer_distance_m);
     apply_f64!("max_shape_jump_km",        cfg.max_shape_jump_km);
+    apply_f64!("max_shape_jump_km_rail",   cfg.max_shape_jump_km_rail);
     apply_f64!("stop_too_close_m",         cfg.stop_too_close_m);
     apply_f64!("stop_far_from_shape_m",    cfg.stop_far_from_shape_m);
+    apply_f64!("stop_far_from_shape_m_rail", cfg.stop_far_from_shape_m_rail);
     apply_f64!("stop_far_from_parent_m",   cfg.stop_far_from_parent_m);
     apply_u32!("feed_expiry_warning_days", cfg.feed_expiry_warning_days);
     apply_u32!("service_gap_days",         cfg.service_gap_days);
@@ -379,8 +397,10 @@ mod tests {
         assert_eq!(cfg.min_transfer_time_sec,     180);
         assert_eq!(cfg.max_transfer_distance_m,  500.0);
         assert_eq!(cfg.max_shape_jump_km,         10.0);
+        assert_eq!(cfg.max_shape_jump_km_rail,    30.0);
         assert_eq!(cfg.stop_too_close_m,           5.0);
         assert_eq!(cfg.stop_far_from_shape_m,    100.0);
+        assert_eq!(cfg.stop_far_from_shape_m_rail, 200.0);
         assert_eq!(cfg.feed_expiry_warning_days,   30);
         assert_eq!(cfg.service_gap_days,            7);
         assert_eq!(cfg.upcoming_service_days,       7);
@@ -462,6 +482,32 @@ mod tests {
         let err = merge_delta(&base, r#"{"stop_far_from_shape_m": 19.9}"#)
             .expect_err("alt sınır altı Err olmalı");
         assert!(err.contains("stop_far_from_shape_m"), "{err}");
+
+        // stop_far_from_shape_m_rail alt sınır = 20 (rail eşiği de doğrulanır)
+        let err = merge_delta(&base, r#"{"stop_far_from_shape_m_rail": 19.9}"#)
+            .expect_err("alt sınır altı Err olmalı");
+        assert!(err.contains("stop_far_from_shape_m_rail"), "{err}");
+    }
+
+    /// Rail eşikleri delta ile ayarlanabilir ve şehir içi karşılıkları etkilenmez.
+    #[test]
+    fn rail_geometry_thresholds_are_configurable() {
+        let base = ValidatorConfig::default();
+        let cfg = merge_delta(
+            &base,
+            r#"{"stop_far_from_shape_m_rail": 350.0, "max_shape_jump_km_rail": 60.0}"#,
+        )
+        .expect("geçerli rail eşikleri kabul edilmeli");
+        assert_eq!(cfg.stop_far_from_shape_m_rail, 350.0);
+        assert_eq!(cfg.max_shape_jump_km_rail, 60.0);
+        // Şehir içi eşikler dokunulmadan kalır.
+        assert_eq!(cfg.stop_far_from_shape_m, 100.0);
+        assert_eq!(cfg.max_shape_jump_km, 10.0);
+
+        // max_shape_jump_km_rail üst sınır = 100
+        let err = merge_delta(&base, r#"{"max_shape_jump_km_rail": 100.1}"#)
+            .expect_err("üst sınır üstü Err olmalı");
+        assert!(err.contains("max_shape_jump_km_rail"), "{err}");
     }
 
     #[test]
