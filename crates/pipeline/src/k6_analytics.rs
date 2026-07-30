@@ -7351,9 +7351,34 @@ fn check_vat_analytics(
         // AND-gate olarak küçük sapmaları eler (issue #24 katkıcısının "min-dakika tamamlayıcı" notu).
         const RESIDUAL_FLOOR_SECS: f64 = 300.0;
 
-        for (_key, durs) in groups {
+        for (_key, trips) in groups {
+            // ── Tarih-genişletmesi çökertme ──────────────────────────────────
+            // Bazı üreticiler (TCDD deseni) aynı tarifeyi her işletim günü için AYRI trip_id
+            // olarak yazar. Desen + kalkış + süre birebir aynı olan bu kayıtlar tek bir
+            // TARİFEdir; ayrı sefer değil. Çökertmeden iki ayrı zarar doğuyordu:
+            //   (1) Rapor şişmesi — 4 gerçek tarife 40 notice üretiyordu.
+            //   (2) İstatistik bozulması — 10 özdeş kopya grubun dörtte birini oluşturunca
+            //       MAD yapay olarak büyür ve GERÇEK aykırı değerler maskelenir.
+            // Bu yüzden çökertme emisyondan ÖNCE, istatistiğin girdisinde yapılır.
+            //
+            // ⚠️ ≥5 kapısı artık BENZERSİZ TARİFE sayar. 40 sefer / 4 tarife bir aykırı değer
+            // iddiası için yeterli kanıt değildir (4 gözlemde robust-z anlamsızdır) → sessiz
+            // kalınır. Bu bilinçli: eski davranış aynı kanıtı 10 kez sayıp güven üretiyordu.
+            let mut sched: FxHashMap<(u32, u32), (&str, u32, &str)> = FxHashMap::default();
+            for &(trip_id, dur, dep, route) in &trips {
+                let e = sched.entry((dur, dep)).or_insert((trip_id, 0, route));
+                // Temsili = leksikografik en küçük trip_id (FxHashMap sırasından bağımsız).
+                if trip_id < e.0 { e.0 = trip_id; }
+                e.1 += 1;
+            }
+            let mut durs: Vec<(&str, u32, u32, &str, u32)> = sched.iter()
+                .map(|(&(dur, dep), &(tid, cnt, route))| (tid, dur, dep, route, cnt))
+                .collect();
+            // Determinizm: FxHashMap iterasyon sırası tanımsız → temsili trip_id'ye göre sırala.
+            durs.sort_unstable_by(|a, b| a.0.cmp(b.0));
+
             if durs.len() < 5 { continue; }
-            let mut all: Vec<u32> = durs.iter().map(|&(_, d, _, _)| d).collect();
+            let mut all: Vec<u32> = durs.iter().map(|&(_, d, _, _, _)| d).collect();
             all.sort_unstable();
             let med_all = all[all.len() / 2] as f64;
             if med_all < 120.0 { continue; }
@@ -7377,7 +7402,7 @@ fn check_vat_analytics(
             };
             // Yoğun bandların (≥BUCKET_MIN_TRIPS) kendi medyanı; seyrek bandlar global'e düşer.
             let mut by_band: FxHashMap<u32, Vec<u32>> = FxHashMap::default();
-            for &(_, d, dep, _) in &durs { by_band.entry(band(dep)).or_default().push(d); }
+            for &(_, d, dep, _, _) in &durs { by_band.entry(band(dep)).or_default().push(d); }
             let mut band_med: FxHashMap<u32, f64> = FxHashMap::default();
             for (b, mut bv) in by_band {
                 if bv.len() >= BUCKET_MIN_TRIPS {
@@ -7388,7 +7413,7 @@ fn check_vat_analytics(
             let reference = |dep: u32| band_med.get(&band(dep)).copied().unwrap_or(med_all);
 
             // residual = süre − saat-bazlı beklenen; MAD residual üzerinde.
-            let mut res: Vec<f64> = durs.iter().map(|&(_, d, dep, _)| d as f64 - reference(dep)).collect();
+            let mut res: Vec<f64> = durs.iter().map(|&(_, d, dep, _, _)| d as f64 - reference(dep)).collect();
             res.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
             let med_res = res[res.len() / 2];
             let mut dev: Vec<f64> = res.iter().map(|r| (r - med_res).abs()).collect();
@@ -7397,7 +7422,7 @@ fn check_vat_analytics(
 
             // Residual-z eşiği (config; varsayılan 3.5 — issue #24, deseasonalize residual'ı sıkı).
             let sigma = config.duration_outlier_sigma;
-            for &(trip_id, dur, dep_secs, route) in &durs {
+            for &(trip_id, dur, dep_secs, route, repeats) in &durs {
                 let ref_med = reference(dep_secs);
                 let residual = dur as f64 - ref_med;
                 // İki koşul birlikte (AND): (1) operasyonel olarak anlamlı sapma (≥ taban),
@@ -7418,7 +7443,14 @@ fn check_vat_analytics(
                 } else {
                     format!("{:+}dk, {yon}", (residual / 60.0).round() as i64)
                 };
-                notices.push(k6_notice(
+                // Aynı tarife birden çok trip_id'ye yayılmışsa bunu mesajda söyle: kullanıcı
+                // tek bir bulgunun kaç kaydı ilgilendirdiğini bilmeli (düzeltme hepsine gider).
+                let repeat_suffix = if repeats > 1 {
+                    format!(" Aynı tarife {repeats} sefer kaydında tekrarlanıyor.")
+                } else {
+                    String::new()
+                };
+                let mut n = k6_notice(
                     ctr,
                     "VAT_003",
                     EntityType::Trip,
@@ -7429,9 +7461,15 @@ fn check_vat_analytics(
                     Some("trip_id"),
                     Some(format!("{dur_min}dk (saat-bazlı beklenen {ref_min}dk)")),
                     None,
-                    format!("'{label}' hattının '{trip_id}'{dep_suffix} seferinin süresi {dur_min}dk — bu saatte beklenen ~{ref_min}dk ({sigma_str})."),
+                    format!("'{label}' hattının '{trip_id}'{dep_suffix} seferinin süresi {dur_min}dk — bu saatte beklenen ~{ref_min}dk ({sigma_str}).{repeat_suffix}"),
                     "stop_times.txt zaman değerlerini ve sefer güzergahını doğrulayın.",
-                ));
+                );
+                if repeats > 1 {
+                    let mut d = std::collections::HashMap::new();
+                    d.insert("duplicate_trips".to_string(), repeats.to_string());
+                    n.details = Some(d);
+                }
+                notices.push(n);
             }
         }
     }
@@ -11389,6 +11427,145 @@ mod tests {
         assert!(result.notices.iter().any(|n| n.rule_id == "VAT_003"), "VAT_003 olmalı");
     }
 
+    // ── WP-C: tarih-genişletmesi çökertme ────────────────────────────────────
+    //
+    // Bazı üreticiler (TCDD deseni) aynı tarifeyi her işletim günü için ayrı trip_id
+    // olarak yazar. Bu kopyalar hem raporu şişirir hem MAD'i bozar.
+
+    /// Aynı tarife 10 tarihe yayılmışsa TEK notice çıkar, 10 değil; mesaj kaç kayıtta
+    /// tekrarlandığını söyler.
+    #[test]
+    fn vat_003_collapses_date_expanded_duplicate_trips() {
+        let mut r = crate::k2::EntityRecords::default();
+        r.stops = vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1)];
+        r.routes = vec![route("R1", 3)];
+        let mut trips_vec = Vec::new();
+        let mut stoptimes_vec = Vec::new();
+        let mut line = 2u64;
+        // 5 farklı tarife (kalkış saatleri farklı, hepsi ~30 dk) — ≥5 kapısını geçmek için.
+        // Her tarife 10 TARİHE yayılmış: aynı kalkış + aynı süre, farklı trip_id.
+        for h in 1..=5u32 {
+            for day in 0..10u32 {
+                let tid = format!("T{h}_D{day:02}");
+                trips_vec.push(trip(&tid, "R1"));
+                stoptimes_vec.push(stoptime(&tid, 1, "A", (h, 0, 0), (h, 0, 0), line));
+                line += 1;
+                stoptimes_vec.push(stoptime(&tid, 2, "B", (h, 30, 0), (h, 30, 0), line));
+                line += 1;
+            }
+        }
+        // Aykırı tarife: 180 dk — o da 10 tarihe yayılmış.
+        for day in 0..10u32 {
+            let tid = format!("X_D{day:02}");
+            trips_vec.push(trip(&tid, "R1"));
+            stoptimes_vec.push(stoptime(&tid, 1, "A", (6, 0, 0), (6, 0, 0), line));
+            line += 1;
+            stoptimes_vec.push(stoptime(&tid, 2, "B", (9, 0, 0), (9, 0, 0), line));
+            line += 1;
+        }
+        r.trips = trips_vec;
+        r.trip_interns = take_ti();
+        r.stop_times = stoptimes_vec;
+
+        let result = analyze(&r, &empty_derived(), &default_config(), 20260514);
+        let vat: Vec<&Notice> = result.notices.iter().filter(|n| n.rule_id == "VAT_003").collect();
+        assert_eq!(
+            vat.len(), 1,
+            "60 sefer / 6 tarife → 1 aykırı TARİFE = 1 notice (10 değil); çıkanlar: {:?}",
+            vat.iter().map(|n| n.entity_id.as_deref()).collect::<Vec<_>>()
+        );
+        let n = vat[0];
+        // Temsili trip: leksikografik en küçük (deterministik).
+        assert_eq!(n.entity_id.as_deref(), Some("X_D00"), "temsili en küçük trip_id olmalı");
+        assert_eq!(
+            n.details.as_ref().and_then(|d| d.get("duplicate_trips")).map(String::as_str),
+            Some("10"),
+            "kopya sayısı details'ta taşınmalı"
+        );
+        assert!(
+            n.message.contains("10 sefer kaydında tekrarlanıyor"),
+            "mesaj kaç kaydı ilgilendirdiğini söylemeli: {}", n.message
+        );
+    }
+
+    /// Kopyasız feed'de davranış DEĞİŞMEZ (çökertme no-op olmalı) — regresyon koruması.
+    #[test]
+    fn vat_003_unchanged_when_no_duplicate_schedules() {
+        let mut r = crate::k2::EntityRecords::default();
+        r.stops = vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1)];
+        r.routes = vec![route("R1", 3)];
+        let mut trips_vec = Vec::new();
+        let mut stoptimes_vec = Vec::new();
+        // 5 benzersiz tarife (~30 dk) + 1 aykırı — hiçbiri tekrarlanmıyor.
+        for i in 1..=5u32 {
+            let tid = format!("T{i}");
+            trips_vec.push(trip(&tid, "R1"));
+            stoptimes_vec.push(stoptime(&tid, 1, "A", (i, 0, 0), (i, 0, 0), 2));
+            stoptimes_vec.push(stoptime(&tid, 2, "B", (i, 30, 0), (i, 30, 0), 3));
+        }
+        trips_vec.push(trip("T9", "R1"));
+        stoptimes_vec.push(stoptime("T9", 1, "A", (6, 0, 0), (6, 0, 0), 2));
+        stoptimes_vec.push(stoptime("T9", 2, "B", (9, 0, 0), (9, 0, 0), 3));
+        r.trips = trips_vec;
+        r.trip_interns = take_ti();
+        r.stop_times = stoptimes_vec;
+
+        let result = analyze(&r, &empty_derived(), &default_config(), 20260514);
+        let vat: Vec<&Notice> = result.notices.iter().filter(|n| n.rule_id == "VAT_003").collect();
+        assert_eq!(vat.len(), 1, "aykırı sefer yine yakalanmalı");
+        assert_eq!(vat[0].entity_id.as_deref(), Some("T9"));
+        assert!(
+            vat[0].details.as_ref().map_or(true, |d| !d.contains_key("duplicate_trips")),
+            "kopya yoksa duplicate_trips yazılmamalı"
+        );
+        assert!(
+            !vat[0].message.contains("tekrarlanıyor"),
+            "kopya yoksa mesaj değişmemeli: {}", vat[0].message
+        );
+    }
+
+    /// ≥5 kapısı artık BENZERSİZ TARİFE sayar: 40 sefer ama yalnız 4 tarife varsa
+    /// aykırı-değer iddiası için kanıt yetersizdir → sessiz kalınır.
+    /// Eski davranış aynı 4 gözlemi 10 kez sayıp yapay güven üretiyordu.
+    #[test]
+    fn vat_003_requires_five_distinct_schedules_not_five_trips() {
+        let mut r = crate::k2::EntityRecords::default();
+        r.stops = vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1)];
+        r.routes = vec![route("R1", 3)];
+        let mut trips_vec = Vec::new();
+        let mut stoptimes_vec = Vec::new();
+        let mut line = 2u64;
+        // Yalnız 3 normal tarife, her biri 10 tarihte (30 sefer).
+        for h in 1..=3u32 {
+            for day in 0..10u32 {
+                let tid = format!("T{h}_D{day:02}");
+                trips_vec.push(trip(&tid, "R1"));
+                stoptimes_vec.push(stoptime(&tid, 1, "A", (h, 0, 0), (h, 0, 0), line));
+                line += 1;
+                stoptimes_vec.push(stoptime(&tid, 2, "B", (h, 30, 0), (h, 30, 0), line));
+                line += 1;
+            }
+        }
+        // + 1 aykırı tarife × 10 tarih = toplam 40 sefer / 4 tarife.
+        for day in 0..10u32 {
+            let tid = format!("X_D{day:02}");
+            trips_vec.push(trip(&tid, "R1"));
+            stoptimes_vec.push(stoptime(&tid, 1, "A", (6, 0, 0), (6, 0, 0), line));
+            line += 1;
+            stoptimes_vec.push(stoptime(&tid, 2, "B", (9, 0, 0), (9, 0, 0), line));
+            line += 1;
+        }
+        r.trips = trips_vec;
+        r.trip_interns = take_ti();
+        r.stop_times = stoptimes_vec;
+
+        let result = analyze(&r, &empty_derived(), &default_config(), 20260514);
+        assert!(
+            !result.notices.iter().any(|n| n.rule_id == "VAT_003"),
+            "40 sefer / 4 benzersiz tarife robust-z için yetersiz kanıt → VAT_003 çıkmamalı"
+        );
+    }
+
     #[test]
     fn vat_003_does_not_cross_flag_distinct_patterns_on_same_route() {
         // Aynı route_id, iki ayrı desen: 6 kısa sefer (2 durak, 10dk) + 5 uzun sefer
@@ -11545,26 +11722,30 @@ mod tests {
         r.routes = vec![route("R1", 3)];
         let mut trips_vec = Vec::new();
         let mut sts = Vec::new();
-        // Gece bandı (saat 2, 20dk), 5 sefer.
+        // NOT: kalkış dakikaları BİLEREK farklı. Kural artık aynı (kalkış, süre) ikilisini
+        // tek TARİFE sayıp çökerttiği için (tarih-genişletmesi düzeltmesi), birebir özdeş
+        // seferlerle doldurulmuş bir fixture ≥5 benzersiz-tarife kapısına takılırdı ve bu
+        // test band atamasını değil çökertmeyi ölçmüş olurdu.
+        // Gece bandı (saat 2, 20dk), 5 ayrı tarife.
         for i in 0..5u32 {
             let tid = format!("N{i}");
             trips_vec.push(trip(&tid, "R1"));
-            sts.push(stoptime(&tid, 1, "A", (2, 0, 0), (2, 0, 0), 2));
-            sts.push(stoptime(&tid, 2, "B", (2, 20, 0), (2, 20, 0), 3));
+            sts.push(stoptime(&tid, 1, "A", (2, i * 10, 0), (2, i * 10, 0), 2));
+            sts.push(stoptime(&tid, 2, "B", (2, i * 10 + 20, 0), (2, i * 10 + 20, 0), 3));
         }
-        // Akşam bandı (saat 21, 40dk — gece trafiğine göre uzun), 6 sefer.
+        // Akşam bandı (saat 21, 40dk — gece trafiğine göre uzun), 6 ayrı tarife.
         for i in 0..6u32 {
             let tid = format!("E{i}");
             trips_vec.push(trip(&tid, "R1"));
-            sts.push(stoptime(&tid, 1, "A", (21, 0, 0), (21, 0, 0), 2));
-            sts.push(stoptime(&tid, 2, "B", (21, 40, 0), (21, 40, 0), 3));
+            sts.push(stoptime(&tid, 1, "A", (21, i, 0), (21, i, 0), 2));
+            sts.push(stoptime(&tid, 2, "B", (21, i + 40, 0), (21, i + 40, 0), 3));
         }
-        // Owl seferleri: 24:30 kalkış (00:30 ertesi gün), gece rejimi için NORMAL 20dk.
+        // Owl seferleri: 24:xx kalkış (ertesi gün 00:xx), gece rejimi için NORMAL 20dk.
         for i in 0..3u32 {
             let tid = format!("W{i}");
             trips_vec.push(trip(&tid, "R1"));
-            sts.push(stoptime(&tid, 1, "A", (24, 30, 0), (24, 30, 0), 2));
-            sts.push(stoptime(&tid, 2, "B", (24, 50, 0), (24, 50, 0), 3));
+            sts.push(stoptime(&tid, 1, "A", (24, 30 + i * 5, 0), (24, 30 + i * 5, 0), 2));
+            sts.push(stoptime(&tid, 2, "B", (24, 50 + i * 5, 0), (24, 50 + i * 5, 0), 3));
         }
         // Owl olay: 24:35 kalkış, 40dk — gece bandı için ANORMAL.
         trips_vec.push(trip("WINC", "R1"));

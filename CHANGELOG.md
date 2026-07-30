@@ -12,6 +12,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > unaffected. Re-baseline Golden snapshots that contain it.
 
 ### Changed
+- **VAT_003 now counts timetables, not trip records.** Some producers write the same timetable
+  as a separate `trip_id` for every operating date. VAT_003 emitted one notice per trip, so
+  four real timetables surfaced as forty findings — and the damage was not only cosmetic: ten
+  identical copies made up a quarter of their group and inflated the MAD, which masked the
+  outliers the rule exists to find. Records sharing a pattern, a departure time and a duration
+  are now collapsed into one timetable **before** the statistics run, and one notice is emitted
+  per outlier timetable, carrying `details.duplicate_trips` and naming the repeat count in the
+  message. The representative record is the lexicographically smallest `trip_id`.
+  The ≥5 gate now counts distinct timetables, so a pattern with forty trips but only four
+  timetables produces nothing: four observations cannot support a robust-z claim, and the old
+  behaviour manufactured confidence by counting the same evidence ten times. Feeds that do not
+  date-expand are unaffected.
 - **Shape geometry rules now use wider thresholds on rail routes.** Six rules — GEO_006,
   GEO_007, GEO_009, SHP_012, SHP_014 and SHP_024 — measured every mode against thresholds
   calibrated for street-running transit, and flagged legitimate rail geometry as an error.
