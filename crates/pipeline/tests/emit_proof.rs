@@ -1214,11 +1214,15 @@ fn fixtures() -> Vec<Fixture> {
             ("shapes.txt", "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence,shape_dist_traveled\nSH1,40.0,40.0,1,0\nSH1,40.0,40.1,2,100\n"),
             ("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence,shape_dist_traveled\nT1,08:00:00,08:00:00,S1,1,0\nT1,08:10:00,08:10:00,S2,2,200\n"),
         ]),
-        // SHP_027: shape farklı durak desenlerine atanmış (k6).
+        // SHP_027: shape IRAKSAK durak desenlerine atanmış (k6).
+        // Desenler birbirinin alt kümesi OLMAMALI: alt-küme (ekspres/local varyantı) ve
+        // ters-sıra (aynı küme; XFL_013'ün işi) artık bilinçli olarak bastırılıyor.
+        // T1 = S1,S2 · T2 = S3,S4 → karşılıklı ıraksak.
         fx("SHP_027", vec![
+            ("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\nS2,Stop2,41.1,29.1\nS3,Stop3,41.2,29.2\nS4,Stop4,41.3,29.3\n"),
             ("trips.txt", "route_id,service_id,trip_id,shape_id\nR1,SVC1,T1,SH1\nR1,SVC1,T2,SH1\n"),
             ("shapes.txt", "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\nSH1,40.0,40.0,1\nSH1,40.1,40.1,2\n"),
-            ("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\nT1,08:10:00,08:10:00,S2,2\nT2,09:00:00,09:00:00,S2,1\nT2,09:10:00,09:10:00,S1,2\n"),
+            ("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\nT1,08:10:00,08:10:00,S2,2\nT2,09:00:00,09:00:00,S3,1\nT2,09:10:00,09:10:00,S4,2\n"),
         ]),
         // SHP_028: aynı dist farklı koordinat (eşik üstü ~0.1°) (k6).
         fx("SHP_028", vec![("shapes.txt", "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence,shape_dist_traveled\nSH1,40.0,40.0,1,5\nSH1,40.1,40.0,2,5\nSH1,40.2,40.2,3,10\n")]),
