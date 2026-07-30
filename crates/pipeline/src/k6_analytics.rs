@@ -314,6 +314,11 @@ fn is_rail_route_type(route_type: u32) -> bool {
     route_type == 2 || route_type == 12 || (100..=117).contains(&route_type)
 }
 
+/// Tipli alanı olmayan ham CSV sütununu oku (ör. `parent_station`, k4'teki `row_field` ikizi).
+fn row_field_local<'a>(row: &'a std::collections::HashMap<String, String>, key: &str) -> &'a str {
+    row.get(key).map(String::as_str).unwrap_or("").trim()
+}
+
 /// Raylı bir route tarafından kullanılan shape_id'ler (GEO_006/007/009, SHP_012/014/024).
 ///
 /// Ray geometrisi iki noktada şehir içi varsayımlarını bozar: (1) istasyonlarda durak
@@ -7306,6 +7311,52 @@ fn check_vat_analytics(
         }
     }
 
+    // ── Aktarma-boşluğu ön koşulu (VAT_002 + VAT_007 ORTAK) ──────────────────
+    //
+    // GTFS'te AYNI stop_id'de aktarma zaten örtüktür: tüketici o durakta inip binebileceğini
+    // bilir, `transfers.txt` gerekmez. O dosya FARKLI duraklar arası bağlantıyı, minimum
+    // aktarma süresini veya YASAK aktarmayı tanımlamak içindir. Dolayısıyla "bu duraktan 4
+    // hat geçiyor, aktarma tanımlayın" önerisi tek başına yanlıştı — Ankara Gar gibi bütün
+    // trenlerin aynı stop_id'yi kullandığı bir terminalde tanımlanacak bir şey yoktur.
+    //
+    // Sinyal ancak YAKINDA, aktarma kurulabilecek AYRI bir durak varsa anlamlıdır. Ayrıca
+    // `parent_station`'ı olan duraklar elenir: kompleks zaten modellenmiştir (eski kod
+    // yalnız location_type=1 istasyonun KENDİSİNİ eliyordu, peron çocuklarını değil).
+    let has_parent: FxHashSet<&str> = records.stops.iter()
+        .filter(|s| !crate::k6_analytics::row_field_local(&s.row, "parent_station").is_empty())
+        .map(|s| s.stop_id.as_str())
+        .collect();
+
+    // Lat-sıralı durak dizisi (STP_017 emsali): banda sınırlı komşu taraması.
+    let xfer_sorted_stops: Vec<(f64, f64, &str)> = {
+        let mut v: Vec<(f64, f64, &str)> = records.stops.iter()
+            .filter_map(|s| s.stop_lat.zip(s.stop_lon).map(|(la, lo)| (la, lo, s.stop_id.as_str())))
+            .collect();
+        v.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
+        v
+    };
+    let xfer_stop_pos: FxHashMap<&str, (f64, f64)> = xfer_sorted_stops.iter()
+        .map(|&(la, lo, id)| (id, (la, lo)))
+        .collect();
+
+    // Yakında, bu durağın SUNMADIĞI bir hattı sunan ayrı bir durak var mı?
+    // Varsa gerçekten tanımlanmamış bir duraklar-arası aktarma söz konusudur.
+    let has_nearby_unlinked_route = |stop_id: &str, own: &FxHashSet<&str>| -> bool {
+        let Some(&(la, lo)) = xfer_stop_pos.get(stop_id) else { return false };
+        let max_km = config.max_transfer_distance_m / 1000.0;
+        let band = max_km / 111.0;
+        let start = xfer_sorted_stops.partition_point(|&(l, _, _)| l < la - band);
+        for &(nla, nlo, nid) in &xfer_sorted_stops[start..] {
+            if nla > la + band { break; }
+            if nid == stop_id { continue; }
+            if haversine_km(la, lo, nla, nlo) > max_km { continue; }
+            if let Some(nr) = stop_routes.get(nid) {
+                if nr.iter().any(|r| !own.contains(r)) { return true; }
+            }
+        }
+        false
+    };
+
     // ── VAT_002: Aktarma merkezi tanımsız (≥ 4 route, transfer yok) ─────────
     {
         let is_station: FxHashSet<&str> = records.stops.iter()
@@ -7317,6 +7368,8 @@ fn check_vat_analytics(
             if routes.len() < 4 { continue; }
             if transfer_stops.contains(stop_id) { continue; }
             if is_station.contains(stop_id) { continue; }
+            if has_parent.contains(stop_id) { continue; }
+            if !has_nearby_unlinked_route(stop_id, routes) { continue; }
             let name = stop_name_map.get(stop_id).copied().unwrap_or(stop_id);
             // Hatları kararlı sırada topla: harita için route_id'ler, mesaj için okunur etiketler.
             let mut route_ids: Vec<&str> = routes.iter().copied().collect();
@@ -7690,8 +7743,19 @@ fn check_vat_analytics(
         for (&stop_id, routes) in &terminus_routes {
             if routes.len() < 3 { continue; }
             if transfer_stops.contains(stop_id) { continue; }
+            if has_parent.contains(stop_id) { continue; }
+            // VAT_002 ile aynı ön koşul: aynı stop_id'deki aktarma zaten örtük. Komşuluk
+            // testi durağın TÜM hatlarına bakar (yalnız terminus olduklarına değil) —
+            // yanındaki durak buradan geçen bir hattı sunuyorsa yeni bağlantı yoktur.
+            let own_all = stop_routes.get(stop_id);
+            let empty: FxHashSet<&str> = FxHashSet::default();
+            if !has_nearby_unlinked_route(stop_id, own_all.unwrap_or(&empty)) { continue; }
             let name = stop_name_map.get(stop_id).copied().unwrap_or(stop_id);
-            let mut labels: Vec<&str> = routes.iter()
+            // Determinizm: FxHashSet iterasyon sırası tanımsız. Eskiden take(5) SIRALAMADAN
+            // ÖNCE geliyordu → hangi 5 hattın mesaja girdiği koşudan koşuya değişebiliyordu.
+            let mut route_ids: Vec<&str> = routes.iter().copied().collect();
+            route_ids.sort_unstable();
+            let mut labels: Vec<&str> = route_ids.iter()
                 .take(5)
                 .map(|r| route_label.get(r).copied().unwrap_or(r))
                 .collect();
@@ -7712,7 +7776,7 @@ fn check_vat_analytics(
                 "transfers.txt'e bu terminus durağı için aktarma kaydı ekleyin.",
             );
             let mut d = std::collections::HashMap::new();
-            d.insert("routes".to_string(), routes.iter().copied().collect::<Vec<_>>().join(","));
+            d.insert("routes".to_string(), route_ids.join(","));
             n007.details = Some(d);
             notices.push(n007);
         }
@@ -11518,20 +11582,106 @@ mod tests {
 
     #[test]
     fn busy_stop_no_transfer_produces_vat_002() {
-        // S1 durağı 4 farklı hat tarafından ziyaret ediliyor, transfer yok → VAT_002
+        // S1'den 4 hat geçiyor VE 200 m ötedeki S9'dan S1'de olmayan bir hat (R5) geçiyor
+        // → gerçekten tanımlanmamış bir DURAKLAR ARASI aktarma var → VAT_002.
         let mut r = crate::k2::EntityRecords::default();
-        r.stops = vec![stop("S1", 41.0, 29.0), stop("S2", 41.1, 29.1)];
-        r.routes = (1..=4).map(|i| route(&format!("R{i}"), 3)).collect();
-        r.trips = (1..=4).map(|i| {
-            trip(&format!("T{i}"), &format!("R{i}"))
-        }).collect();
+        r.stops = vec![
+            stop("S1", 41.0, 29.0), stop("S2", 41.1, 29.1),
+            stop("S9", 41.0018, 29.0), // ~200 m — max_transfer_distance_m (500 m) içinde
+            stop("S8", 41.2, 29.2),
+        ];
+        r.routes = (1..=5).map(|i| route(&format!("R{i}"), 3)).collect();
+        r.trips = (1..=5).map(|i| trip(&format!("T{i}"), &format!("R{i}"))).collect();
         r.trip_interns = take_ti();
-        r.stop_times = (1..=4).flat_map(|i| vec![
+        let mut sts: Vec<_> = (1..=4).flat_map(|i| vec![
             stoptime(&format!("T{i}"), 1, "S1", (8,0,0), (8,0,0), 2),
             stoptime(&format!("T{i}"), 2, "S2", (8,10,0), (8,10,0), 3),
         ]).collect();
+        // R5 yalnız komşu durak S9'dan geçiyor — S1'de yok.
+        sts.push(stoptime("T5", 1, "S9", (9,0,0), (9,0,0), 4));
+        sts.push(stoptime("T5", 2, "S8", (9,10,0), (9,10,0), 5));
+        r.stop_times = sts;
         let result = analyze(&r, &empty_derived(), &default_config(), 20260514);
         assert!(result.notices.iter().any(|n| n.rule_id == "VAT_002"), "VAT_002 olmalı");
+    }
+
+    // ── WP-D: aynı stop_id'deki aktarma örtüktür ─────────────────────────────
+
+    /// Bütün hatlar AYNI stop_id'yi kullanıyorsa (Ankara Gar deseni) tanımlanacak bir
+    /// aktarma yoktur; GTFS tüketicisi o durakta aktarma kurulabileceğini zaten bilir.
+    #[test]
+    fn vat_002_silent_when_all_routes_share_one_stop_id() {
+        let mut r = crate::k2::EntityRecords::default();
+        r.stops = vec![stop("GAR", 41.0, 29.0), stop("S2", 41.1, 29.1)];
+        r.routes = (1..=4).map(|i| route(&format!("R{i}"), 2)).collect();
+        r.trips = (1..=4).map(|i| trip(&format!("T{i}"), &format!("R{i}"))).collect();
+        r.trip_interns = take_ti();
+        r.stop_times = (1..=4).flat_map(|i| vec![
+            stoptime(&format!("T{i}"), 1, "GAR", (8,0,0), (8,0,0), 2),
+            stoptime(&format!("T{i}"), 2, "S2", (8,10,0), (8,10,0), 3),
+        ]).collect();
+        let result = analyze(&r, &empty_derived(), &default_config(), 20260514);
+        assert!(
+            !result.notices.iter().any(|n| n.rule_id == "VAT_002"),
+            "aynı stop_id'de aktarma örtüktür → VAT_002 çıkmamalı"
+        );
+    }
+
+    /// `parent_station`'ı olan peron durakları elenir: kompleks zaten modellenmiş.
+    /// (Eski kod yalnız location_type=1 istasyonun KENDİSİNİ eliyordu, çocuklarını değil.)
+    #[test]
+    fn vat_002_skips_child_stops_of_a_modelled_station() {
+        use std::collections::HashMap as StdMap;
+        let mut r = crate::k2::EntityRecords::default();
+        let mut platform = stop("P1", 41.0, 29.0);
+        let mut row: StdMap<String, String> = StdMap::new();
+        row.insert("parent_station".to_string(), "GAR".to_string());
+        platform.row = row;
+        r.stops = vec![
+            platform,
+            stop("S2", 41.1, 29.1),
+            stop("S9", 41.0018, 29.0), // yakın komşu + farklı hat → guard olmasa tetiklerdi
+            stop("S8", 41.2, 29.2),
+        ];
+        r.routes = (1..=5).map(|i| route(&format!("R{i}"), 3)).collect();
+        r.trips = (1..=5).map(|i| trip(&format!("T{i}"), &format!("R{i}"))).collect();
+        r.trip_interns = take_ti();
+        let mut sts: Vec<_> = (1..=4).flat_map(|i| vec![
+            stoptime(&format!("T{i}"), 1, "P1", (8,0,0), (8,0,0), 2),
+            stoptime(&format!("T{i}"), 2, "S2", (8,10,0), (8,10,0), 3),
+        ]).collect();
+        sts.push(stoptime("T5", 1, "S9", (9,0,0), (9,0,0), 4));
+        sts.push(stoptime("T5", 2, "S8", (9,10,0), (9,10,0), 5));
+        r.stop_times = sts;
+        let result = analyze(&r, &empty_derived(), &default_config(), 20260514);
+        assert!(
+            !result.notices.iter().any(|n| n.rule_id == "VAT_002" && n.entity_id.as_deref() == Some("P1")),
+            "parent_station'lı durak için VAT_002 çıkmamalı"
+        );
+    }
+
+    /// Komşu durak SADECE aynı hatları sunuyorsa yeni bir bağlantı yoktur → susar.
+    #[test]
+    fn vat_002_silent_when_neighbour_adds_no_new_route() {
+        let mut r = crate::k2::EntityRecords::default();
+        r.stops = vec![
+            stop("S1", 41.0, 29.0),
+            stop("S9", 41.0018, 29.0), // yakın ama aynı hatlar
+            stop("S2", 41.1, 29.1),
+        ];
+        r.routes = (1..=4).map(|i| route(&format!("R{i}"), 3)).collect();
+        r.trips = (1..=4).map(|i| trip(&format!("T{i}"), &format!("R{i}"))).collect();
+        r.trip_interns = take_ti();
+        r.stop_times = (1..=4).flat_map(|i| vec![
+            stoptime(&format!("T{i}"), 1, "S1", (8,0,0), (8,0,0), 2),
+            stoptime(&format!("T{i}"), 2, "S9", (8,5,0), (8,5,0), 3),
+            stoptime(&format!("T{i}"), 3, "S2", (8,10,0), (8,10,0), 4),
+        ]).collect();
+        let result = analyze(&r, &empty_derived(), &default_config(), 20260514);
+        assert!(
+            !result.notices.iter().any(|n| n.rule_id == "VAT_002" && n.entity_id.as_deref() == Some("S1")),
+            "komşu yeni hat sunmuyorsa aktarma boşluğu yoktur → VAT_002 çıkmamalı"
+        );
     }
 
     #[test]
@@ -12002,14 +12152,17 @@ mod tests {
 
     #[test]
     fn shared_terminus_no_transfer_produces_vat_007() {
-        // 3 farklı hat HUB durağında başlıyor ama transfer yok → VAT_007
+        // 3 hat HUB'da başlıyor VE ~200 m ötedeki HUB2'den HUB'da olmayan bir hat (R4)
+        // geçiyor → gerçek duraklar-arası aktarma boşluğu → VAT_007.
         let mut r = crate::k2::EntityRecords::default();
         r.stops = vec![
             stop("HUB", 41.0, 29.0),
+            stop("HUB2", 41.0018, 29.0),
             stop("A", 41.1, 29.0), stop("B", 41.0, 29.1), stop("C", 41.0, 28.9),
+            stop("D", 41.2, 29.2),
         ];
-        r.routes = (1..=3).map(|i| route(&format!("R{i}"), 3)).collect();
-        r.trips = (1..=3).map(|i| trip(&format!("T{i}"), &format!("R{i}"))).collect();
+        r.routes = (1..=4).map(|i| route(&format!("R{i}"), 3)).collect();
+        r.trips = (1..=4).map(|i| trip(&format!("T{i}"), &format!("R{i}"))).collect();
         r.trip_interns = take_ti();
         r.stop_times = vec![
             stoptime("T1", 1, "HUB", (8,0,0), (8,0,0), 2),
@@ -12018,10 +12171,39 @@ mod tests {
             stoptime("T2", 2, "B",   (8,10,0), (8,10,0), 3),
             stoptime("T3", 1, "HUB", (8,0,0), (8,0,0), 2),
             stoptime("T3", 2, "C",   (8,10,0), (8,10,0), 3),
+            // R4 yalnız komşu HUB2'den geçiyor.
+            stoptime("T4", 1, "HUB2", (9,0,0), (9,0,0), 4),
+            stoptime("T4", 2, "D",    (9,10,0), (9,10,0), 5),
         ];
         // transfers boş
         let result = analyze(&r, &empty_derived(), &default_config(), 20260514);
         assert!(result.notices.iter().any(|n| n.rule_id == "VAT_007"), "VAT_007 olmalı");
+    }
+
+    /// Terminusta bütün hatlar aynı stop_id'yi kullanıyorsa aktarma örtüktür → susar.
+    #[test]
+    fn vat_007_silent_when_terminus_routes_share_one_stop_id() {
+        let mut r = crate::k2::EntityRecords::default();
+        r.stops = vec![
+            stop("GAR", 41.0, 29.0),
+            stop("A", 41.1, 29.0), stop("B", 41.0, 29.1), stop("C", 41.0, 28.9),
+        ];
+        r.routes = (1..=3).map(|i| route(&format!("R{i}"), 2)).collect();
+        r.trips = (1..=3).map(|i| trip(&format!("T{i}"), &format!("R{i}"))).collect();
+        r.trip_interns = take_ti();
+        r.stop_times = vec![
+            stoptime("T1", 1, "GAR", (8,0,0), (8,0,0), 2),
+            stoptime("T1", 2, "A",   (8,10,0), (8,10,0), 3),
+            stoptime("T2", 1, "GAR", (8,0,0), (8,0,0), 2),
+            stoptime("T2", 2, "B",   (8,10,0), (8,10,0), 3),
+            stoptime("T3", 1, "GAR", (8,0,0), (8,0,0), 2),
+            stoptime("T3", 2, "C",   (8,10,0), (8,10,0), 3),
+        ];
+        let result = analyze(&r, &empty_derived(), &default_config(), 20260514);
+        assert!(
+            !result.notices.iter().any(|n| n.rule_id == "VAT_007"),
+            "tek stop_id'li terminalde aktarma örtüktür → VAT_007 çıkmamalı"
+        );
     }
 
     // ── EntityMap eksikliği ───────────────────────────────────────────────────

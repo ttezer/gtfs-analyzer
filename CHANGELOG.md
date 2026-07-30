@@ -12,6 +12,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > unaffected. Re-baseline Golden snapshots that contain it.
 
 ### Changed
+- **VAT_002 and VAT_007 no longer ask for transfers that GTFS already implies.** Both rules
+  suggested adding `transfers.txt` records for any stop several routes touch. But a transfer at
+  the same `stop_id` is implicit — consumers already know passengers can change there, and
+  `transfers.txt` exists to describe connections *between* stops, minimum times, or forbidden
+  transfers. At a terminal where every train uses one `stop_id`, there was nothing to declare.
+  Both rules now require a genuine gap: another stop within `max_transfer_distance_m` serving a
+  route this stop does not, with no transfer recorded. Stops with a `parent_station` are also
+  skipped, since the complex is already modelled — previously only the station itself was
+  excluded, not its platforms. Both remain INFO and neither affects any score.
+  VAT_007 additionally listed its routes in hash order and truncated to five *before* sorting,
+  so which five appeared could change between runs; the list is now sorted first.
 - **SHP_027 no longer flags express/local variants.** The rule fired whenever a shape served
   two or more distinct stop patterns, which is routine: a fast train skips stops a slower one
   serves, and both legitimately follow the same track. It now compares the stop sets and stays
