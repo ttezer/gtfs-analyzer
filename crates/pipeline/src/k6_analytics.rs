@@ -797,7 +797,7 @@ fn check_speed_and_duration<'a>(
                         format_hms(dep_s), format_hms(arr_s)),
                     "stop_times.txt'te kalkış zamanını varış zamanından sonra (veya eşit) ayarlayın.",
                 );
-                let mut d = std::collections::HashMap::new();
+                let mut d = std::collections::BTreeMap::new();
                 d.insert("route".to_string(), route_label.to_string());
                 d.insert("stop_name".to_string(), name.to_string());
                 d.insert("seq".to_string(), seq.to_string());
@@ -942,7 +942,7 @@ fn check_speed_and_duration<'a>(
                                 dist_km * 60.0),
                             "stop_times.txt zaman değerlerini doğrulayın; iki durak aynı dakikaya yazılmış ama aralarındaki mesafe bir dakikada alınamaz.",
                         );
-                        let mut d = std::collections::HashMap::new();
+                        let mut d = std::collections::BTreeMap::new();
                         d.insert("stop_a".to_string(), idx.stop_id_of(a).to_string());
                         d.insert("stop_b".to_string(), idx.stop_id_of(b).to_string());
                         n012.details = Some(d);
@@ -982,7 +982,7 @@ fn check_speed_and_duration<'a>(
                     format!("'{route_label}' hattı '{trip_id}'{dep_suffix} seferi: {name_a} durağından (sıra {seq_a}) kalkış {dep_hms}, {name_b} durağına (sıra {seq_b}) varış {arr_hms} — varış kalkıştan önce, zaman geriye gidiyor. (yön {dir_sd}{hs_sep}{headsign})"),
                     "stop_times.txt zaman değerlerini gözden geçirin; seferler boyunca zamanlar monoton artmalıdır.",
                 );
-                let mut d = std::collections::HashMap::new();
+                let mut d = std::collections::BTreeMap::new();
                 d.insert("stop_a".to_string(), idx.stop_id_of(a).to_string());
                 d.insert("stop_b".to_string(), idx.stop_id_of(b).to_string());
                 d.insert("stop_a_name".to_string(), name_a.to_string());
@@ -1071,7 +1071,7 @@ fn check_speed_and_duration<'a>(
                         a.stop_sequence().unwrap_or(0), b.stop_sequence().unwrap_or(0)),
                     "Bu süre bilinçliyse işlem gerekmez; değilse stop_times.txt zaman değerlerini kontrol edin.",
                 );
-                let mut d = std::collections::HashMap::new();
+                let mut d = std::collections::BTreeMap::new();
                 d.insert("stop_a".to_string(), idx.stop_id_of(a).to_string());
                 d.insert("stop_b".to_string(), idx.stop_id_of(b).to_string());
                 n025.details = Some(d);
@@ -1096,7 +1096,7 @@ fn check_speed_and_duration<'a>(
                         a.stop_sequence().unwrap_or(0), b.stop_sequence().unwrap_or(0)),
                     "stops.txt koordinatlarını ve stop_times.txt sırasını doğrulayın.",
                 );
-                let mut d = std::collections::HashMap::new();
+                let mut d = std::collections::BTreeMap::new();
                 d.insert("stop_a".to_string(), idx.stop_id_of(a).to_string());
                 d.insert("stop_b".to_string(), idx.stop_id_of(b).to_string());
                 n026.details = Some(d);
@@ -1121,7 +1121,7 @@ fn check_speed_and_duration<'a>(
                         a.stop_sequence().unwrap_or(0), b.stop_sequence().unwrap_or(0)),
                     "stop_times.txt zaman ve stops.txt koordinat verilerini doğrulayın.",
                 );
-                let mut d = std::collections::HashMap::new();
+                let mut d = std::collections::BTreeMap::new();
                 d.insert("stop_a".to_string(), idx.stop_id_of(a).to_string());
                 d.insert("stop_b".to_string(), idx.stop_id_of(b).to_string());
                 n012.details = Some(d);
@@ -1181,7 +1181,7 @@ fn check_speed_and_duration<'a>(
             // Tüm bozuk segment çiftleri → UI'da her biri kırmızı polyline
             // Ayrıca kalkış saati (varsa) details'e → EN/JA mesaj şablonunda gösterilebilir.
             {
-                let mut d = std::collections::HashMap::new();
+                let mut d = std::collections::BTreeMap::new();
                 for (i, (sa, sb)) in bad_seg_stops.iter().enumerate() {
                     d.insert(format!("bad_seg_{i}_a"), sa.to_string());
                     d.insert(format!("bad_seg_{i}_b"), sb.to_string());
@@ -1281,7 +1281,7 @@ fn check_speed_and_duration<'a>(
                 msg,
                 "Zaman damgalarını veya durak koordinatlarını doğrulayın; ardışık stop_times arasındaki hız eşiği aşıyor.",
             );
-            let mut d = std::collections::HashMap::new();
+            let mut d = std::collections::BTreeMap::new();
             d.insert("stop_a".to_string(), stop_a.to_string());
             d.insert("stop_b".to_string(), stop_b.to_string());
             d.insert("route_id".to_string(), route.to_string());
@@ -1761,7 +1761,7 @@ fn check_calendar_analytics(
             )
         };
         n.details = Some({
-            let mut d = std::collections::HashMap::new();
+            let mut d = std::collections::BTreeMap::new();
             d.insert("services".to_string(), svcs.join(","));
             d
         });
@@ -1969,7 +1969,7 @@ fn check_calendar_analytics(
                 "Feed'i yeni geçerlilik tarihleriyle güncelleyin veya servisleri silin.",
             );
             n.details = Some({
-                let mut d = std::collections::HashMap::new();
+                let mut d = std::collections::BTreeMap::new();
                 d.insert("services".to_string(), svcs.join(","));
                 d
             });
@@ -2674,7 +2674,7 @@ fn check_operational_analytics(
                     .filter(|st| !idx.stop_id_of(st).is_empty())
                     .map(|st| idx.stop_id_of(st))
                     .collect();
-                let mut det = HashMap::new();
+                let mut det = std::collections::BTreeMap::new();
                 det.insert("stops".to_string(), stop_list.join(","));
                 det.insert("dup_stop".to_string(), dup_stop.to_string());
                 n.details = Some(det);
@@ -4497,7 +4497,7 @@ fn check_remaining_analytics<'a>(
                 // name_index harita verisini notice'lardaki id'lere göre filtreliyor; metnin
                 // içindeki id görünmediği için o shape serialize edilmiyor ve harita
                 // güzergahı ÇİZEMİYORDU. UI artık details'tan okur (regex fallback duruyor).
-                let mut det: std::collections::HashMap<String, String> =
+                let mut det: std::collections::BTreeMap<String, String> =
                     [("shape_id".to_string(), shape_id.to_string())].into_iter().collect();
                 if let Some(dep) = &example_dep {
                     det.insert("example_dep".to_string(), dep.clone());
@@ -5256,7 +5256,7 @@ fn check_remaining_analytics<'a>(
                 ),
                 "shape_pt_sequence sırasını tersine çevirin veya bu yön için ayrı bir shape_id tanımlayın.",
             );
-            let mut d = std::collections::HashMap::new();
+            let mut d = std::collections::BTreeMap::new();
             d.insert("first_stop".to_string(), first_stop.clone());
             d.insert("trip_id".to_string(), trip_id.clone());
             n016.details = Some(d);
@@ -5407,7 +5407,7 @@ fn check_remaining_analytics<'a>(
                     .map(|s| s.stop_sequence().unwrap_or(0).to_string()).collect();
                 let seq_a: Vec<String> = sorted[pi + 1..].iter().take(3)
                     .map(|s| s.stop_sequence().unwrap_or(0).to_string()).collect();
-                let mut det = HashMap::new();
+                let mut det = std::collections::BTreeMap::new();
                 det.insert("ctx_b".to_string(), ctx_b.join(","));
                 det.insert("ctx_a".to_string(), ctx_a.join(","));
                 det.insert("seq_b".to_string(), seq_b.join(","));
@@ -5486,7 +5486,7 @@ fn check_remaining_analytics<'a>(
                 ),
                 "Bu uzantı bilinçliyse işlem gerekmez; değilse shape başlangıcını ve ilk durağı doğrulayın.",
             );
-            let mut d = std::collections::HashMap::new();
+            let mut d = std::collections::BTreeMap::new();
             d.insert("problem_stop".to_string(), stop_id.clone());
             d.insert("endpoint".to_string(), "start".to_string());
             d.insert("trip_id".to_string(), trip_id.clone());
@@ -5515,7 +5515,7 @@ fn check_remaining_analytics<'a>(
                 ),
                 "Bu uzantı bilinçliyse işlem gerekmez; değilse shape bitişini ve son durağı doğrulayın.",
             );
-            let mut d = std::collections::HashMap::new();
+            let mut d = std::collections::BTreeMap::new();
             d.insert("problem_stop".to_string(), stop_id.clone());
             d.insert("endpoint".to_string(), "end".to_string());
             d.insert("trip_id".to_string(), trip_id.clone());
@@ -5571,7 +5571,7 @@ fn check_remaining_analytics<'a>(
                     ),
                     "Durak koordinatlarını veya parent_station referansını düzeltin.",
                 );
-                let mut det = HashMap::new();
+                let mut det = std::collections::BTreeMap::new();
                 det.insert("parent_id".to_string(), parent_id.to_string());
                 notice.details = Some(det);
                 notices.push(notice);
@@ -6166,7 +6166,7 @@ fn check_remaining_analytics<'a>(
                 "Güzergah şeklindeki tekrarlayan noktaları temizleyin.",
             );
             if n_shapes > 1 {
-                let mut d = std::collections::HashMap::new();
+                let mut d = std::collections::BTreeMap::new();
                 d.insert("repeated_shapes".to_string(), n_shapes.to_string());
                 d.insert("shapes".to_string(),
                     shapes.iter().take(10).copied().collect::<Vec<_>>().join(","));
@@ -6185,7 +6185,7 @@ fn check_remaining_analytics<'a>(
                 format!("{n20} güzergah şeklinde tekrarlayan (neredeyse özdeş) nokta var — üretici kaynaklı yoğun nokta gürültüsü."),
                 "Güzergah üretim sürecinde tekrarlayan noktaları eleyin; tek tek shape incelemesi gerekmez.",
             );
-            let mut d = std::collections::HashMap::new();
+            let mut d = std::collections::BTreeMap::new();
             d.insert("affected_shapes".to_string(), n20.to_string());
             if !examples.is_empty() { d.insert("example_shapes".to_string(), examples.join(", ")); }
             notice.details = Some(d);
@@ -6251,7 +6251,7 @@ fn check_remaining_analytics<'a>(
                 "Güzergah şeklindeki kesişen segmentleri düzeltin.",
             );
             if n_shapes > 1 {
-                let mut d = std::collections::HashMap::new();
+                let mut d = std::collections::BTreeMap::new();
                 d.insert("repeated_shapes".to_string(), n_shapes.to_string());
                 d.insert("shapes".to_string(), shapes.iter().take(10).copied().collect::<Vec<_>>().join(","));
                 n.details = Some(d);
@@ -6269,7 +6269,7 @@ fn check_remaining_analytics<'a>(
                 format!("{n09} güzergah şekli kendisiyle kesişiyor — çoğu kavşak/durak geometrisindeki yakın-segment mikro-kesişmedir."),
                 "Güzergah üretim sürecini gözden geçirin; tek tek shape incelemesi gerekmez.",
             );
-            let mut d = std::collections::HashMap::new();
+            let mut d = std::collections::BTreeMap::new();
             d.insert("affected_shapes".to_string(), n09.to_string());
             if !examples.is_empty() { d.insert("example_shapes".to_string(), examples.join(", ")); }
             notice.details = Some(d);
@@ -6554,7 +6554,7 @@ fn check_shp022<'a>(
                     "stop_times'a shape_dist_traveled ekleyerek durağın şekil üzerindeki \
                      konumunu açıkça belirtin.",
                 );
-                let mut det = HashMap::new();
+                let mut det = std::collections::BTreeMap::new();
                 det.insert("shape_id".to_string(), shape_id.to_string());
                 notice.details = Some(det);
                 shp022_best.insert(stop_id, (best_key, notice));
@@ -6758,7 +6758,7 @@ fn check_calendar_override_analytics(
                 "Her takvim günü için yalnızca bir servis aktif olacak şekilde düzenleyin.",
             );
             n.details = Some({
-                let mut d = std::collections::HashMap::new();
+                let mut d = std::collections::BTreeMap::new();
                 d.insert("conflict_day_count".to_string(), count.to_string());
                 d.insert("sample_dates".to_string(),
                     plain_dates.iter().take(10).map(|x| x.to_string()).collect::<Vec<_>>().join(","));
@@ -6806,7 +6806,7 @@ fn check_calendar_override_analytics(
                 "Override günlerinde base servisi calendar_dates.txt ile kaldırın (exception_type=2).",
             );
             n.details = Some({
-                let mut d = std::collections::HashMap::new();
+                let mut d = std::collections::BTreeMap::new();
                 d.insert("conflict_day_count".to_string(), count.to_string());
                 d.insert("sample_dates".to_string(),
                     exc_dates.iter().take(10).map(|x| x.to_string()).collect::<Vec<_>>().join(","));
@@ -7011,7 +7011,7 @@ fn check_calendar_override_analytics(
                     format!("'{}' kodlu hattın tüm seferleri tek bir güzergah şekli kullanıyor ({shape_id}).", route_short_o15.get(*route_id).copied().unwrap_or(*route_id)),
                     "Bu bilgi notu; gidiş-dönüş için ayrı shape_id kullanılması önerilir.",
                 );
-                let mut d = std::collections::HashMap::new();
+                let mut d = std::collections::BTreeMap::new();
                 d.insert("shape_id".to_string(), shape_id.to_string());
                 n015.details = Some(d);
                 notices.push(n015);
@@ -7038,8 +7038,8 @@ fn build_override_details(
     dates: &[u32],
     base_str: &str,
     override_str: &str,
-) -> std::collections::HashMap<String, String> {
-    let mut d = std::collections::HashMap::new();
+) -> std::collections::BTreeMap<String, String> {
+    let mut d = std::collections::BTreeMap::new();
     d.insert("conflict_day_count".to_string(), count.to_string());
     d.insert("sample_dates".to_string(),
         dates.iter().take(10).map(|x| x.to_string()).collect::<Vec<_>>().join(","));
@@ -7446,7 +7446,7 @@ fn check_vat_analytics(
                     // Harita: her iki hattı farklı renkte çizebilmek için ikisini de ver.
                     // route_b: EN/JA mesaj şablonu ikinci hattı adlandırabilsin diye (details
                     // anahtarları tMsg'de parametre olur).
-                    let mut d = std::collections::HashMap::new();
+                    let mut d = std::collections::BTreeMap::new();
                     d.insert("routes".to_string(), format!("{rid_a},{rid_b}"));
                     d.insert("route_b".to_string(), rid_b.to_string());
                     n.details = Some(d);
@@ -7539,7 +7539,7 @@ fn check_vat_analytics(
                 "transfers.txt'e bu durak için aktarma kayıtları ekleyin (transfer_type=2 ile bekleme süresi belirtin).",
             );
             n002.details = Some({
-                let mut d = std::collections::HashMap::new();
+                let mut d = std::collections::BTreeMap::new();
                 d.insert("routes".to_string(), route_ids.join(","));
                 d
             });
@@ -7711,7 +7711,7 @@ fn check_vat_analytics(
                     "stop_times.txt zaman değerlerini ve sefer güzergahını doğrulayın.",
                 );
                 if repeats > 1 {
-                    let mut d = std::collections::HashMap::new();
+                    let mut d = std::collections::BTreeMap::new();
                     d.insert("duplicate_trips".to_string(), repeats.to_string());
                     n.details = Some(d);
                 }
@@ -7827,7 +7827,7 @@ fn check_vat_analytics(
                         format!("Ağ grafında ana şebekeden (seferlerle bağlı en büyük durak kümesi) kopuk {comp_count} izole durak kümesi var ({isolated_count} durak) — bu duraklar kendi aralarında seferlerle bağlı ama ana şebekeye hiçbir seferle bağlanmıyor. Örnek: '{ex_name}' ('{example}')."),
                         "Ayrı bir servis bölgesi değilse, ortak durakların başka rotalarla aynı stop_id'yi paylaştığını veya bağlantı seferlerinin tanımlı olduğunu kontrol edin (sık neden: aynı yerin platform-özel ayrı stop_id'lerle modellenmesi).",
                     );
-                    let mut d = std::collections::HashMap::new();
+                    let mut d = std::collections::BTreeMap::new();
                     d.insert("isolated_stops".to_string(), isolated_all.join(","));
                     n005.details = Some(d);
                     notices.push(n005);
@@ -7920,7 +7920,7 @@ fn check_vat_analytics(
                     routes.len(), labels.join(", ")),
                 "transfers.txt'e bu terminus durağı için aktarma kaydı ekleyin.",
             );
-            let mut d = std::collections::HashMap::new();
+            let mut d = std::collections::BTreeMap::new();
             d.insert("routes".to_string(), route_ids.join(","));
             n007.details = Some(d);
             notices.push(n007);

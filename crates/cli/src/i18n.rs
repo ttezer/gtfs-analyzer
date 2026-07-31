@@ -238,7 +238,7 @@ mod tests {
     #[test]
     fn details_shadow_the_fixed_fields() {
         let mut n = notice();
-        n.details = Some(HashMap::from([(
+        n.details = Some(std::collections::BTreeMap::from([(
             "entity_id".to_string(),
             "override".to_string(),
         )]));

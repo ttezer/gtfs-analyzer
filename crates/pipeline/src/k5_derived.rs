@@ -351,7 +351,7 @@ fn build_shape_geometry(
             format!("{n10} güzergah şeklinde ardışık özdeş koordinat var — tekrarlanan güzergah noktaları."),
             "İlgili shape'lerdeki tekrarlanan güzergah noktalarını kaldırın.",
         );
-        let mut d = std::collections::HashMap::new();
+        let mut d = std::collections::BTreeMap::new();
         d.insert("affected_shapes".to_string(), n10.to_string());
         if !examples.is_empty() { d.insert("example_shapes".to_string(), examples.join(", ")); }
         notice.details = Some(d);

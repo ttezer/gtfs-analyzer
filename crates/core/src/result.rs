@@ -1,5 +1,13 @@
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::BTreeMap;
+
+// BTreeMap (HashMap değil): bu tiplerin tamamı JSON'a serialize edilir ve `HashMap`
+// iterasyon sırası her SÜREÇTE farklı tohumla değişir → aynı binary + aynı feed iki
+// koşuda farklı BAYT üretirdi. İçerik hep aynıydı, yalnız anahtar sırası oynuyordu;
+// bu da `cmp`/`shasum` ile golden karşılaştırmayı ve "çıktı bit-özdeş" kapısını
+// (K2 chunk-paralel işinin ön koşulu) imkânsız kılıyordu. BTreeMap sırayı anahtar
+// üzerinden sabitler. Bkz. 2026-07-27 determinizm turu — o tur `dedup` temsilcisini
+// düzeltti, bu tur serileştirme sırasını kapatıyor.
 use crate::{FatalCode, FeedMetrics, Notice, ReportSet};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -11,19 +19,19 @@ pub struct FatalError {
 /// UI'da entity_id yerine okunabilir ad göstermek için arama tablosu.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct NameIndex {
-    pub stops: HashMap<String, String>,                  // stop_id → stop_name
-    pub routes: HashMap<String, String>,                 // route_id → short_name (veya long_name)
-    pub trips: HashMap<String, String>,                  // trip_id → trip_headsign
-    pub trip_routes: HashMap<String, String>,            // trip_id → route_id (filtre için)
-    pub trip_directions: HashMap<String, String>,        // trip_id → "0"/"1" (direction_id; yoksa yok)
-    pub stop_coords: HashMap<String, [f64; 2]>,           // stop_id → [lat, lon] (harita için)
-    pub trip_first_dep: HashMap<String, String>,          // trip_id → "HH:MM" (sefer saati)
-    pub shape_routes: HashMap<String, Vec<[String; 2]>>,  // shape_id → [[route_id, yön]]
-    pub shape_coords: HashMap<String, Vec<[f64; 2]>>,     // shape_id → [[lat, lon], ...] sıralı nokta listesi
-    pub trip_shapes:  HashMap<String, String>,             // trip_id  → shape_id
-    pub trip_stops:   HashMap<String, Vec<String>>,        // trip_id  → [stop_id, ...] stop_sequence sıralı
-    pub shape_trips:  HashMap<String, String>,             // shape_id → ilk trip_id (shape durakları için)
-    pub route_shapes: HashMap<String, Vec<String>>,        // route_id → [shape_id, ...] (terminus haritası için)
+    pub stops: BTreeMap<String, String>,                  // stop_id → stop_name
+    pub routes: BTreeMap<String, String>,                 // route_id → short_name (veya long_name)
+    pub trips: BTreeMap<String, String>,                  // trip_id → trip_headsign
+    pub trip_routes: BTreeMap<String, String>,            // trip_id → route_id (filtre için)
+    pub trip_directions: BTreeMap<String, String>,        // trip_id → "0"/"1" (direction_id; yoksa yok)
+    pub stop_coords: BTreeMap<String, [f64; 2]>,           // stop_id → [lat, lon] (harita için)
+    pub trip_first_dep: BTreeMap<String, String>,          // trip_id → "HH:MM" (sefer saati)
+    pub shape_routes: BTreeMap<String, Vec<[String; 2]>>,  // shape_id → [[route_id, yön]]
+    pub shape_coords: BTreeMap<String, Vec<[f64; 2]>>,     // shape_id → [[lat, lon], ...] sıralı nokta listesi
+    pub trip_shapes:  BTreeMap<String, String>,             // trip_id  → shape_id
+    pub trip_stops:   BTreeMap<String, Vec<String>>,        // trip_id  → [stop_id, ...] stop_sequence sıralı
+    pub shape_trips:  BTreeMap<String, String>,             // shape_id → ilk trip_id (shape durakları için)
+    pub route_shapes: BTreeMap<String, Vec<String>>,        // route_id → [shape_id, ...] (terminus haritası için)
     /// Büyük feed modunda harita geometrisi (shape_coords vb.) peşinen serialize
     /// EDİLMEZ; UI ikona tıklayınca WASM'dan on-demand çeker (shape_coords_of).
     pub map_data_deferred: bool,
@@ -38,7 +46,7 @@ pub struct ValidationResult {
     pub name_index: NameIndex,
     /// Cap'e çarpan kurallar ve gerçek notice sayıları.
     /// Yalnızca cap'i aşan kuralları içerir; aşmayanlar burada yer almaz.
-    pub capped_totals: HashMap<String, u32>,
+    pub capped_totals: BTreeMap<String, u32>,
 }
 
 /// Validator ana dönüş tipi.

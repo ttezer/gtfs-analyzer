@@ -105,7 +105,7 @@ pub fn validate_bytes(zip: &[u8], config: &ValidatorConfig, today: u32) -> Valid
         reports: k7.reports,
         metrics: k7.metrics,
         name_index,
-        capped_totals: std::collections::HashMap::new(),
+        capped_totals: std::collections::BTreeMap::new(),
     })
 }
 
@@ -122,6 +122,7 @@ pub(crate) fn build_name_index_impl(
     large_feed_mode: bool,
 ) -> gtfs_core::NameIndex {
     use std::collections::HashMap;
+use std::collections::BTreeMap;
 
     // ── BÜYÜK FEED BELLEK MODU (#15 large_feed_memory_mode) ──────────────────────
     // Çok büyük feed'de name_index'in ağır alanları sonucu JS'e serialize ederken (to_js)
@@ -195,7 +196,7 @@ pub(crate) fn build_name_index_impl(
         //    UI hat haritasında en fazla 4 shape çiziyor → hat başına 4 ile sınırlanır.
         //    Seferler 2. adımdan sonra kararlaştığı için bu geçiş AYRI: buradan eklenen
         //    shape'ler yeni sefer sürüklemesin.
-        let mut per_route: std::collections::HashMap<&str, u8> = std::collections::HashMap::new();
+        let mut per_route: std::collections::BTreeMap<&str, u8> = std::collections::BTreeMap::new();
         for t in &records.trips {
             let rid = ti_f.route_id(t);
             if !cand.contains(rid) { continue; }
@@ -210,11 +211,11 @@ pub(crate) fn build_name_index_impl(
     let keep_trip = |id: &str| !large_feed_mode || want_trip.contains(id);
     let keep_shape = |id: &str| !large_feed_mode || want_shape.contains(id);
 
-    let stops: HashMap<String, String> = records.stops.iter()
+    let stops: BTreeMap<String, String> = records.stops.iter()
         .filter_map(|r| r.stop_name.as_ref().map(|n| (r.stop_id.clone(), n.clone())))
         .collect();
 
-    let routes: HashMap<String, String> = records.routes.iter()
+    let routes: BTreeMap<String, String> = records.routes.iter()
         .map(|r| {
             let name = r.route_short_name.as_deref()
                 .or(r.route_long_name.as_deref())
@@ -228,23 +229,23 @@ pub(crate) fn build_name_index_impl(
     let ti = &records.trip_interns;
 
     // Per-trip etiket map'leri (#15): büyük feed modunda atlanır → notice'lar ham trip_id gösterir.
-    let trips: HashMap<String, String> = records.trips.iter()
+    let trips: BTreeMap<String, String> = records.trips.iter()
         .filter(|r| keep_trip(r.trip_id.as_str()))
         .filter_map(|r| ti.headsign(r).map(|h| (r.trip_id.to_string(), h.to_string())))
         .collect();
 
-    let trip_routes: HashMap<String, String> = records.trips.iter()
+    let trip_routes: BTreeMap<String, String> = records.trips.iter()
         .filter(|r| keep_trip(r.trip_id.as_str()))
         .map(|r| (r.trip_id.to_string(), ti.route_id(r).to_string()))
         .collect();
 
     // trip_id → direction_id ("0"/"1"); yön bilgisi olmayan sefer dahil edilmez.
-    let trip_directions: HashMap<String, String> = records.trips.iter()
+    let trip_directions: BTreeMap<String, String> = records.trips.iter()
         .filter(|r| keep_trip(r.trip_id.as_str()))
         .filter_map(|r| r.direction_id.map(|d| (r.trip_id.to_string(), d.to_string())))
         .collect();
 
-    let stop_coords: HashMap<String, [f64; 2]> = records.stops.iter()
+    let stop_coords: BTreeMap<String, [f64; 2]> = records.stops.iter()
         .filter_map(|r| {
             if let (Some(lat), Some(lon)) = (r.stop_lat, r.stop_lon) {
                 Some((r.stop_id.clone(), [lat, lon]))
@@ -255,7 +256,7 @@ pub(crate) fn build_name_index_impl(
         .collect();
 
     // trip_id → ilk kalkış saati "HH:MM" (büyük feed modunda atlanır)
-    let trip_first_dep: HashMap<String, String> = records.stop_times_index.iter_trips()
+    let trip_first_dep: BTreeMap<String, String> = records.stop_times_index.iter_trips()
         .filter(|(trip_id, _)| keep_trip(trip_id.as_str()))
         .filter_map(|(trip_id, stops)| {
             stops.first()
@@ -265,9 +266,9 @@ pub(crate) fn build_name_index_impl(
         .collect();
 
     // shape_id → benzersiz [[route_id, yön]] listesi (harita; büyük feed modunda atlanır)
-    let shape_routes: HashMap<String, Vec<[String; 2]>> = {
+    let shape_routes: BTreeMap<String, Vec<[String; 2]>> = {
         let mut seen: std::collections::HashSet<(String, String, String)> = std::collections::HashSet::new();
-        let mut map: HashMap<String, Vec<[String; 2]>> = HashMap::new();
+        let mut map: BTreeMap<String, Vec<[String; 2]>> = BTreeMap::new();
         for trip in &records.trips {
             let Some(shape_id) = ti.shape_id(trip) else { continue };
             if !keep_shape(shape_id) { continue; }
@@ -289,7 +290,7 @@ pub(crate) fn build_name_index_impl(
 
     // shape_id → sıralı [[lat, lon]] nokta listesi (harita çizimi için).
     // #15: çok büyük feed'de atlanır (serialize OOM önlemi).
-    let shape_coords: HashMap<String, Vec<[f64; 2]>> = if skip_shape_coords { HashMap::new() } else {
+    let shape_coords: BTreeMap<String, Vec<[f64; 2]>> = if skip_shape_coords { BTreeMap::new() } else {
         let mut pts: Vec<(&str, u32, f64, f64)> = records.shapes.iter()
             .filter(|s| keep_shape(records.shape_interns.id(s)))
             .filter_map(|s| {
@@ -299,7 +300,7 @@ pub(crate) fn build_name_index_impl(
             })
             .collect();
         pts.sort_unstable_by_key(|&(id, seq, _, _)| (id, seq));
-        let mut map: HashMap<String, Vec<[f64; 2]>> = HashMap::new();
+        let mut map: BTreeMap<String, Vec<[f64; 2]>> = BTreeMap::new();
         for (id, _, lat, lon) in pts {
             map.entry(id.to_string()).or_default().push([lat, lon]);
         }
@@ -307,13 +308,13 @@ pub(crate) fn build_name_index_impl(
     };
 
     // trip_id → shape_id (harita; büyük feed modunda atlanır)
-    let trip_shapes: HashMap<String, String> = records.trips.iter()
+    let trip_shapes: BTreeMap<String, String> = records.trips.iter()
         .filter(|t| keep_trip(t.trip_id.as_str()))
         .filter_map(|t| ti.shape_id(t).map(|s| (t.trip_id.to_string(), s.to_string())))
         .collect();
 
     // trip_id → [stop_id, ...] stop_sequence sıralı (harita; büyük feed'de notice'a değenler)
-    let trip_stops: HashMap<String, Vec<String>> = records.stop_times_index.iter_trips()
+    let trip_stops: BTreeMap<String, Vec<String>> = records.stop_times_index.iter_trips()
         .filter(|(trip_id, _)| keep_trip(trip_id.as_str()))
         .map(|(trip_id, stops)| {
             let stm_idx = &records.stop_times_index;
@@ -327,8 +328,8 @@ pub(crate) fn build_name_index_impl(
         .collect();
 
     // shape_id → ilk trip_id (harita; büyük feed modunda atlanır)
-    let shape_trips: HashMap<String, String> = {
-        let mut map: HashMap<String, String> = HashMap::new();
+    let shape_trips: BTreeMap<String, String> = {
+        let mut map: BTreeMap<String, String> = BTreeMap::new();
         for t in &records.trips {
             if let Some(shape_id) = ti.shape_id(t) {
                 if !keep_shape(shape_id) || !keep_trip(t.trip_id.as_str()) { continue; }
@@ -339,8 +340,8 @@ pub(crate) fn build_name_index_impl(
     };
 
     // route_id → [distinct shape_ids] (terminus haritası; büyük feed modunda atlanır)
-    let route_shapes: HashMap<String, Vec<String>> = {
-        let mut map: HashMap<String, Vec<String>> = HashMap::new();
+    let route_shapes: BTreeMap<String, Vec<String>> = {
+        let mut map: BTreeMap<String, Vec<String>> = BTreeMap::new();
         for t in &records.trips {
             if let Some(shape_id) = ti.shape_id(t) {
                 if !keep_shape(shape_id) { continue; }

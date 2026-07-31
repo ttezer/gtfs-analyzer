@@ -468,7 +468,7 @@ fn top_rules_str(notices: &[gtfs_core::Notice]) -> String {
     v.iter().take(10).map(|(r, c)| format!("{r}={c}")).collect::<Vec<_>>().join(" ")
 }
 
-fn build_capped_totals(real_totals: &std::collections::HashMap<String, u32>) -> std::collections::HashMap<String, u32> {
+fn build_capped_totals(real_totals: &std::collections::HashMap<String, u32>) -> std::collections::BTreeMap<String, u32> {
     real_totals.iter()
         .filter_map(|(rule_id, &total)| {
             if total > cap_for_rule(rule_id) as u32 { Some((rule_id.clone(), total)) } else { None }

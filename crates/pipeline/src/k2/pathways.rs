@@ -229,7 +229,7 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
             format!("{pth009_count} yürüme yolu geçidinde (pathway_mode=1) max_slope eksik."),
             "İlgili pathways.txt kayıtlarına max_slope ekleyin veya veri kaynağını düzeltin.",
         );
-        let mut d = std::collections::HashMap::new();
+        let mut d = std::collections::BTreeMap::new();
         d.insert("affected_pathways".to_string(), pth009_count.to_string());
         if !pth009_examples.is_empty() {
             d.insert("example_pathways".to_string(), pth009_examples.join(", "));
@@ -247,7 +247,7 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
             format!("{pth008_count} merdiven geçidinde (pathway_mode=2) stair_count eksik."),
             "İlgili pathways.txt kayıtlarına stair_count ekleyin veya veri kaynağını düzeltin.",
         );
-        let mut d = std::collections::HashMap::new();
+        let mut d = std::collections::BTreeMap::new();
         d.insert("affected_pathways".to_string(), pth008_count.to_string());
         if !pth008_examples.is_empty() {
             d.insert("example_pathways".to_string(), pth008_examples.join(", "));
@@ -260,7 +260,7 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
             &file.name, None, Some("length"), Some(pth025_count.to_string()), None,
             format!("{pth025_count} walkway/fare gate/exit gate kaydında önerilen length eksik."),
             "pathway_mode 1, 6 veya 7 olan kayıtlara metre cinsinden length ekleyin.");
-        let mut d = std::collections::HashMap::new();
+        let mut d = std::collections::BTreeMap::new();
         d.insert("affected_pathways".to_string(), pth025_count.to_string());
         if !pth025_examples.is_empty() { d.insert("example_pathways".to_string(), pth025_examples.join(", ")); }
         n.details = Some(d); notices.push(n);

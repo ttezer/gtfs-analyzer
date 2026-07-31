@@ -1108,7 +1108,7 @@ fn check_pathways(
                     ),
                     "Pathway yalnızca aynı istasyon içindeki durakları bağlamalıdır.",
                 );
-                let mut d = std::collections::HashMap::new();
+                let mut d = std::collections::BTreeMap::new();
                 d.insert("from_station".to_string(), fs.to_string());
                 d.insert("to_station".to_string(), ts.to_string());
                 n.details = Some(d);
@@ -3457,7 +3457,7 @@ fn check_xfl(
             let bwd_services = join_capped(&d1.services, 5);
             let bwd_deps = join_capped(&d1.deps, 6);
 
-            let mut details: HashMap<String, String> = HashMap::new();
+            let mut details: std::collections::BTreeMap<String, String> = std::collections::BTreeMap::new();
             details.insert("fwd_routes".into(), fwd_routes.clone());
             details.insert("fwd_services".into(), fwd_services.clone());
             details.insert("fwd_deps".into(), fwd_deps.clone());

@@ -12,6 +12,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > unaffected. Re-baseline Golden snapshots that contain it.
 
 ### Changed
+- **Validation output is now byte-identical across runs.** The July 27 work fixed the part
+  that changed *content* — which finding survived deduplication — but the serialized JSON still
+  differed run to run, because `Notice.details`, the thirteen `NameIndex` lookups and
+  `capped_totals` were `HashMap`s and Rust seeds each one differently per process. Only key
+  order moved, never a value, so scores and reports were already stable; but it meant a golden
+  snapshot could not be compared with `cmp` or a checksum, and no "output is bit-identical"
+  gate could be built for future parallel work. All of them are now `BTreeMap`. Verified on
+  five feeds: five consecutive runs of TCDD and three each of BART, TriMet, Tokyo and VBB are
+  byte-identical, with content unchanged against the golden snapshots. Measured cost on VBB:
+  median wall clock 7.12 → 7.17 s and peak RSS 2,317 → 2,340 MB. The determinism test now
+  compares the whole serialized result rather than a subset of notice fields.
 - **OPR_019 and OPR_020 now identify the trip, not just the calendar.** Both treated a route
   with two or more services active on the same date as an override conflict. That is normal
   operation: trains running in opposite directions use separate `service_id` values, and extra

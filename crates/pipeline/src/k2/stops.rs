@@ -399,7 +399,7 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
             msg,
             "stops.txt'teki ilgili duraklara yolcuların tanıyabileceği stop_code değerleri ekleyin.",
         );
-        let mut d = std::collections::HashMap::new();
+        let mut d = std::collections::BTreeMap::new();
         d.insert("affected_stops".to_string(), n.to_string());
         if !examples.is_empty() { d.insert("example_stops".to_string(), examples.join(", ")); }
         notice.details = Some(d);
@@ -422,7 +422,7 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
             format!("{n33} durakta zone_id eksik — ücret bölgesi tabanlı hesaplamalar etkilenebilir."),
             "Ücret hesabı gerekiyorsa ilgili duraklara zone_id ekleyin.",
         );
-        let mut d = std::collections::HashMap::new();
+        let mut d = std::collections::BTreeMap::new();
         d.insert("affected_stops".to_string(), n33.to_string());
         if !examples.is_empty() { d.insert("example_stops".to_string(), examples.join(", ")); }
         notice.details = Some(d);

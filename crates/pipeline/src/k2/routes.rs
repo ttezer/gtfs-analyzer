@@ -275,7 +275,7 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
                     format!("'{route_id}' hattının route_desc değeri {matched_field} ile aynı: '{d}'."),
                     "route_desc, hat adlarından farklı ve daha açıklayıcı bir açıklama içermelidir.",
                 );
-                n.details = Some(std::collections::HashMap::from([
+                n.details = Some(std::collections::BTreeMap::from([
                     ("matched_field".to_string(), matched_field.to_string()),
                 ]));
                 notices.push(n);

@@ -1144,15 +1144,14 @@ fn same_feed_twice_produces_identical_output() {
     files.push(("shapes.txt", shapes));
     let zip = make_zip(&files);
 
-    // Kapsam: notice'ın ANLAM taşıyan alanları — hangi bulgu, hangi varlık, hangi değer ve
-    // hangi id. Ham JSON KARŞILAŞTIRILMIYOR, çünkü `Notice.details` ve `NameIndex` alanları
-    // `HashMap`; serde bunları yazarken anahtar sırası her koşuda değişir. O fark içeriği
-    // değil yalnız serileştirme sırasını etkiler (ayrı iş olarak not edildi).
+    // Kapsam: TAM SERİLEŞTİRİLMİŞ JSON — yalnız notice alanları değil, `Notice.details`,
+    // `NameIndex` ve `capped_totals` dahil her şey. 2026-07-31'e kadar bu mümkün DEĞİLDİ:
+    // o alanlar `HashMap`'ti ve serde anahtarları her koşuda başka sırada yazıyordu, yani
+    // içerik aynıyken bayt farklıydı. Hepsi `BTreeMap`'e çevrildi; bu kapı o kazanımı korur.
+    // Zayıflatma: bu karşılaştırmayı alan-alt-kümesine geri çekmek, sessizce kaybetmek demektir.
     let render = || match validate_bytes(&zip, &ValidatorConfig::default(), TODAY) {
-        ValidateResult::Ok(vr) => vr.notices.iter()
-            .map(|n| format!("{}|{}|{}|{}", n.id, n.rule_id,
-                 n.entity_id.as_deref().unwrap_or("-"), n.observed_value.as_deref().unwrap_or("-")))
-            .collect::<Vec<_>>(),
+        ValidateResult::Ok(vr) => serde_json::to_string(&vr)
+            .expect("ValidationResult serialize edilebilmeli"),
         ValidateResult::Fatal(e) => panic!("beklenmeyen fatal: {:?} {}", e.code, e.message),
     };
 
@@ -1162,9 +1161,15 @@ fn same_feed_twice_produces_identical_output() {
     for run in 2..=4 {
         let cur = render();
         if cur != first {
-            let d: Vec<String> = first.iter().zip(cur.iter()).filter(|(a, b)| a != b)
-                .take(3).map(|(a, b)| format!("\n  1. koşu: {a}\n  {run}. koşu: {b}")).collect();
-            panic!("çıktı deterministik değil:{}", d.join(""));
+            // İlk ayrışan konumu göster: tam JSON'u basmak okunmaz olurdu.
+            let at = first.bytes().zip(cur.bytes()).position(|(a, b)| a != b)
+                .unwrap_or(first.len().min(cur.len()));
+            let lo = at.saturating_sub(80);
+            panic!(
+                "çıktı deterministik değil ({run}. koşu, {at}. bayt):\n  1. koşu: …{}…\n  {run}. koşu: …{}…",
+                &first[lo..(at + 80).min(first.len())],
+                &cur[lo..(at + 80).min(cur.len())],
+            );
         }
     }
 }

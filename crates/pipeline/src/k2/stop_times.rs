@@ -1203,7 +1203,7 @@ pub fn validate_stop_times(file: &RawFile, zip_bytes: Option<&[u8]>) -> (StopTim
                             ),
                             "stop_times.txt satırlarını trip_id ve stop_sequence değerine göre artan sırada düzenleyin.",
                         );
-                        let mut d = std::collections::HashMap::new();
+                        let mut d = std::collections::BTreeMap::new();
                         d.insert("curr_stop".to_string(), cur_stop.to_string());
                         d.insert("prev_stop".to_string(), prev_stop.to_string());
                         d.insert("curr_seq".to_string(), seq.to_string());

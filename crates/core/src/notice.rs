@@ -1,4 +1,7 @@
-use std::collections::HashMap;
+// BTreeMap (HashMap değil): `details` JSON'a serialize edilir ve HashMap iterasyon
+// sırası süreçten sürece değişir → aynı girdi iki koşuda farklı BAYT üretirdi
+// (içerik aynı, yalnız anahtar sırası). Bkz. NameIndex'teki aynı gerekçe.
+use std::collections::BTreeMap;
 use serde::{Deserialize, Serialize};
 use crate::{EntityType, RuleClass, Severity};
 
@@ -29,7 +32,7 @@ pub struct Notice {
     /// Eşik veya beklenen değer (ör. "120 km/h") — dinamik bağlam için.
     pub expected_value: Option<String>,
     /// Ek bağlam: ikinci entity ID, hesaplanan değer, birim vb.
-    pub details: Option<HashMap<String, String>>,
+    pub details: Option<BTreeMap<String, String>>,
     /// Kural için kısa genel Türkçe başlık — UI'da gösterilir.
     pub title: String,
     /// Kural tanımından gelen sabit metin — runtime'da üretilmez.
