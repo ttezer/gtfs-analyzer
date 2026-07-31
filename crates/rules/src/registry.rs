@@ -890,8 +890,14 @@ pub static RULES: &[RuleMeta] = &[
         "rider_category_name eksik"),
     r!("RCT_003", Kritik, Spec, 1, &[], Some("rider_category_id"), VS_K, Row,
         "is_default_fare_category geçersiz"),
-    r!("RCT_004", Orta,   Spec, 1, &[], Some("rider_category_id"), VS, Row,
-        "min_age veya max_age geçersiz"),
+    // min_age/max_age RESMÎ GTFS ALANI DEĞİLDİR — 27 Nisan 2026 Schedule Reference'ta
+    // rider_categories.txt yalnız rider_category_id / rider_category_name /
+    // is_default_fare_category / eligibility_url taşır. Alanlar bazı üreticilerde uzantı
+    // olarak bulunuyor ve okunmaları zararsız; YANLIŞ olan bunu spec ihlali saymaktı.
+    // Sınıf Spec→Quality (2026-08-01): Spec YALNIZ resmî normla meşrudur ve Spec sınıfı
+    // yayın skoru kapısını besler; uzantı alanı oraya girmemeli.
+    r!("RCT_004", Orta,   Quality, 1, &[], Some("rider_category_id"), VS, Row,
+        "min_age veya max_age geçersiz (GTFS uzantı alanı — resmî spec'te yok)"),
     r!("RCT_005", Orta,   Quality, 1, &[], Some("rider_category_id"), VS, Row,
         "max_age min_age'den küçük"),
     r!("RCT_006", Orta,   Spec, 2, &[], Some("fare_product_id"), VS, Entity,
@@ -1710,7 +1716,7 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("RCT_001", GtfsSpec),
     ("RCT_002", GtfsSpec),
     ("RCT_003", GtfsSpec),
-    ("RCT_004", GtfsSpec),
+    ("RCT_004", ProjectQuality),
     ("RCT_005", ProjectQuality),
     ("RCT_006", GtfsSpec),
     ("RTS_001", GtfsSpec),

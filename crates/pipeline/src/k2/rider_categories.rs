@@ -10,7 +10,10 @@ pub struct RiderCategoryRecord {
     pub is_default_fare_category: Option<u32>,
     pub min_age: Option<u32>,
     pub max_age: Option<u32>,
-    pub rider_category_eligibility_url: Option<String>,
+    /// Spec alan adı `eligibility_url`. (2026-08-01'e kadar parser
+    /// `rider_category_eligibility_url` okuyordu — spec'te böyle bir alan YOK, dolayısıyla
+    /// geçerli her değer sessizce kayboluyordu.)
+    pub eligibility_url: Option<String>,
     pub row: RowMap,
     pub line: u64,
 }
@@ -113,7 +116,7 @@ pub fn validate_rider_categories(
             is_default_fare_category: is_default,
             min_age,
             max_age,
-            rider_category_eligibility_url: get_trimmed_field(&row_map, "rider_category_eligibility_url")
+            eligibility_url: get_trimmed_field(&row_map, "eligibility_url")
                 .filter(|v| !v.is_empty())
                 .map(str::to_string),
             row: row_map,

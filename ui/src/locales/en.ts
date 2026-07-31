@@ -2067,7 +2067,7 @@ const en: LocaleShape = {
     'RCT_001': 'Duplicate rider_category_id',
     'RCT_002': 'rider_category_name missing',
     'RCT_003': 'is_default_fare_category invalid',
-    'RCT_004': 'min_age or max_age invalid',
+    'RCT_004': 'min_age or max_age invalid (GTFS extension field — not in the official spec)',
     'RCT_005': 'max_age less than min_age',
     'RCT_006': 'Multiple default rider categories per fare_product',
     // FMD

@@ -426,7 +426,7 @@
 | RCT_001 | rider_category_idが重複 | 致命的 | 仕様 |
 | RCT_002 | rider_category_nameが不足 | 致命的 | 仕様 |
 | RCT_003 | is_default_fare_categoryが無効 | 致命的 | 仕様 |
-| RCT_004 | min_ageまたはmax_ageが無効 | 中 | 仕様 |
+| RCT_004 | min_ageまたはmax_ageが無効 | 中 | 品質 |
 | RCT_005 | max_ageがmin_ageより小さい | 中 | 品質 |
 | RCT_006 | 同一fare_productにデフォルトのrider_categoryが複数 | 中 | 仕様 |
 

@@ -1404,7 +1404,7 @@
     "RCT_001": "rider_category_idが重複",
     "RCT_002": "rider_category_nameが不足",
     "RCT_003": "is_default_fare_categoryが無効",
-    "RCT_004": "min_ageまたはmax_ageが無効",
+    "RCT_004": "min_ageまたはmax_ageが無効（GTFS拡張フィールド — 公式仕様には存在しません）",
     "RCT_005": "max_ageがmin_ageより小さい",
     "RCT_006": "同一fare_productにデフォルトのrider_categoryが複数",
     "FMD_001": "fare_media_idが重複",

@@ -426,7 +426,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | RCT_001 | rider_category_id yineleniyor | KRİTİK | Spec |
 | RCT_002 | rider_category_name eksik | KRİTİK | Spec |
 | RCT_003 | is_default_fare_category geçersiz | KRİTİK | Spec |
-| RCT_004 | min_age veya max_age geçersiz | ORTA | Spec |
+| RCT_004 | min_age veya max_age geçersiz (GTFS uzantı alanı — resmî spec'te yok) | ORTA | Quality |
 | RCT_005 | max_age min_age'den küçük | ORTA | Quality |
 | RCT_006 | fare_product başına birden fazla varsayılan yolcu kategorisi | ORTA | Spec |
 

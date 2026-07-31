@@ -12,6 +12,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > unaffected. Re-baseline Golden snapshots that contain it.
 
 ### Fixed
+- **rider_categories: `eligibility_url` was read under a name that does not exist.** The parser
+  looked for `rider_category_eligibility_url`, which appears nowhere in the spec, so every valid
+  `eligibility_url` value was silently dropped. K1 already knew the correct name, so the two
+  stages disagreed. The field is now read and stored under its official name.
+- **RCT_004 is no longer a Spec rule.** `min_age` and `max_age` are not part of
+  `rider_categories.txt`; the official file carries only `rider_category_id`,
+  `rider_category_name`, `is_default_fare_category` and `eligibility_url`. Some producers emit
+  the two age fields as an extension and reading them is harmless — treating them as a
+  specification violation was not, since the Spec class feeds the publish-score gate. The rule
+  keeps its checks but moves to Quality, with its authority set to ProjectQuality.
 - **Valid GTFS-Flex stop_times rows were reported as broken.** The spec lets a row identify its
   location with `stop_id`, `location_group_id` or `location_id`, requiring `stop_id` only when
   the other two are absent. K1 required `stop_id` unconditionally, listed none of the six

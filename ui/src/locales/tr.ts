@@ -904,7 +904,7 @@ const tr = {
     'RCT_001': 'rider_category_id yineleniyor',
     'RCT_002': 'rider_category_name eksik',
     'RCT_003': 'is_default_fare_category geçersiz',
-    'RCT_004': 'min_age veya max_age geçersiz',
+    'RCT_004': 'min_age veya max_age geçersiz (GTFS uzantı alanı — resmî spec\'te yok)',
     'RCT_005': "max_age min_age'den küçük",
     'RCT_006': 'fare_product başına birden fazla varsayılan yolcu kategorisi',
     // FMD

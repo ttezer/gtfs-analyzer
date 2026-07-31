@@ -5225,7 +5225,7 @@ mod tests {
                 rider_category_name: "Adult".into(),
                 is_default_fare_category: Some(1),
                 min_age: None, max_age: None,
-                rider_category_eligibility_url: None,
+                eligibility_url: None,
                 row: Default::default(), line: 2,
             },
             RiderCategoryRecord {
@@ -5233,7 +5233,7 @@ mod tests {
                 rider_category_name: "Senior".into(),
                 is_default_fare_category: Some(1),
                 min_age: None, max_age: None,
-                rider_category_eligibility_url: None,
+                eligibility_url: None,
                 row: Default::default(), line: 3,
             },
         ];
@@ -5268,7 +5268,7 @@ mod tests {
                 rider_category_name: "Adult".into(),
                 is_default_fare_category: Some(1),
                 min_age: None, max_age: None,
-                rider_category_eligibility_url: None,
+                eligibility_url: None,
                 row: Default::default(), line: 2,
             },
             RiderCategoryRecord {
@@ -5276,7 +5276,7 @@ mod tests {
                 rider_category_name: "Child".into(),
                 is_default_fare_category: Some(0),
                 min_age: None, max_age: None,
-                rider_category_eligibility_url: None,
+                eligibility_url: None,
                 row: Default::default(), line: 3,
             },
         ];

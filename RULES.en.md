@@ -426,7 +426,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | RCT_001 | Duplicate rider_category_id | CRITICAL | Spec |
 | RCT_002 | rider_category_name missing | CRITICAL | Spec |
 | RCT_003 | is_default_fare_category invalid | CRITICAL | Spec |
-| RCT_004 | min_age or max_age invalid | MEDIUM | Spec |
+| RCT_004 | min_age or max_age invalid | MEDIUM | Quality |
 | RCT_005 | max_age less than min_age | MEDIUM | Quality |
 | RCT_006 | Multiple default rider categories per fare_product | MEDIUM | Spec |
 
