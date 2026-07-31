@@ -1596,6 +1596,26 @@ fn check_calendar_analytics(
     let big_gap_threshold = config.big_gap_days;   // CAL_007/012: büyük-boşluk eşiği (MD ≈ 14)
     let mut gap_services: std::collections::BTreeMap<(u32, u32), Vec<&str>> =
         std::collections::BTreeMap::new();
+
+    // ── Feed'in toplam servis penceresi (CAL_010 için) ───────────────────────
+    // "Yalnızca N aktif gün" iddiası ancak feed yeterince uzun bir dönem yayınlıyorsa
+    // anlamlıdır. 17 günlük bir yayında 4-6 gün çalışan bir tren (Vangölü Ekspresi,
+    // 4 Eylül Mavi) seyrek değil NORMALdir; mutlak 7-gün eşiği orada her servisi işaretler.
+    // Kısa pencerede eşik ORANA döner: aktif gün / pencere < %20.
+    const SHORT_FEED_WINDOW_DAYS: u32 = 30;
+    const SHORT_FEED_ACTIVE_RATIO: f64 = 0.20;
+    let feed_window_days: u32 = {
+        let mut lo = u32::MAX;
+        let mut hi = 0u32;
+        for dates in derived.calendar_bitmap.active_dates.values() {
+            for &d in dates {
+                if d < lo { lo = d; }
+                if d > hi { hi = d; }
+            }
+        }
+        if hi == 0 { 0 } else { yyyymmdd_to_jdn(hi).saturating_sub(yyyymmdd_to_jdn(lo)) + 1 }
+    };
+
     for (service_id, dates) in &derived.calendar_bitmap.active_dates {
         if dates.is_empty() {
             continue;
@@ -1605,8 +1625,29 @@ fn check_calendar_analytics(
 
         let total_days = sorted.len() as u32;
 
-        // CAL_010: çok kısa servis
-        if total_days <= gap_threshold {
+        // CAL_010: çok kısa servis — uzun feed'de mutlak gün, kısa feed'de ORAN eşiği.
+        let cal010_hit = if feed_window_days >= SHORT_FEED_WINDOW_DAYS {
+            total_days <= gap_threshold
+        } else if feed_window_days > 0 {
+            (total_days as f64) < feed_window_days as f64 * SHORT_FEED_ACTIVE_RATIO
+        } else {
+            false
+        };
+        if cal010_hit {
+            let (observed, expected, msg) = if feed_window_days >= SHORT_FEED_WINDOW_DAYS {
+                (
+                    format!("{total_days}"),
+                    format!("> {gap_threshold}"),
+                    format!("'{service_id}' takviminde yalnızca {total_days} aktif gün var."),
+                )
+            } else {
+                let pct = total_days as f64 * 100.0 / feed_window_days as f64;
+                (
+                    format!("{total_days}/{feed_window_days} gün (%{pct:.0})"),
+                    format!("≥ %{:.0}", SHORT_FEED_ACTIVE_RATIO * 100.0),
+                    format!("'{service_id}' takvimi feed'in {feed_window_days} günlük yayın penceresinin yalnızca {total_days} gününde (%{pct:.0}) aktif."),
+                )
+            };
             notices.push(k6_notice(
                 ctr,
                 "CAL_010",
@@ -1616,9 +1657,9 @@ fn check_calendar_analytics(
                 "calendar.txt",
                 None,
                 None,
-                Some(format!("{total_days}")),
-                Some(format!("> {gap_threshold}")),
-                format!("'{service_id}' takviminde yalnızca {total_days} aktif gün var."),
+                Some(observed),
+                Some(expected),
+                msg,
                 "Servis takvimini genişletin ya da bu servisin kısa olduğunu belgeleyin.",
             ));
         }
@@ -1864,23 +1905,43 @@ fn check_calendar_analytics(
         // expired sayılmaz (FP fix). min>today ile max<today karşılıklı dışlayıcıdır.
         let mut expired_services: std::collections::BTreeMap<u32, Vec<&str>> =
             std::collections::BTreeMap::new();
+
+        // CAL_017 artık FEED SEVİYESİ bir koşula bağlı: tek bir servisin ileride başlaması
+        // hata değildir — yakın gelecekte devreye girecek geçerli bir servistir (ör. 2 Ağustos'ta
+        // başlayan bir tren, feed'in geri kalanı bugün çalışırken). Uyarı ancak feed'in TAMAMI
+        // henüz başlamamışsa anlamlıdır. Geçmişte kalmış bir servis de "feed başladı" sayılır;
+        // bayatlığı CAL_013 ölçer.
+        let feed_has_started = derived.calendar_bitmap.active_dates.values().any(|dates| {
+            dates.iter().copied().min().is_some_and(|min_d| min_d <= today_yyyymmdd)
+        });
+        // Determinizm: HashMap iterasyonu sırasız → service_id'ye göre topla ve sırala.
+        let mut future_services: Vec<(&str, u32)> = Vec::new();
+
         for (service_id, dates) in &derived.calendar_bitmap.active_dates {
             if dates.is_empty() { continue; }
             let min_svc = dates.iter().copied().min().unwrap();
             let max_svc = dates.iter().copied().max().unwrap();
             if min_svc > today_yyyymmdd {
-                notices.push(k6_notice(
-                    ctr, "CAL_017", EntityType::Service,
-                    Some(service_id.to_string()), Some(service_id.to_string()),
-                    "calendar.txt", None, Some("start_date"),
-                    Some(format!("{min_svc}")), Some(format!("≤ {today_yyyymmdd}")),
-                    format!("'{service_id}' takvimi henüz başlamamış; en erken aktif tarih {min_svc}."),
-                    "Takvim başlangıç tarihini veya calendar_dates.txt girişlerini gözden geçirin.",
-                ));
+                if !feed_has_started {
+                    future_services.push((service_id.as_str(), min_svc));
+                }
             } else if max_svc < today_yyyymmdd {
                 expired_services.entry(max_svc).or_default().push(service_id.as_str());
             }
         }
+        // CAL_017 emit: yalnız feed'in tamamı gelecekteyse (feed_has_started false).
+        future_services.sort_unstable();
+        for (service_id, min_svc) in future_services {
+            notices.push(k6_notice(
+                ctr, "CAL_017", EntityType::Service,
+                Some(service_id.to_string()), Some(service_id.to_string()),
+                "calendar.txt", None, Some("start_date"),
+                Some(format!("{min_svc}")), Some(format!("≤ {today_yyyymmdd}")),
+                format!("'{service_id}' takvimi henüz başlamamış; en erken aktif tarih {min_svc}. Feed'de bugün aktif olan hiçbir servis yok."),
+                "Takvim başlangıç tarihini veya calendar_dates.txt girişlerini gözden geçirin.",
+            ));
+        }
+
         // CAL_013 emit: son-aktif-tarih (expiry) imzası başına TEK notice.
         for (max_svc, mut svcs) in expired_services {
             svcs.sort_unstable();
@@ -9039,17 +9100,95 @@ mod tests {
 
     #[test]
     fn short_service_produces_cal_010() {
-        // Sadece 3 aktif gün (< service_gap_days=7)
+        // Uzun yayın penceresi (≥30 gün) → mutlak eşik yolu: 3 aktif gün < 7.
+        // LONG servisi pencereyi açar; SVC o pencerede gerçekten kısa kalır.
         use crate::k5_derived::CalendarBitmap;
         let mut derived = DerivedData::default();
         derived.calendar_bitmap = CalendarBitmap {
-            active_dates: [("SVC".to_string(),
-                [20260511u32, 20260512, 20260513].into_iter().collect())]
-                .into_iter().collect(),
+            active_dates: [
+                ("SVC".to_string(), [20260511u32, 20260512, 20260513].into_iter().collect()),
+                ("LONG".to_string(), [20260401u32, 20260601].into_iter().collect()),
+            ].into_iter().collect(),
         };
         let records = crate::k2::EntityRecords::default();
         let result = analyze(&records, &derived, &default_config(), 20260514);
-        assert!(result.notices.iter().any(|n| n.rule_id == "CAL_010"));
+        assert!(
+            result.notices.iter().any(|n| n.rule_id == "CAL_010" && n.entity_id.as_deref() == Some("SVC")),
+            "62 günlük pencerede 3 aktif gün → CAL_010 çıkmalı"
+        );
+    }
+
+    // ── WP-O: CAL_010 / CAL_017 feed bağlamına göre ──────────────────────────
+
+    /// 17 günlük bir yayın penceresinde 4-6 gün çalışan bir tren (Vangölü Ekspresi deseni)
+    /// seyrek değil NORMALdir; mutlak 7-gün eşiği orada her servisi işaretlerdi.
+    #[test]
+    fn cal_010_uses_a_ratio_on_short_feed_windows() {
+        use crate::k5_derived::CalendarBitmap;
+        let mut derived = DerivedData::default();
+        // Pencere 20260728–20260813 = 17 gün (Temmuz 28-31 + Ağustos 1-13).
+        let full: std::collections::HashSet<u32> = (28..=31u32).map(|d| 20260700 + d)
+            .chain((1..=13u32).map(|d| 20260800 + d))
+            .collect();
+        derived.calendar_bitmap = CalendarBitmap {
+            active_dates: [
+                ("DAILY".to_string(), full),
+                // 5 gün aktif — 17 günün %29'u, %20 eşiğinin üstünde.
+                ("VANGOLU".to_string(),
+                    [20260728u32, 20260730, 20260801, 20260803, 20260805].into_iter().collect()),
+                // 2 gün aktif — %12, eşiğin altında → gerçek stub.
+                ("STUB".to_string(), [20260728u32, 20260729].into_iter().collect()),
+            ].into_iter().collect(),
+        };
+        let records = crate::k2::EntityRecords::default();
+        let result = analyze(&records, &derived, &default_config(), 20260801);
+        assert!(
+            !result.notices.iter().any(|n| n.rule_id == "CAL_010" && n.entity_id.as_deref() == Some("VANGOLU")),
+            "17 günlük pencerede 5 aktif gün (%29) → CAL_010 ÇIKMAMALI"
+        );
+        assert!(
+            result.notices.iter().any(|n| n.rule_id == "CAL_010" && n.entity_id.as_deref() == Some("STUB")),
+            "17 günlük pencerede 2 aktif gün (%12) → CAL_010 çıkmalı"
+        );
+    }
+
+    /// Feed'de bugün aktif servisler varken ileride başlayan TEK servis hata değildir.
+    #[test]
+    fn cal_017_silent_when_the_feed_has_already_started() {
+        use crate::k5_derived::CalendarBitmap;
+        let mut derived = DerivedData::default();
+        derived.calendar_bitmap = CalendarBitmap {
+            active_dates: [
+                ("ACTIVE".to_string(), [20260510u32, 20260514, 20260520].into_iter().collect()),
+                ("SOON".to_string(),   [20260516u32, 20260517].into_iter().collect()),
+            ].into_iter().collect(),
+        };
+        let records = crate::k2::EntityRecords::default();
+        let result = analyze(&records, &derived, &default_config(), 20260514);
+        assert!(
+            !result.notices.iter().any(|n| n.rule_id == "CAL_017"),
+            "feed bugün çalışıyorken ileride başlayan servis CAL_017 üretmemeli"
+        );
+    }
+
+    /// Feed'in TAMAMI gelecekteyse uyarı anlamlıdır ve korunur.
+    #[test]
+    fn cal_017_fires_when_the_whole_feed_is_still_in_the_future() {
+        use crate::k5_derived::CalendarBitmap;
+        let mut derived = DerivedData::default();
+        derived.calendar_bitmap = CalendarBitmap {
+            active_dates: [
+                ("A".to_string(), [20260601u32, 20260602].into_iter().collect()),
+                ("B".to_string(), [20260610u32].into_iter().collect()),
+            ].into_iter().collect(),
+        };
+        let records = crate::k2::EntityRecords::default();
+        let result = analyze(&records, &derived, &default_config(), 20260514);
+        let ids: Vec<&str> = result.notices.iter()
+            .filter(|n| n.rule_id == "CAL_017")
+            .filter_map(|n| n.entity_id.as_deref())
+            .collect();
+        assert_eq!(ids, vec!["A", "B"], "tümü gelecekteyse her servis için çıkmalı ve SIRALI olmalı");
     }
 
     #[test]

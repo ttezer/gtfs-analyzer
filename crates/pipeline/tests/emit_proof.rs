@@ -779,7 +779,9 @@ fn fixtures() -> Vec<Fixture> {
         // CAL_009: tüm servisler sona ermiş (k4 kritik).
         fx("CAL_009", vec![("calendar.txt", "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,0,0,20200101,20201231\n")]),
         // CAL_010: toplam aktif gün <= 7 (1 haftalık pencere).
-        fx("CAL_010", vec![("calendar.txt", "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,1,1,20260518,20260524\n")]),
+        // CAL_010: kısa servis. SVC2 yayın penceresini ≥30 güne açar (mutlak eşik yolu);
+        // pencere kısa olsaydı kural ORAN testine düşer ve %100 kapsayan SVC1 susardı.
+        fx("CAL_010", vec![("calendar.txt", "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,1,1,20260518,20260524\nSVC2,1,1,1,1,1,1,1,20260101,20261231\n")]),
         // CAL_011: hiçbir sefer kullanmıyor (SVC2 boşta).
         fx("CAL_011", vec![("calendar.txt", "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,0,0,20250101,20271231\nSVC2,1,1,1,1,1,0,0,20250101,20271231\n")]),
         // CAL_012: yakın gelecekte servis boşluğu.

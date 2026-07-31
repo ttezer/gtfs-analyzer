@@ -12,6 +12,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > unaffected. Re-baseline Golden snapshots that contain it.
 
 ### Changed
+- **CAL_010 and CAL_017 now read the feed's own context.** Both judged a service against an
+  absolute rule that ignores what the feed is publishing. CAL_010 warned whenever a service
+  ran seven days or fewer, which is meaningless in a feed covering only seventeen days: a
+  train that runs on five of them is a normal timetable, not a stub. The day threshold now
+  applies only when the feed publishes a window of 30 days or more; below that the test
+  becomes a ratio, and a service active on less than 20% of the window is reported. CAL_017
+  warned about every service starting in the future, so a valid timetable beginning in two
+  days was an error while the rest of the feed ran normally. It now fires only when *no*
+  service in the feed has started yet, which is the case it was written for. A service that
+  has already expired counts as started; staleness is CAL_013's job. CAL_017 also emitted in
+  hash order and is now sorted by `service_id`.
 - **STM_045 and OPR_001 now read route_type.** Both applied a threshold calibrated for
   street-running transit to every mode. STM_045 rejected departure times past
   `24 + service_day_start_hour`, but long-distance rail legitimately writes 30:37, 33:56 or
