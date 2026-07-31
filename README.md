@@ -55,12 +55,12 @@ Feed: `mdb-53` (MobilityDatabase, 2026-07-29 anlık görüntüsü; geçerlilik a
 
 | | MobilityData | GTFS Analyzer |
 |---|---:|---:|
-| Toplam notice | 2.697 | 558 |
+| Toplam notice | 2.697 | 557 |
 | Kritik / Error | 2 | 2 |
 | Yüksek / Warning | 2.653 | 1 |
 | Orta | — | 7 |
 | Düşük | — | 36 |
-| Bilgi / Info | 42 | 512 |
+| Bilgi / Info | 42 | 511 |
 | Tetiklenen kural tipi | 13 | **36** |
 | Yayın skoru | — | **92,6 / 100** |
 | Genel skor | — | **90,0 / 100** |
@@ -71,12 +71,12 @@ Feed: `mdb-247` (MobilityDatabase, 2026-07-15 anlık görüntüsü; geçerlilik 
 
 | | MobilityData | GTFS Analyzer |
 |---|---:|---:|
-| Toplam notice | 970 | 5.155 |
+| Toplam notice | 970 | 5.163 |
 | Kritik / Error | 908 | 0 |
 | Yüksek / Warning | 49 | 788 |
 | Orta | — | 116 |
 | Düşük | — | 777 |
-| Bilgi / Info | 13 | 3.474 |
+| Bilgi / Info | 13 | 3.482 |
 | Tetiklenen kural tipi | 9 | **52** |
 | Yayın skoru | — | **100 / 100** |
 | Genel skor | — | **84,6 / 100** |

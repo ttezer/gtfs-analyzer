@@ -55,12 +55,12 @@ Feed: `mdb-53` (MobilityDatabase, 2026-07-29 snapshot; validity range: 2026-01-1
 
 | | MobilityData | GTFS Analyzer |
 |---|---:|---:|
-| Total notices | 2,697 | 558 |
+| Total notices | 2,697 | 557 |
 | Critical / Error | 2 | 2 |
 | High / Warning | 2,653 | 1 |
 | Medium | — | 7 |
 | Low | — | 36 |
-| Info | 42 | 512 |
+| Info | 42 | 511 |
 | Distinct rule types triggered | 13 | **36** |
 | Publish score | — | **92.6 / 100** |
 | Overall score | — | **90.0 / 100** |
@@ -71,12 +71,12 @@ Feed: `mdb-247` (MobilityDatabase, 2026-07-15 snapshot; validity range: 2026-07-
 
 | | MobilityData | GTFS Analyzer |
 |---|---:|---:|
-| Total notices | 970 | 5,155 |
+| Total notices | 970 | 5,163 |
 | Critical / Error | 908 | 0 |
 | High / Warning | 49 | 788 |
 | Medium | — | 116 |
 | Low | — | 777 |
-| Info | 13 | 3,474 |
+| Info | 13 | 3,482 |
 | Distinct rule types triggered | 9 | **52** |
 | Publish score | — | **100 / 100** |
 | Overall score | — | **84.6 / 100** |
