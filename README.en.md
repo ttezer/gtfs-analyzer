@@ -13,7 +13,7 @@ GTFS Validator & Analyzer does not merely check whether a file conforms to the s
 
 Every finding is tagged with a rule code, an analysis class, and a severity level. Thanks to the Spec · Interop · Quality · Analytics classes and the Critical → Info severity levels, thousands of findings can be filtered, prioritized, and handled systematically. The tool also automatically detects the GTFS features used by the feed — Shapes, Transfers, Fares, Headsigns, Flex, and the like — and includes them in the report.
 
-GTFS Validator & Analyzer extends specification validation with operational quality analysis. Frequency inconsistencies per route, anomalous speed segments, isolated stops, gaps in service patterns, andnetwork topology problems are examined with 542 distinct validation and analysis rules. Results are summarized with two scores — the Publish Score (blocking issues only) and the Overall Score (weighted average of all four classes) — computed with different formulas for different purposes. The prioritized fix queue shows which issues should be addressed first and the likely impact of each fix on the score.
+GTFS Validator & Analyzer extends specification validation with operational quality analysis. Frequency inconsistencies per route, anomalous speed segments, isolated stops, gaps in service patterns, andnetwork topology problems are examined with 541 distinct validation and analysis rules. Results are summarized with two scores — the Publish Score (blocking issues only) and the Overall Score (weighted average of all four classes) — computed with different formulas for different purposes. The prioritized fix queue shows which issues should be addressed first and the likely impact of each fix on the score.
 
 **Who is it for?**
 
@@ -43,11 +43,11 @@ GTFS Validator & Analyzer extends specification validation with operational qual
 | GTFS-JP profile validation | ❌ | ❌ | ✅ |
 | Output formats | HTML, JSON | HTML, JSON | HTML, CSV, JSON, PDF |
 | Platform | Web | Web, CLI, Desktop | Web, CLI *(Desktop planned)* |
-| **Total rules** | **178** | **~120** | **542** |
+| **Total rules** | **178** | **~120** | **541** |
 
 ### Feed Analysis Examples
 
-The same feeds were compared with two validators: MobilityData gtfs-validator v8.0.1 · GTFS Analyzer v0.7.0. (GTFS Analyzer figures are a snapshot from a run on 2026-07-24; because some rules are date-dependent, running on a different day may produce small deviations.)
+The same feeds were compared with two validators: MobilityData gtfs-validator v8.0.1 · GTFS Analyzer v0.7.0. (GTFS Analyzer figures are a snapshot from a run on 2026-07-31; because some rules are date-dependent, running on a different day may produce small deviations.)
 
 #### BART (Bay Area Rapid Transit, San Francisco)
 
@@ -55,13 +55,13 @@ Feed: `mdb-53` (MobilityDatabase, 2026-07-29 snapshot; validity range: 2026-01-1
 
 | | MobilityData | GTFS Analyzer |
 |---|---:|---:|
-| Total notices | 2,697 | 581 |
+| Total notices | 2,697 | 558 |
 | Critical / Error | 2 | 2 |
 | High / Warning | 2,653 | 1 |
 | Medium | — | 7 |
 | Low | — | 36 |
-| Info | 42 | 535 |
-| Distinct rule types triggered | 13 | **39** |
+| Info | 42 | 512 |
+| Distinct rule types triggered | 13 | **36** |
 | Publish score | — | **92.6 / 100** |
 | Overall score | — | **90.0 / 100** |
 
@@ -71,15 +71,15 @@ Feed: `mdb-247` (MobilityDatabase, 2026-07-15 snapshot; validity range: 2026-07-
 
 | | MobilityData | GTFS Analyzer |
 |---|---:|---:|
-| Total notices | 970 | 6,352 |
+| Total notices | 970 | 5,155 |
 | Critical / Error | 908 | 0 |
-| High / Warning | 49 | 789 |
-| Medium | — | 117 |
-| Low | — | 1,907 |
-| Info | 13 | 3,539 |
-| Distinct rule types triggered | 9 | **54** |
+| High / Warning | 49 | 788 |
+| Medium | — | 116 |
+| Low | — | 777 |
+| Info | 13 | 3,474 |
+| Distinct rule types triggered | 9 | **52** |
 | Publish score | — | **100 / 100** |
-| Overall score | — | **84.2 / 100** |
+| Overall score | — | **84.6 / 100** |
 
 > ⚠️ **Overlapping block trips:** This feed's dominant finding is trips that overlap in time within the same block (908 *errors* in MobilityData). GTFS Analyzer catches the same issue with TRP_022; both tools count a conflict only for services active on the same day (calendar intersection). The difference is the counting unit: MobilityData reports one notice per overlapping trip **pair** (908), while GTFS Analyzer collapses repeated overlaps of the same trip into a single record (770), suppressing repetition within busy blocks. Severity classification also differs (not critical in Analyzer).
 >
@@ -91,15 +91,15 @@ Feed: `mdb-3175` (MobilityDatabase, 2026-07-29 snapshot; validity range: 2026-07
 
 | | MobilityData | GTFS Analyzer |
 |---|---:|---:|
-| Total notices | 2,666 | 2,614 |
+| Total notices | 2,666 | 1,885 |
 | Critical / Error | 0 | 0 |
 | High / Warning | 330 | 12 |
 | Medium | — | 964 |
-| Low | — | 974 |
-| Info | 2,336 | 664 |
-| Distinct rule types triggered | 9 | **54** |
+| Low | — | 588 |
+| Info | 2,336 | 321 |
+| Distinct rule types triggered | 9 | **50** |
 | Publish score | — | **100 / 100** |
-| Overall score | — | **84.8 / 100** |
+| Overall score | — | **85.0 / 100** |
 
 > 🗾 **Spec-clean but operationally dense:** Both tools report 0 critical — the feed is specification-clean. The difference is in the analytics layer: most of GTFS Analyzer's medium/low findings are operational signals from the three-year validity window (2026–2029) and dense network/shape patterns, which MobilityData largely summarizes as warnings/info.
 
@@ -109,15 +109,15 @@ Feed: `mdb-782` (MobilityDatabase, 2026-07-25 snapshot; validity range: 2026-07-
 
 | | MobilityData | GTFS Analyzer |
 |---|---:|---:|
-| Total notices | 11,950 | 28,540 |
+| Total notices | 11,950 | 23,569 |
 | Critical / Error | 0 | 0 |
-| High / Warning | 11,249 | 1,484 |
-| Medium | — | 7,516 |
-| Low | — | 9,337 |
-| Info | 701 | 10,203 |
-| Distinct rule types triggered | 17 | **95** |
+| High / Warning | 11,249 | 1,281 |
+| Medium | — | 7,356 |
+| Low | — | 6,809 |
+| Info | 701 | 8,123 |
+| Distinct rule types triggered | 17 | **90** |
 | Publish score | — | **100 / 100** |
-| Overall score | — | **78.2 / 100** |
+| Overall score | — | **78.4 / 100** |
 
 > 🇩🇪 **Large feed, different focus:** Both tools report 0 critical — the feed is specification-clean. More than half of MobilityData's total (`non_ascii_or_non_printable_char`, 6,813) is the legitimate ü/ö/ä/ß characters in the feed's German text; GTFS Analyzer does not flag valid Unicode letters, only non-printable/control characters. GTFS Analyzer's volume instead comes from operational/geometric analytics MobilityData does not have (shape, stop, statistical duration). On core checks the two align: `stop_without_stop_time` (STP_020) and `service_has_no_active_day_of_the_week` (CAL_006) match exactly at 1,398 and 1,035.
 
@@ -584,7 +584,7 @@ gtfs-validator/
 │   ├── config/     # Configuration types
 │   ├── core/       # Shared data structures and result model
 │   ├── pipeline/   # Validation pipeline (k1–k7 stages)
-│   ├── rules/      # Rule definitions and registry (542 rules, 37 groups)
+│   ├── rules/      # Rule definitions and registry (541 rules, 37 groups)
 │   └── wasm/       # wasm-bindgen WASM output
 └── ui/             # Vite + TypeScript frontend
     ├── pkg/          # wasm-pack output (generated, committed)

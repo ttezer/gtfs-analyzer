@@ -13,7 +13,7 @@ GTFS Validator & Analyzer yalnızca dosyanın spesifikasyona uygun olup olmadı�
 
 Her bulgu; kural kodu, analiz sınıfı ve önem seviyesiyle etiketlenir. Spec · Interop · Quality · Analytics sınıfları ile Kritik → Bilgi önem seviyeleri sayesinde binlerce bulgu filtrelenebilir, önceliklendirilebilir ve sistematik biçimde ele alınabilir. Araç ayrıca feed'in kullandığı GTFS özelliklerini — Shapes, Transfers, Fares, Headsigns, Flex ve benzerlerini — otomatik olarak tespit ederek rapora dahil eder.
 
-GTFS Validator & Analyzer, spesifikasyon doğrulamasını operasyonel kalite analiziyle genişletir. Hat bazında sefer sıklığı tutarsızlıkları, anormal hız segmentleri, izole duraklar,servis desenlerindeki boşluklar ve ağ topolojisi problemleri 542 farklı doğrulama ve analiz kuralıyla incelenir. Sonuçlar, uyumluluk ve kaliteyi ayrı ayrı değerlendiren skorlarla özetlenir. Önceliklendirilmiş düzeltme kuyruğu ise hangi sorunların önce ele alınması gerektiğini ve yapılacak düzeltmelerin skora olası etkisini gösterir.
+GTFS Validator & Analyzer, spesifikasyon doğrulamasını operasyonel kalite analiziyle genişletir. Hat bazında sefer sıklığı tutarsızlıkları, anormal hız segmentleri, izole duraklar,servis desenlerindeki boşluklar ve ağ topolojisi problemleri 541 farklı doğrulama ve analiz kuralıyla incelenir. Sonuçlar, uyumluluk ve kaliteyi ayrı ayrı değerlendiren skorlarla özetlenir. Önceliklendirilmiş düzeltme kuyruğu ise hangi sorunların önce ele alınması gerektiğini ve yapılacak düzeltmelerin skora olası etkisini gösterir.
 
 **Kimler için?**
 
@@ -43,11 +43,11 @@ GTFS Validator & Analyzer, spesifikasyon doğrulamasını operasyonel kalite ana
 | GTFS-JP profil doğrulama | ❌ | ❌ | ✅ |
 | Çıktı formatı | HTML, JSON | HTML, JSON | HTML, CSV, JSON, PDF |
 | Platform | Web | Web, CLI, Desktop | Web, CLI *(Desktop planlanmış)* |
-| **Toplam kural** | **178** | **~120** | **542** |
+| **Toplam kural** | **178** | **~120** | **541** |
 
 ### Feed Analizi Örnekleri
 
-Aynı feed'ler iki validator ile karşılaştırıldı: MobilityData gtfs-validator v8.0.1 · GTFS Analyzer v0.7.0. (GTFS Analyzer sayıları 2026-07-24 tarihli çalıştırmanın anlık görüntüsüdür; tarihe bağlı kurallar nedeniyle farklı bir günde çalıştırma küçük sapmalar verebilir.)
+Aynı feed'ler iki validator ile karşılaştırıldı: MobilityData gtfs-validator v8.0.1 · GTFS Analyzer v0.7.0. (GTFS Analyzer sayıları 2026-07-31 tarihli çalıştırmanın anlık görüntüsüdür; tarihe bağlı kurallar nedeniyle farklı bir günde çalıştırma küçük sapmalar verebilir.)
 
 #### BART (Bay Area Rapid Transit, San Francisco)
 
@@ -55,13 +55,13 @@ Feed: `mdb-53` (MobilityDatabase, 2026-07-29 anlık görüntüsü; geçerlilik a
 
 | | MobilityData | GTFS Analyzer |
 |---|---:|---:|
-| Toplam notice | 2.697 | 581 |
+| Toplam notice | 2.697 | 558 |
 | Kritik / Error | 2 | 2 |
 | Yüksek / Warning | 2.653 | 1 |
 | Orta | — | 7 |
 | Düşük | — | 36 |
-| Bilgi / Info | 42 | 535 |
-| Tetiklenen kural tipi | 13 | **39** |
+| Bilgi / Info | 42 | 512 |
+| Tetiklenen kural tipi | 13 | **36** |
 | Yayın skoru | — | **92,6 / 100** |
 | Genel skor | — | **90,0 / 100** |
 
@@ -71,15 +71,15 @@ Feed: `mdb-247` (MobilityDatabase, 2026-07-15 anlık görüntüsü; geçerlilik 
 
 | | MobilityData | GTFS Analyzer |
 |---|---:|---:|
-| Toplam notice | 970 | 6.352 |
+| Toplam notice | 970 | 5.155 |
 | Kritik / Error | 908 | 0 |
-| Yüksek / Warning | 49 | 789 |
-| Orta | — | 117 |
-| Düşük | — | 1.907 |
-| Bilgi / Info | 13 | 3.539 |
-| Tetiklenen kural tipi | 9 | **54** |
+| Yüksek / Warning | 49 | 788 |
+| Orta | — | 116 |
+| Düşük | — | 777 |
+| Bilgi / Info | 13 | 3.474 |
+| Tetiklenen kural tipi | 9 | **52** |
 | Yayın skoru | — | **100 / 100** |
-| Genel skor | — | **84,2 / 100** |
+| Genel skor | — | **84,6 / 100** |
 
 > ⚠️ **Çakışan blok seferleri:** Bu feed'in baskın bulgusu, aynı blokta zaman bakımından çakışan seferler (MobilityData'da 908 *error*). GTFS Analyzer aynı olguyu TRP_022 ile yakalar; iki araç da yalnızca aynı gün aktif servisleri çakışma sayar (takvim-kesişim). Fark sayım birimindedir: MobilityData çakışan her sefer **çiftini** ayrı sayar (908), GTFS Analyzer ise aynı sefere ait tekrarlı çakışmaları tek kayda indirir (770) — yoğun bloklardaki tekrarı bastırır. Önem sınıflandırması da farklıdır (Analyzer'da kritik değil).
 >
@@ -91,15 +91,15 @@ Feed: `mdb-3175` (MobilityDatabase, 2026-07-29 anlık görüntüsü; geçerlilik
 
 | | MobilityData | GTFS Analyzer |
 |---|---:|---:|
-| Toplam notice | 2.666 | 2.614 |
+| Toplam notice | 2.666 | 1.885 |
 | Kritik / Error | 0 | 0 |
 | Yüksek / Warning | 330 | 12 |
 | Orta | — | 964 |
-| Düşük | — | 974 |
-| Bilgi / Info | 2.336 | 664 |
-| Tetiklenen kural tipi | 9 | **54** |
+| Düşük | — | 588 |
+| Bilgi / Info | 2.336 | 321 |
+| Tetiklenen kural tipi | 9 | **50** |
 | Yayın skoru | — | **100 / 100** |
-| Genel skor | — | **84,8 / 100** |
+| Genel skor | — | **85,0 / 100** |
 
 > 🗾 **Spec-temiz ama operasyonel olarak yoğun:** Her iki araç da 0 kritik bulur — feed spec açısından temiz. Fark analitik katmanda: GTFS Analyzer'ın orta/düşük bulgularının çoğu 3 yıllık geçerlilik penceresi (2026–2029) ve yoğun şebeke/şekil desenlerinden gelen operasyonel sinyallerdir; MobilityData bu feed'i ağırlıkla uyarı/bilgi olarak özetler.
 
@@ -109,15 +109,15 @@ Feed: `mdb-782` (MobilityDatabase, 2026-07-25 anlık görüntüsü; geçerlilik 
 
 | | MobilityData | GTFS Analyzer |
 |---|---:|---:|
-| Toplam notice | 11.950 | 28.540 |
+| Toplam notice | 11.950 | 23.569 |
 | Kritik / Error | 0 | 0 |
-| Yüksek / Warning | 11.249 | 1.484 |
-| Orta | — | 7.516 |
-| Düşük | — | 9.337 |
-| Bilgi / Info | 701 | 10.203 |
-| Tetiklenen kural tipi | 17 | **95** |
+| Yüksek / Warning | 11.249 | 1.281 |
+| Orta | — | 7.356 |
+| Düşük | — | 6.809 |
+| Bilgi / Info | 701 | 8.123 |
+| Tetiklenen kural tipi | 17 | **90** |
 | Yayın skoru | — | **100 / 100** |
-| Genel skor | — | **78,2 / 100** |
+| Genel skor | — | **78,4 / 100** |
 
 > 🇩🇪 **Büyük feed, farklı odak:** Her iki araç da 0 kritik bulur — feed spec açısından temizdir. MobilityData toplamının yarıdan fazlası (`non_ascii_or_non_printable_char`, 6.813) feed'in Almanca metnindeki meşru ü/ö/ä/ß karakterleridir; GTFS Analyzer geçerli Unicode harfleri işaretlemez, yalnız yazdırılamaz/kontrol karakterlerini. GTFS Analyzer'ın hacmi ise MobilityData'da bulunmayan operasyonel/geometrik analitiğe (şekil, durak, istatistiksel süre) dayanır. Çekirdek kontrollerde iki araç hizalıdır: `stop_without_stop_time` (STP_020) ve `service_has_no_active_day_of_the_week` (CAL_006) sırasıyla 1.398 ve 1.035 ile birebir eşleşir.
 
@@ -584,7 +584,7 @@ gtfs-validator/
 │   ├── config/     # Yapılandırma tipleri
 │   ├── core/       # Ortak veri yapıları ve sonuç modeli
 │   ├── pipeline/   # Doğrulama pipeline'ı (k1–k7 aşamaları)
-│   ├── rules/      # Kural tanımları ve registry (542 kural, 37 grup)
+│   ├── rules/      # Kural tanımları ve registry (541 kural, 37 grup)
 │   └── wasm/       # wasm-bindgen WASM çıktısı
 └── ui/             # Vite + TypeScript frontend
     ├── pkg/          # wasm-pack çıktısı (üretilen, commit'lenmiş)
