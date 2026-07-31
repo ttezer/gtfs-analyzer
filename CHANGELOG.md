@@ -11,6 +11,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > from `stops.txt` was penalised twice; it is now counted once. Feeds without that error are
 > unaffected. Re-baseline Golden snapshots that contain it.
 
+### Fixed
+- **A Flex-only feed could not be opened at all.** `stops.txt` sat in the unconditional required
+  list, so a feed that defines its service through `locations.geojson` zones — which the spec
+  explicitly allows, calling `stops.txt` "Optional if demand-responsive zones are defined in
+  locations.geojson" — was rejected with a fatal ARC_004 and produced no findings whatsoever.
+  The requirement is now conditional. A feed carrying neither `stops.txt` nor `locations.geojson`
+  is still fatal, since nothing then says where service is provided.
+
 ### Changed
 - **Validation output is now byte-identical across runs.** The July 27 work fixed the part
   that changed *content* — which finding survived deduplication — but the serialized JSON still

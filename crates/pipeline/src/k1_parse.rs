@@ -754,6 +754,9 @@ pub fn parse(zip_bytes: &[u8]) -> Result<K1Result, FatalError> {
     let mut geojson_location_ids: std::collections::HashSet<String> = std::collections::HashSet::new();
     let mut raw_files: RawFiles = HashMap::new();
     let mut present_files: HashSet<String> = HashSet::new();
+    // locations.geojson `present_files`'a GİRMEZ (aşağıda `continue` ile özel işlenir);
+    // ARC_004'ün stops.txt koşulu için ayrı bayrak tutulur.
+    let mut has_locations_geojson = false;
     // DQ_016 için dosya başına birincil anahtar sütun indeksi — ilk "*_id" sütunu
     let _dq016_dummy = ();
 
@@ -810,6 +813,7 @@ pub fn parse(zip_bytes: &[u8]) -> Result<K1Result, FatalError> {
 
         // locations.geojson: Flex GeoJSON lokasyon dosyası (özel işlem)
         if raw_name == "locations.geojson" {
+            has_locations_geojson = true;
             let mut buf = Vec::with_capacity(zf.size() as usize);
             if zf.read_to_end(&mut buf).is_ok() {
                 validate_locations_geojson(&buf, &raw_name, &mut notices, &mut counter, &mut geojson_location_ids);
@@ -1315,9 +1319,18 @@ pub fn parse(zip_bytes: &[u8]) -> Result<K1Result, FatalError> {
     // ── Dosya varlık kontrolleri ──────────────────────────────────────────────
 
     // ARC_004: Zorunlu dosya eksik → Fatal
+    //
+    // `stops.txt` KOŞULLU zorunludur. Spec (Schedule Reference, dosya tablosu):
+    //   "stops.txt — Conditionally Required — Optional if demand-responsive zones are
+    //    defined in locations.geojson. Required otherwise."
+    // Yalnızca-Flex bir feed hizmetini `locations.geojson` bölgeleriyle tanımlar ve hiç
+    // stops.txt taşımayabilir. Koşulsuz listede tutmak, GEÇERLİ bir feed'i ARC_004 Fatal'ı
+    // ile tamamen açılamaz yapıyordu — kullanıcı tek bir bulgu bile göremiyordu.
+    // İkisi de yoksa hizmetin nerede verildiği hiç tanımlı değildir → yine Fatal.
     let missing: Vec<&str> = REQUIRED_FILES
         .iter()
         .filter(|&&f| !present_files.contains(f))
+        .filter(|&&f| !(f == "stops.txt" && has_locations_geojson))
         .copied()
         .collect();
 

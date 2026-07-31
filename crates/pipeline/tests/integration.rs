@@ -1268,3 +1268,49 @@ fn stm057_fires_per_zone_not_per_trip() {
         other => panic!("ValidateResult::Ok beklendi, gelen: {other:?}"),
     }
 }
+
+// ── stops.txt KOŞULLU zorunlu (yalnızca-Flex feed) ────────────────────────────
+// Spec (Schedule Reference, dosya tablosu): "stops.txt — Conditionally Required —
+// Optional if demand-responsive zones are defined in locations.geojson. Required otherwise."
+// 2026-08-01'e kadar stops.txt koşulsuz REQUIRED_FILES'taydı → geçerli bir yalnızca-Flex
+// feed ARC_004 Fatal'ı alıyor ve HİÇ açılmıyordu; kullanıcı tek bulgu bile göremiyordu.
+
+#[test]
+fn flex_only_feed_without_stops_txt_is_not_fatal() {
+    static GEOJSON: &[u8] = br#"{"type":"FeatureCollection","features":[
+        {"type":"Feature","id":"zone_a","geometry":{"type":"Polygon","coordinates":
+        [[[29.0,41.0],[29.1,41.0],[29.1,41.1],[29.0,41.1],[29.0,41.0]]]},"properties":{}}]}"#;
+    static FLEX_STOP_TIMES: &[u8] =
+        b"trip_id,location_id,stop_sequence,start_pickup_drop_off_window,end_pickup_drop_off_window\n\
+          T1,zone_a,1,08:00:00,12:00:00\nT1,zone_a,2,08:00:00,12:00:00\n";
+
+    let mut files = base_files();
+    files.retain(|(n, _)| *n != "stops.txt" && *n != "stop_times.txt");
+    files.push(("stop_times.txt", FLEX_STOP_TIMES));
+    files.push(("locations.geojson", GEOJSON));
+
+    match validate_bytes(&make_zip(&files), &ValidatorConfig::default(), TODAY) {
+        ValidateResult::Fatal(e) => panic!(
+            "locations.geojson varken stops.txt eksikliği Fatal OLMAMALI (spec: koşullu zorunlu); \
+             alınan: {:?} — {}", e.code, e.message),
+        ValidateResult::Ok(vr) => {
+            assert!(
+                !vr.notices.iter().any(|n| n.rule_id == "ARC_004"
+                    && n.observed_value.as_deref() == Some("stops.txt")),
+                "stops.txt için ARC_004 üretilmemeli"
+            );
+        }
+    }
+}
+
+/// stops.txt VE locations.geojson ikisi de yoksa hizmetin nerede verildiği hiç tanımlı
+/// değildir → Fatal KORUNUR (koşulun gevşetilmesi bu durumu kapsamamalı).
+#[test]
+fn feed_without_stops_txt_and_without_geojson_is_still_fatal() {
+    let mut files = base_files();
+    files.retain(|(n, _)| *n != "stops.txt");
+    match validate_bytes(&make_zip(&files), &ValidatorConfig::default(), TODAY) {
+        ValidateResult::Fatal(_) => {}
+        ValidateResult::Ok(_) => panic!("stops.txt ve locations.geojson ikisi de yokken Fatal beklenir"),
+    }
+}
