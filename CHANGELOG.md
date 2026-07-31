@@ -12,6 +12,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > unaffected. Re-baseline Golden snapshots that contain it.
 
 ### Fixed
+- **XFL_019 missed the networks.txt half of its rule.** The spec forbids `routes.network_id`
+  when *either* `route_networks.txt` or `networks.txt` exists; only the first was checked, so a
+  feed defining networks twice through `networks.txt` went unreported. Both files now trigger
+  it, and the message names the one that clashed. Using `routes.network_id` with neither file
+  present remains valid.
 - **rider_categories: `eligibility_url` was read under a name that does not exist.** The parser
   looked for `rider_category_eligibility_url`, which appears nowhere in the spec, so every valid
   `eligibility_url` value was silently dropped. K1 already knew the correct name, so the two

@@ -1365,3 +1365,41 @@ fn non_flex_row_with_empty_stop_id_still_produces_stm_006() {
         ValidateResult::Fatal(e) => panic!("beklenmeyen fatal: {:?} {}", e.code, e.message),
     }
 }
+
+// ── XFL_019: routes.network_id ile AYRI ağ dosyası birlikte kullanılamaz ───────
+// Spec (routes.network_id): "Conditionally Forbidden — Forbidden if the route_networks.txt
+// OR networks.txt file exists." 2026-08-01'e kadar yalnız route_networks.txt kolu
+// denetleniyordu; networks.txt ile birlikte kullanım aynı derecede yasakken kaçıyordu.
+
+#[test]
+fn xfl019_fires_when_networks_txt_is_used_with_routes_network_id() {
+    static ROUTES_NET: &[u8] =
+        b"route_id,agency_id,route_short_name,route_type,network_id\nR1,1,101,3,N1\n";
+    static NETWORKS: &[u8] = b"network_id,network_name\nN1,Ana Ag\n";
+    let mut files = base_files();
+    files.retain(|(n, _)| *n != "routes.txt");
+    files.push(("routes.txt", ROUTES_NET));
+    files.push(("networks.txt", NETWORKS));
+    match validate_bytes(&make_zip(&files), &ValidatorConfig::default(), TODAY) {
+        ValidateResult::Ok(vr) => assert!(
+            vr.notices.iter().any(|n| n.rule_id == "XFL_019"),
+            "networks.txt + routes.network_id → XFL_019 çıkmalı"),
+        ValidateResult::Fatal(e) => panic!("beklenmeyen fatal: {:?} {}", e.code, e.message),
+    }
+}
+
+/// Ağ dosyası YOKKEN routes.network_id tek başına GEÇERLİDİR (spec: "Optional otherwise").
+#[test]
+fn xfl019_silent_when_routes_network_id_is_used_alone() {
+    static ROUTES_NET: &[u8] =
+        b"route_id,agency_id,route_short_name,route_type,network_id\nR1,1,101,3,N1\n";
+    let mut files = base_files();
+    files.retain(|(n, _)| *n != "routes.txt");
+    files.push(("routes.txt", ROUTES_NET));
+    match validate_bytes(&make_zip(&files), &ValidatorConfig::default(), TODAY) {
+        ValidateResult::Ok(vr) => assert!(
+            !vr.notices.iter().any(|n| n.rule_id == "XFL_019"),
+            "ayrı ağ dosyası yokken routes.network_id geçerlidir → XFL_019 çıkmamalı"),
+        ValidateResult::Fatal(e) => panic!("beklenmeyen fatal: {:?} {}", e.code, e.message),
+    }
+}

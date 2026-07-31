@@ -111,6 +111,9 @@ pub struct EntityRecords {
     pub trips: Vec<TripRecord>,
     pub trip_interns: TripInternTable,
     pub has_route_networks_file: bool,
+    /// XFL_019: `routes.network_id`, networks.txt VARSA da yasaktır (spec: "Forbidden if the
+    /// route_networks.txt or networks.txt file exists"). İki dosya ayrı izlenir.
+    pub has_networks_file: bool,
     /// Streaming parse edilen dosyaların fiziksel veri satırı sayıları (başlık hariç).
     /// lib.rs file_stats döngüsünde K1 rows.len()==0 yerine bu sayaçlar kullanılır.
     /// Yeni bir dosya stream edildiğinde buraya eklemek yeterli; lib.rs dokunmaz.
@@ -343,6 +346,7 @@ pub fn validate(mut files: RawFiles, zip_bytes: Option<&[u8]>) -> K2Result {
     }
 
     records.has_route_networks_file = files.contains_key("route_networks.txt");
+    records.has_networks_file = files.contains_key("networks.txt");
     if let Some(file) = files.get("route_networks.txt") {
         let _t = Timer::start("K2::route_networks");
         records.route_networks = parse_route_networks(file);

@@ -3602,24 +3602,32 @@ fn check_xfl(
         }
     }
 
-    // XFL_019: network_id hem routes.txt hem route_networks.txt'te tanımlı → çakışma
-    if records.has_route_networks_file {
+    // XFL_019: routes.network_id ile ayrı ağ dosyası birlikte kullanılmış → çakışma.
+    // Spec (routes.network_id): "Conditionally Forbidden: Forbidden if the route_networks.txt
+    // OR networks.txt file exists." Eskiden yalnız route_networks.txt kolu denetleniyordu;
+    // networks.txt ile birlikte kullanım aynı derecede yasak olduğu hâlde kaçıyordu.
+    if records.has_route_networks_file || records.has_networks_file {
         let has_route_network_id = records.routes.iter()
             .any(|r| r.network_id.as_deref().map_or(false, |n| !n.is_empty()));
         if has_route_network_id {
+            let (file, other) = if records.has_route_networks_file {
+                ("route_networks.txt", "route_networks.txt")
+            } else {
+                ("networks.txt", "networks.txt")
+            };
             notices.push(notice(
                 ctr,
                 "XFL_019",
                 EntityType::Feed,
                 None,
                 None,
-                "route_networks.txt",
+                file,
                 None,
                 Some("network_id"),
                 None,
                 None,
-                "routes.txt'te network_id tanımlı VE route_networks.txt dosyası da mevcut — ağ tanımı iki yerde çakışıyor.".to_string(),
-                "Ağ atamasını yalnızca bir yöntemle yapın: ya routes.txt'teki network_id sütununu kullanın ya da route_networks.txt dosyasını kullanın.",
+                format!("routes.txt'te network_id tanımlı VE {other} dosyası da mevcut — ağ tanımı iki yerde çakışıyor."),
+                "Ağ atamasını yalnızca bir yöntemle yapın: ya routes.txt'teki network_id sütununu kullanın ya da ayrı ağ dosyasını (networks.txt / route_networks.txt) kullanın.",
             ));
         }
     }
