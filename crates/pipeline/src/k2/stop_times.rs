@@ -1223,9 +1223,15 @@ pub fn validate_stop_times(file: &RawFile, zip_bytes: Option<&[u8]>) -> (StopTim
             }
         } // if let Some(seq)
 
-        // STM_006: stop_id required (sütun yoksa ARC_025 devralır → atla)
+        // STM_006: stop_id KOŞULLU zorunlu (sütun yoksa ARC_025 devralır → atla).
+        // Spec: "Required if stop_times.location_group_id AND stop_times.location_id are NOT
+        // defined. Forbidden if ... are defined." Yani bir Flex satırı stop_id yerine
+        // location_id veya location_group_id taşır ve bu GEÇERLİDİR. Guard'sız hâlde her
+        // Flex satırı KRİTİK STM_006 alıyordu.
         let raw_stop = get_col(row, cols.stop_id);
-        if raw_stop.is_empty() && file.headers.iter().any(|h| h == "stop_id") {
+        let has_flex_location = !get_col(row, cols.location_id).is_empty()
+            || !get_col(row, cols.location_group_id).is_empty();
+        if raw_stop.is_empty() && !has_flex_location && file.headers.iter().any(|h| h == "stop_id") {
             st.notices.push(make_k2_notice(
                 &mut st.counter, "STM_006", EntityType::Stop, eid(),
                 None, &file.name, Some(line), Some("stop_id"),

@@ -1314,3 +1314,54 @@ fn feed_without_stops_txt_and_without_geojson_is_still_fatal() {
         ValidateResult::Ok(_) => panic!("stops.txt ve locations.geojson ikisi de yokken Fatal beklenir"),
     }
 }
+
+// ── Flex stop_times: stop_id KOŞULLU zorunlu ──────────────────────────────────
+// Spec (stop_times.stop_id): "Conditionally Required — Required if
+// stop_times.location_group_id AND stop_times.location_id are NOT defined.
+// Forbidden if stop_times.location_group_id or stop_times.location_id are defined."
+// 2026-08-01'e kadar K1 stop_id'yi koşulsuz zorunlu sayıyor, 6 resmî Flex sütunu
+// known_columns'ta bulunmuyor ve STM_006 boş stop_id'de koşulsuz ateşliyordu — oysa
+// K2 parser bu alanları ZATEN okuyordu. K1 ile K2 aynı satır hakkında farklı düşünüyordu.
+
+#[test]
+fn flex_stop_times_row_is_valid_without_stop_id() {
+    static FLEX_STOP_TIMES: &[u8] =
+        b"trip_id,location_id,stop_sequence,start_pickup_drop_off_window,end_pickup_drop_off_window,\
+pickup_booking_rule_id,drop_off_booking_rule_id\n\
+          T1,zone_a,1,08:00:00,12:00:00,BR1,BR1\n\
+          T1,zone_b,2,08:00:00,12:00:00,BR1,BR1\n";
+    let mut files = base_files();
+    files.retain(|(n, _)| *n != "stop_times.txt");
+    files.push(("stop_times.txt", FLEX_STOP_TIMES));
+
+    let vr = match validate_bytes(&make_zip(&files), &ValidatorConfig::default(), TODAY) {
+        ValidateResult::Ok(v) => v,
+        ValidateResult::Fatal(e) => panic!("Flex stop_times Fatal olmamalı: {:?} {}", e.code, e.message),
+    };
+    let ids: Vec<&str> = vr.notices.iter().map(|n| n.rule_id.as_str()).collect();
+    assert!(!ids.contains(&"STM_006"), "location_id taşıyan satır stop_id istemez → STM_006 çıkmamalı");
+    assert!(!ids.contains(&"ARC_025"), "Flex dosyada stop_id sütunu beklenmez → ARC_025 çıkmamalı");
+    // 6 resmî Flex sütununun hiçbiri "bilinmeyen sütun" sayılmamalı.
+    let unknown: Vec<&str> = vr.notices.iter()
+        .filter(|n| n.rule_id == "ARC_017")
+        .filter_map(|n| n.field.as_deref())
+        .collect();
+    assert!(unknown.is_empty(), "resmî Flex sütunları ARC_017 üretmemeli: {unknown:?}");
+}
+
+/// Daraltmanın bedeli olmamalı: Flex ALANI OLMAYAN bir satırda boş stop_id yine hatadır.
+#[test]
+fn non_flex_row_with_empty_stop_id_still_produces_stm_006() {
+    static BAD_STOP_TIMES: &[u8] =
+        b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
+          T1,08:00:00,08:00:00,,1\nT1,08:10:00,08:10:00,S2,2\n";
+    let mut files = base_files();
+    files.retain(|(n, _)| *n != "stop_times.txt");
+    files.push(("stop_times.txt", BAD_STOP_TIMES));
+    match validate_bytes(&make_zip(&files), &ValidatorConfig::default(), TODAY) {
+        ValidateResult::Ok(vr) => assert!(
+            vr.notices.iter().any(|n| n.rule_id == "STM_006"),
+            "Flex alanı olmayan satırda boş stop_id STM_006 üretmeli"),
+        ValidateResult::Fatal(e) => panic!("beklenmeyen fatal: {:?} {}", e.code, e.message),
+    }
+}

@@ -12,6 +12,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > unaffected. Re-baseline Golden snapshots that contain it.
 
 ### Fixed
+- **Valid GTFS-Flex stop_times rows were reported as broken.** The spec lets a row identify its
+  location with `stop_id`, `location_group_id` or `location_id`, requiring `stop_id` only when
+  the other two are absent. K1 required `stop_id` unconditionally, listed none of the six
+  official Flex columns as known, and STM_006 fired on every empty `stop_id` — while the K2
+  parser had been reading those columns all along, so the two stages disagreed about the same
+  row. A correct Flex feed collected ARC_017, ARC_025 and STM_006 on data the spec endorses.
+  All three now follow the conditional rule.
 - **FPD_002 no longer rejects negative fare amounts.** The spec says of
   `fare_products.amount`: "May be negative to represent transfer discounts. May be zero to
   represent a fare product that is free." Every negative value was reported as a critical Spec

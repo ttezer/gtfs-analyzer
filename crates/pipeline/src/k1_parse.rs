@@ -324,7 +324,10 @@ fn required_fields(filename: &str) -> &'static [&'static str] {
         "stops.txt"           => &["stop_id"],
         "routes.txt"          => &["route_id", "route_type"],
         "trips.txt"           => &["route_id", "service_id", "trip_id"],
-        "stop_times.txt"      => &["trip_id", "stop_id", "stop_sequence"],
+        // stop_id KOŞULLU zorunlu (spec): "Required if stop_times.location_group_id AND
+        // stop_times.location_id are NOT defined. Forbidden if ... are defined." Koşul
+        // başlıklara bakılarak `required_fields_for` içinde uygulanır.
+        "stop_times.txt"      => &["trip_id", "stop_sequence"],
         "calendar.txt"        => &["service_id", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday", "start_date", "end_date"],
         "calendar_dates.txt"  => &["service_id", "date", "exception_type"],
         "shapes.txt"          => &["shape_id", "shape_pt_lat", "shape_pt_lon", "shape_pt_sequence"],
@@ -593,6 +596,12 @@ fn known_columns(filename: &str) -> &'static [&'static str] {
             "trip_id","arrival_time","departure_time","stop_id","stop_sequence",
             "stop_headsign","pickup_type","drop_off_type","continuous_pickup",
             "continuous_drop_off","shape_dist_traveled","timepoint",
+            // GTFS-Flex (resmî Schedule Reference): talep-duyarlı hizmet alanları.
+            // K2 parser bunları ZATEN okuyordu; burada eksik olmaları geçerli bir Flex
+            // feed'inde ARC_017 "bilinmeyen sütun" yanlış-pozitifi üretiyordu.
+            "location_id","location_group_id",
+            "start_pickup_drop_off_window","end_pickup_drop_off_window",
+            "pickup_booking_rule_id","drop_off_booking_rule_id",
         ],
         "calendar.txt" => &[
             "service_id","monday","tuesday","wednesday","thursday","friday",
@@ -1155,10 +1164,17 @@ pub fn parse(zip_bytes: &[u8]) -> Result<K1Result, FatalError> {
 
         let header_count = headers.len();
         let req_flds = required_fields(&raw_name);
+        // stop_times.stop_id KOŞULLU zorunludur (spec): "Required if stop_times.location_group_id
+        // AND stop_times.location_id are NOT defined." Bu ikisinden biri başlıkta varsa dosya
+        // Flex kullanıyordur ve stop_id sütunu beklenmez → ARC_025 üretilmez.
+        let stop_id_required = raw_name == "stop_times.txt"
+            && !headers.iter().any(|h| h == "location_group_id" || h == "location_id");
+        let extra_req: &[&str] = if stop_id_required { &["stop_id"] } else { &[] };
+
         // ARC_025: req_flds'te olup başlıkta OLMAYAN zorunlu sütun (header-level, dosya başına
         // bir kez). MD'nin missing_required_column karşılığı. Değer-boşluğu (sütun var) ilgili
         // k2 grup kuralının konusudur.
-        for &f in req_flds {
+        for &f in req_flds.iter().chain(extra_req) {
             if !headers.iter().any(|h| h == f) {
                 notices.push(make_notice(
                     &mut counter, "ARC_025",
