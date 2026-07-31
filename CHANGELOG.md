@@ -20,6 +20,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `direction_id`, `trip_short_name`, first departure time and the ordered stop sequence — the
   case the rules were written for, where a base calendar and its override both produce the same
   service. Signatures are computed only for routes with more than one service.
+- **SHP_009 now reports each crossing location once, not once per shape.** Same cause as
+  SHP_020: a switch or station approach appears in both directional shapes of a line, so
+  emitting per shape counted one physical crossing several times. Measured on a rail feed,
+  9 notices were 4 locations. Grouped by coordinate, represented by the smallest `shape_id`,
+  with the count in `details.repeated_shapes`; the saturation threshold counts locations.
 - **SHP_020 now reports each repeated location once, not once per shape.** Station throats and
   switch geometry appear in both the outbound and inbound shape of the same line, so emitting
   per shape counted the same physical point over and over: one rail feed showed 28 notices that

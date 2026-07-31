@@ -6199,10 +6199,17 @@ fn check_remaining_analytics<'a>(
     // Doyum agregasyonu (SHP_010 emsali): kesişmelerin çoğu kavşak/durak cebindeki
     // yakın-segment mikro-kesişmedir (VBB: %73'ü j-i≤5, medyan 34 m aralık; feed'in
     // %55'i tetikliyordu). Eşik üstünde shape-başına sel yerine tek feed-özet.
+    //
+    // Coğrafi dedup (SHP_020 emsali): bir makas/istasyon yaklaşması feed'in gidiş ve dönüş
+    // shape'lerinde TEKRAR EDER, dolayısıyla shape başına emit aynı FİZİKSEL kesişmeyi
+    // defalarca sayar. TCDD v2'de ölçüldü: 9 bildirim = yalnız 4 bölge (Kayaş ×4,
+    // Bakırköy ×2, Gebze ×2, Goncalı ×1). Bildirim artık kesişme KONUMU başına tek.
     {
         let _t09b = Timer::start("K6::rem::shp_009");
         const SHP009_AGG_THRESHOLD: usize = 50;
-        let mut shp009_pending: Vec<Notice> = Vec::new();
+        // (yuvarlanmış lat, lon) → (temsili shape_id, i, j, o konumdaki shape'ler)
+        let mut by_coord: std::collections::BTreeMap<(i64, i64), (&str, usize, usize, Vec<&str>)> =
+            std::collections::BTreeMap::new();
         for (shape_id, pts) in shape_coords.iter() {
             if pts.len() < 4 { continue; }
             // O(n²) segment-crossing: büyük shape'lerde maksimum 300 segment kontrol et
@@ -6211,22 +6218,45 @@ fn check_remaining_analytics<'a>(
                 for j in i + 2..n.saturating_sub(1) {
                     if i == 0 && j == n - 2 { continue; } // bitişik uçlar
                     if segments_cross(pts[i], pts[i+1], pts[j], pts[j+1]) {
-                        let prefix = shp_route_prefix(shape_route_labels.get(*shape_id).map(|v| v.as_slice()).unwrap_or(&[]));
-                        shp009_pending.push(k6_notice(
-                            ctr, "SHP_009", EntityType::Shape,
-                            Some(shape_id.to_string()), Some(shape_id.to_string()),
-                            "shapes.txt", None, Some("shape_pt_lat|shape_pt_lon"),
-                            Some(format!("segment {i}-{} ∩ {j}-{}", i+1, j+1)), None,
-                            format!(
-                                "{prefix}'{shape_id}' güzergah şekli segment {i}→{} ile segment {j}→{} arasında kendisiyle kesişiyor.",
-                                i+1, j+1
-                            ),
-                            "Güzergah şeklindeki kesişen segmentleri düzeltin.",
-                        ));
+                        let key = ((pts[i].0 * 1e3).round() as i64, (pts[i].1 * 1e3).round() as i64);
+                        let e = by_coord.entry(key).or_insert_with(|| (*shape_id, i, j, Vec::new()));
+                        // Temsilci deterministik: leksikografik en küçük shape_id.
+                        if *shape_id < e.0 { e.0 = *shape_id; e.1 = i; e.2 = j; }
+                        e.3.push(*shape_id);
                         break 'seg_outer;
                     }
                 }
             }
+        }
+        let mut shp009_pending: Vec<Notice> = Vec::new();
+        for (_key, (shape_id, i, j, mut shapes)) in by_coord {
+            shapes.sort_unstable();
+            shapes.dedup();
+            let n_shapes = shapes.len();
+            let prefix = shp_route_prefix(shape_route_labels.get(shape_id).map(|v| v.as_slice()).unwrap_or(&[]));
+            let repeat_suffix = if n_shapes > 1 {
+                format!(" Aynı kesişme {n_shapes} güzergah şeklinde tekrarlanıyor (makas/istasyon yaklaşması).")
+            } else {
+                String::new()
+            };
+            let mut n = k6_notice(
+                ctr, "SHP_009", EntityType::Shape,
+                Some(shape_id.to_string()), Some(shape_id.to_string()),
+                "shapes.txt", None, Some("shape_pt_lat|shape_pt_lon"),
+                Some(format!("segment {i}-{} ∩ {j}-{}", i+1, j+1)), None,
+                format!(
+                    "{prefix}'{shape_id}' güzergah şekli segment {i}→{} ile segment {j}→{} arasında kendisiyle kesişiyor.{repeat_suffix}",
+                    i+1, j+1
+                ),
+                "Güzergah şeklindeki kesişen segmentleri düzeltin.",
+            );
+            if n_shapes > 1 {
+                let mut d = std::collections::HashMap::new();
+                d.insert("repeated_shapes".to_string(), n_shapes.to_string());
+                d.insert("shapes".to_string(), shapes.iter().take(10).copied().collect::<Vec<_>>().join(","));
+                n.details = Some(d);
+            }
+            shp009_pending.push(n);
         }
         let n09 = shp009_pending.len();
         if n09 > SHP009_AGG_THRESHOLD {
@@ -8582,8 +8612,11 @@ mod tests {
         let mut shapes = Vec::new();
         for k in 0..51u32 {
             let sid = format!("X{k}");
-            // 5 nokta; segment 0 (p1→p2) ile segment 2 (p3→p4) X biçiminde kesişir
-            let pts = [(41.000, 29.000), (41.010, 29.010), (41.010, 29.000), (41.000, 29.010), (41.020, 29.020)];
+            // 5 nokta; segment 0 (p1→p2) ile segment 2 (p3→p4) X biçiminde kesişir.
+            // Her shape KENDİ konumunda kesişir: doyum artık ayrı KESİŞME KONUMU sayar
+            // (aynı makası paylaşan yön varyantları tek bildirimde toplanır).
+            let d = k as f64 * 0.1;
+            let pts = [(41.000 + d, 29.000), (41.010 + d, 29.010), (41.010 + d, 29.000), (41.000 + d, 29.010), (41.020 + d, 29.020)];
             for (i, (la, lo)) in pts.iter().enumerate() {
                 shapes.push(ShapePointRecord::new(shape_ti.intern(&sid), Some(*la), Some(*lo), Some(i as u32 + 1), None, 2 + i as u32));
             }
@@ -8594,6 +8627,42 @@ mod tests {
         let hits: Vec<_> = result.notices.iter().filter(|n| n.rule_id == "SHP_009").collect();
         assert_eq!(hits.len(), 1, "eşik üstünde tek feed-özet SHP_009 beklenir");
         assert!(hits[0].entity_id.is_none(), "özet notice feed-seviyesi olmalı (entity_id yok)");
+    }
+
+    /// Bir makas/istasyon yaklaşması gidiş ve dönüş shape'lerinde TEKRAR EDER; shape başına
+    /// emit aynı fiziksel kesişmeyi defalarca sayıyordu (TCDD v2: 9 bildirim = 4 bölge).
+    #[test]
+    fn shp_009_reports_one_notice_per_crossing_location() {
+        let mut shape_ti = ShapeInternTable::new();
+        use crate::k2::shapes::ShapePointRecord;
+        let mut records = records_with(
+            vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1)],
+            vec![route("R1", 3)],
+            vec![trip_sh("T1", "R1", "X0")],
+            vec![
+                stoptime("T1", 1, "A", (8,0,0), (8,0,0), 2),
+                stoptime("T1", 2, "B", (8,30,0), (8,30,0), 3),
+            ],
+        );
+        // 4 shape (yön varyantları), HEPSİ aynı makasta kesişiyor.
+        let mut shapes = Vec::new();
+        for k in 0..4u32 {
+            let sid = format!("X{k}");
+            let pts = [(41.000, 29.000), (41.010, 29.010), (41.010, 29.000), (41.000, 29.010), (41.020, 29.020)];
+            for (i, (la, lo)) in pts.iter().enumerate() {
+                shapes.push(ShapePointRecord::new(shape_ti.intern(&sid), Some(*la), Some(*lo), Some(i as u32 + 1), None, 2 + i as u32));
+            }
+        }
+        records.shapes = shapes;
+        records.shape_interns = shape_ti.clone();
+        let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
+        let hits: Vec<_> = result.notices.iter().filter(|n| n.rule_id == "SHP_009").collect();
+        assert_eq!(hits.len(), 1, "4 shape aynı makasta kesişiyor → TEK bildirim");
+        assert_eq!(hits[0].entity_id.as_deref(), Some("X0"), "temsilci en küçük shape_id");
+        assert_eq!(
+            hits[0].details.as_ref().and_then(|d| d.get("repeated_shapes")).map(String::as_str),
+            Some("4"),
+        );
     }
 
     #[test]
