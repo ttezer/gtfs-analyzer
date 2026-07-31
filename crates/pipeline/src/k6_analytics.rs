@@ -71,7 +71,7 @@ pub fn analyze(
         Box::new(|| { let _t = Timer::start("K6::shp012");                let mut v = Vec::new(); let mut c = 0u32; check_shp012(records, config, &idx, &shape_idx, &rail.shapes, &mut v, &mut c); v }),
         Box::new(|| { let _t = Timer::start("K6::shp022");                let mut v = Vec::new(); let mut c = 0u32; check_shp022(records, &idx, &shape_idx, &mut v, &mut c); v }),
         Box::new(|| { let _t = Timer::start("K6::pathway_analytics");     let mut v = Vec::new(); let mut c = 0u32; check_pathway_analytics(records, derived, &mut v, &mut c); v }),
-        Box::new(|| { let _t = Timer::start("K6::calendar_override");     let mut v = Vec::new(); let mut c = 0u32; check_calendar_override_analytics(records, derived, config, &mut v, &mut c); v }),
+        Box::new(|| { let _t = Timer::start("K6::calendar_override");     let mut v = Vec::new(); let mut c = 0u32; check_calendar_override_analytics(records, derived, config, &idx, &mut v, &mut c); v }),
         Box::new(|| { let _t = Timer::start("K6::vat_analytics");         let mut v = Vec::new(); let mut c = 0u32; check_vat_analytics(records, derived, config, &idx, &mut v, &mut c); v }),
     ];
 
@@ -6578,6 +6578,7 @@ fn check_calendar_override_analytics(
     records: &EntityRecords,
     derived: &DerivedData,
     config: &ValidatorConfig,
+    idx: &StopTimesIndex<'_>,
     notices: &mut Vec<Notice>,
     ctr: &mut u32,
 ) {
@@ -6609,6 +6610,57 @@ fn check_calendar_override_analytics(
             || records.calendar_dates.removed.get(svc).is_some_and(|v| v.binary_search(&date).is_ok())
     };
 
+    // ── Operasyonel sefer kimliği (OPR_019/OPR_020 çakışma tanımı) ──────────
+    //
+    // Bir route'ta aynı gün ≥2 servisin aktif olması TEK BAŞINA çakışma DEĞİLDİR. Zıt
+    // yönlerde çalışan iki tren (Ankara→Kurtalan 22014 ile Kurtalan→Ankara 52013) ayrı
+    // service_id kullanır; aynı rotada ek sefer olarak tanımlanmış farklı tren numaraları
+    // da meşrudur. Eski tanım (route_id + tarih + ≥2 service_id) bunların hepsini çakışma
+    // sayıyordu.
+    //
+    // Gerçek çakışma: AYNI operasyonel seferin o gün iki servisten birden aktif olması —
+    // yani base takvim ile override takviminin ikisi de aynı seferi üretmesi. Sefer kimliği
+    // = yön + tren adı (trip_short_name) + ilk kalkış saati + sıralı durak dizisi.
+    //
+    // Perf: imzalar yalnız ≥2 servisli route'lar için hesaplanır.
+    let multi_svc_routes: FxHashSet<&str> = route_services.iter()
+        .filter(|(_, svcs)| svcs.len() >= 2)
+        .map(|(&r, _)| r)
+        .collect();
+    // route_id → (service_id → o servisin operasyonel sefer imzaları)
+    let mut route_svc_sigs: HashMap<&str, HashMap<&str, FxHashSet<u64>>> = HashMap::new();
+    if !multi_svc_routes.is_empty() {
+        use std::hash::{Hash, Hasher};
+        for trip in &records.trips {
+            let route_id = ti_cal_ov.route_id(trip);
+            if !multi_svc_routes.contains(route_id) { continue; }
+            let svc_id = ti_cal_ov.service_id(trip);
+            if svc_id.is_empty() { continue; }
+            let Some(stops) = idx.by_trip.get(trip.trip_id.as_str()) else { continue };
+            if stops.is_empty() { continue; }
+            let mut h = std::collections::hash_map::DefaultHasher::new();
+            trip.direction_id.unwrap_or(u32::MAX).hash(&mut h);
+            ti_cal_ov.short_name(trip).unwrap_or("").hash(&mut h);
+            stops.first().and_then(|s| s.departure_time()).map(hms_to_secs).unwrap_or(u32::MAX).hash(&mut h);
+            for st in stops.iter() { idx.stop_id_of(st).hash(&mut h); }
+            route_svc_sigs.entry(route_id).or_default()
+                .entry(svc_id).or_default()
+                .insert(h.finish());
+        }
+    }
+    // Bir günde aktif servisler arasında AYNI imzayı paylaşan var mı?
+    let day_has_conflict = |route_id: &str, svcs: &[&str]| -> bool {
+        let Some(svc_sigs) = route_svc_sigs.get(route_id) else { return false };
+        let mut seen: FxHashSet<u64> = FxHashSet::default();
+        for &s in svcs {
+            let Some(sigs) = svc_sigs.get(s) else { continue };
+            for &sig in sigs {
+                if !seen.insert(sig) { return true; }
+            }
+        }
+        false
+    };
+
     // ── OPR_019 / OPR_020: config gerektirmeyen çakışma analizi ─────────────
     let mut date_services: HashMap<u32, Vec<&str>> = HashMap::new();
 
@@ -6635,6 +6687,10 @@ fn check_calendar_override_analytics(
 
         for (&date, svcs) in &date_services {
             if svcs.len() < 2 {
+                continue;
+            }
+            // Aynı operasyonel sefer iki servisten birden aktif değilse çakışma yok.
+            if !day_has_conflict(route_id, svcs) {
                 continue;
             }
             let has_exc = svcs.iter().any(|&s| has_exc_date(s, date));
@@ -9121,6 +9177,82 @@ mod tests {
         assert!(
             result.notices.iter().any(|n| n.rule_id == "CAL_010" && n.entity_id.as_deref() == Some("SVC")),
             "62 günlük pencerede 3 aktif gün → CAL_010 çıkmalı"
+        );
+    }
+
+    // ── WP-P: OPR_019/OPR_020 operasyonel sefer kimliği ──────────────────────
+    //
+    // Aynı gün ≥2 servisin aktif olması TEK BAŞINA çakışma değildir: zıt yönde çalışan
+    // iki tren ayrı service_id kullanır (Ankara→Kurtalan 22014 / Kurtalan→Ankara 52013).
+    // Çakışma, AYNI operasyonel seferin iki servisten birden aktif olmasıdır.
+
+    /// İki farklı yönde çalışan tren aynı gün aktif → çakışma DEĞİL.
+    #[test]
+    fn opr_019_ignores_opposite_direction_trains_on_the_same_day() {
+        use crate::k5_derived::CalendarBitmap;
+        let mut r = crate::k2::EntityRecords::default();
+        r.stops = vec![stop("ANK", 39.9, 32.8), stop("KUR", 37.9, 41.8)];
+        r.routes = vec![route("R1", 2)];
+        // 22014 Ankara→Kurtalan (SVC_A), 52013 Kurtalan→Ankara (SVC_B) — zıt yönler.
+        let mut t1 = trip_with_service("22014", "R1", "SVC_A");
+        t1.direction_id = Some(0);
+        let mut t2 = trip_with_service("52013", "R1", "SVC_B");
+        t2.direction_id = Some(1);
+        r.trips = vec![t1, t2];
+        r.trip_interns = take_ti();
+        r.stop_times = vec![
+            stoptime("22014", 1, "ANK", (8, 0, 0), (8, 0, 0), 2),
+            stoptime("22014", 2, "KUR", (20, 0, 0), (20, 0, 0), 3),
+            stoptime("52013", 1, "KUR", (8, 0, 0), (8, 0, 0), 4),
+            stoptime("52013", 2, "ANK", (20, 0, 0), (20, 0, 0), 5),
+        ];
+        let mut derived = DerivedData::default();
+        derived.calendar_bitmap = CalendarBitmap {
+            active_dates: [
+                ("SVC_A".to_string(), [20260518u32].into_iter().collect()),
+                ("SVC_B".to_string(), [20260518u32].into_iter().collect()),
+            ].into_iter().collect(),
+        };
+        let result = analyze(&r, &derived, &default_config(), 20260518);
+        assert!(
+            !result.notices.iter().any(|n| n.rule_id == "OPR_019" || n.rule_id == "OPR_020"),
+            "zıt yönlerde iki ayrı tren çakışma değildir"
+        );
+    }
+
+    /// Pozitif kontrol: AYNI operasyonel sefer (aynı yön, kalkış, durak dizisi) iki
+    /// servisten birden aktifse gerçek override çakışmasıdır ve YAKALANMALIDIR.
+    /// Bu test olmadan yukarıdaki negatif test boş geçebilirdi.
+    #[test]
+    fn opr_019_still_catches_the_same_trip_active_from_two_services() {
+        use crate::k5_derived::CalendarBitmap;
+        let mut r = crate::k2::EntityRecords::default();
+        r.stops = vec![stop("ANK", 39.9, 32.8), stop("KUR", 37.9, 41.8)];
+        r.routes = vec![route("R1", 2)];
+        let mut t1 = trip_with_service("T_BASE", "R1", "SVC_A");
+        t1.direction_id = Some(0);
+        let mut t2 = trip_with_service("T_OVERRIDE", "R1", "SVC_B");
+        t2.direction_id = Some(0);
+        r.trips = vec![t1, t2];
+        r.trip_interns = take_ti();
+        // İki sefer de aynı: 08:00 ANK → 20:00 KUR.
+        r.stop_times = vec![
+            stoptime("T_BASE", 1, "ANK", (8, 0, 0), (8, 0, 0), 2),
+            stoptime("T_BASE", 2, "KUR", (20, 0, 0), (20, 0, 0), 3),
+            stoptime("T_OVERRIDE", 1, "ANK", (8, 0, 0), (8, 0, 0), 4),
+            stoptime("T_OVERRIDE", 2, "KUR", (20, 0, 0), (20, 0, 0), 5),
+        ];
+        let mut derived = DerivedData::default();
+        derived.calendar_bitmap = CalendarBitmap {
+            active_dates: [
+                ("SVC_A".to_string(), [20260518u32].into_iter().collect()),
+                ("SVC_B".to_string(), [20260518u32].into_iter().collect()),
+            ].into_iter().collect(),
+        };
+        let result = analyze(&r, &derived, &default_config(), 20260518);
+        assert!(
+            result.notices.iter().any(|n| n.rule_id == "OPR_019"),
+            "aynı sefer iki servisten aktif → gerçek çakışma, OPR_019 çıkmalı"
         );
     }
 

@@ -192,6 +192,11 @@ fn opr_023_fires_when_no_service_in_window() {
 // ── Test OPR-6: Çoklu servis, config yok → en fazla HIGH, CRITICAL yok ─────────
 // SVC_A: Paz-Cum. SVC_B: 20260105 (Pazartesi) exception_type=1 ile eklenmiş.
 // Config olmadığı için OPR_021/022/023 üretilmemeli; OPR_020 (HIGH) beklenir.
+//
+// T_A ve T_B AYNI operasyonel sefer (aynı kalkış saati, aynı durak dizisi) olmak
+// ZORUNDA: OPR_020 artık "aynı gün ≥2 servis aktif" demiyor, "AYNI sefer iki servisten
+// birden aktif" diyor. Farklı kalkış saatleri iki ayrı tren demektir ve meşrudur —
+// bu testin pozitif kontrolü gerçek bir override çakışması olmalı.
 
 #[test]
 fn opr_no_critical_without_config() {
@@ -199,7 +204,7 @@ fn opr_no_critical_without_config() {
     let stop_times: &[u8] =
         b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
           T_A,08:00:00,08:00:00,S1,1\nT_A,08:10:00,08:10:00,S2,2\n\
-          T_B,09:00:00,09:00:00,S1,1\nT_B,09:10:00,09:10:00,S2,2\n";
+          T_B,08:00:00,08:00:00,S1,1\nT_B,08:10:00,08:10:00,S2,2\n";
     let calendar: &[u8] =
         b"service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\n\
           SVC_A,1,1,1,1,1,0,0,20250101,20271231\n";

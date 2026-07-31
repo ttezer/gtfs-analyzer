@@ -12,6 +12,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > unaffected. Re-baseline Golden snapshots that contain it.
 
 ### Changed
+- **OPR_019 and OPR_020 now identify the trip, not just the calendar.** Both treated a route
+  with two or more services active on the same date as an override conflict. That is normal
+  operation: trains running in opposite directions use separate `service_id` values, and extra
+  workings on the same route carry different train numbers. A conflict is now reported only
+  when the *same* operational trip is active from two services on one day, identified by
+  `direction_id`, `trip_short_name`, first departure time and the ordered stop sequence — the
+  case the rules were written for, where a base calendar and its override both produce the same
+  service. Signatures are computed only for routes with more than one service.
 - **SHP_020 now reports each repeated location once, not once per shape.** Station throats and
   switch geometry appear in both the outbound and inbound shape of the same line, so emitting
   per shape counted the same physical point over and over: one rail feed showed 28 notices that

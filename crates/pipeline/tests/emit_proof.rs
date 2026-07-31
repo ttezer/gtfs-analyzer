@@ -670,15 +670,19 @@ fn fixtures() -> Vec<Fixture> {
         // OPR_017: sefer çok kısa mesafe (< 100m, shape'siz → durak koordinatı).
         fx("OPR_017", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,40.0,40.0\nS2,Stop2,40.0005,40.0\n")]),
         // OPR_019: hatta aynı (exception'sız) günde >1 aktif servis.
+        // T1 ve T2 AYNI operasyonel sefer (aynı yön, aynı kalkış, aynı durak dizisi) ama
+        // iki ayrı servisten aktif → gerçek çakışma. Farklı seferler olsaydı meşru olurdu.
         fx("OPR_019", vec![
             ("calendar.txt", "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,1,1,20260518,20260524\nSVC2,1,1,1,1,1,1,1,20260518,20260524\n"),
             ("trips.txt", "route_id,service_id,trip_id\nR1,SVC1,T1\nR1,SVC2,T2\n"),
+            ("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\nT1,08:10:00,08:10:00,S2,2\nT2,08:00:00,08:00:00,S1,1\nT2,08:10:00,08:10:00,S2,2\n"),
         ]),
         // OPR_020: hatta exception gününde >1 aktif servis (override çakışması).
         fx("OPR_020", vec![
             ("calendar.txt", "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,1,1,20260518,20260518\n"),
             ("calendar_dates.txt", "service_id,date,exception_type\nSVC2,20260518,1\n"),
             ("trips.txt", "route_id,service_id,trip_id\nR1,SVC1,T1\nR1,SVC2,T2\n"),
+            ("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\nT1,08:10:00,08:10:00,S2,2\nT2,08:00:00,08:00:00,S1,1\nT2,08:10:00,08:10:00,S2,2\n"),
         ]),
         // OPR_025: feed ortalama sefer süresi < 60s (5 trip, 10s'lik).
         fx("OPR_025", vec![
