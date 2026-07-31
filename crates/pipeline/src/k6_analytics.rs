@@ -2009,7 +2009,6 @@ fn check_geo_analytics(
 ) {
     let rail_shapes = &rail.shapes;
     use crate::timing::Timer;
-    let ti_geo = &records.trip_interns;
 
     // GEO_006: shape segmentleri arası büyük atlama (jump)
     // GEO_007: aynı — GEO_006'dan biraz farklı ciddiyette ama aynı kontrol
@@ -2517,100 +2516,14 @@ fn check_geo_analytics(
         }
     }
 
-    // SHP_027: Bir shape, FARKLI durak dizilerine (pattern) sahip seferlere atanmış.
-    // Bir shape tek bir güzergah geometrisidir; ≥2 farklı durak desenine atanmışsa
-    // geometri bazı seferlere uymaz → olası yanlış shape ataması. (Sık bir hattın tek
-    // pattern'i yüzlerce sefere atanması NORMAL; eski düz sayım eşiği o yüzden kaldırıldı.)
-    {
-        use std::collections::hash_map::DefaultHasher;
-        use std::hash::{Hash, Hasher};
-        let trip_shape: HashMap<&str, &str> = records.trips.iter()
-            .filter_map(|t| ti_geo.shape_id(t).filter(|s| !s.is_empty())
-                .map(|s| (t.trip_id.as_str(), s)))
-            .collect();
-        // shape_id → (pattern_hash → temsili trip_id). Temsili = leksikografik en küçük
-        // trip_id (deterministik; HashMap iterasyon sırasından bağımsız).
-        let mut shape_patterns: HashMap<&str, HashMap<u64, &str>> = HashMap::new();
-        for (trip_id, stops) in records.stop_times_index.iter_trips() {
-            let Some(&shape_id) = trip_shape.get(trip_id.as_str()) else { continue };
-            let mut h = DefaultHasher::new();
-            for st in stops { records.stop_times_index.stop_id_of(st).hash(&mut h); }
-            shape_patterns.entry(shape_id).or_default()
-                .entry(h.finish())
-                .and_modify(|cur| { if trip_id.as_str() < *cur { *cur = trip_id.as_str(); } })
-                .or_insert(trip_id.as_str());
-        }
-        // Ekspres/local muafiyeti: bir desenin durak KÜMESİ diğerinin alt kümesiyse bu
-        // meşru bir varyanttır (hızlı tren bazı durakları atlar, yavaş tren hepsinde durur)
-        // ve aynı fiziksel güzergahı paylaşmaları BEKLENİR — shape yanlış atanmış değildir.
-        // Notice yalnız desenler karşılıklı IRAKSADIĞINDA (her birinde diğerinde olmayan
-        // durak varsa) üretilir; o zaman shape gerçekten farklı koridorlara atanmış demektir.
-        //
-        // Sıralı alt-DİZİ yerine alt-KÜME karşılaştırılır: neredeyse aynı doğrulukta,
-        // belirgin biçimde ucuz. Durak kümeleri yalnız ≥2 desenli shape'ler için ve yalnız
-        // TEMSİLİ trip'lerden kurulur (stops_of) → ikinci bir tam stop_times geçişi yok.
-        //
-        // n > SHP027_PAIRWISE_CAP olan shape'lerde O(n²) karşılaştırma atlanır ve notice
-        // doğrudan üretilir: o kadar çok desen zaten tek bir geometriyle açıklanamaz.
-        const SHP027_PAIRWISE_CAP: usize = 20;
-
-        // Sıralı-tekil iki küme için alt-küme testi (iki işaretçi, O(|a|+|b|)).
-        fn is_subset(a: &[&str], b: &[&str]) -> bool {
-            if a.len() > b.len() { return false; }
-            let mut j = 0usize;
-            for x in a {
-                while j < b.len() && b[j] < *x { j += 1; }
-                if j >= b.len() || b[j] != *x { return false; }
-                j += 1;
-            }
-            true
-        }
-
-        for (shape_id, patterns) in &shape_patterns {
-            let n = patterns.len();
-            if n >= 2 {
-                if n <= SHP027_PAIRWISE_CAP {
-                    // Temsili trip'lerden sıralı-tekil durak kümeleri.
-                    let mut sets: Vec<Vec<&str>> = Vec::with_capacity(n);
-                    for &rep in patterns.values() {
-                        let Some(stops) = records.stop_times_index.stops_of(rep) else { continue };
-                        let mut s: Vec<&str> = stops.iter()
-                            .map(|st| records.stop_times_index.stop_id_of(st))
-                            .collect();
-                        s.sort_unstable();
-                        s.dedup();
-                        sets.push(s);
-                    }
-                    // Determinizm: HashMap değer sırası tanımsız; küme listesini sırala.
-                    sets.sort();
-                    let diverges = sets.iter().enumerate().any(|(i, a)| {
-                        sets[i + 1..].iter().any(|b| !is_subset(a, b) && !is_subset(b, a))
-                    });
-                    if !diverges {
-                        // Her desen bir diğerinin alt kümesi → ekspres/local varyantı, meşru.
-                        continue;
-                    }
-                }
-                let mut notice = k6_notice(
-                    ctr, "SHP_027", EntityType::Shape,
-                    Some((*shape_id).to_string()), Some((*shape_id).to_string()),
-                    "trips.txt", None, None,
-                    Some(n.to_string()), Some("1".to_string()),
-                    format!("'{shape_id}' shape'i birbirinden IRAKSAK {n} durak dizisine (pattern) atanmış — desenler birbirinin alt kümesi değil (ekspres/local varyantı değil); olası yanlış shape ataması."),
-                    "Her farklı durak desenine ayrı shape_id atayın.",
-                );
-                // Haritada her deseni ayrı renkte çizmek için temsili trip_id'ler (UI fix.ts SHP_027).
-                // İlk 12 desenle sınırlı (palet boyutu + payload); observed_value (n) tam sayıyı korur.
-                let mut rep_trips: Vec<&str> = patterns.values().copied().collect();
-                rep_trips.sort_unstable();
-                rep_trips.truncate(12);
-                let mut d = std::collections::HashMap::new();
-                d.insert("pattern_trips".to_string(), rep_trips.join(","));
-                notice.details = Some(d);
-                notices.push(notice);
-            }
-        }
-    }
+    // SHP_027 (Shape birden fazla durak desenine atanmış) KALDIRILDI (2026-07-31):
+    // shapes.txt FİZİKSEL güzergahı, stop_times.txt DURUŞ MODELİNİ temsil eder. Aynı ray
+    // koridorunda farklı istasyonlarda duran trenlerin tek shape'i paylaşması normaldir
+    // (Konya-Söğütlüçeşme: kimi Bilecik'te, kimi Pamukova'da, kimi Bostancı'da duruyor).
+    // Desenlerin birbirinin alt kümesi olmaması shape'in yanlış olduğunu göstermez.
+    // Geriye kalan GERÇEK sinyal — durağın shape üzerinde olmaması — GEO_009 ve SHP_012
+    // tarafından DOĞRUDAN ölçülüyor; kartın kendi ölçümü de bunu doğrulamıştı (VBB 14.084
+    // shape: SHP_012'nin %83'ünde SHP_027 yok, yani kural ağırlıkla meşru vakalarda ateşliyordu).
 
     // STM_043: Sefer aşırı fazla durağa sahip (>200)
     {
@@ -10354,90 +10267,9 @@ mod tests {
         );
     }
 
-    // ── WP-E: SHP_027 ekspres/local muafiyeti ────────────────────────────────
-
-    /// Ekspres tren local'in duraklarını atlıyor ama aynı fiziksel yolu kullanıyor:
-    /// desen A ⊆ desen B → shape yanlış atanmış DEĞİL, notice çıkmamalı.
-    #[test]
-    fn shp_027_tolerates_express_local_subset_patterns() {
-        let mut r = crate::k2::EntityRecords::default();
-        r.stops = vec![
-            stop("A", 41.0, 29.0), stop("B", 41.1, 29.1),
-            stop("C", 41.2, 29.2), stop("D", 41.3, 29.3),
-        ];
-        r.routes = vec![route("R1", 2)];
-        r.trips = vec![trip_sh("LOCAL", "R1", "S1"), trip_sh("EXPRESS", "R1", "S1")];
-        r.trip_interns = take_ti();
-        r.stop_times = vec![
-            // Local: tüm duraklar.
-            stoptime("LOCAL", 1, "A", (8, 0, 0), (8, 0, 0), 2),
-            stoptime("LOCAL", 2, "B", (8, 10, 0), (8, 10, 0), 3),
-            stoptime("LOCAL", 3, "C", (8, 20, 0), (8, 20, 0), 4),
-            stoptime("LOCAL", 4, "D", (8, 30, 0), (8, 30, 0), 5),
-            // Ekspres: B ve C atlanıyor — durak kümesi local'in ALT KÜMESİ.
-            stoptime("EXPRESS", 1, "A", (9, 0, 0), (9, 0, 0), 6),
-            stoptime("EXPRESS", 2, "D", (9, 20, 0), (9, 20, 0), 7),
-        ];
-        // SHP_027 records.stop_times_index'i DOĞRUDAN okur (analyze'ın fallback index'ini
-        // değil) → fixture'da açıkça kurulmalı, yoksa kural hiç çalışmaz ve test boş geçer.
-        r.stop_times_index = K2StopTimesIndex::from_records(&r.stop_times);
-        let result = analyze(&r, &empty_derived(), &default_config(), 20260514);
-        assert!(
-            !result.notices.iter().any(|n| n.rule_id == "SHP_027"),
-            "ekspres deseni local'in alt kümesi → meşru varyant, SHP_027 çıkmamalı"
-        );
-    }
-
-    /// Desenler karşılıklı ıraksaksa (her birinde diğerinde olmayan durak var) shape
-    /// gerçekten farklı koridorlara atanmış → notice çıkar.
-    #[test]
-    fn shp_027_flags_mutually_divergent_patterns() {
-        let mut r = crate::k2::EntityRecords::default();
-        r.stops = vec![
-            stop("A", 41.0, 29.0), stop("B", 41.1, 29.1),
-            stop("C", 41.2, 29.2), stop("D", 41.3, 29.3),
-        ];
-        r.routes = vec![route("R1", 3)];
-        r.trips = vec![trip_sh("T1", "R1", "S1"), trip_sh("T2", "R1", "S1")];
-        r.trip_interns = take_ti();
-        r.stop_times = vec![
-            stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
-            stoptime("T1", 2, "B", (8, 10, 0), (8, 10, 0), 3),
-            // Tamamen farklı koridor — ne alt küme ne üst küme.
-            stoptime("T2", 1, "C", (9, 0, 0), (9, 0, 0), 4),
-            stoptime("T2", 2, "D", (9, 10, 0), (9, 10, 0), 5),
-        ];
-        r.stop_times_index = K2StopTimesIndex::from_records(&r.stop_times);
-        let result = analyze(&r, &empty_derived(), &default_config(), 20260514);
-        assert!(
-            result.notices.iter().any(|n| n.rule_id == "SHP_027"),
-            "ıraksak desenler SHP_027 üretmeli"
-        );
-    }
-
-    /// Ters yönde aynı duraklar (A→B ve B→A) aynı KÜMEdir → SHP_027 susar.
-    /// Bu olguyu XFL_013 (shape hem gidiş hem dönüşte, YÜKSEK·Interop) ölçer;
-    /// burada da işaretlemek çift sayım olurdu.
-    #[test]
-    fn shp_027_leaves_reversed_direction_to_xfl_013() {
-        let mut r = crate::k2::EntityRecords::default();
-        r.stops = vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1)];
-        r.routes = vec![route("R1", 3)];
-        r.trips = vec![trip_sh("T1", "R1", "S1"), trip_sh("T2", "R1", "S1")];
-        r.trip_interns = take_ti();
-        r.stop_times = vec![
-            stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
-            stoptime("T1", 2, "B", (8, 10, 0), (8, 10, 0), 3),
-            stoptime("T2", 1, "B", (9, 0, 0), (9, 0, 0), 4),
-            stoptime("T2", 2, "A", (9, 10, 0), (9, 10, 0), 5),
-        ];
-        r.stop_times_index = K2StopTimesIndex::from_records(&r.stop_times);
-        let result = analyze(&r, &empty_derived(), &default_config(), 20260514);
-        assert!(
-            !result.notices.iter().any(|n| n.rule_id == "SHP_027"),
-            "ters sıra aynı durak kümesidir → SHP_027 değil XFL_013'ün işi"
-        );
-    }
+    // SHP_027 testleri KALDIRILDI (2026-07-31): kural kaldırıldı. Aynı ray koridorunda
+    // farklı duraklarda duran trenlerin tek shape'i paylaşması normaldir; geriye kalan
+    // gerçek sinyali GEO_009/SHP_012 doğrudan ölçüyor (bkz. check_geo_analytics'teki not).
 
     // ── WP-B: raylı geometri eşikleri ───────────────────────────────────────
     //

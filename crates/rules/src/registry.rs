@@ -745,8 +745,6 @@ pub static RULES: &[RuleMeta] = &[
         "Sefer stop_times mesafesi şeklin toplam mesafesini aşıyor"),
     r!("SHP_026", Bilgi,  Analytics, 1, &[], Some("shape_id"), VA_GEO, Entity,
         "Shape aşırı fazla noktaya sahip (>5000) — tüketici render performansını etkiler"),
-    r!("SHP_027", Bilgi,  Analytics, 1, &[], Some("shape_id"), VA_GEO, Entity,
-        "Shape birden fazla durak desenine atanmış — olası yanlış shape ataması"),
     r!("SHP_028", Yuksek, Quality, 2, &[], Some("shape_id"), VS, Entity,
         "Ardışık iki shape noktası aynı shape_dist_traveled ama farklı koordinat (mesafe artmadan konum değişmiş)"),
     r!("SHP_029", Bilgi,  Quality, 2, &[], Some("shape_id"), VS, Entity,
@@ -1765,7 +1763,6 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("SHP_024", ProjectQuality),
     ("SHP_025", ProjectQuality),
     ("SHP_026", ProjectAnalytics),
-    ("SHP_027", ProjectAnalytics),
     ("SHP_028", ProjectQuality),
     ("SHP_029", ProjectQuality),
     ("STM_001", GtfsSpec),
@@ -2088,12 +2085,17 @@ mod tests {
         assert!(get_rule("DQ_015").is_none());
         // STM_027 (2026-07-28): STM_056 ile aynı olgu, duplikasyon nedeniyle kaldırıldı.
         assert!(get_rule("STM_027").is_none());
+        // SHP_027 (2026-07-31): shapes.txt FİZİKSEL güzergahı, stop_times DURUŞ MODELİNİ
+        // temsil eder; aynı koridorda farklı duraklarda duran trenlerin tek shape'i
+        // paylaşması normaldir. Geriye kalan gerçek sinyali (durak shape üzerinde değil)
+        // GEO_009/SHP_012 zaten DOĞRUDAN ölçüyor.
+        assert!(get_rule("SHP_027").is_none());
     }
 
     #[test]
     fn blocks_only_canonical_ids() {
         let view_ids = ["GEO_008", "GEO_010", "GEO_011"];
-        let removed_ids = ["STM_011","TRP_010","GEO_001","GEO_005","DQ_007","DQ_008","DQ_015","STM_027"];
+        let removed_ids = ["STM_011","TRP_010","GEO_001","GEO_005","DQ_007","DQ_008","DQ_015","STM_027","SHP_027"];
         for rule in RULES {
             for &b in rule.blocks {
                 assert!(!view_ids.contains(&b),

@@ -2,7 +2,7 @@
 
 🇹🇷 [Türkçe](RULES.md) · 🇬🇧 **English** · 🇯🇵 [日本語](RULES.ja.md)
 
-542 rules, 37 groups. Each rule is identified by a unique ID, severity level, and class.
+541 rules, 37 groups. Each rule is identified by a unique ID, severity level, and class.
 Severity levels: **CRITICAL** (publish blocker) · **HIGH** · **MEDIUM** · **LOW** · **INFO**
 Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Quality** (GTFS Quality) · **Analytics** (GTFS Analytics)
 
@@ -338,7 +338,6 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | SHP_024 | Stop-to-shape distance inconsistent with shape_dist_traveled | MEDIUM | Quality |
 | SHP_025 | Trip stop_times distance exceeds total shape distance | MEDIUM | Quality |
 | SHP_026 | Shape has extreme point count (>5,000) | INFO | Analytics |
-| SHP_027 | Shape assigned to multiple stop patterns | INFO | Analytics |
 | SHP_028 | Same shape_dist_traveled with different coordinates | HIGH | Quality |
 | SHP_029 | Same shape_dist_traveled, tiny coordinate difference | INFO | Quality |
 

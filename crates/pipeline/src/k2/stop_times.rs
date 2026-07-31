@@ -237,15 +237,6 @@ impl StopTimesIndex {
         self.trip_ranges.contains_key(trip_id)
     }
 
-    /// Tek bir trip'in sıralı stop dilimi (K6: SHP_027 desen karşılaştırması).
-    /// `iter_trips()` tüm feed'i gezer; bu, yalnız birkaç temsili trip'e bakılacağı
-    /// durumlar için ikinci bir tam geçişten kaçınır.
-    pub fn stops_of(&self, trip_id: &str) -> Option<&[CompactStopTime]> {
-        self.trip_ranges
-            .get(trip_id)
-            .map(|&(s, e)| &self.rows[s as usize..e as usize])
-    }
-
     /// trip'in stop_times'taki stop sayısı (K6: STM_043)
     pub fn stop_count(&self, trip_id: &str) -> usize {
         self.trip_ranges.get(trip_id).map_or(0, |&(s, e)| (e - s) as usize)

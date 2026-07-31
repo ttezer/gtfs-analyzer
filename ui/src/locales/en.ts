@@ -341,7 +341,6 @@ const en: LocaleShape = {
     'fix.map.shape'         : 'shape',
     // Map legend labels
     'fix.map.route_shape'          : 'Route shape',
-    'fix.map.pattern'              : 'Pattern',
     'fix.map.route_shape_rev'      : 'Route shape (reversed)',
     'fix.map.route_shape_named'    : 'Route shape — {name}',
     'fix.map.route_shapes_named'   : 'Route shapes — {name}',
@@ -823,7 +822,6 @@ const en: LocaleShape = {
     'SHP_024': "Shape '{entity_id}': stop-to-shape distance is inconsistent with shape_dist_traveled.",
     'SHP_025': "Shape '{entity_id}': stop_times distance exceeds total shape length.",
     'SHP_026': "Shape '{entity_id}' has {observed_value} points — high point count may impact consumer rendering performance.",
-    'SHP_027': "Shape '{entity_id}' is assigned to {observed_value} distinct stop patterns — a shape should match a single path, so this is a possible incorrect shape assignment.",
     'SHP_028': "Shape '{entity_id}': consecutive points share the same shape_dist_traveled but have different coordinates — distance did not increase while position changed.",
     'SHP_029': "Shape '{entity_id}': consecutive points share the same shape_dist_traveled with a very small coordinate difference (below threshold).",
     // FRQ
@@ -1220,7 +1218,6 @@ const en: LocaleShape = {
     'SHP_024': 'Fix the shape_dist_traveled value in stop_times.txt or the stop coordinates.',
     'SHP_025': 'Match the shape_dist_traveled values in stop_times.txt to the scale used in shapes.txt.',
     'SHP_026': 'Simplify shapes.txt using a path simplification algorithm (e.g., Douglas-Peucker) to reduce the point count.',
-    'SHP_027': 'Assign a separate shape_id for each distinct stop pattern instead of reusing one shape.',
     'SHP_028': 'Assign increasing shape_dist_traveled values to consecutive shape points.',
     'SHP_029': 'Assign increasing shape_dist_traveled values, or remove the near-duplicate shape point.',
     // STM
@@ -1999,7 +1996,6 @@ const en: LocaleShape = {
     'SHP_024': 'Stop-to-shape distance inconsistent with shape_dist_traveled',
     'SHP_025': 'Trip stop_times distance exceeds total shape distance',
     'SHP_026': 'Shape has extreme point count (>5,000)',
-    'SHP_027': 'Shape assigned to multiple stop patterns',
     'SHP_028': 'Same shape_dist_traveled with different coordinates',
     'SHP_029': 'Same shape_dist_traveled, tiny coordinate difference',
     // FRQ

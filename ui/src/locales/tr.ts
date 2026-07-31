@@ -340,7 +340,6 @@ const tr = {
     'fix.map.shape'         : 'şekil',
     // Map legend labels
     'fix.map.route_shape'          : 'Güzergah şekli',
-    'fix.map.pattern'              : 'Desen',
     'fix.map.route_shape_rev'      : 'Güzergah şekli (ters)',
     'fix.map.route_shape_named'    : 'Güzergah şekli — {name}',
     'fix.map.route_shapes_named'   : 'Güzergah şekilleri — {name}',
@@ -833,7 +832,6 @@ const tr = {
     'SHP_024': 'Duraktan şekle mesafe shape_dist_traveled ile tutarsız',
     'SHP_025': 'Sefer stop_times mesafesi şeklin toplam mesafesini aşıyor',
     'SHP_026': 'Shape aşırı fazla noktaya sahip (>5000)',
-    'SHP_027': 'Shape birden fazla durak desenine atanmış',
     'SHP_028': 'Aynı shape_dist_traveled, farklı koordinat',
     'SHP_029': 'Aynı shape_dist_traveled, çok küçük koordinat farkı (eşik altı)',
     // FRQ

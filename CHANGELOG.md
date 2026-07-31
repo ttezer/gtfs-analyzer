@@ -59,14 +59,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   excluded, not its platforms. Both remain INFO and neither affects any score.
   VAT_007 additionally listed its routes in hash order and truncated to five *before* sorting,
   so which five appeared could change between runs; the list is now sorted first.
-- **SHP_027 no longer flags express/local variants.** The rule fired whenever a shape served
-  two or more distinct stop patterns, which is routine: a fast train skips stops a slower one
-  serves, and both legitimately follow the same track. It now compares the stop sets and stays
-  silent when one pattern is a subset of another, firing only when the patterns diverge in both
-  directions — the case where a shape really has been attached to different corridors. Reversed
-  patterns (A→B and B→A) share a stop set and are left to XFL_013, which already reports them
-  at a higher severity. Shapes with more than 20 patterns skip the comparison and are reported
-  as before. The rule remains INFO and does not affect any score.
+- **SHP_027 has been removed** (rule count 542 → 541). It reported a shape serving more than
+  one stop pattern as a possible misassignment, but that reads the GTFS model backwards:
+  `shapes.txt` describes the physical alignment while `stop_times.txt` describes where a train
+  stops. Trains sharing a corridor and calling at different stations are the normal case, not
+  an error, and narrowing the rule to mutually divergent patterns still flagged them. The one
+  genuine signal underneath — a stop that is not on the shape it was attached to — is measured
+  directly and better by GEO_009 and SHP_012. Our own measurement had already shown the rule
+  was mostly firing on legitimate feeds: across 14,084 VBB shapes, 83% of SHP_012 findings had
+  no SHP_027, and multi-pattern shapes had no more distant stops than single-pattern ones.
+  Consumers keying on this id should drop it; nothing replaces it.
 - **VAT_003 now counts timetables, not trip records.** Some producers write the same timetable
   as a separate `trip_id` for every operating date. VAT_003 emitted one notice per trip, so
   four real timetables surfaced as forty findings — and the damage was not only cosmetic: ten

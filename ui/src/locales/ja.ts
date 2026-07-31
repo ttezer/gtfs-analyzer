@@ -329,7 +329,6 @@ const ja: LocaleShape = {
     'fix.spec_link'         : 'GTFS仕様（新しいタブ）',
     'fix.map.shape'         : '形状',
     'fix.map.route_shape'          : '経路形状',
-    'fix.map.pattern'              : 'パターン',
     'fix.map.route_shape_rev'      : '経路形状（逆方向）',
     'fix.map.route_shape_named'    : '経路形状 — {name}',
     'fix.map.route_shapes_named'   : '経路形状 — {name}',
@@ -804,7 +803,6 @@ const ja: LocaleShape = {
     'SHP_024': "シェープ'{entity_id}'：停留所からシェープまでの距離がshape_dist_traveledと一致しません。",
     'SHP_025': "シェープ'{entity_id}'：stop_timesの距離がシェープの総延長を超えています。",
     'SHP_026': "シェープ'{entity_id}'は{observed_value}個の点があります — 多すぎるためトランジットアプリの地図描画パフォーマンスに影響します。",
-    'SHP_027': "シェープ'{entity_id}'は{observed_value}個の異なる停留所パターンに割り当てられています — シェープは単一の経路に対応すべきで、誤ったシェープ割り当ての可能性があります。",
     'SHP_028': "シェープ'{entity_id}'：連続する点が同じshape_dist_traveledを持ちますが座標が異なります — 距離が増加せずに位置が変化しています。",
     'SHP_029': "シェープ'{entity_id}'：連続する点が同じshape_dist_traveledを持ち、座標の差が非常に小さい（しきい値未満）です。",
     // FRQ
@@ -1469,7 +1467,6 @@ const ja: LocaleShape = {
     'SHP_024': 'stop_times.txtのshape_dist_traveled値または停留所座標を修正してください。',
     'SHP_025': 'stop_times.txtのshape_dist_traveled値をshapes.txtで使用されているスケールに合わせてください。',
     'SHP_026': 'Douglas-Peucker等の経路簡略化アルゴリズムを使用してshapes.txtを簡略化してください。',
-    'SHP_027': '異なる停留所パターンごとに個別のshape_idを割り当て、1つのシェープを再利用しないでください。',
     'SHP_028': '連続するシェープ点に増加するshape_dist_traveled値を割り当ててください。',
     'SHP_029': '増加するshape_dist_traveled値を割り当てるか、ほぼ重複するシェープ点を削除してください。',
     // STM
@@ -1953,7 +1950,6 @@ const ja: LocaleShape = {
     'SHP_024': 'shape_dist_traveledと形状距離が不一致',
     'SHP_025': 'stop_timesの距離が形状の総長を超過',
     'SHP_026': '形状の点数が極端に多い（>5,000）',
-    'SHP_027': 'シェープが複数の停留所パターンに割り当て',
     'SHP_028': '同一shape_dist_traveledで座標が異なる',
     'SHP_029': '同一shape_dist_traveled、座標差が微小',
     // FRQ

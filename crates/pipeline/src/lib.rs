@@ -148,7 +148,7 @@ pub(crate) fn build_name_index_impl(
     let skip_shape_coords = records.shapes.len() > SHAPE_PT_CAP || large_feed_mode;
 
     // Notice'larda geçen TÜM id adayları (entity_id + details değerleri). Kural bazlı bilgi
-    // gerektirmez: SHP_014'ün details.trip_id'si, SHP_027'nin pattern_trips'i, OPR_008'in
+    // gerektirmez: SHP_014'ün details.trip_id'si, OPR_008'in
     // bad_seg durakları hep buradan gelir. Aday havuzu sonra gerçek id kümeleriyle kesiştirilir.
     let mut cand: std::collections::HashSet<&str> = std::collections::HashSet::new();
     if large_feed_mode {
