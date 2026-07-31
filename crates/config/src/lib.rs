@@ -38,6 +38,8 @@ const DEF_MAX_TRIP_DURATION_HOURS:  f64 =  24.0;
 const DEF_MAX_TRIP_DURATION_HOURS_RAIL: f64 = 48.0;
 const DEF_MIN_TRIP_DURATION_SEC:    u32 =  60;
 const DEF_MAX_HEADWAY_WARNING_MIN:  u32 = 240;
+const DEF_MAX_HEADWAY_WARNING_MIN_RAIL: u32 = 720;
+const DEF_SERVICE_DAY_WINDOW_HOURS_RAIL: u32 = 48;
 const DEF_BUNCHING_THRESHOLD_MIN:   u32 =   2;
 const DEF_RAIL_STOP_DISTANCE_KM:    f64 = 500.0;
 const DEF_MAX_TRIPS_PER_ROUTE:      u32 = 500;
@@ -92,6 +94,15 @@ pub struct ValidatorConfig {
     pub max_trip_duration_hours_rail: f64,
     pub min_trip_duration_sec:    u32,
     pub max_headway_warning_min:  u32,
+    /// OPR_001: raylı türlerde (route_type 2/12/100-117) ayrı sefer-aralığı eşiği (dk).
+    /// Şehirlerarası demiryolunda saatte bir tren beklenmez — Ankara-Sivas YHT'de 580 dk'lık
+    /// aralık normal işletmedir, boşluk değil. Şehir içi türlerde 240 dk korunur.
+    pub max_headway_warning_min_rail: u32,
+    /// STM_045: raylı türlerde servis-günü penceresi (saat). Uzun mesafe tren tarifelerinde
+    /// 30:37, 33:56, 38:10 gibi kalkış saatleri GEÇERLİ GTFS'tir (gece yarısı sonrası saatler
+    /// 24:xx+ yazılır) ve bunları 24 saate çekmek sefer kronolojisini bozar. Şehir içi
+    /// türlerde pencere `24 + service_day_start_hour` olarak kalır.
+    pub service_day_window_hours_rail: u32,
     pub bunching_threshold_min:   u32,
     /// Demiryolu (route_type 2/12/100-117) seferleri için STM_026 durak arası mesafe eşiği (km).
     pub rail_stop_distance_km:    f64,
@@ -147,6 +158,8 @@ impl Default for ValidatorConfig {
             max_trip_duration_hours_rail: DEF_MAX_TRIP_DURATION_HOURS_RAIL,
             min_trip_duration_sec:    DEF_MIN_TRIP_DURATION_SEC,
             max_headway_warning_min:  DEF_MAX_HEADWAY_WARNING_MIN,
+            max_headway_warning_min_rail: DEF_MAX_HEADWAY_WARNING_MIN_RAIL,
+            service_day_window_hours_rail: DEF_SERVICE_DAY_WINDOW_HOURS_RAIL,
             bunching_threshold_min:   DEF_BUNCHING_THRESHOLD_MIN,
             rail_stop_distance_km:    DEF_RAIL_STOP_DISTANCE_KM,
             max_trips_per_route:      DEF_MAX_TRIPS_PER_ROUTE,
@@ -228,6 +241,8 @@ fn validate_ranges(cfg: &ValidatorConfig) -> Result<(), String> {
     chk_f64!(cfg.max_trip_duration_hours_rail, "max_trip_duration_hours_rail", 8.0, 168.0);
     chk_u32!(cfg.min_trip_duration_sec,    "min_trip_duration_sec",       10,   300);
     chk_u32!(cfg.max_headway_warning_min,  "max_headway_warning_min",     60,   720);
+    chk_u32!(cfg.max_headway_warning_min_rail, "max_headway_warning_min_rail", 60, 2880);
+    chk_u32!(cfg.service_day_window_hours_rail, "service_day_window_hours_rail", 24, 120);
     chk_u32!(cfg.bunching_threshold_min,   "bunching_threshold_min",       1,    10);
     chk_f64!(cfg.rail_stop_distance_km,    "rail_stop_distance_km",       50.0, 2000.0);
     chk_u32!(cfg.max_trips_per_route,      "max_trips_per_route",          50,  20000);
@@ -262,7 +277,8 @@ pub fn merge_delta(base: &ValidatorConfig, delta_json: &str) -> Result<Validator
         "min_transfer_time_sec", "max_transfer_distance_m", "max_shape_jump_km", "max_shape_jump_km_rail",
         "stop_too_close_m", "stop_far_from_shape_m", "stop_far_from_shape_m_rail", "stop_far_from_parent_m", "feed_expiry_warning_days",
         "service_gap_days", "big_gap_days", "upcoming_service_days", "max_trip_duration_hours", "max_trip_duration_hours_rail", "min_trip_duration_sec",
-        "max_headway_warning_min", "bunching_threshold_min", "rail_stop_distance_km",
+        "max_headway_warning_min", "max_headway_warning_min_rail", "service_day_window_hours_rail",
+        "bunching_threshold_min", "rail_stop_distance_km",
         "max_trips_per_route", "duration_outlier_sigma", "headway_outlier_sigma", "service_day_start_hour",
         "max_calendar_future_years", "source_url", "stop_name_best_practices", "rural_route_ids", "calendar_override_rules",
     ];
@@ -330,6 +346,8 @@ pub fn merge_delta(base: &ValidatorConfig, delta_json: &str) -> Result<Validator
     apply_f64!("max_trip_duration_hours_rail", cfg.max_trip_duration_hours_rail);
     apply_u32!("min_trip_duration_sec",    cfg.min_trip_duration_sec);
     apply_u32!("max_headway_warning_min",  cfg.max_headway_warning_min);
+    apply_u32!("max_headway_warning_min_rail", cfg.max_headway_warning_min_rail);
+    apply_u32!("service_day_window_hours_rail", cfg.service_day_window_hours_rail);
     apply_u32!("bunching_threshold_min",   cfg.bunching_threshold_min);
     apply_f64!("rail_stop_distance_km",    cfg.rail_stop_distance_km);
     apply_u32!("max_trips_per_route",      cfg.max_trips_per_route);
@@ -407,6 +425,8 @@ mod tests {
         assert_eq!(cfg.max_trip_duration_hours,   24.0);
         assert_eq!(cfg.min_trip_duration_sec,      60);
         assert_eq!(cfg.max_headway_warning_min,   240);
+        assert_eq!(cfg.max_headway_warning_min_rail, 720);
+        assert_eq!(cfg.service_day_window_hours_rail, 48);
         assert_eq!(cfg.bunching_threshold_min,      2);
     }
 

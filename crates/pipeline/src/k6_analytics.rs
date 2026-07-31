@@ -47,9 +47,9 @@ pub fn analyze(
     // shape geometrisi: dört tüketici (speed_and_duration, remaining_analytics, shp012, shp022)
     // için TEK kurulum. Bkz. ShapeIndex tanımındaki ölçüm notu.
     let shape_idx = { let _t = Timer::start("K6::shape_idx::build"); ShapeIndex::build(records) };
-    // Raylı shape kümesi: geometri eşiklerini gevşeten üç tüketici (geo_analytics,
-    // remaining_analytics, shp012) için TEK kurulum — shape_idx emsali.
-    let rail_shapes = { let _t = Timer::start("K6::rail_shapes::build"); rail_shape_ids(records) };
+    // Raylı trip/shape kümeleri: geometri eşiklerini gevşeten üç tüketici (geo_analytics,
+    // remaining_analytics, shp012) ve STM_045 için TEK kurulum — shape_idx emsali.
+    let rail = { let _t = Timer::start("K6::rail_index::build"); rail_index(records) };
 
     // Her bağımsız K6 check'i KENDİ (notices, ctr)'sini üretir; sonuçlar KANONİK sırada
     // (1→13) birleştirilir ve sondaki renumber id'leri tek-iş-parçacıklı global ctr ile
@@ -62,13 +62,13 @@ pub fn analyze(
         Box::new(|| { let _t = Timer::start("K6::frequency_headway");     let mut v = Vec::new(); let mut c = 0u32; check_frequency_headway(records, config, &mut v, &mut c); v }),
         Box::new(|| { let _t = Timer::start("K6::route_headway");         let mut v = Vec::new(); let mut c = 0u32; check_route_headway(records, config, &idx, &mut v, &mut c); v }),
         Box::new(|| { let _t = Timer::start("K6::calendar_analytics");    let mut v = Vec::new(); let mut c = 0u32; check_calendar_analytics(records, derived, config, today_yyyymmdd, &mut v, &mut c); v }),
-        Box::new(|| { let _t = Timer::start("K6::geo_analytics");         let mut v = Vec::new(); let mut c = 0u32; check_geo_analytics(records, derived, config, &rail_shapes, &mut v, &mut c); v }),
+        Box::new(|| { let _t = Timer::start("K6::geo_analytics");         let mut v = Vec::new(); let mut c = 0u32; check_geo_analytics(records, derived, config, &rail, &mut v, &mut c); v }),
         Box::new(|| { let _t = Timer::start("K6::operational_analytics"); let mut v = Vec::new(); let mut c = 0u32; check_operational_analytics(records, derived, config, &idx, today_yyyymmdd, &mut v, &mut c); v }),
         Box::new(|| { let _t = Timer::start("K6::stoptimes_derived");     let mut v = Vec::new(); let mut c = 0u32; check_stoptimes_derived(&idx, &mut v, &mut c); v }),
         Box::new(|| { let _t = Timer::start("K6::route_trip_quality");    let mut v = Vec::new(); let mut c = 0u32; check_route_trip_quality(records, derived, &idx, &mut v, &mut c); v }),
         Box::new(|| { let _t = Timer::start("K6::data_quality");          let mut v = Vec::new(); let mut c = 0u32; check_data_quality(records, derived, config, today_yyyymmdd, &mut v, &mut c); v }),
-        Box::new(|| { let _t = Timer::start("K6::remaining_analytics");   let mut v = Vec::new(); let mut c = 0u32; check_remaining_analytics(records, derived, config, &idx, &shape_idx, &rail_shapes, &mut v, &mut c); v }),
-        Box::new(|| { let _t = Timer::start("K6::shp012");                let mut v = Vec::new(); let mut c = 0u32; check_shp012(records, config, &idx, &shape_idx, &rail_shapes, &mut v, &mut c); v }),
+        Box::new(|| { let _t = Timer::start("K6::remaining_analytics");   let mut v = Vec::new(); let mut c = 0u32; check_remaining_analytics(records, derived, config, &idx, &shape_idx, &rail.shapes, &mut v, &mut c); v }),
+        Box::new(|| { let _t = Timer::start("K6::shp012");                let mut v = Vec::new(); let mut c = 0u32; check_shp012(records, config, &idx, &shape_idx, &rail.shapes, &mut v, &mut c); v }),
         Box::new(|| { let _t = Timer::start("K6::shp022");                let mut v = Vec::new(); let mut c = 0u32; check_shp022(records, &idx, &shape_idx, &mut v, &mut c); v }),
         Box::new(|| { let _t = Timer::start("K6::pathway_analytics");     let mut v = Vec::new(); let mut c = 0u32; check_pathway_analytics(records, derived, &mut v, &mut c); v }),
         Box::new(|| { let _t = Timer::start("K6::calendar_override");     let mut v = Vec::new(); let mut c = 0u32; check_calendar_override_analytics(records, derived, config, &mut v, &mut c); v }),
@@ -319,6 +319,14 @@ fn row_field_local<'a>(row: &'a std::collections::HashMap<String, String>, key: 
     row.get(key).map(String::as_str).unwrap_or("").trim()
 }
 
+/// Raylı route'lara bağlı trip ve shape kimlikleri — K6 girişinde TEK kurulum.
+pub(crate) struct RailIndex<'a> {
+    /// Raylı bir route'a bağlı trip_id'ler (STM_045).
+    pub trips: FxHashSet<&'a str>,
+    /// Raylı bir route tarafından kullanılan shape_id'ler (GEO_006/007/009, SHP_012/014/024).
+    pub shapes: FxHashSet<&'a str>,
+}
+
 /// Raylı bir route tarafından kullanılan shape_id'ler (GEO_006/007/009, SHP_012/014/024).
 ///
 /// Ray geometrisi iki noktada şehir içi varsayımlarını bozar: (1) istasyonlarda durak
@@ -330,24 +338,27 @@ fn row_field_local<'a>(row: &'a std::collections::HashMap<String, String>, key: 
 /// shape raylı sayılır. Bu kuralların yanlış-pozitifi (meşru geometriyi hata sanmak) yanlış
 /// -negatiften pahalıdır; proje genelindeki FP-kaçınma duruşuyla tutarlı.
 ///
-/// Perf: rail route yoksa (feed'lerin çoğu) trips üzerinde hiç dolaşılmaz.
-fn rail_shape_ids(records: &EntityRecords) -> FxHashSet<&str> {
+/// Perf: rail route yoksa (feed'lerin çoğu) trips üzerinde hiç dolaşılmaz; trip ve shape
+/// kümeleri TEK geçişte kurulur.
+fn rail_index(records: &EntityRecords) -> RailIndex<'_> {
     let rail_routes: FxHashSet<&str> = records
         .routes
         .iter()
         .filter(|r| r.route_type.is_some_and(is_rail_route_type))
         .map(|r| r.route_id.as_str())
         .collect();
+    let mut out = RailIndex { trips: FxHashSet::default(), shapes: FxHashSet::default() };
     if rail_routes.is_empty() {
-        return FxHashSet::default();
+        return out;
     }
     let ti = &records.trip_interns;
-    let mut out: FxHashSet<&str> = FxHashSet::default();
     for t in &records.trips {
+        if !rail_routes.contains(ti.route_id(t)) {
+            continue;
+        }
+        out.trips.insert(t.trip_id.as_str());
         if let Some(sid) = ti.shape_id(t).filter(|s| !s.is_empty()) {
-            if rail_routes.contains(ti.route_id(t)) {
-                out.insert(sid);
-            }
+            out.shapes.insert(sid);
         }
     }
     out
@@ -1464,6 +1475,17 @@ fn check_route_headway(
     let max_secs = config.max_headway_warning_min * 60;
     let bunching_secs = config.bunching_threshold_min * 60;
 
+    // OPR_001 eşiği route_type'a göre ayrılır: şehirlerarası demiryolunda saatte bir tren
+    // beklenmez — Ankara-Sivas YHT'de 580 dk'lık aralık normal işletmedir, kapatılması
+    // gereken bir boşluk değil. OPR_005'e DOKUNULMAZ: o zaten route_type başına medyan+MAD
+    // ile GÖRELİ çalışır, sabit eşiği yoktur. FRQ kuralları da kapsam dışı — frequencies.txt
+    // zaten düzenli sıklık beyanıdır, orada büyük headway ayrı bir olgudur.
+    let rail_routes_hw: FxHashSet<&str> = records.routes.iter()
+        .filter(|r| r.route_type.is_some_and(is_rail_route_type))
+        .map(|r| r.route_id.as_str())
+        .collect();
+    let max_secs_rail = config.max_headway_warning_min_rail * 60;
+
     // OPR_001: hattın tamamında en büyük ardışık kalkış boşluğu eşiği aşıyor mu?
     // HashMap iterasyon sırası her süreçte değişir; aynı entity_id'ye düşen bulgulardan
     // hangisinin dedup temsilcisi olacağı buna bağlı kalmasın diye anahtara göre sırala.
@@ -1480,7 +1502,8 @@ fn check_route_headway(
         // OPR_001 yalnız (a) boşluk eşiği aşar, (b) hat manuel kırsal listesinde DEĞİL,
         // (c) kalkış aralıkları düzensiz (gerçek boşluk) ise üretilir. Düzenli-seyrek
         // (düşük CV) hatlar kasıtlı kırsal servis kabul edilip susturulur.
-        if max_hw > max_secs
+        let hw_threshold = if rail_routes_hw.contains(route_id) { max_secs_rail } else { max_secs };
+        if max_hw > hw_threshold
             && !config.rural_route_ids.iter().any(|r| r == route_id)
             && !is_regular_headway(&gaps)
         {
@@ -1496,9 +1519,9 @@ fn check_route_headway(
                 None,
                 None,
                 Some(format!("{:.0}", max_hw as f64 / 60.0)),
-                Some(format!("≤ {}", config.max_headway_warning_min)),
+                Some(format!("≤ {}", hw_threshold / 60)),
                 format!("'{route_label_hw}' kodlu hattın {dir_display} yönünde {service_id} çalışma takviminde maksimum sefer aralığı {:.0}dk — eşik {}dk.",
-                    max_hw as f64 / 60.0, config.max_headway_warning_min),
+                    max_hw as f64 / 60.0, hw_threshold / 60),
                 "Pik/saatdışı sefer sayısını artırın ya da büyük boşlukları kapatın.",
             );
             n001.service_id = Some(service_id.to_string());
@@ -1910,10 +1933,11 @@ fn check_geo_analytics(
     records: &EntityRecords,
     derived: &DerivedData,
     config: &ValidatorConfig,
-    rail_shapes: &FxHashSet<&str>,
+    rail: &RailIndex<'_>,
     notices: &mut Vec<Notice>,
     ctr: &mut u32,
 ) {
+    let rail_shapes = &rail.shapes;
     use crate::timing::Timer;
     let ti_geo = &records.trip_interns;
 
@@ -2387,13 +2411,25 @@ fn check_geo_analytics(
     // Servis günü [start, start+24) → start+24 saati aşan departure şüphelidir. Eşik
     // service_day_start_hour'a bağlıdır (ör. 04:00 başlayan operatörde 28h'e kadar meşru);
     // sabit 26h yanlış-pozitif üretiyordu. start_hour=0 (normalizasyon kapalı) → eski 26h.
+    //
+    // Raylı istisna: uzun mesafe tren tarifelerinde 30:37, 33:56, 38:10 gibi kalkış saatleri
+    // GEÇERLİ GTFS'tir — gece yarısından sonraki saatler servis-günü notasyonunda 24:xx+ yazılır
+    // ve bunları 24 saate çekmek sefer kronolojisini bozar. Raylı seferlerde pencere
+    // `service_day_window_hours_rail` (vars. 48) olur; gerçek yazım hataları (ör. 99:00) yine
+    // yakalanır. Toplam sefer süresini STM_028 ayrıca `max_trip_duration_hours_rail` ile ölçer.
     {
         let max_dep_h = if config.service_day_start_hour == 0 {
             26
         } else {
             24 + config.service_day_start_hour
         };
+        let max_dep_h_rail = config.service_day_window_hours_rail;
         for (trip_id, stops) in records.stop_times_index.iter_trips() {
+            let max_dep_h = if rail.trips.contains(trip_id.as_str()) {
+                max_dep_h_rail
+            } else {
+                max_dep_h
+            };
             for st in stops {
                 let Some((h, m, s)) = st.departure_time() else { continue };
                 if h > max_dep_h || (h == max_dep_h && (m > 0 || s > 0)) {
@@ -9973,6 +10009,88 @@ mod tests {
         assert_eq!(
             n.details.as_ref().and_then(|d| d.get("far_stops")).map(String::as_str),
             Some("FAR"),
+        );
+    }
+
+    // ── WP-N: STM_045 / OPR_001 route_type farkındalığı ──────────────────────
+
+    /// Uzun mesafe trende 38:10 kalkış GEÇERLİ GTFS'tir (gece yarısı sonrası servis-günü
+    /// notasyonu). Otobüste aynı değer 27 sa penceresini aşar ve işaretlenir.
+    #[test]
+    fn stm_045_uses_a_wider_service_day_window_on_rail() {
+        let build = |route_type: u32| {
+            let mut r = crate::k2::EntityRecords::default();
+            r.stops = vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1)];
+            r.routes = vec![route("R1", route_type)];
+            r.trips = vec![trip("T1", "R1")];
+            r.trip_interns = take_ti();
+            r.stop_times = vec![
+                stoptime("T1", 1, "A", (20, 0, 0), (20, 0, 0), 2),
+                stoptime("T1", 2, "B", (38, 10, 0), (38, 10, 0), 3),
+            ];
+            r.stop_times_index = K2StopTimesIndex::from_records(&r.stop_times);
+            analyze(&r, &empty_derived(), &default_config(), 20260514)
+        };
+        assert!(
+            build(3).notices.iter().any(|n| n.rule_id == "STM_045"),
+            "otobüste 38:10 > 27 sa penceresi → STM_045 çıkmalı"
+        );
+        assert!(
+            !build(2).notices.iter().any(|n| n.rule_id == "STM_045"),
+            "raylı seferde 38:10 < 48 sa rail penceresi → STM_045 ÇIKMAMALI"
+        );
+    }
+
+    /// Rail penceresi de sınırsız değil: 48 saati aşan değer gerçek yazım hatasıdır.
+    #[test]
+    fn stm_045_still_catches_absurd_times_on_rail() {
+        let mut r = crate::k2::EntityRecords::default();
+        r.stops = vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1)];
+        r.routes = vec![route("R1", 2)];
+        r.trips = vec![trip("T1", "R1")];
+        r.trip_interns = take_ti();
+        r.stop_times = vec![
+            stoptime("T1", 1, "A", (20, 0, 0), (20, 0, 0), 2),
+            stoptime("T1", 2, "B", (99, 0, 0), (99, 0, 0), 3),
+        ];
+        r.stop_times_index = K2StopTimesIndex::from_records(&r.stop_times);
+        let result = analyze(&r, &empty_derived(), &default_config(), 20260514);
+        assert!(
+            result.notices.iter().any(|n| n.rule_id == "STM_045"),
+            "99:00 raylı pencerede bile veri hatasıdır → STM_045 çıkmalı"
+        );
+    }
+
+    /// Şehirlerarası trende 580 dk'lık sefer aralığı normaldir; otobüste 240 dk eşiğini aşar.
+    #[test]
+    fn opr_001_uses_a_wider_headway_threshold_on_rail() {
+        let build = |route_type: u32| {
+            let mut r = crate::k2::EntityRecords::default();
+            r.stops = vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1)];
+            r.routes = vec![route("R1", route_type)];
+            // Düzensiz kalkışlar (is_regular_headway guard'ına takılmasın):
+            // 06:00, 08:00, 09:00, 18:40 → en büyük boşluk 580 dk.
+            let deps = [(6u32, 0u32), (8, 0), (9, 0), (18, 40)];
+            let mut trips_v = Vec::new();
+            let mut sts = Vec::new();
+            for (i, (h, m)) in deps.iter().enumerate() {
+                let tid = format!("T{i}");
+                trips_v.push(trip(&tid, "R1"));
+                sts.push(stoptime(&tid, 1, "A", (*h, *m, 0), (*h, *m, 0), 2));
+                sts.push(stoptime(&tid, 2, "B", (*h + 1, *m, 0), (*h + 1, *m, 0), 3));
+            }
+            r.trips = trips_v;
+            r.trip_interns = take_ti();
+            r.stop_times = sts;
+            analyze(&r, &empty_derived(), &default_config(), 20260514)
+        };
+        assert!(
+            build(3).notices.iter().any(|n| n.rule_id == "OPR_001"),
+            "otobüste 580dk > 240dk eşik → OPR_001 çıkmalı"
+        );
+        assert!(
+            !build(2).notices.iter().any(|n| n.rule_id == "OPR_001"),
+            "raylı hatta 580dk < 720dk rail eşiği → OPR_001 ÇIKMAMALI"
         );
     }
 

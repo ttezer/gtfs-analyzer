@@ -12,6 +12,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > unaffected. Re-baseline Golden snapshots that contain it.
 
 ### Changed
+- **STM_045 and OPR_001 now read route_type.** Both applied a threshold calibrated for
+  street-running transit to every mode. STM_045 rejected departure times past
+  `24 + service_day_start_hour`, but long-distance rail legitimately writes 30:37, 33:56 or
+  38:10 — GTFS encodes times after midnight as 24:xx and later, and folding them back into a
+  24-hour day breaks the chronology of the trip. Rail trips now use
+  `service_day_window_hours_rail` (default 48); genuine typos such as 99:00 are still caught,
+  and STM_028 measures total trip length separately. OPR_001 warned about any gap over 240
+  minutes, which is meaningless on intercity rail: nobody expects an hourly train between
+  Ankara and Sivas, where a 580-minute gap is the timetable working as intended. Rail routes
+  now use `max_headway_warning_min_rail` (default 720). OPR_005 is deliberately untouched — it
+  already compares each route against the median and MAD of its own route_type and has no
+  fixed threshold. Notices report the threshold that was applied.
 - **VAT_002 and VAT_007 no longer ask for transfers that GTFS already implies.** Both rules
   suggested adding `transfers.txt` records for any stop several routes touch. But a transfer at
   the same `stop_id` is implicit — consumers already know passengers can change there, and
