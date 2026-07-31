@@ -6191,11 +6191,18 @@ fn check_remaining_analytics<'a>(
     // metre-altı mikro-jitter yüzünden shape'lerin çoğunda tetikler (VBB %66,
     // mdb-1993 %83 — apex medyan 1 m, yani U-dönüşü değil nokta gürültüsü).
     // Eşik üstünde shape-başına INFO seli yerine tek feed-özet üretilir.
+    //
+    // Coğrafi dedup: bir istasyon/makas geometrisi feed'in gidiş ve dönüş shape'lerinde
+    // TEKRAR EDER, dolayısıyla shape başına emit aynı FİZİKSEL noktayı defalarca sayar
+    // (TCDD: 28 bildirim = yalnız 8 ayrı koordinat). Bildirim artık KOORDİNAT başına tek;
+    // temsilci en küçük shape_id, kaç shape'te göründüğü mesajda ve details'ta.
     {
         let _t20b = Timer::start("K6::rem::shp_020");
         const DUP_THRESHOLD_DEG: f64 = 1e-6;
         const SHP020_AGG_THRESHOLD: usize = 50;
-        let mut shp020_pending: Vec<Notice> = Vec::new();
+        // (yuvarlanmış lat, lon) → (temsili shape_id, i, j, lat, lon, o koordinattaki shape'ler)
+        let mut by_coord: std::collections::BTreeMap<(i64, i64), (&str, usize, usize, f64, f64, Vec<&str>)> =
+            std::collections::BTreeMap::new();
         for (shape_id, pts) in shape_coords.iter() {
             // Sadece ardışık çiftleri değil, küçük bir pencere içinde kontrol et
             'outer: for i in 0..pts.len() {
@@ -6203,23 +6210,56 @@ fn check_remaining_analytics<'a>(
                     let dlat = (pts[i].0 - pts[j].0).abs();
                     let dlon = (pts[i].1 - pts[j].1).abs();
                     if dlat < DUP_THRESHOLD_DEG && dlon < DUP_THRESHOLD_DEG {
-                        let prefix = shp_route_prefix(shape_route_labels.get(*shape_id).map(|v| v.as_slice()).unwrap_or(&[]));
-                        shp020_pending.push(k6_notice(
-                            ctr, "SHP_020", EntityType::Shape,
-                            Some(shape_id.to_string()), Some(shape_id.to_string()),
-                            "shapes.txt", None, Some("shape_pt_lat|shape_pt_lon"),
-                            Some(format!("{i}/{j}: ({:.6},{:.6})", pts[i].0, pts[i].1)),
-                            None,
-                            format!(
-                                "{prefix}'{shape_id}' güzergahında nokta {i} ile {j} neredeyse aynı konumda ({:.6},{:.6}) — tekrarlayan nokta.",
-                                pts[i].0, pts[i].1
-                            ),
-                            "Güzergah şeklindeki tekrarlayan noktaları temizleyin.",
-                        ));
+                        let key = (
+                            (pts[i].0 * 1e6).round() as i64,
+                            (pts[i].1 * 1e6).round() as i64,
+                        );
+                        let e = by_coord.entry(key).or_insert_with(|| {
+                            (*shape_id, i, j, pts[i].0, pts[i].1, Vec::new())
+                        });
+                        // Temsilci deterministik: leksikografik en küçük shape_id.
+                        if *shape_id < e.0 {
+                            e.0 = *shape_id;
+                            e.1 = i;
+                            e.2 = j;
+                        }
+                        e.5.push(*shape_id);
                         break 'outer;
                     }
                 }
             }
+        }
+
+        let mut shp020_pending: Vec<Notice> = Vec::new();
+        for (_key, (shape_id, i, j, lat, lon, mut shapes)) in by_coord {
+            shapes.sort_unstable();
+            shapes.dedup();
+            let n_shapes = shapes.len();
+            let prefix = shp_route_prefix(shape_route_labels.get(shape_id).map(|v| v.as_slice()).unwrap_or(&[]));
+            let repeat_suffix = if n_shapes > 1 {
+                format!(" Aynı konum {n_shapes} güzergah şeklinde tekrarlanıyor (istasyon/makas geometrisi).")
+            } else {
+                String::new()
+            };
+            let mut n = k6_notice(
+                ctr, "SHP_020", EntityType::Shape,
+                Some(shape_id.to_string()), Some(shape_id.to_string()),
+                "shapes.txt", None, Some("shape_pt_lat|shape_pt_lon"),
+                Some(format!("{i}/{j}: ({lat:.6},{lon:.6})")),
+                None,
+                format!(
+                    "{prefix}'{shape_id}' güzergahında nokta {i} ile {j} neredeyse aynı konumda ({lat:.6},{lon:.6}) — tekrarlayan nokta.{repeat_suffix}"
+                ),
+                "Güzergah şeklindeki tekrarlayan noktaları temizleyin.",
+            );
+            if n_shapes > 1 {
+                let mut d = std::collections::HashMap::new();
+                d.insert("repeated_shapes".to_string(), n_shapes.to_string());
+                d.insert("shapes".to_string(),
+                    shapes.iter().take(10).copied().collect::<Vec<_>>().join(","));
+                n.details = Some(d);
+            }
+            shp020_pending.push(n);
         }
         let n20 = shp020_pending.len();
         if n20 > SHP020_AGG_THRESHOLD {
@@ -8499,7 +8539,42 @@ mod tests {
         let mut shapes = Vec::new();
         for k in 0..51u32 {
             let sid = format!("S{k}");
-            // apex deseni: 1. ve 3. nokta özdeş
+            // apex deseni: 1. ve 3. nokta özdeş. Her shape KENDİ koordinatında tekrarlıyor —
+            // doyum artık ayrı KOORDİNAT sayısıyla ölçülür (aynı noktayı paylaşan shape'ler
+            // tek bildirimde toplanır), o yüzden 51 ayrı konum gerekir.
+            let lat = 41.0 + k as f64 * 0.01;
+            shapes.push(ShapePointRecord::new(shape_ti.intern(&sid), Some(lat), Some(29.0), Some(1), None, 2));
+            shapes.push(ShapePointRecord::new(shape_ti.intern(&sid), Some(lat + 0.001), Some(29.0), Some(2), None, 3));
+            shapes.push(ShapePointRecord::new(shape_ti.intern(&sid), Some(lat), Some(29.0), Some(3), None, 4));
+        }
+        records.shapes = shapes;
+        records.shape_interns = shape_ti.clone();
+        let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
+        let hits: Vec<_> = result.notices.iter().filter(|n| n.rule_id == "SHP_020").collect();
+        assert_eq!(hits.len(), 1, "eşik üstünde tek feed-özet SHP_020 beklenir");
+        assert!(hits[0].entity_id.is_none(), "özet notice feed-seviyesi olmalı (entity_id yok)");
+    }
+
+    /// WP-S: Bir istasyon/makas geometrisi gidiş ve dönüş shape'lerinde TEKRAR EDER;
+    /// shape başına emit aynı FİZİKSEL noktayı defalarca sayıyordu (TCDD: 28 bildirim =
+    /// 8 ayrı koordinat). Artık koordinat başına tek bildirim.
+    #[test]
+    fn shp_020_reports_one_notice_per_physical_coordinate() {
+        let mut shape_ti = ShapeInternTable::new();
+        use crate::k2::shapes::ShapePointRecord;
+        let mut records = records_with(
+            vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1)],
+            vec![route("R1", 3)],
+            vec![trip_sh("T1", "R1", "S0")],
+            vec![
+                stoptime("T1", 1, "A", (8,0,0), (8,0,0), 2),
+                stoptime("T1", 2, "B", (8,30,0), (8,30,0), 3),
+            ],
+        );
+        // 8 shape (yön varyantları), HEPSİ aynı istasyon noktasında tekrarlıyor.
+        let mut shapes = Vec::new();
+        for k in 0..8u32 {
+            let sid = format!("S{k}");
             shapes.push(ShapePointRecord::new(shape_ti.intern(&sid), Some(41.0), Some(29.0), Some(1), None, 2));
             shapes.push(ShapePointRecord::new(shape_ti.intern(&sid), Some(41.001), Some(29.0), Some(2), None, 3));
             shapes.push(ShapePointRecord::new(shape_ti.intern(&sid), Some(41.0), Some(29.0), Some(3), None, 4));
@@ -8508,8 +8583,17 @@ mod tests {
         records.shape_interns = shape_ti.clone();
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
         let hits: Vec<_> = result.notices.iter().filter(|n| n.rule_id == "SHP_020").collect();
-        assert_eq!(hits.len(), 1, "eşik üstünde tek feed-özet SHP_020 beklenir");
-        assert!(hits[0].entity_id.is_none(), "özet notice feed-seviyesi olmalı (entity_id yok)");
+        assert_eq!(hits.len(), 1, "8 shape aynı koordinatta → TEK bildirim (8 değil)");
+        assert_eq!(hits[0].entity_id.as_deref(), Some("S0"), "temsilci en küçük shape_id olmalı");
+        assert_eq!(
+            hits[0].details.as_ref().and_then(|d| d.get("repeated_shapes")).map(String::as_str),
+            Some("8"),
+            "kaç shape'te tekrarlandığı details'ta taşınmalı"
+        );
+        assert!(
+            hits[0].message.contains("8 güzergah şeklinde tekrarlanıyor"),
+            "mesaj tekrarı söylemeli: {}", hits[0].message
+        );
     }
 
     #[test]

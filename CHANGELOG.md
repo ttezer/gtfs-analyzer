@@ -12,6 +12,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > unaffected. Re-baseline Golden snapshots that contain it.
 
 ### Changed
+- **SHP_020 now reports each repeated location once, not once per shape.** Station throats and
+  switch geometry appear in both the outbound and inbound shape of the same line, so emitting
+  per shape counted the same physical point over and over: one rail feed showed 28 notices that
+  were only 8 distinct coordinates. Findings are now grouped by coordinate, represented by the
+  lexicographically smallest `shape_id`, with the repeat count in the message and in
+  `details.repeated_shapes`. The saturation threshold counts distinct coordinates too.
 - **CLD_007 no longer fires on feeds that only use calendar_dates.txt.** A feed may define its
   calendar entirely through `calendar_dates.txt`; GTFS allows this explicitly. In that shape
   every active day is an exception, so the rule's "more exceptions than half the active days"
