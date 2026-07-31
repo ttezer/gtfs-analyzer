@@ -1819,6 +1819,8 @@ fn check_calendar_analytics(
 
     // CLD_007: aynı service_id için çok sayıda calendar_dates exception (> total aktif gün / 2)
     // exception_count = ham geçerli satır sayısı (CalendarDateIndex semantiği)
+    // CLD_007 ön koşulu: feed'in calendar.txt'te bir temel programı var mı?
+    let has_base_calendar = !records.calendars.is_empty();
     for (service_id, &count) in &records.calendar_dates.exception_count {
         let service_id = service_id.as_str();
         let active = derived
@@ -1862,8 +1864,15 @@ fn check_calendar_analytics(
             }
         }
 
-        // Aktif günlerin yarısından fazlası override ise şüpheli
-        if active > 0 && count > active / 2 {
+        // Aktif günlerin yarısından fazlası override ise şüpheli.
+        //
+        // ⚠️ calendar.txt YOKSA kural susar. Bir feed takvimini bilinçli olarak yalnızca
+        // calendar_dates.txt ile tanımlayabilir (GTFS bunu açıkça kabul eder); o zaman HER
+        // aktif gün bir exception'dır, `count > active/2` matematiksel olarak GARANTİDİR ve
+        // notice "temel programdan sapma" diye bir şey ölçmez — yalnız feed'in modelleme
+        // seçimini geri okur. Bu boş dosya guard'ı ARC_009'daki has_calendar_txt emsaliyle
+        // aynı sınıftan. Base schedule'ın varlığını ARC_008/CAL kuralları ayrıca ölçer.
+        if has_base_calendar && active > 0 && count > active / 2 {
             notices.push(k6_notice(
                 ctr,
                 "CLD_007",
@@ -9115,6 +9124,34 @@ mod tests {
         assert!(
             result.notices.iter().any(|n| n.rule_id == "CAL_010" && n.entity_id.as_deref() == Some("SVC")),
             "62 günlük pencerede 3 aktif gün → CAL_010 çıkmalı"
+        );
+    }
+
+    // ── WP-R: CLD_007 yalnız temel program varsa ─────────────────────────────
+
+    /// Takvimini bilinçli olarak yalnız `calendar_dates.txt` ile tanımlayan bir feed'de
+    /// HER aktif gün bir exception'dır; `count > active/2` matematiksel olarak garantidir
+    /// ve notice "temel programdan sapma" diye bir şey ölçmez.
+    #[test]
+    fn cld_007_silent_when_the_feed_has_no_calendar_txt() {
+        use crate::k5_derived::CalendarBitmap;
+        use crate::k2::calendar_dates::CalendarDateIndex;
+        let mut r = crate::k2::EntityRecords::default();
+        // calendars BOŞ — feed yalnız calendar_dates kullanıyor.
+        let mut cd = CalendarDateIndex::default();
+        cd.exception_count.insert("SVC".into(), 4);
+        cd.added.insert("SVC".into(), vec![20260518, 20260519, 20260520, 20260521]);
+        r.calendar_dates = cd;
+        let mut derived = DerivedData::default();
+        derived.calendar_bitmap = CalendarBitmap {
+            active_dates: [("SVC".to_string(),
+                [20260518u32, 20260519, 20260520, 20260521].into_iter().collect())]
+                .into_iter().collect(),
+        };
+        let result = analyze(&r, &derived, &default_config(), 20260519);
+        assert!(
+            !result.notices.iter().any(|n| n.rule_id == "CLD_007"),
+            "calendar.txt yoksa CLD_007 üretilmemeli (feed'in modelleme seçimini geri okur)"
         );
     }
 

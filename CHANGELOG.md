@@ -12,6 +12,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > unaffected. Re-baseline Golden snapshots that contain it.
 
 ### Changed
+- **CLD_007 no longer fires on feeds that only use calendar_dates.txt.** A feed may define its
+  calendar entirely through `calendar_dates.txt`; GTFS allows this explicitly. In that shape
+  every active day is an exception, so the rule's "more exceptions than half the active days"
+  test was mathematically guaranteed to trigger and reported nothing about deviation from a
+  base schedule — it simply read back the producer's modelling choice. The rule now requires
+  `calendar.txt` to exist, matching the guard ARC_009 already uses. A missing base schedule is
+  still reported by ARC_008 and the CAL rules.
 - **CAL_010 and CAL_017 now read the feed's own context.** Both judged a service against an
   absolute rule that ignores what the feed is publishing. CAL_010 warned whenever a service
   ran seven days or fewer, which is meaningless in a feed covering only seventeen days: a
