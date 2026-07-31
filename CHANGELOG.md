@@ -12,6 +12,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > unaffected. Re-baseline Golden snapshots that contain it.
 
 ### Fixed
+- **FPD_002 no longer rejects negative fare amounts.** The spec says of
+  `fare_products.amount`: "May be negative to represent transfer discounts. May be zero to
+  represent a fare product that is free." Every negative value was reported as a critical Spec
+  error, so a feed modelling transfer discounts correctly lost publish score for valid data.
+  The rule now checks only that the field is present and numeric.
 - **A Flex-only feed could not be opened at all.** `stops.txt` sat in the unconditional required
   list, so a feed that defines its service through `locations.geojson` zones — which the spec
   explicitly allows, calling `stops.txt` "Optional if demand-responsive zones are defined in

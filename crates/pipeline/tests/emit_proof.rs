@@ -323,7 +323,9 @@ fn fixtures() -> Vec<Fixture> {
         // ── FMD / FPD (fare_media.txt / fare_products.txt) ─────────────────────
         fx("FMD_002", vec![("fare_media.txt", "fare_media_id,fare_media_type\nM1,9\n")]),
         fx("FMD_003", vec![("fare_media.txt", "fare_media_id,fare_media_type\nM1,2\n")]),
-        fx("FPD_002", vec![("fare_products.txt", "fare_product_id,amount,currency\nP1,-1,USD\n")]),
+        // FPD_002 artık EKSİK/SAYISAL-OLMAYAN tutarı ölçer. Negatif tutar GEÇERLİDİR
+        // (spec: "May be negative to represent transfer discounts") → fixture sayısal olmayan.
+        fx("FPD_002", vec![("fare_products.txt", "fare_product_id,amount,currency\nP1,abc,USD\n")]),
 
         // ── LVL (levels.txt) ───────────────────────────────────────────────────
         fx("LVL_007", vec![("levels.txt", "level_id,level_index\nL1,\n")]),

@@ -29,23 +29,19 @@ pub fn validate_fare_products(
         let id = get_trimmed_field(&row_map, "fare_product_id").unwrap_or("").to_string();
         let entity_id = (!id.is_empty()).then_some(id.clone());
 
+        // NEGATİF TUTAR GEÇERLİDİR — işaretlenmez. Spec (fare_products.amount):
+        //   "May be negative to represent transfer discounts. May be zero to represent a
+        //    fare product that is free."
+        // Eskiden her negatif değer FPD_002 ile KRİTİK·Spec işaretleniyordu; aktarma
+        // indirimi tanımlayan geçerli bir feed yayın skorunu kaybediyordu. FPD_002 artık
+        // yalnız alanın EKSİK veya SAYISAL OLMAMASI durumunu ölçer.
         let amount = match parse_f64(&row_map, "amount") {
             Ok(value) => {
-                if let Some(v) = value {
-                    if v < 0.0 {
-                        notices.push(make_k2_notice(
-                            &mut counter, "FPD_002", EntityType::Row, entity_id.clone(), Some(&row_map),
-                            &file.name, Some(line), Some("amount"), Some(v.to_string()),
-                            Some(">= 0".to_string()),
-                            "amount negatif olamaz.".to_string(),
-                            "amount alanını sıfır veya pozitif bir değere ayarlayın.",
-                        ));
-                    }
-                } else if get_trimmed_field(&row_map, "amount") == Some("") {
+                if value.is_none() && get_trimmed_field(&row_map, "amount") == Some("") {
                     notices.push(make_k2_notice(
                         &mut counter, "FPD_002", EntityType::Row, entity_id.clone(), Some(&row_map),
                         &file.name, Some(line), Some("amount"), None,
-                        Some(">= 0".to_string()),
+                        Some("sayısal değer".to_string()),
                         "amount zorunludur.".to_string(),
                         "Fare ürünü için bir amount (tutar) girin.",
                     ));
@@ -140,4 +136,46 @@ pub fn validate_fare_products(
     }
 
     (records, notices)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn raw(rows: &[&str]) -> RawFile {
+        RawFile {
+            name: "fare_products.txt".to_string(),
+            headers: vec!["fare_product_id".into(), "amount".into(), "currency".into()],
+            rows: rows.iter().map(|r| r.split(',').map(Into::into).collect()).collect(),
+            ..Default::default()
+        }
+    }
+
+    /// Spec: "amount … May be negative to represent transfer discounts."
+    /// Aktarma indirimi tanımlayan geçerli bir feed KRİTİK·Spec hatası almamalı.
+    #[test]
+    fn negative_amount_is_valid_and_not_flagged() {
+        let (recs, notices) = validate_fare_products(&raw(&["P1,-1.50,USD"]));
+        assert!(
+            !notices.iter().any(|n| n.rule_id == "FPD_002"),
+            "negatif tutar geçerlidir (aktarma indirimi) → FPD_002 çıkmamalı: {:?}",
+            notices.iter().map(|n| &n.message).collect::<Vec<_>>()
+        );
+        assert_eq!(recs[0].amount, Some(-1.5), "değer kaydedilmeli");
+    }
+
+    #[test]
+    fn zero_amount_is_valid() {
+        let (_, notices) = validate_fare_products(&raw(&["P1,0,USD"]));
+        assert!(!notices.iter().any(|n| n.rule_id == "FPD_002"), "sıfır tutar geçerlidir (ücretsiz ürün)");
+    }
+
+    /// Daraltmanın bedeli olmamalı: eksik ve sayısal-olmayan tutar YİNE yakalanır.
+    #[test]
+    fn missing_or_non_numeric_amount_still_flagged() {
+        let (_, n1) = validate_fare_products(&raw(&["P1,,USD"]));
+        assert!(n1.iter().any(|n| n.rule_id == "FPD_002"), "boş tutar FPD_002 üretmeli");
+        let (_, n2) = validate_fare_products(&raw(&["P1,abc,USD"]));
+        assert!(n2.iter().any(|n| n.rule_id == "FPD_002"), "sayısal olmayan tutar FPD_002 üretmeli");
+    }
 }
