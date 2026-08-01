@@ -12,6 +12,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > unaffected. Re-baseline Golden snapshots that contain it.
 
 ### Added
+- **A valid feed must now stay silent in the `Spec` class, and CI enforces it.**
+  `crates/pipeline/tests/spec_conformance.rs` is the mirror of the emit proof: the emit proof
+  asks whether every rule *can* fire, this asks whether valid data keeps quiet. Eight
+  spec-conformant feeds — `stop_times` keyed by `stop_id` only, by `location_id` only, by
+  `location_group_id` only, a Flex-only feed with no `stops.txt`, a negative fare amount, a
+  lone `routes.network_id`, a service defined only through `calendar_dates.txt`, and a rail
+  trip departing at 38:10 — must produce no `Spec` notice and no `CRITICAL` notice. Each feed
+  carries a canary: the same feed with a deliberate violation must produce a named rule, so a
+  fixture cannot pass green because its file was silently skipped. Three of the eight cases
+  would have caught the FPD_002, STM_006 and ARC_004 defects fixed earlier today; the gate
+  found two more on its first run, both recorded below.
+
 - **LOC_008, LOC_009, LOC_010 — the required members of a `locations.geojson` feature are now
   checked.** The spec's field table marks `type`, `properties` and `geometry.coordinates` as
   Required for every feature, and none of the three was verified: a feature missing them was
