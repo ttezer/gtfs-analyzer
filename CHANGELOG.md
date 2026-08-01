@@ -107,7 +107,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   reference pointing at two different things. One notice per clashing ID, naming the source it
   collides with.
 
+### Changed
+- **`RTS_003` now names the two fields it is about.** A route with neither `route_short_name`
+  nor `route_long_name` is a Kritik finding that keeps the feed from being published, and the
+  "Field" column of the R2 report was blank for it, because the notice carried `field: None`.
+  It now carries `route_short_name|route_long_name` — the pipe convention the codebase already
+  uses in 32 places for a notice about two fields jointly (`stop_lat|stop_lon`,
+  `start_date|end_date`, `from_stop_id|to_stop_id`). Naming only one of them would have been
+  wrong: the provision is that *both* are empty.
+
+  This is a visible output change — Golden snapshots gain a value where the field column was
+  empty — but not a behavioural one: `field` is consumed only inside per-rule sort and dedup
+  keys, and a constant value shifts nothing relative to anything.
+
+  It also closes the last two lines of the coverage ledger, though that was the side effect
+  rather than the reason. Had the ledger been the only argument, the rule should have been left
+  alone; a measurement is not a reason to change production output.
+
 ### Added
+- **The specification-coverage ledger is empty.** It opened at 32 lines and closes at zero, which
+  means every normative provision derivable from the reference's field tables now has a `Spec`
+  notice anchored to it in the emit-proof corpus. The claim is deliberately narrow, and the
+  ledger header says so where the number is read: prose conditions, cross-file conditions,
+  within-trip consistency and GeoJSON structure remain outside what this measurement can see.
+
+  The last six lines to close were never gaps at all, and finding that out took correcting the
+  measurement rather than the rules. `CAL_002` checks all seven `calendar.txt` day columns, but
+  its fixture only broke `monday`, so six columns looked unanchored. Breaking all seven in one
+  row was not enough either — the rule dedups at `Entity` level on `service_id`, so a single
+  service yields a single notice no matter how many days are wrong. The fixture now uses seven
+  services, one broken day each.
 - **`fare_leg_join_rules.txt` is now a file the validator knows about** (issue #59). It is part
   of Fares v2, and the pipeline had never heard of it: absent from `KNOWN_FILES`, so a feed
   shipping it was told it had an unknown file; absent from `required_fields` and

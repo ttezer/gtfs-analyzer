@@ -1,13 +1,14 @@
 # WP-3/A — spec'te normatif hükmü olan ama emit_proof korpusunda hiçbir
 # GtfsSpec notice'ının ÇAPALANMADIĞI alanlar. Biçim: dosya:alan  hükümler [kanıt].
-# 8 alan.
+# 0 alan.
 #
 # Bu bir BORÇ defteridir, kapı değil: eksik kural kimseyi yanlış REDDETMEZ,
 # ama boşluk sessizce BÜYÜMEMELİ. Kural eklenince satır düşer.
 #
-# ⚠️ ALT SINIR — "hiçbir kural yok" DEMEK DEĞİL. Çok alanlı kurallar (CAL_002
-# yedi günü de denetler, fixture yalnız monday'i bozar) ve field=None üretenler
-# (RTS_003 "ikisinden biri zorunlu") burada GÖRÜNÜR ama boşluk DEĞİLDİR.
+# ⚠️ ALT SINIR — "hiçbir kural yok" DEMEK DEĞİL. Bir hüküm ölçülüyor olduğu
+# hâlde burada GÖRÜNEBİLİR: fixture kuralın yalnız bir dalını tetiklerse ya da
+# kural `field=None` emit ederse çapa düşmez. İkisi de 2026-08-02'de gerçekten
+# oldu ve İKİSİ DE GİDERİLDİ (aşağıya bak) — ama desen tekrar edebilir.
 # DOĞRU İFADE: "bu alanların normatif hükmü var ama emit_proof korpusunda
 # bunlara bağlı bir Spec notice çapası görünmüyor" — "N eksik kuralımız var" DEĞİL.
 #
@@ -26,7 +27,7 @@
 #                   ama spec'in Color-tipi hükmünü karşılamaz.
 #   kanıtsız satır  = ADJUDİKASYON gerekir; ÖNCE MEVCUT KURALI ARA.
 #
-# ── DURUM (2026-08-01): AŞAĞIDAKİ SATIRLARIN TAMAMI ADJUDİKE EDİLDİ ──────
+# ── DURUM (2026-08-02): DEFTER BOŞ — ölçülebilen her hüküm çapalanıyor ────
 # Defter 32 satırla açıldı; 9'u KAPANDI (RTS_007 Spec'e taşındı;
 # AGN_012/RTS_024/TRN_008 sınıfı düzeltildi; `Phone number` hükmü uydurmaydı,
 # atom kaldırıldı → 3 satır düştü; attributions route_id/trip_id issue #62
@@ -36,20 +37,20 @@
 #   • issue #61 ........................... TAMAMI KAPANDI (9 satır):
 #     STM_058 · DQ_021 genişletildi (attribution_id + route_networks.route_id)
 #     PTH_027 · STP_042 · NET_002 · NET_003 · RCT_007 · RTS_029 · TRN_015
-#   • calendar 6 gün (enum) ............... ARTEFAKT: CAL_002 yedisini de
-#     denetler, fixture yalnız `monday`'i bozar. presence kısmı #61'de.
-#   • routes route_short_name/route_long_name  ARTEFAKT: RTS_003 (Kritik·Spec)
-#     hükmü ölçer ama `field=None` emit eder → çapa düşmez.
-# Yani bu liste "el değmemiş iş" DEĞİL, "triyajı yapılmış açık borç"tur.
-# YENİ bir satır çıkarsa adjudike edilmemiş demektir — testi düşürür.
+#   • calendar 6 gün (enum) ............... ✅ KAPANDI: artefakt olduğu
+#     doğrulandı ve GİDERİLDİ — fixture yedi AYRI servisle yedi günü de bozuyor
+#     (tek satır yetmez: CAL_002 dedup düzeyi Entity, servis başına tek notice).
+#   • routes route_short_name/route_long_name  ✅ KAPANDI: RTS_003 hükmü zaten
+#     ölçüyordu ama `field=None` emit ediyordu. Artık iki alanı da adlandırıyor
+#     (`route_short_name|route_long_name`) — repoda yerleşik boru konvansiyonu.
+#     Değişikliğin gerekçesi defter DEĞİL: R2'nin "Alan" sütunu, feed'i yayından
+#     alıkoyan bir bulguda boş kalıyordu.
+#
+# ⚠️ DEFTERİN BOŞ OLMASI "SPEC'İN TAMAMI ÖLÇÜLÜYOR" DEMEK DEĞİLDİR — yalnız
+# ALAN TABLOSUNDAN türetilebilen hükümler için geçerlidir (yukarıdaki kapsam
+# uyarısına bak). YENİ bir satır çıkarsa ya spec değişmiştir ya bir kural
+# kalkmıştır ya da bir fixture zayıflamıştır — testi düşürür, adjudike edilmelidir.
 #
 # Yeniden üretmek: UPDATE_LEDGER=1 cargo test -p gtfs-pipeline --test emit_proof \
 #   spec_coverage_gaps_match_ledger
-calendar.txt:friday  presence:required,enum-domain
-calendar.txt:saturday  presence:required,enum-domain
-calendar.txt:sunday  presence:required,enum-domain
-calendar.txt:thursday  presence:required,enum-domain
-calendar.txt:tuesday  presence:required,enum-domain
-calendar.txt:wednesday  presence:required,enum-domain
-routes.txt:route_long_name  presence:conditional  [yalnız: RTS_011,RTS_019,RTS_022,RTS_027]
-routes.txt:route_short_name  presence:conditional  [yalnız: RTS_010,RTS_021,RTS_026]
+

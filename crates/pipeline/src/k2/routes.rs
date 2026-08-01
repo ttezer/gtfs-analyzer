@@ -60,10 +60,15 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
             .map(str::to_string);
 
         // RTS_003: both route_short_name and route_long_name are empty
+        //
+        // `field` iki alanı BİRLİKTE adlandırır (repoda yerleşik boru konvansiyonu:
+        // `from_stop_id|to_stop_id`, `start_date|end_date`, `stop_lat|stop_lon`). Eskiden `None`
+        // idi: R2'nin "Alan" sütunu, feed'i yayından ALIKOYAN bir bulguda boş kalıyordu.
+        // Tek alan adı yazmak yanlış olurdu — hüküm ikisinin BİRLİKTE boş olmasıdır.
         if route_short_name.is_none() && route_long_name.is_none() {
             notices.push(make_k2_notice(
                 &mut counter, "RTS_003", EntityType::Route, entity_id.clone(), Some(&row_map),
-                &file.name, Some(line), None, None, None,
+                &file.name, Some(line), Some("route_short_name|route_long_name"), None, None,
                 "route_short_name ve route_long_name alanlarının her ikisi de boş; en az biri zorunludur.".to_string(),
                 "route_short_name veya route_long_name alanını doldurun.",
             ));

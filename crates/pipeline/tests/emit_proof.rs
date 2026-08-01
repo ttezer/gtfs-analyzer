@@ -275,7 +275,23 @@ fn fixtures() -> Vec<Fixture> {
 
         // ── CAL grubu (calendar.txt) ───────────────────────────────────────────
         fx("CAL_001", vec![("calendar.txt", "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,0,0,20250101,20271231\nSVC1,1,1,1,1,1,0,0,20250101,20271231\n")]),
-        fx("CAL_002", vec![("calendar.txt", "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,5,1,1,1,1,0,0,20250101,20271231\n")]),
+        // CAL_002 YEDİ günü de denetler; fixture eskiden yalnız `monday`'i bozuyordu, bu yüzden
+        // kapsam ölçümü diğer altı sütunu "çapasız" sayıyordu — kural boşluğu DEĞİL, fixture
+        // zayıflığıydı.
+        //
+        // ⚠️ Tek satırda yedi günü birden bozmak YETMEZ: CAL_002'nin dedup düzeyi Entity
+        // (`service_id`), yani servis başına TEK notice kalır ve yalnız bir gün çapalanır.
+        // Bu yüzden yedi AYRI servis, her biri farklı bir günü bozuyor.
+        fx("CAL_002", vec![("calendar.txt", concat!(
+            "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\n",
+            "SVC1,5,1,1,1,1,0,0,20250101,20271231\n",
+            "SVC2,1,5,1,1,1,0,0,20250101,20271231\n",
+            "SVC3,1,1,5,1,1,0,0,20250101,20271231\n",
+            "SVC4,1,1,1,5,1,0,0,20250101,20271231\n",
+            "SVC5,1,1,1,1,5,0,0,20250101,20271231\n",
+            "SVC6,1,1,1,1,1,5,0,20250101,20271231\n",
+            "SVC7,1,1,1,1,1,0,5,20250101,20271231\n",
+        ))]),
         fx("CAL_003", vec![("calendar.txt", "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,0,0,,20271231\n")]),
         fx("CAL_004", vec![("calendar.txt", "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,0,0,20250101,\n")]),
         fx("CAL_005", vec![("calendar.txt", "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,0,0,20271231,20250101\n")]),
@@ -2012,9 +2028,10 @@ fn spec_coverage_gaps_match_ledger() {
                  # Bu bir BORÇ defteridir, kapı değil: eksik kural kimseyi yanlış REDDETMEZ,\n\
                  # ama boşluk sessizce BÜYÜMEMELİ. Kural eklenince satır düşer.\n\
                  #\n\
-                 # ⚠️ ALT SINIR — \"hiçbir kural yok\" DEMEK DEĞİL. Çok alanlı kurallar (CAL_002\n\
-                 # yedi günü de denetler, fixture yalnız monday'i bozar) ve field=None üretenler\n\
-                 # (RTS_003 \"ikisinden biri zorunlu\") burada GÖRÜNÜR ama boşluk DEĞİLDİR.\n\
+                 # ⚠️ ALT SINIR — \"hiçbir kural yok\" DEMEK DEĞİL. Bir hüküm ölçülüyor olduğu\n\
+                 # hâlde burada GÖRÜNEBİLİR: fixture kuralın yalnız bir dalını tetiklerse ya da\n\
+                 # kural `field=None` emit ederse çapa düşmez. İkisi de 2026-08-02'de gerçekten\n\
+                 # oldu ve İKİSİ DE GİDERİLDİ (aşağıya bak) — ama desen tekrar edebilir.\n\
                  # DOĞRU İFADE: \"bu alanların normatif hükmü var ama emit_proof korpusunda\n\
                  # bunlara bağlı bir Spec notice çapası görünmüyor\" — \"N eksik kuralımız var\" DEĞİL.\n\
                  #\n\
@@ -2033,7 +2050,7 @@ fn spec_coverage_gaps_match_ledger() {
                  #                   ama spec'in Color-tipi hükmünü karşılamaz.\n\
                  #   kanıtsız satır  = ADJUDİKASYON gerekir; ÖNCE MEVCUT KURALI ARA.\n\
                  #\n\
-                 # ── DURUM (2026-08-01): AŞAĞIDAKİ SATIRLARIN TAMAMI ADJUDİKE EDİLDİ ──────\n\
+                 # ── DURUM (2026-08-02): DEFTER BOŞ — ölçülebilen her hüküm çapalanıyor ────\n\
                  # Defter 32 satırla açıldı; 9'u KAPANDI (RTS_007 Spec'e taşındı;\n\
                  # AGN_012/RTS_024/TRN_008 sınıfı düzeltildi; `Phone number` hükmü uydurmaydı,\n\
                  # atom kaldırıldı → 3 satır düştü; attributions route_id/trip_id issue #62\n\
@@ -2043,12 +2060,19 @@ fn spec_coverage_gaps_match_ledger() {
                  #   • issue #61 ........................... TAMAMI KAPANDI (9 satır):\n\
                  #     STM_058 · DQ_021 genişletildi (attribution_id + route_networks.route_id)\n\
                  #     PTH_027 · STP_042 · NET_002 · NET_003 · RCT_007 · RTS_029 · TRN_015\n\
-                 #   • calendar 6 gün (enum) ............... ARTEFAKT: CAL_002 yedisini de\n\
-                 #     denetler, fixture yalnız `monday`'i bozar. presence kısmı #61'de.\n\
-                 #   • routes route_short_name/route_long_name  ARTEFAKT: RTS_003 (Kritik·Spec)\n\
-                 #     hükmü ölçer ama `field=None` emit eder → çapa düşmez.\n\
-                 # Yani bu liste \"el değmemiş iş\" DEĞİL, \"triyajı yapılmış açık borç\"tur.\n\
-                 # YENİ bir satır çıkarsa adjudike edilmemiş demektir — testi düşürür.\n\
+                 #   • calendar 6 gün (enum) ............... ✅ KAPANDI: artefakt olduğu\n\
+                 #     doğrulandı ve GİDERİLDİ — fixture yedi AYRI servisle yedi günü de bozuyor\n\
+                 #     (tek satır yetmez: CAL_002 dedup düzeyi Entity, servis başına tek notice).\n\
+                 #   • routes route_short_name/route_long_name  ✅ KAPANDI: RTS_003 hükmü zaten\n\
+                 #     ölçüyordu ama `field=None` emit ediyordu. Artık iki alanı da adlandırıyor\n\
+                 #     (`route_short_name|route_long_name`) — repoda yerleşik boru konvansiyonu.\n\
+                 #     Değişikliğin gerekçesi defter DEĞİL: R2\'nin \"Alan\" sütunu, feed\'i yayından\n\
+                 #     alıkoyan bir bulguda boş kalıyordu.\n\
+                 #\n\
+                 # ⚠️ DEFTERİN BOŞ OLMASI \"SPEC\'İN TAMAMI ÖLÇÜLÜYOR\" DEMEK DEĞİLDİR — yalnız\n\
+                 # ALAN TABLOSUNDAN türetilebilen hükümler için geçerlidir (yukarıdaki kapsam\n\
+                 # uyarısına bak). YENİ bir satır çıkarsa ya spec değişmiştir ya bir kural\n\
+                 # kalkmıştır ya da bir fixture zayıflamıştır — testi düşürür, adjudike edilmelidir.\n\
                  #\n\
                  # Yeniden üretmek: UPDATE_LEDGER=1 cargo test -p gtfs-pipeline --test emit_proof \\\n\
                  #   spec_coverage_gaps_match_ledger\n",
