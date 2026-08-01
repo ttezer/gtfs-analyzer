@@ -108,6 +108,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   collides with.
 
 ### Fixed
+- **The zip guard's compression-ratio cap had less headroom than its own comment claimed.** It
+  was calibrated in July against a 419 MB aggregate feed whose worst entry compressed 17.8:1,
+  leaving what the code described as 4.5x of margin. A calibration run over the Entur feed
+  measured `calendar_dates.txt` at **32.8:1** — that file compresses extremely well, since it
+  repeats dates and service ids — which is above the 16 MiB ratio floor and therefore subject to
+  the check. Entur passed, but on 2.4x of margin rather than 4.5x, and a legitimate feed with a
+  more repetitive calendar would have been rejected outright with a fatal ARC_029, the harshest
+  false positive the validator can produce. The cap moves from 80 to 100, which keeps roughly
+  3x of headroom over the worst measured feed while staying an order of magnitude below the
+  ~1032:1 ceiling a single DEFLATE stream can reach; the absolute entry and total caps bound the
+  damage regardless of ratio. The comment now records Entur as the calibration basis.
 - **`rule_priority` is a `fare_leg_rules.txt` field, and K1 accepted it in
   `fare_transfer_rules.txt` too.** The spec defines it only for fare leg rules, where FLG_007
   validates it; the transfer rules table does not list it. Because K1 held it among the known

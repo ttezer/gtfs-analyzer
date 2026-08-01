@@ -36,6 +36,15 @@ pub struct DecompressionLimits {
 /// - en yüksek oran 17,8:1 (bir `.out` artefaktı); en yüksek GTFS dosyası trips.txt 12,3:1,
 /// - en büyük girdi stop_times ~2,74 GiB; toplam açılmış ~3,39 GiB; feed oranı ~8,3:1.
 ///
+/// **2026-08-01 — Entur (Norveç) yeni EN-KÖTÜ ORAN oldu; kalibrasyon tabanı güncellendi:**
+/// - `calendar_dates.txt` **32,8:1** (31,2 MiB açılmış / 1,0 MiB) — DELFI'deki 17,8:1'in ~1,8×'i
+///   ve `ratio_floor`'un (16 MiB) ÜSTÜNDE, yani oran kontrolüne TABİ,
+/// - en büyük girdi `shapes.txt` 2.651,8 MiB; toplam açılmış 3.640,2 MiB (feed oranı 6,2:1).
+///
+/// Entur 80 sınırını geçmedi ama pay 4,5×'ten **2,4×**'e düştü. `calendar_dates` yapısı gereği
+/// aşırı sıkışır (tekrar eden tarih + service_id) ve Entur'dan 2,4× daha tekrarlı meşru bir feed
+/// FATAL ARC_029 ile REDDEDİLİRDİ — mümkün olan en ağır yanlış pozitif. Sınır 80 → 100.
+///
 /// Değerler ölçülen en-kötünün belirgin üstünde (meşru büyük feed'i reddetmemek için)
 /// ama gerçek zip-bomba şekillerini (minik zip → devasa açılım) yakalayacak kadar dar.
 /// Yeniden ayarlamak için TEK nokta burasıdır; yeni bir en-kötü feed'de raporu tekrar
@@ -52,10 +61,11 @@ pub const DEFAULT_DECOMPRESSION_LIMITS: DecompressionLimits = DecompressionLimit
     max_entry_decompressed: 12 * 1024 * 1024 * 1024, // 12 GiB
     // Bu açılmış-boyutun altında oran yok sayılır (küçük, çok sıkışan girdiler zararsız).
     ratio_floor: 16 * 1024 * 1024, // 16 MiB
-    // Ölçülen en-kötü per-entry oran 17,8:1 → 80 ~4,5× pay bırakır. Ölçülmemiş bir
-    // feed'in aşırı-tekrarlı girdisine karşı marj; bir bombanın ihtiyacı ~200:1+ (tek
-    // DEFLATE tavanı ~1032:1) çok üstte. Aradaki boşluk entry/total cap'leriyle kapanır.
-    max_ratio: 80,
+    // Ölçülen en-kötü per-entry oran **32,8:1** (Entur `calendar_dates.txt`, 2026-08-01)
+    // → 100 ~3× pay bırakır. Bir bombanın ihtiyacı ~200:1+ ve tek DEFLATE tavanı ~1032:1,
+    // yani 100 hâlâ bomba bölgesinin bir kat altında; aradaki boşluğu entry/total cap'leri
+    // kapatır (mutlak zarar 12/16 GiB ile sınırlı, oran ne olursa olsun).
+    max_ratio: 100,
 };
 
 /// Sınır aşımının nedeni (hata mesajı ve teşhis için).
