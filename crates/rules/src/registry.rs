@@ -594,8 +594,6 @@ pub static RULES: &[RuleMeta] = &[
         "Flex penceresi tanımlıyken continuous_drop_off 1/boş dışında yasak"),
     // MD paritesi: `decreasing_or_equal_stop_time_distance` (ERROR). GTFS Reference,
     // stop_times.shape_dist_traveled için stop_sequence boyunca ARTAN değer şart koşar.
-    r!("STM_057", Kritik, Spec, 1, &[], Some("trip_id"), VS_K, Row,
-        "Flex konumu için tek stop_times kaydı"),
     r!("STM_056", Kritik, Spec, 1, &[], Some("trip_id"), VS_K, Row,
         "shape_dist_traveled artmıyor"),
 
@@ -1847,7 +1845,6 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("STM_054", GtfsSpec),
     ("STM_055", GtfsSpec),
     ("STM_056", GtfsSpec),
-    ("STM_057", GtfsSpec),
     ("STP_001", GtfsSpec),
     ("STP_002", GtfsSpec),
     ("STP_003", GtfsSpec),
@@ -2121,12 +2118,17 @@ mod tests {
         // paylaşması normaldir. Geriye kalan gerçek sinyali (durak shape üzerinde değil)
         // GEO_009/SHP_012 zaten DOĞRUDAN ölçüyor.
         assert!(get_rule("SHP_027").is_none());
+        // STM_057 (2026-08-01, WP-1): spec "travel WITHIN THE SAME location group…requires two
+        // records" der; kural bunu her konum için iki kayıt şartına çevirip normal noktadan
+        // noktaya Flex seferini (L1 → L2) Kritik·Spec ile reddediyordu. Denetlenebilir tek
+        // artığı (seferin tek kaydı bir Flex konumu) STM_033'ün konusudur.
+        assert!(get_rule("STM_057").is_none());
     }
 
     #[test]
     fn blocks_only_canonical_ids() {
         let view_ids = ["GEO_008", "GEO_010", "GEO_011"];
-        let removed_ids = ["STM_011","TRP_010","GEO_001","GEO_005","DQ_007","DQ_008","DQ_015","STM_027","SHP_027"];
+        let removed_ids = ["STM_011","TRP_010","GEO_001","GEO_005","DQ_007","DQ_008","DQ_015","STM_027","SHP_027","STM_057"];
         for rule in RULES {
             for &b in rule.blocks {
                 assert!(!view_ids.contains(&b),

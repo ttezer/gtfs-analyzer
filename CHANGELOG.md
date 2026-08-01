@@ -268,6 +268,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   scoped to 80–99% and TRP_029 keeps the 100% case, so each threshold reports once.
 
 ### Removed
+- **STM_057, which read a conditional sentence of the spec as an unconditional one.** It
+  required two `stop_times.txt` records for every `location_id` and every `location_group_id`
+  in a trip. The spec says something narrower: "Travel **within the same** location group or
+  GeoJSON location requires two records in `stop_times.txt` with the same `location_group_id`
+  or `location_id`." Two records describe a journey that begins and ends inside one zone. An
+  ordinary point-to-point Flex trip visits each zone once, and the rule rejected it as a
+  critical specification error — a publish blocker on correct data. Its card claimed no false
+  positive was possible. Nothing falsifiable remains once the conditional is respected: a trip
+  whose single record is a Flex location is already `STM_033`, "trip with one stop". Removal
+  covers the registry entry, the AUTHORITY row, the `removed_ids` guards, the K6 emit site,
+  both integration tests, the emit-proof fixture, the generated RULES files, the UI and CLI
+  locales in three languages, the card, and the rule count in the three READMEs. 545 → 544.
+
 - **Five more `XFL_*` rules that restated a foreign-key violation another rule already
   reported.** `XFL_005` turned out not to be an isolated mistake but a family pattern: of the
   nine XFL rules emitting a feed-level summary, six were summarising a set that a per-row rule
