@@ -1,6 +1,6 @@
 use gtfs_core::EntityType;
 
-use super::common::{build_row_map, get_trimmed_field, make_k2_notice, RowMap};
+use super::common::{build_row_map, get_trimmed_field, looks_like_phone, looks_like_url, make_k2_notice, RowMap};
 use crate::k1_parse::RawFile;
 
 #[derive(Debug, Clone)]
@@ -306,6 +306,38 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
                     Some(format!("last_day={ld}, start_day={sd}")), None,
                     format!("prior_notice_last_day ({ld}) > prior_notice_start_day ({sd}): rezervasyon penceresi geçersiz."),
                     "prior_notice_start_day değerini prior_notice_last_day değerinden büyük ya da eşit yapın.",
+                ));
+            }
+        }
+
+        // BKR_020/021/022: üç iletişim alanı `known_columns`'da listeliydi ama hiçbir denetim
+        // aşaması okumuyordu (#60) — değerler sessizce geçiyordu. URL'ler Spec (tip `URL`),
+        // telefon Quality (spec `Phone number` tipi dilbilgisi tanımlamaz → AGN_007 emsali).
+        for (field, rule, msg, fix) in [
+            ("booking_url", "BKR_020",
+             "booking_url geçerli bir URL değil.",
+             "booking_url için geçerli bir http/https URL'si kullanın."),
+            ("info_url", "BKR_021",
+             "info_url geçerli bir URL değil.",
+             "info_url için geçerli bir http/https URL'si kullanın."),
+        ] {
+            if let Some(url) = opt_str(&row_map, field) {
+                if !looks_like_url(&url) {
+                    notices.push(make_k2_notice(
+                        &mut ctr, rule, EntityType::Row, Some(id.clone()), Some(&row_map),
+                        &file.name, Some(line), Some(field), Some(url), None,
+                        msg.to_string(), fix,
+                    ));
+                }
+            }
+        }
+        if let Some(phone) = opt_str(&row_map, "phone_number") {
+            if !looks_like_phone(&phone) {
+                notices.push(make_k2_notice(
+                    &mut ctr, "BKR_022", EntityType::Row, Some(id.clone()), Some(&row_map),
+                    &file.name, Some(line), Some("phone_number"), Some(phone.clone()), None,
+                    format!("phone_number '{phone}' geçerli bir telefon numarası formatında değil."),
+                    "En az 7 haneli bir telefon numarası kullanın.",
                 ));
             }
         }

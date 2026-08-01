@@ -2,7 +2,7 @@
 
 🇹🇷 [Türkçe](RULES.md) · 🇬🇧 [English](RULES.en.md) · 🇯🇵 **日本語**
 
-554ルール、37グループ。各ルールは一意のID、重要度、クラスで定義されます。
+557ルール、37グループ。各ルールは一意のID、重要度、クラスで定義されます。
 重要度: **致命的**（公開ブロッカー）· **高** · **中** · **低** · **情報**
 クラス: **仕様**（GTFS妥当性）· **相互運用**（GTFSインターオペラビリティ）· **品質**（GTFS品質）· **分析**（GTFSアナリティクス）
 
@@ -64,6 +64,9 @@
 | BKR_017 | pickup_booking_rule_idが見つかりません（booking_rules） | 致命的 | 仕様 |
 | BKR_018 | drop_off_booking_rule_idが見つかりません（booking_rules） | 致命的 | 仕様 |
 | BKR_019 | booking_rule_idが未設定または重複 | 致命的 | 仕様 |
+| BKR_020 | booking_urlが無効 | 中 | 仕様 |
+| BKR_021 | info_urlが無効 | 低 | 仕様 |
+| BKR_022 | phone_numberが無効 | 低 | 品質 |
 
 ## AGN — 事業者（Agency）
 

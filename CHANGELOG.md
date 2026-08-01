@@ -108,6 +108,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   collides with.
 
 ### Added
+- **The three contact fields of `booking_rules.txt` were declared but never read** (issue #60).
+  `booking_url`, `info_url` and `phone_number` were listed in `known_columns`, so a feed
+  carrying them drew no "unknown column" warning, and no validation stage looked at the values —
+  in a file whose entire purpose is telling riders how to book. `BKR_020` and `BKR_021` check the
+  two URLs, `BKR_022` the phone number.
+
+  `booking_url` is Orta while `info_url` is Düşük: the first is where the rider actually books,
+  the second is supplementary. `BKR_022` is **Quality, not Spec**, following `AGN_007` — the
+  specification's `Phone number` type prescribes no grammar (its definition is "A phone number"),
+  so a strict check would reject valid international formats; the rule only asks whether enough
+  digits are present.
+
+  Better evidence than the previous batch: all eight Flex feeds in the corpus populate these
+  fields — 23 booking rules with contact details between them — and none is malformed. The rules
+  are exercised by real data and stay correctly silent, rather than being silent because the
+  field is absent everywhere.
+
+  The coverage ledger drops from 14 open lines to 12. Two, not three: the issue predates the
+  removal of the invented `Phone number` format atom, so `phone_number` was never a ledger line.
 - **`route_networks.txt` was parsed but never validated** — the file had no rules at all. Both of
   its fields are `Required` and both are foreign keys, so a row pointing at a route or a network
   that does not exist passed silently, and the route dropped out of its network without a word;

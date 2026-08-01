@@ -592,6 +592,9 @@ const en: LocaleShape = {
     'BKR_017': "Booking rule '{entity_id}' referenced by stop_times.pickup_booking_rule_id is not defined in booking_rules.txt.",
     'BKR_018': "Booking rule '{entity_id}' referenced by stop_times.drop_off_booking_rule_id is not defined in booking_rules.txt.",
     'BKR_019': "Booking rule '{entity_id}': booking_rule_id is missing or duplicated.",
+    'BKR_020': "Booking rule '{entity_id}': booking_url is not a valid URL.",
+    'BKR_021': "Booking rule '{entity_id}': info_url is not a valid URL.",
+    'BKR_022': "Booking rule '{entity_id}': phone_number '{observed_value}' does not look like a phone number.",
     // AGN
     'AGN_001': 'agency.txt is missing.',
     'AGN_002': "Agency '{entity_id}': agency_name is missing.",
@@ -1534,6 +1537,9 @@ const en: LocaleShape = {
     'BKR_017': 'Reference an existing booking_rule_id or add the rule to booking_rules.txt.',
     'BKR_018': 'Reference an existing booking_rule_id or add the rule to booking_rules.txt.',
     'BKR_019': 'Give every booking rule a unique, non-empty booking_rule_id.',
+    'BKR_020': 'Use a valid http/https URL for booking_url.',
+    'BKR_021': 'Use a valid http/https URL for info_url.',
+    'BKR_022': 'Use a phone number with at least 7 digits.',
     // FLG
     'FLG_001': 'Use a valid fare_product_id.',
     'FLG_002': 'Use a valid network_id.',
@@ -1788,6 +1794,9 @@ const en: LocaleShape = {
     'BKR_017': 'pickup_booking_rule_id not found (booking_rules)',
     'BKR_018': 'drop_off_booking_rule_id not found (booking_rules)',
     'BKR_019': 'booking_rule_id missing or duplicated',
+    'BKR_020': 'booking_url is invalid',
+    'BKR_021': 'info_url is invalid',
+    'BKR_022': 'phone_number is invalid',
     // AGN
     'AGN_001': 'agency.txt file missing',
     'AGN_002': 'agency_name missing',

@@ -256,6 +256,10 @@ fn fixtures() -> Vec<Fixture> {
         // BKR_016: booking_type enum dışı. BKR_019: booking_rule_id yineleniyor.
         fx("BKR_016", vec![("booking_rules.txt", "booking_rule_id,booking_type\nBR1,7\n")]),
         fx("BKR_019", vec![("booking_rules.txt", "booking_rule_id,booking_type,prior_notice_duration_min\nBR1,1,30\nBR1,1,45\n")]),
+        // BKR_020/021/022: üç iletişim alanı hiç okunmuyordu (#60).
+        fx("BKR_020", vec![("booking_rules.txt", "booking_rule_id,booking_type,booking_url\nBR1,0,notaurl\n")]),
+        fx("BKR_021", vec![("booking_rules.txt", "booking_rule_id,booking_type,info_url\nBR1,0,notaurl\n")]),
+        fx("BKR_022", vec![("booking_rules.txt", "booking_rule_id,booking_type,phone_number\nBR1,0,abc\n")]),
         // BKR_017/018: stop_times'taki booking_rule_id booking_rules.txt'te yok (k4 cross-ref).
         fx("BKR_017", vec![
             ("booking_rules.txt", "booking_rule_id,booking_type,prior_notice_duration_min\nBR1,1,30\n"),
@@ -2015,7 +2019,7 @@ fn spec_coverage_gaps_match_ledger() {
                  # AGN_012/RTS_024/TRN_008 sınıfı düzeltildi; `Phone number` hükmü uydurmaydı,\n\
                  # atom kaldırıldı → 3 satır düştü; attributions route_id/trip_id issue #62\n\
                  # ile ATR_011/ATR_012'ye ayrıldı → 2 satır düştü). Kalanların HER BİRİ incelendi:\n\
-                 #   • booking_rules booking_url/info_url .. issue #60\n\
+                 #   • booking_rules booking_url/info_url .. ✅ KAPANDI (BKR_020/021)\n\
                  #   • fare_leg_join_rules (4 alan) ........ issue #59\n\
                  #   • issue #61 ........................... TAMAMI KAPANDI (9 satır):\n\
                  #     STM_058 · DQ_021 genişletildi (attribution_id + route_networks.route_id)\n\

@@ -192,6 +192,18 @@ pub static RULES: &[RuleMeta] = &[
         "drop_off_booking_rule_id bulunamadı (booking_rules)"),
     r!("BKR_019", Kritik, Spec, 1, &["BKR_017","BKR_018"], Some("booking_rule_id"), VS_K, Entity,
         "booking_rule_id eksik veya yineleniyor"),
+    // BKR_020/021/022: dosyanın üç iletişim alanı `known_columns`'da listeliydi (yani
+    // "bilinmeyen sütun" uyarısı almıyorlardı) ama HİÇBİR denetim aşaması okumuyordu — issue #60.
+    // booking_url yolcunun rezervasyonu FİİLEN yaptığı adrestir; info_url yalnız açıklayıcıdır.
+    r!("BKR_020", Orta,   Spec, 1, &[], Some("booking_rule_id"), VS, Entity,
+        "booking_url geçersiz"),
+    r!("BKR_021", Dusuk,  Spec, 1, &[], Some("booking_rule_id"), VS, Entity,
+        "info_url geçersiz"),
+    // phone_number: spec `Phone number` tipi bir DİLBİLGİSİ tanımlamaz ("A phone number."),
+    // bu yüzden katı bir kontrol geçerli uluslararası biçimleri reddeder. AGN_007 emsali
+    // gereği Spec DEĞİL, Quality.
+    r!("BKR_022", Dusuk,  Quality, 1, &[], Some("booking_rule_id"), VS, Entity,
+        "phone_number geçersiz"),
 
     // ── AGN: Agency ────────────────────────────────────────────────────────────
     r!("AGN_001", Kritik, Spec, 1,
@@ -1591,6 +1603,9 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("BKR_017", GtfsSpec),
     ("BKR_018", GtfsSpec),
     ("BKR_019", GtfsSpec),
+    ("BKR_020", GtfsSpec),
+    ("BKR_021", GtfsSpec),
+    ("BKR_022", ProjectQuality),
     ("CAL_001", GtfsSpec),
     ("CAL_002", GtfsSpec),
     ("CAL_003", GtfsSpec),

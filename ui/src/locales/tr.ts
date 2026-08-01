@@ -598,6 +598,9 @@ const tr = {
     'BKR_017': 'pickup_booking_rule_id bulunamadı (booking_rules)',
     'BKR_018': 'drop_off_booking_rule_id bulunamadı (booking_rules)',
     'BKR_019': 'booking_rule_id eksik veya yineleniyor',
+    'BKR_020': 'booking_url geçersiz',
+    'BKR_021': 'info_url geçersiz',
+    'BKR_022': 'phone_number geçersiz',
     // AGN
     'AGN_001': 'agency.txt dosyası eksik',
     'AGN_002': 'agency_name eksik',

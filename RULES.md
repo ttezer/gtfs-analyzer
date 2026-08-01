@@ -2,7 +2,7 @@
 
 🇹🇷 **Türkçe** · 🇬🇧 [English](RULES.en.md) · 🇯🇵 [日本語](RULES.ja.md)
 
-554 kural, 37 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
+557 kural, 37 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
 Önem seviyeleri: **KRİTİK** (yayın engelleyici) · **YÜKSEK** · **ORTA** · **DÜŞÜK** · **BİLGİ**
 Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · **Quality** (GTFS Kalitesi) · **Analytics** (GTFS Analitiği)
 
@@ -64,6 +64,9 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | BKR_017 | pickup_booking_rule_id bulunamadı (booking_rules) | KRİTİK | Spec |
 | BKR_018 | drop_off_booking_rule_id bulunamadı (booking_rules) | KRİTİK | Spec |
 | BKR_019 | booking_rule_id eksik veya yineleniyor | KRİTİK | Spec |
+| BKR_020 | booking_url geçersiz | ORTA | Spec |
+| BKR_021 | info_url geçersiz | DÜŞÜK | Spec |
+| BKR_022 | phone_number geçersiz | DÜŞÜK | Quality |
 
 ## AGN — Agency (İşletici)
 
