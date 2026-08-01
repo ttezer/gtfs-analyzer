@@ -151,6 +151,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   alone; a measurement is not a reason to change production output.
 
 ### Added
+- **`trips.safe_duration_offset` was read as an unsigned integer, and the specification types it
+  `Float`.** A valid fractional offset — `12.5` seconds — failed to parse and was discarded
+  without a word, along with any parse failure on `safe_duration_factor`, both dropped by
+  `.ok().flatten()`. That is the fourth instance of the same swallow found in two days, after the
+  Flex windows, `stair_count` and `route_sort_order`; at four it is the idiom that needs
+  attention, not the fields. Both now parse as `f64` and report failures as `TRP_034`.
+
+  This one was found by the measurement rather than by reading. `provision_atoms` now derives an
+  atom from the plain scalar types `Float` and `Integer`, which impose parseability even though
+  they impose no range. `Text`, `ID` and `Text or URL or Email or Phone number` deliberately
+  derive nothing — the reference lets those be any string, so there is no checkable provision,
+  the same reasoning that removed the invented `Phone number` atom. Making the measurement finer
+  immediately opened two ledger lines that had been invisible, which is the measurement working.
+
 - **The specification-coverage ledger is empty.** It opened at 32 lines and closes at zero, which
   means every normative provision derivable from the reference's field tables now has a `Spec`
   notice anchored to it in the emit-proof corpus. The claim is deliberately narrow, and the
