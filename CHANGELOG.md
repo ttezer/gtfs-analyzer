@@ -29,7 +29,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   rule that checks several fields registers only the one its fixture breaks — CAL_002 validates
   all seven day columns but the fixture corrupts `monday` — and a rule that reports no field at
   all, like RTS_003 for "one of route_short_name or route_long_name", anchors nowhere. Entries
-  are therefore marked `[denetim-yok]` when the field name appears in no check stage at all,
+  are marked `[yalnız: …]` when a rule does measure the field but is not classed `Spec` —
+  `agency_phone` is validated by AGN_007, which is deliberately Quality — because those are not
+  gaps at all but classification questions, and eleven of the thirty-two entries are of that
+  kind. Entries are marked `[denetim-yok]` when the field name appears in no check stage at all,
   which is the subset that is certainly uncovered: `booking_rules.txt` `booking_url`,
   `info_url` and `phone_number`, and `fare_leg_join_rules.txt` `from_network_id` and
   `to_network_id`. `k1_parse.rs` is excluded from that search because its `known_columns` lists

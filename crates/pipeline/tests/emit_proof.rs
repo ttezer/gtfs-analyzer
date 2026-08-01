@@ -1794,17 +1794,22 @@ fn provision_atoms(ftype: &str, presence: &str) -> Vec<&'static str> {
     atoms
 }
 
-/// Alan bazında: hangi hükümler var, hangi `GtfsSpec` kuralları o alana çapalı.
-fn coverage_rows() -> Vec<(String, String, Vec<&'static str>, BTreeSet<String>)> {
+/// Alan bazında: hangi hükümler var · hangi `GtfsSpec` kuralları çapalı · hangi BAŞKA SINIF
+/// kuralları çapalı.
+///
+/// Üçüncü küme kritik: `agency_phone`'u AGN_007 (Quality) ölçer, hiçbir Spec kuralı ölçmez.
+/// Yalnız Spec'e bakan bir defter onu "denetimsiz" gösterir ve okuyanı VAR OLAN kuralı yeniden
+/// yazmaya iter. Ölçüldü: 32 defter satırının 11'i bu durumda.
+fn coverage_rows() -> Vec<(String, String, Vec<&'static str>, BTreeSet<String>, BTreeSet<String>)> {
     let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../../spec-audit/spec_fields.json");
     let doc: serde_json::Value =
         serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
     let table = doc["files"].as_object().unwrap();
 
-    // (dosya, alan) → o alana çapalanan GtfsSpec kuralları
-    let mut anchored: std::collections::HashMap<(String, String), BTreeSet<String>> =
-        std::collections::HashMap::new();
+    // (dosya, alan) → çapalanan kurallar; Spec olanlar ve olmayanlar ayrı.
+    type Anchors = std::collections::HashMap<(String, String), BTreeSet<String>>;
+    let (mut spec, mut other): (Anchors, Anchors) = Default::default();
     for f in fixtures() {
         let cfg = f.config.clone().unwrap_or_default();
         let vr = match validate_bytes(
@@ -1814,14 +1819,14 @@ fn coverage_rows() -> Vec<(String, String, Vec<&'static str>, BTreeSet<String>)>
             ValidateResult::Fatal(_) => continue,
         };
         for n in &vr.notices {
-            if gtfs_rules::registry::authority_source(&n.rule_id)
-                != gtfs_core::AuthoritySource::GtfsSpec { continue; }
             let (Some(file), Some(field)) = (n.file.as_deref(), n.field.as_deref()) else {
                 continue;
             };
+            let bucket = if gtfs_rules::registry::authority_source(&n.rule_id)
+                == gtfs_core::AuthoritySource::GtfsSpec { &mut spec } else { &mut other };
             for p in file.split('/').map(str::trim).filter(|p| table.contains_key(*p)) {
                 for one in field.split(['|', ',']).map(str::trim).filter(|s| !s.is_empty()) {
-                    anchored.entry((p.to_string(), one.to_string()))
+                    bucket.entry((p.to_string(), one.to_string()))
                         .or_default().insert(n.rule_id.clone());
                 }
             }
@@ -1835,8 +1840,13 @@ fn coverage_rows() -> Vec<(String, String, Vec<&'static str>, BTreeSet<String>)>
             let atoms = provision_atoms(
                 f["type"].as_str().unwrap_or(""), f["presence"].as_str().unwrap_or(""),
             );
-            let rules = anchored.get(&(file.clone(), name.clone())).cloned().unwrap_or_default();
-            rows.push((file.clone(), name, atoms, rules));
+            let key = (file.clone(), name.clone());
+            rows.push((
+                file.clone(), name,
+                atoms,
+                spec.get(&key).cloned().unwrap_or_default(),
+                other.get(&key).cloned().unwrap_or_default(),
+            ));
         }
     }
     rows.sort();
@@ -1888,15 +1898,26 @@ fn identifiers_in_check_stages() -> BTreeSet<String> {
 /// başka bir alanı bozuyorsa (CAL_002 yedi günü de denetler, fixture yalnız `monday`'i bozar)
 /// ya da notice'ı `field=None` ile üretiyorsa (RTS_003, "ikisinden biri zorunlu") satır burada
 /// çıkar. Bu yüzden defterde KANIT sütunu var: `[kaynakta-yok]` = alan adı üretim kaynağında
-/// hiç geçmiyor → boşluk KESİN. Kanıtsız satır ADJUDİKASYON ister.
+/// hiç geçmiyor → boşluk KESİN. `[yalnız: …]` = alanı ölçen kural VAR ama Spec sınıfı değil
+/// (ör. `agency_phone` → AGN_007, Quality); önce "hüküm gerçekten Spec meselesi mi?" sorusu
+/// cevaplanmalı, yeni kural yazılmamalı. Kanıtsız satır ADJUDİKASYON ister.
 /// **Satıra yeni kural yazmadan önce mevcut kuralı ARA** (tekrar eden hata sınıfı).
 #[test]
 fn spec_coverage_gaps_match_ledger() {
     let ids = identifiers_in_check_stages();
     let gaps: Vec<String> = coverage_rows().into_iter()
-        .filter(|(_, _, atoms, rules)| !atoms.is_empty() && rules.is_empty())
-        .map(|(file, field, atoms, _)| {
-            let proof = if ids.contains(&field) { "" } else { "  [denetim-yok]" };
+        .filter(|(_, _, atoms, spec, _)| !atoms.is_empty() && spec.is_empty())
+        .map(|(file, field, atoms, _, other)| {
+            // Kanıt sırası: en kesinden en belirsize.
+            let proof = if !other.is_empty() {
+                // Alanı ölçen bir kural VAR, yalnız Spec sınıfı değil → yeni kural yazmadan
+                // önce karar: hüküm gerçekten Spec meselesi mi, yoksa mevcut kural yeterli mi?
+                format!("  [yalnız: {}]", other.iter().cloned().collect::<Vec<_>>().join(","))
+            } else if !ids.contains(&field) {
+                "  [denetim-yok]".to_string()
+            } else {
+                String::new()
+            };
             format!("{file}:{field}  {}{proof}", atoms.join(","))
         })
         .collect();
@@ -1922,6 +1943,8 @@ fn spec_coverage_gaps_match_ledger() {
                  # (RTS_003 \"ikisinden biri zorunlu\") burada GÖRÜNÜR ama boşluk DEĞİLDİR.\n\
                  #   [denetim-yok] = alan adı k2–k7 denetim aşamalarında hiç geçmiyor → boşluk KESİN\n\
                  #                   (k1_parse.rs dışlanır: known_columns her sütunu zaten sayar).\n\
+                 #   [yalnız: …]   = alanı ölçen kural VAR, ama Spec sınıfı DEĞİL. Boşluk değil;\n\
+                 #                   karar: hüküm Spec meselesi mi, mevcut kural yeterli mi?\n\
                  #   kanıtsız satır  = ADJUDİKASYON gerekir; ÖNCE MEVCUT KURALI ARA.\n\
                  #\n\
                  # Yeniden üretmek: UPDATE_LEDGER=1 cargo test -p gtfs-pipeline --test emit_proof \\\n\
@@ -1956,10 +1979,10 @@ fn spec_coverage_gaps_match_ledger() {
 #[ignore = "rapor: cargo test -p gtfs-pipeline --test emit_proof spec_partial -- --ignored --nocapture"]
 fn spec_partial_coverage_report() {
     let rows = coverage_rows();
-    let total: usize = rows.iter().map(|(_, _, a, _)| a.len()).sum();
+    let total: usize = rows.iter().map(|(_, _, a, _, _)| a.len()).sum();
     let (mut none, mut partial, mut full) = (0usize, 0usize, 0usize);
     println!("\n### B — hüküm sayısı > çapalı kural sayısı (SİNYAL, karar değil)");
-    for (file, field, atoms, rules) in &rows {
+    for (file, field, atoms, rules, _) in &rows {
         if atoms.is_empty() { continue; }
         if rules.is_empty() { none += 1; }
         else if rules.len() < atoms.len() {
@@ -1971,3 +1994,4 @@ fn spec_partial_coverage_report() {
               hüküm kadar kural: {full} · toplam hüküm atomu: {total}",
              none + partial + full);
 }
+

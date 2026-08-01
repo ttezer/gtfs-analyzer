@@ -10,13 +10,15 @@
 # (RTS_003 "ikisinden biri zorunlu") burada GÖRÜNÜR ama boşluk DEĞİLDİR.
 #   [denetim-yok] = alan adı k2–k7 denetim aşamalarında hiç geçmiyor → boşluk KESİN
 #                   (k1_parse.rs dışlanır: known_columns her sütunu zaten sayar).
+#   [yalnız: …]   = alanı ölçen kural VAR, ama Spec sınıfı DEĞİL. Boşluk değil;
+#                   karar: hüküm Spec meselesi mi, mevcut kural yeterli mi?
 #   kanıtsız satır  = ADJUDİKASYON gerekir; ÖNCE MEVCUT KURALI ARA.
 #
 # Yeniden üretmek: UPDATE_LEDGER=1 cargo test -p gtfs-pipeline --test emit_proof \
 #   spec_coverage_gaps_match_ledger
-agency.txt:agency_phone  format
-agency.txt:cemv_support  enum-domain
-attributions.txt:attribution_id  unique
+agency.txt:agency_phone  format  [yalnız: AGN_007,AGN_016]
+agency.txt:cemv_support  enum-domain  [yalnız: AGN_012]
+attributions.txt:attribution_id  unique  [yalnız: ATR_001]
 attributions.txt:attribution_phone  format
 attributions.txt:route_id  foreign-key
 attributions.txt:trip_id  foreign-key
@@ -33,16 +35,16 @@ fare_leg_join_rules.txt:from_network_id  presence:required,foreign-key  [denetim
 fare_leg_join_rules.txt:from_stop_id  presence:conditional,foreign-key
 fare_leg_join_rules.txt:to_network_id  presence:required,foreign-key  [denetim-yok]
 fare_leg_join_rules.txt:to_stop_id  presence:conditional,foreign-key
-pathways.txt:stair_count  range
+pathways.txt:stair_count  range  [yalnız: PTH_008]
 rider_categories.txt:eligibility_url  format
 route_networks.txt:route_id  presence:required,foreign-key
-routes.txt:cemv_support  enum-domain
+routes.txt:cemv_support  enum-domain  [yalnız: RTS_024,XFL_017,XFL_026,XFL_027]
 routes.txt:network_id  presence:conditional-forbidden
-routes.txt:route_long_name  presence:conditional
-routes.txt:route_short_name  presence:conditional
+routes.txt:route_long_name  presence:conditional  [yalnız: RTS_011,RTS_019,RTS_022,RTS_027]
+routes.txt:route_short_name  presence:conditional  [yalnız: RTS_010,RTS_021,RTS_026]
 routes.txt:route_sort_order  range
-routes.txt:route_text_color  format
-stop_times.txt:start_pickup_drop_off_window  presence:conditional,format
-stops.txt:stop_url  format
+routes.txt:route_text_color  format  [yalnız: RTS_007,RTS_008]
+stop_times.txt:start_pickup_drop_off_window  presence:conditional,format  [yalnız: PDW_006,STM_038]
+stops.txt:stop_url  format  [yalnız: STP_034,STP_035]
 translations.txt:field_value  presence:conditional
-translations.txt:translation  presence:required
+translations.txt:translation  presence:required  [yalnız: TRN_008]
