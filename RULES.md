@@ -2,7 +2,7 @@
 
 🇹🇷 **Türkçe** · 🇬🇧 [English](RULES.en.md) · 🇯🇵 [日本語](RULES.ja.md)
 
-547 kural, 37 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
+549 kural, 37 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
 Önem seviyeleri: **KRİTİK** (yayın engelleyici) · **YÜKSEK** · **ORTA** · **DÜŞÜK** · **BİLGİ**
 Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · **Quality** (GTFS Kalitesi) · **Analytics** (GTFS Analitiği)
 
@@ -132,6 +132,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | STP_039 | stop_code birden fazla durakta kullanılıyor | DÜŞÜK | Quality |
 | STP_040 | Durak adı gereksiz genel stop/station sözcüğü içeriyor | DÜŞÜK | Quality |
 | STP_041 | Alt durak adı üst istasyon adını içermiyor | DÜŞÜK | Quality |
+| STP_042 | stop_url geçersiz | DÜŞÜK | Spec |
 
 ## RTS — Routes (Hatlar)
 
@@ -541,6 +542,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | PTH_024 | is_bidirectional eksik | KRİTİK | Spec |
 | PTH_025 | Önerilen pathway length bilgisi eksik | DÜŞÜK | Quality |
 | PTH_026 | Pathway uç noktası istasyon | KRİTİK | Spec |
+| PTH_027 | stair_count geçersiz (sıfır veya tam sayı değil) | ORTA | Spec |
 
 ## LVL — Levels (Katlar)
 

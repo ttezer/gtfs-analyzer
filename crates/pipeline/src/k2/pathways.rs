@@ -159,9 +159,31 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
             ));
         }
 
+        // PTH_027: spec tipi `Non-null integer`. İki ihlal de aynı olgudur:
+        //   (a) tam sayı değil — eskiden `Err(_) => None` ile SESSİZCE düşüyordu,
+        //   (b) sıfır — tipin dışladığı tek değer; yön bilgisi taşımaz.
         let stair_count = match parse_i32(&row_map, "stair_count") {
+            Ok(Some(0)) => {
+                notices.push(make_k2_notice(
+                    &mut counter, "PTH_027", EntityType::Pathway, entity_id.clone(),
+                    Some(&row_map), &file.name, Some(line), Some("stair_count"),
+                    Some("0".to_string()), Some("0 dışında tam sayı".to_string()),
+                    "stair_count sıfır olamaz — pozitif değer yukarı, negatif aşağı yönü gösterir.".to_string(),
+                    "stair_count değerini gerçek basamak sayısıyla (yukarı için pozitif, aşağı için negatif) değiştirin ya da alanı boş bırakın.",
+                ));
+                None
+            }
             Ok(v) => v,
-            Err(_) => None,
+            Err(err) => {
+                notices.push(make_k2_notice(
+                    &mut counter, "PTH_027", EntityType::Pathway, entity_id.clone(),
+                    Some(&row_map), &file.name, Some(line), Some("stair_count"),
+                    get_trimmed_field(&row_map, "stair_count").map(str::to_string),
+                    Some("0 dışında tam sayı".to_string()), err,
+                    "stair_count değerini tam sayı olarak girin (yukarı için pozitif, aşağı için negatif).",
+                ));
+                None
+            }
         };
 
         // PTH_008: merdiven geçidinde stair_count belirtilmemiş — feed-seviyesi özetle (aşağıda tek emit)

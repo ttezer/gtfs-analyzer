@@ -2,8 +2,8 @@ use std::collections::HashMap;
 use gtfs_core::EntityType;
 
 use super::common::{
-    build_row_map, get_field, get_trimmed_field, looks_like_iana_timezone, make_k2_notice,
-    parse_f64, parse_u32, validate_enum, RowMap,
+    build_row_map, get_field, get_trimmed_field, looks_like_iana_timezone, looks_like_url,
+    make_k2_notice, parse_f64, parse_u32, validate_enum, RowMap,
 };
 use crate::k1_parse::RawFile;
 
@@ -358,6 +358,19 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
         let stop_url = get_trimmed_field(&row_map, "stop_url")
             .filter(|v| !v.is_empty())
             .map(str::to_string);
+        // STP_042: spec tipi `URL`. Kardeş alanların hepsinde biçim kuralı var
+        // (route_url→RTS_005 ile birebir aynı desen); stop_url'de yalnız STP_034/035
+        // (başka URL ile aynı) vardı, biçim hiç ölçülmüyordu.
+        if let Some(ref url) = stop_url {
+            if !looks_like_url(url) {
+                notices.push(make_k2_notice(
+                    &mut counter, "STP_042", EntityType::Stop, entity_id.clone(), Some(&row_map),
+                    &file.name, Some(line), Some("stop_url"), Some(url.clone()), None,
+                    "stop_url geçerli bir URL değil.".to_string(),
+                    "stop_url için geçerli bir http/https URL'si kullanın.",
+                ));
+            }
+        }
 
         records.push(StopRecord {
             stop_id,

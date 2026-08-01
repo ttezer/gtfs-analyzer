@@ -3987,6 +3987,18 @@ fn check_data_quality(
                 format!("trip_id '{dup_id}' trips.txt'de birden fazla kez tanımlanmış."),
                 "trips.txt'de benzersiz trip_id değerleri kullanın."));
         }
+        // attributions.txt (attribution_id) — spec tipi `Unique ID`, dosyanın birincil
+        // anahtarı. Alan Optional olduğu için ATR_001 (eksiklik) Quality'dir; BENZERSİZLİK
+        // ise normatiftir ve hiç denetlenmiyordu. Boş id yinelenme sayılmaz.
+        for dup_id in find_dups(records.attributions.iter()
+            .filter_map(|a| a.attribution_id.as_deref()).filter(|id| !id.is_empty()))
+        {
+            notices.push(k6_notice(ctr, "DQ_021", EntityType::Attribution,
+                Some(dup_id.clone()), Some(dup_id.clone()),
+                "attributions.txt", None, Some("attribution_id"), Some(dup_id.clone()), None,
+                format!("attribution_id '{dup_id}' attributions.txt'de birden fazla kez tanımlanmış."),
+                "attributions.txt'de benzersiz attribution_id değerleri kullanın."));
+        }
 
         // ── BİLEŞİK birincil anahtarlar ──────────────────────────────────────
         // Yukarıdaki üç dosyanın anahtarı tek alandır; Fares v2 ve Flex dosyalarının

@@ -107,6 +107,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   reference pointing at two different things. One notice per clashing ID, naming the source it
   collides with.
 
+### Added
+- **Three more provisions from issue #61 are now checked**, and one of them needed no new rule.
+
+  `attributions.attribution_id` is typed `Unique ID` and is the file's primary key, but nothing
+  checked that two attributions do not share one — `ATR_001` reports the field being *absent*,
+  which is a project choice since the field is Optional. `DQ_021` already enforces single-field
+  primary keys for `stops.txt`, `routes.txt` and `trips.txt`, so `attributions.txt` joins that
+  list rather than getting a rule of its own.
+
+  `PTH_027` covers `pathways.stair_count`, typed `Non-null integer`. Zero is the one value the
+  type excludes, and the specification says why: a positive count means the rider walks up from
+  `from_stop_id` to `to_stop_id`, a negative one that they walk down, and zero says neither. The
+  same rule catches a value that is not an integer at all — that error was being dropped
+  silently, the same swallow as the Flex windows above.
+
+  `STP_042` covers `stops.stop_url`, typed `URL`. Every sibling field already had a format rule
+  — `agency_url`, `agency_fare_url`, `route_url`, `feed_publisher_url`, `attribution_url` — while
+  `stop_url` had only `STP_034`/`STP_035`, which report that it duplicates another URL and say
+  nothing about its shape.
+
+  All three are guards rather than new noise: scanned across the 239 corpus feeds, none of them
+  matches a single row, so no score moves. The evidence for `PTH_027` is thin by nature — only
+  six corpus feeds ship `pathways.txt` at all.
+
+  The coverage ledger drops from 22 open lines to 19.
+
 ### Fixed
 - **A malformed Flex booking window produced no finding at all** (`STM_058`, issue #61).
   `start_pickup_drop_off_window` and `end_pickup_drop_off_window` are typed `Time`, and they

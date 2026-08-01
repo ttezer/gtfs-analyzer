@@ -2,7 +2,7 @@
 
 🇹🇷 [Türkçe](RULES.md) · 🇬🇧 **English** · 🇯🇵 [日本語](RULES.ja.md)
 
-547 rules, 37 groups. Each rule is identified by a unique ID, severity level, and class.
+549 rules, 37 groups. Each rule is identified by a unique ID, severity level, and class.
 Severity levels: **CRITICAL** (publish blocker) · **HIGH** · **MEDIUM** · **LOW** · **INFO**
 Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Quality** (GTFS Quality) · **Analytics** (GTFS Analytics)
 
@@ -132,6 +132,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | STP_039 | stop_code is duplicated | LOW | Quality |
 | STP_040 | Stop name contains a redundant stop/station word | LOW | Quality |
 | STP_041 | Child stop name does not include the parent station name | LOW | Quality |
+| STP_042 | stop_url is invalid | LOW | Spec |
 
 ## RTS — Routes
 
@@ -541,6 +542,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | PTH_024 | is_bidirectional missing | CRITICAL | Spec |
 | PTH_025 | Recommended pathway length missing | LOW | Quality |
 | PTH_026 | Pathway endpoint is a station | CRITICAL | Spec |
+| PTH_027 | stair_count is invalid (zero or not an integer) | MEDIUM | Spec |
 
 ## LVL — Levels
 

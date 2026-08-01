@@ -663,6 +663,7 @@ const tr = {
     'STP_039': 'stop_code birden fazla durakta kullanılıyor',
     'STP_040': 'Durak adı gereksiz genel stop/station sözcüğü içeriyor',
     'STP_041': 'Alt durak adı üst istasyon adını içermiyor',
+    'STP_042': 'stop_url geçersiz',
     // RTS
     'RTS_001': 'route_id yineleniyor',
     'RTS_002': 'agency_id bulunamadı',
@@ -894,6 +895,7 @@ const tr = {
     'PTH_024': 'is_bidirectional eksik',
     'PTH_025': 'Önerilen pathway length bilgisi eksik',
     'PTH_026': 'Pathway uç noktası istasyon',
+    'PTH_027': 'stair_count geçersiz (sıfır veya tam sayı değil)',
     // FRL
     'FRL_001': 'fare_id bulunamadı',
     'FRL_002': 'route_id bulunamadı',

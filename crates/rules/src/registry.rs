@@ -342,6 +342,12 @@ pub static RULES: &[RuleMeta] = &[
         "Durak adı gereksiz genel stop/station sözcüğü içeriyor"),
     r!("STP_041", Dusuk, Quality, 1, &[], Some("stop_id"), VS, Entity,
         "Alt durak adı üst istasyon adını içermiyor"),
+    // STP_042: spec tipi `URL` — "fully qualified URL that includes http:// or https://".
+    // Kardeş alanların hepsinde biçim kuralı vardı (agency_url→AGN_002, agency_fare_url→
+    // AGN_008, route_url→RTS_005, feed_publisher_url→FIN_002, attribution_url→ATR_007);
+    // stop_url'de yalnız STP_034/035 (başka URL ile aynı) vardı, biçim hiç ölçülmüyordu.
+    r!("STP_042", Dusuk, Spec, 1, &[], Some("stop_id"), VS, Entity,
+        "stop_url geçersiz"),
 
     // ── RTS: Routes ────────────────────────────────────────────────────────────
     r!("RTS_001", Kritik, Spec, 1,
@@ -1098,6 +1104,11 @@ pub static RULES: &[RuleMeta] = &[
         "Önerilen pathway length bilgisi eksik"),
     r!("PTH_026", Kritik, Spec, 1, &[], Some("pathway_id"), VS_K, Row,
         "Pathway uç noktası istasyon"),
+    // PTH_027: spec tipi `Non-null integer` — hem tam sayı olmayı hem SIFIR OLMAMAYI şart
+    // koşar. Sıfır anlamsızdır: pozitif değer yolcunun yukarı, negatif aşağı yürüdüğünü
+    // söyler, sıfır ikisini de söylemez. Sayı olmayan değer de eskiden sessizce düşüyordu.
+    r!("PTH_027", Orta, Spec, 1, &[], Some("pathway_id"), VS, Entity,
+        "stair_count geçersiz (sıfır veya tam sayı değil)"),
 
     // ── LVL: Levels ────────────────────────────────────────────────────────────
     r!("LVL_001", Kritik, Spec, 1,
@@ -1925,6 +1936,7 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("STP_039", ProjectQuality),
     ("STP_040", ProjectQuality),
     ("STP_041", ProjectQuality),
+    ("STP_042", GtfsSpec),
     ("TFR_001", GtfsSpec),
     ("TFR_002", GtfsSpec),
     ("TFR_003", GtfsSpec),
@@ -1934,6 +1946,7 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("TFR_007", GtfsSpec),
     ("TRF_021", GtfsSpec),
     ("PTH_026", GtfsSpec),
+    ("PTH_027", GtfsSpec),
     ("TRF_001", GtfsSpec),
     ("TRF_002", GtfsSpec),
     ("TRF_003", GtfsSpec),
