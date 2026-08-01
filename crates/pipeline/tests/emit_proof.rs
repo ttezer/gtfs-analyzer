@@ -2132,6 +2132,65 @@ fn spec_coverage_gaps_match_ledger() {
 ///
 /// KAPI DEĞİL, RAPOR: meşru örnekler olabilir (kuralın ölçtüğü hüküm alan tablosunda değil
 /// düzyazıda tanımlıdır). Her satır insan adjudikasyonu ister.
+/// RAPOR — İKİ DEFTERİN DE ORTAK KÖR NOKTASI: `field: None` emit eden kurallar.
+///
+/// Kapsam defteri de iddia defteri de çapayı `(file, field)` üzerinden kurar. Bir kural
+/// `field` yazmıyorsa HİÇBİRİNDE görünmez: ne "bu hüküm ölçülüyor" der, ne "bu iddia
+/// dayanaksız" denetimine girer. RTS_003 tam bu yüzden yıllarca defterde "boşluk" göründü.
+///
+/// Her `field=None` MEŞRUDUR diyemeyiz ama çoğu öyledir: dosya/feed düzeyi bulgularda
+/// (`DedupLevel::Feed` / `File`) tek bir alan yoktur. Sinyal, **Entity/Row düzeyinde olup
+/// yine de alan yazmayan** kurallardır — onlar tek bir satırın tek bir alanını gösteriyor
+/// olmalıydı.
+#[test]
+#[ignore = "rapor: cargo test -p gtfs-pipeline --test emit_proof field_none -- --ignored --nocapture"]
+fn field_none_emitters_report() {
+    use gtfs_core::{DedupLevel, RuleClass};
+    let mut with_field: BTreeSet<String> = BTreeSet::new();
+    let mut without_field: BTreeSet<String> = BTreeSet::new();
+    for f in fixtures() {
+        let cfg = f.config.clone().unwrap_or_default();
+        let vr = match validate_bytes(
+            &make_zip(&with_opts(&f.overrides, &f.removes, &f.raw)), &cfg, TODAY,
+        ) {
+            ValidateResult::Ok(vr) => vr,
+            ValidateResult::Fatal(_) => continue,
+        };
+        for n in &vr.notices {
+            if n.field.is_some() { with_field.insert(n.rule_id.clone()); }
+            else { without_field.insert(n.rule_id.clone()); }
+        }
+    }
+    let always_none: Vec<&String> =
+        without_field.iter().filter(|r| !with_field.contains(*r)).collect();
+
+    let mut suspicious = Vec::new();
+    let mut legitimate = 0usize;
+    for id in &always_none {
+        let Some(m) = gtfs_rules::registry::get_rule(id) else { continue };
+        match m.dedup_level {
+            DedupLevel::Feed | DedupLevel::File => legitimate += 1,
+            _ => suspicious.push((
+                (*id).clone(), m.rule_class, m.dedup_level,
+                gtfs_rules::registry::authority_source(id),
+            )),
+        }
+    }
+    suspicious.sort_by(|a, b| a.0.cmp(&b.0));
+
+    println!("\n### HER ZAMAN field=None emit eden kurallar (iki defterde de GÖRÜNMEZ)");
+    println!("  toplam ......................... {}", always_none.len());
+    println!("  dosya/feed düzeyi (meşru) ...... {legitimate}");
+    println!("  Entity/Row düzeyi (SİNYAL) ..... {}", suspicious.len());
+    println!("\n### Entity/Row düzeyinde olup alan yazmayanlar");
+    for (id, class, dedup, auth) in &suspicious {
+        println!("  {id}  {class:?} · {dedup:?} · {auth:?}");
+    }
+    println!("\n⚠️ Her satır hata DEĞİLDİR: bulgu gerçekten birden çok alanın BİRLİKTE ihlali");
+    println!("   olabilir — o hâlde boru konvansiyonu kullanılmalıdır (`a|b`), None değil.");
+    println!("   RTS_003 tam olarak böyle düzeltildi (2026-08-02).");
+}
+
 #[test]
 fn spec_claims_without_a_provision_match_ledger() {
     let rows = coverage_rows();
