@@ -89,7 +89,9 @@ pub struct TripRecord {
     pub bikes_allowed:  Option<u32>,
     pub cars_allowed:   Option<u32>,
     pub safe_duration_factor: Option<f64>,
-    pub safe_duration_offset: Option<u32>,
+    /// Spec tipi **Float** (saniye). 2026-08-02'ye kadar `u32` okunuyordu → `12.5` gibi
+    /// GEÇERLİ bir değer sessizce siliniyordu.
+    pub safe_duration_offset: Option<f64>,
     pub line: u64,
 }
 
@@ -330,8 +332,26 @@ pub fn validate_trips(file: &RawFile, zip_bytes: Option<&[u8]>) -> (Vec<TripReco
             Err(_) => None,
         };
 
-        let safe_duration_factor = parse_f64_col(get_col(row, cols.safe_duration_factor)).ok().flatten();
-        let safe_duration_offset = parse_u32_col(get_col(row, cols.safe_duration_offset)).ok().flatten();
+        // TRP_034: iki alan da spec'te `Float`. Parse hatası eskiden `.ok().flatten()` ile
+        // yutuluyordu; ayrıca offset `u32` okunuyordu ve ondalık saniye değerleri düşüyordu.
+        let mut parse_safe = |raw: &str, field: &'static str| -> Option<f64> {
+            match parse_f64_col(raw) {
+                Ok(v) => v,
+                Err(()) => {
+                    notices.push(make_k2_notice(
+                        &mut counter, "TRP_034", EntityType::Trip,
+                        Some(trip_id.to_string()), None,
+                        &file.name, Some(line), Some(field),
+                        Some(raw.to_string()), Some("ondalık sayı".to_string()),
+                        format!("{field} '{raw}' ondalık sayı olarak okunamıyor."),
+                        "safe_duration alanlarını ondalık sayı olarak girin.",
+                    ));
+                    None
+                }
+            }
+        };
+        let safe_duration_factor = parse_safe(get_col(row, cols.safe_duration_factor), "safe_duration_factor");
+        let safe_duration_offset = parse_safe(get_col(row, cols.safe_duration_offset), "safe_duration_offset");
 
         records.push(TripRecord {
             trip_id,

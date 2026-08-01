@@ -107,7 +107,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   reference pointing at two different things. One notice per clashing ID, naming the source it
   collides with.
 
+### Added
+- **A fifth gate asks the question the other four do not: is every `Spec` claim backed by a
+  provision?** The coverage ledger asks whether every provision is measured. That is the cheaper
+  of the two failures — a gap tells a publisher less than it could. The expensive failure is the
+  opposite: asserting that the specification requires something it does not, because the R1
+  publish gate is exactly `Spec ∧ Kritik` and 170 of the 266 `Spec` rules can block publication.
+  Nothing measured that direction.
+
+  `spec_claims_without_a_provision_match_ledger` reports a `Spec`-class rule anchored to a field
+  on which the reference's field tables impose nothing. Its first run returned one row, and the
+  row was real — see `PTH_017` below. The ledger is empty now, and its header states the two
+  ways it is a lower bound, mirroring the coverage side: rules emitting `field: None` are
+  invisible, and so is a rule that enforces the *wrong* provision on a field that has one.
+
 ### Changed
+- **`PTH_017` asserted a recommendation as a requirement, and mislabelled a type error while
+  doing it.** The rule carried two facts: `max_slope` not being a number, and `max_slope` being
+  used with a `pathway_mode` other than 1 or 3. The first is a real specification claim — the
+  field is typed `Float`. The second is not: the reference says this field *"**should** only be
+  used with walkways and moving sidewalks"*, and its Presence column is a plain `Optional`. That
+  document expresses its actual prohibitions by writing `Conditionally Forbidden` in the Presence
+  column, which it does for 14 fields; here it deliberately did not.
+
+  The context branch becomes `PTH_028`, **Quality** — the same judgement as `STM_040` and
+  `AGN_007`. `PTH_017` keeps the type check and is retitled accordingly: a feed with
+  `max_slope = abc` used to receive a finding titled "invalid context", which is the same
+  mislabelling fixed in `ATR_006` this week.
 - **`RTS_003` now names the two fields it is about.** A route with neither `route_short_name`
   nor `route_long_name` is a Kritik finding that keeps the feed from being published, and the
   "Field" column of the R2 report was blank for it, because the notice carried `field: None`.

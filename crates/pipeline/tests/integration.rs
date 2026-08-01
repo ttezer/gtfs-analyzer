@@ -355,12 +355,19 @@ fn pathway_recommendations_respect_mode_boundaries() {
     match run(&files) {
         ValidateResult::Ok(vr) => {
             assert!(vr.notices.iter().any(|n| n.rule_id == "PTH_008"));
-            let invalid_slope = vr
+            // 2026-08-02: bu vaka PTH_017'den PTH_028'e taşındı. PTH_017 artık yalnız TİP
+            // ihlalini (sayı olmayan max_slope) ölçer; "yanlış pathway_mode ile kullanılmış"
+            // dalı spec'te "should" olduğu için Quality sınıfında ayrı kuraldır.
+            let wrong_mode = vr
                 .notices
                 .iter()
-                .filter(|n| n.rule_id == "PTH_017")
+                .filter(|n| n.rule_id == "PTH_028")
                 .collect::<Vec<_>>();
-            assert_eq!(invalid_slope.len(), 1, "yalnız elevator max_slope ihlali olmalı");
+            assert_eq!(wrong_mode.len(), 1, "yalnız elevator max_slope bağlam ihlali olmalı");
+            assert!(
+                !vr.notices.iter().any(|n| n.rule_id == "PTH_017"),
+                "geçerli sayılar PTH_017 (tip ihlali) üretmemeli"
+            );
         }
         _ => panic!("ValidateResult::Ok beklendi"),
     }

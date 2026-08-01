@@ -142,10 +142,13 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
                 None
             }
         };
+        // PTH_028 (PTH_017'den ayrıldı): spec burada "should" der ve Presence sütunu düz
+        // `Optional`'dır — gerçek yasaklarını 14 alanda `Conditionally Forbidden` yazarak
+        // ifade eden bir belge, burada bilinçli olarak yazmamıştır. Tavsiye → Quality.
         if max_slope.is_some() && !matches!(pathway_mode, Some(1 | 3)) {
             notices.push(make_k2_notice(
                 &mut counter,
-                "PTH_017",
+                "PTH_028",
                 EntityType::Pathway,
                 entity_id.clone(),
                 Some(&row_map),

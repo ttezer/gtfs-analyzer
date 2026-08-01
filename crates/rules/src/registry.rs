@@ -501,6 +501,12 @@ pub static RULES: &[RuleMeta] = &[
     // notice (STM_014 dersi: sefer başına üretmek yüzlerce tekrar demekti).
     r!("TRP_033", Orta,  Quality, 2, &[], Some("block_id"), VS, Entity,
         "Aynı block_id'yi paylaşan seferler farklı route_type taşıyor"),
+    // TRP_034: `safe_duration_factor` ve `safe_duration_offset` spec'te `Float`'tır. Parse
+    // hatası eskiden `.ok().flatten()` ile SESSİZCE yutuluyordu (günün dördüncü örneği).
+    // Ayrıca `safe_duration_offset` u32 olarak okunuyordu — spec Float diyor, yani `12.5`
+    // saniyelik GEÇERLİ bir değer sessizce siliniyordu. İkisi de düzeltildi.
+    r!("TRP_034", Orta, Spec, 1, &[], Some("trip_id"), VS, Entity,
+        "safe_duration alanı sayı değil"),
 
     // ── STM: Stop Times ────────────────────────────────────────────────────────
     r!("STM_001", Kritik, Spec, 1,
@@ -1135,8 +1141,11 @@ pub static RULES: &[RuleMeta] = &[
         "Geçit hedefi erişilemeyen durakta"),
     r!("PTH_016", Yuksek, Spec, 3, &[], Some("pathway_id"), VS, Entity,
         "Çıkış kapısı çift yönlü tanımlanmış"),
+    // PTH_017 ARTIK YALNIZ TİP İHLALİ: spec `max_slope`'u `Float` olarak tipler, sayı olmayan
+    // değer bu tipi ihlal eder → meşru Spec iddiası. "Yalnız pathway_mode 1/3 ile kullanılmalı"
+    // dalı PTH_028'e (Quality) taşındı; spec orada "should" der, norm koymaz.
     r!("PTH_017", Orta,   Spec, 2, &[], Some("pathway_id"), VS, Entity,
-        "max_slope geçersiz bağlam"),
+        "max_slope sayı değil"),
     r!("PTH_018", Dusuk,  Quality, 1, &[], Some("pathway_id"), VS, Entity,
         "signposted_as çok uzun"),
     r!("PTH_019", Orta,   Quality, 2, &[], Some("stop_id"), VS, Entity,
@@ -1160,6 +1169,13 @@ pub static RULES: &[RuleMeta] = &[
     // söyler, sıfır ikisini de söylemez. Sayı olmayan değer de eskiden sessizce düşüyordu.
     r!("PTH_027", Orta, Spec, 1, &[], Some("pathway_id"), VS, Entity,
         "stair_count geçersiz (sıfır veya tam sayı değil)"),
+    // PTH_028: PTH_017'den AYRILDI. Spec `max_slope` için "This field SHOULD only be used with
+    // walkways (pathway_mode=1) and moving sidewalks (pathway_mode=3)" der — "should", ve
+    // Presence sütunu düz `Optional`. Spec gerçek yasakları 14 alanda `Conditionally Forbidden`
+    // yazarak ifade eder; burada bilinçli olarak yazmamıştır. Bir TAVSİYEYİ norm diye
+    // dayatamayız → Quality. (STM_040 ve AGN_007 ile aynı gerekçe.)
+    r!("PTH_028", Dusuk, Quality, 1, &[], Some("pathway_id"), VS, Entity,
+        "max_slope yürüme yolu dışında kullanılmış"),
 
     // ── LVL: Levels ────────────────────────────────────────────────────────────
     r!("LVL_001", Kritik, Spec, 1,
@@ -2015,6 +2031,7 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("TRF_021", GtfsSpec),
     ("PTH_026", GtfsSpec),
     ("PTH_027", GtfsSpec),
+    ("PTH_028", ProjectQuality),
     ("TRF_001", GtfsSpec),
     ("TRF_002", GtfsSpec),
     ("TRF_003", GtfsSpec),
@@ -2076,6 +2093,7 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("TRP_032", GtfsSpec),
     // Spec bir blokta tek mod şartını AÇIKÇA yazmaz → GtfsSpec DEĞİL, proje kararı.
     ("TRP_033", ProjectQuality),
+    ("TRP_034", GtfsSpec),
     ("VAT_001", ProjectAnalytics),
     ("VAT_002", ProjectAnalytics),
     ("VAT_003", ProjectAnalytics),

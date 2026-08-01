@@ -2,7 +2,7 @@
 
 🇹🇷 [Türkçe](RULES.md) · 🇬🇧 **English** · 🇯🇵 [日本語](RULES.ja.md)
 
-561 rules, 38 groups. Each rule is identified by a unique ID, severity level, and class.
+563 rules, 38 groups. Each rule is identified by a unique ID, severity level, and class.
 Severity levels: **CRITICAL** (publish blocker) · **HIGH** · **MEDIUM** · **LOW** · **INFO**
 Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Quality** (GTFS Quality) · **Analytics** (GTFS Analytics)
 
@@ -198,6 +198,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | TRP_029 | No trips report wheelchair accessibility | INFO | Quality |
 | TRP_031 | route_id missing | CRITICAL | Spec |
 | TRP_033 | Trips sharing a block_id carry different route types | MEDIUM | Quality |
+| TRP_034 | safe_duration field is not a number | MEDIUM | Spec |
 
 ## STM — Stop Times
 
@@ -548,7 +549,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | PTH_014 | Pathway crosses station boundary | CRITICAL | Quality |
 | PTH_015 | Pathway leads to an unreachable stop | MEDIUM | Analytics |
 | PTH_016 | Exit defined as bidirectional | HIGH | Spec |
-| PTH_017 | max_slope invalid context | MEDIUM | Spec |
+| PTH_017 | max_slope is not a number | MEDIUM | Spec |
 | PTH_018 | signposted_as too long | LOW | Quality |
 | PTH_019 | Generic node connected to single pathway (dead-end) | MEDIUM | Quality |
 | PTH_020 | pathway_id missing | CRITICAL | Spec |
@@ -559,6 +560,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | PTH_025 | Recommended pathway length missing | LOW | Quality |
 | PTH_026 | Pathway endpoint is a station | CRITICAL | Spec |
 | PTH_027 | stair_count is invalid (zero or not an integer) | MEDIUM | Spec |
+| PTH_028 | max_slope used outside a walkway | LOW | Quality |
 
 ## LVL — Levels
 

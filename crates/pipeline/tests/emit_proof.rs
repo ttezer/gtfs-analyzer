@@ -489,7 +489,18 @@ fn fixtures() -> Vec<Fixture> {
         fx("PTH_010", vec![("pathways.txt", "pathway_id,from_stop_id,to_stop_id,pathway_mode,is_bidirectional,min_width\nP1,S1,S2,3,0,0\n")]),
         fx("PTH_011", vec![("pathways.txt", "pathway_id,from_stop_id,to_stop_id,pathway_mode,is_bidirectional\nP1,S1,S1,3,0\n")]),
         fx("PTH_016", vec![("pathways.txt", "pathway_id,from_stop_id,to_stop_id,pathway_mode,is_bidirectional\nP1,S1,S2,7,1\n")]),
-        fx("PTH_017", vec![("pathways.txt", "pathway_id,from_stop_id,to_stop_id,pathway_mode,is_bidirectional,max_slope\nP1,S1,S2,4,0,5\n")]),
+        // PTH_017 artık YALNIZ tip ihlali: max_slope sayı değil (spec tipi `Float`).
+        fx("PTH_017", vec![("pathways.txt", "pathway_id,from_stop_id,to_stop_id,pathway_mode,is_bidirectional,max_slope\nP1,S1,S2,1,0,abc\n")]),
+        // PTH_028: max_slope geçerli ama pathway_mode 1/3 değil — spec burada "should" der.
+        fx("PTH_028", vec![("pathways.txt", "pathway_id,from_stop_id,to_stop_id,pathway_mode,is_bidirectional,max_slope\nP1,S1,S2,4,0,0.05\n")]),
+        // TRP_034: safe_duration alanı ondalık sayı değil (eskiden sessizce yutuluyordu).
+        // İKİ sefer: TRP_034 de Entity (trip_id) dedup'lıdır, tek satırda iki alanı bozmak
+        // yalnız birini çapalar (CAL_002 ile aynı ders).
+        fx("TRP_034", vec![("trips.txt", concat!(
+            "route_id,service_id,trip_id,safe_duration_factor,safe_duration_offset\n",
+            "R1,SVC1,T1,abc,\n",
+            "R1,SVC1,T2,,abc\n",
+        ))]),
         fx("PTH_018", vec![("pathways.txt", concat!("pathway_id,from_stop_id,to_stop_id,pathway_mode,is_bidirectional,signposted_as\nP1,S1,S2,3,0,",
             "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n"))]),
         fx("PTH_020", vec![("pathways.txt", "pathway_id,from_stop_id,to_stop_id,pathway_mode,is_bidirectional\n,S1,S2,3,0\n")]),
@@ -1879,6 +1890,11 @@ fn provision_atoms(ftype: &str, presence: &str) -> Vec<&'static str> {
         | "Latitude" | "Longitude" => atoms.push("format"),
         "Non-negative integer" | "Positive integer" | "Non-negative float"
         | "Positive float" | "Non-null integer" | "Non-zero integer" => atoms.push("range"),
+        // Nitelenmemiş sayısal tipler bir ARALIK dayatmaz ama PARSE EDİLEBİLİRLİK dayatır:
+        // "abc" bir Float değildir. Ayrı atom, çünkü `range` aralık kısıtını anlatır.
+        // `Text`, `ID` ve `Text or URL or …` BİLİNÇLİ OLARAK YOK: spec bunlara herhangi bir
+        // UTF-8 dizisi diyor, yani denetlenebilir bir hüküm yok (`Phone number` ile aynı ders).
+        "Float" | "Integer" => atoms.push("numeric"),
         _ => {}
     }
     atoms
@@ -2102,6 +2118,83 @@ fn spec_coverage_gaps_match_ledger() {
 /// (487'nin 252'si hiçbir anahtar sözcüğe uymuyor) — bu güvenilirlikte bir
 /// sınıflandırıcıyı repoya koymak, kaçınmaya çalıştığımız "bayatlayan elle liste"nin
 /// başka biçimi olurdu. Liste bu yüzden İNSAN adjudikasyonu için kuyruktur.
+/// TERS YÖN — kapsam defterinin aynadaki görüntüsü.
+///
+/// Defter "her hüküm ölçülüyor mu" diye sorar; bu rapor "her Spec iddiası bir hükme dayanıyor
+/// mu" diye sorar. İkinci soru DAHA PAHALI bir hatayı arar: kapsam boşluğu kullanıcıya eksik
+/// bilgi verir, yanlış Spec iddiası ise GEÇERLİ BİR FEED'İ YAYINDAN ALIKOYAR (R1 kapısı saf
+/// `Spec ∧ Kritik`).
+///
+/// Ölçüt: `Spec` sınıfı bir kural, spec'in HİÇBİR hüküm atomu üretmediği bir alana çapalanıyor
+/// mu? Alan `Optional`/`Recommended` ve tipi bir şey dayatmıyorsa, o alanda "spec böyle diyor"
+/// demek dayanaksızdır — STM_040 tam olarak buydu (Optional alanda Spec sınıfı, Quality'ye
+/// taşındı).
+///
+/// KAPI DEĞİL, RAPOR: meşru örnekler olabilir (kuralın ölçtüğü hüküm alan tablosunda değil
+/// düzyazıda tanımlıdır). Her satır insan adjudikasyonu ister.
+#[test]
+fn spec_claims_without_a_provision_match_ledger() {
+    let rows = coverage_rows();
+    let mut found: Vec<String> = rows.iter()
+        .filter(|(_, _, atoms, spec_rules, _)| atoms.is_empty() && !spec_rules.is_empty())
+        .map(|(file, field, _, spec_rules, _)| {
+            let mut rs: Vec<String> = spec_rules.iter().cloned().collect();
+            rs.sort();
+            format!("{file}:{field}  {}", rs.join(","))
+        })
+        .collect();
+    found.sort_unstable();
+
+    let ledger_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests").join("spec_claims_ledger.txt");
+    let ledger_raw = std::fs::read_to_string(&ledger_path).unwrap_or_default();
+    let ledger: Vec<String> = ledger_raw.lines().map(str::trim)
+        .filter(|l| !l.is_empty() && !l.starts_with('#')).map(str::to_string).collect();
+
+    if found != ledger {
+        if std::env::var("UPDATE_LEDGER").is_ok() {
+            let header = format!(
+                "# TERS YÖN — kapsam defterinin aynadaki görüntüsü. {} satır.\n\
+                 # Biçim: dosya:alan  kural[,kural]\n\
+                 #\n\
+                 # Kapsam defteri \"her hüküm ölçülüyor mu\" diye sorar. Bu defter tersini sorar:\n\
+                 # \"her Spec İDDİASI bir hükme dayanıyor mu?\" İkinci soru DAHA PAHALI bir hatayı\n\
+                 # arar — kapsam boşluğu kullanıcıya eksik bilgi verir, yanlış Spec iddiası ise\n\
+                 # GEÇERLİ BİR FEED'İ YAYINDAN ALIKOYAR (R1 kapısı saf `Spec ∧ Kritik`).\n\
+                 #\n\
+                 # Ölçüt: `Spec` sınıfı bir kural, alan tablosunun HİÇBİR hüküm atomu üretmediği\n\
+                 # bir alana çapalanıyor mu? Alan Optional/Recommended ve tipi (Text/ID/Phone\n\
+                 # number gibi) bir şey dayatmıyorsa, orada \"spec böyle diyor\" demek dayanaksızdır.\n\
+                 # Emsal: STM_040 (Optional alanda Spec sınıfı → Quality'ye taşındı),\n\
+                 # PTH_017/PTH_028 (spec \"should\" der → tavsiye dalı Quality'ye ayrıldı).\n\
+                 #\n\
+                 # ⚠️ SATIR OLMASI HER ZAMAN HATA DEĞİLDİR: hüküm alan tablosunda değil DÜZYAZIDA\n\
+                 # tanımlı olabilir. Ama her satır spec metniyle DOĞRULANMALI; doğrulanamayan\n\
+                 # kuralın sınıfı Quality olmalıdır.\n\
+                 #\n\
+                 # ⚠️ ALT SINIR, iki yönden: (1) `field=None` emit eden kurallar görünmez;\n\
+                 # (2) yalnız \"hiç atom yok\" hâli yakalanır — alanın BİR hükmü varsa ve kural\n\
+                 # BAŞKA bir şeyi dayatıyorsa görünmez (kapsam defterinin atom-körlüğünün aynası).\n\
+                 #\n\
+                 # Yeniden üretmek: UPDATE_LEDGER=1 cargo test -p gtfs-pipeline --test emit_proof \\\n\
+                 #   spec_claims_without_a_provision_match_ledger\n",
+                found.len());
+            std::fs::write(&ledger_path, format!("{header}{}\n", found.join("\n"))).unwrap();
+            return;
+        }
+        let added: Vec<&String> = found.iter().filter(|f| !ledger.contains(f)).collect();
+        let removed: Vec<&String> = ledger.iter().filter(|l| !found.contains(l)).collect();
+        panic!(
+            "spec iddia defteri güncel değil ({} hesaplanan, {} defter).\n\
+             YENİ dayanaksız Spec iddiası (spec metniyle DOĞRULA — yoksa Quality olmalı): {:#?}\n\
+             Defterde fazla (iddia kalktı/sınıf düzeldi): {:#?}\n\
+             Düzeltmek için: UPDATE_LEDGER=1 cargo test -p gtfs-pipeline --test emit_proof \
+             spec_claims_without_a_provision_match_ledger",
+            found.len(), ledger.len(), added, removed,
+        );
+    }
+}
+
 #[test]
 #[ignore = "rapor: cargo test -p gtfs-pipeline --test emit_proof spec_partial -- --ignored --nocapture"]
 fn spec_partial_coverage_report() {

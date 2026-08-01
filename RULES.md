@@ -2,7 +2,7 @@
 
 🇹🇷 **Türkçe** · 🇬🇧 [English](RULES.en.md) · 🇯🇵 [日本語](RULES.ja.md)
 
-561 kural, 38 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
+563 kural, 38 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
 Önem seviyeleri: **KRİTİK** (yayın engelleyici) · **YÜKSEK** · **ORTA** · **DÜŞÜK** · **BİLGİ**
 Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · **Quality** (GTFS Kalitesi) · **Analytics** (GTFS Analitiği)
 
@@ -198,6 +198,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | TRP_029 | Hiçbir sefer tekerlekli sandalye erişilebilirliği bildirmemiş | BİLGİ | Quality |
 | TRP_031 | route_id eksik | KRİTİK | Spec |
 | TRP_033 | Aynı block_id'yi paylaşan seferler farklı route_type taşıyor | ORTA | Quality |
+| TRP_034 | safe_duration alanı sayı değil | ORTA | Spec |
 
 ## STM — Stop Times (Geçiş Zamanları)
 
@@ -548,7 +549,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | PTH_014 | Geçit istasyon sınırını aşıyor | KRİTİK | Quality |
 | PTH_015 | Geçit hedefi erişilemeyen durakta | ORTA | Analytics |
 | PTH_016 | Çıkış kapısı çift yönlü tanımlanmış | YÜKSEK | Spec |
-| PTH_017 | max_slope geçersiz bağlam | ORTA | Spec |
+| PTH_017 | max_slope sayı değil | ORTA | Spec |
 | PTH_018 | signposted_as çok uzun | DÜŞÜK | Quality |
 | PTH_019 | Generic node tek pathway'e bağlı (dead-end) | ORTA | Quality |
 | PTH_020 | pathway_id eksik | KRİTİK | Spec |
@@ -559,6 +560,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | PTH_025 | Önerilen pathway length bilgisi eksik | DÜŞÜK | Quality |
 | PTH_026 | Pathway uç noktası istasyon | KRİTİK | Spec |
 | PTH_027 | stair_count geçersiz (sıfır veya tam sayı değil) | ORTA | Spec |
+| PTH_028 | max_slope yürüme yolu dışında kullanılmış | DÜŞÜK | Quality |
 
 ## LVL — Levels (Katlar)
 

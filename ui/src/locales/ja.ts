@@ -966,7 +966,9 @@ const ja: LocaleShape = {
     'PTH_016': "経路'{entity_id}'：出口が双方向として定義されています。",
     'PTH_026': "経路'{entity_id}'：{field}は駅(location_type=1)です。端点はプラットフォーム、出入口、汎用ノードまたは乗車エリアである必要があります。",
     'PTH_027': "経路'{entity_id}'：stair_count'{observed_value}'は0以外の整数ではありません。",
-    'PTH_017': "経路'{entity_id}'：このコンテキストではmax_slopeが無効です。",
+    'PTH_017': "経路'{entity_id}'：max_slope'{observed_value}'が数値ではありません。",
+    'PTH_028': "経路'{entity_id}'：max_slopeが歩道・動く歩道以外で使われています。",
+    'TRP_034': "便'{entity_id}'：{field}'{observed_value}'が小数ではありません。",
     'PTH_018': "経路'{entity_id}'：signposted_asが長すぎます。",
     'PTH_019': "停留所'{entity_id}'（汎用ノード）が1つの経路にしか接続されていません — 行き止まりです。",
     // LVL
@@ -1449,7 +1451,9 @@ const ja: LocaleShape = {
     'PTH_026': '駅ではなくプラットフォーム(location_type=0)、出入口(2)、汎用ノード(3)または乗車エリア(4)を参照してください。',
     'PTH_027': 'stair_countは整数で入力してください（上りは正、下りは負）。空欄でも構いません。',
     'STP_042': 'stop_urlに有効なhttp/https URLを使用してください。',
-    'PTH_017': 'max_slopeは歩道または動く歩道/トラベレーター経路にのみ使用してください。',
+    'PTH_017': 'max_slopeを小数で入力してください。',
+    'PTH_028': '仕様はmax_slopeを歩道(pathway_mode=1)と動く歩道(3)にのみ推奨しています。',
+    'TRP_034': 'safe_duration項目を小数で入力してください。',
     'PTH_018': 'signposted_asの値を255文字以内にしてください。',
     'PTH_019': 'すべての汎用ノード（location_type=3）が少なくとも2つの経路に接続されていることを確認してください。',
     // RCT
@@ -2155,7 +2159,9 @@ const ja: LocaleShape = {
     'PTH_016': '出口が双方向として定義されている',
     'PTH_026': '経路の端点が駅',
     'PTH_027': 'stair_countが無効（0または整数でない）',
-    'PTH_017': 'このコンテキストでmax_slopeは無効',
+    'PTH_017': 'max_slopeが数値でない',
+    'PTH_028': 'max_slopeが歩道以外で使用',
+    'TRP_034': 'safe_duration項目が数値でない',
     'PTH_018': 'signposted_asが長すぎる',
     'PTH_019': '汎用ノードが1経路にのみ接続（行き止まり）',
     // LVL

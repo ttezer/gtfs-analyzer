@@ -997,7 +997,9 @@ const tr = {
     'PTH_014': 'Geçit istasyon sınırını aşıyor',
     'PTH_015': 'Geçit hedefi erişilemeyen durakta',
     'PTH_016': 'Çıkış kapısı çift yönlü tanımlanmış',
-    'PTH_017': 'max_slope geçersiz bağlam',
+    'PTH_017': 'max_slope sayı değil',
+    'PTH_028': 'max_slope yürüme yolu dışında kullanılmış',
+    'TRP_034': 'safe_duration alanı sayı değil',
     'PTH_018': 'signposted_as çok uzun',
     'PTH_019': "Generic node tek pathway'e bağlı (dead-end)",
     // LVL

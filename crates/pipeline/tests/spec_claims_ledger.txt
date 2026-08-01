@@ -1,0 +1,25 @@
+# TERS YÖN — kapsam defterinin aynadaki görüntüsü. 0 satır.
+# Biçim: dosya:alan  kural[,kural]
+#
+# Kapsam defteri "her hüküm ölçülüyor mu" diye sorar. Bu defter tersini sorar:
+# "her Spec İDDİASI bir hükme dayanıyor mu?" İkinci soru DAHA PAHALI bir hatayı
+# arar — kapsam boşluğu kullanıcıya eksik bilgi verir, yanlış Spec iddiası ise
+# GEÇERLİ BİR FEED'İ YAYINDAN ALIKOYAR (R1 kapısı saf `Spec ∧ Kritik`).
+#
+# Ölçüt: `Spec` sınıfı bir kural, alan tablosunun HİÇBİR hüküm atomu üretmediği
+# bir alana çapalanıyor mu? Alan Optional/Recommended ve tipi (Text/ID/Phone
+# number gibi) bir şey dayatmıyorsa, orada "spec böyle diyor" demek dayanaksızdır.
+# Emsal: STM_040 (Optional alanda Spec sınıfı → Quality'ye taşındı),
+# PTH_017/PTH_028 (spec "should" der → tavsiye dalı Quality'ye ayrıldı).
+#
+# ⚠️ SATIR OLMASI HER ZAMAN HATA DEĞİLDİR: hüküm alan tablosunda değil DÜZYAZIDA
+# tanımlı olabilir. Ama her satır spec metniyle DOĞRULANMALI; doğrulanamayan
+# kuralın sınıfı Quality olmalıdır.
+#
+# ⚠️ ALT SINIR, iki yönden: (1) `field=None` emit eden kurallar görünmez;
+# (2) yalnız "hiç atom yok" hâli yakalanır — alanın BİR hükmü varsa ve kural
+# BAŞKA bir şeyi dayatıyorsa görünmez (kapsam defterinin atom-körlüğünün aynası).
+#
+# Yeniden üretmek: UPDATE_LEDGER=1 cargo test -p gtfs-pipeline --test emit_proof \
+#   spec_claims_without_a_provision_match_ledger
+
