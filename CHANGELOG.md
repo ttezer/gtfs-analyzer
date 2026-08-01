@@ -12,6 +12,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > unaffected. Re-baseline Golden snapshots that contain it.
 
 ### Added
+- **A rule id used for two unrelated checks is now reported.** ATR_006 emits both the
+  `is_authority` enum check and the `attributions.route_id` foreign-key check, and ATR_007 does
+  the same for `attribution_url` and `trip_id`; the registry describes one of each, so a feed
+  with a dangling route reference receives a finding titled "is_authority geçersiz" whose
+  remediation tells it to fix a route id. Nothing could see this: the emit proof asks whether a
+  rule can fire, not whether what it emits is what the rule says it is, and a second emit site
+  added to an existing id was invisible to every check.
+
+  `emit_identity.rs` scans the pipeline source and records, per rule id, the field names each
+  emit site mentions. Sites that share no field at all are the signal: a rule with branches for
+  a missing and an invalid value names the same field twice, while ATR_006 names
+  `is_authority` in one place and `route_id` in another. Overlapping sets are ignored, which
+  takes the list from 32 candidates to 12, and those twelve are adjudicated in the test's own
+  documentation — nine are legitimate, two are the collision above, and STP_003 declares its
+  double duty in its own title. A second check, comparing the registry title against the fields
+  the emit site names, was built and discarded: it produced 47 findings, almost all noise from
+  filenames in titles and neighbouring code, and caught nothing the field-set check missed.
 - **The gap between what the specification requires and what we check is now measured and
   frozen in a ledger.** The two gates added before this one ask whether our findings are
   *right*; neither asks whether they are *enough*. `spec_fields.json` now carries each field's
