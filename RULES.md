@@ -266,7 +266,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | LOC_003 | Feature'da 'id' property eksik — stop_times çapraz referansı için zorunlu | KRİTİK | Spec |
 | LOC_004 | Polygon ring kapalı değil (ilk != son nokta) | ORTA | Spec |
 | LOC_005 | FeatureCollection boş — hiç feature yok | DÜŞÜK | Quality |
-| LOC_006 | Polygon yaklaşık kapsamı 500km²'yi aşıyor — gerçekçi olmayan Flex bölge (bounding-box tahmini) | ORTA | Quality |
+| LOC_006 | Polygon alanı 500km²'yi aşıyor — gerçekçi olmayan Flex bölge | ORTA | Quality |
 | LOC_007 | FeatureCollection içinde yinelenen 'id' değeri — Flex referansı belirsizleşir | ORTA | Spec |
 | LOC_008 | Feature 'type' alanı eksik veya "Feature" değil | ORTA | Spec |
 | LOC_009 | Feature 'properties' nesnesi eksik | ORTA | Spec |

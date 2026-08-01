@@ -266,7 +266,7 @@
 | LOC_003 | フィーチャーに'id'プロパティが不足 | 致命的 | 仕様 |
 | LOC_004 | Polygonリングが閉じていない | 中 | 仕様 |
 | LOC_005 | FeatureCollectionが空 | 低 | 品質 |
-| LOC_006 | Polygonの範囲が500km²超 | 中 | 品質 |
+| LOC_006 | Polygonの面積が500km²超 | 中 | 品質 |
 | LOC_007 | FeatureCollection内でフィーチャー'id'が重複 | 中 | 仕様 |
 | LOC_008 | Featureの'type'が欠落または\"Feature\"でない | 中 | 仕様 |
 | LOC_009 | Featureの'properties'オブジェクトが欠落 | 中 | 仕様 |

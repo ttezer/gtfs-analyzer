@@ -108,6 +108,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   collides with.
 
 ### Fixed
+- **Every stop in a demand-responsive feed was reported as unused.** STP_020 built its set of
+  served stops from `stop_times.stop_id` alone. A GTFS-Flex feed reaches its stops through
+  `location_group_id` instead, leaving `stop_id` empty on those rows, so the rule saw a
+  `stops.txt` full of stops that no trip touches. Measured on the Swiss national Flex feed:
+  **1259 of 1259 stops flagged, 85% of everything the validator said about that feed.** Stops
+  that belong to a location group now count as served.
+
+  The fix is narrow by construction, and that was verified rather than assumed: across the
+  seven other Flex feeds, all of which ship an empty `location_groups.txt`, the STP_020 counts
+  are unchanged (23, 17, 2, 2, 1, 1, 1) — no genuine finding was lost. Note the deliberate
+  tolerance: group membership shows a stop *can* be served; whether a trip actually uses that
+  group is not asked.
+- **LOC_006 measured a bounding box and called it an area.** Flex service zones follow
+  administrative boundaries and are rarely convex, so the box systematically overstates them —
+  by 1.4x to 5.6x across the eight feeds measured. Three of the rule's seven firings existed
+  only because of that inflation (Columbia County twice, and Pueblo at 954 km² against a real
+  245 km²); those feeds are now silent, and the areas the rule reports are real ones. The area
+  comes from a shoelace sum in an equirectangular projection, with inner rings subtracted from
+  the outer ring, which the box could not do either.
+
+  What the fix does *not* settle is the 500 km² threshold. Of the four firings that survive on
+  real area, at least one is provably legitimate: the Dolores County zone measures 2751 km²
+  against the county's actual 2696 km², so the polygon is the county. Rural demand-responsive
+  service is county-scale, and the threshold is calibrated for urban zones; the rule's own card
+  now says so where the number is read.
 - **A dangling `route_id` in `attributions.txt` was reported as an invalid `is_authority`.** The
   identity check added above found two rule ids doing double duty, and this is what a user saw
   because of it: ATR_006 carried both the `is_authority` enum check in K2 and the

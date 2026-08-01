@@ -5199,10 +5199,19 @@ fn check_remaining_analytics<'a>(
     // ── STP_020: stop_times'da hiç kullanılmayan fiziksel durak ──────────────
     {
         let _t20 = Timer::start("K6::rem::stp_020");
-        let used_stops: FxHashSet<&str> = records.stop_times_index.stop_id_set
+        let mut used_stops: FxHashSet<&str> = records.stop_times_index.stop_id_set
             .iter()
             .map(|s| s.as_str())
             .collect();
+        // GTFS-Flex: stop_times bir durağa `location_group_id` üzerinden de erişebilir; o
+        // satırlarda `stop_id` boştur. Gruba üye duraklar SERVİS EDİLİYOR sayılır — aksi halde
+        // saf Flex feed'inde stops.txt'in TAMAMI "kullanılmıyor" çıkar (İsviçre ODV feed'inde
+        // ölçüldü: 1259 durağın 1259'u, feed'in tüm bulgularının %85'i).
+        used_stops.extend(
+            records.location_group_stops.iter()
+                .filter(|r| !r.stop_id.is_empty())
+                .map(|r| r.stop_id.as_str()),
+        );
 
         for stop in &records.stops {
             if stop.stop_id.is_empty() { continue; }
@@ -11002,6 +11011,30 @@ mod tests {
             "STP_020 olmalı");
         assert!(!result.notices.iter().any(|n| n.rule_id == "STP_020" && n.entity_id.as_deref() == Some("A")),
             "kullanılan durak STP_020 üretmemeli");
+    }
+
+    #[test]
+    fn stop_used_only_via_location_group_is_not_stp_020() {
+        // GTFS-Flex: stop_times location_group_id taşır, stop_id boştur. Gruba üye durak
+        // servis edilmektedir. İsviçre ODV feed'inde bu yol yokken 1259 durağın 1259'u da
+        // yanlışlıkla "kullanılmıyor" çıkıyordu.
+        let mut records = records_with(
+            vec![stop("A", 41.0, 29.0), stop("X", 41.5, 29.5)],
+            vec![route("R1", 3)],
+            vec![trip("T1", "R1")],
+            vec![
+                stoptime("T1", 1, "A", (8,0,0), (8,0,0), 2),
+                stoptime("T1", 2, "A", (8,10,0), (8,10,0), 3),
+            ],
+        );
+        records.location_group_stops = vec![crate::k2::location_groups::LocationGroupStopRecord {
+            location_group_id: "LG1".to_string(),
+            stop_id: "X".to_string(),
+            line: 2,
+        }];
+        let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
+        assert!(!result.notices.iter().any(|n| n.rule_id == "STP_020" && n.entity_id.as_deref() == Some("X")),
+            "location group üyesi durak STP_020 üretmemeli");
     }
 
     #[test]

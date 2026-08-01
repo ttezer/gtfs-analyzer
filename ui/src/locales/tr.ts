@@ -773,7 +773,7 @@ const tr = {
     'LOC_003': "Feature'da 'id' property eksik",
     'LOC_004': "Polygon ring kapalı değil",
     'LOC_005': "FeatureCollection tamamen boş",
-    'LOC_006': "Polygon yaklaşık kapsamı 500km²'yi aşıyor (bounding-box tahmini)",
+    'LOC_006': "Polygon alanı 500km²'yi aşıyor",
     'LOC_007': "FeatureCollection içinde yinelenen feature 'id'",
     'LOC_010': "Geometry 'coordinates' eksik veya dizi değil — bölge geometrisi çözümlenemez",
     'LOC_009': "Feature 'properties' nesnesi eksik",

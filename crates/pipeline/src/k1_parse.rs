@@ -1579,6 +1579,8 @@ fn check_polygon_rings(
     let mut all_lats = Vec::new();
     let mut all_lons = Vec::new();
     let mut already_reported_closure = false;
+    // LOC_006 için ring başına işaretli alan: ilk ring dış sınır, sonrakiler deliktir.
+    let mut ring_areas: Vec<f64> = Vec::new();
 
     for ring in rings {
         let Some(pts) = ring.as_array() else { continue };
@@ -1605,34 +1607,55 @@ fn check_polygon_rings(
             }
         }
 
-        // bbox için koordinatları topla
+        // Ring koordinatlarını topla: alan hesabı ve enlem ölçeği için.
+        let mut ring_pts: Vec<(f64, f64)> = Vec::with_capacity(pts.len());
         for pt in pts {
             if let (Some(lon), Some(lat)) = (pt.get(0).and_then(|v| v.as_f64()), pt.get(1).and_then(|v| v.as_f64())) {
                 all_lats.push(lat);
                 all_lons.push(lon);
+                ring_pts.push((lon, lat));
             }
         }
+        ring_areas.push(signed_ring_area_km2(&ring_pts));
     }
 
-    // LOC_006: Bounding box alanı > 500km²
-    if all_lats.len() >= 3 {
-        let min_lat = all_lats.iter().cloned().fold(f64::INFINITY, f64::min);
-        let max_lat = all_lats.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
-        let min_lon = all_lons.iter().cloned().fold(f64::INFINITY, f64::min);
-        let max_lon = all_lons.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
-        let avg_lat = (min_lat + max_lat) / 2.0;
-        let lat_km = (max_lat - min_lat) * 111.0;
-        let lon_km = (max_lon - min_lon) * 111.0 * avg_lat.to_radians().cos();
-        let bbox_km2 = lat_km * lon_km;
-        if bbox_km2 > 500.0 {
+    // LOC_006: GERÇEK poligon alanı > 500km²
+    //
+    // 2026-08-01'e kadar burada bounding box alanı ölçülüyordu. Sekiz gerçek GTFS-Flex feed'inde
+    // ölçüldü: bbox gerçek alanı 1,4×–5,6× şişiriyor, ve kuralın 7 ateşlemesinden 3'ü (Columbia
+    // County ×2, Pueblo) SADECE bu şişmeden doğuyordu — gerçek alanları eşiğin altındaydı.
+    // Poligonlar dışbükey değil (hizmet bölgeleri idari sınırları izler), dolayısıyla bbox
+    // sistematik olarak yukarı saparr. Shoelace ile gerçek alan ölçülür; delikler düşülür.
+    if all_lats.len() >= 3 && !ring_areas.is_empty() {
+        let outer = ring_areas[0].abs();
+        let holes: f64 = ring_areas[1..].iter().map(|a| a.abs()).sum();
+        let area_km2 = (outer - holes).max(0.0);
+        if area_km2 > 500.0 {
             notices.push(make_notice(
                 counter, "LOC_006", EntityType::File, Some(fname.to_string()),
-                Some(fname), Some(feat_num), Some("coordinates"), Some(format!("{bbox_km2:.0}km²")),
-                format!("'{fname}' özellik {feat_num} Polygon alanı çok büyük (~{bbox_km2:.0}km²) — GTFS Flex bölgesi için gerçekçi değil."),
+                Some(fname), Some(feat_num), Some("coordinates"), Some(format!("{area_km2:.0}km²")),
+                format!("'{fname}' özellik {feat_num} Polygon alanı çok büyük (~{area_km2:.0}km²) — GTFS Flex bölgesi için gerçekçi değil."),
                 "Bölge geometrisini gerçek hizmet alanını kapsayacak şekilde küçültün.",
             ));
         }
     }
+}
+
+/// Bir GeoJSON ring'inin işaretli alanı (km²), equirectangular izdüşümde shoelace ile.
+/// Hizmet bölgeleri küçük olduğu için ring'in kendi ortalama enlemi ölçek olarak yeterlidir;
+/// işaret ring yönünü taşır, çağıran mutlak değeri alır.
+fn signed_ring_area_km2(pts: &[(f64, f64)]) -> f64 {
+    if pts.len() < 3 { return 0.0; }
+    let lat0 = pts.iter().map(|p| p.1).sum::<f64>() / pts.len() as f64;
+    let kx = 111.320 * lat0.to_radians().cos(); // 1° boylam → km
+    let ky = 110.574;                           // 1° enlem   → km
+    let mut sum = 0.0;
+    for i in 0..pts.len() {
+        let (x1, y1) = (pts[i].0 * kx, pts[i].1 * ky);
+        let (x2, y2) = (pts[(i + 1) % pts.len()].0 * kx, pts[(i + 1) % pts.len()].1 * ky);
+        sum += x1 * y2 - x2 * y1;
+    }
+    sum / 2.0
 }
 
 // ── Testler ───────────────────────────────────────────────────────────────────
@@ -2255,6 +2278,51 @@ mod tests {
         ]);
         let k1 = parse(&zip).unwrap();
         assert!(!k1.notices.iter().any(|n| n.rule_id == "LOC_001"), "LOC_001 tetiklenmemeli");
+    }
+
+    /// LOC_006 fixture'ı: verilen ring ile bir locations.geojson üretir.
+    fn zip_with_polygon(ring: &str) -> Vec<u8> {
+        let geojson = format!(
+            r#"{{"type":"FeatureCollection","features":[{{"type":"Feature","id":"z1","geometry":{{"type":"Polygon","coordinates":[{ring}]}},"properties":{{}}}}]}}"#
+        );
+        zip_with_files(&[
+            ("agency.txt",     b"agency_id,agency_name,agency_url,agency_timezone\n1,Test,http://x.com,UTC\n"),
+            ("stops.txt",      b"stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\n"),
+            ("routes.txt",     b"route_id,agency_id,route_short_name,route_type\nR1,1,101,3\n"),
+            ("trips.txt",      b"route_id,service_id,trip_id\nR1,SVC1,T1\n"),
+            ("stop_times.txt", b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\n"),
+            ("calendar.txt",   b"service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,0,0,20240101,20241231\n"),
+            ("locations.geojson", geojson.as_bytes()),
+        ])
+    }
+
+    #[test]
+    fn loc_006_silent_for_thin_diagonal_zone_with_large_bounding_box() {
+        // Çapraz ince şerit: bbox ~4800km² (eski ölçüm ateşlerdi), gerçek alan ~186km².
+        // Hizmet bölgeleri dışbükey değildir; bu ayrım kuralın FP'lerinin kaynağıydı.
+        let ring = "[[29.0,41.0],[30.0,41.5],[30.0,41.52],[29.0,41.02],[29.0,41.0]]";
+        let k1 = parse(&zip_with_polygon(ring)).unwrap();
+        assert!(!k1.notices.iter().any(|n| n.rule_id == "LOC_006"),
+            "gerçek alanı eşiğin altında olan bölge LOC_006 üretmemeli");
+    }
+
+    #[test]
+    fn loc_006_fires_for_genuinely_large_zone() {
+        // ~1.0° boylam × 0.1° enlem, 41. paralelde ≈ 929km² → eşiğin (500) üstünde.
+        let ring = "[[29.0,41.0],[30.0,41.0],[30.0,41.1],[29.0,41.1],[29.0,41.0]]";
+        let k1 = parse(&zip_with_polygon(ring)).unwrap();
+        assert!(k1.notices.iter().any(|n| n.rule_id == "LOC_006"),
+            "gerçekten büyük bölge LOC_006 üretmeli");
+    }
+
+    #[test]
+    fn loc_006_subtracts_holes_from_the_outer_ring() {
+        // Dış ring ~929km², içine ~836km²'lik delik → net ~93km², eşiğin altında.
+        let ring = "[[29.0,41.0],[30.0,41.0],[30.0,41.1],[29.0,41.1],[29.0,41.0]],\
+                    [[29.05,41.005],[29.95,41.005],[29.95,41.095],[29.05,41.095],[29.05,41.005]]";
+        let k1 = parse(&zip_with_polygon(ring)).unwrap();
+        assert!(!k1.notices.iter().any(|n| n.rule_id == "LOC_006"),
+            "delikler dış ringden düşülmeli");
     }
 }
     #[test]

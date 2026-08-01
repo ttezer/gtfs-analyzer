@@ -628,7 +628,7 @@ pub static RULES: &[RuleMeta] = &[
     r!("LOC_005", Dusuk,  Quality, 1, &[], None, VS, File,
         "FeatureCollection boş — hiç feature yok"),
     r!("LOC_006", Orta,   Quality, 1, &[], None, VS, File,
-        "Polygon yaklaşık kapsamı 500km²'yi aşıyor — gerçekçi olmayan Flex bölge (bounding-box tahmini)"),
+        "Polygon alanı 500km²'yi aşıyor — gerçekçi olmayan Flex bölge"),
     r!("LOC_007", Orta,   Spec,    2, &[], None, VS, File,
         "FeatureCollection içinde yinelenen 'id' değeri — Flex referansı belirsizleşir"),
     // Spec (locations.geojson alan tablosu) her Feature için type/properties/geometry.coordinates

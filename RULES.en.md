@@ -266,7 +266,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | LOC_003 | Feature missing required 'id' property | CRITICAL | Spec |
 | LOC_004 | Polygon ring is not closed | MEDIUM | Spec |
 | LOC_005 | FeatureCollection has no features | LOW | Quality |
-| LOC_006 | Polygon bounding box exceeds 500km² | MEDIUM | Quality |
+| LOC_006 | Polygon area exceeds 500km² | MEDIUM | Quality |
 | LOC_007 | Duplicate feature 'id' in FeatureCollection | MEDIUM | Spec |
 | LOC_008 | Feature 'type' member missing or not \"Feature\ | MEDIUM | Spec |
 | LOC_009 | Feature 'properties' object missing | MEDIUM | Spec |
