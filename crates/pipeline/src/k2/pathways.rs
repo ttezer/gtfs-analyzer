@@ -114,7 +114,9 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
                 Some(&row_map),
                 &file.name,
                 Some(line),
-                None,
+                // İhlal iki alanın BİRLİKTE aldığı değerdedir; `observed_value` bunu zaten
+                // yazıyordu, `field` yazmıyordu.
+                Some("pathway_mode|is_bidirectional"),
                 Some("pathway_mode=7, is_bidirectional=1".to_string()),
                 Some("is_bidirectional=0".to_string()),
                 "Çıkış kapısı geçitleri çift yönlü olamaz.".to_string(),

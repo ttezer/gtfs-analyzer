@@ -160,7 +160,8 @@ pub fn validate_translations(
                 Some(&row_map),
                 &file.name,
                 Some(line),
-                None,
+                // İhlal iki alanın BİRLİKTE dolu olmasıdır.
+                Some("record_id|field_value"),
                 None,
                 None,
                 "record_id ve field_value aynı anda kullanılamaz.".to_string(),
@@ -216,7 +217,8 @@ pub fn validate_translations(
                 Some(&row_map),
                 &file.name,
                 Some(line),
-                None,
+                // feed_info satırında üç kimlik alanının ÜÇÜ de yasaktır.
+                Some("record_id|record_sub_id|field_value"),
                 None,
                 None,
                 "feed_info çevirileri record_id, record_sub_id veya field_value kullanamaz.".to_string(),

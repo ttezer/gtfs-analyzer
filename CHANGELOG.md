@@ -134,6 +134,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `AGN_007`. `PTH_017` keeps the type check and is retitled accordingly: a feed with
   `max_slope = abc` used to receive a finding titled "invalid context", which is the same
   mislabelling fixed in `ATR_006` this week.
+- **Eight more rules name the fields their finding is about.** Measuring the blind spot both
+  specification ledgers share turned up 91 rules that always emit `field: None`; 47 are file- or
+  feed-level, where naming a single field would be wrong, and of the rest ten were `Spec` class —
+  invisible to both gates while being able to block publication. Eight now use the pipe
+  convention: `ATR_003` (`is_producer|is_operator|is_authority`), `PTH_016`
+  (`pathway_mode|is_bidirectional`), `TRF_012`, `TRF_016`, `TRN_005`, `TRN_006`, `TRN_009`
+  (`record_id|field_value`) and `TRN_013`. Several already wrote the field names into
+  `observed_value` — `PTH_016` reported "pathway_mode=7, is_bidirectional=1" — so the
+  information was there and simply not in the column that shows it.
+
+  **Two are deliberately left as `None`.** `ARC_012` reports an inconsistent column count, which
+  is a property of the row's shape rather than of any field. `RCT_006` reports a
+  `fare_product_id` bound to more than one default rider category; the offending value lives in
+  `rider_categories.is_default_fare_category` while the notice points at `fare_products.txt`, and
+  writing a field that does not belong to the named file would fail the anchor gate — correctly.
+
+  One caveat worth recording: a broad anchor makes the coverage ledger less sensitive, since a
+  field counts as covered once any `Spec` rule names it. `TRN_005` now anchors six fields it
+  does not individually check. That is the atom-blindness already documented in the ledger
+  header, slightly widened in exchange for findings that say which fields they are about.
 - **`RTS_003` now names the two fields it is about.** A route with neither `route_short_name`
   nor `route_long_name` is a Kritik finding that keeps the feed from being published, and the
   "Field" column of the R2 report was blank for it, because the notice carried `field: None`.

@@ -79,7 +79,8 @@ pub fn validate_attributions(
                 Some(&row_map),
                 &file.name,
                 Some(line),
-                None,
+                // Hüküm üç rol alanının BİRLİKTE boş olmasıdır; üçü de adlandırılır.
+                Some("is_producer|is_operator|is_authority"),
                 None,
                 Some("en az bir rol = 1".to_string()),
                 "En az bir attribution rolü 1 olarak ayarlanmalıdır.".to_string(),

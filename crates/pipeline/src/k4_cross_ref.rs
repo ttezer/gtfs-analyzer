@@ -1802,7 +1802,8 @@ fn check_transfers(
                     None,
                     "transfers.txt",
                     Some(rec.line),
-                    None,
+                    // Çakışmayı oluşturan altı alanın tamamı (DQ_021 bileşik anahtar deseni).
+                    Some("from_stop_id|to_stop_id|from_trip_id|to_trip_id|from_route_id|to_route_id"),
                     Some(key.clone()),
                     None,
                     format!(
@@ -1830,7 +1831,8 @@ fn check_transfers(
             if let Some(&prev_line) = seen_stops.get(&key) {
                 notices.push(notice(
                     ctr, "TRF_012", EntityType::Transfer,
-                    None, None, "transfers.txt", Some(rec.line), None,
+                    None, None, "transfers.txt", Some(rec.line),
+                    Some("from_stop_id|to_stop_id"),
                     Some(format!("{}|{}", rec.from_stop_id, rec.to_stop_id)), None,
                     format!(
                         "'{}' → '{}' aktarma çifti yineleniyor (ilk görünüm: satır {prev_line}).",
@@ -2524,7 +2526,8 @@ fn check_translations(
                     None,
                     "translations.txt",
                     Some(rec.line),
-                    None,
+                    // Yinelemeyi tanımlayan bileşik anahtarın tamamı.
+                    Some("table_name|field_name|language|record_id|record_sub_id|field_value"),
                     Some(format!("{}/{}/{}", rec.table_name, rec.field_name, rec.language)),
                     None,
                     format!(
@@ -2544,7 +2547,8 @@ fn check_translations(
                     None,
                     "translations.txt",
                     Some(rec.line),
-                    None,
+                    // Çelişkiyi tanımlayan bileşik anahtarın tamamı (TRN_005 ile aynı).
+                    Some("table_name|field_name|language|record_id|record_sub_id|field_value"),
                     Some(format!("{}/{}/{}", rec.table_name, rec.field_name, rec.language)),
                     None,
                     format!(
