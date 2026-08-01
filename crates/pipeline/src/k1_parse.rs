@@ -33,7 +33,7 @@ const KNOWN_FILES: &[&str] = &[
     // Fares v2
     "areas.txt", "stop_areas.txt", "networks.txt",
     "rider_categories.txt", "fare_media.txt", "fare_products.txt",
-    "fare_leg_rules.txt", "fare_transfer_rules.txt", "timeframes.txt",
+    "fare_leg_rules.txt", "fare_leg_join_rules.txt", "fare_transfer_rules.txt", "timeframes.txt",
     // Flex
     "booking_rules.txt", "location_groups.txt", "location_group_stops.txt",
     // GTFS-JP uzantıları (Japonya standardı)
@@ -344,6 +344,10 @@ fn required_fields(filename: &str) -> &'static [&'static str] {
         "fare_media.txt"          => &["fare_media_id", "fare_media_type"],
         "fare_products.txt"       => &["fare_product_id", "amount", "currency"],
         "fare_leg_rules.txt"      => &["fare_product_id"],
+        // Spec: dört alanın da bileşik birincil anahtar parçası; ağ alanları Required,
+        // durak alanları karşılıklı koşullu (FLJ_003/004 ölçer) → required_fields'a yalnız
+        // koşulsuz Required olan ikisi girer.
+        "fare_leg_join_rules.txt" => &["from_network_id", "to_network_id"],
         "fare_transfer_rules.txt" => &["fare_transfer_type"],
         "areas.txt"               => &["area_id"],
         "stop_areas.txt"          => &["area_id", "stop_id"],
@@ -665,6 +669,7 @@ fn known_columns(filename: &str) -> &'static [&'static str] {
         "stop_areas.txt" => &["area_id","stop_id"],
         "networks.txt" => &["network_id","network_name"],
         "route_networks.txt" => &["network_id","route_id"],
+        "fare_leg_join_rules.txt" => &["from_network_id","to_network_id","from_stop_id","to_stop_id"],
         // ── Flex ──
         "booking_rules.txt" => &[
             "booking_rule_id","booking_type",

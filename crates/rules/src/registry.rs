@@ -1007,6 +1007,23 @@ pub static RULES: &[RuleMeta] = &[
     r!("FLG_007", Orta,   Spec, 1, &[], Some("leg_group_id"), VS, Row,
         "rule_priority geçersiz"),
 
+    // ── FLJ: Fare Leg Join Rules (Fares v2) ───────────────────────────────────
+    // `fare_leg_join_rules.txt` 2026-08-02'ye kadar pipeline'a HİÇ TANITILMAMIŞTI (issue #59):
+    // KNOWN_FILES'ta yoktu → "bilinmeyen dosya" uyarısı alıyordu, parser'ı yoktu, kuralı yoktu.
+    // UI'ın dosya haritası ise düğümü zaten çiziyordu — tutarsızlık aynı değişiklikte kapandı.
+    //
+    // Her kural TEK alanın hem varlığını hem çözümünü ölçer (NET_002/003 ile aynı desen).
+    // Ağ alanları koşulsuz Required; durak alanları KARŞILIKLI koşulludur — spec: "Required if
+    // to_stop_id is defined. Optional otherwise." ve simetriği.
+    r!("FLJ_001", Kritik, Spec, 1, &[], Some("from_network_id"), VS_K, Row,
+        "from_network_id eksik veya bulunamadı"),
+    r!("FLJ_002", Kritik, Spec, 1, &[], Some("to_network_id"), VS_K, Row,
+        "to_network_id eksik veya bulunamadı"),
+    r!("FLJ_003", Kritik, Spec, 1, &[], Some("from_stop_id"), VS_K, Row,
+        "from_stop_id eksik veya bulunamadı"),
+    r!("FLJ_004", Kritik, Spec, 1, &[], Some("to_stop_id"), VS_K, Row,
+        "to_stop_id eksik veya bulunamadı"),
+
     // ── FTR: Fare Transfer Rules (Fares v2) ───────────────────────────────────
     r!("FTR_001", Kritik, Spec, 1, &[], None, VS_K, Row,
         "fare_transfer_type eksik veya geçersiz"),
@@ -1692,6 +1709,10 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("FLG_005", GtfsSpec),
     ("FLG_006", GtfsSpec),
     ("FLG_007", GtfsSpec),
+    ("FLJ_001", GtfsSpec),
+    ("FLJ_002", GtfsSpec),
+    ("FLJ_003", GtfsSpec),
+    ("FLJ_004", GtfsSpec),
     ("FMD_001", GtfsSpec),
     ("FMD_002", GtfsSpec),
     ("FMD_003", ProjectQuality),

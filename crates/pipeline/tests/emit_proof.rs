@@ -306,6 +306,25 @@ fn fixtures() -> Vec<Fixture> {
 
         // ── FLG: rule_priority negatif (fare_leg_rules.txt) ────────────────────
         fx("FLG_007", vec![("fare_leg_rules.txt", "leg_group_id,rule_priority\nLG1,-5\n")]),
+        // FLJ_001..004: fare_leg_join_rules.txt (#59) — dosya 2026-08-02'ye kadar hiç
+        // tanınmıyordu. Ağ alanları koşulsuz Required; durak alanları KARŞILIKLI koşullu.
+        fx("FLJ_001", vec![
+            ("networks.txt", "network_id,network_name\nN1,Net1\n"),
+            ("fare_leg_join_rules.txt", "from_network_id,to_network_id\nNOPE,N1\n"),
+        ]),
+        fx("FLJ_002", vec![
+            ("networks.txt", "network_id,network_name\nN1,Net1\n"),
+            ("fare_leg_join_rules.txt", "from_network_id,to_network_id\nN1,NOPE\n"),
+        ]),
+        // from_stop_id boş ama to_stop_id dolu → karşılıklı koşul ihlali.
+        fx("FLJ_003", vec![
+            ("networks.txt", "network_id,network_name\nN1,Net1\n"),
+            ("fare_leg_join_rules.txt", "from_network_id,to_network_id,from_stop_id,to_stop_id\nN1,N1,,S1\n"),
+        ]),
+        fx("FLJ_004", vec![
+            ("networks.txt", "network_id,network_name\nN1,Net1\n"),
+            ("fare_leg_join_rules.txt", "from_network_id,to_network_id,from_stop_id,to_stop_id\nN1,N1,S1,NOPE\n"),
+        ]),
 
         // ── FRQ grubu (frequencies.txt; trip_id=T1 base'te var) ────────────────
         fx("FRQ_001", vec![("frequencies.txt", "trip_id,start_time,end_time,headway_secs\n,08:00:00,10:00:00,600\n")]),
@@ -2020,7 +2039,7 @@ fn spec_coverage_gaps_match_ledger() {
                  # atom kaldırıldı → 3 satır düştü; attributions route_id/trip_id issue #62\n\
                  # ile ATR_011/ATR_012'ye ayrıldı → 2 satır düştü). Kalanların HER BİRİ incelendi:\n\
                  #   • booking_rules booking_url/info_url .. ✅ KAPANDI (BKR_020/021)\n\
-                 #   • fare_leg_join_rules (4 alan) ........ issue #59\n\
+                 #   • fare_leg_join_rules (4 alan) ........ ✅ KAPANDI (FLJ_001..004)\n\
                  #   • issue #61 ........................... TAMAMI KAPANDI (9 satır):\n\
                  #     STM_058 · DQ_021 genişletildi (attribution_id + route_networks.route_id)\n\
                  #     PTH_027 · STP_042 · NET_002 · NET_003 · RCT_007 · RTS_029 · TRN_015\n\

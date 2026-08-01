@@ -4053,6 +4053,20 @@ fn check_data_quality(
                 "Bileşik birincil anahtarın (network_id, from_area_id, to_area_id, from_timeframe_group_id, to_timeframe_group_id, fare_product_id) her satırda benzersiz olmasını sağlayın."));
         }
 
+        // fare_leg_join_rules.txt — spec birincil anahtarı DÖRT alanın tamamıdır. Boş değer
+        // anahtarın anlamlı bir parçasıdır (spec boş alanı "eşleşmede yok sayılır" der).
+        for dup in composite_dups(records.fare_leg_join_rules.iter().map(|r| vec![
+            r.from_network_id.clone(), r.to_network_id.clone(),
+            r.from_stop_id.clone(), r.to_stop_id.clone(),
+        ])) {
+            notices.push(k6_notice(ctr, "DQ_021", EntityType::Row, None, None,
+                "fare_leg_join_rules.txt", None,
+                Some("from_network_id|to_network_id|from_stop_id|to_stop_id"),
+                Some(dup.clone()), None,
+                format!("fare_leg_join_rules.txt'de birincil anahtar yineleniyor: ({dup})."),
+                "Bileşik birincil anahtarın (from_network_id, to_network_id, from_stop_id, to_stop_id) her satırda benzersiz olmasını sağlayın."));
+        }
+
         for dup in composite_dups(records.fare_transfer_rules.iter().map(|r| vec![
             opt(&r.from_leg_group_id), opt(&r.to_leg_group_id), opt(&r.fare_product_id),
             r.transfer_count.map(|v| v.to_string()).unwrap_or_default(),

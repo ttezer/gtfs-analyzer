@@ -920,6 +920,10 @@ const en: LocaleShape = {
     'FLG_005': "Fare leg rule: from_timeframe_group_id '{entity_id}' not found.",
     'FLG_006': "Fare leg rule: to_timeframe_group_id '{entity_id}' not found.",
     'FLG_007': "Fare leg rule: rule_priority '{observed_value}' is invalid.",
+    'FLJ_001': "Fare leg join rule: from_network_id '{observed_value}' is missing or not defined.",
+    'FLJ_002': "Fare leg join rule: to_network_id '{observed_value}' is missing or not defined.",
+    'FLJ_003': "Fare leg join rule: from_stop_id '{observed_value}' is missing, not defined, or not a stop or station.",
+    'FLJ_004': "Fare leg join rule: to_stop_id '{observed_value}' is missing, not defined, or not a stop or station.",
     // FTR
     'FTR_001': "Fare transfer rule: fare_transfer_type is missing or invalid ({observed_value}).",
     'FTR_002': "Fare transfer rule: from_leg_group_id '{entity_id}' not found.",
@@ -1548,6 +1552,10 @@ const en: LocaleShape = {
     'FLG_005': 'Use a valid from_timeframe_group_id.',
     'FLG_006': 'Use a valid to_timeframe_group_id.',
     'FLG_007': 'Enter a non-negative integer for rule_priority.',
+    'FLJ_001': 'Use a network id defined in networks.txt or routes.network_id.',
+    'FLJ_002': 'Use a network id defined in networks.txt or routes.network_id.',
+    'FLJ_003': 'Fill in both stop fields or leave both empty, and point at a stop or station.',
+    'FLJ_004': 'Fill in both stop fields or leave both empty, and point at a stop or station.',
     // FTR
     'FTR_001': 'Use 0, 1 or 2 for fare_transfer_type.',
     'FTR_002': 'Use a valid from_leg_group_id.',
@@ -2128,6 +2136,10 @@ const en: LocaleShape = {
     'FLG_005': 'from_timeframe_group_id not found',
     'FLG_006': 'to_timeframe_group_id not found',
     'FLG_007': 'rule_priority invalid',
+    'FLJ_001': 'from_network_id missing or not found',
+    'FLJ_002': 'to_network_id missing or not found',
+    'FLJ_003': 'from_stop_id missing or not found',
+    'FLJ_004': 'to_stop_id missing or not found',
     // FTR
     'FTR_001': 'fare_transfer_type missing or invalid',
     'FTR_002': 'from_leg_group_id not found',

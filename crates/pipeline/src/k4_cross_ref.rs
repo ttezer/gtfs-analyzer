@@ -159,6 +159,7 @@ pub fn check(records: &EntityRecords, entity_map: &EntityMap, today: u32) -> K4R
     { let _t = Timer::start("K4::gtfs_jp");         check_gtfs_jp(records, &mut notices, &mut ctr); }
     { let _t = Timer::start("K4::attributions");   check_attributions(records, map, &mut notices, &mut ctr); }
     { let _t = Timer::start("K4::route_networks"); check_route_networks(records, map, &mut notices, &mut ctr); }
+    { let _t = Timer::start("K4::flj");            check_fare_leg_join_rules(records, map, &mut notices, &mut ctr); }
     { let _t = Timer::start("K4::xfl");            check_xfl(records, map, &mut notices, &mut ctr, &stm_trips_in_stm, &stm_trip_stm_count); }
     { let _t = Timer::start("K4::stm_shape_dist"); check_stm_shape_dist(records, &mut notices, &mut ctr); }
 
@@ -2932,6 +2933,90 @@ fn check_gtfs_jp(records: &EntityRecords, notices: &mut Vec<Notice>, ctr: &mut u
             "GTFS-JP feed'inde feed_info.txt eksik — profil bunu (feed_lang=ja, yayıncı bilgisi) zorunlu kılar.".to_string(),
             "feed_info.txt ekleyin ve feed_lang=ja ile yayıncı bilgilerini doldurun.",
         ));
+    }
+}
+
+/// FLJ_001..004 — `fare_leg_join_rules.txt`'in dört Foreign ID alanı (Fares v2, issue #59).
+///
+/// Ağ alanları için hedef `EntityMap::network_ids`'tir — NET_002'nin aksine burada BİRLEŞİK
+/// küme DOĞRUDUR, çünkü spec bu alanları *"referencing routes.network_id **or**
+/// networks.network_id"* diye tanımlar. FLG_002 ile aynı hedef.
+///
+/// Durak alanları karşılıklı koşulludur: biri doluysa diğeri zorunludur. Spec ayrıca hedefin
+/// durak (`location_type` 0/boş) veya istasyon (`location_type=1`) olmasını ister; giriş,
+/// düğüm ve biniş alanı geçersizdir.
+fn check_fare_leg_join_rules(
+    records: &EntityRecords,
+    map: &EntityMap,
+    notices: &mut Vec<Notice>,
+    ctr: &mut u32,
+) {
+    if records.fare_leg_join_rules.is_empty() { return; }
+
+    for rec in &records.fare_leg_join_rules {
+        // ── Ağ alanları: koşulsuz Required + FK ──────────────────────────────
+        for (value, field, rule) in [
+            (&rec.from_network_id, "from_network_id", "FLJ_001"),
+            (&rec.to_network_id,   "to_network_id",   "FLJ_002"),
+        ] {
+            if value.is_empty() {
+                notices.push(notice(
+                    ctr, rule, EntityType::Row, None, None,
+                    "fare_leg_join_rules.txt", Some(rec.line), Some(field),
+                    Some(String::new()), None,
+                    format!("fare_leg_join_rules.txt satırında {field} zorunludur."),
+                    "networks.txt veya routes.network_id içinde tanımlı bir ağ kodu girin.",
+                ));
+            } else if !map.network_ids.contains(value.as_str()) {
+                notices.push(notice(
+                    ctr, rule, EntityType::Row, None, None,
+                    "fare_leg_join_rules.txt", Some(rec.line), Some(field),
+                    Some(value.clone()), None,
+                    format!("'{value}' ağ kodu networks.txt/routes.txt içinde tanımlı değil."),
+                    "networks.txt veya routes.network_id içinde tanımlı bir ağ kodu kullanın.",
+                ));
+            }
+        }
+
+        // ── Durak alanları: KARŞILIKLI koşullu + FK + location_type kısıtı ───
+        let pairs = [
+            (&rec.from_stop_id, &rec.to_stop_id, "from_stop_id", "to_stop_id", "FLJ_003"),
+            (&rec.to_stop_id, &rec.from_stop_id, "to_stop_id", "from_stop_id", "FLJ_004"),
+        ];
+        for (value, other, field, other_field, rule) in pairs {
+            if value.is_empty() {
+                if !other.is_empty() {
+                    notices.push(notice(
+                        ctr, rule, EntityType::Row, None, None,
+                        "fare_leg_join_rules.txt", Some(rec.line), Some(field),
+                        Some(String::new()), None,
+                        format!("{other_field} tanımlıyken {field} da zorunludur."),
+                        "İki durak alanını birlikte doldurun ya da ikisini de boş bırakın.",
+                    ));
+                }
+                continue;
+            }
+            match map.stops.get(value.as_str()).and_then(|&i| records.stops.get(i)) {
+                None => notices.push(notice(
+                    ctr, rule, EntityType::Row, None, None,
+                    "fare_leg_join_rules.txt", Some(rec.line), Some(field),
+                    Some(value.clone()), None,
+                    format!("'{value}' durağı stops.txt'te tanımlı değil."),
+                    "stops.txt'te tanımlı bir stop_id kullanın.",
+                )),
+                Some(stop) if !matches!(stop.location_type.unwrap_or(0), 0 | 1) => {
+                    notices.push(notice(
+                        ctr, rule, EntityType::Row, None, None,
+                        "fare_leg_join_rules.txt", Some(rec.line), Some(field),
+                        Some(value.clone()), Some("location_type 0 veya 1".to_string()),
+                        format!("'{value}' bir durak veya istasyon değil (location_type={}).",
+                                stop.location_type.unwrap_or(0)),
+                        "Durak (location_type 0/boş) veya istasyon (location_type=1) gösterin.",
+                    ));
+                }
+                Some(_) => {}
+            }
+        }
     }
 }
 

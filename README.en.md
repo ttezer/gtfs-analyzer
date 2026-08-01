@@ -13,7 +13,7 @@ GTFS Validator & Analyzer does not merely check whether a file conforms to the s
 
 Every finding is tagged with a rule code, an analysis class, and a severity level. Thanks to the Spec · Interop · Quality · Analytics classes and the Critical → Info severity levels, thousands of findings can be filtered, prioritized, and handled systematically. The tool also automatically detects the GTFS features used by the feed — Shapes, Transfers, Fares, Headsigns, Flex, and the like — and includes them in the report.
 
-GTFS Validator & Analyzer extends specification validation with operational quality analysis. Frequency inconsistencies per route, anomalous speed segments, isolated stops, gaps in service patterns, andnetwork topology problems are examined with 557 distinct validation and analysis rules. Results are summarized with two scores — the Publish Score (blocking issues only) and the Overall Score (weighted average of all four classes) — computed with different formulas for different purposes. The prioritized fix queue shows which issues should be addressed first and the likely impact of each fix on the score.
+GTFS Validator & Analyzer extends specification validation with operational quality analysis. Frequency inconsistencies per route, anomalous speed segments, isolated stops, gaps in service patterns, andnetwork topology problems are examined with 561 distinct validation and analysis rules. Results are summarized with two scores — the Publish Score (blocking issues only) and the Overall Score (weighted average of all four classes) — computed with different formulas for different purposes. The prioritized fix queue shows which issues should be addressed first and the likely impact of each fix on the score.
 
 **Who is it for?**
 
@@ -43,7 +43,7 @@ GTFS Validator & Analyzer extends specification validation with operational qual
 | GTFS-JP profile validation | ❌ | ❌ | ✅ |
 | Output formats | HTML, JSON | HTML, JSON | HTML, CSV, JSON, PDF |
 | Platform | Web | Web, CLI, Desktop | Web, CLI *(Desktop planned)* |
-| **Total rules** | **178** | **~120** | **557** |
+| **Total rules** | **178** | **~120** | **561** |
 
 ### Feed Analysis Examples
 
@@ -513,6 +513,7 @@ Each rule is coded as `GROUP_NNN`. Groups follow GTFS file and component boundar
 | **FMD** | `fare_media.txt` | Payment media: physical card, mobile app, EMV, etc. (Fares v2) |
 | **FPD** | `fare_products.txt` | Fare products, amount, currency, and media/category associations (Fares v2) |
 | **FLG** | `fare_leg_rules.txt` | Per-leg fare rules and priority (Fares v2) |
+| **FLJ** | `fare_leg_join_rules.txt` | Rules that join two legs across a transfer into one effective fare leg (Fares v2) |
 | **FTR** | `fare_transfer_rules.txt` | Transfer fare rules and time limits (Fares v2) |
 | **ARS** | `areas.txt` | Geographic area definitions (Fares v2) |
 | **SAR** | `stop_areas.txt` | Stop–area mappings (Fares v2) |
@@ -584,7 +585,7 @@ gtfs-validator/
 │   ├── config/     # Configuration types
 │   ├── core/       # Shared data structures and result model
 │   ├── pipeline/   # Validation pipeline (k1–k7 stages)
-│   ├── rules/      # Rule definitions and registry (557 rules, 37 groups)
+│   ├── rules/      # Rule definitions and registry (561 rules, 38 groups)
 │   └── wasm/       # wasm-bindgen WASM output
 ├── spec-audit/     # Field table generated from the spec (anchor gate)
 └── ui/             # Vite + TypeScript frontend

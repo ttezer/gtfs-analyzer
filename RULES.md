@@ -2,7 +2,7 @@
 
 🇹🇷 **Türkçe** · 🇬🇧 [English](RULES.en.md) · 🇯🇵 [日本語](RULES.ja.md)
 
-557 kural, 37 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
+561 kural, 38 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
 Önem seviyeleri: **KRİTİK** (yayın engelleyici) · **YÜKSEK** · **ORTA** · **DÜŞÜK** · **BİLGİ**
 Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · **Quality** (GTFS Kalitesi) · **Analytics** (GTFS Analitiği)
 
@@ -469,6 +469,15 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | FLG_005 | from_timeframe_group_id bulunamadı | KRİTİK | Spec |
 | FLG_006 | to_timeframe_group_id bulunamadı | KRİTİK | Spec |
 | FLG_007 | rule_priority geçersiz | ORTA | Spec |
+
+## FLJ
+
+| Kural | Başlık | Önem | Sınıf |
+|---|---|---|---|
+| FLJ_001 | from_network_id eksik veya bulunamadı | KRİTİK | Spec |
+| FLJ_002 | to_network_id eksik veya bulunamadı | KRİTİK | Spec |
+| FLJ_003 | from_stop_id eksik veya bulunamadı | KRİTİK | Spec |
+| FLJ_004 | to_stop_id eksik veya bulunamadı | KRİTİK | Spec |
 
 ## FTR — Fare Transfer Rules (Fares v2)
 

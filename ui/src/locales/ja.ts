@@ -901,6 +901,10 @@ const ja: LocaleShape = {
     'FLG_005': "運賃区間ルール：from_timeframe_group_id'{entity_id}'が見つかりません。",
     'FLG_006': "運賃区間ルール：to_timeframe_group_id'{entity_id}'が見つかりません。",
     'FLG_007': "運賃区間ルール：rule_priority'{observed_value}'が無効です。",
+    'FLJ_001': "運賃区間結合ルール：from_network_id'{observed_value}'が未入力または未定義です。",
+    'FLJ_002': "運賃区間結合ルール：to_network_id'{observed_value}'が未入力または未定義です。",
+    'FLJ_003': "運賃区間結合ルール：from_stop_id'{observed_value}'が未入力、未定義、または停留所・駅ではありません。",
+    'FLJ_004': "運賃区間結合ルール：to_stop_id'{observed_value}'が未入力、未定義、または停留所・駅ではありません。",
     // FTR
     'FTR_001': "運賃乗り換えルール：fare_transfer_typeがないか無効です（{observed_value}）。",
     'FTR_002': "運賃乗り換えルール：from_leg_group_id'{entity_id}'が見つかりません。",
@@ -1293,6 +1297,10 @@ const ja: LocaleShape = {
     'FLG_005': '有効なfrom_timeframe_group_idを使用してください。',
     'FLG_006': '有効なto_timeframe_group_idを使用してください。',
     'FLG_007': 'rule_priorityに非負の整数を入力してください。',
+    'FLJ_001': 'networks.txtまたはroutes.network_idに定義されたネットワークIDを使用してください。',
+    'FLJ_002': 'networks.txtまたはroutes.network_idに定義されたネットワークIDを使用してください。',
+    'FLJ_003': '2つの停留所項目を両方入力するか両方空にし、停留所または駅を指定してください。',
+    'FLJ_004': '2つの停留所項目を両方入力するか両方空にし、停留所または駅を指定してください。',
 
     'FTR_001': 'fare_transfer_typeに0、1、2のいずれかを使用してください。',
     'FTR_002': '有効なfrom_leg_group_idを使用してください。',
@@ -2082,6 +2090,10 @@ const ja: LocaleShape = {
     'FLG_005': 'from_timeframe_group_idが存在しない',
     'FLG_006': 'to_timeframe_group_idが存在しない',
     'FLG_007': 'rule_priorityが無効',
+    'FLJ_001': 'from_network_idが未入力または不明',
+    'FLJ_002': 'to_network_idが未入力または不明',
+    'FLJ_003': 'from_stop_idが未入力または不明',
+    'FLJ_004': 'to_stop_idが未入力または不明',
     // FTR
     'FTR_001': 'fare_transfer_typeが不足または無効',
     'FTR_002': 'from_leg_group_idが存在しない',

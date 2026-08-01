@@ -20,6 +20,7 @@ pub mod office_jp;
 pub mod pathways;
 pub mod rider_categories;
 pub mod location_groups;
+pub mod fare_leg_join_rules;
 pub mod route_networks;
 pub mod routes;
 pub mod shapes;
@@ -55,6 +56,7 @@ use networks::{parse_networks, NetworkRecord};
 use office_jp::{parse_office_jp, OfficeJpRecord};
 use pathways::{validate_pathways, PathwayRecord};
 use rider_categories::{validate_rider_categories, RiderCategoryRecord};
+use fare_leg_join_rules::{parse_fare_leg_join_rules, FareLegJoinRuleRecord};
 use route_networks::{parse_route_networks, RouteNetworkRecord};
 use routes::{validate_routes, RouteRecord};
 use shapes::{validate_shapes, ShapePointRecord};
@@ -95,6 +97,7 @@ pub struct EntityRecords {
     pub pathways: Vec<PathwayRecord>,
     pub rider_categories: Vec<RiderCategoryRecord>,
     pub routes: Vec<RouteRecord>,
+    pub fare_leg_join_rules: Vec<FareLegJoinRuleRecord>,
     pub route_networks: Vec<RouteNetworkRecord>,
     pub shapes: Vec<ShapePointRecord>,
     /// shapes.txt shape_id intern tablosu (noktalar 4 baytlık indeks taşır)
@@ -347,6 +350,11 @@ pub fn validate(mut files: RawFiles, zip_bytes: Option<&[u8]>) -> K2Result {
 
     records.has_route_networks_file = files.contains_key("route_networks.txt");
     records.has_networks_file = files.contains_key("networks.txt");
+    if let Some(file) = files.get("fare_leg_join_rules.txt") {
+        let _t = Timer::start("K2::fare_leg_join_rules");
+        records.fare_leg_join_rules = parse_fare_leg_join_rules(file);
+    }
+
     if let Some(file) = files.get("route_networks.txt") {
         let _t = Timer::start("K2::route_networks");
         records.route_networks = parse_route_networks(file);

@@ -1,6 +1,6 @@
 # WP-3/A — spec'te normatif hükmü olan ama emit_proof korpusunda hiçbir
 # GtfsSpec notice'ının ÇAPALANMADIĞI alanlar. Biçim: dosya:alan  hükümler [kanıt].
-# 12 alan.
+# 8 alan.
 #
 # Bu bir BORÇ defteridir, kapı değil: eksik kural kimseyi yanlış REDDETMEZ,
 # ama boşluk sessizce BÜYÜMEMELİ. Kural eklenince satır düşer.
@@ -32,7 +32,7 @@
 # atom kaldırıldı → 3 satır düştü; attributions route_id/trip_id issue #62
 # ile ATR_011/ATR_012'ye ayrıldı → 2 satır düştü). Kalanların HER BİRİ incelendi:
 #   • booking_rules booking_url/info_url .. ✅ KAPANDI (BKR_020/021)
-#   • fare_leg_join_rules (4 alan) ........ issue #59
+#   • fare_leg_join_rules (4 alan) ........ ✅ KAPANDI (FLJ_001..004)
 #   • issue #61 ........................... TAMAMI KAPANDI (9 satır):
 #     STM_058 · DQ_021 genişletildi (attribution_id + route_networks.route_id)
 #     PTH_027 · STP_042 · NET_002 · NET_003 · RCT_007 · RTS_029 · TRN_015
@@ -51,9 +51,5 @@ calendar.txt:sunday  presence:required,enum-domain
 calendar.txt:thursday  presence:required,enum-domain
 calendar.txt:tuesday  presence:required,enum-domain
 calendar.txt:wednesday  presence:required,enum-domain
-fare_leg_join_rules.txt:from_network_id  presence:required,foreign-key  [denetim-yok]
-fare_leg_join_rules.txt:from_stop_id  presence:conditional,foreign-key
-fare_leg_join_rules.txt:to_network_id  presence:required,foreign-key  [denetim-yok]
-fare_leg_join_rules.txt:to_stop_id  presence:conditional,foreign-key
 routes.txt:route_long_name  presence:conditional  [yalnız: RTS_011,RTS_019,RTS_022,RTS_027]
 routes.txt:route_short_name  presence:conditional  [yalnız: RTS_010,RTS_021,RTS_026]

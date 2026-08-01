@@ -934,6 +934,10 @@ const tr = {
     'FLG_005': 'from_timeframe_group_id bulunamadı',
     'FLG_006': 'to_timeframe_group_id bulunamadı',
     'FLG_007': 'rule_priority geçersiz',
+    'FLJ_001': 'from_network_id eksik veya bulunamadı',
+    'FLJ_002': 'to_network_id eksik veya bulunamadı',
+    'FLJ_003': 'from_stop_id eksik veya bulunamadı',
+    'FLJ_004': 'to_stop_id eksik veya bulunamadı',
     // FTR
     'FTR_001': 'fare_transfer_type eksik veya geçersiz',
     'FTR_002': 'from_leg_group_id bulunamadı',

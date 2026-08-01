@@ -2,7 +2,7 @@
 
 🇹🇷 [Türkçe](RULES.md) · 🇬🇧 **English** · 🇯🇵 [日本語](RULES.ja.md)
 
-557 rules, 37 groups. Each rule is identified by a unique ID, severity level, and class.
+561 rules, 38 groups. Each rule is identified by a unique ID, severity level, and class.
 Severity levels: **CRITICAL** (publish blocker) · **HIGH** · **MEDIUM** · **LOW** · **INFO**
 Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Quality** (GTFS Quality) · **Analytics** (GTFS Analytics)
 
@@ -469,6 +469,15 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | FLG_005 | from_timeframe_group_id not found | CRITICAL | Spec |
 | FLG_006 | to_timeframe_group_id not found | CRITICAL | Spec |
 | FLG_007 | rule_priority invalid | MEDIUM | Spec |
+
+## FLJ
+
+| Rule | Title | Severity | Class |
+|---|---|---|---|
+| FLJ_001 | from_network_id missing or not found | CRITICAL | Spec |
+| FLJ_002 | to_network_id missing or not found | CRITICAL | Spec |
+| FLJ_003 | from_stop_id missing or not found | CRITICAL | Spec |
+| FLJ_004 | to_stop_id missing or not found | CRITICAL | Spec |
 
 ## FTR — Fare Transfer Rules (Fares v2)
 

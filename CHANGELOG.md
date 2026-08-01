@@ -108,6 +108,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   collides with.
 
 ### Added
+- **`fare_leg_join_rules.txt` is now a file the validator knows about** (issue #59). It is part
+  of Fares v2, and the pipeline had never heard of it: absent from `KNOWN_FILES`, so a feed
+  shipping it was told it had an unknown file; absent from `required_fields` and
+  `known_columns`, so its columns were unknown columns; no parser, no rules. The UI's file map
+  meanwhile already drew the node and its edge to `networks.txt` — that inconsistency is
+  resolved by the pipeline catching up rather than the UI being trimmed.
+
+  A new `FLJ` group covers all four fields, one rule each, checking presence and resolution
+  together as `NET_002`/`NET_003` do. The two halves of the file behave differently and the
+  specification is explicit about both:
+
+  - `from_network_id` and `to_network_id` are unconditionally Required and resolve against the
+    **union** — *"referencing routes.network_id **or** networks.network_id"*. This is the
+    opposite of `NET_002`, which must resolve against `networks.txt` alone; the difference is in
+    the specification text, not a preference.
+  - `from_stop_id` and `to_stop_id` are **mutually** conditional — *"Required if to_stop_id is
+    defined. Optional otherwise."* and its mirror — so one filled and the other empty is a
+    violation, while both empty is explicitly valid. The target must also be a stop
+    (`location_type` 0 or empty) or a station (`location_type=1`); entrances, nodes and boarding
+    areas are not.
+
+  The file's primary key is all four fields together, so `DQ_021` gains it alongside the other
+  composite keys. A blank value is part of the key rather than an absence, since the
+  specification treats a blank predicate field as "ignored for matching" rather than missing.
+
+  **These four rules have no real-data evidence.** No feed in the 239-feed corpus ships the
+  file, so unlike the `booking_rules.txt` batch they rest on unit fixtures alone. Worth
+  recording rather than glossing: a feed that does ship it will be the first real exercise.
+
+  The coverage ledger drops from 12 open lines to **8**, and all eight that remain are known
+  measurement artifacts rather than gaps — the six `calendar.txt` day columns that `CAL_002`
+  does check, and `routes.route_short_name`/`route_long_name` that `RTS_003` checks but emits
+  with `field=None`.
 - **The three contact fields of `booking_rules.txt` were declared but never read** (issue #60).
   `booking_url`, `info_url` and `phone_number` were listed in `known_columns`, so a feed
   carrying them drew no "unknown column" warning, and no validation stage looked at the values —
