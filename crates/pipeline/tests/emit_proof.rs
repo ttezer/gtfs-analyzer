@@ -336,6 +336,8 @@ fn fixtures() -> Vec<Fixture> {
         fx("RCT_003", vec![("rider_categories.txt", "rider_category_id,rider_category_name,is_default_fare_category\nRC1,Adult,5\n")]),
         fx("RCT_004", vec![("rider_categories.txt", "rider_category_id,rider_category_name,min_age\nRC1,Adult,abc\n")]),
         fx("RCT_005", vec![("rider_categories.txt", "rider_category_id,rider_category_name,min_age,max_age\nRC1,Adult,65,18\n")]),
+        // RCT_007: eligibility_url URL biçiminde değil.
+        fx("RCT_007", vec![("rider_categories.txt", "rider_category_id,rider_category_name,eligibility_url\nRC1,Adult,notaurl\n")]),
 
         // ── TFR (timeframes.txt) ───────────────────────────────────────────────
         fx("TFR_001", vec![("timeframes.txt", "timeframe_group_id,start_time,end_time,service_id\n,08:00:00,10:00:00,SVC1\n")]),
@@ -361,6 +363,8 @@ fn fixtures() -> Vec<Fixture> {
         fx("RTS_003", vec![("routes.txt", "route_id,agency_id,route_type\nR1,1,3\n")]),
         fx("RTS_004", vec![("routes.txt", "route_id,agency_id,route_short_name,route_type\nR1,1,101,9999\n")]),
         fx("RTS_005", vec![("routes.txt", "route_id,agency_id,route_short_name,route_type,route_url\nR1,1,101,3,notaurl\n")]),
+        // RTS_029: route_sort_order negatif olmayan tam sayı değil (eskiden sessizdi).
+        fx("RTS_029", vec![("routes.txt", "route_id,agency_id,route_short_name,route_type,route_sort_order\nR1,1,101,3,-5\n")]),
         fx("RTS_006", vec![("routes.txt", "route_id,agency_id,route_short_name,route_type,route_color\nR1,1,101,3,XYZ\n")]),
         fx("RTS_013", vec![("routes.txt", "route_id,agency_id,route_short_name,route_type,continuous_pickup\nR1,1,101,3,9\n")]),
         fx("RTS_018", vec![("routes.txt", "route_id,agency_id,route_short_name,route_type,continuous_drop_off\nR1,1,101,3,9\n")]),
@@ -791,6 +795,16 @@ fn fixtures() -> Vec<Fixture> {
         // ── NET / PDW ──────────────────────────────────────────────────────────
         // NET_001: networks.txt network_id tekrarı (k3).
         fx("NET_001", vec![("networks.txt", "network_id,network_name\nN1,Net1\nN1,Net2\n")]),
+        // NET_002: route_networks.network_id networks.txt'te yok (k4).
+        fx("NET_002", vec![
+            ("networks.txt", "network_id,network_name\nN1,Net1\n"),
+            ("route_networks.txt", "network_id,route_id\nNOPE,R1\n"),
+        ]),
+        // NET_003: route_networks.route_id routes.txt'te yok (k4).
+        fx("NET_003", vec![
+            ("networks.txt", "network_id,network_name\nN1,Net1\n"),
+            ("route_networks.txt", "network_id,route_id\nN1,NOPE\n"),
+        ]),
         // PDW_006: aynı trip+zone içinde örtüşen pickup/drop-off pencereleri (k6 Flex).
         fx("PDW_006", vec![("stop_times.txt", "trip_id,stop_sequence,location_id,start_pickup_drop_off_window,end_pickup_drop_off_window\nT1,1,Z1,09:00:00,10:00:00\nT1,2,Z1,09:30:00,11:00:00\n")]),
 
@@ -1109,6 +1123,8 @@ fn fixtures() -> Vec<Fixture> {
         fx("TRN_013", vec![("translations.txt", "table_name,field_name,language,translation,record_id\nfeed_info,feed_publisher_name,fr,X,FI\n")]),
         // TRN_014: stop_times dışı tabloda record_sub_id (k2).
         fx("TRN_014", vec![("translations.txt", "table_name,field_name,language,translation,record_id,record_sub_id\nstops,stop_name,fr,X,S1,2\n")]),
+        // TRN_015: record_id ve field_value ikisi de boş — "Required if record_id is empty".
+        fx("TRN_015", vec![("translations.txt", "table_name,field_name,language,translation\nstops,stop_name,fr,X\n")]),
 
         // ── STP grubu (kalan: k2 + k3 dup + k4 FK + k6) ────────────────────────
         // STP_001: stop_id tekrarı (k3).
@@ -2001,9 +2017,9 @@ fn spec_coverage_gaps_match_ledger() {
                  # ile ATR_011/ATR_012'ye ayrıldı → 2 satır düştü). Kalanların HER BİRİ incelendi:\n\
                  #   • booking_rules booking_url/info_url .. issue #60\n\
                  #   • fare_leg_join_rules (4 alan) ........ issue #59\n\
-                 #   • diğer 5 hüküm ....................... issue #61 (9'du; kapananlar:\n\
-                 #     Flex pencere BİÇİMİ→STM_058, attribution_id BENZERSİZLİĞİ→DQ_021\n\
-                 #     genişletildi, stair_count→PTH_027, stop_url→STP_042)\n\
+                 #   • issue #61 ........................... TAMAMI KAPANDI (9 satır):\n\
+                 #     STM_058 · DQ_021 genişletildi (attribution_id + route_networks.route_id)\n\
+                 #     PTH_027 · STP_042 · NET_002 · NET_003 · RCT_007 · RTS_029 · TRN_015\n\
                  #   • calendar 6 gün (enum) ............... ARTEFAKT: CAL_002 yedisini de\n\
                  #     denetler, fixture yalnız `monday`'i bozar. presence kısmı #61'de.\n\
                  #   • routes route_short_name/route_long_name  ARTEFAKT: RTS_003 (Kritik·Spec)\n\

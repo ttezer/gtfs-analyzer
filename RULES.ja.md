@@ -2,7 +2,7 @@
 
 🇹🇷 [Türkçe](RULES.md) · 🇬🇧 [English](RULES.en.md) · 🇯🇵 **日本語**
 
-549ルール、37グループ。各ルールは一意のID、重要度、クラスで定義されます。
+554ルール、37グループ。各ルールは一意のID、重要度、クラスで定義されます。
 重要度: **致命的**（公開ブロッカー）· **高** · **中** · **低** · **情報**
 クラス: **仕様**（GTFS妥当性）· **相互運用**（GTFSインターオペラビリティ）· **品質**（GTFS品質）· **分析**（GTFSアナリティクス）
 
@@ -163,6 +163,7 @@
 | RTS_026 | 短い路線名の重複 | 情報 | 品質 |
 | RTS_027 | 長い路線名の重複 | 情報 | 品質 |
 | RTS_028 | Flex路線でcontinuous_pickup/drop_off禁止 | 高 | 相互運用 |
+| RTS_029 | route_sort_orderが無効 | 低 | 仕様 |
 
 ## TRP — 便（Trips）
 
@@ -433,6 +434,7 @@
 | RCT_004 | min_ageまたはmax_ageが無効（GTFS拡張フィールド — 公式仕様には存在しません） | 中 | 品質 |
 | RCT_005 | max_ageがmin_ageより小さい | 中 | 品質 |
 | RCT_006 | 同一fare_productにデフォルトのrider_categoryが複数 | 中 | 仕様 |
+| RCT_007 | eligibility_urlが無効 | 低 | 仕様 |
 
 ## FMD — 運賃メディア（Fare Media, Fares v2）
 
@@ -499,6 +501,8 @@
 | ルール | タイトル | 重要度 | クラス |
 |---|---|---|---|
 | NET_001 | network_idが重複 | 致命的 | 仕様 |
+| NET_002 | route_networks.network_idが未入力または不明 | 致命的 | 仕様 |
+| NET_003 | route_networks.route_idが未入力または不明 | 致命的 | 仕様 |
 
 ## TFR — 時間帯（Timeframes, Fares v2）
 
@@ -598,6 +602,7 @@
 | TRN_011 | field_nameが翻訳不可 | 高 | 仕様 |
 | TRN_013 | feed_info翻訳でIDフィールドを使用不可 | 高 | 仕様 |
 | TRN_014 | record_sub_idはstop_timesのみ有効 | 高 | 仕様 |
+| TRN_015 | record_idとfield_valueが両方空 | 高 | 仕様 |
 
 ## ATR — 帰属（Attributions）
 

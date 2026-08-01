@@ -3999,6 +3999,18 @@ fn check_data_quality(
                 format!("attribution_id '{dup_id}' attributions.txt'de birden fazla kez tanımlanmış."),
                 "attributions.txt'de benzersiz attribution_id değerleri kullanın."));
         }
+        // route_networks.txt (route_id) — spec birincil anahtarı ve açık hükmü:
+        // "A route_id can only be defined in one network_id." Aynı hat iki ağa yazılırsa
+        // hangi ücret kuralının geçerli olduğu belirsizleşir.
+        for dup_id in find_dups(records.route_networks.iter()
+            .map(|r| r.route_id.as_str()).filter(|id| !id.is_empty()))
+        {
+            notices.push(k6_notice(ctr, "DQ_021", EntityType::Route,
+                Some(dup_id.clone()), Some(dup_id.clone()),
+                "route_networks.txt", None, Some("route_id"), Some(dup_id.clone()), None,
+                format!("route_id '{dup_id}' route_networks.txt'de birden fazla kez tanımlanmış — bir hat yalnız bir ağa ait olabilir."),
+                "Her hattı yalnız bir network_id ile eşleştirin."));
+        }
 
         // ── BİLEŞİK birincil anahtarlar ──────────────────────────────────────
         // Yukarıdaki üç dosyanın anahtarı tek alandır; Fares v2 ve Flex dosyalarının

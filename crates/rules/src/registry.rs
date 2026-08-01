@@ -417,6 +417,11 @@ pub static RULES: &[RuleMeta] = &[
         "Yinelenen uzun hat adı"),
     r!("RTS_028", Yuksek, Interop, 1, &[], Some("route_id"), VI, Entity,
         "Flex pencereli rotada continuous_pickup/drop_off yasak"),
+    // RTS_029: spec tipi `Non-negative integer`. Negatif ya da sayı olmayan değer eskiden
+    // `Err(_) => None` ile SESSİZCE düşüyordu — hattın sıralaması kayboluyor, kullanıcı
+    // hiçbir şey görmüyordu. (Aynı yutma deseni STM_058 ve PTH_027'de de vardı.)
+    r!("RTS_029", Dusuk,  Spec, 1, &[], Some("route_id"), VS, Entity,
+        "route_sort_order geçersiz"),
 
     // ── TRP: Trips ─────────────────────────────────────────────────────────────
     r!("TRP_001", Kritik, Spec, 1,
@@ -943,6 +948,12 @@ pub static RULES: &[RuleMeta] = &[
         "max_age min_age'den küçük"),
     r!("RCT_006", Orta,   Spec, 2, &[], Some("fare_product_id"), VS, Entity,
         "fare_product başına birden fazla varsayılan yolcu kategorisi"),
+    // RCT_007: spec tipi `URL`. Kardeş URL alanlarının hepsinde biçim kuralı var
+    // (stop_url→STP_042, route_url→RTS_005, agency_fare_url→AGN_008); burada yoktu.
+    // ⚠️ Alan adı 2026-08-01'de düzeltildi — parser eskiden spec'te olmayan
+    // `rider_category_eligibility_url` sütununu okuyordu.
+    r!("RCT_007", Dusuk,  Spec, 1, &[], Some("rider_category_id"), VS, Entity,
+        "eligibility_url geçersiz"),
 
     // ── FMD: Fare Media (Fares v2) ────────────────────────────────────────────
     r!("FMD_001", Kritik, Spec, 1, &["FPD_004"],
@@ -1023,6 +1034,17 @@ pub static RULES: &[RuleMeta] = &[
     r!("NET_001", Kritik, Spec, 1, &["FLG_002"],
         Some("network_id"), VS_K, Row,
         "network_id yineleniyor"),
+    // NET_002/003: route_networks.txt'in İKİ alanı da spec'te Required ve Foreign ID.
+    // Dosya 2026-08-01'e kadar parse ediliyor ama HİÇ denetlenmiyordu: var olmayan bir hatta
+    // ya da ağa atıf yapan satır sessizce geçiyordu — hat, ait olduğu ağdan sessizce düşer ve
+    // ücret kuralları o hatta uygulanmaz. Her kural tek alanın hem varlığını hem çözümünü ölçer;
+    // boş değer de "çözülemedi" hâlidir, mesaj hangisi olduğunu söyler.
+    r!("NET_002", Kritik, Spec, 1, &[],
+        Some("route_id"), VS_K, Row,
+        "route_networks.network_id eksik veya bulunamadı"),
+    r!("NET_003", Kritik, Spec, 1, &[],
+        Some("route_id"), VS_K, Row,
+        "route_networks.route_id eksik veya bulunamadı"),
 
     // ── TFR: Timeframes (Fares v2) ────────────────────────────────────────────
     r!("TFR_001", Kritik, Spec, 1, &[], Some("timeframe_group_id"), VS_K, Row,
@@ -1205,6 +1227,12 @@ pub static RULES: &[RuleMeta] = &[
         "feed_info çevirisinde kimlik alanı kullanılamaz"),
     r!("TRN_014", Yuksek, Spec, 1, &[], Some("record_id"), VS, Row,
         "record_sub_id yalnızca stop_times için geçerli"),
+    // TRN_015: spec `field_value` için ÜÇ hüküm koyar; ikisi zaten karşılanıyordu
+    // (feed_info'da yasak → TRN_013, record_id ile birlikte yasak → TRN_009). Üçüncüsü
+    // eksikti: "Required if record_id is empty". İkisi de boşsa satır hangi kaydı
+    // çevirdiğini söylemez — çeviri hiçbir zaman uygulanamaz.
+    r!("TRN_015", Yuksek, Spec, 1, &[], Some("record_id"), VS, Row,
+        "record_id ve field_value ikisi de boş"),
 
     // ── ATR: Attributions ──────────────────────────────────────────────────────
     r!("ATR_001", Yuksek, Quality, 1, &[], Some("attribution_id"), VS, Entity,
@@ -1735,6 +1763,8 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("LVL_007", GtfsSpec),
     ("LVL_008", GtfsSpec),
     ("NET_001", GtfsSpec),
+    ("NET_002", GtfsSpec),
+    ("NET_003", GtfsSpec),
     ("OPR_001", ProjectAnalytics),
     ("OPR_003", ProjectAnalytics),
     ("OPR_004", ProjectAnalytics),
@@ -1790,6 +1820,7 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("RCT_004", ProjectQuality),
     ("RCT_005", ProjectQuality),
     ("RCT_006", GtfsSpec),
+    ("RCT_007", GtfsSpec),
     ("RTS_001", GtfsSpec),
     ("RTS_002", GtfsSpec),
     ("RTS_003", GtfsSpec),
@@ -1815,6 +1846,7 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("RTS_026", ProjectQuality),
     ("RTS_027", ProjectQuality),
     ("RTS_028", MobilitydataParity),
+    ("RTS_029", GtfsSpec),
     ("SAR_001", GtfsSpec),
     ("SAR_002", GtfsSpec),
     ("SHP_001", GtfsSpec),
@@ -1980,6 +2012,7 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("TRN_011", GtfsSpec),
     ("TRN_013", GtfsSpec),
     ("TRN_014", GtfsSpec),
+    ("TRN_015", GtfsSpec),
     ("TRP_001", GtfsSpec),
     ("TRP_002", GtfsSpec),
     ("TRP_003", GtfsSpec),

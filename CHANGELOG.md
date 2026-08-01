@@ -108,6 +108,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   collides with.
 
 ### Added
+- **`route_networks.txt` was parsed but never validated** — the file had no rules at all. Both of
+  its fields are `Required` and both are foreign keys, so a row pointing at a route or a network
+  that does not exist passed silently, and the route dropped out of its network without a word;
+  fare rules then do not apply to it. `NET_002` covers `network_id`, `NET_003` covers `route_id`,
+  each checking presence and resolution together, since an empty value is also a value that does
+  not resolve.
+
+  `network_id` is resolved against `networks.txt` **only**, not against `EntityMap::network_ids` —
+  that set also contains ids contributed by `routes.network_id` and by `route_networks.txt`'s own
+  rows (`FLG_002` wants the full set), so checking against it would be circular and could never
+  fire. The specification is explicit: *Foreign ID referencing `networks.network_id`*.
+
+  The file's primary key is `route_id`, and the reference states the consequence directly — *"A
+  route_id can only be defined in one network_id"* — so `DQ_021` gains `route_networks.txt`
+  alongside the `attributions.txt` entry above.
+- **Four remaining provisions from issue #61**, closing the ledger lines that the issue's body
+  never described. `RCT_007` gives `rider_categories.eligibility_url` the URL format check every
+  sibling URL field already had. `RTS_029` covers `routes.route_sort_order`, typed `Non-negative
+  integer`, whose parse failure was being dropped silently — the third instance of that same
+  swallow found today, after the Flex windows and `stair_count`. `TRN_015` closes the last of the
+  three provisions the specification attaches to `translations.field_value`: two were already
+  covered (`TRN_013` for `feed_info`, `TRN_009` for use alongside `record_id`), and the missing
+  one was *"Required if record_id is empty"* — with both empty, a translation row never says
+  which record it translates and can never be applied.
+
+  `TRN_015` is deliberately narrow, and measuring showed why. In its first form it fired
+  **101,872 times on one corpus feed**, an Israeli dataset still using the legacy Google
+  `trans_id,lang,translation` layout, which has none of the specification's columns. Those rows
+  already draw `TRN_001`, `TRN_002`, `TRN_003`, `TRN_006` and `TRN_011` — saying the same thing a
+  sixth time is noise, not coverage. The rule now stays silent when `table_name` is not a
+  supported table, since `TRN_001` already rejects the row and the question "which record does
+  this translate" no longer means anything. Across the corpus it now matches nothing.
+
+  Scanned across all 239 corpus feeds, none of the five new rules matches a single row.
+
+  **Issue #61 is fully closed:** the coverage ledger drops from 19 open lines to 14.
 - **Three more provisions from issue #61 are now checked**, and one of them needed no new rule.
 
   `attributions.attribution_id` is typed `Unique ID` and is the file's primary key, but nothing

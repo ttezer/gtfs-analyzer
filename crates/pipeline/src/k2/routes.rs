@@ -236,9 +236,20 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
             &row_map, &mut notices, &mut counter, "RTS_018", "continuous_drop_off", &entity_id, line, &file.name,
         );
 
+        // RTS_029: spec tipi `Non-negative integer`. Negatif ya da sayı olmayan değer eskiden
+        // sessizce düşüyordu — hattın sıralaması kayboluyor, kullanıcı hiçbir şey görmüyordu.
         let route_sort_order = match parse_u32(&row_map, "route_sort_order") {
             Ok(v) => v,
-            Err(_) => None,
+            Err(err) => {
+                notices.push(make_k2_notice(
+                    &mut counter, "RTS_029", EntityType::Route, entity_id.clone(), Some(&row_map),
+                    &file.name, Some(line), Some("route_sort_order"),
+                    get_trimmed_field(&row_map, "route_sort_order").map(str::to_string),
+                    Some("negatif olmayan tam sayı".to_string()), err,
+                    "route_sort_order değerini negatif olmayan bir tam sayı olarak girin.",
+                ));
+                None
+            }
         };
 
         let route_desc = get_trimmed_field(&row_map, "route_desc")

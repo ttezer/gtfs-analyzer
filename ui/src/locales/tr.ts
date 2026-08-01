@@ -960,6 +960,11 @@ const tr = {
     'XFL_031': 'Kimlik çakışması: stop_id / locations.geojson id / location_group_id ortak isim alanını paylaşır',
     // NET
     'NET_001': 'network_id yineleniyor',
+    'NET_002': 'route_networks.network_id eksik veya bulunamadı',
+    'NET_003': 'route_networks.route_id eksik veya bulunamadı',
+    'RCT_007': 'eligibility_url geçersiz',
+    'RTS_029': 'route_sort_order geçersiz',
+    'TRN_015': 'record_id ve field_value ikisi de boş',
     // TFR
     'TFR_001': 'timeframe_group_id eksik',
     'TFR_002': 'service_id bulunamadı',

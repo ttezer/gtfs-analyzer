@@ -1,6 +1,6 @@
 use gtfs_core::EntityType;
 
-use super::common::{build_row_map, get_trimmed_field, make_k2_notice, parse_u32, validate_enum, RowMap};
+use super::common::{build_row_map, get_trimmed_field, looks_like_url, make_k2_notice, parse_u32, validate_enum, RowMap};
 use crate::k1_parse::RawFile;
 
 #[derive(Debug, Clone)]
@@ -110,15 +110,28 @@ pub fn validate_rider_categories(
             }
         }
 
+        // RCT_007: spec tipi `URL` — stop_url→STP_042, route_url→RTS_005 ile aynı desen.
+        let eligibility_url = get_trimmed_field(&row_map, "eligibility_url")
+            .filter(|v| !v.is_empty())
+            .map(str::to_string);
+        if let Some(ref url) = eligibility_url {
+            if !looks_like_url(url) {
+                notices.push(make_k2_notice(
+                    &mut counter, "RCT_007", EntityType::Row, Some(id.clone()), Some(&row_map),
+                    &file.name, Some(line), Some("eligibility_url"), Some(url.clone()), None,
+                    "eligibility_url geçerli bir URL değil.".to_string(),
+                    "eligibility_url için geçerli bir http/https URL'si kullanın.",
+                ));
+            }
+        }
+
         records.push(RiderCategoryRecord {
             rider_category_id: id,
             rider_category_name: name,
             is_default_fare_category: is_default,
             min_age,
             max_age,
-            eligibility_url: get_trimmed_field(&row_map, "eligibility_url")
-                .filter(|v| !v.is_empty())
-                .map(str::to_string),
+            eligibility_url,
             row: row_map,
             line,
         });

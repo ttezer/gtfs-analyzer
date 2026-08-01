@@ -123,6 +123,34 @@ pub fn validate_translations(
         let record_sub_id = get_trimmed_field(&row_map, "record_sub_id").filter(|v| !v.is_empty()).map(str::to_string);
         let field_value = get_trimmed_field(&row_map, "field_value").filter(|v| !v.is_empty()).map(str::to_string);
 
+        // TRN_015: spec `field_value` için "Required if record_id is empty" der. İkisi de
+        // boşsa satır hangi kaydı çevirdiğini söylemez — çeviri hiçbir zaman uygulanamaz.
+        //
+        // İKİ DARALTMA:
+        //  • `feed_info` hariç — orada üç alanın üçü de yasaktır (TRN_013).
+        //  • table_name GEÇERSİZ ise hariç — o satırı TRN_001 zaten "desteklenen tablo değil"
+        //    diye reddeder ve "hangi kaydı çeviriyor" sorusu anlamını yitirir. Ölçüldü
+        //    (korpus, mdb-2519): eski Google `trans_id,lang,translation` biçimini kullanan bir
+        //    feed'de bu daraltma olmadan TRN_015 101.872 bulgu üretiyordu — aynı satırlara
+        //    zaten TRN_001/002/003/006/011 ateşliyor, yani ALTINCI kez aynı şeyi söylemek olurdu.
+        let table_known = TRANSLATION_TABLES.contains(&table_name.as_str());
+        if table_known && table_name != "feed_info" && record_id.is_none() && field_value.is_none() {
+            notices.push(make_k2_notice(
+                &mut counter,
+                "TRN_015",
+                EntityType::Row,
+                None,
+                Some(&row_map),
+                &file.name,
+                Some(line),
+                Some("field_value"),
+                Some(String::new()),
+                None,
+                "record_id ve field_value ikisi de boş; çevirinin hangi kayda ait olduğu belirsiz.".to_string(),
+                "record_id veya field_value alanlarından birini doldurun.",
+            ));
+        }
+
         if record_id.is_some() && field_value.is_some() {
             notices.push(make_k2_notice(
                 &mut counter,

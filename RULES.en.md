@@ -2,7 +2,7 @@
 
 🇹🇷 [Türkçe](RULES.md) · 🇬🇧 **English** · 🇯🇵 [日本語](RULES.ja.md)
 
-549 rules, 37 groups. Each rule is identified by a unique ID, severity level, and class.
+554 rules, 37 groups. Each rule is identified by a unique ID, severity level, and class.
 Severity levels: **CRITICAL** (publish blocker) · **HIGH** · **MEDIUM** · **LOW** · **INFO**
 Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Quality** (GTFS Quality) · **Analytics** (GTFS Analytics)
 
@@ -163,6 +163,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | RTS_026 | Duplicate short route name | INFO | Quality |
 | RTS_027 | Duplicate long route name | INFO | Quality |
 | RTS_028 | continuous_pickup/drop_off forbidden on a Flex route | HIGH | Interop |
+| RTS_029 | route_sort_order is invalid | LOW | Spec |
 
 ## TRP — Trips
 
@@ -433,6 +434,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | RCT_004 | min_age or max_age invalid (GTFS extension field — not in the official spec) | MEDIUM | Quality |
 | RCT_005 | max_age less than min_age | MEDIUM | Quality |
 | RCT_006 | Multiple default rider categories per fare_product | MEDIUM | Spec |
+| RCT_007 | eligibility_url is invalid | LOW | Spec |
 
 ## FMD — Fare Media (Fares v2)
 
@@ -499,6 +501,8 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | Rule | Title | Severity | Class |
 |---|---|---|---|
 | NET_001 | Duplicate network_id | CRITICAL | Spec |
+| NET_002 | route_networks.network_id is missing or not found | CRITICAL | Spec |
+| NET_003 | route_networks.route_id is missing or not found | CRITICAL | Spec |
 
 ## TFR — Timeframes (Fares v2)
 
@@ -598,6 +602,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | TRN_011 | field_name is not translatable | HIGH | Spec |
 | TRN_013 | Identity field cannot be used in feed_info translation | HIGH | Spec |
 | TRN_014 | record_sub_id only valid for stop_times | HIGH | Spec |
+| TRN_015 | record_id and field_value are both empty | HIGH | Spec |
 
 ## ATR — Attributions
 

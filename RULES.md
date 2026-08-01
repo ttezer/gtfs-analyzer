@@ -2,7 +2,7 @@
 
 🇹🇷 **Türkçe** · 🇬🇧 [English](RULES.en.md) · 🇯🇵 [日本語](RULES.ja.md)
 
-549 kural, 37 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
+554 kural, 37 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
 Önem seviyeleri: **KRİTİK** (yayın engelleyici) · **YÜKSEK** · **ORTA** · **DÜŞÜK** · **BİLGİ**
 Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · **Quality** (GTFS Kalitesi) · **Analytics** (GTFS Analitiği)
 
@@ -163,6 +163,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | RTS_026 | Yinelenen kısa hat adı | BİLGİ | Quality |
 | RTS_027 | Yinelenen uzun hat adı | BİLGİ | Quality |
 | RTS_028 | Flex pencereli rotada continuous_pickup/drop_off yasak | YÜKSEK | Interop |
+| RTS_029 | route_sort_order geçersiz | DÜŞÜK | Spec |
 
 ## TRP — Trips (Seferler)
 
@@ -433,6 +434,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | RCT_004 | min_age veya max_age geçersiz (GTFS uzantı alanı — resmî spec'te yok) | ORTA | Quality |
 | RCT_005 | max_age min_age'den küçük | ORTA | Quality |
 | RCT_006 | fare_product başına birden fazla varsayılan yolcu kategorisi | ORTA | Spec |
+| RCT_007 | eligibility_url geçersiz | DÜŞÜK | Spec |
 
 ## FMD — Fare Media (Ücret Medyası, Fares v2)
 
@@ -499,6 +501,8 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | Kural | Başlık | Önem | Sınıf |
 |---|---|---|---|
 | NET_001 | network_id yineleniyor | KRİTİK | Spec |
+| NET_002 | route_networks.network_id eksik veya bulunamadı | KRİTİK | Spec |
+| NET_003 | route_networks.route_id eksik veya bulunamadı | KRİTİK | Spec |
 
 ## TFR — Timeframes (Zaman Dilimleri, Fares v2)
 
@@ -598,6 +602,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | TRN_011 | field_name çevrilebilir değil | YÜKSEK | Spec |
 | TRN_013 | feed_info çevirisinde kimlik alanı kullanılamaz | YÜKSEK | Spec |
 | TRN_014 | record_sub_id yalnızca stop_times için geçerli | YÜKSEK | Spec |
+| TRN_015 | record_id ve field_value ikisi de boş | YÜKSEK | Spec |
 
 ## ATR — Attributions (Atıflar)
 

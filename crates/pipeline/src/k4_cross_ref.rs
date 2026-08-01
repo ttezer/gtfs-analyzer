@@ -158,6 +158,7 @@ pub fn check(records: &EntityRecords, entity_map: &EntityMap, today: u32) -> K4R
     { let _t = Timer::start("K4::translations");   check_translations(records, map, &mut notices, &mut ctr); }
     { let _t = Timer::start("K4::gtfs_jp");         check_gtfs_jp(records, &mut notices, &mut ctr); }
     { let _t = Timer::start("K4::attributions");   check_attributions(records, map, &mut notices, &mut ctr); }
+    { let _t = Timer::start("K4::route_networks"); check_route_networks(records, map, &mut notices, &mut ctr); }
     { let _t = Timer::start("K4::xfl");            check_xfl(records, map, &mut notices, &mut ctr, &stm_trips_in_stm, &stm_trip_stm_count); }
     { let _t = Timer::start("K4::stm_shape_dist"); check_stm_shape_dist(records, &mut notices, &mut ctr); }
 
@@ -2931,6 +2932,65 @@ fn check_gtfs_jp(records: &EntityRecords, notices: &mut Vec<Notice>, ctr: &mut u
             "GTFS-JP feed'inde feed_info.txt eksik — profil bunu (feed_lang=ja, yayıncı bilgisi) zorunlu kılar.".to_string(),
             "feed_info.txt ekleyin ve feed_lang=ja ile yayıncı bilgilerini doldurun.",
         ));
+    }
+}
+
+/// NET_002/NET_003 — `route_networks.txt`'in iki Required Foreign ID alanı.
+///
+/// ⚠️ `network_id` **yalnız `networks.txt`'e** karşı çözülür, `EntityMap::network_ids`'e karşı
+/// DEĞİL: o küme `routes.network_id` ve `route_networks.txt`'in KENDİ satırlarını da içerir
+/// (FLG_002 tam kümeye bakar), dolayısıyla ona karşı kontrol dairesel olur ve hiçbir zaman
+/// ateşlemez. Spec bu alanı "Foreign ID referencing networks.network_id" olarak tanımlar.
+fn check_route_networks(
+    records: &EntityRecords,
+    map: &EntityMap,
+    notices: &mut Vec<Notice>,
+    ctr: &mut u32,
+) {
+    if records.route_networks.is_empty() { return; }
+    let declared: std::collections::HashSet<&str> = records.networks.iter()
+        .map(|n| n.network_id.as_str()).filter(|s| !s.is_empty()).collect();
+
+    for rec in &records.route_networks {
+        let eid = Some(rec.route_id.clone()).filter(|s| !s.is_empty());
+
+        // NET_002: network_id — Required + networks.txt'te tanımlı olmalı.
+        if rec.network_id.is_empty() {
+            notices.push(notice(
+                ctr, "NET_002", EntityType::Row, eid.clone(), eid.clone(),
+                "route_networks.txt", Some(rec.line), Some("network_id"),
+                Some(String::new()), None,
+                "route_networks.txt satırında network_id zorunludur.".to_string(),
+                "networks.txt'te tanımlı bir network_id girin.",
+            ));
+        } else if !declared.contains(rec.network_id.as_str()) {
+            notices.push(notice(
+                ctr, "NET_002", EntityType::Row, eid.clone(), eid.clone(),
+                "route_networks.txt", Some(rec.line), Some("network_id"),
+                Some(rec.network_id.clone()), None,
+                format!("'{}' ağ kodu networks.txt'te tanımlı değil.", rec.network_id),
+                "networks.txt'te tanımlı bir network_id kullanın.",
+            ));
+        }
+
+        // NET_003: route_id — Required + routes.txt'te tanımlı olmalı.
+        if rec.route_id.is_empty() {
+            notices.push(notice(
+                ctr, "NET_003", EntityType::Row, None, None,
+                "route_networks.txt", Some(rec.line), Some("route_id"),
+                Some(String::new()), None,
+                "route_networks.txt satırında route_id zorunludur.".to_string(),
+                "routes.txt'te tanımlı bir route_id girin.",
+            ));
+        } else if !map.routes.contains_key(rec.route_id.as_str()) {
+            notices.push(notice(
+                ctr, "NET_003", EntityType::Row, eid.clone(), eid.clone(),
+                "route_networks.txt", Some(rec.line), Some("route_id"),
+                Some(rec.route_id.clone()), None,
+                format!("'{}' hattı routes.txt'te tanımlı değil.", rec.route_id),
+                "routes.txt'te tanımlı bir route_id kullanın.",
+            ));
+        }
     }
 }
 
