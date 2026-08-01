@@ -48,39 +48,48 @@ class FieldTableParser(HTMLParser):
     alan DEĞİLDİR ve derinlik 2'de kaldıkları için atlanır.
     """
 
+    CAPTURE_COLS = (0, 1, 2)  # Field Name · Type · Presence (Description alınmaz)
+
     def __init__(self) -> None:
         super().__init__(convert_charrefs=True)
         self.table_depth = 0
         self.cell_index = -1        # satırdaki hücre sırası (dış tabloda)
-        self.capturing = False      # şu an ilk hücrenin metnini topluyor muyuz
+        self.capturing = False      # şu an bir hücrenin metnini topluyor muyuz
         self.buf: list[str] = []
         self.header: list[str] = [] # dış tablonun <th> metinleri
         self.in_header_cell = False
-        self.rows: list[str] = []   # dış satırların ilk hücre metinleri
+        self.row: dict[int, str] = {}
+        self.rows: list[dict[int, str]] = []  # dış satırların {sütun: metin}
 
     def handle_starttag(self, tag, attrs):
         if tag == "table":
             self.table_depth += 1
         elif self.table_depth == 1 and tag == "tr":
+            if self.row:
+                self.rows.append(self.row)
+            self.row = {}
             self.cell_index = -1
         elif self.table_depth == 1 and tag in ("td", "th"):
             self.cell_index += 1
             if tag == "th":
                 self.in_header_cell = True
                 self.buf = []
-            elif self.cell_index == 0:
+            elif self.cell_index in self.CAPTURE_COLS:
                 self.capturing = True
                 self.buf = []
 
     def handle_endtag(self, tag):
         if tag == "table":
             self.table_depth -= 1
+            if self.table_depth == 0 and self.row:
+                self.rows.append(self.row)
+                self.row = {}
         elif tag == "th" and self.in_header_cell:
             self.in_header_cell = False
-            self.header.append("".join(self.buf).strip())
+            self.header.append(" ".join("".join(self.buf).split()))
         elif tag == "td" and self.capturing:
             self.capturing = False
-            self.rows.append("".join(self.buf).strip())
+            self.row[self.cell_index] = " ".join("".join(self.buf).split())
 
     def handle_data(self, data):
         if self.capturing or self.in_header_cell:
@@ -122,29 +131,54 @@ def outer_tables(section: str) -> list[str]:
     return out
 
 
-def fields_in(section: str) -> list[str]:
-    """Bölümdeki "Field Name" başlıklı tabloların ilk sütunu."""
-    found: list[str] = []
+def fields_in(section: str) -> list[dict[str, str]]:
+    """Bölümdeki "Field Name" başlıklı tabloların Field/Type/Presence sütunları."""
+    found: list[dict[str, str]] = []
+    seen: set[str] = set()
     for table in outer_tables(section):
         p = FieldTableParser()
         p.feed(table)
         if not p.header or p.header[0].lower() not in ("field name", "field"):
             continue
-        for name in p.rows:
-            name = name.strip("`").strip()
-            if re.fullmatch(r"[A-Za-z_][A-Za-z0-9_.]*", name):
-                found.append(name)
-    # sıra korunarak tekilleştir
-    return list(dict.fromkeys(found))
+        for row in p.rows:
+            name = row.get(0, "").strip("`").strip()
+            if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_.]*", name) or name in seen:
+                continue
+            seen.add(name)
+            found.append({
+                "name": name,
+                "type": row.get(1, "").strip(),
+                "presence": row.get(2, "").strip(),
+            })
+    return found
+
+
+def primary_key_of(section: str) -> list[str]:
+    """Bölüm başındaki "Primary key (…)" satırı → alan listesi.
+
+    `(*)` = tüm satır, `(none)` = anahtar yok. İkisi de olduğu gibi korunur;
+    yorumu tüketiciye bırakılır (DQ_021 bu ayrımı zaten kullanıyor).
+    """
+    text = html.unescape(re.sub(r"<[^>]+>", " ", section))
+    # Spec'in KENDİSİ tutarsız: çoğu bölümde "Primary key", fare_leg_join_rules.txt'te
+    # "Primary Key". Büyük/küçük harfe duyarlı arama o dosyayı anahtarsız gösteriyordu.
+    m = re.search(r"Primary key \(([^)]*)\)", text, re.I)
+    if not m:
+        return []
+    raw = m.group(1).strip()
+    if raw in ("*", "none"):
+        return [raw]
+    return [p.strip().strip("`") for p in raw.split(",") if p.strip()]
 
 
 def main() -> int:
     doc = fetch(sys.argv)
-    table: dict[str, list[str]] = {}
+    table: dict[str, dict] = {}
     for name, start, stop in section_bounds(doc):
-        fields = fields_in(doc[start:stop])
+        section = doc[start:stop]
+        fields = fields_in(section)
         if fields:
-            table[name] = fields
+            table[name] = {"primary_key": primary_key_of(section), "fields": fields}
     if len(table) < 25:
         print(f"HATA: yalnız {len(table)} dosya bulundu; spec düzeni değişmiş olabilir.",
               file=sys.stderr)
@@ -164,8 +198,13 @@ def main() -> int:
         + "\n",
         encoding="utf-8",
     )
-    total = sum(len(v) for v in table.values())
+    total = sum(len(v["fields"]) for v in table.values())
+    no_type = sum(1 for v in table.values() for f in v["fields"] if not f["type"])
+    no_pres = sum(1 for v in table.values() for f in v["fields"] if not f["presence"])
     print(f"yazıldı: {OUT.name} ({len(table)} dosya, {total} alan)")
+    if no_type or no_pres:
+        print(f"  ⚠️ type boş: {no_type} · presence boş: {no_pres} (spec düzeni değişmiş olabilir)",
+              file=sys.stderr)
     return 0
 
 

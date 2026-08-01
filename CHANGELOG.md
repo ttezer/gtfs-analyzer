@@ -12,6 +12,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > unaffected. Re-baseline Golden snapshots that contain it.
 
 ### Added
+- **The gap between what the specification requires and what we check is now measured and
+  frozen in a ledger.** The two gates added before this one ask whether our findings are
+  *right*; neither asks whether they are *enough*. `spec_fields.json` now carries each field's
+  Type and Presence, plus the file's primary key, and those two columns are the specification's
+  own vocabulary for its normative provisions: `Required` and `Conditionally Required` state
+  presence, `Enum` states a domain, `Foreign ID` states referential integrity, `Unique ID`
+  states uniqueness, and the format and numeric types state a shape. `Optional` and
+  `Recommended` state nothing and are counted as no provision — the distinction STM_040 turned
+  on. Of the 218 fields, 192 carry at least one provision, and 32 of those have no Spec notice
+  anchored to them anywhere in the emit-proof corpus. `spec_coverage_ledger.txt` records them,
+  so a field added by a future revision of the specification, or a gap opened by removing a
+  rule, shows up as a failing test instead of going unnoticed.
+
+  The ledger is deliberately labelled as a lower bound rather than a list of missing rules. A
+  rule that checks several fields registers only the one its fixture breaks — CAL_002 validates
+  all seven day columns but the fixture corrupts `monday` — and a rule that reports no field at
+  all, like RTS_003 for "one of route_short_name or route_long_name", anchors nowhere. Entries
+  are therefore marked `[denetim-yok]` when the field name appears in no check stage at all,
+  which is the subset that is certainly uncovered: `booking_rules.txt` `booking_url`,
+  `info_url` and `phone_number`, and `fare_leg_join_rules.txt` `from_network_id` and
+  `to_network_id`. `k1_parse.rs` is excluded from that search because its `known_columns` lists
+  every official column by name, which would mark every field as covered.
 - **A `Spec` rule must now anchor to a field the specification actually defines.** RCT_004
   validated `min_age` and `max_age`, which appear nowhere in the Schedule Reference, and its
   Spec class fed the publish gate — a misclassification no test could see. The new gate reads

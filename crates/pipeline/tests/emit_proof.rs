@@ -1730,8 +1730,9 @@ fn spec_rules_anchor_to_fields_that_exist_in_the_spec() {
             // Bileşik alan etiketleri ("stop_lat|stop_lon") tek tek denetlenir; alan,
             // etiketteki dosyalardan EN AZ BİRİNDE tanımlı olmalı.
             for one in field.split(['|', ',']).map(str::trim).filter(|s| !s.is_empty()) {
-                let ok = known.iter().any(|list| {
-                    list.as_array().unwrap().iter().any(|v| v.as_str() == Some(one))
+                let ok = known.iter().any(|entry| {
+                    entry["fields"].as_array().unwrap().iter()
+                        .any(|f| f["name"].as_str() == Some(one))
                 });
                 if !ok {
                     failures.insert(format!(
@@ -1751,4 +1752,222 @@ fn spec_rules_anchor_to_fields_that_exist_in_the_spec() {
          `python3 spec-audit/extract_fields.py`)",
         failures.iter().map(|s| format!("  {s}")).collect::<Vec<_>>().join("\n"),
     );
+}
+
+// ── WP-3: hüküm kapsamı (A = eksik hüküm · B = kısmi kapsam) ──────────────────
+// WP-1 ve WP-2 KESİNLİK kapılarıdır: "yanlış yere hata atmıyoruz". Bu üçüncüsü
+// KAPSAM sorar: "spec'in normatif hükmü var, bizim onu ölçen kuralımız var mı?"
+//
+// Ölçüm 2026-08-01: spec'in 218 alanının 161'i çapalı, 57'si HİÇ dokunulmamış
+// (`fare_leg_join_rules.txt` dosyanın tamamı → issue #59).
+//
+// KAPI DEĞİL, DEFTER: kapsam boşluğu bugün "hata" değil (eksik kural kimseyi yanlış
+// REDDETMEZ); ama SESSİZCE BÜYÜMEMELİ. `spec_coverage_ledger.txt` boşlukları sabitler;
+// spec yeni alan ekleyince ya da bir kural kaldırılınca defter değişir ve test düşer.
+
+/// Bir alanın taşıdığı normatif hüküm sayısı (0 ise spec o alan için bir şey dayatmıyor).
+/// `presence` + `type` sütunlarından türetilir; ikisi de spec'in KENDİ sözlüğüdür.
+fn provision_atoms(ftype: &str, presence: &str) -> Vec<&'static str> {
+    let mut atoms = Vec::new();
+    match presence {
+        // "Optional"/"Recommended" bir şey DAYATMAZ → hüküm değil (STM_040 dersi).
+        "Required" => atoms.push("presence:required"),
+        "Conditionally Required" => atoms.push("presence:conditional"),
+        "Conditionally Forbidden" => atoms.push("presence:conditional-forbidden"),
+        _ => {}
+    }
+    if ftype.starts_with("Foreign ID") {
+        atoms.push("foreign-key");
+    }
+    if ftype == "Unique ID" {
+        atoms.push("unique");
+    }
+    match ftype {
+        "Enum" => atoms.push("enum-domain"),
+        "Time" | "Local time" | "Date" | "Color" | "URL" | "Email" | "Phone number"
+        | "Language code" | "Timezone" | "Currency code" | "Currency amount"
+        | "Latitude" | "Longitude" => atoms.push("format"),
+        "Non-negative integer" | "Positive integer" | "Non-negative float"
+        | "Positive float" | "Non-null integer" | "Non-zero integer" => atoms.push("range"),
+        _ => {}
+    }
+    atoms
+}
+
+/// Alan bazında: hangi hükümler var, hangi `GtfsSpec` kuralları o alana çapalı.
+fn coverage_rows() -> Vec<(String, String, Vec<&'static str>, BTreeSet<String>)> {
+    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../spec-audit/spec_fields.json");
+    let doc: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
+    let table = doc["files"].as_object().unwrap();
+
+    // (dosya, alan) → o alana çapalanan GtfsSpec kuralları
+    let mut anchored: std::collections::HashMap<(String, String), BTreeSet<String>> =
+        std::collections::HashMap::new();
+    for f in fixtures() {
+        let cfg = f.config.clone().unwrap_or_default();
+        let vr = match validate_bytes(
+            &make_zip(&with_opts(&f.overrides, &f.removes, &f.raw)), &cfg, TODAY,
+        ) {
+            ValidateResult::Ok(vr) => vr,
+            ValidateResult::Fatal(_) => continue,
+        };
+        for n in &vr.notices {
+            if gtfs_rules::registry::authority_source(&n.rule_id)
+                != gtfs_core::AuthoritySource::GtfsSpec { continue; }
+            let (Some(file), Some(field)) = (n.file.as_deref(), n.field.as_deref()) else {
+                continue;
+            };
+            for p in file.split('/').map(str::trim).filter(|p| table.contains_key(*p)) {
+                for one in field.split(['|', ',']).map(str::trim).filter(|s| !s.is_empty()) {
+                    anchored.entry((p.to_string(), one.to_string()))
+                        .or_default().insert(n.rule_id.clone());
+                }
+            }
+        }
+    }
+
+    let mut rows = Vec::new();
+    for (file, entry) in table {
+        for f in entry["fields"].as_array().unwrap() {
+            let name = f["name"].as_str().unwrap().to_string();
+            let atoms = provision_atoms(
+                f["type"].as_str().unwrap_or(""), f["presence"].as_str().unwrap_or(""),
+            );
+            let rules = anchored.get(&(file.clone(), name.clone())).cloned().unwrap_or_default();
+            rows.push((file.clone(), name, atoms, rules));
+        }
+    }
+    rows.sort();
+    rows
+}
+
+/// DENETİM aşamalarında (k2–k7) `"alan_adı"` literali geçiyor mu?
+///
+/// `k1_parse.rs` BİLİNÇLİ DIŞLANIR: `known_columns` orada spec'in HER resmî sütununu literal
+/// olarak sayar (ARC_017 "bilinmeyen sütun" için). Onu da sayarsak ölçüt her alanı "kodda var"
+/// gösterir ve hiçbir şey ayırt etmez — ölçtüm: dışlamadan yalnız 2, dışlayınca 5 kesin boşluk
+/// çıkıyor (`booking_url`/`info_url`/`phone_number` YALNIZ sütun kaydında duruyor).
+///
+/// Geçmiyorsa hiçbir denetim o alana bakmıyor → boşluk KESİN. Geçiyorsa yalnız "olabilir":
+/// literal başka bir dosya için konmuş olabilir (`from_stop_id` transfers/pathways'te var,
+/// fare_leg_join_rules için değil). Ölçüt YÜKSEK KESİNLİK / düşük duyarlılıktır.
+fn identifiers_in_check_stages() -> BTreeSet<String> {
+    fn walk(dir: &std::path::Path, out: &mut Vec<std::path::PathBuf>) {
+        for e in std::fs::read_dir(dir).unwrap().flatten() {
+            let p = e.path();
+            if p.is_dir() { walk(&p, out); }
+            else if p.extension().is_some_and(|x| x == "rs")
+                && p.file_name().is_some_and(|n| n != "k1_parse.rs") { out.push(p); }
+        }
+    }
+    let mut files = Vec::new();
+    walk(&std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src"), &mut files);
+
+    let mut ids = BTreeSet::new();
+    for f in files {
+        let text = std::fs::read_to_string(&f).unwrap();
+        for lit in text.split('"').skip(1).step_by(2) {
+            if !lit.is_empty()
+                && lit.len() <= 40
+                && lit.bytes().all(|b| b.is_ascii_lowercase() || b == b'_' || b.is_ascii_digit())
+            {
+                ids.insert(lit.to_string());
+            }
+        }
+    }
+    ids
+}
+
+/// A kategorisi — normatif hükmü olan ama emit_proof korpusunda hiçbir `GtfsSpec` notice'ının
+/// çapalanmadığı alanlar. Defterle eşleşmeli: boşluk kapanınca defter küçülür, spec büyüyünce
+/// fark görünür.
+///
+/// ⚠️ **ALT SINIRDIR — "kural yok" DEMEK DEĞİLDİR.** Bir kural alanı ölçüyor ama fixture'ı
+/// başka bir alanı bozuyorsa (CAL_002 yedi günü de denetler, fixture yalnız `monday`'i bozar)
+/// ya da notice'ı `field=None` ile üretiyorsa (RTS_003, "ikisinden biri zorunlu") satır burada
+/// çıkar. Bu yüzden defterde KANIT sütunu var: `[kaynakta-yok]` = alan adı üretim kaynağında
+/// hiç geçmiyor → boşluk KESİN. Kanıtsız satır ADJUDİKASYON ister.
+/// **Satıra yeni kural yazmadan önce mevcut kuralı ARA** (tekrar eden hata sınıfı).
+#[test]
+fn spec_coverage_gaps_match_ledger() {
+    let ids = identifiers_in_check_stages();
+    let gaps: Vec<String> = coverage_rows().into_iter()
+        .filter(|(_, _, atoms, rules)| !atoms.is_empty() && rules.is_empty())
+        .map(|(file, field, atoms, _)| {
+            let proof = if ids.contains(&field) { "" } else { "  [denetim-yok]" };
+            format!("{file}:{field}  {}{proof}", atoms.join(","))
+        })
+        .collect();
+
+    let ledger_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests").join("spec_coverage_ledger.txt");
+    let ledger_raw = std::fs::read_to_string(&ledger_path).unwrap_or_default();
+    let ledger: Vec<String> = ledger_raw.lines().map(str::trim)
+        .filter(|l| !l.is_empty() && !l.starts_with('#')).map(str::to_string).collect();
+
+    if gaps != ledger {
+        if std::env::var("UPDATE_LEDGER").is_ok() {
+            let header = format!(
+                "# WP-3/A — spec'te normatif hükmü olan ama emit_proof korpusunda hiçbir\n\
+                 # GtfsSpec notice'ının ÇAPALANMADIĞI alanlar. Biçim: dosya:alan  hükümler [kanıt].\n\
+                 # {} alan.\n\
+                 #\n\
+                 # Bu bir BORÇ defteridir, kapı değil: eksik kural kimseyi yanlış REDDETMEZ,\n\
+                 # ama boşluk sessizce BÜYÜMEMELİ. Kural eklenince satır düşer.\n\
+                 #\n\
+                 # ⚠️ ALT SINIR — \"hiçbir kural yok\" DEMEK DEĞİL. Çok alanlı kurallar (CAL_002\n\
+                 # yedi günü de denetler, fixture yalnız monday'i bozar) ve field=None üretenler\n\
+                 # (RTS_003 \"ikisinden biri zorunlu\") burada GÖRÜNÜR ama boşluk DEĞİLDİR.\n\
+                 #   [denetim-yok] = alan adı k2–k7 denetim aşamalarında hiç geçmiyor → boşluk KESİN\n\
+                 #                   (k1_parse.rs dışlanır: known_columns her sütunu zaten sayar).\n\
+                 #   kanıtsız satır  = ADJUDİKASYON gerekir; ÖNCE MEVCUT KURALI ARA.\n\
+                 #\n\
+                 # Yeniden üretmek: UPDATE_LEDGER=1 cargo test -p gtfs-pipeline --test emit_proof \\\n\
+                 #   spec_coverage_gaps_match_ledger\n",
+                gaps.len());
+            std::fs::write(&ledger_path, format!("{header}{}\n", gaps.join("\n"))).unwrap();
+            return;
+        }
+        let added: Vec<&String> = gaps.iter().filter(|g| !ledger.contains(g)).collect();
+        let removed: Vec<&String> = ledger.iter().filter(|l| !gaps.contains(l)).collect();
+        panic!(
+            "spec kapsam defteri güncel değil ({} hesaplanan, {} defter).\n\
+             YENİ boşluk (spec alan mı ekledi, kural mı kalktı?): {:#?}\n\
+             Defterde fazla (boşluk KAPANDI → defter küçülmeli): {:#?}\n\
+             Düzeltmek için: UPDATE_LEDGER=1 cargo test -p gtfs-pipeline --test emit_proof \
+             spec_coverage_gaps_match_ledger",
+            gaps.len(), ledger.len(), added, removed,
+        );
+    }
+}
+
+/// B kategorisi — RAPOR (kapı DEĞİL): hüküm sayısı çapalı kural sayısını aşan alanlar.
+///
+/// ⚠️ Bu bir SİNYAL, karar değil. Bir kural birden çok hükmü aynı anda ölçebilir
+/// (ör. "monday geçersiz" hem varlığı hem enum kümesini kapsayabilir), o yüzden
+/// "2 hüküm, 1 kural" satırlarının çoğu meşrudur. Kural başlıklarından hangi hükmün
+/// ölçüldüğünü türetmeyi denedim: başlıkların yalnız %48'i sınıflanabiliyor
+/// (487'nin 252'si hiçbir anahtar sözcüğe uymuyor) — bu güvenilirlikte bir
+/// sınıflandırıcıyı repoya koymak, kaçınmaya çalıştığımız "bayatlayan elle liste"nin
+/// başka biçimi olurdu. Liste bu yüzden İNSAN adjudikasyonu için kuyruktur.
+#[test]
+#[ignore = "rapor: cargo test -p gtfs-pipeline --test emit_proof spec_partial -- --ignored --nocapture"]
+fn spec_partial_coverage_report() {
+    let rows = coverage_rows();
+    let total: usize = rows.iter().map(|(_, _, a, _)| a.len()).sum();
+    let (mut none, mut partial, mut full) = (0usize, 0usize, 0usize);
+    println!("\n### B — hüküm sayısı > çapalı kural sayısı (SİNYAL, karar değil)");
+    for (file, field, atoms, rules) in &rows {
+        if atoms.is_empty() { continue; }
+        if rules.is_empty() { none += 1; }
+        else if rules.len() < atoms.len() {
+            partial += 1;
+            println!("  {file}:{field} — [{}] · {:?}", atoms.join(","), rules);
+        } else { full += 1; }
+    }
+    println!("\n### ÖZET: {} hüküm taşıyan alan · hiç kural yok: {none} · kısmi: {partial} · \
+              hüküm kadar kural: {full} · toplam hüküm atomu: {total}",
+             none + partial + full);
 }

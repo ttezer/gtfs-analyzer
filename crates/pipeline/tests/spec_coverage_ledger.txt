@@ -1,0 +1,48 @@
+# WP-3/A — spec'te normatif hükmü olan ama emit_proof korpusunda hiçbir
+# GtfsSpec notice'ının ÇAPALANMADIĞI alanlar. Biçim: dosya:alan  hükümler [kanıt].
+# 32 alan.
+#
+# Bu bir BORÇ defteridir, kapı değil: eksik kural kimseyi yanlış REDDETMEZ,
+# ama boşluk sessizce BÜYÜMEMELİ. Kural eklenince satır düşer.
+#
+# ⚠️ ALT SINIR — "hiçbir kural yok" DEMEK DEĞİL. Çok alanlı kurallar (CAL_002
+# yedi günü de denetler, fixture yalnız monday'i bozar) ve field=None üretenler
+# (RTS_003 "ikisinden biri zorunlu") burada GÖRÜNÜR ama boşluk DEĞİLDİR.
+#   [denetim-yok] = alan adı k2–k7 denetim aşamalarında hiç geçmiyor → boşluk KESİN
+#                   (k1_parse.rs dışlanır: known_columns her sütunu zaten sayar).
+#   kanıtsız satır  = ADJUDİKASYON gerekir; ÖNCE MEVCUT KURALI ARA.
+#
+# Yeniden üretmek: UPDATE_LEDGER=1 cargo test -p gtfs-pipeline --test emit_proof \
+#   spec_coverage_gaps_match_ledger
+agency.txt:agency_phone  format
+agency.txt:cemv_support  enum-domain
+attributions.txt:attribution_id  unique
+attributions.txt:attribution_phone  format
+attributions.txt:route_id  foreign-key
+attributions.txt:trip_id  foreign-key
+booking_rules.txt:booking_url  format  [denetim-yok]
+booking_rules.txt:info_url  format  [denetim-yok]
+booking_rules.txt:phone_number  format  [denetim-yok]
+calendar.txt:friday  presence:required,enum-domain
+calendar.txt:saturday  presence:required,enum-domain
+calendar.txt:sunday  presence:required,enum-domain
+calendar.txt:thursday  presence:required,enum-domain
+calendar.txt:tuesday  presence:required,enum-domain
+calendar.txt:wednesday  presence:required,enum-domain
+fare_leg_join_rules.txt:from_network_id  presence:required,foreign-key  [denetim-yok]
+fare_leg_join_rules.txt:from_stop_id  presence:conditional,foreign-key
+fare_leg_join_rules.txt:to_network_id  presence:required,foreign-key  [denetim-yok]
+fare_leg_join_rules.txt:to_stop_id  presence:conditional,foreign-key
+pathways.txt:stair_count  range
+rider_categories.txt:eligibility_url  format
+route_networks.txt:route_id  presence:required,foreign-key
+routes.txt:cemv_support  enum-domain
+routes.txt:network_id  presence:conditional-forbidden
+routes.txt:route_long_name  presence:conditional
+routes.txt:route_short_name  presence:conditional
+routes.txt:route_sort_order  range
+routes.txt:route_text_color  format
+stop_times.txt:start_pickup_drop_off_window  presence:conditional,format
+stops.txt:stop_url  format
+translations.txt:field_value  presence:conditional
+translations.txt:translation  presence:required
