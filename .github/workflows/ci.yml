@@ -33,6 +33,34 @@ jobs:
       - name: cargo test
         run: cargo test --workspace
 
+      # Spec kapsam raporu (WP-3/B). KAPI DEĞİL: hüküm sayısı ile kural sayısını
+      # doğrudan karşılaştırmak semantik olarak güvenilir değil, o yüzden testin
+      # kendisi `#[ignore]`. Ama ignored kaldığı için unutulmasın diye her koşuda
+      # üretilip artifact olarak saklanır — sürüm öncesi/manuel denetimde okunur.
+      # `|| true`: rapor bir kapı değildir, düşmesi CI'ı kırmamalı.
+      - name: Spec kapsam raporu üret
+        if: always()
+        run: |
+          mkdir -p spec-audit-report
+          {
+            echo "# Spec kapsam raporu — $(git rev-parse --short HEAD) — $(date -u +%FT%TZ)"
+            echo
+            cargo test -p gtfs-pipeline --test emit_proof spec_partial_coverage_report \
+              -- --ignored --nocapture 2>&1 | grep -v '^\[timing\]' || true
+            echo
+            echo "## A defteri (spec_coverage_ledger.txt)"
+            cat crates/pipeline/tests/spec_coverage_ledger.txt
+          } > spec-audit-report/spec-coverage.txt
+          cat spec-audit-report/spec-coverage.txt
+
+      - name: Spec kapsam raporu artifact
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: spec-audit-report
+          path: spec-audit-report/
+          if-no-files-found: warn
+
   ts-test:
     name: TypeScript Unit Tests + Coverage
     runs-on: ubuntu-latest

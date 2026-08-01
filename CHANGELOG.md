@@ -37,6 +37,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `info_url` and `phone_number`, and `fare_leg_join_rules.txt` `from_network_id` and
   `to_network_id`. `k1_parse.rs` is excluded from that search because its `known_columns` lists
   every official column by name, which would mark every field as covered.
+
+  Three limits are stated wherever the numbers appear, because the numbers are easy to
+  overstate. The measurement is a lower bound, so the honest sentence is that these fields carry
+  a provision no Spec notice anchors to in the corpus, not that this many rules are missing. The
+  provisions are derived from the Presence, Type and primary-key columns alone, so prose
+  conditions — "only when B=1", "one of the two is required", "A and B must be given together",
+  cross-file conditions, consistency within a trip, GeoJSON nesting — are outside what is
+  counted, and the total is not the specification's total. And `[yalnız: …]` proves only that a
+  rule emitted on the field: `route_text_color` carries RTS_007 for hex format and RTS_008 for
+  contrast, and the contrast rule is legitimate Quality work that does not satisfy the Color
+  type's requirement. CI now writes the partial-coverage report to a `spec-audit-report`
+  artifact on every run, since a test marked `#[ignore]` is otherwise easy to forget; it stays a
+  report, not a gate.
 - **A `Spec` rule must now anchor to a field the specification actually defines.** RCT_004
   validated `min_age` and `max_age`, which appear nowhere in the Schedule Reference, and its
   Spec class fed the publish gate — a misclassification no test could see. The new gate reads

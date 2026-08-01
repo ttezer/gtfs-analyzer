@@ -1758,15 +1758,29 @@ fn spec_rules_anchor_to_fields_that_exist_in_the_spec() {
 // WP-1 ve WP-2 KESİNLİK kapılarıdır: "yanlış yere hata atmıyoruz". Bu üçüncüsü
 // KAPSAM sorar: "spec'in normatif hükmü var, bizim onu ölçen kuralımız var mı?"
 //
-// Ölçüm 2026-08-01: spec'in 218 alanının 161'i çapalı, 57'si HİÇ dokunulmamış
-// (`fare_leg_join_rules.txt` dosyanın tamamı → issue #59).
-//
 // KAPI DEĞİL, DEFTER: kapsam boşluğu bugün "hata" değil (eksik kural kimseyi yanlış
 // REDDETMEZ); ama SESSİZCE BÜYÜMEMELİ. `spec_coverage_ledger.txt` boşlukları sabitler;
 // spec yeni alan ekleyince ya da bir kural kaldırılınca defter değişir ve test düşer.
+//
+// ══ ÖLÇÜMÜN ÜÇ SINIRI — SAYILARI AKTARIRKEN BUNLARI DA AKTAR ══════════════════
+// 1. ALT SINIRDIR. Soru "kural var mı" değil, "emit_proof korpusunda bu file+field'a
+//    Spec notice'ı çapalandı mı". Çok alanlı kural (CAL_002 yedi günü denetler, fixture
+//    yalnız `monday`'i bozar) ve `field=None` üretenler (RTS_003) boşluk GİBİ görünür.
+//    Doğru ifade: "32 alanın normatif hükmü var ama korpusta Spec çapası görünmüyor" —
+//    "32 eksik kuralımız var" DEĞİL.
+// 2. HÜKÜM ÜRETİMİ KABA. Yalnız alan tablosunun Presence/Type/PK sütunlarından türetilir.
+//    KAPSAM DIŞI: düzyazı koşullar ("yalnız B=1 iken kullanılabilir", "ikisinden biri
+//    zorunlu", "A ve B birlikte verilmeli", "şu dosya yoksa kullanılabilir"), dosyalar
+//    arası koşullar, sefer içi tutarlılık, GeoJSON iç yapı şartları. Yani "192 hüküm
+//    taşıyan alan" GTFS Spec'in TOPLAM normatif hüküm sayısı DEĞİLDİR.
+// 3. `[yalnız: …]` HÜKÜM KARŞILANDI DEMEZ. Yalnız "bu kural bu alanda notice üretti"
+//    der. Örnek: `route_text_color` → RTS_007 (hex format) + RTS_008 (kontrast). RTS_008
+//    meşru bir Quality kuralıdır ama spec'in Color-tipi hükmünü KARŞILAMAZ. Satırın
+//    sorduğu şey kapsam değil SINIFLANDIRMA'dır.
 
 /// Bir alanın taşıdığı normatif hüküm sayısı (0 ise spec o alan için bir şey dayatmıyor).
 /// `presence` + `type` sütunlarından türetilir; ikisi de spec'in KENDİ sözlüğüdür.
+/// ⚠️ Yukarıdaki 2. sınır: düzyazı/çapraz-dosya hükümleri buradan çıkmaz.
 fn provision_atoms(ftype: &str, presence: &str) -> Vec<&'static str> {
     let mut atoms = Vec::new();
     match presence {
@@ -1941,10 +1955,22 @@ fn spec_coverage_gaps_match_ledger() {
                  # ⚠️ ALT SINIR — \"hiçbir kural yok\" DEMEK DEĞİL. Çok alanlı kurallar (CAL_002\n\
                  # yedi günü de denetler, fixture yalnız monday'i bozar) ve field=None üretenler\n\
                  # (RTS_003 \"ikisinden biri zorunlu\") burada GÖRÜNÜR ama boşluk DEĞİLDİR.\n\
+                 # DOĞRU İFADE: \"bu alanların normatif hükmü var ama emit_proof korpusunda\n\
+                 # bunlara bağlı bir Spec notice çapası görünmüyor\" — \"N eksik kuralımız var\" DEĞİL.\n\
+                 #\n\
+                 # ⚠️ HÜKÜM ÜRETİMİ KABA: yalnız alan tablosunun Presence/Type/PK sütunlarından\n\
+                 # türetilir. Düzyazı koşullar (\"yalnız B=1 iken\", \"ikisinden biri zorunlu\",\n\
+                 # \"A ve B birlikte\"), dosyalar arası koşullar, sefer içi tutarlılık ve GeoJSON\n\
+                 # iç yapı şartları KAPSAM DIŞIDIR. Bu defter spec'in TÜM normatif hükümlerini\n\
+                 # ölçmez, yalnız alan tablosundan türetilebilen bölümünü ölçer.\n\
                  #   [denetim-yok] = alan adı k2–k7 denetim aşamalarında hiç geçmiyor → boşluk KESİN\n\
                  #                   (k1_parse.rs dışlanır: known_columns her sütunu zaten sayar).\n\
                  #   [yalnız: …]   = alanı ölçen kural VAR, ama Spec sınıfı DEĞİL. Boşluk değil;\n\
                  #                   karar: hüküm Spec meselesi mi, mevcut kural yeterli mi?\n\
+                 #                   ⚠️ Bu işaret \"hüküm KARŞILANDI\" DEMEZ — yalnız \"bu kural bu\n\
+                 #                   alanda notice üretti\" der. Ör. route_text_color → RTS_007\n\
+                 #                   (hex format) + RTS_008 (kontrast); RTS_008 meşru Quality'dir\n\
+                 #                   ama spec'in Color-tipi hükmünü karşılamaz.\n\
                  #   kanıtsız satır  = ADJUDİKASYON gerekir; ÖNCE MEVCUT KURALI ARA.\n\
                  #\n\
                  # Yeniden üretmek: UPDATE_LEDGER=1 cargo test -p gtfs-pipeline --test emit_proof \\\n\
@@ -1990,8 +2016,13 @@ fn spec_partial_coverage_report() {
             println!("  {file}:{field} — [{}] · {:?}", atoms.join(","), rules);
         } else { full += 1; }
     }
-    println!("\n### ÖZET: {} hüküm taşıyan alan · hiç kural yok: {none} · kısmi: {partial} · \
-              hüküm kadar kural: {full} · toplam hüküm atomu: {total}",
-             none + partial + full);
+    println!("\n### ÖZET ({} hüküm taşıyan alan · {total} hüküm atomu):", none + partial + full);
+    println!("  Spec çapası YOK ....... {none}   (defterde; \"eksik kural\" DEĞİL — bkz. başlık)");
+    println!("  hüküm > çapalı kural .. {partial}   (sinyal, karar değil)");
+    println!("  hüküm <= çapalı kural . {full}");
+    println!("\n⚠️ Bu sayılar SPEC'İN TOPLAM NORMATİF HÜKMÜ DEĞİLDİR: yalnız alan tablosunun");
+    println!("   Presence/Type/PK sütunlarından türetilen hükümlerdir. Kapsam DIŞI kalanlar:");
+    println!("   düzyazı koşullar (\"yalnız B=1 iken\", \"ikisinden biri zorunlu\", \"A ve B birlikte\"),");
+    println!("   dosyalar arası koşullar, sefer içi tutarlılık, GeoJSON iç yapı şartları.");
 }
 
