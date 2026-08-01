@@ -53,6 +53,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   collides with.
 
 ### Fixed
+- **`rule_priority` is a `fare_leg_rules.txt` field, and K1 accepted it in
+  `fare_transfer_rules.txt` too.** The spec defines it only for fare leg rules, where FLG_007
+  validates it; the transfer rules table does not list it. Because K1 held it among the known
+  columns of both files, a producer that put the column in the wrong file got no ARC_017 and no
+  hint that nothing would ever read it. Found by the new field-anchor gate while cross-checking
+  the generated spec table against the parser's own column lists.
 - **DQ_021 now checks composite primary keys.** It looked only for repeated `stop_id`,
   `route_id` and `trip_id`, so the Fares v2 and Flex files — where most keys are composite —
   could repeat a key freely. Duplicates are now detected on the six-field key of

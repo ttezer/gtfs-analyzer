@@ -1520,3 +1520,46 @@ fn loc008_009_010_silent_on_a_valid_feature() {
         ValidateResult::Fatal(e) => panic!("beklenmeyen fatal: {:?} {}", e.code, e.message),
     }
 }
+
+// ── rule_priority yalnız fare_leg_rules.txt'in alanıdır ───────────────────────
+// Spec (27 Nisan 2026): `rule_priority` fare_leg_rules.txt'te tanımlıdır; fare_transfer_rules.txt
+// alan tablosunda YOKTUR. K1 ikisini de "bilinen sütun" sayıyordu, yani yanlış dosyaya konmuş
+// bir rule_priority sütunu ARC_017 üretmiyordu (WP-2 spec çapa turunda yakalandı).
+
+#[test]
+fn rule_priority_in_fare_transfer_rules_is_an_unknown_column() {
+    static FTR: &[u8] =
+        b"from_leg_group_id,to_leg_group_id,fare_transfer_type,rule_priority\nLG1,LG2,0,1\n";
+    let mut files = base_files();
+    files.push(("fare_transfer_rules.txt", FTR));
+
+    match run(&files) {
+        ValidateResult::Ok(vr) => {
+            let hit = vr.notices.iter().any(|n| {
+                n.rule_id == "ARC_017"
+                    && n.file.as_deref() == Some("fare_transfer_rules.txt")
+                    && n.field.as_deref() == Some("rule_priority")
+            });
+            assert!(hit, "fare_transfer_rules.rule_priority ARC_017 üretmeli, emit: {:?}",
+                vr.notices.iter().map(|n| n.rule_id.as_str()).collect::<Vec<_>>());
+        }
+        other => panic!("ValidateResult::Ok beklendi, gelen: {other:?}"),
+    }
+}
+
+#[test]
+fn rule_priority_in_fare_leg_rules_stays_a_known_column() {
+    static FLR: &[u8] = b"leg_group_id,network_id,rule_priority\nLG1,N1,1\n";
+    let mut files = base_files();
+    files.push(("fare_leg_rules.txt", FLR));
+
+    match run(&files) {
+        ValidateResult::Ok(vr) => {
+            let hit = vr.notices.iter().any(|n| {
+                n.rule_id == "ARC_017" && n.field.as_deref() == Some("rule_priority")
+            });
+            assert!(!hit, "fare_leg_rules.rule_priority resmî alandır, ARC_017 çıkmamalı");
+        }
+        other => panic!("ValidateResult::Ok beklendi, gelen: {other:?}"),
+    }
+}

@@ -653,9 +653,12 @@ fn known_columns(filename: &str) -> &'static [&'static str] {
             "leg_group_id","network_id","from_area_id","to_area_id",
             "from_timeframe_group_id","to_timeframe_group_id","fare_product_id","rule_priority",
         ],
+        // `rule_priority` BURADA YOK: 27 Nisan 2026 Schedule Reference'ta bu alan yalnız
+        // `fare_leg_rules.txt`'te tanımlıdır (FLG_007 orayı ölçer). fare_transfer_rules'un
+        // resmî alan listesi aşağıdaki yedidir.
         "fare_transfer_rules.txt" => &[
             "from_leg_group_id","to_leg_group_id","transfer_count","duration_limit",
-            "duration_limit_type","fare_transfer_type","fare_product_id","rule_priority",
+            "duration_limit_type","fare_transfer_type","fare_product_id",
         ],
         "timeframes.txt" => &["timeframe_group_id","start_time","end_time","service_id"],
         "areas.txt" => &["area_id","area_name"],
