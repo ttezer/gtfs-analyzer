@@ -233,7 +233,7 @@
 | STM_037 | Flexの乗降ウィンドウ内に時刻が設定されている | 高 | 仕様 |
 | STM_038 | start_pickup_drop_off_window > end_pickup_drop_off_window | 高 | 相互運用 |
 | STM_039 | Flexコンテキストで乗降ウィンドウが不足 | 致命的 | 仕様 |
-| STM_040 | Flex stop_timesで予約ルールIDが不足 | 致命的 | 仕様 |
+| STM_040 | Flex stop_timesで予約ルールIDが不足（仕様上は任意） | 中 | 品質 |
 | STM_041 | stop_idとlocation_id/group_idの同時使用不可 | 高 | 仕様 |
 | STM_042 | stop_headsignにGoogleトランジット非対応の文字 | 低 | 相互運用 |
 | STM_043 | 便の停留所数が極端に多い（>200） | 情報 | 分析 |

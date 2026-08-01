@@ -1920,7 +1920,7 @@ const en: LocaleShape = {
     'STM_037': 'arrival_time/departure_time prohibited in Flex window',
     'STM_038': 'start_pickup_drop_off_window > end_pickup_drop_off_window',
     'STM_039': 'Pickup/drop-off window missing in Flex context',
-    'STM_040': 'pickup/drop_off_booking_rule_id missing in Flex stop_times',
+    'STM_040': 'pickup/drop_off_booking_rule_id missing in Flex stop_times (Optional in the spec)',
     'STM_041': 'stop_id and location_id/group_id cannot be used together',
     'STM_042': 'stop_headsign contains characters unsupported by Google Transit',
     'STM_043': 'Trip has extreme stop count (>200)',

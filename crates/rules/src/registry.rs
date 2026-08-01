@@ -554,8 +554,14 @@ pub static RULES: &[RuleMeta] = &[
         "start_pickup_drop_off_window > end_pickup_drop_off_window"),
     r!("STM_039", Kritik, Spec, 1, &[], Some("trip_id"), VS_K, Entity,
         "Flex bağlamında pickup/drop_off penceresi eksik"),
-    r!("STM_040", Kritik, Spec, 1, &[], Some("trip_id"), VS_K, Entity,
-        "Flex stop_times'ta pickup/drop_off_booking_rule_id eksik"),
+    // pickup_booking_rule_id / drop_off_booking_rule_id RESMÎ SPEC'TE **Optional**'dır —
+    // 27 Nisan 2026 Schedule Reference birebir: "Optional … Recommended when pickup_type=2".
+    // Tavsiye ≠ norm: eksikliğini Kritik·Spec saymak, geçerli bir Flex feed'ini yayın
+    // kapısından (R1 = Spec ∧ Kritik) düşürüyordu. Ayrıca tetikleyici koşul ("herhangi bir
+    // pencere var + iki booking_rule_id de boş") spec tavsiyesinin kendisi değil, projenin
+    // kendi sıkılaştırması → otorite ProjectQuality. Sınıf Spec→Quality (2026-08-01, WP-1).
+    r!("STM_040", Orta,   Quality, 1, &[], Some("trip_id"), VS, Entity,
+        "Flex stop_times'ta pickup/drop_off_booking_rule_id eksik (spec'te Optional)"),
     r!("STM_041", Yuksek, Spec, 1, &[], Some("trip_id"), VS, Entity,
         "stop_id ile location_id/group_id aynı anda kullanılamaz"),
     r!("STM_042", Dusuk, Interop, 1, &[], Some("trip_id"), VI, Row,
@@ -1824,7 +1830,7 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("STM_037", GtfsSpec),
     ("STM_038", MobilitydataParity),
     ("STM_039", GtfsSpec),
-    ("STM_040", GtfsSpec),
+    ("STM_040", ProjectQuality),
     ("STM_041", GtfsSpec),
     ("STM_042", GoogleTransitInterop),
     ("STM_043", ProjectAnalytics),

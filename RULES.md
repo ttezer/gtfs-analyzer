@@ -233,7 +233,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | STM_037 | Flex penceresinde arrival_time/departure_time yasak | YÜKSEK | Spec |
 | STM_038 | start_pickup_drop_off_window > end_pickup_drop_off_window | YÜKSEK | Interop |
 | STM_039 | Flex bağlamında pickup/drop_off penceresi eksik | KRİTİK | Spec |
-| STM_040 | Flex stop_times'ta pickup/drop_off_booking_rule_id eksik | KRİTİK | Spec |
+| STM_040 | Flex stop_times'ta pickup/drop_off_booking_rule_id eksik (spec'te Optional) | ORTA | Quality |
 | STM_041 | stop_id ile location_id/group_id aynı anda kullanılamaz | YÜKSEK | Spec |
 | STM_042 | stop_headsign Google Transit tarafından desteklenmeyen karakter içeriyor | DÜŞÜK | Interop |
 | STM_043 | Sefer aşırı fazla durağa sahip (>200) — olası veri birleştirme hatası | BİLGİ | Analytics |

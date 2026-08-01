@@ -70,6 +70,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   is still fatal, since nothing then says where service is provided.
 
 ### Changed
+- **STM_040 is no longer a specification error.** The rule reports a Flex row that defines a
+  pickup or drop-off window without either booking rule ID. The 27 April 2026 Schedule
+  Reference marks both fields **Optional**, and only adds "Recommended when `pickup_type=2`".
+  A recommendation is not a norm, so a valid Flex feed was losing the publish gate, which is
+  exactly `Spec ∧ CRITICAL`. The check is unchanged and moves to Quality at medium severity,
+  with its authority set to `ProjectQuality`: the trigger it uses — any window present and both
+  IDs blank — is the project's own tightening, not the spec's conditional wording. Narrowing it
+  to `pickup_type=2` / `drop_off_type=2` is recorded on the card as separate work.
 - **Validation output is now byte-identical across runs.** The July 27 work fixed the part
   that changed *content* — which finding survived deduplication — but the serialized JSON still
   differed run to run, because `Notice.details`, the thirteen `NameIndex` lookups and

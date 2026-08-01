@@ -748,7 +748,7 @@ const tr = {
     'STM_037': 'Flex penceresinde arrival_time/departure_time yasak',
     'STM_038': 'start_pickup_drop_off_window > end_pickup_drop_off_window',
     'STM_039': 'Flex bağlamında pickup/drop_off penceresi eksik',
-    'STM_040': "Flex stop_times'ta pickup/drop_off_booking_rule_id eksik",
+    'STM_040': "Flex stop_times'ta pickup/drop_off_booking_rule_id eksik (spec'te Optional)",
     'STM_041': 'stop_id ile location_id/group_id aynı anda kullanılamaz',
     'STM_042': 'stop_headsign Google Transit tarafından desteklenmeyen karakter içeriyor',
     'STM_043': 'Sefer aşırı fazla durağa sahip (>200)',
