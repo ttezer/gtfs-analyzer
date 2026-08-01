@@ -3651,18 +3651,23 @@ fn check_xfl(
         let has_route_network_id = records.routes.iter()
             .any(|r| r.network_id.as_deref().map_or(false, |n| !n.is_empty()));
         if has_route_network_id {
-            let (file, other) = if records.has_route_networks_file {
-                ("route_networks.txt", "route_networks.txt")
+            let other = if records.has_route_networks_file {
+                "route_networks.txt"
             } else {
-                ("networks.txt", "networks.txt")
+                "networks.txt"
             };
+            // ÇAPA `routes.txt`'tir, ayrı ağ dosyası DEĞİL (2026-08-01, WP-3): yasaklanan şey
+            // `routes.network_id` sütunudur; networks.txt/route_networks.txt'in VARLIĞI
+            // meşrudur. Notice'ı o dosyaya bağlamak kullanıcıyı düzeltilecek yerden başka
+            // yere yolluyordu ve spec kapsam defterinde `routes.txt:network_id` hükmü
+            // "ölçülmüyor" görünüyordu. Çakışan dosyanın adı mesajda zaten geçiyor.
             notices.push(notice(
                 ctr,
                 "XFL_019",
                 EntityType::Feed,
                 None,
                 None,
-                file,
+                "routes.txt",
                 None,
                 Some("network_id"),
                 None,

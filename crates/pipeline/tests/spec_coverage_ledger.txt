@@ -45,8 +45,8 @@ fare_leg_join_rules.txt:to_network_id  presence:required,foreign-key  [denetim-y
 fare_leg_join_rules.txt:to_stop_id  presence:conditional,foreign-key
 pathways.txt:stair_count  range  [yalnız: PTH_008]
 rider_categories.txt:eligibility_url  format
+route_networks.txt:network_id  presence:required,foreign-key
 route_networks.txt:route_id  presence:required,foreign-key
-routes.txt:network_id  presence:conditional-forbidden
 routes.txt:route_long_name  presence:conditional  [yalnız: RTS_011,RTS_019,RTS_022,RTS_027]
 routes.txt:route_short_name  presence:conditional  [yalnız: RTS_010,RTS_021,RTS_026]
 routes.txt:route_sort_order  range

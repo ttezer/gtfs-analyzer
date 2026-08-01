@@ -139,6 +139,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   is still fatal, since nothing then says where service is provided.
 
 ### Changed
+- **XFL_019 pointed at the wrong file.** The rule reports that `routes.network_id` is used while
+  `networks.txt` or `route_networks.txt` also exists, which the spec forbids. It anchored the
+  finding to the network file — the one that is perfectly legal — rather than to the column that
+  must go, sending anyone who follows the report to the wrong place. The message already named
+  the conflicting file, so nothing is lost by anchoring where the fix belongs. The coverage
+  ledger had recorded the consequence without anyone noticing: `routes.txt:network_id` looked
+  unchecked, and `route_networks.txt:network_id` looked checked. Correcting the anchor swapped
+  both, which is how the second one turned out to be a genuine gap — nothing validates
+  `route_networks.txt` at all, although its rows are parsed.
 - **AGN_012, RTS_024 and TRN_008 were classed as quality problems, not specification errors.**
   Adjudicating every ledger entry whose field is measured only by a non-Spec rule turned up
   three of the same kind as RTS_007. `AGN_012` and `RTS_024` check that `cemv_support` holds one
