@@ -611,6 +611,13 @@ pub static RULES: &[RuleMeta] = &[
     // stop_times.shape_dist_traveled için stop_sequence boyunca ARTAN değer şart koşar.
     r!("STM_056", Kritik, Spec, 1, &[], Some("trip_id"), VS_K, Row,
         "shape_dist_traveled artmıyor"),
+    // STM_058: Flex pencere alanları da `Time` tipindedir; biçim hatası ESKİDEN sessizce
+    // yutuluyordu (`.ok().flatten()`) → değer kayboluyor, STM_038 karşılaştıracak bir şey
+    // bulamıyor, satır "pencereli" sayıldığı için varlık kuralları da susuyordu. arrival_time
+    // aynı yardımcıyla parse edilip STM_003 üretirken bu iki alan üretmiyordu.
+    // TEK kural, İKİ alan: olgu aynı (Time parse edilemedi), mesaj hangi alan olduğunu söyler.
+    r!("STM_058", Kritik, Spec, 1, &["STM_038"], Some("trip_id"), VS_K, Entity,
+        "Flex pickup/drop-off penceresi saati geçersiz"),
 
     // ── PDW: Pickup/Drop-off Window ──────────────────────────────────────────
     r!("PDW_006", Orta, Analytics, 2, &[], Some("trip_id"), VA, Entity,
@@ -1876,6 +1883,7 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("STM_054", GtfsSpec),
     ("STM_055", GtfsSpec),
     ("STM_056", GtfsSpec),
+    ("STM_058", GtfsSpec),
     ("STP_001", GtfsSpec),
     ("STP_002", GtfsSpec),
     ("STP_003", GtfsSpec),

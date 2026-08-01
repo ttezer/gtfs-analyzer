@@ -422,6 +422,8 @@ fn fixtures() -> Vec<Fixture> {
         fx("STM_037", vec![("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence,start_pickup_drop_off_window,end_pickup_drop_off_window\nT1,08:00:00,08:00:00,S1,1,09:00:00,10:00:00\n")]),
         fx("STM_038", vec![("stop_times.txt", "trip_id,stop_id,stop_sequence,start_pickup_drop_off_window,end_pickup_drop_off_window\nT1,S1,1,10:00:00,09:00:00\n")]),
         fx("STM_039", vec![("stop_times.txt", "trip_id,stop_sequence,location_id,start_pickup_drop_off_window\nT1,1,LOC1,09:00:00\n")]),
+        // STM_058: pencere alanı Time olarak parse edilemiyor (eskiden sessizce yutuluyordu).
+        fx("STM_058", vec![("stop_times.txt", "trip_id,stop_id,stop_sequence,start_pickup_drop_off_window,end_pickup_drop_off_window\nT1,S1,1,9am,10:00:00\n")]),
         fx("STM_040", vec![("stop_times.txt", "trip_id,stop_sequence,location_id,start_pickup_drop_off_window,end_pickup_drop_off_window\nT1,1,LOC1,09:00:00,10:00:00\n")]),
         fx("STM_041", vec![("stop_times.txt", "trip_id,stop_id,stop_sequence,location_id,start_pickup_drop_off_window,end_pickup_drop_off_window,pickup_booking_rule_id\nT1,S1,1,LOC1,09:00:00,10:00:00,BR1\n")]),
         fx("STM_051", vec![("stop_times.txt", "trip_id,stop_sequence,location_id,start_pickup_drop_off_window,end_pickup_drop_off_window,pickup_booking_rule_id,pickup_type\nT1,1,LOC1,09:00:00,10:00:00,BR1,0\n")]),
@@ -1989,7 +1991,8 @@ fn spec_coverage_gaps_match_ledger() {
                  # ile ATR_011/ATR_012'ye ayrıldı → 2 satır düştü). Kalanların HER BİRİ incelendi:\n\
                  #   • booking_rules booking_url/info_url .. issue #60\n\
                  #   • fare_leg_join_rules (4 alan) ........ issue #59\n\
-                 #   • diğer 9 hüküm ....................... issue #61\n\
+                 #   • diğer 8 hüküm ....................... issue #61 (9'du; Flex pencere\n\
+                 #     BİÇİMİ STM_058 ile kapandı — hata artık yutulmuyor)\n\
                  #   • calendar 6 gün (enum) ............... ARTEFAKT: CAL_002 yedisini de\n\
                  #     denetler, fixture yalnız `monday`'i bozar. presence kısmı #61'de.\n\
                  #   • routes route_short_name/route_long_name  ARTEFAKT: RTS_003 (Kritik·Spec)\n\

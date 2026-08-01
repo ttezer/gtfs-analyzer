@@ -2,7 +2,7 @@
 
 🇹🇷 **Türkçe** · 🇬🇧 [English](RULES.en.md) · 🇯🇵 [日本語](RULES.ja.md)
 
-546 kural, 37 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
+547 kural, 37 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
 Önem seviyeleri: **KRİTİK** (yayın engelleyici) · **YÜKSEK** · **ORTA** · **DÜŞÜK** · **BİLGİ**
 Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · **Quality** (GTFS Kalitesi) · **Analytics** (GTFS Analitiği)
 
@@ -250,6 +250,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | STM_054 | Flex penceresi tanımlıyken continuous_pickup 1/boş dışında yasak | YÜKSEK | Spec |
 | STM_055 | Flex penceresi tanımlıyken continuous_drop_off 1/boş dışında yasak | YÜKSEK | Spec |
 | STM_056 | shape_dist_traveled artmıyor | KRİTİK | Spec |
+| STM_058 | Flex pickup/drop-off penceresi saati geçersiz | KRİTİK | Spec |
 
 ## PDW — Pickup/Drop-off Window
 

@@ -108,6 +108,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   collides with.
 
 ### Fixed
+- **A malformed Flex booking window produced no finding at all** (`STM_058`, issue #61).
+  `start_pickup_drop_off_window` and `end_pickup_drop_off_window` are typed `Time`, and they
+  were parsed with the same helper as `arrival_time` — but where `arrival_time` turns a parse
+  failure into `STM_003`, these two discarded it with `.ok().flatten()`. The consequence was
+  worse than a missing check: the value was gone, so `STM_038` had nothing left to compare,
+  and the row still counted as having a window for the presence rules. A feed carrying
+  `start_pickup_drop_off_window = 9am` therefore validated silently while nobody could book
+  the trip.
+
+  One rule covers both fields rather than two mirroring `STM_003`/`STM_004`. The fact is
+  single — a `Time` field that does not parse — and the notice names the field, so nothing is
+  mislabelled; the identity ledger records the adjudication. It blocks `STM_038`, since
+  "start is after end" is derived and misleading when the format is broken in the first place.
+
+  Verified against the eight real Flex feeds now available: **zero firings, and not one of the
+  eight changed** — including the Swiss national feed, where all 104 window-bearing rows parse
+  cleanly. The rule is a guard, not a new source of noise. This closes the
+  `stop_times.txt:start_pickup_drop_off_window` line of the coverage ledger (23 open lines
+  become 22) and the first of the nine provisions in issue #61.
 - **Every stop in a demand-responsive feed was reported as unused.** STP_020 built its set of
   served stops from `stop_times.stop_id` alone. A GTFS-Flex feed reaches its stops through
   `location_group_id` instead, leaving `stop_id` empty on those rows, so the rule saw a

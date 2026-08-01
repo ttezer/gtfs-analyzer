@@ -1426,8 +1426,26 @@ pub fn validate_stop_times(file: &RawFile, zip_bytes: Option<&[u8]>) -> (StopTim
         let pbr_raw          = get_col(row, cols.pickup_booking_rule_id);
         let dobr_raw         = get_col(row, cols.drop_off_booking_rule_id);
 
-        let start_window = parse_gtfs_time_raw(start_window_raw, "start_pickup_drop_off_window").ok().flatten();
-        let end_window   = parse_gtfs_time_raw(end_window_raw,   "end_pickup_drop_off_window").ok().flatten();
+        // STM_058: Flex pencere alanları `Time` tipindedir — biçim hatası arrival_time gibi
+        // RAPOR EDİLİR. Eskiden `.ok().flatten()` ile yutuluyordu: değer kayboluyor, STM_038
+        // karşılaştıracak bir şey bulamıyor, satır "pencereli" sayıldığı için varlık kuralları
+        // da susuyordu → bozuk bir rezervasyon penceresi feed'de HİÇ bulgu üretmiyordu.
+        let mut parse_window = |raw: &str, field: &'static str| -> Option<(u32, u32, u32)> {
+            match parse_gtfs_time_raw(raw, field) {
+                Ok(v) => v,
+                Err(err) => {
+                    st.notices.push(make_k2_notice(
+                        &mut st.counter, "STM_058", EntityType::Trip, eid(),
+                        None, &file.name, Some(line), Some(field),
+                        Some(raw.to_string()), Some("HH:MM:SS".to_string()), err,
+                        "Flex pencere alanlarını HH:MM:SS formatında girin.",
+                    ));
+                    None
+                }
+            }
+        };
+        let start_window = parse_window(start_window_raw, "start_pickup_drop_off_window");
+        let end_window   = parse_window(end_window_raw,   "end_pickup_drop_off_window");
 
         let has_start_window = !start_window_raw.is_empty();
         let has_end_window   = !end_window_raw.is_empty();
@@ -2441,6 +2459,33 @@ mod tests {
         );
         let (_, notices) = validate_stop_times(&file, None);
         assert!(notices.iter().any(|n| n.rule_id == "STM_038"), "STM_038 bekleniyor: {:?}", notices);
+    }
+
+    #[test]
+    fn stm_058_malformed_window_is_reported_not_swallowed() {
+        // Eskiden `.ok().flatten()` hatayı yutuyordu: hiç bulgu çıkmıyor, değer kayboluyor
+        // ve STM_038 karşılaştıracak bir şey bulamadığı için o da susuyordu.
+        let file = make_file(
+            vec!["trip_id", "stop_id", "stop_sequence", "start_pickup_drop_off_window", "end_pickup_drop_off_window"],
+            vec![vec!["T1", "", "1", "9am", "10:00:00"]],
+        );
+        let (index, notices) = validate_stop_times(&file, None);
+        assert!(notices.iter().any(|n| n.rule_id == "STM_058"
+                && n.field.as_deref() == Some("start_pickup_drop_off_window")),
+            "STM_058 bekleniyor ve alanı start_pickup_drop_off_window olmalı: {:?}", notices);
+        assert!(index.flex_map.values().all(|f| f.start_pickup_drop_off_window.is_none()),
+            "parse edilemeyen değer kayda GİRMEMELİ");
+    }
+
+    #[test]
+    fn stm_058_silent_for_valid_windows() {
+        let file = make_file(
+            vec!["trip_id", "stop_id", "stop_sequence", "start_pickup_drop_off_window", "end_pickup_drop_off_window"],
+            vec![vec!["T1", "", "1", "09:00:00", "25:30:00"]],  // 24:00 üstü GTFS'te geçerli
+        );
+        let (_, notices) = validate_stop_times(&file, None);
+        assert!(!notices.iter().any(|n| n.rule_id == "STM_058"),
+            "geçerli pencere STM_058 üretmemeli: {:?}", notices);
     }
 
     #[test]

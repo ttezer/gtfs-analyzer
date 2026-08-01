@@ -735,6 +735,7 @@ const ja: LocaleShape = {
     'STM_052': "トリップ'{entity_id}'：Flexの乗降ウィンドウが定義されている場合、drop_off_type 0（通常）は禁止です。",
     'STM_054': "トリップ'{entity_id}'：同じstop_timeにFlexの乗降ウィンドウが定義されている場合、continuous_pickup {observed_value} は禁止です。",
     'STM_056': "便'{entity_id}'：shape_dist_traveledが増加していません（値{observed_value}が直前の停留所の値以下）。",
+    'STM_058': "便'{entity_id}'：Flexの受降車ウィンドウ時刻'{observed_value}'が有効な時刻ではありません。",
     'STM_055': "トリップ'{entity_id}'：同じstop_timeにFlexの乗降ウィンドウが定義されている場合、continuous_drop_off {observed_value} は禁止です。",
     // PDW
     'PDW_006': "便'{entity_id}'：同じ便とゾーンの乗降ウィンドウが重複しています。",
@@ -1531,6 +1532,7 @@ const ja: LocaleShape = {
     'STM_052': 'Flexウィンドウのあるstop_timesではdrop_off_typeを1（降車なし）または2（電話予約）にしてください。',
     'STM_054': 'Flexウィンドウのあるstop_timesではcontinuous_pickupを1にするか空にしてください。',
     'STM_056': 'stop_times.txtのshape_dist_traveledをstop_sequenceに沿って増加するよう修正してください。',
+    'STM_058': 'Flexのウィンドウ項目はHH:MM:SS形式で入力してください。',
     'STM_055': 'Flexウィンドウのあるstop_timesではcontinuous_drop_offを1にするか空にしてください。',
     // STP
     'STP_001': '各停留所に一意のstop_idを割り当ててください。',
@@ -1892,6 +1894,7 @@ const ja: LocaleShape = {
     'STM_053': '多数の連続停留所が同じ時刻',
     'STM_054': 'Flexウィンドウでcontinuous_pickup禁止',
     'STM_056': 'shape_dist_traveledが増加していない',
+    'STM_058': 'Flexの受降車ウィンドウ時刻が無効',
     'STM_055': 'Flexウィンドウでcontinuous_drop_off禁止',
     // PDW
     'PDW_006': '同一便・ゾーンで乗降ウィンドウが重複',
