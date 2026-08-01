@@ -776,6 +776,9 @@ const tr = {
     'LOC_005': "FeatureCollection tamamen boş",
     'LOC_006': "Polygon yaklaşık kapsamı 500km²'yi aşıyor (bounding-box tahmini)",
     'LOC_007': "FeatureCollection içinde yinelenen feature 'id'",
+    'LOC_010': "Geometry 'coordinates' eksik veya dizi değil — bölge geometrisi çözümlenemez",
+    'LOC_009': "Feature 'properties' nesnesi eksik",
+    'LOC_008': "Feature 'type' alanı eksik veya \"Feature\" değil",
     // CAL
     'CAL_001': 'service_id yineleniyor',
     'CAL_002': 'Takvim gün alanı geçersiz değer',

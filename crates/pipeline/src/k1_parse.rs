@@ -1463,6 +1463,31 @@ fn validate_locations_geojson(bytes: &[u8], fname: &str, notices: &mut Vec<Notic
     for (i, feature) in features.iter().enumerate() {
         let feat_num = (i + 1) as u64;
 
+        // LOC_008: her Feature'ın "type" alanı Required ve değeri "Feature" olmalı (spec tablosu).
+        match feature.get("type").and_then(|v| v.as_str()) {
+            Some("Feature") => {}
+            other => {
+                notices.push(make_notice(
+                    counter, "LOC_008", EntityType::File, Some(fname.to_string()),
+                    Some(fname), Some(feat_num), Some("type"),
+                    other.map(str::to_string),
+                    format!("'{fname}' özellik {feat_num} için 'type' eksik veya \"Feature\" değil."),
+                    "Her feature nesnesine \"type\": \"Feature\" ekleyin.",
+                ));
+            }
+        }
+
+        // LOC_009: "properties" nesnesi Required (spec tablosu). Boş nesne GEÇERLİDİR —
+        // stop_name/stop_desc opsiyoneldir; eksik ya da nesne-olmayan değer ihlaldir.
+        if !feature.get("properties").is_some_and(|v| v.is_object()) {
+            notices.push(make_notice(
+                counter, "LOC_009", EntityType::File, Some(fname.to_string()),
+                Some(fname), Some(feat_num), Some("properties"), None,
+                format!("'{fname}' özellik {feat_num} için 'properties' nesnesi eksik."),
+                "Her feature'a bir 'properties' nesnesi ekleyin (boş nesne de geçerlidir).",
+            ));
+        }
+
         // LOC_003: Feature'da 'id' property eksik
         if feature.get("id").is_none() {
             notices.push(make_notice(
@@ -1490,15 +1515,21 @@ fn validate_locations_geojson(bytes: &[u8], fname: &str, notices: &mut Vec<Notic
         let geom_type = geometry.get("type").and_then(|t| t.as_str());
         match geom_type {
             Some("Polygon") => {
-                if let Some(rings) = geometry.get("coordinates").and_then(|c| c.as_array()) {
-                    check_polygon_rings(counter, fname, feat_num, rings, notices);
+                // LOC_010: "coordinates" Required. Eksik/dizi-olmayan değerde eskiden
+                // `if let Some(..)` sessizce atlıyordu → geometri hiç doğrulanmadan geçiyordu.
+                match geometry.get("coordinates").and_then(|c| c.as_array()) {
+                    Some(rings) => check_polygon_rings(counter, fname, feat_num, rings, notices),
+                    None => missing_coordinates(counter, fname, feat_num, notices),
                 }
             }
             Some("MultiPolygon") => {
-                if let Some(polygons) = geometry.get("coordinates").and_then(|c| c.as_array()) {
-                    for poly in polygons {
-                        if let Some(rings) = poly.as_array() {
-                            check_polygon_rings(counter, fname, feat_num, rings, notices);
+                match geometry.get("coordinates").and_then(|c| c.as_array()) {
+                    None => missing_coordinates(counter, fname, feat_num, notices),
+                    Some(polygons) => {
+                        for poly in polygons {
+                            if let Some(rings) = poly.as_array() {
+                                check_polygon_rings(counter, fname, feat_num, rings, notices);
+                            }
                         }
                     }
                 }
@@ -1524,6 +1555,17 @@ fn validate_locations_geojson(bytes: &[u8], fname: &str, notices: &mut Vec<Notic
 }
 
 /// Polygon ring'leri için LOC_004 (kapalı değil) ve LOC_006 (alan > 500km²) kontrolü.
+/// LOC_010: geometry.coordinates eksik veya dizi değil. Spec bu alanı Required işaretler;
+/// eksikliğinde bölge geometrisi hiç çözümlenemez, dolayısıyla KRİTİK.
+fn missing_coordinates(counter: &mut u32, fname: &str, feat_num: u64, notices: &mut Vec<Notice>) {
+    notices.push(make_notice(
+        counter, "LOC_010", EntityType::File, Some(fname.to_string()),
+        Some(fname), Some(feat_num), Some("coordinates"), None,
+        format!("'{fname}' özellik {feat_num} için geometry 'coordinates' eksik veya dizi değil."),
+        "Geometriye geçerli bir 'coordinates' dizisi ekleyin.",
+    ));
+}
+
 fn check_polygon_rings(
     counter: &mut u32,
     fname: &str,

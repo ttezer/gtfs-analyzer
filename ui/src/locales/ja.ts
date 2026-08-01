@@ -747,6 +747,9 @@ const ja: LocaleShape = {
     'LOC_005': "locations.geojsonのFeatureCollectionが空です — フィーチャーがありません。",
     'LOC_006': "locations.geojsonのフィーチャー{observed_value}のポリゴンの範囲が非常に大きいです（約{observed_value}km²）。",
     'LOC_007': "locations.geojsonに重複したフィーチャー'id'値があります：'{observed_value}'。",
+    'LOC_010': "'{entity_id}'内のfeatureのgeometryに'coordinates'配列がありません。",
+    'LOC_009': "'{entity_id}'内のfeatureに'properties'オブジェクトがありません。",
+    'LOC_008': "'{entity_id}'内のfeatureに'type'がないか、\"Feature\"ではありません。",
     // CAL
     'CAL_001': "service_idが重複しています：'{entity_id}'。",
     'CAL_002': "サービス'{entity_id}'：日フィールド'{field}'に無効な値'{observed_value}'があります。",
@@ -1352,6 +1355,9 @@ const ja: LocaleShape = {
     'LOC_005': 'locations.geojsonに少なくとも1つのPolygonまたはMultiPolygonフィーチャーを追加してください。',
     'LOC_006': 'ポリゴンの範囲を現実的なサービスエリアに縮小してください。大きなポリゴンは座標エラーの可能性があります。',
     'LOC_007': 'locations.geojsonの各フィーチャーに一意の"id"を割り当ててください。',
+    'LOC_010': "geometryに有効な'coordinates'配列を追加してください。",
+    'LOC_009': "すべてのfeatureに'properties'オブジェクトを追加してください（空のオブジェクトでも有効です）。",
+    'LOC_008': "すべてのfeatureオブジェクトに\"type\": \"Feature\"を追加してください。",
     // NET / ARS / SAR
     'NET_001': '各ネットワークレコードに一意のnetwork_idを割り当ててください。',
     'ARS_001': '各エリアレコードに一意のarea_idを割り当ててください。',
@@ -1896,6 +1902,9 @@ const ja: LocaleShape = {
     'LOC_005': 'FeatureCollectionが空',
     'LOC_006': 'Polygonの範囲が500km²超',
     "LOC_007": "FeatureCollection内でフィーチャー'id'が重複",
+    'LOC_008': "Featureの'type'が欠落または\"Feature\"でない",
+    'LOC_009': "Featureの'properties'オブジェクトが欠落",
+    'LOC_010': "Geometryの'coordinates'が欠落または配列でない",
     // CAL
     'CAL_001': 'service_idが重複',
     'CAL_002': '曜日フィールドの値が無効',

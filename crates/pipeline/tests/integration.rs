@@ -1513,3 +1513,47 @@ fn xfl031_detects_geojson_id_clashing_with_stop_id() {
         ValidateResult::Fatal(e) => panic!("beklenmeyen fatal: {:?} {}", e.code, e.message),
     }
 }
+
+// ── LOC_008/009/010: locations.geojson zorunlu alanları ───────────────────────
+// Spec (locations.geojson alan tablosu) her Feature için type / properties /
+// geometry.coordinates alanlarını Required işaretler. Bunlar hiç denetlenmiyordu:
+// eksikliklerinde kod sessizce atlıyor, dosya "doğrulandı" görünüyordu.
+
+fn geojson_feed(geojson: &'static [u8]) -> Vec<(&'static str, &'static [u8])> {
+    let mut files = base_files();
+    files.push(("locations.geojson", geojson));
+    files
+}
+
+#[test]
+fn loc008_009_010_detect_missing_required_feature_members() {
+    // type yok · properties yok · coordinates yok
+    static BAD: &[u8] = br#"{"type":"FeatureCollection","features":[
+        {"id":"z1","geometry":{"type":"Polygon"}}]}"#;
+    match validate_bytes(&make_zip(&geojson_feed(BAD)), &ValidatorConfig::default(), TODAY) {
+        ValidateResult::Ok(vr) => {
+            let ids: Vec<&str> = vr.notices.iter().map(|n| n.rule_id.as_str()).collect();
+            assert!(ids.contains(&"LOC_008"), "'type' eksik → LOC_008 çıkmalı: {ids:?}");
+            assert!(ids.contains(&"LOC_009"), "'properties' eksik → LOC_009 çıkmalı: {ids:?}");
+            assert!(ids.contains(&"LOC_010"), "'coordinates' eksik → LOC_010 çıkmalı: {ids:?}");
+        }
+        ValidateResult::Fatal(e) => panic!("beklenmeyen fatal: {:?} {}", e.code, e.message),
+    }
+}
+
+/// Geçerli bir feature hiçbirini üretmemeli; boş `properties` nesnesi GEÇERLİDİR
+/// (stop_name/stop_desc opsiyoneldir).
+#[test]
+fn loc008_009_010_silent_on_a_valid_feature() {
+    static GOOD: &[u8] = br#"{"type":"FeatureCollection","features":[
+        {"type":"Feature","id":"z1","properties":{},"geometry":{"type":"Polygon","coordinates":
+        [[[29.0,41.0],[29.1,41.0],[29.1,41.1],[29.0,41.1],[29.0,41.0]]]}}]}"#;
+    match validate_bytes(&make_zip(&geojson_feed(GOOD)), &ValidatorConfig::default(), TODAY) {
+        ValidateResult::Ok(vr) => {
+            let bad: Vec<&str> = vr.notices.iter().map(|n| n.rule_id.as_str())
+                .filter(|r| matches!(*r, "LOC_008" | "LOC_009" | "LOC_010")).collect();
+            assert!(bad.is_empty(), "geçerli feature notice üretmemeli: {bad:?}");
+        }
+        ValidateResult::Fatal(e) => panic!("beklenmeyen fatal: {:?} {}", e.code, e.message),
+    }
+}

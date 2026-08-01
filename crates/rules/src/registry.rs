@@ -612,6 +612,15 @@ pub static RULES: &[RuleMeta] = &[
         "Polygon yaklaşık kapsamı 500km²'yi aşıyor — gerçekçi olmayan Flex bölge (bounding-box tahmini)"),
     r!("LOC_007", Orta,   Spec,    2, &[], None, VS, File,
         "FeatureCollection içinde yinelenen 'id' değeri — Flex referansı belirsizleşir"),
+    // Spec (locations.geojson alan tablosu) her Feature için type/properties/geometry.coordinates
+    // alanlarını Required işaretler. Bunlar 2026-08-01'e kadar hiç denetlenmiyordu: eksikliklerinde
+    // kod sessizce atlıyor, dosya "doğrulandı" görünüyordu.
+    r!("LOC_008", Orta,   Spec,    2, &[], None, VS, File,
+        "Feature 'type' alanı eksik veya \"Feature\" değil"),
+    r!("LOC_009", Orta,   Spec,    2, &[], None, VS, File,
+        "Feature 'properties' nesnesi eksik"),
+    r!("LOC_010", Kritik, Spec,    2, &[], None, VS_K, File,
+        "Geometry 'coordinates' eksik veya dizi değil — bölge geometrisi çözümlenemez"),
 
     // ── CAL: Calendar ──────────────────────────────────────────────────────────
     r!("CAL_001", Kritik, Spec, 1,
@@ -1661,6 +1670,9 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("LOC_005", ProjectQuality),
     ("LOC_006", ProjectQuality),
     ("LOC_007", GtfsSpec),
+    ("LOC_008", GtfsSpec),
+    ("LOC_009", GtfsSpec),
+    ("LOC_010", GtfsSpec),
     ("LVL_001", GtfsSpec),
     ("LVL_002", GtfsSpec),
     ("LVL_003", ProjectQuality),

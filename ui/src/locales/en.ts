@@ -766,6 +766,9 @@ const en: LocaleShape = {
     'LOC_005': "locations.geojson FeatureCollection has no features.",
     'LOC_006': "Feature {observed_value} in locations.geojson has a very large bounding box (~{observed_value} km²).",
     'LOC_007': "locations.geojson contains duplicate feature 'id' values: '{observed_value}'.",
+    'LOC_010': "A feature in '{entity_id}' has no geometry 'coordinates' array.",
+    'LOC_009': "A feature in '{entity_id}' has no 'properties' object.",
+    'LOC_008': "A feature in '{entity_id}' has no 'type' member, or it is not \"Feature\".",
     // CAL
     'CAL_001': "Duplicate service_id: '{entity_id}'.",
     'CAL_002': "Service '{entity_id}': day field '{field}' has invalid value '{observed_value}'.",
@@ -1682,6 +1685,9 @@ const en: LocaleShape = {
     'LOC_005': 'Add at least one Polygon or MultiPolygon feature to locations.geojson.',
     'LOC_006': 'Reduce the polygon extent to a realistic service zone; large polygons are likely coordinate errors.',
     'LOC_007': 'Assign a unique "id" to each feature in locations.geojson.',
+    'LOC_010': "Add a valid 'coordinates' array to the geometry.",
+    'LOC_009': "Add a 'properties' object to every feature; an empty object is valid.",
+    'LOC_008': "Add \"type\": \"Feature\" to every feature object.",
     // PTH
     'PTH_001': 'Assign a unique pathway_id to each pathway record.',
     'PTH_014': 'Pathways must connect stops within the same station; update from_stop_id or to_stop_id.',
@@ -1942,6 +1948,9 @@ const en: LocaleShape = {
     'LOC_005': 'FeatureCollection has no features',
     'LOC_006': 'Polygon bounding box exceeds 500km²',
     'LOC_007': "Duplicate feature 'id' in FeatureCollection",
+    'LOC_010': "Geometry 'coordinates' missing or not an array — the zone geometry cannot be resolved",
+    'LOC_009': "Feature 'properties' object missing",
+    'LOC_008': "Feature 'type' member missing or not \"Feature\"",
     // CAL
     'CAL_001': 'Duplicate service_id',
     'CAL_002': 'Calendar day field invalid value',

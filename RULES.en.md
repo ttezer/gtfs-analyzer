@@ -2,7 +2,7 @@
 
 🇹🇷 [Türkçe](RULES.md) · 🇬🇧 **English** · 🇯🇵 [日本語](RULES.ja.md)
 
-542 rules, 37 groups. Each rule is identified by a unique ID, severity level, and class.
+545 rules, 37 groups. Each rule is identified by a unique ID, severity level, and class.
 Severity levels: **CRITICAL** (publish blocker) · **HIGH** · **MEDIUM** · **LOW** · **INFO**
 Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Quality** (GTFS Quality) · **Analytics** (GTFS Analytics)
 
@@ -269,6 +269,9 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | LOC_005 | FeatureCollection has no features | LOW | Quality |
 | LOC_006 | Polygon bounding box exceeds 500km² | MEDIUM | Quality |
 | LOC_007 | Duplicate feature 'id' in FeatureCollection | MEDIUM | Spec |
+| LOC_008 | Feature 'type' member missing or not \"Feature\ | MEDIUM | Spec |
+| LOC_009 | Feature 'properties' object missing | MEDIUM | Spec |
+| LOC_010 | Geometry 'coordinates' missing or not an array — the zone geometry cannot be resolved | CRITICAL | Spec |
 
 ## CAL — Calendar
 

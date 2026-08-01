@@ -12,6 +12,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > unaffected. Re-baseline Golden snapshots that contain it.
 
 ### Added
+- **LOC_008, LOC_009, LOC_010 — the required members of a `locations.geojson` feature are now
+  checked.** The spec's field table marks `type`, `properties` and `geometry.coordinates` as
+  Required for every feature, and none of the three was verified: a feature missing them was
+  skipped in silence, so the file appeared validated while its geometry had never been read.
+  A missing `coordinates` array is critical, since the zone cannot be resolved at all; the
+  other two are medium. An empty `properties` object stays valid, as `stop_name` and
+  `stop_desc` are optional.
 - **XFL_031 — IDs must be unique across `stops.txt`, `locations.geojson` and
   `location_groups.txt`.** The spec states that `location_group_id` "must be unique across all
   `stops.stop_id`, `locations.geojson` id, and `location_groups.location_group_id` values": the

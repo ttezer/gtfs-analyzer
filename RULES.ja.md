@@ -2,7 +2,7 @@
 
 🇹🇷 [Türkçe](RULES.md) · 🇬🇧 [English](RULES.en.md) · 🇯🇵 **日本語**
 
-542ルール、37グループ。各ルールは一意のID、重要度、クラスで定義されます。
+545ルール、37グループ。各ルールは一意のID、重要度、クラスで定義されます。
 重要度: **致命的**（公開ブロッカー）· **高** · **中** · **低** · **情報**
 クラス: **仕様**（GTFS妥当性）· **相互運用**（GTFSインターオペラビリティ）· **品質**（GTFS品質）· **分析**（GTFSアナリティクス）
 
@@ -269,6 +269,9 @@
 | LOC_005 | FeatureCollectionが空 | 低 | 品質 |
 | LOC_006 | Polygonの範囲が500km²超 | 中 | 品質 |
 | LOC_007 | FeatureCollection内でフィーチャー'id'が重複 | 中 | 仕様 |
+| LOC_008 | Featureの'type'が欠落または\"Feature\"でない | 中 | 仕様 |
+| LOC_009 | Featureの'properties'オブジェクトが欠落 | 中 | 仕様 |
+| LOC_010 | Geometryの'coordinates'が欠落または配列でない | 致命的 | 仕様 |
 
 ## CAL — カレンダー（Calendar）
 

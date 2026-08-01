@@ -2,7 +2,7 @@
 
 🇹🇷 **Türkçe** · 🇬🇧 [English](RULES.en.md) · 🇯🇵 [日本語](RULES.ja.md)
 
-542 kural, 37 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
+545 kural, 37 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
 Önem seviyeleri: **KRİTİK** (yayın engelleyici) · **YÜKSEK** · **ORTA** · **DÜŞÜK** · **BİLGİ**
 Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · **Quality** (GTFS Kalitesi) · **Analytics** (GTFS Analitiği)
 
@@ -269,6 +269,9 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | LOC_005 | FeatureCollection boş — hiç feature yok | DÜŞÜK | Quality |
 | LOC_006 | Polygon yaklaşık kapsamı 500km²'yi aşıyor — gerçekçi olmayan Flex bölge (bounding-box tahmini) | ORTA | Quality |
 | LOC_007 | FeatureCollection içinde yinelenen 'id' değeri — Flex referansı belirsizleşir | ORTA | Spec |
+| LOC_008 | Feature 'type' alanı eksik veya "Feature" değil | ORTA | Spec |
+| LOC_009 | Feature 'properties' nesnesi eksik | ORTA | Spec |
+| LOC_010 | Geometry 'coordinates' eksik veya dizi değil — bölge geometrisi çözümlenemez | KRİTİK | Spec |
 
 ## CAL — Calendar (Takvim)
 
