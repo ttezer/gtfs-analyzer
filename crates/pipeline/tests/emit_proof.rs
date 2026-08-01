@@ -1978,6 +1978,21 @@ fn spec_coverage_gaps_match_ledger() {
                  #                   ama spec'in Color-tipi hükmünü karşılamaz.\n\
                  #   kanıtsız satır  = ADJUDİKASYON gerekir; ÖNCE MEVCUT KURALI ARA.\n\
                  #\n\
+                 # ── DURUM (2026-08-01): AŞAĞIDAKİ SATIRLARIN TAMAMI ADJUDİKE EDİLDİ ──────\n\
+                 # Defter 32 satırla açıldı; 7'si aynı gün kapandı (RTS_007 Spec'e taşındı;\n\
+                 # AGN_012/RTS_024/TRN_008 sınıfı düzeltildi; `Phone number` hükmü uydurmaydı,\n\
+                 # atom kaldırıldı → 3 satır düştü). Kalan satırların HER BİRİ incelendi:\n\
+                 #   • attributions route_id/trip_id ....... issue #62 (kural kimliği çakışması)\n\
+                 #   • booking_rules booking_url/info_url .. issue #60\n\
+                 #   • fare_leg_join_rules (4 alan) ........ issue #59\n\
+                 #   • diğer 9 hüküm ....................... issue #61\n\
+                 #   • calendar 6 gün (enum) ............... ARTEFAKT: CAL_002 yedisini de\n\
+                 #     denetler, fixture yalnız `monday`'i bozar. presence kısmı #61'de.\n\
+                 #   • routes route_short_name/route_long_name  ARTEFAKT: RTS_003 (Kritik·Spec)\n\
+                 #     hükmü ölçer ama `field=None` emit eder → çapa düşmez.\n\
+                 # Yani bu liste \"el değmemiş iş\" DEĞİL, \"triyajı yapılmış açık borç\"tur.\n\
+                 # YENİ bir satır çıkarsa adjudike edilmemiş demektir — testi düşürür.\n\
+                 #\n\
                  # Yeniden üretmek: UPDATE_LEDGER=1 cargo test -p gtfs-pipeline --test emit_proof \\\n\
                  #   spec_coverage_gaps_match_ledger\n",
                 gaps.len());
