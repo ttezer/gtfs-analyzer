@@ -4014,6 +4014,80 @@ fn check_data_quality(
                 format!("trip_id '{dup_id}' trips.txt'de birden fazla kez tanımlanmış."),
                 "trips.txt'de benzersiz trip_id değerleri kullanın."));
         }
+
+        // ── BİLEŞİK birincil anahtarlar ──────────────────────────────────────
+        // Yukarıdaki üç dosyanın anahtarı tek alandır; Fares v2 ve Flex dosyalarının
+        // ÇOĞUNUN anahtarı bileşiktir ve bu tekrarlar hiç denetlenmiyordu. Anahtar
+        // listeleri spec'ten birebir alınmıştır (Schedule Reference, dosya başlıkları):
+        //   fare_leg_rules.txt      (network_id, from_area_id, to_area_id,
+        //                            from_timeframe_group_id, to_timeframe_group_id,
+        //                            fare_product_id)
+        //   fare_transfer_rules.txt (from_leg_group_id, to_leg_group_id, fare_product_id,
+        //                            transfer_count, duration_limit)
+        //   location_groups.txt     (location_group_id)
+        //   location_group_stops.txt (*)  → TÜM alanlar, yani tam satır tekrarı
+        // Boş alan anahtarın parçasıdır (spec "blank" değerleri anlamlı sayar), bu yüzden
+        // None ve "" aynı şekilde temsil edilir; farklı alanların birleşmesini önlemek için
+        // ayraç olarak birim-ayırıcı (\u{1f}) kullanılır.
+        fn composite_dups<K: AsRef<str>>(keys: impl Iterator<Item = Vec<K>>) -> Vec<String> {
+            let mut seen: HashMap<String, u32> = HashMap::new();
+            let mut dups: Vec<String> = Vec::new();
+            for parts in keys {
+                let joined = parts.iter().map(|p| p.as_ref()).collect::<Vec<_>>().join("\u{1f}");
+                let e = seen.entry(joined.clone()).or_default();
+                *e += 1;
+                if *e == 2 {
+                    dups.push(joined.replace('\u{1f}', ", "));
+                }
+            }
+            dups
+        }
+        let opt = |v: &Option<String>| v.clone().unwrap_or_default();
+
+        for dup in composite_dups(records.fare_leg_rules.iter().map(|r| vec![
+            opt(&r.network_id), opt(&r.from_area_id), opt(&r.to_area_id),
+            opt(&r.from_timeframe_group_id), opt(&r.to_timeframe_group_id),
+            r.fare_product_id.clone(),
+        ])) {
+            notices.push(k6_notice(ctr, "DQ_021", EntityType::Row, None, None,
+                "fare_leg_rules.txt", None, Some("network_id|from_area_id|to_area_id|from_timeframe_group_id|to_timeframe_group_id|fare_product_id"),
+                Some(dup.clone()), None,
+                format!("fare_leg_rules.txt'de birincil anahtar yineleniyor: ({dup})."),
+                "Bileşik birincil anahtarın (network_id, from_area_id, to_area_id, from_timeframe_group_id, to_timeframe_group_id, fare_product_id) her satırda benzersiz olmasını sağlayın."));
+        }
+
+        for dup in composite_dups(records.fare_transfer_rules.iter().map(|r| vec![
+            opt(&r.from_leg_group_id), opt(&r.to_leg_group_id), opt(&r.fare_product_id),
+            r.transfer_count.map(|v| v.to_string()).unwrap_or_default(),
+            r.duration_limit.map(|v| v.to_string()).unwrap_or_default(),
+        ])) {
+            notices.push(k6_notice(ctr, "DQ_021", EntityType::Row, None, None,
+                "fare_transfer_rules.txt", None, Some("from_leg_group_id|to_leg_group_id|fare_product_id|transfer_count|duration_limit"),
+                Some(dup.clone()), None,
+                format!("fare_transfer_rules.txt'de birincil anahtar yineleniyor: ({dup})."),
+                "Bileşik birincil anahtarın (from_leg_group_id, to_leg_group_id, fare_product_id, transfer_count, duration_limit) her satırda benzersiz olmasını sağlayın."));
+        }
+
+        for dup_id in find_dups(records.location_groups.iter()
+            .filter(|g| !g.location_group_id.is_empty())
+            .map(|g| g.location_group_id.as_str()))
+        {
+            notices.push(k6_notice(ctr, "DQ_021", EntityType::Row,
+                Some(dup_id.clone()), Some(dup_id.clone()),
+                "location_groups.txt", None, Some("location_group_id"), Some(dup_id.clone()), None,
+                format!("location_group_id '{dup_id}' location_groups.txt'de birden fazla kez tanımlanmış."),
+                "location_groups.txt'de benzersiz location_group_id değerleri kullanın."));
+        }
+
+        for dup in composite_dups(records.location_group_stops.iter()
+            .map(|s| vec![s.location_group_id.clone(), s.stop_id.clone()]))
+        {
+            notices.push(k6_notice(ctr, "DQ_021", EntityType::Row, None, None,
+                "location_group_stops.txt", None, Some("location_group_id|stop_id"),
+                Some(dup.clone()), None,
+                format!("location_group_stops.txt'de aynı satır yineleniyor: ({dup})."),
+                "location_group_stops.txt'de her (location_group_id, stop_id) çifti yalnız bir kez bulunmalıdır."));
+        }
     }
 
     // ARC_020: önerilen dosyalar eksik (missing_recommended_file)

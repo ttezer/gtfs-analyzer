@@ -1403,3 +1403,60 @@ fn xfl019_silent_when_routes_network_id_is_used_alone() {
         ValidateResult::Fatal(e) => panic!("beklenmeyen fatal: {:?} {}", e.code, e.message),
     }
 }
+
+// ── DQ_021: BİLEŞİK birincil anahtarlar ───────────────────────────────────────
+// Fares v2 ve Flex dosyalarının çoğunun anahtarı bileşiktir; DQ_021 yalnız stop_id,
+// route_id ve trip_id tekrarını tarıyordu. Anahtar listeleri spec'ten birebir alındı.
+
+#[test]
+fn dq021_detects_duplicate_composite_key_in_fare_leg_rules() {
+    // Spec PK: (network_id, from_area_id, to_area_id, from_timeframe_group_id,
+    //           to_timeframe_group_id, fare_product_id) — iki satır birebir aynı.
+    static FLR: &[u8] = b"network_id,from_area_id,to_area_id,fare_product_id\n\
+                          N1,A1,A2,P1\nN1,A1,A2,P1\n";
+    let mut files = base_files();
+    files.push(("fare_leg_rules.txt", FLR));
+    match validate_bytes(&make_zip(&files), &ValidatorConfig::default(), TODAY) {
+        ValidateResult::Ok(vr) => assert!(
+            vr.notices.iter().any(|n| n.rule_id == "DQ_021"
+                && n.file.as_deref() == Some("fare_leg_rules.txt")),
+            "aynı bileşik anahtara sahip iki satır DQ_021 üretmeli"),
+        ValidateResult::Fatal(e) => panic!("beklenmeyen fatal: {:?} {}", e.code, e.message),
+    }
+}
+
+/// Anahtarın TEK bir alanı bile farklıysa satırlar ayrıdır — yanlış pozitif olmamalı.
+#[test]
+fn dq021_silent_when_one_composite_field_differs() {
+    static FLR: &[u8] = b"network_id,from_area_id,to_area_id,fare_product_id\n\
+                          N1,A1,A2,P1\nN1,A1,A3,P1\n";
+    let mut files = base_files();
+    files.push(("fare_leg_rules.txt", FLR));
+    match validate_bytes(&make_zip(&files), &ValidatorConfig::default(), TODAY) {
+        ValidateResult::Ok(vr) => assert!(
+            !vr.notices.iter().any(|n| n.rule_id == "DQ_021"
+                && n.file.as_deref() == Some("fare_leg_rules.txt")),
+            "to_area_id farklı → ayrı anahtarlar, DQ_021 çıkmamalı"),
+        ValidateResult::Fatal(e) => panic!("beklenmeyen fatal: {:?} {}", e.code, e.message),
+    }
+}
+
+#[test]
+fn dq021_detects_duplicate_location_group_id_and_group_stop_row() {
+    static LG: &[u8] = b"location_group_id,location_group_name\nLG1,Bolge\nLG1,Bolge Tekrar\n";
+    static LGS: &[u8] = b"location_group_id,stop_id\nLG1,S1\nLG1,S1\n";
+    let mut files = base_files();
+    files.push(("location_groups.txt", LG));
+    files.push(("location_group_stops.txt", LGS));
+    match validate_bytes(&make_zip(&files), &ValidatorConfig::default(), TODAY) {
+        ValidateResult::Ok(vr) => {
+            assert!(vr.notices.iter().any(|n| n.rule_id == "DQ_021"
+                && n.file.as_deref() == Some("location_groups.txt")),
+                "yinelenen location_group_id DQ_021 üretmeli");
+            assert!(vr.notices.iter().any(|n| n.rule_id == "DQ_021"
+                && n.file.as_deref() == Some("location_group_stops.txt")),
+                "yinelenen (location_group_id, stop_id) satırı DQ_021 üretmeli");
+        }
+        ValidateResult::Fatal(e) => panic!("beklenmeyen fatal: {:?} {}", e.code, e.message),
+    }
+}

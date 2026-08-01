@@ -12,6 +12,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > unaffected. Re-baseline Golden snapshots that contain it.
 
 ### Fixed
+- **DQ_021 now checks composite primary keys.** It looked only for repeated `stop_id`,
+  `route_id` and `trip_id`, so the Fares v2 and Flex files — where most keys are composite —
+  could repeat a key freely. Duplicates are now detected on the six-field key of
+  `fare_leg_rules.txt`, the five-field key of `fare_transfer_rules.txt`, `location_group_id` in
+  `location_groups.txt`, and the whole row in `location_group_stops.txt`, whose key the spec
+  writes as `(*)`. Field lists are taken verbatim from the specification, and a blank value
+  counts as part of the key, as the spec treats blanks as meaningful.
 - **XFL_019 missed the networks.txt half of its rule.** The spec forbids `routes.network_id`
   when *either* `route_networks.txt` or `networks.txt` exists; only the first was checked, so a
   feed defining networks twice through `networks.txt` went unreported. Both files now trigger
