@@ -586,6 +586,7 @@ gtfs-validator/
 │   ├── pipeline/   # 検証パイプライン（k1〜k7 ステージ）
 │   ├── rules/      # ルール定義とレジストリ（544 ルール、37 グループ）
 │   └── wasm/       # wasm-bindgen WASM 出力
+├── spec-audit/     # 仕様から生成したフィールド表（アンカー検査）
 └── ui/             # Vite + TypeScript フロントエンド
     ├── pkg/          # wasm-pack 出力（生成済み、コミット済み）
     ├── src/

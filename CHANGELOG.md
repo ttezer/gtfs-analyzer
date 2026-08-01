@@ -12,6 +12,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > unaffected. Re-baseline Golden snapshots that contain it.
 
 ### Added
+- **A `Spec` rule must now anchor to a field the specification actually defines.** RCT_004
+  validated `min_age` and `max_age`, which appear nowhere in the Schedule Reference, and its
+  Spec class fed the publish gate — a misclassification no test could see. The new gate reads
+  `spec-audit/spec_fields.json`, a field table generated from the reference itself by
+  `spec-audit/extract_fields.py`, and checks every notice emitted by a rule whose authority is
+  `GtfsSpec`: the `file` and `field` it reports must exist in that table. The anchor comes from
+  the rule's own output rather than a hand-kept list, so there is nothing to keep in sync.
+  Files the reference documents in prose instead of a field table — `locations.geojson` is the
+  only one — are exempt by name, so an unrecognised file fails the gate rather than slipping
+  through it. Verified against the tree before the RCT_004 fix: it reports `min_age`. The
+  extractor parses the reference's HTML tables with a real parser, since field descriptions
+  embed their own value tables and a regex silently truncated `fare_transfer_rules.txt` at
+  `fare_transfer_type`.
 - **A valid feed must now stay silent in the `Spec` class, and CI enforces it.**
   `crates/pipeline/tests/spec_conformance.rs` is the mirror of the emit proof: the emit proof
   asks whether every rule *can* fire, this asks whether valid data keeps quiet. Eight

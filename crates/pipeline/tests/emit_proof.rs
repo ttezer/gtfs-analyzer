@@ -1656,3 +1656,99 @@ fn coverage_debt_matches_ledger() {
         );
     }
 }
+
+
+// ── WP-2: alan düzeyinde spec çapası ──────────────────────────────────────────
+// emit_proof "kural ateşleyebiliyor mu", spec_conformance.rs "geçerli veri sessiz mi"
+// der. Bu üçüncü kapı sorar: **kural spec'te GERÇEKTEN VAR OLAN bir alanı mı ölçüyor?**
+// Yakaladığı sınıf: yanlış SINIFLANDIRMA. RCT_004 (2026-08-01 öncesi) `min_age`/`max_age`
+// yayıyordu; bu alanlar 27 Nisan 2026 Schedule Reference'ta HİÇ geçmiyor — yani bir uzantı
+// alanı `Spec` sınıfındaydı ve yayın skoru kapısını besliyordu.
+//
+// Çapa kuralın KENDİ ÇIKTISINDAN gelir (notice'ın `file` + `field` alanları), elle tutulan
+// bir listeden değil: elle liste bayatlar, notice bayatlayamaz.
+
+/// Spec'te alan tablosu OLMAYAN dosyalar — çapa kurulamaz, atlanır.
+/// Liste bilinçli olarak KISA tutulur: burada olmayan bilinmeyen bir dosya kapıyı düşürür
+/// (ör. `Spec` otoriteli bir kural GTFS-JP dosyasına çapalanırsa sınıfı yanlıştır).
+const NO_FIELD_TABLE: &[&str] = &[
+    // GeoJSON; spec üyeleri (type/properties/geometry/coordinates) düzyazıyla anlatır,
+    // "Field Name" tablosu yoktur. LOC_002/003/004/007/008/009/010 buraya düşer.
+    "locations.geojson",
+];
+
+/// `file` alanında dosya adı olmayan sözde-değerler (feed düzeyi bağlam).
+const PSEUDO_FILES: &[&str] = &["feed"];
+
+#[test]
+fn spec_rules_anchor_to_fields_that_exist_in_the_spec() {
+    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../spec-audit/spec_fields.json");
+    let raw = std::fs::read_to_string(&path)
+        .unwrap_or_else(|e| panic!("{} okunamadı: {e}", path.display()));
+    let doc: serde_json::Value = serde_json::from_str(&raw).unwrap();
+    let table = doc["files"].as_object().expect("spec_fields.json: 'files' nesnesi yok");
+    assert!(table.len() >= 25, "spec_fields.json çok küçük ({}) — yeniden üretin", table.len());
+
+    let mut failures: BTreeSet<String> = BTreeSet::new();
+
+    for f in fixtures() {
+        let cfg = f.config.clone().unwrap_or_default();
+        let vr = match validate_bytes(
+            &make_zip(&with_opts(&f.overrides, &f.removes, &f.raw)), &cfg, TODAY,
+        ) {
+            ValidateResult::Ok(vr) => vr,
+            ValidateResult::Fatal(_) => continue,
+        };
+        for n in &vr.notices {
+            if gtfs_rules::registry::authority_source(&n.rule_id)
+                != gtfs_core::AuthoritySource::GtfsSpec
+            {
+                continue;
+            }
+            // field yoksa çapalanacak bir alan da yok (dosya/feed düzeyi bulgu).
+            let (Some(file), Some(field)) = (n.file.as_deref(), n.field.as_deref()) else {
+                continue;
+            };
+            // "a.txt/b.txt" gibi çok-dosyalı etiketler bölünür.
+            let parts: Vec<&str> = file.split('/').map(str::trim).collect();
+            let known: Vec<&serde_json::Value> =
+                parts.iter().filter_map(|p| table.get(*p)).collect();
+
+            if known.is_empty() {
+                if parts.iter().all(|p| NO_FIELD_TABLE.contains(p) || PSEUDO_FILES.contains(p)) {
+                    continue;
+                }
+                failures.insert(format!(
+                    "{}: '{}' spec dosya tablosunda YOK (GtfsSpec otoritesi bu dosyaya \
+                     çapalanamaz — sınıf yanlış olabilir)",
+                    n.rule_id, file,
+                ));
+                continue;
+            }
+
+            // Bileşik alan etiketleri ("stop_lat|stop_lon") tek tek denetlenir; alan,
+            // etiketteki dosyalardan EN AZ BİRİNDE tanımlı olmalı.
+            for one in field.split(['|', ',']).map(str::trim).filter(|s| !s.is_empty()) {
+                let ok = known.iter().any(|list| {
+                    list.as_array().unwrap().iter().any(|v| v.as_str() == Some(one))
+                });
+                if !ok {
+                    failures.insert(format!(
+                        "{}: '{}' alanı '{}' içinde spec'te YOK",
+                        n.rule_id, one, file,
+                    ));
+                }
+            }
+        }
+    }
+
+    assert!(
+        failures.is_empty(),
+        "GtfsSpec otoriteli kural(lar) spec'te olmayan bir alana çapalanıyor — sınıf \
+         Quality/Interop olmalı ya da alan adı yanlış:\n{}\n\n\
+         (Spec listesi: spec-audit/spec_fields.json — yeniden üretmek için \
+         `python3 spec-audit/extract_fields.py`)",
+        failures.iter().map(|s| format!("  {s}")).collect::<Vec<_>>().join("\n"),
+    );
+}

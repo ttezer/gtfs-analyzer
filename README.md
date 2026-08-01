@@ -586,6 +586,7 @@ gtfs-validator/
 │   ├── pipeline/   # Doğrulama pipeline'ı (k1–k7 aşamaları)
 │   ├── rules/      # Kural tanımları ve registry (544 kural, 37 grup)
 │   └── wasm/       # wasm-bindgen WASM çıktısı
+├── spec-audit/     # Spec'ten üretilen alan tablosu (WP-2 çapa kapısı)
 └── ui/             # Vite + TypeScript frontend
     ├── pkg/          # wasm-pack çıktısı (üretilen, commit'lenmiş)
     ├── src/

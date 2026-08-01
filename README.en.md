@@ -586,6 +586,7 @@ gtfs-validator/
 │   ├── pipeline/   # Validation pipeline (k1–k7 stages)
 │   ├── rules/      # Rule definitions and registry (544 rules, 37 groups)
 │   └── wasm/       # wasm-bindgen WASM output
+├── spec-audit/     # Field table generated from the spec (anchor gate)
 └── ui/             # Vite + TypeScript frontend
     ├── pkg/          # wasm-pack output (generated, committed)
     ├── src/
