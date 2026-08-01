@@ -2,7 +2,7 @@
 
 🇹🇷 [Türkçe](RULES.md) · 🇬🇧 **English** · 🇯🇵 [日本語](RULES.ja.md)
 
-544 rules, 37 groups. Each rule is identified by a unique ID, severity level, and class.
+546 rules, 37 groups. Each rule is identified by a unique ID, severity level, and class.
 Severity levels: **CRITICAL** (publish blocker) · **HIGH** · **MEDIUM** · **LOW** · **INFO**
 Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Quality** (GTFS Quality) · **Analytics** (GTFS Analytics)
 
@@ -610,6 +610,8 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | ATR_008 | attribution_email invalid | LOW | Spec |
 | ATR_009 | multiple attribution reference fields set | HIGH | Quality |
 | ATR_010 | agency_id not found | LOW | Spec |
+| ATR_011 | route_id not found | LOW | Spec |
+| ATR_012 | trip_id not found | LOW | Spec |
 
 ## XFL — Cross-File / Semantic
 

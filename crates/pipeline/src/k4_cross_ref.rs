@@ -2578,7 +2578,7 @@ fn check_translations(
     }
 }
 
-// �"?�"? ATR_005-007, ATR_009: attribution cross-ref �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?
+// �"?�"? ATR_009-012: attribution cross-ref �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?
 
 /// translations.txt'ten belirli (table, field) için ja-Hrkt (かな) çevirisi olan
 /// record_id ve field_value kümeleri. JPN_001/008/009/010 kana kontrollerinde paylaşılır.
@@ -2963,12 +2963,12 @@ fn check_attributions(
             }
         }
 
-        // ATR_006: route_id referansı
+        // ATR_011: route_id referansı
         if let Some(ref rid) = rec.route_id {
             if !map.routes.contains_key(rid.as_str()) {
                 notices.push(notice(
                     ctr,
-                    "ATR_006",
+                    "ATR_011",
                     EntityType::Attribution,
                     eid.clone(),
                     eid.clone(),
@@ -2983,12 +2983,12 @@ fn check_attributions(
             }
         }
 
-        // ATR_007: trip_id referansı
+        // ATR_012: trip_id referansı
         if let Some(ref tid) = rec.trip_id {
             if !map.trips.contains_key(tid.as_str()) {
                 notices.push(notice(
                     ctr,
-                    "ATR_007",
+                    "ATR_012",
                     EntityType::Attribution,
                     eid.clone(),
                     eid.clone(),

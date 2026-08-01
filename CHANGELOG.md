@@ -12,11 +12,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > unaffected. Re-baseline Golden snapshots that contain it.
 
 ### Added
-- **A rule id used for two unrelated checks is now reported.** ATR_006 emits both the
-  `is_authority` enum check and the `attributions.route_id` foreign-key check, and ATR_007 does
+- **A rule id used for two unrelated checks is now reported.** ATR_006 emitted both the
+  `is_authority` enum check and the `attributions.route_id` foreign-key check, and ATR_007 did
   the same for `attribution_url` and `trip_id`; the registry describes one of each, so a feed
-  with a dangling route reference receives a finding titled "is_authority geçersiz" whose
-  remediation tells it to fix a route id. Nothing could see this: the emit proof asks whether a
+  with a dangling route reference received a finding titled "is_authority geçersiz" whose
+  remediation told it to fix a route id (fixed below). Nothing could see this: the emit proof asks whether a
   rule can fire, not whether what it emits is what the rule says it is, and a second emit site
   added to an existing id was invisible to every check.
 
@@ -108,6 +108,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   collides with.
 
 ### Fixed
+- **A dangling `route_id` in `attributions.txt` was reported as an invalid `is_authority`.** The
+  identity check added above found two rule ids doing double duty, and this is what a user saw
+  because of it: ATR_006 carried both the `is_authority` enum check in K2 and the
+  `attributions.route_id` foreign-key check in K4, so a broken route reference produced a
+  finding titled "is_authority geçersiz" — and ATR_007 did the same for `attribution_url` and
+  `trip_id`. The two foreign-key paths move to **ATR_011** (`route_id`) and **ATR_012**
+  (`trip_id`), leaving ATR_006 and ATR_007 measuring one fact each.
+
+  The new rules are Düşük·Spec, matching **ATR_010**, which has checked the third reference
+  field of the same file, `agency_id`, at that severity all along; the old Kritik came from the
+  enum and URL rules whose weight the foreign-key paths happened to share, not from a judgement
+  about dangling references. No publish gate is lost: **XFL_015** (Kritik, `VS_K`) summarises
+  all three reference fields at feed level, so a feed with a broken attribution reference still
+  fails R1 exactly as before — which is already how `agency_id` behaves.
+
+  Two residues of the same history were fixed alongside: the remediation text for ATR_005
+  (`is_operator` invalid) told users to "use a valid agency_id" — that check moved to ATR_010
+  long ago and the text never followed — and ATR_006's told them to use a valid `route_id`.
+  Both now describe the enum they actually check. `RTS_001`'s `blocks` list and the K4 section
+  comment, which still named ATR_005-007, were updated to match.
+
+  This closes two lines of the specification-coverage ledger: `attributions.txt:route_id` and
+  `:trip_id` were listed as foreign-key provisions with no Spec anchor, because the rules that
+  checked them were anchored to a different field. 25 open lines become 23.
 - **The zip guard's compression-ratio cap had less headroom than its own comment claimed.** It
   was calibrated in July against a 419 MB aggregate feed whose worst entry compressed 17.8:1,
   leaving what the code described as 4.5x of margin. A calibration run over the Entur feed

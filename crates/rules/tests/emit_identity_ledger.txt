@@ -1,4 +1,4 @@
-# Bir rule_id'nin BİRBİRİYLE HİÇ ORTAK ALANI OLMAYAN emit noktaları. 12 kural.
+# Bir rule_id'nin BİRBİRİYLE HİÇ ORTAK ALANI OLMAYAN emit noktaları. 10 kural.
 # Biçim: RULE_ID  dosya:alan+alan  dosya:alan
 #
 # Ayrık küme = kural muhtemelen İKİ FARKLI OLGU için kullanılıyor. Bazıları
@@ -9,8 +9,6 @@
 # Yeniden üretmek: UPDATE_LEDGER=1 cargo test -p gtfs-rules --test emit_identity \
 #   rule_ids_emitted_for_disjoint_fields_match_ledger
 AGN_013  k4_cross_ref.rs:agency_lang  mod.rs:feed_lang
-ATR_006  attributions.rs:is_authority  k4_cross_ref.rs:route_id
-ATR_007  attributions.rs:attribution_url  k4_cross_ref.rs:trip_id
 BKR_001  booking_rules.rs:prior_notice_last_day  booking_rules.rs:prior_notice_start_day
 DQ_018  k6_analytics.rs:agency_name  k6_analytics.rs:feed_publisher_name  k6_analytics.rs:route_desc  k6_analytics.rs:route_long_name  k6_analytics.rs:stop_headsign  k6_analytics.rs:stop_name  k6_analytics.rs:trip_headsign
 DQ_019  k6_analytics.rs:agency_name  k6_analytics.rs:feed_publisher_name  k6_analytics.rs:route_desc  k6_analytics.rs:route_long_name  k6_analytics.rs:stop_headsign  k6_analytics.rs:stop_name  k6_analytics.rs:trip_headsign

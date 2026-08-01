@@ -1038,6 +1038,8 @@ const tr = {
     'ATR_008': 'attribution_email geçersiz',
     'ATR_009': 'attribution hedef alanları birlikte kullanılmış',
     'ATR_010': 'agency_id bulunamadı',
+    'ATR_011': 'route_id bulunamadı',
+    'ATR_012': 'trip_id bulunamadı',
     // XFL
     'XFL_002': 'Seferin stop_times kaydı yok',
     'XFL_006': 'service_id yalnızca iptal istisnası içeriyor (aktif gün yok)',

@@ -1026,6 +1026,8 @@ const en: LocaleShape = {
     'ATR_008': "Attribution '{entity_id}': attribution_email is invalid.",
     'ATR_009': "Attribution '{entity_id}': more than one of agency_id, route_id, trip_id is set.",
     'ATR_010': "Attribution '{entity_id}': agency_id '{observed_value}' not found.",
+    'ATR_011': "Attribution '{entity_id}': route_id '{observed_value}' not found.",
+    'ATR_012': "Attribution '{entity_id}': trip_id '{observed_value}' not found.",
     // XFL
     'XFL_002': "Trip '{entity_id}' has no stop_times records.",
     'XFL_006': "Service '{entity_id}' has only cancellation exceptions — no active days.",
@@ -1497,8 +1499,8 @@ const en: LocaleShape = {
     'ATR_002': 'Fill in the organization_name field.',
     'ATR_003': 'Set at least one of is_producer, is_operator or is_authority to 1.',
     'ATR_004': 'Set each attribution role field to 0 or 1.',
-    'ATR_005': 'Use a valid agency_id.',
-    'ATR_006': 'Use a valid route_id.',
+    'ATR_005': 'Set is_operator to 0 or 1.',
+    'ATR_006': 'Set is_authority to 0 or 1.',
     'ATR_007': 'Use a valid http/https URL for attribution_url.',
     'ATR_008': 'Use a valid e-mail address for attribution_email.',
     // BKR
@@ -1640,7 +1642,9 @@ const en: LocaleShape = {
     'AGN_017': 'Make agency_lang consistent across agencies (or ignore for a genuinely multilingual network).',
     // ATR
     'ATR_009': 'Fill in only one of these attribution reference fields.',
-    'ATR_010': 'Use a valid agency_id, route_id or trip_id in the attribution record.',
+    'ATR_010': 'Use an agency_id that exists in agency.txt.',
+    'ATR_011': 'Use a route_id that exists in routes.txt.',
+    'ATR_012': 'Use a trip_id that exists in trips.txt.',
     // CAL
     'CAL_009': 'Update all calendar end_date values so at least one service has future active dates.',
     'CAL_011': 'Remove the unused service or assign it to at least one trip.',
@@ -2208,6 +2212,8 @@ const en: LocaleShape = {
     'ATR_008': 'attribution_email invalid',
     'ATR_009': 'multiple attribution reference fields set',
     'ATR_010': 'agency_id not found',
+    'ATR_011': 'route_id not found',
+    'ATR_012': 'trip_id not found',
     // XFL
     'XFL_002': 'Trip has no stop_times records',
     'XFL_006': 'service_id contains only cancellation exceptions (no active days)',

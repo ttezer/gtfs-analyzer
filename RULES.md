@@ -2,7 +2,7 @@
 
 🇹🇷 **Türkçe** · 🇬🇧 [English](RULES.en.md) · 🇯🇵 [日本語](RULES.ja.md)
 
-544 kural, 37 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
+546 kural, 37 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
 Önem seviyeleri: **KRİTİK** (yayın engelleyici) · **YÜKSEK** · **ORTA** · **DÜŞÜK** · **BİLGİ**
 Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · **Quality** (GTFS Kalitesi) · **Analytics** (GTFS Analitiği)
 
@@ -610,6 +610,8 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | ATR_008 | attribution_email geçersiz | DÜŞÜK | Spec |
 | ATR_009 | attribution hedef alanları (agency/route/trip) birlikte kullanılmış | YÜKSEK | Quality |
 | ATR_010 | agency_id bulunamadı | DÜŞÜK | Spec |
+| ATR_011 | route_id bulunamadı | DÜŞÜK | Spec |
+| ATR_012 | trip_id bulunamadı | DÜŞÜK | Spec |
 
 ## XFL — Cross-File / Semantik
 

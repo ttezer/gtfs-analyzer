@@ -1,6 +1,6 @@
 # WP-3/A — spec'te normatif hükmü olan ama emit_proof korpusunda hiçbir
 # GtfsSpec notice'ının ÇAPALANMADIĞI alanlar. Biçim: dosya:alan  hükümler [kanıt].
-# 25 alan.
+# 23 alan.
 #
 # Bu bir BORÇ defteridir, kapı değil: eksik kural kimseyi yanlış REDDETMEZ,
 # ama boşluk sessizce BÜYÜMEMELİ. Kural eklenince satır düşer.
@@ -27,10 +27,10 @@
 #   kanıtsız satır  = ADJUDİKASYON gerekir; ÖNCE MEVCUT KURALI ARA.
 #
 # ── DURUM (2026-08-01): AŞAĞIDAKİ SATIRLARIN TAMAMI ADJUDİKE EDİLDİ ──────
-# Defter 32 satırla açıldı; 7'si aynı gün kapandı (RTS_007 Spec'e taşındı;
+# Defter 32 satırla açıldı; 9'u KAPANDI (RTS_007 Spec'e taşındı;
 # AGN_012/RTS_024/TRN_008 sınıfı düzeltildi; `Phone number` hükmü uydurmaydı,
-# atom kaldırıldı → 3 satır düştü). Kalan satırların HER BİRİ incelendi:
-#   • attributions route_id/trip_id ....... issue #62 (kural kimliği çakışması)
+# atom kaldırıldı → 3 satır düştü; attributions route_id/trip_id issue #62
+# ile ATR_011/ATR_012'ye ayrıldı → 2 satır düştü). Kalanların HER BİRİ incelendi:
 #   • booking_rules booking_url/info_url .. issue #60
 #   • fare_leg_join_rules (4 alan) ........ issue #59
 #   • diğer 9 hüküm ....................... issue #61
@@ -44,8 +44,6 @@
 # Yeniden üretmek: UPDATE_LEDGER=1 cargo test -p gtfs-pipeline --test emit_proof \
 #   spec_coverage_gaps_match_ledger
 attributions.txt:attribution_id  unique  [yalnız: ATR_001]
-attributions.txt:route_id  foreign-key
-attributions.txt:trip_id  foreign-key
 booking_rules.txt:booking_url  format  [denetim-yok]
 booking_rules.txt:info_url  format  [denetim-yok]
 calendar.txt:friday  presence:required,enum-domain

@@ -345,7 +345,7 @@ pub static RULES: &[RuleMeta] = &[
 
     // ── RTS: Routes ────────────────────────────────────────────────────────────
     r!("RTS_001", Kritik, Spec, 1,
-        &["TRP_002","FRL_002","ATR_006"],
+        &["TRP_002","FRL_002","ATR_011"],
         Some("route_id"), VS_K, Entity,
         "route_id yineleniyor"),
     r!("RTS_002", Kritik, Spec, 1,
@@ -1209,6 +1209,14 @@ pub static RULES: &[RuleMeta] = &[
         "attribution hedef alanları (agency/route/trip) birlikte kullanılmış"),
     r!("ATR_010", Dusuk,  Spec, 1, &[], Some("attribution_id"), VS, Entity,
         "agency_id bulunamadı"),
+    // ATR_011/012: attributions.txt'in üç referans alanı üç ayrı kuralla ölçülür. Daha önce
+    // route_id ATR_006, trip_id ise ATR_007 altında raporlanıyordu — yani enum/URL biçim
+    // hatalarıyla aynı ID'de. Feed-level özet XFL_015 (Kritik) üçünü de kapsadığı için
+    // yayın kapısı ATR_010 ile aynı emsalde DÜŞÜK kalır.
+    r!("ATR_011", Dusuk,  Spec, 1, &[], Some("attribution_id"), VS, Entity,
+        "route_id bulunamadı"),
+    r!("ATR_012", Dusuk,  Spec, 1, &[], Some("attribution_id"), VS, Entity,
+        "trip_id bulunamadı"),
 
     // ── XFL: Çapraz Dosya / Semantik ───────────────────────────────────────────
     r!("XFL_002", Yuksek, Interop, 1, &[], Some("trip_id"), VI, Entity,
@@ -1516,6 +1524,8 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("ATR_008", GtfsSpec),
     ("ATR_009", ProjectQuality),
     ("ATR_010", GtfsSpec),
+    ("ATR_011", GtfsSpec),
+    ("ATR_012", GtfsSpec),
     ("BKR_001", GtfsSpec),
     ("BKR_002", GtfsSpec),
     ("BKR_003", GtfsSpec),

@@ -32,8 +32,8 @@
 //! ## Defterin ADJUDİKASYONU (2026-08-01) — gerekçeler burada, çünkü defter yeniden üretilir
 //! | Kural | Karar |
 //! |---|---|
-//! | **ATR_006** | 🔴 **KİMLİK ÇAKIŞMASI** — `is_authority` enum'u (k2) + `route_id` FK'sı (k4); başlık yalnız ilkini anlatır → **issue #62** |
-//! | **ATR_007** | 🔴 **KİMLİK ÇAKIŞMASI** — `attribution_url` (k2) + `trip_id` FK'sı (k4) → **issue #62** |
+//! | ~~ATR_006~~ | ✅ **ÇÖZÜLDÜ (issue #62)** — `route_id` FK'sı `ATR_011`'e ayrıldı; ATR_006 artık yalnız `is_authority` enum'unu ölçer. Defterden düştü. |
+//! | ~~ATR_007~~ | ✅ **ÇÖZÜLDÜ (issue #62)** — `trip_id` FK'sı `ATR_012`'ye ayrıldı; ATR_007 artık yalnız `attribution_url`'i ölçer. Defterden düştü. |
 //! | **STP_003** | ⚠️ Aynı biçim ama **başlıkta AÇIKÇA beyan edilmiş**: *"stop_name eksik veya stop_lat/stop_lon aralık dışı (aynı ID altında iki ayrı koşul)"*. Kullanıcı yanlış etiketlenmiş bulgu almıyor. Bölünmesi ayrı bir karar; #62'de not düşüldü. |
 //! | AGN_013 | ✅ Tek olgu, iki alan: *"Feed dili ve ajans dili uyuşmuyor"* (`feed_lang` ↔ `agency_lang`) |
 //! | BKR_001 | ✅ Tek olgu: `prior_notice_start_day` / `prior_notice_last_day` aynı yasak bağlamı |

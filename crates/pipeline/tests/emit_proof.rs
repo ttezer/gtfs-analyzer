@@ -902,6 +902,10 @@ fn fixtures() -> Vec<Fixture> {
         fx("ATR_009", vec![("attributions.txt", "attribution_id,organization_name,is_producer,agency_id,route_id\nA1,Org,1,1,R1\n")]),
         // ATR_010: attribution agency_id agency.txt'te yok (k4).
         fx("ATR_010", vec![("attributions.txt", "attribution_id,organization_name,is_producer,agency_id\nA1,Org,1,NOPE\n")]),
+        // ATR_011: attribution route_id routes.txt'te yok (k4).
+        fx("ATR_011", vec![("attributions.txt", "attribution_id,organization_name,is_producer,route_id\nA1,Org,1,NOPE\n")]),
+        // ATR_012: attribution trip_id trips.txt'te yok (k4).
+        fx("ATR_012", vec![("attributions.txt", "attribution_id,organization_name,is_producer,trip_id\nA1,Org,1,NOPE\n")]),
 
         // ── LVL grubu (levels.txt) ─────────────────────────────────────────────
         // LVL_001: level_id tekrarı (k3).
@@ -1979,10 +1983,10 @@ fn spec_coverage_gaps_match_ledger() {
                  #   kanıtsız satır  = ADJUDİKASYON gerekir; ÖNCE MEVCUT KURALI ARA.\n\
                  #\n\
                  # ── DURUM (2026-08-01): AŞAĞIDAKİ SATIRLARIN TAMAMI ADJUDİKE EDİLDİ ──────\n\
-                 # Defter 32 satırla açıldı; 7'si aynı gün kapandı (RTS_007 Spec'e taşındı;\n\
+                 # Defter 32 satırla açıldı; 9'u KAPANDI (RTS_007 Spec'e taşındı;\n\
                  # AGN_012/RTS_024/TRN_008 sınıfı düzeltildi; `Phone number` hükmü uydurmaydı,\n\
-                 # atom kaldırıldı → 3 satır düştü). Kalan satırların HER BİRİ incelendi:\n\
-                 #   • attributions route_id/trip_id ....... issue #62 (kural kimliği çakışması)\n\
+                 # atom kaldırıldı → 3 satır düştü; attributions route_id/trip_id issue #62\n\
+                 # ile ATR_011/ATR_012'ye ayrıldı → 2 satır düştü). Kalanların HER BİRİ incelendi:\n\
                  #   • booking_rules booking_url/info_url .. issue #60\n\
                  #   • fare_leg_join_rules (4 alan) ........ issue #59\n\
                  #   • diğer 9 hüküm ....................... issue #61\n\
