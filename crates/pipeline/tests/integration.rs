@@ -1460,3 +1460,56 @@ fn dq021_detects_duplicate_location_group_id_and_group_stop_row() {
         ValidateResult::Fatal(e) => panic!("beklenmeyen fatal: {:?} {}", e.code, e.message),
     }
 }
+
+// ── XFL_031: ortak kimlik isim alanı ──────────────────────────────────────────
+// Spec (location_groups.location_group_id): "ID must be unique across all stops.stop_id,
+// locations.geojson id, and location_groups.location_group_id values."
+
+#[test]
+fn xfl031_detects_location_group_id_clashing_with_stop_id() {
+    // LG1 hem stops.txt'te hem location_groups.txt'te → stop_times.location_group_id
+    // referansı belirsizleşir.
+    static STOPS_CLASH: &[u8] = b"stop_id,stop_name,stop_lat,stop_lon\n\
+        S1,Durak1,41.0,29.0\nS2,Durak2,41.1,29.1\nLG1,Cakisan,41.2,29.2\n";
+    static LG: &[u8] = b"location_group_id,location_group_name\nLG1,Bolge\n";
+    let mut files = base_files();
+    files.retain(|(n, _)| *n != "stops.txt");
+    files.push(("stops.txt", STOPS_CLASH));
+    files.push(("location_groups.txt", LG));
+    match validate_bytes(&make_zip(&files), &ValidatorConfig::default(), TODAY) {
+        ValidateResult::Ok(vr) => assert!(
+            vr.notices.iter().any(|n| n.rule_id == "XFL_031"
+                && n.entity_id.as_deref() == Some("LG1")),
+            "stop_id ile çakışan location_group_id XFL_031 üretmeli"),
+        ValidateResult::Fatal(e) => panic!("beklenmeyen fatal: {:?} {}", e.code, e.message),
+    }
+}
+
+/// Kimlikler ayrıksa notice çıkmamalı — kural sadece ÇAKIŞMAYI ölçer.
+#[test]
+fn xfl031_silent_when_ids_are_distinct() {
+    static LG: &[u8] = b"location_group_id,location_group_name\nLG1,Bolge\n";
+    let mut files = base_files();
+    files.push(("location_groups.txt", LG));
+    match validate_bytes(&make_zip(&files), &ValidatorConfig::default(), TODAY) {
+        ValidateResult::Ok(vr) => assert!(
+            !vr.notices.iter().any(|n| n.rule_id == "XFL_031"),
+            "ayrık kimliklerde XFL_031 çıkmamalı"),
+        ValidateResult::Fatal(e) => panic!("beklenmeyen fatal: {:?} {}", e.code, e.message),
+    }
+}
+
+#[test]
+fn xfl031_detects_geojson_id_clashing_with_stop_id() {
+    static GEOJSON: &[u8] = br#"{"type":"FeatureCollection","features":[
+        {"type":"Feature","id":"S1","geometry":{"type":"Polygon","coordinates":
+        [[[29.0,41.0],[29.1,41.0],[29.1,41.1],[29.0,41.1],[29.0,41.0]]]},"properties":{}}]}"#;
+    let mut files = base_files();
+    files.push(("locations.geojson", GEOJSON));
+    match validate_bytes(&make_zip(&files), &ValidatorConfig::default(), TODAY) {
+        ValidateResult::Ok(vr) => assert!(
+            vr.notices.iter().any(|n| n.rule_id == "XFL_031" && n.entity_id.as_deref() == Some("S1")),
+            "stops.txt'teki S1 ile çakışan geojson id XFL_031 üretmeli"),
+        ValidateResult::Fatal(e) => panic!("beklenmeyen fatal: {:?} {}", e.code, e.message),
+    }
+}

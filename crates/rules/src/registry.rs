@@ -1221,6 +1221,12 @@ pub static RULES: &[RuleMeta] = &[
         "location_group_id bulunamadı (stop_times)"),
     r!("XFL_025", Kritik, Spec, 1, &[], Some("location_id"), VS_K, Row,
         "location_id bulunamadı (locations.geojson)"),
+    // Spec (location_groups.location_group_id): "ID must be unique across all stops.stop_id,
+    // locations.geojson id, and location_groups.location_group_id values." Üç dosya TEK bir
+    // isim alanını paylaşır; çakışan bir kimlik stop_times.location_id / location_group_id
+    // referansını çözümlenemez hâle getirir.
+    r!("XFL_031", Kritik, Spec, 2, &[], Some("location_group_id"), VS_K, Row,
+        "Kimlik çakışması: stop_id / locations.geojson id / location_group_id ortak isim alanını paylaşır"),
     r!("XFL_026", Orta,  Quality, 2, &[], Some("route_id"), VS, Entity,
         "route cemv_support=1 ama uygulanabilir contactless fare product yok"),
     r!("XFL_027", Orta,  Quality, 2, &[], Some("route_id"), VS, Entity,
@@ -1957,6 +1963,7 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("XFL_023", GtfsSpec),
     ("XFL_024", GtfsSpec),
     ("XFL_025", GtfsSpec),
+    ("XFL_031", GtfsSpec),
     ("XFL_026", ProjectQuality),
     ("XFL_027", ProjectQuality),
     ("XFL_028", ProjectQuality),

@@ -2,7 +2,7 @@
 
 🇹🇷 **Türkçe** · 🇬🇧 [English](RULES.en.md) · 🇯🇵 [日本語](RULES.ja.md)
 
-541 kural, 37 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
+542 kural, 37 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
 Önem seviyeleri: **KRİTİK** (yayın engelleyici) · **YÜKSEK** · **ORTA** · **DÜŞÜK** · **BİLGİ**
 Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · **Quality** (GTFS Kalitesi) · **Analytics** (GTFS Analitiği)
 
@@ -629,6 +629,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | XFL_023 | stop_id bulunamadı (location_group_stops) | KRİTİK | Spec |
 | XFL_024 | location_group_id bulunamadı (stop_times) | KRİTİK | Spec |
 | XFL_025 | location_id bulunamadı (locations.geojson) | KRİTİK | Spec |
+| XFL_031 | Kimlik çakışması: stop_id / locations.geojson id / location_group_id ortak isim alanını paylaşır | KRİTİK | Spec |
 | XFL_026 | route cemv_support=1 ama uygulanabilir contactless fare product yok | ORTA | Quality |
 | XFL_027 | route cemv_support=2 ama uygulanabilir contactless fare product var | ORTA | Quality |
 | XFL_028 | agency cemv_support=1 ama Fares v2'de contactless media yok | BİLGİ | Quality |

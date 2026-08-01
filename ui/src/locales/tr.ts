@@ -952,6 +952,7 @@ const tr = {
     'XFL_028': 'agency cemv_support=1 ama contactless media yok',
     'XFL_029': 'route cemv_support=1 ama contactless media yok',
     'XFL_030': 'contactless media var ama cemv_support=1 yok',
+    'XFL_031': 'Kimlik çakışması: stop_id / locations.geojson id / location_group_id ortak isim alanını paylaşır',
     // NET
     'NET_001': 'network_id yineleniyor',
     // TFR

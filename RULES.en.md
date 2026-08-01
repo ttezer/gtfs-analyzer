@@ -2,7 +2,7 @@
 
 🇹🇷 [Türkçe](RULES.md) · 🇬🇧 **English** · 🇯🇵 [日本語](RULES.ja.md)
 
-541 rules, 37 groups. Each rule is identified by a unique ID, severity level, and class.
+542 rules, 37 groups. Each rule is identified by a unique ID, severity level, and class.
 Severity levels: **CRITICAL** (publish blocker) · **HIGH** · **MEDIUM** · **LOW** · **INFO**
 Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Quality** (GTFS Quality) · **Analytics** (GTFS Analytics)
 
@@ -426,7 +426,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | RCT_001 | Duplicate rider_category_id | CRITICAL | Spec |
 | RCT_002 | rider_category_name missing | CRITICAL | Spec |
 | RCT_003 | is_default_fare_category invalid | CRITICAL | Spec |
-| RCT_004 | min_age or max_age invalid | MEDIUM | Quality |
+| RCT_004 | min_age or max_age invalid (GTFS extension field — not in the official spec) | MEDIUM | Quality |
 | RCT_005 | max_age less than min_age | MEDIUM | Quality |
 | RCT_006 | Multiple default rider categories per fare_product | MEDIUM | Spec |
 
@@ -629,6 +629,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | XFL_023 | stop_id not found (location_group_stops) | CRITICAL | Spec |
 | XFL_024 | location_group_id not found (stop_times) | CRITICAL | Spec |
 | XFL_025 | location_id not found (locations.geojson) | CRITICAL | Spec |
+| XFL_031 | ID clash: stop_id, locations.geojson id and location_group_id share one namespace | CRITICAL | Spec |
 | XFL_026 | route cemv=1 but no applicable contactless product | MEDIUM | Quality |
 | XFL_027 | route cemv=2 but applicable contactless product | MEDIUM | Quality |
 | XFL_028 | agency cemv=1 but no contactless media | INFO | Quality |

@@ -939,6 +939,7 @@ const en: LocaleShape = {
     'XFL_028': "agency cemv_support=1 but Fares v2 has no contactless fare media.",
     'XFL_029': "route cemv_support=1 but Fares v2 has no contactless fare media.",
     'XFL_030': "Contactless fare media defined but no cemv_support=1 anywhere.",
+    'XFL_031': "ID '{entity_id}' clashes across the stop_id / locations.geojson id / location_group_id namespace.",
     // NET
     'NET_001': "Duplicate network_id: '{entity_id}'.",
     // TFR
@@ -1583,6 +1584,7 @@ const en: LocaleShape = {
     'XFL_028': 'Define a fare_media_type=3 media in fare_media.txt and link it to fare products.',
     'XFL_029': 'Define a fare_media_type=3 media in fare_media.txt and link it to fare products.',
     'XFL_030': 'Consider setting cemv_support=1 at agency or route level.',
+    'XFL_031': 'Rename one of the clashing IDs; every ID must be unique across these three sources.',
     // FRL
     'FRL_001': 'Use a valid fare_id.',
     'FRL_002': 'Use a valid route_id.',
@@ -2115,6 +2117,7 @@ const en: LocaleShape = {
     'XFL_028': 'agency cemv=1 but no contactless media',
     'XFL_029': 'route cemv=1 but no contactless media',
     'XFL_030': 'contactless media but no cemv=1',
+    'XFL_031': 'ID clash: stop_id, locations.geojson id and location_group_id share one namespace',
     // NET
     'NET_001': 'Duplicate network_id',
     // TFR

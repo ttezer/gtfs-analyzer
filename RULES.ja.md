@@ -2,7 +2,7 @@
 
 🇹🇷 [Türkçe](RULES.md) · 🇬🇧 [English](RULES.en.md) · 🇯🇵 **日本語**
 
-541ルール、37グループ。各ルールは一意のID、重要度、クラスで定義されます。
+542ルール、37グループ。各ルールは一意のID、重要度、クラスで定義されます。
 重要度: **致命的**（公開ブロッカー）· **高** · **中** · **低** · **情報**
 クラス: **仕様**（GTFS妥当性）· **相互運用**（GTFSインターオペラビリティ）· **品質**（GTFS品質）· **分析**（GTFSアナリティクス）
 
@@ -426,7 +426,7 @@
 | RCT_001 | rider_category_idが重複 | 致命的 | 仕様 |
 | RCT_002 | rider_category_nameが不足 | 致命的 | 仕様 |
 | RCT_003 | is_default_fare_categoryが無効 | 致命的 | 仕様 |
-| RCT_004 | min_ageまたはmax_ageが無効 | 中 | 品質 |
+| RCT_004 | min_ageまたはmax_ageが無効（GTFS拡張フィールド — 公式仕様には存在しません） | 中 | 品質 |
 | RCT_005 | max_ageがmin_ageより小さい | 中 | 品質 |
 | RCT_006 | 同一fare_productにデフォルトのrider_categoryが複数 | 中 | 仕様 |
 
@@ -629,6 +629,7 @@
 | XFL_023 | stop_idが存在しない（location_group_stops） | 致命的 | 仕様 |
 | XFL_024 | location_group_idが存在しない（stop_times） | 致命的 | 仕様 |
 | XFL_025 | location_idが存在しない（locations.geojson） | 致命的 | 仕様 |
+| XFL_031 | ID衝突：stop_id・locations.geojson id・location_group_idは共通の名前空間を持ちます | 致命的 | 仕様 |
 | XFL_026 | 路線cemv=1だが適用可能なcontactless productなし | 中 | 品質 |
 | XFL_027 | 路線cemv=2だが適用可能なcontactless productあり | 中 | 品質 |
 | XFL_028 | agency cemv=1だがcontactless mediaなし | 情報 | 品質 |

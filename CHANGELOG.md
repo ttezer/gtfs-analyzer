@@ -11,6 +11,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > from `stops.txt` was penalised twice; it is now counted once. Feeds without that error are
 > unaffected. Re-baseline Golden snapshots that contain it.
 
+### Added
+- **XFL_031 — IDs must be unique across `stops.txt`, `locations.geojson` and
+  `location_groups.txt`.** The spec states that `location_group_id` "must be unique across all
+  `stops.stop_id`, `locations.geojson` id, and `location_groups.location_group_id` values": the
+  three files share one namespace. Nothing checked it, so a feed could name a location group
+  after an existing stop and leave every `stop_times.location_id` or `location_group_id`
+  reference pointing at two different things. One notice per clashing ID, naming the source it
+  collides with.
+
 ### Fixed
 - **DQ_021 now checks composite primary keys.** It looked only for repeated `stop_id`,
   `route_id` and `trip_id`, so the Fares v2 and Flex files — where most keys are composite —

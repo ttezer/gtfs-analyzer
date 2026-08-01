@@ -3602,6 +3602,47 @@ fn check_xfl(
         }
     }
 
+    // XFL_031: ortak kimlik isim alanı çakışması (GTFS-Flex).
+    // Spec (location_groups.location_group_id): "ID must be unique across all stops.stop_id,
+    // locations.geojson id, and location_groups.location_group_id values." Üç dosya TEK bir
+    // isim alanı paylaşır. Çakışan bir kimlik `stop_times.location_id` /
+    // `stop_times.location_group_id` referansını belirsiz bırakır: tüketici hangi varlığa
+    // bakacağını bilemez. Her çakışan kimlik için TEK notice (kaynak çiftleri mesajda).
+    {
+        let stop_ids: std::collections::HashSet<&str> = records.stops.iter()
+            .map(|s| s.stop_id.as_str())
+            .filter(|s| !s.is_empty())
+            .collect();
+        // Determinizm: kümeler sırasız → çakışanları sıralı topla.
+        let mut clashes: Vec<(String, &'static str)> = Vec::new();
+        for lg in &records.location_groups {
+            let id = lg.location_group_id.as_str();
+            if id.is_empty() { continue; }
+            if stop_ids.contains(id) {
+                clashes.push((id.to_string(), "stops.stop_id"));
+            } else if map.geojson_location_ids.contains(id) {
+                clashes.push((id.to_string(), "locations.geojson id"));
+            }
+        }
+        for gid in &map.geojson_location_ids {
+            if stop_ids.contains(gid.as_str()) {
+                clashes.push((gid.clone(), "stops.stop_id (locations.geojson id ile)"));
+            }
+        }
+        clashes.sort();
+        clashes.dedup();
+        for (id, other) in clashes {
+            notices.push(notice(
+                ctr, "XFL_031", EntityType::Row,
+                Some(id.clone()), Some(id.clone()),
+                "location_groups.txt", None, Some("location_group_id"),
+                Some(id.clone()), None,
+                format!("'{id}' kimliği '{other}' ile çakışıyor — stop_id, locations.geojson id ve location_group_id ortak bir isim alanını paylaşır."),
+                "Çakışan kimliklerden birini yeniden adlandırın; bu üç kaynak arasında her kimlik benzersiz olmalıdır.",
+            ));
+        }
+    }
+
     // XFL_019: routes.network_id ile ayrı ağ dosyası birlikte kullanılmış → çakışma.
     // Spec (routes.network_id): "Conditionally Forbidden: Forbidden if the route_networks.txt
     // OR networks.txt file exists." Eskiden yalnız route_networks.txt kolu denetleniyordu;

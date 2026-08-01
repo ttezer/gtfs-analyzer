@@ -920,6 +920,7 @@ const ja: LocaleShape = {
     'XFL_028': "agency cemv_support=1ですが、Fares v2にcontactless fare mediaがありません。",
     'XFL_029': "route cemv_support=1ですが、Fares v2にcontactless fare mediaがありません。",
     'XFL_030': "contactless fare mediaが定義されていますが、cemv_support=1がどこにもありません。",
+    'XFL_031': "ID'{entity_id}'がstop_id / locations.geojson id / location_group_idの名前空間で衝突しています。",
     // NET
     'NET_001': "network_idが重複しています：'{entity_id}'。",
     // TFR
@@ -1365,6 +1366,7 @@ const ja: LocaleShape = {
     'XFL_028': 'fare_media.txtでfare_media_type=3のメディアを定義し、fare productに紐付けてください。',
     'XFL_029': 'fare_media.txtでfare_media_type=3のメディアを定義し、fare productに紐付けてください。',
     'XFL_030': 'agencyまたはrouteレベルでcemv_support=1の設定を検討してください。',
+    'XFL_031': '衝突しているIDのいずれかを変更してください。この3つのソース間でIDは一意である必要があります。',
     // OPR
     'OPR_001': 'ピーク・オフピーク時の便数を増やすか、大きなサービスギャップを埋めてください。',
     'OPR_003': '便のスケジュールを調整してください。非常に頻繁な便は混雑を引き起こす可能性があります。',
@@ -2069,6 +2071,7 @@ const ja: LocaleShape = {
     'XFL_028': 'agency cemv=1だがcontactless mediaなし',
     'XFL_029': 'route cemv=1だがcontactless mediaなし',
     'XFL_030': 'contactless mediaありだがcemv=1なし',
+    'XFL_031': 'ID衝突：stop_id・locations.geojson id・location_group_idは共通の名前空間を持ちます',
     // NET
     'NET_001': 'network_idが重複',
     // TFR
