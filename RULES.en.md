@@ -80,7 +80,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | AGN_009 | agency_email invalid | LOW | Spec |
 | AGN_010 | Duplicate agency_id | CRITICAL | Spec |
 | AGN_011 | Multiple agencies with no agency_id | CRITICAL | Spec |
-| AGN_012 | cemv_support invalid (agency) | LOW | Quality |
+| AGN_012 | cemv_support invalid (agency) | LOW | Spec |
 | AGN_013 | Feed language and agency language mismatch | LOW | Interop |
 | AGN_014 | Multiple agencies but agency.txt agency_id missing | CRITICAL | Spec |
 | AGN_015 | agency_url uses insecure http | INFO | Quality |
@@ -157,7 +157,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | RTS_021 | route_short_name exceeds Google Transit limit (6 characters) | LOW | Quality |
 | RTS_022 | route_long_name contains route_short_name | LOW | Quality |
 | RTS_023 | route_desc repeats a route name | INFO | Quality |
-| RTS_024 | cemv_support invalid (route) | LOW | Quality |
+| RTS_024 | cemv_support invalid (route) | LOW | Spec |
 | RTS_025 | routes.txt agency_id empty (recommended) | INFO | Quality |
 | RTS_026 | Duplicate short route name | INFO | Quality |
 | RTS_027 | Duplicate long route name | INFO | Quality |
@@ -589,7 +589,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | TRN_005 | Duplicate translation | CRITICAL | Spec |
 | TRN_006 | Translation record conflicting | CRITICAL | Spec |
 | TRN_007 | Translation in same language as feed_lang | LOW | Quality |
-| TRN_008 | translation value is empty | INFO | Quality |
+| TRN_008 | translation value is empty | CRITICAL | Spec |
 | TRN_009 | record_id and field_value cannot be used together | HIGH | Spec |
 | TRN_010 | record_sub_id invalid | HIGH | Spec |
 | TRN_011 | field_name is not translatable | HIGH | Spec |

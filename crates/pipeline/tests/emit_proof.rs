@@ -1798,7 +1798,12 @@ fn provision_atoms(ftype: &str, presence: &str) -> Vec<&'static str> {
     }
     match ftype {
         "Enum" => atoms.push("enum-domain"),
-        "Time" | "Local time" | "Date" | "Color" | "URL" | "Email" | "Phone number"
+        // `Phone number` BİLİNÇLİ OLARAK YOK: spec'in tip tanımı birebir "A phone number." —
+        // dilbilgisi dayatmıyor, dolayısıyla DENETLENEBİLİR bir hüküm de yok. Onu buraya
+        // koymak defterde olmayan bir borç üretiyordu (agency_phone → AGN_007'yi "eksik"
+        // gösteriyordu, oysa AGN_007'nin Quality olması doğru). Katı bir telefon kontrolü
+        // geçerli uluslararası biçimleri reddeder.
+        "Time" | "Local time" | "Date" | "Color" | "URL" | "Email"
         | "Language code" | "Timezone" | "Currency code" | "Currency amount"
         | "Latitude" | "Longitude" => atoms.push("format"),
         "Non-negative integer" | "Positive integer" | "Non-negative float"

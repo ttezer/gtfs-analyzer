@@ -217,7 +217,11 @@ pub static RULES: &[RuleMeta] = &[
         "agency_id yineleniyor"),
     r!("AGN_011", Kritik, Spec, 1, &[], None, VS_K, Feed,
         "Birden fazla kuruluşta agency_id yok"),
-    r!("AGN_012", Dusuk,  Quality, 1, &[], Some("agency_id"), VS, Entity,
+    // Spec `Enum` tipini normatif tanımlar: "An option from a set of predefined constants
+    // defined in the Description column." Küme dışı değer spec ihlalidir → Sınıf Quality→Spec
+    // (2026-08-01, WP-3). Önem DÜŞÜK kalır: opsiyonel enum geçersizliğinin emsali RTS_013 /
+    // TRP_006 / TRP_007 (hepsi Düşük·Spec). Yayın kapısı etkilenmez (R1 = Spec ∧ Kritik).
+    r!("AGN_012", Dusuk,  Spec, 1, &[], Some("agency_id"), VS, Entity,
         "agency_cemv_support geçersiz"),
     r!("AGN_013", Dusuk,  Interop, 1, &[], None, VI, Feed,
         "Feed dili ve ajans dili uyuşmuyor"),
@@ -393,7 +397,11 @@ pub static RULES: &[RuleMeta] = &[
         "Uzun hat adı kısa adı içeriyor"),
     r!("RTS_023", Bilgi,  Quality, 1, &[], Some("route_id"), VS, Entity,
         "Hat açıklaması hat adının kopyası"),
-    r!("RTS_024", Dusuk,  Quality, 1, &[], Some("route_id"), VS, Entity,
+    // AGN_012 ile aynı gerekçe: `Enum` tipi normatiftir, küme dışı değer spec ihlalidir.
+    // Sınıf Quality→Spec (2026-08-01, WP-3); önem Düşük (emsal RTS_013/RTS_018).
+    // NOT: XFL_017/026/027 cemv_support'un SEMANTİK tutarlılığını ölçer (fare product ile
+    // çelişki) — onlar meşru biçimde Quality kalır; bu kural yalnız enum kümesini ölçer.
+    r!("RTS_024", Dusuk,  Spec, 1, &[], Some("route_id"), VS, Entity,
         "route_cemv_support geçersiz"),
     r!("RTS_025", Bilgi,  Quality, 1, &[], Some("agency_id"), VS, Entity,
         "routes.txt'te agency_id boş (önerilen alan)"),
@@ -1161,7 +1169,13 @@ pub static RULES: &[RuleMeta] = &[
         "Çeviri kaydı çelişkili"),
     r!("TRN_007", Dusuk,  Quality, 1, &[], None, VS, Row,
         "Çeviri feed_lang ile aynı dilde"),
-    r!("TRN_008", Bilgi,  Quality, 1, &[], None, VS, Row,
+    // `translations.translation` spec'te **Required**'dır; boş değer zorunlu alanın
+    // sağlanmamasıdır → spec ihlali. Sınıf Quality→Spec, önem Bilgi→KRİTİK (2026-08-01, WP-3).
+    // Emsal: zorunlu alan boş/eksik = Kritik·Spec (FIN_001 feed_publisher_name, ATR_002
+    // organization_name, LVL_007/008) — dosyanın kendisinin Optional olması bunu değiştirmez;
+    // attributions.txt ve levels.txt de Optional dosyalardır. Kritik+Spec → görünürlük VS_K
+    // (R1'i taşımak ZORUNDA, registry testi bunu doğrular) ve bulgu yayın engeli olur.
+    r!("TRN_008", Kritik, Spec, 1, &[], None, VS_K, Row,
         "translation değeri boş"),
     r!("TRN_009", Yuksek, Spec, 1, &[], Some("record_id"), VS, Row,
         "record_id ve field_value aynı anda kullanılamaz"),
@@ -1457,7 +1471,7 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("AGN_009", GtfsSpec),
     ("AGN_010", GtfsSpec),
     ("AGN_011", GtfsSpec),
-    ("AGN_012", ProjectQuality),
+    ("AGN_012", GtfsSpec),
     ("AGN_013", MobilitydataParity),
     ("AGN_014", GtfsSpec),
     ("AGN_015", ProjectQuality),
@@ -1768,7 +1782,7 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("RTS_021", ProjectQuality),
     ("RTS_022", ProjectQuality),
     ("RTS_023", ProjectQuality),
-    ("RTS_024", ProjectQuality),
+    ("RTS_024", GtfsSpec),
     ("RTS_025", ProjectQuality),
     ("RTS_026", ProjectQuality),
     ("RTS_027", ProjectQuality),
@@ -1929,7 +1943,7 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("TRN_005", GtfsSpec),
     ("TRN_006", GtfsSpec),
     ("TRN_007", ProjectQuality),
-    ("TRN_008", ProjectQuality),
+    ("TRN_008", GtfsSpec),
     ("TRN_009", GtfsSpec),
     ("TRN_010", GtfsSpec),
     ("TRN_011", GtfsSpec),

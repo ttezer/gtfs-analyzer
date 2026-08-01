@@ -139,6 +139,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   is still fatal, since nothing then says where service is provided.
 
 ### Changed
+- **AGN_012, RTS_024 and TRN_008 were classed as quality problems, not specification errors.**
+  Adjudicating every ledger entry whose field is measured only by a non-Spec rule turned up
+  three of the same kind as RTS_007. `AGN_012` and `RTS_024` check that `cemv_support` holds one
+  of the enumerated values, and the reference defines `Enum` as "an option from a set of
+  predefined constants defined in the Description column", so a value outside the set violates
+  the specification. Both keep low severity, matching RTS_013 and TRP_006. `TRN_008` reports an
+  empty `translation`, a field the reference marks Required; an empty required value is a
+  missing required value, which this project has always treated as critical and Spec —
+  FIN_001, ATR_002 and LVL_007 all do. TRN_008 therefore becomes critical and Spec, **which
+  makes it a publish blocker**, since the publish gate takes exactly the critical Spec findings.
+  The file being optional does not soften it: `attributions.txt` and `levels.txt` are optional
+  too.
+
+  Two of the ten entries needed no rule change at all. `route_short_name` and `route_long_name`
+  appeared uncovered only because RTS_003, which is critical and Spec, enforces their mutual
+  requirement while reporting no field name — precisely the lower-bound artefact the ledger
+  header warns about.
+- **The coverage measurement no longer invents a provision for phone numbers.** It counted
+  `Phone number` as a format constraint, but the reference defines that type in full as "A
+  phone number", with no grammar to violate. Three entries — `agency_phone`,
+  `attributions.attribution_phone` and `booking_rules.phone_number` — were listed as
+  uncovered provisions that do not exist, and AGN_007 was being implicitly blamed for being
+  Quality when Quality is the right class for it. The ledger drops from 31 entries to 25.
 - **RTS_007 is a specification error, like its twin RTS_006.** Both rules check that a colour
   is a six-digit hex value, with the same helper and the same handling of an empty value, but
   `route_color` was classed Spec at medium severity and `route_text_color` Quality at low. The

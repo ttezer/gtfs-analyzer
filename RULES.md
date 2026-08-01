@@ -80,7 +80,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | AGN_009 | agency_email geçersiz | DÜŞÜK | Spec |
 | AGN_010 | agency_id yineleniyor | KRİTİK | Spec |
 | AGN_011 | Birden fazla kuruluşta agency_id yok | KRİTİK | Spec |
-| AGN_012 | agency_cemv_support geçersiz | DÜŞÜK | Quality |
+| AGN_012 | agency_cemv_support geçersiz | DÜŞÜK | Spec |
 | AGN_013 | Feed dili ve ajans dili uyuşmuyor | DÜŞÜK | Interop |
 | AGN_014 | Birden fazla kuruluş var ama agency.txt'de agency_id eksik | KRİTİK | Spec |
 | AGN_015 | agency_url güvensiz http kullanıyor (https önerilir) | BİLGİ | Quality |
@@ -157,7 +157,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | RTS_021 | Kısa hat adı Google Transit eşiğini (6 karakter) aşıyor | DÜŞÜK | Quality |
 | RTS_022 | Uzun hat adı kısa adı içeriyor | DÜŞÜK | Quality |
 | RTS_023 | Hat açıklaması hat adının kopyası | BİLGİ | Quality |
-| RTS_024 | route_cemv_support geçersiz | DÜŞÜK | Quality |
+| RTS_024 | route_cemv_support geçersiz | DÜŞÜK | Spec |
 | RTS_025 | routes.txt'te agency_id boş (önerilen alan) | BİLGİ | Quality |
 | RTS_026 | Yinelenen kısa hat adı | BİLGİ | Quality |
 | RTS_027 | Yinelenen uzun hat adı | BİLGİ | Quality |
@@ -589,7 +589,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | TRN_005 | Çeviri yineleniyor | KRİTİK | Spec |
 | TRN_006 | Çeviri kaydı çelişkili | KRİTİK | Spec |
 | TRN_007 | Çeviri feed_lang ile aynı dilde | DÜŞÜK | Quality |
-| TRN_008 | translation değeri boş | BİLGİ | Quality |
+| TRN_008 | translation değeri boş | KRİTİK | Spec |
 | TRN_009 | record_id ve field_value aynı anda kullanılamaz | YÜKSEK | Spec |
 | TRN_010 | record_sub_id geçersiz | YÜKSEK | Spec |
 | TRN_011 | field_name çevrilebilir değil | YÜKSEK | Spec |

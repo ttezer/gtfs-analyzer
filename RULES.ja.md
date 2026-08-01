@@ -80,7 +80,7 @@
 | AGN_009 | agency_emailが無効 | 低 | 仕様 |
 | AGN_010 | agency_idが重複 | 致命的 | 仕様 |
 | AGN_011 | 複数事業者でagency_idなし | 致命的 | 仕様 |
-| AGN_012 | cemv_supportが無効（事業者） | 低 | 品質 |
+| AGN_012 | cemv_supportが無効（事業者） | 低 | 仕様 |
 | AGN_013 | フィード言語と事業者言語が不一致 | 低 | 相互運用 |
 | AGN_014 | 複数事業者だがagency.txtにagency_idなし | 致命的 | 仕様 |
 | AGN_015 | agency_urlが安全でないhttp | 情報 | 品質 |
@@ -157,7 +157,7 @@
 | RTS_021 | route_short_nameがGoogleトランジットの上限（6文字）を超過 | 低 | 品質 |
 | RTS_022 | route_long_nameにroute_short_nameが含まれている | 低 | 品質 |
 | RTS_023 | route_descが路線名の繰り返し | 情報 | 品質 |
-| RTS_024 | cemv_supportが無効（路線） | 低 | 品質 |
+| RTS_024 | cemv_supportが無効（路線） | 低 | 仕様 |
 | RTS_025 | routes.txtのagency_idが空（推奨） | 情報 | 品質 |
 | RTS_026 | 短い路線名の重複 | 情報 | 品質 |
 | RTS_027 | 長い路線名の重複 | 情報 | 品質 |
@@ -589,7 +589,7 @@
 | TRN_005 | 翻訳が重複 | 致命的 | 仕様 |
 | TRN_006 | 翻訳レコードが競合 | 致命的 | 仕様 |
 | TRN_007 | 翻訳がfeed_langと同一言語 | 低 | 品質 |
-| TRN_008 | translationの値が空 | 情報 | 品質 |
+| TRN_008 | translationの値が空 | 致命的 | 仕様 |
 | TRN_009 | record_idとfield_valueを同時使用不可 | 高 | 仕様 |
 | TRN_010 | record_sub_idが無効 | 高 | 仕様 |
 | TRN_011 | field_nameが翻訳不可 | 高 | 仕様 |

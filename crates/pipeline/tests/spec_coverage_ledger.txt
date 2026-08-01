@@ -1,6 +1,6 @@
 # WP-3/A — spec'te normatif hükmü olan ama emit_proof korpusunda hiçbir
 # GtfsSpec notice'ının ÇAPALANMADIĞI alanlar. Biçim: dosya:alan  hükümler [kanıt].
-# 31 alan.
+# 25 alan.
 #
 # Bu bir BORÇ defteridir, kapı değil: eksik kural kimseyi yanlış REDDETMEZ,
 # ama boşluk sessizce BÜYÜMEMELİ. Kural eklenince satır düşer.
@@ -28,15 +28,11 @@
 #
 # Yeniden üretmek: UPDATE_LEDGER=1 cargo test -p gtfs-pipeline --test emit_proof \
 #   spec_coverage_gaps_match_ledger
-agency.txt:agency_phone  format  [yalnız: AGN_007,AGN_016]
-agency.txt:cemv_support  enum-domain  [yalnız: AGN_012]
 attributions.txt:attribution_id  unique  [yalnız: ATR_001]
-attributions.txt:attribution_phone  format
 attributions.txt:route_id  foreign-key
 attributions.txt:trip_id  foreign-key
 booking_rules.txt:booking_url  format  [denetim-yok]
 booking_rules.txt:info_url  format  [denetim-yok]
-booking_rules.txt:phone_number  format  [denetim-yok]
 calendar.txt:friday  presence:required,enum-domain
 calendar.txt:saturday  presence:required,enum-domain
 calendar.txt:sunday  presence:required,enum-domain
@@ -50,7 +46,6 @@ fare_leg_join_rules.txt:to_stop_id  presence:conditional,foreign-key
 pathways.txt:stair_count  range  [yalnız: PTH_008]
 rider_categories.txt:eligibility_url  format
 route_networks.txt:route_id  presence:required,foreign-key
-routes.txt:cemv_support  enum-domain  [yalnız: RTS_024,XFL_017,XFL_026,XFL_027]
 routes.txt:network_id  presence:conditional-forbidden
 routes.txt:route_long_name  presence:conditional  [yalnız: RTS_011,RTS_019,RTS_022,RTS_027]
 routes.txt:route_short_name  presence:conditional  [yalnız: RTS_010,RTS_021,RTS_026]
@@ -58,4 +53,3 @@ routes.txt:route_sort_order  range
 stop_times.txt:start_pickup_drop_off_window  presence:conditional,format  [yalnız: PDW_006,STM_038]
 stops.txt:stop_url  format  [yalnız: STP_034,STP_035]
 translations.txt:field_value  presence:conditional
-translations.txt:translation  presence:required  [yalnız: TRN_008]
