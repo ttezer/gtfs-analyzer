@@ -143,7 +143,7 @@
 | RTS_004 | route_typeが不足または無効 | 致命的 | 仕様 |
 | RTS_005 | route_urlが無効 | 中 | 仕様 |
 | RTS_006 | route_colorが有効な16進カラーでない | 中 | 仕様 |
-| RTS_007 | route_text_colorが有効な16進カラーでない | 低 | 品質 |
+| RTS_007 | route_text_colorが有効な16進カラーでない | 中 | 仕様 |
 | RTS_008 | route_colorとroute_text_colorのコントラストが不十分 | 中 | 品質 |
 | RTS_010 | route_short_nameが長すぎる | 低 | 品質 |
 | RTS_011 | route_long_nameが長すぎる | 低 | 品質 |

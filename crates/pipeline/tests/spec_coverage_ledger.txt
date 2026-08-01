@@ -1,6 +1,6 @@
 # WP-3/A — spec'te normatif hükmü olan ama emit_proof korpusunda hiçbir
 # GtfsSpec notice'ının ÇAPALANMADIĞI alanlar. Biçim: dosya:alan  hükümler [kanıt].
-# 32 alan.
+# 31 alan.
 #
 # Bu bir BORÇ defteridir, kapı değil: eksik kural kimseyi yanlış REDDETMEZ,
 # ama boşluk sessizce BÜYÜMEMELİ. Kural eklenince satır düşer.
@@ -8,10 +8,22 @@
 # ⚠️ ALT SINIR — "hiçbir kural yok" DEMEK DEĞİL. Çok alanlı kurallar (CAL_002
 # yedi günü de denetler, fixture yalnız monday'i bozar) ve field=None üretenler
 # (RTS_003 "ikisinden biri zorunlu") burada GÖRÜNÜR ama boşluk DEĞİLDİR.
+# DOĞRU İFADE: "bu alanların normatif hükmü var ama emit_proof korpusunda
+# bunlara bağlı bir Spec notice çapası görünmüyor" — "N eksik kuralımız var" DEĞİL.
+#
+# ⚠️ HÜKÜM ÜRETİMİ KABA: yalnız alan tablosunun Presence/Type/PK sütunlarından
+# türetilir. Düzyazı koşullar ("yalnız B=1 iken", "ikisinden biri zorunlu",
+# "A ve B birlikte"), dosyalar arası koşullar, sefer içi tutarlılık ve GeoJSON
+# iç yapı şartları KAPSAM DIŞIDIR. Bu defter spec'in TÜM normatif hükümlerini
+# ölçmez, yalnız alan tablosundan türetilebilen bölümünü ölçer.
 #   [denetim-yok] = alan adı k2–k7 denetim aşamalarında hiç geçmiyor → boşluk KESİN
 #                   (k1_parse.rs dışlanır: known_columns her sütunu zaten sayar).
 #   [yalnız: …]   = alanı ölçen kural VAR, ama Spec sınıfı DEĞİL. Boşluk değil;
 #                   karar: hüküm Spec meselesi mi, mevcut kural yeterli mi?
+#                   ⚠️ Bu işaret "hüküm KARŞILANDI" DEMEZ — yalnız "bu kural bu
+#                   alanda notice üretti" der. Ör. route_text_color → RTS_007
+#                   (hex format) + RTS_008 (kontrast); RTS_008 meşru Quality'dir
+#                   ama spec'in Color-tipi hükmünü karşılamaz.
 #   kanıtsız satır  = ADJUDİKASYON gerekir; ÖNCE MEVCUT KURALI ARA.
 #
 # Yeniden üretmek: UPDATE_LEDGER=1 cargo test -p gtfs-pipeline --test emit_proof \
@@ -43,7 +55,6 @@ routes.txt:network_id  presence:conditional-forbidden
 routes.txt:route_long_name  presence:conditional  [yalnız: RTS_011,RTS_019,RTS_022,RTS_027]
 routes.txt:route_short_name  presence:conditional  [yalnız: RTS_010,RTS_021,RTS_026]
 routes.txt:route_sort_order  range
-routes.txt:route_text_color  format  [yalnız: RTS_007,RTS_008]
 stop_times.txt:start_pickup_drop_off_window  presence:conditional,format  [yalnız: PDW_006,STM_038]
 stops.txt:stop_url  format  [yalnız: STP_034,STP_035]
 translations.txt:field_value  presence:conditional

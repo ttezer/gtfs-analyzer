@@ -358,7 +358,14 @@ pub static RULES: &[RuleMeta] = &[
         "route_url geçersiz"),
     r!("RTS_006", Orta,   Spec, 1, &[], Some("route_id"), VS, Entity,
         "route_color geçersiz hex renk"),
-    r!("RTS_007", Dusuk,  Quality, 1, &[], Some("route_id"), VS, Entity,
+    // RTS_006 ile SİMETRİK (2026-08-01, WP-3): spec `route_color` ve `route_text_color`'ın
+    // İKİSİNİ de `Color` tipiyle tanımlar ve tip normatiftir — birebir: "A color encoded as a
+    // six-digit hexadecimal number … the leading '#' must not be included". Aynı hükmü ölçen
+    // iki kural (aynı yardımcı, aynı boş-değer filtresi) farklı sınıftaydı; RTS_007 Quality·Düşük
+    // idi. Ayrımın maddi gerekçesi yoktu. Alanın Optional olması tipi bağlayıcı olmaktan
+    // çıkarmaz: değer VARSA 6 haneli hex olmak zorundadır.
+    // NOT: kontrast hükmü "should" ile yazılmıştır → RTS_008 Quality kalır, doğrudur.
+    r!("RTS_007", Orta,   Spec, 1, &[], Some("route_id"), VS, Entity,
         "route_text_color geçersiz hex renk"),
     r!("RTS_008", Orta,   Quality, 1, &[], Some("route_id"), VS, Entity,
         "Hat rengi ve metin rengi kontrast düşük"),
@@ -1747,7 +1754,7 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("RTS_004", GtfsSpec),
     ("RTS_005", GtfsSpec),
     ("RTS_006", GtfsSpec),
-    ("RTS_007", ProjectQuality),
+    ("RTS_007", GtfsSpec),
     ("RTS_008", ProjectQuality),
     ("RTS_010", ProjectQuality),
     ("RTS_011", ProjectQuality),

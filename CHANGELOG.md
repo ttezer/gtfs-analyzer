@@ -139,6 +139,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   is still fatal, since nothing then says where service is provided.
 
 ### Changed
+- **RTS_007 is a specification error, like its twin RTS_006.** Both rules check that a colour
+  is a six-digit hex value, with the same helper and the same handling of an empty value, but
+  `route_color` was classed Spec at medium severity and `route_text_color` Quality at low. The
+  reference types both fields as `Color` and defines the type normatively: "A color encoded as
+  a six-digit hexadecimal number … the leading '#' must not be included". A field being
+  Optional does not make its type advisory — if a value is given, the format is required. There
+  was no substantive reason for the split, so RTS_007 becomes medium severity and Spec, with
+  its authority set to `GtfsSpec`. The contrast requirement is a separate matter and the
+  reference words it with "should", so RTS_008 stays Quality, which is correct.
+  This is what the coverage ledger is for: `routes.txt:route_text_color` was listed there as
+  carrying a provision with no Spec rule anchored, and closing the gap removed the line.
 - **STM_040 is no longer a specification error.** The rule reports a Flex row that defines a
   pickup or drop-off window without either booking rule ID. The 27 April 2026 Schedule
   Reference marks both fields **Optional**, and only adds "Recommended when `pickup_type=2`".

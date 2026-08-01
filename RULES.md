@@ -143,7 +143,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | RTS_004 | route_type eksik veya geçersiz | KRİTİK | Spec |
 | RTS_005 | route_url geçersiz | ORTA | Spec |
 | RTS_006 | route_color geçersiz hex renk | ORTA | Spec |
-| RTS_007 | route_text_color geçersiz hex renk | DÜŞÜK | Quality |
+| RTS_007 | route_text_color geçersiz hex renk | ORTA | Spec |
 | RTS_008 | Hat rengi ve metin rengi kontrast düşük | ORTA | Quality |
 | RTS_010 | route_short_name çok uzun | DÜŞÜK | Quality |
 | RTS_011 | route_long_name çok uzun | DÜŞÜK | Quality |

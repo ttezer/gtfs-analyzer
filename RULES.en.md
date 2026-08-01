@@ -143,7 +143,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | RTS_004 | route_type missing or invalid | CRITICAL | Spec |
 | RTS_005 | route_url invalid | MEDIUM | Spec |
 | RTS_006 | route_color invalid hex color | MEDIUM | Spec |
-| RTS_007 | route_text_color invalid hex color | LOW | Quality |
+| RTS_007 | route_text_color invalid hex color | MEDIUM | Spec |
 | RTS_008 | Route color and text color have low contrast | MEDIUM | Quality |
 | RTS_010 | route_short_name too long | LOW | Quality |
 | RTS_011 | route_long_name too long | LOW | Quality |
