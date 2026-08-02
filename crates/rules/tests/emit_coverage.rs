@@ -18,10 +18,6 @@ use std::path::{Path, PathBuf};
 /// Statik string-literal taramasıyla görünmeyen, ama gerçekten emit edilen kurallar.
 /// Bunlar dinamik/fatal yollarla üretilir; rule_id kaynak kodda literal geçmez.
 const DYNAMIC_EMIT_ALLOWLIST: &[&str] = &[
-    // AGN_001 "agency.txt eksik": FİİLEN EMİT EDİLMEZ. Dosya eksikliğini ARC_004 (Fatal
-    // NoRequiredFiles) temsil eder; AGN_001 yalnızca MD missing_required_file paritesi için
-    // registry'de tutulan, Notice üretmeyen bir kayıttır → literal yok (karar: issue #27).
-    "AGN_001",
     // Fatal yol: FatalCode::ZipUnreadable olarak döner (Notice değil), rule_id literal yok.
     "ARC_001", // "ZIP arşivi açılamadı"
 ];

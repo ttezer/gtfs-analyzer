@@ -387,7 +387,7 @@ fn code_references_point_to_rule() {
                 continue;
             }
             // Generic/veri-güdümlü emit: kural ID'si dosyada literal olarak hiç geçmiyorsa
-            // (ör. AGN_001 "agency.txt eksik" k1'de REQUIRED_FILES döngüsüyle üretilir)
+            // (ör. veri-güdümlü döngülerden üretilen kurallar)
             // içerik kontrolü yapılamaz — satır aralığı geçerliyken atla.
             if !src.contains(&format!("\"{}\"", rule.id)) {
                 continue;

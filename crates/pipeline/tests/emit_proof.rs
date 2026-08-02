@@ -118,17 +118,9 @@ const PROOF_ALLOWLIST: &[&str] = &[
     // vektörü düşer. Kanıt (2026-08-02'de eklendi):
     // integration.rs::arc004_missing_required_file_returns_fatal_no_required_files
     "ARC_004",
-    // ⚠️ ÖLÜ KURAL — kanıt YOK ve OLAMAZ: hiçbir yolla emit edilmez (ne Notice ne fatal kodu).
-    // Üretim kodunda literali yok (yalnız registry + k7_reporting'in TEST modülünde geçer).
-    // Dosya eksikliğini ARC_004 temsil eder; AGN_001 yalnız MD `missing_required_file`
-    // paritesini BELGELEMEK için registry'de duruyor (karar: issue #27, kapalı).
-    // Bedeli: Kritik·Spec sayıldığı için "266 Spec kuralı / 170 R1 blocker" gibi her sayımı
-    // birer birer şişiriyor ve kullanıcının asla göremeyeceği bir kartı/3 locale'i var.
-    "AGN_001",
 ];
 
 // ── KALICI DEBT (coverage_debt.txt'te kalır) ──
-// (AGN_001 → PROOF_ALLOWLIST'te: fatal yol, ARC_004 temsil eder; issue #27)
 // #28 ÇÖZÜLEN: ARC_002/003 (fx_raw ham byte), OPR_021/022/023 + ARC_028/STP_040/STP_041 (fx_cfg
 // config) artık fixtures()'ta runtime-kanıtlı. Kalan borç yalnız pratik-olmayan büyük feed'ler +
 // ARC_027 (yapısal):
@@ -218,11 +210,6 @@ fn fixtures() -> Vec<Fixture> {
             ("agency.txt", "agency_id,agency_name,agency_url,agency_timezone\n1,A,https://a.example,UTC\n2,B,https://b.example,UTC\n"),
             ("routes.txt", "route_id,agency_id,route_short_name,route_type\nR1,,101,3\n"),
         ]),
-        // NOT (#5 bulgu, #27 karar): AGN_001 "agency.txt eksik" başlıklı ama agency.txt
-        // eksikliğini ARC_004 (Fatal NoRequiredFiles) ele alıyor; AGN_001 hiçbir yolla emit
-        // edilmiyor. Karar (#27): bırak + PROOF_ALLOWLIST'e taşındı (ARC_001/ARC_004 gibi
-        // fatal-yol kuralı); MD missing_required_file paritesi için registry'de kalır.
-
         // ── ARC grubu (arşiv/dosya/başlık seviyesi) ────────────────────────────
         // ARC_008: takvim dosyası yok (calendar + calendar_dates ikisi de).
         fx_rm("ARC_008", vec![], vec!["calendar.txt"]),

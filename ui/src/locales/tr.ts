@@ -603,7 +603,6 @@ const tr = {
     'BKR_021': 'info_url geçersiz',
     'BKR_022': 'phone_number geçersiz',
     // AGN
-    'AGN_001': 'agency.txt dosyası eksik',
     'AGN_002': 'agency_name eksik',
     'AGN_003': 'agency_url eksik veya geçersiz',
     'AGN_004': 'agency_timezone eksik veya geçersiz',

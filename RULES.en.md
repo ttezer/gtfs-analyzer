@@ -2,7 +2,7 @@
 
 🇹🇷 [Türkçe](RULES.md) · 🇬🇧 **English** · 🇯🇵 [日本語](RULES.ja.md)
 
-564 rules, 38 groups. Each rule is identified by a unique ID, severity level, and class.
+563 rules, 38 groups. Each rule is identified by a unique ID, severity level, and class.
 Severity levels: **CRITICAL** (publish blocker) · **HIGH** · **MEDIUM** · **LOW** · **INFO**
 Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Quality** (GTFS Quality) · **Analytics** (GTFS Analytics)
 
@@ -73,7 +73,6 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 
 | Rule | Title | Severity | Class |
 |---|---|---|---|
-| AGN_001 | agency.txt file missing | CRITICAL | Spec |
 | AGN_002 | agency_name missing | CRITICAL | Spec |
 | AGN_003 | agency_url missing or invalid | CRITICAL | Spec |
 | AGN_004 | agency_timezone missing or invalid | CRITICAL | Spec |

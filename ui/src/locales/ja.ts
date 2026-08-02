@@ -578,7 +578,6 @@ const ja: LocaleShape = {
     'BKR_021': "予約ルール'{entity_id}'：info_urlが有効なURLではありません。",
     'BKR_022': "予約ルール'{entity_id}'：phone_number'{observed_value}'が電話番号の形式ではありません。",
     // AGN
-    'AGN_001': 'agency.txtがありません。',
     'AGN_002': "事業者'{entity_id}'：agency_nameがありません。",
     'AGN_003': "事業者'{entity_id}'：agency_urlがないか無効です。",
     'AGN_004': "事業者'{entity_id}'：agency_timezoneがないか無効です（{observed_value}）。",
@@ -1149,7 +1148,6 @@ const ja: LocaleShape = {
     'ARC_023': 'ネストされたZIPファイルを削除してください。GTFSファイルは単一のフラットなZIPアーカイブに直接含まれている必要があります。',
     'ARC_024': 'ファイルをZIPアーカイブのルートディレクトリに移動してください。',
     // AGN
-    'AGN_001': 'フィードのZIPにagency.txtを追加してください。',
     'AGN_002': 'agency_nameフィールドを入力してください。',
     'AGN_003': 'agency_urlに有効なhttp/https URLを入力してください。',
     'AGN_004': '有効なIANAタイムゾーン（例: Asia/Tokyo）を使用してください。',
@@ -1767,7 +1765,6 @@ const ja: LocaleShape = {
     'BKR_021': 'info_urlが無効',
     'BKR_022': 'phone_numberが無効',
     // AGN
-    'AGN_001': 'agency.txtが不足',
     'AGN_002': 'agency_nameが不足',
     'AGN_003': 'agency_urlが不足または無効',
     'AGN_004': 'agency_timezoneが不足または無効',

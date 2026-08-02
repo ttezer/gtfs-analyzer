@@ -215,9 +215,13 @@ pub static RULES: &[RuleMeta] = &[
         "phone_number geçersiz"),
 
     // ── AGN: Agency ────────────────────────────────────────────────────────────
-    r!("AGN_001", Kritik, Spec, 1,
-        &["RTS_002"], None, VS_K, Feed,
-        "agency.txt dosyası eksik"),
+    // AGN_001 KALDIRILDI (2026-08-02): hiçbir yolla emit EDİLMEYEN bir kayıttı — ne Notice
+    // ne fatal kodu. agency.txt eksikliğini ARC_004 (Fatal NoRequiredFiles) temsil eder.
+    // MD `missing_required_file` paritesini BELGELEMEK için tutuluyordu; belgeleme yeri
+    // ARC_004'ün kartıdır, sahte bir registry kaydı değil. Bedeli: Kritik·Spec sayıldığı için
+    // "kaç Spec kuralı / kaç R1 blocker" sayımlarını şişiriyor, kullanıcının göremeyeceği bir
+    // kartı ve 3 locale girdisi vardı, ve `sync_cards` her koşuda "çözülemedi" basıyordu.
+    // `blocks: ["RTS_002"]` bağlantısı da atıldı — hiç ateşlemeyen kural hiçbir şeyi bloke etmez.
     r!("AGN_002", Kritik, Spec, 1, &[], Some("agency_id"), VS_K, Entity,
         "agency_name eksik"),
     r!("AGN_003", Kritik, Spec, 1, &[], Some("agency_id"), VS_K, Entity,
@@ -1568,7 +1572,6 @@ pub fn get_rule(id: &str) -> Option<&'static RuleMeta> {
 /// Sınıf otorite bütünlüğü SSOT: `Spec` sınıfı YALNIZ `GtfsSpec` ile meşrudur. r!() çağrılarına
 /// dokunmadan tutulur; kapsam/tekillik `authority_covers_all_rules` testiyle denetlenir.
 static AUTHORITY: &[(&str, AuthoritySource)] = &[
-    ("AGN_001", GtfsSpec),
     ("AGN_002", GtfsSpec),
     ("AGN_003", GtfsSpec),
     ("AGN_004", GtfsSpec),
@@ -2277,7 +2280,7 @@ mod tests {
     #[test]
     fn blocks_only_canonical_ids() {
         let view_ids = ["GEO_008", "GEO_010", "GEO_011"];
-        let removed_ids = ["STM_011","TRP_010","GEO_001","GEO_005","DQ_007","DQ_008","DQ_015","STM_027","SHP_027","STM_057"];
+        let removed_ids = ["STM_011","TRP_010","GEO_001","GEO_005","DQ_007","DQ_008","DQ_015","STM_027","SHP_027","STM_057","AGN_001"];
         for rule in RULES {
             for &b in rule.blocks {
                 assert!(!view_ids.contains(&b),

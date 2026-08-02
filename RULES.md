@@ -2,7 +2,7 @@
 
 🇹🇷 **Türkçe** · 🇬🇧 [English](RULES.en.md) · 🇯🇵 [日本語](RULES.ja.md)
 
-564 kural, 38 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
+563 kural, 38 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
 Önem seviyeleri: **KRİTİK** (yayın engelleyici) · **YÜKSEK** · **ORTA** · **DÜŞÜK** · **BİLGİ**
 Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · **Quality** (GTFS Kalitesi) · **Analytics** (GTFS Analitiği)
 
@@ -73,7 +73,6 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 
 | Kural | Başlık | Önem | Sınıf |
 |---|---|---|---|
-| AGN_001 | agency.txt dosyası eksik | KRİTİK | Spec |
 | AGN_002 | agency_name eksik | KRİTİK | Spec |
 | AGN_003 | agency_url eksik veya geçersiz | KRİTİK | Spec |
 | AGN_004 | agency_timezone eksik veya geçersiz | KRİTİK | Spec |

@@ -166,6 +166,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `AGN_007`. `PTH_017` keeps the type check and is retitled accordingly: a feed with
   `max_slope = abc` used to receive a finding titled "invalid context", which is the same
   mislabelling fixed in `ATR_006` this week.
+- **`AGN_001` is removed: it could never fire.** The rule claimed to report a missing
+  `agency.txt`, was classed Kritik·Spec, had a card and three locale entries — and emitted
+  nothing, by any path. Not a notice, not a fatal code. Its id appeared in no production code;
+  only in the registry and in one unit test that used it as a dummy value. A missing
+  `agency.txt` is reported by `ARC_004` as `FatalCode::NoRequiredFiles`, and always was.
+
+  It was kept deliberately, to document parity with MobilityData's `missing_required_file`.
+  That purpose is legitimate; the place was not. A sentence in `ARC_004`'s card documents the
+  parity without inventing a rule, and the cost of the invention was concrete: being Kritik·Spec,
+  it inflated every count of Spec rules and R1 blockers by one — including the numbers used to
+  reason about the publish gate this week. Three independent mechanisms had been reporting it
+  for months: `emit_coverage`'s dynamic allowlist, `emit_proof`'s allowlist, and `sync_cards`
+  printing "AGN_001: could not resolve" on every run.
+
+  563 rules. The id is retired and recorded in `removed_ids`, so it cannot be reused.
+
 - **`FatalCode::NoRequiredFiles` had no test.** Auditing the emit-proof allowlist — the rules
   exempted from having to prove they can fire — showed that an exemption is only as good as the
   proof it points at. `ARC_001` and `ARC_029` name real tests. `ARC_004` said it was

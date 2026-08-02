@@ -597,7 +597,6 @@ const en: LocaleShape = {
     'BKR_021': "Booking rule '{entity_id}': info_url is not a valid URL.",
     'BKR_022': "Booking rule '{entity_id}': phone_number '{observed_value}' does not look like a phone number.",
     // AGN
-    'AGN_001': 'agency.txt is missing.',
     'AGN_002': "Agency '{entity_id}': agency_name is missing.",
     'AGN_003': "Agency '{entity_id}': agency_url is missing or invalid.",
     'AGN_004': "Agency '{entity_id}': agency_timezone is missing or invalid ({observed_value}).",
@@ -1670,7 +1669,6 @@ const en: LocaleShape = {
     'ARC_023': 'Remove the nested ZIP file; GTFS files must be directly inside a single flat ZIP archive.',
     'ARC_024': 'Move the file to the root of the ZIP archive.',
     // AGN
-    'AGN_001': 'Add agency.txt to the feed ZIP.',
     'AGN_013': 'Align the feed_lang value in feed_info.txt with the agency_lang value in agency.txt.',
     'AGN_014': 'Assign a unique agency_id to every agency row when multiple agencies are present.',
     'AGN_015': 'Update agency_url to use https://.',
@@ -1813,7 +1811,6 @@ const en: LocaleShape = {
     'BKR_021': 'info_url is invalid',
     'BKR_022': 'phone_number is invalid',
     // AGN
-    'AGN_001': 'agency.txt file missing',
     'AGN_002': 'agency_name missing',
     'AGN_003': 'agency_url missing or invalid',
     'AGN_004': 'agency_timezone missing or invalid',

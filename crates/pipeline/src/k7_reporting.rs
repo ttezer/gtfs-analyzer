@@ -1068,7 +1068,7 @@ mod tests {
     #[test]
     fn symptom_resolution_no_blocks_nothing_marked() {
         let n1 = notice("n1", "ARC_001", Severity::Kritik, RuleClass::Spec);
-        let n2 = notice("n2", "AGN_001", Severity::Kritik, RuleClass::Spec);
+        let n2 = notice("n2", "ARC_008", Severity::Kritik, RuleClass::Spec);
         let resolution = resolve_symptoms(&[n1, n2]);
         assert!(resolution.is_symptom.iter().all(|&s| !s));
     }
