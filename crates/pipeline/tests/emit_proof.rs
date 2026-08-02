@@ -206,9 +206,12 @@ fn fixtures() -> Vec<Fixture> {
         fx("AGN_005", vec![("agency.txt", "agency_id,agency_name,agency_url,agency_timezone\n1,A,https://a.example,UTC\n2,B,https://b.example,Europe/Istanbul\n")]),
         fx("AGN_017", vec![("agency.txt", "agency_id,agency_name,agency_url,agency_timezone,agency_lang\n1,A,https://a.example,UTC,tr\n2,B,https://b.example,UTC,en\n")]),
         // AGN_011: birden fazla işletici varken route'ta agency_id boş.
+        // AGN_011 İKİ dosyayı kapsar: routes.txt ve fare_attributes.txt (spec aynı hükmü
+        // ikisi için de yazar). Fixture ikisini de tetikler ki her iki çapa da düşsün.
         fx("AGN_011", vec![
             ("agency.txt", "agency_id,agency_name,agency_url,agency_timezone\n1,A,https://a.example,UTC\n2,B,https://b.example,UTC\n"),
             ("routes.txt", "route_id,agency_id,route_short_name,route_type\nR1,,101,3\n"),
+            ("fare_attributes.txt", "fare_id,price,currency_type,payment_method,transfers\nF1,1.00,USD,0,0\n"),
         ]),
         // ── ARC grubu (arşiv/dosya/başlık seviyesi) ────────────────────────────
         // ARC_008: takvim dosyası yok (calendar + calendar_dates ikisi de).

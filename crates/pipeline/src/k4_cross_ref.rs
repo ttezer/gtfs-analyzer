@@ -427,6 +427,33 @@ fn check_agencies(
             "Birden fazla kuruluş olduğunda tüm hatların agency_id alanını doldurun.",
         ));
     }
+
+    // AGN_011 aynı hükmü fare_attributes.txt için de taşır: spec her iki alanı da
+    // "Conditionally Required: Required if multiple agencies are defined in agency.txt" diye
+    // tanımlar. 2026-08-02'ye kadar YALNIZ routes.txt denetleniyordu; ücret tarafındaki aynı
+    // hüküm denetimsizdi. Tek kural, iki dosya (DQ_021 emsali) — olgu birebir aynı.
+    let fares_without_agency = records.fare_attributes.iter()
+        .filter(|f| !f.fare_id.is_empty() && f.agency_id.is_none())
+        .count();
+    if fares_without_agency > 0 {
+        notices.push(notice(
+            ctr,
+            "AGN_011",
+            EntityType::Feed,
+            None,
+            None,
+            "fare_attributes.txt",
+            None,
+            Some("agency_id"),
+            Some(format!("{fares_without_agency} ücret")),
+            Some("dolu".to_string()),
+            format!(
+                "Feed'de {} işletici var; {fares_without_agency} ücret kaydında agency_id belirtilmemiş — hangi işleticinin ücreti olduğu belirlenemiyor.",
+                records.agencies.len()
+            ),
+            "Birden fazla kuruluş olduğunda tüm fare_attributes kayıtlarının agency_id alanını doldurun.",
+        ));
+    }
 }
 
 // �"?�"? STP_009-012, STP_026-027: durak cross-ref �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?

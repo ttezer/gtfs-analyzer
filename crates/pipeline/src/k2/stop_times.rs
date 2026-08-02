@@ -1578,8 +1578,12 @@ pub fn validate_stop_times(file: &RawFile, zip_bytes: Option<&[u8]>) -> (StopTim
         if !raw_stop.is_empty() && has_location {
             st.notices.push(make_k2_notice(
                 &mut st.counter, "STM_041", EntityType::Trip, eid(),
-                None, &file.name, Some(line), Some("location_id"),
-                Some(loc_id_raw.to_string()), Some("(boş)".to_string()),
+                None, &file.name, Some(line),
+                // Çakışma üç alan arasındadır; eskiden yalnız "location_id" yazılıyordu ve
+                // çakışma location_group_id ileyken kullanıcı yanlış alana bakıyordu.
+                Some("stop_id|location_id|location_group_id"),
+                Some(if loc_id_raw.is_empty() { loc_grp_raw.to_string() } else { loc_id_raw.to_string() }),
+                Some("(boş)".to_string()),
                 format!("trip_id '{}' stop_id ve location_id/group_id aynı anda tanımlı olamaz.", trip_id),
                 "Standart stop için yalnızca stop_id, Flex stop için yalnızca location_id veya location_group_id kullanın.",
             ));

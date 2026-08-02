@@ -166,6 +166,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `AGN_007`. `PTH_017` keeps the type check and is retitled accordingly: a feed with
   `max_slope = abc` used to receive a finding titled "invalid context", which is the same
   mislabelling fixed in `ATR_006` this week.
+- **The specification requires `agency_id` in `fare_attributes.txt` too, and only `routes.txt`
+  was checked.** The reference attaches the same clause to both — *"Required if multiple agencies
+  are defined in agency.txt"* — and `AGN_011` enforced it for routes alone. It now covers both
+  files, one rule, as `DQ_021` does for primary keys: the fact is identical and the notice's
+  `file` distinguishes them.
+
+  One corpus feed is affected and it was already unpublishable. A second looked affected and was
+  not: its `fare_attributes.txt` header reads `" agency_id"` with a leading space, which the
+  pipeline normalises and a naive scan does not. That is the second time in a day a cheap static
+  scan produced a false alarm from header quoting or spacing, so the technique now carries a
+  written caveat.
+
+- **`STM_041` named the wrong field when the conflict involved a location group.** The rule
+  catches `stop_id` used together with `location_id` or `location_group_id`, and always reported
+  `field: location_id` — so a feed whose conflict was with a location group was pointed at a
+  field it had not set. It now names all three with the pipe convention and reports whichever
+  location field is actually populated.
+
 - **Twelve places where a value that is not a number produced no finding at all.** The pattern
   `Err(_) => None` sat at twelve parse sites in K2, and eleven had the field's own rule
   immediately beside them — so `location_type = 9` drew `STP_008` while `location_type = abc`
