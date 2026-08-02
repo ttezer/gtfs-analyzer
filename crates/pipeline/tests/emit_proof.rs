@@ -268,7 +268,15 @@ fn fixtures() -> Vec<Fixture> {
         fx("BKR_021", vec![("booking_rules.txt", "booking_rule_id,booking_type,info_url\nBR1,0,notaurl\n")]),
         fx("BKR_022", vec![("booking_rules.txt", "booking_rule_id,booking_type,phone_number\nBR1,0,abc\n")]),
         // BKR_023: prior_notice sayı alanı tam sayı değil (eskiden opt_int sessizce yutuyordu).
-        fx("BKR_023", vec![("booking_rules.txt", "booking_rule_id,booking_type,prior_notice_duration_min\nBR1,2,abc\n")]),
+        // DÖRT satır: BKR_023 dört alanı da ölçer, dedup Entity (booking_rule_id) → her alan
+        // için ayrı kayıt gerekir, yoksa yalnız biri çapalanır (CAL_002 dersi).
+        fx("BKR_023", vec![("booking_rules.txt", concat!(
+            "booking_rule_id,booking_type,prior_notice_duration_min,prior_notice_duration_max,prior_notice_last_day,prior_notice_start_day\n",
+            "BR1,2,abc,,,\n",
+            "BR2,2,,abc,,\n",
+            "BR3,2,,,abc,\n",
+            "BR4,2,,,,abc\n",
+        ))]),
         // BKR_017/018: stop_times'taki booking_rule_id booking_rules.txt'te yok (k4 cross-ref).
         fx("BKR_017", vec![
             ("booking_rules.txt", "booking_rule_id,booking_type,prior_notice_duration_min\nBR1,1,30\n"),
@@ -341,14 +349,25 @@ fn fixtures() -> Vec<Fixture> {
             ("networks.txt", "network_id,network_name\nN1,Net1\n"),
             ("fare_leg_join_rules.txt", "from_network_id,to_network_id\nN1,NOPE\n"),
         ]),
-        // from_stop_id boş ama to_stop_id dolu → karşılıklı koşul ihlali.
+        // FLJ_003 İKİ hükmü birden ölçer; iki satır ikisini de kanıtlar:
+        //   satır 1 — from_stop_id boş ama to_stop_id dolu → karşılıklı KOŞUL ihlali
+        //   satır 2 — from_stop_id dolu ama stops.txt'te yok → YABANCI ANAHTAR ihlali
         fx("FLJ_003", vec![
             ("networks.txt", "network_id,network_name\nN1,Net1\n"),
-            ("fare_leg_join_rules.txt", "from_network_id,to_network_id,from_stop_id,to_stop_id\nN1,N1,,S1\n"),
+            ("fare_leg_join_rules.txt", concat!(
+                "from_network_id,to_network_id,from_stop_id,to_stop_id\n",
+                "N1,N1,,S1\n",
+                "N1,N1,NOPE,S1\n",
+            )),
         ]),
+        // FLJ_004 aynı biçimde: satır 1 yabancı anahtar, satır 2 karşılıklı koşul.
         fx("FLJ_004", vec![
             ("networks.txt", "network_id,network_name\nN1,Net1\n"),
-            ("fare_leg_join_rules.txt", "from_network_id,to_network_id,from_stop_id,to_stop_id\nN1,N1,S1,NOPE\n"),
+            ("fare_leg_join_rules.txt", concat!(
+                "from_network_id,to_network_id,from_stop_id,to_stop_id\n",
+                "N1,N1,S1,NOPE\n",
+                "N1,N1,S1,\n",
+            )),
         ]),
 
         // ── FRQ grubu (frequencies.txt; trip_id=T1 base'te var) ────────────────
@@ -393,7 +412,12 @@ fn fixtures() -> Vec<Fixture> {
         fx("TFR_004", vec![("timeframes.txt", "timeframe_group_id,start_time,end_time,service_id\nTG1,10:00:00,08:00:00,SVC1\n")]),
         fx("TFR_005", vec![("timeframes.txt", "timeframe_group_id,start_time,end_time,service_id\nTG1,08:00:00,12:00:00,SVC1\nTG1,10:00:00,14:00:00,SVC1\n")]),
         fx("TFR_006", vec![("timeframes.txt", "timeframe_group_id,start_time,end_time,service_id\nTG1,25:00:00,26:00:00,SVC1\n")]),
-        fx("TFR_007", vec![("timeframes.txt", "timeframe_group_id,start_time,end_time,service_id\nTG1,08:00:00,,SVC1\n")]),
+        // İKİ yön: TFR_007 eksik olanı adlandırır, tek satır yalnız birini çapalar.
+        fx("TFR_007", vec![("timeframes.txt", concat!(
+            "timeframe_group_id,start_time,end_time,service_id\n",
+            "TG1,08:00:00,,SVC1\n",
+            "TG2,,17:00:00,SVC1\n",
+        ))]),
         fx("ARC_030", vec![("agency.txt", "agency_id,agency_name,agency_url,agency_timezone\n1,\"Test\nTransit\",http://x.com,UTC\n")]),
 
         // ── STP grubu (stops.txt; K2 alan kontrolleri) ─────────────────────────
@@ -473,7 +497,13 @@ fn fixtures() -> Vec<Fixture> {
         // Flex (has_flex_cols → window sütunları)
         fx("STM_037", vec![("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence,start_pickup_drop_off_window,end_pickup_drop_off_window\nT1,08:00:00,08:00:00,S1,1,09:00:00,10:00:00\n")]),
         fx("STM_038", vec![("stop_times.txt", "trip_id,stop_id,stop_sequence,start_pickup_drop_off_window,end_pickup_drop_off_window\nT1,S1,1,10:00:00,09:00:00\n")]),
-        fx("STM_039", vec![("stop_times.txt", "trip_id,stop_sequence,location_id,start_pickup_drop_off_window\nT1,1,LOC1,09:00:00\n")]),
+        // İKİ sefer: STM_039 eksik olan pencere alanını adlandırır; tek satır yalnız birini
+        // çapalar. T1'de end_ eksik, T2'de start_ eksik.
+        fx("STM_039", vec![("stop_times.txt", concat!(
+            "trip_id,stop_sequence,location_id,start_pickup_drop_off_window,end_pickup_drop_off_window\n",
+            "T1,1,LOC1,09:00:00,\n",
+            "T2,1,LOC1,,17:00:00\n",
+        ))]),
         // STM_058: pencere alanı Time olarak parse edilemiyor (eskiden sessizce yutuluyordu).
         // İKİ satır: STM_058 iki pencere alanını da ölçer ama dedup düzeyi Entity (trip_id),
         // yani tek satırda ikisini birden bozmak yalnız BİRİNİ çapalar (CAL_002 ile aynı ders).

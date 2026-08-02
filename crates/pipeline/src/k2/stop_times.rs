@@ -1376,7 +1376,11 @@ pub fn validate_stop_times(file: &RawFile, zip_bytes: Option<&[u8]>) -> (StopTim
         if timepoint == Some(1) && arrival_time.is_none() && departure_time.is_none() {
             st.notices.push(make_k2_notice(
                 &mut st.counter, "STM_047", EntityType::Trip, eid(),
-                None, &file.name, Some(line), Some("arrival_time"),
+                None, &file.name, Some(line),
+                // Hüküm İKİ alanı da kapsar: spec "Required for timepoint=1" cümlesini hem
+                // arrival_time hem departure_time için yazar. Eskiden yalnız arrival_time
+                // yazılıyordu ve departure_time'ın hükmü ölçümde çapasız görünüyordu.
+                Some("arrival_time|departure_time"),
                 Some(String::new()), Some("dolu".to_string()),
                 format!("trip_id '{}' satırında timepoint=1 (kesin zaman noktası) ama arrival_time ve departure_time tanımlı değil.", trip_id),
                 "Kesin zaman noktalarında (timepoint=1) hem arrival_time hem departure_time değerlerini girin.",

@@ -166,6 +166,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `AGN_007`. `PTH_017` keeps the type check and is retitled accordingly: a feed with
   `max_slope = abc` used to receive a finding titled "invalid context", which is the same
   mislabelling fixed in `ATR_006` this week.
+- **291 of the 302 measurable provisions become 296, by exercising fixtures that only ever tested
+  one branch.** Five of the eleven unproven provisions were not gaps in the rules but gaps in
+  what the fixtures triggered: `BKR_023` breaks one of its four integer fields, `TFR_007` one of
+  its two directions, `STM_039` one of its two windows. Each fixture now exercises every branch,
+  and the dedup level is why one row was never enough — the lesson `CAL_002` taught first.
+  `STM_047` also now names both time fields: the reference writes "Required for timepoint=1" for
+  `arrival_time` and `departure_time` alike, and the notice named only the first.
+
+  Six remain, and they are two different problems. Two — `FLJ_003` and `FLJ_004` — are a limit of
+  the measurement itself: one rule genuinely implements both the conditional presence and the
+  foreign key, and counting rules per field cannot express that. Closing them needs rules to
+  declare which provision they implement, which is a schema change, not a fixture.
+
+  The other four are a classification question rather than a coverage one. The reference marks
+  `routes.continuous_pickup`/`continuous_drop_off` and `stops.stop_access` *Conditionally
+  Forbidden* and `trips.shape_id` *Conditionally Required*, and the rules that enforce those
+  conditions are `RTS_028` (Interop), `STP_027` and `TRP_019` (Quality). If the provision is
+  normative the rule should be `Spec`; that is the same judgement made for `ARC_020` this week,
+  and it is left open deliberately rather than changed in passing.
+
 - **The specification requires `agency_id` in `fare_attributes.txt` too, and only `routes.txt`
   was checked.** The reference attaches the same clause to both — *"Required if multiple agencies
   are defined in agency.txt"* — and `AGN_011` enforced it for routes alone. It now covers both
