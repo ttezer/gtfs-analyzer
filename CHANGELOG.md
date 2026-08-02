@@ -166,6 +166,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `AGN_007`. `PTH_017` keeps the type check and is retitled accordingly: a feed with
   `max_slope = abc` used to receive a finding titled "invalid context", which is the same
   mislabelling fixed in `ATR_006` this week.
+- **Six more rules name their fields, and the remaining thirty are adjudicated and frozen.**
+  Working through the Entity/Row-level rules that always emitted `field: None` separated them
+  into two kinds. Six were describing a violation of specific fields and now name them:
+  `ATR_009` (`agency_id|route_id|trip_id`), `CAL_006` and `CAL_018` (all seven day columns),
+  `FRL_007` (`route_id|origin_id|destination_id|contains_id`), `GEO_020`
+  (`shape_pt_lat|shape_pt_lon`) and `PTH_011` (`from_stop_id|to_stop_id`).
+
+  The other thirty are correct as they are, for three distinct reasons now written down in the
+  gate itself. Most report a **derived fact** — "a stop no trip serves" is not a wrong value in
+  `stops.txt`, it comes from a relationship with `stop_times`, and naming a field would send the
+  reader to the wrong place. `ARC_012` and `ARC_018` describe the **shape of a row** rather than
+  any field. `RCT_006` is **cross-file**: its violation lives in
+  `rider_categories.is_default_fare_category` while the notice points at `fare_products.txt`, so
+  naming the field would fail the anchor gate, correctly.
+
+  The report becomes a gate: `field_none_emitters_match_ledger`, thirty entries. A new row now
+  fails the build and asks the question that matters — is this a derived fact, or a violation of
+  specific fields that should use the pipe convention?
+
 - **Eight more rules name the fields their finding is about.** Measuring the blind spot both
   specification ledgers share turned up 91 rules that always emit `field: None`; 47 are file- or
   feed-level, where naming a single field would be wrong, and of the rest ten were `Spec` class —

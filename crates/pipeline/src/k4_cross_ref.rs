@@ -1286,7 +1286,8 @@ fn check_calendar(
                     Some(rec.service_id.clone()),
                     "calendar.txt",
                     Some(rec.line),
-                    None,
+                    // Olgu YEDİ gün alanının birlikte 0 olmasıdır (CAL_006 ile aynı alan kümesi).
+                    Some("monday|tuesday|wednesday|thursday|friday|saturday|sunday"),
                     None,
                     None,
                     format!(
@@ -2022,7 +2023,8 @@ fn check_fare_rules(
                 eid.clone(),
                 "fare_rules.txt",
                 Some(rec.line),
-                None,
+                // Olgu DÖRT ayrıştırıcı alanın birlikte boş olmasıdır.
+                Some("route_id|origin_id|destination_id|contains_id"),
                 None,
                 None,
                 format!(
@@ -3166,7 +3168,8 @@ fn check_attributions(
                 eid.clone(),
                 "attributions.txt",
                 Some(rec.line),
-                None,
+                // Olgu ÜÇ hedef alanının birlikte kullanılmasıdır.
+                Some("agency_id|route_id|trip_id"),
                 None,
                 Some("en fazla biri dolu olmalı (agency_id/route_id/trip_id)".to_string()),
                 "agency_id, route_id ve trip_id aynı satırda birlikte kullanılamaz.".to_string(),

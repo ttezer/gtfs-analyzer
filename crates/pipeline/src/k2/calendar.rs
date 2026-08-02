@@ -84,7 +84,9 @@ pub fn validate_calendar(file: &RawFile) -> (Vec<CalendarRecord>, Vec<gtfs_core:
         if all_zero && days.iter().any(|d| d.is_some()) {
             notices.push(make_k2_notice(
                 &mut counter, "CAL_006", EntityType::Service, entity_id.clone(),
-                Some(&row_map), &file.name, Some(line), None, None, None,
+                Some(&row_map), &file.name, Some(line),
+                // Olgu YEDİ gün alanının BİRLİKTE 0 olmasıdır; hepsi adlandırılır.
+                Some("monday|tuesday|wednesday|thursday|friday|saturday|sunday"), None, None,
                 format!("'{}' takviminde haftalık gün alanlarının tümü 0 — haftalık tekrar yok; servis yalnızca calendar_dates.txt istisnalarıyla aktif olabilir.", service_id),
                 "Bilinçli bir dates-only servisse işlem gerekmez; değilse en az bir gün alanını 1 yapın.",
             ));

@@ -97,7 +97,8 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
                 Some(&row_map),
                 &file.name,
                 Some(line),
-                None,
+                // İhlal iki uç noktanın AYNI olmasıdır.
+                Some("from_stop_id|to_stop_id"),
                 Some(from_stop_id.to_string()),
                 None,
                 "from_stop_id ve to_stop_id aynı.".to_string(),

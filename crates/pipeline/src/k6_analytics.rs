@@ -2424,7 +2424,8 @@ fn check_geo_analytics(
                 notices.push(k6_notice(
                     ctr, "GEO_020", EntityType::Shape,
                     Some(shape_id.to_string()), Some(shape_id.to_string()),
-                    "shapes.txt", None, None,
+                    // İhlal koordinat çiftindedir.
+                    "shapes.txt", None, Some("shape_pt_lat|shape_pt_lon"),
                     Some(format!("{lat:.6},{lon:.6}")), None,
                     format!("'{shape_id}' şeklinin tüm {count} noktası ({lat:.6},{lon:.6}) koordinatında — dejenere geometri."),
                     "shapes.txt'deki koordinatları gerçek güzergaha karşılık gelecek şekilde düzeltin.",

@@ -2135,20 +2135,41 @@ fn spec_coverage_gaps_match_ledger() {
 ///
 /// KAPI DEĞİL, RAPOR: meşru örnekler olabilir (kuralın ölçtüğü hüküm alan tablosunda değil
 /// düzyazıda tanımlıdır). Her satır insan adjudikasyonu ister.
-/// RAPOR — İKİ DEFTERİN DE ORTAK KÖR NOKTASI: `field: None` emit eden kurallar.
+/// İKİ DEFTERİN DE ORTAK KÖR NOKTASI: `field: None` emit eden kurallar.
 ///
 /// Kapsam defteri de iddia defteri de çapayı `(file, field)` üzerinden kurar. Bir kural
 /// `field` yazmıyorsa HİÇBİRİNDE görünmez: ne "bu hüküm ölçülüyor" der, ne "bu iddia
-/// dayanaksız" denetimine girer. RTS_003 tam bu yüzden yıllarca defterde "boşluk" göründü.
+/// dayanaksız" denetimine girer. `RTS_003` tam bu yüzden defterde "boşluk" görünüyordu.
 ///
-/// Her `field=None` MEŞRUDUR diyemeyiz ama çoğu öyledir: dosya/feed düzeyi bulgularda
-/// (`DedupLevel::Feed` / `File`) tek bir alan yoktur. Sinyal, **Entity/Row düzeyinde olup
-/// yine de alan yazmayan** kurallardır — onlar tek bir satırın tek bir alanını gösteriyor
-/// olmalıydı.
+/// **Bu defter yalnız Entity/Row düzeyini tutar.** Dosya/feed düzeyi bulgularda (`DedupLevel::
+/// Feed`/`File`) tek bir alan yoktur ve `None` doğrudur — onlar sayılır ama listelenmez.
+///
+/// ## ADJUDİKASYON (2026-08-02) — iki sınıf
+/// **(A) TÜRETİLMİŞ OLGU → `None` DOĞRU.** Bulgu tek bir alanın değerinden değil, satırlar
+/// arası bir ilişkiden/istatistikten doğar: "hiç sefer geçmeyen durak" (STP_020) `stops.txt`'te
+/// yanlış bir alan göstermez, `stop_times` ile kurulan ilişkiden gelir. Bir alan adı yazmak
+/// kullanıcıyı yanlış yere bakmaya iter. Bu defterdeki satırların ÇOĞU budur:
+/// analiz (OPR_*, CAL_007/010/012/021, CLD_007, VAT_008, PTH_012/013, STP_020),
+/// graf/istatistik (RTS_016, STP_030, TRP_013, ATR_003'ün karşıtı değil).
+///
+/// **(B) SATIRIN ŞEKLİ → `None` DOĞRU.** `ARC_012` (sütun sayısı başlıkla uyuşmuyor) ve
+/// `ARC_018` (boş veri satırı) satırın kendisiyle ilgilidir, herhangi bir alanla değil.
+///
+/// **(C) ÇAPRAZ DOSYA → `None` ZORUNLU.** `RCT_006` ihlali `rider_categories.
+/// is_default_fare_category`'dedir ama notice `fare_products.txt`'i gösterir. O dosyada olmayan
+/// bir alan adı yazmak `spec_rules_anchor_to_fields_that_exist_in_the_spec` kapısını HAKLI
+/// olarak düşürür. Doğru çözüm notice'ın dosyasını değiştirmek olurdu — ayrı bir karar.
+///
+/// ## 2026-08-02'de DÜZELTİLENLER (belirli alanların ihlaliydi, `None` yanlıştı)
+/// `RTS_003` · `ATR_003` · `PTH_016` · `TRF_012` · `TRF_016` · `TRN_005` · `TRN_006` ·
+/// `TRN_009` · `TRN_013` · `ATR_009` · `CAL_006` · `CAL_018` · `FRL_007` · `GEO_020` · `PTH_011`
+///
+/// ## Sınır
+/// `PROOF_ALLOWLIST`'teki kurallar (fatal yola gidenler) hiç notice üretmediği için burada
+/// GÖRÜNMEZ — ayrı bir kör nokta, ayrı iş.
 #[test]
-#[ignore = "rapor: cargo test -p gtfs-pipeline --test emit_proof field_none -- --ignored --nocapture"]
-fn field_none_emitters_report() {
-    use gtfs_core::{DedupLevel, RuleClass};
+fn field_none_emitters_match_ledger() {
+    use gtfs_core::DedupLevel;
     let mut with_field: BTreeSet<String> = BTreeSet::new();
     let mut without_field: BTreeSet<String> = BTreeSet::new();
     for f in fixtures() {
@@ -2164,34 +2185,56 @@ fn field_none_emitters_report() {
             else { without_field.insert(n.rule_id.clone()); }
         }
     }
-    let always_none: Vec<&String> =
-        without_field.iter().filter(|r| !with_field.contains(*r)).collect();
-
-    let mut suspicious = Vec::new();
-    let mut legitimate = 0usize;
-    for id in &always_none {
+    let mut found: Vec<String> = Vec::new();
+    for id in without_field.iter().filter(|r| !with_field.contains(*r)) {
         let Some(m) = gtfs_rules::registry::get_rule(id) else { continue };
-        match m.dedup_level {
-            DedupLevel::Feed | DedupLevel::File => legitimate += 1,
-            _ => suspicious.push((
-                (*id).clone(), m.rule_class, m.dedup_level,
-                gtfs_rules::registry::authority_source(id),
-            )),
-        }
+        if matches!(m.dedup_level, DedupLevel::Feed | DedupLevel::File) { continue; }
+        found.push(format!("{id}  {:?}", m.rule_class));
     }
-    suspicious.sort_by(|a, b| a.0.cmp(&b.0));
+    found.sort_unstable();
 
-    println!("\n### HER ZAMAN field=None emit eden kurallar (iki defterde de GÖRÜNMEZ)");
-    println!("  toplam ......................... {}", always_none.len());
-    println!("  dosya/feed düzeyi (meşru) ...... {legitimate}");
-    println!("  Entity/Row düzeyi (SİNYAL) ..... {}", suspicious.len());
-    println!("\n### Entity/Row düzeyinde olup alan yazmayanlar");
-    for (id, class, dedup, auth) in &suspicious {
-        println!("  {id}  {class:?} · {dedup:?} · {auth:?}");
+    let ledger_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests").join("field_none_ledger.txt");
+    let ledger_raw = std::fs::read_to_string(&ledger_path).unwrap_or_default();
+    let ledger: Vec<String> = ledger_raw.lines().map(str::trim)
+        .filter(|l| !l.is_empty() && !l.starts_with('#')).map(str::to_string).collect();
+
+    if found != ledger {
+        if std::env::var("UPDATE_LEDGER").is_ok() {
+            let header = format!(
+                "# Entity/Row düzeyinde olup HER ZAMAN `field: None` emit eden kurallar. {} kural.\n\
+                 # Biçim: RULE_ID  sınıf\n\
+                 #\n\
+                 # Kapsam defteri ve iddia defteri çapayı `(file, field)` üzerinden kurar; bu\n\
+                 # kurallar İKİSİNDE DE GÖRÜNMEZ. Dosya/feed düzeyi bulgular (DedupLevel Feed/\n\
+                 # File) burada SAYILMAZ — orada tek bir alan yoktur ve None doğrudur.\n\
+                 #\n\
+                 # ⚠️ SATIR OLMASI HATA DEĞİLDİR. Adjudikasyon testin doc yorumunda; üç meşru\n\
+                 # sınıf var: (A) türetilmiş olgu — bulgu satırlar arası ilişkiden doğar, bir\n\
+                 # alan adı kullanıcıyı yanlış yere baktırır; (B) satırın şekli (ARC_012/018);\n\
+                 # (C) çapraz dosya — alan başka dosyada, yazmak çapa kapısını düşürür (RCT_006).\n\
+                 #\n\
+                 # YENİ bir satır çıkarsa: kural gerçekten türetilmiş bir olgu mu ölçüyor, yoksa\n\
+                 # belirli alanların ihlalini mi anlatıyor? İkincisiyse BORU KONVANSİYONU kullan\n\
+                 # (`a|b`), None bırakma — R2'nin \"Alan\" sütunu boş kalır.\n\
+                 #\n\
+                 # Yeniden üretmek: UPDATE_LEDGER=1 cargo test -p gtfs-pipeline --test emit_proof \\\n\
+                 #   field_none_emitters_match_ledger\n",
+                found.len());
+            std::fs::write(&ledger_path, format!("{header}{}\n", found.join("\n"))).unwrap();
+            return;
+        }
+        let added: Vec<&String> = found.iter().filter(|f| !ledger.contains(f)).collect();
+        let removed: Vec<&String> = ledger.iter().filter(|l| !found.contains(l)).collect();
+        panic!(
+            "field=None defteri güncel değil ({} hesaplanan, {} defter).\n\
+             YENİ alansız kural (türetilmiş olgu mu, yoksa boru konvansiyonu mu gerekiyor?): {:#?}\n\
+             Defterde fazla (alan yazmaya başladı): {:#?}\n\
+             Düzeltmek için: UPDATE_LEDGER=1 cargo test -p gtfs-pipeline --test emit_proof \
+             field_none_emitters_match_ledger",
+            found.len(), ledger.len(), added, removed,
+        );
     }
-    println!("\n⚠️ Her satır hata DEĞİLDİR: bulgu gerçekten birden çok alanın BİRLİKTE ihlali");
-    println!("   olabilir — o hâlde boru konvansiyonu kullanılmalıdır (`a|b`), None değil.");
-    println!("   RTS_003 tam olarak böyle düzeltildi (2026-08-02).");
 }
 
 #[test]

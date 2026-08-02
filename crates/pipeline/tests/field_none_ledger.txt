@@ -1,0 +1,48 @@
+# Entity/Row düzeyinde olup HER ZAMAN `field: None` emit eden kurallar. 30 kural.
+# Biçim: RULE_ID  sınıf
+#
+# Kapsam defteri ve iddia defteri çapayı `(file, field)` üzerinden kurar; bu
+# kurallar İKİSİNDE DE GÖRÜNMEZ. Dosya/feed düzeyi bulgular (DedupLevel Feed/
+# File) burada SAYILMAZ — orada tek bir alan yoktur ve None doğrudur.
+#
+# ⚠️ SATIR OLMASI HATA DEĞİLDİR. Adjudikasyon testin doc yorumunda; üç meşru
+# sınıf var: (A) türetilmiş olgu — bulgu satırlar arası ilişkiden doğar, bir
+# alan adı kullanıcıyı yanlış yere baktırır; (B) satırın şekli (ARC_012/018);
+# (C) çapraz dosya — alan başka dosyada, yazmak çapa kapısını düşürür (RCT_006).
+#
+# YENİ bir satır çıkarsa: kural gerçekten türetilmiş bir olgu mu ölçüyor, yoksa
+# belirli alanların ihlalini mi anlatıyor? İkincisiyse BORU KONVANSİYONU kullan
+# (`a|b`), None bırakma — R2'nin "Alan" sütunu boş kalır.
+#
+# Yeniden üretmek: UPDATE_LEDGER=1 cargo test -p gtfs-pipeline --test emit_proof \
+#   field_none_emitters_match_ledger
+ARC_012  Spec
+ARC_018  Quality
+CAL_007  Analytics
+CAL_010  Analytics
+CAL_012  Analytics
+CAL_014  Quality
+CAL_021  Analytics
+CLD_007  Analytics
+OPR_001  Analytics
+OPR_003  Analytics
+OPR_004  Analytics
+OPR_005  Analytics
+OPR_006  Analytics
+OPR_007  Analytics
+OPR_008  Analytics
+OPR_012  Analytics
+OPR_017  Analytics
+OPR_019  Analytics
+OPR_020  Analytics
+OPR_021  Analytics
+OPR_022  Analytics
+OPR_023  Analytics
+PTH_012  Interop
+PTH_013  Analytics
+RCT_006  Spec
+RTS_016  Quality
+STP_020  Analytics
+STP_030  Quality
+TRP_013  Quality
+VAT_008  Analytics
