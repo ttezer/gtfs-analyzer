@@ -166,6 +166,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `AGN_007`. `PTH_017` keeps the type check and is retitled accordingly: a feed with
   `max_slope = abc` used to receive a finding titled "invalid context", which is the same
   mislabelling fixed in `ATR_006` this week.
+- **`FatalCode::NoRequiredFiles` had no test.** Auditing the emit-proof allowlist — the rules
+  exempted from having to prove they can fire — showed that an exemption is only as good as the
+  proof it points at. `ARC_001` and `ARC_029` name real tests. `ARC_004` said it was
+  "structurally unprovable in this harness", which is true, and implied the proof lived
+  elsewhere; it did not. The fatal path a feed takes when a required file is missing was
+  untested. It now has `arc004_missing_required_file_returns_fatal_no_required_files`, and the
+  allowlist records where each exemption's proof lives so the next reader can check.
+
 - **Six more rules name their fields, and the remaining thirty are adjudicated and frozen.**
   Working through the Entity/Row-level rules that always emitted `field: None` separated them
   into two kinds. Six were describing a violation of specific fields and now name them:

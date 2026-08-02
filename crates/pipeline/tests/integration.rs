@@ -67,6 +67,35 @@ fn arc001_corrupt_zip_returns_fatal_zip_unreadable() {
     }
 }
 
+// ── Test 1b: Zorunlu dosya eksik → Fatal(NoRequiredFiles) ────────────────────
+// ARC_004 yolu. Bu kural `PROOF_ALLOWLIST`'tedir çünkü notice'ı emit EDİLİR ama hemen
+// ardından `return Err(FatalError{NoRequiredFiles})` gelir ve notice vektörü düşer —
+// emit_proof harness'ı notice arar, bulamaz. Muafiyetin gerekçesi doğruydu AMA fatal yolun
+// KENDİSİ hiç test edilmiyordu (ARC_001 ve ARC_029'un aksine): allowlist "kanıt başka yerde"
+// diyordu, o başka yer yoktu. 2026-08-02'de eklendi.
+
+#[test]
+fn arc004_missing_required_file_returns_fatal_no_required_files() {
+    let files: Vec<(&str, &[u8])> = base_files()
+        .into_iter()
+        .filter(|(name, _)| *name != "routes.txt")
+        .collect();
+    match run(&files) {
+        ValidateResult::Fatal(e) => {
+            assert_eq!(
+                e.code,
+                FatalCode::NoRequiredFiles,
+                "Beklenen NoRequiredFiles, alınan: {:?}", e.code,
+            );
+            assert!(
+                e.message.contains("routes.txt"),
+                "fatal mesajı eksik dosyayı adlandırmalı: {}", e.message,
+            );
+        }
+        _ => panic!("Fatal(NoRequiredFiles) beklendi"),
+    }
+}
+
 // ── Test 2: Minimal geçerli feed yayınlanabilir ───────────────────────────────
 
 #[test]

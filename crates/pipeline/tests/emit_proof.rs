@@ -99,18 +99,32 @@ fn fx_cfg(rule: &'static str, overrides: Vec<(&'static str, &'static str)>, conf
 }
 
 /// Notice olarak emit edilmeyen kurallar (fatal yol veya dinamik) — proof'tan muaf.
+/// Notice olarak emit edilmeyen kurallar — bu harness'tan MUAF.
+///
+/// ⚠️ **MUAFİYET, KANIT YOKLUĞU DEMEK DEĞİLDİR.** Bu listeye giren her kural için kanıtın
+/// NEREDE olduğu yazılmalıdır; yazılamıyorsa kural ya ölüdür ya da eksiktir. 2026-08-02'de
+/// denetlendi: üç girişin ikisinin kanıtı vardı, `ARC_004`'ünki YOKTU ("kanıt başka yerde"
+/// deniyordu ama o başka yer boştu) → `integration.rs::arc004_missing_required_file_*` eklendi.
+///
+/// Bu liste iki defterin de kör noktasıdır: buradaki kurallar hiç notice üretmediği için
+/// kapsam defterinde, iddia defterinde ve field=None defterinde GÖRÜNMEZLER.
 const PROOF_ALLOWLIST: &[&str] = &[
-    "ARC_001", // fatal FatalCode::ZipUnreadable (Notice değil)
-    "ARC_029", // fatal FatalCode::DecompressionLimit (Notice değil) — bu harness notice arar,
-               // ARC_029 ise decompression guard tetiklenince Fatal döner. Gerçek uçtan uca kanıt
-               // integration.rs::arc029_* testlerinde (DEFAULT limitlerle iki read_fatal yolu +
-               // ratio_floor FP guard'ı). Borç DEĞİL: yapısal olarak notice fixture'ı yazılamaz.
-    "ARC_004", // ARC_004 notice'ı emit edilir AMA hemen FatalCode::NoRequiredFiles döner →
-               // ValidateResult::Fatal, notices kaybolur. Bu harness'ta yapısal olarak kanıtlanamaz.
-    "AGN_001", // "agency.txt eksik" — FİİLEN HİÇ emit edilmez (ne Notice ne fatal rule_id).
-               // Dosya eksikliğini ARC_004 (Fatal NoRequiredFiles) temsil eder; AGN_001 yalnızca
-               // MD `missing_required_file` paritesi için registry'de tutulan, Notice üretmeyen bir
-               // kayıttır. Karar: bırak + allowlist (issue #27). Üretim kodunda literal yok.
+    // Fatal yol — kanıt: integration.rs::arc001_corrupt_zip_returns_fatal_zip_unreadable
+    "ARC_001",
+    // Fatal yol — kanıt: integration.rs::arc029_* (DEFAULT limitlerle iki read_fatal yolu +
+    // ratio_floor FP guard'ı). Notice fixture'ı yapısal olarak yazılamaz.
+    "ARC_029",
+    // Notice emit EDİLİR ama hemen `return Err(FatalError{NoRequiredFiles})` gelir ve notice
+    // vektörü düşer. Kanıt (2026-08-02'de eklendi):
+    // integration.rs::arc004_missing_required_file_returns_fatal_no_required_files
+    "ARC_004",
+    // ⚠️ ÖLÜ KURAL — kanıt YOK ve OLAMAZ: hiçbir yolla emit edilmez (ne Notice ne fatal kodu).
+    // Üretim kodunda literali yok (yalnız registry + k7_reporting'in TEST modülünde geçer).
+    // Dosya eksikliğini ARC_004 temsil eder; AGN_001 yalnız MD `missing_required_file`
+    // paritesini BELGELEMEK için registry'de duruyor (karar: issue #27, kapalı).
+    // Bedeli: Kritik·Spec sayıldığı için "266 Spec kuralı / 170 R1 blocker" gibi her sayımı
+    // birer birer şişiriyor ve kullanıcının asla göremeyeceği bir kartı/3 locale'i var.
+    "AGN_001",
 ];
 
 // ── KALICI DEBT (coverage_debt.txt'te kalır) ──
