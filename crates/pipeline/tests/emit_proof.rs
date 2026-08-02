@@ -2143,13 +2143,32 @@ fn spec_coverage_gaps_match_ledger() {
 /// 2. **BAŞKA KURAL KARŞILIYOR ama çapalamıyor** — `routes.continuous_pickup/drop_off`'un
 ///    koşullu-yasak hükmünü `RTS_028` (Interop) ölçer; `stops.stop_access`'inkini `STP_027`.
 ///    İkisi de fixture'da o alanı çapalamıyor.
-/// 3. **GERÇEK ADAY — spec metni okunmalı** (bu turda YAPILMADI, iş kalemi):
-///    `booking_rules.prior_notice_duration_max`/`prior_notice_start_day` (numeric atomu),
-///    `fare_attributes.agency_id`, `stop_times.departure_time`, `stop_times.location_group_id`,
-///    `timeframes.start_time`, `trips.shape_id` — hepsinde koşullu-varlık ya da sayısallık
-///    atomunun denetlenip denetlenmediği belirsiz.
-///    ⚠️ `departure_time` özel: [[project_backlog_master]]'daki kalıcı incelik — spec ilk/son
-///    durak zorunluluğunu `arrival_time` için yazar, `departure_time` için YAZMAZ.
+/// 3. **SPEC METNİ OKUNDU (2026-08-02) — 7 adayın 2'si KAPALI çıktı:**
+///    - `timeframes.start_time` ✅ — *"Required if end_time is defined. Forbidden otherwise."*
+///      `TFR_007` tam bunu ölçer ("start_time ve end_time yalnızca biri tanımlı").
+///    - `trips.shape_id` ✅ — *"Required if the trip has a continuous pickup or drop-off
+///      behavior."* `TRP_019` tam bunu ölçer.
+///
+///    **Kalan 5 GERÇEK BOŞLUK ADAYI:**
+///    - `booking_rules.prior_notice_duration_max` · `prior_notice_start_day` — `numeric` atomu
+///      denetlenmiyor: `opt_int()` `.parse::<i64>().ok()` kullanıyor, sayı olmayan değer sessiz
+///      düşüyor. **Bu bir SİSTEMİK desenin parçası, aşağıya bak.**
+///    - `fare_attributes.agency_id` — *"Required if multiple agencies are defined."* Kodda
+///      karşılığı bulunamadı (`FAR_008` yalnız FK'yi ölçer).
+///    - `stop_times.departure_time` — iki alt hükmü var: Flex penceresiyle YASAK (`STM_037` ✅)
+///      ve *"Required for timepoint=1"* (karşılığı bulunamadı). ⚠️ Kalıcı incelik doğrulandı:
+///      spec ilk/son durak zorunluluğunu YALNIZ `arrival_time` için yazar.
+///    - `stop_times.location_group_id` — koşullu-yasak hükmü denetlenmiyor (`XFL_024` FK'dir).
+///
+/// ## 🔁 SİSTEMİK BULGU — sessiz parse yutması (12 nokta)
+/// `Err(_) => None` / `.parse().ok()` deseni k2'de **12 yerde** duruyor ve 11'inin HEMEN
+/// YANINDA o alanın kuralı var: `location_type`→STP_008 · `wheelchair_boarding`→STP_013 ·
+/// `stop_access`→STP_024 · `timepoint`→STM_022 · `shape_dist_traveled`→STM_030/SHP_021 ·
+/// `cemv_support`→AGN_012/RTS_024 · `wheelchair_accessible`→TRP_006 · `bikes_allowed`→TRP_007 ·
+/// `exact_times`→FRQ_007 · booking_rules'un 4 alanı→`opt_int`.
+/// **Sonuç: ARALIK DIŞI sayı yakalanıyor, SAYI OLMAYAN değer sessizce düşüyor.** Bu oturumda
+/// aynı desen 5 kez tek tek düzeltildi (STM_058 · PTH_027 · RTS_029 · TRP_034 · ARC_031 turu);
+/// 12'si birden düzeltilmeli — çoğunda yanındaki kuralı yeniden kullanmak yeter (PTH_027 emsali).
 /// TERS YÖN — kapsam defterinin aynadaki görüntüsü.
 ///
 /// Defter "her hüküm ölçülüyor mu" diye sorar; bu rapor "her Spec iddiası bir hükme dayanıyor
