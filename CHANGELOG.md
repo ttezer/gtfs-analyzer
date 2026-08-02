@@ -166,6 +166,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `AGN_007`. `PTH_017` keeps the type check and is retitled accordingly: a feed with
   `max_slope = abc` used to receive a finding titled "invalid context", which is the same
   mislabelling fixed in `ATR_006` this week.
+- **`ARC_025` required `transfers.from_stop_id`, which the specification makes conditional.** The
+  rule reports a required column missing from a header, at Kritik·Spec, so it blocks publication.
+  Its list of required columns is maintained by hand, and comparing it against the reference
+  found three disagreements in one place. `from_stop_id` and `to_stop_id` are *Conditionally*
+  Required — *"Required if transfer_type is empty, 0, 1, 2, or 3. Optional if transfer_type is 4
+  or 5"* — and 4 and 5 are the in-seat transfers that use `from_trip_id`/`to_trip_id` instead. A
+  valid feed carrying only those was being rejected. Meanwhile `transfer_type`, which the
+  reference makes unconditionally Required, was absent from the list and therefore unenforced.
+
+  Also added: `route_networks.txt` (both fields Required, the file only became known this week)
+  and `attributions.organization_name`, whose list was empty.
+
+  No corpus feed is affected in either direction — the false positive is latent, which is why
+  nothing caught it. It would have surfaced the first time someone validated a trip-to-trip
+  transfers file.
+
 - **`AGN_001` is removed: it could never fire.** The rule claimed to report a missing
   `agency.txt`, was classed Kritik·Spec, had a card and three locale entries — and emitted
   nothing, by any path. Not a notice, not a fatal code. Its id appeared in no production code;

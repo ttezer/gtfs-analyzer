@@ -332,7 +332,14 @@ fn required_fields(filename: &str) -> &'static [&'static str] {
         "calendar_dates.txt"  => &["service_id", "date", "exception_type"],
         "shapes.txt"          => &["shape_id", "shape_pt_lat", "shape_pt_lon", "shape_pt_sequence"],
         "frequencies.txt"     => &["trip_id", "start_time", "end_time", "headway_secs"],
-        "transfers.txt"       => &["from_stop_id", "to_stop_id"],
+        // ⚠️ `from_stop_id`/`to_stop_id` BURADA OLMAMALI — spec ikisini de KOŞULLU yapar:
+        // "Required if transfer_type is empty, 0, 1, 2, or 3. Optional if transfer_type is 4 or 5."
+        // 4/5 koltuk-içi aktarmalardır ve `from_trip_id`/`to_trip_id` kullanırlar. Yalnız 4/5
+        // aktarması olan GEÇERLİ bir feed, sütunları taşımadığı için ARC_025 (Kritik·Spec) alıyor
+        // ve R1'de düşüyordu — geçerli feed'i yayından alıkoyan bir yanlış pozitif.
+        // Gerçekten koşulsuz Required olan alan `transfer_type`'tır ve listede YOKTU.
+        // (2026-08-02, ARC_025'in listesi spec'le karşılaştırıldı.)
+        "transfers.txt"       => &["transfer_type"],
         // transfers boş = sınırsız transfer (geçerli GTFS değeri) — değer-boş kuralı tetiklenmemeli
         "fare_attributes.txt" => &["fare_id", "price", "currency_type", "payment_method", "transfers"],
         "fare_rules.txt"      => &["fare_id"],
@@ -356,7 +363,10 @@ fn required_fields(filename: &str) -> &'static [&'static str] {
         "booking_rules.txt"       => &["booking_rule_id", "booking_type"],
         "location_groups.txt"        => &["location_group_id"],
         "location_group_stops.txt"   => &["location_group_id", "stop_id"],
-        "attributions.txt"    => &[],
+        // organization_name spec'te Required; liste boş bırakılmıştı (2026-08-02'de eklendi).
+        "attributions.txt"    => &["organization_name"],
+        // route_networks.txt'in İKİ alanı da spec'te Required (dosya 2026-08-02'de tanıtıldı).
+        "route_networks.txt"  => &["network_id", "route_id"],
         _                     => &[],
     }
 }
