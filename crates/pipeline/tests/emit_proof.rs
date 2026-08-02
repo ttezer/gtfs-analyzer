@@ -470,7 +470,13 @@ fn fixtures() -> Vec<Fixture> {
         fx("STM_038", vec![("stop_times.txt", "trip_id,stop_id,stop_sequence,start_pickup_drop_off_window,end_pickup_drop_off_window\nT1,S1,1,10:00:00,09:00:00\n")]),
         fx("STM_039", vec![("stop_times.txt", "trip_id,stop_sequence,location_id,start_pickup_drop_off_window\nT1,1,LOC1,09:00:00\n")]),
         // STM_058: pencere alanı Time olarak parse edilemiyor (eskiden sessizce yutuluyordu).
-        fx("STM_058", vec![("stop_times.txt", "trip_id,stop_id,stop_sequence,start_pickup_drop_off_window,end_pickup_drop_off_window\nT1,S1,1,9am,10:00:00\n")]),
+        // İKİ satır: STM_058 iki pencere alanını da ölçer ama dedup düzeyi Entity (trip_id),
+        // yani tek satırda ikisini birden bozmak yalnız BİRİNİ çapalar (CAL_002 ile aynı ders).
+        fx("STM_058", vec![("stop_times.txt", concat!(
+            "trip_id,stop_id,stop_sequence,start_pickup_drop_off_window,end_pickup_drop_off_window\n",
+            "T1,S1,1,9am,10:00:00\n",
+            "T2,S1,1,09:00:00,10pm\n",
+        ))]),
         fx("STM_040", vec![("stop_times.txt", "trip_id,stop_sequence,location_id,start_pickup_drop_off_window,end_pickup_drop_off_window\nT1,1,LOC1,09:00:00,10:00:00\n")]),
         fx("STM_041", vec![("stop_times.txt", "trip_id,stop_id,stop_sequence,location_id,start_pickup_drop_off_window,end_pickup_drop_off_window,pickup_booking_rule_id\nT1,S1,1,LOC1,09:00:00,10:00:00,BR1\n")]),
         fx("STM_051", vec![("stop_times.txt", "trip_id,stop_sequence,location_id,start_pickup_drop_off_window,end_pickup_drop_off_window,pickup_booking_rule_id,pickup_type\nT1,1,LOC1,09:00:00,10:00:00,BR1,0\n")]),
@@ -2122,6 +2128,28 @@ fn spec_coverage_gaps_match_ledger() {
 /// (487'nin 252'si hiçbir anahtar sözcüğe uymuyor) — bu güvenilirlikte bir
 /// sınıflandırıcıyı repoya koymak, kaçınmaya çalıştığımız "bayatlayan elle liste"nin
 /// başka biçimi olurdu. Liste bu yüzden İNSAN adjudikasyonu için kuyruktur.
+///
+/// ## ADJUDİKASYON (2026-08-02) — 62 satır 13'e indi
+/// Önce ölçüm düzeltildi: `presence:required` atomu, alan **ARC_025'in zorunlu-sütun
+/// listesindeyse** artık sayılmıyor. Gerekçe: ARC_025 eksik sütunu `field=<sütun>` ile emit
+/// eder (fixture'ı `stops.txt:stop_id` üzerinden kanıtlar), mekanizma tek bir döngüdür ve liste
+/// `required_columns_match_the_specification` ile spec'e kilitlidir. Bu 46 satırı düşürdü.
+/// Ardından `STM_058`'in fixture'ı iki pencere alanını da bozacak şekilde güçlendirildi (−1).
+///
+/// **Kalan 13'ün triyajı — üç sınıf:**
+/// 1. **ÖLÇÜM KÖRLÜĞÜ, boşluk YOK** — tek kural iki atomu birden karşılıyor, ölçüm alan başına
+///    KURAL sayar, atom eşleştirmez: `FLJ_003`/`FLJ_004` (karşılıklı koşul + FK'yi birlikte
+///    ölçerler, ben yazdım), `STM_058`↔`STM_039` çifti (biçim + varlık).
+/// 2. **BAŞKA KURAL KARŞILIYOR ama çapalamıyor** — `routes.continuous_pickup/drop_off`'un
+///    koşullu-yasak hükmünü `RTS_028` (Interop) ölçer; `stops.stop_access`'inkini `STP_027`.
+///    İkisi de fixture'da o alanı çapalamıyor.
+/// 3. **GERÇEK ADAY — spec metni okunmalı** (bu turda YAPILMADI, iş kalemi):
+///    `booking_rules.prior_notice_duration_max`/`prior_notice_start_day` (numeric atomu),
+///    `fare_attributes.agency_id`, `stop_times.departure_time`, `stop_times.location_group_id`,
+///    `timeframes.start_time`, `trips.shape_id` — hepsinde koşullu-varlık ya da sayısallık
+///    atomunun denetlenip denetlenmediği belirsiz.
+///    ⚠️ `departure_time` özel: [[project_backlog_master]]'daki kalıcı incelik — spec ilk/son
+///    durak zorunluluğunu `arrival_time` için yazar, `departure_time` için YAZMAZ.
 /// TERS YÖN — kapsam defterinin aynadaki görüntüsü.
 ///
 /// Defter "her hüküm ölçülüyor mu" diye sorar; bu rapor "her Spec iddiası bir hükme dayanıyor
@@ -2308,8 +2336,18 @@ fn spec_partial_coverage_report() {
     let total: usize = rows.iter().map(|(_, _, a, _, _)| a.len()).sum();
     let (mut none, mut partial, mut full) = (0usize, 0usize, 0usize);
     println!("\n### B — hüküm sayısı > çapalı kural sayısı (SİNYAL, karar değil)");
+    println!("`presence:required` atomu, alan ARC_025'in zorunlu-sütun listesindeyse SAYILMAZ:");
+    println!("kural eksik sütunu `field=<sütun>` ile emit eder, mekanizma tek döngüdür ve liste");
+    println!("`required_columns_match_the_specification` ile spec'e kilitlidir.\n");
     for (file, field, atoms, rules, _) in &rows {
         if atoms.is_empty() { continue; }
+        // Beyan edilmiş çapa kaynağı: ARC_025'in zorunlu-sütun listesi.
+        let declared_presence = gtfs_pipeline::k1_parse::required_fields(file)
+            .contains(&field.as_str());
+        let atoms: Vec<&str> = atoms.iter().copied()
+            .filter(|a| !(*a == "presence:required" && declared_presence))
+            .collect();
+        if atoms.is_empty() { full += 1; continue; }
         if rules.is_empty() { none += 1; }
         else if rules.len() < atoms.len() {
             partial += 1;

@@ -322,9 +322,14 @@ fn csv_has_unclosed_quote(text: &str) -> bool {
 /// ⚠️ **ELLE BAKIMLI ve ARC_025 Kritik·Spec'tir** — buraya KOŞULLU bir alan yazmak geçerli bir
 /// feed'i yayından alıkoyar. 2026-08-02'de `transfers.from_stop_id`/`to_stop_id` tam olarak
 /// böyleydi (spec: "Optional if transfer_type is 4 or 5"). Liste artık spec'e karşı
-/// `required_columns_match_the_specification` testiyle kilitli — `pub(crate)` olmasının sebebi
-/// odur, üretimde başka çağıranı yoktur.
-pub(crate) fn required_fields(filename: &str) -> &'static [&'static str] {
+/// `required_columns_match_the_specification` testiyle kilitli.
+///
+/// `pub`: üretimde tek çağıranı bu dosyadır, ama kapsam ölçümü (`emit_proof.rs`) bu listeyi
+/// **beyan edilmiş çapa kaynağı** olarak kullanır — ARC_025 eksik sütunu `field=<sütun>` ile
+/// emit eder ve mekanizma tek bir döngüdür, dolayısıyla listede olmak o alanın
+/// `presence:required` hükmünün denetlendiğinin kanıtıdır. (Fixture'la her sütunu tek tek
+/// tetiklemek ~100 fixture demek olurdu; CAL_002'de yapılan şey burada ölçeklenmiyor.)
+pub fn required_fields(filename: &str) -> &'static [&'static str] {
     match filename {
         "agency.txt"          => &["agency_name", "agency_url", "agency_timezone"],
         "stops.txt"           => &["stop_id"],

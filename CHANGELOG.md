@@ -166,6 +166,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `AGN_007`. `PTH_017` keeps the type check and is retitled accordingly: a feed with
   `max_slope = abc` used to receive a finding titled "invalid context", which is the same
   mislabelling fixed in `ATR_006` this week.
+- **The atom-level blind spot shrank from 62 fields to 13, by correcting the measurement rather
+  than the rules.** A field carrying two provisions but anchored by one rule was reported as
+  partially covered, and 46 of the 62 were `presence:required` plus a type — where the presence
+  is enforced by `ARC_025`, which anchors the column it reports. Since that rule's list is now
+  locked to the specification, membership in it *is* proof the provision is checked; the report
+  counts it. One more closed by strengthening `STM_058`'s fixture to break both window fields
+  rather than one, the same dedup lesson `CAL_002` taught.
+
+  The remaining thirteen are triaged in the report itself, in three kinds: measurement blindness
+  where one rule genuinely covers both atoms (`FLJ_003`/`FLJ_004`, `STM_058`↔`STM_039`); a second
+  rule covering the provision without anchoring the field (`RTS_028` for the continuous-pickup
+  prohibition, `STP_027` for `stop_access`); and seven that need the specification text read
+  before anyone can say whether they are gaps. That reading is the remaining work, and it is
+  named rather than implied.
+
+  Worth stating plainly: this makes the tooling more honest, not the validator more capable. The
+  original framing — declare, per rule, which provision it implements, across all 563 — turned
+  out to be the wrong shape for the problem.
+
 - **The required-column list is now locked to the specification.** `ARC_025`'s list is
   maintained by hand and the rule is Kritik·Spec, so a wrong entry rejects a valid feed and a
   missing one leaves a provision unenforced — both happened in the same file. A test now compares
