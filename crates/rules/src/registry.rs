@@ -379,6 +379,13 @@ pub static RULES: &[RuleMeta] = &[
     // stop_url'de yalnız STP_034/035 (başka URL ile aynı) vardı, biçim hiç ölçülmüyordu.
     r!("STP_042", Dusuk, Spec, 1, &[], Some("stop_id"), VS, Entity,
         "stop_url geçersiz"),
+    // STP_043: spec `stop_access` için AYRI bir koşullu-yasak hükmü koyar —
+    // "Forbidden for locations which are stations (1), entrances (2), generic nodes (3) or
+    // boarding areas (4). Forbidden if parent_station is empty." 2026-08-03'e kadar hiç
+    // denetlenmiyordu. STP_026'yı (enum geçerliliği) yeniden kullanmak YANLIŞ olurdu: enum
+    // hatası ile bağlam yasağı iki ayrı olgudur (ATR_006 dersi).
+    r!("STP_043", Orta,  Spec, 1, &[], Some("stop_id"), VS, Entity,
+        "stop_access yasak bağlamda kullanılmış"),
 
     // ── RTS: Routes ────────────────────────────────────────────────────────────
     r!("RTS_001", Kritik, Spec, 1,
@@ -2041,6 +2048,7 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("STP_040", ProjectQuality),
     ("STP_041", ProjectQuality),
     ("STP_042", GtfsSpec),
+    ("STP_043", GtfsSpec),
     ("TFR_001", GtfsSpec),
     ("TFR_002", GtfsSpec),
     ("TFR_003", GtfsSpec),

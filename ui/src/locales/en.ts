@@ -651,6 +651,7 @@ const en: LocaleShape = {
     'STP_033': "Stop '{entity_id}': zone_id is missing (required for fare calculation).",
     'STP_034': "Stop '{entity_id}': stop_url matches the agency URL.",
     'STP_042': "Stop '{entity_id}': stop_url is not a valid URL.",
+    'STP_043': "Stop '{entity_id}': stop_access is only allowed on platforms with a parent station ({observed_value}).",
     'STP_035': "Stop '{entity_id}': stop_url matches a route URL.",
     'STP_036': "Station '{entity_id}' (location_type=1) has a parent_station set; stations must not have a parent.",
     'STP_037': 'Some stops are missing wheelchair_boarding information ({observed_value}).',
@@ -1483,6 +1484,7 @@ const en: LocaleShape = {
     'PTH_026': 'Reference a platform (location_type=0), entrance/exit (2), generic node (3) or boarding area (4) instead of a station.',
     'PTH_027': 'Give stair_count as a whole number — positive going up, negative going down — or leave it empty.',
     'STP_042': 'Use a valid http/https URL for stop_url.',
+    'STP_043': 'Fill in stop_access only on platforms that have a parent_station.',
     'PTH_017': 'Enter max_slope as a decimal number.',
     'PTH_028': 'The specification recommends max_slope only for walkways (pathway_mode=1) and moving sidewalks (3).',
     'TRP_034': 'Enter the safe_duration fields as decimal numbers.',
@@ -1874,6 +1876,7 @@ const en: LocaleShape = {
     'STP_040': 'Stop name contains a redundant stop/station word',
     'STP_041': 'Child stop name does not include the parent station name',
     'STP_042': 'stop_url is invalid',
+    'STP_043': 'stop_access used in a forbidden context',
     // RTS
     'RTS_001': 'Duplicate route_id',
     'RTS_002': 'agency_id not found',

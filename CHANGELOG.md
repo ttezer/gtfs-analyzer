@@ -166,6 +166,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `AGN_007`. `PTH_017` keeps the type check and is retitled accordingly: a feed with
   `max_slope = abc` used to receive a finding titled "invalid context", which is the same
   mislabelling fixed in `ATR_006` this week.
+- **`stop_access` had an unchecked prohibition and accepted a value the specification does not
+  define.** Reading the reference for the four fields whose provision looked unclassified turned
+  one of them into two plain defects rather than a classification question.
+
+  The reference states a condition that nothing enforced: *"Forbidden for locations which are
+  stations (`location_type=1`), entrances (2), generic nodes (3) or boarding areas (4). Forbidden
+  if `parent_station` is empty."* `STP_026` checks only the enum and `STP_027` is a separate
+  quality heuristic. `STP_043` now covers it — a rule of its own, because an enum error and a
+  context prohibition are different facts and merging them is the mislabelling fixed in
+  `ATR_006`.
+
+  And `STP_026` accepted `0`, `1` or `2` while the reference defines only `0` and `1`, with no
+  comment explaining the third. A `stop_access=2` passed silently. Narrowed.
+
+  No corpus feed is affected either way.
+
 - **291 of the 302 measurable provisions become 296, by exercising fixtures that only ever tested
   one branch.** Five of the eleven unproven provisions were not gaps in the rules but gaps in
   what the fixtures triggered: `BKR_023` breaks one of its four integer fields, `TFR_007` one of

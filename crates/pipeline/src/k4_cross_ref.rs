@@ -636,10 +636,12 @@ fn check_stops(
             }
         }
 
-        // STP_026: stop_access geçerli enum (0,1,2)
+        // STP_026: stop_access geçerli enum.
+        // ⚠️ Spec YALNIZ 0 ve 1 tanımlar; kod 2026-08-03'e kadar `2`yi de kabul ediyordu ve
+        // geçersiz değer sessizce geçiyordu (gerekçesi kodda yoktu).
         let stop_access_raw = row_field(&rec.row, "stop_access");
         if !stop_access_raw.is_empty() {
-            if !matches!(stop_access_raw, "0" | "1" | "2") {
+            if !matches!(stop_access_raw, "0" | "1") {
                 notices.push(notice(
                     ctr,
                     "STP_026",
@@ -650,9 +652,39 @@ fn check_stops(
                     Some(rec.line),
                     Some("stop_access"),
                     Some(stop_access_raw.to_string()),
-                    Some("0, 1 veya 2".to_string()),
+                    Some("0 veya 1".to_string()),
                     format!("stop_access '{stop_access_raw}' geçersiz enum değeri."),
-                    "stop_access için 0, 1 veya 2 kullanın.",
+                    "stop_access için 0 veya 1 kullanın.",
+                ));
+            }
+        }
+
+        // STP_043: spec'in koşullu-YASAK hükmü — "Forbidden for locations which are stations
+        // (location_type=1), entrances (2), generic nodes (3) or boarding areas (4). Forbidden
+        // if parent_station is empty." STP_026 enum GEÇERLİLİĞİNİ ölçer, bu BAĞLAMI ölçer;
+        // ikisini aynı kimliğe koymak ATR_006'daki yanlış etiketleme olurdu.
+        if !stop_access_raw.is_empty() {
+            let bad_type = matches!(loc_type, Some(1) | Some(2) | Some(3) | Some(4));
+            let no_parent = parent.is_empty();
+            if bad_type || no_parent {
+                let why = if bad_type {
+                    format!("location_type={}", loc_type.unwrap_or(0))
+                } else {
+                    "parent_station boş".to_string()
+                };
+                notices.push(notice(
+                    ctr,
+                    "STP_043",
+                    EntityType::Stop,
+                    eid.clone(),
+                    eid.clone(),
+                    "stops.txt",
+                    Some(rec.line),
+                    Some("stop_access"),
+                    Some(stop_access_raw.to_string()),
+                    Some("(boş)".to_string()),
+                    format!("stop_access yalnız üst istasyonu olan platformlarda kullanılabilir ({why})."),
+                    "stop_access alanını yalnız parent_station'ı olan platformlarda (location_type 0/boş) doldurun.",
                 ));
             }
         }

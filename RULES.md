@@ -2,7 +2,7 @@
 
 🇹🇷 **Türkçe** · 🇬🇧 [English](RULES.en.md) · 🇯🇵 [日本語](RULES.ja.md)
 
-564 kural, 38 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
+565 kural, 38 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
 Önem seviyeleri: **KRİTİK** (yayın engelleyici) · **YÜKSEK** · **ORTA** · **DÜŞÜK** · **BİLGİ**
 Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · **Quality** (GTFS Kalitesi) · **Analytics** (GTFS Analitiği)
 
@@ -137,6 +137,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | STP_040 | Durak adı gereksiz genel stop/station sözcüğü içeriyor | DÜŞÜK | Quality |
 | STP_041 | Alt durak adı üst istasyon adını içermiyor | DÜŞÜK | Quality |
 | STP_042 | stop_url geçersiz | DÜŞÜK | Spec |
+| STP_043 | stop_access yasak bağlamda kullanılmış | ORTA | Spec |
 
 ## RTS — Routes (Hatlar)
 

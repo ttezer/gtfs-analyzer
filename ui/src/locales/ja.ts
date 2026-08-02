@@ -632,6 +632,7 @@ const ja: LocaleShape = {
     'STP_033': "停留所'{entity_id}'：zone_idがありません（運賃計算に必要）。",
     'STP_034': "停留所'{entity_id}'：stop_urlが事業者URLと同じです。",
     'STP_042': "停留所'{entity_id}'：stop_urlが有効なURLではありません。",
+    'STP_043': "停留所'{entity_id}'：stop_accessは親駅を持つプラットフォームでのみ使用できます（{observed_value}）。",
     'STP_035': "停留所'{entity_id}'：stop_urlが路線URLと同じです。",
     'STP_036': "駅'{entity_id}'（location_type=1）にparent_stationが設定されています。駅は親を持てません。",
     'STP_037': '一部の停留所にwheelchair_boarding情報がありません（{observed_value}）。',
@@ -1452,6 +1453,7 @@ const ja: LocaleShape = {
     'PTH_026': '駅ではなくプラットフォーム(location_type=0)、出入口(2)、汎用ノード(3)または乗車エリア(4)を参照してください。',
     'PTH_027': 'stair_countは整数で入力してください（上りは正、下りは負）。空欄でも構いません。',
     'STP_042': 'stop_urlに有効なhttp/https URLを使用してください。',
+    'STP_043': 'stop_accessは親駅を持つプラットフォームでのみ入力してください。',
     'PTH_017': 'max_slopeを小数で入力してください。',
     'PTH_028': '仕様はmax_slopeを歩道(pathway_mode=1)と動く歩道(3)にのみ推奨しています。',
     'TRP_034': 'safe_duration項目を小数で入力してください。',
@@ -1828,6 +1830,7 @@ const ja: LocaleShape = {
     'STP_040': '停留所名に冗長なstop/station語が含まれる',
     'STP_041': '子停留所名に親駅名が含まれていない',
     'STP_042': 'stop_urlが無効',
+    'STP_043': 'stop_accessが禁止された文脈で使用',
     // RTS
     'RTS_001': 'route_idが重複',
     'RTS_002': 'agency_idがagency.txtに存在しない',

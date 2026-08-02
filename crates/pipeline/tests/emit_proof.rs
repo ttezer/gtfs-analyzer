@@ -1271,6 +1271,8 @@ fn fixtures() -> Vec<Fixture> {
         fx("STP_034", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon,stop_url\nS1,Stop1,41.0,29.0,http://test.example\nS2,Stop2,41.1,29.1,\n")]),
         // STP_042: stop_url URL biçiminde değil.
         fx("STP_042", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon,stop_url\nS1,Stop1,41.0,29.0,notaurl\n")]),
+        // STP_043: stop_access, parent_station'ı olmayan bir durakta kullanılmış (spec: yasak).
+        fx("STP_043", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon,location_type,parent_station,stop_access\nS1,Stop1,41.0,29.0,0,,1\nS2,Stop2,41.1,29.1,,,\n")]),
         // STP_035: stop_url hat URL'siyle aynı (k6).
         fx("STP_035", vec![
             ("routes.txt", "route_id,agency_id,route_short_name,route_type,route_url\nR1,1,101,3,http://r1.example\n"),

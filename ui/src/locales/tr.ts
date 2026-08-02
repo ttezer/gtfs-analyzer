@@ -668,6 +668,7 @@ const tr = {
     'STP_040': 'Durak adı gereksiz genel stop/station sözcüğü içeriyor',
     'STP_041': 'Alt durak adı üst istasyon adını içermiyor',
     'STP_042': 'stop_url geçersiz',
+    'STP_043': 'stop_access yasak bağlamda kullanılmış',
     // RTS
     'RTS_001': 'route_id yineleniyor',
     'RTS_002': 'agency_id bulunamadı',
