@@ -451,7 +451,18 @@ pub fn validate_shapes(file: &RawFile, zip_bytes: Option<&[u8]>) -> (Vec<ShapePo
                     }
                     v
                 }
-                Err(_) => None,
+                Err(()) => {
+                    // Sayı OLMAYAN değer eskiden sessizce düşüyordu: aralık dışı sayı SHP_021 üretirken
+                    // "abc" hiçbir bulgu vermiyordu. Aynı olgunun iki dalı → aynı kural (PTH_027 emsali).
+                    notices.push(make_k2_notice(
+                        &mut counter, "SHP_021", EntityType::Shape, entity_id(),
+                        None, &file.name, Some(line), Some("shape_dist_traveled"),
+                        Some(sdt_raw.to_string()), Some(">= 0".to_string()),
+                        format!("shape_dist_traveled '{}' sayı olarak okunamıyor.", sdt_raw),
+                        "shape_dist_traveled alanını sıfır veya pozitif bir değere ayarlayın.",
+                    ));
+                    None
+                }
             };
 
             // SHP_005 (shape_dist_traveled monotonluğu) K5'e taşındı: dosya satır sırası DEĞİL,

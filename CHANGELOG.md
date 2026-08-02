@@ -166,6 +166,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `AGN_007`. `PTH_017` keeps the type check and is retitled accordingly: a feed with
   `max_slope = abc` used to receive a finding titled "invalid context", which is the same
   mislabelling fixed in `ATR_006` this week.
+- **Twelve places where a value that is not a number produced no finding at all.** The pattern
+  `Err(_) => None` sat at twelve parse sites in K2, and eleven had the field's own rule
+  immediately beside them — so `location_type = 9` drew `STP_008` while `location_type = abc`
+  disappeared, along with the value. The same pattern had been fixed individually five times this
+  week (`STM_058`, `PTH_027`, `RTS_029`, `TRP_034`) before it was recognised as one pattern.
+
+  Nine sites reuse the neighbouring rule unchanged, because those rules say "invalid" and a
+  non-numeric value is invalid for that field. Three could not:
+
+  `STM_030` and `SHP_021` said "negative", and a value that is not a number is not negative.
+  Both are retitled to name the type violation they now cover — the same judgement made for
+  `PTH_017`.
+
+  The four `booking_rules` integer fields needed a rule of their own, `BKR_023`. Reusing
+  `BKR_001`/`BKR_002`/`BKR_005` was the obvious move and it was wrong: those are *context* rules
+  ("valid only with booking_type=1"), so a malformed number would have been reported under a
+  title about booking types — the mislabelling fixed in `ATR_006` this week, about to be
+  reintroduced. The emit-identity gate caught the attempt, which is what it exists for.
+
+  Measured across the corpus: no new findings anywhere. One feed carries NUL bytes in
+  `shapes.txt`, but that file is rejected earlier and never reaches `SHP_021`.
+
 - **The atom-level blind spot shrank from 62 fields to 13, by correcting the measurement rather
   than the rules.** A field carrying two provisions but anchored by one rule was reported as
   partially covered, and 46 of the 62 were `presence:required` plus a type — where the presence

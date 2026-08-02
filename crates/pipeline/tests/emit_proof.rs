@@ -264,6 +264,8 @@ fn fixtures() -> Vec<Fixture> {
         fx("BKR_020", vec![("booking_rules.txt", "booking_rule_id,booking_type,booking_url\nBR1,0,notaurl\n")]),
         fx("BKR_021", vec![("booking_rules.txt", "booking_rule_id,booking_type,info_url\nBR1,0,notaurl\n")]),
         fx("BKR_022", vec![("booking_rules.txt", "booking_rule_id,booking_type,phone_number\nBR1,0,abc\n")]),
+        // BKR_023: prior_notice sayı alanı tam sayı değil (eskiden opt_int sessizce yutuyordu).
+        fx("BKR_023", vec![("booking_rules.txt", "booking_rule_id,booking_type,prior_notice_duration_min\nBR1,2,abc\n")]),
         // BKR_017/018: stop_times'taki booking_rule_id booking_rules.txt'te yok (k4 cross-ref).
         fx("BKR_017", vec![
             ("booking_rules.txt", "booking_rule_id,booking_type,prior_notice_duration_min\nBR1,1,30\n"),

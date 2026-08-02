@@ -2,7 +2,7 @@
 
 🇹🇷 [Türkçe](RULES.md) · 🇬🇧 **English** · 🇯🇵 [日本語](RULES.ja.md)
 
-563 rules, 38 groups. Each rule is identified by a unique ID, severity level, and class.
+564 rules, 38 groups. Each rule is identified by a unique ID, severity level, and class.
 Severity levels: **CRITICAL** (publish blocker) · **HIGH** · **MEDIUM** · **LOW** · **INFO**
 Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Quality** (GTFS Quality) · **Analytics** (GTFS Analytics)
 
@@ -68,6 +68,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | BKR_020 | booking_url is invalid | MEDIUM | Spec |
 | BKR_021 | info_url is invalid | LOW | Spec |
 | BKR_022 | phone_number is invalid | LOW | Quality |
+| BKR_023 | prior_notice numeric field is not an integer | MEDIUM | Spec |
 
 ## AGN — Agency
 
@@ -230,7 +231,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | STM_026 | Excessive distance between stops | HIGH | Quality |
 | STM_028 | Trip duration too long | HIGH | Analytics |
 | STM_029 | Trip duration too short | MEDIUM | Analytics |
-| STM_030 | shape_dist_traveled is negative | LOW | Spec |
+| STM_030 | shape_dist_traveled is negative or not a number | LOW | Spec |
 | STM_032 | Duplicate stop_sequence within trip | LOW | Quality |
 | STM_033 | Single-stop trip (unusable) | HIGH | Interop |
 | STM_034 | Only one of arrival or departure time defined | MEDIUM | Interop |
@@ -341,7 +342,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | SHP_018 | Shape not referenced by any trip | LOW | Quality |
 | SHP_019 | Shape's trips have no stop times | MEDIUM | Quality |
 | SHP_020 | Repeated point in shape | INFO | Analytics |
-| SHP_021 | shape_dist_traveled negative value | LOW | Quality |
+| SHP_021 | shape_dist_traveled is negative or not a number | LOW | Quality |
 | SHP_022 | Stop position ambiguous on shape | HIGH | Quality |
 | SHP_023 | Consecutive points with same shape_dist_traveled at same coordinates | MEDIUM | Quality |
 | SHP_024 | Stop-to-shape distance inconsistent with shape_dist_traveled | MEDIUM | Quality |

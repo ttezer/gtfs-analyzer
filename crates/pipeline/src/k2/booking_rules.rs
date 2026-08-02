@@ -28,10 +28,44 @@ fn has_field(row: &RowMap, field: &str) -> bool {
     get_trimmed_field(row, field).map(|v| !v.is_empty()).unwrap_or(false)
 }
 
+/// ⚠️ Sessiz: parse hatasında `None` döner. Çağıranlar `opt_int_checked` kullanmalı —
+/// bu sarmalayıcı yalnız hatayı raporlamanın anlamsız olduğu yerler için bırakıldı.
 fn opt_int(row: &RowMap, field: &str) -> Option<i64> {
     get_trimmed_field(row, field)
         .filter(|v| !v.is_empty())
         .and_then(|v| v.parse::<i64>().ok())
+}
+
+/// `opt_int`'in raporlayan hâli: sayı olmayan değer sessizce düşmez, `rule` ile bildirilir.
+///
+/// Spec bu dört alanı `Integer` olarak tipler. Eski `opt_int` "abc"yi sessizce yutuyordu:
+/// koşullu-yasak hükmü (BKR_002/BKR_004/BKR_005) ateşliyor ama DEĞERİN sayı olmadığı hiç
+/// söylenmiyordu — yani kullanıcı bozuk bir rezervasyon penceresini göremiyordu.
+#[allow(clippy::too_many_arguments)]
+fn opt_int_checked(
+    row: &RowMap,
+    field: &'static str,
+    rule: &'static str,
+    entity_id: Option<String>,
+    file_name: &str,
+    line: u64,
+    notices: &mut Vec<gtfs_core::Notice>,
+    ctr: &mut u32,
+) -> Option<i64> {
+    let raw = get_trimmed_field(row, field).filter(|v| !v.is_empty())?;
+    match raw.parse::<i64>() {
+        Ok(v) => Some(v),
+        Err(_) => {
+            notices.push(make_k2_notice(
+                ctr, rule, EntityType::Row, entity_id, Some(row),
+                file_name, Some(line), Some(field),
+                Some(raw.to_string()), Some("tam sayı".to_string()),
+                format!("{field} '{raw}' tam sayı olarak okunamıyor."),
+                "Bu alanı tam sayı olarak girin.",
+            ));
+            None
+        }
+    }
 }
 
 pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gtfs_core::Notice>) {
@@ -99,10 +133,10 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
         let has_start_time  = has_field(&row_map, "prior_notice_start_time");
         let has_service_id  = has_field(&row_map, "prior_notice_service_id");
 
-        let duration_min = opt_int(&row_map, "prior_notice_duration_min");
-        let duration_max = opt_int(&row_map, "prior_notice_duration_max");
-        let last_day     = opt_int(&row_map, "prior_notice_last_day");
-        let start_day    = opt_int(&row_map, "prior_notice_start_day");
+        let duration_min = opt_int_checked(&row_map, "prior_notice_duration_min", "BKR_023", Some(id.clone()), &file.name, line, &mut notices, &mut ctr);
+        let duration_max = opt_int_checked(&row_map, "prior_notice_duration_max", "BKR_023", Some(id.clone()), &file.name, line, &mut notices, &mut ctr);
+        let last_day     = opt_int_checked(&row_map, "prior_notice_last_day", "BKR_023", Some(id.clone()), &file.name, line, &mut notices, &mut ctr);
+        let start_day    = opt_int_checked(&row_map, "prior_notice_start_day", "BKR_023", Some(id.clone()), &file.name, line, &mut notices, &mut ctr);
 
         if let Some(btype) = booking_type {
             // BKR_004: booking_type=0 iken prior_notice alanları yasak

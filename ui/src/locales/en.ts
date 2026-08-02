@@ -1548,6 +1548,7 @@ const en: LocaleShape = {
     'BKR_020': 'Use a valid http/https URL for booking_url.',
     'BKR_021': 'Use a valid http/https URL for info_url.',
     'BKR_022': 'Use a phone number with at least 7 digits.',
+    'BKR_023': 'Enter the prior_notice numeric fields as whole numbers.',
     // FLG
     'FLG_001': 'Use a valid fare_product_id.',
     'FLG_002': 'Use a valid network_id.',
@@ -1810,6 +1811,7 @@ const en: LocaleShape = {
     'BKR_020': 'booking_url is invalid',
     'BKR_021': 'info_url is invalid',
     'BKR_022': 'phone_number is invalid',
+    'BKR_023': 'prior_notice numeric field is not an integer',
     // AGN
     'AGN_002': 'agency_name missing',
     'AGN_003': 'agency_url missing or invalid',
@@ -1951,7 +1953,7 @@ const en: LocaleShape = {
     'STM_026': 'Excessive distance between stops',
     'STM_028': 'Trip duration too long',
     'STM_029': 'Trip duration too short',
-    'STM_030': 'shape_dist_traveled is negative',
+    'STM_030': 'shape_dist_traveled is negative or not a number',
     'STM_032': 'Duplicate stop_sequence within trip',
     'STM_033': 'Single-stop trip (unusable)',
     'STM_034': 'Only one of arrival or departure time defined',
@@ -2041,7 +2043,7 @@ const en: LocaleShape = {
     'SHP_018': 'Shape not referenced by any trip',
     'SHP_019': "Shape's trips have no stop times",
     'SHP_020': 'Repeated point in shape',
-    'SHP_021': 'shape_dist_traveled negative value',
+    'SHP_021': 'shape_dist_traveled is negative or not a number',
     'SHP_022': 'Stop position ambiguous on shape',
     'SHP_023': 'Consecutive points with same shape_dist_traveled at same coordinates',
     'SHP_024': 'Stop-to-shape distance inconsistent with shape_dist_traveled',

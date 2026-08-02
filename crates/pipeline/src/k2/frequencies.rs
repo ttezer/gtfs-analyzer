@@ -178,7 +178,18 @@ pub fn validate_frequencies(file: &RawFile) -> (Vec<FrequencyRecord>, Vec<gtfs_c
                 }
                 v
             }
-            Err(_) => None,
+            Err(err) => {
+                // Sayı OLMAYAN değer eskiden sessizce düşüyordu: aralık dışı sayı FRQ_007 üretirken
+                // "abc" hiçbir bulgu vermiyordu. Aynı olgunun iki dalı → aynı kural (PTH_027 emsali).
+                notices.push(make_k2_notice(
+                    &mut counter, "FRQ_007", EntityType::Trip, entity_id.clone(),
+                    Some(&row_map), &file.name, Some(line), Some("exact_times"),
+                    get_trimmed_field(&row_map, "exact_times").map(str::to_string), Some("0 veya 1".to_string()),
+                    err,
+                    "exact_times değerini 0 (frekans bazlı) veya 1 (tarifeli) olarak ayarlayın.",
+                ));
+                None
+            }
         };
 
         records.push(FrequencyRecord {

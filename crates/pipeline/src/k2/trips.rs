@@ -276,7 +276,18 @@ pub fn validate_trips(file: &RawFile, zip_bytes: Option<&[u8]>) -> (Vec<TripReco
                 }
                 v
             }
-            Err(_) => None,
+            Err(()) => {
+                // Sayı OLMAYAN değer eskiden sessizce düşüyordu: aralık dışı sayı TRP_006 üretirken
+                // "abc" hiçbir bulgu vermiyordu. Aynı olgunun iki dalı → aynı kural (PTH_027 emsali).
+                notices.push(make_k2_notice(
+                    &mut counter, "TRP_006", EntityType::Trip, entity_id.clone(),
+                    None, &file.name, Some(line), Some("wheelchair_accessible"),
+                    Some(wc_raw.to_string()), Some("0, 1 veya 2".to_string()),
+                    format!("wheelchair_accessible '{}' sayı olarak okunamıyor.", wc_raw),
+                    "wheelchair_accessible değerini 0 (bilgi yok), 1 (erişilebilir) veya 2 (erişilemez) olarak ayarlayın.",
+                ));
+                None
+            }
         };
 
         // TRP_007: bikes_allowed 0, 1 veya 2 olmalı
@@ -296,7 +307,18 @@ pub fn validate_trips(file: &RawFile, zip_bytes: Option<&[u8]>) -> (Vec<TripReco
                 }
                 v
             }
-            Err(_) => None,
+            Err(()) => {
+                // Sayı OLMAYAN değer eskiden sessizce düşüyordu: aralık dışı sayı TRP_007 üretirken
+                // "abc" hiçbir bulgu vermiyordu. Aynı olgunun iki dalı → aynı kural (PTH_027 emsali).
+                notices.push(make_k2_notice(
+                    &mut counter, "TRP_007", EntityType::Trip, entity_id.clone(),
+                    None, &file.name, Some(line), Some("bikes_allowed"),
+                    Some(ba_raw.to_string()), Some("0, 1 veya 2".to_string()),
+                    format!("bikes_allowed '{}' sayı olarak okunamıyor.", ba_raw),
+                    "bikes_allowed değerini 0 (bilgi yok), 1 (izinli) veya 2 (izinsiz) olarak ayarlayın.",
+                ));
+                None
+            }
         };
 
         // TRP_021: bikes_allowed eksik sayacı

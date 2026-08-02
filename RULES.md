@@ -2,7 +2,7 @@
 
 🇹🇷 **Türkçe** · 🇬🇧 [English](RULES.en.md) · 🇯🇵 [日本語](RULES.ja.md)
 
-563 kural, 38 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
+564 kural, 38 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
 Önem seviyeleri: **KRİTİK** (yayın engelleyici) · **YÜKSEK** · **ORTA** · **DÜŞÜK** · **BİLGİ**
 Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · **Quality** (GTFS Kalitesi) · **Analytics** (GTFS Analitiği)
 
@@ -68,6 +68,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | BKR_020 | booking_url geçersiz | ORTA | Spec |
 | BKR_021 | info_url geçersiz | DÜŞÜK | Spec |
 | BKR_022 | phone_number geçersiz | DÜŞÜK | Quality |
+| BKR_023 | prior_notice sayı alanı tam sayı değil | ORTA | Spec |
 
 ## AGN — Agency (İşletici)
 
@@ -230,7 +231,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | STM_026 | Durak arası mesafe aşırı uzun | YÜKSEK | Quality |
 | STM_028 | Sefer süresi çok uzun | YÜKSEK | Analytics |
 | STM_029 | Sefer süresi çok kısa | ORTA | Analytics |
-| STM_030 | shape_dist_traveled negatif | DÜŞÜK | Spec |
+| STM_030 | shape_dist_traveled negatif veya sayı değil | DÜŞÜK | Spec |
 | STM_032 | Aynı seferde yinelenen stop_sequence değeri | DÜŞÜK | Quality |
 | STM_033 | Tek duraklı sefer (kullanılamaz) | YÜKSEK | Interop |
 | STM_034 | Varış veya kalkış zamanından yalnızca biri tanımlı | ORTA | Interop |
@@ -341,7 +342,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | SHP_018 | Güzergah şekli sefer tarafından referanslanmıyor | DÜŞÜK | Quality |
 | SHP_019 | Güzergah şeklinin seferleri durak zamanı içermiyor | ORTA | Quality |
 | SHP_020 | Güzergah şeklinde tekrarlayan nokta | BİLGİ | Analytics |
-| SHP_021 | shape_dist_traveled negatif değer | DÜŞÜK | Quality |
+| SHP_021 | shape_dist_traveled negatif veya sayı değil | DÜŞÜK | Quality |
 | SHP_022 | Durak güzergah şeklinde belirsiz konumda | YÜKSEK | Quality |
 | SHP_023 | shape_dist_traveled aynı değere sahip art arda iki nokta aynı koordinatta | ORTA | Quality |
 | SHP_024 | Duraktan şekle mesafe shape_dist_traveled ile tutarsız | ORTA | Quality |

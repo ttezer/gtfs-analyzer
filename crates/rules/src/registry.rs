@@ -213,6 +213,12 @@ pub static RULES: &[RuleMeta] = &[
     // gereği Spec DEĞİL, Quality.
     r!("BKR_022", Dusuk,  Quality, 1, &[], Some("booking_rule_id"), VS, Entity,
         "phone_number geçersiz"),
+    // BKR_023: dört prior_notice sayı alanı spec'te `Integer`. Sayı olmayan değer eskiden
+    // `opt_int`'in `.parse().ok()`'ı ile SESSİZCE düşüyordu. BKR_001/002/004/005'i yeniden
+    // kullanmak YANLIŞ olurdu: onlar BAĞLAM kurallarıdır ("yalnızca booking_type=1 ile
+    // geçerli"), tip kuralı değil — `emit_identity` kapısı bu denemeyi yakaladı.
+    r!("BKR_023", Orta,   Spec, 1, &[], Some("booking_rule_id"), VS, Entity,
+        "prior_notice sayı alanı tam sayı değil"),
 
     // ── AGN: Agency ────────────────────────────────────────────────────────────
     // AGN_001 KALDIRILDI (2026-08-02): hiçbir yolla emit EDİLMEYEN bir kayıttı — ne Notice
@@ -594,7 +600,7 @@ pub static RULES: &[RuleMeta] = &[
     r!("STM_029", Orta,   Analytics, 2, &[], Some("trip_id"), VA, Row,
         "Sefer süresi çok kısa"),
     r!("STM_030", Dusuk,  Spec, 1, &[], Some("trip_id"), VS, Row,
-        "shape_dist_traveled negatif"),
+        "shape_dist_traveled negatif veya sayı değil"),
     r!("STM_032", Dusuk,  Quality, 1, &[], Some("trip_id"), VS, Row,
         "Aynı seferde yinelenen stop_sequence değeri"),
     r!("STM_033", Yuksek, Interop, 2, &[], Some("trip_id"), VI, Entity,
@@ -811,7 +817,7 @@ pub static RULES: &[RuleMeta] = &[
     r!("SHP_020", Bilgi,  Analytics, 3, &[], Some("shape_id"), VA, Entity,
         "Güzergah şeklinde tekrarlayan nokta"),
     r!("SHP_021", Dusuk,  Quality, 1, &[], Some("shape_id"), VS, Entity,
-        "shape_dist_traveled negatif değer"),
+        "shape_dist_traveled negatif veya sayı değil"),
     r!("SHP_022", Yuksek, Quality, 2, &[], Some("stop_id"), VS, Entity,
         "Durak güzergah şeklinde belirsiz konumda"),
     r!("SHP_023", Orta,   Quality, 2, &[], Some("shape_id"), VS, Entity,
@@ -1652,6 +1658,7 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("BKR_020", GtfsSpec),
     ("BKR_021", GtfsSpec),
     ("BKR_022", ProjectQuality),
+    ("BKR_023", GtfsSpec),
     ("CAL_001", GtfsSpec),
     ("CAL_002", GtfsSpec),
     ("CAL_003", GtfsSpec),

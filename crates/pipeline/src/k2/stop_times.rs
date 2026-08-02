@@ -1357,7 +1357,18 @@ pub fn validate_stop_times(file: &RawFile, zip_bytes: Option<&[u8]>) -> (StopTim
                 }
                 v
             }
-            Err(_) => None,
+            Err(err) => {
+                // Sayı OLMAYAN değer eskiden sessizce düşüyordu: aralık dışı sayı STM_022 üretirken
+                // "abc" hiçbir bulgu vermiyordu. Aynı olgunun iki dalı → aynı kural (PTH_027 emsali).
+                st.notices.push(make_k2_notice(
+                    &mut st.counter, "STM_022", EntityType::Trip, eid(),
+                    None, &file.name, Some(line), Some("timepoint"),
+                    Some(tp_raw.to_string()), Some("0 veya 1".to_string()),
+                    err,
+                    "timepoint değerini 0 (yaklaşık) veya 1 (kesin) olarak ayarlayın.",
+                ));
+                None
+            }
         };
 
         // STM_047: timepoint=1 (kesin zaman noktası) iken hem arrival_time hem departure_time
@@ -1389,7 +1400,18 @@ pub fn validate_stop_times(file: &RawFile, zip_bytes: Option<&[u8]>) -> (StopTim
                 }
                 v
             }
-            Err(_) => None,
+            Err(err) => {
+                // Sayı OLMAYAN değer eskiden sessizce düşüyordu: aralık dışı sayı STM_030 üretirken
+                // "abc" hiçbir bulgu vermiyordu. Aynı olgunun iki dalı → aynı kural (PTH_027 emsali).
+                st.notices.push(make_k2_notice(
+                    &mut st.counter, "STM_030", EntityType::Trip, eid(),
+                    None, &file.name, Some(line), Some("shape_dist_traveled"),
+                    Some(sdt_raw.to_string()), Some(">= 0".to_string()),
+                    err,
+                    "shape_dist_traveled değerini sıfır veya pozitif bir sayıya ayarlayın.",
+                ));
+                None
+            }
         };
 
         let stop_headsign_raw = get_col(row, cols.stop_headsign);

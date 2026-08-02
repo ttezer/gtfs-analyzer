@@ -105,7 +105,18 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
                 }
                 v
             }
-            Err(_) => None,
+            Err(err) => {
+                // Sayı OLMAYAN değer eskiden sessizce düşüyordu: aralık dışı sayı STP_008 üretirken
+                // "abc" hiçbir bulgu vermiyordu. Aynı olgunun iki dalı → aynı kural (PTH_027 emsali).
+                notices.push(make_k2_notice(
+                    &mut counter, "STP_008", EntityType::Stop, entity_id.clone(),
+                    Some(&row_map), &file.name, Some(line), Some("location_type"),
+                    get_trimmed_field(&row_map, "location_type").map(str::to_string), Some("0-4".to_string()),
+                    err,
+                    "location_type alanını 0, 1, 2, 3 veya 4 olarak ayarlayın.",
+                ));
+                None
+            }
         };
 
         // For location_type 0 (or empty — regular stop) and 1 (station), stop_code önerilir.
@@ -298,7 +309,18 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
                 }
                 v
             }
-            Err(_) => None,
+            Err(err) => {
+                // Sayı OLMAYAN değer eskiden sessizce düşüyordu: aralık dışı sayı STP_013 üretirken
+                // "abc" hiçbir bulgu vermiyordu. Aynı olgunun iki dalı → aynı kural (PTH_027 emsali).
+                notices.push(make_k2_notice(
+                    &mut counter, "STP_013", EntityType::Stop, entity_id.clone(),
+                    Some(&row_map), &file.name, Some(line), Some("wheelchair_boarding"),
+                    get_trimmed_field(&row_map, "wheelchair_boarding").map(str::to_string), Some("0, 1 veya 2".to_string()),
+                    err,
+                    "wheelchair_boarding alanını 0 (bilgi yok), 1 (erişilebilir) veya 2 (erişilemez) olarak ayarlayın.",
+                ));
+                None
+            }
         };
 
         // stop_access: 0, 1, or 2
@@ -317,7 +339,18 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
                 }
                 v
             }
-            Err(_) => None,
+            Err(err) => {
+                // Sayı OLMAYAN değer eskiden sessizce düşüyordu: aralık dışı sayı STP_024 üretirken
+                // "abc" hiçbir bulgu vermiyordu. Aynı olgunun iki dalı → aynı kural (PTH_027 emsali).
+                notices.push(make_k2_notice(
+                    &mut counter, "STP_024", EntityType::Stop, entity_id.clone(),
+                    Some(&row_map), &file.name, Some(line), Some("stop_access"),
+                    get_trimmed_field(&row_map, "stop_access").map(str::to_string), Some("0–2".to_string()),
+                    err,
+                    "stop_access'i 0 (bilinmiyor), 1 (erişilebilir) veya 2 (erişilemez) olarak ayarlayın.",
+                ));
+                None
+            }
         };
 
         let level_id = get_trimmed_field(&row_map, "level_id")

@@ -194,7 +194,18 @@ pub fn validate_agency(file: &RawFile) -> (Vec<AgencyRecord>, Vec<gtfs_core::Not
                 }
                 v
             }
-            Err(_) => None,
+            Err(err) => {
+                // Sayı OLMAYAN değer eskiden sessizce düşüyordu: aralık dışı sayı AGN_012 üretirken
+                // "abc" hiçbir bulgu vermiyordu. Aynı olgunun iki dalı → aynı kural (PTH_027 emsali).
+                notices.push(make_k2_notice(
+                    &mut counter, "AGN_012", EntityType::Agency, entity_id.clone(),
+                    Some(&row_map), &file.name, Some(line), Some("cemv_support"),
+                    get_trimmed_field(&row_map, "cemv_support").map(str::to_string), Some("0, 1 veya 2".to_string()),
+                    err,
+                    "cemv_support alanını 0 (bilgi yok), 1 (destekleniyor) veya 2 (desteklenmiyor) olarak ayarlayın.",
+                ));
+                None
+            }
         };
 
         records.push(AgencyRecord {
