@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-08-03
+
+> **Breaking.** Three rules are retired (`SHP_027`, `STM_057`, `AGN_001`), nine changed class or
+> title, and seventeen now report a `field` where they previously reported none. Rule ids are not
+> reused: the retired ones are recorded in `removed_ids`. Golden snapshots that contain the
+> affected rules need re-baselining for the title changes; the `field` changes are invisible to
+> the Golden shape, which aggregates per rule id.
+>
+> **Evidence basis, stated plainly.** Every rule added or changed here was measured against the
+> 239-feed corpus by static scan and against fifteen feeds by targeted validation, including the
+> eight GTFS-Flex feeds added to the corpus this cycle. A full corpus revalidation was
+> deliberately deferred, so the blast-radius figures rest on scans that approximate rule
+> predicates rather than run them. Two scan errors were found and corrected during the cycle,
+> both from CSV header quoting; a third would not have been caught.
+
 > **Scores move on feeds with a missing stop.** A `stop_id` used in `stop_times.txt` but absent
 > from `stops.txt` was penalised twice; it is now counted once. Feeds without that error are
 > unaffected. Re-baseline Golden snapshots that contain it.
@@ -1334,6 +1349,7 @@ filters (R2).
   audit (`cargo audit` blocking; `npm audit` reported, non-blocking).
 - GitHub Pages deploy builds from source to guarantee the live site matches `HEAD`.
 
-[Unreleased]: https://github.com/ttezer/gtfs-analyzer/compare/v0.1.3...HEAD
+[Unreleased]: https://github.com/ttezer/gtfs-analyzer/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/ttezer/gtfs-analyzer/compare/v0.7.0...v0.8.0
 [0.1.3]: https://github.com/ttezer/gtfs-analyzer/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/ttezer/gtfs-analyzer/releases/tag/v0.1.2
