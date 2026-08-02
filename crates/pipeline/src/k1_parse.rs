@@ -24,7 +24,7 @@ const REQUIRED_FILES: &[&str] = &[
 
 const CALENDAR_FILES: &[&str] = &["calendar.txt", "calendar_dates.txt"];
 
-const KNOWN_FILES: &[&str] = &[
+pub(crate) const KNOWN_FILES: &[&str] = &[
     "agency.txt", "stops.txt", "routes.txt", "trips.txt", "stop_times.txt",
     "calendar.txt", "calendar_dates.txt", "shapes.txt", "frequencies.txt",
     "transfers.txt", "fare_attributes.txt", "fare_rules.txt",
@@ -318,7 +318,13 @@ fn csv_has_unclosed_quote(text: &str) -> bool {
 // ── Şema yardımcıları ─────────────────────────────────────────────────────────
 
 /// Dosya başına zorunlu sütun seti. Sütun başlıkta yoksa ARC_025; değer boşsa ilgili k2 grup kuralı.
-fn required_fields(filename: &str) -> &'static [&'static str] {
+///
+/// ⚠️ **ELLE BAKIMLI ve ARC_025 Kritik·Spec'tir** — buraya KOŞULLU bir alan yazmak geçerli bir
+/// feed'i yayından alıkoyar. 2026-08-02'de `transfers.from_stop_id`/`to_stop_id` tam olarak
+/// böyleydi (spec: "Optional if transfer_type is 4 or 5"). Liste artık spec'e karşı
+/// `required_columns_match_the_specification` testiyle kilitli — `pub(crate)` olmasının sebebi
+/// odur, üretimde başka çağıranı yoktur.
+pub(crate) fn required_fields(filename: &str) -> &'static [&'static str] {
     match filename {
         "agency.txt"          => &["agency_name", "agency_url", "agency_timezone"],
         "stops.txt"           => &["stop_id"],
@@ -2353,6 +2359,51 @@ mod tests {
             "delikler dış ringden düşülmeli");
     }
 }
+    /// `required_fields` (ARC_025'in dayanağı) spec'in `Required` sütunlarıyla BİREBİR olmalı.
+    ///
+    /// ARC_025 Kritik·Spec'tir, yani R1'i bloke eder. Listeye KOŞULLU bir alan yazmak geçerli
+    /// bir feed'i yayından alıkoyar; gerçekten Required olan bir alanı yazmamak ise hükmü
+    /// denetimsiz bırakır. 2026-08-02'de `transfers.txt`'te İKİSİ BİRDEN vardı:
+    /// `from_stop_id`/`to_stop_id` koşulluyken listedeydi (yanlış pozitif, gizli),
+    /// `transfer_type` koşulsuz Required'ken listede değildi (denetimsiz).
+    ///
+    /// Kaynak: `spec-audit/spec_fields.json` → `presence == "Required"`.
+    #[test]
+    fn required_columns_match_the_specification() {
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../spec-audit/spec_fields.json");
+        let doc: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
+        let files = doc["files"].as_object().unwrap();
+        assert!(files.len() >= 25, "spec_fields.json çok küçük — yeniden üretin");
+
+        let mut problems: Vec<String> = Vec::new();
+        for (fname, entry) in files {
+            let spec_required: std::collections::BTreeSet<&str> = entry["fields"]
+                .as_array().unwrap().iter()
+                .filter(|f| f["presence"].as_str() == Some("Required"))
+                .filter_map(|f| f["name"].as_str())
+                .collect();
+            let ours: std::collections::BTreeSet<&str> =
+                required_fields(fname).iter().copied().collect();
+            for miss in spec_required.difference(&ours) {
+                problems.push(format!(
+                    "{fname}: '{miss}' spec'te Required ama required_fields'ta YOK → ARC_025 denetlemiyor"
+                ));
+            }
+            for extra in ours.difference(&spec_required) {
+                problems.push(format!(
+                    "{fname}: '{extra}' required_fields'ta ama spec'te Required DEĞİL →                      geçerli feed ARC_025 (Kritik) alabilir"
+                ));
+            }
+        }
+        assert!(
+            problems.is_empty(),
+            "required_fields spec ile uyuşmuyor ({} sorun):\n{}\n\n             Spec değiştiyse önce `python3 spec-audit/extract_fields.py` çalıştırın.",
+            problems.len(), problems.join("\n"),
+        );
+    }
+
     #[test]
     fn malformed_eol_detects_bare_and_repeated_cr() {
         assert!(has_malformed_eol(b"a\rb\n"));

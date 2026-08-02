@@ -166,6 +166,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `AGN_007`. `PTH_017` keeps the type check and is retitled accordingly: a feed with
   `max_slope = abc` used to receive a finding titled "invalid context", which is the same
   mislabelling fixed in `ATR_006` this week.
+- **The required-column list is now locked to the specification.** `ARC_025`'s list is
+  maintained by hand and the rule is Kritik·Spec, so a wrong entry rejects a valid feed and a
+  missing one leaves a provision unenforced — both happened in the same file. A test now compares
+  the list against `spec_fields.json`, naming which direction each disagreement goes and what it
+  costs. It was verified by breaking it: re-adding `from_stop_id` fails the build with exactly
+  the message a future maintainer needs.
+
 - **`ARC_025` required `transfers.from_stop_id`, which the specification makes conditional.** The
   rule reports a required column missing from a header, at Kritik·Spec, so it blocks publication.
   Its list of required columns is maintained by hand, and comparing it against the reference
