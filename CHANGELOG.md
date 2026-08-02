@@ -108,6 +108,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   collides with.
 
 ### Added
+- **The specification's file-level provisions were never extracted, and one of them was being
+  reported as a preference.** Every file section of the reference carries a `File: …` line, and
+  seven of them are conditional — five `Conditionally Required`, two `Conditionally Forbidden`.
+  `extract_fields.py` read only the field tables, so that whole class sat outside both ledgers.
+  It now captures `presence` per file, and all seven were adjudicated by hand against the
+  reference text; the result is written down in `spec-audit/FILE_LEVEL_PROVISIONS.md`, because
+  the conditions are prose ("if demand-responsive zones are defined in `locations.geojson`") and
+  no measurement can match them to rules automatically.
+
+  Six of the seven were already covered, two of them in ways worth recording: `stops.txt` is
+  `Conditionally Required` and `ARC_004` already exempts it when `locations.geojson` is present,
+  so a pure-Flex feed is not falsely rejected; and `levels.txt` is covered indirectly but
+  completely, by `LVL_006` together with the `level_id` foreign key.
+
+  The seventh was a gap. The reference says of `feed_info.txt`: *"Required if `translations.txt`
+  is provided. Recommended otherwise."* Two sentences, two classes — and both were being reported
+  by `ARC_020` as a missing *recommended* file, Düşük·Quality. A norm was being reported as a
+  preference. `ARC_031` now covers the first sentence at Kritik·Spec, following `ARC_008`, which
+  is the same shape of provision; `ARC_020` keeps the second and its comment now records the
+  boundary. The practical reason it is Kritik: a translation's meaning depends on
+  `feed_info.feed_lang`, so without that file the default language is unknown and `TRN_007`
+  cannot work at all.
+
+  This is the mirror of the `PTH_017` error found the same day. There a recommendation was
+  enforced as a norm, which can reject a valid feed; here a norm was reported as a
+  recommendation, which only under-warns. Both are class-authority failures, and the asymmetry
+  is worth stating rather than treating them as equivalent.
+
+  Measured: 34 of the 239 corpus feeds ship `translations.txt` and two of those lack
+  `feed_info.txt`. **No publish verdict changes** — both were already unpublishable, one of them
+  carrying 42,881 blocking notices before this rule added its one.
+
 - **A fifth gate asks the question the other four do not: is every `Spec` claim backed by a
   provision?** The coverage ledger asks whether every provision is measured. That is the cheaper
   of the two failures — a gap tells a publisher less than it could. The expensive failure is the

@@ -104,6 +104,15 @@ pub static RULES: &[RuleMeta] = &[
         "GTFS dışı tanınmayan dosya"),
     r!("ARC_008", Kritik, Spec,    1, &[], None, VS_K, Feed,
         "Takvim dosyası eksik (calendar.txt ve calendar_dates.txt)"),
+    // ARC_031: spec'in DOSYA DÜZEYİ hükmü — "feed_info.txt · Conditionally Required:
+    // Required if translations.txt is provided. Recommended otherwise." İki cümle, iki sınıf:
+    // koşul sağlanınca NORM (bu kural, Spec), sağlanmayınca TAVSİYE (ARC_020, Quality).
+    // 2026-08-02'ye kadar iki hâl de ARC_020 ile "önerilen dosya eksik" (Düşük·Quality)
+    // sayılıyordu — yani bir NORM tavsiye diye raporlanıyordu (PTH_017'nin tam tersi hata).
+    // Pratik sonuç: translations.txt'in anlamı `feed_info.feed_lang`'a bağlıdır; o yoksa
+    // hangi dilin varsayılan olduğu bilinemez ve TRN_007 hiç çalışamaz.
+    r!("ARC_031", Kritik, Spec,    1, &[], None, VS_K, Feed,
+        "translations.txt varken feed_info.txt eksik"),
     r!("ARC_009", Kritik, Quality, 1, &[], None, VS, File,
         "Dosyada veri satırı yok"),
     r!("ARC_010", Orta,   Quality, 1, &[], None, VS, File,
@@ -1583,6 +1592,7 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("ARC_006", ProjectQuality),
     ("ARC_007", ProjectQuality),
     ("ARC_008", GtfsSpec),
+    ("ARC_031", GtfsSpec),
     ("ARC_009", ProjectQuality),
     ("ARC_010", ProjectQuality),
     ("ARC_011", ProjectAnalytics),

@@ -171,6 +171,26 @@ def primary_key_of(section: str) -> list[str]:
     return [p.strip().strip("`") for p in raw.split(",") if p.strip()]
 
 
+def file_presence_of(section: str) -> str:
+    """Bölüm başındaki "File: …" satırı → dosya DÜZEYİ presence.
+
+    Spec'in normatif hükümleri yalnız alan tablosunda değil, dosya başlığında da yer alır:
+    `calendar.txt` "Conditionally Required", `networks.txt` "Conditionally Forbidden" gibi.
+    2026-08-02'ye kadar bu satır hiç çıkarılmıyordu, dolayısıyla 7 koşullu dosya hükmü
+    kapsam ölçümünün TAMAMEN dışındaydı.
+
+    Değerler spec'te dört tanedir: Required · Optional · Conditionally Required ·
+    Conditionally Forbidden. Tanınmayan bir değer boş dönerse ölçüm o dosyayı atlar —
+    sessiz kalmaktansa `main()` içindeki sağlık kontrolü sayıyı düşürüp fark ettirir.
+    """
+    text = html.unescape(re.sub(r"<[^>]+>", " ", section))
+    m = re.search(
+        r"File:\s*(Conditionally Required|Conditionally Forbidden|Required|Optional)",
+        text,
+    )
+    return m.group(1) if m else ""
+
+
 def main() -> int:
     doc = fetch(sys.argv)
     table: dict[str, dict] = {}
@@ -178,7 +198,11 @@ def main() -> int:
         section = doc[start:stop]
         fields = fields_in(section)
         if fields:
-            table[name] = {"primary_key": primary_key_of(section), "fields": fields}
+            table[name] = {
+                "presence": file_presence_of(section),
+                "primary_key": primary_key_of(section),
+                "fields": fields,
+            }
     if len(table) < 25:
         print(f"HATA: yalnız {len(table)} dosya bulundu; spec düzeni değişmiş olabilir.",
               file=sys.stderr)

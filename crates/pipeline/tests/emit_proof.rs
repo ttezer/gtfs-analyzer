@@ -212,6 +212,9 @@ fn fixtures() -> Vec<Fixture> {
         // ── ARC grubu (arşiv/dosya/başlık seviyesi) ────────────────────────────
         // ARC_008: takvim dosyası yok (calendar + calendar_dates ikisi de).
         fx_rm("ARC_008", vec![], vec!["calendar.txt"]),
+        // ARC_031: translations.txt var, feed_info.txt yok → spec bu hâlde feed_info'yu
+        // ZORUNLU kılar (koşul sağlanmazsa yalnız tavsiye eder → ARC_020, Quality).
+        fx("ARC_031", vec![("translations.txt", "table_name,field_name,language,translation,record_id\nstops,stop_name,fr,Gare,S1\n")]),
         // ARC_009: dosyada veri satırı yok (sadece başlık).
         fx("ARC_009", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\n")]),
         // ARC_012: satır sütun sayısı başlıkla uyuşmuyor.

@@ -3,6 +3,7 @@
   "_note": "Üretilmiş dosya — elle düzenlemeyin. Yeniden üretmek için: python3 spec-audit/extract_fields.py",
   "files": {
     "agency.txt": {
+      "presence": "Required",
       "primary_key": [
         "agency_id"
       ],
@@ -55,6 +56,7 @@
       ]
     },
     "stops.txt": {
+      "presence": "Conditionally Required",
       "primary_key": [
         "stop_id"
       ],
@@ -142,6 +144,7 @@
       ]
     },
     "routes.txt": {
+      "presence": "Required",
       "primary_key": [
         "route_id"
       ],
@@ -219,6 +222,7 @@
       ]
     },
     "trips.txt": {
+      "presence": "Required",
       "primary_key": [
         "trip_id"
       ],
@@ -291,6 +295,7 @@
       ]
     },
     "stop_times.txt": {
+      "presence": "Required",
       "primary_key": [
         "trip_id",
         "stop_sequence"
@@ -389,6 +394,7 @@
       ]
     },
     "calendar.txt": {
+      "presence": "Conditionally Required",
       "primary_key": [
         "service_id"
       ],
@@ -446,6 +452,7 @@
       ]
     },
     "calendar_dates.txt": {
+      "presence": "Conditionally Required",
       "primary_key": [
         "service_id",
         "date"
@@ -469,6 +476,7 @@
       ]
     },
     "fare_attributes.txt": {
+      "presence": "Optional",
       "primary_key": [
         "fare_id"
       ],
@@ -511,6 +519,7 @@
       ]
     },
     "fare_rules.txt": {
+      "presence": "Optional",
       "primary_key": [
         "*"
       ],
@@ -543,6 +552,7 @@
       ]
     },
     "timeframes.txt": {
+      "presence": "Optional",
       "primary_key": [
         "*"
       ],
@@ -570,6 +580,7 @@
       ]
     },
     "rider_categories.txt": {
+      "presence": "Optional",
       "primary_key": [
         "rider_category_id"
       ],
@@ -597,6 +608,7 @@
       ]
     },
     "fare_media.txt": {
+      "presence": "Optional",
       "primary_key": [
         "fare_media_id"
       ],
@@ -619,6 +631,7 @@
       ]
     },
     "fare_products.txt": {
+      "presence": "Optional",
       "primary_key": [
         "fare_product_id",
         "rider_category_id",
@@ -658,6 +671,7 @@
       ]
     },
     "fare_leg_rules.txt": {
+      "presence": "Optional",
       "primary_key": [
         "network_id",
         "from_area_id",
@@ -710,6 +724,7 @@
       ]
     },
     "fare_leg_join_rules.txt": {
+      "presence": "Optional",
       "primary_key": [
         "from_network_id",
         "to_network_id",
@@ -740,6 +755,7 @@
       ]
     },
     "fare_transfer_rules.txt": {
+      "presence": "Optional",
       "primary_key": [
         "from_leg_group_id",
         "to_leg_group_id",
@@ -786,6 +802,7 @@
       ]
     },
     "areas.txt": {
+      "presence": "Optional",
       "primary_key": [
         "area_id"
       ],
@@ -803,6 +820,7 @@
       ]
     },
     "stop_areas.txt": {
+      "presence": "Optional",
       "primary_key": [
         "*"
       ],
@@ -820,6 +838,7 @@
       ]
     },
     "networks.txt": {
+      "presence": "Conditionally Forbidden",
       "primary_key": [
         "network_id"
       ],
@@ -837,6 +856,7 @@
       ]
     },
     "route_networks.txt": {
+      "presence": "Conditionally Forbidden",
       "primary_key": [
         "route_id"
       ],
@@ -854,6 +874,7 @@
       ]
     },
     "shapes.txt": {
+      "presence": "Optional",
       "primary_key": [
         "shape_id",
         "shape_pt_sequence"
@@ -887,6 +908,7 @@
       ]
     },
     "frequencies.txt": {
+      "presence": "Optional",
       "primary_key": [
         "trip_id",
         "start_time"
@@ -920,6 +942,7 @@
       ]
     },
     "transfers.txt": {
+      "presence": "Optional",
       "primary_key": [
         "from_stop_id",
         "to_stop_id",
@@ -972,6 +995,7 @@
       ]
     },
     "pathways.txt": {
+      "presence": "Optional",
       "primary_key": [
         "pathway_id"
       ],
@@ -1039,6 +1063,7 @@
       ]
     },
     "levels.txt": {
+      "presence": "Conditionally Required",
       "primary_key": [
         "level_id"
       ],
@@ -1061,6 +1086,7 @@
       ]
     },
     "location_groups.txt": {
+      "presence": "Optional",
       "primary_key": [
         "location_group_id"
       ],
@@ -1078,6 +1104,7 @@
       ]
     },
     "location_group_stops.txt": {
+      "presence": "Optional",
       "primary_key": [
         "*"
       ],
@@ -1095,6 +1122,7 @@
       ]
     },
     "booking_rules.txt": {
+      "presence": "Optional",
       "primary_key": [
         "booking_rule_id"
       ],
@@ -1177,6 +1205,7 @@
       ]
     },
     "translations.txt": {
+      "presence": "Optional",
       "primary_key": [
         "table_name",
         "field_name",
@@ -1224,6 +1253,7 @@
       ]
     },
     "feed_info.txt": {
+      "presence": "Conditionally Required",
       "primary_key": [
         "none"
       ],
@@ -1276,6 +1306,7 @@
       ]
     },
     "attributions.txt": {
+      "presence": "Optional",
       "primary_key": [
         "attribution_id"
       ],

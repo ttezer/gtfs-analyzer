@@ -557,6 +557,7 @@ const tr = {
     'ARC_006': 'İsteğe bağlı GTFS dosyası mevcut',
     'ARC_007': 'GTFS dışı tanınmayan dosya',
     'ARC_008': 'Takvim dosyası eksik (calendar.txt ve calendar_dates.txt)',
+    'ARC_031': 'translations.txt varken feed_info.txt eksik',
     'ARC_009': 'Dosyada veri satırı yok',
     'ARC_010': 'Dosya UTF-8 BOM içeriyor',
     'ARC_011': 'Dosya boyutu (bilgi)',

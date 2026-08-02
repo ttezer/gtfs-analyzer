@@ -1390,6 +1390,19 @@ pub fn parse(zip_bytes: &[u8]) -> Result<K1Result, FatalError> {
         ));
     }
 
+    // ARC_031: spec dosya düzeyi hükmü — feed_info.txt, translations.txt varsa ZORUNLU.
+    // Koşul sağlanmadığında dosya yalnız TAVSİYE edilir; o hâli ARC_020 (Quality) taşır.
+    if present_files.contains("translations.txt") && !present_files.contains("feed_info.txt") {
+        notices.push(make_notice(
+            &mut counter, "ARC_031",
+            EntityType::Feed, None,
+            None, None, None,
+            None,
+            "translations.txt var ama feed_info.txt eksik; spec bu durumda feed_info.txt'i zorunlu kılar.".to_string(),
+            "feed_info.txt ekleyin ve feed_lang alanını doldurun — çevirilerin hangi dile göre yorumlanacağı buradan okunur.",
+        ));
+    }
+
     Ok(K1Result { files: raw_files, notices, geojson_location_ids })
 }
 

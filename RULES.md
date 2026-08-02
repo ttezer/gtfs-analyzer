@@ -2,7 +2,7 @@
 
 🇹🇷 **Türkçe** · 🇬🇧 [English](RULES.en.md) · 🇯🇵 [日本語](RULES.ja.md)
 
-563 kural, 38 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
+564 kural, 38 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
 Önem seviyeleri: **KRİTİK** (yayın engelleyici) · **YÜKSEK** · **ORTA** · **DÜŞÜK** · **BİLGİ**
 Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · **Quality** (GTFS Kalitesi) · **Analytics** (GTFS Analitiği)
 
@@ -19,6 +19,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | ARC_006 | İsteğe bağlı GTFS dosyası mevcut | BİLGİ | Quality |
 | ARC_007 | GTFS dışı tanınmayan dosya | BİLGİ | Quality |
 | ARC_008 | Takvim dosyası eksik (calendar.txt ve calendar_dates.txt) | KRİTİK | Spec |
+| ARC_031 | translations.txt varken feed_info.txt eksik | KRİTİK | Spec |
 | ARC_009 | Dosyada veri satırı yok | KRİTİK | Quality |
 | ARC_010 | Dosya UTF-8 BOM içeriyor | ORTA | Quality |
 | ARC_011 | Dosya boyutu (bilgi) | BİLGİ | Analytics |

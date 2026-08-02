@@ -2,7 +2,7 @@
 
 🇹🇷 [Türkçe](RULES.md) · 🇬🇧 **English** · 🇯🇵 [日本語](RULES.ja.md)
 
-563 rules, 38 groups. Each rule is identified by a unique ID, severity level, and class.
+564 rules, 38 groups. Each rule is identified by a unique ID, severity level, and class.
 Severity levels: **CRITICAL** (publish blocker) · **HIGH** · **MEDIUM** · **LOW** · **INFO**
 Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Quality** (GTFS Quality) · **Analytics** (GTFS Analytics)
 
@@ -19,6 +19,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | ARC_006 | Optional GTFS file present | INFO | Quality |
 | ARC_007 | Unrecognized non-GTFS file | INFO | Quality |
 | ARC_008 | Calendar file missing (calendar.txt and calendar_dates.txt) | CRITICAL | Spec |
+| ARC_031 | feed_info.txt missing while translations.txt is present | CRITICAL | Spec |
 | ARC_009 | File has no data rows | CRITICAL | Quality |
 | ARC_010 | File contains UTF-8 BOM | MEDIUM | Quality |
 | ARC_011 | File size (info) | INFO | Analytics |

@@ -4103,6 +4103,13 @@ fn check_data_quality(
 
     // ARC_020: önerilen dosyalar eksik (missing_recommended_file)
     // GTFS en iyi uygulamalarına göre shapes.txt ve feed_info.txt önerilir.
+    //
+    // ⚠️ SINIR: spec `feed_info.txt` için İKİ cümle yazar — "Required if translations.txt is
+    // provided. Recommended otherwise." Bu kural yalnız İKİNCİ cümleyi (tavsiye) temsil eder ve
+    // bu yüzden Quality'dir. Birinci cümle NORM'dur ve ARC_031 (Kritik·Spec) tarafından ölçülür.
+    // Buradaki koşulu "translations yoksa" diye daraltMAdık: ARC_020 zaten Düşük·Quality ve
+    // feed_info eksikliği her hâlde bir kalite sinyalidir; iki bulgu birlikte çıkarsa biri
+    // normu, diğeri tavsiyeyi anlatır.
     if feed_has_content {
         // shapes.txt'in amacı sabit hat geometrisini çizmektir. Feed tümüyle talep-duyarlı
         // (DRT/flex) ise çizilecek güzergâh yoktur → shapes.txt yokluğu bulgu değildir.
