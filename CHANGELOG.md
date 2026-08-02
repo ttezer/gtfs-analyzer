@@ -166,6 +166,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `AGN_007`. `PTH_017` keeps the type check and is retitled accordingly: a feed with
   `max_slope = abc` used to receive a finding titled "invalid context", which is the same
   mislabelling fixed in `ATR_006` this week.
+- **`RTS_028` and `TRP_019` become `Spec`.** Both enforce conditions the reference states in its
+  field tables — *"Any value other than 1 or empty is Forbidden if
+  `stop_times.start/end_pickup_drop_off_window` are defined for any trip of this route"* and
+  *"Required if the trip has a continuous pickup or drop-off behavior"* — while being classed
+  Interop and Quality respectively.
+
+  `RTS_028`'s class was a deliberate earlier decision, recorded when the rule was written: it was
+  made Interop because MobilityData has a matching notice. That reasoning conflated two things.
+  Parity determines the rule's *shape* — one notice for two fields, which stays — but not its
+  class, and the same note left the `stop_times` side of the identical provision as `Spec`
+  because MobilityData happened not to cover it. One provision, two classes, split by what
+  another tool reports rather than by what the specification says. The authority is the
+  specification; the parity is recorded on the card. The earlier decision note is updated rather
+  than quietly overwritten.
+
 - **`stop_access` had an unchecked prohibition and accepted a value the specification does not
   define.** Reading the reference for the four fields whose provision looked unclassified turned
   one of them into two plain defects rather than a classification question.

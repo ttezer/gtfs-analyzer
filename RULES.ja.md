@@ -167,7 +167,7 @@
 | RTS_025 | routes.txtのagency_idが空（推奨） | 情報 | 品質 |
 | RTS_026 | 短い路線名の重複 | 情報 | 品質 |
 | RTS_027 | 長い路線名の重複 | 情報 | 品質 |
-| RTS_028 | Flex路線でcontinuous_pickup/drop_off禁止 | 高 | 相互運用 |
+| RTS_028 | Flex路線でcontinuous_pickup/drop_off禁止 | 高 | 仕様 |
 | RTS_029 | route_sort_orderが無効 | 低 | 仕様 |
 
 ## TRP — 便（Trips）
@@ -188,7 +188,7 @@
 | TRP_014 | trip_short_nameが長すぎる | 情報 | 品質 |
 | TRP_015 | block内で唯一の便 | 低 | 品質 |
 | TRP_017 | 頻度ベースの便にstop_timesなし | 中 | 品質 |
-| TRP_019 | 連続サービス中にshape_idが必須 | 高 | 品質 |
+| TRP_019 | 連続サービス中にshape_idが必須 | 高 | 仕様 |
 | TRP_020 | trip_headsignが中間停留所名と一致 | 情報 | 分析 |
 | TRP_021 | bikes_allowed（自転車可否）が未設定 | 情報 | 品質 |
 | TRP_022 | block内での便時刻の重複 | 高 | 相互運用 |

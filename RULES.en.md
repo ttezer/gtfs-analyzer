@@ -167,7 +167,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | RTS_025 | routes.txt agency_id empty (recommended) | INFO | Quality |
 | RTS_026 | Duplicate short route name | INFO | Quality |
 | RTS_027 | Duplicate long route name | INFO | Quality |
-| RTS_028 | continuous_pickup/drop_off forbidden on a Flex route | HIGH | Interop |
+| RTS_028 | continuous_pickup/drop_off forbidden on a Flex route | HIGH | Spec |
 | RTS_029 | route_sort_order is invalid | LOW | Spec |
 
 ## TRP — Trips
@@ -188,7 +188,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | TRP_014 | trip_short_name too long | INFO | Quality |
 | TRP_015 | Single trip in block_id group | LOW | Quality |
 | TRP_017 | Frequency-based trip missing from stop_times | MEDIUM | Quality |
-| TRP_019 | shape_id missing with continuous service active | HIGH | Quality |
+| TRP_019 | shape_id missing with continuous service active | HIGH | Spec |
 | TRP_020 | trip_headsign matches intermediate stop name | INFO | Analytics |
 | TRP_021 | Bicycle allowance (bikes_allowed) not specified | INFO | Quality |
 | TRP_022 | Overlapping trip times within block | HIGH | Interop |

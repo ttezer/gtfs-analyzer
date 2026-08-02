@@ -453,7 +453,14 @@ pub static RULES: &[RuleMeta] = &[
         "Yinelenen kısa hat adı"),
     r!("RTS_027", Bilgi,  Quality, 1, &[], Some("route_id"), VS, Row,
         "Yinelenen uzun hat adı"),
-    r!("RTS_028", Yuksek, Interop, 1, &[], Some("route_id"), VI, Entity,
+    // RTS_028 SINIFI DEĞİŞTİ (2026-08-03): Interop → Spec. Spec bu yasağı `routes.txt`
+    // alan tablosunda NORMATİF yazar: "Any value other than 1 or empty is Forbidden if
+    // stop_times.start/end_pickup_drop_off_window are defined for any trip of this route."
+    // Eski gerekçe (issue #57) MD'de `forbidden_continuous_pickup_drop_off` bulunmasıydı — ama
+    // MD paritesi kuralın ŞEKLİNİ (iki alan tek notice) belirler, SINIFINI değil. Aynı not
+    // stop_times tarafını "MD karşılığı yok → Spec" bırakmıştı; yani AYNI spec hükmü iki
+    // tarafta iki sınıftaydı. Otorite spec'tir; MD paritesi kartta not olarak durur.
+    r!("RTS_028", Yuksek, Spec, 1, &[], Some("route_id"), VS, Entity,
         "Flex pencereli rotada continuous_pickup/drop_off yasak"),
     // RTS_029: spec tipi `Non-negative integer`. Negatif ya da sayı olmayan değer eskiden
     // `Err(_) => None` ile SESSİZCE düşüyordu — hattın sıralaması kayboluyor, kullanıcı
@@ -497,7 +504,11 @@ pub static RULES: &[RuleMeta] = &[
         "block_id grubunda tek sefer"),
     r!("TRP_017", Orta,   Quality, 1, &[], Some("trip_id"), VS, Entity,
         "Frekans tabanlı sefer stop_times'ta eksik"),
-    r!("TRP_019", Yuksek, Quality, 1, &[], Some("trip_id"), VS, Entity,
+    // TRP_019 SINIFI DEĞİŞTİ (2026-08-03): Quality → Spec. Spec `trips.shape_id` için
+    // "Conditionally Required: Required if the trip has a continuous pickup or drop-off
+    // behavior defined either in routes.txt or in stop_times.txt" der — bu bir NORM, tercih
+    // değil. (ARC_020'de bunun tersi bulunmuştu: bir norm tavsiye diye raporlanıyordu.)
+    r!("TRP_019", Yuksek, Spec, 1, &[], Some("trip_id"), VS, Entity,
         "Continuous servis aktifken shape_id eksik"),
     r!("TRP_020", Bilgi,  Analytics, 1, &[], Some("trip_id"), VA, Entity,
         "trip_headsign ara durak adıyla eşleşiyor"),
@@ -1924,7 +1935,7 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("RTS_025", ProjectQuality),
     ("RTS_026", ProjectQuality),
     ("RTS_027", ProjectQuality),
-    ("RTS_028", MobilitydataParity),
+    ("RTS_028", GtfsSpec),
     ("RTS_029", GtfsSpec),
     ("SAR_001", GtfsSpec),
     ("SAR_002", GtfsSpec),
@@ -2107,7 +2118,7 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("TRP_014", ProjectQuality),
     ("TRP_015", ProjectQuality),
     ("TRP_017", ProjectQuality),
-    ("TRP_019", ProjectQuality),
+    ("TRP_019", GtfsSpec),
     ("TRP_020", ProjectAnalytics),
     ("TRP_021", ProjectQuality),
     ("TRP_022", MobilitydataParity),

@@ -167,7 +167,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | RTS_025 | routes.txt'te agency_id boş (önerilen alan) | BİLGİ | Quality |
 | RTS_026 | Yinelenen kısa hat adı | BİLGİ | Quality |
 | RTS_027 | Yinelenen uzun hat adı | BİLGİ | Quality |
-| RTS_028 | Flex pencereli rotada continuous_pickup/drop_off yasak | YÜKSEK | Interop |
+| RTS_028 | Flex pencereli rotada continuous_pickup/drop_off yasak | YÜKSEK | Spec |
 | RTS_029 | route_sort_order geçersiz | DÜŞÜK | Spec |
 
 ## TRP — Trips (Seferler)
@@ -188,7 +188,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | TRP_014 | trip_short_name çok uzun | BİLGİ | Quality |
 | TRP_015 | block_id grubunda tek sefer | DÜŞÜK | Quality |
 | TRP_017 | Frekans tabanlı sefer stop_times'ta eksik | ORTA | Quality |
-| TRP_019 | Continuous servis aktifken shape_id eksik | YÜKSEK | Quality |
+| TRP_019 | Continuous servis aktifken shape_id eksik | YÜKSEK | Spec |
 | TRP_020 | trip_headsign ara durak adıyla eşleşiyor | BİLGİ | Analytics |
 | TRP_021 | Bisiklet izni (bikes_allowed) belirtilmemiş | BİLGİ | Quality |
 | TRP_022 | Block içinde çakışan sefer saatleri | YÜKSEK | Interop |
