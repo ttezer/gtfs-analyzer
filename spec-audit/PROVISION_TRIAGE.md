@@ -261,10 +261,151 @@ Yumuşak hüküm → karşılığı **Quality**. Kural yazılmadı; `STP_040`'ı
 
 ---
 
+# 4. tur — `transfers.txt` (18) + `pathways.txt` (14)
+
+## transfers.txt
+
+| id | alan | hüküm | karar | dayanak |
+|---|---|---|---|---|
+| `P8e01aabc` · `P2f6c441c` | from_stop_id · to_stop_id | `transfer_type` boş/0/1/2/3 ise zorunlu | **KANITLI** | `TRF_001` · `TRF_002`. |
+| `P985bdc2c` · `Pf42894d6` | from_stop_id · to_stop_id | `transfer_type` 4/5 ise durak (`location_type=0`) olmalı | **KANITLI** | İki kuralın **birleşimi** tam: `TRF_021` her zaman 2/3/4'ü yasaklar (`k4_cross_ref.rs:1799`), `TRF_015` 4/5'te ayrıca 1'i yasaklar (`:1820`). Geriye yalnız 0/boş kalır. Kod yorumu ayrımı gerekçelendiriyor. |
+| `P8423efa1` · `P4139d9ac` | from_trip_id · to_trip_id | `transfer_type` 4/5 ise zorunlu | **KANITLI** | `TRF_014` (in-seat aktarma için sefer yok). |
+| `P0fa71358` · `P585a24d4` · `P134a2d40` · `P446972ca` | from/to_route_id · from/to_trip_id | İkisi birlikte tanımlıysa trip route'a ait olmalı | **KANITLI** | `TRF_017` (sefer aktarması yanlış hat). Cümlenin "trip_id öncelik alır" kısmı öncelik kuralı → ihlal edilemez. |
+| `P35e92ee9` · `P04a7709e` | transfer_type | 5 = ardışık seferler arası in-seat aktarma **yasak**; yolcu inip yeniden binmeli | **KANITLI** | `TRF_015` · `TRF_019` (in-seat aktarmada farklı `route_type`). |
+| `Pd69ec0d5` | transfer_type | Geçerli değerler 0/empty…5 *(soft biçimde yazılmış)* | **KANITLI** | `TRF_004`. |
+| `P320bcb49` | min_transfer_time | Saniye cinsinden, aktarmaya izin verecek süre | **META** | Alanın tanımı; ihlal edilebilir bir yasak koymuyor. Değer geçerliliği `TRF_005`/`TRF_010`. |
+| `P4eb0f714` | min_transfer_time | Tipik yolcunun yürümesine yetmeli *(soft)* | **KANITLI** | `TRF_020` (gereken yürüme hızı çok yüksek) + `TRF_011` (mesafe uzak). |
+| `P64ae76a9` | — | Aynı sefer çifti için eşit özgüllükte iki transfer olmamalı *(soft)* | **KANITLI** | `TRF_012` (yinelenen aktarma) + `TRF_016` (çelişkili koşul). |
+| `Pf8c9263a` | — | Linked trips ile `block_id` çelişirse linked trips geçerlidir | **KAPSAM DIŞI** | Öncelik kuralı — tüketiciye hangisini okuyacağını söyler. |
+| `P44a6984b` | — | n-to-n devamlılıkları her iki kısıtı da sağlamalı | KISMİ ⚠️ | `TRF_016` çelişkili koşulu ölçüyor ama bu cümlenin bağlamı (spec'in devamlılık örneği) tek başına muğlak. **Kaba cümle bölmenin sınırı** — hüküm gövdesi önceki cümlelerde. |
+
+## pathways.txt
+
+| id | alan | hüküm | karar | dayanak |
+|---|---|---|---|---|
+| `Pc8bfc111` | is_bidirectional | Çıkış kapısı (`pathway_mode=7`) çift yönlü olamaz | **KANITLI** | `PTH_016`. |
+| `Pde6fb4a5` | — | "No locked platforms": pathway'i olan istasyonda her platform/boarding area bir girişe zincirle bağlı olmalı | **KANITLI** | `PTH_012` — `k6_analytics.rs:7240`; iç içe modelleme (platform → boarding area) hesaba katılıyor (`:7287`). |
+| `Pcc725763` | max_slope | Yalnız yürüme yolu (1) ve yürüyen bant (3) ile kullanılmalı *(soft)* | **KANITLI** | `PTH_028` (08-03'te `PTH_017`'den ayrıldı — tavsiye/norm ayrımı). |
+| `P3eeff781` | length | Walkway (1), fare gate (6), exit gate (7) için önerilir *(soft)* | **KANITLI** | `PTH_025` — koşul `matches!(pathway_mode, Some(1 \| 6 \| 7))` (`pathways.rs:70`), spec'le **birebir**. |
+| `P707340ae` | stair_count | Merdiven (`pathway_mode=2`) için önerilir *(soft)* | **KANITLI** | `PTH_008` (feed düzeyi özet; yürüme yolu sayılmıyor). |
+| `P24907079` | pathway_mode | 6 = ödeme kanıtı gereken alana geçiş | **META** | Enum değerinin tanımı. Geçerlilik `PTH_023`. |
+| `P41bda33f` · `P5b7bc846` · `P3aa1cfdf` | — | Pathway varsa tüm bağlantılar tanımlı sayılmalı; sarkan konum olmamalı; platformun tüm boarding area'larına atanmalı *(soft)* | **KANITLI** | `PTH_012` (erişilemez) + `PTH_019` (dead-end generic node). |
+| `P6863d663` | stair_count | Tahminse kat başına ~15 basamak varsayılmalı *(soft)* | **KAPSAM DIŞI** | Üreticiye tahmin yöntemi öneriyor; feed'den doğrulanamaz. |
+| `P16572364` | signposted_as | Metin tabelada yazdığı gibi olmalı *(soft)* | **KAPSAM DIŞI** | Fiziksel tabela bilgisi gerekir. Uzunluk `PTH_018`. |
+| `Pd498d7a2` | min_width | Genişlik 1 metreden azsa önerilir *(soft)* | **KAPSAM DIŞI** | Alan boşken gerçek genişlik bilinmediği için koşul değerlendirilemez — mantıksal olarak ölçülemez tavsiye. |
+| `Pd21dea02` | traversal_time | Yürüyen bant (3), yürüyen merdiven (4), asansör (5) için önerilir *(soft)* | **BOŞLUK** | Aşağıda. |
+| `P2264440d` | — | Platformun boarding area'ları varsa platforma pathway atanmamalı | **BOŞLUK** | Aşağıda. |
+
+---
+
+## Bulgu 7: `traversal_time` tavsiyesi ölçülmüyor — **BOŞLUK** (soft)
+
+Spec `traversal_time` için *"recommended for moving sidewalks (3), escalators (4) and
+elevator (5)"* der. Kodda `PTH_007` var ama o **değer varsa geçerliliğini** ölçüyor
+(`parse_positive_u32`, `pathways.rs:76`) — eksikliği değil.
+
+Bu, `length` için `PTH_025`'in yaptığı işin birebir analoğudur ve `PTH_025`'in koşulu
+spec'le tam örtüşüyor (`pathway_mode` 1/6/7). Aynı desen `stair_count` için de var
+(`PTH_008`). Üç öneri alanından ikisi ölçülüyor, `traversal_time` atlanmış.
+
+Yumuşak → Quality. Kural şekli hazır: `PTH_025` deseninin `pathway_mode` 3/4/5 kopyası.
+
+## Bulgu 8: Boarding area varken platforma pathway atanması — **BOŞLUK**
+
+Spec, platformun boarding area'ları modellendiğinde pathway'lerin **boarding area'lara**
+bağlanmasını ister ve ekler: *"In such cases, the platform must not have pathways assigned."*
+Bu sert bir yasak (`must not`).
+
+Kod bu modellemeyi **tolere ediyor** — `k6_analytics.rs:7287` iç içe yapıda asıl pathway
+düğümünü çözerken platform ve boarding area'yı birlikte değerlendiriyor — ama platforma
+pathway atanmasını **yasak olarak ölçmüyor**.
+
+⚠️ Kural yazılmadan önce ölçülmeli: bu modelleme vahşi doğada yaygınsa yeni kural gürültü
+üretir. `PTH_014`/`PTH_026` komşu olguları ölçüyor, çakışma riski var.
+
+---
+
+# 5. tur — `translations.txt` (17) + `booking_rules.txt` (16)
+
+## translations.txt
+
+| id | alan | hüküm | karar | dayanak |
+|---|---|---|---|---|
+| `P7c9deec0` · `P5885e3d5` · `P20d92e6a` | record_id · record_sub_id · field_value | `table_name=feed_info` ise yasak | **KANITLI** | `TRN_013`. |
+| `Pcc1b72af` · `P65f312f1` | record_id · record_sub_id | `field_value` tanımlıysa yasak | **KANITLI** | `TRN_009`. |
+| `P608c78cf` | field_value | `record_id` tanımlıysa yasak | **KANITLI** | `TRN_009` (aynı karşılıklı dışlama). |
+| `Pdc0b679c` · `Pf93f15ba` | record_id · field_value | Diğeri boşsa zorunlu | **KANITLI** | `TRN_015` (08-02'de eklendi; `table_name` geçersizse susacak şekilde daraltılmıştı). |
+| `Pcf0597aa` | record_id | Tablonun birincil anahtarının ilk/tek alanı olmalı | **KANITLI** | `TRN_004` (record_id bulunamadı) — çözümleme birincil anahtar üzerinden. |
+| `P7c7134fe` · `P4adfb063` · `P502d68a6` | field_name · record_id · record_sub_id | Diğer tiplerdeki/tablolardaki alanlar çevrilmemeli *(soft)* | **KANITLI** | `TRN_011` (field_name çevrilebilir değil) + `TRN_002`. |
+| `P2c840d38` | field_value | Alan tam olarak `field_value`'daki değere sahip olmalı | KISMİ | `XFL_014` çözümlenemeyen çeviri referansını yakalar; `field_value` eşleşmesinin **tam** olduğunu doğrulayan ayrı ölçüm yok. |
+| `Pf3f9b74e` · `P95d8f3ea` | record_id · record_sub_id | Tablo başına önerilen kullanım listesi *(soft)* | **META** | Rehber tablosu; `TRN_004`/`TRN_014` zaten yapıyı denetliyor. |
+| `P403cf2f3` | field_value | `record_id` yerine alternatif kullanım *(soft)* | **META** | Alanın ne işe yaradığını anlatıyor. |
+| `P9373b1fa` | record_sub_id | `table_name=stop_times` **ve** `record_id` tanımlıysa **zorunlu** | **BOŞLUK** | Aşağıda. |
+
+## booking_rules.txt
+
+| id | alan | hüküm | karar | dayanak |
+|---|---|---|---|---|
+| `Pffdf614c` | prior_notice_duration_min | `booking_type=1` için zorunlu | **KANITLI** | `BKR_007`. |
+| `P075bfafe` | prior_notice_duration_min | Aksi hâlde yasak | **KANITLI** | İki kural bölüşüyor: `BKR_012` `booking_type=2` kolunu (`booking_rules.rs:172`), `BKR_004` `booking_type=0` kolunu (`:144`, tüm prior_notice alanları birlikte). Kod yorumu bölüşmeyi açıkça yazıyor. |
+| `P9cf0fc58` | prior_notice_duration_max | `booking_type` 0 ve 2 için yasak | **KANITLI** | `BKR_005` (type=2) + `BKR_004` (type=0) — aynı bölüşme. |
+| `P3bb1febc` · `Pc17af87b` | prior_notice_last_day | `booking_type=2` için zorunlu, aksi yasak | **KANITLI** | `BKR_008` + `BKR_001` (`btype != 2 && has_last_day`, yani 0 ve 1'i birlikte kapsar). |
+| `P64e8ffb7` · `P7d35adee` | prior_notice_last_time | `last_day` tanımlıysa zorunlu, aksi yasak | **KANITLI** | `BKR_009` + `BKR_013`. |
+| `P285e1ced` | prior_notice_start_day | `booking_type=0` için yasak | **KANITLI** | `BKR_004`. |
+| `P5db20825` · `Pa2eda5e0` | prior_notice_start_time | `start_day` tanımlıysa zorunlu, aksi yasak | **KANITLI** | `BKR_010` + `BKR_003`. |
+| `P1d4947e7` · `Pd78aeee0` | prior_notice_service_id | `booking_type=2` ile opsiyonel, aksi yasak | **KANITLI** | `BKR_014`. |
+| `Pe467fc5a` · `P7dbb186e` | prior_notice_last_day · last_time | Kodlama örneği ("1 gün önce 17:00'ye kadar") | **META** | Örnek; ihlal edilebilir bir yasak koymuyor. |
+| `P3b3a8cc2` | message | Yolcuya iletilecek asgari bilgiyi taşımalı | **META** | Alan tanımı. |
+| `P5a5cced5` | prior_notice_start_day | `booking_type=1` iken `prior_notice_duration_max` tanımlıysa **yasak** | **BOŞLUK** | Aşağıda. |
+
+---
+
+## Bulgu 9: Yanlış alarm verecektim — kod yorumu zaten cevaptı
+
+`BKR_012` yalnız `btype == 2` denetliyor, oysa spec *"Required for booking_type=1. **Forbidden
+otherwise**"* der — `booking_type=0` da yasak demektir. İlk okumada boşluk sandım.
+
+Kuralın kendi doc yorumu cevabı yazıyordu: *"type=0 kolu BKR_004'te (tüm prior_notice alanları)
+— burada tekrar edilmez."* Ve `booking_rules.rs:144` gerçekten `btype==0 && (has_duration_min ||
+has_duration_max || has_last_day || …)` denetliyor. Aynı bölüşme `BKR_005` için de geçerli.
+
+**Ders (tekrar):** MD/parite listelerinin %38'i yanlış alarmdı; burada da grep sonucuna bakıp
+"eksik" demek üzereydim. **Kuralın doc yorumu, kuralın kapsamı hakkındaki ilk kaynaktır** —
+bu repoda yorumlar spec cümlesini ve bölüşmeyi düzenli olarak yazıyor.
+
+## Bulgu 10: `record_sub_id` gereklilik yönü ölçülmüyor — **BOŞLUK** (`P9373b1fa`)
+
+Spec iki yönlü hüküm koyar:
+- **Yasak:** `stop_times` dışındaki tablolarda `record_sub_id` kullanılamaz → `TRN_014` ✅
+  (`translations.rs:229` — `table_name != "stop_times" && record_sub_id.is_some()`).
+- **Zorunlu:** `table_name=stop_times` **ve** `record_id` tanımlıysa `record_sub_id` gerekir →
+  **ölçülmüyor.**
+
+`stop_times.txt`'in birincil anahtarı bileşiktir (`trip_id` + `stop_sequence`); `record_id`
+yalnız ilk alanı taşır, `record_sub_id` ikincisini. İkincisi olmadan çeviri **hangi satıra**
+ait olduğunu söyleyemez — çözümlenemeyen değil, **belirsiz** bir referans.
+
+Sert hüküm (`Conditionally Required`). Kural adayı; `TRN_014`'ün ters kolu olarak yazılabilir.
+
+## Bulgu 11: `start_day` / `duration_max` çakışması ölçülmüyor — **BOŞLUK** (`P5a5cced5`)
+
+Spec: `prior_notice_start_day` *"Forbidden for booking_type=1 if prior_notice_duration_max is
+defined."* Yani aynı gün rezervasyonda üst süre sınırı varken başlangıç günü çelişkilidir.
+
+`prior_notice_duration_max` kodda yalnız üç yerde geçiyor (`booking_rules.rs:129/137/157`) ve
+hiçbiri `start_day` ile ilişkilendirilmiyor. `BKR_002` komşu ama farklı hükmü ölçer
+(`start_day` yalnız `last_day` ile kullanılabilir).
+
+Sert hüküm. `BKR_005`'in yanına yazılabilir; `booking_type=1` dalı bugün tamamen sessiz.
+
+---
+
 ## Sonraki tur
 
-Kalan 165 aday. Yoğunluk: `pathways.txt` 14 · `transfers.txt` 13 · `translations.txt` 13 ·
-`booking_rules.txt` 12 · `fare_leg_rules.txt` 8.
+Kalan 101 aday. Yoğunluk: `fare_transfer_rules.txt` 10 · `dataset-publishing-general-practices` 11 ·
+`agency.txt` 8 · `trips.txt` 8 · `feed_info.txt` 8 · `fare_leg_rules.txt` 8 ·
+`fare_leg_join_rules.txt` 8 · `shapes.txt` 6 · `fare_attributes.txt` 6 · `timeframes.txt` 6.
 
-Açık kalemler (kural yazımı bekleyen): URL şeması (ölçüm bekliyor) · HTML etiketi ·
-OpenGIS poligon geçerliliği · `pickup_type=2` booking rule tavsiyesi · `platform_code`.
+Açık kalemler (kural yazımı bekleyen, hiçbiri yazılmadı): URL şeması (ölçüm bekliyor) ·
+HTML etiketi · OpenGIS poligon · `pickup_type=2` booking rule · `platform_code` ·
+`traversal_time` tavsiyesi · boarding area/platform pathway yasağı (ölçüm bekliyor).
