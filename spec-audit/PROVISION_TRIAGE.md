@@ -3,10 +3,10 @@
 Kaynak: `spec_provisions.json` (üreteç `extract_provisions.py`). O dosya **aday** üretir;
 burası her adayın hüküm olup olmadığına ve karşılanıp karşılanmadığına karar verir.
 
-Katalog toplamı **273 aday** (sert 163 · yumuşak 110). Bu belge **70'ini** adjudike eder:
-1. turda 27 (`file-requirements` + `field-types` + `locations.geojson`), 2. turda 43
-(`stop_times.txt`'in tamamı). Sıra rastgele değil — `file-requirements` bölümünün tamamı
-düzyazıdır ve hiçbir alan tablosuna yansımaz, `stop_times.txt` ise en yoğun alan bölümüdür.
+Katalog toplamı **273 aday** (sert 163 · yumuşak 110). Bu belge **107'sini** adjudike eder:
+1. tur 27 (`file-requirements` + `field-types` + `locations.geojson`) · 2. tur 43
+(`stop_times.txt`) · 3. tur 37 (`stops.txt` + `routes.txt`). Bölümler tam bitirilir, yarım
+bırakılmaz — kalan sayısı böyle güvenilir kalır.
 
 ## Karar sınıfları
 
@@ -188,10 +188,83 @@ birleştirmek `emit_identity` kapısını düşürebilir.
 
 ---
 
+# 3. tur — `stops.txt` (22) + `routes.txt` (15), ikisi de tamamı
+
+## stops.txt
+
+| id | alan | hüküm | karar | dayanak |
+|---|---|---|---|---|
+| `P2d2a4fe2` | stop_id | Üç kaynak genelinde benzersiz | **KANITLI** | `XFL_031` (1. turda `P1afc582a` ile aynı hüküm, `stops` tarafı). |
+| `P2d5798e5` | stop_name | `location_type` 0/1/2 için zorunlu | **KANITLI** | `STP_003`. |
+| `Pe929fc21` · `Pdb1fcb2a` | stop_lat · stop_lon | Aynı üç tip için zorunlu | **KANITLI** | `STP_006` · `STP_007`. |
+| `Pae80c9ab` | parent_station | `location_type` 2/3/4 için zorunlu | **KANITLI** | `STP_011`. |
+| `P84671c38` · `P9963363e` | parent_station | İstasyonda boş olmalı / yasak | **KANITLI** | `STP_036` (aynı hükmün iki cümlesi). |
+| `Pac2e68e4` | stop_access | Geçerli değerler 0/1/2 | **KANITLI** | `STP_024` (ham alan) + `STP_026`. |
+| `Paa26a036` | stop_access | İstasyon/giriş/düğüm için yasak | **KANITLI** | `STP_043` — `k4_cross_ref.rs:669` `bad_type` kolu. |
+| `Pb9ee0cd1` | stop_access | `parent_station` boşsa yasak | **KANITLI** | `STP_043` — aynı yerin `no_parent` kolu. |
+| `P66bbc659` | stop_url | agency/route URL'sinden farklı olmalı *(soft)* | **KANITLI** | `STP_034` · `STP_035`. |
+| `P1904b638` · `P0deb828b` | stop_lat · stop_lon | Koordinat yolcunun bindiği yer olmalı | **KAPSAM DIŞI** | Sert cümle ama feed dışı gerçeğe atıf; koordinatın "doğru yer" olduğu doğrulanamaz. `GEO_009` yalnız shape'ten sapmayı ölçer, farklı olgu. |
+| `P4dec6139` | stop_name | Ajansın yolcuya gösterdiği adla eşleşmeli *(soft)* | **KAPSAM DIŞI** | Basılı tarife/dış kaynak bilgisi gerekir. |
+| `P2f98361b` | stop_name | Boarding area'da biniş alanının adı olmalı *(soft)* | KISMİ | `STP_041` alt durak/üst istasyon ad ilişkisini ölçer; boarding area'ya özel değil. |
+| `P4aab119d` | location_type | Giriş birden çok istasyona aitse veri sağlayıcı birini parent seçmeli | **KAPSAM DIŞI** | Şema zaten tek `parent_station` alanı verir → ihlal edilemez; cümle modelleme rehberi. |
+| `P740a5096` · `Pb857b7b0` · `Pa5a48cf2` | stop_access | Girişten erişilmeli; pathway varsa kullanılmalı; tüketici yön üretmeli | **KAPSAM DIŞI** | Tüketici davranışını bağlar. `STP_027` komşu olguyu (pathway istasyonunda `stop_access` eksik) ölçer. |
+| `P8cb6a9cc` | stop_code | Yolcuya sunulan kodu olmayan yerlerde **boş bırakılmalı** *(soft)* | ⚠️ GERİLİM | Aşağıda. |
+| `P3af6af7b` · `Pb24eacd3` | platform_code | Yalnız tanımlayıcı olmalı; "platform"/"track" kelimesi geçmemeli *(soft)* | **BOŞLUK** | `platform_code` kod tabanında hiç geçmiyor. `STP_040` aynı olguyu `stop_name` için ölçüyor — desen mevcut, alan kapsanmamış. |
+
+## routes.txt
+
+| id | alan | hüküm | karar | dayanak |
+|---|---|---|---|---|
+| `P5545f72a` | agency_id | Çoklu ajans varsa zorunlu | **KANITLI** | `AGN_011` (08-02'de `fare_attributes`'u da kapsayacak şekilde genişletildi). |
+| `P38ea8952` | agency_id | Aksi hâlde önerilir *(soft)* | **KANITLI** | `RTS_025` (Quality) — tavsiye/norm ayrımı doğru kurulmuş. |
+| `P58b03291` · `Pd236e553` | route_short_name · route_long_name | Biri boşsa diğeri zorunlu | **KANITLI** | `RTS_003` (tek kural, iki alan; `field` artık boru konvansiyonuyla ikisini de yazıyor). |
+| `P16dc75b8` | route_short_name | 12 karakterden uzun olmamalı *(soft)* | **KANITLI** | `RTS_010` — eşik `char_len > 12` (`routes.rs:89`), spec'le birebir. `RTS_021` ayrıca Google'ın 6 karakterlik eşiğini ölçer. |
+| `P067f2da6` · `Pe69f3d33` | route_color · route_text_color | Yeterli kontrast olmalı *(soft)* | **KANITLI** | `RTS_008` — `wcag_contrast_ratio` (`common.rs:247`). |
+| `P9068b265` · `P0003b8f1` | continuous_pickup · continuous_drop_off | Flex penceresi varken 1/boş dışı yasak | **KANITLI** | `RTS_028` (08-03'te Interop→**Spec**; otorite MD paritesi değil spec'tir). |
+| `P419062b4` | network_id | `route_networks.txt` veya `networks.txt` varsa yasak | **KANITLI** | `XFL_019` — iki kolu da denetler. |
+| `P69d68d06` | cemv_support | Fare dosyalarıyla çelişki olmamalı | **KANITLI** | `XFL_026` · `XFL_027`. |
+| `P803cfa49` | cemv_support | Yalnız tüm hizmetler cEMV kabul ediyorsa bildirilmeli *(soft)* | KISMİ | `XFL_029` yakınsıyor; "tüm hizmetler" koşulu ölçülmüyor. |
+| `P6802b122` | route_short_name | Kısa hizmet tanımı varsa önerilir *(soft)* | KISMİ | `RTS_003` yalnız ikisinin birden boş olmasını ölçer. |
+| `P86914315` | cemv_support | Çakışmada `routes.cemv_support` geçerlidir | **KAPSAM DIŞI** | Öncelik kuralı — tüketiciye hangi değeri okuyacağını söyler, ihlal edilebilir bir yasak koymaz. |
+| `P69d3a653` | route_sort_order | Küçük değerli hatlar önce gösterilmeli *(soft)* | **KAPSAM DIŞI** | Görüntüleme davranışı. `RTS_029` alanın geçerliliğini ölçer, sıralama beklentisini değil. |
+
+---
+
+## Bulgu 5: `STP_022` spec'in tavsiyesiyle ters yönde çalışıyor
+
+Spec `stop_code` için: *"This field should be left empty for locations without a code presented
+to riders."* Yani **kodu olmayan yerde boşluk doğru davranıştır.** `STP_022` ise eksikliği
+bildiriyor (`k2/stops.rs:130` — `stop_code.is_none() && is_stop_or_station`).
+
+⚠️ **Bu `PTH_017` sınıfı bir hata DEĞİL, çünkü sınıfı doğru:** `STP_022` Orta·**Quality**.
+R1 kapısı saf `Spec ∧ Kritik` olduğu için hiçbir feed'i yayından alıkoymuyor, ve Quality
+"üretici kalitesi sinyali" demek — spec ihlali iddiası değil. Kural bilinçli bir üretici
+tavsiyesi olarak duruyor.
+
+Yine de defterlenmesi gerekiyordu: spec bir alanın boş olmasını **açıkça meşru** sayarken
+biz onu eksiklik diye raporluyoruz. Sınıf bunu meşrulaştırıyor, ama kart metni bu nüansı
+taşımalı — aksi hâlde kullanıcı düzeltilmesi gerekmeyen bir şeyi düzeltir.
+
+**Yapılmadı:** `STP_022`'ye dokunulmadı. Sınıfı doğru, davranışı bilinçli.
+
+## Bulgu 6: `platform_code` hiç ölçülmüyor — **BOŞLUK** (soft)
+
+Spec iki tavsiye yazar: değer yalnız platform tanımlayıcısı olmalı, ve *"platform"* / *"track"*
+(veya feed dilindeki karşılığı) kelimesi **içermemeli**.
+
+`platform_code` kod tabanında hiç geçmiyor — ne parse ediliyor ne ölçülüyor. İlginç olan,
+**aynı olgunun `stop_name` için ölçülüyor olması**: `STP_040` "durak adı gereksiz stop/station
+sözcüğü içeriyor" der. Desen mevcut, dil listesi mevcut, yalnız bu alana uygulanmamış.
+
+Yumuşak hüküm → karşılığı **Quality**. Kural yazılmadı; `STP_040`'ın sözcük listesi
+`platform`/`track` için genişletilebilir mi, yoksa ayrı kural mı — 4. tura bırakıldı.
+
+---
+
 ## Sonraki tur
 
-Kalan ~210 aday. Yoğunluk: `stops.txt` 20 · `routes.txt` 14 · `pathways.txt` 14 ·
-`transfers.txt` 13 · `translations.txt` 13 · `booking_rules.txt` 12.
+Kalan 165 aday. Yoğunluk: `pathways.txt` 14 · `transfers.txt` 13 · `translations.txt` 13 ·
+`booking_rules.txt` 12 · `fare_leg_rules.txt` 8.
 
-Açık kalemler: URL şeması (ölçüm bekliyor) · HTML etiketi (kural adayı) · OpenGIS poligon
-geçerliliği (geometri kütüphanesi kararı) · `pickup_type=2` booking rule tavsiyesi (kural şekli).
+Açık kalemler (kural yazımı bekleyen): URL şeması (ölçüm bekliyor) · HTML etiketi ·
+OpenGIS poligon geçerliliği · `pickup_type=2` booking rule tavsiyesi · `platform_code`.
