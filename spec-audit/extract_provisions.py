@@ -115,25 +115,35 @@ def prose_of(section: str) -> str:
     return "".join(parts)
 
 
-def description_cells(section: str) -> list[str]:
-    """Alan tablolarının Description hücreleri (4. sütun) — ham HTML parçaları.
+def description_cells(section: str) -> list[tuple[str, str]]:
+    """Alan tablolarının (alan adı, Description hücresi) çiftleri.
 
     Presence sütunu bilinçli olarak alınmaz: o bir ETİKET, cümle değil, ve zaten
     `extract_fields.py` tarafından atom olarak sayılıyor. Description ise presence
     etiketinin ifade edemediği koşulu taşır ("Required if trips.txt includes …").
+
+    ⚠️ ALAN ADI ŞART. Açıklama cümleleri alansız okunduğunda triyaj edilemez:
+    `stop_times.txt`'in "Required for timepoint=1" cümlesi hem `arrival_time` hem
+    `departure_time` için ayrı ayrı geçer ve ikisinin karşılığı FARKLI kurallardır
+    (`STM_015/016` vs `STM_034/047`). İlk turda alan adı çıkarılmıyordu ve 36
+    stop_times adayının hiçbiri bu hâliyle adjudike edilemedi.
     """
-    cells: list[str] = []
+    cells: list[tuple[str, str]] = []
     for start, stop in outer_tables(section):
         table = section[start:stop]
         head = strip_tags(table[: table.find("</tr>") + 5]) if "</tr>" in table else ""
         if "field name" not in head.lower():
             continue
-        # Satır satır gez, dördüncü hücreyi al. İç tabloların hücreleri bu regex'e
-        # de takılır ama Description'ın PARÇASI oldukları için kayıp değil, gürültü.
+        # Satır satır gez: 1. hücre alan adı, 4. hücre açıklama. İç tabloların
+        # hücreleri bu regex'e de takılır ama Description'ın PARÇASI oldukları için
+        # kayıp değil, gürültü.
         for row in re.findall(r"<tr\b[^>]*>(.*?)</tr>", table, re.S | re.I):
             tds = re.findall(r"<td\b[^>]*>(.*?)</td>", row, re.S | re.I)
             if len(tds) >= 4:
-                cells.append(tds[3])
+                name = strip_tags(tds[0]).strip("`").strip()
+                if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_.]*", name):
+                    name = ""
+                cells.append((name, tds[3]))
     return cells
 
 
@@ -201,29 +211,40 @@ def main() -> int:
     seen: set[str] = set()
     for anchor, level, start, stop in section_bounds(doc):
         section = doc[start:stop]
-        sources = [("prose", blocks(prose_of(section)))]
-        sources.append(
-            ("table_desc", [s for cell in description_cells(section) for s in sentences(strip_tags(cell))])
-        )
-        for source, items in sources:
-            for sentence in items:
-                if FILE_HEADER.match(sentence):
-                    continue
-                strength = classify(sentence)
-                if not strength:
-                    continue
-                pid = ident(anchor, sentence)
-                if pid in seen:
-                    continue
-                seen.add(pid)
-                rows.append({
-                    "id": pid,
-                    "section": anchor,
-                    "level": level,
-                    "source": source,
-                    "strength": strength,
-                    "sentence": sentence,
-                })
+        items: list[tuple[str, str, str]] = [
+            ("prose", "", s) for s in blocks(prose_of(section))
+        ]
+        items += [
+            ("table_desc", name, s)
+            for name, cell in description_cells(section)
+            for s in sentences(strip_tags(cell))
+        ]
+        for source, field, sentence in items:
+            if FILE_HEADER.match(sentence):
+                continue
+            strength = classify(sentence)
+            if not strength:
+                continue
+            # Kimlik alanı da kapsar: aynı cümle (ör. "Required for timepoint=1")
+            # iki ayrı alanın açıklamasında geçer ve İKİ AYRI hükümdür.
+            #
+            # ⚠️ ALANSIZ SATIRLARDA AYRAÇ EKLENMEZ. Kimlik şeması bir sözleşmedir:
+            # triyaj defteri bu kimliklere işaret eder. Alan adı eklendiğinde ayracı
+            # koşulsuz koymak düzyazı satırlarının kimliğini de kaydırdı ve ilk turun
+            # 27 kaydının HEPSİ çözümlenemez oldu. Boş alan = eski anahtar.
+            pid = ident(f"{anchor}|{field}" if field else anchor, sentence)
+            if pid in seen:
+                continue
+            seen.add(pid)
+            rows.append({
+                "id": pid,
+                "section": anchor,
+                "field": field,
+                "level": level,
+                "source": source,
+                "strength": strength,
+                "sentence": sentence,
+            })
     if len(rows) < 150:
         print(f"HATA: yalnız {len(rows)} aday bulundu; spec düzeni değişmiş olabilir.",
               file=sys.stderr)

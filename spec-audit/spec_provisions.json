@@ -5,6 +5,7 @@
     {
       "id": "Pa73d1591",
       "section": "term-definitions",
+      "field": "",
       "level": "h3",
       "source": "prose",
       "strength": "soft",
@@ -13,6 +14,7 @@
     {
       "id": "P8bc2d625",
       "section": "term-definitions",
+      "field": "",
       "level": "h3",
       "source": "prose",
       "strength": "soft",
@@ -21,6 +23,7 @@
     {
       "id": "Pd556e682",
       "section": "term-definitions",
+      "field": "",
       "level": "h3",
       "source": "prose",
       "strength": "soft",
@@ -29,6 +32,7 @@
     {
       "id": "P90cd23c4",
       "section": "term-definitions",
+      "field": "",
       "level": "h3",
       "source": "prose",
       "strength": "soft",
@@ -37,6 +41,7 @@
     {
       "id": "P092897e2",
       "section": "presence",
+      "field": "",
       "level": "h3",
       "source": "prose",
       "strength": "strong",
@@ -45,6 +50,7 @@
     {
       "id": "P2f336837",
       "section": "presence",
+      "field": "",
       "level": "h3",
       "source": "prose",
       "strength": "strong",
@@ -53,6 +59,7 @@
     {
       "id": "Pf1ef25c1",
       "section": "presence",
+      "field": "",
       "level": "h3",
       "source": "prose",
       "strength": "strong",
@@ -61,6 +68,7 @@
     {
       "id": "Pb7cdf168",
       "section": "presence",
+      "field": "",
       "level": "h3",
       "source": "prose",
       "strength": "soft",
@@ -69,6 +77,7 @@
     {
       "id": "P3df40438",
       "section": "presence",
+      "field": "",
       "level": "h3",
       "source": "prose",
       "strength": "soft",
@@ -77,6 +86,7 @@
     {
       "id": "P9ca98eaa",
       "section": "field-types",
+      "field": "",
       "level": "h3",
       "source": "prose",
       "strength": "strong",
@@ -85,6 +95,7 @@
     {
       "id": "Pa6731197",
       "section": "field-types",
+      "field": "",
       "level": "h3",
       "source": "prose",
       "strength": "soft",
@@ -93,6 +104,7 @@
     {
       "id": "P43b15497",
       "section": "field-types",
+      "field": "",
       "level": "h3",
       "source": "prose",
       "strength": "soft",
@@ -101,6 +113,7 @@
     {
       "id": "P698baeb3",
       "section": "field-types",
+      "field": "",
       "level": "h3",
       "source": "prose",
       "strength": "strong",
@@ -109,6 +122,7 @@
     {
       "id": "P86b889a8",
       "section": "field-types",
+      "field": "",
       "level": "h3",
       "source": "prose",
       "strength": "strong",
@@ -117,6 +131,7 @@
     {
       "id": "P7e9096c8",
       "section": "field-types",
+      "field": "",
       "level": "h3",
       "source": "prose",
       "strength": "strong",
@@ -125,6 +140,7 @@
     {
       "id": "P8681b6f4",
       "section": "field-types",
+      "field": "",
       "level": "h3",
       "source": "prose",
       "strength": "strong",
@@ -133,6 +149,7 @@
     {
       "id": "P5f72fb5a",
       "section": "field-types",
+      "field": "",
       "level": "h3",
       "source": "prose",
       "strength": "strong",
@@ -141,6 +158,7 @@
     {
       "id": "Pc3b911a6",
       "section": "file-requirements",
+      "field": "",
       "level": "h2",
       "source": "prose",
       "strength": "strong",
@@ -149,6 +167,7 @@
     {
       "id": "Pd59e5eaa",
       "section": "file-requirements",
+      "field": "",
       "level": "h2",
       "source": "prose",
       "strength": "strong",
@@ -157,6 +176,7 @@
     {
       "id": "P28e9ee8a",
       "section": "file-requirements",
+      "field": "",
       "level": "h2",
       "source": "prose",
       "strength": "strong",
@@ -165,6 +185,7 @@
     {
       "id": "Pfedb83cf",
       "section": "file-requirements",
+      "field": "",
       "level": "h2",
       "source": "prose",
       "strength": "strong",
@@ -173,6 +194,7 @@
     {
       "id": "Pa4c60372",
       "section": "file-requirements",
+      "field": "",
       "level": "h2",
       "source": "prose",
       "strength": "strong",
@@ -181,6 +203,7 @@
     {
       "id": "Pd6bc0278",
       "section": "file-requirements",
+      "field": "",
       "level": "h2",
       "source": "prose",
       "strength": "strong",
@@ -189,6 +212,7 @@
     {
       "id": "P5f591221",
       "section": "file-requirements",
+      "field": "",
       "level": "h2",
       "source": "prose",
       "strength": "soft",
@@ -197,6 +221,7 @@
     {
       "id": "P536c3b95",
       "section": "file-requirements",
+      "field": "",
       "level": "h2",
       "source": "prose",
       "strength": "strong",
@@ -205,6 +230,7 @@
     {
       "id": "Pf79a5cc1",
       "section": "file-requirements",
+      "field": "",
       "level": "h2",
       "source": "prose",
       "strength": "soft",
@@ -213,6 +239,7 @@
     {
       "id": "P78b1b3e8",
       "section": "file-requirements",
+      "field": "",
       "level": "h2",
       "source": "prose",
       "strength": "strong",
@@ -221,6 +248,7 @@
     {
       "id": "Pc0951256",
       "section": "file-requirements",
+      "field": "",
       "level": "h2",
       "source": "prose",
       "strength": "strong",
@@ -229,6 +257,7 @@
     {
       "id": "P33d5b079",
       "section": "file-requirements",
+      "field": "",
       "level": "h2",
       "source": "prose",
       "strength": "soft",
@@ -237,6 +266,7 @@
     {
       "id": "Pf6b6138a",
       "section": "file-requirements",
+      "field": "",
       "level": "h2",
       "source": "prose",
       "strength": "soft",
@@ -245,6 +275,7 @@
     {
       "id": "Pc6e7b067",
       "section": "dataset-publishing-general-practices",
+      "field": "",
       "level": "h2",
       "source": "prose",
       "strength": "soft",
@@ -253,6 +284,7 @@
     {
       "id": "P0d80d05e",
       "section": "dataset-publishing-general-practices",
+      "field": "",
       "level": "h2",
       "source": "prose",
       "strength": "soft",
@@ -261,6 +293,7 @@
     {
       "id": "P99b3d7c3",
       "section": "dataset-publishing-general-practices",
+      "field": "",
       "level": "h2",
       "source": "prose",
       "strength": "soft",
@@ -269,6 +302,7 @@
     {
       "id": "P3f03b3f2",
       "section": "dataset-publishing-general-practices",
+      "field": "",
       "level": "h2",
       "source": "prose",
       "strength": "soft",
@@ -277,6 +311,7 @@
     {
       "id": "Pc692d295",
       "section": "dataset-publishing-general-practices",
+      "field": "",
       "level": "h2",
       "source": "prose",
       "strength": "soft",
@@ -285,6 +320,7 @@
     {
       "id": "P194640d1",
       "section": "dataset-publishing-general-practices",
+      "field": "",
       "level": "h2",
       "source": "prose",
       "strength": "soft",
@@ -293,6 +329,7 @@
     {
       "id": "P308aa743",
       "section": "dataset-publishing-general-practices",
+      "field": "",
       "level": "h2",
       "source": "prose",
       "strength": "soft",
@@ -301,6 +338,7 @@
     {
       "id": "P5cb1a139",
       "section": "dataset-publishing-general-practices",
+      "field": "",
       "level": "h2",
       "source": "prose",
       "strength": "soft",
@@ -309,6 +347,7 @@
     {
       "id": "P7a8ab180",
       "section": "dataset-publishing-general-practices",
+      "field": "",
       "level": "h2",
       "source": "prose",
       "strength": "soft",
@@ -317,6 +356,7 @@
     {
       "id": "P1d4f536a",
       "section": "dataset-publishing-general-practices",
+      "field": "",
       "level": "h2",
       "source": "prose",
       "strength": "soft",
@@ -325,326 +365,412 @@
     {
       "id": "P65ebae47",
       "section": "dataset-publishing-general-practices",
+      "field": "",
       "level": "h2",
       "source": "prose",
       "strength": "soft",
       "sentence": "The web-server hosting GTFS data should be configured to correctly report the file modification date (see HTTP/1.1 - Request for Comments 2616, under Section 14.29 )."
     },
     {
-      "id": "P567be78d",
+      "id": "P5a1c0ffc",
       "section": "agencytxt",
+      "field": "agency_id",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
       "sentence": "Conditionally Required: - Required when the dataset contains data for multiple transit agencies."
     },
     {
-      "id": "Pca86c2fb",
+      "id": "Pb135ca49",
       "section": "agencytxt",
+      "field": "agency_id",
       "level": "h3",
       "source": "table_desc",
       "strength": "soft",
       "sentence": "- Recommended otherwise."
     },
     {
-      "id": "Pc38b7048",
+      "id": "Pf27a2fd0",
       "section": "agencytxt",
+      "field": "agency_timezone",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
       "sentence": "If multiple agencies are specified in the dataset, each must have the same agency_timezone ."
     },
     {
-      "id": "P4fd860d4",
+      "id": "Pbb82f19e",
       "section": "agencytxt",
+      "field": "agency_phone",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
       "sentence": "Dialable text (for example, TriMet's \"503-238-RIDE\") is permitted, but the field must not contain any other descriptive text."
     },
     {
-      "id": "P28bd81a9",
+      "id": "P130f8673",
       "section": "agencytxt",
+      "field": "agency_email",
       "level": "h3",
       "source": "table_desc",
       "strength": "soft",
       "sentence": "This email address should be a direct contact point where transit riders can reach a customer service representative at the agency."
     },
     {
-      "id": "Pd47445a6",
+      "id": "P572bb984",
       "section": "agencytxt",
+      "field": "cemv_support",
       "level": "h3",
       "source": "table_desc",
       "strength": "soft",
       "sentence": "Support for cEMVs should only be indicated if all services under this agency are accessible with the use of cEMV cards or mobile devices as fare media."
     },
     {
-      "id": "P3a023688",
+      "id": "P722127e8",
       "section": "agencytxt",
+      "field": "cemv_support",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
       "sentence": "If both agency.cemv_support and routes.cemv_support are provided for the same service, the value in routes.cemv_support shall take precedence."
     },
     {
-      "id": "P196b7a67",
+      "id": "P3005b227",
       "section": "agencytxt",
+      "field": "cemv_support",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
       "sentence": "If there is conflicting information between this field and any fare-related file (such as fare_media.txt , fare_products.txt , or fare_leg_rules.txt ), the information in those files shall take precedence over agency.cemv_support ."
     },
     {
-      "id": "P836a9332",
+      "id": "P2d2a4fe2",
       "section": "stopstxt",
+      "field": "stop_id",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
       "sentence": "ID must be unique across all stops.stop_id , locations.geojson id , and location_groups.location_group_id values."
     },
     {
-      "id": "P3334233c",
+      "id": "P8cb6a9cc",
       "section": "stopstxt",
+      "field": "stop_code",
       "level": "h3",
       "source": "table_desc",
       "strength": "soft",
       "sentence": "This field should be left empty for locations without a code presented to riders."
     },
     {
-      "id": "Pb0bdbe98",
+      "id": "P4dec6139",
       "section": "stopstxt",
+      "field": "stop_name",
       "level": "h3",
       "source": "table_desc",
       "strength": "soft",
       "sentence": "The stop_name should match the agency's rider-facing name for the location as printed on a timetable, published online, or represented on signage."
     },
     {
-      "id": "Pc4e3af38",
+      "id": "P2f98361b",
       "section": "stopstxt",
+      "field": "stop_name",
       "level": "h3",
       "source": "table_desc",
       "strength": "soft",
       "sentence": "When the location is a boarding area ( location_type=4 ), the stop_name should contains the name of the boarding area as displayed by the agency."
     },
     {
-      "id": "Pf30af142",
+      "id": "P2d5798e5",
       "section": "stopstxt",
+      "field": "stop_name",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
       "sentence": "Conditionally Required: - Required for locations which are stops ( location_type=0 ), stations ( location_type=1 ) or entrances/exits ( location_type=2 )."
     },
     {
-      "id": "P46d6713c",
+      "id": "P1904b638",
       "section": "stopstxt",
+      "field": "stop_lat",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
       "sentence": "For stops/platforms ( location_type=0 ) and boarding area ( location_type=4 ), the coordinates must be the ones of the bus pole — if exists — and otherwise of where the travelers are boarding the vehicle (on the sidewalk or the platform, and not on the roadway or the track where the vehicle stops)."
     },
     {
-      "id": "Pb203779d",
+      "id": "Pe929fc21",
       "section": "stopstxt",
+      "field": "stop_lat",
+      "level": "h3",
+      "source": "table_desc",
+      "strength": "strong",
+      "sentence": "Conditionally Required: - Required for locations which are stops ( location_type=0 ), stations ( location_type=1 ) or entrances/exits ( location_type=2 )."
+    },
+    {
+      "id": "P0deb828b",
+      "section": "stopstxt",
+      "field": "stop_lon",
+      "level": "h3",
+      "source": "table_desc",
+      "strength": "strong",
+      "sentence": "For stops/platforms ( location_type=0 ) and boarding area ( location_type=4 ), the coordinates must be the ones of the bus pole — if exists — and otherwise of where the travelers are boarding the vehicle (on the sidewalk or the platform, and not on the roadway or the track where the vehicle stops)."
+    },
+    {
+      "id": "Pdb1fcb2a",
+      "section": "stopstxt",
+      "field": "stop_lon",
+      "level": "h3",
+      "source": "table_desc",
+      "strength": "strong",
+      "sentence": "Conditionally Required: - Required for locations which are stops ( location_type=0 ), stations ( location_type=1 ) or entrances/exits ( location_type=2 )."
+    },
+    {
+      "id": "P66bbc659",
+      "section": "stopstxt",
+      "field": "stop_url",
       "level": "h3",
       "source": "table_desc",
       "strength": "soft",
       "sentence": "This should be different from the agency.agency_url and the routes.route_url field values."
     },
     {
-      "id": "Pb1a343f4",
+      "id": "P4aab119d",
       "section": "stopstxt",
+      "field": "location_type",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
       "sentence": "If an entrance/exit belongs to multiple stations, it may be linked by pathways to both, but the data provider must pick one of them as parent."
     },
     {
-      "id": "P4fd5ad29",
+      "id": "P84671c38",
       "section": "stopstxt",
+      "field": "parent_station",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
       "sentence": "- Station ( location_type=1 ): this field must be empty."
     },
     {
-      "id": "Pe5ec96b1",
+      "id": "Pae80c9ab",
       "section": "stopstxt",
+      "field": "parent_station",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
       "sentence": "Conditionally Required: - Required for locations which are entrances ( location_type=2 ), generic nodes ( location_type=3 ) or boarding areas ( location_type=4 )."
     },
     {
-      "id": "P23e6e2bb",
+      "id": "P9963363e",
       "section": "stopstxt",
+      "field": "parent_station",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
       "sentence": "- Forbidden for stations ( location_type=1 )."
     },
     {
-      "id": "Pd0716c9a",
+      "id": "P3af6af7b",
       "section": "stopstxt",
+      "field": "platform_code",
       "level": "h3",
       "source": "table_desc",
       "strength": "soft",
       "sentence": "This should be just the platform identifier (eg."
     },
     {
-      "id": "Pf99d9fe7",
+      "id": "Pb24eacd3",
       "section": "stopstxt",
+      "field": "platform_code",
       "level": "h3",
       "source": "table_desc",
       "strength": "soft",
       "sentence": "Words like “platform” or \"track\" (or the feed’s language-specific equivalent) should not be included."
     },
     {
-      "id": "P8864fa4f",
+      "id": "Pac2e68e4",
       "section": "stopstxt",
+      "field": "stop_access",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
       "sentence": "Valid options are: 0 - The stop/platform cannot be directly accessed from the street network."
     },
     {
-      "id": "P349ada38",
+      "id": "P740a5096",
       "section": "stopstxt",
+      "field": "stop_access",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
       "sentence": "It must be accessed from a station entrance if there is one defined for the station, otherwise the station itself."
     },
     {
-      "id": "P2d679fc4",
+      "id": "Pb857b7b0",
       "section": "stopstxt",
+      "field": "stop_access",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
       "sentence": "If there are pathways defined for the station, they must be used to access the stop/platform."
     },
     {
-      "id": "P78f0db2e",
+      "id": "Pa5a48cf2",
       "section": "stopstxt",
+      "field": "stop_access",
       "level": "h3",
       "source": "table_desc",
       "strength": "soft",
       "sentence": "1 - Consuming applications should generate directions for access directly to the stop, independent of any entrances or pathways of the parent station."
     },
     {
-      "id": "Pd395bebf",
+      "id": "Paa26a036",
       "section": "stopstxt",
+      "field": "stop_access",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
       "sentence": "Conditionally Forbidden : - Forbidden for locations which are stations ( location_type=1 ), entrances ( location_type=2 ), generic nodes ( location_type=3 ) or boarding areas ( location_type=4 )."
     },
     {
-      "id": "P00dc1e4c",
+      "id": "Pb9ee0cd1",
       "section": "stopstxt",
+      "field": "stop_access",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
       "sentence": "- Forbidden if parent_station is empty."
     },
     {
-      "id": "Pa0e44582",
+      "id": "P5545f72a",
       "section": "routestxt",
+      "field": "agency_id",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
       "sentence": "Conditionally Required: - Required if multiple agencies are defined in agency.txt ."
     },
     {
-      "id": "P04abc2b3",
+      "id": "P38ea8952",
       "section": "routestxt",
+      "field": "agency_id",
       "level": "h3",
       "source": "table_desc",
       "strength": "soft",
       "sentence": "- Recommended otherwise."
     },
     {
-      "id": "P48c79be9",
+      "id": "P58b03291",
       "section": "routestxt",
+      "field": "route_short_name",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
       "sentence": "Conditionally Required: - Required if routes.route_long_name is empty."
     },
     {
-      "id": "Pfe9b9c53",
+      "id": "P6802b122",
       "section": "routestxt",
+      "field": "route_short_name",
       "level": "h3",
       "source": "table_desc",
       "strength": "soft",
       "sentence": "- Recommended if there is a brief service designation."
     },
     {
-      "id": "Pb15d9df7",
+      "id": "P16dc75b8",
       "section": "routestxt",
+      "field": "route_short_name",
       "level": "h3",
       "source": "table_desc",
       "strength": "soft",
       "sentence": "This should be the commonly-known passenger name of the service, and should be no longer than 12 characters."
     },
     {
-      "id": "Pd99821de",
+      "id": "Pd236e553",
       "section": "routestxt",
+      "field": "route_long_name",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
       "sentence": "Conditionally Required: - Required if routes.route_short_name is empty."
     },
     {
-      "id": "Pda0b7a0f",
+      "id": "P067f2da6",
       "section": "routestxt",
+      "field": "route_color",
       "level": "h3",
       "source": "table_desc",
       "strength": "soft",
       "sentence": "The color difference between route_color and route_text_color should provide sufficient contrast when viewed on a black and white screen."
     },
     {
-      "id": "P8eb7eea3",
+      "id": "Pe69f3d33",
       "section": "routestxt",
+      "field": "route_text_color",
+      "level": "h3",
+      "source": "table_desc",
+      "strength": "soft",
+      "sentence": "The color difference between route_color and route_text_color should provide sufficient contrast when viewed on a black and white screen."
+    },
+    {
+      "id": "P69d3a653",
+      "section": "routestxt",
+      "field": "route_sort_order",
       "level": "h3",
       "source": "table_desc",
       "strength": "soft",
       "sentence": "Routes with smaller route_sort_order values should be displayed first."
     },
     {
-      "id": "P7f7681af",
+      "id": "P9068b265",
       "section": "routestxt",
+      "field": "continuous_pickup",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
       "sentence": "Conditionally Forbidden : - Any value other than 1 or empty is Forbidden if stop_times.start_pickup_drop_off_window or stop_times.end_pickup_drop_off_window are defined for any trip of this route."
     },
     {
-      "id": "P2613cd2c",
+      "id": "P0003b8f1",
       "section": "routestxt",
+      "field": "continuous_drop_off",
+      "level": "h3",
+      "source": "table_desc",
+      "strength": "strong",
+      "sentence": "Conditionally Forbidden : - Any value other than 1 or empty is Forbidden if stop_times.start_pickup_drop_off_window or stop_times.end_pickup_drop_off_window are defined for any trip of this route."
+    },
+    {
+      "id": "P419062b4",
+      "section": "routestxt",
+      "field": "network_id",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
       "sentence": "Conditionally Forbidden: - Forbidden if the route_networks.txt or networks.txt file exists."
     },
     {
-      "id": "P5eb05a11",
+      "id": "P803cfa49",
       "section": "routestxt",
+      "field": "cemv_support",
       "level": "h3",
       "source": "table_desc",
       "strength": "soft",
       "sentence": "Support for cEMVs should only be indicated if all services under this route are accessible with the use of cEMV cards or mobile devices as fare media."
     },
     {
-      "id": "Pc56b553d",
+      "id": "P86914315",
       "section": "routestxt",
+      "field": "cemv_support",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
       "sentence": "If both agency.cemv_support and routes.cemv_support are provided for the same service, the value in routes.cemv_support shall take precedence."
     },
     {
-      "id": "P54bc16d9",
+      "id": "P69d68d06",
       "section": "routestxt",
+      "field": "cemv_support",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
@@ -653,6 +779,7 @@
     {
       "id": "P2c5055df",
       "section": "tripstxt",
+      "field": "",
       "level": "h3",
       "source": "prose",
       "strength": "soft",
@@ -661,54 +788,61 @@
     {
       "id": "P7411f6b1",
       "section": "tripstxt",
+      "field": "",
       "level": "h3",
       "source": "prose",
       "strength": "soft",
       "sentence": "If a service is a deviated-fixed service, or if a rider trip includes a transfer from an on-demand to a fixed-route service, the duration of the fixed-route portion of the trip should be calculated according to the departure_time and arrival_time fields."
     },
     {
-      "id": "Pd88b7969",
+      "id": "P6f633bee",
       "section": "tripstxt",
+      "field": "trip_headsign",
       "level": "h3",
       "source": "table_desc",
       "strength": "soft",
       "sentence": "This field is recommended for all services with headsign text displayed on the vehicle which may be used to distinguish amongst trips in a route."
     },
     {
-      "id": "P36e4ec7a",
+      "id": "P98d7e2a2",
       "section": "tripstxt",
+      "field": "trip_short_name",
       "level": "h3",
       "source": "table_desc",
       "strength": "soft",
       "sentence": "If riders do not commonly rely on trip names, trip_short_name should be empty."
     },
     {
-      "id": "Pef67573b",
+      "id": "Pfe2abba1",
       "section": "tripstxt",
+      "field": "trip_short_name",
       "level": "h3",
       "source": "table_desc",
       "strength": "soft",
       "sentence": "A trip_short_name value, if provided, should uniquely identify a trip within a service day; it should not be used for destination names or limited/express designations."
     },
     {
-      "id": "P18a2b0a3",
+      "id": "Pfe1eb2fc",
       "section": "tripstxt",
+      "field": "direction_id",
       "level": "h3",
       "source": "table_desc",
       "strength": "soft",
       "sentence": "This field should not be used in routing; it provides a way to separate trips by direction when publishing time tables."
     },
     {
-      "id": "P3bcd1040",
+      "id": "Pa2571719",
       "section": "tripstxt",
+      "field": "block_id",
       "level": "h3",
       "source": "table_desc",
       "strength": "soft",
       "sentence": "To provide in-seat transfers information, transfers of transfer_type 4 should be provided instead."
     },
     {
-      "id": "Pea6c03f1",
+      "id": "P03987db8",
       "section": "tripstxt",
+      "field": "shape_id",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
@@ -717,6 +851,7 @@
     {
       "id": "P5c5b9def",
       "section": "stop_timestxt",
+      "field": "",
       "level": "h3",
       "source": "prose",
       "strength": "soft",
@@ -725,270 +860,376 @@
     {
       "id": "P02809a76",
       "section": "stop_timestxt",
+      "field": "",
       "level": "h3",
       "source": "prose",
       "strength": "soft",
       "sentence": "For examples that demonstrate what should be ignored, see the data example page ."
     },
     {
-      "id": "P2bb7a756",
+      "id": "Peaccedd4",
       "section": "stop_timestxt",
+      "field": "arrival_time",
       "level": "h3",
       "source": "table_desc",
       "strength": "soft",
       "sentence": "If there are not separate times for arrival and departure at a stop, arrival_time and departure_time should be the same."
     },
     {
-      "id": "Pd65b3a90",
+      "id": "Pd0952f0f",
       "section": "stop_timestxt",
+      "field": "arrival_time",
       "level": "h3",
       "source": "table_desc",
       "strength": "soft",
       "sentence": "If exact arrival and departure times ( timepoint=1 ) are not available, estimated or interpolated arrival and departure times ( timepoint=0 ) should be provided."
     },
     {
-      "id": "Pcd3d4ca2",
+      "id": "P9c00a4c1",
       "section": "stop_timestxt",
+      "field": "arrival_time",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
       "sentence": "Conditionally Required: - Required for the first and last stop in a trip (defined by stop_times.stop_sequence )."
     },
     {
-      "id": "Paa2a5e2a",
+      "id": "P63ebcd1c",
       "section": "stop_timestxt",
+      "field": "arrival_time",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
       "sentence": "- Required for timepoint=1 ."
     },
     {
-      "id": "Pa3df81ef",
+      "id": "P9fb3b94e",
       "section": "stop_timestxt",
+      "field": "arrival_time",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
       "sentence": "- Forbidden when start_pickup_drop_off_window or end_pickup_drop_off_window are defined."
     },
     {
-      "id": "Pf2022e45",
+      "id": "P07ae073c",
       "section": "stop_timestxt",
+      "field": "departure_time",
+      "level": "h3",
+      "source": "table_desc",
+      "strength": "soft",
+      "sentence": "If there are not separate times for arrival and departure at a stop, arrival_time and departure_time should be the same."
+    },
+    {
+      "id": "Pd6d4d60e",
+      "section": "stop_timestxt",
+      "field": "departure_time",
+      "level": "h3",
+      "source": "table_desc",
+      "strength": "soft",
+      "sentence": "If exact arrival and departure times ( timepoint=1 ) are not available, estimated or interpolated arrival and departure times ( timepoint=0 ) should be provided."
+    },
+    {
+      "id": "P7d083b18",
+      "section": "stop_timestxt",
+      "field": "departure_time",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
       "sentence": "Conditionally Required: - Required for timepoint=1 ."
     },
     {
-      "id": "P989a4d49",
+      "id": "P5c565dc7",
       "section": "stop_timestxt",
+      "field": "departure_time",
+      "level": "h3",
+      "source": "table_desc",
+      "strength": "strong",
+      "sentence": "- Forbidden when start_pickup_drop_off_window or end_pickup_drop_off_window are defined."
+    },
+    {
+      "id": "P8df924de",
+      "section": "stop_timestxt",
+      "field": "stop_id",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
       "sentence": "All stops serviced during a trip must have a record in stop_times.txt ."
     },
     {
-      "id": "Pa3b9bc65",
+      "id": "P22458c92",
       "section": "stop_timestxt",
+      "field": "stop_id",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
       "sentence": "Referenced locations must be stops/platforms, i.e. their stops.location_type value must be 0 or empty."
     },
     {
-      "id": "P7c2d1858",
+      "id": "P1db24034",
       "section": "stop_timestxt",
+      "field": "stop_id",
       "level": "h3",
       "source": "table_desc",
       "strength": "soft",
       "sentence": "On-demand service using stops should be referenced in the sequence in which service is available at those stops."
     },
     {
-      "id": "Pdcb343bc",
+      "id": "Pf991d0a1",
       "section": "stop_timestxt",
+      "field": "stop_id",
       "level": "h3",
       "source": "table_desc",
       "strength": "soft",
       "sentence": "A data consumer should assume that travel is possible from one stop or location to any stop or location later in the trip, provided that the pickup/drop_off_type of each stop_time and the time constraints of each start/end_pickup_drop_off_window do not forbid it."
     },
     {
-      "id": "P69a7e8a2",
+      "id": "Pc13251f4",
       "section": "stop_timestxt",
+      "field": "stop_id",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
       "sentence": "Conditionally Required: - Required if stop_times.location_group_id AND stop_times.location_id are NOT defined."
     },
     {
-      "id": "P920c987d",
+      "id": "Pf4e87f1d",
       "section": "stop_timestxt",
+      "field": "stop_id",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
       "sentence": "- Forbidden if stop_times.location_group_id or stop_times.location_id are defined."
     },
     {
-      "id": "Pf6785f22",
+      "id": "P97d265ec",
       "section": "stop_timestxt",
+      "field": "location_group_id",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
       "sentence": "All location groups serviced during a trip must have a record in stop_times.txt ."
     },
     {
-      "id": "P06d6ac1e",
+      "id": "P42feba23",
       "section": "stop_timestxt",
+      "field": "location_group_id",
       "level": "h3",
       "source": "table_desc",
       "strength": "soft",
       "sentence": "On-demand service using location groups should be referenced in the sequence in which service is available at those location groups."
     },
     {
-      "id": "Pbe5e5ccf",
+      "id": "Pf400fbfa",
       "section": "stop_timestxt",
+      "field": "location_group_id",
+      "level": "h3",
+      "source": "table_desc",
+      "strength": "soft",
+      "sentence": "A data consumer should assume that travel is possible from one stop or location to any stop or location later in the trip, provided that the pickup/drop_off_type of each stop_time and the time constraints of each start/end_pickup_drop_off_window do not forbid it."
+    },
+    {
+      "id": "P1c390f1f",
+      "section": "stop_timestxt",
+      "field": "location_group_id",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
       "sentence": "Conditionally Forbidden : - Forbidden if stop_times.stop_id or stop_times.location_id are defined."
     },
     {
-      "id": "P27536618",
+      "id": "P301db728",
       "section": "stop_timestxt",
+      "field": "location_id",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
       "sentence": "All GeoJSON locations serviced during a trip must have a record in stop_times.txt ."
     },
     {
-      "id": "P9599c40f",
+      "id": "Pb3167e34",
       "section": "stop_timestxt",
+      "field": "location_id",
       "level": "h3",
       "source": "table_desc",
       "strength": "soft",
       "sentence": "On-demand service within locations should be referenced in the sequence in which service is available in those locations."
     },
     {
-      "id": "Pf5437366",
+      "id": "P95949c3b",
       "section": "stop_timestxt",
+      "field": "location_id",
+      "level": "h3",
+      "source": "table_desc",
+      "strength": "soft",
+      "sentence": "A data consumer should assume that travel is possible from one stop or location to any stop or location later in the trip, provided that the pickup/drop_off_type of each stop_time and the time constraints of each start/end_pickup_drop_off_window do not forbid it."
+    },
+    {
+      "id": "P51a00951",
+      "section": "stop_timestxt",
+      "field": "location_id",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
       "sentence": "Conditionally Forbidden : - Forbidden if stop_times.stop_id or stop_times.location_group_id are defined."
     },
     {
-      "id": "P34224cac",
+      "id": "P845d30d4",
       "section": "stop_timestxt",
+      "field": "stop_sequence",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
       "sentence": "The values must increase along the trip but do not need to be consecutive."
     },
     {
-      "id": "P2394d0a3",
+      "id": "Pc45300d2",
       "section": "stop_timestxt",
+      "field": "stop_headsign",
       "level": "h3",
       "source": "table_desc",
       "strength": "soft",
       "sentence": "If the headsign is displayed for an entire trip, trips.trip_headsign should be used instead."
     },
     {
-      "id": "Pf9c07cbf",
+      "id": "Pe1d776e1",
       "section": "stop_timestxt",
+      "field": "stop_headsign",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
       "sentence": "If you want to override the trip_headsign for multiple stop_time s in the same trip, the stop_headsign value must be repeated in each stop_time row."
     },
     {
-      "id": "P02788d18",
+      "id": "Pc12c3c45",
       "section": "stop_timestxt",
+      "field": "start_pickup_drop_off_window",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
       "sentence": "Conditionally Required : - Required if stop_times.location_group_id or stop_times.location_id is defined."
     },
     {
-      "id": "Pb980c14a",
+      "id": "Pe9ff5c29",
       "section": "stop_timestxt",
+      "field": "start_pickup_drop_off_window",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
       "sentence": "- Required if end_pickup_drop_off_window is defined."
     },
     {
-      "id": "P65229a68",
+      "id": "Pa99a9040",
       "section": "stop_timestxt",
+      "field": "start_pickup_drop_off_window",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
       "sentence": "- Forbidden if arrival_time or departure_time is defined."
     },
     {
-      "id": "P6b6ca3dc",
+      "id": "P2de6ce3d",
       "section": "stop_timestxt",
+      "field": "end_pickup_drop_off_window",
+      "level": "h3",
+      "source": "table_desc",
+      "strength": "strong",
+      "sentence": "Conditionally Required : - Required if stop_times.location_group_id or stop_times.location_id is defined."
+    },
+    {
+      "id": "P5409e4cb",
+      "section": "stop_timestxt",
+      "field": "end_pickup_drop_off_window",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
       "sentence": "- Required if start_pickup_drop_off_window is defined."
     },
     {
-      "id": "P013976c2",
+      "id": "Pd63bf170",
       "section": "stop_timestxt",
+      "field": "end_pickup_drop_off_window",
+      "level": "h3",
+      "source": "table_desc",
+      "strength": "strong",
+      "sentence": "- Forbidden if arrival_time or departure_time is defined."
+    },
+    {
+      "id": "P56388e97",
+      "section": "stop_timestxt",
+      "field": "pickup_type",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
       "sentence": "Conditionally Forbidden : - pickup_type=0 forbidden if start_pickup_drop_off_window or end_pickup_drop_off_window are defined."
     },
     {
-      "id": "Pd6257d5d",
+      "id": "P4280b626",
       "section": "stop_timestxt",
+      "field": "drop_off_type",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
       "sentence": "Conditionally Forbidden : - drop_off_type=0 forbidden if start_pickup_drop_off_window or end_pickup_drop_off_window are defined."
     },
     {
-      "id": "P8d453e35",
+      "id": "P19ab03d5",
       "section": "stop_timestxt",
+      "field": "continuous_pickup",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
       "sentence": "Conditionally Forbidden : - Any value other than 1 or empty is Forbidden if start_pickup_drop_off_window or end_pickup_drop_off_window are defined."
     },
     {
-      "id": "P2864891b",
+      "id": "Pf1672264",
       "section": "stop_timestxt",
+      "field": "continuous_drop_off",
+      "level": "h3",
+      "source": "table_desc",
+      "strength": "strong",
+      "sentence": "Conditionally Forbidden : - Any value other than 1 or empty is Forbidden if start_pickup_drop_off_window or end_pickup_drop_off_window are defined."
+    },
+    {
+      "id": "Pf2eca25e",
+      "section": "stop_timestxt",
+      "field": "shape_dist_traveled",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
       "sentence": "Values used for shape_dist_traveled must increase along with stop_sequence ; they must not be used to show reverse travel along a route."
     },
     {
-      "id": "P1dfbd4c7",
+      "id": "P7c96867d",
       "section": "stop_timestxt",
+      "field": "shape_dist_traveled",
       "level": "h3",
       "source": "table_desc",
       "strength": "soft",
       "sentence": "Recommended for routes that have looping or inlining (the vehicle crosses or travels over the same portion of alignment in one trip)."
     },
     {
-      "id": "P3fc756c3",
+      "id": "Pc6b3be8f",
       "section": "stop_timestxt",
+      "field": "timepoint",
       "level": "h3",
       "source": "table_desc",
       "strength": "soft",
       "sentence": "All records of stop_times.txt with defined arrival or departure times should have timepoint values populated."
     },
     {
-      "id": "P08a1c050",
+      "id": "P71243b3e",
       "section": "stop_timestxt",
+      "field": "pickup_booking_rule_id",
       "level": "h3",
       "source": "table_desc",
       "strength": "soft",
       "sentence": "Recommended when pickup_type=2 ."
     },
     {
-      "id": "P1a06417b",
+      "id": "P504bde32",
       "section": "stop_timestxt",
+      "field": "drop_off_booking_rule_id",
       "level": "h3",
       "source": "table_desc",
       "strength": "soft",
@@ -997,6 +1238,7 @@
     {
       "id": "Pd7cb6983",
       "section": "calendar_datestxt",
+      "field": "",
       "level": "h3",
       "source": "prose",
       "strength": "soft",
@@ -1005,6 +1247,7 @@
     {
       "id": "P8cf7f90f",
       "section": "fare_attributestxt",
+      "field": "",
       "level": "h3",
       "source": "prose",
       "strength": "soft",
@@ -1013,46 +1256,52 @@
     {
       "id": "P3c1a4156",
       "section": "fare_attributestxt",
+      "field": "",
       "level": "h3",
       "source": "prose",
       "strength": "soft",
       "sentence": "It is recommended that GTFS-Fares V2 takes precedence over GTFS-Fares V1."
     },
     {
-      "id": "P612f5ebd",
+      "id": "P31c88c29",
       "section": "fare_attributestxt",
+      "field": "payment_method",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
       "sentence": "Indicates when the fare must be paid."
     },
     {
-      "id": "P4fad4f3a",
+      "id": "P71c9ce23",
       "section": "fare_attributestxt",
+      "field": "payment_method",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
       "sentence": "1 - Fare must be paid before boarding."
     },
     {
-      "id": "P56177fdc",
+      "id": "Pe15614d2",
       "section": "fare_attributestxt",
+      "field": "agency_id",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
       "sentence": "Conditionally Required: - Required if multiple agencies are defined in agency.txt ."
     },
     {
-      "id": "P1c32cf21",
+      "id": "Pc29f644f",
       "section": "fare_attributestxt",
+      "field": "agency_id",
       "level": "h3",
       "source": "table_desc",
       "strength": "soft",
       "sentence": "- Recommended otherwise."
     },
     {
-      "id": "P7a9c312f",
+      "id": "Pcc091079",
       "section": "fare_rulestxt",
+      "field": "contains_id",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
@@ -1061,6 +1310,7 @@
     {
       "id": "Pa586fe5b",
       "section": "timeframestxt",
+      "field": "",
       "level": "h3",
       "source": "prose",
       "strength": "strong",
@@ -1069,70 +1319,88 @@
     {
       "id": "Pbf8f7f62",
       "section": "timeframestxt",
+      "field": "",
       "level": "h3",
       "source": "prose",
       "strength": "soft",
       "sentence": "If not specified, the feed’s agency timezone should be used instead."
     },
     {
-      "id": "Pdc38f31d",
+      "id": "P6fa9925a",
       "section": "timeframestxt",
+      "field": "start_time",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
       "sentence": "Conditionally Required: - Required if timeframes.end_time is defined."
     },
     {
-      "id": "Pb862fc84",
+      "id": "P4f2430ed",
       "section": "timeframestxt",
+      "field": "start_time",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
       "sentence": "- Forbidden otherwise"
     },
     {
-      "id": "P670037e9",
+      "id": "P8cc81b88",
       "section": "timeframestxt",
+      "field": "end_time",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
       "sentence": "Conditionally Required: - Required if timeframes.start_time is defined."
     },
     {
-      "id": "P8c1abda3",
+      "id": "P7b4083a2",
+      "section": "timeframestxt",
+      "field": "end_time",
+      "level": "h3",
+      "source": "table_desc",
+      "strength": "strong",
+      "sentence": "- Forbidden otherwise"
+    },
+    {
+      "id": "P152c436d",
       "section": "rider_categoriestxt",
+      "field": "is_default_fare_category",
       "level": "h3",
       "source": "table_desc",
       "strength": "soft",
       "sentence": "Specifies if an entry in rider_categories.txt should be considered the default category (i.e. the main category that should be displayed to riders)."
     },
     {
-      "id": "P2bf0dfa3",
+      "id": "P1d9a0191",
       "section": "rider_categoriestxt",
+      "field": "is_default_fare_category",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
       "sentence": "When multiple rider categories are eligible for a single fare product specified by a fare_product_id , there must be exactly one of these eligible rider categories indicated as the default rider category ( is_default_fare_category = 1 )."
     },
     {
-      "id": "P8a38b199",
+      "id": "P32e7117f",
       "section": "fare_mediatxt",
+      "field": "fare_media_name",
       "level": "h3",
       "source": "table_desc",
       "strength": "soft",
       "sentence": "For fare media which are transit cards ( fare_media_type =2 ) or mobile apps ( fare_media_type =4 ), the fare_media_name should be included and should match the rider-facing name used by the organizations delivering them."
     },
     {
-      "id": "Pab95f630",
+      "id": "P79f202e6",
       "section": "fare_productstxt",
+      "field": "rider_category_id",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
       "sentence": "When multiple rider categories are eligible for a single fare product specified by a fare_product_id , there must be only one of these rider categories indicated as the default rider category ( is_default_fare_category = 1 )."
     },
     {
-      "id": "P8a1f38f8",
+      "id": "P38cd4e78",
       "section": "fare_productstxt",
+      "field": "amount",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
@@ -1141,6 +1409,7 @@
     {
       "id": "Pa13f977d",
       "section": "fare_leg_rulestxt",
+      "field": "",
       "level": "h3",
       "source": "prose",
       "strength": "strong",
@@ -1149,6 +1418,7 @@
     {
       "id": "P25918782",
       "section": "fare_leg_rulestxt",
+      "field": "",
       "level": "h3",
       "source": "prose",
       "strength": "strong",
@@ -1157,6 +1427,7 @@
     {
       "id": "P4e4360f8",
       "section": "fare_leg_rulestxt",
+      "field": "",
       "level": "h3",
       "source": "prose",
       "strength": "strong",
@@ -1165,38 +1436,43 @@
     {
       "id": "P203b24af",
       "section": "fare_leg_rulestxt",
+      "field": "",
       "level": "h3",
       "source": "prose",
       "strength": "strong",
       "sentence": "If no exact matches are found AND the rule_priority field does not exist, then empty entries in fare_leg_rules.network_id , fare_leg_rules.from_area_id , and fare_leg_rules.to_area_id must be checked to process the cost of the leg:"
     },
     {
-      "id": "P8b426f47",
+      "id": "P9cee47a9",
       "section": "fare_leg_rulestxt",
+      "field": "leg_group_id",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
       "sentence": "The same entry in fare_leg_rules.txt (not including fare_leg_rules.leg_group_id ) must not belong to multiple fare_leg_rules.leg_group_id ."
     },
     {
-      "id": "P936313cb",
+      "id": "Pbbc4e012",
       "section": "fare_leg_rulestxt",
+      "field": "network_id",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
       "sentence": "When matching against an effective fare leg of multiple legs , each leg must have the same network_id which will be used for matching."
     },
     {
-      "id": "Pb5da4025",
+      "id": "P346477ee",
       "section": "fare_leg_rulestxt",
+      "field": "from_timeframe_group_id",
       "level": "h3",
       "source": "table_desc",
       "strength": "soft",
       "sentence": "The stop or station of the fare leg’s departure event should be used for timezone resolution, where appropriate."
     },
     {
-      "id": "P819fd255",
+      "id": "P08611e2a",
       "section": "fare_leg_rulestxt",
+      "field": "to_timeframe_group_id",
       "level": "h3",
       "source": "table_desc",
       "strength": "soft",
@@ -1205,6 +1481,7 @@
     {
       "id": "P801d96f0",
       "section": "fare_leg_join_rulestxt",
+      "field": "",
       "level": "h3",
       "source": "prose",
       "strength": "soft",
@@ -1213,6 +1490,7 @@
     {
       "id": "P9a687aee",
       "section": "fare_leg_join_rulestxt",
+      "field": "",
       "level": "h3",
       "source": "prose",
       "strength": "strong",
@@ -1221,6 +1499,7 @@
     {
       "id": "P9bb795c0",
       "section": "fare_leg_join_rulestxt",
+      "field": "",
       "level": "h3",
       "source": "prose",
       "strength": "soft",
@@ -1229,38 +1508,43 @@
     {
       "id": "P66fe5cb3",
       "section": "fare_leg_join_rulestxt",
+      "field": "",
       "level": "h3",
       "source": "prose",
       "strength": "soft",
       "sentence": "When a sub-journey contains consecutive transfers that each match a join rule, then the entire sub-journey should be considered as a single effective fare leg ."
     },
     {
-      "id": "Pfa1516bd",
+      "id": "Pdb20f308",
       "section": "fare_leg_join_rulestxt",
+      "field": "from_network_id",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
       "sentence": "If specified, the same to_network_id must also be specified."
     },
     {
-      "id": "Peeb5e691",
+      "id": "P1efa6e43",
       "section": "fare_leg_join_rulestxt",
+      "field": "to_network_id",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
       "sentence": "If specified, the same from_network_id must also be specified."
     },
     {
-      "id": "Pe22b1d90",
+      "id": "P278f9cc2",
       "section": "fare_leg_join_rulestxt",
+      "field": "from_stop_id",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
       "sentence": "Conditionally Required: - Required if to_stop_id is defined."
     },
     {
-      "id": "P49347ce3",
+      "id": "Pd90f72d8",
       "section": "fare_leg_join_rulestxt",
+      "field": "to_stop_id",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
@@ -1269,6 +1553,7 @@
     {
       "id": "Pb6d9a2c2",
       "section": "fare_transfer_rulestxt",
+      "field": "",
       "level": "h3",
       "source": "prose",
       "strength": "soft",
@@ -1277,6 +1562,7 @@
     {
       "id": "P4dead8a8",
       "section": "fare_transfer_rulestxt",
+      "field": "",
       "level": "h3",
       "source": "prose",
       "strength": "strong",
@@ -1285,6 +1571,7 @@
     {
       "id": "P34b16ddb",
       "section": "fare_transfer_rulestxt",
+      "field": "",
       "level": "h3",
       "source": "prose",
       "strength": "strong",
@@ -1293,54 +1580,61 @@
     {
       "id": "P2b1854d3",
       "section": "fare_transfer_rulestxt",
+      "field": "",
       "level": "h3",
       "source": "prose",
       "strength": "strong",
       "sentence": "If no exact matches are found, then empty entries in from_leg_group_id or in to_leg_group_id must be checked to process the transfer cost: An empty entry in fare_transfer_rules.from_leg_group_id corresponds to all leg groups defined under fare_leg_rules.leg_group_id excluding the ones listed under fare_transfer_rules.from_leg_group_id"
     },
     {
-      "id": "Paab517e2",
+      "id": "P99885c9f",
       "section": "fare_transfer_rulestxt",
+      "field": "transfer_count",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
       "sentence": "Conditionally Forbidden: - Forbidden if fare_transfer_rules.from_leg_group_id does not equal fare_transfer_rules.to_leg_group_id ."
     },
     {
-      "id": "Pff6f811c",
+      "id": "P706ade03",
       "section": "fare_transfer_rulestxt",
+      "field": "transfer_count",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
       "sentence": "- Required if fare_transfer_rules.from_leg_group_id equals fare_transfer_rules.to_leg_group_id ."
     },
     {
-      "id": "P98323fe9",
+      "id": "P14538146",
       "section": "fare_transfer_rulestxt",
+      "field": "duration_limit",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
       "sentence": "If there is no duration limit, fare_transfer_rules.duration_limit must be empty."
     },
     {
-      "id": "P9c3dfe1f",
+      "id": "Pe8b16d97",
       "section": "fare_transfer_rulestxt",
+      "field": "duration_limit_type",
       "level": "h3",
       "source": "table_desc",
       "strength": "soft",
       "sentence": "When a transfer rule with the same from_leg_group_id and to_leg_group_id is matched multiple times consecutively within a multi-leg journey, the duration_limit specified by the rule should be measured starting from the first matched leg."
     },
     {
-      "id": "P0764658f",
+      "id": "Pc2fcfe46",
       "section": "fare_transfer_rulestxt",
+      "field": "duration_limit_type",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
       "sentence": "Conditionally Required: - Required if fare_transfer_rules.duration_limit is defined."
     },
     {
-      "id": "P983fdf38",
+      "id": "P4882cfae",
       "section": "fare_transfer_rulestxt",
+      "field": "duration_limit_type",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
@@ -1349,6 +1643,7 @@
     {
       "id": "Pd03c58da",
       "section": "shapestxt",
+      "field": "",
       "level": "h3",
       "source": "prose",
       "strength": "soft",
@@ -1357,54 +1652,61 @@
     {
       "id": "Pecd3617b",
       "section": "shapestxt",
+      "field": "",
       "level": "h3",
       "source": "prose",
       "strength": "soft",
       "sentence": "The shapes.txt file should be included for all route-based services (not for zone-based demand-responsive services)."
     },
     {
-      "id": "P39eb7db3",
+      "id": "P67d6bd72",
       "section": "shapestxt",
+      "field": "shape_pt_sequence",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
       "sentence": "Values must increase along the trip but do not need to be consecutive."
     },
     {
-      "id": "P30b11774",
+      "id": "P2a0dbcd7",
       "section": "shapestxt",
+      "field": "shape_dist_traveled",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
       "sentence": "Values must increase along with shape_pt_sequence ; they must not be used to show reverse travel along a route."
     },
     {
-      "id": "P243ac841",
+      "id": "Pdef3d025",
       "section": "shapestxt",
+      "field": "shape_dist_traveled",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
       "sentence": "Distance units must be consistent with those used in stop_times.txt ."
     },
     {
-      "id": "Pa9721f98",
+      "id": "P984ec73b",
       "section": "shapestxt",
+      "field": "shape_dist_traveled",
       "level": "h3",
       "source": "table_desc",
       "strength": "soft",
       "sentence": "Recommended for routes that have looping or inlining (the vehicle crosses or travels over the same portion of alignment in one trip)."
     },
     {
-      "id": "P0a5cacbc",
+      "id": "Pec6b6920",
       "section": "frequenciestxt",
+      "field": "headway_secs",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
       "sentence": "Multiple headways may be defined for the same trip, but must not overlap."
     },
     {
-      "id": "Pe8e06fb6",
+      "id": "P257db6b1",
       "section": "frequenciestxt",
+      "field": "exact_times",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
@@ -1413,6 +1715,7 @@
     {
       "id": "P64ae76a9",
       "section": "transferstxt",
+      "field": "",
       "level": "h3",
       "source": "prose",
       "strength": "soft",
@@ -1421,6 +1724,7 @@
     {
       "id": "Pf8c9263a",
       "section": "transferstxt",
+      "field": "",
       "level": "h3",
       "source": "prose",
       "strength": "strong",
@@ -1429,86 +1733,142 @@
     {
       "id": "P44a6984b",
       "section": "transferstxt",
+      "field": "",
       "level": "h3",
       "source": "prose",
       "strength": "strong",
       "sentence": "n-to-n continuations must respect both constraints."
     },
     {
-      "id": "P27c44fc1",
+      "id": "P985bdc2c",
       "section": "transferstxt",
+      "field": "from_stop_id",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
       "sentence": "It must refer to a stop ( location_type=0 ) if transfer_type is 4 or 5 ."
     },
     {
-      "id": "P9765f9e3",
+      "id": "P8e01aabc",
       "section": "transferstxt",
+      "field": "from_stop_id",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
       "sentence": "Conditionally Required: - Required if transfer_type is empty, 0 , 1 , 2 , or 3 ."
     },
     {
-      "id": "Pd77d7abc",
+      "id": "Pf42894d6",
       "section": "transferstxt",
+      "field": "to_stop_id",
+      "level": "h3",
+      "source": "table_desc",
+      "strength": "strong",
+      "sentence": "It must refer to a stop ( location_type=0 ) if transfer_type is 4 or 5."
+    },
+    {
+      "id": "P2f6c441c",
+      "section": "transferstxt",
+      "field": "to_stop_id",
+      "level": "h3",
+      "source": "table_desc",
+      "strength": "strong",
+      "sentence": "Conditionally Required: - Required if transfer_type is empty, 0 , 1 , 2 , or 3 ."
+    },
+    {
+      "id": "P0fa71358",
+      "section": "transferstxt",
+      "field": "from_route_id",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
       "sentence": "If both from_trip_id and from_route_id are defined, the trip_id must belong to the route_id , and from_trip_id will take precedence."
     },
     {
-      "id": "Pb9d7835e",
+      "id": "P134a2d40",
       "section": "transferstxt",
+      "field": "to_route_id",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
       "sentence": "If both to_trip_id and to_route_id are defined, the trip_id must belong to the route_id , and to_trip_id will take precedence."
     },
     {
-      "id": "P7524971d",
+      "id": "P585a24d4",
       "section": "transferstxt",
+      "field": "from_trip_id",
+      "level": "h3",
+      "source": "table_desc",
+      "strength": "strong",
+      "sentence": "If both from_trip_id and from_route_id are defined, the trip_id must belong to the route_id , and from_trip_id will take precedence."
+    },
+    {
+      "id": "P8423efa1",
+      "section": "transferstxt",
+      "field": "from_trip_id",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
       "sentence": "Conditionally Required: - Required if transfer_type is 4 or 5 ."
     },
     {
-      "id": "P5548282a",
+      "id": "P446972ca",
       "section": "transferstxt",
+      "field": "to_trip_id",
+      "level": "h3",
+      "source": "table_desc",
+      "strength": "strong",
+      "sentence": "If both to_trip_id and to_route_id are defined, the trip_id must belong to the route_id , and to_trip_id will take precedence."
+    },
+    {
+      "id": "P4139d9ac",
+      "section": "transferstxt",
+      "field": "to_trip_id",
+      "level": "h3",
+      "source": "table_desc",
+      "strength": "strong",
+      "sentence": "Conditionally Required: - Required if transfer_type is 4 or 5 ."
+    },
+    {
+      "id": "Pd69ec0d5",
+      "section": "transferstxt",
+      "field": "transfer_type",
       "level": "h3",
       "source": "table_desc",
       "strength": "soft",
       "sentence": "Valid options are: 0 or empty - Recommended transfer point between routes."
     },
     {
-      "id": "P3132fc77",
+      "id": "P35e92ee9",
       "section": "transferstxt",
+      "field": "transfer_type",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
       "sentence": "5 - In-seat transfers are not allowed between sequential trips."
     },
     {
-      "id": "P973edeaa",
+      "id": "P04a7709e",
       "section": "transferstxt",
+      "field": "transfer_type",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
       "sentence": "The passenger must alight from the vehicle and re-board."
     },
     {
-      "id": "P363104d0",
+      "id": "P320bcb49",
       "section": "transferstxt",
+      "field": "min_transfer_time",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
       "sentence": "Amount of time, in seconds, that must be available to permit a transfer between routes at the specified stops."
     },
     {
-      "id": "P6329d90b",
+      "id": "P4eb0f714",
       "section": "transferstxt",
+      "field": "min_transfer_time",
       "level": "h3",
       "source": "table_desc",
       "strength": "soft",
@@ -1517,6 +1877,7 @@
     {
       "id": "P41bda33f",
       "section": "pathwaystxt",
+      "field": "",
       "level": "h3",
       "source": "prose",
       "strength": "soft",
@@ -1525,6 +1886,7 @@
     {
       "id": "P5b7bc846",
       "section": "pathwaystxt",
+      "field": "",
       "level": "h3",
       "source": "prose",
       "strength": "soft",
@@ -1533,6 +1895,7 @@
     {
       "id": "P2264440d",
       "section": "pathwaystxt",
+      "field": "",
       "level": "h3",
       "source": "prose",
       "strength": "strong",
@@ -1541,6 +1904,7 @@
     {
       "id": "P3aa1cfdf",
       "section": "pathwaystxt",
+      "field": "",
       "level": "h3",
       "source": "prose",
       "strength": "soft",
@@ -1549,94 +1913,106 @@
     {
       "id": "Pde6fb4a5",
       "section": "pathwaystxt",
+      "field": "",
       "level": "h3",
       "source": "prose",
       "strength": "strong",
       "sentence": "No locked platforms: If any location within a station has a pathway, each platform ( location_type=0 or empty) or boarding area ( location_type=4 ) must be connected to at least one entrance/exit ( location_type=2 ) via some chain of pathways — unless: The stop ( location_type=0 or empty) is explicitly marked with stops.stop_access=1 , in which case it is assumed to be directly accessible from the street network."
     },
     {
-      "id": "Pa5523bca",
+      "id": "P24907079",
       "section": "pathwaystxt",
+      "field": "pathway_mode",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
       "sentence": "6 - Fare gate (or payment gate): A pathway that crosses into an area of the station where proof of payment is required to cross."
     },
     {
-      "id": "P3ddf7359",
+      "id": "Pc8bfc111",
       "section": "pathwaystxt",
+      "field": "is_bidirectional",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
       "sentence": "Exit gates ( pathway_mode=7 ) must not be bidirectional."
     },
     {
-      "id": "P98ce61fc",
+      "id": "P3eeff781",
       "section": "pathwaystxt",
+      "field": "length",
       "level": "h3",
       "source": "table_desc",
       "strength": "soft",
       "sentence": "This field is recommended for walkways ( pathway_mode=1 ), fare gates ( pathway_mode=6 ) and exit gates ( pathway_mode=7 )."
     },
     {
-      "id": "Pb592d3dd",
+      "id": "Pd21dea02",
       "section": "pathwaystxt",
+      "field": "traversal_time",
       "level": "h3",
       "source": "table_desc",
       "strength": "soft",
       "sentence": "This field is recommended for moving sidewalks ( pathway_mode=3 ), escalators ( pathway_mode=4 ) and elevator ( pathway_mode=5 )."
     },
     {
-      "id": "P05fb8380",
+      "id": "P707340ae",
       "section": "pathwaystxt",
+      "field": "stair_count",
       "level": "h3",
       "source": "table_desc",
       "strength": "soft",
       "sentence": "This field is recommended for stairs ( pathway_mode=2 )."
     },
     {
-      "id": "P74835739",
+      "id": "P6863d663",
       "section": "pathwaystxt",
+      "field": "stair_count",
       "level": "h3",
       "source": "table_desc",
       "strength": "soft",
       "sentence": "If only an estimated stair count can be provided, it is recommended to approximate 15 stairs for 1 floor."
     },
     {
-      "id": "P736fa748",
+      "id": "Pcc725763",
       "section": "pathwaystxt",
+      "field": "max_slope",
       "level": "h3",
       "source": "table_desc",
       "strength": "soft",
       "sentence": "This field should only be used with walkways ( pathway_mode=1 ) and moving sidewalks ( pathway_mode=3 )."
     },
     {
-      "id": "P03d01a95",
+      "id": "Pd498d7a2",
       "section": "pathwaystxt",
+      "field": "min_width",
       "level": "h3",
       "source": "table_desc",
       "strength": "soft",
       "sentence": "This field is recommended if the minimum width is less than 1 meter."
     },
     {
-      "id": "Pb22cea12",
+      "id": "P16572364",
       "section": "pathwaystxt",
+      "field": "signposted_as",
       "level": "h3",
       "source": "table_desc",
       "strength": "soft",
       "sentence": "The text in singposted_as should appear exactly how it is printed on the signs."
     },
     {
-      "id": "Pb5e4c516",
+      "id": "P1ecc6733",
       "section": "levelstxt",
+      "field": "level_index",
       "level": "h3",
       "source": "table_desc",
       "strength": "soft",
       "sentence": "Ground level should have index 0 , with levels above ground indicated by positive indices and levels below ground by negative indices."
     },
     {
-      "id": "P6990e63c",
+      "id": "P24d95df2",
       "section": "location_groupstxt",
+      "field": "location_group_id",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
@@ -1645,6 +2021,7 @@
     {
       "id": "Pd84a0bcb",
       "section": "locationsgeojson",
+      "field": "",
       "level": "h3",
       "source": "prose",
       "strength": "strong",
@@ -1653,6 +2030,7 @@
     {
       "id": "P2f283161",
       "section": "locationsgeojson",
+      "field": "",
       "level": "h3",
       "source": "prose",
       "strength": "strong",
@@ -1661,6 +2039,7 @@
     {
       "id": "P7f589103",
       "section": "locationsgeojson",
+      "field": "",
       "level": "h3",
       "source": "prose",
       "strength": "strong",
@@ -1669,6 +2048,7 @@
     {
       "id": "P042ba79f",
       "section": "locationsgeojson",
+      "field": "",
       "level": "h3",
       "source": "prose",
       "strength": "strong",
@@ -1677,6 +2057,7 @@
     {
       "id": "Pf7585903",
       "section": "locationsgeojson",
+      "field": "",
       "level": "h3",
       "source": "prose",
       "strength": "soft",
@@ -1685,286 +2066,394 @@
     {
       "id": "P1afc582a",
       "section": "locationsgeojson",
+      "field": "",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
       "sentence": "ID must be unique across all stops.stop_id , locations.geojson id , and location_groups.location_group_id values."
     },
     {
-      "id": "P3b08fe4f",
+      "id": "Pffdf614c",
       "section": "booking_rulestxt",
+      "field": "prior_notice_duration_min",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
       "sentence": "Conditionally Required : - Required for booking_type=1 ."
     },
     {
-      "id": "P459e72bc",
+      "id": "P075bfafe",
       "section": "booking_rulestxt",
+      "field": "prior_notice_duration_min",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
       "sentence": "- Forbidden otherwise."
     },
     {
-      "id": "Pf79a45c7",
+      "id": "P9cf0fc58",
       "section": "booking_rulestxt",
+      "field": "prior_notice_duration_max",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
       "sentence": "Conditionally Forbidden : - Forbidden for booking_type=0 and booking_type=2 ."
     },
     {
-      "id": "Pacec698f",
+      "id": "Pe467fc5a",
       "section": "booking_rulestxt",
+      "field": "prior_notice_last_day",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
       "sentence": "Example: “Ride must be booked 1 day in advance before 5PM” will be encoded as prior_notice_last_day=1 ."
     },
     {
-      "id": "P9309baac",
+      "id": "P3bb1febc",
       "section": "booking_rulestxt",
+      "field": "prior_notice_last_day",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
       "sentence": "Conditionally Required : - Required for booking_type=2 ."
     },
     {
-      "id": "P1fe0511c",
+      "id": "Pc17af87b",
       "section": "booking_rulestxt",
+      "field": "prior_notice_last_day",
+      "level": "h3",
+      "source": "table_desc",
+      "strength": "strong",
+      "sentence": "- Forbidden otherwise."
+    },
+    {
+      "id": "P7dbb186e",
+      "section": "booking_rulestxt",
+      "field": "prior_notice_last_time",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
       "sentence": "Example: “Ride must be booked 1 day in advance before 5PM” will be encoded as prior_notice_last_time=17:00:00 ."
     },
     {
-      "id": "P810c4eee",
+      "id": "P64e8ffb7",
       "section": "booking_rulestxt",
+      "field": "prior_notice_last_time",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
       "sentence": "Conditionally Required : - Required if prior_notice_last_day is defined."
     },
     {
-      "id": "P1ae9f205",
+      "id": "P7d35adee",
       "section": "booking_rulestxt",
+      "field": "prior_notice_last_time",
+      "level": "h3",
+      "source": "table_desc",
+      "strength": "strong",
+      "sentence": "- Forbidden otherwise."
+    },
+    {
+      "id": "P285e1ced",
+      "section": "booking_rulestxt",
+      "field": "prior_notice_start_day",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
       "sentence": "Conditionally Forbidden : - Forbidden for booking_type=0 ."
     },
     {
-      "id": "P5710a5f3",
+      "id": "P5a5cced5",
       "section": "booking_rulestxt",
+      "field": "prior_notice_start_day",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
       "sentence": "- Forbidden for booking_type=1 if prior_notice_duration_max is defined."
     },
     {
-      "id": "P8166a6c4",
+      "id": "P5db20825",
       "section": "booking_rulestxt",
+      "field": "prior_notice_start_time",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
       "sentence": "Conditionally Required : - Required if prior_notice_start_day is defined."
     },
     {
-      "id": "P7ae5ec79",
+      "id": "Pa2eda5e0",
       "section": "booking_rulestxt",
+      "field": "prior_notice_start_time",
+      "level": "h3",
+      "source": "table_desc",
+      "strength": "strong",
+      "sentence": "- Forbidden otherwise."
+    },
+    {
+      "id": "P1d4947e7",
+      "section": "booking_rulestxt",
+      "field": "prior_notice_service_id",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
       "sentence": "Conditionally Forbidden : - Optional if booking_type=2 ."
     },
     {
-      "id": "P0544574b",
+      "id": "Pd78aeee0",
       "section": "booking_rulestxt",
+      "field": "prior_notice_service_id",
+      "level": "h3",
+      "source": "table_desc",
+      "strength": "strong",
+      "sentence": "- Forbidden otherwise."
+    },
+    {
+      "id": "P3b3a8cc2",
+      "section": "booking_rulestxt",
+      "field": "message",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
       "sentence": "Meant to provide minimal information to be transmitted within a user interface about the action a rider must take in order to utilize the service."
     },
     {
-      "id": "P9bc55325",
+      "id": "P7c7134fe",
       "section": "translationstxt",
+      "field": "field_name",
       "level": "h3",
       "source": "table_desc",
       "strength": "soft",
       "sentence": "Fields with other types should not be translated."
     },
     {
-      "id": "Pb678566e",
+      "id": "Pcf0597aa",
       "section": "translationstxt",
+      "field": "record_id",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
       "sentence": "The value in record_id must be the first or only field of a table's primary key, as defined in the primary key attribute for each table and below: - agency_id for agency.txt - stop_id for stops.txt ; - route_id for routes.txt ; - trip_id for trips.txt ; - trip_id for stop_times.txt ; - pathway_id for pathways.txt ; - level_id for levels.txt ; - attribution_id for attributions.txt ."
     },
     {
-      "id": "P54a360a6",
+      "id": "P4adfb063",
       "section": "translationstxt",
+      "field": "record_id",
       "level": "h3",
       "source": "table_desc",
       "strength": "soft",
       "sentence": "Fields in tables not defined above should not be translated."
     },
     {
-      "id": "Pae023069",
+      "id": "Pf3f9b74e",
       "section": "translationstxt",
+      "field": "record_id",
       "level": "h3",
       "source": "table_desc",
       "strength": "soft",
       "sentence": "Below is the recommended way to use record_id for those tables: - service_id for calendar.txt ; - service_id for calendar_dates.txt ; - fare_id for fare_attributes.txt ; - fare_id for fare_rules.txt ; - shape_id for shapes.txt ; - trip_id for frequencies.txt ; - from_stop_id for transfers.txt ."
     },
     {
-      "id": "Pcf72e517",
+      "id": "P7c9deec0",
       "section": "translationstxt",
+      "field": "record_id",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
       "sentence": "Conditionally Required: - Forbidden if table_name is feed_info ."
     },
     {
-      "id": "P71bf7510",
+      "id": "Pcc1b72af",
       "section": "translationstxt",
+      "field": "record_id",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
       "sentence": "- Forbidden if field_value is defined."
     },
     {
-      "id": "Pf710a1a9",
+      "id": "Pdc0b679c",
       "section": "translationstxt",
+      "field": "record_id",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
       "sentence": "- Required if field_value is empty."
     },
     {
-      "id": "P5b45cb49",
+      "id": "P502d68a6",
       "section": "translationstxt",
+      "field": "record_sub_id",
+      "level": "h3",
+      "source": "table_desc",
+      "strength": "soft",
+      "sentence": "Fields in tables not defined above should not be translated."
+    },
+    {
+      "id": "P95d8f3ea",
+      "section": "translationstxt",
+      "field": "record_sub_id",
       "level": "h3",
       "source": "table_desc",
       "strength": "soft",
       "sentence": "Below is the recommended way to use record_sub_id for those tables: - None for calendar.txt ; - date for calendar_dates.txt ; - None for fare_attributes.txt ; - route_id for fare_rules.txt ; - None for shapes.txt ; - start_time for frequencies.txt ; - to_stop_id for transfers.txt ."
     },
     {
-      "id": "Pd6ae80e6",
+      "id": "P5885e3d5",
       "section": "translationstxt",
+      "field": "record_sub_id",
+      "level": "h3",
+      "source": "table_desc",
+      "strength": "strong",
+      "sentence": "Conditionally Required: - Forbidden if table_name is feed_info ."
+    },
+    {
+      "id": "P65f312f1",
+      "section": "translationstxt",
+      "field": "record_sub_id",
+      "level": "h3",
+      "source": "table_desc",
+      "strength": "strong",
+      "sentence": "- Forbidden if field_value is defined."
+    },
+    {
+      "id": "P9373b1fa",
+      "section": "translationstxt",
+      "field": "record_sub_id",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
       "sentence": "- Required if table_name=stop_times and record_id is defined."
     },
     {
-      "id": "P30efe7fc",
+      "id": "P403cf2f3",
       "section": "translationstxt",
+      "field": "field_value",
       "level": "h3",
       "source": "table_desc",
       "strength": "soft",
       "sentence": "Instead of defining which record should be translated by using record_id and record_sub_id , this field can be used to define the value which should be translated."
     },
     {
-      "id": "P4127463a",
+      "id": "P2c840d38",
       "section": "translationstxt",
+      "field": "field_value",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
       "sentence": "The field must have exactly the value defined in field_value ."
     },
     {
-      "id": "P1edafdc1",
+      "id": "P20d92e6a",
       "section": "translationstxt",
+      "field": "field_value",
+      "level": "h3",
+      "source": "table_desc",
+      "strength": "strong",
+      "sentence": "Conditionally Required: - Forbidden if table_name is feed_info ."
+    },
+    {
+      "id": "P608c78cf",
+      "section": "translationstxt",
+      "field": "field_value",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
       "sentence": "- Forbidden if record_id is defined."
     },
     {
-      "id": "P8d6f91b1",
+      "id": "Pf93f15ba",
       "section": "translationstxt",
+      "field": "field_value",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
       "sentence": "- Required if record_id is empty."
     },
     {
-      "id": "Pd54008b6",
+      "id": "P7cf5ea86",
       "section": "feed_infotxt",
+      "field": "feed_lang",
       "level": "h3",
       "source": "table_desc",
       "strength": "soft",
       "sentence": "In such cases, the feed_lang field should contain the language code mul defined by the norm ISO 639-2, and a translation for each language used in the dataset should be provided in translations.txt ."
     },
     {
-      "id": "P902fb841",
+      "id": "Pcbd2b455",
       "section": "feed_infotxt",
+      "field": "feed_lang",
       "level": "h3",
       "source": "table_desc",
       "strength": "soft",
       "sentence": "If all the original text in the dataset is in the same language, then mul should not be used."
     },
     {
-      "id": "P1ef1e872",
+      "id": "Pa71d256d",
       "section": "feed_infotxt",
+      "field": "feed_lang",
       "level": "h3",
       "source": "table_desc",
       "strength": "soft",
       "sentence": "The dataset feed_lang should be mul and translations would be provided in translations.txt , in German: Genf , Zürich and Biel ; in French: Genève , Zurich and Bienne ; in Italian: Ginevra , Zurigo and Bienna ; and in English: Geneva , Zurich and Biel/Bienne ."
     },
     {
-      "id": "P09cd92c9",
+      "id": "P637f73ea",
       "section": "feed_infotxt",
+      "field": "default_lang",
       "level": "h3",
       "source": "table_desc",
       "strength": "soft",
       "sentence": "Defines the language that should be used when the data consumer doesn’t know the language of the rider."
     },
     {
-      "id": "P335de045",
+      "id": "P3e2e5c05",
       "section": "feed_infotxt",
+      "field": "feed_start_date",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
       "sentence": "The feed_end_date date must not precede the feed_start_date date if both are given."
     },
     {
-      "id": "P67197fde",
+      "id": "P11f6523f",
       "section": "feed_infotxt",
+      "field": "feed_start_date",
       "level": "h3",
       "source": "table_desc",
       "strength": "soft",
       "sentence": "It is recommended that dataset providers give schedule data outside this period to advise of likely future service, but dataset consumers should treat it mindful of its non-authoritative status."
     },
     {
-      "id": "P0026a65d",
+      "id": "Pc78e53ef",
       "section": "feed_infotxt",
+      "field": "feed_contact_email",
       "level": "h3",
       "source": "table_desc",
       "strength": "soft",
       "sentence": "It's recommended that at least one of feed_contact_email or feed_contact_url are provided."
     },
     {
-      "id": "Pe78aef7e",
+      "id": "P3834f860",
       "section": "feed_infotxt",
+      "field": "feed_contact_url",
       "level": "h3",
       "source": "table_desc",
       "strength": "soft",
       "sentence": "It's recommended that at least one of feed_contact_url or feed_contact_email are provided."
     },
     {
-      "id": "Pc92c265f",
+      "id": "P7917f3c5",
       "section": "attributionstxt",
+      "field": "agency_id",
       "level": "h3",
       "source": "table_desc",
       "strength": "strong",
       "sentence": "If one agency_id , route_id , or trip_id attribution is defined, the other ones must be empty."
     },
     {
-      "id": "Pf872c6be",
+      "id": "Pebcbebf1",
       "section": "attributionstxt",
+      "field": "is_producer",
       "level": "h3",
       "source": "table_desc",
       "strength": "soft",
