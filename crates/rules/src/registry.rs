@@ -159,6 +159,12 @@ pub static RULES: &[RuleMeta] = &[
         "Sıkıştırma koruması: arşiv zip-bomb sınırını aştı"),
     r!("ARC_030", Yuksek, Spec, 1, &[], None, VS, File,
         "Alan değerinde sekme veya satır sonu karakteri"),
+    // ARC_032: aynı spec cümlesinin üçüncü yasağı — File Requirements, "Field values must not
+    // contain HTML tags, comments or escape sequences." ARC_030 (sekme/satır sonu) ve ARC_021
+    // (yazdırılamaz karakter) bunu KAÇIRIR: `<` (U+003C) ARC_021'in hiçbir aralığına girmez.
+    // Ölçüldü (239 feed): 4 feed, 1955 değer — bir feed'in 1176 durak adında `<BR>` var.
+    r!("ARC_032", Yuksek, Spec, 1, &[], None, VS, File,
+        "Alan değerinde HTML etiketi veya kaçış dizisi"),
 
     // ── BKR: Booking Rules ─────────────────────────────────────────────────────
     r!("BKR_001", Yuksek, Spec, 1, &[], Some("booking_rule_id"), VS, Entity,
@@ -1641,6 +1647,7 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("ARC_028", ProjectQuality),
     ("ARC_029", ProjectQuality),
     ("ARC_030", GtfsSpec),
+    ("ARC_032", GtfsSpec),
     ("ARS_001", GtfsSpec),
     ("ATR_001", ProjectQuality),
     ("ATR_002", GtfsSpec),

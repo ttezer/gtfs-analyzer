@@ -565,6 +565,145 @@ pub(crate) fn arc030_message(file_name: &str, cp: u32) -> String {
 pub(crate) const ARC030_REMEDIATION: &str =
     "Alan değerlerindeki sekme ve satır sonu karakterlerini kaldırın; çok satırlı metni tek satıra indirin.";
 
+// ── ARC_032: HTML etiketi / yorum / kaçış dizisi ─────────────────────────────
+//
+// GTFS spec, File Requirements: "Field values must not contain HTML tags, comments or
+// escape sequences." ARC_021 ve ARC_030 bunu kaçırır — `<` (U+003C) ARC_021'in bozuk-karakter
+// aralıklarının hiçbirine girmez, alfanumerik de değildir ama `is_bad` koşullarını sağlamaz.
+//
+// ⚠️ KAPALI LİSTE, DESEN DEĞİL. Ölçüm sırasında gevşek bir desen (`<\s*/?[a-zA-Z]+...>` +
+// herhangi `&kelime;`) 239 feed'de 1991 eşleşme verdi ve örneklere bakınca çoğu MEŞRU metin
+// çıktı: `K.A.Wheel&Tire;` bir entity değil, `St Sauvant >< St Césaire` bir etiket değil.
+// Kapalı listeye geçince 1955 gerçek eşleşme kaldı (4 feed). Desen genişletilecekse
+// örneklere BAKILARAK genişletilmeli.
+const HTML_TAGS: &[&str] = &[
+    "a", "b", "i", "u", "p", "br", "hr", "em", "strong", "span", "div", "img", "font",
+    "ul", "ol", "li", "table", "tr", "td", "th", "h1", "h2", "h3", "small", "sub", "sup",
+];
+const HTML_ENTITIES: &[&str] = &["nbsp", "amp", "lt", "gt", "quot", "apos"];
+
+/// Değerde HTML etiketi, yorum başlangıcı veya karakter kaçışı arar.
+///
+/// Dönen: bulunan işaretin metni (`<BR>`, `&nbsp;` gibi), kullanıcıya gösterilmek üzere.
+fn arc032_markup(value: &str) -> Option<String> {
+    let bytes = value.as_bytes();
+    for (i, &b) in bytes.iter().enumerate() {
+        if b == b'<' {
+            if value[i..].starts_with("<!--") {
+                return Some("<!--".to_string());
+            }
+            // `</` kapanış etiketi de sayılır. Eğik çizgi ÇIKTIDA korunur: kullanıcıya
+            // gösterilen örnek, dosyadaki metinle birebir eşleşmeli.
+            let after = &value[i + 1..];
+            let (slash, rest) = match after.strip_prefix('/') {
+                Some(r) => ("/", r),
+                None => ("", after),
+            };
+            let name_len = rest
+                .find(|c: char| !c.is_ascii_alphanumeric())
+                .unwrap_or(rest.len());
+            if name_len == 0 {
+                continue;
+            }
+            let name = &rest[..name_len];
+            if !HTML_TAGS.iter().any(|t| t.eq_ignore_ascii_case(name)) {
+                continue;
+            }
+            // Etiket ancak `>` ile kapanırsa etikettir: "a < b" ya da "3 <br" değil.
+            let Some(close) = rest[name_len..].find('>') else { continue };
+            // `<` ile `>` arasında başka bir `<` varsa bu bir etiket değil, düz metindir.
+            let inner = &rest[name_len..name_len + close];
+            if inner.contains('<') {
+                continue;
+            }
+            return Some(format!("<{slash}{}{}>", &rest[..name_len], inner));
+        }
+        if b == b'&' {
+            let rest = &value[i + 1..];
+            let Some(semi) = rest.find(';') else { continue };
+            if semi == 0 || semi > 8 {
+                continue;
+            }
+            let ent = &rest[..semi];
+            let known = HTML_ENTITIES.iter().any(|e| e.eq_ignore_ascii_case(ent))
+                || (ent.starts_with('#')
+                    && ent.len() >= 2
+                    && (ent[1..].chars().all(|c| c.is_ascii_digit())
+                        || (ent[1..].starts_with(['x', 'X'])
+                            && ent.len() >= 3
+                            && ent[2..].chars().all(|c| c.is_ascii_hexdigit()))));
+            if known {
+                return Some(format!("&{ent};"));
+            }
+        }
+    }
+    None
+}
+
+/// ARC_032 birikimi — DOSYA başına TEK notice (`Dq016Acc` ile aynı gerekçe: bir feed'in
+/// 1176 durak adı işaretli ve satır başına emit tarayıcıyı boğar).
+#[derive(Default)]
+pub(crate) struct Arc032Acc {
+    pub rows: u64,
+    pub cols: std::collections::BTreeSet<String>,
+    pub first_line: Option<u64>,
+    pub example: Option<String>,
+    last_line: u64,
+}
+
+impl Arc032Acc {
+    pub fn observe<'a>(
+        &mut self,
+        line: u64,
+        values: impl Iterator<Item = &'a str>,
+        headers: &[String],
+    ) {
+        for (i, s) in values.enumerate() {
+            let Some(name) = headers.get(i).map(|h| h.as_str()) else { continue };
+            // `tts_stop_name` STP_023'ün alanı: o kural HERHANGİ bir `<`/`>` işaretini
+            // (SSML dahil) zaten bildiriyor ve daha geniştir. İkisini birden emit etmek
+            // aynı olguyu iki kez raporlamak olur.
+            if name == "tts_stop_name" {
+                continue;
+            }
+            let Some(found) = arc032_markup(s) else { continue };
+            if self.last_line != line || self.rows == 0 {
+                self.last_line = line;
+                self.rows += 1;
+                if self.first_line.is_none() {
+                    self.first_line = Some(line);
+                }
+            }
+            self.cols.insert(name.to_string());
+            if self.example.is_none() {
+                self.example = Some(found);
+            }
+        }
+    }
+
+    /// Özet: (observed, mesaj, sütun listesi). Boşsa `None`.
+    pub fn summary(&self, file_name: &str) -> Option<(String, String, String)> {
+        if self.rows == 0 {
+            return None;
+        }
+        let cols = self.cols.iter().map(String::as_str).collect::<Vec<_>>().join(", ");
+        let example = self.example.as_deref().unwrap_or("");
+        Some((
+            example.to_string(),
+            format!(
+                "'{file_name}' dosyasında {} satırda HTML işareti var (ör. '{example}'); \
+                 etkilenen sütunlar: {cols}.",
+                self.rows
+            ),
+            cols,
+        ))
+    }
+}
+
+pub(crate) const ARC032_REMEDIATION: &str =
+    "HTML etiketlerini ve karakter kaçışlarını alan değerlerinden kaldırın; \
+     GTFS alanları düz metin taşır ve tüketiciler bu işaretleri olduğu gibi gösterir.";
+
 pub(crate) fn arc021_message(file_name: &str, cp: u32) -> String {
     // "ASCII dışı" DEME: kural geçerli Unicode harfleri (ü, ö, 漢字…) bilerek muaf tutar;
     // yalnız kontrol/DEL/surrogate/private-use işaretlenir. Mesaj yaptığından fazlasını
@@ -1220,6 +1359,7 @@ pub fn parse(zip_bytes: &[u8]) -> Result<K1Result, FatalError> {
         let dq016_pk_idx = headers.iter().position(|h| h.ends_with("_id"));
         let _ = dq016_pk_idx; // özet dosya seviyesinde → satır kimliği gerekmiyor
         let mut dq016 = Dq016Acc::default();
+        let mut arc032 = Arc032Acc::default();
         let mut rows: Vec<Vec<SmolStr>> = Vec::new();
         let mut arc021_fired = false;
         let mut arc030_fired = false;
@@ -1292,6 +1432,9 @@ pub fn parse(zip_bytes: &[u8]) -> Result<K1Result, FatalError> {
             // DQ_016: dosya-seviyesi birikim; emit döngü sonrası TEK özet.
             dq016.observe(line_num, row.iter().map(|v| v.as_str()), &headers);
 
+            // ARC_032: HTML etiketi/kaçış dizisi — aynı birikim deseni.
+            arc032.observe(line_num, row.iter().map(|v| v.as_str()), &headers);
+
             rows.push(row);
         }
 
@@ -1302,6 +1445,16 @@ pub fn parse(zip_bytes: &[u8]) -> Result<K1Result, FatalError> {
                 EntityType::File, Some(raw_name.clone()),
                 Some(raw_name.as_str()), dq016.first_line, Some(cols.as_str()),
                 Some(observed), msg, DQ016_REMEDIATION,
+            ));
+        }
+
+        // ARC_032: DOSYA başına TEK özet (DQ_016 ile aynı patlama önlemi).
+        if let Some((observed, msg, cols)) = arc032.summary(&raw_name) {
+            notices.push(make_notice(
+                &mut counter, "ARC_032",
+                EntityType::File, Some(raw_name.clone()),
+                Some(raw_name.as_str()), arc032.first_line, Some(cols.as_str()),
+                Some(observed), msg, ARC032_REMEDIATION,
             ));
         }
 
@@ -2261,6 +2414,68 @@ mod tests {
         assert!(k1.notices.iter().any(|n| n.rule_id == "ARC_030"), "ARC_030 bekleniyor");
         // ARC_021 bu karakteri bilerek muaf tutar; iki kural çakışmamalı.
         assert!(!k1.notices.iter().any(|n| n.rule_id == "ARC_021"), "ARC_021 tetiklenmemeli");
+    }
+
+    #[test]
+    fn arc_032_detects_real_markup() {
+        // Vahşi doğadan: mdb-1924'ün 1176 durak adı bu biçimde.
+        assert_eq!(
+            arc032_markup("[KMB+CTB] HIU TSUI STREET/<BR>HIU TSUI STREET, SIU SAI WAN ROAD"),
+            Some("<BR>".to_string())
+        );
+        assert_eq!(arc032_markup("Merkez <b>Durağı</b>"), Some("<b>".to_string()));
+        assert_eq!(arc032_markup("Kapanış </p> etiketi"), Some("</p>".to_string()));
+        assert_eq!(arc032_markup("<span class=\"x\">A</span>"), Some("<span class=\"x\">".to_string()));
+        assert_eq!(arc032_markup("A <!-- yorum --> B"), Some("<!--".to_string()));
+        assert_eq!(arc032_markup("Ana&nbsp;Cadde"), Some("&nbsp;".to_string()));
+        assert_eq!(arc032_markup("Bir &amp; iki"), Some("&amp;".to_string()));
+        assert_eq!(arc032_markup("Kod &#39;tırnak&#39;"), Some("&#39;".to_string()));
+        assert_eq!(arc032_markup("Onaltılık &#x27; kaçış"), Some("&#x27;".to_string()));
+    }
+
+    #[test]
+    fn arc_032_silent_for_legitimate_text() {
+        // Bu üç değer ölçüm sırasında GEVŞEK bir desenle yanlış eşleşmişti (1991 uydurma
+        // bulgunun kaynağı). Kapalı liste onları geçirmeli — regresyon buraya kilitlendi.
+        assert_eq!(arc032_markup("K.A.Wheel&Tire;"), None);           // bilinmeyen "entity"
+        assert_eq!(arc032_markup("St Sauvant >< St Césaire"), None);  // etiket değil
+        assert_eq!(arc032_markup("La Clisse >< Luchat >< Pisany"), None);
+        // Ayrıca: karşılaştırma işaretleri, bilinmeyen etiket adı, kapanmayan etiket.
+        assert_eq!(arc032_markup("a < b ve c > d"), None);
+        assert_eq!(arc032_markup("<durak>"), None);                   // listede olmayan ad
+        assert_eq!(arc032_markup("3 <br sonra"), None);               // `>` yok
+        assert_eq!(arc032_markup("Fiyat < 5 TL > indirim"), None);
+        assert_eq!(arc032_markup("Şişli Durağı"), None);
+        assert_eq!(arc032_markup("東京駅"), None);
+    }
+
+    #[test]
+    fn arc_032_emits_one_notice_per_file_with_columns() {
+        let zip = zip_with_files(&[
+            ("agency.txt", b"agency_id,agency_name,agency_url,agency_timezone\nA1,Test,https://a.com,Europe/Istanbul\n" as &[u8]),
+            ("stops.txt",  b"stop_id,stop_name,stop_lat,stop_lon\nS1,Ana<br>Durak,41.0,29.0\nS2,Yan&nbsp;Durak,41.1,29.1\n"),
+            ("routes.txt", b"route_id,route_short_name,route_type\nR1,1,3\n"),
+            ("trips.txt",  b"route_id,service_id,trip_id\nR1,SVC1,T1\n"),
+            ("stop_times.txt", b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\n"),
+            ("calendar.txt", b"service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,0,0,20240101,20241231\n"),
+        ]);
+        let k1 = parse(&zip).unwrap();
+        let hits: Vec<_> = k1.notices.iter().filter(|n| n.rule_id == "ARC_032").collect();
+        // İki bozuk satır var ama emit DOSYA başına TEK — DQ_016/STM_050 patlama önlemi.
+        assert_eq!(hits.len(), 1, "dosya başına tek notice bekleniyor: {hits:?}");
+        assert_eq!(hits[0].field.as_deref(), Some("stop_name"));
+        assert!(hits[0].message.contains("2 satırda"), "satır sayısı: {}", hits[0].message);
+        assert!(hits[0].message.contains("<br>"), "örnek işaret: {}", hits[0].message);
+    }
+
+    #[test]
+    fn arc_032_defers_to_stp_023_on_tts_stop_name() {
+        // STP_023 tts_stop_name'de HERHANGİ bir `<`/`>` işaretini bildirir ve daha geniştir;
+        // ikisini birden emit etmek aynı olguyu iki kez raporlamak olur.
+        let mut acc = Arc032Acc::default();
+        let headers = vec!["stop_id".to_string(), "tts_stop_name".to_string()];
+        acc.observe(2, ["S1", "Ana <b>Durak</b>"].into_iter(), &headers);
+        assert!(acc.summary("stops.txt").is_none(), "tts_stop_name ARC_032'ye girmemeli");
     }
 
     #[test]

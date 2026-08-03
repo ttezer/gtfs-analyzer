@@ -419,6 +419,8 @@ fn fixtures() -> Vec<Fixture> {
             "TG2,,17:00:00,SVC1\n",
         ))]),
         fx("ARC_030", vec![("agency.txt", "agency_id,agency_name,agency_url,agency_timezone\n1,\"Test\nTransit\",http://x.com,UTC\n")]),
+        // ARC_032: `<BR>` biçimi vahşi doğadan (mdb-1924, 1176 durak adı).
+        fx("ARC_032", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Ana<br>Durak,41.0,29.0\n")]),
 
         // ── STP grubu (stops.txt; K2 alan kontrolleri) ─────────────────────────
         fx("STP_002", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\n,Stop1,41.0,29.0\nS2,Stop2,41.1,29.1\n")]),
