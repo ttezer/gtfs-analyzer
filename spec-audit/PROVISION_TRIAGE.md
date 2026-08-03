@@ -595,19 +595,53 @@ ile o satırdaki aday kimlikleri eşleştirilerek (`P` kimliği başına bir kez
 ⚠️ **11 boşluk ADAYI = 9 ayrı HÜKÜM.** Spec aynı tavsiyeyi birden çok cümleye bölüyor
 (`platform_code` iki cümle, `feed_lang mul` üç cümle); aşağıdaki liste hükümleri sayar.
 
-## Dokuz boşluk (hiçbiri kurala dönüştürülmedi — şekil kararı bekliyor)
+## Dokuz boşluk — 239 feed'de ÖLÇÜLDÜ
 
-| # | hüküm | sertlik | not |
-|---|---|---|---|
-| 1 | `looks_like_url` şema kontrolü yapmıyor | sert | Ölçüldü; `javascript:`/`mailto:`/`foo:bar` geçerli sayılıyor |
-| 2 | Alan değerlerinde HTML etiketi/kaçış dizisi | sert | Karşılığı yok |
-| 3 | `record_sub_id` gereklilik yönü (`stop_times` + `record_id`) | sert | `TRN_014`'ün ters kolu |
-| 4 | `start_day` yasağı (`booking_type=1` + `duration_max`) | sert | `booking_type=1` dalı tamamen sessiz |
-| 5 | ISO 4217 ondalık basamak sayısı | sert | Minor-unit tablosu gerekir (~180 satır) |
-| 6 | Boarding area varken platforma pathway | sert | ⚠️ Önce yaygınlık ölçülmeli |
-| 7 | OpenGIS poligon geçerliliği | sert | Geometri kütüphanesi kararı |
-| 8 | `traversal_time` tavsiyesi (mode 3/4/5) | yumuşak | `PTH_025` deseninin kopyası |
-| 9 | `platform_code` hiç ölçülmüyor | yumuşak | `STP_040` deseni mevcut |
+Üreteç: `spec-audit/measure_gaps.py` (statik zip+csv taraması, doğrulayıcı koşulmaz).
+Başlıklar `csv.reader` ile okunup normalize edilir — 08-02'de iki kez uydurma sonuç veren
+tırnak/boşluk tuzağına karşı.
+
+| # | hüküm | sert | feed | bulgu | en yoğun | değerlendirme |
+|---|---|---|---|---|---|---|
+| 2 | Değerde **HTML etiketi** | ✅ | **4** | **1955** | mdb-1924 (1176) | 🟢 **YAZ** — gerçek ihlal, aşağıda |
+| 8 | `traversal_time` tavsiyesi (mode 3/4/5) | — | 4 | 24 | mdb-2848 (19) | 🟢 **YAZ** — düşük hacim, temiz sinyal |
+| 9 | `platform_code`'da "platform"/"track" | — | 1 | 1 | mdb-771 (`gleis`) | 🟡 yaz, ama değeri düşük |
+| 1 | `looks_like_url` şema kontrolü | ✅ | 1 | 116 | mdb-2904 (`jrutil://invalid`) | 🟡 yaz — tek feed ama bariz bozuk |
+| 5 | ISO 4217 ondalık basamak | ✅ | 3 | 715 | mdb-1924 (663) | 🔴 **YAZMA** — aşağıda |
+| 3 | `record_sub_id` gereklilik yönü | ✅ | **0** | 0 | — | ⚪ kanıtsız — korpusta hiç `translations`+`stop_times` yok |
+| 4 | `start_day` yasağı (`booking_type=1`+`duration_max`) | ✅ | **0** | 0 | — | ⚪ kanıtsız |
+| 6 | Boarding area varken platforma pathway | ✅ | **0** | 0 | — | ⚪ kanıtsız — endişe edilen gürültü **gerçekleşmiyor** |
+| 7 | OpenGIS poligon geçerliliği | ✅ | — | ölçülmedi | — | ⚪ geometri kütüphanesi gerekir |
+
+### Ölçüm iki kararı değiştirdi
+
+**HTML etiketi gerçek çıktı ve tahminimden büyük.** `mdb-1924` (Hong Kong) durak adlarında
+`<BR>` taşıyor — 1176 durak: `[KMB+CTB] HIU TSUI STREET/<BR>HIU TSUI STREET, SIU SAI WAN ROAD`.
+`mdb-3235` 774 daha. Bu adlar yolcuya gösteriliyor ve `<BR>` ham metin olarak görünüyor.
+Spec'in *"must not contain HTML tags"* hükmünün tam hedefi.
+
+**ISO 4217 için kural YAZILMAMALI.** İlk ölçümde `dec != want` kullandım → **2.001.806**
+eşleşme, 38 feed. Sebep: `CZK 39` gibi ondalıksız tam sayılar korpusta evrensel ve tamamen
+meşru okunuyor. Daraltıp yalnız **fazla** basamağı ölçtüm (`dec > want`) → 715 bulgu, 3 feed;
+ama kalanların çoğu `HKD 0.0000` — biçimsel fazlalık, anlam kaybı yok. Değeri yok, gürültüsü
+var.
+
+### İki yanlış pozitifin ölçümü — bulgu 14 zayıfladı
+
+`agency_phone`'da harf içeren değer korpusta **yalnız 2 feed'de** var ve ikisi de aynı
+metni taşıyor: `80000078 (Liepājā); 80000079 (Pierīgā); 80700004 (…)`.
+
+**Bu vanity numara DEĞİL** — spec'in *yasakladığı* "other descriptive text"tir. Yani
+`AGN_007` bu iki feed'de **doğru** ateşliyor.
+
+Spec'in örneklediği `503-238-RIDE` biçimi 239 feed'de **hiç geçmiyor.** Bulgu 14 teorik
+olarak geçerli (izinli biçimi reddediyoruz) ama **pratikte hiçbir feed'i etkilemiyor.**
+Düzeltmenin önceliği buna göre düşük; "dialable ↔ descriptive" ayrımını yazmak, ölçülen
+hiçbir sorunu çözmez ve gerçek ihlalleri (yukarıdaki iki feed) kaçırma riski taşır.
+
+⚠️ **Statik taramanın sınırı:** predicate'ler kural mantığını yaklaşık taklit eder ve
+korpus 239 feed'dir — "0 bulgu" *"böyle veri yok"* değil, *"bu korpusta yok"* demektir.
+`fare_leg_join_rules.txt` taşıyan feed'in olmaması gibi.
 
 Ayrıca **iki yanlış pozitif** bulundu ve defterlendi: `agency_phone` vanity numaraları
 (bulgu 14, `PTH_017` sınıfı) ve `STP_022`'nin spec'in açık iznine ters yönü (bulgu 5).
