@@ -400,11 +400,234 @@ Sert hüküm. `BKR_005`'in yanına yazılabilir; `booking_type=1` dalı bugün t
 
 ---
 
-## Sonraki tur
+# 6. tur — Fares ailesi (44 aday, dokuz dosya)
 
-Kalan 101 aday. Yoğunluk: `fare_transfer_rules.txt` 10 · `dataset-publishing-general-practices` 11 ·
-`agency.txt` 8 · `trips.txt` 8 · `feed_info.txt` 8 · `fare_leg_rules.txt` 8 ·
-`fare_leg_join_rules.txt` 8 · `shapes.txt` 6 · `fare_attributes.txt` 6 · `timeframes.txt` 6.
+Bu ailenin en belirgin özelliği: **sert hükümlerin büyük kısmı tüketici algoritmasıdır.**
+Spec, fare_leg_rules ve fare_transfer_rules bölümlerinde ücretin nasıl **sorgulanacağını**
+adım adım anlatır ("filtrele, tam eşleşme ara, yoksa boş girdilere bak") ve bunları `must`
+ile yazar. Bunlar bağlayıcıdır ama **veriyi değil tüketiciyi** bağlar — feed'den doğrulanamaz.
+
+| id | alan | hüküm | karar | dayanak |
+|---|---|---|---|---|
+| `P99885c9f` | transfer_count | Leg grupları farklıysa yasak | **KANITLI** | `FTR_010`. |
+| `P706ade03` | transfer_count | Leg grupları aynıysa zorunlu | **KANITLI** | `FTR_009` (koşul `fare_transfer_type`'a değil grup eşitliğine bağlı — 06-17'de MD notice tanımıyla düzeltilmişti). |
+| `Pc2fcfe46` | duration_limit_type | `duration_limit` tanımlıysa zorunlu | **KANITLI** | `FTR_011`. |
+| `P4882cfae` | duration_limit_type | `duration_limit` boşsa yasak | **KANITLI** | `FTR_007`. |
+| `P14538146` | duration_limit | Süre sınırı yoksa boş olmalı | **META** | Tautoloji; ihlal edilebilir bir durum tanımlamıyor. Değer geçerliliği `FTR_006`. |
+| `P9cee47a9` | leg_group_id | Aynı giriş (`leg_group_id` hariç) birden çok leg grubuna ait olamaz | **KANITLI** | `DQ_021` — `k6_analytics.rs:4051`, altı alanlık bileşik anahtarı (`network_id\|from_area_id\|to_area_id\|from_timeframe_group_id\|to_timeframe_group_id\|fare_product_id`) birebir denetliyor. Spec'in birincil anahtarı zaten `leg_group_id` içermiyor. |
+| `Pdb20f308` · `P1efa6e43` | from_network_id · to_network_id | Biri varsa diğeri de olmalı | **KANITLI** | `FLJ_001` · `FLJ_002`. ⚠️ Korpusta `fare_leg_join_rules.txt` taşıyan feed YOK → gerçek veri kanıtı yok. |
+| `P278f9cc2` · `Pd90f72d8` | from_stop_id · to_stop_id | Biri varsa diğeri de zorunlu | **KANITLI** | `FLJ_003` · `FLJ_004` (aynı uyarı). |
+| `Pe15614d2` | agency_id | Çoklu ajans varsa zorunlu | **KANITLI** | `AGN_011` — 08-02'de tam bu hüküm için `fare_attributes`'a genişletilmişti. |
+| `P31c88c29` · `P71c9ce23` | payment_method | Ödemenin ne zaman yapılacağını belirtir; 1 = binişten önce | **KANITLI** | `FAR_004` (enum geçerliliği) + `FAR_011` (eksik). Cümleler enum tanımı. |
+| `Pa586fe5b` | — | Aynı `timeframe_group_id` + `service_id` için örtüşen aralık olamaz | **KANITLI** | `TFR_005`. |
+| `P6fa9925a` · `P4f2430ed` · `P8cc81b88` · `P7b4083a2` | start_time · end_time | Biri varsa diğeri zorunlu, aksi yasak | **KANITLI** | `TFR_007` (tek kural, çift yönlü). |
+| `P1d9a0191` | is_default_fare_category | Bir `fare_product_id` için tam bir varsayılan kategori olmalı | **KANITLI** | `RCT_006` + `FPD_006` (aynı olgunun iki dosyadaki ucu). |
+| `P79f202e6` | rider_category_id | Aynı hüküm, `fare_products` tarafı | **KANITLI** | `FPD_006`. |
+| `P152c436d` | is_default_fare_category | Varsayılan kategori tanımı *(soft)* | **META** | Geçerlilik `RCT_003`. |
+| `P32e7117f` | fare_media_name | Kart (2) ve mobil uygulama (4) için önerilir *(soft)* | **KANITLI** | `FMD_003` — koşul birebir. |
+| `Pc29f644f` | agency_id | Aksi hâlde önerilir *(soft)* | KISMİ | `RTS_025`'in `routes` için yaptığını `fare_attributes` için yapan kural yok. Yumuşak, Quality; düşük değer. |
+| `Pcc091079` | contains_id | Bölge örneği ("c sınıfı 5, 6, 7 bölgelerinden geçer") | **META** | Örnek. Geçerlilik `FRL_005`. |
+| `P8cf7f90f` · `P3c1a4156` | — | V1 ve V2 birlikte bulunabilir; tüketici birini seçmeli, V2 tercih edilmeli *(soft)* | **KAPSAM DIŞI** | Tüketiciyi bağlar. |
+| `Pbf8f7f62` | — | Belirtilmemişse ajans saat dilimi kullanılmalı *(soft)* | **KAPSAM DIŞI** | Tüketici çözümlemesi. |
+| `P346477ee` · `P08611e2a` | from/to_timeframe_group_id | Saat dilimi çözümlemesinde kalkış/varış durağı kullanılmalı *(soft)* | **KAPSAM DIŞI** | Tüketici çözümlemesi. |
+| `Pa13f977d` · `P25918782` · `P4e4360f8` · `P203b24af` · `Pbbc4e012` | — | fare_leg_rules sorgulama algoritması (filtrele → tam eşleşme → boş girdiler) | **KAPSAM DIŞI** | Sert (`must`) ama tüketici algoritması. |
+| `P4dead8a8` · `P34b16ddb` · `P2b1854d3` · `Pb6d9a2c2` · `Pe8b16d97` | — | fare_transfer_rules sorgulama algoritması | **KAPSAM DIŞI** | Aynı gerekçe. |
+| `P9a687aee` · `P801d96f0` · `P9bb795c0` · `P66fe5cb3` | — | fare_leg_join_rules eşleştirme algoritması | **KAPSAM DIŞI** | Aynı gerekçe. |
+| `P38cd4e78` | amount | Tutar, para biriminin ISO 4217 ondalık basamak sayısını taşımalı | **BOŞLUK** | Aşağıda. |
+
+---
+
+## Bulgu 12: ISO 4217 ondalık basamak sayısı ölçülmüyor — **BOŞLUK** (`P38cd4e78`)
+
+Spec: *"The currency amount must contain the number of decimal places specified by the norm
+ISO 4217 for the accompanying Currency code."*
+
+Kodda **para birimi kodunun** geçerliliği ölçülüyor (`FPD_003`, `FAR_003` — üç harfli ISO 4217
+listesi) ama **minor-unit tablosu hiç yok**: `grep -rn "4217\|decimal_digits\|minor_unit"`
+yalnız hata mesajlarını buluyor.
+
+Somut ihlaller: `JPY 100.00` (yen'in ondalığı 0), `USD 2.5` (2 basamak olmalı: `2.50`),
+`KWD 1.5` (dinar 3 basamak). Bunlar bugün sessiz geçiyor.
+
+Sert hüküm. Kural yazılabilir ama **ISO 4217 minor-unit tablosu gerekir** (~180 satır sabit
+veri, çoğu 2). Değeri: yanlış ondalık, tüketicide 100× fiyat hatasına dönüşebilir.
+
+⚠️ `FPD_002`/`FAR_002` yalnız negatif/sayısal olmayan değeri ölçüyor; bu farklı bir olgu.
+
+## Bulgu 13: İkinci yanlış alarm da kod okumasıyla önlendi
+
+`P9cee47a9` için "leg grubu benzersizliği ölçülmüyor" diyecektim — `fare_leg_rules.rs`'te
+benzersizlik araması boş döndü. Ama olgu `DQ_021`'de, **dosya bazında değil genel birincil
+anahtar kuralı olarak** (`k6_analytics.rs:4051`), ve altı alanlık bileşik anahtarı birebir
+yazıyor.
+
+Bu, aynı oturumda `BKR_012`'den sonra **ikinci** yanlış alarm denemesi. İkisinin de deseni
+aynı: **hükmün karşılığı, aradığım dosyada değil genel bir kuralda.** `grep` dosya bazlı
+düşünmeye itiyor; bu repoda `DQ_021` gibi çapraz kurallar tam bu boşlukları kapatıyor.
+
+---
+
+# 7. tur — kalan 57 aday (on iki bölüm)
+
+## agency.txt · attributions.txt · frequencies.txt · levels.txt · location_groups.txt
+
+| id | alan | hüküm | karar | dayanak |
+|---|---|---|---|---|
+| `P5a1c0ffc` | agency_id | Birden çok ajans varsa zorunlu | **KANITLI** | `AGN_014`. |
+| `Pb135ca49` | agency_id | Aksi hâlde önerilir *(soft)* | **KANITLI** | `AGN_011` (`FIN_013` ile birlikte). |
+| `Pf27a2fd0` | agency_timezone | Çoklu ajansın hepsi aynı saat dilimini taşımalı | **KANITLI** | `AGN_005`. |
+| `Pbb82f19e` | agency_phone | Çevrilebilir metin izinli, başka açıklama **yasak** | **KANITLI** | `AGN_007` (+ `AGN_016` yer-tutucu numaralar). `looks_like_phone` harf içeren değeri reddediyor — TriMet'in "503-238-RIDE" biçimi ⚠️ **spec'te açıkça izinli ama bizim doğrulayıcımız reddeder.** Aşağıda. |
+| `P130f8673` | agency_email | Yolcunun ulaşabileceği doğrudan adres olmalı *(soft)* | KISMİ | `AGN_009` biçimi ölçer; "doğrudan temas noktası" doğrulanamaz. |
+| `P722127e8` · `P3005b227` | cemv_support | `routes.cemv_support` önceliklidir; fare dosyalarıyla çelişmemeli | **KANITLI** | `XFL_017` (route↔agency çelişkisi) + `XFL_028`/`XFL_030`. |
+| `P572bb984` | cemv_support | Yalnız tüm hizmetler cEMV kabul ediyorsa bildirilmeli *(soft)* | KISMİ | `XFL_028` yakınsıyor; "tüm hizmetler" koşulu ölçülmüyor. |
+| `P7917f3c5` | agency_id | `agency_id`/`route_id`/`trip_id` attribution'larından biri varsa diğerleri boş olmalı | **KANITLI** | `ATR_009`. |
+| `Pebcbebf1` | is_producer | `is_producer`/`is_operator`/`is_authority`'den en az biri 1 olmalı *(soft)* | **KANITLI** | `ATR_003`. |
+| `Pec6b6920` | headway_secs | Aynı sefer için birden çok headway tanımlanabilir ama **çakışamaz** | **KANITLI** | `FRQ_011`. |
+| `P257db6b1` | exact_times | `end_time`, son istenen sefer başlangıcından büyük olmalı | KISMİ | `FRQ_005` (end < start) ve `FRQ_009` komşu; cümlenin `exact_times=1`'e özgü inceliği ölçülmüyor. |
+| `P1ecc6733` | level_index | Zemin 0, üstü pozitif, altı negatif *(soft)* | KISMİ | `LVL_002` sayısal geçerliliği ölçer; zemin referansı feed dışı bilgi. |
+| `P24d95df2` | location_group_id | Üç kaynak genelinde benzersiz | **KANITLI** | `XFL_031` (hükmün üçüncü ucu; 1. turda `P042ba79f`/`P1afc582a`). |
+
+## shapes.txt
+
+| id | alan | hüküm | karar | dayanak |
+|---|---|---|---|---|
+| `P67d6bd72` | shape_pt_sequence | Artmalı, ardışık olmak zorunda değil | **KANITLI** | `SHP_004` + `SHP_008` (yinelenen). ✅ **İzin tarafı doğrulandı:** ardışık olmayan diziye ateşleyen kural yok — `stop_sequence` için yapılan aynı kontrol. |
+| `P2a0dbcd7` | shape_dist_traveled | `shape_pt_sequence` ile artmalı, ters seyahat göstermemeli | **KANITLI** | `SHP_005` + `SHP_021` + `SHP_028`. |
+| `Pdef3d025` | shape_dist_traveled | Birimler `stop_times.txt` ile tutarlı olmalı | **KANITLI** | `STM_024` (birim tutarsızlığı) + `SHP_024`/`SHP_025`. |
+| `P984ec73b` | shape_dist_traveled | Döngü/iç içe hatlarda önerilir *(soft)* | KISMİ | `SHP_017` komşu; döngü koşulu ölçülmüyor (`stop_times` tarafındaki `P7c96867d` ile aynı durum). |
+| `Pd03c58da` | — | Duraklar shape'i tam kesmese de küçük mesafede olmalı *(soft)* | **KANITLI** | `SHP_012` · `SHP_014` · `GEO_009`. |
+| `Pecd3617b` | — | Rota tabanlı hizmetler için `shapes.txt` bulunmalı, bölge tabanlı DRT için gerek yok *(soft)* | **KANITLI** | `RTS_017` (shape'siz hat) + `ARC_020`'nin DRT muafiyeti ([[project_arc020_drt_exemption]]) — istisna da doğru modellenmiş. |
+
+## trips.txt
+
+| id | alan | hüküm | karar | dayanak |
+|---|---|---|---|---|
+| `P03987db8` | shape_id | Rotada/stop_times'ta continuous pickup/drop-off varsa zorunlu | **KANITLI** | `TRP_019` (08-03'te Quality→**Spec**). |
+| `P6f633bee` | trip_headsign | Araçta headsign gösteren tüm hizmetler için önerilir *(soft)* | **KANITLI** | `TRP_011`. |
+| `Pfe2abba1` | trip_short_name | Verilmişse servis günü içinde benzersiz olmalı *(soft)* | KISMİ | `TRP_014` uzunluğu ölçer; servis günü içi benzersizlik ölçülmüyor. |
+| `P98d7e2a2` | trip_short_name | Yolcular sefer adı kullanmıyorsa boş olmalı *(soft)* | **KAPSAM DIŞI** | `STP_022` ile aynı desen — "kullanılmıyorsa boş" feed'den bilinemez. |
+| `Pfe1eb2fc` | direction_id | Yönlendirmede kullanılmamalı *(soft)* | **KAPSAM DIŞI** | Tüketiciyi bağlar. |
+| `Pa2571719` | block_id | In-seat aktarma için `transfer_type=4` tercih edilmeli *(soft)* | **KAPSAM DIŞI** | Modelleme tercihi. `TRF_014`/`Pf8c9263a` komşu. |
+| `P2c5055df` · `P7411f6b1` | — | Talep-üzerine bölüm hesaplaması; sapmalı-sabit hizmet *(soft)* | **KAPSAM DIŞI** | Tüketici hesaplaması. |
+
+## feed_info.txt · calendar_dates.txt
+
+| id | alan | hüküm | karar | dayanak |
+|---|---|---|---|---|
+| `P3e2e5c05` | feed_start_date | `feed_end_date`, `feed_start_date`'ten önce olamaz | **KANITLI** | `FIN_012`. |
+| `Pc78e53ef` · `P3834f860` | feed_contact_email · feed_contact_url | En az biri sağlanmalı *(soft)* | **KANITLI** | `FIN_018`. |
+| `P11f6523f` | feed_start_date | Bu dönem dışında da veri verilmesi önerilir *(soft)* | KISMİ | `FIN_016`/`FIN_017`/`CAL_019` komşu pencereleri ölçüyor. |
+| `P637f73ea` | default_lang | Tüketici yolcunun dilini bilmiyorsa kullanılacak dil *(soft)* | **KANITLI** | `FIN_004` (geçerlilik). Cümle alan tanımı. |
+| `P7cf5ea86` · `Pcbd2b455` · `Pa71d256d` | feed_lang | Çok dilli veride `mul` kullanılmalı ve çeviriler `translations.txt`'te olmalı; tek dilliyse `mul` kullanılmamalı *(soft)* | KISMİ ⚠️ | Aşağıda. |
+| `Pd7cb6983` | — | `calendar_dates.txt` `calendar.txt` ile birlikte istisna tanımlamak için kullanılmalı *(soft)* | **KANITLI** | `ARC_008` (takvim çifti) + `CAL_006`/`CAL_018`. |
+
+## dataset-publishing-general-practices (11, tamamı soft)
+
+| id | tavsiye | karar | dayanak |
+|---|---|---|---|
+| `Pc6e7b067` · `Pa73d1591` | Kalıcı ve genel URL'de, zip adıyla yayınlanmalı | **KANITLI** | `ARC_028` — `k6_analytics.rs:3562`, sorgu dizesini ayıklayıp `.zip` uzantısını denetliyor. |
+| `P308aa743` | Yayındaki veri en az 7 gün geçerli olmalı | **KANITLI** | `FIN_019` · `FIN_020` · `CAL_024` · `TRP_023`. |
+| `P7a8ab180` | Süresi dolmuş takvimler kaldırılmalı | **KANITLI** | `CAL_013` · `CAL_009`. |
+| `P5cb1a139` | Mümkünse 30 günü kapsamalı | KISMİ | 7 günlük eşik ölçülüyor, 30 günlük ayrı eşik yok. |
+| `P0d80d05e` · `P99b3d7c3` | Login'siz indirilebilmeli; kapalı dağıtım istisnası | **KAPSAM DIŞI** | Barındırma politikası. (Açık issue #55 auth'lu feed'ler bu alanla ilgili.) |
+| `P3f03b3f2` · `P194640d1` · `P1d4f536a` | Yinelemeli yayın; birleşik veri seti; 7 gün içindeki değişiklik `calendar_dates` ile | **KAPSAM DIŞI** | Yayın süreci; tek bir feed'den doğrulanamaz. |
+| `Pc692d295` | `stop_id`/`route_id`/`agency_id` sürümler arası kalıcı olmalı | **KAPSAM DIŞI** | İki sürüm karşılaştırması gerekir — ürünün "karşılaştırma" özelliği bunu yapar ama kural değil. |
+| `P65ebae47` | Web sunucu dosya değişiklik tarihini doğru bildirmeli | **KAPSAM DIŞI** | HTTP sunucu yapılandırması. |
+
+## presence · term-definitions (9)
+
+| id | içerik | karar |
+|---|---|---|
+| `P092897e2` · `P2f336837` · `Pf1ef25c1` · `Pb7cdf168` · `P3df40438` | `Required` / `Conditionally Required` / `Conditionally Forbidden` / `Recommended` tanımları | **META** — spec'in kendi terim sözlüğü. Bu tanımların **uygulaması** 302 hüküm atomudur ([[project_spec_conformance_2026_08]]); tanımın kendisi ölçülecek bir şey değil. |
+| `P90cd23c4` | "Effective Fare Leg" tanımı | **META** |
+| `Pa73d1591` | (yayın URL'si — yukarıda) | — |
+| `P8bc2d625` · `Pd556e682` | TTS alanı üst alanla aynı bilgiyi taşımalı; kısaltmalar açılmalı *(soft)* | **KANITLI** — `STP_023` (`tts_stop_name` geçersiz). |
+
+---
+
+## Bulgu 14: `agency_phone` — spec'in açıkça izin verdiği biçimi reddediyoruz
+
+Spec: *"Dialable text (for example, TriMet's **"503-238-RIDE"**) is permitted, but the field
+must not contain any other descriptive text."*
+
+`looks_like_phone` (`common.rs:227`) yalnız rakam ve `+ - ( ) . boşluk` kabul eder; **harf
+içeren her değeri reddeder.** Spec'in kendi örneği (`503-238-RIDE`) bugün `AGN_007` ateşler.
+
+⚠️ **Bu `PTH_017` sınıfı bir hata:** spec'in açıkça *permitted* dediği bir biçimi ihlal
+sayıyoruz. Yönü önemli — geçerli veriyi yanlış işaretlemek, kaçırmaktan ağırdır.
+
+Hafifletici: `AGN_007` **Quality** sınıfında (kontrol edildi), yani R1 yayın kapısını
+etkilemiyor. Yine de yanlış pozitiftir ve ABD feed'lerinde vanity numaralar yaygındır.
+
+**Yapılmadı:** düzeltme, "dialable text" ile "descriptive text" ayrımını gerektirir —
+`503-238-RIDE` geçerli, `Call us at 503-238-1234 during business hours` değil. Sezgisel bir
+kural (harf grupları telefon tuş takımına eşlenebiliyorsa ve ayrı kelime yoksa) yazılabilir.
+Önce korpusta kaç feed'in etkilendiği ölçülmeli.
+
+## Bulgu 15: `feed_lang = mul` — yanlış pozitif YOK, ama eşlik eden hüküm ölçülmüyor
+
+Önce riskli olanı kontrol ettim: `mul` reddediliyor mu? **Hayır** — `looks_like_bcp47`
+(`common.rs:216`) alt etiketlerin alfanumerik ve ≤8 karakter olmasını istiyor, `mul` geçiyor.
+Yani `FIN_003` yanlış pozitif üretmiyor.
+
+Ölçülmeyen kısım: spec `mul` kullanıldığında çevirilerin `translations.txt`'te bulunmasını
+ister, ve tersine tek dilli veride `mul` kullanılmamasını. Bugün ikisi de sessiz.
+
+Yumuşak (*should*) → Quality. Değeri orta: `mul` ilan edip çeviri koymayan bir feed,
+tüketiciye adların dilini söyleyememiş olur.
+
+---
+
+# ✅ KATALOG TAMAMLANDI — 273/273
+
+Aşağıdaki dağılım **sayıldı, tahmin edilmedi** — defterdeki her satırın karar etiketi
+ile o satırdaki aday kimlikleri eşleştirilerek (`P` kimliği başına bir kez):
+
+| karar | aday | oran |
+|---|---|---|
+| **KANITLI** — kural doğrudan ölçüyor | 155 | %57 |
+| **KAPSAM DIŞI** — tüketiciyi bağlar / feed'den doğrulanamaz | 57 | %21 |
+| KISMİ — komşu kural var, tam örtüşmüyor | 27 | %10 |
+| **META** — tanım, örnek, rehber | 18 | %7 |
+| **BOŞLUK** — hiçbir kural ölçmüyor | 11 | %4 |
+| DOLAYLI — başka kurallarca yakalanıyor, adı konmamış | 4 | %1 |
+
+⚠️ **11 boşluk ADAYI = 9 ayrı HÜKÜM.** Spec aynı tavsiyeyi birden çok cümleye bölüyor
+(`platform_code` iki cümle, `feed_lang mul` üç cümle); aşağıdaki liste hükümleri sayar.
+
+## Dokuz boşluk (hiçbiri kurala dönüştürülmedi — şekil kararı bekliyor)
+
+| # | hüküm | sertlik | not |
+|---|---|---|---|
+| 1 | `looks_like_url` şema kontrolü yapmıyor | sert | Ölçüldü; `javascript:`/`mailto:`/`foo:bar` geçerli sayılıyor |
+| 2 | Alan değerlerinde HTML etiketi/kaçış dizisi | sert | Karşılığı yok |
+| 3 | `record_sub_id` gereklilik yönü (`stop_times` + `record_id`) | sert | `TRN_014`'ün ters kolu |
+| 4 | `start_day` yasağı (`booking_type=1` + `duration_max`) | sert | `booking_type=1` dalı tamamen sessiz |
+| 5 | ISO 4217 ondalık basamak sayısı | sert | Minor-unit tablosu gerekir (~180 satır) |
+| 6 | Boarding area varken platforma pathway | sert | ⚠️ Önce yaygınlık ölçülmeli |
+| 7 | OpenGIS poligon geçerliliği | sert | Geometri kütüphanesi kararı |
+| 8 | `traversal_time` tavsiyesi (mode 3/4/5) | yumuşak | `PTH_025` deseninin kopyası |
+| 9 | `platform_code` hiç ölçülmüyor | yumuşak | `STP_040` deseni mevcut |
+
+Ayrıca **iki yanlış pozitif** bulundu ve defterlendi: `agency_phone` vanity numaraları
+(bulgu 14, `PTH_017` sınıfı) ve `STP_022`'nin spec'in açık iznine ters yönü (bulgu 5).
+İkisi de Quality sınıfında olduğu için yayın kapısını etkilemiyor.
+
+## ⚠️ Bu sayı ne demek DEĞİL
+
+**"Spec'in %54'ünü karşılıyoruz" DENEMEZ.** Payda bu kataloğun kendi kapsamıdır ve
+üç sınırı vardır:
+
+1. **Modal taşımayan hükümler görünmez.** *"All file and field names are case-sensitive"*
+   bağlayıcıdır ama `must`/`shall` içermediği için katalogda yok. 273 bir **alt sınırdır**.
+2. **Kaba cümle bölme.** Bir cümle birden çok hüküm taşıyabilir (`P44a6984b` örneği), ve
+   bazı adayların bağlamı önceki cümlelerdedir.
+3. **KAPSAM DIŞI %23'tür ve bu doğrudur** — spec tüketici davranışını da `must` ile yazar.
+   Bir doğrulayıcının bunları ölçmemesi eksiklik değil, tanım gereğidir.
+
+Dürüst cümle şudur: **spec'in alan tablosundan çıkan 302 hüküm atomunun 296'sı makine
+kanıtlı; düzyazı ekseninde 273 adaydan feed'den doğrulanabilir olanların 148'i ölçülüyor,
+9'u ölçülmüyor.**
 
 Açık kalemler (kural yazımı bekleyen, hiçbiri yazılmadı): URL şeması (ölçüm bekliyor) ·
 HTML etiketi · OpenGIS poligon · `pickup_type=2` booking rule · `platform_code` ·
