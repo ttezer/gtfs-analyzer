@@ -595,23 +595,43 @@ ile o satırdaki aday kimlikleri eşleştirilerek (`P` kimliği başına bir kez
 ⚠️ **11 boşluk ADAYI = 9 ayrı HÜKÜM.** Spec aynı tavsiyeyi birden çok cümleye bölüyor
 (`platform_code` iki cümle, `feed_lang mul` üç cümle); aşağıdaki liste hükümleri sayar.
 
-## Dokuz boşluk — 239 feed'de ÖLÇÜLDÜ
+## Boşluklar — ölçüldü, sonra kapatıldı (durum: 2026-08-03)
 
 Üreteç: `spec-audit/measure_gaps.py` (statik zip+csv taraması, doğrulayıcı koşulmaz).
 Başlıklar `csv.reader` ile okunup normalize edilir — 08-02'de iki kez uydurma sonuç veren
 tırnak/boşluk tuzağına karşı.
 
-| # | hüküm | sert | feed | bulgu | en yoğun | değerlendirme |
-|---|---|---|---|---|---|---|
-| 2 | Değerde **HTML etiketi** | ✅ | **4** | **1955** | mdb-1924 (1176) | 🟢 **YAZ** — gerçek ihlal, aşağıda |
-| 8 | `traversal_time` tavsiyesi (mode 3/4/5) | — | 4 | 24 | mdb-2848 (19) | 🟢 **YAZ** — düşük hacim, temiz sinyal |
-| 9 | `platform_code`'da "platform"/"track" | — | 1 | 1 | mdb-771 (`gleis`) | 🟡 yaz, ama değeri düşük |
-| 1 | `looks_like_url` şema kontrolü | ✅ | 1 | 116 | mdb-2904 (`jrutil://invalid`) | 🟡 yaz — tek feed ama bariz bozuk |
-| 5 | ISO 4217 ondalık basamak | ✅ | 3 | 715 | mdb-1924 (663) | 🔴 **YAZMA** — aşağıda |
-| 3 | `record_sub_id` gereklilik yönü | ✅ | **0** | 0 | — | ⚪ kanıtsız — korpusta hiç `translations`+`stop_times` yok |
-| 4 | `start_day` yasağı (`booking_type=1`+`duration_max`) | ✅ | **0** | 0 | — | ⚪ kanıtsız |
-| 6 | Boarding area varken platforma pathway | ✅ | **0** | 0 | — | ⚪ kanıtsız — endişe edilen gürültü **gerçekleşmiyor** |
-| 7 | OpenGIS poligon geçerliliği | ✅ | — | ölçülmedi | — | ⚪ geometri kütüphanesi gerekir |
+⚠️ **İlk yazımda bu tablo dokuz satırdı ve BİR BOŞLUĞU ATLIYORDU** (`pickup_type=2`
+booking rule tavsiyesi, 2. turda bulgu olarak yazılmıştı ama özete girmemiş, dolayısıyla
+issue de açılmamıştı). Doğru sayı **10 hüküm / 12 aday**.
+
+| # | hüküm | sert | feed | bulgu | durum |
+|---|---|---|---|---|---|
+| 1 | Değerde **HTML etiketi** (`Pd6bc0278`) | ✅ | 4 | 1955 | ✅ **KAPANDI → `ARC_032`** (`0ed19f93`) |
+| 2 | `traversal_time` tavsiyesi (`Pd21dea02`) | — | 4 | 24 | ✅ **KAPANDI → `PTH_029`** (`509c5b54`) |
+| 3 | `platform_code` (`P3af6af7b`·`Pb24eacd3`) | — | 1 | 1 | ✅ **KAPANDI → `STP_044`** (`509c5b54`) |
+| 4 | URL şeması (`P5f72fb5a`) | ✅ | 1 | 116 | ✅ **KAPANDI → `looks_like_url`** (`cfd8f7d4`) |
+| 5 | ISO 4217 ondalık (`P38cd4e78`) | ✅ | 3 | 715 | 🔴 **KAPATILMAYACAK** — ölçüm kararı, aşağıda |
+| 6 | `record_sub_id` gereklilik yönü (`P9373b1fa`) | ✅ | **0** | 0 | ⚪ AÇIK → issue **#66** |
+| 7 | `start_day`/`duration_max` (`P5a5cced5`) | ✅ | **0** | 0 | ⚪ AÇIK → issue **#66** |
+| 8 | Boarding area + platform pathway (`P2264440d`) | ✅ | **0** | 0 | ⚪ AÇIK → issue **#66** |
+| 9 | OpenGIS poligon geçerliliği (`Pd84a0bcb`) | ✅ | — | ölçülmedi | ⚪ AÇIK → issue **#67** (bağımlılık kararı) |
+| 10 | `pickup_type=2` booking rule (`P71243b3e`·`P504bde32`) | — | ölçülmedi | — | ⚪ **AÇIK, ISSUE YOK** — aşağıda |
+
+**Ayrıca iki yanlış pozitif kapandı** (`50032512`): `AGN_007` artık vanity numarayı kabul
+ediyor (spec'in kendi örneği), `STP_022`'nin kartı boş `stop_code`'un doğru olabileceğini
+yazıyor. Hiçbir feed'in davranışı değişmedi.
+
+### 10. boşluk: `STM_040` spec'in koşulunu ölçmüyor
+
+Spec `pickup_booking_rule_id` için *"Recommended when `pickup_type=2`"* der (ve
+`drop_off_type=2` için ikizini). `STM_040` ise **Flex penceresi** varken booking rule
+eksikliğini ölçüyor (`k2/stop_times.rs:1571`). İkisi farklı popülasyon: `pickup_type=2`
+("ajansı telefonla arayın") Flex penceresi olmadan da kullanılır.
+
+Bu boşluk 2. turda bulgu olarak yazıldı ama özet tabloya girmedi ve issue açılmadı —
+**tablonun kendisi bir kapsam kaybı yaşadı**, tam da bu defterin önlemek için var olduğu
+şey. Ölçülmedi; yapılacak ilk iş `measure_gaps.py`'a eklemek.
 
 ### Ölçüm iki kararı değiştirdi
 
