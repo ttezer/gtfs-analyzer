@@ -2,7 +2,7 @@
 
 🇹🇷 [Türkçe](RULES.md) · 🇬🇧 **English** · 🇯🇵 [日本語](RULES.ja.md)
 
-566 rules, 38 groups. Each rule is identified by a unique ID, severity level, and class.
+568 rules, 38 groups. Each rule is identified by a unique ID, severity level, and class.
 Severity levels: **CRITICAL** (publish blocker) · **HIGH** · **MEDIUM** · **LOW** · **INFO**
 Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Quality** (GTFS Quality) · **Analytics** (GTFS Analytics)
 
@@ -136,6 +136,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | STP_038 | No stops report wheelchair boarding | INFO | Quality |
 | STP_039 | stop_code is duplicated | LOW | Quality |
 | STP_040 | Stop name contains a redundant stop/station word | LOW | Quality |
+| STP_044 | platform_code contains a redundant platform/track word | LOW | Quality |
 | STP_041 | Child stop name does not include the parent station name | LOW | Quality |
 | STP_042 | stop_url is invalid | LOW | Spec |
 | STP_043 | stop_access used in a forbidden context | MEDIUM | Spec |
@@ -561,6 +562,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | PTH_023 | pathway_mode missing | CRITICAL | Spec |
 | PTH_024 | is_bidirectional missing | CRITICAL | Spec |
 | PTH_025 | Recommended pathway length missing | LOW | Quality |
+| PTH_029 | Recommended pathway traversal_time missing | LOW | Quality |
 | PTH_026 | Pathway endpoint is a station | CRITICAL | Spec |
 | PTH_027 | stair_count is invalid (zero or not an integer) | MEDIUM | Spec |
 | PTH_028 | max_slope used outside a walkway | LOW | Quality |

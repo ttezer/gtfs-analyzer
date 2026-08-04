@@ -1831,6 +1831,7 @@ const ja: LocaleShape = {
     'STP_038': 'いずれの停留所も車椅子対応情報を報告していない',
     'STP_039': 'stop_codeが重複している',
     'STP_040': '停留所名に冗長なstop/station語が含まれる',
+    'STP_044': 'platform_codeに冗長なplatform/track語が含まれる',
     'STP_041': '子停留所名に親駅名が含まれていない',
     'STP_042': 'stop_urlが無効',
     'STP_043': 'stop_accessが禁止された文脈で使用',
@@ -2067,6 +2068,7 @@ const ja: LocaleShape = {
     'PTH_023': 'pathway_modeが不足',
     'PTH_024': 'is_bidirectionalが不足',
     'PTH_025': '推奨されるpathway lengthが不足',
+    'PTH_029': '推奨されるpathway traversal_timeが不足',
     // FRL
     'FRL_001': 'fare_idがfares.txtに存在しない',
     'FRL_002': 'route_idがroutes.txtに存在しない',

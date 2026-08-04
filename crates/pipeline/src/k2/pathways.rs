@@ -36,6 +36,8 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
     let mut pth008_examples: Vec<String> = Vec::new();
     let mut pth025_count: u32 = 0;
     let mut pth025_examples: Vec<String> = Vec::new();
+    let mut pth029_count: u32 = 0;
+    let mut pth029_examples: Vec<String> = Vec::new();
 
     for (row_idx, row) in file.rows.iter().enumerate() {
         let line = (row_idx + 2) as u64;
@@ -76,6 +78,15 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
         let traversal_time = parse_positive_u32(
             &row_map, &mut notices, &mut counter, "PTH_007", "traversal_time", &entity_id, line, &file.name
         );
+        // PTH_029: spec traversal_time'ı yürüyen bant (3), yürüyen merdiven (4) ve asansör (5)
+        // için ÖNERİR. PTH_007 yukarıda değerin geçerliliğini ölçer; bu kural eksikliğini.
+        // PTH_025 (length) ile birebir aynı desen — koşul yalnız pathway_mode kümesinde ayrılır.
+        if matches!(pathway_mode, Some(3 | 4 | 5)) && traversal_time.is_none()
+            && get_trimmed_field(&row_map, "traversal_time").is_none_or(str::is_empty)
+        {
+            pth029_count += 1;
+            if pth029_examples.len() < 5 { if let Some(id) = &entity_id { pth029_examples.push(id.clone()); } }
+        }
         let min_width = parse_positive_f64(
             &row_map, &mut notices, &mut counter, "PTH_010", "min_width", &entity_id, line, &file.name
         );
@@ -283,6 +294,16 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
         n.details = Some(d);
         notices.push(n);
     }
+    if pth029_count > 0 {
+        let mut n = make_k2_notice(&mut counter, "PTH_029", EntityType::Feed, None, None,
+            &file.name, None, Some("traversal_time"), Some(pth029_count.to_string()), None,
+            format!("{pth029_count} yürüyen bant/yürüyen merdiven/asansör kaydında önerilen traversal_time eksik."),
+            "pathway_mode 3, 4 veya 5 olan kayıtlara saniye cinsinden traversal_time ekleyin.");
+        let mut d = std::collections::BTreeMap::new();
+        d.insert("affected_pathways".to_string(), pth029_count.to_string());
+        if !pth029_examples.is_empty() { d.insert("example_pathways".to_string(), pth029_examples.join(", ")); }
+        n.details = Some(d); notices.push(n);
+    }
     if pth025_count > 0 {
         let mut n = make_k2_notice(&mut counter, "PTH_025", EntityType::Feed, None, None,
             &file.name, None, Some("length"), Some(pth025_count.to_string()), None,
@@ -472,4 +493,31 @@ mod tests {
         let n = notices.iter().find(|n| n.rule_id == "PTH_025").unwrap();
         assert_eq!(n.details.as_ref().unwrap().get("affected_pathways").map(String::as_str), Some("2"));
     }
+    #[test]
+    fn pth_029_flags_missing_traversal_time_for_moving_modes() {
+        let headers = ["pathway_id", "from_stop_id", "to_stop_id", "pathway_mode", "is_bidirectional", "traversal_time"];
+        let file = RawFile { name: "pathways.txt".into(), headers: headers.iter().map(|s| s.to_string()).collect(),
+            rows: [["P1","S1","S2","3","0",""],   // yürüyen bant → sayılır
+                   ["P2","S2","S3","4","0",""],   // yürüyen merdiven → sayılır
+                   ["P3","S3","S4","5","0",""],   // asansör → sayılır
+                   ["P4","S4","S5","1","0",""],   // yürüme yolu → PTH_029 DEĞİL (PTH_025'in alanı)
+                   ["P5","S5","S6","4","0","30"]] // dolu → sayılmaz
+                .into_iter().map(|r| r.into_iter().map(SmolStr::from).collect()).collect(), bytes: 0, raw_text: None };
+        let (_, notices) = validate_pathways(&file);
+        let hits: Vec<_> = notices.iter().filter(|n| n.rule_id == "PTH_029").collect();
+        assert_eq!(hits.len(), 1, "feed başına tek özet bekleniyor: {hits:?}");
+        assert_eq!(hits[0].observed_value.as_deref(), Some("3"), "üç kayıt sayılmalı");
+        assert_eq!(hits[0].field.as_deref(), Some("traversal_time"));
+    }
+
+    #[test]
+    fn pth_029_silent_when_all_moving_modes_have_traversal_time() {
+        let headers = ["pathway_id", "from_stop_id", "to_stop_id", "pathway_mode", "is_bidirectional", "traversal_time"];
+        let file = RawFile { name: "pathways.txt".into(), headers: headers.iter().map(|s| s.to_string()).collect(),
+            rows: [["P1","S1","S2","3","0","20"],["P2","S2","S3","5","0","45"]]
+                .into_iter().map(|r| r.into_iter().map(SmolStr::from).collect()).collect(), bytes: 0, raw_text: None };
+        let (_, notices) = validate_pathways(&file);
+        assert!(!notices.iter().any(|n| n.rule_id == "PTH_029"), "{notices:?}");
+    }
+
 }

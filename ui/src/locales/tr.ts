@@ -667,6 +667,7 @@ const tr = {
     'STP_038': 'Hiçbir durak tekerlekli sandalye erişilebilirliği (wheelchair_boarding) bildirmemiş',
     'STP_039': 'stop_code birden fazla durakta kullanılıyor',
     'STP_040': 'Durak adı gereksiz genel stop/station sözcüğü içeriyor',
+    'STP_044': "platform_code gereksiz 'platform/track' sözcüğü içeriyor",
     'STP_041': 'Alt durak adı üst istasyon adını içermiyor',
     'STP_042': 'stop_url geçersiz',
     'STP_043': 'stop_access yasak bağlamda kullanılmış',
@@ -900,6 +901,7 @@ const tr = {
     'PTH_023': 'pathway_mode eksik',
     'PTH_024': 'is_bidirectional eksik',
     'PTH_025': 'Önerilen pathway length bilgisi eksik',
+    'PTH_029': 'Önerilen pathway traversal_time bilgisi eksik',
     'PTH_026': 'Pathway uç noktası istasyon',
     'PTH_027': 'stair_count geçersiz (sıfır veya tam sayı değil)',
     // FRL

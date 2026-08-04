@@ -2,7 +2,7 @@
 
 🇹🇷 **Türkçe** · 🇬🇧 [English](RULES.en.md) · 🇯🇵 [日本語](RULES.ja.md)
 
-566 kural, 38 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
+568 kural, 38 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
 Önem seviyeleri: **KRİTİK** (yayın engelleyici) · **YÜKSEK** · **ORTA** · **DÜŞÜK** · **BİLGİ**
 Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · **Quality** (GTFS Kalitesi) · **Analytics** (GTFS Analitiği)
 
@@ -136,6 +136,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | STP_038 | Hiçbir durak tekerlekli sandalye erişilebilirliği (wheelchair_boarding) bildirmemiş | BİLGİ | Quality |
 | STP_039 | stop_code birden fazla durakta kullanılıyor | DÜŞÜK | Quality |
 | STP_040 | Durak adı gereksiz genel stop/station sözcüğü içeriyor | DÜŞÜK | Quality |
+| STP_044 | platform_code gereksiz 'platform/track' sözcüğü içeriyor | DÜŞÜK | Quality |
 | STP_041 | Alt durak adı üst istasyon adını içermiyor | DÜŞÜK | Quality |
 | STP_042 | stop_url geçersiz | DÜŞÜK | Spec |
 | STP_043 | stop_access yasak bağlamda kullanılmış | ORTA | Spec |
@@ -561,6 +562,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | PTH_023 | pathway_mode eksik | KRİTİK | Spec |
 | PTH_024 | is_bidirectional eksik | KRİTİK | Spec |
 | PTH_025 | Önerilen pathway length bilgisi eksik | DÜŞÜK | Quality |
+| PTH_029 | Önerilen pathway traversal_time bilgisi eksik | DÜŞÜK | Quality |
 | PTH_026 | Pathway uç noktası istasyon | KRİTİK | Spec |
 | PTH_027 | stair_count geçersiz (sıfır veya tam sayı değil) | ORTA | Spec |
 | PTH_028 | max_slope yürüme yolu dışında kullanılmış | DÜŞÜK | Quality |

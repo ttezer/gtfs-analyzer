@@ -532,6 +532,7 @@ fn fixtures() -> Vec<Fixture> {
         // PTH_027: stair_count sıfır — `Non-null integer` tipinin dışladığı tek değer.
         fx("PTH_027", vec![("pathways.txt", "pathway_id,from_stop_id,to_stop_id,pathway_mode,is_bidirectional,stair_count\nP1,S1,S2,2,0,0\n")]),
         fx("PTH_025", vec![("pathways.txt", "pathway_id,from_stop_id,to_stop_id,pathway_mode,is_bidirectional,length\nP1,S1,S2,6,0,\n")]),
+        fx("PTH_029", vec![("pathways.txt", "pathway_id,from_stop_id,to_stop_id,pathway_mode,is_bidirectional,traversal_time\nP1,S1,S2,4,0,\n")]),
         fx("PTH_009", vec![("pathways.txt", "pathway_id,from_stop_id,to_stop_id,pathway_mode,is_bidirectional\nP1,S1,S2,1,0\n")]),
         fx("PTH_010", vec![("pathways.txt", "pathway_id,from_stop_id,to_stop_id,pathway_mode,is_bidirectional,min_width\nP1,S1,S2,3,0,0\n")]),
         fx("PTH_011", vec![("pathways.txt", "pathway_id,from_stop_id,to_stop_id,pathway_mode,is_bidirectional\nP1,S1,S1,3,0\n")]),
@@ -1275,6 +1276,7 @@ fn fixtures() -> Vec<Fixture> {
         fx("STP_042", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon,stop_url\nS1,Stop1,41.0,29.0,notaurl\n")]),
         // STP_043: stop_access, parent_station'ı olmayan bir durakta kullanılmış (spec: yasak).
         fx("STP_043", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon,location_type,parent_station,stop_access\nS1,Stop1,41.0,29.0,0,,1\nS2,Stop2,41.1,29.1,,,\n")]),
+        fx("STP_044", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon,platform_code\nS1,Stop1,41.0,29.0,Gleis 5\n")]),
         // STP_035: stop_url hat URL'siyle aynı (k6).
         fx("STP_035", vec![
             ("routes.txt", "route_id,agency_id,route_short_name,route_type,route_url\nR1,1,101,3,http://r1.example\n"),

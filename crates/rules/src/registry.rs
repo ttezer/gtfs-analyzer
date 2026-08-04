@@ -377,6 +377,13 @@ pub static RULES: &[RuleMeta] = &[
         "stop_code birden fazla durakta kullanılıyor"),
     r!("STP_040", Dusuk, Quality, 1, &[], Some("stop_id"), VS, Entity,
         "Durak adı gereksiz genel stop/station sözcüğü içeriyor"),
+    // STP_044: spec `platform_code` için "should be just the platform identifier" der ve
+    // "platform"/"track" (veya feed dilindeki karşılığı) sözcüğünü açıkça dışlar. Alan
+    // 2026-08-03'e kadar HİÇ parse edilmiyordu. STP_040 aynı şekli `stop_name` için uygular
+    // ama o OPT-IN'dir (genel ad meşru olabilir: "Union Station"); burada spec doğrudan
+    // yasakladığı için opt-in DEĞİL. Ölçüldü (239 feed): 1 feed, 1 kayıt (`gleis`).
+    r!("STP_044", Dusuk, Quality, 1, &[], Some("stop_id"), VS, Entity,
+        "platform_code gereksiz 'platform/track' sözcüğü içeriyor"),
     r!("STP_041", Dusuk, Quality, 1, &[], Some("stop_id"), VS, Entity,
         "Alt durak adı üst istasyon adını içermiyor"),
     // STP_042: spec tipi `URL` — "fully qualified URL that includes http:// or https://".
@@ -1205,6 +1212,12 @@ pub static RULES: &[RuleMeta] = &[
         "is_bidirectional eksik"),
     r!("PTH_025", Dusuk, Quality, 1, &[], None, VS, Feed,
         "Önerilen pathway length bilgisi eksik"),
+    // PTH_029: PTH_025'in kardeşi. Spec `traversal_time` için "recommended for moving
+    // sidewalks (3), escalators (4) and elevator (5)" der; PTH_007 değeri VARSA doğruluyor,
+    // eksikliği ölçmüyordu. Üç öneri alanından ikisi (length→PTH_025, stair_count→PTH_008)
+    // zaten ölçülüyordu. Ölçüldü (239 feed): 4 feed, 24 kayıt.
+    r!("PTH_029", Dusuk, Quality, 1, &[], None, VS, Feed,
+        "Önerilen pathway traversal_time bilgisi eksik"),
     r!("PTH_026", Kritik, Spec, 1, &[], Some("pathway_id"), VS_K, Row,
         "Pathway uç noktası istasyon"),
     // PTH_027: spec tipi `Non-null integer` — hem tam sayı olmayı hem SIFIR OLMAMAYI şart
@@ -2067,6 +2080,7 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("STP_041", ProjectQuality),
     ("STP_042", GtfsSpec),
     ("STP_043", GtfsSpec),
+    ("STP_044", ProjectQuality),
     ("TFR_001", GtfsSpec),
     ("TFR_002", GtfsSpec),
     ("TFR_003", GtfsSpec),
@@ -2078,6 +2092,7 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("PTH_026", GtfsSpec),
     ("PTH_027", GtfsSpec),
     ("PTH_028", ProjectQuality),
+    ("PTH_029", ProjectQuality),
     ("TRF_001", GtfsSpec),
     ("TRF_002", GtfsSpec),
     ("TRF_003", GtfsSpec),

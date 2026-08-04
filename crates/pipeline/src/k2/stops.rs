@@ -360,6 +360,35 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
             .filter(|v| !v.is_empty())
             .map(str::to_string);
 
+        // STP_044: platform_code yalnız platform TANIMLAYICISI olmalı ("2b", "A", "5");
+        // spec "platform"/"track" sözcüğünü ve feed dilindeki karşılığını açıkça dışlar.
+        //
+        // ⚠️ Liste ÇOK DİLLİ ve bilinçli olarak DAR. İtalyanca `via` ("cadde") gibi belirsiz
+        // sözcükler DIŞARIDA: platform kodunda geçme olasılığı, meşru bir sokak adının
+        // parçası olma olasılığından düşük değil. Genişletirken korpus örneğine bakın.
+        //
+        // STP_040 aynı şekli `stop_name` için uygular ama OPT-IN'dir, çünkü "Union Station"
+        // meşru bir addır. Burada spec doğrudan yasakladığı için opt-in değil.
+        if let Some(pc) = get_trimmed_field(&row_map, "platform_code").filter(|v| !v.is_empty()) {
+            const PLATFORM_WORDS: &[&str] = &[
+                "platform", "track", "gleis", "peron", "perron", "binario",
+                "voie", "quai", "spor", "anden", "andén", "plataforma",
+            ];
+            let lower = pc.to_lowercase();
+            if lower
+                .split(|c: char| !c.is_alphanumeric())
+                .any(|w| PLATFORM_WORDS.contains(&w))
+            {
+                notices.push(make_k2_notice(
+                    &mut counter, "STP_044", EntityType::Stop, entity_id.clone(),
+                    Some(&row_map), &file.name, Some(line), Some("platform_code"),
+                    Some(pc.to_string()), None,
+                    format!("platform_code '{pc}' gereksiz platform/track sözcüğü içeriyor; yalnız tanımlayıcı olmalı."),
+                    "platform_code'da yalnız platform tanımlayıcısını bırakın (ör. 'Gleis 5' yerine '5').",
+                ));
+            }
+        }
+
         // STP_023: tts_stop_name işaret karakteri içeriyor (SSML/HTML markup)
         if let Some(ref tts) = tts_stop_name {
             if tts.contains('<') || tts.contains('>') {
@@ -695,4 +724,41 @@ mod tests {
         let (_, notices) = validate_stops(&file);
         assert_eq!(notices.iter().filter(|n| n.rule_id == "STP_039").count(), 1);
     }
+    #[test]
+    fn stp_044_flags_platform_word_in_platform_code() {
+        let file = make_file(
+            vec!["stop_id", "stop_name", "stop_lat", "stop_lon", "platform_code"],
+            vec![
+                vec!["S1", "Ana", "41.0", "29.0", "Gleis 5"],
+                vec!["S2", "Yan", "41.1", "29.1", "Track 2"],
+                vec!["S3", "Üç", "41.2", "29.2", "peron 3"],
+            ],
+        );
+        let (_, notices) = validate_stops(&file);
+        let hits: Vec<_> = notices.iter().filter(|n| n.rule_id == "STP_044").collect();
+        assert_eq!(hits.len(), 3, "üç dilde de yakalanmalı: {hits:?}");
+        assert_eq!(hits[0].field.as_deref(), Some("platform_code"));
+    }
+
+    #[test]
+    fn stp_044_silent_for_plain_identifiers() {
+        // platform_code'un doğru kullanımı: yalnız tanımlayıcı.
+        let file = make_file(
+            vec!["stop_id", "stop_name", "stop_lat", "stop_lon", "platform_code"],
+            vec![
+                vec!["S1", "A", "41.0", "29.0", "5"],
+                vec!["S2", "B", "41.1", "29.1", "2b"],
+                vec!["S3", "C", "41.2", "29.2", "A"],
+                vec!["S4", "D", "41.3", "29.3", ""],
+                // `via` bilinçli olarak listede YOK — İtalyanca "cadde", belirsiz.
+                vec!["S5", "E", "41.4", "29.4", "Via 4"],
+                // Sözcüğün PARÇASI olan değer eşleşmemeli (kelime sınırı).
+                vec!["S6", "F", "41.5", "29.5", "trackside"],
+            ],
+        );
+        let (_, notices) = validate_stops(&file);
+        let hits: Vec<_> = notices.iter().filter(|n| n.rule_id == "STP_044").collect();
+        assert!(hits.is_empty(), "yanlış pozitif: {hits:?}");
+    }
+
 }
