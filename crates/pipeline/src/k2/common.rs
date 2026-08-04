@@ -242,16 +242,57 @@ pub fn looks_like_bcp47(value: &str) -> bool {
     })
 }
 
+/// GTFS `Phone number` tipi. Spec (`agency_phone`): *"Dialable text (for example, TriMet's
+/// **"503-238-RIDE"**) is permitted, but the field must not contain any other descriptive
+/// text."* Aynı tip `booking_rules.phone_number` için de geçerlidir.
+///
+/// Kontrol 2026-08-03'e kadar harf içeren HER değeri reddediyordu, yani spec'in kendi
+/// örneğini de. Bu `PTH_017` biçimi bir hataydı: açıkça izinli veriyi ihlal saymak.
+///
+/// **Vanity ile açıklayıcı metin ayrımı:** harf grubu değerin SONUNDA ve TEK olmalıdır —
+/// `503-238-RIDE`, `+1 800 FLOWERS` geçerli; `Call 503-238-1234` ("Call" başta),
+/// `555-1234 ext 99` ("ext" ortada) geçersiz. Vanity numaralarda harfler numaranın son
+/// bloğunu oluşturur; açıklayıcı metin numaranın başına ya da arasına girer.
+///
+/// ⚠️ Bu sezgisel kuralın ölçülmüş bir faydası YOK: 239 feed'lik korpusta tek bir vanity
+/// numara bile geçmiyor. Yazılma gerekçesi spec uyumu; koruma gerekçesi ise ayrımın
+/// korpusta gerçekten var olan iki değeri (`80000078 (Liepājā); …`) reddetmeye devam
+/// etmesidir — o değerler spec'in yasakladığı açıklayıcı metindir ve kural onlarda DOĞRU.
 pub fn looks_like_phone(value: &str) -> bool {
     let trimmed = value.trim();
     if trimmed.is_empty() {
         return false;
     }
+    // Eşik ÇEVRİLEBİLİR HANE üzerinden: vanity numaralarda harfler rakamların yerini tutar
+    // (`+1 800 FLOWERS` yalnız dört rakam taşır ama on bir hanelik bir numaradır). Yine de
+    // en az bir rakam aranır, yoksa `FLOWERS` tek başına telefon sayılırdı.
     let digit_count = trimmed.chars().filter(|c| c.is_ascii_digit()).count();
-    digit_count >= 5
-        && trimmed
-            .chars()
-            .all(|c| c.is_ascii_digit() || matches!(c, '+' | '-' | '(' | ')' | ' ' | '.'))
+    let dialable_count = trimmed.chars().filter(|c| c.is_ascii_alphanumeric()).count();
+    if dialable_count < 5 || digit_count == 0 {
+        return false;
+    }
+    if !trimmed
+        .chars()
+        .all(|c| c.is_ascii_digit() || c.is_ascii_alphabetic() || matches!(c, '+' | '-' | '(' | ')' | ' ' | '.'))
+    {
+        return false;
+    }
+    // Harf grupları: ayırıcılarla bölündüğünde tamamı harften oluşan parçalar.
+    let parts: Vec<&str> = trimmed
+        .split(|c: char| !c.is_ascii_alphanumeric())
+        .filter(|p| !p.is_empty())
+        .collect();
+    let letter_group_indices: Vec<usize> = parts
+        .iter()
+        .enumerate()
+        .filter(|(_, p)| p.chars().all(|c| c.is_ascii_alphabetic()))
+        .map(|(i, _)| i)
+        .collect();
+    match letter_group_indices.len() {
+        0 => true,                                          // saf numara
+        1 => letter_group_indices[0] == parts.len() - 1,     // vanity: harf bloğu SONDA
+        _ => false,                                          // birden çok harf grubu → açıklayıcı metin
+    }
 }
 
 pub fn looks_like_iana_timezone(value: &str) -> bool {
@@ -444,6 +485,34 @@ mod tests {
         assert!(!super::looks_like_url("Üniversite Kampüsü"));
         assert!(!super::looks_like_url("東京駅"));
         assert!(!super::looks_like_url("ü"));
+    }
+
+    #[test]
+    fn looks_like_phone_accepts_dialable_vanity_text() {
+        // Spec'in KENDİ örneği — 2026-08-03'e kadar reddediliyordu (PTH_017 biçimi hata).
+        assert!(super::looks_like_phone("503-238-RIDE"));
+        assert!(super::looks_like_phone("+1 800 FLOWERS"));
+        assert!(super::looks_like_phone("1-800-COLLECT"));
+        // Saf numaralar: davranış korunur.
+        assert!(super::looks_like_phone("+90 212 555 12 34"));
+        assert!(super::looks_like_phone("(503) 238-7433"));
+        assert!(super::looks_like_phone("555.12.34"));
+    }
+
+    #[test]
+    fn looks_like_phone_rejects_descriptive_text() {
+        // Spec: "must not contain any other descriptive text."
+        assert!(!super::looks_like_phone("Call 503-238-1234"), "harf grubu BAŞTA");
+        assert!(!super::looks_like_phone("555-1234 ext 99"), "harf grubu ORTADA");
+        assert!(!super::looks_like_phone("Call us at 503 238 1234"), "birden çok harf grubu");
+        // Korpusta GERÇEKTEN bulunan iki değer (mdb-2337, mdb-992) — kural bunlarda DOĞRU
+        // ateşliyor ve düzeltmeden sonra da ateşlemeye devam etmeli.
+        assert!(!super::looks_like_phone("80000078 (Liepājā); 80000079 (Pierīgā)"));
+        // Yetersiz hane / hiç rakam yok / boş: davranış korunur.
+        assert!(!super::looks_like_phone("RIDE"), "beş haneden kısa");
+        assert!(!super::looks_like_phone("FLOWERS"), "hiç rakam yok — telefon değil");
+        assert!(!super::looks_like_phone("12"));
+        assert!(!super::looks_like_phone(""));
     }
 
 }

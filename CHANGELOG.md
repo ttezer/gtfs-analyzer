@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **`agency_phone` and `phone_number` accept dialable vanity text.** The specification permits
+  it by name — *"Dialable text (for example, TriMet's `503-238-RIDE`) is permitted, but the
+  field must not contain any other descriptive text"* — and `looks_like_phone` rejected every
+  value containing a letter, including that example. Letters are now allowed when they form a
+  single group at the end of the value (`503-238-RIDE`, `+1 800 FLOWERS`); a letter group at
+  the start or in the middle is still descriptive text and still reported (`Call 503-238-1234`,
+  `555-1234 ext 99`). Affects `AGN_007` and `BKR_022`. Measured on the 239-feed corpus: **no
+  feed changes behaviour**, and the two feeds where the rule currently fires keep firing.
+
+- **`STP_022`'s rule card now states that an empty `stop_code` can be correct.** No behaviour
+  change: the specification says the field *"should be left empty for locations without a code
+  presented to riders"*, so the notice is a prompt to check rather than a defect. The rule is
+  `Quality` and never reaches the publication gate.
+
 - **URL fields now require a web scheme.** `looks_like_url` was `Url::parse(v).is_ok()`,
   which accepts any scheme: `mailto:`, `ftp://`, `file:///`, `javascript:alert(1)` and even
   `foo:bar` all passed validation. The specification defines the `URL` type as *"a fully
