@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **URL fields now require a web scheme.** `looks_like_url` was `Url::parse(v).is_ok()`,
+  which accepts any scheme: `mailto:`, `ftp://`, `file:///`, `javascript:alert(1)` and even
+  `foo:bar` all passed validation. The specification defines the `URL` type as *"a fully
+  qualified URL that includes http:// or https://"*. Affects every rule that validates a URL
+  — `AGN_003`, `AGN_008`, `STP_042`, `RTS_005`, `FIN_002`, `FIN_009`, `ATR_007`, `RCT_007`,
+  `BKR_020`, `BKR_021`.
+
+  Three of those are `Critical` and `Spec`, so they gate publication. Measured across the
+  239-feed corpus before changing anything: one feed carries such a value (116 rows of
+  `agency_url=jrutil://invalid`), and it already produces 3.7M critical notices, so **no
+  feed's publication decision changes**. Feeds using `mailto:` in a URL field will now see
+  a finding where previously there was none.
+
 ## [0.8.0] - 2026-08-03
 
 > **Breaking.** Three rules are retired (`SHP_027`, `STM_057`, `AGN_001`), nine changed class or

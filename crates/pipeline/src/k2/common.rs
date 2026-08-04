@@ -197,8 +197,26 @@ pub fn validate_enum(value: &str, allowed: &[&str]) -> bool {
     allowed.contains(&value)
 }
 
+/// GTFS `URL` tipi: *"A fully qualified URL that includes http:// or https://."*
+///
+/// `Url::parse` tek başına YETMEZ — o herhangi bir şemayı kabul eder ve `mailto:`,
+/// `ftp://`, `file:///`, `javascript:alert(1)`, hatta `foo:bar` için `Ok` döner. Şema
+/// kontrolü olmadan bu değerler yolcuya görünen alanlarda geçerli sayılıyordu (2026-08-03
+/// ölçümü, T5 boşluk #1).
+///
+/// Şema adı RFC 3986'ya göre büyük/küçük harfe DUYARSIZDIR (`HTTP://` geçerlidir), bu
+/// yüzden karşılaştırma öyle yapılır.
+/// ⚠️ Karşılaştırma BAYT üzerinden yapılır, dilim (`&s[..7]`) üzerinden DEĞİL: `&str`
+/// dilimlemek çok baytlı bir karakterin ortasına denk gelirse **panik** eder. Alanlar
+/// serbest metin taşıyabildiği için `Ünivers…` gibi bir değer bu yolu tetiklerdi.
+/// Aradığımız önek saf ASCII olduğundan bayt karşılaştırması hem güvenli hem doğru.
 pub fn looks_like_url(value: &str) -> bool {
-    Url::parse(value).is_ok()
+    fn starts_with_ci(s: &str, prefix: &str) -> bool {
+        s.len() >= prefix.len() && s.as_bytes()[..prefix.len()].eq_ignore_ascii_case(prefix.as_bytes())
+    }
+    let trimmed = value.trim();
+    let has_web_scheme = starts_with_ci(trimmed, "http://") || starts_with_ci(trimmed, "https://");
+    has_web_scheme && Url::parse(trimmed).is_ok()
 }
 
 pub fn looks_like_email(value: &str) -> bool {
@@ -397,4 +415,35 @@ mod tests {
         assert_eq!(notice.scope_key.as_deref(), Some("T1"));
         assert_eq!(notice.id, "k2/STM_001#1");
     }
+    #[test]
+    fn looks_like_url_requires_a_web_scheme() {
+        // Spec: "A fully qualified URL that includes http:// or https://."
+        assert!(super::looks_like_url("http://a.com"));
+        assert!(super::looks_like_url("https://a.com/x?y=1#z"));
+        assert!(super::looks_like_url("HTTPS://A.COM"), "şema adı büyük/küçük harfe duyarsız");
+        assert!(super::looks_like_url("  https://a.com  "), "baştaki/sondaki boşluk kırpılır");
+
+        // Bunların hepsi `Url::parse` için GEÇERLİ ve şema kontrolü eklenmeden önce
+        // doğrulamadan geçiyordu (T5 boşluk #1, 2026-08-03 ölçümü).
+        assert!(!super::looks_like_url("mailto:info@a.com"));
+        assert!(!super::looks_like_url("ftp://a.com/x"));
+        assert!(!super::looks_like_url("file:///etc/passwd"));
+        assert!(!super::looks_like_url("javascript:alert(1)"));
+        assert!(!super::looks_like_url("foo:bar"));
+        assert!(!super::looks_like_url("jrutil://invalid"), "korpusta görülen yer tutucu");
+
+        // Şemasız değerler zaten reddediliyordu; davranış korunur.
+        assert!(!super::looks_like_url("www.example.com"));
+        assert!(!super::looks_like_url("a.com"));
+        assert!(!super::looks_like_url(""));
+        // `http://` öneki olup URL olarak ayrıştırılamayan değer de reddedilir.
+        assert!(!super::looks_like_url("http://"));
+
+        // Çok baytlı karakterle başlayan değer: dilim (`&s[..7]`) kullanılsaydı bayt
+        // sınırını böler ve PANİK ederdi. Alanlar serbest metin taşıyabiliyor.
+        assert!(!super::looks_like_url("Üniversite Kampüsü"));
+        assert!(!super::looks_like_url("東京駅"));
+        assert!(!super::looks_like_url("ü"));
+    }
+
 }
