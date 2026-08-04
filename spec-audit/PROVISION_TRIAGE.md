@@ -667,6 +667,55 @@ Ayrıca **iki yanlış pozitif** bulundu ve defterlendi: `agency_phone` vanity n
 (bulgu 14, `PTH_017` sınıfı) ve `STP_022`'nin spec'in açık iznine ters yönü (bulgu 5).
 İkisi de Quality sınıfında olduğu için yayın kapısını etkilemiyor.
 
+## Kataloğun kör noktası ÖLÇÜLDÜ (2026-08-03)
+
+Defter baştan beri şunu yazıyordu: üreteç modal-tabanlıdır, *"All file and field names are
+case-sensitive"* gibi modalsiz hükümleri **yapısal olarak kaçırır**, dolayısıyla 273 bir
+**alt sınırdır**. Bu kör noktanın büyüklüğü artık tahmin değil.
+
+Üreteç: `spec-audit/measure_modalless.py` — `extract_provisions.py`'ın ELEDİĞİ cümleleri
+toplar ve normatif-olabilir sinyallere göre ayırır.
+
+```
+modal TAŞIYAN cümle (katalogda)   : 273
+modal TAŞIMAYAN cümle             : 888
+  ├─ normatif sinyal taşıyan      : 124
+  │    ├─ betimleyici kalıp da var:  20   (düşük olasılık)
+  │    └─ SAF ADAY                : 104
+  └─ hiç sinyal yok               : 764   (büyük olasılıkla betimleyici)
+```
+
+### 104 saf adayın kategorileri — ve neden payda büyümüyor
+
+| kategori | adet | değerlendirme |
+|---|---|---|
+| koşul / miras semantiği | ~45 | *"If this field is empty, the stop_time inherits any continuous pickup behavior…"* — tüketiciye **nasıl yorumlayacağını** söyler. İhlal edilemez, dolayısıyla ölçülemez. |
+| öncelik / geçersiz kılma | 9 | *"This field overrides the default trips.trip_headsign…"* — aynı sınıf. |
+| enum değer tanımı | ~13 | *"2 - cEMVs are not supported…"*, *"1 - Vehicle can accommodate at least one rider"* — değerin **anlamı**, hüküm değil. Geçerlilik zaten enum kurallarında. |
+| tip tanımı | ~9 | *"Non-negative - Greater than or equal to 0."* — alan tablosu ekseninde `numeric` atomu olarak ölçülüyor. |
+| bölüm başlığı | 14 | *"The following requirements apply to…"* — cümle değil, giriş. |
+| **gerçek kısıt** | **3** | **üçü de kapsanıyor** ↓ |
+| **case-sensitivity** | **1** | **kapsanıyor** ↓ |
+
+### Dört gerçek modalsiz hüküm — hepsi zaten karşılanıyor
+
+| hüküm | karşılık |
+|---|---|
+| *"Primary key (none) means that the file allows only one row"* (`feed_info`) | `FIN_015` — birden fazla `feed_info` kaydı |
+| *"Each (`service_id`, `date`) pair may only appear once"* | `DQ_021` — `calendar_dates.txt` PK'sı `service_id`+`date` |
+| *"A `route_id` can only be defined in one `network_id`"* | `k6_analytics.rs:4006` — *"bir hat yalnız bir ağa ait olabilir"* |
+| *"All file and field names are case-sensitive"* | `KNOWN_FILES.contains(&raw_name)` tam eşleşmedir → `Agency.txt` tanınmaz, `agency.txt` eksik sayılır |
+
+### Sonuç: payda anlamlı ölçüde büyümüyor
+
+104 saf adayın içinde **henüz kapsanmamış tek bir ölçülebilir hüküm bulunamadı.** Modalsiz
+kör nokta gerçekti ama **boş çıktı** — çünkü spec, bağlayıcı bir kısıt koyarken neredeyse her
+zaman bir modal kullanıyor; modalsiz cümleler semantik, tanım ve rehberlik taşıyor.
+
+⚠️ **Yöntemin sınırı:** 104 aday kategori örnekleriyle değerlendirildi, tek tek adjudike
+edilmedi; 764 sinyalsiz cümleye hiç bakılmadı. Bu bir **alt sınır ölçümü**dür — "yeni hüküm
+yok" değil, "aramanın bu turunda çıkmadı" demektir.
+
 ## ⚠️ Bu sayı ne demek DEĞİL
 
 **"Spec'in %54'ünü karşılıyoruz" DENEMEZ.** Payda bu kataloğun kendi kapsamıdır ve
