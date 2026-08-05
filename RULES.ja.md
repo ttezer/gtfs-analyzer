@@ -2,7 +2,7 @@
 
 🇹🇷 [Türkçe](RULES.md) · 🇬🇧 [English](RULES.en.md) · 🇯🇵 **日本語**
 
-574ルール、38グループ。各ルールは一意のID、重要度、クラスで定義されます。
+586ルール、38グループ。各ルールは一意のID、重要度、クラスで定義されます。
 重要度: **致命的**（公開ブロッカー）· **高** · **中** · **低** · **情報**
 クラス: **仕様**（GTFS妥当性）· **相互運用**（GTFSインターオペラビリティ）· **品質**（GTFS品質）· **分析**（GTFSアナリティクス）
 
@@ -204,6 +204,7 @@
 | TRP_031 | route_idが不足 | 致命的 | 仕様 |
 | TRP_033 | block_idを共有する便が異なるroute_typeを持つ | 中 | 品質 |
 | TRP_034 | safe_duration項目が数値でない | 中 | 仕様 |
+| TRP_035 | trips.txtのservice_idが空 | 致命的 | 仕様 |
 
 ## STM — 停車時刻（Stop Times）
 
@@ -313,6 +314,7 @@
 | CAL_022 | service_idが不足 | 致命的 | 仕様 |
 | CAL_023 | カレンダーのend_dateが遠い未来（疑わしい） | 中 | 品質 |
 | CAL_024 | 今後7日間にアクティブでないカレンダー | 低 | 品質 |
+| CAL_025 | カレンダーの曜日フィールドが空 | 致命的 | 仕様 |
 
 ## CLD — カレンダー例外（Calendar Dates）
 
@@ -446,6 +448,7 @@
 | RCT_005 | max_ageがmin_ageより小さい | 中 | 品質 |
 | RCT_006 | 同一fare_productにデフォルトのrider_categoryが複数 | 中 | 仕様 |
 | RCT_007 | eligibility_urlが無効 | 低 | 仕様 |
+| RCT_008 | rider_category_idが空 | 致命的 | 仕様 |
 
 ## FMD — 運賃メディア（Fare Media, Fares v2）
 
@@ -454,6 +457,7 @@
 | FMD_001 | fare_media_idが重複 | 致命的 | 仕様 |
 | FMD_002 | fare_media_typeが不足または無効 | 致命的 | 仕様 |
 | FMD_003 | TransitCard/MobileAppにfare_media_nameを推奨 | 低 | 品質 |
+| FMD_004 | fare_media_idが空 | 致命的 | 仕様 |
 
 ## FPD — 運賃商品（Fare Products, Fares v2）
 
@@ -508,6 +512,7 @@
 | ルール | タイトル | 重要度 | クラス |
 |---|---|---|---|
 | ARS_001 | area_idが重複 | 致命的 | 仕様 |
+| ARS_002 | areas.txtのarea_idが空 | 致命的 | 仕様 |
 
 ## SAR — 停留所エリア（Stop Areas, Fares v2）
 
@@ -515,6 +520,8 @@
 |---|---|---|---|
 | SAR_001 | area_idが存在しない | 致命的 | 仕様 |
 | SAR_002 | stop_idが存在しない | 致命的 | 仕様 |
+| SAR_003 | stop_areasのarea_idが空 | 致命的 | 仕様 |
+| SAR_004 | stop_areasのstop_idが空 | 致命的 | 仕様 |
 
 ## NET — ネットワーク（Networks, Fares v2）
 
@@ -523,6 +530,7 @@
 | NET_001 | network_idが重複 | 致命的 | 仕様 |
 | NET_002 | route_networks.network_idが未入力または不明 | 致命的 | 仕様 |
 | NET_003 | route_networks.route_idが未入力または不明 | 致命的 | 仕様 |
+| NET_004 | networks.txtのnetwork_idが空 | 致命的 | 仕様 |
 
 ## TFR — 時間帯（Timeframes, Fares v2）
 
@@ -535,6 +543,7 @@
 | TFR_005 | 同一グループ・service_id内で時間範囲が重複 | 中 | 相互運用 |
 | TFR_006 | start_timeまたはend_timeが24:00:00超 | 致命的 | 仕様 |
 | TFR_007 | start_timeとend_timeの一方のみ指定 | 致命的 | 仕様 |
+| TFR_008 | timeframesのservice_idが空 | 致命的 | 仕様 |
 
 ## PTH — 経路（Pathways）
 
@@ -667,6 +676,9 @@
 | XFL_024 | location_group_idが存在しない（stop_times） | 致命的 | 仕様 |
 | XFL_025 | location_idが存在しない（locations.geojson） | 致命的 | 仕様 |
 | XFL_031 | ID衝突：stop_id・locations.geojson id・location_group_idは共通の名前空間を持ちます | 致命的 | 仕様 |
+| XFL_032 | location_groups.txtのlocation_group_idが空 | 致命的 | 仕様 |
+| XFL_033 | location_group_stopsのlocation_group_idが空 | 致命的 | 仕様 |
+| XFL_034 | location_group_stopsのstop_idが空 | 致命的 | 仕様 |
 | XFL_026 | 路線cemv=1だが適用可能なcontactless productなし | 中 | 品質 |
 | XFL_027 | 路線cemv=2だが適用可能なcontactless productあり | 中 | 品質 |
 | XFL_028 | agency cemv=1だがcontactless mediaなし | 情報 | 品質 |

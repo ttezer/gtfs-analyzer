@@ -3346,6 +3346,99 @@ fn check_xfl(
     // "Must contain a stop_id that identifies a platform (location_type=0 or empty),
     // entrance/exit (2), generic node (3) or boarding area (4). Values for stop_id that
     // identify stations (location_type=1) ... are forbidden."
+    // ── presence:required boşlukları (çapa granülerliği triyajı, 2026-08-05) ─────
+    //
+    // "X yineleniyor" ve "X bulunamadı" başlıklı kurallar BOŞ DEĞERİ HİÇ GÖRMÜYORDU:
+    // yinelenme kontrolü boş anahtarları atlar (haklı — boşlar birbirinin kopyası değildir),
+    // FK çözümü boşu "referans yok" sayıp geçer. Aradaki "bu alan zorunludur" hükmü
+    // ikisinin arasından düşüyordu. Her biri `presence_probe.py` ile boş değerde sınandı.
+    //
+    // Emit K4'te toplandı çünkü bu kayıtların bir kısmı `parse_*` ile üretiliyor ve notice
+    // döndürmüyor; `row` ve `line` ise burada erişilebilir. `trips.service_id` istisnadır
+    // (TripRecord bellek için `row` tutmaz) → `TRP_035` K2'de.
+    {
+        use crate::k2::common::require_nonempty;
+        for r in &records.areas {
+            require_nonempty(&r.row, "area_id", "ARS_002", EntityType::Row,
+                (!r.area_id.is_empty()).then(|| r.area_id.clone()), "areas.txt", r.line,
+                "areas.txt'te area_id zorunludur.".to_string(),
+                "Her alana benzersiz bir area_id verin.", notices, ctr);
+        }
+        for r in &records.calendars {
+            for day in ["monday","tuesday","wednesday","thursday","friday","saturday","sunday"] {
+                require_nonempty(&r.row, day, "CAL_025", EntityType::Row,
+                    (!r.service_id.is_empty()).then(|| r.service_id.clone()), "calendar.txt", r.line,
+                    format!("service_id '{}' için '{day}' alanı boş; gün alanları zorunludur (0 veya 1).", r.service_id),
+                    "Haftanın her günü için 0 ya da 1 girin.", notices, ctr);
+            }
+        }
+        for r in &records.fare_media {
+            require_nonempty(&r.row, "fare_media_id", "FMD_004", EntityType::Row,
+                (!r.fare_media_id.is_empty()).then(|| r.fare_media_id.clone()), "fare_media.txt", r.line,
+                "fare_media_id zorunludur.".to_string(),
+                "Her ücret aracına benzersiz bir fare_media_id verin.", notices, ctr);
+        }
+        for r in &records.networks {
+            require_nonempty(&r.row, "network_id", "NET_004", EntityType::Row,
+                (!r.network_id.is_empty()).then(|| r.network_id.clone()), "networks.txt", r.line,
+                "networks.txt'te network_id zorunludur.".to_string(),
+                "Her ağa benzersiz bir network_id verin.", notices, ctr);
+        }
+        for r in &records.rider_categories {
+            require_nonempty(&r.row, "rider_category_id", "RCT_008", EntityType::Row,
+                (!r.rider_category_id.is_empty()).then(|| r.rider_category_id.clone()),
+                "rider_categories.txt", r.line,
+                "rider_category_id zorunludur.".to_string(),
+                "Her yolcu kategorisine benzersiz bir rider_category_id verin.", notices, ctr);
+        }
+        // ⚠️ Bu üç kayıt ham satırı (`row`) TUTMAZ, yalnız alanları taşır. Dolayısıyla
+        // "sütun hiç yok" (→ARC_025) ile "sütun var, değer boş" (→bu kurallar) ayrımı
+        // BURADA YAPILAMAZ: sütun yoksa alan da boş string olur ve iki notice birden çıkar.
+        // Küçük bir gürültü; alternatifi bu kayıtlara RowMap eklemekti ve bu kurallar için
+        // bellek maliyetine değmez.
+        let mut emit_empty = |cond: bool, rule: &'static str, file: &'static str,
+                              field: &'static str, line: u64, msg: String, fix: &'static str,
+                              notices: &mut Vec<gtfs_core::Notice>, ctr: &mut u32| {
+            if cond {
+                notices.push(notice(ctr, rule, EntityType::Row, None, None, file, Some(line),
+                    Some(field), Some(String::new()), Some("(dolu)".to_string()), msg, fix));
+            }
+        };
+        for r in &records.location_groups {
+            emit_empty(r.location_group_id.trim().is_empty(), "XFL_032", "location_groups.txt",
+                "location_group_id", r.line,
+                "location_groups.txt'te location_group_id zorunludur.".to_string(),
+                "Her konum grubuna benzersiz bir location_group_id verin.", notices, ctr);
+        }
+        for r in &records.location_group_stops {
+            emit_empty(r.location_group_id.trim().is_empty(), "XFL_033", "location_group_stops.txt",
+                "location_group_id", r.line,
+                "location_group_stops.txt'te location_group_id zorunludur.".to_string(),
+                "Satırı bir location_group_id'ye bağlayın.", notices, ctr);
+            emit_empty(r.stop_id.trim().is_empty(), "XFL_034", "location_group_stops.txt",
+                "stop_id", r.line,
+                "location_group_stops.txt'te stop_id zorunludur.".to_string(),
+                "Satırı bir stop_id'ye bağlayın.", notices, ctr);
+        }
+        for r in &records.stop_areas {
+            require_nonempty(&r.row, "area_id", "SAR_003", EntityType::Row,
+                None, "stop_areas.txt", r.line,
+                "stop_areas.txt'te area_id zorunludur.".to_string(),
+                "Satırı bir area_id'ye bağlayın.", notices, ctr);
+            require_nonempty(&r.row, "stop_id", "SAR_004", EntityType::Row,
+                None, "stop_areas.txt", r.line,
+                "stop_areas.txt'te stop_id zorunludur.".to_string(),
+                "Satırı bir stop_id'ye bağlayın.", notices, ctr);
+        }
+        for r in &records.timeframes {
+            require_nonempty(&r.row, "service_id", "TFR_008", EntityType::Row,
+                (!r.timeframe_group_id.is_empty()).then(|| r.timeframe_group_id.clone()),
+                "timeframes.txt", r.line,
+                "timeframes.txt'te service_id zorunludur.".to_string(),
+                "Her zaman dilimini calendar'da tanımlı bir service_id'ye bağlayın.", notices, ctr);
+        }
+    }
+
     // PTH_030: bir platformun boarding area'ları modellenmişse pathway'ler BOARDING AREA'lara
     // bağlanır; spec ekler: "In such cases, the platform must not have pathways assigned."
     //

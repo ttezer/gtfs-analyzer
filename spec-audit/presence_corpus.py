@@ -47,7 +47,13 @@ for z in sorted(pathlib.Path("notgit/corpus/zips").glob("*.zip")):
         if field not in hdr: continue          # sütun yok → ARC_025'in alanı
         present[(fname, field)] += 1
         i = hdr.index(field)
-        n = sum(1 for row in rows if i >= len(row) or not row[i].strip())
+        # ⚠️ TAMAMEN BOŞ SATIRI SAYMA. İlk ölçüm sayıyordu ve "trips.service_id 24 satır"
+        # gibi bir sonuç verdi; o satırlar aslında CSV'nin sonundaki boş satırlardı.
+        # Pipeline onları `ARC_018` ile eler ve kayıt üretmez, dolayısıyla presence
+        # kuralları o satırları hiç görmez. Ölçüm kuralın gördüğü şeyi saymalı.
+        n = sum(1 for row in rows
+                if any(c.strip() for c in row)                # boş satır değil
+                and (i >= len(row) or not row[i].strip()))
         if n:
             empty[(fname, field)] += n
             feeds[(fname, field)].add(z.stem)

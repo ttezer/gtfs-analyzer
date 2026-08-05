@@ -2,7 +2,7 @@
 
 🇹🇷 **Türkçe** · 🇬🇧 [English](RULES.en.md) · 🇯🇵 [日本語](RULES.ja.md)
 
-574 kural, 38 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
+586 kural, 38 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
 Önem seviyeleri: **KRİTİK** (yayın engelleyici) · **YÜKSEK** · **ORTA** · **DÜŞÜK** · **BİLGİ**
 Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · **Quality** (GTFS Kalitesi) · **Analytics** (GTFS Analitiği)
 
@@ -204,6 +204,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | TRP_031 | route_id eksik | KRİTİK | Spec |
 | TRP_033 | Aynı block_id'yi paylaşan seferler farklı route_type taşıyor | ORTA | Quality |
 | TRP_034 | safe_duration alanı sayı değil | ORTA | Spec |
+| TRP_035 | trips.txt'te service_id boş | KRİTİK | Spec |
 
 ## STM — Stop Times (Geçiş Zamanları)
 
@@ -313,6 +314,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | CAL_022 | service_id eksik | KRİTİK | Spec |
 | CAL_023 | end_date çok ileri (şüpheli uzak-gelecek tarih) | ORTA | Quality |
 | CAL_024 | Takvim önümüzdeki 7 günde aktif değil | DÜŞÜK | Quality |
+| CAL_025 | Takvim gün alanı boş (değer verilmemiş) | KRİTİK | Spec |
 
 ## CLD — Calendar Dates
 
@@ -446,6 +448,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | RCT_005 | max_age min_age'den küçük | ORTA | Quality |
 | RCT_006 | fare_product başına birden fazla varsayılan yolcu kategorisi | ORTA | Spec |
 | RCT_007 | eligibility_url geçersiz | DÜŞÜK | Spec |
+| RCT_008 | rider_category_id boş | KRİTİK | Spec |
 
 ## FMD — Fare Media (Ücret Medyası, Fares v2)
 
@@ -454,6 +457,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | FMD_001 | fare_media_id yineleniyor | KRİTİK | Spec |
 | FMD_002 | fare_media_type eksik veya geçersiz | KRİTİK | Spec |
 | FMD_003 | TransitCard/MobileApp için fare_media_name tavsiye edilir | DÜŞÜK | Quality |
+| FMD_004 | fare_media_id boş | KRİTİK | Spec |
 
 ## FPD — Fare Products (Ücret Ürünleri, Fares v2)
 
@@ -508,6 +512,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | Kural | Başlık | Önem | Sınıf |
 |---|---|---|---|
 | ARS_001 | area_id yineleniyor | KRİTİK | Spec |
+| ARS_002 | areas.txt'te area_id boş | KRİTİK | Spec |
 
 ## SAR — Stop Areas (Durak Bölgeleri, Fares v2)
 
@@ -515,6 +520,8 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 |---|---|---|---|
 | SAR_001 | area_id bulunamadı | KRİTİK | Spec |
 | SAR_002 | stop_id bulunamadı | KRİTİK | Spec |
+| SAR_003 | stop_areas'ta area_id boş | KRİTİK | Spec |
+| SAR_004 | stop_areas'ta stop_id boş | KRİTİK | Spec |
 
 ## NET — Networks (Ağlar, Fares v2)
 
@@ -523,6 +530,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | NET_001 | network_id yineleniyor | KRİTİK | Spec |
 | NET_002 | route_networks.network_id eksik veya bulunamadı | KRİTİK | Spec |
 | NET_003 | route_networks.route_id eksik veya bulunamadı | KRİTİK | Spec |
+| NET_004 | networks.txt'te network_id boş | KRİTİK | Spec |
 
 ## TFR — Timeframes (Zaman Dilimleri, Fares v2)
 
@@ -535,6 +543,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | TFR_005 | Aynı grup ve service_id içinde örtüşen zaman aralıkları | ORTA | Interop |
 | TFR_006 | start_time veya end_time 24:00:00'dan büyük | KRİTİK | Spec |
 | TFR_007 | start_time ve end_time yalnızca biri tanımlı | KRİTİK | Spec |
+| TFR_008 | timeframes'te service_id boş | KRİTİK | Spec |
 
 ## PTH — Pathways (Geçitler)
 
@@ -667,6 +676,9 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | XFL_024 | location_group_id bulunamadı (stop_times) | KRİTİK | Spec |
 | XFL_025 | location_id bulunamadı (locations.geojson) | KRİTİK | Spec |
 | XFL_031 | Kimlik çakışması: stop_id / locations.geojson id / location_group_id ortak isim alanını paylaşır | KRİTİK | Spec |
+| XFL_032 | location_groups.txt'te location_group_id boş | KRİTİK | Spec |
+| XFL_033 | location_group_stops'ta location_group_id boş | KRİTİK | Spec |
+| XFL_034 | location_group_stops'ta stop_id boş | KRİTİK | Spec |
 | XFL_026 | route cemv_support=1 ama uygulanabilir contactless fare product yok | ORTA | Quality |
 | XFL_027 | route cemv_support=2 ama uygulanabilir contactless fare product var | ORTA | Quality |
 | XFL_028 | agency cemv_support=1 ama Fares v2'de contactless media yok | BİLGİ | Quality |

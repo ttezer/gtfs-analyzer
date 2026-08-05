@@ -422,6 +422,18 @@ fn fixtures() -> Vec<Fixture> {
         fx("ARC_030", vec![("agency.txt", "agency_id,agency_name,agency_url,agency_timezone\n1,\"Test\nTransit\",http://x.com,UTC\n")]),
         // ARC_032: `<BR>` biçimi vahşi doğadan (mdb-1924, 1176 durak adı).
         fx("ARC_032", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Ana<br>Durak,41.0,29.0\n")]),
+        fx("ARS_002", vec![("areas.txt","area_id,area_name\n,Bolge\n")]),
+        fx("CAL_025", vec![("calendar.txt","service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC,,1,1,1,1,0,0,20250101,20261231\n")]),
+        fx("FMD_004", vec![("fare_media.txt","fare_media_id,fare_media_name,fare_media_type\n,Kart,2\n")]),
+        fx("NET_004", vec![("networks.txt","network_id,network_name\n,Ag\n")]),
+        fx("RCT_008", vec![("rider_categories.txt","rider_category_id,rider_category_name\n,Yetiskin\n")]),
+        fx("XFL_032", vec![("location_groups.txt","location_group_id,location_group_name\n,Grup\n")]),
+        fx("XFL_033", vec![("location_group_stops.txt","location_group_id,stop_id\n,S1\n")]),
+        fx("XFL_034", vec![("location_group_stops.txt","location_group_id,stop_id\nLG1,\n"), ("location_groups.txt","location_group_id,location_group_name\nLG1,Grup\n")]),
+        fx("SAR_003", vec![("stop_areas.txt","area_id,stop_id\n,S1\n")]),
+        fx("SAR_004", vec![("stop_areas.txt","area_id,stop_id\nA1,\n"), ("areas.txt","area_id,area_name\nA1,Bolge\n")]),
+        fx("TFR_008", vec![("timeframes.txt","timeframe_group_id,start_time,end_time,service_id\nTG1,08:00:00,10:00:00,\n")]),
+        fx("TRP_035", vec![("trips.txt","route_id,service_id,trip_id\nR1,,T1\n")]),
 
         // ── STP grubu (stops.txt; K2 alan kontrolleri) ─────────────────────────
         fx("STP_002", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\n,Stop1,41.0,29.0\nS2,Stop2,41.1,29.1\n")]),

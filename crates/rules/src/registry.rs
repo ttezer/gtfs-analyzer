@@ -564,6 +564,8 @@ pub static RULES: &[RuleMeta] = &[
     // saniyelik GEÇERLİ bir değer sessizce siliniyordu. İkisi de düzeltildi.
     r!("TRP_034", Orta, Spec, 1, &[], Some("trip_id"), VS, Entity,
         "safe_duration alanı sayı değil"),
+    r!("TRP_035", Kritik, Spec, 1, &[], Some("trip_id"), VS_K, Row,
+        "trips.txt'te service_id boş"),
 
     // ── STM: Stop Times ────────────────────────────────────────────────────────
     r!("STM_001", Kritik, Spec, 1,
@@ -800,6 +802,8 @@ pub static RULES: &[RuleMeta] = &[
     // CAL_024: eski TRP_030 (takvim odaklı olduğu için #23 ile CAL grubuna taşındı).
     r!("CAL_024", Dusuk, Quality, 1, &[], Some("service_id"), VS, Entity,
         "Takvim önümüzdeki 7 günde aktif değil"),
+    r!("CAL_025", Kritik, Spec, 1, &[], Some("service_id"), VS_K, Row,
+        "Takvim gün alanı boş (değer verilmemiş)"),
 
     // ── CLD: Calendar Dates ────────────────────────────────────────────────────
     r!("CLD_001", Kritik, Spec, 1, &[], Some("service_id"), VS_K, Row,
@@ -1046,6 +1050,8 @@ pub static RULES: &[RuleMeta] = &[
     // `rider_category_eligibility_url` sütununu okuyordu.
     r!("RCT_007", Dusuk,  Spec, 1, &[], Some("rider_category_id"), VS, Entity,
         "eligibility_url geçersiz"),
+    r!("RCT_008", Kritik, Spec, 1, &[], Some("rider_category_id"), VS_K, Row,
+        "rider_category_id boş"),
 
     // ── FMD: Fare Media (Fares v2) ────────────────────────────────────────────
     r!("FMD_001", Kritik, Spec, 1, &["FPD_004"],
@@ -1055,6 +1061,8 @@ pub static RULES: &[RuleMeta] = &[
         "fare_media_type eksik veya geçersiz"),
     r!("FMD_003", Dusuk, Quality, 1, &[], Some("fare_media_id"), VS, Row,
         "TransitCard/MobileApp için fare_media_name tavsiye edilir"),
+    r!("FMD_004", Kritik, Spec, 1, &[], Some("fare_media_id"), VS_K, Row,
+        "fare_media_id boş"),
 
     // ── FPD: Fare Products (Fares v2) ─────────────────────────────────────────
     r!("FPD_001", Kritik, Spec, 1, &["FLG_001","FTR_004"],
@@ -1132,12 +1140,23 @@ pub static RULES: &[RuleMeta] = &[
     r!("ARS_001", Kritik, Spec, 1, &["SAR_001","FLG_003","FLG_004"],
         Some("area_id"), VS_K, Row,
         "area_id yineleniyor"),
+    // ── presence:required boşlukları (çapa granülerliği triyajı, 2026-08-05) ──────
+    // Ölçüldü: "X yineleniyor" ve "X bulunamadı" başlıklı kurallar BOŞ DEĞERİ HİÇ GÖRMÜYOR.
+    // Yinelenme kontrolü boş anahtarları atlar (haklı — boşlar birbirinin kopyası değildir),
+    // FK çözümü boşu "referans yok" sayıp geçer. Aradaki hüküm — "bu alan zorunludur" —
+    // ikisinin arasından düşüyordu. `presence_probe.py` her birini boş değerle sınadı.
+    r!("ARS_002", Kritik, Spec, 1, &[], Some("area_id"), VS_K, Row,
+        "areas.txt'te area_id boş"),
 
     // ── SAR: Stop Areas (Fares v2) ────────────────────────────────────────────
     r!("SAR_001", Kritik, Spec, 1, &[], Some("area_id"), VS_K, Row,
         "area_id bulunamadı"),
     r!("SAR_002", Kritik, Spec, 1, &[], Some("stop_id"), VS_K, Row,
         "stop_id bulunamadı"),
+    r!("SAR_003", Kritik, Spec, 1, &[], Some("area_id"), VS_K, Row,
+        "stop_areas'ta area_id boş"),
+    r!("SAR_004", Kritik, Spec, 1, &[], Some("stop_id"), VS_K, Row,
+        "stop_areas'ta stop_id boş"),
 
     // ── NET: Networks (Fares v2) ──────────────────────────────────────────────
     r!("NET_001", Kritik, Spec, 1, &["FLG_002"],
@@ -1154,6 +1173,8 @@ pub static RULES: &[RuleMeta] = &[
     r!("NET_003", Kritik, Spec, 1, &[],
         Some("route_id"), VS_K, Row,
         "route_networks.route_id eksik veya bulunamadı"),
+    r!("NET_004", Kritik, Spec, 1, &[], Some("network_id"), VS_K, Row,
+        "networks.txt'te network_id boş"),
 
     // ── TFR: Timeframes (Fares v2) ────────────────────────────────────────────
     r!("TFR_001", Kritik, Spec, 1, &[], Some("timeframe_group_id"), VS_K, Row,
@@ -1170,6 +1191,8 @@ pub static RULES: &[RuleMeta] = &[
         "start_time veya end_time 24:00:00'dan büyük"),
     r!("TFR_007", Kritik, Spec, 1, &[], Some("timeframe_group_id"), VS_K, Row,
         "start_time ve end_time yalnızca biri tanımlı"),
+    r!("TFR_008", Kritik, Spec, 1, &[], Some("service_id"), VS_K, Row,
+        "timeframes'te service_id boş"),
 
     // ── PTH: Pathways ──────────────────────────────────────────────────────────
     r!("PTH_001", Kritik, Spec, 1, &[], Some("pathway_id"), VS_K, Entity,
@@ -1461,6 +1484,12 @@ pub static RULES: &[RuleMeta] = &[
     // referansını çözümlenemez hâle getirir.
     r!("XFL_031", Kritik, Spec, 2, &[], Some("location_group_id"), VS_K, Row,
         "Kimlik çakışması: stop_id / locations.geojson id / location_group_id ortak isim alanını paylaşır"),
+    r!("XFL_032", Kritik, Spec, 1, &[], Some("location_group_id"), VS_K, Row,
+        "location_groups.txt'te location_group_id boş"),
+    r!("XFL_033", Kritik, Spec, 1, &[], Some("location_group_id"), VS_K, Row,
+        "location_group_stops'ta location_group_id boş"),
+    r!("XFL_034", Kritik, Spec, 1, &[], Some("stop_id"), VS_K, Row,
+        "location_group_stops'ta stop_id boş"),
     r!("XFL_026", Orta,  Quality, 2, &[], Some("route_id"), VS, Entity,
         "route cemv_support=1 ama uygulanabilir contactless fare product yok"),
     r!("XFL_027", Orta,  Quality, 2, &[], Some("route_id"), VS, Entity,
@@ -1707,6 +1736,7 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("ARC_030", GtfsSpec),
     ("ARC_032", GtfsSpec),
     ("ARS_001", GtfsSpec),
+    ("ARS_002", GtfsSpec),
     ("ATR_001", ProjectQuality),
     ("ATR_002", GtfsSpec),
     ("ATR_003", GtfsSpec),
@@ -1767,6 +1797,7 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("CAL_022", GtfsSpec),
     ("CAL_023", ProjectQuality),
     ("CAL_024", ProjectQuality),
+    ("CAL_025", GtfsSpec),
     ("CLD_001", GtfsSpec),
     ("CLD_002", GtfsSpec),
     ("CLD_003", GtfsSpec),
@@ -1836,6 +1867,7 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("FMD_001", GtfsSpec),
     ("FMD_002", GtfsSpec),
     ("FMD_003", ProjectQuality),
+    ("FMD_004", GtfsSpec),
     ("FPD_001", GtfsSpec),
     ("FPD_002", GtfsSpec),
     ("FPD_003", GtfsSpec),
@@ -1922,6 +1954,7 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("NET_001", GtfsSpec),
     ("NET_002", GtfsSpec),
     ("NET_003", GtfsSpec),
+    ("NET_004", GtfsSpec),
     ("OPR_001", ProjectAnalytics),
     ("OPR_003", ProjectAnalytics),
     ("OPR_004", ProjectAnalytics),
@@ -1978,6 +2011,7 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("RCT_005", ProjectQuality),
     ("RCT_006", GtfsSpec),
     ("RCT_007", GtfsSpec),
+    ("RCT_008", GtfsSpec),
     ("RTS_001", GtfsSpec),
     ("RTS_002", GtfsSpec),
     ("RTS_003", GtfsSpec),
@@ -2006,6 +2040,8 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("RTS_029", GtfsSpec),
     ("SAR_001", GtfsSpec),
     ("SAR_002", GtfsSpec),
+    ("SAR_003", GtfsSpec),
+    ("SAR_004", GtfsSpec),
     ("SHP_001", GtfsSpec),
     ("SHP_002", GtfsSpec),
     ("SHP_003", GtfsSpec),
@@ -2136,6 +2172,7 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("TFR_005", MobilitydataParity),
     ("TFR_006", GtfsSpec),
     ("TFR_007", GtfsSpec),
+    ("TFR_008", GtfsSpec),
     ("TRF_021", GtfsSpec),
     ("PTH_026", GtfsSpec),
     ("PTH_027", GtfsSpec),
@@ -2206,6 +2243,7 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     // Spec bir blokta tek mod şartını AÇIKÇA yazmaz → GtfsSpec DEĞİL, proje kararı.
     ("TRP_033", ProjectQuality),
     ("TRP_034", GtfsSpec),
+    ("TRP_035", GtfsSpec),
     ("VAT_001", ProjectAnalytics),
     ("VAT_002", ProjectAnalytics),
     ("VAT_003", ProjectAnalytics),
@@ -2230,6 +2268,9 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("XFL_024", GtfsSpec),
     ("XFL_025", GtfsSpec),
     ("XFL_031", GtfsSpec),
+    ("XFL_032", GtfsSpec),
+    ("XFL_033", GtfsSpec),
+    ("XFL_034", GtfsSpec),
     ("XFL_026", ProjectQuality),
     ("XFL_027", ProjectQuality),
     ("XFL_028", ProjectQuality),

@@ -2,7 +2,7 @@
 
 🇹🇷 [Türkçe](RULES.md) · 🇬🇧 **English** · 🇯🇵 [日本語](RULES.ja.md)
 
-574 rules, 38 groups. Each rule is identified by a unique ID, severity level, and class.
+586 rules, 38 groups. Each rule is identified by a unique ID, severity level, and class.
 Severity levels: **CRITICAL** (publish blocker) · **HIGH** · **MEDIUM** · **LOW** · **INFO**
 Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Quality** (GTFS Quality) · **Analytics** (GTFS Analytics)
 
@@ -204,6 +204,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | TRP_031 | route_id missing | CRITICAL | Spec |
 | TRP_033 | Trips sharing a block_id carry different route types | MEDIUM | Quality |
 | TRP_034 | safe_duration field is not a number | MEDIUM | Spec |
+| TRP_035 | trips.txt has an empty service_id | CRITICAL | Spec |
 
 ## STM — Stop Times
 
@@ -313,6 +314,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | CAL_022 | service_id missing | CRITICAL | Spec |
 | CAL_023 | Calendar end_date far in the future (suspect) | MEDIUM | Quality |
 | CAL_024 | Calendar inactive in the next 7 days | LOW | Quality |
+| CAL_025 | Calendar day field is empty | CRITICAL | Spec |
 
 ## CLD — Calendar Dates
 
@@ -446,6 +448,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | RCT_005 | max_age less than min_age | MEDIUM | Quality |
 | RCT_006 | Multiple default rider categories per fare_product | MEDIUM | Spec |
 | RCT_007 | eligibility_url is invalid | LOW | Spec |
+| RCT_008 | rider_category_id is empty | CRITICAL | Spec |
 
 ## FMD — Fare Media (Fares v2)
 
@@ -454,6 +457,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | FMD_001 | Duplicate fare_media_id | CRITICAL | Spec |
 | FMD_002 | fare_media_type missing or invalid | CRITICAL | Spec |
 | FMD_003 | fare_media_name recommended for TransitCard/MobileApp | LOW | Quality |
+| FMD_004 | fare_media_id is empty | CRITICAL | Spec |
 
 ## FPD — Fare Products (Fares v2)
 
@@ -508,6 +512,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | Rule | Title | Severity | Class |
 |---|---|---|---|
 | ARS_001 | Duplicate area_id | CRITICAL | Spec |
+| ARS_002 | areas.txt has an empty area_id | CRITICAL | Spec |
 
 ## SAR — Stop Areas (Fares v2)
 
@@ -515,6 +520,8 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 |---|---|---|---|
 | SAR_001 | area_id not found | CRITICAL | Spec |
 | SAR_002 | stop_id not found | CRITICAL | Spec |
+| SAR_003 | stop_areas has an empty area_id | CRITICAL | Spec |
+| SAR_004 | stop_areas has an empty stop_id | CRITICAL | Spec |
 
 ## NET — Networks (Fares v2)
 
@@ -523,6 +530,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | NET_001 | Duplicate network_id | CRITICAL | Spec |
 | NET_002 | route_networks.network_id is missing or not found | CRITICAL | Spec |
 | NET_003 | route_networks.route_id is missing or not found | CRITICAL | Spec |
+| NET_004 | networks.txt has an empty network_id | CRITICAL | Spec |
 
 ## TFR — Timeframes (Fares v2)
 
@@ -535,6 +543,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | TFR_005 | Overlapping time ranges within same group and service_id | MEDIUM | Interop |
 | TFR_006 | start_time or end_time greater than 24:00:00 | CRITICAL | Spec |
 | TFR_007 | Only one of start_time and end_time is specified | CRITICAL | Spec |
+| TFR_008 | timeframes has an empty service_id | CRITICAL | Spec |
 
 ## PTH — Pathways
 
@@ -667,6 +676,9 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | XFL_024 | location_group_id not found (stop_times) | CRITICAL | Spec |
 | XFL_025 | location_id not found (locations.geojson) | CRITICAL | Spec |
 | XFL_031 | ID clash: stop_id, locations.geojson id and location_group_id share one namespace | CRITICAL | Spec |
+| XFL_032 | location_groups.txt has an empty location_group_id | CRITICAL | Spec |
+| XFL_033 | location_group_stops has an empty location_group_id | CRITICAL | Spec |
+| XFL_034 | location_group_stops has an empty stop_id | CRITICAL | Spec |
 | XFL_026 | route cemv=1 but no applicable contactless product | MEDIUM | Quality |
 | XFL_027 | route cemv=2 but applicable contactless product | MEDIUM | Quality |
 | XFL_028 | agency cemv=1 but no contactless media | INFO | Quality |

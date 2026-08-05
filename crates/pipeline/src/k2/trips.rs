@@ -164,6 +164,7 @@ pub fn validate_trips(file: &RawFile, zip_bytes: Option<&[u8]>) -> (Vec<TripReco
 
     let has_trip_id_col   = file.headers.iter().any(|h| h == "trip_id");
     let has_route_id_col  = file.headers.iter().any(|h| h == "route_id");
+    let has_service_id_col = file.headers.iter().any(|h| h == "service_id");
 
     // Intern tablo + per-field lookup map'leri
     let mut interns = TripInternTable::new();
@@ -202,6 +203,19 @@ pub fn validate_trips(file: &RawFile, zip_bytes: Option<&[u8]>) -> (Vec<TripReco
                 Some(String::new()), None,
                 "route_id zorunludur.".to_string(),
                 "Her sefere geçerli bir route_id atayın.",
+            ));
+        }
+
+        // TRP_035: service_id zorunludur. TRP_003 ("service_id bulunamadı") yalnız FK
+        // çözümünü ölçer ve boş değeri "referans yok" sayıp geçer — çapa granülerliği
+        // triyajında bulundu (korpusta 24 satır / 5 feed).
+        if service_idx == 0 && has_service_id_col {
+            notices.push(make_k2_notice(
+                &mut counter, "TRP_035", EntityType::Trip, None,
+                None, &file.name, Some(line), Some("service_id"),
+                Some(String::new()), Some("(dolu)".to_string()),
+                "service_id zorunludur; boş bırakılan sefer hiçbir takvime bağlanmaz.".to_string(),
+                "Her sefere calendar.txt veya calendar_dates.txt'te tanımlı bir service_id atayın.",
             ));
         }
 

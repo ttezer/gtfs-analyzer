@@ -360,6 +360,39 @@ pub fn derive_scope_key(row: &RowMap, scope_key_field: Option<&str>) -> Option<S
 }
 
 /// K2 modülleri için canonical notice üretir.
+/// `presence:required` boşluğu için ortak emit — 12 çağıranı var.
+///
+/// Neden ayrı bir yardımcı: çapa granülerliği triyajı (2026-08-05) 12 alanda AYNI boşluğu
+/// buldu — "X yineleniyor" ve "X bulunamadı" başlıklı kurallar boş değeri hiç görmüyordu.
+/// Yinelenme kontrolü boş anahtarları atlar (haklı: boşlar birbirinin kopyası değildir),
+/// FK çözümü boşu "referans yok" sayıp geçer; aradaki "bu alan zorunludur" hükmü düşüyordu.
+///
+/// Alan YOKSA sessiz kalır: sütunun hiç bulunmaması `ARC_025`'in alanıdır, bu kuralların değil.
+#[allow(clippy::too_many_arguments)]
+pub fn require_nonempty(
+    row: &RowMap,
+    field: &str,
+    rule_id: &'static str,
+    entity_type: EntityType,
+    entity_id: Option<String>,
+    file: &str,
+    line: u64,
+    message: String,
+    remediation: &'static str,
+    notices: &mut Vec<Notice>,
+    counter: &mut u32,
+) {
+    // `None` = sütun başlıkta yok → ARC_025; `Some("")` = sütun var, değer boş → bu kural.
+    if get_trimmed_field(row, field).is_some_and(str::is_empty) {
+        notices.push(make_k2_notice(
+            counter, rule_id, entity_type, entity_id, Some(row),
+            file, Some(line), Some(field),
+            Some(String::new()), Some("(dolu)".to_string()),
+            message, remediation,
+        ));
+    }
+}
+
 pub fn make_k2_notice(
     counter: &mut u32,
     rule_id: &str,
