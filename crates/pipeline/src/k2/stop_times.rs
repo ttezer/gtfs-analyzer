@@ -848,6 +848,8 @@ impl<R: Read> ZipCsvReader<R> {
 struct StChunk {
     notices: Vec<Notice>,
     counter: u32,
+    /// `STM_059` kapısı — feed'de booking_rules.txt var mı.
+    has_booking_rules: bool,
     /// Intern cache: unique long (>22 byte) trip_id başına bir Arc alloc
     trip_id_cache: FxHashMap<String, SmolStr>,
     /// #38: stop_id intern tablosu (SmolStr yerine u32 indeks → CompactStopTime 4B stop alanı)
@@ -1019,8 +1021,12 @@ impl StChunk {
     }
 }
 
-pub fn validate_stop_times(file: &RawFile, zip_bytes: Option<&[u8]>) -> (StopTimesIndex, Vec<gtfs_core::Notice>) {
+/// `has_booking_rules`: feed `booking_rules.txt` taşıyor mu — `STM_059` bu kapıya bağlı.
+/// O dosya yokken bir booking rule id yazmak FK'yı kırar (`BKR_017`), dolayısıyla tavsiye
+/// uygulanamaz ve kural susmalıdır.
+pub fn validate_stop_times(file: &RawFile, zip_bytes: Option<&[u8]>, has_booking_rules: bool) -> (StopTimesIndex, Vec<gtfs_core::Notice>) {
     let mut st = StChunk::default();
+    st.has_booking_rules = has_booking_rules;
     let cols = Cols::from_headers(&file.headers);
     // B1: feed'de hiç Flex sütunu yoksa satır başı flex işini tümüyle atla.
     // Çıktı birebir aynı: get_col hep "" döner → STM_037-041 boş-yere-false, 6 alan None.
@@ -1439,6 +1445,38 @@ pub fn validate_stop_times(file: &RawFile, zip_bytes: Option<&[u8]>) -> (StopTim
             }
         }
 
+        // STM_059: `pickup_type=2` / `drop_off_type=2` ("ajansı telefonla arayın") iken
+        // spec ilgili booking rule'u ÖNERİR.
+        //
+        // ⚠️ BU BLOK FLEX BLOĞUNUN DIŞINDADIR ve öyle kalmalı. `has_flex_cols` sütun
+        // VARLIĞINA bakar; `pickup_booking_rule_id` sütunu hiç yoksa Flex bloğu tümüyle
+        // atlanır — ama tam o durum bu kuralın hedefidir (klasik dial-a-ride pencere de
+        // booking sütunu da taşımaz). İlk yazımda blok içindeydi ve `emit_proof` kapısı
+        // "STM_059 emit etmedi" diyerek yakaladı.
+        //
+        // ⚠️ `booking_rules.txt` YOKSA susar: o dosya olmadan bir id yazmak FK'yı kırar
+        // (`BKR_017`). Ölçümde bu kapı olmadan 97.355 satır çıkmıştı, kapıyla 27.
+        if st.has_booking_rules {
+            let pu2 = get_col(row, cols.pickup_type) == "2";
+            let do2 = get_col(row, cols.drop_off_type) == "2";
+            let pbr = get_col(row, cols.pickup_booking_rule_id);
+            let dobr = get_col(row, cols.drop_off_booking_rule_id);
+            if (pu2 && pbr.is_empty()) || (do2 && dobr.is_empty()) {
+                let (which, field) = if pu2 && pbr.is_empty() {
+                    ("pickup_type=2", "pickup_booking_rule_id")
+                } else {
+                    ("drop_off_type=2", "drop_off_booking_rule_id")
+                };
+                st.notices.push(make_k2_notice(
+                    &mut st.counter, "STM_059", EntityType::Trip, eid(),
+                    None, &file.name, Some(line), Some(field),
+                    None, None,
+                    format!("trip_id '{}' {which} (telefonla rezervasyon) ama {field} eksik.", trip_id),
+                    "Talep-üzerine biniş/iniş için booking_rules.txt'teki ilgili kuralı bu alana bağlayın.",
+                ));
+            }
+        }
+
         // ── Flex GTFS alanları (B1: yalnızca feed'de flex sütunu varsa işlenir) ──
         let (start_window, end_window, location_id, location_group_id,
              pickup_booking_rule_id, drop_off_booking_rule_id): (
@@ -1695,6 +1733,10 @@ pub fn validate_stop_times(file: &RawFile, zip_bytes: Option<&[u8]>) -> (StopTim
                                 let ranges = split_body_at_trip_boundaries(&body, cols.trip_id, n);
                                 let parts: Vec<StChunk> = ranges.par_iter().map(|&(bs, be, first_line)| {
                                     let mut c = StChunk::default();
+                                    // Bayrak chunk'a TAŞINMALI: `StChunk::default()` her chunk için
+                                    // yeniden kurulur ve `has_booking_rules` false kalırdı → STM_059
+                                    // yalnız tek parçalı feed'lerde çalışırdı. `emit_proof` yakaladı.
+                                    c.has_booking_rules = has_booking_rules;
                                     let mut rdr = ZipCsvReader::new(Cursor::new(&body[bs..be]));
                                     let mut fields: Vec<Vec<u8>> = Vec::with_capacity(header_count + 1);
                                     let mut line = first_line;
@@ -1730,6 +1772,7 @@ pub fn validate_stop_times(file: &RawFile, zip_bytes: Option<&[u8]>) -> (StopTim
                             const CHUNK_ROWS: usize = 500_000;
                             let mut chunks: Vec<StChunk> = Vec::new();
                             let mut cur = StChunk::default();
+                            cur.has_booking_rules = has_booking_rules;
                             let mut rows_in_chunk: usize = 0;
                             let mut boundary_trip: Option<SmolStr> = None;
                             while csv_reader.next_record(&mut raw_fields) {
@@ -1759,6 +1802,9 @@ pub fn validate_stop_times(file: &RawFile, zip_bytes: Option<&[u8]>) -> (StopTim
                                         None => boundary_trip = Some(SmolStr::from(tid)),
                                         Some(b) if b.as_str() != tid => {
                                             chunks.push(std::mem::take(&mut cur));
+                                            // `mem::take` chunk'ı Default'a sıfırlar → bayrak
+                                            // yeniden kurulmalı, yoksa ilk chunk'tan sonrası sessizleşir.
+                                            cur.has_booking_rules = has_booking_rules;
                                             rows_in_chunk = 0;
                                             boundary_trip = None;
                                         }
@@ -2086,7 +2132,7 @@ mod tests {
                 vec!["T1", "08:10:00", "08:10:00", "S2", "2"],
             ],
         );
-        let (records_idx, notices) = validate_stop_times(&file, None);
+        let (records_idx, notices) = validate_stop_times(&file, None, false);
         assert_eq!(records_idx.rows.len(), 2);
         assert!(notices.is_empty(), "Geçerli stop_times notice üretmemeli: {:?}", notices);
     }
@@ -2097,7 +2143,7 @@ mod tests {
             vec!["trip_id", "arrival_time", "departure_time", "stop_id", "stop_sequence"],
             vec![vec!["T1", "08:00:00", "08:00:00", "S1", ""]],
         );
-        let (_, notices) = validate_stop_times(&file, None);
+        let (_, notices) = validate_stop_times(&file, None, false);
         assert!(notices.iter().any(|n| n.rule_id == "STM_005"));
     }
 
@@ -2107,7 +2153,7 @@ mod tests {
             vec!["trip_id", "arrival_time", "departure_time", "stop_id", "stop_sequence"],
             vec![vec!["T1", "08:00:00", "08:00:00", "", "1"]],
         );
-        let (_, notices) = validate_stop_times(&file, None);
+        let (_, notices) = validate_stop_times(&file, None, false);
         assert!(notices.iter().any(|n| n.rule_id == "STM_006"));
     }
 
@@ -2119,7 +2165,7 @@ mod tests {
             vec!["trip_id", "arrival_time", "departure_time", "stop_id", "stop_sequence", "pickup_type"],
             vec![vec!["T1", "08:00:00", "08:00:00", "S1", "1", "9"]],
         );
-        let (_, notices) = validate_stop_times(&file, None);
+        let (_, notices) = validate_stop_times(&file, None, false);
         assert!(notices.iter().any(|n| n.rule_id == "STM_009"));
     }
 
@@ -2129,7 +2175,7 @@ mod tests {
             vec!["trip_id", "arrival_time", "departure_time", "stop_id", "stop_sequence", "timepoint"],
             vec![vec!["T1", "08:00:00", "08:00:00", "S1", "1", "5"]],
         );
-        let (_, notices) = validate_stop_times(&file, None);
+        let (_, notices) = validate_stop_times(&file, None, false);
         assert!(notices.iter().any(|n| n.rule_id == "STM_022"));
     }
 
@@ -2139,7 +2185,7 @@ mod tests {
             vec!["trip_id", "arrival_time", "departure_time", "stop_id", "stop_sequence", "timepoint"],
             vec![vec!["T1", "", "", "S1", "1", "1"]],
         );
-        let (_, notices) = validate_stop_times(&file, None);
+        let (_, notices) = validate_stop_times(&file, None, false);
         let ids: Vec<&str> = notices.iter().map(|n| n.rule_id.as_str()).collect();
         assert!(ids.contains(&"STM_047"), "timepoint=1 + saatsiz → STM_047: {:?}", ids);
         assert!(!ids.contains(&"STM_034"), "Her ikisi boşken STM_034 tetiklenmemeli: {:?}", ids);
@@ -2151,7 +2197,7 @@ mod tests {
             vec!["trip_id", "arrival_time", "departure_time", "stop_id", "stop_sequence", "timepoint"],
             vec![vec!["T1", "08:00:00", "", "S1", "1", "1"]],
         );
-        let (_, notices) = validate_stop_times(&file, None);
+        let (_, notices) = validate_stop_times(&file, None, false);
         let ids: Vec<&str> = notices.iter().map(|n| n.rule_id.as_str()).collect();
         assert!(ids.contains(&"STM_034"), "Yalnız biri dolu → STM_034: {:?}", ids);
         assert!(!ids.contains(&"STM_047"), "Biri dolu iken STM_047 tetiklenmemeli: {:?}", ids);
@@ -2163,7 +2209,7 @@ mod tests {
             vec!["trip_id", "arrival_time", "departure_time", "stop_id", "stop_sequence", "timepoint"],
             vec![vec!["T1", "", "", "S1", "1", "0"]],
         );
-        let (_, notices) = validate_stop_times(&file, None);
+        let (_, notices) = validate_stop_times(&file, None, false);
         assert!(!notices.iter().any(|n| n.rule_id == "STM_047"),
             "timepoint=0 (yaklaşık) → STM_047 tetiklenmemeli: {:?}",
             notices.iter().map(|n| &n.rule_id).collect::<Vec<_>>());
@@ -2181,7 +2227,7 @@ mod tests {
                 vec!["T2", "09:00:00", "09:00:00", "S1", "1", ""],
             ],
         );
-        let (_, notices) = validate_stop_times(&file, None);
+        let (_, notices) = validate_stop_times(&file, None, false);
         let stm050: Vec<&_> = notices.iter().filter(|n| n.rule_id == "STM_050").collect();
         assert_eq!(stm050.len(), 1, "STM_050 satır-başına değil TEK özet olmalı: {}", stm050.len());
         assert_eq!(stm050[0].observed_value.as_deref(), Some("3"), "özet 3 boş satır saymalı");
@@ -2194,7 +2240,7 @@ mod tests {
             vec!["trip_id", "arrival_time", "departure_time", "stop_id", "stop_sequence"],
             vec![vec!["T1", "08:00:00", "08:00:00", "S1", "1"]],
         );
-        let (_, notices) = validate_stop_times(&file, None);
+        let (_, notices) = validate_stop_times(&file, None, false);
         assert!(!notices.iter().any(|n| n.rule_id == "STM_050"),
             "timepoint kolonu yok → STM_050 tetiklenmemeli: {:?}",
             notices.iter().map(|n| &n.rule_id).collect::<Vec<_>>());
@@ -2206,7 +2252,7 @@ mod tests {
             vec!["trip_id", "stop_sequence", "location_id", "start_pickup_drop_off_window", "end_pickup_drop_off_window", "pickup_type", "drop_off_type"],
             vec![vec!["T1", "1", "Z1", "08:00:00", "18:00:00", "0", "2"]],
         );
-        let (_, notices) = validate_stop_times(&file, None);
+        let (_, notices) = validate_stop_times(&file, None, false);
         let ids: Vec<&str> = notices.iter().map(|n| n.rule_id.as_str()).collect();
         assert!(ids.contains(&"STM_051"), "Flex penceresi + pickup_type=0 → STM_051: {:?}", ids);
     }
@@ -2217,7 +2263,7 @@ mod tests {
             vec!["trip_id", "stop_sequence", "location_id", "start_pickup_drop_off_window", "end_pickup_drop_off_window", "pickup_type", "drop_off_type"],
             vec![vec!["T1", "1", "Z1", "08:00:00", "18:00:00", "2", "0"]],
         );
-        let (_, notices) = validate_stop_times(&file, None);
+        let (_, notices) = validate_stop_times(&file, None, false);
         assert!(notices.iter().any(|n| n.rule_id == "STM_052"),
             "Flex penceresi + drop_off_type=0 → STM_052: {:?}",
             notices.iter().map(|n| &n.rule_id).collect::<Vec<_>>());
@@ -2229,7 +2275,7 @@ mod tests {
             vec!["trip_id", "arrival_time", "departure_time", "stop_id", "stop_sequence", "pickup_type"],
             vec![vec!["T1", "08:00:00", "08:00:00", "S1", "1", "0"]],
         );
-        let (_, notices) = validate_stop_times(&file, None);
+        let (_, notices) = validate_stop_times(&file, None, false);
         assert!(!notices.iter().any(|n| n.rule_id == "STM_051"),
             "Flex penceresi yok → pickup_type=0 STM_051 üretmemeli: {:?}",
             notices.iter().map(|n| &n.rule_id).collect::<Vec<_>>());
@@ -2242,7 +2288,7 @@ mod tests {
             vec!["trip_id", "stop_sequence", "location_id", "start_pickup_drop_off_window", "end_pickup_drop_off_window", "pickup_type", "continuous_pickup"],
             vec![vec!["T1", "1", "Z1", "08:00:00", "18:00:00", "2", "0"]],
         );
-        let (_, notices) = validate_stop_times(&file, None);
+        let (_, notices) = validate_stop_times(&file, None, false);
         let ids: Vec<&str> = notices.iter().map(|n| n.rule_id.as_str()).collect();
         assert!(ids.contains(&"STM_054"), "Flex penceresi + continuous_pickup=0 → STM_054: {ids:?}");
     }
@@ -2253,7 +2299,7 @@ mod tests {
             vec!["trip_id", "stop_sequence", "location_id", "start_pickup_drop_off_window", "end_pickup_drop_off_window", "drop_off_type", "continuous_drop_off"],
             vec![vec!["T1", "1", "Z1", "08:00:00", "18:00:00", "2", "3"]],
         );
-        let (_, notices) = validate_stop_times(&file, None);
+        let (_, notices) = validate_stop_times(&file, None, false);
         let ids: Vec<&str> = notices.iter().map(|n| n.rule_id.as_str()).collect();
         assert!(ids.contains(&"STM_055"), "Flex penceresi + continuous_drop_off=3 → STM_055: {ids:?}");
     }
@@ -2265,7 +2311,7 @@ mod tests {
             vec!["trip_id", "stop_sequence", "location_id", "start_pickup_drop_off_window", "end_pickup_drop_off_window", "continuous_pickup", "continuous_drop_off"],
             vec![vec!["T1", "1", "Z1", "08:00:00", "18:00:00", "1", ""]],
         );
-        let (_, notices) = validate_stop_times(&file, None);
+        let (_, notices) = validate_stop_times(&file, None, false);
         let ids: Vec<&str> = notices.iter().map(|n| n.rule_id.as_str()).collect();
         assert!(!ids.contains(&"STM_054") && !ids.contains(&"STM_055"),
             "continuous 1/boş → STM_054/055 üretmemeli: {ids:?}");
@@ -2278,7 +2324,7 @@ mod tests {
             vec!["trip_id", "arrival_time", "departure_time", "stop_id", "stop_sequence", "continuous_pickup"],
             vec![vec!["T1", "08:00:00", "08:00:00", "S1", "1", "0"]],
         );
-        let (_, notices) = validate_stop_times(&file, None);
+        let (_, notices) = validate_stop_times(&file, None, false);
         let ids: Vec<&str> = notices.iter().map(|n| n.rule_id.as_str()).collect();
         assert!(!ids.contains(&"STM_054"), "Flex penceresi yok → STM_054 üretmemeli: {ids:?}");
     }
@@ -2290,7 +2336,7 @@ mod tests {
             vec!["trip_id", "stop_sequence", "location_id", "start_pickup_drop_off_window", "end_pickup_drop_off_window", "continuous_pickup"],
             vec![vec!["T1", "1", "Z1", "08:00:00", "18:00:00", "9"]],
         );
-        let (_, notices) = validate_stop_times(&file, None);
+        let (_, notices) = validate_stop_times(&file, None, false);
         let ids: Vec<&str> = notices.iter().map(|n| n.rule_id.as_str()).collect();
         assert!(ids.contains(&"STM_018"), "continuous_pickup=9 → STM_018: {ids:?}");
         assert!(!ids.contains(&"STM_054"), "enum dışı değer STM_054'ü de tetiklememeli: {ids:?}");
@@ -2306,7 +2352,7 @@ mod tests {
                 vec!["T1", "08:10:00", "08:10:00", "S2", "1"], // aynı stop_sequence tekrar
             ],
         );
-        let (_, notices) = validate_stop_times(&file, None);
+        let (_, notices) = validate_stop_times(&file, None, false);
         assert!(notices.iter().any(|n| n.rule_id == "STM_032"), "STM_032 bekleniyor: {:?}", notices);
     }
 
@@ -2318,7 +2364,7 @@ mod tests {
             vec!["T1", "08:00:00", "08:00:00", "S1", "1", "100.0"],
             vec!["T1", "08:10:00", "08:10:00", "S2", "2", "100.0"],
         ]);
-        let (_, notices) = validate_stop_times(&file, None);
+        let (_, notices) = validate_stop_times(&file, None, false);
         assert!(notices.iter().any(|n| n.rule_id == "STM_056"), "eşit değer STM_056 üretmeli: {notices:?}");
 
         // azalan değer
@@ -2326,7 +2372,7 @@ mod tests {
             vec!["T1", "08:00:00", "08:00:00", "S1", "1", "250.0"],
             vec!["T1", "08:10:00", "08:10:00", "S2", "2", "100.0"],
         ]);
-        let (_, notices) = validate_stop_times(&file, None);
+        let (_, notices) = validate_stop_times(&file, None, false);
         assert!(notices.iter().any(|n| n.rule_id == "STM_056"), "azalan değer STM_056 üretmeli");
     }
 
@@ -2338,7 +2384,7 @@ mod tests {
             vec!["T1", "08:00:00", "08:00:00", "S1", "1", "100.0"],
             vec!["T1", "08:10:00", "08:10:00", "S2", "2", "250.0"],
         ]);
-        let (_, notices) = validate_stop_times(&file, None);
+        let (_, notices) = validate_stop_times(&file, None, false);
         assert!(!notices.iter().any(|n| n.rule_id == "STM_056"), "artan değer temiz olmalı");
 
         // biri eksik → karşılaştırma yapılmaz (STM_017 kapsamı)
@@ -2346,7 +2392,7 @@ mod tests {
             vec!["T1", "08:00:00", "08:00:00", "S1", "1", "100.0"],
             vec!["T1", "08:10:00", "08:10:00", "S2", "2", ""],
         ]);
-        let (_, notices) = validate_stop_times(&file, None);
+        let (_, notices) = validate_stop_times(&file, None, false);
         assert!(!notices.iter().any(|n| n.rule_id == "STM_056"), "eksik değerde STM_056 olmamalı");
     }
 
@@ -2359,7 +2405,7 @@ mod tests {
                 vec!["T1", "08:10:00", "08:10:00", "S2", "2"], // 2 < 5 → dosya sırası bozuk
             ],
         );
-        let (idx, notices) = validate_stop_times(&file, None);
+        let (idx, notices) = validate_stop_times(&file, None, false);
         let stm036: Vec<_> = notices.iter().filter(|n| n.rule_id == "STM_036").collect();
         assert_eq!(stm036.len(), 1, "STM_036 trip başına TEK kez üretilmeli: {:?}", notices);
         assert_eq!(idx.unsorted_seq_trips.len(), 1, "STM_036 unsorted_seq_trips'e bir kayıt eklemeli");
@@ -2375,7 +2421,7 @@ mod tests {
                 vec!["T2", "09:00:00", "09:00:00", "S1", "1", ""],
             ],
         );
-        let (idx, _) = validate_stop_times(&file, None);
+        let (idx, _) = validate_stop_times(&file, None, false);
         assert_eq!(idx.total_rows, 3);
         assert_eq!(idx.trip_ranges.len(), 2);
         assert!(idx.trip_id_set.contains("T1") && idx.trip_id_set.contains("T2"));
@@ -2408,7 +2454,7 @@ mod tests {
                 vec!["T1", "08:10:00", "08:10:00", "S_b", "2"], // satır 7
             ],
         );
-        let (idx, _) = validate_stop_times(&file, None);
+        let (idx, _) = validate_stop_times(&file, None, false);
         assert_eq!(idx.total_rows, 6);
         assert_eq!(idx.trip_ranges.len(), 2);
 
@@ -2431,7 +2477,7 @@ mod tests {
             vec!["trip_id", "arrival_time", "departure_time", "stop_id", "stop_sequence"],
             vec![vec!["TRIP_X", "08:00:00", "08:00:00", "S1", ""]],
         );
-        let (_, notices) = validate_stop_times(&file, None);
+        let (_, notices) = validate_stop_times(&file, None, false);
         let n = notices.iter().find(|n| n.rule_id == "STM_005").expect("STM_005 olmalı");
         assert_eq!(n.scope_key.as_deref(), Some("TRIP_X"), "scope_key trip_id olmalı");
     }
@@ -2442,7 +2488,7 @@ mod tests {
             vec!["trip_id", "arrival_time", "departure_time", "stop_id", "stop_sequence"],
             vec![vec!["T1", "08:00:00", "", "S1", "1"]],
         );
-        let (_, notices) = validate_stop_times(&file, None);
+        let (_, notices) = validate_stop_times(&file, None, false);
         assert!(notices.iter().any(|n| n.rule_id == "STM_034"),
             "Yalnızca arrival_time dolu → STM_034 olmalı. Notices: {:?}", notices);
     }
@@ -2453,7 +2499,7 @@ mod tests {
             vec!["trip_id", "arrival_time", "departure_time", "stop_id", "stop_sequence"],
             vec![vec!["T1", "", "08:00:00", "S1", "1"]],
         );
-        let (_, notices) = validate_stop_times(&file, None);
+        let (_, notices) = validate_stop_times(&file, None, false);
         assert!(notices.iter().any(|n| n.rule_id == "STM_034"),
             "Yalnızca departure_time dolu → STM_034 olmalı. Notices: {:?}", notices);
     }
@@ -2464,7 +2510,7 @@ mod tests {
             vec!["trip_id", "arrival_time", "departure_time", "stop_id", "stop_sequence"],
             vec![vec!["T1", "", "", "S1", "1"]],
         );
-        let (_, notices) = validate_stop_times(&file, None);
+        let (_, notices) = validate_stop_times(&file, None, false);
         assert!(!notices.iter().any(|n| n.rule_id == "STM_034"),
             "İkisi de boş → STM_034 üretilmemeli. Notices: {:?}", notices);
     }
@@ -2477,7 +2523,7 @@ mod tests {
             vec!["trip_id", "stop_id", "stop_sequence", "start_pickup_drop_off_window", "arrival_time", "departure_time"],
             vec![vec!["T1", "", "1", "08:00:00", "08:00:00", ""]],
         );
-        let (_, notices) = validate_stop_times(&file, None);
+        let (_, notices) = validate_stop_times(&file, None, false);
         assert!(notices.iter().any(|n| n.rule_id == "STM_037"), "STM_037 bekleniyor: {:?}", notices);
     }
 
@@ -2487,7 +2533,7 @@ mod tests {
             vec!["trip_id", "stop_id", "stop_sequence", "start_pickup_drop_off_window", "end_pickup_drop_off_window", "pickup_booking_rule_id"],
             vec![vec!["T1", "", "1", "10:00:00", "09:00:00", "BR1"]],
         );
-        let (_, notices) = validate_stop_times(&file, None);
+        let (_, notices) = validate_stop_times(&file, None, false);
         assert!(notices.iter().any(|n| n.rule_id == "STM_038"), "STM_038 bekleniyor: {:?}", notices);
     }
 
@@ -2499,7 +2545,7 @@ mod tests {
             vec!["trip_id", "stop_id", "stop_sequence", "start_pickup_drop_off_window", "end_pickup_drop_off_window"],
             vec![vec!["T1", "", "1", "9am", "10:00:00"]],
         );
-        let (index, notices) = validate_stop_times(&file, None);
+        let (index, notices) = validate_stop_times(&file, None, false);
         assert!(notices.iter().any(|n| n.rule_id == "STM_058"
                 && n.field.as_deref() == Some("start_pickup_drop_off_window")),
             "STM_058 bekleniyor ve alanı start_pickup_drop_off_window olmalı: {:?}", notices);
@@ -2513,7 +2559,7 @@ mod tests {
             vec!["trip_id", "stop_id", "stop_sequence", "start_pickup_drop_off_window", "end_pickup_drop_off_window"],
             vec![vec!["T1", "", "1", "09:00:00", "25:30:00"]],  // 24:00 üstü GTFS'te geçerli
         );
-        let (_, notices) = validate_stop_times(&file, None);
+        let (_, notices) = validate_stop_times(&file, None, false);
         assert!(!notices.iter().any(|n| n.rule_id == "STM_058"),
             "geçerli pencere STM_058 üretmemeli: {:?}", notices);
     }
@@ -2524,7 +2570,7 @@ mod tests {
             vec!["trip_id", "stop_sequence", "location_id"],
             vec![vec!["T1", "1", "LOC1"]],
         );
-        let (_, notices) = validate_stop_times(&file, None);
+        let (_, notices) = validate_stop_times(&file, None, false);
         assert!(notices.iter().any(|n| n.rule_id == "STM_039"), "STM_039 bekleniyor: {:?}", notices);
     }
 
@@ -2534,7 +2580,7 @@ mod tests {
             vec!["trip_id", "stop_sequence", "start_pickup_drop_off_window", "end_pickup_drop_off_window"],
             vec![vec!["T1", "1", "08:00:00", "10:00:00"]],
         );
-        let (_, notices) = validate_stop_times(&file, None);
+        let (_, notices) = validate_stop_times(&file, None, false);
         assert!(notices.iter().any(|n| n.rule_id == "STM_040"), "STM_040 bekleniyor: {:?}", notices);
     }
 
@@ -2544,7 +2590,7 @@ mod tests {
             vec!["trip_id", "stop_id", "stop_sequence", "location_id", "start_pickup_drop_off_window", "end_pickup_drop_off_window", "pickup_booking_rule_id"],
             vec![vec!["T1", "S1", "1", "LOC1", "08:00:00", "10:00:00", "BR1"]],
         );
-        let (_, notices) = validate_stop_times(&file, None);
+        let (_, notices) = validate_stop_times(&file, None, false);
         assert!(notices.iter().any(|n| n.rule_id == "STM_041"), "STM_041 bekleniyor: {:?}", notices);
     }
 
@@ -2554,8 +2600,54 @@ mod tests {
             vec!["trip_id", "stop_sequence", "location_id", "start_pickup_drop_off_window", "end_pickup_drop_off_window", "pickup_booking_rule_id"],
             vec![vec!["T1", "1", "LOC1", "08:00:00", "10:00:00", "BR1"]],
         );
-        let (_, notices) = validate_stop_times(&file, None);
+        let (_, notices) = validate_stop_times(&file, None, false);
         let flex_notices: Vec<_> = notices.iter().filter(|n| matches!(n.rule_id.as_str(), "STM_037"|"STM_038"|"STM_039"|"STM_040"|"STM_041")).collect();
         assert!(flex_notices.is_empty(), "Geçerli Flex stop_time için Flex notice olmamalı: {:?}", flex_notices);
     }
+    #[test]
+    fn stm_059_flags_on_demand_type_without_booking_rule() {
+        let file = make_file(
+            vec!["trip_id", "stop_id", "stop_sequence", "pickup_type", "drop_off_type", "pickup_booking_rule_id"],
+            vec![
+                vec!["T1", "S1", "1", "2", "0", ""],        // pickup_type=2, kural yok → say
+                vec!["T2", "S1", "1", "0", "2", ""],        // drop_off_type=2, kural yok → say
+                vec!["T3", "S1", "1", "2", "0", "BR1"],     // kural var → sessiz
+                vec!["T4", "S1", "1", "0", "0", ""],        // enum 2 değil → sessiz
+            ],
+        );
+        let (_, notices) = validate_stop_times(&file, None, true);
+        let hits: Vec<_> = notices.iter().filter(|n| n.rule_id == "STM_059").collect();
+        assert_eq!(hits.len(), 2, "yalnız iki satır: {hits:?}");
+    }
+
+    #[test]
+    fn stm_059_silent_without_booking_rules_file() {
+        // booking_rules.txt yoksa bir id yazmak FK'yı kırardı (BKR_017) → tavsiye uygulanamaz.
+        // Ölçümde bu kapı olmadan 97.355 satır çıkmıştı; kapıyla 27.
+        let file = make_file(
+            vec!["trip_id", "stop_id", "stop_sequence", "pickup_type"],
+            vec![vec!["T1", "S1", "1", "2"]],
+        );
+        let (_, notices) = validate_stop_times(&file, None, false);
+        assert!(!notices.iter().any(|n| n.rule_id == "STM_059"), "{notices:?}");
+    }
+
+    #[test]
+    fn stm_059_and_stm_040_measure_different_rows() {
+        // STM_040 Flex PENCERESİNE bakar, STM_059 talep-üzerine ENUM DEĞERİNE.
+        // Penceresiz dial-a-ride satırı STM_040'ta sessizdi — boşluk buydu.
+        let file = make_file(
+            vec!["trip_id", "stop_id", "stop_sequence", "pickup_type", "start_pickup_drop_off_window", "end_pickup_drop_off_window"],
+            vec![
+                vec!["T1", "S1", "1", "2", "", ""],                    // yalnız STM_059
+                vec!["T2", "", "1", "0", "08:00:00", "10:00:00"],      // yalnız STM_040
+            ],
+        );
+        let (_, notices) = validate_stop_times(&file, None, true);
+        let s59: Vec<_> = notices.iter().filter(|n| n.rule_id == "STM_059").map(|n| n.entity_id.as_deref()).collect();
+        let s40: Vec<_> = notices.iter().filter(|n| n.rule_id == "STM_040").map(|n| n.entity_id.as_deref()).collect();
+        assert_eq!(s59, vec![Some("T1")], "STM_059 yalnız T1");
+        assert_eq!(s40, vec![Some("T2")], "STM_040 yalnız T2");
+    }
+
 }

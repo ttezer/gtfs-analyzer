@@ -1986,6 +1986,7 @@ const en: LocaleShape = {
     'STM_054': 'continuous_pickup forbidden with Flex window',
     'STM_056': 'shape_dist_traveled does not increase',
     'STM_058': 'Flex pickup/drop-off window time is invalid',
+    'STM_059': 'booking_rule_id recommended when pickup_type/drop_off_type=2',
     'STM_055': 'continuous_drop_off forbidden with Flex window',
     // PDW
     'PDW_006': 'Overlapping pickup/drop-off window for same trip+zone',

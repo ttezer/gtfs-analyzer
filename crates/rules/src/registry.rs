@@ -656,6 +656,14 @@ pub static RULES: &[RuleMeta] = &[
     // kendi sıkılaştırması → otorite ProjectQuality. Sınıf Spec→Quality (2026-08-01, WP-1).
     r!("STM_040", Orta,   Quality, 1, &[], Some("trip_id"), VS, Entity,
         "Flex stop_times'ta pickup/drop_off_booking_rule_id eksik (spec'te Optional)"),
+    // STM_059: spec `pickup_booking_rule_id` için "Recommended when pickup_type=2" der
+    // (ve `drop_off_type=2` ikizi). `STM_040` bunun yerine FLEX PENCERESİ varken arar —
+    // farklı popülasyon: `pickup_type=2` ("ajansı telefonla arayın") klasik dial-a-ride'da
+    // pencere OLMADAN kullanılır. İki koşul tek kuralda birleştirilmedi; `emit_identity`
+    // kapısı kuralın başlığıyla emit'inin aynı şeyi söylemesini ister.
+    // Ölçüldü (239 feed): 4 feed, 27 satır — YALNIZ booking_rules.txt taşıyan feed'lerde.
+    r!("STM_059", Dusuk, Quality, 1, &[], Some("trip_id"), VS, Entity,
+        "pickup_type/drop_off_type=2 iken booking_rule_id önerilir"),
     r!("STM_041", Yuksek, Spec, 1, &[], Some("trip_id"), VS, Entity,
         "stop_id ile location_id/group_id aynı anda kullanılamaz"),
     r!("STM_042", Dusuk, Interop, 1, &[], Some("trip_id"), VI, Row,
@@ -2053,6 +2061,7 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("STM_055", GtfsSpec),
     ("STM_056", GtfsSpec),
     ("STM_058", GtfsSpec),
+    ("STM_059", ProjectQuality),
     ("STP_001", GtfsSpec),
     ("STP_002", GtfsSpec),
     ("STP_003", GtfsSpec),

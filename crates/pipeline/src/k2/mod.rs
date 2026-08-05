@@ -367,7 +367,8 @@ pub fn validate(mut files: RawFiles, zip_bytes: Option<&[u8]>) -> K2Result {
     mem_log("K2 after drop(files)");
     if let Some(file) = &stop_times_file {
         let _t = Timer::start("K2::stop_times");
-        let (stm_index, stop_time_notices) = validate_stop_times(file, zip_bytes);
+        let has_booking_rules = !records.booking_rules.is_empty();
+        let (stm_index, stop_time_notices) = validate_stop_times(file, zip_bytes, has_booking_rules);
         records.stop_times_index = stm_index;
         notices.extend(stop_time_notices);
         records.streaming_row_counts.insert("stop_times.txt".to_string(), records.stop_times_index.total_rows as u64);

@@ -1940,6 +1940,7 @@ const ja: LocaleShape = {
     'STM_054': 'Flexウィンドウでcontinuous_pickup禁止',
     'STM_056': 'shape_dist_traveledが増加していない',
     'STM_058': 'Flexの受降車ウィンドウ時刻が無効',
+    'STM_059': 'pickup_type/drop_off_type=2 の場合は booking_rule_id を推奨',
     'STM_055': 'Flexウィンドウでcontinuous_drop_off禁止',
     // PDW
     'PDW_006': '同一便・ゾーンで乗降ウィンドウが重複',

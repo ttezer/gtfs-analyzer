@@ -203,6 +203,28 @@ def main():
                         sample["11_exact_times"].append(
                             f"{fid} start={get(row,'start_time')} end={get(row,'end_time')} headway={h}")
 
+            # ── 12. pickup_type=2 / drop_off_type=2 iken booking rule önerilir ─
+            # Spec: "Recommended when pickup_type=2" (ve drop_off ikizi). STM_040 bunun
+            # yerine FLEX PENCERESİ varken booking rule arar — farklı popülasyon.
+            # ⚠️ stop_times büyük olabilir; yalnız gerekli sütunlara bakılır.
+            # ⚠️ `booking_rules.txt` YOKSA tavsiye uygulanamaz: `pickup_booking_rule_id`
+            # yazılsa FK kırılır (BKR_017). İlk ölçüm bu kapıyı koymayınca 97.355 satır
+            # verdi ve en yoğun dört feed'in hiçbirinde booking_rules.txt yoktu.
+            # ⚠️ DOSYA VARLIĞI YETMEZ, KAYIT olmalı: iki feed `booking_rules.txt`'i yalnız
+            # BAŞLIK satırıyla taşıyor. Kural `records.booking_rules.is_empty()`'e bakar ve
+            # doğru davranır (bağlanacak kural yoksa tavsiye uygulanamaz); dosya varlığına
+            # bakan ilk ölçüm o feed'leri sayıp kuralla çelişmişti.
+            has_booking = any(True for _ in rows(zf, "booking_rules.txt"))
+            for row in (rows(zf, "stop_times.txt") if has_booking else []):
+                if get(row, "pickup_type") == "2" and not get(row, "pickup_booking_rule_id"):
+                    hit["12_pickup_type2"][fid] += 1
+                if get(row, "drop_off_type") == "2" and not get(row, "drop_off_booking_rule_id"):
+                    hit["12_pickup_type2"][fid] += 1
+                # Aynı satırda Flex penceresi de varsa STM_040 zaten konuşuyor — ayrı say.
+                if (get(row, "pickup_type") == "2" or get(row, "drop_off_type") == "2") and (
+                        get(row, "start_pickup_drop_off_window") or get(row, "end_pickup_drop_off_window")):
+                    hit["12b_overlaps_stm040"][fid] += 1
+
             # ── FP-A. agency_phone vanity (spec'te İZİNLİ, biz reddediyoruz) ─
             for row in rows(zf, "agency.txt"):
                 ph = get(row, "agency_phone")
