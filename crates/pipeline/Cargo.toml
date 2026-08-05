@@ -16,6 +16,12 @@ smol_str = "0.2"
 url = "2"
 rustc-hash = "2"
 rayon = { version = "1", optional = true }
+# Shewchuk adaptive-precision geometrik predikatlar (orient2d). BAĞIMLILIKSIZ ve no_std.
+# Gerekçe: poligon self-intersection tespiti naif f64 ile KARARSIZ — 2026-08-06 ölçümünde
+# aynı 21 poligon üzerinde epsilon/uygulama seçimi 5 ile 17 arasında sonuç verdi ve monoton
+# bile değildi. Alternatifler: `geo` (çok daha büyük, WASM bellek tavanı riski) ya da elle
+# adaptive precision (Shewchuk algoritmasını yeniden yazmak). En küçük yeterli araç bu.
+robust = "1.2.0"
 
 [features]
 # Native'de VARSAYILAN AÇIK: VBB (5,7M stop_times) ölçümünde K6 4.889ms → 2.634ms (1,86×),

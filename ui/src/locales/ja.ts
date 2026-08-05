@@ -1968,6 +1968,7 @@ const ja: LocaleShape = {
     'LOC_008': "Featureの'type'が欠落または\"Feature\"でない",
     'LOC_009': "Featureの'properties'オブジェクトが欠落",
     'LOC_010': "Geometryの'coordinates'が欠落または配列でない",
+    'LOC_011': '不正なポリゴン: リングが自己交差、または穴が外側にあります',
     // CAL
     'CAL_001': 'service_idが重複',
     'CAL_002': '曜日フィールドの値が無効',

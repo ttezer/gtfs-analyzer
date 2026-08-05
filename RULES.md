@@ -2,7 +2,7 @@
 
 🇹🇷 **Türkçe** · 🇬🇧 [English](RULES.en.md) · 🇯🇵 [日本語](RULES.ja.md)
 
-586 kural, 38 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
+587 kural, 38 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
 Önem seviyeleri: **KRİTİK** (yayın engelleyici) · **YÜKSEK** · **ORTA** · **DÜŞÜK** · **BİLGİ**
 Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · **Quality** (GTFS Kalitesi) · **Analytics** (GTFS Analitiği)
 
@@ -284,6 +284,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | LOC_007 | FeatureCollection içinde yinelenen 'id' değeri — Flex referansı belirsizleşir | ORTA | Spec |
 | LOC_008 | Feature 'type' alanı eksik veya "Feature" değil | ORTA | Spec |
 | LOC_009 | Feature 'properties' nesnesi eksik | ORTA | Spec |
+| LOC_011 | Poligon geçersiz: ring kendini kesiyor veya delik dışarıda | YÜKSEK | Spec |
 | LOC_010 | Geometry 'coordinates' eksik veya dizi değil — bölge geometrisi çözümlenemez | KRİTİK | Spec |
 
 ## CAL — Calendar (Takvim)

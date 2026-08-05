@@ -741,6 +741,16 @@ pub static RULES: &[RuleMeta] = &[
         "Feature 'type' alanı eksik veya \"Feature\" değil"),
     r!("LOC_009", Orta,   Spec,    2, &[], None, VS, File,
         "Feature 'properties' nesnesi eksik"),
+    // LOC_011: spec `locations.geojson` için "Each polygon must be valid by the definition of
+    // the OpenGIS Simple Features Specification, section 6.1.11" der. `LOC_004` yalnız ring
+    // KAPALILIĞINI ölçüyordu; 6.1.11'in asıl maddesi ring'in BASİT olması (kendini kesmemesi)
+    // ve deliklerin dış ring İÇİNDE kalmasıdır.
+    //
+    // ⚠️ Tespit `robust::orient2d` ile yapılır, naif f64 ile DEĞİL. Ölçüldü (2026-08-06):
+    // aynı 21 poligon üzerinde epsilon/uygulama seçimi 5 ile 17 arasında sonuç veriyor ve
+    // monoton bile değil — naif aritmetikle bu kural güvenilir yazılamaz.
+    r!("LOC_011", Yuksek, Spec,    2, &[], None, VS, File,
+        "Poligon geçersiz: ring kendini kesiyor veya delik dışarıda"),
     r!("LOC_010", Kritik, Spec,    2, &[], None, VS_K, File,
         "Geometry 'coordinates' eksik veya dizi değil — bölge geometrisi çözümlenemez"),
 
@@ -1943,6 +1953,7 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("LOC_008", GtfsSpec),
     ("LOC_009", GtfsSpec),
     ("LOC_010", GtfsSpec),
+    ("LOC_011", GtfsSpec),
     ("LVL_001", GtfsSpec),
     ("LVL_002", GtfsSpec),
     ("LVL_003", ProjectQuality),

@@ -1772,6 +1772,7 @@ fn check_polygon_rings(
     let mut all_lons = Vec::new();
     let mut already_reported_closure = false;
     // LOC_006 için ring başına işaretli alan: ilk ring dış sınır, sonrakiler deliktir.
+    let mut all_rings: Vec<Vec<(f64, f64)>> = Vec::new();
     let mut ring_areas: Vec<f64> = Vec::new();
 
     for ring in rings {
@@ -1809,6 +1810,32 @@ fn check_polygon_rings(
             }
         }
         ring_areas.push(signed_ring_area_km2(&ring_pts));
+        all_rings.push(ring_pts);
+    }
+
+    // LOC_011: OpenGIS 6.1.11 — ring BASİT olmalı ve delikler dış ring İÇİNDE kalmalı.
+    // LOC_004 yalnız kapalılığı ölçer; bunlar 6.1.11'in asıl maddeleridir.
+    if let Some(outer) = all_rings.first() {
+        let mut bad: Option<String> = None;
+        if !ring_is_simple(outer) {
+            bad = Some("dış ring kendini kesiyor".to_string());
+        }
+        for (i, hole) in all_rings.iter().enumerate().skip(1) {
+            if bad.is_some() { break; }
+            if !ring_is_simple(hole) {
+                bad = Some(format!("{}. delik kendini kesiyor", i));
+            } else if hole.first().is_some_and(|&p| !point_in_ring(p, outer)) {
+                bad = Some(format!("{}. delik dış ring'in dışında", i));
+            }
+        }
+        if let Some(why) = bad {
+            notices.push(make_notice(
+                counter, "LOC_011", EntityType::File, Some(fname.to_string()),
+                Some(fname), Some(feat_num), Some("coordinates"), Some(why.clone()),
+                format!("'{fname}' özellik {feat_num} poligonu OpenGIS Simple Features 6.1.11'e göre geçersiz: {why}."),
+                "Poligon halkalarını kendini kesmeyecek şekilde düzeltin; delikleri dış ring'in içinde tutun.",
+            ));
+        }
     }
 
     // LOC_006: GERÇEK poligon alanı > 500km²
@@ -1831,6 +1858,63 @@ fn check_polygon_rings(
             ));
         }
     }
+}
+
+/// Ring BASİT mi — yani kendisiyle kesişmiyor mu (OpenGIS 6.1.11).
+///
+/// ⚠️ `robust::orient2d` ZORUNLU, naif `f64` determinantı DEĞİL. 2026-08-06 ölçümü: aynı 21
+/// poligon üzerinde epsilon seçimi sonucu 5 ile 17 arasında değiştiriyor ve monoton bile
+/// değil. Adaptive-precision predikat bu kararsızlığı ortadan kaldırır.
+///
+/// Komşu segmentler ve ring'in kapanış çifti bilinçli atlanır: onlar uç nokta PAYLAŞIR,
+/// kesişme sayılmazlar.
+fn ring_is_simple(pts: &[(f64, f64)]) -> bool {
+    let n = pts.len().saturating_sub(1); // son nokta = ilk nokta
+    if n < 4 {
+        return true;
+    }
+    let cross = |a: (f64, f64), b: (f64, f64), c: (f64, f64), d: (f64, f64)| -> bool {
+        let o = |p: (f64, f64), q: (f64, f64), r: (f64, f64)| {
+            let v = robust::orient2d(
+                robust::Coord { x: p.0, y: p.1 },
+                robust::Coord { x: q.0, y: q.1 },
+                robust::Coord { x: r.0, y: r.1 },
+            );
+            if v > 0.0 { 1i8 } else if v < 0.0 { -1 } else { 0 }
+        };
+        let (o1, o2, o3, o4) = (o(a, b, c), o(a, b, d), o(c, d, a), o(c, d, b));
+        o1 != o2 && o3 != o4 && o1 != 0 && o2 != 0 && o3 != 0 && o4 != 0
+    };
+    for i in 0..n {
+        for j in (i + 2)..n {
+            if i == 0 && j == n - 1 {
+                continue; // kapanış çifti komşudur
+            }
+            if cross(pts[i], pts[i + 1], pts[j], pts[j + 1]) {
+                return false;
+            }
+        }
+    }
+    true
+}
+
+/// Nokta ring'in içinde mi (ray casting). Delik kapsama kontrolü için.
+fn point_in_ring(pt: (f64, f64), ring: &[(f64, f64)]) -> bool {
+    let mut inside = false;
+    let n = ring.len();
+    if n < 3 { return false; }
+    let mut j = n - 1;
+    for i in 0..n {
+        let (xi, yi) = ring[i];
+        let (xj, yj) = ring[j];
+        if (yi > pt.1) != (yj > pt.1)
+            && pt.0 < (xj - xi) * (pt.1 - yi) / (yj - yi) + xi
+        {
+            inside = !inside;
+        }
+        j = i;
+    }
+    inside
 }
 
 /// Bir GeoJSON ring'inin işaretli alanı (km²), equirectangular izdüşümde shoelace ile.

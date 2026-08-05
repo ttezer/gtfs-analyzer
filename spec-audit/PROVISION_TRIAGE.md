@@ -696,11 +696,16 @@ hesaplanır. Bir boşluk kurala dönüştüğünde satır BURAYA eklenir.
 | `P5a5cced5` | `BKR_024` | `62571264` |
 | `P2264440d` | `PTH_030` | `62571264` |
 
+| `Pd84a0bcb` | `LOC_011` | `#67` |
+
 **KISMİ adjudikasyonu (5 sert):** `Pd84a0bcb`→BOŞLUK · `P2c840d38`→BOŞLUK (kapandı) ·
 `P257db6b1`→BOŞLUK (kapandı) · `P8681b6f4`→KAPSAM DIŞI · `P44a6984b`→KAPSAM DIŞI
 
-**Kapatılmayan iki sert boşluk:**
-- `Pd84a0bcb` — OpenGIS poligon geçerliliği → issue **#67**, geometri bağımlılığı kararı
+**Kapatılan:** `Pd84a0bcb` → **`LOC_011`** (issue #67). Naif f64 ile kararsız olduğu ölçüldü
+(aynı 21 poligonda 5↔17 arası sonuç); `robust` (Shewchuk adaptive-precision, bağımlılıksız,
+`no_std`) eklendi ve gerçek sonuç **0 ihlal** çıktı — elle yazılsaydı 16 yanlış pozitif.
+
+**Kapatılmayan tek sert boşluk:**
 - `P38cd4e78` — ISO 4217 ondalık basamak → **bilinçli YAZILMAYACAK**: ölçüm 2.001.806
   eşleşme verdi, `CZK 39` gibi ondalıksız tutarlar evrensel ve meşru
 

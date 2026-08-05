@@ -2012,6 +2012,7 @@ const en: LocaleShape = {
     'LOC_006': 'Polygon area exceeds 500km²',
     'LOC_007': "Duplicate feature 'id' in FeatureCollection",
     'LOC_010': "Geometry 'coordinates' missing or not an array — the zone geometry cannot be resolved",
+    'LOC_011': 'Invalid polygon: a ring self-intersects or a hole lies outside',
     'LOC_009': "Feature 'properties' object missing",
     'LOC_008': "Feature 'type' member missing or not \"Feature\"",
     // CAL
