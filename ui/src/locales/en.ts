@@ -2070,6 +2070,7 @@ const en: LocaleShape = {
     'FRQ_009': 'Frequency interval too short',
     'FRQ_010': 'Very high frequency (bunching risk)',
     'FRQ_011': 'Overlapping frequency periods',
+    'FRQ_012': 'exact_times=1 with end_time on a headway boundary',
     // TRF
     'TRF_001': 'from_stop_id missing',
     'TRF_002': 'to_stop_id missing',
@@ -2188,6 +2189,7 @@ const en: LocaleShape = {
     'RCT_007': 'eligibility_url is invalid',
     'RTS_029': 'route_sort_order is invalid',
     'TRN_015': 'record_id and field_value are both empty',
+    'TRN_016': 'field_value matches no record — the translation is never applied',
     // TFR
     'TFR_001': 'timeframe_group_id missing',
     'TFR_002': 'service_id not found',

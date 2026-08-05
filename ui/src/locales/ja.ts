@@ -2024,6 +2024,7 @@ const ja: LocaleShape = {
     'FRQ_009': '頻度間隔が短すぎる',
     'FRQ_010': '運行頻度が非常に高い（詰まりリスク）',
     'FRQ_011': 'frequencies 期間の重複',
+    'FRQ_012': 'exact_times=1 で end_time が headway の境界と一致',
     // TRF
     'TRF_001': 'from_stop_idが不足',
     'TRF_002': 'to_stop_idが不足',
@@ -2142,6 +2143,7 @@ const ja: LocaleShape = {
     'RCT_007': 'eligibility_urlが無効',
     'RTS_029': 'route_sort_orderが無効',
     'TRN_015': 'record_idとfield_valueが両方空',
+    'TRN_016': 'field_valueがどのレコードとも一致しません（翻訳が適用されません）',
     // TFR
     'TFR_001': 'timeframe_group_idが不足',
     'TFR_002': 'service_idが存在しない',

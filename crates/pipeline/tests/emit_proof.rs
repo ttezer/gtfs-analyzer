@@ -1103,6 +1103,7 @@ fn fixtures() -> Vec<Fixture> {
         fx("FRQ_010", vec![("frequencies.txt", "trip_id,start_time,end_time,headway_secs\nT1,08:00:00,10:00:00,60\n")]),
         // FRQ_011: aynı trip'in frequencies dönemleri çakışıyor (k2).
         fx("FRQ_011", vec![("frequencies.txt", "trip_id,start_time,end_time,headway_secs\nT1,08:00:00,10:00:00,600\nT1,09:00:00,11:00:00,600\n")]),
+        fx("FRQ_012", vec![("frequencies.txt", "trip_id,start_time,end_time,headway_secs,exact_times\nT1,05:00:00,06:00:00,3600,1\n"), ("trips.txt","route_id,service_id,trip_id\nR1,SVC,T1\n")]),
 
         // ── RTS grubu (kalan: k2 alan + k3 dup + k4 FK + k6) ───────────────────
         // RTS_001: route_id tekrarı (k3).
@@ -1223,6 +1224,7 @@ fn fixtures() -> Vec<Fixture> {
         fx("TRN_014", vec![("translations.txt", "table_name,field_name,language,translation,record_id,record_sub_id\nstops,stop_name,fr,X,S1,2\n")]),
         // TRN_015: record_id ve field_value ikisi de boş — "Required if record_id is empty".
         fx("TRN_015", vec![("translations.txt", "table_name,field_name,language,translation\nstops,stop_name,fr,X\n")]),
+        fx("TRN_016", vec![("stops.txt","stop_id,stop_name,stop_lat,stop_lon\nS1,Merkez,41.0,29.0\n"), ("translations.txt","table_name,field_name,language,translation,field_value\nstops,stop_name,en,Centre,Yokistan\n")]),
 
         // ── STP grubu (kalan: k2 + k3 dup + k4 FK + k6) ────────────────────────
         // STP_001: stop_id tekrarı (k3).

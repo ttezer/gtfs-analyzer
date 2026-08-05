@@ -151,6 +151,58 @@ def main():
                     if len(sample["9_platform_code"]) < 25:
                         sample["9_platform_code"].append(f"{fid} platform_code={pc[:40]}")
 
+            # ── 10. translations.field_value hedefte gerçekten var mı ────────
+            # Spec: "The field must have exactly the value defined in field_value."
+            # `field_value` biçimi yalnız DEĞERE göre eşleşir; eşleşen satır yoksa çeviri
+            # sessizce etkisizdir.
+            tr_rows = [r for r in rows(zf, "translations.txt")
+                       if get(r, "field_value") and not get(r, "record_id")]
+            if tr_rows:
+                cache = {}
+                for row in tr_rows:
+                    tbl, fld = get(row, "table_name"), get(row, "field_name")
+                    want = get(row, "field_value")
+                    if not tbl or not fld:
+                        continue
+                    fname = f"{tbl}.txt"
+                    if fname not in cache:
+                        cache[fname] = list(rows(zf, fname))
+                    if not cache[fname]:
+                        continue          # dosya yok → başka kural (XFL_016) ilgilenir
+                    # `field_name` o dosyada GERÇEKTEN bir sütun mu? Değilse ihlal
+                    # `TRN_002`'nin ("field_name bu tablo için geçersiz") alanıdır ve
+                    # burada sayılırsa aynı olgu iki kez raporlanır. İlk ölçümde
+                    # `routes.long_name` (doğrusu `route_long_name`) bu yüzden 2546
+                    # sahte bulgu üretti.
+                    if fld not in cache[fname][0]:
+                        continue
+                    if not any(get(r, fld) == want for r in cache[fname]):
+                        hit["10_field_value"][fid] += 1
+                        if len(sample["10_field_value"]) < 25:
+                            sample["10_field_value"].append(f"{fid} {tbl}.{fld}={want[:40]}")
+
+            # ── 11. exact_times=1 iken end_time headway sınırında mı ─────────
+            # Spec: end_time son sefer başlangıcından BÜYÜK ama başlangıç+headway'den
+            # KÜÇÜK olmalı → (end-start) headway'in TAM KATI olmamalı.
+            def _secs(v):
+                p = v.split(":")
+                return int(p[0]) * 3600 + int(p[1]) * 60 + int(p[2]) if len(p) == 3 else None
+            for row in rows(zf, "frequencies.txt"):
+                if get(row, "exact_times") != "1":
+                    continue
+                try:
+                    s, e = _secs(get(row, "start_time")), _secs(get(row, "end_time"))
+                    h = int(get(row, "headway_secs"))
+                except (ValueError, IndexError):
+                    continue
+                if s is None or e is None or h <= 0 or e <= s:
+                    continue              # FRQ_005/FRQ_004'ün alanı
+                if (e - s) % h == 0:
+                    hit["11_exact_times"][fid] += 1
+                    if len(sample["11_exact_times"]) < 25:
+                        sample["11_exact_times"].append(
+                            f"{fid} start={get(row,'start_time')} end={get(row,'end_time')} headway={h}")
+
             # ── FP-A. agency_phone vanity (spec'te İZİNLİ, biz reddediyoruz) ─
             for row in rows(zf, "agency.txt"):
                 ph = get(row, "agency_phone")

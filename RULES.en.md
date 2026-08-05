@@ -2,7 +2,7 @@
 
 🇹🇷 [Türkçe](RULES.md) · 🇬🇧 **English** · 🇯🇵 [日本語](RULES.ja.md)
 
-568 rules, 38 groups. Each rule is identified by a unique ID, severity level, and class.
+570 rules, 38 groups. Each rule is identified by a unique ID, severity level, and class.
 Severity levels: **CRITICAL** (publish blocker) · **HIGH** · **MEDIUM** · **LOW** · **INFO**
 Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Quality** (GTFS Quality) · **Analytics** (GTFS Analytics)
 
@@ -369,6 +369,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | FRQ_009 | Frequency interval too short | MEDIUM | Quality |
 | FRQ_010 | Very high frequency (bunching risk) | INFO | Analytics |
 | FRQ_011 | Overlapping frequency periods | HIGH | Interop |
+| FRQ_012 | exact_times=1 with end_time on a headway boundary | LOW | Spec |
 
 ## TRF — Transfers
 
@@ -622,6 +623,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | TRN_013 | Identity field cannot be used in feed_info translation | HIGH | Spec |
 | TRN_014 | record_sub_id only valid for stop_times | HIGH | Spec |
 | TRN_015 | record_id and field_value are both empty | HIGH | Spec |
+| TRN_016 | field_value matches no record — the translation is never applied | MEDIUM | Spec |
 
 ## ATR — Attributions
 

@@ -162,6 +162,34 @@ pub fn validate_frequencies(file: &RawFile) -> (Vec<FrequencyRecord>, Vec<gtfs_c
             }
         }
 
+        // FRQ_012: exact_times=1 iken end_time, son seferin kalkışından SONRA ama bir
+        // headway İÇİNDE olmalı → (end - start) headway'in tam katı olamaz.
+        //
+        // ⚠️ Spec'in aynı bölümü "New headways may start at the exact time the previous
+        // headway ends" der ve bitişik dönemi GENEL olarak serbest bırakır. `exact_times=1`
+        // kısıtı bu genel izni daraltır: son seferin nerede olduğu belirsizleşmesin diye
+        // end_time bir sonraki kalkışa DENK GELEMEZ. Bitişik modelleme yapan üreticiler
+        // `exact_times=1` ile bunu ihlal eder — ölçüldü, 4 feed / 452 satır.
+        if let (Some(s), Some(e), Some(h)) = (start_time, end_time, headway_secs) {
+            let s_secs = s.0 * 3600 + s.1 * 60 + s.2;
+            let e_secs = e.0 * 3600 + e.1 * 60 + e.2;
+            let exact = get_trimmed_field(&row_map, "exact_times") == Some("1");
+            if exact && h > 0 && e_secs > s_secs && (e_secs - s_secs) % h == 0 {
+                notices.push(make_k2_notice(
+                    &mut counter, "FRQ_012", EntityType::Trip, entity_id.clone(),
+                    Some(&row_map), &file.name, Some(line), Some("end_time"),
+                    get_trimmed_field(&row_map, "end_time").map(str::to_string),
+                    Some(format!("son kalkış + 1..{} sn", h - 1)),
+                    format!(
+                        "exact_times=1 iken end_time ({}) son seferin kalkışına headway ({h} sn) \
+                         kadar uzakta — son sefer belirsiz kalıyor.",
+                        get_trimmed_field(&row_map, "end_time").unwrap_or("")
+                    ),
+                    "end_time'ı son seferin kalkışından sonra, bir sonraki kalkıştan ÖNCE bir değere ayarlayın.",
+                ));
+            }
+        }
+
         // FRQ_007: exact_times must be 0 or 1 if provided
         let exact_times = match parse_u32(&row_map, "exact_times") {
             Ok(v) => {
@@ -334,4 +362,28 @@ mod tests {
             "bitişik dönemler FRQ_011 üretmemeli: {:?}",
             notices.iter().map(|n| &n.rule_id).collect::<Vec<_>>());
     }
+    #[test]
+    fn frq_012_flags_end_time_on_headway_boundary() {
+        // exact_times=1, 05:00→06:00, headway 3600 → (end-start) tam kat → son sefer belirsiz.
+        let file = make_file(vec!["trip_id","start_time","end_time","headway_secs","exact_times"], vec![
+            vec!["T1", "05:00:00", "06:00:00", "3600", "1"],
+            vec!["T2", "05:00:00", "05:59:00", "3600", "1"],   // sınırda değil → sessiz
+            vec!["T3", "05:00:00", "06:00:00", "3600", "0"],   // exact_times=0 → kapsam dışı
+            vec!["T4", "05:00:00", "06:00:00", "3600", ""],    // boş → kapsam dışı
+        ]);
+        let (_, notices) = validate_frequencies(&file);
+        let hits: Vec<_> = notices.iter().filter(|n| n.rule_id == "FRQ_012").collect();
+        assert_eq!(hits.len(), 1, "yalnız exact_times=1 ve tam kat olan: {hits:?}");
+        assert_eq!(hits[0].entity_id.as_deref(), Some("T1"));
+    }
+
+    #[test]
+    fn frq_012_silent_when_frq_005_owns_the_row() {
+        // end <= start → FRQ_005'in alanı; FRQ_012 aynı satırda konuşmamalı.
+        let file = make_file(vec!["trip_id","start_time","end_time","headway_secs","exact_times"], vec![vec!["T1", "06:00:00", "05:00:00", "3600", "1"]]);
+        let (_, notices) = validate_frequencies(&file);
+        assert!(notices.iter().any(|n| n.rule_id == "FRQ_005"));
+        assert!(!notices.iter().any(|n| n.rule_id == "FRQ_012"), "{notices:?}");
+    }
+
 }

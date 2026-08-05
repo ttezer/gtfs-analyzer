@@ -2,7 +2,7 @@
 
 🇹🇷 **Türkçe** · 🇬🇧 [English](RULES.en.md) · 🇯🇵 [日本語](RULES.ja.md)
 
-568 kural, 38 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
+570 kural, 38 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
 Önem seviyeleri: **KRİTİK** (yayın engelleyici) · **YÜKSEK** · **ORTA** · **DÜŞÜK** · **BİLGİ**
 Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · **Quality** (GTFS Kalitesi) · **Analytics** (GTFS Analitiği)
 
@@ -369,6 +369,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | FRQ_009 | Frekans aralığı çok kısa | ORTA | Quality |
 | FRQ_010 | Çok sık frekans (sıkışma riski) | BİLGİ | Analytics |
 | FRQ_011 | Aynı trip için frequencies dönemleri zaman aralığı çakışıyor | YÜKSEK | Interop |
+| FRQ_012 | exact_times=1 iken end_time headway sınırına denk geliyor | DÜŞÜK | Spec |
 
 ## TRF — Transfers (Aktarmalar)
 
@@ -622,6 +623,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | TRN_013 | feed_info çevirisinde kimlik alanı kullanılamaz | YÜKSEK | Spec |
 | TRN_014 | record_sub_id yalnızca stop_times için geçerli | YÜKSEK | Spec |
 | TRN_015 | record_id ve field_value ikisi de boş | YÜKSEK | Spec |
+| TRN_016 | field_value hiçbir kayıtla eşleşmiyor — çeviri uygulanmıyor | ORTA | Spec |
 
 ## ATR — Attributions (Atıflar)
 

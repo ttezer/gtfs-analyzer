@@ -887,6 +887,15 @@ pub static RULES: &[RuleMeta] = &[
         "Çok sık frekans (sıkışma riski)"),
     r!("FRQ_011", Yuksek, Interop, 2, &[], Some("trip_id"), VI, Row,
         "Aynı trip için frequencies dönemleri zaman aralığı çakışıyor"),
+    // FRQ_012: spec `exact_times=1` için "the end_time value must be greater than the last
+    // desired trip start_time but less than the last desired trip start_time + headway_secs"
+    // der → `(end - start)` headway'in TAM KATI olamaz. `FRQ_005` yalnız `end <= start`'ı ölçer.
+    // ⚠️ GERİLİM: aynı bölüm "New headways may start at the exact time the previous headway
+    // ends" der; bitişik dönem GENEL olarak izinlidir. `exact_times=1` kısıtı bu genel izni
+    // DARALTIR (özel kural genel kuralı sınırlar) — kart bu gerilimi yazıyor.
+    // Ölçüldü (239 feed): 4 feed, 452 satır.
+    r!("FRQ_012", Dusuk, Spec, 1, &[], Some("trip_id"), VS, Row,
+        "exact_times=1 iken end_time headway sınırına denk geliyor"),
 
     // ── TRF: Transfers ─────────────────────────────────────────────────────────
     r!("TRF_001", Kritik, Spec, 1, &[], None, VS_K, Row,
@@ -1334,6 +1343,12 @@ pub static RULES: &[RuleMeta] = &[
     // çevirdiğini söylemez — çeviri hiçbir zaman uygulanamaz.
     r!("TRN_015", Yuksek, Spec, 1, &[], Some("record_id"), VS, Row,
         "record_id ve field_value ikisi de boş"),
+    // TRN_016: `field_value` biçimi yalnız DEĞERE göre eşleşir — spec: "The field must have
+    // exactly the value defined in field_value." Eşleşen satır yoksa çeviri SESSİZCE etkisizdir:
+    // üretici çevirdiğini sanır, çevrilmez. `XFL_014` yalnız `record_id` kolunu kapsıyordu.
+    // Ölçüldü (239 feed): 6 feed, 998 satır; `mdb-2848`'de 2413 çevirinin 810'u ölü.
+    r!("TRN_016", Orta, Spec, 1, &[], None, VS, Feed,
+        "field_value hiçbir kayıtla eşleşmiyor — çeviri uygulanmıyor"),
 
     // ── ATR: Attributions ──────────────────────────────────────────────────────
     r!("ATR_001", Yuksek, Quality, 1, &[], Some("attribution_id"), VS, Entity,
@@ -1815,6 +1830,7 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("FRQ_009", ProjectQuality),
     ("FRQ_010", ProjectAnalytics),
     ("FRQ_011", MobilitydataParity),
+    ("FRQ_012", GtfsSpec),
     ("FTR_001", GtfsSpec),
     ("FTR_002", GtfsSpec),
     ("FTR_003", GtfsSpec),
@@ -2127,6 +2143,7 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("TRN_013", GtfsSpec),
     ("TRN_014", GtfsSpec),
     ("TRN_015", GtfsSpec),
+    ("TRN_016", GtfsSpec),
     ("TRP_001", GtfsSpec),
     ("TRP_002", GtfsSpec),
     ("TRP_003", GtfsSpec),

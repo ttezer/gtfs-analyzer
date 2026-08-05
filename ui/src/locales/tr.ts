@@ -857,6 +857,7 @@ const tr = {
     'FRQ_009': 'Frekans aralığı çok kısa',
     'FRQ_010': 'Çok sık frekans (sıkışma riski)',
     'FRQ_011': 'Frequencies dönemleri zaman aralığı çakışıyor',
+    'FRQ_012': 'exact_times=1 iken end_time headway sınırına denk geliyor',
     // TRF
     'TRF_001': 'from_stop_id eksik',
     'TRF_002': 'to_stop_id eksik',
@@ -977,6 +978,7 @@ const tr = {
     'RCT_007': 'eligibility_url geçersiz',
     'RTS_029': 'route_sort_order geçersiz',
     'TRN_015': 'record_id ve field_value ikisi de boş',
+    'TRN_016': 'field_value hiçbir kayıtla eşleşmiyor — çeviri uygulanmıyor',
     // TFR
     'TFR_001': 'timeframe_group_id eksik',
     'TFR_002': 'service_id bulunamadı',

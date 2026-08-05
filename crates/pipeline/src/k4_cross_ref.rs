@@ -3699,6 +3699,68 @@ fn check_xfl(
         }
     }
 
+    // TRN_016: `field_value` biçimli çeviri hiçbir kayıtla eşleşmiyor.
+    //
+    // Spec: "The field must have exactly the value defined in field_value." Bu biçim
+    // `record_id` yerine DEĞERE göre eşleşir; eşleşen satır yoksa çeviri sessizce etkisizdir
+    // (üretici çevirdiğini sanır). `XFL_014` yalnız `record_id` kolunu kapsar.
+    //
+    // ⚠️ KAPSAM SINIRI: yalnız ham satırı (`row`) taşıyan tablolar denetlenir. `trips` bellek
+    // optimizasyonu nedeniyle `row` tutmaz → `table_name=trips` çevirileri SESSİZCE atlanır.
+    // Yanlış negatif yönünde bilinçli tercih; ölçümde trips payı 339/4362 idi.
+    //
+    // ⚠️ `field_name` hedef dosyada SÜTUN DEĞİLSE burada sayılmaz — o ihlal `TRN_002`'nin
+    // ("field_name bu tablo için geçersiz") alanıdır. Ölçüm sırasında bu ayrım yapılmadığında
+    // tek feed'de 2546 sahte bulgu çıkmıştı.
+    {
+        let mut unmatched: Vec<String> = Vec::new();
+        for rec in &records.translations {
+            let Some(want) = rec.field_value.as_deref().filter(|v| !v.is_empty()) else { continue };
+            if rec.record_id.as_deref().is_some_and(|r| !r.is_empty()) {
+                continue;                       // `record_id` biçimi → XFL_014'ün alanı
+            }
+            let field = rec.field_name.as_str();
+            if field.is_empty() {
+                continue;
+            }
+            let rows: Vec<&crate::k2::common::RowMap> = match rec.table_name.as_str() {
+                "agency" => records.agencies.iter().map(|r| &r.row).collect(),
+                "stops" => records.stops.iter().map(|r| &r.row).collect(),
+                "routes" => records.routes.iter().map(|r| &r.row).collect(),
+                "levels" => records.levels.iter().map(|r| &r.row).collect(),
+                "pathways" => records.pathways.iter().map(|r| &r.row).collect(),
+                "calendar" => records.calendars.iter().map(|r| &r.row).collect(),
+                "fare_attributes" => records.fare_attributes.iter().map(|r| &r.row).collect(),
+                "feed_info" => records.feed_info.iter().map(|r| &r.row).collect(),
+                _ => continue,                  // desteklenmeyen tablo → sessiz
+            };
+            if rows.is_empty() || !rows[0].contains_key(field) {
+                continue;                       // dosya yok ya da sütun yok (TRN_002)
+            }
+            if !rows.iter().any(|r| r.get(field).map(String::as_str) == Some(want)) {
+                unmatched.push(format!("{}.{field}={want}", rec.table_name));
+            }
+        }
+        if !unmatched.is_empty() {
+            unmatched.sort_unstable();
+            unmatched.dedup();
+            let total = unmatched.len();
+            let sample: Vec<&str> = unmatched.iter().take(5).map(String::as_str).collect();
+            notices.push(notice(
+                ctr, "TRN_016", EntityType::Feed, None, None,
+                "translations.txt", None, Some("field_value"),
+                Some(total.to_string()), None,
+                format!(
+                    "{total} çeviri kaydının 'field_value' değeri hedef dosyada hiçbir satırla \
+                     eşleşmiyor — bu çeviriler uygulanmaz. Örnek: {}.",
+                    sample.join(", ")
+                ),
+                "field_value değerlerini hedef alanın gerçek içeriğiyle birebir eşleştirin \
+                 (baştaki/sondaki boşluk ve büyük/küçük harf dahil).",
+            ));
+        }
+    }
+
     // XFL_014:�?eviri yapılan kayıt silinmiş veya tanımsız (dangling translation feed özeti)
     {
         let mut bad_keys: HashSet<String> = HashSet::new();
@@ -5579,4 +5641,67 @@ mod tests {
         assert_eq!(found[0].entity_type, EntityType::Feed);
         assert!(found[0].message.contains("2 ücret tarifesinde"));
     }
+    #[test]
+    fn trn_016_flags_field_value_matching_nothing() {
+        use crate::k2::translations::TranslationRecord;
+        use crate::k2::stops::StopRecord;
+        let (mut recs, _map) = empty();
+        let mk = |id: &str, name: &str| {
+            let mut row = std::collections::HashMap::new();
+            row.insert("stop_id".to_string(), id.to_string());
+            row.insert("stop_name".to_string(), name.to_string());
+            StopRecord {
+                stop_id: id.to_string(), stop_name: Some(name.to_string()),
+                row, line: 2, ..Default::default()
+            }
+        };
+        recs.stops = vec![mk("S1", "Merkez"), mk("S2", "Sahil")];
+        let base = TranslationRecord {
+            table_name: "stops".into(), field_name: "stop_name".into(),
+            language: "en".into(), translation: "Centre".into(),
+            record_id: None, record_sub_id: None,
+            field_value: Some("Merkez".into()),
+            row: Default::default(), line: 2,
+        };
+        // Eşleşen çeviri → sessiz.
+        recs.translations = vec![base.clone()];
+        let ok = check(&recs, &EntityMap::default(), 20260515);
+        assert!(!ok.notices.iter().any(|n| n.rule_id == "TRN_016"), "{:?}", ok.notices);
+
+        // Eşleşmeyen değer → TRN_016.
+        recs.translations = vec![TranslationRecord { field_value: Some("Yokistan".into()), ..base.clone() }];
+        let bad = check(&recs, &EntityMap::default(), 20260515);
+        let hits: Vec<_> = bad.notices.iter().filter(|n| n.rule_id == "TRN_016").collect();
+        assert_eq!(hits.len(), 1, "feed başına tek özet: {hits:?}");
+        assert!(hits[0].message.contains("Yokistan"), "{}", hits[0].message);
+    }
+
+    #[test]
+    fn trn_016_defers_to_neighbours() {
+        use crate::k2::translations::TranslationRecord;
+        use crate::k2::stops::StopRecord;
+        let (mut recs, _map) = empty();
+        let mut row = std::collections::HashMap::new();
+        row.insert("stop_id".to_string(), "S1".to_string());
+        row.insert("stop_name".to_string(), "Merkez".to_string());
+        recs.stops = vec![StopRecord { stop_id: "S1".into(), stop_name: Some("Merkez".into()), row, line: 2, ..Default::default() }];
+        let base = TranslationRecord {
+            table_name: "stops".into(), field_name: "stop_name".into(),
+            language: "en".into(), translation: "X".into(),
+            record_id: None, record_sub_id: None, field_value: Some("Yok".into()),
+            row: Default::default(), line: 2,
+        };
+        // (a) `record_id` biçimi → XFL_014'ün alanı, TRN_016 susar.
+        recs.translations = vec![TranslationRecord { record_id: Some("S1".into()), field_value: None, ..base.clone() }];
+        assert!(!check(&recs, &EntityMap::default(), 20260515).notices.iter().any(|n| n.rule_id == "TRN_016"));
+
+        // (b) `field_name` o dosyada sütun DEĞİL → TRN_002'nin alanı, TRN_016 susar.
+        recs.translations = vec![TranslationRecord { field_name: "long_name".into(), ..base.clone() }];
+        assert!(!check(&recs, &EntityMap::default(), 20260515).notices.iter().any(|n| n.rule_id == "TRN_016"));
+
+        // (c) desteklenmeyen tablo (trips — ham satır tutulmaz) → sessiz.
+        recs.translations = vec![TranslationRecord { table_name: "trips".into(), field_name: "trip_headsign".into(), ..base }];
+        assert!(!check(&recs, &EntityMap::default(), 20260515).notices.iter().any(|n| n.rule_id == "TRN_016"));
+    }
+
 }
