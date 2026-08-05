@@ -67,8 +67,11 @@ def main() -> int:
     gaps = [k for k, v in hard.items() if v == "BOŞLUK"]
     for g in gaps:
         print(f"  kalan: {g}  {prov[g]['sentence'][:70]}")
-    print("\n⚠️ Bu yüzde YALNIZ düzyazı eksenidir. Alan tablosu ekseni ayrı ölçülür")
-    print("   (302 atomun 296'sı) ve iki eksen ÖRTÜŞÜR — toplanamazlar.")
+    print("\n⚠️ Bu yüzde YALNIZ düzyazı eksenidir. Alan tablosu ekseni AYRI ölçülür ve iki")
+    print("   eksen ÖRTÜŞÜR — toplanamazlar. Alan tablosu durumu (2026-08-05 triyajı):")
+    print("   302 atomun tamamı çapalı; 38'i tek kuralla paylaşımlı ve triyajda MEŞRU bulundu")
+    print("   (bir kural iki atomu gerçekten ölçebilir); 12 gerçek boşluk kapatıldı.")
+    print("   Ölçüm: cargo test -- --ignored anchor_granularity_report --nocapture")
     print("⚠️ Payda kataloğun kendi kapsamıdır: modalsiz hükümler görünmez (ölçüldü, boş çıktı),")
     print("   cümle bölme kabadır.")
     return 0
