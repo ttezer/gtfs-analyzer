@@ -219,6 +219,33 @@ pub fn looks_like_url(value: &str) -> bool {
     has_web_scheme && Url::parse(trimmed).is_ok()
 }
 
+/// ISO 4217 minor unit (ondalık basamak sayısı). Varsayılan 2; aşağıdakiler ayrıksı.
+///
+/// Liste kasıtlı olarak KISA: yalnız 0 ve 3 basamaklı para birimleri. Geri kalan her kod
+/// 2 varsayılır — ISO 4217'de baskın durum budur ve bilinmeyen bir kod için 2 varsaymak,
+/// bilmediğimiz bir birimi yanlış raporlamaktan iyidir.
+pub fn iso4217_minor_unit(code: &str) -> u32 {
+    const ZERO: &[&str] = &["BIF","CLP","DJF","GNF","ISK","JPY","KMF","KRW","PYG","RWF",
+                            "UGX","UYI","VND","VUV","XAF","XOF","XPF"];
+    const THREE: &[&str] = &["BHD","IQD","JOD","KWD","LYD","OMR","TND"];
+    if ZERO.iter().any(|c| c.eq_ignore_ascii_case(code)) { 0 }
+    else if THREE.iter().any(|c| c.eq_ignore_ascii_case(code)) { 3 }
+    else { 2 }
+}
+
+/// Tutar, para biriminin gerektirdiği ondalık basamak sayısını taşıyor mu?
+///
+/// Sayı olarak ayrıştırılamayan değerler için `true` döner — o ihlal FPD_002/FAR_002'nin
+/// alanıdır ve burada iki kez raporlanmamalı.
+pub fn amount_has_iso4217_decimals(amount: &str, currency: &str) -> bool {
+    let a = amount.trim();
+    if a.is_empty() || currency.trim().len() != 3 || a.parse::<f64>().is_err() {
+        return true;
+    }
+    let dec = a.split_once('.').map(|(_, f)| f.len()).unwrap_or(0);
+    dec as u32 == iso4217_minor_unit(currency.trim())
+}
+
 pub fn looks_like_email(value: &str) -> bool {
     let trimmed = value.trim();
     let Some((local, domain)) = trimmed.split_once('@') else {
@@ -546,6 +573,31 @@ mod tests {
         assert!(!super::looks_like_phone("FLOWERS"), "hiç rakam yok — telefon değil");
         assert!(!super::looks_like_phone("12"));
         assert!(!super::looks_like_phone(""));
+    }
+
+    #[test]
+    fn iso4217_decimals_follow_the_currency() {
+        use super::{amount_has_iso4217_decimals as ok, iso4217_minor_unit as mu};
+        assert_eq!(mu("EUR"), 2);
+        assert_eq!(mu("JPY"), 0);
+        assert_eq!(mu("KWD"), 3);
+        assert_eq!(mu("ZZZ"), 2, "bilinmeyen kod 2 varsayılır");
+
+        assert!(ok("2.50", "EUR"));
+        assert!(ok("150", "JPY"), "yen ondalık taşımaz");
+        assert!(ok("1.500", "KWD"));
+
+        // Korpusta ölçülen gerçek ihlaller.
+        assert!(!ok("0.9", "EUR"), "EUR iki basamak ister");
+        assert!(!ok("6.7", "HKD"));
+        assert!(!ok("8", "EUR"));
+        assert!(!ok("100.00", "JPY"), "yen ondalık TAŞIMAMALI");
+        assert!(!ok("0.0000", "HKD"), "fazla basamak da ihlal");
+
+        // Sayı olmayan / boş değer FPD_002'nin alanı — burada sessiz.
+        assert!(ok("", "EUR"));
+        assert!(ok("abc", "EUR"));
+        assert!(ok("2.50", ""), "para birimi yoksa karar verilemez");
     }
 
 }

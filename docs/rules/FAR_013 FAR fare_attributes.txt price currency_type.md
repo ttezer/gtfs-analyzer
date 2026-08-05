@@ -1,0 +1,112 @@
+# FAR_013 FAR fare_attributes.txt price currency_type —  para biriminin ISO 4217 ondalık basamak sayısını taşımıyor
+
+> Karar: Tutar, eşlik eden para biriminin **ISO 4217 minor unit**'i kadar ondalık basamak
+> taşımalıdır. Spec: *"The currency amount must contain the number of decimal places
+> specified by the norm ISO 4217 for the accompanying Currency code."*
+> ⚠️ Dosya başına **tek** özet notice üretilir.
+
+| Alan | Değer |
+|---|---|
+| Grup |  |
+| Önem | Düşük |
+| Sınıf | Spec |
+| Aşama | K2 |
+| Varlık | File |
+| Kimlik alanı | - |
+| Skor tabanı | 1 |
+| Görünürlük | VS (`R2`, `R5`, `R9`) |
+| Bloke ettiği kurallar | - |
+
+## Tetikleme koşulu (kesin mantık)
+
+```
+ sayı olarak ayrıştırılabiliyor  VE   üç harfli
+  VE  ondalık basamak sayısı != iso4217_minor_unit()
+→ sayaç +1  (dosya sonunda tek notice)
+```
+
+Sayı olmayan ya da boş tutar **sessiz** geçer — o ihlal `FPD_002`/`FAR_002`'nin alanıdır ve
+iki kez raporlanmamalıdır.
+
+**Minor unit tablosu** (`common.rs::iso4217_minor_unit`) kasıtlı olarak kısadır: yalnız 0
+basamaklı (JPY, KRW, ISK, XOF…) ve 3 basamaklı (KWD, BHD, TND…) birimler listelenir; geri
+kalan her kod **2** varsayılır. Bilinmeyen bir kodu 2 saymak, bilmediğimiz bir birimi yanlış
+raporlamaktan iyidir.
+
+## ⚠️ Ölçüm bu kuralın ŞEKLİNİ belirledi
+
+239 feed'de tam spec uygulaması **2.001.806 satır** eşleşiyor ve toplamın **%99,7'si iki
+feed'den** geliyor:
+
+| feed | satır | örnek |
+|---|---|---|
+| mdb-2337 | 1.114.492 | `EUR 0.9` |
+| mdb-1924 | 880.583 | `HKD 6.7` |
+| mdb-1917 | 6.359 | `EUR 8` |
+
+Bunlar **gerçek ihlal** (EUR iki basamak ister) ama anlam kaybı yok — `0.9` ile `0.90` aynı
+tutardır. Kural bu yüzden iki tasarım kararı taşır:
+
+1. **Emit dosya başına tek özet.** Satır başına emit 2 milyon notice demekti; `DQ_016`,
+   `STM_050` ve `ARC_032` ile aynı patlama önlemi.
+2. **Severity Düşük.** R1 yayın kapısı saf `Spec ∧ Kritik`'tir; bu kural onu **hiç görmez**,
+   dolayısıyla hiçbir feed'i yayından alıkoymaz.
+
+Sınıf yine de `Spec`: hüküm spec metninde açıkça yazılı, tavsiye değil.
+
+## Yanlış pozitif / negatif
+- **Yanlış pozitif:** Düşük. `JPY 150` doğru sayılır (yen'in minor unit'i 0), `JPY 150.00`
+  ise ihlaldir — tablo bunu ayırır.
+- **Yanlış negatif:** Minor unit tablosunda olmayan ayrıksı bir birim 2 varsayılır. ISO
+  4217'de 0/2/3 dışında basamak yoktur, dolayısıyla risk yalnız listeye eklenmemiş bir
+  0 veya 3 basamaklı birimle sınırlıdır.
+
+## Karışan komşular (ayrım)
+
+| Kural | Ne yakalar | Eksen |
+|---|---|---|
+| **FAR_013 FAR fare_attributes.txt price currency_type** | ondalık basamak sayısı yanlış | biçim |
+| **_002** | tutar eksik / sayı değil / negatif | değer geçerliliği |
+| **_003** | para birimi kodu ISO 4217 değil | kod geçerliliği |
+
+## Mesaj & çözüm önerisi
+### R9 Kural Mesajı
+- **Çözüm önerisi:** Tutarları para biriminin ondalık basamak sayısıyla yazın (ör. EUR için
+  `0.90`, JPY için `150`).
+
+### R2 mesajı/mesajları
+- *" dosyasında N tutar, para biriminin ISO 4217 ondalık basamak sayısını taşımıyor
+  (ör. satır 12: EUR 0.9 — 2 basamak beklenir)."*
+
+## Ölçülen alan / değer
+- `field`: `` · `observed`: etkilenen satır sayısı · `expected`: beklenen basamak
+
+## Kod değiştirirken minimum test matrisi
+| Senaryo | Beklenen |
+|---|---|
+| `EUR 2.50` · `JPY 150` · `KWD 1.500` | sessiz |
+| `EUR 0.9` · `EUR 8` · `HKD 6.7` | FAR_013 FAR fare_attributes.txt price currency_type |
+| `JPY 100.00` | FAR_013 FAR fare_attributes.txt price currency_type (yen ondalık taşımamalı) |
+| `HKD 0.0000` | FAR_013 FAR fare_attributes.txt price currency_type (fazla basamak) |
+| boş / `abc` | sessiz (`_002`) |
+| para birimi boş | sessiz |
+
+## Teknik ek
+### Dış araç eşleşmesi
+- **MD paritesi:** Yok.
+
+### GTFS spec referansı
+- GTFS Schedule Reference, `` → ``
+- 🔗 https://gtfs.org/documentation/schedule/reference/
+
+### Korpus ölçümü (2026-08-06, 239 feed)
+38 feed etkileniyor, 2.001.806 satır — ama dosya başına özet nedeniyle **38 notice**.
+
+### Skora katkı
+`Düşük`, taban 1: teorik skor katkısı `1 * 1.0 = 1.0`.
+
+### Hangi raporlarda görünür
+`VS`: `R2`, `R5`, `R9`.
+
+### Kod referansı
+- [`registry.rs`](../../../crates/rules/src/registry.rs#L1)

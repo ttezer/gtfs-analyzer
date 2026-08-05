@@ -1013,6 +1013,8 @@ pub static RULES: &[RuleMeta] = &[
         "Çakışan ücret kuralları"),
     r!("FAR_011", Kritik, Spec, 1, &[], Some("payment_method"), VS_K, Entity,
         "payment_method eksik"),
+    r!("FAR_013", Dusuk, Spec, 1, &[], None, VS, File,
+        "price para biriminin ISO 4217 ondalık basamak sayısını taşımıyor"),
     r!("FAR_012", Kritik, Spec, 1, &[], Some("fare_id"), VS_K, Entity,
         "fare_id eksik"),
 
@@ -1086,6 +1088,17 @@ pub static RULES: &[RuleMeta] = &[
         "fare_media_id bulunamadı"),
     r!("FPD_005", Kritik, Spec, 1, &[], Some("fare_product_id"), VS_K, Row,
         "rider_category_id bulunamadı"),
+    // ISO 4217 minor unit — spec: "The currency amount must contain the number of decimal
+    // places specified by the norm ISO 4217 for the accompanying Currency code."
+    //
+    // ⚠️ ÖLÇÜM BU KURALIN ŞEKLİNİ BELİRLEDİ. Tam spec uygulaması 239 feed'de 2.001.806 satır
+    // eşleşiyor — `EUR 0.9` ve `HKD 6.7` gibi değerler teknik olarak ihlal ama anlam kaybı
+    // yok ve iki feed toplamın %99,7'sini üretiyor. Bu yüzden:
+    //   • emit DOSYA BAŞINA TEK ÖZET (DQ_016/ARC_032 deseni) — 2M değil 38 notice,
+    //   • severity DÜŞÜK: R1 yayın kapısı saf `Spec ∧ Kritik`'tir, bu kural onu HİÇ görmez.
+    // Sınıf yine de `Spec`: hüküm spec metninde açıkça yazılı, tavsiye değil.
+    r!("FPD_007", Dusuk, Spec, 1, &[], None, VS, File,
+        "amount para biriminin ISO 4217 ondalık basamak sayısını taşımıyor"),
     r!("FPD_006", Orta, Spec, 1, &[], Some("fare_product_id"), VS, Entity,
         "Bir fare_product için birden fazla varsayılan rider category"),
 
@@ -1844,6 +1857,7 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("FAR_010", ProjectQuality),
     ("FAR_011", GtfsSpec),
     ("FAR_012", GtfsSpec),
+    ("FAR_013", GtfsSpec),
     ("FIN_001", GtfsSpec),
     ("FIN_002", GtfsSpec),
     ("FIN_003", GtfsSpec),
@@ -1884,6 +1898,7 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("FPD_004", GtfsSpec),
     ("FPD_005", GtfsSpec),
     ("FPD_006", GtfsSpec),
+    ("FPD_007", GtfsSpec),
     ("FRL_001", GtfsSpec),
     ("FRL_002", GtfsSpec),
     ("FRL_003", GtfsSpec),

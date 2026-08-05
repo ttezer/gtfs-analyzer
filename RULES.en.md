@@ -2,7 +2,7 @@
 
 🇹🇷 [Türkçe](RULES.md) · 🇬🇧 **English** · 🇯🇵 [日本語](RULES.ja.md)
 
-587 rules, 38 groups. Each rule is identified by a unique ID, severity level, and class.
+589 rules, 38 groups. Each rule is identified by a unique ID, severity level, and class.
 Severity levels: **CRITICAL** (publish blocker) · **HIGH** · **MEDIUM** · **LOW** · **INFO**
 Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Quality** (GTFS Quality) · **Analytics** (GTFS Analytics)
 
@@ -423,6 +423,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | FAR_009 | Fare has no route rules | LOW | Quality |
 | FAR_010 | Overlapping fare rules | MEDIUM | Quality |
 | FAR_011 | payment_method missing | CRITICAL | Spec |
+| FAR_013 | price does not carry the currency's ISO 4217 decimal places | LOW | Spec |
 | FAR_012 | fare_id missing | CRITICAL | Spec |
 
 ## FRL — Fare Rules
@@ -469,6 +470,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | FPD_003 | currency invalid ISO 4217 code | CRITICAL | Spec |
 | FPD_004 | fare_media_id not found | CRITICAL | Spec |
 | FPD_005 | rider_category_id not found | CRITICAL | Spec |
+| FPD_007 | amount does not carry the currency's ISO 4217 decimal places | LOW | Spec |
 | FPD_006 | Multiple default rider categories for one fare_product | MEDIUM | Spec |
 
 ## FLG — Fare Leg Rules (Fares v2)

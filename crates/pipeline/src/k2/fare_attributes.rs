@@ -1,6 +1,6 @@
 use gtfs_core::EntityType;
 
-use super::common::{build_row_map, get_trimmed_field, make_k2_notice, parse_f64, parse_u32, validate_enum, RowMap};
+use super::common::{amount_has_iso4217_decimals, iso4217_minor_unit, build_row_map, get_trimmed_field, make_k2_notice, parse_f64, parse_u32, validate_enum, RowMap};
 use crate::k1_parse::RawFile;
 
 #[derive(Debug, Clone)]
@@ -22,6 +22,9 @@ pub fn validate_fare_attributes(
     let mut notices = Vec::new();
     let mut records = Vec::new();
     let mut counter = 0;
+    // FAR_013: dosya başına TEK özet — ölçümde tek feed 1,1M satır üretiyordu.
+    let mut iso_bad: u64 = 0;
+    let mut iso_first: Option<(u64, String, String)> = None;
 
     for (row_idx, row) in file.rows.iter().enumerate() {
         let line = (row_idx + 2) as u64;
@@ -36,6 +39,18 @@ pub fn validate_fare_attributes(
             ));
         }
         let entity_id = (!fare_id.is_empty()).then_some(fare_id.clone());
+
+        // FAR_013: tutar, para biriminin ISO 4217 ondalık basamak sayısını taşımalı.
+        {
+            let a = get_trimmed_field(&row_map, "price").unwrap_or("");
+            let c = get_trimmed_field(&row_map, "currency_type").unwrap_or("");
+            if !amount_has_iso4217_decimals(a, c) {
+                iso_bad += 1;
+                if iso_first.is_none() {
+                    iso_first = Some((line, a.to_string(), c.to_string()));
+                }
+            }
+        }
 
         let price = match parse_f64(&row_map, "price") {
             Ok(value) => {
@@ -123,6 +138,22 @@ pub fn validate_fare_attributes(
             row: row_map,
             line,
         });
+    }
+
+    // FAR_013: DOSYA başına tek özet (DQ_016/ARC_032 deseni). Satır başına emit ölçümde
+    // 2 milyon notice demekti ve toplamın %99,7'si iki feed'den geliyordu.
+    if let Some((line, amount, currency)) = iso_first {
+        let want = iso4217_minor_unit(&currency);
+        notices.push(make_k2_notice(
+            &mut counter, "FAR_013", EntityType::File, None, None,
+            &file.name, Some(line), Some("price"),
+            Some(format!("{iso_bad} satır")), Some(format!("{want} ondalık basamak")),
+            format!(
+                "fare_attributes.txt dosyasında {iso_bad} tutar, para biriminin ISO 4217 ondalık basamak \
+                 sayısını taşımıyor (ör. satır {line}: {currency} {amount} — {want} basamak beklenir)."
+            ),
+            "Tutarları para biriminin ondalık basamak sayısıyla yazın (ör. EUR için 0.90, JPY için 150).",
+        ));
     }
 
     (records, notices)

@@ -910,6 +910,7 @@ const tr = {
     'FAR_010': 'Çakışan ücret kuralları',
     'FAR_011': 'payment_method eksik',
     'FAR_012': 'fare_id eksik',
+    'FAR_013': 'price para biriminin ISO 4217 ondalık basamak sayısını taşımıyor',
     'LVL_008': 'level_id eksik',
     'PTH_020': 'pathway_id eksik',
     'PTH_021': 'from_stop_id eksik',
@@ -948,6 +949,7 @@ const tr = {
     'FPD_004': 'fare_media_id bulunamadı',
     'FPD_005': 'rider_category_id bulunamadı',
     'FPD_006': 'Bir fare_product için birden fazla varsayılan rider category',
+    'FPD_007': 'amount para biriminin ISO 4217 ondalık basamak sayısını taşımıyor',
     // FLG
     'FLG_001': 'fare_product_id bulunamadı',
     'FLG_002': 'network_id bulunamadı',

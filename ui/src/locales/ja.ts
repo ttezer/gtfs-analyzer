@@ -2077,6 +2077,7 @@ const ja: LocaleShape = {
     'FAR_010': '運賃ルールが重複',
     'FAR_011': 'payment_methodが不足',
     'FAR_012': 'fare_idが不足',
+    'FAR_013': 'priceが通貨のISO 4217小数桁数と一致しません',
     'LVL_008': 'level_idが不足',
     'PTH_020': 'pathway_idが不足',
     'PTH_021': 'from_stop_idが不足',
@@ -2113,6 +2114,7 @@ const ja: LocaleShape = {
     'FPD_004': 'fare_media_idが存在しない',
     'FPD_005': 'rider_category_idが存在しない',
     'FPD_006': '同一fare_productにデフォルトのrider_categoryが複数',
+    'FPD_007': 'amountが通貨のISO 4217小数桁数と一致しません',
     // FLG
     'FLG_001': 'fare_product_idが存在しない',
     'FLG_002': 'network_idが存在しない',

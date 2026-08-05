@@ -329,6 +329,7 @@ fn fixtures() -> Vec<Fixture> {
         fx("FAR_006", vec![("fare_attributes.txt", "fare_id,price,currency_type,payment_method,transfer_duration\nF1,2.5,USD,0,0\n")]),
         fx("FAR_011", vec![("fare_attributes.txt", "fare_id,price,currency_type,payment_method\nF1,2.5,USD,\n")]),
         fx("FAR_012", vec![("fare_attributes.txt", "fare_id,price,currency_type,payment_method\n,2.5,USD,0\n")]),
+        fx("FAR_013", vec![("fare_attributes.txt","fare_id,price,currency_type,payment_method,transfers\nF1,0.9,EUR,0,0\n")]),
 
         // ── FIN grubu (feed_info.txt; base'te yok) ─────────────────────────────
         fx("FIN_001", vec![("feed_info.txt", "feed_publisher_name,feed_publisher_url,feed_lang\n,https://x.example,en\n")]),
@@ -1083,6 +1084,7 @@ fn fixtures() -> Vec<Fixture> {
         fx("FPD_005", vec![("fare_products.txt", "fare_product_id,amount,currency,rider_category_id\nP1,2.5,USD,RCNOPE\n")]),
         // FPD_006: aynı fare_product_id için birden fazla varsayılan (rider boş) (k2).
         fx("FPD_006", vec![("fare_products.txt", "fare_product_id,amount,currency\nP1,2.5,USD\nP1,3.5,EUR\n")]),
+        fx("FPD_007", vec![("fare_products.txt","fare_product_id,fare_product_name,amount,currency\nP1,Bilet,0.9,EUR\n")]),
 
         // ── FTR grubu (fare_transfer_rules) ────────────────────────────────────
         fx("FTR_002", vec![("fare_transfer_rules.txt", "from_leg_group_id,fare_transfer_type\nLGNOPE,0\n")]),

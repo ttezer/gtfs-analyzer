@@ -2123,6 +2123,7 @@ const en: LocaleShape = {
     'FAR_010': 'Overlapping fare rules',
     'FAR_011': 'payment_method missing',
     'FAR_012': 'fare_id missing',
+    'FAR_013': "price does not carry the currency's ISO 4217 decimal places",
     'LVL_008': 'level_id missing',
     'PTH_020': 'pathway_id missing',
     'PTH_021': 'from_stop_id missing',
@@ -2159,6 +2160,7 @@ const en: LocaleShape = {
     'FPD_004': 'fare_media_id not found',
     'FPD_005': 'rider_category_id not found',
     'FPD_006': 'Multiple default rider categories for one fare_product',
+    'FPD_007': "amount does not carry the currency's ISO 4217 decimal places",
     // FLG
     'FLG_001': 'fare_product_id not found',
     'FLG_002': 'network_id not found',

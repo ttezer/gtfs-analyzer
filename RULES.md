@@ -2,7 +2,7 @@
 
 🇹🇷 **Türkçe** · 🇬🇧 [English](RULES.en.md) · 🇯🇵 [日本語](RULES.ja.md)
 
-587 kural, 38 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
+589 kural, 38 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
 Önem seviyeleri: **KRİTİK** (yayın engelleyici) · **YÜKSEK** · **ORTA** · **DÜŞÜK** · **BİLGİ**
 Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · **Quality** (GTFS Kalitesi) · **Analytics** (GTFS Analitiği)
 
@@ -423,6 +423,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | FAR_009 | Ücrete ait hat kuralı yok | DÜŞÜK | Quality |
 | FAR_010 | Çakışan ücret kuralları | ORTA | Quality |
 | FAR_011 | payment_method eksik | KRİTİK | Spec |
+| FAR_013 | price para biriminin ISO 4217 ondalık basamak sayısını taşımıyor | DÜŞÜK | Spec |
 | FAR_012 | fare_id eksik | KRİTİK | Spec |
 
 ## FRL — Fare Rules (Ücret Kuralları)
@@ -469,6 +470,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | FPD_003 | currency geçersiz ISO 4217 kodu | KRİTİK | Spec |
 | FPD_004 | fare_media_id bulunamadı | KRİTİK | Spec |
 | FPD_005 | rider_category_id bulunamadı | KRİTİK | Spec |
+| FPD_007 | amount para biriminin ISO 4217 ondalık basamak sayısını taşımıyor | DÜŞÜK | Spec |
 | FPD_006 | Bir fare_product için birden fazla varsayılan rider category | ORTA | Spec |
 
 ## FLG — Fare Leg Rules (Fares v2)
