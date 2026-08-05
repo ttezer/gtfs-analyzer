@@ -2489,3 +2489,46 @@ fn anchor_granularity_report() {
     }
 }
 
+/// `FILE_LEVEL_PROVISIONS.md`, spec'in DOSYA düzeyi koşullu hükümlerinin elle adjudikasyonudur
+/// ve hiçbir kapıya bağlı DEĞİLDİ.
+///
+/// Bu hükümler alan tablosundan türemez, dolayısıyla kapsam defteri onları görmez; düzyazı
+/// kataloğu da `File: …` satırlarını BİLİNÇLİ dışarıda bırakır (`extract_provisions.py`,
+/// gerekçe: bu dosyada zaten adjudike edildiler). Yani yedi hüküm YALNIZ o belgede yaşıyor.
+///
+/// Belgenin kendisi şunu yazıyordu: "Bu ölçüm otomatik DEĞİLDİR — kimse bu adımı
+/// hatırlatmaz." Bu test o cümleyi geçersiz kılar: spec'e yeni bir koşullu dosya eklenir
+/// ya da mevcut biri koşulsuzlaşırsa, belge güncellenene kadar kırmızı yanar.
+#[test]
+fn file_level_provisions_doc_covers_every_conditional_file() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let doc: serde_json::Value = serde_json::from_str(
+        &std::fs::read_to_string(root.join("spec-audit/spec_fields.json")).unwrap()).unwrap();
+    let md = std::fs::read_to_string(root.join("spec-audit/FILE_LEVEL_PROVISIONS.md")).unwrap();
+
+    let mut missing = Vec::new();
+    let mut conditional = 0usize;
+    for (file, entry) in doc["files"].as_object().unwrap() {
+        let presence = entry["presence"].as_str().unwrap_or("");
+        if !presence.starts_with("Conditionally") {
+            continue;
+        }
+        conditional += 1;
+        if !md.contains(&format!("`{file}`")) {
+            missing.push(format!("{file} ({presence})"));
+        }
+    }
+    assert!(
+        missing.is_empty(),
+        "spec'te koşullu ama FILE_LEVEL_PROVISIONS.md'de adjudike EDİLMEMİŞ {} dosya:\n  {}\n\n\
+         Bu hükümler başka hiçbir defterde yok. Belgeyi güncelleyin: koşul metnini, karşılayan \
+         kuralı ve kararı yazın (mevcut yedi satırın biçimi örnek).",
+        missing.len(), missing.join("\n  ")
+    );
+    assert!(
+        conditional >= 7,
+        "spec_fields.json'da yalnız {conditional} koşullu dosya var; 2026-08-02'de yediydi. \
+         Bir dosya koşulsuzlaştıysa FILE_LEVEL_PROVISIONS.md'deki ilgili satır da düşmeli."
+    );
+}
+

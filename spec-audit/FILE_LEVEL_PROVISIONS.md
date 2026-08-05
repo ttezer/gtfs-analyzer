@@ -64,5 +64,12 @@ Korpus (239 feed): 34 feed `translations.txt` taşıyor, **2'sinde** `feed_info.
 2. `presence` değeri `Conditionally *` olan dosyaları listele.
 3. Bu tabloyla karşılaştır: **yeni bir koşullu dosya çıkarsa** ya da mevcut bir koşulun
    **metni değişirse**, o satırı yeniden adjudike et.
-4. Bu ölçüm otomatik DEĞİLDİR — kimse bu adımı hatırlatmaz. `spec_fields.json`'daki
-   `presence` alanının varlığı yalnız veriyi hazır tutar, kararı vermez.
+4. ~~Bu ölçüm otomatik DEĞİLDİR — kimse bu adımı hatırlatmaz.~~ **2026-08-06'dan beri bir
+   kapı hatırlatıyor:** `emit_proof::file_level_provisions_doc_covers_every_conditional_file`.
+   `spec_fields.json`'da koşullu olup bu belgede adjudike edilmemiş bir dosya çıkarsa test
+   kırmızı yanar ve eksik dosyayı adıyla söyler. Kapının gerçekten koruduğu, sahte bir
+   koşullu dosya eklenip düştüğü görülerek doğrulandı.
+
+   Kapının ölçemediği tek şey **koşul metninin değişmesi**: `presence` değeri aynı kalıp
+   cümlenin içeriği değişirse test bunu göremez. O yüzden 3. adım (metin karşılaştırması)
+   hâlâ elle yapılır.
