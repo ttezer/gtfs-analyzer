@@ -28,13 +28,6 @@ fn has_field(row: &RowMap, field: &str) -> bool {
     get_trimmed_field(row, field).map(|v| !v.is_empty()).unwrap_or(false)
 }
 
-/// ⚠️ Sessiz: parse hatasında `None` döner. Çağıranlar `opt_int_checked` kullanmalı —
-/// bu sarmalayıcı yalnız hatayı raporlamanın anlamsız olduğu yerler için bırakıldı.
-fn opt_int(row: &RowMap, field: &str) -> Option<i64> {
-    get_trimmed_field(row, field)
-        .filter(|v| !v.is_empty())
-        .and_then(|v| v.parse::<i64>().ok())
-}
 
 /// `opt_int`'in raporlayan hâli: sayı olmayan değer sessizce düşmez, `rule` ile bildirilir.
 ///

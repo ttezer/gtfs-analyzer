@@ -121,8 +121,7 @@ pub(crate) fn build_name_index_impl(
     notices: &[gtfs_core::Notice],
     large_feed_mode: bool,
 ) -> gtfs_core::NameIndex {
-    use std::collections::HashMap;
-use std::collections::BTreeMap;
+    use std::collections::BTreeMap;
 
     // ── BÜYÜK FEED BELLEK MODU (#15 large_feed_memory_mode) ──────────────────────
     // Çok büyük feed'de name_index'in ağır alanları sonucu JS'e serialize ederken (to_js)

@@ -3396,7 +3396,7 @@ fn check_xfl(
         // BURADA YAPILAMAZ: sütun yoksa alan da boş string olur ve iki notice birden çıkar.
         // Küçük bir gürültü; alternatifi bu kayıtlara RowMap eklemekti ve bu kurallar için
         // bellek maliyetine değmez.
-        let mut emit_empty = |cond: bool, rule: &'static str, file: &'static str,
+        let emit_empty = |cond: bool, rule: &'static str, file: &'static str,
                               field: &'static str, line: u64, msg: String, fix: &'static str,
                               notices: &mut Vec<gtfs_core::Notice>, ctr: &mut u32| {
             if cond {
