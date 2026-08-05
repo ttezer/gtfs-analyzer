@@ -632,11 +632,49 @@ kopyası sayılmamalı), FK çözümü de boş değeri "referans yok" sayıp ge�
 ⚠️ **Bunların hiçbiri yanlış REDDETME üretmez** (yanlış negatif yönü), ama `presence:required`
 302 atomun en kalabalık sınıfı ve bu 12'sinde iddia edilen kanıt gerçekte yok.
 
+### Korpus ölçümü — 12 boşluk vahşi doğada ne kadar gerçekleşiyor
+
+Üreteç: `spec-audit/presence_corpus.py` (239 feed). Sütun **varsa** ve değer **boşsa** sayılır;
+sütunun hiç olmaması `ARC_025`'in alanıdır, bu boşlukların değil.
+
+| alan | sütunu olan feed | boş satır | feed |
+|---|---|---|---|
+| `trips.service_id` | 236 | **24** | 5 |
+| `calendar` 7 gün alanı | 210 | **6** (aynı satırlar) | 5 |
+| `transfers.transfer_type` | 60 | 1 | 1 |
+| `areas.area_id` | 13 | 0 | — |
+| `location_groups.location_group_id` | 17 | 0 | — |
+| `location_group_stops` (2 alan) | 6 | 0 | — |
+| `networks.network_id` · `rider_categories.rider_category_id` | 2 | 0 | — |
+| `fare_media.fare_media_id` · `stop_areas` (2) · `timeframes.service_id` | 1 | 0 | — |
+
+**Gerçekleşen ihlal yalnız iki yerde:** `trips.service_id` (24 satır, 5 feed) ve `calendar`'ın
+gün alanları (6 satır, 5 feed). Kalan dokuz alanın sıfır olması güçlü bir sonuç değil —
+o dosyaları taşıyan feed sayısı zaten 1-17 arasında.
+
+### 🔴 Bir boşluk daha eledi: `transfers.transfer_type`
+
+Spec'in enum tanımı: *"**0 or empty** - Recommended transfer point between routes."* Boş değer
+**açıkça geçerlidir**. Ama alan tablosu aynı alanı `presence=Required` işaretliyor — "Required"
+burada sütunun bulunmasını anlatıyor, değerin dolu olmasını değil.
+
+Yani `TRF_004`'ün boş değerde susması **doğru davranıştır** ve bu bir boşluk değildi.
+
+**Aynı çelişki başka yerde var mı diye tarandı:** enum tanımında boşa izin veren 6 alan var,
+beşi zaten `Conditionally Required/Forbidden` — yalnız `transfer_type` `Required` ile
+çelişiyor. **Tekil bir vaka**, sistematik değil.
+
+⚠️ Bu, atom üreticisinin bilinen bir körlüğü: `presence` sütununu okur, enum tanımının
+metnini okumaz. Tek vaka olduğu için üreteç değiştirilmedi; burada kayıtlı.
+
 ### Rozet ekseni üzerindeki etki
 
-Alan tablosu ekseninde dürüst ifade artık şu: **302 atomun 290'ı davranışla kanıtlı, 12'si
-çapalı ama ölçülmüyor.** Önceki "302/302" ifadesi çapaya dayanıyordu ve çapa bu 12'yi
-göremiyor.
+Alan tablosu ekseninde dürüst ifade: **302 atomun 291'i davranışla kanıtlı, 11'i çapalı ama
+ölçülmüyor.** (12'nin biri — `transfers.transfer_type` — spec'in kendi enum tanımı boşa izin
+verdiği için boşluk değildi.) Önceki "302/302" çapaya dayanıyordu ve çapa bunları göremiyor.
+
+**Ama 11'in yalnız 8'i vahşi doğada gerçekleşiyor** (`trips.service_id` + 7 calendar günü);
+kalan 3 alan grubu için korpusta tek örnek yok ve o dosyaları taşıyan feed sayısı çok az.
 
 ---
 
