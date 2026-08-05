@@ -2,7 +2,7 @@
 
 🇹🇷 [Türkçe](RULES.md) · 🇬🇧 [English](RULES.en.md) · 🇯🇵 **日本語**
 
-571ルール、38グループ。各ルールは一意のID、重要度、クラスで定義されます。
+574ルール、38グループ。各ルールは一意のID、重要度、クラスで定義されます。
 重要度: **致命的**（公開ブロッカー）· **高** · **中** · **低** · **情報**
 クラス: **仕様**（GTFS妥当性）· **相互運用**（GTFSインターオペラビリティ）· **品質**（GTFS品質）· **分析**（GTFSアナリティクス）
 
@@ -66,6 +66,7 @@
 | BKR_017 | pickup_booking_rule_idが見つかりません（booking_rules） | 致命的 | 仕様 |
 | BKR_018 | drop_off_booking_rule_idが見つかりません（booking_rules） | 致命的 | 仕様 |
 | BKR_019 | booking_rule_idが未設定または重複 | 致命的 | 仕様 |
+| BKR_024 | booking_type=1 かつ duration_max がある場合 prior_notice_start_day は禁止 | 中 | 仕様 |
 | BKR_020 | booking_urlが無効 | 中 | 仕様 |
 | BKR_021 | info_urlが無効 | 低 | 仕様 |
 | BKR_022 | phone_numberが無効 | 低 | 品質 |
@@ -564,6 +565,7 @@
 | PTH_023 | pathway_modeが不足 | 致命的 | 仕様 |
 | PTH_024 | is_bidirectionalが不足 | 致命的 | 仕様 |
 | PTH_025 | 推奨されるpathway lengthが不足 | 低 | 品質 |
+| PTH_030 | 乗降場を持つプラットフォームに通路が割り当てられています | 低 | 仕様 |
 | PTH_029 | 推奨されるpathway traversal_timeが不足 | 低 | 品質 |
 | PTH_026 | 経路の端点が駅 | 致命的 | 仕様 |
 | PTH_027 | stair_countが無効（0または整数でない） | 中 | 仕様 |
@@ -623,6 +625,7 @@
 | TRN_011 | field_nameが翻訳不可 | 高 | 仕様 |
 | TRN_013 | feed_info翻訳でIDフィールドを使用不可 | 高 | 仕様 |
 | TRN_014 | record_sub_idはstop_timesのみ有効 | 高 | 仕様 |
+| TRN_017 | stop_times翻訳にrecord_sub_idがありません（対象行が特定できません） | 中 | 仕様 |
 | TRN_015 | record_idとfield_valueが両方空 | 高 | 仕様 |
 | TRN_016 | field_valueがどのレコードとも一致しません（翻訳が適用されません） | 中 | 仕様 |
 

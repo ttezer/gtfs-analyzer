@@ -284,6 +284,20 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
             }
         }
 
+        // BKR_024: aynı gün rezervasyonda (booking_type=1) üst süre sınırı varken başlangıç
+        // günü çelişkilidir — spec: "Forbidden for booking_type=1 if prior_notice_duration_max
+        // is defined." `BKR_002` komşudur ama başka hükmü ölçer (start_day yalnız last_day ile).
+        if booking_type == Some(1) && has_duration_max && has_start_day {
+            notices.push(make_k2_notice(
+                &mut ctr, "BKR_024", EntityType::Row, entity_id.clone(), Some(&row_map),
+                &file.name, Some(line), Some("prior_notice_start_day"),
+                get_trimmed_field(&row_map, "prior_notice_start_day").map(str::to_string),
+                Some("(boş)".to_string()),
+                "booking_type=1 ve prior_notice_duration_max tanımlıyken prior_notice_start_day yasaktır.".to_string(),
+                "prior_notice_start_day alanını boşaltın ya da prior_notice_duration_max'i kaldırın.",
+            ));
+        }
+
         // BKR_002: prior_notice_start_day dolu ama prior_notice_last_day yok
         if has_start_day && !has_last_day {
             notices.push(make_k2_notice(
@@ -688,4 +702,21 @@ mod tests {
         let (_, notices) = validate_booking_rules(&file);
         assert!(notices.iter().any(|n| n.rule_id == "BKR_010"), "BKR_010 bekleniyor");
     }
+    #[test]
+    fn bkr_024_forbids_start_day_with_duration_max_on_same_day_booking() {
+        let file = make_file(
+            vec!["booking_rule_id", "booking_type", "prior_notice_duration_min",
+                 "prior_notice_duration_max", "prior_notice_start_day", "prior_notice_last_day"],
+            vec![
+                vec!["B1", "1", "30", "120", "2", "3"],   // type=1 + max + start_day → BKR_024
+                vec!["B2", "1", "30", "120", "", ""],     // start_day yok → sessiz
+                vec!["B3", "1", "30", "", "2", "3"],      // max yok → sessiz
+            ],
+        );
+        let (_, notices) = validate_booking_rules(&file);
+        let hits: Vec<_> = notices.iter().filter(|n| n.rule_id == "BKR_024").collect();
+        assert_eq!(hits.len(), 1, "yalnız B1: {hits:?}");
+        assert_eq!(hits[0].entity_id.as_deref(), Some("B1"));
+    }
+
 }

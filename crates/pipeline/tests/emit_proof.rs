@@ -277,6 +277,7 @@ fn fixtures() -> Vec<Fixture> {
             "BR3,2,,,abc,\n",
             "BR4,2,,,,abc\n",
         ))]),
+        fx("BKR_024", vec![("booking_rules.txt","booking_rule_id,booking_type,prior_notice_duration_min,prior_notice_duration_max,prior_notice_start_day,prior_notice_last_day\nB1,1,30,120,2,3\n")]),
         // BKR_017/018: stop_times'taki booking_rule_id booking_rules.txt'te yok (k4 cross-ref).
         fx("BKR_017", vec![
             ("booking_rules.txt", "booking_rule_id,booking_type,prior_notice_duration_min\nBR1,1,30\n"),
@@ -534,6 +535,7 @@ fn fixtures() -> Vec<Fixture> {
         fx("PTH_027", vec![("pathways.txt", "pathway_id,from_stop_id,to_stop_id,pathway_mode,is_bidirectional,stair_count\nP1,S1,S2,2,0,0\n")]),
         fx("PTH_025", vec![("pathways.txt", "pathway_id,from_stop_id,to_stop_id,pathway_mode,is_bidirectional,length\nP1,S1,S2,6,0,\n")]),
         fx("PTH_029", vec![("pathways.txt", "pathway_id,from_stop_id,to_stop_id,pathway_mode,is_bidirectional,traversal_time\nP1,S1,S2,4,0,\n")]),
+        fx("PTH_030", vec![("stops.txt","stop_id,stop_name,stop_lat,stop_lon,location_type,parent_station\nST1,St,41.0,29.0,1,\nP1,Pl,41.0,29.0,0,ST1\nBA1,Ba,41.0,29.0,4,P1\nE1,En,41.0,29.0,2,ST1\n"), ("pathways.txt","pathway_id,from_stop_id,to_stop_id,pathway_mode,is_bidirectional\nW1,E1,P1,1,0\n")]),
         fx("PTH_009", vec![("pathways.txt", "pathway_id,from_stop_id,to_stop_id,pathway_mode,is_bidirectional\nP1,S1,S2,1,0\n")]),
         fx("PTH_010", vec![("pathways.txt", "pathway_id,from_stop_id,to_stop_id,pathway_mode,is_bidirectional,min_width\nP1,S1,S2,3,0,0\n")]),
         fx("PTH_011", vec![("pathways.txt", "pathway_id,from_stop_id,to_stop_id,pathway_mode,is_bidirectional\nP1,S1,S1,3,0\n")]),
@@ -1226,6 +1228,7 @@ fn fixtures() -> Vec<Fixture> {
         // TRN_015: record_id ve field_value ikisi de boş — "Required if record_id is empty".
         fx("TRN_015", vec![("translations.txt", "table_name,field_name,language,translation\nstops,stop_name,fr,X\n")]),
         fx("TRN_016", vec![("stops.txt","stop_id,stop_name,stop_lat,stop_lon\nS1,Merkez,41.0,29.0\n"), ("translations.txt","table_name,field_name,language,translation,field_value\nstops,stop_name,en,Centre,Yokistan\n")]),
+        fx("TRN_017", vec![("stop_times.txt","trip_id,stop_id,stop_sequence,arrival_time,departure_time\nT1,S1,1,08:00:00,08:00:00\n"), ("translations.txt","table_name,field_name,language,translation,record_id\nstop_times,stop_headsign,en,Centre,T1\n")]),
 
         // ── STP grubu (kalan: k2 + k3 dup + k4 FK + k6) ────────────────────────
         // STP_001: stop_id tekrarı (k3).

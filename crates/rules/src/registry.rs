@@ -210,6 +210,13 @@ pub static RULES: &[RuleMeta] = &[
     // BKR_020/021/022: dosyanın üç iletişim alanı `known_columns`'da listeliydi (yani
     // "bilinmeyen sütun" uyarısı almıyorlardı) ama HİÇBİR denetim aşaması okumuyordu — issue #60.
     // booking_url yolcunun rezervasyonu FİİLEN yaptığı adrestir; info_url yalnız açıklayıcıdır.
+    // BKR_024: spec `prior_notice_start_day` için "Forbidden for booking_type=1 if
+    // prior_notice_duration_max is defined" der. `duration_max` parser'da üç yerde geçer
+    // ve hiçbiri `start_day` ile ilişkilendirilmiyordu; `BKR_002` komşudur ama başka
+    // hükmü ölçer (`start_day` yalnız `last_day` ile kullanılabilir).
+    // ⚠️ Korpusta örnek YOK → sentetik fixture.
+    r!("BKR_024", Orta, Spec, 1, &[], Some("booking_rule_id"), VS, Row,
+        "booking_type=1 ve duration_max varken prior_notice_start_day yasak"),
     r!("BKR_020", Orta,   Spec, 1, &[], Some("booking_rule_id"), VS, Entity,
         "booking_url geçersiz"),
     r!("BKR_021", Dusuk,  Spec, 1, &[], Some("booking_rule_id"), VS, Entity,
@@ -1233,6 +1240,13 @@ pub static RULES: &[RuleMeta] = &[
     // sidewalks (3), escalators (4) and elevator (5)" der; PTH_007 değeri VARSA doğruluyor,
     // eksikliği ölçmüyordu. Üç öneri alanından ikisi (length→PTH_025, stair_count→PTH_008)
     // zaten ölçülüyordu. Ölçüldü (239 feed): 4 feed, 24 kayıt.
+    // PTH_030: spec, bir platformun boarding area'ları modellendiğinde pathway'lerin
+    // BOARDING AREA'lara bağlanmasını ister ve ekler: "In such cases, the platform must
+    // not have pathways assigned." Grafik kodu iç içe modellemeyi TOLERE ediyordu
+    // (k6_analytics.rs:7287) ama yasağı ölçmüyordu.
+    // ⚠️ Korpusta örnek YOK — endişe edilen gürültü gerçekleşmiyor → sentetik fixture.
+    r!("PTH_030", Dusuk, Spec, 1, &[], Some("pathway_id"), VS, Row,
+        "Boarding area'sı olan platforma pathway atanmış"),
     r!("PTH_029", Dusuk, Quality, 1, &[], None, VS, Feed,
         "Önerilen pathway traversal_time bilgisi eksik"),
     r!("PTH_026", Kritik, Spec, 1, &[], Some("pathway_id"), VS_K, Row,
@@ -1349,6 +1363,14 @@ pub static RULES: &[RuleMeta] = &[
     // (feed_info'da yasak → TRN_013, record_id ile birlikte yasak → TRN_009). Üçüncüsü
     // eksikti: "Required if record_id is empty". İkisi de boşsa satır hangi kaydı
     // çevirdiğini söylemez — çeviri hiçbir zaman uygulanamaz.
+    // TRN_017: `TRN_014`'ün TERS KOLU. Spec `record_sub_id` için iki yönlü hüküm koyar:
+    // stop_times DIŞINDA yasak (→TRN_014), stop_times İÇİNDE `record_id` doluyken ZORUNLU.
+    // `stop_times.txt`'in birincil anahtarı BİLEŞİKTİR (`trip_id`+`stop_sequence`);
+    // `record_id` yalnız ilkini taşır. İkincisi olmadan çeviri hangi SATIRA ait olduğunu
+    // söyleyemez — referans dangling değil, BELİRSİZdir; bu yüzden XFL_014 de görmez.
+    // ⚠️ Korpusta örnek YOK (hiçbir feed stop_times çevirmiyor) → sentetik fixture.
+    r!("TRN_017", Orta, Spec, 1, &[], Some("record_id"), VS, Row,
+        "stop_times çevirisinde record_sub_id eksik — hangi satır olduğu belirsiz"),
     r!("TRN_015", Yuksek, Spec, 1, &[], Some("record_id"), VS, Row,
         "record_id ve field_value ikisi de boş"),
     // TRN_016: `field_value` biçimi yalnız DEĞERE göre eşleşir — spec: "The field must have
@@ -1720,6 +1742,7 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("BKR_021", GtfsSpec),
     ("BKR_022", ProjectQuality),
     ("BKR_023", GtfsSpec),
+    ("BKR_024", GtfsSpec),
     ("CAL_001", GtfsSpec),
     ("CAL_002", GtfsSpec),
     ("CAL_003", GtfsSpec),
@@ -2118,6 +2141,7 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("PTH_027", GtfsSpec),
     ("PTH_028", ProjectQuality),
     ("PTH_029", ProjectQuality),
+    ("PTH_030", GtfsSpec),
     ("TRF_001", GtfsSpec),
     ("TRF_002", GtfsSpec),
     ("TRF_003", GtfsSpec),
@@ -2153,6 +2177,7 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("TRN_014", GtfsSpec),
     ("TRN_015", GtfsSpec),
     ("TRN_016", GtfsSpec),
+    ("TRN_017", GtfsSpec),
     ("TRP_001", GtfsSpec),
     ("TRP_002", GtfsSpec),
     ("TRP_003", GtfsSpec),

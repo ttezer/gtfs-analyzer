@@ -3346,6 +3346,49 @@ fn check_xfl(
     // "Must contain a stop_id that identifies a platform (location_type=0 or empty),
     // entrance/exit (2), generic node (3) or boarding area (4). Values for stop_id that
     // identify stations (location_type=1) ... are forbidden."
+    // PTH_030: bir platformun boarding area'ları modellenmişse pathway'ler BOARDING AREA'lara
+    // bağlanır; spec ekler: "In such cases, the platform must not have pathways assigned."
+    //
+    // Grafik kodu iç içe modellemeyi TOLERE eder (`k6_analytics.rs` PTH_012, çocuk düğümden
+    // erişilebilirlik) ama yasağı ÖLÇMEZ. Korpusta örnek yok — endişe edilen gürültü
+    // gerçekleşmiyor, kural sentetik fixture ile kanıtlanır.
+    {
+        let mut has_boarding_area: HashSet<&str> = HashSet::new();
+        for rec in &records.stops {
+            if rec.location_type == Some(4) {
+                if let Some(parent) = rec.row.get("parent_station").map(String::as_str) {
+                    if !parent.trim().is_empty() {
+                        has_boarding_area.insert(parent.trim());
+                    }
+                }
+            }
+        }
+        if !has_boarding_area.is_empty() {
+            for rec in &records.pathways {
+                for (field, stop_id) in [
+                    ("from_stop_id", rec.from_stop_id.as_str()),
+                    ("to_stop_id", rec.to_stop_id.as_str()),
+                ] {
+                    if !has_boarding_area.contains(stop_id) {
+                        continue;
+                    }
+                    notices.push(notice(
+                        ctr, "PTH_030", EntityType::Row,
+                        Some(rec.pathway_id.clone()), Some(rec.pathway_id.clone()),
+                        "pathways.txt", Some(rec.line), Some(field),
+                        Some(stop_id.to_string()), None,
+                        format!(
+                            "pathway '{}' {field}='{stop_id}' platformuna bağlanıyor ama o platformun \
+                             boarding area'ları tanımlı — pathway'ler boarding area'lara bağlanmalıdır.",
+                            rec.pathway_id
+                        ),
+                        "Pathway'i platformun boarding area'sına (location_type=4) bağlayın.",
+                    ));
+                }
+            }
+        }
+    }
+
     // Not: spec ayrıca stop_access=1 olan durakları da yasaklar; o ayrı bir olgudur ve
     // burada KAPSAM DIŞIDIR (MD'de de ayrı notice).
     {
@@ -5702,6 +5745,36 @@ mod tests {
         // (c) desteklenmeyen tablo (trips — ham satır tutulmaz) → sessiz.
         recs.translations = vec![TranslationRecord { table_name: "trips".into(), field_name: "trip_headsign".into(), ..base }];
         assert!(!check(&recs, &EntityMap::default(), 20260515).notices.iter().any(|n| n.rule_id == "TRN_016"));
+    }
+
+    #[test]
+    fn pth_030_flags_pathway_on_platform_with_boarding_areas() {
+        use crate::k2::stops::StopRecord;
+        use crate::k2::pathways::PathwayRecord;
+        let (mut recs, mut map) = empty();
+        let stop = |id: &str, lt: Option<u32>, parent: &str| {
+            let mut row = std::collections::HashMap::new();
+            row.insert("stop_id".to_string(), id.to_string());
+            row.insert("parent_station".to_string(), parent.to_string());
+            StopRecord { stop_id: id.to_string(), location_type: lt, row, line: 2, ..Default::default() }
+        };
+        // P1 platformunun boarding area'sı var; P2'nin yok.
+        recs.stops = vec![
+            stop("P1", Some(0), "ST1"), stop("BA1", Some(4), "P1"),
+            stop("P2", Some(0), "ST1"), stop("E1", Some(2), "ST1"),
+        ];
+        for (i, s) in recs.stops.iter().enumerate() { map.stops.insert(s.stop_id.clone().into(), i); }
+        let pw = |id: &str, from: &str, to: &str, line: u64| PathwayRecord {
+            pathway_id: id.into(), from_stop_id: from.into(), to_stop_id: to.into(),
+            pathway_mode: Some(1), is_bidirectional: Some(0),
+            length: None, traversal_time: None, stair_count: None, max_slope: None,
+            min_width: None, row: Default::default(), line,
+        };
+        recs.pathways = vec![pw("W1", "E1", "P1", 2), pw("W2", "E1", "P2", 3)];
+        let result = check(&recs, &map, 20260515);
+        let hits: Vec<_> = result.notices.iter().filter(|n| n.rule_id == "PTH_030").collect();
+        assert_eq!(hits.len(), 1, "yalnız boarding area'sı olan platforma bağlanan: {hits:?}");
+        assert_eq!(hits[0].entity_id.as_deref(), Some("W1"));
     }
 
 }

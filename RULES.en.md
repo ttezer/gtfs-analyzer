@@ -2,7 +2,7 @@
 
 🇹🇷 [Türkçe](RULES.md) · 🇬🇧 **English** · 🇯🇵 [日本語](RULES.ja.md)
 
-571 rules, 38 groups. Each rule is identified by a unique ID, severity level, and class.
+574 rules, 38 groups. Each rule is identified by a unique ID, severity level, and class.
 Severity levels: **CRITICAL** (publish blocker) · **HIGH** · **MEDIUM** · **LOW** · **INFO**
 Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Quality** (GTFS Quality) · **Analytics** (GTFS Analytics)
 
@@ -66,6 +66,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | BKR_017 | pickup_booking_rule_id not found (booking_rules) | CRITICAL | Spec |
 | BKR_018 | drop_off_booking_rule_id not found (booking_rules) | CRITICAL | Spec |
 | BKR_019 | booking_rule_id missing or duplicated | CRITICAL | Spec |
+| BKR_024 | prior_notice_start_day forbidden with booking_type=1 and duration_max | MEDIUM | Spec |
 | BKR_020 | booking_url is invalid | MEDIUM | Spec |
 | BKR_021 | info_url is invalid | LOW | Spec |
 | BKR_022 | phone_number is invalid | LOW | Quality |
@@ -564,6 +565,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | PTH_023 | pathway_mode missing | CRITICAL | Spec |
 | PTH_024 | is_bidirectional missing | CRITICAL | Spec |
 | PTH_025 | Recommended pathway length missing | LOW | Quality |
+| PTH_030 | Pathway assigned to a platform that has boarding areas | LOW | Spec |
 | PTH_029 | Recommended pathway traversal_time missing | LOW | Quality |
 | PTH_026 | Pathway endpoint is a station | CRITICAL | Spec |
 | PTH_027 | stair_count is invalid (zero or not an integer) | MEDIUM | Spec |
@@ -623,6 +625,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | TRN_011 | field_name is not translatable | HIGH | Spec |
 | TRN_013 | Identity field cannot be used in feed_info translation | HIGH | Spec |
 | TRN_014 | record_sub_id only valid for stop_times | HIGH | Spec |
+| TRN_017 | stop_times translation missing record_sub_id — the row is ambiguous | MEDIUM | Spec |
 | TRN_015 | record_id and field_value are both empty | HIGH | Spec |
 | TRN_016 | field_value matches no record — the translation is never applied | MEDIUM | Spec |
 

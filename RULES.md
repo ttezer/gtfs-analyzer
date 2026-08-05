@@ -2,7 +2,7 @@
 
 🇹🇷 **Türkçe** · 🇬🇧 [English](RULES.en.md) · 🇯🇵 [日本語](RULES.ja.md)
 
-571 kural, 38 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
+574 kural, 38 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
 Önem seviyeleri: **KRİTİK** (yayın engelleyici) · **YÜKSEK** · **ORTA** · **DÜŞÜK** · **BİLGİ**
 Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · **Quality** (GTFS Kalitesi) · **Analytics** (GTFS Analitiği)
 
@@ -66,6 +66,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | BKR_017 | pickup_booking_rule_id bulunamadı (booking_rules) | KRİTİK | Spec |
 | BKR_018 | drop_off_booking_rule_id bulunamadı (booking_rules) | KRİTİK | Spec |
 | BKR_019 | booking_rule_id eksik veya yineleniyor | KRİTİK | Spec |
+| BKR_024 | booking_type=1 ve duration_max varken prior_notice_start_day yasak | ORTA | Spec |
 | BKR_020 | booking_url geçersiz | ORTA | Spec |
 | BKR_021 | info_url geçersiz | DÜŞÜK | Spec |
 | BKR_022 | phone_number geçersiz | DÜŞÜK | Quality |
@@ -564,6 +565,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | PTH_023 | pathway_mode eksik | KRİTİK | Spec |
 | PTH_024 | is_bidirectional eksik | KRİTİK | Spec |
 | PTH_025 | Önerilen pathway length bilgisi eksik | DÜŞÜK | Quality |
+| PTH_030 | Boarding area'sı olan platforma pathway atanmış | DÜŞÜK | Spec |
 | PTH_029 | Önerilen pathway traversal_time bilgisi eksik | DÜŞÜK | Quality |
 | PTH_026 | Pathway uç noktası istasyon | KRİTİK | Spec |
 | PTH_027 | stair_count geçersiz (sıfır veya tam sayı değil) | ORTA | Spec |
@@ -623,6 +625,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | TRN_011 | field_name çevrilebilir değil | YÜKSEK | Spec |
 | TRN_013 | feed_info çevirisinde kimlik alanı kullanılamaz | YÜKSEK | Spec |
 | TRN_014 | record_sub_id yalnızca stop_times için geçerli | YÜKSEK | Spec |
+| TRN_017 | stop_times çevirisinde record_sub_id eksik — hangi satır olduğu belirsiz | ORTA | Spec |
 | TRN_015 | record_id ve field_value ikisi de boş | YÜKSEK | Spec |
 | TRN_016 | field_value hiçbir kayıtla eşleşmiyor — çeviri uygulanmıyor | ORTA | Spec |
 

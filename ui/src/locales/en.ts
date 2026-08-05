@@ -1817,6 +1817,7 @@ const en: LocaleShape = {
     'BKR_021': 'info_url is invalid',
     'BKR_022': 'phone_number is invalid',
     'BKR_023': 'prior_notice numeric field is not an integer',
+    'BKR_024': 'prior_notice_start_day forbidden with booking_type=1 and duration_max',
     // AGN
     'AGN_002': 'agency_name missing',
     'AGN_003': 'agency_url missing or invalid',
@@ -2117,6 +2118,7 @@ const en: LocaleShape = {
     'PTH_024': 'is_bidirectional missing',
     'PTH_025': 'Recommended pathway length missing',
     'PTH_029': 'Recommended pathway traversal_time missing',
+    'PTH_030': 'Pathway assigned to a platform that has boarding areas',
     // FRL
     'FRL_001': 'fare_id not found',
     'FRL_002': 'route_id not found',
@@ -2191,6 +2193,7 @@ const en: LocaleShape = {
     'RTS_029': 'route_sort_order is invalid',
     'TRN_015': 'record_id and field_value are both empty',
     'TRN_016': 'field_value matches no record — the translation is never applied',
+    'TRN_017': 'stop_times translation missing record_sub_id — the row is ambiguous',
     // TFR
     'TFR_001': 'timeframe_group_id missing',
     'TFR_002': 'service_id not found',

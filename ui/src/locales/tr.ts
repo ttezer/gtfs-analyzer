@@ -604,6 +604,7 @@ const tr = {
     'BKR_021': 'info_url geçersiz',
     'BKR_022': 'phone_number geçersiz',
     'BKR_023': 'prior_notice sayı alanı tam sayı değil',
+    'BKR_024': 'booking_type=1 ve duration_max varken prior_notice_start_day yasak',
     // AGN
     'AGN_002': 'agency_name eksik',
     'AGN_003': 'agency_url eksik veya geçersiz',
@@ -904,6 +905,7 @@ const tr = {
     'PTH_024': 'is_bidirectional eksik',
     'PTH_025': 'Önerilen pathway length bilgisi eksik',
     'PTH_029': 'Önerilen pathway traversal_time bilgisi eksik',
+    'PTH_030': "Boarding area'sı olan platforma pathway atanmış",
     'PTH_026': 'Pathway uç noktası istasyon',
     'PTH_027': 'stair_count geçersiz (sıfır veya tam sayı değil)',
     // FRL
@@ -980,6 +982,7 @@ const tr = {
     'RTS_029': 'route_sort_order geçersiz',
     'TRN_015': 'record_id ve field_value ikisi de boş',
     'TRN_016': 'field_value hiçbir kayıtla eşleşmiyor — çeviri uygulanmıyor',
+    'TRN_017': 'stop_times çevirisinde record_sub_id eksik — hangi satır olduğu belirsiz',
     // TFR
     'TFR_001': 'timeframe_group_id eksik',
     'TFR_002': 'service_id bulunamadı',

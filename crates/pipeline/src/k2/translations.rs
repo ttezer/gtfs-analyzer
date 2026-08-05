@@ -226,6 +226,23 @@ pub fn validate_translations(
             ));
         }
 
+        // TRN_017: TRN_014'ün ters kolu. `stop_times.txt`'in birincil anahtarı bileşiktir
+        // (`trip_id` + `stop_sequence`); `record_id` yalnız ilkini taşır, `record_sub_id`
+        // ikincisini. İkincisi olmadan çeviri hangi SATIRA ait olduğunu söyleyemez —
+        // referans dangling değil BELİRSİZdir, bu yüzden `XFL_014` de görmez.
+        if table_name == "stop_times"
+            && record_id.as_deref().is_some_and(|r| !r.is_empty())
+            && record_sub_id.as_deref().is_none_or(str::is_empty)
+        {
+            notices.push(make_k2_notice(
+                &mut counter, "TRN_017", EntityType::Row, record_id.clone(),
+                Some(&row_map), &file.name, Some(line), Some("record_sub_id"),
+                None, Some("stop_sequence".to_string()),
+                "stop_times çevirisinde record_id verilmiş ama record_sub_id eksik — çeviri hangi satıra ait olduğunu söylemiyor.".to_string(),
+                "record_sub_id alanına ilgili stop_sequence değerini girin.",
+            ));
+        }
+
         if table_name != "stop_times" && record_sub_id.is_some() {
             notices.push(make_k2_notice(
                 &mut counter,
@@ -257,4 +274,40 @@ pub fn validate_translations(
     }
 
     (records, notices)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use smol_str::SmolStr;
+
+    fn make_file(headers: Vec<&str>, rows: Vec<Vec<&str>>) -> RawFile {
+        RawFile {
+            name: "translations.txt".to_string(),
+            headers: headers.iter().map(|s| s.to_string()).collect(),
+            rows: rows.into_iter().map(|r| r.into_iter().map(SmolStr::from).collect()).collect(),
+            bytes: 0,
+            raw_text: None,
+        }
+    }
+
+    #[test]
+    fn trn_017_requires_record_sub_id_for_stop_times() {
+        // stop_times PK bileşiktir (trip_id + stop_sequence); record_id yalnız ilkini taşır.
+        // İkincisi olmadan çeviri hangi SATIRA ait olduğunu söyleyemez.
+        let file = make_file(
+            vec!["table_name", "field_name", "language", "translation", "record_id", "record_sub_id"],
+            vec![
+                vec!["stop_times", "stop_headsign", "en", "Centre", "T1", ""],    // eksik → TRN_017
+                vec!["stop_times", "stop_headsign", "en", "Centre", "T2", "3"],   // dolu → sessiz
+                vec!["stops", "stop_name", "en", "Centre", "S1", ""],             // başka tablo → sessiz
+            ],
+        );
+        let (_, notices) = validate_translations(&file);
+        let hits: Vec<_> = notices.iter().filter(|n| n.rule_id == "TRN_017").collect();
+        assert_eq!(hits.len(), 1, "yalnız ilk satır: {hits:?}");
+        assert_eq!(hits[0].entity_id.as_deref(), Some("T1"));
+        // TRN_014 ters koldur ve bu satırlarda konuşmamalı.
+        assert!(!notices.iter().any(|n| n.rule_id == "TRN_014"), "{notices:?}");
+    }
 }
