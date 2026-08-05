@@ -578,6 +578,34 @@ tüketiciye adların dilini söyleyememiş olur.
 
 ---
 
+## 📊 DURUM MAKİNESİ — kapanan hükümler (rozet hesabının girdisi)
+
+Aşağıdaki eşleme `spec-audit/badge_status.py`'nin girdisidir; yüzde elle değil bundan
+hesaplanır. Bir boşluk kurala dönüştüğünde satır BURAYA eklenir.
+
+| aday | kural | commit |
+|---|---|---|
+| `Pd6bc0278` | `ARC_032` | `0ed19f93` |
+| `Pd21dea02` | `PTH_029` | `509c5b54` |
+| `P3af6af7b` · `Pb24eacd3` | `STP_044` | `509c5b54` |
+| `P5f72fb5a` | `looks_like_url` düzeltmesi | `cfd8f7d4` |
+| `P2c840d38` | `TRN_016` | `d4ac363e` |
+| `P257db6b1` | `FRQ_012` | `d4ac363e` |
+| `P71243b3e` · `P504bde32` | `STM_059` | `bb10592b` |
+| `P9373b1fa` | `TRN_017` | `62571264` |
+| `P5a5cced5` | `BKR_024` | `62571264` |
+| `P2264440d` | `PTH_030` | `62571264` |
+
+**KISMİ adjudikasyonu (5 sert):** `Pd84a0bcb`→BOŞLUK · `P2c840d38`→BOŞLUK (kapandı) ·
+`P257db6b1`→BOŞLUK (kapandı) · `P8681b6f4`→KAPSAM DIŞI · `P44a6984b`→KAPSAM DIŞI
+
+**Kapatılmayan iki sert boşluk:**
+- `Pd84a0bcb` — OpenGIS poligon geçerliliği → issue **#67**, geometri bağımlılığı kararı
+- `P38cd4e78` — ISO 4217 ondalık basamak → **bilinçli YAZILMAYACAK**: ölçüm 2.001.806
+  eşleşme verdi, `CZK 39` gibi ondalıksız tutarlar evrensel ve meşru
+
+---
+
 # ✅ KATALOG TAMAMLANDI — 273/273
 
 Aşağıdaki dağılım **sayıldı, tahmin edilmedi** — defterdeki her satırın karar etiketi
