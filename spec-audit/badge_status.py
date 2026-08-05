@@ -69,7 +69,9 @@ def main() -> int:
         print(f"  kalan: {g}  {prov[g]['sentence'][:70]}")
     print("\n⚠️ Bu yüzde YALNIZ düzyazı eksenidir. Alan tablosu ekseni AYRI ölçülür ve iki")
     print("   eksen ÖRTÜŞÜR — toplanamazlar. Alan tablosu durumu (2026-08-05 triyajı):")
-    print("   302 atomun tamamı çapalı; 38'i tek kuralla paylaşımlı ve triyajda MEŞRU bulundu")
+    print("   300 GEÇERLİ atomun tamamı çapalı (2 atom hatalı üretim: transfer_type ve
+   continuous_drop_off — enum düzyazısı boşa izin veriyor); 32'si tek kuralla
+   paylaşımlı ve triyajda MEŞRU bulundu")
     print("   (bir kural iki atomu gerçekten ölçebilir); 12 gerçek boşluk kapatıldı.")
     print("   Ölçüm: cargo test -- --ignored anchor_granularity_report --nocapture")
     print("⚠️ Payda kataloğun kendi kapsamıdır: modalsiz hükümler görünmez (ölçüldü, boş çıktı),")
