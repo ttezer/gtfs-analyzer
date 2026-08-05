@@ -423,7 +423,10 @@ fn fixtures() -> Vec<Fixture> {
         // ARC_032: `<BR>` biçimi vahşi doğadan (mdb-1924, 1176 durak adı).
         fx("ARC_032", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Ana<br>Durak,41.0,29.0\n")]),
         fx("ARS_002", vec![("areas.txt","area_id,area_name\n,Bolge\n")]),
-        fx("CAL_025", vec![("calendar.txt","service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC,,1,1,1,1,0,0,20250101,20261231\n")]),
+        // ⚠️ YEDİ AYRI SERVİS ŞART. Tek satırda yedi günü birden boşaltmak YETMEZ: dedup
+        // aynı satır için tek notice bırakır ve yalnız bir gün alanı çapalanır. Aynı tuzak
+        // CAL_002 fixture'ında da yaşanmıştı (kapsam defteri 2026-08-03 triyajı).
+        fx("CAL_025", vec![("calendar.txt","service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,,1,1,1,1,1,1,20250101,20261231\nSVC2,1,,1,1,1,1,1,20250101,20261231\nSVC3,1,1,,1,1,1,1,20250101,20261231\nSVC4,1,1,1,,1,1,1,20250101,20261231\nSVC5,1,1,1,1,,1,1,20250101,20261231\nSVC6,1,1,1,1,1,,1,20250101,20261231\nSVC7,1,1,1,1,1,1,,20250101,20261231\n")]),
         fx("FMD_004", vec![("fare_media.txt","fare_media_id,fare_media_name,fare_media_type\n,Kart,2\n")]),
         fx("NET_004", vec![("networks.txt","network_id,network_name\n,Ag\n")]),
         fx("RCT_008", vec![("rider_categories.txt","rider_category_id,rider_category_name\n,Yetiskin\n")]),
