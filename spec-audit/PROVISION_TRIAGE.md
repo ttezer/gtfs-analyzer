@@ -667,6 +667,49 @@ Ayrıca **iki yanlış pozitif** bulundu ve defterlendi: `agency_phone` vanity n
 (bulgu 14, `PTH_017` sınıfı) ve `STP_022`'nin spec'in açık iznine ters yönü (bulgu 5).
 İkisi de Quality sınıfında olduğu için yayın kapısını etkilemiyor.
 
+## 27 KISMİ adayın adjudikasyonu (2026-08-04)
+
+"KISMİ" rozet iddiası için kullanılamaz — bir hüküm ya ölçülüyordur ya ölçülmüyordur.
+Hepsi yeniden karara bağlandı.
+
+### ⚠️ Önce bir çerçeve düzeltmesi: rozet paydası SERT hükümlerdir
+
+Yumuşak hükümler (`should`, `recommended`) spec'in **zorunlu kılmadığı** şeylerdir. Onları
+"karşılanmamış spec hükmü" saymak, `PTH_017`'nin hatasının defter düzeyinde tekrarıdır —
+o kural bir tavsiyeyi norm diye dayatıyordu. Yumuşak hükümlerin karşılığı `Quality`
+sınıfıdır ve **ayrı bir eksendir**: kapsanmaları iyidir, kapsanmamaları spec ihlali değildir.
+
+Bu ayrım 27 adayı ikiye böler: **5 sert**, **22 yumuşak**.
+
+### Sert KISMİ'ler (5) — rozet paydasını doğrudan etkiler
+
+| id | hüküm | yeni karar | gerekçe |
+|---|---|---|---|
+| `Pd84a0bcb` | OpenGIS poligon geçerliliği | **BOŞLUK** | Zaten #67; KISMİ olarak da sayılıyordu → **çift sayım düzeltildi** |
+| `P2c840d38` | `translations.field_value` alanın değeriyle **tam** eşleşmeli | **BOŞLUK** *(yeni)* | Genel eşleşme doğrulaması yok. `k4_cross_ref.rs:2683`'teki `field_value` çözümlemesi yalnız **GTFS-JP kana** yolunda çalışıyor (`feed_lang_ja \|\| has_kana`), genel değil |
+| `P257db6b1` | `exact_times=1` iken `end_time` son sefer başlangıcı ile başlangıç+`headway_secs` arasında olmalı | **BOŞLUK** *(yeni)* | `FRQ_005` yalnız `end_time <= start_time`'ı ölçer; bu hüküm `end_time`'ın headway'in tam katına denk gelmemesini ister — farklı ve daha dar |
+| `P8681b6f4` | `Text` tipi insan tarafından okunabilir olmalı | **KAPSAM DIŞI** | "İnsan okunabilir"in makine tanımı yok; `ARC_021` yaklaşıyor ama daha ileri gitmek yanlış pozitif üretir |
+| `P44a6984b` | *"n-to-n continuations must respect both constraints"* | **KAPSAM DIŞI** | **Kaba cümle bölmenin artefaktı** — hükmün gövdesi önceki cümlelerde, bu cümle tek başına bir kısıt tanımlamıyor |
+
+### Yumuşak KISMİ'ler (22) — ayrı eksen, rozet paydasında değil
+
+| karar | adet | id'ler |
+|---|---|---|
+| **KANITLI** | 3 | `Pd0952f0f`·`Pd6d4d60e` (→`STM_050`) · `Pc29f644f` (→`FIN_013`, "fare_attributes.agency_id önerilen ama eksik") |
+| **KAPSAM DIŞI** — koşul feed'den doğrulanamaz | 10 | `Peaccedd4`·`P07ae073c` ("ayrı zaman yoksa") · `P803cfa49`·`P572bb984` ("tüm hizmetler cEMV kabul ediyorsa") · `P6802b122` ("kısa tanım varsa") · `P130f8673` (e-posta doğrudan temas mı) · `P1ecc6733` (zemin referansı) · `P11f6523f` (dönem dışı veri) · `P43b15497` (ASCII tavsiyesi — `ARC_021` bilinçli daha geniş, [[project_recent_sessions]] VBB kararı) · `Pfe2abba1`'in "kullanılmıyorsa boş" kolu |
+| **Quality boşluğu** — ölçülebilir ama ölçülmüyor | 9 | `P33d5b079` (Mixed Case yalnız `stop_id` scope'unda) · `P7c96867d`·`P984ec73b` (döngü koşulu) · `Pc45300d2` (headsign tüm sefer boyunca aynı) · `P2f98361b` (boarding area adı) · `Pfe2abba1` (servis günü içi benzersizlik) · `P7cf5ea86`·`Pcbd2b455`·`Pa71d256d` (`feed_lang=mul` ↔ `translations.txt`) · `P5cb1a139` (30 günlük kapsama; `FIN_020` 7 günü ölçüyor) |
+
+Dokuz Quality boşluğu **kural adayıdır ama spec ihlali değildir**. Ayrı bir kuyruk;
+issue açılmadı, çünkü hiçbiri ölçülmedi ve toplu değerleri düşük.
+
+### Sert eksende net etki
+
+```
+önce : 12 boşluk adayı / 10 hüküm  (biri çift sayılmış)
+sonra:  2 YENİ sert boşluk         (P2c840d38 · P257db6b1)
+       -1 çift sayım               (Pd84a0bcb)
+```
+
 ## Kataloğun kör noktası ÖLÇÜLDÜ (2026-08-03)
 
 Defter baştan beri şunu yazıyordu: üreteç modal-tabanlıdır, *"All file and field names are
