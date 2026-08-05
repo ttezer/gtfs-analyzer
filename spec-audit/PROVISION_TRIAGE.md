@@ -3,10 +3,13 @@
 Kaynak: `spec_provisions.json` (üreteç `extract_provisions.py`). O dosya **aday** üretir;
 burası her adayın hüküm olup olmadığına ve karşılanıp karşılanmadığına karar verir.
 
-Katalog toplamı **273 aday** (sert 163 · yumuşak 110). Bu belge **107'sini** adjudike eder:
-1. tur 27 (`file-requirements` + `field-types` + `locations.geojson`) · 2. tur 43
-(`stop_times.txt`) · 3. tur 37 (`stops.txt` + `routes.txt`). Bölümler tam bitirilir, yarım
-bırakılmaz — kalan sayısı böyle güvenilir kalır.
+Katalog toplamı **273 aday** (sert 163 · yumuşak 110) ve **273'ünün tamamı** yedi turda
+adjudike edildi. Bölümler tam bitirilir, yarım bırakılmaz — kalan sayısı böyle güvenilir kalır.
+
+> **DURUM (2026-08-06): düzyazı ekseni %100 — 131/131 ölçülebilir sert hüküm.**
+> Yüzde bu belgeden `spec-audit/badge_status.py` ile **hesaplanır**, elle yazılmaz.
+> Aşağıdaki tur bölümleri o günkü kararları taşır; **kapanış durumu tek yerde tutulur:
+> "DURUM MAKİNESİ" tablosu.**
 
 ## Karar sınıfları
 
@@ -183,8 +186,9 @@ kullanılır — klasik dial-a-ride. O satırlarda bugün hiçbir şey söylenmi
 
 Yumuşak hüküm olduğu için karşılığı **Quality** sınıfına gider, `Spec` değil — `PTH_017`
 dersinin doğrudan uygulaması. Kural yazılmadı; `STM_040`'ı genişletmek mi yeni kural mı
-sorusu 3. tura bırakıldı, çünkü `STM_040`'ın kendi koşulu da meşru ve ikisini tek kuralda
+sorusu sonraya bırakıldı, çünkü `STM_040`'ın kendi koşulu da meşru ve ikisini tek kuralda
 birleştirmek `emit_identity` kapısını düşürebilir.
+→ **SONUÇ: `STM_059` KARDEŞ kural olarak yazıldı** (`bb10592b`, issue #69).
 
 ---
 
@@ -257,7 +261,8 @@ Spec iki tavsiye yazar: değer yalnız platform tanımlayıcısı olmalı, ve *"
 sözcüğü içeriyor" der. Desen mevcut, dil listesi mevcut, yalnız bu alana uygulanmamış.
 
 Yumuşak hüküm → karşılığı **Quality**. Kural yazılmadı; `STP_040`'ın sözcük listesi
-`platform`/`track` için genişletilebilir mi, yoksa ayrı kural mı — 4. tura bırakıldı.
+`platform`/`track` için genişletilebilir mi, yoksa ayrı kural mı — sonraya bırakıldı.
+→ **SONUÇ: `STP_044` AYRI kural olarak yazıldı** (`509c5b54`) — `STP_040` opt-in, bu değil.
 
 ---
 
@@ -721,6 +726,9 @@ görmüyor. Karar ölçümle değil, **ölçümün yüzeysel okunmasıyla** veri
 Aşağıdaki dağılım **sayıldı, tahmin edilmedi** — defterdeki her satırın karar etiketi
 ile o satırdaki aday kimlikleri eşleştirilerek (`P` kimliği başına bir kez):
 
+⚠️ **Bu dağılım 7. TURUN SONUNDAKİ hâldir (2026-08-03).** Sonrasında 27 KISMİ adjudike
+edildi ve **her boşluk kapatıldı**; güncel dağılım için `badge_status.py`.
+
 | karar | aday | oran |
 |---|---|---|
 | **KANITLI** — kural doğrudan ölçüyor | 155 | %57 |
@@ -730,10 +738,10 @@ ile o satırdaki aday kimlikleri eşleştirilerek (`P` kimliği başına bir kez
 | **BOŞLUK** — hiçbir kural ölçmüyor | 11 | %4 |
 | DOLAYLI — başka kurallarca yakalanıyor, adı konmamış | 4 | %1 |
 
-⚠️ **11 boşluk ADAYI = 9 ayrı HÜKÜM.** Spec aynı tavsiyeyi birden çok cümleye bölüyor
+⚠️ **11 boşluk ADAYI = 10 ayrı HÜKÜM.** Spec aynı tavsiyeyi birden çok cümleye bölüyor
 (`platform_code` iki cümle, `feed_lang mul` üç cümle); aşağıdaki liste hükümleri sayar.
 
-## Boşluklar — ölçüldü, sonra kapatıldı (durum: 2026-08-03)
+## Boşluklar — ölçüldü, HEPSİ KAPATILDI (durum: 2026-08-06)
 
 Üreteç: `spec-audit/measure_gaps.py` (statik zip+csv taraması, doğrulayıcı koşulmaz).
 Başlıklar `csv.reader` ile okunup normalize edilir — 08-02'de iki kez uydurma sonuç veren
@@ -749,12 +757,12 @@ issue de açılmamıştı). Doğru sayı **10 hüküm / 12 aday**.
 | 2 | `traversal_time` tavsiyesi (`Pd21dea02`) | — | 4 | 24 | ✅ **KAPANDI → `PTH_029`** (`509c5b54`) |
 | 3 | `platform_code` (`P3af6af7b`·`Pb24eacd3`) | — | 1 | 1 | ✅ **KAPANDI → `STP_044`** (`509c5b54`) |
 | 4 | URL şeması (`P5f72fb5a`) | ✅ | 1 | 116 | ✅ **KAPANDI → `looks_like_url`** (`cfd8f7d4`) |
-| 5 | ISO 4217 ondalık (`P38cd4e78`) | ✅ | 3 | 715 | 🔴 **KAPATILMAYACAK** — ölçüm kararı, aşağıda |
-| 6 | `record_sub_id` gereklilik yönü (`P9373b1fa`) | ✅ | **0** | 0 | ⚪ AÇIK → issue **#66** |
-| 7 | `start_day`/`duration_max` (`P5a5cced5`) | ✅ | **0** | 0 | ⚪ AÇIK → issue **#66** |
-| 8 | Boarding area + platform pathway (`P2264440d`) | ✅ | **0** | 0 | ⚪ AÇIK → issue **#66** |
-| 9 | OpenGIS poligon geçerliliği (`Pd84a0bcb`) | ✅ | — | ölçülmedi | ⚪ AÇIK → issue **#67** (bağımlılık kararı) |
-| 10 | `pickup_type=2` booking rule (`P71243b3e`·`P504bde32`) | — | ölçülmedi | — | ⚪ **AÇIK, ISSUE YOK** — aşağıda |
+| 5 | ISO 4217 ondalık (`P38cd4e78`) | ✅ | 38 | 2.001.806 | ✅ **KAPANDI → `FPD_007`+`FAR_013`** (`708c2149`) — karar DEĞİŞTİ |
+| 6 | `record_sub_id` gereklilik yönü (`P9373b1fa`) | ✅ | **0** | 0 | ✅ **KAPANDI → `TRN_017`** (`62571264`) |
+| 7 | `start_day`/`duration_max` (`P5a5cced5`) | ✅ | **0** | 0 | ✅ **KAPANDI → `BKR_024`** (`62571264`) |
+| 8 | Boarding area + platform pathway (`P2264440d`) | ✅ | **0** | 0 | ✅ **KAPANDI → `PTH_030`** (`62571264`) |
+| 9 | OpenGIS poligon geçerliliği (`Pd84a0bcb`) | ✅ | 5 | **0 ihlal** | ✅ **KAPANDI → `LOC_011`** (`9beb1282`, `robust`) |
+| 10 | `pickup_type=2` booking rule (`P71243b3e`·`P504bde32`) | — | 1 | 4 | ✅ **KAPANDI → `STM_059`** (`bb10592b`, #69) |
 
 **Ayrıca iki yanlış pozitif kapandı** (`50032512`): `AGN_007` artık vanity numarayı kabul
 ediyor (spec'in kendi örneği), `STP_022`'nin kartı boş `stop_code`'un doğru olabileceğini
@@ -769,7 +777,8 @@ eksikliğini ölçüyor (`k2/stop_times.rs:1571`). İkisi farklı popülasyon: `
 
 Bu boşluk 2. turda bulgu olarak yazıldı ama özet tabloya girmedi ve issue açılmadı —
 **tablonun kendisi bir kapsam kaybı yaşadı**, tam da bu defterin önlemek için var olduğu
-şey. Ölçülmedi; yapılacak ilk iş `measure_gaps.py`'a eklemek.
+şey. → **SONUÇ: ölçüldü ve `STM_059` yazıldı** (`bb10592b`). Predicate iki kez daraldı:
+kapısız 97.355 satır → `booking_rules.txt` dosyası varsa 27 → kaydı varsa **4**.
 
 ### Ölçüm iki kararı değiştirdi
 
@@ -913,6 +922,6 @@ Dürüst cümle şudur: **spec'in alan tablosundan çıkan 302 hüküm atomunun 
 kanıtlı; düzyazı ekseninde 273 adaydan feed'den doğrulanabilir olanların 148'i ölçülüyor,
 9'u ölçülmüyor.**
 
-Açık kalemler (kural yazımı bekleyen, hiçbiri yazılmadı): URL şeması (ölçüm bekliyor) ·
-HTML etiketi · OpenGIS poligon · `pickup_type=2` booking rule · `platform_code` ·
-`traversal_time` tavsiyesi · boarding area/platform pathway yasağı (ölçüm bekliyor).
+~~Açık kalemler~~ → **HEPSİ KAPANDI.** URL şeması (`cfd8f7d4`) · HTML etiketi (`ARC_032`) ·
+OpenGIS poligon (`LOC_011`) · `pickup_type=2` (`STM_059`) · `platform_code` (`STP_044`) ·
+`traversal_time` (`PTH_029`) · boarding area/platform pathway (`PTH_030`).

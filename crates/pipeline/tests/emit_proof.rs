@@ -2532,3 +2532,45 @@ fn file_level_provisions_doc_covers_every_conditional_file() {
     );
 }
 
+/// Defterin ÖZET bölümleri, DURUM MAKİNESİ tablosuyla çelişmemeli.
+///
+/// `PROVISION_TRIAGE.md` 900 satırı aşıyor ve tur bölümleri o günkü kararları taşıyor.
+/// Oturum içinde iki kez oldu: bir boşluk kapatıldı, kural yazıldı, ama özet tablo hâlâ
+/// "AÇIK" diyordu — ve `badge_status.py` durum makinesini okuduğu için yüzde ile belge
+/// birbirini tutmuyordu. Bu test o sapmayı yakalar.
+#[test]
+fn triage_ledger_has_no_stale_open_claims() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let md = std::fs::read_to_string(root.join("spec-audit/PROVISION_TRIAGE.md")).unwrap();
+
+    // Durum makinesinde kapanmış sayılan adaylar
+    let start = md.find("## 📊 DURUM MAKİNESİ").expect("DURUM MAKİNESİ bölümü yok");
+    let end = md[start..].find("**KISMİ adjudikasyonu").map(|i| start + i).unwrap_or(md.len());
+    let closed: Vec<&str> = md[start..end]
+        .lines()
+        .filter(|l| l.starts_with('|') && l.contains('`'))
+        .flat_map(|l| l.split('`').skip(1).step_by(2))
+        .filter(|s| s.len() == 9 && s.starts_with('P'))
+        .collect();
+    assert!(closed.len() >= 12, "durum makinesi çok kısa: {} kayıt", closed.len());
+
+    // Kapanmış bir aday, "AÇIK" ya da "KAPATILMAYACAK" diyen bir satırda geçmemeli
+    let mut stale = Vec::new();
+    for line in md.lines() {
+        if !line.contains("AÇIK") && !line.contains("KAPATILMAYACAK") {
+            continue;
+        }
+        for id in &closed {
+            if line.contains(&format!("`{id}`")) {
+                stale.push(format!("{id}: {}", line.trim().chars().take(90).collect::<String>()));
+            }
+        }
+    }
+    assert!(
+        stale.is_empty(),
+        "durum makinesinde KAPALI olan {} aday, defterde hâlâ AÇIK görünüyor:\n  {}\n\n\
+         Kapanışı tek yerde tutun; özet satırını da güncelleyin.",
+        stale.len(), stale.join("\n  ")
+    );
+}
+
