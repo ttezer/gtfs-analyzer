@@ -2462,9 +2462,11 @@ fn anchor_granularity_report() {
     let gap: usize = suspect.iter().map(|(_, _, p, s, _)| p.len() - s.len()).sum();
     println!("kapatılmamış atom farkı: {gap}");
     println!("\n--- en büyük 20 fark ---");
-    for (file, field, provs, spec_rules, other) in suspect.iter().take(20) {
-        println!("  {file}:{field}\n     atom {:?}\n     Spec {:?}  diğer {:?}",
-                 provs, spec_rules, other);
+    for (file, field, provs, spec_rules, other) in suspect.iter() {
+        let titles: Vec<String> = spec_rules.iter()
+            .map(|r| format!("{r}={}", gtfs_rules::registry::get_rule(r).map(|x| x.title).unwrap_or("?")))
+            .collect();
+        println!("{file}:{field}\t{:?}\t{}\t{:?}", provs, titles.join(" | "), other);
     }
 }
 

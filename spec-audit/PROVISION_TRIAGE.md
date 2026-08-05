@@ -578,6 +578,68 @@ tüketiciye adların dilini söyleyememiş olur.
 
 ---
 
+# 🔬 ÇAPA GRANÜLERLİĞİ — 50 satırın triyajı (2026-08-05)
+
+Alan tablosu ekseninde çapa **alan** düzeyindedir, **atom** düzeyinde değil: bir alanda tek
+bir Spec notice görülmesi, o alanın TÜM hüküm atomlarını "kapsanmış" sayar. Ölçüldü
+(`anchor_granularity_report`): **302 atom / 192 alan**, ve **50 alanda** atom sayısı çapalayan
+Spec kuralı sayısını aşıyor — hepsinde tam bir fark.
+
+⚠️ **Aşmak "kanıtsız" demek değil:** tek kural iki atomu meşru olarak ölçebilir (`AGN_004` =
+*"agency_timezone eksik veya geçersiz"* hem `presence` hem `format` bakar). Ayrım ancak
+DAVRANIŞ test edilerek yapılır.
+
+## Yöntem: grep değil, davranış
+
+`grep is_empty()` **yanıltıcı çıktı** — yön söylemiyor ("boşsa atla" mı "boşsa raporla" mı).
+`ARS_001` bunun kanıtı: grep `is_empty()` buldu, ama `areas.rs` `area_id`'yi yalnız okuyor.
+
+Bunun yerine her şüpheli alan için **hedef alanı boş bırakan minimal bir feed** üretilip
+doğrulayıcı koşuldu: `spec-audit/presence_probe.py`. `presence:required` atomu ancak boş
+değerde bir notice çıkarsa gerçekten ölçülüyordur.
+
+## Sonuç
+
+| durum | alan | not |
+|---|---|---|
+| **MEŞRU** — tek kural iki atomu da ölçüyor | 37 | 6'sı örneklemle doğrulandı (`AGN_003`·`RTS_004`·`STM_005`·`TRP_001`·`CAL_003`·`SHP_002`), hepsi ateşledi |
+| **BOŞLUK** — `presence` ölçülmüyor | **12** | aşağıda |
+| **ATOM ÜRETİMİ KABA** | 1 | `RTS_018` — `continuous_drop_off` presence'ı `Conditionally Forbidden`; **boş değer ihlal DEĞİL**, atom eşleşmesi yanlış |
+
+### 12 gerçek boşluk — alan boş bırakıldığında hiçbir kural konuşmuyor
+
+| alan | çapalayan kural | kuralın gerçekte ölçtüğü |
+|---|---|---|
+| `areas.area_id` | `ARS_001` | yalnız yinelenme (`areas.rs` 28 satır, boş kontrolü yok) |
+| `calendar.monday`…`sunday` (7 alan) | `CAL_002` | yalnız geçersiz enum değeri; **boş gün alanı sessiz** |
+| `fare_media.fare_media_id` | `FMD_001` | yalnız yinelenme |
+| `networks.network_id` | `NET_001` | yalnız yinelenme |
+| `rider_categories.rider_category_id` | `RCT_001` | yalnız yinelenme |
+| `location_groups.location_group_id` | `XFL_031` | yalnız üç kaynak arası kimlik çakışması |
+| `location_group_stops.location_group_id` | `XFL_022` | yalnız FK çözümü |
+| `location_group_stops.stop_id` | `XFL_023` | yalnız FK çözümü |
+| `stop_areas.area_id` | `SAR_001` | yalnız FK çözümü |
+| `stop_areas.stop_id` | `SAR_002` | yalnız FK çözümü |
+| `timeframes.service_id` | `TFR_002` | yalnız FK çözümü |
+| `transfers.transfer_type` | `TRF_004` | yalnız geçersiz enum; boş sessiz (spec `Required`) |
+| `trips.service_id` | `TRP_003` | yalnız FK çözümü |
+
+**Desen çok net:** "X yineleniyor" ve "X bulunamadı" başlıklı kurallar **boş değeri hiç
+görmüyor**. Yinelenme kontrolü boş anahtarları atlıyor (haklı olarak — boş değerler birbirinin
+kopyası sayılmamalı), FK çözümü de boş değeri "referans yok" sayıp geçiyor. Aradaki hüküm —
+*"bu alan zorunludur"* — ikisinin arasından düşüyor.
+
+⚠️ **Bunların hiçbiri yanlış REDDETME üretmez** (yanlış negatif yönü), ama `presence:required`
+302 atomun en kalabalık sınıfı ve bu 12'sinde iddia edilen kanıt gerçekte yok.
+
+### Rozet ekseni üzerindeki etki
+
+Alan tablosu ekseninde dürüst ifade artık şu: **302 atomun 290'ı davranışla kanıtlı, 12'si
+çapalı ama ölçülmüyor.** Önceki "302/302" ifadesi çapaya dayanıyordu ve çapa bu 12'yi
+göremiyor.
+
+---
+
 ## 📊 DURUM MAKİNESİ — kapanan hükümler (rozet hesabının girdisi)
 
 Aşağıdaki eşleme `spec-audit/badge_status.py`'nin girdisidir; yüzde elle değil bundan
