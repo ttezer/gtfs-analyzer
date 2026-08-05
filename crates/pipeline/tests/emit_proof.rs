@@ -2430,3 +2430,41 @@ fn spec_partial_coverage_report() {
     println!("   dosyalar arası koşullar, sefer içi tutarlılık, GeoJSON iç yapı şartları.");
 }
 
+/// RAPOR (kapı DEĞİL): çapa ALAN düzeyindedir, ATOM düzeyinde değil.
+///
+/// `spec_coverage_gaps_match_ledger` bir alanda EN AZ BİR Spec notice görürse o alanı
+/// "kapsanmış" sayar. Ama bir alanın birden çok hüküm atomu olabilir (`presence:required`
+/// + `format` + `foreign-key`) ve tek bir notice hepsini birden çapalar. Bu rapor, o
+/// kabalığın BÜYÜKLÜĞÜNÜ ölçer: kaç atom, kaç alan, ve kaç alanda atom sayısı onu çapalayan
+/// farklı kural sayısını AŞIYOR.
+///
+/// Aşan alan "kanıtsız" DEMEK DEĞİL — tek kural birden çok atomu meşru olarak ölçebilir
+/// (`STP_003` hem `presence` hem `format` bakar). Şüphe listesidir, borç değil.
+#[test]
+#[ignore = "rapor: cargo test -- --ignored anchor_granularity_report --nocapture"]
+fn anchor_granularity_report() {
+    let rows = coverage_rows();
+    let (mut atoms, mut fields_with_atoms, mut suspect) = (0usize, 0usize, Vec::new());
+    for (file, field, provs, spec_rules, other_rules) in &rows {
+        if provs.is_empty() { continue; }
+        atoms += provs.len();
+        fields_with_atoms += 1;
+        if provs.len() > spec_rules.len() {
+            suspect.push((file.clone(), field.clone(), provs.clone(),
+                          spec_rules.clone(), other_rules.clone()));
+        }
+    }
+    suspect.sort_by_key(|(f, n, p, s, _)| (std::cmp::Reverse(p.len() - s.len()), f.clone(), n.clone()));
+    println!("\n=== ÇAPA GRANÜLERLİĞİ ===");
+    println!("hüküm atomu           : {atoms}");
+    println!("atomu olan alan       : {fields_with_atoms}");
+    println!("atom > Spec kuralı    : {} alan", suspect.len());
+    let gap: usize = suspect.iter().map(|(_, _, p, s, _)| p.len() - s.len()).sum();
+    println!("kapatılmamış atom farkı: {gap}");
+    println!("\n--- en büyük 20 fark ---");
+    for (file, field, provs, spec_rules, other) in suspect.iter().take(20) {
+        println!("  {file}:{field}\n     atom {:?}\n     Spec {:?}  diğer {:?}",
+                 provs, spec_rules, other);
+    }
+}
+
