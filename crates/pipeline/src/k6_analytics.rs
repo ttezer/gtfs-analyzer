@@ -4435,9 +4435,17 @@ fn check_remaining_analytics<'a>(
                 let (db, lb, lob) = (pb.shape_dist_traveled(), pb.shape_pt_lat().unwrap(), pb.shape_pt_lon().unwrap());
                 if let (Some(da_v), Some(db_v)) = (da, db) {
                     const EPS: f64 = 1e-9;
-                    // SHP_028/029 koordinat-fark eşiği (~1.1m, 1e-5°): altı gürültü (WARNING),
-                    // üstü gerçek tutarsızlık (ERROR). MD diff_coordinates(_below_threshold) karşılığı.
-                    const DIFF_THRESHOLD: f64 = 1e-5;
+                    // SHP_028/029 koordinat-fark eşiği: **1,1 METRE**, derece DEĞİL.
+                    //
+                    // 🔴 Eskiden eşik `max(|Δlat|,|Δlon|) >= 1e-5` derecesiydi ve yorumda
+                    // "~1.1m" yazıyordu. Bu YANLIŞ: 1e-5 derece boylam yalnız EKVATORDA
+                    // 1,1 m'dir; enlem arttıkça cos(lat) ile kısalır. Fransa'da (49,6°)
+                    // 0,72 m'ye iner → metrenin altındaki GPS titremesi eşiği geçer.
+                    // 2026-08-06 korpus koşumunda ölçüldü (mdb-1840): 7 shape bildiriliyordu,
+                    // MD ise 2. Fazladan 5'inin gerçek mesafesi 0,73–0,82 m'ydi.
+                    // Haversine ile eleniyorlar ve MD ile BİREBİR parite sağlanıyor
+                    // (MD `actualDistanceBetweenShapePoints`: 2,00 m ve 16,22 m).
+                    const DIFF_THRESHOLD_M: f64 = 1.1;
                     if (da_v - db_v).abs() < EPS {
                         if (la - lb).abs() < EPS && (loa - lob).abs() < EPS {
                             // SHP_023: aynı dist + aynı koordinat (tekrar eden nokta)
@@ -4455,8 +4463,8 @@ fn check_remaining_analytics<'a>(
                             }
                         } else {
                             // Aynı dist ama farklı koordinat → mesafe artmadan konum değişmiş.
-                            let coord_diff = (la - lb).abs().max((loa - lob).abs());
-                            if coord_diff >= DIFF_THRESHOLD {
+                            let coord_diff_m = haversine_km(la, loa, lb, lob) * 1000.0;
+                            if coord_diff_m >= DIFF_THRESHOLD_M {
                                 if !fired_028 {
                                     fired_028 = true;
                                     notices.push(k6_notice(
@@ -4475,7 +4483,7 @@ fn check_remaining_analytics<'a>(
                                     ctr, "SHP_029", EntityType::Shape,
                                     Some(shape_id.to_string()), Some(shape_id.to_string()),
                                     "shapes.txt", None, Some("shape_dist_traveled"),
-                                    Some(format!("dist={da_v:.4}, Δ≈{coord_diff:.7}°")),
+                                    Some(format!("dist={da_v:.4}, Δ≈{coord_diff_m:.2}m")),
                                     Some("artan dist".to_string()),
                                     format!("'{shape_id}' şeklinde art arda iki noktanın shape_dist_traveled ({da_v:.4}) aynı, koordinat farkı çok küçük (eşik altı)."),
                                     "Ardışık shape noktalarına artan shape_dist_traveled değerleri atayın ya da yinelenen noktayı kaldırın.",

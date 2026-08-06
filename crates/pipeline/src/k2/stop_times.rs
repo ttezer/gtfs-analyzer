@@ -1190,7 +1190,17 @@ pub fn validate_stop_times(file: &RawFile, zip_bytes: Option<&[u8]>, has_booking
             if !agg.unsorted_fired {
                 if agg.last_seq != u32::MAX {
                     let last = agg.last_seq;
-                    if seq < last {
+                    // ⚠️ `<=`, `<` DEĞİL. Spec: *"The values must increase along the trip"* —
+                    // EŞİT değer de artmıyordur. 2026-08-06 korpus koşumunda ölçüldü
+                    // (mdb-1229): 24 seferin TÜM satırlarında `stop_sequence=0` yazıyor;
+                    // sıra ne azalıyor ne satırlar dağınık, hep EŞİT. Eski `seq < last`
+                    // koşulu iki dala da girmiyordu → STM_036 sessizdi, MD ise
+                    // `unsorted_stop_times` = 24 diyordu.
+                    // ⚠️ `STM_032` (yinelenen stop_sequence) ile ÇAKIŞMAZ: o SATIR başına
+                    // "bu değer tekrar ediyor" der (MD `duplicate_key` ile birebir, 170.885),
+                    // bu ise SEFER başına "satırlar sıralı değil" der. MD de ikisini ayrı
+                    // notice olarak verir.
+                    if seq <= last {
                         // Daha küçük stop_sequence'li satır, daha büyük sequence'li satırdan SONRA
                         // yazılmış → dosya artan sırada değil. Mesaj durak-odaklı: hangi durak
                         // hangi duraktan sonra yazılmış. prev_stop = max'ı ayarlayan satırın durağı.
@@ -1203,10 +1213,17 @@ pub fn validate_stop_times(file: &RawFile, zip_bytes: Option<&[u8]>, has_booking
                             // placeholder'ı EKLENEMEZ — bilgi observed/expected içinde gider.
                             Some(format!("{seq} @ '{cur_stop}'")),
                             Some(format!("> {last} @ '{prev_stop}'")),
-                            format!(
-                                "'{}' seferinde stop_times satır sırası bozuk: stop_sequence {seq} olan '{}' durağı, daha büyük stop_sequence {last} olan '{}' durağından sonra yazılmış. Satırlar artan stop_sequence sırasında olmalı.",
-                                trip_id, cur_stop, prev_stop
-                            ),
+                            if seq == last {
+                                format!(
+                                    "'{}' seferinde stop_times satır sırası artmıyor: '{}' durağı da bir önceki '{}' durağıyla AYNI stop_sequence ({seq}) değerini taşıyor. Değerler sefer boyunca artmalıdır.",
+                                    trip_id, cur_stop, prev_stop
+                                )
+                            } else {
+                                format!(
+                                    "'{}' seferinde stop_times satır sırası bozuk: stop_sequence {seq} olan '{}' durağı, daha büyük stop_sequence {last} olan '{}' durağından sonra yazılmış. Satırlar artan stop_sequence sırasında olmalı.",
+                                    trip_id, cur_stop, prev_stop
+                                )
+                            },
                             "stop_times.txt satırlarını trip_id ve stop_sequence değerine göre artan sırada düzenleyin.",
                         );
                         let mut d = std::collections::BTreeMap::new();

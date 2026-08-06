@@ -131,7 +131,7 @@ python3 notgit/corpus_batch.py report
 Korpustaki her feed için MD'nin kendi doğrulama raporu saklanır ve satır satır kıyaslanır.
 
 ```
-1446 kıyas satırı → MATCH 1024 · AGG 110 · EXPLAINED 300 · AÇIKLANAMAYAN 12
+1446 kıyas satırı → MATCH 1026 · AGG 110 · EXPLAINED 300 · AÇIKLANAMAYAN 10
 ```
 
 **En yüksek hacimli Kritik·Spec kuralı MD ile BİREBİR aynı sayıyı verdi:**
@@ -143,7 +143,7 @@ Korpustaki her feed için MD'nin kendi doğrulama raporu saklanır ve satır sat
 - **2'si bilinçli karar** — `ARC_020` DRT muafiyeti, `ARC_017` GTFS-JP sütunları.
 - **1'i şekil farkı, boşluk değil** — mdb-3235'in `feed_info.txt`'inde 25 satır var;
   MD semptomu 10 kez bildiriyor, biz kök nedeni bir kez (`FIN_015`).
-- **2'si AÇIK** → bölüm 6.
+- **Geriye açık sapma KALMADI** → bölüm 6.
 
 **Yeniden üretim:** `python3 notgit/md_parity_audit.py notgit/corpus/pairs`
 
@@ -192,14 +192,30 @@ güncel hâli farklı olabilir.
 
 ---
 
-## 6. Açık kalan iki parite sapması
+## 6. Korpus koşumunun bulduğu iki hata — İKİSİ DE DÜZELTİLDİ
 
-İkisi de **bugünkü işten önce vardı** ve bugünkü koşumla görünür hâle geldi.
+İkisi de bugünkü işten önce vardı; korpus koşumu görünür kıldı ve aynı gün kapatıldı.
+Her ikisi de **MD'ye karşı birebir pariteyle** doğrulandı.
 
-| feed | MD | biz | not |
-|---|---|---|---|
-| mdb-1229 | `unsorted_stop_times` 24 | `STM_036` = **0** | Feed'in `stop_times`'ı ağır bozuk (170.885 yinelenen `stop_sequence`); STM_036'nın predicate'i bu şekli görmüyor. |
-| mdb-1840 | `equal_shape_distance_diff_coordinates` 2 | `SHP_028` = **7** | ×3,5 aşırı-tetikleme. |
+| feed | MD | önce | sonra | kök neden |
+|---|---|---|---|---|
+| mdb-1840 | `equal_shape_distance_diff_coordinates` = 2 | `SHP_028` = 7 | **2** ✅ | Eşik DERECEYLE ölçülüyordu (`max(\|Δlat\|,\|Δlon\|) ≥ 1e-5`), yorumda "≈1,1 m" yazıyordu. 1e-5 derece boylam yalnız ekvatorda 1,1 m'dir; Fransa'da (49,6°) 0,72 m'ye iner. Haversine ile **metreye** çevrildi. |
+| mdb-1229 | `unsorted_stop_times` = 24 | `STM_036` = 0 | **24** ✅ | Feed'in 24 seferinin TÜM satırlarında `stop_sequence=0`. Predicate `seq < last` arıyordu; **eşitlik iki dala da girmiyordu**. Spec *"values must increase"* der → `<=` yapıldı. |
+
+**Regresyon ölçümü:** düzeltmelerden sonra korpus yeniden koşuldu (aynı binary, aynı tarih,
+aynı 239 feed). **Değişen kural sayısı: 3** — ve üçü de dokunulan kurallar
+(`SHP_028` 16→8 feed · `SHP_029` 24→23 · `STM_036` 30→31, tam **+24**, yalnız mdb-1229).
+Yan etki yok.
+
+⚠️ `SHP_028` iki feed'de ARTTI (mdb-1830 +9, mdb-1158 +2) ve bu **beklenen**: eksen-maksimumu
+metriği ÇAPRAZ kaymayı olduğundan küçük ölçüyordu (Meksika'da Δ=8,9e-6 derece → gerçek
+1,24 m). Eski metrik yüksek enlemde yanlış pozitif, çapraz kaymada yanlış negatif
+üretiyordu; metre eşiği ikisini birden düzeltir.
+
+### Kalan 10 sapmanın tamamı sınıflandırılmıştır
+4× `expired_calendar` ve 1× `big_gap_in_service` (tarihe göreli) · 2× `number_out_of_range`
+(MD kod eşlemesinin kabalığı) · `ARC_020` ve `ARC_017` (bilinçli karar) · `FIN_018`
+(kök neden `FIN_015` ile bir kez bildiriliyor).
 
 ---
 
