@@ -109,15 +109,14 @@ YOKTU, yazılan yer boştu → ayrı bir fatal testi eklendi.
 
 ---
 
-## 4. Gerçek veri kanıtı — 239 feed'lik korpus koşumu (2026-08-06)
+## 4. Gerçek veri kanıtı — 242 feed'lik korpus koşumu (2026-08-06)
 
 Tek binary, tek tarih (`--today 20260717`), tüm korpus.
 
 ```
-239 feed · 4 fatal · 0 çökme · 12.275.193 notice
-274 kural tetiklendi · 318 kural korpusta hiç çıkmadı
-tetiklenenler: Quality 146 · Analytics 60 · Spec 55 · Interop 13
-R1 yayın engeli taşıyan feed: 46 / 239
+242 feed · 4 fatal · 0 çökme
+276 kural tetiklendi · 316 kural korpusta hiç çıkmadı
+R1 yayın engeli taşıyan feed: 46 / 239 (üç yeni feed'in üçü de temiz)
 ```
 
 **Yeniden üretim:**
@@ -170,21 +169,46 @@ virgülü `service_id`'ye katmasıydı. **Sıfır sonuç verinin değil sorgunun
 Bunlar bilinen ve kabul edilen eksiklerdir. Rozet iddiası bunlara rağmen yapılıyorsa
 okuyucu bunu görerek yapmalıdır.
 
-### 5.1 🔴 18 kuralın gerçek veri kanıtı YOK
-v0.8.0'dan sonra eklenen 27 kuralın **18'i korpusta hiç tetiklenmedi**:
+### 5.1 18 kural korpusta tetiklenmiyor — ama bu "kanıtsız" DEMEK DEĞİL
 
-`ARS_002 · BKR_024 · CAL_025 · FMD_004 · FPD_007 · LOC_011 · NET_004 · PTH_030 · PTH_031 ·
-RCT_008 · SAR_003 · SAR_004 · TFR_008 · TRN_017 · TRP_035 · XFL_032 · XFL_033 · XFL_034`
+v0.8.0'dan sonra eklenen 27 kuralın 18'i korpusta hiç tetiklenmedi. **İlk yazımda bunu
+"gerçek veri kanıtı YOK" diye kaydetmiştim; ÖLÇÜNCE YANLIŞ ÇIKTI.** Her birinin girdi
+dosyası korpusta MEVCUT ve okunuyor:
 
-Sebep büyük ölçüde meşru: çoğu Fares v2 ve Flex dosyalarına bakıyor, korpusta o dosyalar
-seyrek. **Ama kanıtları yalnız fixture'dır.** Aynı durumda olan eski bir aile daha var:
-`FLJ_001..004` (korpusta `fare_leg_join_rules.txt` taşıyan **sıfır** feed).
+| kural | gereken dosya | dosyayı taşıyan feed |
+|---|---|---|
+| `TRP_035` | trips.txt | **239** |
+| `CAL_025` | calendar.txt | **213** |
+| `TRN_017` | translations.txt | 34 |
+| `BKR_024` · `XFL_032/033` | booking_rules / location_groups | 18 |
+| `ARS_002` | areas.txt | 13 |
+| `PTH_030` · `PTH_031` | pathways.txt | 10 |
+| `XFL_034` | location_group_stops.txt | 7 |
+| `LOC_011` | locations.geojson | 6 |
+| `FPD_007` · `NET_004` · `RCT_008` | fare_products / networks / rider_categories | 4 |
+| `FMD_004` | fare_media.txt | 3 |
+| `SAR_003/004` · `TFR_008` | stop_areas / timeframes | 1 |
 
-**Kapatma yolu:** korpusa Fares v2 / Flex feed'i eklemek (backlog T1.3).
+Dosyaların gerçekten işlendiği kardeş kurallarla doğrulandı (`FPD_006`, `FRL_008`, `LOC_006`
+aynı feed'lerde ateşliyor). Yani bu 18 kural **gerçek veriyi gördü ve sessiz kaldı**.
+
+**Doğru cümle:** elde **yanlış pozitif kanıtı** var (242 feed'de sıfır), **doğru pozitif
+kanıtı** yok (korpusta bu hükümleri ihlal eden feed bulunmadı). Fixture'lar ikincisini
+kapatır: her biri kuralın ateşlemesi GEREKEN veride ateşlediğini gösterir.
+
+⚠️ **Gerçekten sıfır olan tek şey:** `fare_leg_join_rules.txt` — korpusta **hiçbir** feed
+taşımıyor, dolayısıyla `FLJ_001..004` hiç veri görmedi. Bu, 2026-08-06'da üç yeni feed
+indirildikten SONRA da böyle.
 
 ### 5.2 Korpusun kendisi taze değil
-Zip'ler 2026 Temmuz'da indirildi. Bugünkü koşum o zip'ler üzerinde yapıldı; feed'lerin
-güncel hâli farklı olabilir.
+Zip'lerin çoğu 2026 Temmuz'da indirildi (3'ü 6 Ağustos'ta). Feed'lerin güncel hâli farklı
+olabilir.
+
+**2026-08-06'da korpus 239 → 242 feed'e çıkarıldı** (mdb-13 San Diego MTS · mdb-1246 Santa
+Barbara MTD · mdb-3109 Benton Area — üç AYRI üreticiden). Etkisi ölçüldü: Fares v2 dosya
+kapsamı yaklaşık iki katına çıktı (`fare_media` 1→3, `fare_products` 2→4, `networks` 2→4,
+`rider_categories` 2→4, `fare_leg_rules` 2→4), Flex dosyaları +1. **Ama 18 kuralın hiçbiri
+yine tetiklenmedi** — yeni feed'ler temiz. `fare_leg_join_rules.txt` hâlâ sıfır.
 
 ### 5.3 Yumuşak eksende 2 açık boşluk
 `agency_lang` varlık tavsiyesi ve bağlı seferlerde coğrafi yakınlık tavsiyesi. İkisi de
