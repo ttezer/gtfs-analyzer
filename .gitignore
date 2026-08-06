@@ -28,6 +28,10 @@
 # Audit reports (CI artifact)
 /ui/audit/
 
+# Python bytecode cache (spec-audit/ betikleri)
+__pycache__/
+*.pyc
+
 # OS
 .DS_Store
 Thumbs.db
