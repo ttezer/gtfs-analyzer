@@ -3,10 +3,13 @@
 Kaynak: `spec_provisions.json` (üreteç `extract_provisions.py`). O dosya **aday** üretir;
 burası her adayın hüküm olup olmadığına ve karşılanıp karşılanmadığına karar verir.
 
-Katalog toplamı **273 aday** (sert 163 · yumuşak 110) ve **273'ünün tamamı** yedi turda
+Katalog toplamı **299 aday** (sert 184 · yumuşak 115) ve **299'unun tamamı**
 adjudike edildi. Bölümler tam bitirilir, yarım bırakılmaz — kalan sayısı böyle güvenilir kalır.
 
-> **DURUM (2026-08-06): düzyazı ekseni %100 — 131/131 ölçülebilir sert hüküm.**
+> **DURUM (2026-08-06 akşamı): düzyazı ekseni %98,6 — 145/147.** ⚠️ Bu satır ELLE
+> yazılmaz; `spec-audit/badge_status.py` çıktısıdır ve `ledger_header_counts_match_catalogue`
+> testi bayatlarsa CI'ı kırar. Gün içinde 131/131 → 146/146 → **145/147** oldu
+> (iki case kaçağı + bir dış denetim düzeltmesi).
 > Yüzde bu belgeden `spec-audit/badge_status.py` ile **hesaplanır**, elle yazılmaz.
 > Aşağıdaki tur bölümleri o günkü kararları taşır; **kapanış durumu tek yerde tutulur:
 > "DURUM MAKİNESİ" tablosu.**
@@ -27,7 +30,7 @@ adjudike edildi. Bölümler tam bitirilir, yarım bırakılmaz — kalan sayıs�
 
 | id | hüküm | karar | dayanak |
 |---|---|---|---|
-| `Pc3b911a6` | Dosyalar virgülle ayrılmış metin olmalı | DOLAYLI | Ayraç virgül değilse başlık tek sütuna çöker → `ARC_025` zorunlu sütun eksik (fatal). ⚠️ **[Varsayım]** — bu yol ölçülmedi, kod okumasına dayanıyor. |
+| `Pc3b911a6` | Dosyalar virgülle ayrılmış metin olmalı | DOLAYLI | Ayraç virgül değilse başlık tek sütuna çöker → zorunlu sütunlar bulunamaz. ✅ **ÖLÇÜLDÜ 2026-08-06** (`integration.rs::semicolon_delimited_files_are_rejected_pc3b911a6`): noktalı virgülle ayrılmış `stops.txt` `Fatal(NoRequiredFiles)` üretiyor. Eskiden bu yol ölçülmemişti ve yalnız kod okumasına dayanıyordu; dış denetim haklı olarak *"pay `KANITLI+DOLAYLI`, yani test edilmemiş çıkarım ölçülmüş sayılıyor"* dedi → ölçüldü. |
 | `Pd59e5eaa` | İlk satır alan adlarını içermeli | DOLAYLI | Başlık yerine veri satırı varsa `ARC_025` + `ARC_019` + `ARC_017` birlikte ateşler. Hükmün kendisi adlandırılmamış. |
 | `P28e9ee8a` | Alan değerleri sekme/CR/LF içermemeli | **KANITLI** | `ARC_030` — `k1_parse.rs:535` doc yorumu spec cümlesini birebir alıntılıyor; `ARC_021`'den ayrımı orada gerekçeli. |
 | `Pfedb83cf` | Tırnak/virgül içeren değerler tırnak içine alınmalı | DOLAYLI | `ARC_013` kapanmamış tırnağı yakalar. ⚠️ **Alınmamış hâl saptanamaz:** tırnaksız virgül fazladan sütun üretir → `ARC_012`. İhlal ile geçerli veri ayrımı CSV düzeyinde kaybolur. |
@@ -1156,8 +1159,8 @@ doğru. ⚠️ Sayı yine `badge_status.py`'den okunur. **Ve aynı gün bir kez 
    Bir doğrulayıcının bunları ölçmemesi eksiklik değil, tanım gereğidir.
 
 Dürüst cümle şudur: **spec'in alan tablosundan çıkan 302 hüküm atomunun 300'ü çapalı;
-düzyazı ekseninde 299 adaydan feed'den doğrulanabilir olan 146 sert hükmün TAMAMI
-ölçülüyor.** Payda 2026-08-06'da bir kez düzeltildi (büyük harf RFC 2119) — sayının
+düzyazı ekseninde 299 adaydan feed'den doğrulanabilir 147 sert hükmün **145'i**
+ölçülüyor (%98,6).** Payda 2026-08-06'da bir kez düzeltildi (büyük harf RFC 2119) — sayının
 kendisi değil, **paydanın nasıl kurulduğu** iddianın zayıf noktasıdır.
 
 ~~Açık kalemler~~ → **9 BOŞLUĞUN HEPSİ KAPANDI.** URL şeması (`cfd8f7d4`) · HTML etiketi

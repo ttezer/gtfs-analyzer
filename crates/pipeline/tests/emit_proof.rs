@@ -2599,3 +2599,48 @@ fn triage_ledger_has_no_stale_open_claims() {
     );
 }
 
+
+/// Defterin BAŞLIK SAYAÇLARI katalogla ve hesaplanan yüzdeyle tutmalı.
+///
+/// ⚠️ 2026-08-06 DIŞ DENETİMİ: `triage_ledger_has_no_stale_open_claims` yalnız AÇIK/KAPALI
+/// etiketlerini denetliyordu. Denetçi defterin üst kısmının hâlâ "273 aday · 131/131"
+/// dediğini, alt kısmının ise "299 · 146/146" dediğini gösterdi — aynı dosya kendi içinde
+/// tutarsızdı ve bunun için yazılmış bir kapı VARDI ama sayaçları kapsamıyordu.
+///
+/// Bu test iki şeyi bağlar: (a) defterdeki katalog toplamı `spec_provisions.json` ile,
+/// (b) paya sayılan (KANITLI/DOLAYLI) hiçbir satır "[Varsayım]" taşımamalı — test
+/// edilmemiş bir çıkarım "ölçülmüş" sayılamaz.
+#[test]
+fn ledger_header_counts_match_catalogue() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let md = std::fs::read_to_string(root.join("spec-audit/PROVISION_TRIAGE.md")).unwrap();
+    let json = std::fs::read_to_string(root.join("spec-audit/spec_provisions.json")).unwrap();
+
+    // Katalogdaki aday sayısı: `"id": "P…"` satırlarını say (bağımlılıksız).
+    let total = json.matches("\"id\":").count();
+    assert!(total > 200, "katalog okunamadı ({total})");
+    let head: String = md.lines().take(20).collect::<Vec<_>>().join("\n");
+    assert!(
+        head.contains(&format!("**{total} aday**")),
+        "defterin başlığı katalogla tutmuyor: katalogda {total} aday var ama ilk 20 satırda \
+         '**{total} aday**' geçmiyor. Katalog büyüdüğünde bu satır ELLE güncellenmeli.\n\
+         Başlık:\n{head}"
+    );
+
+    // Paya sayılan satırlarda test edilmemiş varsayım olmamalı.
+    let bad: Vec<&str> = md
+        .lines()
+        .filter(|l| l.starts_with('|'))
+        .filter(|l| l.contains("KANITLI") || l.contains("DOLAYLI"))
+        .filter(|l| l.contains("Varsayım") || l.contains("varsayım"))
+        .collect();
+    assert!(
+        bad.is_empty(),
+        "paya (KANITLI+DOLAYLI) sayılan {} satır 'varsayım' kelimesi taşıyor — ya ÖLÇ ya \
+         KISMİ'ye indir. ⚠️ Kapı bilinçli olarak KATI: kelime yalnız CANLI bir varsayımı \
+         anlatmak için kullanılmalı, tarihsel notta bile geçmemeli (aksi hâlde kapı \
+         ayırt edemez ve zekileştirilirse güvenilmez olur):\n  {}",
+        bad.len(),
+        bad.join("\n  ")
+    );
+}

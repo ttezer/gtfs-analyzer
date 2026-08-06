@@ -37,7 +37,18 @@ jobs:
       # doğrudan karşılaştırmak semantik olarak güvenilir değil, o yüzden testin
       # kendisi `#[ignore]`. Ama ignored kaldığı için unutulmasın diye her koşuda
       # üretilip artifact olarak saklanır — sürüm öncesi/manuel denetimde okunur.
-      # `|| true`: rapor bir kapı değildir, düşmesi CI'ı kırmamalı.
+      # 🔴 ROZET KAPISI (2026-08-06 dış denetiminde eklendi). Denetçi haklıydı:
+      # `badge_status.py` CI'da HİÇ koşmuyordu ve bu risk teorik değildi — betik bir kez
+      # syntax hatasıyla ana dala gitti, bir sonraki commit'te düzeltildi (`4ff03419`).
+      # Betik adjudike edilmemiş hüküm bulursa exit 1 döner; artık CI'ı da kırar.
+      - name: Spec rozeti kapısı (badge_status)
+        run: |
+          python3 spec-audit/badge_status.py
+
+      # `|| true`: rapor bir kapı DEĞİLDİR, düşmesi CI'ı kırmamalı.
+      # ⚠️ Bu bilinçli: alan-tablosu kapsamı 300/300 "çapa" ölçüsüdür, semantik tamlık
+      # değil (bkz. EVIDENCE_BASE.md §5.4). Zorunlu kapı yapmak ölçmediği bir şeyi
+      # garanti ediyormuş gibi gösterirdi. Rozet kapısı YUKARIDA ve o gerçek kapıdır.
       - name: Spec kapsam raporu üret
         if: always()
         run: |

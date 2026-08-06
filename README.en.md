@@ -4,7 +4,7 @@
 
 [![Open App](https://img.shields.io/badge/Open%20App-gtfs--analyzer-2ea44f?style=flat&logo=googlechrome&logoColor=white)](https://ttezer.github.io/gtfs-analyzer/)
 [![GTFS-JP](https://img.shields.io/badge/GTFS--JP-supported-c8102e?style=flat)](https://www.gtfs.jp/)
-[![GTFS Spec](https://img.shields.io/badge/GTFS-Spec-007ec6?style=flat)](https://gtfs.org/)
+[![GTFS Spec evidence base](https://img.shields.io/badge/GTFS%20Spec-evidence%20base-007ec6?style=flat)](spec-audit/EVIDENCE_BASE.md)
 [![License MIT](https://img.shields.io/badge/license-MIT-yellow?style=flat)](LICENSE)
 
 GTFS Validator & Analyzer is an open-source, browser-based GTFS validator and feed quality analyzer. The uploaded .zip file is never sent to any server; all processing is performed on the user's device via WebAssembly.

@@ -4,7 +4,7 @@
 
 [![Uygulamayı Aç](https://img.shields.io/badge/Uygulamay%C4%B1%20A%C3%A7-gtfs--analyzer-2ea44f?style=flat&logo=googlechrome&logoColor=white)](https://ttezer.github.io/gtfs-analyzer/)
 [![GTFS-JP](https://img.shields.io/badge/GTFS--JP-destekli-c8102e?style=flat)](https://www.gtfs.jp/)
-[![GTFS Spec](https://img.shields.io/badge/GTFS-Spec-007ec6?style=flat)](https://gtfs.org/)
+[![GTFS Spec kanıt tabanı](https://img.shields.io/badge/GTFS%20Spec-kan%C4%B1t%20taban%C4%B1-007ec6?style=flat)](spec-audit/EVIDENCE_BASE.md)
 [![Lisans MIT](https://img.shields.io/badge/lisans-MIT-yellow?style=flat)](LICENSE)
 
 GTFS Validator & Analyzer, GTFS dosyalarını doğrudan tarayıcıda doğrulayan ve feed kalitesini analiz eden açık kaynak bir GTFS validator aracıdır. Yüklenen .zip dosyası hiçbir sunucuya gönderilmez; tüm işlemler WebAssembly ile kullanıcının cihazında gerçekleştirilir.

@@ -4,7 +4,13 @@
 > nasıl yeniden üretileceği yazılıdır. Bir iddiayı çürütmek isteyen okuyucu için
 > "Bu iddiayı ne çürütür" bölümleri konmuştur.
 >
-> Durum: **2026-08-06** · kural sayısı **592** (38 grup) · `origin/main` = `62fa86b9`
+> Durum: **2026-08-06** · kural sayısı **592** (38 grup)
+>
+> ⚠️ **Buradaki hiçbir sayı elle güncellenmez ve belge bir commit'e SABİTLENMEZ.** Önceki
+> sürüm `origin/main = 62fa86b9` yazıyordu ve dört commit sonra hâlâ öyle duruyordu — dış
+> denetim bunu "mevcut durum kanıtı gibi okunuyor ama eski bir durumu gösteriyor" diye
+> yakaladı. Güncel rakam için **`python3 spec-audit/badge_status.py`** çalıştırın; CI'da da
+> kapı olarak koşuyor.
 
 ---
 
@@ -107,7 +113,9 @@ Her kuralın kanıtı **testle** bağlanır; "yazıldı" demek yetmez.
 
 | kapı | ne garanti eder | bugünkü durum |
 |---|---|---|
-| `emit_proof` | Her kuralın gerçekten notice ürettiği bir fixture var | 12 test geçiyor · **borç 7** |
+| `emit_proof` | Her kuralın notice ürettiği bir fixture var | 12 test · ⚠️ **7 kuralın fixture'ı YOK** (§5.3) |
+| `badge_status` | Adjudike edilmemiş hüküm varsa **exit 1** | ✅ CI'da kapı (2026-08-06'da eklendi) |
+| `ledger_header_counts_match_catalogue` | Defter başlığı katalogla tutuyor + paya sayılan satırda varsayım yok | ✅ (2026-08-06'da eklendi) |
 | `spec_conformance` | Spec metni ile kural davranışı | geçiyor |
 | Kapsam defteri | Alan tablosu atomu ↔ kural eşlemesi | **0 açık** |
 | `emit_identity` | İki kural aynı olguyu iki kez bildirmiyor | 10 kayıtlı istisna |
@@ -263,7 +271,37 @@ değil — 2026-08-05 triyajı bu yüzden 12 boşluk buldu).
 çapası var."*  **Söylenemez:** *"Alan tablosundaki 300 hükmün her biri semantik olarak
 eksiksiz uygulanıyor."*
 
-### 5.5 Yumuşak eksende 2 açık boşluk
+### 5.5 Korpus kanıtı DIŞARIDAN yeniden üretilemiyor
+Bölüm 4'teki komutlar `notgit/` altındaki dosyalara işaret ediyor ve **`notgit/` `.gitignore`
+içinde** — korpus betiği, feed manifesti, zip'ler, MD raporları ve parite CSV'leri depoda
+YOK. Yani o komutlar yalnız geliştiricinin makinesinde çalışır.
+
+**Sonuç:** korpus rakamları (242 feed, MD paritesi 1446 satır) bağımsız olarak
+doğrulanabilir kanıt DEĞİLDİR; geliştirici beyanıdır. Depoda duran ve dışarıdan
+çalıştırılabilen kanıt şunlardır: `cargo test --workspace` · `spec-audit/*.py` ·
+`emit_proof` fixture'ları · `integration.rs` testleri.
+⏳ Kapatma yolu: feed listesi + her zip'in SHA-256'sı + `rule_stats.csv` ve parite
+çıktılarının depoya alınması (zip'ler değil, kimlikleri).
+
+### 5.6 Yanlış pozitif kapısı SEKİZ sentetik feed'e dayanıyor
+`spec_conformance.rs`'teki "geçerli feed" matrisi sekiz senaryodur (klasik `stop_id` ·
+Flex `location_id` · Flex `location_group_id` · duraksız Flex · negatif ücret indirimi ·
+`routes.network_id` · yalnız `calendar_dates` · gece yarısı sonrası raylı sefer) ve bu
+feed'lerde Spec/Kritik notice çıkmamasını doğrular. **İyi bir regresyon kapısıdır ama
+592 kural için genel yanlış-pozitif kanıtı değildir.**
+
+### 5.7 Kuralların ~%53'ü korpusta hiç tetiklenmedi
+276 kural tetiklendi, **316 kural hiç çıkmadı**. Yani kuralların yarısından fazlası için
+GERÇEK VERİ üzerinde doğru-pozitif gözlem yok; kanıtları sentetik fixture'dır.
+
+### 5.8 Mevcut kapılar İKİ GERÇEK SEMANTİK HATAYI kaçırdı
+2026-08-06'da bulunan `SHP_028` (eşik derece olarak uygulanmıştı, metre olmalıydı) ve
+`STM_036` (`<` kullanıldığı için eşit `stop_sequence` kaçıyordu) hataları **fixture ağıyla
+değil, korpus koşumu ve MD paritesiyle** ortaya çıktı. Bu, fixture'ın şu soruyu
+yanıtladığını gösterir: *"kural herhangi bir veride ateşleyebiliyor mu?"* — ama şunu
+GARANTİ ETMEZ: *"kural tüm sınır durumlarında doğru predikatı mı uyguluyor?"*
+
+### 5.9 Yumuşak eksende 2 açık boşluk
 `agency_lang` varlık tavsiyesi ve bağlı seferlerde coğrafi yakınlık tavsiyesi. İkisi de
 **Quality** sınıfına ait; yayın kapısını (R1 = `Spec ∧ Kritik`) etkilemez.
 

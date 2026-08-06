@@ -1825,3 +1825,34 @@ fn pth031_silent_when_endpoints_are_not_street_accessed() {
         other => panic!("ValidateResult::Ok beklendi, gelen: {other:?}"),
     }
 }
+
+// ── Pc3b911a6: "Dosyalar virgülle ayrılmış metin olmalı" — VARSAYIM DEĞİL, ÖLÇÜM ────
+//
+// Defter bu hükmü DOLAYLI sayıyordu ("ayraç virgül değilse başlık tek sütuna çöker →
+// ARC_025 fatal") ama gerekçenin yanında **[Varsayım] — bu yol ölçülmedi** yazıyordu.
+// 2026-08-06 dış denetimi haklı olarak şunu söyledi: `badge_status.py` payı
+// `KANITLI + DOLAYLI` diye hesaplıyor, yani test edilmemiş bir çıkarım "ölçülmüş"
+// sayılıyordu. Varsayımı düşürmek yerine ÖLÇÜYORUZ.
+
+#[test]
+fn semicolon_delimited_files_are_rejected_pc3b911a6() {
+    // Aynı içerik, ayraç NOKTALI VİRGÜL. Başlık tek sütuna çöker → zorunlu sütunlar
+    // bulunamaz. Beklenen: ya Fatal(NoRequiredFiles) ya da ARC_025 (zorunlu sütun eksik).
+    static SEMI_STOPS: &[u8] = b"stop_id;stop_name;stop_lat;stop_lon\nS1;Stop1;41.0;29.0\nS2;Stop2;41.1;29.1\n";
+    let mut files = base_files();
+    files.retain(|(n, _)| *n != "stops.txt");
+    files.push(("stops.txt", SEMI_STOPS));
+
+    match run(&files) {
+        ValidateResult::Fatal(e) => {
+            // Zorunlu dosya sütunları çözülemedi → fatal. Hüküm ÖLÇÜLÜYOR.
+            assert_eq!(e.code, FatalCode::NoRequiredFiles,
+                "virgül olmayan ayraç fatal üretmeli, gelen: {:?}", e.code);
+        }
+        ValidateResult::Ok(vr) => {
+            assert!(has(&vr, "ARC_025"),
+                "noktalı virgülle ayrılmış stops.txt ARC_025 üretmeli. Mevcut: {:?}",
+                vr.notices.iter().map(|n| n.rule_id.as_str()).collect::<Vec<_>>());
+        }
+    }
+}
