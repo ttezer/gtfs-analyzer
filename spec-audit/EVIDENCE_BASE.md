@@ -196,9 +196,22 @@ aynı feed'lerde ateşliyor). Yani bu 18 kural **gerçek veriyi gördü ve sessi
 kanıtı** yok (korpusta bu hükümleri ihlal eden feed bulunmadı). Fixture'lar ikincisini
 kapatır: her biri kuralın ateşlemesi GEREKEN veride ateşlediğini gösterir.
 
-⚠️ **Gerçekten sıfır olan tek şey:** `fare_leg_join_rules.txt` — korpusta **hiçbir** feed
-taşımıyor, dolayısıyla `FLJ_001..004` hiç veri görmedi. Bu, 2026-08-06'da üç yeni feed
-indirildikten SONRA da böyle.
+⚠️ **Gerçekten sıfır olan tek şey:** `fare_leg_join_rules.txt`. **2026-08-06'da bunun
+neden sıfır olduğu ölçüldü — korpusun eksikliği değil, dosyanın sahada kullanılmaması:**
+
+1. MobilityData kataloğunda `fares-v2` işaretli, kullanımdan kalkmamış **38 feed'in
+   TAMAMI** tarandı (`spec-audit/zip_peek.py` — zip'in merkezî dizinini HTTP Range ile
+   okur, tam indirme yapmaz). **38/38 bakılabildi, taşıyan: 0.**
+2. MobilityData'nın kendi **GTFS Features Adoption Tracker**'ı 22 GTFS dosyasını izliyor —
+   `fare_leg_rules`, `fare_transfer_rules`, `fare_media`, `fare_products`,
+   `rider_categories` dahil. **`fare_leg_join_rules.txt` listede YOK.**
+
+**Sonuç:** dosya spec'te tanımlı ama pratikte benimsenmemiş. `FLJ_001..004` için gerçek
+veri kanıtı **bugün elde edilemez**; kanıt fixture'lardır ve dördünün de fixture'ı vardır
+(`emit_proof.rs:346-370`), borç defterinde değiller. ⚠️ Kalıcı risk kayıtlıdır: FLJ ağ
+alanları BİRLEŞİK kümeye çözülür, `NET_002` yalnız `networks.txt`'e — karıştırılırsa kural
+ya hiç ateşlemez ya geçerli veride ateşler. Gerçek veri çıkana dek bu ayrım yalnız
+fixture ile korunuyor.
 
 ### 5.2 Korpusun kendisi taze değil
 Zip'lerin çoğu 2026 Temmuz'da indirildi (3'ü 6 Ağustos'ta). Feed'lerin güncel hâli farklı
