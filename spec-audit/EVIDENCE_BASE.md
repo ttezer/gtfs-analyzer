@@ -26,9 +26,19 @@
 
 | eksen | değer | ne demek |
 |---|---|---|
-| **Düzyazı hükümleri** | **146 / 146** | Spec metnindeki normatif cümlelerden feed'den doğrulanabilir olanlar |
-| **Alan tablosu atomları** | **300 / 300** | Alan tablosundan makine ile çıkarılan hüküm atomları (302'nin 2'si hatalı üretim) |
+| **Düzyazı hükümleri** | **145 / 147** | Spec metnindeki normatif cümlelerden feed'den doğrulanabilir olanlar |
+| **Alan tablosu atomları** | **300 / 300 ÇAPALI** | Her geçerli atomda EN AZ BİR Spec notice çapası var — **semantik tamlık DEĞİL** (§5.4) |
 | Yumuşak hükümler | 45 / 69 (%65,2) | **Hedef değil** — Quality sinyali |
+
+🔴 **Düzyazı ekseni 2026-08-06'da BAĞIMSIZ DENETİMDE %100'den düştü.** Denetim iki hata
+buldu ve ikisi de kabul edildi:
+- `Pa1fdaa0d` (geojson/pencere/pickup eşzamanlı örtüşmesi) **KAPSAM DIŞI değil BOŞLUK'tur.**
+  Gerekçemiz *"poligon geometrisi saklanmıyor"*du — bu bir **mimari eksik**, doğrulanamazlık
+  değil. Hükmün gerektirdiği her girdi feed'in içinde. Payda 146 → **147**.
+- `Pd84a0bcb` (OpenGIS 6.1.11 geçerliliği) **KANITLI değil KISMİ'dir.** `LOC_011` hükmün bir
+  kısmını ölçüyor; kuralın KENDİ KARTI dört maddeyi yanlış-negatif diye sayıyor (delik-delik
+  kesişimi · deliğin kısmen dışarıda olması · ring yönü · iç kısmın bağlantılılığı).
+  Pay 146 → **145**.
 
 ⚠️ **İki eksen ÖRTÜŞÜR, TOPLANMAZ.** Aynı hüküm hem düzyazıda hem alan tablosunda
 görünebilir. "446 hüküm karşılanıyor" gibi bir toplam **yanlıştır**.
@@ -38,8 +48,10 @@ görünebilir. "446 hüküm karşılanıyor" gibi bir toplam **yanlıştır**.
 python3 spec-audit/badge_status.py                 # düzyazı ekseni
 cargo test -- --ignored anchor_granularity_report --nocapture   # alan tablosu ekseni
 ```
-Yüzde elle yazılmaz; `badge_status.py` `PROVISION_TRIAGE.md`'yi okuyup hesaplar ve
-**adjudike edilmemiş hüküm varsa bunu bildirip yüzdeyi geçersiz sayar.**
+Yüzde elle yazılmaz; `badge_status.py` `PROVISION_TRIAGE.md`'yi okuyup hesaplar.
+Adjudike edilmemiş hüküm varsa **çıkış kodu 1** döner — CI'da kapı olarak kullanılabilir.
+⚠️ 2026-08-06 denetimine kadar bu yalnız EKRANA BASILAN BİR UYARIYDI ve betik `return 0`
+ile başarıyla çıkıyordu; yani "geçersiz sayar" ifadesi insan yorumuna bağlıydı, kapı değildi.
 
 ### Bu iddiayı ne çürütür
 - `badge_status.py` "ADJUDİKE EDİLMEMİŞ N HÜKÜM" satırı basıyorsa yüzde eksik paydadır.
@@ -76,6 +88,12 @@ Kalan yapısal zayıflıklar — kapatılmadı, **kayıt altına alındı**:
 python3 spec-audit/extract_provisions.py spec.html      # katalog
 python3 spec-audit/measure_modalless.py spec.html --residual   # okunan kalıntı kümesi
 ```
+✅ **Kaynak SABİTLENMİŞTİR** (2026-08-06 denetiminden sonra): `spec_provisions.json`
+içindeki `_source` alanı indirilen HTML'in **SHA-256**'sını, bayt boyutunu ve spec'in kendi
+**"Revised April 27, 2026"** satırını taşır. Hash tutmuyorsa katalog başka bir metinden
+üretilmiştir ve yüzde o metne ait değildir.
+⚠️ Bu, *ayrıştırdığımız HTML'i* sabitler; upstream `google/transit` commit SHA'sını değil.
+Resmî kaynağa çapalamak isteyen `gtfs/spec/en/reference.md` commit'ini ayrıca not etmelidir.
 
 ### Bu iddiayı ne çürütür
 Spec'te modal taşıyan ama katalogda olmayan **tek bir cümle** göstermek. Bugün bu üç kez
@@ -223,7 +241,29 @@ kapsamı yaklaşık iki katına çıktı (`fare_media` 1→3, `fare_products` 2�
 `rider_categories` 2→4, `fare_leg_rules` 2→4), Flex dosyaları +1. **Ama 18 kuralın hiçbiri
 yine tetiklenmedi** — yeni feed'ler temiz. `fare_leg_join_rules.txt` hâlâ sıfır.
 
-### 5.3 Yumuşak eksende 2 açık boşluk
+### 5.3 Fixture varlığı = emisyon kanıtı, SEMANTİK TAMLIK kanıtı değil
+`emit_proof` her kural için "beklenen `rule_id` üretilen notice kümesinde var mı" sorusunu
+yanıtlar. **Tek başına şunları doğrulamaz:** kuralın bütün mantıksal dalları · sınır
+değerleri · yanlış pozitif üretmemesi · hükmün tamamının mı yoksa bir bölümünün mü
+ölçüldüğü. (`Pd84a0bcb` tam bu boşluktan geçmişti: `LOC_011`'in fixture'ı yeşildi ama
+hükmün dörtte biri ölçülmüyordu.) Sınır değerleri ve yanlış-pozitif tarafı ayrı
+`integration.rs` testleriyle ve korpus koşumuyla kapatılır — kural bazında değil.
+
+⚠️ **Yedi kuralın fixture'ı YOK** (`coverage_debt.txt`): `ARC_022` · `ARC_027` · `OPR_024` ·
+`SHP_026` · `STM_043` · `STM_044` · `VAT_006`.
+
+### 5.4 "300/300" ÇAPA kapsamıdır, semantik tamlık değil
+Alan tablosu ekseni `Presence`/`Type`/`Primary Key` sütunlarından **kaba atomlar** üretir.
+Kapsamadıkları: düzyazı koşulları · dosyalar arası koşullar · sefer içi tutarlılık ·
+GeoJSON iç yapı koşullarının tamamı. Bir alana Spec notice çapalanması, o alanın ilgili
+hükmünün gerçekten karşılandığını **göstermez** (çapa ALAN düzeyindedir, ATOM düzeyinde
+değil — 2026-08-05 triyajı bu yüzden 12 boşluk buldu).
+
+**Söylenebilir:** *"Üretilmiş 300 geçerli alan atomunun tamamında en az bir Spec notice
+çapası var."*  **Söylenemez:** *"Alan tablosundaki 300 hükmün her biri semantik olarak
+eksiksiz uygulanıyor."*
+
+### 5.5 Yumuşak eksende 2 açık boşluk
 `agency_lang` varlık tavsiyesi ve bağlı seferlerde coğrafi yakınlık tavsiyesi. İkisi de
 **Quality** sınıfına ait; yayın kapısını (R1 = `Spec ∧ Kritik`) etkilemez.
 
@@ -274,12 +314,17 @@ tabanını okuyanın bilmesi gereken ikisi:
 
 ## 8. Özet — dürüst cümle
 
-> Spec'in alan tablosundan makine ile çıkarılan **300 hüküm atomunun tamamı** bir kurala
-> çapalıdır; düzyazı ekseninde kataloglanan **299 adaydan feed'den doğrulanabilir 146 sert
-> hükmün tamamı** ölçülmektedir. Kurallar 239 feed'lik bir korpusta koşulmuş, MobilityData
-> referans doğrulayıcısıyla 1446 satırda kıyaslanmış ve **12 açıklanamayan sapma**
-> kalmıştır; bunların hiçbiri son eklenen 27 kurala ait değildir.
+> Spec'in alan tablosundan makine ile çıkarılan **300 geçerli atomun tamamında en az bir
+> Spec notice çapası** vardır (semantik tamlık DEĞİL); düzyazı ekseninde kataloglanan 299
+> adaydan feed'den doğrulanabilir **147 sert hükmün 145'i** ölçülmektedir (**%98,6**).
+> Kurallar 242 feed'lik bir korpusta koşulmuş, MobilityData referans doğrulayıcısıyla 1446
+> satırda kıyaslanmış ve **10 açıklanamayan sapma** kalmıştır.
 >
-> Bu ölçümlerin kapsamı, **kataloğun kendi kapsamıdır** — spec'in tamamı değil. Payda
-> 2026-08-06'da iki kez düzeltilmiştir; iddianın en zayıf halkası sayının kendisi değil,
-> **paydanın nasıl kurulduğudur**.
+> **Düzyazı ekseninde %100 iddiası GEÇERSİZDİR.** 2026-08-06 bağımsız denetimi bir hükmün
+> yanlışlıkla kapsam dışı bırakıldığını (`Pa1fdaa0d` — gerekçe mimari eksikti, hüküm feed'den
+> doğrulanabilir) ve bir hükmün kısmi uygulamayla kapatılmış sayıldığını (`Pd84a0bcb` —
+> `LOC_011` OpenGIS 6.1.11'in dört maddesini ölçmüyor) tespit etti; ikisi de kabul edildi.
+>
+> Payda aynı gün **üç kez** düzeldi (iki case varsayımı + bir yanlış kapsam-dışı kararı).
+> İddianın en zayıf halkası sayının kendisi değil, **paydanın nasıl kurulduğudur** — ve bu
+> zayıflık ölçülmüş, gizlenmemiştir.

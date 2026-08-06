@@ -701,13 +701,13 @@ hesaplanır. Bir boşluk kurala dönüştüğünde satır BURAYA eklenir.
 | `P5a5cced5` | `BKR_024` | `62571264` |
 | `P2264440d` | `PTH_030` | `62571264` |
 
-| `Pd84a0bcb` | `LOC_011` | `#67` |
+| ~~Pd84a0bcb (kimlik bilerek backtick'siz — kapalı SAYILMASIN)~~ | ~~`LOC_011`~~ | 🔴 **GERİ ALINDI 08-06** — `LOC_011` OpenGIS 6.1.11'in YALNIZ BİR KISMINI ölçüyor; kuralın kendi kartı dört maddeyi yanlış-negatif diye sayıyor (delik-delik kesişimi · deliğin kısmen dışarıda olması · ring yönü · iç kısmın bağlantılılığı). Hüküm **KISMİ**'dir, kapanmış değil. |
 | `P38cd4e78` | `FPD_007` + `FAR_013` | `9beb1282` sonrası |
 | `P612a9dbf` · `P0bb79a62` | `TRF_022` | 764 triyajı |
 | `P9db18901` | `TRF_023` | 764 triyajı |
 | `P5b7396a2` · `Pbd495b4e` | `PTH_031` | 506 turu |
 
-**KISMİ adjudikasyonu (5 sert):** `Pd84a0bcb`→BOŞLUK · `P2c840d38`→BOŞLUK (kapandı) ·
+**KISMİ adjudikasyonu (5 sert):** ~~Pd84a0bcb→BOŞLUK~~ (**08-06'da GERİ ALINDI → KISMİ**, gerekçe aşağıda) · `P2c840d38`→BOŞLUK (kapandı) ·
 `P257db6b1`→BOŞLUK (kapandı) · `P8681b6f4`→KAPSAM DIŞI · `P44a6984b`→KAPSAM DIŞI
 
 **Kapatılan:** `Pd84a0bcb` → **`LOC_011`** (issue #67). Naif f64 ile kararsız olduğu ölçüldü
@@ -1099,7 +1099,7 @@ biçiminde başlıyor. Sekiz eşleşmenin sekizi de gerçek hüküm çıktı —
 | `Pa6690298` | `route_url`, `agency_url`'den farklı olmalı *(soft)* | **KANITLI** | `RTS_020` |
 | `P5b7396a2` · `Pbd495b4e` | uç nokta `stop_access=1` olan durak olamaz | 🔴 **BOŞLUKTU → `PTH_031`** | Aşağıda. |
 | `P7ae1fa9d` | `agency_lang` sağlanmalı *(soft)* | **BOŞLUK** *(yumuşak eksen)* | Yalnız geçerlilik (`AGN_006`) ve tutarlılık (`AGN_013/017`) ölçülüyor; VARLIK tavsiyesi ölçülmüyor. Quality kuyruğuna. |
-| `Pa1fdaa0d` | geojson geometri + pencere + pickup/drop_off eşzamanlı örtüşmesi yasak | **KAPSAM DIŞI** | Poligon geometrisi saklanmıyor; önceden de kayıtlı karar. |
+| `Pa1fdaa0d` | geojson geometri + pencere + pickup/drop_off eşzamanlı örtüşmesi yasak | 🔴 **BOŞLUK** | ⚠️ **2026-08-06 DIŞ DENETİMİNDE DÜZELTİLDİ — eskiden KAPSAM DIŞI yazıyordu, gerekçesi *"poligon geometrisi saklanmıyor"*du. Bu bir MİMARİ EKSİKTİR, doğrulanamazlık değil.** Hükmün gerektirdiği her girdi feed'in İÇİNDE: `locations.geojson` geometrileri · `stop_times.location_id` · `start/end_pickup_drop_off_window` · `pickup_type`/`drop_off_type` · `trip_id`. Uygulamanın veriyi saklamaması hükmü paydadan çıkaramaz. |
 | `P1ced9134` | aynı bölge içi seyahat İKİ `stop_times` kaydı gerektirir | **KAPSAM DIŞI** | **Modelleme talimatı, ihlal predikatı değil.** Tek kayıt geçerlidir (bölgede binip başka durakta inmek meşru); "üretici bölge-içi seyahat kastetti" bilgisi veride yok. Dejenere hâl (tek duraklı sefer) `STM_033`'te. |
 | `Pcb0bc0b7` | *"2 - Transfer requires a minimum amount of time…"* | **META** | `transfer_type` enum değerinin tanımı; yükümlülük `min_transfer_time`'da (`TRF_001/002`). |
 | `P7413e90c` | *"For examples that demonstrate what is forbidden, see the data example page."* | **META** | İşaret cümlesi; `forbidden` kelimesi içerdiği için aday oldu. |

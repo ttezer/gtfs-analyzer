@@ -1,6 +1,11 @@
 {
-  "_source": "https://gtfs.org/documentation/schedule/reference/",
-  "_note": "Üretilmiş dosya — elle düzenlemeyin. Yeniden üretmek için: python3 spec-audit/extract_provisions.py. Satırlar ADAYDIR, hüküm değil; triyaj spec-audit/PROVISION_TRIAGE.md'de.",
+  "_source": {
+    "url": "https://gtfs.org/documentation/schedule/reference/",
+    "sha256": "fb7e637cb49dba7af1a1ba3946ddaf3c46b5edaf9db8c54d18ba95b353f26742",
+    "bytes": 295559,
+    "spec_revision": "April 27, 2026"
+  },
+  "_note": "Üretilmiş dosya — elle düzenlemeyin. Yeniden üretmek için: python3 spec-audit/extract_provisions.py. Satırlar ADAYDIR, hüküm değil; triyaj spec-audit/PROVISION_TRIAGE.md'de. `_source.sha256` + `_source.spec_revision` kataloğun HANGİ metinden üretildiğini sabitler; ikisi tutmuyorsa yüzde o metne ait DEĞİLDİR.",
   "provisions": [
     {
       "id": "P6766c477",

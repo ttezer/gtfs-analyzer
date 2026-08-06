@@ -90,9 +90,12 @@ def main() -> int:
     print("   küçük harf `are forbidden` + `requires` (279→299). Ayrıca `Primary key ( … )`")
     print("   bildirimleri (31) BENZERSİZLİK eksenidir, düzyazı paydasında değil — oradaki 3")
     print("   boşluk `DQ_021`'e eklendi.")
-    print("   🔴 KALAN ZAYIF NOKTA SAYI DEĞİL, PAYDANIN NASIL KURULDUĞU: iki tur üst üste case")
-    print("   varsayımı hatası çıktı. Cümle bölme hâlâ kaba, çıkarım ~%14 gürültü taşıyor.")
-    return 0
+    print("   🔴 KALAN ZAYIF NOKTA SAYI DEĞİL, PAYDANIN NASIL KURULDUĞU: üç tur üst üste hata")
+    print("   çıktı (iki case varsayımı + bir yanlış KAPSAM DIŞI). Cümle bölme kaba, ~%14 gürültü.")
+    # ⚠️ ORPHAN VARSA ÇIKIŞ KODU 1 — uyarı basıp 0 ile çıkmak KAPI DEĞİL, TAVSİYEDİR.
+    # 2026-08-06 dış denetimi bunu yakaladı: belge "yüzdeyi geçersiz sayar" diyordu ama
+    # betik yine de yüzdeyi basıp başarıyla çıkıyordu → insan yorumuna bağlı bir "kapı".
+    return 1 if orphans else 0
 
 
 if __name__ == "__main__":

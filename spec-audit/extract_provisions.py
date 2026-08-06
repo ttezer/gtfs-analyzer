@@ -33,6 +33,7 @@ triyaj defteri bu kimliklere dayanacak.
 """
 import hashlib
 import html
+import re as _re
 import json
 import pathlib
 import re
@@ -98,6 +99,23 @@ ABBREV = re.compile(r"\b(e\.g|i\.e|etc|vs|cf|St|Mr|Ms|Dr|approx|no|No)\.$")
 # yedi koşullu dosya hükmü `FILE_LEVEL_PROVISIONS.md`'de elle adjudike edildi. Burada
 # tutmak aynı hükmü iki deftere yazmak olur ve rozet paydasını şişirir.
 FILE_HEADER = re.compile(r"^File:\s*(Required|Optional|Conditionally (Required|Forbidden))\.?$")
+
+
+def source_fingerprint(doc: str, origin: str) -> dict:
+    """Kataloğun hangi KAYNAK METİNDEN üretildiğini kanıtlanabilir kılar.
+
+    ⚠️ 2026-08-06 dış denetimi: JSON yalnız `_source` URL'i taşıyordu. gtfs.org CANLI bir
+    sayfa; yarın değişirse bugünkü 299 adayın aynı metinden üretildiği KANITLANAMAZDI.
+    Artık indirilen HTML'in SHA-256'sı ve spec'in kendi "Revised …" satırı da yazılır:
+    ikisi birden tutuyorsa katalog bit-bit yeniden üretilebilir.
+    """
+    m = _re.search(r"Revised\s+([A-Z][a-z]+\s+\d{1,2},\s+\d{4})", strip_tags(doc))
+    return {
+        "url": origin,
+        "sha256": hashlib.sha256(doc.encode("utf-8")).hexdigest(),
+        "bytes": len(doc.encode("utf-8")),
+        "spec_revision": m.group(1) if m else None,
+    }
 
 
 def fetch(argv: list[str]) -> str:
@@ -283,10 +301,12 @@ def main() -> int:
     OUT.write_text(
         json.dumps(
             {
-                "_source": SPEC_URL,
+                "_source": source_fingerprint(doc, SPEC_URL),
                 "_note": "Üretilmiş dosya — elle düzenlemeyin. Yeniden üretmek için: "
                          "python3 spec-audit/extract_provisions.py. Satırlar ADAYDIR, "
-                         "hüküm değil; triyaj spec-audit/PROVISION_TRIAGE.md'de.",
+                         "hüküm değil; triyaj spec-audit/PROVISION_TRIAGE.md'de. "
+                         "`_source.sha256` + `_source.spec_revision` kataloğun HANGİ metinden "
+                         "üretildiğini sabitler; ikisi tutmuyorsa yüzde o metne ait DEĞİLDİR.",
                 "provisions": rows,
             },
             ensure_ascii=False,
