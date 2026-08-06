@@ -63,6 +63,18 @@ def main() -> int:
     n, d = report("SERT hükümler (rozet paydası)", hard)
     report("YUMUŞAK hükümler (ayrı eksen — Quality)", soft)
 
+    # ⚠️ ADJUDİKE EDİLMEMİŞ HÜKÜM = SESSİZ PAYDA KAYBI. Defterde adı geçmeyen bir aday
+    # yukarıdaki sayımların hiçbirine girmez; yüzde "%100" demeye devam eder. 2026-08-06'da
+    # katalog 273→279 büyüdüğünde tam olarak bu olurdu. Kimlik hash'tir, sıra numarası değil:
+    # katalog büyüdüğünde eski kimlikler kaymaz, yalnız YENİLER adjudike edilmemiş kalır.
+    orphans = sorted(set(prov) - set(verdict))
+    if orphans:
+        print(f"\n🔴 ADJUDİKE EDİLMEMİŞ {len(orphans)} HÜKÜM — yüzde EKSİK PAYDA üzerinden.")
+        for pid in orphans:
+            print(f"  {pid} [{prov[pid]['strength']}] [{prov[pid]['section']}] "
+                  f"{prov[pid]['sentence'][:70]}")
+        print("  → PROVISION_TRIAGE.md'ye karar satırı ekleyin; yüzde ancak ondan sonra geçerlidir.")
+
     print(f"\n{'='*52}\nDÜZYAZI EKSENİ: {n}/{d} = %{100*n/d:.1f}")
     gaps = [k for k, v in hard.items() if v == "BOŞLUK"]
     for g in gaps:
@@ -73,8 +85,11 @@ def main() -> int:
     print("   continuous_drop_off — enum düzyazısı boşa izin veriyor, presence sütunu değil);")
     print("   32'si tek kuralla paylaşımlı ve triyajda MEŞRU bulundu; 12 boşluk kapatıldı.")
     print("   Ölçüm: cargo test -- --ignored anchor_granularity_report --nocapture")
-    print("⚠️ Payda kataloğun kendi kapsamıdır: modalsiz hükümler görünmez (ölçüldü, boş çıktı),")
-    print("   cümle bölme kabadır.")
+    print("⚠️ Payda kataloğun kendi kapsamıdır. Modalsiz hükümler 2026-08-06'da triyaj edildi:")
+    print("   İKİ sistematik kategori çıktı — büyük harf RFC 2119 (düzeltildi, katalog 273→279)")
+    print("   ve `Primary key ( … )` bildirimleri (31 satır; 3 dosyada kural YOK: calendar_dates,")
+    print("   stop_areas, fare_rules — bunlar BENZERSİZLİK ekseni, düzyazı paydasında değil).")
+    print("   Cümle bölme hâlâ kabadır ve çıkarım ~%14 gürültü taşır (TOC, başlık, sayfa JS'i).")
     return 0
 
 

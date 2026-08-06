@@ -55,6 +55,21 @@ STRONG = re.compile(
 # Yumuşak işaretler — hüküm DEĞİL, tavsiye. Quality sınıfına gider.
 SOFT = re.compile(r"\b(should not|should|recommended|Recommended|is encouraged|preferably)\b")
 
+# ⚠️ BÜYÜK HARF RFC 2119 ANAHTARLARI AYRI TUTULUR (2026-08-06, 764 triyajı).
+# Spec'in `document-conventions` bölümü anahtar kelimeleri BÜYÜK HARFLE yazar ve
+# `transfers.txt`'in sefer devamlılığı bölümü bunu bilfiil kullanır. Yukarıdaki regex'ler
+# `re.I` taşımaz, bu yüzden o bölümün SEKİZ cümlesi katalogdan tamamen düşmüştü —
+# üçü sert hüküm ve HİÇBİR kural tarafından ölçülmüyordu.
+#
+# Neden `re.I` EKLENMEDİ: `Required`/`Forbidden` spec'in presence ETİKETLERİdir ve
+# büyük harfle anlamlıdır; `re.I` sıradan düzyazıdaki "required"/"forbidden"
+# kelimelerini de hüküm sayardı. `Must coordinate with driver` gibi başlık-harfli enum
+# etiketleri de aynı şekilde yanlış pozitif olurdu. Yalnız TAMAMI BÜYÜK biçim alınır.
+UPPER_STRONG = re.compile(r"\b(MUST NOT|MUST|SHALL NOT|SHALL|REQUIRED|FORBIDDEN)\b")
+UPPER_SOFT = re.compile(r"\b(SHOULD NOT|SHOULD|RECOMMENDED)\b")
+# `MAY`/`OPTIONAL` bilinçli olarak DIŞARIDA: izin bildirirler, hüküm değildirler ve
+# doğrulanacak bir şey söylemezler (`may not` yasağı zaten STRONG'da).
+
 # Blok düzeyi elemanlar: her biri ayrı bir metin parçası verir. `<td>` bilinçli
 # olarak burada YOK — tablo hücreleri ayrı yoldan (table_desc) toplanır.
 BLOCK = re.compile(r"</(p|li|h[1-6]|blockquote|dd|dt)>", re.I)
@@ -193,9 +208,9 @@ def section_bounds(doc: str) -> list[tuple[str, str, int, int]]:
 
 
 def classify(sentence: str) -> str:
-    if STRONG.search(sentence):
+    if STRONG.search(sentence) or UPPER_STRONG.search(sentence):
         return "strong"
-    if SOFT.search(sentence):
+    if SOFT.search(sentence) or UPPER_SOFT.search(sentence):
         return "soft"
     return ""
 

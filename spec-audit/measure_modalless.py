@@ -7,10 +7,15 @@ onun ELEDİĞİ cümleleri toplar ve normatif olma ihtimaline göre sınıflar.
 ⚠️ Bu bir ADAY üreticisidir, sayaç değil. Betimleyici cümleyi hükümden ayırmak insan işidir;
 betik yalnız "bakılması gereken kaç cümle var" sorusuna alt sınır verir.
 """
-import html, json, pathlib, re, sys, collections
+import html, json, pathlib, random, re, sys, collections
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
-SPEC = sys.argv[1] if len(sys.argv) > 1 else "spec.html"
+_args = [a for a in sys.argv[1:] if not a.startswith("--")]
+_flags = {a.split("=")[0]: a.split("=", 1)[-1] for a in sys.argv[1:] if a.startswith("--")}
+SPEC = _args[0] if _args else "spec.html"
+# --sample=N: sinyalsiz kümeden N cümlelik DETERMİNİSTİK örneklem bas (triyaj girdisi).
+SAMPLE = int(_flags.get("--sample", 0))
+SEED = int(_flags.get("--seed", 764))
 
 # extract_provisions.py ile AYNI mantık — yoksa "elenmiş" küme yanlış olur.
 sys.path.insert(0, "spec-audit")
@@ -61,6 +66,14 @@ def main() -> int:
             tagged[tuple(sorted(hits))].append((anchor, field, s))
         else:
             untagged.append((anchor, field, s))
+
+    if SAMPLE:
+        picked = random.Random(SEED).sample(untagged, min(SAMPLE, len(untagged)))
+        print(f"# sinyalsiz küme: {len(untagged)} · örneklem: {len(picked)} · seed={SEED}")
+        for i, (anchor, field, s) in enumerate(sorted(picked), 1):
+            loc = anchor + (f".{field}" if field else "")
+            print(f"{i:3d}. [{loc}] {s}")
+        return 0
 
     total_modalless = len(modalless)
     signalled = sum(len(v) for v in tagged.values())

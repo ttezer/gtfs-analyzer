@@ -212,7 +212,7 @@ birleştirmek `emit_identity` kapısını düşürebilir.
 | `P2f98361b` | stop_name | Boarding area'da biniş alanının adı olmalı *(soft)* | KISMİ | `STP_041` alt durak/üst istasyon ad ilişkisini ölçer; boarding area'ya özel değil. |
 | `P4aab119d` | location_type | Giriş birden çok istasyona aitse veri sağlayıcı birini parent seçmeli | **KAPSAM DIŞI** | Şema zaten tek `parent_station` alanı verir → ihlal edilemez; cümle modelleme rehberi. |
 | `P740a5096` · `Pb857b7b0` · `Pa5a48cf2` | stop_access | Girişten erişilmeli; pathway varsa kullanılmalı; tüketici yön üretmeli | **KAPSAM DIŞI** | Tüketici davranışını bağlar. `STP_027` komşu olguyu (pathway istasyonunda `stop_access` eksik) ölçer. |
-| `P8cb6a9cc` | stop_code | Yolcuya sunulan kodu olmayan yerlerde **boş bırakılmalı** *(soft)* | ⚠️ GERİLİM | Aşağıda. |
+| `P8cb6a9cc` | stop_code | Yolcuya sunulan kodu olmayan yerlerde **boş bırakılmalı** *(soft)* | **KAPSAM DIŞI** ⚠️GERİLİM | Bir durağın yolcuya sunulan kodu OLUP OLMADIĞI feed'den bilinemez — boşluğun kendisi tek kanıttır, ve o hem uyumu hem ihlali gösterir. Karar makine-okunur etiket taşımadığı için `badge_status.py`'nin yumuşak paydasından SESSİZCE düşüyordu (2026-08-06 orphan denetimi yakaladı). Gerilim ayrıntısı Bulgu 5'te. |
 | `P3af6af7b` · `Pb24eacd3` | platform_code | Yalnız tanımlayıcı olmalı; "platform"/"track" kelimesi geçmemeli *(soft)* | **BOŞLUK** | `platform_code` kod tabanında hiç geçmiyor. `STP_040` aynı olguyu `stop_name` için ölçüyor — desen mevcut, alan kapsanmamış. |
 
 ## routes.txt
@@ -721,7 +721,12 @@ görmüyor. Karar ölçümle değil, **ölçümün yüzeysel okunmasıyla** veri
 
 ---
 
-# ✅ KATALOG TAMAMLANDI — 273/273
+# ✅ KATALOG TAMAMLANDI — 273/273 → **279/279** (2026-08-06)
+
+> ⚠️ Bu bölümün 273 sayısı, büyük harf RFC 2119 düzeltmesinden ÖNCEsidir. Katalog
+> 279'a çıktı, altı yeni aday belgenin sonundaki **764 triyajı** bölümünde adjudike
+> edildi ve **üçü BOŞLUK**. Aşağıdaki dağılım tarihsel kayıttır; güncel sayı
+> `badge_status.py`'den okunur.
 
 Aşağıdaki dağılım **sayıldı, tahmin edilmedi** — defterdeki her satırın karar etiketi
 ile o satırdaki aday kimlikleri eşleştirilerek (`P` kimliği başına bir kez):
@@ -906,22 +911,151 @@ zaman bir modal kullanıyor; modalsiz cümleler semantik, tanım ve rehberlik ta
 edilmedi; 764 sinyalsiz cümleye hiç bakılmadı. Bu bir **alt sınır ölçümü**dür — "yeni hüküm
 yok" değil, "aramanın bu turunda çıkmadı" demektir.
 
+> 🔴 **BU BÖLÜMÜN SONUCU 2026-08-06'DA ÇÜRÜTÜLDÜ.** "Modalsiz kör nokta boş çıktı" cümlesi
+> yanlıştı: 764 sinyalsiz cümlenin triyajı İKİ sistematik normatif kategori ve ÜÇ ölçülmeyen
+> sert hüküm çıkardı. Bir sonraki bölüme bak.
+
+---
+
+# 🕳️ 764 SİNYALSİZ CÜMLENİN TRİYAJI (2026-08-06)
+
+**Neden yapıldı:** yukarıdaki bölüm sinyal TAŞIYAN 104 cümleyi inceleyip "payda büyümüyor"
+sonucuna varmıştı; sinyalsiz kalan 764'e hiç bakılmamıştı. %100 iddiasının paydasının
+"alt sınır" olmasının sebebi buydu.
+
+**Yöntem — tümünü okumak DEĞİL, kategori envanteri.** 764'ün tamamını okumak 7-8 oturum
+sürerdi. Bunun yerine: deterministik 100 cümlelik örneklem oku → içindeki normatif
+kategorileri BUL → her kategoriyi popülasyonda **tam** say. Örneklemin işi hüküm bulmak
+değil, *hüküm taşıyan kategorileri* bulmaktır; kategori bulununca sayım artık örneklem
+değil, tam sayımdır. İkinci bir 60'lık örneklem (yalnız sınıflanmamış 513'ten) yeni kategori
+çıkmadığını doğruladı.
+
+Üretim: `python3 spec-audit/measure_modalless.py spec.html --sample=100` (seed sabit).
+
+## 100 cümlelik örneklemin dağılımı
+
+| kategori | n | karar |
+|---|---|---|
+| Betimleyici (tanım/açıklama) | 60 | hüküm değil |
+| Çıkarım gürültüsü (TOC, başlık, sayfa JS'i, parça) | 14 | ⚠️ aşağıya bak |
+| Enum değeri listesi (`1 - Station .`) | 11 | **başka eksen** — alan tablosunun `enum-domain` atomu |
+| **Birincil anahtar bildirimi** | 5 | 🔴 **gerçek hüküm, katalog dışı** |
+| Presence parçası (`- Optional otherwise.`) | 2 | **başka eksen** — `presence` atomu |
+| Tüketiciyi bağlayan | 1 | KAPSAM DIŞI |
+| **BÜYÜK HARF modal taşıyan** | 2 | 🔴 **katalog hatası** |
+
+Sert hüküm oranı ≈ %5-7. Ama bu oranın hemen tamamı **iki sistematik kategoriden** geliyor —
+dağınık tek-tük hükümlerden değil. İkisi de aşağıda TAM sayıldı.
+
+## 🔴 Kategori 1: BÜYÜK HARF RFC 2119 anahtarları — kataloğun kendi hatası
+
+`extract_provisions.py`'nin `STRONG`/`SOFT` regex'leri `re.I` taşımıyordu ve `must`
+küçük harfliydi. Spec ise `document-conventions` bölümünde anahtar kelimeleri **BÜYÜK
+HARFLE** tanımlar ve `transfers.txt`'in sefer devamlılığı bölümü bunu bilfiil kullanır:
+
+> The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD",
+> "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" … are to be interpreted as
+> described in RFC 2119.
+
+Tam sayım: **9 cümle** (8'i `transfers.txt`, 1'i `document-conventions`). Katalog bunların
+hiçbirini görmüyordu. Düzeltme: ayrı `UPPER_STRONG`/`UPPER_SOFT` regex'i (`re.I` DEĞİL —
+`Required` presence etiketidir, `Must coordinate with driver` enum etiketidir; ikisi de
+`re.I` ile yanlış pozitif olurdu). `MAY`/`OPTIONAL` bilinçli dışarıda: izin bildirirler.
+
+Katalog **273 → 279**, kimlik kayması **0**.
+
+| id | hüküm | karar | dayanak |
+|---|---|---|---|
+| `P6766c477` | RFC 2119 anahtar kelimeleri bu belgede RFC 2119'daki gibi yorumlanır | **META** | Spec'in kendi okuma talimatı; feed'de karşılığı yok. |
+| `P430e47ab` | Birbirine bağlanan seferler AYNI ARAÇLA işletilmelidir | **KAPSAM DIŞI** | Gerçek dünya operasyonu; GTFS'te araç kimliği yok, feed'den doğrulanamaz. |
+| `P612a9dbf` | 1-to-n devamlılıkta her `to_trip_id`'nin `service_id`'si ÖZDEŞ olmalı | 🔴 **BOŞLUK** | Hiçbir kural ölçmüyor (`TRF_*`/`XFL_*` taraması yapıldı). |
+| `P9db18901` | n-to-1 devamlılıkta her `from_trip_id`'nin `service_id`'si ÖZDEŞ olmalı | 🔴 **BOŞLUK** | Aynı. |
+| `P0bb79a62` | Bir sefer birden çok devamlılığa girebilir, ama `service_id`'ler hiçbir hizmet gününde ÖRTÜŞMEMELİ | 🔴 **BOŞLUK** | Aynı. En ağırı: örtüşme, aracın aynı anda iki devamlılıkta olması demek. |
+| `Pb18edda4` | `from_trip_id`'nin son durağı `to_trip_id`'nin ilk durağına coğrafi olarak YAKIN OLMALI *(soft)* | BOŞLUK *(yumuşak eksen)* | Quality kuyruğuna. Eşik seçimi gerektirir; sert eksende değil. |
+
+⚠️ Üç boşluk da `transfer_type=4/5` (koltuk-içi devamlılık) semantiğidir ve **tek bir kural
+ailesiyle** karşılanabilir. `TRF_013` zaten 4/5 için `from_trip_id`/`to_trip_id` zorunluluğunu
+ölçüyor; devamlılık grubu orada kurulabilir.
+
+## 🔴 Kategori 2: `Primary key ( … )` bildirimleri
+
+Her dosya bölümü birincil anahtarını modalsiz bir satırla bildirir. Bu bir **benzersizlik
+normudur** ama hiçbir modal taşımadığı için katalogda hiç yoktu. Tam sayım: **31 satır**
+(30 dosya + 1 meta: *"Primary key (*) is used when all provided fields … are used to
+uniquely identify a row"*). ⚠️ `fare_leg_join_rules.txt` **büyük K** ile yazıyor
+(`Primary Key`) — kategori taramasının kendisi de bir kez case'e takıldı.
+
+Kapsama denetimi (30 dosya, kural kural tarandı) — **27'si kapsanıyor**:
+`AGN_010` · `STP_001` · `RTS_001` · `TRP_001` · `STM_032` · `CAL_001` · `FAR_001` ·
+`RCT_001` · `FMD_001` · `FPD_001` · `ARS_001` · `NET_001` · `PTH_001` · `LVL_001` ·
+`SHP_008` · `TRF_012`/`TRF_016` · `TRN_005` · `BKR_019` · `DQ_021` (route_networks,
+attributions, fare_leg_rules, fare_leg_join_rules, fare_transfer_rules, location_groups,
+location_group_stops) · `FRQ_011` · `TFR_005`. `feed_info.txt` = *Primary key (none)*, N/A.
+
+**3 dosyada karşılık YOK:**
+
+| dosya | anahtar | neden önemli |
+|---|---|---|
+| `calendar_dates.txt` | (`service_id`, `date`) | Aynı gün için iki kayıt → biri `exception_type=1`, diğeri `2` olabilir; hangisinin kazandığı tanımsız. Bu, servis gününü sessizce değiştirir. |
+| `stop_areas.txt` | (`*`) | Tam satır tekrarı. `SAR_001..004` yalnız FK ve boşluk ölçüyor. |
+| `fare_rules.txt` | (`*`) | Tam satır tekrarı; ücret eşleşmesinde çift sayım. |
+
+⚠️ `FRQ_011`/`TFR_005` anahtarı DOĞRUDAN ölçmez, **çakışma** ölçer — özdeş satırlar zaten
+çakışır, o yüzden kapsanmış sayılır. Ama geçersiz `start_time`/`end_time` taşıyan yinelenmiş
+satırlar ikisinin de dışında kalır. [Olası] dar bir kalıntı; şimdilik açılmıyor.
+
+✅ **Yan doğrulama:** spec *"New headways may start at the exact time the previous headway
+ends"* der; `FRQ_011` karşılaştırması `cur_start < max_end` (KATI) — izne birebir uyuyor.
+
+## Yöntemsel çıktı
+
+🔴 **`re.I` yokluğu üç kez ısırdı, ikisi bu turda:** `STRONG`/`SOFT` büyük harf RFC 2119'u
+(9 cümle, 3'ü ölçülmeyen sert hüküm), kategori taramam `Primary Key`'i, `SIGNALS` ise cümle
+başındaki `Matches`/`Same as`'i kaçırdı. **Spec metnine regex uygularken case varsayımını
+YAZ ve GEREKÇELENDİR** — burada `re.I` eklemek de yanlış olurdu (`Required` bir etikettir),
+doğrusu ayrı büyük-harf regex'i.
+
+🔴 **Örneklem "hüküm" değil "kategori" arar.** 100 cümlede 5 birincil-anahtar satırı görmek
+"5 hüküm buldum" değil, "birincil anahtar bildirimleri normatif ve katalog dışı" demektir;
+sonrasında sayım tam yapılır (31). Tek tek okumaya göre ~8 kat ucuz ve daha güvenilir.
+
+⚠️ **Çıkarım gürültüsü %14** — `attributions.txt` bölümünün "düzyazısı" sayfanın çerez
+onay JS'ini içeriyor (`__md_get`, Cloudflare challenge betiği). Zararsız (hiçbir modal
+taşımıyor) ama `prose_of()`'un `<script>` etiketlerini ayıklamadığını gösteriyor.
+
+## Rozet üzerindeki etki
+
+Sert eksende payda **+3** (5 yeni sert hükmün 1'i META, 1'i KAPSAM DIŞI), pay **+0**.
+Düzyazı ekseni **%100 → %97,8 (131/134)**. Bu bir gerileme değil, **paydanın
+düzeltilmesidir**: üç hüküm zaten ölçülmüyordu, artık görünüyorlar.
+
 ## ⚠️ Bu sayı ne demek DEĞİL
 
 **"Spec'in %54'ünü karşılıyoruz" DENEMEZ.** Payda bu kataloğun kendi kapsamıdır ve
 üç sınırı vardır:
 
 1. **Modal taşımayan hükümler görünmez.** *"All file and field names are case-sensitive"*
-   bağlayıcıdır ama `must`/`shall` içermediği için katalogda yok. 273 bir **alt sınırdır**.
+   bağlayıcıdır ama `must`/`shall` içermediği için katalogda yok. 279 bir **alt sınırdır**.
+   ✅ **2026-08-06'da ÖLÇÜLDÜ ve alt sınır bir kez daraltıldı:** modalsiz 764 cümlenin
+   triyajı iki sistematik kategori çıkardı — büyük harf RFC 2119 (katalog hatasıydı,
+   düzeltildi) ve `Primary key ( … )` bildirimleri (benzersizlik ekseni; 31'in 28'i
+   kapsanıyor). Sınır KALKMADI, ama artık "hiç bakılmadı" değil "iki kategori tarandı".
 2. **Kaba cümle bölme.** Bir cümle birden çok hüküm taşıyabilir (`P44a6984b` örneği), ve
-   bazı adayların bağlamı önceki cümlelerdedir.
+   bazı adayların bağlamı önceki cümlelerdedir. Ek olarak çıkarım ~**%14 gürültü** taşır
+   (TOC satırları, `¶` başlıkları, sayfanın çerez-onay JavaScript'i).
 3. **KAPSAM DIŞI %23'tür ve bu doğrudur** — spec tüketici davranışını da `must` ile yazar.
    Bir doğrulayıcının bunları ölçmemesi eksiklik değil, tanım gereğidir.
 
-Dürüst cümle şudur: **spec'in alan tablosundan çıkan 302 hüküm atomunun 296'sı makine
-kanıtlı; düzyazı ekseninde 273 adaydan feed'den doğrulanabilir olanların 148'i ölçülüyor,
-9'u ölçülmüyor.**
+Dürüst cümle şudur: **spec'in alan tablosundan çıkan 302 hüküm atomunun 300'ü çapalı;
+düzyazı ekseninde 279 adaydan feed'den doğrulanabilir olanların 131'i ölçülüyor, 3'ü
+ölçülmüyor (hepsi `transfers.txt` sefer devamlılığı).**
 
-~~Açık kalemler~~ → **HEPSİ KAPANDI.** URL şeması (`cfd8f7d4`) · HTML etiketi (`ARC_032`) ·
-OpenGIS poligon (`LOC_011`) · `pickup_type=2` (`STM_059`) · `platform_code` (`STP_044`) ·
-`traversal_time` (`PTH_029`) · boarding area/platform pathway (`PTH_030`).
+~~Açık kalemler~~ → **9 BOŞLUĞUN HEPSİ KAPANDI.** URL şeması (`cfd8f7d4`) · HTML etiketi
+(`ARC_032`) · OpenGIS poligon (`LOC_011`) · `pickup_type=2` (`STM_059`) · `platform_code`
+(`STP_044`) · `traversal_time` (`PTH_029`) · boarding area/platform pathway (`PTH_030`).
+
+🔴 **AMA DEFTER ARTIK KAPALI DEĞİL.** 764 triyajı (2026-08-06) **üç yeni sert boşluk**
+açtı — `P612a9dbf` · `P9db18901` · `P0bb79a62`, üçü de `transfers.txt` sefer devamlılığı
+`service_id` semantiği — ve bir yumuşak boşluk (`Pb18edda4`). Ayrıca düzyazı ekseninin
+DIŞINDA, benzersizlik ekseninde üç dosyanın birincil anahtarı ölçülmüyor:
+`calendar_dates.txt` · `stop_areas.txt` · `fare_rules.txt`.
