@@ -923,6 +923,7 @@ const tr = {
     'PTH_029': 'Önerilen pathway traversal_time bilgisi eksik',
     'PTH_030': "Boarding area'sı olan platforma pathway atanmış",
     'PTH_026': 'Pathway uç noktası istasyon',
+    'PTH_031': "Pathway uç noktası sokaktan erişilen durak (stop_access=1)",
     'PTH_027': 'stair_count geçersiz (sıfır veya tam sayı değil)',
     // FRL
     'FRL_001': 'fare_id bulunamadı',

@@ -85,11 +85,13 @@ def main() -> int:
     print("   continuous_drop_off — enum düzyazısı boşa izin veriyor, presence sütunu değil);")
     print("   32'si tek kuralla paylaşımlı ve triyajda MEŞRU bulundu; 12 boşluk kapatıldı.")
     print("   Ölçüm: cargo test -- --ignored anchor_granularity_report --nocapture")
-    print("⚠️ Payda kataloğun kendi kapsamıdır. Modalsiz hükümler 2026-08-06'da triyaj edildi:")
-    print("   İKİ sistematik kategori çıktı — büyük harf RFC 2119 (düzeltildi, katalog 273→279)")
-    print("   ve `Primary key ( … )` bildirimleri (31 satır; 3 dosyadaki boşluk `DQ_021`'e")
-    print("   eklendi — bunlar BENZERSİZLİK ekseni, düzyazı paydasında değil).")
-    print("   Cümle bölme hâlâ kabadır ve çıkarım ~%14 gürültü taşır (TOC, başlık, sayfa JS'i).")
+    print("⚠️ Payda kataloğun kendi kapsamıdır. Modalsiz cümlelerin TAMAMI 2026-08-06'da okundu")
+    print("   ve payda İKİ KEZ düzeldi: büyük harf RFC 2119 (273→279), sonra cümle başı modal +")
+    print("   küçük harf `are forbidden` + `requires` (279→299). Ayrıca `Primary key ( … )`")
+    print("   bildirimleri (31) BENZERSİZLİK eksenidir, düzyazı paydasında değil — oradaki 3")
+    print("   boşluk `DQ_021`'e eklendi.")
+    print("   🔴 KALAN ZAYIF NOKTA SAYI DEĞİL, PAYDANIN NASIL KURULDUĞU: iki tur üst üste case")
+    print("   varsayımı hatası çıktı. Cümle bölme hâlâ kaba, çıkarım ~%14 gürültü taşıyor.")
     return 0
 
 

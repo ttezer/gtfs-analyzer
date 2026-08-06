@@ -705,6 +705,7 @@ hesaplanır. Bir boşluk kurala dönüştüğünde satır BURAYA eklenir.
 | `P38cd4e78` | `FPD_007` + `FAR_013` | `9beb1282` sonrası |
 | `P612a9dbf` · `P0bb79a62` | `TRF_022` | 764 triyajı |
 | `P9db18901` | `TRF_023` | 764 triyajı |
+| `P5b7396a2` · `Pbd495b4e` | `PTH_031` | 506 turu |
 
 **KISMİ adjudikasyonu (5 sert):** `Pd84a0bcb`→BOŞLUK · `P2c840d38`→BOŞLUK (kapandı) ·
 `P257db6b1`→BOŞLUK (kapandı) · `P8681b6f4`→KAPSAM DIŞI · `P44a6984b`→KAPSAM DIŞI
@@ -723,12 +724,12 @@ görmüyor. Karar ölçümle değil, **ölçümün yüzeysel okunmasıyla** veri
 
 ---
 
-# ✅ KATALOG TAMAMLANDI — 273/273 → **279/279** (2026-08-06)
+# ✅ KATALOG TAMAMLANDI — 273/273 → **299/299** (2026-08-06, iki düzeltmeyle)
 
-> ⚠️ Bu bölümün 273 sayısı, büyük harf RFC 2119 düzeltmesinden ÖNCEsidir. Katalog
-> 279'a çıktı, altı yeni aday belgenin sonundaki **764 triyajı** bölümünde adjudike
-> edildi ve **üçü BOŞLUK**. Aşağıdaki dağılım tarihsel kayıttır; güncel sayı
-> `badge_status.py`'den okunur.
+> ⚠️ Bu bölümün 273 sayısı, İKİ case düzeltmesinden ÖNCEsidir. Katalog önce 279'a
+> (büyük harf RFC 2119), sonra **299'a** (cümle başı modal + küçük harf yasak) çıktı;
+> 26 yeni aday belgenin sonundaki **764 triyajı** ve **KALAN 506** bölümlerinde adjudike
+> edildi. Aşağıdaki dağılım tarihsel kayıttır; güncel sayı `badge_status.py`'den okunur.
 
 Aşağıdaki dağılım **sayıldı, tahmin edilmedi** — defterdeki her satırın karar etiketi
 ile o satırdaki aday kimlikleri eşleştirilerek (`P` kimliği başına bir kez):
@@ -1050,6 +1051,82 @@ sonrasında sayım tam yapılır (31). Tek tek okumaya göre ~8 kat ucuz ve daha
 onay JS'ini içeriyor (`__md_get`, Cloudflare challenge betiği). Zararsız (hiçbir modal
 taşımıyor) ama `prose_of()`'un `<script>` etiketlerini ayıklamadığını gösteriyor.
 
+---
+
+# 📖 KALAN 506'NIN TAMAMI OKUNDU (2026-08-06, aynı gün)
+
+Yukarıdaki tur örneklemle kategori aramıştı ve *"artakalan betimleyici görünüyor"* demişti.
+Kullanıcı kalanı okumamı istedi. **İyi ki istedi: örneklemin bulamadığı ÜÇÜNCÜ bir case
+kaçağı çıktı ve 20 cümle daha katalog dışındaydı.**
+
+Üretim: `python3 spec-audit/measure_modalless.py spec.html --residual` (yapısal kategoriler
+artık betiğin içinde, `STRUCTURAL` sözlüğü → kalan yeniden üretilebilir).
+
+## 🔴 Üçüncü case kaçağı — cümle BAŞI modal + küçük harf yasak
+
+Katalog cümle ORTASINDAKİ küçük harfli modalı ve TAMAMI BÜYÜK biçimi arıyordu. Spec ise
+alan açıklamalarını sık sık **modalla başlatıyor** (özne bir önceki cümlededir) ve yasağı
+bazen **küçük harfle** yazıyor:
+
+| kaçak biçimi | n | örnek |
+|---|---|---|
+| cümle başı `Must`/`Shall` | 8 | *"Must be unique in areas.txt."* |
+| küçük harf `is/are forbidden` | 6 | *"Values greater than 24:00:00 are forbidden."* |
+| cümle başı `Should` | 4 | *"Should not be a duplicate of stop_name."* |
+| fiil çekimi `requires` | 2 | *"…requires two records in stop_times.txt…"* |
+
+Düzeltme: `LEAD_STRONG`/`LEAD_SOFT`. **`re.I` yine EKLENMEDİ** — `Required`/`Forbidden`
+presence etiketidir, `re.I` sıradan düzyazıyı hüküm sayardı. Katalog **279 → 299**, kimlik
+kayması **0**.
+
+⚠️ `^(Must|Shall)` enum etiketiyle çakışmıyor: enum satırları `"3 - Must coordinate…"`
+biçiminde başlıyor. Sekiz eşleşmenin sekizi de gerçek hüküm çıktı — desen ölçülerek daraltıldı.
+
+## 20 yeni adayın adjudikasyonu
+
+| id | hüküm | karar | dayanak |
+|---|---|---|---|
+| `P91ff9ba5` | `areas.area_id` benzersiz olmalı | **KANITLI** | `ARS_001` |
+| `Pedaac477` | `networks.network_id` benzersiz olmalı | **KANITLI** | `NET_001` |
+| `P05d556b5` | `pathways.pathway_id` veri setinde benzersiz olmalı | **KANITLI** | `PTH_001` |
+| `Pc1ed2281` · `Pb194db96` | pathway uç noktası peron/giriş/düğüm/biniş alanı olmalı | **KANITLI** | `PTH_026` |
+| `P3db455d6` | `stop_times.shape_dist_traveled` shapes ile aynı birimde olmalı | **KANITLI** | `STM_024` (birim tutarsızlığı) |
+| `Peb36dead` · `P28c5b709` | `timeframes` start/end_time > 24:00:00 yasak | **KANITLI** | `TFR_006` |
+| `P770d4d86` | `duration_limit` tam saniye tam sayısı olmalı | **KANITLI** | `FTR_006` |
+| `P2f291c33` | `locations.geojson` geometrisi Polygon/MultiPolygon olmalı | **KANITLI** | `k1_parse.rs` geometri tipi denetimi |
+| `Pfe619a22` | `stop_desc`, `stop_name`'in kopyası olmamalı *(soft)* | **KANITLI** | `STP_031` |
+| `P72501068` | `route_desc`, route adlarının kopyası olmamalı *(soft)* | **KANITLI** | `RTS_023` |
+| `Pa6690298` | `route_url`, `agency_url`'den farklı olmalı *(soft)* | **KANITLI** | `RTS_020` |
+| `P5b7396a2` · `Pbd495b4e` | uç nokta `stop_access=1` olan durak olamaz | 🔴 **BOŞLUKTU → `PTH_031`** | Aşağıda. |
+| `P7ae1fa9d` | `agency_lang` sağlanmalı *(soft)* | **BOŞLUK** *(yumuşak eksen)* | Yalnız geçerlilik (`AGN_006`) ve tutarlılık (`AGN_013/017`) ölçülüyor; VARLIK tavsiyesi ölçülmüyor. Quality kuyruğuna. |
+| `Pa1fdaa0d` | geojson geometri + pencere + pickup/drop_off eşzamanlı örtüşmesi yasak | **KAPSAM DIŞI** | Poligon geometrisi saklanmıyor; önceden de kayıtlı karar. |
+| `P1ced9134` | aynı bölge içi seyahat İKİ `stop_times` kaydı gerektirir | **KAPSAM DIŞI** | **Modelleme talimatı, ihlal predikatı değil.** Tek kayıt geçerlidir (bölgede binip başka durakta inmek meşru); "üretici bölge-içi seyahat kastetti" bilgisi veride yok. Dejenere hâl (tek duraklı sefer) `STM_033`'te. |
+| `Pcb0bc0b7` | *"2 - Transfer requires a minimum amount of time…"* | **META** | `transfer_type` enum değerinin tanımı; yükümlülük `min_transfer_time`'da (`TRF_001/002`). |
+| `P7413e90c` | *"For examples that demonstrate what is forbidden, see the data example page."* | **META** | İşaret cümlesi; `forbidden` kelimesi içerdiği için aday oldu. |
+
+### 🔴 `PTH_031` — bir spec cümlesinin ikinci kolu yıllardır ölçülmüyordu
+
+Spec tek cümlede iki şey yasaklar: *"Values for stop_id that identify stations
+(`location_type=1`), **or stops with `stop_access=1`**, are forbidden."* Birinci kol
+`PTH_026`'ydı. İkinci kolun yerinde **"o ayrı bir olgudur ve burada KAPSAM DIŞIDIR" diyen
+bir kod yorumu** duruyordu — ama hükmü ölçen başka kural da yoktu. `STP_027` TERS olguyu
+ölçüyor (pathway'li istasyonda `stop_access` BOŞ bırakılmış peron), yani "doldurun" diyor;
+buradaki hüküm "dolu ve 1 ise pathway olamaz" diyor. Aynı alan, zıt yön.
+
+⚠️ **DERS: "kapsam dışı" diyen bir kod yorumu, kararın VERİLDİĞİNİ gösterir, hükmün
+KARŞILANDIĞINI değil.** Defterle bağlanmamış her muafiyet böyle sessizce kaybolur —
+`AGN_001` ölü kuralının ve `⚠️ GERİLİM` etiketinin aynı ailesi.
+
+## Rozet üzerindeki etki (506 turu)
+
+Sert eksende payda **134 → 146** (16 yeni sert hükmün 2'si META, 2'si KAPSAM DIŞI), pay da
+**+12** (10'u zaten kanıtlıydı, 2'si `PTH_031` ile kapandı) → **146/146 = %100** korunuyor.
+Yumuşak eksende payda 65 → 69, pay 42 → 45; bir yeni yumuşak boşluk (`agency_lang` varlık
+tavsiyesi). ⚠️ Sayı `badge_status.py`'den okunur; buradaki rakam kayıt amaçlıdır.
+
+⚠️ **Bu turun asıl çıktısı yüzde değil:** iki tur üst üste payda hatası çıktı. Sayının
+kendisi sağlam, **paydanın nasıl kurulduğu** hâlâ iddianın zayıf noktası.
+
 ## Rozet üzerindeki etki
 
 Sert eksende payda **+3** (5 yeni sert hükmün 1'i META, 1'i KAPSAM DIŞI), pay ilk anda **+0**
@@ -1057,7 +1134,9 @@ Sert eksende payda **+3** (5 yeni sert hükmün 1'i META, 1'i KAPSAM DIŞI), pay
 düzeltilmesiydi**: üç hüküm zaten ölçülmüyordu, yalnız görünür oldular.
 
 Aynı turda üçü de kurala dönüştü (`TRF_022`/`TRF_023`) → **134/134 = %100**, bu kez payda
-doğru. ⚠️ Sayı yine `badge_status.py`'den okunur; buradaki rakam kayıt amaçlıdır.
+doğru. ⚠️ Sayı yine `badge_status.py`'den okunur. **Ve aynı gün bir kez daha büyüdü**:
+506 kalıntının okunması üçüncü bir case kaçağı çıkardı, payda 146'ya taşındı (aşağıdaki
+"KALAN 506" bölümü).
 
 ## ⚠️ Bu sayı ne demek DEĞİL
 
@@ -1077,7 +1156,7 @@ doğru. ⚠️ Sayı yine `badge_status.py`'den okunur; buradaki rakam kayıt am
    Bir doğrulayıcının bunları ölçmemesi eksiklik değil, tanım gereğidir.
 
 Dürüst cümle şudur: **spec'in alan tablosundan çıkan 302 hüküm atomunun 300'ü çapalı;
-düzyazı ekseninde 279 adaydan feed'den doğrulanabilir olan 134 sert hükmün TAMAMI
+düzyazı ekseninde 299 adaydan feed'den doğrulanabilir olan 146 sert hükmün TAMAMI
 ölçülüyor.** Payda 2026-08-06'da bir kez düzeltildi (büyük harf RFC 2119) — sayının
 kendisi değil, **paydanın nasıl kurulduğu** iddianın zayıf noktasıdır.
 

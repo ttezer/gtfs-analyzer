@@ -1780,3 +1780,48 @@ fn dq021_flags_duplicate_rows_in_stop_areas_and_fare_rules() {
         other => panic!("ValidateResult::Ok beklendi, gelen: {other:?}"),
     }
 }
+
+// ── PTH_031: stop_access=1 olan durak pathway uç noktası olamaz ──────────────
+//
+// Spec `pathways.from_stop_id`/`to_stop_id`: "Values for stop_id that identify stations
+// (location_type=1), **or stops (location_type=0 or empty) with stop_access=1**, are
+// forbidden." İkinci kol 2026-08-06'ya kadar ölçülmüyordu; katalog da göremiyordu çünkü
+// yasak KÜÇÜK harfle ("are forbidden") yazılı.
+
+static STOPS_WITH_ACCESS: &[u8] =
+    b"stop_id,stop_name,stop_lat,stop_lon,location_type,parent_station,stop_access\n\
+      ST,Station,41.0,29.0,1,,\nS1,Platform1,41.0,29.0,0,ST,1\nS2,Platform2,41.1,29.1,0,ST,0\n";
+static STOPS_NO_ACCESS: &[u8] =
+    b"stop_id,stop_name,stop_lat,stop_lon,location_type,parent_station,stop_access\n\
+      ST,Station,41.0,29.0,1,,\nS1,Platform1,41.0,29.0,0,ST,0\nS2,Platform2,41.1,29.1,0,ST,0\n";
+static PATHWAY_S1_S2: &[u8] =
+    b"pathway_id,from_stop_id,to_stop_id,pathway_mode,is_bidirectional\nP1,S1,S2,1,1\n";
+
+fn pathway_files(stops: &'static [u8]) -> Vec<(&'static str, &'static [u8])> {
+    let mut files = base_files();
+    files.retain(|(n, _)| *n != "stops.txt");
+    files.push(("stops.txt", stops));
+    files.push(("pathways.txt", PATHWAY_S1_S2));
+    files
+}
+
+#[test]
+fn pth031_flags_pathway_endpoint_with_stop_access_1() {
+    match run(&pathway_files(STOPS_WITH_ACCESS)) {
+        ValidateResult::Ok(vr) => assert!(has(&vr, "PTH_031"),
+            "PTH_031 olmalı. Mevcut: {:?}",
+            vr.notices.iter().map(|n| n.rule_id.as_str()).collect::<Vec<_>>()),
+        other => panic!("ValidateResult::Ok beklendi, gelen: {other:?}"),
+    }
+}
+
+#[test]
+fn pth031_silent_when_endpoints_are_not_street_accessed() {
+    // stop_access=0 = "sokaktan doğrudan erişilemez, pathway kullanılmalı" → tam da
+    // pathway'in beklendiği hâl. Kural burada susmalı.
+    match run(&pathway_files(STOPS_NO_ACCESS)) {
+        ValidateResult::Ok(vr) => assert!(!has(&vr, "PTH_031"),
+            "stop_access=0 pathway'in beklendiği hâldir, PTH_031 çıkmamalı"),
+        other => panic!("ValidateResult::Ok beklendi, gelen: {other:?}"),
+    }
+}

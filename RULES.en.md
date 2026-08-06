@@ -2,7 +2,7 @@
 
 🇹🇷 [Türkçe](RULES.md) · 🇬🇧 **English** · 🇯🇵 [日本語](RULES.ja.md)
 
-591 rules, 38 groups. Each rule is identified by a unique ID, severity level, and class.
+592 rules, 38 groups. Each rule is identified by a unique ID, severity level, and class.
 Severity levels: **CRITICAL** (publish blocker) · **HIGH** · **MEDIUM** · **LOW** · **INFO**
 Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Quality** (GTFS Quality) · **Analytics** (GTFS Analytics)
 
@@ -582,6 +582,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | PTH_030 | Pathway assigned to a platform that has boarding areas | LOW | Spec |
 | PTH_029 | Recommended pathway traversal_time missing | LOW | Quality |
 | PTH_026 | Pathway endpoint is a station | CRITICAL | Spec |
+| PTH_031 | Pathway endpoint is a street-accessed stop (stop_access=1) | CRITICAL | Spec |
 | PTH_027 | stair_count is invalid (zero or not an integer) | MEDIUM | Spec |
 | PTH_028 | max_slope used outside a walkway | LOW | Quality |
 

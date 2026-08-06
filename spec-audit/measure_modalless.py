@@ -39,6 +39,24 @@ DESCRIPTIVE = re.compile(
     r"\b(defines?|indicates?|specifies|describes?|denotes?|identifies|represents?|"
     r"for example|e\.g\.|i\.e\.|see the|refer to https?|available at)\b", re.I)
 
+# Sinyal TAŞIMAYAN cümlelerin YAPISAL kategorileri (2026-08-06 triyajı).
+# Bunlar tek tek okunmaz, kategori olarak adjudike edilir ve TAM sayılır:
+#   • PRIMARY KEY → normatif (benzersizlik ekseni); 32'si de adjudike edildi.
+#   • ENUM / PRESENCE → alan tablosu ekseninin atomları; düzyazı paydasında değiller.
+#   • BAŞLIK / ÖRNEK / JS → çıkarım gürültüsü ve betimleyici.
+# ⚠️ `Primary Key` BÜYÜK K ile de yazılıyor (`fare_leg_join_rules.txt`) — case varsayımı
+# bu betikte bir kez daha ısırmıştı.
+STRUCTURAL = {
+    "PRIMARY KEY (normatif)":        r"^Primary [Kk]ey\s*\(",
+    "ENUM değeri (alan tablosu)":    r"^\s*\d+( or empty)?\s*[-–]\s|^Valid options are:",
+    "BAŞLIK/TOC (gürültü)":          r"¶$|^[a-z_]+\.txt$|^(Field Definitions|File Requirements|Dataset Files|Term Definitions)",
+    # `^Example[: ]` BÜYÜK E bilinçli (cümle başı etiketi); `for example` ise cümle içinde
+    # de başında da geçer → yalnız O ALTERNATİF case-insensitive (`(?i:...)`).
+    "ÖRNEK (betimleyici)":           r"^Example[: ]|\b(?i:for example)\b",
+    "PRESENCE parçası (alan tablosu)": r"^-\s*(Optional|Required|Forbidden|Conditionally)",
+    "JS/sayfa çöpü (gürültü)":       r"function\(|__md_get|document\.|window\.__",
+}
+
 
 def main() -> int:
     doc = pathlib.Path(SPEC).read_text(encoding="utf-8")
@@ -66,6 +84,20 @@ def main() -> int:
             tagged[tuple(sorted(hits))].append((anchor, field, s))
         else:
             untagged.append((anchor, field, s))
+
+    if "--residual" in _flags:
+        # Ne modal, ne normatif sinyal, ne de yapısal kategori taşıyan cümleler.
+        # 2026-08-06'da bu kümenin TAMAMI okundu; çıktı defterle karşılaştırılabilsin diye
+        # sıra DETERMİNİSTİK (belge sırası) ve numaralı.
+        pats = {k: re.compile(v) for k, v in STRUCTURAL.items()}
+        rest = [(a, f, s) for a, f, s in untagged
+                if not any(p.search(s) for p in pats.values())]
+        print(f"# sinyalsiz {len(untagged)} · yapısal kategori {len(untagged) - len(rest)} "
+              f"· SINIFLANMAMIŞ KALAN {len(rest)}")
+        for i, (anchor, field, s) in enumerate(rest, 1):
+            loc = anchor + (f".{field}" if field else "")
+            print(f"{i:3d}. [{loc}] {s}")
+        return 0
 
     if SAMPLE:
         picked = random.Random(SEED).sample(untagged, min(SAMPLE, len(untagged)))

@@ -3482,8 +3482,12 @@ fn check_xfl(
         }
     }
 
-    // Not: spec ayrıca stop_access=1 olan durakları da yasaklar; o ayrı bir olgudur ve
-    // burada KAPSAM DIŞIDIR (MD'de de ayrı notice).
+    // PTH_031: aynı spec cümlesinin İKİNCİ KOLU — `stop_access=1` olan durak da pathway uç
+    // noktası OLAMAZ. `stop_access=1` "bu durağa sokaktan doğrudan erişilir, istasyonun
+    // giriş/pathway'lerinden bağımsız yol tarifi üret" demektir; ona pathway bağlamak
+    // kendi kendisiyle çelişir. 2026-08-06'ya kadar burada "kapsam dışıdır" yazıyordu ama
+    // hükmü ölçen BAŞKA bir kural da yoktu (`STP_027` TERS olguyu ölçer: pathway'li
+    // istasyonda `stop_access` BOŞ bırakılmış platform).
     {
         for rec in &records.pathways {
             for (field, stop_id) in [
@@ -3491,7 +3495,29 @@ fn check_xfl(
                 ("to_stop_id", rec.to_stop_id.as_str()),
             ] {
                 let Some(&sidx) = map.stops.get(stop_id) else { continue };
-                if records.stops[sidx].location_type == Some(1) {
+                let stop = &records.stops[sidx];
+                // `stop_access` yalnız peron/durakta anlamlıdır (spec: istasyon, giriş,
+                // ara düğüm ve biniş alanında Conditionally Forbidden) → location_type
+                // 0/boş dışında bakmıyoruz; oradaki hata STP_026'nın alanı.
+                if matches!(stop.location_type, None | Some(0)) && stop.stop_access == Some(1) {
+                    notices.push(notice(
+                        ctr,
+                        "PTH_031",
+                        EntityType::Pathway,
+                        Some(rec.pathway_id.clone()),
+                        Some(rec.pathway_id.clone()),
+                        "pathways.txt",
+                        Some(rec.line),
+                        Some(field),
+                        Some(stop_id.to_string()),
+                        Some("stop_access ≠ 1".to_string()),
+                        format!(
+                            "{field} '{stop_id}' stop_access=1 ile işaretli (sokaktan doğrudan erişilir); böyle bir durak pathway uç noktası olamaz.",
+                        ),
+                        "Durağın stop_access değerini 0 yapın ya da bu pathway kaydını kaldırın.",
+                    ));
+                }
+                if stop.location_type == Some(1) {
                     notices.push(notice(
                         ctr,
                         "PTH_026",

@@ -408,6 +408,15 @@
       "sentence": "If multiple agencies are specified in the dataset, each must have the same agency_timezone ."
     },
     {
+      "id": "P7ae1fa9d",
+      "section": "agencytxt",
+      "field": "agency_lang",
+      "level": "h3",
+      "source": "table_desc",
+      "strength": "soft",
+      "sentence": "Should be provided to help GTFS consumers choose capitalization rules and other language-specific settings for the dataset."
+    },
+    {
       "id": "Pbb82f19e",
       "section": "agencytxt",
       "field": "agency_phone",
@@ -496,6 +505,15 @@
       "source": "table_desc",
       "strength": "strong",
       "sentence": "Conditionally Required: - Required for locations which are stops ( location_type=0 ), stations ( location_type=1 ) or entrances/exits ( location_type=2 )."
+    },
+    {
+      "id": "Pfe619a22",
+      "section": "stopstxt",
+      "field": "stop_desc",
+      "level": "h3",
+      "source": "table_desc",
+      "strength": "soft",
+      "sentence": "Should not be a duplicate of stop_name ."
     },
     {
       "id": "P1904b638",
@@ -705,6 +723,24 @@
       "sentence": "Conditionally Required: - Required if routes.route_short_name is empty."
     },
     {
+      "id": "P72501068",
+      "section": "routestxt",
+      "field": "route_desc",
+      "level": "h3",
+      "source": "table_desc",
+      "strength": "soft",
+      "sentence": "Should not be a duplicate of route_short_name or route_long_name ."
+    },
+    {
+      "id": "Pa6690298",
+      "section": "routestxt",
+      "field": "route_url",
+      "level": "h3",
+      "source": "table_desc",
+      "strength": "soft",
+      "sentence": "Should be different from the agency.agency_url value."
+    },
+    {
       "id": "P067f2da6",
       "section": "routestxt",
       "field": "route_color",
@@ -874,6 +910,24 @@
       "source": "prose",
       "strength": "soft",
       "sentence": "For examples that demonstrate what should be ignored, see the data example page ."
+    },
+    {
+      "id": "Pa1fdaa0d",
+      "section": "stop_timestxt",
+      "field": "",
+      "level": "h3",
+      "source": "prose",
+      "strength": "strong",
+      "sentence": "Simultaneous overlap of locations.geojson id geometry, start/end_pickup_drop_off_window time, and pickup_type or drop_off_type between two or more stop_times.txt records with the same trip_id is forbidden."
+    },
+    {
+      "id": "P7413e90c",
+      "section": "stop_timestxt",
+      "field": "",
+      "level": "h3",
+      "source": "prose",
+      "strength": "strong",
+      "sentence": "For examples that demonstrate what is forbidden, see the data example page ."
     },
     {
       "id": "Peaccedd4",
@@ -1092,6 +1146,15 @@
       "sentence": "The values must increase along the trip but do not need to be consecutive."
     },
     {
+      "id": "P1ced9134",
+      "section": "stop_timestxt",
+      "field": "stop_sequence",
+      "level": "h3",
+      "source": "table_desc",
+      "strength": "strong",
+      "sentence": "Travel within the same location group or GeoJSON location requires two records in stop_times.txt with the same location_group_id or location_id ."
+    },
+    {
       "id": "Pc45300d2",
       "section": "stop_timestxt",
       "field": "stop_headsign",
@@ -1198,6 +1261,15 @@
       "source": "table_desc",
       "strength": "strong",
       "sentence": "Conditionally Forbidden : - Any value other than 1 or empty is Forbidden if start_pickup_drop_off_window or end_pickup_drop_off_window are defined."
+    },
+    {
+      "id": "P3db455d6",
+      "section": "stop_timestxt",
+      "field": "shape_dist_traveled",
+      "level": "h3",
+      "source": "table_desc",
+      "strength": "strong",
+      "sentence": "Must be in the same units used in shapes.txt ."
     },
     {
       "id": "Pf2eca25e",
@@ -1335,6 +1407,15 @@
       "sentence": "If not specified, the feed’s agency timezone should be used instead."
     },
     {
+      "id": "Peb36dead",
+      "section": "timeframestxt",
+      "field": "start_time",
+      "level": "h3",
+      "source": "table_desc",
+      "strength": "strong",
+      "sentence": "Values greater than 24:00:00 are forbidden."
+    },
+    {
       "id": "P6fa9925a",
       "section": "timeframestxt",
       "field": "start_time",
@@ -1351,6 +1432,15 @@
       "source": "table_desc",
       "strength": "strong",
       "sentence": "- Forbidden otherwise"
+    },
+    {
+      "id": "P28c5b709",
+      "section": "timeframestxt",
+      "field": "end_time",
+      "level": "h3",
+      "source": "table_desc",
+      "strength": "strong",
+      "sentence": "Values greater than 24:00:00 are forbidden."
     },
     {
       "id": "P8cc81b88",
@@ -1614,6 +1704,15 @@
       "sentence": "- Required if fare_transfer_rules.from_leg_group_id equals fare_transfer_rules.to_leg_group_id ."
     },
     {
+      "id": "P770d4d86",
+      "section": "fare_transfer_rulestxt",
+      "field": "duration_limit",
+      "level": "h3",
+      "source": "table_desc",
+      "strength": "strong",
+      "sentence": "Must be expressed in integer increments of seconds."
+    },
+    {
       "id": "P14538146",
       "section": "fare_transfer_rulestxt",
       "field": "duration_limit",
@@ -1648,6 +1747,24 @@
       "source": "table_desc",
       "strength": "strong",
       "sentence": "- Forbidden if fare_transfer_rules.duration_limit is empty."
+    },
+    {
+      "id": "P91ff9ba5",
+      "section": "areastxt",
+      "field": "area_id",
+      "level": "h3",
+      "source": "table_desc",
+      "strength": "strong",
+      "sentence": "Must be unique in areas.txt ."
+    },
+    {
+      "id": "Pedaac477",
+      "section": "networkstxt",
+      "field": "network_id",
+      "level": "h3",
+      "source": "table_desc",
+      "strength": "strong",
+      "sentence": "Must be unique in networks.txt ."
     },
     {
       "id": "Pd03c58da",
@@ -1893,6 +2010,15 @@
       "sentence": "Valid options are: 0 or empty - Recommended transfer point between routes."
     },
     {
+      "id": "Pcb0bc0b7",
+      "section": "transferstxt",
+      "field": "transfer_type",
+      "level": "h3",
+      "source": "table_desc",
+      "strength": "strong",
+      "sentence": "2 - Transfer requires a minimum amount of time between arrival and departure to ensure a connection."
+    },
+    {
       "id": "P35e92ee9",
       "section": "transferstxt",
       "field": "transfer_type",
@@ -1972,6 +2098,51 @@
       "source": "prose",
       "strength": "strong",
       "sentence": "No locked platforms: If any location within a station has a pathway, each platform ( location_type=0 or empty) or boarding area ( location_type=4 ) must be connected to at least one entrance/exit ( location_type=2 ) via some chain of pathways — unless: The stop ( location_type=0 or empty) is explicitly marked with stops.stop_access=1 , in which case it is assumed to be directly accessible from the street network."
+    },
+    {
+      "id": "P05d556b5",
+      "section": "pathwaystxt",
+      "field": "pathway_id",
+      "level": "h3",
+      "source": "table_desc",
+      "strength": "strong",
+      "sentence": "Must be unique in the dataset."
+    },
+    {
+      "id": "Pc1ed2281",
+      "section": "pathwaystxt",
+      "field": "from_stop_id",
+      "level": "h3",
+      "source": "table_desc",
+      "strength": "strong",
+      "sentence": "Must contain a stop_id that identifies a platform ( location_type=0 or empty), entrance/exit ( location_type=2 ), generic node ( location_type=3 ) or boarding area ( location_type=4 )."
+    },
+    {
+      "id": "P5b7396a2",
+      "section": "pathwaystxt",
+      "field": "from_stop_id",
+      "level": "h3",
+      "source": "table_desc",
+      "strength": "strong",
+      "sentence": "Values for stop_id that identify stations ( location_type=1 ), or stops ( location_type=0 or empty) with stop_access=1 , are forbidden."
+    },
+    {
+      "id": "Pb194db96",
+      "section": "pathwaystxt",
+      "field": "to_stop_id",
+      "level": "h3",
+      "source": "table_desc",
+      "strength": "strong",
+      "sentence": "Must contain a stop_id that identifies a platform ( location_type=0 or empty), entrance/exit ( location_type=2 ), generic node ( location_type=3 ) or boarding area ( location_type=4 )."
+    },
+    {
+      "id": "Pbd495b4e",
+      "section": "pathwaystxt",
+      "field": "to_stop_id",
+      "level": "h3",
+      "source": "table_desc",
+      "strength": "strong",
+      "sentence": "Values for stop_id that identify stations ( location_type=1 ), or stops ( location_type=0 or empty) with stop_access=1 , are forbidden."
     },
     {
       "id": "P24907079",
@@ -2125,6 +2296,15 @@
       "source": "table_desc",
       "strength": "strong",
       "sentence": "ID must be unique across all stops.stop_id , locations.geojson id , and location_groups.location_group_id values."
+    },
+    {
+      "id": "P2f291c33",
+      "section": "locationsgeojson",
+      "field": "",
+      "level": "h3",
+      "source": "table_desc",
+      "strength": "strong",
+      "sentence": "Must be of type: - \"Polygon\" - \"MultiPolygon\""
     },
     {
       "id": "Pffdf614c",

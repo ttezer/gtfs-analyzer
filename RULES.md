@@ -2,7 +2,7 @@
 
 🇹🇷 **Türkçe** · 🇬🇧 [English](RULES.en.md) · 🇯🇵 [日本語](RULES.ja.md)
 
-591 kural, 38 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
+592 kural, 38 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
 Önem seviyeleri: **KRİTİK** (yayın engelleyici) · **YÜKSEK** · **ORTA** · **DÜŞÜK** · **BİLGİ**
 Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · **Quality** (GTFS Kalitesi) · **Analytics** (GTFS Analitiği)
 
@@ -582,6 +582,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | PTH_030 | Boarding area'sı olan platforma pathway atanmış | DÜŞÜK | Spec |
 | PTH_029 | Önerilen pathway traversal_time bilgisi eksik | DÜŞÜK | Quality |
 | PTH_026 | Pathway uç noktası istasyon | KRİTİK | Spec |
+| PTH_031 | Pathway uç noktası sokaktan erişilen durak (stop_access=1) | KRİTİK | Spec |
 | PTH_027 | stair_count geçersiz (sıfır veya tam sayı değil) | ORTA | Spec |
 | PTH_028 | max_slope yürüme yolu dışında kullanılmış | DÜŞÜK | Quality |
 

@@ -70,6 +70,22 @@ UPPER_SOFT = re.compile(r"\b(SHOULD NOT|SHOULD|RECOMMENDED)\b")
 # `MAY`/`OPTIONAL` bilinçli olarak DIŞARIDA: izin bildirirler, hüküm değildirler ve
 # doğrulanacak bir şey söylemezler (`may not` yasağı zaten STRONG'da).
 
+# ⚠️ ÜÇÜNCÜ CASE KAÇAĞI (2026-08-06, 506 kalıntının tek tek okunması).
+# Yukarıdaki iki regex de cümle ORTASINDAKİ küçük harfli modalı ve TAMAMI BÜYÜK biçimi
+# arıyordu. Spec ise alan açıklamalarını sık sık modalla BAŞLATIYOR — özne bir önceki
+# cümlededir: *"Must be unique in areas.txt."* · *"Should not be a duplicate of stop_name."*
+# Ayrıca yasağı KÜÇÜK harfle de yazıyor (*"Values greater than 24:00:00 are forbidden"*)
+# ve bazen fiil çekimiyle (*"…requires two records…"*). Ölçüldü: **20 cümle** böyle kaçmıştı.
+#
+# Neden hâlâ `re.I` YOK: `Required`/`Forbidden` presence ETİKETLERİdir; `re.I` sıradan
+# düzyazıdaki "required"/"forbidden" kelimelerini de hüküm sayardı. Kaçağın biçimi
+# dar ve ölçülmüş olduğu için desen de dar tutuldu.
+#
+# `^(Must|Shall)` enum etiketiyle çakışmaz: enum satırları "3 - Must coordinate…" biçiminde
+# başlar, çıplak `Must` ile değil (8 eşleşmenin 8'i de gerçek hüküm çıktı).
+LEAD_STRONG = re.compile(r"^(Must|Shall)\b|\b(is|are)\s+forbidden\b|\brequires\b")
+LEAD_SOFT = re.compile(r"^Should\b")
+
 # Blok düzeyi elemanlar: her biri ayrı bir metin parçası verir. `<td>` bilinçli
 # olarak burada YOK — tablo hücreleri ayrı yoldan (table_desc) toplanır.
 BLOCK = re.compile(r"</(p|li|h[1-6]|blockquote|dd|dt)>", re.I)
@@ -208,9 +224,9 @@ def section_bounds(doc: str) -> list[tuple[str, str, int, int]]:
 
 
 def classify(sentence: str) -> str:
-    if STRONG.search(sentence) or UPPER_STRONG.search(sentence):
+    if STRONG.search(sentence) or UPPER_STRONG.search(sentence) or LEAD_STRONG.search(sentence):
         return "strong"
-    if SOFT.search(sentence) or UPPER_SOFT.search(sentence):
+    if SOFT.search(sentence) or UPPER_SOFT.search(sentence) or LEAD_SOFT.search(sentence):
         return "soft"
     return ""
 

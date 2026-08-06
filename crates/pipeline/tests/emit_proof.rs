@@ -584,6 +584,14 @@ fn fixtures() -> Vec<Fixture> {
             ("stops.txt", "stop_id,stop_name,stop_lat,stop_lon,location_type\nS1,Station,41.0,29.0,1\nS2,Stop2,41.1,29.1,0\n"),
             ("pathways.txt", "pathway_id,from_stop_id,to_stop_id,pathway_mode,is_bidirectional\nP1,S1,S2,3,0\n"),
         ]),
+        // PTH_031: aynı spec cümlesinin ikinci kolu — uç nokta stop_access=1 olan bir peron.
+        // `stop_access` yalnız parent_station'ı olan peronda meşrudur (yoksa STP_026/028),
+        // bu yüzden fixture bir istasyon + iki peron kurar.
+        fx("PTH_031", vec![
+            ("stops.txt", "stop_id,stop_name,stop_lat,stop_lon,location_type,parent_station,stop_access\nST,Station,41.0,29.0,1,,\nS1,Platform1,41.0,29.0,0,ST,1\nS2,Platform2,41.1,29.1,0,ST,0\n"),
+            ("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\nT1,08:10:00,08:10:00,S2,2\n"),
+            ("pathways.txt", "pathway_id,from_stop_id,to_stop_id,pathway_mode,is_bidirectional\nP1,S1,S2,1,1\n"),
+        ]),
         fx("PTH_003", vec![("pathways.txt", "pathway_id,from_stop_id,to_stop_id,pathway_mode,is_bidirectional\nP1,S1,NOPE,3,0\n")]),
         // PTH_014: from/to farklı istasyonlarda (parent_station ile çözülür).
         fx("PTH_014", vec![

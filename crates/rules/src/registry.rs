@@ -1313,6 +1313,16 @@ pub static RULES: &[RuleMeta] = &[
         "Önerilen pathway traversal_time bilgisi eksik"),
     r!("PTH_026", Kritik, Spec, 1, &[], Some("pathway_id"), VS_K, Row,
         "Pathway uç noktası istasyon"),
+    // PTH_031: `PTH_026`'nın İKİNCİ KOLU. Spec `from_stop_id`/`to_stop_id` için TEK cümlede
+    // iki şeyi yasaklar: *"Values for stop_id that identify stations (location_type=1), **or
+    // stops (location_type=0 or empty) with stop_access=1**, are forbidden."* İstasyon kolu
+    // PTH_026'ydı; `stop_access=1` kolu 2026-08-06'ya kadar YAZILMAMIŞTI — kodda "kapsam
+    // dışıdır" diye bir yorum duruyordu ama hükmün kendisi ölçülmüyordu. Katalog da göremedi
+    // çünkü cümle yasağı KÜÇÜK harfle ("are forbidden") yazıyor.
+    // AYRI kural, PTH_026'ya eklenmedi: MD'de de ayrı notice ve olgular farklı — biri yanlış
+    // düğüm tipi, diğeri "bu durak zaten sokaktan erişiliyor, pathway'in konusu değil".
+    r!("PTH_031", Kritik, Spec, 1, &[], Some("pathway_id"), VS_K, Row,
+        "Pathway uç noktası sokaktan erişilen durak (stop_access=1)"),
     // PTH_027: spec tipi `Non-null integer` — hem tam sayı olmayı hem SIFIR OLMAMAYI şart
     // koşar. Sıfır anlamsızdır: pozitif değer yolcunun yukarı, negatif aşağı yürüdüğünü
     // söyler, sıfır ikisini de söylemez. Sayı olmayan değer de eskiden sessizce düşüyordu.
@@ -2223,6 +2233,7 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("PTH_028", ProjectQuality),
     ("PTH_029", ProjectQuality),
     ("PTH_030", GtfsSpec),
+    ("PTH_031", GtfsSpec),
     ("TRF_001", GtfsSpec),
     ("TRF_002", GtfsSpec),
     ("TRF_003", GtfsSpec),
