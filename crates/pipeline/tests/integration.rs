@@ -1599,3 +1599,184 @@ fn rule_priority_in_fare_leg_rules_stays_a_known_column() {
         other => panic!("ValidateResult::Ok beklendi, gelen: {other:?}"),
     }
 }
+
+// ── Bağlı sefer devamlılıkları: TRF_022 / TRF_023 ────────────────────────────
+//
+// Spec (`transfers.txt` → "Linked trips") ÜÇ cümle yazar ve üçüncüsü ilk ikisini SINIRLAR:
+// devam seferlerinin `service_id`'si özdeş OLMALI, AMA bir sefer birden çok ayrı
+// devamlılığa girebilir — yeter ki takvimler hiçbir günde çakışmasın. Veride devamlılık
+// grubunu işaretleyen alan olmadığı için uygulanabilir tek okuma ikisinin bileşimidir.
+// Aşağıdaki dört test tam olarak bu sınırı çiziyor: biri ateşlemeyi, ikisi SUSMAYI kanıtlıyor.
+
+static CAL_TWO_SERVICES: &[u8] =
+    b"service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\n\
+      SVC1,1,1,1,1,1,0,0,20250101,20271231\n\
+      SVC2,1,1,1,1,1,1,1,20250101,20271231\n";
+// SVC3 yalnız hafta sonu → SVC1 (hafta içi) ile HİÇBİR gün çakışmaz.
+static CAL_DISJOINT: &[u8] =
+    b"service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\n\
+      SVC1,1,1,1,1,1,0,0,20250101,20271231\n\
+      SVC3,0,0,0,0,0,1,1,20250101,20271231\n";
+static ST_THREE_TRIPS: &[u8] =
+    b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
+      T1,08:00:00,08:00:00,S1,1\nT1,08:10:00,08:10:00,S2,2\n\
+      T2,09:00:00,09:00:00,S1,1\nT2,09:10:00,09:10:00,S2,2\n\
+      T3,10:00:00,10:00:00,S1,1\nT3,10:10:00,10:10:00,S2,2\n";
+
+fn linked_trip_files(
+    calendar: &'static [u8],
+    trips: &'static [u8],
+    transfers: &'static [u8],
+) -> Vec<(&'static str, &'static [u8])> {
+    let mut files = base_files();
+    files.retain(|(n, _)| *n != "calendar.txt" && *n != "trips.txt" && *n != "stop_times.txt");
+    files.push(("calendar.txt", calendar));
+    files.push(("trips.txt", trips));
+    files.push(("stop_times.txt", ST_THREE_TRIPS));
+    files.push(("transfers.txt", transfers));
+    files
+}
+
+fn has(vr: &gtfs_core::ValidationResult, rule: &str) -> bool {
+    vr.notices.iter().any(|n| n.rule_id == rule)
+}
+
+#[test]
+fn trf022_flags_one_to_n_continuation_with_overlapping_calendars() {
+    // T1 hem T2'ye (SVC1, hafta içi) hem T3'e (SVC2, her gün) bağlanıyor.
+    // Hafta içi günlerde İKİSİ birden aktif → hangi devamlılık geçerli belirsiz.
+    let files = linked_trip_files(
+        CAL_TWO_SERVICES,
+        b"route_id,service_id,trip_id\nR1,SVC1,T1\nR1,SVC1,T2\nR1,SVC2,T3\n",
+        b"from_stop_id,to_stop_id,transfer_type,from_trip_id,to_trip_id\nS1,S2,4,T1,T2\nS1,S2,4,T1,T3\n",
+    );
+    match run(&files) {
+        ValidateResult::Ok(vr) => {
+            assert!(has(&vr, "TRF_022"),
+                "TRF_022 olmalı. Mevcut: {:?}",
+                vr.notices.iter().map(|n| n.rule_id.as_str()).collect::<Vec<_>>());
+            // Ters yön ateşlememeli: T2 ve T3'ün her birine tek sefer bağlanıyor.
+            assert!(!has(&vr, "TRF_023"), "n-to-1 çelişkisi yok, TRF_023 çıkmamalı");
+        }
+        other => panic!("ValidateResult::Ok beklendi, gelen: {other:?}"),
+    }
+}
+
+#[test]
+fn trf022_silent_when_continuation_trips_share_one_service_id() {
+    // GERÇEK 1-to-n ayrımı: T1 ikiye ayrılıyor ama ikisi de AYNI takvimde.
+    // Spec'in istediği tam olarak bu — kural susmalı.
+    let files = linked_trip_files(
+        CAL_TWO_SERVICES,
+        b"route_id,service_id,trip_id\nR1,SVC1,T1\nR1,SVC1,T2\nR1,SVC1,T3\n",
+        b"from_stop_id,to_stop_id,transfer_type,from_trip_id,to_trip_id\nS1,S2,4,T1,T2\nS1,S2,4,T1,T3\n",
+    );
+    match run(&files) {
+        ValidateResult::Ok(vr) => assert!(!has(&vr, "TRF_022"),
+            "Özdeş service_id geçerli 1-to-n devamlılıktır, TRF_022 çıkmamalı"),
+        other => panic!("ValidateResult::Ok beklendi, gelen: {other:?}"),
+    }
+}
+
+#[test]
+fn trf022_silent_when_separate_continuations_do_not_share_a_service_day() {
+    // AYRI DEVAMLILIKLAR: T1 hafta içi T2'ye, hafta sonu T3'e devam ediyor.
+    // service_id'ler FARKLI ama hiçbir gün çakışmıyor → spec bunu AÇIKÇA serbest bırakır.
+    // Bu test olmasaydı kural, spec'in iznini norm sanan `PTH_017` hatasını tekrarlardı.
+    let files = linked_trip_files(
+        CAL_DISJOINT,
+        b"route_id,service_id,trip_id\nR1,SVC1,T1\nR1,SVC1,T2\nR1,SVC3,T3\n",
+        b"from_stop_id,to_stop_id,transfer_type,from_trip_id,to_trip_id\nS1,S2,4,T1,T2\nS1,S2,4,T1,T3\n",
+    );
+    match run(&files) {
+        ValidateResult::Ok(vr) => assert!(!has(&vr, "TRF_022"),
+            "Çakışmayan takvimler ayrı devamlılıktır, TRF_022 çıkmamalı. Mevcut: {:?}",
+            vr.notices.iter().map(|n| n.rule_id.as_str()).collect::<Vec<_>>()),
+        other => panic!("ValidateResult::Ok beklendi, gelen: {other:?}"),
+    }
+}
+
+#[test]
+fn trf023_flags_n_to_one_continuation_with_overlapping_calendars() {
+    // T2 (SVC1) ve T3 (SVC2) ikisi de T1'e bağlanıyor → gelen taraf çelişiyor.
+    let files = linked_trip_files(
+        CAL_TWO_SERVICES,
+        b"route_id,service_id,trip_id\nR1,SVC1,T1\nR1,SVC1,T2\nR1,SVC2,T3\n",
+        b"from_stop_id,to_stop_id,transfer_type,from_trip_id,to_trip_id\nS1,S2,4,T2,T1\nS1,S2,4,T3,T1\n",
+    );
+    match run(&files) {
+        ValidateResult::Ok(vr) => {
+            assert!(has(&vr, "TRF_023"),
+                "TRF_023 olmalı. Mevcut: {:?}",
+                vr.notices.iter().map(|n| n.rule_id.as_str()).collect::<Vec<_>>());
+            assert!(!has(&vr, "TRF_022"), "1-to-n çelişkisi yok, TRF_022 çıkmamalı");
+        }
+        other => panic!("ValidateResult::Ok beklendi, gelen: {other:?}"),
+    }
+}
+
+// ── DQ_021 birincil anahtar — 2026-08-06'da eklenen üç dosya ─────────────────
+
+#[test]
+fn dq021_flags_calendar_dates_with_conflicting_exception_types() {
+    // Aynı (service_id, date) hem exception_type=1 hem =2 → o günün servisi TANIMSIZ.
+    // Birincil anahtar ihlalinin en ağır biçimi; hiçbir CLD_* kuralı bunu görmüyordu.
+    static CLD: &[u8] =
+        b"service_id,date,exception_type\nSVC1,20260701,1\nSVC1,20260701,2\n";
+    let mut files = base_files();
+    files.push(("calendar_dates.txt", CLD));
+    match run(&files) {
+        ValidateResult::Ok(vr) => {
+            let hit = vr.notices.iter().find(|n| {
+                n.rule_id == "DQ_021" && n.file.as_deref() == Some("calendar_dates.txt")
+            });
+            assert!(hit.is_some(),
+                "calendar_dates için DQ_021 olmalı. Mevcut: {:?}",
+                vr.notices.iter().map(|n| n.rule_id.as_str()).collect::<Vec<_>>());
+        }
+        other => panic!("ValidateResult::Ok beklendi, gelen: {other:?}"),
+    }
+}
+
+#[test]
+fn dq021_silent_when_calendar_dates_keys_are_unique() {
+    static CLD: &[u8] =
+        b"service_id,date,exception_type\nSVC1,20260701,2\nSVC1,20260702,2\n";
+    let mut files = base_files();
+    files.push(("calendar_dates.txt", CLD));
+    match run(&files) {
+        ValidateResult::Ok(vr) => assert!(
+            !vr.notices.iter().any(|n| {
+                n.rule_id == "DQ_021" && n.file.as_deref() == Some("calendar_dates.txt")
+            }),
+            "Benzersiz (service_id, date) çiftlerinde DQ_021 çıkmamalı"),
+        other => panic!("ValidateResult::Ok beklendi, gelen: {other:?}"),
+    }
+}
+
+#[test]
+fn dq021_flags_duplicate_rows_in_stop_areas_and_fare_rules() {
+    static AREAS: &[u8] = b"area_id\nA1\n";
+    static STOP_AREAS: &[u8] = b"area_id,stop_id\nA1,S1\nA1,S1\n";
+    static FARE_ATTR: &[u8] =
+        b"fare_id,price,currency_type,payment_method,transfers\nF1,2.50,USD,0,0\n";
+    static FARE_RULES: &[u8] = b"fare_id,route_id\nF1,R1\nF1,R1\n";
+    let mut files = base_files();
+    files.push(("areas.txt", AREAS));
+    files.push(("stop_areas.txt", STOP_AREAS));
+    files.push(("fare_attributes.txt", FARE_ATTR));
+    files.push(("fare_rules.txt", FARE_RULES));
+    match run(&files) {
+        ValidateResult::Ok(vr) => {
+            let files_hit: Vec<&str> = vr.notices.iter()
+                .filter(|n| n.rule_id == "DQ_021")
+                .filter_map(|n| n.file.as_deref())
+                .collect();
+            assert!(files_hit.contains(&"stop_areas.txt"),
+                "stop_areas.txt için DQ_021 olmalı. DQ_021 dosyaları: {files_hit:?}");
+            assert!(files_hit.contains(&"fare_rules.txt"),
+                "fare_rules.txt için DQ_021 olmalı. DQ_021 dosyaları: {files_hit:?}");
+        }
+        other => panic!("ValidateResult::Ok beklendi, gelen: {other:?}"),
+    }
+}

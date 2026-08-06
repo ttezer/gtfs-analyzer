@@ -983,6 +983,22 @@ pub static RULES: &[RuleMeta] = &[
         "Aktarma için gereken yürüme hızı çok yüksek"),
     r!("TRF_021", Kritik, Spec, 1, &[], Some("from_stop_id|to_stop_id"), VS_K, Row,
         "Aktarma uç noktası durak veya istasyon değil"),
+    // TRF_022/023: GTFS Reference `transfers.txt` → "Linked trips". Spec BÜYÜK HARF `MUST`
+    // kullanır ve 2026-08-06'ya kadar düzyazı kataloğu bunu göremiyordu (regex case-sensitive
+    // `must` arıyordu) → üç sert hüküm hiç ölçülmüyordu.
+    //
+    // ⚠️ Severity `Yuksek`, `Kritik` DEĞİL — bilinçli. R1 yayın kapısı saf `Spec ∧ Kritik`'tir;
+    // belirsiz bir devamlılık gerçek bir spec ihlalidir ama yalnız bağlı-sefer semantiğini
+    // bozar, feed'in geri kalanını kullanılamaz yapmaz. Yayından alıkoymak orantısız olurdu.
+    //
+    // ⚠️ İkisi AYRI kural çünkü ölçüm de ayrı: biri `from_trip_id`'ye göre gruplar ve
+    // `to_trip_id`'lerin takvimlerine bakar, diğeri tam tersi. Düzeltme de farklı taraftadır.
+    // Spec'in "n-to-n continuations must respect both constraints" cümlesi ikisinin
+    // BİRLİKTE çalışmasıyla karşılanır.
+    r!("TRF_022", Yuksek, Spec, 2, &[], Some("to_trip_id"), VS, Entity,
+        "1-to-n devamlılıkta devam seferlerinin takvimleri çelişiyor"),
+    r!("TRF_023", Yuksek, Spec, 2, &[], Some("from_trip_id"), VS, Entity,
+        "n-to-1 devamlılıkta gelen seferlerin takvimleri çelişiyor"),
 
     // ── GGL: Google Transit Uyumluluk Kuralları ───────────────────────────────
     r!("GGL_001", Dusuk, Interop, 1, &[], None, VI, Row,
@@ -2200,6 +2216,8 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("TFR_007", GtfsSpec),
     ("TFR_008", GtfsSpec),
     ("TRF_021", GtfsSpec),
+    ("TRF_022", GtfsSpec),
+    ("TRF_023", GtfsSpec),
     ("PTH_026", GtfsSpec),
     ("PTH_027", GtfsSpec),
     ("PTH_028", ProjectQuality),

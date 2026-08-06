@@ -2,7 +2,7 @@
 
 🇹🇷 [Türkçe](RULES.md) · 🇬🇧 **English** · 🇯🇵 [日本語](RULES.ja.md)
 
-589 rules, 38 groups. Each rule is identified by a unique ID, severity level, and class.
+591 rules, 38 groups. Each rule is identified by a unique ID, severity level, and class.
 Severity levels: **CRITICAL** (publish blocker) · **HIGH** · **MEDIUM** · **LOW** · **INFO**
 Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Quality** (GTFS Quality) · **Analytics** (GTFS Analytics)
 
@@ -401,6 +401,8 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | TRF_019 | Different route_type in in-seat transfer | MEDIUM | Interop |
 | TRF_020 | Transfer walking speed is too fast | MEDIUM | Quality |
 | TRF_021 | Transfer endpoint is not a stop or station | CRITICAL | Spec |
+| TRF_022 | Conflicting calendars in a 1-to-n trip continuation | HIGH | Spec |
+| TRF_023 | Conflicting calendars in an n-to-1 trip continuation | HIGH | Spec |
 
 ## GGL — Google Transit Compatibility
 

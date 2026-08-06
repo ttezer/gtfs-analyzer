@@ -895,6 +895,8 @@ const tr = {
     'TRF_019': 'In-seat aktarmada farklı route_type',
     'TRF_020': 'Aktarma için gereken yürüme hızı çok yüksek',
     'TRF_021': 'Aktarma uç noktası durak veya istasyon değil',
+    'TRF_022': '1-to-n devamlılıkta devam seferlerinin takvimleri çelişiyor',
+    'TRF_023': 'n-to-1 devamlılıkta gelen seferlerin takvimleri çelişiyor',
     // GGL
     'GGL_001': 'transfer_type=4/5 Google Transit tarafından desteklenmiyor',
     'GGL_002': 'ic_price (Google-özel) geçersiz değer',

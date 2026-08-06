@@ -1545,6 +1545,23 @@ fn fixtures() -> Vec<Fixture> {
         fx("TRF_017", vec![("transfers.txt", "from_stop_id,to_stop_id,transfer_type,from_trip_id,from_route_id\nS1,S2,1,T1,RWRONG\n")]),
         // TRF_018: from_trip_id == to_trip_id (anlamsız aktarma) (k4).
         fx("TRF_018", vec![("transfers.txt", "from_stop_id,to_stop_id,transfer_type,from_trip_id,to_trip_id\nS1,S2,1,T1,T1\n")]),
+        // TRF_022: 1-to-n devamlılık — T1 hem T2'ye hem T3'e bağlanıyor, takvimleri FARKLI
+        // ama çakışıyor (SVC1 hafta içi ⊂ SVC2 her gün) → o günlerde hangi devamlılık
+        // geçerli belirsiz. ⚠️ Aynı takvimle yazılsa kural SUSMALI (gerçek 1-to-n ayrımı),
+        // çakışmasalar da SUSMALI (spec'in izin verdiği ayrı devamlılıklar) — bkz. k6 notu.
+        fx("TRF_022", vec![
+            ("calendar.txt", "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,0,0,20250101,20271231\nSVC2,1,1,1,1,1,1,1,20250101,20271231\n"),
+            ("trips.txt", "route_id,service_id,trip_id\nR1,SVC1,T1\nR1,SVC1,T2\nR1,SVC2,T3\n"),
+            ("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\nT1,08:10:00,08:10:00,S2,2\nT2,09:00:00,09:00:00,S1,1\nT2,09:10:00,09:10:00,S2,2\nT3,10:00:00,10:00:00,S1,1\nT3,10:10:00,10:10:00,S2,2\n"),
+            ("transfers.txt", "from_stop_id,to_stop_id,transfer_type,from_trip_id,to_trip_id\nS1,S2,4,T1,T2\nS1,S2,4,T1,T3\n"),
+        ]),
+        // TRF_023: n-to-1 devamlılık — T2 ve T3'ün ikisi de T1'e bağlanıyor, aynı çakışma.
+        fx("TRF_023", vec![
+            ("calendar.txt", "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,0,0,20250101,20271231\nSVC2,1,1,1,1,1,1,1,20250101,20271231\n"),
+            ("trips.txt", "route_id,service_id,trip_id\nR1,SVC1,T1\nR1,SVC1,T2\nR1,SVC2,T3\n"),
+            ("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\nT1,08:10:00,08:10:00,S2,2\nT2,09:00:00,09:00:00,S1,1\nT2,09:10:00,09:10:00,S2,2\nT3,10:00:00,10:00:00,S1,1\nT3,10:10:00,10:10:00,S2,2\n"),
+            ("transfers.txt", "from_stop_id,to_stop_id,transfer_type,from_trip_id,to_trip_id\nS1,S2,4,T2,T1\nS1,S2,4,T3,T1\n"),
+        ]),
         // TRF_019: in-seat aktarmada farklı route_type (k4).
         fx("TRF_019", vec![
             ("routes.txt", "route_id,agency_id,route_short_name,route_type\nR1,1,101,3\nR2,1,102,0\n"),

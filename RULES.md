@@ -2,7 +2,7 @@
 
 🇹🇷 **Türkçe** · 🇬🇧 [English](RULES.en.md) · 🇯🇵 [日本語](RULES.ja.md)
 
-589 kural, 38 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
+591 kural, 38 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
 Önem seviyeleri: **KRİTİK** (yayın engelleyici) · **YÜKSEK** · **ORTA** · **DÜŞÜK** · **BİLGİ**
 Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · **Quality** (GTFS Kalitesi) · **Analytics** (GTFS Analitiği)
 
@@ -401,6 +401,8 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | TRF_019 | In-seat aktarmada farklı route_type | ORTA | Interop |
 | TRF_020 | Aktarma için gereken yürüme hızı çok yüksek | ORTA | Quality |
 | TRF_021 | Aktarma uç noktası durak veya istasyon değil | KRİTİK | Spec |
+| TRF_022 | 1-to-n devamlılıkta devam seferlerinin takvimleri çelişiyor | YÜKSEK | Spec |
+| TRF_023 | n-to-1 devamlılıkta gelen seferlerin takvimleri çelişiyor | YÜKSEK | Spec |
 
 ## GGL — Google Transit Uyumluluğu
 

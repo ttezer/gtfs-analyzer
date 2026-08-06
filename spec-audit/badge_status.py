@@ -87,8 +87,8 @@ def main() -> int:
     print("   Ölçüm: cargo test -- --ignored anchor_granularity_report --nocapture")
     print("⚠️ Payda kataloğun kendi kapsamıdır. Modalsiz hükümler 2026-08-06'da triyaj edildi:")
     print("   İKİ sistematik kategori çıktı — büyük harf RFC 2119 (düzeltildi, katalog 273→279)")
-    print("   ve `Primary key ( … )` bildirimleri (31 satır; 3 dosyada kural YOK: calendar_dates,")
-    print("   stop_areas, fare_rules — bunlar BENZERSİZLİK ekseni, düzyazı paydasında değil).")
+    print("   ve `Primary key ( … )` bildirimleri (31 satır; 3 dosyadaki boşluk `DQ_021`'e")
+    print("   eklendi — bunlar BENZERSİZLİK ekseni, düzyazı paydasında değil).")
     print("   Cümle bölme hâlâ kabadır ve çıkarım ~%14 gürültü taşır (TOC, başlık, sayfa JS'i).")
     return 0
 

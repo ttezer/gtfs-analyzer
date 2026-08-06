@@ -73,6 +73,9 @@ pub fn analyze(
         Box::new(|| { let _t = Timer::start("K6::pathway_analytics");     let mut v = Vec::new(); let mut c = 0u32; check_pathway_analytics(records, derived, &mut v, &mut c); v }),
         Box::new(|| { let _t = Timer::start("K6::calendar_override");     let mut v = Vec::new(); let mut c = 0u32; check_calendar_override_analytics(records, derived, config, &idx, &mut v, &mut c); v }),
         Box::new(|| { let _t = Timer::start("K6::vat_analytics");         let mut v = Vec::new(); let mut c = 0u32; check_vat_analytics(records, derived, config, &idx, &mut v, &mut c); v }),
+        // SONA eklendi: birleştirme sırası kanonik olduğu için yeni görev en sonda kalınca
+        // mevcut notice id'leri KAYMAZ (renumber konuma göre yapılır).
+        Box::new(|| { let _t = Timer::start("K6::linked_trips");          let mut v = Vec::new(); let mut c = 0u32; check_linked_trip_continuations(records, derived, &mut v, &mut c); v }),
     ];
 
     #[cfg(feature = "parallel")]
@@ -4027,6 +4030,14 @@ fn check_data_quality(
         // Boş alan anahtarın parçasıdır (spec "blank" değerleri anlamlı sayar), bu yüzden
         // None ve "" aynı şekilde temsil edilir; farklı alanların birleşmesini önlemek için
         // ayraç olarak birim-ayırıcı (\u{1f}) kullanılır.
+        //
+        // 🔴 `entity_id` DOSYA ADIYLA NİTELENİR — bunlar aksi hâlde BİRBİRİNİ EZİYORDU.
+        // `DQ_021`'in dedup düzeyi `Entity`, anahtarı `rule_id + entity_type + entity_id`.
+        // Bileşik emisyonların hepsi `EntityType::Row` + `entity_id=None` ile yazılmıştı →
+        // ANAHTARLARI ÖZDEŞTİ ve keep-first tek bir tanesini bırakıyordu. Yani Fares v2
+        // feed'inde hem `fare_leg_rules` hem `fare_transfer_rules` yinelenmişse yalnız biri
+        // raporlanıyordu (sıralama gereği alfabetik ilk dosya). 2026-08-06'da `stop_areas.txt`
+        // eklenirken testi düşürdüğü için fark edildi — yeni kural değil, ESKİ hata.
         fn composite_dups<K: AsRef<str>>(keys: impl Iterator<Item = Vec<K>>) -> Vec<String> {
             let mut seen: HashMap<String, u32> = HashMap::new();
             let mut dups: Vec<String> = Vec::new();
@@ -4047,7 +4058,8 @@ fn check_data_quality(
             opt(&r.from_timeframe_group_id), opt(&r.to_timeframe_group_id),
             r.fare_product_id.clone(),
         ])) {
-            notices.push(k6_notice(ctr, "DQ_021", EntityType::Row, None, None,
+            notices.push(k6_notice(ctr, "DQ_021", EntityType::Row,
+                Some(format!("fare_leg_rules.txt: {dup}")), None,
                 "fare_leg_rules.txt", None, Some("network_id|from_area_id|to_area_id|from_timeframe_group_id|to_timeframe_group_id|fare_product_id"),
                 Some(dup.clone()), None,
                 format!("fare_leg_rules.txt'de birincil anahtar yineleniyor: ({dup})."),
@@ -4060,7 +4072,8 @@ fn check_data_quality(
             r.from_network_id.clone(), r.to_network_id.clone(),
             r.from_stop_id.clone(), r.to_stop_id.clone(),
         ])) {
-            notices.push(k6_notice(ctr, "DQ_021", EntityType::Row, None, None,
+            notices.push(k6_notice(ctr, "DQ_021", EntityType::Row,
+                Some(format!("fare_leg_join_rules.txt: {dup}")), None,
                 "fare_leg_join_rules.txt", None,
                 Some("from_network_id|to_network_id|from_stop_id|to_stop_id"),
                 Some(dup.clone()), None,
@@ -4073,7 +4086,8 @@ fn check_data_quality(
             r.transfer_count.map(|v| v.to_string()).unwrap_or_default(),
             r.duration_limit.map(|v| v.to_string()).unwrap_or_default(),
         ])) {
-            notices.push(k6_notice(ctr, "DQ_021", EntityType::Row, None, None,
+            notices.push(k6_notice(ctr, "DQ_021", EntityType::Row,
+                Some(format!("fare_transfer_rules.txt: {dup}")), None,
                 "fare_transfer_rules.txt", None, Some("from_leg_group_id|to_leg_group_id|fare_product_id|transfer_count|duration_limit"),
                 Some(dup.clone()), None,
                 format!("fare_transfer_rules.txt'de birincil anahtar yineleniyor: ({dup})."),
@@ -4094,11 +4108,119 @@ fn check_data_quality(
         for dup in composite_dups(records.location_group_stops.iter()
             .map(|s| vec![s.location_group_id.clone(), s.stop_id.clone()]))
         {
-            notices.push(k6_notice(ctr, "DQ_021", EntityType::Row, None, None,
+            notices.push(k6_notice(ctr, "DQ_021", EntityType::Row,
+                Some(format!("location_group_stops.txt: {dup}")), None,
                 "location_group_stops.txt", None, Some("location_group_id|stop_id"),
                 Some(dup.clone()), None,
                 format!("location_group_stops.txt'de aynı satır yineleniyor: ({dup})."),
                 "location_group_stops.txt'de her (location_group_id, stop_id) çifti yalnız bir kez bulunmalıdır."));
+        }
+
+        // stop_areas.txt (*) ve fare_rules.txt (*) — spec ikisinin de birincil anahtarını
+        // TÜM ALANLAR olarak yazar, yani tam satır tekrarı ihlaldir. 2026-08-06 birincil
+        // anahtar taramasında bu iki dosyada (ve calendar_dates'te) hiçbir kural bulunamadı;
+        // `SAR_001..004` yalnız foreign key ve boşluk ölçüyor, tekrarı görmüyor.
+        for dup in composite_dups(records.stop_areas.iter()
+            .map(|s| vec![s.area_id.clone(), s.stop_id.clone()]))
+        {
+            notices.push(k6_notice(ctr, "DQ_021", EntityType::Row,
+                Some(format!("stop_areas.txt: {dup}")), None,
+                "stop_areas.txt", None, Some("area_id|stop_id"),
+                Some(dup.clone()), None,
+                format!("stop_areas.txt'de aynı satır yineleniyor: ({dup})."),
+                "stop_areas.txt'de her (area_id, stop_id) çifti yalnız bir kez bulunmalıdır."));
+        }
+
+        for dup in composite_dups(records.fare_rules.iter().map(|r| vec![
+            r.fare_id.clone(), opt(&r.route_id), opt(&r.origin_id),
+            opt(&r.destination_id), opt(&r.contains_id),
+        ])) {
+            notices.push(k6_notice(ctr, "DQ_021", EntityType::Row,
+                Some(format!("fare_rules.txt: {dup}")), None,
+                "fare_rules.txt", None, Some("fare_id|route_id|origin_id|destination_id|contains_id"),
+                Some(dup.clone()), None,
+                format!("fare_rules.txt'de birincil anahtar yineleniyor: ({dup})."),
+                "Aynı ücret kuralını iki kez yazmayın; tekrar eden satır ücret eşleşmesinde çift sayıma yol açar."));
+        }
+
+        // calendar_dates.txt (service_id, date) — ⚠️ BURADA KAYIT Vec'İ YOK. Dosya #38 ile
+        // STREAM edilir; elde yalnız K2 indeksi var. İndeks dedup UYGULAMAZ (`added`/`removed`
+        // ham satırları taşır ve parse sonunda SIRALANIR) → yinelenme hâlâ görünür.
+        //
+        // Üç biçim de aynı ihlaldir ama üçüncüsü ağır: aynı (service_id, date) için hem
+        // exception_type=1 hem =2 yazılmışsa o günün servisi AÇIK MI KAPALI MI tanımsızdır
+        // ve tüketiciler farklı karar verir. Diğer ikisi (aynı türden çift kayıt) zararsız
+        // görünür ama yine birincil anahtar ihlalidir.
+        //
+        // ⚠️ Notice SERVİS BAŞINA toplanır, tarih başına DEĞİL: calendar_dates feed'in en
+        // hacimli dosyası olabiliyor (Entur) ve tarih başına notice patlar. `DQ_016`/`ARC_032`
+        // deseninin aynısı.
+        {
+            let cd = &records.calendar_dates;
+            // FxHashMap gezilirken sıra nondeterministiktir → anahtarları sırala.
+            let mut services: Vec<&str> = cd.added.keys().map(|s| s.as_str())
+                .chain(cd.removed.keys().map(|s| s.as_str()))
+                .collect();
+            services.sort_unstable();
+            services.dedup();
+
+            // Sıralı Vec'te bitişik eşitler = yinelenme.
+            fn repeated(sorted: &[u32]) -> Vec<u32> {
+                let mut out = Vec::new();
+                for w in sorted.windows(2) {
+                    if w[0] == w[1] && out.last() != Some(&w[0]) { out.push(w[0]); }
+                }
+                out
+            }
+            // İki SIRALI liste arasındaki ortak günler (merge tarama).
+            fn shared(a: &[u32], b: &[u32]) -> Vec<u32> {
+                let (mut i, mut j) = (0usize, 0usize);
+                let mut out = Vec::new();
+                while i < a.len() && j < b.len() {
+                    match a[i].cmp(&b[j]) {
+                        std::cmp::Ordering::Less => i += 1,
+                        std::cmp::Ordering::Greater => j += 1,
+                        std::cmp::Ordering::Equal => {
+                            if out.last() != Some(&a[i]) { out.push(a[i]); }
+                            i += 1; j += 1;
+                        }
+                    }
+                }
+                out
+            }
+
+            for sid in services {
+                let added = cd.added.get(sid).map(Vec::as_slice).unwrap_or(&[]);
+                let removed = cd.removed.get(sid).map(Vec::as_slice).unwrap_or(&[]);
+                let conflicting = shared(added, removed);
+                let mut dates: Vec<u32> = repeated(added);
+                dates.extend(repeated(removed));
+                dates.extend(conflicting.iter().copied());
+                dates.sort_unstable();
+                dates.dedup();
+                if dates.is_empty() { continue; }
+
+                let sample: Vec<String> =
+                    dates.iter().take(5).map(|d| d.to_string()).collect();
+                let more = if dates.len() > 5 { format!(" (+{} tarih daha)", dates.len() - 5) } else { String::new() };
+                let conflict_note = if conflicting.is_empty() {
+                    String::new()
+                } else {
+                    format!(
+                        " Bunların {}'inde exception_type hem 1 hem 2 yazılmış — o günün servisi tanımsız.",
+                        conflicting.len()
+                    )
+                };
+                notices.push(k6_notice(ctr, "DQ_021", EntityType::Service,
+                    Some(sid.to_string()), Some(sid.to_string()),
+                    "calendar_dates.txt", None, Some("service_id|date"),
+                    Some(format!("{}{}", sample.join(", "), more)), None,
+                    format!(
+                        "service_id '{sid}' için {} tarih calendar_dates.txt'te birden fazla kez yazılmış.{conflict_note}",
+                        dates.len()
+                    ),
+                    "Her (service_id, date) çifti calendar_dates.txt'te yalnız bir kez bulunmalıdır."));
+            }
         }
     }
 
@@ -6702,6 +6824,150 @@ fn format_hms(total_secs: u32) -> String {
     let m = (total_secs % 3600) / 60;
     let s = total_secs % 60;
     format!("{h:02}:{m:02}:{s:02}")
+}
+
+// ── Bağlı sefer devamlılıkları (TRF_022 / TRF_023) ───────────────────────────
+//
+// GTFS Reference, `transfers.txt` → "Linked trips" bölümü (`transfer_type=4` ve `=5`):
+//   • "In a 1-to-n continuation, the trips.service_id for each to_trip_id MUST be identical."
+//   • "In an n-to-1 continuation, the trips.service_id for each from_trip_id MUST be identical."
+//   • "Trips may be linked together as part of multiple distinct continuations, provided that
+//      the trip.service_id MUST NOT overlap on any day of service."
+//
+// ⚠️ ÜÇÜNCÜ CÜMLE İLK İKİSİNİ SINIRLAR — harfiyen uygulamak YANLIŞ POZİTİF üretir.
+// "Hepsi özdeş olmalı" kuralını düz uygularsak, spec'in AÇIKÇA İZİN VERDİĞİ durumu
+// reddederiz: aynı sefer hafta içi A'ya, cumartesi B'ye devam edebilir (iki AYRI
+// devamlılık, farklı `service_id`, çakışan gün YOK). Bu tam olarak `PTH_017` hatasının
+// biçimi olurdu — spec'in iznini norm sanmak.
+//
+// Veride bir satırın hangi devamlılığa ait olduğunu söyleyen alan YOKTUR; gruplama
+// örtüktür. Bu yüzden uygulanabilir TEK okuma ikisinin BİLEŞİMİdir:
+//
+//     ihlal = iki ortak seferin `service_id`'si FARKLI **ve** en az bir hizmet gününde
+//             AYNI ANDA aktif
+//
+// Bu, gerçek 1-to-n ayrımını (özdeş `service_id` → sessiz) ve ayrı devamlılıkları
+// (çakışmayan günler → sessiz) doğru bırakır; yalnız belirsiz kalan hâli bildirir:
+// o gün sefer İKİ farklı devamlılığa birden girer ve tüketici hangisini seçeceğini bilemez.
+
+fn check_linked_trip_continuations(
+    records: &EntityRecords,
+    derived: &DerivedData,
+    notices: &mut Vec<Notice>,
+    ctr: &mut u32,
+) {
+    let ti = &records.trip_interns;
+    let mut service_of: HashMap<&str, &str> = HashMap::new();
+    for t in &records.trips {
+        let sid = ti.service_id(t);
+        if !sid.is_empty() {
+            service_of.insert(t.trip_id.as_str(), sid);
+        }
+    }
+    if service_of.is_empty() {
+        return;
+    }
+
+    // transfer_type 4/5 = bağlı sefer. Eksik trip_id → TRF_013'ün alanı; tanımsız trip_id →
+    // TRF_006/007'nin alanı; from==to → TRF_018'in alanı. Üçü de burada sessizce elenir,
+    // yoksa aynı bozukluk iki kez raporlanır.
+    let mut by_from: HashMap<&str, Vec<(&str, u64)>> = HashMap::new();
+    let mut by_to: HashMap<&str, Vec<(&str, u64)>> = HashMap::new();
+    for trf in &records.transfers {
+        if !matches!(trf.transfer_type, Some(4) | Some(5)) {
+            continue;
+        }
+        let (Some(f), Some(t)) = (trf.from_trip_id.as_deref(), trf.to_trip_id.as_deref()) else {
+            continue;
+        };
+        if f == t || !service_of.contains_key(f) || !service_of.contains_key(t) {
+            continue;
+        }
+        by_from.entry(f).or_default().push((t, trf.line));
+        by_to.entry(t).or_default().push((f, trf.line));
+    }
+
+    let active = &derived.calendar_bitmap.active_dates;
+    // Bir grubun içindeki İLK çelişkiyi döndürür: (seferA, servisA, seferB, servisB, ortak gün,
+    // satır). Grup başına tek notice yeter — aynı belirsizliğin her çiftini saymak gürültüdür.
+    let first_conflict = |partners: &[(&str, u64)]| -> Option<(String, String, String, String, u32, u64)> {
+        // Servis başına İLK sefer (trip_id'ye göre sıralı) → çıktı deterministik.
+        let mut sorted: Vec<(&str, u64)> = partners.to_vec();
+        sorted.sort_unstable();
+        sorted.dedup_by_key(|(t, _)| *t);
+        let mut per_service: Vec<(&str, &str, u64)> = Vec::new(); // (service_id, trip_id, line)
+        for (trip, line) in sorted {
+            let svc = service_of[trip];
+            if !per_service.iter().any(|(s, _, _)| *s == svc) {
+                per_service.push((svc, trip, line));
+            }
+        }
+        if per_service.len() < 2 {
+            return None;
+        }
+        for i in 0..per_service.len() {
+            for j in (i + 1)..per_service.len() {
+                let (svc_a, trip_a, _) = per_service[i];
+                let (svc_b, trip_b, line_b) = per_service[j];
+                // Takvim çözülemiyorsa (calendar/calendar_dates eksik ya da hatalı) çakışma
+                // KANITLANAMAZ → sessiz kal. Boş küme "çakışma yok" demektir, "bilmiyorum" değil,
+                // ama ikisinde de bildirecek bir şey yok.
+                let (Some(days_a), Some(days_b)) = (active.get(svc_a), active.get(svc_b)) else {
+                    continue;
+                };
+                let (small, large) = if days_a.len() <= days_b.len() {
+                    (days_a, days_b)
+                } else {
+                    (days_b, days_a)
+                };
+                if let Some(day) = small.iter().filter(|d| large.contains(*d)).min() {
+                    return Some((
+                        trip_a.to_string(), svc_a.to_string(),
+                        trip_b.to_string(), svc_b.to_string(),
+                        *day, line_b,
+                    ));
+                }
+            }
+        }
+        None
+    };
+
+    // HashMap gezilirken sıra nondeterministiktir → anahtarları sırala.
+    let mut from_keys: Vec<&str> = by_from.keys().copied().collect();
+    from_keys.sort_unstable();
+    for trip in from_keys {
+        let Some((ta, sa, tb, sb, day, line)) = first_conflict(&by_from[trip]) else {
+            continue;
+        };
+        notices.push(k6_notice(ctr, "TRF_022", EntityType::Trip,
+            Some(trip.to_string()), Some(trip.to_string()),
+            "transfers.txt", Some(line), Some("to_trip_id"),
+            Some(format!("{ta} ({sa}) / {tb} ({sb})")), None,
+            format!(
+                "'{trip}' seferi birden çok sefere bağlanıyor ama devam seferlerinin takvimleri \
+                 çelişiyor: '{ta}' → {sa}, '{tb}' → {sb}; ikisi de {day} günü aktif."
+            ),
+            "1-to-n devamlılıkta tüm to_trip_id seferleri aynı service_id'yi kullanmalıdır. \
+             Bunlar ayrı devamlılıklarsa takvimleri hiçbir günde çakışmamalıdır."));
+    }
+
+    let mut to_keys: Vec<&str> = by_to.keys().copied().collect();
+    to_keys.sort_unstable();
+    for trip in to_keys {
+        let Some((ta, sa, tb, sb, day, line)) = first_conflict(&by_to[trip]) else {
+            continue;
+        };
+        notices.push(k6_notice(ctr, "TRF_023", EntityType::Trip,
+            Some(trip.to_string()), Some(trip.to_string()),
+            "transfers.txt", Some(line), Some("from_trip_id"),
+            Some(format!("{ta} ({sa}) / {tb} ({sb})")), None,
+            format!(
+                "'{trip}' seferine birden çok sefer bağlanıyor ama gelen seferlerin takvimleri \
+                 çelişiyor: '{ta}' → {sa}, '{tb}' → {sb}; ikisi de {day} günü aktif."
+            ),
+            "n-to-1 devamlılıkta tüm from_trip_id seferleri aynı service_id'yi kullanmalıdır. \
+             Bunlar ayrı devamlılıklarsa takvimleri hiçbir günde çakışmamalıdır."));
+    }
 }
 
 // ── Takvim override analitik (OPR_019–023) ───────────────────────────────────

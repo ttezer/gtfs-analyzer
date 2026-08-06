@@ -703,6 +703,8 @@ hesaplanır. Bir boşluk kurala dönüştüğünde satır BURAYA eklenir.
 
 | `Pd84a0bcb` | `LOC_011` | `#67` |
 | `P38cd4e78` | `FPD_007` + `FAR_013` | `9beb1282` sonrası |
+| `P612a9dbf` · `P0bb79a62` | `TRF_022` | 764 triyajı |
+| `P9db18901` | `TRF_023` | 764 triyajı |
 
 **KISMİ adjudikasyonu (5 sert):** `Pd84a0bcb`→BOŞLUK · `P2c840d38`→BOŞLUK (kapandı) ·
 `P257db6b1`→BOŞLUK (kapandı) · `P8681b6f4`→KAPSAM DIŞI · `P44a6984b`→KAPSAM DIŞI
@@ -968,14 +970,35 @@ Katalog **273 → 279**, kimlik kayması **0**.
 |---|---|---|---|
 | `P6766c477` | RFC 2119 anahtar kelimeleri bu belgede RFC 2119'daki gibi yorumlanır | **META** | Spec'in kendi okuma talimatı; feed'de karşılığı yok. |
 | `P430e47ab` | Birbirine bağlanan seferler AYNI ARAÇLA işletilmelidir | **KAPSAM DIŞI** | Gerçek dünya operasyonu; GTFS'te araç kimliği yok, feed'den doğrulanamaz. |
-| `P612a9dbf` | 1-to-n devamlılıkta her `to_trip_id`'nin `service_id`'si ÖZDEŞ olmalı | 🔴 **BOŞLUK** | Hiçbir kural ölçmüyor (`TRF_*`/`XFL_*` taraması yapıldı). |
-| `P9db18901` | n-to-1 devamlılıkta her `from_trip_id`'nin `service_id`'si ÖZDEŞ olmalı | 🔴 **BOŞLUK** | Aynı. |
-| `P0bb79a62` | Bir sefer birden çok devamlılığa girebilir, ama `service_id`'ler hiçbir hizmet gününde ÖRTÜŞMEMELİ | 🔴 **BOŞLUK** | Aynı. En ağırı: örtüşme, aracın aynı anda iki devamlılıkta olması demek. |
+| `P612a9dbf` | 1-to-n devamlılıkta her `to_trip_id`'nin `service_id`'si ÖZDEŞ olmalı | ✅ **KANITLI** → `TRF_022` | Boşluktu; aynı turda kapatıldı. |
+| `P9db18901` | n-to-1 devamlılıkta her `from_trip_id`'nin `service_id`'si ÖZDEŞ olmalı | ✅ **KANITLI** → `TRF_023` | Aynı. |
+| `P0bb79a62` | Bir sefer birden çok devamlılığa girebilir, ama `service_id`'ler hiçbir hizmet gününde ÖRTÜŞMEMELİ | ✅ **KANITLI** → `TRF_022`+`TRF_023` | ⚠️ Bu hüküm diğer ikisini SINIRLAR; üçü tek predikatta birleşir (aşağı bak). |
 | `Pb18edda4` | `from_trip_id`'nin son durağı `to_trip_id`'nin ilk durağına coğrafi olarak YAKIN OLMALI *(soft)* | BOŞLUK *(yumuşak eksen)* | Quality kuyruğuna. Eşik seçimi gerektirir; sert eksende değil. |
 
-⚠️ Üç boşluk da `transfer_type=4/5` (koltuk-içi devamlılık) semantiğidir ve **tek bir kural
-ailesiyle** karşılanabilir. `TRF_013` zaten 4/5 için `from_trip_id`/`to_trip_id` zorunluluğunu
-ölçüyor; devamlılık grubu orada kurulabilir.
+### ✅ KAPATILDI — `TRF_022` + `TRF_023` (aynı tur)
+
+🔴 **ÜÇÜNCÜ HÜKÜM İLK İKİSİNİ SINIRLAR — harfiyen uygulamak YANLIŞ POZİTİF üretirdi.**
+*"Hepsi özdeş olmalı"* kuralını düz yazsaydık, spec'in **açıkça izin verdiği** durumu
+reddederdik: aynı sefer hafta içi A'ya, hafta sonu B'ye devam edebilir (iki ayrı devamlılık,
+farklı `service_id`, çakışan gün yok). Bu tam olarak `PTH_017` hatasının biçimidir.
+
+Veride bir satırın hangi devamlılığa ait olduğunu söyleyen alan **yoktur**; gruplama
+örtüktür. Uygulanabilir tek okuma üç cümlenin BİLEŞİMİdir:
+
+> ihlal = iki ortak seferin `service_id`'si **farklı** ∧ en az bir hizmet gününde **ikisi de aktif**
+
+Bu predikat gerçek 1-to-n ayrımını (özdeş takvim) ve ayrı devamlılıkları (çakışmayan takvim)
+sessiz bırakır, yalnız belirsiz kalanı bildirir. Üç negatif test `integration.rs`'te sabitlendi
+— ikisi SUSMAYI kanıtlıyor, ki asıl risk oradaydı.
+
+Sınıf **Spec**, severity **Yüksek** (`Kritik` DEĞİL): R1 yayın kapısı saf `Spec ∧ Kritik`'tir
+ve belirsiz bir devamlılık feed'in geri kalanını kullanılamaz yapmaz.
+
+🔎 **Yan bulgu — ESKİ bir hata çıktı:** `stop_areas.txt` eklenirken test düştü ve sebebi yeni
+kod değildi. `DQ_021`'in bileşik anahtar emisyonlarının HEPSİ `entity_id=None` ile
+yazılmıştı; dedup düzeyi `Entity` olduğu için anahtarları özdeşti ve keep-first hepsini teke
+indiriyordu. Yani Fares v2 feed'inde hem `fare_leg_rules` hem `fare_transfer_rules`
+yinelenmişse yalnız biri raporlanıyordu. `entity_id` artık dosya adıyla nitelenir.
 
 ## 🔴 Kategori 2: `Primary key ( … )` bildirimleri
 
@@ -992,13 +1015,17 @@ Kapsama denetimi (30 dosya, kural kural tarandı) — **27'si kapsanıyor**:
 attributions, fare_leg_rules, fare_leg_join_rules, fare_transfer_rules, location_groups,
 location_group_stops) · `FRQ_011` · `TFR_005`. `feed_info.txt` = *Primary key (none)*, N/A.
 
-**3 dosyada karşılık YOK:**
+**3 dosyada karşılık YOKTU → ✅ ÜÇÜ DE `DQ_021`'e EKLENDİ (aynı tur):**
 
 | dosya | anahtar | neden önemli |
 |---|---|---|
-| `calendar_dates.txt` | (`service_id`, `date`) | Aynı gün için iki kayıt → biri `exception_type=1`, diğeri `2` olabilir; hangisinin kazandığı tanımsız. Bu, servis gününü sessizce değiştirir. |
+| `calendar_dates.txt` | (`service_id`, `date`) | Aynı gün için iki kayıt → biri `exception_type=1`, diğeri `2` olabilir; hangisinin kazandığı tanımsız. Bu, servis gününü sessizce değiştirir. ⚠️ Dosya STREAM edilir, kayıt Vec'i yoktur; K2 indeksinin `added`/`removed` listeleri sıralıdır ve dedup uygulanmaz → yinelenme orada hâlâ görünür. Notice **servis başına** toplanır (Entur'da tarih başına notice patlardı). |
 | `stop_areas.txt` | (`*`) | Tam satır tekrarı. `SAR_001..004` yalnız FK ve boşluk ölçüyor. |
 | `fare_rules.txt` | (`*`) | Tam satır tekrarı; ücret eşleşmesinde çift sayım. |
+
+⚠️ Bunlar **benzersizlik ekseni**dir, düzyazı rozetinin paydasında değildirler — `Primary key`
+satırları modal taşımadığı için katalogda hüküm olarak durmuyorlar. Rozet yüzdesi bu üç
+kuraldan etkilenmez; eksikliği görünür kılan şey triyajın kendisiydi.
 
 ⚠️ `FRQ_011`/`TFR_005` anahtarı DOĞRUDAN ölçmez, **çakışma** ölçer — özdeş satırlar zaten
 çakışır, o yüzden kapsanmış sayılır. Ama geçersiz `start_time`/`end_time` taşıyan yinelenmiş
@@ -1025,9 +1052,12 @@ taşımıyor) ama `prose_of()`'un `<script>` etiketlerini ayıklamadığını g�
 
 ## Rozet üzerindeki etki
 
-Sert eksende payda **+3** (5 yeni sert hükmün 1'i META, 1'i KAPSAM DIŞI), pay **+0**.
-Düzyazı ekseni **%100 → %97,8 (131/134)**. Bu bir gerileme değil, **paydanın
-düzeltilmesidir**: üç hüküm zaten ölçülmüyordu, artık görünüyorlar.
+Sert eksende payda **+3** (5 yeni sert hükmün 1'i META, 1'i KAPSAM DIŞI), pay ilk anda **+0**
+→ düzyazı ekseni **%100 → %97,8 (131/134)**. Bu bir gerileme değildi, **paydanın
+düzeltilmesiydi**: üç hüküm zaten ölçülmüyordu, yalnız görünür oldular.
+
+Aynı turda üçü de kurala dönüştü (`TRF_022`/`TRF_023`) → **134/134 = %100**, bu kez payda
+doğru. ⚠️ Sayı yine `badge_status.py`'den okunur; buradaki rakam kayıt amaçlıdır.
 
 ## ⚠️ Bu sayı ne demek DEĞİL
 
@@ -1047,15 +1077,19 @@ düzeltilmesidir**: üç hüküm zaten ölçülmüyordu, artık görünüyorlar.
    Bir doğrulayıcının bunları ölçmemesi eksiklik değil, tanım gereğidir.
 
 Dürüst cümle şudur: **spec'in alan tablosundan çıkan 302 hüküm atomunun 300'ü çapalı;
-düzyazı ekseninde 279 adaydan feed'den doğrulanabilir olanların 131'i ölçülüyor, 3'ü
-ölçülmüyor (hepsi `transfers.txt` sefer devamlılığı).**
+düzyazı ekseninde 279 adaydan feed'den doğrulanabilir olan 134 sert hükmün TAMAMI
+ölçülüyor.** Payda 2026-08-06'da bir kez düzeltildi (büyük harf RFC 2119) — sayının
+kendisi değil, **paydanın nasıl kurulduğu** iddianın zayıf noktasıdır.
 
 ~~Açık kalemler~~ → **9 BOŞLUĞUN HEPSİ KAPANDI.** URL şeması (`cfd8f7d4`) · HTML etiketi
 (`ARC_032`) · OpenGIS poligon (`LOC_011`) · `pickup_type=2` (`STM_059`) · `platform_code`
 (`STP_044`) · `traversal_time` (`PTH_029`) · boarding area/platform pathway (`PTH_030`).
 
-🔴 **AMA DEFTER ARTIK KAPALI DEĞİL.** 764 triyajı (2026-08-06) **üç yeni sert boşluk**
-açtı — `P612a9dbf` · `P9db18901` · `P0bb79a62`, üçü de `transfers.txt` sefer devamlılığı
-`service_id` semantiği — ve bir yumuşak boşluk (`Pb18edda4`). Ayrıca düzyazı ekseninin
-DIŞINDA, benzersizlik ekseninde üç dosyanın birincil anahtarı ölçülmüyor:
-`calendar_dates.txt` · `stop_areas.txt` · `fare_rules.txt`.
+**764 triyajı (2026-08-06) üç yeni sert boşluk açtı ve ÜÇÜ DE AYNI TURDA KAPANDI:**
+`P612a9dbf` · `P0bb79a62` → **`TRF_022`** · `P9db18901` → **`TRF_023`**.
+Düzyazı ekseninin DIŞINDA, benzersizlik ekseninde üç dosyanın birincil anahtarı
+ölçülmüyordu → **`DQ_021`** genişletildi (`calendar_dates.txt` · `stop_areas.txt` ·
+`fare_rules.txt`).
+
+⏳ **Açık kalan tek kalem yumuşak:** `Pb18edda4` — *"son durak ilk durağa coğrafi olarak
+YAKIN olmalı"* (soft). Eşik seçimi gerektirir, Quality kuyruğunda.
