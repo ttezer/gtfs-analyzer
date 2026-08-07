@@ -144,6 +144,15 @@ doğrulanabilir bir çapa değil.
 | `sha256` + `bytes` | **AYRIŞTIRDIĞIMIZ baytlar** (render edilmiş HTML) | site iskeleti değişince de değişir; normatif metin aynı kalabilir |
 | `upstream_commit` | o metnin **KAYNAK sürümü** (markdown) | katalog markdown'dan DEĞİL HTML'den üretilir → commit "hangi spec sürümü"nü söyler, "hangi baytlar"ı değil |
 
+🔴 **KİMLİK ÇAKIŞMASI FAIL-OPEN İDİ** (issue #83, 2026-08-07'de kapandı). Kimlik
+kısaltılmış SHA-1'dir (32 bit) ve eski kod `if pid in seen: continue` diyordu: iki FARKLI
+cümle aynı kimliğe düşseydi ikincisi katalogdan **sessizce** düşerdi — üstelik paydayı
+üreten mekanizma budur ve "adjudike edilmemiş hüküm" kapısı bunu göremez (katalogda hiç
+görünmeyen bir hüküm öksüz de sayılmaz). Yüzde eksik payda üzerinden "%100" demeye devam
+ederdi. Artık farklı anahtarlar aynı kimliğe düşerse üretim **durur**; kimlik 8 hex olarak
+KALDI çünkü genişletmek defterdeki 299 kararı geçersiz kılar — o bir MİGRASYON kararıdır.
+Çakışma yolu `--selftest` ile zorlanır ve CI'da koşar.
+
 ⚠️ Commit çözülemezse `extract_provisions.py` **exit 1** verir; sessizce boş alan yazmaz.
 Ağsız üretim için `--no-upstream` vardır ve kayıt bunu AÇIKÇA yazar ("çözülemedi" ile
 "hiç denenmedi" ayrımı — `AGN_001` dersi).

@@ -41,6 +41,12 @@ jobs:
       # `badge_status.py` CI'da HİÇ koşmuyordu ve bu risk teorik değildi — betik bir kez
       # syntax hatasıyla ana dala gitti, bir sonraki commit'te düzeltildi (`4ff03419`).
       # Betik adjudike edilmemiş hüküm bulursa exit 1 döner; artık CI'ı da kırar.
+      # issue #83: katalog kimliği çakışırsa üretim DURMALI. Ağ istemez; çakışma yolunu
+      # zorlayıp fail-closed olduğunu kanıtlar. Kapıyı yazmak kurmak değildir.
+      - name: Hüküm kimliği çakışması fail-closed mı (extract_provisions --selftest)
+        run: |
+          python3 spec-audit/extract_provisions.py --selftest
+
       - name: Spec rozeti kapısı (badge_status)
         run: |
           python3 spec-audit/badge_status.py

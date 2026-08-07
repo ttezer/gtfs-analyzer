@@ -326,12 +326,69 @@ def classify(sentence: str) -> str:
     return ""
 
 
+class ProvisionCollision(Exception):
+    """İki FARKLI kanonik anahtar aynı kimliğe düştü — katalog üretimi DURUR."""
+
+
+def canonical_key(section: str, sentence: str) -> str:
+    """Kimliğin türetildiği kanonik anahtar. Kimlik bunun hash'idir; karşılaştırma
+    HER ZAMAN bu anahtar üzerinden yapılır, kısaltılmış hash üzerinden değil."""
+    return f"{section}|{re.sub(r'[^a-z0-9]+', '', sentence.lower())}"
+
+
 def ident(section: str, sentence: str) -> str:
-    key = f"{section}|{re.sub(r'[^a-z0-9]+', '', sentence.lower())}"
-    return "P" + hashlib.sha1(key.encode("utf-8")).hexdigest()[:8]
+    return "P" + hashlib.sha1(canonical_key(section, sentence).encode("utf-8")).hexdigest()[:8]
+
+
+def claim_id(seen: dict[str, str], pid: str, key: str) -> bool:
+    """Kimliği kaydet. `True` → yeni hüküm, `False` → AYNI hükmün tekrarı (atlanır).
+
+    🔴 ÇAKIŞMA FAIL-OPEN İDİ (issue #83). Eski kod `if pid in seen: continue` diyordu:
+    kimlik 32 bitlik kısaltılmış SHA-1 olduğu için iki FARKLI cümle aynı kimliğe düşerse
+    ikincisi katalogdan SESSİZCE düşerdi — ve paydayı üreten mekanizma budur. Adjudike
+    edilmemiş hüküm kapısı bunu göremez: katalogda hiç görünmeyen bir hükmün öksüz
+    olduğu da anlaşılamaz. Yüzde eksik payda üzerinden "%100" demeye devam ederdi.
+
+    ⚠️ Kimlik 8 hex olarak KALIYOR (genişletmek defterdeki 299 kararın hepsini
+    geçersiz kılardı — o bir MİGRASYON kararıdır, bir hata düzeltmesi değil). Bunun
+    yerine çakışma AÇIKÇA denetlenir ve üretim fail-CLOSED durur.
+    """
+    prev = seen.get(pid)
+    if prev is None:
+        seen[pid] = key
+        return True
+    if prev == key:
+        return False  # aynı cümle iki kez tarandı — normal
+    raise ProvisionCollision(
+        f"kimlik çakışması {pid}: iki FARKLI kanonik anahtar aynı kimliğe düştü.\n"
+        f"  1) {prev[:120]}\n  2) {key[:120]}\n"
+        f"  → Kimlik şeması bir SÖZLEŞMEDİR (triyaj defteri bu kimliklere işaret eder). "
+        f"Çözüm bir MİGRASYONDUR: hash genişletilir ve PROVISION_TRIAGE.md aynı commit'te "
+        f"güncellenir. Sessizce düşürmek paydayı bozar."
+    )
+
+
+def _selftest() -> int:
+    """Çakışma yolunu ZORLAR ve fail-closed olduğunu kanıtlar (issue #83).
+
+    Ağ istemez, CI'da koşar. `claim_id`'i doğrudan çağırır: iki farklı anahtar aynı
+    kimliğe elle verilir. Kapıyı yazmak kurmak değildir — bozup görmek gerekir.
+    """
+    seen: dict[str, str] = {}
+    assert claim_id(seen, "Pdeadbeef", "a|birinci cumle"), "ilk kayıt yeni olmalı"
+    assert not claim_id(seen, "Pdeadbeef", "a|birinci cumle"), "aynı anahtar tekrarı atlanmalı"
+    try:
+        claim_id(seen, "Pdeadbeef", "a|ikinci FARKLI cumle")
+    except ProvisionCollision as e:
+        print(f"selftest OK — çakışma yakalandı:\n  {str(e).splitlines()[0]}")
+        return 0
+    print("selftest BAŞARISIZ: çakışma sessizce geçti — katalog fail-open.", file=sys.stderr)
+    return 1
 
 
 def main() -> int:
+    if "--selftest" in sys.argv:
+        return _selftest()
     doc = fetch(sys.argv)
     # issue #72: kaynak sürüm pini. Çözülemezse SESSİZ GEÇMEZ.
     if "--no-upstream" in sys.argv:
@@ -353,7 +410,7 @@ def main() -> int:
                   f"Ağsız üretmek için: --no-upstream", file=sys.stderr)
             return 1
     rows: list[dict] = []
-    seen: set[str] = set()
+    seen: dict[str, str] = {}  # pid → kanonik anahtar (çakışma denetimi için)
     for anchor, level, start, stop in section_bounds(doc):
         section = doc[start:stop]
         items: list[tuple[str, str, str]] = [
@@ -377,10 +434,10 @@ def main() -> int:
             # triyaj defteri bu kimliklere işaret eder. Alan adı eklendiğinde ayracı
             # koşulsuz koymak düzyazı satırlarının kimliğini de kaydırdı ve ilk turun
             # 27 kaydının HEPSİ çözümlenemez oldu. Boş alan = eski anahtar.
-            pid = ident(f"{anchor}|{field}" if field else anchor, sentence)
-            if pid in seen:
+            section_key = f"{anchor}|{field}" if field else anchor
+            pid = ident(section_key, sentence)
+            if not claim_id(seen, pid, canonical_key(section_key, sentence)):
                 continue
-            seen.add(pid)
             rows.append({
                 "id": pid,
                 "section": anchor,
@@ -423,4 +480,9 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    try:
+        raise SystemExit(main())
+    except ProvisionCollision as exc:
+        # Traceback yerine TEŞHİS bas: okuyanın ne yapacağı mesajın içinde yazıyor.
+        print(f"HATA: {exc}", file=sys.stderr)
+        raise SystemExit(1) from None
