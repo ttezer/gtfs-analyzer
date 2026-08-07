@@ -2,6 +2,7 @@ use std::collections::{HashMap, HashSet};
 use std::io::Read;
 
 use crate::decompress_guard::{GuardedReader, DEFAULT_DECOMPRESSION_LIMITS};
+use gtfs_config::ValidatorConfig;
 use gtfs_core::{EntityType, FatalCode, FatalError, Notice, Severity};
 use smol_str::SmolStr;
 
@@ -927,7 +928,13 @@ fn detect_wrapped_root(entry_names: &[String]) -> Option<String> {
 /// - ARC_013: Zorunlu dosya CSV tokenization'ı başarısızsa
 ///
 /// ARC_008: Kritik notice üretir, pipeline devam eder (non-Fatal).
-pub fn parse(zip_bytes: &[u8]) -> Result<K1Result, FatalError> {
+///
+/// `cfg` yalnız ARC_022 eşiği (`max_file_rows`) için okunur. K1 tarihsel olarak
+/// yapılandırmasızdı; 2026-08-07'de (issue #71) imza değişti çünkü eşik sabit koddayken
+/// kurala fixture yazılamıyordu (1M satırlık zip). Aynı alan K2'nin akış yollarına da
+/// verilir — knob'ın YALNIZ K1'de çalışması, 1M satırı gerçekte aşan iki dosyada
+/// (stop_times/shapes) sessizce etkisiz kalması demek olurdu.
+pub fn parse(zip_bytes: &[u8], cfg: &ValidatorConfig) -> Result<K1Result, FatalError> {
     k1dbg!("[K1] parse başladı, {} bayt", zip_bytes.len());
     let cursor = std::io::Cursor::new(zip_bytes);
     k1dbg!("[K1] ZipArchive::new çağrılıyor...");
@@ -1481,14 +1488,14 @@ pub fn parse(zip_bytes: &[u8]) -> Result<K1Result, FatalError> {
         }
 
         // ARC_022: Dosya satır sayısı limiti (stream_mode'da K2 üretir — rows burada boş)
-        const MAX_ROWS: usize = 1_000_000;
-        if !stream_mode && rows.len() > MAX_ROWS {
+        let max_rows = cfg.max_file_rows as usize;
+        if !stream_mode && rows.len() > max_rows {
             notices.push(make_notice(
                 &mut counter, "ARC_022",
                 EntityType::File, Some(raw_name.clone()),
                 Some(&raw_name), None, None,
                 Some(format!("{}", rows.len())),
-                format!("'{raw_name}' dosyasında {} satır var; {} satır sınırını aşıyor.", rows.len(), MAX_ROWS),
+                format!("'{raw_name}' dosyasında {} satır var; {} satır sınırını aşıyor.", rows.len(), max_rows),
                 "Dosyayı küçük parçalara bölün veya gereksiz satırları kaldırın.",
             ));
         }
@@ -1878,6 +1885,8 @@ fn check_polygon_rings(
             bad = Some("dış ring kendini kesiyor".to_string());
         } else if has_spike(outer) {
             bad = Some("dış ring'de sıfır alanlı çıkıntı (spike/cut line) var".to_string());
+        } else if ring_touches_itself(outer) {
+            bad = Some("dış ring kendine dokunuyor — iç kısım bölünüyor".to_string());
         }
         for (i, hole) in all_rings.iter().enumerate().skip(1) {
             if bad.is_some() { break; }
@@ -1885,13 +1894,11 @@ fn check_polygon_rings(
                 bad = Some(format!("{i}. delik kendini kesiyor"));
             } else if has_spike(hole) {
                 bad = Some(format!("{i}. delikte sıfır alanlı çıkıntı (spike/cut line) var"));
+            } else if ring_touches_itself(hole) {
+                bad = Some(format!("{i}. delik kendine dokunuyor — iç kısım bölünüyor"));
             } else if rings_cross(outer, hole) {
                 // 6.1.11 (3): ring'ler kesişemez. Eskiden hiç ölçülmüyordu.
                 bad = Some(format!("{i}. delik dış ring'i kesiyor"));
-            } else if ring_contact_points(outer, hole) > 1 {
-                // Delik dış ring'e birden fazla noktada dokunuyor → iç kısım bölünüyor.
-                bad = Some(format!(
-                    "{i}. delik dış ring'e birden fazla noktada dokunuyor — iç kısım bölünüyor"));
             } else if hole.iter().any(|&p| !point_in_ring(p, outer)) {
                 // Eskiden yalnız İLK NOKTA örnekleniyordu → kısmen dışarı taşan delik
                 // görünmüyordu. Artık TÜM köşeler denetlenir.
@@ -1913,14 +1920,13 @@ fn check_polygon_rings(
                     bad = Some(format!("{i}. ve {j}. delikler iç içe"));
                     break 'outer;
                 }
-                // 6.1.11 madde 5: iki delik BİRDEN FAZLA noktada dokunuyorsa iç kısım
-                // o temaslar arasında bölünür. Tek noktada teğetlik madde 3 gereği serbest.
-                if ring_contact_points(&all_rings[i], &all_rings[j]) > 1 {
-                    bad = Some(format!(
-                        "{i}. ve {j}. delikler birden fazla noktada dokunuyor — iç kısım bölünüyor"));
-                    break 'outer;
-                }
             }
+        }
+        // 6.1.11 madde 5 — iç kısmın BAĞLANTILI olması. Ring'ler arası temasların TAMAMI
+        // tek bir çevrim ölçütüyle değerlendirilir; "iki ring iki noktada dokunuyor" bu
+        // ölçütün yalnızca bir özel hâliydi (bkz. `interior_disconnection`).
+        if bad.is_none() {
+            bad = interior_disconnection(&all_rings);
         }
         if let Some(why) = bad {
             notices.push(make_notice(
@@ -2022,15 +2028,11 @@ fn rings_cross(r1: &[(f64, f64)], r2: &[(f64, f64)]) -> bool {
     false
 }
 
-/// İki ring KAÇ NOKTADA dokunuyor (paylaşılan köşe sayısı).
+/// İki ring KAÇ NOKTADA dokunuyor (temas noktası sayısı).
 ///
 /// OpenGIS SFS 6.1.11 madde 3 ring'lerin **bir noktada** teğet olmasına izin verir; madde 5
-/// ise iç kısmın BAĞLANTILI olmasını ister. İki ring İKİDEN FAZLA noktada dokunuyorsa iç
-/// kısım o temas noktaları arasında bölünür — teğetlik artık "bir nokta" değildir.
-///
-/// ⚠️ Bu madde 5'in TAMAMI DEĞİLDİR. Yakalamadığı hâl: iki ring iki noktada dokunmadan,
-/// ÜÇÜNCÜ bir ring üzerinden zincirleme temasla iç kısmı bölerse. Tam çözüm ring temas
-/// grafiği + bağlantılı bileşen analizi ister. Kart ve defter bu kalıntıyı yazar.
+/// ise iç kısmın BAĞLANTILI olmasını ister. Sayı tek başına karar vermez — kararı
+/// [`interior_disconnection`] çevrim ölçütüyle verir.
 fn ring_contact_points(a: &[(f64, f64)], b: &[(f64, f64)]) -> usize {
     if bboxes_disjoint(ring_bbox(a), ring_bbox(b)) {
         return 0;
@@ -2045,22 +2047,11 @@ fn ring_contact_points(a: &[(f64, f64)], b: &[(f64, f64)]) -> usize {
     // ⚠️ Koordinatlar TAM eşitlikle karşılaştırılır; kenar üzerindelik `robust::orient2d`
     // ile SIFIR yönelim + aralık kontrolüdür. Epsilon toleransı yakın ama ayrı köşeleri
     // temas sayar ve yanlış pozitif üretirdi.
-    fn on_segment(p: (f64, f64), s: (f64, f64), e: (f64, f64)) -> bool {
-        if robust::orient2d(
-            robust::Coord { x: s.0, y: s.1 },
-            robust::Coord { x: e.0, y: e.1 },
-            robust::Coord { x: p.0, y: p.1 },
-        ) != 0.0
-        {
-            return false;
-        }
-        p.0 >= s.0.min(e.0) && p.0 <= s.0.max(e.0) && p.1 >= s.1.min(e.1) && p.1 <= s.1.max(e.1)
-    }
     let touches = |p: (f64, f64), ring: &[(f64, f64)]| -> bool {
         if ring.contains(&p) {
             return true;
         }
-        ring.windows(2).any(|w| on_segment(p, w[0], w[1]))
+        ring.windows(2).any(|w| point_on_segment(p, w[0], w[1]))
     };
     let mut seen: Vec<(f64, f64)> = Vec::new();
     for &p in a {
@@ -2074,6 +2065,139 @@ fn ring_contact_points(a: &[(f64, f64)], b: &[(f64, f64)]) -> usize {
         }
     }
     seen.len()
+}
+
+/// `p` noktası `s`–`e` doğru parçası ÜZERİNDE mi.
+///
+/// ⚠️ Yönelim `robust::orient2d` ile SIFIR aranarak karara bağlanır, epsilon toleransıyla
+/// DEĞİL: tolerans yakın ama AYRI köşeleri temas sayar ve yanlış pozitif üretir.
+fn point_on_segment(p: (f64, f64), s: (f64, f64), e: (f64, f64)) -> bool {
+    if robust::orient2d(
+        robust::Coord { x: s.0, y: s.1 },
+        robust::Coord { x: e.0, y: e.1 },
+        robust::Coord { x: p.0, y: p.1 },
+    ) != 0.0
+    {
+        return false;
+    }
+    p.0 >= s.0.min(e.0) && p.0 <= s.0.max(e.0) && p.1 >= s.1.min(e.1) && p.1 <= s.1.max(e.1)
+}
+
+/// Ring KENDİNE dokunuyor mu — temas grafiğinde ÖZ-DÖNGÜ.
+///
+/// `ring_is_simple` yalnız KESİŞMEYE bakar ve teğetliği bilinçli olarak dışarıda bırakır
+/// (`segments_cross` dört yönelimin de sıfır olmamasını şart koşar). Bu yüzden sekiz
+/// şeklinde bir ring — aynı köşeye iki kez uğrayan ya da bir köşesi kendi uzak kenarının
+/// üstüne düşen ring — oradan geçiyordu. Böyle bir ring'in İÇİ iki loba ayrılır, yani
+/// 6.1.11 madde 5 ihlalidir.
+///
+/// ⚠️ KOMŞU indeksler bilinçle atlanır: ardışık yinelenen koordinat (sıfır uzunluklu
+/// kenar) ve düz kenar üzerindeki ara köşeler gerçek veride yaygındır ve öz-temas
+/// DEĞİLDİR; onları saymak yanlış pozitif üretirdi. Sıfır alanlı geri dönüş `has_spike`in
+/// işidir.
+///
+/// 🔴 ÖLÇÜM DERSİ (2026-08-07): ilk sürüm yalnız |i−j| ≤ 1 atlıyordu ve korpustaki
+/// `locations.geojson` taşıyan 6 feed'in ÜÇÜNDE yanlış pozitif verdi — aynı koordinat
+/// ARDIŞIK ÜÇ kez yazılmıştı (mdb-2045'te 84 köşe böyle), 189 ile 191 "komşu değil"
+/// sayılıyordu. Ring artık önce ardışık yinelemelerden ARINDIRILIR; komşuluk kararı
+/// arındırılmış diziye göre verilir. Tahminle yazılan koruyucu gerçek veride düştü.
+fn ring_touches_itself(pts: &[(f64, f64)]) -> bool {
+    // Ardışık yinelenen köşeleri (çevrimsel olarak, kapanış noktası dahil) at.
+    let mut pts: Vec<(f64, f64)> = {
+        let body = &pts[..pts.len().saturating_sub(1)]; // kapanış kopyası
+        let mut out: Vec<(f64, f64)> = Vec::with_capacity(body.len());
+        for &p in body {
+            if out.last() != Some(&p) {
+                out.push(p);
+            }
+        }
+        while out.len() > 1 && out.first() == out.last() {
+            out.pop();
+        }
+        out
+    };
+    pts.push(*pts.first().unwrap_or(&(0.0, 0.0))); // ring'i yeniden kapat
+    let pts = &pts[..];
+    let n = pts.len().saturating_sub(1);
+    if n < 4 {
+        return false;
+    }
+    let adjacent = |a: usize, b: usize| {
+        let d = (a + n - b) % n;
+        d <= 1 || d >= n - 1
+    };
+    // (1) aynı koordinat, komşu OLMAYAN iki köşede
+    for i in 0..n {
+        for j in (i + 1)..n {
+            if !adjacent(i, j) && pts[i] == pts[j] {
+                return true;
+            }
+        }
+    }
+    // (2) köşe, komşu OLMAYAN bir kenarın üzerinde (T-temas; köşe paylaşımı yok)
+    for i in 0..n {
+        for j in 0..n {
+            if adjacent(i, j) || adjacent(i, (j + 1) % n) {
+                continue;
+            }
+            if point_on_segment(pts[i], pts[j], pts[(j + 1) % n]) {
+                return true;
+            }
+        }
+    }
+    false
+}
+
+/// OpenGIS SFS 6.1.11 madde 5 — *"the interior of every Polygon is a connected point set"*.
+///
+/// ÖLÇÜT: ring'leri düğüm, her TEMAS NOKTASINI bir kenar sayan çoklu-grafik ÇEVRİMSİZ
+/// (orman) olmalıdır. Tek bir temas iç kısmı bölmez — kıstırma noktasının etrafından
+/// dolaşılır; temaslar bir çevrim kapatır kapatmaz kapalı bir eğri doğar ve iç kısmı iki
+/// bileşene ayırır. (JTS `ConnectedInteriorTester` aynı ölçütü kullanır.)
+///
+/// 🔴 2026-08-07'ye kadar (issue #74) yalnız ÖZEL HÂL ölçülüyordu: "iki ring iki noktada
+/// dokunuyor" — grafik dilinde iki paralel kenar, yani en kısa çevrim. Üç ring'in ikişer
+/// ikişer birer noktada dokunarak kapattığı ÜÇGEN çevrim kaçıyordu; kart ve defter bunu
+/// kalıntı olarak yazıyordu. Ölçüt çevrime çevrilince özel hâl kendiliğinden kapsandı.
+///
+/// Öz-döngüler (`ring_touches_itself`) çağıran tarafta ring başına ayrıca denetlenir.
+fn interior_disconnection(rings: &[Vec<(f64, f64)>]) -> Option<String> {
+    let label = |i: usize| if i == 0 { "dış ring".to_string() } else { format!("{i}. delik") };
+    let mut parent: Vec<usize> = (0..rings.len()).collect();
+    fn find(parent: &mut [usize], x: usize) -> usize {
+        let mut root = x;
+        while parent[root] != root {
+            root = parent[root];
+        }
+        let mut cur = x;
+        while parent[cur] != cur {
+            let next = parent[cur];
+            parent[cur] = root;
+            cur = next;
+        }
+        root
+    }
+    for i in 0..rings.len() {
+        for j in (i + 1)..rings.len() {
+            let contacts = ring_contact_points(&rings[i], &rings[j]);
+            if contacts == 0 {
+                continue;
+            }
+            if contacts > 1 {
+                return Some(format!(
+                    "{} ile {} birden fazla noktada ({contacts}) dokunuyor — iç kısım bölünüyor",
+                    label(i), label(j)));
+            }
+            let (ri, rj) = (find(&mut parent, i), find(&mut parent, j));
+            if ri == rj {
+                return Some(format!(
+                    "ring temasları çevrim oluşturuyor ({} ile {} teması zinciri kapatıyor) — iç kısım bölünüyor",
+                    label(i), label(j)));
+            }
+            parent[ri] = rj;
+        }
+    }
+    None
 }
 
 /// Ring'de SPIKE / CUT LINE var mı (OpenGIS 6.1.11: *"may not have cut lines, spikes or
@@ -2177,6 +2301,12 @@ mod tests {
     use gtfs_rules::get_rule;
     use std::io::Write;
     use zip::write::SimpleFileOptions;
+
+    /// Testler ARC_022 eşiğiyle ilgilenmez; VARSAYILAN config ile çağırır. Glob import'u
+    /// gölgeler, böylece #71'in imza değişikliği 40+ çağrıyı ellemedi.
+    fn parse(zip_bytes: &[u8]) -> Result<K1Result, FatalError> {
+        super::parse(zip_bytes, &ValidatorConfig::default())
+    }
 
     fn minimal_gtfs_zip() -> Vec<u8> {
         let buf = std::io::Cursor::new(Vec::new());

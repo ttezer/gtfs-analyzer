@@ -1,6 +1,7 @@
 use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
 
+use gtfs_config::ValidatorConfig;
 use gtfs_core::{EntityType, Severity};
 
 use super::common::{get_col, make_k2_notice, parse_f64_col, parse_u32_col};
@@ -150,7 +151,11 @@ impl Cols {
     }
 }
 
-pub fn validate_shapes(file: &RawFile, zip_bytes: Option<&[u8]>) -> (Vec<ShapePointRecord>, ShapeInternTable, Vec<gtfs_core::Notice>) {
+pub fn validate_shapes(
+    file: &RawFile,
+    zip_bytes: Option<&[u8]>,
+    cfg: &ValidatorConfig,
+) -> (Vec<ShapePointRecord>, ShapeInternTable, Vec<gtfs_core::Notice>) {
     // #15 W3: shapes.txt K1'de stream edilir (RawFile.rows boş, gövde raw_text'te). Burada
     // streaming parse edilir; K1'in per-satır generic notice'ları (ARC_012/018/021, DQ_016)
     // bu geçişe taşındı (stop_times deseni — aynı line/severity/rule davranışı). Eski rows
@@ -532,14 +537,15 @@ pub fn validate_shapes(file: &RawFile, zip_bytes: Option<&[u8]>) -> (Vec<ShapePo
         }
     }
 
-    // ARC_022: satır sayısı limiti (stream_mode'da K1'den taşındı)
-    const MAX_ROWS: usize = 1_000_000;
-    if total_rows > MAX_ROWS {
+    // ARC_022: satır sayısı limiti (stream_mode'da K1'den taşındı). Eşik 2026-08-07'de
+    // sabit koddan `ValidatorConfig`'e geçti (issue #71) — K1 ile AYNI alan okunur.
+    let max_rows = cfg.max_file_rows as usize;
+    if total_rows > max_rows {
         notices.push(make_k2_notice(
             &mut counter, "ARC_022", EntityType::File, Some(file.name.clone()),
             None, &file.name, None, None,
             Some(format!("{total_rows}")), None,
-            format!("'{}' dosyasında {total_rows} satır var; {MAX_ROWS} satır sınırını aşıyor.", file.name),
+            format!("'{}' dosyasında {total_rows} satır var; {max_rows} satır sınırını aşıyor.", file.name),
             "Dosyayı küçük parçalara bölün veya gereksiz satırları kaldırın.",
         ));
     }
@@ -574,6 +580,15 @@ pub fn validate_shapes(file: &RawFile, zip_bytes: Option<&[u8]>) -> (Vec<ShapePo
 mod tests {
     use super::*;
     use crate::k1_parse::RawFile;
+
+    /// Testler ARC_022 eşiğiyle ilgilenmez; VARSAYILAN config ile çağırır. Glob
+    /// import'u gölgeler, böylece #71'in imza değişikliği 40+ çağrıyı ellemedi.
+    fn validate_shapes(
+        file: &RawFile,
+        zip_bytes: Option<&[u8]>,
+    ) -> (Vec<ShapePointRecord>, ShapeInternTable, Vec<gtfs_core::Notice>) {
+        super::validate_shapes(file, zip_bytes, &ValidatorConfig::default())
+    }
 
     fn make_file(headers: Vec<&str>, rows: Vec<Vec<&str>>) -> RawFile {
         RawFile {

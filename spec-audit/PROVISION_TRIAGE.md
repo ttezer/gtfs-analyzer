@@ -6,7 +6,7 @@ burası her adayın hüküm olup olmadığına ve karşılanıp karşılanmadı�
 Katalog toplamı **299 aday** (sert 184 · yumuşak 115) ve **299'unun tamamı**
 adjudike edildi. Bölümler tam bitirilir, yarım bırakılmaz — kalan sayısı böyle güvenilir kalır.
 
-> **DURUM (2026-08-07): düzyazı ekseni %99,3 — 146/147.**
+> **DURUM (2026-08-07): düzyazı ekseni %100 — 147/147.**
 >
 > ⚠️ Bu satır `spec-audit/badge_status.py` çıktısıdır ve **o betik başlığı kendisi
 > denetler**: hesapladığı `n/d` ilk 20 satırda geçmiyorsa **exit 1** döner, CI kırılır.
@@ -16,8 +16,12 @@ adjudike edildi. Bölümler tam bitirilir, yarım bırakılmaz — kalan sayıs�
 > "test bayatlarsa CI'ı kırar" DİYE İDDİA EDİYORDU. **Bir belgenin kapı iddiası, kapının
 > varlığı demek değildir.**
 >
-> Seyir: 131/131 → 146/146 → 145/147 → **146/147** (iki case kaçağı · iki dış denetim
-> düzeltmesi · `STM_060`).
+> Seyir: 131/131 → 146/146 → 145/147 → 146/147 → **147/147** (iki case kaçağı · iki dış
+> denetim düzeltmesi · `STM_060` · `Pd84a0bcb` madde 5, issue #74).
+> ⚠️ **%100, "spec tamamen ölçülüyor" DEMEK DEĞİLDİR** — payda bu KATALOĞUN kapsamıdır ve
+> kataloğun kendisi üç turda üç kez düzeldi. Cümle bölme kaba (~%14 gürültü) ve alan tablosu
+> ekseni AYRI ölçülür. Bir sonraki dış denetim paydayı yine büyütebilir; o zaman yüzde
+> düşer ve bu NORMALDİR.
 > Yüzde bu belgeden `spec-audit/badge_status.py` ile **hesaplanır**, elle yazılmaz.
 > Aşağıdaki tur bölümleri o günkü kararları taşır; **kapanış durumu tek yerde tutulur:
 > "DURUM MAKİNESİ" tablosu.**
@@ -69,7 +73,7 @@ adjudike edildi. Bölümler tam bitirilir, yarım bırakılmaz — kalan sayıs�
 
 | id | hüküm | karar | dayanak |
 |---|---|---|---|
-| `Pd84a0bcb` | Her poligon OpenGIS Simple Features 6.1.11'e göre geçerli olmalı | KISMİ | `LOC_011` madde 1/3/4'ü ve delik kapsamasını ölçüyor; **madde 5 (iç kısmın bağlantılılığı) 2026-08-07'de büyük ölçüde eklendi** — iki ring birden fazla noktada dokunuyorsa (ortak köşe VEYA köşe-kenar teması) iç kısım bölünmüş sayılır. **Kalan kalıntı: ZİNCİRLEME temas** (A–B ve B–C teker teker dokunup birlikte bölme yaratırsa). Tam çözüm ring temas grafiği + bağlantılı bileşen analizi ister → issue #74 açık kalır. ⚠️ Ring yönü BİLİNÇLİ ölçülmüyor: 6.1.11 yönelim şart koşmaz. |
+| `Pd84a0bcb` | Her poligon OpenGIS Simple Features 6.1.11'e göre geçerli olmalı | **KANITLI** | `LOC_011` maddelerin tamamını ölçüyor. Madde 1/3/4 + delik kapsaması 08-06/07'de; **madde 5 (iç kısmın bağlantılılığı) 2026-08-07'de TAMAMLANDI (issue #74)**: ölçüt "iki ring iki noktada dokunuyor" özel hâlinden **ring temas grafiğinde ÇEVRİM**e çevrildi (birlik-bulma), ring'in kendine teması öz-döngü olarak eklendi. Temas taraması köşe + köşe-kenar biçiminde eksiksizdir: iki doğru parçası ikisinin de içinde kalan bir noktada buluşuyorsa ya kesişir (`rings_cross`) ya doğrusal örtüşür (uçları köşedir). ⚠️ Ring yönü BİLİNÇLİ ölçülmüyor: 6.1.11 yönelim şart koşmaz (o kural RFC 7946 §3.1.6'nın serileştirme kuralıdır) — ölçmek `PTH_017` hatasını tekrarlardı. ⚠️ Ölçüm: `locations.geojson` taşıyan 6 korpus feed'i HEAD ve yeni kodla koşuldu, bulgu farkı **0**; ilk uygulama 3 feed'de yanlış pozitif vermişti (ardışık üç kez yinelenen köşe). |
 | `P2f283161` | Dosya bir FeatureCollection içermeli | **KANITLI** | `LOC_001` — `k1_parse.rs:1460`. |
 | `P7f589103` | Her Feature'ın `id`'si olmalı | **KANITLI** | `LOC_003`. |
 | `P042ba79f` | `id`, stop_id / geojson id / location_group_id genelinde benzersiz olmalı | **KANITLI** | `XFL_031` — `k4_cross_ref.rs:3816`; spec cümlesi doc yorumunda birebir alıntılı, üç kaynak da taranıyor. |

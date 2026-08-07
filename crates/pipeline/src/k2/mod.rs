@@ -40,6 +40,7 @@ use attributions::{validate_attributions, AttributionRecord};
 use common::make_k2_notice;
 use calendar::{validate_calendar, CalendarRecord};
 use calendar_dates::{validate_calendar_dates, CalendarDateIndex};
+use gtfs_config::ValidatorConfig;
 use gtfs_core::Notice;
 use crate::k1_parse::{RawFile, RawFiles};
 use fare_attributes::{validate_fare_attributes, FareAttributeRecord};
@@ -130,7 +131,11 @@ pub struct K2Result {
     pub notices: Vec<Notice>,
 }
 
-pub fn validate(mut files: RawFiles, zip_bytes: Option<&[u8]>) -> K2Result {
+/// `cfg` K2'de YALNIZ ARC_022 eşiği (`max_file_rows`) için okunur — K2 şema/alan katmanı
+/// tarihsel olarak yapılandırmasızdır. 2026-08-07'de (issue #71) eklendi: eşik K1 ve K2'de
+/// ayrı ayrı sabit kodluydu, K1'i config'e bağlayıp K2'yi bırakmak knob'ı stop_times ve
+/// shapes'te — yani 1M satırı gerçekte aşan iki dosyada — sessizce etkisiz bırakırdı.
+pub fn validate(mut files: RawFiles, zip_bytes: Option<&[u8]>, cfg: &ValidatorConfig) -> K2Result {
     use crate::timing::{Timer, mem_log};
     let mut notices = Vec::new();
     let mut records = EntityRecords::default();
@@ -235,7 +240,7 @@ pub fn validate(mut files: RawFiles, zip_bytes: Option<&[u8]>) -> K2Result {
 
     if let Some(file) = files.get("shapes.txt") {
         let _t = Timer::start("K2::shapes");
-        let (shape_records, shape_interns, shape_notices) = validate_shapes(file, zip_bytes);
+        let (shape_records, shape_interns, shape_notices) = validate_shapes(file, zip_bytes, cfg);
         records.shapes = shape_records;
         records.shape_interns = shape_interns;
         notices.extend(shape_notices);
@@ -368,7 +373,7 @@ pub fn validate(mut files: RawFiles, zip_bytes: Option<&[u8]>) -> K2Result {
     if let Some(file) = &stop_times_file {
         let _t = Timer::start("K2::stop_times");
         let has_booking_rules = !records.booking_rules.is_empty();
-        let (stm_index, stop_time_notices) = validate_stop_times(file, zip_bytes, has_booking_rules);
+        let (stm_index, stop_time_notices) = validate_stop_times(file, zip_bytes, has_booking_rules, cfg);
         records.stop_times_index = stm_index;
         notices.extend(stop_time_notices);
         records.streaming_row_counts.insert("stop_times.txt".to_string(), records.stop_times_index.total_rows as u64);
@@ -411,7 +416,7 @@ mod tests {
     #[test]
     fn validate_empty_files_returns_empty_result() {
         let files: RawFiles = HashMap::new();
-        let result = validate(files, None);
+        let result = validate(files, None, &ValidatorConfig::default());
         assert!(result.notices.is_empty());
         assert!(result.records.agencies.is_empty());
         assert!(result.records.routes.is_empty());
@@ -474,7 +479,7 @@ mod tests {
             },
         );
 
-        let result = validate(files, None);
+        let result = validate(files, None, &ValidatorConfig::default());
         assert_eq!(result.records.agencies.len(), 1);
         assert_eq!(result.records.routes.len(), 1);
         assert_eq!(result.records.trips.len(), 1);
@@ -496,7 +501,7 @@ mod tests {
             },
         );
 
-        let result = validate(files, None);
+        let result = validate(files, None, &ValidatorConfig::default());
         assert_eq!(result.records.fare_rules.len(), 1);
         assert!(result.notices.is_empty());
     }

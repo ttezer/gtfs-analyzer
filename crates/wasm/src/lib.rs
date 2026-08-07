@@ -294,7 +294,7 @@ pub fn rerun_k6_k7(cache: &CachedState, config_delta_json: &str, on_stage: &js_s
 
 fn run_full_pipeline(zip_bytes: &[u8], config: &ValidatorConfig, today: u32) -> ValidateResult {
     t_start!("K1-parse");
-    let k1 = match parse(zip_bytes) {
+    let k1 = match parse(zip_bytes, config) {
         Ok(r) => r,
         Err(e) => return ValidateResult::Fatal(e),
     };
@@ -302,7 +302,7 @@ fn run_full_pipeline(zip_bytes: &[u8], config: &ValidatorConfig, today: u32) -> 
     let mut file_stats = collect_file_stats(&k1.files);
 
     t_start!("K2-validate");
-    let mut k2 = validate_k2(k1.files, Some(zip_bytes)); // #15 W2 + #38: stop_times ZIP stream
+    let mut k2 = validate_k2(k1.files, Some(zip_bytes), config); // #15 W2 + #38: stop_times ZIP stream
     t_end!("K2-validate");
     // Gece yarısını aşan seferleri (00:xx) servis-günü notasyonuna (24:xx) normalize et
     // (K3–K6 öncesi). pipeline::validate_bytes ile aynı adım; WASM kendi orkestrasyonunu
@@ -375,7 +375,7 @@ fn run_k1_k5(zip_bytes: &[u8], config: &ValidatorConfig, on_stage: &js_sys::Func
 
     let mut t = js_sys::Date::now();
     t_start!("K1-parse");
-    let k1 = parse(zip_bytes)?;
+    let k1 = parse(zip_bytes, config)?;
     t_end!("K1-parse");
     call_stage(on_stage, "K1", (js_sys::Date::now() - t) as u32);
     log_mem("after-K1-parse");
@@ -383,7 +383,7 @@ fn run_k1_k5(zip_bytes: &[u8], config: &ValidatorConfig, on_stage: &js_sys::Func
 
     t = js_sys::Date::now();
     t_start!("K2-validate");
-    let mut k2 = validate_k2(k1.files, Some(zip_bytes)); // #15 W2 + #38: stop_times ZIP stream
+    let mut k2 = validate_k2(k1.files, Some(zip_bytes), config); // #15 W2 + #38: stop_times ZIP stream
     t_end!("K2-validate");
     // Gece yarısı (00:xx) → servis-günü (24:xx) normalizasyonu — K3–K6 öncesi (bkz. ilk yol).
     k2.records.stop_times_index.normalize_service_day(config.service_day_start_hour);

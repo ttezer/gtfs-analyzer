@@ -28,7 +28,7 @@ pub fn validate_bytes(zip: &[u8], config: &ValidatorConfig, today: u32) -> Valid
 
     let k1 = {
         let _t = Timer::start("K1-parse");
-        match parse(zip) {
+        match parse(zip, config) {
             Ok(r) => r,
             Err(e) => return ValidateResult::Fatal(e),
         }
@@ -37,7 +37,7 @@ pub fn validate_bytes(zip: &[u8], config: &ValidatorConfig, today: u32) -> Valid
 
     let mut k2 = {
         let _t = Timer::start("K2-validate");
-        validate_k2(k1.files, Some(zip)) // #15 W2 + #38: ZIP bytes K2'ye → stop_times stream
+        validate_k2(k1.files, Some(zip), config) // #15 W2 + #38: ZIP bytes K2'ye → stop_times stream
     };
 
     // Gece yarısını aşan seferleri (00:xx) servis-günü notasyonuna (24:xx) normalize et.

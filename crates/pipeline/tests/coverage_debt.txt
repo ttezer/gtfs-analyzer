@@ -3,8 +3,8 @@
 # 🔴 HER SATIRIN GEREKÇESİ YAZILI OLMALI. `AGN_001` dersi: allowlist girişi, kanıtın
 # NEREDE olduğunun yazılmasıdır; yazılamıyorsa kural ölüdür.
 #
-# 📉 2026-08-07 (issue #71): borç **7 → 1**. Denetim "hâlâ 7" dediğinde listenin
-# gerekçeleri incelendi ve ÇOĞU YANLIŞ ÇIKTI:
+# ✅ 2026-08-07 (issue #71): borç **7 → 0**. Defter BOŞ. Denetim "hâlâ 7" dediğinde
+# listenin gerekçeleri incelendi ve ÇOĞU YANLIŞ ÇIKTI:
 #   OPR_024  eşiği zaten `ValidatorConfig`'teydi          → `fx_cfg`, 500→50
 #   VAT_006  "inline yazılamaz" deniyordu; 50 satır yetti → `fx`
 #   STM_043  aynı                                          → `fx` (201 satır)
@@ -12,11 +12,14 @@
 #   STM_044  aynı                                          → `fx_cfg`
 #   ARC_027  zip ÜST VERİSİYLE tetikleniyor → harness'a `unix_permissions` yazan
 #            kurucu eklendi (`fx_noread`)
+#   ARC_022  eşik `k1_parse.rs`'te sabit kodluydu ve K1'in `parse()`'ı config ALMIYORDU.
+#            İmza `parse(&[u8], &ValidatorConfig)` oldu; aynı alan K2'nin akış yollarına
+#            (stop_times/shapes) da bağlandı → `fx_cfg` (max_file_rows 10, 11 satır).
 # ⚠️ Eşik taşımaları VARSAYILAN DAVRANIŞI DEĞİŞTİRMEDİ; tek amaç kanıt yazılabilmesiydi.
 #
-# KALAN TEK KAYIT — gerekçesi yapısal:
-#   ARC_022  Eşik `k1_parse.rs`'te SABİT KODLU ve K1'in `parse()` fonksiyonu
-#            `ValidatorConfig` ALMIYOR. Config'e taşımak imzayı değiştirmeyi ve ~10
-#            çağrı yerini güncellemeyi gerektirir. **"İmkânsız" DEĞİL, bu turda
-#            yapılmadı.** Kapatma yolu: `parse(&[u8], &ValidatorConfig)`.
-ARC_022
+# 🔴 DERS: "inline yazılamaz" bir ÖLÇÜM DEĞİL TAHMİNDİ; yedi kaydın yedisi de denenince
+# düştü. Bu dosyaya yeni satır eklenecekse gerekçe DENENMİŞ olmalı, tahmin edilmiş değil.
+#
+# ⚠️ Defterin boş olması "her kural her yolda kanıtlı" DEMEK DEĞİLDİR — fixture kuralın
+# BİR emit noktasını kanıtlar. ARC_022'nin üç emit noktası vardır (K1 akış-dışı, K2
+# stop_times, K2 shapes); üçü de integration.rs::arc022_* ile ayrıca kanıtlandı.

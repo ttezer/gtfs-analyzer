@@ -1,3 +1,4 @@
+use gtfs_config::ValidatorConfig;
 use gtfs_core::{EntityType, Notice, Severity};
 use rustc_hash::{FxHashMap, FxHashSet};
 use smol_str::SmolStr;
@@ -1037,7 +1038,12 @@ impl StChunk {
 /// `has_booking_rules`: feed `booking_rules.txt` taşıyor mu — `STM_059` bu kapıya bağlı.
 /// O dosya yokken bir booking rule id yazmak FK'yı kırar (`BKR_017`), dolayısıyla tavsiye
 /// uygulanamaz ve kural susmalıdır.
-pub fn validate_stop_times(file: &RawFile, zip_bytes: Option<&[u8]>, has_booking_rules: bool) -> (StopTimesIndex, Vec<gtfs_core::Notice>) {
+pub fn validate_stop_times(
+    file: &RawFile,
+    zip_bytes: Option<&[u8]>,
+    has_booking_rules: bool,
+    cfg: &ValidatorConfig,
+) -> (StopTimesIndex, Vec<gtfs_core::Notice>) {
     let mut st = StChunk::default();
     st.has_booking_rules = has_booking_rules;
     let cols = Cols::from_headers(&file.headers);
@@ -1870,14 +1876,15 @@ pub fn validate_stop_times(file: &RawFile, zip_bytes: Option<&[u8]>, has_booking
         }
     }
 
-    // ARC_022: satır sayısı limiti (K1'den taşındı — stream_mode'da burada üretilir)
-    const MAX_ROWS: usize = 1_000_000;
-    if st.total_rows > MAX_ROWS {
+    // ARC_022: satır sayısı limiti (K1'den taşındı — stream_mode'da burada üretilir).
+    // Eşik 2026-08-07'de `ValidatorConfig`'e geçti (issue #71); K1 ile aynı alan.
+    let max_rows = cfg.max_file_rows as usize;
+    if st.total_rows > max_rows {
         st.notices.push(make_k2_notice(
             &mut st.counter, "ARC_022", EntityType::File, Some(file.name.clone()),
             None, &file.name, None, None,
             Some(format!("{}", st.total_rows)), None,
-            format!("'{}' dosyasında {} satır var; {MAX_ROWS} satır sınırını aşıyor.", file.name, st.total_rows),
+            format!("'{}' dosyasında {} satır var; {max_rows} satır sınırını aşıyor.", file.name, st.total_rows),
             "Dosyayı küçük parçalara bölün veya gereksiz satırları kaldırın.",
         ));
     }
@@ -2101,6 +2108,16 @@ fn parse_pickup_dropoff_col(
 mod tests {
     use super::*;
     use crate::k1_parse::RawFile;
+
+    /// Testler ARC_022 eşiğiyle ilgilenmez; VARSAYILAN config ile çağırır. Glob import'u
+    /// gölgeler, böylece #71'in imza değişikliği 40+ çağrıyı ellemedi.
+    fn validate_stop_times(
+        file: &RawFile,
+        zip_bytes: Option<&[u8]>,
+        has_booking_rules: bool,
+    ) -> (StopTimesIndex, Vec<gtfs_core::Notice>) {
+        super::validate_stop_times(file, zip_bytes, has_booking_rules, &ValidatorConfig::default())
+    }
 
     #[test]
     fn normalize_service_day_wraps_midnight_keeps_real_errors() {

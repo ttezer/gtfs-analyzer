@@ -32,7 +32,7 @@
 
 | eksen | değer | ne demek |
 |---|---|---|
-| **Düzyazı hükümleri** | **146 / 147** | Spec metnindeki normatif cümlelerden feed'den doğrulanabilir olanlar |
+| **Düzyazı hükümleri** | **147 / 147** | Spec metnindeki normatif cümlelerden feed'den doğrulanabilir olanlar |
 | **Alan tablosu atomları** | **300 / 300 ÇAPALI** | Her geçerli atomda EN AZ BİR Spec notice çapası var — **semantik tamlık DEĞİL** (§5.4) |
 | Yumuşak hükümler | 45 / 69 (%65,2) | **Hedef değil** — Quality sinyali |
 
@@ -47,7 +47,14 @@ buldu ve ikisi de kabul edildi:
 - `Pd84a0bcb` (OpenGIS 6.1.11 geçerliliği) **KANITLI değil KISMİ'dir.** `LOC_011` hükmün bir
   kısmını ölçüyor; kuralın KENDİ KARTI dört maddeyi yanlış-negatif diye sayıyor (delik-delik
   kesişimi · deliğin kısmen dışarıda olması · ring yönü · iç kısmın bağlantılılığı).
-  Pay 146 → **145**.
+  Pay 146 → **145**. ✅ **2026-08-07'de KAPATILDI (issue #74) → KANITLI, pay 147.** Üç madde
+  08-06/07'de, madde 5 (iç kısmın bağlantılılığı) 08-07'de kapandı: ölçüt "iki ring iki
+  noktada dokunuyor" özel hâlinden **ring temas grafiğinde çevrim**e çevrildi, ring'in
+  kendine teması öz-döngü olarak eklendi. ⚠️ **Ring yönü listeden ÇIKARILDI, ölçülmüyor:**
+  6.1.11 yönelim şart koşmaz (o kural RFC 7946 §3.1.6'nın serileştirme kuralıdır), ölçmek
+  `PTH_017` hatasını tekrarlardı. ⚠️ İlk uygulama gerçek veride **3 feed'de yanlış pozitif**
+  üretti (aynı koordinat ardışık ÜÇ kez yazılıyordu) → ring ardışık yinelemelerden
+  arındırılıyor; `locations.geojson` taşıyan 6 feed'in tamamında bulgu farkı **0**.
 
 ⚠️ **İki eksen ÖRTÜŞÜR, TOPLANMAZ.** Aynı hüküm hem düzyazıda hem alan tablosunda
 görünebilir. "446 hüküm karşılanıyor" gibi bir toplam **yanlıştır**.
@@ -129,10 +136,14 @@ Her kuralın kanıtı **testle** bağlanır; "yazıldı" demek yetmez.
 Ek: `card_consistency` (kart künyesi ↔ registry), `triage_ledger_has_no_stale_open_claims`
 (defter ↔ durum makinesi), `file_level_provisions_doc_covers_every_conditional_file`.
 
-**`coverage_debt` = 7:** notice fixture'ı yazılamayan kurallar (fatal yollar gibi).
-⚠️ **Muafiyet, kanıt yokluğu demek değildir — her biri için kanıtın NEREDE olduğu
-yazılıdır.** Bu kural 2026-08-02'de denetlendi: üç girişten birinin ("`ARC_004`") kanıtı
-YOKTU, yazılan yer boştu → ayrı bir fatal testi eklendi.
+**`coverage_debt` = 0** (2026-08-07, issue #71 — defter BOŞ): fixture'ı olmayan canonical
+kural kalmadı. ⚠️ **Muafiyet, kanıt yokluğu demek değildir — her biri için kanıtın NEREDE
+olduğu yazılıdır.** Bu kural 2026-08-02'de denetlendi: üç girişten birinin ("`ARC_004`")
+kanıtı YOKTU, yazılan yer boştu → ayrı bir fatal testi eklendi.
+⚠️ **Defterin boş olması "her kural her yolda kanıtlı" demek DEĞİLDİR** — fixture kuralın
+BİR emit noktasını kanıtlar. `ARC_022`'nin üç emit noktası ayrıca `integration.rs::arc022_*`
+ile ölçüldü. `PROOF_ALLOWLIST`'teki üç fatal-yol kuralı (`ARC_001`/`ARC_004`/`ARC_029`)
+borç değildir, kanıtları integration testlerindedir.
 
 **Yeniden üretim:** `cargo test --workspace` (21 suite, exit 0) · `tsc --noEmit` · `vitest` (98/98)
 
@@ -272,9 +283,18 @@ GEREKÇELERİ incelendi ve çoğu yanlış çıktı:
 
 ⚠️ Eşik taşımaları **varsayılan davranışı değiştirmedi**; tek amaç kanıt yazılabilmesiydi.
 
-🔴 **Kalan tek kayıt: `ARC_022`.** Eşiği `k1_parse.rs`'te sabit kodlu ve K1'in `parse()`
-fonksiyonu `ValidatorConfig` almıyor; taşımak imzayı ve ~10 çağrı yerini değiştirmeyi
-gerektirir. **"İmkânsız" değil — bu turda yapılmadı**, ve defter artık bunu böyle yazıyor.
+✅ **`ARC_022` de 2026-08-07'de kapandı → borç 0.** Eşiği `k1_parse.rs`'te sabit kodluydu ve
+K1'in `parse()`'ı `ValidatorConfig` almıyordu; imza `parse(&[u8], &ValidatorConfig)` oldu ve
+aynı alan K2'nin iki akış yoluna (`stop_times`, `shapes`) da bağlandı — knob'ı yalnız K1'e
+bağlamak, 1M satırı gerçekte aşan iki dosyada onu sessizce etkisiz bırakırdı.
+
+🔴 **YEDİ KAYDIN YEDİSİ DE "yazılamaz" ETİKETİYLE DURUYORDU VE YEDİSİ DE DENENİNCE DÜŞTÜ.**
+Defterdeki gerekçe bir ölçüm değil tahmindi. Bu dosyaya yeni satır eklenecekse gerekçe
+DENENMİŞ olmalı.
+
+⚠️ **Bu turda AÇILAN yeni boşluk (kapatılmadı, issue'ya yazıldı):** `trips.txt` ve
+`calendar_dates.txt` K1'de stream edilir ve K2'de ARC_022 emit noktaları yoktur → kaç satır
+olursa olsun kural susar.
 
 ### 5.4 "300/300" ÇAPA kapsamıdır, semantik tamlık değil
 Alan tablosu ekseni `Presence`/`Type`/`Primary Key` sütunlarından **kaba atomlar** üretir.

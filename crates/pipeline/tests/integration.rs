@@ -940,7 +940,7 @@ fn path_traversal_entries_rejected_and_root_file_intact() {
         ("C:\\agency.txt", evil),
     ]);
 
-    let k1 = parse(&make_zip(&files)).expect("gecerli kok dosyalar mevcut oldugunda Ok donmeli");
+    let k1 = parse(&make_zip(&files), &ValidatorConfig::default()).expect("gecerli kok dosyalar mevcut oldugunda Ok donmeli");
 
     assert_eq!(
         k1.files.len(),
@@ -989,7 +989,7 @@ fn missing_required_column_produces_arc_025() {
     let bad_agency: &[u8] = b"agency_id,agency_url,agency_timezone\n1,http://test.example,UTC\n";
     let mut files = base_files();
     files[0] = ("agency.txt", bad_agency);
-    let k1 = parse(&make_zip(&files)).expect("gecerli kok dosyalar Ok donmeli");
+    let k1 = parse(&make_zip(&files), &ValidatorConfig::default()).expect("gecerli kok dosyalar Ok donmeli");
 
     let arc025_name = k1
         .notices
@@ -1013,7 +1013,7 @@ fn missing_required_column_produces_arc_025() {
 #[test]
 fn complete_headers_produce_no_arc_025() {
     // base_files tum zorunlu sutunlari icerir → hic ARC_025 olmamali.
-    let k1 = parse(&make_zip(&base_files())).expect("gecerli kok dosyalar Ok donmeli");
+    let k1 = parse(&make_zip(&base_files()), &ValidatorConfig::default()).expect("gecerli kok dosyalar Ok donmeli");
     let arc025 = k1.notices.iter().filter(|n| n.rule_id == "ARC_025").count();
     assert_eq!(arc025, 0, "tam basliklarda ARC_025 cikmamali, bulunan: {arc025}");
 }
@@ -2057,4 +2057,163 @@ fn loc011_flags_two_holes_touching_at_two_points() {
              [[2,2],[2,8],[8,8],[8,2],[2,2]],
              [[8,2],[8,8],[14,8],[14,2],[8,2]]]}"#
     ), "iki noktada dokunan iki delik iç kısmı böler → LOC_011");
+}
+
+// ── ARC_022: dosya satır sayısı eşiği — ÜÇ emit noktası ───────────────────────
+//
+// Issue #71. Eşik 2026-08-07'ye kadar üç yerde SABİT KODLUYDU (`k1_parse`, `k2::shapes`,
+// `k2::stop_times`) ve K1'in `parse()`'ı `ValidatorConfig` almadığı için kurala fixture
+// yazılamıyordu — borç defteri bunu "1M satır gerektirir, inline yazılamaz" diye
+// kaydetmişti. Doğru gerekçe "imza config almıyor" idi; imza değişti.
+//
+// ⚠️ Fixture (emit_proof) kuralın YALNIZ K1 yolunu kanıtlar. Üç emit noktasının üçü de
+// aynı config alanını okumalı; burada üçü ayrı ayrı ölçülür, ayrıca eşiğe EŞİT satır
+// sayısında sustuğu (sınır davranışı) doğrulanır.
+//
+// ⚠️ BİLİNEN BOŞLUK (bu turda KAPATILMADI): `trips.txt` ve `calendar_dates.txt` K1'de
+// stream edilir (`rows` boş kalır) ve K2'de ARC_022 emit noktaları YOKTUR → bu iki dosya
+// kaç satır olursa olsun kural susar. Kapatmak yeni bulgular üretir (8M satırlık
+// calendar_dates taşıyan feed'ler var), yani davranış değişikliğidir; #71'in kapsamı
+// kanıttır, kapsam genişletmesi değil.
+
+fn arc022_rows(file: &str, n: usize) -> String {
+    let mut s = String::new();
+    match file {
+        "stops.txt" => {
+            s.push_str("stop_id,stop_name,stop_lat,stop_lon\n");
+            for i in 1..=n {
+                s.push_str(&format!("S{i},Stop{i},41.{:03},29.{:03}\n", i, i));
+            }
+        }
+        "stop_times.txt" => {
+            s.push_str("trip_id,arrival_time,departure_time,stop_id,stop_sequence\n");
+            for i in 1..=n {
+                s.push_str(&format!("T1,06:{:02}:00,06:{:02}:00,S1,{i}\n", i, i));
+            }
+        }
+        "shapes.txt" => {
+            s.push_str("shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\n");
+            for i in 1..=n {
+                s.push_str(&format!("SH1,41.{:03},29.{:03},{i}\n", i, i));
+            }
+        }
+        other => panic!("beklenmeyen dosya: {other}"),
+    }
+    s
+}
+
+/// `file` dosyasını `n` satırla kurup ARC_022'nin O DOSYA için çıkıp çıkmadığını döner.
+/// Eşik `max_file_rows = 10` (config alt sınırı) — 1M satırlık zip üretmeye gerek yok.
+fn arc022_fires_for(file: &str, n: usize) -> bool {
+    let body = arc022_rows(file, n);
+    let mut files = base_files();
+    if let Some(slot) = files.iter_mut().find(|(name, _)| *name == file) {
+        slot.1 = Box::leak(body.clone().into_bytes().into_boxed_slice());
+    } else {
+        files.push((Box::leak(file.to_string().into_boxed_str()),
+                    Box::leak(body.clone().into_bytes().into_boxed_slice())));
+    }
+    let cfg = ValidatorConfig { max_file_rows: 10, ..ValidatorConfig::default() };
+    match validate_bytes(&make_zip(&files), &cfg, TODAY) {
+        ValidateResult::Ok(vr) => vr.notices.iter().any(|n| {
+            n.rule_id == "ARC_022" && n.entity_id.as_deref() == Some(file)
+        }),
+        other => panic!("fatal beklenmiyordu: {other:?}"),
+    }
+}
+
+#[test]
+fn arc022_fires_on_k1_non_streamed_file() {
+    // stops.txt akış-dışı okunur → eşik k1_parse'ta okunur.
+    assert!(arc022_fires_for("stops.txt", 11),
+        "11 satır > eşik 10 → stops.txt için ARC_022 çıkmalı");
+}
+
+#[test]
+fn arc022_fires_on_k2_stop_times_stream() {
+    // stop_times.txt K1'de stream edilir; ARC_022'yi K2 üretir (rows K1'de boştur).
+    assert!(arc022_fires_for("stop_times.txt", 11),
+        "11 satır > eşik 10 → stop_times.txt için ARC_022 çıkmalı");
+}
+
+#[test]
+fn arc022_fires_on_k2_shapes_stream() {
+    assert!(arc022_fires_for("shapes.txt", 11),
+        "11 satır > eşik 10 → shapes.txt için ARC_022 çıkmalı");
+}
+
+#[test]
+fn arc022_silent_at_the_threshold_on_all_three_paths() {
+    // Sınır: eşiğe EŞİT satır sayısı ihlal DEĞİLDİR (`>` karşılaştırması).
+    for file in ["stops.txt", "stop_times.txt", "shapes.txt"] {
+        assert!(!arc022_fires_for(file, 10),
+            "{file}: eşiğe eşit (10) satır ARC_022 üretmemeli");
+    }
+}
+
+// ── LOC_011 · 6.1.11 madde 5'in KALINTISI: temas grafiği çevrimi (issue #74) ───
+//
+// 2026-08-07'ye kadar ölçülen ölçüt "iki ring İKİ noktada dokunuyor" idi; bu, temas
+// grafiğinin en kısa çevrimi (iki paralel kenar). Kalıntı: üç ring ikişer ikişer BİRER
+// noktada dokunarak da çevrim kapatabilir ve iç kısmı böler. Ölçüt artık çevrimin
+// kendisidir — özel hâl kendiliğinden kapsanır.
+
+#[test]
+fn loc011_flags_three_holes_touching_pairwise_in_a_chain() {
+    // A–B, B–C, C–A: her temas TEK nokta (madde 3 tek tek hepsine izin verir) ama üçü
+    // birlikte çevrim kapatır → aralarında kalan alan iç kısmın geri kalanından KOPAR.
+    // Delikler kabuğa DOKUNMAZ; çevrim yalnız delikler arasındadır.
+    assert!(loc011_fires(
+        r#"{"type":"Polygon","coordinates":[
+             [[0,0],[0,20],[20,20],[20,0],[0,0]],
+             [[2,2],[12,2],[2,12],[2,2]],
+             [[18,4],[18,12],[12,2],[18,4]],
+             [[4,18],[2,12],[18,12],[4,18]]]}"#
+    ), "üçgen temas zinciri iç kısmı böler → LOC_011");
+}
+
+#[test]
+fn loc011_silent_on_open_chain_of_single_point_contacts() {
+    // A–B ve B–C birer noktada dokunuyor, C–A DOKUNMUYOR → grafik AĞAÇ, çevrim yok.
+    // Kıstırma noktalarının etrafından dolaşılabildiği için iç kısım BAĞLANTILI kalır.
+    // Bu, çevrim ölçütünün yanlış pozitife dönüşmediğinin kanıtıdır (`PTH_017` dersi).
+    assert!(!loc011_fires(
+        r#"{"type":"Polygon","coordinates":[
+             [[0,0],[0,20],[20,20],[20,0],[0,0]],
+             [[2,2],[12,2],[2,12],[2,2]],
+             [[18,4],[18,12],[12,2],[18,4]],
+             [[4,18],[6,14],[18,12],[4,18]]]}"#
+    ), "kapanmayan temas zinciri iç kısmı bölmez, LOC_011 çıkmamalı");
+}
+
+#[test]
+fn loc011_flags_ring_that_touches_itself() {
+    // Sekiz şeklinde kabuk: (5,5) köşesine İKİ kez uğruyor. `ring_is_simple` bunu
+    // göremez — teğetlik bilinçli olarak "kesişme" sayılmaz — ama iç kısım iki loba
+    // ayrılır, yani madde 5 ihlalidir (temas grafiğinde ÖZ-DÖNGÜ).
+    assert!(loc011_fires(
+        r#"{"type":"Polygon","coordinates":[
+             [[0,0],[10,0],[5,5],[10,10],[0,10],[5,5],[0,0]]]}"#
+    ), "kendine dokunan ring iç kısmı böler → LOC_011");
+}
+
+#[test]
+fn loc011_silent_on_duplicate_consecutive_vertex() {
+    // ARDIŞIK yinelenen koordinat (sıfır uzunluklu kenar) gerçek veride yaygındır ve
+    // öz-temas DEĞİLDİR. Öz-temas denetimi komşu indeksleri atlamasaydı bu yaygın
+    // özensizlik anında yanlış pozitif olurdu.
+    assert!(!loc011_fires(
+        r#"{"type":"Polygon","coordinates":[
+             [[0,0],[0,10],[0,10],[10,10],[10,0],[0,0]]]}"#
+    ), "ardışık yinelenen köşe öz-temas değildir, LOC_011 çıkmamalı");
+}
+
+#[test]
+fn loc011_silent_on_collinear_vertex_on_a_straight_edge() {
+    // Düz kenar üzerindeki ara köşe ((0,5)) kendi komşu kenarlarının üstündedir;
+    // öz-temas SAYILMAZ. Aksi hâlde her yoğunlaştırılmış (densified) sınır patlardı.
+    assert!(!loc011_fires(
+        r#"{"type":"Polygon","coordinates":[
+             [[0,0],[0,5],[0,10],[10,10],[10,0],[0,0]]]}"#
+    ), "düz kenar üzerindeki ara köşe öz-temas değildir, LOC_011 çıkmamalı");
 }
