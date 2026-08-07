@@ -1,0 +1,160 @@
+name: mdb-2519 Validator Shootout
+
+on:
+  pull_request:
+    branches: [agent/validator-shootout-100]
+    paths:
+      - '.github/workflows/benchmark-validator-mdb2519.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  mdb2519:
+    name: mdb-2519 three-validator stress test
+    runs-on: ubuntu-latest
+    timeout-minutes: 80
+    env:
+      BENCH_DATE: '20260807'
+      MD_VERSION: '8.0.1'
+      FEED_URL: 'https://files.mobilitydatabase.org/mdb-2519/mdb-2519-202608050156/mdb-2519-202608050156.zip'
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Record runner environment
+        run: |
+          mkdir -p benchmark/large-feed-shootout/results-mdb2519
+          { echo '### uname'; uname -a; echo '### lscpu'; lscpu; echo '### free'; free -h; echo '### df'; df -h; } \
+            | tee benchmark/large-feed-shootout/results-mdb2519/runner-environment.txt
+
+      - name: Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Install TML validator SDK
+        working-directory: benchmark/large-feed-shootout
+        run: npm install --no-audit --no-fund
+
+      - name: Download MobilityData validator v8.0.1 CLI
+        working-directory: benchmark/large-feed-shootout
+        run: |
+          set -euo pipefail
+          API="https://api.github.com/repos/MobilityData/gtfs-validator/releases/tags/v${MD_VERSION}"
+          ASSET_URL="$(curl -fsSL "$API" | jq -r '.assets[] | select(.name | endswith("-cli.jar")) | .browser_download_url' | head -n1)"
+          curl --retry 3 --retry-all-errors -fL "$ASSET_URL" -o mobilitydata-cli.jar
+          test -s mobilitydata-cli.jar
+
+      - name: Build GTFS Analyzer CLI
+        run: cargo build --release -p gtfs-cli
+
+      - name: Download exact mdb-2519 snapshot
+        run: |
+          set -euo pipefail
+          ROOT="$PWD/benchmark/large-feed-shootout"
+          mkdir -p "$ROOT/feeds" "$ROOT/results-mdb2519"
+          curl --retry 4 --retry-all-errors -fL "$FEED_URL" -o "$ROOT/feeds/mdb-2519.zip"
+          test -s "$ROOT/feeds/mdb-2519.zip"
+          sha256sum "$ROOT/feeds/mdb-2519.zip" | tee "$ROOT/results-mdb2519/feed.sha256"
+          stat -c '%s' "$ROOT/feeds/mdb-2519.zip" | tee "$ROOT/results-mdb2519/feed.bytes"
+          unzip -l "$ROOT/feeds/mdb-2519.zip" | tail -n 1 | tee "$ROOT/results-mdb2519/unzip-total.txt"
+
+      - name: GTFS Analyzer on mdb-2519
+        shell: bash
+        run: |
+          set +e
+          ROOT="$PWD/benchmark/large-feed-shootout"
+          FEED="$ROOT/feeds/mdb-2519.zip"
+          OUT="$ROOT/results-mdb2519/analyzer"
+          mkdir -p "$OUT"
+          /usr/bin/time -v -o "$OUT/time.txt" timeout --signal=TERM --kill-after=10s 1200s \
+            target/release/gtfs-analyzer validate "$FEED" --json --lang en --today "$BENCH_DATE" --output "$OUT/report.json" \
+            >"$OUT/stdout.txt" 2>"$OUT/stderr.txt"
+          echo "$?" | tee "$OUT/exit-code.txt"
+          exit 0
+
+      - name: TML SDK on mdb-2519
+        shell: bash
+        run: |
+          set +e
+          ROOT="$PWD/benchmark/large-feed-shootout"
+          FEED="$ROOT/feeds/mdb-2519.zip"
+          OUT="$ROOT/results-mdb2519/tml"
+          mkdir -p "$OUT"
+          /usr/bin/time -v -o "$OUT/time.txt" timeout --signal=TERM --kill-after=10s 1200s \
+            node benchmark/large-feed-shootout/run_tml.mjs "$FEED" "$OUT" \
+            >"$OUT/stdout.txt" 2>"$OUT/stderr.txt"
+          echo "$?" | tee "$OUT/exit-code.txt"
+          exit 0
+
+      - name: MobilityData v8.0.1 on mdb-2519
+        shell: bash
+        run: |
+          set +e
+          ROOT="$PWD/benchmark/large-feed-shootout"
+          FEED="$ROOT/feeds/mdb-2519.zip"
+          OUT="$ROOT/results-mdb2519/mobilitydata"
+          mkdir -p "$OUT"
+          /usr/bin/time -v -o "$OUT/time.txt" timeout --signal=TERM --kill-after=10s 1200s \
+            java -jar benchmark/large-feed-shootout/mobilitydata-cli.jar -i "$FEED" -o "$OUT" -d 2026-08-07 \
+            >"$OUT/stdout.txt" 2>"$OUT/stderr.txt"
+          echo "$?" | tee "$OUT/exit-code.txt"
+          exit 0
+
+      - name: Summarize results
+        if: always()
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import json, re
+          root = Path('benchmark/large-feed-shootout/results-mdb2519')
+          rows=[]
+          for validator in ('analyzer','tml','mobilitydata'):
+              d=root/validator
+              if not d.exists(): continue
+              code=None
+              try: code=int((d/'exit-code.txt').read_text().strip())
+              except Exception: pass
+              metrics={}
+              if (d/'time.txt').exists():
+                  text=(d/'time.txt').read_text(errors='replace')
+                  patterns={
+                    'elapsed': r'Elapsed \(wall clock\) time \(h:mm:ss or m:ss\):\s*(.+)',
+                    'max_rss_kb': r'Maximum resident set size \(kbytes\):\s*(\d+)',
+                    'user_s': r'User time \(seconds\):\s*([0-9.]+)',
+                    'system_s': r'System time \(seconds\):\s*([0-9.]+)',
+                  }
+                  for k,p in patterns.items():
+                      m=re.search(p,text)
+                      if m: metrics[k]=m.group(1).strip()
+              report=d/'report.json'
+              rows.append({'validator':validator,'exit_code':code,**metrics,'report_exists':report.exists(),'report_bytes':report.stat().st_size if report.exists() else 0})
+          (root/'summary.json').write_text(json.dumps(rows,indent=2)+'\n')
+          lines=['# mdb-2519 Validator Shootout','','| Validator | Exit | Wall | Peak RSS KB | Report bytes |','|---|---:|---:|---:|---:|']
+          for r in rows:
+              lines.append(f"| {r['validator']} | {r.get('exit_code','')} | {r.get('elapsed','')} | {r.get('max_rss_kb','')} | {r.get('report_bytes','')} |")
+          md='\n'.join(lines)+'\n'
+          (root/'summary.md').write_text(md)
+          print(md)
+          PY
+          cat benchmark/large-feed-shootout/results-mdb2519/summary.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload benchmark evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: validator-mdb2519-shootout-results
+          path: benchmark/large-feed-shootout/results-mdb2519/
+          if-no-files-found: warn
+          retention-days: 7
