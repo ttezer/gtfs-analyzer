@@ -374,16 +374,66 @@ pub fn amount_has_iso4217_decimals(amount: &str, currency: &str) -> bool {
     dec as u32 == iso4217_minor_unit(currency.trim())
 }
 
+/// GTFS `Email` tipi — **SÖZDİZİMİ** doğrulaması (issue #86).
+///
+/// 🔴 Eski predikat `split_once('@')` kullanıyordu ve ilk `@`'dan sonrasını alan adı
+/// sayıyordu: `a@@b.com` için `local="a"`, `domain="@b.com"` çıkıyor ve dört koşulun
+/// dördü de geçiyordu. Yani ikinci bir `@` HİÇ görülmüyordu.
+///
+/// ## Hangi dilbilgisi seviyesi (kartlar bundan fazlasını iddia ETMEMELİ)
+///
+/// RFC 5322 `addr-spec`in **dot-atom** biçimi. DESTEKLENEN: `atext` karakterleri
+/// (`A-Za-z0-9` ve ``!#$%&'*+-/=?^_`{|}~``), noktayla ayrılmış atomlar, en az iki etiketli
+/// alan adı. DESTEKLENMEYEN ve bilinçli olarak GEÇERSİZ sayılan: tırnaklı local-part
+/// (`"a b"@x.com`), yorum/`CFWS`, IP-literal alan adı (`a@[192.0.2.1]`), kaynak yönlendirme.
+/// Bunlar RFC'de geçerlidir ama bir GTFS iletişim alanında gerçekçi değildir; kabul etmek
+/// predikatı savunulamaz biçimde genişletirdi.
+///
+/// ⚠️ **TESLİM EDİLEBİLİRLİK ÖLÇÜLMEZ** — DNS/MX sorgusu yok, olamaz da: doğrulayıcı ağa
+/// çıkmaz. "Sözdizimi geçerli" ile "adres çalışıyor" ayrı şeylerdir.
+///
+/// ⚠️ ASCII DIŞI karakterler kabul edilir (EAI / SMTPUTF8, RFC 6531): `info@şehir.example`
+/// gerçek bir adres olabilir ve reddetmek uluslararası feed'leri kırardı. Ölçüm: 20 korpus
+/// feed'inde ASCII dışı e-postaya rastlanmadı, yani bu yönde karşı kanıt da yok.
 pub fn looks_like_email(value: &str) -> bool {
     let trimmed = value.trim();
-    let Some((local, domain)) = trimmed.split_once('@') else {
+    // Ayraç TAM OLARAK BİR tane olmalı. Eski kodun kaçırdığı sınıf tam burasıydı.
+    let mut parts = trimmed.split('@');
+    let (Some(local), Some(domain), None) = (parts.next(), parts.next(), parts.next()) else {
         return false;
     };
-    !local.is_empty()
-        && !domain.is_empty()
-        && !domain.starts_with('.')
-        && domain.contains('.')
-        && !trimmed.contains(' ')
+    if local.is_empty() || local.len() > 64 || domain.is_empty() || domain.len() > 255 {
+        return false;
+    }
+    if trimmed.chars().any(|c| c.is_whitespace() || c.is_control()) {
+        return false;
+    }
+    // local-part: nokta ile ayrılmış atomlar; boş atom, baştaki/sondaki nokta yok.
+    let atext = |c: char| {
+        c.is_alphanumeric()
+            || "!#$%&'*+-/=?^_`{|}~".contains(c)
+            || (!c.is_ascii() && !c.is_whitespace() && !c.is_control())
+    };
+    if !local.split('.').all(|atom| !atom.is_empty() && atom.chars().all(atext)) {
+        return false;
+    }
+    // domain: en az iki etiket; her etiket harf/rakam ile başlar ve biter, içinde tire olabilir.
+    let labels: Vec<&str> = domain.split('.').collect();
+    if labels.len() < 2 {
+        return false;
+    }
+    let label_ok = |l: &str| {
+        !l.is_empty()
+            && l.len() <= 63
+            && !l.starts_with('-')
+            && !l.ends_with('-')
+            && l.chars().all(|c| c.is_alphanumeric() || c == '-')
+    };
+    if !labels.iter().all(|l| label_ok(l)) {
+        return false;
+    }
+    // Son etiket (TLD) sayısal olamaz — `a@b.1` adres değildir.
+    labels.last().is_some_and(|tld| tld.chars().all(|c| c.is_alphabetic()) && tld.len() >= 2)
 }
 
 pub fn looks_like_bcp47(value: &str) -> bool {
@@ -679,6 +729,42 @@ mod tests {
         );
         assert_eq!(notice.scope_key.as_deref(), Some("T1"));
         assert_eq!(notice.id, "k2/STM_001#1");
+    }
+
+    /// issue #86 — GTFS `Email` tipi SÖZDİZİMİ doğrulaması.
+    /// Karşı örnek `a@@b.com` mevcut `main`de KABUL EDİLİYORDU: eski predikat
+    /// `split_once('@')` ile ilk ayraçtan sonrasını alan adı sayıyordu.
+    #[test]
+    fn email_rejects_invalid_addr_spec_shapes() {
+        // Geçerli — desteklenen dot-atom biçimi.
+        for ok in ["info@example.com", "a.b-c@sub.example.co.uk",
+                   "ticket+iyi_haber@example.org", "x!#$%&'*+-/=?^_`{|}~@example.com",
+                   "info@şehir.example"] {
+            assert!(super::looks_like_email(ok), "geçerli adres reddedildi: {ok}");
+        }
+        // Geçersiz — her biri AYRI bir bozukluk sınıfı.
+        for bad in [
+            "a@@b.com",          // bildirilen karşı örnek: iki ayraç
+            "a@b@c.com",         // iki ayraç, ikisi de ayrı yerde
+            "@example.com",      // local yok
+            "a@",                // domain yok
+            "a@b",               // tek etiket
+            "a@.example.com",    // boş etiket
+            "a@example..com",    // boş etiket (ortada)
+            "a@-example.com",    // etiket tire ile başlıyor
+            "a@example-.com",    // etiket tire ile bitiyor
+            "a@example.1",       // sayısal TLD
+            "a@example.c",       // tek harfli TLD
+            ".a@example.com",    // baştaki nokta
+            "a.@example.com",    // sondaki nokta
+            "a..b@example.com",  // boş atom
+            "a b@example.com",   // boşluk
+            "a\t@example.com",   // sekme
+            "noatsign.example.com",
+            "",
+        ] {
+            assert!(!super::looks_like_email(bad), "geçersiz adres kabul edildi: {bad:?}");
+        }
     }
 
     /// issue #82 — paylaşılan tip yardımcıları, temsil ettikleri standarttan GENİŞTİ.
