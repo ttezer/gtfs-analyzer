@@ -66,7 +66,13 @@ jobs:
         run: python3 benchmark/validator-shootout/generate_fixtures.py
 
       - name: Run 100x3 shootout
-        run: node benchmark/validator-shootout/run.mjs
+        run: |
+          set -euo pipefail
+          REAL_JAVA="$(command -v java)"
+          export REAL_JAVA
+          chmod +x benchmark/validator-shootout/java-shim/java
+          export PATH="$PWD/benchmark/validator-shootout/java-shim:$PATH"
+          node benchmark/validator-shootout/run.mjs
 
       - name: Publish benchmark summary
         if: always()
