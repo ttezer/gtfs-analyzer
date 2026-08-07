@@ -307,7 +307,29 @@ pub fn looks_like_url(value: &str) -> bool {
     }
     let trimmed = value.trim();
     let has_web_scheme = starts_with_ci(trimmed, "http://") || starts_with_ci(trimmed, "https://");
-    has_web_scheme && url_escaping_ok(trimmed) && Url::parse(trimmed).is_ok()
+    has_web_scheme && url_strict_ok(trimmed) && Url::parse(trimmed).is_ok()
+}
+
+/// GTFS `URL` tipinin SÖZLÜKSEL yarısı — **KATI**, spec'in kendi ölçüsüyle (issue #80).
+///
+/// Hükmün tam metni (pinlenmiş katalogdan, `P5f72fb5a`):
+/// *"A fully qualified URL that includes http:// or https://, and any special characters
+/// in the URL must be correctly escaped."* — ve atıf yaptığı belge W3C'nin URI
+/// önerileridir. Orada (ve RFC 3986'da) **ASCII dışı karakter bir URI'de çıplak geçemez**;
+/// yüzde kodlanmalıdır.
+///
+/// 🔴 **ÖNCEKİ TURDA BU YANLIŞ KARARDI.** 2026-08-07 sabahı ham Unicode'u "IRI kullanımı
+/// yaygın" diyerek bilinçli kabul etmiştim ve `P5f72fb5a`'yı KANITLI bırakmıştım. Ama o bir
+/// ÜRÜN toleransıydı, spec ölçüsü değil — ve hükmün ikinci yarısı ancak spec'in ölçüsüyle
+/// ölçülürse KANITLI olabilir. Tolerans ile doğrulama karıştırılamaz.
+///
+/// Ölçüm (20 feed · 12.897 URL): çıplak özel karakter 0 · bozuk yüzde kaçışı 0 ·
+/// **ASCII dışı 0**. Yani katı ölçü bugünkü veride hiçbir feed'i etkilemiyor.
+///
+/// ⚠️ Ayrı bir "toleranslı" predikat EKLENMEDİ: onu çağıran kimse olmayacaktı ve çağrılmayan
+/// bir gevşetme, ileride kimin hangi ölçüyü kullandığını belirsizleştirirdi.
+pub fn url_strict_ok(value: &str) -> bool {
+    value.is_ascii() && url_escaping_ok(value)
 }
 
 /// GTFS `URL` tipinin İKİNCİ yarısı: *"…any special characters … correctly escaped."*
@@ -958,8 +980,13 @@ mod tests {
         assert!(!super::looks_like_url("https://a.example/a%zzb"), "BOZUK yüzde kodlaması");
         assert!(!super::looks_like_url("https://a.example/a%2"), "eksik yüzde kodlaması");
         assert!(!super::looks_like_url("https://a.example/a\\b"), "ters bölü çıplak geçemez");
-        // ⚠️ ASCII dışı BİLİNÇLİ olarak kabul edilir (IRI kullanımı yaygın).
-        assert!(super::looks_like_url("https://şehir.example/güzergah"), "IRI reddedilmez");
+        // issue #80: ASCII dışı ÇIPLAK geçemez — spec "correctly escaped" diyor ve atıf
+        // yaptığı W3C belgesi URI'yi ASCII olarak tanımlıyor. Yüzde kodlanmış EŞDEĞERİ
+        // geçerlidir; reddedilen şey karakterin kendisi değil, KAÇIRILMAMIŞ olması.
+        assert!(!super::looks_like_url("https://example.com/güzergah"), "çıplak ASCII dışı");
+        assert!(super::looks_like_url("https://example.com/g%C3%BCzergah"), "yüzde kodlanmış eşdeğeri GEÇERLİ");
+        assert!(!super::looks_like_url("https://şehir.example/yol"), "IDN alan adı da çıplak ASCII dışıdır");
+        assert!(super::looks_like_url("https://xn--ehir-jua.example/yol"), "punycode eşdeğeri GEÇERLİ");
         assert!(!super::looks_like_url("foo:bar"));
         assert!(!super::looks_like_url("jrutil://invalid"), "korpusta görülen yer tutucu");
 

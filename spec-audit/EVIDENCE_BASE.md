@@ -472,7 +472,13 @@ veriyi reddetmek olurdu.
   ALT KÜMESİ değil KENDİSİ olması.
 - `looks_like_url` artık kaçırma yarısını da denetliyor. `Url::parse` bunu kanıtlamıyordu:
   ölçüldü ki `a b`, `a"b`, `a<b>`, `a\b` ve hatta BOZUK `%zz` için `Ok` dönüyor ve girdiyi
-  sessizce normalize ediyor. ASCII dışı karakterler bilinçli olarak kabul ediliyor (IRI).
+  sessizce normalize ediyor.
+  🔴 **İlk turda ASCII dışını "IRI yaygın" diyerek kabul etmiştim — 5. denetim (issue #80)
+  bunu çürüttü.** O bir ÜRÜN toleransıydı; hükmün atıf yaptığı W3C URI belgesi URI'yi ASCII
+  olarak tanımlar, yani çıplak `ü` kaçırılmamıştır. Ölçü artık spec'in ölçüsü
+  (`url_strict_ok`); yüzde kodlanmış eşdeğer ve punycode alan adı geçerli kalır.
+  **Tolerans ile doğrulama karıştırılamaz** — ayrı bir toleranslı predikat de eklenmedi,
+  çünkü çağıranı olmayacaktı.
 
 **Ölçüm:** 20 rastgele korpus feed'i, önce/sonra: **fark 0** (URL tarafında 12.897 URL
 tarandı, hiçbirinde çıplak özel karakter ya da bozuk yüzde kaçışı yok). Yani yeni yanlış pozitif yok;
