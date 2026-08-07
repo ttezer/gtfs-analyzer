@@ -29,6 +29,16 @@ def replace(files: dict[str, str], filename: str, old: str, new: str) -> None:
     files[filename] = files[filename].replace(old, new, 1)
 
 
+def append_column(files: dict[str, str], filename: str, header: str, values: list[str]) -> None:
+    lines = files[filename].rstrip("\n").split("\n")
+    assert len(lines) - 1 == len(values), (filename, len(lines) - 1, len(values))
+    lines[0] += f",{header}"
+    for i, value in enumerate(values, 1):
+        lines[i] += f",{value}"
+    files[filename] = "\n".join(lines) + "\n"
+
+
+# Original 12 edge/spec fixtures.
 def m_invalid_calendar_date(files: dict[str, str]) -> None:
     replace(files, "calendar.txt", "20260101,20261231", "20260231,20261231")
 
@@ -77,6 +87,83 @@ def m_duplicate_stop_sequence(files: dict[str, str]) -> None:
     replace(files, "stop_times.txt", "S2,2,10", "S2,1,10")
 
 
+# Additional 18: deliberately spread across agency/routes/stops/trips/calendar/frequencies.
+def m_agency_name_empty(files: dict[str, str]) -> None:
+    replace(files, "agency.txt", "A,Test Transit,", "A,,")
+
+
+def m_invalid_agency_timezone(files: dict[str, str]) -> None:
+    replace(files, "agency.txt", "Europe/Istanbul,en", "Mars/Olympus,en")
+
+
+def m_invalid_agency_language(files: dict[str, str]) -> None:
+    replace(files, "agency.txt", "Europe/Istanbul,en", "Europe/Istanbul,123")
+
+
+def m_route_names_empty(files: dict[str, str]) -> None:
+    replace(files, "routes.txt", "R1,A,1,Test Route,3", "R1,A,,,3")
+
+
+def m_invalid_route_type(files: dict[str, str]) -> None:
+    replace(files, "routes.txt", "Test Route,3", "Test Route,99")
+
+
+def m_invalid_route_color(files: dict[str, str]) -> None:
+    append_column(files, "routes.txt", "route_color", ["GGGGGG"])
+
+
+def m_negative_route_sort_order(files: dict[str, str]) -> None:
+    append_column(files, "routes.txt", "route_sort_order", ["-1"])
+
+
+def m_stop_id_empty(files: dict[str, str]) -> None:
+    replace(files, "stops.txt", "S1,Start,41.000000,29.000000", ",Start,41.000000,29.000000")
+
+
+def m_stop_name_empty(files: dict[str, str]) -> None:
+    replace(files, "stops.txt", "S1,Start,41.000000,29.000000", "S1,,41.000000,29.000000")
+
+
+def m_stop_lon_out_of_range(files: dict[str, str]) -> None:
+    replace(files, "stops.txt", "S1,Start,41.000000,29.000000", "S1,Start,41.000000,181.000000")
+
+
+def m_invalid_location_type(files: dict[str, str]) -> None:
+    append_column(files, "stops.txt", "location_type", ["9", "0"])
+
+
+def m_invalid_stop_timezone(files: dict[str, str]) -> None:
+    append_column(files, "stops.txt", "stop_timezone", ["Mars/Olympus", "Europe/Istanbul"])
+
+
+def m_trip_id_empty(files: dict[str, str]) -> None:
+    replace(files, "trips.txt", "R1,WK,T1,SH1", "R1,WK,,SH1")
+
+
+def m_trip_route_id_empty(files: dict[str, str]) -> None:
+    replace(files, "trips.txt", "R1,WK,T1,SH1", ",WK,T1,SH1")
+
+
+def m_trip_service_id_empty(files: dict[str, str]) -> None:
+    replace(files, "trips.txt", "R1,WK,T1,SH1", "R1,,T1,SH1")
+
+
+def m_invalid_direction_id(files: dict[str, str]) -> None:
+    append_column(files, "trips.txt", "direction_id", ["2"])
+
+
+def m_invalid_calendar_day(files: dict[str, str]) -> None:
+    replace(files, "calendar.txt", "WK,1,1,1,1,1,1,1,", "WK,2,1,1,1,1,1,1,")
+
+
+def m_calendar_end_before_start(files: dict[str, str]) -> None:
+    replace(files, "calendar.txt", "20260101,20261231", "20261231,20260101")
+
+
+def m_frequency_headway_zero(files: dict[str, str]) -> None:
+    files["frequencies.txt"] = """trip_id,start_time,end_time,headway_secs,exact_times\nT1,08:00:00,09:00:00,0,0\n"""
+
+
 # case_id, description, expected Analyzer rule, mutation
 CASES = [
     ("invalid_calendar_date", "calendar.txt start_date is 20260231", "CAL_003", m_invalid_calendar_date),
@@ -91,7 +178,30 @@ CASES = [
     ("invalid_language_tag", "feed_info.feed_lang is invalid BCP 47 tag 123", "FIN_003", m_invalid_language_tag),
     ("html_tag", "stop_name contains an HTML script element", "ARC_032", m_html_tag),
     ("duplicate_stop_sequence", "two stop_times rows in one trip use the same stop_sequence", "STM_032", m_duplicate_stop_sequence),
+
+    ("agency_name_empty", "agency_name is empty", "AGN_002", m_agency_name_empty),
+    ("invalid_agency_timezone", "agency_timezone is not an IANA timezone", "AGN_004", m_invalid_agency_timezone),
+    ("invalid_agency_language", "agency_lang is invalid BCP 47", "AGN_006", m_invalid_agency_language),
+    ("route_names_empty", "route_short_name and route_long_name are both empty", "RTS_003", m_route_names_empty),
+    ("invalid_route_type", "route_type is outside the GTFS enum ranges", "RTS_004", m_invalid_route_type),
+    ("invalid_route_color", "route_color is not a six-digit hexadecimal color", "RTS_006", m_invalid_route_color),
+    ("negative_route_sort_order", "route_sort_order is negative", "RTS_029", m_negative_route_sort_order),
+    ("stop_id_empty", "a stops.txt row has an empty stop_id", "STP_002", m_stop_id_empty),
+    ("stop_name_empty", "a regular stop has an empty stop_name", "STP_003", m_stop_name_empty),
+    ("stop_lon_out_of_range", "stop_lon is 181 degrees", "STP_005", m_stop_lon_out_of_range),
+    ("invalid_location_type", "location_type is outside 0..4", "STP_008", m_invalid_location_type),
+    ("invalid_stop_timezone", "stop_timezone is not an IANA timezone", "STP_014", m_invalid_stop_timezone),
+    ("trip_id_empty", "a trips.txt row has an empty trip_id", "TRP_001", m_trip_id_empty),
+    ("trip_route_id_empty", "a trips.txt row has an empty route_id", "TRP_031", m_trip_route_id_empty),
+    ("trip_service_id_empty", "a trips.txt row has an empty service_id", "TRP_035", m_trip_service_id_empty),
+    ("invalid_direction_id", "direction_id is 2 instead of 0 or 1", "TRP_005", m_invalid_direction_id),
+    ("invalid_calendar_day", "calendar monday field is 2 instead of 0 or 1", "CAL_002", m_invalid_calendar_day),
+    ("calendar_end_before_start", "calendar end_date precedes start_date", "CAL_005", m_calendar_end_before_start),
+    ("frequency_headway_zero", "frequencies headway_secs is zero", "FRQ_008", m_frequency_headway_zero),
 ]
+
+# Exactly 30 intended mutations. Keep this explicit so accidental additions/removals are visible.
+assert len(CASES) == 30, len(CASES)
 
 
 def write_zip(name: str, files: dict[str, str]) -> Path:
