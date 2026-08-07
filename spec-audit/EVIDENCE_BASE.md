@@ -260,12 +260,21 @@ değerleri · yanlış pozitif üretmemesi · hükmün tamamının mı yoksa bir
 hükmün dörtte biri ölçülmüyordu.) Sınır değerleri ve yanlış-pozitif tarafı ayrı
 `integration.rs` testleriyle ve korpus koşumuyla kapatılır — kural bazında değil.
 
-⚠️ **Altı kuralın fixture'ı YOK** (`coverage_debt.txt`): `ARC_022` · `ARC_027` · `SHP_026` ·
-`STM_043` · `STM_044` · `VAT_006`. (`OPR_024` 2026-08-07'de kapatıldı: eşiği
-`ValidatorConfig`'te olduğu için `fx_cfg` ile 500 → 50 indirilip 51 seferle yazıldı.)
-🔴 Defterdeki gerekçeler de düzeltildi — dosya çıplak ID listesiydi, `AGN_001` dersinin
-yasakladığı biçim. İkisi yanlış etiketliymiş: **`STM_043` ve `VAT_006` inline YAZILABİLİR,
-sadece yazılmamış.** Kanıt bu altısı için "başka yerde" değil, **YOK**.
+✅ **Fixture borcu 7 → 1** (issue #71, 2026-08-07). Denetim "hâlâ 7" dediğinde listenin
+GEREKÇELERİ incelendi ve çoğu yanlış çıktı:
+
+| kural | eski gerekçe | gerçekte |
+|---|---|---|
+| `OPR_024` | inline yazılamaz | eşik zaten `ValidatorConfig`'te → `fx_cfg` |
+| `VAT_006` · `STM_043` | inline yazılamaz | 50 / 201 satır yetiyor → `fx` |
+| `SHP_026` · `STM_044` | inline yazılamaz | eşik SABİT KODLUYDU → config'e taşındı, `fx_cfg` |
+| `ARC_027` | inline yazılamaz | zip ÜST VERİSİ gerekiyordu → harness'a `unix_permissions` eklendi |
+
+⚠️ Eşik taşımaları **varsayılan davranışı değiştirmedi**; tek amaç kanıt yazılabilmesiydi.
+
+🔴 **Kalan tek kayıt: `ARC_022`.** Eşiği `k1_parse.rs`'te sabit kodlu ve K1'in `parse()`
+fonksiyonu `ValidatorConfig` almıyor; taşımak imzayı ve ~10 çağrı yerini değiştirmeyi
+gerektirir. **"İmkânsız" değil — bu turda yapılmadı**, ve defter artık bunu böyle yazıyor.
 
 ### 5.4 "300/300" ÇAPA kapsamıdır, semantik tamlık değil
 Alan tablosu ekseni `Presence`/`Type`/`Primary Key` sütunlarından **kaba atomlar** üretir.

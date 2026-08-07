@@ -1888,6 +1888,10 @@ fn check_polygon_rings(
             } else if rings_cross(outer, hole) {
                 // 6.1.11 (3): ring'ler kesişemez. Eskiden hiç ölçülmüyordu.
                 bad = Some(format!("{i}. delik dış ring'i kesiyor"));
+            } else if ring_contact_points(outer, hole) > 1 {
+                // Delik dış ring'e birden fazla noktada dokunuyor → iç kısım bölünüyor.
+                bad = Some(format!(
+                    "{i}. delik dış ring'e birden fazla noktada dokunuyor — iç kısım bölünüyor"));
             } else if hole.iter().any(|&p| !point_in_ring(p, outer)) {
                 // Eskiden yalnız İLK NOKTA örnekleniyordu → kısmen dışarı taşan delik
                 // görünmüyordu. Artık TÜM köşeler denetlenir.
@@ -1907,6 +1911,13 @@ fn check_polygon_rings(
                     || all_rings[i].first().is_some_and(|&p| point_in_ring(p, &all_rings[j]))
                 {
                     bad = Some(format!("{i}. ve {j}. delikler iç içe"));
+                    break 'outer;
+                }
+                // 6.1.11 madde 5: iki delik BİRDEN FAZLA noktada dokunuyorsa iç kısım
+                // o temaslar arasında bölünür. Tek noktada teğetlik madde 3 gereği serbest.
+                if ring_contact_points(&all_rings[i], &all_rings[j]) > 1 {
+                    bad = Some(format!(
+                        "{i}. ve {j}. delikler birden fazla noktada dokunuyor — iç kısım bölünüyor"));
                     break 'outer;
                 }
             }
@@ -2009,6 +2020,60 @@ fn rings_cross(r1: &[(f64, f64)], r2: &[(f64, f64)]) -> bool {
         }
     }
     false
+}
+
+/// İki ring KAÇ NOKTADA dokunuyor (paylaşılan köşe sayısı).
+///
+/// OpenGIS SFS 6.1.11 madde 3 ring'lerin **bir noktada** teğet olmasına izin verir; madde 5
+/// ise iç kısmın BAĞLANTILI olmasını ister. İki ring İKİDEN FAZLA noktada dokunuyorsa iç
+/// kısım o temas noktaları arasında bölünür — teğetlik artık "bir nokta" değildir.
+///
+/// ⚠️ Bu madde 5'in TAMAMI DEĞİLDİR. Yakalamadığı hâl: iki ring iki noktada dokunmadan,
+/// ÜÇÜNCÜ bir ring üzerinden zincirleme temasla iç kısmı bölerse. Tam çözüm ring temas
+/// grafiği + bağlantılı bileşen analizi ister. Kart ve defter bu kalıntıyı yazar.
+fn ring_contact_points(a: &[(f64, f64)], b: &[(f64, f64)]) -> usize {
+    if bboxes_disjoint(ring_bbox(a), ring_bbox(b)) {
+        return 0;
+    }
+    // Temas iki biçimde olur ve İKİSİ de sayılmalı:
+    //   (1) ortak KÖŞE — iki ring aynı koordinatı yazar
+    //   (2) bir ring'in köşesi diğerinin KENARI üzerinde — köşe paylaşımı yok ama
+    //       geometrik temas var. İlk uygulamam yalnız (1)'i sayıyordu ve kendi testim
+    //       düştü: delik kabuğa (0,3)/(0,7) ile dokunuyordu, ikisi de kabuğun köşesi
+    //       değildi. Yalnız köşe saymak iddia edilenden DAR bir denetim olurdu.
+    //
+    // ⚠️ Koordinatlar TAM eşitlikle karşılaştırılır; kenar üzerindelik `robust::orient2d`
+    // ile SIFIR yönelim + aralık kontrolüdür. Epsilon toleransı yakın ama ayrı köşeleri
+    // temas sayar ve yanlış pozitif üretirdi.
+    fn on_segment(p: (f64, f64), s: (f64, f64), e: (f64, f64)) -> bool {
+        if robust::orient2d(
+            robust::Coord { x: s.0, y: s.1 },
+            robust::Coord { x: e.0, y: e.1 },
+            robust::Coord { x: p.0, y: p.1 },
+        ) != 0.0
+        {
+            return false;
+        }
+        p.0 >= s.0.min(e.0) && p.0 <= s.0.max(e.0) && p.1 >= s.1.min(e.1) && p.1 <= s.1.max(e.1)
+    }
+    let touches = |p: (f64, f64), ring: &[(f64, f64)]| -> bool {
+        if ring.contains(&p) {
+            return true;
+        }
+        ring.windows(2).any(|w| on_segment(p, w[0], w[1]))
+    };
+    let mut seen: Vec<(f64, f64)> = Vec::new();
+    for &p in a {
+        if touches(p, b) && !seen.contains(&p) {
+            seen.push(p);
+        }
+    }
+    for &p in b {
+        if touches(p, a) && !seen.contains(&p) {
+            seen.push(p);
+        }
+    }
+    seen.len()
 }
 
 /// Ring'de SPIKE / CUT LINE var mı (OpenGIS 6.1.11: *"may not have cut lines, spikes or

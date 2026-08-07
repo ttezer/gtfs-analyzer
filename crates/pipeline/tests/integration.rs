@@ -2025,3 +2025,36 @@ fn stm060_silent_for_two_records_in_the_same_zone() {
     assert!(!stm060_fires(ST),
         "aynı bölgedeki iki kayıt bölge-içi seyahattir, STM_060 çıkmamalı");
 }
+
+#[test]
+fn loc011_flags_hole_touching_shell_at_two_points() {
+    // OpenGIS 6.1.11 madde 5: iç kısım BAĞLANTILI olmalı. Delik dış ring'e İKİ noktada
+    // dokunursa poligonun içi o temaslar arasında ikiye bölünür.
+    // ⚠️ Madde 3 TEK noktada teğetliğe izin verir → aşağıdaki negatif test onu korur.
+    assert!(loc011_fires(
+        r#"{"type":"Polygon","coordinates":[
+             [[0,0],[0,10],[10,10],[10,0],[0,0]],
+             [[0,3],[5,5],[0,7],[0,3]]]}"#
+    ), "kabuğa iki noktada dokunan delik iç kısmı böler → LOC_011");
+}
+
+#[test]
+fn loc011_silent_when_hole_touches_shell_at_one_point() {
+    // Tek noktada teğetlik 6.1.11'in AÇIKÇA izin verdiği hâldir. Burada ateşlemek
+    // `PTH_017` hatasını tekrarlamak olurdu.
+    assert!(!loc011_fires(
+        r#"{"type":"Polygon","coordinates":[
+             [[0,0],[0,10],[10,10],[10,0],[0,0]],
+             [[0,5],[3,7],[3,3],[0,5]]]}"#
+    ), "tek noktada teğet delik 6.1.11'e göre GEÇERLİDİR");
+}
+
+#[test]
+fn loc011_flags_two_holes_touching_at_two_points() {
+    assert!(loc011_fires(
+        r#"{"type":"Polygon","coordinates":[
+             [[0,0],[0,20],[20,20],[20,0],[0,0]],
+             [[2,2],[2,8],[8,8],[8,2],[2,2]],
+             [[8,2],[8,8],[14,8],[14,2],[8,2]]]}"#
+    ), "iki noktada dokunan iki delik iç kısmı böler → LOC_011");
+}

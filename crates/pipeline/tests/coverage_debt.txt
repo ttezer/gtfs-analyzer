@@ -1,26 +1,22 @@
 # emit-proof coverage debt (#5 C). Fixture'ı olmayan canonical kurallar.
 #
 # 🔴 HER SATIRIN GEREKÇESİ YAZILI OLMALI. `AGN_001` dersi: allowlist girişi, kanıtın
-# NEREDE olduğunun yazılmasıdır; yazılamıyorsa kural ölüdür. 2026-08-07 dış denetimine
-# kadar bu dosya ÇIPLAK ID LİSTESİYDİ ve altı kuralın hiçbirinin çalışma-zamanı kanıtı
-# olmadığı görünmüyordu.
+# NEREDE olduğunun yazılmasıdır; yazılamıyorsa kural ölüdür.
 #
-# ⚠️ Aşağıdakiler için kanıt "başka yerde" DEĞİL — YOK. Bunlar bilinen bir borçtur.
-# OPR_024 2026-08-07'de `fx_cfg` ile kapatıldı (eşik config'te, 500 → 50) — aynı yol
-# eşiği yapılandırılabilir hâle getirilen her kural için açıktır.
+# 📉 2026-08-07 (issue #71): borç **7 → 1**. Denetim "hâlâ 7" dediğinde listenin
+# gerekçeleri incelendi ve ÇOĞU YANLIŞ ÇIKTI:
+#   OPR_024  eşiği zaten `ValidatorConfig`'teydi          → `fx_cfg`, 500→50
+#   VAT_006  "inline yazılamaz" deniyordu; 50 satır yetti → `fx`
+#   STM_043  aynı                                          → `fx` (201 satır)
+#   SHP_026  eşik SABİT KODLUYDU → `ValidatorConfig`'e taşındı, `fx_cfg`
+#   STM_044  aynı                                          → `fx_cfg`
+#   ARC_027  zip ÜST VERİSİYLE tetikleniyor → harness'a `unix_permissions` yazan
+#            kurucu eklendi (`fx_noread`)
+# ⚠️ Eşik taşımaları VARSAYILAN DAVRANIŞI DEĞİŞTİRMEDİ; tek amaç kanıt yazılabilmesiydi.
 #
-#   ARC_022  > 1.000.000 satırlık dosya gerekir; eşik SABİT KODLU (k1_parse.rs).
-#   ARC_027  ZIP girdisinde okuma izni olmaması gerekir; fixture kurucusu izin yazamaz.
-#   SHP_026  > 5000 shape noktası gerekir; eşik SABİT KODLU (k6_analytics.rs).
-#   STM_043  > 200 stop_time gerekir; eşik SABİT KODLU. **Inline yazılabilir (~201 satır)
-#            ama henüz yazılmadı** — "yazılamaz" değil, "yazılmadı".
-#   STM_044  > 2.000.000 stop_times satırı gerekir; eşik SABİT KODLU.
-#   VAT_006  >= 50 sefer gerekir. **Inline yazılabilir ama henüz yazılmadı.**
-#
-# Kapatma yolu: eşiği `ValidatorConfig`'e taşımak (OPR_024 emsali) ya da inline yazmak.
+# KALAN TEK KAYIT — gerekçesi yapısal:
+#   ARC_022  Eşik `k1_parse.rs`'te SABİT KODLU ve K1'in `parse()` fonksiyonu
+#            `ValidatorConfig` ALMIYOR. Config'e taşımak imzayı değiştirmeyi ve ~10
+#            çağrı yerini güncellemeyi gerektirir. **"İmkânsız" DEĞİL, bu turda
+#            yapılmadı.** Kapatma yolu: `parse(&[u8], &ValidatorConfig)`.
 ARC_022
-ARC_027
-SHP_026
-STM_043
-STM_044
-VAT_006

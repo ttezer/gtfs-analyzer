@@ -69,7 +69,7 @@ adjudike edildi. Bölümler tam bitirilir, yarım bırakılmaz — kalan sayıs�
 
 | id | hüküm | karar | dayanak |
 |---|---|---|---|
-| `Pd84a0bcb` | Her poligon OpenGIS Simple Features 6.1.11'e göre geçerli olmalı | KISMİ | `LOC_011` 6.1.11'in madde 1/3/4'ünü ve delik kapsamasını ölçüyor (2026-08-07'de genişletildi: delik-delik kesişimi · kısmen dışarı taşan delik · spike/cut line · iç içe delik). **Kalan TEK kalıntı: madde 5 — ring'ler NOKTADA teğet dokunarak iç kısmı bölerse yakalanmaz.** ⚠️ Ring yönü BİLİNÇLİ ölçülmüyor: 6.1.11 yönelim şart koşmaz, o RFC 7946 serileştirme kuralıdır (`loc011_silent_on_clockwise_shell` testi). |
+| `Pd84a0bcb` | Her poligon OpenGIS Simple Features 6.1.11'e göre geçerli olmalı | KISMİ | `LOC_011` madde 1/3/4'ü ve delik kapsamasını ölçüyor; **madde 5 (iç kısmın bağlantılılığı) 2026-08-07'de büyük ölçüde eklendi** — iki ring birden fazla noktada dokunuyorsa (ortak köşe VEYA köşe-kenar teması) iç kısım bölünmüş sayılır. **Kalan kalıntı: ZİNCİRLEME temas** (A–B ve B–C teker teker dokunup birlikte bölme yaratırsa). Tam çözüm ring temas grafiği + bağlantılı bileşen analizi ister → issue #74 açık kalır. ⚠️ Ring yönü BİLİNÇLİ ölçülmüyor: 6.1.11 yönelim şart koşmaz. |
 | `P2f283161` | Dosya bir FeatureCollection içermeli | **KANITLI** | `LOC_001` — `k1_parse.rs:1460`. |
 | `P7f589103` | Her Feature'ın `id`'si olmalı | **KANITLI** | `LOC_003`. |
 | `P042ba79f` | `id`, stop_id / geojson id / location_group_id genelinde benzersiz olmalı | **KANITLI** | `XFL_031` — `k4_cross_ref.rs:3816`; spec cümlesi doc yorumunda birebir alıntılı, üç kaynak da taranıyor. |

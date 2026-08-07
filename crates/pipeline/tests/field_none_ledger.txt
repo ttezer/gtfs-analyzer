@@ -1,4 +1,4 @@
-# Entity/Row düzeyinde olup HER ZAMAN `field: None` emit eden kurallar. 31 kural.
+# Entity/Row düzeyinde olup HER ZAMAN `field: None` emit eden kurallar. 33 kural.
 # Biçim: RULE_ID  sınıf
 #
 # Kapsam defteri ve iddia defteri çapayı `(file, field)` üzerinden kurar; bu
@@ -43,6 +43,8 @@ PTH_012  Interop
 PTH_013  Analytics
 RCT_006  Spec
 RTS_016  Quality
+SHP_026  Analytics
+STM_043  Analytics
 STP_020  Analytics
 STP_030  Quality
 TRP_013  Quality

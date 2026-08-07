@@ -2469,7 +2469,7 @@ fn check_geo_analytics(
     // STM_044: Feed stop_times satır sayısı 2 milyonu aşıyor
     {
         let total_st = records.stop_times_index.total_rows;
-        if total_st > 2_000_000 {
+        if total_st > config.max_total_stop_times as usize {
             notices.push(k6_notice(
                 ctr, "STM_044", EntityType::Feed,
                 None, None, "stop_times.txt", None, None,
@@ -2535,7 +2535,7 @@ fn check_geo_analytics(
         for (trip_id, stops) in records.stop_times_index.iter_trips() {
             let count = stops.len() as u32;
             let trip_id = trip_id.as_str();
-            if count > 200 && trip_ids_set.contains(trip_id) {
+            if count > config.max_stops_per_trip && trip_ids_set.contains(trip_id) {
                 let dep_suffix = stops.first().and_then(|s| s.departure_time())
                     .map(|(h, m, _)| format!(" {h:02}:{m:02} kalkışlı")).unwrap_or_default();
                 notices.push(k6_notice(
@@ -2557,7 +2557,7 @@ fn check_geo_analytics(
             *shape_counts.entry(records.shape_interns.id(pt)).or_default() += 1;
         }
         for (shape_id, count) in &shape_counts {
-            if *count > 5000 {
+            if *count > config.max_shape_points {
                 notices.push(k6_notice(
                     ctr, "SHP_026", EntityType::Shape,
                     Some((*shape_id).to_string()), Some((*shape_id).to_string()),

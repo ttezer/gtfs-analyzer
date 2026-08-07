@@ -108,6 +108,16 @@ pub struct ValidatorConfig {
     pub rail_stop_distance_km:    f64,
     /// OPR_024: tek route_id'ye bağlı sefer sayısı bu eşiği aşarsa "veri birleştirme" şüphesi.
     pub max_trips_per_route:      u32,
+    /// SHP_026: tek shape'in nokta sayısı bu eşiği aşarsa aşırı ayrıntı şüphesi.
+    /// ⚠️ Eşik 2026-08-07'de SABİT KODDAN buraya taşındı — tek sebebi kurala fixture
+    /// yazılabilmesiydi (`OPR_024` emsali). Varsayılan davranış DEĞİŞMEDİ.
+    pub max_shape_points:         u32,
+    /// STM_043: tek seferin durak sayısı bu eşiği aşarsa. Aynı gerekçe.
+    pub max_stops_per_trip:       u32,
+    /// STM_044: feed'in toplam stop_times satırı bu eşiği aşarsa WASM performans uyarısı.
+    pub max_total_stop_times:     u32,
+    /// ARC_022: akış-dışı okunan bir dosyanın satır sayısı bu eşiği aşarsa.
+    pub max_file_rows:            u32,
     /// VAT_003: sefer süresi, aynı desen+saat-bandının beklenen değerinden (residual) kaç
     /// robust-σ (MAD) saparsa aykırı sayılır. Gün-içi deseasonalize sonrası residual ölçeği
     /// sıkı olduğundan muhafazakâr bir değer (3.5) kullanılır.
@@ -163,6 +173,10 @@ impl Default for ValidatorConfig {
             bunching_threshold_min:   DEF_BUNCHING_THRESHOLD_MIN,
             rail_stop_distance_km:    DEF_RAIL_STOP_DISTANCE_KM,
             max_trips_per_route:      DEF_MAX_TRIPS_PER_ROUTE,
+            max_shape_points:         5_000,
+            max_stops_per_trip:       200,
+            max_total_stop_times:     2_000_000,
+            max_file_rows:            1_000_000,
             duration_outlier_sigma:   DEF_DURATION_OUTLIER_SIGMA,
             headway_outlier_sigma:    DEF_HEADWAY_OUTLIER_SIGMA,
             service_day_start_hour:   DEF_SERVICE_DAY_START_HOUR,
@@ -246,6 +260,10 @@ fn validate_ranges(cfg: &ValidatorConfig) -> Result<(), String> {
     chk_u32!(cfg.bunching_threshold_min,   "bunching_threshold_min",       1,    10);
     chk_f64!(cfg.rail_stop_distance_km,    "rail_stop_distance_km",       50.0, 2000.0);
     chk_u32!(cfg.max_trips_per_route,      "max_trips_per_route",          50,  20000);
+    chk_u32!(cfg.max_shape_points,         "max_shape_points",             10,  1_000_000);
+    chk_u32!(cfg.max_stops_per_trip,       "max_stops_per_trip",           5,   100_000);
+    chk_u32!(cfg.max_total_stop_times,     "max_total_stop_times",         100, 100_000_000);
+    chk_u32!(cfg.max_file_rows,            "max_file_rows",                10,  100_000_000);
     chk_f64!(cfg.duration_outlier_sigma,   "duration_outlier_sigma",      1.0,     6.0);
     chk_f64!(cfg.headway_outlier_sigma,    "headway_outlier_sigma",       1.0,     6.0);
     // service_day_start_hour: u32 alt sınır 0 → `< 0` kontrolü tip-limiti gereği anlamsız
