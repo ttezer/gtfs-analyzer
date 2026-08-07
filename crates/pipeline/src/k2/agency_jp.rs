@@ -1,4 +1,4 @@
-use super::common::{get_raw_field, build_row_map, get_trimmed_field, RowMap};
+use super::common::{get_raw_field, build_row_map, RowMap};
 use crate::k1_parse::RawFile;
 
 /// GTFS-JP `agency_jp.txt` — işleticinin resmî/yasal bilgileri. `agency_id`
