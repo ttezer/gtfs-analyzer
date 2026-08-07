@@ -101,7 +101,9 @@ pub fn validate_fare_products(
         }
 
         let currency = get_trimmed_field(&row_map, "currency").unwrap_or("").to_string();
-        if currency.len() != 3 || !currency.chars().all(|c| c.is_ascii_uppercase()) {
+        // ⚠️ ISO 4217 AKTİF kod listesi (issue #82): eski denetim "üç büyük harf" idi,
+        // `ZZZ` geçiyordu ve `iso4217_minor_unit` onu sessizce 2 ondalık sayıyordu.
+        if !super::common::is_iso4217(&currency) {
             notices.push(make_k2_notice(
                 &mut counter, "FPD_003", EntityType::Row, entity_id.clone(), Some(&row_map),
                 &file.name, Some(line), Some("currency"), Some(currency.clone()),

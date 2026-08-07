@@ -69,8 +69,10 @@ fn parse_date_raw(raw: &str) -> Result<Option<(u32, u32, u32)>, String> {
     let year  = raw[0..4].parse::<u32>().map_err(|_| format!("'{raw}' geçersiz yıl."))?;
     let month = raw[4..6].parse::<u32>().map_err(|_| format!("'{raw}' geçersiz ay."))?;
     let day   = raw[6..8].parse::<u32>().map_err(|_| format!("'{raw}' geçersiz gün."))?;
-    if month == 0 || month > 12 || day == 0 || day > 31 {
-        return Err(format!("'{raw}' geçersiz tarih."));
+    // ⚠️ ORTAK yardımcı (issue #82): burada `ay ≤ 12, gün ≤ 31` deniyordu ve `20260231`
+    // geçiyordu. Akış ile akış-dışı yol AYNI kararı vermek zorunda.
+    if !super::common::is_valid_calendar_date(year, month, day) {
+        return Err(format!("'{raw}' takvimde olmayan tarih."));
     }
     Ok(Some((year, month, day)))
 }

@@ -94,11 +94,18 @@ pub fn parse_u32_col(raw: &str) -> Result<Option<u32>, ()> {
 
 /// Ham değerden f64. Boş → `Ok(None)`, geçersiz → `Err(())`.
 #[allow(clippy::result_unit_err)]
+/// ⚠️ SONLU OLMAYAN DEĞERLER REDDEDİLİR (issue #82). Rust'ın `f64` ayrıştırıcısı
+/// `NaN`, `inf`, `-Infinity` metinlerini KABUL eder; GTFS'in `Float`/`Latitude` tipleri
+/// bunları içermez ve bir `NaN` koordinat aşağıdaki her geometri kuralında sessizce
+/// "karşılaştırma false" davranışına dönüşür (mesafe hesabı, sıralama, eşik).
 pub fn parse_f64_col(raw: &str) -> Result<Option<f64>, ()> {
     if raw.is_empty() {
         return Ok(None);
     }
-    raw.parse::<f64>().map(Some).map_err(|_| ())
+    match raw.parse::<f64>() {
+        Ok(v) if v.is_finite() => Ok(Some(v)),
+        _ => Err(()),
+    }
 }
 
 pub fn parse_f64(row: &RowMap, field: &str) -> Result<Option<f64>, String> {
@@ -108,9 +115,9 @@ pub fn parse_f64(row: &RowMap, field: &str) -> Result<Option<f64>, String> {
     if raw.is_empty() {
         return Ok(None);
     }
-    raw.parse::<f64>()
-        .map(Some)
-        .map_err(|_| format!("'{field}' için f64 bekleniyor, alınan: {raw}"))
+    // Ortak yardımcı: akış ve akış-dışı yollar AYNI kararı vermeli (issue #82).
+    parse_f64_col(raw)
+        .map_err(|_| format!("'{field}' için sonlu bir f64 bekleniyor, alınan: {raw}"))
 }
 
 pub fn parse_u32(row: &RowMap, field: &str) -> Result<Option<u32>, String> {
@@ -159,7 +166,30 @@ pub fn parse_service_date(row: &RowMap, field: &str) -> Result<Option<(u32, u32,
         .parse::<u32>()
         .map_err(|_| format!("'{field}' gün bölümü geçersiz: {raw}"))?;
 
+    // ⚠️ TAKVİM GEÇERLİLİĞİ (issue #82). Eski kod yalnız BİÇİMİ denetliyordu: `20261340`
+    // ayrıştırılıp `(2026, 13, 40)` olarak DÖNÜYORDU ve aşağıdaki servis-günü hesapları
+    // olmayan bir tarihle çalışıyordu. Akış yolundaki denetim ise `ay ≤ 12, gün ≤ 31`e
+    // kadar gelmişti — `20260231` yine geçiyordu. İkisi de artık AYNI yardımcıyı çağırır.
+    if !is_valid_calendar_date(year, month, day) {
+        return Err(format!("'{field}' takvimde olmayan tarih: {raw}"));
+    }
+
     Ok(Some((year, month, day)))
+}
+
+/// Gerçek bir takvim günü mü — artık yıl dahil (issue #82).
+pub fn is_valid_calendar_date(year: u32, month: u32, day: u32) -> bool {
+    if !(1..=12).contains(&month) || day == 0 {
+        return false;
+    }
+    let leap = (year % 4 == 0 && year % 100 != 0) || year % 400 == 0;
+    let max = match month {
+        1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
+        4 | 6 | 9 | 11 => 30,
+        2 if leap => 29,
+        _ => 28,
+    };
+    day <= max
 }
 
 /// GTFS saat formatı: HH:MM:SS (HH 24'ten büyük olabilir).
@@ -174,6 +204,13 @@ pub fn parse_gtfs_time(row: &RowMap, field: &str) -> Result<Option<(u32, u32, u3
     let parts: Vec<&str> = raw.split(':').collect();
     if parts.len() != 3 {
         return Err(format!("'{field}' için HH:MM:SS bekleniyor, alınan: {raw}"));
+    }
+    // ⚠️ SÖZLÜKSEL GENİŞLİK de tiptir (issue #82): spec `H:MM:SS` veya `HH:MM:SS` der;
+    // dakika ve saniye İKİ BASAMAKLIDIR. Eski kod yalnız sayısal ayrıştırma yapıyordu,
+    // `1:2:3` geçiyordu. Saat 1–2 basamak olabilir (`25:00:00` servis-günü notasyonu).
+    if !gtfs_time_widths_ok(&parts) {
+        return Err(format!(
+            "'{field}' için [H]H:MM:SS bekleniyor (dakika/saniye iki basamaklı), alınan: {raw}"));
     }
 
     let hour = parts[0]
@@ -192,6 +229,53 @@ pub fn parse_gtfs_time(row: &RowMap, field: &str) -> Result<Option<(u32, u32, u3
 
     Ok(Some((hour, minute, second)))
 }
+
+/// GTFS saat biçiminin SÖZLÜKSEL denetimi — `parse_gtfs_time` ve akış tarafındaki
+/// `parse_gtfs_time_raw` AYNI kararı vermek zorunda (ikisi ayrışırsa aynı feed akış
+/// modunda başka, tam modda başka sonuç verir).
+pub fn gtfs_time_widths_ok(parts: &[&str]) -> bool {
+    // ⚠️ SAATE BASAMAK SINIRI KONMAZ — bilinçli. İlk taslak `HH`'yi 1–2 basamakla
+    // sınırlıyordu ve `tfr_006_does_not_overflow_on_huge_hour` düştü. Asıl mesele test
+    // değil: servis günü notasyonunda saat 24'ü aşar (raylı feed'lerde 30:37, 38:10
+    // ÖLÇÜLDÜ) ve çok günlü tren seferleri üç basamağa taşabilir. Saati kısıtlamak
+    // GEÇERLİ veriyi reddetmek olurdu; issue #82'nin bildirdiği kusur `1:2:3`, yani
+    // DAKİKA/SANİYE genişliğidir. Taşma koruması `TFR_006`'da ayrıca duruyor.
+    parts.len() == 3
+        && !parts[0].is_empty()
+        && parts[1].len() == 2
+        && parts[2].len() == 2
+        && parts.iter().all(|p| p.bytes().all(|b| b.is_ascii_digit()))
+}
+
+/// ISO 4217 ALFABETİK kod mu (issue #82).
+///
+/// ⚠️ Eskiden yalnız "üç büyük ASCII harf" deniyordu: `ZZZ` geçiyordu ve
+/// `iso4217_minor_unit` bilinmeyen kodu sessizce 2 ondalıklı sayıyordu — yani uydurma bir
+/// para birimi hem geçerli sayılıyor hem de tutar biçimlendirmesi uyduruluyordu.
+/// Liste ISO 4217 AKTİF alfabetik kodlarıdır; tarihe karışmış kodlar (ör. `TRL`, `DEM`)
+/// bilinçli olarak DIŞARIDADIR — feed bugünkü bir para birimi bildirmelidir.
+pub fn is_iso4217(code: &str) -> bool {
+    ISO4217_ACTIVE.binary_search(&code).is_ok()
+}
+
+/// Sıralı tutulur (`binary_search`). Kaynak: ISO 4217 aktif kod listesi.
+const ISO4217_ACTIVE: &[&str] = &[
+    "AED", "AFN", "ALL", "AMD", "ANG", "AOA", "ARS", "AUD", "AWG", "AZN", "BAM", "BBD",
+    "BDT", "BGN", "BHD", "BIF", "BMD", "BND", "BOB", "BOV", "BRL", "BSD", "BTN", "BWP",
+    "BYN", "BZD", "CAD", "CDF", "CHE", "CHF", "CHW", "CLF", "CLP", "CNY", "COP", "COU",
+    "CRC", "CUP", "CVE", "CZK", "DJF", "DKK", "DOP", "DZD", "EGP", "ERN", "ETB", "EUR",
+    "FJD", "FKP", "GBP", "GEL", "GHS", "GIP", "GMD", "GNF", "GTQ", "GYD", "HKD", "HNL",
+    "HTG", "HUF", "IDR", "ILS", "INR", "IQD", "IRR", "ISK", "JMD", "JOD", "JPY", "KES",
+    "KGS", "KHR", "KMF", "KPW", "KRW", "KWD", "KYD", "KZT", "LAK", "LBP", "LKR", "LRD",
+    "LSL", "LYD", "MAD", "MDL", "MGA", "MKD", "MMK", "MNT", "MOP", "MRU", "MUR", "MVR",
+    "MWK", "MXN", "MXV", "MYR", "MZN", "NAD", "NGN", "NIO", "NOK", "NPR", "NZD", "OMR",
+    "PAB", "PEN", "PGK", "PHP", "PKR", "PLN", "PYG", "QAR", "RON", "RSD", "RUB", "RWF",
+    "SAR", "SBD", "SCR", "SDG", "SEK", "SGD", "SHP", "SLE", "SOS", "SRD", "SSP", "STN",
+    "SVC", "SYP", "SZL", "THB", "TJS", "TMT", "TND", "TOP", "TRY", "TTD", "TWD", "TZS",
+    "UAH", "UGX", "USD", "USN", "UYI", "UYU", "UYW", "UZS", "VED", "VES", "VND", "VUV",
+    "WST", "XAF", "XCD", "XCG", "XDR", "XOF", "XPF", "XSU", "XUA", "YER", "ZAR", "ZMW",
+    "ZWG",
+];
 
 pub fn validate_enum(value: &str, allowed: &[&str]) -> bool {
     allowed.contains(&value)
@@ -263,9 +347,23 @@ pub fn looks_like_bcp47(value: &str) -> bool {
     if trimmed.is_empty() {
         return false;
     }
-    trimmed.split('-').all(|part| {
+    let mut parts = trimmed.split('-');
+    // ⚠️ BİRİNCİL ALT ETİKET ALFABETİKTİR (issue #82). Eski kod her alt etikete
+    // "alfanümerik, ≤8" diyordu ve `123` dil kodu olarak geçiyordu. BCP 47'de dil alt
+    // etiketi harflerden oluşur (2–3 ISO 639, ya da 4–8 kayıtlı); SAYI olamaz.
+    // Tek harfli `i`/`x` önekleri grandfathered/private-use dizilerinin başıdır ve
+    // geçerlidir — onları reddetmek geçerli etiketi düşürürdü.
+    let Some(primary) = parts.next() else { return false };
+    let plen = primary.len();
+    let primary_ok = primary.chars().all(|c| c.is_ascii_alphabetic())
+        && ((2..=8).contains(&plen) || (plen == 1 && matches!(primary, "i" | "x" | "I" | "X")));
+    if !primary_ok {
+        return false;
+    }
+    // Sonraki alt etiketler SAYISAL olabilir (bölge kodu `419`, varyant `1901`).
+    parts.all(|part| {
         let len = part.len();
-        !part.is_empty() && len <= 8 && part.chars().all(|c| c.is_ascii_alphanumeric())
+        (1..=8).contains(&len) && part.chars().all(|c| c.is_ascii_alphanumeric())
     })
 }
 
@@ -539,6 +637,48 @@ mod tests {
         assert_eq!(notice.id, "k2/STM_001#1");
     }
     #[test]
+    /// issue #82 — paylaşılan tip yardımcıları, temsil ettikleri standarttan GENİŞTİ.
+    /// Her biri için: bildirilen GEÇERSİZ örnek + geçerli sınır durumu.
+    #[test]
+    fn type_helpers_reject_values_outside_the_declared_types() {
+        // 1) BCP 47: birincil alt etiket ALFABETİK olmalı.
+        assert!(!super::looks_like_bcp47("123"), "sayısal birincil alt etiket dil kodu değildir");
+        assert!(!super::looks_like_bcp47("1-tr"), "sayısal birincil alt etiket");
+        assert!(super::looks_like_bcp47("tr"));
+        assert!(super::looks_like_bcp47("en-US"));
+        assert!(super::looks_like_bcp47("es-419"), "BÖLGE kodu sayısal olabilir");
+        assert!(super::looks_like_bcp47("zh-Hant-TW"));
+        assert!(super::looks_like_bcp47("x-private"), "private-use öneki geçerli");
+
+        // 5) f64: sonlu olmayan değerler tip dışıdır.
+        assert!(super::parse_f64_col("NaN").is_err(), "NaN koordinat olamaz");
+        assert!(super::parse_f64_col("inf").is_err());
+        assert!(super::parse_f64_col("-Infinity").is_err());
+        assert_eq!(super::parse_f64_col("41.5").unwrap(), Some(41.5));
+        assert_eq!(super::parse_f64_col("").unwrap(), None);
+
+        // 6) Saat: dakika/saniye İKİ basamak; saatte sınır YOK (servis günü).
+        assert!(!super::gtfs_time_widths_ok(&["1", "2", "3"]), "1:2:3 tip dışı");
+        assert!(!super::gtfs_time_widths_ok(&["08", "5", "00"]));
+        assert!(super::gtfs_time_widths_ok(&["8", "05", "00"]), "H:MM:SS geçerli");
+        assert!(super::gtfs_time_widths_ok(&["08", "05", "00"]));
+        assert!(super::gtfs_time_widths_ok(&["145", "00", "00"]),
+                "çok günlü tren seferi — saat basamağı SINIRLANMAZ");
+
+        // 4) ISO 4217: uydurma kod geçmemeli.
+        assert!(!super::is_iso4217("ZZZ"), "ZZZ ISO 4217 kodu değildir");
+        assert!(!super::is_iso4217("TRL"), "tedavülden kalkmış kod bilinçli olarak dışarıda");
+        assert!(!super::is_iso4217("usd"), "kodlar BÜYÜK harftir");
+        assert!(super::is_iso4217("TRY") && super::is_iso4217("EUR") && super::is_iso4217("USD"));
+
+        // 2/3) Takvim: biçim doğru ama GÜN yok.
+        assert!(!super::is_valid_calendar_date(2026, 13, 40), "13. ay yoktur");
+        assert!(!super::is_valid_calendar_date(2026, 2, 31), "31 Şubat yoktur");
+        assert!(!super::is_valid_calendar_date(2026, 2, 29), "2026 artık yıl DEĞİL");
+        assert!(super::is_valid_calendar_date(2024, 2, 29), "2024 artık yıl");
+        assert!(super::is_valid_calendar_date(2026, 12, 31));
+    }
+
     fn looks_like_url_requires_a_web_scheme() {
         // Spec: "A fully qualified URL that includes http:// or https://."
         assert!(super::looks_like_url("http://a.com"));

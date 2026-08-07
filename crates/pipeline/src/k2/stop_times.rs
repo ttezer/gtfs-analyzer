@@ -497,6 +497,13 @@ fn parse_gtfs_time_raw(raw: &str, field: &str) -> Result<Option<(u32, u32, u32)>
         return Ok(None);
     }
     let bad = || format!("'{field}' için HH:MM:SS bekleniyor, alınan: {raw}");
+    // ⚠️ SÖZLÜKSEL GENİŞLİK — `common::gtfs_time_widths_ok` ile AYNI karar (issue #82).
+    // İki yol ayrışırsa aynı feed akış modunda başka, tam modda başka sonuç verir.
+    let parts: Vec<&str> = raw.split(':').collect();
+    if !super::common::gtfs_time_widths_ok(&parts) {
+        return Err(format!(
+            "'{field}' için [H]H:MM:SS bekleniyor (dakika/saniye iki basamaklı), alınan: {raw}"));
+    }
     let mut it = raw.splitn(3, ':');
     // parse_u32_ascii(seg).is_some() == seg.parse::<u32>().is_ok() (parse_tests garantisi) →
     // Ok/Err kararı orijinalle birebir; splitn + ok_or_else(bad) yapısı değişmedi.
@@ -516,6 +523,11 @@ mod parse_tests {
     // str::parse referans HH:MM:SS — değiştirdiğimiz fonksiyonun ESKİ mantığı.
     fn ref_time(raw: &str) -> Result<Option<(u32, u32, u32)>, ()> {
         if raw.is_empty() { return Ok(None); }
+        // issue #82: referans da SÖZLÜKSEL genişliği denetler — testin işi hızlı
+        // ayrıştırıcının referansla aynı kararı vermesi, ikisinin de ESKİ (gevşek)
+        // mantığı sürdürmesi değil.
+        let parts: Vec<&str> = raw.split(':').collect();
+        if !crate::k2::common::gtfs_time_widths_ok(&parts) { return Err(()); }
         let mut it = raw.splitn(3, ':');
         let h = it.next().ok_or(())?.parse::<u32>().map_err(|_| ())?;
         let m = it.next().ok_or(())?.parse::<u32>().map_err(|_| ())?;

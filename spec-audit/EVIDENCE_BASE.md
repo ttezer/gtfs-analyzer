@@ -400,6 +400,30 @@ satır olursa olsun kural susuyordu. Denetim `k2/mod.rs`'te tek geçişe topland
 27 feed'e ulaşılamadığı için bu bir ALT SINIRDIR.
 
 ### 5.4 "300/300" ÇAPA kapsamıdır, semantik tamlık değil
+
+🔴 **2026-08-07 (issue #82): bu sınır SOMUTLANDI.** Dış okuma, bir alanın Spec kuralına
+çapalı olmasına rağmen o alanın TİP PREDİKATININ temsil ettiği standarttan geniş
+olabileceğini altı somut örnekle gösterdi ve altısı da doğrulandı:
+
+| yardımcı | kabul ediyordu | artık |
+|---|---|---|
+| `looks_like_bcp47` | `123` (sayısal dil kodu) | birincil alt etiket ALFABETİK; bölge `419` hâlâ geçerli |
+| `parse_service_date` | `20261340` → `(2026,13,40)` | takvim geçerliliği (artık yıl dahil) |
+| akış `calendar_dates` | `20260231` (ay≤12, gün≤31) | AYNI ortak yardımcı |
+| `FAR_003`/`FPD_003` | `ZZZ` (üç büyük harf) | ISO 4217 aktif kod listesi |
+| `parse_f64`/`parse_f64_col` | `NaN`, `inf` | yalnız SONLU değerler |
+| `parse_gtfs_time` | `1:2:3` | dakika/saniye İKİ basamak |
+
+⚠️ **Saate basamak sınırı KONMADI** — ilk taslak koydu ve `TFR_006` testi düştü; asıl mesele
+testin kendisi değildi: servis günü notasyonunda saat 24'ü aşar (raylı feed'lerde 30:37,
+38:10 ölçüldü) ve çok günlü tren seferleri üç basamağa taşabilir. Saati kısıtlamak GEÇERLİ
+veriyi reddetmek olurdu.
+
+**Ölçüm:** 20 rastgele korpus feed'i, önce/sonra: **fark 0**. Yani yeni yanlış pozitif yok;
+bu örneklemde doğru pozitif de yok (aranan bozukluklar nadir). 20 feed bir ALT SINIRDIR,
+korpusun tamamı değil.
+
+
 Alan tablosu ekseni `Presence`/`Type`/`Primary Key` sütunlarından **kaba atomlar** üretir.
 Kapsamadıkları: düzyazı koşulları · dosyalar arası koşullar · sefer içi tutarlılık ·
 GeoJSON iç yapı koşullarının tamamı. Bir alana Spec notice çapalanması, o alanın ilgili
