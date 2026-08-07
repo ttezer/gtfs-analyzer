@@ -287,13 +287,17 @@ def issue_body(r: dict) -> str:
         f"|---|---|---|",
         f"| candidates | {r['candidates_recorded']} | "
         f"{r['candidates_live'] if r['catalogue_measured'] else 'not measured'} |",
-        f"| spec_revision | {r['revision_recorded']} | {r['revision_live']} |",
+        f"| spec_revision | {r['revision_recorded']} | "
+        f"{r['revision_live'] if r['catalogue_measured'] else 'not measured'} |",
         f"| upstream commit | {(r['commit_recorded'] or '-')[:12]} | "
         f"{(r['commit_live'] or 'not measured')[:12]} |",
         f"| catalogue sha | {(r['catalogue_sha_recorded'] or '-')[:12]} | "
-        f"{(r['catalogue_sha_live'] or '-')[:12]} |",
-        f"| page sha equal | | {r['page_same']} (page bytes change on every response — "
-        f"Cloudflare; not a signal) |",
+        f"{(r['catalogue_sha_live'] or 'not measured')[:12]} |",
+        # ⚠️ Sayfa hiç alınmadıysa `False` yazmak "denendi ve tutmadı" gibi okunur.
+        f"| page bytes | | " + ("not fetched" if not r["catalogue_measured"]
+                                else f"{'same' if r['page_same'] else 'differ'} "
+                                     "(they differ on every response — Cloudflare; "
+                                     "not a signal)") + " |",
         "",
     ]
     if r["added"]:
