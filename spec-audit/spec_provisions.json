@@ -1,11 +1,16 @@
 {
   "_source": {
     "url": "https://gtfs.org/documentation/schedule/reference/",
-    "sha256": "fb7e637cb49dba7af1a1ba3946ddaf3c46b5edaf9db8c54d18ba95b353f26742",
-    "bytes": 295559,
-    "spec_revision": "April 27, 2026"
+    "sha256": "214e2a7d3a43b6c200dc081614b03b00c65250c863a59f25376df24e95d5a9bb",
+    "bytes": 295827,
+    "provisions_sha256": "7ad4865475ab33f6ffc3fbc5e1d2f828b7247ef5580321cb1dc9dbce751a08b4",
+    "spec_revision": "April 27, 2026",
+    "upstream_repo": "google/transit",
+    "upstream_path": "gtfs/spec/en/reference.md",
+    "upstream_commit": "ac663b574aae7223e45044b7733a1f101f0ab907",
+    "upstream_commit_date": "2026-04-30T15:08:27Z"
   },
-  "_note": "Üretilmiş dosya — elle düzenlemeyin. Yeniden üretmek için: python3 spec-audit/extract_provisions.py. Satırlar ADAYDIR, hüküm değil; triyaj spec-audit/PROVISION_TRIAGE.md'de. `_source.sha256` + `_source.spec_revision` kataloğun HANGİ metinden üretildiğini sabitler; ikisi tutmuyorsa yüzde o metne ait DEĞİLDİR.",
+  "_note": "Üretilmiş dosya — elle düzenlemeyin. Yeniden üretmek için: python3 spec-audit/extract_provisions.py. Satırlar ADAYDIR, hüküm değil; triyaj spec-audit/PROVISION_TRIAGE.md'de. `_source.provisions_sha256` kataloğun DOĞRULANABİLİR çapasıdır; tutmuyorsa yüzde başka bir metne aittir. (`sha256` yeniden ÜRETİLEMEZ — sayfa her yanıtta Cloudflare satırları yüzünden değişir; o alan yalnız kayıttır.) `_source.upstream_commit` ise o metnin KAYNAK sürümünü (google/transit reference.md) sabitler — sha256'nın yerine geçmez, farklı soruyu yanıtlar: 'hangi spec sürümü' vs 'hangi baytlar'.",
   "provisions": [
     {
       "id": "P6766c477",

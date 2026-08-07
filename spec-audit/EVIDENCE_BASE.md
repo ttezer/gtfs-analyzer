@@ -105,11 +105,62 @@ python3 spec-audit/extract_provisions.py spec.html      # katalog
 python3 spec-audit/measure_modalless.py spec.html --residual   # okunan kalıntı kümesi
 ```
 ✅ **Kaynak SABİTLENMİŞTİR** (2026-08-06 denetiminden sonra): `spec_provisions.json`
-içindeki `_source` alanı indirilen HTML'in **SHA-256**'sını, bayt boyutunu ve spec'in kendi
-**"Revised April 27, 2026"** satırını taşır. Hash tutmuyorsa katalog başka bir metinden
-üretilmiştir ve yüzde o metne ait değildir.
-⚠️ Bu, *ayrıştırdığımız HTML'i* sabitler; upstream `google/transit` commit SHA'sını değil.
-Resmî kaynağa çapalamak isteyen `gtfs/spec/en/reference.md` commit'ini ayrıca not etmelidir.
+içindeki `_source` alanı indirilen HTML'in SHA-256'sını, bayt boyutunu ve spec'in kendi
+**"Revised April 27, 2026"** satırını taşır.
+
+🔴 **AMA O HASH ÇAPA DEĞİLDİ — 2026-08-07'de ÇÜRÜTÜLDÜ.** "Hash tutmuyorsa katalog başka
+bir metinden üretilmiştir" yazıyordu; ölçüldü ki hash **HİÇBİR ZAMAN tutmuyor**: sayfa arka
+arkaya üç kez indirildi, üç farklı özet çıktı. Fark yalnız Cloudflare'in enjekte ettiği iki
+satırdı (`data-cfemail` token'ı + `__CF$cv$params` ray id'si). Yani üçüncü bir taraf o
+değeri asla yeniden üretemezdi.
+
+✅ **Çapa artık `_source.provisions_sha256`:** adayların kanonik JSON'undan hesaplanır, site
+iskeletinden bağımsızdır. İki AYRI indirmede AYNI çıktığı ölçüldü (sayfa özeti farklıyken).
+Tutmuyorsa katalog başka bir metinden üretilmiştir ve yüzde o metne ait değildir.
+`sha256`/`bytes` alanları kayıtta kalır ama iddiası **"bu baytları gördük"**tür,
+doğrulanabilir bir çapa değil.
+✅ **UPSTREAM SÜRÜM DE SABİT** (2026-08-07, issue #72): `_source.upstream_commit` +
+`upstream_commit_date`, gtfs.org'un render ettiği kaynağa — `google/transit` deposundaki
+`gtfs/spec/en/reference.md` — dokunan en yeni commit'i taşır. Bugünkü kayıt
+`ac663b57` (2026-04-30).
+
+🔴 **İKİ ALAN AYNI ŞEYİ SABİTLEMEZ, biri diğerinin yerine geçmez:**
+| alan | neyi sabitler | sınırı |
+|---|---|---|
+| `sha256` + `bytes` | **AYRIŞTIRDIĞIMIZ baytlar** (render edilmiş HTML) | site iskeleti değişince de değişir; normatif metin aynı kalabilir |
+| `upstream_commit` | o metnin **KAYNAK sürümü** (markdown) | katalog markdown'dan DEĞİL HTML'den üretilir → commit "hangi spec sürümü"nü söyler, "hangi baytlar"ı değil |
+
+⚠️ Commit çözülemezse `extract_provisions.py` **exit 1** verir; sessizce boş alan yazmaz.
+Ağsız üretim için `--no-upstream` vardır ve kayıt bunu AÇIKÇA yazar ("çözülemedi" ile
+"hiç denenmedi" ayrımı — `AGN_001` dersi).
+
+### 2.1 Sürüklenme (drift) tespiti — haftalık, issue AÇAR, build KIRMAZ
+
+Katalog canlı bir sayfadan üretiliyor; spec revize edilirse yüzde sessizce eski metne ait
+olur. `.github/workflows/spec-drift.yml` haftada bir `spec-audit/spec_drift.py` koşar
+(issue #73).
+
+🔴 **HAM SHA-256 KAPISI TEK BAŞINA YANLIŞ ALARM ÜRETİR — ÖLÇÜLDÜ.** İlk tasarım "sayfanın
+sha'sı değiştiyse issue aç" idi. 2026-08-07'de sayfanın sha'sı ZATEN farklıydı
+(295.559 → 295.827 bayt) ama **katalog birebir aynıydı**: 299 adayın 299'u, aynı kimlikler,
+aynı `spec_revision`. Fark mkdocs yeniden derlemesiydi. Kapı ilk koşusunda yanlış alarm
+verecekti — yani insanları görmezden gelmeye alıştıracaktı.
+
+Bu yüzden dört sınıf AYRI raporlanır ve yalnız ikisi issue açar:
+
+| durum | anlamı | issue? |
+|---|---|---|
+| `same` | sayfa da katalog da aynı | hayır |
+| `cosmetic` | sayfa değişti, **katalog aynı** | hayır (özete yazılır) |
+| `catalogue` | aday eklendi/kayboldu ya da `spec_revision` değişti | **evet** |
+| `upstream` | `reference.md`'ye yeni commit girdi (sayfa henüz derlenmemiş olabilir) | **evet** |
+
+⚠️ **Sürüklenme build'i KIRMAZ** (spec revizyonu bu depoda regresyon değil, haberdir) ama
+**ÖLÇÜLEMEME KIRAR**: ağ/ayrıştırma hatasında betik **exit 2** döner. Sessizce yeşil kalan
+bir denetim denetim değildir — `zip_peek.py` ile aynı ders: *"yok"* ile *"bakılamadı"*
+karıştırılmaz.
+
+Dört sınıfın dördü de defter bozularak doğrulandı (`--baseline` bayrağı bunun içindir).
 
 ### Bu iddiayı ne çürütür
 Spec'te modal taşıyan ama katalogda olmayan **tek bir cümle** göstermek. Bugün bu üç kez

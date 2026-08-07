@@ -1,0 +1,67 @@
+name: Spec drift
+
+# The provision catalogue is built from a live page. If gtfs.org publishes a revision,
+# `spec-audit/spec_provisions.json` silently describes an older text and the percentage in
+# EVIDENCE_BASE.md stops referring to the current specification. Nothing else detects that:
+# `badge_status.py` checks the ledger against the catalogue we already have, not the
+# catalogue against the spec.
+#
+# Weekly, never on push. A spec revision is not a regression in this repository, so drift
+# does not fail anything — it opens an issue. What DOES fail the job is being unable to
+# look at all (exit 2), because a check that goes green when it could not measure is not a
+# check.
+
+on:
+  schedule:
+    # Mondays 06:00 UTC. Weekly is deliberate: the upstream spec revises a few times a
+    # year, and a daily job would only add noise to the schedule history.
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  drift:
+    name: Compare the catalogue against the live spec
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      # Exit 0 = measured (status may still be drift); exit 2 = could not measure → red.
+      - name: spec_drift.py
+        id: drift
+        run: python3 spec-audit/spec_drift.py
+
+      # ⚠️ `cosmetic` DELIBERATELY does not open an issue. Measured on 2026-08-07: the
+      # rendered page's sha256 had already moved (295,559 → 295,827 bytes) while the
+      # catalogue was byte-identical — 299 of 299 candidates, same ids, same revision. The
+      # drift was mkdocs chrome. A raw sha gate would have opened an issue on its first
+      # run for no normative change, which is exactly the "trains people to ignore it"
+      # failure this job is meant to avoid.
+      - name: Open an issue when the catalogue moved
+        if: steps.drift.outputs.status == 'catalogue' || steps.drift.outputs.status == 'upstream'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FINGERPRINT: ${{ steps.drift.outputs.fingerprint }}
+          BODY: ${{ steps.drift.outputs.body }}
+          STATUS: ${{ steps.drift.outputs.status }}
+        run: |
+          set -euo pipefail
+          title="Spec drift ($STATUS): $FINGERPRINT"
+          # Do not stack duplicates: the same revision would otherwise file an issue every
+          # week until someone adjudicates it.
+          existing=$(gh issue list --state open --label spec-drift --search "$FINGERPRINT" --json title --jq 'length')
+          if [ "$existing" != "0" ]; then
+            echo "Already filed for $FINGERPRINT — skipping." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          gh label create spec-drift --description "Upstream GTFS spec moved" --color 0e8a16 2>/dev/null || true
+          gh issue create --title "$title" --label spec-drift --body "$BODY"
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "status: ${{ steps.drift.outputs.status }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "fingerprint: ${{ steps.drift.outputs.fingerprint }}" >> "$GITHUB_STEP_SUMMARY"

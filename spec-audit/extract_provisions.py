@@ -37,6 +37,7 @@ import re as _re
 import json
 import pathlib
 import re
+import subprocess
 import sys
 import urllib.request
 
@@ -101,26 +102,98 @@ ABBREV = re.compile(r"\b(e\.g|i\.e|etc|vs|cf|St|Mr|Ms|Dr|approx|no|No)\.$")
 FILE_HEADER = re.compile(r"^File:\s*(Required|Optional|Conditionally (Required|Forbidden))\.?$")
 
 
-def source_fingerprint(doc: str, origin: str) -> dict:
+# Spec'in ÜRETİLDİĞİ kaynak: gtfs.org bu markdown'ı render eder.
+UPSTREAM_REPO = "google/transit"
+UPSTREAM_PATH = "gtfs/spec/en/reference.md"
+UPSTREAM_API = (
+    f"https://api.github.com/repos/{UPSTREAM_REPO}/commits"
+    f"?path={UPSTREAM_PATH}&per_page=1"
+)
+
+
+def upstream_commit() -> dict:
+    """`reference.md`'ye dokunan EN YENİ upstream commit'i çözer (issue #72).
+
+    ⚠️ Bu, `sha256`'nın YERİNE GEÇMEZ — ikisi FARKLI şeyleri sabitler:
+      · `sha256`          → bizim AYRIŞTIRDIĞIMIZ baytlar (render edilmiş HTML)
+      · `upstream_commit` → o metnin KAYNAK sürümü (markdown, google/transit)
+    Katalog markdown'dan değil HTML'den üretilir; commit "hangi spec sürümü" sorusunu
+    yanıtlar, "hangi baytlar" sorusunu DEĞİL. İkisi de kayıtta durur, biri diğerini
+    gereksiz kılmaz.
+
+    ⚠️ Çözülemezse SESSİZCE null yazılmaz — `main()` hata verip durur. Kayıtta boş
+    duran bir alan, zamanla "hiç doldurulmamış" ile "doldurulamadı"yı ayırt edilemez
+    kılar (`AGN_001` dersi). Ağsız üretim için `--no-upstream` bayrağı vardır ve o
+    zaman kayıt bunu AÇIKÇA yazar.
+    """
+    # ⚠️ `urllib` DEĞİL `curl` — bu betiğin kendi docstring'i ve `zip_peek.py` aynı tuzağı
+    # not ediyor: geliştirme makinesinde Python'un sertifika deposu yok, `urlopen`
+    # CERTIFICATE_VERIFY_FAILED veriyor. `curl` her iki ortamda da çalışıyor.
+    p = subprocess.run(
+        ["curl", "-sSL", "--max-time", "60", "-H", "Accept: application/vnd.github+json",
+         "-H", "User-Agent: gtfs-analyzer", UPSTREAM_API],
+        capture_output=True,
+    )
+    if p.returncode != 0:
+        raise RuntimeError(f"curl hatası: {p.stderr.decode()[:120]}")
+    data = json.loads(p.stdout.decode("utf-8"))
+    if isinstance(data, dict):  # API hata gövdesi (rate limit vb.) da JSON'dur
+        raise RuntimeError(f"API beklenmeyen yanıt: {str(data)[:120]}")
+    if not data:
+        raise RuntimeError(f"{UPSTREAM_PATH} için commit dönmedi")
+    return {
+        "upstream_repo": UPSTREAM_REPO,
+        "upstream_path": UPSTREAM_PATH,
+        "upstream_commit": data[0]["sha"],
+        "upstream_commit_date": data[0]["commit"]["committer"]["date"],
+    }
+
+
+def provisions_sha256(rows: list[dict]) -> str:
+    """Kataloğun KENDİSİNİN parmak izi — sayfanın değil.
+
+    🔴 2026-08-07'de ÖLÇÜLDÜ: `sha256` (render edilmiş HTML'in özeti) YENİDEN ÜRETİLEMEZ.
+    Sayfa arka arkaya üç kez indirildi, üç FARKLI özet çıktı; fark yalnız Cloudflare'in
+    enjekte ettiği iki satırdı (`data-cfemail` token'ı + `__CF$cv$params` ray id).
+    Yani "hash tutmuyorsa katalog başka bir metinden üretilmiştir" iddiası YANLIŞTI:
+    hash HİÇBİR ZAMAN tutmaz, saniyeler sonra bile.
+
+    Bu alan o iddianın gerçekten dayanabileceği yerdir: adaylar üzerinden hesaplanır,
+    site iskeletinden bağımsızdır ve üçüncü bir taraf aynı sayfayı indirip AYNI değeri
+    elde eder. Sürüklenme tespiti (`spec_drift.py`) ve issue tekilleştirmesi buna dayanır.
+    """
+    canon = json.dumps(rows, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(canon.encode("utf-8")).hexdigest()
+
+
+def source_fingerprint(doc: str, origin: str, upstream: dict, rows: list[dict]) -> dict:
     """Kataloğun hangi KAYNAK METİNDEN üretildiğini kanıtlanabilir kılar.
 
     ⚠️ 2026-08-06 dış denetimi: JSON yalnız `_source` URL'i taşıyordu. gtfs.org CANLI bir
     sayfa; yarın değişirse bugünkü 299 adayın aynı metinden üretildiği KANITLANAMAZDI.
     Artık indirilen HTML'in SHA-256'sı ve spec'in kendi "Revised …" satırı da yazılır:
     ikisi birden tutuyorsa katalog bit-bit yeniden üretilebilir.
+
+    ⚠️ 2026-08-07 (issue #72): buna upstream commit eklendi — bkz. `upstream_commit()`.
     """
     m = _re.search(r"Revised\s+([A-Z][a-z]+\s+\d{1,2},\s+\d{4})", strip_tags(doc))
     return {
         "url": origin,
+        # ⚠️ Bu özet YENİDEN ÜRETİLEMEZ (Cloudflare her yanıtta iki satırı değiştirir);
+        # "bu baytları gördük" kaydıdır, doğrulanabilir bir çapa DEĞİL. Çapa
+        # `provisions_sha256`.
         "sha256": hashlib.sha256(doc.encode("utf-8")).hexdigest(),
         "bytes": len(doc.encode("utf-8")),
+        "provisions_sha256": provisions_sha256(rows),
         "spec_revision": m.group(1) if m else None,
+        **upstream,
     }
 
 
 def fetch(argv: list[str]) -> str:
-    if len(argv) > 1:
-        return pathlib.Path(argv[1]).read_text(encoding="utf-8")
+    paths = [a for a in argv[1:] if not a.startswith("--")]
+    if paths:
+        return pathlib.Path(paths[0]).read_text(encoding="utf-8")
     with urllib.request.urlopen(SPEC_URL, timeout=60) as r:
         return r.read().decode("utf-8")
 
@@ -256,6 +329,25 @@ def ident(section: str, sentence: str) -> str:
 
 def main() -> int:
     doc = fetch(sys.argv)
+    # issue #72: kaynak sürüm pini. Çözülemezse SESSİZ GEÇMEZ.
+    if "--no-upstream" in sys.argv:
+        upstream = {
+            "upstream_repo": UPSTREAM_REPO,
+            "upstream_path": UPSTREAM_PATH,
+            "upstream_commit": None,
+            "upstream_commit_date": None,
+            "upstream_commit_note": "--no-upstream ile üretildi: commit ÇÖZÜLMEDİ, "
+                                    "'çözülemedi' ile 'hiç denenmedi' karışmasın diye "
+                                    "burada açıkça yazılıdır.",
+        }
+        print("UYARI: --no-upstream — katalog kaynak sürümüne PİNLENMEDİ.", file=sys.stderr)
+    else:
+        try:
+            upstream = upstream_commit()
+        except Exception as e:  # ağ/API hatası
+            print(f"HATA: upstream commit çözülemedi ({type(e).__name__}: {e}). "
+                  f"Ağsız üretmek için: --no-upstream", file=sys.stderr)
+            return 1
     rows: list[dict] = []
     seen: set[str] = set()
     for anchor, level, start, stop in section_bounds(doc):
@@ -301,12 +393,16 @@ def main() -> int:
     OUT.write_text(
         json.dumps(
             {
-                "_source": source_fingerprint(doc, SPEC_URL),
+                "_source": source_fingerprint(doc, SPEC_URL, upstream, rows),
                 "_note": "Üretilmiş dosya — elle düzenlemeyin. Yeniden üretmek için: "
                          "python3 spec-audit/extract_provisions.py. Satırlar ADAYDIR, "
                          "hüküm değil; triyaj spec-audit/PROVISION_TRIAGE.md'de. "
-                         "`_source.sha256` + `_source.spec_revision` kataloğun HANGİ metinden "
-                         "üretildiğini sabitler; ikisi tutmuyorsa yüzde o metne ait DEĞİLDİR.",
+                         "`_source.provisions_sha256` kataloğun DOĞRULANABİLİR çapasıdır; tutmuyorsa "
+                         "yüzde başka bir metne aittir. (`sha256` yeniden ÜRETİLEMEZ — sayfa her "
+                         "yanıtta Cloudflare satırları yüzünden değişir; o alan yalnız kayıttır.) "
+                         "`_source.upstream_commit` ise o metnin KAYNAK sürümünü (google/transit "
+                         "reference.md) sabitler — sha256'nın yerine geçmez, farklı soruyu "
+                         "yanıtlar: 'hangi spec sürümü' vs 'hangi baytlar'.",
                 "provisions": rows,
             },
             ensure_ascii=False,
