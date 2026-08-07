@@ -42,16 +42,27 @@ jobs:
         run: cargo build --release -p gtfs-cli
 
       - name: Generate controlled fixtures
-        run: python3 benchmark/validator-shootout/generate_fixtures.py
+        run: |
+          python3 benchmark/validator-shootout/generate_fixtures.py
+          python3 benchmark/validator-shootout/generate_controls.py
 
       - name: Run shootout
         run: node benchmark/validator-shootout/run.mjs
+
+      - name: Verify TML crash attribution
+        if: always()
+        run: node benchmark/validator-shootout/verify_controls.mjs
 
       - name: Publish benchmark summary
         if: always()
         run: |
           if [ -f benchmark/validator-shootout/results/report.md ]; then
             cat benchmark/validator-shootout/results/report.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+          if [ -f benchmark/validator-shootout/results/crash-controls.json ]; then
+            echo >> "$GITHUB_STEP_SUMMARY"
+            echo '## Crash-attribution controls' >> "$GITHUB_STEP_SUMMARY"
+            cat benchmark/validator-shootout/results/crash-controls.json >> "$GITHUB_STEP_SUMMARY"
           fi
 
       - name: Upload raw benchmark results
