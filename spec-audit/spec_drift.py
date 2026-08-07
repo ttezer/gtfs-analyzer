@@ -75,11 +75,35 @@ def load_extractor():
 
 
 def fetch(url: str) -> str:
-    # ⚠️ `urllib` DEĞİL `curl` — geliştirme makinesinde Python'un sertifika deposu yok.
-    p = subprocess.run(["curl", "-sSL", "--max-time", "90", url], capture_output=True)
+    """Spec sayfasını indir ve GERÇEKTEN spec olduğunu doğrula.
+
+    ⚠️ `urllib` DEĞİL `curl` — geliştirme makinesinde Python'un sertifika deposu yok.
+    ⚠️ Tarayıcı User-Agent'ı: gtfs.org Cloudflare arkasında ve varsayılan `curl/*` UA'sı
+    ile CI koşucularına ara sayfa (bot koruması) dönebiliyor. Böyle bir yanıt "sayfa
+    alındı" gibi görünür ama içinde tek bir hüküm yoktur → kataloğu 0 adaya düşürür.
+    Bu yüzden yanıt İÇERİK olarak doğrulanır ve sorun ayrı bir mesajla raporlanır:
+    sessizce "sürüklenme yok" demek, denetimin en kötü hâli olurdu.
+    """
+    ua = ("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) "
+          "Chrome/126.0 Safari/537.36 (+gtfs-analyzer spec-drift)")
+    p = subprocess.run(
+        ["curl", "-sSL", "--max-time", "90", "-A", ua,
+         "-H", "Accept: text/html,application/xhtml+xml", "-w", "\n%{http_code}", url],
+        capture_output=True,
+    )
     if p.returncode != 0:
-        raise RuntimeError(f"curl hatası: {p.stderr.decode()[:120]}")
-    return p.stdout.decode("utf-8")
+        raise RuntimeError(f"curl hatası: {p.stderr.decode()[:160]}")
+    body, _, code = p.stdout.decode("utf-8", "replace").rpartition("\n")
+    if code.strip() != "200":
+        raise RuntimeError(f"HTTP {code.strip()} — sayfa alınamadı ({len(body)} bayt)")
+    # Spec sayfasının değişmez çapası. Yoksa elimizdeki şey spec DEĞİL (ara sayfa,
+    # hata sayfası, yönlendirme gövdesi…).
+    if "field-definitions" not in body or "Revised" not in body:
+        head = " ".join(body[:200].split())
+        raise RuntimeError(
+            f"gelen belge spec sayfası değil ({len(body)} bayt) — bot koruması ya da "
+            f"yönlendirme olabilir. Baş: {head!r}")
+    return body
 
 
 def catalogue_of(mod, doc: str) -> dict:
