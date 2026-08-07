@@ -46,25 +46,7 @@ jobs:
           const m = await import('@tmlmobilidade/gtfs-validator');
           console.log('TML module keys:', Object.keys(m));
           console.log('TML default type:', typeof m.default);
-          if (m.default && typeof m.default === 'object') console.log('TML default keys:', Object.keys(m.default));
           NODE
-
-      - name: Adapt discovery runner to actual TML export shape
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          p = Path('benchmark/validator-shootout/run.mjs')
-          s = p.read_text()
-          old = "import { GTFSValidator, getValidatorInfo } from '@tmlmobilidade/gtfs-validator';"
-          new = """const __tmlModule = await import('@tmlmobilidade/gtfs-validator');
-          const __tmlRoot = (__tmlModule.default && typeof __tmlModule.default === 'object') ? __tmlModule.default : __tmlModule;
-          const GTFSValidator = __tmlModule.GTFSValidator ?? __tmlModule.GtfsValidator ?? __tmlRoot.GTFSValidator ?? __tmlRoot.GtfsValidator ?? (typeof __tmlModule.default === 'function' ? __tmlModule.default : null);
-          const getValidatorInfo = __tmlModule.getValidatorInfo ?? __tmlRoot.getValidatorInfo ?? (async () => ({ moduleKeys: Object.keys(__tmlModule), defaultType: typeof __tmlModule.default, defaultKeys: (__tmlRoot && typeof __tmlRoot === 'object') ? Object.keys(__tmlRoot) : [] }));
-          if (typeof GTFSValidator !== 'function') throw new Error(`Could not resolve validator export; module keys=${Object.keys(__tmlModule)} defaultType=${typeof __tmlModule.default} defaultKeys=${(__tmlRoot && typeof __tmlRoot === 'object') ? Object.keys(__tmlRoot) : []}`);"""
-          if old not in s:
-              raise SystemExit('expected import line not found')
-          p.write_text(s.replace(old, new, 1))
-          PY
 
       - name: Build GTFS Analyzer CLI
         run: cargo build --release -p gtfs-cli
