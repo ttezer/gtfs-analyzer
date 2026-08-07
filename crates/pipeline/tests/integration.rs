@@ -2097,6 +2097,18 @@ fn arc022_rows(file: &str, n: usize) -> String {
                 s.push_str(&format!("SH1,41.{:03},29.{:03},{i}\n", i, i));
             }
         }
+        "trips.txt" => {
+            s.push_str("route_id,service_id,trip_id\n");
+            for i in 1..=n {
+                s.push_str(&format!("R1,SVC1,T{i}\n"));
+            }
+        }
+        "calendar_dates.txt" => {
+            s.push_str("service_id,date,exception_type\n");
+            for i in 1..=n {
+                s.push_str(&format!("SVC1,2026{:02}{:02},2\n", 1 + i / 28, 1 + i % 28));
+            }
+        }
         other => panic!("beklenmeyen dosya: {other}"),
     }
     s
@@ -2142,12 +2154,65 @@ fn arc022_fires_on_k2_shapes_stream() {
         "11 satır > eşik 10 → shapes.txt için ARC_022 çıkmalı");
 }
 
+// ── issue #75: akış dosyalarının KALAN İKİSİ ────────────────────────────────
+// `trips.txt` ve `calendar_dates.txt` de K1'de stream edilir ama K2'de emit noktaları
+// YOKTU → kural onlarda kaç satır olursa olsun susuyordu. Denetim artık `k2/mod.rs`'te
+// TEK geçişte; bu iki test o geçişin kapsadığını sabitler.
+
 #[test]
-fn arc022_silent_at_the_threshold_on_all_three_paths() {
+fn arc022_fires_on_k2_trips_stream() {
+    assert!(arc022_fires_for("trips.txt", 11),
+        "11 satır > eşik 10 → trips.txt için ARC_022 çıkmalı");
+}
+
+#[test]
+fn arc022_fires_on_k2_calendar_dates_stream() {
+    assert!(arc022_fires_for("calendar_dates.txt", 11),
+        "11 satır > eşik 10 → calendar_dates.txt için ARC_022 çıkmalı");
+}
+
+#[test]
+fn arc022_silent_at_the_threshold_on_every_path() {
     // Sınır: eşiğe EŞİT satır sayısı ihlal DEĞİLDİR (`>` karşılaştırması).
-    for file in ["stops.txt", "stop_times.txt", "shapes.txt"] {
+    for file in ["stops.txt", "stop_times.txt", "shapes.txt", "trips.txt", "calendar_dates.txt"] {
         assert!(!arc022_fires_for(file, 10),
             "{file}: eşiğe eşit (10) satır ARC_022 üretmemeli");
+    }
+}
+
+#[test]
+fn arc022_notice_order_is_stable_across_runs() {
+    // ⚠️ Bu test K2'deki sıralamanın bekçisi DEĞİLDİR — 2026-08-07'de ölçüldü: alfabetik
+    // çıktıyı asıl K7 garanti ediyor (`notice_order_key` ARC_022'yi `entity_id`'ye göre
+    // sıralar), K2'deki `sort` kaldırılınca da bu test geçiyordu. O sıralamayı denetleyen
+    // birim testi `k2/mod.rs::files_over_row_limit_is_alphabetical_and_strict`.
+    // Buradaki iddia daha dar ama gerçek: uçtan uca çıktı sırası KARARLI ve alfabetik.
+    let mut files = base_files();
+    for name in ["shapes.txt", "trips.txt", "calendar_dates.txt"] {
+        let body = Box::leak(arc022_rows(name, 11).into_bytes().into_boxed_slice());
+        match files.iter_mut().find(|(n, _)| *n == name) {
+            Some(slot) => slot.1 = body,
+            None => files.push((name, body)),
+        }
+    }
+    let cfg = ValidatorConfig { max_file_rows: 10, ..ValidatorConfig::default() };
+    let zip = make_zip(&files);
+    let order = |vr: &gtfs_core::ValidationResult| -> Vec<String> {
+        vr.notices.iter().filter(|n| n.rule_id == "ARC_022")
+            .map(|n| n.entity_id.clone().unwrap_or_default()).collect()
+    };
+    let first = match validate_bytes(&zip, &cfg, TODAY) {
+        ValidateResult::Ok(vr) => order(&vr),
+        other => panic!("fatal beklenmiyordu: {other:?}"),
+    };
+    assert_eq!(first, vec!["calendar_dates.txt", "shapes.txt", "trips.txt"],
+        "ARC_022 bulguları dosya adına göre sıralı gelmeli");
+    for _ in 0..5 {
+        let again = match validate_bytes(&zip, &cfg, TODAY) {
+            ValidateResult::Ok(vr) => order(&vr),
+            other => panic!("fatal beklenmiyordu: {other:?}"),
+        };
+        assert_eq!(again, first, "aynı girdi aynı sırayı vermeli");
     }
 }
 

@@ -131,10 +131,30 @@ pub struct K2Result {
     pub notices: Vec<Notice>,
 }
 
+/// Eşiği aşan AKIŞ dosyaları — ARC_022'nin karar kaynağı (issue #75).
+///
+/// ⚠️ **Sıralama ÇIKTI SIRASINI belirlemez** — 2026-08-07'de ölçüldü. Nihai sırayı K7
+/// verir: `notice_order_key` ARC_022'yi `entity_id`'ye (yani dosya adına) göre sıralar ve
+/// id'leri o sıraya göre yeniden atar. Determinizm de buradan gelir, buradaki `sort`tan
+/// değil (`FxHashMap` zaten sabit tohumlu; sıralamayı kaldırınca çıktı birebir aynı kaldı).
+///
+/// O hâlde neden duruyor: bu fonksiyonun SÖZLEŞMESİ hash iç yapısına ve ekleme sırasına
+/// bağlı kalmasın diye. K7'nin sıralamasına dayanmak, iki uzak dosya arasında yazısız bir
+/// bağımlılık olurdu; maliyeti üç dosyalık bir `sort`.
+fn files_over_row_limit(counts: &FxHashMap<String, u64>, max_rows: u64) -> Vec<(&str, u64)> {
+    let mut over: Vec<(&str, u64)> = counts
+        .iter()
+        .filter(|(_, &rows)| rows > max_rows)
+        .map(|(name, &rows)| (name.as_str(), rows))
+        .collect();
+    over.sort_unstable_by(|a, b| a.0.cmp(b.0));
+    over
+}
+
 /// `cfg` K2'de YALNIZ ARC_022 eşiği (`max_file_rows`) için okunur — K2 şema/alan katmanı
 /// tarihsel olarak yapılandırmasızdır. 2026-08-07'de (issue #71) eklendi: eşik K1 ve K2'de
-/// ayrı ayrı sabit kodluydu, K1'i config'e bağlayıp K2'yi bırakmak knob'ı stop_times ve
-/// shapes'te — yani 1M satırı gerçekte aşan iki dosyada — sessizce etkisiz bırakırdı.
+/// ayrı ayrı sabit kodluydu ve kurala fixture yazılamıyordu. Denetimin kendisi artık bu
+/// fonksiyonun sonundaki TEK geçişte (issue #75); alt modüllerde kopyası YOKTUR.
 pub fn validate(mut files: RawFiles, zip_bytes: Option<&[u8]>, cfg: &ValidatorConfig) -> K2Result {
     use crate::timing::{Timer, mem_log};
     let mut notices = Vec::new();
@@ -240,7 +260,7 @@ pub fn validate(mut files: RawFiles, zip_bytes: Option<&[u8]>, cfg: &ValidatorCo
 
     if let Some(file) = files.get("shapes.txt") {
         let _t = Timer::start("K2::shapes");
-        let (shape_records, shape_interns, shape_notices) = validate_shapes(file, zip_bytes, cfg);
+        let (shape_records, shape_interns, shape_notices) = validate_shapes(file, zip_bytes);
         records.shapes = shape_records;
         records.shape_interns = shape_interns;
         notices.extend(shape_notices);
@@ -373,11 +393,37 @@ pub fn validate(mut files: RawFiles, zip_bytes: Option<&[u8]>, cfg: &ValidatorCo
     if let Some(file) = &stop_times_file {
         let _t = Timer::start("K2::stop_times");
         let has_booking_rules = !records.booking_rules.is_empty();
-        let (stm_index, stop_time_notices) = validate_stop_times(file, zip_bytes, has_booking_rules, cfg);
+        let (stm_index, stop_time_notices) = validate_stop_times(file, zip_bytes, has_booking_rules);
         records.stop_times_index = stm_index;
         notices.extend(stop_time_notices);
         records.streaming_row_counts.insert("stop_times.txt".to_string(), records.stop_times_index.total_rows as u64);
         mem_log("K2 after stop_times index");
+    }
+
+    // ARC_022: satır sayısı limiti — AKIŞ dosyalarının HEPSİ için TEK geçiş (issue #75).
+    //
+    // 🔴 Eskiden bu denetim `shapes.rs` ve `stop_times.rs` içinde AYRI AYRI kopyalanmıştı;
+    // K1'de stream edilen diğer iki dosya (`trips.txt`, `calendar_dates.txt`) hiçbir yerde
+    // denetlenmiyordu — `rows` K1'de boş kalıyor, K2'de de emit noktaları yoktu. Yani kural
+    // 1M satırı gerçekte en çok aşan dosyalarda SUSUYORDU. Kopyayı çoğaltmak yerine karar
+    // buraya toplandı: `streaming_row_counts`'a bir dosya eklendiği anda kapsama da girer.
+    //
+    // ⚠️ Sıralamanın gerekçesi `files_over_row_limit`'in doc yorumunda — determinizm DEĞİL.
+    //
+    // ⚠️ Sayılan şey PARSE EDİLEN kayıt sayısıdır (K1'in ham satır sayısı değil); `file_stats`
+    // de aynı kaynaktan gösterir, iki yer tutarlı kalsın diye böyle.
+    {
+        let mut ctr = 0u32;
+        for (name, rows) in files_over_row_limit(&records.streaming_row_counts, cfg.max_file_rows as u64) {
+            notices.push(make_k2_notice(
+                &mut ctr, "ARC_022", gtfs_core::EntityType::File, Some(name.to_string()),
+                None, name, None, None,
+                Some(format!("{rows}")), None,
+                format!("'{name}' dosyasında {rows} satır var; {} satır sınırını aşıyor.",
+                        cfg.max_file_rows),
+                "Dosyayı küçük parçalara bölün veya gereksiz satırları kaldırın.",
+            ));
+        }
     }
 
     // AGN_013: Feed dili ile ajans dili uyuşmuyor (feed_info_lang_and_agency_lang_mismatch)
@@ -412,6 +458,27 @@ mod tests {
     use super::*;
     use crate::k1_parse::RawFile;
     use std::collections::HashMap;
+
+    #[test]
+    fn files_over_row_limit_is_alphabetical_and_strict() {
+        // Ekleme sırası bilinçle ters: sıralama YOKSA çıktı bu sıradan etkilenir.
+        let mut counts: FxHashMap<String, u64> = FxHashMap::default();
+        for (name, rows) in [
+            ("stop_times.txt", 11u64),
+            ("trips.txt", 11),
+            ("calendar_dates.txt", 11),
+            ("shapes.txt", 10),   // eşiğe EŞİT → ihlal değil
+            ("agency.txt", 3),
+        ] {
+            counts.insert(name.to_string(), rows);
+        }
+        let over = files_over_row_limit(&counts, 10);
+        assert_eq!(
+            over,
+            vec![("calendar_dates.txt", 11), ("stop_times.txt", 11), ("trips.txt", 11)],
+            "eşiği AŞANLAR alfabetik gelmeli; eşiğe eşit olan (shapes) listede OLMAMALI"
+        );
+    }
 
     #[test]
     fn validate_empty_files_returns_empty_result() {

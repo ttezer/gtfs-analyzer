@@ -351,9 +351,13 @@ bağlamak, 1M satırı gerçekte aşan iki dosyada onu sessizce etkisiz bırakı
 Defterdeki gerekçe bir ölçüm değil tahmindi. Bu dosyaya yeni satır eklenecekse gerekçe
 DENENMİŞ olmalı.
 
-⚠️ **Bu turda AÇILAN yeni boşluk (kapatılmadı, issue'ya yazıldı):** `trips.txt` ve
-`calendar_dates.txt` K1'de stream edilir ve K2'de ARC_022 emit noktaları yoktur → kaç satır
-olursa olsun kural susar.
+✅ **Bu turda açılan boşluk AYNI GÜN kapandı (issue #75):** `trips.txt` ve
+`calendar_dates.txt` K1'de stream ediliyordu ve K2'de ARC_022 emit noktaları yoktu → kaç
+satır olursa olsun kural susuyordu. Denetim `k2/mod.rs`'te tek geçişe toplandı.
+🔴 **Boşluk teorik değildi:** İsviçre feed'inde (`mdb-2898`) 8.442.424 satırlık
+`calendar_dates.txt` ve 1.521.317 satırlık `trips.txt` sessizce geçiyordu. Korpus ölçümü
+(12 aday feed, zip merkezî dizini taramasıyla seçildi): **4 yeni bulgu, kayıp yok**;
+27 feed'e ulaşılamadığı için bu bir ALT SINIRDIR.
 
 ### 5.4 "300/300" ÇAPA kapsamıdır, semantik tamlık değil
 Alan tablosu ekseni `Presence`/`Type`/`Primary Key` sütunlarından **kaba atomlar** üretir.
