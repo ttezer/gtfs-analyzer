@@ -2516,3 +2516,69 @@ fn id85_whitespace_only_id_still_reports_the_required_field() {
         other => panic!("Ok beklendi: {other:?}"),
     }
 }
+
+// ── issue #84: akış dosyası GÖVDESİNDE kapanmamış tırnak ───────────────────────
+//
+// K1 bu dört dosyanın gövdesini hiç açmaz; K1'in gövde tarayıcısına giden dal ÖLÜYDÜ
+// (kaldırıldı) ve K2 okuyucuları kapanmamış tırnağı sessizce tolere ediyordu. Yani tek
+// kaçak tırnak dosyanın kalanını yutabilir ve doğrulayıcı bunu HİÇ söylemezdi.
+// ⚠️ Bulgu KRİTİK ama FATAL DEĞİL — gerekçe `common::arc013_unclosed_stream` doc'unda.
+
+fn stream_quote_feed(stop_times: &'static str) -> Vec<(&'static str, &'static [u8])> {
+    let mut files = base_files();
+    for slot in files.iter_mut() {
+        if slot.0 == "stop_times.txt" {
+            slot.1 = stop_times.as_bytes();
+        }
+    }
+    files
+}
+
+#[test]
+fn arc013_stream_body_unclosed_quote_is_reported() {
+    assert!(match run(&stream_quote_feed(
+        "trip_id,arrival_time,departure_time,stop_id,stop_sequence,stop_headsign\n\
+         T1,08:00:00,08:00:00,S1,1,\"Kapanmamis\n\
+         T1,08:10:00,08:10:00,S2,2,Normal\n")) {
+        ValidateResult::Ok(vr) => has(&vr, "ARC_013"),
+        other => panic!("Ok beklendi: {other:?}"),
+    }, "akış gövdesindeki kapanmamış tırnak ARC_013 üretmeli");
+}
+
+#[test]
+fn arc013_stream_silent_on_valid_quoted_comma() {
+    assert!(match run(&stream_quote_feed(
+        "trip_id,arrival_time,departure_time,stop_id,stop_sequence,stop_headsign\n\
+         T1,08:00:00,08:00:00,S1,1,\"Merkez, Kuzey\"\n\
+         T1,08:10:00,08:10:00,S2,2,Normal\n")) {
+        ValidateResult::Ok(vr) => !has(&vr, "ARC_013") && !has(&vr, "ARC_033"),
+        other => panic!("Ok beklendi: {other:?}"),
+    }, "tırnaklanmış virgül GEÇERLİDİR");
+}
+
+#[test]
+fn arc013_stream_silent_on_valid_doubled_quote() {
+    assert!(match run(&stream_quote_feed(
+        "trip_id,arrival_time,departure_time,stop_id,stop_sequence,stop_headsign\n\
+         T1,08:00:00,08:00:00,S1,1,\"5\"\" Hat\"\n\
+         T1,08:10:00,08:10:00,S2,2,Normal\n")) {
+        ValidateResult::Ok(vr) => !has(&vr, "ARC_013") && !has(&vr, "ARC_033"),
+        other => panic!("Ok beklendi: {other:?}"),
+    }, "doğru kaçırılmış tırnak GEÇERLİDİR");
+}
+
+#[test]
+fn arc013_stream_bare_quote_is_arc033_not_arc013() {
+    // İki olgu AYRI: kaçırma ihlali veriyi bozmaz (ARC_033), kapanmamış tırnak dosyanın
+    // kalanını yutar (ARC_013). Aynı kanaldan raporlamak ikisini karıştırırdı.
+    match run(&stream_quote_feed(
+        "trip_id,arrival_time,departure_time,stop_id,stop_sequence,stop_headsign\n\
+         T1,08:00:00,08:00:00,S1,1,5\" Hat\n\
+         T1,08:10:00,08:10:00,S2,2,Normal\n")) {
+        ValidateResult::Ok(vr) => {
+            assert!(has(&vr, "ARC_033"), "çıplak tırnak ARC_033");
+            assert!(!has(&vr, "ARC_013"), "çıplak tırnak tokenization HATASI değildir");
+        }
+        other => panic!("Ok beklendi: {other:?}"),
+    }
+}

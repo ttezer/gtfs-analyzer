@@ -606,6 +606,17 @@ fn intern_smolstr(raw: &str, cache: &mut FxHashMap<String, SmolStr>) -> SmolStr 
 // işler — 2.48M satır için tek seferde 714 MB değil, anlık bir satır kadar bellek.
 //
 // RFC 4180 uyumlu (tokenize_csv ile aynı semantik). EOF'ta `false` döner.
+/// Akış okuyucularının kayıt başına bildirdiği CSV bulguları (issue #84).
+///
+/// İki AYRI olgu, tek kanal DEĞİL: `rfc` kaçırma ihlalidir (`ARC_033`, veri sağlam),
+/// `unclosed` ise tokenization hatasıdır (`ARC_013`, dosyanın kalanı yutulmuş olabilir).
+#[derive(Default)]
+pub(super) struct CsvScanState {
+    pub rfc: Option<(&'static str, String)>,
+    /// EOF'a tırnak İÇİNDE varıldı — kayıt hiç kapanmadı.
+    pub unclosed: bool,
+}
+
 /// `rfc`: bu kayıtta görülen İLK RFC 4180 ihlali (tür + kısa örnek) buraya yazılır —
 /// `ARC_033`. Çağıran satır numarasını bilir, bu fonksiyon bilmez; birikimi çağıran yapar.
 ///
@@ -616,7 +627,7 @@ pub(super) fn next_csv_record<'a>(
     text: &'a str,
     pos: &mut usize,
     out: &mut Vec<Cow<'a, str>>,
-    rfc: &mut Option<(&'static str, String)>,
+    st: &mut CsvScanState,
 ) -> bool {
     let bytes = text.as_bytes();
     let n = bytes.len();
@@ -630,6 +641,7 @@ pub(super) fn next_csv_record<'a>(
             // Tırnaksız alanlar (asıl yol) ham metinden &str olarak ÖDÜNÇ alınır (alloc YOK).
             *pos += 1;
             let mut buf = String::new();
+            let mut closed_quote = false;
             while *pos < n {
                 let b = bytes[*pos];
                 if b == b'"' {
@@ -638,6 +650,7 @@ pub(super) fn next_csv_record<'a>(
                         buf.push('"');
                         *pos += 1;
                     } else {
+                        closed_quote = true;
                         break;
                     }
                 } else if b < 0x80 {
@@ -650,8 +663,14 @@ pub(super) fn next_csv_record<'a>(
                 }
             }
             // RFC 4180: kapanış tırnağından sonra ayraç gelmeli.
-            if *pos < n && !matches!(bytes[*pos], b',' | b'\n' | b'\r') && rfc.is_none() {
-                *rfc = Some((RFC4180_AFTER_CLOSE, buf.chars().take(40).collect()));
+            if *pos < n && !matches!(bytes[*pos], b',' | b'\n' | b'\r') && st.rfc.is_none() {
+                st.rfc = Some((RFC4180_AFTER_CLOSE, buf.chars().take(40).collect()));
+            }
+            // issue #84: tırnak hiç kapanmadan EOF'a varıldıysa kayıt EKSİKTİR. Eski kod
+            // burada sessizce elindekini push ediyordu ("best-effort") ve dosyanın kalanı
+            // görünmeden kayboluyordu.
+            if *pos >= n && !closed_quote {
+                st.unclosed = true;
             }
             // Kapanmamış tırnak: best-effort (zorunlu dosya CSV'si K1 header aşamasında
             // ve gövdede burada toleranslı işlenir; satır düşürülmez).
@@ -667,8 +686,8 @@ pub(super) fn next_csv_record<'a>(
                 bare_quote |= b == b'"';
                 *pos += 1;
             }
-            if bare_quote && rfc.is_none() {
-                *rfc = Some((RFC4180_BARE_QUOTE, text[start..*pos].chars().take(40).collect()));
+            if bare_quote && st.rfc.is_none() {
+                st.rfc = Some((RFC4180_BARE_QUOTE, text[start..*pos].chars().take(40).collect()));
             }
             out.push(Cow::Borrowed(&text[start..*pos]));
         }
@@ -770,6 +789,8 @@ pub(crate) struct ZipCsvReader<R: Read> {
     /// satır numarasını kendisi ekler. Ürün yolu BURASIDIR: dört akış dosyası da
     /// gövdesini bu okuyucudan geçirir.
     pub(crate) rfc: Option<(&'static str, String)>,
+    /// issue #84: EOF'a tırnak İÇİNDE varıldı → kayıt hiç kapanmadı (`ARC_013`).
+    pub(crate) unclosed: bool,
 }
 
 impl<R: Read> ZipCsvReader<R> {
@@ -781,6 +802,7 @@ impl<R: Read> ZipCsvReader<R> {
             filled: 0,
             pending: None,
             rfc: None,
+            unclosed: false,
         }
     }
 
@@ -844,6 +866,14 @@ impl<R: Read> ZipCsvReader<R> {
             let b = match self.next_byte() {
                 Some(b) => b,
                 None => {
+                    // issue #84: girdi TIRNAK İÇİNDE bitti → kayıt hiç kapanmadı ve
+                    // dosyanın kalanı bu alana yutulmuş olabilir. Eski kod sessizce
+                    // `finish!()` diyordu. ⚠️ Asıl EOF yolu BURASI: tırnaklı daldaki
+                    // `None` kolu yalnız tırnak karakterinden HEMEN sonra biten girdiyi
+                    // görür; ilk denemem oraya bakıp testi düşürdü.
+                    if in_quotes {
+                        self.unclosed = true;
+                    }
                     if started { finish!(); }
                     out.clear();
                     return false;
@@ -871,20 +901,31 @@ impl<R: Read> ZipCsvReader<R> {
                             in_quotes = false;
                             self.pending = Some(other);
                         }
-                        None => { finish!(); }
+                        None => {
+                            // issue #84: tırnak kapanmadan girdi bitti.
+                            self.unclosed = true;
+                            finish!();
+                        }
                     }
                 } else {
                     out[fi].push(b); // embedded \n, vb. dahil
                 }
             } else {
                 match b {
+                    b'"' if out[fi].is_empty() => { in_quotes = true; }
                     b'"' => {
-                        // Alan BOŞ değilken tırnak → tırnaksız alanın içinde tırnak var
-                        // (`12" Street`). Alan başındaki tırnak normal alıntılamadır.
-                        if !out[fi].is_empty() && self.rfc.is_none() {
+                        // 🔴 Alan ZATEN BAŞLAMIŞKEN gelen tırnak (`12" Street`) DÜZ
+                        // KARAKTERDİR — tırnak başlangıcı değil. Eski kod burada tırnak
+                        // moduna giriyordu ve dosyanın KALANINI o alana yutuyordu; issue
+                        // #84'ün testi bunu ortaya çıkardı: çıplak tırnak `ARC_013`
+                        // (kapanmamış tırnak) üretiyordu, oysa tokenization hatası YOK.
+                        // `tokenize_csv` en başından beri düz karakter sayıyordu; iki
+                        // okuyucu artık AYNI kararı veriyor (kabul ölçütü: akış/akış-dışı
+                        // eşdeğer yardımcılar aynı sonucu vermeli).
+                        if self.rfc.is_none() {
                             self.rfc = Some((RFC4180_BARE_QUOTE, lossy40(&out[fi])));
                         }
-                        in_quotes = true;
+                        out[fi].push(b);
                     }
                     b',' => { commit!(); }
                     b'\n' => { finish!(); }
@@ -918,6 +959,8 @@ impl<R: Read> ZipCsvReader<R> {
 struct StChunk {
     /// ARC_033 birikimi — chunk'lar birleşirken `merge` ile toplanır.
     rfc: crate::k1_parse::Rfc4180Acc,
+    /// issue #84: bu parçada kapanmamış tırnak görüldü mü (`ARC_013`).
+    unclosed: bool,
     notices: Vec<Notice>,
     counter: u32,
     /// `STM_059` kapısı — feed'de booking_rules.txt var mı.
@@ -1015,6 +1058,7 @@ impl StChunk {
     fn merge(&mut self, other: StChunk) {
         // ARC_033: satır numarası min-merge, sayım toplanır (`Rfc4180Acc::merge`).
         self.rfc.merge(&other.rfc);
+        self.unclosed |= other.unclosed;
         // ── stop_id intern: yerel indeks → global indeks ────────────────────────
         let mut stop_remap: Vec<u32> = Vec::with_capacity(other.stop_intern.len());
         for sid in other.stop_intern {
@@ -1775,14 +1819,14 @@ pub fn validate_stop_times(file: &RawFile, zip_bytes: Option<&[u8]>, has_booking
         };
 
         // ARC_033: `next_csv_record` bu değişkene yazar, döngü satır numarasını ekler.
-        let mut rfc_hit: Option<(&'static str, String)> = None;
+        let mut scan = CsvScanState::default();
         // ── Sürücü: stream raw_text (başlığı atla), ZIP stream veya rows fallback ──
         if let Some(text) = &file.raw_text {
             let mut pos = 0usize;
             let mut buf: Vec<Cow<'_, str>> = Vec::with_capacity(16);
             let mut data_idx = 0usize;
             let mut header_skipped = false;
-            while next_csv_record(text, &mut pos, &mut buf, &mut rfc_hit) {
+            while next_csv_record(text, &mut pos, &mut buf, &mut scan) {
                 // Boş satır (tek boş alan) — tokenize_csv ile aynı filtre
                 if buf.len() == 1 && buf[0].is_empty() {
                     continue;
@@ -1791,7 +1835,8 @@ pub fn validate_stop_times(file: &RawFile, zip_bytes: Option<&[u8]>, has_booking
                     header_skipped = true;
                     continue;
                 }
-                if let Some((k, ex)) = rfc_hit.take() {
+                st.unclosed |= scan.unclosed;
+                if let Some((k, ex)) = scan.rfc.take() {
                     st.rfc.observe((data_idx + 2) as u64, k, &ex);
                 }
                 process(&mut st, &buf, (data_idx + 2) as u64);
@@ -1845,6 +1890,7 @@ pub fn validate_stop_times(file: &RawFile, zip_bytes: Option<&[u8]>, has_booking
                                                 Err(_) => Cow::Owned(String::from_utf8_lossy(f).into_owned()),
                                             })
                                             .collect();
+                                        c.unclosed |= rdr.unclosed;
                                         if let Some((k, ex)) = rdr.rfc.take() {
                                             c.rfc.observe(line, k, &ex);
                                         }
@@ -1911,6 +1957,7 @@ pub fn validate_stop_times(file: &RawFile, zip_bytes: Option<&[u8]>, has_booking
                                         _ => {}
                                     }
                                 }
+                                cur.unclosed |= csv_reader.unclosed;
                                 if let Some((k, ex)) = csv_reader.rfc.take() {
                                     cur.rfc.observe(zip_line, k, &ex);
                                 }
@@ -1940,6 +1987,11 @@ pub fn validate_stop_times(file: &RawFile, zip_bytes: Option<&[u8]>, has_booking
                 process(&mut st, &cow_row, (row_idx + 2) as u64);
             }
         }
+    }
+
+    // ARC_013: akış gövdesinde kapanmamış tırnak (issue #84).
+    if st.unclosed {
+        st.notices.push(super::common::arc013_unclosed_stream(&file.name, &mut st.counter));
     }
 
     // ARC_033: DOSYA başına TEK özet (chunk'lar `StChunk::merge` ile birleşti).

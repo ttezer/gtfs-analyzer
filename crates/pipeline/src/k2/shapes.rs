@@ -181,7 +181,8 @@ pub fn validate_shapes(file: &RawFile, zip_bytes: Option<&[u8]>) -> (Vec<ShapePo
     let mut counter = 0u32;
     // ARC_033: ihlali okuyucular görür, satır numarasını döngü ekler (bkz. trips.rs).
     let mut rfc_acc = crate::k1_parse::Rfc4180Acc::default();
-    let mut rfc_hit: Option<(&'static str, String)> = None;
+    let mut scan = super::stop_times::CsvScanState::default();
+    let mut zip_unclosed = false;
 
     let cols = Cols::from_headers(&file.headers);
     let header_count = file.headers.len();
@@ -503,6 +504,7 @@ pub fn validate_shapes(file: &RawFile, zip_bytes: Option<&[u8]>) -> (Vec<ShapePo
                                     Err(_) => Cow::Owned(String::from_utf8_lossy(f).into_owned()),
                                 })
                                 .collect();
+                            zip_unclosed |= rdr.unclosed;
                             if let Some((k, ex)) = rdr.rfc.take() {
                                 rfc_acc.observe(line, k, &ex);
                             }
@@ -517,7 +519,7 @@ pub fn validate_shapes(file: &RawFile, zip_bytes: Option<&[u8]>) -> (Vec<ShapePo
             let mut buf: Vec<Cow<'_, str>> = Vec::with_capacity(8);
             let mut data_idx = 0usize;
             let mut header_skipped = false;
-            while next_csv_record(text, &mut pos, &mut buf, &mut rfc_hit) {
+            while next_csv_record(text, &mut pos, &mut buf, &mut scan) {
                 if buf.len() == 1 && buf[0].is_empty() {
                     continue;
                 }
@@ -525,7 +527,7 @@ pub fn validate_shapes(file: &RawFile, zip_bytes: Option<&[u8]>) -> (Vec<ShapePo
                     header_skipped = true;
                     continue;
                 }
-                if let Some((k, ex)) = rfc_hit.take() {
+                if let Some((k, ex)) = scan.rfc.take() {
                     rfc_acc.observe((data_idx + 2) as u64, k, &ex);
                 }
                 process(&buf, (data_idx + 2) as u64);
@@ -539,6 +541,11 @@ pub fn validate_shapes(file: &RawFile, zip_bytes: Option<&[u8]>) -> (Vec<ShapePo
                 process(&cow_row, (row_idx + 2) as u64);
             }
         }
+    }
+
+    // ARC_013: akış gövdesinde kapanmamış tırnak (issue #84) — DOSYA başına tek notice.
+    if scan.unclosed || zip_unclosed {
+        notices.push(super::common::arc013_unclosed_stream(&file.name, &mut counter));
     }
 
     // ARC_033: DOSYA başına TEK özet.

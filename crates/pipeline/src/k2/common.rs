@@ -658,6 +658,31 @@ tırnağı ikiye katlayarak kaçırın (\"12\"\" Street\").",
     ))
 }
 
+/// `ARC_013` — akış dosyasının GÖVDESİNDE kapanmamış tırnak (issue #84).
+///
+/// 🔴 Bu bulgu 2026-08-07'ye kadar HİÇBİR YERDE üretilmiyordu. K1 bu dört dosyanın
+/// gövdesini hiç açmıyor (`is_zip_stream`), K1'in gövde tarayıcısına giden dal ise ÖLÜYDÜ
+/// ve kaldırıldı; K2 okuyucuları da kapanmamış tırnağı "best-effort" tolere ediyordu.
+/// Yani `stop_times.txt`'te tek kaçak tırnak dosyanın kalanını yutabilir ve doğrulayıcı
+/// bunu hiç söylemezdi.
+///
+/// ⚠️ **FATAL DEĞİL — bilinçli ve K1'den FARKLI.** Akış-dışı zorunlu bir dosyada aynı
+/// bozukluk `FatalError`'a çevrilir; K2'nin fatal kanalı YOKTUR (pipeline K1'den sonra
+/// durdurulamaz) ve gövdeyi K1'de yeniden taramak `#38`'in bellek tasarımını geri alırdı.
+/// Bulgu aynı kuraldır ve KRİTİK'tir; farklı olan, boru hattının durabilme yeteneğidir.
+/// Korpus ölçümü (2026-08-07): 20 feed · 75 akış dosyası · kapanmamış tırnak **0** —
+/// yani bu karar bugünkü veride hiçbir feed'i etkilemiyor.
+pub fn arc013_unclosed_stream(file: &str, counter: &mut u32) -> gtfs_core::Notice {
+    let msg = "Kapanmamış tırnak işareti (unclosed quote)";
+    make_k2_notice(
+        counter, "ARC_013", EntityType::File, Some(file.to_string()),
+        None, file, None, None,
+        Some(msg.to_string()), None,
+        format!("'{file}' CSV tokenization hatası: {msg} — kaydın kalanı okunamadı."),
+        "CSV formatını kontrol edin; tırnak işaretlerinin doğru kapandığından emin olun.",
+    )
+}
+
 pub fn make_k2_notice(
     counter: &mut u32,
     rule_id: &str,

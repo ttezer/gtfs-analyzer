@@ -306,6 +306,19 @@ kuralın ihlali GERÇEKTEN ürettiğini gösteren bir ölçüm istemiyordu.** Bu
 ihlalli ve geçerli iki feed koşulup bulgu kümeleri karşılaştırılmalı; aynı çıkıyorsa
 hüküm ölçülmüyordur. Kalan DOLAYLI kayıtları bu ölçütle henüz TARANMADI — açık kalıntı.
 
+### 5.0.2 Akış gövdesinde kapanmamış tırnak — artık bildiriliyor (issue #84)
+
+K1 dört akış dosyasının gövdesini hiç açmaz ve K1'deki gövde tarayıcısı ölü koddu; K2
+okuyucuları kapanmamış tırnağı tolere ediyordu. Tek kaçak tırnak dosyanın kalanını yutup
+sessiz kalabiliyordu. K2 artık `ARC_013` üretiyor — ⚠️ **akış yolunda FATAL DEĞİL**, gerekçe
+`common::arc013_unclosed_stream` doc'unda (K2'nin fatal kanalı yok).
+
+🔴 Yol boyunca İKİNCİ bir ayrışma çıktı: ZIP okuyucusu alan ORTASINDAKİ tırnağı tırnak
+başlangıcı sayıp dosyanın kalanını yutuyor, `tokenize_csv` ise düz karakter sayıyordu. Aynı
+girdi akış modunda `ARC_013`, tam modda `ARC_033` üretiyordu. İki okuyucu hizalandı.
+
+**Ölçüm:** 20 feed · 75 akış dosyası · kapanmamış tırnak **0**; bulgu farkı 0.
+
 ### 5.0.1 Kimlik semantiği: PK/FK ham sözlüksel değerdir (issue #85)
 
 🔴 5. denetim turu: `get_trimmed_field`/`get_col` HER değeri kırpıyor, ID'ler o kırpılmış
