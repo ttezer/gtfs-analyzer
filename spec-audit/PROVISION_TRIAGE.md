@@ -6,7 +6,7 @@ burası her adayın hüküm olup olmadığına ve karşılanıp karşılanmadı�
 Katalog toplamı **299 aday** (sert 184 · yumuşak 115) ve **299'unun tamamı**
 adjudike edildi. Bölümler tam bitirilir, yarım bırakılmaz — kalan sayısı böyle güvenilir kalır.
 
-> **DURUM (2026-08-07): düzyazı ekseni %100 — 147/147.**
+> **DURUM (2026-08-07): düzyazı ekseni %99,3 — 146/147.**
 >
 > ⚠️ Bu satır `spec-audit/badge_status.py` çıktısıdır ve **o betik başlığı kendisi
 > denetler**: hesapladığı `n/d` ilk 20 satırda geçmiyorsa **exit 1** döner, CI kırılır.
@@ -16,8 +16,14 @@ adjudike edildi. Bölümler tam bitirilir, yarım bırakılmaz — kalan sayıs�
 > "test bayatlarsa CI'ı kırar" DİYE İDDİA EDİYORDU. **Bir belgenin kapı iddiası, kapının
 > varlığı demek değildir.**
 >
-> Seyir: 131/131 → 146/146 → 145/147 → 146/147 → **147/147** (iki case kaçağı · iki dış
-> denetim düzeltmesi · `STM_060` · `Pd84a0bcb` madde 5, issue #74).
+> Seyir: 131/131 → 146/146 → 145/147 → 146/147 → 147/147 → **146/147** (iki case kaçağı ·
+> iki dış denetim düzeltmesi · `STM_060` · `Pd84a0bcb` madde 5, issue #74 · **`Pfedb83cf`
+> DOLAYLI→KISMİ**).
+> 🔴 **SON DÜŞÜŞ BİR FALSIFIER'DAN GELDİ, sayım hatasından değil:** `Pfedb83cf`/`Pa4c60372`
+> `ARC_013` üzerinden DOLAYLI sayılıyordu ama tokenizer tırnaksız alandaki `"` için hiçbir
+> şey üretmiyordu. Yeni kural (`ARC_033`) tırnak yarısını ölçüyor; virgül yarısı yapısal
+> olarak saptanamadığı için hüküm KISMİ oldu ve yüzde DÜŞTÜ. **Yüzdenin düşmesi kanıt
+> tabanının çalıştığının işaretidir.**
 > ⚠️ **%100, "spec tamamen ölçülüyor" DEMEK DEĞİLDİR** — payda bu KATALOĞUN kapsamıdır ve
 > kataloğun kendisi üç turda üç kez düzeldi. Cümle bölme kaba (~%14 gürültü) ve alan tablosu
 > ekseni AYRI ölçülür. Bir sonraki dış denetim paydayı yine büyütebilir; o zaman yüzde
@@ -45,8 +51,8 @@ adjudike edildi. Bölümler tam bitirilir, yarım bırakılmaz — kalan sayıs�
 | `Pc3b911a6` | Dosyalar virgülle ayrılmış metin olmalı | DOLAYLI | Ayraç virgül değilse başlık tek sütuna çöker → zorunlu sütunlar bulunamaz. ✅ **ÖLÇÜLDÜ 2026-08-06** (`integration.rs::semicolon_delimited_files_are_rejected_pc3b911a6`): noktalı virgülle ayrılmış `stops.txt` `Fatal(NoRequiredFiles)` üretiyor. Eskiden bu yol ölçülmemişti ve yalnız kod okumasına dayanıyordu; dış denetim paya sayılan bir çıkarımın test edilmemiş olduğunu gösterdi → ölçüldü. |
 | `Pd59e5eaa` | İlk satır alan adlarını içermeli | DOLAYLI | Başlık yerine veri satırı varsa `ARC_025` + `ARC_019` + `ARC_017` birlikte ateşler. Hükmün kendisi adlandırılmamış. |
 | `P28e9ee8a` | Alan değerleri sekme/CR/LF içermemeli | **KANITLI** | `ARC_030` — `k1_parse.rs:535` doc yorumu spec cümlesini birebir alıntılıyor; `ARC_021`'den ayrımı orada gerekçeli. |
-| `Pfedb83cf` | Tırnak/virgül içeren değerler tırnak içine alınmalı | DOLAYLI | `ARC_013` kapanmamış tırnağı yakalar. ⚠️ **Alınmamış hâl saptanamaz:** tırnaksız virgül fazladan sütun üretir → `ARC_012`. İhlal ile geçerli veri ayrımı CSV düzeyinde kaybolur. |
-| `Pa4c60372` | Değer içindeki her tırnak bir tırnakla kaçırılmalı | DOLAYLI | Aynı gerekçe (`ARC_013`). |
+| `Pfedb83cf` | Tırnak/virgül içeren değerler tırnak içine alınmalı | KISMİ | 🔴 **DOLAYLI idi, 2026-08-07'de ÇÜRÜTÜLDÜ.** Gerekçe *"`ARC_013` kapanmamış tırnağı yakalar"* diyordu; ölçüldü ki tokenizer'ın tırnaksız alan dalı yalnız `,`/LF/CR'de duruyordu, `"` sıradan karakterdi → ihlalli feed'in bulgu kümesi geçerli feed'inkiyle BİREBİR aynıydı. **TIRNAK yarısı artık DOĞRUDAN ölçülüyor (`ARC_033`).** ⚠️ **VİRGÜL yarısı hâlâ saptanamaz:** tırnaksız virgül fazladan sütun üretir (`ARC_012`) ve "ihlal" ile "gerçekten fazla sütun" ayrımı CSV düzeyinde kaybolur → hüküm KISMİ. |
+| `Pa4c60372` | Değer içindeki her tırnak bir tırnakla kaçırılmalı | **KANITLI** | `ARC_033` — kapanış tırnağından sonra ayraç yerine karakter gelmesi tam olarak bu ihlaldir (`"Broadway"Ave`), ayrıca tırnaksız alandaki tırnak da yakalanır. Eski `ARC_013` dayanağı YANLIŞTI (o kural yalnız KAPANMAMIŞ tırnağı görür). Karar tokenizer'da verilir: `"12"" Street"` (geçerli) ile `12" Street` (ihlal) ayrıştırıldıktan sonra AYNI değeri üretir. |
 | `Pd6bc0278` | Alan değerleri HTML etiketi, yorum veya kaçış dizisi içermemeli | **BOŞLUK** | Kod tabanında karşılığı yok. Ayrıntı aşağıda. |
 | `P5f591221` | Fazladan boşluklar kaldırılmalı *(soft)* | **KANITLI** | `DQ_016` (Orta·Quality) — dosya başına tek özet. Yumuşak hüküm, Quality sınıfı: doğru eşleşme. |
 | `P536c3b95` | Her satır CRLF veya LF ile bitmeli | **KANITLI** | `ARC_026` — `k1_parse.rs:943`. |

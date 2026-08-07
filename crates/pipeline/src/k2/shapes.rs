@@ -179,6 +179,9 @@ pub fn validate_shapes(file: &RawFile, zip_bytes: Option<&[u8]>) -> (Vec<ShapePo
         None => Vec::with_capacity(file.rows.len()),
     };
     let mut counter = 0u32;
+    // ARC_033: ihlali okuyucular görür, satır numarasını döngü ekler (bkz. trips.rs).
+    let mut rfc_acc = crate::k1_parse::Rfc4180Acc::default();
+    let mut rfc_hit: Option<(&'static str, String)> = None;
 
     let cols = Cols::from_headers(&file.headers);
     let header_count = file.headers.len();
@@ -500,6 +503,9 @@ pub fn validate_shapes(file: &RawFile, zip_bytes: Option<&[u8]>) -> (Vec<ShapePo
                                     Err(_) => Cow::Owned(String::from_utf8_lossy(f).into_owned()),
                                 })
                                 .collect();
+                            if let Some((k, ex)) = rdr.rfc.take() {
+                                rfc_acc.observe(line, k, &ex);
+                            }
                             process(&row, line);
                             line += 1;
                         }
@@ -511,13 +517,16 @@ pub fn validate_shapes(file: &RawFile, zip_bytes: Option<&[u8]>) -> (Vec<ShapePo
             let mut buf: Vec<Cow<'_, str>> = Vec::with_capacity(8);
             let mut data_idx = 0usize;
             let mut header_skipped = false;
-            while next_csv_record(text, &mut pos, &mut buf) {
+            while next_csv_record(text, &mut pos, &mut buf, &mut rfc_hit) {
                 if buf.len() == 1 && buf[0].is_empty() {
                     continue;
                 }
                 if !header_skipped {
                     header_skipped = true;
                     continue;
+                }
+                if let Some((k, ex)) = rfc_hit.take() {
+                    rfc_acc.observe((data_idx + 2) as u64, k, &ex);
                 }
                 process(&buf, (data_idx + 2) as u64);
                 data_idx += 1;
@@ -530,6 +539,11 @@ pub fn validate_shapes(file: &RawFile, zip_bytes: Option<&[u8]>) -> (Vec<ShapePo
                 process(&cow_row, (row_idx + 2) as u64);
             }
         }
+    }
+
+    // ARC_033: DOSYA başına TEK özet.
+    if let Some(n) = super::common::arc033_summary(&rfc_acc, &file.name, &mut counter) {
+        notices.push(n);
     }
 
     // ⚠️ ARC_022 (satır sayısı limiti) BURADA DEĞİL: issue #75'te `k2/mod.rs`'teki tek

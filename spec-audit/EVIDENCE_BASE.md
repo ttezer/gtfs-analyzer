@@ -4,7 +4,7 @@
 > nasıl yeniden üretileceği yazılıdır. Bir iddiayı çürütmek isteyen okuyucu için
 > "Bu iddiayı ne çürütür" bölümleri konmuştur.
 >
-> Durum: **2026-08-07** · kural sayısı **593** (38 grup)
+> Durum: **2026-08-07** · kural sayısı **594** (38 grup)
 >
 > ⚠️ **Buradaki hiçbir sayı elle güncellenmez ve belge bir commit'e SABİTLENMEZ.** Önceki
 > sürüm `origin/main = 62fa86b9` yazıyordu ve dört commit sonra hâlâ öyle duruyordu — dış
@@ -32,7 +32,7 @@
 
 | eksen | değer | ne demek |
 |---|---|---|
-| **Düzyazı hükümleri** | **147 / 147** | Spec metnindeki normatif cümlelerden feed'den doğrulanabilir olanlar |
+| **Düzyazı hükümleri** | **146 / 147** | Spec metnindeki normatif cümlelerden feed'den doğrulanabilir olanlar |
 | **Alan tablosu atomları** | **300 / 300 ÇAPALI** | Her geçerli atomda EN AZ BİR Spec notice çapası var — **semantik tamlık DEĞİL** (§5.4) |
 | Yumuşak hükümler | 45 / 69 (%65,2) | **Hedef değil** — Quality sinyali |
 
@@ -55,6 +55,20 @@ buldu ve ikisi de kabul edildi:
   `PTH_017` hatasını tekrarlardı. ⚠️ İlk uygulama gerçek veride **3 feed'de yanlış pozitif**
   üretti (aynı koordinat ardışık ÜÇ kez yazılıyordu) → ring ardışık yinelemelerden
   arındırılıyor; `locations.geojson` taşıyan 6 feed'in tamamında bulgu farkı **0**.
+
+🔴 **2026-08-07: EKSEN %100'DEN YİNE DÜŞTÜ — bu kez bir FALSIFIER yüzünden.**
+`Pfedb83cf` ve `Pa4c60372` (*"tırnak/virgül içeren değerler tırnak içine alınmalı"*,
+*"her tırnak bir tırnakla kaçırılmalı"*) `ARC_013` üzerinden **DOLAYLI** sayılıyordu.
+Dış okuma tokenizer'ı açtı: tırnaksız alan dalı yalnız `,`/LF/CR'de duruyor, `"` sıradan
+karakter sayılıyordu. **Ölçüldü:** ihlalli feed'in bulgu kümesi geçerli feed'inkiyle
+BİREBİR aynı çıktı — hüküm ölçülmüyordu, ölçülüyor SANILIYORDU.
+- `Pa4c60372` → **KANITLI** (`ARC_033`, yeni kural)
+- `Pfedb83cf` → **KISMİ**: tırnak yarısı ölçülüyor, **virgül yarısı yapısal olarak
+  saptanamaz** (tırnaksız virgül fazladan sütun üretir; `ARC_012` bunu bildirir ama sebebini
+  söyleyemez). Pay 147 → **146**.
+
+⚠️ **Yüzdenin düşmesi bu belgenin çalıştığının işaretidir.** "Bu iddiayı ne çürütür"
+bölümleri tam bunun için var; çürüten okuma geldi ve sayı düzeldi.
 
 ⚠️ **İki eksen ÖRTÜŞÜR, TOPLANMAZ.** Aynı hüküm hem düzyazıda hem alan tablosunda
 görünebilir. "446 hüküm karşılanıyor" gibi bir toplam **yanlıştır**.
@@ -267,6 +281,14 @@ virgülü `service_id`'ye katmasıydı. **Sıfır sonuç verinin değil sorgunun
 
 Bunlar bilinen ve kabul edilen eksiklerdir. Rozet iddiası bunlara rağmen yapılıyorsa
 okuyucu bunu görerek yapmalıdır.
+
+### 5.0 Bir hükmün "DOLAYLI" sayılması, ölçüldüğü anlamına GELMEZ
+
+2026-08-07'de `Pfedb83cf`/`Pa4c60372` tam bu yüzden düştü: defter *"`ARC_013` yakalar"*
+diyordu, `ARC_013` ise yalnız KAPANMAMIŞ tırnağı görüyordu. **DOLAYLI etiketi, komşu
+kuralın ihlali GERÇEKTEN ürettiğini gösteren bir ölçüm istemiyordu.** Bugün istiyor:
+ihlalli ve geçerli iki feed koşulup bulgu kümeleri karşılaştırılmalı; aynı çıkıyorsa
+hüküm ölçülmüyordur. Kalan DOLAYLI kayıtları bu ölçütle henüz TARANMADI — açık kalıntı.
 
 ### 5.1 18 kural korpusta tetiklenmiyor — ama bu "kanıtsız" DEMEK DEĞİL
 

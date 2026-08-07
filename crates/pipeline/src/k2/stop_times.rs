@@ -5,7 +5,7 @@ use std::borrow::Cow;
 use std::io::{Cursor, Read};
 
 use super::common::{get_col, make_k2_notice};
-use crate::k1_parse::RawFile;
+use crate::k1_parse::{RawFile, RFC4180_AFTER_CLOSE, RFC4180_BARE_QUOTE};
 
 // ── CompactStopTime: 24B flat per row — trip_id taşımaz ──────────────────────
 // #38: Swiss feed 28M×112B=3.1GB → OOM; 28M×24B=672MB → bütçe dahilinde.
@@ -594,7 +594,18 @@ fn intern_smolstr(raw: &str, cache: &mut FxHashMap<String, SmolStr>) -> SmolStr 
 // işler — 2.48M satır için tek seferde 714 MB değil, anlık bir satır kadar bellek.
 //
 // RFC 4180 uyumlu (tokenize_csv ile aynı semantik). EOF'ta `false` döner.
-pub(super) fn next_csv_record<'a>(text: &'a str, pos: &mut usize, out: &mut Vec<Cow<'a, str>>) -> bool {
+/// `rfc`: bu kayıtta görülen İLK RFC 4180 ihlali (tür + kısa örnek) buraya yazılır —
+/// `ARC_033`. Çağıran satır numarasını bilir, bu fonksiyon bilmez; birikimi çağıran yapar.
+///
+/// 🔴 Neden K1'de değil burada: dört akış dosyasının GÖVDESİ K1'e hiç açılmıyor
+/// (`is_zip_stream`), K1'in gövde tarayıcısına giden dal 2026-08-07'de ÖLÜ olduğu ölçüldü.
+/// İhlal ancak baytların gerçekten okunduğu yerde görülebilir.
+pub(super) fn next_csv_record<'a>(
+    text: &'a str,
+    pos: &mut usize,
+    out: &mut Vec<Cow<'a, str>>,
+    rfc: &mut Option<(&'static str, String)>,
+) -> bool {
     let bytes = text.as_bytes();
     let n = bytes.len();
     if *pos >= n {
@@ -626,17 +637,26 @@ pub(super) fn next_csv_record<'a>(text: &'a str, pos: &mut usize, out: &mut Vec<
                     *pos += ch.len_utf8();
                 }
             }
+            // RFC 4180: kapanış tırnağından sonra ayraç gelmeli.
+            if *pos < n && !matches!(bytes[*pos], b',' | b'\n' | b'\r') && rfc.is_none() {
+                *rfc = Some((RFC4180_AFTER_CLOSE, buf.chars().take(40).collect()));
+            }
             // Kapanmamış tırnak: best-effort (zorunlu dosya CSV'si K1 header aşamasında
             // ve gövdede burada toleranslı işlenir; satır düşürülmez).
             out.push(Cow::Owned(buf));
         } else {
             let start = *pos;
+            let mut bare_quote = false;
             while *pos < n {
                 let b = bytes[*pos];
                 if b == b',' || b == b'\n' || b == b'\r' {
                     break;
                 }
+                bare_quote |= b == b'"';
                 *pos += 1;
+            }
+            if bare_quote && rfc.is_none() {
+                *rfc = Some((RFC4180_BARE_QUOTE, text[start..*pos].chars().take(40).collect()));
             }
             out.push(Cow::Borrowed(&text[start..*pos]));
         }
@@ -716,6 +736,11 @@ fn count_zip_rows(zb: &[u8], file_name: &str) -> Option<usize> {
     Some(count.saturating_sub(1))
 }
 
+/// Ham alan baytlarından kısa, güvenli bir örnek — notice mesajına girer.
+fn lossy40(bytes: &[u8]) -> String {
+    String::from_utf8_lossy(bytes).chars().take(40).collect()
+}
+
 // ── ZipCsvReader: ZIP entry'den incremental RFC 4180 CSV parse ───────────────
 // #38: Büyük dosyalar (stop_times, trips, calendar_dates) K2 ZIP'ten satır satır okur.
 // trips ve calendar_dates da aynı struct'ı kullanır (pub(crate)).
@@ -729,6 +754,10 @@ pub(crate) struct ZipCsvReader<R: Read> {
     pos: usize,
     filled: usize,
     pending: Option<u8>,
+    /// Bu kayıtta görülen İLK RFC 4180 ihlali (`ARC_033`). Çağıran `take()` ile alır ve
+    /// satır numarasını kendisi ekler. Ürün yolu BURASIDIR: dört akış dosyası da
+    /// gövdesini bu okuyucudan geçirir.
+    pub(crate) rfc: Option<(&'static str, String)>,
 }
 
 impl<R: Read> ZipCsvReader<R> {
@@ -739,6 +768,7 @@ impl<R: Read> ZipCsvReader<R> {
             pos: 0,
             filled: 0,
             pending: None,
+            rfc: None,
         }
     }
 
@@ -820,7 +850,15 @@ impl<R: Read> ZipCsvReader<R> {
                             }
                             finish!();
                         }
-                        Some(other) => { in_quotes = false; self.pending = Some(other); }
+                        Some(other) => {
+                            // RFC 4180: kapanış tırnağından sonra ayraç gelmeli. Gelmiyorsa
+                            // alan içindeki tırnak kaçırılmamıştır → ARC_033.
+                            if self.rfc.is_none() {
+                                self.rfc = Some((RFC4180_AFTER_CLOSE, lossy40(&out[fi])));
+                            }
+                            in_quotes = false;
+                            self.pending = Some(other);
+                        }
                         None => { finish!(); }
                     }
                 } else {
@@ -828,7 +866,14 @@ impl<R: Read> ZipCsvReader<R> {
                 }
             } else {
                 match b {
-                    b'"' => { in_quotes = true; }
+                    b'"' => {
+                        // Alan BOŞ değilken tırnak → tırnaksız alanın içinde tırnak var
+                        // (`12" Street`). Alan başındaki tırnak normal alıntılamadır.
+                        if !out[fi].is_empty() && self.rfc.is_none() {
+                            self.rfc = Some((RFC4180_BARE_QUOTE, lossy40(&out[fi])));
+                        }
+                        in_quotes = true;
+                    }
                     b',' => { commit!(); }
                     b'\n' => { finish!(); }
                     b'\r' => {
@@ -859,6 +904,8 @@ impl<R: Read> ZipCsvReader<R> {
 ///                                       ayrıca karşılaştırılmalı (STM_036)
 #[derive(Default)]
 struct StChunk {
+    /// ARC_033 birikimi — chunk'lar birleşirken `merge` ile toplanır.
+    rfc: crate::k1_parse::Rfc4180Acc,
     notices: Vec<Notice>,
     counter: u32,
     /// `STM_059` kapısı — feed'de booking_rules.txt var mı.
@@ -954,6 +1001,8 @@ impl StChunk {
     /// düşmez. Düşerse (aynı trip'in satırları dosyada dağınıksa) `TripAgg` alanları
     /// birleştirilir; bu durumda dosya sırası zaten bozuktur ve STM_036 onu ayrıca raporlar.
     fn merge(&mut self, other: StChunk) {
+        // ARC_033: satır numarası min-merge, sayım toplanır (`Rfc4180Acc::merge`).
+        self.rfc.merge(&other.rfc);
         // ── stop_id intern: yerel indeks → global indeks ────────────────────────
         let mut stop_remap: Vec<u32> = Vec::with_capacity(other.stop_intern.len());
         for sid in other.stop_intern {
@@ -1713,13 +1762,15 @@ pub fn validate_stop_times(file: &RawFile, zip_bytes: Option<&[u8]>, has_booking
         }
         };
 
+        // ARC_033: `next_csv_record` bu değişkene yazar, döngü satır numarasını ekler.
+        let mut rfc_hit: Option<(&'static str, String)> = None;
         // ── Sürücü: stream raw_text (başlığı atla), ZIP stream veya rows fallback ──
         if let Some(text) = &file.raw_text {
             let mut pos = 0usize;
             let mut buf: Vec<Cow<'_, str>> = Vec::with_capacity(16);
             let mut data_idx = 0usize;
             let mut header_skipped = false;
-            while next_csv_record(text, &mut pos, &mut buf) {
+            while next_csv_record(text, &mut pos, &mut buf, &mut rfc_hit) {
                 // Boş satır (tek boş alan) — tokenize_csv ile aynı filtre
                 if buf.len() == 1 && buf[0].is_empty() {
                     continue;
@@ -1727,6 +1778,9 @@ pub fn validate_stop_times(file: &RawFile, zip_bytes: Option<&[u8]>, has_booking
                 if !header_skipped {
                     header_skipped = true;
                     continue;
+                }
+                if let Some((k, ex)) = rfc_hit.take() {
+                    st.rfc.observe((data_idx + 2) as u64, k, &ex);
                 }
                 process(&mut st, &buf, (data_idx + 2) as u64);
                 data_idx += 1;
@@ -1779,6 +1833,9 @@ pub fn validate_stop_times(file: &RawFile, zip_bytes: Option<&[u8]>, has_booking
                                                 Err(_) => Cow::Owned(String::from_utf8_lossy(f).into_owned()),
                                             })
                                             .collect();
+                                        if let Some((k, ex)) = rdr.rfc.take() {
+                                            c.rfc.observe(line, k, &ex);
+                                        }
                                         process(&mut c, &row, line);
                                         line += 1;
                                     }
@@ -1842,6 +1899,9 @@ pub fn validate_stop_times(file: &RawFile, zip_bytes: Option<&[u8]>, has_booking
                                         _ => {}
                                     }
                                 }
+                                if let Some((k, ex)) = csv_reader.rfc.take() {
+                                    cur.rfc.observe(zip_line, k, &ex);
+                                }
                                 process(&mut cur, &cow_row, zip_line);
                                 rows_in_chunk += 1;
                                 zip_line += 1;
@@ -1868,6 +1928,11 @@ pub fn validate_stop_times(file: &RawFile, zip_bytes: Option<&[u8]>, has_booking
                 process(&mut st, &cow_row, (row_idx + 2) as u64);
             }
         }
+    }
+
+    // ARC_033: DOSYA başına TEK özet (chunk'lar `StChunk::merge` ile birleşti).
+    if let Some(n) = super::common::arc033_summary(&st.rfc, &file.name, &mut st.counter) {
+        st.notices.push(n);
     }
 
     // ⚠️ ARC_022 BURADA DEĞİL — `k2/mod.rs`'teki tek geçişte (issue #75). Gerekçe

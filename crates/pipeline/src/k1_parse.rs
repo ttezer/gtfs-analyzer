@@ -185,10 +185,80 @@ fn has_malformed_eol(bytes: &[u8]) -> bool {
 
 // ── CSV tokenizer ─────────────────────────────────────────────────────────────
 
+/// RFC 4180 ihlali birikimi — `ARC_033`. DOSYA başına TEK notice (`Arc032Acc` deseni).
+///
+/// 🔴 **Neden burada, ayrıştırılmış değerde DEĞİL:** tespit alan SINIRLARINI bilmeyi
+/// gerektirir. `"12"" Street"` (GEÇERLİ) ile `12" Street` (İHLAL) ayrıştırıldıktan sonra
+/// AYNI değeri üretir: `12" Street`. Değere bakan bir denetim ikisini ayıramaz ve geçerli
+/// veriyi ihlal sayardı. Bu yüzden karar tokenizer'da, alan tırnaklı mı tırnaksız mı
+/// bilindiği yerde verilir.
+#[derive(Default, Clone)]
+pub(crate) struct Rfc4180Acc {
+    pub rows: u64,
+    pub first_line: Option<u64>,
+    pub example: Option<String>,
+    /// İhlalin türü — iki ayrı spec cümlesi (bkz. `ARC_033` kartı).
+    pub kind: Option<&'static str>,
+    last_line: u64,
+}
+
+/// GTFS File Requirements iki ayrı cümle kurar ve ikisi de bu kuralın konusudur:
+/// *"Field values that contain quotation marks or commas must be enclosed within quotation
+/// marks."* ve *"In addition, each quotation mark in the field value must be preceded with
+/// a quotation mark."*
+const ARC033_REMEDIATION: &str =
+    "Tırnak veya virgül içeren alan değerlerini tırnak içine alın; değerin içindeki her \
+tırnağı ikiye katlayarak kaçırın (\"12\"\" Street\").";
+
+pub(crate) const RFC4180_BARE_QUOTE: &str = "tırnaksız alan tırnak işareti içeriyor";
+pub(crate) const RFC4180_AFTER_CLOSE: &str = "kapanış tırnağından sonra karakter var";
+
+impl Rfc4180Acc {
+    pub(crate) fn observe(&mut self, line: u64, kind: &'static str, example: &str) {
+        if self.last_line != line || self.rows == 0 {
+            self.last_line = line;
+            self.rows += 1;
+            if self.first_line.is_none() {
+                self.first_line = Some(line);
+            }
+        }
+        if self.kind.is_none() {
+            self.kind = Some(kind);
+        }
+        if self.example.is_none() {
+            let e: String = example.chars().take(40).collect();
+            self.example = Some(e);
+        }
+    }
+
+    pub(crate) fn merge(&mut self, other: &Rfc4180Acc) {
+        if other.rows == 0 {
+            return;
+        }
+        self.rows += other.rows;
+        self.first_line = match (self.first_line, other.first_line) {
+            (Some(a), Some(b)) => Some(a.min(b)),
+            (a, b) => a.or(b),
+        };
+        self.kind = self.kind.or(other.kind);
+        if self.example.is_none() {
+            self.example = other.example.clone();
+        }
+    }
+}
+
 /// RFC 4180 uyumlu CSV tokenizer. Byte-level scanner; büyük dosyalarda hızlı.
 /// `max_data_rows`: başlık hariç maksimum satır sayısı (None = sınırsız).
 /// Limit aşıldığında kalan baytlar işlenmez; dönen vec truncated olur.
-fn tokenize_csv(text: &str, max_data_rows: Option<usize>) -> Result<(Vec<Vec<SmolStr>>, bool), String> {
+///
+/// Üçüncü dönüş değeri RFC 4180 ihlallerinin birikimidir (`ARC_033`); tokenizer HATA
+/// vermez, ayrıştırmaya bugünkü gibi devam eder. Bilinçli: ihlal edilmiş bir tırnak
+/// veriyi okunamaz yapmıyor, `ARC_013`'e (zorunlu dosyada FATAL) bağlamak geçerliye yakın
+/// feed'leri reddetmek olurdu — `PTH_017` asimetrisi.
+fn tokenize_csv(
+    text: &str,
+    max_data_rows: Option<usize>,
+) -> Result<(Vec<Vec<SmolStr>>, bool, Rfc4180Acc), String> {
     let bytes = text.as_bytes();
     let n = bytes.len();
     let cap = max_data_rows.map(|m| m + 1).unwrap_or_else(|| (n / 50).max(1).min(5_000_000));
@@ -196,8 +266,12 @@ fn tokenize_csv(text: &str, max_data_rows: Option<usize>) -> Result<(Vec<Vec<Smo
     let mut pos = 0;
     let mut col_hint: usize = 8;
     let mut truncated = false;
+    let mut rfc = Rfc4180Acc::default();
 
     while pos < n {
+        // `records.len()` şu an kurulan kaydın indeksidir; başlık 0 → satır 1, ilk veri
+        // satırı 1 → satır 2. Çağıran döngü de aynı kabulü kullanıyor (`row_idx + 2`).
+        let line_no = (records.len() + 1) as u64;
         let mut record: Vec<SmolStr> = Vec::with_capacity(col_hint);
 
         loop {
@@ -229,16 +303,29 @@ fn tokenize_csv(text: &str, max_data_rows: Option<usize>) -> Result<(Vec<Vec<Smo
                 if !closed {
                     return Err("Kapanmamış tırnak işareti (unclosed quote)".to_string());
                 }
+                // RFC 4180: kapanış tırnağından sonra ayraç gelmeli. Gelmiyorsa alan
+                // içindeki bir tırnak KAÇIRILMAMIŞ demektir (`"Broadway"Ave`). Tokenizer
+                // bugüne dek burada sessizce kaydı bölüyordu — veri de kayboluyordu.
+                if pos < n && !matches!(bytes[pos], b',' | b'\n' | b'\r') {
+                    rfc.observe(line_no, RFC4180_AFTER_CLOSE, &buf);
+                }
                 record.push(SmolStr::new(&buf));
             } else {
                 // Unquoted field — doğrudan slice'tan SmolStr (≤22 byte → inline, heap alloc yok)
                 let start = pos;
+                let mut bare_quote = false;
                 while pos < n {
                     let b = bytes[pos];
                     if b == b',' || b == b'\n' || b == b'\r' {
                         break;
                     }
+                    // RFC 4180 §2.5: tırnaksız alanda tırnak GEÇEMEZ. Eski tarayıcı bunu
+                    // sıradan bir karakter sayıyordu, yani ihlal HİÇ görünmüyordu.
+                    bare_quote |= b == b'"';
                     pos += 1;
+                }
+                if bare_quote {
+                    rfc.observe(line_no, RFC4180_BARE_QUOTE, &text[start..pos]);
                 }
                 record.push(SmolStr::new(&text[start..pos]));
             }
@@ -284,57 +371,7 @@ fn tokenize_csv(text: &str, max_data_rows: Option<usize>) -> Result<(Vec<Vec<Smo
         }
     }
 
-    Ok((records, truncated))
-}
-
-/// stream_mode (stop_times.txt) için: gövdeyi Vec'e açmadan, yalnızca alloc'suz byte
-/// taraması ile kapanmamış tırnak (ARC_013) olup olmadığını tespit eder. tokenize_csv'nin
-/// alan-başı tırnak mantığını birebir taklit eder (yalnızca `"` baytlarını izler — UTF-8
-/// devam baytlarında 0x22 görünmez, bu yüzden byte taraması güvenlidir).
-fn csv_has_unclosed_quote(text: &str) -> bool {
-    let b = text.as_bytes();
-    let n = b.len();
-    let mut pos = 0;
-    while pos < n {
-        // Alan başı
-        if b[pos] == b'"' {
-            pos += 1;
-            let mut closed = false;
-            while pos < n {
-                if b[pos] == b'"' {
-                    pos += 1;
-                    if pos < n && b[pos] == b'"' {
-                        pos += 1; // kaçırılmış tırnak ("")
-                    } else {
-                        closed = true;
-                        break;
-                    }
-                } else {
-                    pos += 1;
-                }
-            }
-            if !closed {
-                return true;
-            }
-        } else {
-            while pos < n && b[pos] != b',' && b[pos] != b'\n' && b[pos] != b'\r' {
-                pos += 1;
-            }
-        }
-        // Ayraç
-        if pos < n {
-            match b[pos] {
-                b'\r' => {
-                    pos += 1;
-                    if pos < n && b[pos] == b'\n' {
-                        pos += 1;
-                    }
-                }
-                _ => pos += 1,
-            }
-        }
-    }
-    false
+    Ok((records, truncated, rfc))
 }
 
 // ── Şema yardımcıları ─────────────────────────────────────────────────────────
@@ -1224,7 +1261,7 @@ pub fn parse(zip_bytes: &[u8], cfg: &ValidatorConfig) -> Result<K1Result, FatalE
         k1dbg!("[K1] tokenizing: {raw_name}");
         // CSV tokenization — stream_mode'da yalnızca başlık (Some(0)), aksi halde tam veri
         let _t = crate::timing::Timer::start(format!("K1::tokenize::{raw_name}"));
-        let (mut records, _) = match tokenize_csv(text, if stream_mode { Some(0) } else { None }) {
+        let (mut records, _, mut rfc4180) = match tokenize_csv(text, if stream_mode { Some(0) } else { None }) {
             Ok(r) => r,
             Err(msg) => {
                 // ARC_013
@@ -1249,24 +1286,18 @@ pub fn parse(zip_bytes: &[u8], cfg: &ValidatorConfig) -> Result<K1Result, FatalE
         // stream_mode: K1 yalnızca başlığı tokenize eder; gövdedeki kapanmamış tırnağı
         // (ARC_013) yine de tespit et — zorunlu dosyada Fatal davranışı korunur (alloc YOK).
         // zip_stream dosyalarda gövde yoktur; unclosed quote kontrolü yanlış-pozitif üretir.
-        if stream_mode && !is_zip_stream && csv_has_unclosed_quote(text) {
-            let msg = "Kapanmamış tırnak işareti (unclosed quote)".to_string();
-            notices.push(make_notice(
-                &mut counter, "ARC_013",
-                EntityType::File, Some(raw_name.clone()),
-                Some(&raw_name), None, None,
-                Some(msg.clone()),
-                format!("'{raw_name}' CSV tokenization hatası: {msg}"),
-                "CSV formatını kontrol edin; tırnak işaretlerinin doğru kapandığından emin olun.",
-            ));
-            if is_required {
-                return Err(FatalError {
-                    code: FatalCode::CsvMalformed,
-                    message: format!("Zorunlu dosya CSV tokenization hatası: {raw_name}"),
-                });
-            }
-            continue;
-        }
+        // 🔴 BURADA ÖLÜ BİR DAL VARDI (2026-08-07'de ölçülerek kaldırıldı).
+        // Koşulu `stream_mode && !is_zip_stream` idi; iki liste de AYNI dört dosyayı
+        // sayıyor (`stop_times`/`shapes`/`trips`/`calendar_dates`), yani koşul HİÇBİR
+        // zaman doğru olamazdı. `#38` streaming turunda `is_zip_stream` stop_times'tan
+        // dört dosyaya genişletilince dal sessizce ölmüş. Panic koyup tüm test paketi
+        // koşuldu: bir kez bile çalışmadı.
+        //
+        // ⚠️ SİLİNEN ŞEY BİR DAVRANIŞ DEĞİL, BİR İDDİAYDI: akış dosyalarının gövdesinde
+        // kapanmamış tırnak (`ARC_013`) **hiçbir yerde denetlenmiyor** — K2 okuyucuları
+        // onu "best-effort" tolere ediyor. Bu boşluk ölü kodun ardında görünmez duruyordu;
+        // artık yazılı. RFC 4180'in tırnak kaçırma ihlalleri (`ARC_033`) ise K2'de,
+        // baytların gerçekten okunduğu yerde denetleniyor.
 
 
         // ARC_009: Boş dosya
@@ -1484,6 +1515,25 @@ pub fn parse(zip_bytes: &[u8], cfg: &ValidatorConfig) -> Result<K1Result, FatalE
                 EntityType::File, Some(raw_name.clone()),
                 Some(raw_name.as_str()), arc032.first_line, Some(cols.as_str()),
                 Some(observed), msg, ARC032_REMEDIATION,
+            ));
+        }
+
+        // ARC_033: RFC 4180 tırnak ihlali — DOSYA başına TEK özet (ARC_032 deseni).
+        // Emit K2 tarafında DEĞİL burada: karar tokenizer'da veriliyor, K2'nin gördüğü
+        // ayrıştırılmış değer ihlali GÖSTEREMEZ (bkz. `Rfc4180Acc` doc'u).
+        if rfc4180.rows > 0 {
+            let kind = rfc4180.kind.unwrap_or(RFC4180_BARE_QUOTE);
+            let example = rfc4180.example.clone().unwrap_or_default();
+            notices.push(make_notice(
+                &mut counter, "ARC_033",
+                EntityType::File, Some(raw_name.clone()),
+                Some(raw_name.as_str()), rfc4180.first_line, None,
+                Some(format!("{} satır · {kind}", rfc4180.rows)),
+                format!(
+                    "'{raw_name}' RFC 4180'e uymuyor: {kind} ({} satırda; ilk örnek: '{example}').",
+                    rfc4180.rows
+                ),
+                ARC033_REMEDIATION,
             ));
         }
 
@@ -2788,7 +2838,7 @@ mod tests {
     #[test]
     fn tokenize_csv_quoted_field() {
         let text = "a,\"b,c\",d\n1,\"hello\nworld\",3\n";
-        let (records, _) = tokenize_csv(text, None).unwrap();
+        let (records, _, _) = tokenize_csv(text, None).unwrap();
         assert_eq!(records[0][0], "a");
         assert_eq!(records[0][1], "b,c");
         assert_eq!(records[0][2], "d");
@@ -2804,7 +2854,7 @@ mod tests {
     fn tokenize_csv_trailing_comma_no_newline() {
         // Dosya sondaki virgülle bitip newline olmadığında boş alan eksik sayılmamalı
         let text = "a,b,c\n1,2,";
-        let (records, _) = tokenize_csv(text, None).unwrap();
+        let (records, _, _) = tokenize_csv(text, None).unwrap();
         assert_eq!(records.len(), 2);
         assert_eq!(records[1].len(), 3, "sondaki virgül boş 3. alanı temsil eder");
         assert_eq!(records[1][2], "");

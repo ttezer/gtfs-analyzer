@@ -165,6 +165,15 @@ pub static RULES: &[RuleMeta] = &[
     // Ölçüldü (239 feed): 4 feed, 1955 değer — bir feed'in 1176 durak adında `<BR>` var.
     r!("ARC_032", Yuksek, Spec, 1, &[], None, VS, File,
         "Alan değerinde HTML etiketi veya kaçış dizisi"),
+    // ARC_033: File Requirements'ın TIRNAK cümleleri — "Field values that contain quotation
+    // marks or commas must be enclosed within quotation marks" + "each quotation mark in the
+    // field value must be preceded with a quotation mark". 2026-08-07'ye kadar tokenizer
+    // tırnaksız alandaki `"`'i SIRADAN KARAKTER sayıyordu; ihlal hiç görünmüyordu ve iki
+    // hüküm defterde `ARC_013` üzerinden DOLAYLI sayılıyordu — o dayanak YANLIŞTI.
+    // ⚠️ Kritik DEĞİL: veri okunabilir kalıyor, tokenizer kurtarıyor. `ARC_013`'e bağlamak
+    // (zorunlu dosyada FATAL) geçerliye yakın feed'i reddetmek olurdu — `PTH_017` dersi.
+    r!("ARC_033", Yuksek, Spec, 1, &[], None, VS, File,
+        "Alan değerinde kaçırılmamış tırnak (RFC 4180)"),
 
     // ── BKR: Booking Rules ─────────────────────────────────────────────────────
     r!("BKR_001", Yuksek, Spec, 1, &[], Some("booking_rule_id"), VS, Entity,
@@ -1798,6 +1807,7 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("ARC_029", ProjectQuality),
     ("ARC_030", GtfsSpec),
     ("ARC_032", GtfsSpec),
+    ("ARC_033", GtfsSpec),
     ("ARS_001", GtfsSpec),
     ("ARS_002", GtfsSpec),
     ("ATR_001", ProjectQuality),

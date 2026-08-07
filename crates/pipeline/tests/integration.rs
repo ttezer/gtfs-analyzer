@@ -2282,3 +2282,113 @@ fn loc011_silent_on_collinear_vertex_on_a_straight_edge() {
              [[0,0],[0,5],[0,10],[10,10],[10,0],[0,0]]]}"#
     ), "düz kenar üzerindeki ara köşe öz-temas değildir, LOC_011 çıkmamalı");
 }
+
+// ── ARC_033: RFC 4180 tırnak kuralı ────────────────────────────────────────────
+//
+// 🔴 İlk gerçek FALSIFIER (2026-08-07, dış okuma). Tokenizer'ın tırnaksız alan dalı yalnız
+// `,`, LF ve CR'de duruyordu; `"` sıradan karakter sayılıyordu. Yani spec'in İKİ sert
+// hükmü (`Pfedb83cf`, `Pa4c60372`) defterde `ARC_013` üzerinden DOLAYLI sayılırken ihlal
+// gerçekte HİÇ görünmüyordu — ölçüldü: bulgu kümesi geçerli feed'le BİREBİR aynıydı.
+//
+// ⚠️ Kuralın ÖLÇÜLEBİLİR olması alan sınırlarını bilmeyi gerektirir: `"12"" Street"`
+// (geçerli) ile `12" Street` (ihlal) AYNI değeri üretir. Bu yüzden karar tokenizer'da.
+
+fn arc033_feed(stops: &str) -> Vec<(&'static str, &'static [u8])> {
+    let mut files = base_files();
+    let body: &'static [u8] = Box::leak(stops.to_string().into_bytes().into_boxed_slice());
+    for slot in files.iter_mut() {
+        if slot.0 == "stops.txt" {
+            slot.1 = body;
+        }
+    }
+    files
+}
+
+fn arc033_fires(stops: &str) -> bool {
+    match run(&arc033_feed(stops)) {
+        ValidateResult::Ok(vr) => has(&vr, "ARC_033"),
+        other => panic!("ValidateResult::Ok beklendi, gelen: {other:?}"),
+    }
+}
+
+#[test]
+fn arc033_flags_bare_quote_in_unquoted_field() {
+    assert!(arc033_fires(
+        "stop_id,stop_name,stop_lat,stop_lon\nS1,12\" Street,41.0,29.0\nS2,Stop2,41.1,29.1\n"
+    ), "tırnaksız alandaki tırnak RFC 4180 ihlalidir → ARC_033");
+}
+
+#[test]
+fn arc033_flags_characters_after_a_closing_quote() {
+    // `"Broadway"Ave` — içteki tırnak KAÇIRILMAMIŞ. Tokenizer bugüne dek kaydı sessizce
+    // bölüyordu; ARC_012 çıkıyordu ama sebep hiçbir yerde yazmıyordu.
+    assert!(arc033_fires(
+        "stop_id,stop_name,stop_lat,stop_lon\nS1,\"Broadway\"Ave,41.0,29.0\nS2,Stop2,41.1,29.1\n"
+    ), "kapanış tırnağından sonra karakter RFC 4180 ihlalidir → ARC_033");
+}
+
+#[test]
+fn arc033_silent_on_correctly_escaped_quotes() {
+    // 🔴 YANLIŞ POZİTİF KORUYUCUSU. Bu satır ayrıştırıldığında değer `12" Street` olur —
+    // yani ihlalli hâlle AYNI. Kural değere baksaydı burada da ateşlerdi ve GEÇERLİ veriyi
+    // reddederdi (`PTH_017` hatası).
+    assert!(!arc033_fires(
+        "stop_id,stop_name,stop_lat,stop_lon\nS1,\"12\"\" Street\",41.0,29.0\nS2,Stop2,41.1,29.1\n"
+    ), "doğru kaçırılmış tırnak GEÇERLİDİR, ARC_033 çıkmamalı");
+}
+
+#[test]
+fn arc033_silent_on_quoted_value_containing_a_comma() {
+    // Virgül içeren değer tırnak içindeyse kural karşılanmıştır.
+    assert!(!arc033_fires(
+        "stop_id,stop_name,stop_lat,stop_lon\nS1,\"Main St, North\",41.0,29.0\nS2,Stop2,41.1,29.1\n"
+    ), "tırnaklanmış virgül GEÇERLİDİR, ARC_033 çıkmamalı");
+}
+
+#[test]
+fn arc033_silent_on_a_feed_with_no_quotes_at_all() {
+    assert!(!arc033_fires(
+        "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\nS2,Stop2,41.1,29.1\n"
+    ), "tırnaksız temiz feed ARC_033 üretmemeli");
+}
+
+#[test]
+fn arc033_reports_one_summary_per_file_not_one_per_row() {
+    // ARC_032/DQ_016 deseni: 1176 durak adı işaretli bir feed'de satır başına emit
+    // tarayıcıyı boğar. Özet, kaç SATIR etkilendiğini söyler.
+    let mut stops = String::from("stop_id,stop_name,stop_lat,stop_lon\n");
+    for i in 1..=5 {
+        stops.push_str(&format!("S{i},{i}\" Street,41.{i:03},29.{i:03}\n"));
+    }
+    match run(&arc033_feed(&stops)) {
+        ValidateResult::Ok(vr) => {
+            let hits: Vec<_> = vr.notices.iter().filter(|n| n.rule_id == "ARC_033").collect();
+            assert_eq!(hits.len(), 1, "dosya başına TEK özet bekleniyor, gelen: {}", hits.len());
+            let observed = hits[0].observed_value.clone().unwrap_or_default();
+            assert!(observed.starts_with("5 satır"), "özet satır sayısını taşımalı: {observed}");
+        }
+        other => panic!("Ok beklendi: {other:?}"),
+    }
+}
+
+#[test]
+fn arc033_covers_streamed_files_too() {
+    // ⚠️ `trips.txt` K1'de STREAM edilir (`rows` boş kalır) — tokenize_csv yalnız başlığı
+    // görür. Gövde taraması `csv_scan`'de; iki tarayıcı ayrışırsa aynı dosya akış modunda
+    // sessiz kalırdı. Bu, ARC_022'de yaşanan kapsam boşluğunun aynısı olurdu.
+    let mut files = base_files();
+    let trips: &'static [u8] = Box::leak(
+        "route_id,service_id,trip_id,trip_headsign\nR1,SVC1,T1,5\" Line\n"
+            .to_string().into_bytes().into_boxed_slice());
+    for slot in files.iter_mut() {
+        if slot.0 == "trips.txt" {
+            slot.1 = trips;
+        }
+    }
+    match run(&files) {
+        ValidateResult::Ok(vr) => assert!(
+            vr.notices.iter().any(|n| n.rule_id == "ARC_033" && n.entity_id.as_deref() == Some("trips.txt")),
+            "akış modundaki trips.txt için de ARC_033 çıkmalı"),
+        other => panic!("Ok beklendi: {other:?}"),
+    }
+}

@@ -232,6 +232,11 @@ pub fn validate_calendar_dates(
         }
     };
 
+    // ARC_033 birikimi: ihlali OKUYUCULAR görür (alan sınırlarını yalnız onlar bilir),
+    // satır numarasını bu döngü ekler. Emit tek yerde: `arc033_summary`.
+    let mut rfc_acc = crate::k1_parse::Rfc4180Acc::default();
+    let mut rfc_hit: Option<(&'static str, String)> = None;
+
     // ── Sürücü: zip_bytes → ZIP stream; raw_text → string stream; rows → fallback ──
     if let Some(zb) = zip_bytes {
         let cursor = Cursor::new(zb);
@@ -270,6 +275,9 @@ pub fn validate_calendar_dates(
                                 .collect();
                             let cow_row: Vec<Cow<'_, str>> =
                                 strings.iter().map(|s| Cow::Borrowed(s.as_str())).collect();
+                            if let Some((k, ex)) = csv_reader.rfc.take() {
+                                rfc_acc.observe(zip_line, k, &ex);
+                            }
                             process(&cow_row, zip_line);
                             zip_line += 1;
                         }
@@ -282,9 +290,12 @@ pub fn validate_calendar_dates(
         let mut buf: Vec<Cow<'_, str>> = Vec::with_capacity(4);
         let mut data_idx = 0usize;
         let mut header_skipped = false;
-        while next_csv_record(text, &mut pos, &mut buf) {
+        while next_csv_record(text, &mut pos, &mut buf, &mut rfc_hit) {
             if buf.len() == 1 && buf[0].is_empty() { continue; }
             if !header_skipped { header_skipped = true; continue; }
+            if let Some((k, ex)) = rfc_hit.take() {
+                rfc_acc.observe((data_idx + 2) as u64, k, &ex);
+            }
             process(&buf, (data_idx + 2) as u64);
             data_idx += 1;
         }
@@ -313,6 +324,11 @@ pub fn validate_calendar_dates(
     // yansıtmalı. Aynı (service_id, date) duplicate'leri binary_search'ü bozmaz.
     for v in index.added.values_mut()   { v.sort_unstable(); }
     for v in index.removed.values_mut() { v.sort_unstable(); }
+
+    // ARC_033: DOSYA başına TEK özet (kopya denetim yok — #75 dersi).
+    if let Some(n) = super::common::arc033_summary(&rfc_acc, &file.name, &mut counter) {
+        notices.push(n);
+    }
 
     (index, notices)
 }

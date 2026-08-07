@@ -118,6 +118,11 @@ def main() -> int:
         if not re.search(rf"{want}\S*\s+(?:\*\*)?{label}", arith_text):
             stale.append(f"§0/4 {label} sayısı {want} değil → {arith_text.strip()[:90]}")
 
+    # §1 tablosundaki oran da hesaptan türer (2026-08-07'de 147/147'de kalmıştı).
+    axis_line = next((l for l in ev_lines if "Düzyazı hükümleri" in l), "")
+    if f"{n} / {d}" not in axis_line and f"{n}/{d}" not in axis_line:
+        stale.append(f"§1 eksen satırı {n}/{d} demiyor → {axis_line.strip()[:90]}")
+
     # Korpus büyüklüğünün TEK KAYNAĞI manifesttir; §0/3 ondan sapmamalı.
     man = ROOT / "corpus-evidence" / "corpus_manifest.csv"
     feeds = max(len(man.read_text(encoding="utf-8").strip().split("\n")) - 1, 0)

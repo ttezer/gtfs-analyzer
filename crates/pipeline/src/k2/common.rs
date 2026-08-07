@@ -420,6 +420,28 @@ pub fn require_nonempty(
     }
 }
 
+/// `ARC_033` özeti — DOSYA başına TEK notice. Dört akış dosyası da bunu çağırır;
+/// denetimi dört yere kopyalamak `ARC_022`'nin (#75) hatasını tekrarlamak olurdu.
+pub fn arc033_summary(
+    acc: &crate::k1_parse::Rfc4180Acc,
+    file: &str,
+    counter: &mut u32,
+) -> Option<gtfs_core::Notice> {
+    if acc.rows == 0 {
+        return None;
+    }
+    let kind = acc.kind.unwrap_or(crate::k1_parse::RFC4180_BARE_QUOTE);
+    let example = acc.example.clone().unwrap_or_default();
+    Some(make_k2_notice(
+        counter, "ARC_033", EntityType::File, Some(file.to_string()),
+        None, file, acc.first_line, None,
+        Some(format!("{} satır · {kind}", acc.rows)), None,
+        format!("'{file}' RFC 4180'e uymuyor: {kind} ({} satırda; ilk örnek: '{example}').", acc.rows),
+        "Tırnak veya virgül içeren alan değerlerini tırnak içine alın; değerin içindeki her \
+tırnağı ikiye katlayarak kaçırın (\"12\"\" Street\").",
+    ))
+}
+
 pub fn make_k2_notice(
     counter: &mut u32,
     rule_id: &str,
