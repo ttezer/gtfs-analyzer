@@ -300,7 +300,51 @@ pub fn looks_like_url(value: &str) -> bool {
     }
     let trimmed = value.trim();
     let has_web_scheme = starts_with_ci(trimmed, "http://") || starts_with_ci(trimmed, "https://");
-    has_web_scheme && Url::parse(trimmed).is_ok()
+    has_web_scheme && url_escaping_ok(trimmed) && Url::parse(trimmed).is_ok()
+}
+
+/// GTFS `URL` tipinin İKİNCİ yarısı: *"…any special characters … correctly escaped."*
+///
+/// 🔴 `Url::parse` bunu KANITLAMAZ (issue #80). Ayrıştırıcı bilinçli olarak toleranslıdır
+/// ve girdiyi NORMALİZE eder; 2026-08-07'de ölçüldü:
+/// ```text
+///   "https://a.example/a b"    → Ok, a%20b   (kaçırılmamış boşluk sessizce kodlandı)
+///   "https://a.example/a"b"   → Ok, a%22b
+///   "https://a.example/a<b>"   → Ok, a%3Cb%3E
+///   "https://a.example/a%zzb"  → Ok, OLDUĞU GİBİ (BOZUK yüzde kodlaması kabul edildi)
+///   "https://a.example/a\b"   → Ok, a/b      (ters bölü eğik çizgiye çevrildi)
+/// ```
+/// Yani "parse ediliyor" ile "üretici doğru kaçırmış" AYNI ŞEY DEĞİLDİ; hükmün ikinci
+/// yarısı kanıtsız sayılıyordu.
+///
+/// ⚠️ **ASCII DIŞI karakterler REDDEDİLMEZ** — bilinçli kalıntı. Spec "özel karakter"
+/// der; `ü`, `ş`, kiril vb. RFC 3986'nın ayraç kümesinde değildir ve RFC 3987 (IRI)
+/// kullanımı yaygındır. Reddetmek uluslararası feed'leri kırardı. Ölçüm: 20 feed ·
+/// 12.897 URL'de ASCII dışı karaktere HİÇ rastlanmadı, yani bu yönde kanıt da yok.
+pub fn url_escaping_ok(value: &str) -> bool {
+    // RFC 3986'da bir URI'de ÇIPLAK geçemeyecek karakterler (ayrıştırıcının sessizce
+    // kodladıkları) + kontrol karakterleri.
+    const MUST_ESCAPE: &[char] = &[' ', '"', '<', '>', '\\', '^', '`', '{', '}', '|'];
+    if value.chars().any(|c| MUST_ESCAPE.contains(&c) || c.is_control()) {
+        return false;
+    }
+    // Yüzde kaçışı İKİ onaltılık basamak ister; `%zz` ve satır sonundaki `%` bozuktur.
+    let b = value.as_bytes();
+    let mut i = 0;
+    while i < b.len() {
+        if b[i] == b'%' {
+            if i + 2 >= b.len()
+                || !b[i + 1].is_ascii_hexdigit()
+                || !b[i + 2].is_ascii_hexdigit()
+            {
+                return false;
+            }
+            i += 3;
+        } else {
+            i += 1;
+        }
+    }
+    true
 }
 
 /// ISO 4217 minor unit (ondalık basamak sayısı). Varsayılan 2; aşağıdakiler ayrıksı.
@@ -636,7 +680,7 @@ mod tests {
         assert_eq!(notice.scope_key.as_deref(), Some("T1"));
         assert_eq!(notice.id, "k2/STM_001#1");
     }
-    #[test]
+
     /// issue #82 — paylaşılan tip yardımcıları, temsil ettikleri standarttan GENİŞTİ.
     /// Her biri için: bildirilen GEÇERSİZ örnek + geçerli sınır durumu.
     #[test]
@@ -679,6 +723,7 @@ mod tests {
         assert!(super::is_valid_calendar_date(2026, 12, 31));
     }
 
+    #[test]
     fn looks_like_url_requires_a_web_scheme() {
         // Spec: "A fully qualified URL that includes http:// or https://."
         assert!(super::looks_like_url("http://a.com"));
@@ -692,6 +737,18 @@ mod tests {
         assert!(!super::looks_like_url("ftp://a.com/x"));
         assert!(!super::looks_like_url("file:///etc/passwd"));
         assert!(!super::looks_like_url("javascript:alert(1)"));
+
+        // issue #80 — hükmün İKİNCİ yarısı: özel karakterler DOĞRU kaçırılmış olmalı.
+        // `Url::parse` bunların hepsine Ok diyordu (normalize ederek).
+        assert!(super::looks_like_url("https://a.example/a%20b"), "doğru yüzde kodlaması");
+        assert!(!super::looks_like_url("https://a.example/a b"), "kaçırılmamış boşluk");
+        assert!(!super::looks_like_url("https://a.example/a\"b"), "kaçırılmamış tırnak");
+        assert!(!super::looks_like_url("https://a.example/a<b>"), "kaçırılmamış açılı ayraç");
+        assert!(!super::looks_like_url("https://a.example/a%zzb"), "BOZUK yüzde kodlaması");
+        assert!(!super::looks_like_url("https://a.example/a%2"), "eksik yüzde kodlaması");
+        assert!(!super::looks_like_url("https://a.example/a\\b"), "ters bölü çıplak geçemez");
+        // ⚠️ ASCII dışı BİLİNÇLİ olarak kabul edilir (IRI kullanımı yaygın).
+        assert!(super::looks_like_url("https://şehir.example/güzergah"), "IRI reddedilmez");
         assert!(!super::looks_like_url("foo:bar"));
         assert!(!super::looks_like_url("jrutil://invalid"), "korpusta görülen yer tutucu");
 

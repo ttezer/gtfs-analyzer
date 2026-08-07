@@ -635,9 +635,31 @@ pub(crate) const ARC030_REMEDIATION: &str =
 // çıktı: `K.A.Wheel&Tire;` bir entity değil, `St Sauvant >< St Césaire` bir etiket değil.
 // Kapalı listeye geçince 1955 gerçek eşleşme kaldı (4 feed). Desen genişletilecekse
 // örneklere BAKILARAK genişletilmeli.
+/// HTML eleman adları — **HTML5 standardının TAMAMI** (+ yaygın kullanımdaki eskiler:
+/// `font`, `center`, `marquee`, `strike`, `big`, `tt`, `blink`, `frame`, `applet`).
+///
+/// 🔴 2026-08-07'ye kadar burada 26 ad vardı (issue #79). O liste bir ALT KÜMEYDİ:
+/// `<script>`, `<section>`, `<iframe>`, `<style>` gibi etiketler ARC_032'den kaçıyordu,
+/// yani kural hükmün (`Pd6bc0278`) dediğinden dardı.
+///
+/// ⚠️ Liste yine de KAPALI — "açılı ayraç içindeki her kelime" DEĞİL. Bu bilinçli:
+/// `<Bilinmiyor>`, `<未定>`, `<TBD>` gibi değerler gerçek veride geçiyor ve HTML DEĞİL.
+/// Hükmün konusu "HTML etiketi"dir; uydurma bir ad HTML etiketi değildir. Fark şu:
+/// liste artık standardın ALT KÜMESİ değil, standardın KENDİSİ.
 const HTML_TAGS: &[&str] = &[
-    "a", "b", "i", "u", "p", "br", "hr", "em", "strong", "span", "div", "img", "font",
-    "ul", "ol", "li", "table", "tr", "td", "th", "h1", "h2", "h3", "small", "sub", "sup",
+    "a", "abbr", "acronym", "address", "applet", "area", "article", "aside", "audio",
+    "b", "base", "basefont", "bdi", "bdo", "big", "blink", "blockquote", "body", "br",
+    "button", "canvas", "caption", "center", "cite", "code", "col", "colgroup", "data",
+    "datalist", "dd", "del", "details", "dfn", "dialog", "dir", "div", "dl", "dt",
+    "em", "embed", "fieldset", "figcaption", "figure", "font", "footer", "form", "frame",
+    "frameset", "h1", "h2", "h3", "h4", "h5", "h6", "head", "header", "hgroup", "hr",
+    "html", "i", "iframe", "img", "input", "ins", "kbd", "label", "legend", "li", "link",
+    "main", "map", "mark", "marquee", "menu", "meta", "meter", "nav", "noframes",
+    "noscript", "object", "ol", "optgroup", "option", "output", "p", "param", "picture",
+    "pre", "progress", "q", "rp", "rt", "ruby", "s", "samp", "script", "search", "section",
+    "select", "slot", "small", "source", "span", "strike", "strong", "style", "sub",
+    "summary", "sup", "table", "tbody", "td", "template", "textarea", "tfoot", "th",
+    "thead", "time", "title", "tr", "track", "tt", "u", "ul", "var", "video", "wbr",
 ];
 const HTML_ENTITIES: &[&str] = &["nbsp", "amp", "lt", "gt", "quot", "apos"];
 
@@ -2928,6 +2950,30 @@ mod tests {
         assert_eq!(arc032_markup("Bir &amp; iki"), Some("&amp;".to_string()));
         assert_eq!(arc032_markup("Kod &#39;tırnak&#39;"), Some("&#39;".to_string()));
         assert_eq!(arc032_markup("Onaltılık &#x27; kaçış"), Some("&#x27;".to_string()));
+    }
+
+    /// issue #79: liste 26 addan HTML5'in TAMAMINA genişledi. Denetçinin istediği beş
+    /// vaka: listede zaten olan bir etiket · eski listede OLMAYAN geçerli bir etiket ·
+    /// HTML yorumu · desteklenen bir kaçış · `<`/`>`/`&` taşıyan düz metin.
+    #[test]
+    fn arc_032_covers_the_whole_html_element_set() {
+        // Eski listede vardı — regresyon olmamalı.
+        assert_eq!(arc032_markup("Merkez <b>Durağı</b>"), Some("<b>".to_string()));
+        // Eski listede YOKTU: hüküm "HTML etiketi" diyor, bunlar da HTML etiketi.
+        for tag in ["script", "section", "iframe", "style", "video", "article", "h4", "svg-yok"] {
+            let v = format!("Durak <{tag}>x</{tag}>");
+            if tag == "svg-yok" {
+                assert_eq!(arc032_markup(&v), None, "HTML elemanı olmayan ad yakalanmamalı");
+            } else {
+                assert!(arc032_markup(&v).is_some(), "<{tag}> yakalanmalı");
+            }
+        }
+        assert_eq!(arc032_markup("Not <!-- gizli --> son"), Some("<!--".to_string()));
+        assert_eq!(arc032_markup("Kadıköy&nbsp;İskele"), Some("&nbsp;".to_string()));
+        // Düz metin: uydurma ad HTML etiketi DEĞİLDİR — liste bilinçli olarak kapalı.
+        assert_eq!(arc032_markup("<Bilinmiyor>"), None);
+        assert_eq!(arc032_markup("<TBD> hattı"), None);
+        assert_eq!(arc032_markup("A & B < C > D"), None);
     }
 
     #[test]

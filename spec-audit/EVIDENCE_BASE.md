@@ -419,7 +419,17 @@ testin kendisi değildi: servis günü notasyonunda saat 24'ü aşar (raylı fee
 38:10 ölçüldü) ve çok günlü tren seferleri üç basamağa taşabilir. Saati kısıtlamak GEÇERLİ
 veriyi reddetmek olurdu.
 
-**Ölçüm:** 20 rastgele korpus feed'i, önce/sonra: **fark 0**. Yani yeni yanlış pozitif yok;
+**Aynı sınıftan iki düzeltme daha (issue #79, #80):**
+- `ARC_032`'nin HTML etiket listesi 26 addan **HTML5'in tamamına** çıktı; `<script>`,
+  `<section>`, `<iframe>`, `<style>` eski listede yoktu. Liste hâlâ kapalı — hüküm "HTML
+  etiketi" der ve `<Bilinmiyor>` bir HTML etiketi değildir; fark, listenin artık standardın
+  ALT KÜMESİ değil KENDİSİ olması.
+- `looks_like_url` artık kaçırma yarısını da denetliyor. `Url::parse` bunu kanıtlamıyordu:
+  ölçüldü ki `a b`, `a"b`, `a<b>`, `a\b` ve hatta BOZUK `%zz` için `Ok` dönüyor ve girdiyi
+  sessizce normalize ediyor. ASCII dışı karakterler bilinçli olarak kabul ediliyor (IRI).
+
+**Ölçüm:** 20 rastgele korpus feed'i, önce/sonra: **fark 0** (URL tarafında 12.897 URL
+tarandı, hiçbirinde çıplak özel karakter ya da bozuk yüzde kaçışı yok). Yani yeni yanlış pozitif yok;
 bu örneklemde doğru pozitif de yok (aranan bozukluklar nadir). 20 feed bir ALT SINIRDIR,
 korpusun tamamı değil.
 
