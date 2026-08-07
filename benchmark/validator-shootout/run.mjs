@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { GTFSValidator, getValidatorInfo } from '@tmlmobilidade/gtfs-validator';
+import { GtfsValidator, getValidatorInfo } from '@tmlmobilidade/gtfs-validator';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO = path.resolve(HERE, '../..');
@@ -48,7 +48,7 @@ async function runTml(id) {
   const output = path.join(OUT, 'tml', `${id}.report.json`);
   const started = performance.now();
   try {
-    const result = await GTFSValidator(feed, {
+    const result = await GtfsValidator(feed, {
       lang: 'en',
       timeout: 120_000,
       out_file: output,
@@ -78,72 +78,22 @@ function analyzerNotices(run) {
   return r.notices;
 }
 
-function analyzerSig(n) {
-  return [n.rule_id, n.rule_class, n.file, n.line, n.field, n.entity_type, n.entity_id, n.observed_value].map(v => v ?? '').join('|');
+function tmlSummary(run) {
+  if (run.result?.summary && Array.isArray(run.result.summary.messages)) return run.result.summary;
+  if (run.report && Array.isArray(run.report.messages)) return run.report;
+  return null;
 }
 
-function numericCountMap(value, prefix = '', out = {}) {
-  if (!value || typeof value !== 'object') return out;
-  for (const [key, val] of Object.entries(value)) {
-    const p = prefix ? `${prefix}.${key}` : key;
-    if (typeof val === 'number' && /count|errors?|warnings?|infos?|notices?|issues?/i.test(key)) out[p] = val;
-    else if (val && typeof val === 'object' && !Array.isArray(val) && prefix.split('.').length < 3) numericCountMap(val, p, out);
-  }
-  return out;
-}
-
-function tmlCounts(run) {
-  return numericCountMap(run.result?.summary ?? run.report?.summary ?? {});
-}
-
-function collectNoticeLike(value, pathParts = [], out = []) {
-  if (Array.isArray(value)) {
-    const underIssueCollection = pathParts.some(p => /notice|error|warning|issue|violation/i.test(p));
-    if (underIssueCollection) {
-      for (const item of value) if (item && typeof item === 'object' && !Array.isArray(item)) out.push(item);
-    }
-    value.forEach((v, i) => collectNoticeLike(v, [...pathParts, String(i)], out));
-    return out;
-  }
-  if (!value || typeof value !== 'object') return out;
-  const keys = Object.keys(value);
-  const underIssueCollection = pathParts.some(p => /notice|error|warning|issue|violation/i.test(p));
-  if (underIssueCollection && keys.some(k => /code|message|severity|rule|filename|file|field|line/i.test(k))) out.push(value);
-  for (const [k, v] of Object.entries(value)) collectNoticeLike(v, [...pathParts, k], out);
-  return out;
-}
-
-function normalizedObjectSignature(obj) {
-  const skip = /time|duration|date|timestamp|elapsed/i;
-  const pieces = [];
-  for (const key of Object.keys(obj).sort()) {
-    const val = obj[key];
-    if (skip.test(key)) continue;
-    if (val == null || ['string', 'number', 'boolean'].includes(typeof val)) pieces.push(`${key}=${String(val)}`);
-  }
-  return pieces.join('|');
-}
-
-function tmlNoticeSignatures(run) {
-  const source = run.report ?? run.result ?? {};
-  return [...new Set(collectNoticeLike(source).map(normalizedObjectSignature).filter(Boolean))].sort();
-}
-
-function positiveCountDelta(base, mutant) {
-  const keys = new Set([...Object.keys(base), ...Object.keys(mutant)]);
-  const delta = {};
-  for (const key of keys) {
-    const d = (mutant[key] ?? 0) - (base[key] ?? 0);
-    if (d !== 0) delta[key] = d;
-  }
-  return delta;
+function tmlMessageSig(m) {
+  return [m.rule_id, m.file_name, m.field, m.severity, m.message].map(v => v ?? '').join('|');
 }
 
 function escapeMd(s) {
   return String(s).replaceAll('|', '\\|').replaceAll('\n', ' ');
 }
 
-console.log('TML validator info:', await getValidatorInfo());
+const tmlInfo = await getValidatorInfo();
+console.log('TML validator info:', tmlInfo);
 
 const analyzerRuns = {};
 const tmlRuns = {};
@@ -152,69 +102,86 @@ for (const item of manifest) {
   analyzerRuns[item.id] = runAnalyzer(item.id);
   tmlRuns[item.id] = await runTml(item.id);
   console.log('Analyzer notices:', analyzerNotices(analyzerRuns[item.id]).length, `(${analyzerRuns[item.id].elapsedMs.toFixed(1)} ms)`);
-  console.log('TML summary:', tmlRuns[item.id].result?.summary ?? tmlRuns[item.id].error, `(${tmlRuns[item.id].elapsedMs.toFixed(1)} ms)`);
+  console.log('TML summary:', tmlSummary(tmlRuns[item.id]) ?? tmlRuns[item.id].error, `(${tmlRuns[item.id].elapsedMs.toFixed(1)} ms)`);
 }
 
-const baseAnalyzerSigs = new Set(analyzerNotices(analyzerRuns.baseline).map(analyzerSig));
-const baseTmlCounts = tmlCounts(tmlRuns.baseline);
-const baseTmlSigs = new Set(tmlNoticeSignatures(tmlRuns.baseline));
+const baseTmlSummary = tmlSummary(tmlRuns.baseline);
+const baseTmlMessageSigs = new Set((baseTmlSummary?.messages ?? []).map(tmlMessageSig));
 
 const rows = [];
 for (const item of manifest.filter(x => x.id !== 'baseline')) {
   const aNotices = analyzerNotices(analyzerRuns[item.id]);
-  const aNew = aNotices.filter(n => !baseAnalyzerSigs.has(analyzerSig(n)));
-  const aNewSpec = aNew.filter(n => n.rule_class === 'SPEC');
-  const tCounts = tmlCounts(tmlRuns[item.id]);
-  const countDelta = positiveCountDelta(baseTmlCounts, tCounts);
-  const tSigs = tmlNoticeSignatures(tmlRuns[item.id]);
-  const tNewSigs = tSigs.filter(s => !baseTmlSigs.has(s));
-  const tPositiveCount = Object.values(countDelta).some(v => v > 0);
-  const tDetected = tPositiveCount || tNewSigs.length > 0;
+  const expectedRule = item.expected_analyzer_rule;
+  const expectedNotices = aNotices.filter(n => n.rule_id === expectedRule);
+
+  const tr = tmlRuns[item.id];
+  const ts = tmlSummary(tr);
+  const newTmlMessages = (ts?.messages ?? []).filter(m => !baseTmlMessageSigs.has(tmlMessageSig(m)));
+  const crashed = !tr.ok && /panic:|runtime error|index out of range/i.test(`${tr.error?.message ?? ''}\n${tr.error?.stderr ?? ''}`);
+  const tmlStatus = crashed ? 'CRASH' : (!tr.ok ? 'ERROR' : (newTmlMessages.length > 0 ? 'DETECTED' : 'MISSED'));
 
   rows.push({
     id: item.id,
     description: item.description,
-    analyzerDetectedSpec: aNewSpec.length > 0,
-    analyzerNewSpecRules: [...new Set(aNewSpec.map(n => n.rule_id))].sort(),
-    analyzerNewRulesAll: [...new Set(aNew.map(n => n.rule_id))].sort(),
+    expectedAnalyzerRule: expectedRule,
+    analyzerStatus: expectedNotices.length > 0 ? 'DETECTED' : 'MISSED',
+    analyzerMatchingNotices: expectedNotices.map(n => ({
+      rule_id: n.rule_id,
+      rule_class: n.rule_class,
+      file: n.file,
+      line: n.line,
+      field: n.field,
+      message: n.message,
+    })),
     analyzerMs: Number(analyzerRuns[item.id].elapsedMs.toFixed(2)),
-    tmlOk: tmlRuns[item.id].ok,
-    tmlDetectedPreliminary: tDetected,
-    tmlCountDelta: countDelta,
-    tmlNewNoticeSignatures: tNewSigs.slice(0, 20),
-    tmlMs: Number(tmlRuns[item.id].elapsedMs.toFixed(2)),
+    tmlStatus,
+    tmlNewMessages: newTmlMessages,
+    tmlError: tr.ok ? null : tr.error,
+    tmlMs: Number(tr.elapsedMs.toFixed(2)),
   });
 }
 
+const count = (who, status) => rows.filter(r => r[who] === status).length;
 const result = {
   generatedAt: new Date().toISOString(),
   analyzerToday: TODAY,
-  tmlInfo: await getValidatorInfo(),
+  tmlInfo,
   baseline: {
     analyzerNoticeCount: analyzerNotices(analyzerRuns.baseline).length,
     analyzerRules: [...new Set(analyzerNotices(analyzerRuns.baseline).map(n => n.rule_id))].sort(),
-    tmlOk: tmlRuns.baseline.ok,
-    tmlCounts: baseTmlCounts,
-    tmlNoticeSignatureCount: baseTmlSigs.size,
+    tmlStatus: tmlRuns.baseline.ok ? 'OK' : 'ERROR',
+    tmlSummary: baseTmlSummary,
+  },
+  totals: {
+    cases: rows.length,
+    analyzerDetected: count('analyzerStatus', 'DETECTED'),
+    analyzerMissed: count('analyzerStatus', 'MISSED'),
+    tmlDetected: count('tmlStatus', 'DETECTED'),
+    tmlMissed: count('tmlStatus', 'MISSED'),
+    tmlCrash: count('tmlStatus', 'CRASH'),
+    tmlError: count('tmlStatus', 'ERROR'),
   },
   cases: rows,
-  note: 'TML detected is preliminary: positive summary-count delta or a new notice-like record versus the paired baseline. Raw TML reports are retained for semantic adjudication.',
+  note: 'Detection is semantic at fixture level. Analyzer is matched against the predeclared expected rule. TML is DETECTED only when the mutation creates a new structured message relative to the identical baseline; process panic is classified separately as CRASH.',
 };
 
 fs.writeFileSync(path.join(OUT, 'shootout.json'), safeJson(result) + '\n');
 
 const lines = [
-  '# GTFS Validator Shootout — discovery run',
+  '# GTFS Validator Shootout — controlled fixtures',
   '',
-  `Analyzer date fixed at \`${TODAY}\`. Each mutant is compared against one identical baseline feed.`,
+  `Analyzer date fixed at \`${TODAY}\`. Each mutant differs from the baseline by one intended mutation.`,
   '',
-  '| Case | Analyzer SPEC detection | Analyzer new SPEC rules | TML preliminary detection | TML count delta |',
-  '|---|:---:|---|:---:|---|',
+  `**Totals:** Analyzer ${result.totals.analyzerDetected}/${rows.length} detected; TML ${result.totals.tmlDetected}/${rows.length} detected, ${result.totals.tmlMissed} missed, ${result.totals.tmlCrash} crashed, ${result.totals.tmlError} other errors.`,
+  '',
+  '| Case | Expected Analyzer rule | Analyzer | TML | TML new rule(s) |',
+  '|---|---|:---:|:---:|---|',
 ];
 for (const r of rows) {
-  lines.push(`| ${escapeMd(r.id)} | ${r.analyzerDetectedSpec ? 'YES' : 'NO'} | ${escapeMd(r.analyzerNewSpecRules.join(', ') || '—')} | ${r.tmlDetectedPreliminary ? 'YES' : 'NO'} | ${escapeMd(JSON.stringify(r.tmlCountDelta))} |`);
+  const tmlRules = [...new Set(r.tmlNewMessages.map(m => m.rule_id))].join(', ') || '—';
+  lines.push(`| ${escapeMd(r.id)} | ${escapeMd(r.expectedAnalyzerRule)} | ${r.analyzerStatus} | ${r.tmlStatus} | ${escapeMd(tmlRules)} |`);
 }
-lines.push('', '> TML result is preliminary until the raw TML notice schema is semantically mapped.');
+lines.push('', '> CRASH means the validator process terminated without a structured validation result.');
 fs.writeFileSync(path.join(OUT, 'report.md'), lines.join('\n') + '\n');
 
 console.log('\n' + lines.join('\n'));
