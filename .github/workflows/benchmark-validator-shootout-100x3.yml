@@ -1,0 +1,87 @@
+name: Validator Shootout 100x3
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'benchmark/validator-shootout/**'
+      - '.github/workflows/benchmark-validator-shootout-100x3.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  shootout:
+    name: Analyzer vs TML vs MobilityData
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Install TML validator SDK
+        working-directory: benchmark/validator-shootout
+        run: npm install --no-audit --no-fund
+
+      - name: Download MobilityData validator v8.0.1 CLI
+        working-directory: benchmark/validator-shootout
+        run: |
+          set -euo pipefail
+          API="https://api.github.com/repos/MobilityData/gtfs-validator/releases/tags/v8.0.1"
+          ASSET_URL="$(curl -fsSL "$API" | jq -r '.assets[] | select(.name | endswith("-cli.jar")) | .browser_download_url' | head -n1)"
+          test -n "$ASSET_URL"
+          test "$ASSET_URL" != "null"
+          echo "Downloading: $ASSET_URL"
+          curl -fL "$ASSET_URL" -o mobilitydata-cli.jar
+          test -s mobilitydata-cli.jar
+
+      - name: Inspect validator versions
+        working-directory: benchmark/validator-shootout
+        run: |
+          node --input-type=module <<'NODE'
+          const m = await import('@tmlmobilidade/gtfs-validator');
+          console.log('TML exports:', Object.keys(m));
+          console.log('TML info:', await m.getValidatorInfo());
+          NODE
+          java -jar mobilitydata-cli.jar --help >/tmp/md-help.txt 2>&1 || true
+          head -n 20 /tmp/md-help.txt
+
+      - name: Build GTFS Analyzer CLI
+        run: cargo build --release -p gtfs-cli
+
+      - name: Generate 100 controlled fixtures
+        run: python3 benchmark/validator-shootout/generate_fixtures.py
+
+      - name: Run 100x3 shootout
+        run: node benchmark/validator-shootout/run.mjs
+
+      - name: Publish benchmark summary
+        if: always()
+        run: |
+          if [ -f benchmark/validator-shootout/results/report-100x3.md ]; then
+            cat benchmark/validator-shootout/results/report-100x3.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload raw benchmark results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: validator-shootout-100x3-results
+          path: |
+            benchmark/validator-shootout/results/
+            benchmark/validator-shootout/fixtures/manifest.json
+          if-no-files-found: warn
+          retention-days: 7
