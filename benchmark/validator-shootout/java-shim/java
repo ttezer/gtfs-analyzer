@@ -1,0 +1,101 @@
+#!/usr/bin/env bash
+set -u
+
+: "${REAL_JAVA:?REAL_JAVA must point to the actual Java executable}"
+
+args=("$@")
+# Keep MobilityData's time-based rules deterministic. Only add the option for the
+# pinned gtfs-validator CLI invocation used by this benchmark.
+is_md=0
+has_date=0
+out_dir=""
+for ((i=0; i<${#args[@]}; i++)); do
+  [[ "${args[$i]}" == *"mobilitydata-cli.jar" ]] && is_md=1
+  if [[ "${args[$i]}" == "-d" || "${args[$i]}" == "--date" ]]; then has_date=1; fi
+  if [[ "${args[$i]}" == "-o" || "${args[$i]}" == "--output_base" ]]; then
+    if (( i + 1 < ${#args[@]} )); then out_dir="${args[$((i+1))]}"; fi
+  fi
+done
+
+if (( is_md == 1 && has_date == 0 )); then
+  args+=("-d" "2026-08-07")
+fi
+
+"$REAL_JAVA" "${args[@]}"
+status=$?
+
+# MobilityData v8.0.1 can serialize Java special floating-point values as bare
+# NaN/Infinity tokens in report.json. Those are not valid RFC 8259 JSON, so strict
+# JSON.parse fails even though the validator successfully emitted a notice.
+# Preserve the exact bytes, then create a parser-only normalized copy in-place.
+if (( is_md == 1 )) && [[ -n "$out_dir" && -f "$out_dir/report.json" ]]; then
+  cp "$out_dir/report.json" "$out_dir/report.raw.json"
+  python3 - "$out_dir/report.json" "$out_dir/report.normalization.json" <<'PY'
+import json
+import pathlib
+import sys
+
+report_path = pathlib.Path(sys.argv[1])
+meta_path = pathlib.Path(sys.argv[2])
+text = report_path.read_text(encoding="utf-8")
+
+out = []
+i = 0
+in_string = False
+escaped = False
+replacements = []
+tokens = ("-Infinity", "Infinity", "NaN")
+while i < len(text):
+    ch = text[i]
+    if in_string:
+        out.append(ch)
+        if escaped:
+            escaped = False
+        elif ch == "\\":
+            escaped = True
+        elif ch == '"':
+            in_string = False
+        i += 1
+        continue
+    if ch == '"':
+        in_string = True
+        out.append(ch)
+        i += 1
+        continue
+
+    matched = None
+    for token in tokens:
+        if text.startswith(token, i):
+            before = text[i - 1] if i else ""
+            after_pos = i + len(token)
+            after = text[after_pos] if after_pos < len(text) else ""
+            # Only replace a standalone JSON value token, never part of an identifier.
+            if before not in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_" and after not in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_":
+                matched = token
+                break
+    if matched:
+        out.append(json.dumps(matched))
+        replacements.append({"token": matched, "offset": i})
+        i += len(matched)
+    else:
+        out.append(ch)
+        i += 1
+
+normalized = "".join(out)
+# Fail here if our normalization still is not strict JSON. This keeps the shim fail-closed.
+json.loads(normalized)
+report_path.write_text(normalized, encoding="utf-8")
+meta_path.write_text(json.dumps({
+    "source": "MobilityData gtfs-validator v8.0.1 report.json",
+    "reason": "strict JSON parser compatibility; original preserved as report.raw.json",
+    "replacements": replacements,
+}, indent=2) + "\n", encoding="utf-8")
+PY
+  norm_status=$?
+  if (( norm_status != 0 )); then
+    echo "MobilityData report normalization failed" >&2
+    exit "$norm_status"
+  fi
+fi
+
+exit "$status"
