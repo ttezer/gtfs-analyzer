@@ -3,7 +3,7 @@
     "url": "https://gtfs.org/documentation/schedule/reference/",
     "sha256": "214e2a7d3a43b6c200dc081614b03b00c65250c863a59f25376df24e95d5a9bb",
     "bytes": 295827,
-    "provisions_sha256": "7ad4865475ab33f6ffc3fbc5e1d2f828b7247ef5580321cb1dc9dbce751a08b4",
+    "provisions_sha256": "0c49d5d2a5faedbc79c725952939e1079ac561ac1bf89bc3a65f5890b11fb2b7",
     "spec_revision": "April 27, 2026",
     "upstream_repo": "google/transit",
     "upstream_path": "gtfs/spec/en/reference.md",
@@ -191,6 +191,15 @@
       "source": "prose",
       "strength": "strong",
       "sentence": "The first line of each file must contain field names."
+    },
+    {
+      "id": "P71943a6f",
+      "section": "file-requirements",
+      "field": "",
+      "level": "h2",
+      "source": "prose",
+      "strength": "strong",
+      "sentence": "All file and field names are case-sensitive."
     },
     {
       "id": "P28e9ee8a",

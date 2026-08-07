@@ -2392,3 +2392,54 @@ fn arc033_covers_streamed_files_too() {
         other => panic!("Ok beklendi: {other:?}"),
     }
 }
+
+// ── P71943a6f: dosya ve alan adları büyük/küçük harfe DUYARLIDIR ───────────────
+//
+// Spec (File Requirements): *"All file and field names are case-sensitive."* Bu cümle
+// modal taşımadığı için 2026-08-07'ye kadar KATALOGDA HİÇ YOKTU (issue #81) — yani
+// adjudike de öksüz de sayılamıyordu. Davranış zaten doğruydu ama YAZILI DEĞİLDİ;
+// bu testler onu sabitler.
+
+#[test]
+fn case_sensitivity_wrong_case_file_is_not_the_required_file() {
+    // `Stops.txt` ≠ `stops.txt`. Yanlış-case dosya zorunlu dosya SAYILMAZ → Fatal.
+    let mut files = base_files();
+    for slot in files.iter_mut() {
+        if slot.0 == "stops.txt" {
+            slot.0 = "Stops.txt";
+        }
+    }
+    match run(&files) {
+        ValidateResult::Fatal(e) => assert_eq!(e.code, FatalCode::NoRequiredFiles,
+            "yanlış-case dosya adı zorunlu dosyayı karşılamamalı"),
+        other => panic!("Fatal(NoRequiredFiles) beklendi, gelen: {other:?}"),
+    }
+}
+
+#[test]
+fn case_sensitivity_wrong_case_required_column_is_missing() {
+    // `STOP_ID` ≠ `stop_id` → zorunlu sütun YOK (ARC_025) + bilinmeyen sütun (ARC_017).
+    let files = arc033_feed(
+        "STOP_ID,stop_name,stop_lat,stop_lon\nS1,A,41.0,29.0\nS2,B,41.1,29.1\n");
+    match run(&files) {
+        ValidateResult::Ok(vr) => {
+            assert!(has(&vr, "ARC_025"), "yanlış-case zorunlu sütun ARC_025 üretmeli");
+            assert!(has(&vr, "ARC_017"), "yanlış-case sütun bilinmeyen sütun olarak da görünmeli");
+        }
+        other => panic!("Ok beklendi: {other:?}"),
+    }
+}
+
+#[test]
+fn case_sensitivity_correct_case_stays_silent() {
+    // Koruyucu: doğru yazım bu iki kuralı ÜRETMEMELİ.
+    let files = arc033_feed(
+        "stop_id,stop_name,stop_lat,stop_lon\nS1,A,41.0,29.0\nS2,B,41.1,29.1\n");
+    match run(&files) {
+        ValidateResult::Ok(vr) => {
+            assert!(!has(&vr, "ARC_025"), "doğru yazımda ARC_025 çıkmamalı");
+            assert!(!has(&vr, "ARC_017"), "doğru yazımda ARC_017 çıkmamalı");
+        }
+        other => panic!("Ok beklendi: {other:?}"),
+    }
+}

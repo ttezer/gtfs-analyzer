@@ -55,6 +55,16 @@ STRONG = re.compile(
     r"|is prohibited|Conditionally Required|Conditionally Forbidden|Required|Forbidden"
     r"|is required|are required)\b"
 )
+# 🔴 MODAL TAŞIMAYAN ama NORMATİF olan kalıplar (issue #81).
+# Spec bazı hükümleri modal olmadan kurar: *"All file and field names are case-sensitive."*
+# Bu cümlede `must`/`shall` yoktur, dolayısıyla modal-güdümlü tarama onu HİÇ görmüyordu ve
+# katalogda yer almadığı için ne adjudike edilebiliyor ne de öksüz sayılabiliyordu —
+# yani "147/147" bilinen sert düzyazı hükümlerinin TAMAMI hakkında bir cümle değildi.
+#
+# ⚠️ Bu küme `measure_modalless.py::SIGNALS` ile AYNI olguyu tanımlar ve ikisi ayrışırsa
+# aynı boşluk geri gelir. `spec-audit/signal_parity.py` bunu CI'da denetler.
+MODALLESS_STRONG = re.compile(r"\bcase[- ]sensitive\b", re.I)
+
 # Yumuşak işaretler — hüküm DEĞİL, tavsiye. Quality sınıfına gider.
 SOFT = re.compile(r"\b(should not|should|recommended|Recommended|is encouraged|preferably)\b")
 
@@ -319,7 +329,8 @@ def section_bounds(doc: str) -> list[tuple[str, str, int, int]]:
 
 
 def classify(sentence: str) -> str:
-    if STRONG.search(sentence) or UPPER_STRONG.search(sentence) or LEAD_STRONG.search(sentence):
+    if (STRONG.search(sentence) or UPPER_STRONG.search(sentence)
+            or LEAD_STRONG.search(sentence) or MODALLESS_STRONG.search(sentence)):
         return "strong"
     if SOFT.search(sentence) or UPPER_SOFT.search(sentence) or LEAD_SOFT.search(sentence):
         return "soft"

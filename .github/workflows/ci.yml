@@ -47,6 +47,12 @@ jobs:
         run: |
           python3 spec-audit/extract_provisions.py --selftest
 
+      # issue #81: modalsiz taramanın normatif saydığı bir kalıp katalogda YOKSA ya da
+      # neden olmadığı yazılı değilse, o boşluk sessizdir. Ağ istemez.
+      - name: Sinyal paritesi (signal_parity)
+        run: |
+          python3 spec-audit/signal_parity.py
+
       - name: Spec rozeti kapısı (badge_status)
         run: |
           python3 spec-audit/badge_status.py

@@ -3,10 +3,10 @@
 Kaynak: `spec_provisions.json` (üreteç `extract_provisions.py`). O dosya **aday** üretir;
 burası her adayın hüküm olup olmadığına ve karşılanıp karşılanmadığına karar verir.
 
-Katalog toplamı **299 aday** (sert 184 · yumuşak 115) ve **299'unun tamamı**
+Katalog toplamı **300 aday** (sert 185 · yumuşak 115) ve **300'ünün tamamı**
 adjudike edildi. Bölümler tam bitirilir, yarım bırakılmaz — kalan sayısı böyle güvenilir kalır.
 
-> **DURUM (2026-08-07): düzyazı ekseni %99,3 — 146/147.**
+> **DURUM (2026-08-07): düzyazı ekseni %99,3 — 147/148.**
 >
 > ⚠️ Bu satır `spec-audit/badge_status.py` çıktısıdır ve **o betik başlığı kendisi
 > denetler**: hesapladığı `n/d` ilk 20 satırda geçmiyorsa **exit 1** döner, CI kırılır.
@@ -44,11 +44,12 @@ adjudike edildi. Bölümler tam bitirilir, yarım bırakılmaz — kalan sayıs�
 
 ---
 
-## file-requirements (13 aday — bölümün tamamı düzyazı)
+## file-requirements (14 aday — bölümün tamamı düzyazı)
 
 | id | hüküm | karar | dayanak |
 |---|---|---|---|
 | `Pc3b911a6` | Dosyalar virgülle ayrılmış metin olmalı | DOLAYLI | Ayraç virgül değilse başlık tek sütuna çöker → zorunlu sütunlar bulunamaz. ✅ **ÖLÇÜLDÜ 2026-08-06** (`integration.rs::semicolon_delimited_files_are_rejected_pc3b911a6`): noktalı virgülle ayrılmış `stops.txt` `Fatal(NoRequiredFiles)` üretiyor. Eskiden bu yol ölçülmemişti ve yalnız kod okumasına dayanıyordu; dış denetim paya sayılan bir çıkarımın test edilmemiş olduğunu gösterdi → ölçüldü. |
+| `P71943a6f` | Tüm dosya ve alan adları büyük/küçük harfe DUYARLIDIR | **KANITLI** | 🔴 **Bu cümle 2026-08-07'ye kadar KATALOGDA HİÇ YOKTU** (issue #81): modal taşımıyor (`must`/`shall` yok), tarama modal-güdümlüydü, dolayısıyla ne adjudike edilebiliyordu ne de öksüz sayılabiliyordu — payda onu hiç görmedi. Ölçülen davranış: **dosya adı** yanlış case (`Stops.txt`) → `ARC_004` yolu, **Fatal `NoRequiredFiles`** (yani yanlış-case dosya zorunlu dosya SAYILMIYOR); **zorunlu sütun** yanlış case (`STOP_ID`) → `ARC_025` (zorunlu sütun yok) + `ARC_017` (bilinmeyen sütun); opsiyonel sütunda yalnız `ARC_017`. Testler: `integration.rs::case_sensitivity_*`. |
 | `Pd59e5eaa` | İlk satır alan adlarını içermeli | DOLAYLI | Başlık yerine veri satırı varsa `ARC_025` + `ARC_019` + `ARC_017` birlikte ateşler. Hükmün kendisi adlandırılmamış. |
 | `P28e9ee8a` | Alan değerleri sekme/CR/LF içermemeli | **KANITLI** | `ARC_030` — `k1_parse.rs:535` doc yorumu spec cümlesini birebir alıntılıyor; `ARC_021`'den ayrımı orada gerekçeli. |
 | `Pfedb83cf` | Tırnak/virgül içeren değerler tırnak içine alınmalı | KISMİ | 🔴 **DOLAYLI idi, 2026-08-07'de ÇÜRÜTÜLDÜ.** Gerekçe *"`ARC_013` kapanmamış tırnağı yakalar"* diyordu; ölçüldü ki tokenizer'ın tırnaksız alan dalı yalnız `,`/LF/CR'de duruyordu, `"` sıradan karakterdi → ihlalli feed'in bulgu kümesi geçerli feed'inkiyle BİREBİR aynıydı. **TIRNAK yarısı artık DOĞRUDAN ölçülüyor (`ARC_033`).** ⚠️ **VİRGÜL yarısı hâlâ saptanamaz:** tırnaksız virgül fazladan sütun üretir (`ARC_012`) ve "ihlal" ile "gerçekten fazla sütun" ayrımı CSV düzeyinde kaybolur → hüküm KISMİ. |

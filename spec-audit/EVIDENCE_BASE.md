@@ -22,8 +22,8 @@
    tavsiyeyi norm saymak geçerli feed'i reddeder; bu proje o hatayı bir kez yaptı
    (`PTH_017`) ve bir daha yapmamak için yumuşak ekseni ayrı tutuyor.
 3. **Korpus 242 feed'dir, evren değildir.** "Yanlış pozitif ölçülmedi" ≠ "yanlış pozitif yok".
-4. **Tüketici tarafını bağlayan hükümler ölçülmez** — 184 sert hükmün **24'ü KAPSAM DIŞI**,
-   13'ü META; ikisi paydadan düşer (184 − 37 = 147). Bir doğrulayıcının bunları ölçmemesi
+4. **Tüketici tarafını bağlayan hükümler ölçülmez** — 185 sert hükmün **24'ü KAPSAM DIŞI**,
+   13'ü META; ikisi paydadan düşer (185 − 37 = 148). Bir doğrulayıcının bunları ölçmemesi
    eksiklik değil, tanım gereğidir.
 
 ---
@@ -32,7 +32,7 @@
 
 | eksen | değer | ne demek |
 |---|---|---|
-| **Düzyazı hükümleri** | **146 / 147** | Spec metnindeki normatif cümlelerden feed'den doğrulanabilir olanlar |
+| **Düzyazı hükümleri** | **147 / 148** | Spec metnindeki normatif cümlelerden feed'den doğrulanabilir olanlar |
 | **Alan tablosu atomları** | **300 / 300 ÇAPALI** | Her geçerli atomda EN AZ BİR Spec notice çapası var — **semantik tamlık DEĞİL** (§5.4) |
 | Yumuşak hükümler | 45 / 69 (%65,2) | **Hedef değil** — Quality sinyali |
 
@@ -66,6 +66,13 @@ BİREBİR aynı çıktı — hüküm ölçülmüyordu, ölçülüyor SANILIYORDU
 - `Pfedb83cf` → **KISMİ**: tırnak yarısı ölçülüyor, **virgül yarısı yapısal olarak
   saptanamaz** (tırnaksız virgül fazladan sütun üretir; `ARC_012` bunu bildirir ama sebebini
   söyleyemez). Pay 147 → **146**.
+
+🔴 **AYNI GÜN PAYDA DA BÜYÜDÜ (147 → 148, issue #81).** *"All file and field names are
+case-sensitive."* cümlesi katalogda **hiç yoktu**: modal taşımıyor, tarama ise
+modal-güdümlü. Katalogda olmayan bir hüküm adjudike de edilemez, ÖKSÜZ de sayılamaz —
+yani "147/147" bilinen sert düzyazı hükümlerinin tamamı hakkında bir cümle DEĞİLDİ.
+Cümle artık katalogda (`P71943a6f`) ve **KANITLI**: yanlış-case dosya adı zorunlu dosya
+sayılmıyor (Fatal), yanlış-case zorunlu sütun `ARC_025` üretiyor. İkisi de ölçüldü.
 
 ⚠️ **Yüzdenin düşmesi bu belgenin çalıştığının işaretidir.** "Bu iddiayı ne çürütür"
 bölümleri tam bunun için var; çürüten okuma geldi ve sayı düzeldi.
