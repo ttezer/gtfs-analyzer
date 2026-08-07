@@ -760,6 +760,7 @@ const en: LocaleShape = {
     'STM_052': "Trip '{entity_id}': drop_off_type 0 (regular) is forbidden when a Flex pickup/drop-off window is defined.",
     'STM_054': "Trip '{entity_id}': continuous_pickup {observed_value} is forbidden when a Flex pickup/drop-off window is defined on the same stop_time.",
     'STM_056': "Trip '{entity_id}': shape_dist_traveled does not increase — value {observed_value} is not greater than the previous stop's value.",
+    'STM_060': "Trip '{entity_id}': {observed_value} overlap simultaneously — the GeoJSON zones intersect, the pickup/drop-off windows overlap, and both records offer the same service.",
     'STM_058': "Trip '{entity_id}': the Flex pickup/drop-off window time '{observed_value}' is not a valid time.",
     'STM_055': "Trip '{entity_id}': continuous_drop_off {observed_value} is forbidden when a Flex pickup/drop-off window is defined on the same stop_time.",
     // PDW
@@ -1423,6 +1424,7 @@ const en: LocaleShape = {
     'STM_052': 'Use drop_off_type 1 (none) or 2 (phone agency) on stop_times that have a Flex window.',
     'STM_054': 'Set continuous_pickup to 1 or leave it empty on stop_times that have a Flex window.',
     'STM_056': 'Correct shape_dist_traveled in stop_times.txt so the values increase along stop_sequence.',
+    'STM_060': 'Separate the time windows, redraw the zones so they do not intersect, or turn off pickup or drop-off on one of the records.',
     'STM_058': 'Write the Flex window fields as HH:MM:SS.',
     'STM_055': 'Set continuous_drop_off to 1 or leave it empty on stop_times that have a Flex window.',
     'STM_042': 'Remove the characters ! $ % \\ * = _ from the stop_headsign value.',
@@ -2006,6 +2008,7 @@ const en: LocaleShape = {
     'STM_056': 'shape_dist_traveled does not increase',
     'STM_058': 'Flex pickup/drop-off window time is invalid',
     'STM_059': 'booking_rule_id recommended when pickup_type/drop_off_type=2',
+    'STM_060': 'Zone, window and pickup/drop-off overlap at once within a trip',
     'STM_055': 'continuous_drop_off forbidden with Flex window',
     // PDW
     'PDW_006': 'Overlapping pickup/drop-off window for same trip+zone',

@@ -74,6 +74,8 @@ pub struct EntityMap {
     pub location_group_ids: HashSet<String>,
     /// locations.geojson feature id kümesi (XFL_025; k1'den lib.rs'te enjekte edilir)
     pub geojson_location_ids: HashSet<String>,
+    /// locations.geojson id → geometri (Pa1fdaa0d, K6'da örtüşme denetimi).
+    pub geojson_geometries: HashMap<String, crate::k1_parse::LocationGeometry>,
 }
 
 /// K3 çıktısı.

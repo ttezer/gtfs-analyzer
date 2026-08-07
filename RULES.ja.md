@@ -2,7 +2,7 @@
 
 🇹🇷 [Türkçe](RULES.md) · 🇬🇧 [English](RULES.en.md) · 🇯🇵 **日本語**
 
-592ルール、38グループ。各ルールは一意のID、重要度、クラスで定義されます。
+593ルール、38グループ。各ルールは一意のID、重要度、クラスで定義されます。
 重要度: **致命的**（公開ブロッカー）· **高** · **中** · **低** · **情報**
 クラス: **仕様**（GTFS妥当性）· **相互運用**（GTFSインターオペラビリティ）· **品質**（GTFS品質）· **分析**（GTFSアナリティクス）
 
@@ -246,6 +246,7 @@
 | STM_038 | start_pickup_drop_off_window > end_pickup_drop_off_window | 高 | 相互運用 |
 | STM_039 | Flexコンテキストで乗降ウィンドウが不足 | 致命的 | 仕様 |
 | STM_040 | Flex stop_timesで予約ルールIDが不足（仕様上は任意） | 中 | 品質 |
+| STM_060 | トリップ内でゾーン・時間帯・乗降車が同時に重複 | 高 | 仕様 |
 | STM_059 | pickup_type/drop_off_type=2 の場合は booking_rule_id を推奨 | 低 | 品質 |
 | STM_041 | stop_idとlocation_id/group_idの同時使用不可 | 高 | 仕様 |
 | STM_042 | stop_headsignにGoogleトランジット非対応の文字 | 低 | 相互運用 |

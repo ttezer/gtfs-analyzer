@@ -81,6 +81,11 @@ pub struct StopTimeFlex {
     pub location_group_id:             Option<SmolStr>,
     pub pickup_booking_rule_id:        Option<SmolStr>,
     pub drop_off_booking_rule_id:      Option<SmolStr>,
+    /// STM_060 için: `CompactStopTime` 24 bayta sıkıştırıldığından pickup/drop_off tipini
+    /// TAŞIMAZ. Bu kutu yalnız Flex satırlarında ayrıldığı için tipleri burada tutmak
+    /// normal feed'lere SIFIR maliyettir (VBB'nin 6,1M satırında hiç kutu ayrılmaz).
+    pub pickup_type:                   Option<u32>,
+    pub drop_off_type:                 Option<u32>,
 }
 
 /// 6 flex değerinden herhangi biri Some ise Box'lanmış StopTimeFlex, aksi halde None döner.
@@ -92,6 +97,10 @@ pub fn build_flex(
     location_group_id: Option<SmolStr>,
     pickup_booking_rule_id: Option<SmolStr>,
     drop_off_booking_rule_id: Option<SmolStr>,
+    // ⚠️ Kutunun AYRILIP ayrılmayacağını bu ikisi ETKİLEMEZ — koşul yine 6 flex alanıdır.
+    // Aksi hâlde `pickup_type` yazan her normal satır kutu ayırırdı.
+    pickup_type: Option<u32>,
+    drop_off_type: Option<u32>,
 ) -> Option<Box<StopTimeFlex>> {
     if start_window.is_some() || end_window.is_some() || location_id.is_some()
         || location_group_id.is_some() || pickup_booking_rule_id.is_some()
@@ -104,6 +113,8 @@ pub fn build_flex(
             location_group_id,
             pickup_booking_rule_id,
             drop_off_booking_rule_id,
+            pickup_type,
+            drop_off_type,
         }))
     } else {
         None
@@ -336,6 +347,8 @@ impl StopTimesIndex {
                 st.location_group_id.clone(),
                 st.pickup_booking_rule_id.clone(),
                 st.drop_off_booking_rule_id.clone(),
+                st.pickup_type,
+                st.drop_off_type,
             ) {
                 idx.flex_map.insert(st.line as u32, flex);
             }
@@ -1685,6 +1698,7 @@ pub fn validate_stop_times(file: &RawFile, zip_bytes: Option<&[u8]>, has_booking
                 start_window, end_window,
                 location_id.clone(), location_group_id.clone(),
                 pickup_booking_rule_id.clone(), drop_off_booking_rule_id.clone(),
+                pickup_type, drop_off_type,
             ) {
                 st.flex_map.insert(line as u32, flex);
             }

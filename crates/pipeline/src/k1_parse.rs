@@ -69,6 +69,27 @@ pub struct K1Result {
     pub notices: Vec<Notice>,
     /// locations.geojson feature 'id' kümesi (XFL_025: stop_times.location_id cross-ref).
     pub geojson_location_ids: std::collections::HashSet<String>,
+    /// locations.geojson feature 'id' → GEOMETRİ (Pa1fdaa0d için K6'ya taşınır).
+    ///
+    /// ⚠️ 2026-08-06 dış denetimi: geometri saklanmadığı için "aynı trip'te geojson
+    /// bölgesi + zaman penceresi + pickup/drop_off davranışı EŞZAMANLI örtüşemez" hükmü
+    /// **yanlışlıkla KAPSAM DIŞI** işaretlenmişti. Gerekçe mimari eksikti, doğrulanamazlık
+    /// değil — hükmün her girdisi feed'in içinde. Bu alan o eksiği kapatır.
+    pub geojson_geometries: std::collections::HashMap<String, LocationGeometry>,
+}
+
+/// Bir `locations.geojson` feature'ının geometrisi: dış ring'ler + bounding box.
+///
+/// Delikler BİLİNÇLİ tutulmaz: örtüşme testi için dış sınır yeterlidir ve deliği hesaba
+/// katmamak yalnız YANLIŞ POZİTİF yönünde değil, "örtüşüyor" derken daha KAPSAYICI
+/// davranmak demektir — hüküm bir YASAK olduğu için bu yön güvenli değildir, bu yüzden
+/// örtüşme kararı ayrıca kesişme/kapsama ile doğrulanır (bkz. `polygons_overlap`).
+#[derive(Debug, Clone, Default)]
+pub struct LocationGeometry {
+    /// Her Polygon'un DIŞ ring'i (MultiPolygon'da birden çok olur).
+    pub outer_rings: Vec<Vec<(f64, f64)>>,
+    /// (min_lon, min_lat, max_lon, max_lat) — ucuz ön eleme.
+    pub bbox: (f64, f64, f64, f64),
 }
 
 // ── Notice yardımcısı ─────────────────────────────────────────────────────────
@@ -929,6 +950,7 @@ pub fn parse(zip_bytes: &[u8]) -> Result<K1Result, FatalError> {
     let mut notices: Vec<Notice> = Vec::new();
     let mut counter: u32 = 0;
     let mut geojson_location_ids: std::collections::HashSet<String> = std::collections::HashSet::new();
+    let mut geojson_geometries: std::collections::HashMap<String, LocationGeometry> = std::collections::HashMap::new();
     let mut raw_files: RawFiles = HashMap::new();
     let mut present_files: HashSet<String> = HashSet::new();
     // locations.geojson `present_files`'a GİRMEZ (aşağıda `continue` ile özel işlenir);
@@ -993,7 +1015,7 @@ pub fn parse(zip_bytes: &[u8]) -> Result<K1Result, FatalError> {
             has_locations_geojson = true;
             let mut buf = Vec::with_capacity(zf.size() as usize);
             if zf.read_to_end(&mut buf).is_ok() {
-                validate_locations_geojson(&buf, &raw_name, &mut notices, &mut counter, &mut geojson_location_ids);
+                validate_locations_geojson(&buf, &raw_name, &mut notices, &mut counter, &mut geojson_location_ids, &mut geojson_geometries);
             }
             continue;
         }
@@ -1577,12 +1599,19 @@ pub fn parse(zip_bytes: &[u8]) -> Result<K1Result, FatalError> {
         ));
     }
 
-    Ok(K1Result { files: raw_files, notices, geojson_location_ids })
+    Ok(K1Result { files: raw_files, notices, geojson_location_ids, geojson_geometries })
 }
 
 // ── locations.geojson validasyon ─────────────────────────────────────────────
 
-fn validate_locations_geojson(bytes: &[u8], fname: &str, notices: &mut Vec<Notice>, counter: &mut u32, geojson_ids: &mut std::collections::HashSet<String>) {
+fn validate_locations_geojson(
+    bytes: &[u8],
+    fname: &str,
+    notices: &mut Vec<Notice>,
+    counter: &mut u32,
+    geojson_ids: &mut std::collections::HashSet<String>,
+    geoms: &mut std::collections::HashMap<String, LocationGeometry>,
+) {
     let text = match std::str::from_utf8(bytes) {
         Ok(s) => s,
         Err(_) => {
@@ -1693,6 +1722,15 @@ fn validate_locations_geojson(bytes: &[u8], fname: &str, notices: &mut Vec<Notic
             ));
         }
 
+        // Pa1fdaa0d: geometriyi feature 'id'sine bağlamak için ham id (XFL_025 ile AYNI
+        // normalleştirme — `stop_times.location_id` ham CSV değeriyle eşleşmeli).
+        let feature_id: Option<String> = feature.get("id").map(|v| {
+            v.as_str().map(str::to_string).unwrap_or_else(|| v.to_string())
+        });
+        let mut geom = LocationGeometry {
+            outer_rings: Vec::new(),
+            bbox: (f64::MAX, f64::MAX, f64::MIN, f64::MIN),
+        };
         let geometry = feature.get("geometry");
 
         // LOC_002: Feature'da geometry null veya eksik
@@ -1713,7 +1751,7 @@ fn validate_locations_geojson(bytes: &[u8], fname: &str, notices: &mut Vec<Notic
                 // LOC_010: "coordinates" Required. Eksik/dizi-olmayan değerde eskiden
                 // `if let Some(..)` sessizce atlıyordu → geometri hiç doğrulanmadan geçiyordu.
                 match geometry.get("coordinates").and_then(|c| c.as_array()) {
-                    Some(rings) => check_polygon_rings(counter, fname, feat_num, rings, notices),
+                    Some(rings) => check_polygon_rings(counter, fname, feat_num, rings, notices, Some(&mut geom)),
                     None => missing_coordinates(counter, fname, feat_num, notices),
                 }
             }
@@ -1723,7 +1761,7 @@ fn validate_locations_geojson(bytes: &[u8], fname: &str, notices: &mut Vec<Notic
                     Some(polygons) => {
                         for poly in polygons {
                             if let Some(rings) = poly.as_array() {
-                                check_polygon_rings(counter, fname, feat_num, rings, notices);
+                                check_polygon_rings(counter, fname, feat_num, rings, notices, Some(&mut geom));
                             }
                         }
                     }
@@ -1744,6 +1782,13 @@ fn validate_locations_geojson(bytes: &[u8], fname: &str, notices: &mut Vec<Notic
                     format!("'{fname}' özellik {feat_num} için geometri tipi eksik."),
                     "Her feature için Polygon veya MultiPolygon geometrisi tanımlayın.",
                 ));
+            }
+        }
+
+        // Pa1fdaa0d: geometri, feature 'id'siyle eşleşerek K6'ya taşınır.
+        if let Some(id) = feature_id {
+            if !geom.outer_rings.is_empty() {
+                geoms.insert(id, geom);
             }
         }
     }
@@ -1767,6 +1812,9 @@ fn check_polygon_rings(
     feat_num: u64,
     rings: &[serde_json::Value],
     notices: &mut Vec<Notice>,
+    // Pa1fdaa0d: dış ring K6'ya taşınır. `None` verilirse geometri toplanmaz
+    // (yalnız doğrulama yapılır) — testler ve eski çağrı yolları için.
+    collect: Option<&mut LocationGeometry>,
 ) {
     let mut all_lats = Vec::new();
     let mut all_lons = Vec::new();
@@ -1893,6 +1941,18 @@ fn check_polygon_rings(
             ));
         }
     }
+
+    // Pa1fdaa0d: DIŞ ring'i biriktir. Delikler tutulmaz — örtüşme kararı için dış sınır
+    // yeterli ve deliği hesaba katmamak yalnız "daha kapsayıcı" davranmak demek olurdu;
+    // bu bir YASAK hükmü olduğu için o yön güvenli DEĞİL, o yüzden K6 tarafında karar
+    // kesişme/kapsama ile ayrıca doğrulanır.
+    if let (Some(g), Some(outer)) = (collect, all_rings.first()) {
+        for &(x, y) in outer {
+            g.bbox.0 = g.bbox.0.min(x); g.bbox.1 = g.bbox.1.min(y);
+            g.bbox.2 = g.bbox.2.max(x); g.bbox.3 = g.bbox.3.max(y);
+        }
+        g.outer_rings.push(outer.clone());
+    }
 }
 
 /// İki doğru parçası KESİŞİYOR mu (uç nokta paylaşımı ve teğetlik hariç).
@@ -1904,7 +1964,7 @@ fn check_polygon_rings(
 /// kesişme SAYILMAZ**. Bu bilinçli: OpenGIS 6.1.11 ring'lerin bir NOKTADA teğet olmasına
 /// izin verir. Ama bunun bedeli, doğrusal örtüşmeden doğan "spike/cut line" ihlallerinin
 /// buradan geçmesidir → `has_spike` onları ayrıca yakalar.
-fn segments_cross(a: (f64, f64), b: (f64, f64), c: (f64, f64), d: (f64, f64)) -> bool {
+pub(crate) fn segments_cross(a: (f64, f64), b: (f64, f64), c: (f64, f64), d: (f64, f64)) -> bool {
     let o = |p: (f64, f64), q: (f64, f64), r: (f64, f64)| {
         let v = robust::orient2d(
             robust::Coord { x: p.0, y: p.1 },
@@ -2007,7 +2067,7 @@ fn ring_is_simple(pts: &[(f64, f64)]) -> bool {
 }
 
 /// Nokta ring'in içinde mi (ray casting). Delik kapsama kontrolü için.
-fn point_in_ring(pt: (f64, f64), ring: &[(f64, f64)]) -> bool {
+pub(crate) fn point_in_ring(pt: (f64, f64), ring: &[(f64, f64)]) -> bool {
     let mut inside = false;
     let n = ring.len();
     if n < 3 { return false; }

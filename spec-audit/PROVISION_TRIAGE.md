@@ -30,7 +30,7 @@ adjudike edildi. Bölümler tam bitirilir, yarım bırakılmaz — kalan sayıs�
 
 | id | hüküm | karar | dayanak |
 |---|---|---|---|
-| `Pc3b911a6` | Dosyalar virgülle ayrılmış metin olmalı | DOLAYLI | Ayraç virgül değilse başlık tek sütuna çöker → zorunlu sütunlar bulunamaz. ✅ **ÖLÇÜLDÜ 2026-08-06** (`integration.rs::semicolon_delimited_files_are_rejected_pc3b911a6`): noktalı virgülle ayrılmış `stops.txt` `Fatal(NoRequiredFiles)` üretiyor. Eskiden bu yol ölçülmemişti ve yalnız kod okumasına dayanıyordu; dış denetim haklı olarak *"pay `KANITLI+DOLAYLI`, yani test edilmemiş çıkarım ölçülmüş sayılıyor"* dedi → ölçüldü. |
+| `Pc3b911a6` | Dosyalar virgülle ayrılmış metin olmalı | DOLAYLI | Ayraç virgül değilse başlık tek sütuna çöker → zorunlu sütunlar bulunamaz. ✅ **ÖLÇÜLDÜ 2026-08-06** (`integration.rs::semicolon_delimited_files_are_rejected_pc3b911a6`): noktalı virgülle ayrılmış `stops.txt` `Fatal(NoRequiredFiles)` üretiyor. Eskiden bu yol ölçülmemişti ve yalnız kod okumasına dayanıyordu; dış denetim paya sayılan bir çıkarımın test edilmemiş olduğunu gösterdi → ölçüldü. |
 | `Pd59e5eaa` | İlk satır alan adlarını içermeli | DOLAYLI | Başlık yerine veri satırı varsa `ARC_025` + `ARC_019` + `ARC_017` birlikte ateşler. Hükmün kendisi adlandırılmamış. |
 | `P28e9ee8a` | Alan değerleri sekme/CR/LF içermemeli | **KANITLI** | `ARC_030` — `k1_parse.rs:535` doc yorumu spec cümlesini birebir alıntılıyor; `ARC_021`'den ayrımı orada gerekçeli. |
 | `Pfedb83cf` | Tırnak/virgül içeren değerler tırnak içine alınmalı | DOLAYLI | `ARC_013` kapanmamış tırnağı yakalar. ⚠️ **Alınmamış hâl saptanamaz:** tırnaksız virgül fazladan sütun üretir → `ARC_012`. İhlal ile geçerli veri ayrımı CSV düzeyinde kaybolur. |
@@ -709,6 +709,7 @@ hesaplanır. Bir boşluk kurala dönüştüğünde satır BURAYA eklenir.
 | `P612a9dbf` · `P0bb79a62` | `TRF_022` | 764 triyajı |
 | `P9db18901` | `TRF_023` | 764 triyajı |
 | `P5b7396a2` · `Pbd495b4e` | `PTH_031` | 506 turu |
+| `Pa1fdaa0d` | `STM_060` | 2. dış denetim |
 
 **KISMİ adjudikasyonu (5 sert):** ~~Pd84a0bcb→BOŞLUK~~ (**08-06'da GERİ ALINDI → KISMİ**, gerekçe aşağıda) · `P2c840d38`→BOŞLUK (kapandı) ·
 `P257db6b1`→BOŞLUK (kapandı) · `P8681b6f4`→KAPSAM DIŞI · `P44a6984b`→KAPSAM DIŞI

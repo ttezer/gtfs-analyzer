@@ -159,6 +159,7 @@ pub fn check(records: &EntityRecords, entity_map: &EntityMap, today: u32) -> K4R
     { let _t = Timer::start("K4::gtfs_jp");         check_gtfs_jp(records, &mut notices, &mut ctr); }
     { let _t = Timer::start("K4::attributions");   check_attributions(records, map, &mut notices, &mut ctr); }
     { let _t = Timer::start("K4::route_networks"); check_route_networks(records, map, &mut notices, &mut ctr); }
+    { let _t = Timer::start("K4::flex_zone_overlap"); check_flex_zone_overlap(records, map, &mut notices, &mut ctr); }
     { let _t = Timer::start("K4::flj");            check_fare_leg_join_rules(records, map, &mut notices, &mut ctr); }
     { let _t = Timer::start("K4::xfl");            check_xfl(records, map, &mut notices, &mut ctr, &stm_trips_in_stm, &stm_trip_stm_count); }
     { let _t = Timer::start("K4::stm_shape_dist"); check_stm_shape_dist(records, &mut notices, &mut ctr); }
@@ -5896,4 +5897,155 @@ mod tests {
         assert_eq!(hits[0].entity_id.as_deref(), Some("W1"));
     }
 
+}
+
+// ── STM_060: aynı seferde geojson bölgesi + pencere + davranış EŞZAMANLI örtüşmesi ──
+//
+// Spec (`stop_times.txt` düzyazısı): *"Simultaneous overlap of locations.geojson id
+// geometry, start/end_pickup_drop_off_window time, and pickup_type or drop_off_type
+// between two or more stop_times.txt records with the same trip_id is forbidden."*
+//
+// ÜÇ koşulun HEPSİ birden sağlanmalı — biri bile tutmazsa ihlal YOKTUR:
+//   1. iki kaydın geojson bölgeleri UZAYDA kesişiyor
+//   2. `[start, end)` pencereleri ZAMANDA kesişiyor
+//   3. ikisi de biniş VEYA ikisi de iniş sunuyor (davranış örtüşmesi)
+//
+// ⚠️ Yalnız DIŞ ring'ler karşılaştırılır (delikler K1'de saklanmıyor). Delik yok saymak
+// "örtüşüyor" kararını DAHA KAPSAYICI yapar, yani yanlış pozitif yönüne iter. Bu bir YASAK
+// hükmü olduğu için o yön güvenli değil → örtüşme kararı bbox ön elemesinden sonra GERÇEK
+// kesişme/kapsama ile verilir, sadece bbox'a bakılmaz. Delikli bir bölgede iki kaydın
+// yalnız delik üzerinden "örtüşmesi" teorik bir yanlış pozitif olarak KAYITLIDIR.
+
+/// İki dış ring UZAYDA örtüşüyor mu: kenarları kesişiyor ya da biri diğerini kapsıyor.
+fn rings_overlap(a: &[(f64, f64)], b: &[(f64, f64)]) -> bool {
+    if a.len() < 3 || b.len() < 3 {
+        return false;
+    }
+    for i in 0..a.len() - 1 {
+        for j in 0..b.len() - 1 {
+            if crate::k1_parse::segments_cross(a[i], a[i + 1], b[j], b[j + 1]) {
+                return true;
+            }
+        }
+    }
+    // Kesişme yoksa biri tamamen diğerinin içinde olabilir.
+    crate::k1_parse::point_in_ring(a[0], b) || crate::k1_parse::point_in_ring(b[0], a)
+}
+
+fn geoms_overlap(
+    g1: &crate::k1_parse::LocationGeometry,
+    g2: &crate::k1_parse::LocationGeometry,
+) -> bool {
+    // bbox ön elemesi — ayrık kutularda O(n·m) taramayı hiç başlatma.
+    let (a, b) = (g1.bbox, g2.bbox);
+    if a.2 < b.0 || b.2 < a.0 || a.3 < b.1 || b.3 < a.1 {
+        return false;
+    }
+    g1.outer_rings
+        .iter()
+        .any(|r1| g2.outer_rings.iter().any(|r2| rings_overlap(r1, r2)))
+}
+
+fn secs(t: (u32, u32, u32)) -> u32 {
+    t.0 * 3600 + t.1 * 60 + t.2
+}
+
+fn check_flex_zone_overlap(
+    records: &EntityRecords,
+    map: &EntityMap,
+    notices: &mut Vec<Notice>,
+    ctr: &mut u32,
+) {
+    if map.geojson_geometries.is_empty() {
+        return;
+    }
+    // ⚠️ `records.stop_times` DEĞİL, `stop_times_index` — #38 streaming'inden sonra Vec
+    // ÜRETİMDE BOŞTUR (k4'ün başındaki yorum da bunu söylüyor). İlk uygulamam Vec'i
+    // tarıyordu ve gerçek feed'de sessizce hiç ateşlemiyordu; testi yazınca çıktı.
+    //
+    // `flex_map` feed'lerin ~%99'unda boştur → o feed'lerde tarama hiç başlamaz.
+    let idx = &records.stop_times_index;
+    if idx.flex_map.is_empty() {
+        return;
+    }
+    let mut by_trip: HashMap<&str, Vec<(&str, u32, u32, bool, bool, u64)>> = HashMap::new();
+    for (trip_id, stops) in idx.iter_trips() {
+        for st in stops {
+            let Some(f) = idx.flex_of(st) else { continue };
+            let (Some(loc), Some(s), Some(e)) = (
+                f.location_id.as_deref(),
+                f.start_pickup_drop_off_window,
+                f.end_pickup_drop_off_window,
+            ) else {
+                continue;
+            };
+            if !map.geojson_geometries.contains_key(loc) {
+                continue; // tanımsız id → XFL_025'in alanı
+            }
+            // pickup_type/drop_off_type: 1 = "yok". Boş bırakılan alan hizmet SUNAR demektir.
+            by_trip.entry(trip_id.as_str()).or_default().push((
+                loc,
+                secs(s),
+                secs(e),
+                f.pickup_type != Some(1),
+                f.drop_off_type != Some(1),
+                st.line_u64(),
+            ));
+        }
+    }
+
+    // HashMap gezilirken sıra nondeterministiktir → anahtarları sırala.
+    let mut trips: Vec<&str> = by_trip.keys().copied().collect();
+    trips.sort_unstable();
+    for trip in trips {
+        let rows = &by_trip[trip];
+        if rows.len() < 2 {
+            continue;
+        }
+        let mut found: Option<(&str, &str, u64)> = None;
+        'pairs: for i in 0..rows.len() {
+            for j in (i + 1)..rows.len() {
+                let (l1, s1, e1, p1, d1, _) = rows[i];
+                let (l2, s2, e2, p2, d2, line2) = rows[j];
+                if s1 >= e2 || s2 >= e1 {
+                    continue; // zaman penceresi kesişmiyor
+                }
+                if !((p1 && p2) || (d1 && d2)) {
+                    continue; // davranış örtüşmesi yok
+                }
+                // 🔴 AYNI BÖLGE İHLAL DEĞİLDİR — spec'in KENDİSİ zorunlu kılıyor:
+                // *"Travel within the same location group or GeoJSON location requires two
+                // records in stop_times.txt with the same location_group_id or location_id."*
+                // Aynı `location_id`'li iki kayıt bölge-İÇİ seyahatin TEK ifade biçimidir ve
+                // onları ayırt edecek başka alan yoktur. İlk uygulamam bunu ihlal sayıyordu:
+                // `ch-odv-flex`/`mdb-2053`'te 21 bulgu üretti, MD ise AYNI kuralı
+                // (`overlapping_zone_and_pickup_drop_off_window`) uyguladığı hâlde SUSUYOR.
+                // Spec'in bir yerde ZORUNLU kıldığını başka yerde yasak saymak `PTH_017`
+                // hatasının aynısıdır → yalnız FARKLI bölgeler karşılaştırılır.
+                if l1 == l2 {
+                    continue;
+                }
+                if !geoms_overlap(&map.geojson_geometries[l1], &map.geojson_geometries[l2]) {
+                    continue; // bölgeler uzayda ayrık
+                }
+                found = Some((l1, l2, line2));
+                break 'pairs;
+            }
+        }
+        if let Some((l1, l2, line)) = found {
+            let zones = format!("'{l1}' ve '{l2}' bölgeleri");
+            notices.push(notice(
+                ctr, "STM_060", EntityType::Trip,
+                Some(trip.to_string()), Some(trip.to_string()),
+                "stop_times.txt", Some(line), Some("location_id"),
+                Some(zones.clone()), None,
+                format!(
+                    "'{trip}' seferinde {zones} eşzamanlı örtüşüyor: geojson geometrileri kesişiyor, \
+                     pickup/drop-off pencereleri çakışıyor ve ikisi de aynı hizmeti sunuyor."
+                ),
+                "Pencereleri ayırın, bölge geometrilerini çakışmayacak şekilde düzeltin ya da \
+                 kayıtlardan birinde pickup/drop_off tipini kapatın.",
+            ));
+        }
+    }
 }

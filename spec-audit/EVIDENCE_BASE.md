@@ -32,15 +32,18 @@
 
 | eksen | değer | ne demek |
 |---|---|---|
-| **Düzyazı hükümleri** | **145 / 147** | Spec metnindeki normatif cümlelerden feed'den doğrulanabilir olanlar |
+| **Düzyazı hükümleri** | **146 / 147** | Spec metnindeki normatif cümlelerden feed'den doğrulanabilir olanlar |
 | **Alan tablosu atomları** | **300 / 300 ÇAPALI** | Her geçerli atomda EN AZ BİR Spec notice çapası var — **semantik tamlık DEĞİL** (§5.4) |
 | Yumuşak hükümler | 45 / 69 (%65,2) | **Hedef değil** — Quality sinyali |
 
 🔴 **Düzyazı ekseni 2026-08-06'da BAĞIMSIZ DENETİMDE %100'den düştü.** Denetim iki hata
 buldu ve ikisi de kabul edildi:
-- `Pa1fdaa0d` (geojson/pencere/pickup eşzamanlı örtüşmesi) **KAPSAM DIŞI değil BOŞLUK'tur.**
+- `Pa1fdaa0d` (geojson/pencere/pickup eşzamanlı örtüşmesi) **KAPSAM DIŞI değil BOŞLUK'tu.**
   Gerekçemiz *"poligon geometrisi saklanmıyor"*du — bu bir **mimari eksik**, doğrulanamazlık
-  değil. Hükmün gerektirdiği her girdi feed'in içinde. Payda 146 → **147**.
+  değil. Payda 146 → **147**. ✅ **2026-08-07'de KAPATILDI (`STM_060`):** geometri artık
+  K1 → K4 taşınıyor. ⚠️ İlk uygulama gerçek veride **21 yanlış pozitif** üretti (aynı
+  `location_id`'li iki kaydı ihlal sayıyordu, oysa spec bölge-içi seyahat için onu ZORUNLU
+  kılıyor ve MD aynı kuralı uyguladığı hâlde susuyor) → aynı-bölge çifti muaf, korpusta 0.
 - `Pd84a0bcb` (OpenGIS 6.1.11 geçerliliği) **KANITLI değil KISMİ'dir.** `LOC_011` hükmün bir
   kısmını ölçüyor; kuralın KENDİ KARTI dört maddeyi yanlış-negatif diye sayıyor (delik-delik
   kesişimi · deliğin kısmen dışarıda olması · ring yönü · iç kısmın bağlantılılığı).

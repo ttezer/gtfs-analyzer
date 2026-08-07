@@ -62,6 +62,7 @@ pub fn validate_bytes(zip: &[u8], config: &ValidatorConfig, today: u32) -> Valid
         let mut k3 = build_entity_map(&k2.records);
         // XFL_025: geojson feature id'leri K1'de toplandı; EntityMap'e taşı.
         k3.entity_map.geojson_location_ids = k1.geojson_location_ids.clone();
+        k3.entity_map.geojson_geometries = k1.geojson_geometries.clone();
         k3
     };
 

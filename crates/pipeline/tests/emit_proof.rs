@@ -532,6 +532,19 @@ fn fixtures() -> Vec<Fixture> {
             "T2,S1,1,09:00:00,10pm\n",
         ))]),
         fx("STM_040", vec![("stop_times.txt", "trip_id,stop_sequence,location_id,start_pickup_drop_off_window,end_pickup_drop_off_window\nT1,1,LOC1,09:00:00,10:00:00\n")]),
+        // STM_060: aynı seferde İKİ FARKLI bölge — geometrileri kesişiyor, pencereleri
+        // çakışıyor, ikisi de biniş sunuyor. ⚠️ AYNI bölgeye ait iki kayıt İHLAL DEĞİLDİR
+        // (spec bölge-içi seyahat için onu zorunlu kılar) → fixture bilerek FARKLI id kullanır.
+        fx("STM_060", vec![
+            ("locations.geojson", concat!(
+                r#"{"type":"FeatureCollection","features":["#,
+                r#"{"type":"Feature","id":"Z1","properties":{},"geometry":{"type":"Polygon","coordinates":[[[0,0],[0,1],[1,1],[1,0],[0,0]]]}},"#,
+                r#"{"type":"Feature","id":"Z2","properties":{},"geometry":{"type":"Polygon","coordinates":[[[0.5,0.5],[0.5,1.5],[1.5,1.5],[1.5,0.5],[0.5,0.5]]]}}]}"#)),
+            ("stop_times.txt", concat!(
+                "trip_id,location_id,stop_sequence,start_pickup_drop_off_window,end_pickup_drop_off_window,pickup_type,drop_off_type\n",
+                "T1,Z1,1,08:00:00,10:00:00,2,2\n",
+                "T1,Z2,2,09:00:00,11:00:00,2,2\n")),
+        ]),
         fx("STM_059", vec![("stop_times.txt", "trip_id,stop_id,stop_sequence,pickup_type\nT1,S1,1,2\n"), ("booking_rules.txt","booking_rule_id,booking_type\nBR1,0\n")]),
         fx("STM_041", vec![("stop_times.txt", "trip_id,stop_id,stop_sequence,location_id,start_pickup_drop_off_window,end_pickup_drop_off_window,pickup_booking_rule_id\nT1,S1,1,LOC1,09:00:00,10:00:00,BR1\n")]),
         fx("STM_051", vec![("stop_times.txt", "trip_id,stop_sequence,location_id,start_pickup_drop_off_window,end_pickup_drop_off_window,pickup_booking_rule_id,pickup_type\nT1,1,LOC1,09:00:00,10:00:00,BR1,0\n")]),

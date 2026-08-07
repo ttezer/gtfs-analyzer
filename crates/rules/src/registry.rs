@@ -671,6 +671,20 @@ pub static RULES: &[RuleMeta] = &[
     // pencere OLMADAN kullanılır. İki koşul tek kuralda birleştirilmedi; `emit_identity`
     // kapısı kuralın başlığıyla emit'inin aynı şeyi söylemesini ister.
     // Ölçüldü (239 feed): 4 feed, 27 satır — YALNIZ booking_rules.txt taşıyan feed'lerde.
+    // STM_060: GTFS Reference `stop_times.txt` düzyazısı — *"Simultaneous overlap of
+    // locations.geojson id geometry, start/end_pickup_drop_off_window time, and pickup_type
+    // or drop_off_type between two or more stop_times.txt records with the same trip_id is
+    // forbidden."*
+    //
+    // 🔴 Bu hüküm 2026-08-06'ya kadar defterde **KAPSAM DIŞI** yazıyordu, gerekçesi
+    // "poligon geometrisi saklanmıyor"du. Dış denetim haklı olarak bunun bir MİMARİ EKSİK
+    // olduğunu, doğrulanamazlık OLMADIĞINI gösterdi: hükmün her girdisi feed'in içinde.
+    // Geometri artık K1'den K4'e taşınıyor (`EntityMap::geojson_geometries`).
+    //
+    // Severity `Yuksek`, `Kritik` DEĞİL: hüküm bir YASAK ama ihlali yalnız Flex bölge
+    // semantiğini belirsizleştirir; R1 yayın kapısı (saf `Spec ∧ Kritik`) orantısız olurdu.
+    r!("STM_060", Yuksek, Spec, 2, &[], Some("trip_id"), VS, Entity,
+        "Aynı seferde geojson bölgesi + zaman penceresi + pickup/drop_off eşzamanlı örtüşüyor"),
     r!("STM_059", Dusuk, Quality, 1, &[], Some("trip_id"), VS, Entity,
         "pickup_type/drop_off_type=2 iken booking_rule_id önerilir"),
     r!("STM_041", Yuksek, Spec, 1, &[], Some("trip_id"), VS, Entity,
@@ -2173,6 +2187,7 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("STM_056", GtfsSpec),
     ("STM_058", GtfsSpec),
     ("STM_059", ProjectQuality),
+    ("STM_060", GtfsSpec),
     ("STP_001", GtfsSpec),
     ("STP_002", GtfsSpec),
     ("STP_003", GtfsSpec),

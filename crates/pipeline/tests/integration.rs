@@ -1935,3 +1935,93 @@ fn loc011_silent_on_clockwise_shell() {
              [[0,0],[10,0],[10,10],[0,10],[0,0]]]}"#
     ), "saat yönü kabuk 6.1.11'e göre GEÇERLİDİR, LOC_011 çıkmamalı");
 }
+
+// ── STM_060: geojson bölgesi + pencere + davranış EŞZAMANLI örtüşmesi ──────────────
+//
+// Hüküm ÜÇ koşulun BİRLİKTE sağlanmasını yasaklar. Testlerin çoğu bilerek NEGATİF:
+// koşullardan biri düşerse kural SUSMALI, yoksa Flex feed'lerinde yanlış pozitif üretir.
+
+fn flex_overlap_feed(
+    geojson: &'static [u8],
+    stop_times: &'static [u8],
+) -> Vec<(&'static str, &'static [u8])> {
+    let mut files = base_files();
+    files.retain(|(n, _)| *n != "stop_times.txt");
+    files.push(("stop_times.txt", stop_times));
+    files.push(("locations.geojson", geojson));
+    files
+}
+
+// İki bölge: Z1 ve Z2 ÜST ÜSTE biniyor; Z3 tamamen ayrı.
+static ZONES: &[u8] = br#"{"type":"FeatureCollection","features":[
+  {"type":"Feature","id":"Z1","properties":{},"geometry":{"type":"Polygon","coordinates":
+    [[[0,0],[0,10],[10,10],[10,0],[0,0]]]}},
+  {"type":"Feature","id":"Z2","properties":{},"geometry":{"type":"Polygon","coordinates":
+    [[[5,5],[5,15],[15,15],[15,5],[5,5]]]}},
+  {"type":"Feature","id":"Z3","properties":{},"geometry":{"type":"Polygon","coordinates":
+    [[[50,50],[50,60],[60,60],[60,50],[50,50]]]}}]}"#;
+
+fn stm060_fires(stop_times: &'static [u8]) -> bool {
+    match run(&flex_overlap_feed(ZONES, stop_times)) {
+        ValidateResult::Ok(vr) => has(&vr, "STM_060"),
+        other => panic!("ValidateResult::Ok beklendi, gelen: {other:?}"),
+    }
+}
+
+#[test]
+fn stm060_flags_overlapping_zone_window_and_behaviour() {
+    // Z1∩Z2 uzayda kesişiyor · 08:00-10:00 ile 09:00-11:00 zamanda kesişiyor · ikisi de biniş.
+    static ST: &[u8] = b"trip_id,location_id,stop_sequence,start_pickup_drop_off_window,end_pickup_drop_off_window,pickup_type,drop_off_type\n\
+        T1,Z1,1,08:00:00,10:00:00,2,2\nT1,Z2,2,09:00:00,11:00:00,2,2\n";
+    assert!(stm060_fires(ST), "üç koşul da sağlanıyor → STM_060 çıkmalı");
+}
+
+#[test]
+fn stm060_silent_when_zones_are_spatially_disjoint() {
+    // Z1 ve Z3 hiç kesişmiyor → hüküm ihlal edilmiyor.
+    static ST: &[u8] = b"trip_id,location_id,stop_sequence,start_pickup_drop_off_window,end_pickup_drop_off_window,pickup_type,drop_off_type\n\
+        T1,Z1,1,08:00:00,10:00:00,2,2\nT1,Z3,2,09:00:00,11:00:00,2,2\n";
+    assert!(!stm060_fires(ST), "ayrık bölgelerde STM_060 çıkmamalı");
+}
+
+#[test]
+fn stm060_silent_when_time_windows_do_not_overlap() {
+    // Bölgeler kesişiyor ama pencereler ardışık, çakışmıyor.
+    static ST: &[u8] = b"trip_id,location_id,stop_sequence,start_pickup_drop_off_window,end_pickup_drop_off_window,pickup_type,drop_off_type\n\
+        T1,Z1,1,08:00:00,10:00:00,2,2\nT1,Z2,2,10:00:00,12:00:00,2,2\n";
+    assert!(!stm060_fires(ST), "çakışmayan pencerelerde STM_060 çıkmamalı");
+}
+
+#[test]
+fn stm060_silent_when_behaviour_does_not_overlap() {
+    // Bölge ve zaman çakışıyor ama biri YALNIZ biniş, diğeri YALNIZ iniş sunuyor.
+    // pickup_type=1 → biniş yok · drop_off_type=1 → iniş yok.
+    static ST: &[u8] = b"trip_id,location_id,stop_sequence,start_pickup_drop_off_window,end_pickup_drop_off_window,pickup_type,drop_off_type\n\
+        T1,Z1,1,08:00:00,10:00:00,2,1\nT1,Z2,2,09:00:00,11:00:00,1,2\n";
+    assert!(!stm060_fires(ST), "davranış örtüşmesi yoksa STM_060 çıkmamalı");
+}
+
+#[test]
+fn stm060_silent_across_different_trips() {
+    // Hüküm AYNI trip_id içindeki kayıtlar için. Farklı seferler serbesttir.
+    static ST: &[u8] = b"trip_id,location_id,stop_sequence,start_pickup_drop_off_window,end_pickup_drop_off_window,pickup_type,drop_off_type\n\
+        T1,Z1,1,08:00:00,10:00:00,2,2\nT2,Z2,1,09:00:00,11:00:00,2,2\n";
+    assert!(!stm060_fires(ST), "farklı trip'lerde STM_060 çıkmamalı");
+}
+
+#[test]
+fn stm060_silent_for_two_records_in_the_same_zone() {
+    // 🔴 EN ÖNEMLİ NEGATİF TEST. Spec'in KENDİSİ bunu zorunlu kılıyor:
+    // *"Travel within the same location group or GeoJSON location requires two records in
+    // stop_times.txt with the same location_group_id or location_id."*
+    // Aynı bölgeye ait iki kayıt bölge-İÇİ seyahatin tek ifade biçimidir.
+    //
+    // İlk uygulamam bunu ihlal sayıyordu ve `ch-odv-flex`/`mdb-2053`'te **21 yanlış pozitif**
+    // üretti; MobilityData aynı kuralı (`overlapping_zone_and_pickup_drop_off_window`)
+    // uyguladığı hâlde o feed'de SUSUYOR. Spec'in bir yerde zorunlu kıldığını başka yerde
+    // yasak saymak `PTH_017` hatasının aynısıdır.
+    static ST: &[u8] = b"trip_id,location_id,stop_sequence,start_pickup_drop_off_window,end_pickup_drop_off_window,pickup_type,drop_off_type\n\
+        T1,Z1,1,07:00:00,11:00:00,2,2\nT1,Z1,2,07:00:00,11:00:00,2,2\n";
+    assert!(!stm060_fires(ST),
+        "aynı bölgedeki iki kayıt bölge-içi seyahattir, STM_060 çıkmamalı");
+}
