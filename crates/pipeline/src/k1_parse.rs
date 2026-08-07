@@ -1816,16 +1816,51 @@ fn check_polygon_rings(
     // LOC_011: OpenGIS 6.1.11 — ring BASİT olmalı ve delikler dış ring İÇİNDE kalmalı.
     // LOC_004 yalnız kapalılığı ölçer; bunlar 6.1.11'in asıl maddeleridir.
     if let Some(outer) = all_rings.first() {
+        // ── OpenGIS SFS 6.1.11 poligon geçerlilik iddiaları ──────────────────────
+        // (1) ring'ler basit · (3) hiçbir iki ring KESİŞMEZ (yalnız noktada teğet olabilir)
+        // (4) kesik/diken/delik yok · (5) iç kısım bağlantılı · delikler kabuğun İÇİNDE.
+        //
+        // ⚠️ RING YÖNÜ BU LİSTEDE YOKTUR. 2026-08-06 dış denetimi `LOC_011`'in ölçmediği
+        // maddeler arasında "ring yönü"nü de saymıştı; **spec'in atıf yaptığı 6.1.11
+        // yönelim şart koşmaz** — saat yönü kuralı GeoJSON RFC 7946 §3.1.6'nın SERİLEŞTİRME
+        // kuralıdır ve RFC ayrıca ayrıştırıcıların uymayan geometriyi reddetmemesini söyler.
+        // Yönü ihlal saymak `PTH_017` tuzağının aynısı olurdu → BİLİNÇLİ ÖLÇÜLMÜYOR.
         let mut bad: Option<String> = None;
         if !ring_is_simple(outer) {
             bad = Some("dış ring kendini kesiyor".to_string());
+        } else if has_spike(outer) {
+            bad = Some("dış ring'de sıfır alanlı çıkıntı (spike/cut line) var".to_string());
         }
         for (i, hole) in all_rings.iter().enumerate().skip(1) {
             if bad.is_some() { break; }
             if !ring_is_simple(hole) {
-                bad = Some(format!("{}. delik kendini kesiyor", i));
-            } else if hole.first().is_some_and(|&p| !point_in_ring(p, outer)) {
-                bad = Some(format!("{}. delik dış ring'in dışında", i));
+                bad = Some(format!("{i}. delik kendini kesiyor"));
+            } else if has_spike(hole) {
+                bad = Some(format!("{i}. delikte sıfır alanlı çıkıntı (spike/cut line) var"));
+            } else if rings_cross(outer, hole) {
+                // 6.1.11 (3): ring'ler kesişemez. Eskiden hiç ölçülmüyordu.
+                bad = Some(format!("{i}. delik dış ring'i kesiyor"));
+            } else if hole.iter().any(|&p| !point_in_ring(p, outer)) {
+                // Eskiden yalnız İLK NOKTA örnekleniyordu → kısmen dışarı taşan delik
+                // görünmüyordu. Artık TÜM köşeler denetlenir.
+                bad = Some(format!("{i}. delik kısmen veya tamamen dış ring'in dışında"));
+            }
+        }
+        // Delik-delik ilişkisi: kesişme yasak (6.1.11/3); iç içe delik de geçersizdir
+        // (içteki "delik" aslında dolu alan olur, iç kısım tanımsızlaşır).
+        'outer: for i in 1..all_rings.len() {
+            if bad.is_some() { break; }
+            for j in (i + 1)..all_rings.len() {
+                if rings_cross(&all_rings[i], &all_rings[j]) {
+                    bad = Some(format!("{i}. ve {j}. delikler birbirini kesiyor"));
+                    break 'outer;
+                }
+                if all_rings[j].first().is_some_and(|&p| point_in_ring(p, &all_rings[i]))
+                    || all_rings[i].first().is_some_and(|&p| point_in_ring(p, &all_rings[j]))
+                {
+                    bad = Some(format!("{i}. ve {j}. delikler iç içe"));
+                    break 'outer;
+                }
             }
         }
         if let Some(why) = bad {
@@ -1860,6 +1895,91 @@ fn check_polygon_rings(
     }
 }
 
+/// İki doğru parçası KESİŞİYOR mu (uç nokta paylaşımı ve teğetlik hariç).
+///
+/// ⚠️ `robust::orient2d` ZORUNLU. 2026-08-06 ölçümü: naif `f64` determinantıyla aynı 21
+/// poligonda sonuç epsilon seçimine göre 5↔17 arası oynuyor ve monoton bile değil.
+///
+/// ⚠️ Dört yönelimin de SIFIR OLMAMASI şart koşulur, yani **doğrusal (collinear) örtüşme
+/// kesişme SAYILMAZ**. Bu bilinçli: OpenGIS 6.1.11 ring'lerin bir NOKTADA teğet olmasına
+/// izin verir. Ama bunun bedeli, doğrusal örtüşmeden doğan "spike/cut line" ihlallerinin
+/// buradan geçmesidir → `has_spike` onları ayrıca yakalar.
+fn segments_cross(a: (f64, f64), b: (f64, f64), c: (f64, f64), d: (f64, f64)) -> bool {
+    let o = |p: (f64, f64), q: (f64, f64), r: (f64, f64)| {
+        let v = robust::orient2d(
+            robust::Coord { x: p.0, y: p.1 },
+            robust::Coord { x: q.0, y: q.1 },
+            robust::Coord { x: r.0, y: r.1 },
+        );
+        if v > 0.0 { 1i8 } else if v < 0.0 { -1 } else { 0 }
+    };
+    let (o1, o2, o3, o4) = (o(a, b, c), o(a, b, d), o(c, d, a), o(c, d, b));
+    o1 != o2 && o3 != o4 && o1 != 0 && o2 != 0 && o3 != 0 && o4 != 0
+}
+
+/// Ring'in bounding box'ı — ring çiftlerini karşılaştırmadan önce ucuz eleme.
+/// O(n·m) kesişim taramasını, kutuları ayrık olan çiftlerde hiç başlatmamak için.
+fn ring_bbox(pts: &[(f64, f64)]) -> (f64, f64, f64, f64) {
+    let mut b = (f64::MAX, f64::MAX, f64::MIN, f64::MIN);
+    for &(x, y) in pts {
+        b.0 = b.0.min(x); b.1 = b.1.min(y); b.2 = b.2.max(x); b.3 = b.3.max(y);
+    }
+    b
+}
+
+fn bboxes_disjoint(a: (f64, f64, f64, f64), b: (f64, f64, f64, f64)) -> bool {
+    a.2 < b.0 || b.2 < a.0 || a.3 < b.1 || b.3 < a.1
+}
+
+/// İKİ RING BİRBİRİNİ KESİYOR mu (OpenGIS 6.1.11: *"No two Rings in the boundary cross"*).
+/// 2026-08-06 dış denetimi bu maddenin hiç ölçülmediğini gösterdi — `LOC_011` yalnız her
+/// ring'in KENDİ basitliğine ve deliğin İLK NOKTASININ kapsanmasına bakıyordu.
+fn rings_cross(r1: &[(f64, f64)], r2: &[(f64, f64)]) -> bool {
+    if r1.len() < 2 || r2.len() < 2 {
+        return false;
+    }
+    if bboxes_disjoint(ring_bbox(r1), ring_bbox(r2)) {
+        return false;
+    }
+    for i in 0..r1.len() - 1 {
+        for j in 0..r2.len() - 1 {
+            if segments_cross(r1[i], r1[i + 1], r2[j], r2[j + 1]) {
+                return true;
+            }
+        }
+    }
+    false
+}
+
+/// Ring'de SPIKE / CUT LINE var mı (OpenGIS 6.1.11: *"may not have cut lines, spikes or
+/// punctures"*). Spike = ring bir doğru boyunca gidip AYNI doğru üzerinden geri dönüyor;
+/// sıfır alanlı çıkıntı. `segments_cross` bunu göremez çünkü doğrusal örtüşmede yönelimler
+/// sıfırdır ve kesişme sayılmaz. Burada ardışık üç noktanın 180° dönüşü aranır.
+fn has_spike(pts: &[(f64, f64)]) -> bool {
+    let n = pts.len().saturating_sub(1);
+    if n < 3 {
+        return false;
+    }
+    for i in 0..n {
+        let (a, b, c) = (pts[i], pts[(i + 1) % n], pts[(i + 2) % n]);
+        let v = robust::orient2d(
+            robust::Coord { x: a.0, y: a.1 },
+            robust::Coord { x: b.0, y: b.1 },
+            robust::Coord { x: c.0, y: c.1 },
+        );
+        if v != 0.0 {
+            continue; // doğrusal değil → spike olamaz
+        }
+        // Doğrusal: b'den a'ya ve b'den c'ye vektörler TERS yönlüyse geri dönüş var.
+        let (ux, uy) = (a.0 - b.0, a.1 - b.1);
+        let (vx, vy) = (c.0 - b.0, c.1 - b.1);
+        if ux * vx + uy * vy > 0.0 {
+            return true; // aynı yöne bakıyorlar → b bir uçtan geri dönmüş
+        }
+    }
+    false
+}
+
 /// Ring BASİT mi — yani kendisiyle kesişmiyor mu (OpenGIS 6.1.11).
 ///
 /// ⚠️ `robust::orient2d` ZORUNLU, naif `f64` determinantı DEĞİL. 2026-08-06 ölçümü: aynı 21
@@ -1873,24 +1993,12 @@ fn ring_is_simple(pts: &[(f64, f64)]) -> bool {
     if n < 4 {
         return true;
     }
-    let cross = |a: (f64, f64), b: (f64, f64), c: (f64, f64), d: (f64, f64)| -> bool {
-        let o = |p: (f64, f64), q: (f64, f64), r: (f64, f64)| {
-            let v = robust::orient2d(
-                robust::Coord { x: p.0, y: p.1 },
-                robust::Coord { x: q.0, y: q.1 },
-                robust::Coord { x: r.0, y: r.1 },
-            );
-            if v > 0.0 { 1i8 } else if v < 0.0 { -1 } else { 0 }
-        };
-        let (o1, o2, o3, o4) = (o(a, b, c), o(a, b, d), o(c, d, a), o(c, d, b));
-        o1 != o2 && o3 != o4 && o1 != 0 && o2 != 0 && o3 != 0 && o4 != 0
-    };
     for i in 0..n {
         for j in (i + 2)..n {
             if i == 0 && j == n - 1 {
                 continue; // kapanış çifti komşudur
             }
-            if cross(pts[i], pts[i + 1], pts[j], pts[j + 1]) {
+            if segments_cross(pts[i], pts[i + 1], pts[j], pts[j + 1]) {
                 return false;
             }
         }

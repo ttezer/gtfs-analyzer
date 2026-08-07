@@ -1856,3 +1856,82 @@ fn semicolon_delimited_files_are_rejected_pc3b911a6() {
         }
     }
 }
+
+// ── LOC_011: OpenGIS SFS 6.1.11 poligon geçerliliği — genişletilmiş maddeler ────────
+//
+// 2026-08-06 dış denetimi `LOC_011`'in kartında yazılı dört boşluğu gösterdi. Üçü
+// kapatıldı (delik-delik kesişimi · deliğin KISMEN dışarı taşması · spike/cut line);
+// dördüncüsü (ring yönü) ölçülmüyor çünkü **6.1.11 yönelim şart koşmuyor** — o GeoJSON
+// RFC 7946'nın serileştirme kuralıdır ve onu ihlal saymak yanlış pozitif üretirdi.
+
+/// Tek feature'lık `locations.geojson` kurar; geometri gövdesi test başına verilir.
+/// `Box::leak`: `run()` `&'static [u8]` bekliyor, test başına tek küçük sızıntı kabul.
+fn loc011_feed(geometry: &str) -> Vec<(&'static str, &'static [u8])> {
+    let doc: &'static [u8] = Box::leak(
+        format!(
+            r#"{{"type":"FeatureCollection","features":[
+                 {{"type":"Feature","id":"z1","properties":{{}},"geometry":{geometry}}}]}}"#
+        )
+        .into_bytes()
+        .into_boxed_slice(),
+    );
+    geojson_feed(doc)
+}
+
+fn loc011_fires(geometry: &str) -> bool {
+    match run(&loc011_feed(geometry)) {
+        ValidateResult::Ok(vr) => has(&vr, "LOC_011"),
+        other => panic!("ValidateResult::Ok beklendi, gelen: {other:?}"),
+    }
+}
+
+#[test]
+fn loc011_flags_holes_that_intersect_each_other() {
+    // İki delik üst üste biniyor → 6.1.11 (3) "no two Rings cross".
+    assert!(loc011_fires(
+        r#"{"type":"Polygon","coordinates":[
+             [[0,0],[0,10],[10,10],[10,0],[0,0]],
+             [[1,1],[1,5],[5,5],[5,1],[1,1]],
+             [[3,3],[3,7],[7,7],[7,3],[3,3]]]}"#
+    ), "birbirini kesen iki delik LOC_011 üretmeli");
+}
+
+#[test]
+fn loc011_flags_hole_partially_outside_the_shell() {
+    // Deliğin İLK NOKTASI kabuğun içinde ama gövdesi dışarı taşıyor. Eski predikat
+    // yalnız ilk noktaya baktığı için bunu KAÇIRIYORDU.
+    assert!(loc011_fires(
+        r#"{"type":"Polygon","coordinates":[
+             [[0,0],[0,10],[10,10],[10,0],[0,0]],
+             [[5,5],[5,15],[8,15],[8,5],[5,5]]]}"#
+    ), "kısmen dışarı taşan delik LOC_011 üretmeli");
+}
+
+#[test]
+fn loc011_flags_spike() {
+    // Kabuk bir doğru boyunca çıkıp aynı doğrudan dönüyor → sıfır alanlı çıkıntı.
+    assert!(loc011_fires(
+        r#"{"type":"Polygon","coordinates":[
+             [[0,0],[0,10],[5,10],[20,10],[5,10],[10,10],[10,0],[0,0]]]}"#
+    ), "spike/cut line LOC_011 üretmeli");
+}
+
+#[test]
+fn loc011_silent_on_valid_polygon_with_hole() {
+    // Tamamen geçerli: delik kabuğun içinde, kesişme yok, spike yok.
+    assert!(!loc011_fires(
+        r#"{"type":"Polygon","coordinates":[
+             [[0,0],[0,10],[10,10],[10,0],[0,0]],
+             [[2,2],[2,4],[4,4],[4,2],[2,2]]]}"#
+    ), "geçerli poligon LOC_011 üretmemeli");
+}
+
+#[test]
+fn loc011_silent_on_clockwise_shell() {
+    // ⚠️ EN ÖNEMLİ TEST: ring yönü 6.1.11'in geçerlilik koşulu DEĞİLDİR. Saat yönünde
+    // yazılmış kabuk GEÇERLİDİR; burada ateşlemek `PTH_017` hatasını tekrarlamak olurdu.
+    assert!(!loc011_fires(
+        r#"{"type":"Polygon","coordinates":[
+             [[0,0],[10,0],[10,10],[0,10],[0,0]]]}"#
+    ), "saat yönü kabuk 6.1.11'e göre GEÇERLİDİR, LOC_011 çıkmamalı");
+}
