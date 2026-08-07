@@ -1855,6 +1855,46 @@ fn semicolon_delimited_files_are_rejected_pc3b911a6() {
                 vr.notices.iter().map(|n| n.rule_id.as_str()).collect::<Vec<_>>());
         }
     }
+
+    // 🔴 KONTROL GİRDİSİ (issue #87). İhlalli girdi tek başına yetmez: komşu kural HER
+    // feed'de ateşliyorsa "ölçüm" bir şey kanıtlamaz. Aynı içerik VİRGÜLLE ayrılmış hâlde
+    // sessiz kalmalı — fark, hükmün gerçekten ölçüldüğünü gösteren şeydir.
+    match run(&base_files()) {
+        ValidateResult::Ok(vr) => assert!(!has(&vr, "ARC_025"),
+            "virgülle ayrılmış aynı içerik ARC_025 ÜRETMEMELİ (kontrol)"),
+        other => panic!("kontrol girdisi Ok olmalı: {other:?}"),
+    }
+}
+
+// ── Pd59e5eaa: ilk satır ALAN ADLARINI içermeli (issue #87 kanıt çifti) ────────
+//
+// Defter bu hükmü DOLAYLI sayıyordu ("başlık yerine veri satırı varsa ARC_025 + ARC_019 +
+// ARC_017 birlikte ateşler") ama bu bir KOD OKUMASIYDI, ölçüm değil. #87 haklı: pay
+// `KANITLI + DOLAYLI` diye hesaplanıyor, yani ölçülmemiş bir çıkarım sayılıyordu.
+
+#[test]
+fn first_line_must_be_a_header_pd59e5eaa() {
+    // İHLAL: başlık satırı yok — dosya doğrudan veriyle başlıyor. O zaman ilk VERİ satırı
+    // başlık sanılır, zorunlu sütun adları bulunamaz.
+    static NO_HEADER: &[u8] = b"S1,Stop1,41.0,29.0
+S2,Stop2,41.1,29.1
+";
+    let mut files = base_files();
+    for slot in files.iter_mut() {
+        if slot.0 == "stops.txt" { slot.1 = NO_HEADER; }
+    }
+    let violating_fires = match run(&files) {
+        ValidateResult::Fatal(e) => e.code == FatalCode::NoRequiredFiles,
+        ValidateResult::Ok(vr) => has(&vr, "ARC_025"),
+    };
+    assert!(violating_fires, "başlıksız dosya zorunlu sütun ihlali üretmeli");
+
+    // KONTROL: aynı veri, başlık satırıyla → sessiz.
+    match run(&base_files()) {
+        ValidateResult::Ok(vr) => assert!(!has(&vr, "ARC_025"),
+            "başlığı olan aynı içerik ARC_025 ÜRETMEMELİ (kontrol)"),
+        other => panic!("kontrol girdisi Ok olmalı: {other:?}"),
+    }
 }
 
 // ── LOC_011: OpenGIS SFS 6.1.11 poligon geçerliliği — genişletilmiş maddeler ────────

@@ -1,0 +1,13 @@
+# DOLAYLI hükümlerin MAKİNE-OKUNUR kanıtı (issue #87).
+#
+# 🔴 Neden var: `badge_status.py` payı `KANITLI + DOLAYLI` diye hesaplıyor, ama DOLAYLI
+# etiketi komşu kuralın ihlali GERÇEKTEN ürettiğine dair hiçbir şey istemiyordu. Bir kod
+# okuması ("herhalde ARC_013 yakalar") ölçüm sayılıyordu — `Pfedb83cf`/`Pa4c60372` tam
+# böyle çürüdü (bkz. EVIDENCE_BASE §5.0).
+#
+# ⚠️ İHLALLİ girdi TEK BAŞINA yetmez: komşu kural her feed'de ateşliyorsa fark yoktur.
+# Bu yüzden KONTROL girdisi ZORUNLUDUR ve testin ikisini de içermesi gerekir.
+#
+# Sütunlar: provision <TAB> komşu_kural <TAB> ihlalli_girdi <TAB> kontrol_girdi <TAB> test
+Pc3b911a6	ARC_025	stops.txt noktalı virgülle ayrılmış	aynı içerik virgülle ayrılmış	semicolon_delimited_files_are_rejected_pc3b911a6
+Pd59e5eaa	ARC_025	stops.txt başlık satırı olmadan	aynı içerik başlık satırıyla	first_line_must_be_a_header_pd59e5eaa

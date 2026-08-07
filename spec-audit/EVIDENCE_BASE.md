@@ -304,7 +304,15 @@ okuyucu bunu görerek yapmalıdır.
 diyordu, `ARC_013` ise yalnız KAPANMAMIŞ tırnağı görüyordu. **DOLAYLI etiketi, komşu
 kuralın ihlali GERÇEKTEN ürettiğini gösteren bir ölçüm istemiyordu.** Bugün istiyor:
 ihlalli ve geçerli iki feed koşulup bulgu kümeleri karşılaştırılmalı; aynı çıkıyorsa
-hüküm ölçülmüyordur. Kalan DOLAYLI kayıtları bu ölçütle henüz TARANMADI — açık kalıntı.
+hüküm ölçülmüyordur. ✅ **Ölçüt 2026-08-07'de MAKİNE-OKUNUR OLDU (issue #87).** `dolayli_evidence.tsv` her hard
+DOLAYLI hüküm için ihlalli girdiyi, KONTROL girdisini, komşu kuralı ve testi adlandırır;
+`badge_status.py` satırı olmayan, alanı eksik olan ya da var olmayan bir testi gösteren her
+DOLAYLI'da **exit 1** verir. Üç yönden de bozularak sınandı.
+
+⚠️ **Kontrol girdisi ZORUNLU** çünkü ihlalli girdi tek başına hiçbir şey kanıtlamaz: komşu
+kural her feed'de ateşliyorsa "ölçüm" bir fark göstermez. `Pc3b911a6`'nın mevcut testi tam
+bu eksikle duruyordu (yalnız ihlalli girdi) ve tamamlandı; `Pd59e5eaa`'nın ise hiç testi
+yoktu — ikisi de artık çift girdili.
 
 ### 5.0.2 Akış gövdesinde kapanmamış tırnak — artık bildiriliyor (issue #84)
 

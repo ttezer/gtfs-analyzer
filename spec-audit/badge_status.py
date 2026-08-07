@@ -92,6 +92,41 @@ def main() -> int:
         print("  → Başlıktaki DURUM satırını güncelleyin; yüzde iki yerde farklı duramaz.")
         orphans = list(orphans) + ["<defter-başlığı>"]
 
+    stale: list[str] = []
+
+    # 🔴 DOLAYLI = PAYDA DEĞİL PAYDA SAYILIYOR — kanıt ZORUNLU (issue #87).
+    # `num = KANITLI + DOLAYLI` olduğu için DOLAYLI bir satır yüzdeyi yukarı çeker; ama
+    # etiket, komşu kuralın ihlali gerçekten ürettiğine dair hiçbir şey istemiyordu.
+    # `Pfedb83cf`/`Pa4c60372` tam böyle çürüdü: kod okuması ölçüm sanılıyordu.
+    # ⚠️ İHLALLİ girdi tek başına yetmez — komşu kural her feed'de ateşliyorsa fark yoktur.
+    # Bu yüzden defter satırı KONTROL girdisini de adlandırmak ZORUNDA.
+    ev_file = ROOT / "dolayli_evidence.tsv"
+    ev_rows: dict[str, list[str]] = {}
+    if ev_file.exists():
+        for line in ev_file.read_text(encoding="utf-8").split("\n"):
+            if not line.strip() or line.startswith("#"):
+                continue
+            cols = [c.strip() for c in line.split("\t")]
+            if cols and cols[0]:
+                ev_rows[cols[0]] = cols
+    tests_src = ""
+    for t in (ROOT.parent / "crates/pipeline/tests").glob("*.rs"):
+        tests_src += t.read_text(encoding="utf-8")
+
+    dolayli = sorted([k for k, v in hard.items() if v == "DOLAYLI"])
+    for pid in dolayli:
+        row = ev_rows.get(pid)
+        if row is None:
+            stale.append(f"DOLAYLI {pid} kanıtsız: dolayli_evidence.tsv'de satırı YOK "
+                         f"(pay onu ölçülmüş sayıyor).")
+            continue
+        if len(row) < 5 or not all(row[:5]):
+            stale.append(f"DOLAYLI {pid} kanıt satırı eksik alan taşıyor: {row}")
+            continue
+        test_name = row[4]
+        if f"fn {test_name}(" not in tests_src:
+            stale.append(f"DOLAYLI {pid} kanıtı olmayan bir testi gösteriyor: {test_name}")
+
     # 🔴 KANIT BELGESİNİN §0 SAYILARI DA BU HESAPTAN TÜRER — ikinci kapı.
     # 2026-08-07: kullanıcı iki bayat sayı yakaladı (İKİNCİ kez elle yakalıyordu).
     # §0 "184 sert hükmün 25'i KAPSAM DIŞI, 13'ü META; 184 − 38 = 146" diyordu; o gün
@@ -100,7 +135,6 @@ def main() -> int:
     # ⚠️ Kapı KORUDUĞU SATIRA çapalanır (defter başlığı dersi): §0'ın 4. maddesi ve
     # 3. maddesi ayrı ayrı bulunur, "dosyada geçiyor mu" denmez.
     ev_lines = (ROOT / "EVIDENCE_BASE.md").read_text(encoding="utf-8").split("\n")
-    stale: list[str] = []
 
     total, excluded = len(hard), len(hard) - d
     counts = collections.Counter(hard.values())
@@ -132,7 +166,7 @@ def main() -> int:
                      f"{corpus_line.strip()[:90]}")
 
     if stale:
-        print("\n🔴 EVIDENCE_BASE.md §0 BAYAT — sayılar bu betiğin hesabıyla tutmuyor:")
+        print("\n🔴 KANIT KAPISI — aşağıdakiler payı hak etmiyor:")
         for msg in stale:
             print(f"  {msg}")
         print("  → §0'ı güncelleyin; aynı sayı iki belgede farklı duramaz.")
