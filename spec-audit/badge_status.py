@@ -92,6 +92,47 @@ def main() -> int:
         print("  → Başlıktaki DURUM satırını güncelleyin; yüzde iki yerde farklı duramaz.")
         orphans = list(orphans) + ["<defter-başlığı>"]
 
+    # 🔴 KANIT BELGESİNİN §0 SAYILARI DA BU HESAPTAN TÜRER — ikinci kapı.
+    # 2026-08-07: kullanıcı iki bayat sayı yakaladı (İKİNCİ kez elle yakalıyordu).
+    # §0 "184 sert hükmün 25'i KAPSAM DIŞI, 13'ü META; 184 − 38 = 146" diyordu; o gün
+    # hesap 24 / 13 / 184 − 37 = 147'ydi. Defter başlığı kapısı bunu göremezdi çünkü
+    # BAŞKA DOSYAYA bakıyor. Sayının hesaplandığı yer burası, kapı da burada olmalı.
+    # ⚠️ Kapı KORUDUĞU SATIRA çapalanır (defter başlığı dersi): §0'ın 4. maddesi ve
+    # 3. maddesi ayrı ayrı bulunur, "dosyada geçiyor mu" denmez.
+    ev_lines = (ROOT / "EVIDENCE_BASE.md").read_text(encoding="utf-8").split("\n")
+    stale: list[str] = []
+
+    total, excluded = len(hard), len(hard) - d
+    counts = collections.Counter(hard.values())
+    arith_line = next((l for l in ev_lines if "sert hükmün" in l), "")
+    arith_next = ev_lines[ev_lines.index(arith_line) + 1] if arith_line in ev_lines else ""
+    arith_text = (arith_line + " " + arith_next).replace("−", "-")
+    want_arith = f"{total} - {excluded} = {d}"
+    if want_arith not in arith_text:
+        stale.append(f"§0/4 aritmetiği: '{want_arith}' geçmiyor → {arith_text.strip()[:90]}")
+    for label in ("KAPSAM DIŞI", "META"):
+        want = counts.get(label, 0)
+        # ⚠️ Sayı ETİKETE çapalanır. "satırda geçiyor mu" demek yetmezdi: aritmetikteki
+        # bir rakam (ör. 37) tesadüfen aranan sayıya eşit olsaydı kontrol boşa geçerdi.
+        # `\S*` Türkçe ekin ("24'ü") biçimini serbest bırakır, sayıyı bırakmaz.
+        if not re.search(rf"{want}\S*\s+(?:\*\*)?{label}", arith_text):
+            stale.append(f"§0/4 {label} sayısı {want} değil → {arith_text.strip()[:90]}")
+
+    # Korpus büyüklüğünün TEK KAYNAĞI manifesttir; §0/3 ondan sapmamalı.
+    man = ROOT / "corpus-evidence" / "corpus_manifest.csv"
+    feeds = max(len(man.read_text(encoding="utf-8").strip().split("\n")) - 1, 0)
+    corpus_line = next((l for l in ev_lines if "Korpus" in l and "feed'dir" in l), "")
+    if not re.search(rf"Korpus {feeds} feed'dir", corpus_line):
+        stale.append(f"§0/3 korpus sayısı {feeds} değil (manifest {feeds} satır) → "
+                     f"{corpus_line.strip()[:90]}")
+
+    if stale:
+        print("\n🔴 EVIDENCE_BASE.md §0 BAYAT — sayılar bu betiğin hesabıyla tutmuyor:")
+        for msg in stale:
+            print(f"  {msg}")
+        print("  → §0'ı güncelleyin; aynı sayı iki belgede farklı duramaz.")
+        orphans = list(orphans) + ["<kanıt-belgesi-§0>"]
+
     print(f"\n{'='*52}\nDÜZYAZI EKSENİ: {n}/{d} = %{100*n/d:.1f}")
     gaps = [k for k, v in hard.items() if v == "BOŞLUK"]
     for g in gaps:

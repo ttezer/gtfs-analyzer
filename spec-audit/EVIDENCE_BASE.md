@@ -21,9 +21,9 @@
 2. **Yumuşak (`should`/`recommended`) hükümler kasıtlı olarak %100 DEĞİL** (%65,2). Bir
    tavsiyeyi norm saymak geçerli feed'i reddeder; bu proje o hatayı bir kez yaptı
    (`PTH_017`) ve bir daha yapmamak için yumuşak ekseni ayrı tutuyor.
-3. **Korpus 239 feed'dir, evren değildir.** "Yanlış pozitif ölçülmedi" ≠ "yanlış pozitif yok".
-4. **Tüketici tarafını bağlayan hükümler ölçülmez** — 184 sert hükmün **25'i KAPSAM DIŞI**,
-   13'ü META; ikisi paydadan düşer (184 − 38 = 146). Bir doğrulayıcının bunları ölçmemesi
+3. **Korpus 242 feed'dir, evren değildir.** "Yanlış pozitif ölçülmedi" ≠ "yanlış pozitif yok".
+4. **Tüketici tarafını bağlayan hükümler ölçülmez** — 184 sert hükmün **24'ü KAPSAM DIŞI**,
+   13'ü META; ikisi paydadan düşer (184 − 37 = 147). Bir doğrulayıcının bunları ölçmemesi
    eksiklik değil, tanım gereğidir.
 
 ---
@@ -182,8 +182,8 @@ Her kuralın kanıtı **testle** bağlanır; "yazıldı" demek yetmez.
 
 | kapı | ne garanti eder | bugünkü durum |
 |---|---|---|
-| `emit_proof` | Her kuralın notice ürettiği bir fixture var | 13 test · ⚠️ **6 kuralın fixture'ı YOK** (§5.3) |
-| `badge_status` | Adjudike edilmemiş hüküm varsa **exit 1** | ✅ CI'da kapı (2026-08-06'da eklendi) |
+| `emit_proof` | Her kuralın notice ürettiği bir fixture var | 13 test · ✅ **borç 0** (2026-08-07, #71; §5.3) |
+| `badge_status` | Adjudike edilmemiş hüküm · bayat defter başlığı · **bayat §0 sayıları** varsa **exit 1** | ✅ CI'da kapı (2026-08-06; §0 denetimi 2026-08-07) |
 | `ledger_header_counts_match_catalogue` | Defter başlığı katalogla tutuyor + paya sayılan satırda varsayım yok | ✅ (2026-08-06'da eklendi) |
 | `spec_conformance` | Spec metni ile kural davranışı | geçiyor |
 | Kapsam defteri | Alan tablosu atomu ↔ kural eşlemesi | **0 açık** |
@@ -215,7 +215,7 @@ Tek binary, tek tarih (`--today 20260717`), tüm korpus.
 ```
 242 feed · 4 fatal · 0 çökme
 276 kural tetiklendi · 317 kural korpusta hiç çıkmadı
-R1 yayın engeli taşıyan feed: 46 / 239 (üç yeni feed'in üçü de temiz)
+R1 yayın engeli taşıyan feed: 46 / 242 (üç yeni feed'in üçü de temiz)
 ```
 
 **Yeniden üretim:**
@@ -277,6 +277,8 @@ dosyası korpusta MEVCUT ve okunuyor:
 | kural | gereken dosya | dosyayı taşıyan feed |
 |---|---|---|
 | `TRP_035` | trips.txt | **239** |
+<!-- ⚠️ Bu sütun 239 feed'lik korpusta ölçüldü (08-06'da 242'ye çıktı); sayılar O KOŞUYA
+     aittir, güncellenirse yeniden ÖLÇÜLEREK güncellenmelidir, elle çevrilerek değil. -->
 | `CAL_025` | calendar.txt | **213** |
 | `TRN_017` | translations.txt | 34 |
 | `BKR_024` · `XFL_032/033` | booking_rules / location_groups | 18 |
@@ -443,7 +445,7 @@ Her ikisi de **MD'ye karşı birebir pariteyle** doğrulandı.
 | mdb-1229 | `unsorted_stop_times` = 24 | `STM_036` = 0 | **24** ✅ | Feed'in 24 seferinin TÜM satırlarında `stop_sequence=0`. Predicate `seq < last` arıyordu; **eşitlik iki dala da girmiyordu**. Spec *"values must increase"* der → `<=` yapıldı. |
 
 **Regresyon ölçümü:** düzeltmelerden sonra korpus yeniden koşuldu (aynı binary, aynı tarih,
-aynı 239 feed). **Değişen kural sayısı: 3** — ve üçü de dokunulan kurallar
+aynı 239 feed — korpus o tarihte 239'du, 08-06'da 242'ye çıktı). **Değişen kural sayısı: 3** — ve üçü de dokunulan kurallar
 (`SHP_028` 16→8 feed · `SHP_029` 24→23 · `STM_036` 30→31, tam **+24**, yalnız mdb-1229).
 Yan etki yok.
 
