@@ -661,7 +661,16 @@ const HTML_TAGS: &[&str] = &[
     "summary", "sup", "table", "tbody", "td", "template", "textarea", "tfoot", "th",
     "thead", "time", "title", "tr", "track", "tt", "u", "ul", "var", "video", "wbr",
 ];
-const HTML_ENTITIES: &[&str] = &["nbsp", "amp", "lt", "gt", "quot", "apos"];
+/// Adlandırılmış karakter referansları — **ÜRETİLMİŞ** (issue #79, `k1_html_entities.rs`).
+///
+/// 🔴 Burada altı ad vardı (`nbsp amp lt gt quot apos`) ve `&copy;`, `&reg;`, `&euro;`,
+/// `&mdash;` kuraldan KAÇIYORDU. Liste artık HTML5'in tamamı (2.125 ad), kaynağı ve
+/// SHA-256'sı üretilen dosyada; sürüklenme CI'da denetleniyor.
+///
+/// ⚠️ Liste KAPALI kalır — `&` + kelime + `;` desenini serbest bırakmak gerçek metni
+/// yakalar (`K.A.Wheel&Tire;`, korpusta ölçüldü). Fark, listenin standardın ALT KÜMESİ
+/// değil KENDİSİ olmasıdır.
+use crate::k1_html_entities::{HTML5_ENTITIES as HTML_ENTITIES, HTML5_ENTITIES_NO_SEMI};
 
 /// Değerde HTML etiketi, yorum başlangıcı veya karakter kaçışı arar.
 ///
@@ -701,12 +710,28 @@ fn arc032_markup(value: &str) -> Option<String> {
         }
         if b == b'&' {
             let rest = &value[i + 1..];
+            // Ad = `&`den sonraki alfanümerik dizi (`#` sayısal biçimi ayrı ele alınır).
+            let name_len = rest.find(|c: char| !c.is_ascii_alphanumeric()).unwrap_or(rest.len());
+            let name = &rest[..name_len];
+            // ⚠️ NOKTALI VİRGÜLSÜZ ESKİ BİÇİM (issue #79): HTML5 bazı adları `;` olmadan da
+            // tanır (`&copy`). Ayrıcalık TÜM adlar için değildir; ayrı tablo kaynaktan gelir.
+            // Ölçüm: 20 feed · 54.076.644 hücre · bu biçimden 0 bulgu → yanlış pozitif
+            // riski ölçülü olarak sıfır.
+            if !name.is_empty()
+                && rest[name_len..].chars().next() != Some(';')
+                && HTML5_ENTITIES_NO_SEMI.binary_search(&name).is_ok()
+            {
+                return Some(format!("&{name}"));
+            }
             let Some(semi) = rest.find(';') else { continue };
             if semi == 0 || semi > 8 {
                 continue;
             }
             let ent = &rest[..semi];
-            let known = HTML_ENTITIES.iter().any(|e| e.eq_ignore_ascii_case(ent))
+            // ⚠️ Entity adları BÜYÜK/küçük harfe DUYARLIDIR ve liste ikisini de ayrı
+            // taşır (`&copy;` ile `&COPY;` farklı girişlerdir). `eq_ignore_ascii_case`
+            // 2.125 adlık listede hem yanlış eşleşme hem O(n) tarama demekti.
+            let known = HTML_ENTITIES.binary_search(&ent).is_ok()
                 || (ent.starts_with('#')
                     && ent.len() >= 2
                     && (ent[1..].chars().all(|c| c.is_ascii_digit())
@@ -2955,6 +2980,35 @@ mod tests {
     /// issue #79: liste 26 addan HTML5'in TAMAMINA genişledi. Denetçinin istediği beş
     /// vaka: listede zaten olan bir etiket · eski listede OLMAYAN geçerli bir etiket ·
     /// HTML yorumu · desteklenen bir kaçış · `<`/`>`/`&` taşıyan düz metin.
+    /// issue #79 — entity/kaçış tarafı: liste altı addan HTML5'in TAMAMINA (2.125) çıktı.
+    #[test]
+    fn arc_032_covers_the_html5_named_entities() {
+        // Bildirilen karşı örnekler — hepsi eski listede YOKTU.
+        for v in ["© 2026 &copy; Metro", "Metro&reg; hattı", "5&euro; bilet", "A&mdash;B"] {
+            assert!(arc032_markup(v).is_some(), "kaçış dizisi yakalanmalı: {v}");
+        }
+        // Sayısal biçimler (zaten destekliydi, regresyon koruması).
+        assert_eq!(arc032_markup("&#8212; tire"), Some("&#8212;".to_string()));
+        assert_eq!(arc032_markup("&#x2014; tire"), Some("&#x2014;".to_string()));
+        // 🔴 YANLIŞ POZİTİF KORUYUCUSU: `&` + kelime + `;` deseni SERBEST BIRAKILAMAZ.
+        // Bu değer korpusta ölçüldü ve `Tire` bir entity adı DEĞİLDİR.
+        assert_eq!(arc032_markup("K.A.Wheel&Tire;"), None);
+        assert_eq!(arc032_markup("A & B"), None);
+        assert_eq!(arc032_markup("Kadıköy&İskele;"), None, "ASCII olmayan ad entity değildir");
+        // Büyük/küçük harf DUYARLI: `&COPY;` de listede ayrı bir giriştir, `&Copy;` de.
+        assert!(arc032_markup("x &COPY; y").is_some());
+        assert_eq!(arc032_markup("x &cOpY; y"), None, "listede olmayan yazım entity değildir");
+        // Noktalı virgülsüz ESKİ biçim (HTML5 bunları `;` olmadan da tanır).
+        assert_eq!(arc032_markup("2026 &copy Metro"), Some("&copy".to_string()));
+        assert!(arc032_markup("A &reg B").is_some());
+        // ⚠️ Ayrıcalık TÜM adlara YAYILMAZ: `&mdash` (noktalı virgülsüz) eski listede YOK.
+        assert_eq!(arc032_markup("A &mdash B"), None, "yalnız kaynağın izin verdiği adlar");
+        // Yanlış pozitif koruyucuları — `&` + kelime deseni serbest DEĞİL.
+        assert_eq!(arc032_markup("Wheel&Tire servisi"), None);
+        assert_eq!(arc032_markup("AT&T"), None);
+        assert_eq!(arc032_markup("Rock&Roll"), None);
+    }
+
     #[test]
     fn arc_032_covers_the_whole_html_element_set() {
         // Eski listede vardı — regresyon olmamalı.

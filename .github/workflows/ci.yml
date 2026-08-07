@@ -56,6 +56,11 @@ jobs:
         run: |
           python3 spec-audit/gen_iso4217.py --check
 
+      # issue #79: HTML entity tablosu da üretilmiştir.
+      - name: HTML entity sürüklenme denetimi
+        run: |
+          python3 spec-audit/gen_html_entities.py --check
+
       - name: Sinyal paritesi (signal_parity)
         run: |
           python3 spec-audit/signal_parity.py

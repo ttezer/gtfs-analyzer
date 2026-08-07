@@ -462,6 +462,10 @@ veriyi reddetmek olurdu.
   (`N.A.`) kodlar geçerli olduğu hâlde ondalık denetimine girmez.
 
 **Aynı sınıftan iki düzeltme daha (issue #79, #80):**
+- **5. denetim (issue #79) entity tarafını çürüttü:** `ARC_032` altı entity adı tanıyordu,
+  `&copy;`/`&reg;`/`&euro;`/`&mdash;` kaçıyordu. Tablo artık ÜRETİLMİŞ (WHATWG
+  `entities.json` · 2.125 ad + 106 noktalı virgülsüz eski ad · SHA-256 dosyada · drift CI'da).
+  Ölçüm: 54.076.644 hücre tarandı, noktalı virgülsüz biçimden 0 bulgu; bulgu farkı 0.
 - `ARC_032`'nin HTML etiket listesi 26 addan **HTML5'in tamamına** çıktı; `<script>`,
   `<section>`, `<iframe>`, `<style>` eski listede yoktu. Liste hâlâ kapalı — hüküm "HTML
   etiketi" der ve `<Bilinmiyor>` bir HTML etiketi değildir; fark, listenin artık standardın
