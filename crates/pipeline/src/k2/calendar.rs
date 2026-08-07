@@ -1,6 +1,6 @@
 ﻿use gtfs_core::EntityType;
 
-use super::common::{
+use super::common::{get_raw_field, 
     build_row_map, get_trimmed_field, make_k2_notice, parse_service_date, parse_u32,
     validate_enum, RowMap,
 };
@@ -30,11 +30,11 @@ pub fn validate_calendar(file: &RawFile) -> (Vec<CalendarRecord>, Vec<gtfs_core:
         let line = (row_idx + 2) as u64;
         let row_map = build_row_map(&file.headers, row);
 
-        let service_id = get_trimmed_field(&row_map, "service_id").unwrap_or("").to_string();
+        let service_id = get_raw_field(&row_map, "service_id").unwrap_or("").to_string();
         let entity_id = (!service_id.is_empty()).then_some(service_id.clone());
 
         // CAL_022: service_id required (sütun yoksa ARC_025 devralır → atla)
-        if get_trimmed_field(&row_map, "service_id") == Some("") {
+        if get_raw_field(&row_map, "service_id").map(str::trim) == Some("") {
             notices.push(make_k2_notice(
                 &mut counter, "CAL_022", EntityType::Service, None, Some(&row_map),
                 &file.name, Some(line), Some("service_id"), Some(String::new()), None,

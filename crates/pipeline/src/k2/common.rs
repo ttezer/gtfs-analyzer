@@ -77,6 +77,27 @@ pub fn has_nonempty_field(row: &RowMap, field: &str) -> bool {
 /// `#[inline]` bilinçli: stop_times ölçeğinde (6M+ satır) satır başına birkaç kez
 /// çağrılıyor — crate-içi olsa da çağrı maliyeti ölçülebilir.
 #[inline]
+/// KİMLİK alanları için HAM değer — `trim` YAPILMAZ (issue #85).
+///
+/// 🔴 `get_trimmed_field`/`get_col` her değeri kırpıyordu ve ID'ler o kırpılmış değerden
+/// kuruluyordu. Sonuç, kimlik semantiğinin sessizce normalize edilmesiydi:
+///   · `stops.stop_id=" A "` + `stop_times.stop_id=A` → FK EŞLEŞİYORDU (ölçüldü)
+///   · aynı dosyada `A` ve `" A "` → UYDURMA duplicate (`STP_001`, ölçüldü)
+/// `" A "` ile `A` aynı sözlüksel değer DEĞİLDİR; PK/FK sert semantiktir ve normalize
+/// edilemez. Fazladan boşluk ayrı bir KALİTE sinyalidir (`DQ_016` onu zaten bildiriyor).
+///
+/// ⚠️ BOŞLUK TEŞHİSİ İÇİN yine `trim` kullanılır — ama kimliği DEĞİŞTİRMEDEN:
+/// `get_raw_field(..).filter(|v| !v.trim().is_empty())` deyimi "yalnızca boşluktan oluşan
+/// değer YOKTUR" der, kimliği ise ham bırakır.
+pub fn get_raw_field<'a>(row: &'a RowMap, field: &str) -> Option<&'a str> {
+    row.get(field).map(|s| s.as_str())
+}
+
+/// KİMLİK sütunları için ham akış değeri — `get_col`in trim YAPMAYAN eşi (issue #85).
+pub fn get_col_raw<'a>(row: &'a [Cow<'_, str>], col: Option<usize>) -> &'a str {
+    col.and_then(|i| row.get(i)).map(|s| s.as_ref()).unwrap_or("")
+}
+
 pub fn get_col<'a>(row: &'a [Cow<'_, str>], col: Option<usize>) -> &'a str {
     col.and_then(|i| row.get(i)).map(|s| s.as_ref().trim()).unwrap_or("")
 }

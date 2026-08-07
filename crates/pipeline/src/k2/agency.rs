@@ -1,6 +1,6 @@
 ﻿use gtfs_core::EntityType;
 
-use super::common::{
+use super::common::{get_raw_field, 
     build_row_map, get_trimmed_field, looks_like_bcp47, looks_like_email,
     looks_like_iana_timezone, looks_like_phone, looks_like_url, make_k2_notice, parse_u32, RowMap,
 };
@@ -34,8 +34,8 @@ pub fn validate_agency(file: &RawFile) -> (Vec<AgencyRecord>, Vec<gtfs_core::Not
         let line = (row_idx + 2) as u64;
         let row_map = build_row_map(&file.headers, row);
 
-        let agency_id = get_trimmed_field(&row_map, "agency_id")
-            .filter(|v| !v.is_empty())
+        let agency_id = get_raw_field(&row_map, "agency_id")
+            .filter(|v| !v.trim().is_empty())
             .map(str::to_string);
         let entity_id = agency_id.clone();
 
@@ -88,7 +88,7 @@ pub fn validate_agency(file: &RawFile) -> (Vec<AgencyRecord>, Vec<gtfs_core::Not
 
         // AGN_016: agency_phone bilinen bir yer-tutucu/hizmet-dışı numara (veri üreticisinin
         // kurumsal numarası, tüm feed'lere kopyalanmış vb.) — gerçek iletişim numarası olmayabilir.
-        if let Some(phone) = get_trimmed_field(&row_map, "agency_phone").filter(|v| !v.is_empty()) {
+        if let Some(phone) = get_trimmed_field(&row_map, "agency_phone").filter(|v| !v.trim().is_empty()) {
             let digits: String = phone.chars().filter(|c| c.is_ascii_digit()).collect();
             const SUSPICIOUS_PHONES: &[&str] = &["8882812681", "18882812681"];
             if SUSPICIOUS_PHONES.contains(&digits.as_str()) {
@@ -120,7 +120,7 @@ pub fn validate_agency(file: &RawFile) -> (Vec<AgencyRecord>, Vec<gtfs_core::Not
 
         // AGN_006: agency_lang must be valid BCP-47
         let agency_lang = get_trimmed_field(&row_map, "agency_lang")
-            .filter(|v| !v.is_empty())
+            .filter(|v| !v.trim().is_empty())
             .map(str::to_string);
         if let Some(ref lang) = agency_lang {
             if !looks_like_bcp47(lang) {
@@ -135,7 +135,7 @@ pub fn validate_agency(file: &RawFile) -> (Vec<AgencyRecord>, Vec<gtfs_core::Not
 
         // AGN_007: agency_phone format
         let agency_phone = get_trimmed_field(&row_map, "agency_phone")
-            .filter(|v| !v.is_empty())
+            .filter(|v| !v.trim().is_empty())
             .map(str::to_string);
         if let Some(ref phone) = agency_phone {
             if !looks_like_phone(phone) {
@@ -150,7 +150,7 @@ pub fn validate_agency(file: &RawFile) -> (Vec<AgencyRecord>, Vec<gtfs_core::Not
 
         // AGN_008: agency_fare_url valid URL if provided
         let agency_fare_url = get_trimmed_field(&row_map, "agency_fare_url")
-            .filter(|v| !v.is_empty())
+            .filter(|v| !v.trim().is_empty())
             .map(str::to_string);
         if let Some(ref url) = agency_fare_url {
             if !looks_like_url(url) {
@@ -165,7 +165,7 @@ pub fn validate_agency(file: &RawFile) -> (Vec<AgencyRecord>, Vec<gtfs_core::Not
 
         // AGN_009: agency_email valid email if provided
         let agency_email = get_trimmed_field(&row_map, "agency_email")
-            .filter(|v| !v.is_empty())
+            .filter(|v| !v.trim().is_empty())
             .map(str::to_string);
         if let Some(ref email) = agency_email {
             if !looks_like_email(email) {

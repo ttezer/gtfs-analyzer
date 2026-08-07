@@ -1,6 +1,6 @@
 use gtfs_core::EntityType;
 
-use super::common::{build_row_map, get_trimmed_field, make_k2_notice, parse_u32, validate_enum, RowMap};
+use super::common::{get_raw_field, build_row_map, get_trimmed_field, make_k2_notice, parse_u32, validate_enum, RowMap};
 use crate::k1_parse::RawFile;
 
 #[derive(Debug, Clone)]
@@ -22,7 +22,7 @@ pub fn validate_fare_media(
     for (row_idx, row) in file.rows.iter().enumerate() {
         let line = (row_idx + 2) as u64;
         let row_map = build_row_map(&file.headers, row);
-        let id = get_trimmed_field(&row_map, "fare_media_id").unwrap_or("").to_string();
+        let id = get_raw_field(&row_map, "fare_media_id").unwrap_or("").to_string();
         let entity_id = (!id.is_empty()).then_some(id.clone());
 
         let fare_media_type = match parse_u32(&row_map, "fare_media_type") {
@@ -61,7 +61,7 @@ pub fn validate_fare_media(
         };
 
         let fare_media_name = get_trimmed_field(&row_map, "fare_media_name")
-            .filter(|v| !v.is_empty())
+            .filter(|v| !v.trim().is_empty())
             .map(str::to_string);
 
         // FMD_003: TransitCard/MobileApp/AgencyApp için fare_media_name tavsiye edilir

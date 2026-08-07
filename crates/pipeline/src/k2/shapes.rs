@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet};
 
 use gtfs_core::{EntityType, Severity};
 
-use super::common::{get_col, make_k2_notice, parse_f64_col, parse_u32_col};
+use super::common::{get_col_raw, get_col, make_k2_notice, parse_f64_col, parse_u32_col};
 use super::stop_times::{next_csv_record, ZipCsvReader};
 use crate::k1_parse::RawFile;
 
@@ -281,7 +281,7 @@ pub fn validate_shapes(file: &RawFile, zip_bytes: Option<&[u8]>) -> (Vec<ShapePo
             dq016.observe(line, row.iter().map(|v| v.as_ref()), &file.headers);
 
             // ── Shape-özel kurallar ──
-            let shape_id = get_col(row, cols.shape_id);
+            let shape_id = get_col_raw(row, cols.shape_id);
             // Intern: metin bir kez saklanır, nokta 4 baytlık indeks taşır. Ardışık aynı
             // shape_id'de (normal durum) hash araması da tahsis de yapılmaz.
             let shape_idx: u32 = if shape_id.is_empty() {

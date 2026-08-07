@@ -1,6 +1,6 @@
 use gtfs_core::EntityType;
 
-use super::common::{
+use super::common::{get_raw_field, 
     build_row_map, get_trimmed_field, make_k2_notice, parse_f64, parse_i32, parse_u32,
     validate_enum, RowMap,
 };
@@ -42,10 +42,10 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
     for (row_idx, row) in file.rows.iter().enumerate() {
         let line = (row_idx + 2) as u64;
         let row_map = build_row_map(&file.headers, row);
-        let pathway_id = get_trimmed_field(&row_map, "pathway_id").unwrap_or("").to_string();
+        let pathway_id = get_raw_field(&row_map, "pathway_id").unwrap_or("").to_string();
         let entity_id = (!pathway_id.is_empty()).then_some(pathway_id.clone());
         // PTH_020: pathway_id required (sütun yoksa ARC_025 devralır → atla)
-        if get_trimmed_field(&row_map, "pathway_id") == Some("") {
+        if get_raw_field(&row_map, "pathway_id").map(str::trim) == Some("") {
             notices.push(make_k2_notice(
                 &mut counter, "PTH_020", EntityType::Pathway, None, Some(&row_map),
                 &file.name, Some(line), Some("pathway_id"), Some(String::new()), None,
@@ -91,12 +91,12 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
             &row_map, &mut notices, &mut counter, "PTH_010", "min_width", &entity_id, line, &file.name
         );
 
-        let from_stop_id = get_trimmed_field(&row_map, "from_stop_id").unwrap_or("");
-        let to_stop_id = get_trimmed_field(&row_map, "to_stop_id").unwrap_or("");
-        if get_trimmed_field(&row_map, "from_stop_id") == Some("") {
+        let from_stop_id = get_raw_field(&row_map, "from_stop_id").unwrap_or("");
+        let to_stop_id = get_raw_field(&row_map, "to_stop_id").unwrap_or("");
+        if get_raw_field(&row_map, "from_stop_id").map(str::trim) == Some("") {
             notices.push(make_k2_notice(&mut counter, "PTH_021", EntityType::Pathway, entity_id.clone(), Some(&row_map), &file.name, Some(line), Some("from_stop_id"), Some(String::new()), None, "from_stop_id zorunludur.".to_string(), "Geçidin başlangıç durağını girin."));
         }
-        if get_trimmed_field(&row_map, "to_stop_id") == Some("") {
+        if get_raw_field(&row_map, "to_stop_id").map(str::trim) == Some("") {
             notices.push(make_k2_notice(&mut counter, "PTH_022", EntityType::Pathway, entity_id.clone(), Some(&row_map), &file.name, Some(line), Some("to_stop_id"), Some(String::new()), None, "to_stop_id zorunludur.".to_string(), "Geçidin bitiş durağını girin."));
         }
         if !from_stop_id.is_empty() && from_stop_id == to_stop_id {

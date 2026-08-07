@@ -1,7 +1,7 @@
 use gtfs_core::EntityType;
 use std::collections::HashMap;
 
-use super::common::{build_row_map, get_trimmed_field, make_k2_notice, parse_gtfs_time, RowMap};
+use super::common::{get_raw_field, build_row_map, get_trimmed_field, make_k2_notice, parse_gtfs_time, RowMap};
 use crate::k1_parse::RawFile;
 
 #[derive(Debug, Clone)]
@@ -24,10 +24,10 @@ pub fn validate_timeframes(
     for (row_idx, row) in file.rows.iter().enumerate() {
         let line = (row_idx + 2) as u64;
         let row_map = build_row_map(&file.headers, row);
-        let group_id = get_trimmed_field(&row_map, "timeframe_group_id").unwrap_or("").to_string();
+        let group_id = get_raw_field(&row_map, "timeframe_group_id").unwrap_or("").to_string();
         let entity_id = (!group_id.is_empty()).then_some(group_id.clone());
 
-        if get_trimmed_field(&row_map, "timeframe_group_id") == Some("") {
+        if get_raw_field(&row_map, "timeframe_group_id").map(str::trim) == Some("") {
             notices.push(make_k2_notice(
                 &mut counter, "TFR_001", EntityType::Row, None, Some(&row_map),
                 &file.name, Some(line), Some("timeframe_group_id"), None,
@@ -37,7 +37,7 @@ pub fn validate_timeframes(
             ));
         }
 
-        let service_id = get_trimmed_field(&row_map, "service_id").unwrap_or("").to_string();
+        let service_id = get_raw_field(&row_map, "service_id").unwrap_or("").to_string();
 
         let start_time = match parse_gtfs_time(&row_map, "start_time") {
             Ok(v) => v,

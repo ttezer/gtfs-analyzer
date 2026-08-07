@@ -306,6 +306,22 @@ kuralın ihlali GERÇEKTEN ürettiğini gösteren bir ölçüm istemiyordu.** Bu
 ihlalli ve geçerli iki feed koşulup bulgu kümeleri karşılaştırılmalı; aynı çıkıyorsa
 hüküm ölçülmüyordur. Kalan DOLAYLI kayıtları bu ölçütle henüz TARANMADI — açık kalıntı.
 
+### 5.0.1 Kimlik semantiği: PK/FK ham sözlüksel değerdir (issue #85)
+
+🔴 5. denetim turu: `get_trimmed_field`/`get_col` HER değeri kırpıyor, ID'ler o kırpılmış
+değerden kuruluyordu. Ölçülen iki hâl (`main = 44d516d8`):
+- `stops.stop_id=" A "` + `stop_times.stop_id=A` → FK **karşılanıyordu** (uydurma başarı)
+- aynı dosyada `A` ve `" A "` → **`STP_001` duplicate** (uydurma çakışma)
+
+Kimlik artık HAM değerdir (`get_raw_field`/`get_col_raw`); 74 satır-haritası ve 20 akış
+sitesi dönüştürüldü. ⚠️ **Kırpma boşluk TEŞHİSİNDE kalır** — yalnız boşluktan oluşan bir
+`stop_id` hâlâ `STP_002` üretir; aksi hâlde düzeltme bir bulgu kaybederdi. Fazladan boşluk
+ayrı kalite sinyalidir (`DQ_016`).
+
+**Ölçüm:** 20 feed · **12.768.237 ID hücresi** tarandı, başında/sonunda boşluk taşıyan
+**0**. Yani düzeltme gerçek veride bulgu değiştirmiyor (önce/sonra fark 0); kapattığı şey
+gizli bir doğruluk açığıdır, gözlenen bir hata değil.
+
 ### 5.1 18 kural korpusta tetiklenmiyor — ama bu "kanıtsız" DEMEK DEĞİL
 
 v0.8.0'dan sonra eklenen 27 kuralın 18'i korpusta hiç tetiklenmedi. **İlk yazımda bunu

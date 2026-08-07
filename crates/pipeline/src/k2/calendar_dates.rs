@@ -5,7 +5,7 @@ use gtfs_core::EntityType;
 use rustc_hash::FxHashMap;
 use smol_str::SmolStr;
 
-use super::common::{get_col, make_k2_notice};
+use super::common::{get_col_raw, get_col, make_k2_notice};
 use super::stop_times::{next_csv_record, ZipCsvReader};
 use crate::k1_parse::RawFile;
 
@@ -96,7 +96,7 @@ pub fn validate_calendar_dates(
 
     let mut process = |row: &[Cow<'_, str>], line: u64| {
         index.raw_row_count += 1;
-        let raw_sid = get_col(row, cols.service_id);
+        let raw_sid = get_col_raw(row, cols.service_id);
         let service_id: SmolStr = if raw_sid.is_empty() {
             SmolStr::default()
         } else if raw_sid.len() <= 22 {

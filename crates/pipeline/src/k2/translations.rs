@@ -1,6 +1,6 @@
 use gtfs_core::EntityType;
 
-use super::common::{build_row_map, get_trimmed_field, looks_like_bcp47, make_k2_notice, RowMap};
+use super::common::{get_raw_field, build_row_map, get_trimmed_field, looks_like_bcp47, make_k2_notice, RowMap};
 use crate::k1_parse::RawFile;
 
 const TRANSLATION_TABLES: &[&str] = &[
@@ -119,9 +119,9 @@ pub fn validate_translations(
             ));
         }
 
-        let record_id = get_trimmed_field(&row_map, "record_id").filter(|v| !v.is_empty()).map(str::to_string);
-        let record_sub_id = get_trimmed_field(&row_map, "record_sub_id").filter(|v| !v.is_empty()).map(str::to_string);
-        let field_value = get_trimmed_field(&row_map, "field_value").filter(|v| !v.is_empty()).map(str::to_string);
+        let record_id = get_raw_field(&row_map, "record_id").filter(|v| !v.trim().is_empty()).map(str::to_string);
+        let record_sub_id = get_raw_field(&row_map, "record_sub_id").filter(|v| !v.trim().is_empty()).map(str::to_string);
+        let field_value = get_trimmed_field(&row_map, "field_value").filter(|v| !v.trim().is_empty()).map(str::to_string);
 
         // TRN_015: spec `field_value` için "Required if record_id is empty" der. İkisi de
         // boşsa satır hangi kaydı çevirdiğini söylemez — çeviri hiçbir zaman uygulanamaz.

@@ -1,4 +1,4 @@
-use super::common::{build_row_map, get_trimmed_field, RowMap};
+use super::common::{get_raw_field, build_row_map, get_trimmed_field, RowMap};
 use crate::k1_parse::RawFile;
 
 #[derive(Debug, Clone)]
@@ -16,8 +16,8 @@ pub fn parse_route_networks(file: &RawFile) -> Vec<RouteNetworkRecord> {
         .map(|(row_idx, row)| {
             let row_map = build_row_map(&file.headers, row);
             RouteNetworkRecord {
-                network_id: get_trimmed_field(&row_map, "network_id").unwrap_or("").to_string(),
-                route_id: get_trimmed_field(&row_map, "route_id").unwrap_or("").to_string(),
+                network_id: get_raw_field(&row_map, "network_id").unwrap_or("").to_string(),
+                route_id: get_raw_field(&row_map, "route_id").unwrap_or("").to_string(),
                 row: row_map,
                 line: (row_idx + 2) as u64,
             }

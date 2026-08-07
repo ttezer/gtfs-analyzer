@@ -1,6 +1,6 @@
 ﻿use gtfs_core::EntityType;
 
-use super::common::{
+use super::common::{get_raw_field, 
     build_row_map, get_trimmed_field, make_k2_notice, parse_gtfs_time, parse_u32,
     validate_enum, RowMap,
 };
@@ -26,11 +26,11 @@ pub fn validate_frequencies(file: &RawFile) -> (Vec<FrequencyRecord>, Vec<gtfs_c
         let line = (row_idx + 2) as u64;
         let row_map = build_row_map(&file.headers, row);
 
-        let trip_id = get_trimmed_field(&row_map, "trip_id").unwrap_or("").to_string();
+        let trip_id = get_raw_field(&row_map, "trip_id").unwrap_or("").to_string();
         let entity_id = (!trip_id.is_empty()).then_some(trip_id.clone());
 
         // FRQ_001: trip_id required (sütun yoksa ARC_025 devralır → atla)
-        if get_trimmed_field(&row_map, "trip_id") == Some("") {
+        if get_raw_field(&row_map, "trip_id").map(str::trim) == Some("") {
             notices.push(make_k2_notice(
                 &mut counter, "FRQ_001", EntityType::Trip, None,
                 Some(&row_map), &file.name, Some(line), Some("trip_id"),

@@ -1,6 +1,6 @@
 use gtfs_core::EntityType;
 
-use super::common::{build_row_map, get_trimmed_field, make_k2_notice, parse_u32, RowMap};
+use super::common::{get_raw_field, build_row_map, get_trimmed_field, make_k2_notice, parse_u32, RowMap};
 use crate::k1_parse::RawFile;
 
 #[derive(Debug, Clone)]
@@ -27,8 +27,8 @@ pub fn validate_fare_leg_rules(
     for (row_idx, row) in file.rows.iter().enumerate() {
         let line = (row_idx + 2) as u64;
         let row_map = build_row_map(&file.headers, row);
-        let leg_group_id = get_trimmed_field(&row_map, "leg_group_id")
-            .filter(|v| !v.is_empty())
+        let leg_group_id = get_raw_field(&row_map, "leg_group_id")
+            .filter(|v| !v.trim().is_empty())
             .map(str::to_string);
         let entity_id = leg_group_id.clone();
 
@@ -48,22 +48,22 @@ pub fn validate_fare_leg_rules(
 
         records.push(FareLegRuleRecord {
             leg_group_id,
-            network_id: get_trimmed_field(&row_map, "network_id")
-                .filter(|v| !v.is_empty())
+            network_id: get_raw_field(&row_map, "network_id")
+                .filter(|v| !v.trim().is_empty())
                 .map(str::to_string),
-            from_area_id: get_trimmed_field(&row_map, "from_area_id")
-                .filter(|v| !v.is_empty())
+            from_area_id: get_raw_field(&row_map, "from_area_id")
+                .filter(|v| !v.trim().is_empty())
                 .map(str::to_string),
-            to_area_id: get_trimmed_field(&row_map, "to_area_id")
-                .filter(|v| !v.is_empty())
+            to_area_id: get_raw_field(&row_map, "to_area_id")
+                .filter(|v| !v.trim().is_empty())
                 .map(str::to_string),
-            from_timeframe_group_id: get_trimmed_field(&row_map, "from_timeframe_group_id")
-                .filter(|v| !v.is_empty())
+            from_timeframe_group_id: get_raw_field(&row_map, "from_timeframe_group_id")
+                .filter(|v| !v.trim().is_empty())
                 .map(str::to_string),
-            to_timeframe_group_id: get_trimmed_field(&row_map, "to_timeframe_group_id")
-                .filter(|v| !v.is_empty())
+            to_timeframe_group_id: get_raw_field(&row_map, "to_timeframe_group_id")
+                .filter(|v| !v.trim().is_empty())
                 .map(str::to_string),
-            fare_product_id: get_trimmed_field(&row_map, "fare_product_id").unwrap_or("").to_string(),
+            fare_product_id: get_raw_field(&row_map, "fare_product_id").unwrap_or("").to_string(),
             rule_priority,
             row: row_map,
             line,

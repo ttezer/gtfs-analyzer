@@ -1,4 +1,4 @@
-use super::common::{build_row_map, get_trimmed_field, RowMap};
+use super::common::{get_raw_field, build_row_map, get_trimmed_field, RowMap};
 use crate::k1_parse::RawFile;
 
 #[derive(Debug, Clone)]
@@ -16,9 +16,9 @@ pub fn parse_areas(file: &RawFile) -> Vec<AreaRecord> {
         .map(|(row_idx, row)| {
             let row_map = build_row_map(&file.headers, row);
             AreaRecord {
-                area_id: get_trimmed_field(&row_map, "area_id").unwrap_or("").to_string(),
+                area_id: get_raw_field(&row_map, "area_id").unwrap_or("").to_string(),
                 area_name: get_trimmed_field(&row_map, "area_name")
-                    .filter(|v| !v.is_empty())
+                    .filter(|v| !v.trim().is_empty())
                     .map(str::to_string),
                 row: row_map,
                 line: (row_idx + 2) as u64,

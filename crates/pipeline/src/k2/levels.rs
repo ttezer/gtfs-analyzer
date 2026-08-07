@@ -1,6 +1,6 @@
 use gtfs_core::EntityType;
 
-use super::common::{build_row_map, get_trimmed_field, parse_f64, make_k2_notice, RowMap};
+use super::common::{get_raw_field, build_row_map, get_trimmed_field, parse_f64, make_k2_notice, RowMap};
 use crate::k1_parse::RawFile;
 
 #[derive(Debug, Clone)]
@@ -20,9 +20,9 @@ pub fn validate_levels(file: &RawFile) -> (Vec<LevelRecord>, Vec<gtfs_core::Noti
     for (row_idx, row) in file.rows.iter().enumerate() {
         let line = (row_idx + 2) as u64;
         let row_map = build_row_map(&file.headers, row);
-        let level_id = get_trimmed_field(&row_map, "level_id").unwrap_or("").to_string();
+        let level_id = get_raw_field(&row_map, "level_id").unwrap_or("").to_string();
         // LVL_008: level_id required (sütun yoksa ARC_025 devralır → atla)
-        if get_trimmed_field(&row_map, "level_id") == Some("") {
+        if get_raw_field(&row_map, "level_id").map(str::trim) == Some("") {
             notices.push(make_k2_notice(
                 &mut counter, "LVL_008", EntityType::Level, None, Some(&row_map),
                 &file.name, Some(line), Some("level_id"), Some(String::new()), None,
@@ -64,7 +64,7 @@ pub fn validate_levels(file: &RawFile) -> (Vec<LevelRecord>, Vec<gtfs_core::Noti
         };
 
         let level_name = get_trimmed_field(&row_map, "level_name")
-            .filter(|v| !v.is_empty())
+            .filter(|v| !v.trim().is_empty())
             .map(str::to_string);
         if level_name.is_none() {
             notices.push(make_k2_notice(

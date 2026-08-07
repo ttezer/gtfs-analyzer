@@ -1,6 +1,6 @@
 use gtfs_core::EntityType;
 
-use super::common::{
+use super::common::{get_raw_field, 
     build_row_map, get_trimmed_field, looks_like_email, looks_like_url, make_k2_notice, parse_u32,
     validate_enum, RowMap,
 };
@@ -32,8 +32,8 @@ pub fn validate_attributions(
     for (row_idx, row) in file.rows.iter().enumerate() {
         let line = (row_idx + 2) as u64;
         let row_map = build_row_map(&file.headers, row);
-        let attribution_id = get_trimmed_field(&row_map, "attribution_id")
-            .filter(|v| !v.is_empty())
+        let attribution_id = get_raw_field(&row_map, "attribution_id")
+            .filter(|v| !v.trim().is_empty())
             .map(str::to_string);
 
         // ATR_001: attribution_id eksik (tavsiye edilen)
@@ -89,7 +89,7 @@ pub fn validate_attributions(
         }
 
         let attribution_url = get_trimmed_field(&row_map, "attribution_url")
-            .filter(|v| !v.is_empty())
+            .filter(|v| !v.trim().is_empty())
             .map(str::to_string);
         if let Some(url) = attribution_url.as_deref() {
             if !looks_like_url(url) {
@@ -111,7 +111,7 @@ pub fn validate_attributions(
         }
 
         let attribution_email = get_trimmed_field(&row_map, "attribution_email")
-            .filter(|v| !v.is_empty())
+            .filter(|v| !v.trim().is_empty())
             .map(str::to_string);
         if let Some(email) = attribution_email.as_deref() {
             if !looks_like_email(email) {
@@ -132,14 +132,14 @@ pub fn validate_attributions(
             }
         }
 
-        let agency_id = get_trimmed_field(&row_map, "agency_id")
-            .filter(|v| !v.is_empty())
+        let agency_id = get_raw_field(&row_map, "agency_id")
+            .filter(|v| !v.trim().is_empty())
             .map(str::to_string);
-        let route_id = get_trimmed_field(&row_map, "route_id")
-            .filter(|v| !v.is_empty())
+        let route_id = get_raw_field(&row_map, "route_id")
+            .filter(|v| !v.trim().is_empty())
             .map(str::to_string);
-        let trip_id = get_trimmed_field(&row_map, "trip_id")
-            .filter(|v| !v.is_empty())
+        let trip_id = get_raw_field(&row_map, "trip_id")
+            .filter(|v| !v.trim().is_empty())
             .map(str::to_string);
 
         records.push(AttributionRecord {

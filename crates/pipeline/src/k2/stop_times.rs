@@ -4,7 +4,7 @@ use smol_str::SmolStr;
 use std::borrow::Cow;
 use std::io::{Cursor, Read};
 
-use super::common::{get_col, make_k2_notice};
+use super::common::{get_col_raw, get_col, make_k2_notice};
 use crate::k1_parse::{RawFile, RFC4180_AFTER_CLOSE, RFC4180_BARE_QUOTE};
 
 // ── CompactStopTime: 24B flat per row — trip_id taşımaz ──────────────────────
@@ -1211,7 +1211,7 @@ pub fn validate_stop_times(file: &RawFile, zip_bytes: Option<&[u8]>, has_booking
             st.dq016.observe(line, row.iter().map(|v| v.as_ref()), &file.headers);
 
             // ── Mevcut STM_* doğrulamaları + index ──
-            let trip_id_raw = get_col(row, cols.trip_id);
+            let trip_id_raw = get_col_raw(row, cols.trip_id);
         let trip_id = intern_smolstr(trip_id_raw, &mut st.trip_id_cache);
         // entity_id is only materialized when a notice is actually pushed
         let eid = || (!trip_id.is_empty()).then(|| trip_id.to_string());
@@ -1255,7 +1255,7 @@ pub fn validate_stop_times(file: &RawFile, zip_bytes: Option<&[u8]>, has_booking
 
         // STM_036: per-trip sıralama takibi. STM_032 (duplicate seq) post-finalize'a taşındı.
         if let Some(seq) = stop_sequence {
-            let cur_stop = get_col(row, cols.stop_id);
+            let cur_stop = get_col_raw(row, cols.stop_id);
             let next_idx = st.trips_agg.len() as u32;
             let agg = st.trips_agg.entry(trip_id.clone()).or_insert_with(|| TripAgg::new(line, next_idx));
             // STM_036 (a) alt-vakası: dosya satır sırası stop_sequence sırasıyla uyuşmuyor.
@@ -1325,9 +1325,9 @@ pub fn validate_stop_times(file: &RawFile, zip_bytes: Option<&[u8]>, has_booking
         // defined. Forbidden if ... are defined." Yani bir Flex satırı stop_id yerine
         // location_id veya location_group_id taşır ve bu GEÇERLİDİR. Guard'sız hâlde her
         // Flex satırı KRİTİK STM_006 alıyordu.
-        let raw_stop = get_col(row, cols.stop_id);
-        let has_flex_location = !get_col(row, cols.location_id).is_empty()
-            || !get_col(row, cols.location_group_id).is_empty();
+        let raw_stop = get_col_raw(row, cols.stop_id);
+        let has_flex_location = !get_col_raw(row, cols.location_id).is_empty()
+            || !get_col_raw(row, cols.location_group_id).is_empty();
         if raw_stop.is_empty() && !has_flex_location && file.headers.iter().any(|h| h == "stop_id") {
             st.notices.push(make_k2_notice(
                 &mut st.counter, "STM_006", EntityType::Stop, eid(),
@@ -1550,8 +1550,8 @@ pub fn validate_stop_times(file: &RawFile, zip_bytes: Option<&[u8]>, has_booking
         if st.has_booking_rules {
             let pu2 = get_col(row, cols.pickup_type) == "2";
             let do2 = get_col(row, cols.drop_off_type) == "2";
-            let pbr = get_col(row, cols.pickup_booking_rule_id);
-            let dobr = get_col(row, cols.drop_off_booking_rule_id);
+            let pbr = get_col_raw(row, cols.pickup_booking_rule_id);
+            let dobr = get_col_raw(row, cols.drop_off_booking_rule_id);
             if (pu2 && pbr.is_empty()) || (do2 && dobr.is_empty()) {
                 let (which, field) = if pu2 && pbr.is_empty() {
                     ("pickup_type=2", "pickup_booking_rule_id")
@@ -1576,10 +1576,10 @@ pub fn validate_stop_times(file: &RawFile, zip_bytes: Option<&[u8]>, has_booking
         ) = if has_flex_cols {
         let start_window_raw = get_col(row, cols.start_pickup_drop_off_window);
         let end_window_raw   = get_col(row, cols.end_pickup_drop_off_window);
-        let loc_id_raw       = get_col(row, cols.location_id);
-        let loc_grp_raw      = get_col(row, cols.location_group_id);
-        let pbr_raw          = get_col(row, cols.pickup_booking_rule_id);
-        let dobr_raw         = get_col(row, cols.drop_off_booking_rule_id);
+        let loc_id_raw       = get_col_raw(row, cols.location_id);
+        let loc_grp_raw      = get_col_raw(row, cols.location_group_id);
+        let pbr_raw          = get_col_raw(row, cols.pickup_booking_rule_id);
+        let dobr_raw         = get_col_raw(row, cols.drop_off_booking_rule_id);
 
         // STM_058: Flex pencere alanları `Time` tipindedir — biçim hatası arrival_time gibi
         // RAPOR EDİLİR. Eskiden `.ok().flatten()` ile yutuluyordu: değer kayboluyor, STM_038
@@ -1897,7 +1897,7 @@ pub fn validate_stop_times(file: &RawFile, zip_bytes: Option<&[u8]>, has_booking
                                     .collect();
                                 // Sınıra gelindiyse trip değişimini BEKLE, sonra böl.
                                 if rows_in_chunk >= CHUNK_ROWS {
-                                    let tid = get_col(&cow_row, cols.trip_id);
+                                    let tid = get_col_raw(&cow_row, cols.trip_id);
                                     match &boundary_trip {
                                         None => boundary_trip = Some(SmolStr::from(tid)),
                                         Some(b) if b.as_str() != tid => {

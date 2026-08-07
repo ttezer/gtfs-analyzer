@@ -1,6 +1,6 @@
 use gtfs_core::EntityType;
 
-use super::common::{build_row_map, get_trimmed_field, looks_like_url, make_k2_notice, parse_u32, validate_enum, RowMap};
+use super::common::{get_raw_field, build_row_map, get_trimmed_field, looks_like_url, make_k2_notice, parse_u32, validate_enum, RowMap};
 use crate::k1_parse::RawFile;
 
 #[derive(Debug, Clone)]
@@ -28,7 +28,7 @@ pub fn validate_rider_categories(
     for (row_idx, row) in file.rows.iter().enumerate() {
         let line = (row_idx + 2) as u64;
         let row_map = build_row_map(&file.headers, row);
-        let id = get_trimmed_field(&row_map, "rider_category_id").unwrap_or("").to_string();
+        let id = get_raw_field(&row_map, "rider_category_id").unwrap_or("").to_string();
         let entity_id = (!id.is_empty()).then_some(id.clone());
 
         let name = get_trimmed_field(&row_map, "rider_category_name").unwrap_or("").to_string();
@@ -112,7 +112,7 @@ pub fn validate_rider_categories(
 
         // RCT_007: spec tipi `URL` — stop_url→STP_042, route_url→RTS_005 ile aynı desen.
         let eligibility_url = get_trimmed_field(&row_map, "eligibility_url")
-            .filter(|v| !v.is_empty())
+            .filter(|v| !v.trim().is_empty())
             .map(str::to_string);
         if let Some(ref url) = eligibility_url {
             if !looks_like_url(url) {

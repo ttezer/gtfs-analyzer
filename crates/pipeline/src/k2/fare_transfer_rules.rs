@@ -1,6 +1,6 @@
 use gtfs_core::EntityType;
 
-use super::common::{build_row_map, get_trimmed_field, make_k2_notice, parse_u32, validate_enum, RowMap};
+use super::common::{get_raw_field, build_row_map, get_trimmed_field, make_k2_notice, parse_u32, validate_enum, RowMap};
 use crate::k1_parse::RawFile;
 
 #[derive(Debug, Clone)]
@@ -26,8 +26,8 @@ pub fn validate_fare_transfer_rules(
     for (row_idx, row) in file.rows.iter().enumerate() {
         let line = (row_idx + 2) as u64;
         let row_map = build_row_map(&file.headers, row);
-        let from_leg = get_trimmed_field(&row_map, "from_leg_group_id")
-            .filter(|v| !v.is_empty())
+        let from_leg = get_raw_field(&row_map, "from_leg_group_id")
+            .filter(|v| !v.trim().is_empty())
             .map(str::to_string);
         let entity_id = from_leg.clone();
 
@@ -133,7 +133,7 @@ pub fn validate_fare_transfer_rules(
 
         // transfer_count: -1 veya pozitif tam sayı
         let transfer_count_raw = get_trimmed_field(&row_map, "transfer_count")
-            .filter(|v| !v.is_empty())
+            .filter(|v| !v.trim().is_empty())
             .map(str::to_string);
         let transfer_count = if let Some(ref raw) = transfer_count_raw {
             match raw.parse::<i32>() {
@@ -163,8 +163,8 @@ pub fn validate_fare_transfer_rules(
             None
         };
 
-        let to_leg = get_trimmed_field(&row_map, "to_leg_group_id")
-            .filter(|v| !v.is_empty())
+        let to_leg = get_raw_field(&row_map, "to_leg_group_id")
+            .filter(|v| !v.trim().is_empty())
             .map(str::to_string);
 
         // FTR_009/010: transfer_count, leg grupları AYNIYKEN zorunlu, FARKLIYKEN yasaktır
@@ -207,8 +207,8 @@ pub fn validate_fare_transfer_rules(
             duration_limit,
             duration_limit_type,
             fare_transfer_type,
-            fare_product_id: get_trimmed_field(&row_map, "fare_product_id")
-                .filter(|v| !v.is_empty())
+            fare_product_id: get_raw_field(&row_map, "fare_product_id")
+                .filter(|v| !v.trim().is_empty())
                 .map(str::to_string),
             row: row_map,
             line,

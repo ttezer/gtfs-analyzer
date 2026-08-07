@@ -1,4 +1,4 @@
-use super::common::{build_row_map, get_trimmed_field};
+use super::common::{get_raw_field, build_row_map, get_trimmed_field};
 use crate::k1_parse::RawFile;
 
 /// GTFS-Flex `location_groups.txt` — adlandırılmış durak grubu tanımı.
@@ -15,7 +15,7 @@ pub fn parse_location_groups(file: &RawFile) -> Vec<LocationGroupRecord> {
         .map(|(row_idx, row)| {
             let row_map = build_row_map(&file.headers, row);
             LocationGroupRecord {
-                location_group_id: get_trimmed_field(&row_map, "location_group_id")
+                location_group_id: get_raw_field(&row_map, "location_group_id")
                     .unwrap_or("")
                     .to_string(),
                 line: (row_idx + 2) as u64,
@@ -39,10 +39,10 @@ pub fn parse_location_group_stops(file: &RawFile) -> Vec<LocationGroupStopRecord
         .map(|(row_idx, row)| {
             let row_map = build_row_map(&file.headers, row);
             LocationGroupStopRecord {
-                location_group_id: get_trimmed_field(&row_map, "location_group_id")
+                location_group_id: get_raw_field(&row_map, "location_group_id")
                     .unwrap_or("")
                     .to_string(),
-                stop_id: get_trimmed_field(&row_map, "stop_id").unwrap_or("").to_string(),
+                stop_id: get_raw_field(&row_map, "stop_id").unwrap_or("").to_string(),
                 line: (row_idx + 2) as u64,
             }
         })

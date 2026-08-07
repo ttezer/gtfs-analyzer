@@ -5,7 +5,7 @@ use gtfs_core::EntityType;
 use rustc_hash::FxHashMap;
 use smol_str::SmolStr;
 
-use super::common::{get_col, make_k2_notice, parse_f64_col, parse_u32_col};
+use super::common::{get_col_raw, get_col, make_k2_notice, parse_f64_col, parse_u32_col};
 use super::stop_times::{next_csv_record, ZipCsvReader};
 use crate::k1_parse::RawFile;
 
@@ -178,7 +178,7 @@ pub fn validate_trips(file: &RawFile, zip_bytes: Option<&[u8]>) -> (Vec<TripReco
 
     // Satır işleyici — hem stream (raw_text) hem rows fallback yolundan çağrılır.
     let mut process = |row: &[Cow<'_, str>], line: u64| {
-        let trip_id = SmolStr::new(get_col(row, cols.trip_id));
+        let trip_id = SmolStr::new(get_col_raw(row, cols.trip_id));
         let entity_id = (!trip_id.is_empty()).then(|| trip_id.to_string());
 
         // TRP_001: trip_id zorunlu
@@ -192,8 +192,8 @@ pub fn validate_trips(file: &RawFile, zip_bytes: Option<&[u8]>) -> (Vec<TripReco
             ));
         }
 
-        let route_idx = intern_idx(get_col(row, cols.route_id), &mut interns.route_ids, &mut route_map);
-        let service_idx = intern_idx(get_col(row, cols.service_id), &mut interns.service_ids, &mut service_map);
+        let route_idx = intern_idx(get_col_raw(row, cols.route_id), &mut interns.route_ids, &mut route_map);
+        let service_idx = intern_idx(get_col_raw(row, cols.service_id), &mut interns.service_ids, &mut service_map);
 
         // TRP_031: route_id required — intern_idx 0 döndürdüyse boş demektir
         if route_idx == 0 && has_route_id_col {
@@ -219,7 +219,7 @@ pub fn validate_trips(file: &RawFile, zip_bytes: Option<&[u8]>) -> (Vec<TripReco
             ));
         }
 
-        let shape_idx = intern_idx(get_col(row, cols.shape_id), &mut interns.shape_ids, &mut shape_map);
+        let shape_idx = intern_idx(get_col_raw(row, cols.shape_id), &mut interns.shape_ids, &mut shape_map);
 
         // trip_headsign ve trip_short_name için önce raw string al (TRP_014 kontrolü için)
         let headsign_raw   = get_col(row, cols.trip_headsign);
@@ -241,8 +241,8 @@ pub fn validate_trips(file: &RawFile, zip_bytes: Option<&[u8]>) -> (Vec<TripReco
 
         let headsign_idx    = intern_idx(headsign_raw,   &mut interns.headsigns,    &mut headsign_map);
         let short_name_idx  = intern_idx(short_name_raw, &mut interns.short_names,  &mut short_name_map);
-        let block_idx       = intern_idx(get_col(row, cols.block_id),     &mut interns.block_ids,  &mut block_map);
-        let jp_office_idx   = intern_idx(get_col(row, cols.jp_office_id), &mut interns.jp_offices, &mut jp_office_map);
+        let block_idx       = intern_idx(get_col_raw(row, cols.block_id),     &mut interns.block_ids,  &mut block_map);
+        let jp_office_idx   = intern_idx(get_col_raw(row, cols.jp_office_id), &mut interns.jp_offices, &mut jp_office_map);
 
         // TRP_005: direction_id 0 veya 1 olmalı
         let dir_raw = get_col(row, cols.direction_id);

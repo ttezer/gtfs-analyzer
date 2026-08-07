@@ -2443,3 +2443,76 @@ fn case_sensitivity_correct_case_stays_silent() {
         other => panic!("Ok beklendi: {other:?}"),
     }
 }
+
+// ── issue #85: ID alanları PK/FK öncesi SESSİZCE kırpılıyordu ──────────────────
+//
+// 🔴 5. denetim turu. `get_trimmed_field`/`get_col` her değeri kırpıyor, ID'ler o
+// kırpılmış değerden kuruluyordu. `" A "` ile `A` aynı SÖZLÜKSEL değer değildir; PK/FK
+// sert semantiktir. `main = 44d516d8` üzerinde ölçülen iki hâl:
+//   1) stops `" A "` + stop_times FK `A` → eşleşiyordu (uydurma FK BAŞARISI)
+//   2) stops'ta `A` ve `" A "` → `STP_001` duplicate (uydurma ÇAKIŞMA)
+// Fazladan boşluk ayrı bir kalite sinyalidir ve `DQ_016` onu zaten bildiriyor.
+
+fn id_ws_feed(stops: &'static str, stop_times: &'static str) -> Vec<(&'static str, &'static [u8])> {
+    let mut files = base_files();
+    for slot in files.iter_mut() {
+        match slot.0 {
+            "stops.txt" => slot.1 = stops.as_bytes(),
+            "stop_times.txt" => slot.1 = stop_times.as_bytes(),
+            _ => {}
+        }
+    }
+    files
+}
+
+#[test]
+fn id85_padded_stop_id_does_not_satisfy_a_reference_to_the_bare_id() {
+    // stops yalnız `" A "` tanımlıyor; stop_times `A`ya atıf yapıyor → FK KARŞILANMAMALI.
+    let files = id_ws_feed(
+        "stop_id,stop_name,stop_lat,stop_lon\n\" A \",Bosluklu,41.0,29.0\nS2,Iki,41.1,29.1\n",
+        "trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
+         T1,08:00:00,08:00:00,A,1\nT1,08:10:00,08:10:00,S2,2\n",
+    );
+    match run(&files) {
+        ValidateResult::Ok(vr) => assert!(
+            vr.notices.iter().any(|n| n.rule_id == "STM_002"),
+            "`A` referansı `\" A \"` durağıyla karşılanmamalı → STM_002 (stop_id stops.txt'te yok)"),
+        other => panic!("Ok beklendi: {other:?}"),
+    }
+}
+
+#[test]
+fn id85_padded_and_bare_ids_are_not_duplicates() {
+    // `A` ve `" A "` FARKLI kimliklerdir; duplicate raporlamak uydurma çakışmadır.
+    let files = id_ws_feed(
+        "stop_id,stop_name,stop_lat,stop_lon\nA,Bir,41.0,29.0\n\" A \",Iki,41.1,29.1\n",
+        "trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
+         T1,08:00:00,08:00:00,A,1\nT1,08:10:00,08:10:00,A,2\n",
+    );
+    match run(&files) {
+        ValidateResult::Ok(vr) => assert!(
+            !vr.notices.iter().any(|n| n.rule_id == "STP_001"),
+            "farklı sözlüksel kimlikler duplicate DEĞİLDİR"),
+        other => panic!("Ok beklendi: {other:?}"),
+    }
+}
+
+#[test]
+fn id85_whitespace_only_id_still_reports_the_required_field() {
+    // ⚠️ SINIR: boşluk teşhisi kırpma KULLANIR ama kimliği değiştirmez. Yalnızca
+    // boşluktan oluşan `stop_id` hâlâ "zorunlu alan boş" (`STP_002`) saymalı — aksi
+    // hâlde bu düzeltme bir bulgu KAYBEDERDİ. Ayrıca fazladan boşluk kalite sinyali
+    // (`DQ_016`) ayrı yoldan bildirilmeye devam eder.
+    let files = id_ws_feed(
+        "stop_id,stop_name,stop_lat,stop_lon\n\"   \",Bosluk,41.0,29.0\nS2,Iki,41.1,29.1\n",
+        "trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
+         T1,08:00:00,08:00:00,S2,1\nT1,08:10:00,08:10:00,S2,2\n",
+    );
+    match run(&files) {
+        ValidateResult::Ok(vr) => {
+            assert!(has(&vr, "STP_002"), "yalnız boşluktan oluşan stop_id zorunlu-alan ihlalidir");
+            assert!(has(&vr, "DQ_016"), "fazladan boşluk AYRI kalite sinyali olarak kalmalı");
+        }
+        other => panic!("Ok beklendi: {other:?}"),
+    }
+}

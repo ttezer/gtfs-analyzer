@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use gtfs_core::EntityType;
 
-use super::common::{
+use super::common::{get_raw_field, 
     build_row_map, get_field, get_trimmed_field, looks_like_iana_timezone, looks_like_url,
     make_k2_notice, parse_f64, parse_u32, validate_enum, RowMap,
 };
@@ -46,11 +46,11 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
         let line = (row_idx + 2) as u64;
         let row_map = build_row_map(&file.headers, row);
 
-        let stop_id = get_trimmed_field(&row_map, "stop_id").unwrap_or("").to_string();
+        let stop_id = get_raw_field(&row_map, "stop_id").unwrap_or("").to_string();
         let entity_id = (!stop_id.is_empty()).then_some(stop_id.clone());
 
         // STP_002: stop_id required (sütun yoksa ARC_025 devralır → atla)
-        if get_trimmed_field(&row_map, "stop_id") == Some("") {
+        if get_raw_field(&row_map, "stop_id").map(str::trim) == Some("") {
             notices.push(make_k2_notice(
                 &mut counter, "STP_002", EntityType::Stop, None,
                 Some(&row_map), &file.name, Some(line), Some("stop_id"),
@@ -61,7 +61,7 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
         }
 
         let stop_code = get_trimmed_field(&row_map, "stop_code")
-            .filter(|v| !v.is_empty())
+            .filter(|v| !v.trim().is_empty())
             .map(str::to_string);
         if stop_code.is_some() {
             any_stop_code_present = true;
@@ -139,7 +139,7 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
 
         // stop_name: required for stops/stations/entrances (location_type 0, 1, 2 veya boş)
         let stop_name = get_trimmed_field(&row_map, "stop_name")
-            .filter(|v| !v.is_empty())
+            .filter(|v| !v.trim().is_empty())
             .map(str::to_string);
         if stop_name.is_none() && requires_name_and_coords {
             notices.push(make_k2_notice(
@@ -179,7 +179,7 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
 
         // STP_031: stop_name == stop_desc (same_name_and_description_for_stop)
         let stop_desc = get_trimmed_field(&row_map, "stop_desc")
-            .filter(|v| !v.is_empty())
+            .filter(|v| !v.trim().is_empty())
             .map(str::to_string);
         if let (Some(ref name), Some(ref desc)) = (&stop_name, &stop_desc) {
             if name.eq_ignore_ascii_case(desc) {
@@ -279,7 +279,7 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
 
         // stop_timezone: must be valid IANA if provided
         let stop_timezone = get_trimmed_field(&row_map, "stop_timezone")
-            .filter(|v| !v.is_empty())
+            .filter(|v| !v.trim().is_empty())
             .map(str::to_string);
         if let Some(ref tz) = stop_timezone {
             if !looks_like_iana_timezone(tz) {
@@ -353,11 +353,11 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
             }
         };
 
-        let level_id = get_trimmed_field(&row_map, "level_id")
-            .filter(|v| !v.is_empty())
+        let level_id = get_raw_field(&row_map, "level_id")
+            .filter(|v| !v.trim().is_empty())
             .map(str::to_string);
         let tts_stop_name = get_trimmed_field(&row_map, "tts_stop_name")
-            .filter(|v| !v.is_empty())
+            .filter(|v| !v.trim().is_empty())
             .map(str::to_string);
 
         // STP_044: platform_code yalnız platform TANIMLAYICISI olmalı ("2b", "A", "5");
@@ -369,7 +369,7 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
         //
         // STP_040 aynı şekli `stop_name` için uygular ama OPT-IN'dir, çünkü "Union Station"
         // meşru bir addır. Burada spec doğrudan yasakladığı için opt-in değil.
-        if let Some(pc) = get_trimmed_field(&row_map, "platform_code").filter(|v| !v.is_empty()) {
+        if let Some(pc) = get_trimmed_field(&row_map, "platform_code").filter(|v| !v.trim().is_empty()) {
             const PLATFORM_WORDS: &[&str] = &[
                 "platform", "track", "gleis", "peron", "perron", "binario",
                 "voie", "quai", "spor", "anden", "andén", "plataforma",
@@ -403,8 +403,8 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
         }
 
         // STP_033: zone_id eksik (stop_without_zone_id) — yalnızca regular stop (location_type=0 veya boş)
-        let zone_id = get_trimmed_field(&row_map, "zone_id")
-            .filter(|v| !v.is_empty())
+        let zone_id = get_raw_field(&row_map, "zone_id")
+            .filter(|v| !v.trim().is_empty())
             .map(str::to_string);
         let loc_type = location_type.unwrap_or(0);
         if zone_id.is_none() && loc_type == 0 {
@@ -418,7 +418,7 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
         }
 
         let stop_url = get_trimmed_field(&row_map, "stop_url")
-            .filter(|v| !v.is_empty())
+            .filter(|v| !v.trim().is_empty())
             .map(str::to_string);
         // STP_042: spec tipi `URL`. Kardeş alanların hepsinde biçim kuralı var
         // (route_url→RTS_005 ile birebir aynı desen); stop_url'de yalnız STP_034/035

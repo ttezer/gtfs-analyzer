@@ -1,4 +1,4 @@
-use super::common::{build_row_map, get_trimmed_field, RowMap};
+use super::common::{get_raw_field, build_row_map, get_trimmed_field, RowMap};
 use crate::k1_parse::RawFile;
 
 /// GTFS-JP `agency_jp.txt` — işleticinin resmî/yasal bilgileri. `agency_id`
@@ -17,8 +17,8 @@ pub fn parse_agency_jp(file: &RawFile) -> Vec<AgencyJpRecord> {
         .map(|(row_idx, row)| {
             let row_map = build_row_map(&file.headers, row);
             AgencyJpRecord {
-                agency_id: get_trimmed_field(&row_map, "agency_id")
-                    .filter(|v| !v.is_empty())
+                agency_id: get_raw_field(&row_map, "agency_id")
+                    .filter(|v| !v.trim().is_empty())
                     .map(str::to_string),
                 row: row_map,
                 line: (row_idx + 2) as u64,

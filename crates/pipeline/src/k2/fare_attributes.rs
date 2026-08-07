@@ -1,6 +1,6 @@
 use gtfs_core::EntityType;
 
-use super::common::{amount_has_iso4217_decimals, iso4217_minor_unit, build_row_map, get_trimmed_field, make_k2_notice, parse_f64, parse_u32, validate_enum, RowMap};
+use super::common::{get_raw_field, amount_has_iso4217_decimals, iso4217_minor_unit, build_row_map, get_trimmed_field, make_k2_notice, parse_f64, parse_u32, validate_enum, RowMap};
 use crate::k1_parse::RawFile;
 
 #[derive(Debug, Clone)]
@@ -29,9 +29,9 @@ pub fn validate_fare_attributes(
     for (row_idx, row) in file.rows.iter().enumerate() {
         let line = (row_idx + 2) as u64;
         let row_map = build_row_map(&file.headers, row);
-        let fare_id = get_trimmed_field(&row_map, "fare_id").unwrap_or("").to_string();
+        let fare_id = get_raw_field(&row_map, "fare_id").unwrap_or("").to_string();
         // FAR_012: fare_id required (sütun yoksa ARC_025 devralır → atla)
-        if get_trimmed_field(&row_map, "fare_id") == Some("") {
+        if get_raw_field(&row_map, "fare_id").map(str::trim) == Some("") {
             notices.push(make_k2_notice(
                 &mut counter, "FAR_012", EntityType::Fare, None, Some(&row_map),
                 &file.name, Some(line), Some("fare_id"), Some(String::new()), None,
@@ -136,7 +136,7 @@ pub fn validate_fare_attributes(
             payment_method,
             transfers,
             transfer_duration,
-            agency_id: get_trimmed_field(&row_map, "agency_id").filter(|v| !v.is_empty()).map(str::to_string),
+            agency_id: get_raw_field(&row_map, "agency_id").filter(|v| !v.trim().is_empty()).map(str::to_string),
             row: row_map,
             line,
         });

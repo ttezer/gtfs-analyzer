@@ -1,7 +1,7 @@
 use gtfs_core::EntityType;
 use std::collections::HashMap;
 
-use super::common::{amount_has_iso4217_decimals, iso4217_minor_unit, build_row_map, get_trimmed_field, make_k2_notice, parse_f64, RowMap};
+use super::common::{get_raw_field, amount_has_iso4217_decimals, iso4217_minor_unit, build_row_map, get_trimmed_field, make_k2_notice, parse_f64, RowMap};
 use crate::k1_parse::RawFile;
 
 #[derive(Debug, Clone)]
@@ -29,7 +29,7 @@ pub fn validate_fare_products(
     for (row_idx, row) in file.rows.iter().enumerate() {
         let line = (row_idx + 2) as u64;
         let row_map = build_row_map(&file.headers, row);
-        let id = get_trimmed_field(&row_map, "fare_product_id").unwrap_or("").to_string();
+        let id = get_raw_field(&row_map, "fare_product_id").unwrap_or("").to_string();
         let entity_id = (!id.is_empty()).then_some(id.clone());
 
         // FPD_007: tutar, para biriminin ISO 4217 ondalık basamak sayısını taşımalı.
@@ -76,7 +76,7 @@ pub fn validate_fare_products(
         };
 
         // GGL_002: ic_price (Google-özel alan) — varsa -1 veya pozitif olmalı
-        if let Some(ic_price_raw) = get_trimmed_field(&row_map, "ic_price").filter(|v| !v.is_empty()) {
+        if let Some(ic_price_raw) = get_trimmed_field(&row_map, "ic_price").filter(|v| !v.trim().is_empty()) {
             match ic_price_raw.parse::<f64>() {
                 Ok(v) if v >= 0.0 || (v - (-1.0)).abs() < 1e-9 => {}
                 Ok(v) => {
@@ -116,13 +116,13 @@ pub fn validate_fare_products(
         records.push(FareProductRecord {
             fare_product_id: id,
             fare_product_name: get_trimmed_field(&row_map, "fare_product_name")
-                .filter(|v| !v.is_empty())
+                .filter(|v| !v.trim().is_empty())
                 .map(str::to_string),
-            rider_category_id: get_trimmed_field(&row_map, "rider_category_id")
-                .filter(|v| !v.is_empty())
+            rider_category_id: get_raw_field(&row_map, "rider_category_id")
+                .filter(|v| !v.trim().is_empty())
                 .map(str::to_string),
-            fare_media_id: get_trimmed_field(&row_map, "fare_media_id")
-                .filter(|v| !v.is_empty())
+            fare_media_id: get_raw_field(&row_map, "fare_media_id")
+                .filter(|v| !v.trim().is_empty())
                 .map(str::to_string),
             amount,
             currency,

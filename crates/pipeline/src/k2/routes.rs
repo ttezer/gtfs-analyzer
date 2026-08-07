@@ -2,7 +2,7 @@
 
 use gtfs_core::EntityType;
 
-use super::common::{
+use super::common::{get_raw_field, 
     build_row_map, get_trimmed_field, is_hex_color_6, looks_like_url, make_k2_notice,
     parse_u32, wcag_contrast_ratio, RowMap,
 };
@@ -45,18 +45,18 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
         let line = (row_idx + 2) as u64;
         let row_map = build_row_map(&file.headers, row);
 
-        let route_id = get_trimmed_field(&row_map, "route_id").unwrap_or("").to_string();
+        let route_id = get_raw_field(&row_map, "route_id").unwrap_or("").to_string();
         let entity_id = (!route_id.is_empty()).then_some(route_id.clone());
 
-        let agency_id = get_trimmed_field(&row_map, "agency_id")
-            .filter(|v| !v.is_empty())
+        let agency_id = get_raw_field(&row_map, "agency_id")
+            .filter(|v| !v.trim().is_empty())
             .map(str::to_string);
 
         let route_short_name = get_trimmed_field(&row_map, "route_short_name")
-            .filter(|v| !v.is_empty())
+            .filter(|v| !v.trim().is_empty())
             .map(str::to_string);
         let route_long_name = get_trimmed_field(&row_map, "route_long_name")
-            .filter(|v| !v.is_empty())
+            .filter(|v| !v.trim().is_empty())
             .map(str::to_string);
 
         // RTS_003: both route_short_name and route_long_name are empty
@@ -169,7 +169,7 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
 
         // RTS_005: route_url must be valid URL if provided
         let route_url = get_trimmed_field(&row_map, "route_url")
-            .filter(|v| !v.is_empty())
+            .filter(|v| !v.trim().is_empty())
             .map(str::to_string);
         if let Some(ref url) = route_url {
             if !looks_like_url(url) {
@@ -184,7 +184,7 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
 
         // RTS_006: route_color must be valid 6-char hex
         let route_color = get_trimmed_field(&row_map, "route_color")
-            .filter(|v| !v.is_empty())
+            .filter(|v| !v.trim().is_empty())
             .map(str::to_string);
         if let Some(ref color) = route_color {
             if !is_hex_color_6(color) {
@@ -200,7 +200,7 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
 
         // RTS_007: route_text_color must be valid 6-char hex
         let route_text_color = get_trimmed_field(&row_map, "route_text_color")
-            .filter(|v| !v.is_empty())
+            .filter(|v| !v.trim().is_empty())
             .map(str::to_string);
         if let Some(ref color) = route_text_color {
             if !is_hex_color_6(color) {
@@ -258,7 +258,7 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
         };
 
         let route_desc = get_trimmed_field(&row_map, "route_desc")
-            .filter(|v| !v.is_empty())
+            .filter(|v| !v.trim().is_empty())
             .map(str::to_string);
 
         // RTS_023: route_desc, route_long_name VEYA route_short_name ile aynı
@@ -298,13 +298,13 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
             }
         }
 
-        let network_id = get_trimmed_field(&row_map, "network_id")
-            .filter(|v| !v.is_empty())
+        let network_id = get_raw_field(&row_map, "network_id")
+            .filter(|v| !v.trim().is_empty())
             .map(str::to_string);
 
         // GTFS-JP: jp_office_id (resmî spec routes.txt'te tanımlar; JPN_002 office_jp FK denetimi)
-        let jp_office_id = get_trimmed_field(&row_map, "jp_office_id")
-            .filter(|v| !v.is_empty())
+        let jp_office_id = get_raw_field(&row_map, "jp_office_id")
+            .filter(|v| !v.trim().is_empty())
             .map(str::to_string);
 
         // RTS_024: route_cemv_support 0, 1 veya 2 olmalı (AGN_012 route ikizi)

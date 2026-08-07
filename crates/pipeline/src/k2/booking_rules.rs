@@ -1,6 +1,6 @@
 use gtfs_core::EntityType;
 
-use super::common::{build_row_map, get_trimmed_field, looks_like_phone, looks_like_url, make_k2_notice, RowMap};
+use super::common::{get_raw_field, build_row_map, get_trimmed_field, looks_like_phone, looks_like_url, make_k2_notice, RowMap};
 use crate::k1_parse::RawFile;
 
 #[derive(Debug, Clone)]
@@ -20,7 +20,7 @@ pub struct BookingRuleRecord {
 
 fn opt_str(row: &RowMap, field: &str) -> Option<String> {
     get_trimmed_field(row, field)
-        .filter(|v| !v.is_empty())
+        .filter(|v| !v.trim().is_empty())
         .map(str::to_string)
 }
 
@@ -45,7 +45,7 @@ fn opt_int_checked(
     notices: &mut Vec<gtfs_core::Notice>,
     ctr: &mut u32,
 ) -> Option<i64> {
-    let raw = get_trimmed_field(row, field).filter(|v| !v.is_empty())?;
+    let raw = get_trimmed_field(row, field).filter(|v| !v.trim().is_empty())?;
     match raw.parse::<i64>() {
         Ok(v) => Some(v),
         Err(_) => {
@@ -72,13 +72,13 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
         let line = (row_idx + 2) as u64;
         let row_map = build_row_map(&file.headers, row);
 
-        let id = get_trimmed_field(&row_map, "booking_rule_id").unwrap_or("").to_string();
+        let id = get_raw_field(&row_map, "booking_rule_id").unwrap_or("").to_string();
         let entity_id = (!id.is_empty()).then_some(id.clone());
 
         // BKR_019: booking_rule_id eksik (boş) veya yineleniyor.
         // Sütun başlıkta hiç yoksa ARC_025 devralır (RTS_004 deseni) → burada susulur.
         if id.is_empty() {
-            if get_trimmed_field(&row_map, "booking_rule_id") == Some("") {
+            if get_raw_field(&row_map, "booking_rule_id").map(str::trim) == Some("") {
                 notices.push(make_k2_notice(
                     &mut ctr, "BKR_019", EntityType::Row, None, Some(&row_map),
                     &file.name, Some(line), Some("booking_rule_id"),
