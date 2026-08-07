@@ -17,6 +17,16 @@ on:
     # year, and a daily job would only add noise to the schedule history.
     - cron: "0 6 * * 1"
   workflow_dispatch:
+    inputs:
+      simulate:
+        description: >-
+          Force a mismatch to prove the issue path still works. The baseline is doctored
+          in the runner only; nothing in the repository changes and the issue title is
+          marked SIMULATED. Without this the issue-creation step would never run until a
+          real spec revision, i.e. it would be an untested gate.
+        type: choice
+        default: "none"
+        options: ["none", "catalogue", "upstream"]
 
 permissions:
   contents: read
@@ -29,10 +39,27 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      - name: Doctor the baseline (manual verification only)
+        if: inputs.simulate != 'none' && inputs.simulate != ''
+        run: |
+          python3 - "${{ inputs.simulate }}" <<'PY'
+          import json, sys
+          kind = sys.argv[1]
+          d = json.load(open("spec-audit/spec_provisions.json"))
+          key = "provisions_sha256" if kind == "catalogue" else "upstream_commit"
+          d["_source"][key] = "0" * len(d["_source"][key])
+          json.dump(d, open("/tmp/baseline.json", "w"))
+          PY
+
       # Exit 0 = measured (status may still be drift); exit 2 = could not measure → red.
       - name: spec_drift.py
         id: drift
-        run: python3 spec-audit/spec_drift.py
+        run: |
+          if [ "${{ inputs.simulate }}" != "none" ] && [ -n "${{ inputs.simulate }}" ]; then
+            python3 spec-audit/spec_drift.py --baseline /tmp/baseline.json
+          else
+            python3 spec-audit/spec_drift.py
+          fi
 
       # ⚠️ `cosmetic` DELIBERATELY does not open an issue. Measured on 2026-08-07: the
       # rendered page's sha256 had already moved (295,559 → 295,827 bytes) while the
@@ -49,7 +76,11 @@ jobs:
           STATUS: ${{ steps.drift.outputs.status }}
         run: |
           set -euo pipefail
-          title="Spec drift ($STATUS): $FINGERPRINT"
+          mark=""
+          if [ "${{ inputs.simulate }}" != "none" ] && [ -n "${{ inputs.simulate }}" ]; then
+            mark=", SIMULATED"
+          fi
+          title="Spec drift ($STATUS$mark): $FINGERPRINT"
           # Do not stack duplicates: the same revision would otherwise file an issue every
           # week until someone adjudicates it.
           existing=$(gh issue list --state open --label spec-drift --search "$FINGERPRINT" --json title --jq 'length')
