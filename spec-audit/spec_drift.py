@@ -239,8 +239,10 @@ def main() -> int:
         try:
             live_upstream = mod.upstream_commit()["upstream_commit"]
         except Exception as e:
-            print(f"UYARI: upstream commit çözülemedi ({type(e).__name__}) — 'upstream' "
-                  f"sinyali bu koşuda ÖLÇÜLMEDİ.", file=sys.stderr)
+            # Mesajı da bas: 2026-08-07'de yalnız tip basılıyordu ve CI'daki kota
+            # hatası "RuntimeError" olarak göründü, teşhis bir tur geciktirdi.
+            print(f"UYARI: upstream commit çözülemedi ({type(e).__name__}: {e}) — "
+                  f"'upstream' sinyali bu koşuda ÖLÇÜLMEDİ.", file=sys.stderr)
             live_upstream = None
 
         if live_cat is None and live_upstream is None:

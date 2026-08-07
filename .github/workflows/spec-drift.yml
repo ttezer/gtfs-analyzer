@@ -62,6 +62,10 @@ jobs:
       # Exit 0 = measured (status may still be drift); exit 2 = could not measure → red.
       - name: spec_drift.py
         id: drift
+        # The GitHub API call needs a token here: the unauthenticated limit is 60/hour per
+        # IP and hosted runners share theirs, which is what failed the first run.
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           if [ "${{ inputs.simulate }}" != "none" ] && [ -n "${{ inputs.simulate }}" ]; then
             python3 spec-audit/spec_drift.py --mode upstream --baseline /tmp/baseline.json

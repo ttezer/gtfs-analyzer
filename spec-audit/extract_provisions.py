@@ -35,6 +35,7 @@ import hashlib
 import html
 import re as _re
 import json
+import os
 import pathlib
 import re
 import subprocess
@@ -129,11 +130,14 @@ def upstream_commit() -> dict:
     # ⚠️ `urllib` DEĞİL `curl` — bu betiğin kendi docstring'i ve `zip_peek.py` aynı tuzağı
     # not ediyor: geliştirme makinesinde Python'un sertifika deposu yok, `urlopen`
     # CERTIFICATE_VERIFY_FAILED veriyor. `curl` her iki ortamda da çalışıyor.
-    p = subprocess.run(
-        ["curl", "-sSL", "--max-time", "60", "-H", "Accept: application/vnd.github+json",
-         "-H", "User-Agent: gtfs-analyzer", UPSTREAM_API],
-        capture_output=True,
-    )
+    cmd = ["curl", "-sSL", "--max-time", "60", "-H", "Accept: application/vnd.github+json",
+           "-H", "User-Agent: gtfs-analyzer"]
+    # ⚠️ CI'da KİMLİKLİ istek şart: kimliksiz kota IP başına saatte 60'tır ve GitHub
+    # koşucuları o IP'yi paylaşır — 2026-08-07'de ilk koşum tam bu yüzden düştü.
+    # Yerelde token yoksa kimliksiz devam eder (kota bir kişi için yeter).
+    if token := (os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN")):
+        cmd += ["-H", f"Authorization: Bearer {token}"]
+    p = subprocess.run(cmd + [UPSTREAM_API], capture_output=True)
     if p.returncode != 0:
         raise RuntimeError(f"curl hatası: {p.stderr.decode()[:120]}")
     data = json.loads(p.stdout.decode("utf-8"))
