@@ -10,6 +10,13 @@ name: Spec drift
 # does not fail anything — it opens an issue. What DOES fail the job is being unable to
 # look at all (exit 2), because a check that goes green when it could not measure is not a
 # check.
+#
+# 🔴 CI compares the UPSTREAM COMMIT, not the rendered page. Measured on 2026-08-07: the
+# first run got HTTP 403 — gtfs.org is behind Cloudflare and blocks hosted runners even
+# with a browser user-agent. So the catalogue-level comparison (which needs the page) runs
+# on a workstation, and CI watches `gtfs/spec/en/reference.md` in google/transit instead.
+# That is the more direct signal anyway: it is the source the page is rendered from.
+# `--mode upstream` makes the limit explicit rather than letting `auto` silently degrade.
 
 on:
   schedule:
@@ -26,7 +33,10 @@ on:
           real spec revision, i.e. it would be an untested gate.
         type: choice
         default: "none"
-        options: ["none", "catalogue", "upstream"]
+        # Only `upstream` is offered: simulating `catalogue` would need the page, which
+        # this runner cannot fetch. An option that silently does nothing is worse than
+        # no option.
+        options: ["none", "upstream"]
 
 permissions:
   contents: read
@@ -34,7 +44,7 @@ permissions:
 
 jobs:
   drift:
-    name: Compare the catalogue against the live spec
+    name: Compare the recorded spec revision against upstream
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -42,12 +52,10 @@ jobs:
       - name: Doctor the baseline (manual verification only)
         if: inputs.simulate != 'none' && inputs.simulate != ''
         run: |
-          python3 - "${{ inputs.simulate }}" <<'PY'
-          import json, sys
-          kind = sys.argv[1]
+          python3 - <<'PY'
+          import json
           d = json.load(open("spec-audit/spec_provisions.json"))
-          key = "provisions_sha256" if kind == "catalogue" else "upstream_commit"
-          d["_source"][key] = "0" * len(d["_source"][key])
+          d["_source"]["upstream_commit"] = "0" * len(d["_source"]["upstream_commit"])
           json.dump(d, open("/tmp/baseline.json", "w"))
           PY
 
@@ -56,17 +64,17 @@ jobs:
         id: drift
         run: |
           if [ "${{ inputs.simulate }}" != "none" ] && [ -n "${{ inputs.simulate }}" ]; then
-            python3 spec-audit/spec_drift.py --baseline /tmp/baseline.json
+            python3 spec-audit/spec_drift.py --mode upstream --baseline /tmp/baseline.json
           else
-            python3 spec-audit/spec_drift.py
+            python3 spec-audit/spec_drift.py --mode upstream
           fi
 
-      # ⚠️ `cosmetic` DELIBERATELY does not open an issue. Measured on 2026-08-07: the
-      # rendered page's sha256 had already moved (295,559 → 295,827 bytes) while the
-      # catalogue was byte-identical — 299 of 299 candidates, same ids, same revision. The
-      # drift was mkdocs chrome. A raw sha gate would have opened an issue on its first
-      # run for no normative change, which is exactly the "trains people to ignore it"
-      # failure this job is meant to avoid.
+      # ⚠️ `cosmetic` DELIBERATELY does not open an issue — it cannot even occur here,
+      # since CI does not fetch the page. It exists for local runs, and it exists because
+      # the page's sha256 is not a signal: three consecutive downloads produce three
+      # digests, differing only in Cloudflare's injected lines. A raw sha gate would have
+      # filed an issue on every run for no normative change — exactly the "trains people
+      # to ignore it" failure this job is meant to avoid.
       - name: Open an issue when the catalogue moved
         if: steps.drift.outputs.status == 'catalogue' || steps.drift.outputs.status == 'upstream'
         env:
@@ -81,6 +89,9 @@ jobs:
             mark=", SIMULATED"
           fi
           title="Spec drift ($STATUS$mark): $FINGERPRINT"
+          # Create the label first: `gh issue list --label` errors when the label does
+          # not exist yet, which would fail the very first drift run.
+          gh label create spec-drift --description "Upstream GTFS spec moved" --color 0e8a16 2>/dev/null || true
           # Do not stack duplicates: the same revision would otherwise file an issue every
           # week until someone adjudicates it.
           existing=$(gh issue list --state open --label spec-drift --search "$FINGERPRINT" --json title --jq 'length')
@@ -88,7 +99,6 @@ jobs:
             echo "Already filed for $FINGERPRINT — skipping." >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
-          gh label create spec-drift --description "Upstream GTFS spec moved" --color 0e8a16 2>/dev/null || true
           gh issue create --title "$title" --label spec-drift --body "$BODY"
 
       - name: Summary

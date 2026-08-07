@@ -36,19 +36,36 @@ açsaydı haftada bir yanlış alarm üretirdi.
 Kararın dayandığı çapa `_source.provisions_sha256`: adaylardan hesaplanır, site
 iskeletinden bağımsızdır ve iki AYRI indirmede AYNI çıktığı ölçülmüştür.
 
+## 🔴 gtfs.org CI'dan ALINAMIYOR — sinyal ikiye ayrıldı (2026-08-07 ölçümü)
+
+İlk koşum CI'da **HTTP 403** aldı: gtfs.org Cloudflare arkasında ve barındırılan koşucu
+IP'lerini engelliyor (tarayıcı User-Agent'ı da yetmedi). Yani KATALOG sinyali CI'dan
+ölçülemez — bu bir hata değil, ortamın sınırı.
+
+Ama sürüklenmenin asıl sorusu "spec metni değişti mi", ve o soru CI'dan YANITLANABİLİR:
+`reference.md`'ye dokunan en yeni commit GitHub API'sinden okunur. Bu yüzden üç mod var:
+
+  `page`     → sayfayı indirir, KATALOĞU yeniden üretip karşılaştırır (yerel/geliştirici)
+  `upstream` → yalnız commit karşılaştırır (CI'dan çalışır)
+  `auto`     → sayfayı dener; alınamazsa upstream'e DÜŞER **ve bunu açıkça yazar**
+
+⚠️ Düşüş SESSİZ DEĞİLDİR: rapor hangi sinyalin ölçülMEDİĞİNİ ve nedenini basar, issue
+gövdesine de girer. Sessiz düşüş, yeşil görünen kör bir denetim demek olurdu.
+
 ## Çıkış kodları — "sürüklenme yok" ile "bakılamadı" AYRI
 
-  0 → ölçüm YAPILDI (sonuç `same`/`cosmetic`/`catalogue`/`upstream` olabilir)
-  2 → ÖLÇÜLEMEDİ (ağ/ayrıştırma hatası). İş kırmızı olur ve bu BİLİNÇLİDİR: sessizce
-      yeşil kalan bir denetim, denetim değildir (`zip_peek.py` ile aynı ders — "dosya
-      yok" ile "bakılamadı" karıştırılmaz).
+  0 → EN AZ BİR sinyal ölçüldü (sonuç `same`/`cosmetic`/`catalogue`/`upstream`)
+  2 → HİÇBİR sinyal ölçülemedi (ne sayfa ne commit). İş kırmızı olur ve bu BİLİNÇLİDİR:
+      sessizce yeşil kalan bir denetim, denetim değildir (`zip_peek.py` ile aynı ders —
+      "dosya yok" ile "bakılamadı" karıştırılmaz).
 
 Sürüklenmenin kendisi build'i KIRMAZ: spec revizyonu bu depoda bir regresyon değil,
 haberdir.
 
 Çalıştır:
-    python3 spec-audit/spec_drift.py                 # ağdan indirir
+    python3 spec-audit/spec_drift.py                 # auto (sayfa → gerekirse upstream)
     python3 spec-audit/spec_drift.py spec.html       # yerel kopyadan (test)
+    python3 spec-audit/spec_drift.py --mode upstream # yalnız commit (CI bunu koşar)
     python3 spec-audit/spec_drift.py --baseline X.json spec.html
 """
 import hashlib
@@ -134,17 +151,22 @@ def catalogue_of(mod, doc: str) -> dict:
             mod.OUT, sys.argv = saved_out_path, real_argv
 
 
-def classify(base: dict, live_doc: str, live_cat: dict, live_upstream: str | None) -> dict:
-    b_src, l_src = base["_source"], live_cat["_source"]
-    page_same = b_src["sha256"] == hashlib.sha256(live_doc.encode("utf-8")).hexdigest()
+def classify(base: dict, live_doc: str | None, live_cat: dict | None,
+             live_upstream: str | None, page_error: str | None) -> dict:
+    b_src = base["_source"]
+    l_src = live_cat["_source"] if live_cat else {}
+    page_same = (live_doc is not None
+                 and b_src["sha256"] == hashlib.sha256(live_doc.encode("utf-8")).hexdigest())
 
     b_ids = {p["id"] for p in base["provisions"]}
-    l_ids = {p["id"] for p in live_cat["provisions"]}
-    added, gone = sorted(l_ids - b_ids), sorted(b_ids - l_ids)
-    revision_changed = b_src.get("spec_revision") != l_src.get("spec_revision")
+    l_ids = {p["id"] for p in live_cat["provisions"]} if live_cat else set()
+    added = sorted(l_ids - b_ids) if live_cat else []
+    gone = sorted(b_ids - l_ids) if live_cat else []
+    revision_changed = bool(live_cat) and b_src.get("spec_revision") != l_src.get("spec_revision")
     # Asıl çapa: kataloğun kendi özeti. Kimlik kümesi issue gövdesini zenginleştirir ama
     # kararı bu alan verir — cümle METNİ kimliği değiştirmeden düzelirse bile yakalar.
-    catalogue_changed = b_src.get("provisions_sha256") != l_src.get("provisions_sha256")
+    catalogue_changed = (bool(live_cat)
+                         and b_src.get("provisions_sha256") != l_src.get("provisions_sha256"))
 
     recorded_commit = b_src.get("upstream_commit")
     commit_moved = bool(live_upstream and recorded_commit and live_upstream != recorded_commit)
@@ -153,7 +175,7 @@ def classify(base: dict, live_doc: str, live_cat: dict, live_upstream: str | Non
         status = "catalogue"
     elif commit_moved:
         status = "upstream"
-    elif not page_same:
+    elif live_cat and not page_same:
         status = "cosmetic"
     else:
         status = "same"
@@ -161,6 +183,8 @@ def classify(base: dict, live_doc: str, live_cat: dict, live_upstream: str | Non
     return {
         "status": status,
         "page_same": page_same,
+        "page_error": page_error,
+        "catalogue_measured": bool(live_cat),
         "added": added,
         "gone": gone,
         "revision_recorded": b_src.get("spec_revision"),
@@ -168,7 +192,7 @@ def classify(base: dict, live_doc: str, live_cat: dict, live_upstream: str | Non
         "commit_recorded": recorded_commit,
         "commit_live": live_upstream,
         "candidates_recorded": len(b_ids),
-        "candidates_live": len(l_ids),
+        "candidates_live": len(l_ids) if live_cat else None,
         "catalogue_sha_recorded": b_src.get("provisions_sha256"),
         "catalogue_sha_live": l_src.get("provisions_sha256"),
     }
@@ -181,41 +205,74 @@ def main() -> int:
         i = argv.index("--baseline")
         baseline_path = pathlib.Path(argv[i + 1])
         del argv[i:i + 2]
+    mode = "auto"
+    if "--mode" in argv:
+        i = argv.index("--mode")
+        mode = argv[i + 1]
+        del argv[i:i + 2]
+    if mode not in ("auto", "page", "upstream"):
+        print(f"bilinmeyen --mode: {mode} (auto|page|upstream)", file=sys.stderr)
+        return 2
     local = [a for a in argv if not a.startswith("--")]
 
+    doc = live_cat = page_error = live_upstream = None
     try:
         mod = load_extractor()
         base = json.loads(baseline_path.read_text(encoding="utf-8"))
-        doc = pathlib.Path(local[0]).read_text(encoding="utf-8") if local else fetch(SPEC_URL)
-        live_cat = catalogue_of(mod, doc)
+
+        if mode == "upstream":
+            # ⚠️ İngilizce: bu metin issue gövdesine giriyor, depo herkese açık.
+            page_error = "mode=upstream (page deliberately not fetched; CI gets 403)"
+        else:
+            try:
+                doc = pathlib.Path(local[0]).read_text(encoding="utf-8") if local else fetch(SPEC_URL)
+                live_cat = catalogue_of(mod, doc)
+            except Exception as e:
+                page_error = f"{type(e).__name__}: {e}"
+                doc = None
+                if mode == "page":
+                    raise
+                # auto: upstream'e DÜŞ ama sessizce değil.
+                print(f"UYARI: sayfa sinyali ÖLÇÜLEMEDİ ({page_error}) — yalnız upstream "
+                      f"commit karşılaştırılacak.", file=sys.stderr)
+
         try:
             live_upstream = mod.upstream_commit()["upstream_commit"]
-        except Exception as e:  # API kotası vb. — katalog ölçümünü düşürmez
+        except Exception as e:
             print(f"UYARI: upstream commit çözülemedi ({type(e).__name__}) — 'upstream' "
                   f"sinyali bu koşuda ÖLÇÜLMEDİ.", file=sys.stderr)
             live_upstream = None
-        r = classify(base, doc, live_cat, live_upstream)
+
+        if live_cat is None and live_upstream is None:
+            raise RuntimeError(f"hiçbir sinyal ölçülemedi (sayfa: {page_error})")
+        r = classify(base, doc, live_cat, live_upstream, page_error)
     except Exception as e:
         print(f"ÖLÇÜLEMEDİ: {type(e).__name__}: {e}", file=sys.stderr)
         print("⚠️ Bu 'sürüklenme yok' DEĞİLDİR — bakılamadı.", file=sys.stderr)
         return 2
 
     print(f"durum: {r['status']}")
-    print(f"  katalog sha    : {(r['catalogue_sha_recorded'] or '-')[:12]} -> "
-          f"{(r['catalogue_sha_live'] or '-')[:12]}")
-    print(f"  sayfa sha eşit : {r['page_same']}  (⚠️ sayfa her yanıtta değişir — sinyal DEĞİL)")
-    print(f"  aday sayısı    : {r['candidates_recorded']} -> {r['candidates_live']}"
-          f" (eklenen {len(r['added'])}, kaybolan {len(r['gone'])})")
-    print(f"  spec_revision  : {r['revision_recorded']} -> {r['revision_live']}")
+    if not r["catalogue_measured"]:
+        print(f"  ⚠️ KATALOG SİNYALİ ÖLÇÜLMEDİ: {r['page_error']}")
+        print(f"     (yalnız upstream commit karşılaştırıldı — 'same' burada 'sayfa "
+              f"denetlendi' DEMEK DEĞİLDİR)")
+    else:
+        print(f"  katalog sha    : {(r['catalogue_sha_recorded'] or '-')[:12]} -> "
+              f"{(r['catalogue_sha_live'] or '-')[:12]}")
+        print(f"  sayfa sha eşit : {r['page_same']}  (⚠️ sayfa her yanıtta değişir — sinyal DEĞİL)")
+        print(f"  aday sayısı    : {r['candidates_recorded']} -> {r['candidates_live']}"
+              f" (eklenen {len(r['added'])}, kaybolan {len(r['gone'])})")
+        print(f"  spec_revision  : {r['revision_recorded']} -> {r['revision_live']}")
     print(f"  upstream commit: {(r['commit_recorded'] or '-')[:12]} -> "
           f"{(r['commit_live'] or 'ölçülmedi')[:12]}")
 
     if out := os.environ.get("GITHUB_OUTPUT"):
         with open(out, "a", encoding="utf-8") as fh:
             fh.write(f"status={r['status']}\n")
-            # Tekilleştirme anahtarı KARARLI olmalı; sayfa sha'sı olamaz.
-            fh.write(f"fingerprint={(r['revision_live'] or '?')} / "
-                     f"{(r['catalogue_sha_live'] or '?')[:12]}\n")
+            # Tekilleştirme anahtarı KARARLI olmalı; sayfa sha'sı olamaz. Katalog
+            # ölçülemediyse (CI'da beklenen hâl) anahtar upstream commit'e düşer.
+            key = (r["catalogue_sha_live"] or r["commit_live"] or "?")[:12]
+            fh.write(f"fingerprint={(r['revision_live'] or r['revision_recorded'] or '?')} / {key}\n")
             fh.write("body<<EOF\n" + issue_body(r) + "\nEOF\n")
     return 0
 
@@ -226,7 +283,8 @@ def issue_body(r: dict) -> str:
         "",
         f"| | recorded | live |",
         f"|---|---|---|",
-        f"| candidates | {r['candidates_recorded']} | {r['candidates_live']} |",
+        f"| candidates | {r['candidates_recorded']} | "
+        f"{r['candidates_live'] if r['catalogue_measured'] else 'not measured'} |",
         f"| spec_revision | {r['revision_recorded']} | {r['revision_live']} |",
         f"| upstream commit | {(r['commit_recorded'] or '-')[:12]} | "
         f"{(r['commit_live'] or 'not measured')[:12]} |",
@@ -240,6 +298,15 @@ def issue_body(r: dict) -> str:
         lines += [f"Added candidates ({len(r['added'])}): " + ", ".join(f"`{i}`" for i in r["added"][:20]), ""]
     if r["gone"]:
         lines += [f"Missing candidates ({len(r['gone'])}): " + ", ".join(f"`{i}`" for i in r["gone"][:20]), ""]
+    if not r["catalogue_measured"]:
+        lines += [
+            "⚠️ **The catalogue signal was not measured in this run** — only the upstream "
+            f"commit was compared. Reason: `{r['page_error']}`. gtfs.org sits behind "
+            "Cloudflare and returns 403 to hosted runners, so the page-level comparison "
+            "runs locally, not in CI. Re-run `python3 spec-audit/spec_drift.py` on a "
+            "workstation to see the candidate diff.",
+            "",
+        ]
     lines += [
         "A spec revision is not a regression here, it is news. What it does mean: the "
         "percentage in `spec-audit/EVIDENCE_BASE.md` describes the recorded catalogue, "

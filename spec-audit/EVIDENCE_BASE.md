@@ -156,11 +156,19 @@ Bu yüzden dört sınıf AYRI raporlanır ve yalnız ikisi issue açar:
 | `upstream` | `reference.md`'ye yeni commit girdi (sayfa henüz derlenmemiş olabilir) | **evet** |
 
 ⚠️ **Sürüklenme build'i KIRMAZ** (spec revizyonu bu depoda regresyon değil, haberdir) ama
-**ÖLÇÜLEMEME KIRAR**: ağ/ayrıştırma hatasında betik **exit 2** döner. Sessizce yeşil kalan
-bir denetim denetim değildir — `zip_peek.py` ile aynı ders: *"yok"* ile *"bakılamadı"*
+**HİÇBİR SİNYAL ÖLÇÜLEMEZSE KIRAR**: betik **exit 2** döner. Sessizce yeşil kalan bir
+denetim denetim değildir — `zip_peek.py` ile aynı ders: *"yok"* ile *"bakılamadı"*
 karıştırılmaz.
 
-Dört sınıfın dördü de defter bozularak doğrulandı (`--baseline` bayrağı bunun içindir).
+🔴 **CI SAYFAYA ULAŞAMIYOR — ilk koşumda ölçüldü: HTTP 403.** gtfs.org Cloudflare arkasında
+ve barındırılan koşucuları engelliyor (tarayıcı User-Agent'ı da yetmedi). Bu yüzden iş
+`--mode upstream` koşar: **`reference.md`'ye dokunan commit'i** izler, ki bu zaten sayfanın
+render edildiği KAYNAKTIR. Katalog düzeyindeki karşılaştırma (aday farkı) geliştirici
+makinesinde koşar. Mod açıkça verilir; `auto`'nun sessizce düşmesine bırakılmaz — düştüğü
+zaman bile rapor ve issue gövdesi hangi sinyalin ölçülMEDİĞİNİ yazar.
+
+Sınıfların hepsi defter bozularak doğrulandı (`--baseline` bayrağı bunun içindir); ağsız
+düşüş yolu da ayrıca denendi.
 
 ### Bu iddiayı ne çürütür
 Spec'te modal taşıyan ama katalogda olmayan **tek bir cümle** göstermek. Bugün bu üç kez
