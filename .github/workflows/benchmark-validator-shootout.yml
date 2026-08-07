@@ -1,0 +1,55 @@
+name: Validator Shootout
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'benchmark/validator-shootout/**'
+      - '.github/workflows/benchmark-validator-shootout.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  shootout:
+    name: Analyzer vs TML
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Install TML validator SDK
+        working-directory: benchmark/validator-shootout
+        run: npm install --no-audit --no-fund
+
+      - name: Build GTFS Analyzer CLI
+        run: cargo build --release -p gtfs-cli
+
+      - name: Generate controlled fixtures
+        run: python3 benchmark/validator-shootout/generate_fixtures.py
+
+      - name: Run shootout
+        run: node benchmark/validator-shootout/run.mjs
+
+      - name: Publish benchmark summary
+        if: always()
+        run: |
+          if [ -f benchmark/validator-shootout/results/report.md ]; then
+            cat benchmark/validator-shootout/results/report.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload raw benchmark results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: validator-shootout-results
+          path: benchmark/validator-shootout/results/
+          if-no-files-found: warn
+          retention-days: 7
