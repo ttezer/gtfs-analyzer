@@ -448,6 +448,19 @@ testin kendisi değildi: servis günü notasyonunda saat 24'ü aşar (raylı fee
 38:10 ölçüldü) ve çok günlü tren seferleri üç basamağa taşabilir. Saati kısıtlamak GEÇERLİ
 veriyi reddetmek olurdu.
 
+**5. denetim turu, `#82`'nin KALINTILARI (2026-08-07):**
+- `looks_like_bcp47` artık **RFC 5646 well-formed** sözdizimi ölçüyor. Eski hâli `en-a`
+  (uzantısı olmayan singleton), `en-a-b-c` ve **yinelenen singleton** `en-a-bbb-a-ccc`
+  kabul ediyordu. ⚠️ **Well-formed ≠ valid:** IANA defterine bakılmaz, `zz-ZZ` sözdizimsel
+  olarak geçerlidir; kart bunu iddia etmez.
+- ISO 4217 tablosu artık **ÜRETİLMİŞ**: kaynak SIX `list-one.xml`, yayın tarihi ve SHA-256
+  dosyanın başında, üretici `spec-audit/gen_iso4217.py`, sürüklenme denetimi CI'da.
+  🔴 **Elle yazılmış listem YANLIŞTI:** `BGN`'yi aktif sayıyordum, oysa 2026-01-01
+  listesinde Bulgaristan EUR kullanıyor. Ayrıca `iso4217_minor_unit` "0/2/3 dışında değer
+  yok" varsayıyordu — `CLF` ve `UYW` **4** ondalıklıdır. Fonksiyon artık `Option<u8>`
+  döner: kod geçerliliği ile ondalık AYRI kavramdır ve `XAU` gibi ondalığı tanımsız
+  (`N.A.`) kodlar geçerli olduğu hâlde ondalık denetimine girmez.
+
 **Aynı sınıftan iki düzeltme daha (issue #79, #80):**
 - `ARC_032`'nin HTML etiket listesi 26 addan **HTML5'in tamamına** çıktı; `<script>`,
   `<section>`, `<iframe>`, `<style>` eski listede yoktu. Liste hâlâ kapalı — hüküm "HTML

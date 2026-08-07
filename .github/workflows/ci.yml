@@ -49,6 +49,13 @@ jobs:
 
       # issue #81: modalsiz taramanın normatif saydığı bir kalıp katalogda YOKSA ya da
       # neden olmadığı yazılı değilse, o boşluk sessizdir. Ağ istemez.
+      # issue #82: ISO 4217 tablosu ÜRETİLMİŞTİR; kaynağa karşı sürüklenme denetimi.
+      # ⚠️ Ağ ister. Kaynağa ulaşılamazsa exit 2 döner ve iş KIRMIZI olur — "drift yok" ile
+      # "bakılamadı" karıştırılmaz (`spec_drift.py` ile aynı ders).
+      - name: ISO 4217 sürüklenme denetimi
+        run: |
+          python3 spec-audit/gen_iso4217.py --check
+
       - name: Sinyal paritesi (signal_parity)
         run: |
           python3 spec-audit/signal_parity.py

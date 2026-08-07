@@ -2,6 +2,7 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 
 use gtfs_core::{EntityType, Notice};
+use super::iso4217_generated::ISO4217;
 use gtfs_rules::get_rule;
 use smol_str::SmolStr;
 use url::Url;
@@ -279,27 +280,9 @@ pub fn gtfs_time_widths_ok(parts: &[&str]) -> bool {
 /// Liste ISO 4217 AKTİF alfabetik kodlarıdır; tarihe karışmış kodlar (ör. `TRL`, `DEM`)
 /// bilinçli olarak DIŞARIDADIR — feed bugünkü bir para birimi bildirmelidir.
 pub fn is_iso4217(code: &str) -> bool {
-    ISO4217_ACTIVE.binary_search(&code).is_ok()
+    ISO4217.binary_search_by_key(&code, |(k, _)| *k).is_ok()
 }
 
-/// Sıralı tutulur (`binary_search`). Kaynak: ISO 4217 aktif kod listesi.
-const ISO4217_ACTIVE: &[&str] = &[
-    "AED", "AFN", "ALL", "AMD", "ANG", "AOA", "ARS", "AUD", "AWG", "AZN", "BAM", "BBD",
-    "BDT", "BGN", "BHD", "BIF", "BMD", "BND", "BOB", "BOV", "BRL", "BSD", "BTN", "BWP",
-    "BYN", "BZD", "CAD", "CDF", "CHE", "CHF", "CHW", "CLF", "CLP", "CNY", "COP", "COU",
-    "CRC", "CUP", "CVE", "CZK", "DJF", "DKK", "DOP", "DZD", "EGP", "ERN", "ETB", "EUR",
-    "FJD", "FKP", "GBP", "GEL", "GHS", "GIP", "GMD", "GNF", "GTQ", "GYD", "HKD", "HNL",
-    "HTG", "HUF", "IDR", "ILS", "INR", "IQD", "IRR", "ISK", "JMD", "JOD", "JPY", "KES",
-    "KGS", "KHR", "KMF", "KPW", "KRW", "KWD", "KYD", "KZT", "LAK", "LBP", "LKR", "LRD",
-    "LSL", "LYD", "MAD", "MDL", "MGA", "MKD", "MMK", "MNT", "MOP", "MRU", "MUR", "MVR",
-    "MWK", "MXN", "MXV", "MYR", "MZN", "NAD", "NGN", "NIO", "NOK", "NPR", "NZD", "OMR",
-    "PAB", "PEN", "PGK", "PHP", "PKR", "PLN", "PYG", "QAR", "RON", "RSD", "RUB", "RWF",
-    "SAR", "SBD", "SCR", "SDG", "SEK", "SGD", "SHP", "SLE", "SOS", "SRD", "SSP", "STN",
-    "SVC", "SYP", "SZL", "THB", "TJS", "TMT", "TND", "TOP", "TRY", "TTD", "TWD", "TZS",
-    "UAH", "UGX", "USD", "USN", "UYI", "UYU", "UYW", "UZS", "VED", "VES", "VND", "VUV",
-    "WST", "XAF", "XCD", "XCG", "XDR", "XOF", "XPF", "XSU", "XUA", "YER", "ZAR", "ZMW",
-    "ZWG",
-];
 
 pub fn validate_enum(value: &str, allowed: &[&str]) -> bool {
     allowed.contains(&value)
@@ -371,18 +354,22 @@ pub fn url_escaping_ok(value: &str) -> bool {
     true
 }
 
-/// ISO 4217 minor unit (ondalık basamak sayısı). Varsayılan 2; aşağıdakiler ayrıksı.
+/// ISO 4217 minor unit — **kod GEÇERLİLİĞİNDEN AYRI kavram** (issue #82).
 ///
-/// Liste kasıtlı olarak KISA: yalnız 0 ve 3 basamaklı para birimleri. Geri kalan her kod
-/// 2 varsayılır — ISO 4217'de baskın durum budur ve bilinmeyen bir kod için 2 varsaymak,
-/// bilmediğimiz bir birimi yanlış raporlamaktan iyidir.
-pub fn iso4217_minor_unit(code: &str) -> u32 {
-    const ZERO: &[&str] = &["BIF","CLP","DJF","GNF","ISK","JPY","KMF","KRW","PYG","RWF",
-                            "UGX","UYI","VND","VUV","XAF","XOF","XPF"];
-    const THREE: &[&str] = &["BHD","IQD","JOD","KWD","LYD","OMR","TND"];
-    if ZERO.iter().any(|c| c.eq_ignore_ascii_case(code)) { 0 }
-    else if THREE.iter().any(|c| c.eq_ignore_ascii_case(code)) { 3 }
-    else { 2 }
+/// `None` iki AYRI şey demektir ve çağıran ikisini de aynı biçimde ele alamaz:
+///   · kod tabloda YOK → geçersiz kod; onu `FAR_003`/`FPD_003` bildirir, burada değil
+///   · ondalık TANIMSIZ (`255`, kaynakta `N.A.`) → fonlar/kıymetli madenler (`XAU`, `XDR`)
+///
+/// 🔴 Eski sürüm "0/2/3 dışında değer yok" VARSAYIYORDU ve bilinmeyen her kodu sessizce
+/// 2 ondalıklı sayıyordu. Ölçüldü: `CLF` ve `UYW` **4** ondalıklıdır, yani varsayım yanlıştı
+/// ve uydurma bir kod (`ZZZ`) da uydurma bir biçimlendirme alıyordu.
+pub fn iso4217_minor_unit(code: &str) -> Option<u8> {
+    let c = code.trim();
+    ISO4217
+        .binary_search_by_key(&c, |(k, _)| *k)
+        .ok()
+        .map(|i| ISO4217[i].1)
+        .filter(|&u| u != 255)
 }
 
 /// Tutar, para biriminin gerektirdiği ondalık basamak sayısını taşıyor mu?
@@ -395,7 +382,12 @@ pub fn amount_has_iso4217_decimals(amount: &str, currency: &str) -> bool {
         return true;
     }
     let dec = a.split_once('.').map(|(_, f)| f.len()).unwrap_or(0);
-    dec as u32 == iso4217_minor_unit(currency.trim())
+    // Kod geçersizse ya da ondalığı tanımsızsa (fon/kıymetli maden) BURADA rapor yok:
+    // geçersiz kodu `FAR_003`/`FPD_003` bildirir, iki kez raporlamak olur.
+    match iso4217_minor_unit(currency.trim()) {
+        Some(units) => dec as u8 == units,
+        None => true,
+    }
 }
 
 /// GTFS `Email` tipi — **SÖZDİZİMİ** doğrulaması (issue #86).
@@ -460,29 +452,110 @@ pub fn looks_like_email(value: &str) -> bool {
     labels.last().is_some_and(|tld| tld.chars().all(|c| c.is_alphabetic()) && tld.len() >= 2)
 }
 
+/// GTFS `Language` tipi — **RFC 5646 (BCP 47) well-formed** sözdizimi (issue #82).
+///
+/// 🔴 Eski predikat yalnız "alfanümerik, ≤8" diyordu ve şu üçü GEÇİYORDU (ölçüldü):
+/// `en-a` (uzantısı olmayan singleton) · `en-a-b-c` (boş uzantı dizisi) ·
+/// `en-a-bbb-a-ccc` (YİNELENEN singleton). Bunlar RFC 5646'da well-formed DEĞİLDİR.
+///
+/// Ölçülen dilbilgisi (`langtag`):
+/// ```text
+/// language ["-" script] ["-" region] *("-" variant) *("-" extension) ["-" privateuse]
+///   language   2-3 alpha [3 kez 3-alpha extlang] | 4 alpha (ayrılmış) | 5-8 alpha
+///   script     4 alpha            region   2 alpha | 3 digit
+///   variant    5-8 alphanum | digit + 3 alphanum
+///   extension  singleton (x hariç alphanum) + 1..* (2-8 alphanum)   ← singleton BENZERSİZ
+///   privateuse "x" + 1..* (1-8 alphanum)
+/// ```
+/// ⚠️ **WELL-FORMED ≠ VALID.** IANA kayıt defterine bakılmaz: `zz-ZZ` sözdizimsel olarak
+/// doğrudur ama kayıtlı bir dil değildir. Kayıt denetimi ağ/gömülü defter ister ve kart
+/// bunu iddia ETMEZ.
+/// ⚠️ Tümüyle `x-…` özel kullanım etiketleri ve `i-…` eski (grandfathered) biçimleri
+/// kabul edilir — RFC onları geçerli sayar.
 pub fn looks_like_bcp47(value: &str) -> bool {
-    let trimmed = value.trim();
-    if trimmed.is_empty() {
+    let t = value.trim();
+    if t.is_empty() || t.len() > 100 {
         return false;
     }
-    let mut parts = trimmed.split('-');
-    // ⚠️ BİRİNCİL ALT ETİKET ALFABETİKTİR (issue #82). Eski kod her alt etikete
-    // "alfanümerik, ≤8" diyordu ve `123` dil kodu olarak geçiyordu. BCP 47'de dil alt
-    // etiketi harflerden oluşur (2–3 ISO 639, ya da 4–8 kayıtlı); SAYI olamaz.
-    // Tek harfli `i`/`x` önekleri grandfathered/private-use dizilerinin başıdır ve
-    // geçerlidir — onları reddetmek geçerli etiketi düşürürdü.
-    let Some(primary) = parts.next() else { return false };
-    let plen = primary.len();
-    let primary_ok = primary.chars().all(|c| c.is_ascii_alphabetic())
-        && ((2..=8).contains(&plen) || (plen == 1 && matches!(primary, "i" | "x" | "I" | "X")));
-    if !primary_ok {
+    let parts: Vec<&str> = t.split('-').collect();
+    if parts.iter().any(|p| p.is_empty() || p.len() > 8 || !p.chars().all(|c| c.is_ascii_alphanumeric())) {
         return false;
     }
-    // Sonraki alt etiketler SAYISAL olabilir (bölge kodu `419`, varyant `1901`).
-    parts.all(|part| {
-        let len = part.len();
-        (1..=8).contains(&len) && part.chars().all(|c| c.is_ascii_alphanumeric())
-    })
+    let alpha = |p: &str| p.chars().all(|c| c.is_ascii_alphabetic());
+    let digit = |p: &str| p.chars().all(|c| c.is_ascii_digit());
+
+    // Tümü özel kullanım: x-abc
+    if parts[0].eq_ignore_ascii_case("x") {
+        return parts.len() >= 2;
+    }
+    // Eski (grandfathered) irregular biçimler: i-klingon, i-navajo …
+    if parts[0].eq_ignore_ascii_case("i") {
+        return parts.len() >= 2 && parts[1..].iter().all(|p| alpha(p));
+    }
+
+    let mut idx = 0usize;
+    // language
+    let lang = parts[idx];
+    if !alpha(lang) || !(2..=8).contains(&lang.len()) {
+        return false;
+    }
+    idx += 1;
+    if (2..=3).contains(&lang.len()) {
+        // en fazla 3 extlang (3 alpha)
+        let mut ext = 0;
+        while ext < 3 && idx < parts.len() && parts[idx].len() == 3 && alpha(parts[idx]) {
+            // 3-alpha aynı zamanda script DEĞİL (script 4) ve region DEĞİL (2 alpha/3 digit)
+            idx += 1;
+            ext += 1;
+        }
+    }
+    // script (4 alpha)
+    if idx < parts.len() && parts[idx].len() == 4 && alpha(parts[idx]) {
+        idx += 1;
+    }
+    // region (2 alpha | 3 digit)
+    if idx < parts.len()
+        && ((parts[idx].len() == 2 && alpha(parts[idx])) || (parts[idx].len() == 3 && digit(parts[idx])))
+    {
+        idx += 1;
+    }
+    // variant* (5-8 alphanum | digit + 3 alphanum)
+    while idx < parts.len() {
+        let p = parts[idx];
+        let is_variant = (5..=8).contains(&p.len())
+            || (p.len() == 4 && p.starts_with(|c: char| c.is_ascii_digit()));
+        if !is_variant {
+            break;
+        }
+        idx += 1;
+    }
+    // extension* — her singleton BİR KEZ ve ardından en az bir 2-8 alt etiket
+    let mut seen_singletons: Vec<char> = Vec::new();
+    while idx < parts.len() && parts[idx].len() == 1 && !parts[idx].eq_ignore_ascii_case("x") {
+        let sing = parts[idx].chars().next().unwrap().to_ascii_lowercase();
+        if !sing.is_ascii_alphanumeric() || seen_singletons.contains(&sing) {
+            return false;
+        }
+        seen_singletons.push(sing);
+        idx += 1;
+        let mut n = 0;
+        while idx < parts.len() && (2..=8).contains(&parts[idx].len()) {
+            idx += 1;
+            n += 1;
+        }
+        if n == 0 {
+            return false; // singleton var, uzantı YOK
+        }
+    }
+    // privateuse
+    if idx < parts.len() && parts[idx].eq_ignore_ascii_case("x") {
+        idx += 1;
+        if idx >= parts.len() {
+            return false;
+        }
+        idx = parts.len(); // x'ten sonrası 1-8 alphanum: baştaki kontrol zaten sağladı
+    }
+    idx == parts.len()
 }
 
 /// GTFS `Phone number` tipi. Spec (`agency_phone`): *"Dialable text (for example, TriMet's
@@ -821,13 +894,16 @@ mod tests {
     #[test]
     fn type_helpers_reject_values_outside_the_declared_types() {
         // 1) BCP 47: birincil alt etiket ALFABETİK olmalı.
-        assert!(!super::looks_like_bcp47("123"), "sayısal birincil alt etiket dil kodu değildir");
-        assert!(!super::looks_like_bcp47("1-tr"), "sayısal birincil alt etiket");
-        assert!(super::looks_like_bcp47("tr"));
-        assert!(super::looks_like_bcp47("en-US"));
-        assert!(super::looks_like_bcp47("es-419"), "BÖLGE kodu sayısal olabilir");
-        assert!(super::looks_like_bcp47("zh-Hant-TW"));
-        assert!(super::looks_like_bcp47("x-private"), "private-use öneki geçerli");
+        // GEÇERLİ (RFC 5646 well-formed)
+        for ok in ["tr", "en-US", "zh-Hant-TW", "es-419", "x-private", "de-CH-1901",
+                   "en-a-bbb", "en-a-bbb-x-priv", "i-klingon", "sl-rozaj-biske"] {
+            assert!(super::looks_like_bcp47(ok), "geçerli dil etiketi reddedildi: {ok}");
+        }
+        // GEÇERSİZ — her biri ayrı bir sözdizimi kuralı
+        for bad in ["123", "1-tr", "en-a", "en-a-b-c", "en-a-bbb-a-ccc", "en--US", "en-",
+                    "x-", "-en", "en-toolongsubtag", "en-US-"] {
+            assert!(!super::looks_like_bcp47(bad), "geçersiz dil etiketi kabul edildi: {bad:?}");
+        }
 
         // 5) f64: sonlu olmayan değerler tip dışıdır.
         assert!(super::parse_f64_col("NaN").is_err(), "NaN koordinat olamaz");
@@ -932,10 +1008,19 @@ mod tests {
     #[test]
     fn iso4217_decimals_follow_the_currency() {
         use super::{amount_has_iso4217_decimals as ok, iso4217_minor_unit as mu};
-        assert_eq!(mu("EUR"), 2);
-        assert_eq!(mu("JPY"), 0);
-        assert_eq!(mu("KWD"), 3);
-        assert_eq!(mu("ZZZ"), 2, "bilinmeyen kod 2 varsayılır");
+        assert_eq!(mu("EUR"), Some(2));
+        assert_eq!(mu("JPY"), Some(0));
+        assert_eq!(mu("KWD"), Some(3));
+        // issue #82: "0/2/3 dışında değer yok" VARSAYIMI YANLIŞTI — ölçüldü.
+        assert_eq!(mu("CLF"), Some(4), "CLF dört ondalıklıdır");
+        assert_eq!(mu("UYW"), Some(4), "UYW dört ondalıklıdır");
+        // Kod geçerliliği ile ondalık AYRI kavram: ikisi de `None` döner ama sebepleri farklı.
+        assert_eq!(mu("ZZZ"), None, "bilinmeyen kod — 2 VARSAYILMAZ");
+        assert_eq!(mu("XAU"), None, "kıymetli maden: ondalık TANIMSIZ (kaynakta N.A.)");
+        assert!(super::is_iso4217("XAU"), "…ama XAU GEÇERLİ bir koddur");
+        // 🔴 Elle yazılmış liste yanlıştı: BGN 2026-01-01 listesinde AKTİF DEĞİL
+        // (Bulgaristan euro'ya geçti). Üretilmiş tablo bunu kaynaktan alıyor.
+        assert!(!super::is_iso4217("BGN"), "BGN artık aktif kod değil");
 
         assert!(ok("2.50", "EUR"));
         assert!(ok("150", "JPY"), "yen ondalık taşımaz");
@@ -946,6 +1031,9 @@ mod tests {
         assert!(!ok("6.7", "HKD"));
         assert!(!ok("8", "EUR"));
         assert!(!ok("100.00", "JPY"), "yen ondalık TAŞIMAMALI");
+        // Geçersiz kodda ondalık denetimi SUSAR — o ihlali FAR_003/FPD_003 bildirir.
+        assert!(ok("1.23456", "ZZZ"), "geçersiz kod iki kez raporlanmaz");
+        assert!(ok("1.2", "XAU"), "ondalığı tanımsız kodda denetim yapılmaz");
         assert!(!ok("0.0000", "HKD"), "fazla basamak da ihlal");
 
         // Sayı olmayan / boş değer FPD_002'nin alanı — burada sessiz.

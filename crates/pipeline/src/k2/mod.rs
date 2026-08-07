@@ -6,6 +6,7 @@ pub mod attributions;
 pub mod calendar;
 pub mod calendar_dates;
 pub mod common;
+pub(crate) mod iso4217_generated;
 pub mod fare_attributes;
 pub mod fare_leg_rules;
 pub mod fare_media;

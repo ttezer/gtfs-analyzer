@@ -155,7 +155,11 @@ pub fn validate_fare_products(
     // FPD_007: DOSYA başına tek özet (DQ_016/ARC_032 deseni). Satır başına emit ölçümde
     // 2 milyon notice demekti ve toplamın %99,7'si iki feed'den geliyordu.
     if let Some((line, amount, currency)) = iso_first {
-        let want = iso4217_minor_unit(&currency);
+        // ⚠️ `None` = kod tabloda yok ya da ondalığı tanımsız; mesajda sayı yerine bunu
+        // söylemek gerekir — uydurma bir "2 basamak" beklentisi yazmak yanlış olurdu.
+        let want = iso4217_minor_unit(&currency)
+            .map(|u| u.to_string())
+            .unwrap_or_else(|| "tanımsız".to_string());
         notices.push(make_k2_notice(
             &mut counter, "FPD_007", EntityType::File, None, None,
             &file.name, Some(line), Some("amount"),
