@@ -1,0 +1,8 @@
+{
+  "name": "gtfs-validator-large-feed-shootout",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@tmlmobilidade/gtfs-validator": "20260624.1438.43"
+  }
+}
