@@ -36,6 +36,9 @@ jobs:
         working-directory: benchmark/validator-shootout
         run: npm install --no-audit --no-fund
 
+      - name: Preserve zero-byte TML reports after panic
+        run: bash benchmark/validator-shootout/prepare_tml_shim.sh
+
       - name: Download MobilityData validator v8.0.1 CLI
         working-directory: benchmark/validator-shootout
         run: |
