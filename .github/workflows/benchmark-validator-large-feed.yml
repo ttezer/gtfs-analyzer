@@ -1,0 +1,262 @@
+name: Large Feed Validator Shootout
+
+on:
+  pull_request:
+    branches: [agent/validator-shootout-100]
+    paths:
+      - 'benchmark/large-feed-shootout/**'
+      - '.github/workflows/benchmark-validator-large-feed.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  large-feed:
+    name: mdb-1078 stress test with mdb-2519 fallback
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    env:
+      BENCH_DATE: '20260807'
+      MD_VERSION: '8.0.1'
+      TML_VERSION: '20260624.1438.43'
+      FEED_1078_URL: 'https://files.mobilitydatabase.org/mdb-1078/mdb-1078-202608070115/mdb-1078-202608070115.zip'
+      FEED_2519_URL: 'https://files.mobilitydatabase.org/mdb-2519/mdb-2519-202608050156/mdb-2519-202608050156.zip'
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Record runner environment
+        run: |
+          mkdir -p benchmark/large-feed-shootout/results
+          {
+            echo '### uname'; uname -a
+            echo '### lscpu'; lscpu
+            echo '### free'; free -h
+            echo '### df'; df -h
+          } | tee benchmark/large-feed-shootout/results/runner-environment.txt
+
+      - name: Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Install TML validator SDK
+        working-directory: benchmark/large-feed-shootout
+        run: npm install --no-audit --no-fund
+
+      - name: Download MobilityData validator v8.0.1 CLI
+        working-directory: benchmark/large-feed-shootout
+        run: |
+          set -euo pipefail
+          API="https://api.github.com/repos/MobilityData/gtfs-validator/releases/tags/v${MD_VERSION}"
+          ASSET_URL="$(curl -fsSL "$API" | jq -r '.assets[] | select(.name | endswith("-cli.jar")) | .browser_download_url' | head -n1)"
+          test -n "$ASSET_URL"
+          test "$ASSET_URL" != "null"
+          curl --retry 3 --retry-all-errors -fL "$ASSET_URL" -o mobilitydata-cli.jar
+          test -s mobilitydata-cli.jar
+          sha256sum mobilitydata-cli.jar | tee results/mobilitydata-cli.sha256
+
+      - name: Build GTFS Analyzer CLI
+        run: |
+          cargo build --release -p gtfs-cli
+          target/release/gtfs-analyzer --version 2>&1 | tee benchmark/large-feed-shootout/results/analyzer-version.txt || true
+          java -version 2>&1 | tee benchmark/large-feed-shootout/results/java-version.txt
+          node --version | tee benchmark/large-feed-shootout/results/node-version.txt
+          node --input-type=module -e "import {getValidatorInfo} from '@tmlmobilidade/gtfs-validator'; console.log(JSON.stringify(await getValidatorInfo(), null, 2))" \
+            --experimental-default-type=module 2>/dev/null || true
+        working-directory: .
+
+      - name: Download exact mdb-1078 snapshot
+        run: |
+          set -euo pipefail
+          mkdir -p benchmark/large-feed-shootout/feeds benchmark/large-feed-shootout/results/mdb-1078
+          curl --retry 4 --retry-all-errors -fL "$FEED_1078_URL" -o benchmark/large-feed-shootout/feeds/mdb-1078.zip
+          test -s benchmark/large-feed-shootout/feeds/mdb-1078.zip
+          sha256sum benchmark/large-feed-shootout/feeds/mdb-1078.zip | tee benchmark/large-feed-shootout/results/mdb-1078/feed.sha256
+          stat -c '%s' benchmark/large-feed-shootout/feeds/mdb-1078.zip | tee benchmark/large-feed-shootout/results/mdb-1078/feed.bytes
+          unzip -l benchmark/large-feed-shootout/feeds/mdb-1078.zip | tail -n 1 | tee benchmark/large-feed-shootout/results/mdb-1078/unzip-total.txt
+          df -h | tee benchmark/large-feed-shootout/results/mdb-1078/disk-before.txt
+          free -h | tee benchmark/large-feed-shootout/results/mdb-1078/memory-before.txt
+
+      - name: GTFS Analyzer on mdb-1078
+        id: analyzer_1078
+        shell: bash
+        run: |
+          set +e
+          FEED="$PWD/benchmark/large-feed-shootout/feeds/mdb-1078.zip"
+          OUT="$PWD/benchmark/large-feed-shootout/results/mdb-1078/analyzer"
+          mkdir -p "$OUT"
+          /usr/bin/time -v -o "$OUT/time.txt" \
+            timeout --signal=TERM --kill-after=10s 1200s \
+            target/release/gtfs-analyzer validate "$FEED" --json --lang en --today "$BENCH_DATE" --output "$OUT/report.json" \
+            >"$OUT/stdout.txt" 2>"$OUT/stderr.txt"
+          code=$?
+          echo "$code" | tee "$OUT/exit-code.txt"
+          success=false
+          if [[ -s "$OUT/report.json" ]] && jq -e '.status == "ok"' "$OUT/report.json" >/dev/null 2>&1 && [[ "$code" -eq 0 || "$code" -eq 1 ]]; then
+            success=true
+          fi
+          echo "success=$success" >> "$GITHUB_OUTPUT"
+          echo "Analyzer mdb-1078 success=$success exit=$code"
+          exit 0
+
+      - name: TML SDK on mdb-1078
+        shell: bash
+        run: |
+          set +e
+          FEED="$PWD/benchmark/large-feed-shootout/feeds/mdb-1078.zip"
+          OUT="$PWD/benchmark/large-feed-shootout/results/mdb-1078/tml"
+          mkdir -p "$OUT"
+          /usr/bin/time -v -o "$OUT/time.txt" \
+            timeout --signal=TERM --kill-after=10s 1200s \
+            node benchmark/large-feed-shootout/run_tml.mjs "$FEED" "$OUT" \
+            >"$OUT/stdout.txt" 2>"$OUT/stderr.txt"
+          code=$?
+          echo "$code" | tee "$OUT/exit-code.txt"
+          exit 0
+
+      - name: MobilityData v8.0.1 on mdb-1078
+        shell: bash
+        run: |
+          set +e
+          FEED="$PWD/benchmark/large-feed-shootout/feeds/mdb-1078.zip"
+          OUT="$PWD/benchmark/large-feed-shootout/results/mdb-1078/mobilitydata"
+          mkdir -p "$OUT"
+          /usr/bin/time -v -o "$OUT/time.txt" \
+            timeout --signal=TERM --kill-after=10s 1200s \
+            java -jar benchmark/large-feed-shootout/mobilitydata-cli.jar -i "$FEED" -o "$OUT" -d 2026-08-07 \
+            >"$OUT/stdout.txt" 2>"$OUT/stderr.txt"
+          code=$?
+          echo "$code" | tee "$OUT/exit-code.txt"
+          exit 0
+
+      - name: Download mdb-2519 fallback snapshot
+        if: steps.analyzer_1078.outputs.success != 'true'
+        run: |
+          set -euo pipefail
+          mkdir -p benchmark/large-feed-shootout/feeds benchmark/large-feed-shootout/results/mdb-2519
+          curl --retry 4 --retry-all-errors -fL "$FEED_2519_URL" -o benchmark/large-feed-shootout/feeds/mdb-2519.zip
+          test -s benchmark/large-feed-shootout/feeds/mdb-2519.zip
+          sha256sum benchmark/large-feed-shootout/feeds/mdb-2519.zip | tee benchmark/large-feed-shootout/results/mdb-2519/feed.sha256
+          stat -c '%s' benchmark/large-feed-shootout/feeds/mdb-2519.zip | tee benchmark/large-feed-shootout/results/mdb-2519/feed.bytes
+          unzip -l benchmark/large-feed-shootout/feeds/mdb-2519.zip | tail -n 1 | tee benchmark/large-feed-shootout/results/mdb-2519/unzip-total.txt
+
+      - name: GTFS Analyzer on mdb-2519 fallback
+        if: steps.analyzer_1078.outputs.success != 'true'
+        shell: bash
+        run: |
+          set +e
+          FEED="$PWD/benchmark/large-feed-shootout/feeds/mdb-2519.zip"
+          OUT="$PWD/benchmark/large-feed-shootout/results/mdb-2519/analyzer"
+          mkdir -p "$OUT"
+          /usr/bin/time -v -o "$OUT/time.txt" timeout --signal=TERM --kill-after=10s 1200s \
+            target/release/gtfs-analyzer validate "$FEED" --json --lang en --today "$BENCH_DATE" --output "$OUT/report.json" \
+            >"$OUT/stdout.txt" 2>"$OUT/stderr.txt"
+          echo "$?" | tee "$OUT/exit-code.txt"
+          exit 0
+
+      - name: TML SDK on mdb-2519 fallback
+        if: steps.analyzer_1078.outputs.success != 'true'
+        shell: bash
+        run: |
+          set +e
+          FEED="$PWD/benchmark/large-feed-shootout/feeds/mdb-2519.zip"
+          OUT="$PWD/benchmark/large-feed-shootout/results/mdb-2519/tml"
+          mkdir -p "$OUT"
+          /usr/bin/time -v -o "$OUT/time.txt" timeout --signal=TERM --kill-after=10s 1200s \
+            node benchmark/large-feed-shootout/run_tml.mjs "$FEED" "$OUT" \
+            >"$OUT/stdout.txt" 2>"$OUT/stderr.txt"
+          echo "$?" | tee "$OUT/exit-code.txt"
+          exit 0
+
+      - name: MobilityData v8.0.1 on mdb-2519 fallback
+        if: steps.analyzer_1078.outputs.success != 'true'
+        shell: bash
+        run: |
+          set +e
+          FEED="$PWD/benchmark/large-feed-shootout/feeds/mdb-2519.zip"
+          OUT="$PWD/benchmark/large-feed-shootout/results/mdb-2519/mobilitydata"
+          mkdir -p "$OUT"
+          /usr/bin/time -v -o "$OUT/time.txt" timeout --signal=TERM --kill-after=10s 1200s \
+            java -jar benchmark/large-feed-shootout/mobilitydata-cli.jar -i "$FEED" -o "$OUT" -d 2026-08-07 \
+            >"$OUT/stdout.txt" 2>"$OUT/stderr.txt"
+          echo "$?" | tee "$OUT/exit-code.txt"
+          exit 0
+
+      - name: Summarize and bound report artifacts
+        if: always()
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import hashlib, json, re
+
+          root = Path('benchmark/large-feed-shootout/results')
+          rows = []
+          for feed_dir in sorted(p for p in root.iterdir() if p.is_dir() and p.name.startswith('mdb-')):
+              for validator in ('analyzer', 'tml', 'mobilitydata'):
+                  d = feed_dir / validator
+                  if not d.exists():
+                      continue
+                  exit_code = None
+                  try: exit_code = int((d/'exit-code.txt').read_text().strip())
+                  except Exception: pass
+                  metrics = {}
+                  if (d/'time.txt').exists():
+                      text = (d/'time.txt').read_text(errors='replace')
+                      for label, key in [
+                          ('Elapsed (wall clock) time', 'elapsed'),
+                          ('Maximum resident set size (kbytes)', 'max_rss_kb'),
+                          ('User time (seconds)', 'user_s'),
+                          ('System time (seconds)', 'system_s'),
+                      ]:
+                          m = re.search(r'^\\s*' + re.escape(label) + r'.*?:\\s*(.+)$', text, re.M)
+                          if m: metrics[key] = m.group(1).strip()
+                  report = d/'report.json'
+                  report_meta = None
+                  if report.exists():
+                      h = hashlib.sha256()
+                      with report.open('rb') as f:
+                          while True:
+                              b = f.read(1024*1024)
+                              if not b: break
+                              h.update(b)
+                      size = report.stat().st_size
+                      report_meta = {'bytes': size, 'sha256': h.hexdigest()}
+                      with report.open('rb') as f:
+                          (d/'report.head.bin').write_bytes(f.read(256*1024))
+                      if size > 50*1024*1024:
+                          report.unlink()
+                          report_meta['full_report_removed_from_artifact'] = True
+                      (d/'report.meta.json').write_text(json.dumps(report_meta, indent=2)+'\n')
+                  rows.append({'feed': feed_dir.name, 'validator': validator, 'exit_code': exit_code, **metrics, 'report': report_meta})
+          (root/'summary.json').write_text(json.dumps(rows, indent=2)+'\n')
+          lines = ['# Large Feed Validator Shootout', '', '| Feed | Validator | Exit | Wall | Peak RSS KB | Report bytes |', '|---|---|---:|---:|---:|---:|']
+          for r in rows:
+              rb = (r.get('report') or {}).get('bytes', '')
+              lines.append(f"| {r['feed']} | {r['validator']} | {r.get('exit_code','')} | {r.get('elapsed','')} | {r.get('max_rss_kb','')} | {rb} |")
+          md='\n'.join(lines)+'\n'
+          (root/'summary.md').write_text(md)
+          print(md)
+          PY
+          cat benchmark/large-feed-shootout/results/summary.md >> "$GITHUB_STEP_SUMMARY"
+          df -h | tee benchmark/large-feed-shootout/results/disk-after.txt
+          free -h | tee benchmark/large-feed-shootout/results/memory-after.txt
+
+      - name: Upload benchmark evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: validator-large-feed-shootout-results
+          path: benchmark/large-feed-shootout/results/
+          if-no-files-found: warn
+          retention-days: 7
