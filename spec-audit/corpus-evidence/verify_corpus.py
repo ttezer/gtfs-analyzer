@@ -54,11 +54,16 @@ def main():
                 continue
             if not r["download_url"]:
                 miss += 1
-                continue
+                continue  # manifest üreticisi bunu zaten exit 1 ile bildirir
             rc = subprocess.run(["curl", "-sSL", "--max-time", "180", "-o", dst,
                                  r["download_url"]]).returncode
             got += (rc == 0)
         print(f"indirilen {got} · URL'siz {miss}")
+        if miss:
+            # 2026-08-07 denetimi: URL'siz feed SESSİZCE atlanıyordu → üçüncü taraf
+            # 242/242'yi indiremiyor ama bunu fark etmiyordu. Artık gürültülü başarısızlık.
+            print(f"🔴 {miss} feed'in URL'i YOK — bu manifestle tam korpus kurulamaz.")
+            return 1
         return 0
 
     if not a.zips:

@@ -1,6 +1,6 @@
 feed,bytes,sha256,download_url
-PID_GTFS,45631487,d30684c7d18a398c7cbbf19c531add2f2fe02d0903d0f5ea398559aa2c757f02,
-ch-odv-flex,46192,dec6427b47840caaf00855d5aa0c75c56751402d848ebe813380013d953e5f31,
+PID_GTFS,45631487,d30684c7d18a398c7cbbf19c531add2f2fe02d0903d0f5ea398559aa2c757f02,http://data.pid.cz/PID_GTFS.zip
+ch-odv-flex,46192,dec6427b47840caaf00855d5aa0c75c56751402d848ebe813380013d953e5f31,https://data.opentransportdata.swiss/dataset/d0830620-07f8-483f-9dc6-9bfdeffa24ab/resource/935fbe38-43be-4cda-b486-63fa2c6b1609/download/202607300745_odv_gtfs-flex_j26.zip
 mdb-1021,9876583,72b87bf81724b0ccac805acd40532afd70b3a4f5a3ee3758dd7b8efff64427b4,https://storage.googleapis.com/storage/v1/b/mdb-latest/o/ni-managua-mapanica-managua-gtfs-1021.zip?alt=media
 mdb-1022,162174,5d32583992d105117c7e44b479044f74f7ed415227775b85e52e5bc8c1bd8490,https://storage.googleapis.com/storage/v1/b/mdb-latest/o/ni-unknown-nicaragua-gtfs-1022.zip?alt=media
 mdb-1023,198968,ee3578eafdbfc4c9a6796b39de79ce06d84652f55c94603014ef35602e31ad51,https://storage.googleapis.com/storage/v1/b/mdb-latest/o/ni-esteli-mapanica-esteli-gtfs-1023.zip?alt=media

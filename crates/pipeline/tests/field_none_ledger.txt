@@ -1,4 +1,4 @@
-# Entity/Row düzeyinde olup HER ZAMAN `field: None` emit eden kurallar. 30 kural.
+# Entity/Row düzeyinde olup HER ZAMAN `field: None` emit eden kurallar. 31 kural.
 # Biçim: RULE_ID  sınıf
 #
 # Kapsam defteri ve iddia defteri çapayı `(file, field)` üzerinden kurar; bu
@@ -38,6 +38,7 @@ OPR_020  Analytics
 OPR_021  Analytics
 OPR_022  Analytics
 OPR_023  Analytics
+OPR_024  Analytics
 PTH_012  Interop
 PTH_013  Analytics
 RCT_006  Spec

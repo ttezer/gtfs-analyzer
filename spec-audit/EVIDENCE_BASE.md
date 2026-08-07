@@ -4,7 +4,7 @@
 > nasıl yeniden üretileceği yazılıdır. Bir iddiayı çürütmek isteyen okuyucu için
 > "Bu iddiayı ne çürütür" bölümleri konmuştur.
 >
-> Durum: **2026-08-06** · kural sayısı **592** (38 grup)
+> Durum: **2026-08-07** · kural sayısı **593** (38 grup)
 >
 > ⚠️ **Buradaki hiçbir sayı elle güncellenmez ve belge bir commit'e SABİTLENMEZ.** Önceki
 > sürüm `origin/main = 62fa86b9` yazıyordu ve dört commit sonra hâlâ öyle duruyordu — dış
@@ -116,7 +116,7 @@ Her kuralın kanıtı **testle** bağlanır; "yazıldı" demek yetmez.
 
 | kapı | ne garanti eder | bugünkü durum |
 |---|---|---|
-| `emit_proof` | Her kuralın notice ürettiği bir fixture var | 12 test · ⚠️ **7 kuralın fixture'ı YOK** (§5.3) |
+| `emit_proof` | Her kuralın notice ürettiği bir fixture var | 13 test · ⚠️ **6 kuralın fixture'ı YOK** (§5.3) |
 | `badge_status` | Adjudike edilmemiş hüküm varsa **exit 1** | ✅ CI'da kapı (2026-08-06'da eklendi) |
 | `ledger_header_counts_match_catalogue` | Defter başlığı katalogla tutuyor + paya sayılan satırda varsayım yok | ✅ (2026-08-06'da eklendi) |
 | `spec_conformance` | Spec metni ile kural davranışı | geçiyor |
@@ -144,7 +144,7 @@ Tek binary, tek tarih (`--today 20260717`), tüm korpus.
 
 ```
 242 feed · 4 fatal · 0 çökme
-276 kural tetiklendi · 316 kural korpusta hiç çıkmadı
+276 kural tetiklendi · 317 kural korpusta hiç çıkmadı
 R1 yayın engeli taşıyan feed: 46 / 239 (üç yeni feed'in üçü de temiz)
 ```
 
@@ -260,8 +260,12 @@ değerleri · yanlış pozitif üretmemesi · hükmün tamamının mı yoksa bir
 hükmün dörtte biri ölçülmüyordu.) Sınır değerleri ve yanlış-pozitif tarafı ayrı
 `integration.rs` testleriyle ve korpus koşumuyla kapatılır — kural bazında değil.
 
-⚠️ **Yedi kuralın fixture'ı YOK** (`coverage_debt.txt`): `ARC_022` · `ARC_027` · `OPR_024` ·
-`SHP_026` · `STM_043` · `STM_044` · `VAT_006`.
+⚠️ **Altı kuralın fixture'ı YOK** (`coverage_debt.txt`): `ARC_022` · `ARC_027` · `SHP_026` ·
+`STM_043` · `STM_044` · `VAT_006`. (`OPR_024` 2026-08-07'de kapatıldı: eşiği
+`ValidatorConfig`'te olduğu için `fx_cfg` ile 500 → 50 indirilip 51 seferle yazıldı.)
+🔴 Defterdeki gerekçeler de düzeltildi — dosya çıplak ID listesiydi, `AGN_001` dersinin
+yasakladığı biçim. İkisi yanlış etiketliymiş: **`STM_043` ve `VAT_006` inline YAZILABİLİR,
+sadece yazılmamış.** Kanıt bu altısı için "başka yerde" değil, **YOK**.
 
 ### 5.4 "300/300" ÇAPA kapsamıdır, semantik tamlık değil
 Alan tablosu ekseni `Presence`/`Type`/`Primary Key` sütunlarından **kaba atomlar** üretir.
@@ -298,7 +302,13 @@ python3 spec-audit/corpus_batch.py validate --dir <dizin> --today 20260717
 python3 spec-audit/corpus_batch.py report --dir <dizin>
 # üretilen rule_stats.csv ↔ corpus-evidence/rule_stats.csv
 ```
-Bugün üreticide doğrulandı: **242/242 birebir aynı.**
+Bugün üreticide doğrulandı: **242/242 birebir aynı** ve **242/242'sinin indirme URL'i var.**
+
+⚠️ İlk sürümde İKİ feed'in (`PID_GTFS`, `ch-odv-flex`) `download_url` alanı BOŞTU ve
+`verify_corpus.py` onları sessizce atlıyordu — yani üçüncü taraf tam korpusu kuramıyordu
+ama bunu fark etmiyordu. 2026-08-07 denetimi yakaladı. Artık: manifest `build_manifest.py`
+çıktısıdır (katalog → `plan.csv` → gerekçesi yazılı `EXTRA_URLS` sırasıyla), URL'siz feed
+kalırsa üretici **exit 1**, `--download` da **exit 1** döner. Sessiz atlama kaldırıldı.
 
 ⚠️ **Kalan sınır:** feed'ler CANLI URL'lerden gelir. Yayıncı dosyayı güncellerse hash
 tutmaz — bu bir başarısızlık değil, korpusun bir ANLIK GÖRÜNTÜ olduğunun kanıtıdır.
@@ -310,10 +320,11 @@ için üretilen sayılar bizimkiyle karşılaştırılabilir.
 Flex `location_id` · Flex `location_group_id` · duraksız Flex · negatif ücret indirimi ·
 `routes.network_id` · yalnız `calendar_dates` · gece yarısı sonrası raylı sefer) ve bu
 feed'lerde Spec/Kritik notice çıkmamasını doğrular. **İyi bir regresyon kapısıdır ama
-592 kural için genel yanlış-pozitif kanıtı değildir.**
+593 kural için genel yanlış-pozitif kanıtı değildir.**
 
 ### 5.7 Kuralların ~%53'ü korpusta hiç tetiklenmedi
-276 kural tetiklendi, **316 kural hiç çıkmadı**. Yani kuralların yarısından fazlası için
+276 kural tetiklendi, **317 kural hiç çıkmadı** (593'ün %53'ü). Yani kuralların yarısından
+fazlası için
 GERÇEK VERİ üzerinde doğru-pozitif gözlem yok; kanıtları sentetik fixture'dır.
 
 ### 5.8 Mevcut kapılar İKİ GERÇEK SEMANTİK HATAYI kaçırdı
