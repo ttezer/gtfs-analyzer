@@ -271,17 +271,36 @@ değil — 2026-08-05 triyajı bu yüzden 12 boşluk buldu).
 çapası var."*  **Söylenemez:** *"Alan tablosundaki 300 hükmün her biri semantik olarak
 eksiksiz uygulanıyor."*
 
-### 5.5 Korpus kanıtı DIŞARIDAN yeniden üretilemiyor
-Bölüm 4'teki komutlar `notgit/` altındaki dosyalara işaret ediyor ve **`notgit/` `.gitignore`
-içinde** — korpus betiği, feed manifesti, zip'ler, MD raporları ve parite CSV'leri depoda
-YOK. Yani o komutlar yalnız geliştiricinin makinesinde çalışır.
+### 5.5 Korpus kanıtı — ✅ ARTIK DIŞARIDAN DOĞRULANABİLİR (2026-08-07)
+Dış denetim haklıydı: komutlar `notgit/` altındaki dosyalara işaret ediyordu ve o klasör
+`.gitignore`'da; korpus rakamları **geliştirici beyanıydı**. Kapatıldı.
 
-**Sonuç:** korpus rakamları (242 feed, MD paritesi 1446 satır) bağımsız olarak
-doğrulanabilir kanıt DEĞİLDİR; geliştirici beyanıdır. Depoda duran ve dışarıdan
-çalıştırılabilen kanıt şunlardır: `cargo test --workspace` · `spec-audit/*.py` ·
-`emit_proof` fixture'ları · `integration.rs` testleri.
-⏳ Kapatma yolu: feed listesi + her zip'in SHA-256'sı + `rule_stats.csv` ve parite
-çıktılarının depoya alınması (zip'ler değil, kimlikleri).
+Depoya ALINAN (`spec-audit/`):
+| dosya | ne |
+|---|---|
+| `corpus-evidence/corpus_manifest.csv` | 242 feed · her zip'in **SHA-256**'sı · bayt boyutu · indirme URL'i |
+| `corpus-evidence/rule_stats.csv` | koşumun kural bazında çıktısı |
+| `corpus-evidence/parity_unexplained.csv` | MD paritesinde açıklanamayan 10 satır |
+| `corpus-evidence/fatals.csv` | 4 fatal feed |
+| `corpus-evidence/verify_corpus.py` | üçüncü tarafın hash doğrulaması + indirme |
+| `corpus_batch.py` · `md_parity_audit.py` | koşum ve parite betikleri (gizli bilgi taşımaz; MD token env/gitignore'dan okunur) |
+
+Depoya ALINMAYAN: zip'lerin kendisi (**2,33 GB**).
+
+**Üçüncü taraf zinciri:**
+```
+python3 spec-audit/corpus-evidence/verify_corpus.py --download <dizin>
+python3 spec-audit/corpus-evidence/verify_corpus.py --zips <dizin>     # SHA-256 karşılaştır
+python3 spec-audit/corpus_batch.py validate --dir <dizin> --today 20260717
+python3 spec-audit/corpus_batch.py report --dir <dizin>
+# üretilen rule_stats.csv ↔ corpus-evidence/rule_stats.csv
+```
+Bugün üreticide doğrulandı: **242/242 birebir aynı.**
+
+⚠️ **Kalan sınır:** feed'ler CANLI URL'lerden gelir. Yayıncı dosyayı güncellerse hash
+tutmaz — bu bir başarısızlık değil, korpusun bir ANLIK GÖRÜNTÜ olduğunun kanıtıdır.
+`verify_corpus.py` "değişmiş" ile "bozuk"u ayrı raporlar; yalnız hash'i tutan feed'ler
+için üretilen sayılar bizimkiyle karşılaştırılabilir.
 
 ### 5.6 Yanlış pozitif kapısı SEKİZ sentetik feed'e dayanıyor
 `spec_conformance.rs`'teki "geçerli feed" matrisi sekiz senaryodur (klasik `stop_id` ·

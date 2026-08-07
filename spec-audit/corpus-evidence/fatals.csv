@@ -1,0 +1,5 @@
+feed,code,message
+mdb-1104,NoRequiredFiles,"Zorunlu dosyalar eksik: agency.txt, stops.txt, routes.txt, trips.txt, stop_times.txt"
+mdb-1936,NoRequiredFiles,"Zorunlu dosyalar eksik: stops.txt, trips.txt, stop_times.txt"
+mdb-2360,NoRequiredFiles,"Zorunlu dosyalar eksik: agency.txt, stops.txt, routes.txt, trips.txt, stop_times.txt"
+mdb-3135,NoRequiredFiles,"Zorunlu dosyalar eksik: agency.txt, stops.txt, routes.txt, trips.txt, stop_times.txt"
