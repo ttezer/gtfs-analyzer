@@ -6,10 +6,18 @@ burası her adayın hüküm olup olmadığına ve karşılanıp karşılanmadı�
 Katalog toplamı **299 aday** (sert 184 · yumuşak 115) ve **299'unun tamamı**
 adjudike edildi. Bölümler tam bitirilir, yarım bırakılmaz — kalan sayısı böyle güvenilir kalır.
 
-> **DURUM (2026-08-06 akşamı): düzyazı ekseni %98,6 — 145/147.** ⚠️ Bu satır ELLE
-> yazılmaz; `spec-audit/badge_status.py` çıktısıdır ve `ledger_header_counts_match_catalogue`
-> testi bayatlarsa CI'ı kırar. Gün içinde 131/131 → 146/146 → **145/147** oldu
-> (iki case kaçağı + bir dış denetim düzeltmesi).
+> **DURUM (2026-08-07): düzyazı ekseni %99,3 — 146/147.**
+>
+> ⚠️ Bu satır `spec-audit/badge_status.py` çıktısıdır ve **o betik başlığı kendisi
+> denetler**: hesapladığı `n/d` ilk 20 satırda geçmiyorsa **exit 1** döner, CI kırılır.
+> 🔴 Bu kapı 2026-08-07'de eklendi çünkü ÖNCEKİ hâli yetmiyordu: `STM_060` girince başlık
+> 145/147'de kaldı, `EVIDENCE_BASE.md` 146/147 yazdı ve mevcut test yalnız KATALOG
+> SAYISINI ("299 aday") denetlediği için sessiz kaldı — üstelik bu satırın kendisi
+> "test bayatlarsa CI'ı kırar" DİYE İDDİA EDİYORDU. **Bir belgenin kapı iddiası, kapının
+> varlığı demek değildir.**
+>
+> Seyir: 131/131 → 146/146 → 145/147 → **146/147** (iki case kaçağı · iki dış denetim
+> düzeltmesi · `STM_060`).
 > Yüzde bu belgeden `spec-audit/badge_status.py` ile **hesaplanır**, elle yazılmaz.
 > Aşağıdaki tur bölümleri o günkü kararları taşır; **kapanış durumu tek yerde tutulur:
 > "DURUM MAKİNESİ" tablosu.**

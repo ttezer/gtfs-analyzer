@@ -75,6 +75,23 @@ def main() -> int:
                   f"{prov[pid]['sentence'][:70]}")
         print("  → PROVISION_TRIAGE.md'ye karar satırı ekleyin; yüzde ancak ondan sonra geçerlidir.")
 
+    # 🔴 DEFTER BAŞLIĞI HESAPLANAN YÜZDEYLE TUTMALI — bu bir KAPIDIR.
+    # 2026-08-07: `STM_060` eklendikten sonra defterin başlığı 145/147'de kaldı,
+    # EVIDENCE_BASE.md 146/147 yazıyordu. `ledger_header_counts_match_catalogue` testi
+    # yalnız KATALOG SAYISINI ("299 aday") denetliyordu, yüzdeye hiç bakmıyordu — üstelik
+    # defterin o satırı "test bayatlarsa CI'ı kırar" DİYE İDDİA EDİYORDU.
+    # Kontrol buraya kondu çünkü sayıyı hesaplayan tek yer burası; Rust tarafına
+    # taşımak hesabı ikinci kez yazmak olurdu.
+    # ⚠️ "ilk 20 satırda geçiyor mu" YETMEZ — başlık bloğu bir de SEYİR satırı taşıyor
+    # ("131/131 → … → 146/147") ve orada geçtiği için DURUM satırı bayatlasa bile kontrol
+    # geçiyordu. Kapıyı bilerek bozunca çıktı: kapı, koruduğu SATIRA çapalanmalı.
+    durum = next((l for l in text.split("\n") if l.startswith("> **DURUM")), "")
+    if f"{n}/{d}" not in durum:
+        print(f"\n🔴 DEFTER BAŞLIĞI BAYAT — hesaplanan {n}/{d}, ama PROVISION_TRIAGE.md'nin"
+              f" '> **DURUM' satırında '{n}/{d}' geçmiyor.\n  satır: {durum[:110]}")
+        print("  → Başlıktaki DURUM satırını güncelleyin; yüzde iki yerde farklı duramaz.")
+        orphans = list(orphans) + ["<defter-başlığı>"]
+
     print(f"\n{'='*52}\nDÜZYAZI EKSENİ: {n}/{d} = %{100*n/d:.1f}")
     gaps = [k for k, v in hard.items() if v == "BOŞLUK"]
     for g in gaps:
