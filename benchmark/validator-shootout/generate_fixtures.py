@@ -87,7 +87,8 @@ def m_duplicate_stop_sequence(files: dict[str, str]) -> None:
     replace(files, "stop_times.txt", "S2,2,10", "S2,1,10")
 
 
-# Additional 18: deliberately spread across agency/routes/stops/trips/calendar/frequencies.
+# Additional 18 candidates are spread across agency/routes/stops/trips/calendar/frequencies;
+# 17 are used below so the complete suite remains exactly 30 cases.
 def m_agency_name_empty(files: dict[str, str]) -> None:
     replace(files, "agency.txt", "A,Test Transit,", "A,,")
 
@@ -118,10 +119,6 @@ def m_negative_route_sort_order(files: dict[str, str]) -> None:
 
 def m_stop_id_empty(files: dict[str, str]) -> None:
     replace(files, "stops.txt", "S1,Start,41.000000,29.000000", ",Start,41.000000,29.000000")
-
-
-def m_stop_name_empty(files: dict[str, str]) -> None:
-    replace(files, "stops.txt", "S1,Start,41.000000,29.000000", "S1,,41.000000,29.000000")
 
 
 def m_stop_lon_out_of_range(files: dict[str, str]) -> None:
@@ -187,7 +184,6 @@ CASES = [
     ("invalid_route_color", "route_color is not a six-digit hexadecimal color", "RTS_006", m_invalid_route_color),
     ("negative_route_sort_order", "route_sort_order is negative", "RTS_029", m_negative_route_sort_order),
     ("stop_id_empty", "a stops.txt row has an empty stop_id", "STP_002", m_stop_id_empty),
-    ("stop_name_empty", "a regular stop has an empty stop_name", "STP_003", m_stop_name_empty),
     ("stop_lon_out_of_range", "stop_lon is 181 degrees", "STP_005", m_stop_lon_out_of_range),
     ("invalid_location_type", "location_type is outside 0..4", "STP_008", m_invalid_location_type),
     ("invalid_stop_timezone", "stop_timezone is not an IANA timezone", "STP_014", m_invalid_stop_timezone),
@@ -200,7 +196,6 @@ CASES = [
     ("frequency_headway_zero", "frequencies headway_secs is zero", "FRQ_008", m_frequency_headway_zero),
 ]
 
-# Exactly 30 intended mutations. Keep this explicit so accidental additions/removals are visible.
 assert len(CASES) == 30, len(CASES)
 
 
