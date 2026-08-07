@@ -77,10 +77,15 @@ jobs:
           export PATH="$PWD/benchmark/validator-shootout/java-shim:$PATH"
           node benchmark/validator-shootout/run.mjs
 
+      - name: Correct benchmark classifications
+        run: node benchmark/validator-shootout/postprocess.mjs
+
       - name: Publish benchmark summary
         if: always()
         run: |
-          if [ -f benchmark/validator-shootout/results/report-100x3.md ]; then
+          if [ -f benchmark/validator-shootout/results/report-100x3.corrected.md ]; then
+            cat benchmark/validator-shootout/results/report-100x3.corrected.md >> "$GITHUB_STEP_SUMMARY"
+          elif [ -f benchmark/validator-shootout/results/report-100x3.md ]; then
             cat benchmark/validator-shootout/results/report-100x3.md >> "$GITHUB_STEP_SUMMARY"
           fi
 
