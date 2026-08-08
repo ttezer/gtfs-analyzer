@@ -39,7 +39,7 @@ OPR_021  Analytics
 OPR_022  Analytics
 OPR_023  Analytics
 OPR_024  Analytics
-PTH_012  Interop
+PTH_012  Spec
 PTH_013  Analytics
 RCT_006  Spec
 RTS_016  Quality

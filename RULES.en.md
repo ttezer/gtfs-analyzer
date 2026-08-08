@@ -36,7 +36,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | ARC_022 | File row count exceeds 1,000,000 limit | LOW | Quality |
 | ARC_023 | Nested ZIP file inside GTFS archive | MEDIUM | Quality |
 | ARC_024 | GTFS .txt file in subdirectory (will not be parsed) | MEDIUM | Spec |
-| ARC_026 | Malformed end-of-line characters | MEDIUM | Quality |
+| ARC_026 | Malformed end-of-line characters | MEDIUM | Spec |
 | ARC_027 | ZIP entry lacks user read permission | INFO | Quality |
 | ARC_028 | GTFS publishing URL does not end with a .zip filename | LOW | Quality |
 | ARC_029 | Zip-bomb protection triggered | CRITICAL | Quality |
@@ -80,7 +80,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | AGN_002 | agency_name missing | CRITICAL | Spec |
 | AGN_003 | agency_url missing or invalid | CRITICAL | Spec |
 | AGN_004 | agency_timezone missing or invalid | CRITICAL | Spec |
-| AGN_005 | Timezone inconsistency across agencies | MEDIUM | Quality |
+| AGN_005 | Timezone inconsistency across agencies | MEDIUM | Spec |
 | AGN_006 | agency_lang invalid | LOW | Spec |
 | AGN_007 | agency_phone invalid | LOW | Quality |
 | AGN_008 | agency_fare_url invalid | LOW | Spec |
@@ -376,7 +376,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | FRQ_008 | headway_secs is zero (invalid frequency) | CRITICAL | Spec |
 | FRQ_009 | Frequency interval too short | MEDIUM | Quality |
 | FRQ_010 | Very high frequency (bunching risk) | INFO | Analytics |
-| FRQ_011 | Overlapping frequency periods | HIGH | Interop |
+| FRQ_011 | Overlapping frequency periods | HIGH | Spec |
 | FRQ_012 | exact_times=1 with end_time on a headway boundary | LOW | Spec |
 
 ## TRF — Transfers
@@ -399,7 +399,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | TRF_014 | No trip for in-seat transfer | HIGH | Spec |
 | TRF_015 | in-seat transfer invalid | HIGH | Quality |
 | TRF_016 | Transfer condition conflicting | CRITICAL | Spec |
-| TRF_017 | Trip transfer on wrong route | HIGH | Interop |
+| TRF_017 | Trip transfer on wrong route | HIGH | Spec |
 | TRF_018 | Trip transfer references the same trip | MEDIUM | Quality |
 | TRF_019 | Different route_type in in-seat transfer | MEDIUM | Interop |
 | TRF_020 | Transfer walking speed is too fast | MEDIUM | Quality |
@@ -548,7 +548,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | TFR_002 | service_id not found | CRITICAL | Spec |
 | TFR_003 | start_time or end_time format error | HIGH | Spec |
 | TFR_004 | end_time less than start_time | MEDIUM | Quality |
-| TFR_005 | Overlapping time ranges within same group and service_id | MEDIUM | Interop |
+| TFR_005 | Overlapping time ranges within same group and service_id | MEDIUM | Spec |
 | TFR_006 | start_time or end_time greater than 24:00:00 | CRITICAL | Spec |
 | TFR_007 | Only one of start_time and end_time is specified | CRITICAL | Spec |
 | TFR_008 | timeframes has an empty service_id | CRITICAL | Spec |
@@ -568,7 +568,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | PTH_009 | max_slope missing | LOW | Quality |
 | PTH_010 | min_width invalid | LOW | Spec |
 | PTH_011 | Pathway forms a loop | HIGH | Quality |
-| PTH_012 | No accessible pathway to station | HIGH | Interop |
+| PTH_012 | No accessible pathway to station | HIGH | Spec |
 | PTH_013 | Accessible pathway analysis | INFO | Analytics |
 | PTH_014 | Pathway crosses station boundary | CRITICAL | Quality |
 | PTH_015 | Pathway leads to an unreachable stop | MEDIUM | Analytics |
@@ -616,7 +616,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | FIN_008 | feed_contact_email invalid | LOW | Spec |
 | FIN_009 | feed_contact_url invalid | LOW | Spec |
 | FIN_010 | Feed validity expired | HIGH | Analytics |
-| FIN_012 | feed_start_date is after feed_end_date | LOW | Quality |
+| FIN_012 | feed_start_date is after feed_end_date | LOW | Spec |
 | FIN_013 | fare_attributes.agency_id recommended but missing | INFO | Quality |
 | FIN_014 | Feed validity dates (feed_start_date/feed_end_date) missing | LOW | Quality |
 | FIN_015 | Multiple feed_info records | MEDIUM | Quality |
@@ -659,7 +659,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | ATR_006 | is_authority invalid | CRITICAL | Spec |
 | ATR_007 | attribution_url invalid | CRITICAL | Spec |
 | ATR_008 | attribution_email invalid | LOW | Spec |
-| ATR_009 | multiple attribution reference fields set | HIGH | Quality |
+| ATR_009 | multiple attribution reference fields set | HIGH | Spec |
 | ATR_010 | agency_id not found | LOW | Spec |
 | ATR_011 | route_id not found | LOW | Spec |
 | ATR_012 | trip_id not found | LOW | Spec |

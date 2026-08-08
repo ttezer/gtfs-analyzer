@@ -36,7 +36,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | ARC_022 | Dosya satır sayısı 1.000.000 sınırını aşıyor | DÜŞÜK | Quality |
 | ARC_023 | ZIP içinde nested ZIP dosyası — GTFS formatında desteklenmez | ORTA | Quality |
 | ARC_024 | GTFS .txt dosyası ZIP içinde alt dizinde — standart parser'lar tarafından atlanır | ORTA | Spec |
-| ARC_026 | Dosyada hatalı satır sonu karakteri | ORTA | Quality |
+| ARC_026 | Dosyada hatalı satır sonu karakteri | ORTA | Spec |
 | ARC_027 | ZIP girdisinde kullanıcı okuma izni yok | BİLGİ | Quality |
 | ARC_028 | GTFS yayın URL'si .zip dosya adıyla bitmiyor | DÜŞÜK | Quality |
 | ARC_029 | Sıkıştırma koruması: arşiv zip-bomb sınırını aştı | KRİTİK | Quality |
@@ -80,7 +80,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | AGN_002 | agency_name eksik | KRİTİK | Spec |
 | AGN_003 | agency_url eksik veya geçersiz | KRİTİK | Spec |
 | AGN_004 | agency_timezone eksik veya geçersiz | KRİTİK | Spec |
-| AGN_005 | Kuruluşlar arası saat dilimi tutarsızlığı | ORTA | Quality |
+| AGN_005 | Kuruluşlar arası saat dilimi tutarsızlığı | ORTA | Spec |
 | AGN_006 | agency_lang geçersiz | DÜŞÜK | Spec |
 | AGN_007 | agency_phone geçersiz | DÜŞÜK | Quality |
 | AGN_008 | agency_fare_url geçersiz | DÜŞÜK | Spec |
@@ -376,7 +376,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | FRQ_008 | headway_secs sıfır (geçersiz frekans) | KRİTİK | Spec |
 | FRQ_009 | Frekans aralığı çok kısa | ORTA | Quality |
 | FRQ_010 | Çok sık frekans (sıkışma riski) | BİLGİ | Analytics |
-| FRQ_011 | Aynı trip için frequencies dönemleri zaman aralığı çakışıyor | YÜKSEK | Interop |
+| FRQ_011 | Aynı trip için frequencies dönemleri zaman aralığı çakışıyor | YÜKSEK | Spec |
 | FRQ_012 | exact_times=1 iken end_time headway sınırına denk geliyor | DÜŞÜK | Spec |
 
 ## TRF — Transfers (Aktarmalar)
@@ -399,7 +399,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | TRF_014 | in-seat aktarma için sefer yok | YÜKSEK | Spec |
 | TRF_015 | in-seat aktarma geçersiz | YÜKSEK | Quality |
 | TRF_016 | Aktarma koşulu çelişkili | KRİTİK | Spec |
-| TRF_017 | Sefer aktarması yanlış hat | YÜKSEK | Interop |
+| TRF_017 | Sefer aktarması yanlış hat | YÜKSEK | Spec |
 | TRF_018 | Sefer aktarması aynı seferi gösteriyor | ORTA | Quality |
 | TRF_019 | In-seat aktarmada farklı route_type | ORTA | Interop |
 | TRF_020 | Aktarma için gereken yürüme hızı çok yüksek | ORTA | Quality |
@@ -548,7 +548,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | TFR_002 | service_id bulunamadı | KRİTİK | Spec |
 | TFR_003 | start_time veya end_time format hatası | YÜKSEK | Spec |
 | TFR_004 | end_time start_time'dan küçük | ORTA | Quality |
-| TFR_005 | Aynı grup ve service_id içinde örtüşen zaman aralıkları | ORTA | Interop |
+| TFR_005 | Aynı grup ve service_id içinde örtüşen zaman aralıkları | ORTA | Spec |
 | TFR_006 | start_time veya end_time 24:00:00'dan büyük | KRİTİK | Spec |
 | TFR_007 | start_time ve end_time yalnızca biri tanımlı | KRİTİK | Spec |
 | TFR_008 | timeframes'te service_id boş | KRİTİK | Spec |
@@ -568,7 +568,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | PTH_009 | max_slope eksik | DÜŞÜK | Quality |
 | PTH_010 | min_width geçersiz | DÜŞÜK | Spec |
 | PTH_011 | Geçit döngü oluşturuyor | YÜKSEK | Quality |
-| PTH_012 | İstasyona erişilebilir yol yok | YÜKSEK | Interop |
+| PTH_012 | İstasyona erişilebilir yol yok | YÜKSEK | Spec |
 | PTH_013 | Erişilebilir yol analizi | BİLGİ | Analytics |
 | PTH_014 | Geçit istasyon sınırını aşıyor | KRİTİK | Quality |
 | PTH_015 | Geçit hedefi erişilemeyen durakta | ORTA | Analytics |
@@ -616,7 +616,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | FIN_008 | feed_contact_email geçersiz | DÜŞÜK | Spec |
 | FIN_009 | feed_contact_url geçersiz | DÜŞÜK | Spec |
 | FIN_010 | Feed geçerlilik süresi dolmuş | YÜKSEK | Analytics |
-| FIN_012 | feed_start_date feed_end_date'den sonra | DÜŞÜK | Quality |
+| FIN_012 | feed_start_date feed_end_date'den sonra | DÜŞÜK | Spec |
 | FIN_013 | fare_attributes.agency_id önerilen ama eksik | BİLGİ | Quality |
 | FIN_014 | Feed geçerlilik tarihleri (feed_start_date/feed_end_date) eksik | DÜŞÜK | Quality |
 | FIN_015 | Birden fazla feed_info kaydı | ORTA | Quality |
@@ -659,7 +659,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | ATR_006 | is_authority geçersiz | KRİTİK | Spec |
 | ATR_007 | attribution_url geçersiz | KRİTİK | Spec |
 | ATR_008 | attribution_email geçersiz | DÜŞÜK | Spec |
-| ATR_009 | attribution hedef alanları (agency/route/trip) birlikte kullanılmış | YÜKSEK | Quality |
+| ATR_009 | attribution hedef alanları (agency/route/trip) birlikte kullanılmış | YÜKSEK | Spec |
 | ATR_010 | agency_id bulunamadı | DÜŞÜK | Spec |
 | ATR_011 | route_id bulunamadı | DÜŞÜK | Spec |
 | ATR_012 | trip_id bulunamadı | DÜŞÜK | Spec |

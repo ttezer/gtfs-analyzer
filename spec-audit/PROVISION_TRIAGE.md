@@ -6,7 +6,7 @@ burası her adayın hüküm olup olmadığına ve karşılanıp karşılanmadı�
 Katalog toplamı **300 aday** (sert 185 · yumuşak 115) ve **300'ünün tamamı**
 adjudike edildi. Bölümler tam bitirilir, yarım bırakılmaz — kalan sayısı böyle güvenilir kalır.
 
-> **DURUM (2026-08-07): düzyazı ekseni %99,3 — 147/148.**
+> **DURUM (2026-08-09): düzyazı ekseni %97,2 — 139/143.**
 >
 > ⚠️ Bu satır `spec-audit/badge_status.py` çıktısıdır ve **o betik başlığı kendisi
 > denetler**: hesapladığı `n/d` ilk 20 satırda geçmiyorsa **exit 1** döner, CI kırılır.
@@ -58,7 +58,7 @@ adjudike edildi. Bölümler tam bitirilir, yarım bırakılmaz — kalan sayıs�
 🔴 **6. denetim (issue #79) etiket tarafını da çürüttü:** liste ELLE yazılmıştı ve "HTML5'in TAMAMI" deniyordu; `svg`/`math` eksikti. Artık ÜRETİLİYOR (`gen_html_elements.py`: WHATWG dizini ∪ yabancı içerik kökleri ∪ eskimiş elemanlar — iki ek kümenin gerekçesi üreticide, drift CI'da). Ayrıca ad sınırı denetimi eklendi: `<svg-yok>` artık "svg" sayılmıyor (tireli ad = özel eleman).
 **Kalan kalıntı (ölçülmüş, KANITLI'yı düşürmüyor):** liste KAPALIDIR — uydurma bir ad (`<TBD>`, `&Tire;`) HTML DEĞİLDİR, dolayısıyla hükmün konusu da değildir. Deseni serbest bırakmak gerçek metni yakalardı: `K.A.Wheel&Tire;` korpusta ölçüldü. Ölçüm: 20 feed · 54.076.644 hücre · noktalı virgülsüz eski entity 0 · bulgu farkı 0. |
 | `P5f591221` | Fazladan boşluklar kaldırılmalı *(soft)* | **KANITLI** | `DQ_016` (Orta·Quality) — dosya başına tek özet. Yumuşak hüküm, Quality sınıfı: doğru eşleşme. |
-| `P536c3b95` | Her satır CRLF veya LF ile bitmeli | **KANITLI** | `ARC_026` — `k1_parse.rs:943`. |
+| `P536c3b95` | Her satır CRLF veya LF ile bitmeli | **KANITLI** | `ARC_026` (Quality→**Spec**, #96) — `k1_parse.rs:943`. |
 | `Pf79a5cc1` | Dosyalar UTF-8 kodlanmalı; BOM kabul edilir *(soft)* | **KANITLI** | `ARC_003` (kodlama hatası) + `ARC_010` (BOM bilgisi). BOM'un kabul edilirliği `strip_bom` ile korunuyor. |
 | `P78b1b3e8` | Tüm dosyalar birlikte zip'lenmeli | **KANITLI** | `ARC_001` — açılamayan arşiv. |
 | `Pc0951256` | Dosyalar doğrudan kökte olmalı, alt klasörde değil | **KANITLI** | `ARC_024`. Tek üst klasöre sarılmış feed'ler `detect_wrapped_root` ile bilinçli tolere edilir → [[project_wrapped_root_tolerance]]. |
@@ -250,7 +250,7 @@ birleştirmek `emit_identity` kapısını düşürebilir.
 | `P067f2da6` · `Pe69f3d33` | route_color · route_text_color | Yeterli kontrast olmalı *(soft)* | **KANITLI** | `RTS_008` — `wcag_contrast_ratio` (`common.rs:247`). |
 | `P9068b265` · `P0003b8f1` | continuous_pickup · continuous_drop_off | Flex penceresi varken 1/boş dışı yasak | **KANITLI** | `RTS_028` (08-03'te Interop→**Spec**; otorite MD paritesi değil spec'tir). |
 | `P419062b4` | network_id | `route_networks.txt` veya `networks.txt` varsa yasak | **KANITLI** | `XFL_019` — iki kolu da denetler. |
-| `P69d68d06` | cemv_support | Fare dosyalarıyla çelişki olmamalı | **KANITLI** | `XFL_026` · `XFL_027`. |
+| `P69d68d06` | cemv_support | Fare dosyalarıyla çelişki olmamalı | **KAPSAM DIŞI** | 🔴 **#96'da düşürüldü (önce kanıtlı sayılıyordu).** Cümle bir ÖNCELİK kuralıdır: çelişki hâlinde hangi değerin geçerli olduğunu TÜKETİCİYE söyler, feed'e bir yasak koymaz. Çelişkili bir feed bu cümleyi İHLAL ETMEZ — cümle çelişkiyi öngörür ve çözer, dolayısıyla doğrulayıcı onun ihlalini asla bulamaz. Defterin kendi tanımı: *"Tüketici tarafını bağlar"*. ⚠️ Atıf verilen XFL kuralları KALDIRILMADI: çelişkiyi bildirmek yararlı bir Quality sinyalidir, yalnızca bu hükmün kanıtı değildir. Sinyal: `XFL_026` · `XFL_027`. |
 | `P803cfa49` | cemv_support | Yalnız tüm hizmetler cEMV kabul ediyorsa bildirilmeli *(soft)* | KISMİ | `XFL_029` yakınsıyor; "tüm hizmetler" koşulu ölçülmüyor. |
 | `P6802b122` | route_short_name | Kısa hizmet tanımı varsa önerilir *(soft)* | KISMİ | `RTS_003` yalnız ikisinin birden boş olmasını ölçer. |
 | `P86914315` | cemv_support | Çakışmada `routes.cemv_support` geçerlidir | **KAPSAM DIŞI** | Öncelik kuralı — tüketiciye hangi değeri okuyacağını söyler, ihlal edilebilir bir yasak koymaz. |
@@ -299,8 +299,9 @@ Yumuşak hüküm → karşılığı **Quality**. Kural yazılmadı; `STP_040`'ı
 | `P8e01aabc` · `P2f6c441c` | from_stop_id · to_stop_id | `transfer_type` boş/0/1/2/3 ise zorunlu | **KANITLI** | `TRF_001` · `TRF_002`. |
 | `P985bdc2c` · `Pf42894d6` | from_stop_id · to_stop_id | `transfer_type` 4/5 ise durak (`location_type=0`) olmalı | **KANITLI** | İki kuralın **birleşimi** tam: `TRF_021` her zaman 2/3/4'ü yasaklar (`k4_cross_ref.rs:1799`), `TRF_015` 4/5'te ayrıca 1'i yasaklar (`:1820`). Geriye yalnız 0/boş kalır. Kod yorumu ayrımı gerekçelendiriyor. |
 | `P8423efa1` · `P4139d9ac` | from_trip_id · to_trip_id | `transfer_type` 4/5 ise zorunlu | **KANITLI** | `TRF_014` (in-seat aktarma için sefer yok). |
-| `P0fa71358` · `P585a24d4` · `P134a2d40` · `P446972ca` | from/to_route_id · from/to_trip_id | İkisi birlikte tanımlıysa trip route'a ait olmalı | **KANITLI** | `TRF_017` (sefer aktarması yanlış hat). Cümlenin "trip_id öncelik alır" kısmı öncelik kuralı → ihlal edilemez. |
-| `P35e92ee9` · `P04a7709e` | transfer_type | 5 = ardışık seferler arası in-seat aktarma **yasak**; yolcu inip yeniden binmeli | **KANITLI** | `TRF_015` · `TRF_019` (in-seat aktarmada farklı `route_type`). |
+| `P0fa71358` · `P585a24d4` · `P134a2d40` · `P446972ca` | from/to_route_id · from/to_trip_id | İkisi birlikte tanımlıysa trip route'a ait olmalı | **KANITLI** | `TRF_017` (sefer aktarması yanlış hat). 🔎 **#96 kanıt-sınıfı denetimi (2026-08-09):** `TRF_017` Interop'tan **Spec**'e taşındı — hüküm normatif (*"the trip_id must belong to the route_id"*); MD paritesi kuralın ŞEKLİNİ belirler, SINIFINI değil. Cümlenin "trip_id öncelik alır" kısmı öncelik kuralı → ihlal edilemez. |
+| `P35e92ee9` | transfer_type | 5 = ardışık seferler arası in-seat aktarma yasak | **META** | 🔴 **#96'da düşürüldü (önce kanıtlı sayılıyordu).** Bu bir ENUM DEĞERİ TANIMIDIR: `transfer_type=5` yazan feed bir şey ihlal etmez, değerin ne anlama geldiğini bildirir. Bir alt satırdaki `P320bcb49` (min_transfer_time tanımı) aynı gerekçeyle zaten META — aynı ölçüt uygulandı. |
+| `P04a7709e` | transfer_type | Yolcu araçtan inip yeniden binmeli | **KAPSAM DIŞI** | 🔴 **#96'da düşürüldü (önce kanıtlı sayılıyordu).** Cümlenin öznesi YOLCUDUR; feed'den doğrulanabilir bir içerik kısıtı değildir. ⚠️ Eski atıf `TRF_015`/`TRF_019` zaten hükmü ölçmüyordu: `TRF_015` linked-trip aktarmada İSTASYON referansını, `TRF_019` farklı `route_type`'ı ölçer. İkisi de yerinde kalır, bu hükmün kanıtı değildir. |
 | `Pd69ec0d5` | transfer_type | Geçerli değerler 0/empty…5 *(soft biçimde yazılmış)* | **KANITLI** | `TRF_004`. |
 | `P320bcb49` | min_transfer_time | Saniye cinsinden, aktarmaya izin verecek süre | **META** | Alanın tanımı; ihlal edilebilir bir yasak koymuyor. Değer geçerliliği `TRF_005`/`TRF_010`. |
 | `P4eb0f714` | min_transfer_time | Tipik yolcunun yürümesine yetmeli *(soft)* | **KANITLI** | `TRF_020` (gereken yürüme hızı çok yüksek) + `TRF_011` (mesafe uzak). |
@@ -313,7 +314,7 @@ Yumuşak hüküm → karşılığı **Quality**. Kural yazılmadı; `STP_040`'ı
 | id | alan | hüküm | karar | dayanak |
 |---|---|---|---|---|
 | `Pc8bfc111` | is_bidirectional | Çıkış kapısı (`pathway_mode=7`) çift yönlü olamaz | **KANITLI** | `PTH_016`. |
-| `Pde6fb4a5` | — | "No locked platforms": pathway'i olan istasyonda her platform/boarding area bir girişe zincirle bağlı olmalı | **KANITLI** | `PTH_012` — `k6_analytics.rs:7240`; iç içe modelleme (platform → boarding area) hesaba katılıyor (`:7287`). |
+| `Pde6fb4a5` | — | "No locked platforms": pathway'i olan istasyonda her platform/boarding area bir girişe zincirle bağlı olmalı | **KANITLI** | `PTH_012` (Interop→**Spec**, #96) — `k6_analytics.rs:7240`; iç içe modelleme (platform → boarding area) hesaba katılıyor (`:7287`). |
 | `Pcc725763` | max_slope | Yalnız yürüme yolu (1) ve yürüyen bant (3) ile kullanılmalı *(soft)* | **KANITLI** | `PTH_028` (08-03'te `PTH_017`'den ayrıldı — tavsiye/norm ayrımı). |
 | `P3eeff781` | length | Walkway (1), fare gate (6), exit gate (7) için önerilir *(soft)* | **KANITLI** | `PTH_025` — koşul `matches!(pathway_mode, Some(1 \| 6 \| 7))` (`pathways.rs:70`), spec'le **birebir**. |
 | `P707340ae` | stair_count | Merdiven (`pathway_mode=2`) için önerilir *(soft)* | **KANITLI** | `PTH_008` (feed düzeyi özet; yürüme yolu sayılmıyor). |
@@ -448,7 +449,7 @@ ile yazar. Bunlar bağlayıcıdır ama **veriyi değil tüketiciyi** bağlar —
 | `P278f9cc2` · `Pd90f72d8` | from_stop_id · to_stop_id | Biri varsa diğeri de zorunlu | **KANITLI** | `FLJ_003` · `FLJ_004` (aynı uyarı). |
 | `Pe15614d2` | agency_id | Çoklu ajans varsa zorunlu | **KANITLI** | `AGN_011` — 08-02'de tam bu hüküm için `fare_attributes`'a genişletilmişti. |
 | `P31c88c29` · `P71c9ce23` | payment_method | Ödemenin ne zaman yapılacağını belirtir; 1 = binişten önce | **KANITLI** | `FAR_004` (enum geçerliliği) + `FAR_011` (eksik). Cümleler enum tanımı. |
-| `Pa586fe5b` | — | Aynı `timeframe_group_id` + `service_id` için örtüşen aralık olamaz | **KANITLI** | `TFR_005`. |
+| `Pa586fe5b` | — | Aynı `timeframe_group_id` + `service_id` için örtüşen aralık olamaz | **KANITLI** | `TFR_005` (Interop→**Spec**, #96 — *"There must not be overlapping time intervals"* normatif). |
 | `P6fa9925a` · `P4f2430ed` · `P8cc81b88` · `P7b4083a2` | start_time · end_time | Biri varsa diğeri zorunlu, aksi yasak | **KANITLI** | `TFR_007` (tek kural, çift yönlü). |
 | `P1d9a0191` | is_default_fare_category | Bir `fare_product_id` için tam bir varsayılan kategori olmalı | **KANITLI** | `RCT_006` + `FPD_006` (aynı olgunun iki dosyadaki ucu). |
 | `P79f202e6` | rider_category_id | Aynı hüküm, `fare_products` tarafı | **KANITLI** | `FPD_006`. |
@@ -504,14 +505,14 @@ düşünmeye itiyor; bu repoda `DQ_021` gibi çapraz kurallar tam bu boşluklar�
 |---|---|---|---|---|
 | `P5a1c0ffc` | agency_id | Birden çok ajans varsa zorunlu | **KANITLI** | `AGN_014`. |
 | `Pb135ca49` | agency_id | Aksi hâlde önerilir *(soft)* | **KANITLI** | `AGN_011` (`FIN_013` ile birlikte). |
-| `Pf27a2fd0` | agency_timezone | Çoklu ajansın hepsi aynı saat dilimini taşımalı | **KANITLI** | `AGN_005`. |
-| `Pbb82f19e` | agency_phone | Çevrilebilir metin izinli, başka açıklama **yasak** | **KANITLI** | `AGN_007` (+ `AGN_016` yer-tutucu numaralar). `looks_like_phone` harf içeren değeri reddediyor — TriMet'in "503-238-RIDE" biçimi ⚠️ **spec'te açıkça izinli ama bizim doğrulayıcımız reddeder.** Aşağıda. |
+| `Pf27a2fd0` | agency_timezone | Çoklu ajansın hepsi aynı saat dilimini taşımalı | **KANITLI** | `AGN_005` (Quality→**Spec**, #96 — *"each must have the same agency_timezone"* normatif). |
+| `Pbb82f19e` | agency_phone | Çevrilebilir metin izinli, başka açıklama **yasak** | KISMİ | `AGN_007` (+ `AGN_016` yer-tutucu numaralar). 🔴 **#96'da düşürüldü (önce kanıtlı sayılıyordu):** `looks_like_phone` bilinçli bir **kalite yaklaşımıdır**, telefon grameri değil — spec `Phone number` tipi için gramer tanımlamaz. Bilinen sınır (#95'te ölçülüp belgelendi): baştan sona büyük harf düzyazı (`1234 CALL US NOW`) vanity'den ayırt edilemez ve kabul edilir. Sınıfı Spec'e taşımak, yaklaşık bir predikata norm gücü atfetmek olurdu. ⛔ Eski gerekçe metni (aşağıda) da bayattı: `looks_like_phone` harf içeren değeri reddediyor — TriMet'in "503-238-RIDE" biçimi ⚠️ **spec'te açıkça izinli ama bizim doğrulayıcımız reddeder.** Aşağıda. |
 | `P130f8673` | agency_email | Yolcunun ulaşabileceği doğrudan adres olmalı *(soft)* | KISMİ | `AGN_009` biçimi ölçer; "doğrudan temas noktası" doğrulanamaz. |
-| `P722127e8` · `P3005b227` | cemv_support | `routes.cemv_support` önceliklidir; fare dosyalarıyla çelişmemeli | **KANITLI** | `XFL_017` (route↔agency çelişkisi) + `XFL_028`/`XFL_030`. |
+| `P722127e8` · `P3005b227` | cemv_support | `routes.cemv_support` önceliklidir; fare dosyalarıyla çelişmemeli | **KAPSAM DIŞI** | 🔴 **#96'da düşürüldü (önce kanıtlı sayılıyordu).** Cümle bir ÖNCELİK kuralıdır: çelişki hâlinde hangi değerin geçerli olduğunu TÜKETİCİYE söyler, feed'e bir yasak koymaz. Çelişkili bir feed bu cümleyi İHLAL ETMEZ — cümle çelişkiyi öngörür ve çözer, dolayısıyla doğrulayıcı onun ihlalini asla bulamaz. Defterin kendi tanımı: *"Tüketici tarafını bağlar"*. ⚠️ Atıf verilen XFL kuralları KALDIRILMADI: çelişkiyi bildirmek yararlı bir Quality sinyalidir, yalnızca bu hükmün kanıtı değildir. Sinyal: `XFL_017` + `XFL_028`/`XFL_030`. |
 | `P572bb984` | cemv_support | Yalnız tüm hizmetler cEMV kabul ediyorsa bildirilmeli *(soft)* | KISMİ | `XFL_028` yakınsıyor; "tüm hizmetler" koşulu ölçülmüyor. |
-| `P7917f3c5` | agency_id | `agency_id`/`route_id`/`trip_id` attribution'larından biri varsa diğerleri boş olmalı | **KANITLI** | `ATR_009`. |
+| `P7917f3c5` | agency_id | `agency_id`/`route_id`/`trip_id` attribution'larından biri varsa diğerleri boş olmalı | **KANITLI** | `ATR_009` (Quality→**Spec**, #96 — *"the other ones must be empty"* normatif). |
 | `Pebcbebf1` | is_producer | `is_producer`/`is_operator`/`is_authority`'den en az biri 1 olmalı *(soft)* | **KANITLI** | `ATR_003`. |
-| `Pec6b6920` | headway_secs | Aynı sefer için birden çok headway tanımlanabilir ama **çakışamaz** | **KANITLI** | `FRQ_011`. |
+| `Pec6b6920` | headway_secs | Aynı sefer için birden çok headway tanımlanabilir ama **çakışamaz** | **KANITLI** | `FRQ_011` (Interop→**Spec**, #96 — *"must not overlap"* normatif). |
 | `P257db6b1` | exact_times | `end_time`, son istenen sefer başlangıcından büyük olmalı | KISMİ | `FRQ_005` (end < start) ve `FRQ_009` komşu; cümlenin `exact_times=1`'e özgü inceliği ölçülmüyor. |
 | `P1ecc6733` | level_index | Zemin 0, üstü pozitif, altı negatif *(soft)* | KISMİ | `LVL_002` sayısal geçerliliği ölçer; zemin referansı feed dışı bilgi. |
 | `P24d95df2` | location_group_id | Üç kaynak genelinde benzersiz | **KANITLI** | `XFL_031` (hükmün üçüncü ucu; 1. turda `P042ba79f`/`P1afc582a`). |
@@ -522,7 +523,7 @@ düşünmeye itiyor; bu repoda `DQ_021` gibi çapraz kurallar tam bu boşluklar�
 |---|---|---|---|---|
 | `P67d6bd72` | shape_pt_sequence | Artmalı, ardışık olmak zorunda değil | **KANITLI** | `SHP_004` + `SHP_008` (yinelenen). ✅ **İzin tarafı doğrulandı:** ardışık olmayan diziye ateşleyen kural yok — `stop_sequence` için yapılan aynı kontrol. |
 | `P2a0dbcd7` | shape_dist_traveled | `shape_pt_sequence` ile artmalı, ters seyahat göstermemeli | **KANITLI** | `SHP_005` + `SHP_021` + `SHP_028`. |
-| `Pdef3d025` | shape_dist_traveled | Birimler `stop_times.txt` ile tutarlı olmalı | **KANITLI** | `STM_024` (birim tutarsızlığı) + `SHP_024`/`SHP_025`. |
+| `Pdef3d025` | shape_dist_traveled | Birimler `stop_times.txt` ile tutarlı olmalı | KISMİ | 🔴 **#96'da düşürüldü (önce kanıtlı sayılıyordu).** Kanıt `STM_024`/`SHP_024`/`SHP_025` (üçü de Quality) — ve sınıfları taşımak YANLIŞ olurdu: **GTFS birimi hiçbir yerde BEYAN ETMEZ.** "Aynı birim" ancak oran sezgiseliyle (metre↔km gibi kaba sapma) yaklaşık ölçülebilir; birbirine yakın iki yanlış birim saptanamaz. Hüküm feed'i bağlar ama Spec gücünde ölçülemez → KISMİ, kurallar Quality kalır. |
 | `P984ec73b` | shape_dist_traveled | Döngü/iç içe hatlarda önerilir *(soft)* | KISMİ | `SHP_017` komşu; döngü koşulu ölçülmüyor (`stop_times` tarafındaki `P7c96867d` ile aynı durum). |
 | `Pd03c58da` | — | Duraklar shape'i tam kesmese de küçük mesafede olmalı *(soft)* | **KANITLI** | `SHP_012` · `SHP_014` · `GEO_009`. |
 | `Pecd3617b` | — | Rota tabanlı hizmetler için `shapes.txt` bulunmalı, bölge tabanlı DRT için gerek yok *(soft)* | **KANITLI** | `RTS_017` (shape'siz hat) + `ARC_020`'nin DRT muafiyeti ([[project_arc020_drt_exemption]]) — istisna da doğru modellenmiş. |
@@ -543,7 +544,7 @@ düşünmeye itiyor; bu repoda `DQ_021` gibi çapraz kurallar tam bu boşluklar�
 
 | id | alan | hüküm | karar | dayanak |
 |---|---|---|---|---|
-| `P3e2e5c05` | feed_start_date | `feed_end_date`, `feed_start_date`'ten önce olamaz | **KANITLI** | `FIN_012`. |
+| `P3e2e5c05` | feed_start_date | `feed_end_date`, `feed_start_date`'ten önce olamaz | **KANITLI** | `FIN_012` (Quality→**Spec**, #96 — *"must not precede"* normatif). |
 | `Pc78e53ef` · `P3834f860` | feed_contact_email · feed_contact_url | En az biri sağlanmalı *(soft)* | **KANITLI** | `FIN_018`. |
 | `P11f6523f` | feed_start_date | Bu dönem dışında da veri verilmesi önerilir *(soft)* | KISMİ | `FIN_016`/`FIN_017`/`CAL_019` komşu pencereleri ölçüyor. |
 | `P637f73ea` | default_lang | Tüketici yolcunun dilini bilmiyorsa kullanılacak dil *(soft)* | **KANITLI** | `FIN_004` (geçerlilik). Cümle alan tanımı. |
@@ -1115,10 +1116,10 @@ biçiminde başlıyor. Sekiz eşleşmenin sekizi de gerçek hüküm çıktı —
 | `Pedaac477` | `networks.network_id` benzersiz olmalı | **KANITLI** | `NET_001` |
 | `P05d556b5` | `pathways.pathway_id` veri setinde benzersiz olmalı | **KANITLI** | `PTH_001` |
 | `Pc1ed2281` · `Pb194db96` | pathway uç noktası peron/giriş/düğüm/biniş alanı olmalı | **KANITLI** | `PTH_026` |
-| `P3db455d6` | `stop_times.shape_dist_traveled` shapes ile aynı birimde olmalı | **KANITLI** | `STM_024` (birim tutarsızlığı) |
+| `P3db455d6` | `stop_times.shape_dist_traveled` shapes ile aynı birimde olmalı | KISMİ | 🔴 **#96'da düşürüldü** — `Pdef3d025`'in ikizi (aynı hüküm, iki dosyadan yazılmış). Gerekçe orada: birim beyan edilmediği için yalnız kaba oran sapması ölçülebilir. |
 | `Peb36dead` · `P28c5b709` | `timeframes` start/end_time > 24:00:00 yasak | **KANITLI** | `TFR_006` |
 | `P770d4d86` | `duration_limit` tam saniye tam sayısı olmalı | **KANITLI** | `FTR_006` |
-| `P2f291c33` | `locations.geojson` geometrisi Polygon/MultiPolygon olmalı | **KANITLI** | `k1_parse.rs` geometri tipi denetimi |
+| `P2f291c33` | `locations.geojson` geometrisi Polygon/MultiPolygon olmalı | **KANITLI** | `LOC_002` (Kritik·Spec) — `k1_parse.rs:1879`. #96'da kural adı yazıldı: satır yalnız dosya adı veriyordu, kanıt makine-okunur DEĞİLDİ. |
 | `Pfe619a22` | `stop_desc`, `stop_name`'in kopyası olmamalı *(soft)* | **KANITLI** | `STP_031` |
 | `P72501068` | `route_desc`, route adlarının kopyası olmamalı *(soft)* | **KANITLI** | `RTS_023` |
 | `Pa6690298` | `route_url`, `agency_url`'den farklı olmalı *(soft)* | **KANITLI** | `RTS_020` |

@@ -22,8 +22,12 @@
    tavsiyeyi norm saymak geçerli feed'i reddeder; bu proje o hatayı bir kez yaptı
    (`PTH_017`) ve bir daha yapmamak için yumuşak ekseni ayrı tutuyor.
 3. **Korpus 242 feed'dir, evren değildir.** "Yanlış pozitif ölçülmedi" ≠ "yanlış pozitif yok".
-4. **Tüketici tarafını bağlayan hükümler ölçülmez** — 185 sert hükmün **24'ü KAPSAM DIŞI**,
-   13'ü META; ikisi paydadan düşer (185 − 37 = 148). Bir doğrulayıcının bunları ölçmemesi
+4. **Tüketici tarafını bağlayan hükümler ölçülmez** — 185 sert hükmün **28'i KAPSAM DIŞI**,
+   14'ü META; ikisi paydadan düşer (185 − 42 = 143). 🔎 **#96 (2026-08-09): bu iki sayı 24/13'ten
+   büyüdü.** Kanıt-sınıfı denetimi beş hükmün öznesinin feed DEĞİL tüketici/yolcu olduğunu ortaya
+   çıkardı: üç `cemv_support` öncelik cümlesi (*"shall take precedence"* — çelişkiyi öngörür ve
+   çözer, yasaklamaz), `transfer_type=5`'in enum tanımı (META) ve *"yolcu inip yeniden binmeli"*
+   (özne yolcu). Beşi de kanıtlı sayılıyordu. Bir doğrulayıcının bunları ölçmemesi
    eksiklik değil, tanım gereğidir.
 
 ---
@@ -32,7 +36,7 @@
 
 | eksen | değer | ne demek |
 |---|---|---|
-| **Düzyazı hükümleri** | **147 / 148** | Spec metnindeki normatif cümlelerden feed'den doğrulanabilir olanlar |
+| **Düzyazı hükümleri** | **139 / 143** | Spec metnindeki normatif cümlelerden feed'den doğrulanabilir olanlar |
 | **Alan tablosu atomları** | **300 / 300 ÇAPALI** | Her geçerli atomda EN AZ BİR Spec notice çapası var — **semantik tamlık DEĞİL** (§5.4) |
 | Yumuşak hükümler | 45 / 69 (%65,2) | **Hedef değil** — Quality sinyali |
 

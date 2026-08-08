@@ -149,7 +149,11 @@ pub static RULES: &[RuleMeta] = &[
         "ZIP içinde nested ZIP dosyası — GTFS formatında desteklenmez"),
     r!("ARC_024", Orta,   Spec,    2, &[], None, VS, File,
         "GTFS .txt dosyası ZIP içinde alt dizinde — standart parser'lar tarafından atlanır"),
-    r!("ARC_026", Orta, Quality, 1, &[], None, VS, File,
+    // SINIF DEĞİŞTİ (#96, 2026-08-09): kanıt sınıfı ↔ hüküm otoritesi. Sert bir Spec
+    // hükmünü YALNIZ bu kural ölçüyordu ama kural Spec sınıfında değildi; Spec'e filtreleyen
+    // kullanıcı ihlali HİÇ görmüyordu. Önem DEĞİŞMEDİ → R1 kapısı (`Spec ∧ Kritik`) aynı.
+    // Hüküm: P536c3b95
+    r!("ARC_026", Orta, Spec, 1, &[], None, VS, File,
         "Dosyada hatalı satır sonu karakteri"),
     r!("ARC_027", Bilgi, Quality, 1, &[], None, VS, File,
         "ZIP girdisinde kullanıcı okuma izni yok"),
@@ -256,7 +260,11 @@ pub static RULES: &[RuleMeta] = &[
         "agency_url eksik veya geçersiz"),
     r!("AGN_004", Kritik, Spec, 1, &[], Some("agency_id"), VS_K, Entity,
         "agency_timezone eksik veya geçersiz"),
-    r!("AGN_005", Orta,   Quality, 1, &[], None, VS, Feed,
+    // SINIF DEĞİŞTİ (#96, 2026-08-09): kanıt sınıfı ↔ hüküm otoritesi. Sert bir Spec
+    // hükmünü YALNIZ bu kural ölçüyordu ama kural Spec sınıfında değildi; Spec'e filtreleyen
+    // kullanıcı ihlali HİÇ görmüyordu. Önem DEĞİŞMEDİ → R1 kapısı (`Spec ∧ Kritik`) aynı.
+    // Hüküm: Pf27a2fd0
+    r!("AGN_005", Orta,   Spec, 1, &[], None, VS, Feed,
         "Kuruluşlar arası saat dilimi tutarsızlığı"),
     r!("AGN_006", Dusuk,  Spec, 1, &[], Some("agency_id"), VS, Entity,
         "agency_lang geçersiz"),
@@ -951,7 +959,11 @@ pub static RULES: &[RuleMeta] = &[
         "Frekans aralığı çok kısa"),
     r!("FRQ_010", Bilgi,  Analytics, 1, &[], Some("trip_id"), VA, Row,
         "Çok sık frekans (sıkışma riski)"),
-    r!("FRQ_011", Yuksek, Interop, 2, &[], Some("trip_id"), VI, Row,
+    // SINIF DEĞİŞTİ (#96, 2026-08-09): kanıt sınıfı ↔ hüküm otoritesi. Sert bir Spec
+    // hükmünü YALNIZ bu kural ölçüyordu ama kural Spec sınıfında değildi; Spec'e filtreleyen
+    // kullanıcı ihlali HİÇ görmüyordu. Önem DEĞİŞMEDİ → R1 kapısı (`Spec ∧ Kritik`) aynı.
+    // Hüküm: Pec6b6920
+    r!("FRQ_011", Yuksek, Spec, 2, &[], Some("trip_id"), VS, Row,
         "Aynı trip için frequencies dönemleri zaman aralığı çakışıyor"),
     // FRQ_012: spec `exact_times=1` için "the end_time value must be greater than the last
     // desired trip start_time but less than the last desired trip start_time + headway_secs"
@@ -1010,7 +1022,11 @@ pub static RULES: &[RuleMeta] = &[
         "Aktarma koşulu çelişkili"),
     // XFL_020 aynı (trip, route) uyumsuzluğunu kontrol eder; çift raporlamayı
     // önlemek için TRF_017 kök kuraldır ve XFL_020'yi semptom olarak bastırır.
-    r!("TRF_017", Yuksek, Interop, 2, &["XFL_020"], None, VI, Row,
+    // SINIF DEĞİŞTİ (#96, 2026-08-09): kanıt sınıfı ↔ hüküm otoritesi. Sert bir Spec
+    // hükmünü YALNIZ bu kural ölçüyordu ama kural Spec sınıfında değildi; Spec'e filtreleyen
+    // kullanıcı ihlali HİÇ görmüyordu. Önem DEĞİŞMEDİ → R1 kapısı (`Spec ∧ Kritik`) aynı.
+    // Hüküm: P0fa71358·P585a24d4·P134a2d40·P446972ca
+    r!("TRF_017", Yuksek, Spec, 2, &["XFL_020"], None, VS, Row,
         "Sefer aktarması yanlış hat"),
     r!("TRF_018", Orta,   Quality, 2, &[], None, VS, Row,
         "Sefer aktarması aynı seferi gösteriyor"),
@@ -1261,7 +1277,11 @@ pub static RULES: &[RuleMeta] = &[
         "start_time veya end_time format hatası"),
     r!("TFR_004", Orta,   Quality, 1, &[], Some("timeframe_group_id"), VS, Row,
         "end_time start_time'dan küçük"),
-    r!("TFR_005", Orta,   Interop, 1, &[], Some("timeframe_group_id"), VI, Row,
+    // SINIF DEĞİŞTİ (#96, 2026-08-09): kanıt sınıfı ↔ hüküm otoritesi. Sert bir Spec
+    // hükmünü YALNIZ bu kural ölçüyordu ama kural Spec sınıfında değildi; Spec'e filtreleyen
+    // kullanıcı ihlali HİÇ görmüyordu. Önem DEĞİŞMEDİ → R1 kapısı (`Spec ∧ Kritik`) aynı.
+    // Hüküm: Pa586fe5b
+    r!("TFR_005", Orta,   Spec, 1, &[], Some("timeframe_group_id"), VS, Row,
         "Aynı grup ve service_id içinde örtüşen zaman aralıkları"),
     r!("TFR_006", Kritik, Spec, 1, &[], Some("timeframe_group_id"), VS_K, Row,
         "start_time veya end_time 24:00:00'dan büyük"),
@@ -1302,9 +1322,13 @@ pub static RULES: &[RuleMeta] = &[
         "min_width geçersiz"),
     r!("PTH_011", Yuksek, Quality, 3, &[], Some("pathway_id"), VS, Entity,
         "Geçit döngü oluşturuyor"),
-    r!("PTH_012", Yuksek, Interop, 3,
+    // SINIF DEĞİŞTİ (#96, 2026-08-09): kanıt sınıfı ↔ hüküm otoritesi. Sert bir Spec
+    // hükmünü YALNIZ bu kural ölçüyordu ama kural Spec sınıfında değildi; Spec'e filtreleyen
+    // kullanıcı ihlali HİÇ görmüyordu. Önem DEĞİŞMEDİ → R1 kapısı (`Spec ∧ Kritik`) aynı.
+    // Hüküm: Pde6fb4a5
+    r!("PTH_012", Yuksek, Spec, 3,
         &["PTH_013"],
-        Some("stop_id"), VI_ACC, Entity,
+        Some("stop_id"), VS_ACC, Entity,
         "İstasyona erişilebilir yol yok"),
     r!("PTH_013", Bilgi,  Analytics, 3, &[], Some("stop_id"), VA_ACC, Entity,
         "Erişilebilir yol analizi"),
@@ -1416,7 +1440,11 @@ pub static RULES: &[RuleMeta] = &[
         "feed_contact_url geçersiz"),
     r!("FIN_010", Yuksek, Analytics, 2, &[], None, VA, Feed,
         "Feed geçerlilik süresi dolmuş"),
-    r!("FIN_012", Dusuk,  Quality, 1, &[], None, VS, Feed,
+    // SINIF DEĞİŞTİ (#96, 2026-08-09): kanıt sınıfı ↔ hüküm otoritesi. Sert bir Spec
+    // hükmünü YALNIZ bu kural ölçüyordu ama kural Spec sınıfında değildi; Spec'e filtreleyen
+    // kullanıcı ihlali HİÇ görmüyordu. Önem DEĞİŞMEDİ → R1 kapısı (`Spec ∧ Kritik`) aynı.
+    // Hüküm: P3e2e5c05
+    r!("FIN_012", Dusuk,  Spec, 1, &[], None, VS, Feed,
         "feed_start_date feed_end_date'den sonra"),
     r!("FIN_013", Bilgi,  Quality, 1, &[], None, VS, Feed,
         "fare_attributes.agency_id önerilen ama eksik"),
@@ -1506,7 +1534,11 @@ pub static RULES: &[RuleMeta] = &[
         "attribution_url geçersiz"),
     r!("ATR_008", Dusuk,  Spec, 1, &[], Some("attribution_id"), VS, Entity,
         "attribution_email geçersiz"),
-    r!("ATR_009", Yuksek, Quality, 1, &[], Some("attribution_id"), VS, Entity,
+    // SINIF DEĞİŞTİ (#96, 2026-08-09): kanıt sınıfı ↔ hüküm otoritesi. Sert bir Spec
+    // hükmünü YALNIZ bu kural ölçüyordu ama kural Spec sınıfında değildi; Spec'e filtreleyen
+    // kullanıcı ihlali HİÇ görmüyordu. Önem DEĞİŞMEDİ → R1 kapısı (`Spec ∧ Kritik`) aynı.
+    // Hüküm: P7917f3c5
+    r!("ATR_009", Yuksek, Spec, 1, &[], Some("attribution_id"), VS, Entity,
         "attribution hedef alanları (agency/route/trip) birlikte kullanılmış"),
     r!("ATR_010", Dusuk,  Spec, 1, &[], Some("attribution_id"), VS, Entity,
         "agency_id bulunamadı"),
@@ -1778,7 +1810,7 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("AGN_002", GtfsSpec),
     ("AGN_003", GtfsSpec),
     ("AGN_004", GtfsSpec),
-    ("AGN_005", ProjectQuality),
+    ("AGN_005", GtfsSpec),
     ("AGN_006", GtfsSpec),
     ("AGN_007", ProjectQuality),
     ("AGN_008", GtfsSpec),
@@ -1815,7 +1847,7 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("ARC_023", ProjectQuality),
     ("ARC_024", GtfsSpec),
     ("ARC_025", GtfsSpec),
-    ("ARC_026", ProjectQuality),
+    ("ARC_026", GtfsSpec),
     ("ARC_027", ProjectQuality),
     ("ARC_028", ProjectQuality),
     ("ARC_029", ProjectQuality),
@@ -1832,7 +1864,7 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("ATR_006", GtfsSpec),
     ("ATR_007", GtfsSpec),
     ("ATR_008", GtfsSpec),
-    ("ATR_009", ProjectQuality),
+    ("ATR_009", GtfsSpec),
     ("ATR_010", GtfsSpec),
     ("ATR_011", GtfsSpec),
     ("ATR_012", GtfsSpec),
@@ -1932,7 +1964,7 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("FIN_008", GtfsSpec),
     ("FIN_009", GtfsSpec),
     ("FIN_010", ProjectAnalytics),
-    ("FIN_012", ProjectQuality),
+    ("FIN_012", GtfsSpec),
     ("FIN_013", ProjectQuality),
     ("FIN_014", ProjectQuality),
     ("FIN_015", ProjectQuality),
@@ -1981,7 +2013,7 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("FRQ_008", GtfsSpec),
     ("FRQ_009", ProjectQuality),
     ("FRQ_010", ProjectAnalytics),
-    ("FRQ_011", MobilitydataParity),
+    ("FRQ_011", GtfsSpec),
     ("FRQ_012", GtfsSpec),
     ("FTR_001", GtfsSpec),
     ("FTR_002", GtfsSpec),
@@ -2080,7 +2112,7 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("PTH_009", ProjectQuality),
     ("PTH_010", GtfsSpec),
     ("PTH_011", ProjectQuality),
-    ("PTH_012", MobilitydataParity),
+    ("PTH_012", GtfsSpec),
     ("PTH_013", ProjectAnalytics),
     ("PTH_014", ProjectQuality),
     ("PTH_015", ProjectAnalytics),
@@ -2261,7 +2293,7 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("TFR_002", GtfsSpec),
     ("TFR_003", GtfsSpec),
     ("TFR_004", ProjectQuality),
-    ("TFR_005", MobilitydataParity),
+    ("TFR_005", GtfsSpec),
     ("TFR_006", GtfsSpec),
     ("TFR_007", GtfsSpec),
     ("TFR_008", GtfsSpec),
@@ -2290,7 +2322,7 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("TRF_014", GtfsSpec),
     ("TRF_015", ProjectQuality),
     ("TRF_016", GtfsSpec),
-    ("TRF_017", MobilitydataParity),
+    ("TRF_017", GtfsSpec),
     ("TRF_018", ProjectQuality),
     ("TRF_019", MobilitydataParity),
     ("TRF_020", ProjectQuality),

@@ -36,7 +36,7 @@
 | ARC_022 | ファイルの行数が上限（100万行）を超過 | 低 | 品質 |
 | ARC_023 | GTFSアーカイブ内のネストされたZIPファイル | 中 | 品質 |
 | ARC_024 | サブディレクトリ内のGTFS .txtファイル（読み込み不可） | 中 | 仕様 |
-| ARC_026 | 不正な改行文字 | 中 | 品質 |
+| ARC_026 | 不正な改行文字 | 中 | 仕様 |
 | ARC_027 | ZIPエントリにユーザー読み取り権限がない | 情報 | 品質 |
 | ARC_028 | GTFS公開URLが.zipファイル名で終わっていない | 低 | 品質 |
 | ARC_029 | Zip爆弾保護：アーカイブがzip爆弾の上限を超えました | 致命的 | 品質 |
@@ -80,7 +80,7 @@
 | AGN_002 | agency_nameが不足 | 致命的 | 仕様 |
 | AGN_003 | agency_urlが不足または無効 | 致命的 | 仕様 |
 | AGN_004 | agency_timezoneが不足または無効 | 致命的 | 仕様 |
-| AGN_005 | 事業者間でタイムゾーンが不一致 | 中 | 品質 |
+| AGN_005 | 事業者間でタイムゾーンが不一致 | 中 | 仕様 |
 | AGN_006 | agency_langが無効 | 低 | 仕様 |
 | AGN_007 | agency_phoneが無効 | 低 | 品質 |
 | AGN_008 | agency_fare_urlが無効 | 低 | 仕様 |
@@ -376,7 +376,7 @@
 | FRQ_008 | headway_secsがゼロ（無効な頻度） | 致命的 | 仕様 |
 | FRQ_009 | 頻度間隔が短すぎる | 中 | 品質 |
 | FRQ_010 | 運行頻度が非常に高い（詰まりリスク） | 情報 | 分析 |
-| FRQ_011 | frequencies 期間の重複 | 高 | 相互運用 |
+| FRQ_011 | frequencies 期間の重複 | 高 | 仕様 |
 | FRQ_012 | exact_times=1 で end_time が headway の境界と一致 | 低 | 仕様 |
 
 ## TRF — 乗換（Transfers）
@@ -399,7 +399,7 @@
 | TRF_014 | 席内乗換に対応する便なし | 高 | 仕様 |
 | TRF_015 | 席内乗換が無効 | 高 | 品質 |
 | TRF_016 | 乗換条件が競合 | 致命的 | 仕様 |
-| TRF_017 | 乗換が誤った路線を参照 | 高 | 相互運用 |
+| TRF_017 | 乗換が誤った路線を参照 | 高 | 仕様 |
 | TRF_018 | from_trip_idとto_trip_idが同一の便 | 中 | 品質 |
 | TRF_019 | 席内乗換で異なるroute_type | 中 | 相互運用 |
 | TRF_020 | 乗継に必要な歩行速度が速すぎる | 中 | 品質 |
@@ -548,7 +548,7 @@
 | TFR_002 | service_idが存在しない | 致命的 | 仕様 |
 | TFR_003 | start_timeまたはend_timeの形式が無効 | 高 | 仕様 |
 | TFR_004 | end_timeがstart_timeより前 | 中 | 品質 |
-| TFR_005 | 同一グループ・service_id内で時間範囲が重複 | 中 | 相互運用 |
+| TFR_005 | 同一グループ・service_id内で時間範囲が重複 | 中 | 仕様 |
 | TFR_006 | start_timeまたはend_timeが24:00:00超 | 致命的 | 仕様 |
 | TFR_007 | start_timeとend_timeの一方のみ指定 | 致命的 | 仕様 |
 | TFR_008 | timeframesのservice_idが空 | 致命的 | 仕様 |
@@ -568,7 +568,7 @@
 | PTH_009 | max_slopeが不足 | 低 | 品質 |
 | PTH_010 | min_widthが無効 | 低 | 仕様 |
 | PTH_011 | 経路がループを形成 | 高 | 品質 |
-| PTH_012 | 駅にアクセシブルな経路なし | 高 | 相互運用 |
+| PTH_012 | 駅にアクセシブルな経路なし | 高 | 仕様 |
 | PTH_013 | アクセシブル経路の分析 | 情報 | 分析 |
 | PTH_014 | 経路が駅の境界を越えている | 致命的 | 品質 |
 | PTH_015 | 経路が到達不能な停留所につながる | 中 | 分析 |
@@ -616,7 +616,7 @@
 | FIN_008 | feed_contact_emailが無効 | 低 | 仕様 |
 | FIN_009 | feed_contact_urlが無効 | 低 | 仕様 |
 | FIN_010 | フィードの有効期限が切れている | 高 | 分析 |
-| FIN_012 | feed_start_dateがfeed_end_dateより後 | 低 | 品質 |
+| FIN_012 | feed_start_dateがfeed_end_dateより後 | 低 | 仕様 |
 | FIN_013 | fare_attributes.agency_idを推奨するが不足 | 情報 | 品質 |
 | FIN_014 | feed_start_date・feed_end_dateの両方が不足 | 低 | 品質 |
 | FIN_015 | feed_info.txtのレコードが複数 | 中 | 品質 |
@@ -659,7 +659,7 @@
 | ATR_006 | is_authorityが無効 | 致命的 | 仕様 |
 | ATR_007 | attribution_urlが無効 | 致命的 | 仕様 |
 | ATR_008 | attribution_emailが無効 | 低 | 仕様 |
-| ATR_009 | 帰属参照フィールドが複数設定 | 高 | 品質 |
+| ATR_009 | 帰属参照フィールドが複数設定 | 高 | 仕様 |
 | ATR_010 | agency_idが存在しない | 低 | 仕様 |
 | ATR_011 | route_idが存在しない | 低 | 仕様 |
 | ATR_012 | trip_idが存在しない | 低 | 仕様 |

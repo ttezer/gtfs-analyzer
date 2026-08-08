@@ -9,6 +9,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Eight rules move to the `Spec` class, and the prose-provision badge drops from 99.3% to
+  97.2%.** The badge numerator counted a hard specification provision as proven without ever
+  checking what class the rules behind it had, so a `MUST` from the Schedule Reference could be
+  backed entirely by rules this project labels `Quality` or `Interop` — someone filtering to
+  `Spec`, or reading the publication view, saw nothing. A scan found **21** such provisions (the
+  issue estimated 14 and said so was a lower bound). Each was resolved explicitly:
+  - moved to `Spec`, because the sentence is normative and the rule measures it exactly:
+    `ARC_026` (line endings), `AGN_005` (shared agency timezone), `ATR_009` (attribution targets),
+    `FIN_012` (feed date order), `FRQ_011` (overlapping headways), `PTH_012` (locked platforms),
+    `TFR_005` (overlapping timeframes), `TRF_017` (transfer trip belongs to route);
+  - downgraded to `KISMİ`, because the requirement binds the feed but cannot be measured at
+    `Spec` strength: the two distance-unit provisions (GTFS never declares a unit, so only a
+    gross ratio mismatch is detectable) and the dialable-phone provision (a documented Quality
+    approximation, see above);
+  - downgraded to `KAPSAM DIŞI` / `META`, because the sentence does not constrain the feed at
+    all: three `cemv_support` precedence sentences (they anticipate a conflict and resolve it
+    for the consumer, so no feed can violate them), the `transfer_type=5` enum definition, and
+    "the passenger must alight and re-board", whose subject is the passenger.
+
+  Reclassification is safe on the publication axis: the R1 gate is `Spec ∧ CRITICAL` and
+  biconditional, and none of the eight rules is CRITICAL, so no feed's publish decision changes.
+  Their weight in the overall score does move to the `Spec` class (40%), and `PTH_012` leaves the
+  interop report, which is built from the class rather than the view list.
+
+  Evidence is now machine-readable in `spec-audit/provision_evidence.tsv`, and `badge_status.py`
+  fails when a hard proven provision has no row there, names a rule that does not exist, or
+  rests on no `Spec`-class rule at all. The prose is no longer parsed for evidence — ten ledger
+  rows mention `PTH_017` as a cautionary lesson rather than as proof, which is exactly how the
+  previous scan was fooled.
+
 - **`STM_032` moves from `Quality` to `Spec`.** A duplicate `stop_sequence` inside a trip
   violates a normative requirement stated twice: the field definition — *"The values must
   increase along the trip but do not need to be consecutive"* — and the file heading,

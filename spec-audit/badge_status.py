@@ -127,6 +127,43 @@ def main() -> int:
         if f"fn {test_name}(" not in tests_src:
             stale.append(f"DOLAYLI {pid} kanıtı olmayan bir testi gösteriyor: {test_name}")
 
+    # 🔴 KANIT SINIFI KAPISI (issue #96) — pay, ölçen kuralın SINIFINA bakmıyordu.
+    # Sert bir Spec hükmü, arkasındaki kuralların hepsi Quality/Interop iken "kanıtlı"
+    # sayılabiliyordu; Spec'e filtreleyen kullanıcı ya da R1 görünümünü okuyan biri o ihlali
+    # HİÇ görmüyordu. 2026-08-09 taraması 21 böyle satır buldu (issue 14 demişti ve alt sınır
+    # olduğunu kendisi yazıyordu — düzyazıdan kural adı çıkarmak retorik atıfları da sayıyor).
+    # ⚠️ Kapı DÜZYAZIYI OKUMAZ: kanıt `provision_evidence.tsv`'dedir. Gerekçe, issue'nun
+    # kendi bulgusu — defterde on satır `PTH_017`'yi "bu hatayı tekrarlama" DERSİ olarak anar
+    # ve düzyazı taraması onu kanıt sanıyordu. Kanıt beyan edilir, çıkarılmaz.
+    prov_ev_file = ROOT / "provision_evidence.tsv"
+    prov_ev: dict[str, list[str]] = {}
+    if prov_ev_file.exists():
+        for line in prov_ev_file.read_text(encoding="utf-8").split("\n"):
+            if not line.strip() or line.startswith("#"):
+                continue
+            cols = [c.strip() for c in line.split("\t")]
+            if cols and cols[0]:
+                prov_ev[cols[0]] = [r.strip() for r in (cols[2] if len(cols) > 2 else "").split(",") if r.strip()]
+
+    rule_class: dict[str, str] = {}
+    for m in re.finditer(r'r!\("([A-Z]{2,3}_\d{3}[a-z]?)",\s*(\w+),\s*(\w+)',
+                         (ROOT.parent / "crates/rules/src/registry.rs").read_text(encoding="utf-8")):
+        rule_class[m.group(1)] = m.group(3)
+
+    for pid in sorted(k for k, v in hard.items() if v in ("KANITLI", "DOLAYLI")):
+        rules = prov_ev.get(pid)
+        if rules is None:
+            stale.append(f"SERT {pid} paya sayılıyor ama provision_evidence.tsv'de satırı YOK.")
+            continue
+        unknown = [r for r in rules if r not in rule_class]
+        if unknown:
+            stale.append(f"SERT {pid} registry'de olmayan kural gösteriyor: {unknown}")
+            continue
+        if not any(rule_class[r] == "Spec" for r in rules):
+            shown = ", ".join(f"{r}({rule_class[r]})" for r in rules) or "<boş>"
+            stale.append(f"SERT {pid} hiçbir Spec sınıflı kurala dayanmıyor: {shown} "
+                         f"→ kuralı Spec'e taşıyın, atomik Spec kuralı yazın ya da hükmü KISMİ'ye düşürün.")
+
     # 🔴 KANIT BELGESİNİN §0 SAYILARI DA BU HESAPTAN TÜRER — ikinci kapı.
     # 2026-08-07: kullanıcı iki bayat sayı yakaladı (İKİNCİ kez elle yakalıyordu).
     # §0 "184 sert hükmün 25'i KAPSAM DIŞI, 13'ü META; 184 − 38 = 146" diyordu; o gün
