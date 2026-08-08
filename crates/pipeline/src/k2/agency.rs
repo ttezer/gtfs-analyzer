@@ -148,7 +148,7 @@ pub fn validate_agency(file: &RawFile) -> (Vec<AgencyRecord>, Vec<gtfs_core::Not
                     &mut counter, "AGN_007", EntityType::Agency, entity_id.clone(), Some(&row_map),
                     &file.name, Some(line), Some("agency_phone"), Some(phone.clone()), None,
                     format!("agency_phone '{phone}' geçerli bir telefon numarası formatında değil."),
-                    "En az 7 haneli bir telefon numarası kullanın.",
+                    "Çevrilebilir bir telefon numarası kullanın; numaranın dışında açıklayıcı metin bulunmasın.",
                 ));
             }
         }

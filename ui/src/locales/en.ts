@@ -1320,7 +1320,7 @@ const en: LocaleShape = {
     'AGN_004': 'Use a valid IANA timezone (e.g., Europe/Istanbul).',
     'AGN_005': 'Use the same IANA timezone for all agencies.',
     'AGN_006': 'Use a valid BCP-47 language code (e.g., tr, en-US).',
-    'AGN_007': 'Use a phone number with at least 7 digits.',
+    'AGN_007': 'Use a dialable phone number with no other descriptive text.',
     'AGN_008': 'Use a valid http/https URL for agency_fare_url.',
     'AGN_009': 'Use a valid e-mail address for agency_email.',
     'AGN_010': 'Assign a unique agency_id to each agency.',
@@ -1558,7 +1558,7 @@ const en: LocaleShape = {
     'BKR_019': 'Give every booking rule a unique, non-empty booking_rule_id.',
     'BKR_020': 'Use a valid http/https URL for booking_url.',
     'BKR_021': 'Use a valid http/https URL for info_url.',
-    'BKR_022': 'Use a phone number with at least 7 digits.',
+    'BKR_022': 'Use a dialable phone number with no other descriptive text.',
     'BKR_023': 'Enter the prior_notice numeric fields as whole numbers.',
     // FLG
     'FLG_001': 'Use a valid fare_product_id.',

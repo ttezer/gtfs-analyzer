@@ -378,7 +378,7 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
                     &mut ctr, "BKR_022", EntityType::Row, Some(id.clone()), Some(&row_map),
                     &file.name, Some(line), Some("phone_number"), Some(phone.clone()), None,
                     format!("phone_number '{phone}' geçerli bir telefon numarası formatında değil."),
-                    "En az 7 haneli bir telefon numarası kullanın.",
+                    "Çevrilebilir bir telefon numarası kullanın; numaranın dışında açıklayıcı metin bulunmasın.",
                 ));
             }
         }

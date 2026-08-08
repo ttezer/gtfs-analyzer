@@ -30,6 +30,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   is representational, not a tolerance: two decimals that round to the same `f64` collapse to
   equality.
 
+- **The phone remediation text now describes the check that actually runs.** `AGN_007` and
+  `BKR_022` told the reader to *"use a phone number with at least 7 digits"*, but the shared
+  predicate never counted seven digits — it asks for at least five dialable characters, at
+  least one of them a digit, and no descriptive text around the number. Advice that does not
+  match the measurement sends producers to fix the wrong thing. Updated in English, Turkish
+  and Japanese. This changes the `remediation` field of those findings, not how many findings
+  are produced.
+
 - **Dialable vanity numbers with more than one letter group are accepted.** Following the
   earlier vanity fix, `looks_like_phone` still required the letters to form a *single* trailing
   token, so `1-800-GO-FEDEX` was reported as invalid. Letter groups may now form a contiguous
