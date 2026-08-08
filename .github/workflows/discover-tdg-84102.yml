@@ -1,0 +1,61 @@
+name: Discover tdg-84102 feed
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Discover legacy ID mapping
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p benchmark/tdg84102/discovery
+          OUT=benchmark/tdg84102/discovery
+
+          # Capture the user-facing page including redirects and embedded app data.
+          curl -fsSL -D "$OUT/page-headers.txt" \
+            -w '%{url_effective}\n' \
+            'https://mobilitydatabase.org/feeds/gtfs/tdg-84102' \
+            -o "$OUT/page.html" > "$OUT/effective-url.txt" || true
+          grep -Eo 'mdb-[0-9]+|tdg-[0-9]+|https?://[^"<> ]+' "$OUT/page.html" | sort -u > "$OUT/page-tokens.txt" || true
+
+          # Current public catalog CSV.
+          curl -fsSL 'https://files.mobilitydatabase.org/feeds_v2.csv' -o "$OUT/feeds_v2.csv"
+          python3 - <<'PY'
+          import csv, json
+          from pathlib import Path
+          p=Path('benchmark/tdg84102/discovery')
+          with (p/'feeds_v2.csv').open(newline='', encoding='utf-8-sig') as f:
+              r=csv.DictReader(f)
+              rows=[]
+              for row in r:
+                  blob=json.dumps(row,ensure_ascii=False)
+                  if 'tdg-84102' in blob or '84102' in blob:
+                      rows.append(row)
+          (p/'catalog-matches.json').write_text(json.dumps(rows,indent=2,ensure_ascii=False)+'\n')
+          (p/'catalog-header.json').write_text(json.dumps(r.fieldnames,indent=2)+'\n')
+          print('catalog matches:', len(rows))
+          for x in rows: print(json.dumps(x,ensure_ascii=False))
+          PY
+
+          # Search the public catalog source repository for legacy IDs or matching URLs.
+          git clone -q --depth 1 https://github.com/MobilityData/mobility-database-catalogs.git "$OUT/catalog-repo"
+          (cd "$OUT/catalog-repo" && grep -RInE 'tdg-84102|84102' catalogs . 2>/dev/null | head -200) > "$OUT/repo-matches.txt" || true
+
+          # Also capture page snippets around IDs / feed data.
+          grep -oE '.{0,160}(tdg-84102|84102|mdb-[0-9]+).{0,220}' "$OUT/page.html" | head -100 > "$OUT/page-snippets.txt" || true
+
+      - name: Upload discovery evidence
+        uses: actions/upload-artifact@v7
+        with:
+          name: tdg-84102-discovery
+          path: benchmark/tdg84102/discovery/
+          retention-days: 7
