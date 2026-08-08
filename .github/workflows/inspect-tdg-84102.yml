@@ -1,0 +1,77 @@
+name: Inspect tdg-84102 raw data
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Inspect exact feed
+        shell: bash
+        run: |
+          set -euo pipefail
+          OUT=benchmark/tdg84102/inspection
+          mkdir -p "$OUT/feed"
+          curl -fsSL 'https://files.mobilitydatabase.org/tdg-84102/tdg-84102-202608022211/tdg-84102-202608022211.zip' -o "$OUT/feed.zip"
+          unzip -q "$OUT/feed.zip" -d "$OUT/feed"
+          sha256sum "$OUT/feed.zip" > "$OUT/feed.sha256"
+
+          python3 - <<'PY'
+          import csv,json,binascii
+          from pathlib import Path
+          p=Path('benchmark/tdg84102/inspection')
+          f=p/'feed'
+          out={}
+
+          # Extract the four MD-error trip timelines verbatim by CSV row number/trip id.
+          st=f/'stop_times.txt'
+          raw=st.read_bytes()
+          text=raw.decode('utf-8-sig',errors='replace').splitlines()
+          ctx={}
+          for n in [183,197,198,746,760,761,1241,1255,1256,1502,1516,1517]:
+              if 1 <= n <= len(text): ctx[str(n)]=text[n-1]
+          out['stop_times_context']=ctx
+          with st.open(newline='',encoding='utf-8-sig') as fh:
+              rows=list(csv.DictReader(fh))
+          wanted={'26','1122','1152','1314'}
+          out['trips']={tid:[] for tid in wanted}
+          for i,row in enumerate(rows,start=2):
+              if row.get('trip_id') in wanted:
+                  out['trips'][row['trip_id']].append({'csv_row':i,**row})
+
+          # shapes diagnostics: quote count, lines containing quotes, strict csv parse.
+          sh=f/'shapes.txt'
+          b=sh.read_bytes()
+          out['shapes_bytes']=len(b)
+          out['shapes_sha256']=__import__('hashlib').sha256(b).hexdigest()
+          out['shapes_quote_byte_count']=b.count(b'"')
+          lines=b.decode('utf-8-sig',errors='replace').splitlines()
+          out['shape_lines_with_quote']=[{'line':i+1,'text':x} for i,x in enumerate(lines) if '"' in x][:200]
+          try:
+              with sh.open(newline='',encoding='utf-8-sig') as fh:
+                  rr=list(csv.reader(fh, strict=True))
+              out['python_csv_strict']={'ok':True,'rows':len(rr),'widths':sorted(set(map(len,rr)))}
+          except Exception as e:
+              out['python_csv_strict']={'ok':False,'error':repr(e)}
+
+          # Capture last/first lines and raw hex tail to spot missing newline/quote anomalies.
+          out['shapes_first_lines']=lines[:10]
+          out['shapes_last_lines']=lines[-10:]
+          out['shapes_tail_hex']=b[-256:].hex()
+
+          (p/'inspection.json').write_text(json.dumps(out,indent=2,ensure_ascii=False)+'\n')
+          print(json.dumps(out,indent=2,ensure_ascii=False))
+          PY
+      - name: Upload inspection
+        uses: actions/upload-artifact@v7
+        with:
+          name: tdg-84102-raw-inspection
+          path: benchmark/tdg84102/inspection/
+          retention-days: 7
