@@ -1,0 +1,53 @@
+name: Inspect mdb-2519 translations
+
+on:
+  pull_request:
+    branches: [agent/validator-shootout-100]
+    paths:
+      - '.github/workflows/inspect-mdb2519-translations.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      FEED_URL: 'https://files.mobilitydatabase.org/mdb-2519/mdb-2519-202608050156/mdb-2519-202608050156.zip'
+    steps:
+      - uses: actions/checkout@v7
+      - name: Inspect exact source file
+        run: |
+          set -euo pipefail
+          mkdir -p benchmark/mdb2519-translations-inspect
+          curl --retry 4 --retry-all-errors -fL "$FEED_URL" -o /tmp/feed.zip
+          sha256sum /tmp/feed.zip | tee benchmark/mdb2519-translations-inspect/feed.sha256
+          unzip -p /tmp/feed.zip translations.txt > /tmp/translations.txt
+          python3 - <<'PY'
+          import csv, json, pathlib, collections
+          p=pathlib.Path('/tmp/translations.txt')
+          with p.open('r', encoding='utf-8-sig', newline='') as f:
+              rows=list(csv.reader(f))
+          header=rows[0] if rows else []
+          data=rows[1:]
+          widths=collections.Counter(len(r) for r in data)
+          langs=collections.Counter(r[1] for r in data if len(r)>1)
+          out={
+              'bytes': p.stat().st_size,
+              'header': header,
+              'data_rows': len(data),
+              'row_widths': dict(sorted(widths.items())),
+              'top_lang_values': langs.most_common(12),
+              'first_rows': data[:5],
+          }
+          pathlib.Path('benchmark/mdb2519-translations-inspect/inspection.json').write_text(json.dumps(out,ensure_ascii=False,indent=2)+'\n')
+          print(json.dumps(out,ensure_ascii=False,indent=2))
+          PY
+      - name: Upload evidence
+        uses: actions/upload-artifact@v7
+        with:
+          name: mdb2519-translations-inspection
+          path: benchmark/mdb2519-translations-inspect/
+          retention-days: 7
