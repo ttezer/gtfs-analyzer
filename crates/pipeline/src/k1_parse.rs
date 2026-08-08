@@ -635,32 +635,21 @@ pub(crate) const ARC030_REMEDIATION: &str =
 // çıktı: `K.A.Wheel&Tire;` bir entity değil, `St Sauvant >< St Césaire` bir etiket değil.
 // Kapalı listeye geçince 1955 gerçek eşleşme kaldı (4 feed). Desen genişletilecekse
 // örneklere BAKILARAK genişletilmeli.
-/// HTML eleman adları — **HTML5 standardının TAMAMI** (+ yaygın kullanımdaki eskiler:
-/// `font`, `center`, `marquee`, `strike`, `big`, `tt`, `blink`, `frame`, `applet`).
+/// HTML eleman adları — **ÜRETİLMİŞ** (issue #79, `k1_html_elements.rs`).
 ///
-/// 🔴 2026-08-07'ye kadar burada 26 ad vardı (issue #79). O liste bir ALT KÜMEYDİ:
-/// `<script>`, `<section>`, `<iframe>`, `<style>` gibi etiketler ARC_032'den kaçıyordu,
-/// yani kural hükmün (`Pd6bc0278`) dediğinden dardı.
+/// 🔴 Bu liste ELLE yazılmıştı ve kart "HTML5'in TAMAMI" diyordu. 6. denetim iddiayı
+/// çürüttü: `svg` ve `math` eksikti. Entity tablosunu kaynaktan üretirken etiket listesini
+/// elde tutmak tutarsızlıktı; artık ikisi de üretiliyor.
 ///
-/// ⚠️ Liste yine de KAPALI — "açılı ayraç içindeki her kelime" DEĞİL. Bu bilinçli:
-/// `<Bilinmiyor>`, `<未定>`, `<TBD>` gibi değerler gerçek veride geçiyor ve HTML DEĞİL.
-/// Hükmün konusu "HTML etiketi"dir; uydurma bir ad HTML etiketi değildir. Fark şu:
-/// liste artık standardın ALT KÜMESİ değil, standardın KENDİSİ.
-const HTML_TAGS: &[&str] = &[
-    "a", "abbr", "acronym", "address", "applet", "area", "article", "aside", "audio",
-    "b", "base", "basefont", "bdi", "bdo", "big", "blink", "blockquote", "body", "br",
-    "button", "canvas", "caption", "center", "cite", "code", "col", "colgroup", "data",
-    "datalist", "dd", "del", "details", "dfn", "dialog", "dir", "div", "dl", "dt",
-    "em", "embed", "fieldset", "figcaption", "figure", "font", "footer", "form", "frame",
-    "frameset", "h1", "h2", "h3", "h4", "h5", "h6", "head", "header", "hgroup", "hr",
-    "html", "i", "iframe", "img", "input", "ins", "kbd", "label", "legend", "li", "link",
-    "main", "map", "mark", "marquee", "menu", "meta", "meter", "nav", "noframes",
-    "noscript", "object", "ol", "optgroup", "option", "output", "p", "param", "picture",
-    "pre", "progress", "q", "rp", "rt", "ruby", "s", "samp", "script", "search", "section",
-    "select", "slot", "small", "source", "span", "strike", "strong", "style", "sub",
-    "summary", "sup", "table", "tbody", "td", "template", "textarea", "tfoot", "th",
-    "thead", "time", "title", "tr", "track", "tt", "u", "ul", "var", "video", "wbr",
-];
+/// Küme = WHATWG eleman dizini ∪ yabancı içerik kökleri (`svg`, `math`) ∪ eskimiş
+/// elemanlar (`font`, `center`, …). İki ek kümenin gerekçesi üreticinin docstring'inde:
+/// `svg`/`math` HTML eleman dizininde YOKTUR (onlar SVG/MathML elemanı) ama HTML'de
+/// TANINAN başlangıç etiketleridir; eskimiş elemanlar dizinden düşmüştür ama gerçek
+/// feed'lerde geçer (korpusta `<BR>` ve `<font>` ölçüldü).
+///
+/// ⚠️ Liste KAPALI kalır — açılı ayraç içindeki her kelimeyi etiket saymak `<TBD>`,
+/// `<Bilinmiyor>`, `<未定>` gibi gerçek metni işaretlerdi.
+use crate::k1_html_elements::HTML_ELEMENTS as HTML_TAGS;
 /// Adlandırılmış karakter referansları — **ÜRETİLMİŞ** (issue #79, `k1_html_entities.rs`).
 ///
 /// 🔴 Burada altı ad vardı (`nbsp amp lt gt quot apos`) ve `&copy;`, `&reg;`, `&euro;`,
@@ -696,7 +685,19 @@ fn arc032_markup(value: &str) -> Option<String> {
                 continue;
             }
             let name = &rest[..name_len];
-            if !HTML_TAGS.iter().any(|t| t.eq_ignore_ascii_case(name)) {
+            // 🔴 AD SINIRI DENETLENİR (issue #79 testinden çıktı): ad ayıklama ilk
+            // alfanümerik olmayan karakterde duruyor, dolayısıyla `<svg-yok>` "svg" gibi
+            // görünüyordu. HTML'de tireli adlar ÖZEL ELEMANLARDIR (`<my-widget>`) ve
+            // `svg` değildirler. Gerçek etiket adı ancak boşluk, `/` ya da `>` ile biter.
+            match rest[name_len..].chars().next() {
+                Some(c) if c.is_whitespace() || c == '/' || c == '>' => {}
+                _ => continue,
+            }
+            // ⚠️ Etiket adları büyük/küçük harfe DUYARSIZDIR (`<BR>` = `<br>`), entity
+            // adlarının tersine. Tablo küçük harf ve sıralı; küçük harfe çevirip ikili
+            // arama yapılır (130 adlık listede lineer tarama her `<` için dönerdi).
+            let lower = name.to_ascii_lowercase();
+            if HTML_TAGS.binary_search(&lower.as_str()).is_err() {
                 continue;
             }
             // Etiket ancak `>` ile kapanırsa etikettir: "a < b" ya da "3 <br" değil.
@@ -2981,6 +2982,15 @@ mod tests {
     /// vaka: listede zaten olan bir etiket · eski listede OLMAYAN geçerli bir etiket ·
     /// HTML yorumu · desteklenen bir kaçış · `<`/`>`/`&` taşıyan düz metin.
     /// issue #79 — entity/kaçış tarafı: liste altı addan HTML5'in TAMAMINA (2.125) çıktı.
+    /// issue #79 (yeniden açıldı) — `svg` ve `math` yabancı-içerik kök elemanlarıdır.
+    #[test]
+    fn arc_032_covers_foreign_content_roots() {
+        assert!(arc032_markup("<svg>x</svg>").is_some(), "<svg> yakalanmalı");
+        assert!(arc032_markup("<math>x</math>").is_some(), "<math> yakalanmalı");
+        assert!(arc032_markup("Durak </svg>").is_some(), "kapanış biçimi de");
+        assert_eq!(arc032_markup("<TBD>"), None, "uydurma ad HTML DEĞİLDİR");
+    }
+
     #[test]
     fn arc_032_covers_the_html5_named_entities() {
         // Bildirilen karşı örnekler — hepsi eski listede YOKTU.
@@ -3014,14 +3024,19 @@ mod tests {
         // Eski listede vardı — regresyon olmamalı.
         assert_eq!(arc032_markup("Merkez <b>Durağı</b>"), Some("<b>".to_string()));
         // Eski listede YOKTU: hüküm "HTML etiketi" diyor, bunlar da HTML etiketi.
-        for tag in ["script", "section", "iframe", "style", "video", "article", "h4", "svg-yok"] {
+        for tag in ["script", "section", "iframe", "style", "video", "article", "h4"] {
             let v = format!("Durak <{tag}>x</{tag}>");
-            if tag == "svg-yok" {
-                assert_eq!(arc032_markup(&v), None, "HTML elemanı olmayan ad yakalanmamalı");
-            } else {
-                assert!(arc032_markup(&v).is_some(), "<{tag}> yakalanmalı");
-            }
+            assert!(arc032_markup(&v).is_some(), "<{tag}> yakalanmalı");
         }
+        // HTML elemanı OLMAYAN adlar sessiz kalmalı.
+        assert_eq!(arc032_markup("Durak <bilinmeyen>x</bilinmeyen>"), None);
+        // 🔴 ÖZEL ELEMAN (tireli ad) `svg` DEĞİLDİR — bu testin ilk hâli tam bu yanlış
+        // eşleşmeyi yakaladı: ad ayıklama tirede duruyordu ve `<svg-yok>` "svg" sayılıyordu.
+        assert_eq!(arc032_markup("<svg-yok>"), None, "tireli ad özel elemandır");
+        assert_eq!(arc032_markup("<article-list>"), None);
+        // Ama gerçek `svg`/`math` ve öznitelikli biçimleri yakalanır.
+        assert!(arc032_markup("<svg width=\"3\">").is_some());
+        assert!(arc032_markup("<math>").is_some());
         assert_eq!(arc032_markup("Not <!-- gizli --> son"), Some("<!--".to_string()));
         assert_eq!(arc032_markup("Kadıköy&nbsp;İskele"), Some("&nbsp;".to_string()));
         // Düz metin: uydurma ad HTML etiketi DEĞİLDİR — liste bilinçli olarak kapalı.

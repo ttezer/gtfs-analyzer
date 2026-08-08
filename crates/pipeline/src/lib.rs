@@ -1,3 +1,4 @@
+pub(crate) mod k1_html_elements;
 pub(crate) mod k1_html_entities;
 pub mod k1_parse;
 pub mod k2;

@@ -57,6 +57,11 @@ jobs:
           python3 spec-audit/gen_iso4217.py --check
 
       # issue #79: HTML entity tablosu da üretilmiştir.
+      # issue #79: eleman listesi de üretilmiştir (dizin + gerekçeli iki ek küme).
+      - name: HTML eleman sürüklenme denetimi
+        run: |
+          python3 spec-audit/gen_html_elements.py --check
+
       - name: HTML entity sürüklenme denetimi
         run: |
           python3 spec-audit/gen_html_entities.py --check
