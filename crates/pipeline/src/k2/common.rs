@@ -625,15 +625,28 @@ pub fn looks_like_bcp47(value: &str) -> bool {
 /// Kontrol 2026-08-03'e kadar harf içeren HER değeri reddediyordu, yani spec'in kendi
 /// örneğini de. Bu `PTH_017` biçimi bir hataydı: açıkça izinli veriyi ihlal saymak.
 ///
-/// **Vanity ile açıklayıcı metin ayrımı:** harf grubu değerin SONUNDA ve TEK olmalıdır —
-/// `503-238-RIDE`, `+1 800 FLOWERS` geçerli; `Call 503-238-1234` ("Call" başta),
-/// `555-1234 ext 99` ("ext" ortada) geçersiz. Vanity numaralarda harfler numaranın son
-/// bloğunu oluşturur; açıklayıcı metin numaranın başına ya da arasına girer.
+/// **Vanity ile açıklayıcı metin ayrımı:** harf grupları değerin SONUNDA, bitişik bir kuyruk
+/// oluşturmalıdır — `503-238-RIDE`, `+1 800 FLOWERS`, `1-800-GO-FEDEX` geçerli;
+/// `Call 503-238-1234` ("Call" başta), `555-1234 ext 99` ("ext" ortada) geçersiz. Vanity
+/// numaralarda harfler numaranın son bloklarını oluşturur; açıklayıcı metin numaranın başına
+/// ya da arasına girer.
 ///
-/// ⚠️ Bu sezgisel kuralın ölçülmüş bir faydası YOK: 239 feed'lik korpusta tek bir vanity
-/// numara bile geçmiyor. Yazılma gerekçesi spec uyumu; koruma gerekçesi ise ayrımın
-/// korpusta gerçekten var olan iki değeri (`80000078 (Liepājā); …`) reddetmeye devam
-/// etmesidir — o değerler spec'in yasakladığı açıklayıcı metindir ve kural onlarda DOĞRU.
+/// **Birden çok harf grubu ek koşul ister (#95):** hepsi BÜYÜK HARF olmalıdır. Vanity yazımı
+/// tuş takımı harflerini işaret etmek için evrensel olarak büyük harfle yazılır
+/// (`1-800-GO-FEDEX`); `1234 call us now` gibi düzyazı bu koşulu geçemez. Tek harf grubunda
+/// bu koşul ARANMAZ — yani değişiklik kabul kümesini yalnız GENİŞLETİR, hiçbir değeri yeni
+/// baştan reddetmez.
+///
+/// ⚠️ **Bu bir KALİTE yaklaşımıdır, telefon numarası grameri DEĞİL.** GTFS `Phone number`
+/// tipi tam bir gramer tanımlamaz; burada ölçülen şey "çevrilebilir metin mi yoksa açıklayıcı
+/// metin mi" ayrımıdır ve sezgiseldir. Bilinen sınır: baştan sona büyük harfle yazılmış düzyazı
+/// (`1234 CALL US NOW`) kabul edilir. Kural `AGN_007`/`BKR_022` üzerinden yalnız `Quality`
+/// otoritesiyle raporlanır; sert bir Spec iddiası kurmaz.
+///
+/// ⚠️ Sezgiselin ölçülmüş bir faydası YOK: 239 feed'lik korpusta tek bir vanity numara bile
+/// geçmiyor. Yazılma gerekçesi spec uyumu; koruma gerekçesi ise ayrımın korpusta gerçekten var
+/// olan iki değeri (`80000078 (Liepājā); …`) reddetmeye devam etmesidir — o değerler spec'in
+/// yasakladığı açıklayıcı metindir ve kural onlarda DOĞRU.
 pub fn looks_like_phone(value: &str) -> bool {
     let trimmed = value.trim();
     if trimmed.is_empty() {
@@ -664,11 +677,24 @@ pub fn looks_like_phone(value: &str) -> bool {
         .filter(|(_, p)| p.chars().all(|c| c.is_ascii_alphabetic()))
         .map(|(i, _)| i)
         .collect();
-    match letter_group_indices.len() {
-        0 => true,                                          // saf numara
-        1 => letter_group_indices[0] == parts.len() - 1,     // vanity: harf bloğu SONDA
-        _ => false,                                          // birden çok harf grubu → açıklayıcı metin
+    if letter_group_indices.is_empty() {
+        return true; // saf numara
     }
+    // Harf grupları bitişik bir KUYRUK oluşturmalı: son n parçanın hepsi harf.
+    let n = letter_group_indices.len();
+    let tail_is_contiguous = letter_group_indices
+        .iter()
+        .enumerate()
+        .all(|(k, &i)| i == parts.len() - n + k);
+    if !tail_is_contiguous {
+        return false; // harf başta ya da arada → açıklayıcı metin
+    }
+    // Tek grup: eski davranış (büyük/küçük harf aranmaz). Birden çok grup: vanity yazım
+    // konvansiyonu olan BÜYÜK HARF şartı — düzyazıyı ayıran tek sinyal bu (#95).
+    n == 1
+        || letter_group_indices.iter().all(|&i| {
+            parts[i].chars().all(|c| c.is_ascii_uppercase())
+        })
 }
 
 pub fn looks_like_iana_timezone(value: &str) -> bool {
@@ -1069,6 +1095,13 @@ mod tests {
         assert!(super::looks_like_phone("503-238-RIDE"));
         assert!(super::looks_like_phone("+1 800 FLOWERS"));
         assert!(super::looks_like_phone("1-800-COLLECT"));
+        // #95: BİRDEN ÇOK vanity harf grubu — hepsi büyük harf ve kuyrukta.
+        assert!(super::looks_like_phone("1-800-GO-FEDEX"), "iki vanity grubu kabul edilmeli");
+        assert!(super::looks_like_phone("1 800 GO FEDEX"), "ayırıcı boşluk da olabilir");
+        assert!(super::looks_like_phone("+1-800-NEW-CARS"));
+        // Tek grupta büyük harf ŞARTI YOK — eski davranış aynen korunur (kabul kümesi
+        // yalnız genişledi, hiçbir değer yeni baştan reddedilmedi).
+        assert!(super::looks_like_phone("503-238-ride"));
         // Saf numaralar: davranış korunur.
         assert!(super::looks_like_phone("+90 212 555 12 34"));
         assert!(super::looks_like_phone("(503) 238-7433"));
@@ -1081,6 +1114,11 @@ mod tests {
         assert!(!super::looks_like_phone("Call 503-238-1234"), "harf grubu BAŞTA");
         assert!(!super::looks_like_phone("555-1234 ext 99"), "harf grubu ORTADA");
         assert!(!super::looks_like_phone("Call us at 503 238 1234"), "birden çok harf grubu");
+        // #95 sınırı: çok gruplu KUYRUK ancak BÜYÜK HARFse vanity sayılır; düzyazı geçemez.
+        assert!(!super::looks_like_phone("1234 call us now"), "küçük harf kuyruk düzyazıdır");
+        assert!(!super::looks_like_phone("555 1234 Call Us"), "baş harfi büyük düzyazı vanity değil");
+        assert!(!super::looks_like_phone("GO FEDEX 1 800"), "harf kuyrukta değil, BAŞTA");
+        assert!(!super::looks_like_phone("1-800-GO-FEDEX-now"), "kuyruğun son grubu küçük harf");
         // Korpusta GERÇEKTEN bulunan iki değer (mdb-2337, mdb-992) — kural bunlarda DOĞRU
         // ateşliyor ve düzeltmeden sonra da ateşlemeye devam etmeli.
         assert!(!super::looks_like_phone("80000078 (Liepājā); 80000079 (Pierīgā)"));

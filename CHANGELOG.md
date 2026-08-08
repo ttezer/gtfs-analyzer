@@ -30,6 +30,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   is representational, not a tolerance: two decimals that round to the same `f64` collapse to
   equality.
 
+- **Dialable vanity numbers with more than one letter group are accepted.** Following the
+  earlier vanity fix, `looks_like_phone` still required the letters to form a *single* trailing
+  token, so `1-800-GO-FEDEX` was reported as invalid. Letter groups may now form a contiguous
+  trailing run. A run of more than one group must be all uppercase — the convention that marks
+  keypad letters — so prose such as `1234 call us now` is still rejected, as is any value with
+  letters at the start or in the middle (`Call 503-238-1234`, `555-1234 ext 99`) and the
+  measured descriptive corpus value `80000078 (Liepājā); …`. A single letter group keeps its
+  previous behaviour with no case requirement, so the change only widens the accepted set and
+  cannot reject anything that was valid before. This is a `Quality` approximation, not a phone
+  grammar: all-uppercase prose (`1234 CALL US NOW`) is accepted, and both `AGN_007` and
+  `BKR_022` stay in `Quality`.
+
 - **`agency_phone` and `phone_number` accept dialable vanity text.** The specification permits
   it by name — *"Dialable text (for example, TriMet's `503-238-RIDE`) is permitted, but the
   field must not contain any other descriptive text"* — and `looks_like_phone` rejected every
