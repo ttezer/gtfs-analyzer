@@ -1,0 +1,169 @@
+name: MBTA GTFS Analyzer vs MobilityData
+
+on:
+  push:
+    branches:
+      - agent/mbta-feed-audit-20260809
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  compare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      FEED_URL: https://cdn.mbta.com/MBTA_GTFS.zip
+      MD_VERSION: '8.0.1'
+      BENCH_DATE: '20260809'
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Record environment
+        run: |
+          mkdir -p benchmark/mbta/results/analyzer benchmark/mbta/results/mobilitydata
+          { uname -a; lscpu; free -h; df -h; } > benchmark/mbta/results/runner-environment.txt
+
+      - name: Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Build GTFS Analyzer
+        run: |
+          cargo build --release -p gtfs-cli
+          target/release/gtfs-analyzer --version 2>&1 | tee benchmark/mbta/results/analyzer-version.txt || true
+
+      - name: Download current MBTA GTFS feed
+        run: |
+          set -euo pipefail
+          mkdir -p benchmark/mbta/feed
+          curl --retry 4 --retry-all-errors -fL "$FEED_URL" -o benchmark/mbta/feed/MBTA_GTFS.zip
+          sha256sum benchmark/mbta/feed/MBTA_GTFS.zip | tee benchmark/mbta/results/feed.sha256
+          stat -c '%s' benchmark/mbta/feed/MBTA_GTFS.zip | tee benchmark/mbta/results/feed.bytes
+          unzip -l benchmark/mbta/feed/MBTA_GTFS.zip > benchmark/mbta/results/feed-files.txt
+
+      - name: Download MobilityData gtfs-validator
+        run: |
+          set -euo pipefail
+          API="https://api.github.com/repos/MobilityData/gtfs-validator/releases/tags/v${MD_VERSION}"
+          ASSET_URL="$(curl -fsSL "$API" | jq -r '.assets[] | select(.name | endswith("-cli.jar")) | .browser_download_url' | head -n1)"
+          test -n "$ASSET_URL"
+          test "$ASSET_URL" != "null"
+          curl --retry 3 --retry-all-errors -fL "$ASSET_URL" -o benchmark/mbta/mobilitydata-cli.jar
+          sha256sum benchmark/mbta/mobilitydata-cli.jar | tee benchmark/mbta/results/mobilitydata-cli.sha256
+
+      - name: Run GTFS Analyzer
+        shell: bash
+        run: |
+          set +e
+          FEED="$PWD/benchmark/mbta/feed/MBTA_GTFS.zip"
+          OUT="$PWD/benchmark/mbta/results/analyzer"
+          /usr/bin/time -v -o "$OUT/time.txt" \
+            timeout --signal=TERM --kill-after=10s 1200s \
+            target/release/gtfs-analyzer validate "$FEED" --json --lang en --today "$BENCH_DATE" --output "$OUT/report.json" \
+            >"$OUT/stdout.txt" 2>"$OUT/stderr.txt"
+          echo "$?" > "$OUT/exit-code.txt"
+          exit 0
+
+      - name: Run MobilityData v8.0.1 with 12 GiB heap
+        shell: bash
+        run: |
+          set +e
+          FEED="$PWD/benchmark/mbta/feed/MBTA_GTFS.zip"
+          OUT="$PWD/benchmark/mbta/results/mobilitydata"
+          /usr/bin/time -v -o "$OUT/time.txt" \
+            timeout --signal=TERM --kill-after=10s 1200s \
+            java -Xmx12g -jar benchmark/mbta/mobilitydata-cli.jar -i "$FEED" -o "$OUT" -d 2026-08-09 \
+            >"$OUT/stdout.txt" 2>"$OUT/stderr.txt"
+          echo "$?" > "$OUT/exit-code.txt"
+          exit 0
+
+      - name: Summarize both reports
+        if: always()
+        run: |
+          python3 - <<'PY'
+          import json, re
+          from collections import Counter, defaultdict
+          from pathlib import Path
+
+          root=Path('benchmark/mbta/results')
+          out={}
+          def timing(path):
+              d={}
+              if not path.exists(): return d
+              t=path.read_text(errors='replace')
+              pats={
+                'elapsed': r'Elapsed \(wall clock\) time.*?:\s*(.+)$',
+                'max_rss_kb': r'Maximum resident set size \(kbytes\):\s*(\d+)',
+                'user_s': r'User time \(seconds\):\s*(.+)$',
+                'system_s': r'System time \(seconds\):\s*(.+)$',
+              }
+              for k,p in pats.items():
+                  m=re.search(p,t,re.M)
+                  if m: d[k]=m.group(1).strip()
+              return d
+
+          a=root/'analyzer'
+          aj={
+            'exit_code': int((a/'exit-code.txt').read_text().strip()) if (a/'exit-code.txt').exists() else None,
+            'timing': timing(a/'time.txt'),
+            'report_bytes': (a/'report.json').stat().st_size if (a/'report.json').exists() else None,
+          }
+          if (a/'report.json').exists():
+              data=json.loads((a/'report.json').read_text())
+              notices=data.get('notices',[])
+              aj['status']=data.get('status')
+              aj['notice_count']=len(notices)
+              aj['by_rule_class']=dict(Counter(n.get('rule_class') for n in notices))
+              aj['by_severity']=dict(Counter(n.get('severity') for n in notices))
+              rc=Counter(n.get('rule_id') for n in notices)
+              aj['top_rules']=rc.most_common(50)
+              samples={}
+              for n in notices:
+                  r=n.get('rule_id')
+                  if r not in samples:
+                      samples[r]={k:n.get(k) for k in ['severity','rule_class','file','line','field','observed_value','title','message','remediation']}
+              aj['samples']=samples
+          out['analyzer']=aj
+
+          m=root/'mobilitydata'
+          mj={
+            'exit_code': int((m/'exit-code.txt').read_text().strip()) if (m/'exit-code.txt').exists() else None,
+            'timing': timing(m/'time.txt'),
+            'report_bytes': (m/'report.json').stat().st_size if (m/'report.json').exists() else None,
+          }
+          if (m/'system_errors.json').exists():
+              try: mj['system_errors']=json.loads((m/'system_errors.json').read_text())
+              except Exception: mj['system_errors_raw']=(m/'system_errors.json').read_text(errors='replace')[:10000]
+          if (m/'report.json').exists():
+              data=json.loads((m/'report.json').read_text())
+              s=data.get('summary',{})
+              notices=data.get('notices',[])
+              mj['validator_version']=s.get('validatorVersion')
+              mj['validation_time_seconds']=s.get('validationTimeSeconds')
+              mj['counts']=s.get('counts')
+              mj['notice_groups']=len(notices)
+              mj['notice_count']=sum(x.get('totalNotices',0) for x in notices)
+              mj['by_severity']=dict(Counter({sev:sum(x.get('totalNotices',0) for x in notices if x.get('severity')==sev) for sev in set(x.get('severity') for x in notices)}))
+              ranked=sorted(((x.get('code'),x.get('severity'),x.get('totalNotices',0)) for x in notices), key=lambda z:z[2], reverse=True)
+              mj['top_codes']=ranked[:50]
+              mj['samples']={x.get('code'):{'severity':x.get('severity'),'total':x.get('totalNotices',0),'samples':x.get('sampleNotices',[])[:2]} for x in notices}
+          out['mobilitydata']=mj
+
+          (root/'comparison-summary.json').write_text(json.dumps(out,indent=2,ensure_ascii=False)+'\n')
+          print(json.dumps(out,indent=2,ensure_ascii=False))
+          PY
+
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: mbta-analyzer-vs-mobilitydata
+          path: benchmark/mbta/results/
+          retention-days: 7
