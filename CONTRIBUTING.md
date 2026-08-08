@@ -68,6 +68,31 @@ standalone with `npm run typecheck` (requires the wasm packages to be built firs
 - **Rules & i18n:** Adding/changing/removing a rule means updating the registry
   (`crates/rules/src/registry.rs`), its card in `docs/rules/`, and the locale files
   (`ui/src/locales/{en,tr,ja}.ts`). Locale parity is enforced by a test.
+- **Formatting: this repository is deliberately not rustfmt-formatted.** `cargo fmt --check`
+  fails, and that is the recorded decision rather than neglect — do not "fix" it, and do not
+  add a formatting gate. Match the style of the code around you instead.
+
+  Measured on 2026-08-09 before deciding: running `cargo fmt` touches **66 files** and adds
+  **+18,505 / −6,910 lines, a net +11,595**. Almost all of that growth hits one pattern —
+  the dense notice-emission calls that make up most of the validator:
+
+  ```rust
+  // today: the argument block reads as a table
+  notices.push(make_k2_notice(
+      &mut counter, "AGN_002", EntityType::Agency, entity_id.clone(), Some(&row_map),
+      &file.name, Some(line), Some("agency_name"), Some(String::new()), None,
+      "agency_name zorunludur.".to_string(), "agency_name alanını doldurun.",
+  ));
+  ```
+
+  rustfmt puts each of those twelve arguments on its own line. `k6_analytics.rs` alone goes
+  from 2,131 to 5,755 lines in the diff. The gain would be consistency we already get from
+  reading the surrounding code; the cost is the shape that makes these emissions scannable.
+
+  One thing worth recording because it is easy to assume otherwise: the aligned `r!(...)`
+  tables in `registry.rs` are **not** at risk. rustfmt does not reformat them — the whole
+  2,382-line file produces only 13 hunks (import order, one method chain, one blank line, a
+  few `assert!` wraps). Protecting them was never a reason for or against this decision.
 
 ## Pull requests
 
