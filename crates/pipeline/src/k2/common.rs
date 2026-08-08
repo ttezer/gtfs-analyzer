@@ -2,6 +2,7 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 
 use gtfs_core::{EntityType, Notice};
+use super::bcp47_grandfathered::GRANDFATHERED;
 use super::iso4217_generated::ISO4217;
 use gtfs_rules::get_rule;
 use smol_str::SmolStr;
@@ -531,9 +532,25 @@ pub fn looks_like_bcp47(value: &str) -> bool {
     if parts[0].eq_ignore_ascii_case("x") {
         return parts.len() >= 2;
     }
-    // Eski (grandfathered) irregular biçimler: i-klingon, i-navajo …
+    // 🔴 GRANDFATHERED ETİKETLER SABİT BİR KAYIT DEFTERİDİR (issue #82, yeniden açıldı).
+    // Buradaki eski kod `i-` önekini AÇIK bir ad alanı gibi ele alıyordu: `i-` + herhangi
+    // bir harf dizisi geçiyordu, yani `i-foo` ve `i-whatever` well-formed sayılıyordu.
+    // RFC 5646'da bu biçimler IANA kayıt defterinden gelir; uydurma bir `i-foo` ne
+    // grandfathered bir etikettir ne de normal bir `langtag`.
+    //
+    // ⚠️ Kartta yazılı `zz-ZZ` KALINTISIYLA karıştırılmamalı: `zz-ZZ` sözdizimsel olarak
+    // well-formed ama kayıtlı değildir (bilinçli kabul). `i-foo` sözdizimsel olarak
+    // GEÇERSİZDİR — yani kalıntı değil, hataydı.
+    //
+    // Karşılaştırma küçük harfe normalize edilir (RFC 5646 §2.1.1: etiketler büyük/küçük
+    // harfe duyarsızdır). Tablo üretilmiştir; kaynağı ve tarihi dosyanın başında.
+    let lowered = t.to_ascii_lowercase();
+    if GRANDFATHERED.binary_search(&lowered.as_str()).is_ok() {
+        return true;
+    }
+    // `i-…` yalnız kayıt defterinde varsa geçerlidir; yukarıdaki arama onu zaten yakaladı.
     if parts[0].eq_ignore_ascii_case("i") {
-        return parts.len() >= 2 && parts[1..].iter().all(|p| alpha(p));
+        return false;
     }
 
     let mut idx = 0usize;
@@ -894,6 +911,22 @@ mod tests {
         );
         assert_eq!(notice.scope_key.as_deref(), Some("T1"));
         assert_eq!(notice.id, "k2/STM_001#1");
+    }
+
+    /// issue #82 (yeniden açıldı) — `i-*` KEYFİ bir ad alanı DEĞİLDİR.
+    #[test]
+    fn bcp47_rejects_invented_grandfathered_tags() {
+        assert!(!super::looks_like_bcp47("i-foo"), "uydurma i-* well-formed DEĞİLDİR");
+        assert!(!super::looks_like_bcp47("i-whatever"));
+        assert!(super::looks_like_bcp47("i-klingon"), "kayıtlı grandfathered etiket");
+        assert!(super::looks_like_bcp47("i-navajo"));
+        assert!(super::looks_like_bcp47("en-GB-oed"), "düzensiz grandfathered etiket");
+        assert!(super::looks_like_bcp47("I-KLINGON"), "etiketler büyük/küçük harfe DUYARSIZ");
+        assert!(super::looks_like_bcp47("zh-min-nan"), "düzenli grandfathered etiket");
+        // ⚠️ `zz-ZZ` ile karıştırma: o well-formed ama kayıtlı değil (bilinçli kalıntı).
+        assert!(super::looks_like_bcp47("zz-ZZ"), "kayıt defteri DENETLENMEZ — belgelenmiş kalıntı");
+        // Normal langtag yolu grandfathered listesinden bağımsız çalışmalı.
+        assert!(super::looks_like_bcp47("tr") && super::looks_like_bcp47("en-US"));
     }
 
     /// issue #86 — GTFS `Email` tipi SÖZDİZİMİ doğrulaması.

@@ -61,6 +61,11 @@ jobs:
         run: |
           python3 spec-audit/gen_html_entities.py --check
 
+      # issue #82: RFC 5646 grandfathered etiketleri IANA kayıt defterinden üretilir.
+      - name: BCP 47 grandfathered sürüklenme denetimi
+        run: |
+          python3 spec-audit/gen_bcp47_grandfathered.py --check
+
       - name: Sinyal paritesi (signal_parity)
         run: |
           python3 spec-audit/signal_parity.py

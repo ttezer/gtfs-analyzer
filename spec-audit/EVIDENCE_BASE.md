@@ -480,7 +480,13 @@ testin kendisi değildi: servis günü notasyonunda saat 24'ü aşar (raylı fee
 veriyi reddetmek olurdu.
 
 **5. denetim turu, `#82`'nin KALINTILARI (2026-08-07):**
-- `looks_like_bcp47` artık **RFC 5646 well-formed** sözdizimi ölçüyor. Eski hâli `en-a`
+- `looks_like_bcp47` artık **RFC 5646 well-formed** sözdizimi ölçüyor.
+  🔴 **6. denetim (issue #82 yeniden açıldı) bunda bir kalıntı buldu:** `i-` öneki AÇIK bir
+  ad alanı sanılıyordu, `i-foo`/`i-whatever` geçiyordu. RFC'de `i-*` sabit bir IANA
+  kaydıdır. Grandfathered etiketler artık ÜRETİLMİŞ tablodan geliyor (26 etiket, kayıt
+  defteri tarihi + SHA-256 dosyada, drift CI'da). ⚠️ Bunu kartta yazılı `zz-ZZ`
+  kalıntısıyla karıştırmamalı: o well-formed ama kayıtsız (bilinçli kabul); `i-foo`
+  well-formed BİLE DEĞİLDİ. Eski hâli `en-a`
   (uzantısı olmayan singleton), `en-a-b-c` ve **yinelenen singleton** `en-a-bbb-a-ccc`
   kabul ediyordu. ⚠️ **Well-formed ≠ valid:** IANA defterine bakılmaz, `zz-ZZ` sözdizimsel
   olarak geçerlidir; kart bunu iddia etmez.
