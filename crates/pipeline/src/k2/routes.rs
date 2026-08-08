@@ -29,11 +29,16 @@ pub struct RouteRecord {
     pub line: u64,
 }
 
-/// Returns true if the given route_type value is valid per GTFS spec (basic + extended).
-fn is_valid_route_type(v: u32) -> bool {
-    // Basic: 0-7, 11, 12
-    // Extended: 100-1799
-    matches!(v, 0..=7 | 11 | 12 | 100..=1799)
+/// ÇEKİRDEK GTFS Schedule Reference enum'u — `routes.txt::route_type` alan tanımı birebir
+/// bunları sayar: 0-7, 11, 12. "Extended"/HVT sözcüğü resmi alan tanımında GEÇMEZ.
+fn is_core_route_type(v: u32) -> bool {
+    matches!(v, 0..=7 | 11 | 12)
+}
+
+/// Genişletilmiş (HVT) hat tipi aralığı — Google Transit ve türevlerinin konvansiyonu,
+/// çekirdek Schedule Reference'ın PARÇASI DEĞİL.
+fn is_extended_route_type(v: u32) -> bool {
+    matches!(v, 100..=1799)
 }
 
 pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Notice>) {
@@ -135,20 +140,36 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
                                 &file.name, Some(line), Some("route_type"),
                                 Some(String::new()), None,
                                 "route_type zorunludur.".to_string(),
-                                "Geçerli bir route_type girin (0-7, 11, 12 veya genişletilmiş 100-1799).",
+                                "Geçerli bir route_type girin (0-7, 11, 12).",
                             ));
                         }
                         None
                     }
                     Some(val) => {
-                        if !is_valid_route_type(val) {
+                        // İki OTORİTE, iki kural (#93). RTS_004 `Spec`/KRİTİK ve R1 yayın
+                        // kapısındadır; çekirdek Schedule Reference enum'u yalnız 0-7,11,12
+                        // sayar. Genişletilmiş 100-1799 aralığını RTS_004'ün kabul kümesine
+                        // koymak, bir eklenti konvansiyonunu çekirdek spec uyumu gibi
+                        // göstermekti. Ters yön de yanlış olurdu: 1501'i RTS_004 ile
+                        // bildirmek korpusun %8,4'ünü (225 feed'in 19'u) meşru bir eklenti
+                        // kullandığı için yayına engel yapardı. Ayrım RTS_030'a taşındı.
+                        if is_extended_route_type(val) {
+                            // RTS_030: genişletilmiş (HVT) tip — çekirdek enum dışı, Interop
+                            notices.push(make_k2_notice(
+                                &mut counter, "RTS_030", EntityType::Route, entity_id.clone(), Some(&row_map),
+                                &file.name, Some(line), Some("route_type"),
+                                Some(val.to_string()), Some("0-7,11,12".to_string()),
+                                format!("route_type {val} çekirdek GTFS enum'unda yok; genişletilmiş (HVT) hat tipi."),
+                                "Çekirdek GTFS uyumu için en yakın temel route_type değerini (0-7, 11, 12) kullanın; genişletilmiş tipi destekleyen tüketicileri hedefliyorsanız bu değer bilinçli bir tercih olabilir.",
+                            ));
+                        } else if !is_core_route_type(val) {
                             // RTS_004: route_type invalid enum value
                             notices.push(make_k2_notice(
                                 &mut counter, "RTS_004", EntityType::Route, entity_id.clone(), Some(&row_map),
                                 &file.name, Some(line), Some("route_type"),
-                                Some(val.to_string()), Some("0-7,11,12,100-1799".to_string()),
+                                Some(val.to_string()), Some("0-7,11,12".to_string()),
                                 format!("route_type {val} geçerli bir GTFS hat tipi değil."),
-                                "Geçerli bir route_type kullanın (0-7, 11, 12 veya genişletilmiş 100-1799).",
+                                "Geçerli bir route_type kullanın (0-7, 11, 12).",
                             ));
                         }
                         Some(val)
@@ -847,15 +868,45 @@ mod tests {
         );
     }
 
-    #[test]
-    fn extended_route_type_is_valid() {
+    /// #93 otorite matrisi: çekirdek enum RTS_004'ün (Spec·KRİTİK) alanı, genişletilmiş
+    /// aralık RTS_030'un (Interop·DÜŞÜK) alanı, ikisine de girmeyen değer yine RTS_004.
+    fn route_type_rule_ids(value: &str) -> Vec<String> {
         let file = make_file(
             vec!["route_id", "route_short_name", "route_type"],
-            vec![vec!["R1", "Metro", "401"]],
+            vec![vec!["R1", "Metro", value]],
         );
         let (_, notices) = validate_routes(&file);
-        assert!(!notices.iter().any(|n| n.rule_id == "RTS_004"),
-            "Extended route_type 401 should be valid");
+        notices.iter()
+            .filter(|n| n.rule_id == "RTS_004" || n.rule_id == "RTS_030")
+            .map(|n| n.rule_id.clone())
+            .collect()
+    }
+
+    #[test]
+    fn core_route_types_produce_no_type_notice() {
+        for v in ["0", "3", "7", "11", "12"] {
+            assert!(route_type_rule_ids(v).is_empty(),
+                "çekirdek route_type {v} hiçbir tip notice'ı üretmemeli, gelen: {:?}",
+                route_type_rule_ids(v));
+        }
+    }
+
+    #[test]
+    fn extended_route_type_is_interop_not_core_spec() {
+        // 401 (eski test), 100 (aralık başı), 1501 (issue #93 karşı-örneği), 1799 (aralık sonu).
+        for v in ["100", "401", "715", "1501", "1799"] {
+            assert_eq!(route_type_rule_ids(v), vec!["RTS_030".to_string()],
+                "genişletilmiş route_type {v} yalnız RTS_030 üretmeli (RTS_004 DEĞİL)");
+        }
+    }
+
+    #[test]
+    fn non_core_non_extended_route_type_stays_rts_004() {
+        // Ne çekirdek ne genişletilmiş: davranış değişmedi, KRİTİK Spec ihlali.
+        for v in ["8", "13", "99", "1800", "9999"] {
+            assert_eq!(route_type_rule_ids(v), vec!["RTS_004".to_string()],
+                "route_type {v} çekirdek Spec ihlali olarak RTS_004 üretmeli");
+        }
     }
 
     #[test]

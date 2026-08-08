@@ -496,6 +496,13 @@ pub static RULES: &[RuleMeta] = &[
     // hiçbir şey görmüyordu. (Aynı yutma deseni STM_058 ve PTH_027'de de vardı.)
     r!("RTS_029", Dusuk,  Spec, 1, &[], Some("route_id"), VS, Entity,
         "route_sort_order geçersiz"),
+    // RTS_030 (#93): çekirdek Schedule Reference `route_type` enum'u YALNIZ 0-7,11,12 sayar;
+    // 100-1799 Google Transit/HVT konvansiyonudur. Eskiden RTS_004 (KRİTİK·Spec, R1 kapısı)
+    // her ikisini de kabul ediyor, yani bir eklentiyi çekirdek spec uyumu gibi gösteriyordu.
+    // Sınıf Interop çünkü MD paritesi ELDE: korpus MD raporlarında genişletilmiş değerler
+    // `unexpected_enum_value` (WARNING) veriyor — 225 feed'in 19'unda.
+    r!("RTS_030", Dusuk,  Interop, 1, &[], Some("route_id"), VI, Entity,
+        "route_type çekirdek enum dışında genişletilmiş değer"),
 
     // ── TRP: Trips ─────────────────────────────────────────────────────────────
     r!("TRP_001", Kritik, Spec, 1,
@@ -2114,6 +2121,7 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("RTS_027", ProjectQuality),
     ("RTS_028", GtfsSpec),
     ("RTS_029", GtfsSpec),
+    ("RTS_030", MobilitydataParity),
     ("SAR_001", GtfsSpec),
     ("SAR_002", GtfsSpec),
     ("SAR_003", GtfsSpec),

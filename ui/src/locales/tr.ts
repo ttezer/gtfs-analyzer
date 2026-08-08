@@ -1000,6 +1000,7 @@ const tr = {
     'NET_003': 'route_networks.route_id eksik veya bulunamadı',
     'RCT_007': 'eligibility_url geçersiz',
     'RTS_029': 'route_sort_order geçersiz',
+    'RTS_030': 'route_type çekirdek enum dışında genişletilmiş değer',
     'TRN_015': 'record_id ve field_value ikisi de boş',
     'TRN_016': 'field_value hiçbir kayıtla eşleşmiyor — çeviri uygulanmıyor',
     'TRN_017': 'stop_times çevirisinde record_sub_id eksik — hangi satır olduğu belirsiz',

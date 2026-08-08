@@ -2,7 +2,7 @@
 
 🇹🇷 [Türkçe](RULES.md) · 🇬🇧 **English** · 🇯🇵 [日本語](RULES.ja.md)
 
-594 rules, 38 groups. Each rule is identified by a unique ID, severity level, and class.
+595 rules, 38 groups. Each rule is identified by a unique ID, severity level, and class.
 Severity levels: **CRITICAL** (publish blocker) · **HIGH** · **MEDIUM** · **LOW** · **INFO**
 Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Quality** (GTFS Quality) · **Analytics** (GTFS Analytics)
 
@@ -173,6 +173,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | RTS_027 | Duplicate long route name | INFO | Quality |
 | RTS_028 | continuous_pickup/drop_off forbidden on a Flex route | HIGH | Spec |
 | RTS_029 | route_sort_order is invalid | LOW | Spec |
+| RTS_030 | route_type uses an extended value outside the core enum | LOW | Interop |
 
 ## TRP — Trips
 

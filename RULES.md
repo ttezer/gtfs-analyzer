@@ -2,7 +2,7 @@
 
 🇹🇷 **Türkçe** · 🇬🇧 [English](RULES.en.md) · 🇯🇵 [日本語](RULES.ja.md)
 
-594 kural, 38 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
+595 kural, 38 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
 Önem seviyeleri: **KRİTİK** (yayın engelleyici) · **YÜKSEK** · **ORTA** · **DÜŞÜK** · **BİLGİ**
 Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · **Quality** (GTFS Kalitesi) · **Analytics** (GTFS Analitiği)
 
@@ -173,6 +173,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | RTS_027 | Yinelenen uzun hat adı | BİLGİ | Quality |
 | RTS_028 | Flex pencereli rotada continuous_pickup/drop_off yasak | YÜKSEK | Spec |
 | RTS_029 | route_sort_order geçersiz | DÜŞÜK | Spec |
+| RTS_030 | route_type çekirdek enum dışında genişletilmiş değer | DÜŞÜK | Interop |
 
 ## TRP — Trips (Seferler)
 

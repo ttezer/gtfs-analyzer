@@ -479,6 +479,8 @@ fn fixtures() -> Vec<Fixture> {
         fx("RTS_003", vec![("routes.txt", "route_id,agency_id,route_type\nR1,1,3\n")]),
         fx("RTS_004", vec![("routes.txt", "route_id,agency_id,route_short_name,route_type\nR1,1,101,9999\n")]),
         fx("RTS_005", vec![("routes.txt", "route_id,agency_id,route_short_name,route_type,route_url\nR1,1,101,3,notaurl\n")]),
+        // RTS_030: genişletilmiş (HVT) route_type — çekirdek enum dışı, RTS_004 DEĞİL (#93).
+        fx("RTS_030", vec![("routes.txt", "route_id,agency_id,route_short_name,route_type\nR1,1,101,1501\n")]),
         // RTS_029: route_sort_order negatif olmayan tam sayı değil (eskiden sessizdi).
         fx("RTS_029", vec![("routes.txt", "route_id,agency_id,route_short_name,route_type,route_sort_order\nR1,1,101,3,-5\n")]),
         fx("RTS_006", vec![("routes.txt", "route_id,agency_id,route_short_name,route_type,route_color\nR1,1,101,3,XYZ\n")]),

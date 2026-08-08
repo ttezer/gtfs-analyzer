@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`RTS_030` reports extended (HVT) `route_type` values.** The core GTFS Schedule Reference
+  defines `route_type` as exactly `0-7`, `11`, `12` — the word *extended* does not appear in
+  the field definition. Values in `100-1799` are the Google Transit/HVT convention, and
+  `RTS_004` (`Spec`, CRITICAL, publication gate) accepted them silently, presenting an
+  extension as core specification compliance. They are now reported by `RTS_030`
+  (`Interop`, LOW), which does not block publication. `RTS_004` is unchanged for every other
+  value. The class is measured, not assumed: MobilityData reports `unexpected_enum_value`
+  (WARNING) for these values in **19 of the 225 corpus feeds**.
+
 ### Fixed
 
 - **`SHP_005` no longer accepts small decreases in `shape_dist_traveled`.** The monotonicity

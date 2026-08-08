@@ -963,6 +963,7 @@ const en: LocaleShape = {
     'NET_003': "Route network row: route_id '{observed_value}' is missing or not defined in routes.txt.",
     'RCT_007': "Rider category '{entity_id}': eligibility_url is not a valid URL.",
     'RTS_029': "Route '{entity_id}': route_sort_order '{observed_value}' is not a non-negative integer.",
+    'RTS_030': "Route '{entity_id}': route_type '{observed_value}' is an extended (HVT) value outside the core GTFS enum.",
     'TRN_015': "Translation row: record_id and field_value are both empty, so the row does not say which record it translates.",
     // TFR
     'TFR_001': 'Timeframe: timeframe_group_id is missing.',
@@ -1366,7 +1367,7 @@ const en: LocaleShape = {
     // RTS (field-level)
     'RTS_002': 'Use a valid agency_id.',
     'RTS_003': 'Fill in route_short_name or route_long_name.',
-    'RTS_004': 'Enter a valid route_type (0–7, 11, 12 or extended 100–1799).',
+    'RTS_004': 'Enter a valid route_type (0–7, 11, 12).',
     'RTS_005': 'Use a valid http/https URL for route_url.',
     'RTS_006': 'Use a valid 6-digit hex colour (e.g., FF0000).',
     'RTS_007': 'Use a valid 6-digit hex colour (e.g., FFFFFF).',
@@ -1620,6 +1621,7 @@ const en: LocaleShape = {
     'NET_003': 'Use a route_id that is defined in routes.txt.',
     'RCT_007': 'Use a valid http/https URL for eligibility_url.',
     'RTS_029': 'Give route_sort_order as a non-negative whole number.',
+    'RTS_030': 'Use a core route_type (0-7, 11, 12) for core GTFS compliance; the extended value may be deliberate if your consumers support it.',
     'TRN_015': 'Fill in either record_id or field_value.',
     'SAR_001': 'Use a valid area_id.',
     'SAR_002': 'Use a valid stop_id.',
@@ -2220,6 +2222,7 @@ const en: LocaleShape = {
     'NET_003': 'route_networks.route_id is missing or not found',
     'RCT_007': 'eligibility_url is invalid',
     'RTS_029': 'route_sort_order is invalid',
+    'RTS_030': 'route_type uses an extended value outside the core enum',
     'TRN_015': 'record_id and field_value are both empty',
     'TRN_016': 'field_value matches no record — the translation is never applied',
     'TRN_017': 'stop_times translation missing record_sub_id — the row is ambiguous',
