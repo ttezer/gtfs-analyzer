@@ -1,0 +1,56 @@
+name: Inspect MBTA fare product variants
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/inspect-mbta-fare-products-pr.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Inspect current MBTA fare products
+        run: |
+          set -euo pipefail
+          mkdir -p benchmark/mbta-fares
+          curl --retry 4 --retry-all-errors -fL https://cdn.mbta.com/MBTA_GTFS.zip -o benchmark/mbta-fares/feed.zip
+          sha256sum benchmark/mbta-fares/feed.zip | tee benchmark/mbta-fares/feed.sha256
+          unzip -p benchmark/mbta-fares/feed.zip fare_products.txt > benchmark/mbta-fares/fare_products.txt
+          python3 - <<'PY'
+          import csv, json
+          from collections import defaultdict
+          p='benchmark/mbta-fares/fare_products.txt'
+          with open(p,encoding='utf-8-sig',newline='') as f:
+              rows=list(csv.DictReader(f))
+          by=defaultdict(list)
+          for i,r in enumerate(rows,start=2):
+              if not (r.get('rider_category_id') or '').strip():
+                  by[r.get('fare_product_id','')].append({
+                    'line':i,'fare_product_id':r.get('fare_product_id'),
+                    'fare_media_id':r.get('fare_media_id'),
+                    'rider_category_id':r.get('rider_category_id'),
+                    'amount':r.get('amount'),'currency':r.get('currency'),
+                    'fare_product_name':r.get('fare_product_name')})
+          multi={k:v for k,v in by.items() if len(v)>1}
+          result={
+            'total_rows':len(rows),
+            'multi_empty_rider_products':len(multi),
+            'all_variants_have_unique_fare_media':all(len({x['fare_media_id'] for x in v})==len(v) for v in multi.values()),
+            'products':multi,
+          }
+          with open('benchmark/mbta-fares/inspection.json','w') as f: json.dump(result,f,indent=2)
+          print(json.dumps(result,indent=2))
+          PY
+      - name: Upload evidence
+        uses: actions/upload-artifact@v7
+        with:
+          name: mbta-fare-products-inspection
+          path: |
+            benchmark/mbta-fares/feed.sha256
+            benchmark/mbta-fares/inspection.json
+          retention-days: 7
