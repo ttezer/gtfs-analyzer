@@ -239,7 +239,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | STM_028 | Sefer süresi çok uzun | YÜKSEK | Analytics |
 | STM_029 | Sefer süresi çok kısa | ORTA | Analytics |
 | STM_030 | shape_dist_traveled negatif veya sayı değil | DÜŞÜK | Spec |
-| STM_032 | Aynı seferde yinelenen stop_sequence değeri | DÜŞÜK | Quality |
+| STM_032 | Aynı seferde yinelenen stop_sequence değeri | DÜŞÜK | Spec |
 | STM_033 | Tek duraklı sefer (kullanılamaz) | YÜKSEK | Interop |
 | STM_034 | Varış veya kalkış zamanından yalnızca biri tanımlı | ORTA | Interop |
 | STM_035 | Aynı durak ardışık iki kez ziyaret ediliyor (terminal/döngü) | BİLGİ | Analytics |

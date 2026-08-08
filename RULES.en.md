@@ -239,7 +239,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | STM_028 | Trip duration too long | HIGH | Analytics |
 | STM_029 | Trip duration too short | MEDIUM | Analytics |
 | STM_030 | shape_dist_traveled is negative or not a number | LOW | Spec |
-| STM_032 | Duplicate stop_sequence within trip | LOW | Quality |
+| STM_032 | Duplicate stop_sequence within trip | LOW | Spec |
 | STM_033 | Single-stop trip (unusable) | HIGH | Interop |
 | STM_034 | Only one of arrival or departure time defined | MEDIUM | Interop |
 | STM_035 | Same stop visited twice consecutively (terminal/loop) | INFO | Analytics |

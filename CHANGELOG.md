@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **`STM_032` moves from `Quality` to `Spec`.** A duplicate `stop_sequence` inside a trip
+  violates a normative requirement stated twice: the field definition — *"The values must
+  increase along the trip but do not need to be consecutive"* — and the file heading,
+  *"Primary key (trip_id, stop_sequence)"*. `DQ_021` already reports the same fact for other
+  files as `Spec`. No new rule was added: rows are sorted by `(trip, stop_sequence)` before the
+  check, so the values cannot decrease in that view and equality is the only way to violate the
+  requirement — a separate "decreasing" rule would measure the empty set. The evidence ledger
+  no longer cites `STM_036` for this provision; that rule measures **file order** (MobilityData
+  `unsorted_stop_times`, INFO) and also fires on valid feeds whose values increase correctly.
+  Severity is unchanged, so the publication gate (`Spec ∧ CRITICAL`) behaves exactly as before.
+
 ### Added
 
 - **`RTS_030` reports extended (HVT) `route_type` values.** The core GTFS Schedule Reference

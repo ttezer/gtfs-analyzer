@@ -657,7 +657,14 @@ pub static RULES: &[RuleMeta] = &[
         "Sefer süresi çok kısa"),
     r!("STM_030", Dusuk,  Spec, 1, &[], Some("trip_id"), VS, Row,
         "shape_dist_traveled negatif veya sayı değil"),
-    r!("STM_032", Dusuk,  Quality, 1, &[], Some("trip_id"), VS, Row,
+    // STM_032 SINIFI DEĞİŞTİ (#97, 2026-08-09): Quality → Spec. Hüküm normatif ve İKİ yerde
+    // yazıyor: `stop_sequence` alan tanımı *"The values must increase along the trip but do
+    // not need to be consecutive"*, `stop_times.txt` başlığı *"Primary key (trip_id,
+    // stop_sequence)"*. Aynı olguyu başka dosyalarda ölçen `DQ_021` zaten Spec.
+    // ⚠️ ÖNEM DEĞİŞMEDİ (Düşük): R1 kapısı `Spec ∧ Kritik` olduğu için yayın davranışı aynı.
+    // DQ_021'in YÜKSEK olması karşısındaki asimetri bilinçli olarak AYRI iş bırakıldı —
+    // önem değişikliği 3 korpus feed'inin R5 skorunu oynatır ve ölçüm ister.
+    r!("STM_032", Dusuk,  Spec, 1, &[], Some("trip_id"), VS, Row,
         "Aynı seferde yinelenen stop_sequence değeri"),
     r!("STM_033", Yuksek, Interop, 2, &[], Some("trip_id"), VI, Entity,
         "Tek duraklı sefer (kullanılamaz)"),
@@ -2178,7 +2185,7 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("STM_028", ProjectAnalytics),
     ("STM_029", ProjectAnalytics),
     ("STM_030", GtfsSpec),
-    ("STM_032", ProjectQuality),
+    ("STM_032", GtfsSpec),
     ("STM_033", MobilitydataParity),
     ("STM_034", MobilitydataParity),
     ("STM_035", ProjectAnalytics),

@@ -2085,6 +2085,16 @@ pub fn validate_stop_times(file: &RawFile, zip_bytes: Option<&[u8]>, has_booking
 
     // STM_032 post-finalize: sıralanmış satırlarda ardışık aynı stop_sequence → dup.
     // Process closure'da değil (seen_seq set kaldırıldı); burada windows(2) ile O(n) tespit.
+    //
+    // 🔑 **Bu, `stop_sequence` ARTIŞ hükmünün TAMAMINI ölçer (#97).** Satırlar hemen yukarıda
+    // `(trip, stop_sequence, dosya-ordinali)` anahtarıyla sıralandığı için trip içindeki
+    // değerler bu görünümde tanım gereği azalmaz; hükmü ihlal edebilecek TEK durum eşitliktir.
+    // Yani "değerler sefer boyunca artmalı" ⇔ "(trip_id, stop_sequence) benzersiz" — ki spec
+    // bunu ikinci kez `stop_times.txt` başlığında "Primary key (trip_id, stop_sequence)" diye
+    // söyler. Ayrı bir "azalma" kuralı BOŞ KÜME ölçerdi.
+    // ⚠️ `STM_036` bu hükmün kanıtı DEĞİLDİR: o DOSYA SIRASINI ölçer (MD `unsorted_stop_times`,
+    // INFO) ve değerleri düzgün artan geçerli bir feed'de de ateşler. Spec dosya satırlarının
+    // sıralı olmasını istemez.
     {
         let _t_032 = crate::timing::Timer::start("K2::st::fin::stm032");
         // trips_agg bir HashMap; emisyon sırası deterministik olsun diye trip_id'ye göre gez.
@@ -2505,6 +2515,49 @@ mod tests {
         );
         let (_, notices) = validate_stop_times(&file, None, false);
         assert!(notices.iter().any(|n| n.rule_id == "STM_032"), "STM_032 bekleniyor: {:?}", notices);
+    }
+
+    /// #97 kabul matrisi: `stop_sequence` ARTIŞ hükmünü ölçen kural SPEC sınıfında olmalı,
+    /// ve hükmü ihlal ETMEYEN iki meşru şekilde susmalı.
+    #[test]
+    fn stop_sequence_increase_provision_is_measured_by_a_spec_rule() {
+        let meta = gtfs_rules::RULES.iter().find(|r| r.id == "STM_032")
+            .expect("STM_032 registry'de olmalı");
+        assert_eq!(meta.rule_class, gtfs_core::RuleClass::Spec,
+            "artış hükmünü ölçen kural Spec sınıfında olmalı (#97)");
+    }
+
+    #[test]
+    fn non_consecutive_increasing_stop_sequence_is_silent() {
+        // Spec AÇIKÇA izin verir: "do not need to be consecutive" (1, 5, 9).
+        let file = make_file(
+            vec!["trip_id", "arrival_time", "departure_time", "stop_id", "stop_sequence"],
+            vec![
+                vec!["T1", "08:00:00", "08:00:00", "S1", "1"],
+                vec!["T1", "08:10:00", "08:10:00", "S2", "5"],
+                vec!["T1", "08:20:00", "08:20:00", "S3", "9"],
+            ],
+        );
+        let (_, notices) = validate_stop_times(&file, None, false);
+        assert!(!notices.iter().any(|n| n.rule_id == "STM_032"),
+            "ardışık olmayan ama artan değerler STM_032 üretmemeli: {notices:?}");
+    }
+
+    #[test]
+    fn file_order_decrease_with_increasing_values_produces_no_spec_finding() {
+        // 🔑 #97'nin yanlış-pozitif kapısı: satırlar DOSYADA ters yazılmış (seq 2 önce),
+        // ama trip'in değerleri artıyor → hüküm İHLAL EDİLMEMİŞTİR, Spec bulgusu ÇIKMAMALI.
+        // (Dosya sırası sinyali STM_036'nın işidir ve o K6'da üretilir.)
+        let file = make_file(
+            vec!["trip_id", "arrival_time", "departure_time", "stop_id", "stop_sequence"],
+            vec![
+                vec!["T1", "08:10:00", "08:10:00", "S2", "2"],
+                vec!["T1", "08:00:00", "08:00:00", "S1", "1"],
+            ],
+        );
+        let (_, notices) = validate_stop_times(&file, None, false);
+        assert!(!notices.iter().any(|n| n.rule_id == "STM_032"),
+            "dosya sırası ters ama değerler artıyor → STM_032 çıkmamalı: {notices:?}");
     }
 
     #[test]
