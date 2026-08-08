@@ -258,9 +258,16 @@ fn build_shape_geometry(
             // SHP_005: shape_dist_traveled shape_pt_sequence ile artmalı. point_indices K3'te
             // sequence'a göre SIRALI olduğundan burada kontrol edilir — K2 dosya-satır sırasında
             // baksaydı (ve bakıyordu) sequence-dışı sıralı feed'lerde sahte "azalma" görürdü (FP fix).
+            // Karşılaştırma TAM (#94): eskiden `d < prev - 1e-6` idi ve 1e-6'dan küçük GERÇEK
+            // azalmaları sessizce kabul ediyordu — kritik bir Spec predikatının kabul kümesini
+            // spec'te olmayan bir toleransla genişletmek. Tolerans gerekmiyor: değerler
+            // `parse_f64_col` ile ÜRETİCİNİN yazdığı metinden doğrudan okunuyor, üzerlerinde
+            // aritmetik yapılmıyor. Ondalık→f64 dönüşümü monoton olduğundan `d < prev` ancak
+            // ondalık değer de azalmışsa doğrudur (FP yok); ayırt edilemeyecek kadar yakın iki
+            // değer eşitliğe çöker ve eşitlik zaten emit etmez.
             if let Some(d) = pt.shape_dist_traveled() {
                 if let Some(prev) = prev_dist {
-                    if d < prev - 1e-6 {
+                    if d < prev {
                         notices.push(k5_notice(
                             ctr, "SHP_005", EntityType::Shape,
                             Some(shape_id.clone()), Some(shape_id.clone()),
@@ -584,6 +591,42 @@ mod tests {
         let result = build(&records, &map);
         assert!(result.notices.iter().any(|n| n.rule_id == "SHP_005"),
             "sequence sırasında azalan shape_dist SHP_005 üretmeli");
+    }
+
+    /// #94 sınır matrisi: azalma eski `1e-6` toleransından KÜÇÜK olsa da emit edilmeli,
+    /// eşitlik ve artış ise sessiz kalmalı.
+    fn shp_005_fires_for(d1: f64, d2: f64) -> bool {
+        let mut shape_ti = ShapeInternTable::new();
+        let mut records = empty_records();
+        let mut map = empty_map();
+        records.shapes = vec![
+            shape_pt_d(&mut shape_ti, "S1", 1, 41.0, 29.0, d1, 2),
+            shape_pt_d(&mut shape_ti, "S1", 2, 41.1, 29.1, d2, 3),
+        ];
+        records.shape_interns = shape_ti.clone();
+        let (t1, ti1) = trip_with_shape("T1", "S1");
+        records.trips = vec![t1]; records.trip_interns = ti1;
+        map.shape_points.insert("S1".into(), vec![0, 1]);
+        map.trips.insert("T1".into(), 0);
+        build(&records, &map).notices.iter().any(|n| n.rule_id == "SHP_005")
+    }
+
+    #[test]
+    fn shp_005_fires_on_decrease_below_old_epsilon() {
+        // issue #94 karşı-örneği: azalma 5e-7, eski `d < prev - 1e-6` eşiğinin ALTINDA.
+        assert!(shp_005_fires_for(1.0000005, 1.0000000),
+            "1e-6'dan küçük gerçek azalma da SHP_005 üretmeli (#94)");
+        // f64'te temsil edilebilen en küçük azalma da yakalanmalı.
+        assert!(shp_005_fires_for(1.0, 1.0 - f64::EPSILON / 2.0),
+            "bir ULP'lik azalma da SHP_005 üretmeli (#94)");
+    }
+
+    #[test]
+    fn shp_005_silent_on_equal_or_increasing() {
+        assert!(!shp_005_fires_for(10.0, 10.0), "eşit değerler SHP_005 üretmemeli");
+        assert!(!shp_005_fires_for(10.0, 10.0 + f64::EPSILON * 8.0),
+            "en küçük artış bile SHP_005 üretmemeli");
+        assert!(!shp_005_fires_for(10.0, 20.0), "artan değerler SHP_005 üretmemeli");
     }
 
     #[test]

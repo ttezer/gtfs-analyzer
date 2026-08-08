@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **`SHP_005` no longer accepts small decreases in `shape_dist_traveled`.** The monotonicity
+  check compared `d < prev - 1e-6`, so a genuine decrease below `1e-6` was silently accepted —
+  a tolerance band the specification does not define, widening the acceptance set of a critical
+  `Spec` predicate. The comparison is now exact (`d < prev`). No tolerance is needed: both
+  values are read straight from the producer-supplied text with no arithmetic applied, and
+  decimal-to-`f64` conversion is monotone, so `d < prev` holds only when the written values
+  decrease. Equal values remain a separate case and still report nothing. The remaining limit
+  is representational, not a tolerance: two decimals that round to the same `f64` collapse to
+  equality.
+
 - **`agency_phone` and `phone_number` accept dialable vanity text.** The specification permits
   it by name — *"Dialable text (for example, TriMet's `503-238-RIDE`) is permitted, but the
   field must not contain any other descriptive text"* — and `looks_like_phone` rejected every

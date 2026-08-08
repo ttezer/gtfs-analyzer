@@ -2672,3 +2672,47 @@ fn url92_whitespace_only_url_is_missing_not_invalid() {
         other => panic!("Ok beklendi: {other:?}"),
     }
 }
+
+// ── issue #94: SHP_005 monotonluğu TAM karşılaştırma ────────────────────────
+// Eski predikat `d < prev - 1e-6` idi: 1e-6'dan küçük GERÇEK azalma sessizce kabul
+// ediliyordu. Bu test CSV'den geçer — yalnız K5 birim testi, ondalık→f64 okumasının
+// üreticinin sırasını koruduğunu göstermez.
+
+fn shp005_feed(shapes: &'static str) -> Vec<(&'static str, &'static [u8])> {
+    let mut files = base_files();
+    files.push(("shapes.txt", shapes.as_bytes()));
+    files
+}
+
+#[test]
+fn shp005_detects_decrease_smaller_than_old_epsilon() {
+    // issue #94'ün karşı-örneği birebir: azalma 5e-7.
+    match run(&shp005_feed("shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence,shape_dist_traveled\n\
+        S1,41.0,29.0,1,1.0000005\nS1,41.1,29.1,2,1.0000000\n")) {
+        ValidateResult::Ok(vr) => assert!(has(&vr, "SHP_005"),
+            "1e-6'dan küçük azalma SHP_005 üretmeli (#94)"),
+        other => panic!("Ok beklendi: {other:?}"),
+    }
+}
+
+#[test]
+fn shp005_silent_on_tiny_increase_from_csv() {
+    // Aynı ondalık basamak sayısı, ters yön → susmalı (tolerans kaldırma FP getirmemeli).
+    match run(&shp005_feed("shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence,shape_dist_traveled\n\
+        S1,41.0,29.0,1,1.0000000\nS1,41.1,29.1,2,1.0000005\n")) {
+        ValidateResult::Ok(vr) => assert!(!has(&vr, "SHP_005"),
+            "artan shape_dist_traveled SHP_005 üretmemeli"),
+        other => panic!("Ok beklendi: {other:?}"),
+    }
+}
+
+#[test]
+fn shp005_silent_on_equal_values_from_csv() {
+    // Eşitlik AYRI vaka (#94): kural yalnız `önceki > güncel` içindir.
+    match run(&shp005_feed("shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence,shape_dist_traveled\n\
+        S1,41.0,29.0,1,1.0000000\nS1,41.1,29.1,2,1.0000000\n")) {
+        ValidateResult::Ok(vr) => assert!(!has(&vr, "SHP_005"),
+            "eşit shape_dist_traveled SHP_005 üretmemeli"),
+        other => panic!("Ok beklendi: {other:?}"),
+    }
+}

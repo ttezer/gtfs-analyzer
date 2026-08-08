@@ -62,9 +62,9 @@ impl ShapeInternTable {
 /// `Option` API'si accessor'larda korunuyor. `shape_id` ise [`ShapeInternTable`] indeksi.
 ///
 /// `shape_dist_traveled` BİLİNÇLİ olarak f64 kaldı (`CompactStopTime` orada f32 kullanır):
-/// SHP_005 monotonluğu `1e-6` toleransıyla bakıyor ve K4::stm_shape_dist bu değeri
-/// stop_times'ınkiyle karşılaştırıyor — 40,9M yoğun noktada f32 yuvarlaması gerçek
-/// artışları yutabilirdi.
+/// SHP_005 monotonluğa TAM karşılaştırmayla bakıyor (#94) ve K4::stm_shape_dist bu değeri
+/// stop_times'ınkiyle karşılaştırıyor — 40,9M yoğun noktada f32 yuvarlaması komşu değerleri
+/// birbirine çökertip gerçek artışları/azalmaları yutabilirdi.
 #[derive(Debug, Clone)]
 pub struct ShapePointRecord {
     /// `ShapeInternTable` indeksi; 0 = boş/eksik shape_id
