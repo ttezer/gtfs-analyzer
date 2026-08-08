@@ -130,8 +130,24 @@ pub fn parse_f64_col(raw: &str) -> Result<Option<f64>, ()> {
     }
 }
 
+/// SERT tip predikatları için alan okuması — **HAM değer** (issue #92).
+///
+/// 🔴 `get_trimmed_field` her değeri kırpıyordu ve tip predikatı kırpılmışını görüyordu:
+/// `" https://example.com "` ham hâlde kaçırılmamış boşluk taşır, ama sert URL kuralı
+/// susuyordu; geriye yalnız `DQ_016` kalite sinyali kalıyordu. Yani bir Spec iddiası
+/// (`P5f72fb5a` KANITLI) normalize edilmiş bir vekil değer üzerinden kuruluyordu.
+/// `#85`'in kimlik için verdiği kararın tip predikatlarındaki karşılığı budur.
+///
+/// ⚠️ **BOŞLUK-YALNIZ değer YOK sayılır** — kırpma yalnız VARLIK teşhisinde kullanılır,
+/// değeri değiştirmeden. Aksi hâlde `"   "` taşıyan opsiyonel bir alan "geçersiz tip"
+/// olurdu ve bu, `#85`'te bilinçle korunan davranışın tersine dönmesi demekti.
+pub fn get_lexical_field<'a>(row: &'a RowMap, field: &str) -> Option<&'a str> {
+    let raw = get_raw_field(row, field)?;
+    if raw.trim().is_empty() { None } else { Some(raw) }
+}
+
 pub fn parse_f64(row: &RowMap, field: &str) -> Result<Option<f64>, String> {
-    let Some(raw) = get_trimmed_field(row, field) else {
+    let Some(raw) = get_lexical_field(row, field) else {
         return Ok(None);
     };
     if raw.is_empty() {
@@ -143,7 +159,7 @@ pub fn parse_f64(row: &RowMap, field: &str) -> Result<Option<f64>, String> {
 }
 
 pub fn parse_u32(row: &RowMap, field: &str) -> Result<Option<u32>, String> {
-    let Some(raw) = get_trimmed_field(row, field) else {
+    let Some(raw) = get_lexical_field(row, field) else {
         return Ok(None);
     };
     if raw.is_empty() {
@@ -155,7 +171,7 @@ pub fn parse_u32(row: &RowMap, field: &str) -> Result<Option<u32>, String> {
 }
 
 pub fn parse_i32(row: &RowMap, field: &str) -> Result<Option<i32>, String> {
-    let Some(raw) = get_trimmed_field(row, field) else {
+    let Some(raw) = get_lexical_field(row, field) else {
         return Ok(None);
     };
     if raw.is_empty() {
@@ -168,7 +184,7 @@ pub fn parse_i32(row: &RowMap, field: &str) -> Result<Option<i32>, String> {
 
 /// GTFS Schedule tarih formatı: YYYYMMDD
 pub fn parse_service_date(row: &RowMap, field: &str) -> Result<Option<(u32, u32, u32)>, String> {
-    let Some(raw) = get_trimmed_field(row, field) else {
+    let Some(raw) = get_lexical_field(row, field) else {
         return Ok(None);
     };
     if raw.is_empty() {
@@ -219,7 +235,7 @@ pub fn is_valid_calendar_date(year: u32, month: u32, day: u32) -> bool {
 
 /// GTFS saat formatı: HH:MM:SS (HH 24'ten büyük olabilir).
 pub fn parse_gtfs_time(row: &RowMap, field: &str) -> Result<Option<(u32, u32, u32)>, String> {
-    let Some(raw) = get_trimmed_field(row, field) else {
+    let Some(raw) = get_lexical_field(row, field) else {
         return Ok(None);
     };
     if raw.is_empty() {
@@ -305,7 +321,10 @@ pub fn looks_like_url(value: &str) -> bool {
     fn starts_with_ci(s: &str, prefix: &str) -> bool {
         s.len() >= prefix.len() && s.as_bytes()[..prefix.len()].eq_ignore_ascii_case(prefix.as_bytes())
     }
-    let trimmed = value.trim();
+    // ⚠️ İÇ `trim` KALDIRILDI (issue #92): predikat kendisi kırparsa çağıran ham değeri
+    // verse bile ölçü yine normalize edilmiş olurdu. Boşluk zaten `url_strict_ok`un
+    // reddettiği karakterlerden biri — yani baştaki/sondaki boşluk KAÇIRILMAMIŞ demektir.
+    let trimmed = value;
     let has_web_scheme = starts_with_ci(trimmed, "http://") || starts_with_ci(trimmed, "https://");
     has_web_scheme && url_strict_ok(trimmed) && Url::parse(trimmed).is_ok()
 }
@@ -434,7 +453,8 @@ pub fn amount_has_iso4217_decimals(amount: &str, currency: &str) -> bool {
 /// gerçek bir adres olabilir ve reddetmek uluslararası feed'leri kırardı. Ölçüm: 20 korpus
 /// feed'inde ASCII dışı e-postaya rastlanmadı, yani bu yönde karşı kanıt da yok.
 pub fn looks_like_email(value: &str) -> bool {
-    let trimmed = value.trim();
+    // ⚠️ İÇ `trim` yok (issue #92): boşluk zaten aşağıda reddedilir ve ham değer ölçülür.
+    let trimmed = value;
     // Ayraç TAM OLARAK BİR tane olmalı. Eski kodun kaçırdığı sınıf tam burasıydı.
     let mut parts = trimmed.split('@');
     let (Some(local), Some(domain), None) = (parts.next(), parts.next(), parts.next()) else {
@@ -495,7 +515,8 @@ pub fn looks_like_email(value: &str) -> bool {
 /// ⚠️ Tümüyle `x-…` özel kullanım etiketleri ve `i-…` eski (grandfathered) biçimleri
 /// kabul edilir — RFC onları geçerli sayar.
 pub fn looks_like_bcp47(value: &str) -> bool {
-    let t = value.trim();
+    // ⚠️ İÇ `trim` yok (issue #92); boşluk alt etiket karakteri değildir, aşağıda düşer.
+    let t = value;
     if t.is_empty() || t.len() > 100 {
         return false;
     }
@@ -962,7 +983,12 @@ mod tests {
         assert!(super::looks_like_url("http://a.com"));
         assert!(super::looks_like_url("https://a.com/x?y=1#z"));
         assert!(super::looks_like_url("HTTPS://A.COM"), "şema adı büyük/küçük harfe duyarsız");
-        assert!(super::looks_like_url("  https://a.com  "), "baştaki/sondaki boşluk kırpılır");
+        // issue #92: baştaki/sondaki boşluk ARTIK KIRPILMAZ. Bu test eski toleransı
+        // koruyordu; spec "özel karakterler doğru kaçırılmalı" diyor ve boşluk kaçırılmamış
+        // bir karakterdir. VARLIK teşhisi hâlâ kırpar — `"   "` EKSİK alandır, geçersiz
+        // URL değil; o ayrım çağıran tarafta iki ayrı okumayla korunuyor.
+        assert!(!super::looks_like_url("  https://a.com  "), "ham değerde çıplak boşluk");
+        assert!(super::looks_like_url("https://a.com"));
 
         // Bunların hepsi `Url::parse` için GEÇERLİ ve şema kontrolü eklenmeden önce
         // doğrulamadan geçiyordu (T5 boşluk #1, 2026-08-03 ölçümü).

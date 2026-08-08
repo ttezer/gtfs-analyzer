@@ -1,6 +1,6 @@
 ﻿use gtfs_core::EntityType;
 
-use super::common::{get_raw_field, 
+use super::common::{get_lexical_field, get_raw_field,
     build_row_map, get_trimmed_field, looks_like_bcp47, looks_like_email,
     looks_like_iana_timezone, looks_like_phone, looks_like_url, make_k2_notice, parse_u32, RowMap,
 };
@@ -60,7 +60,12 @@ pub fn validate_agency(file: &RawFile) -> (Vec<AgencyRecord>, Vec<gtfs_core::Not
         }
 
         // AGN_003: agency_url required + valid URL (sütun yoksa ARC_025 devralır → atla)
-        let agency_url = get_trimmed_field(&row_map, "agency_url").unwrap_or("").to_string();
+        //
+        // ⚠️ İKİ AYRI OKUMA (issue #92): VARLIK kırpılmış değerle, GEÇERLİLİK ham değerle.
+        // Tek okumaya indirmek iki yönden de hata verir: hepsi ham olsaydı `"   "` taşıyan
+        // bir alan "geçersiz URL" olurdu (oysa o EKSİK alandır); hepsi kırpılmış olsaydı
+        // `" https://x "` sessizce geçerli sayılırdı — issue #92'nin karşı örneği.
+        let agency_url = get_lexical_field(&row_map, "agency_url").unwrap_or("").to_string();
         match get_trimmed_field(&row_map, "agency_url") {
             Some("") => notices.push(make_k2_notice(
                 &mut counter, "AGN_003", EntityType::Agency, entity_id.clone(), Some(&row_map),
@@ -119,7 +124,7 @@ pub fn validate_agency(file: &RawFile) -> (Vec<AgencyRecord>, Vec<gtfs_core::Not
         }
 
         // AGN_006: agency_lang must be valid BCP-47
-        let agency_lang = get_trimmed_field(&row_map, "agency_lang")
+        let agency_lang = get_lexical_field(&row_map, "agency_lang")
             .filter(|v| !v.trim().is_empty())
             .map(str::to_string);
         if let Some(ref lang) = agency_lang {
@@ -149,7 +154,7 @@ pub fn validate_agency(file: &RawFile) -> (Vec<AgencyRecord>, Vec<gtfs_core::Not
         }
 
         // AGN_008: agency_fare_url valid URL if provided
-        let agency_fare_url = get_trimmed_field(&row_map, "agency_fare_url")
+        let agency_fare_url = get_lexical_field(&row_map, "agency_fare_url")
             .filter(|v| !v.trim().is_empty())
             .map(str::to_string);
         if let Some(ref url) = agency_fare_url {
@@ -164,7 +169,7 @@ pub fn validate_agency(file: &RawFile) -> (Vec<AgencyRecord>, Vec<gtfs_core::Not
         }
 
         // AGN_009: agency_email valid email if provided
-        let agency_email = get_trimmed_field(&row_map, "agency_email")
+        let agency_email = get_lexical_field(&row_map, "agency_email")
             .filter(|v| !v.trim().is_empty())
             .map(str::to_string);
         if let Some(ref email) = agency_email {

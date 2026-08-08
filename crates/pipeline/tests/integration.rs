@@ -2622,3 +2622,53 @@ fn arc013_stream_bare_quote_is_arc033_not_arc013() {
         other => panic!("Ok beklendi: {other:?}"),
     }
 }
+
+// ── issue #92: SERT tip predikatı HAM değeri görmeli ───────────────────────────
+//
+// `#85` kimliği ham yaptı; bu, tip predikatlarındaki karşılığı. `" https://example.com "`
+// ham hâlde kaçırılmamış boşluk taşır — spec "özel karakterler doğru kaçırılmalı" der —
+// ama predikat kırpılmış vekili görüyordu ve sert kural SUSUYORDU. Geriye yalnız `DQ_016`
+// kalite sinyali kalıyordu, yani bir Spec iddiası (`P5f72fb5a` KANITLI) normalize edilmiş
+// bir değer üzerinden kuruluyordu.
+
+fn agency_url_feed(agency: &'static str) -> Vec<(&'static str, &'static [u8])> {
+    let mut files = base_files();
+    for slot in files.iter_mut() {
+        if slot.0 == "agency.txt" { slot.1 = agency.as_bytes(); }
+    }
+    files
+}
+
+#[test]
+fn url92_padded_url_does_not_satisfy_the_hard_predicate() {
+    assert!(match run(&agency_url_feed(
+        "agency_id,agency_name,agency_url,agency_timezone\n1,T,\" https://example.com \",UTC\n")) {
+        ValidateResult::Ok(vr) => has(&vr, "AGN_003"),
+        other => panic!("Ok beklendi: {other:?}"),
+    }, "kırpılınca geçerli olan URL sert predikatı KARŞILAMAMALI");
+}
+
+#[test]
+fn url92_clean_url_stays_valid() {
+    assert!(match run(&agency_url_feed(
+        "agency_id,agency_name,agency_url,agency_timezone\n1,T,https://example.com,UTC\n")) {
+        ValidateResult::Ok(vr) => !has(&vr, "AGN_003"),
+        other => panic!("Ok beklendi: {other:?}"),
+    }, "zaten kaçırılmış URL geçerli kalmalı");
+}
+
+#[test]
+fn url92_whitespace_only_url_is_missing_not_invalid() {
+    // 🔴 SINIR: `"   "` EKSİK alandır, "geçersiz URL" değil. Varlık teşhisi kırpar,
+    // geçerlilik hamı görür — tek okumaya indirmek bu ayrımı yok ederdi.
+    match run(&agency_url_feed(
+        "agency_id,agency_name,agency_url,agency_timezone\n1,T,\"   \",UTC\n")) {
+        ValidateResult::Ok(vr) => {
+            let msg = vr.notices.iter().find(|n| n.rule_id == "AGN_003")
+                .map(|n| n.message.clone()).unwrap_or_default();
+            assert!(msg.contains("zorunludur"),
+                "boşluk-yalnız değer EKSİK alan olarak bildirilmeli, gelen: {msg}");
+        }
+        other => panic!("Ok beklendi: {other:?}"),
+    }
+}

@@ -1,6 +1,6 @@
 use gtfs_core::EntityType;
 
-use super::common::{get_raw_field, build_row_map, get_trimmed_field, looks_like_url, make_k2_notice, parse_u32, validate_enum, RowMap};
+use super::common::{get_lexical_field, get_raw_field, build_row_map, get_trimmed_field, looks_like_url, make_k2_notice, parse_u32, validate_enum, RowMap};
 use crate::k1_parse::RawFile;
 
 #[derive(Debug, Clone)]
@@ -111,7 +111,7 @@ pub fn validate_rider_categories(
         }
 
         // RCT_007: spec tipi `URL` — stop_url→STP_042, route_url→RTS_005 ile aynı desen.
-        let eligibility_url = get_trimmed_field(&row_map, "eligibility_url")
+        let eligibility_url = get_lexical_field(&row_map, "eligibility_url")
             .filter(|v| !v.trim().is_empty())
             .map(str::to_string);
         if let Some(ref url) = eligibility_url {

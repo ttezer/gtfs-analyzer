@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use gtfs_core::EntityType;
 
-use super::common::{get_raw_field, 
+use super::common::{get_lexical_field, get_raw_field,
     build_row_map, get_field, get_trimmed_field, looks_like_iana_timezone, looks_like_url,
     make_k2_notice, parse_f64, parse_u32, validate_enum, RowMap,
 };
@@ -417,7 +417,7 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
             ));
         }
 
-        let stop_url = get_trimmed_field(&row_map, "stop_url")
+        let stop_url = get_lexical_field(&row_map, "stop_url")
             .filter(|v| !v.trim().is_empty())
             .map(str::to_string);
         // STP_042: spec tipi `URL`. Kardeş alanların hepsinde biçim kuralı var

@@ -327,6 +327,29 @@ girdi akış modunda `ARC_013`, tam modda `ARC_033` üretiyordu. İki okuyucu hi
 
 **Ölçüm:** 20 feed · 75 akış dosyası · kapanmamış tırnak **0**; bulgu farkı 0.
 
+### 5.0.3 Sert tip predikatı HAM değeri ölçmeli (issue #92)
+
+`#85` kimliği ham yaptı; 6. denetim aynı kusurun TİP predikatlarında sürdüğünü gösterdi.
+`" https://example.com "` ham hâlde kaçırılmamış boşluk taşır — spec "özel karakterler
+doğru kaçırılmalı" der — ama predikat kırpılmış vekili görüyor ve **sert kural susuyordu**;
+geriye yalnız `DQ_016` kalite sinyali kalıyordu. Yani `P5f72fb5a`'nın KANITLI olması
+normalize edilmiş bir değere dayanıyordu: doğrudan bir kanıt çürütücüsü.
+
+Sert tip alanları (`*_url`, `*_email`, `*_lang`, `*_color`) ve sayısal/tarih/saat okuyucuları
+artık `get_lexical_field` ile HAM okunuyor; predikatların İÇ `trim`'i kaldırıldı.
+⚠️ **VARLIK ile GEÇERLİLİK ayrı okunur:** `"   "` EKSİK alandır ("zorunludur"), geçersiz
+URL değil. Tek okumaya indirmek iki yönden de hata verirdi.
+
+**Ölçüm (20 feed):** URL alanlarında **137 boşluklu hücre** (gerçek feed `mdb-892`,
+`route_url`) → **+137 `RTS_005`, hepsi gerçek pozitif**. Diğer tip alanlarında ~24 milyon
+hücrede boşluklu **0** (saat 7,98M · koordinat 4,96M · enum/sayı 11,5M · tarih 22.580 ·
+renk 4.538) — yani o tiplerde değişikliğin ölçülü maliyeti yok.
+
+🔴 **ÖLÇÜM TUZAĞI (kayda geçsin):** ilk karşılaştırma `CAL_013`/`CAL_021`'de de fark
+gösterdi. Sebep değişiklik DEĞİLDİ — o iki kural BUGÜNE bağlı Analytics kurallarıdır ve
+"önce" koşusu bir gün önce yapılmıştı. `--today 20260807` ile sabitleyince fark yalnız
+`RTS_005` kaldı. **Tarihe bağlı kural varken önce/sonra ölçümü sabit tarihle yapılmalı.**
+
 ### 5.0.1 Kimlik semantiği: PK/FK ham sözlüksel değerdir (issue #85)
 
 🔴 5. denetim turu: `get_trimmed_field`/`get_col` HER değeri kırpıyor, ID'ler o kırpılmış

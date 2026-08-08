@@ -1,6 +1,6 @@
 use gtfs_core::EntityType;
 
-use super::common::{
+use super::common::{get_lexical_field,
     build_row_map, get_trimmed_field, looks_like_bcp47, looks_like_email, looks_like_url,
     make_k2_notice, parse_service_date, RowMap,
 };
@@ -48,7 +48,7 @@ pub fn validate_feed_info(file: &RawFile) -> (Vec<FeedInfoRecord>, Vec<gtfs_core
             ));
         }
 
-        let publisher_url = get_trimmed_field(&row_map, "feed_publisher_url").unwrap_or("").to_string();
+        let publisher_url = get_lexical_field(&row_map, "feed_publisher_url").unwrap_or("").to_string();
         if publisher_url.is_empty() || !looks_like_url(&publisher_url) {
             notices.push(make_k2_notice(
                 &mut counter,
@@ -66,7 +66,7 @@ pub fn validate_feed_info(file: &RawFile) -> (Vec<FeedInfoRecord>, Vec<gtfs_core
             ));
         }
 
-        let feed_lang = get_trimmed_field(&row_map, "feed_lang").unwrap_or("").to_string();
+        let feed_lang = get_lexical_field(&row_map, "feed_lang").unwrap_or("").to_string();
         if feed_lang.is_empty() || !looks_like_bcp47(&feed_lang) {
             notices.push(make_k2_notice(
                 &mut counter,
@@ -84,7 +84,7 @@ pub fn validate_feed_info(file: &RawFile) -> (Vec<FeedInfoRecord>, Vec<gtfs_core
             ));
         }
 
-        let default_lang = get_trimmed_field(&row_map, "default_lang")
+        let default_lang = get_lexical_field(&row_map, "default_lang")
             .filter(|v| !v.is_empty())
             .map(str::to_string);
         if let Some(ref lang) = default_lang {
@@ -161,7 +161,7 @@ pub fn validate_feed_info(file: &RawFile) -> (Vec<FeedInfoRecord>, Vec<gtfs_core
             ));
         }
 
-        let feed_contact_email = get_trimmed_field(&row_map, "feed_contact_email")
+        let feed_contact_email = get_lexical_field(&row_map, "feed_contact_email")
             .filter(|v| !v.is_empty())
             .map(str::to_string);
         if let Some(email) = feed_contact_email.as_deref() {
@@ -183,7 +183,7 @@ pub fn validate_feed_info(file: &RawFile) -> (Vec<FeedInfoRecord>, Vec<gtfs_core
             }
         }
 
-        let feed_contact_url = get_trimmed_field(&row_map, "feed_contact_url")
+        let feed_contact_url = get_lexical_field(&row_map, "feed_contact_url")
             .filter(|v| !v.is_empty())
             .map(str::to_string);
         if let Some(url) = feed_contact_url.as_deref() {

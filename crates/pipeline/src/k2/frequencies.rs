@@ -1,6 +1,6 @@
 ﻿use gtfs_core::EntityType;
 
-use super::common::{get_raw_field, 
+use super::common::{get_raw_field,
     build_row_map, get_trimmed_field, make_k2_notice, parse_gtfs_time, parse_u32,
     validate_enum, RowMap,
 };

@@ -2,7 +2,7 @@
 
 use gtfs_core::EntityType;
 
-use super::common::{get_raw_field, 
+use super::common::{get_lexical_field, get_raw_field,
     build_row_map, get_trimmed_field, is_hex_color_6, looks_like_url, make_k2_notice,
     parse_u32, wcag_contrast_ratio, RowMap,
 };
@@ -168,7 +168,7 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
         };
 
         // RTS_005: route_url must be valid URL if provided
-        let route_url = get_trimmed_field(&row_map, "route_url")
+        let route_url = get_lexical_field(&row_map, "route_url")
             .filter(|v| !v.trim().is_empty())
             .map(str::to_string);
         if let Some(ref url) = route_url {
@@ -183,7 +183,7 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
         }
 
         // RTS_006: route_color must be valid 6-char hex
-        let route_color = get_trimmed_field(&row_map, "route_color")
+        let route_color = get_lexical_field(&row_map, "route_color")
             .filter(|v| !v.trim().is_empty())
             .map(str::to_string);
         if let Some(ref color) = route_color {
@@ -199,7 +199,7 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
         }
 
         // RTS_007: route_text_color must be valid 6-char hex
-        let route_text_color = get_trimmed_field(&row_map, "route_text_color")
+        let route_text_color = get_lexical_field(&row_map, "route_text_color")
             .filter(|v| !v.trim().is_empty())
             .map(str::to_string);
         if let Some(ref color) = route_text_color {
