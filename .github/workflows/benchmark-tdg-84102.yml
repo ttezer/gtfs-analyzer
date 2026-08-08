@@ -1,0 +1,161 @@
+name: tdg-84102 Analyzer vs MobilityData
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  compare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      FEED_URL: https://files.mobilitydatabase.org/tdg-84102/tdg-84102-202608022211/tdg-84102-202608022211.zip
+      STORED_MD_REPORT: https://files.mobilitydatabase.org/tdg-84102/tdg-84102-202608022211/report_8.0.1.json
+      EXPECTED_SHA256: 0e30c1868c3b7eb77bf1a00423b5094f936b33825c621dbbe1472dbda65b725e
+      MD_VERSION: '8.0.1'
+      BENCH_DATE: '20260809'
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Record environment
+        run: |
+          mkdir -p benchmark/tdg84102/results/analyzer benchmark/tdg84102/results/md-fresh benchmark/tdg84102/results/md-stored
+          { uname -a; lscpu; free -h; } > benchmark/tdg84102/results/runner-environment.txt
+
+      - name: Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Build GTFS Analyzer
+        run: |
+          cargo build --release -p gtfs-cli
+          target/release/gtfs-analyzer --version > benchmark/tdg84102/results/analyzer-version.txt 2>&1 || true
+
+      - name: Download exact tdg-84102 snapshot and stored MD report
+        run: |
+          set -euo pipefail
+          mkdir -p benchmark/tdg84102/feed
+          curl --retry 4 --retry-all-errors -fL "$FEED_URL" -o benchmark/tdg84102/feed/tdg-84102.zip
+          ACTUAL="$(sha256sum benchmark/tdg84102/feed/tdg-84102.zip | awk '{print $1}')"
+          echo "$ACTUAL" > benchmark/tdg84102/results/feed.sha256
+          test "$ACTUAL" = "$EXPECTED_SHA256"
+          stat -c '%s' benchmark/tdg84102/feed/tdg-84102.zip > benchmark/tdg84102/results/feed.bytes
+          unzip -l benchmark/tdg84102/feed/tdg-84102.zip > benchmark/tdg84102/results/feed-files.txt
+          curl --retry 3 --retry-all-errors -fL "$STORED_MD_REPORT" -o benchmark/tdg84102/results/md-stored/report.json
+
+      - name: Download MobilityData v8.0.1
+        run: |
+          set -euo pipefail
+          API="https://api.github.com/repos/MobilityData/gtfs-validator/releases/tags/v${MD_VERSION}"
+          ASSET_URL="$(curl -fsSL "$API" | jq -r '.assets[] | select(.name | endswith("-cli.jar")) | .browser_download_url' | head -n1)"
+          test -n "$ASSET_URL" && test "$ASSET_URL" != null
+          curl --retry 3 --retry-all-errors -fL "$ASSET_URL" -o benchmark/tdg84102/md-cli.jar
+
+      - name: Run GTFS Analyzer
+        shell: bash
+        run: |
+          set +e
+          ROOT="$PWD/benchmark/tdg84102"
+          /usr/bin/time -v -o "$ROOT/results/analyzer/time.txt" \
+            timeout --signal=TERM --kill-after=10s 1200s \
+            target/release/gtfs-analyzer validate "$ROOT/feed/tdg-84102.zip" --json --lang en --today "$BENCH_DATE" --output "$ROOT/results/analyzer/report.json" \
+            >"$ROOT/results/analyzer/stdout.txt" 2>"$ROOT/results/analyzer/stderr.txt"
+          echo "$?" > "$ROOT/results/analyzer/exit-code.txt"
+          exit 0
+
+      - name: Run MobilityData v8.0.1 fresh
+        shell: bash
+        run: |
+          set +e
+          ROOT="$PWD/benchmark/tdg84102"
+          /usr/bin/time -v -o "$ROOT/results/md-fresh/time.txt" \
+            timeout --signal=TERM --kill-after=10s 1200s \
+            java -Xmx12g -jar "$ROOT/md-cli.jar" -i "$ROOT/feed/tdg-84102.zip" -o "$ROOT/results/md-fresh" -d 2026-08-09 \
+            >"$ROOT/results/md-fresh/stdout.txt" 2>"$ROOT/results/md-fresh/stderr.txt"
+          echo "$?" > "$ROOT/results/md-fresh/exit-code.txt"
+          exit 0
+
+      - name: Build detailed comparison
+        if: always()
+        run: |
+          python3 - <<'PY'
+          import json,re
+          from pathlib import Path
+          from collections import Counter
+          root=Path('benchmark/tdg84102/results')
+
+          def timing(p):
+              if not p.exists(): return {}
+              s=p.read_text(errors='replace')
+              def m(pat):
+                  x=re.search(pat,s,re.M); return x.group(1).strip() if x else None
+              return {
+                  'elapsed':m(r'Elapsed \(wall clock\) time.*?:\s*(.+)$'),
+                  'max_rss_kb':m(r'Maximum resident set size \(kbytes\):\s*(\d+)'),
+                  'user_s':m(r'User time \(seconds\):\s*(.+)$'),
+                  'system_s':m(r'System time \(seconds\):\s*(.+)$')
+              }
+
+          out={'feed':{
+              'sha256':(root/'feed.sha256').read_text().strip(),
+              'bytes':int((root/'feed.bytes').read_text().strip())
+          }}
+
+          ap=root/'analyzer/report.json'
+          a={'timing':timing(root/'analyzer/time.txt'),'exit_code':int((root/'analyzer/exit-code.txt').read_text().strip())}
+          if ap.exists():
+              d=json.loads(ap.read_text())
+              ns=d.get('notices',[])
+              a.update({
+                  'status':d.get('status'), 'notice_count':len(ns),
+                  'by_class':dict(Counter(n.get('rule_class') for n in ns)),
+                  'by_severity':dict(Counter(n.get('severity') for n in ns)),
+                  'by_rule':dict(Counter(n.get('rule_id') for n in ns)),
+                  'spec_notices':[n for n in ns if n.get('rule_class')=='SPEC'],
+              })
+          out['analyzer']=a
+
+          def md_summary(path, kind):
+              r={'kind':kind}
+              if not path.exists(): return r
+              d=json.loads(path.read_text())
+              s=d.get('summary',{})
+              ns=d.get('notices',[])
+              r.update({
+                  'validator_version':s.get('validatorVersion'),
+                  'validation_time_seconds':s.get('validationTimeSeconds'),
+                  'notice_groups':len(ns),
+                  'notice_total':sum(x.get('totalNotices',0) for x in ns),
+                  'groups':[{k:x.get(k) for k in ['code','severity','totalNotices','sampleNotices']} for x in ns],
+                  'summary':s
+              })
+              return r
+
+          mf=md_summary(root/'md-fresh/report.json','fresh')
+          mf['timing']=timing(root/'md-fresh/time.txt')
+          mf['exit_code']=int((root/'md-fresh/exit-code.txt').read_text().strip()) if (root/'md-fresh/exit-code.txt').exists() else None
+          if (root/'md-fresh/system_errors.json').exists():
+              mf['system_errors']=json.loads((root/'md-fresh/system_errors.json').read_text())
+          out['mobilitydata_fresh']=mf
+          out['mobilitydata_stored']=md_summary(root/'md-stored/report.json','stored_by_mobilitydatabase')
+
+          (root/'comparison-summary.json').write_text(json.dumps(out,indent=2,ensure_ascii=False)+'\n')
+          print(json.dumps(out,indent=2,ensure_ascii=False))
+          PY
+
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: tdg-84102-analyzer-vs-mobilitydata
+          path: benchmark/tdg84102/results/
+          retention-days: 7
