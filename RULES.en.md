@@ -2,7 +2,7 @@
 
 🇹🇷 [Türkçe](RULES.md) · 🇬🇧 **English** · 🇯🇵 [日本語](RULES.ja.md)
 
-594 rules, 38 groups. Each rule is identified by a unique ID, severity level, and class.
+595 rules, 38 groups. Each rule is identified by a unique ID, severity level, and class.
 Severity levels: **CRITICAL** (publish blocker) · **HIGH** · **MEDIUM** · **LOW** · **INFO**
 Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Quality** (GTFS Quality) · **Analytics** (GTFS Analytics)
 
@@ -361,6 +361,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | SHP_026 | Shape has extreme point count (>5,000) | INFO | Analytics |
 | SHP_028 | Same shape_dist_traveled with different coordinates | HIGH | Quality |
 | SHP_029 | Same shape_dist_traveled, tiny coordinate difference | INFO | Quality |
+| SHP_030 | stop_times uses shape_dist_traveled but shape distances are missing | MEDIUM | Quality |
 
 ## FRQ — Frequencies
 

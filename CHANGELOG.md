@@ -52,6 +52,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`SHP_030` reports incomplete shape-distance coverage.** A shape-level Quality finding is
+  emitted when a trip supplies `stop_times.shape_dist_traveled` but one or more points of the
+  referenced shape lack `shapes.shape_dist_traveled`. The finding aggregates affected trips and
+  preserves the fact that both GTFS fields are individually optional; it is not a Spec blocker.
+
 - **`RTS_030` reports extended (HVT) `route_type` values.** The core GTFS Schedule Reference
   defines `route_type` as exactly `0-7`, `11`, `12` — the word *extended* does not appear in
   the field definition. Values in `100-1799` are the Google Transit/HVT convention, and

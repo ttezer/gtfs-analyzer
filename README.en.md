@@ -302,6 +302,10 @@ Each rule also carries a machine-readable **authority source** (`authority_sourc
 
 Setting `stop_name_best_practices=true` in the config delta enables the language-dependent `STP_040` and `STP_041` checks; they are disabled by default because of their false-positive risk. URL-based integrations may provide `source_url` metadata, allowing `ARC_028` to verify that the permanent publishing URL contains a `.zip` filename. Upload-only validation skips this check. The core engine never requests URLs found inside a feed; HTTP availability checks require a separate, explicitly opt-in online adapter.
 
+### Coordinating shape distance fields
+
+If a trip uses `shape_dist_traveled` in `stop_times.txt` but some points of its referenced shape lack the same field in `shapes.txt`, the analyzer emits `SHP_030` (Quality · Medium). Both fields are individually optional in GTFS, so this is not a Spec publish blocker; it is a shape-level compatibility signal that consumers may be unable to place stops reliably on the shape. The finding includes the affected-trip count and representative trip IDs.
+
 ### Speed Thresholds
 
 | Parameter | Default | Range | Description |

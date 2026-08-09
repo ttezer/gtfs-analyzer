@@ -4555,6 +4555,60 @@ fn check_remaining_analytics<'a>(
         }
     }
 
+    // ── SHP_030: stop_times mesafesi var, shape mesafesi eksik ───────────────
+    // MobilityData `trip_with_shape_dist_traveled_but_no_shape_distances` karşılığı.
+    // Her iki alan da GTFS'te opsiyoneldir; bu nedenle normatif Spec değil, iki dosya
+    // arasındaki tüketici-uyumluluk Quality sinyalidir. Shape başına tek notice üretiriz:
+    // stop_time satırı başına emit etmek aynı kök nedeni binlerce kez çoğaltır.
+    {
+        let _t30 = Timer::start("K6::rem::shp_030");
+        let mut shape_stats: FxHashMap<&str, (u32, u32, u32, Vec<&str>)> = FxHashMap::default();
+        // (shape point count, point count with sdt, affected trip count, representative trips)
+        let mut shape_points: FxHashMap<&str, (u32, u32)> = FxHashMap::default();
+        for sp in &records.shapes {
+            let shape_id = records.shape_interns.id(sp);
+            if shape_id.is_empty() { continue; }
+            let entry = shape_points.entry(shape_id).or_default();
+            entry.0 += 1;
+            if sp.shape_dist_traveled().is_some() { entry.1 += 1; }
+        }
+
+        for trip in &records.trips {
+            let Some(shape_id) = ti_rem.shape_id(trip).filter(|s| !s.is_empty()) else { continue; };
+            let Some(stimes) = idx.by_trip.get(trip.trip_id.as_str()) else { continue; };
+            if !stimes.iter().any(|st| st.shape_dist_traveled().is_some()) { continue; }
+            let Some(&(point_count, with_sdt)) = shape_points.get(shape_id) else { continue; };
+            if point_count == 0 || with_sdt == point_count { continue; }
+            let entry = shape_stats.entry(shape_id).or_insert((point_count, with_sdt, 0, Vec::new()));
+            entry.2 += 1;
+            if entry.3.len() < 3 { entry.3.push(trip.trip_id.as_str()); }
+        }
+
+        let mut shape_ids: Vec<&str> = shape_stats.keys().copied().collect();
+        shape_ids.sort_unstable();
+        for shape_id in shape_ids {
+            let (point_count, with_sdt, affected_trips, trip_ids) = &shape_stats[shape_id];
+            let missing = point_count.saturating_sub(*with_sdt);
+            let mut notice = k6_notice(
+                ctr, "SHP_030", EntityType::Shape,
+                Some(shape_id.to_string()), Some(shape_id.to_string()),
+                "shapes.txt", None, Some("shape_dist_traveled"),
+                Some(format!("{with_sdt}/{point_count} shape noktası")),
+                Some("tüm shape noktalarında değer".to_string()),
+                format!("'{shape_id}' shape'i kullanan {affected_trips} trip stop_times.txt'te shape_dist_traveled kullanıyor, ancak shape noktalarının {missing}/{point_count} tanesinde shapes.txt shape_dist_traveled değeri eksik."),
+                "İlgili shape noktalarına stop_times.txt ile aynı birimde shape_dist_traveled ekleyin veya bu alanı ilgili trip'lerin stop_times kayıtlarından tutarlı biçimde kaldırın.",
+            );
+            notice.details = Some([
+                ("shape_point_count".to_string(), point_count.to_string()),
+                ("shape_points_with_dist".to_string(), with_sdt.to_string()),
+                ("shape_points_missing_dist".to_string(), missing.to_string()),
+                ("affected_trip_count".to_string(), affected_trips.to_string()),
+                ("representative_trip_ids".to_string(), trip_ids.join(",")),
+            ].into_iter().collect());
+            notices.push(notice);
+        }
+    }
+
     // ── GEO_007: çok büyük shape atlaması (severe jump = 3× eşik) ─────────────
     {
         let _tg7 = Timer::start("K6::rem::geo_007");

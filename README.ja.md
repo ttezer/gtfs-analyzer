@@ -302,6 +302,10 @@ gtfs-analyzer rules --rule STM_004 --json --pretty
 
 config deltaで`stop_name_best_practices=true`を設定すると、言語依存の`STP_040`と`STP_041`が有効になります。誤検出の可能性があるためデフォルトでは無効です。URLベースの統合では`source_url`メタデータを指定でき、`ARC_028`が恒久的な公開URLに`.zip`ファイル名を含むことを確認します。ファイルアップロードのみの場合、このチェックは実行されません。coreエンジンはフィード内URLへ通信せず、HTTP到達性チェックには明示的にopt-inする別online adapterが必要です。
 
+### shape距離フィールドの整合
+
+`stop_times.txt`で`shape_dist_traveled`を使用する便の参照shapeについて、`shapes.txt`の一部の点に同じ項目がない場合、`SHP_030`（品質・中）を出力します。両フィールドはGTFSで個別に任意項目なので、これはSpecの公開ブロッカーではありません。shape上で停留所を確実に配置できない可能性を示す互換性シグナルで、影響を受ける便数と代表的なtrip IDを検出結果の詳細に含めます。
+
 ### 速度のしきい値
 
 | パラメーター | デフォルト | 範囲 | 説明 |

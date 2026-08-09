@@ -2,7 +2,7 @@
 
 🇹🇷 **Türkçe** · 🇬🇧 [English](RULES.en.md) · 🇯🇵 [日本語](RULES.ja.md)
 
-594 kural, 38 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
+595 kural, 38 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
 Önem seviyeleri: **KRİTİK** (yayın engelleyici) · **YÜKSEK** · **ORTA** · **DÜŞÜK** · **BİLGİ**
 Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · **Quality** (GTFS Kalitesi) · **Analytics** (GTFS Analitiği)
 
@@ -361,6 +361,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | SHP_026 | Shape aşırı fazla noktaya sahip (>5000) — tüketici render performansını etkiler | BİLGİ | Analytics |
 | SHP_028 | Ardışık iki shape noktası aynı shape_dist_traveled ama farklı koordinat (mesafe artmadan konum değişmiş) | YÜKSEK | Quality |
 | SHP_029 | Aynı shape_dist_traveled, farklı ama çok yakın koordinatlı ardışık shape noktaları (eşik altı) | BİLGİ | Quality |
+| SHP_030 | stop_times shape_dist_traveled kullanıyor ancak shapes.txt'te shape mesafeleri eksik | ORTA | Quality |
 
 ## FRQ — Frequencies (Frekanslar)
 

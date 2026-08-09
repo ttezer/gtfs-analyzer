@@ -862,6 +862,7 @@ const tr = {
     'SHP_026': 'Shape aşırı fazla noktaya sahip (>5000)',
     'SHP_028': 'Aynı shape_dist_traveled, farklı koordinat',
     'SHP_029': 'Aynı shape_dist_traveled, çok küçük koordinat farkı (eşik altı)',
+    'SHP_030': "stop_times shape_dist_traveled kullanıyor ancak shapes.txt'te shape mesafeleri eksik",
     // FRQ
     'FRQ_001': 'trip_id bulunamadı',
     'FRQ_002': 'start_time geçersiz',

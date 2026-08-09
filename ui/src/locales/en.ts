@@ -835,6 +835,7 @@ const en: LocaleShape = {
     'SHP_026': "Shape '{entity_id}' has {observed_value} points — high point count may impact consumer rendering performance.",
     'SHP_028': "Shape '{entity_id}': consecutive points share the same shape_dist_traveled but have different coordinates — distance did not increase while position changed.",
     'SHP_029': "Shape '{entity_id}': consecutive points share the same shape_dist_traveled with a very small coordinate difference (below threshold).",
+    'SHP_030': "Shape '{entity_id}': stop_times uses shape_dist_traveled but shape distances are missing in shapes.txt.",
     // FRQ
     'FRQ_001': "Frequency trip_id '{entity_id}' not found in trips.txt.",
     'FRQ_002': "Frequency '{entity_id}': start_time '{observed_value}' is invalid.",
@@ -1249,6 +1250,7 @@ const en: LocaleShape = {
     'SHP_026': 'Simplify shapes.txt using a path simplification algorithm (e.g., Douglas-Peucker) to reduce the point count.',
     'SHP_028': 'Assign increasing shape_dist_traveled values to consecutive shape points.',
     'SHP_029': 'Assign increasing shape_dist_traveled values, or remove the near-duplicate shape point.',
+    'SHP_030': 'Add shape_dist_traveled to every point of the referenced shape using the same units as stop_times.txt, or remove the field consistently from the affected trips.',
     // STM
     'STM_008': 'Review stop_times.txt time values; times must increase monotonically across trips.',
     'STM_012': 'Verify stop_times.txt time values; two stops cannot be that far apart within the same minute.',
@@ -2085,6 +2087,7 @@ const en: LocaleShape = {
     'SHP_026': 'Shape has extreme point count (>5,000)',
     'SHP_028': 'Same shape_dist_traveled with different coordinates',
     'SHP_029': 'Same shape_dist_traveled, tiny coordinate difference',
+    'SHP_030': 'stop_times uses shape_dist_traveled but shape distances are missing',
     // FRQ
     'FRQ_001': 'trip_id not found',
     'FRQ_002': 'start_time invalid',

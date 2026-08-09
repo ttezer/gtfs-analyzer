@@ -937,6 +937,8 @@ pub static RULES: &[RuleMeta] = &[
         "Ardışık iki shape noktası aynı shape_dist_traveled ama farklı koordinat (mesafe artmadan konum değişmiş)"),
     r!("SHP_029", Bilgi,  Quality, 2, &[], Some("shape_id"), VS, Entity,
         "Aynı shape_dist_traveled, farklı ama çok yakın koordinatlı ardışık shape noktaları (eşik altı)"),
+    r!("SHP_030", Orta,   Quality, 2, &[], Some("shape_id"), VS, Entity,
+        "stop_times shape_dist_traveled kullanıyor ancak shapes.txt'te shape mesafeleri eksik"),
 
     // ── FRQ: Frequencies ───────────────────────────────────────────────────────
     r!("FRQ_001", Kritik, Spec, 1, &[], Some("trip_id"), VS_K, Row,
@@ -2191,6 +2193,7 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("SHP_026", ProjectAnalytics),
     ("SHP_028", ProjectQuality),
     ("SHP_029", ProjectQuality),
+    ("SHP_030", ProjectQuality),
     ("STM_001", GtfsSpec),
     ("STM_002", GtfsSpec),
     ("STM_003", GtfsSpec),

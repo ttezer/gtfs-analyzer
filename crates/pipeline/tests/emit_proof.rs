@@ -1499,6 +1499,13 @@ fn fixtures() -> Vec<Fixture> {
         fx("SHP_028", vec![("shapes.txt", "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence,shape_dist_traveled\nSH1,40.0,40.0,1,5\nSH1,40.1,40.0,2,5\nSH1,40.2,40.2,3,10\n")]),
         // SHP_029: aynı dist farklı koordinat (eşik altı ~1e-6°) (k6).
         fx("SHP_029", vec![("shapes.txt", "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence,shape_dist_traveled\nSH1,40.0,40.0,1,5\nSH1,40.000001,40.0,2,5\nSH1,40.1,40.1,3,10\n")]),
+        // SHP_030: stop_times shape_dist_traveled kullanıyor, ancak shape noktalarının
+        // yalnızca birinde karşılık gelen shapes.txt mesafesi var (k6, shape özeti).
+        fx("SHP_030", vec![
+            ("trips.txt", "route_id,service_id,trip_id,shape_id\nR1,SVC1,T1,SH1\n"),
+            ("shapes.txt", "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence,shape_dist_traveled\nSH1,41.0,29.0,1,0\nSH1,41.1,29.1,2,\n"),
+            ("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence,shape_dist_traveled\nT1,08:00:00,08:00:00,S1,1,0\nT1,08:10:00,08:10:00,S2,2,1\n"),
+        ]),
 
         // ── STM grubu (kalan: k4 + k6 + k2). STM_043 (>200 durak) ve STM_044
         //    (>2M satır) inline yazılamaz → debt'te bırakıldı. ──────────────────
@@ -1775,6 +1782,29 @@ fn each_fixture_actually_emits_its_rule() {
         }
     }
     assert!(failures.is_empty(), "Emit etmeyen fixture(lar):\n{}", failures.join("\n"));
+}
+
+#[test]
+fn shp030_aggregates_and_does_not_duplicate_related_findings() {
+    let overrides = [
+        ("trips.txt", "route_id,service_id,trip_id,shape_id\nR1,SVC1,T1,SH1\nR1,SVC1,T2,SH1\n"),
+        ("shapes.txt", "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence,shape_dist_traveled\nSH1,41.0,29.0,1,0\nSH1,41.1,29.1,2,\n"),
+        ("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence,shape_dist_traveled\nT1,08:00:00,08:00:00,S1,1,0\nT1,08:10:00,08:10:00,S2,2,1\nT2,09:00:00,09:00:00,S1,1,0\nT2,09:10:00,09:10:00,S2,2,1\n"),
+    ];
+    let positive = notices_for(&with_opts(&overrides, &[], &[]), &ValidatorConfig::default());
+    let shp030: Vec<_> = positive.iter().filter(|n| n.rule_id == "SHP_030").collect();
+    assert_eq!(shp030.len(), 1, "aynı shape için tek SHP_030 beklenir");
+    assert_eq!(shp030[0].entity_id.as_deref(), Some("SH1"));
+    assert_eq!(shp030[0].details.as_ref().and_then(|d| d.get("affected_trip_count")).map(String::as_str), Some("2"));
+    for related in ["STM_017", "SHP_024", "SHP_025"] {
+        assert!(!positive.iter().any(|n| n.rule_id == related), "{related} SHP_030 fixture'ında türememeli");
+    }
+
+    let complete_shapes = "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence,shape_dist_traveled\nSH1,41.0,29.0,1,0\nSH1,41.1,29.1,2,1\n";
+    let negative = notices_for(&with_opts(&[
+        overrides[0], ("shapes.txt", complete_shapes), overrides[2]
+    ], &[], &[]), &ValidatorConfig::default());
+    assert!(!negative.iter().any(|n| n.rule_id == "SHP_030"), "tam shape mesafesi SHP_030 üretmemeli");
 }
 
 /// Aynı fixture gövdesini (overrides+removes+raw+config) paylaşan farklı kurallar.

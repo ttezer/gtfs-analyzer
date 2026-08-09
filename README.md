@@ -302,6 +302,10 @@ Her kuralın ayrıca makine-okunur bir **otorite kaynağı** (`authority_source`
 
 Config delta içinde `stop_name_best_practices=true` verilirse dil-bağımlı `STP_040` ve `STP_041` kontrolleri etkinleşir; yanlış pozitif riski nedeniyle varsayılan kapalıdır. URL tabanlı entegrasyonlar `source_url` metadata'sı sağlayabilir; `ARC_028` kalıcı yayın adresinin `.zip` dosya adı taşımasını denetler. Dosya yükleme modunda bu kontrol sessizdir. Core motor feed içindeki URL'lere ağ isteği yapmaz; 404 kontrolü ayrı ve açıkça opt-in bir online adapter gerektirir.
 
+### Shape mesafe alanlarının birlikte kullanımı
+
+`stop_times.txt` içinde `shape_dist_traveled` kullanan bir trip'in referansladığı `shapes.txt` noktalarının bir kısmında aynı alan eksikse `SHP_030` (Quality · Orta) üretilir. Bu iki alan GTFS'te ayrı ayrı opsiyoneldir; kural bir Spec yayın engeli değil, tüketicilerin durakları shape geometrisiyle güvenilir eşleştirememe riskini shape başına toplar. Etkilenen trip sayısı ve örnek kimlikler notice ayrıntısında gösterilir.
+
 ### Hız Eşikleri
 
 | Parametre | Varsayılan | Aralık | Açıklama |
