@@ -462,6 +462,21 @@ The comparison runs entirely in the browser. The Golden JSON is parsed locally; 
 
 Severity levels are based on the file and field requirement levels (Required · Conditionally Required · Recommended · Optional) defined in the [GTFS Schedule Reference](https://gtfs.org/documentation/schedule/reference/#file-requirements).
 
+### Spec severity rubric
+
+Spec severity is based on the impact of an invalid feed, not on whether MobilityData labels
+the same finding `ERROR`, `WARNING`, or `INFO`:
+
+- **Critical:** Required file/field, primary-key or foreign-key integrity, or core type/range violation; the feed cannot be consumed reliably and `Spec + Critical` is the publish gate.
+- **High:** A direct normative violation that materially changes schedule, fare, accessibility, or Flex/pathway semantics even though the feed remains parseable.
+- **Medium:** A localized or conditional normative violation while the main data model remains readable.
+- **Low:** A narrow metadata or optional-field normative deviation; it does not block publication.
+- **Info:** Not used for normative Spec violations; reserved for measurement or context signals.
+
+Therefore no `Spec` rule may have `Info` severity. The 2026-08-09 audit reviewed all 307
+Spec rules and raised the raw service-day rules `STM_048` and `STM_049` from Info to High.
+See the complete [Spec severity audit](docs/audits/spec-severity-rubric-2026-08-09.md).
+
 For GTFS-JP feeds, the **JPN** group rules are based on the official [GTFS-JP specification](https://www.gtfs.jp/) (gtfs.jp).
 
 ---

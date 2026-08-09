@@ -462,6 +462,21 @@ GTFS Analyzer は、同じフィードの 2 つの解析（前／後）を比較
 
 重大度レベルは、[GTFS Schedule Reference](https://gtfs.org/documentation/schedule/reference/#file-requirements) で定義されているファイルおよびフィールドの要件レベル（Required・Conditionally Required・Recommended・Optional）に基づいています。
 
+### Spec 重大度の基準
+
+Spec の重大度は、同じ検出結果を MobilityData が `ERROR`、`WARNING`、`INFO` のどれで
+分類するかではなく、無効なフィードが及ぼす影響で決まります。
+
+- **致命的:** 必須ファイル/フィールド、主キー・外部キー整合性、または中核的な型/範囲の違反。フィードを信頼して利用できず、`Spec + 致命的` は公開ゲートになる。
+- **高:** フィードを解析できても、運行、運賃、アクセシビリティ、Flex/pathway の意味を大きく変える直接的な規範違反。
+- **中:** 主データモデルを読み取れる範囲で、影響が限定された、または条件付きの規範違反。
+- **低:** 影響範囲が狭いメタデータ/オプション項目の規範上の逸脱。公開をブロックしない。
+- **情報:** 規範上の Spec 違反には使用せず、測定または文脈シグナル専用。
+
+したがって `Spec` ルールに `情報` の重大度は存在できません。2026-08-09 の audit では
+307 個すべての Spec ルールを確認し、raw サービス日ルール `STM_048` と `STM_049` を
+情報から高へ変更しました。全 ID の一覧は [Spec 重大度 audit](docs/audits/spec-severity-rubric-2026-08-09.md) を参照してください。
+
 GTFS-JP フィードの場合、**JPN** グループのルールは公式の [GTFS-JP 仕様](https://www.gtfs.jp/)（gtfs.jp）に基づいています。
 
 ---
