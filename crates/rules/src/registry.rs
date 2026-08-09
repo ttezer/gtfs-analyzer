@@ -36,8 +36,6 @@ const VS_GEO: &[ReportId] = &[R2, R4, R5, R9];
 const VA_GEO: &[ReportId] = &[R2, R3, R4, R5, R9];
 
 // Erişilebilirlik eki (R7)
-/// Interop + Accessibility → R7+R8 (R1 yok)
-const VI_ACC: &[ReportId] = &[R2, R5, R7, R8, R9];
 /// Analytics + Accessibility → R3+R7+R9
 const VA_ACC: &[ReportId] = &[R2, R3, R5, R7, R9];
 /// Spec/Quality + Accessibility → R7

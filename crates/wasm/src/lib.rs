@@ -109,7 +109,7 @@ fn log_zip_ratio_report(entries: &[(String, u64, u64)]) {
     }
     let mib = |b: u64| b as f64 / 1_048_576.0;
     let mut sorted: Vec<&(String, u64, u64)> = entries.iter().collect();
-    sorted.sort_by(|a, b| b.1.cmp(&a.1)); // açılmış boyuta göre azalan
+    sorted.sort_by_key(|entry| std::cmp::Reverse(entry.1)); // açılmış boyuta göre azalan
     let (mut total_u, mut total_c) = (0u64, 0u64);
     let (mut max_ratio, mut max_ratio_name) = (0.0f64, String::new());
     let (mut max_u, mut max_u_name) = (0u64, String::new());

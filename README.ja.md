@@ -602,6 +602,9 @@ npm run dev
 # Rust ユニットテストと統合テスト
 cargo test
 
+# workspace の全 crate・test・example target に対する警告ブロック lint
+cargo clippy --workspace --all-targets -- -D warnings
+
 # Playwright スモークテスト
 cd ui
 npx playwright test

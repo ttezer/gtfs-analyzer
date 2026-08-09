@@ -602,6 +602,9 @@ npm run dev
 # Rust birim ve entegrasyon testleri
 cargo test
 
+# Tüm workspace crate, test ve example target'ları için warnings blocking lint
+cargo clippy --workspace --all-targets -- -D warnings
+
 # Playwright smoke testleri
 cd ui
 npx playwright test

@@ -730,7 +730,7 @@ mod tests {
     // ── RTS_001 ────────────────────────────────────────────────────────────────
 
     #[test]
-    fn duplicate_route_id_produces_RTS_001() {
+    fn duplicate_route_id_produces_rts_001() {
         let mut records = empty_records();
         let base = RouteRecord {
             route_id: "R1".into(),

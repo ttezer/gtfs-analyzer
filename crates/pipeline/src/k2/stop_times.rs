@@ -1006,7 +1006,7 @@ impl<R: Read> ZipCsvReader<R> {
 /// - `all_rows`/`row_trip`             → chunk sırasında concat
 /// - `stop_id_to_idx`/`stop_intern`    → global tablo + `CompactStopTime.stop_idx` REMAP
 /// - `trips_agg`                       → `idx` remap; `last_seq`/`last_stop` chunk SINIRINDA
-///                                       ayrıca karşılaştırılmalı (STM_036)
+///   ayrıca karşılaştırılmalı (STM_036)
 #[derive(Default)]
 struct StChunk {
     /// ARC_033 birikimi — chunk'lar birleşirken `merge` ile toplanır.
@@ -1238,7 +1238,7 @@ pub fn validate_stop_times(
         // sıfır artık kapasite. shrink_to YOK (allocator kumarı). Fallback: bytes/60 capped 50M.
         crate::timing::mem_log("K2 stop_times pre-count pass");
         let est = count_zip_rows(zb, &file.name)
-            .unwrap_or_else(|| ((file.bytes as usize / 60).max(1)).min(50_000_000));
+            .unwrap_or_else(|| (file.bytes as usize / 60).clamp(1, 50_000_000));
         crate::timing::mem_log("K2 stop_times pre-count done");
         st.all_rows.reserve_exact(est);
         st.row_trip.reserve_exact(est);

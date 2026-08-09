@@ -33,6 +33,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ayrıntılarında yapılandırılmış eşik ve kalan gün sayısı gösterilir; geçmiş tarihler yine
   yalnız `FIN_010` olarak raporlanır.
 
+- **#91 clippy kapısı etkinleştirildi.** Workspace'in tüm crate, test ve example target'ları
+  `cargo clippy --workspace --all-targets -- -D warnings` ile CI'da blocking lint'ten geçer.
+  Kalan mekanik lint borçları düzeltildi; test adlarındaki kural kodu büyük harfleri de
+  snake_case'e taşındı. Kural registry'si değişmedi, dolayısıyla RULES dosyaları yeniden
+  üretilse de içerik değişikliği yoktur.
+
 - **Eight rules move to the `Spec` class, and the prose-provision badge drops from 99.3% to
   97.2%.** The badge numerator counted a hard specification provision as proven without ever
   checking what class the rules behind it had, so a `MUST` from the Schedule Reference could be

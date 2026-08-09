@@ -2112,8 +2112,7 @@ fn check_geo_analytics(
             if la_i.abs() < 0.1 && lo_i.abs() < 0.1 {
                 continue;
             }
-            for j in (i + 1)..sorted_stops.len() {
-                let (la_j, lo_j, sb) = sorted_stops[j];
+            for &(la_j, lo_j, sb) in sorted_stops.iter().skip(i + 1) {
                 if la_j - la_i > lat_band {
                     break;
                 }
@@ -2126,7 +2125,7 @@ fn check_geo_analytics(
                 // aynı/çok yakın noktada olması duplikat-istasyon şüphesidir (review K1b).
                 let lt_a = sa.location_type.unwrap_or(0);
                 let lt_b = sb.location_type.unwrap_or(0);
-                if !(lt_a == 0 && lt_b == 0) && !(lt_a == 1 && lt_b == 1) {
+                if !((lt_a == 0 && lt_b == 0) || (lt_a == 1 && lt_b == 1)) {
                     continue;
                 }
                 // parent/child istisnası: çocuk durak, ait olduğu istasyonla aynı/çok
@@ -8776,7 +8775,7 @@ mod tests {
     ) -> crate::k2::EntityRecords {
         use crate::k2::stop_times::StopTimesIndex;
         let ti = take_ti();
-        let r = crate::k2::EntityRecords {
+        crate::k2::EntityRecords {
             stops,
             routes,
             trips,
@@ -8784,8 +8783,7 @@ mod tests {
             stop_times_index: StopTimesIndex::from_records(&stoptimes),
             stop_times: stoptimes,
             ..Default::default()
-        };
-        r
+        }
     }
 
     // ── STM_014 ───────────────────────────────────────────────────────────────
@@ -10642,7 +10640,7 @@ mod tests {
     }
 
     #[test]
-    fn route_without_active_service_produces_RTS_016() {
+    fn route_without_active_service_produces_rts_016() {
         // Sefer var ama service_id'si calendar_bitmap'te yok
         let records = records_with(
             vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1)],
@@ -11488,7 +11486,7 @@ mod tests {
     // ── RTS_017: shape'siz route ─────────────────────────────────────────────
 
     #[test]
-    fn route_without_shape_produces_RTS_017() {
+    fn route_without_shape_produces_rts_017() {
         // Trip'in shape_id yok → route shape'siz
         let records = records_with(
             vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1)],
@@ -11504,7 +11502,7 @@ mod tests {
     }
 
     #[test]
-    fn route_with_shape_no_RTS_017() {
+    fn route_with_shape_no_rts_017() {
         let records = records_with(
             vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1)],
             vec![route("R1", 3)],
@@ -13554,7 +13552,7 @@ mod tests {
             let records = records_with_feed_end(Some(end));
             let result = analyze(&records, &empty_derived(), &config, 20260514);
             let notices: Vec<_> = result.notices.iter().filter(|n| n.rule_id == "FIN_019").collect();
-            assert_eq!(notices.len() > 0, expected, "30-day FIN_019 behavior for {label}");
+            assert_eq!(!notices.is_empty(), expected, "30-day FIN_019 behavior for {label}");
             if expected {
                 let details = notices[0].details.as_ref().expect("FIN_019 details");
                 assert_eq!(details.get("warning_days").map(String::as_str), Some("30"));

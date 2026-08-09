@@ -624,7 +624,7 @@ mod tests {
     }
 
     #[test]
-    fn invalid_route_type_produces_RTS_004() {
+    fn invalid_route_type_produces_rts_004() {
         let file = make_file(
             vec!["route_id", "route_short_name", "route_type"],
             vec![vec!["R1", "10", "99"]],
@@ -635,7 +635,7 @@ mod tests {
     }
 
     #[test]
-    fn both_names_empty_produces_RTS_003() {
+    fn both_names_empty_produces_rts_003() {
         let file = make_file(
             vec!["route_id", "route_short_name", "route_long_name", "route_type"],
             vec![vec!["R1", "", "", "3"]],
@@ -645,7 +645,7 @@ mod tests {
     }
 
     #[test]
-    fn invalid_route_color_produces_RTS_006() {
+    fn invalid_route_color_produces_rts_006() {
         let file = make_file(
             vec!["route_id", "route_short_name", "route_type", "route_color"],
             vec![vec!["R1", "10", "3", "ZZZZZZ"]],

@@ -1,7 +1,7 @@
 //! Notice üretiminin tek gövdesi.
 //!
-//! Altı katman (K1-K6) neredeyse birebir aynı fabrikayı taşıyordu: aynı `get_rule`
-//! + panic, aynı 19 alanın aynı sırayla doldurulması. Farklar yalnızca hangi alanın
+//! Altı katman (K1-K6) neredeyse birebir aynı fabrikayı taşıyordu.
+//! Aynı `get_rule` + panic ve aynı 19 alan sırayla dolduruluyordu. Farklar yalnızca hangi alanın
 //! sabitlendiğiydi (K1 `scope_key`/`expected_value` üretmez, K3 `expected_value`'yu
 //! "unique" sabitler). Altı kopyadan biri zaten sapmıştı — K5 id önekini atlamış.
 //!

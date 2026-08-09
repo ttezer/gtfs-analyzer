@@ -8,7 +8,6 @@
 ///   let _t = Timer::start("K6::speed_and_duration");
 ///   // ... iş ...
 ///   // _t drop olduğunda otomatik ölçüm basılır
-
 #[cfg(not(target_family = "wasm"))]
 pub(crate) struct Timer {
     label: String,

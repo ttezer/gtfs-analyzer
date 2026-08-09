@@ -33,6 +33,12 @@ jobs:
       - name: cargo test
         run: cargo test --workspace
 
+      # issue #91: clippy borcu çözüldüğü için tüm target'lar için warnings blocking.
+      # `--all-targets`, test/example lintlerini de kapsar; tek crate'de erken durup
+      # diğer workspace uyarılarını gizlememesi için workspace kapsamı korunur.
+      - name: cargo clippy (warnings blocking)
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
       # Spec kapsam raporu (WP-3/B). KAPI DEĞİL: hüküm sayısı ile kural sayısını
       # doğrudan karşılaştırmak semantik olarak güvenilir değil, o yüzden testin
       # kendisi `#[ignore]`. Ama ignored kaldığı için unutulmasın diye her koşuda

@@ -1982,8 +1982,7 @@ fn stm_048_raw_detection_is_not_disabled_by_service_day_config() {
         &[],
         &[],
     );
-    let mut config = ValidatorConfig::default();
-    config.service_day_start_hour = 0;
+    let config = ValidatorConfig { service_day_start_hour: 0, ..ValidatorConfig::default() };
     let notices = notices_for(&files, &config);
     assert!(notices.iter().any(|n| n.rule_id == "STM_048"),
         "service_day_start_hour=0 raw STM_048'i kapatmamalı: {notices:?}");
@@ -2014,8 +2013,7 @@ fn raw_same_row_departure_is_stm_049_spec_without_config_gate() {
         &[],
         &[],
     );
-    let mut config = ValidatorConfig::default();
-    config.service_day_start_hour = 0;
+    let config = ValidatorConfig { service_day_start_hour: 0, ..ValidatorConfig::default() };
     let notices = notices_for(&files, &config);
     let stm049: Vec<_> = notices.iter().filter(|n| n.rule_id == "STM_049").collect();
     assert_eq!(stm049.len(), 1, "same-row raw departure tek feed özeti olmalı: {stm049:?}");
@@ -2778,8 +2776,8 @@ fn spec_partial_coverage_report() {
 /// RAPOR (kapı DEĞİL): çapa ALAN düzeyindedir, ATOM düzeyinde değil.
 ///
 /// `spec_coverage_gaps_match_ledger` bir alanda EN AZ BİR Spec notice görürse o alanı
-/// "kapsanmış" sayar. Ama bir alanın birden çok hüküm atomu olabilir (`presence:required`
-/// + `format` + `foreign-key`) ve tek bir notice hepsini birden çapalar. Bu rapor, o
+/// "kapsanmış" sayar. Ama bir alanın birden çok hüküm atomu olabilir (`presence:required`,
+/// `format` ve `foreign-key`) ve tek bir notice hepsini birden çapalar. Bu rapor, o
 /// kabalığın BÜYÜKLÜĞÜNÜ ölçer: kaç atom, kaç alan, ve kaç alanda atom sayısı onu çapalayan
 /// farklı kural sayısını AŞIYOR.
 ///

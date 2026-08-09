@@ -1392,7 +1392,7 @@ mod tests {
     fn r9_quick_win_label() {
         // base_effort=1, 1 instance → fix_effort=1.0, severity=YÜKSEK → QuickWin
         let n = notice("n1", "ARC_001", Severity::Yuksek, RuleClass::Spec);
-        let resolution = resolve_symptoms(&[n.clone()]);
+        let resolution = resolve_symptoms(std::slice::from_ref(&n));
         let r9 = build_r9(&[n], &resolution);
         assert!(r9.items[0].labels.contains(&R9Label::QuickWin));
     }

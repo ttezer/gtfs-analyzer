@@ -1,8 +1,9 @@
 //! RULES.md / RULES.en.md / RULES.ja.md dosyalarını registry'den yeniden üretir.
 //!
 //! Tek doğruluk kaynağı `registry.rs` (`RULES`). Kural başlıkları:
-//!   - TR: registry `title` alanı.
-//!   - EN/JA: `ui/src/locales/{en,ja}.ts` `ruleTitles:` bloğundan.
+//! - TR: registry `title` alanı.
+//! - EN/JA: `ui/src/locales/{en,ja}.ts` `ruleTitles:` bloğundan.
+//!
 //! Grup açıklamaları (`## ARC — ...`) mevcut RULES dosyalarından korunur (registry'de yok).
 //!
 //! Çalıştır: cargo run -p gtfs-rules --example gen_rules

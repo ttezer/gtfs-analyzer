@@ -134,7 +134,7 @@ const MAX_PREALLOC: usize = 64 * 1024 * 1024; // 64 MiB
 /// ile sınırlar ve en az 1 döndürür (sıfır-kapasite alloc'u anlamsız).
 #[inline]
 fn prealloc_capacity(uncompressed_hint: usize) -> usize {
-    uncompressed_hint.min(MAX_PREALLOC).max(1)
+    uncompressed_hint.clamp(1, MAX_PREALLOC)
 }
 
 /// GuardedReader okuma hatasını Fatal'a çevirir: guard tetiklendiyse ARC_029
@@ -162,6 +162,7 @@ fn read_fatal<R: Read>(guarded: &GuardedReader<'_, R>, raw_name: &str, e: &std::
 ///   (yalnızca tamponun EN SONUNDA olabilir) → kırp, sorun yok.
 /// - `error_len() == Some(n)` → gövdede geçersiz bayt dizisi → DOKUNMA; ARC_002 /
 ///   Utf8Critical eskisi gibi tetiklenir.
+///
 /// `from_utf8` İLK hatayı bildirdiğinden, gövdede gerçek bir hata varsa `Some` döner
 /// ve kırpma yapılmaz — yani gerçek ihlal her zaman kazanır.
 ///
@@ -265,7 +266,7 @@ fn tokenize_csv(
 ) -> Result<(Vec<Vec<SmolStr>>, bool, Rfc4180Acc), String> {
     let bytes = text.as_bytes();
     let n = bytes.len();
-    let cap = max_data_rows.map(|m| m + 1).unwrap_or_else(|| (n / 50).max(1).min(5_000_000));
+    let cap = max_data_rows.map(|m| m + 1).unwrap_or_else(|| (n / 50).clamp(1, 5_000_000));
     let mut records: Vec<Vec<SmolStr>> = Vec::with_capacity(cap.min(5_000_000));
     let mut pos = 0;
     let mut col_hint: usize = 8;
@@ -362,7 +363,7 @@ fn tokenize_csv(
             }
         }
 
-        if !(record.len() == 1 && record[0].is_empty()) && !record.is_empty() {
+        if !(record.is_empty() || record.len() == 1 && record[0].is_empty()) {
             col_hint = record.len();
             records.push(record);
             if let Some(max) = max_data_rows {

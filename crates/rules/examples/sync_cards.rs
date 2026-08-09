@@ -196,7 +196,7 @@ fn main() {
                     ref_fix += 1;
                 }
                 if !edits.is_empty() {
-                    edits.sort_by(|a, b| b.0.cmp(&a.0)); // sağdan sola: offset'ler geçerli kalır
+                    edits.sort_by_key(|edit| std::cmp::Reverse(edit.0)); // sağdan sola: offset'ler geçerli kalır
                     let mut s = line.to_string();
                     for (st, en, rep) in edits {
                         s.replace_range(st..en, &rep);
