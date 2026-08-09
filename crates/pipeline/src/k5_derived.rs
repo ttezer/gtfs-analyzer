@@ -226,14 +226,23 @@ fn build_shape_geometry(
         if n_pts == 0 { continue; }
         let first_line = point_indices.first().map(|&i| records.shapes[i].line_u64());
         if n_pts == 1 {
-            // SHP_006: tek noktalı shape
-            notices.push(k5_notice(ctr, "SHP_006", EntityType::Shape,
-                Some(shape_id.clone()), Some(shape_id.clone()),
-                "shapes.txt", first_line, Some("shape_pt_sequence"),
-                Some("1".to_string()), Some(">= 2".to_string()),
-                format!("'{}' güzergah şekli yalnızca 1 noktadan oluşuyor; en az 2 nokta gerekir.", shape_id),
-                "shapes.txt'e bu shape_id için en az bir nokta daha ekleyin.",
-            ));
+            // SHP_006 yalnızca kullanılan shape'ler için bir tüketici-uyumluluk sinyalidir.
+            // Kullanılmayan tek-nokta kaydı SHP_018 orphan-shape bulgusunun kapsamındadır;
+            // iki notice ile aynı kök nedeni çoğaltıp puanı şişirmeyiz.
+            if referenced_shapes.contains(shape_id.as_str()) {
+                let mut notice = k5_notice(ctr, "SHP_006", EntityType::Shape,
+                    Some(shape_id.clone()), Some(shape_id.clone()),
+                    "shapes.txt", first_line, Some("shape_pt_sequence"),
+                    Some("1".to_string()), Some(">= 2".to_string()),
+                    format!("'{}' güzergah şekli yalnızca 1 noktadan oluşuyor; en az 2 nokta gerekir.", shape_id),
+                    "shapes.txt'e bu shape_id için en az bir nokta daha ekleyin.",
+                );
+                notice.details = Some([
+                    ("shape_id".to_string(), shape_id.clone()),
+                    ("shape_point_count".to_string(), "1".to_string()),
+                ].into_iter().collect());
+                notices.push(notice);
+            }
             continue;
         }
         // n_pts == 2: geçerli düz segment (GTFS ≥3 nokta dayatmaz; feribat/kısa
@@ -553,6 +562,56 @@ mod tests {
         assert_eq!(seg.segment_distances_km.len(), 2);
         assert!(seg.total_length_km > 0.0);
         assert!(result.notices.is_empty(), "Temiz shape'te notice üretilmemeli");
+    }
+
+    #[test]
+    fn shp_006_reports_used_single_point_shape_with_details() {
+        let mut shape_ti = ShapeInternTable::new();
+        let mut records = empty_records();
+        let mut map = empty_map();
+        records.shapes = vec![
+            shape_pt(&mut shape_ti, "USED", 1, 41.0, 29.0, 2),
+            shape_pt(&mut shape_ti, "ORPHAN", 1, 41.1, 29.1, 3),
+        ];
+        records.shape_interns = shape_ti.clone();
+        let (trip, trip_ti) = trip_with_shape("T1", "USED");
+        records.trips = vec![trip];
+        records.trip_interns = trip_ti;
+        map.shape_points.insert("USED".into(), vec![0]);
+        map.shape_points.insert("ORPHAN".into(), vec![1]);
+        map.trips.insert("T1".into(), 0);
+
+        let result = build(&records, &map);
+        let single = result.notices.iter().find(|n| n.rule_id == "SHP_006")
+            .expect("kullanılan tek noktalı shape SHP_006 üretmeli");
+        assert_eq!(single.entity_id.as_deref(), Some("USED"));
+        assert_eq!(single.observed_value.as_deref(), Some("1"));
+        assert_eq!(single.details.as_ref().and_then(|d| d.get("shape_id")).map(String::as_str), Some("USED"));
+        assert_eq!(single.details.as_ref().and_then(|d| d.get("shape_point_count")).map(String::as_str), Some("1"));
+        assert!(!result.notices.iter().any(|n| n.rule_id == "SHP_006" && n.entity_id.as_deref() == Some("ORPHAN")));
+        assert!(result.notices.iter().any(|n| n.rule_id == "SHP_018" && n.entity_id.as_deref() == Some("ORPHAN")),
+            "kullanılmayan tek nokta SHP_018 ile sınıflandırılmalı");
+    }
+
+    #[test]
+    fn shp_006_does_not_fire_for_two_point_shape() {
+        let mut shape_ti = ShapeInternTable::new();
+        let mut records = empty_records();
+        let mut map = empty_map();
+        records.shapes = vec![
+            shape_pt(&mut shape_ti, "S1", 1, 41.0, 29.0, 2),
+            shape_pt(&mut shape_ti, "S1", 2, 41.1, 29.1, 3),
+        ];
+        records.shape_interns = shape_ti.clone();
+        let (trip, trip_ti) = trip_with_shape("T1", "S1");
+        records.trips = vec![trip];
+        records.trip_interns = trip_ti;
+        map.shape_points.insert("S1".into(), vec![0, 1]);
+        map.trips.insert("T1".into(), 0);
+
+        let result = build(&records, &map);
+        assert!(!result.notices.iter().any(|n| n.rule_id == "SHP_006"),
+            "iki noktalı shape geçerli düz segmenttir");
     }
 
     #[test]

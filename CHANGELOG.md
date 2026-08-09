@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **`SHP_006` tek-nokta shape kontrolü düşük öncelikli Quality oldu.** Kullanılmayan tek-nokta
+  shape'ler yalnız `SHP_018` kapsamında kalır; kullanılan shape için `shape_id` ve nokta sayısı
+  ayrıntıları korunur. Böylece MobilityData'nın deprecated `single_shape_point` sinyali Spec'e
+  taşınmadan ve tüketici etkisi olmayan orphan kayıtlar iki kez puanlanmadan raporlanır.
+
 - **#115 `fast_travel_between_far_stops` parity kararını netleştirdi.** MobilityData v8.0.1
   algoritması ve güncel kaynağı incelendi; 10 km kümülatif mesafe eşiği ile zaman/geometry
   cascade'lerini birleştiren, güncel sayfada deprecated olan notice için 20 pozitif feed

@@ -895,7 +895,7 @@ pub static RULES: &[RuleMeta] = &[
         &["SHP_009","SHP_012","GEO_006","GEO_007"],
         Some("shape_id"), VS_K, Row,
         "shape_dist_traveled geriye gidiyor"),
-    r!("SHP_006", Orta,   Quality, 2,
+    r!("SHP_006", Dusuk,  Quality, 2,
         &["SHP_017","STM_015","STM_016"],
         Some("shape_id"), VS, Entity,
         "Güzergah şekli yalnızca tek noktadan oluşuyor"),

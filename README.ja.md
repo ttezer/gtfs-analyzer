@@ -306,6 +306,8 @@ config deltaで`stop_name_best_practices=true`を設定すると、言語依存�
 
 `stop_times.txt`で`shape_dist_traveled`を使用する便の参照shapeについて、`shapes.txt`の一部の点に同じ項目がない場合、`SHP_030`（品質・中）を出力します。両フィールドはGTFSで個別に任意項目なので、これはSpecの公開ブロッカーではありません。shape上で停留所を確実に配置できない可能性を示す互換性シグナルで、影響を受ける便数と代表的なtrip IDを検出結果の詳細に含めます。
 
+便から実際に参照される1点だけのshapeは、`shape_id`と`shape_point_count=1`を詳細に含む低・品質の`SHP_006`として報告します。2点の直線セグメントは有効です。未使用の1点shapeは`SHP_018`だけで報告し、deprecatedのMobilityData `single_shape_point`による不要なcascadeを防ぎます。
+
 ### 遠距離停留所の速度パリティ
 
 MobilityDataの`fast_travel_between_far_stops` noticeは現在のルールページでdeprecatedと表示されています。10 kmを超える累積距離、非連続の停留所ペア、時刻のcascade症状を一つのシグナルにまとめるため、#115 auditでは陽性20 feedを調査し、`STM_012`/`STM_014`へのaliasを採用しませんでした。新しいルールは追加せず、意図的なAnalytics coverage gapとして扱います。

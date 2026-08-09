@@ -341,7 +341,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | SHP_003 | shape_pt_lon missing or invalid | CRITICAL | Spec |
 | SHP_004 | shape_pt_sequence missing or invalid | CRITICAL | Spec |
 | SHP_005 | shape_dist_traveled decreases | CRITICAL | Spec |
-| SHP_006 | Shape consists of a single point only | MEDIUM | Quality |
+| SHP_006 | Shape consists of a single point only | LOW | Quality |
 | SHP_008 | Duplicate shape_pt_sequence | CRITICAL | Spec |
 | SHP_009 | Shape self-intersects | INFO | Analytics |
 | SHP_010 | Repeated shape point (consecutive identical coordinates) | LOW | Quality |

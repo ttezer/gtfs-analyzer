@@ -341,7 +341,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | SHP_003 | shape_pt_lon eksik veya geçersiz | KRİTİK | Spec |
 | SHP_004 | shape_pt_sequence eksik veya geçersiz | KRİTİK | Spec |
 | SHP_005 | shape_dist_traveled geriye gidiyor | KRİTİK | Spec |
-| SHP_006 | Güzergah şekli yalnızca tek noktadan oluşuyor | ORTA | Quality |
+| SHP_006 | Güzergah şekli yalnızca tek noktadan oluşuyor | DÜŞÜK | Quality |
 | SHP_008 | shape_pt_sequence yineleniyor | KRİTİK | Spec |
 | SHP_009 | Güzergah şekli kendisiyle kesişiyor | BİLGİ | Analytics |
 | SHP_010 | Tekrarlanan shape noktası (ardışık özdeş koordinat) | DÜŞÜK | Quality |
