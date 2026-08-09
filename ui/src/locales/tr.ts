@@ -778,7 +778,7 @@ const tr = {
     'STM_045': 'Sefer kalkış saati servis günü penceresini aşıyor',
     'STM_046': 'trip_id eksik',
     'STM_047': 'timepoint=1 ama arrival_time/departure_time eksik',
-    'STM_048': 'Gece yarısı sonrası saatler 00:xx (duraklar arası)',
+    'STM_048': 'GTFS servis gününde gece yarısı sonrası saatler 00:xx yazılmış',
     'STM_049': 'Gece yarısı sonrası kalkış 00:xx (aynı satır)',
     'STM_050': 'timepoint sütunu var ama değer boş',
     'STM_051': 'Flex penceresinde pickup_type=0/3 yasak',

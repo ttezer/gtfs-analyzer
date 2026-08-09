@@ -63,6 +63,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **`STM_048` now preserves after-midnight notation violations as `Spec`.** A raw
+  `23:59:00 → 00:xx` rollover is reported in K2 before analysis normalization, while the
+  normalized `24:xx` values continue through K6 without producing a duplicate `STM_008`.
+
 - **`FPD_006` no longer treats an empty `rider_category_id` as a default category.**
   GTFS Fares v2 defines an empty value as eligibility for any rider category, while the
   default is selected by `rider_categories.is_default_fare_category`. Exact duplicate

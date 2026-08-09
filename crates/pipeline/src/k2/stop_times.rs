@@ -149,7 +149,7 @@ pub struct StopTimesIndex {
     pub stop_first_line: FxHashMap<SmolStr, u64>,
     /// K6: STM_036 — dosya sırasında stop_sequence gerileyen seferler: (trip_id, prev_seq, curr_seq, line)
     pub unsorted_seq_trips: Vec<(SmolStr, u32, u32, u64)>,
-    /// K6: STM_048 — normalize_service_day'in 00:xx→24:xx kaydırdığı (gece yarısını aşan) trip sayısı.
+    /// K6/diagnostic: normalize_service_day'in 00:xx→24:xx kaydırdığı trip sayısı.
     pub midnight_wrapped_trips: u32,
     /// #38: stop_idx → stop_id (intern tablosu). Index = stop_idx değeri.
     pub stop_intern: Vec<SmolStr>,
@@ -190,6 +190,42 @@ impl StopTimesIndex {
     /// CompactStopTime'ın flex alanlarını döner (CSV line anahtarlı side map'ten)
     pub fn flex_of(&self, st: &CompactStopTime) -> Option<&StopTimeFlex> {
         self.flex_map.get(&st.line).map(|b| b.as_ref())
+    }
+
+    /// Normalizasyon uygulanmadan önce ham stop_times'ta after-midnight rollover sayısını
+    /// ölçer. Bu geçiş, `STM_048`'in raw Spec bulgusunu K2'de üretmesi için kullanılır;
+    /// `normalize_service_day` ise aynı algılama politikasını analitik devamlılık için uygular.
+    pub fn count_midnight_wrap_trips(&self, start_hour: u32) -> u32 {
+        if start_hour == 0 {
+            return 0;
+        }
+        let start_secs = start_hour * 3600;
+        let mut wrapped_trips = 0u32;
+        for &(s, e) in self.trip_ranges.values() {
+            let slice = &self.rows[s as usize..e as usize];
+            let mut offset = 0u32;
+            let mut prev = None;
+            let mut wrapped = false;
+            for st in slice {
+                if st.arrival_secs != u32::MAX {
+                    let raw = st.arrival_secs;
+                    if let Some(p) = prev {
+                        if raw.saturating_add(offset) < p && raw < start_secs {
+                            offset = offset.saturating_add(86400);
+                            wrapped = true;
+                        }
+                    }
+                    prev = Some(raw.saturating_add(offset));
+                }
+                if st.departure_secs != u32::MAX {
+                    prev = Some(st.departure_secs.saturating_add(offset));
+                }
+            }
+            if wrapped {
+                wrapped_trips += 1;
+            }
+        }
+        wrapped_trips
     }
 
     /// Gece yarısını aşan seferleri servis-günü notasyonuna (24:xx, 25:xx…) normalize eder.
@@ -1145,6 +1181,17 @@ impl StChunk {
 /// O dosya yokken bir booking rule id yazmak FK'yı kırar (`BKR_017`), dolayısıyla tavsiye
 /// uygulanamaz ve kural susmalıdır.
 pub fn validate_stop_times(file: &RawFile, zip_bytes: Option<&[u8]>, has_booking_rules: bool) -> (StopTimesIndex, Vec<gtfs_core::Notice>) {
+    // Test/legacy callers retain the production default; the K2 orchestrator passes the
+    // configured value through `validate_stop_times_with_service_day_start` below.
+    validate_stop_times_with_service_day_start(file, zip_bytes, has_booking_rules, 3)
+}
+
+pub fn validate_stop_times_with_service_day_start(
+    file: &RawFile,
+    zip_bytes: Option<&[u8]>,
+    has_booking_rules: bool,
+    service_day_start_hour: u32,
+) -> (StopTimesIndex, Vec<gtfs_core::Notice>) {
     let mut st = StChunk { has_booking_rules, ..StChunk::default() };
     let cols = Cols::from_headers(&file.headers);
     // B1: feed'de hiç Flex sütunu yoksa satır başı flex işini tümüyle atla.
@@ -2169,6 +2216,22 @@ pub fn validate_stop_times(file: &RawFile, zip_bytes: Option<&[u8]>, has_booking
         // stop_idx_set TripAgg'dan kaldırıldı — trip_stop_set aşağıda inşa edilir
     }
     drop(_t_maps);
+
+    // STM_048: ham GTFS servis-günü ihlalini normalization'dan ÖNCE kaydet.
+    // K6 daha sonra aynı satırları analitik devamlılık için 24:xx'e çevirir; bu Spec
+    // notice'ı o düzeltme nedeniyle kaybolmamalıdır.
+    let raw_midnight_wraps = index.count_midnight_wrap_trips(service_day_start_hour);
+    if raw_midnight_wraps > 0 {
+        let notice = make_k2_notice(
+            &mut st.counter, "STM_048", EntityType::Feed, None,
+            None, &file.name, None, Some("arrival_time|departure_time"),
+            Some(raw_midnight_wraps.to_string()), Some("24:00:00+".to_string()),
+            format!("{raw_midnight_wraps} seferde gece yarısı sonrası saatler ham feed'de 00:xx olarak yazılmış; \
+                GTFS servis günü için 24:00:00+ biçimi kullanılmalıdır. Analiz için 24:xx olarak normalize edilecektir."),
+            "Gece yarısından sonraki stop_times saatlerini 24:00:00, 25:00:00… biçiminde yazın; 00:xx kullanmayın.",
+        );
+        st.notices.push(notice);
+    }
 
     // ── trip_stop_set post-finalize inşası (#38 peak-2) ──────────────────────────
     // TripAgg'lar drop edildi (stop_idx_set heap'leri serbest); trip_ranges+rows üzerinden

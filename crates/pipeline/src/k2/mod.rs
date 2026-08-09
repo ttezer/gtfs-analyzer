@@ -66,7 +66,7 @@ use shapes::{validate_shapes, ShapePointRecord};
 pub use shapes::ShapeInternTable;
 use stop_areas::{parse_stop_areas, StopAreaRecord};
 use stops::{validate_stops, StopRecord};
-use stop_times::{validate_stop_times, StopTimeRecord};
+use stop_times::{validate_stop_times_with_service_day_start, StopTimeRecord};
 pub use stop_times::{CompactStopTime, StopTimesIndex};
 use timeframes::{validate_timeframes, TimeframeRecord};
 use transfers::{validate_transfers, TransferRecord};
@@ -395,7 +395,9 @@ pub fn validate(mut files: RawFiles, zip_bytes: Option<&[u8]>, cfg: &ValidatorCo
     if let Some(file) = &stop_times_file {
         let _t = Timer::start("K2::stop_times");
         let has_booking_rules = !records.booking_rules.is_empty();
-        let (stm_index, stop_time_notices) = validate_stop_times(file, zip_bytes, has_booking_rules);
+        let (stm_index, stop_time_notices) = validate_stop_times_with_service_day_start(
+            file, zip_bytes, has_booking_rules, cfg.service_day_start_hour,
+        );
         records.stop_times_index = stm_index;
         notices.extend(stop_time_notices);
         records.streaming_row_counts.insert("stop_times.txt".to_string(), records.stop_times_index.total_rows as u64);

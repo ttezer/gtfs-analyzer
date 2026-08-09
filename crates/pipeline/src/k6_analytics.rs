@@ -1304,19 +1304,9 @@ fn check_speed_and_duration<'a>(
         }
     }
 
-    // STM_048 / STM_049: gece yarısı sonrası saatleri 00:xx yazan feed'ler için bilgi notu.
-    // STM_048 = duraklar arası (normalize edilen trip'ler); STM_049 = aynı satır (00:xx kalkış).
+    // STM_048 K2'de raw Spec bulgusu olarak normalization'dan önce üretilir.
+    // K6 yalnız aynı satırdaki bağımsız STM_049 Quality özetini korur.
     {
-        let wrapped = records.stop_times_index.midnight_wrapped_trips;
-        if wrapped > 0 {
-            notices.push(k6_notice(
-                ctr, "STM_048", EntityType::Feed,
-                None, None, "stop_times.txt", None, None,
-                Some(format!("{wrapped}")), None,
-                format!("{wrapped} sefer gece yarısı sonrası saatleri 00:xx olarak yazmış; GTFS servis günü için 24:00:00+ önerilir. Analiz için otomatik 24:xx olarak yorumlandı."),
-                "Gece yarısını aşan saatleri 24:00:00, 25:00:00… biçiminde yazın (00:xx yerine).",
-            ));
-        }
         if stm007_midnight_count > 0 {
             notices.push(k6_notice(
                 ctr, "STM_049", EntityType::Feed,

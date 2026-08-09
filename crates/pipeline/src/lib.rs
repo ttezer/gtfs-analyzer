@@ -43,7 +43,7 @@ pub fn validate_bytes(zip: &[u8], config: &ValidatorConfig, today: u32) -> Valid
     };
 
     // Gece yarısını aşan seferleri (00:xx) servis-günü notasyonuna (24:xx) normalize et.
-    // K2 format kuralları (STM_004/007) parse anında ham raw ile çalıştı; bu pass yalnızca
+    // K2, STM_048 raw Spec bulgusunu bu pass'ten önce üretir; bu pass yalnızca
     // K3–K6 türetilmiş/analitik kuralların (STM_008/014/028, headway…) tutarlı görmesini sağlar.
     // Monoton seferlerde no-op; yalnızca gece dönümü içeren seferler kayar.
     {

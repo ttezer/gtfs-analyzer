@@ -257,7 +257,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | STM_045 | Seferin hareket saati servis günü penceresini aşıyor — olası veri anomalisi | ORTA | Quality |
 | STM_046 | trip_id eksik | KRİTİK | Spec |
 | STM_047 | Kesin zaman noktasında (timepoint=1) arrival_time/departure_time eksik | KRİTİK | Spec |
-| STM_048 | Gece yarısı sonrası saatler 00:xx yazılmış (24:xx önerilir, duraklar arası) | BİLGİ | Quality |
+| STM_048 | Gece yarısı sonrası saatler 00:xx yazılmış (GTFS servis günü için 24:xx kullanılmalı) | BİLGİ | Spec |
 | STM_049 | Gece yarısı sonrası kalkış 00:xx yazılmış (24:xx önerilir, aynı satır) | BİLGİ | Quality |
 | STM_050 | timepoint sütunu mevcut ama satırda boş — değer açıkça belirtilmeli (0 yaklaşık / 1 kesin) | DÜŞÜK | Quality |
 | STM_051 | Flex penceresi tanımlıyken pickup_type=0/3 yasak (talep-üzerine değerler gerekli) | YÜKSEK | Spec |

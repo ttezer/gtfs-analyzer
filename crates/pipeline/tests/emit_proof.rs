@@ -91,6 +91,13 @@ fn emitted_rules_modes(files: &[(String, Vec<u8>)], config: &ValidatorConfig, no
     }
 }
 
+fn notices_for(files: &[(String, Vec<u8>)], config: &ValidatorConfig) -> Vec<gtfs_core::Notice> {
+    match validate_bytes(&make_zip(files), config, TODAY) {
+        ValidateResult::Ok(vr) => vr.notices,
+        ValidateResult::Fatal(e) => panic!("fixture validation unexpectedly fatal: {e:?}"),
+    }
+}
+
 /// Bir fixture: beklenen rule_id + onu tetikleyen feed (base üzerine override'lar).
 struct Fixture {
     rule: &'static str,
@@ -1571,7 +1578,7 @@ fn fixtures() -> Vec<Fixture> {
         fx("STM_042", vec![("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence,stop_headsign\nT1,08:00:00,08:00:00,S1,1,Bad!Sign\nT1,08:10:00,08:10:00,S2,2,\n")]),
         // STM_045: kalkış saati servis-günü penceresini aşıyor (>27h) (k6).
         fx("STM_045", vec![("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\nT1,28:00:00,28:00:00,S2,2\n")]),
-        // STM_048: gece yarısı sonrası 00:xx yazılmış (sarma) (k6).
+        // STM_048: gece yarısı sonrası 00:xx yazılmış (k2 raw Spec, normalization öncesi).
         fx("STM_048", vec![("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,23:50:00,23:50:00,S1,1\nT1,00:10:00,00:10:00,S2,2\n")]),
         // STM_049: gece yarısı sonrası 00:xx kalkış aynı satırda (k6).
         fx("STM_049", vec![("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,23:50:00,00:10:00,S1,1\nT1,01:00:00,01:00:00,S2,2\n")]),
@@ -1911,6 +1918,58 @@ fn fpd_distinct_fare_media_variants_are_not_duplicate_fpd_001() {
         "farklı fare_media_id varyantları FPD_001 üretmemeli, emit: {:?}",
         emitted,
     );
+}
+
+// #109 regression: raw after-midnight notation is a Spec finding, while the normalized
+// analytical representation must not create a duplicate STM_008 finding.
+#[test]
+fn stm_048_reports_raw_rollover_as_spec_without_stm_008_duplicate() {
+    let files = with_opts(
+        &[(
+            "stop_times.txt",
+            "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,23:50:00,23:50:00,S1,1\nT1,00:10:00,00:10:00,S2,2\n",
+        )],
+        &[],
+        &[],
+    );
+    let notices = notices_for(&files, &ValidatorConfig::default());
+    let stm048: Vec<_> = notices.iter().filter(|n| n.rule_id == "STM_048").collect();
+    assert_eq!(stm048.len(), 1, "raw rollover tek feed özeti olmalı: {stm048:?}");
+    assert_eq!(stm048[0].rule_class, gtfs_core::RuleClass::Spec);
+    assert_eq!(stm048[0].severity, gtfs_core::Severity::Bilgi);
+    assert_eq!(stm048[0].observed_value.as_deref(), Some("1"));
+    assert!(!notices.iter().any(|n| n.rule_id == "STM_008"),
+        "normalization sonrası aynı olay STM_008 olarak tekrarlanmamalı: {notices:?}");
+}
+
+#[test]
+fn valid_service_day_rollover_does_not_emit_stm_048() {
+    let files = with_opts(
+        &[(
+            "stop_times.txt",
+            "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,23:50:00,23:50:00,S1,1\nT1,24:10:00,24:10:00,S2,2\n",
+        )],
+        &[],
+        &[],
+    );
+    let notices = notices_for(&files, &ValidatorConfig::default());
+    assert!(!notices.iter().any(|n| n.rule_id == "STM_048"), "valid 24:xx rollover işaretlenmemeli");
+    assert!(!notices.iter().any(|n| n.rule_id == "STM_008"), "valid 24:xx rollover STM_008 üretmemeli");
+}
+
+#[test]
+fn real_non_midnight_decrease_remains_stm_008_without_stm_048() {
+    let files = with_opts(
+        &[(
+            "stop_times.txt",
+            "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\nT1,07:55:00,07:55:00,S2,2\n",
+        )],
+        &[],
+        &[],
+    );
+    let notices = notices_for(&files, &ValidatorConfig::default());
+    assert!(notices.iter().any(|n| n.rule_id == "STM_008"), "gerçek gün-içi geriye gidiş STM_008 üretmeli");
+    assert!(!notices.iter().any(|n| n.rule_id == "STM_048"), "gün-içi geriye gidiş STM_048 olmamalı");
 }
 
 #[test]
