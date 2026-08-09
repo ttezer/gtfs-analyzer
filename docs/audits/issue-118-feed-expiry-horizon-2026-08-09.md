@@ -57,4 +57,8 @@ explicit follow-up when the original 1000-feed ZIP/report artifact is restored.
 
 This is an operational freshness preference, not a GTFS Schedule Reference
 validity constraint. `FIN_019` remains `Quality`/Low and does not affect the
-Spec publication gate.
+Spec publication gate. The MobilityData `feed_expiration_date30_days` mapping is
+**config-dependent parity**: the default Analyzer configuration remains seven
+days, while `feed_info_expiry_warning_days=30` covers the same feed-info horizon.
+An audit must use that 30-day configuration before claiming exact parity; the
+default configuration must not be presented as a 30-day match.

@@ -121,6 +121,14 @@ class ContextMappingFixtures(unittest.TestCase):
             "far-stop MD notice must remain an explicit, unaffiliated coverage gap",
         )
 
+    def test_feed_expiration_30_day_parity_is_config_dependent(self):
+        classification, rationale = mapping.classify_unmapped(
+            "feed_expiration_date30_days"
+        )
+        self.assertEqual(classification, "config-dependent")
+        self.assertIn("feed_info_expiry_warning_days=30", rationale)
+        self.assertIn("7-day default", rationale)
+
         self.assertEqual(audit.MAP["same_stop_and_agency_url"], ["STP_034"])
         self.assertEqual(audit.MAP["same_stop_and_route_url"], ["STP_035"])
         self.assertEqual(

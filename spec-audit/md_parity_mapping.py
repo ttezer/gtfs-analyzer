@@ -206,9 +206,11 @@ UNMAPPED_DECISIONS = {
         "Analyzer has no rule for non-consecutive far-stop pairs; do not alias this to STM_012.",
     ),
     "feed_expiration_date30_days": (
-        "genuine-gap",
-        "The MD notice is a feed_info-level 30-day horizon. CAL_008 is per-calendar-service and "
-        "FIN_019 is a 7-day feed warning, so neither is an exact counterpart.",
+        "config-dependent",
+        "The MD notice is a feed_info-level 30-day horizon. FIN_019 uses a 7-day default, but "
+        "feed_info_expiry_warning_days=30 makes it semantically equivalent for the same horizon; "
+        "do not claim exact parity unless the audit run uses that 30-day configuration. CAL_008 "
+        "remains a separate per-calendar-service horizon.",
     ),
     "feed_valid_beyond_total_service_window": (
         "deprecated-md-only",

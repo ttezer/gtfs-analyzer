@@ -15,6 +15,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   stops only the dependent K4/K5/K6 subchecks; independent checks continue. An invalid or
   unreadable `locations.geojson` cannot satisfy the conditional requirement for `stops.txt`.
 
+- **K6 data-quality recovery is now prerequisite-aware.** Rules that infer feed state from
+  calendars, stop times, routes, stops, agencies, or `feed_info.txt` run only when their source
+  files are present and readable. A missing optional source remains distinct from a present but
+  unreadable source, and neither unreadable calendars nor unreadable stop times are reported as
+  empty data. The `feed_expiration_date30_days` parity entry is explicitly marked
+  configuration-dependent because `FIN_019` matches that horizon only when
+  `feed_info_expiry_warning_days=30` is selected.
+
 - **Parity ledger and documentation updated.** `trip_with_shape_dist_traveled_but_no_shape_distances`
   is now adjudicated as `SHP_030`, while `single_shape_point` is an intentional near-parity
   mapping to `SHP_006` for used shapes. FIN_019's default seven-day horizon is distinguished

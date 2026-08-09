@@ -151,7 +151,7 @@ pub fn analyze_with_files(
         let _t = Timer::start("K6::route_headway"); let mut v = Vec::new(); let mut c = 0u32;
         check_route_headway(records, config, &idx, &mut v, &mut c); v
     });
-    add_task!(availability.available("trips.txt") && availability.any(&["calendar.txt", "calendar_dates.txt"]), || {
+    add_task!(availability.present_and_available("trips.txt") && availability.any_present_and_available(&["calendar.txt", "calendar_dates.txt"]), || {
         let _t = Timer::start("K6::calendar_analytics"); let mut v = Vec::new(); let mut c = 0u32;
         check_calendar_analytics(records, derived, config, today_yyyymmdd, &mut v, &mut c); v
     });
@@ -173,7 +173,7 @@ pub fn analyze_with_files(
     });
     add_task!(true, || {
         let _t = Timer::start("K6::data_quality"); let mut v = Vec::new(); let mut c = 0u32;
-        check_data_quality(records, derived, config, today_yyyymmdd, &mut v, &mut c); v
+        check_data_quality(records, derived, config, today_yyyymmdd, availability, &mut v, &mut c); v
     });
     add_task!(availability.all(&["stops.txt", "trips.txt", "stop_times.txt"]), || {
         let _t = Timer::start("K6::remaining_analytics"); let mut v = Vec::new(); let mut c = 0u32;
@@ -191,7 +191,7 @@ pub fn analyze_with_files(
         let _t = Timer::start("K6::pathway_analytics"); let mut v = Vec::new(); let mut c = 0u32;
         check_pathway_analytics(records, derived, &mut v, &mut c); v
     });
-    add_task!(availability.available("trips.txt") && availability.any(&["calendar.txt", "calendar_dates.txt"]), || {
+    add_task!(availability.present_and_available("trips.txt") && availability.any_present_and_available(&["calendar.txt", "calendar_dates.txt"]), || {
         let _t = Timer::start("K6::calendar_override"); let mut v = Vec::new(); let mut c = 0u32;
         check_calendar_override_analytics(records, derived, config, &idx, &mut v, &mut c); v
     });
@@ -3687,9 +3687,19 @@ fn check_data_quality(
     derived: &DerivedData,
     config: &ValidatorConfig,
     today_yyyymmdd: u32,
+    availability: &FileAvailability<'_>,
     notices: &mut Vec<Notice>,
     ctr: &mut u32,
 ) {
+    let agency_usable = availability.present_and_available("agency.txt");
+    let routes_usable = availability.present_and_available("routes.txt");
+    let trips_usable = availability.present_and_available("trips.txt");
+    let stops_usable = availability.present_and_available("stops.txt");
+    let stop_times_usable = availability.present_and_available("stop_times.txt");
+    let feed_info_usable = availability.present_and_available("feed_info.txt");
+    let calendar_source_usable =
+        availability.any_present_and_available(&["calendar.txt", "calendar_dates.txt"]);
+
     if let Some(source_url) = config.source_url.as_deref() {
         let path = source_url.split(['?', '#']).next().unwrap_or(source_url);
         if !path.to_ascii_lowercase().ends_with(".zip") {
@@ -3700,7 +3710,7 @@ fn check_data_quality(
                 "Feed'i kalıcı ve açık bir .zip dosya adı içeren URL'de yayımlayın."));
         }
     }
-    if config.stop_name_best_practices {
+    if config.stop_name_best_practices && stops_usable {
         let stop_by_id: HashMap<&str, &crate::k2::stops::StopRecord> = records.stops.iter()
             .map(|s| (s.stop_id.as_str(), s)).collect();
         for stop in &records.stops {
@@ -3737,7 +3747,7 @@ fn check_data_quality(
         !derived.calendar_bitmap.active_dates.is_empty()
     };
 
-    if !records.trips.is_empty() && !has_any_active {
+    if trips_usable && calendar_source_usable && !records.trips.is_empty() && !has_any_active {
         notices.push(k6_notice(
             ctr,
             "DQ_005",
@@ -3755,7 +3765,7 @@ fn check_data_quality(
     }
 
     // DQ_006: şekil (shape) olmayan trip oranı çok yüksek (> %80)
-    if !records.trips.is_empty() {
+    if trips_usable && !records.trips.is_empty() {
         let shapeless = records.trips.iter().filter(|t| t.shape_idx == 0).count();
         let ratio = shapeless as f64 / records.trips.len() as f64;
         if ratio > 0.8 {
@@ -3778,7 +3788,9 @@ fn check_data_quality(
     }
 
     // DQ_009: feed'de hiç stop_times yok
-    if records.stop_times_index.total_rows == 0 && !records.trips.is_empty() {
+    if trips_usable && stop_times_usable
+        && records.stop_times_index.total_rows == 0 && !records.trips.is_empty()
+    {
         notices.push(k6_notice(
             ctr,
             "DQ_009",
@@ -3796,7 +3808,7 @@ fn check_data_quality(
     }
 
     // DQ_011: feed'de çok az durak (< 2) — işlevsel transit veri değil
-    if records.stops.len() == 1 {
+    if stops_usable && records.stops.len() == 1 {
         notices.push(k6_notice(
             ctr,
             "DQ_011",
@@ -3814,7 +3826,7 @@ fn check_data_quality(
     }
 
     // DQ_012: feed'deki agency sayısı çok fazla ve agency_id kullanılmıyor
-    if records.agencies.len() > 5 {
+    if agency_usable && routes_usable && records.agencies.len() > 5 {
         let routes_with_agency = records.routes.iter().filter(|r| r.agency_id.is_some()).count();
         if routes_with_agency == 0 {
             notices.push(k6_notice(
@@ -3837,7 +3849,7 @@ fn check_data_quality(
     // RTS_025: routes.txt'te agency_id boş — önerilen alan (best practice). Tek/sıfır agency'de
     // bilgi düzeyi; >1 agency varsa agency_id zorunludur (DQ_012 / cross-ref kapsamı). MD'nin
     // missing_recommended_field karşılığı. Her boş hat için AYRI notice üretilir.
-    if records.agencies.len() <= 1 {
+    if agency_usable && routes_usable && records.agencies.len() <= 1 {
         for r in &records.routes {
             if r.agency_id.as_deref().is_none_or(|s| s.trim().is_empty()) {
                 let label = r.route_short_name.as_deref()
@@ -3856,7 +3868,7 @@ fn check_data_quality(
     }
 
     // DQ_013: feed'de çok az sefer (< 3)
-    {
+    if trips_usable {
         let trip_count = records.trips.len();
         if trip_count > 0 && trip_count < 3 {
             notices.push(k6_notice(
@@ -3878,45 +3890,49 @@ fn check_data_quality(
         || !records.trips.is_empty();
 
     // DQ_003: hat açıklaması (route_desc) boş — hat başına bir notice
-    for route in &records.routes {
-        if route.route_id.is_empty() { continue; }
-        if route.row.get("route_desc").map(|v| v.trim().is_empty()).unwrap_or(true) {
-            let label = route.route_short_name.as_deref()
-                .filter(|s| !s.is_empty())
-                .or(route.route_long_name.as_deref().filter(|s| !s.is_empty()))
-                .unwrap_or(&route.route_id);
-            notices.push(k6_notice(
-                ctr, "DQ_003", EntityType::Route,
-                Some(route.route_id.clone()), Some(route.route_id.clone()),
-                "routes.txt", Some(route.line), Some("route_desc"),
-                Some(route.route_id.clone()), None,
-                format!("'{}' ({}) hattında route_desc alanı boş; kullanıcılar hat hakkında ek bilgi alamıyor.", route.route_id, label),
-                "routes.txt'e route_desc açıklaması ekleyin.",
-            ));
+    if routes_usable {
+        for route in &records.routes {
+            if route.route_id.is_empty() { continue; }
+            if route.row.get("route_desc").map(|v| v.trim().is_empty()).unwrap_or(true) {
+                let label = route.route_short_name.as_deref()
+                    .filter(|s| !s.is_empty())
+                    .or(route.route_long_name.as_deref().filter(|s| !s.is_empty()))
+                    .unwrap_or(&route.route_id);
+                notices.push(k6_notice(
+                    ctr, "DQ_003", EntityType::Route,
+                    Some(route.route_id.clone()), Some(route.route_id.clone()),
+                    "routes.txt", Some(route.line), Some("route_desc"),
+                    Some(route.route_id.clone()), None,
+                    format!("'{}' ({}) hattında route_desc alanı boş; kullanıcılar hat hakkında ek bilgi alamıyor.", route.route_id, label),
+                    "routes.txt'e route_desc açıklaması ekleyin.",
+                ));
+            }
         }
     }
 
     // DQ_004: hat URL'si (route_url) eksik — hat başına bir notice
-    for route in &records.routes {
-        if route.route_id.is_empty() { continue; }
-        if route.row.get("route_url").map(|v| v.trim().is_empty()).unwrap_or(true) {
-            let label = route.route_short_name.as_deref()
-                .filter(|s| !s.is_empty())
-                .or(route.route_long_name.as_deref().filter(|s| !s.is_empty()))
-                .unwrap_or(&route.route_id);
-            notices.push(k6_notice(
-                ctr, "DQ_004", EntityType::Route,
-                Some(route.route_id.clone()), Some(route.route_id.clone()),
-                "routes.txt", Some(route.line), Some("route_url"),
-                Some(route.route_id.clone()), None,
-                format!("'{}' ({}) hattında route_url alanı boş; yolcular hat web sayfasına yönlendirilemiyor.", route.route_id, label),
-                "routes.txt'e route_url bağlantısı ekleyin.",
-            ));
+    if routes_usable {
+        for route in &records.routes {
+            if route.route_id.is_empty() { continue; }
+            if route.row.get("route_url").map(|v| v.trim().is_empty()).unwrap_or(true) {
+                let label = route.route_short_name.as_deref()
+                    .filter(|s| !s.is_empty())
+                    .or(route.route_long_name.as_deref().filter(|s| !s.is_empty()))
+                    .unwrap_or(&route.route_id);
+                notices.push(k6_notice(
+                    ctr, "DQ_004", EntityType::Route,
+                    Some(route.route_id.clone()), Some(route.route_id.clone()),
+                    "routes.txt", Some(route.line), Some("route_url"),
+                    Some(route.route_id.clone()), None,
+                    format!("'{}' ({}) hattında route_url alanı boş; yolcular hat web sayfasına yönlendirilemiyor.", route.route_id, label),
+                    "routes.txt'e route_url bağlantısı ekleyin.",
+                ));
+            }
         }
     }
 
     // DQ_017: şüpheli koordinat (0.0, 0.0) veya okyanus ortası gibi değerler
-    {
+    if stops_usable {
         let suspicious = records.stops.iter()
             .filter(|s| !s.stop_id.is_empty())
             .filter(|s| {
@@ -3936,7 +3952,7 @@ fn check_data_quality(
     }
 
     // FIN_010: feed geçerlilik süresi dolmuş
-    if today_yyyymmdd > 0 {
+    if feed_info_usable && today_yyyymmdd > 0 {
         if let Some(fi) = records.feed_info.first() {
             if let Some((y, m, d)) = fi.feed_end_date {
                 let end = y * 10000 + m * 100 + d;
@@ -4032,44 +4048,48 @@ fn check_data_quality(
     }
 
     // FIN_020: Feed geçerlilik penceresi < 7 gün
-    if let Some(fi) = records.feed_info.first() {
-        if let (Some((sy, sm, sd)), Some((ey, em, ed))) = (fi.feed_start_date, fi.feed_end_date) {
-            let start_jdn = yyyymmdd_to_jdn(sy * 10000 + sm * 100 + sd);
-            let end_jdn   = yyyymmdd_to_jdn(ey * 10000 + em * 100 + ed);
-            let span_days = end_jdn.saturating_sub(start_jdn);
-            if span_days < 7 {
-                notices.push(k6_notice(
-                    ctr, "FIN_020", EntityType::Feed,
-                    None, None, "feed_info.txt", None, None,
-                    Some(format!("{span_days}")), Some("≥7".to_string()),
-                    format!("Feed geçerlilik penceresi yalnızca {span_days} gün ({sy}-{sm:02}-{sd:02} → {ey}-{em:02}-{ed:02}) — operasyonel kullanım için çok kısa."),
-                    "feed_start_date ve feed_end_date değerlerini gerçek hizmet dönemiyle güncelleyin.",
-                ));
+    if feed_info_usable {
+        if let Some(fi) = records.feed_info.first() {
+            if let (Some((sy, sm, sd)), Some((ey, em, ed))) = (fi.feed_start_date, fi.feed_end_date) {
+                let start_jdn = yyyymmdd_to_jdn(sy * 10000 + sm * 100 + sd);
+                let end_jdn   = yyyymmdd_to_jdn(ey * 10000 + em * 100 + ed);
+                let span_days = end_jdn.saturating_sub(start_jdn);
+                if span_days < 7 {
+                    notices.push(k6_notice(
+                        ctr, "FIN_020", EntityType::Feed,
+                        None, None, "feed_info.txt", None, None,
+                        Some(format!("{span_days}")), Some("≥7".to_string()),
+                        format!("Feed geçerlilik penceresi yalnızca {span_days} gün ({sy}-{sm:02}-{sd:02} → {ey}-{em:02}-{ed:02}) — operasyonel kullanım için çok kısa."),
+                        "feed_start_date ve feed_end_date değerlerini gerçek hizmet dönemiyle güncelleyin.",
+                    ));
+                }
             }
         }
     }
 
     // CAL_020: Feed geçerlilik penceresi > 5 yıl (yaklaşık 1825 gün)
-    if let Some(fi) = records.feed_info.first() {
-        if let (Some((sy, sm, sd)), Some((ey, em, ed))) = (fi.feed_start_date, fi.feed_end_date) {
-            let start_jdn = yyyymmdd_to_jdn(sy * 10000 + sm * 100 + sd);
-            let end_jdn   = yyyymmdd_to_jdn(ey * 10000 + em * 100 + ed);
-            let span_days = end_jdn.saturating_sub(start_jdn);
-            if span_days > 1825 {
-                notices.push(k6_notice(
-                    ctr, "CAL_020", EntityType::Feed,
-                    None, None, "feed_info.txt", None, None,
-                    Some(format!("{} yıl", span_days / 365)), Some("≤5 yıl".to_string()),
-                    format!("Feed geçerlilik penceresi {} gün (~{} yıl) — gerçekçi olmayan zaman dilimi.",
-                        span_days, span_days / 365),
-                    "feed_start_date ve feed_end_date değerlerini gerçekçi hizmet dönemine göre düzenleyin.",
-                ));
+    if feed_info_usable {
+        if let Some(fi) = records.feed_info.first() {
+            if let (Some((sy, sm, sd)), Some((ey, em, ed))) = (fi.feed_start_date, fi.feed_end_date) {
+                let start_jdn = yyyymmdd_to_jdn(sy * 10000 + sm * 100 + sd);
+                let end_jdn   = yyyymmdd_to_jdn(ey * 10000 + em * 100 + ed);
+                let span_days = end_jdn.saturating_sub(start_jdn);
+                if span_days > 1825 {
+                    notices.push(k6_notice(
+                        ctr, "CAL_020", EntityType::Feed,
+                        None, None, "feed_info.txt", None, None,
+                        Some(format!("{} yıl", span_days / 365)), Some("≤5 yıl".to_string()),
+                        format!("Feed geçerlilik penceresi {} gün (~{} yıl) — gerçekçi olmayan zaman dilimi.",
+                            span_days, span_days / 365),
+                        "feed_start_date ve feed_end_date değerlerini gerçekçi hizmet dönemine göre düzenleyin.",
+                    ));
+                }
             }
         }
     }
 
     // DQ_022: Durakların >%80'i aynı stop_name değerini paylaşıyor (yer tutucu/test verisi)
-    {
+    if stops_usable {
         let total_named = records.stops.iter().filter(|s| s.stop_name.is_some()).count();
         if total_named >= 5 {
             let mut name_counts: HashMap<&str, u32> = HashMap::new();
@@ -4107,21 +4127,21 @@ fn check_data_quality(
             dups
         }
 
-        for dup_id in find_dups(records.stops.iter().filter(|s| !s.stop_id.is_empty()).map(|s| s.stop_id.as_str())) {
+        for dup_id in find_dups(records.stops.iter().filter(|_| stops_usable).filter(|s| !s.stop_id.is_empty()).map(|s| s.stop_id.as_str())) {
             notices.push(k6_notice(ctr, "DQ_021", EntityType::Stop,
                 Some(dup_id.clone()), Some(dup_id.clone()),
                 "stops.txt", None, Some("stop_id"), Some(dup_id.clone()), None,
                 format!("stop_id '{dup_id}' stops.txt'de birden fazla kez tanımlanmış."),
                 "stops.txt'de benzersiz stop_id değerleri kullanın."));
         }
-        for dup_id in find_dups(records.routes.iter().filter(|r| !r.route_id.is_empty()).map(|r| r.route_id.as_str())) {
+        for dup_id in find_dups(records.routes.iter().filter(|_| routes_usable).filter(|r| !r.route_id.is_empty()).map(|r| r.route_id.as_str())) {
             notices.push(k6_notice(ctr, "DQ_021", EntityType::Route,
                 Some(dup_id.clone()), Some(dup_id.clone()),
                 "routes.txt", None, Some("route_id"), Some(dup_id.clone()), None,
                 format!("route_id '{dup_id}' routes.txt'de birden fazla kez tanımlanmış."),
                 "routes.txt'de benzersiz route_id değerleri kullanın."));
         }
-        for dup_id in find_dups(records.trips.iter().filter(|t| !t.trip_id.is_empty()).map(|t| t.trip_id.as_str())) {
+        for dup_id in find_dups(records.trips.iter().filter(|_| trips_usable).filter(|t| !t.trip_id.is_empty()).map(|t| t.trip_id.as_str())) {
             notices.push(k6_notice(ctr, "DQ_021", EntityType::Trip,
                 Some(dup_id.clone()), Some(dup_id.clone()),
                 "trips.txt", None, Some("trip_id"), Some(dup_id.clone()), None,
@@ -4131,7 +4151,7 @@ fn check_data_quality(
         // attributions.txt (attribution_id) — spec tipi `Unique ID`, dosyanın birincil
         // anahtarı. Alan Optional olduğu için ATR_001 (eksiklik) Quality'dir; BENZERSİZLİK
         // ise normatiftir ve hiç denetlenmiyordu. Boş id yinelenme sayılmaz.
-        for dup_id in find_dups(records.attributions.iter()
+        for dup_id in find_dups(records.attributions.iter().filter(|_| availability.present_and_available("attributions.txt"))
             .filter_map(|a| a.attribution_id.as_deref()).filter(|id| !id.is_empty()))
         {
             notices.push(k6_notice(ctr, "DQ_021", EntityType::Attribution,
@@ -4143,7 +4163,7 @@ fn check_data_quality(
         // route_networks.txt (route_id) — spec birincil anahtarı ve açık hükmü:
         // "A route_id can only be defined in one network_id." Aynı hat iki ağa yazılırsa
         // hangi ücret kuralının geçerli olduğu belirsizleşir.
-        for dup_id in find_dups(records.route_networks.iter()
+        for dup_id in find_dups(records.route_networks.iter().filter(|_| availability.present_and_available("route_networks.txt"))
             .map(|r| r.route_id.as_str()).filter(|id| !id.is_empty()))
         {
             notices.push(k6_notice(ctr, "DQ_021", EntityType::Route,
@@ -4190,7 +4210,7 @@ fn check_data_quality(
         }
         let opt = |v: &Option<String>| v.clone().unwrap_or_default();
 
-        for dup in composite_dups(records.fare_leg_rules.iter().map(|r| vec![
+        for dup in composite_dups(records.fare_leg_rules.iter().filter(|_| availability.present_and_available("fare_leg_rules.txt")).map(|r| vec![
             opt(&r.network_id), opt(&r.from_area_id), opt(&r.to_area_id),
             opt(&r.from_timeframe_group_id), opt(&r.to_timeframe_group_id),
             r.fare_product_id.clone(),
@@ -4205,7 +4225,7 @@ fn check_data_quality(
 
         // fare_leg_join_rules.txt — spec birincil anahtarı DÖRT alanın tamamıdır. Boş değer
         // anahtarın anlamlı bir parçasıdır (spec boş alanı "eşleşmede yok sayılır" der).
-        for dup in composite_dups(records.fare_leg_join_rules.iter().map(|r| vec![
+        for dup in composite_dups(records.fare_leg_join_rules.iter().filter(|_| availability.present_and_available("fare_leg_join_rules.txt")).map(|r| vec![
             r.from_network_id.clone(), r.to_network_id.clone(),
             r.from_stop_id.clone(), r.to_stop_id.clone(),
         ])) {
@@ -4218,7 +4238,7 @@ fn check_data_quality(
                 "Bileşik birincil anahtarın (from_network_id, to_network_id, from_stop_id, to_stop_id) her satırda benzersiz olmasını sağlayın."));
         }
 
-        for dup in composite_dups(records.fare_transfer_rules.iter().map(|r| vec![
+        for dup in composite_dups(records.fare_transfer_rules.iter().filter(|_| availability.present_and_available("fare_transfer_rules.txt")).map(|r| vec![
             opt(&r.from_leg_group_id), opt(&r.to_leg_group_id), opt(&r.fare_product_id),
             r.transfer_count.map(|v| v.to_string()).unwrap_or_default(),
             r.duration_limit.map(|v| v.to_string()).unwrap_or_default(),
@@ -4231,7 +4251,7 @@ fn check_data_quality(
                 "Bileşik birincil anahtarın (from_leg_group_id, to_leg_group_id, fare_product_id, transfer_count, duration_limit) her satırda benzersiz olmasını sağlayın."));
         }
 
-        for dup_id in find_dups(records.location_groups.iter()
+        for dup_id in find_dups(records.location_groups.iter().filter(|_| availability.present_and_available("location_groups.txt"))
             .filter(|g| !g.location_group_id.is_empty())
             .map(|g| g.location_group_id.as_str()))
         {
@@ -4242,7 +4262,7 @@ fn check_data_quality(
                 "location_groups.txt'de benzersiz location_group_id değerleri kullanın."));
         }
 
-        for dup in composite_dups(records.location_group_stops.iter()
+        for dup in composite_dups(records.location_group_stops.iter().filter(|_| availability.present_and_available("location_group_stops.txt"))
             .map(|s| vec![s.location_group_id.clone(), s.stop_id.clone()]))
         {
             notices.push(k6_notice(ctr, "DQ_021", EntityType::Row,
@@ -4257,7 +4277,7 @@ fn check_data_quality(
         // TÜM ALANLAR olarak yazar, yani tam satır tekrarı ihlaldir. 2026-08-06 birincil
         // anahtar taramasında bu iki dosyada (ve calendar_dates'te) hiçbir kural bulunamadı;
         // `SAR_001..004` yalnız foreign key ve boşluk ölçüyor, tekrarı görmüyor.
-        for dup in composite_dups(records.stop_areas.iter()
+        for dup in composite_dups(records.stop_areas.iter().filter(|_| availability.present_and_available("stop_areas.txt"))
             .map(|s| vec![s.area_id.clone(), s.stop_id.clone()]))
         {
             notices.push(k6_notice(ctr, "DQ_021", EntityType::Row,
@@ -4268,7 +4288,7 @@ fn check_data_quality(
                 "stop_areas.txt'de her (area_id, stop_id) çifti yalnız bir kez bulunmalıdır."));
         }
 
-        for dup in composite_dups(records.fare_rules.iter().map(|r| vec![
+        for dup in composite_dups(records.fare_rules.iter().filter(|_| availability.present_and_available("fare_rules.txt")).map(|r| vec![
             r.fare_id.clone(), opt(&r.route_id), opt(&r.origin_id),
             opt(&r.destination_id), opt(&r.contains_id),
         ])) {
@@ -4292,7 +4312,7 @@ fn check_data_quality(
         // ⚠️ Notice SERVİS BAŞINA toplanır, tarih başına DEĞİL: calendar_dates feed'in en
         // hacimli dosyası olabiliyor (Entur) ve tarih başına notice patlar. `DQ_016`/`ARC_032`
         // deseninin aynısı.
-        {
+        if availability.present_and_available("calendar_dates.txt") {
             let cd = &records.calendar_dates;
             // FxHashMap gezilirken sıra nondeterministiktir → anahtarları sırala.
             let mut services: Vec<&str> = cd.added.keys().map(|s| s.as_str())
@@ -4374,8 +4394,16 @@ fn check_data_quality(
         // shapes.txt'in amacı sabit hat geometrisini çizmektir. Feed tümüyle talep-duyarlı
         // (DRT/flex) ise çizilecek güzergâh yoktur → shapes.txt yokluğu bulgu değildir.
         // feed_info.txt beklentisi DRT'den etkilenmez, ayrı değerlendirilir.
-        let missing_shapes = records.shapes.is_empty() && !feed_is_demand_responsive_only(records);
-        let missing_feed_info = records.feed_info.is_empty();
+        let missing_shapes = if availability.has_inventory() {
+            !availability.present("shapes.txt") && !feed_is_demand_responsive_only(records)
+        } else {
+            records.shapes.is_empty() && !feed_is_demand_responsive_only(records)
+        };
+        let missing_feed_info = if availability.has_inventory() {
+            !availability.present("feed_info.txt")
+        } else {
+            records.feed_info.is_empty()
+        };
         if missing_shapes && missing_feed_info {
             notices.push(k6_notice(
                 ctr, "ARC_020", EntityType::Feed,
@@ -10747,6 +10775,42 @@ mod tests {
         assert!(result.notices.iter().any(|n| n.rule_id == "DQ_005"));
     }
 
+    #[test]
+    fn unavailable_or_missing_calendar_does_not_produce_dq_005() {
+        let records = records_with(
+            vec![stop("A", 41.0, 29.0)],
+            vec![route("R1", 3)],
+            vec![trip("T1", "R1")],
+            vec![stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2)],
+        );
+
+        let present = std::collections::HashSet::from(["trips.txt".to_string()]);
+        let availability = FileAvailability::from_k1(&present, &[]);
+        let result = analyze_with_files(
+            &records,
+            &DerivedData::default(),
+            &default_config(),
+            20260514,
+            &availability,
+        );
+        assert!(!result.notices.iter().any(|n| n.rule_id == "DQ_005"));
+
+        let present = std::collections::HashSet::from([
+            "trips.txt".to_string(),
+            "calendar.txt".to_string(),
+        ]);
+        let unavailable = vec!["calendar.txt".to_string()];
+        let availability = FileAvailability::from_k1(&present, &unavailable);
+        let result = analyze_with_files(
+            &records,
+            &DerivedData::default(),
+            &default_config(),
+            20260514,
+            &availability,
+        );
+        assert!(!result.notices.iter().any(|n| n.rule_id == "DQ_005"));
+    }
+
     // ── WP-09e: Entegrasyon smoke testleri ──────────────────────────────────
 
     #[test]
@@ -10875,6 +10939,30 @@ mod tests {
         );
         let result = analyze(&records, &DerivedData::default(), &default_config(), 20260514);
         assert!(result.notices.iter().any(|n| n.rule_id == "DQ_009"), "DQ_009 olmalı");
+    }
+
+    #[test]
+    fn unavailable_stop_times_does_not_produce_dq_009() {
+        let records = records_with(
+            vec![stop("A", 41.0, 29.0)],
+            vec![route("R1", 3)],
+            vec![trip("T1", "R1")],
+            vec![],
+        );
+        let present = std::collections::HashSet::from([
+            "trips.txt".to_string(),
+            "stop_times.txt".to_string(),
+        ]);
+        let unavailable = vec!["stop_times.txt".to_string()];
+        let availability = FileAvailability::from_k1(&present, &unavailable);
+        let result = analyze_with_files(
+            &records,
+            &DerivedData::default(),
+            &default_config(),
+            20260514,
+            &availability,
+        );
+        assert!(!result.notices.iter().any(|n| n.rule_id == "DQ_009"));
     }
 
     #[test]
@@ -13641,6 +13729,25 @@ mod tests {
             &empty_derived(), &default_config(), 20260514,
         );
         assert!(missing.notices.iter().all(|n| n.rule_id != "FIN_019"));
+    }
+
+    #[test]
+    fn unavailable_feed_info_does_not_produce_feed_expiry_findings() {
+        let records = records_with_feed_end(Some((2026, 5, 17)));
+        let present = std::collections::HashSet::from(["feed_info.txt".to_string()]);
+        let unavailable = vec!["feed_info.txt".to_string()];
+        let availability = FileAvailability::from_k1(&present, &unavailable);
+        let result = analyze_with_files(
+            &records,
+            &empty_derived(),
+            &default_config(),
+            20260514,
+            &availability,
+        );
+
+        assert!(result.notices.iter().all(|n| {
+            !matches!(n.rule_id.as_str(), "FIN_010" | "FIN_016" | "FIN_017" | "FIN_018" | "FIN_019" | "FIN_020" | "CAL_020")
+        }));
     }
 
     fn arc_020_files(records: &crate::k2::EntityRecords) -> Vec<String> {
