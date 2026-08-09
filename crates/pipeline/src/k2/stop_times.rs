@@ -2231,7 +2231,7 @@ pub fn validate_stop_times(
     if raw_midnight_wraps > 0 {
         let notice = make_k2_notice(
             &mut st.counter, "STM_048", EntityType::Feed, None,
-            None, &file.name, None, Some("arrival_time|departure_time"),
+            None, &file.name, None, Some("arrival_time"),
             Some(raw_midnight_wraps.to_string()), Some("24:00:00+".to_string()),
             format!("{raw_midnight_wraps} seferde gece yarısı sonrası saatler ham feed'de 00:xx olarak yazılmış; \
                 GTFS servis günü için 24:00:00+ biçimi kullanılmalıdır. Analiz için 24:xx olarak normalize edilecektir."),

@@ -462,6 +462,21 @@ Karşılaştırma tamamen tarayıcı içinde çalışır. Golden JSON tarayıcı
 
 Önem seviyeleri, [GTFS Schedule Referans Dokümantasyonu](https://gtfs.org/documentation/schedule/reference/#file-requirements)'nda tanımlanan dosya ve alan zorunluluk seviyeleri (Required · Conditionally Required · Recommended · Optional) esas alınarak belirlenmiştir.
 
+### Spec severity rubric'i
+
+Spec kurallarında önem, MobilityData'nın `ERROR/WARNING/INFO` etiketlerinden değil, ihlalin
+GTFS verisini tüketilebilirlik üzerindeki etkisinden türetilir:
+
+- **Kritik:** Required dosya/alan, primary-key veya foreign-key bütünlüğü ya da çekirdek tip/range ihlali; feed'in güvenilir biçimde tüketilmesini engeller ve `Spec + Kritik` yayın kapısıdır.
+- **Yüksek:** Feed parse edilebilir kalsa bile sefer, ücret, erişilebilirlik veya Flex/pathway semantiğini maddi biçimde değiştiren doğrudan normatif ihlal.
+- **Orta:** Etkisi sınırlı bir dosya, alan veya koşullu semantik ihlali; ana veri modeli okunabilir kalır.
+- **Düşük:** Dar etkili, metadata/opsiyonel alan ölçeğinde normatif sapma; yayın kapısını etkilemez.
+- **Bilgi:** Normatif Spec ihlali için kullanılmaz; yalnız ölçüm veya bağlam sinyalidir.
+
+Bu değişmez nedeniyle `Spec` sınıfında `Bilgi` kural bulunamaz. 2026-08-09 audit'inde 307
+Spec kuralı bu rubric ile yeniden incelendi; iki raw servis-günü kuralı (`STM_048` ve
+`STM_049`) Bilgi'den Yüksek'e alındı. Ayrıntılı ID envanteri [`docs/audits/spec-severity-rubric-2026-08-09.md`](docs/audits/spec-severity-rubric-2026-08-09.md)'dedir.
+
 GTFS-JP feed'leri için **JPN** grubu kuralları, resmî [GTFS-JP spesifikasyonu](https://www.gtfs.jp/) (gtfs.jp) esas alınarak belirlenir.
 
 ---

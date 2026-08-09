@@ -732,9 +732,9 @@ pub static RULES: &[RuleMeta] = &[
         "trip_id eksik"),
     r!("STM_047", Kritik, Spec, 1, &[], Some("trip_id"), VS_K, Row,
         "Kesin zaman noktasında (timepoint=1) arrival_time/departure_time eksik"),
-    r!("STM_048", Bilgi, Spec, 1, &[], Some("arrival_time|departure_time"), VS, Feed,
+    r!("STM_048", Yuksek, Spec, 1, &[], Some("arrival_time"), VS, Feed,
         "Gece yarısı sonrası saatler 00:xx yazılmış (GTFS servis günü için 24:xx kullanılmalı)"),
-    r!("STM_049", Bilgi, Spec, 1, &[], Some("departure_time"), VS, Feed,
+    r!("STM_049", Yuksek, Spec, 1, &[], Some("departure_time"), VS, Feed,
         "Aynı satırda gece yarısı sonrası kalkış 00:xx yazılmış (GTFS servis günü için 24:xx kullanılmalı)"),
     r!("STM_050", Dusuk, Quality, 1, &[], None, VS, Feed,
         "timepoint sütunu mevcut ama satırda boş — değer açıkça belirtilmeli (0 yaklaşık / 1 kesin)"),
@@ -2618,6 +2618,27 @@ mod tests {
                     "{}: Spec+Kritik kural R1'i içermeli", rule.id
                 );
             }
+        }
+    }
+
+    #[test]
+    fn spec_severity_rubric_has_no_info_findings() {
+        use gtfs_core::{RuleClass::Spec, Severity::{Bilgi, Yuksek}};
+
+        let info_rules: Vec<&str> = RULES
+            .iter()
+            .filter(|rule| rule.rule_class == Spec && rule.severity == Bilgi)
+            .map(|rule| rule.id)
+            .collect();
+        assert!(
+            info_rules.is_empty(),
+            "normatif Spec ihlalleri Bilgi olamaz; yalnız ölçüm/bağlam bulguları Bilgi olabilir: {info_rules:?}"
+        );
+
+        for id in ["STM_048", "STM_049"] {
+            let rule = get_rule(id).expect("STM raw midnight rule registry'de olmalı");
+            assert_eq!(rule.rule_class, Spec);
+            assert_eq!(rule.severity, Yuksek, "{id} ham servis-günü ihlali Yüksek olmalı");
         }
     }
 

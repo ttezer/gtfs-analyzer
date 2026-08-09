@@ -1933,7 +1933,7 @@ fn stm_048_reports_raw_rollover_as_spec_without_stm_008_duplicate() {
     let stm048: Vec<_> = notices.iter().filter(|n| n.rule_id == "STM_048").collect();
     assert_eq!(stm048.len(), 1, "raw rollover tek feed özeti olmalı: {stm048:?}");
     assert_eq!(stm048[0].rule_class, gtfs_core::RuleClass::Spec);
-    assert_eq!(stm048[0].severity, gtfs_core::Severity::Bilgi);
+    assert_eq!(stm048[0].severity, gtfs_core::Severity::Yuksek);
     assert_eq!(stm048[0].observed_value.as_deref(), Some("1"));
     assert!(!notices.iter().any(|n| n.rule_id == "STM_008"),
         "normalization sonrası aynı olay STM_008 olarak tekrarlanmamalı: {notices:?}");
@@ -1987,8 +1987,37 @@ fn raw_same_row_departure_is_stm_049_spec_without_config_gate() {
     let stm049: Vec<_> = notices.iter().filter(|n| n.rule_id == "STM_049").collect();
     assert_eq!(stm049.len(), 1, "same-row raw departure tek feed özeti olmalı: {stm049:?}");
     assert_eq!(stm049[0].rule_class, gtfs_core::RuleClass::Spec);
+    assert_eq!(stm049[0].severity, gtfs_core::Severity::Yuksek);
     assert!(!notices.iter().any(|n| n.rule_id == "STM_048"),
         "aynı satır departure olayı STM_048'e karışmamalı: {notices:?}");
+}
+
+#[test]
+fn stm_048_and_stm_049_are_separate_high_spec_findings() {
+    let files = with_opts(
+        &[(
+            "stop_times.txt",
+            "trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
+T1,23:50:00,23:50:00,S1,1\n\
+T1,00:10:00,00:10:00,S2,2\n\
+T2,23:59:00,00:02:00,S3,1\n\
+T2,24:10:00,24:10:00,S4,2\n",
+        )],
+        &[],
+        &[],
+    );
+    let notices = notices_for(&files, &ValidatorConfig::default());
+    let stm048: Vec<_> = notices.iter().filter(|n| n.rule_id == "STM_048").collect();
+    let stm049: Vec<_> = notices.iter().filter(|n| n.rule_id == "STM_049").collect();
+
+    assert_eq!(stm048.len(), 1, "arrival rollover kendi finding'i olmalı: {stm048:?}");
+    assert_eq!(stm049.len(), 1, "same-row departure rollover kendi finding'i olmalı: {stm049:?}");
+    assert_eq!(stm048[0].field.as_deref(), Some("arrival_time"));
+    assert_eq!(stm049[0].field.as_deref(), Some("departure_time"));
+    assert_eq!(stm048[0].severity, gtfs_core::Severity::Yuksek);
+    assert_eq!(stm049[0].severity, gtfs_core::Severity::Yuksek);
+    assert_eq!(stm048[0].rule_class, gtfs_core::RuleClass::Spec);
+    assert_eq!(stm049[0].rule_class, gtfs_core::RuleClass::Spec);
 }
 
 #[test]

@@ -257,8 +257,8 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | STM_045 | Trip departure time exceeds the service day window | MEDIUM | Quality |
 | STM_046 | trip_id missing | CRITICAL | Spec |
 | STM_047 | timepoint=1 without arrival/departure time | CRITICAL | Spec |
-| STM_048 | After-midnight service-day times written as 00:xx (GTFS Spec) | INFO | Spec |
-| STM_049 | After-midnight departure written as 00:xx on the same row (GTFS Spec) | INFO | Spec |
+| STM_048 | After-midnight service-day times written as 00:xx (GTFS Spec) | HIGH | Spec |
+| STM_049 | After-midnight departure written as 00:xx on the same row (GTFS Spec) | HIGH | Spec |
 | STM_050 | timepoint column present but value empty | LOW | Quality |
 | STM_051 | pickup_type 0/3 forbidden with Flex window | HIGH | Spec |
 | STM_052 | drop_off_type 0 forbidden with Flex window | HIGH | Spec |
