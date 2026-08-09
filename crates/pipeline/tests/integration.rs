@@ -189,32 +189,53 @@ fn arc001_corrupt_zip_returns_fatal_zip_unreadable() {
     }
 }
 
-// ── Test 1b: Zorunlu dosya eksik → Fatal(NoRequiredFiles) ────────────────────
-// ARC_004 yolu. Bu kural `PROOF_ALLOWLIST`'tedir çünkü notice'ı emit EDİLİR ama hemen
-// ardından `return Err(FatalError{NoRequiredFiles})` gelir ve notice vektörü düşer —
-// emit_proof harness'ı notice arar, bulamaz. Muafiyetin gerekçesi doğruydu AMA fatal yolun
-// KENDİSİ hiç test edilmiyordu (ARC_001 ve ARC_029'un aksine): allowlist "kanıt başka yerde"
-// diyordu, o başka yer yoktu. 2026-08-02'de eklendi.
+// ── Test 1b: Zorunlu dosya eksik → PARTIAL + ARC_004 ─────────────────────────
+// ZIP okunabilir kaldığı için bağımsız bulgular korunur; eksik önkoşula dayanan
+// çapraz-ref ve türev aşamalar güvenli biçimde atlanır.
 
 #[test]
-fn arc004_missing_required_file_returns_fatal_no_required_files() {
+fn arc004_missing_required_file_returns_partial_report() {
     let files: Vec<(&str, &[u8])> = base_files()
         .into_iter()
         .filter(|(name, _)| *name != "routes.txt")
         .collect();
     match run(&files) {
-        ValidateResult::Fatal(e) => {
-            assert_eq!(
-                e.code,
-                FatalCode::NoRequiredFiles,
-                "Beklenen NoRequiredFiles, alınan: {:?}", e.code,
-            );
-            assert!(
-                e.message.contains("routes.txt"),
-                "fatal mesajı eksik dosyayı adlandırmalı: {}", e.message,
-            );
+        ValidateResult::Ok(vr) => {
+            assert_eq!(vr.status, gtfs_core::ValidationStatus::Partial);
+            let partial = vr.partial.expect("partial kapsamı raporlanmalı");
+            assert!(partial.unavailable_files.contains(&"routes.txt".to_string()));
+            assert!(partial.skipped_stages.contains(&"K4-cross-ref".to_string()));
+            assert!(vr.notices.iter().any(
+                |n| n.rule_id == "ARC_004" && n.observed_value.as_deref() == Some("routes.txt")
+            ));
         }
-        _ => panic!("Fatal(NoRequiredFiles) beklendi"),
+        other => panic!("Partial Ok bekleniyor, gelen: {other:?}"),
+    }
+}
+
+#[test]
+fn malformed_optional_file_is_skipped_with_partial_report() {
+    // feed_info.txt opsiyoneldir; bozuk UTF-8 typed kayda dönüştürülmemeli,
+    // fakat okunabilir feed'in bağımsız K1/K2 kapsamı korunmalıdır.
+    let mut files = base_files();
+    files.push(("feed_info.txt", b"feed_publisher_name,feed_lang\nTest,\xFF\n"));
+
+    match run(&files) {
+        ValidateResult::Ok(vr) => {
+            assert_eq!(vr.status, gtfs_core::ValidationStatus::Partial);
+            let partial = vr.partial.expect("partial kapsamı raporlanmalı");
+            assert!(partial.unavailable_files.contains(&"feed_info.txt".to_string()));
+            assert!(partial.skipped_stages.contains(&"K4-cross-ref".to_string()));
+            assert!(vr
+                .notices
+                .iter()
+                .any(|n| n.rule_id == "ARC_002" && n.file.as_deref() == Some("feed_info.txt")));
+            assert!(vr
+                .notices
+                .iter()
+                .any(|n| n.rule_id == "ARC_003" && n.file.as_deref() == Some("feed_info.txt")));
+        }
+        other => panic!("Partial Ok bekleniyor, gelen: {other:?}"),
     }
 }
 
@@ -1425,14 +1446,21 @@ fn flex_only_feed_without_stops_txt_is_not_fatal() {
 }
 
 /// stops.txt VE locations.geojson ikisi de yoksa hizmetin nerede verildiği hiç tanımlı
-/// değildir → Fatal KORUNUR (koşulun gevşetilmesi bu durumu kapsamamalı).
+/// değildir → PARTIAL raporlanır; ZIP okunabilir kaldığı için Fatal değildir.
 #[test]
-fn feed_without_stops_txt_and_without_geojson_is_still_fatal() {
+fn feed_without_stops_txt_and_without_geojson_is_partial() {
     let mut files = base_files();
     files.retain(|(n, _)| *n != "stops.txt");
     match validate_bytes(&make_zip(&files), &ValidatorConfig::default(), TODAY) {
-        ValidateResult::Fatal(_) => {}
-        ValidateResult::Ok(_) => panic!("stops.txt ve locations.geojson ikisi de yokken Fatal beklenir"),
+        ValidateResult::Ok(vr) => {
+            assert_eq!(vr.status, gtfs_core::ValidationStatus::Partial);
+            assert!(vr
+                .partial
+                .expect("partial kapsamı raporlanmalı")
+                .unavailable_files
+                .contains(&"stops.txt".to_string()));
+        }
+        ValidateResult::Fatal(e) => panic!("okunabilir ZIP Fatal olmamalı: {e:?}"),
     }
 }
 
@@ -2591,7 +2619,7 @@ fn arc033_covers_streamed_files_too() {
 
 #[test]
 fn case_sensitivity_wrong_case_file_is_not_the_required_file() {
-    // `Stops.txt` ≠ `stops.txt`. Yanlış-case dosya zorunlu dosya SAYILMAZ → Fatal.
+    // `Stops.txt` ≠ `stops.txt`. Yanlış-case dosya zorunlu dosya SAYILMAZ → PARTIAL.
     let mut files = base_files();
     for slot in files.iter_mut() {
         if slot.0 == "stops.txt" {
@@ -2599,9 +2627,11 @@ fn case_sensitivity_wrong_case_file_is_not_the_required_file() {
         }
     }
     match run(&files) {
-        ValidateResult::Fatal(e) => assert_eq!(e.code, FatalCode::NoRequiredFiles,
-            "yanlış-case dosya adı zorunlu dosyayı karşılamamalı"),
-        other => panic!("Fatal(NoRequiredFiles) beklendi, gelen: {other:?}"),
+        ValidateResult::Ok(vr) => {
+            assert_eq!(vr.status, gtfs_core::ValidationStatus::Partial);
+            assert!(vr.notices.iter().any(|n| n.rule_id == "ARC_004"));
+        }
+        other => panic!("Partial Ok beklendi, gelen: {other:?}"),
     }
 }
 

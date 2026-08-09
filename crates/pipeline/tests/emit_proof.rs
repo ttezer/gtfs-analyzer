@@ -84,7 +84,7 @@ fn emitted_rules_modes(files: &[(String, Vec<u8>)], config: &ValidatorConfig, no
     match validate_bytes(&make_zip_with_modes(files, no_read), config, TODAY) {
         ValidateResult::Ok(vr) => vr.notices.iter().map(|n| n.rule_id.clone()).collect(),
         ValidateResult::Fatal(e) => {
-            // Fatal yol: rule_id'yi koddan türetmek yerine boş set; fatal kurallar allowlist'te.
+            // Fatal yol: rule_id'yi koddan türetmek yerine boş set; arşiv fatal'ları allowlist'te.
             let _ = e;
             BTreeSet::new()
         }
@@ -135,8 +135,7 @@ fn fx_cfg(rule: &'static str, overrides: Vec<(&'static str, &'static str)>, conf
 ///
 /// ⚠️ **MUAFİYET, KANIT YOKLUĞU DEMEK DEĞİLDİR.** Bu listeye giren her kural için kanıtın
 /// NEREDE olduğu yazılmalıdır; yazılamıyorsa kural ya ölüdür ya da eksiktir. 2026-08-02'de
-/// denetlendi: üç girişin ikisinin kanıtı vardı, `ARC_004`'ünki YOKTU ("kanıt başka yerde"
-/// deniyordu ama o başka yer boştu) → `integration.rs::arc004_missing_required_file_*` eklendi.
+/// denetlendi: üç girişin ikisinin kanıtı vardı; artık ARC_004 için doğrudan fixture vardır.
 ///
 /// Bu liste iki defterin de kör noktasıdır: buradaki kurallar hiç notice üretmediği için
 /// kapsam defterinde, iddia defterinde ve field=None defterinde GÖRÜNMEZLER.
@@ -146,10 +145,6 @@ const PROOF_ALLOWLIST: &[&str] = &[
     // Fatal yol — kanıt: integration.rs::arc029_* (DEFAULT limitlerle iki read_fatal yolu +
     // ratio_floor FP guard'ı). Notice fixture'ı yapısal olarak yazılamaz.
     "ARC_029",
-    // Notice emit EDİLİR ama hemen `return Err(FatalError{NoRequiredFiles})` gelir ve notice
-    // vektörü düşer. Kanıt (2026-08-02'de eklendi):
-    // integration.rs::arc004_missing_required_file_returns_fatal_no_required_files
-    "ARC_004",
 ];
 
 // ── DEBT DEFTERİ ARTIK BOŞ (coverage_debt.txt) ──
@@ -163,7 +158,7 @@ const PROOF_ALLOWLIST: &[&str] = &[
 //   SHP_026/STM_044/ARC_022 — eşik `ValidatorConfig`'e taşındı (varsayılan DEĞİŞMEDİ)
 //   ARC_027                 — harness'a `unix_permissions` yazan kurucu eklendi (fx_noread)
 // ⚠️ DERS: "yazılamaz" etiketi bir ÖLÇÜM DEĞİL, bir tahmindi. Her biri denendiğinde düştü.
-// ARC_001/ARC_004/ARC_029 PROOF_ALLOWLIST'te (Fatal yol). NOT (2026-07-16): ARC_029 borç
+// ARC_001/ARC_029 PROOF_ALLOWLIST'te (Fatal yol). NOT (2026-07-16): ARC_029 borç
 // ledger'ındaydı ama borç DEĞİLDİ — ARC_001 gibi Fatal yol; allowlist'e taşındı, uçtan uca
 // kanıtı integration.rs::arc029_*'ta.
 
@@ -251,6 +246,8 @@ fn fixtures() -> Vec<Fixture> {
         // ── ARC grubu (arşiv/dosya/başlık seviyesi) ────────────────────────────
         // ARC_008: takvim dosyası yok (calendar + calendar_dates ikisi de).
         fx_rm("ARC_008", vec![], vec!["calendar.txt"]),
+        // ARC_004: eksik required file notice + PARTIAL olarak raporlanır.
+        fx_rm("ARC_004", vec![], vec!["routes.txt"]),
         // ARC_031: translations.txt var, feed_info.txt yok → spec bu hâlde feed_info'yu
         // ZORUNLU kılar (koşul sağlanmazsa yalnız tavsiye eder → ARC_020, Quality).
         fx("ARC_031", vec![("translations.txt", "table_name,field_name,language,translation,record_id\nstops,stop_name,fr,Gare,S1\n")]),

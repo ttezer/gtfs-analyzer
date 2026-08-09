@@ -21,7 +21,7 @@ pub use k7_reporting::{report as report_k7, K7Result};
 
 // Entegrasyon testlerine açık yeniden ihracat
 pub use gtfs_config::{CalendarOverrideRule, ValidatorConfig};
-pub use gtfs_core::{FatalCode, FatalError, FileInfo, ValidateResult, ValidationResult};
+pub use gtfs_core::{FatalCode, FatalError, FileInfo, ValidateResult, ValidationResult, ValidationStatus};
 
 /// K1–K7 tam pipeline — entegrasyon testleri ve araç entegrasyonu için.
 /// WASM sürümünden farkı: notice limit yok, `today` dışarıdan verilir.
@@ -35,6 +35,7 @@ pub fn validate_bytes(zip: &[u8], config: &ValidatorConfig, today: u32) -> Valid
             Err(e) => return ValidateResult::Fatal(e),
         }
     };
+    let mut partial = k1.partial;
     let mut file_stats = collect_file_stats(&k1.files);
 
     let mut k2 = {
@@ -68,23 +69,32 @@ pub fn validate_bytes(zip: &[u8], config: &ValidatorConfig, today: u32) -> Valid
         k3
     };
 
-    let k4 = {
+    let k4 = if partial.unavailable_files.is_empty() {
         let _t = Timer::start("K4-cross-ref");
         check_cross_ref(&k2.records, &k3.entity_map, today)
+    } else {
+        partial.skip_stage("K4-cross-ref");
+        K4Result::default()
     };
 
     // #15: trip_stop_set (büyük feed'de ~226 MB) yalnızca K4'te kullanılır; K5/K6/K7 ve
     // build_name_index kullanmaz → K4 biter bitmez serbest bırak (K6 öncesi canlı belleği düşürür).
     k2.records.stop_times_index.trip_stop_set = Default::default();
 
-    let k5 = {
+    let k5 = if partial.unavailable_files.is_empty() {
         let _t = Timer::start("K5-derived");
         build_derived(&k2.records, &k3.entity_map)
+    } else {
+        partial.skip_stage("K5-derived");
+        K5Result::default()
     };
 
-    let k6 = {
+    let k6 = if partial.unavailable_files.is_empty() {
         let _t = Timer::start("K6-analytics");
         analyze_k6(&k2.records, &k5.derived, config, today)
+    } else {
+        partial.skip_stage("K6-analytics");
+        K6Result::default()
     };
 
     let mut all = Vec::new();
@@ -104,6 +114,8 @@ pub fn validate_bytes(zip: &[u8], config: &ValidatorConfig, today: u32) -> Valid
     // ödünç verilirken taşınmamalı.
     let name_index = build_name_index(&k2.records, &k7.notices);
     ValidateResult::Ok(ValidationResult {
+        status: if partial.is_empty() { ValidationStatus::Complete } else { ValidationStatus::Partial },
+        partial: (!partial.is_empty()).then_some(partial),
         notices: k7.notices,
         reports: k7.reports,
         metrics: k7.metrics,

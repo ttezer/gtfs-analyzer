@@ -1,7 +1,7 @@
 use wasm_bindgen::prelude::*;
 
 use gtfs_config::{merge_delta, ValidatorConfig};
-use gtfs_core::{FatalCode, FatalError, ValidateResult, ValidationResult};
+use gtfs_core::{FatalCode, FatalError, PartialReport, ValidateResult, ValidationResult, ValidationStatus};
 use gtfs_pipeline::{
     analyze_k6, build_derived, build_entity_map, build_name_index, check_cross_ref,
     collect_file_stats, parse, report_k7, validate_k2, DerivedData, EntityRecords, FileInfo,
@@ -46,6 +46,7 @@ pub struct CachedState {
     records: EntityRecords,
     derived: DerivedData,
     file_stats: Vec<FileInfo>,
+    partial: PartialReport,
 }
 
 // ── Yardımcı: aşama callback çağrısı ─────────────────────────────────────────
@@ -248,7 +249,11 @@ pub fn rerun_k6_k7(cache: &CachedState, config_delta_json: &str, on_stage: &js_s
 
     let t = js_sys::Date::now();
     t_start!("K6-analytics");
-    let k6 = analyze_k6(&cache.records, &cache.derived, &config, today);
+    let k6 = if cache.partial.unavailable_files.is_empty() {
+        analyze_k6(&cache.records, &cache.derived, &config, today)
+    } else {
+        gtfs_pipeline::K6Result::default()
+    };
     t_end!("K6-analytics");
     call_stage(on_stage, "K6", (js_sys::Date::now() - t) as u32);
 
@@ -276,6 +281,8 @@ pub fn rerun_k6_k7(cache: &CachedState, config_delta_json: &str, on_stage: &js_s
     // Harita verisi notice'lara göre filtrelenir (büyük feed modu) → önce name_index.
     let name_index = build_name_index(&cache.records, &k7.notices);
     let result = ValidateResult::Ok(ValidationResult {
+        status: if cache.partial.is_empty() { ValidationStatus::Complete } else { ValidationStatus::Partial },
+        partial: (!cache.partial.is_empty()).then_some(cache.partial.clone()),
         notices: k7.notices,
         reports: k7.reports,
         metrics: k7.metrics,
@@ -298,6 +305,7 @@ fn run_full_pipeline(zip_bytes: &[u8], config: &ValidatorConfig, today: u32) -> 
         Ok(r) => r,
         Err(e) => return ValidateResult::Fatal(e),
     };
+    let mut partial = k1.partial;
     t_end!("K1-parse");
     let mut file_stats = collect_file_stats(&k1.files);
 
@@ -320,20 +328,38 @@ fn run_full_pipeline(zip_bytes: &[u8], config: &ValidatorConfig, today: u32) -> 
     let k3 = build_entity_map(&k2.records);
     t_end!("K3-entity-map");
 
-    t_start!("K4-cross-ref");
-    let k4 = check_cross_ref(&k2.records, &k3.entity_map, today);
-    t_end!("K4-cross-ref");
+    let k4 = if partial.unavailable_files.is_empty() {
+        t_start!("K4-cross-ref");
+        let result = check_cross_ref(&k2.records, &k3.entity_map, today);
+        t_end!("K4-cross-ref");
+        result
+    } else {
+        partial.skip_stage("K4-cross-ref");
+        gtfs_pipeline::K4Result::default()
+    };
 
     // #15: trip_stop_set (büyük feed'de ~226 MB) yalnızca K4'te kullanılır → serbest bırak.
     k2.records.stop_times_index.trip_stop_set = Default::default();
 
-    t_start!("K5-derived");
-    let k5 = build_derived(&k2.records, &k3.entity_map);
-    t_end!("K5-derived");
+    let k5 = if partial.unavailable_files.is_empty() {
+        t_start!("K5-derived");
+        let result = build_derived(&k2.records, &k3.entity_map);
+        t_end!("K5-derived");
+        result
+    } else {
+        partial.skip_stage("K5-derived");
+        gtfs_pipeline::K5Result::default()
+    };
 
-    t_start!("K6-analytics");
-    let k6 = analyze_k6(&k2.records, &k5.derived, config, today);
-    t_end!("K6-analytics");
+    let k6 = if partial.unavailable_files.is_empty() {
+        t_start!("K6-analytics");
+        let result = analyze_k6(&k2.records, &k5.derived, config, today);
+        t_end!("K6-analytics");
+        result
+    } else {
+        partial.skip_stage("K6-analytics");
+        gtfs_pipeline::K6Result::default()
+    };
 
     let mut all_notices = Vec::new();
     all_notices.extend(k1.notices);
@@ -361,6 +387,8 @@ fn run_full_pipeline(zip_bytes: &[u8], config: &ValidatorConfig, today: u32) -> 
     let capped_totals = build_capped_totals(&real_totals);
     let name_index = build_name_index(&k2.records, &k7.notices);
     ValidateResult::Ok(ValidationResult {
+        status: if partial.is_empty() { ValidationStatus::Complete } else { ValidationStatus::Partial },
+        partial: (!partial.is_empty()).then_some(partial),
         notices: k7.notices,
         reports: k7.reports,
         metrics: k7.metrics,
@@ -379,6 +407,7 @@ fn run_k1_k5(zip_bytes: &[u8], config: &ValidatorConfig, on_stage: &js_sys::Func
     t_end!("K1-parse");
     call_stage(on_stage, "K1", (js_sys::Date::now() - t) as u32);
     log_mem("after-K1-parse");
+    let mut partial = k1.partial;
     let mut file_stats = collect_file_stats(&k1.files);
 
     t = js_sys::Date::now();
@@ -405,9 +434,15 @@ fn run_k1_k5(zip_bytes: &[u8], config: &ValidatorConfig, on_stage: &js_sys::Func
     log_mem("after-K3-entity-map");
 
     t = js_sys::Date::now();
-    t_start!("K4-cross-ref");
-    let k4 = check_cross_ref(&k2.records, &k3.entity_map, today);
-    t_end!("K4-cross-ref");
+    let k4 = if partial.unavailable_files.is_empty() {
+        t_start!("K4-cross-ref");
+        let result = check_cross_ref(&k2.records, &k3.entity_map, today);
+        t_end!("K4-cross-ref");
+        result
+    } else {
+        partial.skip_stage("K4-cross-ref");
+        gtfs_pipeline::K4Result::default()
+    };
     call_stage(on_stage, "K4", (js_sys::Date::now() - t) as u32);
     // #15: trip_stop_set (büyük feed'de ~226 MB) yalnızca K4'te kullanılır; cache'lenen records'tan
     // K6 continuation öncesi serbest bırak (K6 peak'ini ~226 MB düşürme potansiyeli).
@@ -415,9 +450,15 @@ fn run_k1_k5(zip_bytes: &[u8], config: &ValidatorConfig, on_stage: &js_sys::Func
     log_mem("after-K4-cross-ref");
 
     t = js_sys::Date::now();
-    t_start!("K5-derived");
-    let k5 = build_derived(&k2.records, &k3.entity_map);
-    t_end!("K5-derived");
+    let k5 = if partial.unavailable_files.is_empty() {
+        t_start!("K5-derived");
+        let result = build_derived(&k2.records, &k3.entity_map);
+        t_end!("K5-derived");
+        result
+    } else {
+        partial.skip_stage("K5-derived");
+        gtfs_pipeline::K5Result::default()
+    };
     call_stage(on_stage, "K5", (js_sys::Date::now() - t) as u32);
     log_mem("after-K5-derived");
 
@@ -431,7 +472,7 @@ fn run_k1_k5(zip_bytes: &[u8], config: &ValidatorConfig, on_stage: &js_sys::Func
     web_sys::console::log_1(&format!("[mem] K1-K5 done: {} notices, {:.1} MB", k1_k5_notices.len(), mem_mb()).into());
     web_sys::console::log_1(&format!("[rules] K1-K5 top: {}", top_rules_str(&k1_k5_notices)).into());
 
-    Ok(CachedState { k1_k5_notices, records: k2.records, derived: k5.derived, file_stats })
+    Ok(CachedState { k1_k5_notices, records: k2.records, derived: k5.derived, file_stats, partial })
 }
 
 fn parse_config(delta_json: &str) -> Result<ValidatorConfig, FatalError> {

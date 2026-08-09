@@ -3,7 +3,7 @@ use std::io::Read;
 
 use crate::decompress_guard::{GuardedReader, DEFAULT_DECOMPRESSION_LIMITS};
 use gtfs_config::ValidatorConfig;
-use gtfs_core::{EntityType, FatalCode, FatalError, Notice, Severity};
+use gtfs_core::{EntityType, FatalCode, FatalError, Notice, PartialReport, Severity};
 use smol_str::SmolStr;
 
 /// Debug-only K1 izleme. Release WASM derlemesinde (debug_assertions kapalı) ve
@@ -68,6 +68,7 @@ pub type RawFiles = HashMap<String, RawFile>;
 pub struct K1Result {
     pub files: RawFiles,
     pub notices: Vec<Notice>,
+    pub partial: PartialReport,
     /// locations.geojson feature 'id' kümesi (XFL_025: stop_times.location_id cross-ref).
     pub geojson_location_ids: std::collections::HashSet<String>,
     /// locations.geojson feature 'id' → GEOMETRİ (Pa1fdaa0d için K6'ya taşınır).
@@ -1041,7 +1042,21 @@ pub fn parse(zip_bytes: &[u8], cfg: &ValidatorConfig) -> Result<K1Result, FatalE
     // calendar.txt YOKSA boş calendar_dates "hiç servis tanımı yok" demektir → ARC_009 kalır.
     // Tek üst klasöre sarılmış feed → o klasörü kök kabul et (detay: detect_wrapped_root).
     let entry_names: Vec<String> = archive.file_names().map(str::to_string).collect();
+    let mut partial = PartialReport::default();
     let root_prefix = detect_wrapped_root(&entry_names);
+    if let Some(prefix) = &root_prefix {
+        partial.mark_root_error(format!("GTFS dosyaları ZIP kökünde değil; kök öneki '{prefix}'"));
+    }
+    if root_prefix.is_none()
+        && entry_names.iter().any(|name| {
+            let normalized = name.replace('\\', "/");
+            normalized.ends_with(".txt") && normalized.contains('/')
+        })
+    {
+        partial.mark_root_error(
+            "GTFS .txt dosyaları birden fazla/derin alt dizinde bulundu; kök keşfi güvenli değil",
+        );
+    }
     let calendar_entry = format!("{}calendar.txt", root_prefix.as_deref().unwrap_or(""));
     let has_calendar_txt = entry_names.iter().any(|n| n.replace('\\', "/") == calendar_entry);
 
@@ -1113,7 +1128,9 @@ pub fn parse(zip_bytes: &[u8], cfg: &ValidatorConfig) -> Result<K1Result, FatalE
             has_locations_geojson = true;
             let mut buf = Vec::with_capacity(zf.size() as usize);
             if zf.read_to_end(&mut buf).is_ok() {
-                validate_locations_geojson(&buf, &raw_name, &mut notices, &mut counter, &mut geojson_location_ids, &mut geojson_geometries);
+                if !validate_locations_geojson(&buf, &raw_name, &mut notices, &mut counter, &mut geojson_location_ids, &mut geojson_geometries) {
+                    partial.mark_unavailable(raw_name.clone());
+                }
             }
             continue;
         }
@@ -1266,8 +1283,7 @@ pub fn parse(zip_bytes: &[u8], cfg: &ValidatorConfig) -> Result<K1Result, FatalE
 
         k1dbg!("[K1] okundu: {raw_name} ({} bayt)", bytes.len());
         // UTF-8 doğrulama — from_utf8 sıfır maliyetli &str döndürür (kopya yok).
-        // Geçersiz UTF-8 durumunda lossy String gerekir; yoksa doğrudan bytes'ı ödünç alıyoruz.
-        let lossy_buf: String;
+        // Geçersiz UTF-8 dosya güvenli typed doğrulama için atlanır; lossy kayıt üretilmez.
         let text: &str = match std::str::from_utf8(bytes) {
             Ok(s) => s,
             Err(_) => {
@@ -1280,23 +1296,18 @@ pub fn parse(zip_bytes: &[u8], cfg: &ValidatorConfig) -> Result<K1Result, FatalE
                     format!("'{raw_name}' UTF-8 kodlamasıyla okunamıyor."),
                     "Dosyayı UTF-8 kodlamasıyla yeniden kaydedin.",
                 ));
-                if is_required {
-                    return Err(FatalError {
-                        code: FatalCode::Utf8Critical,
-                        message: format!("Zorunlu dosya UTF-8 ile okunamıyor: {raw_name}"),
-                    });
+                partial.mark_unavailable(raw_name.clone());
+                if !is_required {
+                    notices.push(make_notice(
+                        &mut counter, "ARC_003",
+                        EntityType::File, Some(raw_name.clone()),
+                        Some(&raw_name), None, None,
+                        None,
+                        format!("'{raw_name}' UTF-8 dışı olduğu için dosya atlandı."),
+                        "Tüm GTFS dosyalarını UTF-8 kodlamasıyla kaydedin.",
+                    ));
                 }
-                // İsteğe bağlı dosya: ARC_003 (encoding kalitesi)
-                lossy_buf = String::from_utf8_lossy(bytes).into_owned();
-                notices.push(make_notice(
-                    &mut counter, "ARC_003",
-                    EntityType::File, Some(raw_name.clone()),
-                    Some(&raw_name), None, None,
-                    None,
-                    format!("'{raw_name}' UTF-8 dışı karakter içeriyor; kayıplı dönüşüm uygulandı."),
-                    "Tüm GTFS dosyalarını UTF-8 kodlamasıyla kaydedin.",
-                ));
-                &lossy_buf
+                continue;
             }
         };
 
@@ -1327,12 +1338,7 @@ pub fn parse(zip_bytes: &[u8], cfg: &ValidatorConfig) -> Result<K1Result, FatalE
                     format!("'{raw_name}' CSV tokenization hatası: {msg}"),
                     "CSV formatını kontrol edin; tırnak işaretlerinin doğru kapandığından emin olun.",
                 ));
-                if is_required {
-                    return Err(FatalError {
-                        code: FatalCode::CsvMalformed,
-                        message: format!("Zorunlu dosya CSV tokenization hatası: {raw_name}"),
-                    });
-                }
+                partial.mark_unavailable(raw_name.clone());
                 continue;
             }
         };
@@ -1657,9 +1663,9 @@ pub fn parse(zip_bytes: &[u8], cfg: &ValidatorConfig) -> Result<K1Result, FatalE
     //   "stops.txt — Conditionally Required — Optional if demand-responsive zones are
     //    defined in locations.geojson. Required otherwise."
     // Yalnızca-Flex bir feed hizmetini `locations.geojson` bölgeleriyle tanımlar ve hiç
-    // stops.txt taşımayabilir. Koşulsuz listede tutmak, GEÇERLİ bir feed'i ARC_004 Fatal'ı
-    // ile tamamen açılamaz yapıyordu — kullanıcı tek bir bulgu bile göremiyordu.
-    // İkisi de yoksa hizmetin nerede verildiği hiç tanımlı değildir → yine Fatal.
+    // stops.txt taşımayabilir. Koşulsuz listede tutmak, GEÇERLİ bir feed'i ARC_004 ile
+    // tamamen açılamaz yapıyordu — kullanıcı tek bir bulgu bile göremiyordu.
+    // İkisi de yoksa hizmetin nerede verildiği hiç tanımlı değildir → PARTIAL.
     let missing: Vec<&str> = REQUIRED_FILES
         .iter()
         .filter(|&&f| !present_files.contains(f))
@@ -1669,6 +1675,7 @@ pub fn parse(zip_bytes: &[u8], cfg: &ValidatorConfig) -> Result<K1Result, FatalE
 
     if !missing.is_empty() {
         for &f in &missing {
+            partial.mark_unavailable(f);
             notices.push(make_notice(
                 &mut counter, "ARC_004",
                 EntityType::Feed, None,
@@ -1678,10 +1685,6 @@ pub fn parse(zip_bytes: &[u8], cfg: &ValidatorConfig) -> Result<K1Result, FatalE
                 "Eksik dosyayı feed ZIP arşivine ekleyin.",
             ));
         }
-        return Err(FatalError {
-            code: FatalCode::NoRequiredFiles,
-            message: format!("Zorunlu dosyalar eksik: {}", missing.join(", ")),
-        });
     }
 
     // ARC_008: calendar.txt VE calendar_dates.txt ikisi de eksik (Kritik, non-Fatal)
@@ -1712,7 +1715,7 @@ pub fn parse(zip_bytes: &[u8], cfg: &ValidatorConfig) -> Result<K1Result, FatalE
         ));
     }
 
-    Ok(K1Result { files: raw_files, notices, geojson_location_ids, geojson_geometries })
+    Ok(K1Result { files: raw_files, notices, partial, geojson_location_ids, geojson_geometries })
 }
 
 // ── locations.geojson validasyon ─────────────────────────────────────────────
@@ -1724,7 +1727,7 @@ fn validate_locations_geojson(
     counter: &mut u32,
     geojson_ids: &mut std::collections::HashSet<String>,
     geoms: &mut std::collections::HashMap<String, LocationGeometry>,
-) {
+) -> bool {
     let text = match std::str::from_utf8(bytes) {
         Ok(s) => s,
         Err(_) => {
@@ -1734,7 +1737,7 @@ fn validate_locations_geojson(
                 format!("'{fname}' UTF-8 kodlamasıyla okunamıyor."),
                 "Dosyayı UTF-8 kodlamasıyla yeniden kaydedin.",
             ));
-            return;
+            return false;
         }
     };
 
@@ -1747,7 +1750,7 @@ fn validate_locations_geojson(
                 format!("'{fname}' geçerli bir GeoJSON belgesi değil: {e}"),
                 "locations.geojson'ın geçerli bir GeoJSON FeatureCollection olduğundan emin olun.",
             ));
-            return;
+            return false;
         }
     };
 
@@ -1759,10 +1762,18 @@ fn validate_locations_geojson(
             format!("'{fname}' kök tipi 'FeatureCollection' olmalıdır; bulundu: '{}'.", root_type.unwrap_or("yok")),
             "locations.geojson dosyasının kök tipi 'FeatureCollection' olmalıdır.",
         ));
-        return;
+        return false;
     }
 
-    let Some(features) = json.get("features").and_then(|f| f.as_array()) else { return; };
+    let Some(features) = json.get("features").and_then(|f| f.as_array()) else {
+        notices.push(make_notice(
+            counter, "LOC_001", EntityType::File, Some(fname.to_string()),
+            Some(fname), None, Some("features"), None,
+            format!("'{fname}' için 'features' dizisi eksik veya geçersiz."),
+            "locations.geojson dosyasına geçerli bir 'features' dizisi ekleyin.",
+        ));
+        return false;
+    };
 
     // LOC_005: FeatureCollection boş
     if features.is_empty() {
@@ -1772,7 +1783,7 @@ fn validate_locations_geojson(
             format!("'{fname}' FeatureCollection'ı boş — hiç feature yok."),
             "GTFS Flex için en az bir Polygon veya MultiPolygon feature ekleyin.",
         ));
-        return;
+        return false;
     }
 
     // LOC_007: Yinelenen feature 'id' değerleri
@@ -1905,6 +1916,8 @@ fn validate_locations_geojson(
             }
         }
     }
+
+    true
 }
 
 /// Polygon ring'leri için LOC_004 (kapalı değil) ve LOC_006 (alan > 500km²) kontrolü.
@@ -2480,7 +2493,7 @@ mod tests {
     }
 
     #[test]
-    fn missing_required_file_returns_fatal_no_required_files() {
+    fn missing_required_file_returns_partial_with_arc004() {
         // agency.txt olmadan ZIP
         let zip = zip_with_files(&[
             ("stops.txt",      b"stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\n"),
@@ -2489,9 +2502,11 @@ mod tests {
             ("stop_times.txt", b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\n"),
             ("calendar.txt",   b"service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,0,0,20240101,20241231\n"),
         ]);
-        let err = parse(&zip).expect_err("agency.txt eksik Fatal olmalı");
-        assert_eq!(err.code, FatalCode::NoRequiredFiles);
-        assert!(err.message.contains("agency.txt"), "{}", err.message);
+        let result = parse(&zip).expect("agency.txt eksikliği kurtarılabilir olmalı");
+        assert!(result.partial.unavailable_files.iter().any(|f| f == "agency.txt"));
+        assert!(result.notices.iter().any(|n| {
+            n.rule_id == "ARC_004" && n.observed_value.as_deref() == Some("agency.txt")
+        }));
     }
 
     // ── Tek üst klasöre sarılmış feed (detect_wrapped_root) ───────────────────
@@ -2516,6 +2531,7 @@ mod tests {
     #[test]
     fn feed_wrapped_in_single_folder_is_parsed_and_reported() {
         let k1 = parse(&wrapped_feed_zip("TEST GTFS/")).expect("sarılı geçerli feed fatal OLMAMALI");
+        assert!(!k1.partial.root_structural_errors.is_empty());
         // Dosyalar kökteymiş gibi görünür → zorunlu dosya kontrolü geçer.
         for required in REQUIRED_FILES {
             assert!(k1.files.contains_key(*required), "'{required}' kök adıyla görünmeli");
@@ -2528,14 +2544,15 @@ mod tests {
     }
 
     #[test]
-    fn wrapped_root_is_rejected_when_required_files_are_missing() {
-        // GitHub repo zip'i (gerçek vaka mdb-3135): tek klasör ama GTFS değil → fatal kalmalı.
+    fn wrapped_root_without_gtfs_files_is_partial_and_auditable() {
+        // GitHub repo zip'i (gerçek vaka mdb-3135): tek klasör ama GTFS değil.
         let zip = zip_with_files(&[
             ("honduras-transit-main/agency.csv", b"a,b\n1,2\n" as &[u8]),
             ("honduras-transit-main/README.md",  b"# repo\n"),
         ]);
-        let err = parse(&zip).expect_err("GTFS olmayan sarılı zip fatal kalmalı");
-        assert_eq!(err.code, FatalCode::NoRequiredFiles);
+        let result = parse(&zip).expect("okunabilir ama GTFS olmayan ZIP PARTIAL olmalı");
+        assert!(!result.partial.unavailable_files.is_empty());
+        assert!(result.notices.iter().any(|n| n.rule_id == "ARC_004"));
     }
 
     #[test]
@@ -2546,8 +2563,9 @@ mod tests {
             files.push((format!("dir{}/{name}", i % 2), b"x\n" as &[u8]));
         }
         let zip = zip_with_files(&files.iter().map(|(n, c)| (n.as_str(), *c)).collect::<Vec<_>>());
-        let err = parse(&zip).expect_err("birden fazla üst klasör fatal kalmalı");
-        assert_eq!(err.code, FatalCode::NoRequiredFiles);
+        let result = parse(&zip).expect("birden fazla üst klasör PARTIAL olmalı");
+        assert!(result.partial.root_structural_errors.iter().any(|e| e.contains("alt dizin")));
+        assert_eq!(result.partial.unavailable_files.len(), REQUIRED_FILES.len());
     }
 
     #[test]
@@ -2606,7 +2624,7 @@ mod tests {
 
     /// Kırpma, GÖVDEDEKİ gerçek bozuk baytları gizlememeli — kısmi okunan dosyada bile.
     #[test]
-    fn genuinely_invalid_utf8_in_streamed_file_still_fatal() {
+    fn genuinely_invalid_utf8_in_streamed_file_is_partial_without_typed_records() {
         let mut trips: Vec<u8> = b"route_id,service_id,trip_id\n".to_vec();
         trips.extend_from_slice(b"R1,SVC1,\xFF\xFE_bozuk\n"); // gövdede geçersiz dizi
         while trips.len() < 9_000 {
@@ -2620,12 +2638,13 @@ mod tests {
             ("stop_times.txt", b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT0,08:00:00,08:00:00,S1,1\n"),
             ("calendar.txt",   b"service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,0,0,20240101,20241231\n"),
         ]);
-        let err = parse(&zip).expect_err("gövdedeki gerçek UTF-8 ihlali hâlâ Fatal olmalı");
-        assert_eq!(err.code, FatalCode::Utf8Critical);
+        let result = parse(&zip).expect("bozuk UTF-8 dosya PARTIAL olmalı");
+        assert!(result.partial.unavailable_files.iter().any(|f| f == "trips.txt"));
+        assert!(result.notices.iter().any(|n| n.rule_id == "ARC_002"));
     }
 
     #[test]
-    fn utf8_failure_on_required_file_returns_fatal() {
+    fn utf8_failure_on_required_file_is_partial_without_typed_records() {
         // stops.txt içinde geçersiz UTF-8 bayt
         let bad_bytes: &[u8] = b"stop_id,stop_name\nS1,\xFF\xFE invalid\n";
         let zip = zip_with_files(&[
@@ -2636,12 +2655,13 @@ mod tests {
             ("stop_times.txt", b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\n"),
             ("calendar.txt",   b"service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,0,0,20240101,20241231\n"),
         ]);
-        let err = parse(&zip).expect_err("UTF-8 hatası Fatal olmalı");
-        assert_eq!(err.code, FatalCode::Utf8Critical);
+        let result = parse(&zip).expect("UTF-8 hatası PARTIAL olmalı");
+        assert!(result.partial.unavailable_files.iter().any(|f| f == "stops.txt"));
+        assert!(result.notices.iter().any(|n| n.rule_id == "ARC_002"));
     }
 
     #[test]
-    fn csv_malformed_on_required_file_returns_fatal() {
+    fn csv_malformed_on_required_file_is_partial_without_typed_records() {
         // #38: stop_times/trips/calendar_dates K1'de partial (8KB header) okunur → body K2'de.
         // Malformed CSV testi için routes.txt kullanılır (K1'de hâlâ tam okunur).
         let bad_routes = b"route_id,agency_id,route_short_name,route_type\n\"unclosed quote\n";
@@ -2653,8 +2673,9 @@ mod tests {
             ("stop_times.txt", b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\n"),
             ("calendar.txt",   b"service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,0,0,20240101,20241231\n"),
         ]);
-        let err = parse(&zip).expect_err("bozuk CSV Fatal olmalı");
-        assert_eq!(err.code, FatalCode::CsvMalformed);
+        let result = parse(&zip).expect("bozuk CSV PARTIAL olmalı");
+        assert!(result.partial.unavailable_files.iter().any(|f| f == "routes.txt"));
+        assert!(result.notices.iter().any(|n| n.rule_id == "ARC_013"));
     }
 
     #[test]

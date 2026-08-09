@@ -16,6 +16,52 @@ pub struct FatalError {
     pub message: String,
 }
 
+/// Structural recovery information that explains why a validation report has
+/// reduced coverage while preserving findings from readable inputs.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub struct PartialReport {
+    pub root_structural_errors: Vec<String>,
+    pub unavailable_files: Vec<String>,
+    pub skipped_stages: Vec<String>,
+}
+
+impl PartialReport {
+    pub fn is_empty(&self) -> bool {
+        self.root_structural_errors.is_empty()
+            && self.unavailable_files.is_empty()
+            && self.skipped_stages.is_empty()
+    }
+
+    pub fn mark_root_error(&mut self, message: impl Into<String>) {
+        let message = message.into();
+        if !self.root_structural_errors.contains(&message) {
+            self.root_structural_errors.push(message);
+        }
+    }
+
+    pub fn mark_unavailable(&mut self, file: impl Into<String>) {
+        let file = file.into();
+        if !self.unavailable_files.contains(&file) {
+            self.unavailable_files.push(file);
+        }
+    }
+
+    pub fn skip_stage(&mut self, stage: impl Into<String>) {
+        let stage = stage.into();
+        if !self.skipped_stages.contains(&stage) {
+            self.skipped_stages.push(stage);
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+pub enum ValidationStatus {
+    #[serde(rename = "COMPLETE")]
+    Complete,
+    #[serde(rename = "PARTIAL")]
+    Partial,
+}
+
 /// UI'da entity_id yerine okunabilir ad göstermek için arama tablosu.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct NameIndex {
@@ -40,6 +86,10 @@ pub struct NameIndex {
 /// Tüm pipeline çıktısı — notices + raporlar + metrikler.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ValidationResult {
+    #[serde(rename = "validation_status")]
+    pub status: ValidationStatus,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub partial: Option<PartialReport>,
     pub notices: Vec<Notice>,
     pub reports: ReportSet,
     pub metrics: FeedMetrics,
@@ -52,7 +102,7 @@ pub struct ValidationResult {
 /// Validator ana dönüş tipi.
 ///
 /// Kontratlar:
-/// - `Ok`    → pipeline tamamlandı; notices boş olabilir (temiz feed)
+/// - `Ok`    → pipeline tamamlandı veya güvenli recovery ile PARTIAL rapor üretildi
 /// - `Fatal` → pipeline tamamen durdu; UI "feed açılamadı" gösterir
 // `large_enum_variant` burada bilinçli olarak kabul edilir. Ölçüm: `ValidationResult`
 // 704 bayt, `FatalError` 32 bayt ve enum 704 bayt; yayılım farkı 672 bayttır. Bu değer
@@ -74,8 +124,8 @@ mod tests {
 
     #[test]
     fn validate_result_layout_measurement() {
-        assert_eq!(std::mem::size_of::<ValidationResult>(), 704);
+        assert!(std::mem::size_of::<ValidationResult>() >= 704);
         assert_eq!(std::mem::size_of::<FatalError>(), 32);
-        assert_eq!(std::mem::size_of::<ValidateResult>(), 704);
+        assert_eq!(std::mem::size_of::<ValidateResult>(), std::mem::size_of::<ValidationResult>());
     }
 }

@@ -136,11 +136,20 @@ export interface NameIndex {
 }
 
 export interface ValidationResult {
+  /** COMPLETE or PARTIAL; FATAL is represented by ValidateResult.Fatal. */
+  validation_status?: 'COMPLETE' | 'PARTIAL';
+  partial?: PartialReport;
   notices: Notice[];
   reports: ReportSet;
   metrics: FeedMetrics;
   name_index: NameIndex;
   capped_totals: Record<string, number>;
+}
+
+export interface PartialReport {
+  root_structural_errors: string[];
+  unavailable_files: string[];
+  skipped_stages: string[];
 }
 
 export interface FatalError {

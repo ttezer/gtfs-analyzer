@@ -77,6 +77,14 @@ fn feed_with_critical() -> PathBuf {
     write_feed("critical", &base_files(TRIPS_DANGLING_ROUTE))
 }
 
+fn feed_partial() -> PathBuf {
+    let files: Vec<_> = base_files(TRIPS)
+        .into_iter()
+        .filter(|(name, _)| *name != "routes.txt")
+        .collect();
+    write_feed("partial", &files)
+}
+
 // ── invocation helpers ────────────────────────────────────────────────────────
 
 fn run(args: &[&str]) -> Output {
@@ -172,6 +180,26 @@ fn corrupt_zip_is_fatal_with_exit_2() {
     let out = validate(&path, &["--json"]);
     assert_eq!(code(&out), 2);
     assert_eq!(json_of(&out)["status"], "fatal");
+}
+
+#[test]
+fn recoverable_structural_error_is_partial_with_exit_1() {
+    let out = validate(&feed_partial(), &["--json"]);
+    let json = json_of(&out);
+
+    assert_eq!(code(&out), 1);
+    assert_eq!(json["status"], "partial");
+    assert_eq!(json["validation_status"], "PARTIAL");
+    assert!(json["partial"]["unavailable_files"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|file| file == "routes.txt"));
+    assert!(json["partial"]["skipped_stages"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|stage| stage == "K4-cross-ref"));
 }
 
 #[test]

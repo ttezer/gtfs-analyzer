@@ -7,6 +7,7 @@ use clap::{Args, Parser, Subcommand, ValueEnum};
 use gtfs_config::{merge_delta, ValidatorConfig};
 use gtfs_core::{
     AuthoritySource, NameIndex, Notice, RuleClass, Severity, ValidateResult, ValidationResult,
+    ValidationStatus,
 };
 use gtfs_pipeline::validate_bytes;
 use gtfs_rules::RULES;
@@ -480,7 +481,7 @@ fn render_json(
         }
         ValidateResult::Ok(vr) => {
             let payload = JsonOk {
-                status: "ok",
+                status: if vr.status == ValidationStatus::Partial { "partial" } else { "ok" },
                 filtered: filter_meta(filters),
                 result: vr,
             };
@@ -506,7 +507,16 @@ fn render_summary(result: &ValidateResult, filters: &Filters) -> String {
             out.push_str(&format!("fatal_message: {}\n", err.message));
         }
         ValidateResult::Ok(vr) => {
-            out.push_str("status: OK\n");
+            out.push_str(if vr.status == ValidationStatus::Partial {
+                "status: PARTIAL\n"
+            } else {
+                "status: OK\n"
+            });
+            if let Some(partial) = &vr.partial {
+                out.push_str(&format!("partial_root_errors: {}\n", partial.root_structural_errors.len()));
+                out.push_str(&format!("partial_unavailable_files: {}\n", partial.unavailable_files.len()));
+                out.push_str(&format!("partial_skipped_stages: {}\n", partial.skipped_stages.len()));
+            }
             out.push_str(&format!("notices: {}\n", vr.notices.len()));
             if !filters.is_empty() {
                 out.push_str(&format!("filter: {}\n", filters.describe().join(" ")));
@@ -544,7 +554,7 @@ fn write_output(text: &str, path: Option<&Path>) -> Result<(), String> {
     }
 }
 
-/// `0` clean · `1` findings · `2` fatal or CLI error.
+/// `0` clean · `1` findings or partial · `2` fatal or CLI error.
 ///
 /// Without `--fail-on*` any notice yields 1 (historical behaviour). With them,
 /// only a matching notice does — the rest are reported but do not fail the run.
@@ -557,6 +567,10 @@ fn exit_code(
         ValidateResult::Fatal(_) => return ExitCode::from(2),
         ValidateResult::Ok(vr) => vr,
     };
+
+    if vr.status == ValidationStatus::Partial {
+        return ExitCode::from(1);
+    }
 
     if fail_on.is_none() && fail_on_class.is_empty() {
         return if vr.notices.is_empty() {
