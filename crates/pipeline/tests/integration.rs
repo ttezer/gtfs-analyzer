@@ -2816,6 +2816,46 @@ fn arc013_stream_silent_on_valid_doubled_quote() {
 }
 
 #[test]
+fn arc013_stream_silent_when_quoted_final_field_ends_at_eof() {
+    static SHAPES_WITH_QUOTED_EOF: &[u8] =
+        b"shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\n\
+          \"S1\",\"41.0\",\"29.0\",\"1\"";
+    let mut files = base_files();
+    files.push(("shapes.txt", SHAPES_WITH_QUOTED_EOF));
+
+    match run(&files) {
+        ValidateResult::Ok(vr) => {
+            assert!(
+                !vr.notices.iter().any(|n| n.rule_id == "ARC_013" && n.file.as_deref() == Some("shapes.txt")),
+                "kapanış tırnağından sonra EOF geçerli CSV olduğundan shapes.txt ARC_013 üretmemeli"
+            );
+            assert!(
+                !vr.notices.iter().any(|n| n.rule_id == "ARC_033" && n.file.as_deref() == Some("shapes.txt")),
+                "doğru kapanan/kaçırılan tırnaklar shapes.txt ARC_033 üretmemeli"
+            );
+        }
+        other => panic!("ValidateResult::Ok beklendi, alınan: {other:?}"),
+    }
+}
+
+#[test]
+fn arc013_stream_reports_unclosed_final_quoted_field() {
+    static SHAPES_WITH_UNCLOSED_EOF: &[u8] =
+        b"shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\n\
+          \"S1\",\"41.0\",\"29.0\",\"1";
+    let mut files = base_files();
+    files.push(("shapes.txt", SHAPES_WITH_UNCLOSED_EOF));
+
+    match run(&files) {
+        ValidateResult::Ok(vr) => assert!(
+            vr.notices.iter().any(|n| n.rule_id == "ARC_013" && n.file.as_deref() == Some("shapes.txt")),
+            "kapanış tırnağı olmadan EOF shapes.txt ARC_013 üretmeli"
+        ),
+        other => panic!("ValidateResult::Ok beklendi, alınan: {other:?}"),
+    }
+}
+
+#[test]
 fn arc013_stream_bare_quote_is_arc033_not_arc013() {
     // İki olgu AYRI: kaçırma ihlali veriyi bozmaz (ARC_033), kapanmamış tırnak dosyanın
     // kalanını yutar (ARC_013). Aynı kanaldan raporlamak ikisini karıştırırdı.

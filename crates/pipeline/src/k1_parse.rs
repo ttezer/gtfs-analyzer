@@ -2908,8 +2908,16 @@ mod tests {
     }
 
     #[test]
+    fn tokenize_csv_accepts_quoted_final_field_at_eof() {
+        let text = "a,b\n\"1\",\"a\"\"b\"";
+        let (records, _, _) = tokenize_csv(text, None).unwrap();
+        assert_eq!(records[1], vec!["1", "a\"b"]);
+    }
+
+    #[test]
     fn tokenize_csv_unclosed_quote_returns_err() {
         assert!(tokenize_csv("\"unclosed\n", None).is_err());
+        assert!(tokenize_csv("\"unclosed", None).is_err());
     }
 
     #[test]

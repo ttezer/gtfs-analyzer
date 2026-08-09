@@ -869,11 +869,8 @@ impl<R: Read> ZipCsvReader<R> {
             let b = match self.next_byte() {
                 Some(b) => b,
                 None => {
-                    // issue #84: girdi TIRNAK İÇİNDE bitti → kayıt hiç kapanmadı ve
-                    // dosyanın kalanı bu alana yutulmuş olabilir. Eski kod sessizce
-                    // `finish!()` diyordu. ⚠️ Asıl EOF yolu BURASI: tırnaklı daldaki
-                    // `None` kolu yalnız tırnak karakterinden HEMEN sonra biten girdiyi
-                    // görür; ilk denemem oraya bakıp testi düşürdü.
+                    // issue #84: girdi kapanış tırnağını görmeden TIRNAK İÇİNDE bitti →
+                    // kayıt hiç kapanmadı ve dosyanın kalanı bu alana yutulmuş olabilir.
                     if in_quotes {
                         self.unclosed = true;
                     }
@@ -905,8 +902,10 @@ impl<R: Read> ZipCsvReader<R> {
                             self.pending = Some(other);
                         }
                         None => {
-                            // issue #84: tırnak kapanmadan girdi bitti.
-                            self.unclosed = true;
+                            // Bu tırnak zaten kapanış tırnağıydı. Hemen ardından EOF
+                            // gelmesi geçerli CSV'dir; son kaydın newline ile bitmesi
+                            // zorunlu değildir. Kapanış tırnağından ÖNCE EOF ise
+                            // yukarıdaki `in_quotes` yolu ARC_013 üretir.
                             finish!();
                         }
                     }
@@ -2307,6 +2306,31 @@ mod tests {
         let (records_idx, notices) = validate_stop_times(&file, None, false);
         assert_eq!(records_idx.rows.len(), 2);
         assert!(notices.is_empty(), "Geçerli stop_times notice üretmemeli: {:?}", notices);
+    }
+
+    #[test]
+    fn zip_csv_reader_accepts_quoted_final_field_at_eof() {
+        let mut reader = ZipCsvReader::new(Cursor::new(b"a,b\n\"1\",\"a\"\"b\""));
+        let mut fields = Vec::new();
+
+        assert!(reader.next_record(&mut fields));
+        assert_eq!(fields, vec![b"a".to_vec(), b"b".to_vec()]);
+        assert!(reader.next_record(&mut fields));
+        assert_eq!(fields, vec![b"1".to_vec(), b"a\"b".to_vec()]);
+        assert!(!reader.next_record(&mut fields));
+        assert!(!reader.unclosed, "kapanış tırnağından sonraki EOF ARC_013 olmamalı");
+    }
+
+    #[test]
+    fn zip_csv_reader_reports_unclosed_final_quoted_field() {
+        let mut reader = ZipCsvReader::new(Cursor::new(b"a,b\n\"1\",\"unclosed"));
+        let mut fields = Vec::new();
+
+        assert!(reader.next_record(&mut fields));
+        assert_eq!(fields, vec![b"a".to_vec(), b"b".to_vec()]);
+        assert!(reader.next_record(&mut fields));
+        assert_eq!(fields, vec![b"1".to_vec(), b"unclosed".to_vec()]);
+        assert!(reader.unclosed, "kapanış tırnağı olmadan EOF ARC_013 üretmeli");
     }
 
     #[test]
