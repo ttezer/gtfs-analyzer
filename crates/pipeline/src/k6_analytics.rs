@@ -118,6 +118,9 @@ pub fn analyze(
 
 // ── Notice yardımcısı ─────────────────────────────────────────────────────────
 
+// K6 notice'ları canonical emit tablosuyla aynı sırada kurulur; bağımsız metadata
+// alanlarını parametre struct'ında saklamak analyzer çağrılarını gizler.
+#[allow(clippy::too_many_arguments)]
 fn k6_notice(
     ctr: &mut u32,
     rule_id: &str,
@@ -3513,7 +3516,8 @@ fn check_route_trip_quality(
     // ── PDW_006: aynı trip+zone'da örtüşen pickup/drop-off penceresi ──────────
     {
         // (trip_id, zone_key) → [(start_secs, end_secs, line)]
-        let mut zone_wins: HashMap<(&str, &str), Vec<(u64, u64, u64)>> = HashMap::new();
+        type ZoneWindows<'a> = HashMap<(&'a str, &'a str), Vec<(u64, u64, u64)>>;
+        let mut zone_wins: ZoneWindows<'_> = HashMap::new();
         for (trip_id, stops) in records.stop_times_index.iter_trips() {
             for st in stops {
                 let Some(flex) = records.stop_times_index.flex_of(st) else { continue };
@@ -4292,6 +4296,9 @@ fn feed_is_demand_responsive_only(records: &EntityRecords) -> bool {
 // ── Eksik K6 kurallar (STM_017, GEO_007/009/012/013, SHP_013, DQ_005b/005c/010,
 //    RTS_017, TRP_012/015, OPR_005/013) ──────────────────────────────────────
 
+// Bu analiz aşaması paylaşılan indeksleri ayrı borrow'lar olarak alır; parametre
+// struct'ı lifetime ve veri sahipliğini gizleyeceği için bilinçli olarak eklenmez.
+#[allow(clippy::too_many_arguments)]
 fn check_remaining_analytics<'a>(
     records: &'a EntityRecords,
     derived: &DerivedData,
@@ -4348,7 +4355,9 @@ fn check_remaining_analytics<'a>(
 
     // shape_id → direction_id (benzersizse Some(dir), belirsizse None)
     // shape_id → hat etiketi   (benzersiz route_id'ye karşılık short_name, belirsizse None)
-    let (shape_directions, shape_to_route): (FxHashMap<&str, Option<u32>>, FxHashMap<&str, Option<&str>>) = {
+    type ShapeDirections<'a> = FxHashMap<&'a str, Option<u32>>;
+    type ShapeRoutes<'a> = FxHashMap<&'a str, Option<&'a str>>;
+    let (shape_directions, shape_to_route): (ShapeDirections<'_>, ShapeRoutes<'_>) = {
         let mut dirs: FxHashMap<&str, Option<u32>> = FxHashMap::default();
         let mut route_ids: FxHashMap<&str, Option<&str>> = FxHashMap::default();
         for t in &records.trips {
@@ -5864,7 +5873,8 @@ fn check_remaining_analytics<'a>(
     // B4: stop_headsign 36MB taraması DQ_018+DQ_019 için BİR kez yapılır (önceden iki kez).
     // Ham (line, value) toplanır; notice'lar aşağıda kendi blok konumlarında MINT edilir →
     // emisyon sırası, ctr, id ve içerik birebir korunur (yalnız tarama sayısı 2→1).
-    let (dq_caps_hs, dq_lower_hs): (Vec<(u64, String)>, Vec<(u64, String)>) = {
+    type HeadSignSamples = (Vec<(u64, String)>, Vec<(u64, String)>);
+    let (dq_caps_hs, dq_lower_hs): HeadSignSamples = {
         let mut caps: Vec<(u64, String)> = Vec::new();
         let mut lower: Vec<(u64, String)> = Vec::new();
         let mut seen_caps: std::collections::HashSet<&str> = std::collections::HashSet::new();
@@ -6346,8 +6356,9 @@ fn check_remaining_analytics<'a>(
         const DUP_THRESHOLD_DEG: f64 = 1e-6;
         const SHP020_AGG_THRESHOLD: usize = 50;
         // (yuvarlanmış lat, lon) → (temsili shape_id, i, j, lat, lon, o koordinattaki shape'ler)
-        let mut by_coord: std::collections::BTreeMap<(i64, i64), (&str, usize, usize, f64, f64, Vec<&str>)> =
-            std::collections::BTreeMap::new();
+        type ShapeDuplicate<'a> = (&'a str, usize, usize, f64, f64, Vec<&'a str>);
+        type ShapeDuplicatesByCoord<'a> = std::collections::BTreeMap<(i64, i64), ShapeDuplicate<'a>>;
+        let mut by_coord: ShapeDuplicatesByCoord<'_> = std::collections::BTreeMap::new();
         for (shape_id, pts) in shape_coords.iter() {
             // Sadece ardışık çiftleri değil, küçük bir pencere içinde kontrol et
             'outer: for i in 0..pts.len() {
@@ -6440,8 +6451,9 @@ fn check_remaining_analytics<'a>(
         let _t09b = Timer::start("K6::rem::shp_009");
         const SHP009_AGG_THRESHOLD: usize = 50;
         // (yuvarlanmış lat, lon) → (temsili shape_id, i, j, o konumdaki shape'ler)
-        let mut by_coord: std::collections::BTreeMap<(i64, i64), (&str, usize, usize, Vec<&str>)> =
-            std::collections::BTreeMap::new();
+        type ShapeCrossing<'a> = (&'a str, usize, usize, Vec<&'a str>);
+        type ShapeCrossingsByCoord<'a> = std::collections::BTreeMap<(i64, i64), ShapeCrossing<'a>>;
+        let mut by_coord: ShapeCrossingsByCoord<'_> = std::collections::BTreeMap::new();
         for (shape_id, pts) in shape_coords.iter() {
             if pts.len() < 4 { continue; }
             // O(n²) segment-crossing: büyük shape'lerde maksimum 300 segment kontrol et

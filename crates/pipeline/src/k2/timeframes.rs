@@ -137,7 +137,8 @@ pub fn validate_timeframes(
 
     // TFR_005: aynı (timeframe_group_id, service_id) grubunda örtüşen zaman aralıkları
     // Gruplama: key → Vec<(start_secs, end_secs, line)>
-    let mut groups: HashMap<(&str, &str), Vec<(u64, u64, u64)>> = HashMap::new();
+    type TimeframeIntervals<'a> = HashMap<(&'a str, &'a str), Vec<(u64, u64, u64)>>;
+    let mut groups: TimeframeIntervals<'_> = HashMap::new();
     for rec in &records {
         if let (Some(st), Some(et)) = (rec.start_time, rec.end_time) {
             let st_secs = st.0 as u64 * 3600 + st.1 as u64 * 60 + st.2 as u64;

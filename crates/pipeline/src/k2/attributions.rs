@@ -161,6 +161,9 @@ pub fn validate_attributions(
     (records, notices)
 }
 
+// Alan, satır ve notice bağlamı birlikte parse edilir; tek kullanımlık bir parametre
+// struct'ı burada çağrı yüzeyini sadeleştirmeyecek, yalnızca bağlamı gizleyecektir.
+#[allow(clippy::too_many_arguments)]
 fn parse_role_enum(
     row_map: &RowMap,
     notices: &mut Vec<gtfs_core::Notice>,

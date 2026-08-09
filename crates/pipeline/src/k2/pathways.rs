@@ -318,6 +318,9 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
     (records, notices)
 }
 
+// Pathway alanlarının parse ve notice bağlamı bilinçli olarak ayrı parametrelerdir;
+// ortak bir parametre struct'ı bu dört küçük validator'da gereksiz durum taşır.
+#[allow(clippy::too_many_arguments)]
 fn parse_enum_u32(
     row_map: &RowMap,
     notices: &mut Vec<gtfs_core::Notice>,
@@ -349,6 +352,9 @@ fn parse_enum_u32(
     }
 }
 
+// Her numeric helper kendi alan/mesaj kuralını açıkça taşır; parametre struct'ı
+// çağrıları kısaltmak yerine rule bağlamını gizler.
+#[allow(clippy::too_many_arguments)]
 fn parse_nonnegative_f64(
     row_map: &RowMap,
     notices: &mut Vec<gtfs_core::Notice>,
@@ -375,6 +381,9 @@ fn parse_nonnegative_f64(
     }
 }
 
+// Her numeric helper kendi alan/mesaj kuralını açıkça taşır; parametre struct'ı
+// çağrıları kısaltmak yerine rule bağlamını gizler.
+#[allow(clippy::too_many_arguments)]
 fn parse_positive_f64(
     row_map: &RowMap,
     notices: &mut Vec<gtfs_core::Notice>,
@@ -401,6 +410,9 @@ fn parse_positive_f64(
     }
 }
 
+// Her numeric helper kendi alan/mesaj kuralını açıkça taşır; parametre struct'ı
+// çağrıları kısaltmak yerine rule bağlamını gizler.
+#[allow(clippy::too_many_arguments)]
 fn parse_positive_u32(
     row_map: &RowMap,
     notices: &mut Vec<gtfs_core::Notice>,

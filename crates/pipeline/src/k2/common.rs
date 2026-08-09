@@ -797,7 +797,7 @@ pub fn require_nonempty(
 
 /// `ARC_033` özeti — DOSYA başına TEK notice. Dört akış dosyası da bunu çağırır;
 /// denetimi dört yere kopyalamak `ARC_022`'nin (#75) hatasını tekrarlamak olurdu.
-pub fn arc033_summary(
+pub(crate) fn arc033_summary(
     acc: &crate::k1_parse::Rfc4180Acc,
     file: &str,
     counter: &mut u32,
@@ -842,6 +842,9 @@ pub fn arc013_unclosed_stream(file: &str, counter: &mut u32) -> gtfs_core::Notic
     )
 }
 
+// K2 notice'ları canonical emit tablosu olarak çağrılır; bağımsız alanları bir
+// parametre struct'ında toplamak bu hot-path'te mevcut tablo düzenini bozacaktır.
+#[allow(clippy::too_many_arguments)]
 pub fn make_k2_notice(
     counter: &mut u32,
     rule_id: &str,

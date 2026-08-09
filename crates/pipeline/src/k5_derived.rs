@@ -91,6 +91,9 @@ pub fn build(records: &EntityRecords, entity_map: &EntityMap) -> K5Result {
 
 // ── Notice yardımcısı ─────────────────────────────────────────────────────────
 
+// K5 notice'ları canonical emit tablosuyla aynı sırada kurulur; bu ortak yardımcıda
+// parametre struct'ı mevcut rule çağrılarını daha güvenli veya daha okunur yapmaz.
+#[allow(clippy::too_many_arguments)]
 fn k5_notice(
     ctr: &mut u32,
     rule_id: &str,

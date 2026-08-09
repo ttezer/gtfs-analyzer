@@ -165,6 +165,9 @@ pub fn validate_fare_attributes(
     (records, notices)
 }
 
+// Bu yardımcı farklı FAR enum alanlarını aynı açık parse/emit tablosuyla işler;
+// tek kullanımlık bir parametre struct'ı semantik alanları daha görünür kılmaz.
+#[allow(clippy::too_many_arguments)]
 fn parse_enum_u32(
     row_map: &RowMap,
     notices: &mut Vec<gtfs_core::Notice>,

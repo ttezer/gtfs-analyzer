@@ -95,6 +95,9 @@ pub struct LocationGeometry {
 
 // ── Notice yardımcısı ─────────────────────────────────────────────────────────
 
+// Notice alanları canonical emit tablosuyla aynı sırada tutulur; parametre struct'ı
+// bu düşük seviyeli yardımcıda çağrıların okunabilirliğini azaltır.
+#[allow(clippy::too_many_arguments)]
 fn make_notice(
     counter: &mut u32,
     rule_id: &str,

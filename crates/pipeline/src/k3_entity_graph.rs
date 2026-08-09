@@ -6,6 +6,9 @@ use crate::k2::EntityRecords;
 
 // ── Yardımcı ──────────────────────────────────────────────────────────────────
 
+// K3 notice'ı canonical emit tablosuyla aynı sırada kurulur; parametre struct'ı
+// benzersizlik kontrolünün kaynak alanlarını çağrı noktasında gizler.
+#[allow(clippy::too_many_arguments)]
 fn make_notice(
     counter: &mut u32,
     rule_id: &str,

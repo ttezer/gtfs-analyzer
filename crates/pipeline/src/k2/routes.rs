@@ -522,6 +522,9 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
     (records, notices)
 }
 
+// Parse edilen alan ile notice metadata'sı aynı küçük validator'ın girdileridir;
+// burada bir parametre struct'ı eklemek tek kullanımlık bir soyutlama olur.
+#[allow(clippy::too_many_arguments)]
 fn parse_continuous_field(
     row_map: &RowMap,
     notices: &mut Vec<gtfs_core::Notice>,

@@ -2099,7 +2099,9 @@ fn provision_atoms(ftype: &str, presence: &str) -> Vec<&'static str> {
 /// Üçüncü küme kritik: `agency_phone`'u AGN_007 (Quality) ölçer, hiçbir Spec kuralı ölçmez.
 /// Yalnız Spec'e bakan bir defter onu "denetimsiz" gösterir ve okuyanı VAR OLAN kuralı yeniden
 /// yazmaya iter. Ölçüldü: 32 defter satırının 11'i bu durumda.
-fn coverage_rows() -> Vec<(String, String, Vec<&'static str>, BTreeSet<String>, BTreeSet<String>)> {
+type CoverageRow = (String, String, Vec<&'static str>, BTreeSet<String>, BTreeSet<String>);
+
+fn coverage_rows() -> Vec<CoverageRow> {
     let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../../spec-audit/spec_fields.json");
     let doc: serde_json::Value =

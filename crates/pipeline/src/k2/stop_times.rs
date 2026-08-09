@@ -89,6 +89,9 @@ pub struct StopTimeFlex {
 }
 
 /// 6 flex değerinden herhangi biri Some ise Box'lanmış StopTimeFlex, aksi halde None döner.
+// Flex alanları ayrı tutulur çünkü her biri doğrudan StopTimeFlex alanına karşılık
+// gelir; parametre struct'ı bu birebir tabloyu gizler.
+#[allow(clippy::too_many_arguments)]
 #[inline]
 pub fn build_flex(
     start_window: Option<(u32, u32, u32)>,
@@ -1612,11 +1615,16 @@ pub fn validate_stop_times(file: &RawFile, zip_bytes: Option<&[u8]>, has_booking
         }
 
         // ── Flex GTFS alanları (B1: yalnızca feed'de flex sütunu varsa işlenir) ──
+        type ParsedFlexColumns = (
+            Option<(u32, u32, u32)>,
+            Option<(u32, u32, u32)>,
+            Option<SmolStr>,
+            Option<SmolStr>,
+            Option<SmolStr>,
+            Option<SmolStr>,
+        );
         let (start_window, end_window, location_id, location_group_id,
-             pickup_booking_rule_id, drop_off_booking_rule_id): (
-            Option<(u32, u32, u32)>, Option<(u32, u32, u32)>,
-            Option<SmolStr>, Option<SmolStr>, Option<SmolStr>, Option<SmolStr>,
-        ) = if has_flex_cols {
+             pickup_booking_rule_id, drop_off_booking_rule_id): ParsedFlexColumns = if has_flex_cols {
         let start_window_raw = get_col(row, cols.start_pickup_drop_off_window);
         let end_window_raw   = get_col(row, cols.end_pickup_drop_off_window);
         let loc_id_raw       = get_col_raw(row, cols.location_id);
@@ -2188,6 +2196,9 @@ pub fn validate_stop_times(file: &RawFile, zip_bytes: Option<&[u8]>, has_booking
     (index, st.notices)
 }
 
+// Bu validator ham değer, alan ve trip satırı bağlamını birlikte taşır; tek kullanımlık
+// bir parametre struct'ı emit edilen notice'ın kaynaklarını daha açık yapmaz.
+#[allow(clippy::too_many_arguments)]
 fn parse_pickup_dropoff_col(
     raw: &str,
     notices: &mut Vec<gtfs_core::Notice>,

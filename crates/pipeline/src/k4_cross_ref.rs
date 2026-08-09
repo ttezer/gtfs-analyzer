@@ -2163,8 +2163,9 @@ fn check_fare_rules(
 
     // FAR_010: aynı (route_id, origin_id, destination_id, contains_id) kombinasyonu için birden fazla fare_id
     {
-        let mut rule_key_to_fare: HashMap<(Option<&str>, Option<&str>, Option<&str>, Option<&str>), &str> =
-            HashMap::new();
+        type FareRuleKey<'a> = (Option<&'a str>, Option<&'a str>, Option<&'a str>, Option<&'a str>);
+        type FareRuleByKey<'a> = HashMap<FareRuleKey<'a>, &'a str>;
+        let mut rule_key_to_fare: FareRuleByKey<'_> = HashMap::new();
         for rec in &records.fare_rules {
             if rec.fare_id.is_empty() {
                 continue;
@@ -4349,7 +4350,9 @@ fn check_flex_zone_overlap(
     if idx.flex_map.is_empty() {
         return;
     }
-    let mut by_trip: HashMap<&str, Vec<(&str, u32, u32, bool, bool, u64)>> = HashMap::new();
+    type FlexWindow<'a> = (&'a str, u32, u32, bool, bool, u64);
+    type FlexWindowsByTrip<'a> = HashMap<&'a str, Vec<FlexWindow<'a>>>;
+    let mut by_trip: FlexWindowsByTrip<'_> = HashMap::new();
     for (trip_id, stops) in idx.iter_trips() {
         for st in stops {
             let Some(f) = idx.flex_of(st) else { continue };
