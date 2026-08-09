@@ -1168,8 +1168,8 @@ pub static RULES: &[RuleMeta] = &[
     // Sınıf yine de `Spec`: hüküm spec metninde açıkça yazılı, tavsiye değil.
     r!("FPD_007", Dusuk, Spec, 1, &[], None, VS, File,
         "amount para biriminin ISO 4217 ondalık basamak sayısını taşımıyor"),
-    r!("FPD_006", Orta, Spec, 1, &[], Some("fare_product_id"), VS, Entity,
-        "Bir fare_product için birden fazla varsayılan rider category"),
+    r!("FPD_006", Orta, Spec, 1, &[], Some("fare_product_id|fare_media_id"), VS, Entity,
+        "Bir fare_product/fare_media kombinasyonu için birden fazla varsayılan rider category"),
 
     // ── FLG: Fare Leg Rules (Fares v2) ────────────────────────────────────────
     r!("FLG_001", Kritik, Spec, 1, &[], Some("fare_product_id"), VS_K, Row,

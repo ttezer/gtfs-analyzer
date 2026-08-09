@@ -476,7 +476,7 @@
 | FPD_004 | fare_media_idが存在しない | 致命的 | 仕様 |
 | FPD_005 | rider_category_idが存在しない | 致命的 | 仕様 |
 | FPD_007 | amountが通貨のISO 4217小数桁数と一致しません | 低 | 仕様 |
-| FPD_006 | 同一fare_productにデフォルトのrider_categoryが複数 | 中 | 仕様 |
+| FPD_006 | 同一fare_product/fare_mediaにデフォルトのrider_categoryが複数 | 中 | 仕様 |
 
 ## FLG — 運賃区間ルール（Fare Leg Rules, Fares v2）
 

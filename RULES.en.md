@@ -476,7 +476,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | FPD_004 | fare_media_id not found | CRITICAL | Spec |
 | FPD_005 | rider_category_id not found | CRITICAL | Spec |
 | FPD_007 | amount does not carry the currency's ISO 4217 decimal places | LOW | Spec |
-| FPD_006 | Multiple default rider categories for one fare_product | MEDIUM | Spec |
+| FPD_006 | Multiple default rider categories for one fare_product/fare_media combination | MEDIUM | Spec |
 
 ## FLG — Fare Leg Rules (Fares v2)
 

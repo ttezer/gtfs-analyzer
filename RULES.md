@@ -476,7 +476,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | FPD_004 | fare_media_id bulunamadı | KRİTİK | Spec |
 | FPD_005 | rider_category_id bulunamadı | KRİTİK | Spec |
 | FPD_007 | amount para biriminin ISO 4217 ondalık basamak sayısını taşımıyor | DÜŞÜK | Spec |
-| FPD_006 | Bir fare_product için birden fazla varsayılan rider category | ORTA | Spec |
+| FPD_006 | Bir fare_product/fare_media kombinasyonu için birden fazla varsayılan rider category | ORTA | Spec |
 
 ## FLG — Fare Leg Rules (Fares v2)
 

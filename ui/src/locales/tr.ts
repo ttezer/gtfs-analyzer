@@ -953,7 +953,7 @@ const tr = {
     'FPD_003': 'currency geçersiz ISO 4217 kodu',
     'FPD_004': 'fare_media_id bulunamadı',
     'FPD_005': 'rider_category_id bulunamadı',
-    'FPD_006': 'Bir fare_product için birden fazla varsayılan rider category',
+    'FPD_006': 'Bir fare_product/fare_media kombinasyonu için birden fazla varsayılan rider category',
     'FPD_007': 'amount para biriminin ISO 4217 ondalık basamak sayısını taşımıyor',
     // FLG
     'FLG_001': 'fare_product_id bulunamadı',
