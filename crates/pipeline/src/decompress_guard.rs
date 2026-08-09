@@ -200,7 +200,7 @@ mod tests {
 
     #[test]
     fn trips_on_ratio_above_floor() {
-        let data = vec![0u8; 200];
+        let data = [0u8; 200];
         let mut total = 0u64;
         // entry 200>ratio_floor 100 ve 200 > 10*compressed(1)=10 → Ratio
         let mut g = GuardedReader::new(&data[..], TEST_LIMITS, &mut total, 1);
@@ -210,7 +210,7 @@ mod tests {
 
     #[test]
     fn small_high_ratio_entry_below_floor_passes() {
-        let data = vec![0u8; 50];
+        let data = [0u8; 50];
         let mut total = 0u64;
         // 50<=ratio_floor 100 → oran yok sayılır; entry/total altında → geçer
         let mut g = GuardedReader::new(&data[..], TEST_LIMITS, &mut total, 1);

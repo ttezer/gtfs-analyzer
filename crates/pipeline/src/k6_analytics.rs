@@ -151,7 +151,7 @@ fn contains_as_word(haystack: &str, needle: &str) -> bool {
     if needle.is_empty() { return false; }
     let h = haystack.to_lowercase();
     let n = needle.to_lowercase();
-    let nb = n.as_bytes().len();
+    let nb = n.len();
     let mut start = 0usize;
     while let Some(pos) = h[start..].find(n.as_str()) {
         let pos = start + pos;
@@ -954,7 +954,7 @@ fn check_speed_and_duration<'a>(
                     continue;
                 }
                 if dist_km > 0.2 {
-                    let is_worse = worst_zero_seg.as_ref().map_or(true, |&(d, ..)| dist_km > d);
+                    let is_worse = worst_zero_seg.as_ref().is_none_or(|&(d, ..)| dist_km > d);
                     if is_worse {
                         worst_zero_seg = Some((
                             dist_km, b.line as u64,
@@ -1349,7 +1349,7 @@ fn check_frequency_headway(
                 Some(trip_id.clone()),
                 Some(trip_id.clone()),
                 "frequencies.txt",
-                Some(frq.line as u64),
+                Some(frq.line),
                 Some("headway_secs"),
                 Some(format!("{hw}s ({:.0}dk)", hw as f64 / 60.0)),
                 Some(format!("≤ {}s", max_secs)),
@@ -1368,7 +1368,7 @@ fn check_frequency_headway(
                 Some(trip_id.clone()),
                 Some(trip_id.clone()),
                 "frequencies.txt",
-                Some(frq.line as u64),
+                Some(frq.line),
                 Some("headway_secs"),
                 Some(format!("{hw}s")),
                 Some(format!("> {}s", bunching_secs)),
@@ -1785,7 +1785,7 @@ fn check_calendar_analytics(
                 notices.push(k6_notice(
                     ctr, "CAL_023", EntityType::Service,
                     Some(cal.service_id.clone()), Some(cal.service_id.clone()),
-                    "calendar.txt", Some(cal.line as u64), Some("end_date"),
+                    "calendar.txt", Some(cal.line), Some("end_date"),
                     Some(format!("{end_yyyymmdd}")),
                     Some(format!("< {}0101", today_year + config.max_calendar_future_years)),
                     format!("'{}' takviminin end_date'i {end_yyyymmdd} — bugünden {} yıl veya daha fazla ileri; şüpheli/düşük-kaliteli veri (yer-tutucu tarih) olabilir.",
@@ -1808,7 +1808,7 @@ fn check_calendar_analytics(
                     Some(cal.service_id.clone()),
                     Some(cal.service_id.clone()),
                     "calendar.txt",
-                    Some(cal.line as u64),
+                    Some(cal.line),
                     Some("end_date"),
                     Some(format!("{end_yyyymmdd}")),
                     Some(format!("> {}", warning_days)),
@@ -1991,7 +1991,7 @@ fn check_calendar_analytics(
                 notices.push(k6_notice(
                     ctr, "CAL_016", EntityType::Feed,
                     None, None, "calendar.txt", None, None,
-                    Some(format!("{last}")), Some(format!("≤ +2 yıl")),
+                    Some(format!("{last}")), Some("≤ +2 yıl".to_string()),
                     format!("Feed'in en son servis tarihi {last} — bugünden 2 yıldan fazla ileride; bu veri bozuk olabilir."),
                     "Servis takvimini gerçekçi bir bitiş tarihiyle sınırlandırın.",
                 ));
@@ -2114,7 +2114,7 @@ fn check_geo_analytics(
                         Some(sa.stop_id.clone()),
                         Some(sa.stop_id.clone()),
                         "stops.txt",
-                        Some(sa.line as u64),
+                        Some(sa.line),
                         Some("stop_lat|stop_lon"),
                         Some(format!("({la_i}, {lo_i}) == '{}'", sb.stop_id)),
                         None,
@@ -2134,7 +2134,7 @@ fn check_geo_analytics(
                         Some(sa.stop_id.clone()),
                         Some(sa.stop_id.clone()),
                         "stops.txt",
-                        Some(sa.line as u64),
+                        Some(sa.line),
                         Some("stop_lat|stop_lon"),
                         Some(format!("{dist_m:.1}m → '{}'", sb.stop_id)),
                         Some(format!("> {:.0}m", config.stop_too_close_m)),
@@ -2210,7 +2210,7 @@ fn check_geo_analytics(
                     Some(stop.stop_id.clone()),
                     Some(stop.stop_id.clone()),
                     "stops.txt",
-                    Some(stop.line as u64),
+                    Some(stop.line),
                     Some("stop_lat|stop_lon"),
                     Some(format!("({lat:.5},{lon:.5}) — median'dan {d:.0}km")),
                     Some(format!("≤ {threshold_km:.0}km (feed medianından)")),
@@ -2272,7 +2272,7 @@ fn check_geo_analytics(
                     notices.push(k6_notice(
                         ctr, "GEO_015", EntityType::Stop,
                         Some(stop.stop_id.clone()), Some(stop.stop_id.clone()),
-                        "stops.txt", Some(stop.line as u64), Some("stop_lat|stop_lon"),
+                        "stops.txt", Some(stop.line), Some("stop_lat|stop_lon"),
                         Some(format!("{lat:.6},{lon:.6}")), None,
                         format!("'{}' durağının koordinatları ({lat:.6},{lon:.6}) Japonya sınırları dışında (lat: 20.25–45.33, lon: 122.56–153.59).",
                             name),
@@ -2292,7 +2292,7 @@ fn check_geo_analytics(
             notices.push(k6_notice(
                 ctr, "GEO_016", EntityType::Stop,
                 Some(stop.stop_id.clone()), Some(stop.stop_id.clone()),
-                "stops.txt", Some(stop.line as u64), Some("stop_lat|stop_lon"),
+                "stops.txt", Some(stop.line), Some("stop_lat|stop_lon"),
                 Some(format!("{lat:.6},{lon:.6}")), None,
                 format!("'{name}' durağının koordinatları ({lat:.6},{lon:.6}) Null Island yakınında — olası koordinat hatası."),
                 "stop_lat ve stop_lon değerlerinin gerçek konuma karşılık geldiğini doğrulayın.",
@@ -2309,7 +2309,7 @@ fn check_geo_analytics(
             notices.push(k6_notice(
                 ctr, "GEO_022", EntityType::Stop,
                 Some(stop.stop_id.clone()), Some(stop.stop_id.clone()),
-                "stops.txt", Some(stop.line as u64), Some("stop_lat"),
+                "stops.txt", Some(stop.line), Some("stop_lat"),
                 Some(format!("{lat:.6}")), None,
                 format!("'{name}' durağının enlemi ({lat:.6}) kutba aşırı yakın — olası koordinat hatası."),
                 "stop_lat değerinin gerçek konuma karşılık geldiğini doğrulayın.",
@@ -2376,7 +2376,7 @@ fn check_geo_analytics(
             notices.push(k6_notice(
                 ctr, "GEO_019", EntityType::Stop,
                 Some(stop.stop_id.clone()), Some(stop.stop_id.clone()),
-                "stops.txt", Some(stop.line as u64), Some("stop_lat|stop_lon"),
+                "stops.txt", Some(stop.line), Some("stop_lat|stop_lon"),
                 Some(format!("{:.0},{:.0}", lat, lon)), None,
                 format!("'{name}' durağının koordinatları ({:.0},{:.0}) tam sayı — düşük hassasiyetli veya yer tutucu veri.", lat, lon),
                 "stop_lat ve stop_lon değerlerini en az 5 ondalık basamakla güncelleyin.",
@@ -2821,7 +2821,7 @@ fn check_operational_analytics(
                 notices.push(k6_notice(
                     ctr, "TRP_026", EntityType::Trip,
                     Some(trip.trip_id.to_string()), Some(trip.trip_id.to_string()),
-                    "trips.txt", Some(trip.line as u64), Some("service_id"),
+                    "trips.txt", Some(trip.line), Some("service_id"),
                     Some(svc.to_string()), None,
                     format!("service_id '{}' için geçerli hizmet tarihi yok; '{}' seferi hiçbir zaman çalışmayacak.",
                         svc, trip.trip_id),
@@ -2911,7 +2911,7 @@ fn check_operational_analytics(
                 notices.push(k6_notice(
                     ctr, "TRP_024", EntityType::Trip,
                     Some(t.trip_id.to_string()), Some(t.trip_id.to_string()),
-                    "trips.txt", Some(t.line as u64), Some("block_id"),
+                    "trips.txt", Some(t.line), Some("block_id"),
                     Some(format!("route_type={rtype}")), Some(format!("route_type={}", entry.0)),
                     format!("block_id '{}' içinde farklı rota tipleri: '{}' tip-{} ve '{}' trip-{rtype}.",
                         bid, entry.1, entry.0, t.trip_id),
@@ -3228,8 +3228,8 @@ fn check_route_trip_quality(
     // route'lar adlıydı → 52298 saf FP). route_id → en az bir route adı var mı?
     let route_named: HashMap<&str, bool> = records.routes.iter()
         .map(|r| (r.route_id.as_str(),
-            r.route_short_name.as_deref().map_or(false, |s| !s.is_empty())
-                || r.route_long_name.as_deref().map_or(false, |s| !s.is_empty())))
+            r.route_short_name.as_deref().is_some_and(|s| !s.is_empty())
+                || r.route_long_name.as_deref().is_some_and(|s| !s.is_empty())))
         .collect();
     let _t4 = Timer::start("K6::rtq::trp_011");
     for trip in &records.trips {
@@ -3247,7 +3247,7 @@ fn check_route_trip_quality(
                 Some(trip.trip_id.to_string()),
                 Some(trip.trip_id.to_string()),
                 "trips.txt",
-                Some(trip.line as u64),
+                Some(trip.line),
                 Some("trip_headsign"),
                 None,
                 None,
@@ -3381,7 +3381,7 @@ fn check_route_trip_quality(
                     Some(trip.trip_id.to_string()),
                     Some(trip.trip_id.to_string()),
                     "trips.txt",
-                    Some(trip.line as u64),
+                    Some(trip.line),
                     Some("trip_headsign"),
                     Some(headsign.to_string()),
                     None,
@@ -3432,7 +3432,7 @@ fn check_route_trip_quality(
                     notices.push(k6_notice(
                         ctr, "RTS_020", EntityType::Route,
                         Some(route.route_id.clone()), Some(route.route_id.clone()),
-                        "routes.txt", Some(route.line as u64), Some("route_url"),
+                        "routes.txt", Some(route.line), Some("route_url"),
                         Some(route_url.to_string()), None,
                         format!("'{}' hattının route_url değeri acente URL'siyle aynı: '{route_url}'.", rname),
                         "route_url'yi bu hata özgü bir sayfaya yönlendirin ya da boş bırakın.",
@@ -3461,7 +3461,7 @@ fn check_route_trip_quality(
                 notices.push(k6_notice(
                     ctr, "RTS_022", EntityType::Route,
                     Some(route.route_id.clone()), Some(route.route_id.clone()),
-                    "routes.txt", Some(route.line as u64), Some("route_long_name"),
+                    "routes.txt", Some(route.line), Some("route_long_name"),
                     Some(long.to_string()), None,
                     format!("'{}' hattının uzun adı '{}', kısa adı '{}' zaten içeriyor.", route.route_id, long, short),
                     "route_long_name'i kısa adı tekrar etmeyecek şekilde düzenleyin.",
@@ -3473,7 +3473,7 @@ fn check_route_trip_quality(
     // ── STP_034/035: stop_url acente veya hat URL'siyle aynı ─────────────────
     {
         let agency_urls: Vec<&str> = records.agencies.iter()
-            .filter_map(|a| a.agency_url.as_str().is_empty().then_some(None).unwrap_or_else(|| Some(a.agency_url.as_str())))
+            .filter_map(|a| if a.agency_url.is_empty() { None } else { Some(a.agency_url.as_str()) })
             .collect();
         let route_urls: Vec<&str> = records.routes.iter()
             .filter_map(|r| r.route_url.as_deref().filter(|u| !u.is_empty()))
@@ -3484,11 +3484,11 @@ fn check_route_trip_quality(
             if surl.is_empty() { continue }
 
             // STP_034: stop_url == agency_url
-            if agency_urls.iter().any(|&au| au == surl.as_str()) {
+            if agency_urls.contains(&surl.as_str()) {
                 notices.push(k6_notice(
                     ctr, "STP_034", EntityType::Stop,
                     Some(stop.stop_id.clone()), Some(stop.stop_id.clone()),
-                    "stops.txt", Some(stop.line as u64), Some("stop_url"),
+                    "stops.txt", Some(stop.line), Some("stop_url"),
                     Some(surl.clone()), None,
                     format!("'{}' durağının stop_url değeri bir acente URL'siyle aynı: '{surl}'.", stop.stop_id),
                     "stop_url'yi bu durağa özgü bir sayfaya yönlendirin ya da boş bırakın.",
@@ -3496,11 +3496,11 @@ fn check_route_trip_quality(
             }
 
             // STP_035: stop_url == route_url
-            if route_urls.iter().any(|&ru| ru == surl.as_str()) {
+            if route_urls.contains(&surl.as_str()) {
                 notices.push(k6_notice(
                     ctr, "STP_035", EntityType::Stop,
                     Some(stop.stop_id.clone()), Some(stop.stop_id.clone()),
-                    "stops.txt", Some(stop.line as u64), Some("stop_url"),
+                    "stops.txt", Some(stop.line), Some("stop_url"),
                     Some(surl.clone()), None,
                     format!("'{}' durağının stop_url değeri bir hat URL'siyle aynı: '{surl}'.", stop.stop_id),
                     "stop_url'yi bu durağa özgü bir sayfaya yönlendirin ya ya boş bırakın.",
@@ -3709,14 +3709,14 @@ fn check_data_quality(
     // missing_recommended_field karşılığı. Her boş hat için AYRI notice üretilir.
     if records.agencies.len() <= 1 {
         for r in &records.routes {
-            if r.agency_id.as_deref().map_or(true, |s| s.trim().is_empty()) {
+            if r.agency_id.as_deref().is_none_or(|s| s.trim().is_empty()) {
                 let label = r.route_short_name.as_deref()
                     .filter(|s| !s.is_empty())
                     .unwrap_or(r.route_id.as_str());
                 notices.push(k6_notice(
                     ctr, "RTS_025", EntityType::Route,
                     Some(r.route_id.to_string()), Some(r.route_id.to_string()),
-                    "routes.txt", Some(r.line as u64), Some("agency_id"),
+                    "routes.txt", Some(r.line), Some("agency_id"),
                     None, None,
                     format!("'{label}' hattında agency_id boş — önerilen alan; tek işletici olsa bile doldurulması iyi uygulamadır."),
                     "routes.txt'teki agency_id sütununu işleten ajansın agency_id'siyle doldurun.",
@@ -3758,7 +3758,7 @@ fn check_data_quality(
             notices.push(k6_notice(
                 ctr, "DQ_003", EntityType::Route,
                 Some(route.route_id.clone()), Some(route.route_id.clone()),
-                "routes.txt", Some(route.line as u64), Some("route_desc"),
+                "routes.txt", Some(route.line), Some("route_desc"),
                 Some(route.route_id.clone()), None,
                 format!("'{}' ({}) hattında route_desc alanı boş; kullanıcılar hat hakkında ek bilgi alamıyor.", route.route_id, label),
                 "routes.txt'e route_desc açıklaması ekleyin.",
@@ -3777,7 +3777,7 @@ fn check_data_quality(
             notices.push(k6_notice(
                 ctr, "DQ_004", EntityType::Route,
                 Some(route.route_id.clone()), Some(route.route_id.clone()),
-                "routes.txt", Some(route.line as u64), Some("route_url"),
+                "routes.txt", Some(route.line), Some("route_url"),
                 Some(route.route_id.clone()), None,
                 format!("'{}' ({}) hattında route_url alanı boş; yolcular hat web sayfasına yönlendirilemiyor.", route.route_id, label),
                 "routes.txt'e route_url bağlantısı ekleyin.",
@@ -4416,7 +4416,7 @@ fn check_remaining_analytics<'a>(
                 shape_pt_idx.entry(records.shape_interns.id(sp)).or_default().push(i as u32);
             }
         }
-        for (_shape_id, idxs) in &mut shape_pt_idx {
+        for idxs in shape_pt_idx.values_mut() {
             idxs.sort_by_key(|&i| records.shapes[i as usize].shape_pt_sequence().unwrap_or(0));
         }
         for (shape_id, idxs) in &shape_pt_idx {
@@ -4667,7 +4667,7 @@ fn check_remaining_analytics<'a>(
                         sib != shape_id
                             && sib_dist <= sib_thr
                             && shape_route_set.get(sib)
-                                .map_or(false, |ry| rx.intersection(ry).next().is_some())
+                                .is_some_and(|ry| rx.intersection(ry).next().is_some())
                     });
                     if covered { continue; }
                 }
@@ -4956,7 +4956,7 @@ fn check_remaining_analytics<'a>(
                             Some(anchor.stop_id.clone()),
                             Some(anchor.stop_id.clone()),
                             "stops.txt",
-                            Some(anchor.line as u64),
+                            Some(anchor.line),
                             Some("stop_lat|stop_lon"),
                             Some(format!("{}", nearby + 1)),
                             None,
@@ -5058,7 +5058,7 @@ fn check_remaining_analytics<'a>(
             let use_ratio = mad < 30.0; // ~tüm hatlar neredeyse aynı sıklıkta → orana düş
             let is_outlier = if use_ratio {
                 let r = hw / median;
-                r > 2.0 || r < 0.5
+                !(0.5..=2.0).contains(&r)
             } else {
                 (hw - median).abs() > config.headway_outlier_sigma * mad
             };
@@ -5207,7 +5207,7 @@ fn check_remaining_analytics<'a>(
                     None,
                     None,
                     "agency.txt",
-                    Some(ag.line as u64),
+                    Some(ag.line),
                     Some("agency_id"),
                     Some(aid.clone()),
                     None,
@@ -5243,7 +5243,7 @@ fn check_remaining_analytics<'a>(
                     Some(r.route_id.to_string()),
                     Some(r.route_id.to_string()),
                     "routes.txt",
-                    Some(r.line as u64),
+                    Some(r.line),
                     Some("route_id"),
                     None,
                     None,
@@ -5325,7 +5325,7 @@ fn check_remaining_analytics<'a>(
                         Some(t.trip_id.to_string()),
                         Some(t.trip_id.to_string()),
                         "trips.txt",
-                        Some(t.line as u64),
+                        Some(t.line),
                         Some("block_id"),
                         Some(bid.to_string()),
                         None,
@@ -5351,7 +5351,7 @@ fn check_remaining_analytics<'a>(
         for t in &records.trips {
             let Some(bid) = ti_rem.block_id(t).filter(|b| !b.is_empty()) else { continue };
             let Some(&rt) = route_type_of.get(ti_rem.route_id(t)) else { continue };
-            let entry = blocks.entry(bid).or_insert_with(|| (BTreeSet::new(), t.trip_id.as_str(), t.line as u64));
+            let entry = blocks.entry(bid).or_insert_with(|| (BTreeSet::new(), t.trip_id.as_str(), t.line));
             entry.0.insert(rt);
         }
         let mut mixed: Vec<(&str, &BTreeSet<u32>, &str, u64)> = blocks.iter()
@@ -5401,7 +5401,7 @@ fn check_remaining_analytics<'a>(
                     Some(stop.stop_id.clone()),
                     Some(stop.stop_id.clone()),
                     "stops.txt",
-                    Some(stop.line as u64),
+                    Some(stop.line),
                     None,
                     None,
                     None,
@@ -5793,7 +5793,7 @@ fn check_remaining_analytics<'a>(
                     Some(stop.stop_id.clone()),
                     Some(stop.stop_id.clone()),
                     "stops.txt",
-                    Some(stop.line as u64),
+                    Some(stop.line),
                     Some("parent_station"),
                     Some(format!("{dist_m:.0}m")),
                     Some(format!("≤ {threshold_m:.0}m")),
@@ -5846,7 +5846,7 @@ fn check_remaining_analytics<'a>(
                     Some(stop.stop_id.clone()),
                     Some(stop.stop_id.clone()),
                     "stops.txt",
-                    Some(stop.line as u64),
+                    Some(stop.line),
                     None,
                     None,
                     None,
@@ -5898,7 +5898,7 @@ fn check_remaining_analytics<'a>(
                 notices.push(k6_notice(
                     ctr, "DQ_018", EntityType::Stop,
                     Some(stop.stop_id.clone()), Some(stop.stop_id.clone()),
-                    "stops.txt", Some(stop.line as u64), Some("stop_name"),
+                    "stops.txt", Some(stop.line), Some("stop_name"),
                     Some(name.to_string()), None,
                     format!("'{}' durağının adı tamamen büyük harf: '{name}'.", stop.stop_id),
                     "Durak adını düzgün harf kuralıyla yazın (ör. 'Merkez İstasyon').",
@@ -5915,7 +5915,7 @@ fn check_remaining_analytics<'a>(
                 notices.push(k6_notice(
                     ctr, "DQ_018", EntityType::Route,
                     Some(route.route_id.clone()), Some(route.route_id.clone()),
-                    "routes.txt", Some(route.line as u64), Some("route_long_name"),
+                    "routes.txt", Some(route.line), Some("route_long_name"),
                     Some(name.to_string()), None,
                     format!("'{}' hattının uzun adı tamamen büyük harf: '{name}'.", label),
                     "Hat adını düzgün harf kuralıyla yazın.",
@@ -5932,7 +5932,7 @@ fn check_remaining_analytics<'a>(
                 notices.push(k6_notice(
                     ctr, "DQ_018", EntityType::Route,
                     Some(route.route_id.clone()), Some(route.route_id.clone()),
-                    "routes.txt", Some(route.line as u64), Some("route_desc"),
+                    "routes.txt", Some(route.line), Some("route_desc"),
                     Some(desc.to_string()), None,
                     format!("'{}' hattının açıklaması tamamen büyük harf: '{desc}'.", label),
                     "Hat açıklamasını düzgün harf kuralıyla yazın.",
@@ -5947,7 +5947,7 @@ fn check_remaining_analytics<'a>(
                 notices.push(k6_notice(
                     ctr, "DQ_018", EntityType::Trip,
                     Some(trip.trip_id.to_string()), Some(trip.trip_id.to_string()),
-                    "trips.txt", Some(trip.line as u64), Some("trip_headsign"),
+                    "trips.txt", Some(trip.line), Some("trip_headsign"),
                     Some(hs.to_string()), None,
                     format!("'{}' seferinin yön adı tamamen büyük harf: '{hs}'.", trip.trip_id),
                     "Yön adını düzgün harf kuralıyla yazın.",
@@ -5965,7 +5965,7 @@ fn check_remaining_analytics<'a>(
                 notices.push(k6_notice(
                     ctr, "DQ_018", EntityType::Agency,
                     Some(label.to_string()), Some(label.to_string()),
-                    "agency.txt", Some(ag.line as u64), Some("agency_name"),
+                    "agency.txt", Some(ag.line), Some("agency_name"),
                     Some(ag.agency_name.clone()), None,
                     format!("'{}' işleticisinin adı tamamen büyük harf: '{}'.", label, ag.agency_name),
                     "İşletici adını düzgün harf kuralıyla yazın.",
@@ -5991,7 +5991,7 @@ fn check_remaining_analytics<'a>(
                 notices.push(k6_notice(
                     ctr, "DQ_018", EntityType::Feed,
                     None, None,
-                    "feed_info.txt", Some(fi.line as u64), Some("feed_publisher_name"),
+                    "feed_info.txt", Some(fi.line), Some("feed_publisher_name"),
                     Some(fi.feed_publisher_name.clone()), None,
                     format!("feed_publisher_name tamamen büyük harf: '{}'.", fi.feed_publisher_name),
                     "Yayıncı adını düzgün harf kuralıyla yazın.",
@@ -6009,7 +6009,7 @@ fn check_remaining_analytics<'a>(
                 notices.push(k6_notice(
                     ctr, "DQ_019", EntityType::Stop,
                     Some(stop.stop_id.clone()), Some(stop.stop_id.clone()),
-                    "stops.txt", Some(stop.line as u64), Some("stop_name"),
+                    "stops.txt", Some(stop.line), Some("stop_name"),
                     Some(name.to_string()), None,
                     format!("'{}' durağının adı tamamen küçük harf: '{name}'.", stop.stop_id),
                     "Durak adını başlık harfiyle yazın (ör. 'Merkez İstasyon').",
@@ -6022,7 +6022,7 @@ fn check_remaining_analytics<'a>(
                 notices.push(k6_notice(
                     ctr, "DQ_019", EntityType::Route,
                     Some(route.route_id.clone()), Some(route.route_id.clone()),
-                    "routes.txt", Some(route.line as u64), Some("route_long_name"),
+                    "routes.txt", Some(route.line), Some("route_long_name"),
                     Some(name.to_string()), None,
                     format!("'{}' hattının uzun adı tamamen küçük harf: '{name}'.", route.route_id),
                     "Hat adını başlık harfiyle yazın.",
@@ -6035,7 +6035,7 @@ fn check_remaining_analytics<'a>(
                 notices.push(k6_notice(
                     ctr, "DQ_019", EntityType::Route,
                     Some(route.route_id.clone()), Some(route.route_id.clone()),
-                    "routes.txt", Some(route.line as u64), Some("route_desc"),
+                    "routes.txt", Some(route.line), Some("route_desc"),
                     Some(desc.to_string()), None,
                     format!("'{}' hattının açıklaması tamamen küçük harf: '{desc}'.", route.route_id),
                     "Hat açıklamasını başlık harfiyle yazın.",
@@ -6048,7 +6048,7 @@ fn check_remaining_analytics<'a>(
                 notices.push(k6_notice(
                     ctr, "DQ_019", EntityType::Trip,
                     Some(trip.trip_id.to_string()), Some(trip.trip_id.to_string()),
-                    "trips.txt", Some(trip.line as u64), Some("trip_headsign"),
+                    "trips.txt", Some(trip.line), Some("trip_headsign"),
                     Some(hs.to_string()), None,
                     format!("'{}' seferinin yön adı tamamen küçük harf: '{hs}'.", trip.trip_id),
                     "Yön adını başlık harfiyle yazın.",
@@ -6066,7 +6066,7 @@ fn check_remaining_analytics<'a>(
                 notices.push(k6_notice(
                     ctr, "DQ_019", EntityType::Agency,
                     Some(label.to_string()), Some(label.to_string()),
-                    "agency.txt", Some(ag.line as u64), Some("agency_name"),
+                    "agency.txt", Some(ag.line), Some("agency_name"),
                     Some(ag.agency_name.clone()), None,
                     format!("'{}' işleticisinin adı tamamen küçük harf: '{}'.", label, ag.agency_name),
                     "İşletici adını başlık harfiyle yazın.",
@@ -6092,7 +6092,7 @@ fn check_remaining_analytics<'a>(
                 notices.push(k6_notice(
                     ctr, "DQ_019", EntityType::Feed,
                     None, None,
-                    "feed_info.txt", Some(fi.line as u64), Some("feed_publisher_name"),
+                    "feed_info.txt", Some(fi.line), Some("feed_publisher_name"),
                     Some(fi.feed_publisher_name.clone()), None,
                     format!("feed_publisher_name tamamen küçük harf: '{}'.", fi.feed_publisher_name),
                     "Yayıncı adını başlık harfiyle yazın.",
@@ -6277,7 +6277,7 @@ fn check_remaining_analytics<'a>(
                         ctr, "TRF_011", EntityType::Transfer,
                         Some(format!("{}|{}", trf.from_stop_id, trf.to_stop_id)),
                         Some(format!("{}|{}", trf.from_stop_id, trf.to_stop_id)),
-                        "transfers.txt", Some(trf.line as u64),
+                        "transfers.txt", Some(trf.line),
                         Some("from_stop_id|to_stop_id"),
                         Some(format!("{dist_m:.0}m")),
                         Some(format!("≤ {TRF_DIST_THRESHOLD_M:.0}m")),
@@ -7376,7 +7376,7 @@ fn check_calendar_override_analytics(
             // OPR_015 yalnız ÇİFT YÖNLÜ hatlarda anlamlı: iki yön aynı tek shape'i paylaşıyorsa
             // "gidiş-dönüş için ayrı shape" önerilir. Tek yönlü / yön-tanımsız hatta tek shape
             // beklenen davranıştır (öneri yanıltıcı olur) → susulur.
-            let bidirectional = route_dirs.get(*route_id).map_or(false, |d| d.len() > 1);
+            let bidirectional = route_dirs.get(*route_id).is_some_and(|d| d.len() > 1);
             if shapes.len() == 1 && bidirectional {
                 let shape_id = shapes.iter().next().copied().unwrap_or("");
                 let mut n015 = k6_notice(
@@ -7471,8 +7471,8 @@ fn check_pathway_analytics(
         .iter()
         .enumerate()
         .filter(|(_, pw)| {
-            pw.max_slope.map_or(true, |s| s.abs() <= 0.08)
-                && pw.min_width.map_or(true, |w| w >= 0.9)
+            pw.max_slope.is_none_or(|s| s.abs() <= 0.08)
+                && pw.min_width.is_none_or(|w| w >= 0.9)
         })
         .map(|(i, _)| i)
         .collect();
@@ -7564,7 +7564,7 @@ fn check_pathway_analytics(
         // (#50, #49 ile aynı iç içe-istasyon kalıbı; mdb-3127 Santiago Metro 286 FP).
         for &platform in &platforms {
             let reachable = reachable_from_entrances.contains(platform)
-                || station_children.get(platform).map_or(false, |kids| {
+                || station_children.get(platform).is_some_and(|kids| {
                     kids.iter()
                         .any(|k| reachable_from_entrances.contains(k.stop_id.as_str()))
                 });
@@ -7615,7 +7615,7 @@ fn check_pathway_analytics(
         // erişilebilir sayılır. Aksi halde erişilebilir istasyon "rotasız" sanılır.
         let any_platform_accessible = platforms.iter().any(|p| {
             accessible_reachable.contains(p)
-                || station_children.get(p).map_or(false, |kids| {
+                || station_children.get(p).is_some_and(|kids| {
                     kids.iter()
                         .any(|k| accessible_reachable.contains(k.stop_id.as_str()))
                 })
@@ -7660,7 +7660,7 @@ fn check_pathway_analytics(
                         Some(pw.pathway_id.clone()),
                         Some(pw.pathway_id.clone()),
                         "pathways.txt",
-                        Some(pw.line as u64),
+                        Some(pw.line),
                         Some("traversal_time|length"),
                         Some(format!("{speed:.2} m/s ({length}m / {tt}s)")),
                         Some(format!("≤ {MAX_PATHWAY_SPEED_MS} m/s")),
@@ -8107,7 +8107,7 @@ fn check_vat_analytics(
     // ── VAT_005: İzole durak kümesi (BFS bağlı bileşenler) ─────────────────
     {
         let mut adj: FxHashMap<&str, FxHashSet<&str>> = FxHashMap::default();
-        for (_, stops) in &idx.by_trip {
+        for stops in idx.by_trip.values() {
             for w in stops.windows(2) {
                 let a = idx.stop_id_of(&w[0]);
                 let b = idx.stop_id_of(&w[1]);
@@ -8167,7 +8167,7 @@ fn check_vat_analytics(
                 let isolated_comps: Vec<&Vec<&str>> = comp_nodes.iter()
                     .filter(|c| c.len() < main_size && c.len() <= small_thresh)
                     .filter(|c| !c.iter().any(|s| {
-                        stop_coords.get(s).map_or(false, |&(la, lo)| {
+                        stop_coords.get(s).is_some_and(|&(la, lo)| {
                             main_coords.iter().any(|&(mla, mlo)|
                                 haversine_km(la, lo, mla, mlo) * 1000.0 <= VAT005_MERGE_M)
                         })
@@ -8343,7 +8343,7 @@ fn check_vat_analytics(
             let mut max_dep: Option<u32> = None;
             for st in stops {
                 if let Some((h, m, s)) = st.departure_time() {
-                    let secs = h as u32 * 3600 + m as u32 * 60 + s as u32;
+                    let secs = h * 3600 + m * 60 + s;
                     min_dep = Some(min_dep.map_or(secs, |prev: u32| prev.min(secs)));
                     max_dep = Some(max_dep.map_or(secs, |prev: u32| prev.max(secs)));
                 }
@@ -12361,7 +12361,7 @@ mod tests {
         r.trips = vec![t1, t2];
         r.trip_interns = take_ti();
         r.stop_times = (1..=6).flat_map(|i| {
-            let h = i as u32;
+            let h = i;
             vec![
                 stoptime("T1", i, &format!("S{i}"), (h, 0, 0), (h, 0, 0), i as u64 + 1),
                 stoptime("T2", i, &format!("S{i}"), (h, 5, 0), (h, 5, 0), i as u64 + 10),
@@ -12609,7 +12609,7 @@ mod tests {
         assert_eq!(vat.len(), 1, "aykırı sefer yine yakalanmalı");
         assert_eq!(vat[0].entity_id.as_deref(), Some("T9"));
         assert!(
-            vat[0].details.as_ref().map_or(true, |d| !d.contains_key("duplicate_trips")),
+            vat[0].details.as_ref().is_none_or(|d| !d.contains_key("duplicate_trips")),
             "kopya yoksa duplicate_trips yazılmamalı"
         );
         assert!(

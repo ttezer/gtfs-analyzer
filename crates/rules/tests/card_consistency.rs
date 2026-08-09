@@ -47,7 +47,7 @@ fn severity_display_to_debug(card_val: &str) -> &str {
 }
 
 /// Künye tablosundan "| Etiket | Değer |" satırının değerini döndürür.
-fn kunye_value<'a>(text: &'a str, label: &str) -> Option<String> {
+fn kunye_value(text: &str, label: &str) -> Option<String> {
     for line in text.lines() {
         let l = line.trim();
         if l.starts_with('|') {

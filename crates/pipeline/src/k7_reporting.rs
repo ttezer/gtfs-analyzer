@@ -543,7 +543,7 @@ fn build_closure_pub_penalty(
         e.1 += 1;
     }
     let mut total = 0.0_f64;
-    for (_, &(w, cnt)) in &rule_data {
+    for &(w, cnt) in rule_data.values() {
         total += w * instance_multiplier(cnt);
     }
     total

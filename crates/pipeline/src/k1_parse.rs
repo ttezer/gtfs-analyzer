@@ -737,7 +737,7 @@ fn arc032_markup(value: &str) -> Option<String> {
             // Ölçüm: 20 feed · 54.076.644 hücre · bu biçimden 0 bulgu → yanlış pozitif
             // riski ölçülü olarak sıfır.
             if !name.is_empty()
-                && rest[name_len..].chars().next() != Some(';')
+                && !rest[name_len..].starts_with(';')
                 && HTML5_ENTITIES_NO_SEMI.binary_search(&name).is_ok()
             {
                 return Some(format!("&{name}"));
@@ -1312,7 +1312,7 @@ pub fn parse(zip_bytes: &[u8], cfg: &ValidatorConfig) -> Result<K1Result, FatalE
         k1dbg!("[K1] tokenizing: {raw_name}");
         // CSV tokenization — stream_mode'da yalnızca başlık (Some(0)), aksi halde tam veri
         let _t = crate::timing::Timer::start(format!("K1::tokenize::{raw_name}"));
-        let (mut records, _, mut rfc4180) = match tokenize_csv(text, if stream_mode { Some(0) } else { None }) {
+        let (mut records, _, rfc4180) = match tokenize_csv(text, if stream_mode { Some(0) } else { None }) {
             Ok(r) => r,
             Err(msg) => {
                 // ARC_013
@@ -1844,7 +1844,7 @@ fn validate_locations_geojson(
         let geometry = feature.get("geometry");
 
         // LOC_002: Feature'da geometry null veya eksik
-        if geometry.map_or(true, |g| g.is_null()) {
+        if geometry.is_none_or(|g| g.is_null()) {
             notices.push(make_notice(
                 counter, "LOC_002", EntityType::File, Some(fname.to_string()),
                 Some(fname), Some(feat_num), Some("geometry"), None,

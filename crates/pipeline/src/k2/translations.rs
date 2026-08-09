@@ -181,8 +181,8 @@ pub fn validate_translations(
 
         // record_sub_id yalnızca record_id ile eşleştirme modunda zorunludur.
         // field_value modunda (record_id boş) record_sub_id yasaktır → FP üretme.
-        if table_name == "stop_times" && record_id.is_some() {
-            if record_sub_id.is_none() {
+        if table_name == "stop_times" && record_id.is_some()
+            && record_sub_id.is_none() {
                 notices.push(make_k2_notice(
                     &mut counter,
                     "TRN_010",
@@ -198,7 +198,6 @@ pub fn validate_translations(
                     "record_sub_id değerini stop_sequence değerine ayarlayın.",
                 ));
             }
-        }
 
         let translatable = ["name", "desc", "url", "email", "phone", "headsign", "signposted_as"];
         if has_field_name && !translatable.iter().any(|needle| field_name.contains(needle)) {

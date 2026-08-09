@@ -535,7 +535,7 @@ fn parse_continuous_field(
     match parse_u32(row_map, field) {
         Ok(v) => {
             if let Some(val) = v {
-                if !matches!(val, 0 | 1 | 2 | 3) {
+                if !matches!(val, 0..=3) {
                     notices.push(make_k2_notice(
                         counter, rule_id, EntityType::Route, entity_id.clone(), Some(row_map),
                         file_name, Some(line), Some(field), Some(val.to_string()),

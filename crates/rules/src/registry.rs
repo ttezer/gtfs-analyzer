@@ -2571,7 +2571,7 @@ mod tests {
     fn base_effort_valid() {
         for rule in RULES {
             assert!(
-                matches!(rule.base_effort, 1 | 2 | 3),
+                matches!(rule.base_effort, 1..=3),
                 "{}: geçersiz base_effort = {}", rule.id, rule.base_effort
             );
         }

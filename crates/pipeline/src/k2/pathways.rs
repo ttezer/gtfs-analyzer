@@ -81,7 +81,7 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
         // PTH_029: spec traversal_time'ı yürüyen bant (3), yürüyen merdiven (4) ve asansör (5)
         // için ÖNERİR. PTH_007 yukarıda değerin geçerliliğini ölçer; bu kural eksikliğini.
         // PTH_025 (length) ile birebir aynı desen — koşul yalnız pathway_mode kümesinde ayrılır.
-        if matches!(pathway_mode, Some(3 | 4 | 5)) && traversal_time.is_none()
+        if matches!(pathway_mode, Some(3..=5)) && traversal_time.is_none()
             && get_trimmed_field(&row_map, "traversal_time").is_none_or(str::is_empty)
         {
             pth029_count += 1;

@@ -538,6 +538,13 @@ fn today_yyyymmdd() -> u32 {
     y * 10000 + m * 100 + d
 }
 
+fn to_js<T: serde::Serialize>(value: &T) -> JsValue {
+    match serde_json::to_string(value) {
+        Ok(json) => JsValue::from_str(&json),
+        Err(e) => JsValue::from_str(&format!(r#"{{"error":"serialize failed: {e}"}}"#)),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::{cap_per_rule, is_valid_yyyymmdd};
@@ -577,12 +584,5 @@ mod tests {
         let totals = cap_per_rule(&mut notices);
         assert_eq!(notices.len(), 1);
         assert_eq!(totals.get("TRP_022"), Some(&1));
-    }
-}
-
-fn to_js<T: serde::Serialize>(value: &T) -> JsValue {
-    match serde_json::to_string(value) {
-        Ok(json) => JsValue::from_str(&json),
-        Err(e) => JsValue::from_str(&format!(r#"{{"error":"serialize failed: {e}"}}"#)),
     }
 }

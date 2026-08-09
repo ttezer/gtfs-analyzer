@@ -137,7 +137,7 @@ pub fn validate_calendar_dates(
                 }
                 // CLD_005: tarih 2000–2099 dışında
                 if let Some((year, month, day)) = v {
-                    if year < 2000 || year > 2099 {
+                    if !(2000..=2099).contains(&year) {
                         notices.push(make_k2_notice(
                             &mut counter, "CLD_005", EntityType::Service, entity_id.clone(),
                             None, &file.name, Some(line), Some("date"),
@@ -215,10 +215,7 @@ pub fn validate_calendar_dates(
 
         // Tarih geçerliyse added/removed Vec'e ekle; sadece geçersiz exception_type kayıtları
         // (None veya ∉{1,2}) added/removed'a girmez; exception_count'a yine de girer.
-        let date_u32 = match date {
-            Some((y, m, d)) => Some(y * 10000 + m * 100 + d),
-            None => None,
-        };
+        let date_u32 = date.map(|(y, m, d)| y * 10000 + m * 100 + d);
         match exception_type {
             Some(1) => {
                 let v = index.added.entry(service_id.clone()).or_default();
@@ -410,7 +407,7 @@ mod tests {
         assert!(notices.iter().any(|n| n.rule_id == "CLD_002"));
         // exception_count artar ama added'a tarih girmez (date = None)
         assert_eq!(*idx.exception_count.get("SVC1" as &str).unwrap_or(&0), 1);
-        assert!(idx.added.get("SVC1" as &str).map_or(true, |v| v.is_empty()),
+        assert!(idx.added.get("SVC1" as &str).is_none_or(|v| v.is_empty()),
             "Geçersiz tarih added Vec'e girmemeli");
     }
 
@@ -539,7 +536,7 @@ mod tests {
         assert_eq!(*idx.first_line.get("SVC1" as &str).unwrap(), 2,
             "İlk satır numarası 2 olmalı");
         // Tarih geçersiz, added Vec'te yer yok
-        assert!(idx.added.get("SVC1" as &str).map_or(true, |v| v.is_empty()));
+        assert!(idx.added.get("SVC1" as &str).is_none_or(|v| v.is_empty()));
     }
 
     /// first_line daima ilk görülen satırı gösterir.

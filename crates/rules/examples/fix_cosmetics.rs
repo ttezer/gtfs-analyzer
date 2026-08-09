@@ -48,7 +48,7 @@ fn main() {
             }
             let text = fs::read_to_string(&f).unwrap();
             // sayım (düzeltmeden önce)
-            if text.lines().next().map_or(false, |l| l.starts_with("# ") && l.contains(" - ")) {
+            if text.lines().next().is_some_and(|l| l.starts_with("# ") && l.contains(" - ")) {
                 h1 += 1;
             }
             krit += text.matches("KRITIK").count();

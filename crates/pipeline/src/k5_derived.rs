@@ -715,7 +715,7 @@ mod tests {
             // her shape: 2 özdeş nokta (dup) → SHP_010 tetikler
             shapes.push(shape_pt(&mut shape_ti, &sid, 1, 41.0, 29.0, 1));
             shapes.push(shape_pt(&mut shape_ti, &sid, 2, 41.0, 29.0, 2));
-            map.shape_points.insert(sid.into(), vec![base, base + 1]);
+            map.shape_points.insert(sid, vec![base, base + 1]);
         }
         records.shapes = shapes;
         records.shape_interns = shape_ti.clone();

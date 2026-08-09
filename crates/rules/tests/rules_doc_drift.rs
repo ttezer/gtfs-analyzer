@@ -166,7 +166,7 @@ fn rules_docs_match_registry() {
 
         // Registry'den silinen kural tabloda kalmamalı.
         for id in rows.keys() {
-            if !RULES.iter().any(|r| &r.id == id) {
+            if !RULES.iter().any(|r| r.id == id) {
                 problems.push(format!("{file}: '{id}' tabloda var ama registry'de YOK"));
             }
         }
