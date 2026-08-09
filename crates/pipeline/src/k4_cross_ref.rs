@@ -2560,6 +2560,21 @@ fn check_translations(
             ));
         }
 
+        // TRN_005/006 need a real translation identity. If a required header
+        // is absent, K2 represents it as an empty/None value; indexing those
+        // rows would turn every legacy-format row into a duplicate/conflict
+        // against the same synthetic key. feed_info is the exception because
+        // its table+field+language tuple is its complete identity.
+        let has_translation_identity = !rec.table_name.is_empty()
+            && !rec.field_name.is_empty()
+            && !rec.language.is_empty()
+            && (rec.table_name == "feed_info"
+                || rec.record_id.is_some()
+                || rec.field_value.is_some());
+        if !has_translation_identity {
+            continue;
+        }
+
         // TRN_006: table+field+language+record kombinasyonu tekil.
         // GTFS spec'i bir çeviri satırını (record_id, record_sub_id) VEYA field_value
         // ile tanımlar; field_value anahtara dahil EDİLMELİ. Aksi hâlde field_value

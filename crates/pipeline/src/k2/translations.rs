@@ -42,13 +42,21 @@ pub fn validate_translations(
     let mut notices = Vec::new();
     let mut records = Vec::new();
     let mut counter = 0;
+    // ARC_025 owns missing required translation headers. A missing header is
+    // not the same thing as a row containing an empty value: the latter is a
+    // row-level TRN finding, while the former must not be converted into one
+    // notice per row.
+    let has_table_name = file.headers.iter().any(|h| h == "table_name");
+    let has_field_name = file.headers.iter().any(|h| h == "field_name");
+    let has_language = file.headers.iter().any(|h| h == "language");
+    let has_translation = file.headers.iter().any(|h| h == "translation");
 
     for (row_idx, row) in file.rows.iter().enumerate() {
         let line = (row_idx + 2) as u64;
         let row_map = build_row_map(&file.headers, row);
 
         let table_name = get_trimmed_field(&row_map, "table_name").unwrap_or("").to_string();
-        if !TRANSLATION_TABLES.contains(&table_name.as_str()) {
+        if has_table_name && !TRANSLATION_TABLES.contains(&table_name.as_str()) {
             notices.push(make_k2_notice(
                 &mut counter,
                 "TRN_001",
@@ -66,7 +74,9 @@ pub fn validate_translations(
         }
 
         let field_name = get_trimmed_field(&row_map, "field_name").unwrap_or("").to_string();
-        if !valid_fields_for_table(&table_name).contains(&field_name.as_str()) {
+        // field_name cannot be validated without either required header or its
+        // table_name context. ARC_025 already reports the missing prerequisite.
+        if has_table_name && has_field_name && !valid_fields_for_table(&table_name).contains(&field_name.as_str()) {
             notices.push(make_k2_notice(
                 &mut counter,
                 "TRN_002",
@@ -84,7 +94,7 @@ pub fn validate_translations(
         }
 
         let language = get_trimmed_field(&row_map, "language").unwrap_or("").to_string();
-        if !looks_like_bcp47(&language) {
+        if has_language && !looks_like_bcp47(&language) {
             notices.push(make_k2_notice(
                 &mut counter,
                 "TRN_003",
@@ -102,7 +112,7 @@ pub fn validate_translations(
         }
 
         let translation = get_trimmed_field(&row_map, "translation").unwrap_or("").to_string();
-        if translation.is_empty() {
+        if has_translation && translation.is_empty() {
             notices.push(make_k2_notice(
                 &mut counter,
                 "TRN_008",
@@ -191,7 +201,7 @@ pub fn validate_translations(
         }
 
         let translatable = ["name", "desc", "url", "email", "phone", "headsign", "signposted_as"];
-        if !translatable.iter().any(|needle| field_name.contains(needle)) {
+        if has_field_name && !translatable.iter().any(|needle| field_name.contains(needle)) {
             notices.push(make_k2_notice(
                 &mut counter,
                 "TRN_011",
@@ -309,5 +319,25 @@ mod tests {
         assert_eq!(hits[0].entity_id.as_deref(), Some("T1"));
         // TRN_014 ters koldur ve bu satırlarda konuşmamalı.
         assert!(!notices.iter().any(|n| n.rule_id == "TRN_014"), "{notices:?}");
+    }
+
+    #[test]
+    fn missing_translation_headers_do_not_cascade_row_rules() {
+        // Legacy Google Transit extension. K1 emits ARC_025/ARC_017 for the
+        // schema mismatch; K2 must not repeat that mismatch for every row.
+        let file = make_file(
+            vec!["trans_id", "lang", "translation"],
+            vec![
+                vec!["1", "EN", "Example"],
+                vec!["2", "HE", "דוגמה"],
+            ],
+        );
+        let (_, notices) = validate_translations(&file);
+        for rule in ["TRN_001", "TRN_002", "TRN_003", "TRN_008", "TRN_011"] {
+            assert!(
+                !notices.iter().any(|n| n.rule_id == rule),
+                "{rule} must be gated by its missing header: {notices:?}"
+            );
+        }
     }
 }

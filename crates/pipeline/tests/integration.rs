@@ -51,6 +51,74 @@ fn run(files: &[(&str, &[u8])]) -> ValidateResult {
     validate_bytes(&make_zip(files), &ValidatorConfig::default(), TODAY)
 }
 
+const LEGACY_TRANSLATIONS: &[u8] =
+    b"trans_id,lang,translation\n1,EN,Example\n2,HE,\xD7\x93\xD7\x95\xD7\x92\xD7\x9E\xD7\x94\n";
+
+const MODERN_TRANSLATIONS: &[u8] =
+    b"table_name,field_name,language,translation,record_id\n\
+      stops,stop_name,tr,Durak,S1\n\
+      stops,stop_name,tr,\xC4\xB0stasyon,S1\n";
+
+#[test]
+fn legacy_translation_headers_keep_structural_findings_without_row_cascade() {
+    let mut files = base_files();
+    files.push(("translations.txt", LEGACY_TRANSLATIONS));
+
+    match run(&files) {
+        ValidateResult::Ok(vr) => {
+            for field in ["table_name", "field_name", "language"] {
+                assert!(
+                    vr.notices.iter().any(|n| {
+                        n.rule_id == "ARC_025"
+                            && n.file.as_deref() == Some("translations.txt")
+                            && n.field.as_deref() == Some(field)
+                    }),
+                    "ARC_025/{field} korunmalı"
+                );
+            }
+            for field in ["trans_id", "lang"] {
+                assert!(
+                    vr.notices.iter().any(|n| {
+                        n.rule_id == "ARC_017"
+                            && n.file.as_deref() == Some("translations.txt")
+                            && n.field.as_deref() == Some(field)
+                    }),
+                    "ARC_017/{field} korunmalı"
+                );
+            }
+            for rule in ["TRN_001", "TRN_002", "TRN_003", "TRN_006", "TRN_011"] {
+                assert!(
+                    !vr.notices.iter().any(|n| n.rule_id == rule),
+                    "legacy header nedeniyle {rule} cascade üretmemeli"
+                );
+            }
+        }
+        other => panic!("ValidateResult::Ok beklendi, alınan: {other:?}"),
+    }
+}
+
+#[test]
+fn modern_translation_headers_keep_translation_conflict_validation() {
+    let mut files = base_files();
+    files.push(("translations.txt", MODERN_TRANSLATIONS));
+
+    match run(&files) {
+        ValidateResult::Ok(vr) => {
+            assert!(
+                !vr.notices.iter().any(|n| {
+                    n.rule_id == "ARC_025" && n.file.as_deref() == Some("translations.txt")
+                }),
+                "modern translations schema should not have missing-header findings"
+            );
+            assert!(
+                vr.notices.iter().any(|n| n.rule_id == "TRN_006"),
+                "modern translations should retain TRN_006 conflict validation"
+            );
+        }
+        other => panic!("ValidateResult::Ok beklendi, alınan: {other:?}"),
+    }
+}
+
 // ── Test 1: Bozuk bayt → Fatal(ZipUnreadable) ─────────────────────────────────
 // ARC_001 yolu: pipeline ilk adımda durur, hiçbir kural çalışmaz.
 
