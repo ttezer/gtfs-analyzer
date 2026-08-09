@@ -2641,8 +2641,9 @@ fn whitespace112_keeps_root_and_independent_errors_but_suppresses_derivatives() 
         ("trips.txt", TRIPS),
         // " S1" ham FK değeridir. Kök bulgu kanıtı bu değeri korur; STM_002 ise
         // yalnızca aynı kaydın trim edilmiş karşılığı stops.txt'te bulunduğu için türetilmiştir.
+        // Bilinmeyen " UNKNOWN " değeri ise gerçek FK hatası olarak kalmalıdır.
         ("stop_times.txt", b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
-          T1,08:00:00,08:00:00,\" S1\",1\nT1,08:10:00,08:10:00,S2,2\n" as &[u8]),
+          T1,08:00:00,08:00:00,\" S1\",1\nT1,08:10:00,08:10:00,S2,2\nT1,08:20:00,08:20:00,\" UNKNOWN \",3\n" as &[u8]),
         ("calendar.txt", CALENDAR),
     ];
 
@@ -2687,8 +2688,11 @@ fn whitespace112_keeps_root_and_independent_errors_but_suppresses_derivatives() 
             assert!(stm_details.get("suppressed_derivative_rules")
                 .is_some_and(|rules| rules.contains("STM_002")),
                 "FK türevi audit özetinde görünmeli");
-            assert!(!vr.notices.iter().any(|n| n.rule_id == "STM_002"),
-                "trim edilmiş hedef mevcutsa FK semptomu bastırılmalı");
+            let stm_fk: Vec<_> = vr.notices.iter().filter(|n| n.rule_id == "STM_002").collect();
+            assert_eq!(stm_fk.len(), 1,
+                "trim edilmiş hedefin türevi bastırılmalı, bilinmeyen FK hatası korunmalı");
+            assert!(stm_fk[0].observed_value.as_deref().is_some_and(|v| v.contains("UNKNOWN")),
+                "korunan STM_002 bilinmeyen ham FK değerini göstermeli: {:?}", stm_fk[0]);
         }
         other => panic!("ValidateResult::Ok beklendi, alınan: {other:?}"),
     }
