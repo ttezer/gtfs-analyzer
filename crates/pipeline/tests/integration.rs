@@ -1894,6 +1894,33 @@ fn pth031_silent_when_endpoints_are_not_street_accessed() {
     }
 }
 
+#[test]
+fn stp024_k2_range_and_stp026_normative_enum_are_distinct() {
+    static STOPS_WITH_ENUMS: &[u8] =
+        b"stop_id,stop_name,stop_lat,stop_lon,stop_access\n\
+          S1,Stop1,41.0,29.0,2\n\
+          S2,Stop2,41.1,29.1,9\n";
+    let mut files = base_files();
+    files.retain(|(name, _)| *name != "stops.txt");
+    files.push(("stops.txt", STOPS_WITH_ENUMS));
+
+    match run(&files) {
+        ValidateResult::Ok(vr) => {
+            assert_eq!(
+                vr.notices.iter().filter(|n| n.rule_id == "STP_024").count(),
+                1,
+                "K2 0/1/2 kümesinde 2 kabul edilmeli, 9 için STP_024 üretilmeli"
+            );
+            assert_eq!(
+                vr.notices.iter().filter(|n| n.rule_id == "STP_026").count(),
+                2,
+                "K4 normatif enumunda hem 2 hem 9 geçersiz olmalı"
+            );
+        }
+        other => panic!("ValidateResult::Ok beklendi, alınan: {other:?}"),
+    }
+}
+
 // ── Pc3b911a6: "Dosyalar virgülle ayrılmış metin olmalı" — VARSAYIM DEĞİL, ÖLÇÜM ────
 //
 // Defter bu hükmü DOLAYLI sayıyordu ("ayraç virgül değilse başlık tek sütuna çöker →
