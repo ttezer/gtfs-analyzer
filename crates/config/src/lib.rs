@@ -32,6 +32,7 @@ const DEF_STOP_FAR_FROM_SHAPE_M:    f64 = 100.0;
 const DEF_STOP_FAR_FROM_SHAPE_M_RAIL: f64 = 200.0;
 const DEF_STOP_FAR_FROM_PARENT_M:   f64 = 150.0;
 const DEF_FEED_EXPIRY_WARNING_DAYS: u32 =  30;
+const DEF_FEED_INFO_EXPIRY_WARNING_DAYS: u32 =  7;
 const DEF_SERVICE_GAP_DAYS:         u32 =   7;
 const DEF_UPCOMING_SERVICE_DAYS:    u32 =   7;
 const DEF_MAX_TRIP_DURATION_HOURS:  f64 =  24.0;
@@ -79,6 +80,9 @@ pub struct ValidatorConfig {
     pub stop_far_from_shape_m_rail: f64,
     pub stop_far_from_parent_m:   f64,
     pub feed_expiry_warning_days: u32,
+    /// FIN_019: feed_info.feed_end_date için yakın sona erme uyarı penceresi (gün).
+    /// CAL_008'in servis takvimi eşiğinden ayrı tutulur; varsayılan davranış 7 gündür.
+    pub feed_info_expiry_warning_days: u32,
     /// CAL_010: bir servisin toplam aktif gün sayısı bu eşiğin altındaysa "çok kısa servis".
     pub service_gap_days:         u32,
     /// CAL_007/012: bir servisin ardışık aktif tarihleri arasındaki "büyük boşluk" eşiği (gün).
@@ -161,6 +165,7 @@ impl Default for ValidatorConfig {
             stop_far_from_shape_m_rail: DEF_STOP_FAR_FROM_SHAPE_M_RAIL,
             stop_far_from_parent_m:   DEF_STOP_FAR_FROM_PARENT_M,
             feed_expiry_warning_days: DEF_FEED_EXPIRY_WARNING_DAYS,
+            feed_info_expiry_warning_days: DEF_FEED_INFO_EXPIRY_WARNING_DAYS,
             service_gap_days:         DEF_SERVICE_GAP_DAYS,
             big_gap_days:             DEF_BIG_GAP_DAYS,
             upcoming_service_days:    DEF_UPCOMING_SERVICE_DAYS,
@@ -248,6 +253,7 @@ fn validate_ranges(cfg: &ValidatorConfig) -> Result<(), String> {
     chk_f64!(cfg.stop_far_from_shape_m_rail, "stop_far_from_shape_m_rail", 20.0, 1000.0);
     chk_f64!(cfg.stop_far_from_parent_m,  "stop_far_from_parent_m",    10.0,  1000.0);
     chk_u32!(cfg.feed_expiry_warning_days, "feed_expiry_warning_days",     1,    60);
+    chk_u32!(cfg.feed_info_expiry_warning_days, "feed_info_expiry_warning_days", 1, 60);
     chk_u32!(cfg.service_gap_days,         "service_gap_days",             3,    30);
     chk_u32!(cfg.big_gap_days,             "big_gap_days",                 7,    60);
     chk_u32!(cfg.upcoming_service_days,    "upcoming_service_days",        1,    90);
@@ -293,7 +299,7 @@ pub fn merge_delta(base: &ValidatorConfig, delta_json: &str) -> Result<Validator
         "max_speed_bus_kmh", "max_speed_tram_kmh", "max_speed_metro_kmh",
         "max_speed_rail_kmh", "max_speed_ferry_kmh", "max_speed_cablecar_kmh",
         "min_transfer_time_sec", "max_transfer_distance_m", "max_shape_jump_km", "max_shape_jump_km_rail",
-        "stop_too_close_m", "stop_far_from_shape_m", "stop_far_from_shape_m_rail", "stop_far_from_parent_m", "feed_expiry_warning_days",
+        "stop_too_close_m", "stop_far_from_shape_m", "stop_far_from_shape_m_rail", "stop_far_from_parent_m", "feed_expiry_warning_days", "feed_info_expiry_warning_days",
         "service_gap_days", "big_gap_days", "upcoming_service_days", "max_trip_duration_hours", "max_trip_duration_hours_rail", "min_trip_duration_sec",
         "max_headway_warning_min", "max_headway_warning_min_rail", "service_day_window_hours_rail",
         "bunching_threshold_min", "rail_stop_distance_km",
@@ -357,6 +363,7 @@ pub fn merge_delta(base: &ValidatorConfig, delta_json: &str) -> Result<Validator
     apply_f64!("stop_far_from_shape_m_rail", cfg.stop_far_from_shape_m_rail);
     apply_f64!("stop_far_from_parent_m",   cfg.stop_far_from_parent_m);
     apply_u32!("feed_expiry_warning_days", cfg.feed_expiry_warning_days);
+    apply_u32!("feed_info_expiry_warning_days", cfg.feed_info_expiry_warning_days);
     apply_u32!("service_gap_days",         cfg.service_gap_days);
     apply_u32!("big_gap_days",             cfg.big_gap_days);
     apply_u32!("upcoming_service_days",    cfg.upcoming_service_days);
@@ -438,6 +445,7 @@ mod tests {
         assert_eq!(cfg.stop_far_from_shape_m,    100.0);
         assert_eq!(cfg.stop_far_from_shape_m_rail, 200.0);
         assert_eq!(cfg.feed_expiry_warning_days,   30);
+        assert_eq!(cfg.feed_info_expiry_warning_days, 7);
         assert_eq!(cfg.service_gap_days,            7);
         assert_eq!(cfg.upcoming_service_days,       7);
         assert_eq!(cfg.max_trip_duration_hours,   24.0);
@@ -458,6 +466,15 @@ mod tests {
         // Dokunulmayan alanlar değişmemeli
         assert_eq!(cfg.max_speed_rail_kmh, 300.0);
         assert_eq!(cfg.min_transfer_time_sec, 180);
+    }
+
+    #[test]
+    fn feed_info_expiry_warning_horizon_is_independent() {
+        let base = ValidatorConfig::default();
+        let cfg = merge_delta(&base, r#"{"feed_info_expiry_warning_days": 30}"#)
+            .expect("feed_info expiry eşiği uygulanmalı");
+        assert_eq!(cfg.feed_info_expiry_warning_days, 30);
+        assert_eq!(cfg.feed_expiry_warning_days, 30, "CAL_008 eşiği ayrı kalmalı");
     }
 
     #[test]
@@ -525,6 +542,10 @@ mod tests {
         let err = merge_delta(&base, r#"{"stop_far_from_shape_m_rail": 19.9}"#)
             .expect_err("alt sınır altı Err olmalı");
         assert!(err.contains("stop_far_from_shape_m_rail"), "{err}");
+
+        let err = merge_delta(&base, r#"{"feed_info_expiry_warning_days": 0}"#)
+            .expect_err("feed_info expiry alt sınırı reddedilmeli");
+        assert!(err.contains("feed_info_expiry_warning_days"), "{err}");
     }
 
     /// Rail eşikleri delta ile ayarlanabilir ve şehir içi karşılıkları etkilenmez.

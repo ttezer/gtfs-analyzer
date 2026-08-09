@@ -343,6 +343,7 @@ MobilityData's `fast_travel_between_far_stops` notice is marked deprecated on th
 | Parameter | Default | Range | Description |
 |---|---:|---|---|
 | Expiry Warning | 30 days | 1–60 | Warning generated if feed expires within this many days |
+| Feed Info Expiry Warning | 7 days | 1–60 | `FIN_019` horizon for `feed_info.feed_end_date`; separate from the `CAL_008` threshold |
 | Service Gap Threshold | 7 days | 3–30 | Service gaps longer than this are flagged |
 | Max Trip Duration | 24 h | 8–72 | Maximum duration for a single trip |
 | Min Trip Duration | 60 s | 10–300 | Minimum duration for a single trip |

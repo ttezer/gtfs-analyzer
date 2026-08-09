@@ -3935,7 +3935,8 @@ fn check_data_quality(
                 ));
             }
 
-            // FIN_019: feed 7 gün içinde sona erecek (feed_expiration_date7_days)
+            // FIN_019: feed_info için yapılandırılabilir yakın sona erme penceresi.
+            // CAL_008'in servis takvimi eşiğinden bilerek ayrıdır.
             if today_yyyymmdd > 0 {
                 if let Some((ey, em, ed)) = fi.feed_end_date {
                     let end = ey * 10000 + em * 100 + ed;
@@ -3943,15 +3944,21 @@ fn check_data_quality(
                         let today_jdn = yyyymmdd_to_jdn(today_yyyymmdd);
                         let end_jdn   = yyyymmdd_to_jdn(end);
                         let days_left = end_jdn.saturating_sub(today_jdn);
-                        if days_left <= 7 && days_left > 0 {
-                            notices.push(k6_notice(
+                        let warning_days = config.feed_info_expiry_warning_days;
+                        if days_left <= warning_days && days_left > 0 {
+                            let mut notice = k6_notice(
                                 ctr, "FIN_019", EntityType::Feed,
                                 None, None, "feed_info.txt", None, Some("feed_end_date"),
                                 Some(format!("{ey}-{em:02}-{ed:02}")),
-                                Some("> +7".to_string()),
-                                format!("Feed'in geçerlilik süresi {ey}-{em:02}-{ed:02} tarihinde doluyor — {days_left} gün kaldı."),
+                                Some(format!("> +{warning_days}")),
+                                format!("Feed'in geçerlilik süresi {ey}-{em:02}-{ed:02} tarihinde doluyor — {days_left} gün kaldı (uyarı eşiği: {warning_days} gün)."),
                                 "Yeni bir feed versiyonu yayınlamaya hazırlanın.",
-                            ));
+                            );
+                            notice.details = Some([
+                                ("days_left".to_string(), days_left.to_string()),
+                                ("warning_days".to_string(), warning_days.to_string()),
+                            ].into_iter().collect());
+                            notices.push(notice);
                         }
                     }
                 }
@@ -13509,6 +13516,67 @@ mod tests {
             row: Default::default(),
             line: 2,
         }
+    }
+
+    fn records_with_feed_end(end: Option<(u32, u32, u32)>) -> crate::k2::EntityRecords {
+        let mut records = records_with(vec![], vec![], vec![], vec![]);
+        let mut feed_info = feed_info_row();
+        feed_info.feed_end_date = end;
+        records.feed_info = vec![feed_info];
+        records
+    }
+
+    #[test]
+    fn fin_019_uses_separate_configurable_feed_info_horizon() {
+        let cases = [
+            ("3 days", (2026, 5, 17), true),
+            ("10 days", (2026, 5, 24), false),
+            ("29 days", (2026, 6, 12), false),
+            ("31 days", (2026, 6, 14), false),
+        ];
+        for (label, end, expected) in cases {
+            let records = records_with_feed_end(Some(end));
+            let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
+            assert_eq!(
+                result.notices.iter().filter(|n| n.rule_id == "FIN_019").count() > 0,
+                expected,
+                "default 7-day FIN_019 behavior for {label}"
+            );
+        }
+
+        let mut config = default_config();
+        config.feed_info_expiry_warning_days = 30;
+        for (label, end, expected) in [
+            ("10 days", (2026, 5, 24), true),
+            ("29 days", (2026, 6, 12), true),
+            ("31 days", (2026, 6, 14), false),
+        ] {
+            let records = records_with_feed_end(Some(end));
+            let result = analyze(&records, &empty_derived(), &config, 20260514);
+            let notices: Vec<_> = result.notices.iter().filter(|n| n.rule_id == "FIN_019").collect();
+            assert_eq!(notices.len() > 0, expected, "30-day FIN_019 behavior for {label}");
+            if expected {
+                let details = notices[0].details.as_ref().expect("FIN_019 details");
+                assert_eq!(details.get("warning_days").map(String::as_str), Some("30"));
+                assert_eq!(details.get("days_left").map(String::as_str), Some(if label == "10 days" { "10" } else { "29" }));
+            }
+        }
+    }
+
+    #[test]
+    fn fin_019_excludes_expired_and_missing_feed_end_dates() {
+        let expired = analyze(
+            &records_with_feed_end(Some((2026, 5, 13))),
+            &empty_derived(), &default_config(), 20260514,
+        );
+        assert!(expired.notices.iter().any(|n| n.rule_id == "FIN_010"));
+        assert!(expired.notices.iter().all(|n| n.rule_id != "FIN_019"));
+
+        let missing = analyze(
+            &records_with_feed_end(None),
+            &empty_derived(), &default_config(), 20260514,
+        );
+        assert!(missing.notices.iter().all(|n| n.rule_id != "FIN_019"));
     }
 
     fn arc_020_files(records: &crate::k2::EntityRecords) -> Vec<String> {

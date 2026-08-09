@@ -343,6 +343,7 @@ MobilityData'nın `fast_travel_between_far_stops` notice'ı güncel kural sayfas
 | Parametre | Varsayılan | Aralık | Açıklama |
 |---|---:|---|---|
 | Son Kullanma Uyarısı | 30 gün | 1–60 | Feed bu kadar günden az kalmışsa uyarı üretilir |
+| Feed Bilgisi Son Kullanma Uyarısı | 7 gün | 1–60 | `FIN_019` için `feed_info.feed_end_date` bu pencere içinde bitiyorsa uyarı üretilir; `CAL_008` eşiğinden ayrıdır |
 | Servis Boşluğu Eşiği | 7 gün | 3–30 | Bu günden uzun servis kesintisi işaretlenir |
 | Maks. Sefer Süresi | 24 saat | 8–72 | Tek bir seferin maksimum süresi |
 | Min. Sefer Süresi | 60 sn | 10–300 | Tek bir seferin minimum süresi |

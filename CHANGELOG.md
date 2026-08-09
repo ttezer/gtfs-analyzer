@@ -27,6 +27,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ayrıntılarıyla tek bulguda raporlanır. Pozitif/negatif normalization ve aggregation regression
   testleri eklendi.
 
+- **#118: `FIN_019` feed-info expiry horizon artık yapılandırılabilir.** Yeni
+  `feed_info_expiry_warning_days` anahtarı varsayılan 7 günle mevcut davranışı korur;
+  `feed_expiry_warning_days`/`CAL_008` servis takvimi eşiğinden ayrı tutulur. FIN_019
+  ayrıntılarında yapılandırılmış eşik ve kalan gün sayısı gösterilir; geçmiş tarihler yine
+  yalnız `FIN_010` olarak raporlanır.
+
 - **Eight rules move to the `Spec` class, and the prose-provision badge drops from 99.3% to
   97.2%.** The badge numerator counted a hard specification provision as proven without ever
   checking what class the rules behind it had, so a `MUST` from the Schedule Reference could be
