@@ -312,6 +312,10 @@ config deltaで`stop_name_best_practices=true`を設定すると、言語依存�
 
 MobilityDataの`fast_travel_between_far_stops` noticeは現在のルールページでdeprecatedと表示されています。10 kmを超える累積距離、非連続の停留所ペア、時刻のcascade症状を一つのシグナルにまとめるため、#115 auditでは陽性20 feedを調査し、`STM_012`/`STM_014`へのaliasを採用しませんでした。新しいルールは追加せず、意図的なAnalytics coverage gapとして扱います。
 
+### 停留所URLの固有性
+
+`STP_034`と`STP_035`は、保守的な構文上の同一性を使って`stop_url`を事業者URL・路線URLと比較し、低優先度の品質検出結果として報告します。スキーム/ホストの大文字小文字、ルート`/`、明示されたHTTP 80/HTTPS 443のデフォルトポートは同一とみなします。一方、クエリ、fragment、パス末尾の`/`、percent-encodingの違いは保持します。同じ正規化URLを使う停留所は1件の集約検出結果にまとめ、影響停留所数と代表IDを`details`に含めます。
+
 ### 速度のしきい値
 
 | パラメーター | デフォルト | 範囲 | 説明 |

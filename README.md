@@ -312,6 +312,10 @@ Tek noktadan oluşan ve gerçekten bir trip tarafından kullanılan shape `SHP_0
 
 MobilityData'nın `fast_travel_between_far_stops` notice'ı güncel kural sayfasında deprecated olarak işaretlidir; 10 km üzeri kümülatif mesafe, ardışık olmayan stop çiftleri ve zaman cascade'lerini aynı sinyalde birleştirir. #115 audit'inde 20 pozitif feed örneği incelendi ve bu notice'ın `STM_012`/`STM_014` ile eşlenmesi reddedildi. Yeni kural eklenmedi; bu fark bilinçli Analytics coverage gap olarak tutulur.
 
+### Durak URL özgüllüğü
+
+`STP_034` ve `STP_035`, `stop_url` değerini acente ve hat URL'leriyle güvenli bir sözdizimsel anahtarla karşılaştırır ve düşük öncelikli Quality bulguları üretir. Şema/host harf büyüklüğü, kök `/` ve HTTP 80/HTTPS 443 varsayılan port farkları eşdeğer sayılır; query, fragment, path sonundaki `/` ve percent-encoding farkları korunur. Aynı normalize URL'yi kullanan duraklar tek aggregate bulguda toplanır; ayrıntıda etkilenen durak sayısı ve örnek kimlikler bulunur.
+
 ### Hız Eşikleri
 
 | Parametre | Varsayılan | Aralık | Açıklama |

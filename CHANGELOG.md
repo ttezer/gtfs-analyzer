@@ -20,6 +20,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   örneği sınıflandırıldı. Yeni Analytics kuralı eklenmedi; `STM_012`/`STM_014` alias'ı bilinçli
   olarak reddedildi ve fark explicit coverage gap olarak parity audit'inde tutuldu.
 
+- **`STP_034` ve `STP_035` düşük öncelikli Quality ve aggregate raporlama olarak güncellendi.**
+  URL karşılaştırması şema/host harfi, kök yol ve varsayılan portları güvenle normalize eder;
+  query, fragment, path trailing slash ve percent-encoding farklarını birbirine eşitlemez.
+  Aynı normalize URL'yi kullanan duraklar `stop_count`, örnek durak kimlikleri ve normalize URL
+  ayrıntılarıyla tek bulguda raporlanır. Pozitif/negatif normalization ve aggregation regression
+  testleri eklendi.
+
 - **Eight rules move to the `Spec` class, and the prose-provision badge drops from 99.3% to
   97.2%.** The badge numerator counted a hard specification provision as proven without ever
   checking what class the rules behind it had, so a `MUST` from the Schedule Reference could be

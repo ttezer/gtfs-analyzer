@@ -131,8 +131,8 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | STP_031 | Durak adı ve açıklaması aynı | BİLGİ | Quality |
 | STP_032 | Pathway bağlantılı platform için parent_station eksik | ORTA | Quality |
 | STP_033 | Durak zone_id eksik (ücret hesabı için gerekli) | BİLGİ | Quality |
-| STP_034 | stop_url acente URL'siyle aynı | BİLGİ | Quality |
-| STP_035 | stop_url hat URL'siyle aynı | BİLGİ | Quality |
+| STP_034 | stop_url acente URL'siyle aynı | DÜŞÜK | Quality |
+| STP_035 | stop_url hat URL'siyle aynı | DÜŞÜK | Quality |
 | STP_036 | İstasyonun (location_type=1) parent_station'ı var | DÜŞÜK | Spec |
 | STP_037 | Bazı duraklar tekerlekli sandalye erişilebilirliği (wheelchair_boarding) bildirmemiş | ORTA | Quality |
 | STP_038 | Hiçbir durak tekerlekli sandalye erişilebilirliği (wheelchair_boarding) bildirmemiş | BİLGİ | Quality |

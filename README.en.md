@@ -312,6 +312,10 @@ A one-point shape that is actually referenced by a trip is reported as `SHP_006`
 
 MobilityData's `fast_travel_between_far_stops` notice is marked deprecated on the current rule page; it combines cumulative distances over 10 km, non-consecutive stop pairs, and timing-cascade symptoms in one signal. The #115 audit sampled 20 positive feeds and rejected aliasing this notice to `STM_012` or `STM_014`. No new rule was added; the difference remains an intentional Analytics coverage gap.
 
+### Stop URL specificity
+
+`STP_034` and `STP_035` compare `stop_url` with agency and route URLs using a conservative syntactic identity and report low-priority Quality findings. Scheme/host case, the root `/`, and explicit HTTP 80/HTTPS 443 default ports are equivalent; query strings, fragments, path trailing slashes, and percent-encoding remain significant. Stops sharing one normalized URL are reported in a single aggregate finding with the affected-stop count and representative IDs in `details`.
+
 ### Speed Thresholds
 
 | Parameter | Default | Range | Description |

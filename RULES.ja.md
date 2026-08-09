@@ -131,8 +131,8 @@
 | STP_031 | stop_nameとstop_descが同一 | 情報 | 品質 |
 | STP_032 | 経路接続停留所にparent_stationなし | 中 | 品質 |
 | STP_033 | zone_idが不足（運賃計算に必要） | 情報 | 品質 |
-| STP_034 | stop_urlが事業者URLと同一 | 情報 | 品質 |
-| STP_035 | stop_urlが路線URLと同一 | 情報 | 品質 |
+| STP_034 | stop_urlが事業者URLと同一 | 低 | 品質 |
+| STP_035 | stop_urlが路線URLと同一 | 低 | 品質 |
 | STP_036 | 駅（location_type=1）にparent_stationが設定されている | 低 | 仕様 |
 | STP_037 | 一部の停留所で車椅子対応情報が未設定 | 中 | 品質 |
 | STP_038 | いずれの停留所も車椅子対応情報を報告していない | 情報 | 品質 |

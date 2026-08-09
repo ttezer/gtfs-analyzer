@@ -1,6 +1,7 @@
-﻿use std::collections::{BTreeSet, HashMap, HashSet};
+﻿use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use rustc_hash::{FxHashMap, FxHashSet};
 use smol_str::SmolStr;
+use url::Url;
 
 use gtfs_config::ValidatorConfig;
 use gtfs_core::{EntityType, Notice};
@@ -15,6 +16,67 @@ use crate::k5_derived::DerivedData;
 #[derive(Debug, Default)]
 pub struct K6Result {
     pub notices: Vec<Notice>,
+}
+
+/// A conservative identity for the URL comparison rules STP_034/035.
+///
+/// URL normalization here is intentionally limited to syntax that cannot change
+/// the referenced web resource: scheme/host casing, root-path spelling, and
+/// explicit default ports. Query strings, fragments, path trailing slashes and
+/// percent-encoding remain significant so different pages are not collapsed into
+/// one quality finding.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+struct NormalizedWebUrl {
+    scheme: String,
+    username: String,
+    password: Option<String>,
+    host: String,
+    port: Option<u16>,
+    path: String,
+    query: Option<String>,
+    fragment: Option<String>,
+}
+
+fn normalize_web_url(raw: &str) -> Option<NormalizedWebUrl> {
+    let parsed = Url::parse(raw).ok()?;
+    if !matches!(parsed.scheme(), "http" | "https") {
+        return None;
+    }
+    let host = parsed.host_str()?.to_ascii_lowercase();
+    let scheme = parsed.scheme().to_ascii_lowercase();
+    let port = match parsed.port() {
+        Some(port) if (scheme == "http" && port == 80) || (scheme == "https" && port == 443) => None,
+        other => other,
+    };
+    let path = match parsed.path() {
+        "" | "/" => String::new(),
+        path => path.to_string(),
+    };
+
+    Some(NormalizedWebUrl {
+        scheme,
+        username: parsed.username().to_string(),
+        password: parsed.password().map(str::to_string),
+        host,
+        port,
+        path,
+        query: parsed.query().map(str::to_string),
+        fragment: parsed.fragment().map(str::to_string),
+    })
+}
+
+fn format_normalized_web_url(url: &NormalizedWebUrl) -> String {
+    let authority = if url.username.is_empty() {
+        String::new()
+    } else {
+        format!("{}{}@", url.username, url.password.as_ref().map(|p| format!(":{p}")).unwrap_or_default())
+    };
+    let host = if url.host.contains(':') { format!("[{0}]", url.host) } else { url.host.clone() };
+    let port = url.port.map(|p| format!(":{p}")).unwrap_or_default();
+    let path = if url.path.is_empty() { "/" } else { &url.path };
+    let query = url.query.as_ref().map(|q| format!("?{q}")).unwrap_or_default();
+    let fragment = url.fragment.as_ref().map(|f| format!("#{f}")).unwrap_or_default();
+    format!("{}://{}{}{}{}{}{}", url.scheme, authority, host, port, path, query, fragment)
 }
 
 // ── Ana fonksiyon ─────────────────────────────────────────────────────────────
@@ -3450,42 +3512,65 @@ fn check_route_trip_quality(
     }
 
     // ── STP_034/035: stop_url acente veya hat URL'siyle aynı ─────────────────
+    // URL karşılaştırması güvenli sözdizimsel eşdeğerlik ile yapılır ve aynı
+    // normalized URL'yi kullanan duraklar tek aggregate notice'ta toplanır.
     {
-        let agency_urls: Vec<&str> = records.agencies.iter()
-            .filter_map(|a| if a.agency_url.is_empty() { None } else { Some(a.agency_url.as_str()) })
+        let agency_urls: BTreeSet<NormalizedWebUrl> = records.agencies.iter()
+            .filter_map(|a| normalize_web_url(&a.agency_url))
             .collect();
-        let route_urls: Vec<&str> = records.routes.iter()
-            .filter_map(|r| r.route_url.as_deref().filter(|u| !u.is_empty()))
+        let route_urls: BTreeSet<NormalizedWebUrl> = records.routes.iter()
+            .filter_map(|r| r.route_url.as_deref().and_then(normalize_web_url))
             .collect();
+        let mut agency_matches: BTreeMap<NormalizedWebUrl, Vec<usize>> = BTreeMap::new();
+        let mut route_matches: BTreeMap<NormalizedWebUrl, Vec<usize>> = BTreeMap::new();
 
-        for stop in &records.stops {
-            let Some(ref surl) = stop.stop_url else { continue };
-            if surl.is_empty() { continue }
-
-            // STP_034: stop_url == agency_url
-            if agency_urls.contains(&surl.as_str()) {
-                notices.push(k6_notice(
-                    ctr, "STP_034", EntityType::Stop,
-                    Some(stop.stop_id.clone()), Some(stop.stop_id.clone()),
-                    "stops.txt", Some(stop.line), Some("stop_url"),
-                    Some(surl.clone()), None,
-                    format!("'{}' durağının stop_url değeri bir acente URL'siyle aynı: '{surl}'.", stop.stop_id),
-                    "stop_url'yi bu durağa özgü bir sayfaya yönlendirin ya da boş bırakın.",
-                ));
+        for (stop_idx, stop) in records.stops.iter().enumerate() {
+            let Some(surl) = stop.stop_url.as_deref().filter(|u| !u.is_empty()) else { continue };
+            let Some(key) = normalize_web_url(surl) else { continue };
+            if agency_urls.contains(&key) {
+                agency_matches.entry(key.clone()).or_default().push(stop_idx);
             }
-
-            // STP_035: stop_url == route_url
-            if route_urls.contains(&surl.as_str()) {
-                notices.push(k6_notice(
-                    ctr, "STP_035", EntityType::Stop,
-                    Some(stop.stop_id.clone()), Some(stop.stop_id.clone()),
-                    "stops.txt", Some(stop.line), Some("stop_url"),
-                    Some(surl.clone()), None,
-                    format!("'{}' durağının stop_url değeri bir hat URL'siyle aynı: '{surl}'.", stop.stop_id),
-                    "stop_url'yi bu durağa özgü bir sayfaya yönlendirin ya ya boş bırakın.",
-                ));
+            if route_urls.contains(&key) {
+                route_matches.entry(key).or_default().push(stop_idx);
             }
         }
+
+        let emit_url_matches = |rule_id: &str,
+                                matches: &mut BTreeMap<NormalizedWebUrl, Vec<usize>>,
+                                message_name: &str,
+                                ctr: &mut u32,
+                                notices: &mut Vec<Notice>| {
+            for (normalized, stop_indices) in matches.iter_mut() {
+                stop_indices.sort_by(|a, b| records.stops[*a].stop_id.cmp(&records.stops[*b].stop_id));
+                let representative = &records.stops[stop_indices[0]];
+                let stop_ids: Vec<&str> = stop_indices.iter()
+                    .take(5)
+                    .map(|idx| records.stops[*idx].stop_id.as_str())
+                    .collect();
+                let raw_url = representative.stop_url.as_deref().unwrap_or_default();
+                let mut details: BTreeMap<String, String> = BTreeMap::new();
+                details.insert("normalized_url".to_string(), format_normalized_web_url(normalized));
+                details.insert("stop_count".to_string(), stop_indices.len().to_string());
+                details.insert("representative_stop_ids".to_string(), stop_ids.join(","));
+                if stop_indices.len() > 5 {
+                    details.insert("additional_stop_count".to_string(), (stop_indices.len() - 5).to_string());
+                }
+
+                let mut notice = k6_notice(
+                    ctr, rule_id, EntityType::Stop,
+                    Some(representative.stop_id.clone()), Some(representative.stop_id.clone()),
+                    "stops.txt", Some(representative.line), Some("stop_url"),
+                    Some(raw_url.to_string()), None,
+                    format!("'{}' durağının stop_url değeri bir {message_name} URL'siyle aynı; {count} durak aynı URL'yi kullanıyor: '{raw_url}'.", representative.stop_id, count = stop_indices.len()),
+                    "stop_url'yi bu durağa özgü bir sayfaya yönlendirin ya da boş bırakın.",
+                );
+                notice.details = Some(details);
+                notices.push(notice);
+            }
+        };
+
+        emit_url_matches("STP_034", &mut agency_matches, "acente", ctr, notices);
+        emit_url_matches("STP_035", &mut route_matches, "hat", ctr, notices);
     }
 
 
@@ -8464,6 +8549,7 @@ mod tests {
     }
 
     use crate::k2::routes::RouteRecord;
+    use crate::k2::agency::AgencyRecord;
     use crate::k2::stop_times::StopTimeRecord;
     use crate::k2::stops::StopRecord;
     use crate::k2::trips::TripRecord;
@@ -8487,6 +8573,74 @@ mod tests {
         assert!(!contains_as_word("Route 51", "5"));
         // CJK gövdesi içinde gömülü ASCII kelimesi de sınırda bulunmalı.
         assert!(contains_as_word("市バス bus 系統", "bus"));
+    }
+
+    #[test]
+    fn stop_url_normalization_is_conservative() {
+        assert_eq!(
+            normalize_web_url("HTTPS://EXAMPLE.ORG:443"),
+            normalize_web_url("https://example.org/")
+        );
+        assert_eq!(
+            normalize_web_url("http://example.org:80"),
+            normalize_web_url("http://example.org/")
+        );
+        assert_ne!(
+            normalize_web_url("https://example.org/a"),
+            normalize_web_url("https://example.org/a/")
+        );
+        assert_ne!(
+            normalize_web_url("https://example.org/?x=1"),
+            normalize_web_url("https://example.org/?x=2")
+        );
+        assert_ne!(
+            normalize_web_url("https://example.org/%2F"),
+            normalize_web_url("https://example.org//")
+        );
+        assert!(normalize_web_url("ftp://example.org/").is_none());
+    }
+
+    #[test]
+    fn stop_url_matches_are_normalized_and_aggregated() {
+        let agency = AgencyRecord {
+            agency_id: Some("A1".into()),
+            agency_name: "Agency".into(),
+            agency_url: "https://AGENCY.EXAMPLE:443".into(),
+            agency_timezone: "Europe/Istanbul".into(),
+            agency_lang: None,
+            agency_phone: None,
+            agency_fare_url: None,
+            agency_email: None,
+            agency_cemv_support: None,
+            row: Default::default(),
+            line: 2,
+        };
+        let mut line = route("R1", 3);
+        line.route_url = Some("https://line.example/route".into());
+
+        let mut first = stop("S1", 41.0, 29.0);
+        first.stop_url = Some("https://agency.example/".into());
+        let mut second = stop("S2", 41.1, 29.1);
+        second.stop_url = Some("HTTPS://AGENCY.EXAMPLE:443".into());
+        let mut route_stop = stop("S3", 41.2, 29.2);
+        route_stop.stop_url = Some("https://line.example/route".into());
+        let mut distinct_query = stop("S4", 41.3, 29.3);
+        distinct_query.stop_url = Some("https://line.example/route?stop=4".into());
+
+        let mut records = records_with(vec![first, second, route_stop, distinct_query], vec![line], vec![], vec![]);
+        records.agencies.push(agency);
+        let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
+
+        let agency_hits: Vec<_> = result.notices.iter().filter(|n| n.rule_id == "STP_034").collect();
+        let route_hits: Vec<_> = result.notices.iter().filter(|n| n.rule_id == "STP_035").collect();
+        assert_eq!(agency_hits.len(), 1, "normalized agency matches aggregate");
+        assert_eq!(route_hits.len(), 1, "query variation is not equated");
+        let details = agency_hits[0].details.as_ref().expect("aggregate details");
+        assert_eq!(details.get("stop_count").map(String::as_str), Some("2"));
+        assert_eq!(details.get("representative_stop_ids").map(String::as_str), Some("S1,S2"));
+        assert_eq!(details.get("normalized_url").map(String::as_str), Some("https://agency.example/"));
+        assert_eq!(agency_hits[0].entity_id.as_deref(), Some("S1"));
+        assert_eq!(route_hits[0].entity_id.as_deref(), Some("S3"));
     }
 
     fn empty_derived() -> DerivedData {

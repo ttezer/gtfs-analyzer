@@ -131,8 +131,8 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | STP_031 | Stop name and description are identical | INFO | Quality |
 | STP_032 | parent_station missing for pathway-connected platform | MEDIUM | Quality |
 | STP_033 | Stop zone_id missing (required for fare calculation) | INFO | Quality |
-| STP_034 | stop_url matches agency URL | INFO | Quality |
-| STP_035 | stop_url matches route URL | INFO | Quality |
+| STP_034 | stop_url matches agency URL | LOW | Quality |
+| STP_035 | stop_url matches route URL | LOW | Quality |
 | STP_036 | Station has parent_station (invalid) | LOW | Spec |
 | STP_037 | Some stops have not set wheelchair boarding | MEDIUM | Quality |
 | STP_038 | No stops report wheelchair boarding | INFO | Quality |
