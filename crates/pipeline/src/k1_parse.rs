@@ -1127,10 +1127,17 @@ pub fn parse(zip_bytes: &[u8], cfg: &ValidatorConfig) -> Result<K1Result, FatalE
         if raw_name == "locations.geojson" {
             has_locations_geojson = true;
             let mut buf = Vec::with_capacity(zf.size() as usize);
-            if zf.read_to_end(&mut buf).is_ok() {
-                if !validate_locations_geojson(&buf, &raw_name, &mut notices, &mut counter, &mut geojson_location_ids, &mut geojson_geometries) {
-                    partial.mark_unavailable(raw_name.clone());
-                }
+            if zf.read_to_end(&mut buf).is_ok()
+                && !validate_locations_geojson(
+                    &buf,
+                    &raw_name,
+                    &mut notices,
+                    &mut counter,
+                    &mut geojson_location_ids,
+                    &mut geojson_geometries,
+                )
+            {
+                partial.mark_unavailable(raw_name.clone());
             }
             continue;
         }
