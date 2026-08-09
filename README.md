@@ -306,6 +306,10 @@ Config delta içinde `stop_name_best_practices=true` verilirse dil-bağımlı `S
 
 `stop_times.txt` içinde `shape_dist_traveled` kullanan bir trip'in referansladığı `shapes.txt` noktalarının bir kısmında aynı alan eksikse `SHP_030` (Quality · Orta) üretilir. Bu iki alan GTFS'te ayrı ayrı opsiyoneldir; kural bir Spec yayın engeli değil, tüketicilerin durakları shape geometrisiyle güvenilir eşleştirememe riskini shape başına toplar. Etkilenen trip sayısı ve örnek kimlikler notice ayrıntısında gösterilir.
 
+### Uzak durak hız paritesi
+
+MobilityData'nın `fast_travel_between_far_stops` notice'ı güncel kural sayfasında deprecated olarak işaretlidir; 10 km üzeri kümülatif mesafe, ardışık olmayan stop çiftleri ve zaman cascade'lerini aynı sinyalde birleştirir. #115 audit'inde 20 pozitif feed örneği incelendi ve bu notice'ın `STM_012`/`STM_014` ile eşlenmesi reddedildi. Yeni kural eklenmedi; bu fark bilinçli Analytics coverage gap olarak tutulur.
+
 ### Hız Eşikleri
 
 | Parametre | Varsayılan | Aralık | Açıklama |

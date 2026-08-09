@@ -306,6 +306,10 @@ Setting `stop_name_best_practices=true` in the config delta enables the language
 
 If a trip uses `shape_dist_traveled` in `stop_times.txt` but some points of its referenced shape lack the same field in `shapes.txt`, the analyzer emits `SHP_030` (Quality · Medium). Both fields are individually optional in GTFS, so this is not a Spec publish blocker; it is a shape-level compatibility signal that consumers may be unable to place stops reliably on the shape. The finding includes the affected-trip count and representative trip IDs.
 
+### Far-stop speed parity
+
+MobilityData's `fast_travel_between_far_stops` notice is marked deprecated on the current rule page; it combines cumulative distances over 10 km, non-consecutive stop pairs, and timing-cascade symptoms in one signal. The #115 audit sampled 20 positive feeds and rejected aliasing this notice to `STM_012` or `STM_014`. No new rule was added; the difference remains an intentional Analytics coverage gap.
+
 ### Speed Thresholds
 
 | Parameter | Default | Range | Description |

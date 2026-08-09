@@ -111,6 +111,18 @@ class ContextMappingFixtures(unittest.TestCase):
                 self.assertNotEqual(classification, "unreviewed")
                 self.assertTrue(rationale)
 
+    def test_far_stop_speed_gap_is_not_aliased_to_consecutive_speed(self):
+        classification, rationale = mapping.classify_unmapped(
+            "fast_travel_between_far_stops"
+        )
+        self.assertEqual(classification, "genuine-gap")
+        self.assertIn("non-consecutive", rationale)
+        self.assertNotIn(
+            "fast_travel_between_far_stops",
+            audit.MAP,
+            "far-stop MD notice must remain an explicit, unaffiliated coverage gap",
+        )
+
         self.assertEqual(audit.MAP["same_stop_and_agency_url"], ["STP_034"])
         self.assertEqual(audit.MAP["same_stop_and_route_url"], ["STP_035"])
         self.assertEqual(audit.MAP["feed_expiration_date7_days"], ["FIN_019"])

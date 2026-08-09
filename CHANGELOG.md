@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **#115 `fast_travel_between_far_stops` parity kararını netleştirdi.** MobilityData v8.0.1
+  algoritması ve güncel kaynağı incelendi; 10 km kümülatif mesafe eşiği ile zaman/geometry
+  cascade'lerini birleştiren, güncel sayfada deprecated olan notice için 20 pozitif feed
+  örneği sınıflandırıldı. Yeni Analytics kuralı eklenmedi; `STM_012`/`STM_014` alias'ı bilinçli
+  olarak reddedildi ve fark explicit coverage gap olarak parity audit'inde tutuldu.
+
 - **Eight rules move to the `Spec` class, and the prose-provision badge drops from 99.3% to
   97.2%.** The badge numerator counted a hard specification provision as proven without ever
   checking what class the rules behind it had, so a `MUST` from the Schedule Reference could be
