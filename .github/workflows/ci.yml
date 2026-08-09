@@ -75,6 +75,14 @@ jobs:
         run: |
           python3 spec-audit/signal_parity.py
 
+      # issue #111: MobilityData eşlemeleri generic notice kodlarını alan/dosya
+      # bağlamıyla çözmeli; mapping'de olmayan registry/docs paritesi sessizce
+      # MD-only görünmemeli.
+      - name: MobilityData parity mapping drift
+        run: |
+          python3 spec-audit/check_md_parity_mapping.py
+          python3 spec-audit/test_md_parity_audit.py
+
       - name: Spec rozeti kapısı (badge_status)
         run: |
           python3 spec-audit/badge_status.py

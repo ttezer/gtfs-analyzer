@@ -25,6 +25,8 @@ import os
 import sys
 from collections import Counter, defaultdict
 
+from md_parity_mapping import classify_unmapped, resolve_mapping
+
 # ── KANONİK MAP: MD kodu → bizim kural(lar) ──────────────────────────────────
 # Bu oturumda (2026-07-02/03) doğrulanan eşlemeler. MAP'te OLMAYAN MD kodu
 # otomatik "MD-ONLY" kovasına düşer = kapsam-eksiği review kuyruğu (bilerek).
@@ -61,6 +63,7 @@ MAP = {
     "block_trips_with_overlapping_stop_times": ["TRP_022"],  # MD ERROR; bizde ~eşleşir (aynı-gün blok)
     # ── Stop times ──
     "missing_timepoint_value":  ["STM_050"],   # AGG: feed-özeti (MD per-row)
+    "decreasing_or_equal_stop_time_distance": ["STM_056"],  # MD ERROR ↔ stop_times.shape_dist_traveled monotonluğu
     # DÜZELTİLDİ 2026-07-17: MD'nin TEK kodunu bizim İKİ kuralımız 700 km/h
     # çizgisinden böler → STM_012 (>700, "fiziksel imkânsız", emit edip `continue`
     # ile STM_014'ü gölgeler) + STM_014 (eşik..700). Yalnız STM_014'e eşlemek
@@ -68,7 +71,7 @@ MAP = {
     # STM_012=78 ↔ MD 78 (birebir), mdb-3108 8 ↔ 8.
     "fast_travel_between_consecutive_stops": ["STM_014", "STM_012"],
     # ── Quality / feed_info ──
-    "missing_recommended_field":["RTS_025", "FIN_013", "FIN_018"],  # DÜZELTİLDİ: RTS_025=MD birebir. DQ_003(route_desc)/DQ_004(route_url) MD'de YOK = US-ONLY (opsiyonel alan ipucu)
+    "missing_recommended_field":["RTS_025", "FIN_007", "FIN_013", "FIN_018"],  # Generic kod; routes/fare/feed_info alanı sample context ile çözülür.
     "mixed_case_recommended_field": ["DQ_018"],  # biz yalnız ALL-CAPS (bilinçli)
     "missing_feed_contact_email_and_url": ["FIN_018"],
     # ── test2 (2. corpus) eşlemeleri ──
@@ -98,13 +101,13 @@ MAP = {
     # 250-feed kanıtı: mdb-3230 direction_id=255 → TRP_005=26 ↔ MD 26 BİREBİR;
     # mdb-2086 transfers=5 → FAR_005=6 ↔ MD 6 BİREBİR. Yalnız RTS_004'e eşlemek
     # bu ikisini "kaçırdık" gösteriyordu.
-    "unexpected_enum_value":          ["RTS_004", "TRP_005", "FAR_005", "TRF_004"],
+    "unexpected_enum_value":          ["RTS_004", "RTS_030", "TRP_005", "TRP_006", "TRP_007", "TRP_032", "FAR_005", "TRF_004", "RCT_003", "RTS_013", "RTS_018"],
     "stop_has_too_many_matches_for_shape": ["SHP_022"], # DISJOINT: SHP_022 yalnız shape_dist EKSİK trip'lerde (geometrik fallback); MD shape_dist VARKEN → mdb-8'de us=9300/MD=0 mis-comparison'dı, MD-parite bug DEĞİL. (SHP_022 ORTA×9300 kendi başına severity sorusu.)
     "unused_station":                 ["STP_030"],     # station without child ≈ unused_station (~19)
     "trip_distance_exceeds_shape_distance": ["SHP_025"],  # VAR ama by-design: SHP_025 eşiği >%0.1 (rounding tolere, SHP_029 felsefesi). mdb-1909: 170 aşımın 165'i <%0.1 rounding → biz 5 doğru, MD 170 hepsini basar.
     "trip_distance_exceeds_shape_distance_below_threshold": ["SHP_025"],
     # ── 2026-07-05 DELFI (mdb-3215, Almanya ulusal) taramasından: MAP eksikleri (kuralımız VAR) ──
-    "number_out_of_range":            ["PTH_007", "STP_016", "STP_019", "SHP_002", "SHP_003", "RCT_004"],  # GENERIC değer-aralığı; bizde alan-bazlı özel kurallar. DELFI'de PTH_007=20729 birebir.
+    "number_out_of_range":            ["PTH_007", "STP_003", "STP_005", "SHP_002", "SHP_003", "RCT_004"],  # Generic kod; alan bağlamı olmadan yalnız aday kümesi.
 
     "inconsistent_route_type_for_block_id": ["TRP_024"],  # "Block içinde tutarsız rota tipi"
     "transfer_distance_above_2_km":   ["TRF_011"],   # "aktarma tanımlandı ama mesafe uzak" (MD INFO variant)
@@ -358,8 +361,12 @@ def main():
             ours = MAP.get(code)
             agg_md[code] += mc
             agg_feeds[code] += 1
-            if ours is None:
-                md_only_rows.append([feed, code, mc, notice.get("severity", ""), samples_str(notice)])
+            resolution = resolve_mapping(code, notice, ours or ())
+            ours = list(resolution.analyzer_rules)
+            if not ours:
+                classification, rationale = classify_unmapped(code)
+                md_only_rows.append([feed, code, mc, notice.get("severity", ""),
+                                     classification, rationale, samples_str(notice)])
                 agg_diverge[code] += 1
                 continue
             oc = sum(rc.get(r, 0) for r in ours)
@@ -367,7 +374,12 @@ def main():
             our_rule = "|".join(ours)
             is_agg = any(r in AGG_RULES for r in ours)
             ratio = (oc / mc) if mc else 0
-            if oc == 0 and mc > 0:
+            # A single MD code can legitimately contain samples from multiple
+            # fields.  The golden snapshot has no per-field count, so do not
+            # turn that aggregate into a false OVER/UNDER claim.
+            if resolution.kind == "context-mixed" or resolution.unresolved_samples:
+                status = "CONTEXT"
+            elif oc == 0 and mc > 0:
                 status = "AGG" if is_agg else "MISS"
             elif ratio >= OVER_RATIO:
                 status = "OVER"
@@ -377,7 +389,7 @@ def main():
                 status = "MATCH"
             # Adjudicate edilmiş sapmayı, sapma olarak SAYMA. MATCH'i ezmiyoruz:
             # zaten uyuşuyorsa "explained" demek bilgi kaybı olurdu.
-            if code in BY_DESIGN and status != "MATCH":
+            if code in BY_DESIGN and status not in ("MATCH", "CONTEXT"):
                 status = "EXPLAINED"
             if status in ("OVER", "UNDER", "MISS"):
                 agg_diverge[code] += 1
@@ -386,7 +398,8 @@ def main():
             our_cls = "|".join(sorted({gv.get(r, {}).get("rule_class", "") for r in ours if r in gv}))
             rows.append([feed, code, mc, notice.get("severity", ""), our_rule, oc,
                          our_sev, our_cls, "AGG" if is_agg else "", f"{ratio:.2f}",
-                         status, samples_str(notice)])
+                         status, samples_str(notice), resolution.kind,
+                         "|".join(resolution.contexts)])
 
         # US-ONLY: bizde ≥1, MAP'te MD karşılığı yok, sayı büyük
         for r, c in rc.items():
@@ -397,11 +410,13 @@ def main():
     with open(os.path.join(base, "parity_all.csv"), "w", newline="", encoding="utf-8") as f:
         w = csv.writer(f)
         w.writerow(["feed", "md_code", "md_count", "md_severity", "our_rule", "our_count",
-                    "our_severity", "our_class", "agg", "ratio", "status", "md_samples"])
+                    "our_severity", "our_class", "agg", "ratio", "status", "md_samples",
+                    "mapping_kind", "mapping_context"])
         w.writerows(rows)
     with open(os.path.join(base, "parity_md_only.csv"), "w", newline="", encoding="utf-8") as f:
         w = csv.writer(f)
-        w.writerow(["feed", "md_code", "md_count", "md_severity", "md_samples"])
+        w.writerow(["feed", "md_code", "md_count", "md_severity", "classification",
+                    "rationale", "md_samples"])
         w.writerows(md_only_rows)
 
     # ── ASIL ÇIKTI: açıklanamayan delta ──
@@ -411,7 +426,8 @@ def main():
     with open(os.path.join(base, "parity_unexplained.csv"), "w", newline="", encoding="utf-8") as f:
         w = csv.writer(f)
         w.writerow(["feed", "md_code", "md_count", "md_severity", "our_rule", "our_count",
-                    "our_severity", "our_class", "agg", "ratio", "status", "md_samples"])
+                    "our_severity", "our_class", "agg", "ratio", "status", "md_samples",
+                    "mapping_kind", "mapping_context"])
         w.writerows(unexplained)
 
     explained = sum(1 for r in rows if r[10] == "EXPLAINED")
@@ -422,6 +438,7 @@ def main():
         f.write("## 🎯 Açıklanamayan delta (inceleme kuyruğu)\n\n")
         f.write(f"- Toplam satır: **{len(rows)}** · MATCH: **{sum(1 for r in rows if r[10]=='MATCH')}** "
                 f"· AGG: **{sum(1 for r in rows if r[10]=='AGG')}** "
+                f"· CONTEXT: **{sum(1 for r in rows if r[10]=='CONTEXT')}** "
                 f"· adjudicate edilmiş (EXPLAINED): **{explained}**\n")
         f.write(f"- **AÇIKLANAMAYAN: {len(unexplained)}** → `parity_unexplained.csv`\n\n")
         f.write("EXPLAINED = `BY_DESIGN` tablosunda gerekçesi yazılı, daha önce yargılanmış sapma.\n"
