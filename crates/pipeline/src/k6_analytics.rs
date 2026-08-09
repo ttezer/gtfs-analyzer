@@ -3458,9 +3458,12 @@ fn check_route_trip_quality(
                 Some(l) => l,
                 None => continue,
             };
-            // Kısa ad en az 2 karakter olmalı ve uzun adda kelime sınırında yer almalı.
-            // Örn: short="5A", long="5A Hattı" → ateşler; short="5", long="Route 5A" → ateşlemez.
-            if short.len() >= 2 && contains_as_word(long, short) {
+            // Tam eşitlik, tek karakterli adlarda da gerçek bir tekrar vakasıdır.
+            // Eşit olmayan containment için tek karakterli kodları koru:
+            // short="5A", long="5A Hattı" → ateşler;
+            // short="5", long="Route 5A" → kelime sınırı yok, ateşlemez.
+            let names_equal = short.to_lowercase() == long.to_lowercase();
+            if names_equal || (short.chars().count() >= 2 && contains_as_word(long, short)) {
                 notices.push(k6_notice(
                     ctr, "RTS_022", EntityType::Route,
                     Some(route.route_id.clone()), Some(route.route_id.clone()),

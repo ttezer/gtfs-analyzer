@@ -119,6 +119,60 @@ fn modern_translation_headers_keep_translation_conflict_validation() {
     }
 }
 
+// ── issue #108: RTS_022 tek karakterli tam eşitliği kaçırmamalı ───────────────
+
+fn rts022_route_name_feed(routes: &'static [u8]) -> Vec<(&'static str, &'static [u8])> {
+    let mut files = base_files();
+    files[2] = ("routes.txt", routes);
+    files
+}
+
+#[test]
+fn rts022_flags_one_character_equality_once() {
+    static ROUTES: &[u8] =
+        b"route_id,agency_id,route_short_name,route_long_name,route_type\n\
+          R1,1,A,A,3\n";
+
+    match run(&rts022_route_name_feed(ROUTES)) {
+        ValidateResult::Ok(vr) => assert_eq!(
+            vr.notices.iter().filter(|n| n.rule_id == "RTS_022").count(),
+            1,
+            "short=long tek karakter olsa da tam eşitlikte tek RTS_022 olmalı"
+        ),
+        other => panic!("ValidateResult::Ok beklendi, alınan: {other:?}"),
+    }
+}
+
+#[test]
+fn rts022_preserves_one_character_containment_guard() {
+    static ROUTES: &[u8] =
+        b"route_id,agency_id,route_short_name,route_long_name,route_type\n\
+          R1,1,5,Route 5A,3\n";
+
+    match run(&rts022_route_name_feed(ROUTES)) {
+        ValidateResult::Ok(vr) => assert!(
+            !vr.notices.iter().any(|n| n.rule_id == "RTS_022"),
+            "eşit olmayan tek karakterli substring RTS_022 üretmemeli"
+        ),
+        other => panic!("ValidateResult::Ok beklendi, alınan: {other:?}"),
+    }
+}
+
+#[test]
+fn rts022_keeps_multicharacter_containment() {
+    static ROUTES: &[u8] =
+        b"route_id,agency_id,route_short_name,route_long_name,route_type\n\
+          R1,1,5A,5A Hatt\xC4\xB1,3\n";
+
+    match run(&rts022_route_name_feed(ROUTES)) {
+        ValidateResult::Ok(vr) => assert!(
+            vr.notices.iter().any(|n| n.rule_id == "RTS_022"),
+            "çok karakterli containment RTS_022 üretmeye devam etmeli"
+        ),
+        other => panic!("ValidateResult::Ok beklendi, alınan: {other:?}"),
+    }
+}
+
 // ── Test 1: Bozuk bayt → Fatal(ZipUnreadable) ─────────────────────────────────
 // ARC_001 yolu: pipeline ilk adımda durur, hiçbir kural çalışmaz.
 
