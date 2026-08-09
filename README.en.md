@@ -306,11 +306,11 @@ Setting `stop_name_best_practices=true` in the config delta enables the language
 
 If a trip uses `shape_dist_traveled` in `stop_times.txt` but some points of its referenced shape lack the same field in `shapes.txt`, the analyzer emits `SHP_030` (Quality · Medium). Both fields are individually optional in GTFS, so this is not a Spec publish blocker; it is a shape-level compatibility signal that consumers may be unable to place stops reliably on the shape. The finding includes the affected-trip count and representative trip IDs.
 
-A one-point shape that is actually referenced by a trip is reported as `SHP_006` at Low · Quality, with `shape_id` and `shape_point_count=1` in the details. A two-point straight segment is valid. An unused one-point shape is reported only by `SHP_018`; this prevents the deprecated MobilityData `single_shape_point` signal from creating an unnecessary cascade.
+A one-point shape that is actually referenced by a trip is reported as `SHP_006` at Low · Quality, with `shape_id` and `shape_point_count=1` in the details. A two-point straight segment is valid. An unused one-point shape is reported only by `SHP_018`. This is an intentional near-parity mapping for MobilityData's `single_shape_point`: Analyzer reports `SHP_006` only for a used shape.
 
 ### Far-stop speed parity
 
-MobilityData's `fast_travel_between_far_stops` notice is marked deprecated on the current rule page; it combines cumulative distances over 10 km, non-consecutive stop pairs, and timing-cascade symptoms in one signal. The #115 audit sampled 20 positive feeds and rejected aliasing this notice to `STM_012` or `STM_014`. No new rule was added; the difference remains an intentional Analytics coverage gap.
+MobilityData's current rules page is internally inconsistent for `fast_travel_between_far_stops`: the main WARNING table shows it as active, while the notice-detail metadata says `Deprecated since undefined`, and the deprecated table omits it. The #115 audit sampled 20 positive feeds; the decision is based on the signal's mixed/noisy combination of cumulative distances over 10 km, non-consecutive stop pairs, and timing cascades—not on an assumed deprecation. Aliasing it to `STM_012` or `STM_014` was rejected; no new rule was added and the difference remains an intentional Analytics coverage gap.
 
 ### Stop URL specificity
 
@@ -343,7 +343,7 @@ MobilityData's `fast_travel_between_far_stops` notice is marked deprecated on th
 | Parameter | Default | Range | Description |
 |---|---:|---|---|
 | Expiry Warning | 30 days | 1–60 | Warning generated if feed expires within this many days |
-| Feed Info Expiry Warning | 7 days | 1–60 | `FIN_019` horizon for `feed_info.feed_end_date`; separate from the `CAL_008` threshold |
+| Feed Info Expiry Warning | 7 days | 1–60 | Default `FIN_019` horizon for `feed_info.feed_end_date`; the 30-day MobilityData parity is applicable when `feed_info_expiry_warning_days=30`, separate from `CAL_008` |
 | Service Gap Threshold | 7 days | 3–30 | Service gaps longer than this are flagged |
 | Max Trip Duration | 24 h | 8–72 | Maximum duration for a single trip |
 | Min Trip Duration | 60 s | 10–300 | Minimum duration for a single trip |
@@ -475,11 +475,11 @@ The comparison runs entirely in the browser. The Golden JSON is parsed locally; 
 | **Low** | Minor deviation from best practice |
 | **Info** | Informational; action may not be required |
 
-Severity levels are based on the file and field requirement levels (Required · Conditionally Required · Recommended · Optional) defined in the [GTFS Schedule Reference](https://gtfs.org/documentation/schedule/reference/#file-requirements).
+Severity combines the file/field requirement level (Required · Conditionally Required · Recommended · Optional) from the [GTFS Schedule Reference](https://gtfs.org/documentation/schedule/reference/#file-requirements) with the finding's semantic impact.
 
 ### Spec severity rubric
 
-Spec severity is based on the impact of an invalid feed, not on whether MobilityData labels
+Spec severity combines requirement level and semantic impact; it is not based on whether MobilityData labels
 the same finding `ERROR`, `WARNING`, or `INFO`:
 
 - **Critical:** Required file/field, primary-key or foreign-key integrity, or core type/range violation; the feed cannot be consumed reliably and `Spec + Critical` is the publish gate.
@@ -603,7 +603,7 @@ npm run dev
 cargo test
 
 # Blocking lint for every workspace crate, test, and example target
-cargo clippy --workspace --all-targets -- -D warnings
+cargo clippy --workspace --all-targets --all-features -- -D warnings
 
 # Playwright smoke tests
 cd ui

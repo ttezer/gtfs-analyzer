@@ -29,6 +29,8 @@ static ROUTES: &[u8] =
     b"route_id,agency_id,route_short_name,route_type\nR1,1,101,3\n";
 static TRIPS: &[u8] =
     b"route_id,service_id,trip_id\nR1,SVC1,T1\n";
+static TRIPS_DANGLING_ROUTE: &[u8] =
+    b"route_id,service_id,trip_id\nR9,SVC1,T1\n";
 static STOP_TIMES: &[u8] =
     b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
       T1,08:00:00,08:00:00,S1,1\nT1,08:10:00,08:10:00,S2,2\n";
@@ -190,8 +192,8 @@ fn arc001_corrupt_zip_returns_fatal_zip_unreadable() {
 }
 
 // ── Test 1b: Zorunlu dosya eksik → PARTIAL + ARC_004 ─────────────────────────
-// ZIP okunabilir kaldığı için bağımsız bulgular korunur; eksik önkoşula dayanan
-// çapraz-ref ve türev aşamalar güvenli biçimde atlanır.
+// ZIP okunabilir kaldığı için bağımsız bulgular korunur; yalnızca eksik dosyaya
+// gerçekten bağlı alt kurallar çalışmaz.
 
 #[test]
 fn arc004_missing_required_file_returns_partial_report() {
@@ -204,7 +206,7 @@ fn arc004_missing_required_file_returns_partial_report() {
             assert_eq!(vr.status, gtfs_core::ValidationStatus::Partial);
             let partial = vr.partial.expect("partial kapsamı raporlanmalı");
             assert!(partial.unavailable_files.contains(&"routes.txt".to_string()));
-            assert!(partial.skipped_stages.contains(&"K4-cross-ref".to_string()));
+            assert!(!partial.skipped_stages.contains(&"K4-cross-ref".to_string()));
             assert!(vr.notices.iter().any(
                 |n| n.rule_id == "ARC_004" && n.observed_value.as_deref() == Some("routes.txt")
             ));
@@ -225,7 +227,7 @@ fn malformed_optional_file_is_skipped_with_partial_report() {
             assert_eq!(vr.status, gtfs_core::ValidationStatus::Partial);
             let partial = vr.partial.expect("partial kapsamı raporlanmalı");
             assert!(partial.unavailable_files.contains(&"feed_info.txt".to_string()));
-            assert!(partial.skipped_stages.contains(&"K4-cross-ref".to_string()));
+            assert!(!partial.skipped_stages.contains(&"K4-cross-ref".to_string()));
             assert!(vr
                 .notices
                 .iter()
@@ -234,6 +236,24 @@ fn malformed_optional_file_is_skipped_with_partial_report() {
                 .notices
                 .iter()
                 .any(|n| n.rule_id == "ARC_003" && n.file.as_deref() == Some("feed_info.txt")));
+        }
+        other => panic!("Partial Ok bekleniyor, gelen: {other:?}"),
+    }
+}
+
+#[test]
+fn malformed_feed_info_keeps_independent_cross_ref_findings() {
+    let mut files = base_files();
+    files[3] = ("trips.txt", TRIPS_DANGLING_ROUTE);
+    files.push(("feed_info.txt", b"feed_publisher_name,feed_lang\nTest,\xFF\n"));
+
+    match run(&files) {
+        ValidateResult::Ok(vr) => {
+            let partial = vr.partial.expect("bozuk feed_info PARTIAL üretmeli");
+            assert!(partial.unavailable_files.contains(&"feed_info.txt".to_string()));
+            assert!(!partial.skipped_stages.contains(&"K4-cross-ref".to_string()));
+            assert!(vr.notices.iter().any(|n| n.rule_id == "TRP_002"),
+                "feed_info bağımsız trip/route cross-ref bulgusunu kapatmamalı");
         }
         other => panic!("Partial Ok bekleniyor, gelen: {other:?}"),
     }
@@ -1442,6 +1462,26 @@ fn flex_only_feed_without_stops_txt_is_not_fatal() {
                 "stops.txt için ARC_004 üretilmemeli"
             );
         }
+    }
+}
+
+#[test]
+fn invalid_geojson_does_not_make_missing_stops_optional() {
+    static INVALID_GEOJSON: &[u8] = b"{not valid geojson";
+    let mut files = base_files();
+    files.retain(|(n, _)| *n != "stops.txt");
+    files.push(("locations.geojson", INVALID_GEOJSON));
+
+    match validate_bytes(&make_zip(&files), &ValidatorConfig::default(), TODAY) {
+        ValidateResult::Ok(vr) => {
+            let partial = vr.partial.expect("bozuk locations.geojson PARTIAL üretmeli");
+            assert!(partial.unavailable_files.contains(&"locations.geojson".to_string()));
+            assert!(partial.unavailable_files.contains(&"stops.txt".to_string()));
+            assert!(vr.notices.iter().any(|n| {
+                n.rule_id == "ARC_004" && n.observed_value.as_deref() == Some("stops.txt")
+            }));
+        }
+        ValidateResult::Fatal(e) => panic!("bozuk optional GeoJSON Fatal olmamalı: {e:?}"),
     }
 }
 

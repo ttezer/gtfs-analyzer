@@ -8,16 +8,18 @@ pub mod k5_derived;
 pub mod k6_analytics;
 pub mod k7_reporting;
 pub mod decompress_guard;
+pub mod recovery;
 pub(crate) mod notice_factory;
 pub(crate) mod timing;
 
 pub use k1_parse::{parse, K1Result, RawFile, RawFiles};
 pub use k2::{validate as validate_k2, EntityRecords, K2Result};
 pub use k3_entity_graph::{build as build_entity_map, EntityMap, K3Result};
-pub use k4_cross_ref::{check as check_cross_ref, K4Result};
-pub use k5_derived::{build as build_derived, DerivedData, K5Result};
-pub use k6_analytics::{analyze as analyze_k6, K6Result};
+pub use k4_cross_ref::{check as check_cross_ref, check_with_files as check_cross_ref_with_files, K4Result};
+pub use k5_derived::{build as build_derived, build_with_files as build_derived_with_files, DerivedData, K5Result};
+pub use k6_analytics::{analyze as analyze_k6, analyze_with_files as analyze_k6_with_files, K6Result};
 pub use k7_reporting::{report as report_k7, K7Result};
+pub use recovery::FileAvailability;
 
 // Entegrasyon testlerine açık yeniden ihracat
 pub use gtfs_config::{CalendarOverrideRule, ValidatorConfig};
@@ -35,7 +37,8 @@ pub fn validate_bytes(zip: &[u8], config: &ValidatorConfig, today: u32) -> Valid
             Err(e) => return ValidateResult::Fatal(e),
         }
     };
-    let mut partial = k1.partial;
+    let partial = k1.partial;
+    let availability = FileAvailability::from_k1(&k1.present_files, &partial.unavailable_files);
     let mut file_stats = collect_file_stats(&k1.files);
 
     let mut k2 = {
@@ -69,32 +72,23 @@ pub fn validate_bytes(zip: &[u8], config: &ValidatorConfig, today: u32) -> Valid
         k3
     };
 
-    let k4 = if partial.unavailable_files.is_empty() {
+    let k4 = {
         let _t = Timer::start("K4-cross-ref");
-        check_cross_ref(&k2.records, &k3.entity_map, today)
-    } else {
-        partial.skip_stage("K4-cross-ref");
-        K4Result::default()
+        check_cross_ref_with_files(&k2.records, &k3.entity_map, today, &availability)
     };
 
     // #15: trip_stop_set (büyük feed'de ~226 MB) yalnızca K4'te kullanılır; K5/K6/K7 ve
     // build_name_index kullanmaz → K4 biter bitmez serbest bırak (K6 öncesi canlı belleği düşürür).
     k2.records.stop_times_index.trip_stop_set = Default::default();
 
-    let k5 = if partial.unavailable_files.is_empty() {
+    let k5 = {
         let _t = Timer::start("K5-derived");
-        build_derived(&k2.records, &k3.entity_map)
-    } else {
-        partial.skip_stage("K5-derived");
-        K5Result::default()
+        build_derived_with_files(&k2.records, &k3.entity_map, &availability)
     };
 
-    let k6 = if partial.unavailable_files.is_empty() {
+    let k6 = {
         let _t = Timer::start("K6-analytics");
-        analyze_k6(&k2.records, &k5.derived, config, today)
-    } else {
-        partial.skip_stage("K6-analytics");
-        K6Result::default()
+        analyze_k6_with_files(&k2.records, &k5.derived, config, today, &availability)
     };
 
     let mut all = Vec::new();

@@ -1955,10 +1955,12 @@ fn fpd_distinct_fare_media_variants_are_not_duplicate_fpd_001() {
 #[test]
 fn stm_048_reports_raw_rollover_as_spec_without_stm_008_duplicate() {
     let files = with_opts(
-        &[(
-            "stop_times.txt",
-            "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,23:50:00,23:50:00,S1,1\nT1,00:10:00,00:10:00,S2,2\n",
-        )],
+        &[
+            (
+                "stop_times.txt",
+                "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,23:50:00,23:50:00,S1,1\nT1,00:10:00,00:10:00,S2,2\n",
+            ),
+        ],
         &[],
         &[],
     );
@@ -1967,7 +1969,12 @@ fn stm_048_reports_raw_rollover_as_spec_without_stm_008_duplicate() {
     assert_eq!(stm048.len(), 1, "raw rollover tek feed özeti olmalı: {stm048:?}");
     assert_eq!(stm048[0].rule_class, gtfs_core::RuleClass::Spec);
     assert_eq!(stm048[0].severity, gtfs_core::Severity::Yuksek);
-    assert_eq!(stm048[0].observed_value.as_deref(), Some("1"));
+    assert_eq!(stm048[0].entity_type, gtfs_core::EntityType::Trip);
+    assert_eq!(stm048[0].entity_id.as_deref(), Some("T1"));
+    assert_eq!(stm048[0].line, Some(3));
+    assert_eq!(stm048[0].field.as_deref(), Some("arrival_time"));
+    assert_eq!(stm048[0].observed_value.as_deref(), Some("00:10:00"));
+    assert_eq!(stm048[0].expected_value.as_deref(), Some("24:10:00"));
     assert!(!notices.iter().any(|n| n.rule_id == "STM_008"),
         "normalization sonrası aynı olay STM_008 olarak tekrarlanmamalı: {notices:?}");
 }
@@ -2019,6 +2026,10 @@ fn raw_same_row_departure_is_stm_049_spec_without_config_gate() {
     assert_eq!(stm049.len(), 1, "same-row raw departure tek feed özeti olmalı: {stm049:?}");
     assert_eq!(stm049[0].rule_class, gtfs_core::RuleClass::Spec);
     assert_eq!(stm049[0].severity, gtfs_core::Severity::Yuksek);
+    assert_eq!(stm049[0].entity_type, gtfs_core::EntityType::Trip);
+    assert_eq!(stm049[0].entity_id.as_deref(), Some("T1"));
+    assert_eq!(stm049[0].observed_value.as_deref(), Some("00:02:00"));
+    assert_eq!(stm049[0].expected_value.as_deref(), Some("24:02:00"));
     assert!(!notices.iter().any(|n| n.rule_id == "STM_048"),
         "aynı satır departure olayı STM_048'e karışmamalı: {notices:?}");
 }
@@ -2049,6 +2060,34 @@ T2,24:10:00,24:10:00,S4,2\n",
     assert_eq!(stm049[0].severity, gtfs_core::Severity::Yuksek);
     assert_eq!(stm048[0].rule_class, gtfs_core::RuleClass::Spec);
     assert_eq!(stm049[0].rule_class, gtfs_core::RuleClass::Spec);
+}
+
+#[test]
+fn each_raw_midnight_wrap_is_its_own_trip_finding() {
+    let files = with_opts(
+        &[
+            (
+                "trips.txt",
+                "route_id,service_id,trip_id\nR1,SVC1,T1\nR1,SVC1,T2\nR1,SVC1,T3\nR1,SVC1,T4\n",
+            ),
+            (
+                "stop_times.txt",
+                "trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
+T1,23:50:00,23:50:00,S1,1\nT1,00:10:00,00:10:00,S2,2\n\
+T2,23:51:00,23:51:00,S1,1\nT2,00:11:00,00:11:00,S2,2\n\
+T3,23:52:00,23:52:00,S1,1\nT3,00:12:00,00:12:00,S2,2\n\
+T4,23:53:00,23:53:00,S1,1\nT4,00:13:00,00:13:00,S2,2\n",
+            ),
+        ],
+        &[],
+        &[],
+    );
+    let notices = notices_for(&files, &ValidatorConfig::default());
+    let stm048: Vec<_> = notices.iter().filter(|n| n.rule_id == "STM_048").collect();
+    assert_eq!(stm048.len(), 4, "dört raw olay dört ayrı finding olmalı: {stm048:?}");
+    let trips: BTreeSet<_> = stm048.iter().filter_map(|n| n.entity_id.as_deref()).collect();
+    assert_eq!(trips, BTreeSet::from(["T1", "T2", "T3", "T4"]));
+    assert!(stm048.iter().all(|n| n.line.is_some() && n.details.is_some()));
 }
 
 #[test]

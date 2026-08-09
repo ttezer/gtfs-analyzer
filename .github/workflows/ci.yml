@@ -37,7 +37,7 @@ jobs:
       # `--all-targets`, test/example lintlerini de kapsar; tek crate'de erken durup
       # diğer workspace uyarılarını gizlememesi için workspace kapsamı korunur.
       - name: cargo clippy (warnings blocking)
-        run: cargo clippy --workspace --all-targets -- -D warnings
+        run: cargo clippy --workspace --all-targets --all-features -- -D warnings
 
       # Spec kapsam raporu (WP-3/B). KAPI DEĞİL: hüküm sayısı ile kural sayısını
       # doğrudan karşılaştırmak semantik olarak güvenilir değil, o yüzden testin

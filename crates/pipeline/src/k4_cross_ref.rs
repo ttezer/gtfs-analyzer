@@ -6,6 +6,7 @@ use smol_str::SmolStr;
 
 use crate::k2::EntityRecords;
 use crate::k3_entity_graph::EntityMap;
+use crate::recovery::FileAvailability;
 use crate::timing::Timer;
 
 // �"?�"? �?ıktı �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?
@@ -18,57 +19,70 @@ pub struct K4Result {
 // �"?�"? Ana fonksiyon �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?
 
 pub fn check(records: &EntityRecords, entity_map: &EntityMap, today: u32) -> K4Result {
+    check_with_files(records, entity_map, today, &FileAvailability::complete())
+}
+
+pub fn check_with_files(
+    records: &EntityRecords,
+    entity_map: &EntityMap,
+    today: u32,
+    availability: &FileAvailability<'_>,
+) -> K4Result {
     let mut notices = Vec::new();
     let mut ctr = 0u32;
     let map = entity_map;
 
     // stop_times geçişi → StopTimesIndex üzerinden (Vec<StopTimeRecord> taranmaz)
     let (stm_used_stop_ids, stm_trip_continuous, stm_trips_in_stm, stm_trip_stm_count,
-         stm_flex_window_trips) = {
+         stm_flex_window_trips) = if availability.available("stop_times.txt") {
         let _t = Timer::start("K4::stop_times");
         let idx = &records.stop_times_index;
 
         // STM_001: trip_id stop_times'ta var ama trips.txt'te yok
-        for trip_id in &idx.trip_id_set {
-            if !map.trips.contains_key(trip_id.as_str()) {
-                let line = idx.trip_first_line.get(trip_id).copied();
-                notices.push(notice(
-                    &mut ctr,
-                    "STM_001",
-                    EntityType::Trip,
-                    Some(trip_id.to_string()),
-                    Some(trip_id.to_string()),
-                    "stop_times.txt",
-                    line,
-                    Some("trip_id"),
-                    Some(trip_id.to_string()),
-                    None,
-                    format!("'{}' sefer kodu trips.txt'te tanımlı değil.", trip_id),
-                    "Geçerli bir trip_id kullanın.",
-                ));
+        if availability.available("trips.txt") {
+            for trip_id in &idx.trip_id_set {
+                if !map.trips.contains_key(trip_id.as_str()) {
+                    let line = idx.trip_first_line.get(trip_id).copied();
+                    notices.push(notice(
+                        &mut ctr,
+                        "STM_001",
+                        EntityType::Trip,
+                        Some(trip_id.to_string()),
+                        Some(trip_id.to_string()),
+                        "stop_times.txt",
+                        line,
+                        Some("trip_id"),
+                        Some(trip_id.to_string()),
+                        None,
+                        format!("'{}' sefer kodu trips.txt'te tanımlı değil.", trip_id),
+                        "Geçerli bir trip_id kullanın.",
+                    ));
+                }
             }
         }
 
         // STM_002: stop_id stop_times'ta var ama stops.txt'te yok.
         // Distinct stop_id başına tek notice — aynı eksik durak binlerce satırda geçse de
         // tek kayıt (bkz. FRL_001'deki aynı desen).
-        for stop_id in &idx.stop_id_set {
-            if !map.stops.contains_key(stop_id.as_str()) {
-                let line = idx.stop_first_line.get(stop_id).copied();
-                notices.push(notice(
-                    &mut ctr,
-                    "STM_002",
-                    EntityType::Stop,
-                    Some(stop_id.to_string()),
-                    Some(stop_id.to_string()),
-                    "stop_times.txt",
-                    line,
-                    Some("stop_id"),
-                    Some(stop_id.to_string()),
-                    None,
-                    format!("'{}' durağı stops.txt'te tanımlı değil.", stop_id),
-                    "Geçerli bir stop_id kullanın.",
-                ));
+        if availability.available("stops.txt") {
+            for stop_id in &idx.stop_id_set {
+                if !map.stops.contains_key(stop_id.as_str()) {
+                    let line = idx.stop_first_line.get(stop_id).copied();
+                    notices.push(notice(
+                        &mut ctr,
+                        "STM_002",
+                        EntityType::Stop,
+                        Some(stop_id.to_string()),
+                        Some(stop_id.to_string()),
+                        "stop_times.txt",
+                        line,
+                        Some("stop_id"),
+                        Some(stop_id.to_string()),
+                        None,
+                        format!("'{}' durağı stops.txt'te tanımlı değil.", stop_id),
+                        "Geçerli bir stop_id kullanın.",
+                    ));
+                }
             }
         }
 
@@ -78,35 +92,39 @@ pub fn check(records: &EntityRecords, entity_map: &EntityMap, today: u32) -> K4R
         let mut xfl025_seen: HashSet<&str> = HashSet::new();
         for st in &idx.rows {
             let Some(flex) = idx.flex_of(st) else { continue };
-            if let Some(lg) = &flex.location_group_id {
-                if !lg.is_empty()
-                    && !map.location_group_ids.contains(lg.as_str())
-                    && xfl024_seen.insert(lg.as_str())
-                {
-                    notices.push(notice(
-                        &mut ctr, "XFL_024", EntityType::Row,
-                        Some(lg.to_string()), Some(lg.to_string()),
-                        "stop_times.txt", Some(st.line as u64), Some("location_group_id"),
-                        Some(lg.to_string()), None,
-                        format!("'{}' konum grubu location_groups.txt'te tanimli degil.", lg),
-                        "Gecerli bir location_group_id kullanin veya grubu location_groups.txt'te tanimlayin.",
-                    ));
+            if availability.available("location_groups.txt") {
+                if let Some(lg) = &flex.location_group_id {
+                    if !lg.is_empty()
+                        && !map.location_group_ids.contains(lg.as_str())
+                        && xfl024_seen.insert(lg.as_str())
+                    {
+                        notices.push(notice(
+                            &mut ctr, "XFL_024", EntityType::Row,
+                            Some(lg.to_string()), Some(lg.to_string()),
+                            "stop_times.txt", Some(st.line as u64), Some("location_group_id"),
+                            Some(lg.to_string()), None,
+                            format!("'{}' konum grubu location_groups.txt'te tanimli degil.", lg),
+                            "Gecerli bir location_group_id kullanin veya grubu location_groups.txt'te tanimlayin.",
+                        ));
+                    }
                 }
             }
             // XFL_025: stop_times.location_id → locations.geojson feature id
-            if let Some(loc) = &flex.location_id {
-                if !loc.is_empty()
-                    && !map.geojson_location_ids.contains(loc.as_str())
-                    && xfl025_seen.insert(loc.as_str())
-                {
-                    notices.push(notice(
-                        &mut ctr, "XFL_025", EntityType::Row,
-                        Some(loc.to_string()), Some(loc.to_string()),
-                        "stop_times.txt", Some(st.line as u64), Some("location_id"),
-                        Some(loc.to_string()), None,
-                        format!("'{}' konum locations.geojson'da tanimli degil.", loc),
-                        "Gecerli bir location_id kullanin veya konumu locations.geojson'a ekleyin.",
-                    ));
+            if availability.available("locations.geojson") {
+                if let Some(loc) = &flex.location_id {
+                    if !loc.is_empty()
+                        && !map.geojson_location_ids.contains(loc.as_str())
+                        && xfl025_seen.insert(loc.as_str())
+                    {
+                        notices.push(notice(
+                            &mut ctr, "XFL_025", EntityType::Row,
+                            Some(loc.to_string()), Some(loc.to_string()),
+                            "stop_times.txt", Some(st.line as u64), Some("location_id"),
+                            Some(loc.to_string()), None,
+                            format!("'{}' konum locations.geojson'da tanimli degil.", loc),
+                            "Gecerli bir location_id kullanin veya konumu locations.geojson'a ekleyin.",
+                        ));
+                    }
                 }
             }
         }
@@ -139,30 +157,41 @@ pub fn check(records: &EntityRecords, entity_map: &EntityMap, today: u32) -> K4R
         };
 
         (used_stop_ids, trip_continuous, trips_in_stm, trip_stm_count, flex_window_trips)
+    } else {
+        (HashSet::new(), HashSet::new(), HashSet::new(), HashMap::new(), HashSet::new())
     };
 
-    { let _t = Timer::start("K4::agencies");       check_agencies(records, map, &mut notices, &mut ctr); }
-    { let _t = Timer::start("K4::stops");          check_stops(records, map, &mut notices, &mut ctr, &stm_used_stop_ids); }
-    { let _t = Timer::start("K4::routes");         check_routes(records, map, &mut notices, &mut ctr, &stm_flex_window_trips); }
-    { let _t = Timer::start("K4::trips");          check_trips(records, map, &mut notices, &mut ctr, &stm_trip_continuous); }
-    { let _t = Timer::start("K4::pathways");       check_pathways(records, map, &mut notices, &mut ctr); }
-    { let _t = Timer::start("K4::booking_rules");  check_booking_rules(records, map, &mut notices, &mut ctr); }
-    { let _t = Timer::start("K4::calendar");       check_calendar(records, map, &mut notices, &mut ctr, today); }
-    { let _t = Timer::start("K4::calendar_dates"); check_calendar_dates(records, map, &mut notices, &mut ctr); }
-    { let _t = Timer::start("K4::frequencies");    check_frequencies(records, map, &mut notices, &mut ctr, &stm_trips_in_stm); }
-    { let _t = Timer::start("K4::transfers");      check_transfers(records, map, &mut notices, &mut ctr, &stm_trips_in_stm, &records.stop_times_index.trip_stop_set, &records.stop_times_index.stop_id_to_idx); }
-    { let _t = Timer::start("K4::fare_attributes");check_fare_attributes(records, map, &mut notices, &mut ctr); }
-    { let _t = Timer::start("K4::fare_rules");     check_fare_rules(records, map, &mut notices, &mut ctr); }
-    { let _t = Timer::start("K4::fares_v2");       check_fares_v2(records, map, &mut notices, &mut ctr); }
-    { let _t = Timer::start("K4::levels");         check_levels(records, map, &mut notices, &mut ctr); }
-    { let _t = Timer::start("K4::translations");   check_translations(records, map, &mut notices, &mut ctr); }
-    { let _t = Timer::start("K4::gtfs_jp");         check_gtfs_jp(records, &mut notices, &mut ctr); }
-    { let _t = Timer::start("K4::attributions");   check_attributions(records, map, &mut notices, &mut ctr); }
-    { let _t = Timer::start("K4::route_networks"); check_route_networks(records, map, &mut notices, &mut ctr); }
-    { let _t = Timer::start("K4::flex_zone_overlap"); check_flex_zone_overlap(records, map, &mut notices, &mut ctr); }
-    { let _t = Timer::start("K4::flj");            check_fare_leg_join_rules(records, map, &mut notices, &mut ctr); }
-    { let _t = Timer::start("K4::xfl");            check_xfl(records, map, &mut notices, &mut ctr, &stm_trips_in_stm, &stm_trip_stm_count); }
-    { let _t = Timer::start("K4::stm_shape_dist"); check_stm_shape_dist(records, &mut notices, &mut ctr); }
+    if availability.available("agency.txt") { check_agencies(records, map, &mut notices, &mut ctr); }
+    if availability.all(&["stops.txt", "stop_times.txt"]) { check_stops(records, map, &mut notices, &mut ctr, &stm_used_stop_ids); }
+    if availability.all(&["routes.txt", "trips.txt", "stop_times.txt"]) { check_routes(records, map, &mut notices, &mut ctr, &stm_flex_window_trips); }
+    if availability.all(&["trips.txt", "routes.txt"]) {
+        check_trips(
+            records,
+            map,
+            &mut notices,
+            &mut ctr,
+            &stm_trip_continuous,
+            availability.available("shapes.txt"),
+        );
+    }
+    if availability.all(&["pathways.txt", "stops.txt"]) { check_pathways(records, map, &mut notices, &mut ctr); }
+    if availability.available("booking_rules.txt") { check_booking_rules(records, map, &mut notices, &mut ctr); }
+    if availability.available("calendar.txt") { check_calendar(records, map, &mut notices, &mut ctr, today); }
+    if availability.available("calendar_dates.txt") { check_calendar_dates(records, map, &mut notices, &mut ctr); }
+    if availability.all(&["frequencies.txt", "trips.txt"]) { check_frequencies(records, map, &mut notices, &mut ctr, &stm_trips_in_stm); }
+    if availability.all(&["transfers.txt", "stops.txt", "trips.txt", "stop_times.txt"]) { check_transfers(records, map, &mut notices, &mut ctr, &stm_trips_in_stm, &records.stop_times_index.trip_stop_set, &records.stop_times_index.stop_id_to_idx); }
+    if availability.available("fare_attributes.txt") { check_fare_attributes(records, map, &mut notices, &mut ctr); }
+    if availability.all(&["fare_rules.txt", "stops.txt"]) { check_fare_rules(records, map, &mut notices, &mut ctr); }
+    if availability.any(&["fare_products.txt", "fare_media.txt", "fare_leg_rules.txt"]) { check_fares_v2(records, map, &mut notices, &mut ctr); }
+    if availability.all(&["levels.txt", "stops.txt", "pathways.txt"]) { check_levels(records, map, &mut notices, &mut ctr); }
+    if availability.all(&["translations.txt", "feed_info.txt"]) { check_translations(records, map, &mut notices, &mut ctr); }
+    { let _t = Timer::start("K4::gtfs_jp"); check_gtfs_jp(records, &mut notices, &mut ctr); }
+    if availability.available("attributions.txt") { check_attributions(records, map, &mut notices, &mut ctr); }
+    if availability.all(&["routes.txt", "networks.txt", "route_networks.txt"]) { check_route_networks(records, map, &mut notices, &mut ctr); }
+    if availability.all(&["stop_times.txt", "locations.geojson"]) { check_flex_zone_overlap(records, map, &mut notices, &mut ctr); }
+    if availability.any(&["fare_leg_join_rules.txt", "fare_leg_rules.txt"]) { check_fare_leg_join_rules(records, map, &mut notices, &mut ctr); }
+    if availability.all(&["routes.txt", "trips.txt", "stop_times.txt"]) { check_xfl(records, map, &mut notices, &mut ctr, &stm_trips_in_stm, &stm_trip_stm_count); }
+    if availability.all(&["stop_times.txt", "shapes.txt"]) { check_stm_shape_dist(records, &mut notices, &mut ctr); }
 
     // XFL_026-030: cemv_support ↔ Fares v2 contactless media tutarlılığı (feed-level)
     {
@@ -974,6 +1003,7 @@ fn check_trips(
     notices: &mut Vec<Notice>,
     ctr: &mut u32,
     trip_has_continuous_stm: &HashSet<&str>,
+    shapes_available: bool,
 ) {
     let ti = &records.trip_interns;
     for rec in &records.trips {
@@ -1024,7 +1054,8 @@ fn check_trips(
         }
 
         // TRP_004: shape_id referansı (varsa)
-        if let Some(sid) = ti.shape_id(rec) {
+        if shapes_available {
+            if let Some(sid) = ti.shape_id(rec) {
             if !map.shape_points.contains_key(sid) {
                 notices.push(notice(
                     ctr,
@@ -1040,6 +1071,7 @@ fn check_trips(
                     format!("'{}' güzergahı shapes.txt'te tanımlı değil.", sid),
                     "Geçerli bir shape_id kullanın veya alanı boş bırakın.",
                 ));
+            }
             }
         }
 

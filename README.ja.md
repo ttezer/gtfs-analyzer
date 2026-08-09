@@ -306,11 +306,11 @@ config deltaで`stop_name_best_practices=true`を設定すると、言語依存�
 
 `stop_times.txt`で`shape_dist_traveled`を使用する便の参照shapeについて、`shapes.txt`の一部の点に同じ項目がない場合、`SHP_030`（品質・中）を出力します。両フィールドはGTFSで個別に任意項目なので、これはSpecの公開ブロッカーではありません。shape上で停留所を確実に配置できない可能性を示す互換性シグナルで、影響を受ける便数と代表的なtrip IDを検出結果の詳細に含めます。
 
-便から実際に参照される1点だけのshapeは、`shape_id`と`shape_point_count=1`を詳細に含む低・品質の`SHP_006`として報告します。2点の直線セグメントは有効です。未使用の1点shapeは`SHP_018`だけで報告し、deprecatedのMobilityData `single_shape_point`による不要なcascadeを防ぎます。
+便から実際に参照される1点だけのshapeは、`shape_id`と`shape_point_count=1`を詳細に含む低・品質の`SHP_006`として報告します。2点の直線セグメントは有効です。未使用の1点shapeは`SHP_018`だけで報告します。これはMobilityDataの`single_shape_point`に対する意図的なnear-parityで、Analyzerは使用中のshapeだけを`SHP_006`で報告します。
 
 ### 遠距離停留所の速度パリティ
 
-MobilityDataの`fast_travel_between_far_stops` noticeは現在のルールページでdeprecatedと表示されています。10 kmを超える累積距離、非連続の停留所ペア、時刻のcascade症状を一つのシグナルにまとめるため、#115 auditでは陽性20 feedを調査し、`STM_012`/`STM_014`へのaliasを採用しませんでした。新しいルールは追加せず、意図的なAnalytics coverage gapとして扱います。
+現在のMobilityData rulesページでは`fast_travel_between_far_stops`の表示が一貫していません。主WARNING表では有効ですが、notice-detail metadataは`Deprecated since undefined`を示し、deprecated表にはありません。#115 auditでは陽性20 feedを調査し、10 km超の累積距離、非連続の停留所ペア、時刻cascadeを混在させるnoisyなシグナルであることを根拠に、`STM_012`/`STM_014`へのaliasを採用しませんでした。deprecationの仮定には依存せず、新しいルールは追加せず、意図的なAnalytics coverage gapとして扱います。
 
 ### 停留所URLの固有性
 
@@ -343,7 +343,7 @@ MobilityDataの`fast_travel_between_far_stops` noticeは現在のルールペー
 | パラメーター | デフォルト | 範囲 | 説明 |
 |---|---:|---|---|
 | 有効期限警告 | 30 日 | 1–60 | この日数以内にフィードが期限切れになる場合に警告を生成 |
-| feed_info有効期限警告 | 7 日 | 1–60 | `FIN_019`の`feed_info.feed_end_date`用。`CAL_008`のしきい値とは別に設定 |
+| feed_info有効期限警告 | 7 日 | 1–60 | `FIN_019`のデフォルト警告期間。`feed_info_expiry_warning_days=30`ならMobilityDataの30日パリティを適用でき、`CAL_008`とは別設定 |
 | サービス空白しきい値 | 7 日 | 3–30 | これより長いサービスの空白にフラグが立てられます |
 | 最大便所要時間 | 24 h | 8–72 | 1 便の最大所要時間 |
 | 最小便所要時間 | 60 s | 10–300 | 1 便の最小所要時間 |
@@ -475,11 +475,11 @@ GTFS Analyzer は、同じフィードの 2 つの解析（前／後）を比較
 | **低** | ベストプラクティスからの軽微な逸脱 |
 | **情報** | 情報提供のみ；対応が不要な場合もある |
 
-重大度レベルは、[GTFS Schedule Reference](https://gtfs.org/documentation/schedule/reference/#file-requirements) で定義されているファイルおよびフィールドの要件レベル（Required・Conditionally Required・Recommended・Optional）に基づいています。
+重大度は、[GTFS Schedule Reference](https://gtfs.org/documentation/schedule/reference/#file-requirements) のファイル/フィールド要件レベル（Required・Conditionally Required・Recommended・Optional）と、違反のsemantic impactを組み合わせて決定します。
 
 ### Spec 重大度の基準
 
-Spec の重大度は、同じ検出結果を MobilityData が `ERROR`、`WARNING`、`INFO` のどれで
+Spec の重大度は、要件レベルとsemantic impactの組み合わせであり、同じ検出結果を MobilityData が `ERROR`、`WARNING`、`INFO` のどれで
 分類するかではなく、無効なフィードが及ぼす影響で決まります。
 
 - **致命的:** 必須ファイル/フィールド、主キー・外部キー整合性、または中核的な型/範囲の違反。フィードを信頼して利用できず、`Spec + 致命的` は公開ゲートになる。
@@ -603,7 +603,7 @@ npm run dev
 cargo test
 
 # workspace の全 crate・test・example target に対する警告ブロック lint
-cargo clippy --workspace --all-targets -- -D warnings
+cargo clippy --workspace --all-targets --all-features -- -D warnings
 
 # Playwright スモークテスト
 cd ui

@@ -172,6 +172,24 @@ fn raw_midnight_rollover(previous: u32, current: u32) -> bool {
         && previous.saturating_sub(current) >= RAW_MIDNIGHT_MIN_BACKSTEP_SECS
 }
 
+/// Tek bir raw after-midnight ihlalinin kullanıcıya gösterilecek kanıtı.
+/// Feed-level sayaç yerine bunu taşımak, High · Spec bulgusunun hangi trip/satırda
+/// düzeltileceğini kaybetmememizi sağlar.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MidnightViolation {
+    pub trip_id: SmolStr,
+    pub stop_id: SmolStr,
+    pub line: u64,
+    pub field: &'static str,
+    pub previous_secs: u32,
+    pub observed_secs: u32,
+    pub expected_secs: u32,
+}
+
+fn format_gtfs_time(secs: u32) -> String {
+    format!("{:02}:{:02}:{:02}", secs / 3600, (secs % 3600) / 60, secs % 60)
+}
+
 impl StopTimesIndex {
     /// trip başına sıralı (stop_sequence artan) stop dilimi. `idx.trips.get(...)` yerine BU kullanılır.
     pub fn sorted_stops(&self, trip_id: &str) -> Option<&[CompactStopTime]> {
@@ -206,40 +224,65 @@ impl StopTimesIndex {
     /// GTFS raw Spec bulgusu için kullanılır; analitik normalizasyonun `start_hour` eşiği
     /// burada uygulanmaz. Küçük gün-içi geriye gidişler (08:00 → 07:55 gibi) STM_008'e
     /// bırakılır; büyük geri sıçrama ise ham 00:xx yazımının güçlü göstergesidir.
-    pub fn count_raw_midnight_wrap_trips(&self) -> u32 {
-        let mut wrapped_trips = 0u32;
-        for &(s, e) in self.trip_ranges.values() {
+    pub fn find_raw_midnight_wraps(&self) -> Vec<MidnightViolation> {
+        let mut violations = Vec::new();
+        for (trip_id, &(s, e)) in &self.trip_ranges {
             let slice = &self.rows[s as usize..e as usize];
             let mut prev = None;
-            let mut wrapped = false;
             for st in slice {
                 if st.arrival_secs != u32::MAX {
                     let raw = st.arrival_secs;
-                    if prev.is_some_and(|p| raw_midnight_rollover(p, raw)) {
-                        wrapped = true;
+                    if let Some(previous) = prev.filter(|p| raw_midnight_rollover(*p, raw)) {
+                        violations.push(MidnightViolation {
+                            trip_id: trip_id.clone(),
+                            stop_id: self.stop_smolstr_of(st),
+                            line: st.line_u64(),
+                            field: "arrival_time",
+                            previous_secs: previous,
+                            observed_secs: raw,
+                            expected_secs: raw.saturating_add(86_400),
+                        });
                     }
                     prev = Some(raw);
                 }
             }
-            if wrapped {
-                wrapped_trips += 1;
-            }
         }
-        wrapped_trips
+        violations
+    }
+
+    /// Eski aggregate API'nin uyumluluk ölçümü; production emit'i olay listesini kullanır.
+    pub fn count_raw_midnight_wrap_trips(&self) -> u32 {
+        self.find_raw_midnight_wraps().len() as u32
     }
 
     /// Aynı satırda arrival_time → departure_time yönündeki raw after-midnight
     /// geçişlerini ölçer. STM_049 artık STM_048 ile aynı GTFS Spec dayanağını kullanır;
     /// bu yüzden bu sayım da `service_day_start_hour`'dan bağımsızdır.
+    pub fn find_raw_same_row_midnight_departures(&self) -> Vec<MidnightViolation> {
+        let mut violations = Vec::new();
+        for (trip_id, &(s, e)) in &self.trip_ranges {
+            for st in &self.rows[s as usize..e as usize] {
+                if st.arrival_secs == u32::MAX || st.departure_secs == u32::MAX {
+                    continue;
+                }
+                if raw_midnight_rollover(st.arrival_secs, st.departure_secs) {
+                    violations.push(MidnightViolation {
+                        trip_id: trip_id.clone(),
+                        stop_id: self.stop_smolstr_of(st),
+                        line: st.line_u64(),
+                        field: "departure_time",
+                        previous_secs: st.arrival_secs,
+                        observed_secs: st.departure_secs,
+                        expected_secs: st.departure_secs.saturating_add(86_400),
+                    });
+                }
+            }
+        }
+        violations
+    }
+
     pub fn count_raw_same_row_midnight_departures(&self) -> u32 {
-        self.rows
-            .iter()
-            .filter(|st| {
-                st.arrival_secs != u32::MAX
-                    && st.departure_secs != u32::MAX
-                    && raw_midnight_rollover(st.arrival_secs, st.departure_secs)
-            })
-            .count() as u32
+        self.find_raw_same_row_midnight_departures().len() as u32
     }
 
     /// Gece yarısını aşan seferleri servis-günü notasyonuna (24:xx, 25:xx…) normalize eder.
@@ -2227,28 +2270,51 @@ pub fn validate_stop_times(
     // STM_048: ham GTFS servis-günü ihlalini normalization'dan ÖNCE kaydet.
     // K6 daha sonra aynı satırları analitik devamlılık için 24:xx'e çevirir; bu Spec
     // notice'ı o düzeltme nedeniyle kaybolmamalıdır.
-    let raw_midnight_wraps = index.count_raw_midnight_wrap_trips();
-    if raw_midnight_wraps > 0 {
-        let notice = make_k2_notice(
-            &mut st.counter, "STM_048", EntityType::Feed, None,
-            None, &file.name, None, Some("arrival_time"),
-            Some(raw_midnight_wraps.to_string()), Some("24:00:00+".to_string()),
-            format!("{raw_midnight_wraps} seferde gece yarısı sonrası saatler ham feed'de 00:xx olarak yazılmış; \
-                GTFS servis günü için 24:00:00+ biçimi kullanılmalıdır. Analiz için 24:xx olarak normalize edilecektir."),
-            "Gece yarısından sonraki stop_times saatlerini 24:00:00, 25:00:00… biçiminde yazın; 00:xx kullanmayın.",
+    for violation in index.find_raw_midnight_wraps() {
+        let observed = format_gtfs_time(violation.observed_secs);
+        let expected = format_gtfs_time(violation.expected_secs);
+        let previous = format_gtfs_time(violation.previous_secs);
+        let mut notice = make_k2_notice(
+            &mut st.counter, "STM_048", EntityType::Trip,
+            Some(violation.trip_id.to_string()), None, &file.name,
+            Some(violation.line), Some(violation.field), Some(observed.clone()),
+            Some(expected.clone()),
+            format!("'{}' trip'inde {} satırında {} değeri {} olarak yazılmış; önceki saat {}. \
+                GTFS servis günü için {} kullanılmalıdır.",
+                violation.trip_id, violation.line, violation.field, observed, previous, expected),
+            "Gece yarısından sonraki stop_times saatini 24:00:00, 25:00:00… biçiminde yazın; 00:xx kullanmayın.",
         );
+        notice.details = Some([
+            ("trip_id".to_string(), violation.trip_id.to_string()),
+            ("stop_id".to_string(), violation.stop_id.to_string()),
+            ("previous_time".to_string(), previous),
+            ("observed_time".to_string(), observed),
+            ("expected_time".to_string(), expected),
+        ].into_iter().collect());
         st.notices.push(notice);
     }
 
-    let raw_same_row_departures = index.count_raw_same_row_midnight_departures();
-    if raw_same_row_departures > 0 {
-        let notice = make_k2_notice(
-            &mut st.counter, "STM_049", EntityType::Feed, None,
-            None, &file.name, None, Some("departure_time"),
-            Some(raw_same_row_departures.to_string()), Some("24:00:00+".to_string()),
-            format!("{raw_same_row_departures} durakta departure_time ham feed'de 00:xx yazılmış; GTFS servis günü için 24:00:00+ biçimi kullanılmalıdır."),
-            "Aynı satırdaki gece yarısı sonrası departure_time değerlerini 24:00:00+ biçiminde yazın; 00:xx kullanmayın.",
+    for violation in index.find_raw_same_row_midnight_departures() {
+        let observed = format_gtfs_time(violation.observed_secs);
+        let expected = format_gtfs_time(violation.expected_secs);
+        let previous = format_gtfs_time(violation.previous_secs);
+        let mut notice = make_k2_notice(
+            &mut st.counter, "STM_049", EntityType::Trip,
+            Some(violation.trip_id.to_string()), None, &file.name,
+            Some(violation.line), Some(violation.field), Some(observed.clone()),
+            Some(expected.clone()),
+            format!("'{}' trip'inde {} satırında departure_time {} olarak yazılmış; aynı satırın arrival_time değeri {}. \
+                GTFS servis günü için {} kullanılmalıdır.",
+                violation.trip_id, violation.line, observed, previous, expected),
+            "Aynı satırdaki gece yarısı sonrası departure_time değerini 24:00:00+ biçiminde yazın; 00:xx kullanmayın.",
         );
+        notice.details = Some([
+            ("trip_id".to_string(), violation.trip_id.to_string()),
+            ("stop_id".to_string(), violation.stop_id.to_string()),
+            ("previous_time".to_string(), previous),
+            ("observed_time".to_string(), observed),
+            ("expected_time".to_string(), expected),
+        ].into_iter().collect());
         st.notices.push(notice);
     }
 

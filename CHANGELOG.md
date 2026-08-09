@@ -9,14 +9,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Granular raw midnight findings and dependency-aware recovery.** `STM_048`/`STM_049`
+  artık her Trip/satır ihlali için ayrı YÜKSEK·Spec bulgusu üretir; raw/expected saatler ve
+  düzeltilecek satır ayrıntıları korunur. Bozuk veya eksik zorunlu dosya yalnızca ona bağlı
+  K4/K5/K6 alt kontrollerini durdurur; bağımsız kontroller devam eder. Geçersiz veya okunamayan
+  `locations.geojson`, eksik `stops.txt` için koşullu zorunluluk kanıtı sayılamaz.
+
+- **Parity defteri ve dokümanları güncellendi.** `trip_with_shape_dist_traveled_but_no_shape_distances`
+  artık `SHP_030`, `single_shape_point` ise kullanılan shape kapsamıyla near-parity `SHP_006`
+  olarak adjudicate edilir. FIN_019'un varsayılan 7 günlük eşiği ile 30 günlük parity config'i
+  ayrıştırıldı; `fast_travel_between_far_stops` gerekçesi upstream metadata tutarsızlığını yansıtır.
+
+- **Clippy CI tüm feature yüzeyini kapsıyor:** `cargo clippy --workspace --all-targets --all-features -- -D warnings`.
+
 - **`SHP_006` tek-nokta shape kontrolü düşük öncelikli Quality oldu.** Kullanılmayan tek-nokta
   shape'ler yalnız `SHP_018` kapsamında kalır; kullanılan shape için `shape_id` ve nokta sayısı
-  ayrıntıları korunur. Böylece MobilityData'nın deprecated `single_shape_point` sinyali Spec'e
+  ayrıntıları korunur. Böylece MobilityData'nın `single_shape_point` sinyali Spec'e
   taşınmadan ve tüketici etkisi olmayan orphan kayıtlar iki kez puanlanmadan raporlanır.
 
 - **#115 `fast_travel_between_far_stops` parity kararını netleştirdi.** MobilityData v8.0.1
   algoritması ve güncel kaynağı incelendi; 10 km kümülatif mesafe eşiği ile zaman/geometry
-  cascade'lerini birleştiren, güncel sayfada deprecated olan notice için 20 pozitif feed
+  cascade'lerini birleştiren, upstream sayfası tutarsız olan notice için 20 pozitif feed
   örneği sınıflandırıldı. Yeni Analytics kuralı eklenmedi; `STM_012`/`STM_014` alias'ı bilinçli
   olarak reddedildi ve fark explicit coverage gap olarak parity audit'inde tutuldu.
 
@@ -34,7 +47,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   yalnız `FIN_010` olarak raporlanır.
 
 - **#91 clippy kapısı etkinleştirildi.** Workspace'in tüm crate, test ve example target'ları
-  `cargo clippy --workspace --all-targets -- -D warnings` ile CI'da blocking lint'ten geçer.
+  ve optional feature'ları `cargo clippy --workspace --all-targets --all-features -- -D warnings` ile CI'da blocking lint'ten geçer.
   Kalan mekanik lint borçları düzeltildi; test adlarındaki kural kodu büyük harfleri de
   snake_case'e taşındı. Kural registry'si değişmedi, dolayısıyla RULES dosyaları yeniden
   üretilse de içerik değişikliği yoktur.

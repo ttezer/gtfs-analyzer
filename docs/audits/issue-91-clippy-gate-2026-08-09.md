@@ -2,7 +2,7 @@
 
 Date: 2026-08-09
 
-The workspace was measured with `cargo clippy --workspace --all-targets`. The
+The workspace was measured with `cargo clippy --workspace --all-targets --all-features`. The
 remaining warnings were fixed rather than hidden behind a crate-wide allow:
 
 - removed the unused accessibility report constant;
@@ -15,10 +15,10 @@ remaining warnings were fixed rather than hidden behind a crate-wide allow:
 The CI job now runs:
 
 ```text
-cargo clippy --workspace --all-targets -- -D warnings
+cargo clippy --workspace --all-targets --all-features -- -D warnings
 ```
 
-This includes libraries, binaries, tests, and examples, so a warning cannot be
-hidden by an earlier crate failure or by linting only library targets. No rule
+This includes libraries, binaries, tests, examples, and optional `parallel`/`wasm`
+feature code, so a warning cannot be hidden by an earlier crate failure or by linting only library targets. No rule
 metadata changed in this issue; `RULES.md`, `RULES.en.md`, and `RULES.ja.md`
 therefore require no semantic update.

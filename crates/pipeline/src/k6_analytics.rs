@@ -10,6 +10,7 @@ use crate::k2::stop_times::CompactStopTime;
 use crate::k2::stop_times::StopTimesIndex as K2StopTimesIndex;
 use crate::k2::EntityRecords;
 use crate::k5_derived::DerivedData;
+use crate::recovery::FileAvailability;
 
 // ── Çıktı tipi ────────────────────────────────────────────────────────────────
 
@@ -88,6 +89,16 @@ pub fn analyze(
     config: &ValidatorConfig,
     today_yyyymmdd: u32,
 ) -> K6Result {
+    analyze_with_files(records, derived, config, today_yyyymmdd, &FileAvailability::complete())
+}
+
+pub fn analyze_with_files(
+    records: &EntityRecords,
+    derived: &DerivedData,
+    config: &ValidatorConfig,
+    today_yyyymmdd: u32,
+    availability: &FileAvailability<'_>,
+) -> K6Result {
     use crate::timing::Timer;
 
     let ti_analyze = &records.trip_interns;
@@ -119,26 +130,81 @@ pub fn analyze(
     // sadece `records/derived/config/idx`'i OKUR) → say/içerik/sıra emisyon-sırasından
     // bağımsız. `parallel` feature açıkken rayon::scope ile paralel, kapalıyken seri — AYNI çıktı.
     type K6Task<'a> = Box<dyn Fn() -> Vec<Notice> + Send + Sync + 'a>;
-    let tasks: Vec<K6Task> = vec![
-        Box::new(|| { let _t = Timer::start("K6::speed_and_duration");    let mut v = Vec::new(); let mut c = 0u32; check_speed_and_duration(records, config, &idx, &shape_idx, &mut v, &mut c); v }),
-        Box::new(|| { let _t = Timer::start("K6::frequency_headway");     let mut v = Vec::new(); let mut c = 0u32; check_frequency_headway(records, config, &mut v, &mut c); v }),
-        Box::new(|| { let _t = Timer::start("K6::route_headway");         let mut v = Vec::new(); let mut c = 0u32; check_route_headway(records, config, &idx, &mut v, &mut c); v }),
-        Box::new(|| { let _t = Timer::start("K6::calendar_analytics");    let mut v = Vec::new(); let mut c = 0u32; check_calendar_analytics(records, derived, config, today_yyyymmdd, &mut v, &mut c); v }),
-        Box::new(|| { let _t = Timer::start("K6::geo_analytics");         let mut v = Vec::new(); let mut c = 0u32; check_geo_analytics(records, derived, config, &rail, &mut v, &mut c); v }),
-        Box::new(|| { let _t = Timer::start("K6::operational_analytics"); let mut v = Vec::new(); let mut c = 0u32; check_operational_analytics(records, derived, config, &idx, today_yyyymmdd, &mut v, &mut c); v }),
-        Box::new(|| { let _t = Timer::start("K6::stoptimes_derived");     let mut v = Vec::new(); let mut c = 0u32; check_stoptimes_derived(&idx, &mut v, &mut c); v }),
-        Box::new(|| { let _t = Timer::start("K6::route_trip_quality");    let mut v = Vec::new(); let mut c = 0u32; check_route_trip_quality(records, derived, &idx, &mut v, &mut c); v }),
-        Box::new(|| { let _t = Timer::start("K6::data_quality");          let mut v = Vec::new(); let mut c = 0u32; check_data_quality(records, derived, config, today_yyyymmdd, &mut v, &mut c); v }),
-        Box::new(|| { let _t = Timer::start("K6::remaining_analytics");   let mut v = Vec::new(); let mut c = 0u32; check_remaining_analytics(records, derived, config, &idx, &shape_idx, &rail.shapes, &mut v, &mut c); v }),
-        Box::new(|| { let _t = Timer::start("K6::shp012");                let mut v = Vec::new(); let mut c = 0u32; check_shp012(records, config, &idx, &shape_idx, &rail.shapes, &mut v, &mut c); v }),
-        Box::new(|| { let _t = Timer::start("K6::shp022");                let mut v = Vec::new(); let mut c = 0u32; check_shp022(records, &idx, &shape_idx, &mut v, &mut c); v }),
-        Box::new(|| { let _t = Timer::start("K6::pathway_analytics");     let mut v = Vec::new(); let mut c = 0u32; check_pathway_analytics(records, derived, &mut v, &mut c); v }),
-        Box::new(|| { let _t = Timer::start("K6::calendar_override");     let mut v = Vec::new(); let mut c = 0u32; check_calendar_override_analytics(records, derived, config, &idx, &mut v, &mut c); v }),
-        Box::new(|| { let _t = Timer::start("K6::vat_analytics");         let mut v = Vec::new(); let mut c = 0u32; check_vat_analytics(records, derived, config, &idx, &mut v, &mut c); v }),
-        // SONA eklendi: birleştirme sırası kanonik olduğu için yeni görev en sonda kalınca
-        // mevcut notice id'leri KAYMAZ (renumber konuma göre yapılır).
-        Box::new(|| { let _t = Timer::start("K6::linked_trips");          let mut v = Vec::new(); let mut c = 0u32; check_linked_trip_continuations(records, derived, &mut v, &mut c); v }),
-    ];
+    let mut tasks: Vec<K6Task> = Vec::new();
+    macro_rules! add_task {
+        ($condition:expr, $body:expr) => {
+            if $condition { tasks.push(Box::new($body)); }
+        };
+    }
+    // Her görev yalnızca doğrudan ihtiyaç duyduğu okunabilir dosyalar varsa çalışır.
+    // Böylece bozuk shapes.txt shape analytics'i kapatır, fakat stop/route/calendar
+    // analytics'i kaybetmez; feed_info gibi bağımsız bir dosya da tüm K6'yı kesmez.
+    add_task!(availability.all(&["routes.txt", "trips.txt", "stop_times.txt", "stops.txt"]), || {
+        let _t = Timer::start("K6::speed_and_duration"); let mut v = Vec::new(); let mut c = 0u32;
+        check_speed_and_duration(records, config, &idx, &shape_idx, &mut v, &mut c); v
+    });
+    add_task!(availability.all(&["routes.txt", "trips.txt", "stop_times.txt", "frequencies.txt"]), || {
+        let _t = Timer::start("K6::frequency_headway"); let mut v = Vec::new(); let mut c = 0u32;
+        check_frequency_headway(records, config, &mut v, &mut c); v
+    });
+    add_task!(availability.all(&["routes.txt", "trips.txt", "stop_times.txt"]), || {
+        let _t = Timer::start("K6::route_headway"); let mut v = Vec::new(); let mut c = 0u32;
+        check_route_headway(records, config, &idx, &mut v, &mut c); v
+    });
+    add_task!(availability.available("trips.txt") && availability.any(&["calendar.txt", "calendar_dates.txt"]), || {
+        let _t = Timer::start("K6::calendar_analytics"); let mut v = Vec::new(); let mut c = 0u32;
+        check_calendar_analytics(records, derived, config, today_yyyymmdd, &mut v, &mut c); v
+    });
+    add_task!(availability.all(&["stops.txt", "routes.txt", "trips.txt", "stop_times.txt"]), || {
+        let _t = Timer::start("K6::geo_analytics"); let mut v = Vec::new(); let mut c = 0u32;
+        check_geo_analytics(records, derived, config, &rail, &mut v, &mut c); v
+    });
+    add_task!(availability.all(&["stops.txt", "routes.txt", "trips.txt", "stop_times.txt"]), || {
+        let _t = Timer::start("K6::operational_analytics"); let mut v = Vec::new(); let mut c = 0u32;
+        check_operational_analytics(records, derived, config, &idx, today_yyyymmdd, &mut v, &mut c); v
+    });
+    add_task!(availability.available("stop_times.txt"), || {
+        let _t = Timer::start("K6::stoptimes_derived"); let mut v = Vec::new(); let mut c = 0u32;
+        check_stoptimes_derived(&idx, &mut v, &mut c); v
+    });
+    add_task!(availability.all(&["routes.txt", "trips.txt", "stop_times.txt"]), || {
+        let _t = Timer::start("K6::route_trip_quality"); let mut v = Vec::new(); let mut c = 0u32;
+        check_route_trip_quality(records, derived, &idx, &mut v, &mut c); v
+    });
+    add_task!(true, || {
+        let _t = Timer::start("K6::data_quality"); let mut v = Vec::new(); let mut c = 0u32;
+        check_data_quality(records, derived, config, today_yyyymmdd, &mut v, &mut c); v
+    });
+    add_task!(availability.all(&["stops.txt", "trips.txt", "stop_times.txt"]), || {
+        let _t = Timer::start("K6::remaining_analytics"); let mut v = Vec::new(); let mut c = 0u32;
+        check_remaining_analytics(records, derived, config, &idx, &shape_idx, &rail.shapes, &mut v, &mut c); v
+    });
+    add_task!(availability.all(&["stops.txt", "trips.txt", "stop_times.txt"]), || {
+        let _t = Timer::start("K6::shp012"); let mut v = Vec::new(); let mut c = 0u32;
+        check_shp012(records, config, &idx, &shape_idx, &rail.shapes, &mut v, &mut c); v
+    });
+    add_task!(availability.all(&["stops.txt", "trips.txt", "shapes.txt"]), || {
+        let _t = Timer::start("K6::shp022"); let mut v = Vec::new(); let mut c = 0u32;
+        check_shp022(records, &idx, &shape_idx, &mut v, &mut c); v
+    });
+    add_task!(availability.all(&["pathways.txt", "stops.txt"]), || {
+        let _t = Timer::start("K6::pathway_analytics"); let mut v = Vec::new(); let mut c = 0u32;
+        check_pathway_analytics(records, derived, &mut v, &mut c); v
+    });
+    add_task!(availability.available("trips.txt") && availability.any(&["calendar.txt", "calendar_dates.txt"]), || {
+        let _t = Timer::start("K6::calendar_override"); let mut v = Vec::new(); let mut c = 0u32;
+        check_calendar_override_analytics(records, derived, config, &idx, &mut v, &mut c); v
+    });
+    add_task!(availability.all(&["routes.txt", "trips.txt", "stops.txt", "stop_times.txt"]), || {
+        let _t = Timer::start("K6::vat_analytics"); let mut v = Vec::new(); let mut c = 0u32;
+        check_vat_analytics(records, derived, config, &idx, &mut v, &mut c); v
+    });
+    // SONA eklendi: birleştirme sırası kanonik olduğu için yeni görev en sonda kalınca
+    // mevcut notice id'leri KAYMAZ (renumber konuma göre yapılır).
+    add_task!(availability.all(&["trips.txt", "stop_times.txt"]), || {
+        let _t = Timer::start("K6::linked_trips"); let mut v = Vec::new(); let mut c = 0u32;
+        check_linked_trip_continuations(records, derived, &mut v, &mut c); v
+    });
 
     #[cfg(feature = "parallel")]
     let parts: Vec<Vec<Notice>> = {

@@ -205,16 +205,6 @@ UNMAPPED_DECISIONS = {
         "genuine-gap",
         "Analyzer has no rule for non-consecutive far-stop pairs; do not alias this to STM_012.",
     ),
-    "trip_with_shape_dist_traveled_but_no_shape_distances": (
-        "deprecated-md-only",
-        "MobilityData marks this notice deprecated. It is the reverse inconsistency of STM_017 "
-        "(stop_times has distances while shapes lacks them), so STM_017 is not a safe alias.",
-    ),
-    "single_shape_point": (
-        "deprecated-md-only",
-        "MobilityData marks this notice deprecated; no Analyzer rule currently asserts that a "
-        "shape must contain more than one point.",
-    ),
     "feed_expiration_date30_days": (
         "genuine-gap",
         "The MD notice is a feed_info-level 30-day horizon. CAL_008 is per-calendar-service and "

@@ -1,10 +1,12 @@
 # #115 — `fast_travel_between_far_stops` değerlendirmesi
 
 **Karar:** Yeni bir GTFS Analyzer kuralı eklenmedi. MobilityData kodundaki notice
-aktif bir upstream davranış olarak incelendi, ancak güncel kurallar sayfasında
-**deprecated** işaretlendiği ve 1000-feed örnekleri zaman, geometri ve meşru ekspres
-servis sinyallerini birbirine karıştırdığı için bu bir **bilinçli Analytics coverage
-gap** olarak bırakıldı. `STM_012` veya `STM_014` ile alias yapılması yanlış parity olur.
+aktif bir upstream davranış olarak incelendi. Güncel kurallar sayfası kendi içinde
+tutarsızdır: ana WARNING tablosu kuralı aktif gösterirken notice-detail metadata'sı
+`Deprecated since undefined` der ve deprecated tablosu kuralı içermez. Karar bu
+deprecation metadata'sına değil, 20-feed örnekleminde zaman, geometri ve meşru ekspres
+servis sinyallerinin karışık/noisy bulunmasına dayanır. Bu nedenle **bilinçli Analytics
+coverage gap** olarak bırakıldı; `STM_012` veya `STM_014` ile alias yapılması yanlış parity olur.
 
 ## Upstream algoritması
 

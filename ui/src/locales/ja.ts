@@ -1843,7 +1843,7 @@ const ja: LocaleShape = {
     'STP_021': '乗車エリアの親がプラットフォームでない',
     'STP_022': 'stop_codeが不足',
     'STP_023': 'tts_stop_nameが無効',
-    'STP_024': 'stop_accessが無効',
+    'STP_024': 'stop_accessがK2互換範囲外',
     'STP_025': 'stop_nameに先頭または末尾の空白',
     'STP_026': 'stop_accessが有効な列挙値でない',
     'STP_027': '経路接続駅でstop_accessが未設定',

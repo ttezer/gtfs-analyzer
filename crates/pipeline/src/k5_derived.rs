@@ -4,6 +4,7 @@ use gtfs_core::{EntityType, Notice};
 
 use crate::k2::EntityRecords;
 use crate::k3_entity_graph::EntityMap;
+use crate::recovery::FileAvailability;
 
 // ── Çıktı tipleri ─────────────────────────────────────────────────────────────
 
@@ -75,16 +76,39 @@ pub struct K5Result {
 // ── Ana fonksiyon ─────────────────────────────────────────────────────────────
 
 pub fn build(records: &EntityRecords, entity_map: &EntityMap) -> K5Result {
+    build_with_files(records, entity_map, &FileAvailability::complete())
+}
+
+pub fn build_with_files(
+    records: &EntityRecords,
+    entity_map: &EntityMap,
+    availability: &FileAvailability<'_>,
+) -> K5Result {
     use crate::timing::Timer;
     let mut derived = DerivedData::default();
     let mut notices = Vec::new();
     let mut ctr = 0u32;
 
-    { let _t = Timer::start("K5::shape_geometry");   build_shape_geometry(records, entity_map, &mut derived, &mut notices, &mut ctr); }
-    { let _t = Timer::start("K5::calendar_bitmap");  build_calendar_bitmap(records, &mut derived); }
-    { let _t = Timer::start("K5::spatial_index");    build_spatial_index(records, &mut derived); }
-    { let _t = Timer::start("K5::pathway_graph");    build_pathway_graph(records, &mut derived); }
-    { let _t = Timer::start("K5::fare_network");     build_fare_network(records, &mut derived); }
+    if availability.available("shapes.txt") {
+        let _t = Timer::start("K5::shape_geometry");
+        build_shape_geometry(records, entity_map, &mut derived, &mut notices, &mut ctr);
+    }
+    if availability.any(&["calendar.txt", "calendar_dates.txt"]) {
+        let _t = Timer::start("K5::calendar_bitmap");
+        build_calendar_bitmap(records, &mut derived);
+    }
+    if availability.available("stops.txt") {
+        let _t = Timer::start("K5::spatial_index");
+        build_spatial_index(records, &mut derived);
+    }
+    if availability.all(&["pathways.txt", "stops.txt"]) {
+        let _t = Timer::start("K5::pathway_graph");
+        build_pathway_graph(records, &mut derived);
+    }
+    if availability.available("fare_rules.txt") {
+        let _t = Timer::start("K5::fare_network");
+        build_fare_network(records, &mut derived);
+    }
 
     K5Result { derived, notices }
 }

@@ -69,6 +69,12 @@ pub struct K1Result {
     pub files: RawFiles,
     pub notices: Vec<Notice>,
     pub partial: PartialReport,
+    /// K1 tarafından keşfedilen dosyalar; bozuk/eksik optional dosyalar için
+    /// dependency-aware recovery planı bunun üzerinden kurulur.
+    pub present_files: HashSet<String>,
+    /// `stops.txt`'in koşullu yokluğunu yalnızca kullanılabilir Flex bölgeleri
+    /// karşılıyorsa kabul ederiz; dosya adının tek başına varlığı yeterli değildir.
+    pub has_valid_locations_geojson: bool,
     /// locations.geojson feature 'id' kümesi (XFL_025: stop_times.location_id cross-ref).
     pub geojson_location_ids: std::collections::HashSet<String>,
     /// locations.geojson feature 'id' → GEOMETRİ (Pa1fdaa0d için K6'ya taşınır).
@@ -1067,9 +1073,8 @@ pub fn parse(zip_bytes: &[u8], cfg: &ValidatorConfig) -> Result<K1Result, FatalE
     let mut geojson_geometries: std::collections::HashMap<String, LocationGeometry> = std::collections::HashMap::new();
     let mut raw_files: RawFiles = HashMap::new();
     let mut present_files: HashSet<String> = HashSet::new();
-    // locations.geojson `present_files`'a GİRMEZ (aşağıda `continue` ile özel işlenir);
-    // ARC_004'ün stops.txt koşulu için ayrı bayrak tutulur.
-    let mut has_locations_geojson = false;
+    // locations.geojson özel işlendiği için present_files'e aşağıdaki dalda eklenir.
+    let mut has_valid_locations_geojson = false;
     // DQ_016 için dosya başına birincil anahtar sütun indeksi — ilk "*_id" sütunu
     let _dq016_dummy = ();
 
@@ -1126,19 +1131,27 @@ pub fn parse(zip_bytes: &[u8], cfg: &ValidatorConfig) -> Result<K1Result, FatalE
 
         // locations.geojson: Flex GeoJSON lokasyon dosyası (özel işlem)
         if raw_name == "locations.geojson" {
-            has_locations_geojson = true;
+            present_files.insert(raw_name.clone());
             let mut buf = Vec::with_capacity(zf.size() as usize);
-            if zf.read_to_end(&mut buf).is_ok()
-                && !validate_locations_geojson(
-                    &buf,
-                    &raw_name,
-                    &mut notices,
-                    &mut counter,
-                    &mut geojson_location_ids,
-                    &mut geojson_geometries,
-                )
-            {
-                partial.mark_unavailable(raw_name.clone());
+            match zf.read_to_end(&mut buf) {
+                Ok(_) => {
+                    has_valid_locations_geojson = validate_locations_geojson(
+                        &buf,
+                        &raw_name,
+                        &mut notices,
+                        &mut counter,
+                        &mut geojson_location_ids,
+                        &mut geojson_geometries,
+                    );
+                    if !has_valid_locations_geojson {
+                        partial.mark_unavailable(raw_name.clone());
+                    }
+                }
+                Err(_) => {
+                    // locations.geojson is optional; an unreadable entry must not make
+                    // stops.txt optional, and must be visible in PARTIAL metadata.
+                    partial.mark_unavailable(raw_name.clone());
+                }
             }
             continue;
         }
@@ -1677,7 +1690,7 @@ pub fn parse(zip_bytes: &[u8], cfg: &ValidatorConfig) -> Result<K1Result, FatalE
     let missing: Vec<&str> = REQUIRED_FILES
         .iter()
         .filter(|&&f| !present_files.contains(f))
-        .filter(|&&f| !(f == "stops.txt" && has_locations_geojson))
+        .filter(|&&f| !(f == "stops.txt" && has_valid_locations_geojson))
         .copied()
         .collect();
 
@@ -1723,7 +1736,15 @@ pub fn parse(zip_bytes: &[u8], cfg: &ValidatorConfig) -> Result<K1Result, FatalE
         ));
     }
 
-    Ok(K1Result { files: raw_files, notices, partial, geojson_location_ids, geojson_geometries })
+    Ok(K1Result {
+        files: raw_files,
+        notices,
+        partial,
+        present_files,
+        has_valid_locations_geojson,
+        geojson_location_ids,
+        geojson_geometries,
+    })
 }
 
 // ── locations.geojson validasyon ─────────────────────────────────────────────
@@ -1816,6 +1837,7 @@ fn validate_locations_geojson(
         }
     }
 
+    let mut has_valid_geometry = false;
     for (i, feature) in features.iter().enumerate() {
         let feat_num = (i + 1) as u64;
 
@@ -1920,12 +1942,15 @@ fn validate_locations_geojson(
         // Pa1fdaa0d: geometri, feature 'id'siyle eşleşerek K6'ya taşınır.
         if let Some(id) = feature_id {
             if !geom.outer_rings.is_empty() {
+                has_valid_geometry = true;
                 geoms.insert(id, geom);
             }
+        } else if !geom.outer_rings.is_empty() {
+            has_valid_geometry = true;
         }
     }
 
-    true
+    has_valid_geometry
 }
 
 /// Polygon ring'leri için LOC_004 (kapalı değil) ve LOC_006 (alan > 500km²) kontrolü.

@@ -195,11 +195,13 @@ fn recoverable_structural_error_is_partial_with_exit_1() {
         .unwrap()
         .iter()
         .any(|file| file == "routes.txt"));
-    assert!(json["partial"]["skipped_stages"]
+    assert!(!json["partial"]["skipped_stages"]
         .as_array()
         .unwrap()
         .iter()
-        .any(|stage| stage == "K4-cross-ref"));
+        .any(|stage| stage == "K4-cross-ref"),
+        "routes.txt kaybı bağımsız K4 kurallarını aşama olarak kapatmamalı"
+    );
 }
 
 #[test]

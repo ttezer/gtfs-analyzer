@@ -99,8 +99,6 @@ class ContextMappingFixtures(unittest.TestCase):
     def test_unmapped_corpus_headings_have_explicit_adjudication(self):
         for code in [
             "fast_travel_between_far_stops",
-            "trip_with_shape_dist_traveled_but_no_shape_distances",
-            "single_shape_point",
             "feed_expiration_date30_days",
             "feed_valid_beyond_total_service_window",
             "start_and_end_range_equal",
@@ -125,6 +123,10 @@ class ContextMappingFixtures(unittest.TestCase):
 
         self.assertEqual(audit.MAP["same_stop_and_agency_url"], ["STP_034"])
         self.assertEqual(audit.MAP["same_stop_and_route_url"], ["STP_035"])
+        self.assertEqual(
+            audit.MAP["trip_with_shape_dist_traveled_but_no_shape_distances"], ["SHP_030"]
+        )
+        self.assertEqual(audit.MAP["single_shape_point"], ["SHP_006"])
         self.assertEqual(audit.MAP["feed_expiration_date7_days"], ["FIN_019"])
         for code, rule in {
             "invalid_row_length": "ARC_012",

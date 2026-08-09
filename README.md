@@ -306,11 +306,11 @@ Config delta içinde `stop_name_best_practices=true` verilirse dil-bağımlı `S
 
 `stop_times.txt` içinde `shape_dist_traveled` kullanan bir trip'in referansladığı `shapes.txt` noktalarının bir kısmında aynı alan eksikse `SHP_030` (Quality · Orta) üretilir. Bu iki alan GTFS'te ayrı ayrı opsiyoneldir; kural bir Spec yayın engeli değil, tüketicilerin durakları shape geometrisiyle güvenilir eşleştirememe riskini shape başına toplar. Etkilenen trip sayısı ve örnek kimlikler notice ayrıntısında gösterilir.
 
-Tek noktadan oluşan ve gerçekten bir trip tarafından kullanılan shape `SHP_006` ile Düşük · Quality olarak raporlanır; ayrıntıda `shape_id` ve `shape_point_count=1` bulunur. İki noktalı düz segment geçerlidir. Kullanılmayan tek noktalı shape yalnız `SHP_018` ile raporlanır; bu ayrım MobilityData'nın deprecated `single_shape_point` sinyalinin gereksiz cascade üretmesini önler.
+Tek noktadan oluşan ve gerçekten bir trip tarafından kullanılan shape `SHP_006` ile Düşük · Quality olarak raporlanır; ayrıntıda `shape_id` ve `shape_point_count=1` bulunur. İki noktalı düz segment geçerlidir. Kullanılmayan tek noktalı shape yalnız `SHP_018` ile raporlanır. Bu, MobilityData `single_shape_point` sinyaline bilinçli bir near-parity eşlemesidir; Analyzer yalnız kullanılan shape'i SHP_006 ile raporlar.
 
 ### Uzak durak hız paritesi
 
-MobilityData'nın `fast_travel_between_far_stops` notice'ı güncel kural sayfasında deprecated olarak işaretlidir; 10 km üzeri kümülatif mesafe, ardışık olmayan stop çiftleri ve zaman cascade'lerini aynı sinyalde birleştirir. #115 audit'inde 20 pozitif feed örneği incelendi ve bu notice'ın `STM_012`/`STM_014` ile eşlenmesi reddedildi. Yeni kural eklenmedi; bu fark bilinçli Analytics coverage gap olarak tutulur.
+MobilityData'nın güncel rules sayfası `fast_travel_between_far_stops` için tutarsızdır: ana WARNING tablosunda kural aktif görünürken notice-detail metadata'sı `Deprecated since undefined` gösterir ve deprecated tablosunda kural yoktur. #115 audit'inde 20 pozitif feed örneği incelendi; karar deprecation varsayımına değil, 10 km üzeri kümülatif mesafe, ardışık olmayan stop çiftleri ve zaman cascade'lerini birleştiren sinyalin karma/noisy olmasına dayanır. Bu notice'ın `STM_012`/`STM_014` ile eşlenmesi reddedildi; yeni kural eklenmedi ve fark bilinçli Analytics coverage gap olarak tutulur.
 
 ### Durak URL özgüllüğü
 
@@ -343,7 +343,7 @@ MobilityData'nın `fast_travel_between_far_stops` notice'ı güncel kural sayfas
 | Parametre | Varsayılan | Aralık | Açıklama |
 |---|---:|---|---|
 | Son Kullanma Uyarısı | 30 gün | 1–60 | Feed bu kadar günden az kalmışsa uyarı üretilir |
-| Feed Bilgisi Son Kullanma Uyarısı | 7 gün | 1–60 | `FIN_019` için `feed_info.feed_end_date` bu pencere içinde bitiyorsa uyarı üretilir; `CAL_008` eşiğinden ayrıdır |
+| Feed Bilgisi Son Kullanma Uyarısı | 7 gün | 1–60 | `FIN_019` için `feed_info.feed_end_date` bu pencere içinde bitiyorsa uyarı üretilir; varsayılan 7 gündür ve 30 günlük MobilityData paritesi `feed_info_expiry_warning_days=30` ile elde edilir |
 | Servis Boşluğu Eşiği | 7 gün | 3–30 | Bu günden uzun servis kesintisi işaretlenir |
 | Maks. Sefer Süresi | 24 saat | 8–72 | Tek bir seferin maksimum süresi |
 | Min. Sefer Süresi | 60 sn | 10–300 | Tek bir seferin minimum süresi |
@@ -475,11 +475,11 @@ Karşılaştırma tamamen tarayıcı içinde çalışır. Golden JSON tarayıcı
 | **Düşük** | Küçük sapma, en iyi pratikten uzaklaşma |
 | **Bilgi** | Bilgilendirme amaçlı, eylem gerekmeyebilir |
 
-Önem seviyeleri, [GTFS Schedule Referans Dokümantasyonu](https://gtfs.org/documentation/schedule/reference/#file-requirements)'nda tanımlanan dosya ve alan zorunluluk seviyeleri (Required · Conditionally Required · Recommended · Optional) esas alınarak belirlenmiştir.
+Önem seviyesi, [GTFS Schedule Referans Dokümantasyonu](https://gtfs.org/documentation/schedule/reference/#file-requirements)'ndaki requirement level (Required · Conditionally Required · Recommended · Optional) ile ihlalin semantic impact değerlendirmesinin birlikte sonucudur.
 
 ### Spec severity rubric'i
 
-Spec kurallarında önem, MobilityData'nın `ERROR/WARNING/INFO` etiketlerinden değil, ihlalin
+Spec kurallarında önem, requirement level + semantic impact birleşiminden; MobilityData'nın `ERROR/WARNING/INFO` etiketlerinden değil, ihlalin
 GTFS verisini tüketilebilirlik üzerindeki etkisinden türetilir:
 
 - **Kritik:** Required dosya/alan, primary-key veya foreign-key bütünlüğü ya da çekirdek tip/range ihlali; feed'in güvenilir biçimde tüketilmesini engeller ve `Spec + Kritik` yayın kapısıdır.
@@ -603,7 +603,7 @@ npm run dev
 cargo test
 
 # Tüm workspace crate, test ve example target'ları için warnings blocking lint
-cargo clippy --workspace --all-targets -- -D warnings
+cargo clippy --workspace --all-targets --all-features -- -D warnings
 
 # Playwright smoke testleri
 cd ui

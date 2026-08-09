@@ -1889,7 +1889,7 @@ const en: LocaleShape = {
     'STP_021': 'Boarding area parent is not a platform',
     'STP_022': 'stop_code missing',
     'STP_023': 'tts_stop_name invalid',
-    'STP_024': 'stop_access invalid',
+    'STP_024': 'stop_access outside K2 compatibility range',
     'STP_025': 'stop_name has leading or trailing whitespace',
     'STP_026': 'stop_access invalid value',
     'STP_027': 'stop_access not set on pathway station',

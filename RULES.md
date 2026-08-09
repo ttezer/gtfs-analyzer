@@ -121,7 +121,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | STP_021 | Boarding area parent'ı platform değil | YÜKSEK | Quality |
 | STP_022 | stop_code eksik | ORTA | Quality |
 | STP_023 | tts_stop_name geçersiz | DÜŞÜK | Quality |
-| STP_024 | stop_access enum aralığı dışında değer (K2 ham alan kontrolü) | BİLGİ | Quality |
+| STP_024 | stop_access K2 uyumluluk aralığı dışında değer | BİLGİ | Quality |
 | STP_025 | stop_name baştaki veya sondaki boşluk içeriyor | ORTA | Quality |
 | STP_026 | stop_access geçersiz değer | DÜŞÜK | Spec |
 | STP_027 | Pathway istasyonunda stop_access belirtilmemiş | ORTA | Quality |

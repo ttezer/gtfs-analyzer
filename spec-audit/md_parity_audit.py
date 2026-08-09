@@ -62,6 +62,8 @@ MAP = {
     "equal_shape_distance_same_coordinates":["SHP_023"],   # tekrar-nokta
     "equal_shape_distance_diff_coordinates":["SHP_028"],   # eşik ÜSTÜ = gerçek hata
     "equal_shape_distance_diff_coordinates_distance_below_threshold": ["SHP_029"],  # eşik ALTI = yuvarlama
+    "trip_with_shape_dist_traveled_but_no_shape_distances": ["SHP_030"],
+    "single_shape_point":          ["SHP_006"],  # near-parity: yalnız kullanılan shape'ler
     # ── Trips / bloklar ──
     "trip_headsign_matches_intermediate_stop": ["TRP_020"],  # AGG: per-trip (MD per-occurrence)
     "block_trips_with_overlapping_stop_times": ["TRP_022"],  # MD ERROR; bizde ~eşleşir (aynı-gün blok)
