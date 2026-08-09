@@ -10,47 +10,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **Granular raw midnight findings and dependency-aware recovery.** `STM_048`/`STM_049`
-  artık her Trip/satır ihlali için ayrı YÜKSEK·Spec bulgusu üretir; raw/expected saatler ve
-  düzeltilecek satır ayrıntıları korunur. Bozuk veya eksik zorunlu dosya yalnızca ona bağlı
-  K4/K5/K6 alt kontrollerini durdurur; bağımsız kontroller devam eder. Geçersiz veya okunamayan
-  `locations.geojson`, eksik `stops.txt` için koşullu zorunluluk kanıtı sayılamaz.
+  now emit a separate HIGH·Spec finding for each Trip/row violation; raw/expected times and
+  the line-level remediation details are preserved. A malformed or missing required file now
+  stops only the dependent K4/K5/K6 subchecks; independent checks continue. An invalid or
+  unreadable `locations.geojson` cannot satisfy the conditional requirement for `stops.txt`.
 
-- **Parity defteri ve dokümanları güncellendi.** `trip_with_shape_dist_traveled_but_no_shape_distances`
-  artık `SHP_030`, `single_shape_point` ise kullanılan shape kapsamıyla near-parity `SHP_006`
-  olarak adjudicate edilir. FIN_019'un varsayılan 7 günlük eşiği ile 30 günlük parity config'i
-  ayrıştırıldı; `fast_travel_between_far_stops` gerekçesi upstream metadata tutarsızlığını yansıtır.
+- **Parity ledger and documentation updated.** `trip_with_shape_dist_traveled_but_no_shape_distances`
+  is now adjudicated as `SHP_030`, while `single_shape_point` is an intentional near-parity
+  mapping to `SHP_006` for used shapes. FIN_019's default seven-day horizon is distinguished
+  from the 30-day parity configuration; the `fast_travel_between_far_stops` rationale now
+  reflects the upstream metadata inconsistency.
 
-- **Clippy CI tüm feature yüzeyini kapsıyor:** `cargo clippy --workspace --all-targets --all-features -- -D warnings`.
+- **Clippy CI covers the full feature surface:** `cargo clippy --workspace --all-targets --all-features -- -D warnings`.
 
-- **`SHP_006` tek-nokta shape kontrolü düşük öncelikli Quality oldu.** Kullanılmayan tek-nokta
-  shape'ler yalnız `SHP_018` kapsamında kalır; kullanılan shape için `shape_id` ve nokta sayısı
-  ayrıntıları korunur. Böylece MobilityData'nın `single_shape_point` sinyali Spec'e
-  taşınmadan ve tüketici etkisi olmayan orphan kayıtlar iki kez puanlanmadan raporlanır.
+- **`SHP_006` one-point shape detection is now Low·Quality.** Unused one-point shapes remain
+  covered only by `SHP_018`; used shapes retain `shape_id` and point-count details. This keeps
+  MobilityData's `single_shape_point` signal out of the Spec class and avoids double-scoring
+  orphan records that have no consumer impact.
 
-- **#115 `fast_travel_between_far_stops` parity kararını netleştirdi.** MobilityData v8.0.1
-  algoritması ve güncel kaynağı incelendi; 10 km kümülatif mesafe eşiği ile zaman/geometry
-  cascade'lerini birleştiren, upstream sayfası tutarsız olan notice için 20 pozitif feed
-  örneği sınıflandırıldı. Yeni Analytics kuralı eklenmedi; `STM_012`/`STM_014` alias'ı bilinçli
-  olarak reddedildi ve fark explicit coverage gap olarak parity audit'inde tutuldu.
+- **#115 clarified the `fast_travel_between_far_stops` parity decision.** The MobilityData
+  v8.0.1 algorithm and current source were reviewed; 20 positive feeds were classified for a
+  notice that combines a 10 km cumulative-distance threshold with timing and geometry cascades,
+  while the upstream page is internally inconsistent. No new Analytics rule was added;
+  aliasing to `STM_012`/`STM_014` was intentionally rejected and the difference remains an
+  explicit coverage gap in the parity audit.
 
-- **`STP_034` ve `STP_035` düşük öncelikli Quality ve aggregate raporlama olarak güncellendi.**
-  URL karşılaştırması şema/host harfi, kök yol ve varsayılan portları güvenle normalize eder;
-  query, fragment, path trailing slash ve percent-encoding farklarını birbirine eşitlemez.
-  Aynı normalize URL'yi kullanan duraklar `stop_count`, örnek durak kimlikleri ve normalize URL
-  ayrıntılarıyla tek bulguda raporlanır. Pozitif/negatif normalization ve aggregation regression
-  testleri eklendi.
+- **`STP_034` and `STP_035` are now Low·Quality aggregate findings.** URL comparison safely
+  normalizes scheme/host casing, the root path, and default ports; query, fragment, trailing
+  slash, and percent-encoding differences remain distinct. Stops sharing a normalized URL are
+  reported in one finding with `stop_count`, representative stop IDs, and the normalized URL.
+  Positive/negative normalization and aggregation regression tests were added.
 
-- **#118: `FIN_019` feed-info expiry horizon artık yapılandırılabilir.** Yeni
-  `feed_info_expiry_warning_days` anahtarı varsayılan 7 günle mevcut davranışı korur;
-  `feed_expiry_warning_days`/`CAL_008` servis takvimi eşiğinden ayrı tutulur. FIN_019
-  ayrıntılarında yapılandırılmış eşik ve kalan gün sayısı gösterilir; geçmiş tarihler yine
-  yalnız `FIN_010` olarak raporlanır.
+- **#118: `FIN_019` feed-info expiry horizon is now configurable.** The new
+  `feed_info_expiry_warning_days` key preserves the existing seven-day default and remains
+  separate from the `feed_expiry_warning_days`/`CAL_008` service-calendar horizon. FIN_019
+  details show the configured horizon and days remaining; past dates are still reported only
+  as `FIN_010`.
 
-- **#91 clippy kapısı etkinleştirildi.** Workspace'in tüm crate, test ve example target'ları
-  ve optional feature'ları `cargo clippy --workspace --all-targets --all-features -- -D warnings` ile CI'da blocking lint'ten geçer.
-  Kalan mekanik lint borçları düzeltildi; test adlarındaki kural kodu büyük harfleri de
-  snake_case'e taşındı. Kural registry'si değişmedi, dolayısıyla RULES dosyaları yeniden
-  üretilse de içerik değişikliği yoktur.
+- **#91 enabled the blocking Clippy gate.** All workspace crates, test and example targets,
+  and optional features pass `cargo clippy --workspace --all-targets --all-features -- -D warnings`
+  in CI. Remaining mechanical lint debt was fixed, including uppercase rule codes in test names,
+  which were moved to snake_case. The rule registry did not change, so regenerating the RULES
+  files produces no semantic rule change.
 
 - **Eight rules move to the `Spec` class, and the prose-provision badge drops from 99.3% to
   97.2%.** The badge numerator counted a hard specification provision as proven without ever
@@ -62,11 +63,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     `ARC_026` (line endings), `AGN_005` (shared agency timezone), `ATR_009` (attribution targets),
     `FIN_012` (feed date order), `FRQ_011` (overlapping headways), `PTH_012` (locked platforms),
     `TFR_005` (overlapping timeframes), `TRF_017` (transfer trip belongs to route);
-  - downgraded to `KISMİ`, because the requirement binds the feed but cannot be measured at
+  - downgraded to `PARTIAL`, because the requirement binds the feed but cannot be measured at
     `Spec` strength: the two distance-unit provisions (GTFS never declares a unit, so only a
     gross ratio mismatch is detectable) and the dialable-phone provision (a documented Quality
     approximation, see above);
-  - downgraded to `KAPSAM DIŞI` / `META`, because the sentence does not constrain the feed at
+  - downgraded to `OUT OF SCOPE` / `META`, because the sentence does not constrain the feed at
     all: three `cemv_support` precedence sentences (they anticipate a conflict and resolve it
     for the consumer, so no feed can violate them), the `transfer_type=5` enum definition, and
     "the passenger must alight and re-board", whose subject is the passenger.
@@ -203,7 +204,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **A rule id used for two unrelated checks is now reported.** ATR_006 emitted both the
   `is_authority` enum check and the `attributions.route_id` foreign-key check, and ATR_007 did
   the same for `attribution_url` and `trip_id`; the registry describes one of each, so a feed
-  with a dangling route reference received a finding titled "is_authority geçersiz" whose
+  with a dangling route reference received a finding titled "is_authority invalid" whose
   remediation told it to fix a route id (fixed below). Nothing could see this: the emit proof asks whether a
   rule can fire, not whether what it emits is what the rule says it is, and a second emit site
   added to an existing id was invisible to every check.
@@ -234,7 +235,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   rule that checks several fields registers only the one its fixture breaks — CAL_002 validates
   all seven day columns but the fixture corrupts `monday` — and a rule that reports no field at
   all, like RTS_003 for "one of route_short_name or route_long_name", anchors nowhere. Entries
-  are marked `[yalnız: …]` when a rule does measure the field but is not classed `Spec` —
+  are marked `[only: …]` when a rule does measure the field but is not classed `Spec` —
   `agency_phone` is validated by AGN_007, which is deliberately Quality — because those are not
   gaps at all but classification questions, and eleven of the thirty-two entries are of that
   kind. Entries are marked `[denetim-yok]` when the field name appears in no check stage at all,
@@ -249,7 +250,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   provisions are derived from the Presence, Type and primary-key columns alone, so prose
   conditions — "only when B=1", "one of the two is required", "A and B must be given together",
   cross-file conditions, consistency within a trip, GeoJSON nesting — are outside what is
-  counted, and the total is not the specification's total. And `[yalnız: …]` proves only that a
+  counted, and the total is not the specification's total. And `[only: …]` proves only that a
   rule emitted on the field: `route_text_color` carries RTS_007 for hex format and RTS_008 for
   contrast, and the contrast rule is legitimate Quality work that does not satisfy the Color
   type's requirement. CI now writes the partial-coverage report to a `spec-audit-report`
@@ -312,7 +313,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
   The seventh was a gap. The reference says of `feed_info.txt`: *"Required if `translations.txt`
   is provided. Recommended otherwise."* Two sentences, two classes — and both were being reported
-  by `ARC_020` as a missing *recommended* file, Düşük·Quality. A norm was being reported as a
+  by `ARC_020` as a missing *recommended* file, Low·Quality. A norm was being reported as a
   preference. `ARC_031` now covers the first sentence at Kritik·Spec, following `ARC_008`, which
   is the same shape of provision; `ARC_020` keeps the second and its comment now records the
   boundary. The practical reason it is Kritik: a translation's meaning depends on
@@ -632,7 +633,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   in a file whose entire purpose is telling riders how to book. `BKR_020` and `BKR_021` check the
   two URLs, `BKR_022` the phone number.
 
-  `booking_url` is Orta while `info_url` is Düşük: the first is where the rider actually books,
+  `booking_url` is Medium while `info_url` is Low: the first is where the rider actually books,
   the second is supplementary. `BKR_022` is **Quality, not Spec**, following `AGN_007` — the
   specification's `Phone number` type prescribes no grammar (its definition is "A phone number"),
   so a strict check would reject valid international formats; the rule only asks whether enough
@@ -755,11 +756,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   identity check added above found two rule ids doing double duty, and this is what a user saw
   because of it: ATR_006 carried both the `is_authority` enum check in K2 and the
   `attributions.route_id` foreign-key check in K4, so a broken route reference produced a
-  finding titled "is_authority geçersiz" — and ATR_007 did the same for `attribution_url` and
+  finding titled "is_authority invalid" — and ATR_007 did the same for `attribution_url` and
   `trip_id`. The two foreign-key paths move to **ATR_011** (`route_id`) and **ATR_012**
   (`trip_id`), leaving ATR_006 and ATR_007 measuring one fact each.
 
-  The new rules are Düşük·Spec, matching **ATR_010**, which has checked the third reference
+  The new rules are Low·Spec, matching **ATR_010**, which has checked the third reference
   field of the same file, `agency_id`, at that severity all along; the old Kritik came from the
   enum and URL rules whose weight the foreign-key paths happened to share, not from a judgement
   about dangling references. No publish gate is lost: **XFL_015** (Kritik, `VS_K`) summarises
