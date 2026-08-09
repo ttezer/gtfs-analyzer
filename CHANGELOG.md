@@ -28,6 +28,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   prerequisite-gated rules that did not run; `partial.skipped_stages` remains available
   for coarse stage-level metadata.
 
+- **Malformed prerequisite fixtures now lock recovery findings.** Unreadable calendar,
+  stop-time, stops, and `feed_info.txt` inputs no longer produce derived “empty data” or
+  feed-expiry findings; the corresponding checks are recorded as skipped in PARTIAL output.
+
 - **Parity ledger and documentation updated.** `trip_with_shape_dist_traveled_but_no_shape_distances`
   is now adjudicated as `SHP_030`, while `single_shape_point` is an intentional near-parity
   mapping to `SHP_006` for used shapes. FIN_019's default seven-day horizon is distinguished

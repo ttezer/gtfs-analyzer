@@ -42,3 +42,6 @@ Regression testleri:
 - `unavailable_feed_info_does_not_produce_feed_expiry_findings`
 - `inventory_separates_missing_from_unreadable_files`
 - `recoverable_structural_error_is_partial_with_exit_1`
+- `malformed_calendar_does_not_produce_dq_005`
+- `malformed_stop_times_does_not_produce_empty_stop_time_findings`
+- `malformed_stops_does_not_produce_stop_count_quality_findings`

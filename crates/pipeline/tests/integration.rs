@@ -240,6 +240,73 @@ fn malformed_optional_file_is_skipped_with_partial_report() {
                 .notices
                 .iter()
                 .any(|n| n.rule_id == "ARC_003" && n.file.as_deref() == Some("feed_info.txt")));
+            assert!(vr.notices.iter().all(|notice| {
+                !matches!(
+                    notice.rule_id.as_str(),
+                    "FIN_010" | "FIN_016" | "FIN_017" | "FIN_018" | "FIN_019" | "FIN_020" | "CAL_020"
+                )
+            }));
+        }
+        other => panic!("Partial Ok bekleniyor, gelen: {other:?}"),
+    }
+}
+
+#[test]
+fn malformed_calendar_does_not_produce_dq_005() {
+    let mut files = base_files();
+    files[5] = ("calendar.txt", b"service_id,monday,\xFF\n");
+
+    match run(&files) {
+        ValidateResult::Ok(vr) => {
+            assert_eq!(vr.status, gtfs_core::ValidationStatus::Partial);
+            assert!(vr.notices.iter().all(|notice| notice.rule_id != "DQ_005"));
+            let partial = vr.partial.expect("bozuk calendar PARTIAL üretmeli");
+            assert!(partial.unavailable_files.contains(&"calendar.txt".to_string()));
+            assert!(partial.skipped_checks.contains(&"K6::DQ_005".to_string()));
+        }
+        other => panic!("Partial Ok bekleniyor, gelen: {other:?}"),
+    }
+}
+
+#[test]
+fn malformed_stop_times_does_not_produce_empty_stop_time_findings() {
+    let mut files = base_files();
+    files[4] = ("stop_times.txt", b"trip_id,arrival_time,\xFF\n");
+
+    match run(&files) {
+        ValidateResult::Ok(vr) => {
+            assert_eq!(vr.status, gtfs_core::ValidationStatus::Partial);
+            assert!(vr
+                .notices
+                .iter()
+                .all(|notice| !matches!(notice.rule_id.as_str(), "DQ_009" | "DQ_005b")));
+            let partial = vr.partial.expect("bozuk stop_times PARTIAL üretmeli");
+            assert!(partial.unavailable_files.contains(&"stop_times.txt".to_string()));
+            assert!(partial.skipped_checks.contains(&"K6::DQ_009".to_string()));
+            assert!(partial.skipped_checks.contains(&"K6::remaining_analytics".to_string()));
+        }
+        other => panic!("Partial Ok bekleniyor, gelen: {other:?}"),
+    }
+}
+
+#[test]
+fn malformed_stops_does_not_produce_stop_count_quality_findings() {
+    let mut files = base_files();
+    files[1] = ("stops.txt", b"stop_id,stop_name,stop_lat,\xFF\n");
+
+    match run(&files) {
+        ValidateResult::Ok(vr) => {
+            assert_eq!(vr.status, gtfs_core::ValidationStatus::Partial);
+            assert!(vr.notices.iter().all(|notice| {
+                !matches!(
+                    notice.rule_id.as_str(),
+                    "DQ_011" | "DQ_017" | "DQ_022" | "DQ_005c"
+                )
+            }));
+            let partial = vr.partial.expect("bozuk stops PARTIAL üretmeli");
+            assert!(partial.unavailable_files.contains(&"stops.txt".to_string()));
+            assert!(partial.skipped_checks.contains(&"K6::DQ_011".to_string()));
+            assert!(partial.skipped_checks.contains(&"K6::remaining_analytics".to_string()));
         }
         other => panic!("Partial Ok bekleniyor, gelen: {other:?}"),
     }
