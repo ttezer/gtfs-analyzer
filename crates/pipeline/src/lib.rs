@@ -37,8 +37,9 @@ pub fn validate_bytes(zip: &[u8], config: &ValidatorConfig, today: u32) -> Valid
             Err(e) => return ValidateResult::Fatal(e),
         }
     };
-    let partial = k1.partial;
-    let availability = FileAvailability::from_k1(&k1.present_files, &partial.unavailable_files);
+    let mut partial = k1.partial;
+    let unavailable_files = partial.unavailable_files.clone();
+    let availability = FileAvailability::from_k1(&k1.present_files, &unavailable_files);
     let mut file_stats = collect_file_stats(&k1.files);
 
     let mut k2 = {
@@ -92,6 +93,15 @@ pub fn validate_bytes(zip: &[u8], config: &ValidatorConfig, today: u32) -> Valid
     };
 
     let mut all = Vec::new();
+    // `skipped_checks` explains reduced coverage; an ordinary complete feed may
+    // legitimately omit optional files and must not become PARTIAL merely because
+    // those optional checks have no input. K1's recovery marker is the authority
+    // for whether this run should expose the trace.
+    if !partial.is_empty() {
+        partial.extend_skipped_checks(k4.skipped_checks);
+        partial.extend_skipped_checks(k5.skipped_checks);
+        partial.extend_skipped_checks(k6.skipped_checks);
+    }
     all.extend(k1.notices);
     all.extend(k2.notices);
     all.extend(k3.notices);

@@ -235,7 +235,7 @@ Pass `-` instead of a path to read the ZIP from **stdin**: `curl -sL <url> | gtf
 
 > **Counts differ from the web UI.** The browser caps how many findings it keeps per rule for performance (the real totals are reported in `capped_totals`). The CLI applies **no such cap** — the same feed yields more notices and unscaled R9 impact figures. This is expected; do not compare the two outputs count by count.
 
-**Exit codes:** `0` no notices · `1` notices present · `2` fatal or config/file error. With `--fail-on*`, `1` is returned only for a matching notice; other findings are still reported but do not fail the run. In JSON mode stdout is JSON only; errors go to stderr.
+**Exit codes:** `0` no notices · `1` notices present or a `PARTIAL` report · `2` fatal or config/file error. A `PARTIAL` report safely skips unavailable inputs and continues independent checks; JSON exposes `status: "partial"`, `validation_status: "PARTIAL"`, and the `partial` scope. `partial.skipped_checks` lists the K4/K5/K6 check families and individual rules skipped because prerequisites were unavailable; `partial.skipped_stages` is retained for coarse stage metadata. With `--fail-on*`, `1` is returned only for a matching notice; other findings are still reported but do not fail the run. In JSON mode stdout is JSON only; errors go to stderr.
 
 ```bash
 # CI gate: fail only on official GTFS Spec violations

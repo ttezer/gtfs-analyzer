@@ -14,6 +14,7 @@ use crate::timing::Timer;
 #[derive(Debug, Default)]
 pub struct K4Result {
     pub notices: Vec<Notice>,
+    pub skipped_checks: Vec<String>,
 }
 
 // �"?�"? Ana fonksiyon �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?
@@ -29,8 +30,19 @@ pub fn check_with_files(
     availability: &FileAvailability<'_>,
 ) -> K4Result {
     let mut notices = Vec::new();
+    let mut skipped_checks = Vec::new();
     let mut ctr = 0u32;
     let map = entity_map;
+
+    macro_rules! gate {
+        ($name:literal, $condition:expr, $body:block) => {
+            if $condition {
+                $body
+            } else {
+                skipped_checks.push($name.to_string());
+            }
+        };
+    }
 
     // stop_times geçişi → StopTimesIndex üzerinden (Vec<StopTimeRecord> taranmaz)
     let (stm_used_stop_ids, stm_trip_continuous, stm_trips_in_stm, stm_trip_stm_count,
@@ -59,6 +71,8 @@ pub fn check_with_files(
                     ));
                 }
             }
+        } else {
+            skipped_checks.push("K4::stop_times::trip_cross_reference".to_string());
         }
 
         // STM_002: stop_id stop_times'ta var ama stops.txt'te yok.
@@ -84,6 +98,8 @@ pub fn check_with_files(
                     ));
                 }
             }
+        } else {
+            skipped_checks.push("K4::stop_times::stop_cross_reference".to_string());
         }
 
         // XFL_024: stop_times.location_group_id → location_groups (GTFS-Flex)
@@ -108,6 +124,8 @@ pub fn check_with_files(
                         ));
                     }
                 }
+            } else {
+                skipped_checks.push("K4::stop_times::location_group_cross_reference".to_string());
             }
             // XFL_025: stop_times.location_id → locations.geojson feature id
             if availability.available("locations.geojson") {
@@ -126,6 +144,8 @@ pub fn check_with_files(
                         ));
                     }
                 }
+            } else {
+                skipped_checks.push("K4::stop_times::geojson_location_cross_reference".to_string());
             }
         }
 
@@ -158,13 +178,20 @@ pub fn check_with_files(
 
         (used_stop_ids, trip_continuous, trips_in_stm, trip_stm_count, flex_window_trips)
     } else {
+        skipped_checks.push("K4::stop_times".to_string());
         (HashSet::new(), HashSet::new(), HashSet::new(), HashMap::new(), HashSet::new())
     };
 
-    if availability.available("agency.txt") { check_agencies(records, map, &mut notices, &mut ctr); }
-    if availability.all(&["stops.txt", "stop_times.txt"]) { check_stops(records, map, &mut notices, &mut ctr, &stm_used_stop_ids); }
-    if availability.all(&["routes.txt", "trips.txt", "stop_times.txt"]) { check_routes(records, map, &mut notices, &mut ctr, &stm_flex_window_trips); }
-    if availability.all(&["trips.txt", "routes.txt"]) {
+    gate!("K4::agency", availability.available("agency.txt"), {
+        check_agencies(records, map, &mut notices, &mut ctr);
+    });
+    gate!("K4::stops", availability.all(&["stops.txt", "stop_times.txt"]), {
+        check_stops(records, map, &mut notices, &mut ctr, &stm_used_stop_ids);
+    });
+    gate!("K4::routes", availability.all(&["routes.txt", "trips.txt", "stop_times.txt"]), {
+        check_routes(records, map, &mut notices, &mut ctr, &stm_flex_window_trips);
+    });
+    gate!("K4::trips", availability.all(&["trips.txt", "routes.txt"]), {
         check_trips(
             records,
             map,
@@ -173,25 +200,59 @@ pub fn check_with_files(
             &stm_trip_continuous,
             availability.available("shapes.txt"),
         );
-    }
-    if availability.all(&["pathways.txt", "stops.txt"]) { check_pathways(records, map, &mut notices, &mut ctr); }
-    if availability.available("booking_rules.txt") { check_booking_rules(records, map, &mut notices, &mut ctr); }
-    if availability.available("calendar.txt") { check_calendar(records, map, &mut notices, &mut ctr, today); }
-    if availability.available("calendar_dates.txt") { check_calendar_dates(records, map, &mut notices, &mut ctr); }
-    if availability.all(&["frequencies.txt", "trips.txt"]) { check_frequencies(records, map, &mut notices, &mut ctr, &stm_trips_in_stm); }
-    if availability.all(&["transfers.txt", "stops.txt", "trips.txt", "stop_times.txt"]) { check_transfers(records, map, &mut notices, &mut ctr, &stm_trips_in_stm, &records.stop_times_index.trip_stop_set, &records.stop_times_index.stop_id_to_idx); }
-    if availability.available("fare_attributes.txt") { check_fare_attributes(records, map, &mut notices, &mut ctr); }
-    if availability.all(&["fare_rules.txt", "stops.txt"]) { check_fare_rules(records, map, &mut notices, &mut ctr); }
-    if availability.any(&["fare_products.txt", "fare_media.txt", "fare_leg_rules.txt"]) { check_fares_v2(records, map, &mut notices, &mut ctr); }
-    if availability.all(&["levels.txt", "stops.txt", "pathways.txt"]) { check_levels(records, map, &mut notices, &mut ctr); }
-    if availability.all(&["translations.txt", "feed_info.txt"]) { check_translations(records, map, &mut notices, &mut ctr); }
+    });
+    gate!("K4::pathways", availability.all(&["pathways.txt", "stops.txt"]), {
+        check_pathways(records, map, &mut notices, &mut ctr);
+    });
+    gate!("K4::booking_rules", availability.available("booking_rules.txt"), {
+        check_booking_rules(records, map, &mut notices, &mut ctr);
+    });
+    gate!("K4::calendar", availability.available("calendar.txt"), {
+        check_calendar(records, map, &mut notices, &mut ctr, today);
+    });
+    gate!("K4::calendar_dates", availability.available("calendar_dates.txt"), {
+        check_calendar_dates(records, map, &mut notices, &mut ctr);
+    });
+    gate!("K4::frequencies", availability.all(&["frequencies.txt", "trips.txt"]), {
+        check_frequencies(records, map, &mut notices, &mut ctr, &stm_trips_in_stm);
+    });
+    gate!("K4::transfers", availability.all(&["transfers.txt", "stops.txt", "trips.txt", "stop_times.txt"]), {
+        check_transfers(records, map, &mut notices, &mut ctr, &stm_trips_in_stm, &records.stop_times_index.trip_stop_set, &records.stop_times_index.stop_id_to_idx);
+    });
+    gate!("K4::fare_attributes", availability.available("fare_attributes.txt"), {
+        check_fare_attributes(records, map, &mut notices, &mut ctr);
+    });
+    gate!("K4::fare_rules", availability.all(&["fare_rules.txt", "stops.txt"]), {
+        check_fare_rules(records, map, &mut notices, &mut ctr);
+    });
+    gate!("K4::fares_v2", availability.any(&["fare_products.txt", "fare_media.txt", "fare_leg_rules.txt"]), {
+        check_fares_v2(records, map, &mut notices, &mut ctr);
+    });
+    gate!("K4::levels", availability.all(&["levels.txt", "stops.txt", "pathways.txt"]), {
+        check_levels(records, map, &mut notices, &mut ctr);
+    });
+    gate!("K4::translations", availability.all(&["translations.txt", "feed_info.txt"]), {
+        check_translations(records, map, &mut notices, &mut ctr);
+    });
     { let _t = Timer::start("K4::gtfs_jp"); check_gtfs_jp(records, &mut notices, &mut ctr); }
-    if availability.available("attributions.txt") { check_attributions(records, map, &mut notices, &mut ctr); }
-    if availability.all(&["routes.txt", "networks.txt", "route_networks.txt"]) { check_route_networks(records, map, &mut notices, &mut ctr); }
-    if availability.all(&["stop_times.txt", "locations.geojson"]) { check_flex_zone_overlap(records, map, &mut notices, &mut ctr); }
-    if availability.any(&["fare_leg_join_rules.txt", "fare_leg_rules.txt"]) { check_fare_leg_join_rules(records, map, &mut notices, &mut ctr); }
-    if availability.all(&["routes.txt", "trips.txt", "stop_times.txt"]) { check_xfl(records, map, &mut notices, &mut ctr, &stm_trips_in_stm, &stm_trip_stm_count); }
-    if availability.all(&["stop_times.txt", "shapes.txt"]) { check_stm_shape_dist(records, &mut notices, &mut ctr); }
+    gate!("K4::attributions", availability.available("attributions.txt"), {
+        check_attributions(records, map, &mut notices, &mut ctr);
+    });
+    gate!("K4::route_networks", availability.all(&["routes.txt", "networks.txt", "route_networks.txt"]), {
+        check_route_networks(records, map, &mut notices, &mut ctr);
+    });
+    gate!("K4::flex_zone_overlap", availability.all(&["stop_times.txt", "locations.geojson"]), {
+        check_flex_zone_overlap(records, map, &mut notices, &mut ctr);
+    });
+    gate!("K4::fare_leg_join_rules", availability.any(&["fare_leg_join_rules.txt", "fare_leg_rules.txt"]), {
+        check_fare_leg_join_rules(records, map, &mut notices, &mut ctr);
+    });
+    gate!("K4::xfl", availability.all(&["routes.txt", "trips.txt", "stop_times.txt"]), {
+        check_xfl(records, map, &mut notices, &mut ctr, &stm_trips_in_stm, &stm_trip_stm_count);
+    });
+    gate!("K4::stm_shape_dist", availability.all(&["stop_times.txt", "shapes.txt"]), {
+        check_stm_shape_dist(records, &mut notices, &mut ctr);
+    });
 
     // XFL_026-030: cemv_support ↔ Fares v2 contactless media tutarlılığı (feed-level)
     {
@@ -312,7 +373,7 @@ pub fn check_with_files(
         }
     }
 
-    K4Result { notices }
+    K4Result { notices, skipped_checks }
 }
 
 // �"?�"? Notice yardımcısı �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?

@@ -71,6 +71,7 @@ pub struct DerivedData {
 pub struct K5Result {
     pub derived: DerivedData,
     pub notices: Vec<Notice>,
+    pub skipped_checks: Vec<String>,
 }
 
 // ── Ana fonksiyon ─────────────────────────────────────────────────────────────
@@ -87,30 +88,41 @@ pub fn build_with_files(
     use crate::timing::Timer;
     let mut derived = DerivedData::default();
     let mut notices = Vec::new();
+    let mut skipped_checks = Vec::new();
     let mut ctr = 0u32;
 
-    if availability.available("shapes.txt") {
-        let _t = Timer::start("K5::shape_geometry");
-        build_shape_geometry(records, entity_map, &mut derived, &mut notices, &mut ctr);
-    }
-    if availability.any(&["calendar.txt", "calendar_dates.txt"]) {
-        let _t = Timer::start("K5::calendar_bitmap");
-        build_calendar_bitmap(records, &mut derived);
-    }
-    if availability.available("stops.txt") {
-        let _t = Timer::start("K5::spatial_index");
-        build_spatial_index(records, &mut derived);
-    }
-    if availability.all(&["pathways.txt", "stops.txt"]) {
-        let _t = Timer::start("K5::pathway_graph");
-        build_pathway_graph(records, &mut derived);
-    }
-    if availability.available("fare_rules.txt") {
-        let _t = Timer::start("K5::fare_network");
-        build_fare_network(records, &mut derived);
+    macro_rules! gate {
+        ($name:literal, $condition:expr, $body:block) => {
+            if $condition {
+                $body
+            } else {
+                skipped_checks.push($name.to_string());
+            }
+        };
     }
 
-    K5Result { derived, notices }
+    gate!("K5::shape_geometry", availability.available("shapes.txt"), {
+        let _t = Timer::start("K5::shape_geometry");
+        build_shape_geometry(records, entity_map, &mut derived, &mut notices, &mut ctr);
+    });
+    gate!("K5::calendar_bitmap", availability.any(&["calendar.txt", "calendar_dates.txt"]), {
+        let _t = Timer::start("K5::calendar_bitmap");
+        build_calendar_bitmap(records, &mut derived);
+    });
+    gate!("K5::spatial_index", availability.available("stops.txt"), {
+        let _t = Timer::start("K5::spatial_index");
+        build_spatial_index(records, &mut derived);
+    });
+    gate!("K5::pathway_graph", availability.all(&["pathways.txt", "stops.txt"]), {
+        let _t = Timer::start("K5::pathway_graph");
+        build_pathway_graph(records, &mut derived);
+    });
+    gate!("K5::fare_network", availability.available("fare_rules.txt"), {
+        let _t = Timer::start("K5::fare_network");
+        build_fare_network(records, &mut derived);
+    });
+
+    K5Result { derived, notices, skipped_checks }
 }
 
 // ── Notice yardımcısı ─────────────────────────────────────────────────────────

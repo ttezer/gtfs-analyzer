@@ -5,7 +5,9 @@ GTFS Analyzer has three observable validation outcomes:
 - `COMPLETE`: the archive was readable and every pipeline stage ran.
 - `PARTIAL`: the archive was readable, but one or more files could not be safely
   typed or a deterministic recovery path was used. Independent checks still run;
-  stages that require unavailable inputs are listed in `partial.skipped_stages`.
+  coarse stage metadata remains in `partial.skipped_stages`, while each
+  prerequisite-gated K4/K5/K6 check that could not run is listed in
+  `partial.skipped_checks`.
 - `FATAL`: the ZIP/archive itself could not be opened or the decompression guard
   rejected it. No validation report is produced.
 
@@ -23,14 +25,19 @@ The JSON envelope exposes:
   "partial": {
     "root_structural_errors": [],
     "unavailable_files": ["routes.txt"],
-    "skipped_stages": ["K4-cross-ref", "K5-derived", "K6-analytics"]
+    "skipped_stages": [],
+    "skipped_checks": [
+      "K4::routes",
+      "K6::route_headway",
+      "K6::speed_and_duration"
+    ]
   }
 }
 ```
 
 The recovery boundary is deliberately conservative. Missing, invalid-UTF-8 or
 CSV-malformed files are not converted lossily into typed records. K1/K2 findings
-from files that remain readable are preserved; cross-reference and derived
-stages are skipped when any required input is unavailable so they cannot invent
-findings from an absent prerequisite. Corrupt ZIP bytes and decompression-limit
-failures remain fatal.
+from files that remain readable are preserved; only cross-reference, derived,
+analytics, or individual data-quality checks whose required inputs are
+unavailable are skipped, so they cannot invent findings from an absent
+prerequisite. Corrupt ZIP bytes and decompression-limit failures remain fatal.

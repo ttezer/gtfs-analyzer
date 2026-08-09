@@ -17,6 +17,7 @@ use crate::recovery::FileAvailability;
 #[derive(Debug, Default)]
 pub struct K6Result {
     pub notices: Vec<Notice>,
+    pub skipped_checks: Vec<String>,
 }
 
 /// A conservative identity for the URL comparison rules STP_034/035.
@@ -131,77 +132,83 @@ pub fn analyze_with_files(
     // bağımsız. `parallel` feature açıkken rayon::scope ile paralel, kapalıyken seri — AYNI çıktı.
     type K6Task<'a> = Box<dyn Fn() -> Vec<Notice> + Send + Sync + 'a>;
     let mut tasks: Vec<K6Task> = Vec::new();
+    let mut skipped_checks = Vec::new();
+    record_data_quality_skips(availability, config, today_yyyymmdd, &mut skipped_checks);
     macro_rules! add_task {
-        ($condition:expr, $body:expr) => {
-            if $condition { tasks.push(Box::new($body)); }
+        ($name:literal, $condition:expr, $body:expr) => {
+            if $condition {
+                tasks.push(Box::new($body));
+            } else {
+                skipped_checks.push($name.to_string());
+            }
         };
     }
     // Her görev yalnızca doğrudan ihtiyaç duyduğu okunabilir dosyalar varsa çalışır.
     // Böylece bozuk shapes.txt shape analytics'i kapatır, fakat stop/route/calendar
     // analytics'i kaybetmez; feed_info gibi bağımsız bir dosya da tüm K6'yı kesmez.
-    add_task!(availability.all(&["routes.txt", "trips.txt", "stop_times.txt", "stops.txt"]), || {
+    add_task!("K6::speed_and_duration", availability.all(&["routes.txt", "trips.txt", "stop_times.txt", "stops.txt"]), || {
         let _t = Timer::start("K6::speed_and_duration"); let mut v = Vec::new(); let mut c = 0u32;
         check_speed_and_duration(records, config, &idx, &shape_idx, &mut v, &mut c); v
     });
-    add_task!(availability.all(&["routes.txt", "trips.txt", "stop_times.txt", "frequencies.txt"]), || {
+    add_task!("K6::frequency_headway", availability.all(&["routes.txt", "trips.txt", "stop_times.txt", "frequencies.txt"]), || {
         let _t = Timer::start("K6::frequency_headway"); let mut v = Vec::new(); let mut c = 0u32;
         check_frequency_headway(records, config, &mut v, &mut c); v
     });
-    add_task!(availability.all(&["routes.txt", "trips.txt", "stop_times.txt"]), || {
+    add_task!("K6::route_headway", availability.all(&["routes.txt", "trips.txt", "stop_times.txt"]), || {
         let _t = Timer::start("K6::route_headway"); let mut v = Vec::new(); let mut c = 0u32;
         check_route_headway(records, config, &idx, &mut v, &mut c); v
     });
-    add_task!(availability.present_and_available("trips.txt") && availability.any_present_and_available(&["calendar.txt", "calendar_dates.txt"]), || {
+    add_task!("K6::calendar_analytics", availability.present_and_available("trips.txt") && availability.any_present_and_available(&["calendar.txt", "calendar_dates.txt"]), || {
         let _t = Timer::start("K6::calendar_analytics"); let mut v = Vec::new(); let mut c = 0u32;
         check_calendar_analytics(records, derived, config, today_yyyymmdd, &mut v, &mut c); v
     });
-    add_task!(availability.all(&["stops.txt", "routes.txt", "trips.txt", "stop_times.txt"]), || {
+    add_task!("K6::geo_analytics", availability.all(&["stops.txt", "routes.txt", "trips.txt", "stop_times.txt"]), || {
         let _t = Timer::start("K6::geo_analytics"); let mut v = Vec::new(); let mut c = 0u32;
         check_geo_analytics(records, derived, config, &rail, &mut v, &mut c); v
     });
-    add_task!(availability.all(&["stops.txt", "routes.txt", "trips.txt", "stop_times.txt"]), || {
+    add_task!("K6::operational_analytics", availability.all(&["stops.txt", "routes.txt", "trips.txt", "stop_times.txt"]), || {
         let _t = Timer::start("K6::operational_analytics"); let mut v = Vec::new(); let mut c = 0u32;
         check_operational_analytics(records, derived, config, &idx, today_yyyymmdd, &mut v, &mut c); v
     });
-    add_task!(availability.available("stop_times.txt"), || {
+    add_task!("K6::stoptimes_derived", availability.available("stop_times.txt"), || {
         let _t = Timer::start("K6::stoptimes_derived"); let mut v = Vec::new(); let mut c = 0u32;
         check_stoptimes_derived(&idx, &mut v, &mut c); v
     });
-    add_task!(availability.all(&["routes.txt", "trips.txt", "stop_times.txt"]), || {
+    add_task!("K6::route_trip_quality", availability.all(&["routes.txt", "trips.txt", "stop_times.txt"]), || {
         let _t = Timer::start("K6::route_trip_quality"); let mut v = Vec::new(); let mut c = 0u32;
         check_route_trip_quality(records, derived, &idx, &mut v, &mut c); v
     });
-    add_task!(true, || {
+    add_task!("K6::data_quality", true, || {
         let _t = Timer::start("K6::data_quality"); let mut v = Vec::new(); let mut c = 0u32;
         check_data_quality(records, derived, config, today_yyyymmdd, availability, &mut v, &mut c); v
     });
-    add_task!(availability.all(&["stops.txt", "trips.txt", "stop_times.txt"]), || {
+    add_task!("K6::remaining_analytics", availability.all(&["stops.txt", "trips.txt", "stop_times.txt"]), || {
         let _t = Timer::start("K6::remaining_analytics"); let mut v = Vec::new(); let mut c = 0u32;
         check_remaining_analytics(records, derived, config, &idx, &shape_idx, &rail.shapes, &mut v, &mut c); v
     });
-    add_task!(availability.all(&["stops.txt", "trips.txt", "stop_times.txt"]), || {
+    add_task!("K6::shp012", availability.all(&["stops.txt", "trips.txt", "stop_times.txt"]), || {
         let _t = Timer::start("K6::shp012"); let mut v = Vec::new(); let mut c = 0u32;
         check_shp012(records, config, &idx, &shape_idx, &rail.shapes, &mut v, &mut c); v
     });
-    add_task!(availability.all(&["stops.txt", "trips.txt", "shapes.txt"]), || {
+    add_task!("K6::shp022", availability.all(&["stops.txt", "trips.txt", "shapes.txt"]), || {
         let _t = Timer::start("K6::shp022"); let mut v = Vec::new(); let mut c = 0u32;
         check_shp022(records, &idx, &shape_idx, &mut v, &mut c); v
     });
-    add_task!(availability.all(&["pathways.txt", "stops.txt"]), || {
+    add_task!("K6::pathway_analytics", availability.all(&["pathways.txt", "stops.txt"]), || {
         let _t = Timer::start("K6::pathway_analytics"); let mut v = Vec::new(); let mut c = 0u32;
         check_pathway_analytics(records, derived, &mut v, &mut c); v
     });
-    add_task!(availability.present_and_available("trips.txt") && availability.any_present_and_available(&["calendar.txt", "calendar_dates.txt"]), || {
+    add_task!("K6::calendar_override", availability.present_and_available("trips.txt") && availability.any_present_and_available(&["calendar.txt", "calendar_dates.txt"]), || {
         let _t = Timer::start("K6::calendar_override"); let mut v = Vec::new(); let mut c = 0u32;
         check_calendar_override_analytics(records, derived, config, &idx, &mut v, &mut c); v
     });
-    add_task!(availability.all(&["routes.txt", "trips.txt", "stops.txt", "stop_times.txt"]), || {
+    add_task!("K6::vat_analytics", availability.all(&["routes.txt", "trips.txt", "stops.txt", "stop_times.txt"]), || {
         let _t = Timer::start("K6::vat_analytics"); let mut v = Vec::new(); let mut c = 0u32;
         check_vat_analytics(records, derived, config, &idx, &mut v, &mut c); v
     });
     // SONA eklendi: birleştirme sırası kanonik olduğu için yeni görev en sonda kalınca
     // mevcut notice id'leri KAYMAZ (renumber konuma göre yapılır).
-    add_task!(availability.all(&["trips.txt", "stop_times.txt"]), || {
+    add_task!("K6::linked_trips", availability.all(&["trips.txt", "stop_times.txt"]), || {
         let _t = Timer::start("K6::linked_trips"); let mut v = Vec::new(); let mut c = 0u32;
         check_linked_trip_continuations(records, derived, &mut v, &mut c); v
     });
@@ -241,7 +248,7 @@ pub fn analyze_with_files(
         n.id = format!("k6/{}#{}", n.rule_id, i + 1);
     }
 
-    K6Result { notices }
+    K6Result { notices, skipped_checks }
 }
 
 // ── Notice yardımcısı ─────────────────────────────────────────────────────────
@@ -3681,6 +3688,95 @@ fn check_route_trip_quality(
 }
 
 // ── WP-09d: Veri kalitesi özet kuralları ──────────────────────────────────────
+
+fn mark_skipped_check(skipped_checks: &mut Vec<String>, name: &str) {
+    if !skipped_checks.iter().any(|existing| existing == name) {
+        skipped_checks.push(name.to_string());
+    }
+}
+
+fn record_data_quality_skips(
+    availability: &FileAvailability<'_>,
+    config: &ValidatorConfig,
+    today_yyyymmdd: u32,
+    skipped_checks: &mut Vec<String>,
+) {
+    let agency_usable = availability.present_and_available("agency.txt");
+    let routes_usable = availability.present_and_available("routes.txt");
+    let trips_usable = availability.present_and_available("trips.txt");
+    let stops_usable = availability.present_and_available("stops.txt");
+    let stop_times_usable = availability.present_and_available("stop_times.txt");
+    let feed_info_usable = availability.present_and_available("feed_info.txt");
+    let calendar_source_usable =
+        availability.any_present_and_available(&["calendar.txt", "calendar_dates.txt"]);
+
+    if config.stop_name_best_practices && !stops_usable {
+        mark_skipped_check(skipped_checks, "K6::STP_040");
+        mark_skipped_check(skipped_checks, "K6::STP_041");
+    }
+    if !(trips_usable && calendar_source_usable) {
+        mark_skipped_check(skipped_checks, "K6::DQ_005");
+    }
+    if !trips_usable {
+        mark_skipped_check(skipped_checks, "K6::DQ_006");
+        mark_skipped_check(skipped_checks, "K6::DQ_013");
+    }
+    if !(trips_usable && stop_times_usable) {
+        mark_skipped_check(skipped_checks, "K6::DQ_009");
+    }
+    if !stops_usable {
+        mark_skipped_check(skipped_checks, "K6::DQ_011");
+        mark_skipped_check(skipped_checks, "K6::DQ_017");
+        mark_skipped_check(skipped_checks, "K6::DQ_022");
+    }
+    if !(agency_usable && routes_usable) {
+        mark_skipped_check(skipped_checks, "K6::DQ_012");
+        mark_skipped_check(skipped_checks, "K6::RTS_025");
+    }
+    if !routes_usable {
+        mark_skipped_check(skipped_checks, "K6::DQ_003");
+        mark_skipped_check(skipped_checks, "K6::DQ_004");
+    }
+    if today_yyyymmdd > 0 && !feed_info_usable {
+        for rule_id in ["FIN_010", "FIN_016", "FIN_017", "FIN_018", "FIN_019"] {
+            mark_skipped_check(skipped_checks, &format!("K6::{rule_id}"));
+        }
+    }
+    if !feed_info_usable {
+        mark_skipped_check(skipped_checks, "K6::FIN_020");
+        mark_skipped_check(skipped_checks, "K6::CAL_020");
+    }
+
+    for file in [
+        "stops.txt",
+        "routes.txt",
+        "trips.txt",
+        "attributions.txt",
+        "route_networks.txt",
+        "fare_leg_rules.txt",
+        "fare_leg_join_rules.txt",
+        "fare_transfer_rules.txt",
+        "location_groups.txt",
+        "location_group_stops.txt",
+        "stop_areas.txt",
+        "fare_rules.txt",
+        "calendar_dates.txt",
+    ] {
+        if !availability.present_and_available(file) {
+            mark_skipped_check(skipped_checks, &format!("K6::DQ_021::{file}"));
+        }
+    }
+
+    // ARC_020 still reports a genuinely missing optional file. A present but unreadable
+    // file is neither safely verifiable nor equivalent to a missing recommendation.
+    if availability.has_inventory() {
+        for file in ["shapes.txt", "feed_info.txt"] {
+            if availability.present(file) && !availability.available(file) {
+                mark_skipped_check(skipped_checks, &format!("K6::ARC_020::{file}"));
+            }
+        }
+    }
+}
 
 fn check_data_quality(
     records: &EntityRecords,

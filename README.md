@@ -235,7 +235,7 @@ Feed yolu yerine `-` verilirse ZIP **stdin'den** okunur: `curl -sL <url> | gtfs-
 
 > **Arayüzle sayı farkı:** Tarayıcı, kural başına bulgu örneklerini performans için sınırlar (gerçek toplamlar `capped_totals`'ta bildirilir). CLI bu sınırı **uygulamaz** — aynı feed'de daha çok notice ve sınırlanmamış R9 etki değerleri döner. Fark beklenen davranıştır; iki çıktıyı doğrudan sayı sayı karşılaştırmayın.
 
-**Exit kodları:** `0` eksiksiz ve notice'sız doğrulama · `1` notice veya `PARTIAL` (kısmi kapsam) raporu · `2` fatal ya da config/dosya hatası. `PARTIAL` rapor, bozuk/eksik bir dosyayı güvenle atlayıp bağımsız kontrolleri sürdürür; JSON'da `status: "partial"`, `validation_status: "PARTIAL"` ve `partial` kapsamı görünür. `--fail-on*` kullanılsa da `PARTIAL` koşusu `1` döner. JSON modunda stdout yalnızca JSON'dur; hatalar stderr'e yazılır.
+**Exit kodları:** `0` eksiksiz ve notice'sız doğrulama · `1` notice veya `PARTIAL` (kısmi kapsam) raporu · `2` fatal ya da config/dosya hatası. `PARTIAL` rapor, bozuk/eksik bir dosyayı güvenle atlayıp bağımsız kontrolleri sürdürür; JSON'da `status: "partial"`, `validation_status: "PARTIAL"` ve `partial` kapsamı görünür. `partial.skipped_checks`, önkoşul eksikliği nedeniyle çalıştırılmayan K4/K5/K6 kontrol ailelerini ve kurallarını ayrıntılı olarak listeler; `partial.skipped_stages` kaba aşama metadatası için korunur. `--fail-on*` kullanılsa da `PARTIAL` koşusu `1` döner. JSON modunda stdout yalnızca JSON'dur; hatalar stderr'e yazılır.
 
 ```bash
 # CI kapısı: yalnız resmi GTFS Spec ihlalleri koşuyu düşürsün

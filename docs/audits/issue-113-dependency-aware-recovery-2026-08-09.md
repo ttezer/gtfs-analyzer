@@ -26,6 +26,12 @@ ifade eder; takvim kaynağı gibi "en az bir dosya gerçekten var mı?" kararlar
 metodu kullanır. Doğrudan bellek-içi K4/K5/K6 testleri için `complete()` geriye
 dönük uyumluluk modunu korur.
 
+`PARTIAL` JSON çıktısı artık `partial.skipped_checks` alanında ince taneli bir
+iz de taşır. Örneğin `K4::routes`, `K6::route_headway` ve `K6::DQ_005`, ilgili
+önkoşullar okunabilir olmadığı için çalıştırılmayan kontrolleri belirtir.
+`skipped_stages` alanı geriye dönük uyumluluk ve kaba aşama metadatası için
+korunur.
+
 Regression testleri:
 
 - `malformed_feed_info_keeps_independent_cross_ref_findings`
@@ -35,3 +41,4 @@ Regression testleri:
 - `unavailable_stop_times_does_not_produce_dq_009`
 - `unavailable_feed_info_does_not_produce_feed_expiry_findings`
 - `inventory_separates_missing_from_unreadable_files`
+- `recoverable_structural_error_is_partial_with_exit_1`

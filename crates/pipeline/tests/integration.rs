@@ -207,6 +207,8 @@ fn arc004_missing_required_file_returns_partial_report() {
             let partial = vr.partial.expect("partial kapsamı raporlanmalı");
             assert!(partial.unavailable_files.contains(&"routes.txt".to_string()));
             assert!(!partial.skipped_stages.contains(&"K4-cross-ref".to_string()));
+            assert!(partial.skipped_checks.contains(&"K4::routes".to_string()));
+            assert!(partial.skipped_checks.contains(&"K6::route_headway".to_string()));
             assert!(vr.notices.iter().any(
                 |n| n.rule_id == "ARC_004" && n.observed_value.as_deref() == Some("routes.txt")
             ));
@@ -228,6 +230,8 @@ fn malformed_optional_file_is_skipped_with_partial_report() {
             let partial = vr.partial.expect("partial kapsamı raporlanmalı");
             assert!(partial.unavailable_files.contains(&"feed_info.txt".to_string()));
             assert!(!partial.skipped_stages.contains(&"K4-cross-ref".to_string()));
+            assert!(partial.skipped_checks.contains(&"K4::translations".to_string()));
+            assert!(partial.skipped_checks.contains(&"K6::FIN_019".to_string()));
             assert!(vr
                 .notices
                 .iter()

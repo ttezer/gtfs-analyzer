@@ -252,8 +252,13 @@ pub fn rerun_k6_k7(cache: &CachedState, config_delta_json: &str, on_stage: &js_s
 
     let t = js_sys::Date::now();
     t_start!("K6-analytics");
-    let availability = FileAvailability::from_k1(&cache.present_files, &cache.partial.unavailable_files);
+    let mut partial = cache.partial.clone();
+    let unavailable_files = partial.unavailable_files.clone();
+    let availability = FileAvailability::from_k1(&cache.present_files, &unavailable_files);
     let k6 = analyze_k6_with_files(&cache.records, &cache.derived, &config, today, &availability);
+    if !partial.is_empty() {
+        partial.extend_skipped_checks(k6.skipped_checks);
+    }
     t_end!("K6-analytics");
     call_stage(on_stage, "K6", (js_sys::Date::now() - t) as u32);
 
@@ -281,8 +286,8 @@ pub fn rerun_k6_k7(cache: &CachedState, config_delta_json: &str, on_stage: &js_s
     // Harita verisi notice'lara göre filtrelenir (büyük feed modu) → önce name_index.
     let name_index = build_name_index(&cache.records, &k7.notices);
     let result = ValidateResult::Ok(ValidationResult {
-        status: if cache.partial.is_empty() { ValidationStatus::Complete } else { ValidationStatus::Partial },
-        partial: (!cache.partial.is_empty()).then_some(cache.partial.clone()),
+        status: if partial.is_empty() { ValidationStatus::Complete } else { ValidationStatus::Partial },
+        partial: (!partial.is_empty()).then_some(partial),
         notices: k7.notices,
         reports: k7.reports,
         metrics: k7.metrics,
@@ -305,8 +310,9 @@ fn run_full_pipeline(zip_bytes: &[u8], config: &ValidatorConfig, today: u32) -> 
         Ok(r) => r,
         Err(e) => return ValidateResult::Fatal(e),
     };
-    let partial = k1.partial;
-    let availability = FileAvailability::from_k1(&k1.present_files, &partial.unavailable_files);
+    let mut partial = k1.partial;
+    let unavailable_files = partial.unavailable_files.clone();
+    let availability = FileAvailability::from_k1(&k1.present_files, &unavailable_files);
     t_end!("K1-parse");
     let mut file_stats = collect_file_stats(&k1.files);
 
@@ -348,6 +354,11 @@ fn run_full_pipeline(zip_bytes: &[u8], config: &ValidatorConfig, today: u32) -> 
     all_notices.extend(k1.notices);
     all_notices.extend(k2.notices);
     all_notices.extend(k3.notices);
+    if !partial.is_empty() {
+        partial.extend_skipped_checks(k4.skipped_checks);
+        partial.extend_skipped_checks(k5.skipped_checks);
+        partial.extend_skipped_checks(k6.skipped_checks);
+    }
     all_notices.extend(k4.notices);
     all_notices.extend(k5.notices);
     all_notices.extend(k6.notices);
@@ -390,8 +401,9 @@ fn run_k1_k5(zip_bytes: &[u8], config: &ValidatorConfig, on_stage: &js_sys::Func
     t_end!("K1-parse");
     call_stage(on_stage, "K1", (js_sys::Date::now() - t) as u32);
     log_mem("after-K1-parse");
-    let partial = k1.partial;
-    let availability = FileAvailability::from_k1(&k1.present_files, &partial.unavailable_files);
+    let mut partial = k1.partial;
+    let unavailable_files = partial.unavailable_files.clone();
+    let availability = FileAvailability::from_k1(&k1.present_files, &unavailable_files);
     let mut file_stats = collect_file_stats(&k1.files);
 
     t = js_sys::Date::now();
@@ -438,6 +450,10 @@ fn run_k1_k5(zip_bytes: &[u8], config: &ValidatorConfig, on_stage: &js_sys::Func
     k1_k5_notices.extend(k1.notices);
     k1_k5_notices.extend(k2.notices);
     k1_k5_notices.extend(k3.notices);
+    if !partial.is_empty() {
+        partial.extend_skipped_checks(k4.skipped_checks);
+        partial.extend_skipped_checks(k5.skipped_checks);
+    }
     k1_k5_notices.extend(k4.notices);
     k1_k5_notices.extend(k5.notices);
     // DURDURMA YOK: K1-K5 notice'ları cap'lenmeden taşınır; gösterim cap'i K6+K7 yolunda uygulanır.

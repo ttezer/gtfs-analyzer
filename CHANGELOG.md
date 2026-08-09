@@ -23,6 +23,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   configuration-dependent because `FIN_019` matches that horizon only when
   `feed_info_expiry_warning_days=30` is selected.
 
+- **PARTIAL reports now expose fine-grained skipped checks.** JSON
+  `partial.skipped_checks` identifies the K4/K5/K6 check families and individual
+  prerequisite-gated rules that did not run; `partial.skipped_stages` remains available
+  for coarse stage-level metadata.
+
 - **Parity ledger and documentation updated.** `trip_with_shape_dist_traveled_but_no_shape_distances`
   is now adjudicated as `SHP_030`, while `single_shape_point` is an intentional near-parity
   mapping to `SHP_006` for used shapes. FIN_019's default seven-day horizon is distinguished

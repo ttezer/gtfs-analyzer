@@ -23,6 +23,8 @@ pub struct PartialReport {
     pub root_structural_errors: Vec<String>,
     pub unavailable_files: Vec<String>,
     pub skipped_stages: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub skipped_checks: Vec<String>,
 }
 
 impl PartialReport {
@@ -30,6 +32,7 @@ impl PartialReport {
         self.root_structural_errors.is_empty()
             && self.unavailable_files.is_empty()
             && self.skipped_stages.is_empty()
+            && self.skipped_checks.is_empty()
     }
 
     pub fn mark_root_error(&mut self, message: impl Into<String>) {
@@ -50,6 +53,19 @@ impl PartialReport {
         let stage = stage.into();
         if !self.skipped_stages.contains(&stage) {
             self.skipped_stages.push(stage);
+        }
+    }
+
+    pub fn skip_check(&mut self, check: impl Into<String>) {
+        let check = check.into();
+        if !self.skipped_checks.contains(&check) {
+            self.skipped_checks.push(check);
+        }
+    }
+
+    pub fn extend_skipped_checks(&mut self, checks: impl IntoIterator<Item = String>) {
+        for check in checks {
+            self.skip_check(check);
         }
     }
 }
