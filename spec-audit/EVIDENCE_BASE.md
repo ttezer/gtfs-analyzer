@@ -392,7 +392,7 @@ dosyası korpusta MEVCUT ve okunuyor:
 | `FMD_004` | fare_media.txt | 3 |
 | `SAR_003/004` · `TFR_008` | stop_areas / timeframes | 1 |
 
-Dosyaların gerçekten işlendiği kardeş kurallarla doğrulandı (`FPD_006`, `FRL_008`, `LOC_006`
+Dosyaların gerçekten işlendiği kardeş kurallarla doğrulandı (`FRL_008`, `LOC_006`
 aynı feed'lerde ateşliyor). Yani bu 18 kural **gerçek veriyi gördü ve sessiz kaldı**.
 
 **Doğru cümle:** elde **yanlış pozitif kanıtı** var (242 feed'de sıfır), **doğru pozitif

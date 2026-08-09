@@ -948,12 +948,11 @@ const tr = {
     'FMD_002': 'fare_media_type eksik veya geçersiz',
     'FMD_003': 'TransitCard/MobileApp için fare_media_name tavsiye edilir',
     // FPD
-    'FPD_001': 'fare_product_id yineleniyor',
+    'FPD_001': 'fare_products bileşik anahtarı yineleniyor',
     'FPD_002': 'amount eksik veya negatif',
     'FPD_003': 'currency geçersiz ISO 4217 kodu',
     'FPD_004': 'fare_media_id bulunamadı',
     'FPD_005': 'rider_category_id bulunamadı',
-    'FPD_006': 'Bir fare_product/fare_media kombinasyonu için birden fazla varsayılan rider category',
     'FPD_007': 'amount para biriminin ISO 4217 ondalık basamak sayısını taşımıyor',
     // FLG
     'FLG_001': 'fare_product_id bulunamadı',

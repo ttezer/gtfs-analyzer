@@ -2,7 +2,7 @@
 
 🇹🇷 [Türkçe](RULES.md) · 🇬🇧 **English** · 🇯🇵 [日本語](RULES.ja.md)
 
-595 rules, 38 groups. Each rule is identified by a unique ID, severity level, and class.
+594 rules, 38 groups. Each rule is identified by a unique ID, severity level, and class.
 Severity levels: **CRITICAL** (publish blocker) · **HIGH** · **MEDIUM** · **LOW** · **INFO**
 Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Quality** (GTFS Quality) · **Analytics** (GTFS Analytics)
 
@@ -470,13 +470,12 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 
 | Rule | Title | Severity | Class |
 |---|---|---|---|
-| FPD_001 | Duplicate fare_product_id | CRITICAL | Spec |
+| FPD_001 | Duplicate fare_products composite key | CRITICAL | Spec |
 | FPD_002 | amount missing or negative | CRITICAL | Spec |
 | FPD_003 | currency invalid ISO 4217 code | CRITICAL | Spec |
 | FPD_004 | fare_media_id not found | CRITICAL | Spec |
 | FPD_005 | rider_category_id not found | CRITICAL | Spec |
 | FPD_007 | amount does not carry the currency's ISO 4217 decimal places | LOW | Spec |
-| FPD_006 | Multiple default rider categories for one fare_product/fare_media combination | MEDIUM | Spec |
 
 ## FLG — Fare Leg Rules (Fares v2)
 

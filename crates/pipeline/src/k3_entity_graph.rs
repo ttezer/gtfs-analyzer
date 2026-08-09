@@ -551,7 +551,7 @@ fn build_fares_v2(
             notices.push(make_notice(
                 ctr, "FPD_001", EntityType::Row,
                 Some(rec.fare_product_id.clone()), Some(rec.fare_product_id.clone()),
-                "fare_products.txt", rec.line, "fare_product_id",
+                "fare_products.txt", rec.line, "fare_product_id|rider_category_id|fare_media_id",
                 Some(rec.fare_product_id.clone()),
                 format!("'{}' ücret ürünü aynı (rider_category_id, fare_media_id) kombinasyonuyla tekrarlanıyor (ilk görünüm: satır {prev_line}).", rec.fare_product_id),
                 "Her (fare_product_id, rider_category_id, fare_media_id) kombinasyonu benzersiz olmalıdır.",

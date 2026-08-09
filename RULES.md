@@ -2,7 +2,7 @@
 
 🇹🇷 **Türkçe** · 🇬🇧 [English](RULES.en.md) · 🇯🇵 [日本語](RULES.ja.md)
 
-595 kural, 38 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
+594 kural, 38 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
 Önem seviyeleri: **KRİTİK** (yayın engelleyici) · **YÜKSEK** · **ORTA** · **DÜŞÜK** · **BİLGİ**
 Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · **Quality** (GTFS Kalitesi) · **Analytics** (GTFS Analitiği)
 
@@ -470,13 +470,12 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 
 | Kural | Başlık | Önem | Sınıf |
 |---|---|---|---|
-| FPD_001 | fare_product_id yineleniyor | KRİTİK | Spec |
+| FPD_001 | fare_products bileşik anahtarı yineleniyor | KRİTİK | Spec |
 | FPD_002 | amount eksik veya negatif | KRİTİK | Spec |
 | FPD_003 | currency geçersiz ISO 4217 kodu | KRİTİK | Spec |
 | FPD_004 | fare_media_id bulunamadı | KRİTİK | Spec |
 | FPD_005 | rider_category_id bulunamadı | KRİTİK | Spec |
 | FPD_007 | amount para biriminin ISO 4217 ondalık basamak sayısını taşımıyor | DÜŞÜK | Spec |
-| FPD_006 | Bir fare_product/fare_media kombinasyonu için birden fazla varsayılan rider category | ORTA | Spec |
 
 ## FLG — Fare Leg Rules (Fares v2)
 

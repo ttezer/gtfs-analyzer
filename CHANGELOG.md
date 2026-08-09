@@ -63,6 +63,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **`FPD_006` no longer treats an empty `rider_category_id` as a default category.**
+  GTFS Fares v2 defines an empty value as eligibility for any rider category, while the
+  default is selected by `rider_categories.is_default_fare_category`. Exact duplicate
+  `(fare_product_id, rider_category_id, fare_media_id)` rows are now reported only by
+  `FPD_001`; valid fare-media variants remain silent.
+
 - **`SHP_005` no longer accepts small decreases in `shape_dist_traveled`.** The monotonicity
   check compared `d < prev - 1e-6`, so a genuine decrease below `1e-6` was silently accepted —
   a tolerance band the specification does not define, widening the acceptance set of a critical

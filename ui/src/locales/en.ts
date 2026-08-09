@@ -912,12 +912,11 @@ const en: LocaleShape = {
     'FMD_002': "Fare media '{entity_id}': fare_media_type is missing or invalid.",
     'FMD_003': "Fare media '{entity_id}': fare_media_name is recommended for TransitCard/MobileApp.",
     // FPD
-    'FPD_001': "Duplicate fare_products row for '{entity_id}' — same fare_product_id, rider_category_id and fare_media_id.",
+    'FPD_001': "Duplicate fare_products composite key for '{entity_id}' — same fare_product_id, rider_category_id and fare_media_id.",
     'FPD_002': "Fare product '{entity_id}': amount is missing or negative.",
     'FPD_003': "Fare product '{entity_id}': currency '{observed_value}' is not a valid ISO 4217 code.",
     'FPD_004': "Fare product '{entity_id}': fare_media_id '{observed_value}' not found.",
     'FPD_005': "Fare product '{entity_id}': rider_category_id '{observed_value}' not found.",
-    'FPD_006': "Multiple default rider categories for fare_product/fare_media '{entity_id}'.",
     // FLG
     'FLG_001': "Fare leg rule: fare_product_id '{entity_id}' not found.",
     'FLG_002': "Fare leg rule: network_id '{entity_id}' not found.",
@@ -1589,7 +1588,6 @@ const en: LocaleShape = {
     'FPD_003': 'Use a 3-letter uppercase ISO 4217 currency code (e.g., TRY, EUR, USD).',
     'FPD_004': 'Use a valid fare_media_id.',
     'FPD_005': 'Use a valid rider_category_id.',
-    'FPD_006': 'A fare_product/fare_media combination may have at most one default (empty rider_category_id) record.',
     // FMD
     'FMD_002': 'Use 0 (none), 1 (physical card), 2 (mobile app), 3 (EMV contactless), or 4 (transit agency app).',
     'FMD_003': 'Add fare_media_name so passengers can recognise the payment method.',
@@ -2170,12 +2168,11 @@ const en: LocaleShape = {
     'FMD_002': 'fare_media_type missing or invalid',
     'FMD_003': 'fare_media_name recommended for TransitCard/MobileApp',
     // FPD
-    'FPD_001': 'Duplicate fare_product_id',
+    'FPD_001': 'Duplicate fare_products composite key',
     'FPD_002': 'amount missing or negative',
     'FPD_003': 'currency invalid ISO 4217 code',
     'FPD_004': 'fare_media_id not found',
     'FPD_005': 'rider_category_id not found',
-    'FPD_006': 'Multiple default rider categories for one fare_product/fare_media combination',
     'FPD_007': "amount does not carry the currency's ISO 4217 decimal places",
     // FLG
     'FLG_001': 'fare_product_id not found',

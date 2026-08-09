@@ -1147,8 +1147,8 @@ pub static RULES: &[RuleMeta] = &[
 
     // ── FPD: Fare Products (Fares v2) ─────────────────────────────────────────
     r!("FPD_001", Kritik, Spec, 1, &["FLG_001","FTR_004"],
-        Some("fare_product_id"), VS_K, Row,
-        "fare_product_id yineleniyor"),
+        Some("fare_product_id|rider_category_id|fare_media_id"), VS_K, Row,
+        "fare_products bileşik anahtarı yineleniyor"),
     r!("FPD_002", Kritik, Spec, 1, &[], Some("fare_product_id"), VS_K, Row,
         "amount eksik veya negatif"),
     r!("FPD_003", Kritik, Spec, 1, &[], Some("fare_product_id"), VS_K, Row,
@@ -1168,8 +1168,10 @@ pub static RULES: &[RuleMeta] = &[
     // Sınıf yine de `Spec`: hüküm spec metninde açıkça yazılı, tavsiye değil.
     r!("FPD_007", Dusuk, Spec, 1, &[], None, VS, File,
         "amount para biriminin ISO 4217 ondalık basamak sayısını taşımıyor"),
-    r!("FPD_006", Orta, Spec, 1, &[], Some("fare_product_id|fare_media_id"), VS, Entity,
-        "Bir fare_product/fare_media kombinasyonu için birden fazla varsayılan rider category"),
+    // FPD_006 KALDIRILDI (2026-08-09): boş rider_category_id "default" değildir;
+    // ürünün herhangi bir rider category için uygun olduğunu belirtir. Aynı üçlü
+    // (fare_product_id, rider_category_id, fare_media_id) tekrarı FPD_001'e aittir;
+    // gerçek default kategorisi rider_categories.is_default_fare_category ile ölçülür (RCT_006).
 
     // ── FLG: Fare Leg Rules (Fares v2) ────────────────────────────────────────
     r!("FLG_001", Kritik, Spec, 1, &[], Some("fare_product_id"), VS_K, Row,
@@ -1993,7 +1995,6 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("FPD_003", GtfsSpec),
     ("FPD_004", GtfsSpec),
     ("FPD_005", GtfsSpec),
-    ("FPD_006", GtfsSpec),
     ("FPD_007", GtfsSpec),
     ("FRL_001", GtfsSpec),
     ("FRL_002", GtfsSpec),
@@ -2542,12 +2543,15 @@ mod tests {
         // noktaya Flex seferini (L1 → L2) Kritik·Spec ile reddediyordu. Denetlenebilir tek
         // artığı (seferin tek kaydı bir Flex konumu) STM_033'ün konusudur.
         assert!(get_rule("STM_057").is_none());
+        // FPD_006 (2026-08-09): boş rider_category_id default değildir; duplicate
+        // composite key FPD_001, is_default_fare_category ise RCT_006 tarafından ölçülür.
+        assert!(get_rule("FPD_006").is_none());
     }
 
     #[test]
     fn blocks_only_canonical_ids() {
         let view_ids = ["GEO_008", "GEO_010", "GEO_011"];
-        let removed_ids = ["STM_011","TRP_010","GEO_001","GEO_005","DQ_007","DQ_008","DQ_015","STM_027","SHP_027","STM_057","AGN_001"];
+        let removed_ids = ["STM_011","TRP_010","GEO_001","GEO_005","DQ_007","DQ_008","DQ_015","STM_027","SHP_027","STM_057","AGN_001","FPD_006"];
         for rule in RULES {
             for &b in rule.blocks {
                 assert!(!view_ids.contains(&b),

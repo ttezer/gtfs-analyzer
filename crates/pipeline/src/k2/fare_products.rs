@@ -1,5 +1,4 @@
 use gtfs_core::EntityType;
-use std::collections::HashMap;
 
 use super::common::{get_raw_field, amount_has_iso4217_decimals, iso4217_minor_unit, build_row_map, get_trimmed_field, make_k2_notice, parse_f64, RowMap};
 use crate::k1_parse::RawFile;
@@ -131,32 +130,6 @@ pub fn validate_fare_products(
         });
     }
 
-    // FPD_006: aynı (fare_product_id, fare_media_id) kombinasyonu için birden fazla
-    // varsayılan (boş rider_category_id). GTFS Fares v2 PK'sı rider_category_id ve
-    // fare_media_id'yi içerir; aynı ürünün farklı ödeme araçları meşru varyantlardır.
-    let mut default_count: HashMap<(&str, Option<&str>), (&FareProductRecord, u32)> = HashMap::new();
-    for rec in &records {
-        if rec.rider_category_id.is_none() {
-            let key = (rec.fare_product_id.as_str(), rec.fare_media_id.as_deref());
-            let entry = default_count.entry(key).or_insert((rec, 0));
-            entry.1 += 1;
-        }
-    }
-    for ((fare_product_id, fare_media_id), (first, count)) in &default_count {
-        if *count > 1 {
-            let media_label = fare_media_id.unwrap_or("(boş / bilinmiyor)");
-            let entity_id = format!("{fare_product_id}|{media_label}");
-            notices.push(make_k2_notice(
-                &mut counter, "FPD_006", EntityType::Row,
-                Some(entity_id), Some(&first.row),
-                &file.name, Some(first.line), Some("rider_category_id"),
-                Some(count.to_string()), Some("1".to_string()),
-                format!("fare_product_id '{fare_product_id}' ve fare_media_id '{media_label}' için {count} varsayılan rider category tanımlı (rider_category_id boş)."),
-                "Aynı (fare_product_id, fare_media_id) kombinasyonunda en fazla bir varsayılan (rider_category_id boş) kayıt olabilir.",
-            ));
-        }
-    }
-
     // FPD_007: DOSYA başına tek özet (DQ_016/ARC_032 deseni). Satır başına emit ölçümde
     // 2 milyon notice demekti ve toplamın %99,7'si iki feed'den geliyordu.
     if let Some((line, amount, currency)) = iso_first {
@@ -193,20 +166,6 @@ mod tests {
         }
     }
 
-    fn raw_with_media(rows: &[&str]) -> RawFile {
-        RawFile {
-            name: "fare_products.txt".to_string(),
-            headers: vec![
-                "fare_product_id".into(),
-                "amount".into(),
-                "currency".into(),
-                "fare_media_id".into(),
-            ],
-            rows: rows.iter().map(|r| r.split(',').map(Into::into).collect()).collect(),
-            ..Default::default()
-        }
-    }
-
     /// Spec: "amount … May be negative to represent transfer discounts."
     /// Aktarma indirimi tanımlayan geçerli bir feed KRİTİK·Spec hatası almamalı.
     #[test]
@@ -235,28 +194,4 @@ mod tests {
         assert!(n2.iter().any(|n| n.rule_id == "FPD_002"), "sayısal olmayan tutar FPD_002 üretmeli");
     }
 
-    #[test]
-    fn distinct_fare_media_variants_do_not_produce_fpd_006() {
-        let (_, notices) = validate_fare_products(&raw_with_media(&[
-            "P1,2.00,USD,cash",
-            "P1,2.00,USD,contactless",
-            "P1,2.00,USD,mticket",
-        ]));
-        assert!(
-            !notices.iter().any(|n| n.rule_id == "FPD_006"),
-            "farklı fare_media_id değerleri aynı ürünün meşru varyantlarıdır: {notices:?}"
-        );
-    }
-
-    #[test]
-    fn repeated_default_for_same_fare_media_produces_fpd_006() {
-        let (_, notices) = validate_fare_products(&raw_with_media(&[
-            "P1,2.00,USD,cash",
-            "P1,2.00,USD,cash",
-        ]));
-        assert!(
-            notices.iter().any(|n| n.rule_id == "FPD_006"),
-            "aynı fare_product_id + fare_media_id için iki boş rider_category_id FPD_006 üretmeli: {notices:?}"
-        );
-    }
 }

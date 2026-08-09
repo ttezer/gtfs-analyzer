@@ -893,12 +893,11 @@ const ja: LocaleShape = {
     'FMD_002': "運賃メディア'{entity_id}'：fare_media_typeがないか無効です。",
     'FMD_003': "運賃メディア'{entity_id}'：TransitCard/MobileAppにはfare_media_nameを推奨します。",
     // FPD
-    'FPD_001': "fare_productsの行が重複しています：'{entity_id}' — fare_product_id・rider_category_id・fare_media_idがすべて同一です。",
+    'FPD_001': "fare_productsの複合主キーが重複しています：'{entity_id}' — fare_product_id・rider_category_id・fare_media_idがすべて同一です。",
     'FPD_002': "運賃商品'{entity_id}'：amountがないか負の値です。",
     'FPD_003': "運賃商品'{entity_id}'：通貨'{observed_value}'が有効なISO 4217コードではありません。",
     'FPD_004': "運賃商品'{entity_id}'：fare_media_id'{observed_value}'が見つかりません。",
     'FPD_005': "運賃商品'{entity_id}'：rider_category_id'{observed_value}'が見つかりません。",
-    'FPD_006': "運賃商品/運賃メディア'{entity_id}'に複数のデフォルト乗客カテゴリがあります。",
     // FLG
     'FLG_001': "運賃区間ルール：fare_product_id'{entity_id}'が見つかりません。",
     'FLG_002': "運賃区間ルール：network_id'{entity_id}'が見つかりません。",
@@ -1336,7 +1335,6 @@ const ja: LocaleShape = {
     'FPD_003': '3文字の大文字ISO 4217通貨コード（例: JPY、EUR、USD）を使用してください。',
     'FPD_004': '有効なfare_media_idを使用してください。',
     'FPD_005': '有効なrider_category_idを使用してください。',
-    'FPD_006': 'fare_product/fare_mediaの組み合わせごとにデフォルト（rider_category_idが空）レコードは1件のみにしてください。',
     // FRL
     'FRL_001': '有効なfare_idを使用してください。',
     'FRL_002': '有効なroute_idを使用してください。',
@@ -2124,12 +2122,11 @@ const ja: LocaleShape = {
     'FMD_002': 'fare_media_typeが不足または無効',
     'FMD_003': 'TransitCard/MobileAppにfare_media_nameを推奨',
     // FPD
-    'FPD_001': 'fare_product_idが重複',
+    'FPD_001': 'fare_productsの複合主キーが重複',
     'FPD_002': '金額が不足または負の値',
     'FPD_003': 'currencyが有効なISO 4217コードでない',
     'FPD_004': 'fare_media_idが存在しない',
     'FPD_005': 'rider_category_idが存在しない',
-    'FPD_006': '同一fare_product/fare_mediaにデフォルトのrider_categoryが複数',
     'FPD_007': 'amountが通貨のISO 4217小数桁数と一致しません',
     // FLG
     'FLG_001': 'fare_product_idが存在しない',

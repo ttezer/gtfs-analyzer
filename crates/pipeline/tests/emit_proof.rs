@@ -1173,19 +1173,17 @@ fn fixtures() -> Vec<Fixture> {
         fx("FLG_006", vec![("fare_leg_rules.txt", "leg_group_id,to_timeframe_group_id\nLG1,NOPE\n")]),
 
         // ── FPD grubu (fare_products) ──────────────────────────────────────────
-        // FPD_001: bileşik PK tekrarı (k3).
-        fx("FPD_001", vec![("fare_products.txt", "fare_product_id,amount,currency\nP1,2.5,USD\nP1,2.5,USD\n")]),
+        // FPD_001: bileşik PK tekrarı (k3), aynı fare_product_id + rider_category_id + fare_media_id.
+        fx("FPD_001", vec![
+            ("fare_media.txt", "fare_media_id,fare_media_name,fare_media_type\ncash,Cash,0\n"),
+            ("fare_products.txt", "fare_product_id,amount,currency,fare_media_id\nP1,2.5,USD,cash\nP1,2.5,USD,cash\n"),
+        ]),
         // FPD_003: currency geçersiz (k2).
         fx("FPD_003", vec![("fare_products.txt", "fare_product_id,amount,currency\nP1,2.5,usd\n")]),
         // FPD_004: fare_media_id fare_media.txt'te yok (k4).
         fx("FPD_004", vec![("fare_products.txt", "fare_product_id,amount,currency,fare_media_id\nP1,2.5,USD,MNOPE\n")]),
         // FPD_005: rider_category_id rider_categories.txt'te yok (k4).
         fx("FPD_005", vec![("fare_products.txt", "fare_product_id,amount,currency,rider_category_id\nP1,2.5,USD,RCNOPE\n")]),
-        // FPD_006: aynı fare_product_id + fare_media_id için birden fazla varsayılan (rider boş) (k2).
-        fx("FPD_006", vec![
-            ("fare_media.txt", "fare_media_id,fare_media_name,fare_media_type\ncash,Cash,0\n"),
-            ("fare_products.txt", "fare_product_id,amount,currency,fare_media_id\nP1,2.5,USD,cash\nP1,3.5,EUR,cash\n"),
-        ]),
         fx("FPD_007", vec![("fare_products.txt","fare_product_id,fare_product_name,amount,currency\nP1,Bilet,0.9,EUR\n")]),
 
         // ── FTR grubu (fare_transfer_rules) ────────────────────────────────────
@@ -1896,9 +1894,9 @@ fn flg_002_still_fires_for_truly_undefined_network_id() {
 }
 
 // #105 regression: aynı fare_product_id'nin farklı fare_media_id varyantları
-// birbirinden bağımsız geçerli varsayılan kayıtlar olabilir.
+// composite PK açısından birbirinden bağımsız geçerli kayıtlardır.
 #[test]
-fn fpd_006_distinct_fare_media_variants_are_not_false_positives() {
+fn fpd_distinct_fare_media_variants_are_not_duplicate_fpd_001() {
     let files = with_opts(
         &[
             ("fare_media.txt", "fare_media_id,fare_media_name,fare_media_type\ncash,Cash,0\ncontactless,Contactless,3\n"),
@@ -1909,8 +1907,8 @@ fn fpd_006_distinct_fare_media_variants_are_not_false_positives() {
     );
     let emitted = emitted_rules(&files, &ValidatorConfig::default());
     assert!(
-        !emitted.contains("FPD_006"),
-        "farklı fare_media_id varyantları FPD_006 üretmemeli, emit: {:?}",
+        !emitted.contains("FPD_001"),
+        "farklı fare_media_id varyantları FPD_001 üretmemeli, emit: {:?}",
         emitted,
     );
 }
