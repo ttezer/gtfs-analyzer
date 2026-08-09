@@ -258,7 +258,7 @@
 | STM_046 | trip_idが不足 | 致命的 | 仕様 |
 | STM_047 | timepoint=1だが到着/出発時刻なし | 致命的 | 仕様 |
 | STM_048 | GTFSサービス日の深夜以降の時刻が00:xx | 情報 | 仕様 |
-| STM_049 | 深夜以降の出発が00:xx（同一行） | 情報 | 品質 |
+| STM_049 | 同一行の深夜以降の出発が00:xx（GTFS Spec） | 情報 | 仕様 |
 | STM_050 | timepoint列はあるが値が空 | 低 | 品質 |
 | STM_051 | Flexウィンドウでpickup_type 0/3禁止 | 高 | 仕様 |
 | STM_052 | Flexウィンドウでdrop_off_type 0禁止 | 高 | 仕様 |

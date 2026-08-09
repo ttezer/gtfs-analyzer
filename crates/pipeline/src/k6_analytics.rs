@@ -750,9 +750,6 @@ fn check_speed_and_duration<'a>(
     // project_arc_km tüm shape noktalarını gezer; aynı (shape,durak) seferler/segmentler
     // arası tekrar projekte ediliyordu. dist_km çıktısı BİREBİR aynı — sadece tekrar eleniyor.
     let mut arc_cache: FxHashMap<(&str, &str), f64> = FxHashMap::default();
-    // STM_038: aynı satırda 00:xx kalkış (gece-yarısı) yüzünden STM_007'den elenen durak sayısı.
-    let mut stm007_midnight_count = 0u32;
-
     // STM_014 birikimi: (route_id, direction, stop_a, stop_b) → segment özeti.
     // Döngü içinde emit YOK; döngü bitince sıralı olarak tek tek üretilir.
     let mut stm014_segs: FxHashMap<(&str, &str, &str, &str), Stm014Seg<'_>> = FxHashMap::default();
@@ -788,7 +785,6 @@ fn check_speed_and_duration<'a>(
                 if dep_s >= arr_s { continue; }
                 // departure'ı +24sa alınca arrival'a yakınsa → gece-yarısı geçişi (kasıtsız) → atla
                 if sds_secs > 0 && (dep_s + 86400).saturating_sub(arr_s) <= sds_secs {
-                    stm007_midnight_count += 1;
                     continue;
                 }
                 let seq = st.stop_sequence().unwrap_or(0);
@@ -1304,19 +1300,6 @@ fn check_speed_and_duration<'a>(
         }
     }
 
-    // STM_048 K2'de raw Spec bulgusu olarak normalization'dan önce üretilir.
-    // K6 yalnız aynı satırdaki bağımsız STM_049 Quality özetini korur.
-    {
-        if stm007_midnight_count > 0 {
-            notices.push(k6_notice(
-                ctr, "STM_049", EntityType::Feed,
-                None, None, "stop_times.txt", None, None,
-                Some(format!("{stm007_midnight_count}")), None,
-                format!("{stm007_midnight_count} durakta gece yarısı sonrası kalkış 00:xx yazılmış (aynı satırda kalkış varıştan önce görünüyor); 24:xx önerilir. STM_007 bu vakalarda bastırıldı."),
-                "Gece yarısını aşan kalkış saatlerini 24:00:00+ biçiminde yazın.",
-            ));
-        }
-    }
 }
 
 // ── WP-09b: Frequency headway ─────────────────────────────────────────────────

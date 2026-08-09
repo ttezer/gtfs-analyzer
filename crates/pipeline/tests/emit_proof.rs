@@ -1580,8 +1580,8 @@ fn fixtures() -> Vec<Fixture> {
         fx("STM_045", vec![("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\nT1,28:00:00,28:00:00,S2,2\n")]),
         // STM_048: gece yarısı sonrası 00:xx yazılmış (k2 raw Spec, normalization öncesi).
         fx("STM_048", vec![("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,23:50:00,23:50:00,S1,1\nT1,00:10:00,00:10:00,S2,2\n")]),
-        // STM_049: gece yarısı sonrası 00:xx kalkış aynı satırda (k6).
-        fx("STM_049", vec![("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,23:50:00,00:10:00,S1,1\nT1,01:00:00,01:00:00,S2,2\n")]),
+        // STM_049: gece yarısı sonrası 00:xx kalkış aynı satırda (k2 raw Spec).
+        fx("STM_049", vec![("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,23:50:00,00:10:00,S1,1\nT1,24:10:00,24:10:00,S2,2\n")]),
         // STM_050: timepoint sütunu var ama değer boş (k2).
         fx("STM_050", vec![("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence,timepoint\nT1,08:00:00,08:00:00,S1,1,\nT1,08:10:00,08:10:00,S2,2,\n")]),
 
@@ -1940,6 +1940,74 @@ fn stm_048_reports_raw_rollover_as_spec_without_stm_008_duplicate() {
     assert_eq!(stm048[0].observed_value.as_deref(), Some("1"));
     assert!(!notices.iter().any(|n| n.rule_id == "STM_008"),
         "normalization sonrası aynı olay STM_008 olarak tekrarlanmamalı: {notices:?}");
+}
+
+#[test]
+fn stm_048_raw_detection_is_not_disabled_by_service_day_config() {
+    let files = with_opts(
+        &[(
+            "stop_times.txt",
+            "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,23:50:00,23:50:00,S1,1\nT1,00:10:00,00:10:00,S2,2\n",
+        )],
+        &[],
+        &[],
+    );
+    let mut config = ValidatorConfig::default();
+    config.service_day_start_hour = 0;
+    let notices = notices_for(&files, &config);
+    assert!(notices.iter().any(|n| n.rule_id == "STM_048"),
+        "service_day_start_hour=0 raw STM_048'i kapatmamalı: {notices:?}");
+}
+
+#[test]
+fn stm_048_detects_rollover_after_the_normalization_threshold() {
+    let files = with_opts(
+        &[(
+            "stop_times.txt",
+            "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,23:50:00,23:50:00,S1,1\nT1,03:30:00,03:30:00,S2,2\n",
+        )],
+        &[],
+        &[],
+    );
+    let notices = notices_for(&files, &ValidatorConfig::default());
+    assert!(notices.iter().any(|n| n.rule_id == "STM_048"),
+        "03:30 raw rollover STM_048 üretmeli: {notices:?}");
+}
+
+#[test]
+fn raw_same_row_departure_is_stm_049_spec_without_config_gate() {
+    let files = with_opts(
+        &[(
+            "stop_times.txt",
+            "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,23:59:00,00:02:00,S1,1\nT1,24:10:00,24:10:00,S2,2\n",
+        )],
+        &[],
+        &[],
+    );
+    let mut config = ValidatorConfig::default();
+    config.service_day_start_hour = 0;
+    let notices = notices_for(&files, &config);
+    let stm049: Vec<_> = notices.iter().filter(|n| n.rule_id == "STM_049").collect();
+    assert_eq!(stm049.len(), 1, "same-row raw departure tek feed özeti olmalı: {stm049:?}");
+    assert_eq!(stm049[0].rule_class, gtfs_core::RuleClass::Spec);
+    assert!(!notices.iter().any(|n| n.rule_id == "STM_048"),
+        "aynı satır departure olayı STM_048'e karışmamalı: {notices:?}");
+}
+
+#[test]
+fn trip_starting_after_midnight_without_raw_wrap_is_silent() {
+    let files = with_opts(
+        &[(
+            "stop_times.txt",
+            "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,00:10:00,00:10:00,S1,1\nT1,00:20:00,00:20:00,S2,2\nT1,00:35:00,00:35:00,S1,3\n",
+        )],
+        &[],
+        &[],
+    );
+    let notices = notices_for(&files, &ValidatorConfig::default());
+    assert!(!notices.iter().any(|n| n.rule_id == "STM_048"), "gece yarısından başlayan trip STM_048 üretmemeli");
+    assert!(!notices.iter().any(|n| n.rule_id == "STM_049"), "gece yarısından başlayan trip STM_049 üretmemeli");
+    assert!(!notices.iter().any(|n| n.rule_id == "STM_008"), "monoton trip STM_008 üretmemeli");
 }
 
 #[test]
