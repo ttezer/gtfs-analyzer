@@ -1143,8 +1143,7 @@ impl StChunk {
 /// O dosya yokken bir booking rule id yazmak FK'yı kırar (`BKR_017`), dolayısıyla tavsiye
 /// uygulanamaz ve kural susmalıdır.
 pub fn validate_stop_times(file: &RawFile, zip_bytes: Option<&[u8]>, has_booking_rules: bool) -> (StopTimesIndex, Vec<gtfs_core::Notice>) {
-    let mut st = StChunk::default();
-    st.has_booking_rules = has_booking_rules;
+    let mut st = StChunk { has_booking_rules, ..StChunk::default() };
     let cols = Cols::from_headers(&file.headers);
     // B1: feed'de hiç Flex sütunu yoksa satır başı flex işini tümüyle atla.
     // Çıktı birebir aynı: get_col hep "" döner → STM_037-041 boş-yere-false, 6 alan None.
@@ -1874,11 +1873,10 @@ pub fn validate_stop_times(file: &RawFile, zip_bytes: Option<&[u8]>, has_booking
                                 let n = std::thread::available_parallelism().map(|v| v.get()).unwrap_or(4);
                                 let ranges = split_body_at_trip_boundaries(&body, cols.trip_id, n);
                                 let parts: Vec<StChunk> = ranges.par_iter().map(|&(bs, be, first_line)| {
-                                    let mut c = StChunk::default();
+                                    let mut c = StChunk { has_booking_rules, ..StChunk::default() };
                                     // Bayrak chunk'a TAŞINMALI: `StChunk::default()` her chunk için
                                     // yeniden kurulur ve `has_booking_rules` false kalırdı → STM_059
                                     // yalnız tek parçalı feed'lerde çalışırdı. `emit_proof` yakaladı.
-                                    c.has_booking_rules = has_booking_rules;
                                     let mut rdr = ZipCsvReader::new(Cursor::new(&body[bs..be]));
                                     let mut fields: Vec<Vec<u8>> = Vec::with_capacity(header_count + 1);
                                     let mut line = first_line;

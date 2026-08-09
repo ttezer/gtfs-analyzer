@@ -60,15 +60,16 @@ fn two_service_stop_times() -> &'static [u8] {
 }
 
 fn override_config_r1(start: u32, end: u32) -> ValidatorConfig {
-    let mut config = ValidatorConfig::default();
-    config.calendar_override_rules = vec![CalendarOverrideRule {
-        route_id: "R1".to_string(),
-        base_service_ids: vec!["WKD".to_string()],
-        override_service_ids: vec!["HOL".to_string()],
-        start_date: start,
-        end_date: end,
-    }];
-    config
+    ValidatorConfig {
+        calendar_override_rules: vec![CalendarOverrideRule {
+            route_id: "R1".to_string(),
+            base_service_ids: vec!["WKD".to_string()],
+            override_service_ids: vec!["HOL".to_string()],
+            start_date: start,
+            end_date: end,
+        }],
+        ..ValidatorConfig::default()
+    }
 }
 
 // ── Test OPR-1: Normal gün, tek servis → hiç OPR notice üretilmemeli ─────────

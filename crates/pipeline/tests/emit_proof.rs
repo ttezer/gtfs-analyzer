@@ -167,28 +167,31 @@ const BAD_UTF8_FEED_INFO: &[u8] = b"feed_publisher_name,feed_publisher_url,feed_
 // 0101 base+override → OPR_021, 0102 yalnız base → OPR_022, 0103 hiçbiri → OPR_023.
 const OVERRIDE_CD: &str = "service_id,date,exception_type\nSVC_B,20260101,1\nSVC_B,20260102,1\nSVC_O,20260101,1\n";
 fn override_config() -> ValidatorConfig {
-    let mut c = ValidatorConfig::default();
-    c.calendar_override_rules = vec![CalendarOverrideRule {
-        route_id: "R1".into(),
-        base_service_ids: vec!["SVC_B".into()],
-        override_service_ids: vec!["SVC_O".into()],
-        start_date: 20260101,
-        end_date: 20260103,
-    }];
-    c
+    ValidatorConfig {
+        calendar_override_rules: vec![CalendarOverrideRule {
+            route_id: "R1".into(),
+            base_service_ids: vec!["SVC_B".into()],
+            override_service_ids: vec!["SVC_O".into()],
+            start_date: 20260101,
+            end_date: 20260103,
+        }],
+        ..ValidatorConfig::default()
+    }
 }
 // ARC_028: source_url verilir ve .zip ile bitmezse tetiklenir (config-gated).
 fn source_url_config() -> ValidatorConfig {
-    let mut c = ValidatorConfig::default();
-    c.source_url = Some("https://example.org/gtfs".into());
-    c
+    ValidatorConfig {
+        source_url: Some("https://example.org/gtfs".into()),
+        ..ValidatorConfig::default()
+    }
 }
 // STP_040/041: opt-in stop-adı profili. P1 "Main Stop" → generic 'stop' sözcüğü (STP_040) VE
 // parent ST1 "Central Hub" adını içermiyor (STP_041). S1/S2 stop_times referansları için korunur.
 fn stop_name_config() -> ValidatorConfig {
-    let mut c = ValidatorConfig::default();
-    c.stop_name_best_practices = true;
-    c
+    ValidatorConfig {
+        stop_name_best_practices: true,
+        ..ValidatorConfig::default()
+    }
 }
 const STOP_NAME_STOPS: &str = "stop_id,stop_name,stop_lat,stop_lon,location_type,parent_station\nS1,Stop1,41.0,29.0,0,\nS2,Stop2,41.1,29.1,0,\nST1,Central Hub,41.0,29.0,1,\nP1,Main Stop,41.0,29.0,0,ST1\n";
 

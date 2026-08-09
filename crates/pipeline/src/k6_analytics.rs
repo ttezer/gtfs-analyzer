@@ -8573,13 +8573,15 @@ mod tests {
     ) -> crate::k2::EntityRecords {
         use crate::k2::stop_times::StopTimesIndex;
         let ti = take_ti();
-        let mut r = crate::k2::EntityRecords::default();
-        r.stops = stops;
-        r.routes = routes;
-        r.trips = trips;
-        r.trip_interns = ti;
-        r.stop_times_index = StopTimesIndex::from_records(&stoptimes);
-        r.stop_times = stoptimes;
+        let r = crate::k2::EntityRecords {
+            stops,
+            routes,
+            trips,
+            trip_interns: ti,
+            stop_times_index: StopTimesIndex::from_records(&stoptimes),
+            stop_times: stoptimes,
+            ..Default::default()
+        };
         r
     }
 
@@ -9138,24 +9140,30 @@ mod tests {
 
     #[test]
     fn long_headway_produces_frq_006() {
-        let mut r = crate::k2::EntityRecords::default();
-        r.frequencies = vec![frq("T1", 14401, 2)]; // 4 saat 1 dakika > 240 dk eşiği
+        let r = crate::k2::EntityRecords {
+            frequencies: vec![frq("T1", 14401, 2)], // 4 saat 1 dakika > 240 dk eşiği
+            ..Default::default()
+        };
         let result = analyze(&r, &empty_derived(), &default_config(), 20260514);
         assert!(result.notices.iter().any(|n| n.rule_id == "FRQ_006"));
     }
 
     #[test]
     fn short_headway_produces_frq_010() {
-        let mut r = crate::k2::EntityRecords::default();
-        r.frequencies = vec![frq("T1", 60, 2)]; // 1 dk ≤ 2 dk bunching eşiği
+        let r = crate::k2::EntityRecords {
+            frequencies: vec![frq("T1", 60, 2)], // 1 dk ≤ 2 dk bunching eşiği
+            ..Default::default()
+        };
         let result = analyze(&r, &empty_derived(), &default_config(), 20260514);
         assert!(result.notices.iter().any(|n| n.rule_id == "FRQ_010"));
     }
 
     #[test]
     fn normal_headway_no_frq_notices() {
-        let mut r = crate::k2::EntityRecords::default();
-        r.frequencies = vec![frq("T1", 600, 2)]; // 10 dk — normal
+        let r = crate::k2::EntityRecords {
+            frequencies: vec![frq("T1", 600, 2)], // 10 dk — normal
+            ..Default::default()
+        };
         let result = analyze(&r, &empty_derived(), &default_config(), 20260514);
         assert!(!result.notices.iter().any(|n| n.rule_id == "FRQ_006"));
         assert!(!result.notices.iter().any(|n| n.rule_id == "FRQ_010"));
@@ -9428,14 +9436,18 @@ mod tests {
         // Tek servis süresi dolmuş → bilgi seviyesi CAL_013, KRİTİK CAL_009 değil.
         // CAL_013 birleşik active_dates'e göre hesaplanır (gerçek boru hattında k5 doldurur).
         use crate::k5_derived::CalendarBitmap;
-        let mut derived = DerivedData::default();
-        derived.calendar_bitmap = CalendarBitmap {
-            active_dates: [("SVC".to_string(),
-                [20251201u32, 20251215, 20251231].into_iter().collect())]
-                .into_iter().collect(),
+        let derived = DerivedData {
+            calendar_bitmap: CalendarBitmap {
+                active_dates: [("SVC".to_string(),
+                    [20251201u32, 20251215, 20251231].into_iter().collect())]
+                    .into_iter().collect(),
+            },
+            ..Default::default()
         };
-        let mut records = crate::k2::EntityRecords::default();
-        records.calendars = vec![cal_rec("SVC", all_days(), (2025, 1, 1), (2025, 12, 31))];
+        let records = crate::k2::EntityRecords {
+            calendars: vec![cal_rec("SVC", all_days(), (2025, 1, 1), (2025, 12, 31))],
+            ..Default::default()
+        };
         // today = 20260514 > son aktif tarih 20251231
         let result = analyze(&records, &derived, &default_config(), 20260514);
         assert!(result.notices.iter().any(|n| n.rule_id == "CAL_013"),
@@ -9466,14 +9478,16 @@ mod tests {
         // #50: station ST → platform PL(lt0) → boarding area BA(lt4); entrance EN(lt2).
         // Pathway EN↔BA. Peron-record PL grafikte düğüm DEĞİL ama çocuğu BA
         // entrance'tan erişilebilir → PTH_012 sahte-pozitif ÇIKMAMALI.
-        let mut recs = crate::k2::EntityRecords::default();
-        recs.stops = vec![
-            pth_stop("ST", Some(1), ""),
-            pth_stop("EN", Some(2), "ST"),
-            pth_stop("PL", Some(0), "ST"),
-            pth_stop("BA", Some(4), "PL"),
-        ];
-        recs.pathways = vec![pth_pw("P1", "EN", "BA")];
+        let recs = crate::k2::EntityRecords {
+            stops: vec![
+                pth_stop("ST", Some(1), ""),
+                pth_stop("EN", Some(2), "ST"),
+                pth_stop("PL", Some(0), "ST"),
+                pth_stop("BA", Some(4), "PL"),
+            ],
+            pathways: vec![pth_pw("P1", "EN", "BA")],
+            ..Default::default()
+        };
         let mut derived = DerivedData::default();
         derived.pathway_graph.adjacency.insert("EN".into(), vec![("BA".into(), 0)]);
         derived.pathway_graph.adjacency.insert("BA".into(), vec![("EN".into(), 0)]);
@@ -9488,13 +9502,15 @@ mod tests {
     fn pth_012_genuinely_unreachable_platform_fires() {
         // Peron PL grafikte düğüm ama entrance'tan erişilemiyor ve lt4 çocuğu yok
         // → PTH_012 ÇIKMALI (gerçek erişilebilirlik boşluğu korunur).
-        let mut recs = crate::k2::EntityRecords::default();
-        recs.stops = vec![
-            pth_stop("ST", Some(1), ""),
-            pth_stop("EN", Some(2), "ST"),
-            pth_stop("PL", Some(0), "ST"),
-        ];
-        recs.pathways = vec![pth_pw("P1", "EN", "X"), pth_pw("P2", "PL", "Y")];
+        let recs = crate::k2::EntityRecords {
+            stops: vec![
+                pth_stop("ST", Some(1), ""),
+                pth_stop("EN", Some(2), "ST"),
+                pth_stop("PL", Some(0), "ST"),
+            ],
+            pathways: vec![pth_pw("P1", "EN", "X"), pth_pw("P2", "PL", "Y")],
+            ..Default::default()
+        };
         let mut derived = DerivedData::default();
         derived.pathway_graph.adjacency.insert("EN".into(), vec![("X".into(), 0)]);
         derived.pathway_graph.adjacency.insert("PL".into(), vec![("Y".into(), 0)]);
@@ -9509,14 +9525,16 @@ mod tests {
     fn pth_013_nested_platform_accessible_via_boarding_area_no_fp() {
         // #51: iç içe peron (PL lt0) → boarding area (BA lt4); EN→BA erişilebilir
         // (slope/width None). Çocuk erişilebilir → PTH_013 sahte-pozitif ÇIKMAMALI.
-        let mut recs = crate::k2::EntityRecords::default();
-        recs.stops = vec![
-            pth_stop("ST", Some(1), ""),
-            pth_stop("EN", Some(2), "ST"),
-            pth_stop("PL", Some(0), "ST"),
-            pth_stop("BA", Some(4), "PL"),
-        ];
-        recs.pathways = vec![pth_pw("P1", "EN", "BA")];
+        let recs = crate::k2::EntityRecords {
+            stops: vec![
+                pth_stop("ST", Some(1), ""),
+                pth_stop("EN", Some(2), "ST"),
+                pth_stop("PL", Some(0), "ST"),
+                pth_stop("BA", Some(4), "PL"),
+            ],
+            pathways: vec![pth_pw("P1", "EN", "BA")],
+            ..Default::default()
+        };
         let mut derived = DerivedData::default();
         derived.pathway_graph.adjacency.insert("EN".into(), vec![("BA".into(), 0)]);
         derived.pathway_graph.adjacency.insert("BA".into(), vec![("EN".into(), 0)]);
@@ -9531,16 +9549,18 @@ mod tests {
     fn pth_013_inaccessible_station_fires() {
         // Tek rota dik (max_slope 0.20 > 0.08) → tekerlekli sandalye erişimi yok
         // → PTH_013 ÇIKMALI (gerçek erişilebilirlik boşluğu korunur).
-        let mut recs = crate::k2::EntityRecords::default();
-        recs.stops = vec![
-            pth_stop("ST", Some(1), ""),
-            pth_stop("EN", Some(2), "ST"),
-            pth_stop("PL", Some(0), "ST"),
-            pth_stop("BA", Some(4), "PL"),
-        ];
         let mut pw = pth_pw("P1", "EN", "BA");
         pw.max_slope = Some(0.20);
-        recs.pathways = vec![pw];
+        let recs = crate::k2::EntityRecords {
+            stops: vec![
+                pth_stop("ST", Some(1), ""),
+                pth_stop("EN", Some(2), "ST"),
+                pth_stop("PL", Some(0), "ST"),
+                pth_stop("BA", Some(4), "PL"),
+            ],
+            pathways: vec![pw],
+            ..Default::default()
+        };
         let mut derived = DerivedData::default();
         derived.pathway_graph.adjacency.insert("EN".into(), vec![("BA".into(), 0)]);
         derived.pathway_graph.adjacency.insert("BA".into(), vec![("EN".into(), 0)]);
@@ -9557,16 +9577,20 @@ mod tests {
         // servis bugüne/geleceğe uzatılmışsa (birleşik max_date >= today) süresi
         // DOLMAMIŞTIR → CAL_013 ÜRETİLMEMELİ. (TriMet over-fire kök nedeni.)
         use crate::k5_derived::CalendarBitmap;
-        let mut derived = DerivedData::default();
         // calendar.txt end_date geçmişte olurdu ama calendar_dates 20260601'i eklemiş →
         // birleşik active_dates gelecekte bir tarih içeriyor.
-        derived.calendar_bitmap = CalendarBitmap {
-            active_dates: [("SVC".to_string(),
-                [20251201u32, 20251231, 20260601].into_iter().collect())]
-                .into_iter().collect(),
+        let derived = DerivedData {
+            calendar_bitmap: CalendarBitmap {
+                active_dates: [("SVC".to_string(),
+                    [20251201u32, 20251231, 20260601].into_iter().collect())]
+                    .into_iter().collect(),
+            },
+            ..Default::default()
         };
-        let mut records = crate::k2::EntityRecords::default();
-        records.calendars = vec![cal_rec("SVC", all_days(), (2025, 1, 1), (2025, 12, 31))];
+        let records = crate::k2::EntityRecords {
+            calendars: vec![cal_rec("SVC", all_days(), (2025, 1, 1), (2025, 12, 31))],
+            ..Default::default()
+        };
         // today = 20260514 < 20260601 (uzatılmış aktif tarih)
         let result = analyze(&records, &derived, &default_config(), 20260514);
         assert!(!result.notices.iter().any(|n| n.rule_id == "CAL_013"),
@@ -9578,12 +9602,14 @@ mod tests {
         // Aynı son-aktif-tarihte (20251231) biten iki service_id varyantı (#30 deseni):
         // per-service 2 CAL_013 yerine expiry-imzası başına TEK notice beklenir.
         use crate::k5_derived::CalendarBitmap;
-        let mut derived = DerivedData::default();
-        derived.calendar_bitmap = CalendarBitmap {
-            active_dates: [
-                ("A.724".to_string(), [20251215u32, 20251231].into_iter().collect()),
-                ("B.724".to_string(), [20251201u32, 20251231].into_iter().collect()),
-            ].into_iter().collect(),
+        let derived = DerivedData {
+            calendar_bitmap: CalendarBitmap {
+                active_dates: [
+                    ("A.724".to_string(), [20251215u32, 20251231].into_iter().collect()),
+                    ("B.724".to_string(), [20251201u32, 20251231].into_iter().collect()),
+                ].into_iter().collect(),
+            },
+            ..Default::default()
         };
         let records = crate::k2::EntityRecords::default();
         let result = analyze(&records, &derived, &default_config(), 20260514);
@@ -9598,9 +9624,11 @@ mod tests {
 
     #[test]
     fn expiring_soon_produces_cal_008() {
-        let mut records = crate::k2::EntityRecords::default();
         // Bitiş tarihi 10 gün sonra (< 30 gün uyarı eşiği)
-        records.calendars = vec![cal_rec("SVC", all_days(), (2026, 5, 1), (2026, 5, 24))];
+        let records = crate::k2::EntityRecords {
+            calendars: vec![cal_rec("SVC", all_days(), (2026, 5, 1), (2026, 5, 24))],
+            ..Default::default()
+        };
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
         assert!(result.notices.iter().any(|n| n.rule_id == "CAL_008"));
     }
@@ -9610,12 +9638,14 @@ mod tests {
         // Uzun yayın penceresi (≥30 gün) → mutlak eşik yolu: 3 aktif gün < 7.
         // LONG servisi pencereyi açar; SVC o pencerede gerçekten kısa kalır.
         use crate::k5_derived::CalendarBitmap;
-        let mut derived = DerivedData::default();
-        derived.calendar_bitmap = CalendarBitmap {
-            active_dates: [
-                ("SVC".to_string(), [20260511u32, 20260512, 20260513].into_iter().collect()),
-                ("LONG".to_string(), [20260401u32, 20260601].into_iter().collect()),
-            ].into_iter().collect(),
+        let derived = DerivedData {
+            calendar_bitmap: CalendarBitmap {
+                active_dates: [
+                    ("SVC".to_string(), [20260511u32, 20260512, 20260513].into_iter().collect()),
+                    ("LONG".to_string(), [20260401u32, 20260601].into_iter().collect()),
+                ].into_iter().collect(),
+            },
+            ..Default::default()
         };
         let records = crate::k2::EntityRecords::default();
         let result = analyze(&records, &derived, &default_config(), 20260514);
@@ -9635,28 +9665,32 @@ mod tests {
     #[test]
     fn opr_019_ignores_opposite_direction_trains_on_the_same_day() {
         use crate::k5_derived::CalendarBitmap;
-        let mut r = crate::k2::EntityRecords::default();
-        r.stops = vec![stop("ANK", 39.9, 32.8), stop("KUR", 37.9, 41.8)];
-        r.routes = vec![route("R1", 2)];
         // 22014 Ankara→Kurtalan (SVC_A), 52013 Kurtalan→Ankara (SVC_B) — zıt yönler.
         let mut t1 = trip_with_service("22014", "R1", "SVC_A");
         t1.direction_id = Some(0);
         let mut t2 = trip_with_service("52013", "R1", "SVC_B");
         t2.direction_id = Some(1);
-        r.trips = vec![t1, t2];
-        r.trip_interns = take_ti();
-        r.stop_times = vec![
-            stoptime("22014", 1, "ANK", (8, 0, 0), (8, 0, 0), 2),
-            stoptime("22014", 2, "KUR", (20, 0, 0), (20, 0, 0), 3),
-            stoptime("52013", 1, "KUR", (8, 0, 0), (8, 0, 0), 4),
-            stoptime("52013", 2, "ANK", (20, 0, 0), (20, 0, 0), 5),
-        ];
-        let mut derived = DerivedData::default();
-        derived.calendar_bitmap = CalendarBitmap {
-            active_dates: [
-                ("SVC_A".to_string(), [20260518u32].into_iter().collect()),
-                ("SVC_B".to_string(), [20260518u32].into_iter().collect()),
-            ].into_iter().collect(),
+        let r = crate::k2::EntityRecords {
+            stops: vec![stop("ANK", 39.9, 32.8), stop("KUR", 37.9, 41.8)],
+            routes: vec![route("R1", 2)],
+            trips: vec![t1, t2],
+            trip_interns: take_ti(),
+            stop_times: vec![
+                stoptime("22014", 1, "ANK", (8, 0, 0), (8, 0, 0), 2),
+                stoptime("22014", 2, "KUR", (20, 0, 0), (20, 0, 0), 3),
+                stoptime("52013", 1, "KUR", (8, 0, 0), (8, 0, 0), 4),
+                stoptime("52013", 2, "ANK", (20, 0, 0), (20, 0, 0), 5),
+            ],
+            ..Default::default()
+        };
+        let derived = DerivedData {
+            calendar_bitmap: CalendarBitmap {
+                active_dates: [
+                    ("SVC_A".to_string(), [20260518u32].into_iter().collect()),
+                    ("SVC_B".to_string(), [20260518u32].into_iter().collect()),
+                ].into_iter().collect(),
+            },
+            ..Default::default()
         };
         let result = analyze(&r, &derived, &default_config(), 20260518);
         assert!(
@@ -9671,28 +9705,32 @@ mod tests {
     #[test]
     fn opr_019_still_catches_the_same_trip_active_from_two_services() {
         use crate::k5_derived::CalendarBitmap;
-        let mut r = crate::k2::EntityRecords::default();
-        r.stops = vec![stop("ANK", 39.9, 32.8), stop("KUR", 37.9, 41.8)];
-        r.routes = vec![route("R1", 2)];
         let mut t1 = trip_with_service("T_BASE", "R1", "SVC_A");
         t1.direction_id = Some(0);
         let mut t2 = trip_with_service("T_OVERRIDE", "R1", "SVC_B");
         t2.direction_id = Some(0);
-        r.trips = vec![t1, t2];
-        r.trip_interns = take_ti();
         // İki sefer de aynı: 08:00 ANK → 20:00 KUR.
-        r.stop_times = vec![
-            stoptime("T_BASE", 1, "ANK", (8, 0, 0), (8, 0, 0), 2),
-            stoptime("T_BASE", 2, "KUR", (20, 0, 0), (20, 0, 0), 3),
-            stoptime("T_OVERRIDE", 1, "ANK", (8, 0, 0), (8, 0, 0), 4),
-            stoptime("T_OVERRIDE", 2, "KUR", (20, 0, 0), (20, 0, 0), 5),
-        ];
-        let mut derived = DerivedData::default();
-        derived.calendar_bitmap = CalendarBitmap {
-            active_dates: [
-                ("SVC_A".to_string(), [20260518u32].into_iter().collect()),
-                ("SVC_B".to_string(), [20260518u32].into_iter().collect()),
-            ].into_iter().collect(),
+        let r = crate::k2::EntityRecords {
+            stops: vec![stop("ANK", 39.9, 32.8), stop("KUR", 37.9, 41.8)],
+            routes: vec![route("R1", 2)],
+            trips: vec![t1, t2],
+            trip_interns: take_ti(),
+            stop_times: vec![
+                stoptime("T_BASE", 1, "ANK", (8, 0, 0), (8, 0, 0), 2),
+                stoptime("T_BASE", 2, "KUR", (20, 0, 0), (20, 0, 0), 3),
+                stoptime("T_OVERRIDE", 1, "ANK", (8, 0, 0), (8, 0, 0), 4),
+                stoptime("T_OVERRIDE", 2, "KUR", (20, 0, 0), (20, 0, 0), 5),
+            ],
+            ..Default::default()
+        };
+        let derived = DerivedData {
+            calendar_bitmap: CalendarBitmap {
+                active_dates: [
+                    ("SVC_A".to_string(), [20260518u32].into_iter().collect()),
+                    ("SVC_B".to_string(), [20260518u32].into_iter().collect()),
+                ].into_iter().collect(),
+            },
+            ..Default::default()
         };
         let result = analyze(&r, &derived, &default_config(), 20260518);
         assert!(
@@ -9710,17 +9748,18 @@ mod tests {
     fn cld_007_silent_when_the_feed_has_no_calendar_txt() {
         use crate::k5_derived::CalendarBitmap;
         use crate::k2::calendar_dates::CalendarDateIndex;
-        let mut r = crate::k2::EntityRecords::default();
         // calendars BOŞ — feed yalnız calendar_dates kullanıyor.
         let mut cd = CalendarDateIndex::default();
         cd.exception_count.insert("SVC".into(), 4);
         cd.added.insert("SVC".into(), vec![20260518, 20260519, 20260520, 20260521]);
-        r.calendar_dates = cd;
-        let mut derived = DerivedData::default();
-        derived.calendar_bitmap = CalendarBitmap {
-            active_dates: [("SVC".to_string(),
-                [20260518u32, 20260519, 20260520, 20260521].into_iter().collect())]
-                .into_iter().collect(),
+        let r = crate::k2::EntityRecords { calendar_dates: cd, ..Default::default() };
+        let derived = DerivedData {
+            calendar_bitmap: CalendarBitmap {
+                active_dates: [("SVC".to_string(),
+                    [20260518u32, 20260519, 20260520, 20260521].into_iter().collect())]
+                    .into_iter().collect(),
+            },
+            ..Default::default()
         };
         let result = analyze(&r, &derived, &default_config(), 20260519);
         assert!(
@@ -9736,20 +9775,22 @@ mod tests {
     #[test]
     fn cal_010_uses_a_ratio_on_short_feed_windows() {
         use crate::k5_derived::CalendarBitmap;
-        let mut derived = DerivedData::default();
         // Pencere 20260728–20260813 = 17 gün (Temmuz 28-31 + Ağustos 1-13).
         let full: std::collections::HashSet<u32> = (28..=31u32).map(|d| 20260700 + d)
             .chain((1..=13u32).map(|d| 20260800 + d))
             .collect();
-        derived.calendar_bitmap = CalendarBitmap {
-            active_dates: [
-                ("DAILY".to_string(), full),
-                // 5 gün aktif — 17 günün %29'u, %20 eşiğinin üstünde.
-                ("VANGOLU".to_string(),
-                    [20260728u32, 20260730, 20260801, 20260803, 20260805].into_iter().collect()),
-                // 2 gün aktif — %12, eşiğin altında → gerçek stub.
-                ("STUB".to_string(), [20260728u32, 20260729].into_iter().collect()),
-            ].into_iter().collect(),
+        let derived = DerivedData {
+            calendar_bitmap: CalendarBitmap {
+                active_dates: [
+                    ("DAILY".to_string(), full),
+                    // 5 gün aktif — 17 günün %29'u, %20 eşiğinin üstünde.
+                    ("VANGOLU".to_string(),
+                        [20260728u32, 20260730, 20260801, 20260803, 20260805].into_iter().collect()),
+                    // 2 gün aktif — %12, eşiğin altında → gerçek stub.
+                    ("STUB".to_string(), [20260728u32, 20260729].into_iter().collect()),
+                ].into_iter().collect(),
+            },
+            ..Default::default()
         };
         let records = crate::k2::EntityRecords::default();
         let result = analyze(&records, &derived, &default_config(), 20260801);
@@ -9767,12 +9808,14 @@ mod tests {
     #[test]
     fn cal_017_silent_when_the_feed_has_already_started() {
         use crate::k5_derived::CalendarBitmap;
-        let mut derived = DerivedData::default();
-        derived.calendar_bitmap = CalendarBitmap {
-            active_dates: [
-                ("ACTIVE".to_string(), [20260510u32, 20260514, 20260520].into_iter().collect()),
-                ("SOON".to_string(),   [20260516u32, 20260517].into_iter().collect()),
-            ].into_iter().collect(),
+        let derived = DerivedData {
+            calendar_bitmap: CalendarBitmap {
+                active_dates: [
+                    ("ACTIVE".to_string(), [20260510u32, 20260514, 20260520].into_iter().collect()),
+                    ("SOON".to_string(),   [20260516u32, 20260517].into_iter().collect()),
+                ].into_iter().collect(),
+            },
+            ..Default::default()
         };
         let records = crate::k2::EntityRecords::default();
         let result = analyze(&records, &derived, &default_config(), 20260514);
@@ -9786,12 +9829,14 @@ mod tests {
     #[test]
     fn cal_017_fires_when_the_whole_feed_is_still_in_the_future() {
         use crate::k5_derived::CalendarBitmap;
-        let mut derived = DerivedData::default();
-        derived.calendar_bitmap = CalendarBitmap {
-            active_dates: [
-                ("A".to_string(), [20260601u32, 20260602].into_iter().collect()),
-                ("B".to_string(), [20260610u32].into_iter().collect()),
-            ].into_iter().collect(),
+        let derived = DerivedData {
+            calendar_bitmap: CalendarBitmap {
+                active_dates: [
+                    ("A".to_string(), [20260601u32, 20260602].into_iter().collect()),
+                    ("B".to_string(), [20260610u32].into_iter().collect()),
+                ].into_iter().collect(),
+            },
+            ..Default::default()
         };
         let records = crate::k2::EntityRecords::default();
         let result = analyze(&records, &derived, &default_config(), 20260514);
@@ -9938,16 +9983,20 @@ mod tests {
     #[test]
     fn spans_today_but_no_upcoming_produces_cal_021() {
         use crate::k5_derived::CalendarBitmap;
-        let mut derived = DerivedData::default();
         // today=20260514, N=7 → pencere [20260514..20260521].
         // SVC bugünü kapsıyor (20260510 ≤ today ≤ 20260601) ama pencerede aktif gün yok.
         let dates: std::collections::HashSet<u32> = [20260510u32, 20260601].into_iter().collect();
-        derived.calendar_bitmap = CalendarBitmap {
-            active_dates: [("SVC".to_string(), dates)].into_iter().collect(),
+        let derived = DerivedData {
+            calendar_bitmap: CalendarBitmap {
+                active_dates: [("SVC".to_string(), dates)].into_iter().collect(),
+            },
+            ..Default::default()
         };
-        let mut records = crate::k2::EntityRecords::default();
-        records.trips = vec![trip_svc("T1", "SVC")];
-        records.trip_interns = take_ti();
+        let records = crate::k2::EntityRecords {
+            trips: vec![trip_svc("T1", "SVC")],
+            trip_interns: take_ti(),
+            ..Default::default()
+        };
         let result = analyze(&records, &derived, &default_config(), 20260514);
         assert!(result.notices.iter().any(|n| n.rule_id == "CAL_021"),
             "bugünü kapsayan ama yakın günde seferi olmayan servis CAL_021 üretmeli");
@@ -9976,9 +10025,11 @@ mod tests {
         derived.calendar_bitmap = CalendarBitmap {
             active_dates: [("SVC".to_string(), active)].into_iter().collect(),
         };
-        let mut records = crate::k2::EntityRecords::default();
-        records.trips = vec![trip_svc("T1", "SVC")];
-        records.trip_interns = take_ti();
+        let records = crate::k2::EntityRecords {
+            trips: vec![trip_svc("T1", "SVC")],
+            trip_interns: take_ti(),
+            ..Default::default()
+        };
         let r1 = analyze(&records, &derived, &default_config(), 20260514);
         assert!(!r1.notices.iter().any(|n| n.rule_id == "CAL_021"),
             "yakın günde aktif servis CAL_021 üretmemeli");
@@ -10000,19 +10051,20 @@ mod tests {
     fn expired_service_in_bitmap_produces_cal_013() {
         use crate::k2::calendar_dates::CalendarDateIndex;
         use crate::k5_derived::CalendarBitmap;
-        let mut derived = DerivedData::default();
         // Tüm tarihler geçmişte: max_date = 20251231 < today = 20260514
         let mut dates = std::collections::HashSet::new();
         dates.insert(20251201u32);
         dates.insert(20251231u32);
-        derived.calendar_bitmap = CalendarBitmap {
-            active_dates: [("EXPIRED_SVC".to_string(), dates)].into_iter().collect(),
+        let derived = DerivedData {
+            calendar_bitmap: CalendarBitmap {
+                active_dates: [("EXPIRED_SVC".to_string(), dates)].into_iter().collect(),
+            },
+            ..Default::default()
         };
-        let mut records = crate::k2::EntityRecords::default();
         // exception_count'ta kayıt olmadan CLD_007/CAL_013 döngüsü çalışmaz
         let mut idx = CalendarDateIndex::default();
         idx.exception_count.insert("EXPIRED_SVC".into(), 1);
-        records.calendar_dates = idx;
+        let records = crate::k2::EntityRecords { calendar_dates: idx, ..Default::default() };
         let result = analyze(&records, &derived, &default_config(), 20260514);
         assert!(result.notices.iter().any(|n| n.rule_id == "CAL_013"), "CAL_013 olmalı");
     }
@@ -10021,18 +10073,19 @@ mod tests {
     fn active_service_no_cal_013() {
         use crate::k2::calendar_dates::CalendarDateIndex;
         use crate::k5_derived::CalendarBitmap;
-        let mut derived = DerivedData::default();
         // Gelecekte tarih var
         let mut dates = std::collections::HashSet::new();
         dates.insert(20260601u32);
         dates.insert(20260630u32);
-        derived.calendar_bitmap = CalendarBitmap {
-            active_dates: [("ACTIVE_SVC".to_string(), dates)].into_iter().collect(),
+        let derived = DerivedData {
+            calendar_bitmap: CalendarBitmap {
+                active_dates: [("ACTIVE_SVC".to_string(), dates)].into_iter().collect(),
+            },
+            ..Default::default()
         };
-        let mut records = crate::k2::EntityRecords::default();
         let mut idx = CalendarDateIndex::default();
         idx.exception_count.insert("ACTIVE_SVC".into(), 1);
-        records.calendar_dates = idx;
+        let records = crate::k2::EntityRecords { calendar_dates: idx, ..Default::default() };
         let result = analyze(&records, &derived, &default_config(), 20260514);
         assert!(!result.notices.iter().any(|n| n.rule_id == "CAL_013"), "aktif servis CAL_013 üretmemeli");
     }
@@ -10042,18 +10095,20 @@ mod tests {
     #[test]
     fn shape_jump_produces_geo_006() {
         use crate::k5_derived::{ShapeGeometry, ShapeSegments};
-        let mut derived = DerivedData::default();
-        derived.shape_geometry = ShapeGeometry {
-            shapes: [(
-                "S1".to_string(),
-                ShapeSegments {
-                    segment_distances_km: vec![0.5, 15.0, 0.3], // 15 km > 10 km eşiği
-                    total_length_km: 15.8,
-                    bbox: (40.0, 42.0, 28.0, 30.0),
-                },
-            )]
-            .into_iter()
-            .collect(),
+        let derived = DerivedData {
+            shape_geometry: ShapeGeometry {
+                shapes: [(
+                    "S1".to_string(),
+                    ShapeSegments {
+                        segment_distances_km: vec![0.5, 15.0, 0.3], // 15 km > 10 km eşiği
+                        total_length_km: 15.8,
+                        bbox: (40.0, 42.0, 28.0, 30.0),
+                    },
+                )]
+                .into_iter()
+                .collect(),
+            },
+            ..Default::default()
         };
         let result = analyze(&crate::k2::EntityRecords::default(), &derived, &default_config(), 20260514);
         assert!(result.notices.iter().any(|n| n.rule_id == "GEO_006"));
@@ -10062,18 +10117,20 @@ mod tests {
     #[test]
     fn normal_shape_no_geo_006() {
         use crate::k5_derived::{ShapeGeometry, ShapeSegments};
-        let mut derived = DerivedData::default();
-        derived.shape_geometry = ShapeGeometry {
-            shapes: [(
-                "S1".to_string(),
-                ShapeSegments {
-                    segment_distances_km: vec![0.5, 0.8, 0.3],
-                    total_length_km: 1.6,
-                    bbox: (40.0, 40.1, 28.0, 28.1),
-                },
-            )]
-            .into_iter()
-            .collect(),
+        let derived = DerivedData {
+            shape_geometry: ShapeGeometry {
+                shapes: [(
+                    "S1".to_string(),
+                    ShapeSegments {
+                        segment_distances_km: vec![0.5, 0.8, 0.3],
+                        total_length_km: 1.6,
+                        bbox: (40.0, 40.1, 28.0, 28.1),
+                    },
+                )]
+                .into_iter()
+                .collect(),
+            },
+            ..Default::default()
         };
         let result = analyze(&crate::k2::EntityRecords::default(), &derived, &default_config(), 20260514);
         assert!(!result.notices.iter().any(|n| n.rule_id == "GEO_006"));
@@ -10085,15 +10142,19 @@ mod tests {
     fn very_close_stops_produce_stp_017() {
         use crate::k5_derived::SpatialIndex;
         // İki durak 4 metre arayla (< 5m eşiği): 0.000036° fark ≈ 4m
-        let mut records = crate::k2::EntityRecords::default();
-        records.stops = vec![
+        let records = crate::k2::EntityRecords {
+            stops: vec![
             stop("A", 41.0, 29.0),
             stop("B", 41.000036, 29.0), // ~4m kuzey
-        ];
-        let mut derived = DerivedData::default();
-        derived.spatial_index = SpatialIndex {
-            grid: [((82i32, 58i32), vec![0usize, 1usize])].into_iter().collect(),
-            cell_deg: 0.5,
+            ],
+            ..Default::default()
+        };
+        let derived = DerivedData {
+            spatial_index: SpatialIndex {
+                grid: [((82i32, 58i32), vec![0usize, 1usize])].into_iter().collect(),
+                cell_deg: 0.5,
+            },
+            ..Default::default()
         };
         let result = analyze(&records, &derived, &default_config(), 20260514);
         assert!(result.notices.iter().any(|n| n.rule_id == "STP_017"), "STP_017 olmalı");
@@ -10104,16 +10165,17 @@ mod tests {
         use crate::k5_derived::SpatialIndex;
         // Aynı istasyonun iki peronu (aynı parent_station) 4 m arayla, hatta aynı
         // koordinatta olabilir — station-hierarchy modellemesi, FP üretmemeli (VBB dersi).
-        let mut records = crate::k2::EntityRecords::default();
         let mut pa = stop("PA", 41.0, 29.0);
         pa.row.insert("parent_station".to_string(), "ST".to_string());
         let mut pb = stop("PB", 41.0, 29.0); // aynı koordinat
         pb.row.insert("parent_station".to_string(), "ST".to_string());
-        records.stops = vec![pa, pb];
-        let mut derived = DerivedData::default();
-        derived.spatial_index = SpatialIndex {
-            grid: [((82i32, 58i32), vec![0usize, 1usize])].into_iter().collect(),
-            cell_deg: 0.5,
+        let records = crate::k2::EntityRecords { stops: vec![pa, pb], ..Default::default() };
+        let derived = DerivedData {
+            spatial_index: SpatialIndex {
+                grid: [((82i32, 58i32), vec![0usize, 1usize])].into_iter().collect(),
+                cell_deg: 0.5,
+            },
+            ..Default::default()
         };
         let result = analyze(&records, &derived, &default_config(), 20260514);
         assert!(
@@ -10127,14 +10189,15 @@ mod tests {
         use crate::k5_derived::SpatialIndex;
         // Giriş düğümü (location_type=2) bir sokak durağıyla aynı koordinatta —
         // modelleme tercihi; "durakları birleştirin" tavsiyesi yanlış olur (VBB: 3093 çift).
-        let mut records = crate::k2::EntityRecords::default();
         let mut ent = stop("E1", 41.0, 29.0);
         ent.location_type = Some(2);
-        records.stops = vec![ent, stop("B", 41.0, 29.0)];
-        let mut derived = DerivedData::default();
-        derived.spatial_index = SpatialIndex {
-            grid: [((82i32, 58i32), vec![0usize, 1usize])].into_iter().collect(),
-            cell_deg: 0.5,
+        let records = crate::k2::EntityRecords { stops: vec![ent, stop("B", 41.0, 29.0)], ..Default::default() };
+        let derived = DerivedData {
+            spatial_index: SpatialIndex {
+                grid: [((82i32, 58i32), vec![0usize, 1usize])].into_iter().collect(),
+                cell_deg: 0.5,
+            },
+            ..Default::default()
         };
         let result = analyze(&records, &derived, &default_config(), 20260514);
         assert!(
@@ -10148,7 +10211,6 @@ mod tests {
         use crate::k5_derived::SpatialIndex;
         // Bir istasyonun 3 kardeş peronu (aynı parent) + istasyonun kendisi aynı
         // noktada — hiyerarşi modellemesi, küme değil (STP_016/017 ile tutarlı).
-        let mut records = crate::k2::EntityRecords::default();
         let mut st = stop("ST", 41.0, 29.0);
         st.location_type = Some(1);
         let mk = |id: &str| {
@@ -10156,11 +10218,13 @@ mod tests {
             s.row.insert("parent_station".to_string(), "ST".to_string());
             s
         };
-        records.stops = vec![mk("PA"), mk("PB"), mk("PC"), st];
-        let mut derived = DerivedData::default();
-        derived.spatial_index = SpatialIndex {
-            grid: [((82i32, 58i32), vec![0usize, 1, 2, 3])].into_iter().collect(),
-            cell_deg: 0.5,
+        let records = crate::k2::EntityRecords { stops: vec![mk("PA"), mk("PB"), mk("PC"), st], ..Default::default() };
+        let derived = DerivedData {
+            spatial_index: SpatialIndex {
+                grid: [((82i32, 58i32), vec![0usize, 1, 2, 3])].into_iter().collect(),
+                cell_deg: 0.5,
+            },
+            ..Default::default()
         };
         let result = analyze(&records, &derived, &default_config(), 20260514);
         assert!(
@@ -10173,12 +10237,13 @@ mod tests {
     fn geo_012_independent_stops_still_cluster() {
         use crate::k5_derived::SpatialIndex;
         // Parent'sız, binilebilir 3 durak aynı noktada → gerçek küme, GEO_012 ÇIKMALI.
-        let mut records = crate::k2::EntityRecords::default();
-        records.stops = vec![stop("A", 41.0, 29.0), stop("B", 41.0, 29.0), stop("C", 41.0, 29.0)];
-        let mut derived = DerivedData::default();
-        derived.spatial_index = SpatialIndex {
-            grid: [((82i32, 58i32), vec![0usize, 1, 2])].into_iter().collect(),
-            cell_deg: 0.5,
+        let records = crate::k2::EntityRecords { stops: vec![stop("A", 41.0, 29.0), stop("B", 41.0, 29.0), stop("C", 41.0, 29.0)], ..Default::default() };
+        let derived = DerivedData {
+            spatial_index: SpatialIndex {
+                grid: [((82i32, 58i32), vec![0usize, 1, 2])].into_iter().collect(),
+                cell_deg: 0.5,
+            },
+            ..Default::default()
         };
         let result = analyze(&records, &derived, &default_config(), 20260514);
         assert!(
@@ -10193,17 +10258,21 @@ mod tests {
         // Hücrenin İLK durağı istasyon (lt=1) — eski kod guard'ı görüp `continue` ile
         // hücreyi tümüyle atlıyordu ve arkasındaki gerçek kümeyi kaçırıyordu.
         // Artık uygun olmayan anchor atlanır, sıradaki binilebilir durak anchor olur.
-        let mut records = crate::k2::EntityRecords::default();
         let mut station = stop("ST", 41.0, 29.0);
         station.location_type = Some(1);
-        records.stops = vec![
+        let records = crate::k2::EntityRecords {
+            stops: vec![
             station,
             stop("A", 41.0, 29.0), stop("B", 41.0, 29.0), stop("C", 41.0, 29.0),
-        ];
-        let mut derived = DerivedData::default();
-        derived.spatial_index = SpatialIndex {
-            grid: [((82i32, 58i32), vec![0usize, 1, 2, 3])].into_iter().collect(),
-            cell_deg: 0.5,
+            ],
+            ..Default::default()
+        };
+        let derived = DerivedData {
+            spatial_index: SpatialIndex {
+                grid: [((82i32, 58i32), vec![0usize, 1, 2, 3])].into_iter().collect(),
+                cell_deg: 0.5,
+            },
+            ..Default::default()
         };
         let result = analyze(&records, &derived, &default_config(), 20260514);
         let n = result.notices.iter().find(|n| n.rule_id == "GEO_012")
@@ -10216,16 +10285,17 @@ mod tests {
         use crate::k5_derived::SpatialIndex;
         // İki AYRI istasyon (location_type=1) tam aynı koordinatta — duplikat-istasyon
         // şüphesi; iskelet muafiyeti bu çifti YUTMAMALI (review K1b istisnası).
-        let mut records = crate::k2::EntityRecords::default();
         let mut s1 = stop("ST1", 41.0, 29.0);
         s1.location_type = Some(1);
         let mut s2 = stop("ST2", 41.0, 29.0);
         s2.location_type = Some(1);
-        records.stops = vec![s1, s2];
-        let mut derived = DerivedData::default();
-        derived.spatial_index = SpatialIndex {
-            grid: [((82i32, 58i32), vec![0usize, 1usize])].into_iter().collect(),
-            cell_deg: 0.5,
+        let records = crate::k2::EntityRecords { stops: vec![s1, s2], ..Default::default() };
+        let derived = DerivedData {
+            spatial_index: SpatialIndex {
+                grid: [((82i32, 58i32), vec![0usize, 1usize])].into_iter().collect(),
+                cell_deg: 0.5,
+            },
+            ..Default::default()
         };
         let result = analyze(&records, &derived, &default_config(), 20260514);
         assert!(
@@ -10398,11 +10468,13 @@ mod tests {
             vec![stoptime("T1", 1, "A", (8,0,0), (8,0,0), 2)],
         );
         // Tüm calendar_bitmap tarihleri geçmişte
-        let mut derived = DerivedData::default();
-        derived.calendar_bitmap = CalendarBitmap {
-            active_dates: [("SVC".to_string(),
-                [20250101u32].into_iter().collect())]
-                .into_iter().collect(),
+        let derived = DerivedData {
+            calendar_bitmap: CalendarBitmap {
+                active_dates: [("SVC".to_string(),
+                    [20250101u32].into_iter().collect())]
+                    .into_iter().collect(),
+            },
+            ..Default::default()
         };
         let result = analyze(&records, &derived, &default_config(), 20260514);
         assert!(result.notices.iter().any(|n| n.rule_id == "DQ_005"));
@@ -10478,10 +10550,12 @@ mod tests {
                 stoptime("T1", 2, "B", (8,10,0), (8,10,0), 3),
             ],
         );
-        let mut derived = DerivedData::default();
-        derived.calendar_bitmap = CalendarBitmap {
-            active_dates: [("SVC".to_string(), [20261001u32].into_iter().collect())]
-                .into_iter().collect(),
+        let derived = DerivedData {
+            calendar_bitmap: CalendarBitmap {
+                active_dates: [("SVC".to_string(), [20261001u32].into_iter().collect())]
+                    .into_iter().collect(),
+            },
+            ..Default::default()
         };
         let result = analyze(&records, &derived, &default_config(), 20260514);
         assert!(!result.notices.iter().any(|n| n.rule_id == "OPR_011"));
@@ -10511,10 +10585,12 @@ mod tests {
             vec![trip("T1", "R1")],
             vec![stoptime("T1", 1, "A", (8,0,0), (8,0,0), 2)],
         );
-        let mut derived = DerivedData::default();
-        derived.calendar_bitmap = CalendarBitmap {
-            active_dates: [("SVC".to_string(), [20261001u32].into_iter().collect())]
-                .into_iter().collect(),
+        let derived = DerivedData {
+            calendar_bitmap: CalendarBitmap {
+                active_dates: [("SVC".to_string(), [20261001u32].into_iter().collect())]
+                    .into_iter().collect(),
+            },
+            ..Default::default()
         };
         let result = analyze(&records, &derived, &default_config(), 20260514);
         assert!(!result.notices.iter().any(|n| n.rule_id == "OPR_016"));
@@ -10618,14 +10694,16 @@ mod tests {
     #[test]
     fn severe_shape_jump_produces_geo_007() {
         use crate::k5_derived::{ShapeGeometry, ShapeSegments};
-        let mut derived = DerivedData::default();
         // max_shape_jump_km default = 10.0 → severe = 30.0 → 50 km segment tetikler
-        derived.shape_geometry = ShapeGeometry {
-            shapes: [("S1".to_string(), ShapeSegments {
-                segment_distances_km: vec![50.0],
-                total_length_km: 50.0,
-                bbox: (41.0, 41.5, 29.0, 29.5),
-            })].into_iter().collect(),
+        let derived = DerivedData {
+            shape_geometry: ShapeGeometry {
+                shapes: [("S1".to_string(), ShapeSegments {
+                    segment_distances_km: vec![50.0],
+                    total_length_km: 50.0,
+                    bbox: (41.0, 41.5, 29.0, 29.5),
+                })].into_iter().collect(),
+            },
+            ..Default::default()
         };
         let records = crate::k2::EntityRecords::default();
         let result = analyze(&records, &derived, &default_config(), 20260514);
@@ -10640,14 +10718,16 @@ mod tests {
     #[test]
     fn severe_shape_jump_produces_geo_007_only_not_geo_006() {
         use crate::k5_derived::{ShapeGeometry, ShapeSegments};
-        let mut derived = DerivedData::default();
         // default max_shape_jump_km = 10.0 → severe = 30.0; 50 km ikisinin de üstünde
-        derived.shape_geometry = ShapeGeometry {
-            shapes: [("S1".to_string(), ShapeSegments {
-                segment_distances_km: vec![50.0],
-                total_length_km: 50.0,
-                bbox: (41.0, 41.5, 29.0, 29.5),
-            })].into_iter().collect(),
+        let derived = DerivedData {
+            shape_geometry: ShapeGeometry {
+                shapes: [("S1".to_string(), ShapeSegments {
+                    segment_distances_km: vec![50.0],
+                    total_length_km: 50.0,
+                    bbox: (41.0, 41.5, 29.0, 29.5),
+                })].into_iter().collect(),
+            },
+            ..Default::default()
         };
         let records = crate::k2::EntityRecords::default();
         let result = analyze(&records, &derived, &default_config(), 20260514);
@@ -10666,14 +10746,16 @@ mod tests {
     #[test]
     fn moderate_shape_jump_produces_geo_006_only() {
         use crate::k5_derived::{ShapeGeometry, ShapeSegments};
-        let mut derived = DerivedData::default();
         // default max_shape_jump_km = 10.0 → severe = 30.0; 15 km ikisinin arasında
-        derived.shape_geometry = ShapeGeometry {
-            shapes: [("S1".to_string(), ShapeSegments {
-                segment_distances_km: vec![15.0],
-                total_length_km: 15.0,
-                bbox: (41.0, 41.5, 29.0, 29.5),
-            })].into_iter().collect(),
+        let derived = DerivedData {
+            shape_geometry: ShapeGeometry {
+                shapes: [("S1".to_string(), ShapeSegments {
+                    segment_distances_km: vec![15.0],
+                    total_length_km: 15.0,
+                    bbox: (41.0, 41.5, 29.0, 29.5),
+                })].into_iter().collect(),
+            },
+            ..Default::default()
         };
         let records = crate::k2::EntityRecords::default();
         let result = analyze(&records, &derived, &default_config(), 20260514);
@@ -10684,14 +10766,16 @@ mod tests {
     #[test]
     fn normal_shape_jump_no_geo_007() {
         use crate::k5_derived::{ShapeGeometry, ShapeSegments};
-        let mut derived = DerivedData::default();
         // 2 km < 15 km severe threshold → tetiklenmemeli
-        derived.shape_geometry = ShapeGeometry {
-            shapes: [("S1".to_string(), ShapeSegments {
-                segment_distances_km: vec![2.0],
-                total_length_km: 2.0,
-                bbox: (41.0, 41.02, 29.0, 29.02),
-            })].into_iter().collect(),
+        let derived = DerivedData {
+            shape_geometry: ShapeGeometry {
+                shapes: [("S1".to_string(), ShapeSegments {
+                    segment_distances_km: vec![2.0],
+                    total_length_km: 2.0,
+                    bbox: (41.0, 41.02, 29.0, 29.02),
+                })].into_iter().collect(),
+            },
+            ..Default::default()
         };
         let records = crate::k2::EntityRecords::default();
         let result = analyze(&records, &derived, &default_config(), 20260514);
@@ -10815,9 +10899,6 @@ mod tests {
     #[test]
     fn opr_001_uses_a_wider_headway_threshold_on_rail() {
         let build = |route_type: u32| {
-            let mut r = crate::k2::EntityRecords::default();
-            r.stops = vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1)];
-            r.routes = vec![route("R1", route_type)];
             // Düzensiz kalkışlar (is_regular_headway guard'ına takılmasın):
             // 06:00, 08:00, 09:00, 18:40 → en büyük boşluk 580 dk.
             let deps = [(6u32, 0u32), (8, 0), (9, 0), (18, 40)];
@@ -10829,9 +10910,14 @@ mod tests {
                 sts.push(stoptime(&tid, 1, "A", (*h, *m, 0), (*h, *m, 0), 2));
                 sts.push(stoptime(&tid, 2, "B", (*h + 1, *m, 0), (*h + 1, *m, 0), 3));
             }
-            r.trips = trips_v;
-            r.trip_interns = take_ti();
-            r.stop_times = sts;
+            let r = crate::k2::EntityRecords {
+                stops: vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1)],
+                routes: vec![route("R1", route_type)],
+                trips: trips_v,
+                trip_interns: take_ti(),
+                stop_times: sts,
+                ..Default::default()
+            };
             analyze(&r, &empty_derived(), &default_config(), 20260514)
         };
         assert!(
@@ -10944,14 +11030,16 @@ mod tests {
                 ShapePointRecord::new(shape_ti.intern("S1"), Some(41.0), Some(29.0), Some(1), None, 2),
             ];
             records.shape_interns = shape_ti;
-            let mut derived = DerivedData::default();
             // 13,4 km: şehir içi eşiğin (10) üstünde, rail eşiğinin (30) altında.
-            derived.shape_geometry = ShapeGeometry {
-                shapes: [("S1".to_string(), ShapeSegments {
-                    segment_distances_km: vec![13.4],
-                    total_length_km: 13.4,
-                    bbox: (41.0, 41.5, 29.0, 29.5),
-                })].into_iter().collect(),
+            let derived = DerivedData {
+                shape_geometry: ShapeGeometry {
+                    shapes: [("S1".to_string(), ShapeSegments {
+                        segment_distances_km: vec![13.4],
+                        total_length_km: 13.4,
+                        bbox: (41.0, 41.5, 29.0, 29.5),
+                    })].into_iter().collect(),
+                },
+                ..Default::default()
             };
             analyze(&records, &derived, &default_config(), 20260514)
         };
@@ -12353,20 +12441,23 @@ mod tests {
         let stops: Vec<StopRecord> = (1..=6)
             .map(|i| stop(&format!("S{i}"), 41.0 + i as f64 * 0.01, 29.0))
             .collect();
-        let mut r = crate::k2::EntityRecords::default();
-        r.stops = stops;
-        r.routes = vec![route("R1", 3), route("R2", 3)];
         let t1 = trip("T1", "R1");
         let t2 = trip("T2", "R2");
-        r.trips = vec![t1, t2];
-        r.trip_interns = take_ti();
-        r.stop_times = (1..=6).flat_map(|i| {
+        let stop_times = (1..=6).flat_map(|i| {
             let h = i;
             vec![
                 stoptime("T1", i, &format!("S{i}"), (h, 0, 0), (h, 0, 0), i as u64 + 1),
                 stoptime("T2", i, &format!("S{i}"), (h, 5, 0), (h, 5, 0), i as u64 + 10),
             ]
         }).collect();
+        let r = crate::k2::EntityRecords {
+            stops,
+            routes: vec![route("R1", 3), route("R2", 3)],
+            trips: vec![t1, t2],
+            trip_interns: take_ti(),
+            stop_times,
+            ..Default::default()
+        };
         let result = analyze(&r, &empty_derived(), &default_config(), 20260514);
         assert!(result.notices.iter().any(|n| n.rule_id == "VAT_001"), "VAT_001 olmalı");
     }
@@ -12374,19 +12465,21 @@ mod tests {
     #[test]
     fn very_different_routes_no_vat_001() {
         // R1: S1-S3, R2: S4-S6 → hiç ortak durak yok → Jaccard=0 → VAT_001 olmamalı
-        let mut r = crate::k2::EntityRecords::default();
-        r.stops = (1..=6).map(|i| stop(&format!("S{i}"), 41.0 + i as f64 * 0.01, 29.0)).collect();
-        r.routes = vec![route("R1", 3), route("R2", 3)];
-        r.trips = vec![trip("T1", "R1"), trip("T2", "R2")];
-        r.trip_interns = take_ti();
-        r.stop_times = vec![
+        let r = crate::k2::EntityRecords {
+            stops: (1..=6).map(|i| stop(&format!("S{i}"), 41.0 + i as f64 * 0.01, 29.0)).collect(),
+            routes: vec![route("R1", 3), route("R2", 3)],
+            trips: vec![trip("T1", "R1"), trip("T2", "R2")],
+            trip_interns: take_ti(),
+            stop_times: vec![
             stoptime("T1", 1, "S1", (8,0,0), (8,0,0), 2),
             stoptime("T1", 2, "S2", (8,5,0), (8,5,0), 3),
             stoptime("T1", 3, "S3", (8,10,0), (8,10,0), 4),
             stoptime("T2", 1, "S4", (9,0,0), (9,0,0), 2),
             stoptime("T2", 2, "S5", (9,5,0), (9,5,0), 3),
             stoptime("T2", 3, "S6", (9,10,0), (9,10,0), 4),
-        ];
+            ],
+            ..Default::default()
+        };
         let result = analyze(&r, &empty_derived(), &default_config(), 20260514);
         assert!(!result.notices.iter().any(|n| n.rule_id == "VAT_001"), "VAT_001 olmamalı");
     }
@@ -12395,15 +12488,6 @@ mod tests {
     fn busy_stop_no_transfer_produces_vat_002() {
         // S1'den 4 hat geçiyor VE 200 m ötedeki S9'dan S1'de olmayan bir hat (R5) geçiyor
         // → gerçekten tanımlanmamış bir DURAKLAR ARASI aktarma var → VAT_002.
-        let mut r = crate::k2::EntityRecords::default();
-        r.stops = vec![
-            stop("S1", 41.0, 29.0), stop("S2", 41.1, 29.1),
-            stop("S9", 41.0018, 29.0), // ~200 m — max_transfer_distance_m (500 m) içinde
-            stop("S8", 41.2, 29.2),
-        ];
-        r.routes = (1..=5).map(|i| route(&format!("R{i}"), 3)).collect();
-        r.trips = (1..=5).map(|i| trip(&format!("T{i}"), &format!("R{i}"))).collect();
-        r.trip_interns = take_ti();
         let mut sts: Vec<_> = (1..=4).flat_map(|i| vec![
             stoptime(&format!("T{i}"), 1, "S1", (8,0,0), (8,0,0), 2),
             stoptime(&format!("T{i}"), 2, "S2", (8,10,0), (8,10,0), 3),
@@ -12411,7 +12495,18 @@ mod tests {
         // R5 yalnız komşu durak S9'dan geçiyor — S1'de yok.
         sts.push(stoptime("T5", 1, "S9", (9,0,0), (9,0,0), 4));
         sts.push(stoptime("T5", 2, "S8", (9,10,0), (9,10,0), 5));
-        r.stop_times = sts;
+        let r = crate::k2::EntityRecords {
+            stops: vec![
+                stop("S1", 41.0, 29.0), stop("S2", 41.1, 29.1),
+                stop("S9", 41.0018, 29.0), // ~200 m — max_transfer_distance_m (500 m) içinde
+                stop("S8", 41.2, 29.2),
+            ],
+            routes: (1..=5).map(|i| route(&format!("R{i}"), 3)).collect(),
+            trips: (1..=5).map(|i| trip(&format!("T{i}"), &format!("R{i}"))).collect(),
+            trip_interns: take_ti(),
+            stop_times: sts,
+            ..Default::default()
+        };
         let result = analyze(&r, &empty_derived(), &default_config(), 20260514);
         assert!(result.notices.iter().any(|n| n.rule_id == "VAT_002"), "VAT_002 olmalı");
     }
@@ -12422,15 +12517,17 @@ mod tests {
     /// aktarma yoktur; GTFS tüketicisi o durakta aktarma kurulabileceğini zaten bilir.
     #[test]
     fn vat_002_silent_when_all_routes_share_one_stop_id() {
-        let mut r = crate::k2::EntityRecords::default();
-        r.stops = vec![stop("GAR", 41.0, 29.0), stop("S2", 41.1, 29.1)];
-        r.routes = (1..=4).map(|i| route(&format!("R{i}"), 2)).collect();
-        r.trips = (1..=4).map(|i| trip(&format!("T{i}"), &format!("R{i}"))).collect();
-        r.trip_interns = take_ti();
-        r.stop_times = (1..=4).flat_map(|i| vec![
+        let r = crate::k2::EntityRecords {
+            stops: vec![stop("GAR", 41.0, 29.0), stop("S2", 41.1, 29.1)],
+            routes: (1..=4).map(|i| route(&format!("R{i}"), 2)).collect(),
+            trips: (1..=4).map(|i| trip(&format!("T{i}"), &format!("R{i}"))).collect(),
+            trip_interns: take_ti(),
+            stop_times: (1..=4).flat_map(|i| vec![
             stoptime(&format!("T{i}"), 1, "GAR", (8,0,0), (8,0,0), 2),
             stoptime(&format!("T{i}"), 2, "S2", (8,10,0), (8,10,0), 3),
-        ]).collect();
+            ]).collect(),
+            ..Default::default()
+        };
         let result = analyze(&r, &empty_derived(), &default_config(), 20260514);
         assert!(
             !result.notices.iter().any(|n| n.rule_id == "VAT_002"),
@@ -12443,27 +12540,29 @@ mod tests {
     #[test]
     fn vat_002_skips_child_stops_of_a_modelled_station() {
         use std::collections::HashMap as StdMap;
-        let mut r = crate::k2::EntityRecords::default();
         let mut platform = stop("P1", 41.0, 29.0);
         let mut row: StdMap<String, String> = StdMap::new();
         row.insert("parent_station".to_string(), "GAR".to_string());
         platform.row = row;
-        r.stops = vec![
-            platform,
-            stop("S2", 41.1, 29.1),
-            stop("S9", 41.0018, 29.0), // yakın komşu + farklı hat → guard olmasa tetiklerdi
-            stop("S8", 41.2, 29.2),
-        ];
-        r.routes = (1..=5).map(|i| route(&format!("R{i}"), 3)).collect();
-        r.trips = (1..=5).map(|i| trip(&format!("T{i}"), &format!("R{i}"))).collect();
-        r.trip_interns = take_ti();
         let mut sts: Vec<_> = (1..=4).flat_map(|i| vec![
             stoptime(&format!("T{i}"), 1, "P1", (8,0,0), (8,0,0), 2),
             stoptime(&format!("T{i}"), 2, "S2", (8,10,0), (8,10,0), 3),
         ]).collect();
         sts.push(stoptime("T5", 1, "S9", (9,0,0), (9,0,0), 4));
         sts.push(stoptime("T5", 2, "S8", (9,10,0), (9,10,0), 5));
-        r.stop_times = sts;
+        let r = crate::k2::EntityRecords {
+            stops: vec![
+                platform,
+                stop("S2", 41.1, 29.1),
+                stop("S9", 41.0018, 29.0), // yakın komşu + farklı hat → guard olmasa tetiklerdi
+                stop("S8", 41.2, 29.2),
+            ],
+            routes: (1..=5).map(|i| route(&format!("R{i}"), 3)).collect(),
+            trips: (1..=5).map(|i| trip(&format!("T{i}"), &format!("R{i}"))).collect(),
+            trip_interns: take_ti(),
+            stop_times: sts,
+            ..Default::default()
+        };
         let result = analyze(&r, &empty_derived(), &default_config(), 20260514);
         assert!(
             !result.notices.iter().any(|n| n.rule_id == "VAT_002" && n.entity_id.as_deref() == Some("P1")),
@@ -12474,20 +12573,22 @@ mod tests {
     /// Komşu durak SADECE aynı hatları sunuyorsa yeni bir bağlantı yoktur → susar.
     #[test]
     fn vat_002_silent_when_neighbour_adds_no_new_route() {
-        let mut r = crate::k2::EntityRecords::default();
-        r.stops = vec![
-            stop("S1", 41.0, 29.0),
-            stop("S9", 41.0018, 29.0), // yakın ama aynı hatlar
-            stop("S2", 41.1, 29.1),
-        ];
-        r.routes = (1..=4).map(|i| route(&format!("R{i}"), 3)).collect();
-        r.trips = (1..=4).map(|i| trip(&format!("T{i}"), &format!("R{i}"))).collect();
-        r.trip_interns = take_ti();
-        r.stop_times = (1..=4).flat_map(|i| vec![
+        let r = crate::k2::EntityRecords {
+            stops: vec![
+                stop("S1", 41.0, 29.0),
+                stop("S9", 41.0018, 29.0), // yakın ama aynı hatlar
+                stop("S2", 41.1, 29.1),
+            ],
+            routes: (1..=4).map(|i| route(&format!("R{i}"), 3)).collect(),
+            trips: (1..=4).map(|i| trip(&format!("T{i}"), &format!("R{i}"))).collect(),
+            trip_interns: take_ti(),
+            stop_times: (1..=4).flat_map(|i| vec![
             stoptime(&format!("T{i}"), 1, "S1", (8,0,0), (8,0,0), 2),
             stoptime(&format!("T{i}"), 2, "S9", (8,5,0), (8,5,0), 3),
             stoptime(&format!("T{i}"), 3, "S2", (8,10,0), (8,10,0), 4),
-        ]).collect();
+            ]).collect(),
+            ..Default::default()
+        };
         let result = analyze(&r, &empty_derived(), &default_config(), 20260514);
         assert!(
             !result.notices.iter().any(|n| n.rule_id == "VAT_002" && n.entity_id.as_deref() == Some("S1")),
@@ -12498,9 +12599,6 @@ mod tests {
     #[test]
     fn outlier_trip_duration_produces_vat_003() {
         // R1 hattında 5 sefer: 4 tanesi ~30dk, 1 tanesi ~3saat (aykırı değer) → VAT_003
-        let mut r = crate::k2::EntityRecords::default();
-        r.stops = vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1)];
-        r.routes = vec![route("R1", 3)];
         // Normal: T1-T4 = 30dk, aykırı: T5 = 180dk
         let mut trips_vec = Vec::new();
         let mut stoptimes_vec = Vec::new();
@@ -12514,9 +12612,14 @@ mod tests {
         trips_vec.push(trip("T5", "R1"));
         stoptimes_vec.push(stoptime("T5", 1, "A", (6, 0, 0), (6, 0, 0), 2));
         stoptimes_vec.push(stoptime("T5", 2, "B", (9, 0, 0), (9, 0, 0), 3));
-        r.trips = trips_vec;
-        r.trip_interns = take_ti();
-        r.stop_times = stoptimes_vec;
+        let r = crate::k2::EntityRecords {
+            stops: vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1)],
+            routes: vec![route("R1", 3)],
+            trips: trips_vec,
+            trip_interns: take_ti(),
+            stop_times: stoptimes_vec,
+            ..Default::default()
+        };
         let result = analyze(&r, &empty_derived(), &default_config(), 20260514);
         assert!(result.notices.iter().any(|n| n.rule_id == "VAT_003"), "VAT_003 olmalı");
     }
@@ -12530,9 +12633,6 @@ mod tests {
     /// tekrarlandığını söyler.
     #[test]
     fn vat_003_collapses_date_expanded_duplicate_trips() {
-        let mut r = crate::k2::EntityRecords::default();
-        r.stops = vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1)];
-        r.routes = vec![route("R1", 3)];
         let mut trips_vec = Vec::new();
         let mut stoptimes_vec = Vec::new();
         let mut line = 2u64;
@@ -12557,9 +12657,14 @@ mod tests {
             stoptimes_vec.push(stoptime(&tid, 2, "B", (9, 0, 0), (9, 0, 0), line));
             line += 1;
         }
-        r.trips = trips_vec;
-        r.trip_interns = take_ti();
-        r.stop_times = stoptimes_vec;
+        let r = crate::k2::EntityRecords {
+            stops: vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1)],
+            routes: vec![route("R1", 3)],
+            trips: trips_vec,
+            trip_interns: take_ti(),
+            stop_times: stoptimes_vec,
+            ..Default::default()
+        };
 
         let result = analyze(&r, &empty_derived(), &default_config(), 20260514);
         let vat: Vec<&Notice> = result.notices.iter().filter(|n| n.rule_id == "VAT_003").collect();
@@ -12585,9 +12690,6 @@ mod tests {
     /// Kopyasız feed'de davranış DEĞİŞMEZ (çökertme no-op olmalı) — regresyon koruması.
     #[test]
     fn vat_003_unchanged_when_no_duplicate_schedules() {
-        let mut r = crate::k2::EntityRecords::default();
-        r.stops = vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1)];
-        r.routes = vec![route("R1", 3)];
         let mut trips_vec = Vec::new();
         let mut stoptimes_vec = Vec::new();
         // 5 benzersiz tarife (~30 dk) + 1 aykırı — hiçbiri tekrarlanmıyor.
@@ -12600,9 +12702,14 @@ mod tests {
         trips_vec.push(trip("T9", "R1"));
         stoptimes_vec.push(stoptime("T9", 1, "A", (6, 0, 0), (6, 0, 0), 2));
         stoptimes_vec.push(stoptime("T9", 2, "B", (9, 0, 0), (9, 0, 0), 3));
-        r.trips = trips_vec;
-        r.trip_interns = take_ti();
-        r.stop_times = stoptimes_vec;
+        let r = crate::k2::EntityRecords {
+            stops: vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1)],
+            routes: vec![route("R1", 3)],
+            trips: trips_vec,
+            trip_interns: take_ti(),
+            stop_times: stoptimes_vec,
+            ..Default::default()
+        };
 
         let result = analyze(&r, &empty_derived(), &default_config(), 20260514);
         let vat: Vec<&Notice> = result.notices.iter().filter(|n| n.rule_id == "VAT_003").collect();
@@ -12623,9 +12730,6 @@ mod tests {
     /// Eski davranış aynı 4 gözlemi 10 kez sayıp yapay güven üretiyordu.
     #[test]
     fn vat_003_requires_five_distinct_schedules_not_five_trips() {
-        let mut r = crate::k2::EntityRecords::default();
-        r.stops = vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1)];
-        r.routes = vec![route("R1", 3)];
         let mut trips_vec = Vec::new();
         let mut stoptimes_vec = Vec::new();
         let mut line = 2u64;
@@ -12649,9 +12753,14 @@ mod tests {
             stoptimes_vec.push(stoptime(&tid, 2, "B", (9, 0, 0), (9, 0, 0), line));
             line += 1;
         }
-        r.trips = trips_vec;
-        r.trip_interns = take_ti();
-        r.stop_times = stoptimes_vec;
+        let r = crate::k2::EntityRecords {
+            stops: vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1)],
+            routes: vec![route("R1", 3)],
+            trips: trips_vec,
+            trip_interns: take_ti(),
+            stop_times: stoptimes_vec,
+            ..Default::default()
+        };
 
         let result = analyze(&r, &empty_derived(), &default_config(), 20260514);
         assert!(
@@ -12665,12 +12774,6 @@ mod tests {
         // Aynı route_id, iki ayrı desen: 6 kısa sefer (2 durak, 10dk) + 5 uzun sefer
         // (4 durak, 30dk). Eski route_id gruplaması uzun seferleri aykırı işaretlerdi;
         // desen (durak sayısı) gruplamasıyla her küme kendi içinde tutarlı → VAT_003 yok.
-        let mut r = crate::k2::EntityRecords::default();
-        r.stops = vec![
-            stop("A", 41.0, 29.0), stop("B", 41.1, 29.1),
-            stop("C", 41.2, 29.2), stop("D", 41.3, 29.3),
-        ];
-        r.routes = vec![route("R1", 3)];
         let mut trips_vec = Vec::new();
         let mut stoptimes_vec = Vec::new();
         for i in 0..6u32 {
@@ -12687,9 +12790,17 @@ mod tests {
             stoptimes_vec.push(stoptime(&tid, 3, "C", (9, 20, 0), (9, 20, 0), 4));
             stoptimes_vec.push(stoptime(&tid, 4, "D", (9, 30, 0), (9, 30, 0), 5));
         }
-        r.trips = trips_vec;
-        r.trip_interns = take_ti();
-        r.stop_times = stoptimes_vec;
+        let r = crate::k2::EntityRecords {
+            stops: vec![
+                stop("A", 41.0, 29.0), stop("B", 41.1, 29.1),
+                stop("C", 41.2, 29.2), stop("D", 41.3, 29.3),
+            ],
+            routes: vec![route("R1", 3)],
+            trips: trips_vec,
+            trip_interns: take_ti(),
+            stop_times: stoptimes_vec,
+            ..Default::default()
+        };
         let result = analyze(&r, &empty_derived(), &default_config(), 20260514);
         assert!(!result.notices.iter().any(|n| n.rule_id == "VAT_003"),
             "ayrı desenler çapraz aykırı işaretlenmemeli");
@@ -12700,11 +12811,6 @@ mod tests {
         // Aynı route, shape yok, AYNI durak sayısı (2) ama FARKLI duraklar:
         // 6 sefer A→B (10dk) + 5 sefer A→C (30dk). Durak SAYISI anahtarı bunları
         // karıştırıp 30dk'ları aykırı işaretlerdi; durak SIRASI hash'iyle ayrılır → VAT_003 yok.
-        let mut r = crate::k2::EntityRecords::default();
-        r.stops = vec![
-            stop("A", 41.0, 29.0), stop("B", 41.1, 29.1), stop("C", 41.5, 29.5),
-        ];
-        r.routes = vec![route("R1", 3)];
         let mut trips_vec = Vec::new();
         let mut stoptimes_vec = Vec::new();
         for i in 0..6u32 {
@@ -12719,9 +12825,16 @@ mod tests {
             stoptimes_vec.push(stoptime(&tid, 1, "A", (9, 0, 0), (9, 0, 0), 2));
             stoptimes_vec.push(stoptime(&tid, 2, "C", (9, 30, 0), (9, 30, 0), 3));
         }
-        r.trips = trips_vec;
-        r.trip_interns = take_ti();
-        r.stop_times = stoptimes_vec;
+        let r = crate::k2::EntityRecords {
+            stops: vec![
+                stop("A", 41.0, 29.0), stop("B", 41.1, 29.1), stop("C", 41.5, 29.5),
+            ],
+            routes: vec![route("R1", 3)],
+            trips: trips_vec,
+            trip_interns: take_ti(),
+            stop_times: stoptimes_vec,
+            ..Default::default()
+        };
         let result = analyze(&r, &empty_derived(), &default_config(), 20260514);
         assert!(!result.notices.iter().any(|n| n.rule_id == "VAT_003"),
             "aynı durak sayılı farklı desenler durak-sırasıyla ayrılmalı, çapraz işaretlenmemeli");
@@ -12732,12 +12845,6 @@ mod tests {
         // Gerçek BART regresyonu: aynı shape_id kısa-dönüş (A→B, 10dk) ve tam sefer
         // (A→B→C→D, 30dk) tarafından paylaşılabilir. Shape tek başına desen değildir;
         // stop dizisi de anahtara katılmalı, aksi halde kısa seferler kitlesel FP olur.
-        let mut r = crate::k2::EntityRecords::default();
-        r.stops = vec![
-            stop("A", 41.0, 29.0), stop("B", 41.1, 29.1),
-            stop("C", 41.2, 29.2), stop("D", 41.3, 29.3),
-        ];
-        r.routes = vec![route("R1", 3)];
         let mut trips_vec = Vec::new();
         let mut stoptimes_vec = Vec::new();
         for i in 0..5u32 {
@@ -12754,9 +12861,17 @@ mod tests {
             stoptimes_vec.push(stoptime(&tid, 3, "C", (9, 20, 0), (9, 20, 0), 4));
             stoptimes_vec.push(stoptime(&tid, 4, "D", (9, 30, 0), (9, 30, 0), 5));
         }
-        r.trips = trips_vec;
-        r.trip_interns = take_ti();
-        r.stop_times = stoptimes_vec;
+        let r = crate::k2::EntityRecords {
+            stops: vec![
+                stop("A", 41.0, 29.0), stop("B", 41.1, 29.1),
+                stop("C", 41.2, 29.2), stop("D", 41.3, 29.3),
+            ],
+            routes: vec![route("R1", 3)],
+            trips: trips_vec,
+            trip_interns: take_ti(),
+            stop_times: stoptimes_vec,
+            ..Default::default()
+        };
         let result = analyze(&r, &empty_derived(), &default_config(), 20260514);
         assert!(!result.notices.iter().any(|n| n.rule_id == "VAT_003"),
             "aynı shape'i paylaşan farklı stop desenleri çapraz işaretlenmemeli");
@@ -12768,9 +12883,6 @@ mod tests {
         // meşru daha uzun peak (saat 8, 28dk), 1 gerçek olay (saat 10, 40dk).
         // Saat-bazlı deseasonalize ile peak FP üretmemeli; yalnızca olay işaretlenmeli.
         // (Eski global medyan/MAD bu kurguda tüm peak seferlerini FP olarak işaretlerdi.)
-        let mut r = crate::k2::EntityRecords::default();
-        r.stops = vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1)];
-        r.routes = vec![route("R1", 3)];
         let mut trips_vec = Vec::new();
         let mut sts = Vec::new();
         // Off-peak: saat 10, 19/20/21dk (hafif spread), 20 sefer — baskın küme.
@@ -12792,9 +12904,14 @@ mod tests {
         trips_vec.push(trip("INC", "R1"));
         sts.push(stoptime("INC", 1, "A", (10, 2, 0), (10, 2, 0), 2));
         sts.push(stoptime("INC", 2, "B", (10, 42, 0), (10, 42, 0), 3));
-        r.trips = trips_vec;
-        r.trip_interns = take_ti();
-        r.stop_times = sts;
+        let r = crate::k2::EntityRecords {
+            stops: vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1)],
+            routes: vec![route("R1", 3)],
+            trips: trips_vec,
+            trip_interns: take_ti(),
+            stop_times: sts,
+            ..Default::default()
+        };
         let result = analyze(&r, &empty_derived(), &default_config(), 20260514);
         let flagged: std::collections::HashSet<&str> = result.notices.iter()
             .filter(|n| n.rule_id == "VAT_003")
@@ -12811,9 +12928,6 @@ mod tests {
         // kodlanır. Band fonksiyonu (% 24 olmadan) bunları akşam (band 4) yerine yanlış banda
         // koyardı: gece seferi 20dk normaldir ama akşam medyanı (40dk) ile kıyaslanınca FP olur.
         // % 24 ile owl seferleri gerçek gece bandına (band 0) döner.
-        let mut r = crate::k2::EntityRecords::default();
-        r.stops = vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1)];
-        r.routes = vec![route("R1", 3)];
         let mut trips_vec = Vec::new();
         let mut sts = Vec::new();
         // NOT: kalkış dakikaları BİLEREK farklı. Kural artık aynı (kalkış, süre) ikilisini
@@ -12845,9 +12959,14 @@ mod tests {
         trips_vec.push(trip("WINC", "R1"));
         sts.push(stoptime("WINC", 1, "A", (24, 35, 0), (24, 35, 0), 2));
         sts.push(stoptime("WINC", 2, "B", (25, 15, 0), (25, 15, 0), 3));
-        r.trips = trips_vec;
-        r.trip_interns = take_ti();
-        r.stop_times = sts;
+        let r = crate::k2::EntityRecords {
+            stops: vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1)],
+            routes: vec![route("R1", 3)],
+            trips: trips_vec,
+            trip_interns: take_ti(),
+            stop_times: sts,
+            ..Default::default()
+        };
         let result = analyze(&r, &empty_derived(), &default_config(), 20260514);
         let flagged: std::collections::HashSet<&str> = result.notices.iter()
             .filter(|n| n.rule_id == "VAT_003")
@@ -12864,13 +12983,6 @@ mod tests {
     #[test]
     fn isolated_stop_cluster_produces_vat_005() {
         // Ana ağ: A-B-C-D (10+ bağlantı), izole küme: X-Y
-        let mut r = crate::k2::EntityRecords::default();
-        r.stops = vec![
-            stop("A",41.0,29.0), stop("B",41.1,29.0), stop("C",41.2,29.0), stop("D",41.3,29.0),
-            stop("E",41.4,29.0), stop("F",41.5,29.0),
-            stop("X",42.0,30.0), stop("Y",42.1,30.0), // izole
-        ];
-        r.routes = vec![route("R1",3), route("R2",3)];
         // Ana ağ: birden fazla sefer A-B-C-D-E-F
         let mut trips_v = Vec::new();
         let mut st_v = Vec::new();
@@ -12888,9 +13000,18 @@ mod tests {
         trips_v.push(trip("ISO","R2"));
         st_v.push(stoptime("ISO",1,"X",(8,0,0),(8,0,0),2));
         st_v.push(stoptime("ISO",2,"Y",(8,10,0),(8,10,0),3));
-        r.trips = trips_v;
-        r.trip_interns = take_ti();
-        r.stop_times = st_v;
+        let r = crate::k2::EntityRecords {
+            stops: vec![
+                stop("A",41.0,29.0), stop("B",41.1,29.0), stop("C",41.2,29.0), stop("D",41.3,29.0),
+                stop("E",41.4,29.0), stop("F",41.5,29.0),
+                stop("X",42.0,30.0), stop("Y",42.1,30.0), // izole
+            ],
+            routes: vec![route("R1",3), route("R2",3)],
+            trips: trips_v,
+            trip_interns: take_ti(),
+            stop_times: st_v,
+            ..Default::default()
+        };
         let result = analyze(&r, &empty_derived(), &default_config(), 20260514);
         assert!(result.notices.iter().any(|n| n.rule_id == "VAT_005"), "VAT_005 olmalı");
     }
@@ -12899,13 +13020,6 @@ mod tests {
     fn isolated_cluster_near_main_network_suppressed_vat_005() {
         // İzole küme ana şebekeye coğrafi olarak ÇOK yakın (parent_station'sız çoklu
         // peron senaryosu, ör. otogar) → fiziksel olarak aynı yer → VAT_005 bastırılır.
-        let mut r = crate::k2::EntityRecords::default();
-        r.stops = vec![
-            stop("A",41.0,29.0), stop("B",41.1,29.0), stop("C",41.2,29.0), stop("D",41.3,29.0),
-            stop("E",41.4,29.0), stop("F",41.5,29.0),
-            stop("P",41.0003,29.0), stop("Q",41.0005,29.0), // A'ya ~33m: aynı fiziksel yer
-        ];
-        r.routes = vec![route("R1",3), route("R2",3)];
         let mut trips_v = Vec::new();
         let mut st_v = Vec::new();
         for i in 1..=12u32 {
@@ -12922,9 +13036,18 @@ mod tests {
         trips_v.push(trip("ISO","R2"));
         st_v.push(stoptime("ISO",1,"P",(8,0,0),(8,0,0),2));
         st_v.push(stoptime("ISO",2,"Q",(8,10,0),(8,10,0),3));
-        r.trips = trips_v;
-        r.trip_interns = take_ti();
-        r.stop_times = st_v;
+        let r = crate::k2::EntityRecords {
+            stops: vec![
+                stop("A",41.0,29.0), stop("B",41.1,29.0), stop("C",41.2,29.0), stop("D",41.3,29.0),
+                stop("E",41.4,29.0), stop("F",41.5,29.0),
+                stop("P",41.0003,29.0), stop("Q",41.0005,29.0), // A'ya ~33m: aynı fiziksel yer
+            ],
+            routes: vec![route("R1",3), route("R2",3)],
+            trips: trips_v,
+            trip_interns: take_ti(),
+            stop_times: st_v,
+            ..Default::default()
+        };
         let result = analyze(&r, &empty_derived(), &default_config(), 20260514);
         assert!(!result.notices.iter().any(|n| n.rule_id == "VAT_005"),
             "İzole küme ana şebekeye <200m yakın → VAT_005 bastırılmalı");
@@ -12933,9 +13056,6 @@ mod tests {
     #[test]
     fn dominant_route_produces_vat_006() {
         // R1: 80 sefer, R2: 10 sefer, R3: 10 sefer → R1 %80 → VAT_006
-        let mut r = crate::k2::EntityRecords::default();
-        r.stops = vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1)];
-        r.routes = vec![route("R1", 3), route("R2", 3), route("R3", 3)];
         let mut trips_v = Vec::new();
         let mut st_v = Vec::new();
         for i in 1..=80u32 {
@@ -12954,9 +13074,14 @@ mod tests {
             st_v.push(stoptime(&tid3, 1, "A", (i, 45, 0), (i, 45, 0), 2));
             st_v.push(stoptime(&tid3, 2, "B", (i, 55, 0), (i, 55, 0), 3));
         }
-        r.trips = trips_v;
-        r.trip_interns = take_ti();
-        r.stop_times = st_v;
+        let r = crate::k2::EntityRecords {
+            stops: vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1)],
+            routes: vec![route("R1", 3), route("R2", 3), route("R3", 3)],
+            trips: trips_v,
+            trip_interns: take_ti(),
+            stop_times: st_v,
+            ..Default::default()
+        };
         let result = analyze(&r, &empty_derived(), &default_config(), 20260514);
         assert!(result.notices.iter().any(|n| n.rule_id == "VAT_006"), "VAT_006 olmalı");
     }
@@ -12965,17 +13090,17 @@ mod tests {
     fn shared_terminus_no_transfer_produces_vat_007() {
         // 3 hat HUB'da başlıyor VE ~200 m ötedeki HUB2'den HUB'da olmayan bir hat (R4)
         // geçiyor → gerçek duraklar-arası aktarma boşluğu → VAT_007.
-        let mut r = crate::k2::EntityRecords::default();
-        r.stops = vec![
-            stop("HUB", 41.0, 29.0),
-            stop("HUB2", 41.0018, 29.0),
-            stop("A", 41.1, 29.0), stop("B", 41.0, 29.1), stop("C", 41.0, 28.9),
-            stop("D", 41.2, 29.2),
-        ];
-        r.routes = (1..=4).map(|i| route(&format!("R{i}"), 3)).collect();
-        r.trips = (1..=4).map(|i| trip(&format!("T{i}"), &format!("R{i}"))).collect();
-        r.trip_interns = take_ti();
-        r.stop_times = vec![
+        let r = crate::k2::EntityRecords {
+            stops: vec![
+                stop("HUB", 41.0, 29.0),
+                stop("HUB2", 41.0018, 29.0),
+                stop("A", 41.1, 29.0), stop("B", 41.0, 29.1), stop("C", 41.0, 28.9),
+                stop("D", 41.2, 29.2),
+            ],
+            routes: (1..=4).map(|i| route(&format!("R{i}"), 3)).collect(),
+            trips: (1..=4).map(|i| trip(&format!("T{i}"), &format!("R{i}"))).collect(),
+            trip_interns: take_ti(),
+            stop_times: vec![
             stoptime("T1", 1, "HUB", (8,0,0), (8,0,0), 2),
             stoptime("T1", 2, "A",   (8,10,0), (8,10,0), 3),
             stoptime("T2", 1, "HUB", (8,0,0), (8,0,0), 2),
@@ -12985,7 +13110,9 @@ mod tests {
             // R4 yalnız komşu HUB2'den geçiyor.
             stoptime("T4", 1, "HUB2", (9,0,0), (9,0,0), 4),
             stoptime("T4", 2, "D",    (9,10,0), (9,10,0), 5),
-        ];
+            ],
+            ..Default::default()
+        };
         // transfers boş
         let result = analyze(&r, &empty_derived(), &default_config(), 20260514);
         assert!(result.notices.iter().any(|n| n.rule_id == "VAT_007"), "VAT_007 olmalı");
@@ -12994,22 +13121,24 @@ mod tests {
     /// Terminusta bütün hatlar aynı stop_id'yi kullanıyorsa aktarma örtüktür → susar.
     #[test]
     fn vat_007_silent_when_terminus_routes_share_one_stop_id() {
-        let mut r = crate::k2::EntityRecords::default();
-        r.stops = vec![
-            stop("GAR", 41.0, 29.0),
-            stop("A", 41.1, 29.0), stop("B", 41.0, 29.1), stop("C", 41.0, 28.9),
-        ];
-        r.routes = (1..=3).map(|i| route(&format!("R{i}"), 2)).collect();
-        r.trips = (1..=3).map(|i| trip(&format!("T{i}"), &format!("R{i}"))).collect();
-        r.trip_interns = take_ti();
-        r.stop_times = vec![
+        let r = crate::k2::EntityRecords {
+            stops: vec![
+                stop("GAR", 41.0, 29.0),
+                stop("A", 41.1, 29.0), stop("B", 41.0, 29.1), stop("C", 41.0, 28.9),
+            ],
+            routes: (1..=3).map(|i| route(&format!("R{i}"), 2)).collect(),
+            trips: (1..=3).map(|i| trip(&format!("T{i}"), &format!("R{i}"))).collect(),
+            trip_interns: take_ti(),
+            stop_times: vec![
             stoptime("T1", 1, "GAR", (8,0,0), (8,0,0), 2),
             stoptime("T1", 2, "A",   (8,10,0), (8,10,0), 3),
             stoptime("T2", 1, "GAR", (8,0,0), (8,0,0), 2),
             stoptime("T2", 2, "B",   (8,10,0), (8,10,0), 3),
             stoptime("T3", 1, "GAR", (8,0,0), (8,0,0), 2),
             stoptime("T3", 2, "C",   (8,10,0), (8,10,0), 3),
-        ];
+            ],
+            ..Default::default()
+        };
         let result = analyze(&r, &empty_derived(), &default_config(), 20260514);
         assert!(
             !result.notices.iter().any(|n| n.rule_id == "VAT_007"),
