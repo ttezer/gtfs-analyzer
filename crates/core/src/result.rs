@@ -54,8 +54,28 @@ pub struct ValidationResult {
 /// Kontratlar:
 /// - `Ok`    → pipeline tamamlandı; notices boş olabilir (temiz feed)
 /// - `Fatal` → pipeline tamamen durdu; UI "feed açılamadı" gösterir
+// `large_enum_variant` burada bilinçli olarak kabul edilir. Ölçüm: `ValidationResult`
+// 704 bayt, `FatalError` 32 bayt ve enum 704 bayt; yayılım farkı 672 bayttır. Bu değer
+// notice başına değil, `pipeline::validate_bytes`/WASM `run_full_pipeline` çağrısı başına
+// bir kez oluşur. Yapının büyük kısmı Vec/BTreeMap gibi heap başlıklarıdır; boxing 672
+// baytlık stack/layout tasarrufu karşılığında her başarılı dönüşte ek allocation getirir.
+// CLI ayrıca kendi flat JSON envelope'unu kullanır; WASM sınırındaki externally-tagged
+// serde sözleşmesini lint temizliği uğruna değiştirmemek gerekir.
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug, Serialize, Deserialize)]
 pub enum ValidateResult {
     Ok(ValidationResult),
     Fatal(FatalError),
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn validate_result_layout_measurement() {
+        assert_eq!(std::mem::size_of::<ValidationResult>(), 704);
+        assert_eq!(std::mem::size_of::<FatalError>(), 32);
+        assert_eq!(std::mem::size_of::<ValidateResult>(), 704);
+    }
 }
