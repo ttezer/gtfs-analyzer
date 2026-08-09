@@ -573,11 +573,13 @@ pub fn validate_shapes(file: &RawFile, zip_bytes: Option<&[u8]>) -> (Vec<ShapePo
 
     // DQ_016: DOSYA başına TEK özet (satır-başına değil — patlama önlemi).
     if let Some((observed, msg, cols)) = dq016.summary(&file.name) {
-        notices.push(make_k2_notice(
+        let mut n = make_k2_notice(
             &mut counter, "DQ_016", EntityType::File, Some(file.name.clone()),
             None, &file.name, dq016.first_line, Some(cols.as_str()),
             Some(observed), None, msg, crate::k1_parse::DQ016_REMEDIATION,
-        ));
+        );
+        n.details = dq016.evidence_details();
+        notices.push(n);
     }
 
     (records, intern, notices)
@@ -729,4 +731,3 @@ mod tests {
         );
     }
 }
-

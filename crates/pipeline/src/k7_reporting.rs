@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use rustc_hash::FxHashSet;
 
 use gtfs_core::{
@@ -29,6 +29,10 @@ pub fn report(
     already_deduped: bool,
 ) -> K7Result {
     use crate::timing::Timer;
+    let all_notices      = {
+        let _t = Timer::start("K7::suppress_whitespace_derivatives");
+        suppress_whitespace_derivatives(all_notices, records)
+    };
     let all_notices      = { let _t = Timer::start("K7::fill_service_ids"); fill_service_ids(all_notices, records) };
     let mut notices      = if already_deduped {
         all_notices
@@ -50,6 +54,161 @@ pub fn report(
     let mut metrics      = { let _t = Timer::start("K7::build_metrics");    build_metrics(&notices, records, derived, file_stats) };
     metrics.overall_score = reports.r5.score;
     K7Result { notices, reports, metrics }
+}
+
+/// DQ_016 kök bulgusunu koruyup, yalnızca ham değerin çevresindeki boşluk nedeniyle oluşan
+/// tip/FK semptomlarını rapor dışına alır. K2 hâlâ ham değeri parse eder; hiçbir PK/FK değeri
+/// burada veya daha erken normalleştirilmez. Kök bulguya sayısal ve kural bazlı audit özeti
+/// yazılır; böylece varsayılan rapor küçük kalırken strict/audit tüketicisi neyin bastırıldığını
+/// görebilir.
+fn suppress_whitespace_derivatives(
+    mut notices: Vec<Notice>,
+    records: &EntityRecords,
+) -> Vec<Notice> {
+    let references = WhitespaceReferences::from_records(records);
+    let mut suppressed: BTreeMap<String, (u64, BTreeSet<String>)> = BTreeMap::new();
+    notices.retain(|notice| {
+        if !is_whitespace_derivative(notice, &references) {
+            return true;
+        }
+        let file = notice.file.clone().unwrap_or_else(|| "<feed>".to_string());
+        let entry = suppressed.entry(file).or_default();
+        entry.0 += 1;
+        entry.1.insert(notice.rule_id.clone());
+        false
+    });
+
+    for root in notices.iter_mut().filter(|n| n.rule_id == "DQ_016") {
+        let Some(file) = root.file.as_deref() else { continue };
+        let Some((count, rules)) = suppressed.get(file) else { continue };
+        let details = root.details.get_or_insert_with(BTreeMap::new);
+        details.insert("suppressed_derivative_count".to_string(), count.to_string());
+        details.insert(
+            "suppressed_derivative_rules".to_string(),
+            rules.iter().cloned().collect::<Vec<_>>().join(", "),
+        );
+    }
+    notices
+}
+
+fn is_whitespace_derivative(notice: &Notice, references: &WhitespaceReferences<'_>) -> bool {
+    let marked = notice.details.as_ref()
+        .and_then(|d| d.get("whitespace_derived"))
+        .is_some_and(|v| v == "true");
+    if marked {
+        return true;
+    }
+
+    // stop_times/shapes streaming yolu RowMap kurmadığı için K2 ortak helper'ı işaret
+    // koyamaz; bu yolda parser hata mesajı + ham gözlenen değer aynı kanıtı taşır.
+    let streaming_k2_parse = notice.id.starts_with("k2/")
+        && notice.observed_value.as_deref().is_some_and(has_surrounding_whitespace)
+        && is_streaming_parser_rejection(&notice.message);
+    if streaming_k2_parse {
+        return true;
+    }
+
+    // K4 yalnızca hedefte bulunmayan ham ID'yi raporlar. Aynı ID'nin trim edilmiş biçimi
+    // hedef kümede varsa, bu tam olarak whitespace kaynaklı bir FK semptomudur; gerçekten
+    // bilinmeyen "  UNKNOWN " değerleri görünür kalır.
+    let candidate = notice.details.as_ref()
+        .and_then(|d| d.get("whitespace_candidate"))
+        .is_some_and(|v| v == "true");
+    candidate && normalized_reference_exists(notice, references)
+}
+
+fn has_surrounding_whitespace(value: &str) -> bool {
+    !value.is_empty() && value != value.trim()
+}
+
+fn is_streaming_parser_rejection(message: &str) -> bool {
+    message.contains("bekleniyor, alınan:")
+        || message.contains("sayı olarak okunamıyor")
+        || message.contains("ondalık sayı olarak okunamıyor")
+}
+
+fn normalized_reference_exists(notice: &Notice, references: &WhitespaceReferences<'_>) -> bool {
+    let Some(field) = notice.field.as_deref() else { return false };
+    let Some(observed) = notice.observed_value.as_deref() else { return false };
+    field.split('|')
+        .zip(observed.split('|'))
+        .any(|(field, value)| {
+            let value = value.trim();
+            !value.is_empty() && references.contains(field, value)
+        })
+}
+
+struct WhitespaceReferences<'a> {
+    agency_id: FxHashSet<&'a str>,
+    stop_id: FxHashSet<&'a str>,
+    route_id: FxHashSet<&'a str>,
+    trip_id: FxHashSet<&'a str>,
+    service_id: FxHashSet<&'a str>,
+    fare_id: FxHashSet<&'a str>,
+    area_id: FxHashSet<&'a str>,
+    fare_product_id: FxHashSet<&'a str>,
+    fare_media_id: FxHashSet<&'a str>,
+    rider_category_id: FxHashSet<&'a str>,
+    network_id: FxHashSet<&'a str>,
+    shape_id: FxHashSet<&'a str>,
+    zone_id: FxHashSet<&'a str>,
+}
+
+impl<'a> WhitespaceReferences<'a> {
+    fn from_records(records: &'a EntityRecords) -> Self {
+        let mut refs = Self {
+            agency_id: FxHashSet::default(),
+            stop_id: FxHashSet::default(),
+            route_id: FxHashSet::default(),
+            trip_id: FxHashSet::default(),
+            service_id: FxHashSet::default(),
+            fare_id: FxHashSet::default(),
+            area_id: FxHashSet::default(),
+            fare_product_id: FxHashSet::default(),
+            fare_media_id: FxHashSet::default(),
+            rider_category_id: FxHashSet::default(),
+            network_id: FxHashSet::default(),
+            shape_id: FxHashSet::default(),
+            zone_id: FxHashSet::default(),
+        };
+        refs.agency_id.extend(records.agencies.iter().filter_map(|r| r.agency_id.as_deref()));
+        refs.stop_id.extend(records.stops.iter().map(|r| r.stop_id.as_str()));
+        refs.route_id.extend(records.routes.iter().map(|r| r.route_id.as_str()));
+        refs.trip_id.extend(records.trips.iter().map(|r| r.trip_id.as_str()));
+        refs.service_id.extend(records.calendars.iter().map(|r| r.service_id.as_str()));
+        refs.service_id.extend(records.trip_interns.service_ids.iter().map(|v| v.as_str()));
+        refs.fare_id.extend(records.fare_attributes.iter().map(|r| r.fare_id.as_str()));
+        refs.fare_id.extend(records.fare_rules.iter().map(|r| r.fare_id.as_str()));
+        refs.area_id.extend(records.areas.iter().map(|r| r.area_id.as_str()));
+        refs.fare_product_id.extend(records.fare_products.iter().map(|r| r.fare_product_id.as_str()));
+        refs.fare_media_id.extend(records.fare_media.iter().map(|r| r.fare_media_id.as_str()));
+        refs.rider_category_id.extend(records.rider_categories.iter().map(|r| r.rider_category_id.as_str()));
+        refs.network_id.extend(records.networks.iter().map(|r| r.network_id.as_str()));
+        refs.shape_id.extend(records.trips.iter().filter_map(|r| records.trip_interns.shape_id(r)));
+        refs.shape_id.extend(records.shapes.iter().map(|r| records.shape_interns.id(r)));
+        refs.zone_id.extend(records.stops.iter()
+            .filter_map(|r| r.row.get("zone_id").map(String::as_str)));
+        refs
+    }
+
+    fn contains(&self, field: &str, value: &str) -> bool {
+        match field {
+            "agency_id" => self.agency_id.contains(value),
+            "stop_id" => self.stop_id.contains(value),
+            "route_id" => self.route_id.contains(value),
+            "trip_id" => self.trip_id.contains(value),
+            "service_id" => self.service_id.contains(value),
+            "fare_id" => self.fare_id.contains(value),
+            "area_id" => self.area_id.contains(value),
+            "fare_product_id" => self.fare_product_id.contains(value),
+            "fare_media_id" => self.fare_media_id.contains(value),
+            "rider_category_id" => self.rider_category_id.contains(value),
+            "network_id" => self.network_id.contains(value),
+            "shape_id" => self.shape_id.contains(value),
+            "zone_id" | "origin_id" | "destination_id" | "contains_id" => self.zone_id.contains(value),
+            _ => false,
+        }
+    }
 }
 
 // ── Çalışma takvimi (service_id) doldurma ─────────────────────────────────────

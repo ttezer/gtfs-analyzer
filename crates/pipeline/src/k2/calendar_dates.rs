@@ -93,9 +93,11 @@ pub fn validate_calendar_dates(
     let cols = Cols::from_headers(&file.headers);
     let has_service_id_col     = file.headers.iter().any(|h| h == "service_id");
     let has_exception_type_col = file.headers.iter().any(|h| h == "exception_type");
+    let mut dq016 = crate::k1_parse::Dq016Acc::default();
 
     let mut process = |row: &[Cow<'_, str>], line: u64| {
         index.raw_row_count += 1;
+        dq016.observe(line, row.iter().map(|value| value.as_ref()), &file.headers);
         let raw_sid = get_col_raw(row, cols.service_id);
         let service_id: SmolStr = if raw_sid.is_empty() {
             SmolStr::default()
@@ -328,6 +330,17 @@ pub fn validate_calendar_dates(
     // yansıtmalı. Aynı (service_id, date) duplicate'leri binary_search'ü bozmaz.
     for v in index.added.values_mut()   { v.sort_unstable(); }
     for v in index.removed.values_mut() { v.sort_unstable(); }
+
+    // DQ_016: stream edilen calendar_dates.txt için DOSYA başına tek kök özet.
+    if let Some((observed, msg, cols)) = dq016.summary(&file.name) {
+        let mut n = make_k2_notice(
+            &mut counter, "DQ_016", EntityType::File, Some(file.name.clone()),
+            None, &file.name, dq016.first_line, Some(cols.as_str()),
+            Some(observed), None, msg, crate::k1_parse::DQ016_REMEDIATION,
+        );
+        n.details = dq016.evidence_details();
+        notices.push(n);
+    }
 
     // ARC_013: akış gövdesinde kapanmamış tırnak (issue #84) — DOSYA başına tek notice.
     if scan.unclosed || zip_unclosed {

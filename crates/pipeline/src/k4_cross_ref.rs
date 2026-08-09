@@ -303,11 +303,21 @@ fn notice(
     message: String,
     remediation: &str,
 ) -> Notice {
-    crate::notice_factory::build(
+    let whitespace_candidate = observed.as_deref().is_some_and(|value| {
+        value.split('|').any(|part| !part.is_empty() && part != part.trim())
+    });
+    let mut notice = crate::notice_factory::build(
         "K4", Some("k4"), ctr, rule_id, entity_type, entity_id, scope_key,
         Some(file.to_string()), line, field.map(str::to_string),
         observed, expected, message, remediation,
-    )
+    );
+    if whitespace_candidate {
+        notice.details = Some([(
+            "whitespace_candidate".to_string(),
+            "true".to_string(),
+        )].into_iter().collect());
+    }
+    notice
 }
 
 // �"?�"? Yardımcı: ham row alanı �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?

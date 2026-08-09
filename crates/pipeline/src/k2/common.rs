@@ -862,11 +862,91 @@ pub fn make_k2_notice(
         .and_then(|r| derive_scope_key(r, meta.scope_key_field))
         .or_else(|| entity_id.clone());
 
-    crate::notice_factory::build(
+    let whitespace_derived = row.zip(field).is_some_and(|(r, f)| {
+        whitespace_parser_derivative(rule_id, r, f, observed_value.as_deref(), &message)
+    });
+    let mut notice = crate::notice_factory::build(
         "K2", Some("k2"), counter, rule_id, entity_type, entity_id, scope_key,
         Some(file.to_string()), line, field.map(str::to_string),
         observed_value, expected_value, message, remediation,
-    )
+    );
+    if whitespace_derived {
+        notice.details = Some([(
+            "whitespace_derived".to_string(),
+            "true".to_string(),
+        )].into_iter().collect());
+    }
+    notice
+}
+
+/// Bir K2 tip/enum notice'ının, ham değerin çevresindeki boşluk yüzünden parse edilemediğini
+/// tanır. İçerik hataları ("abc" gibi) bu kapıdan geçmez; böylece aynı satırdaki bağımsız
+/// semantic ihlaller korunur. field bileşik anahtarlarda (a|b) da desteklenir.
+fn whitespace_parser_derivative(
+    rule_id: &str,
+    row: &RowMap,
+    field: &str,
+    observed: Option<&str>,
+    message: &str,
+) -> bool {
+    let parser_error = message.contains("bekleniyor, alınan:")
+        || message.contains("sayı olarak okunamıyor")
+        || message.contains("ondalık sayı olarak okunamıyor")
+        || message.contains("geçersiz.");
+    if !parser_error {
+        return false;
+    }
+    field.split('|').any(|name| {
+        let Some(raw) = row.get(name).map(String::as_str) else { return false };
+        let trimmed = raw.trim();
+        !trimmed.is_empty()
+            && raw != trimmed
+            && observed.is_some_and(|value| value == raw || value == trimmed)
+            && trimmed_value_is_semantically_valid(rule_id, name, trimmed)
+    })
+}
+
+/// Ham değerin trim edilmiş biçimi de bağımsız bir aralık/enum ihlali taşıyorsa, yalnızca
+/// whitespace köküne indirgenemez. Bu küçük alan tablosu özellikle 91.0 gibi değerleri
+/// korur; tanınmayan alanlar için parse başarısı yeterli kök kanıtıdır.
+fn trimmed_value_is_semantically_valid(rule_id: &str, field: &str, value: &str) -> bool {
+    if field.ends_with("_lat") {
+        return value.parse::<f64>().is_ok_and(|v| v.is_finite() && (-90.0..=90.0).contains(&v));
+    }
+    if field.ends_with("_lon") {
+        return value.parse::<f64>().is_ok_and(|v| v.is_finite() && (-180.0..=180.0).contains(&v));
+    }
+    if matches!(field, "price" | "amount" | "max_slope" | "level_index") {
+        return value.parse::<f64>().is_ok_and(|v| v.is_finite() && v >= 0.0);
+    }
+    if field == "route_type" {
+        return value.parse::<u32>().is_ok_and(|v| matches!(v, 0..=7 | 11 | 12));
+    }
+    if field == "location_type" {
+        return value.parse::<u32>().is_ok_and(|v| v <= 4);
+    }
+    if field == "wheelchair_boarding" || field == "wheelchair_accessible"
+        || field == "bikes_allowed" || field == "cars_allowed"
+    {
+        return value.parse::<u32>().is_ok_and(|v| v <= 2);
+    }
+    if field == "payment_method" {
+        return value.parse::<u32>().is_ok_and(|v| v <= 1);
+    }
+    if field == "transfers" {
+        return value.parse::<u32>().is_ok_and(|v| v <= 2);
+    }
+    if field == "transfer_type" {
+        return value.parse::<u32>().is_ok_and(|v| v <= 5);
+    }
+    if field == "stop_access" {
+        return value.parse::<u32>().is_ok_and(|v| v <= 2);
+    }
+    // Rule-specific custom parser messages still need a conservative guard.
+    if rule_id == "RTS_004" {
+        return value.parse::<u32>().is_ok_and(|v| matches!(v, 0..=7 | 11 | 12));
+    }
+    true
 }
 
 #[cfg(test)]

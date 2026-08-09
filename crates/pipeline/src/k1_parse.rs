@@ -449,11 +449,11 @@ fn arc009_critical(filename: &str) -> bool {
     REQUIRED_FILES.contains(&filename) || CALENDAR_FILES.contains(&filename)
 }
 
-/// DQ_016: baştaki/sondaki boşluk yalnız STRING/metin alanlarında anlamlıdır (isim, id, url,
-/// desc, kod) — join'i kırar ya da görünür. Zaman/tarih/sayı/koordinat/sequence/enum alanlarında
-/// boşluk parser'ca tolere edilir ve zararsızdır; MobilityData da bu tipli alanları işaretlemez
-/// (ör. mdb-2 arrival_time ' 6:04:00' → MD 0, bizde 65.747 over-fire idi). Tipli sütunları muaf tut.
-/// DQ_016 dosya-seviyesi toplayıcı: boşluklu satır sayısı + etkilenen sütun kümesi.
+/// DQ_016: baştaki/sondaki boşluk **ham sözlükbilimsel ihlaldir**. Bu, yalnız string/id
+/// alanları için değil, sayısal, enum, tarih ve saat alanları için de geçerlidir: parser'ın
+/// boşluğu tolere etmesi üretici girdisini değiştirmez. Tipli kontroller ham değeri görmeye
+/// devam eder; aşağı akıştaki yalnızca bu kök nedenden doğan bulgular K7'de bastırılır.
+/// DQ_016 dosya-seviyesi toplayıcı: boşluklu satır sayısı + etkilenen sütun kümesi + ham örnek.
 ///
 /// **Neden özet, satır-başına değil:** baş/son boşluk tek bir ÜRETİCİ ALIŞKANLIĞIDIR
 /// (en sık: ayraç olarak `,` yerine `, ` yazmak) → dosyanın HER satırında çıkar.
@@ -466,6 +466,7 @@ fn arc009_critical(filename: &str) -> bool {
 pub(crate) struct Dq016Acc {
     pub rows: u64,
     pub cols: std::collections::BTreeSet<String>,
+    pub samples: std::collections::BTreeMap<String, String>,
     pub first_line: Option<u64>,
     last_line: u64,
 }
@@ -483,9 +484,6 @@ impl Dq016Acc {
                 continue;
             }
             let Some(name) = headers.get(i).map(|h| h.as_str()) else { continue };
-            if dq016_is_typed_column(name) {
-                continue;
-            }
             if self.last_line != line || self.rows == 0 {
                 self.last_line = line;
                 self.rows += 1;
@@ -494,6 +492,7 @@ impl Dq016Acc {
                 }
             }
             self.cols.insert(name.to_string());
+            self.samples.entry(name.to_string()).or_insert_with(|| s.to_string());
         }
     }
 
@@ -504,6 +503,9 @@ impl Dq016Acc {
     pub(crate) fn merge(&mut self, other: Dq016Acc) {
         self.rows += other.rows;
         self.cols.extend(other.cols);
+        for (field, sample) in other.samples {
+            self.samples.entry(field).or_insert(sample);
+        }
         self.first_line = match (self.first_line, other.first_line) {
             (Some(a), Some(b)) => Some(a.min(b)),
             (a, b) => a.or(b),
@@ -524,6 +526,22 @@ impl Dq016Acc {
             ),
             cols,
         ))
+    }
+
+    /// DQ_016 kök bulgusuna ham değer kanıtı ekler. JSON'da boşluklar görünür kalır;
+    /// hiçbir değer trim edilmez veya kimlik olarak yeniden kullanılmaz.
+    pub(crate) fn evidence_details(&self) -> Option<std::collections::BTreeMap<String, String>> {
+        if self.samples.is_empty() {
+            return None;
+        }
+        let samples = self.samples.iter()
+            .map(|(field, value)| format!("{field}={value:?}"))
+            .collect::<Vec<_>>()
+            .join("; ");
+        Some([
+            ("raw_samples".to_string(), samples),
+            ("affected_rows".to_string(), self.rows.to_string()),
+        ].into_iter().collect())
     }
 }
 
@@ -820,21 +838,6 @@ pub(crate) fn arc021_message(file_name: &str, cp: u32) -> String {
 
 pub(crate) const ARC021_REMEDIATION: &str =
     "Alan değerlerindeki kontrol/yazdırılamaz karakterleri kaldırın; geçerli Unicode harfler (ü, ö, 漢字 vb.) sorun değildir.";
-
-pub(crate) fn dq016_is_typed_column(name: &str) -> bool {
-    if name.ends_with("_time") || name.ends_with("_date") || name.ends_with("_sequence")
-        || name.ends_with("_lat") || name.ends_with("_lon") || name.ends_with("_secs")
-    {
-        return true;
-    }
-    matches!(name,
-        "route_type" | "location_type" | "direction_id" | "wheelchair_boarding"
-        | "wheelchair_accessible" | "bikes_allowed" | "cars_allowed" | "pickup_type"
-        | "drop_off_type" | "continuous_pickup" | "continuous_drop_off" | "timepoint"
-        | "shape_dist_traveled" | "exception_type" | "payment_method" | "transfers"
-        | "transfer_type" | "exact_times" | "is_bidirectional" | "stop_sequence"
-    )
-}
 
 /// GTFS spesifikasyonunda tanımlı sütun adları (ARC_017).
 fn known_columns(filename: &str) -> &'static [&'static str] {
@@ -1548,12 +1551,14 @@ pub fn parse(zip_bytes: &[u8], cfg: &ValidatorConfig) -> Result<K1Result, FatalE
 
         // DQ_016: DOSYA başına TEK özet (satır-başına DEĞİL — patlama önlemi, STM_050 deseni).
         if let Some((observed, msg, cols)) = dq016.summary(&raw_name) {
-            notices.push(make_notice(
+            let mut n = make_notice(
                 &mut counter, "DQ_016",
                 EntityType::File, Some(raw_name.clone()),
                 Some(raw_name.as_str()), dq016.first_line, Some(cols.as_str()),
                 Some(observed), msg, DQ016_REMEDIATION,
-            ));
+            );
+            n.details = dq016.evidence_details();
+            notices.push(n);
         }
 
         // ARC_032: DOSYA başına TEK özet (DQ_016 ile aynı patlama önlemi).
@@ -2785,14 +2790,14 @@ mod tests {
     }
 
     #[test]
-    fn dq016_skips_typed_fields_flags_text() {
-        // Zaman alanında baştaki boşluk (' 8:00:00') TİPLİ → DQ_016 YOK; route_long_name'de
-        // sondaki boşluk ('Main Line ') METİN → DQ_016 VAR. MD ile hizalı (mdb-2 arrival_time
-        // over-fire fix: 65.747 → ~0).
+    fn dq016_flags_typed_and_text_fields_with_raw_evidence() {
+        // DQ_016 artık parser'ın toleransından bağımsız olarak ham sözlükbilimsel ihlali
+        // bildirir: zaman alanındaki boşluk da kök bulgudur. Tipli parse/FK semptomları
+        // daha sonra K7'de kök bulguya bağlanır.
         let zip = zip_with_files(&[
             ("agency.txt",     b"agency_id,agency_name,agency_url,agency_timezone\n1,Test,http://x.com,UTC\n"),
             ("stops.txt",      b"stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\n"),
-            ("routes.txt",     b"route_id,agency_id,route_short_name,route_long_name,route_type\nR1,1,101,Main Line ,3\n"),
+            ("routes.txt",     b"route_id,agency_id,route_short_name,route_long_name,route_type\nR1,1,101,Main Line , 3\n"),
             ("trips.txt",      b"route_id,service_id,trip_id\nR1,SVC1,T1\n"),
             ("stop_times.txt", b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1, 8:00:00, 8:00:00,S1,1\n"),
             ("calendar.txt",   b"service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,0,0,20240101,20241231\n"),
@@ -2802,9 +2807,15 @@ mod tests {
         assert!(dq016.iter().any(|n| n.message.contains("route_long_name")),
             "route_long_name sondaki boşluk → DQ_016 beklenir: {:?}",
             dq016.iter().map(|n| &n.message).collect::<Vec<_>>());
-        assert!(!dq016.iter().any(|n| n.message.contains("arrival_time") || n.message.contains("departure_time")),
-            "zaman alanı (tipli) baştaki boşluk DQ_016 ÜRETMEMELİ: {:?}",
+        assert!(dq016.iter().any(|n| n.message.contains("route_type")),
+            "tipli enum alanı da DQ_016 kök bulgusu olmalı: {:?}",
             dq016.iter().map(|n| &n.message).collect::<Vec<_>>());
+        let evidence = dq016.iter().find_map(|n| n.details.as_ref())
+            .and_then(|d| d.get("raw_samples"))
+            .cloned()
+            .unwrap_or_default();
+        assert!(evidence.contains("route_type=\" 3\""),
+            "ham tipli değer notice kanıtında korunmalı: {evidence}");
     }
 
     #[test]

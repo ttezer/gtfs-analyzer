@@ -2015,11 +2015,13 @@ pub fn validate_stop_times(file: &RawFile, zip_bytes: Option<&[u8]>, has_booking
 
     // DQ_016: DOSYA başına TEK özet (satır-başına değil — patlama önlemi).
     if let Some((observed, msg, cols)) = st.dq016.summary(&file.name) {
-        st.notices.push(make_k2_notice(
+        let mut n = make_k2_notice(
             &mut st.counter, "DQ_016", EntityType::File, Some(file.name.clone()),
             None, &file.name, st.dq016.first_line, Some(cols.as_str()),
             Some(observed), None, msg, crate::k1_parse::DQ016_REMEDIATION,
-        ));
+        );
+        n.details = st.dq016.evidence_details();
+        st.notices.push(n);
     }
 
     // STM_050: feed-seviyesi TEK özet (satır-başına değil — büyük feed OOM önlemi).

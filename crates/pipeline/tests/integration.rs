@@ -2625,6 +2625,75 @@ fn id85_whitespace_only_id_still_reports_the_required_field() {
     }
 }
 
+// ── issue #112: whitespace kökü, strict lexical semantik ve cascade kapısı ────
+
+#[test]
+fn whitespace112_keeps_root_and_independent_errors_but_suppresses_derivatives() {
+    let files = vec![
+        ("agency.txt", AGENCY),
+        // S1'in 91.0 enlemindeki aralık ihlali whitespace'ten bağımsızdır ve korunur;
+        // S2'nin 41.1 değeri ise yalnızca whitespace köküne indirgenebilir.
+        ("stops.txt", b"stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1, 91.0,181.0\nS2,Stop2, 41.1,29.1\n" as &[u8]),
+        // R1'in 99 değeri semantik olarak da geçersizdir; R2'nin 3 değeri yalnızca
+        // lexical whitespace taşır. İki bağımsız URL hatası ayrıca görünür kalır.
+        ("routes.txt", b"route_id,agency_id,route_short_name,route_type,route_url\n\
+          R1,1,101, 99,ftp://bad.example\nR2,1,102, 3,ftp://bad.example\n" as &[u8]),
+        ("trips.txt", TRIPS),
+        // " S1" ham FK değeridir. Kök bulgu kanıtı bu değeri korur; STM_002 ise
+        // yalnızca aynı kaydın trim edilmiş karşılığı stops.txt'te bulunduğu için türetilmiştir.
+        ("stop_times.txt", b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
+          T1,08:00:00,08:00:00,\" S1\",1\nT1,08:10:00,08:10:00,S2,2\n" as &[u8]),
+        ("calendar.txt", CALENDAR),
+    ];
+
+    match run(&files) {
+        ValidateResult::Ok(vr) => {
+            let routes_root = vr.notices.iter()
+                .find(|n| n.rule_id == "DQ_016" && n.file.as_deref() == Some("routes.txt"))
+                .expect("routes.txt için DQ_016 kök bulgusu");
+            let evidence = routes_root.details.as_ref()
+                .and_then(|d| d.get("raw_samples"))
+                .cloned()
+                .unwrap_or_default();
+            assert!(evidence.contains("route_type=\" 99\""),
+                "ham enum değeri korunmalı: {evidence}");
+            assert!(routes_root.details.as_ref()
+                .and_then(|d| d.get("suppressed_derivative_rules"))
+                .is_some_and(|rules| rules.contains("RTS_004")),
+                "typed route_type türevi audit özetinde görünmeli");
+            assert_eq!(vr.notices.iter().filter(|n| n.rule_id == "RTS_004").count(), 1,
+                "trim sonrası bağımsız geçersiz enum korunmalı, yalnız R2 türevi bastırılmalı");
+            assert!(vr.notices.iter().any(|n| n.rule_id == "RTS_005"),
+                "aynı route entity'deki bağımsız URL hatası korunmalı");
+
+            let stops_root = vr.notices.iter()
+                .find(|n| n.rule_id == "DQ_016" && n.file.as_deref() == Some("stops.txt"))
+                .expect("stops.txt için DQ_016 kök bulgusu");
+            assert!(stops_root.details.as_ref()
+                .and_then(|d| d.get("suppressed_derivative_rules"))
+                .is_some_and(|rules| rules.contains("STP_004")),
+                "numeric parse türevi audit özetinde görünmeli");
+            assert_eq!(vr.notices.iter().filter(|n| n.rule_id == "STP_004").count(), 1,
+                "trim sonrası bağımsız geçersiz enlem korunmalı, yalnız S2 türevi bastırılmalı");
+            assert!(vr.notices.iter().any(|n| n.rule_id == "STP_005"),
+                "aynı stop entity'deki bağımsız longitude aralık hatası korunmalı");
+
+            let stop_times_root = vr.notices.iter()
+                .find(|n| n.rule_id == "DQ_016" && n.file.as_deref() == Some("stop_times.txt"))
+                .expect("stop_times.txt için DQ_016 kök bulgusu");
+            let stm_details = stop_times_root.details.as_ref().expect("audit details");
+            assert!(stm_details.get("raw_samples").is_some_and(|v| v.contains("stop_id=\" S1\"")),
+                "ham PK/FK değeri kanıtta korunmalı");
+            assert!(stm_details.get("suppressed_derivative_rules")
+                .is_some_and(|rules| rules.contains("STM_002")),
+                "FK türevi audit özetinde görünmeli");
+            assert!(!vr.notices.iter().any(|n| n.rule_id == "STM_002"),
+                "trim edilmiş hedef mevcutsa FK semptomu bastırılmalı");
+        }
+        other => panic!("ValidateResult::Ok beklendi, alınan: {other:?}"),
+    }
+}
+
 // ── issue #84: akış dosyası GÖVDESİNDE kapanmamış tırnak ───────────────────────
 //
 // K1 bu dört dosyanın gövdesini hiç açmaz; K1'in gövde tarayıcısına giden dal ÖLÜYDÜ
