@@ -919,8 +919,23 @@ fn trimmed_value_is_semantically_valid(rule_id: &str, field: &str, value: &str) 
     if field.ends_with("_lon") {
         return value.parse::<f64>().is_ok_and(|v| v.is_finite() && (-180.0..=180.0).contains(&v));
     }
-    if matches!(field, "price" | "amount" | "max_slope" | "level_index") {
+    if matches!(field, "price" | "amount" | "length" | "max_slope" | "level_index") {
         return value.parse::<f64>().is_ok_and(|v| v.is_finite() && v >= 0.0);
+    }
+    if field == "min_width" {
+        return value.parse::<f64>().is_ok_and(|v| v.is_finite() && v > 0.0);
+    }
+    if field == "traversal_time" {
+        return value.parse::<u32>().is_ok_and(|v| v > 0);
+    }
+    if field == "pathway_mode" {
+        return value.parse::<u32>().is_ok_and(|v| (1..=7).contains(&v));
+    }
+    if field == "is_bidirectional" {
+        return value.parse::<u32>().is_ok_and(|v| v <= 1);
+    }
+    if field == "stair_count" {
+        return value.parse::<i32>().is_ok_and(|v| v != 0);
     }
     if field == "route_type" {
         return value.parse::<u32>().is_ok_and(|v| matches!(v, 0..=7 | 11 | 12));

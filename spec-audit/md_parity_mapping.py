@@ -55,6 +55,7 @@ class MappingResult:
     kind: str
     contexts: tuple[str, ...] = ()
     unresolved_samples: int = 0
+    context_complete: bool = True
 
     @property
     def is_contextual(self) -> bool:
@@ -112,6 +113,17 @@ def _sample_notices(notice: dict[str, Any] | None) -> list[dict[str, Any]]:
     return [sample for sample in samples if isinstance(sample, dict)]
 
 
+def _total_notices(notice: dict[str, Any] | None) -> int | None:
+    if not isinstance(notice, dict):
+        return None
+    value = notice.get("totalNotices", notice.get("total_notices"))
+    try:
+        total = int(value)
+    except (TypeError, ValueError):
+        return None
+    return total if total >= 0 else None
+
+
 def _ctx(
     code: str,
     *rules: str,
@@ -154,10 +166,28 @@ CONTEXT_MAPPINGS: tuple[ContextMapping, ...] = (
     _ctx("number_out_of_range", "STP_003", filename=("stops.txt",), fields=("stop_lat",), label="stops.txt::stop_lat"),
     _ctx("number_out_of_range", "STP_005", filename=("stops.txt",), fields=("stop_lon",), label="stops.txt::stop_lon"),
     _ctx("number_out_of_range", "RCT_004", filename=("rider_categories.txt",), fields=("min_age", "max_age"), label="rider_categories.txt::min_age/max_age"),
+    _ctx("number_out_of_range", "FRQ_008", filename=("frequencies.txt",), fields=("headway_secs",), value_range=(0, 0), label="frequencies.txt::headway_secs zero"),
+    # Generic notices are resolved by filename/field. A partial sample stays
+    # CONTEXT, so an unseen field cannot be presented as exact parity.
+    _ctx("invalid_integer", "TRP_005", filename=("trips.txt",), fields=("direction_id",), label="trips.txt::direction_id"),
+    _ctx("invalid_url", "AGN_003", filename=("agency.txt",), fields=("agency_url",), label="agency.txt::agency_url"),
+    _ctx("invalid_url", "RTS_005", filename=("routes.txt",), fields=("route_url",), label="routes.txt::route_url"),
+    _ctx("invalid_url", "FIN_002", filename=("feed_info.txt",), fields=("feed_publisher_url",), label="feed_info.txt::feed_publisher_url"),
+    _ctx("missing_required_field", "AGN_003", filename=("agency.txt",), fields=("agency_url",), label="agency.txt::agency_url"),
+    _ctx("missing_required_field", "FIN_002", filename=("feed_info.txt",), fields=("feed_publisher_url",), label="feed_info.txt::feed_publisher_url"),
+    _ctx("invalid_date", "FIN_005", filename=("feed_info.txt",), fields=("feed_start_date",), label="feed_info.txt::feed_start_date"),
+    _ctx("invalid_date", "FIN_006", filename=("feed_info.txt",), fields=("feed_end_date",), label="feed_info.txt::feed_end_date"),
+    _ctx("invalid_date", "CAL_003", filename=("calendar.txt",), fields=("start_date",), label="calendar.txt::start_date"),
+    _ctx("invalid_date", "CAL_004", filename=("calendar.txt",), fields=("end_date",), label="calendar.txt::end_date"),
+    _ctx("invalid_date", "CLD_002", filename=("calendar_dates.txt",), fields=("date",), label="calendar_dates.txt::date"),
+    _ctx("start_and_end_range_out_of_order", "CAL_005", filename=("calendar.txt",), label="calendar.txt::service range"),
+    _ctx("start_and_end_range_out_of_order", "FIN_012", filename=("feed_info.txt",), label="feed_info.txt::feed range"),
+    _ctx("start_and_end_range_out_of_order", "STM_007", filename=("stop_times.txt",), label="stop_times.txt::time range"),
     # missing_recommended_field
     _ctx("missing_recommended_field", "RTS_025", filename=("routes.txt",), fields=("agency_id",), label="routes.txt::agency_id"),
     _ctx("missing_recommended_field", "FIN_013", filename=("fare_attributes.txt",), fields=("agency_id",), label="fare_attributes.txt::agency_id"),
     _ctx("missing_recommended_field", "FIN_007", filename=("feed_info.txt",), fields=("feed_version",), label="feed_info.txt::feed_version"),
+    _ctx("missing_recommended_field", "FIN_014", filename=("feed_info.txt",), fields=("feed_start_date", "feed_end_date"), label="feed_info.txt::feed validity dates"),
 )
 
 
@@ -172,8 +202,44 @@ CONTEXT_BY_CODE = {code: tuple(entries) for code, entries in CONTEXT_BY_CODE.ite
 # rule (and therefore without being silently dropped from parity_md_only.csv).
 UNMAPPED_DECISIONS = {
     "fast_travel_between_far_stops": (
-        "coverage-gap",
+        "genuine-gap",
         "Analyzer has no rule for non-consecutive far-stop pairs; do not alias this to STM_012.",
+    ),
+    "trip_with_shape_dist_traveled_but_no_shape_distances": (
+        "deprecated-md-only",
+        "MobilityData marks this notice deprecated. It is the reverse inconsistency of STM_017 "
+        "(stop_times has distances while shapes lacks them), so STM_017 is not a safe alias.",
+    ),
+    "single_shape_point": (
+        "deprecated-md-only",
+        "MobilityData marks this notice deprecated; no Analyzer rule currently asserts that a "
+        "shape must contain more than one point.",
+    ),
+    "feed_expiration_date30_days": (
+        "genuine-gap",
+        "The MD notice is a feed_info-level 30-day horizon. CAL_008 is per-calendar-service and "
+        "FIN_019 is a 7-day feed warning, so neither is an exact counterpart.",
+    ),
+    "feed_valid_beyond_total_service_window": (
+        "deprecated-md-only",
+        "MobilityData marks this notice deprecated. Its containment direction is not an exact "
+        "counterpart of CAL_014/CAL_019, which check service windows against feed dates.",
+    ),
+    "start_and_end_range_equal": (
+        "deprecated-md-only",
+        "MobilityData marks this generic range notice deprecated; the Analyzer intentionally "
+        "does not alias the equal-range frequencies variant to FRQ_005.",
+    ),
+    "unused_trip": (
+        "intentional-difference",
+        "MobilityData means a trip is unreferenced by stop_times. TRP_017 is the separate "
+        "frequency-trip-without-stop-times check, so it is not an exact alias.",
+    ),
+    "missing_recommended_field": (
+        "context-dependent",
+        "This is a generic MD code. The known routes/fare/feed-version/feed-validity contexts "
+        "are mapped above; agency.txt agency_id is optional for a single standard GTFS agency "
+        "and therefore has no safe one-rule alias.",
     ),
 }
 
@@ -202,8 +268,13 @@ def resolve_mapping(
         return MappingResult(fallback, "static")
 
     samples = _sample_notices(notice)
+    total_notices = _total_notices(notice)
+    # sampleNotices is representative, not necessarily exhaustive.  If the
+    # aggregate is larger than the visible sample, a single observed field
+    # cannot safely explain the whole MD count.
+    context_complete = total_notices is None or total_notices <= len(samples)
     if not samples or not any(_filename(s) or _field(s) or _entity(s, _filename(s)) for s in samples):
-        return MappingResult(fallback, "fallback")
+        return MappingResult(fallback, "fallback", context_complete=context_complete and bool(samples))
 
     rules: list[str] = []
     labels: list[str] = []
@@ -225,9 +296,19 @@ def resolve_mapping(
     # golden snapshot cannot be apportioned to those fields safely.
     unique_rules = tuple(dict.fromkeys(rules))
     if not unique_rules:
-        return MappingResult((), "unresolved-context", (), unresolved or len(samples))
-    kind = "context-dependent" if len(labels) <= 1 and unresolved == 0 else "context-mixed"
-    return MappingResult(unique_rules, kind, tuple(labels), unresolved)
+        return MappingResult(
+            (),
+            "unresolved-context",
+            (),
+            unresolved or len(samples),
+            False,
+        )
+    kind = (
+        "context-dependent"
+        if len(labels) <= 1 and unresolved == 0 and context_complete
+        else "context-mixed"
+    )
+    return MappingResult(unique_rules, kind, tuple(labels), unresolved, context_complete)
 
 
 def context_rules() -> set[str]:

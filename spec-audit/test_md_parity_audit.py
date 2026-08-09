@@ -81,6 +81,67 @@ class ContextMappingFixtures(unittest.TestCase):
         self.assertEqual(result.analyzer_rules, ())
         self.assertEqual(result.kind, "unresolved-context")
 
+    def test_partial_samples_do_not_claim_exact_generic_parity(self):
+        result = mapping.resolve_mapping(
+            "unexpected_enum_value",
+            {
+                "totalNotices": 10,
+                "sampleNotices": [
+                    {"filename": "trips.txt", "fieldName": "direction_id", "fieldValue": "9"}
+                ],
+            },
+            audit.MAP["unexpected_enum_value"],
+        )
+        self.assertEqual(result.analyzer_rules, ("TRP_005",))
+        self.assertEqual(result.kind, "context-mixed")
+        self.assertFalse(result.context_complete)
+
+    def test_unmapped_corpus_headings_have_explicit_adjudication(self):
+        for code in [
+            "fast_travel_between_far_stops",
+            "trip_with_shape_dist_traveled_but_no_shape_distances",
+            "single_shape_point",
+            "feed_expiration_date30_days",
+            "feed_valid_beyond_total_service_window",
+            "start_and_end_range_equal",
+            "unused_trip",
+        ]:
+            with self.subTest(code=code):
+                classification, rationale = mapping.classify_unmapped(code)
+                self.assertNotEqual(classification, "unreviewed")
+                self.assertTrue(rationale)
+
+        self.assertEqual(audit.MAP["same_stop_and_agency_url"], ["STP_034"])
+        self.assertEqual(audit.MAP["same_stop_and_route_url"], ["STP_035"])
+        self.assertEqual(audit.MAP["feed_expiration_date7_days"], ["FIN_019"])
+        for code, rule in {
+            "invalid_row_length": "ARC_012",
+            "missing_required_file": "ARC_004",
+            "missing_calendar_and_calendar_date_files": "ARC_008",
+            "invalid_input_files_in_subfolder": "ARC_024",
+            "stop_time_with_arrival_before_previous_departure_time": "STM_008",
+            "stop_time_timepoint_without_times": "STM_047",
+            "overlapping_frequency": "FRQ_011",
+            "pathway_unreachable_location": "PTH_012",
+            "missing_feed_info_date": "FIN_014",
+            "more_than_one_entity": "FIN_015",
+        }.items():
+            with self.subTest(code=code):
+                self.assertIn(rule, audit.MAP[code])
+
+    def test_generic_context_mappings_do_not_collapse_to_one_rule(self):
+        fixtures = [
+            ("invalid_url", {"filename": "agency.txt", "fieldName": "agency_url"}, ("AGN_003",)),
+            ("invalid_url", {"filename": "routes.txt", "fieldName": "route_url"}, ("RTS_005",)),
+            ("invalid_date", {"filename": "calendar.txt", "fieldName": "end_date"}, ("CAL_004",)),
+            ("number_out_of_range", {"filename": "frequencies.txt", "fieldName": "headway_secs", "fieldValue": 0}, ("FRQ_008",)),
+        ]
+        for code, sample, expected in fixtures:
+            with self.subTest(code=code, sample=sample):
+                result = mapping.resolve_mapping(code, {"sampleNotices": [sample]}, audit.MAP[code])
+                self.assertEqual(result.analyzer_rules, expected)
+                self.assertEqual(result.kind, "context-dependent")
+
 
 class AuditFixture(unittest.TestCase):
     def test_fixture_run_keeps_context_and_aggregation_explicit(self):

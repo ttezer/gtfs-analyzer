@@ -37,6 +37,10 @@ MAP = {
     "missing_recommended_file": ["ARC_020"],
     "unknown_file":             ["ARC_007"],   # NOT: GTFS-JP agency_jp/office_jp → biz tanırız, MD bilmez
     "unknown_column":           ["ARC_017"],   # NOT: jp_* sütunları → biz tanırız
+    "invalid_row_length":        ["ARC_012"],
+    "missing_required_file":     ["ARC_004"],
+    "missing_calendar_and_calendar_date_files": ["ARC_008"],
+    "invalid_input_files_in_subfolder": ["ARC_024"],
     # ── Routes ──
     "duplicate_route_name":     ["RTS_019"],   # HEM short HEM long aynı. Tek-alan → RTS_026/027 (US-only, MD'de yok)
     "same_route_and_agency_url":["RTS_020"],
@@ -88,6 +92,9 @@ MAP = {
     "trip_coverage_not_active_for_next7_days": ["TRP_023"],
     "future_calendar":                ["CAL_017"],
     "future_feed":                    ["CAL_017"],
+    "feed_expiration_date7_days":     ["FIN_019"],
+    "same_stop_and_agency_url":       ["STP_034"],
+    "same_stop_and_route_url":        ["STP_035"],
     "platform_without_parent_station":["STP_032"],     # BİZ-TUTUCU: MD HER parentsiz lt=0 durağı INFO işaretler (mdb-981: 1632=tüm duraklar, gürültü). Biz yalnız pathway-bağlı platformu (STP_032) işaretleriz — standalone durak parentsiz NORMAL.
     # ── 20-feed 2. tur eşlemeleri (kuralımız VAR, MAP eksikti) ──
     "route_color_contrast":           ["RTS_008"],     # over: biz 132 vs MD 3 (kontrast eşiği farkı)
@@ -107,13 +114,28 @@ MAP = {
     "trip_distance_exceeds_shape_distance": ["SHP_025"],  # VAR ama by-design: SHP_025 eşiği >%0.1 (rounding tolere, SHP_029 felsefesi). mdb-1909: 170 aşımın 165'i <%0.1 rounding → biz 5 doğru, MD 170 hepsini basar.
     "trip_distance_exceeds_shape_distance_below_threshold": ["SHP_025"],
     # ── 2026-07-05 DELFI (mdb-3215, Almanya ulusal) taramasından: MAP eksikleri (kuralımız VAR) ──
-    "number_out_of_range":            ["PTH_007", "STP_003", "STP_005", "SHP_002", "SHP_003", "RCT_004"],  # Generic kod; alan bağlamı olmadan yalnız aday kümesi.
+    "number_out_of_range":            ["PTH_007", "STP_003", "STP_005", "SHP_002", "SHP_003", "RCT_004", "FRQ_008"],  # Generic kod; alan bağlamı olmadan yalnız aday kümesi.
 
     "inconsistent_route_type_for_block_id": ["TRP_024"],  # "Block içinde tutarsız rota tipi"
     "transfer_distance_above_2_km":   ["TRF_011"],   # "aktarma tanımlandı ama mesafe uzak" (MD INFO variant)
     "transfer_distance_too_large":    ["TRF_011"],   # aynı kural (MD WARNING variant)
     "pathway_loop":                   ["PTH_011"],   # from_stop_id==to_stop_id (k2/pathways.rs:91)
     "location_with_unexpected_stop_time": ["STP_012"],  # stop_times durağı location_type≠0 (k4_cross_ref.rs:536)
+    "pathway_unreachable_location":   ["PTH_012"],
+    "stop_without_zone_id":            ["STP_033"],
+    "point_near_origin":                ["GEO_016"],
+    "invalid_character":                ["ARC_021"],
+    "missing_feed_info_date":           ["FIN_014"],
+    "more_than_one_entity":             ["FIN_015"],
+    "overlapping_frequency":            ["FRQ_011"],
+    "stop_time_with_arrival_before_previous_departure_time": ["STM_008"],
+    "stop_time_timepoint_without_times": ["STM_047"],
+    "missing_pickup_drop_off_booking_rule_id": ["STM_059"],
+    "invalid_date":                     ["FIN_005", "FIN_006", "CAL_003", "CAL_004", "CLD_002"],
+    "invalid_integer":                  ["TRP_005"],
+    "invalid_url":                      ["AGN_003", "RTS_005", "FIN_002"],
+    "missing_required_field":           ["AGN_003", "FIN_002"],
+    "start_and_end_range_out_of_order": ["CAL_005", "FIN_012", "STM_007"],
     "unknown_file":                   ["ARC_007"],   # 2026-07-05 FIX: ARC_007 artık .txt-olmayan kök dosyaları da işaretler (.pdf/.out)
     # ── KAPSAM BOŞLUĞU: bilerek MAP'TE DEĞİL → MD-ONLY'de görünsün ──
     # `fast_travel_between_far_stops` (250-feed: 32 feed) KALDIRILDI 2026-07-17.
@@ -377,7 +399,9 @@ def main():
             # A single MD code can legitimately contain samples from multiple
             # fields.  The golden snapshot has no per-field count, so do not
             # turn that aggregate into a false OVER/UNDER claim.
-            if resolution.kind == "context-mixed" or resolution.unresolved_samples:
+            if (resolution.kind == "context-mixed"
+                    or resolution.unresolved_samples
+                    or not resolution.context_complete):
                 status = "CONTEXT"
             elif oc == 0 and mc > 0:
                 status = "AGG" if is_agg else "MISS"
@@ -399,7 +423,8 @@ def main():
             rows.append([feed, code, mc, notice.get("severity", ""), our_rule, oc,
                          our_sev, our_cls, "AGG" if is_agg else "", f"{ratio:.2f}",
                          status, samples_str(notice), resolution.kind,
-                         "|".join(resolution.contexts)])
+                         "|".join(resolution.contexts),
+                         "complete" if resolution.context_complete else "partial"])
 
         # US-ONLY: bizde ≥1, MAP'te MD karşılığı yok, sayı büyük
         for r, c in rc.items():
@@ -411,7 +436,7 @@ def main():
         w = csv.writer(f)
         w.writerow(["feed", "md_code", "md_count", "md_severity", "our_rule", "our_count",
                     "our_severity", "our_class", "agg", "ratio", "status", "md_samples",
-                    "mapping_kind", "mapping_context"])
+                    "mapping_kind", "mapping_context", "sample_context"])
         w.writerows(rows)
     with open(os.path.join(base, "parity_md_only.csv"), "w", newline="", encoding="utf-8") as f:
         w = csv.writer(f)
@@ -427,7 +452,7 @@ def main():
         w = csv.writer(f)
         w.writerow(["feed", "md_code", "md_count", "md_severity", "our_rule", "our_count",
                     "our_severity", "our_class", "agg", "ratio", "status", "md_samples",
-                    "mapping_kind", "mapping_context"])
+                    "mapping_kind", "mapping_context", "sample_context"])
         w.writerows(unexplained)
 
     explained = sum(1 for r in rows if r[10] == "EXPLAINED")

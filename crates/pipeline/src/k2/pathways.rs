@@ -59,6 +59,14 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
         let is_bidirectional = parse_enum_u32(
             &row_map, &mut notices, &mut counter, "PTH_005", "is_bidirectional", &["0","1"], &entity_id, line, &file.name
         );
+        // Strict raw parsing above deliberately keeps lexical whitespace visible. For
+        // cross-field semantics, a trim-valid value must still participate; otherwise a
+        // whitespace-derived parse failure could hide an independent PTH_016/PTH_028/PTH_008
+        // or PTH_009 finding.
+        let pathway_mode_semantic = get_trimmed_field(&row_map, "pathway_mode")
+            .and_then(|value| value.parse::<u32>().ok());
+        let is_bidirectional_semantic = get_trimmed_field(&row_map, "is_bidirectional")
+            .and_then(|value| value.parse::<u32>().ok());
         if get_trimmed_field(&row_map, "pathway_mode") == Some("") {
             notices.push(make_k2_notice(&mut counter, "PTH_023", EntityType::Pathway, entity_id.clone(), Some(&row_map), &file.name, Some(line), Some("pathway_mode"), Some(String::new()), None, "pathway_mode zorunludur.".to_string(), "pathway_mode değerini 1-7 arasında girin."));
         }
@@ -69,7 +77,7 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
         let length = parse_nonnegative_f64(
             &row_map, &mut notices, &mut counter, "PTH_006", "length", &entity_id, line, &file.name
         );
-        if matches!(pathway_mode, Some(1 | 6 | 7)) && length.is_none()
+        if matches!(pathway_mode_semantic, Some(1 | 6 | 7)) && length.is_none()
             && get_trimmed_field(&row_map, "length").is_none_or(str::is_empty)
         {
             pth025_count += 1;
@@ -81,7 +89,7 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
         // PTH_029: spec traversal_time'ı yürüyen bant (3), yürüyen merdiven (4) ve asansör (5)
         // için ÖNERİR. PTH_007 yukarıda değerin geçerliliğini ölçer; bu kural eksikliğini.
         // PTH_025 (length) ile birebir aynı desen — koşul yalnız pathway_mode kümesinde ayrılır.
-        if matches!(pathway_mode, Some(3..=5)) && traversal_time.is_none()
+        if matches!(pathway_mode_semantic, Some(3..=5)) && traversal_time.is_none()
             && get_trimmed_field(&row_map, "traversal_time").is_none_or(str::is_empty)
         {
             pth029_count += 1;
@@ -117,7 +125,7 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
             ));
         }
 
-        if matches!(pathway_mode, Some(7)) && matches!(is_bidirectional, Some(1)) {
+        if matches!(pathway_mode_semantic, Some(7)) && matches!(is_bidirectional_semantic, Some(1)) {
             notices.push(make_k2_notice(
                 &mut counter,
                 "PTH_016",
@@ -159,7 +167,7 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
         // PTH_028 (PTH_017'den ayrıldı): spec burada "should" der ve Presence sütunu düz
         // `Optional`'dır — gerçek yasaklarını 14 alanda `Conditionally Forbidden` yazarak
         // ifade eden bir belge, burada bilinçli olarak yazmamıştır. Tavsiye → Quality.
-        if max_slope.is_some() && !matches!(pathway_mode, Some(1 | 3)) {
+        if max_slope.is_some() && !matches!(pathway_mode_semantic, Some(1 | 3)) {
             notices.push(make_k2_notice(
                 &mut counter,
                 "PTH_028",
@@ -204,7 +212,7 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
         };
 
         // PTH_008: merdiven geçidinde stair_count belirtilmemiş — feed-seviyesi özetle (aşağıda tek emit)
-        if matches!(pathway_mode, Some(2)) && stair_count.is_none() {
+        if matches!(pathway_mode_semantic, Some(2)) && stair_count.is_none() {
             pth008_count += 1;
             if pth008_examples.len() < 5 {
                 if let Some(id) = &entity_id {
@@ -214,7 +222,7 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
         }
 
         // PTH_009: yürüme yolunda max_slope belirtilmemiş — feed-seviyesi özetle (aşağıda tek emit)
-        if matches!(pathway_mode, Some(1)) && max_slope.is_none() {
+        if matches!(pathway_mode_semantic, Some(1)) && max_slope.is_none() {
             let raw = get_trimmed_field(&row_map, "max_slope");
             if raw.map(|s| s.is_empty()).unwrap_or(true) {
                 pth009_count += 1;

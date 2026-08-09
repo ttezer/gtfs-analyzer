@@ -2698,6 +2698,46 @@ fn whitespace112_keeps_root_and_independent_errors_but_suppresses_derivatives() 
     }
 }
 
+#[test]
+fn whitespace112_pathway_semantics_survive_when_trimmed_value_is_invalid() {
+    let mut files = base_files();
+    files.push((
+        "pathways.txt",
+        b"pathway_id,from_stop_id,to_stop_id,pathway_mode,is_bidirectional,length,traversal_time,min_width,max_slope\n\
+          P1,S1,S2, 9,0,1,30,1\n\
+          P2,S1,S2,1, 9,1,30,1\n\
+          P3,S1,S2,1,0, -5,30,1\n\
+          P4,S1,S2,3,0,1, 0,1\n\
+          P5,S1,S2,1,0,1,30, 0\n\
+          P6,S1,S2, 3,0,1,30,1\n\
+          P7,S1,S2, 7, 1,1,30,1,\n" as &[u8],
+    ));
+
+    match run(&files) {
+        ValidateResult::Ok(vr) => {
+            assert!(has(&vr, "DQ_016"), "pathways.txt whitespace kök bulgusu korunmalı");
+            for rule in ["PTH_004", "PTH_005", "PTH_006", "PTH_007", "PTH_010"] {
+                assert_eq!(
+                    vr.notices.iter().filter(|n| n.rule_id == rule).count(),
+                    1,
+                    "{rule} bağımsız semantik hata olarak korunmalı"
+                );
+            }
+            assert_eq!(
+                vr.notices.iter().filter(|n| n.rule_id == "PTH_004").count(),
+                1,
+                "pathway_mode= 3 yalnızca DQ_016 türevi olmalı; PTH_004'e dönüşmemeli"
+            );
+            assert_eq!(
+                vr.notices.iter().filter(|n| n.rule_id == "PTH_016").count(),
+                1,
+                "trim sonrası geçerli ama birlikte yasak pathway değerleri korunmalı"
+            );
+        }
+        other => panic!("ValidateResult::Ok beklendi, alınan: {other:?}"),
+    }
+}
+
 // ── issue #84: akış dosyası GÖVDESİNDE kapanmamış tırnak ───────────────────────
 //
 // K1 bu dört dosyanın gövdesini hiç açmaz; K1'in gövde tarayıcısına giden dal ÖLÜYDÜ
