@@ -454,7 +454,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | RCT_003 | is_default_fare_category invalid | CRITICAL | Spec |
 | RCT_004 | min_age or max_age invalid (GTFS extension field — not in the official spec) | MEDIUM | Quality |
 | RCT_005 | max_age less than min_age | MEDIUM | Quality |
-| RCT_006 | Multiple default rider categories per fare_product | MEDIUM | Spec |
+| RCT_006 | fare_product does not have exactly one default rider category | MEDIUM | Spec |
 | RCT_007 | eligibility_url is invalid | LOW | Spec |
 | RCT_008 | rider_category_id is empty | CRITICAL | Spec |
 

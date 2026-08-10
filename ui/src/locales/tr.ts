@@ -946,7 +946,7 @@ const tr = {
     'RCT_003': 'is_default_fare_category geçersiz',
     'RCT_004': 'min_age veya max_age geçersiz (GTFS uzantı alanı — resmî spec\'te yok)',
     'RCT_005': "max_age min_age'den küçük",
-    'RCT_006': 'fare_product başına birden fazla varsayılan yolcu kategorisi',
+    'RCT_006': 'fare_product başına varsayılan yolcu kategorisi sayısı bir değil',
     // FMD
     'FMD_001': 'fare_media_id yineleniyor',
     'FMD_002': 'fare_media_type eksik veya geçersiz',

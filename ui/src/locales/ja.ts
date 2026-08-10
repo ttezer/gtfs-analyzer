@@ -891,7 +891,7 @@ const ja: LocaleShape = {
     'RCT_003': "乗客カテゴリ'{entity_id}'：is_default_fare_category'{observed_value}'が無効です。",
     'RCT_004': "乗客カテゴリ'{entity_id}'：min_ageまたはmax_ageが無効です。",
     'RCT_005': "乗客カテゴリ'{entity_id}'：max_ageがmin_ageより小さいです。",
-    'RCT_006': '同じfare_productに複数のデフォルト乗客カテゴリがあります。',
+    'RCT_006': 'fare_productごとのデフォルト乗客カテゴリ数が1件ではありません。',
     // FMD
     'FMD_001': "fare_media_idが重複しています：'{entity_id}'。",
     'FMD_002': "運賃メディア'{entity_id}'：fare_media_typeがないか無効です。",
@@ -1478,7 +1478,7 @@ const ja: LocaleShape = {
     'RCT_003': 'is_default_fare_categoryに0（デフォルトでない）または1（デフォルト）を使用してください。',
     'RCT_004': 'min_ageとmax_ageに非負の整数を入力してください。',
     'RCT_005': 'max_ageをmin_age以上に設定してください。',
-    'RCT_006': 'fare_productごとにis_default_fare_category=1を持つrider_categoryは1件のみにしてください。',
+    'RCT_006': '各fare_productで、is_default_fare_category=1の対象rider_categoryがちょうど1件になるようにしてください。',
     // RTS
     'RTS_001': '各路線レコードに一意のroute_idを割り当ててください。',
     'RTS_002': '有効なagency_idを使用してください。',
@@ -2122,7 +2122,7 @@ const ja: LocaleShape = {
     'RCT_003': 'is_default_fare_categoryが無効',
     'RCT_004': 'min_ageまたはmax_ageが無効（GTFS拡張フィールド — 公式仕様には存在しません）',
     'RCT_005': 'max_ageがmin_ageより小さい',
-    'RCT_006': '同一fare_productにデフォルトのrider_categoryが複数',
+    'RCT_006': 'fare_productのデフォルトrider_category数が1件ではない',
     // FMD
     'FMD_001': 'fare_media_idが重複',
     'FMD_002': 'fare_media_typeが不足または無効',

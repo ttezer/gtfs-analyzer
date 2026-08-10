@@ -2333,8 +2333,17 @@ fn check_fares_v2(
         }
     }
 
-    // RCT_006: fare_product başına birden fazla varsayılan (is_default_fare_category=1) rider_category
+    // RCT_006: bir fare_product için birden fazla uygun rider_category varsa tam olarak
+    // birinin is_default_fare_category=1 olması gerekir. Boş rider_category_id, ürünün
+    // tüm tanımlı kategorilere uygun olduğu anlamına gelir; FPD_005'in sahip olduğu
+    // bilinmeyen açık ID'leri uygunluk kümesine katmayız.
     {
+        let rider_category_ids: HashSet<&str> = records
+            .rider_categories
+            .iter()
+            .map(|rc| rc.rider_category_id.as_str())
+            .filter(|id| !id.is_empty())
+            .collect();
         let default_rcids: HashSet<&str> = records
             .rider_categories
             .iter()
@@ -2342,30 +2351,51 @@ fn check_fares_v2(
             .map(|rc| rc.rider_category_id.as_str())
             .collect();
 
-        if !default_rcids.is_empty() {
-            let mut fp_defaults: HashMap<&str, Vec<u64>> = HashMap::new();
-            for fp in &records.fare_products {
-                if let Some(ref rcid) = fp.rider_category_id {
-                    if default_rcids.contains(rcid.as_str()) {
-                        fp_defaults.entry(fp.fare_product_id.as_str()).or_default().push(fp.line);
-                    }
-                }
+        let mut fp_rows: HashMap<&str, Vec<u64>> = HashMap::new();
+        let mut fp_eligible: HashMap<&str, HashSet<&str>> = HashMap::new();
+        for fp in &records.fare_products {
+            if fp.fare_product_id.is_empty() {
+                continue;
             }
-            for (fpid, lines) in fp_defaults {
-                if lines.len() > 1 {
-                    notices.push(notice(
-                        ctr, "RCT_006", EntityType::Row,
-                        Some(fpid.to_string()), Some(fpid.to_string()),
-                        "fare_products.txt", lines.first().copied(), None,
-                        Some(lines.len().to_string()), Some("1".to_string()),
-                        format!(
-                            "'{}' ucret urunu {} varsayilan yolcu kategorisine bagli; en fazla 1 olmali.",
-                            fpid, lines.len()
-                        ),
-                        "Bir fare_product_id icin yalnizca bir rider_category is_default_fare_category=1 olmali.",
-                    ));
+            fp_rows.entry(fp.fare_product_id.as_str()).or_default().push(fp.line);
+            let eligible = fp_eligible.entry(fp.fare_product_id.as_str()).or_default();
+            match fp.rider_category_id.as_deref() {
+                Some(rcid) if rider_category_ids.contains(rcid) => {
+                    eligible.insert(rcid);
                 }
+                Some(_) => {} // FPD_005 reports the unknown explicit category.
+                None => eligible.extend(rider_category_ids.iter().copied()),
             }
+        }
+
+        for (fpid, eligible) in fp_eligible {
+            if eligible.len() <= 1 {
+                continue;
+            }
+            let default_count = eligible.intersection(&default_rcids).count();
+            if default_count == 1 {
+                continue;
+            }
+            let lines = fp_rows.get(fpid).expect("fare product rows are indexed together");
+            let message = if default_count == 0 {
+                format!(
+                    "'{}' ucret urununde {} uygun yolcu kategorisi var ancak hicbiri varsayilan degil; tam olarak 1 olmali.",
+                    fpid, eligible.len()
+                )
+            } else {
+                format!(
+                    "'{}' ucret urunu {} varsayilan yolcu kategorisine bagli; en fazla 1 olmali.",
+                    fpid, default_count
+                )
+            };
+            notices.push(notice(
+                ctr, "RCT_006", EntityType::Row,
+                Some(fpid.to_string()), Some(fpid.to_string()),
+                "fare_products.txt", lines.first().copied(), None,
+                Some(default_count.to_string()), Some("1".to_string()),
+                message,
+                "Bir fare_product_id icin uygun rider_category'lerden yalnizca biri is_default_fare_category=1 olmali.",
+            ));
         }
     }
 
@@ -6055,6 +6085,107 @@ mod tests {
                 row: Default::default(), line: 11,
             },
         ];
+        let result = check(&recs, &EntityMap::default(), 20260515);
+        assert!(!result.notices.iter().any(|n| n.rule_id == "RCT_006"));
+    }
+
+    #[test]
+    fn multiple_eligible_non_default_rider_categories_produces_rct_006() {
+        use crate::k2::fare_products::FareProductRecord;
+        use crate::k2::rider_categories::RiderCategoryRecord;
+        let (mut recs, _map) = empty();
+        recs.rider_categories = vec![
+            RiderCategoryRecord {
+                rider_category_id: "adult".into(),
+                rider_category_name: "Adult".into(),
+                is_default_fare_category: Some(0),
+                min_age: None, max_age: None,
+                eligibility_url: None,
+                row: Default::default(), line: 2,
+            },
+            RiderCategoryRecord {
+                rider_category_id: "senior".into(),
+                rider_category_name: "Senior".into(),
+                is_default_fare_category: Some(0),
+                min_age: None, max_age: None,
+                eligibility_url: None,
+                row: Default::default(), line: 3,
+            },
+        ];
+        recs.fare_products = vec![
+            FareProductRecord {
+                fare_product_id: "fp1".into(),
+                fare_product_name: None,
+                rider_category_id: Some("adult".into()),
+                fare_media_id: None, amount: None, currency: String::new(),
+                row: Default::default(), line: 10,
+            },
+            FareProductRecord {
+                fare_product_id: "fp1".into(),
+                fare_product_name: None,
+                rider_category_id: Some("senior".into()),
+                fare_media_id: None, amount: None, currency: String::new(),
+                row: Default::default(), line: 11,
+            },
+        ];
+        let result = check(&recs, &EntityMap::default(), 20260515);
+        assert!(result.notices.iter().any(|n| n.rule_id == "RCT_006"));
+    }
+
+    #[test]
+    fn blank_rider_category_with_multiple_non_default_categories_produces_rct_006() {
+        use crate::k2::fare_products::FareProductRecord;
+        use crate::k2::rider_categories::RiderCategoryRecord;
+        let (mut recs, _map) = empty();
+        recs.rider_categories = vec![
+            RiderCategoryRecord {
+                rider_category_id: "adult".into(),
+                rider_category_name: "Adult".into(),
+                is_default_fare_category: Some(0),
+                min_age: None, max_age: None,
+                eligibility_url: None,
+                row: Default::default(), line: 2,
+            },
+            RiderCategoryRecord {
+                rider_category_id: "senior".into(),
+                rider_category_name: "Senior".into(),
+                is_default_fare_category: Some(0),
+                min_age: None, max_age: None,
+                eligibility_url: None,
+                row: Default::default(), line: 3,
+            },
+        ];
+        recs.fare_products = vec![FareProductRecord {
+            fare_product_id: "fp1".into(),
+            fare_product_name: None,
+            rider_category_id: None,
+            fare_media_id: None, amount: None, currency: String::new(),
+            row: Default::default(), line: 10,
+        }];
+        let result = check(&recs, &EntityMap::default(), 20260515);
+        assert!(result.notices.iter().any(|n| n.rule_id == "RCT_006"));
+    }
+
+    #[test]
+    fn one_non_default_rider_category_does_not_produce_rct_006() {
+        use crate::k2::fare_products::FareProductRecord;
+        use crate::k2::rider_categories::RiderCategoryRecord;
+        let (mut recs, _map) = empty();
+        recs.rider_categories = vec![RiderCategoryRecord {
+            rider_category_id: "adult".into(),
+            rider_category_name: "Adult".into(),
+            is_default_fare_category: Some(0),
+            min_age: None, max_age: None,
+            eligibility_url: None,
+            row: Default::default(), line: 2,
+        }];
+        recs.fare_products = vec![FareProductRecord {
+            fare_product_id: "fp1".into(),
+            fare_product_name: None,
+            rider_category_id: Some("adult".into()),
+            fare_media_id: None, amount: None, currency: String::new(),
+            row: Default::default(), line: 10,
+        }];
         let result = check(&recs, &EntityMap::default(), 20260515);
         assert!(!result.notices.iter().any(|n| n.rule_id == "RCT_006"));
     }

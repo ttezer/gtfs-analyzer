@@ -6,7 +6,7 @@ burası her adayın hüküm olup olmadığına ve karşılanıp karşılanmadı�
 Katalog toplamı **300 aday** (sert 185 · yumuşak 115) ve **300'ünün tamamı**
 adjudike edildi. Bölümler tam bitirilir, yarım bırakılmaz — kalan sayısı böyle güvenilir kalır.
 
-> **DURUM (2026-08-10): düzyazı ekseni %96,5 — 138/143.**
+> **DURUM (2026-08-11): düzyazı ekseni %97,2 — 139/143.**
 >
 > ⚠️ Bu satır `spec-audit/badge_status.py` çıktısıdır ve **o betik başlığı kendisi
 > denetler**: hesapladığı `n/d` ilk 20 satırda geçmiyorsa **exit 1** döner, CI kırılır.
@@ -451,8 +451,8 @@ ile yazar. Bunlar bağlayıcıdır ama **veriyi değil tüketiciyi** bağlar —
 | `P31c88c29` · `P71c9ce23` | payment_method | Ödemenin ne zaman yapılacağını belirtir; 1 = binişten önce | **KANITLI** | `FAR_004` (enum geçerliliği) + `FAR_011` (eksik). Cümleler enum tanımı. |
 | `Pa586fe5b` | — | Aynı `timeframe_group_id` + `service_id` için örtüşen aralık olamaz | **KANITLI** | `TFR_005` (Interop→**Spec**, #96 — *"There must not be overlapping time intervals"* normatif). |
 | `P6fa9925a` · `P4f2430ed` · `P8cc81b88` · `P7b4083a2` | start_time · end_time | Biri varsa diğeri zorunlu, aksi yasak | **KANITLI** | `TFR_007` (tek kural, çift yönlü). |
-| `P1d9a0191` | is_default_fare_category | Bir `fare_product_id` için tam bir varsayılan kategori olmalı | KISMİ | `RCT_006` yalnız birden fazla default kategoriyi (`>1`) üretir; hiç default kategori yoksa değerlendirmez. Bu nedenle "exactly one" hükmünün yalnız üst sınırı ölçülür. |
-| `P79f202e6` | rider_category_id | Aynı hüküm, `fare_products` tarafı | **KANITLI** | `RCT_006`. `fare_products.rider_category_id` uygun kategorileri belirler; boş değer default değil, herhangi bir kategoriye uygunluk anlamına gelir. |
+| `P1d9a0191` | is_default_fare_category | Bir `fare_product_id` için tam bir varsayılan kategori olmalı | **KANITLI** | `RCT_006`, birden fazla uygun kategori için default sayısının tam olarak 1 olmasını denetler; hem hiç default olmamasını hem de birden fazla default olmasını raporlar. |
+| `P79f202e6` | rider_category_id | Aynı hüküm, `fare_products` tarafı | **KANITLI** | `RCT_006`. `fare_products.rider_category_id` uygun kategorileri belirler; boş değer default değil, tanımlı kategorilerin tümüne uygunluk anlamına gelir. |
 | `P152c436d` | is_default_fare_category | Varsayılan kategori tanımı *(soft)* | **META** | Geçerlilik `RCT_003`. |
 | `P32e7117f` | fare_media_name | Kart (2) ve mobil uygulama (4) için önerilir *(soft)* | **KANITLI** | `FMD_003` — koşul birebir. |
 | `Pc29f644f` | agency_id | Aksi hâlde önerilir *(soft)* | KISMİ | `RTS_025`'in `routes` için yaptığını `fare_attributes` için yapan kural yok. Yumuşak, Quality; düşük değer. |

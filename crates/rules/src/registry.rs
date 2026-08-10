@@ -1124,7 +1124,7 @@ pub static RULES: &[RuleMeta] = &[
     r!("RCT_005", Orta,   Quality, 1, &[], Some("rider_category_id"), VS, Row,
         "max_age min_age'den küçük"),
     r!("RCT_006", Orta,   Spec, 2, &[], Some("fare_product_id"), VS, Entity,
-        "fare_product başına birden fazla varsayılan yolcu kategorisi"),
+        "fare_product başına varsayılan yolcu kategorisi sayısı bir değil"),
     // RCT_007: spec tipi `URL`. Kardeş URL alanlarının hepsinde biçim kuralı var
     // (stop_url→STP_042, route_url→RTS_005, agency_fare_url→AGN_008); burada yoktu.
     // ⚠️ Alan adı 2026-08-01'de düzeltildi — parser eskiden spec'te olmayan

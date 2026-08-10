@@ -454,7 +454,7 @@
 | RCT_003 | is_default_fare_categoryが無効 | 致命的 | 仕様 |
 | RCT_004 | min_ageまたはmax_ageが無効（GTFS拡張フィールド — 公式仕様には存在しません） | 中 | 品質 |
 | RCT_005 | max_ageがmin_ageより小さい | 中 | 品質 |
-| RCT_006 | 同一fare_productにデフォルトのrider_categoryが複数 | 中 | 仕様 |
+| RCT_006 | fare_productのデフォルトrider_category数が1件ではない | 中 | 仕様 |
 | RCT_007 | eligibility_urlが無効 | 低 | 仕様 |
 | RCT_008 | rider_category_idが空 | 致命的 | 仕様 |
 

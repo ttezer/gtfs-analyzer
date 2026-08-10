@@ -910,7 +910,7 @@ const en: LocaleShape = {
     'RCT_003': "Rider category '{entity_id}': is_default_fare_category '{observed_value}' is invalid.",
     'RCT_004': "Rider category '{entity_id}': min_age or max_age is invalid.",
     'RCT_005': "Rider category '{entity_id}': max_age is less than min_age.",
-    'RCT_006': 'Multiple default rider categories for the same fare_product.',
+    'RCT_006': 'The fare_product does not have exactly one default rider category.',
     // FMD
     'FMD_001': "Duplicate fare_media_id: '{entity_id}'.",
     'FMD_002': "Fare media '{entity_id}': fare_media_type is missing or invalid.",
@@ -1338,7 +1338,7 @@ const en: LocaleShape = {
     'RCT_003': 'Use 0 (not default) or 1 (default) for is_default_fare_category.',
     'RCT_004': 'Enter a non-negative integer for min_age and max_age.',
     'RCT_005': 'Set max_age to be greater than or equal to min_age.',
-    'RCT_006': 'Only one rider_category may have is_default_fare_category=1 per fare_product.',
+    'RCT_006': 'Ensure each fare_product has exactly one eligible rider_category with is_default_fare_category=1.',
     // STP (field-level)
     'STP_001': 'Assign a unique stop_id to each stop.',
     'STP_002': 'Fill in the stop_id field.',
@@ -2168,7 +2168,7 @@ const en: LocaleShape = {
     'RCT_003': 'is_default_fare_category invalid',
     'RCT_004': 'min_age or max_age invalid (GTFS extension field — not in the official spec)',
     'RCT_005': 'max_age less than min_age',
-    'RCT_006': 'Multiple default rider categories per fare_product',
+    'RCT_006': 'fare_product does not have exactly one default rider category',
     // FMD
     'FMD_001': 'Duplicate fare_media_id',
     'FMD_002': 'fare_media_type missing or invalid',
