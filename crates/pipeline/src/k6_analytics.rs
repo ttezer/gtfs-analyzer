@@ -518,15 +518,14 @@ fn stop_shape_threshold_m(
     }
 }
 
-/// SHP_024 için stop koordinatını al.
+/// K6 analitiği için stop koordinatını al.
 ///
 /// K2'nin lexical doğrulaması ham sayısal değerdeki baş/son boşluğu kasıtlı olarak
-/// geçersiz sayar ve DQ_016/STP türevini kanıtlar. Geometri karşılaştırması ise bu
-/// whitespace kökü dışında kalan sayısal payload'ı kaybetmemelidir: MobilityData ve
-/// GTFS tüketicilerinin çoğu `" 43.229610"` değerini sayıya çevirerek aynı koordinatı
-/// kullanır. Bu fallback yalnız SHP_024'ün geometri girdisidir; K2'nin strict notice'ı
-/// ve ham değer kanıtı değişmez.
-fn stop_coord_for_user_distance(stop: &crate::k2::stops::StopRecord) -> Option<(f64, f64)> {
+/// geçersiz sayar ve DQ_016/STP türevini kanıtlar. K6 ise bu whitespace kökü dışında
+/// kalan sayısal payload'ı kaybetmemelidir: MobilityData ve GTFS tüketicilerinin çoğu
+/// `" 43.229610"` değerini sayıya çevirerek aynı koordinatı kullanır. K2'nin strict
+/// notice'ı ve ham değer kanıtı değişmez; yalnız analitik girdiyi geri kazanır.
+fn recoverable_stop_coord(stop: &crate::k2::stops::StopRecord) -> Option<(f64, f64)> {
     if let Some(coords) = stop.stop_lat.zip(stop.stop_lon) {
         return Some(coords);
     }
@@ -766,7 +765,7 @@ fn check_speed_and_duration<'a>(
         let mut stop_coords: FxHashMap<&str, (f64, f64)> = FxHashMap::default();
         stop_coords.reserve(records.stops.len());
         for s in &records.stops {
-            if let Some(coords) = s.stop_lat.zip(s.stop_lon) {
+            if let Some(coords) = recoverable_stop_coord(s) {
                 stop_coords.insert(s.stop_id.as_str(), coords);
             }
         }
@@ -5127,7 +5126,7 @@ fn check_remaining_analytics<'a>(
             pts.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
         }
         let stop_sdt_coords: FxHashMap<&str, (f64, f64)> = records.stops.iter()
-            .filter_map(|stop| stop_coord_for_user_distance(stop).map(|coords| (stop.stop_id.as_str(), coords)))
+            .filter_map(|stop| recoverable_stop_coord(stop).map(|coords| (stop.stop_id.as_str(), coords)))
             .collect();
 
         let mut seen_shp024: FxHashSet<(&str, &str)> = FxHashSet::default(); // (stop_id, shape_id)
@@ -9053,6 +9052,36 @@ mod tests {
         );
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
         assert!(result.notices.iter().any(|n| n.rule_id == "STM_014"), "STM_014 olmalı");
+    }
+
+    #[test]
+    fn stm_014_recovers_whitespace_stop_coordinates_for_analytics() {
+        let mut first = stop("A", 41.0, 29.0);
+        first.stop_lat = None;
+        first.stop_lon = None;
+        first.row.insert("stop_lat".into(), " 41.0".into());
+        first.row.insert("stop_lon".into(), " 29.0".into());
+        let mut second = stop("B", 39.9, 32.9);
+        second.stop_lat = None;
+        second.stop_lon = None;
+        second.row.insert("stop_lat".into(), " 39.9".into());
+        second.row.insert("stop_lon".into(), " 32.9".into());
+
+        let records = records_with(
+            vec![first, second],
+            vec![route("R1", 3)],
+            vec![trip("T1", "R1")],
+            vec![
+                stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
+                stoptime("T1", 2, "B", (10, 0, 0), (10, 0, 0), 3),
+            ],
+        );
+        let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
+        assert!(
+            result.notices.iter().any(|n| n.rule_id == "STM_014"),
+            "recoverable whitespace coordinates must reach STM_014: {:?}",
+            result.notices.iter().map(|n| &n.rule_id).collect::<Vec<_>>()
+        );
     }
 
     // Toplulaştırma (Güvenilirlik Sprint'i Checkpoint 6): aynı fiziksel segment o

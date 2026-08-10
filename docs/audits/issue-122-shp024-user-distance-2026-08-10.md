@@ -28,12 +28,18 @@ that needs the planned corpus review.
 - whitespace-bearing bus coordinates with the pinned 139 m/166 m mismatches;
 - a boundary pair around the 100 m bus threshold;
 - the same geometry on a rail route, where the 200 m rail threshold remains silent.
+- `mdb-715` replay produced `SHP_024 = 1001`; a deterministic 20-finding sanity sample
+  had route type `3` (bus), observed distances `101.1–308.1 m`, and a non-empty shape ID
+  plus `shape_dist_traveled` value for every sample. No sample had a missing or implausible
+  interpolation payload.
+- `tld-715` rail negative control produced `SHP_024 = 0`, `STM_014 = 0`, and `STM_012 = 0`.
 
 ## Validation
 
 - targeted SHP_024 regression tests — green;
 - same-input `tdg-83134` replay — pinned two findings recovered;
-- final workspace test/clippy/parity validation — pending after the remaining issue work.
+- final workspace test/clippy/parity validation after the shared STM_014 helper change —
+  green (`cargo test --workspace --all-features`, blocking all-features Clippy, parity).
 
 ## Remaining acceptance evidence
 

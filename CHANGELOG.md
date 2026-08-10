@@ -25,6 +25,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the Haversine lower bound. Self-near/crossing shapes therefore cannot suppress a real
   consecutive-stop bus speed finding; rail thresholds remain unchanged.
 
+- **`STM_014` now recovers numeric stop coordinates hidden by lexical whitespace.** K2 keeps
+  the strict `DQ_016` evidence, while the shared K6 coordinate helper trims only the numeric
+  payload for speed and geometry analytics. Invalid or out-of-range coordinates remain
+  unavailable. The pinned `mdb-510` replay recovered four analyzer speed segments.
+
 - **`STM_008` now spans untimed intermediate stops.** K6 retains the latest known
   `departure_time` and compares each later known `arrival_time` against it, so valid
   interpolated/untimed rows no longer hide real chronology reversals. Adjacent-pair speed

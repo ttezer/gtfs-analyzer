@@ -268,8 +268,11 @@ BY_DESIGN = {
         "biz 642,2 km/h vs MD 539,1 km/h = 1,19× (MD distanceKm 4,49 → bizimki ~5,35). "
         "Araç yolu takip ettiği için bizim mesafemiz DAHA DOĞRU; birleşik etki ~1,5×. "
         "Shape projeksiyonu Haversine'den kısa olamaz; alt-sınır clamp'i self-near/crossing "
-        "shape kaynaklı STM_014 false-negative'lerini önler. #121'in mdb-2712/mdb-510 "
-        "SAME_INPUT rerun kanıtı ayrıca bekleniyor.",
+        "shape kaynaklı STM_014 false-negative'lerini önler. #121 ayrıca K2 strict whitespace "
+        "kökü nedeniyle kaybolan sayısal stop koordinatlarını K6'da recover eder: aynı-input "
+        "replay mdb-510'da STM_014=4, mdb-2712'de STM_014=139 üretti (MD sırasıyla 32 ve 51; "
+        "farklar threshold/mesafe ve analyzer segment agregasyonu açısından hâlâ adjudication "
+        "gerektiriyor). mdb-2712 pinned 801515, 1049→253 segmenti artık trace edilebilir.",
     "trip_headsign_matches_intermediate_stop":
         "Kalan OVER = YAKIN-YAZIM farkı, bilinçli bırakıldı. 2026-07-17 fix'i (107f929) asıl "
         "FP'yi kapattı (terminal ADI headsign ise atla → mdb-1294: 9.162→171). Kalanlar: "
