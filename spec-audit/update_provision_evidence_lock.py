@@ -35,24 +35,47 @@ def main() -> int:
         and status in ("KANITLI", "KISMİ", "DOLAYLI")
         and pid in evidence
     )
-    missing = [pid for pid in active if pid not in evidence]
     unknown = sorted(
         {rule_id for pid in active for rule_id in evidence.get(pid, []) if rule_id not in classes}
     )
-    if missing or unknown:
-        if missing:
-            print(f"Eksik kanıt satırları: {', '.join(missing)}", file=sys.stderr)
-        if unknown:
-            print(f"Registry'de olmayan kanıt kuralları: {', '.join(unknown)}", file=sys.stderr)
+    if unknown:
+        print(f"Registry'de olmayan kanıt kuralları: {', '.join(unknown)}", file=sys.stderr)
         return 1
+
+    current = {
+        pid: badge_status.evidence_fingerprint(pid, evidence[pid], classes)
+        for pid in active
+        if pid in evidence
+    }
+    lock_path = ROOT / "provision_evidence.lock"
+    previous: dict[str, str] = {}
+    if lock_path.exists():
+        for line in lock_path.read_text(encoding="utf-8").split("\n"):
+            if not line.strip() or line.startswith("#"):
+                continue
+            cols = [c.strip() for c in line.split("\t")]
+            if len(cols) == 2 and cols[0]:
+                previous[cols[0]] = cols[1]
+
+    added = sorted(set(current) - set(previous))
+    removed = sorted(set(previous) - set(current))
+    changed = sorted(pid for pid in set(current) & set(previous) if current[pid] != previous[pid])
+    if added:
+        print(f"Yeni fingerprint: {', '.join(added)}")
+    if removed:
+        print(f"Kaldırılan fingerprint: {', '.join(removed)}")
+    if changed:
+        print(f"Değişen fingerprint: {', '.join(changed)}")
+    if not (added or removed or changed):
+        print("Fingerprint değişikliği yok.")
 
     lines = [
         "# provision_id<TAB>sha256(pid + canonical sorted (rule_id, class) pairs)",
         "# Severity intentionally excluded; this lock detects evidence staleness, not semantic coverage.",
     ]
     for pid in active:
-        lines.append(f"{pid}\t{badge_status.evidence_fingerprint(pid, evidence[pid], classes)}")
-    (ROOT / "provision_evidence.lock").write_text("\n".join(lines) + "\n", encoding="utf-8")
+        lines.append(f"{pid}\t{current[pid]}")
+    lock_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
     print(f"Yazıldı: provision_evidence.lock ({len(active)} hüküm)")
     return 0
 
