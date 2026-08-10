@@ -4,7 +4,7 @@
 > nasıl yeniden üretileceği yazılıdır. Bir iddiayı çürütmek isteyen okuyucu için
 > "Bu iddiayı ne çürütür" bölümleri konmuştur.
 >
-> Durum: **2026-08-07** · kural sayısı **594** (38 grup)
+> Durum: **2026-08-10** · kural sayısı **595** (38 grup)
 >
 > ⚠️ **Buradaki hiçbir sayı elle güncellenmez ve belge bir commit'e SABİTLENMEZ.** Önceki
 > sürüm `origin/main = 62fa86b9` yazıyordu ve dört commit sonra hâlâ öyle duruyordu — dış
@@ -36,9 +36,14 @@
 
 | eksen | değer | ne demek |
 |---|---|---|
-| **Düzyazı hükümleri** | **139 / 143** | Spec metnindeki normatif cümlelerden feed'den doğrulanabilir olanlar |
+| **Düzyazı hükümleri** | **138 / 143** | Spec metnindeki normatif cümlelerden feed'den doğrulanabilir olanlar |
 | **Alan tablosu atomları** | **300 / 300 ÇAPALI** | Her geçerli atomda EN AZ BİR Spec notice çapası var — **semantik tamlık DEĞİL** (§5.4) |
 | Yumuşak hükümler | 45 / 69 (%65,2) | **Hedef değil** — Quality sinyali |
+
+`P1d9a0191` artık **KISMİ** sayılır: `RCT_006` bir `fare_product_id` için birden
+fazla default kategoriyi yakalar, ancak hiç default kategori bulunmamasını
+değerlendirmez. `P79f202e6` aynı kuralın uygun `rider_category_id` üst-sınırını
+kanıtlamaya devam eder.
 
 🔴 **Düzyazı ekseni 2026-08-06'da BAĞIMSIZ DENETİMDE %100'den düştü.** Denetim iki hata
 buldu ve ikisi de kabul edildi:
