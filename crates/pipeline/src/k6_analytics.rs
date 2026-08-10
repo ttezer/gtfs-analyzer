@@ -1196,7 +1196,13 @@ fn check_speed_and_duration<'a>(
                 // grid ağlarında, gidiş-dönüş aynı caddede vb.). Bu durumda projeksiyon
                 // güvenilmez; haversine'e düş. Aksi halde LA Metro gibi feed'lerde sahte
                 // 1000+ km/h hızlar STM_012/STM_014 yanlış pozitifleri üretir.
+                // Şekil projeksiyonu da kuş uçuşundan kısa olamaz: self-near/crossing
+                // shape'lerde iki durak aynı küçük arc bölümüne eşleşebilir ve gerçek
+                // otobüs hızını yapay olarak düşürerek STM_014 false-negative'i üretir.
+                // Üst sınırdaki 4× fallback korunur; alt sınırda shape mesafesi Haversine'e
+                // clamp edilir. Böylece hem gerçek rota detour'u hem fiziksel minimum korunur.
                 .filter(|&d| d <= 4.0 * haver_km.max(0.05))
+                .map(|d| d.max(haver_km))
                 .unwrap_or(haver_km);
 
             if dist_km < 1e-6 {
@@ -9318,6 +9324,57 @@ mod tests {
             result.notices.iter().any(|n| n.rule_id == "STM_014"),
             "aşırı hız STM_014 olarak raporlanmalı"
         );
+    }
+
+    #[test]
+    fn projected_shape_distance_cannot_reduce_haversine_speed_floor() {
+        let mut shape_ti = ShapeInternTable::new();
+        use crate::k2::shapes::ShapePointRecord;
+        // A ve B yaklaşık 8.4 km uzakta. Shape, iki durağı birbirine yakın iki paralel
+        // düşey bölüm üzerinde projekte ediyor; arc farkı yaklaşık 2.8 km ve eski kod bu
+        // değeri kullanarak 3 dakikalık segmenti otobüs eşiğinin altında bırakıyordu.
+        let mut records = records_with(
+            vec![stop("A", 41.0, 29.0), stop("B", 41.0, 29.1)],
+            vec![route("R1", 3)],
+            vec![trip_sh("T1", "R1", "S1")],
+            vec![
+                stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
+                stoptime("T1", 2, "B", (8, 3, 0), (8, 3, 0), 3),
+            ],
+        );
+        records.shapes = vec![
+            ShapePointRecord::new(shape_ti.intern("S1"), Some(40.995), Some(29.04), Some(1), None, 2),
+            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.005), Some(29.04), Some(2), None, 3),
+            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.005), Some(29.06), Some(3), None, 4),
+            ShapePointRecord::new(shape_ti.intern("S1"), Some(40.995), Some(29.06), Some(4), None, 5),
+        ];
+        records.shape_interns = shape_ti;
+        let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
+        assert!(
+            result.notices.iter().any(|n| n.rule_id == "STM_014"),
+            "Haversine alt sınırı gerçek otobüs hızını koruyarak STM_014 üretmeli: {:?}",
+            result.notices
+                .iter()
+                .map(|n| (&n.rule_id, n.observed_value.as_deref()))
+                .collect::<Vec<_>>()
+        );
+        assert!(!result.notices.iter().any(|n| n.rule_id == "STM_012"));
+    }
+
+    #[test]
+    fn legitimate_rail_speed_below_rail_threshold_has_no_stm_014() {
+        let records = records_with(
+            vec![stop("A", 41.0, 29.0), stop("B", 39.9, 32.9)],
+            vec![route("R1", 2)],
+            vec![trip("T1", "R1")],
+            vec![
+                stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
+                stoptime("T1", 2, "B", (10, 0, 0), (10, 0, 0), 3),
+            ],
+        );
+        let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
+        assert!(!result.notices.iter().any(|n| n.rule_id == "STM_014"));
+        assert!(!result.notices.iter().any(|n| n.rule_id == "STM_012"));
     }
 
     #[test]

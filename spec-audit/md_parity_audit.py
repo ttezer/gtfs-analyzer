@@ -259,7 +259,9 @@ BY_DESIGN = {
         "sistematik olarak yüksek. AYNI segmentte ölçüldü (U2847Z301→U2848Z301, Srbsko→Beroun): "
         "biz 642,2 km/h vs MD 539,1 km/h = 1,19× (MD distanceKm 4,49 → bizimki ~5,35). "
         "Araç yolu takip ettiği için bizim mesafemiz DAHA DOĞRU; birleşik etki ~1,5×. "
-        "NOT: MISS yok — STM_012+STM_014 eşlemesi düzeltildikten sonra kaçırma kalmadı.",
+        "Shape projeksiyonu Haversine'den kısa olamaz; alt-sınır clamp'i self-near/crossing "
+        "shape kaynaklı STM_014 false-negative'lerini önler. #121'in mdb-2712/mdb-510 "
+        "SAME_INPUT rerun kanıtı ayrıca bekleniyor.",
     "trip_headsign_matches_intermediate_stop":
         "Kalan OVER = YAKIN-YAZIM farkı, bilinçli bırakıldı. 2026-07-17 fix'i (107f929) asıl "
         "FP'yi kapattı (terminal ADI headsign ise atla → mdb-1294: 9.162→171). Kalanlar: "

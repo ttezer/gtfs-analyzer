@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **`STM_014` no longer underestimates shape-projected distance.** A projected arc distance
+  remains protected by the existing 4× Haversine upper-bound fallback and is now clamped to
+  the Haversine lower bound. Self-near/crossing shapes therefore cannot suppress a real
+  consecutive-stop bus speed finding; rail thresholds remain unchanged.
+
 - **`STM_008` now spans untimed intermediate stops.** K6 retains the latest known
   `departure_time` and compares each later known `arrival_time` against it, so valid
   interpolated/untimed rows no longer hide real chronology reversals. Adjacent-pair speed
