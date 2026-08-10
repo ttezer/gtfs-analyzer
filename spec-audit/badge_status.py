@@ -9,16 +9,13 @@ onları "karşılanmamış spec hükmü" saymak PTH_017'nin hatasının defter d
 ⚠️ KAPSAM DIŞI + META paydadan DÜŞER: tüketici davranışını bağlayan ya da tanım olan bir
 cümleyi bir doğrulayıcının ölçmemesi eksiklik değil, tanım gereğidir.
 """
-import collections, json, pathlib, re, sys
+import collections, hashlib, json, pathlib, re, sys
 
 ROOT = pathlib.Path(__file__).resolve().parent
 ORDER = ["BOŞLUK", "KAPSAM DIŞI", "KANITLI", "KISMİ", "DOLAYLI", "META"]
 
 
-def main() -> int:
-    prov = {r["id"]: r for r in json.loads((ROOT / "spec_provisions.json").read_text())["provisions"]}
-    text = (ROOT / "PROVISION_TRIAGE.md").read_text()
-
+def extract_verdicts(prov: dict[str, dict], text: str) -> dict[str, str]:
     verdict, seen = {}, set()
     for line in text.split("\n"):
         ids = [x for x in re.findall(r"`(P[0-9a-f]{8})`", line) if x in prov and x not in seen]
@@ -41,6 +38,94 @@ def main() -> int:
         verdict[m.group(1)] = m.group(2)
     for pid in closed:
         verdict[pid] = "KANITLI"
+    return verdict
+
+
+def extract_rule_classes(registry_text: str) -> dict[str, str]:
+    return {
+        m.group(1): m.group(3)
+        for m in re.finditer(
+            r'r!\("([A-Z]{2,3}_\d{3}[a-z]?)",\s*(\w+),\s*(\w+)', registry_text
+        )
+    }
+
+
+def load_provision_evidence(path: pathlib.Path) -> dict[str, list[str]]:
+    rows: dict[str, list[str]] = {}
+    if path.exists():
+        for line in path.read_text(encoding="utf-8").split("\n"):
+            if not line.strip() or line.startswith("#"):
+                continue
+            cols = [c.strip() for c in line.split("\t")]
+            if cols and cols[0]:
+                rows[cols[0]] = [
+                    r.strip() for r in (cols[2] if len(cols) > 2 else "").split(",") if r.strip()
+                ]
+    return rows
+
+
+def evidence_fingerprint(pid: str, rules: list[str], rule_class: dict[str, str]) -> str:
+    """Hash the provision and its canonical (rule_id, class) evidence pairs.
+
+    Severity is intentionally absent: severity tuning does not invalidate semantic
+    evidence and must not reopen every adjudication.
+    """
+    pairs = sorted({(rule_id, rule_class[rule_id]) for rule_id in rules})
+    canonical = "\n".join([pid, *(f"{rule_id}\t{rule_type}" for rule_id, rule_type in pairs)])
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def check_evidence_fingerprints(
+    active: dict[str, str],
+    evidence: dict[str, list[str]],
+    rule_class: dict[str, str],
+    lock_path: pathlib.Path,
+) -> list[str]:
+    """Require explicit re-adjudication when an active evidence set changes.
+
+    This is a staleness gate, not a semantic proof checker: a reviewer can still
+    approve an incomplete rule as KANITLI. The fingerprint only ensures that a
+    changed (rule_id, class) set cannot silently retain an old adjudication.
+    """
+    locked: dict[str, str] = {}
+    if lock_path.exists():
+        for line in lock_path.read_text(encoding="utf-8").split("\n"):
+            if not line.strip() or line.startswith("#"):
+                continue
+            cols = [c.strip() for c in line.split("\t")]
+            if len(cols) == 2 and cols[0]:
+                locked[cols[0]] = cols[1]
+
+    stale: list[str] = []
+    active_ids = {
+        pid
+        for pid, verdict in active.items()
+        if verdict in ("KANITLI", "KISMİ", "DOLAYLI") and pid in evidence
+    }
+    for pid in sorted(active_ids):
+        rules = evidence.get(pid)
+        if not rules or any(rule_id not in rule_class for rule_id in rules):
+            continue  # The existing registry/evidence gate reports this separately.
+        expected = evidence_fingerprint(pid, rules, rule_class)
+        actual = locked.get(pid)
+        if actual is None:
+            stale.append(f"SERT {pid} kanıt fingerprint'i yok; yeniden adjudike edin.")
+        elif actual != expected:
+            stale.append(
+                f"SERT {pid} kanıt fingerprint'i bayat: (rule_id, class) kümesi değişmiş; "
+                "hükmü yeniden adjudike edin."
+            )
+    extra = sorted(set(locked) - active_ids)
+    for pid in extra:
+        stale.append(f"Kanıt fingerprint'i artık aktif olmayan hükmü gösteriyor: {pid}.")
+    return stale
+
+
+def main() -> int:
+    prov = {r["id"]: r for r in json.loads((ROOT / "spec_provisions.json").read_text())["provisions"]}
+    text = (ROOT / "PROVISION_TRIAGE.md").read_text()
+
+    verdict = extract_verdicts(prov, text)
 
     hard = {k: v for k, v in verdict.items() if prov[k]["strength"] == "strong"}
     soft = {k: v for k, v in verdict.items() if prov[k]["strength"] == "soft"}
@@ -136,19 +221,11 @@ def main() -> int:
     # kendi bulgusu — defterde on satır `PTH_017`'yi "bu hatayı tekrarlama" DERSİ olarak anar
     # ve düzyazı taraması onu kanıt sanıyordu. Kanıt beyan edilir, çıkarılmaz.
     prov_ev_file = ROOT / "provision_evidence.tsv"
-    prov_ev: dict[str, list[str]] = {}
-    if prov_ev_file.exists():
-        for line in prov_ev_file.read_text(encoding="utf-8").split("\n"):
-            if not line.strip() or line.startswith("#"):
-                continue
-            cols = [c.strip() for c in line.split("\t")]
-            if cols and cols[0]:
-                prov_ev[cols[0]] = [r.strip() for r in (cols[2] if len(cols) > 2 else "").split(",") if r.strip()]
+    prov_ev = load_provision_evidence(prov_ev_file)
 
-    rule_class: dict[str, str] = {}
-    for m in re.finditer(r'r!\("([A-Z]{2,3}_\d{3}[a-z]?)",\s*(\w+),\s*(\w+)',
-                         (ROOT.parent / "crates/rules/src/registry.rs").read_text(encoding="utf-8")):
-        rule_class[m.group(1)] = m.group(3)
+    rule_class = extract_rule_classes(
+        (ROOT.parent / "crates/rules/src/registry.rs").read_text(encoding="utf-8")
+    )
 
     for pid in sorted(k for k, v in hard.items() if v in ("KANITLI", "DOLAYLI")):
         rules = prov_ev.get(pid)
@@ -163,6 +240,19 @@ def main() -> int:
             shown = ", ".join(f"{r}({rule_class[r]})" for r in rules) or "<boş>"
             stale.append(f"SERT {pid} hiçbir Spec sınıflı kurala dayanmıyor: {shown} "
                          f"→ kuralı Spec'e taşıyın, atomik Spec kuralı yazın ya da hükmü KISMİ'ye düşürün.")
+
+    # 🔐 Kanıt fingerprint kapısı: kural kimliği veya sınıfı değiştiğinde eski
+    # adjudication sessizce geçerli kalmasın. Bu yalnız BAYATLIĞI yakalar; fingerprint
+    # semantic coverage kanıtı değildir (bir kuralın hükmün tamamını ölçüp ölçmediğini
+    # insan adjudication'ı belirler). Severity bilerek fingerprint'e dahil edilmez.
+    stale.extend(
+        check_evidence_fingerprints(
+            hard,
+            prov_ev,
+            rule_class,
+            ROOT / "provision_evidence.lock",
+        )
+    )
 
     # 🔴 KANIT BELGESİNİN §0 SAYILARI DA BU HESAPTAN TÜRER — ikinci kapı.
     # 2026-08-07: kullanıcı iki bayat sayı yakaladı (İKİNCİ kez elle yakalıyordu).

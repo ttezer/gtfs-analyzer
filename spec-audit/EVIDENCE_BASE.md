@@ -222,14 +222,27 @@ Her kuralın kanıtı **testle** bağlanır; "yazıldı" demek yetmez.
 | kapı | ne garanti eder | bugünkü durum |
 |---|---|---|
 | `emit_proof` | Her kuralın notice ürettiği bir fixture var | 13 test · ✅ **borç 0** (2026-08-07, #71; §5.3) |
-| `badge_status` | Adjudike edilmemiş hüküm · bayat defter başlığı · **bayat §0 sayıları** varsa **exit 1** | ✅ CI'da kapı (2026-08-06; §0 denetimi 2026-08-07) |
+| `badge_status` | Adjudike edilmemiş hüküm · bayat defter başlığı · **bayat §0 sayıları** · sert kanıtın (rule_id, class) fingerprint'i varsa **exit 1** | ✅ CI'da kapı (2026-08-06; §0/fingerprint denetimi 2026-08-10) |
 | `ledger_header_counts_match_catalogue` | Defter başlığı katalogla tutuyor + paya sayılan satırda varsayım yok | ✅ (2026-08-06'da eklendi) |
 | `spec_conformance` | Spec metni ile kural davranışı | geçiyor |
 | Kapsam defteri | Alan tablosu atomu ↔ kural eşlemesi | **0 açık** |
+
 | `emit_identity` | İki kural aynı olguyu iki kez bildirmiyor | 10 kayıtlı istisna |
 | İddia defteri | Kartlardaki spec alıntıları | **0 açık** |
 | `field=None` defteri | Alan yazmayan kurallar gerekçeli | 30 kayıtlı |
 | `required_columns_match_the_specification` | Zorunlu sütun listeleri spec ile | geçiyor |
+
+`provision_evidence.lock`, kanıt satırı bulunan her sert hüküm için kanıt listesinin
+kanonik `(rule_id, class)` çiftlerini fingerprint'ler. Bir kural silinir, eklenir
+veya sınıfı değişirse eski adjudication sessizce geçerli kalmaz; `badge_status.py`
+exit 1 verir ve hükmün yeniden adjudike edilmesi gerekir. Severity bu fingerprint'e
+bilerek dahil değildir.
+
+Bu kapının sınırı açıkça korunmalıdır: fingerprint **kanıtın hükmün tamamını
+semantik olarak ölçtüğünü kanıtlamaz**. `P1d9a0191` örneğinde `RCT_006` listesi
+değişmeden önce de yalnız `>1` dalını ölçüyordu; kapı bunu kökünde yakalayamazdı.
+Kapı yalnız kanıt girdisinin son adjudication'dan beri bayatlayıp bayatlamadığını
+denetler.
 
 Ek: `card_consistency` (kart künyesi ↔ registry), `triage_ledger_has_no_stale_open_claims`
 (defter ↔ durum makinesi), `file_level_provisions_doc_covers_every_conditional_file`.

@@ -91,6 +91,7 @@ jobs:
 
       - name: Spec rozeti kapısı (badge_status)
         run: |
+          python3 spec-audit/test_badge_status.py
           python3 spec-audit/badge_status.py
 
       # `|| true`: rapor bir kapı DEĞİLDİR, düşmesi CI'ı kırmamalı.

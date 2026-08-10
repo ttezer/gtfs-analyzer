@@ -16,6 +16,8 @@
 # tutmazsa exit 1.
 #
 # Sütunlar: provision <TAB> karar <TAB> Spec-sınıflı kanıt kuralları (virgülle)
+# Sert KANITLI/DOLAYLI satırlarının gözden geçirilmiş (rule_id, class) özeti:
+# `python3 spec-audit/update_provision_evidence_lock.py` ile `provision_evidence.lock` yenilenir.
 P0003b8f1	KANITLI	RTS_028
 P03987db8	KANITLI	TRP_019
 P042ba79f	KANITLI	XFL_031
