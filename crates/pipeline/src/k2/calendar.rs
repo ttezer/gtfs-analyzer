@@ -47,7 +47,19 @@ pub fn validate_calendar(file: &RawFile) -> (Vec<CalendarRecord>, Vec<gtfs_core:
         let mut days = [None::<u32>; 7];
         let mut all_zero = true;
         for (i, field) in DAY_FIELDS.iter().enumerate() {
-            match parse_u32(&row_map, field) {
+            // A numeric weekday with surrounding whitespace is still usable for the
+            // weekly-pattern decision; DQ_016 remains the lexical root finding. Keep
+            // non-numeric and out-of-enum trimmed values on the CAL_002 path so an
+            // independent semantic error is not mistaken for whitespace noise.
+            let parsed_day = match get_raw_field(&row_map, field) {
+                Some(raw) if raw != raw.trim() && !raw.trim().is_empty() => raw
+                    .trim()
+                    .parse::<u32>()
+                    .map(Some)
+                    .map_err(|_| format!("'{field}' için u32 bekleniyor, alınan: {raw}")),
+                _ => parse_u32(&row_map, field),
+            };
+            match parsed_day {
                 Ok(v) => {
                     if let Some(val) = v {
                         if !validate_enum(&val.to_string(), &["0", "1"]) {
@@ -223,6 +235,40 @@ mod tests {
         );
         let (_, notices) = validate_calendar(&file);
         assert!(notices.iter().any(|n| n.rule_id == "CAL_006"));
+    }
+
+    #[test]
+    fn whitespace_all_zero_days_still_produces_cal_006() {
+        let file = make_file(
+            all_headers(),
+            vec![vec!["SVC1", " 0"," 0"," 0"," 0"," 0"," 0"," 0", "20260101", "20271231"]],
+        );
+        let (_, notices) = validate_calendar(&file);
+        assert!(notices.iter().any(|n| n.rule_id == "CAL_006"));
+        assert!(!notices.iter().any(|n| n.rule_id == "CAL_002"),
+            "trim sonrası geçerli 0 değerleri CAL_002 üretmemeli: {notices:?}");
+    }
+
+    #[test]
+    fn whitespace_weekday_one_keeps_cal_006_silent() {
+        let file = make_file(
+            all_headers(),
+            vec![vec!["SVC1", " 1"," 0"," 0"," 0"," 0"," 0"," 0", "20260101", "20271231"]],
+        );
+        let (_, notices) = validate_calendar(&file);
+        assert!(!notices.iter().any(|n| n.rule_id == "CAL_006"));
+    }
+
+    #[test]
+    fn whitespace_invalid_weekday_keeps_cal_002() {
+        let file = make_file(
+            all_headers(),
+            vec![vec!["SVC1", " 2"," 0"," 0"," 0"," 0"," 0"," 0", "20260101", "20271231"]],
+        );
+        let (_, notices) = validate_calendar(&file);
+        assert!(notices.iter().any(|n| n.rule_id == "CAL_002"));
+        assert!(notices.iter().any(|n| n.rule_id == "CAL_006"),
+            "parse edilebilen diğer 0 değerleri bağımsız CAL_006'ı korumalı: {notices:?}");
     }
 
     #[test]

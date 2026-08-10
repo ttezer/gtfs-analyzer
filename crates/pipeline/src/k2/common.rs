@@ -957,6 +957,9 @@ fn trimmed_value_is_semantically_valid(rule_id: &str, field: &str, value: &str) 
     if field == "transfer_type" {
         return value.parse::<u32>().is_ok_and(|v| v <= 5);
     }
+    if matches!(field, "monday" | "tuesday" | "wednesday" | "thursday" | "friday" | "saturday" | "sunday") {
+        return value.parse::<u32>().is_ok_and(|v| v <= 1);
+    }
     if field == "stop_access" {
         return value.parse::<u32>().is_ok_and(|v| v <= 2);
     }

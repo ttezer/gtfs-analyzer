@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **`CAL_006` now survives lexical whitespace in weekday flags.** Whitespace-wrapped
+  `0/1` values are parsed for the weekly pattern while `DQ_016` remains the raw
+  whitespace evidence; trim-after invalid values still emit `CAL_002`. Dates-only
+  calendar rows therefore retain their informational `CAL_006` finding, including
+  the 12-service `mdb-2830` regression feed.
+
 - **`SHP_024` no longer loses user-distance checks when stop coordinates carry lexical
   whitespace.** K2 still reports the raw whitespace quality evidence, while SHP_024 uses the
   trimmed numeric payload for geometry comparison. The 100 m bus threshold and 200 m rail

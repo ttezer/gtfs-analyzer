@@ -50,6 +50,8 @@ MAP = {
     # ── Calendar ──
     "big_gap_in_service":       ["CAL_007", "CAL_012"],  # PER-SERVICE, eşik big_gap_days=14
     "expired_calendar":         ["CAL_013"],
+    # #123: whitespace-wrapped weekday zeros are parsed for the weekly decision while
+    # DQ_016 remains the lexical root; mdb-2830 replay recovered MD's 12 services.
     "service_has_no_active_day_of_the_week": ["CAL_006"],
     "service_extends_far_in_the_future":     ["CAL_023"],  # EŞİK FARKI: biz max_calendar_future_years=3 (yıl-granüler, tutucu); MD ~1-2y daha agresif → 2028'i işaretler biz etmeyiz. Configurable, by-design.
     "service_window_outside_feed_period":    ["CAL_014", "CAL_019"],
@@ -228,6 +230,13 @@ BY_DESIGN = {
         "aynı-input feed replay'i iki vakayı geri getiriyor (SHP_024=69; MD=124). Kalan farklar "
         "tam corpus adjudication'ı için açık: MD/analyzer granülerliği ve sdt interpolasyon farkları "
         "ayrıca incelenmeli; 200m rail eşiği bilinçli korunuyor.",
+    "service_has_no_active_day_of_the_week":
+        "Exact CAL_006 parity. #123 fixed the false negative caused by whitespace-wrapped "
+        "weekday zeros: K2 trims only the numeric payload for the weekly-pattern decision, "
+        "keeps DQ_016 as the lexical root, and retains CAL_002 for trim-after invalid values. "
+        "Same-input mdb-2830 replay recovered 12 CAL_006 findings (services 3308, 3317, "
+        "3318, 3338, 3350, 3352, 3354, 3356, 3360, 3362, 3366, 3367); calendar_dates "
+        "additions remain an informational dates-only case.",
     "future_feed":
         "future_calendar ile AYNI eksen: MD FEED seviyesinde tek notice, CAL_017 servis başına. "
         "Sayı kıyası anlamsız.",

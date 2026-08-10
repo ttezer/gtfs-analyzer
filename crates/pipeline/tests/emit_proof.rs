@@ -1031,8 +1031,12 @@ fn fixtures() -> Vec<Fixture> {
         fx("PDW_006", vec![("stop_times.txt", "trip_id,stop_sequence,location_id,start_pickup_drop_off_window,end_pickup_drop_off_window\nT1,1,Z1,09:00:00,10:00:00\nT1,2,Z1,09:30:00,11:00:00\n")]),
 
         // ── CAL grubu (takvim analitiği k6 + cross-ref k4 + k2) ────────────────
-        // TODAY=20260515. CAL_006: tüm günler 0 (k2).
-        fx("CAL_006", vec![("calendar.txt", "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,0,0,0,0,0,0,0,20250101,20271231\n")]),
+        // TODAY=20260515. CAL_006: mdb-2830 biçimindeki boşluklu all-zero row (k2),
+        // calendar_dates override'ı olsa da haftalık pattern bulgusu korunur.
+        fx("CAL_006", vec![
+            ("calendar.txt", "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1, 0, 0, 0, 0, 0, 0, 0, 20250101, 20271231\n"),
+            ("calendar_dates.txt", "service_id,date,exception_type\nSVC1,20260520,1\n"),
+        ]),
         // CAL_007: serviste >= 7 günlük boşluk (calendar_dates, calendar yok). Boşluk GEÇMİŞTE
         // (today=20260515 öncesi) → yakın-gelecek değil, CAL_007 üretir (yakın gelecekte CAL_012
         // onun yerine geçer, #29).
