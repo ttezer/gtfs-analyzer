@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **`SHP_024` no longer loses user-distance checks when stop coordinates carry lexical
+  whitespace.** K2 still reports the raw whitespace quality evidence, while SHP_024 uses the
+  trimmed numeric payload for geometry comparison. The 100 m bus threshold and 200 m rail
+  exception remain covered, including the 139 m/166 m regression pair from `tdg-83134`.
+
 - **`STM_014` no longer underestimates shape-projected distance.** A projected arc distance
   remains protected by the existing 4× Haversine upper-bound fallback and is now clamped to
   the Haversine lower bound. Self-near/crossing shapes therefore cannot suppress a real

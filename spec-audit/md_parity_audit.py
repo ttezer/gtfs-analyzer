@@ -222,13 +222,12 @@ BY_DESIGN = {
     # ── MAP yorumlarında ZATEN adjudicate edilmiş, makine-okunur hâle getirildi ──
     # ── UNDECIDABLE (sprint ilkesi: "undecidable = bulgu") ──
     "stop_too_far_from_shape_using_user_distance":
-        "ÇÖZÜLEMEDİ (5 feed, ZIT YÖNLÜ) — kanıtla birlikte bekletiliyor. Eşik hipotezi "
-        "ELENDİ: MD örneklerindeki durak↔match mesafesi min=101m (medyan 254) → MD eşiği de "
-        "~100m = bizimkiyle AYNI (stop_far_from_shape_m). Kalan aday: sdt→shape noktası "
-        "İNTERPOLASYONU farkı. mdb-2929 biz 469 (18 shape) / MD 27 (4 shape) OVER; mdb-715 "
-        "biz 1001 / MD 3335 UNDER (orada granülerlik baskın: biz (shape,durak), MD (trip,durak)). "
-        "İki faktör aynı anda çalışıyor, feed'e göre biri baskın. MEDIUM/Quality, düşük öncelik; "
-        "çözmek için geometri hata ayıklaması gerekir.",
+        "SHP_024'e eşlenir. tdg-83134'teki 139.4m/165.6m otobüs vakalarının kök nedeni "
+        "stop koordinatlarının baş/son boşluk taşımasıydı: K2 strict lexical kaydı boş bırakıyor, "
+        "geometri kontrolü ise trim edilmiş sayısal payload'ı artık kullanıyor. Reduced fixture ve "
+        "aynı-input feed replay'i iki vakayı geri getiriyor (SHP_024=69; MD=124). Kalan farklar "
+        "tam corpus adjudication'ı için açık: MD/analyzer granülerliği ve sdt interpolasyon farkları "
+        "ayrıca incelenmeli; 200m rail eşiği bilinçli korunuyor.",
     "future_feed":
         "future_calendar ile AYNI eksen: MD FEED seviyesinde tek notice, CAL_017 servis başına. "
         "Sayı kıyası anlamsız.",

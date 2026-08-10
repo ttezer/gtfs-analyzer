@@ -518,6 +518,26 @@ fn stop_shape_threshold_m(
     }
 }
 
+/// SHP_024 için stop koordinatını al.
+///
+/// K2'nin lexical doğrulaması ham sayısal değerdeki baş/son boşluğu kasıtlı olarak
+/// geçersiz sayar ve DQ_016/STP türevini kanıtlar. Geometri karşılaştırması ise bu
+/// whitespace kökü dışında kalan sayısal payload'ı kaybetmemelidir: MobilityData ve
+/// GTFS tüketicilerinin çoğu `" 43.229610"` değerini sayıya çevirerek aynı koordinatı
+/// kullanır. Bu fallback yalnız SHP_024'ün geometri girdisidir; K2'nin strict notice'ı
+/// ve ham değer kanıtı değişmez.
+fn stop_coord_for_user_distance(stop: &crate::k2::stops::StopRecord) -> Option<(f64, f64)> {
+    if let Some(coords) = stop.stop_lat.zip(stop.stop_lon) {
+        return Some(coords);
+    }
+    let parse = |field: &str| {
+        stop.row.get(field)
+            .and_then(|raw| raw.trim().parse::<f64>().ok())
+            .filter(|value| value.is_finite())
+    };
+    parse("stop_lat").zip(parse("stop_lon"))
+}
+
 /// shape → ardışık nokta sıçrama eşiği (km). Raylı shape'lerde `max_shape_jump_km_rail`.
 fn shape_jump_threshold_km(
     shape_id: &str,
@@ -5106,6 +5126,9 @@ fn check_remaining_analytics<'a>(
         for pts in shape_sdt_pts.values_mut() {
             pts.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
         }
+        let stop_sdt_coords: FxHashMap<&str, (f64, f64)> = records.stops.iter()
+            .filter_map(|stop| stop_coord_for_user_distance(stop).map(|coords| (stop.stop_id.as_str(), coords)))
+            .collect();
 
         let mut seen_shp024: FxHashSet<(&str, &str)> = FxHashSet::default(); // (stop_id, shape_id)
 
@@ -5133,7 +5156,7 @@ fn check_remaining_analytics<'a>(
                 let stop_id = idx.stop_id_of(st);
                 if seen_shp024.contains(&(stop_id, shape_id)) { continue; }
 
-                let (slat, slon) = match stop_coords.get(stop_id) {
+                let (slat, slon) = match stop_sdt_coords.get(stop_id) {
                     Some(&c) => c,
                     None => continue,
                 };

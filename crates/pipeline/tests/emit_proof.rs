@@ -1810,6 +1810,82 @@ fn shp030_aggregates_and_does_not_duplicate_related_findings() {
     assert!(!negative.iter().any(|n| n.rule_id == "SHP_030"), "tam shape mesafesi SHP_030 üretmemeli");
 }
 
+#[test]
+fn shp024_recovers_whitespace_coordinates_and_preserves_thresholds() {
+    // tdg-83134 reduced case: coordinates are numerically valid after trimming, but the
+    // lexical K2 path keeps them invalid so DQ_016/STP evidence remains available. SHP_024
+    // must still use that payload for the user-distance comparison (139.4m and 165.6m).
+    let stops = "stop_id,stop_name,stop_lat,stop_lon\n\
+S1,Lycée Dupuy, 43.229610,   0.062651\n\
+S2,Delacroix, 43.227402,   0.061883\n";
+    let routes = "route_id,agency_id,route_short_name,route_type\nR1,1,101,3\n";
+    let trips = "route_id,service_id,trip_id,shape_id\nR1,SVC1,T1,SH1\n";
+    let shapes = "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence,shape_dist_traveled\n\
+SH1,43.229612,0.060398,1,2.094\n\
+SH1,43.229628,0.061190,2,2.158\n\
+SH1,43.229660,0.062172,3,2.238\n\
+SH1,43.229665,0.062354,4,2.253\n\
+SH1,43.228891,0.062634,5,2.376\n\
+SH1,43.228047,0.062443,6,2.471\n";
+    let stop_times = "trip_id,arrival_time,departure_time,stop_id,stop_sequence,shape_dist_traveled\n\
+T1,08:00:00,08:00:00,S1,1,2.137\n\
+T1,08:10:00,08:10:00,S2,2,2.387\n";
+    let files = with_opts(
+        &[
+            ("stops.txt", stops),
+            ("routes.txt", routes),
+            ("trips.txt", trips),
+            ("shapes.txt", shapes),
+            ("stop_times.txt", stop_times),
+        ],
+        &[],
+        &[],
+    );
+    let bus = notices_for(&files, &ValidatorConfig::default());
+    let bus_shp024: Vec<_> = bus.iter().filter(|n| n.rule_id == "SHP_024").collect();
+    assert_eq!(bus_shp024.len(), 2, "iki >100m otobüs vakası ayrı raporlanmalı: {bus_shp024:?}");
+    assert!(bus_shp024.iter().any(|n| n.entity_id.as_deref() == Some("S1")
+        && n.observed_value.as_deref().is_some_and(|v| v.starts_with("139."))));
+    assert!(bus_shp024.iter().any(|n| n.entity_id.as_deref() == Some("S2")
+        && n.observed_value.as_deref().is_some_and(|v| v.starts_with("165."))));
+
+    // Same geometry on a rail route: the intentional 200m rail threshold keeps both
+    // ~139m/~166m platform-center offsets unflagged.
+    let rail_routes = "route_id,agency_id,route_short_name,route_type\nR1,1,101,2\n";
+    let rail_files = with_opts(
+        &[("routes.txt", rail_routes), ("stops.txt", stops), ("trips.txt", trips),
+          ("shapes.txt", shapes), ("stop_times.txt", stop_times)],
+        &[],
+        &[],
+    );
+    let rail = notices_for(&rail_files, &ValidatorConfig::default());
+    assert!(!rail.iter().any(|n| n.rule_id == "SHP_024"),
+        "rail eşik istisnası korunmalı: {rail:?}");
+}
+
+#[test]
+fn shp024_boundary_uses_bus_threshold_not_geometric_projection() {
+    let stops = "stop_id,stop_name,stop_lat,stop_lon\n\
+NEAR,Near,40.0,0.0058\n\
+FAR,Far,40.0,0.0062\n";
+    let trips = "route_id,service_id,trip_id,shape_id\nR1,SVC1,T1,SH1\n";
+    let shapes = "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence,shape_dist_traveled\n\
+SH1,40.0,0.0,1,0\nSH1,40.0,0.01,2,1\n";
+    let stop_times = "trip_id,arrival_time,departure_time,stop_id,stop_sequence,shape_dist_traveled\n\
+T1,08:00:00,08:00:00,NEAR,1,0.5\n\
+T1,08:10:00,08:10:00,FAR,2,0.5\n";
+    let files = with_opts(
+        &[("stops.txt", stops), ("trips.txt", trips), ("shapes.txt", shapes),
+          ("stop_times.txt", stop_times)],
+        &[],
+        &[],
+    );
+    let notices = notices_for(&files, &ValidatorConfig::default());
+    let shp024: Vec<_> = notices.iter().filter(|n| n.rule_id == "SHP_024").collect();
+    assert_eq!(shp024.len(), 1, "100m üzerindeki yalnız FAR vakası raporlanmalı: {shp024:?}");
+    assert_eq!(shp024[0].entity_id.as_deref(), Some("FAR"));
+}
+
 /// Aynı fixture gövdesini (overrides+removes+raw+config) paylaşan farklı kurallar.
 /// Bugünkü iki duplikasyon kaçışının ORTAK imzası tam buydu: STM_023/STM_036 ve
 /// OPR_006/STM_033 için `emit_proof.rs`'te BİREBİR aynı fixture kayıtlıydı ve
