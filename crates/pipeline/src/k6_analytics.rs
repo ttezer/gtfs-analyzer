@@ -1027,6 +1027,67 @@ fn check_speed_and_duration<'a>(
                 "Ardışık stop_times zamanlarını doğrulayın; gerçek bekleme ise zamanları açıklayıcı biçimde düzenleyin."));
         }
 
+        // ── STM_008: chronology across untimed stops ───────────────────────
+        // MobilityData keeps the latest row with a known departure_time and
+        // compares each later known arrival_time against it.  A stop without
+        // times must not erase that state: interpolated/untimed intermediate
+        // stops are valid GTFS and can otherwise hide a real reversal.
+        //
+        // This pass is deliberately separate from the adjacent-segment speed
+        // loop below.  Speed and zero-duration checks still require a physically
+        // adjacent pair, while chronology may span any number of untimed rows.
+        let mut previous_departure: Option<(&CompactStopTime, u32)> = None;
+        for st in stimes.iter() {
+            if let (Some(arrival), Some((departure_row, departure))) = (
+                st.arrival_time().map(hms_to_secs),
+                previous_departure,
+            ) {
+                if arrival < departure {
+                    let seq_a = departure_row.stop_sequence().unwrap_or(0);
+                    let seq_b = st.stop_sequence().unwrap_or(0);
+                    let dep_hms = format_hms(departure);
+                    let arr_hms = format_hms(arrival);
+                    let name_a = stop_name_sd
+                        .get(idx.stop_id_of(departure_row))
+                        .copied()
+                        .unwrap_or(idx.stop_id_of(departure_row));
+                    let name_b = stop_name_sd
+                        .get(idx.stop_id_of(st))
+                        .copied()
+                        .unwrap_or(idx.stop_id_of(st));
+                    let headsign = trip_headsign_sd.get(trip_id).copied().unwrap_or("");
+                    let hs_sep = if headsign.is_empty() { "" } else { ", " };
+                    let mut n = k6_notice(
+                        ctr, "STM_008", EntityType::Trip,
+                        Some(trip_id.to_string()), Some(trip_id.to_string()),
+                        "stop_times.txt", Some(st.line as u64), Some("arrival_time"),
+                        Some(format!("{arr_hms} < {dep_hms}")),
+                        Some(format!(">= {dep_hms}")),
+                        format!("'{route_label}' hattı '{trip_id}'{dep_suffix} seferi: {name_a} durağından (sıra {seq_a}) kalkış {dep_hms}, {name_b} durağına (sıra {seq_b}) varış {arr_hms} — varış kalkıştan önce, zaman geriye gidiyor. (yön {dir_sd}{hs_sep}{headsign})"),
+                        "stop_times.txt zaman değerlerini gözden geçirin; seferler boyunca zamanlar monoton artmalıdır.",
+                    );
+                    let mut d = std::collections::BTreeMap::new();
+                    d.insert("stop_a".to_string(), idx.stop_id_of(departure_row).to_string());
+                    d.insert("stop_b".to_string(), idx.stop_id_of(st).to_string());
+                    d.insert("stop_a_name".to_string(), name_a.to_string());
+                    d.insert("stop_b_name".to_string(), name_b.to_string());
+                    d.insert("seq_a".to_string(), seq_a.to_string());
+                    d.insert("seq_b".to_string(), seq_b.to_string());
+                    d.insert("route".to_string(), route_label.to_string());
+                    d.insert("headsign".to_string(), headsign.to_string());
+                    d.insert("hs_sep".to_string(), hs_sep.to_string());
+                    d.insert("dir".to_string(), dir_sd.to_string());
+                    d.insert("dep".to_string(), dep_hms.clone());
+                    d.insert("arr".to_string(), arr_hms.clone());
+                    n.details = Some(d);
+                    notices.push(n);
+                }
+            }
+            if let Some(departure) = st.departure_time() {
+                previous_departure = Some((st, hms_to_secs(departure)));
+            }
+        }
+
         // ── STM_014 / OPR_008: hız anomalisi ─────────────────────────────────
         // Per-trip coord buffer: her stop bir kez sorgulanır
         coords_buf.clear();
@@ -1101,39 +1162,9 @@ fn check_speed_and_duration<'a>(
                 continue;
             }
             if arr < dep {
-                // STM_008: duraklar arası zaman geriye gidiyor (b durağına varış < a durağından kalkış)
-                let seq_a = a.stop_sequence().unwrap_or(0);
-                let seq_b = b.stop_sequence().unwrap_or(0);
-                let dep_hms = format_hms(dep);
-                let arr_hms = format_hms(arr);
-                let name_a = stop_name_sd.get(idx.stop_id_of(a)).copied().unwrap_or(idx.stop_id_of(a));
-                let name_b = stop_name_sd.get(idx.stop_id_of(b)).copied().unwrap_or(idx.stop_id_of(b));
-                let headsign = trip_headsign_sd.get(trip_id).copied().unwrap_or("");
-                let hs_sep = if headsign.is_empty() { "" } else { ", " };
-                let mut n = k6_notice(
-                    ctr, "STM_008", EntityType::Trip,
-                    Some(trip_id.to_string()), Some(trip_id.to_string()),
-                    "stop_times.txt", Some(b.line as u64), Some("arrival_time"),
-                    Some(format!("{arr_hms} < {dep_hms}")),
-                    Some(format!(">= {dep_hms}")),
-                    format!("'{route_label}' hattı '{trip_id}'{dep_suffix} seferi: {name_a} durağından (sıra {seq_a}) kalkış {dep_hms}, {name_b} durağına (sıra {seq_b}) varış {arr_hms} — varış kalkıştan önce, zaman geriye gidiyor. (yön {dir_sd}{hs_sep}{headsign})"),
-                    "stop_times.txt zaman değerlerini gözden geçirin; seferler boyunca zamanlar monoton artmalıdır.",
-                );
-                let mut d = std::collections::BTreeMap::new();
-                d.insert("stop_a".to_string(), idx.stop_id_of(a).to_string());
-                d.insert("stop_b".to_string(), idx.stop_id_of(b).to_string());
-                d.insert("stop_a_name".to_string(), name_a.to_string());
-                d.insert("stop_b_name".to_string(), name_b.to_string());
-                d.insert("seq_a".to_string(), seq_a.to_string());
-                d.insert("seq_b".to_string(), seq_b.to_string());
-                d.insert("route".to_string(), route_label.to_string());
-                d.insert("headsign".to_string(), headsign.to_string());
-                d.insert("hs_sep".to_string(), hs_sep.to_string());
-                d.insert("dir".to_string(), dir_sd.to_string());
-                d.insert("dep".to_string(), dep_hms.clone());
-                d.insert("arr".to_string(), arr_hms.clone());
-                n.details = Some(d);
-                notices.push(n);
+                // STM_008 chronology was emitted in the stateful pass above.
+                // Keep the adjacent speed loop from interpreting a backwards
+                // segment as a valid (underflowed) travel duration.
                 continue;
             }
             let dt_sec = arr - dep;

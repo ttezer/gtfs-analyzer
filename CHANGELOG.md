@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **`STM_008` now spans untimed intermediate stops.** K6 retains the latest known
+  `departure_time` and compares each later known `arrival_time` against it, so valid
+  interpolated/untimed rows no longer hide real chronology reversals. Adjacent-pair speed
+  checks remain unchanged, and service-day normalization still prevents raw midnight
+  rollovers from becoming duplicate `STM_008` findings.
+
 - **Granular raw midnight findings and dependency-aware recovery.** `STM_048`/`STM_049`
   now emit a separate HIGH·Spec finding for each Trip/row violation; raw/expected times and
   the line-level remediation details are preserved. A malformed or missing required file now

@@ -2137,6 +2137,71 @@ fn real_non_midnight_decrease_remains_stm_008_without_stm_048() {
 }
 
 #[test]
+fn stm008_carries_previous_departure_across_one_untimed_stop() {
+    let files = with_opts(
+        &[(
+            "stop_times.txt",
+            "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\nT1,,,S2,2\nT1,07:55:00,07:55:00,S1,3\n",
+        )],
+        &[],
+        &[],
+    );
+    let notices = notices_for(&files, &ValidatorConfig::default());
+    let stm008: Vec<_> = notices.iter().filter(|n| n.rule_id == "STM_008").collect();
+    assert_eq!(stm008.len(), 1, "untimed ara durak gerçek geriye gidişi gizlememeli: {stm008:?}");
+    assert_eq!(stm008[0].line, Some(4), "finding sonraki zamanlı satırı göstermeli");
+    assert_eq!(stm008[0].details.as_ref().and_then(|d| d.get("seq_a")).map(String::as_str), Some("1"));
+    assert_eq!(stm008[0].details.as_ref().and_then(|d| d.get("seq_b")).map(String::as_str), Some("3"));
+}
+
+#[test]
+fn stm008_carries_previous_departure_across_multiple_untimed_stops() {
+    let files = with_opts(
+        &[(
+            "stop_times.txt",
+            "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\nT1,,,S2,2\nT1,,,S1,3\nT1,,,S2,4\nT1,07:55:00,07:55:00,S1,5\n",
+        )],
+        &[],
+        &[],
+    );
+    let notices = notices_for(&files, &ValidatorConfig::default());
+    assert_eq!(
+        notices.iter().filter(|n| n.rule_id == "STM_008").count(),
+        1,
+        "birden çok untimed ara durak gerçek geriye gidişi gizlememeli"
+    );
+}
+
+#[test]
+fn stm008_does_not_flag_monotonic_interpolation_across_untimed_stop() {
+    let files = with_opts(
+        &[(
+            "stop_times.txt",
+            "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\nT1,,,S2,2\nT1,08:05:00,08:05:00,S1,3\n",
+        )],
+        &[],
+        &[],
+    );
+    let notices = notices_for(&files, &ValidatorConfig::default());
+    assert!(!notices.iter().any(|n| n.rule_id == "STM_008"), "monoton interpolasyon false-positive üretmemeli");
+}
+
+#[test]
+fn stm008_keeps_midnight_normalization_silent_across_untimed_stop() {
+    let files = with_opts(
+        &[(
+            "stop_times.txt",
+            "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,23:50:00,23:50:00,S1,1\nT1,,,S2,2\nT1,00:10:00,00:10:00,S1,3\n",
+        )],
+        &[],
+        &[],
+    );
+    let notices = notices_for(&files, &ValidatorConfig::default());
+    assert!(notices.iter().any(|n| n.rule_id == "STM_048"), "raw rollover STM_048 olarak korunmalı");
+    assert!(!notices.iter().any(|n| n.rule_id == "STM_008"), "normalize edilen rollover STM_008'e çoğalmamalı");
+}
+
+#[test]
 fn coverage_debt_matches_ledger() {
     let canonical: BTreeSet<&str> = RULES.iter().map(|r| r.id).collect();
     let proven: BTreeSet<&str> = fixtures().iter().map(|f| f.rule).collect();
