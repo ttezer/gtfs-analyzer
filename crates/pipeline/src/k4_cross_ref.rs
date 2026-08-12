@@ -2368,6 +2368,8 @@ fn check_fares_v2(
             }
         }
 
+        // Sıra HashMap'ten gelmemeli: hem determinizm hem de örnek listesi buna bağlı.
+        let mut violations: Vec<(&str, HashSet<&str>, usize)> = Vec::new();
         for (fpid, eligible) in fp_eligible {
             if eligible.len() <= 1 {
                 continue;
@@ -2376,26 +2378,86 @@ fn check_fares_v2(
             if default_count == 1 {
                 continue;
             }
-            let lines = fp_rows.get(fpid).expect("fare product rows are indexed together");
-            let message = if default_count == 0 {
+            violations.push((fpid, eligible, default_count));
+        }
+        violations.sort_unstable_by(|a, b| a.0.cmp(b.0));
+
+        // Feed'de HİÇ varsayılan kategori yoksa kök kusur TEKTİR (rider_categories.txt'te
+        // hiçbir satırda is_default_fare_category=1 yok) ve ürün başına emit aynı cümleyi
+        // N kez tekrarlar — mdb-13'te 9 kez. "Varsayılan VAR ama bu ürünün uygunluk
+        // kümesinde yok" durumu ise ürüne özgüdür ve toplulanmaz.
+        if default_rcids.is_empty() && violations.len() > 1 {
+            // Tek bir kategoriyi varsayılan yapmak ancak o kategori HER ihlalli ürünün
+            // uygunluk kümesindeyse yeter; yani çözücü adaylar kümelerin KESİŞİMİdir.
+            // mdb-13 ölçümü: sezgisel görünen `adult` 4 bulguyu açık bırakıyor, çözenler
+            // yalnız {disabled, medicare, senior}. Bunu söylemezsek üretici yanlış
+            // kategoriyi seçip geri dönüyor.
+            let mut resolving: Option<HashSet<&str>> = None;
+            for (_, eligible, _) in &violations {
+                resolving = Some(match resolving {
+                    None => eligible.clone(),
+                    Some(acc) => acc.intersection(eligible).copied().collect(),
+                });
+            }
+            let mut resolving: Vec<&str> =
+                resolving.unwrap_or_default().into_iter().collect();
+            resolving.sort_unstable();
+
+            let n = violations.len();
+            let message = if resolving.is_empty() {
                 format!(
-                    "'{}' ucret urununde {} uygun yolcu kategorisi var ancak hicbiri varsayilan degil; tam olarak 1 olmali.",
-                    fpid, eligible.len()
+                    "Feed'de hicbir rider_category varsayilan degil: {n} ucret urununun her birinde tam olarak 1 varsayilan kategori olmali. Tek bir kategoriyi varsayilan yapmak yetmez; urunlerin uygunluk kumeleri ortusmuyor."
                 )
             } else {
                 format!(
-                    "'{}' ucret urunu {} varsayilan yolcu kategorisine bagli; en fazla 1 olmali.",
-                    fpid, default_count
+                    "Feed'de hicbir rider_category varsayilan degil: {} ucret urununun her birinde tam olarak 1 varsayilan kategori olmali. Su kategorilerden BIRINI is_default_fare_category=1 yapmak bulgularin tamamini kapatir: {}.",
+                    n,
+                    resolving.join(", ")
                 )
             };
-            notices.push(notice(
-                ctr, "RCT_006", EntityType::Row,
-                Some(fpid.to_string()), Some(fpid.to_string()),
-                "fare_products.txt", lines.first().copied(), None,
-                Some(default_count.to_string()), Some("1".to_string()),
+            let mut agg = notice(
+                ctr, "RCT_006", EntityType::Feed,
+                None, None,
+                "rider_categories.txt", None, Some("is_default_fare_category"),
+                Some(n.to_string()), None,
                 message,
                 "Bir fare_product_id icin uygun rider_category'lerden yalnizca biri is_default_fare_category=1 olmali.",
-            ));
+            );
+            let mut details: std::collections::BTreeMap<String, String> =
+                std::collections::BTreeMap::new();
+            details.insert("affected_products".to_string(), n.to_string());
+            details.insert(
+                "example_products".to_string(),
+                violations.iter().take(5).map(|v| v.0).collect::<Vec<_>>().join(", "),
+            );
+            if !resolving.is_empty() {
+                details.insert("resolving_categories".to_string(), resolving.join(", "));
+            }
+            agg.details = Some(details);
+            notices.push(agg);
+        } else {
+            for (fpid, eligible, default_count) in violations {
+                let lines = fp_rows.get(fpid).expect("fare product rows are indexed together");
+                let message = if default_count == 0 {
+                    format!(
+                        "'{}' ucret urununde {} uygun yolcu kategorisi var ancak hicbiri varsayilan degil; tam olarak 1 olmali.",
+                        fpid, eligible.len()
+                    )
+                } else {
+                    format!(
+                        "'{}' ucret urunu {} varsayilan yolcu kategorisine bagli; en fazla 1 olmali.",
+                        fpid, default_count
+                    )
+                };
+                notices.push(notice(
+                    ctr, "RCT_006", EntityType::Row,
+                    Some(fpid.to_string()), Some(fpid.to_string()),
+                    "fare_products.txt", lines.first().copied(), None,
+                    Some(default_count.to_string()), Some("1".to_string()),
+                    message,
+                    "Bir fare_product_id icin uygun rider_category'lerden yalnizca biri is_default_fare_category=1 olmali.",
+                ));
+            }
         }
     }
 
@@ -6003,6 +6065,30 @@ mod tests {
 
     // ── RCT_006 ───────────────────────────────────────────────────────────────
 
+    fn rider_cats(specs: &[(&str, u32)]) -> Vec<crate::k2::rider_categories::RiderCategoryRecord> {
+        use crate::k2::rider_categories::RiderCategoryRecord;
+        specs.iter().enumerate().map(|(i, (id, def))| RiderCategoryRecord {
+            rider_category_id: (*id).into(),
+            rider_category_name: (*id).into(),
+            is_default_fare_category: Some(*def),
+            min_age: None, max_age: None,
+            eligibility_url: None,
+            row: Default::default(), line: i as u64 + 2,
+        }).collect()
+    }
+
+    /// `None` rider_category_id = ürün TÜM tanımlı kategorilere uygun (spec okuması).
+    fn fare_prods(specs: &[(&str, Option<&str>)]) -> Vec<crate::k2::fare_products::FareProductRecord> {
+        use crate::k2::fare_products::FareProductRecord;
+        specs.iter().enumerate().map(|(i, (pid, rcid))| FareProductRecord {
+            fare_product_id: (*pid).into(),
+            fare_product_name: None,
+            rider_category_id: rcid.map(Into::into),
+            fare_media_id: None, amount: None, currency: String::new(),
+            row: Default::default(), line: i as u64 + 10,
+        }).collect()
+    }
+
     #[test]
     fn multiple_default_rider_categories_per_fare_product_produces_rct_006() {
         use crate::k2::fare_products::FareProductRecord;
@@ -6188,6 +6274,68 @@ mod tests {
         }];
         let result = check(&recs, &EntityMap::default(), 20260515);
         assert!(!result.notices.iter().any(|n| n.rule_id == "RCT_006"));
+    }
+
+    /// mdb-13 minyatürü: hiç varsayılan kategori yok, birden çok ürün etkileniyor.
+    /// Tek feed notice çıkmalı ve çözücü kategorileri ADIYLA saymalı — o feed'de
+    /// sezgisel görünen kategoriyi seçmek bulguların yarısını açık bırakıyordu.
+    #[test]
+    fn zero_default_rider_categories_aggregate_to_one_feed_notice_naming_the_fix() {
+        let (mut recs, _map) = empty();
+        recs.rider_categories = rider_cats(&[("adult", 0), ("senior", 0), ("disabled", 0)]);
+        recs.fare_products = fare_prods(&[
+            // Tüm kategorilere uygun (boş rider_category_id).
+            ("single_ride", None),
+            // Yalnız senior+disabled — kesişimi bu ürün daraltır.
+            ("day_pass_discount", Some("senior")),
+            ("day_pass_discount", Some("disabled")),
+        ]);
+        let result = check(&recs, &EntityMap::default(), 20260515);
+        let hits: Vec<_> = result.notices.iter().filter(|n| n.rule_id == "RCT_006").collect();
+        assert_eq!(hits.len(), 1, "kök kusur tek → tek notice");
+        assert_eq!(hits[0].entity_type, EntityType::Feed);
+        let msg = &hits[0].message;
+        assert!(msg.contains("disabled, senior"), "çözücü kategoriler adıyla: {msg}");
+        assert!(!msg.contains("adult"), "adult tek başına çözmez, önerilmemeli: {msg}");
+        let details = hits[0].details.as_ref().expect("feed özeti details taşır");
+        assert_eq!(details.get("affected_products").map(String::as_str), Some("2"));
+        assert_eq!(
+            details.get("resolving_categories").map(String::as_str),
+            Some("disabled, senior")
+        );
+    }
+
+    /// Varsayılan VAR ama ürünün uygunluk kümesinde yok — bu ürüne özgüdür, kök kusur
+    /// tek değildir, toplulanmaz.
+    #[test]
+    fn default_outside_eligible_set_stays_per_product() {
+        let (mut recs, _map) = empty();
+        recs.rider_categories = rider_cats(&[("adult", 1), ("senior", 0), ("disabled", 0)]);
+        recs.fare_products = fare_prods(&[
+            ("p1", Some("senior")), ("p1", Some("disabled")),
+            ("p2", Some("senior")), ("p2", Some("disabled")),
+        ]);
+        let result = check(&recs, &EntityMap::default(), 20260515);
+        let hits: Vec<_> = result.notices.iter().filter(|n| n.rule_id == "RCT_006").collect();
+        assert_eq!(hits.len(), 2, "ürün başına kalmalı");
+        assert!(hits.iter().all(|n| n.entity_type == EntityType::Row));
+    }
+
+    /// Uygunluk kümeleri ayrıksa tek kategori yetmez; özet bunu SÖYLEMELİ, yoksa
+    /// üretici olmayan bir çözümü arar.
+    #[test]
+    fn disjoint_eligible_sets_report_that_one_default_is_not_enough() {
+        let (mut recs, _map) = empty();
+        recs.rider_categories = rider_cats(&[("a", 0), ("b", 0), ("c", 0), ("d", 0)]);
+        recs.fare_products = fare_prods(&[
+            ("p1", Some("a")), ("p1", Some("b")),
+            ("p2", Some("c")), ("p2", Some("d")),
+        ]);
+        let result = check(&recs, &EntityMap::default(), 20260515);
+        let hits: Vec<_> = result.notices.iter().filter(|n| n.rule_id == "RCT_006").collect();
+        assert_eq!(hits.len(), 1);
+        assert!(hits[0].message.contains("ortusmuyor"), "{}", hits[0].message);
+        assert!(hits[0].details.as_ref().is_some_and(|d| !d.contains_key("resolving_categories")));
     }
 
     #[test]
