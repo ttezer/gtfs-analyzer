@@ -2960,6 +2960,46 @@ fn whitespace112_pathway_semantics_survive_when_trimmed_value_is_invalid() {
     }
 }
 
+/// #125'te kaldırılan K7 dalının DAYANAĞINI çapalar. O dal, akış yolundaki bir parse
+/// reddinin gözlenen değerinde boşluk bulacağını varsayıyordu; oysa `stop_times`/`shapes`
+/// emit'leri değeri `get_col` ile okur ve o `.trim()` uygular, yani böyle bir notice hiç
+/// doğmaz. `get_col` bir gün trim'i bırakırsa bu test düşer ve kaldırma kararı yeniden
+/// tartışılmalıdır — sessizce yanlışa dönmemeli.
+#[test]
+fn streaming_files_never_report_a_value_with_surrounding_whitespace() {
+    let mut files = base_files();
+    for slot in files.iter_mut() {
+        if slot.0 == "stop_times.txt" {
+            slot.1 = b"trip_id,arrival_time,departure_time,stop_id,stop_sequence,shape_dist_traveled\n\
+                       T1, 08:00:00 ,08:00:00,S1, 1 , 0.0 \n\
+                       T1,08:10:00, 08:10:00 ,S2,2,100.0\n" as &[u8];
+        }
+    }
+    files.push((
+        "shapes.txt",
+        b"shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\n\
+          SH1, 41.0 ,29.0, 1 \n\
+          SH1,41.1, 29.1 ,2\n" as &[u8],
+    ));
+
+    match run(&files) {
+        ValidateResult::Ok(vr) => {
+            assert!(has(&vr, "DQ_016"), "boşluk kök bulgusu görünür kalmalı");
+            for n in vr.notices.iter().filter(|n| {
+                matches!(n.file.as_deref(), Some("stop_times.txt") | Some("shapes.txt"))
+            }) {
+                let Some(observed) = n.observed_value.as_deref() else { continue };
+                assert_eq!(
+                    observed, observed.trim(),
+                    "{} akış yolunda çevresi boşluklu değer raporladı: {observed:?}",
+                    n.rule_id
+                );
+            }
+        }
+        other => panic!("ValidateResult::Ok beklendi, alınan: {other:?}"),
+    }
+}
+
 // ── issue #84: akış dosyası GÖVDESİNDE kapanmamış tırnak ───────────────────────
 //
 // K1 bu dört dosyanın gövdesini hiç açmaz; K1'in gövde tarayıcısına giden dal ÖLÜYDÜ

@@ -99,14 +99,17 @@ fn is_whitespace_derivative(notice: &Notice, references: &WhitespaceReferences<'
         return true;
     }
 
-    // stop_times/shapes streaming yolu RowMap kurmadığı için K2 ortak helper'ı işaret
-    // koyamaz; bu yolda parser hata mesajı + ham gözlenen değer aynı kanıtı taşır.
-    let streaming_k2_parse = notice.id.starts_with("k2/")
-        && notice.observed_value.as_deref().is_some_and(has_surrounding_whitespace)
-        && is_streaming_parser_rejection(&notice.message);
-    if streaming_k2_parse {
-        return true;
-    }
+    // ⚠️ BURADA BİR "streaming K2 parse reddi" DALI VARDI — KALDIRILDI (#125, 2026-08-12).
+    // Dal, gözlenen değerin çevresinde boşluk olmasını şart koşuyordu; ama stop_times ve
+    // shapes'in akış yolundaki emit'lerin hepsi değeri `get_col` ile okur ve o `.trim()`
+    // uygular (`k2/common.rs`). `parse_u32_raw`/`parse_f64_raw`/`parse_gtfs_time_raw`
+    // adlarındaki "raw" RowMap yerine dilim üzerinden okuma anlamına gelir, HAM DEĞER
+    // anlamına gelmez. Yani `observed_value` hiçbir zaman boşluk taşımıyordu, şart asla
+    // sağlanmıyordu ve dal erişilemezdi. İki ölçüm: (1) boşluklu shape_pt_lat/
+    // shape_dist_traveled içeren feed yalnızca DQ_016 üretti, bastırılacak türev yoktu;
+    // (2) dal kapatılıp tam takım koşuldu, 921/921 geçti. Mesaj kalıbı listesinin K2'ninkiyle
+    // ayrışmış olması da bu yüzden sonuçsuzdu — erişilemeyen dala kalıp eklenecekti.
+    // Akış yolu ile RowMap yolunun FARKLI SERTLİKTE okuması ayrı bir konudur ve durur.
 
     // K4 yalnızca hedefte bulunmayan ham ID'yi raporlar. Aynı ID'nin trim edilmiş biçimi
     // hedef kümede varsa, bu tam olarak whitespace kaynaklı bir FK semptomudur; gerçekten
@@ -115,16 +118,6 @@ fn is_whitespace_derivative(notice: &Notice, references: &WhitespaceReferences<'
         .and_then(|d| d.get("whitespace_candidate"))
         .is_some_and(|v| v == "true");
     candidate && normalized_reference_exists(notice, references)
-}
-
-fn has_surrounding_whitespace(value: &str) -> bool {
-    !value.is_empty() && value != value.trim()
-}
-
-fn is_streaming_parser_rejection(message: &str) -> bool {
-    message.contains("bekleniyor, alınan:")
-        || message.contains("sayı olarak okunamıyor")
-        || message.contains("ondalık sayı olarak okunamıyor")
 }
 
 fn normalized_reference_exists(notice: &Notice, references: &WhitespaceReferences<'_>) -> bool {
