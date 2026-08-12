@@ -541,6 +541,19 @@ impl Dq016Acc {
 
     /// DQ_016 kök bulgusuna ham değer kanıtı ekler. JSON'da boşluklar görünür kalır;
     /// hiçbir değer trim edilmez veya kimlik olarak yeniden kullanılmaz.
+    ///
+    /// `typed_whitespace_fields` (#126): boşluğu kaldırılınca SAYI olarak okunabilen
+    /// alanlar. Bu alanlar, boşluk olmasaydı bir tip/aralık kuralına girecek olan
+    /// hücrelerdir — yani "boşluk yüzünden görünmeyen" olgunun asıl adresi.
+    ///
+    /// ⚠️ NEDEN AYRI BİR ANAHTAR GEREKTİ: K7 kök bulguya `suppressed_derivative_*`
+    /// yazar, ama o sayaç yalnızca türev NOTICE DOĞDUYSA oluşur. `stop_times`, `shapes`,
+    /// `trips` ve `calendar_dates` sütunlarını `get_col` ile okur ve o `.trim()` uygular,
+    /// yani bu dört dosyada türev hiç doğmaz ve anahtar hiç yazılmaz. Anahtarın yokluğu
+    /// "burada gizlenen bir şey yok" gibi okunuyordu; oysa okuyucunun rejimini
+    /// tarif ediyordu. Bu alan her iki rejimde de üretilir, böylece iki sayı
+    /// karşılaştırılabilir: türev doğan dosyada ikisi de dolu, trim eden dosyada
+    /// yalnız bu dolu.
     pub(crate) fn evidence_details(&self) -> Option<std::collections::BTreeMap<String, String>> {
         if self.samples.is_empty() {
             return None;
@@ -549,10 +562,22 @@ impl Dq016Acc {
             .map(|(field, value)| format!("{field}={value:?}"))
             .collect::<Vec<_>>()
             .join("; ");
-        Some([
+        let mut details: std::collections::BTreeMap<String, String> = [
             ("raw_samples".to_string(), samples),
             ("affected_rows".to_string(), self.rows.to_string()),
-        ].into_iter().collect())
+        ].into_iter().collect();
+
+        // Ham hali okunamayıp trim'li hali okunabiliyorsa, boşluk tek başına tipli bir
+        // değeri gizliyor demektir. Metin alanları (" Durak Adı ") iki halde de sayı
+        // vermez, bu yüzden listeye girmez.
+        let typed: Vec<&str> = self.samples.iter()
+            .filter(|(_, v)| v.parse::<f64>().is_err() && v.trim().parse::<f64>().is_ok())
+            .map(|(field, _)| field.as_str())
+            .collect();
+        if !typed.is_empty() {
+            details.insert("typed_whitespace_fields".to_string(), typed.join(", "));
+        }
+        Some(details)
     }
 }
 

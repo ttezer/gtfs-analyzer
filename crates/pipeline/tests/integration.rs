@@ -2960,6 +2960,58 @@ fn whitespace112_pathway_semantics_survive_when_trimmed_value_is_invalid() {
     }
 }
 
+/// #126: `suppressed_derivative_*` sayacı OKUYUCU REJİMİNİ tarif eder, feed'i değil —
+/// `trips.txt` `get_col` ile trim ederek okur, orada türev hiç doğmaz ve anahtar hiç
+/// yazılmaz. Anahtarın yokluğu "burada gizlenmiş bir şey yok" diye okunabiliyordu.
+/// `typed_whitespace_fields` iki rejimde de üretilir ve boşluğun tipli bir değeri
+/// gizlediği yeri adıyla söyler.
+#[test]
+fn dq016_reports_typed_whitespace_in_both_reader_regimes() {
+    let mut files = base_files();
+    for slot in files.iter_mut() {
+        // RowMap yolu: ham okunur, türev doğar, K7 bastırır.
+        // `route_long_name` de boşluklu ama METİNDİR: trim edilse de sayı olmaz, bu yüzden
+        // listeye girmemeli — aksi halde anahtar "boşluklu her alan" demeye başlar.
+        if slot.0 == "routes.txt" {
+            slot.1 = b"route_id,agency_id,route_short_name,route_long_name,route_type\n\
+                       R1,1,101, Ana Hat , 3\n" as &[u8];
+        }
+        // get_col yolu: trim edilir, türev HİÇ doğmaz.
+        if slot.0 == "trips.txt" {
+            slot.1 = b"route_id,service_id,trip_id,wheelchair_accessible\nR1,SV1,T1, 1 \n" as &[u8];
+        }
+    }
+
+    match run(&files) {
+        ValidateResult::Ok(vr) => {
+            let details = |file: &str| {
+                vr.notices.iter()
+                    .find(|n| n.rule_id == "DQ_016" && n.file.as_deref() == Some(file))
+                    .unwrap_or_else(|| panic!("{file} için DQ_016 kök bulgusu"))
+                    .details.as_ref()
+                    .unwrap_or_else(|| panic!("{file} DQ_016 kanıt taşımalı"))
+                    .clone()
+            };
+
+            let routes = details("routes.txt");
+            let trips = details("trips.txt");
+
+            // Asimetri hâlâ VAR ve doğrudur: türev yalnız ham okuyan yolda doğar.
+            assert!(routes.contains_key("suppressed_derivative_rules"),
+                "ham okuyan yolda bastırılan türev kaydedilmeli: {routes:?}");
+            assert!(!trips.contains_key("suppressed_derivative_rules"),
+                "trim eden yolda bastırılacak türev yok: {trips:?}");
+
+            // Kanıt ise artık İKİ rejimde de var — asimetriyi yanlış okumayı engelleyen şey bu.
+            assert_eq!(routes.get("typed_whitespace_fields").map(String::as_str),
+                Some("route_type"), "{routes:?}");
+            assert_eq!(trips.get("typed_whitespace_fields").map(String::as_str),
+                Some("wheelchair_accessible"), "{trips:?}");
+        }
+        other => panic!("ValidateResult::Ok beklendi, alınan: {other:?}"),
+    }
+}
+
 /// #125'te kaldırılan K7 dalının DAYANAĞINI çapalar. O dal, akış yolundaki bir parse
 /// reddinin gözlenen değerinde boşluk bulacağını varsayıyordu; oysa `stop_times`/`shapes`
 /// emit'leri değeri `get_col` ile okur ve o `.trim()` uygular, yani böyle bir notice hiç
