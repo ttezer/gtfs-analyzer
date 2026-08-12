@@ -52,6 +52,15 @@ def main() -> int:
     corpus = pathlib.Path(a.zips).parent
     urls = url_index(corpus)
 
+    out = HERE / "corpus_manifest.csv"
+    # URL DURUMU ÖLÇÜMDÜR, TÜRETİLEMEZ: bu betik zip'lere bakar, ağa bakmaz. Var olan
+    # `url_status`/`url_checked` değerleri KORUNUR, yoksa yeniden üretim 2026-08-12'de
+    # ölçülen 14 ölü URL işaretini sessizce silerdi.
+    prior = {}
+    if out.exists():
+        for r in csv.DictReader(out.open(encoding="utf-8")):
+            prior[r["feed"]] = (r.get("url_status", ""), r.get("url_checked", ""))
+
     rows, missing = [], []
     for f in sorted(os.listdir(a.zips)):
         if not f.endswith(".zip"):
@@ -65,12 +74,17 @@ def main() -> int:
         u = urls.get(feed, "")
         if not u:
             missing.append(feed)
+        status, checked = prior.get(feed, ("", ""))
         rows.append({"feed": feed, "bytes": os.path.getsize(p),
-                     "sha256": h.hexdigest(), "download_url": u})
+                     "sha256": h.hexdigest(), "download_url": u,
+                     "url_status": status, "url_checked": checked})
 
-    out = HERE / "corpus_manifest.csv"
     with out.open("w", newline="", encoding="utf-8") as fh:
-        w = csv.DictWriter(fh, fieldnames=["feed", "bytes", "sha256", "download_url"])
+        # lineterminator: csv varsayılanı CRLF'tir; depodaki manifest LF ve satır sonu
+        # farkı tüm dosyayı diff'e sokar.
+        w = csv.DictWriter(fh, lineterminator="\n",
+                           fieldnames=["feed", "bytes", "sha256", "download_url",
+                                       "url_status", "url_checked"])
         w.writeheader()
         w.writerows(rows)
     print(f"{out}: {len(rows)} feed · URL'li {len(rows)-len(missing)} · URL'siz {len(missing)}")

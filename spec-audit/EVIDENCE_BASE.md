@@ -563,7 +563,7 @@ Dış denetim haklıydı: komutlar `notgit/` altındaki dosyalara işaret ediyor
 Depoya ALINAN (`spec-audit/`):
 | dosya | ne |
 |---|---|
-| `corpus-evidence/corpus_manifest.csv` | 242 feed · her zip'in **SHA-256**'sı · bayt boyutu · indirme URL'i |
+| `corpus-evidence/corpus_manifest.csv` | 242 feed · her zip'in **SHA-256**'sı · bayt boyutu · indirme URL'i · URL'in son ölçülen durumu |
 | `corpus-evidence/rule_stats.csv` | koşumun kural bazında çıktısı |
 | `corpus-evidence/parity_unexplained.csv` | MD paritesinde açıklanamayan 10 satır |
 | `corpus-evidence/fatals.csv` | 4 fatal feed |
@@ -571,6 +571,22 @@ Depoya ALINAN (`spec-audit/`):
 | `corpus_batch.py` · `md_parity_audit.py` | koşum ve parite betikleri (gizli bilgi taşımaz; MD token env/gitignore'dan okunur) |
 
 Depoya ALINMAYAN: zip'lerin kendisi (**2,33 GB**).
+
+⚠️ **ÜÇÜNCÜ TARAF ARTIK 242/242'yi İNDİREMEZ — 14 URL öldü (2026-08-12 ölçümü).** 242
+URL'in tamamı HEAD ve Range GET ile denendi; 228'i indi, 14'ü ikisinde de 404 verdi
+(hepsi MobilityData `mdb-latest` kovasından düşmüş: `mdb-2360`, `mdb-2875`, `mdb-2904`,
+`mdb-2929`, `mdb-3133`, `mdb-3135`, `mdb-3220`, `mdb-3221`, `mdb-3230`, `mdb-3235`,
+`mdb-3354`, `mdb-3355`, `mdb-3357`, `mdb-3358`). Bu feed'ler korpusta **vardı ve ölçüme
+girdi**; satırları manifestte sha256'larıyla birlikte DURUYOR, yalnız `url_status` alanı
+`dead_404`. Satırı silmek ölçümün yapıldığı kümeyi geçmişe dönük değiştirir ve bayt
+kimliğini yok ederdi. Yani korpus **242 feed'dir**; yeniden kurulabilirliği 228'dir.
+
+🔴 Aynı ölçümde `verify_corpus.py --download`'ın bir kusuru da bulundu: `curl` `-f`
+bayrağı olmadan çağrılıyordu, 404'te **exit 0** dönüp hata gövdesini (92 bayt JSON)
+`.zip` diye diske yazıyordu. O sahte dosya sonra hash adımına girip *"değişmiş — yayıncı
+güncellemiş, hata DEĞİL"* diye raporlanıyordu; yani **ölü URL, tazelenmiş feed gibi
+görünüyordu**. `-f` eklendi, başarısız indirmenin artığı siliniyor, ölü/başarısız feed'ler
+ayrı ayrı sayılıp çıkış kodu 1 veriliyor.
 
 **Üçüncü taraf zinciri:**
 ```

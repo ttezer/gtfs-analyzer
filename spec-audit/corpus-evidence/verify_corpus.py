@@ -5,7 +5,8 @@
 "yeniden üretim" komutları `notgit/` altındaki dosyalara işaret ediyordu ve o klasör
 `.gitignore`'da. Yani korpus rakamları dışarıdan doğrulanamıyordu, geliştirici beyanıydı.
 
-Depoya ALINAN: feed kimlikleri + her zip'in SHA-256'sı + indirme URL'i + koşum çıktıları.
+Depoya ALINAN: feed kimlikleri + her zip'in SHA-256'sı + indirme URL'i + URL'in son
+ölçülen durumu (`url_status`/`url_checked`) + koşum çıktıları.
 Depoya ALINMAYAN: zip'lerin kendisi (2,33 GB).
 
 Kullanım:
@@ -22,6 +23,11 @@ Tam zincir:
 ⚠️ Feed'ler CANLI URL'lerden gelir; yayıncı dosyayı güncellerse hash TUTMAZ. Bu bir
 başarısızlık değil, korpusun bir ANLIK GÖRÜNTÜ olduğunun kanıtıdır — tutmayan feed'ler
 ayrı raporlanır ve "bozuk" sayılmaz.
+
+⚠️ URL'in ÖLMESİ ayrı bir olgudur ve hash sapmasıyla KARIŞTIRILMAMALIDIR (2026-08-12'de
+14 feed'de ölçüldü). Ölü URL'li feed korpusta VARDI, ölçüme girdi, sha256'sı manifestte
+durur; satırı silmek ölçümün yapıldığı kümeyi geçmişe dönük değiştirir ve bayt kimliğini
+yok eder. Bu yüzden satır KALIR, yalnız `url_status` alanı `dead_404` olur.
 """
 import argparse, csv, hashlib, os, subprocess, sys
 
@@ -48,6 +54,7 @@ def main():
     if a.download:
         os.makedirs(a.download, exist_ok=True)
         got = miss = 0
+        dead, failed = [], []
         for r in rows:
             dst = os.path.join(a.download, r["feed"] + ".zip")
             if os.path.exists(dst):
@@ -55,16 +62,37 @@ def main():
             if not r["download_url"]:
                 miss += 1
                 continue  # manifest üreticisi bunu zaten exit 1 ile bildirir
-            rc = subprocess.run(["curl", "-sSL", "--max-time", "180", "-o", dst,
+            if r.get("url_status") == "dead_404":
+                dead.append(r["feed"])
+                continue
+            # ⚠️ `-f` ŞART. 2026-08-12 ölçümü: `-f` olmadan curl 404'te de EXIT 0 döner ve
+            # hata gövdesini (92 bayt JSON) `.zip` diye diske yazar. O sahte zip sonra
+            # hash doğrulamasına girip "yayıncı güncellemiş — hata DEĞİL" diye raporlanırdı;
+            # yani ölü URL, tazelenmiş feed gibi görünüyordu.
+            rc = subprocess.run(["curl", "-fsSL", "--max-time", "180", "-o", dst,
                                  r["download_url"]]).returncode
-            got += (rc == 0)
-        print(f"indirilen {got} · URL'siz {miss}")
+            if rc == 0:
+                got += 1
+            else:
+                failed.append(r["feed"])
+                if os.path.exists(dst):
+                    os.remove(dst)  # yarım/hatalı gövde hash adımını yanıltmasın
+        print(f"indirilen {got} · URL'siz {miss} · manifeste göre ölü {len(dead)} · "
+              f"indirilemeyen {len(failed)}")
         if miss:
             # 2026-08-07 denetimi: URL'siz feed SESSİZCE atlanıyordu → üçüncü taraf
             # 242/242'yi indiremiyor ama bunu fark etmiyordu. Artık gürültülü başarısızlık.
             print(f"🔴 {miss} feed'in URL'i YOK — bu manifestle tam korpus kurulamaz.")
-            return 1
-        return 0
+        if dead:
+            print(f"🔴 {len(dead)} feed'in URL'i {rows[0].get('url_checked', '?')} "
+                  f"itibarıyla 404: {', '.join(dead)}")
+            print("  → Bu feed'ler korpusta VARDI ve ölçüme girdi; sha256'ları manifestte "
+                  "durur. URL'in ölmesi ölçümü geçersiz kılmaz, YENİDEN KURULMASINI engeller.")
+        if failed:
+            print(f"🔴 manifestte 'ok' işaretli ama İNMEYEN {len(failed)} feed: "
+                  f"{', '.join(failed)}")
+            print("  → url_status bayat olabilir; yeniden ölçüp manifesti güncelleyin.")
+        return 1 if (miss or dead or failed) else 0
 
     if not a.zips:
         ap.print_help()
