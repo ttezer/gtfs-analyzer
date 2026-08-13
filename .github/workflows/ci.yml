@@ -236,15 +236,16 @@ jobs:
       # satırı unuttuğunda CI, kod yüzünden değil bakım borcu yüzünden kırılır. Sürüm artık
       # tek kaynaktan — Cargo.lock'tan — okunur, böylece ayrışma imkânsızdır.
       #
-      # Ağ dayanıklılığı `wasm-pack kur` ile aynı gerekçe: araç bir ÖNKOŞUL, kurulamazsa
-      # sonraki adımlar çalışamaz → üç deneme de düşerse adım kırmızı yanar. cargo install
-      # ağ hatasını indirme aşamasında verir (derleme ağ istemez), yani başarısız deneme
-      # ucuzdur; asıl 86 saniyelik maliyet yalnız BAŞARILI kurulumda ödenir.
-      - name: wasm-bindgen CLI kur (Memory64 — sürüm Cargo.lock'tan)
+      # Kurulum `taiki-e/install-action` ile PREBUILT binary'den yapılır — repo'nun
+      # cargo-audit ve cargo-tarpaulin için zaten kullandığı yol. Öncesinde bu adım
+      # `cargo install` ile KAYNAKTAN derliyordu ve ölçülen maliyeti 86 saniyeydi.
+      # Action kendi indirme retry'ını taşır, yani `wasm-pack`taki elle döngüye burada
+      # gerek kalmaz; binary bulunamazsa kaynaktan derlemeye kendisi düşer.
+      - name: wasm-bindgen sürümünü Cargo.lock'tan oku
         run: |
           set -uo pipefail
-          # `^name = "wasm-bindgen"$` TAM eşleşmedir: wasm-bindgen-rayon / -futures /
-          # -backend gibi komşu paketleri kapmaz.
+          # `^name = "wasm-bindgen"$` TAM eşleşmedir: wasm-bindgen-macro / -rayon /
+          # -shared gibi komşu paketleri kapmaz.
           VER=$(grep -A 1 '^name = "wasm-bindgen"$' Cargo.lock \
                 | grep '^version' | head -1 | cut -d'"' -f2)
           if [ -z "$VER" ]; then
@@ -252,16 +253,24 @@ jobs:
             exit 1
           fi
           echo "Cargo.lock'taki wasm-bindgen: $VER"
-          for attempt in 1 2 3; do
-            if cargo install wasm-bindgen-cli --version "$VER" --locked; then
-              wasm-bindgen --version
-              exit 0
-            fi
-            echo "::notice::wasm-bindgen-cli $VER kurulamadı (deneme $attempt/3)."
-            if [ "$attempt" -lt 3 ]; then sleep $((attempt * 15)); fi
-          done
-          echo "::error::wasm-bindgen-cli $VER 3 denemede de kurulamadı. Sürüm Cargo.lock'tan geldiği için bu bir sürüm uyuşmazlığı DEĞİL; ağ/ulaşılabilirlik hatasıdır."
-          exit 1
+          echo "WBG_VER=$VER" >> "$GITHUB_ENV"
+
+      - name: wasm-bindgen CLI kur (Memory64 — sürüm Cargo.lock'tan)
+        uses: taiki-e/install-action@v2
+        with:
+          tool: wasm-bindgen-cli@${{ env.WBG_VER }}
+
+      - name: wasm-bindgen sürümü Cargo.lock ile aynı mı
+        run: |
+          set -uo pipefail
+          # Kurulan CLI ile derlenen crate ayrışırsa Memory64 çıktısı şema uyuşmazlığıyla
+          # reddedilir. Kurulum yolu ne olursa olsun eşleşme burada KANITLANIR.
+          got=$(wasm-bindgen --version | awk '{print $2}')
+          if [ "$got" != "$WBG_VER" ]; then
+            echo "::error::wasm-bindgen CLI $got kuruldu ama Cargo.lock $WBG_VER diyor."
+            exit 1
+          fi
+          echo "wasm-bindgen CLI $got = Cargo.lock $WBG_VER"
 
       - name: Memory64 WASM derle (ui/pkg64/)
         working-directory: ui
