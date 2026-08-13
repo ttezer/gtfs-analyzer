@@ -229,8 +229,39 @@ jobs:
         working-directory: ui
         run: npm run wasm:threads
 
-      - name: wasm-bindgen CLI kur (Memory64)
-        run: cargo install wasm-bindgen-cli --version 0.2.121 --locked
+      # ⚠️ SÜRÜM ELLE YAZILMAZ. wasm-bindgen CLI'ın sürümü, derlenen koddaki wasm-bindgen
+      # crate'iyle EŞLEŞMEK ZORUNDADIR; ayrışırsa Memory64 çıktısı şema uyuşmazlığıyla
+      # reddedilir. Burada sabit bir `--version` yazmak o eşleşmeyi ELLE senkron tutulan
+      # bir kopyaya çevirir ve kapısı yoktur: `cargo update -p wasm-bindgen` yapan biri bu
+      # satırı unuttuğunda CI, kod yüzünden değil bakım borcu yüzünden kırılır. Sürüm artık
+      # tek kaynaktan — Cargo.lock'tan — okunur, böylece ayrışma imkânsızdır.
+      #
+      # Ağ dayanıklılığı `wasm-pack kur` ile aynı gerekçe: araç bir ÖNKOŞUL, kurulamazsa
+      # sonraki adımlar çalışamaz → üç deneme de düşerse adım kırmızı yanar. cargo install
+      # ağ hatasını indirme aşamasında verir (derleme ağ istemez), yani başarısız deneme
+      # ucuzdur; asıl 86 saniyelik maliyet yalnız BAŞARILI kurulumda ödenir.
+      - name: wasm-bindgen CLI kur (Memory64 — sürüm Cargo.lock'tan)
+        run: |
+          set -uo pipefail
+          # `^name = "wasm-bindgen"$` TAM eşleşmedir: wasm-bindgen-rayon / -futures /
+          # -backend gibi komşu paketleri kapmaz.
+          VER=$(grep -A 1 '^name = "wasm-bindgen"$' Cargo.lock \
+                | grep '^version' | head -1 | cut -d'"' -f2)
+          if [ -z "$VER" ]; then
+            echo "::error::wasm-bindgen sürümü Cargo.lock'tan okunamadı — lock biçimi değişmiş olabilir. Sabit sürüm YAZMAYIN, bu adımı düzeltin."
+            exit 1
+          fi
+          echo "Cargo.lock'taki wasm-bindgen: $VER"
+          for attempt in 1 2 3; do
+            if cargo install wasm-bindgen-cli --version "$VER" --locked; then
+              wasm-bindgen --version
+              exit 0
+            fi
+            echo "::notice::wasm-bindgen-cli $VER kurulamadı (deneme $attempt/3)."
+            if [ "$attempt" -lt 3 ]; then sleep $((attempt * 15)); fi
+          done
+          echo "::error::wasm-bindgen-cli $VER 3 denemede de kurulamadı. Sürüm Cargo.lock'tan geldiği için bu bir sürüm uyuşmazlığı DEĞİL; ağ/ulaşılabilirlik hatasıdır."
+          exit 1
 
       - name: Memory64 WASM derle (ui/pkg64/)
         working-directory: ui
