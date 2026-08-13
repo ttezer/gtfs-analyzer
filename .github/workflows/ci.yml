@@ -178,8 +178,32 @@ jobs:
           key: ${{ runner.os }}-wasm-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: ${{ runner.os }}-wasm-
 
-      - name: wasm-pack kur
-        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+      # 2026-08-12'de ana dal bu adımda kırmızı yandı: `curl: (56) Connection died` —
+      # init.sh, wasm-pack ikilisini GitHub release'inden indiremedi. Kodla ilgisi yoktu,
+      # tek re-run düzeltti. Script'in KENDİ retry'ı var ("tried 5 times") ve yetmedi;
+      # eksik olan denemeler ARASINDA BEKLEMEKTİ, geçici kesinti aynı saniyelerde 5 kez
+      # denenince aşılmıyor.
+      #
+      # ⚠️ `cargo audit`/`npm audit` DESENİNDEN AYRILIR: orada ağa ulaşamamak yalnızca
+      # "tarama yapılamadı" demektir, job yeşil kalabilir. Burada araç kurulmazsa sonraki
+      # adımların hiçbiri (WASM derleme, UI build, determinizm karşılaştırması) çalışamaz —
+      # ağ hatasında yeşil geçmek yapılmamış işi yapılmış göstermek olurdu. O yüzden üç
+      # deneme de düşerse adım KIRMIZI yanar, ama sebebi mesajda yazılı olur.
+      - name: wasm-pack kur (ağ hatasına dayanıklı)
+        run: |
+          set -uo pipefail
+          for attempt in 1 2 3; do
+            # `pipefail` ŞART: curl düşerse `sh` boş girdiyle 0 döndürür ve kurulmamış
+            # araç kurulmuş sayılırdı.
+            if curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh; then
+              wasm-pack --version
+              exit 0
+            fi
+            echo "::notice::wasm-pack kurulumu başarısız (deneme $attempt/3) — büyük olasılıkla ağ."
+            if [ "$attempt" -lt 3 ]; then sleep $((attempt * 15)); fi
+          done
+          echo "::error::wasm-pack 3 denemede de kurulamadı. Bu bir AĞ/ULAŞILABİLİRLİK hatasıdır, kod değişikliğiyle ilgisi yoktur; githubstatus.com'a bakıp job'ı yeniden çalıştırın."
+          exit 1
 
       - name: Node.js kur
         uses: actions/setup-node@v6
