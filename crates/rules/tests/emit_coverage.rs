@@ -20,6 +20,10 @@ use std::path::{Path, PathBuf};
 const DYNAMIC_EMIT_ALLOWLIST: &[&str] = &[
     // Fatal yol: FatalCode::ZipUnreadable olarak döner (Notice değil), rule_id literal yok.
     "ARC_001", // "ZIP arşivi açılamadı"
+    // Fatal yol: FatalCode::DecompressionLimit (k1_parse.rs, GuardedReader).
+    // 2026-08-15'e kadar listede DEĞİLDİ ve kapıdan yalnız yorum satırlarındaki
+    // "ARC_029" geçişleri sayesinde geçiyordu; collect_rule_ids sıkılaşınca ortaya çıktı.
+    "ARC_029", // "Sıkıştırma sınırı aşıldı (zip-bomb koruması)"
 ];
 
 fn repo_root() -> PathBuf {
@@ -77,22 +81,48 @@ fn is_rule_id(s: &str) -> bool {
         && suffix.len() <= 1
 }
 
-/// Metindeki [A-Za-z0-9_] token'larını tarar; rule_id desenine uyanları toplar.
-/// Tırnak-bağımsız (string `"` parity'sine takılmaz); bir rule_id'nin kaynakta token
-/// olarak geçmesi "kod canlı" sayılır — dead-rule koruması için yeterli.
+/// STRING LİTERALİ içindeki rule_id token'larını toplar.
+///
+/// 🔴 Eskiden tırnak-bağımsızdı ve "bir rule_id'nin kaynakta token olarak geçmesi kod
+/// canlı sayılır" diyordu. Bu kapıyı bir YORUM SATIRI tatmin edebiliyordu: `ARC_029`
+/// üretim kodunda yalnız `// ... ARC_029 (DecompressionLimit) Fatal'ı üretilir` gibi
+/// yorumlarda geçtiği hâlde kapı yeşildi. Emit noktası `notice(..., "ARC_029", ...)`
+/// biçiminde bir literaldir; ölçü artık o. Tırnaksız geçiş sayılmaz.
+///
+/// Ölçüldü (2026-08-15): sıkılaştırma yalnız iki kuralı düşürüyor — ikisi de Fatal
+/// yolla üretilen ve `DYNAMIC_EMIT_ALLOWLIST`'e ait olanlar.
 fn collect_rule_ids(text: &str, into: &mut std::collections::HashSet<String>) {
     let bytes = text.as_bytes();
     let is_word = |c: u8| c.is_ascii_alphanumeric() || c == b'_';
     let mut i = 0;
     while i < bytes.len() {
-        if bytes[i].is_ascii_uppercase() && (i == 0 || !is_word(bytes[i - 1])) {
-            let start = i;
-            while i < bytes.len() && is_word(bytes[i]) { i += 1; }
-            let tok = &text[start..i];
-            if is_rule_id(tok) { into.insert(tok.to_string()); }
-        } else {
-            i += 1;
+        // Yorum: satır sonuna kadar atla (string içindeki `//` aşağıda korunur).
+        if bytes[i] == b'/' && i + 1 < bytes.len() && bytes[i + 1] == b'/' {
+            i = text[i..].find('\n').map_or(bytes.len(), |n| i + n);
+            continue;
         }
+        if bytes[i] != b'"' {
+            i += 1;
+            continue;
+        }
+        let start = i + 1;
+        let mut j = start;
+        while j < bytes.len() && bytes[j] != b'"' {
+            j += if bytes[j] == b'\\' { 2 } else { 1 };
+        }
+        let lit = &text[start..j.min(bytes.len())];
+        let mut k = 0;
+        let lb = lit.as_bytes();
+        while k < lb.len() {
+            if lb[k].is_ascii_uppercase() && (k == 0 || !is_word(lb[k - 1])) {
+                let s = k;
+                while k < lb.len() && is_word(lb[k]) { k += 1; }
+                if is_rule_id(&lit[s..k]) { into.insert(lit[s..k].to_string()); }
+            } else {
+                k += 1;
+            }
+        }
+        i = j + 1;
     }
 }
 
