@@ -206,6 +206,22 @@ def rules_added_after_baseline():
             re.finditer(r'^\+\s+r!\(\s*"([A-Z]{2,4}_\d{3})"', out, re.M)}
 
 
+def carried_evidence():
+    """Önceki tsv'deki `evidence` sütununu taşır.
+
+    Bu sütun ÖLÇÜMDÜR, türetilemez: mutasyon testinin sonucudur (issue #127). Betik her
+    koşuşunda tabloyu yeniden ürettiği için, taşınmazsa kanıt sessizce silinirdi —
+    `build_manifest.py`'nin `url_status`'ü taşıması ile aynı sebep.
+    """
+    path = os.path.join(ROOT, "spec-audit/silent_rules.tsv")
+    if not os.path.exists(path):
+        return {}
+    with open(path, newline="") as fh:
+        return {r["rule_id"]: r.get("evidence", "")
+                for r in csv.DictReader(fh, delimiter="\t")
+                if r.get("evidence")}
+
+
 def suppression_map():
     """kural -> onu bastırabilen KÖK kurallar (registry `blocks` alanı).
 
@@ -262,6 +278,7 @@ def main():
     # ---------- Faz 1 ----------
     home = group_home_files(meta, mods)
     victims = suppression_map()
+    evidence = carried_evidence()
     post_baseline = rules_added_after_baseline()
     silent = sorted(r for r in meta if r not in fired)
     rows = []
@@ -294,7 +311,8 @@ def main():
         else:
             label = "PREDICATE_SUSPECT"
         rows.append({
-            "rule_id": r, "severity": meta[r]["severity"],
+            "rule_id": r, "evidence": evidence.get(r, ""),
+            "severity": meta[r]["severity"],
             "class": meta[r]["class"], "label": label,
             "gtfs_file": best, "corpus_feeds_with_file": nf,
             "file_anchor": anchor if files else "",
@@ -320,6 +338,10 @@ def main():
     for k, v in Counter(x["label"] for x in rows).most_common():
         print(f"  {k:20} {v:>6} {g.get(k,0):>12}")
     print(f"  {'TOPLAM':20} {len(rows):>6} {len(gate):>12}")
+    ev = [x for x in rows if x["evidence"]]
+    print(f"\n  ✅ MUTASYONLA ÖLÇÜLMÜŞ (etiket artık sezgisel değil): {len(ev)}")
+    for x in ev:
+        print(f"     {x['rule_id']:8} {x['evidence']}")
     amb = [x for x in rows if x["suppressor_fired"] == "yes"]
     print(f"\n  ⚠️ sessizliği BELİRSİZ (bastıran kök korpusta ateşledi): {len(amb)}")
     print("     bunlar 'hiç doğmadı' ile 'doğdu ve bastırıldı' arasında ayrılmamıştır")

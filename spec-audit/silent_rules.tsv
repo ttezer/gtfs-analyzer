@@ -1,318 +1,318 @@
-rule_id	severity	class	label	gtfs_file	corpus_feeds_with_file	file_anchor	suppressed_by	suppressor_fired	emit_sites	message
-AGN_002	Kritik	Spec	SELECTION_BIAS	agency.txt	240	modül			1	agency_name eksik
-AGN_009	Dusuk	Spec	PREDICATE_SUSPECT	agency.txt	240	modül	ARC_002	no	1	agency_email geçersiz
-AGN_012	Dusuk	Spec	PREDICATE_SUSPECT	agency.txt	240	modül			2	agency_cemv_support geçersiz
-AGN_014	Kritik	Spec	SELECTION_BIAS	agency.txt	240	modül			1	Birden fazla kuruluş var ama agency.txt'de agency_id eksik
-AGN_016	Bilgi	Quality	PREDICATE_SUSPECT	agency.txt	240	modül			1	agency_phone bilinen yer-tutucu/şüpheli numara
-AGN_017	Dusuk	Interop	PREDICATE_SUSPECT	agency.txt	240	grup			1	Birden çok agency farklı agency_lang taşıyor — diller arası tutarsızlık
-ARC_001	Kritik	Spec	FATAL_PATH	shapes.txt	199	grup			0	ZIP arşivi açılamadı
-ARC_002	Kritik	Quality	FATAL_PATH	shapes.txt	199	grup			2	Dosya UTF-8 ile okunamıyor
-ARC_003	Orta	Quality	PREDICATE_SUSPECT	shapes.txt	199	grup			1	İsteğe bağlı dosyada UTF-8 kodlama hatası
-ARC_008	Kritik	Spec	SELECTION_BIAS	shapes.txt	199	grup			1	Takvim dosyası eksik (calendar.txt ve calendar_dates.txt)
-ARC_013	Kritik	Spec	FATAL_PATH	shapes.txt	199	grup			2	CSV ayrıştırma hatası
-ARC_015	Kritik	Interop	PREDICATE_SUSPECT	shapes.txt	199	grup	ARC_012	yes	1	Yinelenen başlık sütunu
-ARC_018	Orta	Quality	SELECTION_BIAS	stop_times.txt	239	modül			3	Boş veri satırı
-ARC_019	Yuksek	Quality	SELECTION_BIAS	shapes.txt	199	grup			1	Başlıkta boş sütun adı
-ARC_023	Orta	Quality	PREDICATE_SUSPECT	shapes.txt	199	grup			1	ZIP içinde nested ZIP dosyası — GTFS formatında desteklenmez
-ARC_026	Orta	Spec	POST_BASELINE	shapes.txt	199	grup			2	Dosyada hatalı satır sonu karakteri
-ARC_027	Bilgi	Quality	SELECTION_BIAS	shapes.txt	199	grup			1	ZIP girdisinde kullanıcı okuma izni yok
-ARC_028	Dusuk	Quality	PREDICATE_SUSPECT	shapes.txt	199	grup			1	GTFS yayın URL'si .zip dosya adıyla bitmiyor
-ARC_029	Kritik	Quality	FATAL_PATH	shapes.txt	199	grup			0	Sıkıştırma koruması: arşiv zip-bomb sınırını aştı
-ARC_033	Yuksek	Spec	POST_BASELINE	shapes.txt	199	grup			2	Alan değerinde kaçırılmamış tırnak (RFC 4180)
-ARS_001	Kritik	Spec	CROSS_FILE						1	area_id yineleniyor
-ARS_002	Kritik	Spec	CROSS_FILE						1	areas.txt'te area_id boş
-ATR_002	Kritik	Spec	SELECTION_BIAS	attributions.txt	14	modül			1	organization_name eksik
-ATR_003	Yuksek	Spec	PREDICATE_SUSPECT	attributions.txt	14	modül			1	Attribution rolü tanımlanmamış
-ATR_004	Kritik	Spec	PREDICATE_SUSPECT	attributions.txt	14	modül			1	is_producer geçersiz
-ATR_005	Kritik	Spec	PREDICATE_SUSPECT	attributions.txt	14	modül			1	is_operator geçersiz
-ATR_006	Kritik	Spec	PREDICATE_SUSPECT	attributions.txt	14	modül			1	is_authority geçersiz
-ATR_007	Kritik	Spec	PREDICATE_SUSPECT	attributions.txt	14	modül			1	attribution_url geçersiz
-ATR_008	Dusuk	Spec	PREDICATE_SUSPECT	attributions.txt	14	modül			1	attribution_email geçersiz
-ATR_010	Dusuk	Spec	SELECTION_BIAS	attributions.txt	14	grup	ARC_002	no	1	agency_id bulunamadı
-ATR_011	Dusuk	Spec	SELECTION_BIAS	attributions.txt	14	grup	RTS_001	yes	1	route_id bulunamadı
-ATR_012	Dusuk	Spec	SELECTION_BIAS	attributions.txt	14	grup			1	trip_id bulunamadı
-BKR_001	Yuksek	Spec	PREDICATE_SUSPECT	booking_rules.txt	18	modül	BKR_016	no	2	Önceki gün rezervasyon alanı yasak bağlamda dolu
-BKR_002	Yuksek	Spec	PREDICATE_SUSPECT	booking_rules.txt	18	modül			1	prior_notice_start_day yalnızca prior_notice_last_day ile kullanılabilir
-BKR_003	Yuksek	Spec	PREDICATE_SUSPECT	booking_rules.txt	18	modül			1	prior_notice_start_time yalnızca prior_notice_start_day ile kullanılabilir
-BKR_004	Yuksek	Spec	PREDICATE_SUSPECT	booking_rules.txt	18	modül	BKR_016	no	1	Anlık rezervasyonda prior_notice alanları yasak
-BKR_005	Orta	Spec	PREDICATE_SUSPECT	booking_rules.txt	18	modül	BKR_016	no	1	prior_notice_duration_max yalnızca booking_type=1 ile geçerli (booking_type=0/2 ile yasak)
-BKR_007	Kritik	Spec	SELECTION_BIAS	booking_rules.txt	18	modül	BKR_016	no	1	booking_type=1 için prior_notice_duration_min zorunlu
-BKR_008	Kritik	Spec	SELECTION_BIAS	booking_rules.txt	18	modül	BKR_016	no	1	booking_type=2 için prior_notice_last_day zorunlu
-BKR_009	Kritik	Spec	SELECTION_BIAS	booking_rules.txt	18	modül	BKR_016	no	1	booking_type=2 için prior_notice_last_time zorunlu
-BKR_010	Yuksek	Spec	SELECTION_BIAS	booking_rules.txt	18	modül			1	prior_notice_start_day belirtilmişse prior_notice_start_time zorunlu
-BKR_011	Yuksek	Interop	PREDICATE_SUSPECT	booking_rules.txt	18	modül			1	prior_notice_last_day > prior_notice_start_day: rezervasyon penceresi geçersiz
-BKR_012	Orta	Spec	PREDICATE_SUSPECT	booking_rules.txt	18	modül	BKR_016	no	1	booking_type=2 iken prior_notice_duration_min yasak
-BKR_013	Yuksek	Spec	PREDICATE_SUSPECT	booking_rules.txt	18	modül			1	prior_notice_last_time yalnızca prior_notice_last_day ile kullanılabilir
-BKR_014	Yuksek	Spec	PREDICATE_SUSPECT	booking_rules.txt	18	modül	BKR_016	no	1	prior_notice_service_id yalnızca booking_type=2 ile kullanılabilir
-BKR_015	Kritik	Spec	SELECTION_BIAS	booking_rules.txt	18	grup			1	prior_notice_service_id bulunamadı (calendar/calendar_dates)
-BKR_016	Kritik	Spec	SELECTION_BIAS	booking_rules.txt	18	modül			1	booking_type eksik veya geçersiz
-BKR_017	Kritik	Spec	SELECTION_BIAS	booking_rules.txt	18	grup	BKR_019	no	1	pickup_booking_rule_id bulunamadı (booking_rules)
-BKR_018	Kritik	Spec	SELECTION_BIAS	booking_rules.txt	18	grup	BKR_019	no	1	drop_off_booking_rule_id bulunamadı (booking_rules)
-BKR_019	Kritik	Spec	SELECTION_BIAS	booking_rules.txt	18	modül			2	booking_rule_id eksik veya yineleniyor
-BKR_020	Orta	Spec	PREDICATE_SUSPECT	booking_rules.txt	18	modül			1	booking_url geçersiz
-BKR_021	Dusuk	Spec	PREDICATE_SUSPECT	booking_rules.txt	18	modül			1	info_url geçersiz
-BKR_022	Dusuk	Quality	PREDICATE_SUSPECT	booking_rules.txt	18	modül			1	phone_number geçersiz
-BKR_023	Orta	Spec	PREDICATE_SUSPECT	booking_rules.txt	18	modül			4	prior_notice sayı alanı tam sayı değil
-BKR_024	Orta	Spec	PREDICATE_SUSPECT	booking_rules.txt	18	modül			1	booking_type=1 ve duration_max varken prior_notice_start_day yasak
-CAL_001	Kritik	Spec	PREDICATE_SUSPECT	calendar.txt	213	grup			1	service_id yineleniyor
-CAL_002	Kritik	Spec	PREDICATE_SUSPECT	calendar.txt	213	modül			2	Takvim gün alanı geçersiz değer
-CAL_003	Kritik	Spec	SELECTION_BIAS	calendar.txt	213	modül			2	start_date eksik veya geçersiz format
-CAL_004	Kritik	Spec	SELECTION_BIAS	calendar.txt	213	modül			2	end_date eksik veya geçersiz format
-CAL_022	Kritik	Spec	SELECTION_BIAS	calendar.txt	213	modül			1	service_id eksik
-CAL_025	Kritik	Spec	SELECTION_BIAS	calendar.txt	213	grup			1	Takvim gün alanı boş (değer verilmemiş)
-CLD_001	Kritik	Spec	SELECTION_BIAS	calendar_dates.txt	191	modül			1	service_id eksik
-CLD_002	Kritik	Spec	SELECTION_BIAS	calendar_dates.txt	191	modül			2	date eksik veya geçersiz format
-CLD_003	Kritik	Spec	SELECTION_BIAS	calendar_dates.txt	191	modül			3	exception_type eksik veya geçersiz
-CLD_005	Kritik	Quality	PREDICATE_SUSPECT	calendar_dates.txt	191	modül	CLD_003	no	1	Tarih makul yıl aralığı dışında
-DQ_009	Bilgi	Quality	SELECTION_BIAS	calendar_dates.txt	191	grup			1	Seferlerde durak zamanı yok
-DQ_012	Dusuk	Quality	PREDICATE_SUSPECT	calendar_dates.txt	191	grup			1	Çok fazla acente, agency_id kullanılmıyor
-DQ_022	Yuksek	Quality	PREDICATE_SUSPECT	calendar_dates.txt	191	grup			1	Durakların %80'inden fazlası aynı stop_name değerini paylaşıyor — yer tutucu/test verisi
-FAR_001	Kritik	Spec	PREDICATE_SUSPECT	fare_attributes.txt	79	grup			1	fare_id yineleniyor
-FAR_002	Kritik	Spec	SELECTION_BIAS	fare_attributes.txt	79	modül			2	price eksik veya geçersiz
-FAR_003	Kritik	Spec	SELECTION_BIAS	fare_attributes.txt	79	modül			1	currency_type eksik
-FAR_004	Kritik	Spec	PREDICATE_SUSPECT	fare_attributes.txt	79	modül			1	payment_method geçersiz
-FAR_008	Kritik	Spec	SELECTION_BIAS	fare_attributes.txt	79	grup			1	agency_id bulunamadı
-FAR_011	Kritik	Spec	SELECTION_BIAS	fare_attributes.txt	79	modül			1	payment_method eksik
-FAR_012	Kritik	Spec	SELECTION_BIAS	fare_attributes.txt	79	modül			1	fare_id eksik
-FIN_001	Kritik	Spec	SELECTION_BIAS	feed_info.txt	155	modül			1	feed_publisher_name eksik
-FIN_003	Kritik	Spec	SELECTION_BIAS	feed_info.txt	155	modül			1	feed_lang eksik
-FIN_004	Orta	Spec	PREDICATE_SUSPECT	feed_info.txt	155	modül			1	default_lang geçersiz
-FIN_006	Yuksek	Spec	PREDICATE_SUSPECT	feed_info.txt	155	modül			1	feed_end_date geçersiz format (geçmiş tarih için FIN_010 kullanın)
-FIN_008	Dusuk	Spec	PREDICATE_SUSPECT	feed_info.txt	155	modül	ARC_002	no	1	feed_contact_email geçersiz
-FIN_009	Dusuk	Spec	PREDICATE_SUSPECT	feed_info.txt	155	modül			1	feed_contact_url geçersiz
-FIN_012	Dusuk	Spec	POST_BASELINE	feed_info.txt	155	modül			1	feed_start_date feed_end_date'den sonra
-FLG_001	Kritik	Spec	THIN_FEATURE	fare_leg_rules.txt	4	grup	FPD_001	no	1	fare_product_id bulunamadı
-FLG_002	Kritik	Spec	THIN_FEATURE	fare_leg_rules.txt	4	grup	NET_001	no	1	network_id bulunamadı
-FLG_003	Kritik	Spec	THIN_FEATURE	fare_leg_rules.txt	4	grup	ARS_001	no	1	from_area_id bulunamadı
-FLG_004	Kritik	Spec	THIN_FEATURE	fare_leg_rules.txt	4	grup	ARS_001	no	1	to_area_id bulunamadı
-FLG_005	Kritik	Spec	THIN_FEATURE	fare_leg_rules.txt	4	grup			1	from_timeframe_group_id bulunamadı
-FLG_006	Kritik	Spec	THIN_FEATURE	fare_leg_rules.txt	4	grup			1	to_timeframe_group_id bulunamadı
-FLG_007	Orta	Spec	THIN_FEATURE	fare_leg_rules.txt	4	modül			1	rule_priority geçersiz
-FLJ_001	Kritik	Spec	CROSS_FILE						1	from_network_id eksik veya bulunamadı
-FLJ_002	Kritik	Spec	CROSS_FILE						1	to_network_id eksik veya bulunamadı
-FLJ_003	Kritik	Spec	CROSS_FILE						1	from_stop_id eksik veya bulunamadı
-FLJ_004	Kritik	Spec	CROSS_FILE						1	to_stop_id eksik veya bulunamadı
-FMD_001	Kritik	Spec	THIN_FEATURE	fare_media.txt	3	grup			1	fare_media_id yineleniyor
-FMD_002	Kritik	Spec	THIN_FEATURE	fare_media.txt	3	modül			3	fare_media_type eksik veya geçersiz
-FMD_003	Dusuk	Quality	THIN_FEATURE	fare_media.txt	3	modül			1	TransitCard/MobileApp için fare_media_name tavsiye edilir
-FMD_004	Kritik	Spec	THIN_FEATURE	fare_media.txt	3	grup			1	fare_media_id boş
-FPD_001	Kritik	Spec	THIN_FEATURE	fare_products.txt	4	grup			1	fare_products bileşik anahtarı yineleniyor
-FPD_002	Kritik	Spec	THIN_FEATURE	fare_products.txt	4	modül			2	amount eksik veya negatif
-FPD_003	Kritik	Spec	THIN_FEATURE	fare_products.txt	4	modül			1	currency geçersiz ISO 4217 kodu
-FPD_004	Kritik	Spec	THIN_FEATURE	fare_products.txt	4	grup	FMD_001	no	1	fare_media_id bulunamadı
-FPD_005	Kritik	Spec	THIN_FEATURE	fare_products.txt	4	grup	RCT_001	no	1	rider_category_id bulunamadı
-FPD_007	Dusuk	Spec	POST_BASELINE	fare_products.txt	4	modül			1	amount para biriminin ISO 4217 ondalık basamak sayısını taşımıyor
-FRL_007	Orta	Quality	CROSS_FILE						1	Ücret kuralı mantıksal tutarsızlık
-FRQ_001	Kritik	Spec	SELECTION_BIAS	frequencies.txt	55	modül	TRP_001	yes	2	trip_id bulunamadı
-FRQ_002	Kritik	Spec	PREDICATE_SUSPECT	frequencies.txt	55	modül			2	start_time geçersiz
-FRQ_003	Kritik	Spec	PREDICATE_SUSPECT	frequencies.txt	55	modül			2	end_time geçersiz
-FRQ_004	Kritik	Spec	SELECTION_BIAS	frequencies.txt	55	modül			2	headway_secs eksik veya geçersiz
-FTR_001	Kritik	Spec	THIN_FEATURE	fare_transfer_rules.txt	2	modül			3	fare_transfer_type eksik veya geçersiz
-FTR_002	Kritik	Spec	THIN_FEATURE	fare_transfer_rules.txt	2	grup			1	from_leg_group_id bulunamadı
-FTR_003	Kritik	Spec	THIN_FEATURE	fare_transfer_rules.txt	2	grup			1	to_leg_group_id bulunamadı
-FTR_004	Kritik	Spec	THIN_FEATURE	fare_transfer_rules.txt	2	grup	FPD_001	no	1	fare_product_id bulunamadı
-FTR_005	Kritik	Spec	THIN_FEATURE	fare_transfer_rules.txt	2	modül			2	duration_limit_type geçersiz
-FTR_006	Orta	Spec	THIN_FEATURE	fare_transfer_rules.txt	2	modül			2	duration_limit geçersiz
-FTR_007	Orta	Spec	THIN_FEATURE	fare_transfer_rules.txt	2	modül			1	duration_limit_type duration_limit olmadan tanımlı
-FTR_008	Orta	Spec	THIN_FEATURE	fare_transfer_rules.txt	2	modül			2	transfer_count geçersiz
-FTR_009	Orta	Spec	THIN_FEATURE	fare_transfer_rules.txt	2	modül			1	leg grupları aynıyken transfer_count zorunlu
-FTR_010	Orta	Spec	THIN_FEATURE	fare_transfer_rules.txt	2	modül			1	leg grupları farklıyken transfer_count tanımlanamaz
-FTR_011	Orta	Spec	THIN_FEATURE	fare_transfer_rules.txt	2	modül			1	duration_limit tanımlı ama duration_limit_type eksik
-GEO_015	Orta	Quality	CROSS_FILE						1	Durak koordinatları Japonya sınırları dışında (feed_lang: ja)
-GEO_018	Yuksek	Analytics	CROSS_FILE						1	Tüm feed durağları 200m yarıçap içinde — test/yer tutucu veri
-GEO_019	Orta	Quality	CROSS_FILE						1	Durak koordinatları tam sayı (ondalık basamak yok) — düşük hassasiyetli veya yer tutucu
-GEO_022	Yuksek	Quality	CROSS_FILE						1	Durak enlemi kutba aşırı yakın (|lat|>89) — olası koordinat hatası
-GGL_002	Dusuk	Interop	THIN_FEATURE	fare_products.txt	4	modül			2	ic_price (Google-özel) geçersiz değer
-JPN_002	Yuksek	Interop	CROSS_FILE						2	GTFS-JP: jp_office_id office_jp.txt'te tanımlı değil
-JPN_003	Yuksek	Interop	CROSS_FILE						1	GTFS-JP: agency_jp.agency_id agency.txt'te tanımlı değil
-JPN_005	Yuksek	Interop	CROSS_FILE						1	GTFS-JP: office_jp.office_name boş (zorunlu alan)
-JPN_006	Orta	Quality	CROSS_FILE						1	GTFS-JP: fare_attributes/fare_rules eksik (profil zorunlu kılar)
-JPN_007	Orta	Quality	CROSS_FILE						1	GTFS-JP: feed_info.txt eksik (profil zorunlu kılar)
-JPN_011	Yuksek	Interop	CROSS_FILE						1	GTFS-JP: tek işletici olsa bile agency_id zorunlu
-LOC_001	Yuksek	Spec	CROSS_FILE						5	locations.geojson'da bilinmeyen veya geçersiz geometri tipi
-LOC_002	Kritik	Spec	CROSS_FILE						1	Feature'da geometry null veya eksik — GTFS Flex gerektiriyor
-LOC_003	Kritik	Spec	CROSS_FILE						1	Feature'da 'id' property eksik — stop_times çapraz referansı için zorunlu
-LOC_004	Orta	Spec	CROSS_FILE						1	Polygon ring kapalı değil (ilk != son nokta)
-LOC_005	Dusuk	Quality	CROSS_FILE						1	FeatureCollection boş — hiç feature yok
-LOC_007	Orta	Spec	CROSS_FILE						1	FeatureCollection içinde yinelenen 'id' değeri — Flex referansı belirsizleşir
-LOC_008	Orta	Spec	CROSS_FILE						1	 değil
-LOC_009	Orta	Spec	CROSS_FILE						1	Feature 'properties' nesnesi eksik
-LOC_010	Kritik	Spec	CROSS_FILE						1	Geometry 'coordinates' eksik veya dizi değil — bölge geometrisi çözümlenemez
-LOC_011	Yuksek	Spec	CROSS_FILE						1	Poligon geçersiz: ring kendini kesiyor veya delik dışarıda
-LVL_001	Kritik	Spec	PREDICATE_SUSPECT	levels.txt	9	grup			1	level_id yineleniyor
-LVL_002	Kritik	Spec	PREDICATE_SUSPECT	levels.txt	9	modül			1	level_index geçersiz
-LVL_005	Orta	Quality	PREDICATE_SUSPECT	levels.txt	9	modül			1	level_name çok uzun
-LVL_007	Kritik	Spec	SELECTION_BIAS	levels.txt	9	modül			1	level_index eksik
-LVL_008	Kritik	Spec	SELECTION_BIAS	levels.txt	9	modül			1	level_id eksik
-NET_001	Kritik	Spec	CROSS_FILE						1	network_id yineleniyor
-NET_002	Kritik	Spec	CROSS_FILE						2	route_networks.network_id eksik veya bulunamadı
-NET_003	Kritik	Spec	CROSS_FILE						2	route_networks.route_id eksik veya bulunamadı
-NET_004	Kritik	Spec	CROSS_FILE						1	networks.txt'te network_id boş
-OPR_014	Orta	Analytics	CROSS_FILE				STM_002	no	1	Ortalama aktarma süresi uzun
-OPR_016	Bilgi	Analytics	CROSS_FILE				CAL_002,TRP_003	no	1	Feed genelinde aktif servis yok
-OPR_021	Yuksek	Analytics	CROSS_FILE						1	Takvim override çakışması: override ve base eş zamanlı aktif
-OPR_022	Yuksek	Analytics	CROSS_FILE						1	Takvim override uygulanmamış: override gününde base servis çalışıyor
-OPR_023	Orta	Analytics	CROSS_FILE						1	Takvim override boşluğu: pencere içinde hiçbir servis aktif değil
-OPR_025	Yuksek	Analytics	CROSS_FILE						1	Feed genelinde ortalama sefer süresi 60 saniyeden kısa — veri kalitesi sorunu
-PTH_001	Kritik	Spec	PREDICATE_SUSPECT	pathways.txt	10	grup			1	pathway_id yineleniyor
-PTH_002	Kritik	Spec	SELECTION_BIAS	pathways.txt	10	grup	STP_001,STP_009	yes	1	from_stop_id bulunamadı
-PTH_003	Kritik	Spec	SELECTION_BIAS	pathways.txt	10	grup	STP_001,STP_009	yes	1	to_stop_id bulunamadı
-PTH_004	Kritik	Spec	SELECTION_BIAS	pathways.txt	10	modül			1	pathway_mode eksik veya geçersiz
-PTH_005	Kritik	Spec	SELECTION_BIAS	pathways.txt	10	modül			1	is_bidirectional eksik
-PTH_006	Orta	Spec	PREDICATE_SUSPECT	pathways.txt	10	modül			1	length geçersiz
-PTH_010	Dusuk	Spec	PREDICATE_SUSPECT	pathways.txt	10	modül			1	min_width geçersiz
-PTH_013	Bilgi	Analytics	PREDICATE_SUSPECT	pathways.txt	10	grup	PTH_002,PTH_003,PTH_012,STP_027	yes	1	Erişilebilir yol analizi
-PTH_014	Kritik	Quality	PREDICATE_SUSPECT	pathways.txt	10	grup			1	Geçit istasyon sınırını aşıyor
-PTH_015	Orta	Analytics	PREDICATE_SUSPECT	pathways.txt	10	grup	PTH_002,PTH_003	no	1	Geçit hedefi erişilemeyen durakta
-PTH_016	Yuksek	Spec	PREDICATE_SUSPECT	pathways.txt	10	modül	PTH_005	no	1	Çıkış kapısı çift yönlü tanımlanmış
-PTH_017	Orta	Spec	PREDICATE_SUSPECT	pathways.txt	10	modül			1	max_slope sayı değil
-PTH_018	Dusuk	Quality	PREDICATE_SUSPECT	pathways.txt	10	modül			1	signposted_as çok uzun
-PTH_019	Orta	Quality	PREDICATE_SUSPECT	pathways.txt	10	grup			1	Generic node tek pathway'e bağlı (dead-end)
-PTH_020	Kritik	Spec	SELECTION_BIAS	pathways.txt	10	modül			1	pathway_id eksik
-PTH_021	Kritik	Spec	SELECTION_BIAS	pathways.txt	10	modül			1	from_stop_id eksik
-PTH_022	Kritik	Spec	SELECTION_BIAS	pathways.txt	10	modül			1	to_stop_id eksik
-PTH_023	Kritik	Spec	SELECTION_BIAS	pathways.txt	10	modül			1	pathway_mode eksik
-PTH_024	Kritik	Spec	SELECTION_BIAS	pathways.txt	10	modül			1	is_bidirectional eksik
-PTH_026	Kritik	Spec	PREDICATE_SUSPECT	pathways.txt	10	grup			1	Pathway uç noktası istasyon
-PTH_027	Orta	Spec	PREDICATE_SUSPECT	pathways.txt	10	modül			2	stair_count geçersiz (sıfır veya tam sayı değil)
-PTH_028	Dusuk	Quality	PREDICATE_SUSPECT	pathways.txt	10	modül			1	max_slope yürüme yolu dışında kullanılmış
-PTH_030	Dusuk	Spec	PREDICATE_SUSPECT	pathways.txt	10	grup			1	Boarding area'sı olan platforma pathway atanmış
-PTH_031	Kritik	Spec	POST_BASELINE	pathways.txt	10	grup			1	Pathway uç noktası sokaktan erişilen durak (stop_access=1)
-RCT_001	Kritik	Spec	THIN_FEATURE	rider_categories.txt	4	grup			1	rider_category_id yineleniyor
-RCT_002	Kritik	Spec	THIN_FEATURE	rider_categories.txt	4	modül			1	rider_category_name eksik
-RCT_003	Kritik	Spec	THIN_FEATURE	rider_categories.txt	4	modül			2	is_default_fare_category geçersiz
-RCT_004	Orta	Quality	THIN_FEATURE	rider_categories.txt	4	modül			2	min_age veya max_age geçersiz (GTFS uzantı alanı — resmî spec'te yok)
-RCT_005	Orta	Quality	THIN_FEATURE	rider_categories.txt	4	modül			1	max_age min_age'den küçük
-RCT_006	Orta	Spec	THIN_FEATURE	rider_categories.txt	4	grup			2	fare_product başına varsayılan yolcu kategorisi sayısı bir değil
-RCT_007	Dusuk	Spec	THIN_FEATURE	rider_categories.txt	4	modül			1	eligibility_url geçersiz
-RCT_008	Kritik	Spec	THIN_FEATURE	rider_categories.txt	4	grup			1	rider_category_id boş
-RTS_005	Orta	Spec	PREDICATE_SUSPECT	routes.txt	240	modül	ARC_013	no	1	route_url geçersiz
-RTS_006	Orta	Spec	PREDICATE_SUSPECT	routes.txt	240	modül			1	route_color geçersiz hex renk
-RTS_007	Orta	Spec	PREDICATE_SUSPECT	routes.txt	240	modül			1	route_text_color geçersiz hex renk
-RTS_013	Dusuk	Spec	PREDICATE_SUSPECT	routes.txt	240	modül			1	continuous_pickup geçersiz
-RTS_018	Dusuk	Spec	PREDICATE_SUSPECT	routes.txt	240	modül			1	continuous_drop_off geçersiz
-RTS_024	Dusuk	Spec	PREDICATE_SUSPECT	routes.txt	240	modül			2	route_cemv_support geçersiz
-RTS_028	Yuksek	Spec	PREDICATE_SUSPECT	routes.txt	240	grup			1	Flex pencereli rotada continuous_pickup/drop_off yasak
-RTS_029	Dusuk	Spec	PREDICATE_SUSPECT	routes.txt	240	modül			1	route_sort_order geçersiz
-RTS_030	Dusuk	Interop	POST_BASELINE	routes.txt	240	modül			1	route_type çekirdek enum dışında genişletilmiş değer
-SAR_001	Kritik	Spec	CROSS_FILE				ARS_001	no	1	area_id bulunamadı
-SAR_002	Kritik	Spec	CROSS_FILE						1	stop_id bulunamadı
-SAR_003	Kritik	Spec	CROSS_FILE						1	stop_areas'ta area_id boş
-SAR_004	Kritik	Spec	CROSS_FILE						1	stop_areas'ta stop_id boş
-SHP_001	Kritik	Spec	SELECTION_BIAS	shapes.txt	199	modül			1	shape_id eksik
-SHP_002	Kritik	Spec	SELECTION_BIAS	shapes.txt	199	modül			3	shape_pt_lat eksik veya geçersiz
-SHP_003	Kritik	Spec	SELECTION_BIAS	shapes.txt	199	modül	SHP_002	no	3	shape_pt_lon eksik veya geçersiz
-SHP_004	Kritik	Spec	SELECTION_BIAS	shapes.txt	199	modül			2	shape_pt_sequence eksik veya geçersiz
-SHP_005	Kritik	Spec	PREDICATE_SUSPECT	shapes.txt	199	grup			1	shape_dist_traveled geriye gidiyor
-SHP_030	Orta	Quality	POST_BASELINE	shapes.txt	199	grup			1	stop_times shape_dist_traveled kullanıyor ancak shapes.txt'te shape mesafeleri eksik
-STM_002	Kritik	Spec	SELECTION_BIAS	stop_times.txt	239	grup	ARC_004,STP_001	yes	1	stop_id bulunamadı
-STM_003	Kritik	Spec	PREDICATE_SUSPECT	stop_times.txt	239	modül			1	arrival_time geçersiz format
-STM_004	Kritik	Spec	PREDICATE_SUSPECT	stop_times.txt	239	modül	STM_003	no	1	departure_time geçersiz format
-STM_005	Kritik	Spec	SELECTION_BIAS	stop_times.txt	239	modül	ARC_013	no	2	stop_sequence eksik veya geçersiz
-STM_006	Kritik	Spec	SELECTION_BIAS	stop_times.txt	239	modül	ARC_013	no	1	stop_id eksik (stop_times)
-STM_007	Yuksek	Interop	PREDICATE_SUSPECT	stop_times.txt	239	grup	STM_002,STM_006	no	1	Kalkış saati varış saatinden önce (departure_time < arrival_time)
-STM_009	Yuksek	Spec	PREDICATE_SUSPECT	stop_times.txt	239	modül			1	pickup_type geçersiz
-STM_010	Yuksek	Spec	PREDICATE_SUSPECT	stop_times.txt	239	modül			1	drop_off_type geçersiz
-STM_015	Kritik	Spec	SELECTION_BIAS	stop_times.txt	239	grup	SHP_006,TRP_004	yes	1	İlk durakta arrival_time eksik
-STM_016	Kritik	Spec	SELECTION_BIAS	stop_times.txt	239	grup	SHP_006,STM_015,TRP_004	yes	1	Son durakta arrival_time eksik
-STM_018	Orta	Spec	PREDICATE_SUSPECT	stop_times.txt	239	modül			1	continuous_pickup geçersiz (stop_times)
-STM_019	Orta	Spec	PREDICATE_SUSPECT	stop_times.txt	239	modül			1	continuous_drop_off geçersiz (stop_times)
-STM_022	Orta	Spec	PREDICATE_SUSPECT	stop_times.txt	239	modül			2	timepoint geçersiz
-STM_030	Dusuk	Spec	PREDICATE_SUSPECT	stop_times.txt	239	modül			2	shape_dist_traveled negatif veya sayı değil
-STM_034	Orta	Interop	PREDICATE_SUSPECT	stop_times.txt	239	modül			2	Varış veya kalkış zamanından yalnızca biri tanımlı
-STM_037	Yuksek	Spec	PREDICATE_SUSPECT	stop_times.txt	239	modül			1	Flex penceresinde arrival_time/departure_time yasak
-STM_038	Yuksek	Interop	PREDICATE_SUSPECT	stop_times.txt	239	modül	STM_058	no	1	start_pickup_drop_off_window > end_pickup_drop_off_window
-STM_039	Kritik	Spec	SELECTION_BIAS	stop_times.txt	239	modül			1	Flex bağlamında pickup/drop_off penceresi eksik
-STM_040	Orta	Quality	SELECTION_BIAS	stop_times.txt	239	modül			1	Flex stop_times'ta pickup/drop_off_booking_rule_id eksik (spec'te Optional)
-STM_041	Yuksek	Spec	PREDICATE_SUSPECT	stop_times.txt	239	modül			1	stop_id ile location_id/group_id aynı anda kullanılamaz
-STM_042	Dusuk	Interop	PREDICATE_SUSPECT	stop_times.txt	239	modül			1	stop_headsign Google Transit tarafından desteklenmeyen karakter içeriyor
-STM_046	Kritik	Spec	SELECTION_BIAS	stop_times.txt	239	modül			1	trip_id eksik
-STM_049	Yuksek	Spec	POST_BASELINE	stop_times.txt	239	modül			1	Aynı satırda gece yarısı sonrası kalkış 00:xx yazılmış (GTFS servis günü için 24:xx kullanılmalı)
-STM_051	Yuksek	Spec	PREDICATE_SUSPECT	stop_times.txt	239	modül			1	Flex penceresi tanımlıyken pickup_type=0/3 yasak (talep-üzerine değerler gerekli)
-STM_052	Yuksek	Spec	PREDICATE_SUSPECT	stop_times.txt	239	modül			1	Flex penceresi tanımlıyken drop_off_type=0 yasak (talep-üzerine değer gerekli)
-STM_054	Yuksek	Spec	SELECTION_BIAS	stop_times.txt	239	modül			1	Flex penceresi tanımlıyken continuous_pickup 1/boş dışında yasak
-STM_055	Yuksek	Spec	SELECTION_BIAS	stop_times.txt	239	modül			1	Flex penceresi tanımlıyken continuous_drop_off 1/boş dışında yasak
-STM_058	Kritik	Spec	PREDICATE_SUSPECT	stop_times.txt	239	modül			1	Flex pickup/drop-off penceresi saati geçersiz
-STM_060	Yuksek	Spec	POST_BASELINE	stop_times.txt	239	grup			1	Aynı seferde geojson bölgesi + zaman penceresi + pickup/drop_off eşzamanlı örtüşüyor
-STP_002	Kritik	Spec	SELECTION_BIAS	stops.txt	239	modül			1	stop_id boş
-STP_003	Kritik	Spec	SELECTION_BIAS	stops.txt	239	modül			2	stop_name eksik veya stop_lat/stop_lon aralık dışı (aynı ID altında iki ayrı koşul)
-STP_004	Kritik	Spec	PREDICATE_SUSPECT	stops.txt	239	modül			1	stop_lat sayısal değil
-STP_005	Kritik	Spec	PREDICATE_SUSPECT	stops.txt	239	modül			2	stop_lon geçersiz veya aralık dışı
-STP_006	Kritik	Spec	SELECTION_BIAS	stops.txt	239	modül			1	stop_lat eksik
-STP_007	Kritik	Spec	SELECTION_BIAS	stops.txt	239	modül			1	stop_lon eksik
-STP_008	Yuksek	Spec	PREDICATE_SUSPECT	stops.txt	239	modül			2	location_type geçersiz
-STP_010	Yuksek	Spec	PREDICATE_SUSPECT	stops.txt	239	grup	STP_008,STP_009	yes	1	parent_station location_type=1 değil
-STP_011	Kritik	Spec	SELECTION_BIAS	stops.txt	239	grup	STP_008,STP_009	yes	1	Giriş/çıkış/boarding için parent_station zorunlu
-STP_013	Dusuk	Spec	PREDICATE_SUSPECT	stops.txt	239	modül			2	wheelchair_boarding geçersiz
-STP_014	Orta	Spec	PREDICATE_SUSPECT	stops.txt	239	modül			1	stop_timezone geçersiz
-STP_015	Kritik	Spec	SELECTION_BIAS	stops.txt	239	grup	LVL_001	no	1	level_id bulunamadı
-STP_021	Yuksek	Quality	PREDICATE_SUSPECT	stops.txt	239	grup	STP_003,STP_004,STP_005	no	1	Boarding area parent'ı platform değil
-STP_023	Dusuk	Quality	PREDICATE_SUSPECT	stops.txt	239	modül			1	tts_stop_name geçersiz
-STP_024	Bilgi	Quality	PREDICATE_SUSPECT	stops.txt	239	modül			2	stop_access K2 uyumluluk aralığı dışında değer
-STP_026	Dusuk	Spec	PREDICATE_SUSPECT	stops.txt	239	grup	STP_024	no	1	stop_access geçersiz değer
-STP_028	Bilgi	Quality	PREDICATE_SUSPECT	stops.txt	239	modül			1	stop_code çok uzun
-STP_032	Orta	Quality	SELECTION_BIAS	stops.txt	239	grup			1	Pathway bağlantılı platform için parent_station eksik
-STP_034	Dusuk	Quality	POST_BASELINE	stops.txt	239	grup			1	stop_url acente URL'siyle aynı
-STP_036	Dusuk	Spec	PREDICATE_SUSPECT	stops.txt	239	grup			1	İstasyonun (location_type=1) parent_station'ı var
-STP_040	Dusuk	Quality	PREDICATE_SUSPECT	stops.txt	239	grup			1	Durak adı gereksiz genel stop/station sözcüğü içeriyor
-STP_041	Dusuk	Quality	PREDICATE_SUSPECT	stops.txt	239	grup			1	Alt durak adı üst istasyon adını içermiyor
-STP_042	Dusuk	Spec	PREDICATE_SUSPECT	stops.txt	239	modül			1	stop_url geçersiz
-STP_043	Orta	Spec	PREDICATE_SUSPECT	stops.txt	239	grup			1	stop_access yasak bağlamda kullanılmış
-TFR_001	Kritik	Spec	THIN_FEATURE	timeframes.txt	1	modül			1	timeframe_group_id eksik
-TFR_002	Kritik	Spec	THIN_FEATURE	timeframes.txt	1	grup			1	service_id bulunamadı
-TFR_003	Yuksek	Spec	THIN_FEATURE	timeframes.txt	1	modül			2	start_time veya end_time format hatası
-TFR_004	Orta	Quality	THIN_FEATURE	timeframes.txt	1	modül			1	end_time start_time'dan küçük
-TFR_005	Orta	Spec	POST_BASELINE	timeframes.txt	1	modül			1	Aynı grup ve service_id içinde örtüşen zaman aralıkları
-TFR_006	Kritik	Spec	THIN_FEATURE	timeframes.txt	1	modül			1	start_time veya end_time 24:00:00'dan büyük
-TFR_007	Kritik	Spec	THIN_FEATURE	timeframes.txt	1	modül			1	start_time ve end_time yalnızca biri tanımlı
-TFR_008	Kritik	Spec	THIN_FEATURE	timeframes.txt	1	grup			1	timeframes'te service_id boş
-TRF_001	Kritik	Spec	SELECTION_BIAS	transfers.txt	63	modül			1	from_stop_id eksik
-TRF_002	Kritik	Spec	SELECTION_BIAS	transfers.txt	63	modül			1	to_stop_id eksik
-TRF_003	Kritik	Spec	SELECTION_BIAS	transfers.txt	63	grup			1	from_stop_id veya to_stop_id bulunamadı
-TRF_004	Yuksek	Spec	PREDICATE_SUSPECT	transfers.txt	63	modül	TRF_003	no	2	transfer_type geçersiz
-TRF_005	Kritik	Spec	SELECTION_BIAS	transfers.txt	63	modül			2	min_transfer_time eksik
-TRF_006	Kritik	Spec	SELECTION_BIAS	transfers.txt	63	grup			1	from_trip_id bulunamadı
-TRF_007	Kritik	Spec	SELECTION_BIAS	transfers.txt	63	grup			1	to_trip_id bulunamadı
-TRF_008	Kritik	Spec	SELECTION_BIAS	transfers.txt	63	grup			1	from_route_id bulunamadı
-TRF_009	Kritik	Spec	SELECTION_BIAS	transfers.txt	63	grup			1	to_route_id bulunamadı
-TRF_013	Kritik	Quality	PREDICATE_SUSPECT	transfers.txt	63	grup	TRF_003,TRF_006,TRF_007	no	1	Aktarma türü bağlamla uyumsuz
-TRF_014	Yuksek	Spec	SELECTION_BIAS	transfers.txt	63	grup	TRF_003,TRF_006,TRF_007	no	1	in-seat aktarma için sefer yok
-TRF_015	Yuksek	Quality	PREDICATE_SUSPECT	transfers.txt	63	grup	STP_008,TRF_003,TRF_006,TRF_007	no	1	in-seat aktarma geçersiz
-TRF_017	Yuksek	Spec	POST_BASELINE	transfers.txt	63	grup	TRF_006,TRF_007	no	2	Sefer aktarması yanlış hat
-TRF_018	Orta	Quality	PREDICATE_SUSPECT	transfers.txt	63	grup	TRF_006,TRF_007	no	1	Sefer aktarması aynı seferi gösteriyor
-TRF_021	Kritik	Spec	PREDICATE_SUSPECT	transfers.txt	63	grup			1	Aktarma uç noktası durak veya istasyon değil
-TRN_004	Yuksek	Spec	SELECTION_BIAS	translations.txt	34	grup			1	record_id bulunamadı
-TRN_005	Kritik	Spec	PREDICATE_SUSPECT	translations.txt	34	grup			1	Çeviri yineleniyor
-TRN_009	Yuksek	Spec	PREDICATE_SUSPECT	translations.txt	34	modül			1	record_id ve field_value aynı anda kullanılamaz
-TRN_010	Yuksek	Spec	PREDICATE_SUSPECT	translations.txt	34	modül			1	record_sub_id geçersiz
-TRN_013	Yuksek	Spec	PREDICATE_SUSPECT	translations.txt	34	modül			1	feed_info çevirisinde kimlik alanı kullanılamaz
-TRN_014	Yuksek	Spec	PREDICATE_SUSPECT	translations.txt	34	modül			1	record_sub_id yalnızca stop_times için geçerli
-TRN_015	Yuksek	Spec	SELECTION_BIAS	translations.txt	34	modül			1	record_id ve field_value ikisi de boş
-TRN_017	Orta	Spec	SELECTION_BIAS	translations.txt	34	modül			1	stop_times çevirisinde record_sub_id eksik — hangi satır olduğu belirsiz
-TRP_002	Kritik	Spec	SELECTION_BIAS	trips.txt	239	grup	RTS_001	yes	1	route_id bulunamadı
-TRP_003	Kritik	Spec	SELECTION_BIAS	trips.txt	239	grup	CAL_001	no	1	service_id bulunamadı
-TRP_006	Dusuk	Spec	PREDICATE_SUSPECT	trips.txt	239	modül			2	wheelchair_accessible geçersiz
-TRP_007	Dusuk	Spec	PREDICATE_SUSPECT	trips.txt	239	modül			2	bikes_allowed geçersiz
-TRP_011	Yuksek	Quality	PREDICATE_SUSPECT	trips.txt	239	grup			1	Sefer yön adı girilmemiş
-TRP_031	Kritik	Spec	SELECTION_BIAS	trips.txt	239	modül			1	route_id eksik
-TRP_032	Dusuk	Spec	PREDICATE_SUSPECT	trips.txt	239	modül			1	cars_allowed geçersiz
-TRP_034	Orta	Spec	PREDICATE_SUSPECT	trips.txt	239	modül			1	safe_duration alanı sayı değil
-TRP_035	Kritik	Spec	SELECTION_BIAS	trips.txt	239	modül			1	trips.txt'te service_id boş
-VAT_008	Bilgi	Analytics	CROSS_FILE						1	Aynı shape feed hatlarının %30'undan fazlasında kullanılıyor — olası yanlış shape ataması
-XFL_014	Orta	Quality	CROSS_FILE						1	Geçersiz çeviri referansı (kaynak kayıt bulunamadı)
-XFL_015	Kritik	Spec	CROSS_FILE						1	Attribution'da geçersiz referans
-XFL_016	Yuksek	Spec	CROSS_FILE						1	Çeviri feed_info'ya referans veriyor ama feed_info.txt eksik
-XFL_019	Orta	Spec	CROSS_FILE						1	Ağ tanımı iki ayrı dosyada (routes.network_id + route_networks.txt)
-XFL_020	Kritik	Spec	CROSS_FILE				TRF_017	no	1	Transfers'de geçersiz (from_trip_id/to_trip_id, route_id) çifti
-XFL_021	Yuksek	Interop	CROSS_FILE						2	Transfers'de geçersiz (from_trip_id/to_trip_id, stop_id) çifti
-XFL_022	Kritik	Spec	CROSS_FILE						1	location_group_id bulunamadı (location_group_stops)
-XFL_023	Kritik	Spec	CROSS_FILE						1	stop_id bulunamadı (location_group_stops)
-XFL_024	Kritik	Spec	CROSS_FILE						1	location_group_id bulunamadı (stop_times)
-XFL_025	Kritik	Spec	CROSS_FILE						1	location_id bulunamadı (locations.geojson)
-XFL_026	Orta	Quality	CROSS_FILE						1	route cemv_support=1 ama uygulanabilir contactless fare product yok
-XFL_027	Orta	Quality	CROSS_FILE						1	route cemv_support=2 ama uygulanabilir contactless fare product var
-XFL_029	Bilgi	Quality	CROSS_FILE						1	route cemv_support=1 ama Fares v2'de contactless media yok
-XFL_031	Kritik	Spec	CROSS_FILE						1	Kimlik çakışması: stop_id / locations.geojson id / location_group_id ortak isim alanını paylaşır
-XFL_032	Kritik	Spec	CROSS_FILE						1	location_groups.txt'te location_group_id boş
-XFL_033	Kritik	Spec	CROSS_FILE						1	location_group_stops'ta location_group_id boş
-XFL_034	Kritik	Spec	CROSS_FILE						1	location_group_stops'ta stop_id boş
+rule_id	evidence	severity	class	label	gtfs_file	corpus_feeds_with_file	file_anchor	suppressed_by	suppressor_fired	emit_sites	message
+AGN_002		Kritik	Spec	SELECTION_BIAS	agency.txt	240	modül			1	agency_name eksik
+AGN_009		Dusuk	Spec	PREDICATE_SUSPECT	agency.txt	240	modül	ARC_002	no	1	agency_email geçersiz
+AGN_012		Dusuk	Spec	PREDICATE_SUSPECT	agency.txt	240	modül			2	agency_cemv_support geçersiz
+AGN_014		Kritik	Spec	SELECTION_BIAS	agency.txt	240	modül			1	Birden fazla kuruluş var ama agency.txt'de agency_id eksik
+AGN_016		Bilgi	Quality	PREDICATE_SUSPECT	agency.txt	240	modül			1	agency_phone bilinen yer-tutucu/şüpheli numara
+AGN_017		Dusuk	Interop	PREDICATE_SUSPECT	agency.txt	240	grup			1	Birden çok agency farklı agency_lang taşıyor — diller arası tutarsızlık
+ARC_001		Kritik	Spec	FATAL_PATH	shapes.txt	199	grup			0	ZIP arşivi açılamadı
+ARC_002		Kritik	Quality	FATAL_PATH	shapes.txt	199	grup			2	Dosya UTF-8 ile okunamıyor
+ARC_003		Orta	Quality	PREDICATE_SUSPECT	shapes.txt	199	grup			1	İsteğe bağlı dosyada UTF-8 kodlama hatası
+ARC_008		Kritik	Spec	SELECTION_BIAS	shapes.txt	199	grup			1	Takvim dosyası eksik (calendar.txt ve calendar_dates.txt)
+ARC_013		Kritik	Spec	FATAL_PATH	shapes.txt	199	grup			2	CSV ayrıştırma hatası
+ARC_015		Kritik	Interop	PREDICATE_SUSPECT	shapes.txt	199	grup	ARC_012	yes	1	Yinelenen başlık sütunu
+ARC_018		Orta	Quality	SELECTION_BIAS	stop_times.txt	239	modül			3	Boş veri satırı
+ARC_019		Yuksek	Quality	SELECTION_BIAS	shapes.txt	199	grup			1	Başlıkta boş sütun adı
+ARC_023		Orta	Quality	PREDICATE_SUSPECT	shapes.txt	199	grup			1	ZIP içinde nested ZIP dosyası — GTFS formatında desteklenmez
+ARC_026		Orta	Spec	POST_BASELINE	shapes.txt	199	grup			2	Dosyada hatalı satır sonu karakteri
+ARC_027		Bilgi	Quality	SELECTION_BIAS	shapes.txt	199	grup			1	ZIP girdisinde kullanıcı okuma izni yok
+ARC_028		Dusuk	Quality	PREDICATE_SUSPECT	shapes.txt	199	grup			1	GTFS yayın URL'si .zip dosya adıyla bitmiyor
+ARC_029		Kritik	Quality	FATAL_PATH	shapes.txt	199	grup			0	Sıkıştırma koruması: arşiv zip-bomb sınırını aştı
+ARC_033		Yuksek	Spec	POST_BASELINE	shapes.txt	199	grup			2	Alan değerinde kaçırılmamış tırnak (RFC 4180)
+ARS_001		Kritik	Spec	CROSS_FILE						1	area_id yineleniyor
+ARS_002		Kritik	Spec	CROSS_FILE						1	areas.txt'te area_id boş
+ATR_002		Kritik	Spec	SELECTION_BIAS	attributions.txt	14	modül			1	organization_name eksik
+ATR_003		Yuksek	Spec	PREDICATE_SUSPECT	attributions.txt	14	modül			1	Attribution rolü tanımlanmamış
+ATR_004		Kritik	Spec	PREDICATE_SUSPECT	attributions.txt	14	modül			1	is_producer geçersiz
+ATR_005		Kritik	Spec	PREDICATE_SUSPECT	attributions.txt	14	modül			1	is_operator geçersiz
+ATR_006		Kritik	Spec	PREDICATE_SUSPECT	attributions.txt	14	modül			1	is_authority geçersiz
+ATR_007		Kritik	Spec	PREDICATE_SUSPECT	attributions.txt	14	modül			1	attribution_url geçersiz
+ATR_008		Dusuk	Spec	PREDICATE_SUSPECT	attributions.txt	14	modül			1	attribution_email geçersiz
+ATR_010		Dusuk	Spec	SELECTION_BIAS	attributions.txt	14	grup	ARC_002	no	1	agency_id bulunamadı
+ATR_011		Dusuk	Spec	SELECTION_BIAS	attributions.txt	14	grup	RTS_001	yes	1	route_id bulunamadı
+ATR_012		Dusuk	Spec	SELECTION_BIAS	attributions.txt	14	grup			1	trip_id bulunamadı
+BKR_001		Yuksek	Spec	PREDICATE_SUSPECT	booking_rules.txt	18	modül	BKR_016	no	2	Önceki gün rezervasyon alanı yasak bağlamda dolu
+BKR_002		Yuksek	Spec	PREDICATE_SUSPECT	booking_rules.txt	18	modül			1	prior_notice_start_day yalnızca prior_notice_last_day ile kullanılabilir
+BKR_003		Yuksek	Spec	PREDICATE_SUSPECT	booking_rules.txt	18	modül			1	prior_notice_start_time yalnızca prior_notice_start_day ile kullanılabilir
+BKR_004		Yuksek	Spec	PREDICATE_SUSPECT	booking_rules.txt	18	modül	BKR_016	no	1	Anlık rezervasyonda prior_notice alanları yasak
+BKR_005		Orta	Spec	PREDICATE_SUSPECT	booking_rules.txt	18	modül	BKR_016	no	1	prior_notice_duration_max yalnızca booking_type=1 ile geçerli (booking_type=0/2 ile yasak)
+BKR_007		Kritik	Spec	SELECTION_BIAS	booking_rules.txt	18	modül	BKR_016	no	1	booking_type=1 için prior_notice_duration_min zorunlu
+BKR_008		Kritik	Spec	SELECTION_BIAS	booking_rules.txt	18	modül	BKR_016	no	1	booking_type=2 için prior_notice_last_day zorunlu
+BKR_009		Kritik	Spec	SELECTION_BIAS	booking_rules.txt	18	modül	BKR_016	no	1	booking_type=2 için prior_notice_last_time zorunlu
+BKR_010		Yuksek	Spec	SELECTION_BIAS	booking_rules.txt	18	modül			1	prior_notice_start_day belirtilmişse prior_notice_start_time zorunlu
+BKR_011		Yuksek	Interop	PREDICATE_SUSPECT	booking_rules.txt	18	modül			1	prior_notice_last_day > prior_notice_start_day: rezervasyon penceresi geçersiz
+BKR_012		Orta	Spec	PREDICATE_SUSPECT	booking_rules.txt	18	modül	BKR_016	no	1	booking_type=2 iken prior_notice_duration_min yasak
+BKR_013		Yuksek	Spec	PREDICATE_SUSPECT	booking_rules.txt	18	modül			1	prior_notice_last_time yalnızca prior_notice_last_day ile kullanılabilir
+BKR_014		Yuksek	Spec	PREDICATE_SUSPECT	booking_rules.txt	18	modül	BKR_016	no	1	prior_notice_service_id yalnızca booking_type=2 ile kullanılabilir
+BKR_015		Kritik	Spec	SELECTION_BIAS	booking_rules.txt	18	grup			1	prior_notice_service_id bulunamadı (calendar/calendar_dates)
+BKR_016		Kritik	Spec	SELECTION_BIAS	booking_rules.txt	18	modül			1	booking_type eksik veya geçersiz
+BKR_017		Kritik	Spec	SELECTION_BIAS	booking_rules.txt	18	grup	BKR_019	no	1	pickup_booking_rule_id bulunamadı (booking_rules)
+BKR_018		Kritik	Spec	SELECTION_BIAS	booking_rules.txt	18	grup	BKR_019	no	1	drop_off_booking_rule_id bulunamadı (booking_rules)
+BKR_019		Kritik	Spec	SELECTION_BIAS	booking_rules.txt	18	modül			2	booking_rule_id eksik veya yineleniyor
+BKR_020		Orta	Spec	PREDICATE_SUSPECT	booking_rules.txt	18	modül			1	booking_url geçersiz
+BKR_021		Dusuk	Spec	PREDICATE_SUSPECT	booking_rules.txt	18	modül			1	info_url geçersiz
+BKR_022		Dusuk	Quality	PREDICATE_SUSPECT	booking_rules.txt	18	modül			1	phone_number geçersiz
+BKR_023		Orta	Spec	PREDICATE_SUSPECT	booking_rules.txt	18	modül			4	prior_notice sayı alanı tam sayı değil
+BKR_024		Orta	Spec	PREDICATE_SUSPECT	booking_rules.txt	18	modül			1	booking_type=1 ve duration_max varken prior_notice_start_day yasak
+CAL_001	MEASURED 2026-08-15 (#127): correct. Duplicated calendar row on mdb-3141 fires it; duplicate EMPTY service_id does not, and CAL_022 reports that root instead.	Kritik	Spec	PREDICATE_SUSPECT	calendar.txt	213	grup			1	service_id yineleniyor
+CAL_002		Kritik	Spec	PREDICATE_SUSPECT	calendar.txt	213	modül			2	Takvim gün alanı geçersiz değer
+CAL_003		Kritik	Spec	SELECTION_BIAS	calendar.txt	213	modül			2	start_date eksik veya geçersiz format
+CAL_004		Kritik	Spec	SELECTION_BIAS	calendar.txt	213	modül			2	end_date eksik veya geçersiz format
+CAL_022		Kritik	Spec	SELECTION_BIAS	calendar.txt	213	modül			1	service_id eksik
+CAL_025		Kritik	Spec	SELECTION_BIAS	calendar.txt	213	grup			1	Takvim gün alanı boş (değer verilmemiş)
+CLD_001		Kritik	Spec	SELECTION_BIAS	calendar_dates.txt	191	modül			1	service_id eksik
+CLD_002		Kritik	Spec	SELECTION_BIAS	calendar_dates.txt	191	modül			2	date eksik veya geçersiz format
+CLD_003		Kritik	Spec	SELECTION_BIAS	calendar_dates.txt	191	modül			3	exception_type eksik veya geçersiz
+CLD_005		Kritik	Quality	PREDICATE_SUSPECT	calendar_dates.txt	191	modül	CLD_003	no	1	Tarih makul yıl aralığı dışında
+DQ_009		Bilgi	Quality	SELECTION_BIAS	calendar_dates.txt	191	grup			1	Seferlerde durak zamanı yok
+DQ_012		Dusuk	Quality	PREDICATE_SUSPECT	calendar_dates.txt	191	grup			1	Çok fazla acente, agency_id kullanılmıyor
+DQ_022		Yuksek	Quality	PREDICATE_SUSPECT	calendar_dates.txt	191	grup			1	Durakların %80'inden fazlası aynı stop_name değerini paylaşıyor — yer tutucu/test verisi
+FAR_001	MEASURED 2026-08-15 (#127): correct. Duplicated fare_attributes row on mdb-1996 fires it; duplicate EMPTY fare_id does not, and FAR_012 reports that root instead.	Kritik	Spec	PREDICATE_SUSPECT	fare_attributes.txt	79	grup			1	fare_id yineleniyor
+FAR_002		Kritik	Spec	SELECTION_BIAS	fare_attributes.txt	79	modül			2	price eksik veya geçersiz
+FAR_003		Kritik	Spec	SELECTION_BIAS	fare_attributes.txt	79	modül			1	currency_type eksik
+FAR_004		Kritik	Spec	PREDICATE_SUSPECT	fare_attributes.txt	79	modül			1	payment_method geçersiz
+FAR_008		Kritik	Spec	SELECTION_BIAS	fare_attributes.txt	79	grup			1	agency_id bulunamadı
+FAR_011		Kritik	Spec	SELECTION_BIAS	fare_attributes.txt	79	modül			1	payment_method eksik
+FAR_012		Kritik	Spec	SELECTION_BIAS	fare_attributes.txt	79	modül			1	fare_id eksik
+FIN_001		Kritik	Spec	SELECTION_BIAS	feed_info.txt	155	modül			1	feed_publisher_name eksik
+FIN_003		Kritik	Spec	SELECTION_BIAS	feed_info.txt	155	modül			1	feed_lang eksik
+FIN_004		Orta	Spec	PREDICATE_SUSPECT	feed_info.txt	155	modül			1	default_lang geçersiz
+FIN_006		Yuksek	Spec	PREDICATE_SUSPECT	feed_info.txt	155	modül			1	feed_end_date geçersiz format (geçmiş tarih için FIN_010 kullanın)
+FIN_008		Dusuk	Spec	PREDICATE_SUSPECT	feed_info.txt	155	modül	ARC_002	no	1	feed_contact_email geçersiz
+FIN_009		Dusuk	Spec	PREDICATE_SUSPECT	feed_info.txt	155	modül			1	feed_contact_url geçersiz
+FIN_012		Dusuk	Spec	POST_BASELINE	feed_info.txt	155	modül			1	feed_start_date feed_end_date'den sonra
+FLG_001		Kritik	Spec	THIN_FEATURE	fare_leg_rules.txt	4	grup	FPD_001	no	1	fare_product_id bulunamadı
+FLG_002		Kritik	Spec	THIN_FEATURE	fare_leg_rules.txt	4	grup	NET_001	no	1	network_id bulunamadı
+FLG_003		Kritik	Spec	THIN_FEATURE	fare_leg_rules.txt	4	grup	ARS_001	no	1	from_area_id bulunamadı
+FLG_004		Kritik	Spec	THIN_FEATURE	fare_leg_rules.txt	4	grup	ARS_001	no	1	to_area_id bulunamadı
+FLG_005		Kritik	Spec	THIN_FEATURE	fare_leg_rules.txt	4	grup			1	from_timeframe_group_id bulunamadı
+FLG_006		Kritik	Spec	THIN_FEATURE	fare_leg_rules.txt	4	grup			1	to_timeframe_group_id bulunamadı
+FLG_007		Orta	Spec	THIN_FEATURE	fare_leg_rules.txt	4	modül			1	rule_priority geçersiz
+FLJ_001		Kritik	Spec	CROSS_FILE						1	from_network_id eksik veya bulunamadı
+FLJ_002		Kritik	Spec	CROSS_FILE						1	to_network_id eksik veya bulunamadı
+FLJ_003		Kritik	Spec	CROSS_FILE						1	from_stop_id eksik veya bulunamadı
+FLJ_004		Kritik	Spec	CROSS_FILE						1	to_stop_id eksik veya bulunamadı
+FMD_001		Kritik	Spec	THIN_FEATURE	fare_media.txt	3	grup			1	fare_media_id yineleniyor
+FMD_002		Kritik	Spec	THIN_FEATURE	fare_media.txt	3	modül			3	fare_media_type eksik veya geçersiz
+FMD_003		Dusuk	Quality	THIN_FEATURE	fare_media.txt	3	modül			1	TransitCard/MobileApp için fare_media_name tavsiye edilir
+FMD_004		Kritik	Spec	THIN_FEATURE	fare_media.txt	3	grup			1	fare_media_id boş
+FPD_001		Kritik	Spec	THIN_FEATURE	fare_products.txt	4	grup			1	fare_products bileşik anahtarı yineleniyor
+FPD_002		Kritik	Spec	THIN_FEATURE	fare_products.txt	4	modül			2	amount eksik veya negatif
+FPD_003		Kritik	Spec	THIN_FEATURE	fare_products.txt	4	modül			1	currency geçersiz ISO 4217 kodu
+FPD_004		Kritik	Spec	THIN_FEATURE	fare_products.txt	4	grup	FMD_001	no	1	fare_media_id bulunamadı
+FPD_005		Kritik	Spec	THIN_FEATURE	fare_products.txt	4	grup	RCT_001	no	1	rider_category_id bulunamadı
+FPD_007		Dusuk	Spec	THIN_FEATURE	fare_products.txt	4	modül			1	amount para biriminin ISO 4217 ondalık basamak sayısını taşımıyor
+FRL_007		Orta	Quality	CROSS_FILE						1	Ücret kuralı mantıksal tutarsızlık
+FRQ_001		Kritik	Spec	SELECTION_BIAS	frequencies.txt	55	modül	TRP_001	yes	2	trip_id bulunamadı
+FRQ_002		Kritik	Spec	PREDICATE_SUSPECT	frequencies.txt	55	modül			2	start_time geçersiz
+FRQ_003		Kritik	Spec	PREDICATE_SUSPECT	frequencies.txt	55	modül			2	end_time geçersiz
+FRQ_004		Kritik	Spec	SELECTION_BIAS	frequencies.txt	55	modül			2	headway_secs eksik veya geçersiz
+FTR_001		Kritik	Spec	THIN_FEATURE	fare_transfer_rules.txt	2	modül			3	fare_transfer_type eksik veya geçersiz
+FTR_002		Kritik	Spec	THIN_FEATURE	fare_transfer_rules.txt	2	grup			1	from_leg_group_id bulunamadı
+FTR_003		Kritik	Spec	THIN_FEATURE	fare_transfer_rules.txt	2	grup			1	to_leg_group_id bulunamadı
+FTR_004		Kritik	Spec	THIN_FEATURE	fare_transfer_rules.txt	2	grup	FPD_001	no	1	fare_product_id bulunamadı
+FTR_005		Kritik	Spec	THIN_FEATURE	fare_transfer_rules.txt	2	modül			2	duration_limit_type geçersiz
+FTR_006		Orta	Spec	THIN_FEATURE	fare_transfer_rules.txt	2	modül			2	duration_limit geçersiz
+FTR_007		Orta	Spec	THIN_FEATURE	fare_transfer_rules.txt	2	modül			1	duration_limit_type duration_limit olmadan tanımlı
+FTR_008		Orta	Spec	THIN_FEATURE	fare_transfer_rules.txt	2	modül			2	transfer_count geçersiz
+FTR_009		Orta	Spec	THIN_FEATURE	fare_transfer_rules.txt	2	modül			1	leg grupları aynıyken transfer_count zorunlu
+FTR_010		Orta	Spec	THIN_FEATURE	fare_transfer_rules.txt	2	modül			1	leg grupları farklıyken transfer_count tanımlanamaz
+FTR_011		Orta	Spec	THIN_FEATURE	fare_transfer_rules.txt	2	modül			1	duration_limit tanımlı ama duration_limit_type eksik
+GEO_015		Orta	Quality	CROSS_FILE						1	Durak koordinatları Japonya sınırları dışında (feed_lang: ja)
+GEO_018		Yuksek	Analytics	CROSS_FILE						1	Tüm feed durağları 200m yarıçap içinde — test/yer tutucu veri
+GEO_019		Orta	Quality	CROSS_FILE						1	Durak koordinatları tam sayı (ondalık basamak yok) — düşük hassasiyetli veya yer tutucu
+GEO_022		Yuksek	Quality	CROSS_FILE						1	Durak enlemi kutba aşırı yakın (|lat|>89) — olası koordinat hatası
+GGL_002		Dusuk	Interop	THIN_FEATURE	fare_products.txt	4	modül			2	ic_price (Google-özel) geçersiz değer
+JPN_002		Yuksek	Interop	CROSS_FILE						2	GTFS-JP: jp_office_id office_jp.txt'te tanımlı değil
+JPN_003		Yuksek	Interop	CROSS_FILE						1	GTFS-JP: agency_jp.agency_id agency.txt'te tanımlı değil
+JPN_005		Yuksek	Interop	CROSS_FILE						1	GTFS-JP: office_jp.office_name boş (zorunlu alan)
+JPN_006		Orta	Quality	CROSS_FILE						1	GTFS-JP: fare_attributes/fare_rules eksik (profil zorunlu kılar)
+JPN_007		Orta	Quality	CROSS_FILE						1	GTFS-JP: feed_info.txt eksik (profil zorunlu kılar)
+JPN_011		Yuksek	Interop	CROSS_FILE						1	GTFS-JP: tek işletici olsa bile agency_id zorunlu
+LOC_001		Yuksek	Spec	CROSS_FILE						5	locations.geojson'da bilinmeyen veya geçersiz geometri tipi
+LOC_002		Kritik	Spec	CROSS_FILE						1	Feature'da geometry null veya eksik — GTFS Flex gerektiriyor
+LOC_003		Kritik	Spec	CROSS_FILE						1	Feature'da 'id' property eksik — stop_times çapraz referansı için zorunlu
+LOC_004		Orta	Spec	CROSS_FILE						1	Polygon ring kapalı değil (ilk != son nokta)
+LOC_005		Dusuk	Quality	CROSS_FILE						1	FeatureCollection boş — hiç feature yok
+LOC_007		Orta	Spec	CROSS_FILE						1	FeatureCollection içinde yinelenen 'id' değeri — Flex referansı belirsizleşir
+LOC_008		Orta	Spec	CROSS_FILE						1	 değil
+LOC_009		Orta	Spec	CROSS_FILE						1	Feature 'properties' nesnesi eksik
+LOC_010		Kritik	Spec	CROSS_FILE						1	Geometry 'coordinates' eksik veya dizi değil — bölge geometrisi çözümlenemez
+LOC_011		Yuksek	Spec	CROSS_FILE						1	Poligon geçersiz: ring kendini kesiyor veya delik dışarıda
+LVL_001	MEASURED 2026-08-15 (#127): correct. Duplicated levels row on mdb-3357 fires it; duplicate EMPTY level_id does not, and LVL_008 reports that root instead.	Kritik	Spec	PREDICATE_SUSPECT	levels.txt	9	grup			1	level_id yineleniyor
+LVL_002		Kritik	Spec	PREDICATE_SUSPECT	levels.txt	9	modül			1	level_index geçersiz
+LVL_005		Orta	Quality	PREDICATE_SUSPECT	levels.txt	9	modül			1	level_name çok uzun
+LVL_007		Kritik	Spec	SELECTION_BIAS	levels.txt	9	modül			1	level_index eksik
+LVL_008		Kritik	Spec	SELECTION_BIAS	levels.txt	9	modül			1	level_id eksik
+NET_001		Kritik	Spec	CROSS_FILE						1	network_id yineleniyor
+NET_002		Kritik	Spec	CROSS_FILE						2	route_networks.network_id eksik veya bulunamadı
+NET_003		Kritik	Spec	CROSS_FILE						2	route_networks.route_id eksik veya bulunamadı
+NET_004		Kritik	Spec	CROSS_FILE						1	networks.txt'te network_id boş
+OPR_014		Orta	Analytics	CROSS_FILE				STM_002	no	1	Ortalama aktarma süresi uzun
+OPR_016		Bilgi	Analytics	CROSS_FILE				CAL_002,TRP_003	no	1	Feed genelinde aktif servis yok
+OPR_021		Yuksek	Analytics	CROSS_FILE						1	Takvim override çakışması: override ve base eş zamanlı aktif
+OPR_022		Yuksek	Analytics	CROSS_FILE						1	Takvim override uygulanmamış: override gününde base servis çalışıyor
+OPR_023		Orta	Analytics	CROSS_FILE						1	Takvim override boşluğu: pencere içinde hiçbir servis aktif değil
+OPR_025		Yuksek	Analytics	CROSS_FILE						1	Feed genelinde ortalama sefer süresi 60 saniyeden kısa — veri kalitesi sorunu
+PTH_001		Kritik	Spec	PREDICATE_SUSPECT	pathways.txt	10	grup			1	pathway_id yineleniyor
+PTH_002		Kritik	Spec	SELECTION_BIAS	pathways.txt	10	grup	STP_001,STP_009	yes	1	from_stop_id bulunamadı
+PTH_003		Kritik	Spec	SELECTION_BIAS	pathways.txt	10	grup	STP_001,STP_009	yes	1	to_stop_id bulunamadı
+PTH_004		Kritik	Spec	SELECTION_BIAS	pathways.txt	10	modül			1	pathway_mode eksik veya geçersiz
+PTH_005		Kritik	Spec	SELECTION_BIAS	pathways.txt	10	modül			1	is_bidirectional eksik
+PTH_006		Orta	Spec	PREDICATE_SUSPECT	pathways.txt	10	modül			1	length geçersiz
+PTH_010		Dusuk	Spec	PREDICATE_SUSPECT	pathways.txt	10	modül			1	min_width geçersiz
+PTH_013		Bilgi	Analytics	PREDICATE_SUSPECT	pathways.txt	10	grup	PTH_002,PTH_003,PTH_012,STP_027	yes	1	Erişilebilir yol analizi
+PTH_014		Kritik	Quality	PREDICATE_SUSPECT	pathways.txt	10	grup			1	Geçit istasyon sınırını aşıyor
+PTH_015		Orta	Analytics	PREDICATE_SUSPECT	pathways.txt	10	grup	PTH_002,PTH_003	no	1	Geçit hedefi erişilemeyen durakta
+PTH_016		Yuksek	Spec	PREDICATE_SUSPECT	pathways.txt	10	modül	PTH_005	no	1	Çıkış kapısı çift yönlü tanımlanmış
+PTH_017		Orta	Spec	PREDICATE_SUSPECT	pathways.txt	10	modül			1	max_slope sayı değil
+PTH_018		Dusuk	Quality	PREDICATE_SUSPECT	pathways.txt	10	modül			1	signposted_as çok uzun
+PTH_019		Orta	Quality	PREDICATE_SUSPECT	pathways.txt	10	grup			1	Generic node tek pathway'e bağlı (dead-end)
+PTH_020		Kritik	Spec	SELECTION_BIAS	pathways.txt	10	modül			1	pathway_id eksik
+PTH_021		Kritik	Spec	SELECTION_BIAS	pathways.txt	10	modül			1	from_stop_id eksik
+PTH_022		Kritik	Spec	SELECTION_BIAS	pathways.txt	10	modül			1	to_stop_id eksik
+PTH_023		Kritik	Spec	SELECTION_BIAS	pathways.txt	10	modül			1	pathway_mode eksik
+PTH_024		Kritik	Spec	SELECTION_BIAS	pathways.txt	10	modül			1	is_bidirectional eksik
+PTH_026		Kritik	Spec	PREDICATE_SUSPECT	pathways.txt	10	grup			1	Pathway uç noktası istasyon
+PTH_027		Orta	Spec	PREDICATE_SUSPECT	pathways.txt	10	modül			2	stair_count geçersiz (sıfır veya tam sayı değil)
+PTH_028		Dusuk	Quality	PREDICATE_SUSPECT	pathways.txt	10	modül			1	max_slope yürüme yolu dışında kullanılmış
+PTH_030		Dusuk	Spec	PREDICATE_SUSPECT	pathways.txt	10	grup			1	Boarding area'sı olan platforma pathway atanmış
+PTH_031		Kritik	Spec	POST_BASELINE	pathways.txt	10	grup			1	Pathway uç noktası sokaktan erişilen durak (stop_access=1)
+RCT_001		Kritik	Spec	THIN_FEATURE	rider_categories.txt	4	grup			1	rider_category_id yineleniyor
+RCT_002		Kritik	Spec	THIN_FEATURE	rider_categories.txt	4	modül			1	rider_category_name eksik
+RCT_003		Kritik	Spec	THIN_FEATURE	rider_categories.txt	4	modül			2	is_default_fare_category geçersiz
+RCT_004		Orta	Quality	THIN_FEATURE	rider_categories.txt	4	modül			2	min_age veya max_age geçersiz (GTFS uzantı alanı — resmî spec'te yok)
+RCT_005		Orta	Quality	THIN_FEATURE	rider_categories.txt	4	modül			1	max_age min_age'den küçük
+RCT_006		Orta	Spec	THIN_FEATURE	rider_categories.txt	4	grup			2	fare_product başına varsayılan yolcu kategorisi sayısı bir değil
+RCT_007		Dusuk	Spec	THIN_FEATURE	rider_categories.txt	4	modül			1	eligibility_url geçersiz
+RCT_008		Kritik	Spec	THIN_FEATURE	rider_categories.txt	4	grup			1	rider_category_id boş
+RTS_005		Orta	Spec	PREDICATE_SUSPECT	routes.txt	240	modül	ARC_013	no	1	route_url geçersiz
+RTS_006		Orta	Spec	PREDICATE_SUSPECT	routes.txt	240	modül			1	route_color geçersiz hex renk
+RTS_007		Orta	Spec	PREDICATE_SUSPECT	routes.txt	240	modül			1	route_text_color geçersiz hex renk
+RTS_013		Dusuk	Spec	PREDICATE_SUSPECT	routes.txt	240	modül			1	continuous_pickup geçersiz
+RTS_018		Dusuk	Spec	PREDICATE_SUSPECT	routes.txt	240	modül			1	continuous_drop_off geçersiz
+RTS_024		Dusuk	Spec	PREDICATE_SUSPECT	routes.txt	240	modül			2	route_cemv_support geçersiz
+RTS_028		Yuksek	Spec	PREDICATE_SUSPECT	routes.txt	240	grup			1	Flex pencereli rotada continuous_pickup/drop_off yasak
+RTS_029		Dusuk	Spec	PREDICATE_SUSPECT	routes.txt	240	modül			1	route_sort_order geçersiz
+RTS_030		Dusuk	Interop	POST_BASELINE	routes.txt	240	modül			1	route_type çekirdek enum dışında genişletilmiş değer
+SAR_001		Kritik	Spec	CROSS_FILE				ARS_001	no	1	area_id bulunamadı
+SAR_002		Kritik	Spec	CROSS_FILE						1	stop_id bulunamadı
+SAR_003		Kritik	Spec	CROSS_FILE						1	stop_areas'ta area_id boş
+SAR_004		Kritik	Spec	CROSS_FILE						1	stop_areas'ta stop_id boş
+SHP_001		Kritik	Spec	SELECTION_BIAS	shapes.txt	199	modül			1	shape_id eksik
+SHP_002		Kritik	Spec	SELECTION_BIAS	shapes.txt	199	modül			3	shape_pt_lat eksik veya geçersiz
+SHP_003		Kritik	Spec	SELECTION_BIAS	shapes.txt	199	modül	SHP_002	no	3	shape_pt_lon eksik veya geçersiz
+SHP_004		Kritik	Spec	SELECTION_BIAS	shapes.txt	199	modül			2	shape_pt_sequence eksik veya geçersiz
+SHP_005	MEASURED 2026-08-15 (#127): correct. Real-feed mutation on mdb-2927 (decreasing shape_dist_traveled) fires it; equality deliberately does not, because SHP_028/SHP_029/SHP_020 already measure that. Open question is classification, not predicate.	Kritik	Spec	PREDICATE_SUSPECT	shapes.txt	199	grup			1	shape_dist_traveled geriye gidiyor
+SHP_030		Orta	Quality	POST_BASELINE	shapes.txt	199	grup			1	stop_times shape_dist_traveled kullanıyor ancak shapes.txt'te shape mesafeleri eksik
+STM_002		Kritik	Spec	SELECTION_BIAS	stop_times.txt	239	grup	ARC_004,STP_001	yes	1	stop_id bulunamadı
+STM_003		Kritik	Spec	PREDICATE_SUSPECT	stop_times.txt	239	modül			1	arrival_time geçersiz format
+STM_004		Kritik	Spec	PREDICATE_SUSPECT	stop_times.txt	239	modül	STM_003	no	1	departure_time geçersiz format
+STM_005		Kritik	Spec	SELECTION_BIAS	stop_times.txt	239	modül	ARC_013	no	2	stop_sequence eksik veya geçersiz
+STM_006		Kritik	Spec	SELECTION_BIAS	stop_times.txt	239	modül	ARC_013	no	1	stop_id eksik (stop_times)
+STM_007		Yuksek	Interop	PREDICATE_SUSPECT	stop_times.txt	239	grup	STM_002,STM_006	no	1	Kalkış saati varış saatinden önce (departure_time < arrival_time)
+STM_009		Yuksek	Spec	PREDICATE_SUSPECT	stop_times.txt	239	modül			1	pickup_type geçersiz
+STM_010		Yuksek	Spec	PREDICATE_SUSPECT	stop_times.txt	239	modül			1	drop_off_type geçersiz
+STM_015		Kritik	Spec	SELECTION_BIAS	stop_times.txt	239	grup	SHP_006,TRP_004	yes	1	İlk durakta arrival_time eksik
+STM_016		Kritik	Spec	SELECTION_BIAS	stop_times.txt	239	grup	SHP_006,STM_015,TRP_004	yes	1	Son durakta arrival_time eksik
+STM_018		Orta	Spec	PREDICATE_SUSPECT	stop_times.txt	239	modül			1	continuous_pickup geçersiz (stop_times)
+STM_019		Orta	Spec	PREDICATE_SUSPECT	stop_times.txt	239	modül			1	continuous_drop_off geçersiz (stop_times)
+STM_022		Orta	Spec	PREDICATE_SUSPECT	stop_times.txt	239	modül			2	timepoint geçersiz
+STM_030		Dusuk	Spec	PREDICATE_SUSPECT	stop_times.txt	239	modül			2	shape_dist_traveled negatif veya sayı değil
+STM_034		Orta	Interop	PREDICATE_SUSPECT	stop_times.txt	239	modül			2	Varış veya kalkış zamanından yalnızca biri tanımlı
+STM_037		Yuksek	Spec	PREDICATE_SUSPECT	stop_times.txt	239	modül			1	Flex penceresinde arrival_time/departure_time yasak
+STM_038		Yuksek	Interop	PREDICATE_SUSPECT	stop_times.txt	239	modül	STM_058	no	1	start_pickup_drop_off_window > end_pickup_drop_off_window
+STM_039		Kritik	Spec	SELECTION_BIAS	stop_times.txt	239	modül			1	Flex bağlamında pickup/drop_off penceresi eksik
+STM_040		Orta	Quality	SELECTION_BIAS	stop_times.txt	239	modül			1	Flex stop_times'ta pickup/drop_off_booking_rule_id eksik (spec'te Optional)
+STM_041		Yuksek	Spec	PREDICATE_SUSPECT	stop_times.txt	239	modül			1	stop_id ile location_id/group_id aynı anda kullanılamaz
+STM_042		Dusuk	Interop	PREDICATE_SUSPECT	stop_times.txt	239	modül			1	stop_headsign Google Transit tarafından desteklenmeyen karakter içeriyor
+STM_046		Kritik	Spec	SELECTION_BIAS	stop_times.txt	239	modül			1	trip_id eksik
+STM_049		Yuksek	Spec	POST_BASELINE	stop_times.txt	239	modül			1	Aynı satırda gece yarısı sonrası kalkış 00:xx yazılmış (GTFS servis günü için 24:xx kullanılmalı)
+STM_051		Yuksek	Spec	PREDICATE_SUSPECT	stop_times.txt	239	modül			1	Flex penceresi tanımlıyken pickup_type=0/3 yasak (talep-üzerine değerler gerekli)
+STM_052		Yuksek	Spec	PREDICATE_SUSPECT	stop_times.txt	239	modül			1	Flex penceresi tanımlıyken drop_off_type=0 yasak (talep-üzerine değer gerekli)
+STM_054		Yuksek	Spec	SELECTION_BIAS	stop_times.txt	239	modül			1	Flex penceresi tanımlıyken continuous_pickup 1/boş dışında yasak
+STM_055		Yuksek	Spec	SELECTION_BIAS	stop_times.txt	239	modül			1	Flex penceresi tanımlıyken continuous_drop_off 1/boş dışında yasak
+STM_058		Kritik	Spec	PREDICATE_SUSPECT	stop_times.txt	239	modül			1	Flex pickup/drop-off penceresi saati geçersiz
+STM_060		Yuksek	Spec	POST_BASELINE	stop_times.txt	239	grup			1	Aynı seferde geojson bölgesi + zaman penceresi + pickup/drop_off eşzamanlı örtüşüyor
+STP_002		Kritik	Spec	SELECTION_BIAS	stops.txt	239	modül			1	stop_id boş
+STP_003		Kritik	Spec	SELECTION_BIAS	stops.txt	239	modül			2	stop_name eksik veya stop_lat/stop_lon aralık dışı (aynı ID altında iki ayrı koşul)
+STP_004		Kritik	Spec	PREDICATE_SUSPECT	stops.txt	239	modül			1	stop_lat sayısal değil
+STP_005		Kritik	Spec	PREDICATE_SUSPECT	stops.txt	239	modül			2	stop_lon geçersiz veya aralık dışı
+STP_006		Kritik	Spec	SELECTION_BIAS	stops.txt	239	modül			1	stop_lat eksik
+STP_007		Kritik	Spec	SELECTION_BIAS	stops.txt	239	modül			1	stop_lon eksik
+STP_008		Yuksek	Spec	PREDICATE_SUSPECT	stops.txt	239	modül			2	location_type geçersiz
+STP_010		Yuksek	Spec	PREDICATE_SUSPECT	stops.txt	239	grup	STP_008,STP_009	yes	1	parent_station location_type=1 değil
+STP_011		Kritik	Spec	SELECTION_BIAS	stops.txt	239	grup	STP_008,STP_009	yes	1	Giriş/çıkış/boarding için parent_station zorunlu
+STP_013		Dusuk	Spec	PREDICATE_SUSPECT	stops.txt	239	modül			2	wheelchair_boarding geçersiz
+STP_014		Orta	Spec	PREDICATE_SUSPECT	stops.txt	239	modül			1	stop_timezone geçersiz
+STP_015		Kritik	Spec	SELECTION_BIAS	stops.txt	239	grup	LVL_001	no	1	level_id bulunamadı
+STP_021		Yuksek	Quality	PREDICATE_SUSPECT	stops.txt	239	grup	STP_003,STP_004,STP_005	no	1	Boarding area parent'ı platform değil
+STP_023		Dusuk	Quality	PREDICATE_SUSPECT	stops.txt	239	modül			1	tts_stop_name geçersiz
+STP_024		Bilgi	Quality	PREDICATE_SUSPECT	stops.txt	239	modül			2	stop_access K2 uyumluluk aralığı dışında değer
+STP_026		Dusuk	Spec	PREDICATE_SUSPECT	stops.txt	239	grup	STP_024	no	1	stop_access geçersiz değer
+STP_028		Bilgi	Quality	PREDICATE_SUSPECT	stops.txt	239	modül			1	stop_code çok uzun
+STP_032		Orta	Quality	SELECTION_BIAS	stops.txt	239	grup			1	Pathway bağlantılı platform için parent_station eksik
+STP_034		Dusuk	Quality	POST_BASELINE	stops.txt	239	grup			1	stop_url acente URL'siyle aynı
+STP_036		Dusuk	Spec	PREDICATE_SUSPECT	stops.txt	239	grup			1	İstasyonun (location_type=1) parent_station'ı var
+STP_040		Dusuk	Quality	PREDICATE_SUSPECT	stops.txt	239	grup			1	Durak adı gereksiz genel stop/station sözcüğü içeriyor
+STP_041		Dusuk	Quality	PREDICATE_SUSPECT	stops.txt	239	grup			1	Alt durak adı üst istasyon adını içermiyor
+STP_042		Dusuk	Spec	PREDICATE_SUSPECT	stops.txt	239	modül			1	stop_url geçersiz
+STP_043		Orta	Spec	PREDICATE_SUSPECT	stops.txt	239	grup			1	stop_access yasak bağlamda kullanılmış
+TFR_001		Kritik	Spec	THIN_FEATURE	timeframes.txt	1	modül			1	timeframe_group_id eksik
+TFR_002		Kritik	Spec	THIN_FEATURE	timeframes.txt	1	grup			1	service_id bulunamadı
+TFR_003		Yuksek	Spec	THIN_FEATURE	timeframes.txt	1	modül			2	start_time veya end_time format hatası
+TFR_004		Orta	Quality	THIN_FEATURE	timeframes.txt	1	modül			1	end_time start_time'dan küçük
+TFR_005		Orta	Spec	POST_BASELINE	timeframes.txt	1	modül			1	Aynı grup ve service_id içinde örtüşen zaman aralıkları
+TFR_006		Kritik	Spec	THIN_FEATURE	timeframes.txt	1	modül			1	start_time veya end_time 24:00:00'dan büyük
+TFR_007		Kritik	Spec	THIN_FEATURE	timeframes.txt	1	modül			1	start_time ve end_time yalnızca biri tanımlı
+TFR_008		Kritik	Spec	THIN_FEATURE	timeframes.txt	1	grup			1	timeframes'te service_id boş
+TRF_001		Kritik	Spec	SELECTION_BIAS	transfers.txt	63	modül			1	from_stop_id eksik
+TRF_002		Kritik	Spec	SELECTION_BIAS	transfers.txt	63	modül			1	to_stop_id eksik
+TRF_003		Kritik	Spec	SELECTION_BIAS	transfers.txt	63	grup			1	from_stop_id veya to_stop_id bulunamadı
+TRF_004		Yuksek	Spec	PREDICATE_SUSPECT	transfers.txt	63	modül	TRF_003	no	2	transfer_type geçersiz
+TRF_005		Kritik	Spec	SELECTION_BIAS	transfers.txt	63	modül			2	min_transfer_time eksik
+TRF_006		Kritik	Spec	SELECTION_BIAS	transfers.txt	63	grup			1	from_trip_id bulunamadı
+TRF_007		Kritik	Spec	SELECTION_BIAS	transfers.txt	63	grup			1	to_trip_id bulunamadı
+TRF_008		Kritik	Spec	SELECTION_BIAS	transfers.txt	63	grup			1	from_route_id bulunamadı
+TRF_009		Kritik	Spec	SELECTION_BIAS	transfers.txt	63	grup			1	to_route_id bulunamadı
+TRF_013		Kritik	Quality	PREDICATE_SUSPECT	transfers.txt	63	grup	TRF_003,TRF_006,TRF_007	no	1	Aktarma türü bağlamla uyumsuz
+TRF_014		Yuksek	Spec	SELECTION_BIAS	transfers.txt	63	grup	TRF_003,TRF_006,TRF_007	no	1	in-seat aktarma için sefer yok
+TRF_015		Yuksek	Quality	PREDICATE_SUSPECT	transfers.txt	63	grup	STP_008,TRF_003,TRF_006,TRF_007	no	1	in-seat aktarma geçersiz
+TRF_017		Yuksek	Spec	POST_BASELINE	transfers.txt	63	grup	TRF_006,TRF_007	no	2	Sefer aktarması yanlış hat
+TRF_018		Orta	Quality	PREDICATE_SUSPECT	transfers.txt	63	grup	TRF_006,TRF_007	no	1	Sefer aktarması aynı seferi gösteriyor
+TRF_021		Kritik	Spec	PREDICATE_SUSPECT	transfers.txt	63	grup			1	Aktarma uç noktası durak veya istasyon değil
+TRN_004		Yuksek	Spec	SELECTION_BIAS	translations.txt	34	grup			1	record_id bulunamadı
+TRN_005	MEASURED 2026-08-15 (#127): correct. Exact duplicate row fires it on both identity paths - record_id (mdb-2638) and field_value with no record_id column (mdb-3176). Silence on the corpus is genuine: TRN_006 fires on the same code path.	Kritik	Spec	PREDICATE_SUSPECT	translations.txt	34	grup			1	Çeviri yineleniyor
+TRN_009		Yuksek	Spec	PREDICATE_SUSPECT	translations.txt	34	modül			1	record_id ve field_value aynı anda kullanılamaz
+TRN_010		Yuksek	Spec	PREDICATE_SUSPECT	translations.txt	34	modül			1	record_sub_id geçersiz
+TRN_013		Yuksek	Spec	PREDICATE_SUSPECT	translations.txt	34	modül			1	feed_info çevirisinde kimlik alanı kullanılamaz
+TRN_014		Yuksek	Spec	PREDICATE_SUSPECT	translations.txt	34	modül			1	record_sub_id yalnızca stop_times için geçerli
+TRN_015		Yuksek	Spec	SELECTION_BIAS	translations.txt	34	modül			1	record_id ve field_value ikisi de boş
+TRN_017		Orta	Spec	SELECTION_BIAS	translations.txt	34	modül			1	stop_times çevirisinde record_sub_id eksik — hangi satır olduğu belirsiz
+TRP_002		Kritik	Spec	SELECTION_BIAS	trips.txt	239	grup	RTS_001	yes	1	route_id bulunamadı
+TRP_003		Kritik	Spec	SELECTION_BIAS	trips.txt	239	grup	CAL_001	no	1	service_id bulunamadı
+TRP_006		Dusuk	Spec	PREDICATE_SUSPECT	trips.txt	239	modül			2	wheelchair_accessible geçersiz
+TRP_007		Dusuk	Spec	PREDICATE_SUSPECT	trips.txt	239	modül			2	bikes_allowed geçersiz
+TRP_011		Yuksek	Quality	PREDICATE_SUSPECT	trips.txt	239	grup			1	Sefer yön adı girilmemiş
+TRP_031		Kritik	Spec	SELECTION_BIAS	trips.txt	239	modül			1	route_id eksik
+TRP_032		Dusuk	Spec	PREDICATE_SUSPECT	trips.txt	239	modül			1	cars_allowed geçersiz
+TRP_034		Orta	Spec	PREDICATE_SUSPECT	trips.txt	239	modül			1	safe_duration alanı sayı değil
+TRP_035		Kritik	Spec	SELECTION_BIAS	trips.txt	239	modül			1	trips.txt'te service_id boş
+VAT_008		Bilgi	Analytics	CROSS_FILE						1	Aynı shape feed hatlarının %30'undan fazlasında kullanılıyor — olası yanlış shape ataması
+XFL_014		Orta	Quality	CROSS_FILE						1	Geçersiz çeviri referansı (kaynak kayıt bulunamadı)
+XFL_015		Kritik	Spec	CROSS_FILE						1	Attribution'da geçersiz referans
+XFL_016		Yuksek	Spec	CROSS_FILE						1	Çeviri feed_info'ya referans veriyor ama feed_info.txt eksik
+XFL_019		Orta	Spec	CROSS_FILE						1	Ağ tanımı iki ayrı dosyada (routes.network_id + route_networks.txt)
+XFL_020		Kritik	Spec	CROSS_FILE				TRF_017	no	1	Transfers'de geçersiz (from_trip_id/to_trip_id, route_id) çifti
+XFL_021		Yuksek	Interop	CROSS_FILE						2	Transfers'de geçersiz (from_trip_id/to_trip_id, stop_id) çifti
+XFL_022		Kritik	Spec	CROSS_FILE						1	location_group_id bulunamadı (location_group_stops)
+XFL_023		Kritik	Spec	CROSS_FILE						1	stop_id bulunamadı (location_group_stops)
+XFL_024		Kritik	Spec	CROSS_FILE						1	location_group_id bulunamadı (stop_times)
+XFL_025		Kritik	Spec	CROSS_FILE						1	location_id bulunamadı (locations.geojson)
+XFL_026		Orta	Quality	CROSS_FILE						1	route cemv_support=1 ama uygulanabilir contactless fare product yok
+XFL_027		Orta	Quality	CROSS_FILE						1	route cemv_support=2 ama uygulanabilir contactless fare product var
+XFL_029		Bilgi	Quality	CROSS_FILE						1	route cemv_support=1 ama Fares v2'de contactless media yok
+XFL_031		Kritik	Spec	CROSS_FILE						1	Kimlik çakışması: stop_id / locations.geojson id / location_group_id ortak isim alanını paylaşır
+XFL_032		Kritik	Spec	CROSS_FILE						1	location_groups.txt'te location_group_id boş
+XFL_033		Kritik	Spec	CROSS_FILE						1	location_group_stops'ta location_group_id boş
+XFL_034		Kritik	Spec	CROSS_FILE						1	location_group_stops'ta stop_id boş
