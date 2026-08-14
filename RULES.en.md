@@ -359,7 +359,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | SHP_024 | Stop-to-shape distance inconsistent with shape_dist_traveled | MEDIUM | Quality |
 | SHP_025 | Trip stop_times distance exceeds total shape distance | MEDIUM | Quality |
 | SHP_026 | Shape has extreme point count (>5,000) | INFO | Analytics |
-| SHP_028 | Same shape_dist_traveled with different coordinates | HIGH | Quality |
+| SHP_028 | Same shape_dist_traveled with different coordinates | HIGH | Spec |
 | SHP_029 | Same shape_dist_traveled, tiny coordinate difference | INFO | Quality |
 | SHP_030 | stop_times uses shape_dist_traveled but shape distances are missing | MEDIUM | Quality |
 

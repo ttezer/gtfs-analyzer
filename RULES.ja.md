@@ -359,7 +359,7 @@
 | SHP_024 | shape_dist_traveledと形状距離が不一致 | 中 | 品質 |
 | SHP_025 | stop_timesの距離が形状の総長を超過 | 中 | 品質 |
 | SHP_026 | 形状の点数が極端に多い（>5,000） | 情報 | 分析 |
-| SHP_028 | 同一shape_dist_traveledで座標が異なる | 高 | 品質 |
+| SHP_028 | 同一shape_dist_traveledで座標が異なる | 高 | 仕様 |
 | SHP_029 | 同一shape_dist_traveled、座標差が微小 | 情報 | 品質 |
 | SHP_030 | stop_timesでshape_dist_traveledを使用しているが、形状距離が不足 | 中 | 品質 |
 
