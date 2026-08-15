@@ -37,9 +37,18 @@ BINARY = os.path.join(ROOT, "target/release/gtfs-analyzer")
 # TARİH FARKINI ölçer.
 TODAY = "20260717"
 
+# 🚫 KULLANICI TALİMATI (2026-08-16): `mdb-2904` HİÇBİR ŞEKİLDE KOŞULMAZ.
+# 85 MB, tek başına 5.374.292 bulgu üretiyor ve her toplu koşumu kilitliyor.
+# Bu liste yorum değil KAPIDIR — feed listesinden çıkarılır, atlanma açıkça bildirilir.
+EXCLUDED_FEEDS = {"mdb-2904"}
+
+
 
 def run_all():
-    feeds = sorted(f for f in os.listdir(ZIPS) if f.endswith(".zip"))
+    feeds = sorted(f for f in os.listdir(ZIPS)
+                if f.endswith(".zip") and f[:-4] not in EXCLUDED_FEEDS)
+    if EXCLUDED_FEEDS:
+        print(f"atlanan feed (kullanıcı talimatı): {sorted(EXCLUDED_FEEDS)}", flush=True)
     done = set()
     if os.path.exists(RAW):
         with open(RAW) as fh:

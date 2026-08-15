@@ -36,6 +36,12 @@ WATCH = [
 # Sabit tarih — tarihe göreli kurallar deterministik olsun.
 TODAY = "20260515"
 
+# 🚫 KULLANICI TALİMATI (2026-08-16): `mdb-2904` HİÇBİR ŞEKİLDE KOŞULMAZ.
+# 85 MB, tek başına 5.374.292 bulgu üretiyor ve her toplu koşumu kilitliyor.
+# Bu liste yorum değil KAPIDIR — feed listesinden çıkarılır, atlanma açıkça bildirilir.
+EXCLUDED_FEEDS = {"mdb-2904"}
+
+
 
 def done_feeds():
     if not os.path.exists(OUT):
@@ -92,7 +98,10 @@ def main():
 
     if not os.path.exists(BINARY):
         sys.exit("release binary yok: cargo build --release -p gtfs-cli")
-    feeds = sorted(f for f in os.listdir(ZIPS) if f.endswith(".zip"))
+    feeds = sorted(f for f in os.listdir(ZIPS)
+                if f.endswith(".zip") and f[:-4] not in EXCLUDED_FEEDS)
+    if EXCLUDED_FEEDS:
+        print(f"atlanan feed (kullanıcı talimatı): {sorted(EXCLUDED_FEEDS)}", flush=True)
     already = done_feeds()
     fields = ["feed", "status", "secs", "notice_total"] + WATCH
     new = not os.path.exists(OUT)
