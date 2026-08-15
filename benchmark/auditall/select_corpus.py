@@ -23,10 +23,10 @@ EXCLUDED_FEEDS = {
 
 
 def feed_id(row: dict[str, str]) -> str:
-    raw = (row.get("mdb_source_id") or "").strip()
-    if not raw:
-        return ""
-    return f"mdb-{raw}" if raw.isdigit() else raw
+    # Current feeds_v2.csv uses the canonical `id` column. Values are stable
+    # MobilityDatabase identifiers and may be either legacy mdb-NNNN IDs or
+    # source slugs such as jbda-.... Do not synthesize or rewrite them.
+    return (row.get("id") or "").strip()
 
 
 def eligible(row: dict[str, str]) -> bool:
@@ -42,14 +42,14 @@ def eligible(row: dict[str, str]) -> bool:
 def sort_key(row: dict[str, str]):
     fid = feed_id(row)
     tail = fid.removeprefix("mdb-")
-    return (0, int(tail)) if tail.isdigit() else (1, fid)
+    return (0, int(tail)) if fid.startswith("mdb-") and tail.isdigit() else (1, fid)
 
 
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", required=True)
     ap.add_argument("--catalog-out")
-    ap.add_argument("--min-count", type=int, default=1400)
+    ap.add_argument("--min-count", type=int, default=2400)
     args = ap.parse_args()
 
     raw = urllib.request.urlopen(CATALOG_URL, timeout=120).read()
@@ -76,6 +76,13 @@ def main() -> None:
     pool = [r for r in pool if feed_id(r) not in EXCLUDED_FEEDS]
     pool.sort(key=sort_key)
 
+    ids = [feed_id(r) for r in pool]
+    blank_ids = [i for i, fid in enumerate(ids) if not fid]
+    duplicate_ids = sorted(fid for fid, n in Counter(ids).items() if fid and n > 1)
+    if blank_ids:
+        raise SystemExit(f"eligible Schedule corpus contains blank canonical IDs at indexes: {blank_ids[:20]}")
+    if duplicate_ids:
+        raise SystemExit(f"eligible Schedule corpus contains duplicate canonical IDs: {duplicate_ids[:20]}")
     if len(pool) < args.min_count:
         raise SystemExit(
             f"eligible Schedule corpus unexpectedly small: {len(pool)} < {args.min_count}; "
@@ -113,11 +120,14 @@ def main() -> None:
     country_counts = Counter(f["country"] or "(unknown)" for f in feeds)
 
     out = {
-        "schema_version": 2,
+        "schema_version": 3,
         "selection": {
             "catalog_url": CATALOG_URL,
             "catalog_sha256": hashlib.sha256(raw).hexdigest(),
             "catalog_data_type_counts": dict(data_type_counts),
+            "identity_column": "id",
+            "identity_nonblank": True,
+            "identity_unique": True,
             "method": "all runnable MobilityDatabase GTFS Schedule rows; no sampling and no URL deduplication",
             "filter": "data_type=gtfs; status active/blank; authentication none; urls.latest present; redirect.id blank",
             "gtfs_realtime_policy": "only exact data_type=gtfs is admitted; all other data types, including GTFS-Realtime, are excluded before validation",
