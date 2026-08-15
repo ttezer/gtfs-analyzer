@@ -119,12 +119,50 @@ fn rule_ids(zip: &[u8]) -> BTreeSet<String> {
     }
 }
 
+/// Bir dosyanın DQ_016 kök notice'ının bastırdığını BEYAN ETTİĞİ kurallar.
+///
+/// Bastırmayı "fark boş kaldı" diye ÇIKARSAMAK zayıftır — mutasyon hiç uygulanmamış olsa
+/// da fark boş kalırdı. K7 kök notice'a `suppressed_derivative_rules` yazar; ölçüt odur.
+fn suppressed_rules_for(zip: &[u8], file: &str) -> Vec<String> {
+    match validate_bytes(zip, &ValidatorConfig::default(), TODAY) {
+        ValidateResult::Ok(vr) => vr
+            .notices
+            .iter()
+            .filter(|n| n.rule_id == "DQ_016" && n.file.as_deref() == Some(file))
+            .filter_map(|n| n.details.as_ref()?.get("suppressed_derivative_rules"))
+            .flat_map(|v| v.split(',').map(|s| s.trim().to_string()))
+            .filter(|s| !s.is_empty())
+            .collect(),
+        ValidateResult::Fatal(e) => panic!("Fatal: {:?}", e.code),
+    }
+}
+
 /// Mutasyonun EKLEDİĞİ ve KALDIRDIĞI kural id'leri.
 fn delta(before: &BTreeSet<String>, after: &BTreeSet<String>) -> (Vec<String>, Vec<String>) {
     (
         after.difference(before).cloned().collect(),
         before.difference(after).cloned().collect(),
     )
+}
+
+/// Bir sütunun `n`. veri satırındaki değerini değiştirir (n = 1 → ilk veri satırı).
+fn set_field(text: &str, column: &str, row_ordinal: usize, value: &str) -> String {
+    let mut lines: Vec<String> = text
+        .lines()
+        .map(|l| l.trim_end_matches('\r').to_string())
+        .collect();
+    let header = split_csv_line(&lines[0]);
+    let ci = header
+        .iter()
+        .position(|h| h == column)
+        .unwrap_or_else(|| panic!("{column} sütunu yok: {header:?}"));
+    let li = row_ordinal;
+    assert!(li < lines.len(), "{row_ordinal}. veri satırı yok");
+    let mut cols = split_csv_line(&lines[li]);
+    assert_eq!(cols.len(), header.len(), "alan sayısı başlıkla uyuşmuyor");
+    cols[ci] = value.to_string();
+    lines[li] = join_csv_fields(&cols);
+    lines.join("\n") + "\n"
 }
 
 /// Farkı denetler: hedef GÖRÜNMELİ, kalan her id `explained` içinde AÇIKLANMIŞ olmalı.
@@ -466,4 +504,168 @@ fn trn_005_uses_field_value_as_identity_when_there_is_no_record_id() {
 
     let (added, removed) = delta(&before, &rule_ids(&mutated));
     assert_delta(&added, &removed, "TRN_005", &[]);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Tipli alan kuralları — STM_003 · STM_004 · STP_004 · STP_005 (issue #129)
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ⚠️ Aday feed İÇERİKLE seçildi, boyutla değil (batch 1'in dersi): `mdb-1903`'te
+// `arrival_time`/`departure_time` ilk 4000 satırın hepsinde DOLU, `stops.txt`'in 362
+// satırının hepsinde `stop_lat`/`stop_lon` DOLU, ve dört hedef kuralın dördü de taban
+// çizgisinde SIFIR.
+//
+// 🔑 Kardeş kural kontrolü mutasyondan ÖNCE yapıldı ve soruyu daralttı: ayrıştırılmış
+// saati tüketen STM_012 (37 feed) · STM_036 (31) · STM_035 (21) ve ayrıştırılmış
+// koordinatı tüketen SHP_009 (162) · SHP_020 (152) · STM_045 (79) korpusta ateşliyor.
+// Yani BAŞARI dalı zaten kanıtlı; bu testlerin ölçtüğü şey HATA dalının bağlı olup
+// olmadığıdır.
+const TYPED_FEED: &str = "mdb-1903";
+
+/// Hedef görünmeli; eklenen VE kaldırılan yan etkilerin her biri açıklanmış olmalı.
+fn assert_delta_both(
+    added: &[String],
+    removed: &[String],
+    target: &str,
+    explained_added: &[&str],
+    explained_removed: &[&str],
+) {
+    assert!(
+        added.iter().any(|r| r == target),
+        "{target} mutasyondan sonra ÇIKMADI. Eklenen: {added:?}"
+    );
+    let bad_add: Vec<&String> = added
+        .iter()
+        .filter(|r| *r != target && !explained_added.contains(&r.as_str()))
+        .collect();
+    assert!(bad_add.is_empty(), "{target}: AÇIKLANMAMIŞ yeni bulgu {bad_add:?}");
+    let bad_rem: Vec<&String> = removed
+        .iter()
+        .filter(|r| !explained_removed.contains(&r.as_str()))
+        .collect();
+    assert!(bad_rem.is_empty(), "{target}: AÇIKLANMAMIŞ kaybolan bulgu {bad_rem:?}");
+}
+
+fn typed_field_case(
+    file: &str,
+    column: &str,
+    value: &str,
+    target: &str,
+    explained_added: &[&str],
+    explained_removed: &[&str],
+) {
+    let zip = corpus_zip(TYPED_FEED);
+    let before = rule_ids(&zip);
+    assert!(
+        !before.contains(target),
+        "{TYPED_FEED} mutasyondan ÖNCE zaten {target} üretiyor — kontrol feed'i olamaz"
+    );
+    let (col, val) = (column.to_string(), value.to_string());
+    let mutated = rewrite_member(&zip, file, move |t| set_field(&t, &col, 1, &val));
+    let (added, removed) = delta(&before, &rule_ids(&mutated));
+    assert_delta_both(&added, &removed, target, explained_added, explained_removed);
+}
+
+#[test]
+#[ignore = "gerçek korpus feed'i gerektirir"]
+fn stm_003_fires_on_a_malformed_arrival_time() {
+    // AÇIKLANAN yan etkiler (ölçüldü): ayrıştırılamayan saat aşağı akışta YOK sayılır.
+    //   STM_015 — mutasyon bir seferin İLK durak satırına düştü → "ilk durakta
+    //             arrival_time eksik". Doğrudan sonuç.
+    //   STM_034 — varış/kalkıştan yalnız biri tanımlı kaldı (Interop).
+    typed_field_case(
+        "stop_times.txt", "arrival_time", "abc", "STM_003",
+        &["STM_015", "STM_034"], &[],
+    );
+}
+
+#[test]
+#[ignore = "gerçek korpus feed'i gerektirir"]
+fn stm_004_fires_on_a_malformed_departure_time() {
+    // STM_034 aynı sebeple: kalkış bozulunca varış/kalkıştan yalnız biri tanımlı kalır.
+    // STM_015 burada ÇIKMAZ — o kural arrival_time'a bakar; asimetri kasıtlıdır
+    // (spec ilk/son durakta arrival_time'ı şart koşar, departure_time'da bu madde YOK).
+    typed_field_case(
+        "stop_times.txt", "departure_time", "abc", "STM_004",
+        &["STM_034"], &[],
+    );
+}
+
+#[test]
+#[ignore = "gerçek korpus feed'i gerektirir"]
+fn stp_004_fires_on_a_non_numeric_stop_lat() {
+    // Yan etki YOK (ölçüldü): tek durağın koordinatı bozulunca hiçbir toplu/kaskad
+    // kural sınıf değiştirmiyor.
+    typed_field_case("stops.txt", "stop_lat", "abc", "STP_004", &[], &[]);
+}
+
+#[test]
+#[ignore = "gerçek korpus feed'i gerektirir"]
+fn stp_005_fires_on_an_invalid_stop_lon_without_whitespace() {
+    // KONTRASTIN BİRİNCİ YARISI. Boşluk YOK → DQ_016 kökü doğmaz → bastırma devreye
+    // girmez → STP_005 görünür. Bu, predikatın kendisinin çalıştığını kanıtlar.
+    typed_field_case("stops.txt", "stop_lon", "abc", "STP_005", &[], &[]);
+}
+
+#[test]
+#[ignore = "gerçek korpus feed'i gerektirir"]
+fn stp_005_is_born_and_suppressed_when_the_value_only_wears_whitespace() {
+    // KONTRASTIN İKİNCİ YARISI — issue #129'un asıl sorusu.
+    //
+    // STP_005'in korpustaki sessizliği "hiç doğmadı" DEĞİL, en azından kısmen "doğdu ve
+    // bastırıldı"dır: `mdb-2691`'de `stop_lon=" -4.732529"` STP_005'i ÜRETİR ve K7'nin
+    // whitespace-türev kaskadı onu DQ_016 kökü altında bastırır. Bu mekanizma
+    // `silent_rules.tsv`'de MODELLENEMEZ (tablo yalnız registry'de İLAN EDİLEN kaskadı
+    // görür), bu yüzden kanıt buraya yazılır.
+    //
+    // Tek başına hiçbir yarı bir şey söylemez: üstteki test boşluksuz geçersiz değerin
+    // ateşlediğini, bu test trim sonrası GEÇERLİ olan değerin ateşlemediğini gösterir.
+    // İkisi birlikte "bastırma mı, kırık predikat mı" sorusunu keser.
+    let zip = corpus_zip(TYPED_FEED);
+    let before = rule_ids(&zip);
+    assert!(!before.contains("STP_005"));
+    // Taban çizgisi ZATEN bir DQ_016 taşıyor (stops.txt / stop_name), bu yüzden kök
+    // notice farkta görünmez; beklenen fark BOŞ kümedir.
+    assert!(before.contains("DQ_016"), "taban çizgisi DQ_016 taşımalıydı");
+
+    let lon = {
+        let mut a = zip::ZipArchive::new(std::io::Cursor::new(&zip)).unwrap();
+        let name = a
+            .file_names()
+            .find(|n| Path::new(n).file_name().and_then(|s| s.to_str()) == Some("stops.txt"))
+            .unwrap()
+            .to_string();
+        let mut e = a.by_name(&name).unwrap();
+        let mut buf = String::new();
+        std::io::Read::read_to_string(&mut e, &mut buf).unwrap();
+        let header = split_csv_line(buf.lines().next().unwrap().trim_end_matches('\r'));
+        let i = header.iter().position(|h| h == "stop_lon").unwrap();
+        split_csv_line(first_data_line(&buf))[i].clone()
+    };
+    let padded = format!(" {lon}");
+    let mutated = rewrite_member(&zip, "stops.txt", move |t| {
+        set_field(&t, "stop_lon", 1, &padded)
+    });
+    let (added, removed) = delta(&before, &rule_ids(&mutated));
+
+    assert!(
+        !added.iter().any(|r| r == "STP_005"),
+        "trim sonrası GEÇERLİ bir değer STP_005 üretti — whitespace kaskadı artık \
+         bastırmıyor demektir; DQ_016 kartı ve #129 güncellenmeli. Eklenen: {added:?}"
+    );
+    assert!(
+        added.is_empty() && removed.is_empty(),
+        "beklenen fark BOŞ kümeydi (kök DQ_016 zaten vardı). eklenen={added:?} kaldırılan={removed:?}"
+    );
+
+    // 🔑 ASIL İDDİA. Boş fark tek başına "bastırıldı" demez — mutasyon hiç uygulanmamış
+    // olsa da fark boş kalırdı. K7 kök notice'a bastırdığı kuralları YAZAR; testin
+    // dayandığı şey o beyandır. Korpusta bağımsız örnek: `mdb-2691`'in stops.txt kökü
+    // `suppressed_derivative_rules = STP_005` taşıyor.
+    let suppressed = suppressed_rules_for(&mutated, "stops.txt");
+    assert!(
+        suppressed.iter().any(|r| r == "STP_005"),
+        "DQ_016 kökü STP_005'i bastırdığını BEYAN ETMİYOR → boş fark bastırmadan değil, \
+         mutasyonun hiç doğmamasından geliyor olabilir. Beyan edilen: {suppressed:?}"
+    );
 }

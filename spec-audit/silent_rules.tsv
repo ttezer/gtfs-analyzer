@@ -177,7 +177,7 @@ PTH_026		Kritik	Spec	PREDICATE_SUSPECT	pathways.txt	10	grup			1	Pathway uç nokt
 PTH_027		Orta	Spec	PREDICATE_SUSPECT	pathways.txt	10	modül			2	stair_count geçersiz (sıfır veya tam sayı değil)
 PTH_028		Dusuk	Quality	PREDICATE_SUSPECT	pathways.txt	10	modül			1	max_slope yürüme yolu dışında kullanılmış
 PTH_030		Dusuk	Spec	PREDICATE_SUSPECT	pathways.txt	10	grup			1	Boarding area'sı olan platforma pathway atanmış
-PTH_031		Kritik	Spec	POST_BASELINE	pathways.txt	10	grup			1	Pathway uç noktası sokaktan erişilen durak (stop_access=1)
+PTH_031		Kritik	Spec	PREDICATE_SUSPECT	pathways.txt	10	grup			1	Pathway uç noktası sokaktan erişilen durak (stop_access=1)
 RCT_001		Kritik	Spec	THIN_FEATURE	rider_categories.txt	4	grup			1	rider_category_id yineleniyor
 RCT_002		Kritik	Spec	THIN_FEATURE	rider_categories.txt	4	modül			1	rider_category_name eksik
 RCT_003		Kritik	Spec	THIN_FEATURE	rider_categories.txt	4	modül			2	is_default_fare_category geçersiz
@@ -206,8 +206,8 @@ SHP_004		Kritik	Spec	SELECTION_BIAS	shapes.txt	199	modül			2	shape_pt_sequence 
 SHP_005	MEASURED 2026-08-15 (#127): correct. Real-feed mutation on mdb-2927 (decreasing shape_dist_traveled) fires it; equality deliberately does not, because SHP_028/SHP_029/SHP_020 already measure that. Open question is classification, not predicate.	Kritik	Spec	PREDICATE_SUSPECT	shapes.txt	199	grup			1	shape_dist_traveled geriye gidiyor
 SHP_030		Orta	Quality	POST_BASELINE	shapes.txt	199	grup			1	stop_times shape_dist_traveled kullanıyor ancak shapes.txt'te shape mesafeleri eksik
 STM_002		Kritik	Spec	SELECTION_BIAS	stop_times.txt	239	grup	ARC_004,STP_001	yes	1	stop_id bulunamadı
-STM_003		Kritik	Spec	PREDICATE_SUSPECT	stop_times.txt	239	modül			1	arrival_time geçersiz format
-STM_004		Kritik	Spec	PREDICATE_SUSPECT	stop_times.txt	239	modül	STM_003	no	1	departure_time geçersiz format
+STM_003	MEASURED 2026-08-15 (#129): correct. Malformed arrival_time on mdb-1903 fires it. Silence is selection bias, not a blind spot - the success branch is already proven by STM_012/036/035 firing on the corpus, so only the failure branch was in doubt.	Kritik	Spec	PREDICATE_SUSPECT	stop_times.txt	239	modül			1	arrival_time geçersiz format
+STM_004	MEASURED 2026-08-15 (#129): correct. Malformed departure_time on mdb-1903 fires it. STM_015 does not follow, and that asymmetry is intended - the spec requires arrival_time at the first and last stop, with no matching clause for departure_time.	Kritik	Spec	PREDICATE_SUSPECT	stop_times.txt	239	modül	STM_003	no	1	departure_time geçersiz format
 STM_005		Kritik	Spec	SELECTION_BIAS	stop_times.txt	239	modül	ARC_013	no	2	stop_sequence eksik veya geçersiz
 STM_006		Kritik	Spec	SELECTION_BIAS	stop_times.txt	239	modül	ARC_013	no	1	stop_id eksik (stop_times)
 STM_007		Yuksek	Interop	PREDICATE_SUSPECT	stop_times.txt	239	grup	STM_002,STM_006	no	1	Kalkış saati varış saatinden önce (departure_time < arrival_time)
@@ -236,8 +236,8 @@ STM_058		Kritik	Spec	PREDICATE_SUSPECT	stop_times.txt	239	modül			1	Flex pickup
 STM_060		Yuksek	Spec	POST_BASELINE	stop_times.txt	239	grup			1	Aynı seferde geojson bölgesi + zaman penceresi + pickup/drop_off eşzamanlı örtüşüyor
 STP_002		Kritik	Spec	SELECTION_BIAS	stops.txt	239	modül			1	stop_id boş
 STP_003		Kritik	Spec	SELECTION_BIAS	stops.txt	239	modül			2	stop_name eksik veya stop_lat/stop_lon aralık dışı (aynı ID altında iki ayrı koşul)
-STP_004		Kritik	Spec	PREDICATE_SUSPECT	stops.txt	239	modül			1	stop_lat sayısal değil
-STP_005		Kritik	Spec	PREDICATE_SUSPECT	stops.txt	239	modül			2	stop_lon geçersiz veya aralık dışı
+STP_004	MEASURED 2026-08-15 (#129): correct. Non-numeric stop_lat on mdb-1903 fires it with no side effects at all.	Kritik	Spec	PREDICATE_SUSPECT	stops.txt	239	modül			1	stop_lat sayısal değil
+STP_005	MEASURED 2026-08-15 (#129): correct, and its corpus silence is partly a SUPPRESSION artefact rather than absence. An invalid stop_lon with no whitespace fires it; a valid value wearing leading whitespace does not, because K7 suppresses it under the DQ_016 root - confirmed by the root declaring suppressed_derivative_rules=STP_005 on both the mutated feed and, independently, on mdb-2691.	Kritik	Spec	PREDICATE_SUSPECT	stops.txt	239	modül			2	stop_lon geçersiz veya aralık dışı
 STP_006		Kritik	Spec	SELECTION_BIAS	stops.txt	239	modül			1	stop_lat eksik
 STP_007		Kritik	Spec	SELECTION_BIAS	stops.txt	239	modül			1	stop_lon eksik
 STP_008		Yuksek	Spec	PREDICATE_SUSPECT	stops.txt	239	modül			2	location_type geçersiz
