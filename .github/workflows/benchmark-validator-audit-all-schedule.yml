@@ -14,7 +14,7 @@ permissions:
 
 concurrency:
   group: validator-audit-all-schedule-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 env:
   ANALYZER_SHA: '155bb06037a9caca339e4bd893619e5c3ab5fafb'
@@ -40,20 +40,26 @@ jobs:
           python3 benchmark/auditall/select_corpus.py \
             --out benchmark/auditall/run/manifest.json \
             --catalog-out benchmark/auditall/run/feeds_v2.csv \
-            --min-count 1400
-      - name: Assert Schedule-only scope
+            --min-count 2400
+      - name: Assert Schedule-only scope and canonical identities
         run: |
           python3 - <<'PY'
           import json
           from pathlib import Path
           d=json.loads(Path('benchmark/auditall/run/manifest.json').read_text())
           feeds=d['feeds']; sel=d['selection']
-          assert len(feeds) >= 1400, len(feeds)
+          ids=[f.get('feed_id','') for f in feeds]
+          assert len(feeds) >= 2400, len(feeds)
+          assert all(ids), 'blank canonical feed_id in manifest'
+          assert len(set(ids)) == len(ids), 'duplicate canonical feed_id in manifest'
+          assert sel.get('identity_column') == 'id'
+          assert sel.get('identity_nonblank') is True
+          assert sel.get('identity_unique') is True
           assert all(f.get('data_type') == 'gtfs' for f in feeds)
           assert all(f.get('authentication_type') in ('', '0') for f in feeds)
-          assert 'mdb-2904' not in {f['feed_id'] for f in feeds}
+          assert 'mdb-2904' not in set(ids)
           assert sel.get('gtfs_realtime_policy','').startswith('only exact data_type=gtfs is admitted')
-          print(f"Schedule-only manifest PASS: {len(feeds)} feeds; RT tested=0; catalog data types={sel.get('catalog_data_type_counts')}")
+          print(f"Schedule-only manifest PASS: {len(feeds)} feeds; unique/nonblank IDs={len(set(ids))}; RT tested=0; catalog data types={sel.get('catalog_data_type_counts')}")
           PY
       - id: matrix
         name: Build 128-shard matrix
