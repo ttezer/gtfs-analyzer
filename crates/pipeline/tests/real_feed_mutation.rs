@@ -1200,3 +1200,64 @@ fn arc_013_reports_csv_tokenization_failure_as_a_notice_not_a_fatal() {
         "bozuk CSV ne Fatal ne ARC_013 üretti — tokenization hatası HİÇ raporlanmıyor"
     );
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Kapsam kaybı yayın kararını ve skoru etkilemeli (issue #133)
+// ─────────────────────────────────────────────────────────────────────────────
+
+fn r1_of(zip: &[u8]) -> (bool, bool, f64) {
+    match validate_bytes(zip, &ValidatorConfig::default(), TODAY) {
+        ValidateResult::Ok(vr) => (
+            vr.reports.r1.publishable,
+            vr.reports.r1.coverage_complete,
+            vr.metrics.overall_score,
+        ),
+        ValidateResult::Fatal(e) => panic!("Fatal: {:?}", e.code),
+    }
+}
+
+#[test]
+#[ignore = "gerçek korpus feed'i gerektirir"]
+fn losing_a_required_file_withdraws_the_publishable_verdict() {
+    // 🔴 ESKİ DAVRANIŞ: `stops.txt` çözülemez hâle gelince 29 kontrol atlanıyor, notice
+    // 604→178 düşüyor, ve feed HÂLÂ `publishable=true` diyordu — üstelik skor 89,4→93,5
+    // YÜKSELİYORDU. Bulgu yokluğu kanıt yokluğudur.
+    let zip = corpus_zip(FATAL_FEED);
+    let (pub_before, cov_before, score_before) = r1_of(&zip);
+    assert!(pub_before && cov_before, "taban feed temiz ve tam kapsamlı olmalı");
+
+    let mut bad = b"stop_id,stop_name,stop_lat,stop_lon\n".to_vec();
+    bad.extend_from_slice(&[b'S', b'1', b',', 0xFF, 0xFE, 0xFF, b',', b'4', b'1', b'.', b'0', b',', b'2', b'9', b'.', b'0', b'\n']);
+    let mutated = rewrite_member_bytes(&zip, "stops.txt", bad);
+    let (pub_after, cov_after, score_after) = r1_of(&mutated);
+
+    assert!(!cov_after, "zorunlu dosya okunamadı ama kapsam TAM sayıldı");
+    assert!(!pub_after, "kapsam eksikken feed YAYINA UYGUN sayıldı");
+    // Skorun yükselmesi hâlâ gerçek — bilerek düzeltilmiyor, KIYASLANAMAZ diye
+    // işaretleniyor. Bu iddia o gerçeği ÇAPALAR ki sessizce değişmesin.
+    assert!(
+        score_after > score_before,
+        "eksik kapsamda skorun YÜKSELDİĞİ olgusu kayboldu ({score_before} → {score_after}); \
+         skor artık düzeltiliyorsa bu test ve #133 güncellenmeli"
+    );
+}
+
+#[test]
+#[ignore = "gerçek korpus feed'i gerektirir"]
+fn losing_an_optional_file_does_not_withdraw_the_verdict() {
+    // ⚠️ ASİMETRİ TESTİ. İsteğe bağlı bir dosyanın okunamaması da koşumu PARTIAL yapar
+    // (ölçüldü). Kapıyı ona da düşürmek, bozuk bir `attributions.txt` yüzünden geçerli
+    // feed'i yayından men etmek olurdu — `PTH_017`'de adı konmuş ağır hata.
+    let zip = corpus_zip(ATR_FEED);
+    let (_, cov_before, _) = r1_of(&zip);
+    assert!(cov_before, "taban feed tam kapsamlı olmalı");
+
+    let broken = b"attribution_id,agency_id,organization_name\n1,\"ACIK TIRNAK,Test\n".to_vec();
+    let mutated = rewrite_member_bytes(&zip, "attributions.txt", broken);
+    let (_, cov_after, _) = r1_of(&mutated);
+
+    assert!(
+        cov_after,
+        "isteğe bağlı dosya kaybı kapsamı EKSİK saydı → geçerli feed'ler yayından men edilir"
+    );
+}

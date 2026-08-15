@@ -198,9 +198,13 @@
     .rpt-r1 { display: flex; align-items: flex-start; gap: .9rem; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius); padding: .9rem 1.1rem; }
     .rpt-r1-ok          { border-left: 4px solid #16a34a; }
     .rpt-r1-blocked     { border-left: 4px solid #dc2626; }
+    /* #133 — "karar verilemedi" ile "engellendi" AYNI ŞEY DEĞİL; ayrı renk şart. */
+    .rpt-r1-incomplete  { border-left: 4px solid #d97706; }
     .rpt-r1-icon { font-size: 1.3rem; line-height: 1; flex-shrink: 0; margin-top: .1rem; }
     .rpt-r1-ok .rpt-r1-icon          { color: #16a34a; }
     .rpt-r1-blocked .rpt-r1-icon     { color: #dc2626; }
+    .rpt-r1-incomplete .rpt-r1-icon  { color: #d97706; }
+    .rpt-score-warn { background: #fffbeb; border: 1px solid #fcd34d; border-left: 4px solid #d97706; border-radius: var(--radius); padding: .7rem .9rem; margin-bottom: .8rem; font-size: .85rem; color: #92400e; }
     .rpt-r1-body { display: flex; flex-direction: column; gap: .25rem; font-size: .88rem; }
     .rpt-r1-body strong { font-size: .95rem; }
     .rpt-r1-list { margin: .3rem 0 0 1rem; padding: 0; list-style: disc; font-size: .82rem; color: var(--color-muted); display: flex; flex-direction: column; gap: .15rem; }

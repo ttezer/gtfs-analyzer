@@ -44,6 +44,20 @@ pub struct FeedMetrics {
     // NOT: R5Report.quality_score (yalnız Quality sınıfı bileşeni) ile karıştırılmamalı.
     pub overall_score: f64,
 
+    /// Skor TAM KAPSAMLI bir koşumdan mı geldi (issue #133).
+    ///
+    /// 🔴 **`false` ise `overall_score` BAŞKA FEED'LERLE KIYASLANAMAZ.** Skor yalnız
+    /// ÜRETİLMİŞ notice'lardan hesaplanır; bir dosya okunamayınca ona bağlı kurallar
+    /// koşmaz, ceza üretemez ve skor YÜKSELİR. Ölçüldü (`mdb-1903`): `stops.txt`
+    /// okunamaz olunca 604 notice → 178 ve genel skor **89,4 → 93,5**. Korpusta canlı
+    /// örnek `mdb-3135`: 2 notice, 62 atlanan kontrol, skor **94,5**.
+    ///
+    /// Skorun KENDİSİ bilerek düzeltilmiyor: atlanan kontrol başına ceza uydurmak
+    /// gerçek bir ölçüme dayanmayan bir sayı üretirdi. Doğru çözüm sayıyı oynatmak
+    /// değil, KIYASLANAMAZ olduğunu taşımaktır.
+    #[serde(default = "default_true_metrics")]
+    pub coverage_complete: bool,
+
     // Dosya bazında istatistikler (K1 parse)
     pub file_stats: Vec<FileInfo>,
 
@@ -52,3 +66,5 @@ pub struct FeedMetrics {
     #[serde(default)]
     pub is_gtfs_jp: bool,
 }
+
+fn default_true_metrics() -> bool { true }

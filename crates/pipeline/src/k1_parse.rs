@@ -460,6 +460,16 @@ fn arc009_critical(filename: &str) -> bool {
     REQUIRED_FILES.contains(&filename) || CALENDAR_FILES.contains(&filename)
 }
 
+/// Bu dosyanın OKUNAMAMASI yayın kararını sakatlar mı (issue #133).
+///
+/// Zorunlu dosyalar + servis tanımlayan takvim dosyaları. Bunlardan biri okunamazsa ona
+/// bağlı kuralların hiçbiri koşmaz ve "bulgu yok" ifadesi "temiz" anlamına gelmez.
+/// İsteğe bağlı dosyalar (`attributions`, `fare_*`, `shapes`, …) BİLEREK dışarıda: onların
+/// kaybı koşumu PARTIAL yapar ama kapıyı düşürmemelidir.
+pub fn is_certification_critical(filename: &str) -> bool {
+    arc009_critical(filename)
+}
+
 /// DQ_016: baştaki/sondaki boşluk **ham sözlükbilimsel ihlaldir**. Bu, yalnız string/id
 /// alanları için değil, sayısal, enum, tarih ve saat alanları için de geçerlidir: parser'ın
 /// boşluğu tolere etmesi üretici girdisini değiştirmez. Tipli kontroller ham değeri görmeye

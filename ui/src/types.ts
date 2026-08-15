@@ -49,7 +49,14 @@ export interface ReportItem {
 }
 
 export interface R1Report {
+  /** Blocker YOK **ve** kapsam tam. Eksik kapsamda `false` — bkz. #133. */
   publishable: boolean;
+  /**
+   * Yayın kararı için gereken kanıtın tamamı toplanabildi mi.
+   * `false` ise zorunlu bir dosya okunamamıştır ve ona bağlı kurallar hiç koşmamıştır;
+   * "bulgu yok" ifadesi "temiz" değil "bakamadık" anlamına gelir.
+   */
+  coverage_complete: boolean;
   blocker_notice_ids: string[];
 }
 export interface R2Report { items: ReportItem[]; }
@@ -113,6 +120,12 @@ export interface FeedMetrics {
   quality_notice_count: number;
   analytics_notice_count: number;
   overall_score: number;
+  /**
+   * Skor tam kapsamlı bir koşumdan mı geldi (#133).
+   * `false` ise BAŞKA FEED'LERLE KIYASLANAMAZ: okunamayan dosyanın kuralları koşmadığı
+   * için ceza üretemez ve skor yapay olarak YÜKSELİR.
+   */
+  coverage_complete?: boolean;
   file_stats: FileInfo[];
   /** Feed GTFS-JP (Japonya profili) mi — *_jp.txt dosyası varsa true. */
   is_gtfs_jp?: boolean;
@@ -150,6 +163,9 @@ export interface PartialReport {
   root_structural_errors: string[];
   unavailable_files: string[];
   skipped_stages: string[];
+  /** Girdisi okunamadığı için hiç çalıştırılamayan kontroller. Rust tarafı boşsa
+   *  serialize etmez, bu yüzden opsiyonel. (UI tipi bu alanı taşımıyordu — #133'te eklendi.) */
+  skipped_checks?: string[];
 }
 
 export interface FatalError {

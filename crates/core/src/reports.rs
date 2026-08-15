@@ -6,9 +6,23 @@ use crate::{R9Label, ReportItem};
 /// Quality/Analytics) R1'i etkilemez. Interop/tüketici hazırlığı ayrı: R8 + interop_score.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct R1Report {
+    /// Feed yayına uygun mu. **`blockers.is_empty()` İLE AYNI ŞEY DEĞİLDİR** (issue #133):
+    /// doğrulama kapsamı eksikse bulgu olmaması "temiz" demek değil, "BAKAMADIK" demektir.
+    /// Bu yüzden `publishable = blocker YOK ∧ coverage_complete`.
     pub publishable: bool,
+    /// Yayın kararı için gereken kanıtın TAMAMI toplanabildi mi.
+    ///
+    /// `false` olduğunda zorunlu bir dosya (agency/stops/routes/trips/stop_times ya da bir
+    /// takvim dosyası) okunamamıştır ve o dosyaya bağlı kurallar HİÇ koşmamıştır.
+    /// ⚠️ İsteğe bağlı bir dosyanın okunamaması bu bayrağı DÜŞÜRMEZ — bozuk bir
+    /// `attributions.txt` yüzünden geçerli feed'i yayından men etmek, projenin
+    /// `PTH_017` asimetrisinde adı konmuş ağır hatadır.
+    #[serde(default = "default_true")]
+    pub coverage_complete: bool,
     pub blocker_notice_ids: Vec<String>,
 }
+
+fn default_true() -> bool { true }
 
 /// R2: Tüm notice'ların teknik listesi — file/line/field/observed_value ile birlikte.
 #[derive(Debug, Clone, Serialize, Deserialize)]

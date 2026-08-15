@@ -12,7 +12,7 @@ export function renderDomain(root: HTMLElement, result: ValidationResult): void 
 
   root.innerHTML = `
     <div class="report-page">
-      ${renderScoreRow(r5, sevCounts)}
+      ${renderScoreRow(r5, sevCounts, r1.coverage_complete !== false)}
       ${renderR1Card(r1, result)}
       ${renderSubScores(r5)}
       ${renderMetrics(metrics)}
@@ -32,11 +32,19 @@ export function renderDomain(root: HTMLElement, result: ValidationResult): void 
 
 // ── İki büyük skor kartı ──────────────────────────────────────────────────────
 
-function renderScoreRow(r5: R5Report, c: SevCount): string {
+function renderScoreRow(r5: R5Report, c: SevCount, coverageComplete = true): string {
   const pubColor  = scoreColor(r5.pub_score);
   const qualColor = scoreColor(r5.score);
 
+  // #133 — eksik kapsamdaki skor DAHA YÜKSEK çıkar (koşmayan kural ceza üretemez).
+  // Ölçüldü: `stops.txt` okunamaz olunca 89,4 → 93,5. Sayı bilerek DÜZELTİLMİYOR
+  // (atlanan kontrol başına ceza uydurmak olurdu); kıyaslanamaz olduğu SÖYLENİYOR.
+  const warn = coverageComplete
+    ? ''
+    : `<div class="rpt-score-warn">${t('domain.score_incomplete_warn')}</div>`;
+
   return `
+    ${warn}
     <div class="rpt-score-row">
       <div class="rpt-score-card">
         <span class="rpt-score-label">${t('domain.pub_score')}</span>
@@ -62,6 +70,24 @@ function scoreColor(v: number): string {
 
 function renderR1Card(r1: ValidationResult['reports']['r1'], result: ValidationResult): string {
   const noticeMap = new Map(result.notices.map(n => [n.id, n]));
+
+  // #133 — kapsam eksikse "engellendi" DEMEK YANLIŞ olur: engel bulunmadı, BAKILAMADI.
+  // İki durumu aynı kartta göstermek, doğrulanamamış bir feed'i doğrulanmış gibi sunar.
+  if (r1.coverage_complete === false) {
+    const files = (result.partial?.unavailable_files ?? []).slice(0, 5);
+    const list = files.map(f => `<li><code>${escHtml(f)}</code></li>`).join('');
+    return `
+      <div class="rpt-r1 rpt-r1-incomplete">
+        <div class="rpt-r1-icon">?</div>
+        <div class="rpt-r1-body">
+          <strong>${t('domain.r1_incomplete_title')}</strong>
+          <span>${t('domain.r1_incomplete_desc', {
+            n: (result.partial?.skipped_checks ?? []).length,
+          })}</span>
+          ${list ? `<ul class="rpt-r1-list">${list}</ul>` : ''}
+        </div>
+      </div>`;
+  }
 
   if (!r1.publishable) {
     const blockers = r1.blocker_notice_ids

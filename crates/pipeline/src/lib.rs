@@ -109,9 +109,19 @@ pub fn validate_bytes(zip: &[u8], config: &ValidatorConfig, today: u32) -> Valid
     all.extend(k5.notices);
     all.extend(k6.notices);
 
+    // issue #133 — yayın kararı ve skor, KAPSAM kaybını görmek zorunda. Zorunlu bir dosya
+    // okunamadıysa ona bağlı kurallar hiç koşmamıştır; bulgu yokluğu kanıt yokluğudur.
+    // ⚠️ İsteğe bağlı dosya kaybı bu bayrağı DÜŞÜRMEZ (ölçüldü: bozuk `attributions.txt` de
+    // koşumu PARTIAL yapıyor) — geçerli feed'i yayından men etmek ağır taraftır.
+    let coverage_complete = !partial
+        .unavailable_files
+        .iter()
+        .any(|f| k1_parse::is_certification_critical(f))
+        && partial.root_structural_errors.is_empty();
+
     let k7 = {
         let _t = Timer::start("K7-reporting");
-        report_k7(all, &k2.records, &k5.derived, file_stats, false)
+        report_k7(all, &k2.records, &k5.derived, file_stats, false, coverage_complete)
     };
 
     // name_index harita verisini notice'lara göre filtreler (büyük feed modu) → notice'lar

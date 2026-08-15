@@ -235,6 +235,9 @@ const tr = {
     // Domain
     'domain.pub_score'           : 'Yayın Skoru',
     'domain.pub_hint'            : 'SPEC + INTEROP blocker temizliği',
+    'domain.r1_incomplete_title': 'Yayın kararı verilemedi',
+    'domain.r1_incomplete_desc': 'Zorunlu bir dosya okunamadı; {n} kontrol hiç çalıştırılamadı. Bulgu görünmemesi feed’in temiz olduğu anlamına GELMEZ.',
+    'domain.score_incomplete_warn': 'Bu skor EKSİK KAPSAMLI bir doğrulamadan geldi ve başka feed’lerle kıyaslanamaz: okunamayan dosyanın kuralları hiç çalışmadığı için ceza üretemez ve skor olduğundan yüksek çıkar.',
     'domain.overall_score'       : 'Genel Skor',
     'domain.overall_hint'        : 'Tüm sınıfların ağırlıklı ortalaması (Spec×40% + Interop×30% + Quality×20% + Analytics×10%)',
     'domain.r1_blocked_title'    : 'Yayınlanması Tavsiye Edilmez',

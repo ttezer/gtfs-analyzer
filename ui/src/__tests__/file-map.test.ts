@@ -83,7 +83,7 @@ function validationResult(notices: Notice[]): ValidationResult {
     },
     reports: {
       r1: {
-        publishable: true,
+        publishable: true, coverage_complete: true,
         blocker_notice_ids: [],
       },
       r2: { items: [] },

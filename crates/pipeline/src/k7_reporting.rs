@@ -27,6 +27,7 @@ pub fn report(
     derived: &DerivedData,
     file_stats: Vec<FileInfo>,
     already_deduped: bool,
+    coverage_complete: bool,
 ) -> K7Result {
     use crate::timing::Timer;
     let all_notices      = {
@@ -50,8 +51,8 @@ pub fn report(
         n.id = format!("{prefix}/{}#{}", n.rule_id, i + 1);
     }
     let resolution       = { let _t = Timer::start("K7::resolve_symptoms"); resolve_symptoms(&notices) };
-    let reports          = { let _t = Timer::start("K7::build_reports");    build_report_set(&notices, &resolution) };
-    let mut metrics      = { let _t = Timer::start("K7::build_metrics");    build_metrics(&notices, records, derived, file_stats) };
+    let reports          = { let _t = Timer::start("K7::build_reports");    build_report_set(&notices, &resolution, coverage_complete) };
+    let mut metrics      = { let _t = Timer::start("K7::build_metrics");    build_metrics(&notices, records, derived, file_stats, coverage_complete) };
     metrics.overall_score = reports.r5.score;
     K7Result { notices, reports, metrics }
 }
@@ -736,9 +737,13 @@ fn build_r9(notices: &[Notice], resolution: &SymptomResolution) -> R9Report {
 
 // ── WP-10d: Rapor Projeksiyonları (R1–R8) ────────────────────────────────────
 
-fn build_report_set(notices: &[Notice], resolution: &SymptomResolution) -> ReportSet {
+fn build_report_set(
+    notices: &[Notice],
+    resolution: &SymptomResolution,
+    coverage_complete: bool,
+) -> ReportSet {
     ReportSet {
-        r1: build_r1(notices),
+        r1: build_r1(notices, coverage_complete),
         r2: build_r2(notices),
         r3: build_r3(notices),
         r4: build_r4(notices),
@@ -749,14 +754,25 @@ fn build_report_set(notices: &[Notice], resolution: &SymptomResolution) -> Repor
     }
 }
 
-fn build_r1(notices: &[Notice]) -> R1Report {
+/// R1 yayın kapısı.
+///
+/// 🔴 **`publishable` ARTIK `blockers.is_empty()` DEĞİL** (issue #133). Eski hâli, zorunlu
+/// bir dosya okunamadığı için o dosyanın kuralları HİÇ koşmamışken bile `true` diyordu:
+/// ölçüldü (`mdb-1903`), `stops.txt` çözülemez hâle getirilince 29 kontrol atlandı ve feed
+/// yine `publishable=true` kaldı. Bulgu yokluğu, kanıt yokluğuyla aynı şey değildir.
+///
+/// ⚠️ `coverage_complete` YALNIZ zorunlu dosya kaybında düşer. Bozuk bir `attributions.txt`
+/// da koşumu PARTIAL yapar (ölçüldü) ama kapıyı düşürmez — geçerli feed'i yayından men
+/// etmek, normu tavsiye saymaktan çok daha ağır bir hatadır (`PTH_017` asimetrisi).
+fn build_r1(notices: &[Notice], coverage_complete: bool) -> R1Report {
     let blockers: Vec<String> = notices
         .iter()
         .filter(|n| is_pub_relevant(n))
         .map(|n| n.id.clone())
         .collect();
     R1Report {
-        publishable: blockers.is_empty(),
+        publishable: blockers.is_empty() && coverage_complete,
+        coverage_complete,
         blocker_notice_ids: blockers,
     }
 }
@@ -903,7 +919,7 @@ fn r4_display_label(rule_id: &str) -> String {
 
 // ── Metrikler ─────────────────────────────────────────────────────────────────
 
-fn build_metrics(notices: &[Notice], records: &EntityRecords, derived: &DerivedData, file_stats: Vec<FileInfo>) -> FeedMetrics {
+fn build_metrics(notices: &[Notice], records: &EntityRecords, derived: &DerivedData, file_stats: Vec<FileInfo>, coverage_complete: bool) -> FeedMetrics {
     let shape_count = records
         .shapes
         .iter()
@@ -986,6 +1002,7 @@ fn build_metrics(notices: &[Notice], records: &EntityRecords, derived: &DerivedD
             .any(|t| t.language.eq_ignore_ascii_case("ja-Hrkt"));
 
     FeedMetrics {
+        coverage_complete,
         stop_count:   records.stops.len() as u32,
         route_count:  records.routes.len() as u32,
         trip_count,
@@ -1296,7 +1313,7 @@ mod tests {
     #[test]
     fn r1_spec_kritik_makes_not_publishable() {
         let n = notice("n1", "X", Severity::Kritik, RuleClass::Spec);
-        let r = build_r1(&[n]);
+        let r = build_r1(&[n], true);
         assert!(!r.publishable);
         assert_eq!(r.blocker_notice_ids.len(), 1);
     }
@@ -1305,7 +1322,7 @@ mod tests {
     fn r1_high_interop_is_publishable() {
         // Faz 4: Interop artık yayın-engeli değil (yalnız Spec+Kritik).
         let n = notice("n1", "X", Severity::Yuksek, RuleClass::Interop);
-        let r = build_r1(&[n]);
+        let r = build_r1(&[n], true);
         assert!(r.publishable);
         assert!(r.blocker_notice_ids.is_empty());
     }
@@ -1313,7 +1330,7 @@ mod tests {
     #[test]
     fn r1_no_blockers_fully_publishable() {
         let n = notice("n1", "X", Severity::Orta, RuleClass::Quality);
-        let r = build_r1(&[n]);
+        let r = build_r1(&[n], true);
         assert!(r.publishable);
     }
 
@@ -1321,7 +1338,7 @@ mod tests {
     fn r1_kritik_interop_is_publishable() {
         // Faz 4: Kritik Interop bile yayını engellemez (spec kapısı değil).
         let n = notice("n1", "X", Severity::Kritik, RuleClass::Interop);
-        let r = build_r1(&[n]);
+        let r = build_r1(&[n], true);
         assert!(r.publishable);
         assert!(r.blocker_notice_ids.is_empty());
     }

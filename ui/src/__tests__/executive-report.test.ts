@@ -45,7 +45,7 @@ function result(): ValidationResult {
   return {
     notices,
     reports: {
-      r1: { publishable: false, blocker_notice_ids: ['RTS_001-1'] },
+      r1: { publishable: false, coverage_complete: true, blocker_notice_ids: ['RTS_001-1'] },
       r2: { items: [] }, r3: { items: [] }, r4: { items: [] },
       r5: { score: 72.4, pub_score: 61.2, spec_score: 68, interop_score: 71, quality_score: 79, analytics_score: 83 },
       r7: { items: [] }, r8: { items: [] },
@@ -102,7 +102,7 @@ describe('executive report', () => {
   it('keeps a critical quality finding out of P0 when R1 has no blocker', () => {
     const vbb = result();
     vbb.notices = [notice('PTH_014', 'CRITICAL', 1, 'QUALITY')];
-    vbb.reports.r1 = { publishable: true, blocker_notice_ids: [] };
+    vbb.reports.r1 = { publishable: true, coverage_complete: true, blocker_notice_ids: [] };
     vbb.reports.r5 = { score: 55.4, pub_score: 100, spec_score: 100, interop_score: 88.5, quality_score: 32.8, analytics_score: 37.7 };
     vbb.reports.r9.items = [priority('PTH_014', ['quality', 'high-impact'], 1_043)];
     vbb.capped_totals = { PTH_014: 1_043 };
@@ -120,7 +120,7 @@ describe('executive report', () => {
   it('labels class totals as finding counts and renders a feed-specific plan', () => {
     const vbb = result();
     vbb.notices = [notice('PTH_014', 'CRITICAL', 1, 'QUALITY')];
-    vbb.reports.r1 = { publishable: true, blocker_notice_ids: [] };
+    vbb.reports.r1 = { publishable: true, coverage_complete: true, blocker_notice_ids: [] };
     vbb.reports.r5.pub_score = 100;
     vbb.reports.r5.spec_score = 100;
     vbb.reports.r9.items = [priority('PTH_014', ['quality', 'high-impact'], 1_043)];

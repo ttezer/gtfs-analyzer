@@ -236,6 +236,9 @@ const en: LocaleShape = {
     // Domain
     'domain.pub_score'           : 'Publish Score',
     'domain.pub_hint'            : 'SPEC + INTEROP blocker clearance',
+    'domain.r1_incomplete_title': 'Publishability could not be determined',
+    'domain.r1_incomplete_desc': 'A required file could not be read, so {n} checks never ran. The absence of findings does NOT mean the feed is clean.',
+    'domain.score_incomplete_warn': 'This score comes from an INCOMPLETE validation and is not comparable to other feeds: rules bound to the unreadable file never ran, so they could not penalise, and the score reads higher than it should.',
     'domain.overall_score'       : 'Overall Score',
     'domain.overall_hint'        : 'Weighted average of all classes (Spec×40% + Interop×30% + Quality×20% + Analytics×10%)',
     'domain.r1_blocked_title'    : 'Not Recommended for Publishing',

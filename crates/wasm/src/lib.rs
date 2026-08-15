@@ -54,6 +54,17 @@ pub struct CachedState {
 
 // ── Yardımcı: aşama callback çağrısı ─────────────────────────────────────────
 
+
+/// issue #133 — yayın kararı ve skor kapsam kaybını görmeli. Native `validate_bytes` ile
+/// AYNI ölçüt; WASM kendi orkestrasyonunu koştuğu için burada da hesaplanmak zorunda.
+fn coverage_complete_of(partial: &PartialReport) -> bool {
+    !partial
+        .unavailable_files
+        .iter()
+        .any(|f| gtfs_pipeline::k1_parse::is_certification_critical(f))
+        && partial.root_structural_errors.is_empty()
+}
+
 fn call_stage(f: &js_sys::Function, name: &str, elapsed_ms: u32) {
     let _ = f.call2(
         &JsValue::NULL,
@@ -278,7 +289,8 @@ pub fn rerun_k6_k7(cache: &CachedState, config_delta_json: &str, on_stage: &js_s
     }
 
     let t = js_sys::Date::now();
-    let mut k7 = report_k7(all_notices, &cache.records, &cache.derived, cache.file_stats.clone(), true);
+    let coverage_complete = coverage_complete_of(&partial);
+    let mut k7 = report_k7(all_notices, &cache.records, &cache.derived, cache.file_stats.clone(), true, coverage_complete);
     call_stage(on_stage, "K7", (js_sys::Date::now() - t) as u32);
 
     scale_r9_deltas(&mut k7.reports, &real_totals);
@@ -375,7 +387,8 @@ fn run_full_pipeline(zip_bytes: &[u8], config: &ValidatorConfig, today: u32) -> 
         ).into());
     }
 
-    let mut k7 = report_k7(all_notices, &k2.records, &k5.derived, file_stats, true);
+    let coverage_complete = coverage_complete_of(&partial);
+    let mut k7 = report_k7(all_notices, &k2.records, &k5.derived, file_stats, true, coverage_complete);
     // 4) Cap'e çarpan kurallarda score delta'yı gerçek toplam oranıyla ölçekle
     scale_r9_deltas(&mut k7.reports, &real_totals);
     let capped_totals = build_capped_totals(&real_totals);
