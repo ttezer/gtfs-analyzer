@@ -616,10 +616,60 @@ Flex `location_id` · Flex `location_group_id` · duraksız Flex · negatif ücr
 feed'lerde Spec/Kritik notice çıkmamasını doğrular. **İyi bir regresyon kapısıdır ama
 593 kural için genel yanlış-pozitif kanıtı değildir.**
 
-### 5.7 Kuralların ~%53'ü korpusta hiç tetiklenmedi
-276 kural tetiklendi, **317 kural hiç çıkmadı** (593'ün %53'ü). Yani kuralların yarısından
-fazlası için
-GERÇEK VERİ üzerinde doğru-pozitif gözlem yok; kanıtları sentetik fixture'dır.
+### 5.7 Kuralların yarısı korpusta hiç tetiklenmiyor — ve bu ARTIK TRİYAJLI
+287 kural tetikleniyor, **308 kural hiç çıkmıyor** (2026-08-16 tazelenmiş baseline).
+Yani kuralların yarısı için GERÇEK VERİ üzerinde doğru-pozitif gözlemi YOK.
+
+🔴 **Ama "sessiz" ile "kanıtsız" AYNI ŞEY DEĞİL, ve bu ayrım artık ölçülmüş durumda.**
+`spec-audit/silent_rules.tsv` her sessiz kural için sessizliğin SEBEBİNİ makine-okunur
+etiketle taşır ve **47'si gerçek feed MUTASYONUYLA ölçülmüştür** (`crates/pipeline/tests/
+real_feed_mutation.rs`, 51 test). Sessizliğin dört sebebi:
+
+| etiket | ne demek |
+|---|---|
+| `SELECTION_BIAS` | Kural doğru; ihlali taşıyan feed YAYIMLANMAZ. `agency_name` eksik feed katalogda olmaz. **Korpusu büyütmek bu kovayı ASLA açmaz.** |
+| `THIN_FEATURE` / `NO_FEATURE` | Kuralın dosyası korpusta ≤5 feed'de ya da hiç yok (ör. `stops.stop_access` **242 feed'in hiçbirinde YOK**). |
+| `CROSS_FILE` | Dosya çapası türetilemiyor; kural dosyalar arası. |
+| `PREDICATE_SUSPECT` | Dosya bol, hata makul, yine de sıfır → **asıl şüphe kovası**. |
+
+### 5.7.1 Faz 2 — mutasyon kanıtı, KARAR GEREĞİ 47 ölçümde durduruldu
+**Sessizlik doğru kuralı bozuk kuraldan ayırt etmez.** Fixture da ayırt edemez: fixture
+kuralın ateşleyebildiğini kanıtlar, gerçek okuyucu yolunda doğru davrandığını değil
+(#75'te `ARC_022`'nin fixture'ı yeşilken İsviçre feed'inde 8,4M satır sessizce geçiyordu).
+Ayırt eden tek şey **gerçek feed + enjekte edilmiş kusur**.
+
+**Ölçülen 47 kural, SIFIR bozuk predikat.** İki aşamada:
+
+1. **Hedefli (35 kural, #127·#129·#130·#131 + fatal yolu + POST_BASELINE).** Bilerek EN
+   ŞÜPHELİLERDEN seçildi: sıkılaştırılmış predikatlar (`SHP_005`), onarılmış `Err(_) =>
+   None` yutma sınıfı (`STM_058`), bilinen bastırma belirsizliği (`STP_005`).
+   `PREDICATE_SUSPECT ∧ Kritik∧Spec` kovası **25/25 kapandı**.
+2. **Katmanlı RASTGELE örneklem (12 kural, 2026-08-16).** Yukarıdaki seçim YANLI olduğu
+   için sonucu kalana taşımıyordu. Kalan üç kovadan (`SELECTION_BIAS` · `CROSS_FILE` ·
+   `THIN_FEATURE`, hepsi Kritik∧Spec) tohumu sabit çekim:
+   `random.Random(20260816).sample(sorted(pool), 4)`. **12/12 doğru.**
+
+🛑 **KARAR: Faz 2 burada DURDURULDU — eksik bırakılmadı.** Gerekçe ölçülmüş: 47 kuralın
+hiçbirinde bozuk predikat çıkmadı, ve o 47'nin bir kısmı YANLI OLMAYAN çekimden geliyor.
+Kalan 261 kuralın önsel riski, bilerek şüpheliden seçilen 35'ten DAHA DÜŞÜKTÜR. Tüketmek
+yerine örneklemek savunulabilir; örneklem bir kusur bulsaydı kalanı ölçmek için gerekçe
+olurdu, bulmadı.
+
+⚠️ **BU BİR TAMLIK İDDİASI DEĞİLDİR.** Söylenebilir: *"47 kural gerçek feed mutasyonuyla
+ölçüldü, hiçbirinde bozuk predikat yok; kalan sessizliğin sebebi etiketli."* Söylenemez:
+*"593 kuralın predikatı doğrudur."*
+
+🔬 **Yöntemin kendi dersleri** (hepsi ölçümle bulundu, tekrarlanmaması için yazılı):
+- **Feed'i BOYUTA göre seçmek İÇERİĞE göre seçmek değildir.** Hedef sütunun DOLU olduğu
+  ölçülmeli: 19 feed `start_pickup_drop_off_window` başlığını taşıyor ama yalnız 7'sinde
+  değer var; `mdb-2848` `from_trip_id`'yi 141.458 satırın hepsinde boş bırakıyor.
+- **Fark ölçütü "yalnız hedef kural" DEĞİL**, "hedef görünmeli + kalan her id açıklanmalı"
+  — kaldırmalar dahil. Flex mutasyonunda `PDW_006` KAYBOLUYOR; yasaklasaydık o mutasyon
+  yazılamazdı.
+- **Kardeş-kural kontrolü ancak baseline TAZEYSE kanıttır.** `TRN_006`'nın ateşlediğine
+  dayanan argüman, o kural `67fc99b0` ile susturulunca çürüdü.
+- **Başlığı normalize et:** `ch-odv-flex` BOM yazıyor ve başlığında `, location_id`
+  var — ham karşılaştırma çalışan kuralı bozuk gösterir.
 
 ### 5.8 Mevcut kapılar İKİ GERÇEK SEMANTİK HATAYI kaçırdı
 2026-08-06'da bulunan `SHP_028` (eşik derece olarak uygulanmıştı, metre olmalıydı) ve
@@ -684,6 +734,13 @@ tabanını okuyanın bilmesi gereken ikisi:
 > adaydan feed'den doğrulanabilir **147 sert hükmün 145'i** ölçülmektedir (**%98,6**).
 > Kurallar 242 feed'lik bir korpusta koşulmuş, MobilityData referans doğrulayıcısıyla 1446
 > satırda kıyaslanmış ve **10 açıklanamayan sapma** kalmıştır.
+>
+> Kuralların yarısı korpusta hiç tetiklenmiyor; bu sessizliğin sebebi artık kural bazında
+> ETİKETLİ (`silent_rules.tsv`) ve **47 kural gerçek feed mutasyonuyla ölçülmüştür —
+> hiçbirinde bozuk predikat çıkmamıştır** (§5.7.1). Bunların 12'si tohumu sabit RASTGELE
+> örneklemdir, yani sonuç yalnız "şüpheli seçilenler"e dayanmaz. **Söylenemez:** *"593
+> kuralın predikatı doğrudur."* Ölçülen 47'dir; kalan 261 için sessizliğin SEBEBİ bilinir,
+> predikatın doğruluğu bilinmez.
 >
 > **Düzyazı ekseninde %100 iddiası GEÇERSİZDİR.** 2026-08-06 bağımsız denetimi bir hükmün
 > yanlışlıkla kapsam dışı bırakıldığını (`Pa1fdaa0d` — gerekçe mimari eksikti, hüküm feed'den
