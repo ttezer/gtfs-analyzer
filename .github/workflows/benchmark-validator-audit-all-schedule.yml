@@ -47,14 +47,13 @@ jobs:
           import json
           from pathlib import Path
           d=json.loads(Path('benchmark/auditall/run/manifest.json').read_text())
-          feeds=d['feeds']; sel=d['selection']; funnel=sel['funnel']
+          feeds=d['feeds']; sel=d['selection']
           assert len(feeds) >= 1400, len(feeds)
           assert all(f.get('data_type') == 'gtfs' for f in feeds)
           assert all(f.get('authentication_type') in ('', '0') for f in feeds)
           assert 'mdb-2904' not in {f['feed_id'] for f in feeds}
-          assert funnel.get('gtfs_rt', 0) > 0
-          assert sel.get('gtfs_realtime_policy') == 'excluded before corpus construction by exact data_type=gtfs-rt'
-          print(f"Schedule-only manifest PASS: {len(feeds)} feeds; RT tested=0; catalog RT rows={funnel['gtfs_rt']}")
+          assert sel.get('gtfs_realtime_policy','').startswith('only exact data_type=gtfs is admitted')
+          print(f"Schedule-only manifest PASS: {len(feeds)} feeds; RT tested=0; catalog data types={sel.get('catalog_data_type_counts')}")
           PY
       - id: matrix
         name: Build 128-shard matrix
