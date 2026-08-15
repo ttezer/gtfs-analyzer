@@ -616,6 +616,43 @@ Flex `location_id` · Flex `location_group_id` · duraksız Flex · negatif ücr
 feed'lerde Spec/Kritik notice çıkmamasını doğrular. **İyi bir regresyon kapısıdır ama
 593 kural için genel yanlış-pozitif kanıtı değildir.**
 
+### 5.6.1 Faz 3 — yoğunlaşma triyajı: bulguların İÇİNE bakıldı
+Faz 2 şunu sordu: *"kural ateşlemesi gerektiğinde ateşliyor mu?"* Aynanın öteki yüzü —
+*"susması gerektiğinde susuyor mu?"* — ayrı bir eksendir ve mutasyonla ölçülemez; ölçmek
+için ÜRETİLMİŞ bulgunun içine bakmak gerekir.
+
+**Yöntem:** korpusun 11,6M bulgusunun tamamı okunamaz. Bunun yerine **yoğunlaşma** hedef
+alındı: bulgusunun **%90'dan fazlası TEK feed'de** toplanan ve 1000'den çok bulgu üreten
+**28 kural**. Bu, yanlış pozitifin imzasıdır — gerçek kusurlar korpusa yayılır, kural
+hatası tek üreticinin alışkanlığına kilitlenir. Her kural için baskın feed'inden **İLK 5
+BULGU** okundu (sayı değil örnek — bu projenin kayıtlı dersi) ve kural kartına/spec'e
+karşı karar verildi. Defter: `spec-audit/fp_adjudication.tsv`, makine-okunur `verdict`
+sütunuyla.
+
+**Sonuç: YANLIŞ POZİTİF YOK.** 26 kural örneklendi (biri `mdb-2904`'e bağlı olduğu için
+adjudike edilemedi — o feed kullanıcı talimatıyla koşum dışı), 24'ü **TRUE_POSITIVE**.
+Ama iki **ATIF** kusuru çıktı ve ikisi de düzeltildi:
+
+| kural | bulgu | karar |
+|---|---|---|
+| `TRN_002` | `mdb-2933`'te 21.425 | **Hepsi `TRN_001`'in TÜREVİ.** Üretici `table_name` sütununa `stops.txt` yazıyor (spec uzantısız ad ister → `TRN_001` DOĞRU ateşliyor); tablo bilinmeyince izinli alan listesi BOŞ dönüyor ve her alan adı "geçersiz" sayılıyordu. **İlişki kartta YAZILIYDI ama `blocks`'a bağlanmamıştı.** Düzeltildi: tablo bilinmiyorsa `TRN_002` çalışmaz. |
+| `TRF_016` | `mdb-1859`'da 5.204 | **Hepsi `TRF_012` ile AYNI SATIRLARDA.** İki kart da temiz bir ayrım yazıyor — bağlamsız durak çifti `TRF_012`, trip/route bağlamlı anahtar `TRF_016` — ama ayrımın YALNIZ YARISI koddaydı: `TRF_012` bağlam taşıyanları eliyordu, `TRF_016` hiçbir şeyi elemiyordu. Düzeltildi: bağlamsız satırlar atlanır. |
+
+**Toplam 26.629 türev/mükerrer bulgu kaldırıldı.** İkisi de aşırı-bastırma testiyle
+korunuyor (`trn_002_still_fires_when_the_table_is_known_but_the_field_is_not` ·
+`trf_016_still_fires_on_a_duplicate_that_carries_trip_context`), ve `TRF_016`'nın ayrımı
+her iki yönde de birim testle çapalı.
+
+🔴 **DESEN — Faz 2 ile AYNI:** kuralların predikatı doğru çıktı, kusur **kurallar
+hakkındaki muhasebede**ydi. Faz 2'de bayat defterler ve yanlış enum yorumları; Faz 3'te
+belgelenmiş ama makineye bağlanmamış iki ilişki. **Bir karta yazılmış ilişki, kodda
+uygulanmış demek değildir.**
+
+⚠️ **BU BİR FP-YOKLUĞU KANITI DEĞİLDİR.** Söylenebilir: *"En yüksek FP riski taşıyan 28
+kuralın 26'sı örneklendi, yanlış pozitif çıkmadı, iki atıf kusuru düzeltildi."*
+Söylenemez: *"287 tetiklenen kuralda yanlış pozitif yoktur."* Yayılmış (yoğunlaşmamış)
+kuralların bulguları HİÇ okunmadı.
+
 ### 5.7 Kuralların yarısı korpusta hiç tetiklenmiyor — ve bu ARTIK TRİYAJLI
 287 kural tetikleniyor, **308 kural hiç çıkmıyor** (2026-08-16 tazelenmiş baseline).
 Yani kuralların yarısı için GERÇEK VERİ üzerinde doğru-pozitif gözlemi YOK.

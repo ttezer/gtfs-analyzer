@@ -1,0 +1,29 @@
+rule_id	rule_class	severity	total_notices	dominant_feed	sampled_from	examples_read	verdict	reasoning
+STM_056	SPEC	CRITICAL	3973143	mdb-2904	mdb-2933	5	TRUE_POSITIVE	shape_dist_traveled genuinely fails to increase between consecutive stops; the observed values are real and decreasing.
+ARC_012	SPEC	CRITICAL	302886	mdb-884	mdb-884	5	TRUE_POSITIVE	Every row of stop_times.txt has 8 fields where the header declares 7 - a real unescaped-comma defect. Volume is one file-level fault reported per row; an aggregation candidate, not a false positive.
+DQ_021	SPEC	HIGH	289369	mdb-2837	mdb-2837	5	TRUE_POSITIVE	fare_rules primary key genuinely repeats, empty components included.
+STM_012	INTEROP	HIGH	182463	mdb-2904	mdb-1830	5	TRUE_POSITIVE	1124 km/h between consecutive stops; the anomaly is real even if its cause is upstream geometry.
+STM_032	SPEC	LOW	171069	mdb-1229	mdb-1229	5	TRUE_POSITIVE	stop_sequence 0 repeats within one trip - the case #97 reclassified to Spec.
+STM_021	QUALITY	HIGH	149221	mdb-2904	mdb-1229	4	TRUE_POSITIVE	zero distance between consecutive stops of one trip.
+GGL_001	INTEROP	LOW	132935	mdb-2898	mdb-2898	5	TRUE_POSITIVE	transfer_type=4 really is ignored by Google Transit; 132935 findings are one fact repeated per row, an aggregation candidate.
+TRN_002	SPEC	CRITICAL	23049	mdb-2933	mdb-2933	5	DERIVATIVE_FIXED	All 21425 findings on mdb-2933 were derivatives of TRN_001: the producer writes table_name=stops.txt where the spec wants stops, so the allowed-field list came back empty and every field name looked invalid. The relation was documented on the card and never wired. Fixed - TRN_002 no longer runs when the table is unknown.
+TRN_001	SPEC	CRITICAL	21439	mdb-2933	mdb-2933	5	TRUE_POSITIVE	table_name=stops.txt is genuinely invalid; the spec lists table names without the .txt extension.
+STM_020	QUALITY	HIGH	18338	mdb-2519	mdb-2519	5	TRUE_POSITIVE	0 seconds across 256 m between consecutive stops.
+FRL_004	SPEC	CRITICAL	10890	mdb-992	mdb-992	5	TRUE_POSITIVE	destination_id carries leading whitespace and no zone_id matches it raw. True under the raw-lexical FK rule; the volume is the mdb-992 whitespace habit, and its attribution gap is recorded in #134.
+FRL_003	SPEC	CRITICAL	10885	mdb-992	mdb-992	5	TRUE_POSITIVE	Same as FRL_004 for origin_id. Not attributed to the DQ_016 root because the emitter decorates observed_value with a row count, which defeats the cascade - a known remaining gap from #134.
+STM_001	SPEC	CRITICAL	6539	mdb-992	mdb-992	0	SUPPRESSED_SINCE	No longer fires on mdb-992: the #134 fix attributes it to the DQ_016 root. The baseline row predates that fix.
+SHP_019	QUALITY	MEDIUM	6437	mdb-992	mdb-992	5	TRUE_POSITIVE	The shape_id is a single space, referenced by 128 trips - the mdb-992 whitespace habit again.
+SHP_030	QUALITY	MEDIUM	6308	mdb-2519	mdb-2519	5	TRUE_POSITIVE	trips reference a shape while stop_times carries no shape_dist_traveled for them.
+TRF_012	SPEC	CRITICAL	5204	mdb-1859	mdb-1859	5	TRUE_POSITIVE	Context-free transfer pair genuinely repeats. This is its documented domain.
+TRF_016	SPEC	CRITICAL	5204	mdb-1859	mdb-1859	5	DUPLICATE_FIXED	All 5204 findings on mdb-1859 duplicated TRF_012 on the same rows: both cards document a split - context-free pairs belong to TRF_012, context-bearing keys to TRF_016 - but only TRF_012 implemented its half. Fixed - TRF_016 now skips rows with no trip or route context.
+STP_001	SPEC	CRITICAL	2753	mdb-1276	mdb-1276	5	TRUE_POSITIVE	stop_id genuinely repeats.
+GEO_016	QUALITY	HIGH	2411	mdb-2904	-	0	NOT_ADJUDICATED	Dominant feed is mdb-2904, excluded from all runs by user instruction, and no other feed in the concentrated set triggers it.
+FRQ_007	SPEC	MEDIUM	1583	mdb-1830	mdb-1830	5	TRUE_POSITIVE	exact_times written as 0.0 where a u32 is required; the producer writes integers as floats.
+TRF_022	SPEC	HIGH	1256	mdb-2898	mdb-2898	5	TRUE_POSITIVE	One trip linked to several continuation trips.
+TRP_005	SPEC	MEDIUM	1230	mdb-1830	mdb-1830	5	TRUE_POSITIVE	direction_id written as 0.0 - same float habit as FRQ_007 on the same feed.
+STM_048	SPEC	HIGH	1201	mdb-1229	mdb-1229	5	TRUE_POSITIVE	after-midnight arrival written as 00:01:00 instead of 24:01:00.
+TRF_019	INTEROP	MEDIUM	1158	mdb-2898	mdb-2898	5	TRUE_POSITIVE	in-seat transfer between differing route types.
+TRF_023	SPEC	HIGH	1109	mdb-2898	mdb-2898	5	TRUE_POSITIVE	several trips linked into one continuation.
+XFL_012	QUALITY	HIGH	1048	mdb-992	mdb-992	5	TRUE_POSITIVE	route whose trips have no stop_times rows at all.
+RTS_016	QUALITY	LOW	1036	mdb-992	mdb-992	5	TRUE_POSITIVE	route with no active calendar day on any trip.
+STM_047	SPEC	CRITICAL	1035	mdb-1120	mdb-1120	5	TRUE_POSITIVE	timepoint=1 with both times empty.

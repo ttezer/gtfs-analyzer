@@ -1945,6 +1945,20 @@ fn check_transfers(
     {
         let mut seen_keys: HashMap<String, u64> = HashMap::new();
         for rec in &records.transfers {
+            // 🔴 BAĞLAMSIZ SATIRLAR TRF_012'NİN ALANI (Faz 3.1 adjudikasyonu).
+            // İki kuralın kartları temiz bir ayrım İDDİA EDİYORDU — TRF_012 "yalnızca
+            // from/to_trip_id ve from/to_route_id alanlarının TAMAMI boş olan satırlar",
+            // TRF_016 "tam altı-alanlı anahtar" — ama kodda filtre YOKTU: bağlamsız bir
+            // yineleme her iki kuralı da tetikliyordu. Ölçüm: `mdb-1859`'da ikisi de
+            // 5.204 bulgu, aynı satırlarda, `observed` değeri `...|||| ` (bağlam boş).
+            // Belgelenmiş karar kodda uygulanmamıştı; aynı olgu iki kez raporlanıyordu.
+            let has_context = rec.from_trip_id.as_deref().is_some_and(|v| !v.is_empty())
+                || rec.to_trip_id.as_deref().is_some_and(|v| !v.is_empty())
+                || rec.from_route_id.as_deref().is_some_and(|v| !v.is_empty())
+                || rec.to_route_id.as_deref().is_some_and(|v| !v.is_empty());
+            if !has_context {
+                continue;
+            }
             let key = format!(
                 "{}|{}|{}|{}|{}|{}",
                 rec.from_stop_id,
@@ -6049,6 +6063,29 @@ mod tests {
 
     #[test]
     fn duplicate_transfer_key_produces_trf_016() {
+        // ⚠️ Bu test eskiden BAĞLAMSIZ bir yineleme kuruyordu ve TRF_016 bekliyordu.
+        // İki kartın da yazdığı ayrım bunun tersini söylüyor: bağlamsız çift TRF_012'nin,
+        // trip/route bağlamlı çakışma TRF_016'nın alanıdır. Ayrımın YARISI kodda vardı
+        // (TRF_012 bağlam taşıyanları eliyordu), TRF_016 tarafı eksikti — bu yüzden
+        // `mdb-1859`'da ikisi de aynı 5.204 satırda ateşliyordu. Test artık bağlam taşıyor.
+        let (mut recs, _map) = empty();
+        let base = TransferRecord {
+            from_stop_id: "S1".into(), to_stop_id: "S2".into(),
+            transfer_type: Some(0),
+            min_transfer_time: None,
+            from_trip_id: Some("T1".into()), to_trip_id: Some("T2".into()),
+            from_route_id: None, to_route_id: None,
+            row: Default::default(), line: 2,
+        };
+        recs.transfers = vec![base.clone(), TransferRecord { line: 3, ..base }];
+        let result = check(&recs, &EntityMap::default(), 20260515);
+        assert!(result.notices.iter().any(|n| n.rule_id == "TRF_016"));
+    }
+
+    #[test]
+    fn context_free_duplicate_transfer_belongs_to_trf_012_alone() {
+        // Ayrımın ÖTEKİ YÖNÜ. Bağlamsız yineleme TRF_012 üretir ve TRF_016 ÜRETMEZ;
+        // aksi hâlde aynı olgu iki kez raporlanır.
         let (mut recs, _map) = empty();
         let base = TransferRecord {
             from_stop_id: "S1".into(), to_stop_id: "S2".into(),
@@ -6060,7 +6097,10 @@ mod tests {
         };
         recs.transfers = vec![base.clone(), TransferRecord { line: 3, ..base }];
         let result = check(&recs, &EntityMap::default(), 20260515);
-        assert!(result.notices.iter().any(|n| n.rule_id == "TRF_016"));
+        assert!(result.notices.iter().any(|n| n.rule_id == "TRF_012"),
+            "bağlamsız yineleme TRF_012 üretmeli");
+        assert!(!result.notices.iter().any(|n| n.rule_id == "TRF_016"),
+            "bağlamsız yineleme TRF_016 ÜRETMEMELİ — aynı olgu iki kez raporlanır");
     }
 
     // ── RCT_006 ───────────────────────────────────────────────────────────────

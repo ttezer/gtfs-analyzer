@@ -1519,3 +1519,51 @@ fn sample_xfl_031_fires_when_a_geojson_id_collides_with_a_stop_id() {
     let (added, removed) = delta(&before, &rule_ids(&mutated));
     assert_delta_both(&added, &removed, "XFL_031", &["XFL_025"], &[]);
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Faz 3.1 — yoğunlaşma triyajının bulduğu iki ATIF kusuru
+// ─────────────────────────────────────────────────────────────────────────────
+
+#[test]
+#[ignore = "gerçek korpus feed'i gerektirir"]
+fn trn_002_still_fires_when_the_table_is_known_but_the_field_is_not() {
+    // AŞIRI-BASTIRMA KORUMASI. `TRN_002` artık tablo BİLİNMİYORSA susuyor (kök `TRN_001`
+    // zaten raporlanıyor ve "bu alan bu tablo için geçerli mi" sorusu cevapsız). Bu daralt-
+    // manın geçerli vakayı yutmadığını kanıtlamak şart: tablo GEÇERLİ, alan geçersiz.
+    let zip = corpus_zip(TRN_FEED);
+    let before = rule_ids(&zip);
+    assert!(!before.contains("TRN_002"), "{TRN_FEED} zaten TRN_002 üretiyor");
+
+    let mutated = rewrite_member(&zip, "translations.txt", |t| {
+        set_field(&t, "field_name", 1, "boyle_bir_alan_yok")
+    });
+    let (added, removed) = delta(&before, &rule_ids(&mutated));
+    // AÇIKLANAN yan etki: `TRN_011` ("field_name çevrilebilir değil") — geçersiz bir alan
+    // adı, o alan için çeviri kaydını da anlamsız kılar. Doğrudan sonuç.
+    assert_delta_both(&added, &removed, "TRN_002", &["TRN_011"], &[]);
+}
+
+#[test]
+#[ignore = "gerçek korpus feed'i gerektirir"]
+fn trf_016_still_fires_on_a_duplicate_that_carries_trip_context() {
+    // AŞIRI-BASTIRMA KORUMASI. `TRF_016` artık trip/route bağlamı OLMAYAN satırları
+    // atlıyor (onlar `TRF_012`'nin alanı — iki kartın da yazdığı ayrım). Bağlam TAŞIYAN
+    // yineleme hâlâ görünmeli.
+    let zip = corpus_zip(TRF_TRIP_FEED);
+    let before = rule_ids(&zip);
+    assert!(!before.contains("TRF_016"), "{TRF_TRIP_FEED} zaten TRF_016 üretiyor");
+
+    let mutated = rewrite_member(&zip, "transfers.txt", |t| {
+        let row = first_row_with_value(&t, "from_trip_id");
+        let dup = t
+            .lines()
+            .nth(row)
+            .expect("satır yok")
+            .trim_end_matches('\r')
+            .to_string();
+        append_line(&t, &dup)
+    });
+    let (added, removed) = delta(&before, &rule_ids(&mutated));
+    // Bağlamlı yinelemede TRF_012 ateşlemez (onun şartı bağlamın BOŞ olması).
+    assert_delta_both(&added, &removed, "TRF_016", &["TRF_012"], &[]);
+}

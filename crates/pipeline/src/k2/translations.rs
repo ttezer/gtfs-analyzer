@@ -56,7 +56,8 @@ pub fn validate_translations(
         let row_map = build_row_map(&file.headers, row);
 
         let table_name = get_trimmed_field(&row_map, "table_name").unwrap_or("").to_string();
-        if has_table_name && !TRANSLATION_TABLES.contains(&table_name.as_str()) {
+        let table_known = TRANSLATION_TABLES.contains(&table_name.as_str());
+        if has_table_name && !table_known {
             notices.push(make_k2_notice(
                 &mut counter,
                 "TRN_001",
@@ -76,7 +77,16 @@ pub fn validate_translations(
         let field_name = get_trimmed_field(&row_map, "field_name").unwrap_or("").to_string();
         // field_name cannot be validated without either required header or its
         // table_name context. ARC_025 already reports the missing prerequisite.
-        if has_table_name && has_field_name && !valid_fields_for_table(&table_name).contains(&field_name.as_str()) {
+        // 🔴 TABLO BİLİNMİYORSA BU SORU CEVAPSIZDIR (Faz 3.1 adjudikasyonu).
+        // `valid_fields_for_table` bilinmeyen tabloda BOŞ liste döner, dolayısıyla HER
+        // alan adı "geçersiz" sayılırdı. Kartında zaten yazıyordu — "table_name zaten
+        // geçersizse izinli alan listesi boş döner; TRN_002 de tetiklenebilir" — ama
+        // ilişki `blocks`'a bağlanmamıştı, yani belgelenmiş ama makineye söylenmemişti.
+        // Ölçüm: `mdb-2933` `table_name` sütununa `stops.txt` (uzantılı) yazıyor; spec
+        // uzantısız ad ister, TRN_001 DOĞRU ateşliyor — ama peşinden 23.049 TRN_002
+        // türev bulgusu geliyordu. Kök zaten raporlandığı için türev susar.
+        if has_table_name && has_field_name && table_known
+            && !valid_fields_for_table(&table_name).contains(&field_name.as_str()) {
             notices.push(make_k2_notice(
                 &mut counter,
                 "TRN_002",
