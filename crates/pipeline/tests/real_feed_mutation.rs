@@ -151,7 +151,7 @@ fn set_field(text: &str, column: &str, row_ordinal: usize, value: &str) -> Strin
         .lines()
         .map(|l| l.trim_end_matches('\r').to_string())
         .collect();
-    let header = split_csv_line(&lines[0]);
+    let header = header_of(text);
     let ci = header
         .iter()
         .position(|h| h == column)
@@ -201,6 +201,18 @@ fn append_line(text: &str, line: &str) -> String {
     s.push_str(line);
     s.push('\n');
     s
+}
+
+/// Başlık satırını NORMALİZE EDEREK okur: BOM kırpılır, her hücre trim'lenir.
+///
+/// ⚠️ İkisi de ölçülmüş gerekliliktir, üslup değil. `ch-odv-flex`'in dosyaları UTF-8 BOM
+/// ile başlıyor (ilk hücre `\u{feff}stop_id`) ve `stop_times.txt` başlığında
+/// `location_group_id, location_id` yazıyor — hücre adı `" location_id"`. Ham karşılaştıran
+/// yardımcı ikisinde de "sütun yok" der ve testi ÜRÜN HATASI gibi düşürür.
+fn header_of(text: &str) -> Vec<String> {
+    let first = text.lines().next().unwrap_or("").trim_end_matches('\r');
+    let first = first.strip_prefix('\u{feff}').unwrap_or(first);
+    split_csv_line(first).into_iter().map(|c| c.trim().to_string()).collect()
 }
 
 /// RFC 4180 alan bölme. Naif `split(',')` ŞART DEĞİL, ÖLÇÜLMÜŞ bir gereklilik:
@@ -267,7 +279,7 @@ fn break_last_distance(text: &str, equal_instead: bool) -> String {
         .lines()
         .map(|l| l.trim_end_matches('\r').to_string())
         .collect();
-    let header = split_csv_line(&lines[0]);
+    let header = header_of(text);
     let id_i = header.iter().position(|h| h == "shape_id").expect("shape_id yok");
     let d_i = header
         .iter()
@@ -479,7 +491,7 @@ fn trn_005_uses_field_value_as_identity_when_there_is_no_record_id() {
     );
 
     let mutated = rewrite_member(&zip, "translations.txt", |t| {
-        let header = split_csv_line(t.lines().next().expect("başlık yok").trim_end_matches('\r'));
+        let header = header_of(&t);
         assert!(
             !header.iter().any(|h| h == "record_id"),
             "bu feed record_id taşıyor — field_value kimlik yolu izole edilemez"
@@ -638,7 +650,7 @@ fn stp_005_is_born_and_suppressed_when_the_value_only_wears_whitespace() {
         let mut e = a.by_name(&name).unwrap();
         let mut buf = String::new();
         std::io::Read::read_to_string(&mut e, &mut buf).unwrap();
-        let header = split_csv_line(buf.lines().next().unwrap().trim_end_matches('\r'));
+        let header = header_of(&buf);
         let i = header.iter().position(|h| h == "stop_lon").unwrap();
         split_csv_line(first_data_line(&buf))[i].clone()
     };
@@ -699,7 +711,7 @@ fn member_text(zip: &[u8], file: &str) -> String {
 /// `stops.txt`'te verilen `location_type` değerine sahip ilk `stop_id`.
 fn stop_id_with_location_type(zip: &[u8], want: &str) -> String {
     let text = member_text(zip, "stops.txt");
-    let header = split_csv_line(text.lines().next().unwrap().trim_end_matches('\r'));
+    let header = header_of(&text);
     let id_i = header.iter().position(|h| h == "stop_id").expect("stop_id yok");
     let lt_i = header
         .iter()
@@ -715,7 +727,7 @@ fn stop_id_with_location_type(zip: &[u8], want: &str) -> String {
 
 /// `key_col`'u boş OLMAYAN ilk veri satırının sıra numarası (1 = ilk veri satırı).
 fn first_row_with_value(text: &str, key_col: &str) -> usize {
-    let header = split_csv_line(text.lines().next().unwrap().trim_end_matches('\r'));
+    let header = header_of(text);
     let ki = header
         .iter()
         .position(|h| h == key_col)
@@ -972,7 +984,7 @@ fn pth_031_fires_when_a_pathway_endpoint_is_street_accessed() {
     // olduğu için `STP_043` ateşledi, `PTH_031` değil. Yani mutasyon yanlış hükmü
     // sınıyordu; komşu kural bunu yakaladı. Aday artık ÖLÇÜLEREK seçiliyor.
     let stops = member_text(&zip, "stops.txt");
-    let sh = split_csv_line(stops.lines().next().unwrap().trim_end_matches('\r'));
+    let sh = header_of(&stops);
     let si = sh.iter().position(|h| h == "stop_id").expect("stop_id yok");
     let lti = sh.iter().position(|h| h == "location_type");
     let is_platform = |cols: &[String]| match lti {
@@ -981,7 +993,7 @@ fn pth_031_fires_when_a_pathway_endpoint_is_street_accessed() {
     };
 
     let pathways = member_text(&zip, "pathways.txt");
-    let ph = split_csv_line(pathways.lines().next().unwrap().trim_end_matches('\r'));
+    let ph = header_of(&pathways);
     let fi = ph.iter().position(|h| h == "from_stop_id").expect("from_stop_id yok");
     let endpoints: BTreeSet<String> = pathways
         .lines()
@@ -1277,7 +1289,7 @@ fn trn_006_fires_on_a_conflicting_translation() {
     assert!(!before.contains("TRN_006"), "{TRN_FEED} zaten TRN_006 üretiyor");
 
     let mutated = rewrite_member(&zip, "translations.txt", |t| {
-        let header = split_csv_line(t.lines().next().expect("başlık yok").trim_end_matches('\r'));
+        let header = header_of(&t);
         let ti = header
             .iter()
             .position(|h| h == "translation")
@@ -1303,7 +1315,7 @@ fn pad_trip_ids(text: &str) -> String {
         .lines()
         .map(|l| l.trim_end_matches('\r').to_string())
         .collect();
-    let header = split_csv_line(&lines[0]);
+    let header = header_of(text);
     let i = header.iter().position(|h| h == "trip_id").expect("trip_id yok");
     for line in lines.iter_mut().skip(1) {
         let mut cols = split_csv_line(line);
@@ -1366,4 +1378,144 @@ fn a_genuinely_unknown_id_is_not_swallowed_by_the_cascade() {
         added.iter().any(|r| r == "STM_001"),
         "gerçekten bilinmeyen sefer kodu BASTIRILDI — kaskad fazla geniş. Eklenen: {added:?}"
     );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// KATMANLI ÖRNEKLEM — Faz 2'yi kararla kapatmak için (2026-08-16)
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// Buraya kadar ölçülen 35 kural RASTGELE DEĞİLDİ: bilerek en şüphelilerden seçilmişti
+// (sıkılaştırılmış predikatlar, onarılmış yutma sınıfı, bilinen bastırma belirsizliği).
+// O yanlılık "sıfır bozuk predikat" sonucunu KALANA TAŞIMAZ.
+//
+// Bu blok kalan üç kovadan (SELECTION_BIAS 66 · CROSS_FILE 27 · THIN_FEATURE 28 — hepsi
+// Kritik∧Spec) kova başına 4 kural, TOHUMU SABİT rastgele örneklemle seçilmiştir:
+//     random.Random(20260816).sample(sorted(pool), 4)
+// Amaç kalanı tüketmek değil, "sıfır bozuk" sonucunun genelleşip genelleşmediğini sınamak.
+
+const SEL_PATH_FEED: &str = "mdb-3357";   // pathways 7388 satır
+const SEL_ST_FEED: &str = "mdb-1903";     // stop_times, hedefler taban çizgisinde 0
+const XREF_FEED: &str = "mdb-892";        // stop_areas + route_networks + fare_* tek feed'de
+const RCT_FEED: &str = "mdb-1246";        // rider_categories 3 satır
+const TFR_TIME_FEED: &str = "mdb-2143";   // timeframes (korpustaki TEK feed) + dolu fare_leg_rules
+const TRF_TRIP_FEED: &str = "mdb-2919";   // transfers'ta from/to_trip_id DOLU (1614 satır)
+
+// ── SELECTION_BIAS örneklemi ─────────────────────────────────────────────────
+
+#[test]
+#[ignore = "gerçek korpus feed'i gerektirir"]
+fn sample_pth_023_fires_on_a_missing_pathway_mode() {
+    mutate_field_case(SEL_PATH_FEED, "pathways.txt", "pathway_mode", 1, "", "PTH_023", &[], &[]);
+}
+
+#[test]
+#[ignore = "gerçek korpus feed'i gerektirir"]
+fn sample_stm_006_fires_on_a_missing_stop_id() {
+    // AÇIKLANAN yan etkiler ölçümle doldurulur; boş `stop_id` FK zincirini de kırar.
+    mutate_field_case(SEL_ST_FEED, "stop_times.txt", "stop_id", 1, "", "STM_006", &[], &[]);
+}
+
+#[test]
+#[ignore = "gerçek korpus feed'i gerektirir"]
+fn sample_trf_006_fires_on_an_unknown_from_trip_id() {
+    // ⚠️ FEED DEĞİŞTİ: `mdb-2848`'de `from_trip_id` SÜTUNU var ama 141.458 satırın
+    // hepsinde BOŞ. Sütunun varlığını denetleyip DOLULUĞUNU denetlememek, bu turda
+    // üçüncü kez aynı tuzak. `mdb-2919`'da 1614 satır dolu.
+    mutate_first_populated(TRF_TRIP_FEED, "transfers.txt", "from_trip_id", "BOYLE-SEFER-YOK", "TRF_006", &[]);
+}
+
+#[test]
+#[ignore = "gerçek korpus feed'i gerektirir"]
+fn sample_trf_007_fires_on_an_unknown_to_trip_id() {
+    mutate_first_populated(TRF_TRIP_FEED, "transfers.txt", "to_trip_id", "BOYLE-SEFER-YOK", "TRF_007", &[]);
+}
+
+// ── CROSS_FILE örneklemi ─────────────────────────────────────────────────────
+
+#[test]
+#[ignore = "gerçek korpus feed'i gerektirir"]
+fn sample_ars_001_fires_on_a_duplicated_area_row() {
+    // ⚠️ İlk deneme `stop_areas.txt`'i mutasyona uğrattı ve `DQ_021` (genel yineleme)
+    // çıktı — `ARS_001` `areas.txt`'e bakıyor. Kural değil MUTASYON yanlıştı; kuralın
+    // adındaki "ARS" durak-alan eşlemesini değil ALAN tanımını gösteriyor.
+    duplicate_row_case(XREF_FEED, "areas.txt", "ARS_001", &[]);
+}
+
+#[test]
+#[ignore = "gerçek korpus feed'i gerektirir"]
+fn sample_net_003_fires_on_an_unknown_route_in_route_networks() {
+    mutate_field_case(XREF_FEED, "route_networks.txt", "route_id", 1, "BOYLE-HAT-YOK", "NET_003", &[], &[]);
+}
+
+// ── THIN_FEATURE örneklemi ───────────────────────────────────────────────────
+
+#[test]
+#[ignore = "gerçek korpus feed'i gerektirir"]
+fn sample_flg_005_fires_on_an_unknown_from_timeframe_group() {
+    // `mdb-892`'de sütun boş; `mdb-2143`'te 45 satır dolu (timeframes taşıyan tek feed).
+    mutate_first_populated(TFR_TIME_FEED, "fare_leg_rules.txt", "from_timeframe_group_id",
+                           "BOYLE-GRUP-YOK", "FLG_005", &[]);
+}
+
+#[test]
+#[ignore = "gerçek korpus feed'i gerektirir"]
+fn sample_fpd_004_fires_on_an_unknown_fare_media() {
+    mutate_first_populated(XREF_FEED, "fare_products.txt", "fare_media_id",
+                           "BOYLE-MEDYA-YOK", "FPD_004", &[]);
+}
+
+#[test]
+#[ignore = "gerçek korpus feed'i gerektirir"]
+fn sample_rct_003_fires_on_an_invalid_default_flag() {
+    mutate_field_case(RCT_FEED, "rider_categories.txt", "is_default_fare_category", 1, "9",
+                      "RCT_003", &[], &[]);
+}
+
+#[test]
+#[ignore = "gerçek korpus feed'i gerektirir"]
+fn sample_tfr_006_fires_when_a_timeframe_exceeds_24_hours() {
+    // `timeframes.txt` korpusta TEK feed'de var; küçük ama gerçek üretici verisi.
+    // AÇIKLANAN yan etki: `TFR_004` (end_time < start_time). Başlangıcı 25:00:00 yapmak
+    // pencereyi ters çevirir; doğrudan sonuç.
+    mutate_field_case(TFR_TIME_FEED, "timeframes.txt", "start_time", 1, "25:00:00",
+                      "TFR_006", &["TFR_004"], &[]);
+}
+
+const GEOJSON_FEED: &str = "ch-odv-flex"; // locations.geojson + dolu stop_times.location_id
+
+#[test]
+#[ignore = "gerçek korpus feed'i gerektirir"]
+fn sample_xfl_025_fires_on_an_unknown_location_id() {
+    // `stop_times.location_id` `locations.geojson`'daki bir feature id'sine işaret etmeli.
+    mutate_first_populated(GEOJSON_FEED, "stop_times.txt", "location_id",
+                           "BOYLE-BOLGE-YOK", "XFL_025", &[]);
+}
+
+#[test]
+#[ignore = "gerçek korpus feed'i gerektirir"]
+fn sample_xfl_031_fires_when_a_geojson_id_collides_with_a_stop_id() {
+    // Kimlik uzayı ÇAKIŞMASI: `locations.geojson`'daki bir feature id'si `stops.txt`'teki
+    // bir `stop_id` ile aynı olamaz — `stop_times.stop_id` ve `stop_times.location_id`
+    // aynı ada iki farklı anlam yükler. Mutasyon GERÇEK bir stop_id'yi geojson'a taşır.
+    let zip = corpus_zip(GEOJSON_FEED);
+    let before = rule_ids(&zip);
+    assert!(!before.contains("XFL_031"), "{GEOJSON_FEED} zaten XFL_031 üretiyor");
+
+    let stops = member_text(&zip, "stops.txt");
+    let sh = header_of(&stops);
+    let si = sh.iter().position(|h| h == "stop_id").expect("stop_id yok");
+    let victim = split_csv_line(first_data_line(&stops))[si].clone();
+
+    let mutated = rewrite_member(&zip, "locations.geojson", move |t| {
+        // İlk feature'ın "id" alanını gerçek bir stop_id ile değiştir. JSON'u yeniden
+        // biçimlendirmemek için hedefli metin değişimi yapılır; ilk `"id":` yeterli.
+        let key = "\"id\"";
+        let i = t.find(key).expect("geojson'da \"id\" alanı yok");
+        let q1 = t[i + key.len()..].find('"').expect("id değeri yok") + i + key.len() + 1;
+        let q2 = t[q1..].find('"').expect("id değeri kapanmıyor") + q1;
+        format!("{}{}{}", &t[..q1], victim, &t[q2..])
+    });
+
+    let (added, removed) = delta(&before, &rule_ids(&mutated));
+    assert_delta_both(&added, &removed, "XFL_031", &["XFL_025"], &[]);
 }

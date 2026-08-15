@@ -16,7 +16,7 @@ ARC_026	MEASURED 2026-08-15 by a full 242-feed run with the current binary: genu
 ARC_027		Bilgi	Quality	SELECTION_BIAS	shapes.txt	199	grup			1	ZIP girdisinde kullanıcı okuma izni yok
 ARC_028		Dusuk	Quality	PREDICATE_SUSPECT	shapes.txt	199	grup			1	GTFS yayın URL'si .zip dosya adıyla bitmiyor
 ARC_029	MEASURED 2026-08-15: correct. Adding a 24 MiB single-byte member to a real archive exceeds ratio_floor (16 MiB) at roughly 1000:1, well under both absolute caps, so it provably trips the RATIO path rather than a size ceiling. Fatal(DecompressionLimit).	Kritik	Quality	FATAL_PATH	shapes.txt	199	grup			0	Sıkıştırma koruması: arşiv zip-bomb sınırını aştı
-ARS_001		Kritik	Spec	CROSS_FILE						1	area_id yineleniyor
+ARS_001	SAMPLED 2026-08-16 (stratified random, seed 20260816): correct. Duplicated areas.txt row on mdb-892 fires it. The first attempt mutated stop_areas.txt and got DQ_021 instead - the rule reads areas.txt, so the mutation was wrong, not the rule.	Kritik	Spec	CROSS_FILE						1	area_id yineleniyor
 ARS_002		Kritik	Spec	CROSS_FILE						1	areas.txt'te area_id boş
 ATR_002		Kritik	Spec	SELECTION_BIAS	attributions.txt	14	modül			1	organization_name eksik
 ATR_003		Yuksek	Spec	PREDICATE_SUSPECT	attributions.txt	14	modül			1	Attribution rolü tanımlanmamış
@@ -80,7 +80,7 @@ FLG_001		Kritik	Spec	THIN_FEATURE	fare_leg_rules.txt	4	grup	FPD_001	no	1	fare_pr
 FLG_002		Kritik	Spec	THIN_FEATURE	fare_leg_rules.txt	4	grup	NET_001	no	1	network_id bulunamadı
 FLG_003		Kritik	Spec	THIN_FEATURE	fare_leg_rules.txt	4	grup	ARS_001	no	1	from_area_id bulunamadı
 FLG_004		Kritik	Spec	THIN_FEATURE	fare_leg_rules.txt	4	grup	ARS_001	no	1	to_area_id bulunamadı
-FLG_005		Kritik	Spec	THIN_FEATURE	fare_leg_rules.txt	4	grup			1	from_timeframe_group_id bulunamadı
+FLG_005	SAMPLED 2026-08-16 (stratified random, seed 20260816): correct. Unknown from_timeframe_group_id on mdb-2143 fires it; mdb-892 has the column but leaves it empty.	Kritik	Spec	THIN_FEATURE	fare_leg_rules.txt	4	grup			1	from_timeframe_group_id bulunamadı
 FLG_006		Kritik	Spec	THIN_FEATURE	fare_leg_rules.txt	4	grup			1	to_timeframe_group_id bulunamadı
 FLG_007		Orta	Spec	THIN_FEATURE	fare_leg_rules.txt	4	modül			1	rule_priority geçersiz
 FLJ_001		Kritik	Spec	CROSS_FILE						1	from_network_id eksik veya bulunamadı
@@ -94,7 +94,7 @@ FMD_004		Kritik	Spec	THIN_FEATURE	fare_media.txt	3	grup			1	fare_media_id boş
 FPD_001		Kritik	Spec	THIN_FEATURE	fare_products.txt	4	grup			1	fare_products bileşik anahtarı yineleniyor
 FPD_002		Kritik	Spec	THIN_FEATURE	fare_products.txt	4	modül			2	amount eksik veya negatif
 FPD_003		Kritik	Spec	THIN_FEATURE	fare_products.txt	4	modül			1	currency geçersiz ISO 4217 kodu
-FPD_004		Kritik	Spec	THIN_FEATURE	fare_products.txt	4	grup	FMD_001	no	1	fare_media_id bulunamadı
+FPD_004	SAMPLED 2026-08-16 (stratified random, seed 20260816): correct. Unknown fare_media_id in fare_products on mdb-892 fires it.	Kritik	Spec	THIN_FEATURE	fare_products.txt	4	grup	FMD_001	no	1	fare_media_id bulunamadı
 FPD_005		Kritik	Spec	THIN_FEATURE	fare_products.txt	4	grup	RCT_001	no	1	rider_category_id bulunamadı
 FPD_007		Dusuk	Spec	THIN_FEATURE	fare_products.txt	4	modül			1	amount para biriminin ISO 4217 ondalık basamak sayısını taşımıyor
 FRL_007		Orta	Quality	CROSS_FILE						1	Ücret kuralı mantıksal tutarsızlık
@@ -141,7 +141,7 @@ LVL_007		Kritik	Spec	SELECTION_BIAS	levels.txt	9	modül			1	level_index eksik
 LVL_008		Kritik	Spec	SELECTION_BIAS	levels.txt	9	modül			1	level_id eksik
 NET_001		Kritik	Spec	CROSS_FILE						1	network_id yineleniyor
 NET_002		Kritik	Spec	CROSS_FILE						2	route_networks.network_id eksik veya bulunamadı
-NET_003		Kritik	Spec	CROSS_FILE						2	route_networks.route_id eksik veya bulunamadı
+NET_003	SAMPLED 2026-08-16 (stratified random, seed 20260816): correct. Unknown route_id in route_networks on mdb-892 fires it.	Kritik	Spec	CROSS_FILE						2	route_networks.route_id eksik veya bulunamadı
 NET_004		Kritik	Spec	CROSS_FILE						1	networks.txt'te network_id boş
 OPR_014		Orta	Analytics	CROSS_FILE				STM_002	no	1	Ortalama aktarma süresi uzun
 OPR_016		Bilgi	Analytics	CROSS_FILE				CAL_002,TRP_003	yes	1	Feed genelinde aktif servis yok
@@ -166,7 +166,7 @@ PTH_019		Orta	Quality	PREDICATE_SUSPECT	pathways.txt	10	grup			1	Generic node te
 PTH_020		Kritik	Spec	SELECTION_BIAS	pathways.txt	10	modül			1	pathway_id eksik
 PTH_021		Kritik	Spec	SELECTION_BIAS	pathways.txt	10	modül			1	from_stop_id eksik
 PTH_022		Kritik	Spec	SELECTION_BIAS	pathways.txt	10	modül			1	to_stop_id eksik
-PTH_023		Kritik	Spec	SELECTION_BIAS	pathways.txt	10	modül			1	pathway_mode eksik
+PTH_023	SAMPLED 2026-08-16 (stratified random, seed 20260816): correct. Empty pathway_mode on mdb-3357 fires it.	Kritik	Spec	SELECTION_BIAS	pathways.txt	10	modül			1	pathway_mode eksik
 PTH_024		Kritik	Spec	SELECTION_BIAS	pathways.txt	10	modül			1	is_bidirectional eksik
 PTH_026	MEASURED 2026-08-15 (#130): correct. Repointing a pathway endpoint at an existing station (location_type=1) on mdb-3357 fires it; a fabricated id was avoided because that would test the FK rule, not the endpoint-type rule. Falsified by disabling the location_type check.	Kritik	Spec	PREDICATE_SUSPECT	pathways.txt	10	grup			1	Pathway uç noktası istasyon
 PTH_027		Orta	Spec	PREDICATE_SUSPECT	pathways.txt	10	modül			2	stair_count geçersiz (sıfır veya tam sayı değil)
@@ -175,7 +175,7 @@ PTH_030		Dusuk	Spec	PREDICATE_SUSPECT	pathways.txt	10	grup			1	Boarding area'sı
 PTH_031	MEASURED 2026-08-15 (#131): correct. NO corpus feed carries a stops.stop_access column at all, so this rule and STP_043 can only ever be exercised by a mutation that creates the column. On mdb-2933 the column is added with value 1 on a platform that a pathway ends at, and PTH_031 fires. Two measurements shaped the test: the first attempt targeted a station, where stop_access is Conditionally Forbidden, so STP_043 fired instead and the neighbouring rule caught the wrong mutation; and of six pathway feeds only mdb-2933 and mdb-990 have any pathway endpoint that is a platform at all.	Kritik	Spec	PREDICATE_SUSPECT	pathways.txt	10	grup			1	Pathway uç noktası sokaktan erişilen durak (stop_access=1)
 RCT_001		Kritik	Spec	THIN_FEATURE	rider_categories.txt	4	grup			1	rider_category_id yineleniyor
 RCT_002		Kritik	Spec	THIN_FEATURE	rider_categories.txt	4	modül			1	rider_category_name eksik
-RCT_003		Kritik	Spec	THIN_FEATURE	rider_categories.txt	4	modül			2	is_default_fare_category geçersiz
+RCT_003	SAMPLED 2026-08-16 (stratified random, seed 20260816): correct. is_default_fare_category=9 on mdb-1246 fires it.	Kritik	Spec	THIN_FEATURE	rider_categories.txt	4	modül			2	is_default_fare_category geçersiz
 RCT_004		Orta	Quality	THIN_FEATURE	rider_categories.txt	4	modül			2	min_age veya max_age geçersiz (GTFS uzantı alanı — resmî spec'te yok)
 RCT_005		Orta	Quality	THIN_FEATURE	rider_categories.txt	4	modül			1	max_age min_age'den küçük
 RCT_007		Dusuk	Spec	THIN_FEATURE	rider_categories.txt	4	modül			1	eligibility_url geçersiz
@@ -200,7 +200,7 @@ STM_002		Kritik	Spec	SELECTION_BIAS	stop_times.txt	239	grup	ARC_004,STP_001	yes	
 STM_003	MEASURED 2026-08-15 (#129): correct. Malformed arrival_time on mdb-1903 fires it. Silence is selection bias, not a blind spot - the success branch is already proven by STM_012/036/035 firing on the corpus, so only the failure branch was in doubt.	Kritik	Spec	PREDICATE_SUSPECT	stop_times.txt	239	modül			1	arrival_time geçersiz format
 STM_004	MEASURED 2026-08-15 (#129): correct. Malformed departure_time on mdb-1903 fires it. STM_015 does not follow, and that asymmetry is intended - the spec requires arrival_time at the first and last stop, with no matching clause for departure_time.	Kritik	Spec	PREDICATE_SUSPECT	stop_times.txt	239	modül	STM_003	no	1	departure_time geçersiz format
 STM_005		Kritik	Spec	SELECTION_BIAS	stop_times.txt	239	modül	ARC_013	no	2	stop_sequence eksik veya geçersiz
-STM_006		Kritik	Spec	SELECTION_BIAS	stop_times.txt	239	modül	ARC_013	no	1	stop_id eksik (stop_times)
+STM_006	SAMPLED 2026-08-16 (stratified random, seed 20260816): correct. Empty stop_id in stop_times on mdb-1903 fires it.	Kritik	Spec	SELECTION_BIAS	stop_times.txt	239	modül	ARC_013	no	1	stop_id eksik (stop_times)
 STM_007		Yuksek	Interop	PREDICATE_SUSPECT	stop_times.txt	239	grup	STM_002,STM_006	no	1	Kalkış saati varış saatinden önce (departure_time < arrival_time)
 STM_009		Yuksek	Spec	PREDICATE_SUSPECT	stop_times.txt	239	modül			1	pickup_type geçersiz
 STM_010		Yuksek	Spec	PREDICATE_SUSPECT	stop_times.txt	239	modül			1	drop_off_type geçersiz
@@ -254,7 +254,7 @@ TFR_002		Kritik	Spec	THIN_FEATURE	timeframes.txt	1	grup			1	service_id bulunamad
 TFR_003		Yuksek	Spec	THIN_FEATURE	timeframes.txt	1	modül			2	start_time veya end_time format hatası
 TFR_004		Orta	Quality	THIN_FEATURE	timeframes.txt	1	modül			1	end_time start_time'dan küçük
 TFR_005	MEASURED 2026-08-15 by a full 242-feed run with the current binary: genuinely zero. Previously this was unmeasured rather than measured, because rule_stats.csv predates the rule; the silence is now a real observation.	Orta	Spec	POST_BASELINE	timeframes.txt	1	modül			1	Aynı grup ve service_id içinde örtüşen zaman aralıkları
-TFR_006		Kritik	Spec	THIN_FEATURE	timeframes.txt	1	modül			1	start_time veya end_time 24:00:00'dan büyük
+TFR_006	SAMPLED 2026-08-16 (stratified random, seed 20260816): correct. start_time=25:00:00 on mdb-2143 fires it; TFR_004 follows because the window is now inverted.	Kritik	Spec	THIN_FEATURE	timeframes.txt	1	modül			1	start_time veya end_time 24:00:00'dan büyük
 TFR_007		Kritik	Spec	THIN_FEATURE	timeframes.txt	1	modül			1	start_time ve end_time yalnızca biri tanımlı
 TFR_008		Kritik	Spec	THIN_FEATURE	timeframes.txt	1	grup			1	timeframes'te service_id boş
 TRF_001		Kritik	Spec	SELECTION_BIAS	transfers.txt	63	modül			1	from_stop_id eksik
@@ -262,8 +262,8 @@ TRF_002		Kritik	Spec	SELECTION_BIAS	transfers.txt	63	modül			1	to_stop_id eksik
 TRF_003		Kritik	Spec	SELECTION_BIAS	transfers.txt	63	grup			1	from_stop_id veya to_stop_id bulunamadı
 TRF_004		Yuksek	Spec	PREDICATE_SUSPECT	transfers.txt	63	modül	TRF_003	no	2	transfer_type geçersiz
 TRF_005		Kritik	Spec	SELECTION_BIAS	transfers.txt	63	modül			2	min_transfer_time eksik
-TRF_006		Kritik	Spec	SELECTION_BIAS	transfers.txt	63	grup			1	from_trip_id bulunamadı
-TRF_007		Kritik	Spec	SELECTION_BIAS	transfers.txt	63	grup			1	to_trip_id bulunamadı
+TRF_006	SAMPLED 2026-08-16 (stratified random, seed 20260816): correct. Unknown from_trip_id on mdb-2919 fires it. mdb-2848 was unusable: the column exists but is empty on all 141458 rows.	Kritik	Spec	SELECTION_BIAS	transfers.txt	63	grup			1	from_trip_id bulunamadı
+TRF_007	SAMPLED 2026-08-16 (stratified random, seed 20260816): correct. Unknown to_trip_id on mdb-2919 fires it.	Kritik	Spec	SELECTION_BIAS	transfers.txt	63	grup			1	to_trip_id bulunamadı
 TRF_008		Kritik	Spec	SELECTION_BIAS	transfers.txt	63	grup			1	from_route_id bulunamadı
 TRF_009		Kritik	Spec	SELECTION_BIAS	transfers.txt	63	grup			1	to_route_id bulunamadı
 TRF_013		Kritik	Quality	PREDICATE_SUSPECT	transfers.txt	63	grup	TRF_003,TRF_006,TRF_007	no	1	Aktarma türü bağlamla uyumsuz
@@ -299,11 +299,11 @@ XFL_021		Yuksek	Interop	CROSS_FILE						2	Transfers'de geçersiz (from_trip_id/t
 XFL_022		Kritik	Spec	CROSS_FILE						1	location_group_id bulunamadı (location_group_stops)
 XFL_023		Kritik	Spec	CROSS_FILE						1	stop_id bulunamadı (location_group_stops)
 XFL_024		Kritik	Spec	CROSS_FILE						1	location_group_id bulunamadı (stop_times)
-XFL_025		Kritik	Spec	CROSS_FILE						1	location_id bulunamadı (locations.geojson)
+XFL_025	SAMPLED 2026-08-16 (stratified random, seed 20260816): correct. Unknown stop_times.location_id on ch-odv-flex fires it.	Kritik	Spec	CROSS_FILE						1	location_id bulunamadı (locations.geojson)
 XFL_026		Orta	Quality	CROSS_FILE						1	route cemv_support=1 ama uygulanabilir contactless fare product yok
 XFL_027		Orta	Quality	CROSS_FILE						1	route cemv_support=2 ama uygulanabilir contactless fare product var
 XFL_029		Bilgi	Quality	CROSS_FILE						1	route cemv_support=1 ama Fares v2'de contactless media yok
-XFL_031		Kritik	Spec	CROSS_FILE						1	Kimlik çakışması: stop_id / locations.geojson id / location_group_id ortak isim alanını paylaşır
+XFL_031	SAMPLED 2026-08-16 (stratified random, seed 20260816): correct. Moving a real stop_id into a locations.geojson feature id on ch-odv-flex fires it; XFL_025 follows because the original location id no longer resolves.	Kritik	Spec	CROSS_FILE						1	Kimlik çakışması: stop_id / locations.geojson id / location_group_id ortak isim alanını paylaşır
 XFL_032		Kritik	Spec	CROSS_FILE						1	location_groups.txt'te location_group_id boş
 XFL_033		Kritik	Spec	CROSS_FILE						1	location_group_stops'ta location_group_id boş
 XFL_034		Kritik	Spec	CROSS_FILE						1	location_group_stops'ta stop_id boş
