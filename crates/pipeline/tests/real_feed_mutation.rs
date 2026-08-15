@@ -1291,3 +1291,79 @@ fn trn_006_fires_on_a_conflicting_translation() {
     let (added, removed) = delta(&before, &rule_ids(&mutated));
     assert_delta_both(&added, &removed, "TRN_006", &[], &[]);
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Whitespace kaskadı FK'nın İKİ YAKASINA da bakmalı (issue #134)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// `trips.txt`'teki her `trip_id`'nin başına boşluk koyar — `stop_times.txt`'e DOKUNMAZ.
+/// Korpustaki `mdb-992`'nin gerçek biçimi budur: bir dosyada boşluklu, ötekinde temiz.
+fn pad_trip_ids(text: &str) -> String {
+    let mut lines: Vec<String> = text
+        .lines()
+        .map(|l| l.trim_end_matches('\r').to_string())
+        .collect();
+    let header = split_csv_line(&lines[0]);
+    let i = header.iter().position(|h| h == "trip_id").expect("trip_id yok");
+    for line in lines.iter_mut().skip(1) {
+        let mut cols = split_csv_line(line);
+        if cols.len() == header.len() && !cols[i].is_empty() {
+            cols[i] = format!(" {}", cols[i]);
+            *line = join_csv_fields(&cols);
+        }
+    }
+    lines.join("\n") + "\n"
+}
+
+#[test]
+#[ignore = "gerçek korpus feed'i gerektirir"]
+fn whitespace_on_the_reference_side_is_attributed_to_the_dq_016_root() {
+    // Kaskad yalnız TEK YÖNÜ kapsıyordu: gözlenen değerde boşluk varsa. Bu AYNA vaka —
+    // gözlenen (`stop_times.trip_id`) tertemiz, boşluk REFERANS tarafında (`trips.trip_id`).
+    // Korpusta `mdb-992` tam olarak böyle: ham kesişim 0, trim'li kesişim 6523, ve tek bir
+    // üretici alışkanlığı 103.649 bulguya dönüşüyordu.
+    let zip = corpus_zip(FATAL_FEED);
+    let before = rule_ids(&zip);
+    assert!(!before.contains("STM_001"), "taban feed zaten STM_001 üretiyor");
+
+    let mutated = rewrite_member(&zip, "trips.txt", |t| pad_trip_ids(&t));
+
+    let declared = suppressed_rules_for(&mutated, "trips.txt");
+    let after = rule_ids(&mutated);
+
+    // `XFL_002`'nin dosyası `trips.txt` — boşluğun ve dolayısıyla `DQ_016` kökünün olduğu
+    // yer. Bastırılır VE beyan edilir.
+    assert!(
+        !after.contains("XFL_002"),
+        "referans tarafındaki boşluktan doğan XFL_002 hâlâ ham bulgu olarak raporlanıyor"
+    );
+    assert!(
+        declared.iter().any(|r| r == "XFL_002"),
+        "DQ_016 kökü XFL_002'yi bastırdığını BEYAN ETMİYOR: {declared:?}"
+    );
+
+    // ⚠️ `STM_001`'in dosyası `stop_times.txt` ve ORADA boşluk YOK → kök de yok.
+    // Beyan yazacak yer olmadığı için bastırma UYGULANMAZ; bulgu görünür kalır.
+    // Bu bir eksiklik değil, bilinçli değişmez: izsiz kaybolan bulgu istemiyoruz.
+    assert!(
+        after.contains("STM_001"),
+        "kökü olmayan dosyada bastırma yapıldı → bulgu izsiz kayboldu"
+    );
+}
+
+#[test]
+#[ignore = "gerçek korpus feed'i gerektirir"]
+fn a_genuinely_unknown_id_is_not_swallowed_by_the_cascade() {
+    // AŞIRI-BASTIRMA KORUMASI. Kaskadın gevşetilmesi gerçek FK hatalarını yutarsa
+    // düzeltme hastalıktan beter olur. Var olmayan bir trip_id'nin trim'li karşılığı da
+    // yoktur → görünür KALMALI.
+    let zip = corpus_zip(FATAL_FEED);
+    let mutated = rewrite_member(&zip, "stop_times.txt", |t| {
+        set_field(&t, "trip_id", 1, "BOYLE-BIR-SEFER-YOK")
+    });
+    let (added, _) = delta(&rule_ids(&zip), &rule_ids(&mutated));
+    assert!(
+        added.iter().any(|r| r == "STM_001"),
+        "gerçekten bilinmeyen sefer kodu BASTIRILDI — kaskad fazla geniş. Eklenen: {added:?}"
+    );
+}

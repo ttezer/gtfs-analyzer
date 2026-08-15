@@ -67,9 +67,27 @@ fn suppress_whitespace_derivatives(
     records: &EntityRecords,
 ) -> Vec<Notice> {
     let references = WhitespaceReferences::from_records(records);
+
+    // 🔴 DEĞİŞMEZ (#134): bastırılan her bulgu BİR YERDE BEYAN EDİLMELİ. Beyan, bulgunun
+    // KENDİ dosyasının `DQ_016` köküne yazılır; o dosyada kök yoksa beyan yazacak yer
+    // olmaz ve bulgu İZSİZ kaybolur — bastırmaktan beterdir.
+    //
+    // Ayna yön bunu görünür kıldı: `trips.txt`'e boşluk konup `stop_times.txt` temiz
+    // bırakıldığında `STM_001` (dosyası stop_times) bastırılıyor ama stop_times'ın kökü
+    // olmadığı için sayı hiçbir yere yazılmıyordu. Testte yakalandı.
+    let files_with_root: BTreeSet<String> = notices
+        .iter()
+        .filter(|n| n.rule_id == "DQ_016")
+        .filter_map(|n| n.file.clone())
+        .collect();
+
     let mut suppressed: BTreeMap<String, (u64, BTreeSet<String>)> = BTreeMap::new();
     notices.retain(|notice| {
         if !is_whitespace_derivative(notice, &references) {
+            return true;
+        }
+        // Kökü olmayan dosyada bastırma YOK.
+        if !notice.file.as_deref().is_some_and(|f| files_with_root.contains(f)) {
             return true;
         }
         let file = notice.file.clone().unwrap_or_else(|| "<feed>".to_string());
@@ -118,7 +136,34 @@ fn is_whitespace_derivative(notice: &Notice, references: &WhitespaceReferences<'
     let candidate = notice.details.as_ref()
         .and_then(|d| d.get("whitespace_candidate"))
         .is_some_and(|v| v == "true");
-    candidate && normalized_reference_exists(notice, references)
+    if candidate && normalized_reference_exists(notice, references) {
+        return true;
+    }
+
+    // AYNA YÖN (#134): gözlenen değer TEMİZ ama referans tarafı boşluk taşıyor.
+    // `whitespace_candidate` bu vakada set EDİLMEZ (K4 yalnız gözlenen değere bakar), bu
+    // yüzden üstteki dal `mdb-992`'yi hiç görmüyordu.
+    //
+    // İki koruma birlikte dar tutuyor:
+    //   1. `set_for` yalnız KİMLİK alanlarını tanır → aralık/enum bulguları giremez.
+    //   2. Ham değer kümede BULUNMAMALI. Bulunuyorsa bu bir "hedef yok" semptomu değildir
+    //      (ör. yinelenen anahtar bulgusu) ve bastırılmamalıdır.
+    // Gerçekten bilinmeyen bir id'nin trim'li karşılığı da yoktur → görünür kalır.
+    mirror_whitespace_symptom(notice, references)
+}
+
+/// Ham id bulunamıyor ama boşluk yok sayılınca bulunuyor → whitespace kaynaklı FK semptomu.
+fn mirror_whitespace_symptom(notice: &Notice, references: &WhitespaceReferences<'_>) -> bool {
+    let Some(field) = notice.field.as_deref() else { return false };
+    let Some(observed) = notice.observed_value.as_deref() else { return false };
+    field.split('|')
+        .zip(observed.split('|'))
+        .any(|(field, value)| {
+            let value = value.trim();
+            !value.is_empty()
+                && !references.contains(field, value)
+                && references.contains_trimmed(field, value)
+        })
 }
 
 fn normalized_reference_exists(notice: &Notice, references: &WhitespaceReferences<'_>) -> bool {
@@ -132,7 +177,7 @@ fn normalized_reference_exists(notice: &Notice, references: &WhitespaceReference
         })
 }
 
-struct WhitespaceReferences<'a> {
+struct IdSets<'a> {
     agency_id: FxHashSet<&'a str>,
     stop_id: FxHashSet<&'a str>,
     route_id: FxHashSet<&'a str>,
@@ -148,7 +193,7 @@ struct WhitespaceReferences<'a> {
     zone_id: FxHashSet<&'a str>,
 }
 
-impl<'a> WhitespaceReferences<'a> {
+impl<'a> IdSets<'a> {
     fn from_records(records: &'a EntityRecords) -> Self {
         let mut refs = Self {
             agency_id: FxHashSet::default(),
@@ -185,23 +230,79 @@ impl<'a> WhitespaceReferences<'a> {
         refs
     }
 
-    fn contains(&self, field: &str, value: &str) -> bool {
-        match field {
-            "agency_id" => self.agency_id.contains(value),
-            "stop_id" => self.stop_id.contains(value),
-            "route_id" => self.route_id.contains(value),
-            "trip_id" => self.trip_id.contains(value),
-            "service_id" => self.service_id.contains(value),
-            "fare_id" => self.fare_id.contains(value),
-            "area_id" => self.area_id.contains(value),
-            "fare_product_id" => self.fare_product_id.contains(value),
-            "fare_media_id" => self.fare_media_id.contains(value),
-            "rider_category_id" => self.rider_category_id.contains(value),
-            "network_id" => self.network_id.contains(value),
-            "shape_id" => self.shape_id.contains(value),
-            "zone_id" | "origin_id" | "destination_id" | "contains_id" => self.zone_id.contains(value),
-            _ => false,
+    /// Alan adı → o alanın kimlik kümesi. Bilinmeyen alan `None` döner; aralık/enum
+    /// bulguları bu yüzden whitespace atfına hiç giremez.
+    fn get(&self, field: &str) -> Option<&FxHashSet<&'a str>> {
+        Some(match field {
+            "agency_id" => &self.agency_id,
+            "stop_id" => &self.stop_id,
+            "route_id" => &self.route_id,
+            "trip_id" => &self.trip_id,
+            "service_id" => &self.service_id,
+            "fare_id" => &self.fare_id,
+            "area_id" => &self.area_id,
+            "fare_product_id" => &self.fare_product_id,
+            "fare_media_id" => &self.fare_media_id,
+            "rider_category_id" => &self.rider_category_id,
+            "network_id" => &self.network_id,
+            "shape_id" => &self.shape_id,
+            "zone_id" | "origin_id" | "destination_id" | "contains_id" => &self.zone_id,
+            _ => return None,
+        })
+    }
+
+    /// Aynı kümelerin trim'lenmiş kopyası. `str::trim` alt-dilim döndürdüğü için
+    /// ömür aynıdır ve kopya TAHSİSSİZDİR.
+    fn trimmed(&self) -> Self {
+        Self {
+            agency_id: self.agency_id.iter().map(|v| v.trim()).collect(),
+            stop_id: self.stop_id.iter().map(|v| v.trim()).collect(),
+            route_id: self.route_id.iter().map(|v| v.trim()).collect(),
+            trip_id: self.trip_id.iter().map(|v| v.trim()).collect(),
+            service_id: self.service_id.iter().map(|v| v.trim()).collect(),
+            fare_id: self.fare_id.iter().map(|v| v.trim()).collect(),
+            area_id: self.area_id.iter().map(|v| v.trim()).collect(),
+            fare_product_id: self.fare_product_id.iter().map(|v| v.trim()).collect(),
+            fare_media_id: self.fare_media_id.iter().map(|v| v.trim()).collect(),
+            rider_category_id: self.rider_category_id.iter().map(|v| v.trim()).collect(),
+            network_id: self.network_id.iter().map(|v| v.trim()).collect(),
+            shape_id: self.shape_id.iter().map(|v| v.trim()).collect(),
+            zone_id: self.zone_id.iter().map(|v| v.trim()).collect(),
         }
+    }
+}
+
+/// Ham ve trim'lenmiş kimlik kümeleri.
+///
+/// 🔴 **İKİSİ DE ÖNCEDEN İNDEKSLENİR.** İlk uygulamam trim'li aramayı
+/// `set.iter().any(|k| k.trim() == value)` ile yapıyordu — her bulgu için kümenin
+/// TAMAMINI tarıyordu. `is_whitespace_derivative` HER notice'ta çalıştığı için bu
+/// kareselleşti: `mdb-2904` (85 MB, tek başına 3.763.204 `STM_056` bulgusu) 30 dakikada
+/// bitmedi, oysa yamadan önce tamamlanıyordu. Korpus koşumu yakaladı.
+struct WhitespaceReferences<'a> {
+    raw: IdSets<'a>,
+    trimmed: IdSets<'a>,
+}
+
+impl<'a> WhitespaceReferences<'a> {
+    fn from_records(records: &'a EntityRecords) -> Self {
+        let raw = IdSets::from_records(records);
+        let trimmed = raw.trimmed();
+        Self { raw, trimmed }
+    }
+
+    fn contains(&self, field: &str, value: &str) -> bool {
+        self.raw.get(field).is_some_and(|set| set.contains(value))
+    }
+
+    /// Kimlik kümesinde BOŞLUK YOK SAYILARAK var mı (issue #134).
+    ///
+    /// Kaskad yalnız TEK YÖNÜ kapsıyordu — gözlenen değerde boşluk varsa. `mdb-992`
+    /// AYNA VAKA: `stop_times.trip_id` tertemiz (`10242975`), boşluk REFERANS tarafında
+    /// (`trips.trip_id` = `' 10242975'`, 6523 satırın 6523'ü). Ham kesişim 0, trim'li
+    /// kesişim 6523 — tek bir üretici alışkanlığı 103.649 bulguya dönüşüyordu.
+    fn contains_trimmed(&self, field: &str, value: &str) -> bool {
+        self.trimmed.get(field).is_some_and(|set| set.contains(value))
     }
 }
 
