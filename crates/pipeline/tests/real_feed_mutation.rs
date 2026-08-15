@@ -799,3 +799,212 @@ fn stm_058_fires_on_a_malformed_flex_pickup_window() {
     // yasaklasaydık bu mutasyon hiç yazılamazdı.
     assert_delta_both(&added, &removed, "STM_058", &[], &["PDW_006"]);
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Kritik∧Spec şüpheli kovasının SONU — 9 kural, tek K2 parse-and-reject şekli (#131)
+// ─────────────────────────────────────────────────────────────────────────────
+
+// 🔑 Kardeş kontrolü beş dosyanın da okunduğunu gösterdi: `ATR_001`(8 feed)/`ATR_009`(89
+// bulgu) · `CAL_024`(673.569 bulgu)/`CAL_013`(3296) · `FAR_009`(1091)/`FAR_013`(38) ·
+// `FRQ_010`(4033)/`FRQ_007`(1583) · `LVL_006`(114)/`LVL_004`. Ölçülen yine HATA dalı.
+//
+// Üç feed önceki partilerden YENİDEN KULLANILIYOR (bayt uzunlukları ve temiz taban
+// çizgileri zaten doğrulanmıştı); ikisi yeni ve İÇERİKLE seçildi.
+
+/// Genel gövde: `feed`/`file`/`column`'un `row`. satırına `value` yaz, farkı denetle.
+#[allow(clippy::too_many_arguments)]
+fn mutate_field_case(
+    feed: &str,
+    file: &str,
+    column: &str,
+    row: usize,
+    value: &str,
+    target: &str,
+    explained_added: &[&str],
+    explained_removed: &[&str],
+) {
+    let zip = corpus_zip(feed);
+    let before = rule_ids(&zip);
+    assert!(
+        !before.contains(target),
+        "{feed} mutasyondan ÖNCE zaten {target} üretiyor — kontrol feed'i olamaz"
+    );
+    let (col, val) = (column.to_string(), value.to_string());
+    let mutated = rewrite_member(&zip, file, move |t| set_field(&t, &col, row, &val));
+    let (added, removed) = delta(&before, &rule_ids(&mutated));
+    assert_delta_both(&added, &removed, target, explained_added, explained_removed);
+}
+
+/// `column`'u dolu olan ilk satırı bulup oraya yazar (boş hücreye mutasyon hiçbir şey
+/// sınamaz — bu tuzak #130'da `start_pickup_drop_off_window`'da ölçüldü).
+fn mutate_first_populated(
+    feed: &str,
+    file: &str,
+    column: &str,
+    value: &str,
+    target: &str,
+    explained_added: &[&str],
+) {
+    let zip = corpus_zip(feed);
+    let before = rule_ids(&zip);
+    assert!(!before.contains(target), "{feed} zaten {target} üretiyor");
+    let row = first_row_with_value(&member_text(&zip, file), column);
+    let (col, val) = (column.to_string(), value.to_string());
+    let mutated = rewrite_member(&zip, file, move |t| set_field(&t, &col, row, &val));
+    let (added, removed) = delta(&before, &rule_ids(&mutated));
+    assert_delta_both(&added, &removed, target, explained_added, &[]);
+}
+
+// `mdb-2931`: 18 atıf satırı, üç `is_*` sütunu hepsinde dolu, `attribution_url` 8'inde.
+// ⚠️ Taban çizgisi ZATEN `ATR_009` (karşılıklı dışlama) üretiyor — 18 satırın hepsinde.
+// Mutasyondan önce var olduğu için farkta GÖRÜNEMEZ; kaskad kirliliği bu sayede yok.
+const ATR_FEED: &str = "mdb-2931";
+const FRQ_FEED: &str = "mdb-1914"; // 3909 frequencies satırı
+/// Peron uçlu pathway taşıyan en küçük feed (232 uç).
+///
+/// 🔴 **Korpusun HİÇBİR feed'inde `stops.stop_access` sütunu YOK** (6 pathway feed'i de
+/// tarandı). Alan sahada benimsenmemiş, dolayısıyla `PTH_031` ve `STP_043` gerçek veriyle
+/// ASLA sınanamaz; tek yol sütunu üreten bir mutasyondur.
+const PTH_PLATFORM_FEED: &str = "mdb-2933";
+
+#[test]
+#[ignore = "gerçek korpus feed'i gerektirir"]
+fn atr_004_fires_on_an_invalid_is_producer() {
+    mutate_field_case(ATR_FEED, "attributions.txt", "is_producer", 1, "9", "ATR_004", &[], &[]);
+}
+
+#[test]
+#[ignore = "gerçek korpus feed'i gerektirir"]
+fn atr_005_fires_on_an_invalid_is_operator() {
+    // AÇIKLANAN yan etki: `ATR_003` ("attribution rolü tanımlanmamış", Yüksek·Spec).
+    // `mdb-2931`'in ilk satırı `is_producer=0, is_operator=1, is_authority=0` — TEK tanımlı
+    // rol `is_operator`. Onu geçersiz yapmak geriye HİÇ geçerli rol bırakmaz, ATR_003 doğar.
+    // `ATR_004` (is_producer 0→9) testinde bu YAN ETKİ YOKTUR ve asimetri kural
+    // tutarsızlığı DEĞİL, verinin sonucudur: orada is_operator=1 rolü ayakta kalır.
+    mutate_field_case(ATR_FEED, "attributions.txt", "is_operator", 1, "9", "ATR_005", &["ATR_003"], &[]);
+}
+
+#[test]
+#[ignore = "gerçek korpus feed'i gerektirir"]
+fn atr_006_fires_on_an_invalid_is_authority() {
+    mutate_field_case(ATR_FEED, "attributions.txt", "is_authority", 1, "9", "ATR_006", &[], &[]);
+}
+
+#[test]
+#[ignore = "gerçek korpus feed'i gerektirir"]
+fn atr_007_fires_on_an_invalid_attribution_url() {
+    // `attribution_url` 18 satırın yalnız 8'inde dolu → dolu olan ilk satır seçilir.
+    mutate_first_populated(ATR_FEED, "attributions.txt", "attribution_url", "not a url", "ATR_007", &[]);
+}
+
+#[test]
+#[ignore = "gerçek korpus feed'i gerektirir"]
+fn cal_002_fires_on_an_invalid_weekday_value() {
+    mutate_field_case("mdb-3141", "calendar.txt", "monday", 1, "9", "CAL_002", &[], &[]);
+}
+
+#[test]
+#[ignore = "gerçek korpus feed'i gerektirir"]
+fn far_004_fires_on_an_invalid_payment_method() {
+    mutate_field_case("mdb-1996", "fare_attributes.txt", "payment_method", 1, "9", "FAR_004", &[], &[]);
+}
+
+#[test]
+#[ignore = "gerçek korpus feed'i gerektirir"]
+fn frq_002_fires_on_a_malformed_start_time() {
+    mutate_field_case(FRQ_FEED, "frequencies.txt", "start_time", 1, "abc", "FRQ_002", &[], &[]);
+}
+
+#[test]
+#[ignore = "gerçek korpus feed'i gerektirir"]
+fn frq_003_fires_on_a_malformed_end_time() {
+    mutate_field_case(FRQ_FEED, "frequencies.txt", "end_time", 1, "abc", "FRQ_003", &[], &[]);
+}
+
+#[test]
+#[ignore = "gerçek korpus feed'i gerektirir"]
+fn lvl_002_fires_on_a_non_numeric_level_index() {
+    mutate_field_case("mdb-3357", "levels.txt", "level_index", 1, "abc", "LVL_002", &[], &[]);
+}
+
+/// Dosyaya YENİ bir sütun ekler; yalnız `row_ordinal`. satırda dolu, diğerlerinde boş.
+///
+/// `PTH_031` isteğe bağlı `stops.stop_access` alanına bakar ve korpustaki pathway
+/// feed'lerinde o sütun YOK. Mevcut bir değeri değiştirmek mümkün olmadığı için mutasyon
+/// sütunu üretir. Satır uzunlukları başlıkla TUTARLI tutulur — kısa satır bırakmak
+/// bambaşka bir kuralı (CSV alan sayısı) tetikler ve testi yanlış şeyi ölçer hâle getirir.
+fn add_column(text: &str, name: &str, row_ordinal: usize, value: &str) -> String {
+    let mut out: Vec<String> = Vec::new();
+    for (i, line) in text.lines().enumerate() {
+        let line = line.trim_end_matches('\r');
+        if line.is_empty() {
+            continue;
+        }
+        let mut cols = split_csv_line(line);
+        cols.push(if i == 0 {
+            name.to_string()
+        } else if i == row_ordinal {
+            value.to_string()
+        } else {
+            String::new()
+        });
+        out.push(join_csv_fields(&cols));
+    }
+    out.join("\n") + "\n"
+}
+
+#[test]
+#[ignore = "gerçek korpus feed'i gerektirir"]
+fn pth_031_fires_when_a_pathway_endpoint_is_street_accessed() {
+    // Kovadaki son kural. `stop_access=1` (sokaktan erişilen durak) bir pathway ucu
+    // olamaz. Korpusun 10 pathway feed'inin hiçbirinde `stop_access` sütunu YOK, bu yüzden
+    // mutasyon sütunu ÜRETİR ve yalnız pathway'in `from_stop_id`'sinin işaret ettiği
+    // durakta 1 yapar.
+    // ⚠️ FEED SEÇİMİ ÖLÇÜLDÜ: `mdb-3357` dahil 4 pathway feed'inde HİÇBİR pathway ucu
+    // peron değil — hepsi istasyon/giriş/ara düğüm bağlıyor. Altı pathway feed'i tarandı;
+    // yalnız `mdb-2933` (232 peron uç) ve `mdb-990` (103) uygun.
+    let zip = corpus_zip(PTH_PLATFORM_FEED);
+    let before = rule_ids(&zip);
+    assert!(!before.contains("PTH_031"), "{PTH_PLATFORM_FEED} zaten PTH_031 üretiyor");
+
+    // ⚠️ Uç nokta PERON/DURAK olmalı (`location_type` boş ya da 0). İlk denemede ilk
+    // pathway'in ucu bir İSTASYONDU ve `stop_access` orada zaten Conditionally Forbidden
+    // olduğu için `STP_043` ateşledi, `PTH_031` değil. Yani mutasyon yanlış hükmü
+    // sınıyordu; komşu kural bunu yakaladı. Aday artık ÖLÇÜLEREK seçiliyor.
+    let stops = member_text(&zip, "stops.txt");
+    let sh = split_csv_line(stops.lines().next().unwrap().trim_end_matches('\r'));
+    let si = sh.iter().position(|h| h == "stop_id").expect("stop_id yok");
+    let lti = sh.iter().position(|h| h == "location_type");
+    let is_platform = |cols: &[String]| match lti {
+        None => true,
+        Some(i) => matches!(cols.get(i).map(|v| v.trim()), None | Some("") | Some("0")),
+    };
+
+    let pathways = member_text(&zip, "pathways.txt");
+    let ph = split_csv_line(pathways.lines().next().unwrap().trim_end_matches('\r'));
+    let fi = ph.iter().position(|h| h == "from_stop_id").expect("from_stop_id yok");
+    let endpoints: BTreeSet<String> = pathways
+        .lines()
+        .skip(1)
+        .map(|l| split_csv_line(l.trim_end_matches('\r')))
+        .filter(|c| c.len() == ph.len())
+        .map(|c| c[fi].clone())
+        .collect();
+
+    let row = stops
+        .lines()
+        .enumerate()
+        .skip(1)
+        .map(|(i, l)| (i, split_csv_line(l.trim_end_matches('\r'))))
+        .find(|(_, c)| {
+            c.len() == sh.len() && endpoints.contains(&c[si]) && is_platform(c)
+        })
+        .map(|(i, _)| i)
+        .expect("pathway ucu olan peron/durak (location_type boş|0) yok");
+
+    let mutated = rewrite_member(&zip, "stops.txt", move |t| {
+        add_column(&t, "stop_access", row, "1")
+    });
+    let (added, removed) = delta(&before, &rule_ids(&mutated));
+    assert_delta_both(&added, &removed, "PTH_031", &[], &[]);
+}

@@ -23,10 +23,10 @@ ARS_001		Kritik	Spec	CROSS_FILE						1	area_id yineleniyor
 ARS_002		Kritik	Spec	CROSS_FILE						1	areas.txt'te area_id boş
 ATR_002		Kritik	Spec	SELECTION_BIAS	attributions.txt	14	modül			1	organization_name eksik
 ATR_003		Yuksek	Spec	PREDICATE_SUSPECT	attributions.txt	14	modül			1	Attribution rolü tanımlanmamış
-ATR_004		Kritik	Spec	PREDICATE_SUSPECT	attributions.txt	14	modül			1	is_producer geçersiz
-ATR_005		Kritik	Spec	PREDICATE_SUSPECT	attributions.txt	14	modül			1	is_operator geçersiz
-ATR_006		Kritik	Spec	PREDICATE_SUSPECT	attributions.txt	14	modül			1	is_authority geçersiz
-ATR_007		Kritik	Spec	PREDICATE_SUSPECT	attributions.txt	14	modül			1	attribution_url geçersiz
+ATR_004	MEASURED 2026-08-15 (#131): correct. is_producer=9 on mdb-2931 fires it with no side effects, because the row keeps a valid role in is_operator.	Kritik	Spec	PREDICATE_SUSPECT	attributions.txt	14	modül			1	is_producer geçersiz
+ATR_005	MEASURED 2026-08-15 (#131): correct. is_operator=9 on mdb-2931 fires it, and ATR_003 follows because is_operator was the row's only defined role - the asymmetry with ATR_004 comes from the data, not from a rule inconsistency.	Kritik	Spec	PREDICATE_SUSPECT	attributions.txt	14	modül			1	is_operator geçersiz
+ATR_006	MEASURED 2026-08-15 (#131): correct. is_authority=9 on mdb-2931 fires it with no side effects.	Kritik	Spec	PREDICATE_SUSPECT	attributions.txt	14	modül			1	is_authority geçersiz
+ATR_007	MEASURED 2026-08-15 (#131): correct. A malformed attribution_url on mdb-2931 fires it; the row was chosen by fill rate, since only 8 of 18 rows populate that column. Falsified by disabling the looks_like_url check.	Kritik	Spec	PREDICATE_SUSPECT	attributions.txt	14	modül			1	attribution_url geçersiz
 ATR_008		Dusuk	Spec	PREDICATE_SUSPECT	attributions.txt	14	modül			1	attribution_email geçersiz
 ATR_010		Dusuk	Spec	SELECTION_BIAS	attributions.txt	14	grup	ARC_002	no	1	agency_id bulunamadı
 ATR_011		Dusuk	Spec	SELECTION_BIAS	attributions.txt	14	grup	RTS_001	yes	1	route_id bulunamadı
@@ -55,7 +55,7 @@ BKR_022		Dusuk	Quality	PREDICATE_SUSPECT	booking_rules.txt	18	modül			1	phone_n
 BKR_023		Orta	Spec	PREDICATE_SUSPECT	booking_rules.txt	18	modül			4	prior_notice sayı alanı tam sayı değil
 BKR_024		Orta	Spec	PREDICATE_SUSPECT	booking_rules.txt	18	modül			1	booking_type=1 ve duration_max varken prior_notice_start_day yasak
 CAL_001	MEASURED 2026-08-15 (#127): correct. Duplicated calendar row on mdb-3141 fires it; duplicate EMPTY service_id does not, and CAL_022 reports that root instead.	Kritik	Spec	PREDICATE_SUSPECT	calendar.txt	213	grup			1	service_id yineleniyor
-CAL_002		Kritik	Spec	PREDICATE_SUSPECT	calendar.txt	213	modül			2	Takvim gün alanı geçersiz değer
+CAL_002	MEASURED 2026-08-15 (#131): correct. monday=9 on mdb-3141 fires it with no side effects.	Kritik	Spec	PREDICATE_SUSPECT	calendar.txt	213	modül			2	Takvim gün alanı geçersiz değer
 CAL_003		Kritik	Spec	SELECTION_BIAS	calendar.txt	213	modül			2	start_date eksik veya geçersiz format
 CAL_004		Kritik	Spec	SELECTION_BIAS	calendar.txt	213	modül			2	end_date eksik veya geçersiz format
 CAL_022		Kritik	Spec	SELECTION_BIAS	calendar.txt	213	modül			1	service_id eksik
@@ -70,7 +70,7 @@ DQ_022		Yuksek	Quality	PREDICATE_SUSPECT	calendar_dates.txt	191	grup			1	Durakla
 FAR_001	MEASURED 2026-08-15 (#127): correct. Duplicated fare_attributes row on mdb-1996 fires it; duplicate EMPTY fare_id does not, and FAR_012 reports that root instead.	Kritik	Spec	PREDICATE_SUSPECT	fare_attributes.txt	79	grup			1	fare_id yineleniyor
 FAR_002		Kritik	Spec	SELECTION_BIAS	fare_attributes.txt	79	modül			2	price eksik veya geçersiz
 FAR_003		Kritik	Spec	SELECTION_BIAS	fare_attributes.txt	79	modül			1	currency_type eksik
-FAR_004		Kritik	Spec	PREDICATE_SUSPECT	fare_attributes.txt	79	modül			1	payment_method geçersiz
+FAR_004	MEASURED 2026-08-15 (#131): correct. payment_method=9 on mdb-1996 fires it with no side effects.	Kritik	Spec	PREDICATE_SUSPECT	fare_attributes.txt	79	modül			1	payment_method geçersiz
 FAR_008		Kritik	Spec	SELECTION_BIAS	fare_attributes.txt	79	grup			1	agency_id bulunamadı
 FAR_011		Kritik	Spec	SELECTION_BIAS	fare_attributes.txt	79	modül			1	payment_method eksik
 FAR_012		Kritik	Spec	SELECTION_BIAS	fare_attributes.txt	79	modül			1	fare_id eksik
@@ -104,8 +104,8 @@ FPD_005		Kritik	Spec	THIN_FEATURE	fare_products.txt	4	grup	RCT_001	no	1	rider_ca
 FPD_007		Dusuk	Spec	THIN_FEATURE	fare_products.txt	4	modül			1	amount para biriminin ISO 4217 ondalık basamak sayısını taşımıyor
 FRL_007		Orta	Quality	CROSS_FILE						1	Ücret kuralı mantıksal tutarsızlık
 FRQ_001		Kritik	Spec	SELECTION_BIAS	frequencies.txt	55	modül	TRP_001	yes	2	trip_id bulunamadı
-FRQ_002		Kritik	Spec	PREDICATE_SUSPECT	frequencies.txt	55	modül			2	start_time geçersiz
-FRQ_003		Kritik	Spec	PREDICATE_SUSPECT	frequencies.txt	55	modül			2	end_time geçersiz
+FRQ_002	MEASURED 2026-08-15 (#131): correct. A malformed start_time on mdb-1914 (3909 frequency rows) fires it with no side effects.	Kritik	Spec	PREDICATE_SUSPECT	frequencies.txt	55	modül			2	start_time geçersiz
+FRQ_003	MEASURED 2026-08-15 (#131): correct. A malformed end_time on mdb-1914 fires it with no side effects.	Kritik	Spec	PREDICATE_SUSPECT	frequencies.txt	55	modül			2	end_time geçersiz
 FRQ_004		Kritik	Spec	SELECTION_BIAS	frequencies.txt	55	modül			2	headway_secs eksik veya geçersiz
 FTR_001		Kritik	Spec	THIN_FEATURE	fare_transfer_rules.txt	2	modül			3	fare_transfer_type eksik veya geçersiz
 FTR_002		Kritik	Spec	THIN_FEATURE	fare_transfer_rules.txt	2	grup			1	from_leg_group_id bulunamadı
@@ -140,7 +140,7 @@ LOC_009		Orta	Spec	CROSS_FILE						1	Feature 'properties' nesnesi eksik
 LOC_010		Kritik	Spec	CROSS_FILE						1	Geometry 'coordinates' eksik veya dizi değil — bölge geometrisi çözümlenemez
 LOC_011		Yuksek	Spec	CROSS_FILE						1	Poligon geçersiz: ring kendini kesiyor veya delik dışarıda
 LVL_001	MEASURED 2026-08-15 (#127): correct. Duplicated levels row on mdb-3357 fires it; duplicate EMPTY level_id does not, and LVL_008 reports that root instead.	Kritik	Spec	PREDICATE_SUSPECT	levels.txt	9	grup			1	level_id yineleniyor
-LVL_002		Kritik	Spec	PREDICATE_SUSPECT	levels.txt	9	modül			1	level_index geçersiz
+LVL_002	MEASURED 2026-08-15 (#131): correct. A non-numeric level_index on mdb-3357 fires it with no side effects.	Kritik	Spec	PREDICATE_SUSPECT	levels.txt	9	modül			1	level_index geçersiz
 LVL_005		Orta	Quality	PREDICATE_SUSPECT	levels.txt	9	modül			1	level_name çok uzun
 LVL_007		Kritik	Spec	SELECTION_BIAS	levels.txt	9	modül			1	level_index eksik
 LVL_008		Kritik	Spec	SELECTION_BIAS	levels.txt	9	modül			1	level_id eksik
@@ -177,7 +177,7 @@ PTH_026	MEASURED 2026-08-15 (#130): correct. Repointing a pathway endpoint at an
 PTH_027		Orta	Spec	PREDICATE_SUSPECT	pathways.txt	10	modül			2	stair_count geçersiz (sıfır veya tam sayı değil)
 PTH_028		Dusuk	Quality	PREDICATE_SUSPECT	pathways.txt	10	modül			1	max_slope yürüme yolu dışında kullanılmış
 PTH_030		Dusuk	Spec	PREDICATE_SUSPECT	pathways.txt	10	grup			1	Boarding area'sı olan platforma pathway atanmış
-PTH_031		Kritik	Spec	PREDICATE_SUSPECT	pathways.txt	10	grup			1	Pathway uç noktası sokaktan erişilen durak (stop_access=1)
+PTH_031	MEASURED 2026-08-15 (#131): correct. NO corpus feed carries a stops.stop_access column at all, so this rule and STP_043 can only ever be exercised by a mutation that creates the column. On mdb-2933 the column is added with value 1 on a platform that a pathway ends at, and PTH_031 fires. Two measurements shaped the test: the first attempt targeted a station, where stop_access is Conditionally Forbidden, so STP_043 fired instead and the neighbouring rule caught the wrong mutation; and of six pathway feeds only mdb-2933 and mdb-990 have any pathway endpoint that is a platform at all.	Kritik	Spec	PREDICATE_SUSPECT	pathways.txt	10	grup			1	Pathway uç noktası sokaktan erişilen durak (stop_access=1)
 RCT_001		Kritik	Spec	THIN_FEATURE	rider_categories.txt	4	grup			1	rider_category_id yineleniyor
 RCT_002		Kritik	Spec	THIN_FEATURE	rider_categories.txt	4	modül			1	rider_category_name eksik
 RCT_003		Kritik	Spec	THIN_FEATURE	rider_categories.txt	4	modül			2	is_default_fare_category geçersiz
