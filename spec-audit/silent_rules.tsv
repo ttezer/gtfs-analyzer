@@ -154,7 +154,7 @@ OPR_021		Yuksek	Analytics	CROSS_FILE						1	Takvim override çakışması: overr
 OPR_022		Yuksek	Analytics	CROSS_FILE						1	Takvim override uygulanmamış: override gününde base servis çalışıyor
 OPR_023		Orta	Analytics	CROSS_FILE						1	Takvim override boşluğu: pencere içinde hiçbir servis aktif değil
 OPR_025		Yuksek	Analytics	CROSS_FILE						1	Feed genelinde ortalama sefer süresi 60 saniyeden kısa — veri kalitesi sorunu
-PTH_001		Kritik	Spec	PREDICATE_SUSPECT	pathways.txt	10	grup			1	pathway_id yineleniyor
+PTH_001	MEASURED 2026-08-15 (#130): correct. Duplicated pathways row on mdb-3357 fires it with no side effects.	Kritik	Spec	PREDICATE_SUSPECT	pathways.txt	10	grup			1	pathway_id yineleniyor
 PTH_002		Kritik	Spec	SELECTION_BIAS	pathways.txt	10	grup	STP_001,STP_009	yes	1	from_stop_id bulunamadı
 PTH_003		Kritik	Spec	SELECTION_BIAS	pathways.txt	10	grup	STP_001,STP_009	yes	1	to_stop_id bulunamadı
 PTH_004		Kritik	Spec	SELECTION_BIAS	pathways.txt	10	modül			1	pathway_mode eksik veya geçersiz
@@ -173,7 +173,7 @@ PTH_021		Kritik	Spec	SELECTION_BIAS	pathways.txt	10	modül			1	from_stop_id eksi
 PTH_022		Kritik	Spec	SELECTION_BIAS	pathways.txt	10	modül			1	to_stop_id eksik
 PTH_023		Kritik	Spec	SELECTION_BIAS	pathways.txt	10	modül			1	pathway_mode eksik
 PTH_024		Kritik	Spec	SELECTION_BIAS	pathways.txt	10	modül			1	is_bidirectional eksik
-PTH_026		Kritik	Spec	PREDICATE_SUSPECT	pathways.txt	10	grup			1	Pathway uç noktası istasyon
+PTH_026	MEASURED 2026-08-15 (#130): correct. Repointing a pathway endpoint at an existing station (location_type=1) on mdb-3357 fires it; a fabricated id was avoided because that would test the FK rule, not the endpoint-type rule. Falsified by disabling the location_type check.	Kritik	Spec	PREDICATE_SUSPECT	pathways.txt	10	grup			1	Pathway uç noktası istasyon
 PTH_027		Orta	Spec	PREDICATE_SUSPECT	pathways.txt	10	modül			2	stair_count geçersiz (sıfır veya tam sayı değil)
 PTH_028		Dusuk	Quality	PREDICATE_SUSPECT	pathways.txt	10	modül			1	max_slope yürüme yolu dışında kullanılmış
 PTH_030		Dusuk	Spec	PREDICATE_SUSPECT	pathways.txt	10	grup			1	Boarding area'sı olan platforma pathway atanmış
@@ -232,7 +232,7 @@ STM_051		Yuksek	Spec	PREDICATE_SUSPECT	stop_times.txt	239	modül			1	Flex pencer
 STM_052		Yuksek	Spec	PREDICATE_SUSPECT	stop_times.txt	239	modül			1	Flex penceresi tanımlıyken drop_off_type=0 yasak (talep-üzerine değer gerekli)
 STM_054		Yuksek	Spec	SELECTION_BIAS	stop_times.txt	239	modül			1	Flex penceresi tanımlıyken continuous_pickup 1/boş dışında yasak
 STM_055		Yuksek	Spec	SELECTION_BIAS	stop_times.txt	239	modül			1	Flex penceresi tanımlıyken continuous_drop_off 1/boş dışında yasak
-STM_058		Kritik	Spec	PREDICATE_SUSPECT	stop_times.txt	239	modül			1	Flex pickup/drop-off penceresi saati geçersiz
+STM_058	MEASURED 2026-08-15 (#130): correct, and the repair holds. A malformed start_pickup_drop_off_window on mdb-3037 fires it. Falsified by reinstating the historical Err(_) => None swallow, which turns the test red with an empty delta - the exact failure this rule was repaired for in 778c462b. Side effect PDW_006 DISAPPEARS, because an unparseable window drops out of the overlap analysis.	Kritik	Spec	PREDICATE_SUSPECT	stop_times.txt	239	modül			1	Flex pickup/drop-off penceresi saati geçersiz
 STM_060		Yuksek	Spec	POST_BASELINE	stop_times.txt	239	grup			1	Aynı seferde geojson bölgesi + zaman penceresi + pickup/drop_off eşzamanlı örtüşüyor
 STP_002		Kritik	Spec	SELECTION_BIAS	stops.txt	239	modül			1	stop_id boş
 STP_003		Kritik	Spec	SELECTION_BIAS	stops.txt	239	modül			2	stop_name eksik veya stop_lat/stop_lon aralık dışı (aynı ID altında iki ayrı koşul)
@@ -280,7 +280,7 @@ TRF_014		Yuksek	Spec	SELECTION_BIAS	transfers.txt	63	grup	TRF_003,TRF_006,TRF_00
 TRF_015		Yuksek	Quality	PREDICATE_SUSPECT	transfers.txt	63	grup	STP_008,TRF_003,TRF_006,TRF_007	no	1	in-seat aktarma geçersiz
 TRF_017		Yuksek	Spec	POST_BASELINE	transfers.txt	63	grup	TRF_006,TRF_007	no	2	Sefer aktarması yanlış hat
 TRF_018		Orta	Quality	PREDICATE_SUSPECT	transfers.txt	63	grup	TRF_006,TRF_007	no	1	Sefer aktarması aynı seferi gösteriyor
-TRF_021		Kritik	Spec	PREDICATE_SUSPECT	transfers.txt	63	grup			1	Aktarma uç noktası durak veya istasyon değil
+TRF_021	MEASURED 2026-08-15 (#130): correct. Repointing a transfer endpoint at an existing entrance (location_type=2) on mdb-2848 fires it. TRF_011 follows as a direct geometric consequence - the endpoints are now far apart.	Kritik	Spec	PREDICATE_SUSPECT	transfers.txt	63	grup			1	Aktarma uç noktası durak veya istasyon değil
 TRN_004		Yuksek	Spec	SELECTION_BIAS	translations.txt	34	grup			1	record_id bulunamadı
 TRN_005	MEASURED 2026-08-15 (#127): correct. Exact duplicate row fires it on both identity paths - record_id (mdb-2638) and field_value with no record_id column (mdb-3176). Silence on the corpus is genuine: TRN_006 fires on the same code path.	Kritik	Spec	PREDICATE_SUSPECT	translations.txt	34	grup			1	Çeviri yineleniyor
 TRN_009		Yuksek	Spec	PREDICATE_SUSPECT	translations.txt	34	modül			1	record_id ve field_value aynı anda kullanılamaz

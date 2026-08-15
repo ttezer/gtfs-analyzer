@@ -669,3 +669,133 @@ fn stp_005_is_born_and_suppressed_when_the_value_only_wears_whitespace() {
          mutasyonun hiç doğmamasından geliyor olabilir. Beyan edilen: {suppressed:?}"
     );
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Çapraz referans + Flex — PTH_001 · PTH_026 · TRF_021 · STM_058 (issue #130)
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Batch 1/2 K3 yineleme ve K2 tip yollarını kapsadı; bu parti bilinçli olarak KOD YOLU
+// değiştiriyor: K4 çapraz referans (PTH_026, TRF_021) ve K2 Flex akışı (STM_058).
+//
+// 🔑 Kardeş kontrolü (mutasyondan önce, bedava): pathways okunuyor (`PTH_007` · `PTH_011` ·
+// `PTH_012`), transfers okunuyor (`TRF_016` 5204 bulgu · `TRF_019` · `TRF_022/023`),
+// Flex yolu okunuyor (`STM_056` 3,97M bulgu · `XFL_002` 1315 · `LOC_006`). Üçünde de
+// dosyanın işlendiği kanıtlı; ölçülen şey yine HATA/İHLAL dalı.
+
+/// Arşivdeki bir üyenin metnini döndürür.
+fn member_text(zip: &[u8], file: &str) -> String {
+    let mut a = zip::ZipArchive::new(std::io::Cursor::new(zip)).expect("arşiv açılamadı");
+    let name = a
+        .file_names()
+        .find(|n| Path::new(n).file_name().and_then(|s| s.to_str()) == Some(file))
+        .unwrap_or_else(|| panic!("{file} arşivde yok"))
+        .to_string();
+    let mut e = a.by_name(&name).expect("üye okunamadı");
+    let mut buf = String::new();
+    std::io::Read::read_to_string(&mut e, &mut buf).expect("üye UTF-8 değil");
+    buf
+}
+
+/// `stops.txt`'te verilen `location_type` değerine sahip ilk `stop_id`.
+fn stop_id_with_location_type(zip: &[u8], want: &str) -> String {
+    let text = member_text(zip, "stops.txt");
+    let header = split_csv_line(text.lines().next().unwrap().trim_end_matches('\r'));
+    let id_i = header.iter().position(|h| h == "stop_id").expect("stop_id yok");
+    let lt_i = header
+        .iter()
+        .position(|h| h == "location_type")
+        .expect("location_type sütunu yok");
+    text.lines()
+        .skip(1)
+        .map(|l| split_csv_line(l.trim_end_matches('\r')))
+        .find(|c| c.len() == header.len() && c[lt_i].trim() == want)
+        .map(|c| c[id_i].clone())
+        .unwrap_or_else(|| panic!("location_type={want} olan durak yok"))
+}
+
+/// `key_col`'u boş OLMAYAN ilk veri satırının sıra numarası (1 = ilk veri satırı).
+fn first_row_with_value(text: &str, key_col: &str) -> usize {
+    let header = split_csv_line(text.lines().next().unwrap().trim_end_matches('\r'));
+    let ki = header
+        .iter()
+        .position(|h| h == key_col)
+        .unwrap_or_else(|| panic!("{key_col} sütunu yok"));
+    text.lines()
+        .enumerate()
+        .skip(1)
+        .find(|(_, l)| {
+            let c = split_csv_line(l.trim_end_matches('\r'));
+            c.len() == header.len() && !c[ki].trim().is_empty()
+        })
+        .map(|(i, _)| i)
+        .unwrap_or_else(|| panic!("{key_col} dolu satır yok"))
+}
+
+const PTH_FEED: &str = "mdb-3357";
+const TRF_FEED: &str = "mdb-2848";
+const FLEX_FEED: &str = "mdb-3037";
+
+#[test]
+#[ignore = "gerçek korpus feed'i gerektirir"]
+fn pth_001_fires_on_a_duplicated_pathway_row() {
+    duplicate_row_case(PTH_FEED, "pathways.txt", "PTH_001", &[]);
+}
+
+#[test]
+#[ignore = "gerçek korpus feed'i gerektirir"]
+fn pth_026_fires_when_a_pathway_endpoint_is_a_station() {
+    // K4 çapraz referans. `from_stop_id` GERÇEKTEN VAR OLAN bir istasyona (location_type=1)
+    // çevrilir — uydurma id kullanmak FK kuralını sınardı, uç-nokta TİPİ kuralını değil.
+    let zip = corpus_zip(PTH_FEED);
+    let before = rule_ids(&zip);
+    assert!(!before.contains("PTH_026"), "{PTH_FEED} zaten PTH_026 üretiyor");
+    let station = stop_id_with_location_type(&zip, "1");
+    let mutated = rewrite_member(&zip, "pathways.txt", move |t| {
+        set_field(&t, "from_stop_id", 1, &station)
+    });
+    let (added, removed) = delta(&before, &rule_ids(&mutated));
+    assert_delta_both(&added, &removed, "PTH_026", &[], &[]);
+}
+
+#[test]
+#[ignore = "gerçek korpus feed'i gerektirir"]
+fn trf_021_fires_when_a_transfer_endpoint_is_neither_stop_nor_station() {
+    // Aynı gerekçe: var olan bir GİRİŞ (location_type=2) hedeflenir.
+    let zip = corpus_zip(TRF_FEED);
+    let before = rule_ids(&zip);
+    assert!(!before.contains("TRF_021"), "{TRF_FEED} zaten TRF_021 üretiyor");
+    let entrance = stop_id_with_location_type(&zip, "2");
+    let mutated = rewrite_member(&zip, "transfers.txt", move |t| {
+        set_field(&t, "from_stop_id", 1, &entrance)
+    });
+    let (added, removed) = delta(&before, &rule_ids(&mutated));
+    // AÇIKLANAN yan etki: `TRF_011` (aktarma tanımlandı ama mesafe uzak, Bilgi·Quality).
+    // Aktarmayı ağın başka bir yerindeki girişe çevirmek iki ucu coğrafi olarak
+    // uzaklaştırır; doğrudan geometrik sonuç.
+    assert_delta_both(&added, &removed, "TRF_021", &["TRF_011"], &[]);
+}
+
+#[test]
+#[ignore = "gerçek korpus feed'i gerektirir"]
+fn stm_058_fires_on_a_malformed_flex_pickup_window() {
+    // K2 akış yolu + Flex. ⚠️ Satır seçimi ÖLÇÜMLE yapılır: korpusun 19 feed'i bu başlığı
+    // taşıyor ama YALNIZ 7'sinde değer var; boş bir pencereye mutasyon uygulamak hiçbir
+    // şeyi sınamazdı. Bu yüzden penceresi DOLU ilk satır aranır.
+    // STM_058 ayrıca `Err(_) => None` yutma sınıfının ilk üyesiydi (`778c462b`'de kapandı);
+    // onarılmış bir parse yolunun hâlâ emit ettiğini kanıtlamak bu testin asıl amacı.
+    let zip = corpus_zip(FLEX_FEED);
+    let before = rule_ids(&zip);
+    assert!(!before.contains("STM_058"), "{FLEX_FEED} zaten STM_058 üretiyor");
+    let text = member_text(&zip, "stop_times.txt");
+    let row = first_row_with_value(&text, "start_pickup_drop_off_window");
+    let mutated = rewrite_member(&zip, "stop_times.txt", move |t| {
+        set_field(&t, "start_pickup_drop_off_window", row, "abc")
+    });
+    let (added, removed) = delta(&before, &rule_ids(&mutated));
+    // AÇIKLANAN yan etki — ve bu KAYBOLAN bir bulgu: `PDW_006` (aynı trip+zone'da örtüşen
+    // pickup/drop-off penceresi, Orta·Analytics). Pencereyi ayrıştırılamaz yapmak örtüşme
+    // analizinden o pencereyi DÜŞÜRÜR, dolayısıyla parçası olduğu örtüşme bulgusu da yok
+    // olur. Meşru sonuç — ve testin kaldırmaları YASAKLAMAYIP açıklamasının sebebi tam bu:
+    // yasaklasaydık bu mutasyon hiç yazılamazdı.
+    assert_delta_both(&added, &removed, "STM_058", &[], &["PDW_006"]);
+}
