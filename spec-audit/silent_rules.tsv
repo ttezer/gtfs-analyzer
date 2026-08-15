@@ -5,20 +5,21 @@ AGN_012		Dusuk	Spec	PREDICATE_SUSPECT	agency.txt	240	modül			2	agency_cemv_supp
 AGN_014		Kritik	Spec	SELECTION_BIAS	agency.txt	240	modül			1	Birden fazla kuruluş var ama agency.txt'de agency_id eksik
 AGN_016		Bilgi	Quality	PREDICATE_SUSPECT	agency.txt	240	modül			1	agency_phone bilinen yer-tutucu/şüpheli numara
 AGN_017		Dusuk	Interop	PREDICATE_SUSPECT	agency.txt	240	grup			1	Birden çok agency farklı agency_lang taşıyor — diller arası tutarsızlık
-ARC_001		Kritik	Spec	FATAL_PATH	shapes.txt	199	grup			0	ZIP arşivi açılamadı
-ARC_002		Kritik	Quality	FATAL_PATH	shapes.txt	199	grup			2	Dosya UTF-8 ile okunamıyor
+ARC_001	MEASURED 2026-08-15: correct. Truncating a real archive by 256 bytes destroys the end-of-central-directory record and produces Fatal(ZipUnreadable). This is one of only two FatalCode variants production code actually constructs.	Kritik	Spec	FATAL_PATH	shapes.txt	199	grup			0	ZIP arşivi açılamadı
+ARC_002	MEASURED 2026-08-15: correct, but NOT via the fatal path. Invalid UTF-8 bytes in a required file produce a NOTICE, not Fatal(Utf8Critical) - that variant is never constructed anywhere in production code. The FatalCode comment claiming otherwise is wrong, and the test was written by falsifying that assumption.	Kritik	Quality	PREDICATE_SUSPECT	shapes.txt	199	grup			2	Dosya UTF-8 ile okunamıyor
 ARC_003		Orta	Quality	PREDICATE_SUSPECT	shapes.txt	199	grup			1	İsteğe bağlı dosyada UTF-8 kodlama hatası
+ARC_004	MEASURED 2026-08-15: correct, as a NOTICE. fatals.csv records Fatal(NoRequiredFiles) on 4 feeds from the 2026-08-06 run, but 66e009c2 (2026-08-09) replaced that path with partial recovery. Dropping all five required files from a real archive now yields no Fatal and one ARC_004 notice. The stale file is no longer used as evidence.	Kritik	Spec	SELECTION_BIAS	shapes.txt	199	grup			1	Zorunlu dosya eksik
 ARC_008		Kritik	Spec	SELECTION_BIAS	shapes.txt	199	grup			1	Takvim dosyası eksik (calendar.txt ve calendar_dates.txt)
-ARC_013		Kritik	Spec	FATAL_PATH	shapes.txt	199	grup			2	CSV ayrıştırma hatası
+ARC_013	MEASURED 2026-08-15: correct, as a NOTICE. An unclosed quote in routes.txt fails CSV tokenization; the file goes to partial.unavailable_files and ARC_013 is emitted. Fatal(CsvMalformed) is never constructed.	Kritik	Spec	PREDICATE_SUSPECT	shapes.txt	199	grup			2	CSV ayrıştırma hatası
 ARC_015		Kritik	Interop	PREDICATE_SUSPECT	shapes.txt	199	grup	ARC_012	yes	1	Yinelenen başlık sütunu
 ARC_018		Orta	Quality	SELECTION_BIAS	stop_times.txt	239	modül			3	Boş veri satırı
 ARC_019		Yuksek	Quality	SELECTION_BIAS	shapes.txt	199	grup			1	Başlıkta boş sütun adı
 ARC_023		Orta	Quality	PREDICATE_SUSPECT	shapes.txt	199	grup			1	ZIP içinde nested ZIP dosyası — GTFS formatında desteklenmez
-ARC_026		Orta	Spec	POST_BASELINE	shapes.txt	199	grup			2	Dosyada hatalı satır sonu karakteri
+ARC_026	MEASURED 2026-08-15 by a full 242-feed run with the current binary: genuinely zero. Previously this was unmeasured rather than measured, because rule_stats.csv predates the rule; the silence is now a real observation.	Orta	Spec	POST_BASELINE	shapes.txt	199	grup			2	Dosyada hatalı satır sonu karakteri
 ARC_027		Bilgi	Quality	SELECTION_BIAS	shapes.txt	199	grup			1	ZIP girdisinde kullanıcı okuma izni yok
 ARC_028		Dusuk	Quality	PREDICATE_SUSPECT	shapes.txt	199	grup			1	GTFS yayın URL'si .zip dosya adıyla bitmiyor
-ARC_029		Kritik	Quality	FATAL_PATH	shapes.txt	199	grup			0	Sıkıştırma koruması: arşiv zip-bomb sınırını aştı
-ARC_033		Yuksek	Spec	POST_BASELINE	shapes.txt	199	grup			2	Alan değerinde kaçırılmamış tırnak (RFC 4180)
+ARC_029	MEASURED 2026-08-15: correct. Adding a 24 MiB single-byte member to a real archive exceeds ratio_floor (16 MiB) at roughly 1000:1, well under both absolute caps, so it provably trips the RATIO path rather than a size ceiling. Fatal(DecompressionLimit).	Kritik	Quality	FATAL_PATH	shapes.txt	199	grup			0	Sıkıştırma koruması: arşiv zip-bomb sınırını aştı
+ARC_033	MEASURED 2026-08-15 by a full 242-feed run with the current binary: FIRES on 12 feeds, 28 findings. It looked silent only because rule_stats.csv holds data from the 2026-08-06 run, which predates this rule - an absence of measurement, not a measurement of absence.	Yuksek	Spec	POST_BASELINE	shapes.txt	199	grup			2	Alan değerinde kaçırılmamış tırnak (RFC 4180)
 ARS_001		Kritik	Spec	CROSS_FILE						1	area_id yineleniyor
 ARS_002		Kritik	Spec	CROSS_FILE						1	areas.txt'te area_id boş
 ATR_002		Kritik	Spec	SELECTION_BIAS	attributions.txt	14	modül			1	organization_name eksik
@@ -80,7 +81,7 @@ FIN_004		Orta	Spec	PREDICATE_SUSPECT	feed_info.txt	155	modül			1	default_lang g
 FIN_006		Yuksek	Spec	PREDICATE_SUSPECT	feed_info.txt	155	modül			1	feed_end_date geçersiz format (geçmiş tarih için FIN_010 kullanın)
 FIN_008		Dusuk	Spec	PREDICATE_SUSPECT	feed_info.txt	155	modül	ARC_002	no	1	feed_contact_email geçersiz
 FIN_009		Dusuk	Spec	PREDICATE_SUSPECT	feed_info.txt	155	modül			1	feed_contact_url geçersiz
-FIN_012		Dusuk	Spec	POST_BASELINE	feed_info.txt	155	modül			1	feed_start_date feed_end_date'den sonra
+FIN_012	MEASURED 2026-08-15 by a full 242-feed run with the current binary: genuinely zero. Previously this was unmeasured rather than measured, because rule_stats.csv predates the rule; the silence is now a real observation.	Dusuk	Spec	POST_BASELINE	feed_info.txt	155	modül			1	feed_start_date feed_end_date'den sonra
 FLG_001		Kritik	Spec	THIN_FEATURE	fare_leg_rules.txt	4	grup	FPD_001	no	1	fare_product_id bulunamadı
 FLG_002		Kritik	Spec	THIN_FEATURE	fare_leg_rules.txt	4	grup	NET_001	no	1	network_id bulunamadı
 FLG_003		Kritik	Spec	THIN_FEATURE	fare_leg_rules.txt	4	grup	ARS_001	no	1	from_area_id bulunamadı
@@ -194,7 +195,7 @@ RTS_018		Dusuk	Spec	PREDICATE_SUSPECT	routes.txt	240	modül			1	continuous_drop_
 RTS_024		Dusuk	Spec	PREDICATE_SUSPECT	routes.txt	240	modül			2	route_cemv_support geçersiz
 RTS_028		Yuksek	Spec	PREDICATE_SUSPECT	routes.txt	240	grup			1	Flex pencereli rotada continuous_pickup/drop_off yasak
 RTS_029		Dusuk	Spec	PREDICATE_SUSPECT	routes.txt	240	modül			1	route_sort_order geçersiz
-RTS_030		Dusuk	Interop	POST_BASELINE	routes.txt	240	modül			1	route_type çekirdek enum dışında genişletilmiş değer
+RTS_030	MEASURED 2026-08-15 by a full 242-feed run with the current binary: FIRES on 23 feeds, 16804 findings (heaviest mdb-2904 with 8556, mdb-2898 with 5028). It looked silent only because rule_stats.csv holds data from the 2026-08-06 run, which predates this rule - an absence of measurement, not a measurement of absence.	Dusuk	Interop	POST_BASELINE	routes.txt	240	modül			1	route_type çekirdek enum dışında genişletilmiş değer
 SAR_001		Kritik	Spec	CROSS_FILE				ARS_001	no	1	area_id bulunamadı
 SAR_002		Kritik	Spec	CROSS_FILE						1	stop_id bulunamadı
 SAR_003		Kritik	Spec	CROSS_FILE						1	stop_areas'ta area_id boş
@@ -204,7 +205,7 @@ SHP_002		Kritik	Spec	SELECTION_BIAS	shapes.txt	199	modül			3	shape_pt_lat eksik
 SHP_003		Kritik	Spec	SELECTION_BIAS	shapes.txt	199	modül	SHP_002	no	3	shape_pt_lon eksik veya geçersiz
 SHP_004		Kritik	Spec	SELECTION_BIAS	shapes.txt	199	modül			2	shape_pt_sequence eksik veya geçersiz
 SHP_005	MEASURED 2026-08-15 (#127): correct. Real-feed mutation on mdb-2927 (decreasing shape_dist_traveled) fires it; equality deliberately does not, because SHP_028/SHP_029/SHP_020 already measure that. Open question is classification, not predicate.	Kritik	Spec	PREDICATE_SUSPECT	shapes.txt	199	grup			1	shape_dist_traveled geriye gidiyor
-SHP_030		Orta	Quality	POST_BASELINE	shapes.txt	199	grup			1	stop_times shape_dist_traveled kullanıyor ancak shapes.txt'te shape mesafeleri eksik
+SHP_030	MEASURED 2026-08-15 by a full 242-feed run with the current binary: FIRES on 5 feeds, 6308 findings (mdb-2519 alone accounts for 6241). It looked silent only because rule_stats.csv holds data from the 2026-08-06 run, which predates this rule - an absence of measurement, not a measurement of absence.	Orta	Quality	POST_BASELINE	shapes.txt	199	grup			1	stop_times shape_dist_traveled kullanıyor ancak shapes.txt'te shape mesafeleri eksik
 STM_002		Kritik	Spec	SELECTION_BIAS	stop_times.txt	239	grup	ARC_004,STP_001	yes	1	stop_id bulunamadı
 STM_003	MEASURED 2026-08-15 (#129): correct. Malformed arrival_time on mdb-1903 fires it. Silence is selection bias, not a blind spot - the success branch is already proven by STM_012/036/035 firing on the corpus, so only the failure branch was in doubt.	Kritik	Spec	PREDICATE_SUSPECT	stop_times.txt	239	modül			1	arrival_time geçersiz format
 STM_004	MEASURED 2026-08-15 (#129): correct. Malformed departure_time on mdb-1903 fires it. STM_015 does not follow, and that asymmetry is intended - the spec requires arrival_time at the first and last stop, with no matching clause for departure_time.	Kritik	Spec	PREDICATE_SUSPECT	stop_times.txt	239	modül	STM_003	no	1	departure_time geçersiz format
@@ -227,13 +228,13 @@ STM_040		Orta	Quality	SELECTION_BIAS	stop_times.txt	239	modül			1	Flex stop_tim
 STM_041		Yuksek	Spec	PREDICATE_SUSPECT	stop_times.txt	239	modül			1	stop_id ile location_id/group_id aynı anda kullanılamaz
 STM_042		Dusuk	Interop	PREDICATE_SUSPECT	stop_times.txt	239	modül			1	stop_headsign Google Transit tarafından desteklenmeyen karakter içeriyor
 STM_046		Kritik	Spec	SELECTION_BIAS	stop_times.txt	239	modül			1	trip_id eksik
-STM_049		Yuksek	Spec	POST_BASELINE	stop_times.txt	239	modül			1	Aynı satırda gece yarısı sonrası kalkış 00:xx yazılmış (GTFS servis günü için 24:xx kullanılmalı)
+STM_049	MEASURED 2026-08-15 by a full 242-feed run with the current binary: genuinely zero. Previously this was unmeasured rather than measured, because rule_stats.csv predates the rule; the silence is now a real observation.	Yuksek	Spec	POST_BASELINE	stop_times.txt	239	modül			1	Aynı satırda gece yarısı sonrası kalkış 00:xx yazılmış (GTFS servis günü için 24:xx kullanılmalı)
 STM_051		Yuksek	Spec	PREDICATE_SUSPECT	stop_times.txt	239	modül			1	Flex penceresi tanımlıyken pickup_type=0/3 yasak (talep-üzerine değerler gerekli)
 STM_052		Yuksek	Spec	PREDICATE_SUSPECT	stop_times.txt	239	modül			1	Flex penceresi tanımlıyken drop_off_type=0 yasak (talep-üzerine değer gerekli)
 STM_054		Yuksek	Spec	SELECTION_BIAS	stop_times.txt	239	modül			1	Flex penceresi tanımlıyken continuous_pickup 1/boş dışında yasak
 STM_055		Yuksek	Spec	SELECTION_BIAS	stop_times.txt	239	modül			1	Flex penceresi tanımlıyken continuous_drop_off 1/boş dışında yasak
 STM_058	MEASURED 2026-08-15 (#130): correct, and the repair holds. A malformed start_pickup_drop_off_window on mdb-3037 fires it. Falsified by reinstating the historical Err(_) => None swallow, which turns the test red with an empty delta - the exact failure this rule was repaired for in 778c462b. Side effect PDW_006 DISAPPEARS, because an unparseable window drops out of the overlap analysis.	Kritik	Spec	PREDICATE_SUSPECT	stop_times.txt	239	modül			1	Flex pickup/drop-off penceresi saati geçersiz
-STM_060		Yuksek	Spec	POST_BASELINE	stop_times.txt	239	grup			1	Aynı seferde geojson bölgesi + zaman penceresi + pickup/drop_off eşzamanlı örtüşüyor
+STM_060	MEASURED 2026-08-15 by a full 242-feed run with the current binary: genuinely zero. Previously this was unmeasured rather than measured, because rule_stats.csv predates the rule; the silence is now a real observation.	Yuksek	Spec	POST_BASELINE	stop_times.txt	239	grup			1	Aynı seferde geojson bölgesi + zaman penceresi + pickup/drop_off eşzamanlı örtüşüyor
 STP_002		Kritik	Spec	SELECTION_BIAS	stops.txt	239	modül			1	stop_id boş
 STP_003		Kritik	Spec	SELECTION_BIAS	stops.txt	239	modül			2	stop_name eksik veya stop_lat/stop_lon aralık dışı (aynı ID altında iki ayrı koşul)
 STP_004	MEASURED 2026-08-15 (#129): correct. Non-numeric stop_lat on mdb-1903 fires it with no side effects at all.	Kritik	Spec	PREDICATE_SUSPECT	stops.txt	239	modül			1	stop_lat sayısal değil
@@ -252,7 +253,7 @@ STP_024		Bilgi	Quality	PREDICATE_SUSPECT	stops.txt	239	modül			2	stop_access K2
 STP_026		Dusuk	Spec	PREDICATE_SUSPECT	stops.txt	239	grup	STP_024	no	1	stop_access geçersiz değer
 STP_028		Bilgi	Quality	PREDICATE_SUSPECT	stops.txt	239	modül			1	stop_code çok uzun
 STP_032		Orta	Quality	SELECTION_BIAS	stops.txt	239	grup			1	Pathway bağlantılı platform için parent_station eksik
-STP_034		Dusuk	Quality	POST_BASELINE	stops.txt	239	grup			1	stop_url acente URL'siyle aynı
+STP_034	MEASURED 2026-08-15 by a full 242-feed run with the current binary: genuinely zero. Previously this was unmeasured rather than measured, because rule_stats.csv predates the rule; the silence is now a real observation.	Dusuk	Quality	POST_BASELINE	stops.txt	239	grup			1	stop_url acente URL'siyle aynı
 STP_036		Dusuk	Spec	PREDICATE_SUSPECT	stops.txt	239	grup			1	İstasyonun (location_type=1) parent_station'ı var
 STP_040		Dusuk	Quality	PREDICATE_SUSPECT	stops.txt	239	grup			1	Durak adı gereksiz genel stop/station sözcüğü içeriyor
 STP_041		Dusuk	Quality	PREDICATE_SUSPECT	stops.txt	239	grup			1	Alt durak adı üst istasyon adını içermiyor
@@ -262,7 +263,7 @@ TFR_001		Kritik	Spec	THIN_FEATURE	timeframes.txt	1	modül			1	timeframe_group_id
 TFR_002		Kritik	Spec	THIN_FEATURE	timeframes.txt	1	grup			1	service_id bulunamadı
 TFR_003		Yuksek	Spec	THIN_FEATURE	timeframes.txt	1	modül			2	start_time veya end_time format hatası
 TFR_004		Orta	Quality	THIN_FEATURE	timeframes.txt	1	modül			1	end_time start_time'dan küçük
-TFR_005		Orta	Spec	POST_BASELINE	timeframes.txt	1	modül			1	Aynı grup ve service_id içinde örtüşen zaman aralıkları
+TFR_005	MEASURED 2026-08-15 by a full 242-feed run with the current binary: genuinely zero. Previously this was unmeasured rather than measured, because rule_stats.csv predates the rule; the silence is now a real observation.	Orta	Spec	POST_BASELINE	timeframes.txt	1	modül			1	Aynı grup ve service_id içinde örtüşen zaman aralıkları
 TFR_006		Kritik	Spec	THIN_FEATURE	timeframes.txt	1	modül			1	start_time veya end_time 24:00:00'dan büyük
 TFR_007		Kritik	Spec	THIN_FEATURE	timeframes.txt	1	modül			1	start_time ve end_time yalnızca biri tanımlı
 TFR_008		Kritik	Spec	THIN_FEATURE	timeframes.txt	1	grup			1	timeframes'te service_id boş
@@ -278,7 +279,7 @@ TRF_009		Kritik	Spec	SELECTION_BIAS	transfers.txt	63	grup			1	to_route_id buluna
 TRF_013		Kritik	Quality	PREDICATE_SUSPECT	transfers.txt	63	grup	TRF_003,TRF_006,TRF_007	no	1	Aktarma türü bağlamla uyumsuz
 TRF_014		Yuksek	Spec	SELECTION_BIAS	transfers.txt	63	grup	TRF_003,TRF_006,TRF_007	no	1	in-seat aktarma için sefer yok
 TRF_015		Yuksek	Quality	PREDICATE_SUSPECT	transfers.txt	63	grup	STP_008,TRF_003,TRF_006,TRF_007	no	1	in-seat aktarma geçersiz
-TRF_017		Yuksek	Spec	POST_BASELINE	transfers.txt	63	grup	TRF_006,TRF_007	no	2	Sefer aktarması yanlış hat
+TRF_017	MEASURED 2026-08-15 by a full 242-feed run with the current binary: genuinely zero. Previously this was unmeasured rather than measured, because rule_stats.csv predates the rule; the silence is now a real observation.	Yuksek	Spec	POST_BASELINE	transfers.txt	63	grup	TRF_006,TRF_007	no	2	Sefer aktarması yanlış hat
 TRF_018		Orta	Quality	PREDICATE_SUSPECT	transfers.txt	63	grup	TRF_006,TRF_007	no	1	Sefer aktarması aynı seferi gösteriyor
 TRF_021	MEASURED 2026-08-15 (#130): correct. Repointing a transfer endpoint at an existing entrance (location_type=2) on mdb-2848 fires it. TRF_011 follows as a direct geometric consequence - the endpoints are now far apart.	Kritik	Spec	PREDICATE_SUSPECT	transfers.txt	63	grup			1	Aktarma uç noktası durak veya istasyon değil
 TRN_004		Yuksek	Spec	SELECTION_BIAS	translations.txt	34	grup			1	record_id bulunamadı

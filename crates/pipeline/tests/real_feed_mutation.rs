@@ -27,7 +27,7 @@ use std::collections::BTreeSet;
 use std::io::{Read as _, Write as _};
 use std::path::{Path, PathBuf};
 
-use gtfs_pipeline::{validate_bytes, ValidateResult, ValidatorConfig};
+use gtfs_pipeline::{validate_bytes, FatalCode, ValidateResult, ValidatorConfig};
 
 /// Sabit tarih — takvim kuralları tarihe göreli, deterministik olsun.
 const TODAY: u32 = 20_260_515;
@@ -1007,4 +1007,194 @@ fn pth_031_fires_when_a_pathway_endpoint_is_street_accessed() {
     });
     let (added, removed) = delta(&before, &rule_ids(&mutated));
     assert_delta_both(&added, &removed, "PTH_031", &[], &[]);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// FATAL yol — ARC_001 · ARC_002 · ARC_013 · ARC_029
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// Bu dört kural notice DEĞİL `FatalError` üretir, bu yüzden `rule_ids()` onları göremez —
+// o yardımcı Fatal'da panikler. Korpusta hiç görünmemelerinin sebebi de bu değil: bir
+// yayıncı açılamayan, UTF-8 olmayan ya da zip-bomba bir arşiv yayımlamaz. Yani en saf
+// SEÇİLİM YANLILIĞI vakası, ve mutasyondan başka ölçüm yolu yok.
+//
+// ⚠️ `ARC_004` bu listede YOK: `fatals.csv` onun korpusta 4 feed'de GERÇEKTEN ateşlediğini
+// gösteriyor (`NoRequiredFiles`). Sessiz sanılmasının sebebi `rule_stats.csv`'nin fatal
+// taşımamasıydı — `silent_rules_scan.py` bu tuzağı artık kapatıyor.
+
+/// Fatal üretiliyorsa kodunu döndürür; notice üretiliyorsa `None`.
+fn fatal_code(zip: &[u8]) -> Option<FatalCode> {
+    match validate_bytes(zip, &ValidatorConfig::default(), TODAY) {
+        ValidateResult::Fatal(e) => Some(e.code),
+        ValidateResult::Ok(_) => None,
+    }
+}
+
+/// Bir üyenin BAYTLARINI yeniden yazar (metin olmayan içerik için).
+fn rewrite_member_bytes(zip: &[u8], target: &str, bytes: Vec<u8>) -> Vec<u8> {
+    let mut archive =
+        zip::ZipArchive::new(std::io::Cursor::new(zip)).expect("arşiv açılamadı");
+    let names: Vec<String> = archive.file_names().map(str::to_string).collect();
+    let mut out = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
+    let opts = zip::write::SimpleFileOptions::default();
+    let mut hit = false;
+    let mut payload = Some(bytes);
+    for name in &names {
+        let mut entry = archive.by_name(name).expect("üye okunamadı");
+        let mut buf = Vec::new();
+        entry.read_to_end(&mut buf).expect("üye okunamadı");
+        drop(entry);
+        out.start_file(name.as_str(), opts).expect("üye yazılamadı");
+        if Path::new(name).file_name().and_then(|s| s.to_str()) == Some(target) {
+            hit = true;
+            out.write_all(&payload.take().expect("hedef iki kez eşleşti"))
+                .expect("yazılamadı");
+        } else {
+            out.write_all(&buf).expect("kopyalanamadı");
+        }
+    }
+    assert!(hit, "{target} arşivde yok");
+    out.finish().expect("arşiv kapanmadı").into_inner()
+}
+
+/// Arşive yeni bir üye ekler.
+fn add_member(zip: &[u8], name: &str, bytes: &[u8]) -> Vec<u8> {
+    let mut archive =
+        zip::ZipArchive::new(std::io::Cursor::new(zip)).expect("arşiv açılamadı");
+    let names: Vec<String> = archive.file_names().map(str::to_string).collect();
+    let mut out = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
+    let opts = zip::write::SimpleFileOptions::default();
+    for n in &names {
+        let mut entry = archive.by_name(n).expect("üye okunamadı");
+        let mut buf = Vec::new();
+        entry.read_to_end(&mut buf).expect("üye okunamadı");
+        drop(entry);
+        out.start_file(n.as_str(), opts).expect("üye yazılamadı");
+        out.write_all(&buf).expect("kopyalanamadı");
+    }
+    out.start_file(name, opts).expect("yeni üye yazılamadı");
+    out.write_all(bytes).expect("yazılamadı");
+    out.finish().expect("arşiv kapanmadı").into_inner()
+}
+
+/// Verilen dosya adlarını arşivden ÇIKARIR.
+fn drop_members(zip: &[u8], drop: &[&str]) -> Vec<u8> {
+    let mut archive =
+        zip::ZipArchive::new(std::io::Cursor::new(zip)).expect("arşiv açılamadı");
+    let names: Vec<String> = archive.file_names().map(str::to_string).collect();
+    let mut out = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
+    let opts = zip::write::SimpleFileOptions::default();
+    for n in &names {
+        let base = Path::new(n).file_name().and_then(|s| s.to_str()).unwrap_or("");
+        if drop.contains(&base) {
+            continue;
+        }
+        let mut entry = archive.by_name(n).expect("üye okunamadı");
+        let mut buf = Vec::new();
+        entry.read_to_end(&mut buf).expect("üye okunamadı");
+        drop_guard(&mut entry);
+        out.start_file(n.as_str(), opts).expect("üye yazılamadı");
+        out.write_all(&buf).expect("kopyalanamadı");
+    }
+    out.finish().expect("arşiv kapanmadı").into_inner()
+}
+
+/// `archive.by_name` ödünçlemesini erken bitirmek için.
+fn drop_guard<T>(_: &mut T) {}
+
+/// Fatal testleri için taban arşiv. Boyut burada ÖNEMSİZ — ölçülen şey arşiv düzeyinde
+/// bir başarısızlık, feed içeriği değil; önemli olan GERÇEK yayımlanmış bir arşiv olması.
+const FATAL_FEED: &str = "mdb-1903";
+
+#[test]
+#[ignore = "gerçek korpus feed'i gerektirir"]
+fn arc_001_fatal_when_the_archive_is_truncated() {
+    let zip = corpus_zip(FATAL_FEED);
+    assert!(fatal_code(&zip).is_none(), "taban arşiv zaten Fatal veriyor");
+    // Sondaki merkezi-dizin kaydını kes → arşiv açılamaz.
+    let cut = &zip[..zip.len() - 256];
+    assert_eq!(fatal_code(cut), Some(FatalCode::ZipUnreadable));
+}
+
+#[test]
+#[ignore = "gerçek korpus feed'i gerektirir"]
+fn arc_002_reports_invalid_utf8_as_a_notice_not_a_fatal() {
+    // 🔴 BU TEST BİR VARSAYIMI ÇÜRÜTEREK YAZILDI. İlk hâli `Fatal(Utf8Critical)` bekliyordu,
+    // çünkü `core::enums::FatalCode` şu yorumu taşıyor: "Utf8Critical → ARC_002 — UTF-8
+    // ihlali, dosya okunamıyor". Ölçüm bunu çürüttü: zorunlu bir dosyaya geçersiz bayt
+    // dizisi koymak Fatal DEĞİL, NOTICE üretiyor.
+    //
+    // Sebep: `FatalCode::Utf8Critical` üretim kodunda HİÇ KURULMUYOR (yalnız enum tanımında
+    // ve bir yorumda geçiyor). Aynı durum `NoRequiredFiles`, `CsvMalformed` ve
+    // `ResourceLimit` için de geçerli — dördü de ÖLÜ VARYANT.
+    let zip = corpus_zip(FATAL_FEED);
+    let before = rule_ids(&zip);
+    assert!(!before.contains("ARC_002"), "taban feed zaten ARC_002 üretiyor");
+
+    let mut bad = b"stop_id,stop_name,stop_lat,stop_lon\n".to_vec();
+    bad.extend_from_slice(&[b'S', b'1', b',', 0xFF, 0xFE, 0xFF, b',', b'4', b'1', b'.', b'0', b',', b'2', b'9', b'.', b'0', b'\n']);
+    let mutated = rewrite_member_bytes(&zip, "stops.txt", bad);
+
+    assert_eq!(
+        fatal_code(&mutated),
+        None,
+        "geçersiz UTF-8 Fatal üretti — davranış değişmiş, ölü varyant canlanmış olabilir"
+    );
+    let after = rule_ids(&mutated);
+    assert!(
+        after.contains("ARC_002"),
+        "geçersiz UTF-8 ne Fatal ne ARC_002 üretti — ihlal HİÇ raporlanmıyor demektir"
+    );
+}
+
+#[test]
+#[ignore = "gerçek korpus feed'i gerektirir"]
+fn arc_004_reports_missing_required_files_as_a_notice_since_partial_recovery() {
+    // `fatals.csv` (2026-08-06 korpus koşumu) `NoRequiredFiles` fatal'ini 4 feed'de
+    // kaydeder. O dosya BAYAT: `66e009c2` ("recover and report partial feeds",
+    // 2026-08-09) pipeline'ı kısmi feed'i kurtarıp RAPORLAMAYA çevirdi. Bugün zorunlu
+    // dosyalar eksikken Fatal YOK, `ARC_004` NOTICE olarak çıkıyor.
+    let zip = corpus_zip(FATAL_FEED);
+    let required = ["stops.txt", "trips.txt", "stop_times.txt", "routes.txt", "agency.txt"];
+    let mutated = drop_members(&zip, &required);
+
+    assert_eq!(fatal_code(&mutated), None, "zorunlu dosya eksikliği artık Fatal DEĞİL");
+    assert!(
+        rule_ids(&mutated).contains("ARC_004"),
+        "zorunlu dosyalar atıldı ama ARC_004 çıkmadı"
+    );
+}
+
+#[test]
+#[ignore = "gerçek korpus feed'i gerektirir"]
+fn arc_029_fatal_when_a_member_is_a_decompression_bomb() {
+    // `ratio_floor` 16 MiB, `max_ratio` 100 → 24 MiB tek bayt tekrarı ~1000:1 sıkışır,
+    // yani ORAN yolundan (zip-bomba imzası) düşer, mutlak tavanlardan değil.
+    // ⚠️ Bomba KÖK dizinde `.txt` OLMALI: K1 `.txt` olmayan girdiyi okumadan atlar
+    // (ARC_007) ve guard hiç devreye girmez.
+    let zip = corpus_zip(FATAL_FEED);
+    let bomb = vec![b'A'; 24 * 1024 * 1024];
+    let mutated = add_member(&zip, "bomb.txt", &bomb);
+    assert_eq!(fatal_code(&mutated), Some(FatalCode::DecompressionLimit));
+}
+
+#[test]
+#[ignore = "gerçek korpus feed'i gerektirir"]
+fn arc_013_reports_csv_tokenization_failure_as_a_notice_not_a_fatal() {
+    // `FatalCode::CsvMalformed` de ÖLÜ varyant (bkz. arc_002 testi). `tokenize_csv` hata
+    // döndürünce K1 dosyayı `partial.unavailable_files`'a alır ve `ARC_013` NOTICE üretir;
+    // feed tümüyle reddedilmez.
+    let zip = corpus_zip(FATAL_FEED);
+    let before = rule_ids(&zip);
+    assert!(!before.contains("ARC_013"), "taban feed zaten ARC_013 üretiyor");
+
+    // Kapanmamış tırnak → tokenization başarısız.
+    let broken = "route_id,agency_id,route_short_name,route_type\nR1,\"1,ACIK TIRNAK,3\n";
+    let mutated = rewrite_member_bytes(&zip, "routes.txt", broken.as_bytes().to_vec());
+
+    assert_eq!(fatal_code(&mutated), None, "bozuk CSV artık Fatal DEĞİL");
+    assert!(
+        rule_ids(&mutated).contains("ARC_013"),
+        "bozuk CSV ne Fatal ne ARC_013 üretti — tokenization hatası HİÇ raporlanmıyor"
+    );
 }

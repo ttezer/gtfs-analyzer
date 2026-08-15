@@ -9,11 +9,12 @@ sayılır. Bu tarayıcı daha sıkıdır; farkı raporlar.
 Faz 1 (sessizlik sebebi): korpusta hiç çıkmayan kurallar neden susuyor? Etiketler
 KANIT DURUMUNU belgeler; hiçbiri "kuralı kaldır" demez. Otorite spec'tir, korpus değil.
 
-⚠️ İki ölçüm tuzağı bu betikte bilinçli olarak kapalı:
-  1. `rule_stats.csv` FATAL'leri taşımaz — `fatals.csv` ayrı dosyadır. Fatal yolla
-     ateşleyen kural (ARC_004) "hiç tetiklenmedi" sanılıyordu.
-  2. Zip taramasında `.txt` filtresi `locations.geojson`'ı gizler (2026-08-14'te
+⚠️ Ölçüm tuzakları bu betikte bilinçli olarak kapalı:
+  1. Zip taramasında `.txt` filtresi `locations.geojson`'ı gizler (2026-08-14'te
      6 feed "0" olarak raporlandı).
+  2. `fatals.csv` BAYAT — bkz. aşağıdaki FATAL_RULES notu. Bir zamanlar buradan
+     "ARC_004 ateşledi" sonucu çıkarılmıştı; o fatal yolu artık YOK.
+  3. Bir `FatalCode` varyantının TANIMLI olması ÜRETİLDİĞİ anlamına gelmez.
 """
 import csv
 import os
@@ -32,14 +33,27 @@ EV = os.path.join(ROOT, "spec-audit/corpus-evidence")
 RULE_RE = re.compile(r'"([A-Z]{2,4}_\d{3})"')
 BARE_RE = re.compile(r'\b([A-Z]{2,4}_\d{3})\b')
 
-# core/src/enums.rs FatalCode yorumlarından: fatal yolla üretilen kurallar Notice
-# değildir, rule_id kaynakta literal geçmez ve rule_stats.csv'ye girmez.
+# Fatal yolla üretilen kurallar Notice değildir; rule_id kaynakta literal geçmez ve
+# rule_stats.csv'ye girmez.
+#
+# 🔴 BU HARİTA 2026-08-15'te DARALTILDI. İlk hâli `core/src/enums.rs`'teki `FatalCode`
+# YORUMLARINDAN türetilmişti ve beş kural içeriyordu. Ölçüm gösterdi ki enum'un yedi
+# varyantından DÖRDÜ üretim kodunda HİÇ KURULMUYOR: `Utf8Critical`, `NoRequiredFiles`,
+# `CsvMalformed`, `ResourceLimit`. Yani ARC_002/ARC_004/ARC_013 fatal DEĞİL NOTICE
+# üretiyor (üçü de `real_feed_mutation.rs`'te gerçek feed mutasyonuyla doğrulandı).
+#
+# ⚠️ Bir enum varyantının VARLIĞI onun ÜRETİLDİĞİ anlamına gelmez — `AGN_001` (ölü
+# registry kaydı) ve #125'in ulaşılamaz K7 dalıyla aynı sınıf.
 FATAL_RULES = {
-    "ARC_001": "ZipUnreadable", "ARC_002": "Utf8Critical",
-    "ARC_004": "NoRequiredFiles", "ARC_013": "CsvMalformed",
+    "ARC_001": "ZipUnreadable",
     "ARC_029": "DecompressionLimit",
 }
-FATAL_CODE_TO_RULE = {v: k for k, v in FATAL_RULES.items()}
+
+# 🔴 `corpus-evidence/fatals.csv` ARTIK KANIT OLARAK KULLANILMIYOR. O dosya 2026-08-06
+# koşumundan `NoRequiredFiles` fatal'ini 4 feed'de kaydeder, ama `66e009c2`
+# ("recover and report partial feeds", 2026-08-09) o yolu KALDIRDI: bugün zorunlu
+# dosyalar eksikken Fatal yok, `ARC_004` notice olarak çıkıyor. Bayat bir dosyadan
+# "ateşledi" sonucu çıkarmak, ölçüm gibi görünen bir tahmindir.
 
 # k2 modül adı → GTFS dosyası (modül-başına-dosya tasarımı). Dosyaya karşılık
 # gelmeyen yardımcı modüller dışarıda.
@@ -248,13 +262,6 @@ def main():
     presence, nfeeds = corpus_file_presence()
 
     fired = {r["rule_id"] for r in csv.DictReader(open(f"{EV}/rule_stats.csv"))}
-    fatal_feeds = Counter()
-    with open(f"{EV}/fatals.csv") as fh:
-        for row in csv.DictReader(fh):
-            rid = FATAL_CODE_TO_RULE.get(row["code"])
-            if rid:
-                fatal_feeds[rid] += 1
-    fired |= set(fatal_feeds)
 
     # ---------- Faz 0 ----------
     print("=== FAZ 0 · ulaşılabilirlik ===")
