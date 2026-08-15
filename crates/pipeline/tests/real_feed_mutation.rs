@@ -1125,8 +1125,10 @@ fn arc_002_reports_invalid_utf8_as_a_notice_not_a_fatal() {
     // dizisi koymak Fatal DEĞİL, NOTICE üretiyor.
     //
     // Sebep: `FatalCode::Utf8Critical` üretim kodunda HİÇ KURULMUYOR (yalnız enum tanımında
-    // ve bir yorumda geçiyor). Aynı durum `NoRequiredFiles`, `CsvMalformed` ve
-    // `ResourceLimit` için de geçerli — dördü de ÖLÜ VARYANT.
+    // ve bir yorumda geçiyor). Aynı durum `NoRequiredFiles` ve `CsvMalformed` için de
+    // geçerli — üçü de hiçbir Rust kodunun üretmediği varyantlar (issue #132).
+    // ⚠️ `ResourceLimit` bu listede DEĞİL: onu UI'ın TypeScript'i üretiyor
+    // (`ui/src/validator-client.ts`), yani ölü değil, yalnız Rust tarafında üreticisi yok.
     let zip = corpus_zip(FATAL_FEED);
     let before = rule_ids(&zip);
     assert!(!before.contains("ARC_002"), "taban feed zaten ARC_002 üretiyor");
