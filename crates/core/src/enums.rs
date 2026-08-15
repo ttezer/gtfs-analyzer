@@ -123,21 +123,33 @@ impl EntityType {
     }
 }
 
+/// Doğrulamayı tümüyle durduran hata kodu.
+///
+/// ⚠️ **HER VARYANT ÜRETİLMİYOR.** Bu yorumlar bir zamanlar üç varyantı ARC_002/ARC_004/
+/// ARC_013'e "fatal karşılığı" diye eşliyordu; `66e009c2` (2026-08-09) o üç yolu BİLİNÇLİ
+/// olarak kaldırıp kısmi kurtarmaya (`ValidationStatus::Partial`) çevirdi ama yorumlar
+/// bayat kaldı. Yorumlara güvenen `spec-audit/silent_rules_scan.py` üç kuralı yanlışlıkla
+/// "fatal yolu" diye etiketledi ve `fatals.csv`'den bayat bir "ateşledi" sonucu üretti
+/// (issue #132). Aşağıdaki etiketler ölçülmüştür — değiştirirken ÖLÇ.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum FatalCode {
-    /// ARC_001 — ZIP açılamadı
+    /// ✅ CANLI — `k1_parse`: ZIP açılamadı (ARC_001).
     ZipUnreadable,
-    /// ARC_002 — UTF-8 ihlali, dosya okunamıyor
+    /// ⛔ HİÇBİR RUST KODU ÜRETMEZ. Zorunlu dosyadaki UTF-8 ihlali artık `ARC_002`
+    /// NOTICE'ı + Partial üretir; feed reddedilmez.
     Utf8Critical,
-    /// ARC_004 — zorunlu dosyalar eksik
+    /// ⛔ HİÇBİR RUST KODU ÜRETMEZ. Zorunlu dosya eksikliği artık `ARC_004` NOTICE'ı +
+    /// Partial üretir (`66e009c2`).
     NoRequiredFiles,
-    /// ARC_013 — CSV tokenization başarısız
+    /// ⛔ HİÇBİR RUST KODU ÜRETMEZ. Tokenization hatası artık `ARC_013` NOTICE'ı üretir ve
+    /// dosya `partial.unavailable_files`'a düşer.
     CsvMalformed,
-    /// ARC_029 — sıkıştırma koruması: arşiv zip-bomb / açılmış-boyut sınırını aştı
+    /// ✅ CANLI — `k1_parse`: zip-bomb / açılmış-boyut sınırı aşıldı (ARC_029).
     DecompressionLimit,
-    /// WASM bellek veya notice sayısı limiti aşıldı (browser ortamı)
+    /// ✅ CANLI ama YALNIZ TypeScript tarafında: `ui/src/validator-client.ts` worker
+    /// çökmesi ve zaman aşımı için üretir. Rust bu varyantı hiç kurmaz.
     ResourceLimit,
-    /// Giriş verisi geçersiz (örn. config JSON parse hatası)
+    /// ✅ CANLI — `wasm`: giriş verisi geçersiz (örn. config JSON parse hatası).
     InvalidInput,
 }
 
