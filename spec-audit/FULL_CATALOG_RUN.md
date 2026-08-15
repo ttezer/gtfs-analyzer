@@ -3,19 +3,52 @@
 Bu iş başka bir asistana veriliyor. Belge, koşumu yapacak olanın bilmesi gereken ölçülmüş
 gerçekleri ve geri istenen çıktıyı tanımlar. Sayıların hepsi bu repoda ölçüldü; tahmin yok.
 
-## 0. Katalog gerçekte ne kadar
+## 0. Katalog gerçekte ne kadar — ELEME ZİNCİRİ ÖLÇÜLDÜ
 
-`notgit/corpus/catalog.csv` (MobilityData `sources.csv` anlık görüntüsü):
+`notgit/corpus/catalog.csv` (MobilityData `sources.csv` anlık görüntüsü). Her adım
+sayıldı, tahmin yok:
 
-| | |
-|---|---|
-| toplam satır | **3.358** |
-| statik GTFS | **2.386** |
-| GTFS-RT | **972** — bu doğrulayıcı RT'yi HİÇ desteklemiyor, kod tabanında `protobuf`/`realtime` için sıfır eşleşme var. **Filtrelenmeli.** |
-| kimlik doğrulama isteyen | **589** — `#55` açık; bunlar indirilemez |
+| adım | kalan | eleme |
+|---|---:|---:|
+| katalog toplamı | **3.358** | — |
+| `data_type == "gtfs"` | **2.386** | −972 **GTFS-RT** |
+| `status ∈ {active, ""}` | **1.662** | −724 (`deprecated` 622 · `inactive` 191 · `development` 7) |
+| kimlik doğrulama yok | **1.479** | −183 |
+| `urls.latest` var, `redirect.id` yok | **1.479** | −0 |
 
-Mevcut korpus 242 feed / 2,2 GB. Doğrusal ölçekle ~2.400 feed ≈ **21 GB**.
-⚠️ Ölü URL oranı bizim örneklemimizde **14/242 (%5,8)** ölçüldü; benzerini bekleyin.
+🔴 **KOŞULABİLİR FEED 1.479'DUR, 2.386 DEĞİL.** İlk tahminim 2.386'ydı ve yanlıştı: statik
+olmak yetmiyor, feed'in **yaşayan** ve **açık** olması da gerekiyor. En büyük tek kesinti
+**622 `deprecated`** — MobilityData'nın emekliye ayırdığı kayıtlar; koşmak istatistiği ölü
+veriyle kirletir.
+
+Boyut: mevcut 242 feed 2,2 GB → 1.479 feed doğrusal ölçekle **~13 GB**.
+⚠️ Ölü URL oranı bizim örneklemimizde **14/242 (%5,8)** ölçüldü; elemeden GEÇEN feed'lerde
+bile indirme başarısızlığı bekleyin.
+
+### 0.1 Eleme filtresi — kopyalanabilir
+
+`corpus_batch.py::eligible()` bu filtreyi zaten uyguluyor; ayrı bir araç yazılacaksa
+birebir aynısı kullanılmalı:
+
+```python
+def eligible(row):
+    return (
+        row.get("data_type") == "gtfs"                              # 972 RT satırını eler
+        and row.get("status") in ("active", "")                     # deprecated/inactive/development
+        and row.get("urls.authentication_type", "") in ("", "0")    # #55: auth'lu feed indirilemez
+        and row.get("urls.latest")
+        and not row.get("redirect.id")                              # başka kayda yönlenenler
+    )
+```
+
+🔴 **GTFS-RT satırları TEK TEK DENENMEMELİ.** Bu doğrulayıcıda realtime desteği YOKTUR —
+kod tabanında `protobuf` / `realtime` / `TripUpdate` için **sıfır** eşleşme var. 972 RT
+kaydını indirip doğrulamaya vermek 972 anlamsız hata üretir ve hiçbirini rapora yazmak
+doğru olmaz. `data_type` sütunu bu ayrımı zaten veriyor; başka bir sezgiye gerek yok.
+
+⚠️ RT feed'lerinin bir kısmının `static_reference` sütununda statik karşılığı yazar. O
+karşılık **zaten `gtfs` satırı olarak katalogda vardır** — RT satırından türetilirse aynı
+feed İKİ KEZ sayılır (bkz. §3.4 aynalar).
 
 ## 1. 🔴 EN KRİTİK MADDE: bu daha büyük bir örneklem DEĞİL, BAŞKA bir popülasyon
 
@@ -24,7 +57,7 @@ Mevcut korpus 242 feed / 2,2 GB. Doğrusal ölçekle ~2.400 feed ≈ **21 GB**.
 *"amaç HACİM değil ÇEŞİTLİLİK"*). Kör rastgele seçim kataloğun kendi ABD/Avrupa
 ağırlığını verir.
 
-Dolayısıyla **2.386 feed'lik bir koşum o baseline ile "kodda ne değişti" diye
+Dolayısıyla **1.479 feed'lik bir koşum o baseline ile "kodda ne değişti" diye
 KIYASLANAMAZ.** Değişen şey kod değil popülasyondur. Bu, bu turda yaşanan `--today`
 hatasının başka kılıktaki hâlidir: iki koşum ancak TEK bir değişkende farklıysa
 kıyaslanabilir.
@@ -61,6 +94,8 @@ tam katalog bunun ~10 katı olur. Okunamaz, taşınamaz, faydası yok.
 4. **Aynalar/kopyalar elenmeli.** Bizim 242'lik kümede `PID_GTFS` (45,63 MB) ve `mdb-767`
    (45,88 MB) ikisi de 1494 pathway taşıyor — aynı feed'in iki kaydı. Aynaları iki kez
    saymak HER yüzdeyi bozar. `sha256` ya da (satır sayısı + boyut) ile dedupe edin.
+   ⚠️ İkinci bir çift-sayım kaynağı: RT satırlarının `static_reference` sütunu. O statik
+   feed zaten kendi `gtfs` satırıyla katalogda; RT'den türetmek aynı feed'i tekrar ekler.
 5. **Zaman aşımı koyun ve KAYDEDİN.** Bir feed 30 dakikada bitmeyebilir; atlanan feed
    sessizce kaybolmasın, `status` sütununa yazılsın.
 6. **Devam ettirilebilir olsun.** `corpus_report.py` `per_feed_rules.tsv`'yi okuyup
