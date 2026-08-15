@@ -1261,3 +1261,33 @@ fn losing_an_optional_file_does_not_withdraw_the_verdict() {
         "isteğe bağlı dosya kaybı kapsamı EKSİK saydı → geçerli feed'ler yayından men edilir"
     );
 }
+
+#[test]
+#[ignore = "gerçek korpus feed'i gerektirir"]
+fn trn_006_fires_on_a_conflicting_translation() {
+    // `TRN_006` kovaya SONRADAN girdi: 2026-08-06 baseline'ında 101.871 bulguyla
+    // ateşliyordu, `67fc99b0` (#99) çeviri satır kontrollerini şema ön koşullarına
+    // bağlayınca SIFIRA düştü. Yani sessizliği yeni ve ölçülmemişti.
+    //
+    // `TRN_005` ile AYNI `match`'in öteki kolu: anahtar çakışıyor ama `translation`
+    // değeri FARKLI. Mutasyon bu yüzden satırı aynen değil, DEĞERİ DEĞİŞTİREREK tekrarlar —
+    // birebir kopya TRN_005 üretirdi ve yanlış kolu sınardık.
+    let zip = corpus_zip(TRN_FEED);
+    let before = rule_ids(&zip);
+    assert!(!before.contains("TRN_006"), "{TRN_FEED} zaten TRN_006 üretiyor");
+
+    let mutated = rewrite_member(&zip, "translations.txt", |t| {
+        let header = split_csv_line(t.lines().next().expect("başlık yok").trim_end_matches('\r'));
+        let ti = header
+            .iter()
+            .position(|h| h == "translation")
+            .expect("translation sütunu yok");
+        let mut cols = split_csv_line(first_data_line(&t));
+        assert_eq!(cols.len(), header.len(), "alan sayısı başlıkla uyuşmuyor");
+        cols[ti] = format!("{}-CELISKI", cols[ti]);
+        append_line(&t, &join_csv_fields(&cols))
+    });
+
+    let (added, removed) = delta(&before, &rule_ids(&mutated));
+    assert_delta_both(&added, &removed, "TRN_006", &[], &[]);
+}
