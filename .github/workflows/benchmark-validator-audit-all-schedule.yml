@@ -1,0 +1,237 @@
+name: Full Schedule Validator Audit
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'benchmark/auditall/**'
+      - '.github/workflows/benchmark-validator-audit-all-schedule.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: validator-audit-all-schedule-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: false
+
+env:
+  ANALYZER_SHA: '155bb06037a9caca339e4bd893619e5c3ab5fafb'
+  MD_VERSION: '8.0.1'
+  SHARD_COUNT: '128'
+  CORPUS_ARTIFACT_NAME: 'auditall-schedule-corpus'
+  TOOLS_ARTIFACT_NAME: 'auditall-schedule-tools'
+  FINAL_ARTIFACT_NAME: 'validator-audit-all-schedule-final'
+
+jobs:
+  prepare:
+    name: Build Schedule-only manifest
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      shards: ${{ steps.matrix.outputs.shards }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Select all runnable GTFS Schedule feeds
+        run: |
+          set -euo pipefail
+          mkdir -p benchmark/auditall/run
+          python3 benchmark/auditall/select_corpus.py \
+            --out benchmark/auditall/run/manifest.json \
+            --catalog-out benchmark/auditall/run/feeds_v2.csv \
+            --min-count 1400
+      - name: Assert Schedule-only scope
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          d=json.loads(Path('benchmark/auditall/run/manifest.json').read_text())
+          feeds=d['feeds']; sel=d['selection']; funnel=sel['funnel']
+          assert len(feeds) >= 1400, len(feeds)
+          assert all(f.get('data_type') == 'gtfs' for f in feeds)
+          assert all(f.get('authentication_type') in ('', '0') for f in feeds)
+          assert 'mdb-2904' not in {f['feed_id'] for f in feeds}
+          assert funnel.get('gtfs_rt', 0) > 0
+          assert sel.get('gtfs_realtime_policy') == 'excluded before corpus construction by exact data_type=gtfs-rt'
+          print(f"Schedule-only manifest PASS: {len(feeds)} feeds; RT tested=0; catalog RT rows={funnel['gtfs_rt']}")
+          PY
+      - id: matrix
+        name: Build 128-shard matrix
+        run: |
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import json
+          print('shards=' + json.dumps(list(range(128)), separators=(',', ':')))
+          PY
+      - name: Upload corpus manifest
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ env.CORPUS_ARTIFACT_NAME }}
+          path: |
+            benchmark/auditall/run/manifest.json
+            benchmark/auditall/run/feeds_v2.csv
+          retention-days: 30
+
+  build-tools:
+    name: Build pinned validators
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout benchmark branch
+        uses: actions/checkout@v7
+        with:
+          path: audit-src
+      - name: Checkout pinned Analyzer product source
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ env.ANALYZER_SHA }}
+          path: analyzer-src
+      - name: Assert pinned Analyzer checkout
+        run: |
+          set -euo pipefail
+          test "$(git -C analyzer-src rev-parse HEAD)" = "$ANALYZER_SHA"
+      - name: Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+      - name: Build Analyzer release CLI
+        working-directory: analyzer-src
+        run: cargo build --release -p gtfs-cli
+      - name: Download MobilityData v8.0.1 CLI and streaming parser
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p audit-src/benchmark/auditall/tools
+          API="https://api.github.com/repos/MobilityData/gtfs-validator/releases/tags/v${MD_VERSION}"
+          ASSET_URL="$(
+            curl -fsSL \
+              -H "Authorization: Bearer $GH_TOKEN" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              "$API" \
+            | jq -r '.assets[] | select(.name | endswith("-cli.jar")) | .browser_download_url' \
+            | head -n1
+          )"
+          test -n "$ASSET_URL" && test "$ASSET_URL" != "null"
+          curl --retry 3 --retry-all-errors -fL "$ASSET_URL" -o audit-src/benchmark/auditall/tools/md-cli.jar
+          python3 -m pip download --only-binary=:all: ijson -d audit-src/benchmark/auditall/tools/
+          cp analyzer-src/target/release/gtfs-analyzer audit-src/benchmark/auditall/tools/gtfs-analyzer
+          chmod +x audit-src/benchmark/auditall/tools/gtfs-analyzer
+          printf '%s\n' "$ANALYZER_SHA" > audit-src/benchmark/auditall/tools/analyzer-commit-sha.txt
+          printf 'MobilityData gtfs-validator v%s\n' "$MD_VERSION" > audit-src/benchmark/auditall/tools/md-version.txt
+          audit-src/benchmark/auditall/tools/gtfs-analyzer --version > audit-src/benchmark/auditall/tools/analyzer-version.txt
+          (cd audit-src/benchmark/auditall/tools && sha256sum * > SHA256SUMS.txt)
+      - name: Parser preflight
+        run: |
+          python3 -m pip install --no-index audit-src/benchmark/auditall/tools/ijson-*.whl
+          python3 audit-src/benchmark/auditall/run_shard.py \
+            --analyzer audit-src/benchmark/auditall/tools/gtfs-analyzer \
+            --parser-preflight
+      - name: Upload pinned tools
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ env.TOOLS_ARTIFACT_NAME }}
+          path: audit-src/benchmark/auditall/tools/
+          retention-days: 30
+
+  audit:
+    name: Schedule shard ${{ matrix.shard }}
+    needs: [prepare, build-tools]
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    strategy:
+      fail-fast: false
+      max-parallel: 20
+      matrix:
+        shard: ${{ fromJSON(needs.prepare.outputs.shards) }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Java 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Download Schedule corpus
+        uses: actions/download-artifact@v8
+        with:
+          name: ${{ env.CORPUS_ARTIFACT_NAME }}
+          path: benchmark/auditall/run
+      - name: Download pinned tools
+        uses: actions/download-artifact@v8
+        with:
+          name: ${{ env.TOOLS_ARTIFACT_NAME }}
+          path: benchmark/auditall/tools
+      - name: Prepare local tools
+        run: |
+          chmod +x benchmark/auditall/tools/gtfs-analyzer
+          python3 -m pip install --no-index benchmark/auditall/tools/ijson-*.whl
+      - name: Audit shard ${{ matrix.shard }}
+        run: |
+          set -euo pipefail
+          mkdir -p benchmark/auditall/shards
+          python3 benchmark/auditall/run_shard.py \
+            --manifest benchmark/auditall/run/manifest.json \
+            --shard "${{ matrix.shard }}" \
+            --shards "$SHARD_COUNT" \
+            --analyzer benchmark/auditall/tools/gtfs-analyzer \
+            --md-jar benchmark/auditall/tools/md-cli.jar \
+            --analyzer-sha "$ANALYZER_SHA" \
+            --benchmark-sha "${{ github.event.pull_request.head.sha || github.sha }}" \
+            --out "benchmark/auditall/shards/shard-$(printf '%03d' '${{ matrix.shard }}').jsonl"
+      - name: Upload shard checkpoint
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: auditall-shard-${{ matrix.shard }}
+          path: benchmark/auditall/shards/
+          if-no-files-found: warn
+          retention-days: 30
+
+  aggregate:
+    name: Aggregate full Schedule audit
+    needs: [prepare, build-tools, audit]
+    if: always() && needs.prepare.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v7
+      - name: Download Schedule corpus
+        uses: actions/download-artifact@v8
+        with:
+          name: ${{ env.CORPUS_ARTIFACT_NAME }}
+          path: benchmark/auditall/run
+      - name: Download all available shard checkpoints
+        uses: actions/download-artifact@v8
+        with:
+          pattern: auditall-shard-*
+          path: benchmark/auditall/all-shards
+          merge-multiple: true
+      - name: Aggregate all available results
+        run: |
+          set -euo pipefail
+          mkdir -p benchmark/auditall/final
+          python3 benchmark/auditall/aggregate.py \
+            --manifest benchmark/auditall/run/manifest.json \
+            --results-dir benchmark/auditall/all-shards \
+            --map-file spec-audit/md_parity_audit.py \
+            --expected-analyzer-sha "$ANALYZER_SHA" \
+            --out-dir benchmark/auditall/final | tee benchmark/auditall/final/aggregate-stdout.json
+          cp benchmark/auditall/run/manifest.json benchmark/auditall/final/corpus-manifest.json
+          cat benchmark/auditall/final/AUDIT_SUMMARY.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Extract raw evidence for representative high-priority candidates
+        run: |
+          python3 benchmark/auditall/extract_evidence.py \
+            --reps benchmark/auditall/final/triage-representatives.json \
+            --max 60 \
+            --out benchmark/auditall/final/raw-evidence.json
+      - name: Bundle final audit
+        run: |
+          tar -C benchmark/auditall/final -czf benchmark/auditall/validator-audit-all-schedule-results.tar.gz .
+          sha256sum benchmark/auditall/validator-audit-all-schedule-results.tar.gz > benchmark/auditall/validator-audit-all-schedule-results.tar.gz.sha256
+      - name: Upload final audit
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ env.FINAL_ARTIFACT_NAME }}
+          path: |
+            benchmark/auditall/final/
+            benchmark/auditall/validator-audit-all-schedule-results.tar.gz
+            benchmark/auditall/validator-audit-all-schedule-results.tar.gz.sha256
+          retention-days: 30
