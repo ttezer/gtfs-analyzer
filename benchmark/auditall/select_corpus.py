@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Select every runnable GTFS Schedule feed from the MobilityDatabase catalog.
 
-GTFS-Realtime rows are excluded strictly by data_type. This is not a sample:
-every active/open Schedule row with a public latest URL is retained, except for
-explicitly documented feed exclusions.
+Only exact data_type=gtfs rows enter the corpus. Every other data type — including
+GTFS-Realtime if present in the exported catalog — is rejected before validation.
+This is not a sample: every active/open Schedule row with a public latest URL is
+retained, except for explicitly documented feed exclusions.
 """
 from __future__ import annotations
 
@@ -56,10 +57,10 @@ def main() -> None:
         Path(args.catalog_out).write_bytes(raw)
 
     rows = list(csv.DictReader(raw.decode("utf-8-sig").splitlines()))
+    data_type_counts = Counter((r.get("data_type") or "").strip() or "(blank)" for r in rows)
     funnel = Counter()
     funnel["catalog_total"] = len(rows)
-    funnel["gtfs_rt"] = sum((r.get("data_type") or "").strip() == "gtfs-rt" for r in rows)
-    funnel["gtfs_schedule"] = sum((r.get("data_type") or "").strip() == "gtfs" for r in rows)
+    funnel["gtfs_schedule"] = data_type_counts.get("gtfs", 0)
 
     stage = [r for r in rows if (r.get("data_type") or "").strip() == "gtfs"]
     funnel["schedule_active_or_blank"] = sum((r.get("status") or "").strip() in ("active", "") for r in stage)
@@ -78,7 +79,7 @@ def main() -> None:
     if len(pool) < args.min_count:
         raise SystemExit(
             f"eligible Schedule corpus unexpectedly small: {len(pool)} < {args.min_count}; "
-            f"funnel={dict(funnel)}"
+            f"funnel={dict(funnel)} data_types={dict(data_type_counts)}"
         )
 
     feeds = []
@@ -116,9 +117,10 @@ def main() -> None:
         "selection": {
             "catalog_url": CATALOG_URL,
             "catalog_sha256": hashlib.sha256(raw).hexdigest(),
+            "catalog_data_type_counts": dict(data_type_counts),
             "method": "all runnable MobilityDatabase GTFS Schedule rows; no sampling and no URL deduplication",
             "filter": "data_type=gtfs; status active/blank; authentication none; urls.latest present; redirect.id blank",
-            "gtfs_realtime_policy": "excluded before corpus construction by exact data_type=gtfs-rt",
+            "gtfs_realtime_policy": "only exact data_type=gtfs is admitted; all other data types, including GTFS-Realtime, are excluded before validation",
             "funnel": dict(funnel),
             "eligible_before_explicit_exclusions": before_explicit,
             "explicit_exclusions": EXCLUDED_FEEDS,
