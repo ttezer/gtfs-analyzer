@@ -338,18 +338,46 @@ pub fn looks_like_url(value: &str) -> bool {
 /// önerileridir. Orada (ve RFC 3986'da) **ASCII dışı karakter bir URI'de çıplak geçemez**;
 /// yüzde kodlanmalıdır.
 ///
-/// 🔴 **ÖNCEKİ TURDA BU YANLIŞ KARARDI.** 2026-08-07 sabahı ham Unicode'u "IRI kullanımı
-/// yaygın" diyerek bilinçli kabul etmiştim ve `P5f72fb5a`'yı KANITLI bırakmıştım. Ama o bir
-/// ÜRÜN toleransıydı, spec ölçüsü değil — ve hükmün ikinci yarısı ancak spec'in ölçüsüyle
-/// ölçülürse KANITLI olabilir. Tolerans ile doğrulama karıştırılamaz.
+/// 🔴 **`is_ascii()` KAPISI KALDIRILDI (#144, 2026-08-16).** Kısa tarihçe, çünkü bu karar
+/// iki kez döndü ve üçüncü kez dönmemesi için dayanağın yazılı olması gerekiyor:
 ///
-/// Ölçüm (20 feed · 12.897 URL): çıplak özel karakter 0 · bozuk yüzde kaçışı 0 ·
-/// **ASCII dışı 0**. Yani katı ölçü bugünkü veride hiçbir feed'i etkilemiyor.
+/// - 2026-08-07 sabahı ham Unicode "IRI kullanımı yaygın" diye kabul edilmişti.
+/// - Aynı gün geri alındı: o bir ÜRÜN toleransıydı, spec ölçüsü değil.
+/// - Şimdi tekrar kaldırılıyor, ama **farklı bir gerekçeyle** — tolerans olduğu için değil,
+///   `is_ascii()`'nin hükmü YANLIŞ okuduğu için.
+///
+/// Hüküm *"any **special characters** in the URL must be correctly escaped"* der. `é`, `ü`,
+/// kiril veya tam genişlikli `ｗ` RFC 3986'nın ayraç kümesinde DEĞİLDİR; `url_escaping_ok`'ın
+/// kendi docstring'i bunu zaten yazıyordu. İki fonksiyon çelişiyordu: biri "ASCII dışı
+/// reddedilmez, reddetmek uluslararası feed'leri kırardı" diyor, öteki üstüne `is_ascii()`
+/// koyup tam onu yapıyordu.
+///
+/// 🔑 **Ayırt edici ölçüt: değerin deterministik kanonik ASCII karşılığı var mı?**
+/// ```text
+///   "https://ｗｗｗ.city.chikuma.lg.jp" → https://www.city.chikuma.lg.jp/   (NFKC)
+///   "https://thyon4vallées.ch"        → https://xn--thyon4valles-keb.ch/  (punycode)
+///   "https://a.example/ürün"          → https://a.example/%C3%BCr%C3%BCn  (yüzde kodlama)
+/// ```
+/// Üçünde de üreticinin ne demek istediği TEK ANLAMLIDIR. Buna karşılık gerçek kusurlarda
+/// ayrıştırıcı bir yorum UYDURUR (`a b` → `a%20b`) ya da bozuğu olduğu gibi geçirir
+/// (`a%zzb`); ikisini de `url_escaping_ok` yakalar, şemasızlığı (`wemapp.eu`) çağıran yakalar.
+/// Yani üç gerçek hata modu `is_ascii()` OLMADAN da yakalanıyor — kapı yalnız kanonik
+/// karşılığı olan değerleri reddediyordu.
+///
+/// ⚠️ **Eski ölçümün dayanağı ÇÜRÜDÜ.** Kapıyı haklı çıkaran cümle "20 feed · 12.897 URL'de
+/// ASCII dışı **0**, yani katı ölçü hiçbir feed'i etkilemiyor" idi. Tam katalog koşumu
+/// (4.259 feed) gerçek vakalar buldu — 20 feed'lik örneklemde uluslararası URL yokmuş.
+/// Maliyet asimetriktir: geçerli bir IDN adresine KRİTİK·Spec demek geçerli feed'i REDDEDER
+/// (`PTH_017`/`ARC_031` ile aynı sınıf), tersi yalnız eksik uyarır.
+///
+/// `P5f72fb5a` KANITLI kalır: hükmün ikinci yarısını `url_escaping_ok` hâlâ KATI ölçüyor
+/// (ayraç kümesi + yüzde kaçışının geçerliliği). Ölçülen şey daralmadı, yalnız hükmün
+/// kapsamadığı bir kısıt kalktı.
 ///
 /// ⚠️ Ayrı bir "toleranslı" predikat EKLENMEDİ: onu çağıran kimse olmayacaktı ve çağrılmayan
 /// bir gevşetme, ileride kimin hangi ölçüyü kullandığını belirsizleştirirdi.
 pub fn url_strict_ok(value: &str) -> bool {
-    value.is_ascii() && url_escaping_ok(value)
+    url_escaping_ok(value)
 }
 
 /// GTFS `URL` tipinin İKİNCİ yarısı: *"…any special characters … correctly escaped."*
@@ -1166,13 +1194,28 @@ mod tests {
         assert!(!super::looks_like_url("https://a.example/a%zzb"), "BOZUK yüzde kodlaması");
         assert!(!super::looks_like_url("https://a.example/a%2"), "eksik yüzde kodlaması");
         assert!(!super::looks_like_url("https://a.example/a\\b"), "ters bölü çıplak geçemez");
-        // issue #80: ASCII dışı ÇIPLAK geçemez — spec "correctly escaped" diyor ve atıf
-        // yaptığı W3C belgesi URI'yi ASCII olarak tanımlıyor. Yüzde kodlanmış EŞDEĞERİ
-        // geçerlidir; reddedilen şey karakterin kendisi değil, KAÇIRILMAMIŞ olması.
-        assert!(!super::looks_like_url("https://example.com/güzergah"), "çıplak ASCII dışı");
-        assert!(super::looks_like_url("https://example.com/g%C3%BCzergah"), "yüzde kodlanmış eşdeğeri GEÇERLİ");
-        assert!(!super::looks_like_url("https://şehir.example/yol"), "IDN alan adı da çıplak ASCII dışıdır");
+        // #144: ASCII dışı ARTIK REDDEDİLMİYOR. Hüküm "özel karakterler" der; `ü`, `ş` ve
+        // tam genişlikli `ｗ` RFC 3986'nın ayraç kümesinde değildir. Belirleyici ölçüt
+        // deterministik kanonik ASCII karşılığının bulunması: NFKC, punycode ve yüzde
+        // kodlama üçü de tek anlamlıdır — ayrıştırıcı bir yorum UYDURMAZ.
+        assert!(super::looks_like_url("https://example.com/güzergah"), "ASCII dışı yol: kanonik karşılığı var");
+        assert!(super::looks_like_url("https://example.com/g%C3%BCzergah"), "yüzde kodlanmış eşdeğeri de GEÇERLİ");
+        assert!(super::looks_like_url("https://şehir.example/yol"), "IDN alan adı GEÇERLİ");
         assert!(super::looks_like_url("https://xn--ehir-jua.example/yol"), "punycode eşdeğeri GEÇERLİ");
+        // Korpustan gelen iki gerçek vaka (#144, tam katalog koşumu).
+        assert!(
+            super::looks_like_url("https://ｗｗｗ.city.chikuma.lg.jp"),
+            "jbda-chikumacity: tam genişlikli www, NFKC ile www.city.chikuma.lg.jp"
+        );
+        assert!(
+            super::looks_like_url("https://thyon4vallées.ch"),
+            "mdb-2898: punycode ile xn--thyon4valles-keb.ch"
+        );
+        // 🔑 Gevşetmenin SINIRI: ASCII dışı serbest kaldı, kaçırılmamış AYRAÇ kalmadı.
+        // Bu üçü ASCII dışı bir değerin içinde de reddedilmeli, yoksa gevşetme hükmü yer.
+        assert!(!super::looks_like_url("https://şehir.example/a b"), "ASCII dışı host çıplak boşluğu MEŞRULAŞTIRMAZ");
+        assert!(!super::looks_like_url("https://şehir.example/a%zz"), "ASCII dışı host bozuk yüzde kodlamasını MEŞRULAŞTIRMAZ");
+        assert!(!super::looks_like_url("şehir.example/yol"), "şema yokluğu ASCII dışı olmaktan bağımsız");
         assert!(!super::looks_like_url("foo:bar"));
         assert!(!super::looks_like_url("jrutil://invalid"), "korpusta görülen yer tutucu");
 

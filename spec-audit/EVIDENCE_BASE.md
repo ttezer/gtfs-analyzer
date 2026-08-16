@@ -540,6 +540,22 @@ veriyi reddetmek olurdu.
   **Tolerans ile doğrulama karıştırılamaz** — ayrı bir toleranslı predikat de eklenmedi,
   çünkü çağıranı olmayacaktı.
 
+  🔴 **`is_ascii()` KAPISI 2026-08-16'da KALDIRILDI (#144) — yukarıdaki paragraf ARTIK
+  GEÇERLİ DEĞİL, tarihçe olarak bırakıldı.** Gerekçe "tolerans" değil, HÜKMÜN YANLIŞ
+  OKUNMASIDIR: madde *"any **special characters** … correctly escaped"* der ve `ü`, `ş`,
+  tam genişlikli `ｗ` RFC 3986'nın ayraç kümesinde değildir. Belirleyici ölçüt, değerin
+  **deterministik kanonik ASCII karşılığının** olmasıdır — NFKC, punycode ve yüzde kodlama
+  üçü de tek anlamlıdır, oysa `a b` için ayrıştırıcı bir yorum UYDURUR. Üç gerçek hata modu
+  (çıplak ayraç · bozuk `%zz` · şema yokluğu) `is_ascii()` olmadan da yakalanıyor.
+  ⚠️ **Yukarıdaki "20 feed · 12.897 URL · ASCII dışı 0" ölçümü kapıyı haklı çıkarmak için
+  kullanılmıştı ve TAM KATALOG KOŞUMU BUNU ÇÜRÜTTÜ** (4.259 feed): örneklemde uluslararası
+  URL yokmuş. Gerçek vakalar `jbda-chikumacity-chikumajunkanbus` (tam genişlikli `ｗｗｗ`) ve
+  `mdb-2898` (`thyon4vallées.ch`). Maliyet asimetriktir: geçerli bir IDN adresine KRİTİK·Spec
+  demek geçerli feed'i REDDEDER. `P5f72fb5a` KANITLI kalır — kaçış hükmünü `url_escaping_ok`
+  hâlâ katı ölçüyor; ölçülen şey daralmadı, hükmün kapsamadığı bir kısıt kalktı.
+  **DERS: bir kapıyı "hiçbir feed'i etkilemiyor" diye haklı çıkaran ölçüm, örneklemin o
+  vakayı içermediğini de gösteriyor olabilir.**
+
 **Ölçüm:** 20 rastgele korpus feed'i, önce/sonra: **fark 0** (URL tarafında 12.897 URL
 tarandı, hiçbirinde çıplak özel karakter ya da bozuk yüzde kaçışı yok). Yani yeni yanlış pozitif yok;
 bu örneklemde doğru pozitif de yok (aranan bozukluklar nadir). 20 feed bir ALT SINIRDIR,
