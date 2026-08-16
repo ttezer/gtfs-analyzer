@@ -1010,6 +1010,21 @@ fn known_columns(filename: &str) -> &'static [&'static str] {
     }
 }
 
+/// macOS'un ZIP'e eklediği AppleDouble yan dosyası mı?
+///
+/// Finder bir klasörü sıkıştırırken her dosya için `__MACOSX/…/._<ad>` yolunda bir
+/// kaynak-çatal girdisi yazar. `._agency.txt` adı `.txt` ile bittiği için eski kod bunu
+/// "alt dizindeki GTFS dosyası" sanıyordu; oysa GTFS dosyası değil, ikili bir metadata
+/// yan dosyasıdır ve hiçbir parser onu okumaz.
+///
+/// Tam katalog koşumunda (#144) ARC_024 alan 42 feed'in **42'si** de yalnız bu yüzden
+/// alıyordu. Gürültüden ağır olan sonuç `detect_wrapped_root`'taydı: `__MACOSX/` ikinci
+/// bir üst klasör gibi göründüğü için sarılı feed hoşgörüsü düşüyor, geçerli feed
+/// ARC_004 ile fatal oluyordu — yani sıfır analiz.
+fn is_macos_metadata_entry(normalized_name: &str) -> bool {
+    normalized_name == "__MACOSX" || normalized_name.starts_with("__MACOSX/")
+}
+
 /// Tek bir üst klasöre sarılmış feed'in kök önekini döndürür (ör. `"TEST GTFS/"`).
 ///
 /// Bazı yayıncılar ZIP'i tek bir klasörle paketliyor: `TEST GTFS/agency.txt`. Spec
@@ -1025,7 +1040,13 @@ fn known_columns(filename: &str) -> &'static [&'static str] {
 /// içinde `.csv`'ler) hâlâ fatal olur; hoşgörü yalnız gerçekten geçerli feed'i kurtarır.
 fn detect_wrapped_root(entry_names: &[String]) -> Option<String> {
     let normalized: Vec<String> = entry_names.iter().map(|n| n.replace('\\', "/")).collect();
-    let txt = || normalized.iter().filter(|n| n.ends_with(".txt"));
+    // `__MACOSX/…/._x.txt` girdileri kök keşfine KATILMAZ; aksi halde ikinci bir üst
+    // klasör (ya da iki kat derinlik) gibi görünüp hoşgörüyü düşürürlerdi.
+    let txt = || {
+        normalized
+            .iter()
+            .filter(|n| n.ends_with(".txt") && !is_macos_metadata_entry(n))
+    };
 
     if txt().any(|n| !n.contains('/')) {
         return None; // kökte .txt var → sarılı değil
@@ -1092,7 +1113,9 @@ pub fn parse(zip_bytes: &[u8], cfg: &ValidatorConfig) -> Result<K1Result, FatalE
     if root_prefix.is_none()
         && entry_names.iter().any(|name| {
             let normalized = name.replace('\\', "/");
-            normalized.ends_with(".txt") && normalized.contains('/')
+            normalized.ends_with(".txt")
+                && normalized.contains('/')
+                && !is_macos_metadata_entry(&normalized)
         })
     {
         partial.mark_root_error(
@@ -1132,6 +1155,13 @@ pub fn parse(zip_bytes: &[u8], cfg: &ValidatorConfig) -> Result<K1Result, FatalE
         };
         if raw_name.is_empty() {
             continue; // sarılı feed'in klasör girdisinin kendisi
+        }
+        // macOS kaynak-çatalı: GTFS içeriği değil, hiçbir kural onu ölçmez (#144).
+        // ARC_024'ten ÖNCE düşer, yoksa `._agency.txt` "alt dizindeki .txt" sayılırdı.
+        if is_macos_metadata_entry(&entry_name.replace('\\', "/"))
+            || is_macos_metadata_entry(&raw_name.replace('\\', "/"))
+        {
+            continue;
         }
         // Hoşgörü uygulandı: dosya işlenecek ama alt dizinde olduğu yine de bulgudur.
         if raw_name != entry_name && raw_name.ends_with(".txt") {
@@ -2634,6 +2664,74 @@ mod tests {
         let result = parse(&zip).expect("birden fazla üst klasör PARTIAL olmalı");
         assert!(result.partial.root_structural_errors.iter().any(|e| e.contains("alt dizin")));
         assert_eq!(result.partial.unavailable_files.len(), REQUIRED_FILES.len());
+    }
+
+    // ── macOS AppleDouble artefaktları (`__MACOSX/`) ──────────────────────────
+    // Tam katalog koşumunda ARC_024 alan 42 feed'in 42'si de `__MACOSX/._agency.txt`
+    // yüzünden alıyordu (#144). `._agency.txt` bir GTFS dosyası değil, Finder'ın
+    // ZIP'e eklediği kaynak-çatal yan dosyasıdır; "kök dizine taşıyın" demek yanlış
+    // tavsiyedir. Asıl ağır sonucu ise ikinci testte: sarılı feed hoşgörüsünü düşürür.
+
+    #[test]
+    fn macosx_resource_fork_entries_do_not_produce_arc_024() {
+        let zip = zip_with_files(&[
+            ("agency.txt",     b"agency_id,agency_name,agency_url,agency_timezone\n1,A,https://e.org,Europe/Istanbul\n" as &[u8]),
+            ("stops.txt",      b"stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\n"),
+            ("routes.txt",     b"route_id,agency_id,route_short_name,route_type\nR1,1,101,3\n"),
+            ("trips.txt",      b"route_id,service_id,trip_id\nR1,SVC1,T1\n"),
+            ("stop_times.txt", b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\n"),
+            ("calendar.txt",   b"service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,0,0,20240101,20241231\n"),
+            ("__MACOSX/._agency.txt", b"\x00\x05\x16\x07"),
+            ("__MACOSX/._stops.txt",  b"\x00\x05\x16\x07"),
+        ]);
+        let k1 = parse(&zip).expect("kökteki geçerli feed fatal OLMAMALI");
+        assert!(
+            k1.notices.iter().all(|n| n.rule_id != "ARC_024"),
+            "__MACOSX kaynak-çatalı ARC_024 ÜRETMEMELİ, üretilen: {:?}",
+            k1.notices.iter().filter(|n| n.rule_id == "ARC_024").map(|n| n.file.clone()).collect::<Vec<_>>()
+        );
+    }
+
+    /// `__MACOSX` sarılı feed hoşgörüsünü DÜŞÜRMEMELİ.
+    ///
+    /// `detect_wrapped_root` tüm `.txt` girdilerini gezer. Finder'ın eklediği
+    /// `__MACOSX/…` girdileri ikinci bir üst klasör (ya da iki kat derinlik) gibi
+    /// göründüğü için hoşgörü `None` dönüyordu → ARC_004 fatal → SIFIR analiz.
+    /// Geçerli bir feed'i reddetme sınıfı; ARC_024 gürültüsünden çok daha ağır.
+    #[test]
+    fn macosx_sidecar_does_not_break_the_wrapper_tolerance() {
+        let mut files: Vec<(String, &[u8])> = vec![
+            ("TEST GTFS/agency.txt".into(),     b"agency_id,agency_name,agency_url,agency_timezone\n1,A,https://e.org,Europe/Istanbul\n" as &[u8]),
+            ("TEST GTFS/stops.txt".into(),      b"stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\n"),
+            ("TEST GTFS/routes.txt".into(),     b"route_id,agency_id,route_short_name,route_type\nR1,1,101,3\n"),
+            ("TEST GTFS/trips.txt".into(),      b"route_id,service_id,trip_id\nR1,SVC1,T1\n"),
+            ("TEST GTFS/stop_times.txt".into(), b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\n"),
+            ("TEST GTFS/calendar.txt".into(),   b"service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,0,0,20240101,20241231\n"),
+        ];
+        // Finder'ın gerçekte yazdığı iki şekil: kökte düz ve sarılı klasörü yansıtan.
+        files.push(("__MACOSX/._agency.txt".into(), b"\x00\x05\x16\x07" as &[u8]));
+        files.push(("__MACOSX/TEST GTFS/._stops.txt".into(), b"\x00\x05\x16\x07"));
+
+        let zip = zip_with_files(&files.iter().map(|(n, c)| (n.as_str(), *c)).collect::<Vec<_>>());
+        let k1 = parse(&zip).expect("__MACOSX taşıyan sarılı feed fatal OLMAMALI");
+
+        for required in REQUIRED_FILES {
+            assert!(
+                k1.files.contains_key(*required),
+                "'{required}' kök adıyla görünmeli — __MACOSX hoşgörüyü düşürmemeli"
+            );
+        }
+        assert!(
+            k1.notices.iter().all(|n| n.rule_id != "ARC_004"),
+            "__MACOSX yüzünden ARC_004 ÜRETİLMEMELİ"
+        );
+        // Gerçek sarılı dosyalar yine ARC_024 alır; yalnız __MACOSX girdileri sayılmaz.
+        let arc024: Vec<_> = k1.notices.iter().filter(|n| n.rule_id == "ARC_024").collect();
+        assert_eq!(arc024.len(), 6, "yalnız 6 gerçek .txt için ARC_024 beklenir");
+        assert!(
+            arc024.iter().all(|n| n.file.as_deref().is_some_and(|f| !f.starts_with("__MACOSX/"))),
+            "hiçbir ARC_024 __MACOSX girdisini göstermemeli"
+        );
     }
 
     #[test]
