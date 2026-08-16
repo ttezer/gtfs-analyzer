@@ -10,7 +10,13 @@ except Exception:
 ANALYZER_TIMEOUT=300
 MD_TIMEOUT=420
 DOWNLOAD_TIMEOUT=300
-MAX_DOWNLOAD=1_200_000_000
+# 1.2 GB kestiği için run-31934698855'te `mdb-2014` hiç indirilemedi
+# (`download_status=failed`, iki validatör de `not_run`) ve tek bir feed yüzünden ayrı bir
+# "residual" workflow'u önerilmişti (#139). Doğru çözüm ayrı iş değil, sınırın gerçek
+# katalogdaki en büyük feed'i kapsaması: 2.5 GB, #139'un kendi izole işinde kullandığı
+# değerin aynısı. Sınır KALDIRILMADI — sınırsız indirme runner diskini tüketir ve
+# feed'i "başarısız" değil "asılı" yapar.
+MAX_DOWNLOAD=2_500_000_000
 BENCH_DATE="20260816"
 MD_DATE="2026-08-16"
 
