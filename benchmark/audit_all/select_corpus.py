@@ -5,6 +5,18 @@ from pathlib import Path
 
 CATALOG_URL="https://files.mobilitydatabase.org/feeds_v2.csv"
 
+# 🚫 Feeds that must never enter a corpus run, by standing instruction.
+#
+# `mdb-2904` is 85 MB and on its own produced 5,374,302 findings and 14.4 GB of peak
+# RSS in run-31934698855 -- roughly a tenth of that run's entire finding volume from
+# one feed. The gate already existed in `spec-audit/` (post_baseline_measure.py,
+# refresh_rule_stats.py, corpus_report.py) but this selector is a separate code path
+# and never learned about it, so the feed entered the full-catalog corpus anyway (#150).
+#
+# ⚠️ Excluded feeds are RECORDED, not silently dropped: they appear in the exclusions
+# list with an explicit reason, so "not run by instruction" never reads as "not found".
+EXCLUDED_FEEDS = {"mdb-2904"}
+
 
 def norm(s):
     return re.sub(r'[^a-z0-9]+','',s.lower())
@@ -80,6 +92,9 @@ def main():
         if fid in seen_ids:
             raise SystemExit(f"duplicate GTFS Schedule feed_id in catalog: {fid}")
         seen_ids.add(fid)
+        if fid in EXCLUDED_FEEDS:
+            excluded.append({"catalog_row":row_index,"feed_id":fid,"reason":"excluded_by_instruction","status":status,"url":url})
+            continue
         if not url.startswith(("http://","https://")):
             excluded.append({"catalog_row":row_index,"feed_id":fid,"reason":"no_public_latest_url","status":status,"url":url})
             continue
@@ -101,10 +116,22 @@ def main():
     for i,x in enumerate(feeds):
         x["corpus_index"]=i
 
+    # Installed gate, not just a written one: if an excluded feed reached the manifest
+    # the run must not start. The filter above can be bypassed by a future edit, a
+    # different code path, or a hand-built manifest -- this is the check that actually
+    # holds. Proven by putting mdb-2904 back in and watching it exit 2 (#150).
+    leaked=sorted({x["feed_id"] for x in feeds} & EXCLUDED_FEEDS)
+    if leaked:
+        raise SystemExit(
+            f"excluded feed(s) reached the corpus manifest: {', '.join(leaked)}\n"
+            "These are excluded by standing instruction and must never be run."
+        )
+
     excluded_counts=Counter(x["reason"] for x in excluded)
     out={
       "schema_version":3,
       "selection":{
+        "excluded_by_instruction":sorted(EXCLUDED_FEEDS),
         "catalog_url":CATALOG_URL,
         "catalog_sha256":hashlib.sha256(raw).hexdigest(),
         "catalog_gtfs_schedule_rows":schedule_rows,
