@@ -1541,8 +1541,10 @@ fn check_frequencies(
             ));
         }
 
-        // TRP_017: frekans tabanlı sefer stop_times'ta eksik
-        if !trips_in_stm.contains(rec.trip_id.as_str()) {
+        // TRP_017: frekans tabanlı, trips.txt'te GEÇERLİ sefer stop_times'ta eksik.
+        // trips.txt'te olmayan trip için FRQ_001 kök FK hatasıdır; türev notice üretme.
+        if map.trips.contains_key(rec.trip_id.as_str())
+            && !trips_in_stm.contains(rec.trip_id.as_str()) {
             notices.push(notice(
                 ctr,
                 "TRP_017",

@@ -358,7 +358,7 @@ fn fixtures() -> Vec<Fixture> {
         fx("FAR_003", vec![("fare_attributes.txt", "fare_id,price,currency_type,payment_method\nF1,2.5,usd,0\n")]),
         fx("FAR_004", vec![("fare_attributes.txt", "fare_id,price,currency_type,payment_method\nF1,2.5,USD,5\n")]),
         fx("FAR_005", vec![("fare_attributes.txt", "fare_id,price,currency_type,payment_method,transfers\nF1,2.5,USD,0,9\n")]),
-        fx("FAR_006", vec![("fare_attributes.txt", "fare_id,price,currency_type,payment_method,transfer_duration\nF1,2.5,USD,0,0\n")]),
+        fx("FAR_006", vec![("fare_attributes.txt", "fare_id,price,currency_type,payment_method,transfer_duration\nF1,2.5,USD,0,-1\n")]),
         fx("FAR_011", vec![("fare_attributes.txt", "fare_id,price,currency_type,payment_method\nF1,2.5,USD,\n")]),
         fx("FAR_012", vec![("fare_attributes.txt", "fare_id,price,currency_type,payment_method\n,2.5,USD,0\n")]),
         fx("FAR_013", vec![("fare_attributes.txt","fare_id,price,currency_type,payment_method,transfers\nF1,0.9,EUR,0,0\n")]),
@@ -3126,4 +3126,40 @@ fn ledger_header_counts_match_catalogue() {
         bad.len(),
         bad.join("\n  ")
     );
+}
+
+
+// Full-catalog regression: transfer_duration=0 is a valid non-negative integer.
+#[test]
+fn full_catalog_far006_zero_is_valid_non_negative() {
+    let files = with_opts(
+        &[("fare_attributes.txt", "fare_id,price,currency_type,payment_method,transfer_duration\nF1,2.5,USD,0,0\n")],
+        &[], &[],
+    );
+    let notices = notices_for(&files, &ValidatorConfig::default());
+    assert!(!notices.iter().any(|n| n.rule_id == "FAR_006"));
+}
+
+// Full-catalog regression: FRQ_001 owns a missing frequency trip FK; TRP_017
+// remains for a real trip that has no stop_times rows.
+#[test]
+fn full_catalog_trp017_requires_an_existing_trip() {
+    let missing_trip = with_opts(
+        &[("frequencies.txt", "trip_id,start_time,end_time,headway_secs\nMISSING,08:00:00,10:00:00,600\n")],
+        &[], &[],
+    );
+    let notices = notices_for(&missing_trip, &ValidatorConfig::default());
+    assert!(notices.iter().any(|n| n.rule_id == "FRQ_001"));
+    assert!(!notices.iter().any(|n| n.rule_id == "TRP_017"));
+
+    let known_without_stop_times = with_opts(
+        &[
+            ("trips.txt", "route_id,service_id,trip_id\nR1,SVC1,T1\nR1,SVC1,T2\n"),
+            ("frequencies.txt", "trip_id,start_time,end_time,headway_secs\nT2,08:00:00,10:00:00,600\n"),
+        ],
+        &[], &[],
+    );
+    let notices = notices_for(&known_without_stop_times, &ValidatorConfig::default());
+    assert!(!notices.iter().any(|n| n.rule_id == "FRQ_001"));
+    assert!(notices.iter().any(|n| n.rule_id == "TRP_017"));
 }

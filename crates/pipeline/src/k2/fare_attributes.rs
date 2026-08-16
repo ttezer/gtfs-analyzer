@@ -104,26 +104,14 @@ pub fn validate_fare_attributes(
         );
 
         let transfer_duration = match parse_u32(&row_map, "transfer_duration") {
-            Ok(value) => {
-                if let Some(v) = value {
-                    if v == 0 {
-                        notices.push(make_k2_notice(
-                            &mut counter, "FAR_006", EntityType::Fare, entity_id.clone(), Some(&row_map),
-                            &file.name, Some(line), Some("transfer_duration"), Some(v.to_string()),
-                            Some("> 0".to_string()), "transfer_duration pozitif olmalıdır.".to_string(),
-                            "transfer_duration alanını pozitif bir tam sayıya ayarlayın veya boş bırakın.",
-                        ));
-                    }
-                }
-                value
-            }
+            Ok(value) => value,
             Err(err) => {
                 notices.push(make_k2_notice(
                     &mut counter, "FAR_006", EntityType::Fare, entity_id.clone(), Some(&row_map),
                     &file.name, Some(line), Some("transfer_duration"),
                     get_trimmed_field(&row_map, "transfer_duration").map(str::to_string),
-                    Some("> 0".to_string()), err,
-                    "transfer_duration değerini pozitif bir tam sayıya ayarlayın veya boş bırakın.",
+                    Some(">= 0".to_string()), err,
+                    "transfer_duration değerini negatif olmayan bir tam sayıya ayarlayın veya boş bırakın.",
                 ));
                 None
             }
