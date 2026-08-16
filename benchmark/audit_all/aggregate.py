@@ -1,158 +1,245 @@
 #!/usr/bin/env python3
-"""Aggregate rerun parity plus SAME_INPUT old/new comparison."""
-from __future__ import annotations
-import argparse,csv,gzip,importlib.util,json,math,statistics,sys
+import argparse,csv,gzip,importlib.util,json,re,statistics
 from collections import Counter,defaultdict
 from pathlib import Path
-NEAR={"single_shape_point"}; MIDNIGHT={"STM_007","STM_008","STM_048","STM_049"}
 
-def load(path):
-    p=Path(path)
-    if p.suffix==".gz":
-        with gzip.open(p,"rt",encoding="utf-8") as f:return json.load(f)
-    return json.loads(p.read_text())
-def parity_mod(path):
-    p=Path(path).resolve(); sys.path.insert(0,str(p.parent)); s=importlib.util.spec_from_file_location("audit_md",p); m=importlib.util.module_from_spec(s); s.loader.exec_module(m)
-    return m.MAP,getattr(m,"AGG_RULES",set()),getattr(m,"resolve_mapping",None),getattr(m,"classify_unmapped",None)
-def mdgroups(m):return {g.get("code"):g for g in (m or {}).get("groups",[]) if g.get("code")}
-def mdcounts(m):return {k:int(v.get("totalNotices") or 0) for k,v in mdgroups(m).items()}
-def oldstate(r):
-    a=(r or {}).get("analyzer") or {}; s=a.get("status"); v=a.get("validation_status")
-    if s=="fatal":return "FATAL"
-    if s=="partial" or v=="PARTIAL":return "PARTIAL"
-    if s=="ok" or v=="COMPLETE":return "COMPLETE"
-    x=str(a.get("state") or "").upper(); return "COMPLETE" if x=="COMPLETED" else x or "UNKNOWN"
-def pct(v,p):
-    x=sorted(float(n) for n in v if n is not None)
-    if not x:return None
-    z=(len(x)-1)*p; lo=math.floor(z); hi=math.ceil(z); return x[lo] if lo==hi else x[lo]*(hi-z)+x[hi]*(z-lo)
-def perf(v):
-    x=[float(n) for n in v if n is not None]; return {"n":len(x),"median":statistics.median(x) if x else None,"p95":pct(x,.95),"maximum":max(x) if x else None}
-def meta(a,r,reg=None):
-    s=((a or {}).get("samples") or {}).get(r) or {}; reg=reg or {}; return {"class":s.get("rule_class") or reg.get("class"),"severity":s.get("severity") or reg.get("severity"),"sample":s}
-def mdiff(a,b):return bool(a.get("class") and a.get("severity") and b.get("class") and b.get("severity") and (a["class"],a["severity"])!=(b["class"],b["severity"]))
-def impact(rule,oa,na):
-    if rule=="DQ_016":return "whitespace_cascade"
-    if rule.startswith("TRN_"):return "translations_cascade"
-    if rule in MIDNIGHT:return "midnight_normalization"
-    if rule.startswith("FPD_"):return "fare_products"
-    if rule.startswith("SHP_"):return "shape_rules"
-    if "DQ_016" in ((oa or {}).get("by_rule") or {}) or "DQ_016" in ((na or {}).get("by_rule") or {}):return "whitespace_related_feed"
+def load_map(path):
+    spec=importlib.util.spec_from_file_location("mdmap",path)
+    mod=importlib.util.module_from_spec(spec); spec.loader.exec_module(mod)
+    return mod.MAP, getattr(mod,"AGG_RULES",set())
 
-def before_after(old,new,registry):
-    oldby={(r.get("feed") or {}).get("feed_id"):r for r in old}; ev=[]; trans=Counter(); groups=defaultdict(lambda:{"feeds":set(),"events":0,"delta":0,"rules":Counter()}); red=[]; imp=[]; retired=set(); n=0
-    for r in new:
-        if r.get("input_classification")!="SAME_INPUT":continue
-        fid=(r.get("feed") or {}).get("feed_id"); o=oldby.get(fid)
-        if not o:continue
-        n+=1; oa=o.get("analyzer") or {}; na=r.get("analyzer") or {}; os=oldstate(o); ns=na.get("state","NOT_RUN"); trans[(os,ns)]+=1
-        if os!=ns:
-            e={"feed_id":fid,"type":"STATE_TRANSITION","old_state":os,"new_state":ns}; ev.append(e)
-            if os=="FATAL" and ns in ("PARTIAL","COMPLETE"):e["assessment"]="IMPROVEMENT"; imp.append(e)
-            elif os=="COMPLETE" and ns in ("PARTIAL","FATAL"):e["assessment"]="REGRESSION_RED"; red.append(e)
-            groups["recovery"]["feeds"].add(fid);groups["recovery"]["events"]+=1
-        oc={k:int(v) for k,v in (oa.get("by_rule") or {}).items()}; nc={k:int(v) for k,v in (na.get("by_rule") or {}).items()}
-        for rule in sorted(set(oc)|set(nc)):
-            x,y=oc.get(rule,0),nc.get(rule,0); om=meta(oa,rule); nm=meta(na,rule,registry.get(rule))
-            if x==y:
-                if x and mdiff(om,nm):ev.append({"feed_id":fid,"type":"RULE_METADATA_CHANGED","rule_id":rule,"old_count":x,"new_count":y,"old_class":om["class"],"new_class":nm["class"],"old_severity":om["severity"],"new_severity":nm["severity"]})
-                continue
-            if x and not y:
-                typ="OLD_RULE_REMOVED_FROM_REGISTRY" if registry and rule not in registry else "OLD_RULE_NO_LONGER_EMITS"; retired.add(rule) if typ.endswith("REGISTRY") else None
-            elif y and not x:typ="NEW_RULE_EMITS"
-            else:typ="FINDING_COUNT_INCREASED" if y>x else "FINDING_COUNT_DECREASED"
-            e={"feed_id":fid,"type":typ,"rule_id":rule,"old_count":x,"new_count":y,"delta":y-x,"old_class":om["class"],"new_class":nm["class"],"old_severity":om["severity"],"new_severity":nm["severity"]}
-            if mdiff(om,nm):e["metadata_changed"]=True
-            ev.append(e); g=impact(rule,oa,na)
-            if g:groups[g]["feeds"].add(fid);groups[g]["events"]+=1;groups[g]["delta"]+=y-x;groups[g]["rules"][rule]+=y-x
-    gj={k:{"feed_count":len(v["feeds"]),"feeds":sorted(v["feeds"]),"event_count":v["events"],"net_notice_delta":v["delta"],"rule_deltas":dict(v["rules"].most_common())} for k,v in groups.items()}
-    return ev,{"same_input_feeds_compared":n,"state_transitions":{f"{a} -> {b}":c for (a,b),c in trans.items()},"event_counts":dict(Counter(x["type"] for x in ev)),"red_regressions":red,"improvements":imp,"retired_observed_rules":sorted(retired),"change_impact":gj}
+def elapsed_seconds(v):
+    if not v:return None
+    v=str(v).strip()
+    try:
+        parts=v.split(":")
+        if len(parts)==1:return float(parts[0])
+        if len(parts)==2:return float(parts[0])*60+float(parts[1])
+        if len(parts)==3:return float(parts[0])*3600+float(parts[1])*60+float(parts[2])
+    except: return None
 
-def category(code,mr,classify):
-    rules=tuple(getattr(mr,"analyzer_rules",()) or ()) if mr else ()
-    if code in NEAR and rules:return "near"
-    if rules:
-        if getattr(mr,"kind","static") in ("context-dependent","context-mixed","fallback") or not getattr(mr,"context_complete",True) or getattr(mr,"unresolved_samples",0):return "near"
-        return "exact"
-    if mr and getattr(mr,"kind","")=="unresolved-context":return "near"
-    d=classify(code)[0] if classify else "unreviewed"
-    if d=="config-dependent":return "config-dependent"
-    if d in ("genuine-gap","intentional-difference","deprecated-md-only"):return "intentional-gap"
-    if d=="context-dependent":return "near"
-    return "unreviewed-gap"
+def md_counts(m):
+    return {g.get("code"):int(g.get("totalNotices") or 0) for g in (m or {}).get("groups",[]) if g.get("code")}
 
-def parity(rows,pm):
-    MAP,AGG,resolve,classify=pm; inv=defaultdict(list)
-    for c,rs in MAP.items():
-        for r in rs:inv[r].append(c)
-    cand=[]; obs=[]; cats=Counter(); states=Counter(); ar={}; mcodes={}
-    for row in rows:
-        feed=row.get("feed") or {}; fid=feed.get("feed_id",""); a=row.get("analyzer") or {}; m=row.get("mobilitydata") or {}; ast=a.get("state","NOT_RUN"); mst=m.get("state","NOT_RUN"); states[(ast,mst)]+=1
-        for rid,n in (a.get("by_rule") or {}).items():
-            e=ar.setdefault(rid,{"rule_id":rid,"feed_count":0,"notice_total":0,"affected_feeds":[],"classes":Counter(),"severities":Counter(),"sample":None});e["feed_count"]+=1;e["notice_total"]+=int(n);e["affected_feeds"].append(fid);s=(a.get("samples") or {}).get(rid) or {};e["classes"][s.get("rule_class")]+=1 if s.get("rule_class") else 0;e["severities"][s.get("severity")]+=1 if s.get("severity") else 0;e["sample"]=e["sample"] or {"feed_id":fid,"notice":s}
-        gs=mdgroups(m)
-        for code,g in gs.items():
-            e=mcodes.setdefault(code,{"code":code,"feed_count":0,"notice_total":0,"affected_feeds":[],"severities":Counter(),"sample":None});e["feed_count"]+=1;e["notice_total"]+=int(g.get("totalNotices") or 0);e["affected_feeds"].append(fid);e["severities"][str(g.get("severity")).upper()]+=1 if g.get("severity") else 0;e["sample"]=e["sample"] or {"feed_id":fid,"sample":(g.get("sampleNotices") or [])[:2]}
-        if ast!="COMPLETE" or mst!="COMPLETE":
-            if (row.get("download") or {}).get("status")=="ok" and ast!=mst:cand.append({"priority":120,"type":"validator-state-asymmetry","feed_id":fid,"url":feed.get("url",""),"input_classification":row.get("input_classification"),"analyzer_state":ast,"md_state":mst,"analyzer_fatal":a.get("fatal"),"partial":a.get("partial")})
-            continue
-        ac={k:int(v) for k,v in (a.get("by_rule") or {}).items()}; mc=mdcounts(m)
-        for code,mn in mc.items():
-            g=gs[code]; fallback=MAP.get(code,[]); mr=resolve(code,g,fallback) if resolve else None; rules=tuple(getattr(mr,"analyzer_rules",()) or fallback); cat=category(code,mr,classify);cats[cat]+=1;decision,note=classify(code) if classify and not rules else (None,None)
-            base={"feed_id":fid,"input_classification":row.get("input_classification"),"md_code":code,"md_count":mn,"md_severity":g.get("severity"),"parity_category":cat,"decision":decision,"decision_note":note,"mapped_analyzer_rules":list(rules),"mapping_kind":getattr(mr,"kind","static") if mr else "unmapped","mapping_context_complete":getattr(mr,"context_complete",True) if mr else True,"mapping_unresolved_samples":getattr(mr,"unresolved_samples",0) if mr else 0}
-            if not rules:
-                obs.append({**base,"analyzer_mapped_count":0,"count_relation":"MD_ONLY_UNMAPPED"});cand.append({**base,"priority":92 if cat=="unreviewed-gap" else 70,"type":"md-only-candidate","url":feed.get("url",""),"md_samples":(g.get("sampleNotices") or [])[:2]});continue
-            our=sum(ac.get(r,0) for r in rules);agg=any(r in AGG for r in rules);rel="MD_ONLY_MAPPED" if our==0 else "COUNT_EXACT" if our==mn else "COUNT_DIVERGENCE_AGGREGATION_EXPECTED" if agg else "COUNT_DIVERGENCE";obs.append({**base,"analyzer_mapped_count":our,"analyzer_rule_counts":{r:ac.get(r,0) for r in rules},"aggregation_expected":agg,"count_relation":rel})
-            if our==0:cand.append({**base,"priority":108 if str(g.get("severity","")).upper()=="ERROR" else 90,"type":"md-only-mapped-candidate","url":feed.get("url",""),"analyzer_mapped_count":0,"md_samples":(g.get("sampleNotices") or [])[:2]})
-            elif our!=mn:cand.append({**base,"priority":65 if agg else 86 if str(g.get("severity","")).upper()=="ERROR" else 78,"type":"count-divergence","url":feed.get("url",""),"analyzer_mapped_count":our,"analyzer_rule_counts":{r:ac.get(r,0) for r in rules},"aggregation_expected":agg,"md_samples":(g.get("sampleNotices") or [])[:2],"analyzer_samples":{r:(a.get("samples") or {}).get(r) for r in rules if ac.get(r)}})
-        for rid,n in ac.items():
-            codes=inv.get(rid,[]);s=(a.get("samples") or {}).get(rid) or {}
-            if not codes:
-                cl=str(s.get("rule_class","")).upper();sv=str(s.get("severity","")).upper();cand.append({"priority":96 if cl=="SPEC" and sv=="CRITICAL" else 84 if cl=="SPEC" else 48,"type":"analyzer-only-candidate","feed_id":fid,"url":feed.get("url",""),"analyzer_rule":rid,"analyzer_count":n,"analyzer_class":s.get("rule_class"),"analyzer_severity":s.get("severity"),"analyzer_sample":s})
-            elif sum(mc.get(c,0) for c in codes)==0:cand.append({"priority":82,"type":"analyzer-only-mapped-candidate","feed_id":fid,"url":feed.get("url",""),"analyzer_rule":rid,"analyzer_count":n,"mapped_md_codes":codes,"analyzer_class":s.get("rule_class"),"analyzer_severity":s.get("severity"),"analyzer_sample":s})
-    cand.sort(key=lambda d:(-int(d.get("priority",0)),d.get("feed_id",""),d.get("md_code",""),d.get("analyzer_rule","")))
-    return {"candidates":cand,"observations":obs,"category_counts":dict(cats),"state_pairs":{f"{a} | {m}":n for (a,m),n in states.items()},"analyzer_rules":ar,"md_codes":mcodes}
-def serial(items):
-    out=[{**{k:v for k,v in e.items() if k not in ("classes","severities")},"classes":dict(e.get("classes",{})),"severities":dict(e.get("severities",{}))} for e in items.values()]; key="rule_id" if out and "rule_id" in out[0] else "code";out.sort(key=lambda x:(-x.get("feed_count",0),-x.get("notice_total",0),x.get(key,"")));return out
-def csvwrite(path,rows,fields):
-    with Path(path).open("w",newline="",encoding="utf-8") as f:
-        w=csv.DictWriter(f,fieldnames=fields,extrasaction="ignore");w.writeheader()
-        for r in rows:w.writerow({k:json.dumps(v,ensure_ascii=False,separators=(",",":")) if isinstance(v,(list,dict)) else v for k,v in r.items()})
+def md_severity(m,code):
+    for g in (m or {}).get("groups",[]):
+        if g.get("code")==code:return (g.get("severity") or "").upper()
+    return ""
+
+def md_sample(m,code):
+    for g in (m or {}).get("groups",[]):
+        if g.get("code")==code:return (g.get("sampleNotices") or [])[:2]
+    return []
+
+def priority(d):
+    typ=d["type"]; sev=(d.get("md_severity") or "").upper()
+    if typ=="validator_state_asymmetry": return 110
+    if typ=="md_mapped_missing" and sev=="ERROR": return 105
+    if typ=="analyzer_spec_md_absent" and d.get("analyzer_severity") in ("CRITICAL","KRİTİK"): return 100
+    if typ=="analyzer_spec_unmapped": return 95
+    if typ=="analyzer_spec_md_absent": return 92
+    if typ=="md_unmapped" and sev=="ERROR": return 90
+    if typ=="md_mapped_missing": return 85
+    if typ=="analyzer_mapped_md_absent": return 80
+    if typ in ("md_mapped_under","md_mapped_over"): return 65
+    if typ=="md_unmapped": return 55
+    return 40
 
 def main():
-    p=argparse.ArgumentParser();p.add_argument("--results-dir",required=True);p.add_argument("--map-file",required=True);p.add_argument("--baseline-results",required=True);p.add_argument("--out-dir",required=True);p.add_argument("--expected-analyzer-sha");p.add_argument("--current-rule-registry");a=p.parse_args();out=Path(a.out_dir);out.mkdir(parents=True,exist_ok=True);rows=[]
-    for f in sorted(Path(a.results_dir).glob("shard-*.jsonl")):
-        for line in f.read_text(errors="replace").splitlines():
-            try:rows.append(json.loads(line)) if line.strip() else None
-            except json.JSONDecodeError:pass
-    rows.sort(key=lambda x:int((x.get("feed") or {}).get("corpus_index",10**9)));old=load(a.baseline_results)
-    with gzip.open(out/"all-results.json.gz","wt",encoding="utf-8") as f:json.dump(rows,f,ensure_ascii=False,separators=(",",":"))
-    if a.expected_analyzer_sha:
-        bad={x for x in ((r.get("analyzer") or {}).get("commit_sha") for r in rows if r.get("analyzer")) if x and x!=a.expected_analyzer_sha}
-        if bad:raise SystemExit(f"Analyzer SHA mismatch: {bad}")
-    reg={}
-    if a.current_rule_registry:reg={x["id"]:x for x in load(a.current_rule_registry) if isinstance(x,dict) and x.get("id")}
-    pa=parity(rows,parity_mod(a.map_file));events,ba=before_after(old,rows,reg);ic=Counter(r.get("input_classification","UNKNOWN") for r in rows)
-    drift=[{"corpus_index":(r.get("feed") or {}).get("corpus_index"),"feed_id":(r.get("feed") or {}).get("feed_id"),"provider":(r.get("feed") or {}).get("provider",""),"url":(r.get("feed") or {}).get("url",""),"classification":r.get("input_classification"),"baseline_sha256":(r.get("download") or {}).get("baseline_sha256") or (r.get("feed") or {}).get("baseline_download_sha256"),"new_sha256":(r.get("download") or {}).get("sha256"),"download_status":(r.get("download") or {}).get("status")} for r in rows if r.get("input_classification")!="SAME_INPUT"]
-    fs=[]
+    ap=argparse.ArgumentParser()
+    ap.add_argument("--results-dir",required=True)
+    ap.add_argument("--map-file",required=True)
+    ap.add_argument("--out-dir",required=True)
+    args=ap.parse_args()
+    out=Path(args.out_dir); out.mkdir(parents=True,exist_ok=True)
+    MAP,AGG=load_map(args.map_file)
+    inv=defaultdict(list)
+    for code,rules in MAP.items():
+        for r in rules: inv[r].append(code)
+
+    rows=[]
+    for p in sorted(Path(args.results_dir).glob("shard-*.jsonl")):
+        for line in p.read_text(errors="replace").splitlines():
+            if line.strip():
+                try: rows.append(json.loads(line))
+                except Exception: pass
+    rows.sort(key=lambda x:int((x.get("feed") or {}).get("corpus_index",10**9)))
+    with gzip.open(out/"all-results.json.gz","wt",encoding="utf-8") as f:
+        json.dump(rows,f,ensure_ascii=False,separators=(",",":"))
+
+    feed_csv=[]
+    analyzer_rules={}
+    md_codes={}
+    divergences=[]
+    state_pairs=Counter()
+    stored_disagreements=[]
+
     for r in rows:
-        f=r.get("feed") or {};d=r.get("download") or {};x=r.get("analyzer") or {};m=r.get("mobilitydata") or {};fs.append({"corpus_index":f.get("corpus_index"),"feed_id":f.get("feed_id"),"provider":f.get("provider",""),"country":f.get("country",""),"url":f.get("url",""),"input_classification":r.get("input_classification"),"download_status":d.get("status"),"baseline_sha256":d.get("baseline_sha256") or f.get("baseline_download_sha256"),"new_sha256":d.get("sha256"),"analyzer_state":x.get("state"),"analyzer_exit":x.get("exit_code"),"analyzer_notices":x.get("notice_count"),"analyzer_wall_s":(x.get("timing") or {}).get("elapsed_seconds"),"analyzer_rss_kb":(x.get("timing") or {}).get("max_rss_kb"),"md_state":m.get("state"),"md_exit":m.get("exit_code"),"md_notices":m.get("notice_total"),"md_wall_s":(m.get("timing") or {}).get("elapsed_seconds"),"md_rss_kb":(m.get("timing") or {}).get("max_rss_kb")})
-    cs={}
-    for o in pa["observations"]:
-        e=cs.setdefault(o["md_code"],{"md_code":o["md_code"],"occurrences":0,"parity_categories":Counter(),"count_relations":Counter(),"mapped_analyzer_rules":set()});e["occurrences"]+=1;e["parity_categories"][o["parity_category"]]+=1;e["count_relations"][o["count_relation"]]+=1;e["mapped_analyzer_rules"].update(o.get("mapped_analyzer_rules") or [])
-    csr=[{"md_code":k,"occurrences":v["occurrences"],"parity_categories":dict(v["parity_categories"]),"count_relations":dict(v["count_relations"]),"mapped_analyzer_rules":sorted(v["mapped_analyzer_rules"])} for k,v in cs.items()];csr.sort(key=lambda x:(-x["occurrences"],x["md_code"]))
-    summary={"attempted":len(rows),"input_classification_counts":dict(ic),"analyzer_state_counts":dict(Counter((r.get("analyzer") or {}).get("state","NOT_RUN") for r in rows)),"mobilitydata_state_counts":dict(Counter((r.get("mobilitydata") or {}).get("state","NOT_RUN") for r in rows)),"parity_category_counts":pa["category_counts"],"validator_state_pairs":pa["state_pairs"],"candidate_counts":dict(Counter(c["type"] for c in pa["candidates"])),"performance":{"analyzer_wall_seconds":perf([x["analyzer_wall_s"] for x in fs]),"mobilitydata_wall_seconds":perf([x["md_wall_s"] for x in fs]),"analyzer_peak_rss_kb":perf([x["analyzer_rss_kb"] for x in fs if x["analyzer_rss_kb"]]),"mobilitydata_peak_rss_kb":perf([x["md_rss_kb"] for x in fs if x["md_rss_kb"]])},"before_after":ba}
-    (out/"summary.json").write_text(json.dumps(summary,indent=2,ensure_ascii=False)+"\n");(out/"parity-candidates-full.json").write_text(json.dumps(pa["candidates"],indent=2,ensure_ascii=False)+"\n");(out/"parity-code-summary.json").write_text(json.dumps(csr,indent=2,ensure_ascii=False)+"\n");(out/"before-after-events.json").write_text(json.dumps(events,indent=2,ensure_ascii=False)+"\n");(out/"before-after-summary.json").write_text(json.dumps(ba,indent=2,ensure_ascii=False)+"\n");(out/"input-drift.json").write_text(json.dumps(drift,indent=2,ensure_ascii=False)+"\n");(out/"analyzer-rules-full.json").write_text(json.dumps(serial(pa["analyzer_rules"]),indent=2,ensure_ascii=False)+"\n");(out/"md-codes-full.json").write_text(json.dumps(serial(pa["md_codes"]),indent=2,ensure_ascii=False)+"\n")
-    with gzip.open(out/"parity-observations.json.gz","wt",encoding="utf-8") as f:json.dump(pa["observations"],f,ensure_ascii=False,separators=(",",":"))
-    csvwrite(out/"feed-summary.csv",fs,list(fs[0]) if fs else ["feed_id"]);csvwrite(out/"input-drift.csv",drift,["corpus_index","feed_id","provider","url","classification","baseline_sha256","new_sha256","download_status"]);csvwrite(out/"before-after-events.csv",events,["feed_id","type","rule_id","old_state","new_state","old_count","new_count","delta","old_class","new_class","old_severity","new_severity","assessment"]);csvwrite(out/"parity-candidates.csv",pa["candidates"],["priority","type","parity_category","feed_id","md_code","md_severity","md_count","mapped_analyzer_rules","analyzer_mapped_count","analyzer_rule","analyzer_class","analyzer_severity","analyzer_count","analyzer_state","md_state","input_classification","url"])
-    reps=[];seen=set()
-    for c in pa["candidates"]:
-        k=(c.get("type"),c.get("md_code"),c.get("analyzer_rule"),tuple(c.get("mapped_analyzer_rules") or []),c.get("analyzer_state"),c.get("md_state"))
-        if k in seen:continue
-        seen.add(k);reps.append(c)
-        if len(reps)>=140:break
+        feed=r.get("feed") or {}
+        fid=feed.get("feed_id","")
+        dl=r.get("download") or {}
+        a=r.get("analyzer") or {}
+        m=r.get("mobilitydata") or {}
+        ast=a.get("state","not_run"); mst=m.get("state","not_run")
+        state_pairs[(ast,mst)]+=1
+        feed_csv.append({
+          "corpus_index":feed.get("corpus_index"),"feed_id":fid,"provider":feed.get("provider",""),
+          "country":feed.get("country",""),"url":feed.get("url",""),
+          "download_status":dl.get("status","missing"),"zip_bytes":dl.get("bytes"),"sha256":dl.get("sha256"),
+          "analyzer_state":ast,"analyzer_exit":a.get("exit_code"),"analyzer_notices":a.get("notice_count"),
+          "analyzer_wall_s":elapsed_seconds((a.get("timing") or {}).get("elapsed")),
+          "analyzer_rss_kb":(a.get("timing") or {}).get("max_rss_kb"),
+          "md_state":mst,"md_exit":m.get("exit_code"),"md_notices":m.get("notice_total"),
+          "md_groups":m.get("notice_groups"),"md_wall_s":elapsed_seconds((m.get("timing") or {}).get("elapsed")),
+          "md_rss_kb":(m.get("timing") or {}).get("max_rss_kb"),
+          "md_validation_s":m.get("validation_time_seconds"),
+        })
+
+        if ast!=mst and dl.get("status")=="ok":
+            if ast!="completed" or mst!="completed":
+                divergences.append({
+                  "type":"validator_state_asymmetry","feed_id":fid,"provider":feed.get("provider",""),
+                  "country":feed.get("country",""),"url":feed.get("url",""),
+                  "analyzer_state":ast,"md_state":mst,
+                  "analyzer_stderr":a.get("stderr_head",""),"md_stderr":m.get("stderr_head","")})
+
+        for rid,c in (a.get("by_rule") or {}).items():
+            ent=analyzer_rules.setdefault(rid,{"rule_id":rid,"feed_count":0,"notice_total":0,"affected_feeds":[],"classes":Counter(),"severities":Counter(),"sample":None})
+            ent["feed_count"]+=1; ent["notice_total"]+=int(c); ent["affected_feeds"].append(fid)
+            sm=(a.get("samples") or {}).get(rid) or {}
+            if sm.get("rule_class"):ent["classes"][sm["rule_class"]]+=1
+            if sm.get("severity"):ent["severities"][sm["severity"]]+=1
+            if ent["sample"] is None:ent["sample"]={"feed_id":fid,"notice":sm}
+        mc=md_counts(m)
+        for code,c in mc.items():
+            ent=md_codes.setdefault(code,{"code":code,"feed_count":0,"notice_total":0,"affected_feeds":[],"severities":Counter(),"sample":None})
+            ent["feed_count"]+=1; ent["notice_total"]+=int(c); ent["affected_feeds"].append(fid)
+            sev=md_severity(m,code)
+            if sev:ent["severities"][sev]+=1
+            if ent["sample"] is None:ent["sample"]={"feed_id":fid,"sample":md_sample(m,code)}
+
+        stored=r.get("mobilitydata_stored") or {}
+        if mst=="completed" and stored.get("status")=="available":
+            sc=md_counts(stored)
+            if mc!=sc: stored_disagreements.append({"feed_id":fid,"fresh":mc,"stored":sc})
+
+        if ast!="completed" or mst not in ("completed","partial_internal","partial_oom"):
+            continue
+        ac={k:int(v) for k,v in (a.get("by_rule") or {}).items()}
+
+        for code,mdc in mc.items():
+            rules=MAP.get(code)
+            sev=md_severity(m,code)
+            if not rules:
+                divergences.append({"type":"md_unmapped","feed_id":fid,"provider":feed.get("provider",""),"country":feed.get("country",""),"url":feed.get("url",""),"md_code":code,"md_count":mdc,"md_severity":sev,"md_samples":md_sample(m,code)})
+                continue
+            our=sum(ac.get(x,0) for x in rules)
+            agg=any(x in AGG for x in rules)
+            if our==0: typ="md_mapped_missing"
+            elif agg: typ="mapped_aggregation_present"
+            elif our<mdc: typ="md_mapped_under"
+            elif our>mdc: typ="md_mapped_over"
+            else: typ="mapped_exact"
+            if typ not in ("mapped_exact","mapped_aggregation_present"):
+                divergences.append({
+                  "type":typ,"feed_id":fid,"provider":feed.get("provider",""),"country":feed.get("country",""),"url":feed.get("url",""),
+                  "md_code":code,"md_count":mdc,"md_severity":sev,"mapped_analyzer_rules":rules,"analyzer_mapped_count":our,
+                  "analyzer_rule_counts":{x:ac.get(x,0) for x in rules},"md_samples":md_sample(m,code),
+                  "analyzer_samples":{x:(a.get("samples") or {}).get(x) for x in rules if ac.get(x,0)}})
+
+        for rid,ourc in ac.items():
+            sm=(a.get("samples") or {}).get(rid) or {}
+            cls=(sm.get("rule_class") or "").upper(); sev=(sm.get("severity") or "").upper()
+            codes=inv.get(rid,[])
+            if codes:
+                mt=sum(mc.get(code,0) for code in codes)
+                if mt==0:
+                    divergences.append({
+                      "type":"analyzer_spec_md_absent" if cls=="SPEC" else "analyzer_mapped_md_absent",
+                      "feed_id":fid,"provider":feed.get("provider",""),"country":feed.get("country",""),"url":feed.get("url",""),
+                      "analyzer_rule":rid,"analyzer_count":ourc,"analyzer_class":cls,"analyzer_severity":sev,
+                      "mapped_md_codes":codes,"analyzer_sample":sm})
+            elif cls=="SPEC":
+                divergences.append({"type":"analyzer_spec_unmapped","feed_id":fid,"provider":feed.get("provider",""),"country":feed.get("country",""),"url":feed.get("url",""),"analyzer_rule":rid,"analyzer_count":ourc,"analyzer_class":cls,"analyzer_severity":sev,"analyzer_sample":sm})
+
+    for d in divergences:d["priority"]=priority(d)
+    divergences.sort(key=lambda d:(-d["priority"],d.get("feed_id",""),d.get("md_code",""),d.get("analyzer_rule","")))
+
+    if feed_csv:
+        with (out/"feed-summary.csv").open("w",newline="",encoding="utf-8") as f:
+            w=csv.DictWriter(f,fieldnames=list(feed_csv[0]));w.writeheader();w.writerows(feed_csv)
+    dfields=["priority","type","feed_id","provider","country","md_code","md_severity","md_count","mapped_analyzer_rules","analyzer_mapped_count","analyzer_rule","analyzer_class","analyzer_severity","analyzer_count","analyzer_state","md_state","url"]
+    with (out/"divergence-candidates.csv").open("w",newline="",encoding="utf-8") as f:
+        w=csv.DictWriter(f,fieldnames=dfields,extrasaction="ignore");w.writeheader()
+        for d in divergences:
+            x=dict(d)
+            if isinstance(x.get("mapped_analyzer_rules"),list):x["mapped_analyzer_rules"]="|".join(x["mapped_analyzer_rules"])
+            w.writerow(x)
+
+    ar_list=[]
+    for rid,e in analyzer_rules.items():
+        ar_list.append({"rule_id":rid,"feed_count":e["feed_count"],"notice_total":e["notice_total"],"classes":dict(e["classes"]),"severities":dict(e["severities"]),"affected_feeds":e["affected_feeds"],"sample":e["sample"]})
+    ar_list.sort(key=lambda x:(-x["feed_count"],-x["notice_total"],x["rule_id"]))
+    (out/"analyzer-rules-full.json").write_text(json.dumps(ar_list,indent=2,ensure_ascii=False)+"\n")
+    with (out/"analyzer-rules.csv").open("w",newline="",encoding="utf-8") as f:
+        fields=["rule_id","feed_count","notice_total","classes","severities","affected_feeds"]
+        w=csv.DictWriter(f,fieldnames=fields);w.writeheader()
+        for e in ar_list:
+            w.writerow({**{k:e[k] for k in ("rule_id","feed_count","notice_total")},"classes":json.dumps(e["classes"],ensure_ascii=False),"severities":json.dumps(e["severities"],ensure_ascii=False),"affected_feeds":"|".join(e["affected_feeds"])})
+
+    mc_list=[]
+    for code,e in md_codes.items():
+        mc_list.append({"code":code,"feed_count":e["feed_count"],"notice_total":e["notice_total"],"severities":dict(e["severities"]),"affected_feeds":e["affected_feeds"],"sample":e["sample"]})
+    mc_list.sort(key=lambda x:(-x["feed_count"],-x["notice_total"],x["code"]))
+    (out/"md-codes-full.json").write_text(json.dumps(mc_list,indent=2,ensure_ascii=False)+"\n")
+    (out/"divergence-candidates-full.json").write_text(json.dumps(divergences,indent=2,ensure_ascii=False)+"\n")
+    (out/"stored-vs-fresh-md-disagreements.json").write_text(json.dumps(stored_disagreements,indent=2,ensure_ascii=False)+"\n")
+
+    reps=[]; seen=set()
+    for d in divergences:
+        if d["type"]=="validator_state_asymmetry": key=(d["type"],d.get("analyzer_state"),d.get("md_state"))
+        elif d.get("md_code"): key=(d["type"],d.get("md_code"),tuple(d.get("mapped_analyzer_rules") or []))
+        else: key=(d["type"],d.get("analyzer_rule"))
+        if key in seen:continue
+        seen.add(key);reps.append(d)
+        if len(reps)>=120:break
     (out/"triage-representatives.json").write_text(json.dumps(reps,indent=2,ensure_ascii=False)+"\n")
-    lines=["# 1000-feed GTFS Analyzer rerun audit","","## Corpus/input identity","",f"- Attempted: **{len(rows)}**",f"- SAME_INPUT: **{ic.get('SAME_INPUT',0)}**",f"- INPUT_DRIFT: **{ic.get('INPUT_DRIFT',0)}**",f"- DOWNLOAD_FAILED: **{ic.get('DOWNLOAD_FAILED',0)}**","","Only SAME_INPUT feeds receive direct regression/improvement attribution.","","## New Analyzer vs MobilityData v8.0.1","",f"- Parity categories: `{json.dumps(pa['category_counts'])}`",f"- Candidate classes: `{json.dumps(dict(Counter(c['type'] for c in pa['candidates'])))}`","","## Old vs new Analyzer — SAME_INPUT only","",f"- Comparable feeds: **{ba['same_input_feeds_compared']}**",f"- State transitions: `{json.dumps(ba['state_transitions'])}`",f"- Red COMPLETE→PARTIAL/FATAL: **{len(ba['red_regressions'])}**",f"- Improvements FATAL→PARTIAL/COMPLETE: **{len(ba['improvements'])}**",f"- Removed observed rule IDs: **{len(ba['retired_observed_rules'])}**","","## Performance","",f"- Analyzer wall: `{json.dumps(summary['performance']['analyzer_wall_seconds'])}`",f"- MD wall: `{json.dumps(summary['performance']['mobilitydata_wall_seconds'])}`",f"- Analyzer peak RSS: `{json.dumps(summary['performance']['analyzer_peak_rss_kb'])}`",f"- MD peak RSS: `{json.dumps(summary['performance']['mobilitydata_peak_rss_kb'])}`","","## Targeted change impact",""]
-    for k,v in ba["change_impact"].items():lines.append(f"- **{k}**: {v['feed_count']} feeds, {v['event_count']} events, net notice delta {v['net_notice_delta']}")
-    lines += ["","Automated differences are triage candidates, not correctness verdicts."];(out/"AUDIT_SUMMARY.md").write_text("\n".join(lines)+"\n");print(json.dumps(summary,indent=2))
-if __name__=="__main__":main()
+
+    attempted=len(rows)
+    downloaded=sum(1 for r in rows if (r.get("download") or {}).get("status")=="ok")
+    both=sum(1 for r in rows if (r.get("analyzer") or {}).get("state")=="completed" and (r.get("mobilitydata") or {}).get("state")=="completed")
+    aclean=[x["analyzer_wall_s"] for x in feed_csv if x["analyzer_state"]=="completed" and x["analyzer_wall_s"] is not None]
+    mclean=[x["md_wall_s"] for x in feed_csv if x["md_state"]=="completed" and x["md_wall_s"] is not None]
+    arss=[x["analyzer_rss_kb"] for x in feed_csv if x["analyzer_state"]=="completed" and x["analyzer_rss_kb"]]
+    mrss=[x["md_rss_kb"] for x in feed_csv if x["md_state"]=="completed" and x["md_rss_kb"]]
+    types=Counter(d["type"] for d in divergences)
+    summary={
+      "attempted":attempted,"downloaded":downloaded,"both_completed_cleanly":both,
+      "state_pairs":{f"{a} | {m}":n for (a,m),n in state_pairs.items()},
+      "analyzer_wall_median_s":statistics.median(aclean) if aclean else None,
+      "md_wall_median_s":statistics.median(mclean) if mclean else None,
+      "analyzer_peak_rss_median_kb":statistics.median(arss) if arss else None,
+      "md_peak_rss_median_kb":statistics.median(mrss) if mrss else None,
+      "unique_analyzer_rules_seen":len(ar_list),"unique_md_codes_seen":len(mc_list),
+      "divergence_candidate_counts":dict(types),
+      "fresh_vs_stored_md_report_count_different":len(stored_disagreements)}
+    (out/"summary.json").write_text(json.dumps(summary,indent=2,ensure_ascii=False)+"\n")
+
+    top=divergences[:60]
+    lines=["# 1000-feed GTFS Analyzer vs MobilityData audit","","## Corpus execution","",f"- Attempted feeds: **{attempted}**",f"- Successfully downloaded: **{downloaded}**",f"- Both validators completed cleanly: **{both}**",f"- Analyzer median wall time (completed feeds): **{summary['analyzer_wall_median_s']} s**",f"- MobilityData median wall time (completed feeds): **{summary['md_wall_median_s']} s**",f"- Analyzer rules observed: **{len(ar_list)}**",f"- MobilityData notice codes observed: **{len(mc_list)}**","","These are automated divergence *candidates*, not correctness verdicts. A count difference can be caused by aggregation, thresholds, scope, or a true validator bug.","","## Validator state pairs","","| Analyzer | MobilityData | Feeds |","|---|---|---:|"]
+    for (a,m),n in state_pairs.most_common(): lines.append(f"| {a} | {m} | {n} |")
+    lines += ["","## Divergence candidate classes","","| Candidate class | Count |","|---|---:|"]
+    for k,n in types.most_common(): lines.append(f"| {k} | {n} |")
+    lines += ["","## Highest-priority candidates","","| Priority | Feed | Direction | MD code | Analyzer rule(s) | Counts |","|---:|---|---|---|---|---|"]
+    for d in top:
+        rules=d.get("mapped_analyzer_rules") or ([d["analyzer_rule"]] if d.get("analyzer_rule") else [])
+        counts=""
+        if d.get("md_count") is not None: counts+=f"MD {d.get('md_count')}"
+        if d.get("analyzer_mapped_count") is not None: counts+=f" / A {d.get('analyzer_mapped_count')}"
+        elif d.get("analyzer_count") is not None: counts+=f" / A {d.get('analyzer_count')}"
+        lines.append(f"| {d['priority']} | {d.get('feed_id','')} | {d['type']} | {d.get('md_code','')} | {', '.join(rules)} | {counts} |")
+    (out/"AUDIT_SUMMARY.md").write_text("\n".join(lines)+"\n")
+    print(json.dumps(summary,indent=2))
+
+if __name__=="__main__":
+    main()
