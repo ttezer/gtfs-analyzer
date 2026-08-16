@@ -1,0 +1,8 @@
+{
+  "catalog_gtfs_schedule_rows": 4463,
+  "testable_schedule_rows": 4259,
+  "catalog_schedule_rows_without_public_latest": 204,
+  "attempted": 4259,
+  "complete": true,
+  "missing_attempts": 0
+}
