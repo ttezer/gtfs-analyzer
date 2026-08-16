@@ -186,8 +186,32 @@ CONTEXT_MAPPINGS: tuple[ContextMapping, ...] = (
     _ctx("invalid_url", "AGN_003", filename=("agency.txt",), fields=("agency_url",), label="agency.txt::agency_url"),
     _ctx("invalid_url", "RTS_005", filename=("routes.txt",), fields=("route_url",), label="routes.txt::route_url"),
     _ctx("invalid_url", "FIN_002", filename=("feed_info.txt",), fields=("feed_publisher_url",), label="feed_info.txt::feed_publisher_url"),
+    # missing_required_field
+    #
+    # Same shape as missing_required_file: MobilityData emits one code for every required
+    # field in every file, so a two-rule map made 35 feeds look like blindness. Each pair
+    # below was verified against the full-catalog run -- the named rule actually fires on
+    # the feeds MobilityData reports for that field (#146).
+    _ctx("missing_required_field", "AGN_002", filename=("agency.txt",), fields=("agency_name",), label="agency.txt::agency_name"),
     _ctx("missing_required_field", "AGN_003", filename=("agency.txt",), fields=("agency_url",), label="agency.txt::agency_url"),
+    _ctx("missing_required_field", "AGN_004", filename=("agency.txt",), fields=("agency_timezone",), label="agency.txt::agency_timezone"),
+    _ctx("missing_required_field", "RTS_004", filename=("routes.txt",), fields=("route_type",), label="routes.txt::route_type"),
+    _ctx("missing_required_field", "TRP_035", filename=("trips.txt",), fields=("service_id",), label="trips.txt::service_id"),
+    _ctx("missing_required_field", "TRP_031", filename=("trips.txt",), fields=("route_id",), label="trips.txt::route_id"),
+    _ctx("missing_required_field", "STM_006", filename=("stop_times.txt",), fields=("stop_id",), label="stop_times.txt::stop_id"),
+    _ctx("missing_required_field", "SHP_001", filename=("shapes.txt",), fields=("shape_id",), label="shapes.txt::shape_id"),
+    _ctx("missing_required_field", "FIN_001", filename=("feed_info.txt",), fields=("feed_publisher_name",), label="feed_info.txt::feed_publisher_name"),
     _ctx("missing_required_field", "FIN_002", filename=("feed_info.txt",), fields=("feed_publisher_url",), label="feed_info.txt::feed_publisher_url"),
+    _ctx("missing_required_field", "FIN_003", filename=("feed_info.txt",), fields=("feed_lang",), label="feed_info.txt::feed_lang"),
+    _ctx("missing_required_field", "TRN_003", filename=("translations.txt",), fields=("language",), label="translations.txt::language"),
+    _ctx("missing_required_field", "BKR_019", filename=("booking_rules.txt",), fields=("booking_rule_id",), label="booking_rules.txt::booking_rule_id"),
+    _ctx("missing_required_field", "BKR_016", filename=("booking_rules.txt",), fields=("booking_type",), label="booking_rules.txt::booking_type"),
+    # ⚠️ ÜÇ ÇİFT BİLEREK EŞLENMEDİ — aday kural korpusta o feed'lerde ATEŞLEMİYOR, yani
+    # eşleme yazmak boşluğu gizlemek olurdu (`classify_unmapped` felsefesi, alan düzeyinde):
+    #   routes.txt::route_id        (4 feed) — RTS_001 "yineleniyor" ölçer, "eksik" DEĞİL.
+    #   fare_leg_rules::fare_product_id (8 feed) — FLG_001 "bulunamadı" (FK) ölçer, boş değeri değil.
+    #   calendar.txt::sunday        (1 feed) — CAL_002 "geçersiz değer" ölçer, eksik sütunu değil.
+    # Üçü de KAPSAM BOŞLUĞU ADAYIDIR; ayrı ölçülmeli.
     _ctx("invalid_date", "FIN_005", filename=("feed_info.txt",), fields=("feed_start_date",), label="feed_info.txt::feed_start_date"),
     _ctx("invalid_date", "FIN_006", filename=("feed_info.txt",), fields=("feed_end_date",), label="feed_info.txt::feed_end_date"),
     _ctx("invalid_date", "CAL_003", filename=("calendar.txt",), fields=("start_date",), label="calendar.txt::start_date"),
@@ -265,6 +289,16 @@ BY_DESIGN = {
         "tanımıyor ve 'bilinmeyen dosya' işaretliyor; biz GTFS-JP profilini destekliyoruz "
         "→ 0'ımız DOĞRU. 250-feed: tek vaka mdb-3175 (Tokyo Toei, MD=2). MD ile eşitlemek "
         "gerçek JP feed'inde regresyon olurdu (backlog: jp_ kararı).",
+    "unknown_column":
+        "BİZ-DOĞRU (GTFS-JP farkındalığı) — `unknown_file` kararının SÜTUN İKİZİ, aynı gerekçe. "
+        "MD `jp_` önekli sütunları tanımıyor ve 'bilinmeyen sütun' işaretliyor; `ARC_017` bu "
+        "öneki BİLEREK atlar (`k1_parse.rs`, 'jp_ prefix = GTFS-JP uzantısı, atla'). Tam katalog "
+        "koşumunda bu koda düşen 327 feed'in 327'si SALT `jp_` sütunudur — istisna YOK "
+        "(`jp_trip_desc` 332 · `jp_pattern_id` 294 · `jp_parent_route_id` 41 · `jp_office_id` 7). "
+        "MD ile eşitlemek her GTFS-JP feed'ini gürültüye boğardı → 0'ımız DOĞRU. "
+        "⚠️ Bu karar YALNIZ sıfır-saydığımız hâli kapsar: `comment`, `trans_id`, `shape_dist_traveleded` "
+        "gibi gerçek bilinmeyen sütunlar zaten ARC_017 üretiyor ve md_mapped_under/over'da görünür; "
+        "onlar granülerlik sorusudur, kapsam değil (#146).",
     "non_ascii_or_non_printable_char":
         "MD Japonca/Kiril gibi ASCII-dışı DEĞERLERİ işaretler (ör. service_id='平日'); "
         "ARC_021 yalnız non-printable arar → bizim 0'ımız DOĞRU, MD over-fire ediyor.",
@@ -391,6 +425,18 @@ MAPPED_DIVERGENCE_DECISIONS = {
         "designed (see docs/rules/ARC/ARC_024.md), not an ARC_004 gap. The 34th feed, mdb-2933, "
         "was a mapping gap and is fixed: MD named feed_info.txt, which is conditionally required "
         "and belongs to ARC_031. Measured in #145.",
+    ),
+    "missing_recommended_file": (
+        "structural-fault-owns-it",
+        "All 35 feeds carrying this code in the full-catalog run are archives we could not "
+        "read as a usable GTFS feed, and every one of them names feed_info.txt. 24 are the "
+        "wrapped-root population (MobilityData reports invalid_input_files_in_subfolder and "
+        "refuses the folder). The other 11 are not GTFS feeds at all: mdb-6 holds a single "
+        "directory entry, tdg-84076 and tdg-84073 hold nested ZIPs, mdb-3135 is a GitHub repo "
+        "zip carrying .csv files, and 10 of the 11 emit ARC_004. Once the archive is "
+        "structurally broken we report that fault and stop; adding 'a recommended file is also "
+        "missing' would stack noise on a feed nobody can validate anyway. MobilityData reports "
+        "both. Measured in #146.",
     ),
     "missing_calendar_and_calendar_date_files": (
         "tolerance-by-design",
