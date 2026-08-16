@@ -1,0 +1,127 @@
+name: Recover Full Schedule Audit Aggregate
+
+on:
+  pull_request:
+    branches:
+      - agent/validator-audit-all-schedule-20260816
+    paths:
+      - '.github/workflows/benchmark-validator-audit-all-schedule-recovery.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  SOURCE_RUN_ID: '31915584207'
+  ANALYZER_SHA: '155bb06037a9caca339e4bd893619e5c3ab5fafb'
+  CORPUS_ARTIFACT_NAME: 'auditall-schedule-corpus'
+  FINAL_ARTIFACT_NAME: 'validator-audit-all-schedule-final-recovered'
+
+jobs:
+  aggregate-recovery:
+    name: Aggregate existing 128 Schedule shards
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Download corpus from completed source run
+        uses: actions/download-artifact@v8
+        with:
+          name: ${{ env.CORPUS_ARTIFACT_NAME }}
+          path: benchmark/auditall/run
+          github-token: ${{ github.token }}
+          run-id: ${{ env.SOURCE_RUN_ID }}
+
+      - name: Download all 128 shard checkpoints from source run
+        uses: actions/download-artifact@v8
+        with:
+          pattern: auditall-shard-*
+          path: benchmark/auditall/all-shards
+          merge-multiple: true
+          github-token: ${{ github.token }}
+          run-id: ${{ env.SOURCE_RUN_ID }}
+
+      - name: Assert source-run checkpoint coverage before aggregation
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          manifest = json.loads(Path('benchmark/auditall/run/manifest.json').read_text())
+          expected = {f['feed_id'] for f in manifest['feeds']}
+          files = sorted(Path('benchmark/auditall/all-shards').glob('shard-*.jsonl'))
+          assert len(files) == 128, f'expected 128 shard JSONL files, found {len(files)}'
+
+          seen = []
+          for p in files:
+              for line in p.read_text(errors='replace').splitlines():
+                  if not line.strip():
+                      continue
+                  row = json.loads(line)
+                  seen.append((row.get('feed') or {}).get('feed_id', ''))
+
+          assert all(seen), 'blank feed_id in recovered shard results'
+          assert len(seen) == len(expected), f'row count {len(seen)} != manifest {len(expected)}'
+          assert len(set(seen)) == len(seen), 'duplicate feed result rows in recovered shards'
+          assert set(seen) == expected, f'coverage mismatch: missing={len(expected-set(seen))} unexpected={len(set(seen)-expected)}'
+          assert all(f.get('data_type') == 'gtfs' for f in manifest['feeds'])
+          print(f'RECOVERY COVERAGE PASS: shards={len(files)} rows={len(seen)} Schedule={len(expected)} RT tested=0')
+          PY
+
+      - name: Aggregate recovered Schedule results
+        run: |
+          set -euo pipefail
+          mkdir -p benchmark/auditall/final
+          PYTHONPATH="$PWD/spec-audit${PYTHONPATH:+:$PYTHONPATH}" \
+          python3 benchmark/auditall/aggregate.py \
+            --manifest benchmark/auditall/run/manifest.json \
+            --results-dir benchmark/auditall/all-shards \
+            --map-file spec-audit/md_parity_audit.py \
+            --expected-analyzer-sha "$ANALYZER_SHA" \
+            --out-dir benchmark/auditall/final \
+            | tee benchmark/auditall/final/aggregate-stdout.json
+          cp benchmark/auditall/run/manifest.json benchmark/auditall/final/corpus-manifest.json
+          cat benchmark/auditall/final/AUDIT_SUMMARY.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Extract representative raw evidence
+        run: |
+          set -euo pipefail
+          python3 benchmark/auditall/extract_evidence.py \
+            --reps benchmark/auditall/final/triage-representatives.json \
+            --max 60 \
+            --out benchmark/auditall/final/raw-evidence.json
+
+      - name: Verify final coverage contract
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          s=json.loads(Path('benchmark/auditall/final/summary.json').read_text())
+          assert s['gtfs_realtime_tested'] == 0, s['gtfs_realtime_tested']
+          assert s['manifest_selected_count'] == 2567, s['manifest_selected_count']
+          assert s['attempted_unique_feeds'] == 2567, s['attempted_unique_feeds']
+          assert s['missing_manifest_feeds'] == 0, s['missing_manifest_feeds']
+          assert s['unexpected_feeds'] == 0, s['unexpected_feeds']
+          assert s['malformed_jsonl_lines'] == 0, s['malformed_jsonl_lines']
+          print('FINAL COVERAGE PASS:', json.dumps({k:s[k] for k in ['manifest_selected_count','attempted_unique_feeds','missing_manifest_feeds','unexpected_feeds','gtfs_realtime_tested']}))
+          PY
+
+      - name: Bundle final audit
+        run: |
+          set -euo pipefail
+          tar -C benchmark/auditall/final -czf benchmark/auditall/validator-audit-all-schedule-results.tar.gz .
+          sha256sum benchmark/auditall/validator-audit-all-schedule-results.tar.gz > benchmark/auditall/validator-audit-all-schedule-results.tar.gz.sha256
+
+      - name: Upload recovered final audit
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ env.FINAL_ARTIFACT_NAME }}
+          path: |
+            benchmark/auditall/final/
+            benchmark/auditall/validator-audit-all-schedule-results.tar.gz
+            benchmark/auditall/validator-audit-all-schedule-results.tar.gz.sha256
+          retention-days: 30
