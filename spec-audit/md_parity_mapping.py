@@ -183,8 +183,16 @@ CONTEXT_MAPPINGS: tuple[ContextMapping, ...] = (
         filename=("agency.txt", "stops.txt", "routes.txt", "trips.txt", "stop_times.txt"),
         label="the five unconditionally required files",
     ),
+    # invalid_url — same generic shape. The map covered three of the six URL fields
+    # MobilityData actually reports, so stop_url alone accounted for 10 feeds of apparent
+    # blindness. Each pair below was verified against the run (#146).
     _ctx("invalid_url", "AGN_003", filename=("agency.txt",), fields=("agency_url",), label="agency.txt::agency_url"),
+    _ctx("invalid_url", "AGN_008", filename=("agency.txt",), fields=("agency_fare_url",), label="agency.txt::agency_fare_url"),
     _ctx("invalid_url", "RTS_005", filename=("routes.txt",), fields=("route_url",), label="routes.txt::route_url"),
+    _ctx("invalid_url", "STP_042", filename=("stops.txt",), fields=("stop_url",), label="stops.txt::stop_url"),
+    _ctx("invalid_url", "BKR_021", filename=("booking_rules.txt",), fields=("info_url",), label="booking_rules.txt::info_url"),
+    _ctx("invalid_url", "BKR_020", filename=("booking_rules.txt",), fields=("booking_url",), label="booking_rules.txt::booking_url"),
+    _ctx("invalid_url", "FIN_009", filename=("feed_info.txt",), fields=("feed_contact_url",), label="feed_info.txt::feed_contact_url"),
     _ctx("invalid_url", "FIN_002", filename=("feed_info.txt",), fields=("feed_publisher_url",), label="feed_info.txt::feed_publisher_url"),
     # missing_required_field
     #
@@ -289,6 +297,26 @@ BY_DESIGN = {
         "tanımıyor ve 'bilinmeyen dosya' işaretliyor; biz GTFS-JP profilini destekliyoruz "
         "→ 0'ımız DOĞRU. 250-feed: tek vaka mdb-3175 (Tokyo Toei, MD=2). MD ile eşitlemek "
         "gerçek JP feed'inde regresyon olurdu (backlog: jp_ kararı).",
+    "route_long_name_contains_short_name":
+        "İKİ BİLİNÇLİ KOL, ikisi de kayıtlı. (1) EŞİK: `RTS_022` eşit-olmayan içerme için kısa adın "
+        "EN AZ 2 KARAKTER olmasını ister — `short='5', long='Route 5A'` yanlış pozitifini önlemek için "
+        "(karar RTS_022 kartında yazılı). Tam katalog koşumunda bu koda düşen 13 feed'in 24 örneğinin "
+        "22'si TEK KARAKTERLİ kısa addır. (2) YAPISAL: kalan 2 örnek `mdb-2711`'de tam eşitliktir "
+        "(`short=long='LINEA 1'`) ve normalde ateşlerdi; o feed'de `trips.txt`/`stop_times.txt` YOK, "
+        "sonuç PARTIAL ve ARC_004 — K6 hat-adı analitiği hiç koşmuyor. Yapısal hata sahiplenir (#146).",
+    "equal_shape_distance_diff_coordinates_distance_below_threshold":
+        "ATIF SINIRI, körlük değil. Üç kardeş kural aynı olguyu hassasiyete göre böler: `SHP_023` "
+        "koordinatlar AYNI · `SHP_029` eşik-altı farklı (BİLGİ, weight 0) · `SHP_028` eşik-üstü (hata). "
+        "MD ise tek eşik-altı kodu basar. Koşumda bu koda düşen 11 feed'in 11'i de `SHP_023` alıyor — "
+        "yani noktalar bizim okumamızda ÖZDEŞ, MD'nin hesabında alt-metre farklı. Vaka görülüyor ve "
+        "raporlanıyor, yalnız kardeş kurala atfediliyor. SHP_029 kartı MD paritesinin TESPİT düzeyinde "
+        "olduğunu zaten söylüyor (#146).",
+    "single_shape_point":
+        "BİZ-DOĞRU (atıf kararı, çift sayımı önler): `SHP_006` yalnız KULLANILAN shape'lere bakar. "
+        "Kullanılmayan tek-noktalı kayıt zaten `SHP_018` (öksüz shape) kapsamındadır ve aynı kök "
+        "nedeni iki notice'a bölmek puanı şişirirdi — gerekçe `k5_derived.rs`'te yazılı. "
+        "Tam katalog koşumunda bu koda düşen 11 feed'in 11'i de SHP_018 alıyor, hiçbiri SHP_006 "
+        "almıyor: yani vaka görülüyor, başka kurala atfediliyor. MD referans durumuna bakmaz (#146).",
     "unknown_column":
         "BİZ-DOĞRU (GTFS-JP farkındalığı) — `unknown_file` kararının SÜTUN İKİZİ, aynı gerekçe. "
         "MD `jp_` önekli sütunları tanımıyor ve 'bilinmeyen sütun' işaretliyor; `ARC_017` bu "
