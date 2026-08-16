@@ -1,0 +1,4 @@
+GitHub Actions run: 31934698855
+Audit commit: ca551b29cd73f9487826edc35ef8b48a25ad3396
+Artifact: validator-audit-all-mdb-final (9261023945)
+Scope: GTFS Schedule only (data_type=gtfs); GTFS Realtime excluded.
