@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 import argparse,collections,hashlib,json,os,re,shutil,subprocess,time,zipfile
+from datetime import datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 try:
     import ijson
@@ -17,8 +19,21 @@ DOWNLOAD_TIMEOUT=300
 # değerin aynısı. Sınır KALDIRILMADI — sınırsız indirme runner diskini tüketir ve
 # feed'i "başarısız" değil "asılı" yapar.
 MAX_DOWNLOAD=2_500_000_000
-BENCH_DATE="20260816"
-MD_DATE="2026-08-16"
+BENCH_DATE="20260817"
+MD_DATE="2026-08-17"
+RUN_TIMEZONE="Europe/Brussels"
+STALE_DATE_OVERRIDE_ENV="GTFS_AUDIT_ALLOW_STALE_DATE"
+
+
+def validate_benchmark_date():
+    if BENCH_DATE != MD_DATE.replace("-", ""):
+        raise SystemExit(f"benchmark date mismatch: BENCH_DATE={BENCH_DATE}, MD_DATE={MD_DATE}")
+    actual=datetime.now(ZoneInfo(RUN_TIMEZONE)).date().isoformat()
+    if MD_DATE != actual and os.environ.get(STALE_DATE_OVERRIDE_ENV) != "1":
+        raise SystemExit(
+            f"stale benchmark date: configured {MD_DATE}, actual {actual} in {RUN_TIMEZONE}; "
+            f"update BENCH_DATE/MD_DATE or set {STALE_DATE_OVERRIDE_ENV}=1 for an intentional historical reproduction"
+        )
 
 def slurp(p,limit=6000):
     p=Path(p)
@@ -238,6 +253,7 @@ def run_one(feed,root,analyzer,mdjar):
     return result
 
 def main():
+    validate_benchmark_date()
     ap=argparse.ArgumentParser()
     ap.add_argument("--manifest",required=True)
     ap.add_argument("--shard",type=int,required=True)
