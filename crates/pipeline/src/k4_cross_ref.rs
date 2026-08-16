@@ -2479,6 +2479,20 @@ fn check_fares_v2(
 
     // FLG_001-006: fare_leg_rules cross-ref
     for rec in &records.fare_leg_rules {
+        // FLG_008: `fare_product_id` BOŞ. Aşağıdaki FK kontrolü `!is_empty()` koruması
+        // taşır — doğru, çünkü boş bir değer "bulunamadı" değildir. Ama o koruma boş
+        // vakayı kimseye devretmiyordu: yedi FLG kuralının hepsi FK ya da enum, hiçbiri
+        // varlık ölçmüyor. Spec'te alan Required (#153, korpusta 16 feed).
+        if rec.fare_product_id.trim().is_empty() {
+            let eid = rec.leg_group_id.clone();
+            notices.push(notice(
+                ctr, "FLG_008", EntityType::Row, eid.clone(), eid.clone(),
+                "fare_leg_rules.txt", Some(rec.line), Some("fare_product_id"),
+                Some(String::new()), None,
+                "fare_product_id zorunludur.".to_string(),
+                "fare_leg_rules.txt'teki her satıra fare_products.txt'te tanımlı bir fare_product_id yazın.",
+            ));
+        }
         if !rec.fare_product_id.is_empty() && !map.fare_product_ids.contains_key(rec.fare_product_id.as_str()) {
             let eid = rec.leg_group_id.clone();
             notices.push(notice(

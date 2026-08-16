@@ -638,6 +638,8 @@ const tr = {
     'AGN_012': 'cemv_support geçersiz (agency)',
     'RTS_024': 'cemv_support geçersiz (route)',
     'RTS_025': 'routes.txt agency_id boş (önerilen)',
+    'RTS_031': 'route_id eksik',
+    'FLG_008': 'fare_product_id eksik',
     'RTS_026': 'Yinelenen kısa hat adı',
     'RTS_027': 'Yinelenen uzun hat adı',
     'RTS_028': 'Flex pencereli rotada continuous_pickup/drop_off yasak',

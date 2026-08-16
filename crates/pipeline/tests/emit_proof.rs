@@ -1174,6 +1174,8 @@ fn fixtures() -> Vec<Fixture> {
 
         // ── FLG grubu (fare_leg_rules cross-ref k4) ────────────────────────────
         fx("FLG_001", vec![("fare_leg_rules.txt", "leg_group_id,fare_product_id\nLG1,NOPE\n")]),
+        // FLG_008: fare_product_id BOŞ — FLG_001'in FK kontrolü !is_empty() ile korunur (#153).
+        fx("FLG_008", vec![("fare_leg_rules.txt", "leg_group_id,fare_product_id\nLG1,\n")]),
         fx("FLG_002", vec![("fare_leg_rules.txt", "leg_group_id,network_id\nLG1,NOPE\n")]),
         fx("FLG_003", vec![("fare_leg_rules.txt", "leg_group_id,from_area_id\nLG1,NOPE\n")]),
         fx("FLG_004", vec![("fare_leg_rules.txt", "leg_group_id,to_area_id\nLG1,NOPE\n")]),
@@ -1268,6 +1270,8 @@ fn fixtures() -> Vec<Fixture> {
         fx("RTS_024", vec![("routes.txt", "route_id,agency_id,route_short_name,route_type,cemv_support\nR1,1,101,3,5\n")]),
         // RTS_025: tek agency'de route agency_id boş (k6 best-practice).
         fx("RTS_025", vec![("routes.txt", "route_id,agency_id,route_short_name,route_type\nR1,,101,3\n")]),
+        // RTS_031: route_id BOŞ — RTS_001 yinelenmeyi ölçer, olmayan kimlik yinelenemez (#153).
+        fx("RTS_031", vec![("routes.txt", "route_id,agency_id,route_short_name,route_type\n,1,101,3\n")]),
 
         // ── TRP grubu (kalan: k2 + k4 FK + k6) ─────────────────────────────────
         // TRP_002: route_id routes.txt'te yok (k4).

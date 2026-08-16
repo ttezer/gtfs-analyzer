@@ -214,12 +214,16 @@ CONTEXT_MAPPINGS: tuple[ContextMapping, ...] = (
     _ctx("missing_required_field", "TRN_003", filename=("translations.txt",), fields=("language",), label="translations.txt::language"),
     _ctx("missing_required_field", "BKR_019", filename=("booking_rules.txt",), fields=("booking_rule_id",), label="booking_rules.txt::booking_rule_id"),
     _ctx("missing_required_field", "BKR_016", filename=("booking_rules.txt",), fields=("booking_type",), label="booking_rules.txt::booking_type"),
-    # ⚠️ ÜÇ ÇİFT BİLEREK EŞLENMEDİ — aday kural korpusta o feed'lerde ATEŞLEMİYOR, yani
+    # #153 ile İKİSİ ARTIK EŞLENDİ — kural yazıldığı için eşleme yazılabilir hale geldi.
+    # Sıra önemli: boş değerin sahibi ayrı kuraldır, FK/yineleme kuralı değil.
+    _ctx("missing_required_field", "RTS_031", filename=("routes.txt",), fields=("route_id",), label="routes.txt::route_id"),
+    _ctx("missing_required_field", "FLG_008", filename=("fare_leg_rules.txt",), fields=("fare_product_id",), label="fare_leg_rules.txt::fare_product_id"),
+    # ⚠️ BİR ÇİFT BİLEREK EŞLENMEDİ — aday kural korpusta o feed'lerde ATEŞLEMİYOR, yani
     # eşleme yazmak boşluğu gizlemek olurdu (`classify_unmapped` felsefesi, alan düzeyinde):
-    #   routes.txt::route_id        (4 feed) — RTS_001 "yineleniyor" ölçer, "eksik" DEĞİL.
-    #   fare_leg_rules::fare_product_id (8 feed) — FLG_001 "bulunamadı" (FK) ölçer, boş değeri değil.
-    #   calendar.txt::sunday        (1 feed) — CAL_002 "geçersiz değer" ölçer, eksik sütunu değil.
-    # Üçü de KAPSAM BOŞLUĞU ADAYIDIR; ayrı ölçülmeli.
+    #   calendar.txt::sunday (1 feed) — ÖLÇÜLDÜ (#153): boşluk YOKTU. `CAL_025` ("takvim gün
+    #   alanı boş") zaten var ve tld-6756'da tam bir kez ateşliyor; `CAL_002` geçersiz DEĞERİ,
+    #   `CAL_025` eksik değeri sahiplenir. Bağlam eşlemesi CAL_025'e yazılmadı çünkü MD'nin
+    #   bu bağlamdaki tek vakası zaten MATCH; yazmak sayıyı değiştirmez, kararı gizler.
     _ctx("invalid_date", "FIN_005", filename=("feed_info.txt",), fields=("feed_start_date",), label="feed_info.txt::feed_start_date"),
     _ctx("invalid_date", "FIN_006", filename=("feed_info.txt",), fields=("feed_end_date",), label="feed_info.txt::feed_end_date"),
     _ctx("invalid_date", "CAL_003", filename=("calendar.txt",), fields=("start_date",), label="calendar.txt::start_date"),

@@ -2,7 +2,7 @@
 
 🇹🇷 [Türkçe](RULES.md) · 🇬🇧 **English** · 🇯🇵 [日本語](RULES.ja.md)
 
-595 rules, 38 groups. Each rule is identified by a unique ID, severity level, and class.
+597 rules, 38 groups. Each rule is identified by a unique ID, severity level, and class.
 Severity levels: **CRITICAL** (publish blocker) · **HIGH** · **MEDIUM** · **LOW** · **INFO**
 Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Quality** (GTFS Quality) · **Analytics** (GTFS Analytics)
 
@@ -174,6 +174,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | RTS_028 | continuous_pickup/drop_off forbidden on a Flex route | HIGH | Spec |
 | RTS_029 | route_sort_order is invalid | LOW | Spec |
 | RTS_030 | route_type uses an extended value outside the core enum | LOW | Interop |
+| RTS_031 | route_id missing | CRITICAL | Spec |
 
 ## TRP — Trips
 
@@ -489,6 +490,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | FLG_005 | from_timeframe_group_id not found | CRITICAL | Spec |
 | FLG_006 | to_timeframe_group_id not found | CRITICAL | Spec |
 | FLG_007 | rule_priority invalid | MEDIUM | Spec |
+| FLG_008 | fare_product_id missing | CRITICAL | Spec |
 
 ## FLJ
 

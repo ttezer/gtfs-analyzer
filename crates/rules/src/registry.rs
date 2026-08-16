@@ -509,6 +509,11 @@ pub static RULES: &[RuleMeta] = &[
     // `unexpected_enum_value` (WARNING) veriyor — 225 feed'in 19'unda.
     r!("RTS_030", Dusuk,  Interop, 1, &[], Some("route_id"), VI, Entity,
         "route_type çekirdek enum dışında genişletilmiş değer"),
+    // RTS_031: `route_id` BOŞ. `RTS_001` yinelenmeyi ölçer, olmayan kimlik yinelenemez;
+    // `k2/routes.rs`'te boş id sessizce `entity_id=None` oluyordu ve hiçbir kural görmüyordu.
+    // Tam katalog koşumunda 4 feed (#153). Birincil anahtar → Kritik·Spec.
+    r!("RTS_031", Kritik, Spec, 1, &[], Some("route_id"), VS_K, Row,
+        "route_id eksik"),
 
     // ── TRP: Trips ─────────────────────────────────────────────────────────────
     r!("TRP_001", Kritik, Spec, 1,
@@ -1188,6 +1193,10 @@ pub static RULES: &[RuleMeta] = &[
         "to_timeframe_group_id bulunamadı"),
     r!("FLG_007", Orta,   Spec, 1, &[], Some("leg_group_id"), VS, Row,
         "rule_priority geçersiz"),
+    // FLG_008: `fare_product_id` BOŞ. `FLG_001` FK kontrolüdür ve `!is_empty()` koruması
+    // yüzünden boş değerde hiç koşmaz; kardeşlerinin tamamı FK ya da enum. 16 feed (#153).
+    r!("FLG_008", Kritik, Spec, 1, &[], Some("leg_group_id"), VS_K, Row,
+        "fare_product_id eksik"),
 
     // ── FLJ: Fare Leg Join Rules (Fares v2) ───────────────────────────────────
     // `fare_leg_join_rules.txt` 2026-08-02'ye kadar pipeline'a HİÇ TANITILMAMIŞTI (issue #59):
@@ -1982,6 +1991,7 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("FLG_005", GtfsSpec),
     ("FLG_006", GtfsSpec),
     ("FLG_007", GtfsSpec),
+    ("FLG_008", GtfsSpec),
     ("FLJ_001", GtfsSpec),
     ("FLJ_002", GtfsSpec),
     ("FLJ_003", GtfsSpec),
@@ -2162,6 +2172,7 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("RTS_028", GtfsSpec),
     ("RTS_029", GtfsSpec),
     ("RTS_030", MobilitydataParity),
+    ("RTS_031", GtfsSpec),
     ("SAR_001", GtfsSpec),
     ("SAR_002", GtfsSpec),
     ("SAR_003", GtfsSpec),

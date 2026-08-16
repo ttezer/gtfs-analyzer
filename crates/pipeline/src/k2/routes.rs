@@ -53,6 +53,19 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
         let route_id = get_raw_field(&row_map, "route_id").unwrap_or("").to_string();
         let entity_id = (!route_id.is_empty()).then_some(route_id.clone());
 
+        // RTS_031: `route_id` boş — birincil anahtar yok. Bu satır KİMLİKSİZDİR ve
+        // `entity_id` yukarıda `None` olur; eskiden hiçbir kural bunu görmüyordu.
+        // `RTS_001` YİNELENMEYİ ölçer ve olmayan bir kimlik yinelenemez, dolayısıyla
+        // boş değer iki kuralın arasından düşüyordu (#153, korpusta 4 feed).
+        if route_id.trim().is_empty() {
+            notices.push(make_k2_notice(
+                &mut counter, "RTS_031", EntityType::Route, None, Some(&row_map),
+                &file.name, Some(line), Some("route_id"), Some(String::new()), None,
+                "route_id zorunludur.".to_string(),
+                "routes.txt'teki her satıra benzersiz bir route_id yazın.",
+            ));
+        }
+
         let agency_id = get_raw_field(&row_map, "agency_id")
             .filter(|v| !v.trim().is_empty())
             .map(str::to_string);

@@ -2,7 +2,7 @@
 
 🇹🇷 [Türkçe](RULES.md) · 🇬🇧 [English](RULES.en.md) · 🇯🇵 **日本語**
 
-595ルール、38グループ。各ルールは一意のID、重要度、クラスで定義されます。
+597ルール、38グループ。各ルールは一意のID、重要度、クラスで定義されます。
 重要度: **致命的**（公開ブロッカー）· **高** · **中** · **低** · **情報**
 クラス: **仕様**（GTFS妥当性）· **相互運用**（GTFSインターオペラビリティ）· **品質**（GTFS品質）· **分析**（GTFSアナリティクス）
 
@@ -174,6 +174,7 @@
 | RTS_028 | Flex路線でcontinuous_pickup/drop_off禁止 | 高 | 仕様 |
 | RTS_029 | route_sort_orderが無効 | 低 | 仕様 |
 | RTS_030 | route_typeがコア列挙型外の拡張値 | 低 | 相互運用 |
+| RTS_031 | route_idがありません | 致命的 | 仕様 |
 
 ## TRP — 便（Trips）
 
@@ -489,6 +490,7 @@
 | FLG_005 | from_timeframe_group_idが存在しない | 致命的 | 仕様 |
 | FLG_006 | to_timeframe_group_idが存在しない | 致命的 | 仕様 |
 | FLG_007 | rule_priorityが無効 | 中 | 仕様 |
+| FLG_008 | fare_product_idがありません | 致命的 | 仕様 |
 
 ## FLJ
 
