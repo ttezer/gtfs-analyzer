@@ -1,0 +1,59 @@
+name: Verify Full Catalog Fixes on Real Feeds
+
+on:
+  pull_request:
+    branches:
+      - agent/full-catalog-findings-fix-20260816
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+      - name: Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+      - name: Build fixed Analyzer CLI
+        run: cargo build --release -p gtfs-cli
+      - name: Download real corpus feeds
+        run: |
+          set -euo pipefail
+          curl --retry 3 --retry-all-errors -fL --max-filesize 800M \
+            'https://files.mobilitydatabase.org/tld-4477/latest.zip' -o /tmp/tld-4477.zip
+          curl --retry 3 --retry-all-errors -fL --max-filesize 800M \
+            'https://files.mobilitydatabase.org/mdb-1106/latest.zip' -o /tmp/mdb-1106.zip
+      - name: Verify FAR_006 on tld-4477
+        run: |
+          set -euo pipefail
+          target/release/gtfs-analyzer validate /tmp/tld-4477.zip \
+            --json --rule FAR_006 --lang en --today 20260809 \
+            --output /tmp/far006.json
+          python3 - <<'PY'
+          import json
+          d=json.load(open('/tmp/far006.json'))
+          n=[x for x in d.get('notices',[]) if x.get('rule_id')=='FAR_006']
+          assert not n, f'FAR_006 still fires: {len(n)} notices; sample={n[:1]}'
+          print('REAL-FEED PASS: tld-4477 FAR_006 notices=0')
+          PY
+      - name: Verify FRQ_001 root and TRP_017 suppression on mdb-1106
+        run: |
+          set -euo pipefail
+          target/release/gtfs-analyzer validate /tmp/mdb-1106.zip \
+            --json --rule FRQ_001 --lang en --today 20260809 \
+            --output /tmp/frq001.json
+          target/release/gtfs-analyzer validate /tmp/mdb-1106.zip \
+            --json --rule TRP_017 --lang en --today 20260809 \
+            --output /tmp/trp017.json
+          python3 - <<'PY'
+          import json
+          frq=json.load(open('/tmp/frq001.json'))
+          trp=json.load(open('/tmp/trp017.json'))
+          f=[x for x in frq.get('notices',[]) if x.get('rule_id')=='FRQ_001']
+          t=[x for x in trp.get('notices',[]) if x.get('rule_id')=='TRP_017']
+          assert len(f)==1864, f'expected 1864 FRQ_001 root findings, got {len(f)}'
+          assert len(t)==0, f'expected derivative TRP_017 to disappear, got {len(t)}'
+          print('REAL-FEED PASS: mdb-1106 FRQ_001=1864, TRP_017=0')
+          PY
