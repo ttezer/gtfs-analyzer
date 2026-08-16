@@ -2228,7 +2228,7 @@ fn check_geo_analytics(
         let mut sorted_stops: Vec<(f64, f64, &crate::k2::stops::StopRecord)> = records
             .stops
             .iter()
-            .filter_map(|s| s.stop_lat.zip(s.stop_lon).map(|(la, lo)| (la, lo, s)))
+            .filter_map(|s| recoverable_stop_coord(s).map(|(la, lo)| (la, lo, s)))
             .collect();
         sorted_stops.sort_by(|a, b| a.0.total_cmp(&b.0));
 
@@ -2325,7 +2325,7 @@ fn check_geo_analytics(
     let coords: Vec<(f64, f64)> = records
         .stops
         .iter()
-        .filter_map(|s| s.stop_lat.zip(s.stop_lon))
+        .filter_map(|s| recoverable_stop_coord(s))
         .collect();
     if coords.len() >= 3 {
         let mut lats: Vec<f64> = coords.iter().map(|c| c.0).collect();
@@ -2507,7 +2507,7 @@ fn check_geo_analytics(
     // GEO_018: Tüm feed durakları 200m'lik bir alan içinde — test/yer tutucu veri
     {
         let coords: Vec<(f64, f64)> = records.stops.iter()
-            .filter_map(|s| s.stop_lat.zip(s.stop_lon))
+            .filter_map(|s| recoverable_stop_coord(s))
             .collect();
         if coords.len() >= 3 {
             let min_lat = coords.iter().map(|(lat,_)| *lat).fold(f64::INFINITY, f64::min);
@@ -4642,7 +4642,7 @@ fn check_remaining_analytics<'a>(
     let stop_coords: FxHashMap<&str, (f64, f64)> = records
         .stops
         .iter()
-        .filter_map(|s| s.stop_lat.zip(s.stop_lon).map(|c| (s.stop_id.as_str(), c)))
+        .filter_map(|s| recoverable_stop_coord(s).map(|c| (s.stop_id.as_str(), c)))
         .collect();
     let stop_lines: FxHashMap<&str, u64> = records
         .stops
@@ -5305,13 +5305,13 @@ fn check_remaining_analytics<'a>(
                 let anchor_entry = cell_stops.iter().copied().find(|&i| {
                     records.stops.get(i).is_some_and(|s| {
                         if s.location_type.unwrap_or(0) != 0 { return false; }
-                        s.stop_lat.zip(s.stop_lon)
+                        recoverable_stop_coord(s)
                             .is_some_and(|(la, lo)| !(la.abs() < 0.1 && lo.abs() < 0.1))
                     })
                 });
                 let Some(first_idx) = anchor_entry else { continue };
                 if let Some(anchor) = records.stops.get(first_idx) {
-                    let Some((alat, alon)) = anchor.stop_lat.zip(anchor.stop_lon) else { continue };
+                    let Some((alat, alon)) = recoverable_stop_coord(anchor) else { continue };
                     let anchor_parent = anchor.row.get("parent_station")
                         .map(|s| s.trim()).filter(|s| !s.is_empty());
                     let nearby = cell_stops
@@ -5328,7 +5328,7 @@ fn check_remaining_analytics<'a>(
                                 {
                                     return false;
                                 }
-                                s.stop_lat.zip(s.stop_lon)
+                                recoverable_stop_coord(s)
                                     .map(|(la, lo)| haversine_km(alat, alon, la, lo) < cluster_km)
                                     .unwrap_or(false)
                             }).unwrap_or(false)
@@ -6150,7 +6150,7 @@ fn check_remaining_analytics<'a>(
         // stop_id → (lat, lon)
         let stop_coords: HashMap<&str, (f64, f64)> = records.stops.iter()
             .filter_map(|s| {
-                s.stop_lat.zip(s.stop_lon).map(|(la, lo)| (s.stop_id.as_str(), (la, lo)))
+                recoverable_stop_coord(s).map(|(la, lo)| (s.stop_id.as_str(), (la, lo)))
             })
             .collect();
 
@@ -6161,7 +6161,7 @@ fn check_remaining_analytics<'a>(
                 Some(p) if !p.trim().is_empty() => p.trim(),
                 _ => continue,
             };
-            let (slat, slon) = match stop.stop_lat.zip(stop.stop_lon) {
+            let (slat, slon) = match recoverable_stop_coord(stop) {
                 Some(c) => c,
                 None => continue,
             };
@@ -6924,7 +6924,7 @@ fn check_shp012<'a>(
     let stop_coords: FxHashMap<&str, (f64, f64)> = records
         .stops
         .iter()
-        .filter_map(|s| s.stop_lat.zip(s.stop_lon).map(|c| (s.stop_id.as_str(), c)))
+        .filter_map(|s| recoverable_stop_coord(s).map(|c| (s.stop_id.as_str(), c)))
         .collect();
 
     // ── SHP_012 gövdesi (check_remaining_analytics'ten verbatim taşındı) ──────
@@ -7030,7 +7030,7 @@ fn check_shp022<'a>(
     let stop_coords: FxHashMap<&str, (f64, f64)> = records
         .stops
         .iter()
-        .filter_map(|s| s.stop_lat.zip(s.stop_lon).map(|c| (s.stop_id.as_str(), c)))
+        .filter_map(|s| recoverable_stop_coord(s).map(|c| (s.stop_id.as_str(), c)))
         .collect();
     let stop_names: FxHashMap<&str, &str> = records
         .stops
@@ -8240,7 +8240,7 @@ fn check_vat_analytics(
     // Lat-sıralı durak dizisi (STP_017 emsali): banda sınırlı komşu taraması.
     let xfer_sorted_stops: Vec<(f64, f64, &str)> = {
         let mut v: Vec<(f64, f64, &str)> = records.stops.iter()
-            .filter_map(|s| s.stop_lat.zip(s.stop_lon).map(|(la, lo)| (la, lo, s.stop_id.as_str())))
+            .filter_map(|s| recoverable_stop_coord(s).map(|(la, lo)| (la, lo, s.stop_id.as_str())))
             .collect();
         v.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
         v
@@ -8539,7 +8539,7 @@ fn check_vat_analytics(
                 // yakınsa fiziksel olarak aynı ağ kabul edilir, izole sayılmaz (yanlış pozitif önleme).
                 let mut stop_coords: FxHashMap<&str, (f64, f64)> = FxHashMap::default();
                 for s in &records.stops {
-                    if let Some(c) = s.stop_lat.zip(s.stop_lon) {
+                    if let Some(c) = recoverable_stop_coord(s) {
                         stop_coords.insert(s.stop_id.as_str(), c);
                     }
                 }
@@ -11441,6 +11441,57 @@ mod tests {
         assert_eq!(
             n.details.as_ref().and_then(|d| d.get("far_stops")).map(String::as_str),
             Some("FAR"),
+        );
+    }
+
+    /// `SHP_012` boşluklu koordinatları KAYBEDİYORDU — #121'in kurtarması buraya uğramamıştı.
+    ///
+    /// K2 strict lexical okuma `" 29.5"` değerini geçersiz sayıp `stop_lon`'u `None`
+    /// bırakır (DQ_016 kökü orada kanıtlanır). `check_shp012` ham `stop_lat.zip(stop_lon)`
+    /// kullandığı için o duraklar `stop_coords`'a HİÇ girmiyor, dolayısıyla shape'ten ne
+    /// kadar uzak olurlarsa olsunlar sayılmıyorlardı.
+    ///
+    /// Tam katalog koşumunda 36 feed bu yüzden sessizdi; MobilityData hepsinde raporluyor
+    /// ve 62 örneğin 62'si de 100 m eşiğinin ÜSTÜNDE (medyan 146 m, azami 69 km).
+    /// `mdb-1216`'da 97 durağın 97'si, `mdb-1913`'te 204'ün 204'ü boşluklu koordinat
+    /// taşıyor — yani kural o feed'lerde tamamen körleşiyordu (#146).
+    #[test]
+    fn shp_012_recovers_whitespace_stop_coordinates() {
+        let mut shape_ti = ShapeInternTable::new();
+        use crate::k2::shapes::ShapePointRecord;
+        let near = stop("NEAR", 41.0, 29.0);
+        // Uzak durak: K2 onu geçersiz saymış, ham satırda sayısal payload duruyor.
+        let mut far = stop("FAR", 41.5, 29.5);
+        far.stop_lat = None;
+        far.stop_lon = None;
+        far.row.insert("stop_lat".into(), " 41.5".into());
+        far.row.insert("stop_lon".into(), " 29.5".into());
+
+        let mut records = records_with(
+            vec![near, far],
+            vec![route("R1", 3)],
+            vec![trip_sh("T1", "R1", "S1")],
+            vec![
+                stoptime("T1", 1, "NEAR", (8, 0, 0), (8, 0, 0), 2),
+                stoptime("T1", 2, "FAR", (8, 10, 0), (8, 10, 0), 3),
+            ],
+        );
+        records.shapes = vec![
+            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.0), Some(29.0), Some(1), None, 2),
+            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.001), Some(29.001), Some(2), None, 3),
+        ];
+        records.shape_interns = shape_ti.clone();
+
+        let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
+        let n = result
+            .notices
+            .iter()
+            .find(|n| n.rule_id == "SHP_012")
+            .expect("kurtarılabilir boşluklu koordinat SHP_012'ye ULAŞMALI");
+        assert_eq!(
+            n.details.as_ref().and_then(|d| d.get("far_stops")).map(String::as_str),
+            Some("FAR"),
+            "uzak durak kimliği raporlanmalı"
         );
     }
 
