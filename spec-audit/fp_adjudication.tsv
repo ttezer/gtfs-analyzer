@@ -27,3 +27,10 @@ TRF_023	SPEC	HIGH	1109	mdb-2898	mdb-2898	5	TRUE_POSITIVE	several trips linked in
 XFL_012	QUALITY	HIGH	1048	mdb-992	mdb-992	5	TRUE_POSITIVE	route whose trips have no stop_times rows at all.
 RTS_016	QUALITY	LOW	1036	mdb-992	mdb-992	5	TRUE_POSITIVE	route with no active calendar day on any trip.
 STM_047	SPEC	CRITICAL	1035	mdb-1120	mdb-1120	5	TRUE_POSITIVE	timepoint=1 with both times empty.
+FAR_006	SPEC	MEDIUM	288461	tld-4477	tld-4477	1	FALSE_POSITIVE_FIXED	transfer_duration=0 is valid because the GTFS field is non-negative; the validator incorrectly required >0. The full corpus concentrated 287470 findings on tld-4477. Fixed and locked by a zero-boundary regression test.
+DQ_019	QUALITY	MEDIUM	191497	mdb-2666	mdb-2666	1	TRUE_POSITIVE	The sampled route_long_name is genuinely all lowercase. This is the rule's documented quality predicate, not a Spec-validity failure.
+TRP_011	QUALITY	HIGH	138294	mdb-2653	mdb-2653	1	TRUE_POSITIVE	The sampled trip genuinely has no trip_headsign; the rule is a Quality recommendation rather than a required-field Spec failure.
+TRP_001	SPEC	CRITICAL	8860	mdb-2093	mdb-2093	1	TRUE_POSITIVE	The sampled trip_id is genuinely duplicated; the dominant feed contributes 8452 duplicate-id findings.
+STM_006	SPEC	CRITICAL	5392	mdb-2027	mdb-2027	1	TRUE_POSITIVE	Exact source-row inspection confirmed stop_id is blank at stop_times line 5365134 and the file header has neither location_id nor location_group_id, so the Flex alternative cannot apply.
+FRQ_001	SPEC	CRITICAL	1982	mdb-1106	mdb-1106	1	TRUE_POSITIVE	The sampled frequencies.trip_id is absent from trips.txt. This is the root foreign-key defect.
+TRP_017	QUALITY	MEDIUM	1900	mdb-1106	mdb-1106	1	DERIVATIVE_FIXED	The dominant 1864 findings duplicate FRQ_001 for the same missing frequency trip ids. Fixed so TRP_017 only runs when the trip exists in trips.txt but lacks stop_times.
