@@ -109,6 +109,47 @@ class ContextMappingFixtures(unittest.TestCase):
                 self.assertNotEqual(classification, "unreviewed")
                 self.assertTrue(rationale)
 
+    def test_every_ledger_is_reachable_through_one_call(self):
+        """A parity consumer must be able to ask one question and see all three ledgers.
+
+        The full-catalog benchmark read only `MAP` and `AGG_RULES`, never `BY_DESIGN`,
+        and re-reported 74% of an already-adjudicated backlog as fresh blindness (#146).
+        This pins each ledger to a representative code, so moving or dropping one is a
+        test failure rather than a silently inflated finding count.
+        """
+        for code, expected_source in [
+            ("non_ascii_or_non_printable_char", "by-design"),
+            ("missing_required_file", "mapped-divergence"),
+            ("fast_travel_between_far_stops", "unmapped"),
+        ]:
+            with self.subTest(code=code):
+                source, rationale = mapping.classify_divergence(code)
+                self.assertTrue(
+                    source.startswith(expected_source),
+                    f"{code} should resolve via {expected_source}, got {source}",
+                )
+                self.assertTrue(rationale)
+                self.assertTrue(mapping.is_adjudicated(code))
+
+    def test_an_undecided_code_is_not_reported_as_adjudicated(self):
+        source, rationale = mapping.classify_divergence("a_code_no_ledger_has_seen")
+        self.assertEqual(source, "unreviewed")
+        self.assertIn("No decision recorded", rationale)
+        self.assertFalse(mapping.is_adjudicated("a_code_no_ledger_has_seen"))
+
+    def test_by_design_lives_with_the_other_ledgers(self):
+        """BY_DESIGN must stay in the mapping module, next to the tables it belongs with.
+
+        It sat in `md_parity_audit.py` while the mapping module held the other two, which
+        is why a new consumer that imported the mapping module still missed it.
+        """
+        self.assertGreater(len(mapping.BY_DESIGN), 20)
+        # The fixtures load the mapping module twice under two names, so compare content
+        # rather than identity; the point is that the audit reads this module's ledger.
+        self.assertEqual(audit.BY_DESIGN, mapping.BY_DESIGN)
+        for reason in mapping.BY_DESIGN.values():
+            self.assertTrue(reason.strip(), "a BY_DESIGN entry without reasoning is a blind spot")
+
     def test_far_stop_speed_gap_is_not_aliased_to_consecutive_speed(self):
         classification, rationale = mapping.classify_unmapped(
             "fast_travel_between_far_stops"

@@ -249,6 +249,127 @@ UNMAPPED_DECISIONS = {
 }
 
 
+# ── BİLİNÇLİ SAPMALAR: adjudicate EDİLMİŞ, tekrar yargılanmayacak ────────────
+# Bu MD kodlarında sapma BEKLENEN davranıştır; status "EXPLAINED" olur ve
+# parity_unexplained.csv'ye DÜŞMEZ. Amaç: her koşumda aynı 90+ satırı elle
+# ayıklamak zorunda kalmamak → çıktı yalnız AÇIKLANAMAYAN delta olsun.
+#
+# ⚠️ KURAL: buraya kayıt eklemek "görmezden gel" demek DEĞİL, "yargılandı ve
+# gerekçesi şu" demektir. GEREKÇESİZ KAYIT EKLEME — gerekçesiz bir liste,
+# sonradan kimsenin sorgulayamayacağı bir kör noktaya dönüşür. Yeni kod önce
+# MD-ONLY / MISS'te görünsün, adjudicate edilsin, SONRA buraya insin.
+# Kaynak: 2×20-feed kampanyası (memory: project_20feed_campaign) + MD_PARITY_GUIDE.
+BY_DESIGN = {
+    "unknown_file":
+        "BİZ-DOĞRU (GTFS-JP farkındalığı): MD `agency_jp.txt`/`office_jp.txt` dosyalarını "
+        "tanımıyor ve 'bilinmeyen dosya' işaretliyor; biz GTFS-JP profilini destekliyoruz "
+        "→ 0'ımız DOĞRU. 250-feed: tek vaka mdb-3175 (Tokyo Toei, MD=2). MD ile eşitlemek "
+        "gerçek JP feed'inde regresyon olurdu (backlog: jp_ kararı).",
+    "non_ascii_or_non_printable_char":
+        "MD Japonca/Kiril gibi ASCII-dışı DEĞERLERİ işaretler (ör. service_id='平日'); "
+        "ARC_021 yalnız non-printable arar → bizim 0'ımız DOĞRU, MD over-fire ediyor.",
+    "platform_without_parent_station":
+        "MD parent'sız HER durağı işaretler (tüm feed gürültü); STP_032 kapsamlandırılmış.",
+    "mixed_case_recommended_field":
+        "DQ_018 yalnız ALL-CAPS işaretler; MD mixed_case'i küçük-harfsiz dillerde (JP) over-fire eder.",
+    "missing_recommended_field":
+        "Bizde tek MD koduna karşılık BİRDEN ÇOK kural var (DQ_003/004, RTS_025, FIN_013/018) "
+        "→ üst-küme; eşleşme 1-1 değil, sayı kıyası anlamsız.",
+    "foreign_key_violation":
+        "STM_002 distinct-stop agregasyonu (biz 4, MD 2886 per-row) — #2. corpus'ta doğrulandı.",
+    "duplicate_key":
+        "SHP_008 per-SHAPE agregasyonu (K2 6159 emit → entity-dedup 6 distinct shape; MD per-row).",
+    "trip_distance_exceeds_shape_distance_below_threshold":
+        "SHP_025 eşik altı varyantı — bizim eşiğimiz farklı, kapsam kararı.",
+    "stops_match_shape_out_of_order":
+        "SHP_016 kavramsal olarak AYRIK (Faz 5'te doğrulandı) — aynı şeyi ölçmüyorlar.",
+    "unused_trip":
+        "TRP_017 exact-parite DEĞİL (2. tur audit kararı) — ilişkili ama farklı kural.",
+    # ── MAP yorumlarında ZATEN adjudicate edilmiş, makine-okunur hâle getirildi ──
+    # ── UNDECIDABLE (sprint ilkesi: "undecidable = bulgu") ──
+    "stop_too_far_from_shape_using_user_distance":
+        "SHP_024'e eşlenir. tdg-83134'teki 139.4m/165.6m otobüs vakalarının kök nedeni "
+        "stop koordinatlarının baş/son boşluk taşımasıydı: K2 strict lexical kaydı boş bırakıyor, "
+        "geometri kontrolü ise trim edilmiş sayısal payload'ı artık kullanıyor. Reduced fixture ve "
+        "aynı-input feed replay'i iki vakayı geri getiriyor (SHP_024=69; MD=124). Kalan farklar "
+        "tam corpus adjudication'ı için açık: MD/analyzer granülerliği ve sdt interpolasyon farkları "
+        "ayrıca incelenmeli; 200m rail eşiği bilinçli korunuyor.",
+    "service_has_no_active_day_of_the_week":
+        "Exact CAL_006 parity. #123 fixed the false negative caused by whitespace-wrapped "
+        "weekday zeros: K2 trims only the numeric payload for the weekly-pattern decision, "
+        "keeps DQ_016 as the lexical root, and retains CAL_002 for trim-after invalid values. "
+        "Same-input mdb-2830 replay recovered 12 CAL_006 findings (services 3308, 3317, "
+        "3318, 3338, 3350, 3352, 3354, 3356, 3360, 3362, 3366, 3367); calendar_dates "
+        "additions remain an informational dates-only case.",
+    "future_feed":
+        "future_calendar ile AYNI eksen: MD FEED seviyesinde tek notice, CAL_017 servis başına. "
+        "Sayı kıyası anlamsız.",
+    "future_calendar":
+        "GRANÜLERLİK TERSİ: MD FEED seviyesinde TEK notice basar (örnek: {minServiceStartDate, "
+        "currentDate}), CAL_017 ise SERVİS başına. mdb-777: biz 67 (67 servis) ↔ MD 1. "
+        "Sayı kıyası anlamsız; içerik aynı.",
+    "route_color_contrast":
+        "Kontrast eşiği farkı: RTS_008 daha sıkı (20-feed: biz 132 vs MD 3). Erişilebilirlik "
+        "tercihi, MD paritesi hedeflenmiyor.",
+    "stop_has_too_many_matches_for_shape":
+        "DISJOINT: SHP_022 YALNIZ shape_dist_traveled EKSİK trip'lerde çalışır (geometrik "
+        "fallback); MD ise shape_dist VARKEN bakar → aynı vakayı ölçmüyorlar. mdb-8'de "
+        "biz 9300 / MD 0 çıkmıştı = mis-comparison, parite bug'ı DEĞİL.",
+    "trip_distance_exceeds_shape_distance":
+        "SHP_025 eşiği >%0,1 (yuvarlamayı tolere eder, SHP_029 felsefesi). mdb-1909: 170 "
+        "aşımın 165'i <%0,1 = yuvarlama → biz 5 doğru, MD 170'in hepsini basar.",
+    "trip_distance_exceeds_shape_distance_below_threshold":
+        "Aynı SHP_025 eşik kararının eşik-altı varyantı — bkz. yukarısı.",
+    "service_extends_far_in_the_future":
+        "EŞİK FARKI, yapılandırılabilir: max_calendar_future_years=3 (yıl-granüler, tutucu); "
+        "MD ~1-2 yıl daha agresif → 2028'i işaretler, biz etmeyiz.",
+    "fast_travel_between_consecutive_stops":
+        "OVER bilinçli, İKİ bileşen (mdb-767 ile ölçüldü): (1) EŞİK — bizimkiler daha SIKI: "
+        "otobüs 120 (MD 150), rail 300 (MD 500); tram/metro/feribot/teleferik AYNI. Yapılandırılabilir "
+        "(max_speed_*_kmh). mdb-767: 87 bulgunun 55'i tam bu bantta. (2) MESAFE — biz shape "
+        "projeksiyonu (yolun GERÇEK uzunluğu) kullanırız, MD kuş uçuşu (haversine) → hızımız "
+        "sistematik olarak yüksek. AYNI segmentte ölçüldü (U2847Z301→U2848Z301, Srbsko→Beroun): "
+        "biz 642,2 km/h vs MD 539,1 km/h = 1,19× (MD distanceKm 4,49 → bizimki ~5,35). "
+        "Araç yolu takip ettiği için bizim mesafemiz DAHA DOĞRU; birleşik etki ~1,5×. "
+        "Shape projeksiyonu Haversine'den kısa olamaz; alt-sınır clamp'i self-near/crossing "
+        "shape kaynaklı STM_014 false-negative'lerini önler. #121 ayrıca K2 strict whitespace "
+        "kökü nedeniyle kaybolan sayısal stop koordinatlarını K6'da recover eder: aynı-input "
+        "replay mdb-510'da STM_014=4, mdb-2712'de STM_014=139 üretti (MD sırasıyla 32 ve 51; "
+        "farklar threshold/mesafe ve analyzer segment agregasyonu açısından hâlâ adjudication "
+        "gerektiriyor). mdb-2712 pinned 801515, 1049→253 segmenti artık trace edilebilir.",
+    "trip_headsign_matches_intermediate_stop":
+        "Kalan OVER = YAKIN-YAZIM farkı, bilinçli bırakıldı. 2026-07-17 fix'i (107f929) asıl "
+        "FP'yi kapattı (terminal ADI headsign ise atla → mdb-1294: 9.162→171). Kalanlar: "
+        "headsign 'MONTI SAN PAOLO/CONFORTI' ↔ terminal 'MONTI S. PAOLO/CONFORTI' = aynı yer, "
+        "kısaltma. Çözüm bulanık eşleştirme olurdu → gerçek vakaları bastırma riski; bir FP "
+        "sınıfını başkasıyla takas etmeye değmez. TRP_020 INFO/Analytics, SKORU ETKİLEMEZ → "
+        "gürültü, zarar değil.",
+    "trip_coverage_not_active_for_next7_days":
+        "FARKLI EKSEN, ikisi de savunulabilir. MD: 'ÖNEMLİ SAYIDA seferin koştuğu tarih "
+        "aralığı' (majority-window) hesaplar ve [bugün, bugün+7] o pencerenin İÇİNDE "
+        "olmalıdır (rules.html). TRP_023: 'önümüzdeki 7 günde HERHANGİ bir aktif servis "
+        "var mı' — kendi adına birebir sadık. Kanıt mdb-1131 (Vaasa, 2 mevsim): yaz "
+        "servisi 566 sefer 1 Haz-2 Ağu AKTİF (17 Tem'de 278 sefer koşuyor) → bizim 0'ımız "
+        "DOĞRU; MD kışı (733 sefer, 3 Ağu-31 Ara) 'significant' seçip pencere başlamadı "
+        "diye uyarıyor. Aynı desen mdb-2021/2240'te: pencere 1-2 gün SONRA başlıyor, MD "
+        "yine uyarıyor (tam kapsama istiyor). NOT: MD'nin ekseni ('kapsama inceliyor') "
+        "bizde YOK — yeni kural adayı olabilir, ayrı ürün kararı.",
+    "missing_bike_allowance":
+        "İKİ YÖNLÜ fark, ikisi de bilinçli: (1) KAPSAM — MD YALNIZ FERİBOT seferlerine bakar "
+        "(rules.html: 'All ferry trips should have a valid value in bikes_allowed'), TRP_021 TÜM "
+        "seferlere bakar → biz daha geniş, MD'nin vakalarını kapsıyoruz. (2) GRANÜLERLİK — TRP_021 "
+        "feed-özeti (tek notice + 5 örnek), MD per-trip (mdb-2933: 118). Sayı kıyası anlamsız; "
+        "AGG_RULES'a da eklendi. NOT: MD 'geçerli değer yok' der → GEÇERSİZ değeri de sayar "
+        "(ör. bikes_allowed=5); bizde o TRP_007'ye (enum ihlali) gider, TRP_021'e değil.",
+    "unexpected_enum_value":
+        "Kalan fark YALNIZ route_type: MD temel 0-12 dışını 'beklenmedik' sayar, oysa "
+        "genişletilmiş tipler (700 otobüs, 702 ekspres, 200 otokar, 109 banliyö, 712 okul, "
+        "715 talep-esaslı) GEÇERLİ ve biz kabul ediyoruz → 0'ımız DOĞRU, MD over-fire. "
+        "250-feed: 4.434 örneğin 4.434'ü route_type. Alan-bazlı vakalar MATCH kalır "
+        "(EXPLAINED yalnız non-MATCH'i ezer): direction_id→TRP_005 26=26, transfers→FAR_005 6=6.",
+}
+
+
 def classify_unmapped(code: str) -> tuple[str, str]:
     return UNMAPPED_DECISIONS.get(code, ("unreviewed", "No adjudication recorded for this MD code."))
 
@@ -284,6 +405,38 @@ def classify_mapped_divergence(code: str) -> tuple[str, str]:
     return MAPPED_DIVERGENCE_DECISIONS.get(
         code, ("unreviewed", "No decision recorded for a mapped divergence on this MD code.")
     )
+
+
+def classify_divergence(code: str) -> tuple[str, str]:
+    """The one call any parity consumer should make before reporting a divergence.
+
+    Three ledgers now live in this module — ``BY_DESIGN``, ``UNMAPPED_DECISIONS`` and
+    ``MAPPED_DIVERGENCE_DECISIONS``. They were written at different times for different
+    shapes of divergence, but from a consumer's side they answer one question: has this
+    difference already been judged, and why?
+
+    Ask through here rather than reading a single table. The full-catalog benchmark
+    (#146) loaded only ``MAP`` and ``AGG_RULES``, so it never saw ``BY_DESIGN`` and
+    re-reported **74% of an already-adjudicated backlog as fresh blindness** — 4,220 of
+    5,714 rows, including 782 feeds of ``non_ascii_or_non_printable_char`` whose reasoning
+    had been on record since 2026-07-03. A ledger a consumer does not read is not a ledger.
+    """
+    for source, table in (
+        ("by-design", BY_DESIGN),
+        ("mapped-divergence", MAPPED_DIVERGENCE_DECISIONS),
+        ("unmapped", UNMAPPED_DECISIONS),
+    ):
+        entry = table.get(code)
+        if entry is None:
+            continue
+        # BY_DESIGN stores a bare reason; the other two store (decision, reason).
+        return (source, entry) if isinstance(entry, str) else (f"{source}:{entry[0]}", entry[1])
+    return ("unreviewed", "No decision recorded for this MD code in any parity ledger.")
+
+
+def is_adjudicated(code: str) -> bool:
+    """True when a divergence on this MD code has a recorded decision behind it."""
+    return classify_divergence(code)[0] != "unreviewed"
 
 
 def resolve_mapping(
