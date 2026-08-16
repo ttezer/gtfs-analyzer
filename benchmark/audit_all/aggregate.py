@@ -64,6 +64,27 @@ def perf(values):
             "maximum":max(xs) if xs else None}
 
 
+def require_measured(columns, attempted):
+    """Tamamen boş bir ölçüm kolonu ARIZADIR; `null` medyan basıp geçmek onu gizler.
+
+    run-31934698855'te `analyzer_wall_s` ve `md_wall_s` 4.259 satırın 4.259'unda boştu.
+    Özet sessizce `null` bastı, `AUDIT_SUMMARY.md` "median: None s" yazdı ve koşum
+    yayımlandı — hız ekseni yokken var sanıldı (#149). Ayrıştırıcı hatası tek satırlıktı;
+    onu 4.259 satır boyunca görünmez kılan şey SESSİZ `None` idi.
+
+    `attempted == 0` ise boş kolon beklenendir: ölçüm arızası ile boş korpus ayrılır.
+    """
+    if not attempted:
+        return
+    empty=sorted(name for name,values in columns.items() if not values)
+    if empty:
+        raise SystemExit(
+            "measured column(s) came back wholly empty over "
+            f"{attempted} attempted feeds: {', '.join(empty)}\n"
+            "A median over zero samples is a broken measurement, not a null."
+        )
+
+
 def main():
     ap=argparse.ArgumentParser()
     ap.add_argument("--results-dir",required=True)
@@ -259,6 +280,9 @@ def main():
     mclean=[x["md_wall_s"] for x in feed_csv if x["md_state"]=="completed" and x["md_wall_s"] is not None]
     arss=[x["analyzer_rss_kb"] for x in feed_csv if x["analyzer_state"]=="completed" and x["analyzer_rss_kb"]]
     mrss=[x["md_rss_kb"] for x in feed_csv if x["md_state"]=="completed" and x["md_rss_kb"]]
+    # Ölçüm kolonları özetlenmeden önce denetlenir (#149).
+    require_measured({"analyzer_wall_s":aclean,"md_wall_s":mclean,
+                      "analyzer_peak_rss_kb":arss,"md_peak_rss_kb":mrss}, attempted)
     types=Counter(d["type"] for d in divergences)
     summary={
       "attempted":attempted,"downloaded":downloaded,"both_completed_cleanly":both,

@@ -34,7 +34,15 @@ def timing(p):
         m=re.search(pat,s,re.M)
         return m.group(1).strip() if m else None
     return {
-      "elapsed":g(r"Elapsed \(wall clock\) time.*?:\s*(.+)$"),
+      # ⚠️ Desen KAPANIŞ PARANTEZİNE çapalıdır, `.*?:` ile DEĞİL. `/usr/bin/time -v` şunu basar:
+      #     Elapsed (wall clock) time (h:mm:ss or m:ss): 0:01.23
+      # Tembel `.*?:` "time"dan sonraki İLK iki noktayı arar; o iki nokta değerde değil
+      # ETİKETİN İÇİNDEDİR (`(h:mm:ss`), dolayısıyla yakalanan grup `mm:ss or m:ss): 0:01.23`
+      # oluyordu. `elapsed_seconds()` onu 5 parçaya bölüp sessizce None döndürüyordu —
+      # run-31934698855'te 4.259 satırın 4.259'unda süre kolonu bu yüzden BOŞTU (#149).
+      # `max_rss_kb` etkilenmedi çünkü onun deseninde belirsizlik yok; ölçümün yarısının
+      # çalışıyor olması kusuru gizledi.
+      "elapsed":g(r"Elapsed \(wall clock\) time[^)]*\):\s*(.+)$"),
       "user_s":g(r"User time \(seconds\):\s*(.+)$"),
       "system_s":g(r"System time \(seconds\):\s*(.+)$"),
       "max_rss_kb":int(g(r"Maximum resident set size \(kbytes\):\s*(\d+)") or 0),
