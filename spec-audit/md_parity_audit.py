@@ -49,7 +49,12 @@ MAP = {
     "stop_without_stop_time":   ["STP_020"],
     # ── Calendar ──
     "big_gap_in_service":       ["CAL_007", "CAL_012"],  # PER-SERVICE, eşik big_gap_days=14
-    "expired_calendar":         ["CAL_013"],
+    # CAL_013 servisin BİRLEŞİK aktif tarih kümesine bakar (calendar + calendar_dates);
+    # MD ise calendar.txt satırının end_date'ine bakar. İstisna günleri ileri tarihliyse
+    # birleşik küme geçmişte DEĞİLDİR ve CAL_013 haklı olarak susar. Vaka yine görülüyor:
+    # koşumda bu koda düşen 6 feed'in 6'sı da CAL_024 ("önümüzdeki 7 günde aktif değil")
+    # alıyor. İkisi birlikte eşlenir (#146).
+    "expired_calendar":         ["CAL_013", "CAL_024"],
     # #123: whitespace-wrapped weekday zeros are parsed for the weekly decision while
     # DQ_016 remains the lexical root; mdb-2830 replay recovered MD's 12 services.
     "service_has_no_active_day_of_the_week": ["CAL_006"],
@@ -69,6 +74,18 @@ MAP = {
     # fare_products.txt::amount para birimi ondalık hassasiyetine uymuyor. Eşlemesizdi ve
     # 11 feed "kuralımız yok" gibi görünüyordu; koşumda 11'in 11'i de FPD_007 alıyor (#146).
     "invalid_currency_amount":     ["FPD_007"],
+    # Aşağıdaki altı kod eşlemesizdi ve "kuralımız yok" gibi sayılıyordu; her biri tam
+    # katalog koşumunda DOĞRULANDI — adayın o feed'lerde gerçekten ateşlediği ölçüldü (#146).
+    "missing_required_agency_id":       ["AGN_011"],  # 9/9 feed
+    "missing_prior_notice_duration_min": ["BKR_007"],  # 10/10 feed
+    "feed_info_lang_and_agency_lang_mismatch": ["AGN_013"],  # 12/12 feed
+    "missing_trip_edge":                ["STM_015", "STM_016"],  # ilk/son durak arrival/departure
+    "empty_file":                       ["ARC_009"],  # "dosyada veri satırı yok" — 8/8 feed
+    "invalid_color":                    ["RTS_006", "RTS_007"],  # route_color / route_text_color
+    # STP_003/STP_005 GEÇERSİZ değeri ölçer (parse edilebiliyorsa aralık kontrolü);
+    # BOŞ koordinatın sahibi STP_006/STP_007'dir. 7/7 feed doğrulandı — boşluk YOKTU,
+    # yalnız eşleme eksikti.
+    "stop_without_location":            ["STP_006", "STP_007"],
     # ── Trips / bloklar ──
     "trip_headsign_matches_intermediate_stop": ["TRP_020"],  # AGG: per-trip (MD per-occurrence)
     "block_trips_with_overlapping_stop_times": ["TRP_022"],  # MD ERROR; bizde ~eşleşir (aynı-gün blok)
