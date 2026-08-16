@@ -96,7 +96,12 @@ MAP = {
     "trip_coverage_not_active_for_next7_days": ["TRP_023"],
     "future_calendar":                ["CAL_017"],
     "future_feed":                    ["CAL_017"],
-    "feed_expiration_date7_days":     ["FIN_019"],
+    # MD tek kodla İKİ hâli birden sayar: süresi DOLMUŞ ve yakında DOLACAK. Bizde ayrık
+    # iki kural var (FIN_010 dolmuş · FIN_019 pencere içinde doluyor), o yüzden eşleme
+    # ikisine birden gider. Tek başına FIN_019'a bağlamak 841 feed'i sahte MISS yapıyordu:
+    # tam katalog koşumunda 841'in 837'si FIN_010 alıyor, 0'ı FIN_019 — MD'nin kendi
+    # örneklerinde de 841'in 839'u ZATEN DOLMUŞ feed'ler (#146).
+    "feed_expiration_date7_days":     ["FIN_010", "FIN_019"],
     "same_stop_and_agency_url":       ["STP_034"],
     "same_stop_and_route_url":        ["STP_035"],
     "platform_without_parent_station":["STP_032"],     # BİZ-TUTUCU: MD HER parentsiz lt=0 durağı INFO işaretler (mdb-981: 1632=tüm duraklar, gürültü). Biz yalnız pathway-bağlı platformu (STP_032) işaretleriz — standalone durak parentsiz NORMAL.

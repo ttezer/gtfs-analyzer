@@ -176,7 +176,14 @@ class ContextMappingFixtures(unittest.TestCase):
             audit.MAP["trip_with_shape_dist_traveled_but_no_shape_distances"], ["SHP_030"]
         )
         self.assertEqual(audit.MAP["single_shape_point"], ["SHP_006"])
-        self.assertEqual(audit.MAP["feed_expiration_date7_days"], ["FIN_019"])
+        # MobilityData counts two states under one code -- already expired and expiring
+        # soon -- while we keep them apart (FIN_010 / FIN_019), so the mapping goes to
+        # both. Pinning it to FIN_019 alone turned 841 feeds into a false MISS: 837 of
+        # them emit FIN_010 and none emits FIN_019, and MD's own samples show 839 of the
+        # 841 are already past their feed_end_date (#146).
+        self.assertEqual(
+            audit.MAP["feed_expiration_date7_days"], ["FIN_010", "FIN_019"]
+        )
         for code, rule in {
             "invalid_row_length": "ARC_012",
             "missing_required_file": "ARC_004",

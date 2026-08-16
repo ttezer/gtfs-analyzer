@@ -4178,7 +4178,14 @@ fn check_data_quality(
                         let end_jdn   = yyyymmdd_to_jdn(end);
                         let days_left = end_jdn.saturating_sub(today_jdn);
                         let warning_days = config.feed_info_expiry_warning_days;
-                        if days_left <= warning_days && days_left > 0 {
+                        // `days_left == 0` DAHİLDİR (#146). Eskiden `days_left > 0` şartı
+                        // vardı ve `feed_end_date == bugün` olan feed hiçbir kurala
+                        // düşmüyordu: FIN_010 `end < today` ister, bu dal da sıfırı eliyordu.
+                        // Korpusta iki gerçek vaka (mdb-923, tld-366). "Bugün doluyor" sona
+                        // ERİYOR'dur, ERMİŞ değil — feed bugün hâlâ geçerli, yarın değil —
+                        // dolayısıyla vaka buraya aittir. `end >= today_yyyymmdd` üst şartı
+                        // negatif days_left'i zaten dışarıda tutuyor, iki kural ayrık kalır.
+                        if days_left <= warning_days {
                             let mut notice = k6_notice(
                                 ctr, "FIN_019", EntityType::Feed,
                                 None, None, "feed_info.txt", None, Some("feed_end_date"),
@@ -13912,6 +13919,34 @@ mod tests {
         feed_info.feed_end_date = end;
         records.feed_info = vec![feed_info];
         records
+    }
+
+    /// `feed_end_date == bugün` HİÇBİR kural tarafından görülmüyordu (#146).
+    ///
+    /// `FIN_010` `end < today` ister, `FIN_019` ise `days_left > 0` isterdi; tam sınırda
+    /// ikisi de susuyordu. Korpusta iki gerçek vaka: `mdb-923` ve `tld-366`
+    /// (`feedEndDate = currentDate = 20260816`), MobilityData ikisini de raporluyor.
+    ///
+    /// "Bugün doluyor" mantıken SONA ERİYOR'dur, SONA ERMİŞ değil: feed bugün hâlâ
+    /// geçerli, yarın değil. Bu yüzden vaka `FIN_019`'a aittir, `FIN_010`'a değil.
+    #[test]
+    fn a_feed_expiring_exactly_today_is_reported() {
+        let records = records_with_feed_end(Some((2026, 5, 14)));
+        let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
+
+        let fin019 = result.notices.iter().filter(|n| n.rule_id == "FIN_019").count();
+        let fin010 = result.notices.iter().filter(|n| n.rule_id == "FIN_010").count();
+        assert_eq!(fin019, 1, "bugün dolan feed FIN_019 üretmeli (0 gün kaldı)");
+        assert_eq!(fin010, 0, "bugün dolan feed HENÜZ dolmamıştır → FIN_010 ÜRETMEMELİ");
+
+        // Sınırın öteki yakası değişmedi: dün dolmuş feed hâlâ yalnız FIN_010 alır.
+        let expired = records_with_feed_end(Some((2026, 5, 13)));
+        let r2 = analyze(&expired, &empty_derived(), &default_config(), 20260514);
+        assert_eq!(r2.notices.iter().filter(|n| n.rule_id == "FIN_010").count(), 1);
+        assert_eq!(
+            r2.notices.iter().filter(|n| n.rule_id == "FIN_019").count(), 0,
+            "dolmuş feed FIN_019 ALMAMALI — iki kural ayrık kalmalı"
+        );
     }
 
     #[test]
