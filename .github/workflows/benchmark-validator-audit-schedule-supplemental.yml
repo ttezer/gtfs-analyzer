@@ -1,0 +1,172 @@
+name: Supplemental Non-Active Schedule Audit
+
+on:
+  pull_request:
+    branches:
+      - agent/validator-audit-all-schedule-20260816
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: supplemental-schedule-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  SOURCE_RUN_ID: '31915584207'
+  ANALYZER_SHA: '155bb06037a9caca339e4bd893619e5c3ab5fafb'
+  SHARD_COUNT: '64'
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      shards: ${{ steps.matrix.outputs.shards }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Download exact catalog snapshot from primary run
+        uses: actions/download-artifact@v8
+        with:
+          name: auditall-schedule-corpus
+          path: benchmark/auditall/source
+          github-token: ${{ github.token }}
+          run-id: ${{ env.SOURCE_RUN_ID }}
+      - name: Build supplemental Schedule manifest
+        run: |
+          set -euo pipefail
+          mkdir -p benchmark/auditall/supplemental
+          python3 benchmark/auditall/select_supplemental.py \
+            --catalog benchmark/auditall/source/feeds_v2.csv \
+            --out benchmark/auditall/supplemental/manifest.json
+          python3 - <<'PY'
+          import json
+          d=json.load(open('benchmark/auditall/supplemental/manifest.json'))
+          s=d['selection']; f=d['feeds']
+          assert s['schedule_catalog_rows']==4463, s
+          assert s['accounting']=={'direct_runnable':3354,'redirect_alias':828,'no_latest_url':94,'auth_required':187}, s['accounting']
+          assert s['primary_active_direct_expected']==2568, s
+          assert len(f)==786, len(f)
+          assert all(x['data_type']=='gtfs' for x in f)
+          assert all(x['status'] not in ('active','') for x in f)
+          assert len({x['feed_id'] for x in f})==786
+          print('SUPPLEMENTAL SCOPE PASS: 786 direct/public non-active Schedule feeds; RT tested=0')
+          PY
+      - id: matrix
+        run: |
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import json
+          print('shards='+json.dumps(list(range(64)),separators=(',',':')))
+          PY
+      - uses: actions/upload-artifact@v7
+        with:
+          name: supplemental-schedule-manifest
+          path: benchmark/auditall/supplemental/manifest.json
+          retention-days: 30
+
+  audit:
+    needs: prepare
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    strategy:
+      fail-fast: false
+      max-parallel: 20
+      matrix:
+        shard: ${{ fromJSON(needs.prepare.outputs.shards) }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: actions/download-artifact@v8
+        with:
+          name: supplemental-schedule-manifest
+          path: benchmark/auditall/supplemental
+      - name: Reuse pinned validators from primary run
+        uses: actions/download-artifact@v8
+        with:
+          name: auditall-schedule-tools
+          path: benchmark/auditall/tools
+          github-token: ${{ github.token }}
+          run-id: ${{ env.SOURCE_RUN_ID }}
+      - name: Prepare tools
+        run: |
+          chmod +x benchmark/auditall/tools/gtfs-analyzer
+          python3 -m pip install --no-index benchmark/auditall/tools/ijson-*.whl
+          test "$(cat benchmark/auditall/tools/analyzer-commit-sha.txt)" = "$ANALYZER_SHA"
+      - name: Audit supplemental shard ${{ matrix.shard }}
+        run: |
+          set -euo pipefail
+          mkdir -p benchmark/auditall/supplemental-shards
+          python3 benchmark/auditall/run_shard.py \
+            --manifest benchmark/auditall/supplemental/manifest.json \
+            --shard "${{ matrix.shard }}" \
+            --shards "$SHARD_COUNT" \
+            --analyzer benchmark/auditall/tools/gtfs-analyzer \
+            --md-jar benchmark/auditall/tools/md-cli.jar \
+            --analyzer-sha "$ANALYZER_SHA" \
+            --benchmark-sha "${{ github.event.pull_request.head.sha || github.sha }}" \
+            --out "benchmark/auditall/supplemental-shards/shard-$(printf '%03d' '${{ matrix.shard }}').jsonl"
+      - name: Upload shard checkpoint
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: supplemental-shard-${{ matrix.shard }}
+          path: benchmark/auditall/supplemental-shards/
+          if-no-files-found: warn
+          retention-days: 30
+
+  aggregate:
+    needs: [prepare, audit]
+    if: always() && needs.prepare.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          name: supplemental-schedule-manifest
+          path: benchmark/auditall/supplemental
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: supplemental-shard-*
+          path: benchmark/auditall/supplemental-all-shards
+          merge-multiple: true
+      - name: Assert exact supplemental coverage
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          m=json.load(open('benchmark/auditall/supplemental/manifest.json'))
+          expected={x['feed_id'] for x in m['feeds']}
+          files=sorted(Path('benchmark/auditall/supplemental-all-shards').glob('shard-*.jsonl'))
+          assert len(files)==64, len(files)
+          rows=[]
+          for p in files:
+              for line in p.read_text(errors='replace').splitlines():
+                  if line.strip(): rows.append(json.loads(line))
+          ids=[(x.get('feed') or {}).get('feed_id','') for x in rows]
+          assert len(ids)==786, len(ids)
+          assert len(set(ids))==786, len(set(ids))
+          assert set(ids)==expected
+          print('SUPPLEMENTAL COVERAGE PASS: 64/64 shards, 786/786 Schedule rows, RT tested=0')
+          PY
+      - name: Aggregate supplemental results
+        run: |
+          set -euo pipefail
+          mkdir -p benchmark/auditall/supplemental-final
+          PYTHONPATH="$PWD/spec-audit${PYTHONPATH:+:$PYTHONPATH}" \
+          python3 benchmark/auditall/aggregate.py \
+            --manifest benchmark/auditall/supplemental/manifest.json \
+            --results-dir benchmark/auditall/supplemental-all-shards \
+            --map-file spec-audit/md_parity_audit.py \
+            --expected-analyzer-sha "$ANALYZER_SHA" \
+            --out-dir benchmark/auditall/supplemental-final
+          cp benchmark/auditall/supplemental/manifest.json benchmark/auditall/supplemental-final/supplemental-manifest.json
+      - uses: actions/upload-artifact@v7
+        with:
+          name: supplemental-non-active-schedule-final
+          path: benchmark/auditall/supplemental-final/
+          retention-days: 30
