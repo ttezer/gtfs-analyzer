@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import argparse,csv,gzip,importlib.util,json,re,statistics
+import argparse,csv,gzip,importlib.util,json,math,re,statistics
 from collections import Counter,defaultdict
 from pathlib import Path
 
@@ -45,11 +45,31 @@ def priority(d):
     if typ=="md_unmapped": return 55
     return 40
 
+def percentile(values,q):
+    """q'ıncı yüzdelik, doğrusal ara değerle. Medyan tek başına bir kuyruk göstermez."""
+    xs=sorted(float(x) for x in values if x is not None)
+    if not xs: return None
+    pos=(len(xs)-1)*q
+    lo,hi=math.floor(pos),math.ceil(pos)
+    if lo==hi: return xs[lo]
+    return xs[lo]*(hi-pos)+xs[hi]*(pos-lo)
+
+
+def perf(values):
+    """n / medyan / p95 / azami — tek bir medyan, uzun kuyruklu bir dağılımı gizler."""
+    xs=[float(x) for x in values if x is not None]
+    return {"n":len(xs),
+            "median":statistics.median(xs) if xs else None,
+            "p95":percentile(xs,0.95),
+            "maximum":max(xs) if xs else None}
+
+
 def main():
     ap=argparse.ArgumentParser()
     ap.add_argument("--results-dir",required=True)
     ap.add_argument("--map-file",required=True)
     ap.add_argument("--out-dir",required=True)
+    ap.add_argument("--manifest",help="corpus-manifest.json; verilirse eksik/beklenmeyen feed kontrolü yapılır")
     args=ap.parse_args()
     out=Path(args.out_dir); out.mkdir(parents=True,exist_ok=True)
     MAP,AGG=load_map(args.map_file)
@@ -66,6 +86,33 @@ def main():
     rows.sort(key=lambda x:int((x.get("feed") or {}).get("corpus_index",10**9)))
     with gzip.open(out/"all-results.json.gz","wt",encoding="utf-8") as f:
         json.dump(rows,f,ensure_ascii=False,separators=(",",":"))
+
+    # Kapsam boşlukları (#135'ten taşındı): eksik bir shard SESSİZCE kaybolmamalı.
+    # Manifest verilmişse beklenen feed kümesiyle karşılaştırılır; verilmemişse yalnız
+    # mükerrer sonuç satırları raporlanır — "bakılmadı" ile "boşluk yok" KARIŞTIRILMAZ.
+    seen_ids=[((r.get("feed") or {}).get("feed_id") or "") for r in rows]
+    attempted_counts=Counter(x for x in seen_ids if x)
+    expected_ids=set()
+    if args.manifest:
+        man=json.loads(Path(args.manifest).read_text(encoding="utf-8"))
+        expected_ids={f.get("feed_id","") for f in man.get("feeds",[]) if f.get("feed_id")}
+    gaps={"manifest_checked":bool(args.manifest),
+          "missing_manifest_feed_ids":sorted(expected_ids-set(attempted_counts)) if expected_ids else [],
+          "unexpected_feed_ids":sorted(set(attempted_counts)-expected_ids) if expected_ids else [],
+          "duplicate_result_rows":{k:v for k,v in attempted_counts.items() if v>1}}
+    (out/"coverage-gaps.json").write_text(json.dumps(gaps,indent=2,ensure_ascii=False)+"\n")
+
+    # Mükerrer içerik (#135'ten taşındı): aynı SHA-256'yı paylaşan feed'ler DEDUP EDİLMEZ,
+    # raporlanır. mdb-1241 ve tfs-374 ikisi de 925 STM_002 bulgusu veriyordu; aynı içeriğin
+    # iki katalog kimliği altında sayılması bir bulguyu iki kez "bağımsız kanıt" yapar.
+    sha_groups=defaultdict(set)
+    for r in rows:
+        sha=((r.get("download") or {}).get("sha256") or "")
+        fid=((r.get("feed") or {}).get("feed_id") or "")
+        if sha and fid: sha_groups[sha].add(fid)
+    dupes=[{"sha256":s,"feed_count":len(i),"feed_ids":sorted(i)} for s,i in sha_groups.items() if len(i)>1]
+    dupes.sort(key=lambda x:(-x["feed_count"],x["sha256"]))
+    (out/"duplicate-content-groups.json").write_text(json.dumps(dupes,indent=2,ensure_ascii=False)+"\n")
 
     feed_csv=[]
     analyzer_rules={}
@@ -216,6 +263,13 @@ def main():
     summary={
       "attempted":attempted,"downloaded":downloaded,"both_completed_cleanly":both,
       "state_pairs":{f"{a} | {m}":n for (a,m),n in state_pairs.items()},
+      # Medyan + p95 + azami (#135'ten taşındı): tek bir medyan uzun kuyruğu gizler.
+      # `n` ayrıca ölçümün KAÇ feed'e dayandığını söyler — 0 ise kolon boştur, medyan
+      # `null` görünür ve bu bir ÖLÇÜM ARIZASIDIR, "veri yok" değil (#149).
+      "analyzer_wall_s":perf(aclean),
+      "md_wall_s":perf(mclean),
+      "analyzer_peak_rss_kb":perf(arss),
+      "md_peak_rss_kb":perf(mrss),
       "analyzer_wall_median_s":statistics.median(aclean) if aclean else None,
       "md_wall_median_s":statistics.median(mclean) if mclean else None,
       "analyzer_peak_rss_median_kb":statistics.median(arss) if arss else None,
