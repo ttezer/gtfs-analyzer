@@ -1,0 +1,60 @@
+name: Materialize Full Audit Results
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/materialize-audit-results.yml'
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  materialize:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+      - name: Download successful full-corpus artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/full-audit
+          mkdir -p /tmp/full-audit
+          gh run download 31934698855 \
+            --repo "$GITHUB_REPOSITORY" \
+            --name validator-audit-all-mdb-final \
+            --dir /tmp/full-audit
+      - name: Copy raw results into repository
+        run: |
+          set -euo pipefail
+          dest="audit-results/full-mdb-schedule-20260816/run-31934698855"
+          rm -rf "$dest"
+          mkdir -p "$dest"
+          cp -a /tmp/full-audit/final/. "$dest/"
+          cp /tmp/full-audit/validator-audit-all-mdb-results.tar.gz "$dest/"
+          cp /tmp/full-audit/validator-audit-all-mdb-results.tar.gz.sha256 "$dest/"
+          cat > "$dest/SOURCE.txt" <<'EOF'
+          GitHub Actions run: 31934698855
+          Audit commit: ca551b29cd73f9487826edc35ef8b48a25ad3396
+          Artifact: validator-audit-all-mdb-final (9261023945)
+          Scope: GTFS Schedule only (data_type=gtfs); GTFS Realtime excluded.
+          EOF
+          find "$dest" -maxdepth 1 -type f -printf '%f\t%s bytes\n' | sort
+      - name: Commit materialized raw results
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add audit-results/full-mdb-schedule-20260816/run-31934698855
+          if git diff --cached --quiet; then
+            echo "Raw results already present; nothing to commit."
+            exit 0
+          fi
+          git commit -m "benchmark: materialize full-corpus audit results"
+          git push origin HEAD:${{ github.head_ref }}
