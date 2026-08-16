@@ -170,6 +170,19 @@ CONTEXT_MAPPINGS: tuple[ContextMapping, ...] = (
     # Generic notices are resolved by filename/field. A partial sample stays
     # CONTEXT, so an unseen field cannot be presented as exact parity.
     _ctx("invalid_integer", "TRP_005", filename=("trips.txt",), fields=("direction_id",), label="trips.txt::direction_id"),
+    # missing_required_file
+    #
+    # MobilityData reports one code for every file it considers required, including the
+    # conditionally required ones. `ARC_004` only covers the five unconditionally required
+    # files, so a flat `missing_required_file -> ARC_004` row makes the conditional case
+    # look like blindness. The full-catalog audit hit exactly that on `mdb-2933`: MD named
+    # `feed_info.txt`, and `ARC_031` had already fired (#145).
+    _ctx("missing_required_file", "ARC_031", filename=("feed_info.txt",), label="feed_info.txt::required when translations.txt is present"),
+    _ctx(
+        "missing_required_file", "ARC_004",
+        filename=("agency.txt", "stops.txt", "routes.txt", "trips.txt", "stop_times.txt"),
+        label="the five unconditionally required files",
+    ),
     _ctx("invalid_url", "AGN_003", filename=("agency.txt",), fields=("agency_url",), label="agency.txt::agency_url"),
     _ctx("invalid_url", "RTS_005", filename=("routes.txt",), fields=("route_url",), label="routes.txt::route_url"),
     _ctx("invalid_url", "FIN_002", filename=("feed_info.txt",), fields=("feed_publisher_url",), label="feed_info.txt::feed_publisher_url"),
@@ -238,6 +251,39 @@ UNMAPPED_DECISIONS = {
 
 def classify_unmapped(code: str) -> tuple[str, str]:
     return UNMAPPED_DECISIONS.get(code, ("unreviewed", "No adjudication recorded for this MD code."))
+
+
+# A code can be correctly mapped and still diverge at scale, because the two validators
+# made different product decisions about the same input. Recording those here keeps the
+# count honest: a divergence with a decision behind it is not an open finding, and a
+# prose-only note would be dropped from any tally that reads this module.
+#
+# Key is the MD code; value is (decision, reasoning).
+MAPPED_DIVERGENCE_DECISIONS = {
+    "missing_required_file": (
+        "tolerance-by-design",
+        "In the full-catalog run 33 of the 34 feeds carrying this code also emit ARC_024, and "
+        "none emit ARC_004. Those feeds wrap the whole GTFS in one folder. MobilityData refuses "
+        "to look inside and calls agency.txt and stop_times.txt missing; detect_wrapped_root "
+        "accepts the folder as the root, so the files are present for us and the publisher gets "
+        "a full report instead of zero analysis. The divergence is the tolerance working as "
+        "designed (see docs/rules/ARC/ARC_024.md), not an ARC_004 gap. The 34th feed, mdb-2933, "
+        "was a mapping gap and is fixed: MD named feed_info.txt, which is conditionally required "
+        "and belongs to ARC_031. Measured in #145.",
+    ),
+    "missing_calendar_and_calendar_date_files": (
+        "tolerance-by-design",
+        "All 33 feeds carrying this code are the same wrapped-root population as "
+        "missing_required_file, and none emit ARC_008. Same cause, same decision.",
+    ),
+}
+
+
+def classify_mapped_divergence(code: str) -> tuple[str, str]:
+    """Why a correctly mapped code still diverges, when we have decided that it may."""
+    return MAPPED_DIVERGENCE_DECISIONS.get(
+        code, ("unreviewed", "No decision recorded for a mapped divergence on this MD code.")
+    )
 
 
 def resolve_mapping(
