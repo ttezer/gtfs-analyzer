@@ -1,0 +1,79 @@
+name: Inspect mdb-2027 STM_006 Evidence
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - name: Download Carris Metropolitana Schedule feed
+        run: |
+          set -euo pipefail
+          curl --retry 3 --retry-all-errors -fL --max-filesize 250M \
+            'https://files.mobilitydatabase.org/mdb-2027/latest.zip' \
+            -o /tmp/mdb-2027.zip
+          ls -lh /tmp/mdb-2027.zip
+      - name: Inspect exact STM_006 evidence row
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import csv, io, json, zipfile
+          from pathlib import PurePosixPath
+
+          target_line = 5365134
+          target_entity = '[0277F]2016_0_1|110|1|0730'
+          keep_fields = [
+              'trip_id','arrival_time','departure_time','stop_id','stop_sequence',
+              'location_id','location_group_id','start_pickup_drop_off_window',
+              'end_pickup_drop_off_window','pickup_type','drop_off_type'
+          ]
+
+          with zipfile.ZipFile('/tmp/mdb-2027.zip') as z:
+              names=[n for n in z.namelist() if PurePosixPath(n).name.lower()=='stop_times.txt']
+              if len(names) != 1:
+                  raise SystemExit(f'expected one stop_times.txt, got {names}')
+              with z.open(names[0]) as raw, io.TextIOWrapper(raw, encoding='utf-8-sig', newline='') as txt:
+                  reader=csv.DictReader(txt)
+                  header=reader.fieldnames or []
+                  hits=[]
+                  exact=[]
+                  for row in reader:
+                      line=reader.line_num
+                      compact={k:row.get(k) for k in keep_fields if k in header}
+                      if abs(line-target_line) <= 2:
+                          exact.append({'csv_line_num':line,'row':compact})
+                      if row.get('trip_id') == target_entity:
+                          hits.append({'csv_line_num':line,'row':compact})
+                          if len(hits) >= 8 and line > target_line + 10:
+                              break
+                      if line > target_line + 20 and hits:
+                          break
+
+          out={
+              'feed_id':'mdb-2027',
+              'target_notice_line':target_line,
+              'target_entity':target_entity,
+              'header_has_location_id':'location_id' in header,
+              'header_has_location_group_id':'location_group_id' in header,
+              'rows_near_notice_line':exact,
+              'rows_matching_entity':hits,
+          }
+          with open('stm006-evidence.json','w') as f:
+              json.dump(out,f,indent=2,ensure_ascii=False)
+          print(json.dumps(out,indent=2,ensure_ascii=False))
+          if not exact and not hits:
+              raise SystemExit('target row/entity not found')
+          PY
+      - name: Upload evidence
+        uses: actions/upload-artifact@v7
+        with:
+          name: mdb-2027-stm006-evidence
+          path: stm006-evidence.json
+          retention-days: 14
