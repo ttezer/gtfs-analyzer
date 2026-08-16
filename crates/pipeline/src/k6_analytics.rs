@@ -2325,7 +2325,7 @@ fn check_geo_analytics(
     let coords: Vec<(f64, f64)> = records
         .stops
         .iter()
-        .filter_map(|s| recoverable_stop_coord(s))
+        .filter_map(recoverable_stop_coord)
         .collect();
     if coords.len() >= 3 {
         let mut lats: Vec<f64> = coords.iter().map(|c| c.0).collect();
@@ -2507,7 +2507,7 @@ fn check_geo_analytics(
     // GEO_018: Tüm feed durakları 200m'lik bir alan içinde — test/yer tutucu veri
     {
         let coords: Vec<(f64, f64)> = records.stops.iter()
-            .filter_map(|s| recoverable_stop_coord(s))
+            .filter_map(recoverable_stop_coord)
             .collect();
         if coords.len() >= 3 {
             let min_lat = coords.iter().map(|(lat,_)| *lat).fold(f64::INFINITY, f64::min);
