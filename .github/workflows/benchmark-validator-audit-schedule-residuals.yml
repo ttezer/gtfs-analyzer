@@ -1,0 +1,169 @@
+name: Full Schedule Audit Residuals
+
+on:
+  pull_request:
+    branches:
+      - agent/validator-audit-all-schedule-20260816
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  residual:
+    name: Residual ${{ matrix.feed_id }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - feed_id: mdb-2904
+            url: https://files.mobilitydatabase.org/mdb-2904/latest.zip
+          - feed_id: mdb-2014
+            url: https://files.mobilitydatabase.org/mdb-2014/latest.zip
+    steps:
+      - uses: actions/checkout@v7
+      - name: Java 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Reuse pinned validators from full audit
+        uses: actions/download-artifact@v8
+        with:
+          name: auditall-schedule-tools
+          path: tools
+          github-token: ${{ github.token }}
+          run-id: '31915584207'
+      - name: Prepare tools
+        run: |
+          set -euo pipefail
+          chmod +x tools/gtfs-analyzer
+          test "$(cat tools/analyzer-commit-sha.txt)" = '155bb06037a9caca339e4bd893619e5c3ab5fafb'
+          python3 -m pip install --no-index tools/ijson-*.whl
+      - name: Download isolated Schedule feed
+        env:
+          FEED_URL: ${{ matrix.url }}
+        run: |
+          set -euo pipefail
+          mkdir -p work/md
+          set +e
+          /usr/bin/time -v -o work/download.time \
+            timeout --signal=TERM --kill-after=10s 1200s \
+            curl --fail --location --silent --show-error --retry 2 --retry-all-errors \
+              --connect-timeout 30 --max-time 1150 --max-filesize 2500000000 \
+              "$FEED_URL" -o work/feed.zip \
+              >work/download.stdout 2>work/download.stderr
+          echo $? > work/download.exit
+          set -e
+          if test -f work/feed.zip; then
+            stat -c '%s' work/feed.zip > work/download.bytes
+            sha256sum work/feed.zip | cut -d' ' -f1 > work/download.sha256
+          fi
+      - name: Run Analyzer summary with hard isolation
+        if: always()
+        run: |
+          set -euo pipefail
+          if ! test -s work/feed.zip; then echo 125 > work/analyzer.exit; exit 0; fi
+          set +e
+          /usr/bin/time -v -o work/analyzer.time \
+            timeout --signal=TERM --kill-after=15s 900s \
+            tools/gtfs-analyzer validate work/feed.zip --summary --lang en --today 20260809 \
+              --output work/analyzer-summary.txt \
+              >work/analyzer.stdout 2>work/analyzer.stderr
+          echo $? > work/analyzer.exit
+          set -e
+      - name: Run MobilityData with hard isolation
+        if: always()
+        run: |
+          set -euo pipefail
+          if ! test -s work/feed.zip; then echo 125 > work/md.exit; exit 0; fi
+          set +e
+          /usr/bin/time -v -o work/md.time \
+            timeout --signal=TERM --kill-after=15s 900s \
+            java -Xmx12g -jar tools/md-cli.jar -i work/feed.zip -o work/md -d 2026-08-09 \
+              >work/md.stdout 2>work/md.stderr
+          echo $? > work/md.exit
+          set -e
+      - name: Summarize residual result without loading large reports
+        if: always()
+        env:
+          FEED_ID: ${{ matrix.feed_id }}
+        run: |
+          python3 - <<'PY'
+          import json, os, re
+          from pathlib import Path
+          try:
+              import ijson
+          except Exception:
+              ijson=None
+
+          def text(p,n=12000):
+              p=Path(p)
+              return p.read_text(errors='replace')[:n] if p.exists() else ''
+          def intval(p):
+              s=text(p).strip()
+              return int(s) if s.isdigit() else None
+          def timing(p):
+              s=text(p,20000)
+              def g(rx):
+                  m=re.search(rx,s,re.M); return m.group(1).strip() if m else None
+              return {
+                  'elapsed':g(r'^\s*Elapsed \(wall clock\) time.*\):\s*([0-9:.]+)\s*$'),
+                  'max_rss_kb':int(g(r'^\s*Maximum resident set size \(kbytes\):\s*(\d+)\s*$') or 0) or None,
+              }
+          md_report=Path('work/md/report.json')
+          md_total=None; md_groups=None; md_summary={}
+          if md_report.exists() and ijson:
+              try:
+                  md_total=0; md_groups=0
+                  with md_report.open('rb') as f:
+                      for g in ijson.items(f,'notices.item'):
+                          md_groups += 1
+                          md_total += int(g.get('totalNotices') or 0)
+                  with md_report.open('rb') as f:
+                      for k,v in ijson.kvitems(f,'summary'):
+                          if isinstance(v,(str,int,float,bool,type(None))): md_summary[k]=v
+              except Exception as e:
+                  md_summary={'parse_error':repr(e)}
+          out={
+              'feed_id':os.environ['FEED_ID'],
+              'scope':'GTFS Schedule residual; GTFS-RT not tested',
+              'download':{
+                  'exit_code':intval('work/download.exit'),
+                  'bytes':intval('work/download.bytes'),
+                  'sha256':text('work/download.sha256').strip() or None,
+                  'stderr':text('work/download.stderr',3000),
+                  'timing':timing('work/download.time'),
+              },
+              'analyzer':{
+                  'exit_code':intval('work/analyzer.exit'),
+                  'summary':text('work/analyzer-summary.txt',20000),
+                  'stderr':text('work/analyzer.stderr',6000),
+                  'timing':timing('work/analyzer.time'),
+                  'commit_sha':'155bb06037a9caca339e4bd893619e5c3ab5fafb',
+              },
+              'mobilitydata':{
+                  'exit_code':intval('work/md.exit'),
+                  'report_exists':md_report.exists(),
+                  'report_bytes':md_report.stat().st_size if md_report.exists() else None,
+                  'notice_groups':md_groups,
+                  'notice_total':md_total,
+                  'summary':md_summary,
+                  'stderr':text('work/md.stderr',6000),
+                  'timing':timing('work/md.time'),
+                  'version':'8.0.1',
+              }
+          }
+          Path('residual-result.json').write_text(json.dumps(out,indent=2,ensure_ascii=False)+'\n')
+          print(json.dumps(out,indent=2,ensure_ascii=False))
+          PY
+      - name: Upload residual evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: schedule-residual-${{ matrix.feed_id }}
+          path: residual-result.json
+          if-no-files-found: warn
+          retention-days: 30
