@@ -3,6 +3,11 @@ import argparse,csv,gzip,importlib.util,json,math,re,statistics
 from collections import Counter,defaultdict
 from pathlib import Path
 
+# Bağlam çözücü ve karar defterleri KANONİK modülden gelir (bridge `md_parity_mapping.py`).
+# Düz `MAP` yalnız GERİ DÜŞÜŞTÜR: bağlam entry'si olmayan kodlar için.
+from md_parity_mapping import classify_divergence, resolve_mapping
+
+
 def load_map(path):
     spec=importlib.util.spec_from_file_location("mdmap",path)
     mod=importlib.util.module_from_spec(spec); spec.loader.exec_module(mod)
@@ -33,6 +38,9 @@ def md_sample(m,code):
 
 def priority(d):
     typ=d["type"]; sev=(d.get("md_severity") or "").upper()
+    # Yargılanmış sapma bir bulgu DEĞİLDİR; triyaj listesinin tepesini işgal etmemeli.
+    if typ=="adjudicated_divergence": return 10
+    if typ=="context_unresolved": return 30
     if typ=="validator_state_asymmetry": return 110
     if typ=="md_mapped_missing" and sev=="ERROR": return 105
     if typ=="analyzer_spec_md_absent" and d.get("analyzer_severity") in ("CRITICAL","KRİTİK"): return 100
@@ -196,22 +204,36 @@ def main():
         ac={k:int(v) for k,v in (a.get("by_rule") or {}).items()}
 
         for code,mdc in mc.items():
-            rules=MAP.get(code)
             sev=md_severity(m,code)
+            samples=md_sample(m,code)
+            # MD jenerik kodları dosya/alan bağlamıyla çözülür; düz MAP geri düşüştür.
+            # Tek kurala aliaslamak `missing_required_field`'i 17 alandan 2'sine bağlıyordu.
+            res=resolve_mapping(code,{"sampleNotices":samples},fallback_rules=MAP.get(code,()))
+            rules=list(res.analyzer_rules)
+            # Sapma zaten yargılanmış mı? BY_DESIGN/UNMAPPED/MAPPED_DIVERGENCE tek çağrıda.
+            decision,_reason=classify_divergence(code)
+            adjudicated=decision!="unreviewed"
             if not rules:
-                divergences.append({"type":"md_unmapped","feed_id":fid,"provider":feed.get("provider",""),"country":feed.get("country",""),"url":feed.get("url",""),"md_code":code,"md_count":mdc,"md_severity":sev,"md_samples":md_sample(m,code)})
+                divergences.append({
+                  "type":"adjudicated_divergence" if adjudicated else ("context_unresolved" if not res.context_complete else "md_unmapped"),
+                  "decision":decision,"feed_id":fid,"provider":feed.get("provider",""),"country":feed.get("country",""),
+                  "url":feed.get("url",""),"md_code":code,"md_count":mdc,"md_severity":sev,"md_samples":samples})
                 continue
             our=sum(ac.get(x,0) for x in rules)
             agg=any(x in AGG for x in rules)
-            if our==0: typ="md_mapped_missing"
-            elif agg: typ="mapped_aggregation_present"
+            # ⚠️ AGREGASYON KONTROLÜ `our==0`'DAN ÖNCE. Tersi, bilinen bir agregasyon farkını
+            # priority 105'e çıkarıp "en yüksek öncelikli aday" tablosunu dolduruyordu.
+            if agg: typ="mapped_aggregation_present"
+            elif our==0: typ="md_mapped_missing"
             elif our<mdc: typ="md_mapped_under"
             elif our>mdc: typ="md_mapped_over"
             else: typ="mapped_exact"
+            if adjudicated and typ!="mapped_exact": typ="adjudicated_divergence"
             if typ not in ("mapped_exact","mapped_aggregation_present"):
                 divergences.append({
                   "type":typ,"feed_id":fid,"provider":feed.get("provider",""),"country":feed.get("country",""),"url":feed.get("url",""),
                   "md_code":code,"md_count":mdc,"md_severity":sev,"mapped_analyzer_rules":rules,"analyzer_mapped_count":our,
+                  "decision":decision,"mapping_kind":res.kind,"mapping_contexts":list(res.contexts),
                   "analyzer_rule_counts":{x:ac.get(x,0) for x in rules},"md_samples":md_sample(m,code),
                   "analyzer_samples":{x:(a.get("samples") or {}).get(x) for x in rules if ac.get(x,0)}})
 
