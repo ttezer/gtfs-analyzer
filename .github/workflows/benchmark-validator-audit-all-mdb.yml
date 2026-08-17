@@ -30,8 +30,10 @@ jobs:
       shards_d: ${{ steps.matrix.outputs.shards_d }}
     steps:
       - uses: actions/checkout@v7
-      - name: Syntax-check benchmark helpers
-        run: python3 -m py_compile benchmark/audit_all/*.py
+      - name: Syntax-check benchmark helpers and audit date
+        run: |
+          python3 -m py_compile benchmark/audit_all/*.py
+          python3 benchmark/audit_all/run_shard.py --help >/dev/null
       - name: Select all testable GTFS Schedule feeds
         run: |
           set -euo pipefail
@@ -85,6 +87,17 @@ jobs:
           chmod +x benchmark/audit_all/tools/gtfs-analyzer
           benchmark/audit_all/tools/gtfs-analyzer --version > benchmark/audit_all/tools/analyzer-version.txt 2>&1 || true
           git rev-parse HEAD > benchmark/audit_all/tools/analyzer-commit.txt
+          printf '%s\n' "${{ github.event.pull_request.base.sha || github.sha }}" > benchmark/audit_all/tools/product-commit.txt
+          printf '%s\n' "${{ github.event.pull_request.head.sha || github.sha }}" > benchmark/audit_all/tools/audit-harness-commit.txt
+          python3 -c 'import sys; sys.path.insert(0,"benchmark/audit_all"); import run_shard; print(run_shard.MD_DATE)' > benchmark/audit_all/tools/audit-date.txt
+      - name: Record registry rule count
+        run: |
+          set -euo pipefail
+          cargo run -q -p gtfs-rules --example gen_rules | tee benchmark/audit_all/tools/rule-generator.txt
+          RULE_COUNT="$(sed -n 's/.*(\([0-9][0-9]*\) kural,.*/\1/p' benchmark/audit_all/tools/rule-generator.txt | head -n1)"
+          test -n "$RULE_COUNT"
+          printf '%s\n' "$RULE_COUNT" > benchmark/audit_all/tools/rule-count.txt
+          echo "Analyzer rule count: $RULE_COUNT"
       - name: Download MobilityData v8.0.1 CLI
         env:
           GH_TOKEN: ${{ github.token }}
@@ -331,6 +344,7 @@ jobs:
           python3 benchmark/audit_all/aggregate.py \
             --results-dir benchmark/audit_all/all-shards \
             --map-file spec-audit/md_parity_audit.py \
+            --manifest benchmark/audit_all/run/manifest.json \
             --out-dir benchmark/audit_all/final
           cp benchmark/audit_all/run/manifest.json benchmark/audit_all/final/corpus-manifest.json
           sed -i 's/1000-feed GTFS Analyzer vs MobilityData audit/Full MobilityDatabase GTFS Schedule — GTFS Analyzer vs MobilityData audit/' benchmark/audit_all/final/AUDIT_SUMMARY.md
