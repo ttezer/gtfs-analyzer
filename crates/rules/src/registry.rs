@@ -605,8 +605,17 @@ pub static RULES: &[RuleMeta] = &[
         &["STM_007","STM_012","GEO_002","OPR_014","STP_012","DQ_005c"],
         Some("stop_id"), VS_K, Row,
         "stop_id bulunamadı"),
+    // STM_015/STM_016 eklendi (#155): ikisi de `arrival_time` YOKLUĞUNU ölçer, ama
+    // `arrival_time()` erişimcisi alan HİÇ YOKKEN de PARSE EDİLEMEDİĞİNDE de `None`
+    // döner. Saat `HH:MM` yazılmışsa STM_003 onu zaten reddetmiştir ve "ilk/son durakta
+    // saat yok" iddiası YANLIŞTIR — değer var, biçimi bozuk. mdb-2727'de 101.621
+    // STM_015'in 101.621'i aynı satırda STM_003 taşıyor.
+    // ⚠️ Bastırma scope eşleşmelidir (sefer): STM_003 hiç ateşlemeyen feed'lerde kök
+    // olmadığı için hiçbir şey bastırılmaz — korpusta STM_015'li 10 feed'in 9'u böyle
+    // ve onların bulguları MEŞRUDUR. Kalan risk, AYNI seferde hem geçersiz saat hem
+    // gerçekten eksik ilk-durak saati bulunması; mdb-2727'de bu vakadan 0 tane çıktı.
     r!("STM_003", Kritik, Spec, 1,
-        &["STM_004","STM_008","STM_056","SHP_014"],
+        &["STM_004","STM_008","STM_056","SHP_014","STM_015","STM_016"],
         Some("trip_id"), VS_K, Row,
         "arrival_time geçersiz format"),
     r!("STM_004", Kritik, Spec, 1,
