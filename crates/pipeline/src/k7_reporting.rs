@@ -475,17 +475,17 @@ fn write_dedup_key(buf: &mut String, n: &Notice, level: DedupLevel) {
 struct SymptomResolution {
     /// notices[i] bir semptom mu?
     is_symptom: Vec<bool>,
-    /// rule_id → [(notice_idx, scope_key)] — realized_dep hesabı için
-    rule_scope_index: HashMap<String, Vec<(usize, Option<String>)>>,
-    /// rule_id → scope_key → [notice_idx]. `rule_scope_index`'in scope'a göre
-    /// gruplanmış hâli; "bu kuralın şu scope'unda notice var mı?" sorusu tarama
-    /// yerine arama olur. İki tüketici paylaşır: `resolve_symptoms` ve
-    /// `realized_dep_for_group` — ikisi de aynı O(kök × aday) tuzağındaydı (#155).
+    /// rule_id → scope_key → [notice_idx]. "Bu kuralın şu scope'unda notice var mı?"
+    /// sorusu tarama yerine arama olur. Üç tüketici paylaşır: `resolve_symptoms`,
+    /// `realized_dep_for_group` ve `closure_notice_indices_for_group` — üçü de aynı
+    /// O(kök × aday) tuzağındaydı (#155).
+    ///
+    /// ⚠️ Düz `rule_id → [(idx, scope)]` görünümü KALDIRILDI: son tüketicisi de buraya
+    /// geçince ölü alana dönüştü ve clippy `-D warnings` altında build'i kırdı.
     rule_scope_buckets: HashMap<String, HashMap<Option<String>, Vec<usize>>>,
 }
 
 fn resolve_symptoms(notices: &[Notice]) -> SymptomResolution {
-    let mut rule_scope_index: HashMap<String, Vec<(usize, Option<String>)>> = HashMap::new();
     // Bastırma fazı için AYRI, scope'a göre indekslenmiş görünüm.
     //
     // 🔴 Eski hâl her kök için o kuralın TÜM adaylarını tarayıp scope'u tek tek
@@ -497,10 +497,6 @@ fn resolve_symptoms(notices: &[Notice]) -> SymptomResolution {
     // kaskad düzeltmesi performans sorununu felakete çevirirdi. Bu yüzden indeks ÖNCE.
     let mut by_rule_scope: HashMap<String, HashMap<Option<String>, Vec<usize>>> = HashMap::new();
     for (i, n) in notices.iter().enumerate() {
-        rule_scope_index
-            .entry(n.rule_id.clone())
-            .or_default()
-            .push((i, n.scope_key.clone()));
         by_rule_scope
             .entry(n.rule_id.clone())
             .or_default()
@@ -539,7 +535,7 @@ fn resolve_symptoms(notices: &[Notice]) -> SymptomResolution {
         }
     }
 
-    SymptomResolution { is_symptom, rule_scope_index, rule_scope_buckets: by_rule_scope }
+    SymptomResolution { is_symptom, rule_scope_buckets: by_rule_scope }
 }
 
 /// Blocker-eligible notice'ların rule başına gruplanmış yayın penaltısı ve
@@ -609,7 +605,7 @@ fn realized_dep_for_group(
 /// R9 item'ı seçildiğinde kapanacak tüm notice index'lerini getirir (transitif closure).
 ///
 /// Başlangıç kümesi `group_indices` (root cause notice'ları).  Her notice'ın
-/// `blocks[]` listesindeki kurallar `rule_scope_index` üzerinden aranır; scope
+/// `blocks[]` listesindeki kurallar `rule_scope_buckets` üzerinden aranır; scope
 /// eşleşmesi sağlayan blocked notice'lar kümeye eklenir ve bu işlem sabit noktaya
 /// ulaşana dek (BFS ile) tekrar edilir.
 ///
@@ -642,7 +638,7 @@ fn closure_notice_indices_for_group(
         let root_scope = root_notice.scope_key.as_deref();
 
         for blocked_rule in &root_notice.blocks {
-            // Scope'a göre indekslenmiş görünüm — `rule_scope_index` üzerinde tam tarama
+            // Scope'a göre indekslenmiş görünüm — düz listede tam tarama
             // yapan ÜÇÜNCÜ yer burasıydı (#155). BFS her kuyruk üyesi için o kuralın tüm
             // adaylarını geziyordu; grup 203.242 notice olabildiği için maliyet
             // O(grup × aday)'a çıkıyordu.
