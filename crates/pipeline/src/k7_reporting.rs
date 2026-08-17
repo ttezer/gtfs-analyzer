@@ -50,7 +50,7 @@ pub fn report(
         let prefix = n.id.split('/').next().unwrap_or("k").to_string();
         n.id = format!("{prefix}/{}#{}", n.rule_id, i + 1);
     }
-    let resolution       = { let _t = Timer::start("K7::resolve_symptoms"); resolve_symptoms(&notices) };
+    let resolution       = { let _t = crate::timing::Timer::start("K7::resolve_symptoms"); resolve_symptoms(&notices) };
     let reports          = { let _t = Timer::start("K7::build_reports");    build_report_set(&notices, &resolution, coverage_complete) };
     let mut metrics      = { let _t = Timer::start("K7::build_metrics");    build_metrics(&notices, records, derived, file_stats, coverage_complete) };
     metrics.overall_score = reports.r5.score;
@@ -477,6 +477,11 @@ struct SymptomResolution {
     is_symptom: Vec<bool>,
     /// rule_id → [(notice_idx, scope_key)] — realized_dep hesabı için
     rule_scope_index: HashMap<String, Vec<(usize, Option<String>)>>,
+    /// rule_id → scope_key → [notice_idx]. `rule_scope_index`'in scope'a göre
+    /// gruplanmış hâli; "bu kuralın şu scope'unda notice var mı?" sorusu tarama
+    /// yerine arama olur. İki tüketici paylaşır: `resolve_symptoms` ve
+    /// `realized_dep_for_group` — ikisi de aynı O(kök × aday) tuzağındaydı (#155).
+    rule_scope_buckets: HashMap<String, HashMap<Option<String>, Vec<usize>>>,
 }
 
 fn resolve_symptoms(notices: &[Notice]) -> SymptomResolution {
@@ -490,16 +495,16 @@ fn resolve_symptoms(notices: &[Notice]) -> SymptomResolution {
     // Daha kötüsü: `blocks` ilişkisi EKLEMEK maliyeti çarpıyordu. STM_003 → STM_015
     // bağlanacak olsa 203.242 kök × 101.621 aday = 20,6 milyar iterasyon olurdu, yani
     // kaskad düzeltmesi performans sorununu felakete çevirirdi. Bu yüzden indeks ÖNCE.
-    let mut by_rule_scope: HashMap<&str, HashMap<Option<&str>, Vec<usize>>> = HashMap::new();
+    let mut by_rule_scope: HashMap<String, HashMap<Option<String>, Vec<usize>>> = HashMap::new();
     for (i, n) in notices.iter().enumerate() {
         rule_scope_index
             .entry(n.rule_id.clone())
             .or_default()
             .push((i, n.scope_key.clone()));
         by_rule_scope
-            .entry(n.rule_id.as_str())
+            .entry(n.rule_id.clone())
             .or_default()
-            .entry(n.scope_key.as_deref())
+            .entry(n.scope_key.clone())
             .or_default()
             .push(i);
     }
@@ -524,7 +529,7 @@ fn resolve_symptoms(notices: &[Notice]) -> SymptomResolution {
                 // bulunuyordu; artık doğrudan arama. Davranış birebir aynı: `None`
                 // scope'lu adaylar kapsamlı bir kök tarafından bastırılMAZ.
                 Some(scope) => {
-                    if let Some(idxs) = by_scope.get(&Some(scope)) {
+                    if let Some(idxs) = by_scope.get(&Some(scope.to_string())) {
                         for ci in idxs {
                             is_symptom[*ci] = true;
                         }
@@ -534,7 +539,7 @@ fn resolve_symptoms(notices: &[Notice]) -> SymptomResolution {
         }
     }
 
-    SymptomResolution { is_symptom, rule_scope_index }
+    SymptomResolution { is_symptom, rule_scope_index, rule_scope_buckets: by_rule_scope }
 }
 
 /// Blocker-eligible notice'ların rule başına gruplanmış yayın penaltısı ve
@@ -565,28 +570,38 @@ fn build_pub_penalty_map(notices: &[Notice]) -> (f64, HashMap<String, f64>) {
 fn realized_dep_for_group(
     group_indices: &[usize],
     notices: &[Notice],
-    rule_scope_index: &HashMap<String, Vec<(usize, Option<String>)>>,
+    rule_scope_buckets: &HashMap<String, HashMap<Option<String>, Vec<usize>>>,
 ) -> u32 {
     let all_blocks: FxHashSet<&str> = group_indices
         .iter()
         .flat_map(|&i| notices[i].blocks.iter().map(String::as_str))
         .collect();
 
+    // Grubun scope kümesi BİR KEZ toplanır; eskiden her aday taramasında yeniden
+    // geziliyordu. `None` scope'lu tek bir üye varsa grup tüm feed'i etkiler.
+    let mut group_scopes: FxHashSet<&str> = FxHashSet::default();
+    let mut group_has_unscoped = false;
+    for &gi in group_indices {
+        match notices[gi].scope_key.as_deref() {
+            None => group_has_unscoped = true,
+            Some(s) => {
+                group_scopes.insert(s);
+            }
+        }
+    }
+
     all_blocks
         .iter()
         .filter(|&&blocked_rule| {
-            rule_scope_index
-                .get(blocked_rule)
-                .map(|candidates| {
-                    group_indices.iter().any(|&gi| {
-                        let root_scope = notices[gi].scope_key.as_deref();
-                        // None root → tüm feed'i etkiler (resolve_symptoms ile aynı kural)
-                        candidates.iter().any(|(_, scope)| {
-                            root_scope.is_none() || scope.as_deref() == root_scope
-                        })
-                    })
-                })
-                .unwrap_or(false)
+            let Some(by_scope) = rule_scope_buckets.get(blocked_rule) else { return false };
+            // Kapsamsız üye → o kuralın HERHANGİ bir notice'ı yeter.
+            if group_has_unscoped {
+                return by_scope.values().any(|v| !v.is_empty());
+            }
+            // Aksi hâlde yalnız grubun scope'ları aranır — tarama yerine arama.
+            group_scopes
+                .iter()
+                .any(|s| by_scope.get(&Some((*s).to_string())).is_some_and(|v| !v.is_empty()))
         })
         .count() as u32
 }
@@ -627,17 +642,21 @@ fn closure_notice_indices_for_group(
         let root_scope = root_notice.scope_key.as_deref();
 
         for blocked_rule in &root_notice.blocks {
-            if let Some(candidates) = resolution.rule_scope_index.get(blocked_rule) {
-                for &(ci, ref scope) in candidates {
-                    if closure.contains(&ci) {
-                        continue;
-                    }
-                    // Scope eşleşme kuralı
-                    let matches = root_scope.is_none()
-                        || scope.as_deref() == root_scope;
-                    if matches {
-                        closure.insert(ci);
-                        queue.push(ci);
+            // Scope'a göre indekslenmiş görünüm — `rule_scope_index` üzerinde tam tarama
+            // yapan ÜÇÜNCÜ yer burasıydı (#155). BFS her kuyruk üyesi için o kuralın tüm
+            // adaylarını geziyordu; grup 203.242 notice olabildiği için maliyet
+            // O(grup × aday)'a çıkıyordu.
+            if let Some(by_scope) = resolution.rule_scope_buckets.get(blocked_rule) {
+                // Kapsamsız kök tüm scope'ları, kapsamlı kök yalnız kendi scope'unu genişletir.
+                let selected: Vec<&Vec<usize>> = match root_scope {
+                    None => by_scope.values().collect(),
+                    Some(sc) => by_scope.get(&Some(sc.to_string())).into_iter().collect(),
+                };
+                for idxs in selected {
+                    for &ci in idxs {
+                        if closure.insert(ci) {
+                            queue.push(ci);
+                        }
                     }
                 }
             }
@@ -785,7 +804,7 @@ fn build_r9(notices: &[Notice], resolution: &SymptomResolution) -> R9Report {
             let multiplier = instance_multiplier(affected);
             let fix_effort = base_effort as f64 * multiplier;
             let realized_dep =
-                realized_dep_for_group(&indices, notices, &resolution.rule_scope_index);
+                realized_dep_for_group(&indices, notices, &resolution.rule_scope_buckets);
             let mut labels = r9_labels(severity, rule_class, realized_dep, fix_effort, affected);
             let priority_score =
                 compute_priority_score(severity, realized_dep, affected, fix_effort);
@@ -872,15 +891,18 @@ fn build_report_set(
     resolution: &SymptomResolution,
     coverage_complete: bool,
 ) -> ReportSet {
+    // Rapor başına zamanlayıcı: "K7 yavaş" tek başına eyleme dönüşmez, hangi raporun
+    // yavaş olduğu dönüşür. mdb-2727'de toplam 78 sn'nin nereye gittiğini bulmak için
+    // eklendi (#155) ve kalıcı — bir sonraki patolojik feed'de aynı soru sorulacak.
     ReportSet {
-        r1: build_r1(notices, coverage_complete),
-        r2: build_r2(notices),
-        r3: build_r3(notices),
-        r4: build_r4(notices),
-        r5: build_r5(notices),
-        r7: build_r7(notices),
-        r8: build_r8(notices),
-        r9: build_r9(notices, resolution),
+        r1: { let _t = crate::timing::Timer::start("K7::r1"); build_r1(notices, coverage_complete) },
+        r2: { let _t = crate::timing::Timer::start("K7::r2"); build_r2(notices) },
+        r3: { let _t = crate::timing::Timer::start("K7::r3"); build_r3(notices) },
+        r4: { let _t = crate::timing::Timer::start("K7::r4"); build_r4(notices) },
+        r5: { let _t = crate::timing::Timer::start("K7::r5"); build_r5(notices) },
+        r7: { let _t = crate::timing::Timer::start("K7::r7"); build_r7(notices) },
+        r8: { let _t = crate::timing::Timer::start("K7::r8"); build_r8(notices) },
+        r9: { let _t = crate::timing::Timer::start("K7::r9"); build_r9(notices, resolution) },
     }
 }
 
@@ -1434,7 +1456,7 @@ mod tests {
 
         let all = vec![root, b1, b2];
         let resolution = resolve_symptoms(&all);
-        let dep = realized_dep_for_group(&[0], &all, &resolution.rule_scope_index);
+        let dep = realized_dep_for_group(&[0], &all, &resolution.rule_scope_buckets);
         assert_eq!(dep, 2, "B1 ve B2 ateşlendi, B3 yok → realized_dep=2");
     }
 
