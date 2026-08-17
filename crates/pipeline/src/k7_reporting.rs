@@ -481,24 +481,53 @@ struct SymptomResolution {
 
 fn resolve_symptoms(notices: &[Notice]) -> SymptomResolution {
     let mut rule_scope_index: HashMap<String, Vec<(usize, Option<String>)>> = HashMap::new();
+    // Bastırma fazı için AYRI, scope'a göre indekslenmiş görünüm.
+    //
+    // 🔴 Eski hâl her kök için o kuralın TÜM adaylarını tarayıp scope'u tek tek
+    // karşılaştırıyordu: O(kök × aday). `mdb-2727`'de (3,3 MB, 101.621 sefer) tek başına
+    // 61 saniye harcıyordu ve tam katalog koşumunda o feed'i 300 sn zaman aşımına
+    // düşüren şey buydu — doğrulamanın kendisi 390 ms sürüyor (#155).
+    // Daha kötüsü: `blocks` ilişkisi EKLEMEK maliyeti çarpıyordu. STM_003 → STM_015
+    // bağlanacak olsa 203.242 kök × 101.621 aday = 20,6 milyar iterasyon olurdu, yani
+    // kaskad düzeltmesi performans sorununu felakete çevirirdi. Bu yüzden indeks ÖNCE.
+    let mut by_rule_scope: HashMap<&str, HashMap<Option<&str>, Vec<usize>>> = HashMap::new();
     for (i, n) in notices.iter().enumerate() {
         rule_scope_index
             .entry(n.rule_id.clone())
             .or_default()
             .push((i, n.scope_key.clone()));
+        by_rule_scope
+            .entry(n.rule_id.as_str())
+            .or_default()
+            .entry(n.scope_key.as_deref())
+            .or_default()
+            .push(i);
     }
 
     let mut is_symptom = vec![false; notices.len()];
     for root in notices.iter() {
+        if root.blocks.is_empty() {
+            continue;
+        }
         for blocked_rule in &root.blocks {
-            if let Some(candidates) = rule_scope_index.get(blocked_rule) {
-                for (ci, scope) in candidates {
-                    // None root → tüm feed'i etkiler, tüm scope'ları bastırır.
-                    // Some(x) root → yalnızca aynı scope'u bastırır.
-                    let matches = root.scope_key.is_none()
-                        || scope.as_deref() == root.scope_key.as_deref();
-                    if matches {
-                        is_symptom[*ci] = true;
+            let Some(by_scope) = by_rule_scope.get(blocked_rule.as_str()) else { continue };
+            match root.scope_key.as_deref() {
+                // Kapsamsız kök → tüm feed'i etkiler, o kuralın her scope'unu bastırır.
+                None => {
+                    for idxs in by_scope.values() {
+                        for ci in idxs {
+                            is_symptom[*ci] = true;
+                        }
+                    }
+                }
+                // Kapsamlı kök → YALNIZ aynı scope. Eskiden bu da tam tarama ile
+                // bulunuyordu; artık doğrudan arama. Davranış birebir aynı: `None`
+                // scope'lu adaylar kapsamlı bir kök tarafından bastırılMAZ.
+                Some(scope) => {
+                    if let Some(idxs) = by_scope.get(&Some(scope)) {
+                        for ci in idxs {
+                            is_symptom[*ci] = true;
+                        }
                     }
                 }
             }
