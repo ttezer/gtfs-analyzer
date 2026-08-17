@@ -1,5 +1,39 @@
 # Tam MobilityData kataloğu koşumu — devretme belgesi
 
+> 🔴 **BU BELGE KOŞUM ÖNCESİ BİR PLANDIR VE SAYILARI GEÇERSİZDİR.** İki gerçek koşum yapıldı;
+> aşağıdaki eleme zinciri (3.358 katalog → 1.479 koşulabilir) o zamanki `notgit/corpus/catalog.csv`
+> anlık görüntüsünden türetilmişti ve gerçek katalogla tutmadı. Belge, NE PLANLANDIĞININ kaydı
+> olarak duruyor; **güncel sayı için buraya değil koşum artefaktlarına bakın.**
+>
+> | | run-31934698855 (08-16) | run-31981225727 (08-17) |
+> |---|---:|---:|
+> | katalog Schedule satırı | 4.463 | — |
+> | denenen feed | 4.259 | **4.258** (`mdb-2904` talimatla dışlandı) |
+> | inen | 4.226 | 4.226 |
+> | iki validatör de temiz | 4.215 | **4.214** |
+> | süre kapsaması | **0 / 4.259** 🔴 | Analyzer 4.224/4.224 · MD 4.216/4.216 ✅ |
+> | `md_mapped_missing` | 4.706 | **43** |
+> | `md_unmapped` | 1.008 | 57 |
+> | `adjudicated_divergence` | — | 9.595 |
+> | `context_unresolved` | — | 7 |
+> | medyan süre (Analyzer / MD) | ölçülmedi | **0,05 sn / 3,06 sn** |
+> | p95 süre | ölçülmedi | 3,65 sn / 12,72 sn |
+> | aynı SHA-256 grubu | ölçülmedi | **101 grup / 206 feed** |
+>
+> 🔑 **İki koşum arasında ÜRÜN değişti, KATALOG neredeyse değişmedi:** ortak 4.258 feed'in
+> **4.185'i bayt bayt aynı**, yalnız 72'sinin içeriği değişti. MobilityData bir kontrol grubudur
+> (kodu v8.0.1'de sabit, yalnız tarihi kaydı): onun toplamı düz kaldı (120,4M → 120,4M), bizimki
+> 45,5M → 46,9M çıktı. Fark ürün değişikliklerimizdir, katalog kayması değil.
+>
+> ⚠️ **4.706 → 43 düşüşünde ÜRÜN neredeyse hiç pay sahibi değildir.** Aynı veriye karşı yeniden
+> türetildiğinde de aynı sonuç çıkıyor: fark, aracın bağlam çözebilmesi ve karar defterlerini
+> okuyabilmesidir (#146, #148). "Körlüğümüz" diye raporlanan şeyin %74'ü zaten yargılanmıştı.
+>
+> Artefaktlar: `audit-results/full-mdb-schedule-20260816/run-31934698855/` (main) ve
+> `audit-results/full-mdb-schedule-20260817/run-31981225727/`
+> (`agent/validator-audit-all-mdb-20260817`, `437ec7f0` — dal bilerek tutuluyor).
+> Kural bazlı hükümler `fp_adjudication.tsv`'de, `run_id` kolonuyla ayrılmış.
+
 Bu iş başka bir asistana veriliyor. Belge, koşumu yapacak olanın bilmesi gereken ölçülmüş
 gerçekleri ve geri istenen çıktıyı tanımlar. Sayıların hepsi bu repoda ölçüldü; tahmin yok.
 
