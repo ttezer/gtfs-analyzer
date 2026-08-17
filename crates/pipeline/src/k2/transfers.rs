@@ -193,6 +193,50 @@ mod tests {
         assert!(ids.contains(&"TRF_002"), "transfer_type=1'de to_stop_id eksik → TRF_002: {:?}", ids);
     }
 
+    /// `transfer_type=2` + `min_transfer_time` YOK — hükmün KOŞULLU ZORUNLU yarısı.
+    ///
+    /// Google Transit PR #640 bu alanı `transfer_type=2` için açıkça
+    /// **Conditionally Required** yaptı. Predikat zaten bunu ölçüyordu ama bu dalın
+    /// testi YOKTU; yalnız parse/negatif dalı sabitlenmişti. Yani spec'in yeni normatif
+    /// dayanağını taşıyan kol, regresyon koruması olmadan duruyordu.
+    #[test]
+    fn transfer_type_2_without_min_transfer_time_produces_trf_005() {
+        let file = make_file(vec![vec!["S1", "S2", "2"]]);
+        let (_, notices) = validate_transfers(&file);
+        assert!(
+            notices.iter().any(|n| n.rule_id == "TRF_005"),
+            "transfer_type=2 min_transfer_time olmadan TRF_005 üretmeli"
+        );
+    }
+
+    /// Karşıt taraf: değer VARSA kural susmalı — yoksa hüküm yerine getirilmiş bir feed
+    /// reddedilir ve bu asimetrinin AĞIR yakasıdır.
+    #[test]
+    fn transfer_type_2_with_min_transfer_time_is_silent() {
+        let mut file = make_file(vec![vec!["S1", "S2", "2"]]);
+        file.headers.push("min_transfer_time".into());
+        file.rows[0].push("180".into());
+        let (_, notices) = validate_transfers(&file);
+        assert!(
+            !notices.iter().any(|n| n.rule_id == "TRF_005"),
+            "geçerli min_transfer_time TRF_005 ÜRETMEMELİ"
+        );
+    }
+
+    /// Hüküm YALNIZ `transfer_type=2` içindir. Diğer tiplerde alanın yokluğu
+    /// bu kuralın konusu değildir; genişletmek geçerli feed'leri reddederdi.
+    #[test]
+    fn other_transfer_types_do_not_require_min_transfer_time() {
+        for ttype in ["0", "1", "3"] {
+            let file = make_file(vec![vec!["S1", "S2", ttype]]);
+            let (_, notices) = validate_transfers(&file);
+            assert!(
+                !notices.iter().any(|n| n.rule_id == "TRF_005"),
+                "transfer_type={ttype} için min_transfer_time zorunlu DEĞİL"
+            );
+        }
+    }
+
     #[test]
     fn negative_min_transfer_time_is_rejected_by_trf_005() {
         let mut file = make_file(vec![vec!["S1", "S2", "2"]]);

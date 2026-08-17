@@ -214,6 +214,12 @@ CONTEXT_MAPPINGS: tuple[ContextMapping, ...] = (
     _ctx("missing_required_field", "TRN_003", filename=("translations.txt",), fields=("language",), label="translations.txt::language"),
     _ctx("missing_required_field", "BKR_019", filename=("booking_rules.txt",), fields=("booking_rule_id",), label="booking_rules.txt::booking_rule_id"),
     _ctx("missing_required_field", "BKR_016", filename=("booking_rules.txt",), fields=("booking_type",), label="booking_rules.txt::booking_type"),
+    # transfers.txt::min_transfer_time — ÖNLEYİCİ eşleme. google/transit#640 bu alanı
+    # `transfer_type=2` için açıkça Conditionally Required yaptı; MobilityData hükmü
+    # uyguladığında `missing_required_field` bu bağlamla gelecek. Eşleme şimdi yazılmazsa
+    # o gün doğrudan `md_mapped_missing`'e düşer — bu oturumda temizlediğimiz sahte
+    # körlüğün aynısı. v8.0.1 henüz #640'ı içermediği için bugün sessiz kalır.
+    _ctx("missing_required_field", "TRF_005", filename=("transfers.txt",), fields=("min_transfer_time",), label="transfers.txt::min_transfer_time"),
     # #153 ile İKİSİ ARTIK EŞLENDİ — kural yazıldığı için eşleme yazılabilir hale geldi.
     # Sıra önemli: boş değerin sahibi ayrı kuraldır, FK/yineleme kuralı değil.
     _ctx("missing_required_field", "RTS_031", filename=("routes.txt",), fields=("route_id",), label="routes.txt::route_id"),
