@@ -71,7 +71,7 @@ adjudike edildi. Bölümler tam bitirilir, yarım bırakılmaz — kalan sayıs�
 |---|---|---|---|
 | `P9ca98eaa` | Renk değerinde baştaki `#` bulunmamalı | **KANITLI** | `is_hex_color_6` (`common.rs:243`) `len()==6` şartı koyar → `#FF0000` (7) reddedilir. `RTS_006`/`RTS_007`. |
 | `Pa6731197` | Parasal hesaplar decimal tipiyle yapılmalı *(soft)* | **KAPSAM DIŞI** | Tüketici yazılımını bağlar, feed içeriğini değil. |
-| `P43b15497` | Yalnız yazdırılabilir ASCII önerilir *(soft)* | KISMİ | `ARC_021` kontrol/yazdırılamaz karakterleri yakalar ama geçerli Unicode'u **bilinçli** muaf tutar (VBB Almanca metin kararı). Spec'in ASCII tavsiyesi bundan daha dardır ve uygulanmıyor — doğru karar. |
+| `P43b15497` | Yalnız yazdırılabilir ASCII önerilir *(soft)* | **KAPSAM DIŞI** | `ARC_021` kontrol/yazdırılamaz karakterleri yakalar ama geçerli Unicode'u **bilinçli** muaf tutar (VBB Almanca metin kararı). Spec'in ASCII tavsiyesi bundan daha dardır ve uygulanmıyor — doğru karar. Spec'in ASCII tavsiyesini ölçmek her Latin-dışı feed'i uyarır; `ARC_021`'in daha geniş kalması BİLİNÇLİ ürün kararıdır. 📌 **§'Yumuşak KISMİ'ler (22)' triyajında karara bağlandı; buraya YAZILMADIĞI için ayrıştırıcı KISMİ okumaya devam ediyordu — makine-okunur hâle getirildi.** |
 | `P698baeb3` | "unique ID" etiketli alan dosya içinde benzersiz olmalı | **KANITLI** | `DQ_021` (genel birincil-anahtar kuralı) + varlık düzeyi ikizleri. |
 | `P86b889a8` | Latitude −90.0 ≤ x ≤ 90.0 | **KANITLI** | `stops.rs:213` (`STP_003`) + `shapes.rs:375` (`SHP_002`). |
 | `P7e9096c8` | Longitude −180.0 ≤ x ≤ 180.0 | **KANITLI** | `stops.rs:255` (`STP_004`) + `shapes.rs:414` (`SHP_003`). |
@@ -187,9 +187,9 @@ her biri ayrı satırdır (spec metni gerçekten her alanın altında tekrar yaz
 
 | id | alan | tavsiye | karar |
 |---|---|---|---|
-| `Peaccedd4` · `P07ae073c` | arrival_time · departure_time | Ayrı zaman yoksa ikisi aynı olmalı | KISMİ — `STM_013` karışık zamanları ölçer, bu tavsiyenin tam karşılığı değil. |
+| `Peaccedd4` · `P07ae073c` | arrival_time · departure_time | Ayrı zaman yoksa ikisi aynı olmalı | **KAPSAM DIŞI** — `STM_013` karışık zamanları ölçer, bu tavsiyenin tam karşılığı değil. Koşul ("ayrı zaman yoksa") feed'den doğrulanamaz: iki alanın aynı olması niyeti göstermez. 📌 **§'Yumuşak KISMİ'ler (22)' triyajında karara bağlandı; buraya YAZILMADIĞI için ayrıştırıcı KISMİ okumaya devam ediyordu — makine-okunur hâle getirildi.** |
 | `Pc6b3be8f` | timepoint | Zamanı olan her kayıtta `timepoint` dolu olmalı | **KANITLI** — `STM_050` (sütun var ama satırda boş). |
-| `Pd0952f0f` · `Pd6d4d60e` | arrival_time · departure_time | Kesin zaman yoksa `timepoint=0` ile tahmini zaman verilmeli | KISMİ — `STM_050` yakınsıyor. |
+| `Pd0952f0f` · `Pd6d4d60e` | arrival_time · departure_time | Kesin zaman yoksa `timepoint=0` ile tahmini zaman verilmeli | **KANITLI** — `STM_050` yakınsıyor. `STM_050` bu hükmü ölçer. 📌 **§'Yumuşak KISMİ'ler (22)' triyajında karara bağlandı; buraya YAZILMADIĞI için ayrıştırıcı KISMİ okumaya devam ediyordu — makine-okunur hâle getirildi.** |
 | `P7c96867d` | shape_dist_traveled | Döngü/iç içe geçen hatlarda önerilir | KISMİ — `STM_017` mesafe eksikliğini ölçer, döngü koşuluna bakmaz. |
 | `P71243b3e` | pickup_booking_rule_id | `pickup_type=2` iken önerilir | **BOŞLUK** — aşağıda. |
 | `P504bde32` | drop_off_booking_rule_id | `drop_off_type=2` iken önerilir | **BOŞLUK** — aşağıda. |
@@ -251,8 +251,8 @@ birleştirmek `emit_identity` kapısını düşürebilir.
 | `P9068b265` · `P0003b8f1` | continuous_pickup · continuous_drop_off | Flex penceresi varken 1/boş dışı yasak | **KANITLI** | `RTS_028` (08-03'te Interop→**Spec**; otorite MD paritesi değil spec'tir). |
 | `P419062b4` | network_id | `route_networks.txt` veya `networks.txt` varsa yasak | **KANITLI** | `XFL_019` — iki kolu da denetler. |
 | `P69d68d06` | cemv_support | Fare dosyalarıyla çelişki olmamalı | **KAPSAM DIŞI** | 🔴 **#96'da düşürüldü (önce kanıtlı sayılıyordu).** Cümle bir ÖNCELİK kuralıdır: çelişki hâlinde hangi değerin geçerli olduğunu TÜKETİCİYE söyler, feed'e bir yasak koymaz. Çelişkili bir feed bu cümleyi İHLAL ETMEZ — cümle çelişkiyi öngörür ve çözer, dolayısıyla doğrulayıcı onun ihlalini asla bulamaz. Defterin kendi tanımı: *"Tüketici tarafını bağlar"*. ⚠️ Atıf verilen XFL kuralları KALDIRILMADI: çelişkiyi bildirmek yararlı bir Quality sinyalidir, yalnızca bu hükmün kanıtı değildir. Sinyal: `XFL_026` · `XFL_027`. |
-| `P803cfa49` | cemv_support | Yalnız tüm hizmetler cEMV kabul ediyorsa bildirilmeli *(soft)* | KISMİ | `XFL_029` yakınsıyor; "tüm hizmetler" koşulu ölçülmüyor. |
-| `P6802b122` | route_short_name | Kısa hizmet tanımı varsa önerilir *(soft)* | KISMİ | `RTS_003` yalnız ikisinin birden boş olmasını ölçer. |
+| `P803cfa49` | cemv_support | Yalnız tüm hizmetler cEMV kabul ediyorsa bildirilmeli *(soft)* | **KAPSAM DIŞI** | `XFL_029` yakınsıyor; "tüm hizmetler" koşulu ölçülmüyor. "tüm hizmetler cEMV kabul ediyorsa" koşulu feed'den doğrulanamaz. 📌 **§'Yumuşak KISMİ'ler (22)' triyajında karara bağlandı; buraya YAZILMADIĞI için ayrıştırıcı KISMİ okumaya devam ediyordu — makine-okunur hâle getirildi.** |
+| `P6802b122` | route_short_name | Kısa hizmet tanımı varsa önerilir *(soft)* | **KAPSAM DIŞI** | `RTS_003` yalnız ikisinin birden boş olmasını ölçer. "kısa hizmet tanımı VARSA" koşulu feed'den doğrulanamaz. 📌 **§'Yumuşak KISMİ'ler (22)' triyajında karara bağlandı; buraya YAZILMADIĞI için ayrıştırıcı KISMİ okumaya devam ediyordu — makine-okunur hâle getirildi.** |
 | `P86914315` | cemv_support | Çakışmada `routes.cemv_support` geçerlidir | **KAPSAM DIŞI** | Öncelik kuralı — tüketiciye hangi değeri okuyacağını söyler, ihlal edilebilir bir yasak koymaz. |
 | `P69d3a653` | route_sort_order | Küçük değerli hatlar önce gösterilmeli *(soft)* | **KAPSAM DIŞI** | Görüntüleme davranışı. `RTS_029` alanın geçerliliğini ölçer, sıralama beklentisini değil. |
 
@@ -455,7 +455,7 @@ ile yazar. Bunlar bağlayıcıdır ama **veriyi değil tüketiciyi** bağlar —
 | `P79f202e6` | rider_category_id | Aynı hüküm, `fare_products` tarafı | **KANITLI** | `RCT_006`. `fare_products.rider_category_id` uygun kategorileri belirler; boş değer default değil, tanımlı kategorilerin tümüne uygunluk anlamına gelir. |
 | `P152c436d` | is_default_fare_category | Varsayılan kategori tanımı *(soft)* | **META** | Geçerlilik `RCT_003`. |
 | `P32e7117f` | fare_media_name | Kart (2) ve mobil uygulama (4) için önerilir *(soft)* | **KANITLI** | `FMD_003` — koşul birebir. |
-| `Pc29f644f` | agency_id | Aksi hâlde önerilir *(soft)* | KISMİ | `RTS_025`'in `routes` için yaptığını `fare_attributes` için yapan kural yok. Yumuşak, Quality; düşük değer. |
+| `Pc29f644f` | agency_id | Aksi hâlde önerilir *(soft)* | **KANITLI** | `RTS_025`'in `routes` için yaptığını `fare_attributes` için yapan kural yok. Yumuşak, Quality; düşük değer. ⚠️ Bu satırdaki eski gerekçe BAYAT: `FIN_013` ("fare_attributes.agency_id önerilen ama eksik") tam bu hükmü ölçüyor. 📌 **§'Yumuşak KISMİ'ler (22)' triyajında karara bağlandı; buraya YAZILMADIĞI için ayrıştırıcı KISMİ okumaya devam ediyordu — makine-okunur hâle getirildi.** |
 | `Pcc091079` | contains_id | Bölge örneği ("c sınıfı 5, 6, 7 bölgelerinden geçer") | **META** | Örnek. Geçerlilik `FRL_005`. |
 | `P8cf7f90f` · `P3c1a4156` | — | V1 ve V2 birlikte bulunabilir; tüketici birini seçmeli, V2 tercih edilmeli *(soft)* | **KAPSAM DIŞI** | Tüketiciyi bağlar. |
 | `Pbf8f7f62` | — | Belirtilmemişse ajans saat dilimi kullanılmalı *(soft)* | **KAPSAM DIŞI** | Tüketici çözümlemesi. |
@@ -507,14 +507,14 @@ düşünmeye itiyor; bu repoda `DQ_021` gibi çapraz kurallar tam bu boşluklar�
 | `Pb135ca49` | agency_id | Aksi hâlde önerilir *(soft)* | **KANITLI** | `AGN_011` (`FIN_013` ile birlikte). |
 | `Pf27a2fd0` | agency_timezone | Çoklu ajansın hepsi aynı saat dilimini taşımalı | **KANITLI** | `AGN_005` (Quality→**Spec**, #96 — *"each must have the same agency_timezone"* normatif). |
 | `Pbb82f19e` | agency_phone | Çevrilebilir metin izinli, başka açıklama **yasak** | KISMİ | `AGN_007` (+ `AGN_016` yer-tutucu numaralar). 🔴 **#96'da düşürüldü (önce kanıtlı sayılıyordu):** `looks_like_phone` bilinçli bir **kalite yaklaşımıdır**, telefon grameri değil — spec `Phone number` tipi için gramer tanımlamaz. Bilinen sınır (#95'te ölçülüp belgelendi): baştan sona büyük harf düzyazı (`1234 CALL US NOW`) vanity'den ayırt edilemez ve kabul edilir. Sınıfı Spec'e taşımak, yaklaşık bir predikata norm gücü atfetmek olurdu. ⛔ Eski gerekçe metni (aşağıda) da bayattı: `looks_like_phone` harf içeren değeri reddediyor — TriMet'in "503-238-RIDE" biçimi ⚠️ **spec'te açıkça izinli ama bizim doğrulayıcımız reddeder.** Aşağıda. |
-| `P130f8673` | agency_email | Yolcunun ulaşabileceği doğrudan adres olmalı *(soft)* | KISMİ | `AGN_009` biçimi ölçer; "doğrudan temas noktası" doğrulanamaz. |
+| `P130f8673` | agency_email | Yolcunun ulaşabileceği doğrudan adres olmalı *(soft)* | **KAPSAM DIŞI** | `AGN_009` biçimi ölçer; "doğrudan temas noktası" doğrulanamaz. "doğrudan temas noktası" bir e-postadan makine ile doğrulanamaz. 📌 **§'Yumuşak KISMİ'ler (22)' triyajında karara bağlandı; buraya YAZILMADIĞI için ayrıştırıcı KISMİ okumaya devam ediyordu — makine-okunur hâle getirildi.** |
 | `P722127e8` · `P3005b227` | cemv_support | `routes.cemv_support` önceliklidir; fare dosyalarıyla çelişmemeli | **KAPSAM DIŞI** | 🔴 **#96'da düşürüldü (önce kanıtlı sayılıyordu).** Cümle bir ÖNCELİK kuralıdır: çelişki hâlinde hangi değerin geçerli olduğunu TÜKETİCİYE söyler, feed'e bir yasak koymaz. Çelişkili bir feed bu cümleyi İHLAL ETMEZ — cümle çelişkiyi öngörür ve çözer, dolayısıyla doğrulayıcı onun ihlalini asla bulamaz. Defterin kendi tanımı: *"Tüketici tarafını bağlar"*. ⚠️ Atıf verilen XFL kuralları KALDIRILMADI: çelişkiyi bildirmek yararlı bir Quality sinyalidir, yalnızca bu hükmün kanıtı değildir. Sinyal: `XFL_017` + `XFL_028`/`XFL_030`. |
-| `P572bb984` | cemv_support | Yalnız tüm hizmetler cEMV kabul ediyorsa bildirilmeli *(soft)* | KISMİ | `XFL_028` yakınsıyor; "tüm hizmetler" koşulu ölçülmüyor. |
+| `P572bb984` | cemv_support | Yalnız tüm hizmetler cEMV kabul ediyorsa bildirilmeli *(soft)* | **KAPSAM DIŞI** | `XFL_028` yakınsıyor; "tüm hizmetler" koşulu ölçülmüyor. `P803cfa49` ile aynı koşul. 📌 **§'Yumuşak KISMİ'ler (22)' triyajında karara bağlandı; buraya YAZILMADIĞI için ayrıştırıcı KISMİ okumaya devam ediyordu — makine-okunur hâle getirildi.** |
 | `P7917f3c5` | agency_id | `agency_id`/`route_id`/`trip_id` attribution'larından biri varsa diğerleri boş olmalı | **KANITLI** | `ATR_009` (Quality→**Spec**, #96 — *"the other ones must be empty"* normatif). |
 | `Pebcbebf1` | is_producer | `is_producer`/`is_operator`/`is_authority`'den en az biri 1 olmalı *(soft)* | **KANITLI** | `ATR_003`. |
 | `Pec6b6920` | headway_secs | Aynı sefer için birden çok headway tanımlanabilir ama **çakışamaz** | **KANITLI** | `FRQ_011` (Interop→**Spec**, #96 — *"must not overlap"* normatif). |
 | `P257db6b1` | exact_times | `end_time`, son istenen sefer başlangıcından büyük olmalı | KISMİ | `FRQ_005` (end < start) ve `FRQ_009` komşu; cümlenin `exact_times=1`'e özgü inceliği ölçülmüyor. |
-| `P1ecc6733` | level_index | Zemin 0, üstü pozitif, altı negatif *(soft)* | KISMİ | `LVL_002` sayısal geçerliliği ölçer; zemin referansı feed dışı bilgi. |
+| `P1ecc6733` | level_index | Zemin 0, üstü pozitif, altı negatif *(soft)* | **KAPSAM DIŞI** | `LVL_002` sayısal geçerliliği ölçer; zemin referansı feed dışı bilgi. Zemin referansı feed'den bilinemez; hangi katın "zemin" olduğu dışsal bilgidir. 📌 **§'Yumuşak KISMİ'ler (22)' triyajında karara bağlandı; buraya YAZILMADIĞI için ayrıştırıcı KISMİ okumaya devam ediyordu — makine-okunur hâle getirildi.** |
 | `P24d95df2` | location_group_id | Üç kaynak genelinde benzersiz | **KANITLI** | `XFL_031` (hükmün üçüncü ucu; 1. turda `P042ba79f`/`P1afc582a`). |
 
 ## shapes.txt
@@ -546,7 +546,7 @@ düşünmeye itiyor; bu repoda `DQ_021` gibi çapraz kurallar tam bu boşluklar�
 |---|---|---|---|---|
 | `P3e2e5c05` | feed_start_date | `feed_end_date`, `feed_start_date`'ten önce olamaz | **KANITLI** | `FIN_012` (Quality→**Spec**, #96 — *"must not precede"* normatif). |
 | `Pc78e53ef` · `P3834f860` | feed_contact_email · feed_contact_url | En az biri sağlanmalı *(soft)* | **KANITLI** | `FIN_018`. |
-| `P11f6523f` | feed_start_date | Bu dönem dışında da veri verilmesi önerilir *(soft)* | KISMİ | `FIN_016`/`FIN_017`/`CAL_019` komşu pencereleri ölçüyor. |
+| `P11f6523f` | feed_start_date | Bu dönem dışında da veri verilmesi önerilir *(soft)* | **KAPSAM DIŞI** | `FIN_016`/`FIN_017`/`CAL_019` komşu pencereleri ölçüyor. "dönem dışında da veri verilmesi" bir tavsiyedir; eksikliği feed'den ihlal olarak okunamaz. 📌 **§'Yumuşak KISMİ'ler (22)' triyajında karara bağlandı; buraya YAZILMADIĞI için ayrıştırıcı KISMİ okumaya devam ediyordu — makine-okunur hâle getirildi.** |
 | `P637f73ea` | default_lang | Tüketici yolcunun dilini bilmiyorsa kullanılacak dil *(soft)* | **KANITLI** | `FIN_004` (geçerlilik). Cümle alan tanımı. |
 | `P7cf5ea86` · `Pcbd2b455` · `Pa71d256d` | feed_lang | Çok dilli veride `mul` kullanılmalı ve çeviriler `translations.txt`'te olmalı; tek dilliyse `mul` kullanılmamalı *(soft)* | KISMİ ⚠️ | Aşağıda. |
 | `Pd7cb6983` | — | `calendar_dates.txt` `calendar.txt` ile birlikte istisna tanımlamak için kullanılmalı *(soft)* | **KANITLI** | `ARC_008` (takvim çifti) + `CAL_006`/`CAL_018`. |
