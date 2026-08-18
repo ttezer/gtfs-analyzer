@@ -102,6 +102,12 @@ MAP = {
     "empty_column_name":                ["ARC_017"],            # 5/5 — boş başlık tanınmayan sütundur
     "missing_pickup_or_drop_off_window": ["STM_039", "PDW_006"],# 1/1 ikisi de
     "invalid_pickup_drop_off_window":   ["PDW_006"],            # 3/4
+    # İlk aday turunda "hiçbiri" çıkmıştı çünkü YANLIŞ aday seçmiştim (FTR_002 =
+    # from_leg_group_id bulunamadı, FK kuralı). Doğru kurallar leg-grubu koşulunu
+    # ölçenler: aynıysa transfer_count ZORUNLU, farklıysa YASAK.
+    "fare_transfer_rule_without_transfer_count":       ["FTR_009"],  # 4/4
+    "fare_transfer_rule_with_forbidden_transfer_count": ["FTR_010"], # 2/2
+    "missing_level_id":                 ["LVL_006"],                 # 1/1 — asansör bağlantısı bağlamı
     # ── Trips / bloklar ──
     "trip_headsign_matches_intermediate_stop": ["TRP_020"],  # AGG: per-trip (MD per-occurrence)
     "block_trips_with_overlapping_stop_times": ["TRP_022"],  # MD ERROR; bizde ~eşleşir (aynı-gün blok)
