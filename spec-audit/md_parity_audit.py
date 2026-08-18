@@ -101,7 +101,7 @@ MAP = {
     "missing_prior_notice_last_time":   ["BKR_009"],            # 1/1
     "empty_column_name":                ["ARC_017"],            # 5/5 — boş başlık tanınmayan sütundur
     "missing_pickup_or_drop_off_window": ["STM_039", "PDW_006"],# 1/1 ikisi de
-    "invalid_pickup_drop_off_window":   ["PDW_006"],            # 3/4
+    "invalid_pickup_drop_off_window":   ["STM_038"],            # ters/sıfır pencere; PDW_006 ÖRTÜŞME ölçer, bu değil
     # İlk aday turunda "hiçbiri" çıkmıştı çünkü YANLIŞ aday seçmiştim (FTR_002 =
     # from_leg_group_id bulunamadı, FK kuralı). Doğru kurallar leg-grubu koşulunu
     # ölçenler: aynıysa transfer_count ZORUNLU, farklıysa YASAK.
@@ -180,7 +180,7 @@ MAP = {
     "location_with_unexpected_stop_time": ["STP_012"],  # stop_times durağı location_type≠0 (k4_cross_ref.rs:536)
     "pathway_unreachable_location":   ["PTH_012"],
     "stop_without_zone_id":            ["STP_033"],
-    "point_near_origin":                ["GEO_016"],
+    # point_near_origin bağlama taşındı (stops → GEO_016, shapes → GEO_017) — md_parity_mapping.CONTEXT_MAPPINGS
     "point_near_pole":                  ["GEO_022"],   # 2/2 — |lat|>89; GEO_022 aynı iki feed'de ateşliyor
     "invalid_character":                ["ARC_021"],
     "missing_feed_info_date":           ["FIN_014"],

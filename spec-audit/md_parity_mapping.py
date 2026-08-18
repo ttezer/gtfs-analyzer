@@ -160,6 +160,12 @@ CONTEXT_MAPPINGS: tuple[ContextMapping, ...] = (
     _ctx("unexpected_enum_value", "FAR_005", filename=("fare_attributes.txt",), fields=("transfers",), label="fare_attributes.txt::transfers"),
     _ctx("unexpected_enum_value", "RCT_003", filename=("rider_categories.txt",), fields=("is_default_fare_category",), label="rider_categories.txt::is_default_fare_category"),
     # number_out_of_range
+    # point_near_origin — Null Island. MD tek kod basar; bizde dosyaya göre iki ayrı
+    # kural sahiplenir. Düz eşleme GEO_017'yi görünmez kılıyordu: tdg-80960'ta MD 5
+    # bulgu shapes.txt kaynaklıydı, bizde GEO_017 tam 5 ateşliyordu ama benchmark
+    # GEO_016=0 diye MISS sayıyordu.
+    _ctx("point_near_origin", "GEO_016", filename=("stops.txt",), label="stops.txt Null Island"),
+    _ctx("point_near_origin", "GEO_017", filename=("shapes.txt",), label="shapes.txt Null Island"),
     _ctx("number_out_of_range", "PTH_007", filename=("pathways.txt",), fields=("traversal_time",), label="pathways.txt::traversal_time"),
     _ctx("number_out_of_range", "SHP_002", filename=("shapes.txt",), fields=("shape_pt_lat",), label="shapes.txt::shape_pt_lat"),
     _ctx("number_out_of_range", "SHP_003", filename=("shapes.txt",), fields=("shape_pt_lon",), label="shapes.txt::shape_pt_lon"),
