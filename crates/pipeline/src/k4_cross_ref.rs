@@ -483,12 +483,26 @@ fn check_agencies(
             ));
         }
     }
-    let first_tz = &records.agencies[0].agency_timezone;
-    let mismatch = records
+    // AGN_005 yalnız GERÇEK bir çoklu-saat-dilimi anlaşmazlığını raporlamalıdır.
+    // Eskiden ham dizeleri `agencies[0]`'a karşı kıyaslıyordu; boş ya da bozuk bir
+    // değer tek başına "tutarsızlık" üretiyordu. Korpusta kuralın ateşlediği dört
+    // feed'in DÖRDÜ de böyleydi ve hiçbirinde gerçek bir dilim farkı yoktu:
+    //   · mdb-1003 / mdb-1004 — agency.txt'nin ORTASINDA başlık satırı tekrarlanıyor,
+    //     hayalet bir agency'nin dilimi "agency_timezone" oluyor (gerçekte hepsi
+    //     Europe/Madrid). Aynı kusur mdb-1004'te TRP_006'yı da tetikliyor.
+    //   · mdb-2946 — 10 agency Europe/Kyiv, birinin dilimi BOŞ.
+    //   · mdb-2119 — tek agency; agency_name'deki dengesiz tırnak sütunları kaydırıyor.
+    // Boş ve geçersiz değerler zaten AGN_004'ün alanıdır ve dördünde de ateşliyor.
+    // Hemen yukarıdaki AGN_017 (agency_lang) boşları BAŞINDAN BERİ eliyordu.
+    let mut zones: Vec<&str> = records
         .agencies
         .iter()
-        .any(|r| &r.agency_timezone != first_tz);
-    if mismatch {
+        .map(|r| r.agency_timezone.trim())
+        .filter(|tz| !tz.is_empty() && crate::k2::common::looks_like_iana_timezone(tz))
+        .collect();
+    zones.sort_unstable();
+    zones.dedup();
+    if zones.len() > 1 {
         notices.push(notice(
             ctr,
             "AGN_005",
@@ -498,7 +512,7 @@ fn check_agencies(
             "agency.txt",
             None,
             Some("agency_timezone"),
-            None,
+            Some(zones.join(", ")),
             None,
             "Birden fazla işletici farklı timezone değeri kullanıyor.".to_string(),
             "Tüm işleticilerde aynı IANA timezone'u kullanın.",
@@ -5368,6 +5382,57 @@ mod tests {
     }
 
     // �"?�"? AGN_005 �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?
+
+    fn agency_tz(id: &str, tz: &str) -> AgencyRecord {
+        AgencyRecord {
+            agency_id: Some(id.into()),
+            agency_name: id.into(), agency_url: "https://a.com".into(),
+            agency_timezone: tz.into(),
+            agency_lang: None, agency_phone: None,
+            agency_fare_url: None, agency_email: None,
+            agency_cemv_support: None, row: Default::default(), line: 2,
+        }
+    }
+
+    #[test]
+    fn agn_005_ignores_an_empty_timezone() {
+        // mdb-2946: 10 agency Europe/Kyiv, birinin dilimi boş. Bu bir dilim
+        // ANLAŞMAZLIĞI değil eksik alandır ve AGN_004 zaten raporlar.
+        let (mut recs, _map) = empty();
+        recs.agencies = vec![
+            agency_tz("A1", "Europe/Kyiv"),
+            agency_tz("A2", "Europe/Kyiv"),
+            agency_tz("A3", ""),
+        ];
+        let result = check(&recs, &EntityMap::default(), 20260515);
+        assert!(!result.notices.iter().any(|n| n.rule_id == "AGN_005"));
+    }
+
+    #[test]
+    fn agn_005_ignores_a_repeated_header_row() {
+        // mdb-1003/mdb-1004: agency.txt'nin ortasında başlık satırı tekrarlanıyor,
+        // hayalet agency'nin dilimi literal "agency_timezone" oluyor. Gerçekte
+        // bütün agency'ler Europe/Madrid.
+        let (mut recs, _map) = empty();
+        recs.agencies = vec![
+            agency_tz("A1", "Europe/Madrid"),
+            agency_tz("agency_id", "agency_timezone"),
+            agency_tz("A2", "Europe/Madrid"),
+        ];
+        let result = check(&recs, &EntityMap::default(), 20260515);
+        assert!(!result.notices.iter().any(|n| n.rule_id == "AGN_005"));
+    }
+
+    #[test]
+    fn agn_005_still_reports_a_real_disagreement() {
+        let (mut recs, _map) = empty();
+        recs.agencies = vec![
+            agency_tz("A1", "Europe/Madrid"),
+            agency_tz("A2", "America/New_York"),
+        ];
+        let result = check(&recs, &EntityMap::default(), 20260515);
+        assert!(result.notices.iter().any(|n| n.rule_id == "AGN_005"));
+    }
 
     #[test]
     fn agencies_with_different_timezones_produce_agn_005() {
