@@ -1,0 +1,75 @@
+{
+  "old_run_id": 31981225727,
+  "new_run_id": 32145833613,
+  "comparison_scope": "common feed IDs only; statuses, validator findings and timing. Timing is comparable for the first time: both runs captured wall time for every completed state.",
+  "common_feed_count": 4258,
+  "only_in_new": [
+    "mdb-3461",
+    "mdb-3462",
+    "mdb-3463",
+    "mdb-3464",
+    "mdb-3470",
+    "mdb-3473",
+    "mdb-3474",
+    "mdb-3477",
+    "mdb-3478",
+    "mdb-3479",
+    "mdb-3480",
+    "mdb-3482",
+    "mdb-3483"
+  ],
+  "only_in_old": [],
+  "status_change_count": 3,
+  "status_changes": [
+    {
+      "feed_id": "mdb-2014",
+      "old": {
+        "download_status": "ok",
+        "analyzer_state": "completed",
+        "md_state": "timeout"
+      },
+      "new": {
+        "download_status": "ok",
+        "analyzer_state": "completed",
+        "md_state": "partial_internal"
+      }
+    },
+    {
+      "feed_id": "mdb-2727",
+      "old": {
+        "download_status": "ok",
+        "analyzer_state": "timeout",
+        "md_state": "completed"
+      },
+      "new": {
+        "download_status": "ok",
+        "analyzer_state": "completed",
+        "md_state": "completed"
+      }
+    },
+    {
+      "feed_id": "mdb-3401",
+      "old": {
+        "download_status": "ok",
+        "analyzer_state": "timeout",
+        "md_state": "completed"
+      },
+      "new": {
+        "download_status": "ok",
+        "analyzer_state": "completed",
+        "md_state": "completed"
+      }
+    }
+  ],
+  "finding_signature_change_count": 652,
+  "analyzer_finding_change_feed_count": 631,
+  "mobilitydata_finding_change_feed_count": 328,
+  "both_validator_finding_change_feed_count": 307,
+  "finding_signature_unchanged_feed_count": 3606,
+  "common_analyzer_notice_total_old": 46869031,
+  "common_analyzer_notice_total_new": 40100751,
+  "common_md_notice_total_old": 120370972,
+  "common_md_notice_total_new": 121065011,
+  "byte_identical_common_feeds": 3676,
+  "note": "The Analyzer drop on common feeds is the sum of two opposite movements: five stop-time rules became aggregate (-8.93M) while mdb-2727 and mdb-3401, which timed out at 300 s in the previous run and produced nothing, now complete and contribute +2,002,996. MobilityData is the control group: its code is pinned at v8.0.1 and only its -d date input moved."
+}

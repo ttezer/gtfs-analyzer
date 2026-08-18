@@ -1,0 +1,29 @@
+Run ID: 32145833613
+Artifact: validator-audit-all-mdb-final
+Artifact ID: 9330244477
+Artifact digest: sha256:22c8985055396dc836d5e59bc3c11264c708b6acbc9d1ac13c165e001ff644bb
+Artifact size (GitHub metadata): 39792420 bytes
+Product commit: d10fc4cfd394de94c31f86c2091bc9495bbbedef
+Audit harness commit: a690c82e303f03d0ed723be5d1d0b69a43c24b7f
+MobilityData validator: v8.0.1
+Audit date: 2026-08-18 (BENCH_DATE=20260818, MD_DATE=2026-08-18)
+Analyzer rule count: 597 (421 observed firing)
+Catalog SHA-256: 4f15d3ca2b3a74c90fd781cc93fc68cddd7511d1c71a88d5e89901c0094cff20
+Manifest SHA-256: af55ad532b9cd10775ed478cc0a7673fc962d795710fd42f6262a81880e9a5b4
+Raw per-feed bundle SHA-256: 3274c77c138ef23ff55b722d44ff7d40d3568b5fdd7d810b4f63508260a114bf
+Scope: Full MobilityDatabase GTFS Schedule catalog coverage with public HTTP(S) latest URL; no URL/content deduplication; GTFS Realtime excluded.
+Exclusions: mdb-2904 excluded by standing instruction; 204 Schedule rows had no public latest URL. Selected/tested manifest size: 4271 of 4476 GTFS Schedule catalog rows.
+Health gates: coverage manifest_checked=true, missing_manifest_feed_ids=[], unexpected_feed_ids=[]; timing measured for all 4239 Analyzer and all 4229 MobilityData completed states, covering all 4229 both-completed feeds; duplicate-content groups=99, unique participating feeds=202; mdb-2014 download_status=ok (1,463,900,106 bytes, under the 2.5 GB cap); final workflow conclusion=success.
+Line endings: the three CSVs are stored LF-normalized by the repo's `* text=auto eol=lf` rule, as in both previous runs. No SHA above refers to them; corpus-manifest.json and the raw bundle are byte-identical to the workflow artifact and hash as recorded.
+Old-run comparison: common-feed-comparison.json against run 31981225727. Timing is comparable between these two runs for the first time; run 31934698855 captured no Analyzer timing and must not be compared on that axis.
+
+Purpose of this run: first measurement of the stop-time aggregation landed in dae5ef22. The affected feeds returned HTTP 403 when fetched directly, so its effect had only ever been computed from stored data. Measured here: STM_056 3,297,317 -> 1,202 (predicted ~1,251), STM_018 1,743,530 -> 9 (predicted 9), STM_019 1,743,526 -> 5 (predicted 5), STM_032 -> 45, STM_007 -> 225. Issue #151 closed on this evidence.
+
+Known defect in this data set, recorded rather than corrected:
+  mdb-2014 was killed by `timeout --signal=TERM` at 300 s (exit 124) but is stored here with
+  analyzer_state="completed" and 1,551,740 notices. classify_analyzer returned "completed"
+  whenever a report file existed, without reading the exit code; aggregate.py therefore
+  compared that truncated output and derived 11 divergence rows from it. Fixed in a791a0d4
+  (analyzer runs killed at 124/137 now classify as "partial_timeout", mirroring classify_md,
+  which excludes them from the divergence comparison). The files in this directory are the
+  raw run output and are NOT rewritten; the next run will carry the corrected state.
