@@ -261,6 +261,27 @@ CONTEXT_BY_CODE = {code: tuple(entries) for code, entries in CONTEXT_BY_CODE.ite
 # known and reviewed as a real coverage gap without being assigned an Analyzer
 # rule (and therefore without being silently dropped from parity_md_only.csv).
 UNMAPPED_DECISIONS = {
+    "csv_parsing_failed": (
+        "md-implementation-limit",
+        "Not a GTFS violation and not our gap. MobilityData's own message on mdb-982 reads 'Length of parsed "
+        "input (4097) exceeds' - its CSV reader has a 4096-character field limit. We parse the same feed "
+        "without difficulty (completed, 3,406 findings). Nothing in the specification caps field length, so "
+        "there is no rule to write; the divergence measures their parser, not the data.",
+    ),
+    "transfer_with_invalid_trip_and_stop": (
+        "genuine-gap",
+        "Real coverage gap, 2 feeds. MobilityData checks that the stop named in a transfer is actually served "
+        "by the trip named in the same row. We have TRF_006 (from_trip_id not found) and TRF_003 (stop not "
+        "found), but both are existence checks - neither asks whether the pair is CONSISTENT. A transfer can "
+        "name a valid trip and a valid stop that have nothing to do with each other. Do not alias this to "
+        "TRF_003 or TRF_006; it is a different fact and would need its own rule.",
+    ),
+    "transfer_with_invalid_trip_and_route": (
+        "genuine-gap",
+        "Same shape as transfer_with_invalid_trip_and_stop, one feed: the trip named in a transfer does not "
+        "belong to the route named alongside it. TRF_008/TRF_009 check that the route exists, not that the "
+        "trip belongs to it. Another consistency check we do not have.",
+    ),
     "fast_travel_between_far_stops": (
         "genuine-gap",
         "Analyzer has no rule for non-consecutive far-stop pairs; do not alias this to STM_012.",

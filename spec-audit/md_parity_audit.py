@@ -108,6 +108,12 @@ MAP = {
     "fare_transfer_rule_without_transfer_count":       ["FTR_009"],  # 4/4
     "fare_transfer_rule_with_forbidden_transfer_count": ["FTR_010"], # 2/2
     "missing_level_id":                 ["LVL_006"],                 # 1/1 — asansör bağlantısı bağlamı
+    # ÜÇÜNCÜ aday turu (#147). Yine "hiçbiri ateşlemiyor" sonucu ADAY listesinden
+    # geliyordu: kurallar vardı, ben yanlış grupta ya da yanlış kimlikte aramıştım.
+    "invalid_email":                    ["FIN_008"],   # 1/1 — feed_contact_email; FIN_017/AGN_009 denemiştim
+    "attribution_without_role":         ["ATR_003"],   # 3/3 — "Attribution rolü tanımlanmamış"
+    "invalid_geometry":                 ["LOC_011"],   # 2/2 — ring kendini kesiyor / delik dışarıda
+    "bidirectional_exit_gate":          ["PTH_016"],   # 1/1
     # ── Trips / bloklar ──
     "trip_headsign_matches_intermediate_stop": ["TRP_020"],  # AGG: per-trip (MD per-occurrence)
     "block_trips_with_overlapping_stop_times": ["TRP_022"],  # MD ERROR; bizde ~eşleşir (aynı-gün blok)
