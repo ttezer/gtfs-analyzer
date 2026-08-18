@@ -331,6 +331,7 @@ jobs:
           python3 benchmark/audit_all/aggregate.py \
             --results-dir benchmark/audit_all/all-shards \
             --map-file spec-audit/md_parity_audit.py \
+            --manifest benchmark/audit_all/run/manifest.json \
             --out-dir benchmark/audit_all/final
           cp benchmark/audit_all/run/manifest.json benchmark/audit_all/final/corpus-manifest.json
           sed -i 's/1000-feed GTFS Analyzer vs MobilityData audit/Full MobilityDatabase GTFS Schedule — GTFS Analyzer vs MobilityData audit/' benchmark/audit_all/final/AUDIT_SUMMARY.md
