@@ -139,6 +139,12 @@ def parse_md_report(report):
 def classify_analyzer(exit_code,report,stderr):
     low=stderr.lower()
     if report.exists():
+        # A report on disk is not proof of a finished run: `timeout` SIGTERMs the
+        # process (124) or the kernel kills it (137) after it has already written
+        # part of its output. classify_md has always distinguished this; the
+        # analyzer side silently reported truncated runs as clean until mdb-2014
+        # was killed at 300 s and still counted as "completed" with 1.55M notices.
+        if exit_code in (124,137): return "partial_timeout"
         return "completed"
     if exit_code in (124,137) or "timed out" in low:
         return "timeout"
