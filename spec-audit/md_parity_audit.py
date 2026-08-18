@@ -182,6 +182,9 @@ MAP = {
     "stop_without_zone_id":            ["STP_033"],
     # point_near_origin bağlama taşındı (stops → GEO_016, shapes → GEO_017) — md_parity_mapping.CONTEXT_MAPPINGS
     "point_near_pole":                  ["GEO_022"],   # 2/2 — |lat|>89; GEO_022 aynı iki feed'de ateşliyor
+    "pathway_dangling_generic_node":    ["PTH_019"],   # kural VARDI, eşleme yoktu (#158)
+    "transfer_with_invalid_trip_and_stop":  ["XFL_021"],  # kural VARDI (XFL grubunda), defter yanlış "genuine-gap" demişti
+    "transfer_with_invalid_trip_and_route": ["TRF_017"],  # "Sefer aktarması yanlış hat" — aynı olgu
     "invalid_character":                ["ARC_021"],
     "missing_feed_info_date":           ["FIN_014"],
     "more_than_one_entity":             ["FIN_015"],

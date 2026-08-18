@@ -1297,16 +1297,29 @@ fn check_pathways(
 
     // PTH_019: generic node (location_type=3) yalnızca tek pathway'e bağlı → dead-end
     {
-        let mut conn_count: HashMap<&str, u32> = HashMap::new();
+        // Sayılan şey KOMŞU sayısıdır, pathway SATIRI değil. Aynı iki durak arasına
+        // iki ayrı pathway satırı (ör. her yön için bir tane) yazmak node'u çıkmaz
+        // olmaktan kurtarmaz: hâlâ tek bir yere açılıyordur. Satır saymak bu düzeni
+        // kullanan feed'lerde kuralı kör bırakıyordu. MobilityData da aynı şeyi
+        // söylüyor: "A generic node has only one incident location in a pathway graph."
+        // Kendine dönen kenar komşu sayılmaz; o PTH_012'nin (döngü) konusudur.
+        let mut neighbours: HashMap<&str, std::collections::BTreeSet<&str>> = HashMap::new();
         for rec in &records.pathways {
-            *conn_count.entry(rec.from_stop_id.as_str()).or_insert(0) += 1;
-            *conn_count.entry(rec.to_stop_id.as_str()).or_insert(0) += 1;
+            let (f, t) = (rec.from_stop_id.as_str(), rec.to_stop_id.as_str());
+            if f == t {
+                continue;
+            }
+            neighbours.entry(f).or_default().insert(t);
+            neighbours.entry(t).or_default().insert(f);
         }
         for stop in &records.stops {
             if stop.location_type != Some(3) {
                 continue;
             }
-            let count = conn_count.get(stop.stop_id.as_str()).copied().unwrap_or(0);
+            let count = neighbours
+                .get(stop.stop_id.as_str())
+                .map(|s| s.len())
+                .unwrap_or(0);
             if count == 1 {
                 notices.push(notice(
                     ctr,

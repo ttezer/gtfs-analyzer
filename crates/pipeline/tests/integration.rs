@@ -977,6 +977,75 @@ fn r9_priority_score_positive_for_critical_notice() {
     }
 }
 
+// ── Test 16b: PTH_019 — çift yönü iki SATIRLA yazan feed'de de ateşlemeli ────
+// #158: kural pathway SATIRI sayıyordu. Aynı iki durak arasına her yön için bir
+// satır yazan feed'lerde sayı 2 çıkıyor ve node çıkmaz olduğu hâlde kural
+// susuyordu. MobilityData "only one incident LOCATION" der; ölçü komşu sayısıdır.
+
+#[test]
+fn pth_019_fires_when_one_neighbour_is_written_as_two_rows() {
+    const STOPS: &[u8] =
+        b"stop_id,stop_name,stop_lat,stop_lon,location_type,parent_station\n\
+          S1,Stop1,41.0,29.0,,\n\
+          S2,Stop2,41.1,29.1,,\n\
+          STA1,Station1,41.2,29.2,1,\n\
+          PLT_A,PlatformA,41.2,29.2,0,STA1\n\
+          GN1,GenericNode1,41.2,29.21,3,STA1\n";
+    // Tek komşu (PLT_A), iki satır — biri gidiş biri dönüş.
+    const PATHWAYS: &[u8] =
+        b"pathway_id,from_stop_id,to_stop_id,pathway_mode,is_bidirectional\n\
+          PW1,PLT_A,GN1,1,0\n\
+          PW2,GN1,PLT_A,1,0\n";
+
+    let mut files = base_files();
+    files[1] = ("stops.txt", STOPS);
+    files.push(("pathways.txt", PATHWAYS));
+
+    match run(&files) {
+        ValidateResult::Ok(vr) => {
+            assert!(
+                vr.notices.iter().any(|n| n.rule_id == "PTH_019"),
+                "İki satır tek komşu demektir; PTH_019 ateşlemeli. Mevcut: {:?}",
+                vr.notices.iter().map(|n| n.rule_id.as_str()).collect::<Vec<_>>(),
+            );
+        }
+        _ => panic!("ValidateResult::Ok beklendi"),
+    }
+}
+
+// ── Test 16c: PTH_019 — iki FARKLI komşusu olan node susmalı ─────────────────
+
+#[test]
+fn pth_019_silent_for_a_generic_node_with_two_neighbours() {
+    const STOPS: &[u8] =
+        b"stop_id,stop_name,stop_lat,stop_lon,location_type,parent_station\n\
+          S1,Stop1,41.0,29.0,,\n\
+          S2,Stop2,41.1,29.1,,\n\
+          STA1,Station1,41.2,29.2,1,\n\
+          PLT_A,PlatformA,41.2,29.2,0,STA1\n\
+          PLT_B,PlatformB,41.2,29.22,0,STA1\n\
+          GN1,GenericNode1,41.2,29.21,3,STA1\n";
+    const PATHWAYS: &[u8] =
+        b"pathway_id,from_stop_id,to_stop_id,pathway_mode,is_bidirectional\n\
+          PW1,PLT_A,GN1,1,0\n\
+          PW2,GN1,PLT_B,1,0\n";
+
+    let mut files = base_files();
+    files[1] = ("stops.txt", STOPS);
+    files.push(("pathways.txt", PATHWAYS));
+
+    match run(&files) {
+        ValidateResult::Ok(vr) => {
+            assert!(
+                !vr.notices.iter().any(|n| n.rule_id == "PTH_019"),
+                "İki farklı komşu → çıkmaz değil. Mevcut: {:?}",
+                vr.notices.iter().map(|n| n.rule_id.as_str()).collect::<Vec<_>>(),
+            );
+        }
+        _ => panic!("ValidateResult::Ok beklendi"),
+    }
+}
+
 // ── Test 16: PTH_019 — generic node tek pathway'e bağlı → ateşlenir ──────────
 // GN1 (location_type=3) yalnızca 1 pathway'de geçiyor → dead-end → PTH_019.
 

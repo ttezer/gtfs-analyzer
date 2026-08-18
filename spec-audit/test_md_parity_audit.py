@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import re
 import sys
 import tempfile
 import unittest
@@ -274,6 +275,104 @@ class AuditFixture(unittest.TestCase):
                 "decreasing_or_equal_stop_time_distance",
                 (base / "parity_md_only.csv").read_text(encoding="utf-8"),
             )
+
+
+class LedgerDriftGate(unittest.TestCase):
+    """Defter ve eşleme değişiklikleri yayımlanan sayıları SESSİZCE oynatabilir.
+
+    Kural setinin kart tutarlılık testi, drift kapısı ve mutasyon sınanmış rozet
+    kapısı var; onu yargılayan araçta hiçbiri yoktu (#159). Bu sınıf, bir kararın
+    ya da eşlemenin şeklini SABİTLER — değiştirmek serbest, ama sessizce
+    değiştirmek değil.
+
+    🔴 Bu kapının varlık sebebi somut: `transfer_with_invalid_trip_and_stop` ve
+    `transfer_with_invalid_trip_and_route` defterde `genuine-gap` olarak
+    kayıtlıydı ve karar YANLIŞTI — kurallar (`XFL_021`, `TRF_017`) zaten vardı ve
+    ateşliyordu. Yanlış karar bir issue'ya, oradan da yol haritasına taşındı.
+    """
+
+    # Sözlük UYDURULMAZ, kullanımdan DONDURULUR. Yeni bir etiket eklemek serbest —
+    # ama bu listeyi de güncellemek gerekir, yani karar bilinçli olur. Bir etiketin
+    # buradan düşmesi de sinyaldir: o kararı taşıyan kod silinmiş demektir.
+    UNMAPPED_LABELS = {
+        "genuine-gap", "deprecated-md-only", "md-implementation-limit",
+        "config-dependent", "intentional-difference", "context-dependent",
+    }
+    MAPPED_LABELS = {"tolerance-by-design", "structural-fault-owns-it"}
+
+    def test_ledger_labels_stay_within_the_frozen_vocabulary(self):
+        """Etiketsiz ya da tanınmayan karar sayımlardan sessizce düşer."""
+        for table, allowed, name in (
+            (mapping.UNMAPPED_DECISIONS, self.UNMAPPED_LABELS, "UNMAPPED_DECISIONS"),
+            (mapping.MAPPED_DIVERGENCE_DECISIONS, self.MAPPED_LABELS, "MAPPED_DIVERGENCE_DECISIONS"),
+        ):
+            used = set()
+            for code, entry in table.items():
+                with self.subTest(table=name, code=code):
+                    self.assertIsInstance(entry, tuple, "karar (etiket, gerekçe) olmalı")
+                    self.assertIn(entry[0], allowed, f"{code}: tanınmayan etiket {entry[0]!r}")
+                    self.assertGreater(len(entry[1]), 40, f"{code}: gerekçe fazla kısa")
+                    used.add(entry[0])
+            self.assertEqual(used, allowed,
+                             f"{name}: sözlükte artık kullanılmayan etiket var: {allowed - used}")
+
+    def test_a_code_is_never_both_mapped_and_declared_a_gap(self):
+        """Kapsam boşluğu ilan edilen bir kodun eşlemesi OLAMAZ — ikisi çelişir.
+
+        Tam olarak bu çelişki iki kod için aylarca sürdü ve #158'i yanlış açtırdı.
+        """
+        for code, entry in mapping.UNMAPPED_DECISIONS.items():
+            if entry[0] != "genuine-gap":
+                continue
+            with self.subTest(code=code):
+                self.assertNotIn(
+                    code, audit.MAP,
+                    f"{code} hem 'genuine-gap' hem eşlemeli: kural varsa boşluk değildir",
+                )
+                self.assertFalse(
+                    any(c.md_code == code for c in mapping.CONTEXT_MAPPINGS),
+                    f"{code} hem 'genuine-gap' hem bağlamsal eşlemeli",
+                )
+
+    def test_classify_divergence_is_stable_for_known_codes(self):
+        """Bu üç kod üç AYRI deftere düşer; kaynak etiketi karışırsa sayım kayar."""
+        for code, expected_source in (
+            ("non_ascii_or_non_printable_char", "by-design"),
+            ("fast_travel_between_far_stops", "unmapped:genuine-gap"),
+            ("this_code_does_not_exist_anywhere", "unreviewed"),
+        ):
+            with self.subTest(code=code):
+                self.assertEqual(mapping.classify_divergence(code)[0], expected_source)
+
+    def test_the_two_transfer_consistency_codes_are_mapped_not_gaps(self):
+        """#158 regresyonu: bu ikisi bir daha 'kapsam boşluğu' olarak geri dönmesin."""
+        for code, rule in (
+            ("transfer_with_invalid_trip_and_stop", "XFL_021"),
+            ("transfer_with_invalid_trip_and_route", "TRF_017"),
+            ("pathway_dangling_generic_node", "PTH_019"),
+        ):
+            with self.subTest(code=code):
+                self.assertIn(rule, audit.MAP.get(code, []),
+                              f"{code} → {rule} eşlemesi kayboldu")
+
+    def test_every_mapped_rule_exists_in_the_registry(self):
+        """Var olmayan bir kurala eşlenen kod SESSİZ bir MISS üretir.
+
+        Eşleme "bu MD kodunun bizdeki karşılığı X" der; X yoksa benchmark sonsuza
+        kadar "MD raporladı, biz susuyoruz" yazar ve hiçbir şey itiraz etmez.
+        """
+        registry = (Path(__file__).resolve().parents[1]
+                    / "crates" / "rules" / "src" / "registry.rs").read_text(encoding="utf-8")
+        known = set(re.findall(r'r!\("([A-Z]{2,4}_\d{3}[a-z]?)"', registry))
+        self.assertGreater(len(known), 500, "registry ayrıştırması boş döndü — ÖNCE SORGUYU şüphelen")
+        for code, rules in audit.MAP.items():
+            for rule in rules:
+                with self.subTest(code=code, rule=rule):
+                    self.assertIn(rule, known, f"{code} → {rule}: registry'de böyle bir kural yok")
+        for entry in mapping.CONTEXT_MAPPINGS:
+            for rule in entry.analyzer_rules:
+                with self.subTest(code=entry.md_code, rule=rule):
+                    self.assertIn(rule, known, f"{entry.md_code} → {rule}: registry'de yok")
 
 
 if __name__ == "__main__":
