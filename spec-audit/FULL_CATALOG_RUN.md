@@ -53,24 +53,28 @@ sahte bulgular üretir.
 
 ## 5. 🔴 BU KOŞUMA ÖZEL — ÖNCEKİYLE KIYASLARKEN
 
-Önceki koşumdan (`31981225727`) bu yana ürün ciddi değişti. **Bulgu sayısındaki düşüş ürün
-iyileşmesi DEĞİLDİR**, aşağıdakilerin toplamıdır:
+> Bu bölüm **her koşumdan sonra yeniden yazılır.** Aşağıdaki hâli 4. koşum içindir;
+> 3. koşumun (`32145833613`) kendi uyarı tablosu git geçmişinde `98f09bdf`'ten önceki
+> sürümdedir.
+
+3. koşumdan (`32145833613`) bu yana üründe **kural davranışı değiştiren bir şey yok**;
+değişenler araç tarafında. Kıyas yaparken:
 
 | değişiklik | beklenen etki |
 |---|---|
-| 5 kural agregat oldu (`STM_007/018/019/032/056`) | **~%12 toplam bulgu düşüşü** |
-| ↳ `STM_056` | 3.297.317 → **~1.251** olmalı |
-| ↳ `STM_018`/`STM_019` | 1.743.530 / 1.743.526 → **9 / 5** |
-| K7 indeksleme | `mdb-2727` ve `mdb-3401` artık zaman aşımına UĞRAMAMALI |
-| `STM_015`/`STM_016` kaskad bastırma | R9 item sayısı düşer, ham bulgu DEĞİŞMEZ |
-| `RTS_031`, `FLG_008` (yeni kural) | küçük artış |
-| IDN kabulü, koordinat kurtarma, `FIN_019` sınırı | karışık |
+| `classify_analyzer` artık 124/137'yi `partial_timeout` sayıyor (`a791a0d4`) | `mdb-2014` **`completed` olmaktan çıkar**; `both_completed_cleanly` 1 azalır ve o feed sapma kıyasından DÜŞER. Bu bir gerileme değil, önceki koşumun kesik çıktıyı temiz sayması kusurunun kapanmasıdır. |
+| `point_near_pole` → `GEO_022` eşlendi (`d8b2820b`) | `md_unmapped` **5 → 3**'e iner; `analyzer_spec_md_absent` en fazla `GEO_022`'nin 4 feed'i kadar artabilir. Kapsam değişmedi, yalnız kitap düzeldi. |
 
-⚠️ **Agregasyonun çalıştığı İLK KEZ bu koşumda ölçülecek.** Etkilenen feed'lerin URL'leri
-403 verdiği için şu ana kadar hiç gözlenemedi; eldeki R5 rakamları kayıtlı veriden
-HESAPLANDI. `STM_056` beklenen seviyeye inmezse agregasyon çalışmıyor demektir (#151).
+⚠️ **`analyzer_spec_md_absent` (FP kovası) 254'ten geldi ve İÇİ YARGILANMADI.** 3. koşumda
+141 → 254 çıkışının tamamı #147'nin eşlemelerinden geliyordu (`analyzer_spec_unmapped`
+aynı anda 1.294 → 1.187 düştü). **Bu kovanın sayısı TEK BAŞINA asla ürün hükmü değildir —
+komşu kovanın karşılık gelen düşüşüyle birlikte okunur.**
 
-⚠️ **206 feed aynı SHA-256'yı paylaşıyor** (korpusun ~%5'i). Her "N feed" rakamı bu kadar
+⚠️ **Agregasyon artık DOĞRULANMIŞ durumda (#151 kapandı).** `STM_056` ~1.200,
+`STM_018` 9, `STM_019` 5, `STM_032` 45, `STM_007` 225 seviyelerinde OLMALI. Bunlar
+milyonlara geri çıkarsa agregasyon kırılmış demektir.
+
+⚠️ **202 feed aynı SHA-256'yı paylaşıyor** (korpusun ~%5'i). Her "N feed" rakamı bu kadar
 şişkindir; kıyas yaparken belirt.
 
 ## 6. Sonuçların yayımlanması
@@ -86,17 +90,24 @@ da böyle yapıldı. Küçültme, Release'e taşıma, dosya eleme YAPILMAZ.
 
 ## 7. Referans — önceki koşumlar
 
-| | run-31934698855 (08-16) | run-31981225727 (08-17) |
-|---|---:|---:|
-| denenen feed | 4.259 | 4.258 (`mdb-2904` dışlandı) |
-| iki validatör de temiz | 4.215 | 4.214 |
-| süre kapsaması | **0 / 4.259** 🔴 | 4.224/4.224 · 4.216/4.216 ✅ |
-| `md_mapped_missing` | 4.706 | 43 |
-| `md_unmapped` | 1.008 | 57 |
-| `adjudicated_divergence` | — | 9.595 |
-| medyan süre (Analyzer / MD) | ölçülmedi | 0,05 sn / 3,06 sn |
-| p95 süre | ölçülmedi | 3,65 sn / 12,72 sn |
-| aynı SHA-256 grubu | ölçülmedi | 101 grup / 206 feed |
+| | run-31934698855 (08-16) | run-31981225727 (08-17) | run-32145833613 (08-18) |
+|---|---:|---:|---:|
+| denenen feed | 4.259 | 4.258 (`mdb-2904` dışlandı) | 4.271 / 4.476 katalog satırı |
+| iki validatör de temiz | 4.215 | 4.214 | 4.229 |
+| süre kapsaması | **0 / 4.259** 🔴 | 4.224/4.224 · 4.216/4.216 ✅ | 4.239/4.229 ✅ |
+| `md_mapped_missing` | 4.706 | 43 | 39 |
+| `md_unmapped` | 1.008 | 57 | 5 |
+| `analyzer_spec_md_absent` | 134 | 141 | 254 (eşleme kaynaklı) |
+| `adjudicated_divergence` | — | 9.595 | 9.644 |
+| toplam Analyzer bulgusu | 45,5M | 46,9M | **40,3M** |
+| medyan süre (Analyzer / MD) | ölçülmedi | 0,05 sn / 3,06 sn | 0,05 sn / 2,98 sn |
+| p95 süre | ölçülmedi | 3,65 sn / 12,72 sn | 3,73 sn / 12,96 sn |
+| aynı SHA-256 grubu | ölçülmedi | 101 grup / 206 feed | 99 grup / 202 feed |
+
+🔑 **3. koşumun dersi: agregasyon ÖLÇÜLDÜ ve tahminler feed başına birebir tuttu.** Toplam
+46,9M → 40,3M (−%14,1) bir kalite ölçüsü DEĞİLDİR: agregasyonun eksilttiği (−8,93M) artı
+zaman aşımından kurtulan iki feed'in eklediğidir (+2.002.996). `mdb-2727` 300 sn → 7,92 sn,
+`mdb-3401` 300 sn → 11,75 sn. Aynı içerikli 589 feed'de medyan süre kayması −%0,5.
 
 🔑 **İki koşum arasında katalog neredeyse değişmedi** — ortak 4.258 feed'in 4.185'i bayt
 bayt aynıydı. MobilityData kontrol grubudur (kodu sabit): toplamı düz kaldı, bizimki
