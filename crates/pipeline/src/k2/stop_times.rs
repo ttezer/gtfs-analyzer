@@ -1057,6 +1057,10 @@ struct StChunk {
     /// issue #84: bu parçada kapanmamış tırnak görüldü mü (`ARC_013`).
     unclosed: bool,
     notices: Vec<Notice>,
+    /// STM_018/019: yüksek hacimde satır-başına notice yerine döngü sonunda
+    /// deterministik karar vermek için geçici bulgular.
+    stm018_pending: Vec<Notice>,
+    stm019_pending: Vec<Notice>,
     counter: u32,
     /// `STM_059` kapısı — feed'de booking_rules.txt var mı.
     has_booking_rules: bool,
@@ -1218,6 +1222,8 @@ impl StChunk {
             incoming.retain(|n| n.rule_id != "ARC_030");
         }
         self.notices.extend(incoming);
+        self.stm018_pending.extend(other.stm018_pending);
+        self.stm019_pending.extend(other.stm019_pending);
         self.arc021_fired |= other.arc021_fired;
         self.arc030_fired |= other.arc030_fired;
         self.counter += other.counter;
@@ -1563,13 +1569,13 @@ pub fn validate_stop_times(
 
         // STM_018: continuous_pickup 0-3
         let continuous_pickup = parse_pickup_dropoff_col(
-            get_col(row, cols.continuous_pickup), &mut st.notices, &mut st.counter,
+            get_col(row, cols.continuous_pickup), &mut st.stm018_pending, &mut st.counter,
             "STM_018", "continuous_pickup", trip_id.as_str(), line, &file.name,
         );
 
         // STM_019: continuous_drop_off 0-3
         let continuous_drop_off = parse_pickup_dropoff_col(
-            get_col(row, cols.continuous_drop_off), &mut st.notices, &mut st.counter,
+            get_col(row, cols.continuous_drop_off), &mut st.stm019_pending, &mut st.counter,
             "STM_019", "continuous_drop_off", trip_id.as_str(), line, &file.name,
         );
 
@@ -2137,6 +2143,34 @@ pub fn validate_stop_times(
         ));
     }
 
+    // STM_018/019 agregasyonu (#151): üreticilerde aynı enum ihlali çoğu zaman
+    // stop_times satırlarının tamamına yayıldığı için satır-başına raporlamak
+    // R2/R5/R9'u gürültüyle doldurur. SHP_010/STP_022 emsali gibi düşük hacimde
+    // pinpoint korunur, eşik üstünde tek feed özeti üretilir.
+    const STM018_019_AGG_THRESHOLD: usize = 50;
+    finalize_stm_pending(
+        &mut st.stm018_pending,
+        &mut st.notices,
+        &mut st.counter,
+        &file.name,
+        "STM_018",
+        "continuous_pickup",
+        "continuous_pickup alanlarını 0, 1, 2 veya 3 değerlerinden biri olarak düzeltin.",
+        "continuous_pickup alanı 0-3 dışında — aynı enum ihlali yüksek hacimde tekrarlanıyor.",
+        STM018_019_AGG_THRESHOLD,
+    );
+    finalize_stm_pending(
+        &mut st.stm019_pending,
+        &mut st.notices,
+        &mut st.counter,
+        &file.name,
+        "STM_019",
+        "continuous_drop_off",
+        "continuous_drop_off alanlarını 0, 1, 2 veya 3 değerlerinden biri olarak düzeltin.",
+        "continuous_drop_off alanı 0-3 dışında — aynı enum ihlali yüksek hacimde tekrarlanıyor.",
+        STM018_019_AGG_THRESHOLD,
+    );
+
     crate::timing::mem_log("  stop_times: st.all_rows + st.trips_agg built (pre-finalize)");
 
     // ── Finalize: in-place gruplama (Asama 1b + #15 W1) ──
@@ -2201,6 +2235,8 @@ pub fn validate_stop_times(
     // sıralı olmasını istemez.
     {
         let _t_032 = crate::timing::Timer::start("K2::st::fin::stm032");
+        let mut stm032_pending = Vec::new();
+        let mut stm056_pending = Vec::new();
         // trips_agg bir HashMap; emisyon sırası deterministik olsun diye trip_id'ye göre gez.
         let mut tids: Vec<&SmolStr> = st.trips_agg.keys().collect();
         tids.sort_unstable();
@@ -2211,7 +2247,7 @@ pub fn validate_stop_times(
             for w in rows[s..e].windows(2) {
                 let (a, b) = (&w[0], &w[1]);
                 if a.sequence != u32::MAX && a.sequence == b.sequence {
-                    st.notices.push(make_k2_notice(
+                    stm032_pending.push(make_k2_notice(
                         &mut st.counter, "STM_032", EntityType::Trip, Some(tid.to_string()),
                         None, &file.name, Some(b.line as u64), Some("stop_sequence"),
                         Some(b.sequence.to_string()), None,
@@ -2223,7 +2259,7 @@ pub fn validate_stop_times(
                 // shape_dist_traveled ARTMALI. Yalnız iki satırda da değer varsa karşılaştırılır;
                 // eksik değer STM_017'nin konusudur. NaN karşılaştırması false döner, guard şart.
                 if a.dist_f32.is_finite() && b.dist_f32.is_finite() && b.dist_f32 <= a.dist_f32 {
-                    st.notices.push(make_k2_notice(
+                    stm056_pending.push(make_k2_notice(
                         &mut st.counter, "STM_056", EntityType::Trip, Some(tid.to_string()),
                         None, &file.name, Some(b.line as u64), Some("shape_dist_traveled"),
                         Some(format!("{}", b.dist_f32)), Some(format!("> {}", a.dist_f32)),
@@ -2236,6 +2272,30 @@ pub fn validate_stop_times(
                 }
             }
         }
+        const STM032_AGG_THRESHOLD: usize = 50;
+        finalize_stm_pending(
+            &mut stm032_pending,
+            &mut st.notices,
+            &mut st.counter,
+            &file.name,
+            "STM_032",
+            "stop_sequence",
+            "Her (trip_id, stop_sequence) çifti stop_times.txt'te benzersiz olmalıdır.",
+            "stop_sequence tekrar ediyor — aynı (trip_id, stop_sequence) ihlali yüksek hacimde tekrarlanıyor.",
+            STM032_AGG_THRESHOLD,
+        );
+        const STM056_AGG_THRESHOLD: usize = 50;
+        finalize_stm_pending(
+            &mut stm056_pending,
+            &mut st.notices,
+            &mut st.counter,
+            &file.name,
+            "STM_056",
+            "shape_dist_traveled",
+            "stop_times.txt'te shape_dist_traveled değerlerini stop_sequence sırasına göre artan biçimde düzeltin.",
+            "shape_dist_traveled stop_sequence boyunca artmıyor — aynı mesafe sırası ihlali yüksek hacimde tekrarlanıyor.",
+            STM056_AGG_THRESHOLD,
+        );
     }
 
     // stop_id_set = stop_first_line anahtarları (aynı guard'larla → birebir aynı küme).
@@ -2341,6 +2401,46 @@ pub fn validate_stop_times(
     crate::timing::mem_log("  stop_times: index finalized (rows placed, st.all_rows freed, maps built)");
     index.log_mem_report();
     (index, st.notices)
+}
+
+#[allow(clippy::too_many_arguments)]
+fn finalize_stm_pending(
+    pending: &mut Vec<Notice>,
+    notices: &mut Vec<Notice>,
+    counter: &mut u32,
+    file_name: &str,
+    rule_id: &str,
+    field: &str,
+    remediation: &str,
+    summary: &str,
+    threshold: usize,
+) {
+    let n = pending.len();
+    if n > threshold {
+        // Pending listesi HashMap/chunk iterasyonundan geldiği için ham take(5)
+        // deterministik değildir. Önce sırala, sonra ilk 5'i al.
+        let mut examples: Vec<String> = pending.iter()
+            .filter_map(|x| x.entity_id.clone())
+            .collect();
+        examples.sort_unstable();
+        examples.truncate(5);
+        let mut notice = make_k2_notice(
+            counter, rule_id, EntityType::Feed, None,
+            None, file_name, None, Some(field),
+            Some(n.to_string()), None,
+            format!("{n} stop_times satırında {summary}"),
+            remediation,
+        );
+        let mut d = std::collections::BTreeMap::new();
+        d.insert("affected_rows".to_string(), n.to_string());
+        if !examples.is_empty() {
+            d.insert("example_trips".to_string(), examples.join(", "));
+        }
+        notice.details = Some(d);
+        notices.push(notice);
+    } else {
+        notices.append(pending);
+    }
 }
 
 // Bu validator ham değer, alan ve trip satırı bağlamını birlikte taşır; tek kullanımlık
@@ -2686,6 +2786,77 @@ mod tests {
         assert!(!ids.contains(&"STM_054"), "enum dışı değer STM_054'ü de tetiklememeli: {ids:?}");
     }
 
+    #[test]
+    fn stm018_above_threshold_aggregates_with_sorted_examples() {
+        // Girdi ters sırada: feed özeti HashMap/chunk iterasyon sırasına bağlı kalmamalı.
+        let ids: Vec<String> = (0..51).rev().map(|i| format!("T{i:02}")).collect();
+        let rows: Vec<Vec<&str>> = ids.iter()
+            .map(|id| vec![id.as_str(), id.as_str(), "9"])
+            .collect();
+        let file = make_file(vec!["trip_id", "stop_id", "continuous_pickup"], rows);
+        let (_, notices) = validate_stop_times(&file, None, false);
+        let stm018: Vec<_> = notices.iter().filter(|n| n.rule_id == "STM_018").collect();
+        assert_eq!(stm018.len(), 1, "51 ihlal tek feed-özeti olmalı: {stm018:?}");
+        assert_eq!(stm018[0].entity_type, EntityType::Feed);
+        assert_eq!(stm018[0].observed_value.as_deref(), Some("51"));
+        assert_eq!(
+            stm018[0].details.as_ref().and_then(|d| d.get("affected_rows")).map(String::as_str),
+            Some("51"),
+        );
+        assert_eq!(
+            stm018[0].details.as_ref().and_then(|d| d.get("example_trips")).map(String::as_str),
+            Some("T00, T01, T02, T03, T04"),
+        );
+    }
+
+    #[test]
+    fn stm018_at_or_below_threshold_keeps_pinpoint_notices() {
+        let file = make_file(
+            vec!["trip_id", "stop_id", "continuous_pickup"],
+            vec![vec!["T2", "S2", "9"], vec!["T1", "S1", "9"]],
+        );
+        let (_, notices) = validate_stop_times(&file, None, false);
+        let stm018: Vec<_> = notices.iter().filter(|n| n.rule_id == "STM_018").collect();
+        assert_eq!(stm018.len(), 2, "düşük hacimde iki pinpoint notice korunmalı");
+        assert!(stm018.iter().all(|n| n.entity_type == EntityType::Trip));
+        assert!(stm018.iter().all(|n| n.details.is_none()));
+    }
+
+    #[test]
+    fn stm019_above_threshold_aggregates_with_sorted_examples() {
+        let ids: Vec<String> = (0..51).rev().map(|i| format!("T{i:02}")).collect();
+        let rows: Vec<Vec<&str>> = ids.iter()
+            .map(|id| vec![id.as_str(), id.as_str(), "9"])
+            .collect();
+        let file = make_file(vec!["trip_id", "stop_id", "continuous_drop_off"], rows);
+        let (_, notices) = validate_stop_times(&file, None, false);
+        let stm019: Vec<_> = notices.iter().filter(|n| n.rule_id == "STM_019").collect();
+        assert_eq!(stm019.len(), 1, "51 ihlal tek feed-özeti olmalı: {stm019:?}");
+        assert_eq!(stm019[0].entity_type, EntityType::Feed);
+        assert_eq!(stm019[0].observed_value.as_deref(), Some("51"));
+        assert_eq!(
+            stm019[0].details.as_ref().and_then(|d| d.get("affected_rows")).map(String::as_str),
+            Some("51"),
+        );
+        assert_eq!(
+            stm019[0].details.as_ref().and_then(|d| d.get("example_trips")).map(String::as_str),
+            Some("T00, T01, T02, T03, T04"),
+        );
+    }
+
+    #[test]
+    fn stm019_at_or_below_threshold_keeps_pinpoint_notices() {
+        let file = make_file(
+            vec!["trip_id", "stop_id", "continuous_drop_off"],
+            vec![vec!["T2", "S2", "9"], vec!["T1", "S1", "9"]],
+        );
+        let (_, notices) = validate_stop_times(&file, None, false);
+        let stm019: Vec<_> = notices.iter().filter(|n| n.rule_id == "STM_019").collect();
+        assert_eq!(stm019.len(), 2, "düşük hacimde iki pinpoint notice korunmalı");
+        assert!(stm019.iter().all(|n| n.entity_type == EntityType::Trip));
+        assert!(stm019.iter().all(|n| n.details.is_none()));
+    }
+
     // ── STM_036/032 + finalize çıktı alanları (K2 hashmap-birleştirme refactor güvenlik ağı) ──
     #[test]
     fn duplicate_stop_sequence_produces_stm_032() {
@@ -2698,6 +2869,51 @@ mod tests {
         );
         let (_, notices) = validate_stop_times(&file, None, false);
         assert!(notices.iter().any(|n| n.rule_id == "STM_032"), "STM_032 bekleniyor: {:?}", notices);
+    }
+
+    #[test]
+    fn stm032_above_threshold_aggregates_with_sorted_examples() {
+        let ids: Vec<String> = (0..51).rev().map(|i| format!("T{i:02}")).collect();
+        let mut rows = Vec::with_capacity(102);
+        for id in &ids {
+            rows.push(vec![id.as_str(), "08:00:00", "08:00:00", "S1", "1"]);
+            rows.push(vec![id.as_str(), "08:10:00", "08:10:00", "S2", "1"]);
+        }
+        let file = make_file(
+            vec!["trip_id", "arrival_time", "departure_time", "stop_id", "stop_sequence"],
+            rows,
+        );
+        let (_, notices) = validate_stop_times(&file, None, false);
+        let stm032: Vec<_> = notices.iter().filter(|n| n.rule_id == "STM_032").collect();
+        assert_eq!(stm032.len(), 1, "51 ihlal tek feed-özeti olmalı: {stm032:?}");
+        assert_eq!(stm032[0].entity_type, EntityType::Feed);
+        assert_eq!(stm032[0].observed_value.as_deref(), Some("51"));
+        assert_eq!(
+            stm032[0].details.as_ref().and_then(|d| d.get("affected_rows")).map(String::as_str),
+            Some("51"),
+        );
+        assert_eq!(
+            stm032[0].details.as_ref().and_then(|d| d.get("example_trips")).map(String::as_str),
+            Some("T00, T01, T02, T03, T04"),
+        );
+    }
+
+    #[test]
+    fn stm032_at_or_below_threshold_keeps_pinpoint_notices() {
+        let file = make_file(
+            vec!["trip_id", "arrival_time", "departure_time", "stop_id", "stop_sequence"],
+            vec![
+                vec!["T2", "08:00:00", "08:00:00", "S1", "1"],
+                vec!["T2", "08:10:00", "08:10:00", "S2", "1"],
+                vec!["T1", "09:00:00", "09:00:00", "S1", "1"],
+                vec!["T1", "09:10:00", "09:10:00", "S2", "1"],
+            ],
+        );
+        let (_, notices) = validate_stop_times(&file, None, false);
+        let stm032: Vec<_> = notices.iter().filter(|n| n.rule_id == "STM_032").collect();
+        assert_eq!(stm032.len(), 2, "düşük hacimde iki pinpoint notice korunmalı");
+        assert!(stm032.iter().all(|n| n.entity_type == EntityType::Trip));
+        assert!(stm032.iter().all(|n| n.details.is_none()));
     }
 
     /// #97 kabul matrisi: `stop_sequence` ARTIŞ hükmünü ölçen kural SPEC sınıfında olmalı,
@@ -2761,6 +2977,57 @@ mod tests {
         ]);
         let (_, notices) = validate_stop_times(&file, None, false);
         assert!(notices.iter().any(|n| n.rule_id == "STM_056"), "azalan değer STM_056 üretmeli");
+    }
+
+    #[test]
+    fn stm056_above_threshold_aggregates_with_sorted_examples() {
+        let ids: Vec<String> = (0..51).rev().map(|i| format!("T{i:02}")).collect();
+        let mut rows = Vec::with_capacity(102);
+        for id in &ids {
+            rows.push(vec![id.as_str(), "08:00:00", "08:00:00", "S1", "1", "100"]);
+            rows.push(vec![id.as_str(), "08:10:00", "08:10:00", "S2", "2", "100"]);
+        }
+        let file = make_file(
+            vec![
+                "trip_id", "arrival_time", "departure_time", "stop_id", "stop_sequence",
+                "shape_dist_traveled",
+            ],
+            rows,
+        );
+        let (_, notices) = validate_stop_times(&file, None, false);
+        let stm056: Vec<_> = notices.iter().filter(|n| n.rule_id == "STM_056").collect();
+        assert_eq!(stm056.len(), 1, "51 ihlal tek feed-özeti olmalı: {stm056:?}");
+        assert_eq!(stm056[0].entity_type, EntityType::Feed);
+        assert_eq!(stm056[0].observed_value.as_deref(), Some("51"));
+        assert_eq!(
+            stm056[0].details.as_ref().and_then(|d| d.get("affected_rows")).map(String::as_str),
+            Some("51"),
+        );
+        assert_eq!(
+            stm056[0].details.as_ref().and_then(|d| d.get("example_trips")).map(String::as_str),
+            Some("T00, T01, T02, T03, T04"),
+        );
+    }
+
+    #[test]
+    fn stm056_at_or_below_threshold_keeps_pinpoint_notices() {
+        let file = make_file(
+            vec![
+                "trip_id", "arrival_time", "departure_time", "stop_id", "stop_sequence",
+                "shape_dist_traveled",
+            ],
+            vec![
+                vec!["T2", "08:00:00", "08:00:00", "S1", "1", "100"],
+                vec!["T2", "08:10:00", "08:10:00", "S2", "2", "100"],
+                vec!["T1", "09:00:00", "09:00:00", "S1", "1", "250"],
+                vec!["T1", "09:10:00", "09:10:00", "S2", "2", "100"],
+            ],
+        );
+        let (_, notices) = validate_stop_times(&file, None, false);
+        let stm056: Vec<_> = notices.iter().filter(|n| n.rule_id == "STM_056").collect();
+        assert_eq!(stm056.len(), 2, "düşük hacimde iki pinpoint notice korunmalı");
+        assert!(stm056.iter().all(|n| n.entity_type == EntityType::Trip));
+        assert!(stm056.iter().all(|n| n.details.is_none()));
     }
 
     #[test]

@@ -277,6 +277,47 @@ fn k6_notice(
     )
 }
 
+fn finalize_stm007_pending(
+    pending: &mut Vec<Notice>,
+    notices: &mut Vec<Notice>,
+    ctr: &mut u32,
+    rule_id: &str,
+    threshold: usize,
+) {
+    let n = pending.len();
+    if n > threshold {
+        // HashMap/chunk kaynaklı ham take(5) deterministik değildir: önce sırala.
+        let mut examples: Vec<String> = pending.iter()
+            .filter_map(|notice| notice.entity_id.clone())
+            .collect();
+        examples.sort_unstable();
+        examples.truncate(5);
+        let mut notice = k6_notice(
+            ctr,
+            rule_id,
+            EntityType::Feed,
+            None,
+            None,
+            "stop_times.txt",
+            None,
+            Some("departure_time"),
+            Some(n.to_string()),
+            None,
+            format!("{n} stop_times satırında departure_time arrival_time değerinden önce — aynı satır-içi zaman ihlali yüksek hacimde tekrarlanıyor."),
+            "stop_times.txt'te kalkış zamanını varış zamanından sonra (veya eşit) ayarlayın.",
+        );
+        let mut details = BTreeMap::new();
+        details.insert("affected_rows".to_string(), n.to_string());
+        if !examples.is_empty() {
+            details.insert("example_trips".to_string(), examples.join(", "));
+        }
+        notice.details = Some(details);
+        notices.push(notice);
+    } else {
+        notices.append(pending);
+    }
+}
+
 // ── Yardımcı fonksiyonlar ─────────────────────────────────────────────────────
 
 /// stop_id'nin sayısal kök kısmını döndürür: sondaki harf ekini ayıklar.
@@ -758,6 +799,7 @@ fn check_speed_and_duration<'a>(
 ) {
     use crate::timing::Timer;
     let ti_sd = &records.trip_interns;
+    let mut stm007_pending: Vec<Notice> = Vec::new();
 
     let (stop_coords, stop_name_sd, trip_route_type, trip_to_route, route_short_sd, trip_direction, trip_headsign_sd, trip_service) = {
         let _t = Timer::start("K6::sd::setup");
@@ -962,7 +1004,7 @@ fn check_speed_and_duration<'a>(
                 d.insert("arr".to_string(), format_hms(arr_s));
                 n.details = Some(d);
                 n.service_id = Some(svc_sd.to_string());
-                notices.push(n);
+                stm007_pending.push(n);
             }
         }
 
@@ -1490,6 +1532,12 @@ fn check_speed_and_duration<'a>(
             notices.push(n);
         }
     }
+
+    // STM_007: düşük hacimde satır-başına pinpoint, yüksek hacimde tek feed özeti.
+    // Eşik SHP_010/STP_022 ile aynı tutulur; örnekler HashMap/chunk sırasından
+    // etkilenmesin diye finalize_stm007_pending içinde sıralanır.
+    const STM007_AGG_THRESHOLD: usize = 50;
+    finalize_stm007_pending(&mut stm007_pending, notices, ctr, "STM_007", STM007_AGG_THRESHOLD);
 
 }
 
@@ -9767,6 +9815,57 @@ mod tests {
         );
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
         assert!(result.notices.iter().any(|n| n.rule_id == "STM_007"));
+    }
+
+    #[test]
+    fn stm007_above_threshold_aggregates_with_sorted_examples() {
+        let ids: Vec<String> = (0..51).rev().map(|i| format!("T{i:02}")).collect();
+        let trips: Vec<_> = ids.iter().map(|id| trip(id, "R1")).collect();
+        let mut stoptimes = Vec::with_capacity(102);
+        for (i, id) in ids.iter().enumerate() {
+            let line = 2 + (i as u64) * 2;
+            stoptimes.push(stoptime(id, 1, "A", (8, 0, 0), (8, 0, 0), line));
+            stoptimes.push(stoptime(id, 2, "B", (9, 0, 0), (8, 0, 0), line + 1));
+        }
+        let records = records_with(
+            vec![stop("A", 41.0, 29.0), stop("B", 41.01, 29.01)],
+            vec![route("R1", 3)],
+            trips,
+            stoptimes,
+        );
+        let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
+        let stm007: Vec<_> = result.notices.iter().filter(|n| n.rule_id == "STM_007").collect();
+        assert_eq!(stm007.len(), 1, "51 ihlal tek feed-özeti olmalı: {stm007:?}");
+        assert_eq!(stm007[0].entity_type, EntityType::Feed);
+        assert_eq!(stm007[0].observed_value.as_deref(), Some("51"));
+        assert_eq!(
+            stm007[0].details.as_ref().and_then(|d| d.get("affected_rows")).map(String::as_str),
+            Some("51"),
+        );
+        assert_eq!(
+            stm007[0].details.as_ref().and_then(|d| d.get("example_trips")).map(String::as_str),
+            Some("T00, T01, T02, T03, T04"),
+        );
+    }
+
+    #[test]
+    fn stm007_at_or_below_threshold_keeps_pinpoint_notices() {
+        let records = records_with(
+            vec![stop("A", 41.0, 29.0), stop("B", 41.01, 29.01)],
+            vec![route("R1", 3)],
+            vec![trip("T2", "R1"), trip("T1", "R1")],
+            vec![
+                stoptime("T2", 1, "A", (8, 0, 0), (8, 0, 0), 2),
+                stoptime("T2", 2, "B", (9, 0, 0), (8, 0, 0), 3),
+                stoptime("T1", 1, "A", (10, 0, 0), (10, 0, 0), 4),
+                stoptime("T1", 2, "B", (11, 0, 0), (10, 0, 0), 5),
+            ],
+        );
+        let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
+        let stm007: Vec<_> = result.notices.iter().filter(|n| n.rule_id == "STM_007").collect();
+        assert_eq!(stm007.len(), 2, "düşük hacimde iki pinpoint notice korunmalı");
+        assert!(stm007.iter().all(|n| n.entity_type == EntityType::Trip));
+        assert!(stm007.iter().all(|n| n.details.is_some()));
     }
 
     #[test]

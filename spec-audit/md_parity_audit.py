@@ -224,6 +224,8 @@ AGG_RULES = {
     "DQ_016",   # 2026-07-17: DOSYA başına tek özet (c95189e). MD alan-değeri başına sayar
                 # → our_count << md_count ARTIK NORMAL. (Kendi dersimizin tekrarı: kuralı
                 # agregat yapınca AGG_RULES'a da ekle — STM_014'te de unutulmuştu.)
+    "STM_018", "STM_019", "STM_032", "STM_007", "STM_056",  # 2026-08-18: >50 stop_times satırında tek feed özeti (#151);
+                            # MD satır-başına sayar → our_count << md_count NORMAL.
     "SHP_012",  # per-SHAPE özeti: shape başına TEK notice, observed="N durak >100m".
                 # MD (sefer,durak) başına sayar → aynı shape N seferde kullanılırsa MD N katı.
                 # mdb-2366: bizim 171 notice içinde 3.338 uzak durak, MD 1.794 occurrence
