@@ -169,6 +169,11 @@ CONTEXT_MAPPINGS: tuple[ContextMapping, ...] = (
     _ctx("number_out_of_range", "FRQ_008", filename=("frequencies.txt",), fields=("headway_secs",), value_range=(0, 0), label="frequencies.txt::headway_secs zero"),
     # Generic notices are resolved by filename/field. A partial sample stays
     # CONTEXT, so an unseen field cannot be presented as exact parity.
+    # invalid_time / invalid_float — alan bağlamıyla çözülür (#155). Düz eşleme yanlış
+    # olurdu: MD tek kodu iki ayrı alan için basıyor ve bizde iki ayrı kural sahipleniyor.
+    _ctx("invalid_time", "STM_003", filename=("stop_times.txt",), fields=("arrival_time",), label="stop_times.txt::arrival_time"),
+    _ctx("invalid_time", "STM_004", filename=("stop_times.txt",), fields=("departure_time",), label="stop_times.txt::departure_time"),
+    _ctx("invalid_float", "FAR_002", filename=("fare_attributes.txt",), fields=("price",), label="fare_attributes.txt::price"),
     _ctx("invalid_integer", "TRP_005", filename=("trips.txt",), fields=("direction_id",), label="trips.txt::direction_id"),
     # missing_required_file
     #

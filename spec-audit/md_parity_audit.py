@@ -86,6 +86,22 @@ MAP = {
     # BOŞ koordinatın sahibi STP_006/STP_007'dir. 7/7 feed doğrulandı — boşluk YOKTU,
     # yalnız eşleme eksikti.
     "stop_without_location":            ["STP_006", "STP_007"],
+    # ── #147 turu: eşlemesiz 26 kodun 13'ü, her biri korpusta DOĞRULANDI (#155).
+    # Yöntem: aday kuralı ada göre değil, MD'nin raporladığı feed'lerde GERÇEKTEN
+    # ateşleyip ateşlemediğine göre seç. Ateşlemiyorsa eşleme YAZILMAZ.
+    "route_both_short_and_long_name_missing": ["RTS_003"],      # 2/2 feed
+    "missing_stop_name":                ["STP_003"],            # 2/2
+    "inconsistent_agency_timezone":     ["AGN_005"],            # 2/2
+    "invalid_language_code":            ["AGN_006"],            # 1/1
+    "invalid_timezone":                 ["AGN_004"],            # 1/1
+    "inconsistent_agency_lang":         ["AGN_017", "AGN_013"], # 4/4 ikisi de
+    "new_line_in_value":                ["ARC_030"],            # 3/3 — sekme/CR/LF yasağı
+    "translation_unknown_table_name":   ["TRN_001"],            # 2/2
+    "stop_time_with_only_arrival_or_departure_time": ["STM_034"],  # 1/1
+    "missing_prior_notice_last_time":   ["BKR_009"],            # 1/1
+    "empty_column_name":                ["ARC_017"],            # 5/5 — boş başlık tanınmayan sütundur
+    "missing_pickup_or_drop_off_window": ["STM_039", "PDW_006"],# 1/1 ikisi de
+    "invalid_pickup_drop_off_window":   ["PDW_006"],            # 3/4
     # ── Trips / bloklar ──
     "trip_headsign_matches_intermediate_stop": ["TRP_020"],  # AGG: per-trip (MD per-occurrence)
     "block_trips_with_overlapping_stop_times": ["TRP_022"],  # MD ERROR; bizde ~eşleşir (aynı-gün blok)
