@@ -162,9 +162,20 @@ pub fn analyze_with_files(
         let _t = Timer::start("K6::calendar_analytics"); let mut v = Vec::new(); let mut c = 0u32;
         check_calendar_analytics(records, derived, config, today_yyyymmdd, &mut v, &mut c); v
     });
-    add_task!("K6::geo_analytics", availability.all(&["stops.txt", "routes.txt", "trips.txt", "stop_times.txt"]), || {
-        let _t = Timer::start("K6::geo_analytics"); let mut v = Vec::new(); let mut c = 0u32;
-        check_geo_analytics(records, derived, config, &rail, &mut v, &mut c); v
+    // Üç ayrı kapı: her biri kendi bloklarının GERÇEKTEN okuduğu dosyayı ister.
+    // Tek `all(&[stops, routes, trips, stop_times])` kapısı, yalnız `stops.txt`
+    // isteyen kontrolleri de ilgisiz bir dosya yüzünden öldürüyordu (#160).
+    add_task!("K6::geo_stops", availability.available("stops.txt"), || {
+        let _t = Timer::start("K6::geo_stops"); let mut v = Vec::new(); let mut c = 0u32;
+        check_geo_stop_analytics(records, derived, config, &mut v, &mut c); v
+    });
+    add_task!("K6::geo_shapes", availability.available("shapes.txt"), || {
+        let _t = Timer::start("K6::geo_shapes"); let mut v = Vec::new(); let mut c = 0u32;
+        check_geo_shape_analytics(records, derived, config, &rail, &mut v, &mut c); v
+    });
+    add_task!("K6::geo_shape_trips", availability.all(&["stops.txt", "trips.txt", "stop_times.txt", "shapes.txt"]), || {
+        let _t = Timer::start("K6::geo_shape_trips"); let mut v = Vec::new(); let mut c = 0u32;
+        check_geo_shape_trip_analytics(records, config, &rail, &mut v, &mut c); v
     });
     add_task!("K6::operational_analytics", availability.all(&["stops.txt", "routes.txt", "trips.txt", "stop_times.txt"]), || {
         let _t = Timer::start("K6::operational_analytics"); let mut v = Vec::new(); let mut c = 0u32;
@@ -2217,54 +2228,23 @@ fn check_calendar_analytics(
 
 // ── WP-09c: Coğrafi analitik ─────────────────────────────────────────────────
 
-fn check_geo_analytics(
+// 🔴 `K6::geo_analytics` TEK bir task'tı ve dört dosyaya birden kapılıydı
+// (`stops`, `routes`, `trips`, `stop_times`). Kapı içindeki kontrollerin gerçek
+// ihtiyaçlarının BİRLEŞİMİYDİ, üstelik `routes.txt`'i HİÇBİR blok okumuyordu.
+// Sonuç: bozuk bir `routes.txt` yalnız `stops.txt` isteyen `GEO_016`'yı da
+// öldürüyordu — `tdg-83820`'de MD Null Island raporlarken biz susuyorduk.
+// Yüklem değil BAĞIMLILIK kusuruydu (#160), `recoverable_stop_coord` ile aynı
+// aile: kural doğruydu, girdiyi tesisat düşürüyordu.
+
+/// Yalnız `stops.txt` gerektiren coğrafi kontroller.
+fn check_geo_stop_analytics(
     records: &EntityRecords,
     derived: &DerivedData,
     config: &ValidatorConfig,
-    rail: &RailIndex<'_>,
     notices: &mut Vec<Notice>,
     ctr: &mut u32,
 ) {
-    let rail_shapes = &rail.shapes;
     use crate::timing::Timer;
-
-    // GEO_006: shape segmentleri arası büyük atlama (jump)
-    // GEO_007: aynı — GEO_006'dan biraz farklı ciddiyette ama aynı kontrol
-    let _tg6 = Timer::start("K6::geo::geo_006");
-    // GEO_007 aynı segmentleri 3× eşikle tarıyor. Eskiden iki koşul birbirini
-    // dışlamıyordu → 3× üstü bir atlama HEM GEO_006 HEM GEO_007 üretiyor, aynı segment
-    // iki kez raporlanıp R5 skorunda iki kez sayılıyordu. Artık katmanlı: bu aralık
-    // GEO_006'nın, üstü GEO_007'nin.
-    for (shape_id, seg) in &derived.shape_geometry.shapes {
-        // Eşik shape başına: raylı güzergahlarda sadeleştirilmiş uzun düz kesimler meşrudur.
-        let max_jump_km = shape_jump_threshold_km(shape_id, rail_shapes, config);
-        let severe_km = max_jump_km * 3.0;
-        for (i, &dist) in seg.segment_distances_km.iter().enumerate() {
-            if dist > severe_km {
-                continue; // → GEO_007
-            }
-            if dist > max_jump_km {
-                notices.push(k6_notice(
-                    ctr,
-                    "GEO_006",
-                    EntityType::Shape,
-                    Some(shape_id.clone()),
-                    Some(shape_id.clone()),
-                    "shapes.txt",
-                    None,
-                    Some("shape_pt_lat|shape_pt_lon"),
-                    Some(format!("{dist:.2} km (segment {i}→{})", i + 1)),
-                    Some(format!("≤ {max_jump_km} km")),
-                    format!("'{shape_id}' güzergahının {i}→{}. segmentinde {dist:.2}km atlama — eşik {max_jump_km}km.",
-                        i + 1),
-                    "Aralarında koordinat eksik olan güzergah noktalarını ekleyin.",
-                ));
-            }
-        }
-    }
-
-    drop(_tg6);
-
     // STP_017 / STP_016: birbirine çok yakın iki durak
     // Lat-sıralı sliding window — O(n log n), eski O(n²) spatial-grid yerine.
     // SPATIAL_CELL_DEG=0.5° ile tüm şehir tek hücreye düşüyordu (~4M çift); bu önler.
@@ -2531,27 +2511,6 @@ fn check_geo_analytics(
         }
     }
 
-    // GEO_017: Shape noktası Null Island yakınında — her shape için en fazla 1 notice
-    {
-        let mut flagged: HashSet<u32> = HashSet::new();
-        for pt in &records.shapes {
-            if flagged.contains(&pt.shape_idx()) { continue; }
-            let (Some(lat), Some(lon)) = (pt.shape_pt_lat(), pt.shape_pt_lon()) else { continue };
-            if lat.abs() < 0.1 && lon.abs() < 0.1 {
-                flagged.insert(pt.shape_idx());
-                let sid = records.shape_interns.id(pt);
-                notices.push(k6_notice(
-                    ctr, "GEO_017", EntityType::Shape,
-                    Some(sid.to_string()), Some(sid.to_string()),
-                    "shapes.txt", Some(pt.line as u64), Some("shape_pt_lat|shape_pt_lon"),
-                    Some(format!("{lat:.6},{lon:.6}")), None,
-                    format!("'{sid}' şeklinde Null Island yakınında nokta bulundu ({lat:.6},{lon:.6}) — GPS veri hatası olabilir."),
-                    "shapes.txt'deki sıfır değerli koordinatları kontrol edin.",
-                ));
-            }
-        }
-    }
-
     // GEO_018: Tüm feed durakları 200m'lik bir alan içinde — test/yer tutucu veri
     {
         let coords: Vec<(f64, f64)> = records.stops.iter()
@@ -2598,6 +2557,87 @@ fn check_geo_analytics(
         }
     }
 
+}
+
+/// Yalnız `shapes.txt` gerektiren coğrafi kontroller.
+fn check_geo_shape_analytics(
+    records: &EntityRecords,
+    derived: &DerivedData,
+    config: &ValidatorConfig,
+    rail: &RailIndex<'_>,
+    notices: &mut Vec<Notice>,
+    ctr: &mut u32,
+) {
+    let rail_shapes = &rail.shapes;
+    use crate::timing::Timer;
+    // GEO_006: shape segmentleri arası büyük atlama (jump)
+    // GEO_007: aynı — GEO_006'dan biraz farklı ciddiyette ama aynı kontrol
+    let _tg6 = Timer::start("K6::geo::geo_006");
+    // GEO_007 aynı segmentleri 3× eşikle tarıyor. Eskiden iki koşul birbirini
+    // dışlamıyordu → 3× üstü bir atlama HEM GEO_006 HEM GEO_007 üretiyor, aynı segment
+    // iki kez raporlanıp R5 skorunda iki kez sayılıyordu. Artık katmanlı: bu aralık
+    // GEO_006'nın, üstü GEO_007'nin.
+    for (shape_id, seg) in &derived.shape_geometry.shapes {
+        // Eşik shape başına: raylı güzergahlarda sadeleştirilmiş uzun düz kesimler meşrudur.
+        let max_jump_km = shape_jump_threshold_km(shape_id, rail_shapes, config);
+        let severe_km = max_jump_km * 3.0;
+        for (i, &dist) in seg.segment_distances_km.iter().enumerate() {
+            if dist > severe_km {
+                continue; // → GEO_007
+            }
+            if dist > max_jump_km {
+                notices.push(k6_notice(
+                    ctr,
+                    "GEO_006",
+                    EntityType::Shape,
+                    Some(shape_id.clone()),
+                    Some(shape_id.clone()),
+                    "shapes.txt",
+                    None,
+                    Some("shape_pt_lat|shape_pt_lon"),
+                    Some(format!("{dist:.2} km (segment {i}→{})", i + 1)),
+                    Some(format!("≤ {max_jump_km} km")),
+                    format!("'{shape_id}' güzergahının {i}→{}. segmentinde {dist:.2}km atlama — eşik {max_jump_km}km.",
+                        i + 1),
+                    "Aralarında koordinat eksik olan güzergah noktalarını ekleyin.",
+                ));
+            }
+        }
+    }
+
+    drop(_tg6);
+
+    // GEO_017: Shape noktası Null Island yakınında — her shape için en fazla 1 notice
+    {
+        let mut flagged: HashSet<u32> = HashSet::new();
+        for pt in &records.shapes {
+            if flagged.contains(&pt.shape_idx()) { continue; }
+            let (Some(lat), Some(lon)) = (pt.shape_pt_lat(), pt.shape_pt_lon()) else { continue };
+            if lat.abs() < 0.1 && lon.abs() < 0.1 {
+                flagged.insert(pt.shape_idx());
+                let sid = records.shape_interns.id(pt);
+                notices.push(k6_notice(
+                    ctr, "GEO_017", EntityType::Shape,
+                    Some(sid.to_string()), Some(sid.to_string()),
+                    "shapes.txt", Some(pt.line as u64), Some("shape_pt_lat|shape_pt_lon"),
+                    Some(format!("{lat:.6},{lon:.6}")), None,
+                    format!("'{sid}' şeklinde Null Island yakınında nokta bulundu ({lat:.6},{lon:.6}) — GPS veri hatası olabilir."),
+                    "shapes.txt'deki sıfır değerli koordinatları kontrol edin.",
+                ));
+            }
+        }
+    }
+
+}
+
+/// Shape ↔ sefer ↔ durak birlikteliği gerektiren coğrafi kontroller.
+fn check_geo_shape_trip_analytics(
+    records: &EntityRecords,
+    config: &ValidatorConfig,
+    rail: &RailIndex<'_>,
+    notices: &mut Vec<Notice>,
+    ctr: &mut u32,
+) {
     // GEO_020: Shape'in tüm noktaları aynı koordinatta (dejenere geometri)
     {
         // Nokta sayısı AYNI geçişte toplanır: eskiden her dejenere shape için
@@ -2784,8 +2824,9 @@ fn check_geo_analytics(
         }
     }
 
-    drop(_tgeo2);
+    // (`_tgeo2` artık `check_geo_stop_analytics`'in sonunda düşüyor — #160 bölmesi)
 }
+
 
 // ── WP-09c: Operasyonel analitik ─────────────────────────────────────────────
 
@@ -11151,6 +11192,72 @@ mod tests {
             &availability,
         );
         assert!(!result.notices.iter().any(|n| n.rule_id == "DQ_005"));
+    }
+
+    #[test]
+    fn geo_016_survives_a_broken_routes_file() {
+        // #160: `K6::geo_analytics` dört dosyaya birden kapılıydı ve `routes.txt`'i
+        // HİÇBİR blok okumuyordu. Bozuk bir routes.txt, yalnız `stops.txt` isteyen
+        // Null Island kontrolünü de öldürüyordu — `tdg-83820`'de MD `point_near_origin`
+        // raporlarken biz susuyorduk. Yüklem değil BAĞIMLILIK kusuruydu.
+        let records = records_with(
+            vec![stop("A", 0.0, 0.0)],   // Null Island
+            vec![route("R1", 3)],
+            vec![trip("T1", "R1")],
+            vec![stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2)],
+        );
+
+        let present = std::collections::HashSet::from([
+            "stops.txt".to_string(),
+            "routes.txt".to_string(),
+            "trips.txt".to_string(),
+            "stop_times.txt".to_string(),
+        ]);
+        let unavailable = vec!["routes.txt".to_string()];
+        let availability = FileAvailability::from_k1(&present, &unavailable);
+        let result = analyze_with_files(
+            &records,
+            &DerivedData::default(),
+            &default_config(),
+            20260514,
+            &availability,
+        );
+        assert!(
+            result.notices.iter().any(|n| n.rule_id == "GEO_016"),
+            "routes.txt okunamıyor diye stops.txt'e bakan GEO_016 susmamalı: {:?}",
+            result.notices.iter().map(|n| &n.rule_id).collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
+    fn geo_016_fires_with_stops_alone() {
+        // Kapının alt sınırı: tek dosyayla da çalışmalı.
+        let records = records_with(vec![stop("A", 0.0, 0.0)], vec![], vec![], vec![]);
+        let present = std::collections::HashSet::from(["stops.txt".to_string()]);
+        let availability = FileAvailability::from_k1(&present, &[]);
+        let result = analyze_with_files(
+            &records,
+            &DerivedData::default(),
+            &default_config(),
+            20260514,
+            &availability,
+        );
+        assert!(result.notices.iter().any(|n| n.rule_id == "GEO_016"));
+    }
+
+    #[test]
+    fn geo_016_stays_silent_without_stops() {
+        let records = records_with(vec![], vec![], vec![], vec![]);
+        let present = std::collections::HashSet::from(["routes.txt".to_string()]);
+        let availability = FileAvailability::from_k1(&present, &[]);
+        let result = analyze_with_files(
+            &records,
+            &DerivedData::default(),
+            &default_config(),
+            20260514,
+            &availability,
+        );
+        assert!(!result.notices.iter().any(|n| n.rule_id == "GEO_016"));
     }
 
     // ── WP-09e: Entegrasyon smoke testleri ──────────────────────────────────
