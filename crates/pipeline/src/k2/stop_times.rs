@@ -1822,17 +1822,22 @@ pub fn validate_stop_times(
             }
         }
 
-        // STM_038: start_window > end_window
+        // STM_038: start_window >= end_window
+        // Eşitlik de hatadır: sıfır uzunluklu bir pencere hizmetin hiçbir an açık
+        // olmadığı anlamına gelir. Spec bu sıralamayı HİÇ yazmaz; kural Interop'tur
+        // ve şeklini MobilityData belirler: "end_pickup_drop_off_window must be
+        // strictly later than the start_pickup_drop_off_window". Eskiden yalnız
+        // `>` bakıyorduk ve eşitliği kaçırıyorduk (mdb-2741'de MD 38, bizde 0).
         if let (Some(sw), Some(ew)) = (start_window, end_window) {
             let sw_secs = sw.0 * 3600 + sw.1 * 60 + sw.2;
             let ew_secs = ew.0 * 3600 + ew.1 * 60 + ew.2;
-            if sw_secs > ew_secs {
+            if sw_secs >= ew_secs {
                 st.notices.push(make_k2_notice(
                     &mut st.counter, "STM_038", EntityType::Trip, eid(),
                     None, &file.name, Some(line), Some("start_pickup_drop_off_window"),
-                    Some(format!("{start_window_raw} > {end_window_raw}")), None,
-                    format!("trip_id '{}' start_pickup_drop_off_window, end_pickup_drop_off_window'dan sonra.", trip_id),
-                    "start_pickup_drop_off_window değerini end_pickup_drop_off_window'dan küçük ya da eşit yapın.",
+                    Some(format!("{start_window_raw} >= {end_window_raw}")), None,
+                    format!("trip_id '{}' start_pickup_drop_off_window, end_pickup_drop_off_window'dan önce değil.", trip_id),
+                    "start_pickup_drop_off_window değerini end_pickup_drop_off_window'dan kesin olarak küçük yapın.",
                 ));
             }
         }
@@ -3189,6 +3194,31 @@ mod tests {
         );
         let (_, notices) = validate_stop_times(&file, None, false);
         assert!(notices.iter().any(|n| n.rule_id == "STM_038"), "STM_038 bekleniyor: {:?}", notices);
+    }
+
+    #[test]
+    fn stm_038_equal_windows_are_reported() {
+        // Sıfır uzunluklu pencere: MobilityData "strictly later" ister ve kural
+        // Interop'tur. Kod 2026-08-18'e kadar yalnız `>` bakıyordu; `mdb-2741`'de
+        // MD 38 bulgu verirken bizde 0'dı.
+        let file = make_file(
+            vec!["trip_id", "stop_id", "stop_sequence", "start_pickup_drop_off_window", "end_pickup_drop_off_window", "pickup_booking_rule_id"],
+            vec![vec!["T1", "", "1", "13:09:00", "13:09:00", "BR1"]],
+        );
+        let (_, notices) = validate_stop_times(&file, None, false);
+        assert!(notices.iter().any(|n| n.rule_id == "STM_038"),
+            "Eşit pencerelerde STM_038 bekleniyor: {:?}", notices);
+    }
+
+    #[test]
+    fn stm_038_ordered_windows_are_clean() {
+        let file = make_file(
+            vec!["trip_id", "stop_id", "stop_sequence", "start_pickup_drop_off_window", "end_pickup_drop_off_window", "pickup_booking_rule_id"],
+            vec![vec!["T1", "", "1", "09:00:00", "17:00:00", "BR1"]],
+        );
+        let (_, notices) = validate_stop_times(&file, None, false);
+        assert!(!notices.iter().any(|n| n.rule_id == "STM_038"),
+            "start < end temiz olmalı: {:?}", notices);
     }
 
     #[test]

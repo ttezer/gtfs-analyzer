@@ -776,7 +776,7 @@ const tr = {
     'STM_035': 'Aynı durak ardışık iki kez ziyaret ediliyor (terminal/döngü)',
     'STM_036': 'stop_times trip_id + stop_sequence\'a göre sıralı değil (unsorted_stop_times)',
     'STM_037': 'Flex penceresinde arrival_time/departure_time yasak',
-    'STM_038': 'start_pickup_drop_off_window > end_pickup_drop_off_window',
+    'STM_038': 'start_pickup_drop_off_window >= end_pickup_drop_off_window',
     'STM_039': 'Flex bağlamında pickup/drop_off penceresi eksik',
     'STM_040': "Flex stop_times'ta pickup/drop_off_booking_rule_id eksik (spec'te Optional)",
     'STM_041': 'stop_id ile location_id/group_id aynı anda kullanılamaz',
