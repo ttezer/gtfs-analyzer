@@ -133,7 +133,7 @@ pub fn validate_agency(file: &RawFile) -> (Vec<AgencyRecord>, Vec<gtfs_core::Not
                     &mut counter, "AGN_006", EntityType::Agency, entity_id.clone(), Some(&row_map),
                     &file.name, Some(line), Some("agency_lang"), Some(lang.clone()), None,
                     format!("agency_lang '{lang}' geçerli bir BCP-47 dil kodu değil."),
-                    "Geçerli bir BCP-47 dil kodu kullanın (örn. tr, en-US).",
+                    "Geçerli bir BCP-47 dil kodu kullanın (örn. tr, en-US); değerin başında veya sonunda boşluk bırakmayın.",
                 ));
             }
         }

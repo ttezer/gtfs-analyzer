@@ -178,7 +178,7 @@ pub fn validate_feed_info(file: &RawFile) -> (Vec<FeedInfoRecord>, Vec<gtfs_core
                     Some(email.to_string()),
                     None,
                     "feed_contact_email geçerli bir e-posta adresi değil.".to_string(),
-                    "feed_contact_email için geçerli bir e-posta adresi kullanın.",
+                    "feed_contact_email için geçerli bir e-posta adresi kullanın; değerin başında veya sonunda boşluk bırakmayın.",
                 ));
             }
         }
