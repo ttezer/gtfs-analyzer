@@ -181,6 +181,7 @@ MAP = {
     "pathway_unreachable_location":   ["PTH_012"],
     "stop_without_zone_id":            ["STP_033"],
     "point_near_origin":                ["GEO_016"],
+    "point_near_pole":                  ["GEO_022"],   # 2/2 — |lat|>89; GEO_022 aynı iki feed'de ateşliyor
     "invalid_character":                ["ARC_021"],
     "missing_feed_info_date":           ["FIN_014"],
     "more_than_one_entity":             ["FIN_015"],
