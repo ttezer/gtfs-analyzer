@@ -157,7 +157,13 @@ MAP = {
     "missing_feed_info_date":           ["FIN_014"],
     "more_than_one_entity":             ["FIN_015"],
     "overlapping_frequency":            ["FRQ_011"],
-    "stop_time_with_arrival_before_previous_departure_time": ["STM_008"],
+    # MD tek kodla iki olguyu birden sayar. Gece yarısını aşan seferde saat `24:xx`
+    # olarak devam etmelidir; feed `00:xx` yazarsa MD bunu "varış öncekinden erken"
+    # görür. Bizde o HAM YAZIM ihlali `STM_048` (K2, Spec), `STM_008` ise yalnız
+    # normalizasyonla açıklanamayan GERÇEK geri gidişleri ölçer — ayrım STM_008
+    # kartında yazılı. Yalnız STM_008'e bağlamak 6 feed'i sahte MISS yapıyordu;
+    # koşumda 6'nın 5'i STM_048 alıyor (#155).
+    "stop_time_with_arrival_before_previous_departure_time": ["STM_008", "STM_048"],
     "stop_time_timepoint_without_times": ["STM_047"],
     "missing_pickup_drop_off_booking_rule_id": ["STM_059"],
     "invalid_date":                     ["FIN_005", "FIN_006", "CAL_003", "CAL_004", "CLD_002"],
