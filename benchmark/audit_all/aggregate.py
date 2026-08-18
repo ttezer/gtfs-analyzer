@@ -93,6 +93,36 @@ def require_measured(columns, attempted):
         )
 
 
+# `completed` diyen bir satır, sürecin gerçekten bittiğini iddia eder. Analyzer'ın
+# normal çıkışları 0 (temiz), 1 (bulgu var) ve 2'dir; 124/137 `timeout`/SIGKILL'dir
+# ve o satır KESİK bir çıktıyı temiz gibi sunuyor demektir.
+#
+# run-32145833613'te `mdb-2014` tam bunu yaptı: 300 sn'de öldürüldü, "completed" +
+# 1.551.740 bulgu olarak kaydedildi ve buradan 11 sapma satırı türetildi. Kusur
+# `classify_analyzer`'daydı ve bu kapı onu YAKALAYABİLİRDİ; beş sağlık kapısının
+# hiçbiri sınıflandırmanın DOĞRULUĞUNA bakmıyordu.
+ANALYZER_CLEAN_EXITS = (0, 1, 2)
+
+
+def require_consistent_states(feed_rows):
+    bad = [
+        (r["feed_id"], r["analyzer_exit"])
+        for r in feed_rows
+        if r["analyzer_state"] == "completed"
+        and r["analyzer_exit"] is not None
+        and r["analyzer_exit"] not in ANALYZER_CLEAN_EXITS
+    ]
+    if bad:
+        listed = ", ".join(f"{fid} (exit {code})" for fid, code in bad[:10])
+        more = f" and {len(bad)-10} more" if len(bad) > 10 else ""
+        raise SystemExit(
+            f"{len(bad)} feed(s) recorded as analyzer_state=completed with an exit "
+            f"code outside {ANALYZER_CLEAN_EXITS}: {listed}{more}\n"
+            "A truncated run presented as a clean one corrupts every count derived "
+            "from it. Fix the state classifier; do not publish the run."
+        )
+
+
 def main():
     ap=argparse.ArgumentParser()
     ap.add_argument("--results-dir",required=True)
@@ -303,6 +333,7 @@ def main():
     arss=[x["analyzer_rss_kb"] for x in feed_csv if x["analyzer_state"]=="completed" and x["analyzer_rss_kb"]]
     mrss=[x["md_rss_kb"] for x in feed_csv if x["md_state"]=="completed" and x["md_rss_kb"]]
     # Ölçüm kolonları özetlenmeden önce denetlenir (#149).
+    require_consistent_states(feed_csv)
     require_measured({"analyzer_wall_s":aclean,"md_wall_s":mclean,
                       "analyzer_peak_rss_kb":arss,"md_peak_rss_kb":mrss}, attempted)
     types=Counter(d["type"] for d in divergences)

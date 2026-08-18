@@ -83,5 +83,102 @@ class EmptyColumnGuard(unittest.TestCase):
         agg.require_measured({"analyzer_wall_s": []}, attempted=0)
 
 
+class StateClassification(unittest.TestCase):
+    """`classify_analyzer` bir koşumu bitmiş sayarken ÇIKIŞ KODUNU okumalıdır.
+
+    Kusurun kendisi: rapor dosyası diskte diye "completed" dönülüyordu. `timeout
+    --signal=TERM` süreci 124 ile öldürür (takip SIGKILL'de 137) ve süreç o ana
+    kadar çıktısının bir kısmını ZATEN yazmıştır. run-32145833613'te `mdb-2014`
+    300 sn'de öldürüldü ve 1.551.740 bulguyla TEMİZ sayıldı; `aggregate.py` o kesik
+    çıktıdan 11 sapma satırı türetti.
+
+    Kusur bilgi eksikliği değil ASİMETRİYDİ: aynı dosyadaki `classify_md` bu ayrımı
+    (`partial_timeout`) başından beri yapıyordu. Bu sınıf bu yüzden İKİ tarafı da
+    aynı matrise karşı koşar — biri diğerinin eksiğini gösterir.
+    """
+
+    def setUp(self):
+        self.present = HERE / "test_timing.py"          # var olan bir dosya
+        self.absent = HERE / "does-not-exist-report.json"
+
+    # ── kesilmiş koşum: rapor VAR ama süreç öldürülmüş ──────────────────────
+    def test_analyzer_sigterm_with_report_is_not_completed(self):
+        for code in (124, 137):
+            with self.subTest(exit_code=code):
+                self.assertEqual(
+                    shard.classify_analyzer(code, self.present, ""),
+                    "partial_timeout",
+                    "rapor diskte olsa bile 124/137 bitmiş koşum DEĞİLDİR",
+                )
+
+    def test_md_sigterm_with_report_is_not_completed(self):
+        for code in (124, 137):
+            with self.subTest(exit_code=code):
+                self.assertEqual(
+                    shard.classify_md(code, self.present, None, ""),
+                    "partial_timeout",
+                )
+
+    # ── temiz koşum: analyzer'ın 1'i "bulgu var" demektir, arıza değil ──────
+    def test_analyzer_normal_exit_codes_are_completed(self):
+        for code in (0, 1, 2):
+            with self.subTest(exit_code=code):
+                self.assertEqual(
+                    shard.classify_analyzer(code, self.present, ""), "completed"
+                )
+
+    # ── rapor yoksa zaman aşımı zaten timeout'tur ───────────────────────────
+    def test_no_report_after_sigterm_is_timeout(self):
+        self.assertEqual(shard.classify_analyzer(124, self.absent, ""), "timeout")
+        self.assertEqual(shard.classify_md(124, self.absent, None, ""), "timeout")
+
+    def test_symmetric_states_for_the_same_inputs(self):
+        """İki sınıflandırıcı aynı girdide aynı hükmü vermeli.
+
+        MD'nin `partial_oom`/`partial_internal` gibi FAZLADAN durumları vardır ve
+        bunlar Java'ya özgüdür; burada kıyaslanan yalnız ORTAK eksen: rapor
+        varlığı × çıkış kodu.
+        """
+        for code in (0, 124, 137):
+            for report in (self.present, self.absent):
+                with self.subTest(exit_code=code, report=report.name):
+                    self.assertEqual(
+                        shard.classify_analyzer(code, report, ""),
+                        shard.classify_md(code, report, None, ""),
+                    )
+
+
+class StateConsistencyGuard(unittest.TestCase):
+    """`completed` + anormal çıkış kodu = kesik koşum temiz gibi sunulmuş."""
+
+    def test_completed_with_sigterm_exit_is_an_error(self):
+        rows = [
+            {"feed_id": "mdb-2014", "analyzer_state": "completed", "analyzer_exit": 124},
+            {"feed_id": "mdb-1", "analyzer_state": "completed", "analyzer_exit": 1},
+        ]
+        with self.assertRaises(SystemExit) as cm:
+            agg.require_consistent_states(rows)
+        self.assertIn("mdb-2014", str(cm.exception))
+        self.assertNotIn("mdb-1", str(cm.exception))
+
+    def test_findings_exit_code_is_clean(self):
+        """Analyzer'ın 1'i "bulgu var" demektir; arıza sanılırsa korpusun çoğu patlar."""
+        agg.require_consistent_states(
+            [{"feed_id": "f", "analyzer_state": "completed", "analyzer_exit": c}
+             for c in (0, 1, 2)]
+        )
+
+    def test_partial_timeout_row_is_not_challenged(self):
+        """Durum zaten dürüstse çıkış kodu ne olursa olsun sorun yok."""
+        agg.require_consistent_states(
+            [{"feed_id": "f", "analyzer_state": "partial_timeout", "analyzer_exit": 124}]
+        )
+
+    def test_missing_exit_code_is_not_invented(self):
+        agg.require_consistent_states(
+            [{"feed_id": "f", "analyzer_state": "completed", "analyzer_exit": None}]
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

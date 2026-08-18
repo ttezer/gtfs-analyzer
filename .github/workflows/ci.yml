@@ -94,6 +94,15 @@ jobs:
           python3 spec-audit/test_badge_status.py
           python3 spec-audit/badge_status.py
 
+      # 🔴 Bu testler 2026-08-18'e kadar HİÇBİR workflow tarafından çağrılmıyordu.
+      # #149'un dersini (boş ölçüm kolonu) kodlayan `test_timing.py` yazıldı ve ölü
+      # kaldı; koşum aracı, ölçtüğü üründen daha az test edilmiş durumdaydı ve üç
+      # koşum üst üste manşet sayı üründen değil ALETTEN geldi (#159).
+      - name: Korpus aracı kapıları (audit_all)
+        run: |
+          python3 -m py_compile benchmark/audit_all/*.py
+          python3 benchmark/audit_all/test_timing.py
+
       # `|| true`: rapor bir kapı DEĞİLDİR, düşmesi CI'ı kırmamalı.
       # ⚠️ Bu bilinçli: alan-tablosu kapsamı 300/300 "çapa" ölçüsüdür, semantik tamlık
       # değil (bkz. EVIDENCE_BASE.md §5.4). Zorunlu kapı yapmak ölçmediği bir şeyi
