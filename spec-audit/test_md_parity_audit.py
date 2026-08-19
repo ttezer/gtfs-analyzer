@@ -99,7 +99,6 @@ class ContextMappingFixtures(unittest.TestCase):
 
     def test_unmapped_corpus_headings_have_explicit_adjudication(self):
         for code in [
-            "fast_travel_between_far_stops",
             "feed_expiration_date30_days",
             "feed_valid_beyond_total_service_window",
             "start_and_end_range_equal",
@@ -121,7 +120,7 @@ class ContextMappingFixtures(unittest.TestCase):
         for code, expected_source in [
             ("non_ascii_or_non_printable_char", "by-design"),
             ("missing_required_file", "mapped-divergence"),
-            ("fast_travel_between_far_stops", "unmapped"),
+            ("feed_expiration_date30_days", "unmapped"),
         ]:
             with self.subTest(code=code):
                 source, rationale = mapping.classify_divergence(code)
@@ -151,17 +150,25 @@ class ContextMappingFixtures(unittest.TestCase):
         for reason in mapping.BY_DESIGN.values():
             self.assertTrue(reason.strip(), "a BY_DESIGN entry without reasoning is a blind spot")
 
-    def test_far_stop_speed_gap_is_not_aliased_to_consecutive_speed(self):
-        classification, rationale = mapping.classify_unmapped(
-            "fast_travel_between_far_stops"
-        )
-        self.assertEqual(classification, "genuine-gap")
-        self.assertIn("non-consecutive", rationale)
-        self.assertNotIn(
-            "fast_travel_between_far_stops",
-            audit.MAP,
-            "far-stop MD notice must remain an explicit, unaffiliated coverage gap",
-        )
+    def test_far_stop_speed_is_mapped_to_its_own_rule_not_to_the_consecutive_ones(self):
+        """Bu test eskiden `fast_travel_between_far_stops`'un bir KAPSAM BOŞLUĞU
+        olarak kaldığını sabitliyordu. #168'de kural yazıldı (`STM_061`), dolayısıyla
+        sabitlenen şey değişti — ama ASIL koruma aynı kaldı: uzak çift kontrolü
+        komşu kontrollerine (`STM_012`/`STM_014`) TAKMA AD OLARAK verilemez.
+
+        Neden önemli: ikisi aynı olguyu ölçmez. `run-32197267205`'te 20 feed uzak-çift
+        bildirip ardışık hiç bildirmiyordu; takma ad, o 20 feed'i "zaten kapsıyoruz"
+        diye gösterip kuralın yazılmasını engellerdi.
+        """
+        self.assertEqual(audit.MAP.get("fast_travel_between_far_stops"), ["STM_061"])
+        for consecutive in ("STM_012", "STM_014"):
+            self.assertNotIn(
+                consecutive,
+                audit.MAP.get("fast_travel_between_far_stops", []),
+                "uzak çift kontrolü komşu hız kuralına takma ad olamaz",
+            )
+        # Boşluk defterinden çıkmış olmalı: kural artık VAR.
+        self.assertNotIn("fast_travel_between_far_stops", mapping.UNMAPPED_DECISIONS)
 
     def test_feed_expiration_30_day_parity_is_config_dependent(self):
         classification, rationale = mapping.classify_unmapped(
@@ -294,8 +301,12 @@ class LedgerDriftGate(unittest.TestCase):
     # Sözlük UYDURULMAZ, kullanımdan DONDURULUR. Yeni bir etiket eklemek serbest —
     # ama bu listeyi de güncellemek gerekir, yani karar bilinçli olur. Bir etiketin
     # buradan düşmesi de sinyaldir: o kararı taşıyan kod silinmiş demektir.
+    # 🔑 `genuine-gap` 2026-08-19'da sözlükten DÜŞTÜ ve bu bir başarıdır, bir eksik
+    # değil: defterdeki son gerçek kapsam boşluğu `fast_travel_between_far_stops`'tu
+    # ve #168'de `STM_061` yazılarak kapatıldı. Yeni bir boşluk kaydedilirse etiket
+    # buraya geri eklenir — sözlük kullanımdan dondurulduğu için bu bilinçli olur.
     UNMAPPED_LABELS = {
-        "genuine-gap", "deprecated-md-only", "md-implementation-limit",
+        "deprecated-md-only", "md-implementation-limit",
         "config-dependent", "intentional-difference", "context-dependent",
     }
     MAPPED_LABELS = {"tolerance-by-design", "structural-fault-owns-it", "md-implementation-limit", "scope-difference",
@@ -352,7 +363,7 @@ class LedgerDriftGate(unittest.TestCase):
         """Bu üç kod üç AYRI deftere düşer; kaynak etiketi karışırsa sayım kayar."""
         for code, expected_source in (
             ("non_ascii_or_non_printable_char", "by-design"),
-            ("fast_travel_between_far_stops", "unmapped:genuine-gap"),
+            ("feed_expiration_date30_days", "unmapped:config-dependent"),
             ("this_code_does_not_exist_anywhere", "unreviewed"),
         ):
             with self.subTest(code=code):

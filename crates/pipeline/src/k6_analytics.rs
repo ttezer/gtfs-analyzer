@@ -623,6 +623,10 @@ fn max_trip_duration_secs(route_type: u32, cfg: &ValidatorConfig) -> u32 {
 /// extended-kod kullanan feed'lerde rail (100-117 = S-Bahn/bölgesel/intercity) `_ => bus`'a
 /// düşüp 120 km/h eşik alıyordu → meşru 120-300 km/h trenler STM_014 FP (4530 vs MD 233).
 /// is_rail_route_type ile artık tutarlı.
+/// "Uzak" durak eşiği — MobilityData ile aynı: 10 km'den fazla ayrık iki durak.
+/// Altındaki çiftler komşu hız kontrolünün (STM_012/STM_014) alanıdır.
+const FAR_STOP_MIN_KM: f64 = 10.0;
+
 fn max_speed_kmh(route_type: u32, cfg: &ValidatorConfig) -> f64 {
     match route_type {
         0 | 900..=906                                   => cfg.max_speed_tram_kmh,   // tram / hafif raylı
@@ -1164,6 +1168,82 @@ fn check_speed_and_duration<'a>(
         // Per-trip coord buffer: her stop bir kez sorgulanır
         coords_buf.clear();
         coords_buf.extend(stimes.iter().map(|s| stop_coords.get(idx.stop_id_of(s)).copied()));
+
+        // ── STM_061: ARDIŞIK OLMAYAN uzak durak çifti arasında imkânsız hız ──
+        //
+        // STM_012/STM_014 yalnız KOMŞU durakları kıyaslar. Adım adım makul görünen
+        // ama uçtan uca imkânsız olan bir sefer aradan geçer: her segment eşiğin
+        // altında kalırken toplam yol fiziksel olarak kapatılamaz.
+        //
+        // 🔴 "Ardışıklar temizse uzak çift de temizdir" DİYE DÜŞÜNDÜM, KORPUS ÇÜRÜTTÜ.
+        // Argüman şuydu: her segment ≤ T ise yol_mesafesi ≤ T·toplam_süre, kuş uçuşu
+        // ≤ yol mesafesi, dolayısıyla uzak çift de ≤ T. Ama iki kontrol AYNI mesafe
+        // ölçüsünü kullanmıyor — komşu mesafe shape üzerinden (uzun) ölçülünce hız
+        // düşük çıkıyor. run-32197267205'te **20 feed** uzak-çift bulgusu veriyor ve
+        // ardışık bulgusu HİÇ vermiyor (#168).
+        //
+        // ⚡ PERF: naif hâli trip başına O(n²)'dir; VBB'de 282k sefer × ~22 durak
+        // ~68M çift eder. Buradaki sınır YAKLAŞIK DEĞİL, KESİN: `bbox_diag_km` bu
+        // seferdeki iki durak arasındaki AZAMİ olası kuş uçuşu mesafedir, dolayısıyla
+        // `threshold * Δt >= bbox_diag_km` olduğu anda daha ileri hiçbir `j` ihlal
+        // EDEMEZ ve döngü kırılır. Hiçbir bulgu kaybedilmez.
+        {
+            let mut lo_lat = f64::INFINITY; let mut hi_lat = f64::NEG_INFINITY;
+            let mut lo_lon = f64::INFINITY; let mut hi_lon = f64::NEG_INFINITY;
+            for c in coords_buf.iter().flatten() {
+                lo_lat = lo_lat.min(c.0); hi_lat = hi_lat.max(c.0);
+                lo_lon = lo_lon.min(c.1); hi_lon = hi_lon.max(c.1);
+            }
+            if lo_lat.is_finite() {
+                let bbox_diag_km = haversine_km(lo_lat, lo_lon, hi_lat, hi_lon);
+                // 10 km'lik "uzak" tanımı MobilityData ile aynıdır; altındaki çiftler
+                // komşu kontrolünün alanıdır ve orada zaten ölçülür.
+                if bbox_diag_km > FAR_STOP_MIN_KM {
+                    let mut worst: Option<(f64, f64, usize, usize)> = None;
+                    for i in 0..stimes.len() {
+                        let Some((la1, lo1)) = coords_buf[i] else { continue };
+                        let Some(dep) = stimes[i].departure_time().map(hms_to_secs) else { continue };
+                        for j in (i + 2)..stimes.len() {
+                            let Some(arr) = stimes[j].arrival_time().map(hms_to_secs) else { continue };
+                            if arr <= dep { continue; }
+                            let dt_h = (arr - dep) as f64 / 3600.0;
+                            // KESİN SINIR: bundan sonrası ihlal edemez.
+                            if threshold * dt_h >= bbox_diag_km { break; }
+                            let Some((la2, lo2)) = coords_buf[j] else { continue };
+                            let dist_km = haversine_km(la1, lo1, la2, lo2);
+                            if dist_km <= FAR_STOP_MIN_KM { continue; }
+                            let speed = dist_km / dt_h;
+                            if speed > threshold
+                                && worst.is_none_or(|(w, _, _, _)| speed > w)
+                            {
+                                worst = Some((speed, dist_km, i, j));
+                            }
+                        }
+                    }
+                    // Sefer başına TEK bulgu: aynı zamanlama hatası düzinelerce çift
+                    // üretir ve hepsi aynı olgudur (STM_014'ün segment birikimi deseni).
+                    if let Some((speed, dist_km, i, j)) = worst {
+                        let mut n = k6_notice(
+                            ctr, "STM_061", EntityType::Trip,
+                            Some(trip_id.to_string()), Some(trip_id.to_string()),
+                            "stop_times.txt", Some(stimes[j].line as u64), Some("arrival_time"),
+                            Some(format!("{speed:.0} km/h ({dist_km:.1} km)")),
+                            Some(format!("<= {threshold:.0} km/h")),
+                            format!("trip_id '{trip_id}'{dep_suffix} stop_sequence {} ile {} arası {dist_km:.1} km kuş uçuşu mesafeyi {speed:.0} km/h ile kapatıyor (eşik {threshold:.0} km/h) — duraklar ardışık değil, ara segmentler tek tek makul görünse de bütün imkânsız.",
+                                stimes[i].stop_sequence().unwrap_or(0),
+                                stimes[j].stop_sequence().unwrap_or(0)),
+                            "Uzak durak çifti arasındaki varış/kalkış saatlerini doğrulayın; genellikle bir zaman bloğu kaymış ya da gece yarısı aşımı yanlış yazılmıştır.",
+                        );
+                        let mut d = std::collections::BTreeMap::new();
+                        d.insert("stop_a".to_string(), idx.stop_id_of(&stimes[i]).to_string());
+                        d.insert("stop_b".to_string(), idx.stop_id_of(&stimes[j]).to_string());
+                        n.details = Some(d);
+                        notices.push(n);
+                    }
+                }
+            }
+        }
+
 
         let mut trip_max_speed: f64 = 0.0;
         let mut trip_max_speed_line: Option<u64> = None;
@@ -9668,6 +9748,61 @@ mod tests {
             hits[0].details.as_ref().and_then(|d| d.get("repeated_shapes")).map(String::as_str),
             Some("4"),
         );
+    }
+
+    #[test]
+    fn stm_061_catches_a_far_pair_that_consecutive_checks_miss() {
+        // A→B ve B→C ayrı ayrı makul, A→C imkânsız: ara durak zamanı geç yazılmış,
+        // uçtan uca 60 km 6 dakikada kapatılıyor (600 km/h, otobüs eşiği 120).
+        let records = records_with(
+            vec![stop("A", 41.000, 29.000), stop("B", 41.100, 29.000), stop("C", 41.540, 29.000)],
+            vec![route("R1", 3)],
+            vec![trip("T1", "R1")],
+            vec![
+                stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
+                stoptime("T1", 2, "B", (8, 5, 0), (8, 5, 0), 3),
+                stoptime("T1", 3, "C", (8, 6, 0), (8, 6, 0), 4),
+            ],
+        );
+        let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
+        assert!(result.notices.iter().any(|n| n.rule_id == "STM_061"),
+            "uzak çift ihlali STM_061 üretmeli: {:?}",
+            result.notices.iter().map(|n| n.rule_id.as_str()).collect::<Vec<_>>());
+    }
+
+    #[test]
+    fn stm_061_stays_silent_on_a_plausible_long_trip() {
+        // Aynı 60 km, ama 90 dakikada = 40 km/h. Hiçbir çift ihlal etmez.
+        let records = records_with(
+            vec![stop("A", 41.000, 29.000), stop("B", 41.270, 29.000), stop("C", 41.540, 29.000)],
+            vec![route("R1", 3)],
+            vec![trip("T1", "R1")],
+            vec![
+                stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
+                stoptime("T1", 2, "B", (8, 45, 0), (8, 45, 0), 3),
+                stoptime("T1", 3, "C", (9, 30, 0), (9, 30, 0), 4),
+            ],
+        );
+        let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
+        assert!(!result.notices.iter().any(|n| n.rule_id == "STM_061"));
+    }
+
+    #[test]
+    fn stm_061_ignores_pairs_closer_than_the_far_threshold() {
+        // 10 km'nin altındaki çiftler komşu kontrolünün alanıdır; hız imkânsız olsa
+        // bile STM_061 susar, yoksa STM_012/STM_014 ile aynı olguyu iki kez sayardık.
+        let records = records_with(
+            vec![stop("A", 41.000, 29.000), stop("B", 41.010, 29.000), stop("C", 41.040, 29.000)],
+            vec![route("R1", 3)],
+            vec![trip("T1", "R1")],
+            vec![
+                stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
+                stoptime("T1", 2, "B", (8, 0, 30), (8, 0, 30), 3),
+                stoptime("T1", 3, "C", (8, 1, 0), (8, 1, 0), 4),
+            ],
+        );
+        let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
+        assert!(!result.notices.iter().any(|n| n.rule_id == "STM_061"));
     }
 
     #[test]

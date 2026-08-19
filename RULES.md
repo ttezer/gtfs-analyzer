@@ -2,7 +2,7 @@
 
 🇹🇷 **Türkçe** · 🇬🇧 [English](RULES.en.md) · 🇯🇵 [日本語](RULES.ja.md)
 
-599 kural, 38 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
+600 kural, 38 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
 Önem seviyeleri: **KRİTİK** (yayın engelleyici) · **YÜKSEK** · **ORTA** · **DÜŞÜK** · **BİLGİ**
 Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · **Quality** (GTFS Kalitesi) · **Analytics** (GTFS Analitiği)
 
@@ -252,6 +252,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | STM_039 | Flex bağlamında pickup/drop_off penceresi eksik | KRİTİK | Spec |
 | STM_040 | Flex stop_times'ta pickup/drop_off_booking_rule_id eksik (spec'te Optional) | ORTA | Quality |
 | STM_060 | Aynı seferde geojson bölgesi + zaman penceresi + pickup/drop_off eşzamanlı örtüşüyor | YÜKSEK | Spec |
+| STM_061 | Ardışık olmayan uzak duraklar arası imkânsız hız | YÜKSEK | Interop |
 | STM_059 | pickup_type/drop_off_type=2 iken booking_rule_id önerilir | DÜŞÜK | Quality |
 | STM_041 | stop_id ile location_id/group_id aynı anda kullanılamaz | YÜKSEK | Spec |
 | STM_042 | stop_headsign Google Transit tarafından desteklenmeyen karakter içeriyor | DÜŞÜK | Interop |

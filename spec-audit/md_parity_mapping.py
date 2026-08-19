@@ -394,10 +394,6 @@ UNMAPPED_DECISIONS = {
     # grubunda. TRF_006/003'ün VARLIK kontrolü olduğu tespiti doğruydu; eksik olan
     # şey "başka bir kural bunu yapıyor mu" sorusuydu. Aday listesini kural ADINA
     # göre değil, kuralların NE ÖLÇTÜĞÜNE göre kur.
-    "fast_travel_between_far_stops": (
-        "genuine-gap",
-        "Analyzer has no rule for non-consecutive far-stop pairs; do not alias this to STM_012.",
-    ),
     "feed_expiration_date30_days": (
         "config-dependent",
         "The MD notice is a feed_info-level 30-day horizon. FIN_019 uses a 7-day default, but "
@@ -781,6 +777,7 @@ def classify_mapped_divergence(code: str) -> tuple[str, str]:
 # kartlarında yanıtlanır.
 NO_MD_EQUIVALENT: dict[str, str] = {
     "ARC_032": "Alan değerinde HTML etiketi/kaçış dizisi. Katalogda 'html' geçen tek bir kod yok.",
+    "ARC_013": "CSV ayrıştırma hatası. MD'nin `csv_parsing_failed`'i onların ayrıştırıcısının 4096 karakterlik alan sınırıdır (mdb-982'de mesajı bunu yazar) ve aynı feed'i biz sorunsuz okuyoruz — UNMAPPED_DECISIONS'ta kayıtlı. Bizim ARC_013'ümüz gerçek bir ayrıştırma hatasıdır; ikisini eşlemek onların ayrıştırıcı sınırını bizim körlüğümüz gibi gösterirdi.",
     "ARC_034": "Başlık satırı veri satırı olarak tekrarlanmış. MD katalogunda karşılığı yok; onların tarafında bu kusur `unexpected_enum_value` ve `invalid_timezone` gibi TÜREV bulgulara dağılır ve asıl sebep hiç söylenmez (#168).",
     "ARC_033": "RFC 4180 kaçırılmamış tırnak. MD'nin `new_line_in_value`'su bunun SEMPTOMUNU (tırnak kapanmayınca sonraki satırın devam sayılması) anlatır, ihlalin kendisini değil.",
     "ARC_026": "Hatalı satır sonu karakteri. Katalogda satır sonu biçimini denetleyen kod yok.",

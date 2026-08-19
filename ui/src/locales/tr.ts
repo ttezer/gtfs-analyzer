@@ -799,6 +799,7 @@ const tr = {
     'STM_058': 'Flex pickup/drop-off penceresi saati geçersiz',
     'STM_059': 'pickup_type/drop_off_type=2 iken booking_rule_id önerilir',
     'STM_060': "Aynı seferde bölge, pencere ve pickup/drop_off eşzamanlı örtüşüyor",
+    'STM_061': 'Ardışık olmayan uzak duraklar arası imkânsız hız',
     'STM_055': 'Flex penceresinde continuous_drop_off yasak',
     // PDW
     'PDW_006': "Aynı trip+zone'da örtüşen pickup/drop-off penceresi",

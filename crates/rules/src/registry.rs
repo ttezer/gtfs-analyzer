@@ -732,6 +732,8 @@ pub static RULES: &[RuleMeta] = &[
     // semantiğini belirsizleştirir; R1 yayın kapısı (saf `Spec ∧ Kritik`) orantısız olurdu.
     r!("STM_060", Yuksek, Spec, 2, &[], Some("trip_id"), VS, Entity,
         "Aynı seferde geojson bölgesi + zaman penceresi + pickup/drop_off eşzamanlı örtüşüyor"),
+    r!("STM_061", Yuksek, Interop, 2, &[], Some("trip_id"), VI, Entity,
+        "Ardışık olmayan uzak duraklar arası imkânsız hız"),
     r!("STM_059", Dusuk, Quality, 1, &[], Some("trip_id"), VS, Entity,
         "pickup_type/drop_off_type=2 iken booking_rule_id önerilir"),
     r!("STM_041", Yuksek, Spec, 1, &[], Some("trip_id"), VS, Entity,
@@ -2273,6 +2275,7 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("STM_058", GtfsSpec),
     ("STM_059", ProjectQuality),
     ("STM_060", GtfsSpec),
+    ("STM_061", MobilitydataParity),
     ("STP_001", GtfsSpec),
     ("STP_002", GtfsSpec),
     ("STP_003", GtfsSpec),

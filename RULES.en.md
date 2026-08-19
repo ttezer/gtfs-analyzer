@@ -2,7 +2,7 @@
 
 🇹🇷 [Türkçe](RULES.md) · 🇬🇧 **English** · 🇯🇵 [日本語](RULES.ja.md)
 
-599 rules, 38 groups. Each rule is identified by a unique ID, severity level, and class.
+600 rules, 38 groups. Each rule is identified by a unique ID, severity level, and class.
 Severity levels: **CRITICAL** (publish blocker) · **HIGH** · **MEDIUM** · **LOW** · **INFO**
 Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Quality** (GTFS Quality) · **Analytics** (GTFS Analytics)
 
@@ -252,6 +252,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | STM_039 | Pickup/drop-off window missing in Flex context | CRITICAL | Spec |
 | STM_040 | pickup/drop_off_booking_rule_id missing in Flex stop_times (Optional in the spec) | MEDIUM | Quality |
 | STM_060 | Zone, window and pickup/drop-off overlap at once within a trip | HIGH | Spec |
+| STM_061 | Impossible speed between distant non-consecutive stops | HIGH | Interop |
 | STM_059 | booking_rule_id recommended when pickup_type/drop_off_type=2 | LOW | Quality |
 | STM_041 | stop_id and location_id/group_id cannot be used together | HIGH | Spec |
 | STM_042 | stop_headsign contains characters unsupported by Google Transit | LOW | Interop |

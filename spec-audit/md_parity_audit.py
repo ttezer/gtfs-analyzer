@@ -93,7 +93,7 @@ MAP = {
     "missing_stop_name":                ["STP_003"],            # 2/2
     "inconsistent_agency_timezone":     ["AGN_005"],            # 2/2
     "invalid_language_code":            ["AGN_006"],            # 1/1
-    "csv_parsing_failed":               ["ARC_013"],   # "CSV ayrıştırma hatası" — birebir (#165)
+    "fast_travel_between_far_stops":    ["STM_061"],  # >10 km ayrık, ardışık OLMAYAN çift — #168'de yazıldı
     "invalid_prior_notice_duration_min": ["BKR_006"],  # birebir (#165)
     "forbidden_prior_notice_start_day": ["BKR_024"],   # MD: "forbidden when prior_notice_duration_max is set" (#165)
     "unsupported_geometry_type":        ["LOC_001"],   # locations.geojson geometri tipi (#165)
