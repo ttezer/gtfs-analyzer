@@ -50,7 +50,7 @@
 | ルール | タイトル | 重要度 | クラス |
 |---|---|---|---|
 | BKR_001 | 予約ルール: prior_notice_start_dayが禁止コンテキスト | 高 | 仕様 |
-| BKR_002 | prior_notice_start_dayにprior_notice_last_dayが必要 | 高 | 仕様 |
+| BKR_002 | prior_notice_start_dayにprior_notice_last_dayが必要 | 中 | 品質 |
 | BKR_003 | prior_notice_start_timeにprior_notice_start_dayが必要 | 高 | 仕様 |
 | BKR_004 | リアルタイム予約でprior_noticeフィールドが禁止 | 高 | 仕様 |
 | BKR_005 | prior_notice_duration_maxはbooking_type=1のみ有効 | 中 | 仕様 |

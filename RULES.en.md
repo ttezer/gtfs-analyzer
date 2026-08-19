@@ -50,7 +50,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | Rule | Title | Severity | Class |
 |---|---|---|---|
 | BKR_001 | Prior-day booking field set in prohibited context | HIGH | Spec |
-| BKR_002 | prior_notice_start_day only valid with prior_notice_last_day | HIGH | Spec |
+| BKR_002 | prior_notice_start_day only valid with prior_notice_last_day | MEDIUM | Quality |
 | BKR_003 | prior_notice_start_time only valid with prior_notice_start_day | HIGH | Spec |
 | BKR_004 | prior_notice fields prohibited for real-time booking | HIGH | Spec |
 | BKR_005 | prior_notice_duration_max only valid with booking_type=1 | MEDIUM | Spec |

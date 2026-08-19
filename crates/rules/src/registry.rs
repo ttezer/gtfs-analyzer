@@ -182,8 +182,16 @@ pub static RULES: &[RuleMeta] = &[
     // ── BKR: Booking Rules ─────────────────────────────────────────────────────
     r!("BKR_001", Yuksek, Spec, 1, &[], Some("booking_rule_id"), VS, Entity,
         "Önceki gün rezervasyon alanı yasak bağlamda dolu"),
-    r!("BKR_002", Yuksek, Spec, 1, &[], Some("booking_rule_id"), VS, Entity,
-        "prior_notice_start_day yalnızca prior_notice_last_day ile kullanılabilir"),
+    // 🔴 SINIF Spec → Quality (2026-08-19, #170). Kartında spec alıntısı YOKTU ve
+    // olmamasının sebebi var: spec `prior_notice_start_day` için "Conditionally
+    // Forbidden: booking_type=0'da yasak · booking_type=1 ve duration_max varsa
+    // yasak · **aksi hâlde OPSİYONEL**" der. `last_day` ile birlikte kullanılma
+    // şartı HİÇBİR yerde geçmez; MobilityData da aynı yerde durur —
+    // `missing_prior_notice_last_day` yalnız booking_type=2 için (bizde BKR_008).
+    // "Başlangıç günü tek başına pencere oluşturmaz" bir YORUMDU; Spec sınıfında
+    // durduğu sürece geçerli feed'e norm ihlali iddia ediyordu (asimetri kuralı).
+    r!("BKR_002", Orta, Quality, 1, &[], Some("booking_rule_id"), VS, Entity,
+        "prior_notice_start_day tek başına, last_day olmadan kullanılmış"),
     r!("BKR_003", Yuksek, Spec, 1, &[], Some("booking_rule_id"), VS, Entity,
         "prior_notice_start_time yalnızca prior_notice_start_day ile kullanılabilir"),
     r!("BKR_004", Yuksek, Spec, 1, &[], Some("booking_rule_id"), VS, Entity,
@@ -1896,7 +1904,7 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("ATR_011", GtfsSpec),
     ("ATR_012", GtfsSpec),
     ("BKR_001", GtfsSpec),
-    ("BKR_002", GtfsSpec),
+    ("BKR_002", ProjectQuality),
     ("BKR_003", GtfsSpec),
     ("BKR_004", GtfsSpec),
     ("BKR_005", GtfsSpec),
