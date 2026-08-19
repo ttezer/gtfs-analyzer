@@ -587,8 +587,47 @@ impl Dq016Acc {
         if !typed.is_empty() {
             details.insert("typed_whitespace_fields".to_string(), typed.join(", "));
         }
+
+        // 🔴 KİMLİK ALANINDA BOŞLUK, SIRADAN BİR BOŞLUKTAN BAŞKA BİR ŞEYDİR.
+        //
+        // Bir açıklama alanındaki `" Durak Adı "` yalnız çirkindir. Bir ANAHTAR
+        // alanındaki `"10T0001C1  "` ise dosyalar arası her aramayı sessizce
+        // ıskalatır: `routes.txt` anahtarı boşlukla yazar, `trips.txt` boşluksuz,
+        // ve ikisi ham bayt olarak eşleşmez. Bu, kimlikleri HAM karşılaştırma
+        // kararının (#85) doğrudan sonucudur ve karar KORUNUYOR — üreticinin
+        // düzeltmesi gereken budur.
+        //
+        // Ama `suppress_whitespace_derivatives` yalnız BULGU ÜRETMİŞ kuralları
+        // beyan edebilir. Bir aramanın ıskalaması yüzünden HİÇ bulgu üretmeyen
+        // analiz izsiz kaybolur — k7_reporting'in kendi #134 değişmezinin
+        // ("bastırılan her bulgu bir yerde beyan edilmeli") tam tersi. `mdb-2653`
+        // bunu gösterdi: `trips.txt` 304.117 bastırılan bulguyu beyan ederken
+        // `TRP_024`'ün kaçırdığı 1.502 blok tutarsızlığı hiçbir yerde yazmıyordu,
+        // çünkü o kural hiç konuşmamıştı (#169).
+        let identity: Vec<&str> = self.cols.iter()
+            .map(String::as_str)
+            .filter(|c| is_identity_column(c))
+            .collect();
+        if !identity.is_empty() {
+            details.insert("identity_whitespace_fields".to_string(), identity.join(", "));
+            details.insert(
+                "cross_file_analysis".to_string(),
+                "unreliable — lookups keyed on these values cannot match across files".to_string(),
+            );
+        }
         Some(details)
     }
+}
+
+/// GTFS'te dosyalar arası aramada ANAHTAR olarak kullanılan sütunlar.
+///
+/// Liste açık uçlu tutulur: `*_id` ile biten her şey anahtar değildir (`shape_dist_traveled`
+/// gibi), ama GTFS'te anahtar olan her sütun ya `_id` ile biter ya da `parent_station`dır.
+/// Yanlış pozitifin maliyeti burada düşük — bu yalnız bir BEYAN, bir bulgu değil.
+pub(crate) fn is_identity_column(col: &str) -> bool {
+    const EXTRA: &[&str] = &["parent_station"];
+    let c = col.trim();
+    c.ends_with("_id") || EXTRA.contains(&c)
 }
 
 pub(crate) const DQ016_REMEDIATION: &str =
@@ -2977,6 +3016,53 @@ mod tests {
             k1.notices.iter().any(|n| n.rule_id == "ARC_014"),
             "ARC_014 notice bekleniyor"
         );
+    }
+
+    #[test]
+    fn dq016_declares_whitespace_in_an_identity_column() {
+        // #169: kimlik alanındaki boşluk, açıklama alanındakiyle aynı şey değildir.
+        // `routes.txt` anahtarı boşlukla, `trips.txt` boşluksuz yazarsa dosyalar arası
+        // her arama sessizce ıskalar. Kimlikleri HAM karşılaştırma kararı (#85) korunur;
+        // değişen tek şey bunun BEYAN EDİLMESİ. `mdb-2653`'te `TRP_024`'ün kaçırdığı
+        // 1.502 blok tutarsızlığı hiçbir yerde yazmıyordu.
+        let zip = zip_with_files(&[
+            ("agency.txt",     b"agency_id,agency_name,agency_url,agency_timezone\n1,Test,http://x.com,UTC\n"),
+            ("stops.txt",      b"stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\n"),
+            ("routes.txt",     b"route_id,agency_id,route_short_name,route_long_name,route_type\nR1  ,1,101,Main,3\n"),
+            ("trips.txt",      b"route_id,service_id,trip_id\nR1,SVC1,T1\n"),
+            ("stop_times.txt", b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\n"),
+            ("calendar.txt",   b"service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,0,0,20240101,20241231\n"),
+        ]);
+        let k1 = parse(&zip).unwrap();
+        let routes_root = k1.notices.iter()
+            .find(|n| n.rule_id == "DQ_016" && n.file.as_deref() == Some("routes.txt"))
+            .and_then(|n| n.details.clone())
+            .expect("routes.txt için DQ_016 kökü bekleniyor");
+        assert_eq!(routes_root.get("identity_whitespace_fields").map(String::as_str), Some("route_id"),
+            "kimlik sütunu adıyla beyan edilmeli: {routes_root:?}");
+        assert!(routes_root.contains_key("cross_file_analysis"),
+            "dosyalar arası analizin güvenilmezliği beyan edilmeli: {routes_root:?}");
+    }
+
+    #[test]
+    fn dq016_does_not_call_a_description_column_an_identity() {
+        // Yalnız açıklama alanında boşluk varsa kimlik beyanı YAZILMAZ — aksi hâlde
+        // beyan her feed'de görünür ve anlamını yitirir.
+        let zip = zip_with_files(&[
+            ("agency.txt",     b"agency_id,agency_name,agency_url,agency_timezone\n1,Test,http://x.com,UTC\n"),
+            ("stops.txt",      b"stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\n"),
+            ("routes.txt",     b"route_id,agency_id,route_short_name,route_long_name,route_type\nR1,1,101,Main Line ,3\n"),
+            ("trips.txt",      b"route_id,service_id,trip_id\nR1,SVC1,T1\n"),
+            ("stop_times.txt", b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\n"),
+            ("calendar.txt",   b"service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,0,0,20240101,20241231\n"),
+        ]);
+        let k1 = parse(&zip).unwrap();
+        let routes_root = k1.notices.iter()
+            .find(|n| n.rule_id == "DQ_016" && n.file.as_deref() == Some("routes.txt"))
+            .and_then(|n| n.details.clone())
+            .expect("routes.txt için DQ_016 kökü bekleniyor");
+        assert!(!routes_root.contains_key("identity_whitespace_fields"),
+            "route_long_name bir kimlik değildir: {routes_root:?}");
     }
 
     #[test]

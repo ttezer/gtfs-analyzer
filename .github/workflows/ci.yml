@@ -10,10 +10,19 @@ on:
 permissions:
   contents: read
 
+# 🔴 HER JOB'DA `timeout-minutes` ZORUNLU. Hiçbirinde yoktu ve 2026-08-19'da bunun
+# bedeli görüldü: `e2e` normalde 72 saniye sürerken üç ardışık koşumda asıldı ve
+# GitHub'ın 6 saatlik varsayılanına kadar runner işgal etti. Hiçbir iş KIRMIZI
+# yanmadı — üç koşum da "in_progress" olarak takılı kaldı, yani sonuç ne yeşil ne
+# kırmızıydı. Sınırsız bir job başarısız OLAMAZ, sadece bekler; bu, bu depoda
+# defalarca yakalanan "sessizce None dönmek" deseninin CI'daki karşılığıdır.
+# Değerler normal süreye göre bol paylı seçildi; darlaştırmak için değil, ASILMAYI
+# ZAMANINDA HATAYA ÇEVİRMEK için varlar.
 jobs:
   rust-test:
     name: Rust Tests
     runs-on: ubuntu-latest
+    timeout-minutes: 20   # normal: Rust Tests ~2dk
     steps:
       - uses: actions/checkout@v7
 
@@ -133,6 +142,7 @@ jobs:
   ts-test:
     name: TypeScript Unit Tests + Coverage
     runs-on: ubuntu-latest
+    timeout-minutes: 10   # normal: TS ~30sn
     steps:
       - uses: actions/checkout@v7
 
@@ -169,6 +179,7 @@ jobs:
   build-wasm:
     name: WASM + UI Build
     runs-on: ubuntu-latest
+    timeout-minutes: 25   # normal: WASM+UI ~8dk
     steps:
       - uses: actions/checkout@v7
 
@@ -305,6 +316,7 @@ jobs:
     name: E2E (Playwright)
     needs: build-wasm
     runs-on: ubuntu-latest
+    timeout-minutes: 15   # normal: E2E ~72sn
     steps:
       - uses: actions/checkout@v7
 
@@ -354,6 +366,7 @@ jobs:
   security-audit:
     name: Security Audit
     runs-on: ubuntu-latest
+    timeout-minutes: 10   # normal: Security ~32sn
     steps:
       - uses: actions/checkout@v7
 
@@ -461,6 +474,7 @@ jobs:
   rust-coverage:
     name: Rust Coverage
     runs-on: ubuntu-latest
+    timeout-minutes: 20   # normal: Coverage ~2dk
     steps:
       - uses: actions/checkout@v7
 
@@ -507,6 +521,7 @@ jobs:
     needs: build-wasm
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    timeout-minutes: 10   # normal: Deploy ~11sn
     permissions:
       contents: read
       pages: write
