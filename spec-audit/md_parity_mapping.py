@@ -494,6 +494,31 @@ def classify_unmapped(code: str) -> tuple[str, str]:
 #
 # Key is the MD code; value is (decision, reasoning).
 MAPPED_DIVERGENCE_DECISIONS = {
+    # #162: `md_mapped_missing` — MD raporluyor, eşlediğimiz kural susuyor.
+    "missing_required_field": (
+        "structural-fault-owns-it",
+        "Four feeds, and all four carry a wholly empty CSV row: routes.txt on tld-7825/7876/7877 and "
+        "feed_info.txt on tld-4327 are literally ',,,,,'. ARC_018 reports that row and it never reaches K2, "
+        "so RTS_031, RTS_004, FIN_001 and FIN_002 cannot fire on it. Deliberate and documented on the "
+        "RTS_031 card: a wholly empty row is one fault, not thirteen missing fields. ARC_018 fires on both "
+        "inspected feeds, verified against the run's analyzer-rules.csv.",
+    ),
+    "invalid_url": (
+        "tolerance-by-design",
+        "Sixteen rows, every value populated and every one parsing cleanly - checking mattered, because the "
+        "empty-optional pattern I expected was not what was there. The stop_url cluster carries 'http://167', "
+        "'http://426', 'http://205', which the url crate resolves through the legacy integer form to "
+        "0.0.0.167 and friends. The agency_url cluster carries a doubled scheme, underscored hosts, "
+        "'http://localhost' and a typo TLD. All satisfy the spec sentence: a fully qualified URL with a "
+        "scheme and correctly escaped special characters. MobilityData additionally judges the host to be "
+        "implausible; we do not, except for the doubled scheme, which has one unambiguous signature and is "
+        "now rejected. The rest stay accepted on purpose: AGN_003 is Kritik+Spec and therefore an R1 publish "
+        "blocker, so a false positive there rejects a valid feed. Underscored hosts exist on intranets, "
+        "single-label hosts are legal, and TLD validation needs a maintained list that would reject new TLDs. "
+        "#144 removed an is_ascii() gate from url_strict_ok for the same asymmetry; a general host-shape "
+        "check risks reintroducing it.",
+    ),
+
     "missing_required_file": (
         "tolerance-by-design",
         "In the full-catalog run 33 of the 34 feeds carrying this code also emit ARC_024, and "

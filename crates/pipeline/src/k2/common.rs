@@ -327,7 +327,24 @@ pub fn looks_like_url(value: &str) -> bool {
     // reddettiği karakterlerden biri — yani baştaki/sondaki boşluk KAÇIRILMAMIŞ demektir.
     let trimmed = value;
     let has_web_scheme = starts_with_ci(trimmed, "http://") || starts_with_ci(trimmed, "https://");
-    has_web_scheme && url_strict_ok(trimmed) && Url::parse(trimmed).is_ok()
+    if !(has_web_scheme && url_strict_ok(trimmed)) {
+        return false;
+    }
+    let Ok(parsed) = Url::parse(trimmed) else { return false };
+    // ÇİFT ŞEMA: `https://https://example.com/...` ayrıştırılır ve host'u literal
+    // `"https"` olur. Şema adıyla aynı, tek etiketli bir host gerçek bir adres
+    // olamaz; bu desen yalnızca değerin başına şemanın iki kez yazılmasından doğar.
+    //
+    // ⚠️ Bu, host ŞEKLİNİ denetlemenin GENEL hâli DEĞİLDİR ve bilerek öyle değil.
+    // `AGN_003` Kritik+Spec, yani R1 yayın engelidir: buradaki bir yanlış pozitif
+    // GEÇERLİ BİR FEED'İ REDDEDER. Genel host denetimi IDN'i de riske atardı ve
+    // `url_strict_ok`un `is_ascii()` kapısı tam o yüzden #144'te kaldırılmıştı.
+    // Bu kontrol tek bir kesin desene çapalıdır; alt çizgili host, `localhost` ve
+    // sayısal host gibi komşu vakalar KASITLI olarak dışarıda (#162).
+    if matches!(parsed.host_str(), Some(h) if h.eq_ignore_ascii_case("http") || h.eq_ignore_ascii_case("https")) {
+        return false;
+    }
+    true
 }
 
 /// GTFS `URL` tipinin SÖZLÜKSEL yarısı — **KATI**, spec'in kendi ölçüsüyle (issue #80).
@@ -1000,6 +1017,32 @@ fn trimmed_value_is_semantically_valid(rule_id: &str, field: &str, value: &str) 
 
 #[cfg(test)]
 mod tests {
+
+    #[test]
+    fn looks_like_url_rejects_a_doubled_scheme() {
+        // tdg-83744: 'https://https://www.mairie-courchevel.com/...'
+        assert!(!looks_like_url("https://https://www.mairie-courchevel.com/a"));
+        assert!(!looks_like_url("http://http://example.com"));
+        assert!(!looks_like_url("https://HTTPS://example.com"));
+    }
+
+    #[test]
+    fn looks_like_url_still_accepts_the_neighbours_we_chose_not_to_reject() {
+        // #162'de kanıtlanan ama BİLEREK reddedilmeyen vakalar. AGN_003 Kritik+Spec,
+        // yani yayın engeli; buradaki bir yanlış pozitif geçerli feed'i reddeder.
+        assert!(looks_like_url("https://www.keolis_littoral.com"));   // alt çizgili host
+        assert!(looks_like_url("http://localhost"));                   // tek etiket
+        assert!(looks_like_url("http://167"));                         // 0.0.0.167'ye ayrışır
+        assert!(looks_like_url("http://www.takethehop.coml/"));        // yazım hatası TLD
+    }
+
+    #[test]
+    fn looks_like_url_accepts_an_idn_host() {
+        // #144'te is_ascii() kapısı kaldırıldı; çift şema kontrolü onu geri getirmemeli.
+        assert!(looks_like_url("https://é.example.com"));
+        assert!(looks_like_url("https://www.example.com"));
+    }
+
     use super::*;
 
     #[test]
