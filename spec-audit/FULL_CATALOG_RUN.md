@@ -46,8 +46,6 @@ Eski `benchmark/auditall/` yığını #152'de emekliye ayrıldı — diriltme.
 > ✅ **5. koşum için ikisi ZATEN HAZIR** (`0acf6129`): `--manifest` artık main'de kalıcı,
 > `BENCH_DATE`/`MD_DATE` `20260819`'da. Koşum BAŞKA BİR GÜN yapılırsa tarihi çek.
 
-2. Koşmadan önce güncellenecek üç şey
-
 1. **`benchmark/audit_all/run_shard.py` → `BENCH_DATE` ve `MD_DATE`.**
    Gerçek koşum tarihine çek. `BENCH_DATE` Analyzer'ın `--today` bayrağına, `MD_DATE`
    MobilityData'nın `-d` bayrağına gider. Tarihe bağlı kurallar (`CAL_013`, `CAL_024`,
