@@ -298,7 +298,9 @@ class LedgerDriftGate(unittest.TestCase):
         "genuine-gap", "deprecated-md-only", "md-implementation-limit",
         "config-dependent", "intentional-difference", "context-dependent",
     }
-    MAPPED_LABELS = {"tolerance-by-design", "structural-fault-owns-it"}
+    MAPPED_LABELS = {"tolerance-by-design", "structural-fault-owns-it", "md-implementation-limit", "scope-difference",
+                      "config-dependent", "analyzer-defect",
+                      "not-adjudicated"}
 
     def test_ledger_labels_stay_within_the_frozen_vocabulary(self):
         """Etiketsiz ya da tanınmayan karar sayımlardan sessizce düşer."""
@@ -315,6 +317,18 @@ class LedgerDriftGate(unittest.TestCase):
                     used.add(entry[0])
             self.assertEqual(used, allowed,
                              f"{name}: sözlükte artık kullanılmayan etiket var: {allowed - used}")
+
+    def test_a_mapped_code_is_never_labelled_a_coverage_gap(self):
+        """Eşlemesi olan bir kod KAPSAM BOŞLUĞU olamaz — kural vardır.
+
+        Kural var ama tesisat yüzünden ateşlemiyorsa bu bir KUSURDUR (`analyzer-defect`),
+        boşluk değil. Ayrımı kaybetmek "yazılacak kural" ile "onarılacak hata"yı
+        aynı kovaya koyar; `inconsistent_route_type_for_block_id` ikincisidir (#169).
+        """
+        for code, entry in mapping.MAPPED_DIVERGENCE_DECISIONS.items():
+            with self.subTest(code=code):
+                self.assertNotEqual(entry[0], "genuine-gap",
+                                    f"{code} eşlemeli: boşluk değil, kusur olabilir")
 
     def test_a_code_is_never_both_mapped_and_declared_a_gap(self):
         """Kapsam boşluğu ilan edilen bir kodun eşlemesi OLAMAZ — ikisi çelişir.

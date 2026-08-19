@@ -503,6 +503,116 @@ MAPPED_DIVERGENCE_DECISIONS = {
         "RTS_031 card: a wholly empty row is one fault, not thirteen missing fields. ARC_018 fires on both "
         "inspected feeds, verified against the run's analyzer-rules.csv.",
     ),
+    "invalid_color": (
+        "not-adjudicated",
+        "tfs-342, 2 findings against RTS_006/RTS_007. The one row in this batch that could not be settled: "
+        "the feed returns HTTP 403 on three attempts, so the colour values were never read. Everything "
+        "recorded about tfs-342 elsewhere comes from the run's own data rather than the archive. Two findings "
+        "on route colours, so the stake is small, but it stays open rather than being guessed - the "
+        "invalid_url hypothesis in this same round looked just as safe and was wrong.",
+    ),
+    "pathway_unreachable_location": (
+        "scope-difference",
+        "mdb-767 and mdb-990. MobilityData checks reachability for platforms, boarding areas and generic "
+        "nodes alike; mdb-767 carries 250 boarding areas and 629 generic nodes among its 19,040 stops. "
+        "PTH_012 is written around the locked-platform provision and asks a narrower question. The two rules "
+        "answer different questions on the same file rather than one of them being wrong, which is why the "
+        "mapping between them was never exact. Widening PTH_012 or adding a sibling rule is a design "
+        "decision, not a bug fix.",
+    ),
+    "block_trips_with_overlapping_stop_times": (
+        "config-dependent",
+        "tld-7929, 3 findings. TRP_022 does compare trips with different service_ids inside a block - #29 "
+        "added a calendar-intersection cache precisely so that variant services in one block are only "
+        "compared when they actually run on a common day, after an earlier version produced 201,476 findings "
+        "against MobilityData's 908 on TriMet. MobilityData's samples here cite intersection date 20230103, "
+        "three and a half years before the run date, on a feed whose calendar has expired. The overlap "
+        "existed in 2023 and does not exist in any service day we evaluate. Inferred from the intersection "
+        "date in their sample rather than from reading the cache against this feed.",
+    ),
+    "inconsistent_route_type_for_block_id": (
+        "analyzer-defect",
+        "mdb-2653, 1,502 findings, and MobilityData is right about every one - the count matches exactly once "
+        "the join is done on trimmed ids. routes.txt is space-padded to a fixed width, so route_id reads "
+        "'10T0001C1  ' while trips.txt carries '10T0001C1'. TRP_024 builds its own lookup straight off "
+        "RouteRecord.route_id, which k2/routes.rs reads with get_raw_field, so every lookup misses and the "
+        "rule reports nothing across 138,903 trips. The predicate is correct; the plumbing drops the input, "
+        "same family as recoverable_stop_coord and the K6::geo_analytics gating. Tracked in #169, which also "
+        "has to settle why TRP_002 resolves the same references while this does not.",
+    ),
+    "transfer_distance_too_large": (
+        "structural-fault-owns-it",
+        "mdb-1291 and tfs-413, 961 findings each and the two feeds are the same content. The number is exact: "
+        "the feed has 70,960 transfers and 961 of them name a to_stop_id that does not exist in stops.txt at "
+        "all. Across the 69,999 transfers whose endpoints both resolve, the largest distance is 0.79 km - "
+        "nothing is remotely too far. MobilityData computes a distance against a stop it cannot find; we report "
+        "the broken reference through TRF_003, which fires on both feeds with 1,926 findings, and decline the "
+        "distance because there is nothing to measure. TRF_003 declares TRF_011 in its blocks, so the "
+        "suppression is deliberate.",
+    ),
+    "missing_feed_contact_email_and_url": (
+        "structural-fault-owns-it",
+        "mdb-1080 and mdb-3235. Both have a feed_info.txt with more than one row - ten and twenty-five "
+        "respectively - and MobilityData evaluates each row, so it reports the rows that carry neither contact "
+        "field. The first row of each has contact details, which is what FIN_018 reads. FIN_015 fires on both "
+        "feeds and names the real fault: feed_info.txt is defined as a single-row file, and reading past row "
+        "one would mean treating a malformed file as if its shape were legitimate.",
+    ),
+    "same_route_and_agency_url": (
+        "scope-difference",
+        "tld-4477, 3,564 findings, one per route. Every route_url in the feed does equal some agency_url - but "
+        "not the url of the route's own agency. The references are sound: agency.txt defines 74 agencies and "
+        "all 58 agency_ids used by routes exist. RTS_020 compares a route against its own agency and is "
+        "therefore right to stay silent; MobilityData compares against the set of agency urls. A publisher "
+        "reusing one portal url across a 74-operator regional feed is ordinary, so widening our comparison "
+        "would turn a common pattern into 3,564 findings.",
+    ),
+    "unused_shape": (
+        "md-implementation-limit",
+        "mdb-305, 13 findings, and every one is wrong on the feed as written. shapes.txt defines 22 distinct "
+        "shape_ids and trips.txt references exactly the same 22 - the sets are identical, including '0sbu' and "
+        "'g4f7' which MobilityData names. Three alternative explanations were tested and eliminated: no trip "
+        "lacks stop_times (255 of 255 have them, so no cascade from unused_trip), no shape_id on either side "
+        "carries surrounding whitespace that would defeat an exact match, and the archive holds one shapes.txt "
+        "at the root with no wrapper. Their own definition is 'all records defined by shapes.txt should be used "
+        "in trips.txt', which this feed satisfies. SHP_018 is right to stay silent.",
+    ),
+    "unsorted_stop_times": (
+        "md-implementation-limit",
+        "mdb-1806, 45 findings, and the file is correctly sorted. stop_times.txt carries a blank line between "
+        "every single data row, and the data itself is clean: 1,750 non-empty rows, 48 trips in contiguous "
+        "blocks with no trip split across the file, and stop_sequence strictly increasing inside every one of "
+        "them. MobilityData's sample cites rows 155-229 for BLUWD09, roughly double our numbering, which is "
+        "what happens when the blank lines are counted as rows - their adjacency check then sees a row with no "
+        "trip_id between every pair. Our parser drops empty rows, so STM_036 reads the file as it is. "
+        "Separately worth noting: we report a comma-only row via ARC_018 but say nothing about a wholly blank "
+        "line, which is its own inconsistency.",
+    ),
+    "service_window_outside_feed_period": (
+        "structural-fault-owns-it",
+        "mdb-3155. feed_info.txt is written with a space after every comma, so feed_start_date reads "
+        "' 20260301' and feed_end_date ' 20281204'. CAL_014 and CAL_019 need both endpoints as dates to "
+        "compare a service window against them, and a value with a leading space is not one. DQ_016 fires on "
+        "this feed and names the real defect. The comparison MobilityData makes is correct - the window does "
+        "run 25 to 27 days past the feed period - but it is downstream of a lexical fault we already report.",
+    ),
+    "feed_expiration_date7_days": (
+        "structural-fault-owns-it",
+        "mdb-2026, same shape as service_window_outside_feed_period and on the same axis. feed_info.txt is "
+        "comma-space separated, so feed_end_date reads ' 20250819' and FIN_010/FIN_019 have no parseable date "
+        "to compare against today. DQ_016 fires, and so does FIN_008 on the ' planning@wavetransit.com' in the "
+        "same row - the whitespace is reported twice under its own name. Note the feed expired a year before "
+        "the run date, so CAL_013 and CAL_024 do report the expiry from the calendar side. Verified on mdb-2026; "
+        "mdb-3235 not inspected.",
+    ),
+    "stop_time_with_arrival_before_previous_departure_time": (
+        "structural-fault-owns-it",
+        "mdb-2366. MobilityData compares each row against the previous one and reports 168 violations, citing "
+        "pairs such as row 45701 against row 40169 - more than five thousand rows apart. STM_036 fires on this "
+        "feed: the file is not sorted by trip_id and stop_sequence, so 'the previous row' is not the previous "
+        "stop. The time comparison is downstream of an ordering fault we already report, and running it on "
+        "unsorted input would produce findings about pairs that are not adjacent in the trip.",
+    ),
     "invalid_url": (
         "tolerance-by-design",
         "Sixteen rows, every value populated and every one parsing cleanly - checking mattered, because the "
