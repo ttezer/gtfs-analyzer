@@ -41,17 +41,36 @@ impl Default for CompactStopTime {
     }
 }
 
+/// "Alan DOLU ama ayrıştırılamadı" sentineli — `u32::MAX` ("alan YOK") ile ayrı tutulur.
+///
+/// 🔴 İki durum tek değere düşünce STM_015/016 mdb-2727'de 101.621 kez "ilk/son durakta
+/// arrival_time eksik" dedi; alan doluydu, yalnız `HH:MM` yazılmıştı. Aynı satırlarda
+/// `STM_003` zaten "HH:MM:SS bekleniyordu" diyordu, yani doğru kural konuşuyor ve
+/// yanındaki yanlış olanı Spec·Kritik ile R1 yayın kapısına sokuyordu. İddia "değer yok"
+/// olduğunda, değerin VARLIĞI kuralın önkoşuludur — `Err(_) => None` bu ayrımı siler.
+pub const TIME_MALFORMED: u32 = u32::MAX - 1;
+
 impl CompactStopTime {
-    /// arrival_time → Option<(saat, dakika, saniye)>; u32::MAX → None
+    /// arrival_time → Option<(saat, dakika, saniye)>; yok VEYA bozuk → None.
+    ///
+    /// Bozuk değeri de None döndürür, çünkü hesap yapan her çağrı yeri (hız, süre,
+    /// sıralama) için kullanılamaz bir değerdir. "Alan boş mu" diye SORAN kurallar
+    /// `arrival_is_absent()` kullanmalıdır.
     #[inline]
     pub fn arrival_time(&self) -> Option<(u32, u32, u32)> {
-        if self.arrival_secs == u32::MAX { None }
+        if self.arrival_secs == u32::MAX || self.arrival_secs == TIME_MALFORMED { None }
         else { let s = self.arrival_secs; Some((s / 3600, (s % 3600) / 60, s % 60)) }
     }
+    /// Alan GERÇEKTEN boş mu — dolu-ama-bozuk vakası `false` döner.
+    #[inline]
+    pub fn arrival_is_absent(&self) -> bool { self.arrival_secs == u32::MAX }
+    /// Alan GERÇEKTEN boş mu — dolu-ama-bozuk vakası `false` döner.
+    #[inline]
+    pub fn departure_is_absent(&self) -> bool { self.departure_secs == u32::MAX }
     /// departure_time → Option<(saat, dakika, saniye)>; u32::MAX → None
     #[inline]
     pub fn departure_time(&self) -> Option<(u32, u32, u32)> {
-        if self.departure_secs == u32::MAX { None }
+        if self.departure_secs == u32::MAX || self.departure_secs == TIME_MALFORMED { None }
         else { let s = self.departure_secs; Some((s / 3600, (s % 3600) / 60, s % 60)) }
     }
     /// stop_sequence → Option<u32>; u32::MAX → None
@@ -230,7 +249,9 @@ impl StopTimesIndex {
             let slice = &self.rows[s as usize..e as usize];
             let mut prev = None;
             for st in slice {
-                if st.arrival_secs != u32::MAX {
+                // `< TIME_MALFORMED` — `!= u32::MAX` DEĞİL: bozuk değer de kullanılamaz
+                // ve aritmetiğe sokulursa saçma bir saniye değeri gibi davranır.
+                if st.arrival_secs < TIME_MALFORMED {
                     let raw = st.arrival_secs;
                     if let Some(previous) = prev.filter(|p| raw_midnight_rollover(*p, raw)) {
                         violations.push(MidnightViolation {
@@ -262,7 +283,7 @@ impl StopTimesIndex {
         let mut violations = Vec::new();
         for (trip_id, &(s, e)) in &self.trip_ranges {
             for st in &self.rows[s as usize..e as usize] {
-                if st.arrival_secs == u32::MAX || st.departure_secs == u32::MAX {
+                if st.arrival_secs >= TIME_MALFORMED || st.departure_secs >= TIME_MALFORMED {
                     continue;
                 }
                 if raw_midnight_rollover(st.arrival_secs, st.departure_secs) {
@@ -303,7 +324,7 @@ impl StopTimesIndex {
             let mut offset: u32 = 0;
             let mut prev: Option<u32> = None;
             for st in slice.iter_mut() {
-                if st.arrival_secs != u32::MAX {
+                if st.arrival_secs < TIME_MALFORMED {
                     let raw = st.arrival_secs;
                     if let Some(p) = prev {
                         if raw.saturating_add(offset) < p && raw < start_secs {
@@ -313,7 +334,7 @@ impl StopTimesIndex {
                     if offset > 0 { st.arrival_secs = raw + offset; }
                     prev = Some(raw + offset);
                 }
-                if st.departure_secs != u32::MAX {
+                if st.departure_secs < TIME_MALFORMED {
                     let raw = st.departure_secs;
                     let v = raw + offset; // offset'i takip eder; kendi unwrap'ını tetiklemez
                     if offset > 0 { st.departure_secs = v; }
@@ -1503,6 +1524,10 @@ pub fn validate_stop_times(
 
         // arrival_time
         let arr_raw = get_col(row, cols.arrival_time);
+        // `arr_malformed`: alan DOLU ama ayrıştırılamadı. `None` ile aynı kovaya
+        // atılırsa "değer yok" iddiasında bulunan kurallar (STM_015/016) dolu bir
+        // alan hakkında konuşur — bkz. TIME_MALFORMED.
+        let mut arr_malformed = false;
         let arrival_time = match parse_gtfs_time_raw(arr_raw, "arrival_time") {
             Ok(v) => v,
             Err(err) => {
@@ -1512,12 +1537,14 @@ pub fn validate_stop_times(
                     Some(arr_raw.to_string()), Some("HH:MM:SS".to_string()), err,
                     "HH:MM:SS formatında arrival_time girin.",
                 ));
+                arr_malformed = true;
                 None
             }
         };
 
         // departure_time
         let dep_raw = get_col(row, cols.departure_time);
+        let mut dep_malformed = false;
         let departure_time = match parse_gtfs_time_raw(dep_raw, "departure_time") {
             Ok(v) => v,
             Err(err) => {
@@ -1527,6 +1554,7 @@ pub fn validate_stop_times(
                     Some(dep_raw.to_string()), Some("HH:MM:SS".to_string()), err,
                     "HH:MM:SS formatında departure_time girin.",
                 ));
+                dep_malformed = true;
                 None
             }
         };
@@ -1926,8 +1954,12 @@ pub fn validate_stop_times(
             }
             st.all_rows.push(CompactStopTime {
                 stop_idx,
-                arrival_secs:   arrival_time.map(|(h,m,s)| h*3600+m*60+s).unwrap_or(u32::MAX),
-                departure_secs: departure_time.map(|(h,m,s)| h*3600+m*60+s).unwrap_or(u32::MAX),
+                // Bozuk değer u32::MAX'e DÜŞMEZ: "alan yok" ile "alan dolu ama okunamadı"
+                // ayrı sentinellerdir, yoksa STM_015/016 dolu bir alan için "eksik" der.
+                arrival_secs:   arrival_time.map(|(h,m,s)| h*3600+m*60+s)
+                                    .unwrap_or(if arr_malformed { TIME_MALFORMED } else { u32::MAX }),
+                departure_secs: departure_time.map(|(h,m,s)| h*3600+m*60+s)
+                                    .unwrap_or(if dep_malformed { TIME_MALFORMED } else { u32::MAX }),
                 sequence:       stop_sequence.unwrap_or(u32::MAX),
                 dist_f32:       shape_dist_traveled.map(|d| d as f32).unwrap_or(f32::NAN),
                 line:           line as u32,

@@ -3471,8 +3471,13 @@ fn check_stoptimes_derived(
         //                 ZATEN kapsar; ayrı bir kural gerekmez.
         // Tek kuralda birleştirilirse Spec sınıfı normatif olmayan bir vakayı da R1 yayın
         // kapısına sokardı.
+        // `arrival_is_absent()` — `arrival_time().is_none()` DEĞİL. İkincisi dolu ama
+        // ayrıştırılamamış değeri de "yok" sayar ve bu kural o vakada YANLIŞ konuşur:
+        // mdb-2727'de 101.621 kez "ilk/son durakta arrival_time eksik" dedi, halbuki
+        // değer HH:MM yazılmıştı ve aynı satırda STM_003 zaten doğrusunu söylüyordu.
+        // Spec·Kritik olduğu için o yanlış iddia R1 yayın kapısına giriyordu.
         if let Some(first) = stimes.first() {
-            if !is_flex(first) && first.arrival_time().is_none() {
+            if !is_flex(first) && first.arrival_is_absent() {
                 notices.push(k6_notice(
                     ctr, "STM_015", EntityType::Trip,
                     Some(trip_id.to_string()), Some(trip_id.to_string()),
@@ -3493,7 +3498,7 @@ fn check_stoptimes_derived(
         // STM_033 "Tek duraklı sefer" tarafından yakalanıyor.
 
         if let Some(last) = stimes.last() {
-            if !is_flex(last) && last.arrival_time().is_none() {
+            if !is_flex(last) && last.arrival_is_absent() {
                 notices.push(k6_notice(
                     ctr, "STM_016", EntityType::Trip,
                     Some(trip_id.to_string()), Some(trip_id.to_string()),
