@@ -394,13 +394,46 @@ class LedgerDriftGate(unittest.TestCase):
         """"Düzelttik" bir GEÇMİŞ iddiasıdır; sonraki koşum onu SINAR.
 
         `FALSE_POSITIVE_FIXED` taşıyan bir kural yine ateşliyorsa bu görünmelidir —
-        bastırmak, kapının yakalamak için var olduğu şeyi gizler.
+        bastırmak, kapının yakalamak için var olduğu şeyi gizler. Nöbeti sonlandırmanın
+        TEK yolu `FIX_CONFIRMED`'dir ve o da ölçüm ister (aşağıdaki test).
         """
         for verdict in mapping.REGRESSION_SENSITIVE_VERDICTS:
             self.assertNotIn(verdict, mapping.SETTLING_VERDICTS,
                              f"{verdict} bir değişiklik iddia eder, ayrışmayı KAPATAMAZ")
-        self.assertEqual(mapping.classify_analyzer_divergence("FIN_002")[0], "unreviewed",
-                         "FALSE_POSITIVE_FIXED taşıyan kural hâlâ ateşliyorsa görünmeli")
+        # Örnek, nöbeti HÂLÂ SÜREN bir kuraldan seçilir. `FIN_002` bu testin örneğiydi
+        # ve run 32290410755 nöbetini kapattı (mdb-912 hâlâ ateşliyor, ki ateşlemesi
+        # gerekiyordu) — örneği güncellemek ilkeyi değil, ilkenin ÖRNEĞİNİ takip eder.
+        still_watched = [rid for rid, (v, _, _) in mapping._fp_verdicts().items()
+                         if v in mapping.REGRESSION_SENSITIVE_VERDICTS]
+        self.assertTrue(still_watched, "hiç açık nöbet yoksa bu testin örneği kalmamıştır")
+        for rid in still_watched:
+            self.assertEqual(mapping.classify_analyzer_divergence(rid)[0], "unreviewed",
+                             f"{rid} nöbetteyken kapatılmış görünüyor")
+
+    def test_fix_confirmed_requires_a_measurement(self):
+        """`FIX_CONFIRMED` nöbeti KAPATIR, dolayısıyla ucuz yazılamamalıdır.
+
+        Bir nöbeti "kanıtlandı" diye kapatmak, o kuralın satırlarını görünürden
+        çıkarır. Ölçüm yapılmadan yazılırsa `FALSE_POSITIVE_FIXED`'i bastırmanın
+        kestirme yolu olur ve kapı tam da yakalamak için var olduğu şeyi kaçırır.
+        Bu yüzden her `FIX_CONFIRMED` satırı, hükmün ADINI VERDİĞİ feed'i (
+        `sampled_from`) ve gerekçesinde o feed'in ölçülen geçişini taşımak zorundadır.
+        """
+        import csv as _csv
+        ledger = Path(__file__).resolve().parent / "fp_adjudication.tsv"
+        with ledger.open(encoding="utf-8", newline="") as fh:
+            rows = [r for r in _csv.DictReader(fh, delimiter="\t")
+                    if (r.get("verdict") or "").strip() == "FIX_CONFIRMED"]
+        self.assertTrue(rows, "FIX_CONFIRMED kaydı yok — test örneksiz kalmış")
+        for r in rows:
+            rid = r["rule_id"]
+            self.assertTrue((r.get("sampled_from") or "").strip(),
+                            f"{rid}: FIX_CONFIRMED hangi feed'de ölçüldüğünü söylemiyor")
+            self.assertTrue((r.get("examples_read") or "").strip() not in ("", "0"),
+                            f"{rid}: FIX_CONFIRMED hiç örnek okumadan yazılmış")
+            reason = r.get("reasoning") or ""
+            self.assertIn("->", reason,
+                          f"{rid}: FIX_CONFIRMED gerekçesi ölçülen geçişi taşımıyor")
 
     def test_not_adjudicated_never_overwrites_a_real_verdict(self):
         """`NOT_ADJUDICATED` bir hüküm DEĞİL, hüküm verilmediğinin kaydıdır.
