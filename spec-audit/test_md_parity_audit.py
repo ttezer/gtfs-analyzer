@@ -443,6 +443,24 @@ class LedgerDriftGate(unittest.TestCase):
         # Standart anahtarlar önceliğini korur.
         self.assertEqual(mapping._field({"fieldName": "stop_id", "childFieldName": "trip_id"}), "stop_id")
 
+    def test_no_md_equivalent_entries_name_real_rules_and_are_not_also_mapped(self):
+        """#165'in çıktısı: MD'de karşılığı ARANIP bulunamamış kontroller.
+
+        İki şey doğrulanır — kural gerçekten var, ve aynı kural bir yandan
+        eşlenmiş de değil. İkisi birlikte olsaydı liste "aradık, yok" demek
+        yerine kendi eşlememizi yalanlıyor olurdu.
+        """
+        registry = (Path(__file__).resolve().parents[1]
+                    / "crates" / "rules" / "src" / "registry.rs").read_text(encoding="utf-8")
+        known = set(re.findall(r'r!\("([A-Z]{2,4}_\d{3}[a-z]?)"', registry))
+        mapped = {r for rules in audit.MAP.values() for r in rules}
+        mapped |= {r for e in mapping.CONTEXT_MAPPINGS for r in e.analyzer_rules}
+        for rule, reason in mapping.NO_MD_EQUIVALENT.items():
+            with self.subTest(rule=rule):
+                self.assertIn(rule, known, f"{rule}: registry'de böyle bir kural yok")
+                self.assertNotIn(rule, mapped, f"{rule}: hem 'MD'de yok' hem eşlenmiş")
+                self.assertGreater(len(reason), 60, f"{rule}: gerekçe fazla kısa")
+
     def test_every_mapped_rule_exists_in_the_registry(self):
         """Var olmayan bir kurala eşlenen kod SESSİZ bir MISS üretir.
 

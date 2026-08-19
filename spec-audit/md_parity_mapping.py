@@ -197,7 +197,30 @@ CONTEXT_MAPPINGS: tuple[ContextMapping, ...] = (
     # `filename` + `fieldName` İLE BİRLİKTE basıyor — bağlam raporda VARDI, bizde o
     # kombinasyon için giriş yoktu. Aşağıdaki dokuz kuralın hepsi, MD'nin raporladığı
     # feed'lerin tam olarak hepsinde ateşliyor; eşleme eksikti, kural değil.
-    # ── foreign_key_violation ────────────────────────────────────────────────
+    # ── #165 ikinci dalga: jenerik kodların kalan bağlamları ──────────────────
+    # Hepsi bir ENUM/TİP kontrolüdür ve MD tek jenerik kod basar. Aşağıdakiler
+    # `unexpected_enum_value` / `invalid_integer` / `invalid_float` ailelerinin
+    # eksik kalan alanlarıdır; kural adı değil ALAN eşleştirilir.
+    _ctx("unexpected_enum_value", "CLD_003", filename=("calendar_dates.txt",), fields=("exception_type",), label="calendar_dates.txt::exception_type"),
+    _ctx("unexpected_enum_value", "STP_008", filename=("stops.txt",), fields=("location_type",), label="stops.txt::location_type"),
+    _ctx("unexpected_enum_value", "STP_013", filename=("stops.txt",), fields=("wheelchair_boarding",), label="stops.txt::wheelchair_boarding"),
+    _ctx("unexpected_enum_value", "STM_009", filename=("stop_times.txt",), fields=("pickup_type",), label="stop_times.txt::pickup_type"),
+    _ctx("unexpected_enum_value", "STM_018", filename=("stop_times.txt",), fields=("continuous_pickup",), label="stop_times.txt::continuous_pickup"),
+    _ctx("unexpected_enum_value", "STM_019", filename=("stop_times.txt",), fields=("continuous_drop_off",), label="stop_times.txt::continuous_drop_off"),
+    _ctx("unexpected_enum_value", "FRQ_007", filename=("frequencies.txt",), fields=("exact_times",), label="frequencies.txt::exact_times"),
+    _ctx("unexpected_enum_value", "FTR_001", filename=("fare_transfer_rules.txt",), fields=("fare_transfer_type",), label="fare_transfer_rules.txt::fare_transfer_type"),
+    _ctx("invalid_integer", "STM_005", filename=("stop_times.txt",), fields=("stop_sequence",), label="stop_times.txt::stop_sequence"),
+    _ctx("invalid_integer", "SHP_004", filename=("shapes.txt",), fields=("shape_pt_sequence",), label="shapes.txt::shape_pt_sequence"),
+    _ctx("invalid_integer", "FAR_006", filename=("fare_attributes.txt",), fields=("transfer_duration",), label="fare_attributes.txt::transfer_duration"),
+    _ctx("invalid_float", "STP_004", filename=("stops.txt",), fields=("stop_lat",), label="stops.txt::stop_lat"),
+    _ctx("missing_required_field", "STP_002", filename=("stops.txt",), fields=("stop_id",), label="stops.txt::stop_id"),
+    _ctx("missing_required_field", "FAR_003", filename=("fare_attributes.txt",), fields=("currency_type",), label="fare_attributes.txt::currency_type"),
+    _ctx("invalid_email", "AGN_009", filename=("agency.txt",), fields=("agency_email",), label="agency.txt::agency_email"),
+    _ctx("invalid_language_code", "FIN_004", filename=("feed_info.txt",), fields=("default_lang",), label="feed_info.txt::default_lang"),
+    _ctx("empty_file", "STP_018", filename=("stops.txt",), label="stops.txt boş"),
+    _ctx("foreign_key_violation", "XFL_015", filename=("attributions.txt",), label="attributions.txt referansları"),
+
+    # ── foreign_key_violation ─    # ── foreign_key_violation ────────────────────────────────────────────────
     # MobilityData tek kod basar ve bağlamı `childFilename`/`childFieldName` ile
     # taşır; biz referansı VEREN dosyaya göre ayrı kural tutarız. Aşağıdaki
     # bağlamların çoğu korpusta GÖZLENDİ (run-32197267205); kardeş yönler
@@ -240,7 +263,11 @@ CONTEXT_MAPPINGS: tuple[ContextMapping, ...] = (
     _ctx("duplicate_key", "CAL_001", filename=("calendar.txt",), fields=("service_id",), label="calendar.txt::service_id"),
     _ctx("duplicate_key", "AGN_010", filename=("agency.txt",), fields=("agency_id",), label="agency.txt::agency_id"),
     _ctx("duplicate_key", "FAR_001", filename=("fare_attributes.txt",), fields=("fare_id",), label="fare_attributes.txt::fare_id"),
-    _ctx("duplicate_key", "TRN_005", filename=("translations.txt",), fields=("table_name",), label="translations.txt::(table_name, ...)"),
+    # TRN_005 ve TRN_006 aynı olguyu iki açıdan ölçer — anahtar yineleniyor
+    # (005) ve yinelenen anahtar FARKLI değer taşıyor (006) — ve MD ikisini de
+    # tek `duplicate_key` altında raporlar. AYRI iki `_ctx` girişi aynı bağlamı
+    # paylaşınca çözücü haklı olarak `context-mixed` der; tek girişte listelenir.
+    _ctx("duplicate_key", "TRN_005", "TRN_006", filename=("translations.txt",), fields=("table_name",), label="translations.txt::çeviri anahtarı"),
     _ctx("duplicate_key", "TRF_012", filename=("transfers.txt",), fields=("from_stop_id",), label="transfers.txt::(from_stop_id, to_stop_id)"),
     _ctx("duplicate_key", "DQ_021", filename=("fare_leg_rules.txt", "fare_transfer_rules.txt", "location_groups.txt"), label="Fares v2 / Flex bileşik anahtarları"),
     _ctx("invalid_time", "BKR_025", filename=("booking_rules.txt",), fields=("prior_notice_start_time", "prior_notice_last_time"), label="booking_rules.txt::prior_notice zamanları"),
@@ -739,6 +766,37 @@ def classify_mapped_divergence(code: str) -> tuple[str, str]:
     return MAPPED_DIVERGENCE_DECISIONS.get(
         code, ("unreviewed", "No decision recorded for a mapped divergence on this MD code.")
     )
+
+
+# ── MobilityData v8.0.1'de KARŞILIĞI OLMAYAN Spec kontrolleri ────────────────
+#
+# #165'in aradığı liste budur ve tek bir şeyi hak ediyor: **iddia edilmeden önce
+# aranmış olmak.** Aşağıdakilerin her biri, MD'nin YAYIMLANMIŞ 200 kodluk
+# kataloğunda kavram bazında arandı ve karşılığı bulunamadı. Bir kodun bizim
+# parite tablomuzda geçmemesi kanıt DEĞİLDİR (#57'nin dersi); burada aranan şey
+# MD'nin kendi kataloğudur.
+#
+# ⚠️ Bu liste "biz daha iyiyiz" demez. Yalnız "bu kontrolün MD'de eşleniği yok"
+# der; kontrolün kendisinin doğru olup olmadığı ayrı bir sorudur ve kural
+# kartlarında yanıtlanır.
+NO_MD_EQUIVALENT: dict[str, str] = {
+    "ARC_032": "Alan değerinde HTML etiketi/kaçış dizisi. Katalogda 'html' geçen tek bir kod yok.",
+    "ARC_033": "RFC 4180 kaçırılmamış tırnak. MD'nin `new_line_in_value`'su bunun SEMPTOMUNU (tırnak kapanmayınca sonraki satırın devam sayılması) anlatır, ihlalin kendisini değil.",
+    "ARC_026": "Hatalı satır sonu karakteri. Katalogda satır sonu biçimini denetleyen kod yok.",
+    "ATR_009": "attributions.txt'te route_id/trip_id/agency_id birlikte kullanılmış. MD'nin `attribution_without_role`'ü ROL yokluğunu ölçer, hedef alanların çakışmasını değil.",
+    "STM_049": "Gece yarısı sonrası kalkışın 00:xx yazılması. MD'nin `timeframe_start_or_end_time_greater_than_twenty_four_hours`'ı timeframes.txt içindir ve TERS yönü ölçer.",
+    "TRP_019": "Continuous servis aktifken shape_id eksik. MD'nin `forbidden_continuous_pickup_drop_off`'u continuous alanların YASAK olduğu bağlamı ölçer; shape gerekliliğini değil.",
+    "FRQ_012": "exact_times=1 iken end_time headway sınırına denk geliyor. `overlapping_frequency` ve `start_and_end_range_equal` farklı olgulardır.",
+    "TRF_022": "1-to-n devamlılıkta devam seferlerinin service_id'leri çelişiyor. MD'nin in-seat kodları rota MODUNU ve durak konumunu ölçer, takvim tutarlılığını değil.",
+    "TRF_023": "n-to-1 devamlılıkta gelen seferlerin service_id'leri çelişiyor. TRF_022 ile aynı gerekçe.",
+    "TRF_016": "Aynı altı-alanlı aktarma anahtarı (from/to stop, trip, route) birden fazla satırda tanımlı; hangi kuralın öncelikli olduğu belirsiz kalır. MD'nin `duplicate_key`'i transfers.txt için yalnız durak çiftini anahtar sayar (o bizde TRF_012); bağlamlı altı-alanlı çakışmayı ölçen kod yok.",
+    "TRN_002": "field_name bu tablo için geçersiz. MD'nin üç çeviri kodu table_name'i, referansı ve boş olması gereken alanı ölçer; field_name'in tablo için geçerliliğini değil.",
+    "TRN_011": "field_name çevrilebilir bir içerik türüne benzemiyor (ad/desc/url/email/phone/headsign sezgisi). MD'nin üç çeviri kodu table_name'i, kayıt referansını ve boş olması gereken alanı ölçer; hangi ALANLARIN çevrilebilir olduğunu hiçbiri denetlemez.",
+    "TRN_008": "translations.txt::translation boş; satır bir çeviri tanımladığını söyler ama içerik taşımaz. MD katalogunda boş çeviri değerini denetleyen kod yok — translation_unexpected_value boş OLMASI GEREKEN alanın dolu olmasını ölçer, tersini değil.",
+    "TRN_015": "record_id ve field_value ikisi de boş. MD'nin `translation_unexpected_value`'su TERSİNİ ölçer (dolu olmamalıyken dolu).",
+    "STM_060": "Aynı seferde geojson bölgesi + zaman penceresi + pickup/drop_off eşzamanlı örtüşmesi. Spec bunu yasaklar; MD'de kod yok ve bizde de geometri saklanmadığı için kapsam sınırlıdır.",
+    "BKR_002": "prior_notice_start_day yalnızca prior_notice_last_day ile kullanılabilir. MD'nin `forbidden_prior_notice_start_day`'i duration_max koşulunu ölçer (o bizde BKR_024), bu eşleşmeyi değil.",
+}
 
 
 def classify_divergence(code: str) -> tuple[str, str]:

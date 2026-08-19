@@ -73,7 +73,7 @@ MAP = {
     "single_shape_point":          ["SHP_006"],  # near-parity: yalnız kullanılan shape'ler
     # fare_products.txt::amount para birimi ondalık hassasiyetine uymuyor. Eşlemesizdi ve
     # 11 feed "kuralımız yok" gibi görünüyordu; koşumda 11'in 11'i de FPD_007 alıyor (#146).
-    "invalid_currency_amount":     ["FPD_007"],
+    "invalid_currency_amount":     ["FPD_007", "FAR_013"],  # FAR_013: price ISO 4217 ondalık basamak sayısını taşımıyor (#165)
     # Aşağıdaki altı kod eşlemesizdi ve "kuralımız yok" gibi sayılıyordu; her biri tam
     # katalog koşumunda DOĞRULANDI — adayın o feed'lerde gerçekten ateşlediği ölçüldü (#146).
     "missing_required_agency_id":       ["AGN_011"],  # 9/9 feed
@@ -93,10 +93,20 @@ MAP = {
     "missing_stop_name":                ["STP_003"],            # 2/2
     "inconsistent_agency_timezone":     ["AGN_005"],            # 2/2
     "invalid_language_code":            ["AGN_006"],            # 1/1
+    "csv_parsing_failed":               ["ARC_013"],   # "CSV ayrıştırma hatası" — birebir (#165)
+    "invalid_prior_notice_duration_min": ["BKR_006"],  # birebir (#165)
+    "forbidden_prior_notice_start_day": ["BKR_024"],   # MD: "forbidden when prior_notice_duration_max is set" (#165)
+    "unsupported_geometry_type":        ["LOC_001"],   # locations.geojson geometri tipi (#165)
+    "fare_transfer_rule_duration_limit_without_type": ["FTR_011"],  # birebir (#165)
+    "fare_product_with_multiple_default_rider_categories": ["RCT_006"],  # birebir (#165)
+    "forbidden_prior_day_booking_field_value": ["BKR_001"],  # önceki gün rezervasyon alanı yasak (#165)
+    "transfer_with_invalid_trip_and_route": ["TRF_017", "XFL_020"],  # XFL_020 aynı olgunun (trip,route) çifti (#165)
     "invalid_timezone":                 ["AGN_004"],            # 1/1
     "inconsistent_agency_lang":         ["AGN_017", "AGN_013"], # 4/4 ikisi de
     "new_line_in_value":                ["ARC_030"],            # 3/3 — sekme/CR/LF yasağı
     "translation_unknown_table_name":   ["TRN_001"],            # 2/2
+    "translation_foreign_key_violation": ["TRN_016"],  # "field_value hiçbir kayıtla eşleşmiyor" — MD: record_id/record_sub_id ile varlık bulunamıyor (#165)
+    "translation_unexpected_value":     ["TRN_013"],  # "bu bağlamda dolu olmamalı" — MD: "a field has value but must be empty" (#165)
     "stop_time_with_only_arrival_or_departure_time": ["STM_034"],  # 1/1
     "missing_prior_notice_last_time":   ["BKR_009"],            # 1/1
     "empty_column_name":                ["ARC_017"],            # 5/5 — boş başlık tanınmayan sütundur
@@ -184,7 +194,6 @@ MAP = {
     "point_near_pole":                  ["GEO_022"],   # 2/2 — |lat|>89; GEO_022 aynı iki feed'de ateşliyor
     "pathway_dangling_generic_node":    ["PTH_019"],   # kural VARDI, eşleme yoktu (#158)
     "transfer_with_invalid_trip_and_stop":  ["XFL_021"],  # kural VARDI (XFL grubunda), defter yanlış "genuine-gap" demişti
-    "transfer_with_invalid_trip_and_route": ["TRF_017"],  # "Sefer aktarması yanlış hat" — aynı olgu
     "invalid_character":                ["ARC_021"],
     "missing_feed_info_date":           ["FIN_014"],
     "more_than_one_entity":             ["FIN_015"],
