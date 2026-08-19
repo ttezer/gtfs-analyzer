@@ -345,7 +345,13 @@ jobs:
           key: ${{ runner.os }}-playwright-${{ hashFiles('ui/package-lock.json') }}
           restore-keys: ${{ runner.os }}-playwright-
 
+      # 🔴 ADIM DÜZEYİNDE SINIR: 2026-08-19'da DÖRT ardışık koşum tam BURADA asıldı.
+      # İptal anındaki öksüz süreç her seferinde `npm exec playwright install chromium
+      # --with-deps` idi — testler hiç başlamamıştı. Job sınırı asılmayı hataya çevirir
+      # ama hangi adım olduğunu söylemez; bu sınır söyler. Normal süre ~40 sn (önbellek
+      # dolu) ya da ~2 dk (soğuk).
       - name: Playwright browser kur
+        timeout-minutes: 6
         working-directory: ui
         run: npx playwright install chromium --with-deps
 
