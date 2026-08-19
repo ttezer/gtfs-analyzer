@@ -41,7 +41,12 @@ Bunların HİÇBİRİ yeni koşum GEREKTİRMEZ — hepsi eldeki
 Eski `benchmark/auditall/` yığını #152'de emekliye ayrıldı — diriltme.
 `agent/validator-audit-all-mdb-20260817` dalı **silinmez**.
 
-## 2. Koşmadan önce güncellenecek üç şey
+## 2. Koşmadan önce güncellenecek şeyler
+
+> ✅ **5. koşum için ikisi ZATEN HAZIR** (`0acf6129`): `--manifest` artık main'de kalıcı,
+> `BENCH_DATE`/`MD_DATE` `20260819`'da. Koşum BAŞKA BİR GÜN yapılırsa tarihi çek.
+
+2. Koşmadan önce güncellenecek üç şey
 
 1. **`benchmark/audit_all/run_shard.py` → `BENCH_DATE` ve `MD_DATE`.**
    Gerçek koşum tarihine çek. `BENCH_DATE` Analyzer'ın `--today` bayrağına, `MD_DATE`
@@ -78,29 +83,45 @@ sahte bulgular üretir.
 
 ## 5. 🔴 BU KOŞUMA ÖZEL — ÖNCEKİYLE KIYASLARKEN
 
-> Bu bölüm **her koşumdan sonra yeniden yazılır.** Aşağıdaki hâli 4. koşum içindir;
-> 3. koşumun (`32145833613`) kendi uyarı tablosu git geçmişinde `98f09bdf`'ten önceki
+> Bu bölüm **her koşumdan sonra yeniden yazılır.** Aşağıdaki hâli **5. koşum** içindir;
+> 4. koşumun (`32197267205`) kendi uyarı tablosu git geçmişinde `9e7746ba`'dan önceki
 > sürümdedir.
 
-3. koşumdan (`32145833613`) bu yana üründe **kural davranışı değiştiren bir şey yok**;
-değişenler araç tarafında. Kıyas yaparken:
+**Bu koşumun tek gerekçesi: ALTI ürün değişikliğinin tahminini SINAMAK.** Keşif değil
+(brief §0). Her satırın beklentisi önceden yazılıdır; tutmazsa düzeltme çalışmıyor demektir.
 
-| değişiklik | beklenen etki |
-|---|---|
-| `classify_analyzer` artık 124/137'yi `partial_timeout` sayıyor (`a791a0d4`) | `mdb-2014` **`completed` olmaktan çıkar**; `both_completed_cleanly` 1 azalır ve o feed sapma kıyasından DÜŞER. Bu bir gerileme değil, önceki koşumun kesik çıktıyı temiz sayması kusurunun kapanmasıdır. |
-| `point_near_pole` → `GEO_022` eşlendi (`d8b2820b`) | `md_unmapped` **5 → 3**'e iner; `analyzer_spec_md_absent` en fazla `GEO_022`'nin 4 feed'i kadar artabilir. Kapsam değişmedi, yalnız kitap düzeldi. |
+| değişiklik | commit | BEKLENEN |
+|---|---|---|
+| `TRP_019` continuous enum `{0,1}` → `{0,2,3}` | `983420f8` | **215.288 → çok daha az.** Yüklem 1'i (=sürekli servis YOK) dahil ediyordu. `tdg-83921` ve `tdg-81645` **0'a inmeli**, `ntd-50386` 24'te kalmalı. |
+| `ARC_009` koşullu çift simetrisi | `39246a4a` | CRITICAL 104 → **~45**. Boş `calendar.txt` + dolu `calendar_dates.txt` olan 59 feed susmalı; `stop_times`/`routes`/`agency`/`stops` boş olanlar SUSMAMALI. |
+| `STM_061` (YENİ, 600. kural) | `94cc4c06` | MD'nin `fast_travel_between_far_stops` verdiği ~372 feed'de ateşlemeli. `mdb-2946`≈116, `mdb-3235`≈36, `tld-4477`≈7. |
+| `ARC_034` (YENİ) | `fcb19828` | `mdb-1003`/`mdb-1004`'te **6'şar**; aynı feed'lerde `AGN_004`/`AGN_005` **0'a inmeli**. |
+| `BKR_025` (YENİ) | `a5860028` | `tdg-80694`, `tdg-84001` — `prior_notice` saatinde `00:00:00.0000000` gibi bozuk değer. |
+| `BKR_002` Spec → Quality | `e7a1af8d` | Bulgu sayısı AYNI kalır; yalnız sınıf/önem değişir → R1 yayın engeli olmaktan çıkar. |
 
-⚠️ **`analyzer_spec_md_absent` (FP kovası) 254'ten geldi ve İÇİ YARGILANMADI.** 3. koşumda
-141 → 254 çıkışının tamamı #147'nin eşlemelerinden geliyordu (`analyzer_spec_unmapped`
-aynı anda 1.294 → 1.187 düştü). **Bu kovanın sayısı TEK BAŞINA asla ürün hükmü değildir —
-komşu kovanın karşılık gelen düşüşüyle birlikte okunur.**
+### Defter tarafı — aracın doğru okuduğunun sınavı
 
-⚠️ **Agregasyon artık DOĞRULANMIŞ durumda (#151 kapandı).** `STM_056` ~1.200,
-`STM_018` 9, `STM_019` 5, `STM_032` 45, `STM_007` 225 seviyelerinde OLMALI. Bunlar
-milyonlara geri çıkarsa agregasyon kırılmış demektir.
+Bugün üç kovanın hükümleri yazıldı ve `aggregate.py` artık `fp_adjudication.tsv`'yi
+okuyor (`706aed1d`). Beklenen:
 
-⚠️ **202 feed aynı SHA-256'yı paylaşıyor** (korpusun ~%5'i). Her "N feed" rakamı bu kadar
-şişkindir; kıyas yaparken belirt.
+| sınıf | 4. koşum | BEKLENEN |
+|---|---:|---|
+| `analyzer_spec_md_absent` | 251 | **~9** |
+| `analyzer_spec_unmapped` | 1.187 | **~0** (95 eşleme + 18 `NO_MD_EQUIVALENT`) |
+| `analyzer_mapped_md_absent` | 14.936 | **~4.900** |
+| `md_mapped_over` + `md_mapped_under` | 1.054 | **~101** |
+| `md_mapped_missing` | 36 | ~1 (`tfs-342` 403 veriyor) |
+| `md_unmapped` | 0 | **0 kalmalı** |
+| `adjudicated_divergence` | 9.641 | belirgin ARTAR |
+
+🔴 **Bu düşüşlerin HİÇBİRİ ürün iyileşmesi DEĞİLDİR.** Yargılanmış sapmanın artık
+yargılanmış görünmesidir. Raporda böyle yazılır.
+
+⚠️ **`ARC_009` yine de `analyzer_mapped_md_absent`'ta görünecek** — `FALSE_POSITIVE_FIXED`
+hükmü gerileme duyarlıdır ve koşum düzeltmeyi kanıtlayana kadar bilerek görünür kalır.
+Görünmesi kusur DEĞİL, kapının çalıştığının işaretidir.
+
+⚠️ **202 feed aynı SHA-256'yı paylaşıyor** (~%5). Her "N feed" rakamı bu kadar şişkindir.
 
 ## 6. Sonuçların yayımlanması
 
@@ -128,6 +149,11 @@ da böyle yapıldı. Küçültme, Release'e taşıma, dosya eleme YAPILMAZ.
 | medyan süre (Analyzer / MD) | ölçülmedi | 0,05 sn / 3,06 sn | 0,05 sn / 2,98 sn |
 | p95 süre | ölçülmedi | 3,65 sn / 12,72 sn | 3,73 sn / 12,96 sn |
 | aynı SHA-256 grubu | ölçülmedi | 101 grup / 206 feed | 99 grup / 202 feed |
+
+🔑 **4. koşumun dersi: YEDİ düzeltMENİN YEDİSİ de önceden adı verilen feed'de isabet etti.**
+Toplam 40,3M → 38,7M (−%14,1 değil, −%3,9) bir kalite ölçüsü DEĞİLDİR: düşüşün TAMAMI
+`mdb-2014`'ün doğru sınıflandırılmasıdır (o feed 3. koşumda `completed`+1,55M bulgu
+sayılıyordu). 4.271 feed'de gerçek ürün değişimi **−461**.
 
 🔑 **3. koşumun dersi: agregasyon ÖLÇÜLDÜ ve tahminler feed başına birebir tuttu.** Toplam
 46,9M → 40,3M (−%14,1) bir kalite ölçüsü DEĞİLDİR: agregasyonun eksilttiği (−8,93M) artı
