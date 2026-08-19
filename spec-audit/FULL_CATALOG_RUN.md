@@ -8,6 +8,31 @@ hiçbiri teorik değil.
 > özetiydi. Bu hâli **üçüncü koşum için talimat**tır. Geçmiş koşumların sayıları aşağıda
 > "Referans" bölümünde; **güncel sayı için koşum artefaktlarına bak, bu dosyaya değil.**
 
+## 0. 🛑 NE ZAMAN KOŞULUR — VE NE ZAMAN KOŞULMAZ
+
+**Karar (2026-08-19, kullanıcı): korpus artık KEŞİF için koşulmaz, yalnız DOĞRULAMA için koşulur.**
+
+Dört koşum sonunda katalog bize söyleyeceğini söyledi. Sınıf sayıları ikinci ve üçüncü
+koşumdan beri neredeyse sabit; hareket eden her şeyin sebebi ya ARAÇTI ya da bizim o tur
+yaptığımız düzeltmeydi. 4. koşum bunun kanıtı: yedi düzeltmenin yedisi de önceden adı
+verilen feed'de gerçekleşti ve başka hiçbir şey kıpırdamadı (gerçek ürün değişimi
+4.271 feed'de −461 bulgu).
+
+**Koşum ŞART olan tek durum:** elde, hangi feed'de ne değişeceğini ÖNCEDEN söyleyebildiğimiz
+bir düzeltme yığını var ve bu tahmin sınanacak.
+
+**Koşum GEREKMEYEN durumlar:** "bakalım ne çıkacak" · defter/eşleme değişikliği (bunlar artık
+`LedgerDriftGate` ve `test_timing.py` ile YERELDE sınanır) · rapor tazeleme.
+
+⚠️ **Bir koşum ~1 saat, 640 shard ve 79 MB ham veridir.** Keşif amaçlı koşum, o maliyeti
+sıfır bilgi için ödemektir — ve daha kötüsü, ürün değişmemişken oynayan bir sayı
+"iyileşme" ya da "gerileme" diye okunur. Dördüncü koşumda −%3,9'luk düşüşün tamamının
+TEK BİR FEED'in doğru sınıflandırılmasından geldiğini hatırla.
+
+Açık denetim işi artık issue'larda: #162 · #163 · #164 · #165 · #166 · #167 · #168.
+Bunların HİÇBİRİ yeni koşum GEREKTİRMEZ — hepsi eldeki
+`audit-results/full-mdb-schedule-20260819/run-32197267205/` verisiyle çalışılır.
+
 ## 1. Hangi yığın
 
 - `benchmark/audit_all/`
