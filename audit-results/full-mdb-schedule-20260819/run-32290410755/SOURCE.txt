@@ -1,0 +1,63 @@
+Run ID: 32290410755
+Artifact: validator-audit-all-mdb-final
+Artifact ID: 9382815466
+Artifact digest: sha256:8fd680008814c566b261f07ad697a91bac9b196c63a05d6c2fe7b013fe35a356
+Artifact size (GitHub metadata): 40231491 bytes
+Product commit: c97698c7 (main at branch point)
+Audit harness commit: e6c2a05bc71719308d1715ec98db4a1de91d722f
+MobilityData validator: v8.0.1
+Audit date: 2026-08-19 (BENCH_DATE=20260819, MD_DATE=2026-08-19)
+Analyzer rule count: 600 (422 observed firing)
+Manifest SHA-256: af55ad532b9cd10775ed478cc0a7673fc962d795710fd42f6262a81880e9a5b4 (byte-identical to run 32197267205)
+Raw per-feed bundle SHA-256: 1874a80d4a20c31dbd25297e259b0e149ce83ba1ddd5ae6393bf2a640c85caa8
+Scope: Full MobilityDatabase GTFS Schedule catalog coverage with public HTTP(S) latest URL; no URL/content deduplication; GTFS Realtime excluded.
+Exclusions: mdb-2904 excluded by standing instruction. Selected/tested manifest size: 4271 of 4476 GTFS Schedule catalog rows.
+Health gates: coverage manifest_checked=true, missing_manifest_feed_ids=[], unexpected_feed_ids=[]; timing measured for 4231 Analyzer and 4222 MobilityData states against 4222 both-completed feeds; duplicate-content groups=100 covering 204 feeds; mdb-2014 download_status=ok (1.47 GB, timeout in both validators as in run 32197267205); final workflow conclusion=success.
+Superseded run: 32289472291 was triggered before the prerequisite main CI finished and its PR (#171) was closed as invalid. Its artifacts are NOT published here.
+
+Purpose of this run: test the predictions of six product changes (brief section 5). The
+product side is measured below. The LEDGER side of this run is WRONG AS PUBLISHED and is
+corrected in `reaggregated/` — see the note after the product results.
+
+Product predictions, each naming its feed in advance:
+
+  TRP_019   continuous enum {0,1} -> {0,2,3}   -> tdg-83921 4 -> 0, tdg-81645 14 -> 0, ntd-50386 held at 23
+  ARC_009   conditional-pair symmetry          -> CRITICAL 111 -> 55, INFO half unchanged
+  BKR_002   Spec -> Quality reclassification   -> 2 findings unchanged, now QUALITY/MEDIUM, no longer an R1 blocker
+  ARC_034   new rule, header repeated as data  -> mdb-1003 and mdb-1004, 5 each; AGN_004 on those feeds 1 -> 0
+  BKR_025   new rule, malformed prior_notice   -> tdg-80694 and tdg-84001, exactly the two named
+  STM_061   new rule, fast travel far stops    -> 331 feeds / 83,175 findings; PARTIAL, see below
+
+STM_061 is the one product prediction that did not fully land. MobilityData reports
+fast_travel_between_far_stops on 371 feeds; we fire on 250 of them, are silent on 121, and
+fire on 81 feeds where they are silent. The 121 silent feeds are the reason
+md_mapped_missing rises from 36 to 133 in this run: the new rule made an existing blind
+spot MEASURABLE for the first time, it did not create one.
+
+Total Analyzer findings 38,703,609 -> 38,620,548 across an unchanged corpus (4,271 feeds,
+manifest byte-identical). That -83,061 is not a quality measure: STM_061 ADDS 83,175 and
+the six fixes subtract more than that elsewhere.
+
+WHY THE PUBLISHED LEDGER NUMBERS ARE WRONG
+------------------------------------------
+`benchmark/audit_all/md_parity_mapping.py` is a bridge that `exec`s the canonical module in
+`spec-audit/`. An `exec` inherits the BRIDGE's `__file__`, so the canonical module resolved
+`fp_adjudication.tsv` to `benchmark/audit_all/`, where no such file exists. `_fp_verdicts()`
+returns an empty dict for a missing path — silently, with no error — so every adjudicated
+Analyzer rule came back "No verdict recorded" and this run republished settled rows as fresh
+divergences. A second gap compounded it: the `analyzer_spec_unmapped` bucket asked no ledger
+at all, so the 17 NO_MD_EQUIVALENT decisions from #165 were invisible too.
+
+Both are fixed in the commit that publishes this directory, and the run did NOT need to be
+repeated: the raw per-feed rows in `all-results.json.gz` are exactly the shard input, so
+`aggregate.py` was re-run over them locally in four seconds. `reaggregated/` holds that
+output. The top-level files are the run's own artifacts, unedited.
+
+  class                        as published   reaggregated
+  analyzer_mapped_md_absent          14,980          4,993
+  analyzer_spec_unmapped                690            327
+  analyzer_spec_md_absent               718            479
+  adjudicated_divergence             10,210         20,799
+
+None of those drops is a product improvement. They are already-judged divergences finally
+being counted as judged.

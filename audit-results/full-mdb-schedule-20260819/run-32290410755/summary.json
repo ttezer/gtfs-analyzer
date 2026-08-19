@@ -1,0 +1,55 @@
+{
+  "attempted": 4271,
+  "downloaded": 4232,
+  "both_completed_cleanly": 4222,
+  "state_pairs": {
+    "completed | completed": 4222,
+    "not_run | not_run": 39,
+    "completed | partial_internal": 5,
+    "completed | no_report": 2,
+    "timeout | timeout": 1,
+    "completed | timeout": 2
+  },
+  "analyzer_wall_s": {
+    "n": 4231,
+    "median": 0.05,
+    "p95": 3.605,
+    "maximum": 250.8
+  },
+  "md_wall_s": {
+    "n": 4222,
+    "median": 2.99,
+    "p95": 13.748999999999997,
+    "maximum": 182.4
+  },
+  "analyzer_peak_rss_kb": {
+    "n": 4231,
+    "median": 14340.0,
+    "p95": 448138.0,
+    "maximum": 13619068.0
+  },
+  "md_peak_rss_kb": {
+    "n": 4222,
+    "median": 338346.0,
+    "p95": 2657182.7999999993,
+    "maximum": 13081816.0
+  },
+  "analyzer_wall_median_s": 0.05,
+  "md_wall_median_s": 2.99,
+  "analyzer_peak_rss_median_kb": 14340,
+  "md_peak_rss_median_kb": 338346.0,
+  "unique_analyzer_rules_seen": 422,
+  "unique_md_codes_seen": 118,
+  "divergence_candidate_counts": {
+    "validator_state_asymmetry": 9,
+    "md_mapped_missing": 133,
+    "analyzer_spec_md_absent": 718,
+    "analyzer_spec_unmapped": 690,
+    "analyzer_mapped_md_absent": 14980,
+    "md_mapped_under": 179,
+    "md_mapped_over": 78,
+    "context_unresolved": 6,
+    "adjudicated_divergence": 10210
+  },
+  "fresh_vs_stored_md_report_count_different": 0
+}
