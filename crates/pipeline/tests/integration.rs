@@ -419,30 +419,52 @@ fn trf_006_blocks_contain_trf_017_and_trf_018() {
     }
 }
 
-// ── Test 5: TRP_019 — continuous service aktif + shape_id yok → ateşlenir ─────
-// route.continuous_pickup=1 → bu route'a ait trip shape_id olmadan geçersizdir.
+// ── Test 5: TRP_019 — shape_id yalnız SÜREKLİ SERVİS varsa zorunludur ────────
+//
+// 🔴 Bu test 2026-08-19'a kadar HATALI DAVRANIŞI sabitliyordu: `continuous_pickup=1`
+// ile bulgu BEKLİYORDU. Spec'te 1 (ve boş) "sürekli biniş YOK" demektir; sürekli
+// servis 0, 2 ve 3'tür. Yani test, geçerli bir feed'den shape_id talep etmemizi
+// doğru sanıyordu. Korpusta 100 feed / 215.288 bulgu bu yüzden üretiliyordu.
 
 #[test]
-fn trp_019_fires_when_continuous_service_active_no_shape() {
-    // continuous_pickup=1 olan route; trip'te shape_id yok
-    const ROUTES_CONTINUOUS: &[u8] =
-        b"route_id,agency_id,route_short_name,route_type,continuous_pickup\n\
-          R1,1,101,3,1\n";
-
-    let mut files = base_files();
-    files[2] = ("routes.txt", ROUTES_CONTINUOUS);
-
-    match run(&files) {
-        ValidateResult::Ok(vr) => {
-            assert!(
+fn trp_019_fires_when_continuous_service_is_actually_active() {
+    for value in ["0", "2", "3"] {
+        let routes = format!(
+            "route_id,agency_id,route_short_name,route_type,continuous_pickup\nR1,1,101,3,{value}\n"
+        );
+        let mut files = base_files();
+        files[2] = ("routes.txt", Box::leak(routes.into_bytes().into_boxed_slice()));
+        match run(&files) {
+            ValidateResult::Ok(vr) => assert!(
                 vr.notices.iter().any(|n| n.rule_id == "TRP_019"),
-                "TRP_019 olmalı (continuous_pickup=1, shape_id yok). Mevcut: {:?}",
+                "continuous_pickup={value} sürekli servistir → TRP_019 beklenir: {:?}",
                 vr.notices.iter().map(|n| n.rule_id.as_str()).collect::<Vec<_>>(),
-            );
+            ),
+            _ => panic!("ValidateResult::Ok beklendi"),
         }
-        _ => panic!("ValidateResult::Ok beklendi"),
     }
 }
+
+#[test]
+fn trp_019_stays_silent_when_continuous_service_is_declared_absent() {
+    // 1 = "No continuous stopping pickup". Boş bırakmakla aynı anlama gelir ve
+    // shape_id'yi ZORUNLU KILMAZ; aksi hâlde geçerli feed reddedilir.
+    for value in ["1", ""] {
+        let routes = format!(
+            "route_id,agency_id,route_short_name,route_type,continuous_pickup\nR1,1,101,3,{value}\n"
+        );
+        let mut files = base_files();
+        files[2] = ("routes.txt", Box::leak(routes.into_bytes().into_boxed_slice()));
+        match run(&files) {
+            ValidateResult::Ok(vr) => assert!(
+                !vr.notices.iter().any(|n| n.rule_id == "TRP_019"),
+                "continuous_pickup={value:?} sürekli servis DEĞİLDİR → TRP_019 olmamalı",
+            ),
+            _ => panic!("ValidateResult::Ok beklendi"),
+        }
+    }
+}
+
 
 // ── Test 6: TRP_019 — continuous service yok → sessiz ────────────────────────
 // route'ta continuous_pickup/drop_off yok, stop_times'ta da yok → TRP_019 üretilmez.

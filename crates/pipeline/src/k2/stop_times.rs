@@ -425,8 +425,11 @@ impl StopTimesIndex {
                 idx.stop_first_line.entry(st.stop_id.clone()).or_insert(st.line);
                 idx.trip_stop_set.entry(st.trip_id.clone()).or_default().insert(stop_idx);
             }
-            if matches!(st.continuous_pickup, Some(0) | Some(1))
-                || matches!(st.continuous_drop_off, Some(0) | Some(1))
+            // Enum kümesi {0,2,3}: 1 ve boş "sürekli biniş YOK" demektir (#170).
+            // Bu set TRP_019'u besler; 1'i dahil etmek geçerli feed'den shape_id
+            // talep ediyordu, 2/3'ü atlamak gerçek ihlali kaçırıyordu.
+            if matches!(st.continuous_pickup, Some(0) | Some(2) | Some(3))
+                || matches!(st.continuous_drop_off, Some(0) | Some(2) | Some(3))
             {
                 idx.continuous_trips.insert(st.trip_id.clone());
             }

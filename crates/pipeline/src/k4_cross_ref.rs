@@ -1157,8 +1157,22 @@ fn check_trips(
                 .get(rec_route_id)
                 .and_then(|&idx| records.routes.get(idx))
                 .map(|r| {
-                    matches!(r.continuous_pickup, Some(0) | Some(1))
-                        || matches!(r.continuous_drop_off, Some(0) | Some(1))
+            // 🔴 DEĞER KÜMESİ {0, 2, 3}'TÜR — 1 DEĞİLDİR (#170).
+            //
+            // Spec, `trips.shape_id` için: "Required if the trip has a continuous
+            // pickup or drop-off behavior defined either in routes.txt or in
+            // stop_times.txt." Enum ise şöyle tanımlı:
+            //   0        → sürekli biniş VAR
+            //   1 / boş  → sürekli biniş YOK        ← şart TETİKLEMEZ
+            //   2        → telefonla ayarlanan sürekli biniş  → VAR
+            //   3        → sürücüyle ayarlanan sürekli biniş  → VAR
+            //
+            // Yüklem `Some(0) | Some(1)` idi: hem 1'i (sürekli servis YOK) dahil edip
+            // geçerli feed'den shape_id talep ediyor, hem 2/3'ü (sürekli servis VAR)
+            // atlayarak gerçek ihlali kaçırıyordu. Korpusta 100 feed / 215.288 bulgu;
+            // örneklenen üç feed'in ikisinde değer 1'di (`tdg-83921`, `tdg-81645`).
+                    matches!(r.continuous_pickup, Some(0) | Some(2) | Some(3))
+                        || matches!(r.continuous_drop_off, Some(0) | Some(2) | Some(3))
                 })
                 .unwrap_or(false);
 
