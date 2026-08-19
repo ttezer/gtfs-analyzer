@@ -5,7 +5,8 @@ from pathlib import Path
 
 # Bağlam çözücü ve karar defterleri KANONİK modülden gelir (bridge `md_parity_mapping.py`).
 # Düz `MAP` yalnız GERİ DÜŞÜŞTÜR: bağlam entry'si olmayan kodlar için.
-from md_parity_mapping import classify_analyzer_divergence, classify_divergence, resolve_mapping
+from md_parity_mapping import (CONTEXT_BY_CODE, classify_analyzer_divergence,
+                               classify_divergence, resolve_mapping)
 
 
 def load_map(path):
@@ -133,8 +134,18 @@ def main():
     out=Path(args.out_dir); out.mkdir(parents=True,exist_ok=True)
     MAP,AGG=load_map(args.map_file)
     inv=defaultdict(list)
+    # 🔴 TERS EŞLEME İKİ KAYNAKTAN KURULUR. Düz `MAP` kural→kod ilişkisinin YALNIZ
+    # bir yarısıdır; diğer yarısı `CONTEXT_BY_CODE`'dadır ve orada 88 kural düz
+    # tabloda hiç geçmez. Yalnız `MAP` okunduğunda o kurallar "hiçbir MD koduna
+    # eşlenmemiş" sayılır ve `analyzer_spec_unmapped` kovasına düşer — run
+    # 32290410755'te 226 satırın 217'si (65 kural) tam olarak buydu. #165'in
+    # dersinin birebir tekrarı: eşleme VARDI, tüketici okumuyordu.
     for code,rules in MAP.items():
         for r in rules: inv[r].append(code)
+    for code,entries in CONTEXT_BY_CODE.items():
+        for e in entries:
+            for r in e.analyzer_rules:
+                if code not in inv[r]: inv[r].append(code)
 
     rows=[]
     for p in sorted(Path(args.results_dir).glob("shard-*.jsonl")):
