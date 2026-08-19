@@ -17,8 +17,8 @@ DOWNLOAD_TIMEOUT=300
 # değerin aynısı. Sınır KALDIRILMADI — sınırsız indirme runner diskini tüketir ve
 # feed'i "başarısız" değil "asılı" yapar.
 MAX_DOWNLOAD=2_500_000_000
-BENCH_DATE="20260816"
-MD_DATE="2026-08-16"
+BENCH_DATE="20260819"
+MD_DATE="2026-08-19"
 
 def slurp(p,limit=6000):
     p=Path(p)
