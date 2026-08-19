@@ -288,7 +288,17 @@ def main():
                       "analyzer_rule":rid,"analyzer_count":ourc,"analyzer_class":cls,"analyzer_severity":sev,
                       "mapped_md_codes":codes,"analyzer_sample":sm})
             elif cls=="SPEC":
-                divergences.append({"type":"analyzer_spec_unmapped","feed_id":fid,"provider":feed.get("provider",""),"country":feed.get("country",""),"url":feed.get("url",""),"analyzer_rule":rid,"analyzer_count":ourc,"analyzer_class":cls,"analyzer_severity":sev,"analyzer_sample":sm})
+                # 🔴 Bu kova da defterden GEÇER. Eşleme yokluğu, hüküm yokluğu DEĞİLDİR:
+                # `NO_MD_EQUIVALENT` ve `fp_adjudication.tsv` bir kuralı MD kodu olmadan
+                # da yargılar. Sorgu eklenene kadar run 32290410755'te ARC_033/ARC_032/
+                # FRQ_012/DQ_021 yargılanmış oldukları hâlde taze sapma sayıldı.
+                adj,areason=classify_analyzer_divergence(rid)
+                divergences.append({
+                  "type":"adjudicated_divergence" if adj!="unreviewed" else "analyzer_spec_unmapped",
+                  "unadjudicated_type":"analyzer_spec_unmapped" if adj!="unreviewed" else None,
+                  "decision":adj,"reason":areason,
+                  "feed_id":fid,"provider":feed.get("provider",""),"country":feed.get("country",""),"url":feed.get("url",""),
+                  "analyzer_rule":rid,"analyzer_count":ourc,"analyzer_class":cls,"analyzer_severity":sev,"analyzer_sample":sm})
 
     for d in divergences:d["priority"]=priority(d)
     divergences.sort(key=lambda d:(-d["priority"],d.get("feed_id",""),d.get("md_code",""),d.get("analyzer_rule","")))

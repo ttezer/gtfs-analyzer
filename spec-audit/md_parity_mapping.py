@@ -962,6 +962,14 @@ def classify_analyzer_divergence(rule_id: str):
     """
     entry = _fp_verdicts().get(rule_id)
     if entry is None:
+        # `NO_MD_EQUIVALENT` de bir hükümdür: "MD susuyor çünkü onların kataloğunda
+        # bu kontrol YOK" kalıcı bir durumdur ve sapmayı KAPATIR. #165 bu 17 kararı
+        # gerekçesiyle yazdı, ama hiçbir tüketici okumuyordu — run 32290410755'te
+        # TRP_019/ARC_033/ARC_032/FRQ_012 dahil hepsi `analyzer_spec_unmapped`
+        # kovasında yargılanmamış görünüyordu. Okunmayan defter defter değildir.
+        no_equiv = NO_MD_EQUIVALENT.get(rule_id)
+        if no_equiv is not None:
+            return ("adjudicated:NO_MD_EQUIVALENT", no_equiv)
         return ("unreviewed", "No verdict recorded for this rule in fp_adjudication.tsv.")
     verdict, run, reason = entry
     if verdict in SETTLING_VERDICTS or verdict.startswith("CASCADE_ROOT_"):

@@ -180,5 +180,45 @@ class StateConsistencyGuard(unittest.TestCase):
         )
 
 
+class AdjudicationLedgerReachable(unittest.TestCase):
+    """Run 32290410755'in defteri hiç okuyamamasının regresyonu.
+
+    `aggregate.py` hükümleri `md_parity_mapping` üzerinden okur ve benchmark
+    onu `benchmark/audit_all/` köprüsünden yükler. Köprü kanonik dosyayı
+    `exec` ettiği için `__file__` köprünün yolunda kalıyordu; defter
+    `benchmark/audit_all/fp_adjudication.tsv` diye aranıp bulunamıyor,
+    `_fp_verdicts()` de eksik dosyada SESSİZCE boş sözlük dönüyordu. Koşum
+    hata vermedi — yalnız yargılanmış 14.980 satırı taze sapma diye yayımladı.
+
+    Bu test köprüyü aracın kullandığı yoldan yükler; kanonik modülü doğrudan
+    import etmek hatayı GÖREMEZ, çünkü orada `__file__` zaten doğrudur.
+    """
+
+    def setUp(self):
+        self.bridge = load("md_parity_bridge_test", "md_parity_mapping.py")
+
+    def test_ledger_path_resolves_to_the_canonical_file(self):
+        self.assertTrue(
+            self.bridge._FP_LEDGER.exists(),
+            f"defter köprüden görünmüyor: {self.bridge._FP_LEDGER}",
+        )
+
+    def test_recorded_verdicts_are_actually_read(self):
+        self.assertGreater(len(self.bridge._fp_verdicts()), 0,
+                           "fp_adjudication.tsv boş okundu")
+
+    def test_a_settled_rule_classifies_as_adjudicated(self):
+        """STP_033 defterde SCOPE_DIFFERENCE; koşum onu 3.134 kez taze saydı."""
+        decision, _ = self.bridge.classify_analyzer_divergence("STP_033")
+        self.assertTrue(decision.startswith("adjudicated:"),
+                        f"STP_033 hükmü çözülmedi: {decision}")
+
+    def test_aggregate_sees_the_same_ledger_as_the_bridge(self):
+        """Kapı `aggregate.py`'nin gerçekten kullandığı bağlantıyı ölçer."""
+        decision, _ = agg.classify_analyzer_divergence("STP_033")
+        self.assertTrue(decision.startswith("adjudicated:"),
+                        f"aggregate.py defteri okuyamıyor: {decision}")
+
+
 if __name__ == "__main__":
     unittest.main()
