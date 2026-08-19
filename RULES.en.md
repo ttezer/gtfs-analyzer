@@ -2,7 +2,7 @@
 
 🇹🇷 [Türkçe](RULES.md) · 🇬🇧 **English** · 🇯🇵 [日本語](RULES.ja.md)
 
-598 rules, 38 groups. Each rule is identified by a unique ID, severity level, and class.
+599 rules, 38 groups. Each rule is identified by a unique ID, severity level, and class.
 Severity levels: **CRITICAL** (publish blocker) · **HIGH** · **MEDIUM** · **LOW** · **INFO**
 Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Quality** (GTFS Quality) · **Analytics** (GTFS Analytics)
 
@@ -43,6 +43,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | ARC_030 | Tab or line break in a field value | HIGH | Spec |
 | ARC_032 | HTML markup or character escape in a field value | HIGH | Spec |
 | ARC_033 | Unescaped quotation mark in a field value (RFC 4180) | HIGH | Spec |
+| ARC_034 | Header row repeated as a data row | HIGH | Spec |
 
 ## BKR — Booking Rules
 

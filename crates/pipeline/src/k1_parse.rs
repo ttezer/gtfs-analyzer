@@ -1643,6 +1643,37 @@ pub fn parse(zip_bytes: &[u8], cfg: &ValidatorConfig) -> Result<K1Result, FatalE
                 continue; // Boş satırı kaydetme
             }
 
+            // ARC_034: BAŞLIK SATIRI VERİ SATIRI OLARAK TEKRARLANMIŞ.
+            //
+            // Dosyanın ortasında başlık yeniden yazılmışsa (iki dosyanın uç uca
+            // eklenmesi tipik sebep), ayrıştırıcı onu veri sanar ve HER ALAN kendi
+            // sütun adını "değer" olarak alır. Sonuç, tek bir yapısal kusurun
+            // onlarca alan hatasına dağılmasıdır: `mdb-1003`/`mdb-1004`'te hayalet
+            // bir agency'nin `agency_timezone`'u literal "agency_timezone" olur ve
+            // `AGN_004` + `AGN_005` üretir; `mdb-1004`'te aynı satır `trips.txt`'te
+            // `TRP_006`'yı tetikler. Hiçbiri kullanıcıya asıl sorunu söylemez.
+            //
+            // Bu, `ARC_018`'in (tamamen boş satır = TEK hata, on üç eksik alan değil)
+            // kurduğu emsalin aynısıdır.
+            //
+            // ⚠️ YANLIŞ POZİTİF KAPISI: satırın BÜTÜN alanları kendi sütun adına
+            // eşit olmalı. Tek bir sütunda `route_id` değerinin "route_id" olması
+            // meşrudur ve tetiklemez; hepsinin birden eşleşmesi başka türlü oluşamaz.
+            if row.len() == headers.len()
+                && !headers.is_empty()
+                && row.iter().zip(headers.iter()).all(|(v, h)| v.trim() == h.trim())
+            {
+                notices.push(make_notice(
+                    &mut counter, "ARC_034",
+                    EntityType::File, Some(raw_name.clone()),
+                    Some(&raw_name), Some(line_num), None,
+                    None,
+                    format!("'{raw_name}' {line_num}. satırı başlık satırının tekrarı — veri olarak okunuyor."),
+                    "Dosyanın ortasındaki tekrar eden başlık satırını kaldırın; genellikle iki dosyanın uç uca eklenmesinden doğar.",
+                ));
+                continue; // Başlık tekrarını veri olarak KAYDETME.
+            }
+
             // ARC_021: yazdırılamaz veya sorunlu karakter — geçerli Unicode metni (Japonca vb.) hariç
             if !arc021_fired {
                 if let Some(cp) = arc021_bad_char(row.iter().map(|v| v.as_str())) {
@@ -3016,6 +3047,46 @@ mod tests {
             k1.notices.iter().any(|n| n.rule_id == "ARC_014"),
             "ARC_014 notice bekleniyor"
         );
+    }
+
+    #[test]
+    fn arc034_reports_a_header_row_repeated_as_data() {
+        // #168: mdb-1003/mdb-1004'te agency.txt'nin ortasında başlık tekrarlanıyor.
+        // Tek yapısal kusur, bugüne kadar AGN_004 + AGN_005 + TRP_006 olarak
+        // dağılıyordu ve hiçbiri kullanıcıya asıl sorunu söylemiyordu.
+        let zip = zip_with_files(&[
+            ("agency.txt",     b"agency_id,agency_name,agency_url,agency_timezone\n1,Test,http://x.com,UTC\nagency_id,agency_name,agency_url,agency_timezone\n2,Test2,http://y.com,UTC\n"),
+            ("stops.txt",      b"stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\n"),
+            ("routes.txt",     b"route_id,agency_id,route_short_name,route_long_name,route_type\nR1,1,101,Main,3\n"),
+            ("trips.txt",      b"route_id,service_id,trip_id\nR1,SVC1,T1\n"),
+            ("stop_times.txt", b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\n"),
+            ("calendar.txt",   b"service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,0,0,20240101,20241231\n"),
+        ]);
+        let k1 = parse(&zip).unwrap();
+        let hits: Vec<_> = k1.notices.iter().filter(|n| n.rule_id == "ARC_034").collect();
+        assert_eq!(hits.len(), 1, "tekrarlanan başlık BİR kez raporlanmalı: {:?}",
+            k1.notices.iter().map(|n| &n.rule_id).collect::<Vec<_>>());
+        assert_eq!(hits[0].file.as_deref(), Some("agency.txt"));
+        // Satır veri olarak KAYDEDİLMEZ: hayalet agency oluşmamalı.
+        let agencies = k1.files.get("agency.txt").map(|f| f.rows.len()).unwrap_or(0);
+        assert_eq!(agencies, 2, "başlık tekrarı veri satırı sayılmamalı");
+    }
+
+    #[test]
+    fn arc034_does_not_fire_when_only_one_value_matches_its_column() {
+        // Tek bir alanın kendi sütun adına eşit olması meşrudur; kural yalnız
+        // BÜTÜN alanlar eşleştiğinde konuşur.
+        let zip = zip_with_files(&[
+            ("agency.txt",     b"agency_id,agency_name,agency_url,agency_timezone\nagency_id,Test,http://x.com,UTC\n"),
+            ("stops.txt",      b"stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\n"),
+            ("routes.txt",     b"route_id,agency_id,route_short_name,route_long_name,route_type\nR1,agency_id,101,Main,3\n"),
+            ("trips.txt",      b"route_id,service_id,trip_id\nR1,SVC1,T1\n"),
+            ("stop_times.txt", b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\n"),
+            ("calendar.txt",   b"service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,0,0,20240101,20241231\n"),
+        ]);
+        let k1 = parse(&zip).unwrap();
+        assert!(!k1.notices.iter().any(|n| n.rule_id == "ARC_034"),
+            "tek alan eşleşmesi ARC_034 üretmemeli");
     }
 
     #[test]

@@ -781,6 +781,7 @@ def classify_mapped_divergence(code: str) -> tuple[str, str]:
 # kartlarında yanıtlanır.
 NO_MD_EQUIVALENT: dict[str, str] = {
     "ARC_032": "Alan değerinde HTML etiketi/kaçış dizisi. Katalogda 'html' geçen tek bir kod yok.",
+    "ARC_034": "Başlık satırı veri satırı olarak tekrarlanmış. MD katalogunda karşılığı yok; onların tarafında bu kusur `unexpected_enum_value` ve `invalid_timezone` gibi TÜREV bulgulara dağılır ve asıl sebep hiç söylenmez (#168).",
     "ARC_033": "RFC 4180 kaçırılmamış tırnak. MD'nin `new_line_in_value`'su bunun SEMPTOMUNU (tırnak kapanmayınca sonraki satırın devam sayılması) anlatır, ihlalin kendisini değil.",
     "ARC_026": "Hatalı satır sonu karakteri. Katalogda satır sonu biçimini denetleyen kod yok.",
     "ATR_009": "attributions.txt'te route_id/trip_id/agency_id birlikte kullanılmış. MD'nin `attribution_without_role`'ü ROL yokluğunu ölçer, hedef alanların çakışmasını değil.",

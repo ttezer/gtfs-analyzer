@@ -176,6 +176,8 @@ pub static RULES: &[RuleMeta] = &[
     // (zorunlu dosyada FATAL) geçerliye yakın feed'i reddetmek olurdu — `PTH_017` dersi.
     r!("ARC_033", Yuksek, Spec, 1, &[], None, VS, File,
         "Alan değerinde kaçırılmamış tırnak (RFC 4180)"),
+    r!("ARC_034", Yuksek, Spec, 1, &[], None, VS, File,
+        "Başlık satırı veri satırı olarak tekrarlanmış"),
 
     // ── BKR: Booking Rules ─────────────────────────────────────────────────────
     r!("BKR_001", Yuksek, Spec, 1, &[], Some("booking_rule_id"), VS, Entity,
@@ -1876,6 +1878,7 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("ARC_030", GtfsSpec),
     ("ARC_032", GtfsSpec),
     ("ARC_033", GtfsSpec),
+    ("ARC_034", GtfsSpec),
     ("ARS_001", GtfsSpec),
     ("ARS_002", GtfsSpec),
     ("ATR_001", ProjectQuality),

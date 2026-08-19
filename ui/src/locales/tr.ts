@@ -587,6 +587,7 @@ const tr = {
     'ARC_030': 'Alan değerinde sekme veya satır sonu karakteri',
     'ARC_032': 'Alan değerinde HTML etiketi veya kaçış dizisi',
     'ARC_033': 'Alan değerinde kaçırılmamış tırnak (RFC 4180)',
+    'ARC_034': 'Başlık satırı veri satırı olarak tekrarlanmış',
     'ARS_002': "areas.txt'te area_id boş",
     'CAL_025': 'Takvim gün alanı boş (değer verilmemiş)',
     'FMD_004': 'fare_media_id boş',

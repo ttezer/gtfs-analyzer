@@ -1627,6 +1627,9 @@ fn fixtures() -> Vec<Fixture> {
         fx("ARC_017", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon,bogus_col\nS1,Stop1,41.0,29.0,x\nS2,Stop2,41.1,29.1,y\n")]),
         // ARC_018: tamamen boş veri satırı.
         fx("ARC_018", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\n,,,\nS2,Stop2,41.1,29.1\n")]),
+        // ARC_034: başlık satırı dosyanın ortasında veri olarak tekrarlanmış.
+        // Tetiklemek için satırın BÜTÜN alanları kendi sütun adına eşit olmalı.
+        fx("ARC_034", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\nstop_id,stop_name,stop_lat,stop_lon\nS2,Stop2,41.1,29.1\n")]),
         // ARC_020: önerilen dosya eksik (shapes/feed_info) — base zaten tetikler.
         fx("ARC_020", vec![]),
         // ARC_021: yazdırılamaz/kontrol karakteri (U+0001) içeren değer.
