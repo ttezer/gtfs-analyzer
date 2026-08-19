@@ -69,13 +69,37 @@ def _normalise(value: Any) -> str:
     return str(value or "").strip().lower()
 
 
+# 🔴 MobilityData her notice'ta bağlamı AYNI anahtarlarla taşımaz, ve bu sessizce
+# ısırır: eşleşmeyen bir anahtar "bağlam yok" gibi görünür, `_ctx` girişi hiç
+# tetiklenmez ve kod sonsuza kadar eşlemesiz sayılır.
+#
+# İki büyük jenerik kod tam bu yüzden hiç bağlamsal eşleme almamıştı (#165):
+#   `foreign_key_violation` → childFilename / childFieldName (+ parent* karşılığı)
+#   `duplicate_key`         → fieldName1 (anahtar sütun LİSTESİ, virgülle)
+# İkisi birlikte korpusta 9,3M notice taşıyor. `missing_required_field` (18 giriş)
+# ve `unexpected_enum_value` (11 giriş) standart anahtarları kullandığı için
+# eşlenebilmiş; bu ikisi görünmez kalmıştı.
 def _filename(sample: dict[str, Any]) -> str:
     value = sample.get("filename", sample.get("fileName", sample.get("file")))
+    if not value:
+        # FK ihlalinde ölçtüğümüz kural REFERANSI VEREN dosyada yaşar (child),
+        # hedeflenen dosyada (parent) değil: `trips.txt::shape_id` bulunamadı
+        # bulgusu TRP_004'ündür, SHP_*'ın değil.
+        value = sample.get("childFilename", sample.get("child_filename"))
     return _normalise(value).rsplit("/", 1)[-1]
 
 
 def _field(sample: dict[str, Any]) -> str:
     value = sample.get("fieldName", sample.get("field_name", sample.get("field")))
+    if not value:
+        value = sample.get("childFieldName", sample.get("child_field_name"))
+    if not value:
+        # `duplicate_key` birincil anahtarın TÜM sütunlarını tek dizede verir
+        # ("table_name,field_name,language,field_value"). Tek alan adı bekleyen
+        # eşleştirici bunu göremez; ilk sütun anahtarın sahibi olarak yeterlidir.
+        raw = sample.get("fieldName1", sample.get("field_name1"))
+        if raw:
+            value = str(raw).split(",", 1)[0]
     return _normalise(value)
 
 
@@ -173,6 +197,52 @@ CONTEXT_MAPPINGS: tuple[ContextMapping, ...] = (
     # `filename` + `fieldName` İLE BİRLİKTE basıyor — bağlam raporda VARDI, bizde o
     # kombinasyon için giriş yoktu. Aşağıdaki dokuz kuralın hepsi, MD'nin raporladığı
     # feed'lerin tam olarak hepsinde ateşliyor; eşleme eksikti, kural değil.
+    # ── foreign_key_violation ────────────────────────────────────────────────
+    # MobilityData tek kod basar ve bağlamı `childFilename`/`childFieldName` ile
+    # taşır; biz referansı VEREN dosyaya göre ayrı kural tutarız. Aşağıdaki
+    # bağlamların çoğu korpusta GÖZLENDİ (run-32197267205); kardeş yönler
+    # (`to_*` karşılıkları) yapısal kesinlik gereği eklendi ve yorumla işaretlendi.
+    _ctx("foreign_key_violation", "TRP_004", filename=("trips.txt",), fields=("shape_id",), label="trips.txt::shape_id"),
+    _ctx("foreign_key_violation", "TRP_003", filename=("trips.txt",), fields=("service_id",), label="trips.txt::service_id"),
+    _ctx("foreign_key_violation", "TRP_002", filename=("trips.txt",), fields=("route_id",), label="trips.txt::route_id"),
+    _ctx("foreign_key_violation", "STM_001", filename=("stop_times.txt",), fields=("trip_id",), label="stop_times.txt::trip_id"),
+    _ctx("foreign_key_violation", "STM_002", filename=("stop_times.txt",), fields=("stop_id",), label="stop_times.txt::stop_id"),
+    _ctx("foreign_key_violation", "BKR_017", "BKR_018", filename=("stop_times.txt",), fields=("pickup_booking_rule_id", "drop_off_booking_rule_id"), label="stop_times.txt::booking_rule_id"),
+    _ctx("foreign_key_violation", "FRL_002", filename=("fare_rules.txt",), fields=("route_id",), label="fare_rules.txt::route_id"),
+    _ctx("foreign_key_violation", "FRL_003", filename=("fare_rules.txt",), fields=("origin_id",), label="fare_rules.txt::origin_id"),
+    _ctx("foreign_key_violation", "FRL_004", filename=("fare_rules.txt",), fields=("destination_id",), label="fare_rules.txt::destination_id"),
+    _ctx("foreign_key_violation", "FRL_005", filename=("fare_rules.txt",), fields=("contains_id",), label="fare_rules.txt::contains_id"),
+    _ctx("foreign_key_violation", "FRL_001", filename=("fare_rules.txt",), fields=("fare_id",), label="fare_rules.txt::fare_id"),
+    _ctx("foreign_key_violation", "FLG_001", filename=("fare_leg_rules.txt",), fields=("fare_product_id",), label="fare_leg_rules.txt::fare_product_id"),
+    _ctx("foreign_key_violation", "FLG_002", filename=("fare_leg_rules.txt",), fields=("network_id",), label="fare_leg_rules.txt::network_id"),
+    _ctx("foreign_key_violation", "FLG_003", "FLG_004", filename=("fare_leg_rules.txt",), fields=("from_area_id", "to_area_id"), label="fare_leg_rules.txt::area_id"),
+    _ctx("foreign_key_violation", "FTR_004", filename=("fare_transfer_rules.txt",), fields=("fare_product_id",), label="fare_transfer_rules.txt::fare_product_id"),
+    _ctx("foreign_key_violation", "FPD_005", filename=("fare_products.txt",), fields=("rider_category_id",), label="fare_products.txt::rider_category_id"),
+    _ctx("foreign_key_violation", "FAR_008", filename=("fare_attributes.txt",), fields=("agency_id",), label="fare_attributes.txt::agency_id"),
+    _ctx("foreign_key_violation", "PTH_002", "PTH_003", filename=("pathways.txt",), fields=("from_stop_id", "to_stop_id"), label="pathways.txt::stop_id"),
+    _ctx("foreign_key_violation", "TRF_003", filename=("transfers.txt",), fields=("from_stop_id", "to_stop_id"), label="transfers.txt::stop_id"),
+    _ctx("foreign_key_violation", "TRF_008", "TRF_009", filename=("transfers.txt",), fields=("from_route_id", "to_route_id"), label="transfers.txt::route_id"),
+    _ctx("foreign_key_violation", "FRQ_001", filename=("frequencies.txt",), fields=("trip_id",), label="frequencies.txt::trip_id"),
+    _ctx("foreign_key_violation", "RTS_002", filename=("routes.txt",), fields=("agency_id",), label="routes.txt::agency_id"),
+    _ctx("foreign_key_violation", "ATR_011", filename=("attributions.txt",), fields=("route_id",), label="attributions.txt::route_id"),
+    _ctx("foreign_key_violation", "STP_009", filename=("stops.txt",), fields=("parent_station",), label="stops.txt::parent_station"),
+    _ctx("foreign_key_violation", "SAR_001", "SAR_002", filename=("stop_areas.txt",), fields=("area_id", "stop_id"), label="stop_areas.txt"),
+
+    # ── duplicate_key ────────────────────────────────────────────────────────
+    # Bağlam `fieldName1`'de gelir ve anahtarın TÜM sütunlarını virgülle taşır;
+    # ilk sütun sahibi belirlemeye yeter. Bileşik anahtarlı Fares v2 / Flex
+    # dosyalarını `DQ_021` sahiplenir, tekil anahtarlı çekirdek tabloları ise
+    # kendi kuralları — ikisi aynı dosyada örtüştüğünde İKİSİ de listelenir.
+    _ctx("duplicate_key", "STP_001", "DQ_021", filename=("stops.txt",), fields=("stop_id",), label="stops.txt::stop_id"),
+    _ctx("duplicate_key", "RTS_001", "DQ_021", filename=("routes.txt",), fields=("route_id",), label="routes.txt::route_id"),
+    _ctx("duplicate_key", "TRP_001", "DQ_021", filename=("trips.txt",), fields=("trip_id",), label="trips.txt::trip_id"),
+    _ctx("duplicate_key", "STM_032", filename=("stop_times.txt",), fields=("trip_id",), label="stop_times.txt::(trip_id, stop_sequence)"),
+    _ctx("duplicate_key", "CAL_001", filename=("calendar.txt",), fields=("service_id",), label="calendar.txt::service_id"),
+    _ctx("duplicate_key", "AGN_010", filename=("agency.txt",), fields=("agency_id",), label="agency.txt::agency_id"),
+    _ctx("duplicate_key", "FAR_001", filename=("fare_attributes.txt",), fields=("fare_id",), label="fare_attributes.txt::fare_id"),
+    _ctx("duplicate_key", "TRN_005", filename=("translations.txt",), fields=("table_name",), label="translations.txt::(table_name, ...)"),
+    _ctx("duplicate_key", "TRF_012", filename=("transfers.txt",), fields=("from_stop_id",), label="transfers.txt::(from_stop_id, to_stop_id)"),
+    _ctx("duplicate_key", "DQ_021", filename=("fare_leg_rules.txt", "fare_transfer_rules.txt", "location_groups.txt"), label="Fares v2 / Flex bileşik anahtarları"),
     _ctx("invalid_time", "BKR_025", filename=("booking_rules.txt",), fields=("prior_notice_start_time", "prior_notice_last_time"), label="booking_rules.txt::prior_notice zamanları"),
     _ctx("invalid_float", "SHP_002", filename=("shapes.txt",), fields=("shape_pt_lat",), label="shapes.txt::shape_pt_lat"),
     _ctx("invalid_float", "SHP_003", filename=("shapes.txt",), fields=("shape_pt_lon",), label="shapes.txt::shape_pt_lon"),

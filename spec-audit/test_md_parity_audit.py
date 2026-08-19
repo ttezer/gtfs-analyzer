@@ -412,6 +412,37 @@ class LedgerDriftGate(unittest.TestCase):
             with self.subTest(rule=rule):
                 self.assertIn(rule, known, f"{rule} hakkında hüküm var ama kural registry'de yok")
 
+    def test_the_two_biggest_generic_codes_resolve_by_context(self):
+        """#165: `foreign_key_violation` ve `duplicate_key` bağlamı STANDART DIŞI
+        anahtarlarla taşır ve çıkarıcı onları görmüyordu.
+
+        `_filename`/`_field` yalnız `filename`/`fieldName` okuduğu için bu iki kod
+        "bağlamsız" görünüyordu; biri `_ctx` girişi yazsaydı bile ASLA eşleşmezdi.
+        İkisi korpusta 9,3M notice taşıyor ve 36 kuralımız onlara düşüyordu.
+        """
+        cases = [
+            ("foreign_key_violation", {"childFilename": "trips.txt", "childFieldName": "shape_id"}, "TRP_004"),
+            ("foreign_key_violation", {"childFilename": "transfers.txt", "childFieldName": "to_stop_id"}, "TRF_003"),
+            ("foreign_key_violation", {"childFilename": "fare_rules.txt", "childFieldName": "origin_id"}, "FRL_003"),
+            ("duplicate_key", {"filename": "routes.txt", "fieldName1": "route_id"}, "RTS_001"),
+            ("duplicate_key", {"filename": "translations.txt", "fieldName1": "table_name,field_name,language"}, "TRN_005"),
+        ]
+        for code, sample, expected in cases:
+            with self.subTest(code=code, sample=sample):
+                result = mapping.resolve_mapping(code, {"sampleNotices": [sample], "totalNotices": 1})
+                self.assertIn(expected, result.analyzer_rules)
+                self.assertEqual(result.kind, "context-dependent")
+                self.assertEqual(result.unresolved_samples, 0)
+
+    def test_context_extractor_reads_the_child_and_composite_key_shapes(self):
+        """Çıkarıcı sessizce boş dönerse bağlam "yok" sanılır ve kod eşlemesiz kalır."""
+        self.assertEqual(mapping._filename({"childFilename": "trips.txt"}), "trips.txt")
+        self.assertEqual(mapping._field({"childFieldName": "shape_id"}), "shape_id")
+        # duplicate_key bileşik anahtarın TÜM sütunlarını tek dizede verir.
+        self.assertEqual(mapping._field({"fieldName1": "table_name,field_name,language"}), "table_name")
+        # Standart anahtarlar önceliğini korur.
+        self.assertEqual(mapping._field({"fieldName": "stop_id", "childFieldName": "trip_id"}), "stop_id")
+
     def test_every_mapped_rule_exists_in_the_registry(self):
         """Var olmayan bir kurala eşlenen kod SESSİZ bir MISS üretir.
 
