@@ -243,6 +243,8 @@ pub static RULES: &[RuleMeta] = &[
     // geçerli"), tip kuralı değil — `emit_identity` kapısı bu denemeyi yakaladı.
     r!("BKR_023", Orta,   Spec, 1, &[], Some("booking_rule_id"), VS, Entity,
         "prior_notice sayı alanı tam sayı değil"),
+    r!("BKR_025", Orta,   Spec, 1, &[], Some("booking_rule_id"), VS, Entity,
+        "prior_notice zaman alanı geçerli saat değil"),
 
     // ── AGN: Agency ────────────────────────────────────────────────────────────
     // AGN_001 KALDIRILDI (2026-08-02): hiçbir yolla emit EDİLMEYEN bir kayıttı — ne Notice
@@ -1912,6 +1914,7 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("BKR_022", ProjectQuality),
     ("BKR_023", GtfsSpec),
     ("BKR_024", GtfsSpec),
+    ("BKR_025", GtfsSpec),
     ("CAL_001", GtfsSpec),
     ("CAL_002", GtfsSpec),
     ("CAL_003", GtfsSpec),

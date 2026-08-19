@@ -604,6 +604,7 @@ const en: LocaleShape = {
     'BKR_020': "Booking rule '{entity_id}': booking_url is not a valid URL.",
     'BKR_021': "Booking rule '{entity_id}': info_url is not a valid URL.",
     'BKR_022': "Booking rule '{entity_id}': phone_number '{observed_value}' does not look like a phone number.",
+    'BKR_025': "Booking rule '{entity_id}': prior_notice time '{observed_value}' is not a valid GTFS time.",
     // AGN
     'AGN_002': "Agency '{entity_id}': agency_name is missing.",
     'AGN_003': "Agency '{entity_id}': agency_url is missing or invalid.",
@@ -1571,6 +1572,7 @@ const en: LocaleShape = {
     'BKR_021': 'Use a valid http/https URL for info_url.',
     'BKR_022': 'Use a dialable phone number with no other descriptive text.',
     'BKR_023': 'Enter the prior_notice numeric fields as whole numbers.',
+    'BKR_025': 'Write the time as HH:MM:SS; for service past midnight use an hour above 24, such as 25:10:00.',
     // FLG
     'FLG_001': 'Use a valid fare_product_id.',
     'FLG_002': 'Use a valid network_id.',
@@ -1852,6 +1854,7 @@ const en: LocaleShape = {
     'BKR_021': 'info_url is invalid',
     'BKR_022': 'phone_number is invalid',
     'BKR_023': 'prior_notice numeric field is not an integer',
+    'BKR_025': 'prior_notice time field is not a valid time',
     'BKR_024': 'prior_notice_start_day forbidden with booking_type=1 and duration_max',
     // AGN
     'AGN_002': 'agency_name missing',

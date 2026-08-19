@@ -1,6 +1,6 @@
 use gtfs_core::EntityType;
 
-use super::common::{get_raw_field, build_row_map, get_trimmed_field, looks_like_phone, looks_like_url, make_k2_notice, RowMap};
+use super::common::{get_raw_field, build_row_map, get_trimmed_field, looks_like_phone, looks_like_url, make_k2_notice, parse_gtfs_time, RowMap};
 use crate::k1_parse::RawFile;
 
 #[derive(Debug, Clone)]
@@ -125,6 +125,30 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
         let has_start_day   = has_field(&row_map, "prior_notice_start_day");
         let has_start_time  = has_field(&row_map, "prior_notice_start_time");
         let has_service_id  = has_field(&row_map, "prior_notice_service_id");
+
+        // BKR_025: prior_notice zaman alanı GTFS Time olarak ayrıştırılamıyor.
+        //
+        // BKR_023 aynı işi SAYI alanları için yapıyordu; zaman alanlarının tip
+        // kardeşi yoktu. Modül `prior_notice_start_time`/`_last_time` değerlerini
+        // yalnızca String olarak okuyor ve hangi gün alanıyla eşleştiklerini
+        // denetliyordu (BKR_003/010/013) — biçimlerini hiç ayrıştırmıyordu. Bozuk
+        // bir saat bize tamamen görünmezdi (#164, `tdg-80694` ve `tdg-84001`).
+        //
+        // ⚠️ `Err` YUTULMAZ: `parse_gtfs_time` ayrıştırılamayan değer için `Err`,
+        // alan yoksa `Ok(None)` döner. İkisini birbirine karıştırmak bu depoda
+        // dört kez kural körleştirdi.
+        for field in ["prior_notice_start_time", "prior_notice_last_time"] {
+            if let Err(raw) = parse_gtfs_time(&row_map, field) {
+                notices.push(make_k2_notice(
+                    &mut ctr, "BKR_025", EntityType::Row, entity_id.clone(), Some(&row_map),
+                    &file.name, Some(line), Some(field),
+                    Some(raw), Some("HH:MM:SS".to_string()),
+                    format!("{field} '{}' geçerli bir GTFS saati değil.",
+                            get_trimmed_field(&row_map, field).unwrap_or("")),
+                    "Saati HH:MM:SS biçiminde yazın; gece yarısını aşan servisler için 24'ten büyük saat kullanın (örn. 25:10:00).",
+                ));
+            }
+        }
 
         let duration_min = opt_int_checked(&row_map, "prior_notice_duration_min", "BKR_023", Some(id.clone()), &file.name, line, &mut notices, &mut ctr);
         let duration_max = opt_int_checked(&row_map, "prior_notice_duration_max", "BKR_023", Some(id.clone()), &file.name, line, &mut notices, &mut ctr);
@@ -415,6 +439,50 @@ mod tests {
             bytes: 0,
             raw_text: None,
         }
+    }
+
+    #[test]
+    fn bkr_025_reports_a_malformed_prior_notice_time() {
+        let file = make_file(
+            vec!["booking_rule_id", "booking_type", "prior_notice_start_day", "prior_notice_start_time"],
+            vec![vec!["BR1", "2", "3", "yarin sabah"]],
+        );
+        let (_, notices) = validate_booking_rules(&file);
+        assert!(notices.iter().any(|n| n.rule_id == "BKR_025"),
+            "Ayrıştırılamayan saat BKR_025 üretmeli: {:?}",
+            notices.iter().map(|n| &n.rule_id).collect::<Vec<_>>());
+    }
+
+    #[test]
+    fn bkr_025_accepts_a_time_past_midnight() {
+        // GTFS saatleri 24'ü aşabilir; 25:10:00 GEÇERLİDİR ve kural susmalıdır.
+        let file = make_file(
+            vec!["booking_rule_id", "booking_type", "prior_notice_start_day", "prior_notice_start_time"],
+            vec![vec!["BR1", "2", "3", "25:10:00"]],
+        );
+        let (_, notices) = validate_booking_rules(&file);
+        assert!(!notices.iter().any(|n| n.rule_id == "BKR_025"));
+    }
+
+    #[test]
+    fn bkr_025_stays_silent_when_the_field_is_absent() {
+        // Alanın YOKLUĞU bir tip hatası değildir; onu BKR_010/013 sahiplenir.
+        let file = make_file(
+            vec!["booking_rule_id", "booking_type"],
+            vec![vec!["BR1", "1"]],
+        );
+        let (_, notices) = validate_booking_rules(&file);
+        assert!(!notices.iter().any(|n| n.rule_id == "BKR_025"));
+    }
+
+    #[test]
+    fn bkr_025_covers_the_last_time_field_too() {
+        let file = make_file(
+            vec!["booking_rule_id", "booking_type", "prior_notice_last_day", "prior_notice_last_time"],
+            vec![vec!["BR1", "2", "3", "12:60"]],
+        );
+        let (_, notices) = validate_booking_rules(&file);
+        assert!(notices.iter().any(|n| n.rule_id == "BKR_025"));
     }
 
     #[test]

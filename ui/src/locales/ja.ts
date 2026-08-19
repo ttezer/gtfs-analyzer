@@ -585,6 +585,7 @@ const ja: LocaleShape = {
     'BKR_020': "予約ルール'{entity_id}'：booking_urlが有効なURLではありません。",
     'BKR_021': "予約ルール'{entity_id}'：info_urlが有効なURLではありません。",
     'BKR_022': "予約ルール'{entity_id}'：phone_number'{observed_value}'が電話番号の形式ではありません。",
+    'BKR_025': "予約ルール'{entity_id}'：prior_notice時刻'{observed_value}'は有効なGTFS時刻ではありません。",
     // AGN
     'AGN_002': "事業者'{entity_id}'：agency_nameがありません。",
     'AGN_003': "事業者'{entity_id}'：agency_urlがないか無効です。",
@@ -1223,6 +1224,7 @@ const ja: LocaleShape = {
     'BKR_021': 'info_urlに有効なhttp/https URLを使用してください。',
     'BKR_022': '他の説明文を含まない、ダイヤル可能な電話番号を入力してください。',
     'BKR_023': 'prior_notice数値項目を整数で入力してください。',
+    'BKR_025': '時刻はHH:MM:SS形式で記入してください。深夜を超える運行では25:10:00のように24を超える時刻を使用します。',
     // CAL
     'CAL_001': '各カレンダーレコードに一意のservice_idを割り当ててください。',
     'CAL_002': '各曜日フィールドを0または1に設定してください。',
@@ -1806,6 +1808,7 @@ const ja: LocaleShape = {
     'BKR_021': 'info_urlが無効',
     'BKR_022': 'phone_numberが無効',
     'BKR_023': 'prior_notice数値項目が整数でない',
+    'BKR_025': 'prior_notice時刻項目が有効な時刻でない',
     'BKR_024': 'booking_type=1 かつ duration_max がある場合 prior_notice_start_day は禁止',
     // AGN
     'AGN_002': 'agency_nameが不足',

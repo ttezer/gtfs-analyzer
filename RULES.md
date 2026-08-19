@@ -2,7 +2,7 @@
 
 🇹🇷 **Türkçe** · 🇬🇧 [English](RULES.en.md) · 🇯🇵 [日本語](RULES.ja.md)
 
-597 kural, 38 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
+598 kural, 38 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
 Önem seviyeleri: **KRİTİK** (yayın engelleyici) · **YÜKSEK** · **ORTA** · **DÜŞÜK** · **BİLGİ**
 Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · **Quality** (GTFS Kalitesi) · **Analytics** (GTFS Analitiği)
 
@@ -72,6 +72,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | BKR_021 | info_url geçersiz | DÜŞÜK | Spec |
 | BKR_022 | phone_number geçersiz | DÜŞÜK | Quality |
 | BKR_023 | prior_notice sayı alanı tam sayı değil | ORTA | Spec |
+| BKR_025 | prior_notice zaman alanı geçerli saat değil | ORTA | Spec |
 
 ## AGN — Agency (İşletici)
 

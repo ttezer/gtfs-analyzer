@@ -2,7 +2,7 @@
 
 🇹🇷 [Türkçe](RULES.md) · 🇬🇧 **English** · 🇯🇵 [日本語](RULES.ja.md)
 
-597 rules, 38 groups. Each rule is identified by a unique ID, severity level, and class.
+598 rules, 38 groups. Each rule is identified by a unique ID, severity level, and class.
 Severity levels: **CRITICAL** (publish blocker) · **HIGH** · **MEDIUM** · **LOW** · **INFO**
 Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Quality** (GTFS Quality) · **Analytics** (GTFS Analytics)
 
@@ -72,6 +72,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | BKR_021 | info_url is invalid | LOW | Spec |
 | BKR_022 | phone_number is invalid | LOW | Quality |
 | BKR_023 | prior_notice numeric field is not an integer | MEDIUM | Spec |
+| BKR_025 | prior_notice time field is not a valid time | MEDIUM | Spec |
 
 ## AGN — Agency
 
@@ -246,7 +247,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | STM_035 | Same stop visited twice consecutively (terminal/loop) | INFO | Analytics |
 | STM_036 | stop_times not sorted by trip_id + stop_sequence (unsorted_stop_times) | INFO | Quality |
 | STM_037 | arrival_time/departure_time prohibited in Flex window | HIGH | Spec |
-| STM_038 | start_pickup_drop_off_window > end_pickup_drop_off_window | HIGH | Interop |
+| STM_038 | start_pickup_drop_off_window >= end_pickup_drop_off_window | HIGH | Interop |
 | STM_039 | Pickup/drop-off window missing in Flex context | CRITICAL | Spec |
 | STM_040 | pickup/drop_off_booking_rule_id missing in Flex stop_times (Optional in the spec) | MEDIUM | Quality |
 | STM_060 | Zone, window and pickup/drop-off overlap at once within a trip | HIGH | Spec |

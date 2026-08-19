@@ -169,6 +169,20 @@ CONTEXT_MAPPINGS: tuple[ContextMapping, ...] = (
     # GEO_016=0 diye MISS sayıyordu.
     _ctx("point_near_origin", "GEO_016", filename=("stops.txt",), label="stops.txt Null Island"),
     _ctx("point_near_origin", "GEO_017", filename=("shapes.txt",), label="shapes.txt Null Island"),
+    # #164: `context_unresolved`'ın 16 satırının 14'ü. MobilityData bu jenerik kodları
+    # `filename` + `fieldName` İLE BİRLİKTE basıyor — bağlam raporda VARDI, bizde o
+    # kombinasyon için giriş yoktu. Aşağıdaki dokuz kuralın hepsi, MD'nin raporladığı
+    # feed'lerin tam olarak hepsinde ateşliyor; eşleme eksikti, kural değil.
+    _ctx("invalid_time", "BKR_025", filename=("booking_rules.txt",), fields=("prior_notice_start_time", "prior_notice_last_time"), label="booking_rules.txt::prior_notice zamanları"),
+    _ctx("invalid_float", "SHP_002", filename=("shapes.txt",), fields=("shape_pt_lat",), label="shapes.txt::shape_pt_lat"),
+    _ctx("invalid_float", "SHP_003", filename=("shapes.txt",), fields=("shape_pt_lon",), label="shapes.txt::shape_pt_lon"),
+    _ctx("invalid_integer", "CAL_002", filename=("calendar.txt",), fields=("monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"), label="calendar.txt::gün alanları"),
+    _ctx("invalid_integer", "FAR_005", filename=("fare_attributes.txt",), fields=("transfers",), label="fare_attributes.txt::transfers"),
+    _ctx("invalid_integer", "FAR_004", filename=("fare_attributes.txt",), fields=("payment_method",), label="fare_attributes.txt::payment_method"),
+    _ctx("invalid_integer", "RTS_004", filename=("routes.txt",), fields=("route_type",), label="routes.txt::route_type"),
+    _ctx("invalid_integer", "STM_022", filename=("stop_times.txt",), fields=("timepoint",), label="stop_times.txt::timepoint"),
+    _ctx("number_out_of_range", "STM_030", filename=("stop_times.txt",), fields=("shape_dist_traveled",), label="stop_times.txt::shape_dist_traveled negatif"),
+    _ctx("missing_required_field", "CAL_025", filename=("calendar.txt",), fields=("monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"), label="calendar.txt::gün alanı boş"),
     _ctx("number_out_of_range", "PTH_007", filename=("pathways.txt",), fields=("traversal_time",), label="pathways.txt::traversal_time"),
     _ctx("number_out_of_range", "SHP_002", filename=("shapes.txt",), fields=("shape_pt_lat",), label="shapes.txt::shape_pt_lat"),
     _ctx("number_out_of_range", "SHP_003", filename=("shapes.txt",), fields=("shape_pt_lon",), label="shapes.txt::shape_pt_lon"),

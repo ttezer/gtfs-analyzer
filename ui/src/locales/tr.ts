@@ -623,6 +623,7 @@ const tr = {
     'BKR_021': 'info_url geçersiz',
     'BKR_022': 'phone_number geçersiz',
     'BKR_023': 'prior_notice sayı alanı tam sayı değil',
+    'BKR_025': 'prior_notice zaman alanı geçerli saat değil',
     'BKR_024': 'booking_type=1 ve duration_max varken prior_notice_start_day yasak',
     // AGN
     'AGN_002': 'agency_name eksik',

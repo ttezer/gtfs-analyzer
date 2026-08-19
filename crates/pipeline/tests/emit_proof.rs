@@ -310,6 +310,14 @@ fn fixtures() -> Vec<Fixture> {
             "BR4,2,,,,abc\n",
         ))]),
         fx("BKR_024", vec![("booking_rules.txt","booking_rule_id,booking_type,prior_notice_duration_min,prior_notice_duration_max,prior_notice_start_day,prior_notice_last_day\nB1,1,30,120,2,3\n")]),
+        // BKR_025: prior_notice zaman alanı GTFS Time olarak ayrıştırılamıyor.
+        // İKİ satır: kural iki alanı da (start_time / last_time) ölçer ve dedup
+        // Entity'dir — tek satır yalnız birini çapalar (BKR_023'ün dersi).
+        fx("BKR_025", vec![("booking_rules.txt", concat!(
+            "booking_rule_id,booking_type,prior_notice_start_day,prior_notice_start_time,prior_notice_last_day,prior_notice_last_time\n",
+            "BR1,2,3,yarin sabah,3,12:00:00\n",
+            "BR2,2,3,08:00:00,3,12:60\n",
+        ))]),
         // BKR_017/018: stop_times'taki booking_rule_id booking_rules.txt'te yok (k4 cross-ref).
         fx("BKR_017", vec![
             ("booking_rules.txt", "booking_rule_id,booking_type,prior_notice_duration_min\nBR1,1,30\n"),

@@ -2,7 +2,7 @@
 
 🇹🇷 [Türkçe](RULES.md) · 🇬🇧 [English](RULES.en.md) · 🇯🇵 **日本語**
 
-597ルール、38グループ。各ルールは一意のID、重要度、クラスで定義されます。
+598ルール、38グループ。各ルールは一意のID、重要度、クラスで定義されます。
 重要度: **致命的**（公開ブロッカー）· **高** · **中** · **低** · **情報**
 クラス: **仕様**（GTFS妥当性）· **相互運用**（GTFSインターオペラビリティ）· **品質**（GTFS品質）· **分析**（GTFSアナリティクス）
 
@@ -72,6 +72,7 @@
 | BKR_021 | info_urlが無効 | 低 | 仕様 |
 | BKR_022 | phone_numberが無効 | 低 | 品質 |
 | BKR_023 | prior_notice数値項目が整数でない | 中 | 仕様 |
+| BKR_025 | prior_notice時刻項目が有効な時刻でない | 中 | 仕様 |
 
 ## AGN — 事業者（Agency）
 
@@ -246,7 +247,7 @@
 | STM_035 | 同じ停留所に連続して停車（折返し・ループ） | 情報 | 分析 |
 | STM_036 | stop_timesがtrip_id + stop_sequenceでソートされていない | 情報 | 品質 |
 | STM_037 | Flexの乗降ウィンドウ内に時刻が設定されている | 高 | 仕様 |
-| STM_038 | start_pickup_drop_off_window > end_pickup_drop_off_window | 高 | 相互運用 |
+| STM_038 | start_pickup_drop_off_window >= end_pickup_drop_off_window | 高 | 相互運用 |
 | STM_039 | Flexコンテキストで乗降ウィンドウが不足 | 致命的 | 仕様 |
 | STM_040 | Flex stop_timesで予約ルールIDが不足（仕様上は任意） | 中 | 品質 |
 | STM_060 | トリップ内でゾーン・時間帯・乗降車が同時に重複 | 高 | 仕様 |
