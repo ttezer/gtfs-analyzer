@@ -1,0 +1,48 @@
+{
+  "old_run_id": 32145833613,
+  "new_run_id": 32197267205,
+  "comparison_scope": "common feed IDs only; statuses, validator findings and timing. Both runs captured wall time for every completed state, so timing is comparable.",
+  "common_feed_count": 4271,
+  "only_in_new": [],
+  "only_in_old": [],
+  "status_change_count": 2,
+  "status_changes": [
+    {
+      "feed_id": "mdb-2014",
+      "old": {
+        "download_status": "ok",
+        "analyzer_state": "completed",
+        "md_state": "partial_internal"
+      },
+      "new": {
+        "download_status": "ok",
+        "analyzer_state": "timeout",
+        "md_state": "timeout"
+      }
+    },
+    {
+      "feed_id": "mdb-2250",
+      "old": {
+        "download_status": "ok",
+        "analyzer_state": "completed",
+        "md_state": "completed"
+      },
+      "new": {
+        "download_status": "ok",
+        "analyzer_state": "completed",
+        "md_state": "partial_internal"
+      }
+    }
+  ],
+  "finding_signature_change_count": 298,
+  "analyzer_finding_change_feed_count": 274,
+  "mobilitydata_finding_change_feed_count": 151,
+  "both_validator_finding_change_feed_count": 127,
+  "finding_signature_unchanged_feed_count": 3973,
+  "common_analyzer_notice_total_old": 40255810,
+  "common_analyzer_notice_total_new": 38703609,
+  "common_md_notice_total_old": 121171541,
+  "common_md_notice_total_new": 121166875,
+  "byte_identical_common_feeds": 4269,
+  "note": "The catalog did not move: 4,271 feeds in both runs, none added or removed. Two feeds changed status. mdb-2014 is a measurement correction rather than a change in the data: byte-identical across both runs and killed by timeout at 300 s in both, it was recorded as analyzer_state=completed with 1,551,740 notices in run 32145833613 because classify_analyzer never read the exit code. It now reads timeout with zero, and MobilityData also moved from partial_internal to timeout on it, so neither validator finishes that feed. The entire -1,552,201 drop in Analyzer findings is that single feed leaving the totals; the real product change over the corpus is -461. The second change is mdb-2250, where MobilityData went from completed to partial_internal on our side of an unchanged Analyzer state - a movement on their side, not ours."
+}
