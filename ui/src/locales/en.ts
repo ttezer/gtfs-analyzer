@@ -772,7 +772,7 @@ const en: LocaleShape = {
     'STM_054': "Trip '{entity_id}': continuous_pickup {observed_value} is forbidden when a Flex pickup/drop-off window is defined on the same stop_time.",
     'STM_056': "Trip '{entity_id}': shape_dist_traveled does not increase — value {observed_value} is not greater than the previous stop's value.",
     'STM_060': "Trip '{entity_id}': {observed_value} overlap simultaneously — the GeoJSON zones intersect, the pickup/drop-off windows overlap, and both records offer the same service.",
-    'STM_061': "Trip '{entity_id}': {observed_value} between two stops more than 10 km apart, which are not consecutive.",
+    'STM_061': "Route '{route_label}' (direction {direction_id}): {dist_km} km straight-line between stops {stop_a} and {stop_b}, which are not consecutive, covered at {observed_value} across {trip_count} trip(s) (limit: {expected_value}).",
     'STM_058': "Trip '{entity_id}': the Flex pickup/drop-off window time '{observed_value}' is not a valid time.",
     'STM_055': "Trip '{entity_id}': continuous_drop_off {observed_value} is forbidden when a Flex pickup/drop-off window is defined on the same stop_time.",
     // PDW

@@ -753,7 +753,7 @@ const ja: LocaleShape = {
     'STM_054': "トリップ'{entity_id}'：同じstop_timeにFlexの乗降ウィンドウが定義されている場合、continuous_pickup {observed_value} は禁止です。",
     'STM_056': "便'{entity_id}'：shape_dist_traveledが増加していません（値{observed_value}が直前の停留所の値以下）。",
     'STM_060': "トリップ'{entity_id}'：{observed_value}が同時に重複しています。",
-    'STM_061': "便'{entity_id}'：10km以上離れた連続しない2停留所間が{observed_value}です。",
+    'STM_061': "路線'{route_label}'（方向{direction_id}）：連続しない停留所{stop_a}〜{stop_b}間の直線距離{dist_km}kmを{trip_count}便が{observed_value}で走行しています（制限：{expected_value}）。",
     'STM_058': "便'{entity_id}'：Flexの受降車ウィンドウ時刻'{observed_value}'が有効な時刻ではありません。",
     'STM_055': "トリップ'{entity_id}'：同じstop_timeにFlexの乗降ウィンドウが定義されている場合、continuous_drop_off {observed_value} は禁止です。",
     // PDW

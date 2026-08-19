@@ -804,6 +804,28 @@ struct Stm014Seg<'a> {
 /// details["trips"] listesinde gösterilecek örnek sefer sayısı (tam sayı trip_count'ta).
 const STM014_TRIP_SAMPLE: usize = 12;
 
+/// STM_061 toplulaması: (hat, yön, uzak durak çifti) başına biriken imkânsız hızlar.
+///
+/// Kural sefer başına tek bulgu üretiyordu ve bu YETMEDİ: aynı fiziksel durak çifti
+/// o çiftten geçen HER seferde yeniden raporlanıyor. mdb-1003'te 9.533 bulgunun
+/// tamamı TEK çiftten geliyordu (Selva de Mar → Rambla de Sant Just, 11,8 km,
+/// 118 km/h) ve hepsi aynı kök nedeni gösteriyordu — Barcelona'nın birbirine bağlı
+/// olmayan iki tram ağının durakları aynı sefere konmuş. mdb-1004'te aynı desen
+/// 10.390 bulgu. Tespit mantığı DEĞİŞMEZ; yalnız emit çift düzeyinde toplanır,
+/// STM_014'ün segment birikimiyle birebir aynı desen.
+struct Stm061Pair<'a> {
+    route_label: &'a str,
+    seq_a: u32,
+    seq_b: u32,
+    threshold: f64,
+    dist_km: f64,
+    /// En küçük stop_times satırı — deterministik çıktı için (map sırası rastgele).
+    line: u64,
+    speed_min: f64,
+    speed_max: f64,
+    trips: Vec<&'a str>,
+}
+
 fn check_speed_and_duration<'a>(
     records: &'a EntityRecords,
     config: &ValidatorConfig,
@@ -964,6 +986,10 @@ fn check_speed_and_duration<'a>(
     // STM_014 birikimi: (route_id, direction, stop_a, stop_b) → segment özeti.
     // Döngü içinde emit YOK; döngü bitince sıralı olarak tek tek üretilir.
     let mut stm014_segs: FxHashMap<(&str, &str, &str, &str), Stm014Seg<'_>> = FxHashMap::default();
+    // STM_061 birikimi: (route_id, direction, stop_a, stop_b) → uzak çift özeti.
+    // Anahtar STM_014 ile AYNI biçimdedir; iki kural aynı fiziksel segmenti farklı
+    // ölçülerle görür ve ikisi de sefer sayısıyla ölçeklenmemelidir.
+    let mut stm061_pairs: FxHashMap<(&str, &str, &str, &str), Stm061Pair<'_>> = FxHashMap::default();
 
     { let _t = Timer::start("K6::sd::loop");
     for (&trip_id, stimes) in &idx.by_trip {
@@ -1220,25 +1246,27 @@ fn check_speed_and_duration<'a>(
                             }
                         }
                     }
-                    // Sefer başına TEK bulgu: aynı zamanlama hatası düzinelerce çift
-                    // üretir ve hepsi aynı olgudur (STM_014'ün segment birikimi deseni).
+                    // Sefer başına en kötü çift seçilir, ama EMIT ERTELENİR: aynı fiziksel
+                    // çift her seferde yeniden raporlanırsa bulgu sayısı tarifenin
+                    // sıklığıyla ölçeklenir, kusurun büyüklüğüyle değil.
                     if let Some((speed, dist_km, i, j)) = worst {
-                        let mut n = k6_notice(
-                            ctr, "STM_061", EntityType::Trip,
-                            Some(trip_id.to_string()), Some(trip_id.to_string()),
-                            "stop_times.txt", Some(stimes[j].line as u64), Some("arrival_time"),
-                            Some(format!("{speed:.0} km/h ({dist_km:.1} km)")),
-                            Some(format!("<= {threshold:.0} km/h")),
-                            format!("trip_id '{trip_id}'{dep_suffix} stop_sequence {} ile {} arası {dist_km:.1} km kuş uçuşu mesafeyi {speed:.0} km/h ile kapatıyor (eşik {threshold:.0} km/h) — duraklar ardışık değil, ara segmentler tek tek makul görünse de bütün imkânsız.",
-                                stimes[i].stop_sequence().unwrap_or(0),
-                                stimes[j].stop_sequence().unwrap_or(0)),
-                            "Uzak durak çifti arasındaki varış/kalkış saatlerini doğrulayın; genellikle bir zaman bloğu kaymış ya da gece yarısı aşımı yanlış yazılmıştır.",
-                        );
-                        let mut d = std::collections::BTreeMap::new();
-                        d.insert("stop_a".to_string(), idx.stop_id_of(&stimes[i]).to_string());
-                        d.insert("stop_b".to_string(), idx.stop_id_of(&stimes[j]).to_string());
-                        n.details = Some(d);
-                        notices.push(n);
+                        let pair = stm061_pairs
+                            .entry((route, dir_sd, idx.stop_id_of(&stimes[i]), idx.stop_id_of(&stimes[j])))
+                            .or_insert_with(|| Stm061Pair {
+                                route_label,
+                                seq_a: stimes[i].stop_sequence().unwrap_or(0),
+                                seq_b: stimes[j].stop_sequence().unwrap_or(0),
+                                threshold,
+                                dist_km,
+                                line: stimes[j].line as u64,
+                                speed_min: speed,
+                                speed_max: speed,
+                                trips: Vec::new(),
+                            });
+                        pair.speed_min = pair.speed_min.min(speed);
+                        pair.speed_max = pair.speed_max.max(speed);
+                        pair.line = pair.line.min(stimes[j].line as u64);
+                        pair.trips.push(trip_id);
                     }
                 }
             }
@@ -1618,6 +1646,75 @@ fn check_speed_and_duration<'a>(
             d.insert("trip_count".to_string(), trips.len().to_string());
             d.insert("speed_min".to_string(), format!("{speed_min:.1}"));
             d.insert("speed_max".to_string(), format!("{speed_max:.1}"));
+            d.insert("trips".to_string(), trips.iter().take(STM014_TRIP_SAMPLE).copied().collect::<Vec<_>>().join(","));
+            n.details = Some(d);
+            notices.push(n);
+        }
+    }
+
+    // ── STM_061: biriken uzak durak çiftlerini tek tek emit et ───────────────
+    // STM_014 ile aynı desen ve aynı gerekçe: FxHashMap iterasyonu sırasız olduğu
+    // için anahtara göre sıralanır, yoksa golden çıktı koşumdan koşuma oynar.
+    {
+        let _t = Timer::start("K6::sd::stm061_emit");
+        let mut keys: Vec<(&str, &str, &str, &str)> = stm061_pairs.keys().copied().collect();
+        keys.sort_unstable();
+        for key in keys {
+            let pair = &stm061_pairs[&key];
+            let (route, dir, stop_a, stop_b) = key;
+            let Stm061Pair { route_label, seq_a, seq_b, threshold, dist_km, line, speed_min, speed_max, .. } = *pair;
+
+            let mut trips: Vec<&str> = pair.trips.clone();
+            trips.sort_unstable();
+            trips.dedup();
+            let n_trips = trips.len();
+
+            let observed = if (speed_max - speed_min).abs() < 0.5 {
+                format!("{speed_max:.0} km/h ({dist_km:.1} km)")
+            } else {
+                format!("{speed_min:.0}-{speed_max:.0} km/h ({dist_km:.1} km)")
+            };
+            let msg = if n_trips == 1 {
+                format!(
+                    "'{route_label}' kodlu hattın {dir} yönünde '{}' seferi: stop_sequence {seq_a} ile {seq_b} \
+                    arası {dist_km:.1} km kuş uçuşu mesafeyi {speed_max:.0} km/h ile kapatıyor (eşik {threshold:.0} km/h) \
+                    — duraklar ardışık değil, ara segmentler tek tek makul görünse de bütün imkânsız.",
+                    trips[0]
+                )
+            } else {
+                format!(
+                    "'{route_label}' kodlu hattın {dir} yönünde stop_sequence {seq_a} ile {seq_b} arası \
+                    {dist_km:.1} km kuş uçuşu mesafe {n_trips} seferde imkânsız hızla kapatılıyor — \
+                    {speed_min:.0}-{speed_max:.0} km/h, eşik {threshold:.0} km/h. Tek durak çifti, tek kök neden: \
+                    seferler ayrı ayrı listelenmez."
+                )
+            };
+            let mut n = k6_notice(
+                ctr,
+                "STM_061",
+                EntityType::Route,
+                // entity_id çifti BENZERSİZ tanımlamalı: dedup=Entity olduğu için aynı
+                // hattaki farklı çiftler aksi halde birbirini yutar (STM_014 ile aynı).
+                Some(format!("{route}:{dir}:{stop_a}→{stop_b}")),
+                Some(route.to_string()),
+                "stop_times.txt",
+                Some(line),
+                Some("arrival_time"),
+                Some(observed),
+                Some(format!("<= {threshold:.0} km/h")),
+                msg,
+                "Uzak durak çifti arasındaki varış/kalkış saatlerini doğrulayın; genellikle bir zaman bloğu kaymış ya da gece yarısı aşımı yanlış yazılmıştır.",
+            );
+            let mut d = std::collections::BTreeMap::new();
+            d.insert("stop_a".to_string(), stop_a.to_string());
+            d.insert("stop_b".to_string(), stop_b.to_string());
+            d.insert("route_id".to_string(), route.to_string());
+            d.insert("route_label".to_string(), route_label.to_string());
+            d.insert("direction_id".to_string(), dir.to_string());
+            d.insert("trip_count".to_string(), n_trips.to_string());
+            d.insert("dist_km".to_string(), format!("{dist_km:.1}"));
+            d.insert("speed_min".to_string(), format!("{speed_min:.0}"));
+            d.insert("speed_max".to_string(), format!("{speed_max:.0}"));
             d.insert("trips".to_string(), trips.iter().take(STM014_TRIP_SAMPLE).copied().collect::<Vec<_>>().join(","));
             n.details = Some(d);
             notices.push(n);

@@ -245,6 +245,11 @@ AGG_RULES = {
                 # agregat yapınca AGG_RULES'a da ekle — STM_014'te de unutulmuştu.)
     "STM_018", "STM_019", "STM_032", "STM_007", "STM_056",  # 2026-08-18: >50 stop_times satırında tek feed özeti (#151);
                             # MD satır-başına sayar → our_count << md_count NORMAL.
+    "STM_061",  # 2026-08-20: (hat, yön, uzak durak çifti) toplulaması. Sefer başına tek
+                # bulgu YETMİYORDU — aynı fiziksel çift her seferde yeniden raporlanınca
+                # sayı tarifenin sıklığıyla ölçekleniyordu: mdb-1003'te 9.533 bulgunun
+                # tamamı TEK çiftten geldi (11 oldu), mdb-1004'te 10.390 -> 20.
+                # MD per-occurrence sayar → our_count << md_count ARTIK NORMAL.
     "SHP_012",  # per-SHAPE özeti: shape başına TEK notice, observed="N durak >100m".
                 # MD (sefer,durak) başına sayar → aynı shape N seferde kullanılırsa MD N katı.
                 # mdb-2366: bizim 171 notice içinde 3.338 uzak durak, MD 1.794 occurrence
