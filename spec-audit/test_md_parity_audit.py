@@ -311,7 +311,7 @@ class LedgerDriftGate(unittest.TestCase):
     }
     MAPPED_LABELS = {"tolerance-by-design", "structural-fault-owns-it", "md-implementation-limit", "scope-difference",
                       "config-dependent", "analyzer-defect",
-                      "not-adjudicated"}
+                      "not-adjudicated", "aggregation"}
 
     def test_ledger_labels_stay_within_the_frozen_vocabulary(self):
         """Etiketsiz ya da tanınmayan karar sayımlardan sessizce düşer."""

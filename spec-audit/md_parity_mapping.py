@@ -213,6 +213,14 @@ CONTEXT_MAPPINGS: tuple[ContextMapping, ...] = (
     _ctx("invalid_integer", "SHP_004", filename=("shapes.txt",), fields=("shape_pt_sequence",), label="shapes.txt::shape_pt_sequence"),
     _ctx("invalid_integer", "FAR_006", filename=("fare_attributes.txt",), fields=("transfer_duration",), label="fare_attributes.txt::transfer_duration"),
     _ctx("invalid_float", "STP_004", filename=("stops.txt",), fields=("stop_lat",), label="stops.txt::stop_lat"),
+    # 🔑 ASİMETRİ: `stop_lat`'in İKİ kuralı var (STP_004 sayısal değil · STP_003 aralık
+    # dışı), `stop_lon`'un TEK kuralı (STP_005) ikisini birden kapsar — başlığı zaten
+    # "geçersiz VEYA aralık dışı" der. Yalnız `number_out_of_range`'e eşlenmişti,
+    # dolayısıyla virgül ondalıklı feed'lerde sayı kıyası anlamsız çıkıyordu:
+    # `tfs-70`'te MD 11 `number_out_of_range` + 88.657 `invalid_float` raporlarken
+    # bizim 7.844 STP_005'imizin tamamı 11'in karşısına konuyordu (#167, oran 713×).
+    # Feed'in 7.843 durağının hemen hepsinde `stop_lon` "-99,1056" biçiminde yazılmış.
+    _ctx("invalid_float", "STP_005", filename=("stops.txt",), fields=("stop_lon",), label="stops.txt::stop_lon"),
     _ctx("missing_required_field", "STP_002", filename=("stops.txt",), fields=("stop_id",), label="stops.txt::stop_id"),
     _ctx("missing_required_field", "FAR_003", filename=("fare_attributes.txt",), fields=("currency_type",), label="fare_attributes.txt::currency_type"),
     _ctx("invalid_email", "AGN_009", filename=("agency.txt",), fields=("agency_email",), label="agency.txt::agency_email"),
@@ -663,6 +671,53 @@ MAPPED_DIVERGENCE_DECISIONS = {
         "therefore right to stay silent; MobilityData compares against the set of agency urls. A publisher "
         "reusing one portal url across a 74-operator regional feed is ordinary, so widening our comparison "
         "would turn a common pattern into 3,564 findings.",
+    ),
+    "invalid_input_files_in_subfolder": (
+        "aggregation",
+        "MobilityData reports the archive layout once per feed; ARC_024 reports it per file, "
+        "so the median ratio is 9 and rises with the file count. Same fact, different unit.",
+    ),
+    "stop_time_timepoint_without_times": (
+        "aggregation",
+        "Median ratio 0.50: STM_047 emits once per stop_time row while MobilityData reports "
+        "arrival and departure separately on the same row.",
+    ),
+    "stop_without_zone_id": (
+        "aggregation",
+        "Median ratio 0.23. STP_033 dedups by stop_id; MobilityData reports per fare rule that "
+        "touches the stop, so one zoneless stop appears once for us and several times for them.",
+    ),
+    "same_stop_and_route_url": (
+        "aggregation",
+        "Median ratio 0.05. STP_035 reports the stop once; MobilityData reports each "
+        "stop-route pair sharing the url.",
+    ),
+    "same_stop_and_agency_url": (
+        "aggregation",
+        "Median ratio 0.14, same shape as same_stop_and_route_url: we report the stop, they "
+        "report the pairing.",
+    ),
+    "feed_info_lang_and_agency_lang_mismatch": (
+        "aggregation",
+        "Median ratio 0.01. AGN_013 states the mismatch once for the feed; MobilityData "
+        "repeats it per agency row.",
+    ),
+    "service_window_outside_feed_period": (
+        "aggregation",
+        "578 of the 688 md_mapped_over rows, and the ratio settles the question: the median "
+        "analyzer/MD count is exactly 2.00 across them. CAL_014 (service dates outside the "
+        "feed_info validity range) and CAL_019 (raw calendar range exceeds the window) both "
+        "dedup by service_id and both map to this one code, so a service that trips both is "
+        "counted twice on our side and once on theirs. The 1.33-1.75 ratios are services that "
+        "trip only one of the two. Reporting granularity, not disagreement.",
+    ),
+    "trip_with_shape_dist_traveled_but_no_shape_distances": (
+        "aggregation",
+        "135 of the 366 md_mapped_under rows and the largest volume gap in either class: "
+        "MobilityData 1,961,415 findings against our 57,476, a ratio of 34 to 1. That is the "
+        "trips-per-shape ratio. SHP_030 dedups by shape_id because the defect lives in "
+        "shapes.txt - the fix is to add distances to one shape, not to edit every trip that "
+        "uses it. Ours is the more actionable presentation; theirs is not wrong, just per-trip.",
     ),
     "unused_shape": (
         "md-implementation-limit",
