@@ -906,6 +906,13 @@ SETTLING_VERDICTS = frozenset({
     "SPLIT_VERDICT",
     "CASCADE_NOT_SUPPRESSIBLE",
     "SUPPRESSED_SINCE",
+    # Aşağıdaki üçü #166'da eklendi. Hepsi KALICI bir durum anlatır — eşik/birim
+    # farkı, MD'nin kendi belgelediği dar koşulu, ya da onların ayrıştırıcı sınırı —
+    # dolayısıyla bir sonraki koşumda da geçerlidir ve ayrışmayı KAPATIR.
+    "SCOPE_DIFFERENCE",
+    "AGGREGATION",
+    "MD_IMPLEMENTATION_LIMIT",
+    "THRESHOLD_DIFFERENCE",
 })
 REGRESSION_SENSITIVE_VERDICTS = frozenset({
     "FALSE_POSITIVE_FIXED",
