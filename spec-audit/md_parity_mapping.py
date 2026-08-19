@@ -9,7 +9,10 @@ The module intentionally contains no filesystem or network access.  It is
 imported by :mod:`md_parity_audit` and by the CI drift check.
 """
 
+import csv
 from dataclasses import dataclass
+from functools import lru_cache
+from pathlib import Path
 from typing import Any, Iterable
 
 
@@ -540,6 +543,91 @@ def classify_divergence(code: str) -> tuple[str, str]:
         # BY_DESIGN stores a bare reason; the other two store (decision, reason).
         return (source, entry) if isinstance(entry, str) else (f"{source}:{entry[0]}", entry[1])
     return ("unreviewed", "No decision recorded for this MD code in any parity ledger.")
+
+
+# ── Analyzer tarafı defteri ────────────────────────────────────────────────────
+#
+# Yukarıdaki üç defter MD KODUNA göre anahtarlanır ve `classify_divergence()` onları
+# okur. Ama sapmanın diğer yönü — "biz bir Spec ihlali iddia ediyoruz, MobilityData
+# susuyor" — KURAL KİMLİĞİNE göre anahtarlanır ve hükümleri `fp_adjudication.tsv`'de
+# durur. O dosyayı hiçbir tüketici okumuyordu.
+#
+# 🔴 Sonuç #146'nın birebir tekrarıydı: 251 satırın HEPSİ yargılanmış olduğu hâlde
+# her koşumda "yargılanmamış" raporlanıyordu. Okunmayan defter defter değildir.
+
+_FP_LEDGER = Path(__file__).resolve().parent / "fp_adjudication.tsv"
+
+# Bir hükmün ayrışmayı KAPATIP kapatmadığı, hükmün NE İDDİA ETTİĞİNE bağlıdır.
+#
+# Kapatanlar KALICI bir durum anlatır: "biz haklıyız, onlar dar" (TRUE_POSITIVE),
+# "eşleme yanlış kodu gösteriyor" (MAPPING_ARTIFACT), "kök neden başka kuralda"
+# (CASCADE_*). Bunlar bir sonraki koşumda da geçerlidir.
+#
+# Kapatmayanlar bir DEĞİŞİKLİK iddia eder: `FALSE_POSITIVE_FIXED` "kuralı bunu
+# yapmasın diye değiştirdik" demektir. Kural yine ateşliyorsa bu bir GERİLEMEDİR ve
+# görünmelidir — bastırmak, tam da yakalamak için var olduğu şeyi gizler.
+SETTLING_VERDICTS = frozenset({
+    "TRUE_POSITIVE",
+    "MAPPING_ARTIFACT",
+    "SPLIT_VERDICT",
+    "CASCADE_NOT_SUPPRESSIBLE",
+    "SUPPRESSED_SINCE",
+})
+REGRESSION_SENSITIVE_VERDICTS = frozenset({
+    "FALSE_POSITIVE_FIXED",
+    "DERIVATIVE_FIXED",
+    "DUPLICATE_FIXED",
+    "NOT_ADJUDICATED",
+})
+
+
+@lru_cache(maxsize=1)
+def _fp_verdicts():
+    """rule_id → (verdict, run_id, reasoning).
+
+    Aynı kural birden çok koşumda yargılandıysa EN SON koşumun hükmü geçerlidir:
+    kural o arada değişmiş olabilir ve eski hüküm eski davranış hakkındadır.
+    """
+    out = {}
+    if not _FP_LEDGER.exists():
+        return out
+    with _FP_LEDGER.open(encoding="utf-8", newline="") as fh:
+        for row in csv.DictReader(fh, delimiter="\t"):
+            rid = (row.get("rule_id") or "").strip()
+            if not rid:
+                continue
+            run = (row.get("run_id") or "").strip()
+            verdict = (row.get("verdict") or "").strip()
+            prev = out.get(rid)
+            # 🔴 "En son kazanır" TEK BAŞINA yanlıştır. `NOT_ADJUDICATED` bir HÜKÜM
+            # DEĞİL, hüküm verilmediğinin kaydıdır — genellikle bir kuralın YENİ bir
+            # alt vakası bulunduğunda düşülür. Onun daha eski bir gerçek hükmü ezmesi,
+            # verilmiş bir kararı geri almaktır. `AGN_003` tam bu durumdadır: 
+            # run 31934698855'te TRUE_POSITIVE, run 31981225727'de çift-şema alt
+            # vakası için NOT_ADJUDICATED. İkisi aynı soruya iki cevap değildir.
+            if verdict == "NOT_ADJUDICATED" and prev is not None:
+                continue
+            if prev is not None and prev[0] != "NOT_ADJUDICATED" and run <= prev[1]:
+                continue
+            out[rid] = (verdict, run, (row.get("reasoning") or "").strip())
+    return out
+
+
+def classify_analyzer_divergence(rule_id: str):
+    """`classify_divergence`'ın analyzer tarafındaki karşılığı.
+
+    ``("adjudicated:<verdict>", gerekçe)`` ya da ``("unreviewed", sebep)`` döner.
+    `CASCADE_ROOT_ARC_012` gibi son ek taşıyan hükümler önekle eşleşir.
+    """
+    entry = _fp_verdicts().get(rule_id)
+    if entry is None:
+        return ("unreviewed", "No verdict recorded for this rule in fp_adjudication.tsv.")
+    verdict, run, reason = entry
+    if verdict in SETTLING_VERDICTS or verdict.startswith("CASCADE_ROOT_"):
+        return (f"adjudicated:{verdict}", f"run {run}: {reason}")
+    return ("unreviewed",
+            f"Verdict {verdict} (run {run}) claims a change was made; a fresh "
+            f"occurrence is a regression and stays visible. {reason}")
 
 
 def is_adjudicated(code: str) -> bool:

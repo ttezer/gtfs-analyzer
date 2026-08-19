@@ -355,6 +355,49 @@ class LedgerDriftGate(unittest.TestCase):
                 self.assertIn(rule, audit.MAP.get(code, []),
                               f"{code} → {rule} eşlemesi kayboldu")
 
+    def test_the_analyzer_side_ledger_is_actually_consulted(self):
+        """#163: `fp_adjudication.tsv` hiçbir tüketici tarafından okunmuyordu.
+
+        251 satırın hepsi yargılanmış olduğu hâlde her koşumda taze görünüyordu —
+        #146'nın (`BY_DESIGN` yüklenmeyen bir modüldeydi) birebir tekrarı.
+        """
+        self.assertGreater(len(mapping._fp_verdicts()), 50, "defter boş okundu — ÖNCE SORGUYU şüphelen")
+        self.assertEqual(mapping.classify_analyzer_divergence("ARC_030")[0], "adjudicated:TRUE_POSITIVE")
+        self.assertEqual(mapping.classify_analyzer_divergence("ZZZ_999")[0], "unreviewed")
+
+    def test_a_fixed_verdict_does_not_hide_a_regression(self):
+        """"Düzelttik" bir GEÇMİŞ iddiasıdır; sonraki koşum onu SINAR.
+
+        `FALSE_POSITIVE_FIXED` taşıyan bir kural yine ateşliyorsa bu görünmelidir —
+        bastırmak, kapının yakalamak için var olduğu şeyi gizler.
+        """
+        for verdict in mapping.REGRESSION_SENSITIVE_VERDICTS:
+            self.assertNotIn(verdict, mapping.SETTLING_VERDICTS,
+                             f"{verdict} bir değişiklik iddia eder, ayrışmayı KAPATAMAZ")
+        self.assertEqual(mapping.classify_analyzer_divergence("FIN_002")[0], "unreviewed",
+                         "FALSE_POSITIVE_FIXED taşıyan kural hâlâ ateşliyorsa görünmeli")
+
+    def test_not_adjudicated_never_overwrites_a_real_verdict(self):
+        """`NOT_ADJUDICATED` bir hüküm DEĞİL, hüküm verilmediğinin kaydıdır.
+
+        Genellikle bir kuralın YENİ bir alt vakası bulunduğunda düşülür. Daha eski
+        bir gerçek hükmü ezmesi, verilmiş bir kararı geri almak olurdu. `AGN_003`
+        tam bu durumda: 31934698855'te TRUE_POSITIVE, 31981225727'de çift-şema alt
+        vakası için NOT_ADJUDICATED.
+        """
+        self.assertEqual(mapping._fp_verdicts()["AGN_003"][0], "TRUE_POSITIVE")
+        self.assertEqual(mapping.classify_analyzer_divergence("AGN_003")[0],
+                         "adjudicated:TRUE_POSITIVE")
+
+    def test_every_adjudicated_rule_still_exists(self):
+        """Kaldırılmış bir kural hakkındaki hüküm ölü ağırlıktır ve fark edilmez."""
+        registry = (Path(__file__).resolve().parents[1]
+                    / "crates" / "rules" / "src" / "registry.rs").read_text(encoding="utf-8")
+        known = set(re.findall(r'r!\("([A-Z]{2,4}_\d{3}[a-z]?)"', registry))
+        for rule in mapping._fp_verdicts():
+            with self.subTest(rule=rule):
+                self.assertIn(rule, known, f"{rule} hakkında hüküm var ama kural registry'de yok")
+
     def test_every_mapped_rule_exists_in_the_registry(self):
         """Var olmayan bir kurala eşlenen kod SESSİZ bir MISS üretir.
 

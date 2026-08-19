@@ -5,7 +5,7 @@ from pathlib import Path
 
 # Bağlam çözücü ve karar defterleri KANONİK modülden gelir (bridge `md_parity_mapping.py`).
 # Düz `MAP` yalnız GERİ DÜŞÜŞTÜR: bağlam entry'si olmayan kodlar için.
-from md_parity_mapping import classify_divergence, resolve_mapping
+from md_parity_mapping import classify_analyzer_divergence, classify_divergence, resolve_mapping
 
 
 def load_map(path):
@@ -274,8 +274,16 @@ def main():
             if codes:
                 mt=sum(mc.get(code,0) for code in codes)
                 if mt==0:
+                    # Analyzer tarafındaki hükümler `fp_adjudication.tsv`'de durur ve
+                    # KURAL KİMLİĞİYLE anahtarlanır — `classify_divergence` MD kodu alır,
+                    # buraya uymaz. Bu defter yıllardır hiç okunmuyordu: 251 satırın hepsi
+                    # yargılanmış olduğu hâlde her koşumda taze görünüyordu (#163).
+                    adj,areason=classify_analyzer_divergence(rid)
+                    base="analyzer_spec_md_absent" if cls=="SPEC" else "analyzer_mapped_md_absent"
                     divergences.append({
-                      "type":"analyzer_spec_md_absent" if cls=="SPEC" else "analyzer_mapped_md_absent",
+                      "type":"adjudicated_divergence" if adj!="unreviewed" else base,
+                      "unadjudicated_type":base if adj!="unreviewed" else None,
+                      "decision":adj,"reason":areason,
                       "feed_id":fid,"provider":feed.get("provider",""),"country":feed.get("country",""),"url":feed.get("url",""),
                       "analyzer_rule":rid,"analyzer_count":ourc,"analyzer_class":cls,"analyzer_severity":sev,
                       "mapped_md_codes":codes,"analyzer_sample":sm})
