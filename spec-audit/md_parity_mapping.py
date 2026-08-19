@@ -913,6 +913,15 @@ SETTLING_VERDICTS = frozenset({
     "AGGREGATION",
     "MD_IMPLEMENTATION_LIMIT",
     "THRESHOLD_DIFFERENCE",
+    # `FIX_CONFIRMED` #171'de eklendi ve NÖBETİ SONLANDIRIR, bulguyu değil.
+    # `FALSE_POSITIVE_FIXED` bilerek regresyon duyarlıdır: bir düzeltme İDDİA eder
+    # ve bir koşum kanıtlayana kadar satırları görünür tutar. Kanıt geldiğinde o
+    # nöbetin işi biter — sürdürmek, kapının yakalamak için var olduğu şeyi artık
+    # yakalamadığı hâlde gürültü üretmesidir. Bu verdict YALNIZ, hükümde ADI GEÇEN
+    # feed'in ölçülüp beklenen değere indiği koşumdan sonra yazılır ve gerekçesi o
+    # ölçümü taşır. Kuralın KALAN bulguları bu verdict'in konusu DEĞİLDİR; onlar
+    # kendi hükmünü hak eder.
+    "FIX_CONFIRMED",
 })
 REGRESSION_SENSITIVE_VERDICTS = frozenset({
     "FALSE_POSITIVE_FIXED",
