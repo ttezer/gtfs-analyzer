@@ -534,11 +534,15 @@ MAPPED_DIVERGENCE_DECISIONS = {
         "analyzer-defect",
         "mdb-2653, 1,502 findings, and MobilityData is right about every one - the count matches exactly once "
         "the join is done on trimmed ids. routes.txt is space-padded to a fixed width, so route_id reads "
-        "'10T0001C1  ' while trips.txt carries '10T0001C1'. TRP_024 builds its own lookup straight off "
-        "RouteRecord.route_id, which k2/routes.rs reads with get_raw_field, so every lookup misses and the "
-        "rule reports nothing across 138,903 trips. The predicate is correct; the plumbing drops the input, "
-        "same family as recoverable_stop_coord and the K6::geo_analytics gating. Tracked in #169, which also "
-        "has to settle why TRP_002 resolves the same references while this does not.",
+        "'10T0001C1  ' while trips.txt carries '10T0001C1'; 838 of 854 routes are affected. TRP_024 builds "
+        "its lookup off RouteRecord.route_id and every lookup misses, so it reports nothing across 138,903 "
+        "trips. Reading identity raw is the deliberate convention rather than an oversight - every entity "
+        "parser does it (routes.rs:53, stops.rs:49, agency.rs:37, calendar.rs:33, shapes.rs:285) and "
+        "k2/common.rs:140 cites #85 for it - and k6_analytics.rs alone has 116 sites keying maps off a raw "
+        "id field, so this is a policy question and not a one-line fix. Running the analyzer directly on the "
+        "feed shows TRP_002 is also silent, which under raw identity should not happen: it should report "
+        "138,821 broken references. Two halves of our own pipeline therefore disagree about what an id is. "
+        "Tracked in #169; recorded here as our defect because MobilityData's finding is correct.",
     ),
     "transfer_distance_too_large": (
         "structural-fault-owns-it",
