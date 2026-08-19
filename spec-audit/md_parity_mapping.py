@@ -930,8 +930,18 @@ def _fp_verdicts():
     kural o arada değişmiş olabilir ve eski hüküm eski davranış hakkındadır.
     """
     out = {}
+    # 🔴 EKSİK DEFTER SESSİZCE GEÇİLMEZ. Burası `return {}` diyordu ve run
+    # 32290410755 tam olarak bu satır yüzünden yargılanmış 14.980 satırı taze
+    # sapma diye yayımladı: defter yolu yanlış çözülmüştü, dosya bulunamadı,
+    # fonksiyon boş sözlük döndü, hiçbir tüketici farkı anlamadı. Defter repoda
+    # versiyonludur — YOKLUĞU her zaman bir arızadır, hiçbir zaman "hüküm yok"
+    # demek değildir. Patlamak, yanlış sayı yayımlamaktan ucuzdur.
     if not _FP_LEDGER.exists():
-        return out
+        raise FileNotFoundError(
+            f"Hüküm defteri bulunamadı: {_FP_LEDGER}. Bu dosya repoda versiyonludur; "
+            f"yolu yanlış çözülüyorsa bu bir araç arızasıdır. Boş defterle devam "
+            f"etmek, yargılanmış her sapmayı taze göstermek demektir."
+        )
     with _FP_LEDGER.open(encoding="utf-8", newline="") as fh:
         for row in csv.DictReader(fh, delimiter="\t"):
             rid = (row.get("rule_id") or "").strip()

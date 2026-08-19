@@ -300,6 +300,24 @@ def main():
                   "feed_id":fid,"provider":feed.get("provider",""),"country":feed.get("country",""),"url":feed.get("url",""),
                   "analyzer_rule":rid,"analyzer_count":ourc,"analyzer_class":cls,"analyzer_severity":sev,"analyzer_sample":sm})
 
+    # 🔴 HİÇBİR SAPMA SATIRI DEFTER SORGUSUNDAN GEÇMEDEN ÜRETİLEMEZ.
+    # Bu invariant, run 32290410755'in iki kusurunu da YAPISAL olarak imkansız kılar.
+    # Orada `analyzer_spec_unmapped` kovası hiçbir defter sorgusu yapmadan satır
+    # üretiyordu ve kimse fark etmedi — kova sessizce doğru görünüyordu. Yeni bir
+    # kova eklenip sorgusu unutulursa koşum burada DURUR, yanlış sayı yayımlamaz.
+    # Tek istisna `validator_state_asymmetry`: o iki validatörün ÇALIŞMA DURUMU
+    # farkıdır, bir kural hükmü konusu değildir.
+    LEDGERLESS_TYPES = {"validator_state_asymmetry"}
+    undecided = sorted({d["type"] for d in divergences
+                        if d["type"] not in LEDGERLESS_TYPES and not d.get("decision")})
+    if undecided:
+        raise SystemExit(
+            f"Defter sorgusundan geçmeyen sapma türü: {', '.join(undecided)}. "
+            f"Her sapma satırı `classify_divergence` ya da "
+            f"`classify_analyzer_divergence` sonucunu `decision` alanında taşımalıdır; "
+            f"taşımayan satır, yargılanmış bir kararı taze sapma gibi gösterir."
+        )
+
     for d in divergences:d["priority"]=priority(d)
     divergences.sort(key=lambda d:(-d["priority"],d.get("feed_id",""),d.get("md_code",""),d.get("analyzer_rule","")))
 
