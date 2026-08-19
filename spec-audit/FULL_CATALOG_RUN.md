@@ -29,9 +29,14 @@ sıfır bilgi için ödemektir — ve daha kötüsü, ürün değişmemişken oy
 "iyileşme" ya da "gerileme" diye okunur. Dördüncü koşumda −%3,9'luk düşüşün tamamının
 TEK BİR FEED'in doğru sınıflandırılmasından geldiğini hatırla.
 
-Açık denetim işi artık issue'larda: #162 · #163 · #164 · #165 · #166 · #167 · #168.
-Bunların HİÇBİRİ yeni koşum GEREKTİRMEZ — hepsi eldeki
-`audit-results/full-mdb-schedule-20260819/run-32197267205/` verisiyle çalışılır.
+**5. koşum bu kuralın hem kanıtı hem uyarısıdır.** Altı tahminin beşi adı verilen feed'de
+isabet etti — koşum işini gördü. Ama defter sayıları OKUNAMADI (§5) ve bu, koşumdan önce
+yerel bir testle yakalanabilirdi. 🔴 **Koşum tetiklemeden önce
+`python3 benchmark/audit_all/test_timing.py` YEŞİL olmalıdır.**
+
+Koşumdan sonra açık kalan denetim işi §5'in sonundadır ve **hiçbiri yeni koşum
+GEREKTİRMEZ** — hepsi eldeki `run-32290410755/` verisiyle (defter tarafı için
+`reaggregated/` ile) çalışılır.
 
 ## 1. Hangi yığın
 
@@ -43,8 +48,9 @@ Eski `benchmark/auditall/` yığını #152'de emekliye ayrıldı — diriltme.
 
 ## 2. Koşmadan önce güncellenecek şeyler
 
-> ✅ **5. koşum için ikisi ZATEN HAZIR** (`0acf6129`): `--manifest` artık main'de kalıcı,
-> `BENCH_DATE`/`MD_DATE` `20260819`'da. Koşum BAŞKA BİR GÜN yapılırsa tarihi çek.
+> ⚠️ `--manifest` `0acf6129`'dan beri main'de kalıcıdır ve 5. koşumda çalıştı. Ama
+> `BENCH_DATE`/`MD_DATE` hâlâ `20260819`'dadır: **6. koşum başka bir gün yapılırsa tarih
+> ÇEKİLMEZSE hata vermez, sessizce yanlış verdikt üretir.**
 
 1. **`benchmark/audit_all/run_shard.py` → `BENCH_DATE` ve `MD_DATE`.**
    Gerçek koşum tarihine çek. `BENCH_DATE` Analyzer'ın `--today` bayrağına, `MD_DATE`
@@ -81,45 +87,75 @@ sahte bulgular üretir.
 
 ## 5. 🔴 BU KOŞUMA ÖZEL — ÖNCEKİYLE KIYASLARKEN
 
-> Bu bölüm **her koşumdan sonra yeniden yazılır.** Aşağıdaki hâli **5. koşum** içindir;
-> 4. koşumun (`32197267205`) kendi uyarı tablosu git geçmişinde `9e7746ba`'dan önceki
-> sürümdedir.
+> Bu bölüm **her koşumdan sonra yeniden yazılır.** Aşağıdaki hâli **5. koşumun
+> SONUCUDUR** (`32290410755`); 6. koşum planlanırsa yerine o koşumun tahmin tablosu
+> yazılır. Koşum öncesi hâli git geçmişinde `c97698c7`'dedir.
 
-**Bu koşumun tek gerekçesi: ALTI ürün değişikliğinin tahminini SINAMAK.** Keşif değil
-(brief §0). Her satırın beklentisi önceden yazılıdır; tutmazsa düzeltme çalışmıyor demektir.
+**5. koşumun gerekçesi ALTI ürün değişikliğinin tahminini sınamaktı.** Beşi adı önceden
+verilen feed'de isabet etti, biri kısmi kaldı:
 
-| değişiklik | commit | BEKLENEN |
+| değişiklik | BEKLENEN | GERÇEKLEŞEN |
 |---|---|---|
-| `TRP_019` continuous enum `{0,1}` → `{0,2,3}` | `983420f8` | **215.288 → çok daha az.** Yüklem 1'i (=sürekli servis YOK) dahil ediyordu. `tdg-83921` ve `tdg-81645` **0'a inmeli**, `ntd-50386` 24'te kalmalı. |
-| `ARC_009` koşullu çift simetrisi | `39246a4a` | CRITICAL 104 → **~45**. Boş `calendar.txt` + dolu `calendar_dates.txt` olan 59 feed susmalı; `stop_times`/`routes`/`agency`/`stops` boş olanlar SUSMAMALI. |
-| `STM_061` (YENİ, 600. kural) | `94cc4c06` | MD'nin `fast_travel_between_far_stops` verdiği ~372 feed'de ateşlemeli. `mdb-2946`≈116, `mdb-3235`≈36, `tld-4477`≈7. |
-| `ARC_034` (YENİ) | `fcb19828` | `mdb-1003`/`mdb-1004`'te **6'şar**; aynı feed'lerde `AGN_004`/`AGN_005` **0'a inmeli**. |
-| `BKR_025` (YENİ) | `a5860028` | `tdg-80694`, `tdg-84001` — `prior_notice` saatinde `00:00:00.0000000` gibi bozuk değer. |
-| `BKR_002` Spec → Quality | `e7a1af8d` | Bulgu sayısı AYNI kalır; yalnız sınıf/önem değişir → R1 yayın engeli olmaktan çıkar. |
+| `TRP_019` continuous enum | `tdg-83921`/`tdg-81645` 0'a insin, `ntd-50386` sabit | 4→0, 14→0, 23'te sabit ✅ |
+| `ARC_009` koşullu çift simetrisi | CRITICAL 104 → ~45 | **111 → 55** ✅ |
+| `BKR_002` Spec → Quality | sayı aynı, sınıf değişsin | 2 bulgu, QUALITY/MEDIUM ✅ |
+| `ARC_034` (YENİ) | `mdb-1003`/`mdb-1004`, `AGN_004` sussun | 5'er bulgu, `AGN_004` 1→0 ✅ |
+| `BKR_025` (YENİ) | `tdg-80694`, `tdg-84001` | ikisi de, birer bulgu ✅ |
+| `STM_061` (YENİ) | MD'nin 371 feed'inde ateşlesin | **250'sinde** ateşliyor ⚠️ |
 
-### Defter tarafı — aracın doğru okuduğunun sınavı
+⚠️ **`STM_061` tek KISMİ satırdır.** MD'nin `fast_travel_between_far_stops` verdiği 371
+feed'in 250'sinde ateşliyoruz, **121'inde susuyoruz**, 81 feed'de ise yalnız biz
+konuşuyoruz. `md_mapped_missing` 36 → 133 yükselişinin 121'i budur: yeni kural mevcut bir
+körlüğü ÖLÇÜLEBİLİR yaptı, körlük YARATMADI.
 
-Bugün üç kovanın hükümleri yazıldı ve `aggregate.py` artık `fp_adjudication.tsv`'yi
-okuyor (`706aed1d`). Beklenen:
+Toplam bulgu 38.703.609 → 38.620.548. **Bu −83.061 bir kalite ölçüsü DEĞİLDİR** — tek
+başına `STM_061` 83.175 EKLİYOR; altı düzeltme başka yerde bundan fazlasını düşürüyor.
+Korpus değişmedi (manifest bayt bayt aynı).
 
-| sınıf | 4. koşum | BEKLENEN |
-|---|---:|---|
-| `analyzer_spec_md_absent` | 251 | **~9** |
-| `analyzer_spec_unmapped` | 1.187 | **~0** (95 eşleme + 18 `NO_MD_EQUIVALENT`) |
-| `analyzer_mapped_md_absent` | 14.936 | **~4.900** |
-| `md_mapped_over` + `md_mapped_under` | 1.054 | **~101** |
-| `md_mapped_missing` | 36 | ~1 (`tfs-342` 403 veriyor) |
-| `md_unmapped` | 0 | **0 kalmalı** |
-| `adjudicated_divergence` | 9.641 | belirgin ARTAR |
+### 🔴 Defter tarafı: BU KOŞUMDA ARAÇ DEFTERİ HİÇ OKUYAMADI
 
-🔴 **Bu düşüşlerin HİÇBİRİ ürün iyileşmesi DEĞİLDİR.** Yargılanmış sapmanın artık
-yargılanmış görünmesidir. Raporda böyle yazılır.
+Yayımlanan sınıf sayıları YANLIŞTIR. Sebep üründe değil araçtaydı ve `b485039b`'de düzeldi:
+`benchmark/audit_all/md_parity_mapping.py` köprüsü kanonik modülü `exec` eder, `exec` ise
+**köprünün `__file__`'ını devralır** — `compile`'a verilen dosya adını değil. Kanonik modül
+`fp_adjudication.tsv`'yi `Path(__file__).parent` ile arar, dosya `benchmark/audit_all/`
+altında yoktur, ve `_fp_verdicts()` eksik dosyada **SESSİZCE boş sözlük** döner. Hata
+vermez; yalnız yargılanmış her kuralı "hüküm kaydı yok" diye geri verir.
 
-⚠️ **`ARC_009` yine de `analyzer_mapped_md_absent`'ta görünecek** — `FALSE_POSITIVE_FIXED`
-hükmü gerileme duyarlıdır ve koşum düzeltmeyi kanıtlayana kadar bilerek görünür kalır.
-Görünmesi kusur DEĞİL, kapının çalıştığının işaretidir.
+İkinci boşluk üstüne bindi: `analyzer_spec_unmapped` kovası **hiçbir defter sorgusu
+yapmıyordu**. "MD eşlemesi yok" ile "hüküm yok" karıştırılmıştı; #165'in 17
+`NO_MD_EQUIVALENT` kararı ve TSV'deki `ARC_033`/`ARC_032`/`FRQ_012`/`DQ_021` hükümleri
+görünmez kaldı.
 
-⚠️ **202 feed aynı SHA-256'yı paylaşıyor** (~%5). Her "N feed" rakamı bu kadar şişkindir.
+| sınıf | 4. koşum | 5. YAYIMLANAN | 5. DÜZELTİLMİŞ |
+|---|---:|---:|---:|
+| `analyzer_mapped_md_absent` | 14.936 | 14.980 | **4.993** |
+| `analyzer_spec_unmapped` | 1.187 | 690 | **327** |
+| `analyzer_spec_md_absent` | 251 | 718 | **479** |
+| `md_mapped_over` + `md_mapped_under` | 1.054 | 257 | **257** |
+| `md_mapped_missing` | 36 | 133 | **133** |
+| `adjudicated_divergence` | 9.641 | 10.210 | **20.799** |
+
+🔑 **Koşum TEKRARLANMADI ve tekrarlanmasına gerek yoktu.** `all-results.json.gz` shard
+girdisinin birebir kendisidir; `aggregate.py` düzeltilmiş köprüyle yerelde **4 saniyede**
+yeniden çalıştırıldı. Çıktı `run-32290410755/reaggregated/` altındadır. Üst dizindeki
+dosyalar koşumun kendi artefaktlarıdır, DÜZENLENMEMİŞTİR.
+
+🔴 **DERS — koşum öncesi araç kapısı:** bu kusur koşumdan ÖNCE, bir saniyede, yerel bir
+testle yakalanabilirdi. Kapı artık `test_timing.py`'de ve CI'da koşuyor. Bir koşumu
+başlatmadan önce `python3 benchmark/audit_all/test_timing.py` YEŞİL olmalıdır; araç
+üründen daha az test edilmiş durumdayken manşet sayı üründen gelmez.
+
+### Koşumdan sonra AÇIK kalan iş (yeni koşum GEREKTİRMEZ)
+
+- **`analyzer_mapped_md_absent` 4.993 / 54 kural** — 53 CRITICAL. Başı `ARC_009` (1.590,
+  regresyon nöbeti) ve `STM_014` (984).
+- **`analyzer_spec_unmapped` 327 / 71 kural** — **169 CRITICAL**, en yoğunu `TRP_019` (87).
+- **`analyzer_spec_md_absent` 479 / 12 kural** — 9 CRITICAL. `FAR_013` tek başına 387 satır
+  (LOW) ve #165'in yeni eşlemesiyle ortaya çıktı: eşleme sapmayı YARGILAMAZ, kova değiştirir.
+- **`md_mapped_missing` 133** — 121'i `STM_061`'in yukarıdaki körlüğü.
+- **`TRP_019` · `BKR_002` · `ARC_009` hükümleri `FALSE_POSITIVE_FIXED`** ve bu koşum
+  düzeltmelerini KANITLADI. Hükümler artık kapatıcı bir verdict'e çevrilebilir; çevrilene
+  kadar 1.679 satır bilerek görünür kalır.
 
 ## 6. Sonuçların yayımlanması
 
@@ -134,19 +170,23 @@ da böyle yapıldı. Küçültme, Release'e taşıma, dosya eleme YAPILMAZ.
 
 ## 7. Referans — önceki koşumlar
 
-| | run-31934698855 (08-16) | run-31981225727 (08-17) | run-32145833613 (08-18) |
-|---|---:|---:|---:|
-| denenen feed | 4.259 | 4.258 (`mdb-2904` dışlandı) | 4.271 / 4.476 katalog satırı |
-| iki validatör de temiz | 4.215 | 4.214 | 4.229 |
-| süre kapsaması | **0 / 4.259** 🔴 | 4.224/4.224 · 4.216/4.216 ✅ | 4.239/4.229 ✅ |
-| `md_mapped_missing` | 4.706 | 43 | 39 |
-| `md_unmapped` | 1.008 | 57 | 5 |
-| `analyzer_spec_md_absent` | 134 | 141 | 254 (eşleme kaynaklı) |
-| `adjudicated_divergence` | — | 9.595 | 9.644 |
-| toplam Analyzer bulgusu | 45,5M | 46,9M | **40,3M** |
-| medyan süre (Analyzer / MD) | ölçülmedi | 0,05 sn / 3,06 sn | 0,05 sn / 2,98 sn |
-| p95 süre | ölçülmedi | 3,65 sn / 12,72 sn | 3,73 sn / 12,96 sn |
-| aynı SHA-256 grubu | ölçülmedi | 101 grup / 206 feed | 99 grup / 202 feed |
+| | run-31981225727 (08-17) | run-32145833613 (08-18) | run-32197267205 (08-19) | run-32290410755 (08-19) |
+|---|---:|---:|---:|---:|
+| denenen feed | 4.258 (`mdb-2904` dışlandı) | 4.271 | 4.271 | 4.271 |
+| iki validatör de temiz | 4.214 | 4.229 | 4.228 | 4.222 |
+| süre kapsaması | 4.224/4.224 ✅ | 4.239/4.229 ✅ | ✅ | 4.231/4.222 ✅ |
+| `md_mapped_missing` | 43 | 39 | 36 | **133** (121'i `STM_061`) |
+| `md_unmapped` | 57 | 5 | 0 | 0 |
+| `analyzer_spec_md_absent` | 141 | 254 (eşleme kaynaklı) | 251 | 479 † |
+| `analyzer_mapped_md_absent` | — | — | 14.936 | 4.993 † |
+| `adjudicated_divergence` | 9.595 | 9.644 | 9.641 | 20.799 † |
+| toplam Analyzer bulgusu | 46,9M | 40,3M | 38,70M | 38,62M |
+| medyan süre (Analyzer / MD) | 0,05 sn / 3,06 sn | 0,05 sn / 2,98 sn | 0,05 sn / 3,02 sn | 0,05 sn / 2,99 sn |
+| p95 süre | 3,65 sn / 12,72 sn | 3,73 sn / 12,96 sn | 3,66 sn / 14,74 sn | 3,61 sn / 13,75 sn |
+| aynı SHA-256 grubu | 101 grup / 206 feed | 99 grup / 202 feed | 99 grup / 202 feed | 100 grup / 204 feed |
+
+† 5. koşumun defter sayıları YAYIMLANDIĞI HÂLİYLE yanlıştır (§5). Buradaki değerler
+`reaggregated/` altındaki düzeltilmiş agregasyondandır; koşum tekrarlanmamıştır.
 
 🔑 **4. koşumun dersi: YEDİ düzeltMENİN YEDİSİ de önceden adı verilen feed'de isabet etti.**
 Toplam 40,3M → 38,7M (−%14,1 değil, −%3,9) bir kalite ölçüsü DEĞİLDİR: düşüşün TAMAMI
