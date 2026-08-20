@@ -1,0 +1,4867 @@
+[
+  {
+    "candidate": {
+      "type": "validator_state_asymmetry",
+      "feed_id": "mdb-1186",
+      "provider": "Петербургский метрополитен - Petersburg Metro",
+      "country": "RU",
+      "url": "https://files.mobilitydatabase.org/mdb-1186/latest.zip",
+      "analyzer_state": "completed",
+      "md_state": "partial_internal",
+      "analyzer_stderr": "",
+      "md_stderr": "Aug 20, 2026 8:16:44 AM org.mobilitydata.gtfsvalidator.runner.ValidationRunner run\nINFO: VersionInfo: VersionInfo{currentVersion=Optional[8.0.1], latestReleaseVersion=Optional[8.0.1]}\nAug 20, 2026 8:16:44 AM org.mobilitydata.gtfsvalidator.runner.ValidationRunner run\nINFO: validation config:\nValidationRunnerConfig{gtfsSource=file:///home/runner/work/_temp/gtfs-audit-117/mdb-1186/feed.zip, outputDirectory=/home/runner/work/_temp/gtfs-audit-117/mdb-1186/md, storageDirectory=Optional.empty, validationReportFileName=report.json, htmlReportFileName=report.html, systemErrorsReportFileName=system_errors.json, numThreads=1, countryCode=ZZ, dateForValidation=2026-08-20, prettyJson=false, skipValidatorUpdate=false, stdoutOutput=false}\nAug 20, 2026 8:16:44 AM org.mobilitydata.gtfsvalidator.runner.ValidationRunner run\nINFO: validators:\nSingle-entity validators\n\tGtfsAttribution: AttributionWithoutRoleValidator \n\tGtfsBookingRules: BookingRulesEntityValidator GtfsBookingRulesMixedCaseValidator \n\tGtfsCalendar: GtfsCalendarEndRangeValidator \n\tGtfsLevel: GtfsLevelMixedCaseValidator \n\tGtfsNetwork: GtfsNetworkMixedCaseValidator \n\tGtfsFareMedia: FareMediaNameValidator \n\tGtfsRoute: GtfsRouteMixedCaseValidator RouteColorContrastValidator RouteNameValidator \n\tGtfsTrip: GtfsTripMixedCaseValidator \n\tGtfsFareProduct: GtfsFareProductCurrencyAmountValidator \n\tGtfsLocationGroups: GtfsLocationGroupsMixedCaseValidator \n\tGtfsFrequency: GtfsFrequencyEndRangeValidator \n\tGtfsStopTime: GtfsStopTimeEndRangeValidator PickupDropOffTypeValidator PickupDropOffWindowValidator StopTimesGeographyIdPresenceValidator StopTimesShapeDistTraveledPresenceValidator \n\tGtfsFareTransferRule: FareTransferRuleDurationLimitTypeValidator FareTransferRuleTransferCountValidator \n\tGtfsAgency: GtfsAgencyMixedCaseValidator \n\tGtfsPathway: BidirectionalExitGateValidator GtfsPathwayMixedCaseValidator PathwayLoopValidator \n\tGtfsShape: GtfsShapeLatLonValidator \n\tGtfsFeedInfo: FeedContactValidator FeedExpirationDateValidator FeedServiceDateValidator GtfsFeedInfoEndRangeValidator \n\tGtfsStop: GtfsStopLatLonValidator GtfsStopMixedCaseValidator LocationTypeSingleEntityValidator StopAccessValidator StopNameValidator StopRequiredLocationValidator \n\tGtfsTimeframe: GtfsTimeframeEndRangeValidator TimeframeStartAndEndTimeValidator \nSingle-file validators\n\tGtfsTransferTableContainer: TransferStopIdsConditionalValidator \n\tGtfsFeedInfoTableContainer: FeedValidTodayValidator \n\tGtfsShapeTableContainer: ShapeIncreasingDistanceValidator SingleShapePointValidator \n\tGtfsStopTableContainer: ParentStationValidator \n\tGtfsAgencyTableContainer: AgencyConsistencyValidator \n\tGtfsCalendarTableContainer: ServiceHasNoActiveDayOfTheWeekValidator \n\tGtfsFareMediaTableContainer: DuplicateFareMediaValidator \n\tGtfsStopTimeTableContainer: MissingTripEdgeValidator StopTimeArrivalAndDepartureTimeValidator StopTimeIncreasingDistanceValidator StopTimesRecordValidator StopTimesTripBlockOrderValidator TimepointTimeValidator \n\tGtfsRouteTableContainer: DuplicateRouteNameValidator \n\tGtfsTimeframeTableContainer: TimeframeOverlapValidator \n\tGtfsFrequencyTableContainer: OverlappingFrequencyValidator \nMulti-file validators\n\tBikesAllowanceValidator BlockTripsWithOverlappingStopTimesValidator ContinuousPickupDropOffValidator DateTripsValidator ExpiredCalendarValidator FareAttributeAgencyIdValidator FareLegJoinRuleValidator FareProductDefaultRiderCategoriesValidator FeedServiceWindowValidator GtfsAttributionAgencyIdForeignKeyValidator GtfsAttributionRouteIdForeignKeyValidator GtfsAttributionTripIdForeignKeyValidator GtfsFareAttributeAgencyIdForeignKeyValidator GtfsFareLegJoinRuleFromStopIdForeignKeyValidator GtfsFareLegJoinRuleToStopIdForeignKeyValidator GtfsFareLegRuleFareProductIdForeignKeyValidator GtfsFareLegRuleFromAreaIdForeignKeyValidator GtfsFareLegRuleFromTimeframeGroupIdForeignKeyValidator GtfsFareLegRuleNetworkIdForeignKeyValidator GtfsFareLegRuleToAreaIdForeignKeyValidator GtfsFareLegRuleToTimeframeGroupIdForeignKeyValidator GtfsFareProductFareMediaIdForeignKeyValidator GtfsFareProductRiderCategoryIdForeignKeyValidator GtfsFareRuleContainsIdForeignKeyValidator GtfsFareRuleDestinationIdForeignKeyValidator GtfsFareRuleFareIdForeignKeyValidator GtfsFareRuleOriginIdForeignKeyValidator GtfsFareRuleRouteIdForeignKeyValidator GtfsFareTransferRuleFareProductIdForeignKeyValidator GtfsFareTransferRuleFromLegGroupIdForeignKeyValidator GtfsFareTransferRuleToLegGroupIdForeignKeyValidator GtfsFrequencyTripIdForeignKeyValidator GtfsPathwayFromStopIdForeignKeyValidator GtfsPathwayToStopIdForeignKeyValidator GtfsRouteAgencyIdForeignKeyValidator GtfsRouteNetworkNetworkIdForeignKeyValidator GtfsRouteNetworkRouteIdForeignKeyValidator GtfsStopAreaAreaIdForeignKeyValidator GtfsStopAreaStopIdForeignKeyValidator GtfsStopLevelIdForeignKeyValidator GtfsStopParentStationForeignKeyValidator GtfsStopTimeDropOffBookingRuleIdForeignKeyValidator GtfsStopTimeLocationGroupIdForeignKeyValidator GtfsStopTimePickupBookingRuleIdForeignKeyValidator GtfsStopTimeStopIdForeignKeyValidator GtfsStopTimeTripIdForeignKeyValidator GtfsTransferFromRouteIdForeignKeyValidator GtfsTransferFromStopIdForeignKeyValidator GtfsTransferFromTripIdForeignKeyValidator GtfsTransferToRouteIdForeignKeyValidator GtfsTransferToStopIdForeignKeyValidator GtfsTransferToTripIdForeignKeyValidator GtfsTripRouteIdForeignKeyValidator GtfsTripServiceIdForeignKeyValidator GtfsTripShapeIdForeignKeyValidator InconsistentRouteTypeForBlockIdValidator InconsistentRouteTypeForInSeatTransferValidator LocationHasStopTimesValidator LocationIdForeignKeyValidator MatchingFeedAndAgencyLangValidator MissingCalendarAndCalendarDateValidator MissingFeedInfoValidator MissingLevelIdValidator MissingStopsFileValidator NetworkIdConsistencyValidator OverlappingPickupDropOffZoneValidator PathwayDanglingGenericNodeValidator PathwayEndpointTypeValidator PathwayReachableLocationValidator PathwayStopAccessValidator PickupBookingRuleIdValidator RouteAgencyIdValidator ServiceSpreadValidator ShapeT",
+      "priority": 110
+    },
+    "audit_input_classification": null,
+    "audit_zip_sha256": "879296cb8ca706104b59fdb86a875ea7fe345fd80fd9739cab02a5a4ea7af947",
+    "url": "https://files.mobilitydatabase.org/mdb-1186/latest.zip",
+    "download_exit": 0,
+    "redownload_sha256": "879296cb8ca706104b59fdb86a875ea7fe345fd80fd9739cab02a5a4ea7af947",
+    "evidence_status": "SAME_AS_AUDIT_INPUT",
+    "archive_files": [
+      "feed_info.txt",
+      "agency.txt",
+      "routes.txt",
+      "trips.txt",
+      "stops.txt",
+      "calendar.txt",
+      "calendar_dates.txt",
+      "stop_times.txt",
+      "frequencies.txt",
+      "shapes.txt",
+      "operators.txt",
+      "operator_routes.txt",
+      "fare_attributes.txt",
+      "fare_rules.txt"
+    ],
+    "refs": [],
+    "contexts": []
+  },
+  {
+    "candidate": {
+      "type": "validator_state_asymmetry",
+      "feed_id": "mdb-1960",
+      "provider": "Harare Kombis, City Shuttle",
+      "country": "ZW",
+      "url": "https://files.mobilitydatabase.org/mdb-1960/latest.zip",
+      "analyzer_state": "completed",
+      "md_state": "no_report",
+      "analyzer_stderr": "",
+      "md_stderr": "Aug 20, 2026 8:19:04 AM org.mobilitydata.gtfsvalidator.runner.ValidationRunner run\nINFO: VersionInfo: VersionInfo{currentVersion=Optional[8.0.1], latestReleaseVersion=Optional[8.0.1]}\nAug 20, 2026 8:19:05 AM org.mobilitydata.gtfsvalidator.runner.ValidationRunner run\nINFO: validation config:\nValidationRunnerConfig{gtfsSource=file:///home/runner/work/_temp/gtfs-audit-464/mdb-1960/feed.zip, outputDirectory=/home/runner/work/_temp/gtfs-audit-464/mdb-1960/md, storageDirectory=Optional.empty, validationReportFileName=report.json, htmlReportFileName=report.html, systemErrorsReportFileName=system_errors.json, numThreads=1, countryCode=ZZ, dateForValidation=2026-08-20, prettyJson=false, skipValidatorUpdate=false, stdoutOutput=false}\nAug 20, 2026 8:19:05 AM org.mobilitydata.gtfsvalidator.runner.ValidationRunner run\nINFO: validators:\nSingle-entity validators\n\tGtfsAttribution: AttributionWithoutRoleValidator \n\tGtfsBookingRules: BookingRulesEntityValidator GtfsBookingRulesMixedCaseValidator \n\tGtfsCalendar: GtfsCalendarEndRangeValidator \n\tGtfsLevel: GtfsLevelMixedCaseValidator \n\tGtfsNetwork: GtfsNetworkMixedCaseValidator \n\tGtfsFareMedia: FareMediaNameValidator \n\tGtfsRoute: GtfsRouteMixedCaseValidator RouteColorContrastValidator RouteNameValidator \n\tGtfsTrip: GtfsTripMixedCaseValidator \n\tGtfsFareProduct: GtfsFareProductCurrencyAmountValidator \n\tGtfsLocationGroups: GtfsLocationGroupsMixedCaseValidator \n\tGtfsFrequency: GtfsFrequencyEndRangeValidator \n\tGtfsStopTime: GtfsStopTimeEndRangeValidator PickupDropOffTypeValidator PickupDropOffWindowValidator StopTimesGeographyIdPresenceValidator StopTimesShapeDistTraveledPresenceValidator \n\tGtfsFareTransferRule: FareTransferRuleDurationLimitTypeValidator FareTransferRuleTransferCountValidator \n\tGtfsAgency: GtfsAgencyMixedCaseValidator \n\tGtfsPathway: BidirectionalExitGateValidator GtfsPathwayMixedCaseValidator PathwayLoopValidator \n\tGtfsShape: GtfsShapeLatLonValidator \n\tGtfsFeedInfo: FeedContactValidator FeedExpirationDateValidator FeedServiceDateValidator GtfsFeedInfoEndRangeValidator \n\tGtfsStop: GtfsStopLatLonValidator GtfsStopMixedCaseValidator LocationTypeSingleEntityValidator StopAccessValidator StopNameValidator StopRequiredLocationValidator \n\tGtfsTimeframe: GtfsTimeframeEndRangeValidator TimeframeStartAndEndTimeValidator \nSingle-file validators\n\tGtfsTransferTableContainer: TransferStopIdsConditionalValidator \n\tGtfsFeedInfoTableContainer: FeedValidTodayValidator \n\tGtfsShapeTableContainer: ShapeIncreasingDistanceValidator SingleShapePointValidator \n\tGtfsStopTableContainer: ParentStationValidator \n\tGtfsAgencyTableContainer: AgencyConsistencyValidator \n\tGtfsCalendarTableContainer: ServiceHasNoActiveDayOfTheWeekValidator \n\tGtfsFareMediaTableContainer: DuplicateFareMediaValidator \n\tGtfsStopTimeTableContainer: MissingTripEdgeValidator StopTimeArrivalAndDepartureTimeValidator StopTimeIncreasingDistanceValidator StopTimesRecordValidator StopTimesTripBlockOrderValidator TimepointTimeValidator \n\tGtfsRouteTableContainer: DuplicateRouteNameValidator \n\tGtfsTimeframeTableContainer: TimeframeOverlapValidator \n\tGtfsFrequencyTableContainer: OverlappingFrequencyValidator \nMulti-file validators\n\tBikesAllowanceValidator BlockTripsWithOverlappingStopTimesValidator ContinuousPickupDropOffValidator DateTripsValidator ExpiredCalendarValidator FareAttributeAgencyIdValidator FareLegJoinRuleValidator FareProductDefaultRiderCategoriesValidator FeedServiceWindowValidator GtfsAttributionAgencyIdForeignKeyValidator GtfsAttributionRouteIdForeignKeyValidator GtfsAttributionTripIdForeignKeyValidator GtfsFareAttributeAgencyIdForeignKeyValidator GtfsFareLegJoinRuleFromStopIdForeignKeyValidator GtfsFareLegJoinRuleToStopIdForeignKeyValidator GtfsFareLegRuleFareProductIdForeignKeyValidator GtfsFareLegRuleFromAreaIdForeignKeyValidator GtfsFareLegRuleFromTimeframeGroupIdForeignKeyValidator GtfsFareLegRuleNetworkIdForeignKeyValidator GtfsFareLegRuleToAreaIdForeignKeyValidator GtfsFareLegRuleToTimeframeGroupIdForeignKeyValidator GtfsFareProductFareMediaIdForeignKeyValidator GtfsFareProductRiderCategoryIdForeignKeyValidator GtfsFareRuleContainsIdForeignKeyValidator GtfsFareRuleDestinationIdForeignKeyValidator GtfsFareRuleFareIdForeignKeyValidator GtfsFareRuleOriginIdForeignKeyValidator GtfsFareRuleRouteIdForeignKeyValidator GtfsFareTransferRuleFareProductIdForeignKeyValidator GtfsFareTransferRuleFromLegGroupIdForeignKeyValidator GtfsFareTransferRuleToLegGroupIdForeignKeyValidator GtfsFrequencyTripIdForeignKeyValidator GtfsPathwayFromStopIdForeignKeyValidator GtfsPathwayToStopIdForeignKeyValidator GtfsRouteAgencyIdForeignKeyValidator GtfsRouteNetworkNetworkIdForeignKeyValidator GtfsRouteNetworkRouteIdForeignKeyValidator GtfsStopAreaAreaIdForeignKeyValidator GtfsStopAreaStopIdForeignKeyValidator GtfsStopLevelIdForeignKeyValidator GtfsStopParentStationForeignKeyValidator GtfsStopTimeDropOffBookingRuleIdForeignKeyValidator GtfsStopTimeLocationGroupIdForeignKeyValidator GtfsStopTimePickupBookingRuleIdForeignKeyValidator GtfsStopTimeStopIdForeignKeyValidator GtfsStopTimeTripIdForeignKeyValidator GtfsTransferFromRouteIdForeignKeyValidator GtfsTransferFromStopIdForeignKeyValidator GtfsTransferFromTripIdForeignKeyValidator GtfsTransferToRouteIdForeignKeyValidator GtfsTransferToStopIdForeignKeyValidator GtfsTransferToTripIdForeignKeyValidator GtfsTripRouteIdForeignKeyValidator GtfsTripServiceIdForeignKeyValidator GtfsTripShapeIdForeignKeyValidator InconsistentRouteTypeForBlockIdValidator InconsistentRouteTypeForInSeatTransferValidator LocationHasStopTimesValidator LocationIdForeignKeyValidator MatchingFeedAndAgencyLangValidator MissingCalendarAndCalendarDateValidator MissingFeedInfoValidator MissingLevelIdValidator MissingStopsFileValidator NetworkIdConsistencyValidator OverlappingPickupDropOffZoneValidator PathwayDanglingGenericNodeValidator PathwayEndpointTypeValidator PathwayReachableLocationValidator PathwayStopAccessValidator PickupBookingRuleIdValidator RouteAgencyIdValidator ServiceSpreadValidator ShapeT",
+      "priority": 110
+    },
+    "audit_input_classification": null,
+    "audit_zip_sha256": "e70b71ae0b10e6a326999cdd75baf89013ec24573ce05da2822f44070b39a58e",
+    "url": "https://files.mobilitydatabase.org/mdb-1960/latest.zip",
+    "download_exit": 0,
+    "redownload_sha256": "e70b71ae0b10e6a326999cdd75baf89013ec24573ce05da2822f44070b39a58e",
+    "evidence_status": "SAME_AS_AUDIT_INPUT",
+    "archive_files": [
+      "/",
+      "Harare City Shuttle.zip",
+      "Harare Kombis.zip"
+    ],
+    "refs": [],
+    "contexts": []
+  },
+  {
+    "candidate": {
+      "type": "validator_state_asymmetry",
+      "feed_id": "mdb-3215",
+      "provider": "DELFI Germany-wide scheduled timetable data (GTFS)",
+      "country": "DE",
+      "url": "https://files.mobilitydatabase.org/mdb-3215/latest.zip",
+      "analyzer_state": "completed",
+      "md_state": "timeout",
+      "analyzer_stderr": "",
+      "md_stderr": "Aug 20, 2026 8:22:16 AM org.mobilitydata.gtfsvalidator.runner.ValidationRunner run\nINFO: VersionInfo: VersionInfo{currentVersion=Optional[8.0.1], latestReleaseVersion=Optional[8.0.1]}\nAug 20, 2026 8:22:17 AM org.mobilitydata.gtfsvalidator.runner.ValidationRunner run\nINFO: validation config:\nValidationRunnerConfig{gtfsSource=file:///home/runner/work/_temp/gtfs-audit-120/mdb-3215/feed.zip, outputDirectory=/home/runner/work/_temp/gtfs-audit-120/mdb-3215/md, storageDirectory=Optional.empty, validationReportFileName=report.json, htmlReportFileName=report.html, systemErrorsReportFileName=system_errors.json, numThreads=1, countryCode=ZZ, dateForValidation=2026-08-20, prettyJson=false, skipValidatorUpdate=false, stdoutOutput=false}\nAug 20, 2026 8:22:17 AM org.mobilitydata.gtfsvalidator.runner.ValidationRunner run\nINFO: validators:\nSingle-entity validators\n\tGtfsAttribution: AttributionWithoutRoleValidator \n\tGtfsBookingRules: BookingRulesEntityValidator GtfsBookingRulesMixedCaseValidator \n\tGtfsCalendar: GtfsCalendarEndRangeValidator \n\tGtfsLevel: GtfsLevelMixedCaseValidator \n\tGtfsNetwork: GtfsNetworkMixedCaseValidator \n\tGtfsFareMedia: FareMediaNameValidator \n\tGtfsRoute: GtfsRouteMixedCaseValidator RouteColorContrastValidator RouteNameValidator \n\tGtfsTrip: GtfsTripMixedCaseValidator \n\tGtfsFareProduct: GtfsFareProductCurrencyAmountValidator \n\tGtfsLocationGroups: GtfsLocationGroupsMixedCaseValidator \n\tGtfsFrequency: GtfsFrequencyEndRangeValidator \n\tGtfsStopTime: GtfsStopTimeEndRangeValidator PickupDropOffTypeValidator PickupDropOffWindowValidator StopTimesGeographyIdPresenceValidator StopTimesShapeDistTraveledPresenceValidator \n\tGtfsFareTransferRule: FareTransferRuleDurationLimitTypeValidator FareTransferRuleTransferCountValidator \n\tGtfsAgency: GtfsAgencyMixedCaseValidator \n\tGtfsPathway: BidirectionalExitGateValidator GtfsPathwayMixedCaseValidator PathwayLoopValidator \n\tGtfsShape: GtfsShapeLatLonValidator \n\tGtfsFeedInfo: FeedContactValidator FeedExpirationDateValidator FeedServiceDateValidator GtfsFeedInfoEndRangeValidator \n\tGtfsStop: GtfsStopLatLonValidator GtfsStopMixedCaseValidator LocationTypeSingleEntityValidator StopAccessValidator StopNameValidator StopRequiredLocationValidator \n\tGtfsTimeframe: GtfsTimeframeEndRangeValidator TimeframeStartAndEndTimeValidator \nSingle-file validators\n\tGtfsTransferTableContainer: TransferStopIdsConditionalValidator \n\tGtfsFeedInfoTableContainer: FeedValidTodayValidator \n\tGtfsShapeTableContainer: ShapeIncreasingDistanceValidator SingleShapePointValidator \n\tGtfsStopTableContainer: ParentStationValidator \n\tGtfsAgencyTableContainer: AgencyConsistencyValidator \n\tGtfsCalendarTableContainer: ServiceHasNoActiveDayOfTheWeekValidator \n\tGtfsFareMediaTableContainer: DuplicateFareMediaValidator \n\tGtfsStopTimeTableContainer: MissingTripEdgeValidator StopTimeArrivalAndDepartureTimeValidator StopTimeIncreasingDistanceValidator StopTimesRecordValidator StopTimesTripBlockOrderValidator TimepointTimeValidator \n\tGtfsRouteTableContainer: DuplicateRouteNameValidator \n\tGtfsTimeframeTableContainer: TimeframeOverlapValidator \n\tGtfsFrequencyTableContainer: OverlappingFrequencyValidator \nMulti-file validators\n\tBikesAllowanceValidator BlockTripsWithOverlappingStopTimesValidator ContinuousPickupDropOffValidator DateTripsValidator ExpiredCalendarValidator FareAttributeAgencyIdValidator FareLegJoinRuleValidator FareProductDefaultRiderCategoriesValidator FeedServiceWindowValidator GtfsAttributionAgencyIdForeignKeyValidator GtfsAttributionRouteIdForeignKeyValidator GtfsAttributionTripIdForeignKeyValidator GtfsFareAttributeAgencyIdForeignKeyValidator GtfsFareLegJoinRuleFromStopIdForeignKeyValidator GtfsFareLegJoinRuleToStopIdForeignKeyValidator GtfsFareLegRuleFareProductIdForeignKeyValidator GtfsFareLegRuleFromAreaIdForeignKeyValidator GtfsFareLegRuleFromTimeframeGroupIdForeignKeyValidator GtfsFareLegRuleNetworkIdForeignKeyValidator GtfsFareLegRuleToAreaIdForeignKeyValidator GtfsFareLegRuleToTimeframeGroupIdForeignKeyValidator GtfsFareProductFareMediaIdForeignKeyValidator GtfsFareProductRiderCategoryIdForeignKeyValidator GtfsFareRuleContainsIdForeignKeyValidator GtfsFareRuleDestinationIdForeignKeyValidator GtfsFareRuleFareIdForeignKeyValidator GtfsFareRuleOriginIdForeignKeyValidator GtfsFareRuleRouteIdForeignKeyValidator GtfsFareTransferRuleFareProductIdForeignKeyValidator GtfsFareTransferRuleFromLegGroupIdForeignKeyValidator GtfsFareTransferRuleToLegGroupIdForeignKeyValidator GtfsFrequencyTripIdForeignKeyValidator GtfsPathwayFromStopIdForeignKeyValidator GtfsPathwayToStopIdForeignKeyValidator GtfsRouteAgencyIdForeignKeyValidator GtfsRouteNetworkNetworkIdForeignKeyValidator GtfsRouteNetworkRouteIdForeignKeyValidator GtfsStopAreaAreaIdForeignKeyValidator GtfsStopAreaStopIdForeignKeyValidator GtfsStopLevelIdForeignKeyValidator GtfsStopParentStationForeignKeyValidator GtfsStopTimeDropOffBookingRuleIdForeignKeyValidator GtfsStopTimeLocationGroupIdForeignKeyValidator GtfsStopTimePickupBookingRuleIdForeignKeyValidator GtfsStopTimeStopIdForeignKeyValidator GtfsStopTimeTripIdForeignKeyValidator GtfsTransferFromRouteIdForeignKeyValidator GtfsTransferFromStopIdForeignKeyValidator GtfsTransferFromTripIdForeignKeyValidator GtfsTransferToRouteIdForeignKeyValidator GtfsTransferToStopIdForeignKeyValidator GtfsTransferToTripIdForeignKeyValidator GtfsTripRouteIdForeignKeyValidator GtfsTripServiceIdForeignKeyValidator GtfsTripShapeIdForeignKeyValidator InconsistentRouteTypeForBlockIdValidator InconsistentRouteTypeForInSeatTransferValidator LocationHasStopTimesValidator LocationIdForeignKeyValidator MatchingFeedAndAgencyLangValidator MissingCalendarAndCalendarDateValidator MissingFeedInfoValidator MissingLevelIdValidator MissingStopsFileValidator NetworkIdConsistencyValidator OverlappingPickupDropOffZoneValidator PathwayDanglingGenericNodeValidator PathwayEndpointTypeValidator PathwayReachableLocationValidator PathwayStopAccessValidator PickupBookingRuleIdValidator RouteAgencyIdValidator ServiceSpreadValidator ShapeT",
+      "priority": 110
+    },
+    "audit_input_classification": null,
+    "audit_zip_sha256": "c7b9cbb21e03a88b9b45879b8aec815b49d5056e69e307e3b33af5ba7aca877e",
+    "url": "https://files.mobilitydatabase.org/mdb-3215/latest.zip",
+    "download_exit": 0,
+    "redownload_sha256": "c7b9cbb21e03a88b9b45879b8aec815b49d5056e69e307e3b33af5ba7aca877e",
+    "evidence_status": "SAME_AS_AUDIT_INPUT",
+    "archive_files": [
+      "agency.txt",
+      "calendar.txt",
+      "calendar_dates.txt",
+      "feed_info.txt",
+      "frequencies.txt",
+      "levels.txt",
+      "pathways.txt",
+      "routes.txt",
+      "shapes.txt",
+      "stop_times.txt",
+      "stops.txt",
+      "transfers.txt",
+      "trips.txt",
+      "exp_gtf26081501.out",
+      "Beschreibung_DELFI-Datensatz_GTFS.pdf",
+      "Description_DELFI-Dataset_GTFS.pdf"
+    ],
+    "refs": [],
+    "contexts": []
+  },
+  {
+    "candidate": {
+      "type": "md_mapped_missing",
+      "feed_id": "mdb-1003",
+      "provider": "TRAM Barcelona (Tranvía Metropolitano Barcelona)",
+      "country": "ES",
+      "url": "https://files.mobilitydatabase.org/mdb-1003/latest.zip",
+      "md_code": "invalid_date",
+      "md_count": 5,
+      "md_severity": "ERROR",
+      "mapped_analyzer_rules": [
+        "CAL_003",
+        "CAL_004"
+      ],
+      "analyzer_mapped_count": 0,
+      "decision": "unreviewed",
+      "mapping_kind": "context-mixed",
+      "mapping_contexts": [
+        "calendar.txt::start_date",
+        "calendar.txt::end_date"
+      ],
+      "analyzer_rule_counts": {
+        "CAL_003": 0,
+        "CAL_004": 0
+      },
+      "md_samples": [
+        {
+          "filename": "calendar.txt",
+          "csvRowNumber": 6,
+          "fieldName": "start_date",
+          "fieldValue": "start_date"
+        },
+        {
+          "filename": "calendar.txt",
+          "csvRowNumber": 6,
+          "fieldName": "end_date",
+          "fieldValue": "end_date"
+        }
+      ],
+      "analyzer_samples": {},
+      "priority": 105
+    },
+    "audit_input_classification": null,
+    "audit_zip_sha256": "d2b3c257fcd8cb02fc3f251f1730b8036da3e77d7b09d2ef7d30b3f482cf61d1",
+    "url": "https://files.mobilitydatabase.org/mdb-1003/latest.zip",
+    "download_exit": 0,
+    "redownload_sha256": "d2b3c257fcd8cb02fc3f251f1730b8036da3e77d7b09d2ef7d30b3f482cf61d1",
+    "evidence_status": "SAME_AS_AUDIT_INPUT",
+    "archive_files": [
+      "agency.txt",
+      "calendar.txt",
+      "calendar_dates.txt",
+      "feed_info.txt",
+      "routes.txt",
+      "shapes.txt",
+      "stops.txt",
+      "stop_times.txt",
+      "trips.txt"
+    ],
+    "refs": [
+      [
+        "calendar.txt",
+        6
+      ]
+    ],
+    "contexts": [
+      {
+        "file": "calendar.txt",
+        "requested_line": 6,
+        "context": [
+          {
+            "line": 4,
+            "text": "DISSABTE,0,0,0,0,0,1,0,20260101,20261231"
+          },
+          {
+            "line": 5,
+            "text": "DIUMENGE,0,0,0,0,0,0,1,20260101,20261231"
+          },
+          {
+            "line": 6,
+            "text": "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date"
+          },
+          {
+            "line": 7,
+            "text": "DIUMENGE,0,0,0,0,0,0,1,20260101,20261231"
+          },
+          {
+            "line": 8,
+            "text": "DISSABTE,0,0,0,0,0,1,0,20260101,20261231"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "candidate": {
+      "type": "md_mapped_missing",
+      "feed_id": "mdb-1003",
+      "provider": "TRAM Barcelona (Tranvía Metropolitano Barcelona)",
+      "country": "ES",
+      "url": "https://files.mobilitydatabase.org/mdb-1003/latest.zip",
+      "md_code": "invalid_float",
+      "md_count": 4,
+      "md_severity": "ERROR",
+      "mapped_analyzer_rules": [
+        "SHP_002",
+        "SHP_003"
+      ],
+      "analyzer_mapped_count": 0,
+      "decision": "unreviewed",
+      "mapping_kind": "context-mixed",
+      "mapping_contexts": [
+        "shapes.txt::shape_pt_lat",
+        "shapes.txt::shape_pt_lon"
+      ],
+      "analyzer_rule_counts": {
+        "SHP_002": 0,
+        "SHP_003": 0
+      },
+      "md_samples": [
+        {
+          "filename": "shapes.txt",
+          "csvRowNumber": 476,
+          "fieldName": "shape_pt_lat",
+          "fieldValue": "shape_pt_lat"
+        },
+        {
+          "filename": "shapes.txt",
+          "csvRowNumber": 476,
+          "fieldName": "shape_pt_lon",
+          "fieldValue": "shape_pt_lon"
+        }
+      ],
+      "analyzer_samples": {},
+      "priority": 105
+    },
+    "audit_input_classification": null,
+    "audit_zip_sha256": "d2b3c257fcd8cb02fc3f251f1730b8036da3e77d7b09d2ef7d30b3f482cf61d1",
+    "url": "https://files.mobilitydatabase.org/mdb-1003/latest.zip",
+    "download_exit": 0,
+    "redownload_sha256": "d2b3c257fcd8cb02fc3f251f1730b8036da3e77d7b09d2ef7d30b3f482cf61d1",
+    "evidence_status": "SAME_AS_AUDIT_INPUT",
+    "archive_files": [
+      "agency.txt",
+      "calendar.txt",
+      "calendar_dates.txt",
+      "feed_info.txt",
+      "routes.txt",
+      "shapes.txt",
+      "stops.txt",
+      "stop_times.txt",
+      "trips.txt"
+    ],
+    "refs": [
+      [
+        "shapes.txt",
+        476
+      ]
+    ],
+    "contexts": [
+      {
+        "file": "shapes.txt",
+        "requested_line": 476,
+        "context": [
+          {
+            "line": 474,
+            "text": "T6TOR,41.41977813280579,2.227025120198902,8"
+          },
+          {
+            "line": 475,
+            "text": "T6TOR,41.41938392039232,2.226628734400198,9"
+          },
+          {
+            "line": 476,
+            "text": "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence"
+          },
+          {
+            "line": 477,
+            "text": "T1ANA,41.392234,2.143283,1"
+          },
+          {
+            "line": 478,
+            "text": "T1ANA,41.390353,2.135917,10"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "candidate": {
+      "type": "md_mapped_missing",
+      "feed_id": "mdb-1003",
+      "provider": "TRAM Barcelona (Tranvía Metropolitano Barcelona)",
+      "country": "ES",
+      "url": "https://files.mobilitydatabase.org/mdb-1003/latest.zip",
+      "md_code": "invalid_integer",
+      "md_count": 11,
+      "md_severity": "ERROR",
+      "mapped_analyzer_rules": [
+        "CAL_002"
+      ],
+      "analyzer_mapped_count": 0,
+      "decision": "unreviewed",
+      "mapping_kind": "context-dependent",
+      "mapping_contexts": [
+        "calendar.txt::gün alanları"
+      ],
+      "analyzer_rule_counts": {
+        "CAL_002": 0
+      },
+      "md_samples": [
+        {
+          "filename": "calendar.txt",
+          "csvRowNumber": 6,
+          "fieldName": "monday",
+          "fieldValue": "monday"
+        },
+        {
+          "filename": "calendar.txt",
+          "csvRowNumber": 6,
+          "fieldName": "tuesday",
+          "fieldValue": "tuesday"
+        }
+      ],
+      "analyzer_samples": {},
+      "priority": 105
+    },
+    "audit_input_classification": null,
+    "audit_zip_sha256": "d2b3c257fcd8cb02fc3f251f1730b8036da3e77d7b09d2ef7d30b3f482cf61d1",
+    "url": "https://files.mobilitydatabase.org/mdb-1003/latest.zip",
+    "download_exit": 0,
+    "redownload_sha256": "d2b3c257fcd8cb02fc3f251f1730b8036da3e77d7b09d2ef7d30b3f482cf61d1",
+    "evidence_status": "SAME_AS_AUDIT_INPUT",
+    "archive_files": [
+      "agency.txt",
+      "calendar.txt",
+      "calendar_dates.txt",
+      "feed_info.txt",
+      "routes.txt",
+      "shapes.txt",
+      "stops.txt",
+      "stop_times.txt",
+      "trips.txt"
+    ],
+    "refs": [
+      [
+        "calendar.txt",
+        6
+      ]
+    ],
+    "contexts": [
+      {
+        "file": "calendar.txt",
+        "requested_line": 6,
+        "context": [
+          {
+            "line": 4,
+            "text": "DISSABTE,0,0,0,0,0,1,0,20260101,20261231"
+          },
+          {
+            "line": 5,
+            "text": "DIUMENGE,0,0,0,0,0,0,1,20260101,20261231"
+          },
+          {
+            "line": 6,
+            "text": "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date"
+          },
+          {
+            "line": 7,
+            "text": "DIUMENGE,0,0,0,0,0,0,1,20260101,20261231"
+          },
+          {
+            "line": 8,
+            "text": "DISSABTE,0,0,0,0,0,1,0,20260101,20261231"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "candidate": {
+      "type": "md_mapped_missing",
+      "feed_id": "mdb-1003",
+      "provider": "TRAM Barcelona (Tranvía Metropolitano Barcelona)",
+      "country": "ES",
+      "url": "https://files.mobilitydatabase.org/mdb-1003/latest.zip",
+      "md_code": "invalid_timezone",
+      "md_count": 1,
+      "md_severity": "ERROR",
+      "mapped_analyzer_rules": [
+        "AGN_004"
+      ],
+      "analyzer_mapped_count": 0,
+      "decision": "unreviewed",
+      "mapping_kind": "static",
+      "mapping_contexts": [],
+      "analyzer_rule_counts": {
+        "AGN_004": 0
+      },
+      "md_samples": [
+        {
+          "filename": "agency.txt",
+          "csvRowNumber": 3,
+          "fieldName": "agency_timezone",
+          "fieldValue": "agency_timezone"
+        }
+      ],
+      "analyzer_samples": {},
+      "priority": 105
+    },
+    "audit_input_classification": null,
+    "audit_zip_sha256": "d2b3c257fcd8cb02fc3f251f1730b8036da3e77d7b09d2ef7d30b3f482cf61d1",
+    "url": "https://files.mobilitydatabase.org/mdb-1003/latest.zip",
+    "download_exit": 0,
+    "redownload_sha256": "d2b3c257fcd8cb02fc3f251f1730b8036da3e77d7b09d2ef7d30b3f482cf61d1",
+    "evidence_status": "SAME_AS_AUDIT_INPUT",
+    "archive_files": [
+      "agency.txt",
+      "calendar.txt",
+      "calendar_dates.txt",
+      "feed_info.txt",
+      "routes.txt",
+      "shapes.txt",
+      "stops.txt",
+      "stop_times.txt",
+      "trips.txt"
+    ],
+    "refs": [
+      [
+        "agency.txt",
+        3
+      ]
+    ],
+    "contexts": [
+      {
+        "file": "agency.txt",
+        "requested_line": 3,
+        "context": [
+          {
+            "line": 1,
+            "text": "agency_id,agency_name,agency_url,agency_timezone,agency_lang,agency_phone"
+          },
+          {
+            "line": 2,
+            "text": "TRAMBAIX,TRAM,http://www.tram.cat,Europe/Madrid,ca,900 701 181"
+          },
+          {
+            "line": 3,
+            "text": "agency_id,agency_name,agency_url,agency_timezone,agency_lang,agency_phone"
+          },
+          {
+            "line": 4,
+            "text": "TRAMBESÒS,TRAM,http://www.tram.cat,Europe/Madrid,ca,900 701 181"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "candidate": {
+      "type": "md_mapped_missing",
+      "feed_id": "mdb-1004",
+      "provider": "TRAM Barcelona Besós (Tranvía Metropolitano Barcelona)",
+      "country": "ES",
+      "url": "https://files.mobilitydatabase.org/mdb-1004/latest.zip",
+      "md_code": "invalid_time",
+      "md_count": 2,
+      "md_severity": "ERROR",
+      "mapped_analyzer_rules": [
+        "STM_003",
+        "STM_004"
+      ],
+      "analyzer_mapped_count": 0,
+      "decision": "unreviewed",
+      "mapping_kind": "context-mixed",
+      "mapping_contexts": [
+        "stop_times.txt::arrival_time",
+        "stop_times.txt::departure_time"
+      ],
+      "analyzer_rule_counts": {
+        "STM_003": 0,
+        "STM_004": 0
+      },
+      "md_samples": [
+        {
+          "filename": "stop_times.txt",
+          "csvRowNumber": 274857,
+          "fieldName": "arrival_time",
+          "fieldValue": "arrival_time"
+        },
+        {
+          "filename": "stop_times.txt",
+          "csvRowNumber": 274857,
+          "fieldName": "departure_time",
+          "fieldValue": "departure_time"
+        }
+      ],
+      "analyzer_samples": {},
+      "priority": 105
+    },
+    "audit_input_classification": null,
+    "audit_zip_sha256": "f8dd64e6d89aa07a78fd611cc565d8fd9dac1980ee4c0cf2bbdf9022067331ba",
+    "url": "https://files.mobilitydatabase.org/mdb-1004/latest.zip",
+    "download_exit": 0,
+    "redownload_sha256": "f8dd64e6d89aa07a78fd611cc565d8fd9dac1980ee4c0cf2bbdf9022067331ba",
+    "evidence_status": "SAME_AS_AUDIT_INPUT",
+    "archive_files": [
+      "agency.txt",
+      "calendar.txt",
+      "calendar_dates.txt",
+      "feed_info.txt",
+      "routes.txt",
+      "shapes.txt",
+      "stops.txt",
+      "stop_times.txt",
+      "trips.txt"
+    ],
+    "refs": [
+      [
+        "stop_times.txt",
+        274857
+      ]
+    ],
+    "contexts": [
+      {
+        "file": "stop_times.txt",
+        "requested_line": 274857,
+        "context": [
+          {
+            "line": 274855,
+            "text": "T6TOR3838,21:28:00,21:28:00,25,7,0"
+          },
+          {
+            "line": 274856,
+            "text": "T6TOR3839,22:12:00,22:12:00,25,7,0"
+          },
+          {
+            "line": 274857,
+            "text": "trip_id,arrival_time,departure_time,stop_id,stop_sequence,pickup_type"
+          },
+          {
+            "line": 274858,
+            "text": "T1ANA011,06:44:00,06:44:00,1,1,0"
+          },
+          {
+            "line": 274859,
+            "text": "T1ANA012,06:56:00,06:56:00,1,1,0"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "candidate": {
+      "type": "md_mapped_missing",
+      "feed_id": "ntd-60089",
+      "provider": "City of Tyler",
+      "country": "US",
+      "url": "https://files.mobilitydatabase.org/ntd-60089/latest.zip",
+      "md_code": "empty_file",
+      "md_count": 7,
+      "md_severity": "ERROR",
+      "mapped_analyzer_rules": [
+        "STP_018"
+      ],
+      "analyzer_mapped_count": 0,
+      "decision": "unreviewed",
+      "mapping_kind": "context-mixed",
+      "mapping_contexts": [
+        "stops.txt boş"
+      ],
+      "analyzer_rule_counts": {
+        "STP_018": 0
+      },
+      "md_samples": [
+        {
+          "filename": "stops.txt"
+        },
+        {
+          "filename": "routes.txt"
+        }
+      ],
+      "analyzer_samples": {},
+      "priority": 105
+    },
+    "audit_input_classification": null,
+    "audit_zip_sha256": "a880b1de6277e3add5d0e50d71784eaac49bd6e4dab11002459a4553fe30e7da",
+    "url": "https://files.mobilitydatabase.org/ntd-60089/latest.zip",
+    "download_exit": 0,
+    "redownload_sha256": "a880b1de6277e3add5d0e50d71784eaac49bd6e4dab11002459a4553fe30e7da",
+    "evidence_status": "SAME_AS_AUDIT_INPUT",
+    "archive_files": [
+      "agency.txt",
+      "feed_info.txt",
+      "stops.txt",
+      "routes.txt",
+      "trips.txt",
+      "stop_times.txt",
+      "shapes.txt",
+      "calendar.txt",
+      "calendar_dates.txt"
+    ],
+    "refs": [
+      [
+        "stops.txt",
+        null
+      ],
+      [
+        "routes.txt",
+        null
+      ]
+    ],
+    "contexts": [
+      {
+        "file": "stops.txt",
+        "requested_line": null,
+        "context": []
+      },
+      {
+        "file": "routes.txt",
+        "requested_line": null,
+        "context": []
+      }
+    ]
+  },
+  {
+    "candidate": {
+      "type": "analyzer_spec_md_absent",
+      "unadjudicated_type": null,
+      "decision": "unreviewed",
+      "reason": "Verdict FALSE_POSITIVE_FIXED (run 32311885577) claims a change was made; a fresh occurrence is a regression and stays visible. YANLIŞ POZİTİFTİ ve düzeltildi. mdb-2003'te stop_id = 'Station Charles Schaumann ' (SONDA BOŞLUKLA) gerçekten TANIMLI ve parent_station aynı ham değeri taşıyor - FK GEÇERLİ. Kusur `row_field()` yardımcısındaydı: parent_station'ı trim ediyor, map.stops anahtarları ise ham stop_id. İki taraf farklı okunuyor, kimlik eşleşmiyor, kural Spec-KRİTİK bir ihlal uyduruyordu. #85'in kararı ham karşılaştırmadır. Ölçüm: mdb-2003 2 -> 0, doluluk kontrolü trim'li kaldı.",
+      "feed_id": "mdb-1252",
+      "provider": "HofBus",
+      "country": "DE",
+      "url": "https://files.mobilitydatabase.org/mdb-1252/latest.zip",
+      "analyzer_rule": "STP_009",
+      "analyzer_count": 1,
+      "analyzer_class": "SPEC",
+      "analyzer_severity": "CRITICAL",
+      "mapped_md_codes": [
+        "foreign_key_violation"
+      ],
+      "analyzer_sample": {
+        "id": "k4/STP_009#365",
+        "rule_id": "STP_009",
+        "severity": "CRITICAL",
+        "rule_class": "SPEC",
+        "entity_type": "Stop",
+        "entity_id": "15201",
+        "scope_key": "15201",
+        "file": "stops.txt",
+        "line": 181,
+        "field": "parent_station",
+        "observed_value": "15209   ",
+        "details": {
+          "whitespace_candidate": "true"
+        },
+        "message": "Stop '15201': parent_station '15209   ' not found in stops.txt.",
+        "remediation": "Use a valid stop_id as parent_station."
+      },
+      "priority": 100
+    },
+    "audit_input_classification": null,
+    "audit_zip_sha256": "83753f581badd1ed0a57878978ffb31f2fec4a244f988c89b4b544ba35ee5918",
+    "url": "https://files.mobilitydatabase.org/mdb-1252/latest.zip",
+    "download_exit": 0,
+    "redownload_sha256": "83753f581badd1ed0a57878978ffb31f2fec4a244f988c89b4b544ba35ee5918",
+    "evidence_status": "SAME_AS_AUDIT_INPUT",
+    "archive_files": [
+      "agency.txt",
+      "calendar.txt",
+      "calendar_dates.txt",
+      "feed_info.txt",
+      "routes.txt",
+      "stop_times.txt",
+      "stops.txt",
+      "transfers.txt",
+      "translations.txt",
+      "trips.txt"
+    ],
+    "refs": [
+      [
+        "stops.txt",
+        181
+      ]
+    ],
+    "contexts": [
+      {
+        "file": "stops.txt",
+        "requested_line": 181,
+        "context": [
+          {
+            "line": 179,
+            "text": "14402,Krötenbrucker Str. - Stadtauswärts,,50.288411,11.925636,0,14409"
+          },
+          {
+            "line": 180,
+            "text": "14409,Krötenbrucker Str.,,50.2885275,11.9254535,1,"
+          },
+          {
+            "line": 181,
+            "text": "15201,Leimitz Schule - Richtung Sonnenpl.,,50.322355,11.949388,0,15209   "
+          },
+          {
+            "line": 182,
+            "text": "15202,Leimitz Schule - Stadtauswärts,,50.322301,11.9493062,0,15209"
+          },
+          {
+            "line": 183,
+            "text": "15209,Leimitz Schule,,50.322328,11.9493471,1,"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "candidate": {
+      "type": "analyzer_spec_md_absent",
+      "unadjudicated_type": null,
+      "decision": "unreviewed",
+      "reason": "Verdict FALSE_POSITIVE_FIXED (run 32311885577) claims a change was made; a fresh occurrence is a regression and stays visible. KÖK NEDEN DÜZELTİLDİ (#181). Bulgular ARC_034'ün kapsam boşluğundan geliyordu: kural K1 satır döngüsündeydi ama trips.txt K1'de STREAM edilir ve orada yalnız başlık okunur, dolayısıyla mdb-1004/trips.txt satır 16873'teki başlık tekrarı veri olarak işlendi ve TRP_002 literal 'route_id' değerini FK ihlali sandı. Yükleme arc034_is_header_repeat()'e çıkarılıp K2 stream yollarına bağlandı. Ölçüm: mdb-1004 ARC_034 5 -> 8 (trips/stop_times/shapes eklendi), TRP_002 2 -> 0.",
+      "feed_id": "mdb-3360",
+      "provider": "Chennai Transport Corporation",
+      "country": "IN",
+      "url": "https://files.mobilitydatabase.org/mdb-3360/latest.zip",
+      "analyzer_rule": "TRP_002",
+      "analyzer_count": 9,
+      "analyzer_class": "SPEC",
+      "analyzer_severity": "CRITICAL",
+      "mapped_md_codes": [
+        "foreign_key_violation"
+      ],
+      "analyzer_sample": {
+        "id": "k4/TRP_002#21668",
+        "rule_id": "TRP_002",
+        "severity": "CRITICAL",
+        "rule_class": "SPEC",
+        "entity_type": "Trip",
+        "entity_id": "'/><script>alert(1)</script>",
+        "scope_key": "'/><script>alert(1)</script>",
+        "file": "trips.txt",
+        "line": 47150,
+        "field": "route_id",
+        "observed_value": "1",
+        "message": "Trip ''/><script>alert(1)</script>': route_id '1' not found in routes.txt.",
+        "remediation": "Use a valid route_id."
+      },
+      "priority": 100
+    },
+    "audit_input_classification": null,
+    "audit_zip_sha256": "db1da880f9ad93e352f6658df0e94a8b2d71cd1dc8bdfbb60fa3968a9b0ad3e6",
+    "url": "https://files.mobilitydatabase.org/mdb-3360/latest.zip",
+    "download_exit": 0,
+    "redownload_sha256": "db1da880f9ad93e352f6658df0e94a8b2d71cd1dc8bdfbb60fa3968a9b0ad3e6",
+    "evidence_status": "SAME_AS_AUDIT_INPUT",
+    "archive_files": [
+      "agency.txt",
+      "routes.txt",
+      "stops.txt",
+      "trips.txt",
+      "calendar.txt",
+      "stop_times.txt",
+      "shapes.txt",
+      "feed_info.txt"
+    ],
+    "refs": [
+      [
+        "trips.txt",
+        47150
+      ]
+    ],
+    "contexts": [
+      {
+        "file": "trips.txt",
+        "requested_line": 47150,
+        "context": [
+          {
+            "line": 47148,
+            "text": "HSC,1,1,1,1,1,1,0,20240501,20300501"
+          },
+          {
+            "line": 47149,
+            "text": "test ,1,1,1,0,0,0,0,20240501,20300501"
+          },
+          {
+            "line": 47150,
+            "text": "'/><script>alert(1)</script>,1,0,0,0,0,0,0,20240501,20300501"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "candidate": {
+      "type": "analyzer_spec_unmapped",
+      "unadjudicated_type": null,
+      "decision": "unreviewed",
+      "reason": "No verdict recorded for this rule in fp_adjudication.tsv.",
+      "feed_id": "mdb-865",
+      "provider": "Helsingin seudun liikenne (HSL)",
+      "country": "FI",
+      "url": "https://files.mobilitydatabase.org/mdb-865/latest.zip",
+      "analyzer_rule": "STP_036",
+      "analyzer_count": 122,
+      "analyzer_class": "SPEC",
+      "analyzer_severity": "LOW",
+      "analyzer_sample": {
+        "id": "k4/STP_036#31590",
+        "rule_id": "STP_036",
+        "severity": "LOW",
+        "rule_class": "SPEC",
+        "entity_type": "Stop",
+        "entity_id": "1000001",
+        "scope_key": "1000001",
+        "file": "stops.txt",
+        "line": 8245,
+        "field": "parent_station",
+        "observed_value": " ",
+        "expected_value": "boş olmalı",
+        "details": {
+          "whitespace_candidate": "true"
+        },
+        "message": "Station '1000001' (location_type=1) has a parent_station set; stations must not have a parent.",
+        "remediation": "Remove parent_station from the station record; only entrances, generic nodes and boarding areas may have a parent_station."
+      },
+      "priority": 95
+    },
+    "audit_input_classification": null,
+    "audit_zip_sha256": "45be343a0b3583e601b53a54c4b2971b6174fdfc0f2595b904a64aae1d3d5cd0",
+    "url": "https://files.mobilitydatabase.org/mdb-865/latest.zip",
+    "download_exit": 0,
+    "redownload_sha256": "45be343a0b3583e601b53a54c4b2971b6174fdfc0f2595b904a64aae1d3d5cd0",
+    "evidence_status": "SAME_AS_AUDIT_INPUT",
+    "archive_files": [
+      "agency.txt",
+      "areas.txt",
+      "calendar.txt",
+      "calendar_dates.txt",
+      "emissions.txt",
+      "fare_attributes.txt",
+      "fare_rules.txt",
+      "feed_info.txt",
+      "routes.txt",
+      "shapes.txt",
+      "stops.txt",
+      "stop_areas.txt",
+      "stop_times.txt",
+      "transfers.txt",
+      "translations.txt",
+      "trips.txt",
+      "trips2.txt"
+    ],
+    "refs": [
+      [
+        "stops.txt",
+        8245
+      ]
+    ],
+    "contexts": [
+      {
+        "file": "stops.txt",
+        "requested_line": 8245,
+        "context": [
+          {
+            "line": 8243,
+            "text": "9800274,Tu8074,\"Mäenpääntie\",\"Halkiantie\",60.504830,25.211420,Ei HSL,http://aikataulut.hsl.fi/pysakit/fi/9800274.html,0, ,0, ,3,126321"
+          },
+          {
+            "line": 8244,
+            "text": "9800275,Tu8075,\"Mäenpääntie\",\"Halkiantie\",60.505254,25.209900,Ei HSL,http://aikataulut.hsl.fi/pysakit/fi/9800275.html,0, ,0, ,3,126320"
+          },
+          {
+            "line": 8245,
+            "text": "1000001, ,\"Kamppi (lähiliikenneterminaali)\", ,60.169008,24.931662,A,http://aikataulut.reittiopas.fi/pysakit/fi/1000001.html,1, ,0, ,3, "
+          },
+          {
+            "line": 8246,
+            "text": "1000002, ,\"Elielinaukio\", ,60.171808,24.939488,A,http://aikataulut.reittiopas.fi/pysakit/fi/1000002.html,1, ,0, ,3, "
+          },
+          {
+            "line": 8247,
+            "text": "1000003, ,\"Rautatientori\", ,60.171283,24.942572,A,http://aikataulut.reittiopas.fi/pysakit/fi/1000003.html,1, ,0, ,3, "
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "candidate": {
+      "type": "analyzer_spec_md_absent",
+      "unadjudicated_type": null,
+      "decision": "unreviewed",
+      "reason": "No verdict recorded for this rule in fp_adjudication.tsv.",
+      "feed_id": "jbda-awajicity-awaji-jenova-line-akashi-iwaya",
+      "provider": "淡路市",
+      "country": "JP",
+      "url": "https://files.mobilitydatabase.org/jbda-awajicity-awaji-jenova-line-akashi-iwaya/latest.zip",
+      "analyzer_rule": "TRN_013",
+      "analyzer_count": 1,
+      "analyzer_class": "SPEC",
+      "analyzer_severity": "HIGH",
+      "mapped_md_codes": [
+        "translation_unexpected_value"
+      ],
+      "analyzer_sample": {
+        "id": "k2/TRN_013#189",
+        "rule_id": "TRN_013",
+        "severity": "HIGH",
+        "rule_class": "SPEC",
+        "entity_type": "Row",
+        "file": "translations.txt",
+        "line": 12,
+        "field": "record_id|record_sub_id|field_value",
+        "message": "Translation: identity field cannot be used in a feed_info translation.",
+        "remediation": "Leave record_id, record_sub_id and field_value empty for feed_info rows."
+      },
+      "priority": 92
+    },
+    "audit_input_classification": null,
+    "audit_zip_sha256": "594b9e57717469f65934d40bf28dd5dfc2cbc5e9c596c03f6e7481b0bdff8cd7",
+    "url": "https://files.mobilitydatabase.org/jbda-awajicity-awaji-jenova-line-akashi-iwaya/latest.zip",
+    "download_exit": 0,
+    "redownload_sha256": "594b9e57717469f65934d40bf28dd5dfc2cbc5e9c596c03f6e7481b0bdff8cd7",
+    "evidence_status": "SAME_AS_AUDIT_INPUT",
+    "archive_files": [
+      "agency.txt",
+      "calendar.txt",
+      "calendar_dates.txt",
+      "fare_attributes.txt",
+      "fare_rules.txt",
+      "feed_info.txt",
+      "payload.txt",
+      "payload_fare_attributes.txt",
+      "payload_fare_rules.txt",
+      "routes.txt",
+      "shapes.txt",
+      "ships.txt",
+      "stop_times.txt",
+      "stops.txt",
+      "translations.txt",
+      "trips.txt"
+    ],
+    "refs": [
+      [
+        "translations.txt",
+        12
+      ]
+    ],
+    "contexts": [
+      {
+        "file": "translations.txt",
+        "requested_line": 12,
+        "context": [
+          {
+            "line": 10,
+            "text": "trips,trip_headsign,en,Akashiko(Akashi Port),,明石港"
+          },
+          {
+            "line": 11,
+            "text": "trips,trip_headsign,en,Iwayako(Iwaya Port),,岩屋港"
+          },
+          {
+            "line": 12,
+            "text": "feed_info,feed_publisher_name,en,Awaji Jenova Line,,株式会社　淡路ジェノバライン"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "candidate": {
+      "type": "analyzer_spec_md_absent",
+      "unadjudicated_type": null,
+      "decision": "unreviewed",
+      "reason": "No verdict recorded for this rule in fp_adjudication.tsv.",
+      "feed_id": "jbda-chitetsu-chitetsubus",
+      "provider": "富山地方鉄道",
+      "country": "JP",
+      "url": "https://files.mobilitydatabase.org/jbda-chitetsu-chitetsubus/latest.zip",
+      "analyzer_rule": "TRN_016",
+      "analyzer_count": 1,
+      "analyzer_class": "SPEC",
+      "analyzer_severity": "MEDIUM",
+      "mapped_md_codes": [
+        "translation_foreign_key_violation"
+      ],
+      "analyzer_sample": {
+        "id": "k4/TRN_016#2579",
+        "rule_id": "TRN_016",
+        "severity": "MEDIUM",
+        "rule_class": "SPEC",
+        "entity_type": "Feed",
+        "file": "translations.txt",
+        "field": "field_value",
+        "observed_value": "225",
+        "message": "225 çeviri kaydının 'field_value' değeri hedef dosyada hiçbir satırla eşleşmiyor — bu çeviriler uygulanmaz. Örnek: routes.route_short_name=01黒部宇奈月温泉駅, routes.route_short_name=01黒部宇奈月温泉駅（荻生製造所 経由）, routes.route_short_name=01黒部駅前, routes.route_short_name=01黒部駅前（荻生製造所 経由）, routes.route_short_name=10富山駅（呉羽 経由）.",
+        "remediation": "field_value değerlerini hedef alanın gerçek içeriğiyle birebir eşleştirin (baştaki/sondaki boşluk ve büyük/küçük harf dahil)."
+      },
+      "priority": 92
+    },
+    "audit_input_classification": null,
+    "audit_zip_sha256": "04541ea9dfae1bd92f372bf52b36e12601f22d24ef48cfc21182158838c97801",
+    "url": "https://files.mobilitydatabase.org/jbda-chitetsu-chitetsubus/latest.zip",
+    "download_exit": 0,
+    "redownload_sha256": "04541ea9dfae1bd92f372bf52b36e12601f22d24ef48cfc21182158838c97801",
+    "evidence_status": "SAME_AS_AUDIT_INPUT",
+    "archive_files": [
+      "agency.txt",
+      "calendar.txt",
+      "calendar_dates.txt",
+      "fare_attributes.txt",
+      "fare_rules.txt",
+      "feed_info.txt",
+      "routes.txt",
+      "shapes.txt",
+      "stop_times.txt",
+      "stops.txt",
+      "translations.txt",
+      "trips.txt"
+    ],
+    "refs": [
+      [
+        "translations.txt",
+        null
+      ]
+    ],
+    "contexts": [
+      {
+        "file": "translations.txt",
+        "requested_line": null,
+        "context": [
+          {
+            "line": 1,
+            "text": "table_name,field_name,field_value,language,translation"
+          },
+          {
+            "line": 2,
+            "text": "stop_times,stop_headsign,富山地方鉄道株式会社,ja,富山地方鉄道株式会社"
+          },
+          {
+            "line": 3,
+            "text": "routes,route_short_name,富山地方鉄道株式会社,ja,富山地方鉄道株式会社"
+          },
+          {
+            "line": 4,
+            "text": "stop_times,stop_headsign,富山地方鉄道株式会社,ja-Hrkt,とやまちほうてつどうかぶしきがいしゃ"
+          },
+          {
+            "line": 5,
+            "text": "routes,route_short_name,富山地方鉄道株式会社,ja-Hrkt,とやまちほうてつどうかぶしきがいしゃ"
+          },
+          {
+            "line": 6,
+            "text": "stop_times,stop_headsign,富山地方鉄道株式会社,en,Toyama Chihou Tetsudou"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "candidate": {
+      "type": "analyzer_spec_md_absent",
+      "unadjudicated_type": null,
+      "decision": "unreviewed",
+      "reason": "No verdict recorded for this rule in fp_adjudication.tsv.",
+      "feed_id": "jbda-kitakyushucity-tashiro-kawachi",
+      "provider": "北九州市",
+      "country": "JP",
+      "url": "https://files.mobilitydatabase.org/jbda-kitakyushucity-tashiro-kawachi/latest.zip",
+      "analyzer_rule": "TRP_004",
+      "analyzer_count": 3,
+      "analyzer_class": "SPEC",
+      "analyzer_severity": "HIGH",
+      "mapped_md_codes": [
+        "foreign_key_violation"
+      ],
+      "analyzer_sample": {
+        "id": "k4/TRP_004#68",
+        "rule_id": "TRP_004",
+        "severity": "HIGH",
+        "rule_class": "SPEC",
+        "entity_type": "Trip",
+        "entity_id": "3河内小登校日_08時05分_系統902002",
+        "scope_key": "902002",
+        "file": "trips.txt",
+        "line": 22,
+        "field": "shape_id",
+        "observed_value": "902002",
+        "message": "Trip '3河内小登校日_08時05分_系統902002': shape_id '902002' not found in shapes.txt.",
+        "remediation": "Use a valid shape_id or leave the field empty."
+      },
+      "priority": 92
+    },
+    "audit_input_classification": null,
+    "audit_zip_sha256": "dfbab04b22e3758b05706b60939e6652559882ca4f268b71e58c724ca31ae415",
+    "url": "https://files.mobilitydatabase.org/jbda-kitakyushucity-tashiro-kawachi/latest.zip",
+    "download_exit": 0,
+    "redownload_sha256": "dfbab04b22e3758b05706b60939e6652559882ca4f268b71e58c724ca31ae415",
+    "evidence_status": "SAME_AS_AUDIT_INPUT",
+    "archive_files": [
+      "agency.txt",
+      "calendar.txt",
+      "calendar_dates.txt",
+      "fare_attributes.txt",
+      "fare_rules.txt",
+      "feed_info.txt",
+      "routes.txt",
+      "stop_times.txt",
+      "stops.txt",
+      "transfers.txt",
+      "translations.txt",
+      "trips.txt",
+      "shapes.txt"
+    ],
+    "refs": [
+      [
+        "trips.txt",
+        22
+      ]
+    ],
+    "contexts": [
+      {
+        "file": "trips.txt",
+        "requested_line": 22,
+        "context": [
+          {
+            "line": 20,
+            "text": "90,土日祝,2土日祝_11時30分_系統902001,田代,1,,,902001,,902001"
+          },
+          {
+            "line": 21,
+            "text": "90,河内小休校日,4河内小休校日_08時05分_系統902001,田代,1,,,902001,,902001"
+          },
+          {
+            "line": 22,
+            "text": "90,河内小登校日,3河内小登校日_08時05分_系統902002,田代,1,,,902002,,902002"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "candidate": {
+      "type": "analyzer_spec_md_absent",
+      "unadjudicated_type": null,
+      "decision": "unreviewed",
+      "reason": "No verdict recorded for this rule in fp_adjudication.tsv.",
+      "feed_id": "jbda-sakatacity-SakataCity",
+      "provider": "酒田市",
+      "country": "JP",
+      "url": "https://files.mobilitydatabase.org/jbda-sakatacity-SakataCity/latest.zip",
+      "analyzer_rule": "AGN_009",
+      "analyzer_count": 1,
+      "analyzer_class": "SPEC",
+      "analyzer_severity": "LOW",
+      "mapped_md_codes": [
+        "invalid_email"
+      ],
+      "analyzer_sample": {
+        "id": "k2/AGN_009#1",
+        "rule_id": "AGN_009",
+        "severity": "LOW",
+        "rule_class": "SPEC",
+        "entity_type": "Agency",
+        "entity_id": "5000020062049 ",
+        "scope_key": "5000020062049",
+        "file": "agency.txt",
+        "line": 2,
+        "field": "agency_email",
+        "observed_value": " kotu@city.sakata.lg.jp",
+        "message": "Agency '5000020062049 ': agency_email is invalid.",
+        "remediation": "Use a valid e-mail address for agency_email."
+      },
+      "priority": 92
+    },
+    "audit_input_classification": null,
+    "audit_zip_sha256": "22c2e00e138b3d50792bf8d97b640e18d5ae3ef3e1b724129f3fc435d1725f31",
+    "url": "https://files.mobilitydatabase.org/jbda-sakatacity-SakataCity/latest.zip",
+    "download_exit": 0,
+    "redownload_sha256": "22c2e00e138b3d50792bf8d97b640e18d5ae3ef3e1b724129f3fc435d1725f31",
+    "evidence_status": "SAME_AS_AUDIT_INPUT",
+    "archive_files": [
+      "agency.txt",
+      "calendar.txt",
+      "calendar_dates.txt",
+      "fare_attributes.txt",
+      "fare_rules.txt",
+      "feed_info.txt",
+      "routes.txt",
+      "stop_times.txt",
+      "stops.txt",
+      "transfers.txt",
+      "translations.txt",
+      "trips.txt"
+    ],
+    "refs": [
+      [
+        "agency.txt",
+        2
+      ]
+    ],
+    "contexts": [
+      {
+        "file": "agency.txt",
+        "requested_line": 2,
+        "context": [
+          {
+            "line": 1,
+            "text": "agency_id,agency_name,agency_url,agency_timezone,agency_lang,agency_phone,agency_fare_url,agency_email"
+          },
+          {
+            "line": 2,
+            "text": "5000020062049 ,酒田市,http://www.city.sakata.lg.jp/sangyo/kotsu/runrunbas/index.html,Asia/Tokyo,ja,0234-26-5756,, kotu@city.sakata.lg.jp"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "candidate": {
+      "type": "analyzer_spec_md_absent",
+      "unadjudicated_type": null,
+      "decision": "unreviewed",
+      "reason": "No verdict recorded for this rule in fp_adjudication.tsv.",
+      "feed_id": "mdb-1",
+      "provider": "Casco Bay Lines",
+      "country": "US",
+      "url": "https://files.mobilitydatabase.org/mdb-1/latest.zip",
+      "analyzer_rule": "FAR_013",
+      "analyzer_count": 1,
+      "analyzer_class": "SPEC",
+      "analyzer_severity": "LOW",
+      "mapped_md_codes": [
+        "invalid_currency_amount"
+      ],
+      "analyzer_sample": {
+        "id": "k2/FAR_013#105",
+        "rule_id": "FAR_013",
+        "severity": "LOW",
+        "rule_class": "SPEC",
+        "entity_type": "File",
+        "file": "fare_attributes.txt",
+        "line": 2,
+        "field": "price",
+        "observed_value": "5 satır",
+        "expected_value": "2 ondalık basamak",
+        "message": "fare_attributes.txt dosyasında 5 tutar, para biriminin ISO 4217 ondalık basamak sayısını taşımıyor (ör. satır 2: USD 7.0 — 2 basamak beklenir).",
+        "remediation": "Tutarları para biriminin ondalık basamak sayısıyla yazın (ör. EUR için 0.90, JPY için 150)."
+      },
+      "priority": 92
+    },
+    "audit_input_classification": null,
+    "audit_zip_sha256": "bddc517ac4fd92db563c8f766008ab58d9882fb4944d9bb8bfc4b5d1c4f2d4e9",
+    "url": "https://files.mobilitydatabase.org/mdb-1/latest.zip",
+    "download_exit": 0,
+    "redownload_sha256": "bddc517ac4fd92db563c8f766008ab58d9882fb4944d9bb8bfc4b5d1c4f2d4e9",
+    "evidence_status": "SAME_AS_AUDIT_INPUT",
+    "archive_files": [
+      "agency.txt",
+      "calendar.txt",
+      "calendar_dates.txt",
+      "fare_attributes.txt",
+      "fare_rules.txt",
+      "feed_info.txt",
+      "routes.txt",
+      "shapes.txt",
+      "stop_times.txt",
+      "stops.txt",
+      "trips.txt"
+    ],
+    "refs": [
+      [
+        "fare_attributes.txt",
+        2
+      ]
+    ],
+    "contexts": [
+      {
+        "file": "fare_attributes.txt",
+        "requested_line": 2,
+        "context": [
+          {
+            "line": 1,
+            "text": "fare_id,price,currency_type,payment_method,transfers,transfer_duration,agency_id"
+          },
+          {
+            "line": 2,
+            "text": "Adult Bicycle,7.0,USD,1,0,,1"
+          },
+          {
+            "line": 3,
+            "text": "Child/ Senior / Disabled Fare,7.0,USD,1,0,,1"
+          },
+          {
+            "line": 4,
+            "text": "Adult Fare,14.0,USD,1,0,,1"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "candidate": {
+      "type": "analyzer_spec_md_absent",
+      "unadjudicated_type": null,
+      "decision": "unreviewed",
+      "reason": "No verdict recorded for this rule in fp_adjudication.tsv.",
+      "feed_id": "mdb-102",
+      "provider": "Norwalk Transit System (NTS)",
+      "country": "US",
+      "url": "https://files.mobilitydatabase.org/mdb-102/latest.zip",
+      "analyzer_rule": "RCT_006",
+      "analyzer_count": 1,
+      "analyzer_class": "SPEC",
+      "analyzer_severity": "MEDIUM",
+      "mapped_md_codes": [
+        "fare_product_with_multiple_default_rider_categories"
+      ],
+      "analyzer_sample": {
+        "id": "k4/RCT_006#197",
+        "rule_id": "RCT_006",
+        "severity": "MEDIUM",
+        "rule_class": "SPEC",
+        "entity_type": "Row",
+        "entity_id": "EZpass_regular",
+        "scope_key": "EZpass_regular",
+        "file": "fare_products.txt",
+        "line": 2,
+        "observed_value": "0",
+        "expected_value": "1",
+        "message": "The fare_product does not have exactly one default rider category.",
+        "remediation": "Ensure each fare_product has exactly one eligible rider_category with is_default_fare_category=1."
+      },
+      "priority": 92
+    },
+    "audit_input_classification": null,
+    "audit_zip_sha256": "d804df921ff8632e4bb421ef5eb4c47fecaa767c79a0cf0a105e2ea2afd8e9cf",
+    "url": "https://files.mobilitydatabase.org/mdb-102/latest.zip",
+    "download_exit": 0,
+    "redownload_sha256": "d804df921ff8632e4bb421ef5eb4c47fecaa767c79a0cf0a105e2ea2afd8e9cf",
+    "evidence_status": "SAME_AS_AUDIT_INPUT",
+    "archive_files": [
+      "agency.txt",
+      "areas.txt",
+      "booking_rules.txt",
+      "calendar_attributes.txt",
+      "calendar_dates.txt",
+      "calendar.txt",
+      "directions.txt",
+      "fare_attributes.txt",
+      "fare_containers.txt",
+      "fare_leg_rules.txt",
+      "fare_products.txt",
+      "fare_rider_categories.txt",
+      "fare_rules.txt",
+      "fare_transfer_rules.txt",
+      "farezone_attributes.txt",
+      "feed_info.txt",
+      "frequencies.txt",
+      "linked_datasets.txt",
+      "location_groups.txt",
+      "rider_categories.txt",
+      "routes.txt",
+      "runcut.txt",
+      "shapes.txt",
+      "stop_attributes.txt",
+      "stop_times.txt",
+      "stops.txt",
+      "timetable_stop_order.txt",
+      "timetables.txt",
+      "transfers.txt",
+      "trips.txt"
+    ],
+    "refs": [
+      [
+        "fare_products.txt",
+        2
+      ]
+    ],
+    "contexts": [
+      {
+        "file": "fare_products.txt",
+        "requested_line": 2,
+        "context": [
+          {
+            "line": 1,
+            "text": "fare_product_id,fare_product_name,rider_category_id,fare_container_id,bundle_amount,duration_start,duration_amount,duration_unit,duration_type,offset_amount,offset_unit,service_id,timeframe_id,timeframe_type,cap_required,eligible_cap_id,amount,min_amount,max_amount,currency"
+          },
+          {
+            "line": 2,
+            "text": "EZpass_regular,EZ Pass General Public,,tap_regular,,,30,3,2,,,,,,,,110,,,USD"
+          },
+          {
+            "line": 3,
+            "text": "EZpass_senior,EZ Pass Seniors Age 62 and Over,senior,tap_senior,,,30,3,2,,,,,,,,42,,,USD"
+          },
+          {
+            "line": 4,
+            "text": "EZpass_disabled,EZ Pass Persons with Disabilities,disabled,tap_disabled,,,30,3,2,,,,,,,,42,,,USD"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "candidate": {
+      "type": "analyzer_spec_md_absent",
+      "unadjudicated_type": null,
+      "decision": "unreviewed",
+      "reason": "No verdict recorded for this rule in fp_adjudication.tsv.",
+      "feed_id": "mdb-1026",
+      "provider": "Île-de-France Mobilités (IDFM)",
+      "country": "FR",
+      "url": "https://files.mobilitydatabase.org/mdb-1026/latest.zip",
+      "analyzer_rule": "BKR_020",
+      "analyzer_count": 13,
+      "analyzer_class": "SPEC",
+      "analyzer_severity": "MEDIUM",
+      "mapped_md_codes": [
+        "invalid_url"
+      ],
+      "analyzer_sample": {
+        "id": "k2/BKR_020#26",
+        "rule_id": "BKR_020",
+        "severity": "MEDIUM",
+        "rule_class": "SPEC",
+        "entity_type": "Row",
+        "entity_id": "IDFM:1",
+        "scope_key": "IDFM:1",
+        "file": "booking_rules.txt",
+        "line": 2,
+        "field": "booking_url",
+        "observed_value": "https://reservation-tad.idfmobilites.fr/search?departure_latitude={from_coord_lat}&departure_longitude={from_coord_lon}&destination_latitude={to_coord_lat}&destination_longitude={to_coord_lon}&requested_departure_time={departure_datetime}&territory=nangis",
+        "message": "Booking rule 'IDFM:1': booking_url is not a valid URL.",
+        "remediation": "Use a valid http/https URL for booking_url."
+      },
+      "priority": 92
+    },
+    "audit_input_classification": null,
+    "audit_zip_sha256": "66bc263f165bc65f8e2cae85203af6f5201ac8b829b68847e5a278d439307666",
+    "url": "https://files.mobilitydatabase.org/mdb-1026/latest.zip",
+    "download_exit": 0,
+    "redownload_sha256": "66bc263f165bc65f8e2cae85203af6f5201ac8b829b68847e5a278d439307666",
+    "evidence_status": "SAME_AS_AUDIT_INPUT",
+    "archive_files": [
+      "transfers.txt",
+      "ticketing_deep_links.txt",
+      "agency.txt",
+      "calendar_dates.txt",
+      "calendar.txt",
+      "stops.txt",
+      "trips.txt",
+      "routes.txt",
+      "stop_extensions.txt",
+      "stop_times.txt",
+      "booking_rules.txt",
+      "pathways.txt",
+      "object_codes_extension.txt"
+    ],
+    "refs": [
+      [
+        "booking_rules.txt",
+        2
+      ]
+    ],
+    "contexts": [
+      {
+        "file": "booking_rules.txt",
+        "requested_line": 2,
+        "context": [
+          {
+            "line": 1,
+            "text": "booking_rule_id,booking_type,message,phone_number,info_url,booking_url"
+          },
+          {
+            "line": 2,
+            "text": "IDFM:1,0,du lundi au vendredi de 9h à 18h,09 70 80 96 63,,https://reservation-tad.idfmobilites.fr/search?departure_latitude={from_coord_lat}&departure_longitude={from_coord_lon}&destination_latitude={to_coord_lat}&destination_longitude={to_coord_lon}&requested_departure_time={departure_datetime}&territory=nangis"
+          },
+          {
+            "line": 3,
+            "text": "IDFM:2,0,du lundi au vendredi de 9h à 18h,09 70 80 96 63,,https://reservation-tad.idfmobilites.fr/search?departure_latitude={from_coord_lat}&departure_longitude={from_coord_lon}&destination_latitude={to_coord_lat}&destination_longitude={to_coord_lon}&requested_departure_time={departure_datetime}&territory=ligne_39_02"
+          },
+          {
+            "line": 4,
+            "text": "IDFM:3,0,du lundi au vendredi de 9h à 18h,09 70 80 96 63,,https://reservation-tad.idfmobilites.fr/search?departure_latitude={from_coord_lat}&departure_longitude={from_coord_lon}&destination_latitude={to_coord_lat}&destination_longitude={to_coord_lon}&requested_departure_time={departure_datetime}&territory=la_ferte"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "candidate": {
+      "type": "analyzer_spec_md_absent",
+      "unadjudicated_type": null,
+      "decision": "unreviewed",
+      "reason": "No verdict recorded for this rule in fp_adjudication.tsv.",
+      "feed_id": "mdb-1187",
+      "provider": "Metra",
+      "country": "US",
+      "url": "https://files.mobilitydatabase.org/mdb-1187/latest.zip",
+      "analyzer_rule": "AGN_008",
+      "analyzer_count": 1,
+      "analyzer_class": "SPEC",
+      "analyzer_severity": "LOW",
+      "mapped_md_codes": [
+        "invalid_url"
+      ],
+      "analyzer_sample": {
+        "id": "k2/AGN_008#3",
+        "rule_id": "AGN_008",
+        "severity": "LOW",
+        "rule_class": "SPEC",
+        "entity_type": "Agency",
+        "entity_id": "METRA",
+        "scope_key": "METRA",
+        "file": "agency.txt",
+        "line": 2,
+        "field": "agency_fare_url",
+        "observed_value": " https://metrarail.com/tickets",
+        "message": "Agency 'METRA': agency_fare_url is invalid.",
+        "remediation": "Use a valid http/https URL for agency_fare_url."
+      },
+      "priority": 92
+    },
+    "audit_input_classification": null,
+    "audit_zip_sha256": "9ea002c7b85bf10c86393dd536135328aaa7438bdb400115a468ed580e06d417",
+    "url": "https://files.mobilitydatabase.org/mdb-1187/latest.zip",
+    "download_exit": 0,
+    "redownload_sha256": "9ea002c7b85bf10c86393dd536135328aaa7438bdb400115a468ed580e06d417",
+    "evidence_status": "SAME_AS_AUDIT_INPUT",
+    "archive_files": [
+      "agency.txt",
+      "calendar.txt",
+      "calendar_dates.txt",
+      "fare_attributes.txt",
+      "fare_rules.txt",
+      "routes.txt",
+      "shapes.txt",
+      "stop_times.txt",
+      "stops.txt",
+      "trips.txt"
+    ],
+    "refs": [
+      [
+        "agency.txt",
+        2
+      ]
+    ],
+    "contexts": [
+      {
+        "file": "agency.txt",
+        "requested_line": 2,
+        "context": [
+          {
+            "line": 1,
+            "text": "agency_id, agency_name, agency_url, agency_timezone, agency_lang, agency_phone, agency_fare_url"
+          },
+          {
+            "line": 2,
+            "text": "METRA, Metra, http://www.metrarail.com/, America/Chicago, EN, , https://metrarail.com/tickets"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "candidate": {
+      "type": "analyzer_spec_md_absent",
+      "unadjudicated_type": null,
+      "decision": "unreviewed",
+      "reason": "No verdict recorded for this rule in fp_adjudication.tsv.",
+      "feed_id": "mdb-2053",
+      "provider": "Systemaufgaben Kundeninformation SKI+",
+      "country": "CH",
+      "url": "https://files.mobilitydatabase.org/mdb-2053/latest.zip",
+      "analyzer_rule": "BKR_006",
+      "analyzer_count": 2,
+      "analyzer_class": "SPEC",
+      "analyzer_severity": "HIGH",
+      "mapped_md_codes": [
+        "invalid_prior_notice_duration_min"
+      ],
+      "analyzer_sample": {
+        "id": "k2/BKR_006#32",
+        "rule_id": "BKR_006",
+        "severity": "HIGH",
+        "rule_class": "SPEC",
+        "entity_type": "Row",
+        "entity_id": "booking_rule_j26_10",
+        "scope_key": "booking_rule_j26_10",
+        "file": "booking_rules.txt",
+        "line": 3,
+        "field": "prior_notice_duration_min",
+        "observed_value": "0",
+        "expected_value": "> 0",
+        "message": "Booking rule 'booking_rule_j26_10': prior_notice_duration_min is invalid (0).",
+        "remediation": "Enter a positive number of minutes for the minimum advance notice period."
+      },
+      "priority": 92
+    },
+    "audit_input_classification": null,
+    "audit_zip_sha256": "18af20f1a130b393134ede4e1fdc907840d531fdac532ec69b4b9d4c2576e0c9",
+    "url": "https://files.mobilitydatabase.org/mdb-2053/latest.zip",
+    "download_exit": 0,
+    "redownload_sha256": "18af20f1a130b393134ede4e1fdc907840d531fdac532ec69b4b9d4c2576e0c9",
+    "evidence_status": "SAME_AS_AUDIT_INPUT",
+    "archive_files": [
+      "agency.txt",
+      "routes.txt",
+      "trips.txt",
+      "stops.txt",
+      "calendar.txt",
+      "calendar_dates.txt",
+      "feed_info.txt",
+      "locations.geojson",
+      "location_groups.txt",
+      "location_group_stops.txt",
+      "booking_rules.txt",
+      "booking_rules_additional_messages.txt",
+      "stop_times.txt"
+    ],
+    "refs": [
+      [
+        "booking_rules.txt",
+        3
+      ]
+    ],
+    "contexts": [
+      {
+        "file": "booking_rules.txt",
+        "requested_line": 3,
+        "context": [
+          {
+            "line": 1,
+            "text": "booking_rule_id,booking_type,info_url,message,phone_number,prior_notice_duration_max,prior_notice_duration_min"
+          },
+          {
+            "line": 2,
+            "text": "\"booking_rule_j26_1\",\"1\",\"https://www.postauto.ch/de/publicar-appenzell-ai\",\"\",\"+41 848 55 30 60\",\"43200\",\"30\""
+          },
+          {
+            "line": 3,
+            "text": "\"booking_rule_j26_10\",\"1\",\"https://www.transn.ch/mobicite/\",\"\",\"+41 800 11 23 00\",\"21600\",\"0\""
+          },
+          {
+            "line": 4,
+            "text": "\"booking_rule_j26_12\",\"1\",\"https://play.google.com/store/apps/details?id=io.padam.android_customer.TPGFlex\",\"\",\"\",\"10080\",\"3\""
+          },
+          {
+            "line": 5,
+            "text": "\"booking_rule_j26_13\",\"1\",\"https://mybuxi.ch/fahrgaeste/regionen/belp/\",\"Buchungen nur via App möglich\",\"\",\"20160\",\"30\""
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "candidate": {
+      "type": "analyzer_spec_md_absent",
+      "unadjudicated_type": null,
+      "decision": "unreviewed",
+      "reason": "No verdict recorded for this rule in fp_adjudication.tsv.",
+      "feed_id": "mdb-26",
+      "provider": "Santa Maria Area Transit",
+      "country": "US",
+      "url": "https://files.mobilitydatabase.org/mdb-26/latest.zip",
+      "analyzer_rule": "FTR_011",
+      "analyzer_count": 1,
+      "analyzer_class": "SPEC",
+      "analyzer_severity": "MEDIUM",
+      "mapped_md_codes": [
+        "fare_transfer_rule_duration_limit_without_type"
+      ],
+      "analyzer_sample": {
+        "id": "k2/FTR_011#190",
+        "rule_id": "FTR_011",
+        "severity": "MEDIUM",
+        "rule_class": "SPEC",
+        "entity_type": "Row",
+        "entity_id": "SMAT",
+        "scope_key": "SMAT",
+        "file": "fare_transfer_rules.txt",
+        "line": 2,
+        "field": "duration_limit_type",
+        "expected_value": "dolu",
+        "message": "Fare transfer rule: duration_limit_type is required when duration_limit is defined.",
+        "remediation": "Fill duration_limit_type (0–3) or remove duration_limit."
+      },
+      "priority": 92
+    },
+    "audit_input_classification": null,
+    "audit_zip_sha256": "6d953811b06f7e740a393668ed62bbb6767efbef38b67a62c313c927e2b840fa",
+    "url": "https://files.mobilitydatabase.org/mdb-26/latest.zip",
+    "download_exit": 0,
+    "redownload_sha256": "6d953811b06f7e740a393668ed62bbb6767efbef38b67a62c313c927e2b840fa",
+    "evidence_status": "SAME_AS_AUDIT_INPUT",
+    "archive_files": [
+      "agency.txt",
+      "areas.txt",
+      "booking_rules.txt",
+      "calendar_attributes.txt",
+      "calendar_dates.txt",
+      "calendar.txt",
+      "directions.txt",
+      "fare_attributes.txt",
+      "fare_leg_rules.txt",
+      "fare_products.txt",
+      "fare_rider_categories.txt",
+      "fare_rules.txt",
+      "fare_transfer_rules.txt",
+      "farezone_attributes.txt",
+      "feed_info.txt",
+      "frequencies.txt",
+      "linked_datasets.txt",
+      "location_groups.txt",
+      "rider_categories.txt",
+      "routes.txt",
+      "runcut.txt",
+      "shapes.txt",
+      "stop_attributes.txt",
+      "stop_times.txt",
+      "stops.txt",
+      "timetable_stop_order.txt",
+      "timetables.txt",
+      "transfers.txt",
+      "trips.txt"
+    ],
+    "refs": [
+      [
+        "fare_transfer_rules.txt",
+        2
+      ]
+    ],
+    "contexts": [
+      {
+        "file": "fare_transfer_rules.txt",
+        "requested_line": 2,
+        "context": [
+          {
+            "line": 1,
+            "text": "from_leg_group_id,to_leg_group_id,is_symmetrical,spanning_limit,transfer_id,transfer_sequence,duration_limit,duration_type,fare_transfer_type,amount,min_amount,max_amount,currency,fare_product_id,fare_container_id,rider_category_id,eligible_cap_id"
+          },
+          {
+            "line": 2,
+            "text": "SMAT,SMAT,,2,,,3600,1,,0,,,USD,,,,"
+          },
+          {
+            "line": 3,
+            "text": "BREEZE,SMAT,0,2,,,,,,0,,,USD,,,,"
+          },
+          {
+            "line": 4,
+            "text": "BREEZE,SMAT,0,2,,,,,,0,,,USD,BREEZE_monthly_general,,,"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "candidate": {
+      "type": "analyzer_spec_md_absent",
+      "unadjudicated_type": null,
+      "decision": "unreviewed",
+      "reason": "No verdict recorded for this rule in fp_adjudication.tsv.",
+      "feed_id": "mdb-2805",
+      "provider": "Cots Alsina",
+      "country": "ES",
+      "url": "https://files.mobilitydatabase.org/mdb-2805/latest.zip",
+      "analyzer_rule": "STM_022",
+      "analyzer_count": 3000,
+      "analyzer_class": "SPEC",
+      "analyzer_severity": "MEDIUM",
+      "mapped_md_codes": [
+        "invalid_integer"
+      ],
+      "analyzer_sample": {
+        "id": "k2/STM_022#798",
+        "rule_id": "STM_022",
+        "severity": "MEDIUM",
+        "rule_class": "SPEC",
+        "entity_type": "Trip",
+        "entity_id": "35515924",
+        "scope_key": "35515924",
+        "file": "stop_times.txt",
+        "line": 3786,
+        "field": "timepoint",
+        "observed_value": "2",
+        "expected_value": "0 veya 1",
+        "message": "Trip '35515924': timepoint '2' is invalid.",
+        "remediation": "Set timepoint to 0 (approximate) or 1 (exact)."
+      },
+      "priority": 92
+    },
+    "audit_input_classification": null,
+    "audit_zip_sha256": "467e93cfb4da5a0502db426f3dc9d6612bef2231c247a26bb0dee22e65d115cc",
+    "url": "https://files.mobilitydatabase.org/mdb-2805/latest.zip",
+    "download_exit": 0,
+    "redownload_sha256": "467e93cfb4da5a0502db426f3dc9d6612bef2231c247a26bb0dee22e65d115cc",
+    "evidence_status": "SAME_AS_AUDIT_INPUT",
+    "archive_files": [
+      "routes.txt",
+      "__MACOSX/._routes.txt",
+      "calendar.txt",
+      "__MACOSX/._calendar.txt",
+      "stops.txt",
+      "__MACOSX/._stops.txt",
+      "trips.txt",
+      "__MACOSX/._trips.txt",
+      "stop_times.txt",
+      "__MACOSX/._stop_times.txt",
+      "agency.txt",
+      "__MACOSX/._agency.txt"
+    ],
+    "refs": [
+      [
+        "stop_times.txt",
+        3786
+      ]
+    ],
+    "contexts": [
+      {
+        "file": "stop_times.txt",
+        "requested_line": 3786,
+        "context": [
+          {
+            "line": 3784,
+            "text": "16:35:34,16:35:34,-449,4,2,62795149"
+          },
+          {
+            "line": 3785,
+            "text": "16:40:34,16:40:34,-96,5,2,62795149"
+          },
+          {
+            "line": 3786,
+            "text": "16:10:34,16:10:34,-2,0,2,35515924"
+          },
+          {
+            "line": 3787,
+            "text": "16:20:34,16:20:34,-446,1,2,35515924"
+          },
+          {
+            "line": 3788,
+            "text": "16:25:34,16:25:34,-447,2,2,35515924"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "candidate": {
+      "type": "analyzer_spec_md_absent",
+      "unadjudicated_type": null,
+      "decision": "unreviewed",
+      "reason": "No verdict recorded for this rule in fp_adjudication.tsv.",
+      "feed_id": "mdb-2838",
+      "provider": "Guimabus - Transportes de Guimarães",
+      "country": "PT",
+      "url": "https://files.mobilitydatabase.org/mdb-2838/latest.zip",
+      "analyzer_rule": "STP_008",
+      "analyzer_count": 9,
+      "analyzer_class": "SPEC",
+      "analyzer_severity": "HIGH",
+      "mapped_md_codes": [
+        "unexpected_enum_value"
+      ],
+      "analyzer_sample": {
+        "id": "k2/STP_008#288658",
+        "rule_id": "STP_008",
+        "severity": "HIGH",
+        "rule_class": "SPEC",
+        "entity_type": "Stop",
+        "entity_id": "GUI466_22",
+        "scope_key": "GUI466_22",
+        "file": "stops.txt",
+        "line": 7,
+        "field": "location_type",
+        "observed_value": "0.0",
+        "expected_value": "0-4",
+        "message": "Stop 'GUI466_22': location_type '0.0' is invalid.",
+        "remediation": "Set location_type to 0, 1, 2, 3 or 4."
+      },
+      "priority": 92
+    },
+    "audit_input_classification": null,
+    "audit_zip_sha256": "9034208d0fe0a214c2d259fa4480f1f55f63387b7d24209a76761107434c5adb",
+    "url": "https://files.mobilitydatabase.org/mdb-2838/latest.zip",
+    "download_exit": 0,
+    "redownload_sha256": "9034208d0fe0a214c2d259fa4480f1f55f63387b7d24209a76761107434c5adb",
+    "evidence_status": "SAME_AS_AUDIT_INPUT",
+    "archive_files": [
+      "fare_rules.txt",
+      "shapes.txt",
+      "trips.txt",
+      "routes.txt",
+      "calendar_dates.txt",
+      "calendar.txt",
+      "stops.txt",
+      "agency.txt",
+      "stop_times.txt",
+      "fare_attributes.txt"
+    ],
+    "refs": [
+      [
+        "stops.txt",
+        7
+      ]
+    ],
+    "contexts": [
+      {
+        "file": "stops.txt",
+        "requested_line": 7,
+        "context": [
+          {
+            "line": 5,
+            "text": "GUI466_24,GUI1,CENTRAL DE CAMIONAGEM (TERMINAL) - CAIS 24,41.441332,-8.302127,GMR_001,0.0,GUI466,24,,,,"
+          },
+          {
+            "line": 6,
+            "text": "GUI466_23,GUI1,CENTRAL DE CAMIONAGEM (TERMINAL) - CAIS 23,41.441332,-8.302127,GMR_001,0.0,GUI466,23,,,,"
+          },
+          {
+            "line": 7,
+            "text": "GUI466_22,GUI1,CENTRAL DE CAMIONAGEM (TERMINAL) - CAIS 22,41.441332,-8.302127,GMR_001,0.0,GUI466,22,,,,"
+          },
+          {
+            "line": 8,
+            "text": "GUI466_8,GUI1,CENTRAL DE CAMIONAGEM (TERMINAL) - CAIS 8,41.441332,-8.302127,GMR_001,0.0,GUI466,8,,,,"
+          },
+          {
+            "line": 9,
+            "text": "GUI466_7,GUI1,CENTRAL DE CAMIONAGEM (TERMINAL) - CAIS 7,41.441332,-8.302127,GMR_001,0.0,GUI466,7,,,,"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "candidate": {
+      "type": "analyzer_spec_md_absent",
+      "unadjudicated_type": null,
+      "decision": "unreviewed",
+      "reason": "No verdict recorded for this rule in fp_adjudication.tsv.",
+      "feed_id": "mdb-3155",
+      "provider": "Aytos-Avtrotransport Ltd.",
+      "country": "BG",
+      "url": "https://files.mobilitydatabase.org/mdb-3155/latest.zip",
+      "analyzer_rule": "FIN_004",
+      "analyzer_count": 1,
+      "analyzer_class": "SPEC",
+      "analyzer_severity": "MEDIUM",
+      "mapped_md_codes": [
+        "invalid_language_code"
+      ],
+      "analyzer_sample": {
+        "id": "k2/FIN_004#36",
+        "rule_id": "FIN_004",
+        "severity": "MEDIUM",
+        "rule_class": "SPEC",
+        "entity_type": "Feed",
+        "file": "feed_info.txt",
+        "line": 2,
+        "field": "default_lang",
+        "observed_value": " bg",
+        "message": "feed_info.txt: default_lang ' bg' is invalid.",
+        "remediation": "Enter a valid IETF BCP 47 language tag for default_lang."
+      },
+      "priority": 92
+    },
+    "audit_input_classification": null,
+    "audit_zip_sha256": "613913bcb2ce217b24761e60993fa87d34b4e11de5837673fdd1b0520aa98c9a",
+    "url": "https://files.mobilitydatabase.org/mdb-3155/latest.zip",
+    "download_exit": 0,
+    "redownload_sha256": "613913bcb2ce217b24761e60993fa87d34b4e11de5837673fdd1b0520aa98c9a",
+    "evidence_status": "SAME_AS_AUDIT_INPUT",
+    "archive_files": [
+      "agency.txt",
+      "calendar.txt",
+      "feed_info.txt",
+      "routes.txt",
+      "shapes.txt",
+      "stop_times.txt",
+      "stops.txt",
+      "trips.txt"
+    ],
+    "refs": [
+      [
+        "feed_info.txt",
+        2
+      ]
+    ],
+    "contexts": [
+      {
+        "file": "feed_info.txt",
+        "requested_line": 2,
+        "context": [
+          {
+            "line": 1,
+            "text": "feed_publisher_name, feed_publisher_url, feed_lang, default_lang, feed_start_date, feed_end_date,feed_version, feed_contact_email"
+          },
+          {
+            "line": 2,
+            "text": "Айтос Автотранспорт ЕООД, https://transport.aytos.bg, bg, bg, 20260301, 20281204, Ver.1, transport@aytos.bg"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "candidate": {
+      "type": "analyzer_spec_md_absent",
+      "unadjudicated_type": null,
+      "decision": "unreviewed",
+      "reason": "No verdict recorded for this rule in fp_adjudication.tsv.",
+      "feed_id": "ntd-60097",
+      "provider": "Midland-Odessa Urban Transit District",
+      "country": "US",
+      "url": "https://files.mobilitydatabase.org/ntd-60097/latest.zip",
+      "analyzer_rule": "STM_009",
+      "analyzer_count": 23,
+      "analyzer_class": "SPEC",
+      "analyzer_severity": "HIGH",
+      "mapped_md_codes": [
+        "unexpected_enum_value"
+      ],
+      "analyzer_sample": {
+        "id": "k2/STM_009#207",
+        "rule_id": "STM_009",
+        "severity": "HIGH",
+        "rule_class": "SPEC",
+        "entity_type": "Trip",
+        "entity_id": "698",
+        "scope_key": "698",
+        "file": "stop_times.txt",
+        "line": 10163,
+        "field": "pickup_type",
+        "observed_value": "Bath & Beyond)",
+        "expected_value": "0-3",
+        "message": "Trip '698': pickup_type 'Bath & Beyond)' is invalid.",
+        "remediation": "Set the field to a valid GTFS pickup/drop-off enum value (0–3)."
+      },
+      "priority": 92
+    },
+    "audit_input_classification": null,
+    "audit_zip_sha256": "803bf6c4e64b0fc1e17c13697f58b6476ae428fc28d1ae6cc4cfb4f3bd62f157",
+    "url": "https://files.mobilitydatabase.org/ntd-60097/latest.zip",
+    "download_exit": 0,
+    "redownload_sha256": "803bf6c4e64b0fc1e17c13697f58b6476ae428fc28d1ae6cc4cfb4f3bd62f157",
+    "evidence_status": "SAME_AS_AUDIT_INPUT",
+    "archive_files": [
+      "agency.txt",
+      "calendar.txt",
+      "calendar_dates.txt",
+      "fare_attributes.txt",
+      "fare_rules.txt",
+      "frequencies.txt",
+      "routes.txt",
+      "shapes.txt",
+      "stops.txt",
+      "stop_times.txt",
+      "trips.txt",
+      "transfers.txt"
+    ],
+    "refs": [
+      [
+        "stop_times.txt",
+        10163
+      ]
+    ],
+    "contexts": [
+      {
+        "file": "stop_times.txt",
+        "requested_line": 10163,
+        "context": [
+          {
+            "line": 10161,
+            "text": "698,06:38:00,06:38:00,445,23,24- 250 svc rd. (The Commons),0,0"
+          },
+          {
+            "line": 10162,
+            "text": "698,06:39:00,06:39:00,446,24,25- Midland Park Mall,0,0"
+          },
+          {
+            "line": 10163,
+            "text": "698,06:40:00,06:40:00,641,25,26- 250 svc rd. (Bed, Bath & Beyond),0,0"
+          },
+          {
+            "line": 10164,
+            "text": "698,06:41:00,06:41:00,448,26,27- 250 svc rd. & Ward,0,0"
+          },
+          {
+            "line": 10165,
+            "text": "698,06:42:00,06:42:00,449,27,28- 250 svc rd. (MVSC),0,0"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "candidate": {
+      "type": "analyzer_spec_md_absent",
+      "unadjudicated_type": null,
+      "decision": "unreviewed",
+      "reason": "No verdict recorded for this rule in fp_adjudication.tsv.",
+      "feed_id": "tdg-80694",
+      "provider": "Tours Métropole Val de Loire",
+      "country": "FR",
+      "url": "https://files.mobilitydatabase.org/tdg-80694/latest.zip",
+      "analyzer_rule": "BKR_001",
+      "analyzer_count": 1,
+      "analyzer_class": "SPEC",
+      "analyzer_severity": "HIGH",
+      "mapped_md_codes": [
+        "forbidden_prior_day_booking_field_value"
+      ],
+      "analyzer_sample": {
+        "id": "k2/BKR_001#18",
+        "rule_id": "BKR_001",
+        "severity": "HIGH",
+        "rule_class": "SPEC",
+        "entity_type": "Row",
+        "entity_id": "1",
+        "scope_key": "1",
+        "file": "booking_rules.txt",
+        "line": 2,
+        "field": "prior_notice_start_day",
+        "observed_value": "1",
+        "expected_value": "(boş)",
+        "message": "Booking rule '1': prior_notice_start_day is set in a prohibited context.",
+        "remediation": "Use prior-day-based fields only with booking_type=2."
+      },
+      "priority": 92
+    },
+    "audit_input_classification": null,
+    "audit_zip_sha256": "6215932d58ae1330d8c849ff9980055d5ece0994ffd4393dae1015419a74b060",
+    "url": "https://files.mobilitydatabase.org/tdg-80694/latest.zip",
+    "download_exit": 0,
+    "redownload_sha256": "6215932d58ae1330d8c849ff9980055d5ece0994ffd4393dae1015419a74b060",
+    "evidence_status": "SAME_AS_AUDIT_INPUT",
+    "archive_files": [
+      "trips.txt",
+      "routes.txt",
+      "booking_rules.txt",
+      "calendar_dates.txt",
+      "stops.txt",
+      "feed_infos.txt",
+      "calendar.txt",
+      "shapes.txt",
+      "agency.txt",
+      "stop_times.txt"
+    ],
+    "refs": [
+      [
+        "booking_rules.txt",
+        2
+      ]
+    ],
+    "contexts": [
+      {
+        "file": "booking_rules.txt",
+        "requested_line": 2,
+        "context": [
+          {
+            "line": 1,
+            "text": "booking_rule_id,booking_type,prior_notice_duration_min,prior_notice_duration_max,prior_notice_last_day,prior_notice_last_time,prior_notice_start_day,prior_notice_start_time,prior_notice_service_id,message,pickup_message,drop_off_message,phone_number,info_url,booking_url"
+          },
+          {
+            "line": 2,
+            "text": "\"1\",\"1\",\"30\",\"30240\",\"\",\"\",\"21\",\"00:00:00.0000000\",\"\",\"Ce trajet est uniquement desservi sur réservation et il n'est pas accessible aux usagers en fauteuil roulant. Toutes les informations complémentaires sur https://www.filbleu.fr/services/resabus\",\"\",\"\",\"0247667070\",\"https://www.filbleu.fr/services/resabus\",\"https://www.filbleu.fr/services/resabus\""
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "candidate": {
+      "type": "analyzer_spec_md_absent",
+      "unadjudicated_type": null,
+      "decision": "unreviewed",
+      "reason": "No verdict recorded for this rule in fp_adjudication.tsv.",
+      "feed_id": "tdg-80694",
+      "provider": "Tours Métropole Val de Loire",
+      "country": "FR",
+      "url": "https://files.mobilitydatabase.org/tdg-80694/latest.zip",
+      "analyzer_rule": "BKR_024",
+      "analyzer_count": 1,
+      "analyzer_class": "SPEC",
+      "analyzer_severity": "MEDIUM",
+      "mapped_md_codes": [
+        "forbidden_prior_notice_start_day"
+      ],
+      "analyzer_sample": {
+        "id": "k2/BKR_024#20",
+        "rule_id": "BKR_024",
+        "severity": "MEDIUM",
+        "rule_class": "SPEC",
+        "entity_type": "Row",
+        "entity_id": "1",
+        "scope_key": "1",
+        "file": "booking_rules.txt",
+        "line": 2,
+        "field": "prior_notice_start_day",
+        "observed_value": "21",
+        "expected_value": "(boş)",
+        "message": "booking_type=1 ve prior_notice_duration_max tanımlıyken prior_notice_start_day yasaktır.",
+        "remediation": "prior_notice_start_day alanını boşaltın ya da prior_notice_duration_max'i kaldırın."
+      },
+      "priority": 92
+    },
+    "audit_input_classification": null,
+    "audit_zip_sha256": "6215932d58ae1330d8c849ff9980055d5ece0994ffd4393dae1015419a74b060",
+    "url": "https://files.mobilitydatabase.org/tdg-80694/latest.zip",
+    "download_exit": 0,
+    "redownload_sha256": "6215932d58ae1330d8c849ff9980055d5ece0994ffd4393dae1015419a74b060",
+    "evidence_status": "SAME_AS_AUDIT_INPUT",
+    "archive_files": [
+      "trips.txt",
+      "routes.txt",
+      "booking_rules.txt",
+      "calendar_dates.txt",
+      "stops.txt",
+      "feed_infos.txt",
+      "calendar.txt",
+      "shapes.txt",
+      "agency.txt",
+      "stop_times.txt"
+    ],
+    "refs": [
+      [
+        "booking_rules.txt",
+        2
+      ]
+    ],
+    "contexts": [
+      {
+        "file": "booking_rules.txt",
+        "requested_line": 2,
+        "context": [
+          {
+            "line": 1,
+            "text": "booking_rule_id,booking_type,prior_notice_duration_min,prior_notice_duration_max,prior_notice_last_day,prior_notice_last_time,prior_notice_start_day,prior_notice_start_time,prior_notice_service_id,message,pickup_message,drop_off_message,phone_number,info_url,booking_url"
+          },
+          {
+            "line": 2,
+            "text": "\"1\",\"1\",\"30\",\"30240\",\"\",\"\",\"21\",\"00:00:00.0000000\",\"\",\"Ce trajet est uniquement desservi sur réservation et il n'est pas accessible aux usagers en fauteuil roulant. Toutes les informations complémentaires sur https://www.filbleu.fr/services/resabus\",\"\",\"\",\"0247667070\",\"https://www.filbleu.fr/services/resabus\",\"https://www.filbleu.fr/services/resabus\""
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "candidate": {
+      "type": "analyzer_spec_md_absent",
+      "unadjudicated_type": null,
+      "decision": "unreviewed",
+      "reason": "No verdict recorded for this rule in fp_adjudication.tsv.",
+      "feed_id": "tdg-81648",
+      "provider": "Oise Mobilité - Syndicat mixte des transports collectifs de l'Oise",
+      "country": "FR",
+      "url": "https://files.mobilitydatabase.org/tdg-81648/latest.zip",
+      "analyzer_rule": "LOC_001",
+      "analyzer_count": 1,
+      "analyzer_class": "SPEC",
+      "analyzer_severity": "HIGH",
+      "mapped_md_codes": [
+        "unsupported_geometry_type"
+      ],
+      "analyzer_sample": {
+        "id": "k1/LOC_001#105",
+        "rule_id": "LOC_001",
+        "severity": "HIGH",
+        "rule_class": "SPEC",
+        "entity_type": "File",
+        "entity_id": "locations.geojson",
+        "file": "locations.geojson",
+        "observed_value": "JSON hatası: expected value at line 1 column 1",
+        "message": "Invalid geometry type in locations.geojson: 'JSON hatası: expected value at line 1 column 1'.",
+        "remediation": "Ensure locations.geojson contains only Polygon or MultiPolygon feature geometries."
+      },
+      "priority": 92
+    },
+    "audit_input_classification": null,
+    "audit_zip_sha256": "b644752247d28ce2e1bf4e072859f154547ea7b1756f519da9008b4bfb4266e8",
+    "url": "https://files.mobilitydatabase.org/tdg-81648/latest.zip",
+    "download_exit": 0,
+    "redownload_sha256": "b644752247d28ce2e1bf4e072859f154547ea7b1756f519da9008b4bfb4266e8",
+    "evidence_status": "SAME_AS_AUDIT_INPUT",
+    "archive_files": [
+      "agency.txt",
+      "calendar.txt",
+      "calendar_dates.txt",
+      "locations.geojson",
+      "location_groups.txt",
+      "routes.txt",
+      "stops.txt",
+      "stop_times.txt",
+      "trips.txt"
+    ],
+    "refs": [],
+    "contexts": []
+  },
+  {
+    "candidate": {
+      "type": "analyzer_mapped_md_absent",
+      "unadjudicated_type": null,
+      "decision": "unreviewed",
+      "reason": "No verdict recorded for this rule in fp_adjudication.tsv.",
+      "feed_id": "jbda-awajicity-awajinawahimebus",
+      "provider": "淡路市",
+      "country": "JP",
+      "url": "https://files.mobilitydatabase.org/jbda-awajicity-awajinawahimebus/latest.zip",
+      "analyzer_rule": "GEO_022",
+      "analyzer_count": 2,
+      "analyzer_class": "QUALITY",
+      "analyzer_severity": "HIGH",
+      "mapped_md_codes": [
+        "point_near_pole"
+      ],
+      "analyzer_sample": {
+        "id": "k6/GEO_022#56",
+        "rule_id": "GEO_022",
+        "severity": "HIGH",
+        "rule_class": "QUALITY",
+        "entity_type": "Stop",
+        "entity_id": "131_01",
+        "scope_key": "131_01",
+        "file": "stops.txt",
+        "line": 55,
+        "field": "stop_lat",
+        "observed_value": "134.985354",
+        "message": "Stop '131_01': latitude 134.985354 is extremely close to a pole (|lat| > 89) — likely a coordinate error.",
+        "remediation": "Verify that stop_lat reflects the real location."
+      },
+      "priority": 80
+    },
+    "audit_input_classification": null,
+    "audit_zip_sha256": "2a92c9e2ccea77e93b5171e48298c8360ff5f96826c209035c717e14ace439ea",
+    "url": "https://files.mobilitydatabase.org/jbda-awajicity-awajinawahimebus/latest.zip",
+    "download_exit": 0,
+    "redownload_sha256": "2a92c9e2ccea77e93b5171e48298c8360ff5f96826c209035c717e14ace439ea",
+    "evidence_status": "SAME_AS_AUDIT_INPUT",
+    "archive_files": [
+      "agency.txt",
+      "calendar.txt",
+      "calendar_dates.txt",
+      "fare_attributes.txt",
+      "fare_rules.txt",
+      "feed_info.txt",
+      "routes.txt",
+      "stop_times.txt",
+      "stops.txt",
+      "transfers.txt",
+      "translations.txt",
+      "trips.txt"
+    ],
+    "refs": [
+      [
+        "stops.txt",
+        55
+      ]
+    ],
+    "contexts": [
+      {
+        "file": "stops.txt",
+        "requested_line": 55,
+        "context": [
+          {
+            "line": 53,
+            "text": "13_01,,佐野交番前,,34.46545,134.94029,13_01,,0,"
+          },
+          {
+            "line": 54,
+            "text": "13_02,,佐野交番前,,34.46552,134.94026,13_02,,0,"
+          },
+          {
+            "line": 55,
+            "text": "131_01,,禅坊靖寧前,,134.985353945363,34.5792786803052,131_01,,0,"
+          },
+          {
+            "line": 56,
+            "text": "131_02,,禅坊靖寧前,,134.985404310928,34.5792003943172,131_02,,0,"
+          },
+          {
+            "line": 57,
+            "text": "14_01,,佐野,,34.46348,134.93818,14_01,,0,"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "candidate": {
+      "type": "analyzer_mapped_md_absent",
+      "unadjudicated_type": null,
+      "decision": "unreviewed",
+      "reason": "No verdict recorded for this rule in fp_adjudication.tsv.",
+      "feed_id": "jbda-awajicity-awajinawahimebus",
+      "provider": "淡路市",
+      "country": "JP",
+      "url": "https://files.mobilitydatabase.org/jbda-awajicity-awajinawahimebus/latest.zip",
+      "analyzer_rule": "STM_061",
+      "analyzer_count": 2,
+      "analyzer_class": "INTEROP",
+      "analyzer_severity": "HIGH",
+      "mapped_md_codes": [
+        "fast_travel_between_far_stops"
+      ],
+      "analyzer_sample": {
+        "id": "k6/STM_061#571",
+        "rule_id": "STM_061",
+        "severity": "HIGH",
+        "rule_class": "INTEROP",
+        "entity_type": "Route",
+        "entity_id": "40:0:124_01→131_01",
+        "scope_key": "40",
+        "file": "stop_times.txt",
+        "line": 6055,
+        "field": "arrival_time",
+        "observed_value": "99383 km/h (6625.5 km)",
+        "expected_value": "<= 120 km/h",
+        "details": {
+          "direction_id": "0",
+          "dist_km": "6625.5",
+          "route_id": "40",
+          "route_label": "40",
+          "speed_max": "99383",
+          "speed_min": "99383",
+          "stop_a": "124_01",
+          "stop_b": "131_01",
+          "trip_count": "8",
+          "trips": "3周遊観光_09時30分_系統401001,3周遊観光_10時55分_系統401001,3周遊観光_12時00分_系統401001,3周遊観光_12時50分_系統401001,3周遊観光_13時50分_系統401001,3周遊観光_14時50分_系統401001,3周遊観光_15時25分_系統401001,3周遊観光_16時25分_系統401001"
+        },
+        "message": "Route '40' (direction 0): 6625.5 km straight-line between stops 124_01 and 131_01, which are not consecutive, covered at 99383 km/h (6625.5 km) across 8 trip(s) (limit: <= 120 km/h).",
+        "remediation": "Check the arrival and departure times between the distant stop pair; usually a time block has shifted or a past-midnight time was written without the 24+ hour form."
+      },
+      "priority": 80
+    },
+    "audit_input_classification": null,
+    "audit_zip_sha256": "2a92c9e2ccea77e93b5171e48298c8360ff5f96826c209035c717e14ace439ea",
+    "url": "https://files.mobilitydatabase.org/jbda-awajicity-awajinawahimebus/latest.zip",
+    "download_exit": 0,
+    "redownload_sha256": "2a92c9e2ccea77e93b5171e48298c8360ff5f96826c209035c717e14ace439ea",
+    "evidence_status": "SAME_AS_AUDIT_INPUT",
+    "archive_files": [
+      "agency.txt",
+      "calendar.txt",
+      "calendar_dates.txt",
+      "fare_attributes.txt",
+      "fare_rules.txt",
+      "feed_info.txt",
+      "routes.txt",
+      "stop_times.txt",
+      "stops.txt",
+      "transfers.txt",
+      "translations.txt",
+      "trips.txt"
+    ],
+    "refs": [
+      [
+        "stop_times.txt",
+        6055
+      ]
+    ],
+    "contexts": [
+      {
+        "file": "stop_times.txt",
+        "requested_line": 6055,
+        "context": [
+          {
+            "line": 6053,
+            "text": "3周遊観光_09時30分_系統401001,10:12:00,10:12:00,124_01,11,時計回り岩屋ポートターミナル,0,0"
+          },
+          {
+            "line": 6054,
+            "text": "3周遊観光_09時30分_系統401001,10:14:00,10:14:00,107_01,12,時計回り岩屋ポートターミナル,0,0"
+          },
+          {
+            "line": 6055,
+            "text": "3周遊観光_09時30分_系統401001,10:16:00,10:16:00,131_01,13,時計回り岩屋ポートターミナル,0,0"
+          },
+          {
+            "line": 6056,
+            "text": "3周遊観光_09時30分_系統401001,10:20:00,10:20:00,106_01,14,時計回り岩屋ポートターミナル,0,0"
+          },
+          {
+            "line": 6057,
+            "text": "3周遊観光_09時30分_系統401001,10:23:00,10:23:00,105_01,15,時計回り岩屋ポートターミナル,0,0"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "candidate": {
+      "type": "analyzer_mapped_md_absent",
+      "unadjudicated_type": null,
+      "decision": "unreviewed",
+      "reason": "No verdict recorded for this rule in fp_adjudication.tsv.",
+      "feed_id": "jbda-ishikariwanshinko-on-demandtransit_itsumo",
+      "provider": "石狩湾新港地域公共交通サービス推進協議会",
+      "country": "JP",
+      "url": "https://files.mobilitydatabase.org/jbda-ishikariwanshinko-on-demandtransit_itsumo/latest.zip",
+      "analyzer_rule": "FIN_013",
+      "analyzer_count": 1,
+      "analyzer_class": "QUALITY",
+      "analyzer_severity": "INFO",
+      "mapped_md_codes": [
+        "missing_recommended_field"
+      ],
+      "analyzer_sample": {
+        "id": "k4/FIN_013#28",
+        "rule_id": "FIN_013",
+        "severity": "INFO",
+        "rule_class": "QUALITY",
+        "entity_type": "Feed",
+        "file": "fare_attributes.txt",
+        "field": "agency_id",
+        "observed_value": "9 eksik kayıt",
+        "expected_value": "dolu",
+        "message": "fare_attributes: agency_id is recommended but missing.",
+        "remediation": "Fill in agency_id in fare_attributes.txt to clarify which agency each fare belongs to."
+      },
+      "priority": 80
+    },
+    "audit_input_classification": null,
+    "audit_zip_sha256": "486c4126088830867532f123e51ab8e730e873ddb39febad434e902e6b301356",
+    "url": "https://files.mobilitydatabase.org/jbda-ishikariwanshinko-on-demandtransit_itsumo/latest.zip",
+    "download_exit": 0,
+    "redownload_sha256": "486c4126088830867532f123e51ab8e730e873ddb39febad434e902e6b301356",
+    "evidence_status": "SAME_AS_AUDIT_INPUT",
+    "archive_files": [
+      "stop_times.txt",
+      "stops.txt",
+      "transfers.txt",
+      "translations.txt",
+      "trips.txt",
+      "agency.txt",
+      "calendar.txt",
+      "calendar_dates.txt",
+      "fare_attributes.txt",
+      "fare_rules.txt",
+      "feed_info.txt",
+      "routes.txt"
+    ],
+    "refs": [
+      [
+        "fare_attributes.txt",
+        null
+      ]
+    ],
+    "contexts": [
+      {
+        "file": "fare_attributes.txt",
+        "requested_line": null,
+        "context": [
+          {
+            "line": 1,
+            "text": "fare_id,price,currency_type,payment_method,transfers"
+          },
+          {
+            "line": 2,
+            "text": "300,300,JPY,0,0"
+          },
+          {
+            "line": 3,
+            "text": "500,500,JPY,0,0"
+          },
+          {
+            "line": 4,
+            "text": "不可,不可,JPY,0,0"
+          },
+          {
+            "line": 5,
+            "text": "600,600,JPY,0,0"
+          },
+          {
+            "line": 6,
+            "text": "800,800,JPY,0,0"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "candidate": {
+      "type": "analyzer_mapped_md_absent",
+      "unadjudicated_type": null,
+      "decision": "unreviewed",
+      "reason": "No verdict recorded for this rule in fp_adjudication.tsv.",
+      "feed_id": "jbda-kagoshimacity-aibus",
+      "provider": "鹿児島市",
+      "country": "JP",
+      "url": "https://files.mobilitydatabase.org/jbda-kagoshimacity-aibus/latest.zip",
+      "analyzer_rule": "CAL_014",
+      "analyzer_count": 3,
+      "analyzer_class": "QUALITY",
+      "analyzer_severity": "LOW",
+      "mapped_md_codes": [
+        "service_window_outside_feed_period"
+      ],
+      "analyzer_sample": {
+        "id": "k6/CAL_014#66",
+        "rule_id": "CAL_014",
+        "severity": "LOW",
+        "rule_class": "QUALITY",
+        "entity_type": "Service",
+        "entity_id": "日曜以外",
+        "scope_key": "日曜以外",
+        "file": "calendar.txt",
+        "message": "Service '日曜以外': dates fall outside the feed_info validity range.",
+        "remediation": "Update feed_start_date/feed_end_date in feed_info.txt to cover the service date range."
+      },
+      "priority": 80
+    },
+    "audit_input_classification": null,
+    "audit_zip_sha256": "eb6ff592643022132391f59a7fa0e0324f076287d8520106efd968b82a4f4f9b",
+    "url": "https://files.mobilitydatabase.org/jbda-kagoshimacity-aibus/latest.zip",
+    "download_exit": 0,
+    "redownload_sha256": "eb6ff592643022132391f59a7fa0e0324f076287d8520106efd968b82a4f4f9b",
+    "evidence_status": "SAME_AS_AUDIT_INPUT",
+    "archive_files": [
+      "agency_jp.txt",
+      "calendar.txt",
+      "calendar_dates.txt",
+      "fare_attributes.txt",
+      "fare_rules.txt",
+      "feed_info.txt",
+      "routes.txt",
+      "stop_times.txt",
+      "stops.txt",
+      "transfers.txt",
+      "translations.txt",
+      "trips.txt",
+      "agency.txt"
+    ],
+    "refs": [
+      [
+        "calendar.txt",
+        null
+      ]
+    ],
+    "contexts": [
+      {
+        "file": "calendar.txt",
+        "requested_line": null,
+        "context": [
+          {
+            "line": 1,
+            "text": "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date"
+          },
+          {
+            "line": 2,
+            "text": "火木土,0,1,0,1,0,1,0,20260401,20270331"
+          },
+          {
+            "line": 3,
+            "text": "月水金,1,0,1,0,1,0,0,20260401,20270331"
+          },
+          {
+            "line": 4,
+            "text": "日曜以外,1,1,1,1,1,1,0,20260401,20270331"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "candidate": {
+      "type": "analyzer_mapped_md_absent",
+      "unadjudicated_type": null,
+      "decision": "unreviewed",
+      "reason": "Verdict NOT_ADJUDICATED (run 32311885577) claims a change was made; a fresh occurrence is a regression and stays visible. Yalnız 1 ortak feed var (biz 7, MD 17) - bu taban oran hesabı için YETERSİZ. 73 satırın çoğu MD'nin hiç konuşmadığı feed'lerde. Okunmadı.",
+      "feed_id": "jbda-mizuhotown-DemandResponsiveTransport",
+      "provider": "瑞穂町",
+      "country": "JP",
+      "url": "https://files.mobilitydatabase.org/jbda-mizuhotown-DemandResponsiveTransport/latest.zip",
+      "analyzer_rule": "PDW_006",
+      "analyzer_count": 2,
+      "analyzer_class": "ANALYTICS",
+      "analyzer_severity": "MEDIUM",
+      "mapped_md_codes": [
+        "missing_pickup_or_drop_off_window"
+      ],
+      "analyzer_sample": {
+        "id": "k6/PDW_006#153",
+        "rule_id": "PDW_006",
+        "severity": "MEDIUM",
+        "rule_class": "ANALYTICS",
+        "entity_type": "Trip",
+        "entity_id": "east_trip",
+        "scope_key": "east_trip",
+        "file": "stop_times.txt",
+        "line": 3,
+        "field": "start_pickup_drop_off_window",
+        "message": "Trip 'east_trip': overlapping pickup/drop-off windows for the same trip+zone.",
+        "remediation": "Ensure time windows within the same trip+zone do not overlap."
+      },
+      "priority": 80
+    },
+    "audit_input_classification": null,
+    "audit_zip_sha256": "ada29cbd7e513c4840009056bea1c031eb405d5450616b5d5c8201d98857d5bc",
+    "url": "https://files.mobilitydatabase.org/jbda-mizuhotown-DemandResponsiveTransport/latest.zip",
+    "download_exit": 0,
+    "redownload_sha256": "ada29cbd7e513c4840009056bea1c031eb405d5450616b5d5c8201d98857d5bc",
+    "evidence_status": "SAME_AS_AUDIT_INPUT",
+    "archive_files": [
+      "agency.txt",
+      "booking_rules.txt",
+      "calendar.txt",
+      "calendar_dates.txt",
+      "feed_info.txt",
+      "location_group_stops.txt",
+      "location_groups.txt",
+      "routes.txt",
+      "stop_times.txt",
+      "stops.txt",
+      "translations.txt",
+      "trips.txt"
+    ],
+    "refs": [
+      [
+        "stop_times.txt",
+        3
+      ]
+    ],
+    "contexts": [
+      {
+        "file": "stop_times.txt",
+        "requested_line": 3,
+        "context": [
+          {
+            "line": 1,
+            "text": "trip_id,location_group_id,stop_sequence,start_pickup_drop_off_window,end_pickup_drop_off_window,pickup_type,drop_off_type,pickup_booking_rule_id,drop_off_booking_rule_id,timepoint"
+          },
+          {
+            "line": 2,
+            "text": "east_trip,mizuhomachi_group,1,09:00:00,17:00:00,2,1,general,,1"
+          },
+          {
+            "line": 3,
+            "text": "east_trip,mizuhomachi_group,2,09:00:00,17:00:00,1,2,,general,1"
+          },
+          {
+            "line": 4,
+            "text": "west_trip,mizuhomachi_group,1,09:00:00,17:00:00,2,1,general,,1"
+          },
+          {
+            "line": 5,
+            "text": "west_trip,mizuhomachi_group,2,09:00:00,17:00:00,1,2,,general,1"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "candidate": {
+      "type": "analyzer_mapped_md_absent",
+      "unadjudicated_type": null,
+      "decision": "unreviewed",
+      "reason": "No verdict recorded for this rule in fp_adjudication.tsv.",
+      "feed_id": "mdb-1003",
+      "provider": "TRAM Barcelona (Tranvía Metropolitano Barcelona)",
+      "country": "ES",
+      "url": "https://files.mobilitydatabase.org/mdb-1003/latest.zip",
+      "analyzer_rule": "FIN_015",
+      "analyzer_count": 1,
+      "analyzer_class": "QUALITY",
+      "analyzer_severity": "MEDIUM",
+      "mapped_md_codes": [
+        "more_than_one_entity"
+      ],
+      "analyzer_sample": {
+        "id": "k2/FIN_015#178",
+        "rule_id": "FIN_015",
+        "severity": "MEDIUM",
+        "rule_class": "QUALITY",
+        "entity_type": "Feed",
+        "file": "feed_info.txt",
+        "observed_value": "2",
+        "expected_value": "1",
+        "message": "feed_info.txt: multiple records found.",
+        "remediation": "Keep only one record in feed_info.txt."
+      },
+      "priority": 80
+    },
+    "audit_input_classification": null,
+    "audit_zip_sha256": "d2b3c257fcd8cb02fc3f251f1730b8036da3e77d7b09d2ef7d30b3f482cf61d1",
+    "url": "https://files.mobilitydatabase.org/mdb-1003/latest.zip",
+    "download_exit": 0,
+    "redownload_sha256": "d2b3c257fcd8cb02fc3f251f1730b8036da3e77d7b09d2ef7d30b3f482cf61d1",
+    "evidence_status": "SAME_AS_AUDIT_INPUT",
+    "archive_files": [
+      "agency.txt",
+      "calendar.txt",
+      "calendar_dates.txt",
+      "feed_info.txt",
+      "routes.txt",
+      "shapes.txt",
+      "stops.txt",
+      "stop_times.txt",
+      "trips.txt"
+    ],
+    "refs": [
+      [
+        "feed_info.txt",
+        null
+      ]
+    ],
+    "contexts": [
+      {
+        "file": "feed_info.txt",
+        "requested_line": null,
+        "context": [
+          {
+            "line": 1,
+            "text": "feed_publisher_name,feed_publisher_url,feed_lang,feed_start_date,feed_end_date,feed_contact_url,feed_version"
+          },
+          {
+            "line": 2,
+            "text": "TRAM,https://www.tram.cat,ca,20240508,20261231,https://tram.cat/ca/canals-de-contacte,68"
+          },
+          {
+            "line": 3,
+            "text": "feed_publisher_name,feed_publisher_url,feed_lang,feed_start_date,feed_end_date,feed_contact_url,feed_version"
+          },
+          {
+            "line": 4,
+            "text": "TRAM,https://www.tram.cat,ca,20240508,20261231,https://tram.cat/ca/canals-de-contacte,68"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "candidate": {
+      "type": "analyzer_mapped_md_absent",
+      "unadjudicated_type": null,
+      "decision": "unreviewed",
+      "reason": "No verdict recorded for this rule in fp_adjudication.tsv.",
+      "feed_id": "mdb-1003",
+      "provider": "TRAM Barcelona (Tranvía Metropolitano Barcelona)",
+      "country": "ES",
+      "url": "https://files.mobilitydatabase.org/mdb-1003/latest.zip",
+      "analyzer_rule": "STP_035",
+      "analyzer_count": 6,
+      "analyzer_class": "QUALITY",
+      "analyzer_severity": "LOW",
+      "mapped_md_codes": [
+        "same_stop_and_route_url"
+      ],
+      "analyzer_sample": {
+        "id": "k6/STP_035#31857",
+        "rule_id": "STP_035",
+        "severity": "LOW",
+        "rule_class": "QUALITY",
+        "entity_type": "Stop",
+        "entity_id": "1",
+        "scope_key": "1",
+        "file": "stops.txt",
+        "line": 30,
+        "field": "stop_url",
+        "observed_value": "http://www.tram.cat/linies-i-horaris/linea-t1/",
+        "details": {
+          "additional_stop_count": "16",
+          "normalized_url": "http://www.tram.cat/linies-i-horaris/linea-t1/",
+          "representative_stop_ids": "1,10,11,12,13",
+          "stop_count": "21"
+        },
+        "message": "Stop '1': stop_url matches a route URL.",
+        "remediation": "Point stop_url to a stop-specific page or leave it empty."
+      },
+      "priority": 80
+    },
+    "audit_input_classification": null,
+    "audit_zip_sha256": "d2b3c257fcd8cb02fc3f251f1730b8036da3e77d7b09d2ef7d30b3f482cf61d1",
+    "url": "https://files.mobilitydatabase.org/mdb-1003/latest.zip",
+    "download_exit": 0,
+    "redownload_sha256": "d2b3c257fcd8cb02fc3f251f1730b8036da3e77d7b09d2ef7d30b3f482cf61d1",
+    "evidence_status": "SAME_AS_AUDIT_INPUT",
+    "archive_files": [
+      "agency.txt",
+      "calendar.txt",
+      "calendar_dates.txt",
+      "feed_info.txt",
+      "routes.txt",
+      "shapes.txt",
+      "stops.txt",
+      "stop_times.txt",
+      "trips.txt"
+    ],
+    "refs": [
+      [
+        "stops.txt",
+        30
+      ]
+    ],
+    "contexts": [
+      {
+        "file": "stops.txt",
+        "requested_line": 30,
+        "context": [
+          {
+            "line": 28,
+            "text": "8,El Maresme,Correspondència amb Metro L4,41.410489,2.215631,http://www.tram.cat/linies-i-horaris/linea-t4/,1"
+          },
+          {
+            "line": 29,
+            "text": "9,Fòrum,,41.411828,2.219850,http://www.tram.cat/linies-i-horaris/linea-t4/,1"
+          },
+          {
+            "line": 30,
+            "text": "stop_id,stop_name,stop_desc,stop_lat,stop_lon,stop_url,wheelchair_boarding"
+          },
+          {
+            "line": 31,
+            "text": "1,Francesc Macià,,41.392206,2.143175,http://www.tram.cat/linies-i-horaris/linea-t1/,1"
+          },
+          {
+            "line": 32,
+            "text": "10,Avinguda de Xile,,41.380739,2.114836,http://www.tram.cat/linies-i-horaris/linea-t1/,1"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "candidate": {
+      "type": "analyzer_mapped_md_absent",
+      "unadjudicated_type": null,
+      "decision": "unreviewed",
+      "reason": "No verdict recorded for this rule in fp_adjudication.tsv.",
+      "feed_id": "mdb-1011",
+      "provider": "Koleje Mazowieckie (KM)",
+      "country": "PL",
+      "url": "https://files.mobilitydatabase.org/mdb-1011/latest.zip",
+      "analyzer_rule": "XFL_021",
+      "analyzer_count": 2,
+      "analyzer_class": "INTEROP",
+      "analyzer_severity": "HIGH",
+      "mapped_md_codes": [
+        "transfer_with_invalid_trip_and_stop"
+      ],
+      "analyzer_sample": {
+        "id": "k4/XFL_021#4797",
+        "rule_id": "XFL_021",
+        "severity": "HIGH",
+        "rule_class": "INTEROP",
+        "entity_type": "Transfer",
+        "file": "transfers.txt",
+        "line": 196,
+        "field": "from_stop_id",
+        "observed_value": "39792",
+        "message": "Transfer: invalid (from_trip_id/to_trip_id, stop_id) pair.",
+        "remediation": "Replace from_stop_id/to_stop_id with a stop that is actually served by the referenced trip."
+      },
+      "priority": 80
+    },
+    "audit_input_classification": null,
+    "audit_zip_sha256": "80e179b15d0b13565d9d631f4d5d6a2e74c877bcc07dcfb0b2a86b303ce5962c",
+    "url": "https://files.mobilitydatabase.org/mdb-1011/latest.zip",
+    "download_exit": 0,
+    "redownload_sha256": "80e179b15d0b13565d9d631f4d5d6a2e74c877bcc07dcfb0b2a86b303ce5962c",
+    "evidence_status": "SAME_AS_AUDIT_INPUT",
+    "archive_files": [
+      "agency.txt",
+      "feed_info.txt",
+      "calendar_dates.txt",
+      "stops.txt",
+      "stop_times.txt",
+      "trips.txt",
+      "routes.txt",
+      "attributions.txt",
+      "transfers.txt",
+      "shapes.txt"
+    ],
+    "refs": [
+      [
+        "transfers.txt",
+        196
+      ]
+    ],
+    "contexts": [
+      {
+        "file": "transfers.txt",
+        "requested_line": 196,
+        "context": [
+          {
+            "line": 194,
+            "text": "38661,38661,1521_0,1521_1,1"
+          },
+          {
+            "line": 195,
+            "text": "38729,38729,1521_1,1521_2,1"
+          },
+          {
+            "line": 196,
+            "text": "39792,39792,1749_0,1749_1,1"
+          },
+          {
+            "line": 197,
+            "text": "34108,34108,1940_0,1940_1,1"
+          },
+          {
+            "line": 198,
+            "text": "34207,34207,1940_1,1940_2,1"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "candidate": {
+      "type": "analyzer_mapped_md_absent",
+      "unadjudicated_type": null,
+      "decision": "unreviewed",
+      "reason": "No verdict recorded for this rule in fp_adjudication.tsv.",
+      "feed_id": "mdb-1074",
+      "provider": "Total passenger (common total), NT_南投客運(公總) (Nantou Passenger Transport (Public Service)), NT_全航客運(公總) (All-air passenger (common total))",
+      "country": "TW",
+      "url": "https://openmobilitydata-data.s3.us-west-1.amazonaws.com/public/feeds/taiwan/958/20210316/gtfs.zip",
+      "analyzer_rule": "ARC_021",
+      "analyzer_count": 1,
+      "analyzer_class": "QUALITY",
+      "analyzer_severity": "LOW",
+      "mapped_md_codes": [
+        "non_ascii_or_non_printable_char",
+        "invalid_character"
+      ],
+      "analyzer_sample": {
+        "id": "k2/ARC_021#14",
+        "rule_id": "ARC_021",
+        "severity": "LOW",
+        "rule_class": "QUALITY",
+        "entity_type": "File",
+        "entity_id": "shapes.txt",
+        "scope_key": "shapes.txt",
+        "file": "shapes.txt",
+        "line": 2,
+        "observed_value": "U+0000",
+        "message": "Non-printable or problematic character in field '' of 'shapes.txt'.",
+        "remediation": "Remove control/non-printable characters from field values; valid Unicode letters (e.g. ü, ö, 漢字) are fine."
+      },
+      "priority": 80
+    },
+    "audit_input_classification": null,
+    "audit_zip_sha256": "fd3dab67989b68e308d7f5da3f9c6a8f8d2b56e9bcc54bbc4eadadcc36beda1f",
+    "url": "https://openmobilitydata-data.s3.us-west-1.amazonaws.com/public/feeds/taiwan/958/20210316/gtfs.zip",
+    "download_exit": 0,
+    "redownload_sha256": "fd3dab67989b68e308d7f5da3f9c6a8f8d2b56e9bcc54bbc4eadadcc36beda1f",
+    "evidence_status": "SAME_AS_AUDIT_INPUT",
+    "archive_files": [
+      "agency.txt",
+      "calendar.txt",
+      "routes.txt",
+      "shapes.txt",
+      "stops.txt",
+      "stop_times.txt",
+      "trips.txt"
+    ],
+    "refs": [
+      [
+        "shapes.txt",
+        2
+      ]
+    ],
+    "contexts": [
+      {
+        "file": "shapes.txt",
+        "requested_line": 2,
+        "context": [
+          {
+            "line": 1,
+            "text": "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence,shape_dist_traveled"
+          },
+          {
+            "line": 2,
+            "text": "NT_TY_070601,23.902329999999999,121.04012,139,\u0000"
+          },
+          {
+            "line": 3,
+            "text": "NT_TY_070601,23.902429999999999,121.04002,138,\u0000"
+          },
+          {
+            "line": 4,
+            "text": "NT_TY_070601,23.902480000000001,121.04028,140,\u0000"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "candidate": {
+      "type": "analyzer_mapped_md_absent",
+      "unadjudicated_type": null,
+      "decision": "unreviewed",
+      "reason": "No verdict recorded for this rule in fp_adjudication.tsv.",
+      "feed_id": "mdb-1105",
+      "provider": "HM Transport Inc. and Robinsons Malls, Froehlich Tours,RRCG Transport, Lingkod Pinoy Bus Liner, Inc., MetroExpress, Tas Trans",
+      "country": "PH",
+      "url": "https://files.mobilitydatabase.org/mdb-1105/latest.zip",
+      "analyzer_rule": "RTS_010",
+      "analyzer_count": 11,
+      "analyzer_class": "QUALITY",
+      "analyzer_severity": "LOW",
+      "mapped_md_codes": [
+        "route_short_name_too_long"
+      ],
+      "analyzer_sample": {
+        "id": "k2/RTS_010#232",
+        "rule_id": "RTS_010",
+        "severity": "LOW",
+        "rule_class": "QUALITY",
+        "entity_type": "Route",
+        "entity_id": "P2P_ALAFRT_1",
+        "scope_key": "P2P_ALAFRT_1",
+        "file": "routes.txt",
+        "line": 7,
+        "field": "route_short_name",
+        "observed_value": "44",
+        "expected_value": "≤12",
+        "message": "Route 'P2P_ALAFRT_1': route_short_name is too long.",
+        "remediation": "Keep route_short_name under 12 characters."
+      },
+      "priority": 80
+    },
+    "audit_input_classification": null,
+    "audit_zip_sha256": "959ef62271550f207b69c7b8538802798614e78ce3c6b404cd6b7b0bb7581831",
+    "url": "https://files.mobilitydatabase.org/mdb-1105/latest.zip",
+    "download_exit": 0,
+    "redownload_sha256": "959ef62271550f207b69c7b8538802798614e78ce3c6b404cd6b7b0bb7581831",
+    "evidence_status": "SAME_AS_AUDIT_INPUT",
+    "archive_files": [
+      "p2p-gtfs-master/",
+      "p2p-gtfs-master/README.md",
+      "p2p-gtfs-master/agency.txt",
+      "p2p-gtfs-master/calendar.txt",
+      "p2p-gtfs-master/fare_attributes.txt",
+      "p2p-gtfs-master/fare_rules.txt",
+      "p2p-gtfs-master/feed_info.txt",
+      "p2p-gtfs-master/frequencies.txt",
+      "p2p-gtfs-master/routes.txt",
+      "p2p-gtfs-master/stop_times.txt",
+      "p2p-gtfs-master/stops.txt",
+      "p2p-gtfs-master/trips.txt"
+    ],
+    "refs": [
+      [
+        "routes.txt",
+        7
+      ]
+    ],
+    "contexts": [
+      {
+        "file": "p2p-gtfs-master/routes.txt",
+        "requested_line": 7,
+        "context": [
+          {
+            "line": 5,
+            "text": "\"P2P_ALAMKT_1\",\"RRCG\",\"P2P Bus Alabang to Makati\",\"Alabang Town Center (Alabang) to Greenbelt 1 (Makati)\",\"3\""
+          },
+          {
+            "line": 6,
+            "text": "\"P2P_ALAMKT_2\",\"RRCG\",\"P2P Bus Alabang to Makati\",\"Ayala South Park (Alabang) to Greenbelt 5 (Makati)\",\"3\""
+          },
+          {
+            "line": 7,
+            "text": "\"P2P_ALAFRT_1\",\"ROBINSONS\",\"P2P Bus Alabang Town Center to Market Market\",\"Alabang Town Center to Market Market\",\"3\""
+          },
+          {
+            "line": 8,
+            "text": "\"P2P_FRVMKT_1\",\"LINGKODPINOY\",\"P2P Bus Fairview to Makati\",\"Robinson's Novaliches Car Park 2 (Fairview) to Glorietta 3 (Makati)\",\"3\""
+          },
+          {
+            "line": 9,
+            "text": "\"P2P_BCRALA_1\",\"METROEXPRESS\",\"P2P Bus Vista Mall - Starmall Alabang\",\"Vista Mall Daang Hari, Bacoor - Starmall Alabang\",\"3\""
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "candidate": {
+      "type": "analyzer_mapped_md_absent",
+      "unadjudicated_type": null,
+      "decision": "unreviewed",
+      "reason": "No verdict recorded for this rule in fp_adjudication.tsv.",
+      "feed_id": "mdb-1130",
+      "provider": "Mikkeli",
+      "country": "FI",
+      "url": "https://files.mobilitydatabase.org/mdb-1130/latest.zip",
+      "analyzer_rule": "RTS_020",
+      "analyzer_count": 17,
+      "analyzer_class": "QUALITY",
+      "analyzer_severity": "INFO",
+      "mapped_md_codes": [
+        "same_route_and_agency_url"
+      ],
+      "analyzer_sample": {
+        "id": "k6/RTS_020#357",
+        "rule_id": "RTS_020",
+        "severity": "INFO",
+        "rule_class": "QUALITY",
+        "entity_type": "Route",
+        "entity_id": "101",
+        "scope_key": "101",
+        "file": "routes.txt",
+        "line": 16,
+        "field": "route_url",
+        "observed_value": "https://www.mikkeli.fi/sisalto/palvelut/joukkoliikenne-2",
+        "message": "Route '101': route_url and agency_url are identical.",
+        "remediation": "Point route_url to a route-specific page or leave it empty."
+      },
+      "priority": 80
+    },
+    "audit_input_classification": null,
+    "audit_zip_sha256": "aba0dbceb7b6866ea6d7b94307e05f955ed90d4f2fb413968cf5594a7ad3d922",
+    "url": "https://files.mobilitydatabase.org/mdb-1130/latest.zip",
+    "download_exit": 0,
+    "redownload_sha256": "aba0dbceb7b6866ea6d7b94307e05f955ed90d4f2fb413968cf5594a7ad3d922",
+    "evidence_status": "SAME_AS_AUDIT_INPUT",
+    "archive_files": [
+      "stops.txt",
+      "agency.txt",
+      "contracts.txt",
+      "extended_contracts.txt",
+      "extended_contracts_costs.txt",
+      "extended_contracts_calendar_settings.txt",
+      "routes.txt",
+      "calendar.txt",
+      "calendar_dates.txt",
+      "trips.txt",
+      "stop_times.txt",
+      "translations.txt",
+      "shapes.txt",
+      "transfers.txt",
+      "feed_info.txt",
+      "emissions.txt",
+      "tdm-blocks.txt",
+      "vehicle_groups.txt",
+      "tdm-settings.txt"
+    ],
+    "refs": [
+      [
+        "routes.txt",
+        16
+      ]
+    ],
+    "contexts": [
+      {
+        "file": "routes.txt",
+        "requested_line": 16,
+        "context": [
+          {
+            "line": 14,
+            "text": "\"41\",\"6903\",\"4L\",\"Laajalampi\",\"\",\"3\",\"https://www.mikkeli.fi/sisalto/palvelut/joukkoliikenne-2\",\"\",\"\",\"1\",\"1\",\"149481\""
+          },
+          {
+            "line": 15,
+            "text": "\"42\",\"6903\",\"4T\",\"Tusku\",\"\",\"3\",\"https://www.mikkeli.fi/sisalto/palvelut/joukkoliikenne-2\",\"\",\"\",\"1\",\"1\",\"149481\""
+          },
+          {
+            "line": 16,
+            "text": "\"101\",\"6704\",\"10ME\",\"Mikkeli-Otava-Hietanen\",\"\",\"3\",\"https://www.mikkeli.fi/sisalto/palvelut/joukkoliikenne-2\",\"\",\"\",\"1\",\"1\",\"20171\""
+          },
+          {
+            "line": 17,
+            "text": "\"151\",\"23325\",\"151\",\"Mikkeli-Ristiina-Pellos\",\"Mikkeli-Ristiina-Pellos\",\"3\",\"\",\"\",\"\",\"1\",\"1\",\"294741\""
+          },
+          {
+            "line": 18,
+            "text": "\"152\",\"23325\",\"152\",\"Pellos-Ristiina-Mikkeli\",\"Pellos-Ristiina-Mikkeli\",\"3\",\"\",\"\",\"\",\"1\",\"1\",\"294741\""
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "candidate": {
+      "type": "analyzer_mapped_md_absent",
+      "unadjudicated_type": null,
+      "decision": "unreviewed",
+      "reason": "No verdict recorded for this rule in fp_adjudication.tsv.",
+      "feed_id": "mdb-1130",
+      "provider": "Mikkeli",
+      "country": "FI",
+      "url": "https://files.mobilitydatabase.org/mdb-1130/latest.zip",
+      "analyzer_rule": "STP_034",
+      "analyzer_count": 1,
+      "analyzer_class": "QUALITY",
+      "analyzer_severity": "LOW",
+      "mapped_md_codes": [
+        "same_stop_and_agency_url"
+      ],
+      "analyzer_sample": {
+        "id": "k6/STP_034#619",
+        "rule_id": "STP_034",
+        "severity": "LOW",
+        "rule_class": "QUALITY",
+        "entity_type": "Stop",
+        "entity_id": "355721",
+        "scope_key": "355721",
+        "file": "stops.txt",
+        "line": 1018,
+        "field": "stop_url",
+        "observed_value": "https://www.mikkeli.fi/sisalto/palvelut/joukkoliikenne-2",
+        "details": {
+          "normalized_url": "https://www.mikkeli.fi/sisalto/palvelut/joukkoliikenne-2",
+          "representative_stop_ids": "355721,362219",
+          "stop_count": "2"
+        },
+        "message": "Stop '355721': stop_url matches the agency URL.",
+        "remediation": "Point stop_url to a stop-specific page or leave it empty."
+      },
+      "priority": 80
+    },
+    "audit_input_classification": null,
+    "audit_zip_sha256": "aba0dbceb7b6866ea6d7b94307e05f955ed90d4f2fb413968cf5594a7ad3d922",
+    "url": "https://files.mobilitydatabase.org/mdb-1130/latest.zip",
+    "download_exit": 0,
+    "redownload_sha256": "aba0dbceb7b6866ea6d7b94307e05f955ed90d4f2fb413968cf5594a7ad3d922",
+    "evidence_status": "SAME_AS_AUDIT_INPUT",
+    "archive_files": [
+      "stops.txt",
+      "agency.txt",
+      "contracts.txt",
+      "extended_contracts.txt",
+      "extended_contracts_costs.txt",
+      "extended_contracts_calendar_settings.txt",
+      "routes.txt",
+      "calendar.txt",
+      "calendar_dates.txt",
+      "trips.txt",
+      "stop_times.txt",
+      "translations.txt",
+      "shapes.txt",
+      "transfers.txt",
+      "feed_info.txt",
+      "emissions.txt",
+      "tdm-blocks.txt",
+      "vehicle_groups.txt",
+      "tdm-settings.txt"
+    ],
+    "refs": [
+      [
+        "stops.txt",
+        1018
+      ]
+    ],
+    "contexts": [
+      {
+        "file": "stops.txt",
+        "requested_line": 1018,
+        "context": [
+          {
+            "line": 1016,
+            "text": "\"354424\",\"\",\"Hallitustori 5\",\"61.687565\",\"27.274477\",\"1\",\"http://491\",\"0\",\"\",\"491\",\"\",\"\",\"1\",\"\",\"3\""
+          },
+          {
+            "line": 1017,
+            "text": "\"354517\",\"\",\"Hallitustori 10\",\"61.687565\",\"27.274472\",\"1\",\"http://491\",\"0\",\"\",\"491\",\"\",\"\",\"1\",\"\",\"3\""
+          },
+          {
+            "line": 1018,
+            "text": "\"355721\",\"\",\"Inkilä th ramppi vt5 (Juva) P\",\"61.77119101544526\",\"27.59371534722106\",\"3\",\"https://www.mikkeli.fi/sisalto/palvelut/joukkoliikenne-2\",\"0\",\"\",\"178\",\"\",\"\",\"2\",\"\",\"3\""
+          },
+          {
+            "line": 1019,
+            "text": "\"355818\",\"\",\"Vanha Osula (Haukivuori) E\",\"62.023676577194486\",\"27.206342147546774\",\"5\",\"http://491\",\"0\",\"\",\"491\",\"Virtuaali\",\"\",\"0\",\"\",\"3\""
+          },
+          {
+            "line": 1020,
+            "text": "\"359422\",\"\",\"Karikko L\",\"61.68129427043257\",\"27.231093653625802\",\"1\",\"http://491\",\"0\",\"\",\"491\",\"\",\"\",\"0\",\"\",\"3\""
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "candidate": {
+      "type": "analyzer_mapped_md_absent",
+      "unadjudicated_type": null,
+      "decision": "unreviewed",
+      "reason": "No verdict recorded for this rule in fp_adjudication.tsv.",
+      "feed_id": "mdb-1229",
+      "provider": "Bogor Angkots",
+      "country": "ID",
+      "url": "https://files.mobilitydatabase.org/mdb-1229/latest.zip",
+      "analyzer_rule": "SHP_022",
+      "analyzer_count": 228,
+      "analyzer_class": "QUALITY",
+      "analyzer_severity": "HIGH",
+      "mapped_md_codes": [
+        "stop_has_too_many_matches_for_shape"
+      ],
+      "analyzer_sample": {
+        "id": "k6/SHP_022#1692",
+        "rule_id": "SHP_022",
+        "severity": "HIGH",
+        "rule_class": "QUALITY",
+        "entity_type": "Stop",
+        "entity_id": "Air Mancur",
+        "scope_key": "Air Mancur",
+        "file": "stop_times.txt",
+        "line": 52994,
+        "field": "stop_id",
+        "observed_value": "Air Mancur",
+        "details": {
+          "shape_id": "AK-07"
+        },
+        "message": "Shape 'Air Mancur': stop position on shape is ambiguous.",
+        "remediation": "Add shape_dist_traveled to stop_times to explicitly specify each stop's position on the shape."
+      },
+      "priority": 80
+    },
+    "audit_input_classification": null,
+    "audit_zip_sha256": "b57abd15694f8b1d5004ab075e30f26073d370d0030fa66ba843043a8bfc9adf",
+    "url": "https://files.mobilitydatabase.org/mdb-1229/latest.zip",
+    "download_exit": 0,
+    "redownload_sha256": "b57abd15694f8b1d5004ab075e30f26073d370d0030fa66ba843043a8bfc9adf",
+    "evidence_status": "SAME_AS_AUDIT_INPUT",
+    "archive_files": [
+      "agency.txt",
+      "calendar.txt",
+      "fare_attributes.txt",
+      "frequencies.txt",
+      "routes.txt",
+      "shapes.txt",
+      "stop_times.txt",
+      "stops.txt",
+      "trips.txt"
+    ],
+    "refs": [
+      [
+        "stop_times.txt",
+        52994
+      ]
+    ],
+    "contexts": [
+      {
+        "file": "stop_times.txt",
+        "requested_line": 52994,
+        "context": [
+          {
+            "line": 52992,
+            "text": "AK-07,23:44:00,23:44:00,Jl. Sudirman,4,,,,,0"
+          },
+          {
+            "line": 52993,
+            "text": "AK-07,23:54:00,23:54:00,Jl. Sudirman,4,,,,,0"
+          },
+          {
+            "line": 52994,
+            "text": "AK-07,00:05:00,00:05:00,Air Mancur,5,,,,,0"
+          },
+          {
+            "line": 52995,
+            "text": "AK-07,00:15:00,00:15:00,Air Mancur,5,,,,,0"
+          },
+          {
+            "line": 52996,
+            "text": "AK-07,00:25:00,00:25:00,Air Mancur,5,,,,,0"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "candidate": {
+      "type": "analyzer_mapped_md_absent",
+      "unadjudicated_type": null,
+      "decision": "unreviewed",
+      "reason": "No verdict recorded for this rule in fp_adjudication.tsv.",
+      "feed_id": "mdb-1309",
+      "provider": "Massachusetts Ferry Service",
+      "country": "US",
+      "url": "https://files.mobilitydatabase.org/mdb-1309/latest.zip",
+      "analyzer_rule": "TRP_022",
+      "analyzer_count": 286,
+      "analyzer_class": "INTEROP",
+      "analyzer_severity": "HIGH",
+      "mapped_md_codes": [
+        "block_trips_with_overlapping_stop_times"
+      ],
+      "analyzer_sample": {
+        "id": "k6/TRP_022#813",
+        "rule_id": "TRP_022",
+        "severity": "HIGH",
+        "rule_class": "INTEROP",
+        "entity_type": "Trip",
+        "entity_id": "10CUTTYBOAT",
+        "scope_key": "10CUTTYBOAT",
+        "file": "trips.txt",
+        "field": "block_id",
+        "observed_value": "10CUTTYBOAT / HY2BOAT",
+        "message": "Trip '10CUTTYBOAT': overlapping trip times within block (10CUTTYBOAT / HY2BOAT).",
+        "remediation": "Arrange trips in the same vehicle block so their times do not overlap."
+      },
+      "priority": 80
+    },
+    "audit_input_classification": null,
+    "audit_zip_sha256": "935704e6f968e21901a71ab51d1c825aad2a73eeca680f17703e5b98d553d8a4",
+    "url": "https://files.mobilitydatabase.org/mdb-1309/latest.zip",
+    "download_exit": 0,
+    "redownload_sha256": "935704e6f968e21901a71ab51d1c825aad2a73eeca680f17703e5b98d553d8a4",
+    "evidence_status": "SAME_AS_AUDIT_INPUT",
+    "archive_files": [
+      "trips.txt",
+      "fare_attributes.txt",
+      "fare_rules.txt",
+      "stops.txt",
+      "agency.txt",
+      "calendar.txt",
+      "calendar_dates.txt",
+      "frequencies.txt",
+      "routes.txt",
+      "shapes.txt",
+      "stop_times.txt"
+    ],
+    "refs": [
+      [
+        "trips.txt",
+        null
+      ]
+    ],
+    "contexts": [
+      {
+        "file": "trips.txt",
+        "requested_line": null,
+        "context": [
+          {
+            "line": 1,
+            "text": "route_id,service_id,trip_id,trip_headsign,direction_id,block_id,shape_id"
+          },
+          {
+            "line": 2,
+            "text": "VINEYBOAT,SUBOAT,VINEYINSUBOAT,Woods Hole, , , "
+          },
+          {
+            "line": 3,
+            "text": "VINEYBOAT,SUBOAT,VINEYOUTSUBOAT,Vineyard Haven, , , "
+          },
+          {
+            "line": 4,
+            "text": "OAKBOAT,SUBOAT,BLUFFINSUBOAT,Woods Hole, , , "
+          },
+          {
+            "line": 5,
+            "text": "OAKBOAT,SUBOAT,BLUFFOUTSUBOAT,Oak Bluffs, , , "
+          },
+          {
+            "line": 6,
+            "text": "VINEYBOAT,FABOAT,VINEYINFABOAT,Woods Hole, , , "
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "candidate": {
+      "type": "analyzer_mapped_md_absent",
+      "unadjudicated_type": null,
+      "decision": "unreviewed",
+      "reason": "No verdict recorded for this rule in fp_adjudication.tsv.",
+      "feed_id": "mdb-1814",
+      "provider": "INGEROP",
+      "country": "GH",
+      "url": "https://files.mobilitydatabase.org/mdb-1814/latest.zip",
+      "analyzer_rule": "CAL_023",
+      "analyzer_count": 1,
+      "analyzer_class": "QUALITY",
+      "analyzer_severity": "MEDIUM",
+      "mapped_md_codes": [
+        "service_extends_far_in_the_future"
+      ],
+      "analyzer_sample": {
+        "id": "k6/CAL_023#24",
+        "rule_id": "CAL_023",
+        "severity": "MEDIUM",
+        "rule_class": "QUALITY",
+        "entity_type": "Service",
+        "entity_id": "1",
+        "scope_key": "1",
+        "file": "calendar.txt",
+        "line": 2,
+        "field": "end_date",
+        "observed_value": "20381231",
+        "expected_value": "< 20290101",
+        "message": "Service '1': end_date 20381231 is far in the future (expected < 20290101); likely placeholder or low-quality data.",
+        "remediation": "Set end_date to the actual service end; far-future dates are usually placeholders or errors."
+      },
+      "priority": 80
+    },
+    "audit_input_classification": null,
+    "audit_zip_sha256": "45dc390b10a34f567991b52226ef8514ccef77d16a557709abed08051596cf2d",
+    "url": "https://files.mobilitydatabase.org/mdb-1814/latest.zip",
+    "download_exit": 0,
+    "redownload_sha256": "45dc390b10a34f567991b52226ef8514ccef77d16a557709abed08051596cf2d",
+    "evidence_status": "SAME_AS_AUDIT_INPUT",
+    "archive_files": [
+      "TEST GTFS/agency.txt",
+      "TEST GTFS/calendar.txt",
+      "TEST GTFS/routes.txt",
+      "TEST GTFS/shapes.txt",
+      "TEST GTFS/stop_times.txt",
+      "TEST GTFS/stops.txt",
+      "TEST GTFS/trips.txt"
+    ],
+    "refs": [
+      [
+        "calendar.txt",
+        2
+      ]
+    ],
+    "contexts": [
+      {
+        "file": "TEST GTFS/calendar.txt",
+        "requested_line": 2,
+        "context": [
+          {
+            "line": 1,
+            "text": "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date"
+          },
+          {
+            "line": 2,
+            "text": "1,1,1,1,1,1,0,0,20000101,20381231"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "candidate": {
+      "type": "analyzer_mapped_md_absent",
+      "unadjudicated_type": null,
+      "decision": "unreviewed",
+      "reason": "No verdict recorded for this rule in fp_adjudication.tsv.",
+      "feed_id": "mdb-1830",
+      "provider": "Pumabús, Corredores Concesionados, Sistema de Transporte Colectivo Metro, Metrobús, Servicio de Tren Ligero, Ferrocarriles Suburbanos, Trolebús, Red de Transporte de Pasajeros, Cablebus",
+      "country": "MX",
+      "url": "https://files.mobilitydatabase.org/mdb-1830/latest.zip",
+      "analyzer_rule": "XFL_002",
+      "analyzer_count": 1,
+      "analyzer_class": "INTEROP",
+      "analyzer_severity": "HIGH",
+      "mapped_md_codes": [
+        "unusable_trip"
+      ],
+      "analyzer_sample": {
+        "id": "k4/XFL_002#8464",
+        "rule_id": "XFL_002",
+        "severity": "HIGH",
+        "rule_class": "INTEROP",
+        "entity_type": "Trip",
+        "entity_id": "TR13_TRIP_1",
+        "scope_key": "TR13_TRIP_1",
+        "file": "trips.txt",
+        "line": 2,
+        "field": "trip_id",
+        "observed_value": "TR13_TRIP_1",
+        "message": "Trip 'TR13_TRIP_1' has no stop_times records.",
+        "remediation": "Add stop_times records for this trip."
+      },
+      "priority": 80
+    },
+    "audit_input_classification": null,
+    "audit_zip_sha256": "a2ecd0fbdf56e787b8eee3a6a3719043667b022a849f7f510812054677225384",
+    "url": "https://files.mobilitydatabase.org/mdb-1830/latest.zip",
+    "download_exit": 0,
+    "redownload_sha256": "a2ecd0fbdf56e787b8eee3a6a3719043667b022a849f7f510812054677225384",
+    "evidence_status": "SAME_AS_AUDIT_INPUT",
+    "archive_files": [
+      "agency.txt",
+      "routes.txt",
+      "trips.txt",
+      "stop_times.txt",
+      "stops.txt",
+      "calendar.txt",
+      "shapes.txt",
+      "frequencies.txt"
+    ],
+    "refs": [
+      [
+        "trips.txt",
+        2
+      ]
+    ],
+    "contexts": [
+      {
+        "file": "trips.txt",
+        "requested_line": 2,
+        "context": [
+          {
+            "line": 1,
+            "text": "route_id,service_id,trip_id,shape_id,trip_headsign,trip_short_name,direction_id"
+          },
+          {
+            "line": 2,
+            "text": "TR13,TR13_SERVICE,TR13_TRIP_1,TR13_1,,,"
+          },
+          {
+            "line": 3,
+            "text": "B_CMX01001C,B_0,B_010001C000_1,B_SH01001C000_1, Canal de Chalco - Barranca del Muerto,C.Base Periférico Canal de Chalco to Base Barranca del Muerto,1.0"
+          },
+          {
+            "line": 4,
+            "text": "B_CMX01001C,B_0,B_010001C000_0,B_SH01001C000_0, Barranca del Muerto - Canal de Chalco,C.Base Barranca del Muerto to Base Periférico Canal de Chalco,0.0"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "candidate": {
+      "type": "analyzer_mapped_md_absent",
+      "unadjudicated_type": null,
+      "decision": "unreviewed",
+      "reason": "No verdict recorded for this rule in fp_adjudication.tsv.",
+      "feed_id": "mdb-1847",
+      "provider": "Washington Metropolitan Area Transit Authority (WMATA)",
+      "country": "US",
+      "url": "https://files.mobilitydatabase.org/mdb-1847/latest.zip",
+      "analyzer_rule": "LVL_006",
+      "analyzer_count": 2,
+      "analyzer_class": "QUALITY",
+      "analyzer_severity": "MEDIUM",
+      "mapped_md_codes": [
+        "missing_level_id"
+      ],
+      "analyzer_sample": {
+        "id": "k4/LVL_006#69",
+        "rule_id": "LVL_006",
+        "severity": "MEDIUM",
+        "rule_class": "QUALITY",
+        "entity_type": "Stop",
+        "entity_id": "ENT_K04_N_EL",
+        "scope_key": "Ballston - N Fairfax Dr. & N Stuard St. (North Elevator)",
+        "file": "stops.txt",
+        "line": 1825,
+        "field": "level_id",
+        "expected_value": "dolu",
+        "message": "Stop 'ENT_K04_N_EL' is connected to an elevator pathway but has no level_id.",
+        "remediation": "Add a level_id to stops connected to elevator pathways."
+      },
+      "priority": 80
+    },
+    "audit_input_classification": null,
+    "audit_zip_sha256": "41f40ae45e789552aa484914545b65c2d27e615ac7d3de456a62b7e129d21659",
+    "url": "https://files.mobilitydatabase.org/mdb-1847/latest.zip",
+    "download_exit": 0,
+    "redownload_sha256": "41f40ae45e789552aa484914545b65c2d27e615ac7d3de456a62b7e129d21659",
+    "evidence_status": "SAME_AS_AUDIT_INPUT",
+    "archive_files": [
+      "agency.txt",
+      "calendar_dates.txt",
+      "routes.txt",
+      "shapes.txt",
+      "stop_times.txt",
+      "stops.txt",
+      "trips.txt",
+      "feed_info.txt",
+      "levels.txt",
+      "pathways.txt"
+    ],
+    "refs": [
+      [
+        "stops.txt",
+        1825
+      ]
+    ],
+    "contexts": [
+      {
+        "file": "stops.txt",
+        "requested_line": 1825,
+        "context": [
+          {
+            "line": 1823,
+            "text": "ENT_K05_M,East Falls Church - N. Sycamore St. & I-66,East Falls Church Main Entrance - N. Sycamore St. & I-66,38.8858928,-77.15657087,1,2,STN_K05,1,"
+          },
+          {
+            "line": 1824,
+            "text": "ENT_K04_S_EL,Ballston - N Fairfax Dr. & N Stuard St. (South Elevator),Ballston South Elevator Entrance - N Fairfax Dr. & N Stuard St.,38.88204381,-77.11209669,1,2,STN_K04,1,"
+          },
+          {
+            "line": 1825,
+            "text": "ENT_K04_N_EL,Ballston - N Fairfax Dr. & N Stuard St. (North Elevator),Ballston North Elevator Entrance - N Fairfax Dr. & N Stuard St.,38.88235035,-77.11212586,1,2,STN_K04,1,"
+          },
+          {
+            "line": 1826,
+            "text": "ENT_K04_M,Ballston - N Fairfax Dr. & N Stuard St.,Ballston Main Entrance - N Fairfax Dr. & N Stuard St.,38.88185999,-77.11134626,1,2,STN_K04,2,"
+          },
+          {
+            "line": 1827,
+            "text": "ENT_K03_M,Virginia Square - SW Corner of Fairfax Dr. & N. Monroe St.,Virginia Square Main Entrance - SW Corner of Fairfax Dr. & N. Monroe St.,38.882812,-77.10326891,58,2,STN_K03,2,"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "candidate": {
+      "type": "analyzer_mapped_md_absent",
+      "unadjudicated_type": null,
+      "decision": "unreviewed",
+      "reason": "No verdict recorded for this rule in fp_adjudication.tsv.",
+      "feed_id": "mdb-1958",
+      "provider": "Dartmouth College",
+      "country": "US",
+      "url": "https://files.mobilitydatabase.org/mdb-1958/latest.zip",
+      "analyzer_rule": "FIN_019",
+      "analyzer_count": 1,
+      "analyzer_class": "QUALITY",
+      "analyzer_severity": "LOW",
+      "mapped_md_codes": [
+        "feed_expiration_date7_days"
+      ],
+      "analyzer_sample": {
+        "id": "k6/FIN_019#106",
+        "rule_id": "FIN_019",
+        "severity": "LOW",
+        "rule_class": "QUALITY",
+        "entity_type": "Feed",
+        "file": "feed_info.txt",
+        "field": "feed_end_date",
+        "observed_value": "2026-08-27",
+        "expected_value": "> +7",
+        "details": {
+          "days_left": "7",
+          "warning_days": "7"
+        },
+        "message": "Feed validity expires soon (end date: 2026-08-27).",
+        "remediation": "Plan to publish an updated feed before the current one expires."
+      },
+      "priority": 80
+    },
+    "audit_input_classification": null,
+    "audit_zip_sha256": "2a364c84fc1b6767690231e558565ba44534c7406b0c2762d2441325ddc4b725",
+    "url": "https://files.mobilitydatabase.org/mdb-1958/latest.zip",
+    "download_exit": 0,
+    "redownload_sha256": "2a364c84fc1b6767690231e558565ba44534c7406b0c2762d2441325ddc4b725",
+    "evidence_status": "SAME_AS_AUDIT_INPUT",
+    "archive_files": [
+      "agency.txt",
+      "areas.txt",
+      "booking_rules.txt",
+      "calendar_attributes.txt",
+      "calendar_dates.txt",
+      "calendar.txt",
+      "directions.txt",
+      "fare_attributes.txt",
+      "fare_rules.txt",
+      "farezone_attributes.txt",
+      "feed_info.txt",
+      "frequencies.txt",
+      "linked_datasets.txt",
+      "location_groups.txt",
+      "routes.txt",
+      "runcut.txt",
+      "shapes.txt",
+      "stop_attributes.txt",
+      "stop_times.txt",
+      "stops.txt",
+      "timetable_stop_order.txt",
+      "timetables.txt",
+      "transfers.txt",
+      "trips.txt"
+    ],
+    "refs": [
+      [
+        "feed_info.txt",
+        null
+      ]
+    ],
+    "contexts": [
+      {
+        "file": "feed_info.txt",
+        "requested_line": null,
+        "context": [
+          {
+            "line": 1,
+            "text": "feed_publisher_url,feed_publisher_name,feed_lang,feed_version,feed_license,feed_contact_email,feed_contact_url,feed_start_date,feed_end_date,feed_id"
+          },
+          {
+            "line": 2,
+            "text": "http://www.trilliumtransit.com,\"Trillium Solutions, Inc.\",en,UTC: 29-Jul-2026 15:37,,support+dartmouth-vt-us@trilliumtransit.com,http://support.trilliumtransit.com,20260729,20260827,dartmouth-vt-us"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "candidate": {
+      "type": "analyzer_mapped_md_absent",
+      "unadjudicated_type": null,
+      "decision": "unreviewed",
+      "reason": "No verdict recorded for this rule in fp_adjudication.tsv.",
+      "feed_id": "mdb-1973",
+      "provider": "Athens Public Transit",
+      "country": "US",
+      "url": "https://files.mobilitydatabase.org/mdb-1973/latest.zip",
+      "analyzer_rule": "SHP_023",
+      "analyzer_count": 1,
+      "analyzer_class": "QUALITY",
+      "analyzer_severity": "MEDIUM",
+      "mapped_md_codes": [
+        "equal_shape_distance_same_coordinates"
+      ],
+      "analyzer_sample": {
+        "id": "k6/SHP_023#125",
+        "rule_id": "SHP_023",
+        "severity": "MEDIUM",
+        "rule_class": "QUALITY",
+        "entity_type": "Shape",
+        "entity_id": "g0e8",
+        "scope_key": "g0e8",
+        "file": "shapes.txt",
+        "field": "shape_dist_traveled",
+        "observed_value": "dist=677.0520, (39.331020,-82.101020)",
+        "message": "Shape 'g0e8': consecutive points share the same shape_dist_traveled at the same coordinates.",
+        "remediation": "Remove the duplicate shape point."
+      },
+      "priority": 80
+    },
+    "audit_input_classification": null,
+    "audit_zip_sha256": "112b338b9cb60ce37bfe2875b076a1887196658bd51d52e255716080f5af7ed6",
+    "url": "https://files.mobilitydatabase.org/mdb-1973/latest.zip",
+    "download_exit": 0,
+    "redownload_sha256": "112b338b9cb60ce37bfe2875b076a1887196658bd51d52e255716080f5af7ed6",
+    "evidence_status": "SAME_AS_AUDIT_INPUT",
+    "archive_files": [
+      "agency.txt",
+      "calendar.txt",
+      "calendar_dates.txt",
+      "fare_attributes.txt",
+      "fare_rules.txt",
+      "feed_info.txt",
+      "routes.txt",
+      "shapes.txt",
+      "stop_times.txt",
+      "stops.txt",
+      "trips.txt"
+    ],
+    "refs": [
+      [
+        "shapes.txt",
+        null
+      ]
+    ],
+    "contexts": [
+      {
+        "file": "shapes.txt",
+        "requested_line": null,
+        "context": [
+          {
+            "line": 1,
+            "text": "shape_id,shape_pt_sequence,shape_pt_lat,shape_pt_lon,shape_dist_traveled"
+          },
+          {
+            "line": 2,
+            "text": "0y34,0,39.328630,-82.099830,0"
+          },
+          {
+            "line": 3,
+            "text": "0y34,1,39.329100,-82.099790,52.37481103676481"
+          },
+          {
+            "line": 4,
+            "text": "0y34,2,39.329260,-82.102580,293.00506823787146"
+          },
+          {
+            "line": 5,
+            "text": "0y34,3,39.329080,-82.102600,313.09397033654074"
+          },
+          {
+            "line": 6,
+            "text": "0y34,4,39.327610,-82.102720,475.76656394699194"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "candidate": {
+      "type": "analyzer_mapped_md_absent",
+      "unadjudicated_type": null,
+      "decision": "unreviewed",
+      "reason": "No verdict recorded for this rule in fp_adjudication.tsv.",
+      "feed_id": "mdb-2003",
+      "provider": "Palmbus",
+      "country": "FR",
+      "url": "https://files.mobilitydatabase.org/mdb-2003/latest.zip",
+      "analyzer_rule": "STP_030",
+      "analyzer_count": 1,
+      "analyzer_class": "QUALITY",
+      "analyzer_severity": "MEDIUM",
+      "mapped_md_codes": [
+        "unused_station"
+      ],
+      "analyzer_sample": {
+        "id": "k6/STP_030#1177",
+        "rule_id": "STP_030",
+        "severity": "MEDIUM",
+        "rule_class": "QUALITY",
+        "entity_type": "Stop",
+        "entity_id": "Station Charles Schaumann ",
+        "scope_key": "Station Charles Schaumann ",
+        "file": "stops.txt",
+        "line": 915,
+        "message": "Station 'Station Charles Schaumann ' has no child stops.",
+        "remediation": "Populate parent_station for physical stops belonging to this station, or remove the station."
+      },
+      "priority": 80
+    },
+    "audit_input_classification": null,
+    "audit_zip_sha256": "00bfdf88b67a3e2ad5106c593c00d58c7ec22f0f076767806fe1cf807fe433ef",
+    "url": "https://files.mobilitydatabase.org/mdb-2003/latest.zip",
+    "download_exit": 0,
+    "redownload_sha256": "00bfdf88b67a3e2ad5106c593c00d58c7ec22f0f076767806fe1cf807fe433ef",
+    "evidence_status": "SAME_AS_AUDIT_INPUT",
+    "archive_files": [
+      "stops.txt",
+      "feed_info.txt",
+      "agency.txt",
+      "shapes.txt",
+      "stop_times.txt",
+      "trips.txt",
+      "calendar_dates.txt",
+      "routes.txt",
+      "fare_attributes.txt",
+      "fare_rules.txt"
+    ],
+    "refs": [
+      [
+        "stops.txt",
+        915
+      ]
+    ],
+    "contexts": [
+      {
+        "file": "stops.txt",
+        "requested_line": 915,
+        "context": [
+          {
+            "line": 913,
+            "text": "EBRI8A,,Eugene Brieux,,43.542719,7.037288,2,,0,Station Eugene Brieux,,,,"
+          },
+          {
+            "line": 914,
+            "text": "Station La Roseraie,,La Roseraie,,43.57937870114341,7.001861904958986,,,1,,,,,"
+          },
+          {
+            "line": 915,
+            "text": "Station Charles Schaumann ,,Charles Schaumann ,,43.557832000000005,7.0168865,,,1,,,,,"
+          },
+          {
+            "line": 916,
+            "text": "Station Place Leclerc,,Place Leclerc,,43.57539209520323,7.021578866728603,,,1,,,,,"
+          },
+          {
+            "line": 917,
+            "text": "Station Cimetiere du Grand Vallon,,Cimetiere du Grand Vallon,,43.59268328891031,6.966952141628326,,,1,,,,,"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "candidate": {
+      "type": "analyzer_mapped_md_absent",
+      "unadjudicated_type": null,
+      "decision": "unreviewed",
+      "reason": "No verdict recorded for this rule in fp_adjudication.tsv.",
+      "feed_id": "mdb-2013",
+      "provider": "Bangalore Metropolitan Transport Corporation (BMTC)",
+      "country": "IN",
+      "url": "https://files.mobilitydatabase.org/mdb-2013/latest.zip",
+      "analyzer_rule": "STM_033",
+      "analyzer_count": 15017,
+      "analyzer_class": "INTEROP",
+      "analyzer_severity": "HIGH",
+      "mapped_md_codes": [
+        "unusable_trip"
+      ],
+      "analyzer_sample": {
+        "id": "k4/STM_033#69171",
+        "rule_id": "STM_033",
+        "severity": "HIGH",
+        "rule_class": "INTEROP",
+        "entity_type": "Trip",
+        "entity_id": "100E-1-1",
+        "scope_key": "100E-1-1",
+        "file": "trips.txt",
+        "line": 7565,
+        "field": "trip_id",
+        "observed_value": "1",
+        "expected_value": "≥ 2",
+        "message": "Trip '100E-1-1' has only one stop and is unusable.",
+        "remediation": "Add at least two stops to the trip in stop_times.txt."
+      },
+      "priority": 80
+    },
+    "audit_input_classification": null,
+    "audit_zip_sha256": "d63f803bf5d6257c5b3d3b9ede6a7b5ea3dd3d64fc661bf5ade3c7ecd55f7099",
+    "url": "https://files.mobilitydatabase.org/mdb-2013/latest.zip",
+    "download_exit": 0,
+    "redownload_sha256": "d63f803bf5d6257c5b3d3b9ede6a7b5ea3dd3d64fc661bf5ade3c7ecd55f7099",
+    "evidence_status": "SAME_AS_AUDIT_INPUT",
+    "archive_files": [
+      "agency.txt",
+      "calendar.txt",
+      "routes.txt",
+      "stop_times.txt",
+      "stops.txt",
+      "trips.txt"
+    ],
+    "refs": [
+      [
+        "trips.txt",
+        7565
+      ]
+    ],
+    "contexts": [
+      {
+        "file": "trips.txt",
+        "requested_line": 7565,
+        "context": [
+          {
+            "line": 7563,
+            "text": ",,1,242K,FULLW,,,242K-1-3370,,,"
+          },
+          {
+            "line": 7564,
+            "text": ",,1,100E,FULLW,,,100E-1-2,,,"
+          },
+          {
+            "line": 7565,
+            "text": ",,1,100E,FULLW,,,100E-1-1,,,"
+          },
+          {
+            "line": 7566,
+            "text": ",,1,BC-6,FULLW,,,BC-6-1-13211,,,"
+          },
+          {
+            "line": 7567,
+            "text": ",,1,25D,FULLW,,,25D-1-4495,,,"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "candidate": {
+      "type": "analyzer_mapped_md_absent",
+      "unadjudicated_type": null,
+      "decision": "unreviewed",
+      "reason": "Verdict NOT_ADJUDICATED (run 32311885577) claims a change was made; a fresh occurrence is a regression and stays visible. 3 ortak feed, biz 223 MD 2.106 (9,44x). Taban dar; okunmadı.",
+      "feed_id": "mdb-2042",
+      "provider": "Cripple Creek Transportation",
+      "country": "US",
+      "url": "https://files.mobilitydatabase.org/mdb-2042/latest.zip",
+      "analyzer_rule": "STM_059",
+      "analyzer_count": 18,
+      "analyzer_class": "QUALITY",
+      "analyzer_severity": "LOW",
+      "mapped_md_codes": [
+        "missing_pickup_drop_off_booking_rule_id"
+      ],
+      "analyzer_sample": {
+        "id": "k2/STM_059#128",
+        "rule_id": "STM_059",
+        "severity": "LOW",
+        "rule_class": "QUALITY",
+        "entity_type": "Trip",
+        "entity_id": "t_5893766_b_86683_tn_0",
+        "scope_key": "t_5893766_b_86683_tn_0",
+        "file": "stop_times.txt",
+        "line": 91,
+        "field": "pickup_booking_rule_id",
+        "message": "trip_id 't_5893766_b_86683_tn_0' pickup_type=2 (telefonla rezervasyon) ama pickup_booking_rule_id eksik.",
+        "remediation": "Talep-üzerine biniş/iniş için booking_rules.txt'teki ilgili kuralı bu alana bağlayın."
+      },
+      "priority": 80
+    },
+    "audit_input_classification": null,
+    "audit_zip_sha256": "cb97c5a9894ed9472e6eb9ed6aafd8ed07d4a5b873870e01e73553d963b248c0",
+    "url": "https://files.mobilitydatabase.org/mdb-2042/latest.zip",
+    "download_exit": 0,
+    "redownload_sha256": "cb97c5a9894ed9472e6eb9ed6aafd8ed07d4a5b873870e01e73553d963b248c0",
+    "evidence_status": "SAME_AS_AUDIT_INPUT",
+    "archive_files": [
+      "timetables.txt",
+      "fare_attributes.txt",
+      "stop_attributes.txt",
+      "transfers.txt",
+      "agency.txt",
+      "fare_rules.txt",
+      "calendar_dates.txt",
+      "stop_times.txt",
+      "location_groups.txt",
+      "directions.txt",
+      "frequencies.txt",
+      "farezone_attributes.txt",
+      "shapes.txt",
+      "trips.txt",
+      "location_group_stops.txt",
+      "feed_info.txt",
+      "locations.geojson",
+      "runcut.txt",
+      "stops.txt",
+      "linked_datasets.txt",
+      "calendar_attributes.txt",
+      "timetable_stop_order.txt",
+      "booking_rules.txt",
+      "calendar.txt",
+      "routes.txt"
+    ],
+    "refs": [
+      [
+        "stop_times.txt",
+        91
+      ]
+    ],
+    "contexts": [
+      {
+        "file": "stop_times.txt",
+        "requested_line": 91,
+        "context": [
+          {
+            "line": 89,
+            "text": "t_5893766_b_86683_tn_0,,,4247083,,,9,,0,0,2875.185895000361,0,1,1,,,,,,,,,"
+          },
+          {
+            "line": 90,
+            "text": "t_5893766_b_86683_tn_0,,,4247084,,,10,,0,0,2919.9997236676013,0,1,1,,,,,,,,,"
+          },
+          {
+            "line": 91,
+            "text": "t_5893766_b_86683_tn_0,,,4149355,,,11,,2,3,5489.0495368769825,0,1,1,,,,,,,,,"
+          },
+          {
+            "line": 92,
+            "text": "t_5893766_b_86683_tn_0,11:20:00,11:20:00,4247076,,,12,,0,0,7665.940566479997,0,1,1,,,,,,,,,"
+          },
+          {
+            "line": 93,
+            "text": "t_5893767_b_86683_tn_0,11:40:00,11:40:00,4247076,,,1,,0,0,0.0,0,1,1,,,,,,,,,"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "candidate": {
+      "type": "analyzer_mapped_md_absent",
+      "unadjudicated_type": null,
+      "decision": "unreviewed",
+      "reason": "No verdict recorded for this rule in fp_adjudication.tsv.",
+      "feed_id": "mdb-2138",
+      "provider": "OBB Personenverkehr AG Kundenservice",
+      "country": "AT",
+      "url": "https://files.mobilitydatabase.org/mdb-2138/latest.zip",
+      "analyzer_rule": "PTH_019",
+      "analyzer_count": 331,
+      "analyzer_class": "QUALITY",
+      "analyzer_severity": "MEDIUM",
+      "mapped_md_codes": [
+        "pathway_dangling_generic_node"
+      ],
+      "analyzer_sample": {
+        "id": "k4/PTH_019#12124",
+        "rule_id": "PTH_019",
+        "severity": "MEDIUM",
+        "rule_class": "QUALITY",
+        "entity_type": "Stop",
+        "entity_id": "at:41:3087:5",
+        "scope_key": "B+R",
+        "file": "stops.txt",
+        "line": 11,
+        "field": "stop_id",
+        "observed_value": "1",
+        "expected_value": "≥2",
+        "message": "Stop 'at:41:3087:5' (generic node) is connected to only one pathway — dead end.",
+        "remediation": "Ensure all generic nodes (location_type=3) are connected to at least two pathways."
+      },
+      "priority": 80
+    },
+    "audit_input_classification": null,
+    "audit_zip_sha256": "12f29bb1c0869171eb0c269d227fec72cb85e02f41892ef20e451101ae0262ee",
+    "url": "https://files.mobilitydatabase.org/mdb-2138/latest.zip",
+    "download_exit": 0,
+    "redownload_sha256": "12f29bb1c0869171eb0c269d227fec72cb85e02f41892ef20e451101ae0262ee",
+    "evidence_status": "SAME_AS_AUDIT_INPUT",
+    "archive_files": [
+      "agency.txt",
+      "routes.txt",
+      "trips.txt",
+      "stops.txt",
+      "calendar.txt",
+      "calendar_dates.txt",
+      "shapes.txt",
+      "levels.txt",
+      "pathways.txt",
+      "stop_times.txt"
+    ],
+    "refs": [
+      [
+        "stops.txt",
+        11
+      ]
+    ],
+    "contexts": [
+      {
+        "file": "stops.txt",
+        "requested_line": 11,
+        "context": [
+          {
+            "line": 9,
+            "text": "\"at:41:3087:3\",\"Zugang\",\"47.77394866\",\"16.32435603\",\"\",\"2\",\"Pat:41:3087\",\"Level 0\",\"\""
+          },
+          {
+            "line": 10,
+            "text": "\"at:41:3087:4\",\"P+R\",\"47.77257820\",\"16.32569451\",\"\",\"3\",\"Pat:41:3087\",\"Level 0\",\"\""
+          },
+          {
+            "line": 11,
+            "text": "\"at:41:3087:5\",\"B+R\",\"47.77378565\",\"16.32462552\",\"\",\"3\",\"Pat:41:3087\",\"Level 0\",\"\""
+          },
+          {
+            "line": 12,
+            "text": "\"at:41:3088:0:1\",\"Bad Sauerbrunn Schubertallee\",\"47.77670154\",\"16.32795827\",\"\",\"\",\"Pat:41:3088\",\"Level 0\",\"1\""
+          },
+          {
+            "line": 13,
+            "text": "\"at:41:3088:0:2\",\"Bad Sauerbrunn Schubertallee\",\"47.77653855\",\"16.32899133\",\"\",\"\",\"Pat:41:3088\",\"Level 0\",\"2\""
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "candidate": {
+      "type": "analyzer_mapped_md_absent",
+      "unadjudicated_type": null,
+      "decision": "unreviewed",
+      "reason": "No verdict recorded for this rule in fp_adjudication.tsv.",
+      "feed_id": "mdb-2902",
+      "provider": "CROSS Solution",
+      "country": "DE",
+      "url": "https://files.mobilitydatabase.org/mdb-2902/latest.zip",
+      "analyzer_rule": "AGN_013",
+      "analyzer_count": 1,
+      "analyzer_class": "INTEROP",
+      "analyzer_severity": "LOW",
+      "mapped_md_codes": [
+        "feed_info_lang_and_agency_lang_mismatch",
+        "inconsistent_agency_lang"
+      ],
+      "analyzer_sample": {
+        "id": "k4/AGN_013#6",
+        "rule_id": "AGN_013",
+        "severity": "LOW",
+        "rule_class": "INTEROP",
+        "entity_type": "Agency",
+        "entity_id": "STADT_WAECHTERSBACH",
+        "scope_key": "STADT_WAECHTERSBACH",
+        "file": "agency.txt",
+        "field": "agency_lang",
+        "observed_value": " \"de\"",
+        "expected_value": "de",
+        "details": {
+          "whitespace_candidate": "true"
+        },
+        "message": "Feed language and agency language mismatch.",
+        "remediation": "Align the feed_lang value in feed_info.txt with the agency_lang value in agency.txt."
+      },
+      "priority": 80
+    },
+    "audit_input_classification": null,
+    "audit_zip_sha256": "398258d79c59f9cc797be4ea748412dea0a7a6466d2bd664c14af9112e5c4d54",
+    "url": "https://files.mobilitydatabase.org/mdb-2902/latest.zip",
+    "download_exit": 0,
+    "redownload_sha256": "398258d79c59f9cc797be4ea748412dea0a7a6466d2bd664c14af9112e5c4d54",
+    "evidence_status": "SAME_AS_AUDIT_INPUT",
+    "archive_files": [
+      "agency.txt",
+      "calendar.txt",
+      "routes.txt",
+      "stop_times.txt",
+      "stops.txt",
+      "trips.txt",
+      "feed_info.txt"
+    ],
+    "refs": [
+      [
+        "agency.txt",
+        null
+      ]
+    ],
+    "contexts": [
+      {
+        "file": "agency.txt",
+        "requested_line": null,
+        "context": [
+          {
+            "line": 1,
+            "text": "agency_id,agency_name,agency_url,agency_timezone,agency_lang,agency_phone,agency_email"
+          },
+          {
+            "line": 2,
+            "text": "\"STADT_WAECHTERSBACH\",\"CityBus Wächtersbach\", \"https://www.stadt-waechtersbach.de/wohnen/verkehr-mobilitaet/citybus-ast/\", \"Europe/Berlin\", \"de\", \"06053 802-10\", \"buergerservice@stadt-waechtersbach.de\""
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "candidate": {
+      "type": "analyzer_mapped_md_absent",
+      "unadjudicated_type": null,
+      "decision": "unreviewed",
+      "reason": "No verdict recorded for this rule in fp_adjudication.tsv.",
+      "feed_id": "mdb-2933",
+      "provider": "Just Use Wheels",
+      "country": "CN",
+      "url": "https://files.mobilitydatabase.org/mdb-2933/latest.zip",
+      "analyzer_rule": "PTH_011",
+      "analyzer_count": 2,
+      "analyzer_class": "QUALITY",
+      "analyzer_severity": "HIGH",
+      "mapped_md_codes": [
+        "pathway_loop"
+      ],
+      "analyzer_sample": {
+        "id": "k2/PTH_011#7627",
+        "rule_id": "PTH_011",
+        "severity": "HIGH",
+        "rule_class": "QUALITY",
+        "entity_type": "Pathway",
+        "entity_id": "MTR-PATH-PP-3d947495-8b0f-4b00-b974-626396527dc7-3d947495-8b0f-4b00-b974-626396527dc7",
+        "scope_key": "MTR-PATH-PP-3d947495-8b0f-4b00-b974-626396527dc7-3d947495-8b0f-4b00-b974-626396527dc7",
+        "file": "pathways.txt",
+        "line": 1522,
+        "field": "from_stop_id|to_stop_id",
+        "observed_value": "MTR-PLATFORM-TAP-4",
+        "message": "Pathway 'MTR-PATH-PP-3d947495-8b0f-4b00-b974-626396527dc7-3d947495-8b0f-4b00-b974-626396527dc7' forms a loop.",
+        "remediation": "Specify two different stops in each pathway row."
+      },
+      "priority": 80
+    },
+    "audit_input_classification": null,
+    "audit_zip_sha256": "15c31c34429d90c40ba98bcb65146efd947fca5b8f36d1969ad44c5213fe4799",
+    "url": "https://files.mobilitydatabase.org/mdb-2933/latest.zip",
+    "download_exit": 0,
+    "redownload_sha256": "15c31c34429d90c40ba98bcb65146efd947fca5b8f36d1969ad44c5213fe4799",
+    "evidence_status": "SAME_AS_AUDIT_INPUT",
+    "archive_files": [
+      "agency.txt",
+      "attributions.txt",
+      "calendar.txt",
+      "calendar_dates.txt",
+      "frequencies.txt",
+      "pathways.txt",
+      "routes.txt",
+      "shapes.txt",
+      "stop_times.txt",
+      "stops.txt",
+      "translations.txt",
+      "trips.txt"
+    ],
+    "refs": [
+      [
+        "pathways.txt",
+        1522
+      ]
+    ],
+    "contexts": [
+      {
+        "file": "pathways.txt",
+        "requested_line": 1522,
+        "context": [
+          {
+            "line": 1520,
+            "text": "MTR-PATH-PP-3a87ddde-ab02-4f29-87bc-174ac9ad2ec4-8eae4df6-f163-4741-9ef7-e1671d678e5f,MTR-PLATFORM-CEN-3,MTR-PLATFORM-CEN-1,1,1,150.0,150,,,,,"
+          },
+          {
+            "line": 1521,
+            "text": "MTR-PATH-PP-3a87ddde-ab02-4f29-87bc-174ac9ad2ec4-c73dba15-e446-4daa-9629-9c6805ef79b8,MTR-PLATFORM-CEN-3,MTR-PLATFORM-CEN-2,1,1,150.0,150,,,,,"
+          },
+          {
+            "line": 1522,
+            "text": "MTR-PATH-PP-3d947495-8b0f-4b00-b974-626396527dc7-3d947495-8b0f-4b00-b974-626396527dc7,MTR-PLATFORM-TAP-4,MTR-PLATFORM-TAP-4,1,1,0.0,0,,,,,"
+          },
+          {
+            "line": 1523,
+            "text": "MTR-PATH-PP-3d947495-8b0f-4b00-b974-626396527dc7-e1125a66-f893-49ae-827f-e48565f07ac8,MTR-PLATFORM-TAP-4,MTR-PLATFORM-TAP-2,1,1,110.0,110,,,,,"
+          },
+          {
+            "line": 1524,
+            "text": "MTR-PATH-PP-3f2b1086-7301-462b-b151-2c58a44938ac-41f478f3-7dcd-43ca-bb4a-2da8f4608f1b,MTR-PLATFORM-TAW-2,MTR-PLATFORM-TAW-4,1,1,183.0,183,,,,,"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "candidate": {
+      "type": "analyzer_mapped_md_absent",
+      "unadjudicated_type": null,
+      "decision": "unreviewed",
+      "reason": "No verdict recorded for this rule in fp_adjudication.tsv.",
+      "feed_id": "mdb-3226",
+      "provider": "Московский транспорт - Moscow Transport",
+      "country": "RU",
+      "url": "https://files.mobilitydatabase.org/mdb-3226/latest.zip",
+      "analyzer_rule": "CAL_006",
+      "analyzer_count": 2,
+      "analyzer_class": "QUALITY",
+      "analyzer_severity": "INFO",
+      "mapped_md_codes": [
+        "service_has_no_active_day_of_the_week"
+      ],
+      "analyzer_sample": {
+        "id": "k2/CAL_006#46",
+        "rule_id": "CAL_006",
+        "severity": "INFO",
+        "rule_class": "QUALITY",
+        "entity_type": "Service",
+        "entity_id": "100011903",
+        "scope_key": "100011903",
+        "file": "calendar.txt",
+        "line": 902,
+        "field": "monday|tuesday|wednesday|thursday|friday|saturday|sunday",
+        "message": "Service '100011903': all weekday columns are 0 — no weekly pattern; the service can only be active via calendar_dates.txt exceptions.",
+        "remediation": "If this is an intentional dates-only service, no action needed; otherwise set at least one weekday field to 1."
+      },
+      "priority": 80
+    },
+    "audit_input_classification": null,
+    "audit_zip_sha256": "dec3ec0ccc2efb7f1327ee6f26a0636a4a271494490e6debedcb2c1ccc579e76",
+    "url": "https://files.mobilitydatabase.org/mdb-3226/latest.zip",
+    "download_exit": 0,
+    "redownload_sha256": "dec3ec0ccc2efb7f1327ee6f26a0636a4a271494490e6debedcb2c1ccc579e76",
+    "evidence_status": "SAME_AS_AUDIT_INPUT",
+    "archive_files": [
+      "agency.txt",
+      "calendar.txt",
+      "routes.txt",
+      "stops.txt",
+      "stop_times.txt",
+      "trips.txt"
+    ],
+    "refs": [
+      [
+        "calendar.txt",
+        902
+      ]
+    ],
+    "contexts": [
+      {
+        "file": "calendar.txt",
+        "requested_line": 902,
+        "context": [
+          {
+            "line": 900,
+            "text": "\"2757358970\",\"100011884\",\"0\",\"0\",\"0\",\"0\",\"0\",\"1\",\"1\",\"20241108\",\"20301231\","
+          },
+          {
+            "line": 901,
+            "text": "\"2757358971\",\"100011925\",\"0\",\"0\",\"0\",\"0\",\"0\",\"1\",\"1\",\"20241109\",\"20301231\","
+          },
+          {
+            "line": 902,
+            "text": "\"2757358972\",\"100011903\",\"0\",\"0\",\"0\",\"0\",\"0\",\"0\",\"0\",\"20241108\",\"20301231\","
+          },
+          {
+            "line": 903,
+            "text": "\"2757358973\",\"100011942\",\"1\",\"1\",\"1\",\"1\",\"1\",\"0\",\"0\",\"20241119\",\"20301231\","
+          },
+          {
+            "line": 904,
+            "text": "\"2757358974\",\"100011904\",\"0\",\"0\",\"0\",\"0\",\"0\",\"0\",\"0\",\"20241108\",\"20301231\","
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "candidate": {
+      "type": "analyzer_mapped_md_absent",
+      "unadjudicated_type": null,
+      "decision": "unreviewed",
+      "reason": "No verdict recorded for this rule in fp_adjudication.tsv.",
+      "feed_id": "mdb-351",
+      "provider": "Chatham Area Transit (CAT)",
+      "country": "DZ",
+      "url": "https://files.mobilitydatabase.org/mdb-351/latest.zip",
+      "analyzer_rule": "SHP_025",
+      "analyzer_count": 41,
+      "analyzer_class": "QUALITY",
+      "analyzer_severity": "MEDIUM",
+      "mapped_md_codes": [
+        "trip_distance_exceeds_shape_distance",
+        "trip_distance_exceeds_shape_distance_below_threshold"
+      ],
+      "analyzer_sample": {
+        "id": "k6/SHP_025#8799",
+        "rule_id": "SHP_025",
+        "severity": "MEDIUM",
+        "rule_class": "QUALITY",
+        "entity_type": "Trip",
+        "entity_id": "273141",
+        "scope_key": "273141",
+        "file": "stop_times.txt",
+        "field": "shape_dist_traveled",
+        "observed_value": "16.440",
+        "expected_value": "≤ 16.416",
+        "message": "Shape '273141': stop_times distance exceeds total shape length.",
+        "remediation": "Match the shape_dist_traveled values in stop_times.txt to the scale used in shapes.txt."
+      },
+      "priority": 80
+    },
+    "audit_input_classification": null,
+    "audit_zip_sha256": "6178ecd68a63706aafc3e780369c46d846b9be3b54bc5920c3f908e9559a3318",
+    "url": "https://files.mobilitydatabase.org/mdb-351/latest.zip",
+    "download_exit": 0,
+    "redownload_sha256": "6178ecd68a63706aafc3e780369c46d846b9be3b54bc5920c3f908e9559a3318",
+    "evidence_status": "SAME_AS_AUDIT_INPUT",
+    "archive_files": [
+      "agency.txt",
+      "calendar.txt",
+      "calendar_dates.txt",
+      "google.log",
+      "routes.txt",
+      "shapes.txt",
+      "stop_times.txt",
+      "stops.txt",
+      "trips.txt"
+    ],
+    "refs": [
+      [
+        "stop_times.txt",
+        null
+      ]
+    ],
+    "contexts": [
+      {
+        "file": "stop_times.txt",
+        "requested_line": null,
+        "context": [
+          {
+            "line": 1,
+            "text": "trip_id,arrival_time,departure_time,stop_id,stop_sequence,stop_headsign,pickup_type,drop_off_type,shape_dist_traveled,timepoint"
+          },
+          {
+            "line": 2,
+            "text": "271062,19:30:00,19:30:00,1892,1,,0,0,,1"
+          },
+          {
+            "line": 3,
+            "text": "271062,19:31:50,19:31:50,1666,2,,0,0,0.6027,0"
+          },
+          {
+            "line": 4,
+            "text": "271062,19:33:29,19:33:29,631,3,,0,0,1.1462,0"
+          },
+          {
+            "line": 5,
+            "text": "271062,19:34:22,19:34:22,633,4,,0,0,1.4403,0"
+          },
+          {
+            "line": 6,
+            "text": "271062,19:34:49,19:34:49,634,5,,0,0,1.5897,0"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "candidate": {
+      "type": "analyzer_mapped_md_absent",
+      "unadjudicated_type": null,
+      "decision": "unreviewed",
+      "reason": "No verdict recorded for this rule in fp_adjudication.tsv.",
+      "feed_id": "mdb-992",
+      "provider": "Valsts SIA Autotransporta Direkcija (ATD)",
+      "country": "LV",
+      "url": "https://files.mobilitydatabase.org/mdb-992/latest.zip",
+      "analyzer_rule": "AGN_017",
+      "analyzer_count": 1,
+      "analyzer_class": "INTEROP",
+      "analyzer_severity": "LOW",
+      "mapped_md_codes": [
+        "inconsistent_agency_lang"
+      ],
+      "analyzer_sample": {
+        "id": "k4/AGN_017#36",
+        "rule_id": "AGN_017",
+        "severity": "LOW",
+        "rule_class": "INTEROP",
+        "entity_type": "Feed",
+        "file": "agency.txt",
+        "field": "agency_lang",
+        "observed_value": "  lv,  lv",
+        "details": {
+          "whitespace_candidate": "true"
+        },
+        "message": "Agencies in the feed declare different agency_lang values (  lv,  lv) — an inconsistency across operators.",
+        "remediation": "Make agency_lang consistent across agencies (or ignore for a genuinely multilingual network)."
+      },
+      "priority": 80
+    },
+    "audit_input_classification": null,
+    "audit_zip_sha256": "e10ff3de8e60c484bf969255001a8d187c7b136c4f62bbcece45f8dd0356745e",
+    "url": "https://files.mobilitydatabase.org/mdb-992/latest.zip",
+    "download_exit": 0,
+    "redownload_sha256": "e10ff3de8e60c484bf969255001a8d187c7b136c4f62bbcece45f8dd0356745e",
+    "evidence_status": "SAME_AS_AUDIT_INPUT",
+    "archive_files": [
+      "agency.txt",
+      "calendar.txt",
+      "calendar_dates.txt",
+      "routes.txt",
+      "stops.txt",
+      "stop_times.txt",
+      "trips.txt",
+      "shapes.txt",
+      "fare_rules.txt",
+      "fare_attributes.txt"
+    ],
+    "refs": [
+      [
+        "agency.txt",
+        null
+      ]
+    ],
+    "contexts": [
+      {
+        "file": "agency.txt",
+        "requested_line": null,
+        "context": [
+          {
+            "line": 1,
+            "text": "agency_id, agency_name, agency_url, agency_timezone, agency_phone, agency_lang"
+          },
+          {
+            "line": 2,
+            "text": "23, \"SIA GALSS BUSS\", http://www.galssbuss.lv, Europe/Riga, 67226006, LV"
+          },
+          {
+            "line": 3,
+            "text": "66, \"SIA Daugavpils autobusu parks\", http://www.buspark.lv, Europe/Riga, 29563163, LV"
+          },
+          {
+            "line": 4,
+            "text": "55, \"AS Liepājas autobusu parks\", http://www.lap.lv, Europe/Riga, 80000078 (Liepājā); 80000079 (Pierīgā); 80700004 (Ogrē); 80700006 (Aizkrauklē), LV"
+          },
+          {
+            "line": 5,
+            "text": "113, \"Pasažieru vilciens AS\", https://www.vivi.lv/, Europe/Riga, 67232135, LV"
+          },
+          {
+            "line": 6,
+            "text": "67, \"AS Talsu autotransports\", https://line.wanema.lv/, Europe/Riga, 26431820, LV"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "candidate": {
+      "type": "analyzer_mapped_md_absent",
+      "unadjudicated_type": null,
+      "decision": "unreviewed",
+      "reason": "No verdict recorded for this rule in fp_adjudication.tsv.",
+      "feed_id": "tdg-81193",
+      "provider": "Martinique Transport",
+      "country": "FR",
+      "url": "https://files.mobilitydatabase.org/tdg-81193/latest.zip",
+      "analyzer_rule": "STM_007",
+      "analyzer_count": 13,
+      "analyzer_class": "INTEROP",
+      "analyzer_severity": "HIGH",
+      "mapped_md_codes": [
+        "start_and_end_range_out_of_order"
+      ],
+      "analyzer_sample": {
+        "id": "k6/STM_007#48",
+        "rule_id": "STM_007",
+        "severity": "HIGH",
+        "rule_class": "INTEROP",
+        "entity_type": "Trip",
+        "entity_id": "4002008",
+        "scope_key": "4002008",
+        "file": "stop_times.txt",
+        "line": 63,
+        "field": "departure_time",
+        "observed_value": "13:50:00 < 13:55:00",
+        "expected_value": ">= 13:55:00",
+        "details": {
+          "arr": "13:55:00",
+          "dep": "13:50:00",
+          "dir": "0",
+          "route": "V2",
+          "seq": "2",
+          "stop_name": "Anse Mitan (Embarcadere)"
+        },
+        "message": "Route 'V2' trip '4002008': at Anse Mitan (Embarcadere) (stop 2), departure 13:50:00 is before arrival 13:55:00 (dir 0).",
+        "remediation": "Set departure_time to be equal to or after arrival_time."
+      },
+      "priority": 80
+    },
+    "audit_input_classification": null,
+    "audit_zip_sha256": "ad33a349258731c89c1f1461e2e199b29877e57f615386b0a048ae2ef2218e1d",
+    "url": "https://files.mobilitydatabase.org/tdg-81193/latest.zip",
+    "download_exit": 0,
+    "redownload_sha256": "ad33a349258731c89c1f1461e2e199b29877e57f615386b0a048ae2ef2218e1d",
+    "evidence_status": "SAME_AS_AUDIT_INPUT",
+    "archive_files": [
+      "agency.txt",
+      "calendar.txt",
+      "feed_info.txt",
+      "stops.txt",
+      "stop_times.txt",
+      "routes.txt",
+      "trips.txt",
+      "shapes.txt"
+    ],
+    "refs": [
+      [
+        "stop_times.txt",
+        63
+      ]
+    ],
+    "contexts": [
+      {
+        "file": "stop_times.txt",
+        "requested_line": 63,
+        "context": [
+          {
+            "line": 61,
+            "text": "4002007,13:05:00,13:05:00,4,0,40001,"
+          },
+          {
+            "line": 62,
+            "text": "4002008,13:30:00,13:30:00,1,0,40001,"
+          },
+          {
+            "line": 63,
+            "text": "4002008,13:55:00,13:50:00,2,0,40003,"
+          },
+          {
+            "line": 64,
+            "text": "4002008,14:10:00,14:05:00,3,0,40004,"
+          },
+          {
+            "line": 65,
+            "text": "4002008,14:25:00,14:25:00,4,0,40001,"
+          }
+        ]
+      }
+    ]
+  }
+]

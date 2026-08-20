@@ -596,6 +596,13 @@ fn check_stops(
             continue;
         }
         let eid = Some(rec.stop_id.clone());
+        // 🔴 İKİ AYRI SORU, İKİ AYRI OKUMA:
+        //   • "alan DOLU mu"  → DAİMA `parent.trim()` (yalnız boşluktan ibaret alan BOŞTUR)
+        //   • "hangi kaydı gösteriyor" → DAİMA HAM `parent` (PK/FK ham sözlüksel değerdir)
+        // Bu ayrımın yarısını yapıp diğerini atlamak regresyon üretir: `row_field` trim'i
+        // kaldırıldığında aşağıdaki üç `is_empty()` ham değere bakmaya başladı ve tek
+        // boşluk taşıyan `parent_station` "dolu" sayıldı — `tfs-535`'te STP_036 0 -> 14.
+        //
         // 🔴 FK karşılaştırması HAM değerle yapılır, `row_field` ile DEĞİL.
         // `row_field` trim eder; `map.stops` anahtarları ise ham `stop_id`'dir. İki taraf
         // farklı okununca sondaki boşluk taşıyan bir kimlik eşleşmez: mdb-2003'te
@@ -622,7 +629,7 @@ fn check_stops(
                 format!("parent_station '{parent}' stops.txt'te tanımlı değil."),
                 "Geçerli bir stop_id'yi parent_station olarak kullanın.",
             ));
-        } else if !parent.is_empty() {
+        } else if !parent.trim().is_empty() {
             // STP_010: parent_station'ın location_type = 1 (station) olması.
             // İstisna: location_type=4 (Boarding Area) parent'ı PLATFORM (location_type=0)
             // olmalıdır; onu STP_021 denetler, STP_010 kapsamı dışında bırakılır.
@@ -648,7 +655,7 @@ fn check_stops(
         }
 
         // STP_011: location_type 2,3,4 için parent_station zorunlu
-        if matches!(loc_type, Some(2) | Some(3) | Some(4)) && parent.is_empty() {
+        if matches!(loc_type, Some(2) | Some(3) | Some(4)) && parent.trim().is_empty() {
             notices.push(notice(
                 ctr,
                 "STP_011",
@@ -669,7 +676,7 @@ fn check_stops(
         }
 
         // STP_036: location_type=1 (station) parent_station içermemeli
-        if loc_type == Some(1) && !parent.is_empty() {
+        if loc_type == Some(1) && !parent.trim().is_empty() {
             notices.push(notice(
                 ctr,
                 "STP_036",
@@ -4778,6 +4785,49 @@ mod tests {
     }
 
     // �"?�"? RTS_002 �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?
+
+    /// Yalnız boşluktan ibaret `parent_station` BOŞTUR — üç kural da bunu böyle okumalı.
+    ///
+    /// 🔴 Regresyon (7. koşumda ölçüldü): `STP_009`'un FK karşılaştırması ham değere
+    /// çevrilirken aynı bloktaki üç `is_empty()` kontrolü atlandı. Ham okuyunca `" "`
+    /// "dolu" sayıldı ve `tfs-535`'te `STP_036` 0 -> 14 oldu — arşivi bayt bayt aynı
+    /// bir feed'de, yani katalog kaymasıyla açıklanamaz.
+    ///
+    /// İki ayrı soru, iki ayrı okuma: DOLULUK daima `trim()`, KİMLİK daima ham.
+    #[test]
+    fn whitespace_only_parent_station_counts_as_absent() {
+        let (mut recs, mut map) = empty();
+        map.stops.insert("STATION".into(), 0);
+        let mut station = stop("STATION");
+        station.location_type = Some(1);
+        station.row.insert("parent_station".to_string(), " ".to_string());
+        recs.stops = vec![station];
+        let result = check(&recs, &map, 20260515);
+        assert!(!result.notices.iter().any(|n| n.rule_id == "STP_036"),
+            "yalnız boşluk taşıyan parent_station DOLU sayılmamalı: {:?}",
+            result.notices.iter().map(|n| &n.rule_id).collect::<Vec<_>>());
+        assert!(!result.notices.iter().any(|n| n.rule_id == "STP_009"),
+            "boş parent için FK ihlali de üretilmemeli");
+    }
+
+    /// Gerçekten dolu bir parent_station'da STP_036 hâlâ ateşlemeli — kapı fazla geniş olmasın.
+    #[test]
+    fn station_with_real_parent_still_produces_stp_036() {
+        let (mut recs, mut map) = empty();
+        map.stops.insert("STATION".into(), 0);
+        map.stops.insert("PARENT".into(), 1);
+        let mut station = stop("STATION");
+        station.location_type = Some(1);
+        station.row.insert("parent_station".to_string(), "PARENT".to_string());
+        let mut parent = stop("PARENT");
+        parent.location_type = Some(1);
+        // İki kayıt da `recs.stops`'ta olmalı: `map.stops` indeksleri bu vektöre bakar.
+        recs.stops = vec![station, parent];
+        let result = check(&recs, &map, 20260515);
+        assert!(result.notices.iter().any(|n| n.rule_id == "STP_036"),
+            "istasyonun GERÇEK parent'ı varsa STP_036 ateşlemeli: {:?}",
+            result.notices.iter().map(|n| &n.rule_id).collect::<Vec<_>>());
+    }
 
     #[test]
     fn invalid_agency_ref_in_route_produces_rts_002() {

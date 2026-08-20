@@ -1,0 +1,72 @@
+Run ID: 32344419636
+Artifact: validator-audit-all-mdb-final
+Artifact ID: 9399406299
+Artifact digest: sha256:a4d0dc02cfbce3321ecf4dc63ccf3e2e1b52f5218ef3e242a42f896f1e562856
+Product commit: fd40642c (main at branch point, CI green)
+Audit harness commit: 55c38f7c
+MobilityData validator: v8.0.1
+Audit date: 2026-08-20 (BENCH_DATE=20260820, MD_DATE=2026-08-20) — SAME date as run 32311885577
+Analyzer rule count: 600 (417 observed firing)
+Manifest SHA-256: af55ad532b9cd10775ed478cc0a7673fc962d795710fd42f6262a81880e9a5b4 (byte-identical to runs 4-6)
+Scope: Full MobilityDatabase GTFS Schedule catalog; no deduplication; GTFS Realtime excluded.
+Exclusions: mdb-2904 by standing instruction. Tested 4271 of 4476 catalog rows.
+Health gates: manifest_checked=true with no missing or unexpected ids; timing measured for 4238 Analyzer and 4229 MobilityData states against 4229 both-completed feeds; 102 duplicate-content groups over 208 feeds; mdb-2014 download ok; all 643 jobs completed; conclusion=success.
+
+🔴 THE MANIFEST IS IDENTICAL, THE FEEDS ARE NOT
+-----------------------------------------------
+Of the 4,271 feeds, roughly 3,662 have the same archive SHA-256 as run 32311885577 and
+about 577 were re-published upstream between the runs. A byte-identical manifest means
+the same feed IDs were selected, NOT that the same bytes were downloaded.
+
+Every regression claim below is therefore made against the same-archive subset. Global
+totals mix product change with catalog drift and are stated separately.
+
+This distinction was not drawn in the previous six runs' notes and it changes how their
+"unchanged corpus" phrasing should be read.
+
+PURPOSE: test seven product changes
+------------------------------------
+  CSV tokenizer     tdg-80973   RTS_031 7 -> 0, ARC_012 14 -> 0, ARC_033 HELD at 1
+  ARC_034 streams   mdb-1004    5 -> 9   mdb-1003  5 -> 7      TRP_002 -> 0
+  TRN_011           mdb-2126    421 -> 0, TRN_001 HELD at 421
+                    jbda-shinjobankotsu  1,044 -> 0, TRN_001 HELD at 1,056
+  DQ_018 threshold  mdb-2389    2,394 -> 0, mdb-2653 HELD at 926
+  TRP_024 blocks    tdg-83634   5,798 -> 1,887, tdg-81942 HELD at 1,870
+  STP_009 raw FK    mdb-2003    2 -> 0
+
+The HELD rows are the ones that matter. STM_003 does not move on either feed where
+STM_015/016 went silent, ARC_033 does not move where ARC_012 collapsed, and TRN_001 does
+not move where TRN_011 went to zero. In every case the wrong rule stopped and the right
+one kept reporting.
+
+WHERE THE PREDICTIONS WERE WRONG
+---------------------------------
+ARC_034 was predicted at 8 and 6; it measured 9 and 7. The prediction was written before
+calendar_dates.txt was wired as the fourth streamed path, and file-level inspection
+confirms that file carries a repeated header on both feeds. The rule card claimed no
+corpus feed exhibited this case — that claim was wrong and is corrected.
+
+STM_034 was predicted to be unchanged. On the same-archive subset it went 2,113 -> 0, all
+of it on mdb-3401, while STM_003 held at 218,087. The fix is behaving correctly; the
+prediction was not measured before it was written.
+
+Firing rules 422 -> 417. Four of the six are this round's own fixes reaching zero
+(TRN_011, TRN_015, and the ARC_034 derivatives STM_005 and TRP_006); two are feed drift
+on mdb-1127.
+
+A REGRESSION THIS RUN CAUGHT
+-----------------------------
+STP_036 fired 14 times on tfs-535, an archive with an unchanged SHA-256, having fired 0
+times in run 32311885577. Cause: the STP_009 fix moved `parent` to the raw field value,
+and three sibling `is_empty()` checks in the same block were not converted, so a
+parent_station holding a single space counted as populated.
+
+Fixed after this run: presence is always tested on `parent.trim()`, identity always on the
+raw value. Verified on tfs-535 at the same SHA — 14 -> 0 — with mdb-2003's STP_009 still
+at 0. Two regression tests pin both directions.
+
+TOTALS ARE NOT A QUALITY MEASURE
+---------------------------------
+38,345,713 -> 38,244,074, a change of -101,639. Split by archive identity: about -222,802
+on same-archive feeds and about +121,163 on re-published ones. Quoting the net figure as
+"we removed 101,639 errors" would be wrong in both directions.

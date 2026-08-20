@@ -87,53 +87,73 @@ sahte bulgular üretir.
 
 ## 5. 🔴 BU KOŞUMA ÖZEL — ÖNCEKİYLE KIYASLARKEN
 
-> Bu bölüm **her koşumdan sonra yeniden yazılır.** Aşağıdaki hâli **6. koşumun
-> SONUCUDUR** (`32311885577`). Koşum öncesi tahmin tablosu git geçmişinde `ce321611`'dedir.
+> **7. koşumun SONUCU** (`32344419636`). Tahmin tablosu git geçmişinde `55c38f7c`'dedir.
 
-**ON YEDİ TAHMİNİN ON YEDİSİ TUTTU.** Doğrulama elle değil `verify_r6.py` ile yapıldı;
-her satır artefakta karşı otomatik sınandı.
+### 🔴 EN ÖNEMLİ BULGU: MANİFEST AYNI ≠ FEED'LER AYNI
 
-| değişiklik | tahmin | gerçekleşen |
-|---|---|---|
-| `STM_061` `mdb-1003` | 11 | **11** ✅ |
-| `STM_061` `mdb-1004` | 20 | **20** ✅ |
-| `STM_061` `mdb-3401` | 43 | **43** ✅ |
-| `STM_061` ateşleyen feed | 331 (daralmamalı) | **331** ✅ |
-| `STM_016` `mdb-3401` | 0 | **0** ✅ |
-| `STM_015`/`STM_016` `mdb-2727` | 0 / 0 | **0 / 0** ✅ |
-| 🔴 `STM_003` `mdb-3401` | 218.087 SABİT | **218.087** ✅ |
-| 🔴 `STM_003` `mdb-2727` | 203.242 SABİT | **203.242** ✅ |
-| `analyzer_spec_unmapped` | ~9 | **8** ✅ |
-| `md_mapped_missing` | ~12 | **12** ✅ |
-| `analyzer_mapped_md_absent` | ~2.196 | **2.196** ✅ |
-| `md_unmapped` · kural · feed | 0 · 422 · 4.271 | aynı ✅ |
+Altı koşumdur "manifest bayt bayt aynı, dolayısıyla korpus değişmedi" diye yazıldı.
+**Bu yanlış.** Manifest aynı feed KİMLİKLERİNİN seçildiğini söyler; indirilen ARŞİVLERİN
+aynı olduğunu söylemez. 6. ve 7. koşum arasında:
 
-🔑 **İki `STM_003` satırı bu tablonun en önemli kısmıdır.** `TIME_MALFORMED` düzeltmesi
-`STM_015/016`'yı, değeri DOLU ama `HH:MM` yazılmış satırlarda susturur; aynı satırlarda
-gerçek kusuru `STM_003` bildirir. `STM_003` de düşseydi, 214.000 bulguluk azalma
-"iyileşme" diye okunurken aslında DOĞRU kuralın susturulmasını gizlerdi. **Tek bulgu
-oynamadı.** `STM_015` 195, `STM_016` 150 bulgu KORUDU — bunlar gerçekten boş alanlar.
+| | feed |
+|---|---:|
+| arşiv SHA-256 aynı | **~3.662** |
+| arşiv yeniden yayımlanmış | **~577** |
+| iki koşumda da indirilemeyen | 32 |
 
-### Toplam: −274.835 ve hiçbiri kalite ölçüsü DEĞİL
+**Her regresyon iddiası aynı-arşiv altkümesine karşı yapılmalıdır.** Global toplamlar ürün
+değişikliğiyle katalog kaymasını karıştırır. Önceki altı koşumun "değişmeyen korpus"
+ifadeleri bu gözle yeniden okunmalıdır.
 
-38.620.548 → 38.345.713, korpus değişmedi (manifest bayt bayt aynı).
+Örnek: `STM_061` feed sayısı global 331 → 332 görünüyor, ama aynı-arşiv altkümesinde
+235 → 235 ve bulgu 3.579 → 3.579. O +1 ürün değil katalog.
 
-| kaynak | değişim | ne anlama geliyor |
-|---|---:|---|
-| `STM_015` + `STM_016` | **−214.346** | doğru olmayan bir iddianın geri çekilmesi |
-| `STM_061` | **−78.429** | aynı kusurun sefer başına değil çift başına sayılması |
-| tarih (bir gün ileri) + feed içeriği | ~+17.900 | `DQ_018` +10.067, `STM_036` +1.748, `VAT_002` +1.468 |
+### Tahminler — 20 tuttu, 2 tutmadı, 1'i yarı
 
-**Feed sayıları düşmedi** — `STM_061` 331 feed'de kaldı, ateşleyen kural 422'de.
+| değişiklik | feed | tahmin | ölçüm |
+|---|---|---|---|
+| CSV tokenizer | `tdg-80973` | `RTS_031` 0 · `ARC_012` 0 · 🔴 `ARC_033` **1** | 0 · 0 · **1** ✅ |
+| `ARC_034` | `mdb-1004` / `mdb-1003` | 8 / 6 | **9 / 7** ❌ |
+| | `mdb-1004` `TRP_002` | 0 | **0** ✅ |
+| `TRN_011` | `mdb-2126` | 0, 🔴 `TRN_001` **421** | 0 · **421** ✅ |
+| | `jbda-shinjobankotsu…` | 0, 🔴 `TRN_001` **1.056** | 0 · **1.056** ✅ |
+| `DQ_018` | `mdb-2389` / `mdb-2653` | 0 / **926** | 0 / **926** ✅ |
+| `TRP_024` | `tdg-83634` / `tdg-81942` | 1.887 / **1.870** | 1.887 / **1.870** ✅ |
+| `STP_009` | `mdb-2003` | 0 | **0** ✅ |
+| `STM_034` | korpus | **değişmemeli** | **2.113 → 0** ❌ |
+| ateşleyen kural | — | 422 | **417** ❌ |
 
-### Kalan sapma — üçü de küçük ve adı belli
+🔑 **"SABİT kalmalı" satırlarının hepsi tuttu.** `ARC_033` `ARC_012` çökerken kıpırdamadı,
+`TRN_001` `TRN_011` sıfırlanırken kıpırdamadı, `STM_003` `STM_034` sıfırlanırken 218.087'de
+kaldı. Her vakada yanlış kural sustu, doğru kural konuşmaya devam etti.
 
-- `analyzer_spec_unmapped` **8 satır**: yalnız `TRN_011` (6) ve `TRN_015` (2), ikisi de
-  açık nöbet.
-- `md_mapped_missing` **12 satır**: `empty_file` 6, `invalid_date`/`invalid_integer`/
-  `invalid_timezone` 2'şer. `fast_travel_between_far_stops` TAMAMEN GİTTİ.
-- `analyzer_mapped_md_absent` **2.196** → koşum sonrası hükümlerle **922**
-  (`reaggregated/`).
+**`ARC_034` 9/7:** tahmin `calendar_dates.txt` dördüncü stream yolu olarak bağlanmadan önce
+yazılmıştı. Dosya düzeyinde doğrulandı — o dosya gerçekten başlık tekrarı taşıyor.
+
+**`STM_034` 2.113 → 0:** "önleyici, korpusta etki yok" tahmini ÖLÇÜLMEDEN yazılmıştı.
+Düzeltme doğru çalışıyor; tahmin yanlıştı.
+
+**417 ateşleyen kural:** altı kuralın dördü bu turun kendi düzeltmeleri (`TRN_011`,
+`TRN_015` ve `ARC_034` türevleri `STM_005`, `TRP_006`), ikisi feed kayması (`mdb-1127`).
+Yeni ateşleyen: `STP_036` — aşağıya bakın.
+
+### 🔴 BU KOŞUMUN YAKALADIĞI REGRESYON
+
+`tfs-535`'te `STP_036` **0 → 14**, arşiv SHA'sı DEĞİŞMEDEN. Sebep: `STP_009` düzeltmesi
+`parent` değişkenini ham değere çevirdi, ama aynı bloktaki **üç `is_empty()` kontrolü
+çevrilmedi**; tek boşluk taşıyan `parent_station` "dolu" sayıldı.
+
+Düzeltildi: **DOLULUK daima `trim()`, KİMLİK daima ham.** `tfs-535` aynı SHA'da 14 → 0,
+`mdb-2003` hâlâ 0. İki regresyon testi iki yönü de sabitliyor.
+
+⚠️ Bu, koşumun tek başına haklı çıkardığı sonuçtur: dört feed'de yerel doğrulama bunu
+görmedi, çünkü hiçbirinde boşluklu `parent_station` yoktu.
+
+### Toplam: −101.639 ve bu sayı KULLANILAMAZ
+
+38.345.713 → 38.244.074. Ayrıştırınca: aynı-arşiv feed'lerde **−222.802**, yeniden
+yayımlanmış feed'lerde **+121.163**. Net rakamı "101 bin hata azalttık" diye okumak
+her iki yönde de yanlıştır.
 
 ## 6. Sonuçların yayımlanması
 
