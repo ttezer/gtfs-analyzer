@@ -596,11 +596,18 @@ fn check_stops(
             continue;
         }
         let eid = Some(rec.stop_id.clone());
-        let parent = row_field(&rec.row, "parent_station");
+        // 🔴 FK karşılaştırması HAM değerle yapılır, `row_field` ile DEĞİL.
+        // `row_field` trim eder; `map.stops` anahtarları ise ham `stop_id`'dir. İki taraf
+        // farklı okununca sondaki boşluk taşıyan bir kimlik eşleşmez: mdb-2003'te
+        // `stop_id = "Station Charles Schaumann "` gerçekten TANIMLI, ama trim edilmiş
+        // `parent_station` onu bulamıyor ve kural Spec·KRİTİK bir FK ihlali uyduruyordu.
+        // #85'in kararı: PK/FK ham sözlüksel değerdir. Doluluk kontrolü trim'li kalır —
+        // yalnız boşluktan ibaret bir alan "dolu" sayılmamalı.
+        let parent = rec.row.get("parent_station").map(String::as_str).unwrap_or("");
         let loc_type = rec.location_type;
 
         // STP_009: parent_station geçerli stop_id'ye referans
-        if !parent.is_empty() && !map.stops.contains_key(parent) {
+        if !parent.trim().is_empty() && !map.stops.contains_key(parent) {
             notices.push(notice(
                 ctr,
                 "STP_009",

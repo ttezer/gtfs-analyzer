@@ -1564,7 +1564,14 @@ pub fn validate_stop_times(
         // yanlış-pozitifleri elenir. Bkz. k6_analytics.rs.
 
         // STM_034: varış veya kalkış zamanından yalnızca biri tanımlı
-        match (arrival_time, departure_time) {
+        //
+        // 🔴 `None` İKİ ŞEY DEMEK: alan boş, ya da alan dolu ama ayrıştırılamadı. Bu kural
+        // "yalnız biri TANIMLI" der, yani DOLULUK hakkında konuşur — bozuk değeri "yok"
+        // sayarsa dolu bir alan için asimetri uydurur ve aynı satırda STM_003/STM_004
+        // zaten doğrusunu söylerken ikinci bir yanlış bulgu üretir. STM_015/016'nın
+        // mdb-2727'de 101.621 kez yaptığı hatanın aynısı (44206d0a).
+        match (arrival_time.or(arr_malformed.then_some((0,0,0))),
+               departure_time.or(dep_malformed.then_some((0,0,0)))) {
             (Some(_), None) => {
                 st.notices.push(make_k2_notice(
                     &mut st.counter, "STM_034", EntityType::Trip, eid(),
@@ -1649,7 +1656,13 @@ pub fn validate_stop_times(
 
         // STM_047: timepoint=1 (kesin zaman noktası) iken hem arrival_time hem departure_time
         // eksik. Yalnızca biri dolu olduğunda STM_034 asimetriyi yakalar → örtüşme yok.
-        if timepoint == Some(1) && arrival_time.is_none() && departure_time.is_none() {
+        // Aynı ayrım: "tanımlı değil" iddiası ancak alan GERÇEKTEN boşken doğrudur.
+        // Bozuk yazılmış bir zaman timepoint=1 için eksik değil, hatalıdır — onu STM_003
+        // ve STM_004 bildirir.
+        if timepoint == Some(1)
+            && arrival_time.is_none() && !arr_malformed
+            && departure_time.is_none() && !dep_malformed
+        {
             st.notices.push(make_k2_notice(
                 &mut st.counter, "STM_047", EntityType::Trip, eid(),
                 None, &file.name, Some(line),
