@@ -250,6 +250,11 @@ AGG_RULES = {
                 # sayı tarifenin sıklığıyla ölçekleniyordu: mdb-1003'te 9.533 bulgunun
                 # tamamı TEK çiftten geldi (11 oldu), mdb-1004'te 10.390 -> 20.
                 # MD per-occurrence sayar → our_count << md_count ARTIK NORMAL.
+    "SHP_024",  # 2026-08-20: (stop_id, shape_id) ÇİFTİ başına tek notice (`seen_shp024`).
+                # MD (sefer, durak) başına sayar → aynı shape N seferde kullanılırsa MD N
+                # katı verir; ortak 581 feed'de biz 122.401, onlar 486.637 (3,98x). Kural
+                # dedup'u YAPIYORDU ama AGG_RULES'a yazılmamıştı - STM_014 ve DQ_016'dan
+                # sonra ÜÇÜNCÜ kez aynı atlama.
     "SHP_012",  # per-SHAPE özeti: shape başına TEK notice, observed="N durak >100m".
                 # MD (sefer,durak) başına sayar → aynı shape N seferde kullanılırsa MD N katı.
                 # mdb-2366: bizim 171 notice içinde 3.338 uzak durak, MD 1.794 occurrence
