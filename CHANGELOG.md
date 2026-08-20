@@ -7,7 +7,157 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.7] - 2026-08-20
+
+### Added
+
+- **Seven full-catalog corpus runs against MobilityData's Java `gtfs-validator` v8.0.1.**
+  Each run re-validates all 4,271 GTFS Schedule feeds in the MobilityDatabase catalogue
+  with both validators on the same machine, on the same day, over 640 parallel shards —
+  the Java tool is actually executed rather than its published reports being read. Raw
+  output for every run is committed under `audit-results/`.
+
+- **`STM_061` — impossible speed between distant non-consecutive stops.** `STM_012`/`STM_014`
+  compare neighbouring stops only, so a trip whose every segment looks plausible while the
+  whole is physically impossible passed between them. Aggregated per (route, direction,
+  stop pair).
+
+- **`ARC_034` — a data row that repeats the header verbatim.** One structural finding instead
+  of the dozens of field errors the phantom row otherwise scatters across unrelated rules.
+
+- **`BKR_025` — malformed time in `booking_rules.txt` prior-notice fields.**
+
+- **Three structural gates that make silent tool failure impossible.** A missing adjudication
+  ledger now raises instead of returning empty; a divergence type that never consulted a
+  ledger stops the run; and a rule judged as an aggregation difference must be declared in
+  `AGG_RULES`.
+
+- **`SHP_030` reports incomplete shape-distance coverage.** A shape-level Quality finding is
+  emitted when a trip supplies `stop_times.shape_dist_traveled` but one or more points of the
+  referenced shape lack `shapes.shape_dist_traveled`. The finding aggregates affected trips and
+  preserves the fact that both GTFS fields are individually optional; it is not a Spec blocker.
+
+- **`RTS_030` reports extended (HVT) `route_type` values.** The core GTFS Schedule Reference
+  defines `route_type` as exactly `0-7`, `11`, `12` — the word *extended* does not appear in
+  the field definition. Values in `100-1799` are the Google Transit/HVT convention, and
+  `RTS_004` (`Spec`, CRITICAL, publication gate) accepted them silently, presenting an
+  extension as core specification compliance. They are now reported by `RTS_030`
+  (`Interop`, LOW), which does not block publication. `RTS_004` is unchanged for every other
+  value. The class is measured, not assumed: MobilityData reports `unexpected_enum_value`
+  (WARNING) for these values in **19 of the 225 corpus feeds**.
+
+### Fixed
+
+- **`STM_015`/`STM_016` claimed a missing time on rows that had one.** The accessor collapsed
+  "field is empty" and "field is present but unparseable" into a single `None`, so a value
+  written `HH:MM` counted as absent. Both rules are Spec·CRITICAL, so the wrong claim reached
+  the publication gate — 101,621 findings on one feed alone. `TIME_MALFORMED` separates the
+  two sentinels; `STM_034` and `STM_047` carried the same trap and were converted with it.
+
+- **`STP_009` invented a foreign-key violation on identifiers with surrounding whitespace.**
+  The lookup trimmed one side and not the other. Presence is now always tested on the trimmed
+  value, identity always on the raw one.
+
+- **`ARC_009` went silent when both calendar files were empty.** The conditional-pair
+  suppression checked whether the sibling file exists rather than whether it carries data, so
+  a feed with no service definition at all went unreported.
+
+- **`TRN_011` judged field translatability in tables whose schema it does not know.** It fired
+  on `directions`/`direction` whose translations are `East`, `West`, `North`, `South`.
+
+- **The CSV tokenizer split a cell in two when a quote closed early.** Text after a closing
+  quote became a new field and shifted every column after it, which made `route_id` read as
+  empty and produced Spec·CRITICAL foreign-key findings. The RFC 4180 violation is still
+  reported by `ARC_033`; it no longer corrupts the data behind it.
+
+- **`ARC_034` could not see the four files K1 streams** (`stop_times`, `shapes`, `trips`,
+  `calendar_dates`), so repeated headers in those files were processed as data.
+
+- **`DQ_018` flagged three- and four-letter abbreviations as all-caps text.** 33% of its
+  corpus samples were institution codes like `YMCA`, `DMV`, `CVS`. Values under five letters
+  are no longer evaluated.
+
+- **`STM_048` now preserves after-midnight notation violations as `Spec`.** A raw
+  `23:59:00 → 00:xx` rollover is reported in K2 before analysis normalization, while the
+  normalized `24:xx` values continue through K6 without producing a duplicate `STM_008`.
+  Raw detection is independent of `service_day_start_hour`; same-row `departure_time`
+  cases are reported by `STM_049`, which now uses the same `Spec/GtfsSpec` authority.
+
+- **`FPD_006` no longer treats an empty `rider_category_id` as a default category.**
+  GTFS Fares v2 defines an empty value as eligibility for any rider category, while the
+  default is selected by `rider_categories.is_default_fare_category`. Exact duplicate
+  `(fare_product_id, rider_category_id, fare_media_id)` rows are now reported only by
+  `FPD_001`; valid fare-media variants remain silent.
+
+- **`SHP_005` no longer accepts small decreases in `shape_dist_traveled`.** The monotonicity
+  check compared `d < prev - 1e-6`, so a genuine decrease below `1e-6` was silently accepted —
+  a tolerance band the specification does not define, widening the acceptance set of a critical
+  `Spec` predicate. The comparison is now exact (`d < prev`). No tolerance is needed: both
+  values are read straight from the producer-supplied text with no arithmetic applied, and
+  decimal-to-`f64` conversion is monotone, so `d < prev` holds only when the written values
+  decrease. Equal values remain a separate case and still report nothing. The remaining limit
+  is representational, not a tolerance: two decimals that round to the same `f64` collapse to
+  equality.
+
+- **The phone remediation text now describes the check that actually runs.** `AGN_007` and
+  `BKR_022` told the reader to *"use a phone number with at least 7 digits"*, but the shared
+  predicate never counted seven digits — it asks for at least five dialable characters, at
+  least one of them a digit, and no descriptive text around the number. Advice that does not
+  match the measurement sends producers to fix the wrong thing. Updated in English, Turkish
+  and Japanese. This changes the `remediation` field of those findings, not how many findings
+  are produced.
+
+- **Dialable vanity numbers with more than one letter group are accepted.** Following the
+  earlier vanity fix, `looks_like_phone` still required the letters to form a *single* trailing
+  token, so `1-800-GO-FEDEX` was reported as invalid. Letter groups may now form a contiguous
+  trailing run. A run of more than one group must be all uppercase — the convention that marks
+  keypad letters — so prose such as `1234 call us now` is still rejected, as is any value with
+  letters at the start or in the middle (`Call 503-238-1234`, `555-1234 ext 99`) and the
+  measured descriptive corpus value `80000078 (Liepājā); …`. A single letter group keeps its
+  previous behaviour with no case requirement, so the change only widens the accepted set and
+  cannot reject anything that was valid before. This is a `Quality` approximation, not a phone
+  grammar: all-uppercase prose (`1234 CALL US NOW`) is accepted, and both `AGN_007` and
+  `BKR_022` stay in `Quality`.
+
+- **`agency_phone` and `phone_number` accept dialable vanity text.** The specification permits
+  it by name — *"Dialable text (for example, TriMet's `503-238-RIDE`) is permitted, but the
+  field must not contain any other descriptive text"* — and `looks_like_phone` rejected every
+  value containing a letter, including that example. Letters are now allowed when they form a
+  single group at the end of the value (`503-238-RIDE`, `+1 800 FLOWERS`); a letter group at
+  the start or in the middle is still descriptive text and still reported (`Call 503-238-1234`,
+  `555-1234 ext 99`). Affects `AGN_007` and `BKR_022`. Measured on the 239-feed corpus: **no
+  feed changes behaviour**, and the two feeds where the rule currently fires keep firing.
+
+- **`STP_022`'s rule card now states that an empty `stop_code` can be correct.** No behaviour
+  change: the specification says the field *"should be left empty for locations without a code
+  presented to riders"*, so the notice is a prompt to check rather than a defect. The rule is
+  `Quality` and never reaches the publication gate.
+
+- **URL fields now require a web scheme.** `looks_like_url` was `Url::parse(v).is_ok()`,
+  which accepts any scheme: `mailto:`, `ftp://`, `file:///`, `javascript:alert(1)` and even
+  `foo:bar` all passed validation. The specification defines the `URL` type as *"a fully
+  qualified URL that includes http:// or https://"*. Affects every rule that validates a URL
+  — `AGN_003`, `AGN_008`, `STP_042`, `RTS_005`, `FIN_002`, `FIN_009`, `ATR_007`, `RCT_007`,
+  `BKR_020`, `BKR_021`.
+
+  Three of those are `Critical` and `Spec`, so they gate publication. Measured across the
+  239-feed corpus before changing anything: one feed carries such a value (116 rows of
+  `agency_url=jrutil://invalid`), and it already produces 3.7M critical notices, so **no
+  feed's publication decision changes**. Feeds using `mailto:` in a URL field will now see
+  a finding where previously there was none.
+
 ### Changed
+
+- **`BKR_002` reclassified from Spec/HIGH to Quality/MEDIUM.** The spec does not require
+  `prior_notice_start_day` to be paired with `last_day`, so the rule no longer blocks
+  publication.
+
+- **`STM_061`, `TRP_024`, `SHP_024`, `FIN_007`, `FIN_014` and `FIN_018` aggregate per entity**
+  rather than per occurrence, and all are now declared in `AGG_RULES`. Counts that scaled with
+  timetable frequency instead of defect size — one feed reported the same stop pair 9,533
+  times — now report the defect once.
+
+- **`FPD_006` removed.** Its check was a strict subset of `FPD_007`.
 
 - **`CAL_006` now survives lexical whitespace in weekday flags.** Whitespace-wrapped
   `0/1` values are parsed for the weekly pattern while `DQ_016` remains the raw
@@ -138,92 +288,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `unsorted_stop_times`, INFO) and also fires on valid feeds whose values increase correctly.
   Severity is unchanged, so the publication gate (`Spec ∧ CRITICAL`) behaves exactly as before.
 
-### Added
+### Documentation
 
-- **`SHP_030` reports incomplete shape-distance coverage.** A shape-level Quality finding is
-  emitted when a trip supplies `stop_times.shape_dist_traveled` but one or more points of the
-  referenced shape lack `shapes.shape_dist_traveled`. The finding aggregates affected trips and
-  preserves the fact that both GTFS fields are individually optional; it is not a Spec blocker.
+- **README rewritten around measured evidence**: the corpus methodology, per-feed comparisons
+  regenerated from run `32344419636`, and the four ways to run the validator (browser, CLI,
+  CI/CD, WASM/npm).
 
-- **`RTS_030` reports extended (HVT) `route_type` values.** The core GTFS Schedule Reference
-  defines `route_type` as exactly `0-7`, `11`, `12` — the word *extended* does not appear in
-  the field definition. Values in `100-1799` are the Google Transit/HVT convention, and
-  `RTS_004` (`Spec`, CRITICAL, publication gate) accepted them silently, presenting an
-  extension as core specification compliance. They are now reported by `RTS_030`
-  (`Interop`, LOW), which does not block publication. `RTS_004` is unchanged for every other
-  value. The class is measured, not assumed: MobilityData reports `unexpected_enum_value`
-  (WARNING) for these values in **19 of the 225 corpus feeds**.
-
-### Fixed
-
-- **`STM_048` now preserves after-midnight notation violations as `Spec`.** A raw
-  `23:59:00 → 00:xx` rollover is reported in K2 before analysis normalization, while the
-  normalized `24:xx` values continue through K6 without producing a duplicate `STM_008`.
-  Raw detection is independent of `service_day_start_hour`; same-row `departure_time`
-  cases are reported by `STM_049`, which now uses the same `Spec/GtfsSpec` authority.
-
-- **`FPD_006` no longer treats an empty `rider_category_id` as a default category.**
-  GTFS Fares v2 defines an empty value as eligibility for any rider category, while the
-  default is selected by `rider_categories.is_default_fare_category`. Exact duplicate
-  `(fare_product_id, rider_category_id, fare_media_id)` rows are now reported only by
-  `FPD_001`; valid fare-media variants remain silent.
-
-- **`SHP_005` no longer accepts small decreases in `shape_dist_traveled`.** The monotonicity
-  check compared `d < prev - 1e-6`, so a genuine decrease below `1e-6` was silently accepted —
-  a tolerance band the specification does not define, widening the acceptance set of a critical
-  `Spec` predicate. The comparison is now exact (`d < prev`). No tolerance is needed: both
-  values are read straight from the producer-supplied text with no arithmetic applied, and
-  decimal-to-`f64` conversion is monotone, so `d < prev` holds only when the written values
-  decrease. Equal values remain a separate case and still report nothing. The remaining limit
-  is representational, not a tolerance: two decimals that round to the same `f64` collapse to
-  equality.
-
-- **The phone remediation text now describes the check that actually runs.** `AGN_007` and
-  `BKR_022` told the reader to *"use a phone number with at least 7 digits"*, but the shared
-  predicate never counted seven digits — it asks for at least five dialable characters, at
-  least one of them a digit, and no descriptive text around the number. Advice that does not
-  match the measurement sends producers to fix the wrong thing. Updated in English, Turkish
-  and Japanese. This changes the `remediation` field of those findings, not how many findings
-  are produced.
-
-- **Dialable vanity numbers with more than one letter group are accepted.** Following the
-  earlier vanity fix, `looks_like_phone` still required the letters to form a *single* trailing
-  token, so `1-800-GO-FEDEX` was reported as invalid. Letter groups may now form a contiguous
-  trailing run. A run of more than one group must be all uppercase — the convention that marks
-  keypad letters — so prose such as `1234 call us now` is still rejected, as is any value with
-  letters at the start or in the middle (`Call 503-238-1234`, `555-1234 ext 99`) and the
-  measured descriptive corpus value `80000078 (Liepājā); …`. A single letter group keeps its
-  previous behaviour with no case requirement, so the change only widens the accepted set and
-  cannot reject anything that was valid before. This is a `Quality` approximation, not a phone
-  grammar: all-uppercase prose (`1234 CALL US NOW`) is accepted, and both `AGN_007` and
-  `BKR_022` stay in `Quality`.
-
-- **`agency_phone` and `phone_number` accept dialable vanity text.** The specification permits
-  it by name — *"Dialable text (for example, TriMet's `503-238-RIDE`) is permitted, but the
-  field must not contain any other descriptive text"* — and `looks_like_phone` rejected every
-  value containing a letter, including that example. Letters are now allowed when they form a
-  single group at the end of the value (`503-238-RIDE`, `+1 800 FLOWERS`); a letter group at
-  the start or in the middle is still descriptive text and still reported (`Call 503-238-1234`,
-  `555-1234 ext 99`). Affects `AGN_007` and `BKR_022`. Measured on the 239-feed corpus: **no
-  feed changes behaviour**, and the two feeds where the rule currently fires keep firing.
-
-- **`STP_022`'s rule card now states that an empty `stop_code` can be correct.** No behaviour
-  change: the specification says the field *"should be left empty for locations without a code
-  presented to riders"*, so the notice is a prompt to check rather than a defect. The rule is
-  `Quality` and never reaches the publication gate.
-
-- **URL fields now require a web scheme.** `looks_like_url` was `Url::parse(v).is_ok()`,
-  which accepts any scheme: `mailto:`, `ftp://`, `file:///`, `javascript:alert(1)` and even
-  `foo:bar` all passed validation. The specification defines the `URL` type as *"a fully
-  qualified URL that includes http:// or https://"*. Affects every rule that validates a URL
-  — `AGN_003`, `AGN_008`, `STP_042`, `RTS_005`, `FIN_002`, `FIN_009`, `ATR_007`, `RCT_007`,
-  `BKR_020`, `BKR_021`.
-
-  Three of those are `Critical` and `Spec`, so they gate publication. Measured across the
-  239-feed corpus before changing anything: one feed carries such a value (116 rows of
-  `agency_url=jrutil://invalid`), and it already produces 3.7M critical notices, so **no
-  feed's publication decision changes**. Feeds using `mailto:` in a URL field will now see
-  a finding where previously there was none.
+- **`FULL_CATALOG_RUN.md` section 5 records that a byte-identical manifest does not mean a
+  byte-identical corpus.** Roughly 577 of 4,271 archives were re-published upstream between
+  runs 6 and 7, so global totals mix product change with catalogue drift. Regression claims
+  are made against the same-archive subset.
 
 ## [0.8.0] - 2026-08-03
 

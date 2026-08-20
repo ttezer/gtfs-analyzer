@@ -4,10 +4,16 @@
 
 [![Uygulamayı Aç](https://img.shields.io/badge/Uygulamay%C4%B1%20A%C3%A7-gtfs--analyzer-2ea44f?style=flat&logo=googlechrome&logoColor=white)](https://ttezer.github.io/gtfs-analyzer/)
 [![GTFS-JP](https://img.shields.io/badge/GTFS--JP-destekli-c8102e?style=flat)](https://www.gtfs.jp/)
-[![GTFS Spec kanıt tabanı](https://img.shields.io/badge/GTFS%20Spec-kan%C4%B1t%20taban%C4%B1-007ec6?style=flat)](spec-audit/EVIDENCE_BASE.md)
+[![GTFS Spec kanıt tabanı](https://img.shields.io/badge/GTFS%20Spec-%25972-007ec6?style=flat)](spec-audit/EVIDENCE_BASE.md)
+[![Kural sayısı](https://img.shields.io/badge/kural-600-blue?style=flat)](RULES.md)
+[![Korpus doğrulaması](https://img.shields.io/badge/korpus-4271%20feed%20%C3%97%207%20ko%C5%9Fum-brightgreen?style=flat)](audit-results/)
 [![Lisans MIT](https://img.shields.io/badge/lisans-MIT-yellow?style=flat)](LICENSE)
 
-GTFS Validator & Analyzer, GTFS dosyalarını doğrudan tarayıcıda doğrulayan ve feed kalitesini analiz eden açık kaynak bir GTFS validator aracıdır. Yüklenen .zip dosyası hiçbir sunucuya gönderilmez; tüm işlemler WebAssembly ile kullanıcının cihazında gerçekleştirilir.
+**GTFS Validator & Analyzer**, GTFS dosyalarını doğrudan tarayıcıda doğrulayan açık kaynak bir **GTFS validator** ve feed kalite analiz aracıdır. Yüklenen `.zip` hiçbir sunucuya gönderilmez; doğrulama tamamen **WebAssembly** ile kullanıcının cihazında çalışır. Tarayıcı, **CLI**, **CI/CD** ve **npm/WASM SDK** olmak üzere dört yoldan kullanılabilir.
+
+**600 doğrulama kuralı** ile GTFS spesifikasyonunun ölçülebilir hükümlerinin **%97,2'sini** karşılar ve alan tablosunun **300 atomunun 300'ünde** en az bir Spec çapası taşır. Bu oranlar iddia değil ölçümdür: kanıt tabanı ve türetme yöntemi [`spec-audit/EVIDENCE_BASE.md`](spec-audit/EVIDENCE_BASE.md) altında açıktır.
+
+Doğruluk iddiası, MobilityData'nın resmî `gtfs-validator` aracına karşı **yedi tam katalog koşumuyla** sınanmıştır: her koşumda MobilityDatabase kataloğunun **4.271 GTFS Schedule feed'i**, iki validatörle **aynı makinede, aynı gün** doğrulanır — MobilityData tarafında gerçek **Java** `gtfs-validator v8.0.1` çalıştırılır, rapor karşılaştırması yapılmaz. Ham sonuçların tamamı depoda: [`audit-results/`](audit-results/).
 
 GTFS Validator & Analyzer yalnızca dosyanın spesifikasyona uygun olup olmadığını kontrol etmez; feed'in ne kadar güvenilir, tutarlı ve kullanılabilir olduğunu da analiz eder. Hataları ilgili dosya ve satır numarasıyla birlikte gösterir, her bulgu için düzeltme adımları sunar ve coğrafi sorunları — örneğin sapan güzergâhlar, bozuk koordinatlar veya erişilemeyen duraklar — interaktif harita üzerinde işaretler.
 
@@ -43,83 +49,117 @@ GTFS Validator & Analyzer, spesifikasyon doğrulamasını operasyonel kalite ana
 | GTFS-JP profil doğrulama | ❌ | ❌ | ✅ |
 | Çıktı formatı | HTML, JSON | HTML, JSON | HTML, CSV, JSON, PDF |
 | Platform | Web | Web, CLI, Desktop | Web, CLI *(Desktop planlanmış)* |
+| CI/CD entegrasyonu | ❌ | ❌ | ✅ `--fail-on` + exit kodu |
+| npm/WASM paketi | ❌ | ❌ | ✅ |
+| GTFS Spec kapsamı (ölçülmüş) | — | — | **%97,2** · 300/300 alan çapası |
+| Korpus doğrulaması | — | — | **4.271 feed × 7 koşum** |
 | **Toplam kural** | **178** | **~120** | **600** |
+
+### Korpus Doğrulaması — 4.271 feed, yedi koşum
+
+Bir validator'ın doğruluğu birkaç feed'le gösterilemez. GTFS Analyzer, **MobilityDatabase'in tüm GTFS Schedule kataloğuna** karşı düzenli olarak koşturulur ve sonuçların tamamı depoda yayımlanır.
+
+| | |
+|---|---|
+| Feed sayısı | **4.271** (katalogda public `latest.zip` taşıyan her Schedule feed'i) |
+| Karşı taraf | MobilityData **`gtfs-validator` v8.0.1** — gerçek **Java** aracı, aynı makinede, aynı gün |
+| Koşum sayısı | **7** (2026-08-16 → 2026-08-20) |
+| Shard | koşum başına 640 paralel iş |
+| Ham çıktı | tamamı depoda — [`audit-results/`](audit-results/), koşum başına 18–20 dosya |
+
+🔬 **Rapor karşılaştırması değil, yeniden koşum.** Yayımlanmış MD raporlarını okumak yerine her feed için MobilityData'nın Java validator'ı yeniden çalıştırılır. Böylece iki taraf da aynı arşivi, aynı tarih parametresiyle görür ve fark "kim ne buldu"dur, "kimin raporu ne zaman üretildi" değil.
+
+#### Son koşumun sonucu (`32344419636`)
+
+| ölçü | değer |
+|---|---|
+| İki validatör de temiz bitirdi | 4.229 / 4.271 feed |
+| **Gözden kaçırdığımız** (MD konuşuyor, biz susuyoruz) | **0 satır** |
+| MD'nin katalogunda eşlenmemiş kod | **0** (dört koşumdur) |
+| Bizim bulup MD'nin bulmadığı | 779 satır, yalnız 3'ü Kritik |
+| Medyan süre | **0,05 sn** · MobilityData 3,00 sn |
+| Medyan tepe bellek | **14 MB** · MobilityData 329 MB |
+
+Yedinci koşum, dört feed'lik yerel doğrulamanın göremediği bir yanlış pozitifi yakaladı ve düzeltildi — koşum sürüm öncesi zorunludur, tam da bu yüzden.
 
 ### Feed Analizi Örnekleri
 
-Aynı feed'ler iki validator ile karşılaştırıldı: MobilityData gtfs-validator v8.0.1 · GTFS Analyzer v0.7.0. (GTFS Analyzer sayıları 2026-07-31 tarihli çalıştırmanın anlık görüntüsüdür; tarihe bağlı kurallar nedeniyle farklı bir günde çalıştırma küçük sapmalar verebilir.)
+Aşağıdaki sayılar yukarıdaki korpus koşumundan alınmıştır: aynı arşiv, aynı gün (2026-08-20), MobilityData tarafında Java `gtfs-validator v8.0.1`.
 
 #### BART (Bay Area Rapid Transit, San Francisco)
 
-Feed: `mdb-53` (MobilityDatabase, 2026-07-29 anlık görüntüsü; geçerlilik aralığı: 2026-01-12–2026-08-30) · 14 hat, 287 durak, 2.689 sefer.
+Feed: `mdb-53` · 14 hat, 287 durak, 4.417 sefer · 0,9 MB
 
 | | MobilityData | GTFS Analyzer |
 |---|---:|---:|
-| Toplam notice | 2.697 | 557 |
+| Toplam bulgu | 2.715 | 740 |
 | Kritik / Error | 2 | 2 |
-| Yüksek / Warning | 2.653 | 1 |
-| Orta | — | 7 |
-| Düşük | — | 36 |
-| Bilgi / Info | 42 | 511 |
-| Tetiklenen kural tipi | 13 | **36** |
+| Yüksek / Warning | 2.654 | 1 |
+| Orta | — | 11 |
+| Düşük | — | 24 |
+| Bilgi / Info | 59 | 702 |
+| Tetiklenen kural tipi | 13 | **37** |
+| Doğrulama süresi | 3,43 sn | **0,19 sn** |
 | Yayın skoru | — | **92,6 / 100** |
-| Genel skor | — | **90,0 / 100** |
+| Genel skor | — | **90,9 / 100** |
+
+> MobilityData'nın 2.654 uyarısının neredeyse tamamı tek koddan gelir. GTFS Analyzer aynı iki kritik hatayı bulur, üstüne 24 farklı kural tipinde operasyonel bulgu ekler.
 
 #### TriMet (Portland, Oregon)
 
-Feed: `mdb-247` (MobilityDatabase, 2026-07-15 anlık görüntüsü; geçerlilik aralığı: 2026-07-05–2026-11-28) · 112 hat, 6.480 durak, 70.557 sefer.
+Feed: `mdb-247` · 112 hat, 6.480 durak, 70.557 sefer · 28,4 MB
 
 | | MobilityData | GTFS Analyzer |
 |---|---:|---:|
-| Toplam notice | 970 | 5.163 |
-| Kritik / Error | 908 | 0 |
-| Yüksek / Warning | 49 | 788 |
-| Orta | — | 116 |
-| Düşük | — | 777 |
-| Bilgi / Info | 13 | 3.482 |
-| Tetiklenen kural tipi | 9 | **52** |
+| Toplam bulgu | 51 | 3.099 |
+| Kritik / Error | 0 | 0 |
+| Yüksek / Warning | 38 | 12 |
+| Orta | — | 97 |
+| Düşük | — | 497 |
+| Bilgi / Info | 13 | 2.493 |
+| Tetiklenen kural tipi | 8 | **49** |
+| Doğrulama süresi | 14,85 sn | **5,46 sn** |
 | Yayın skoru | — | **100 / 100** |
-| Genel skor | — | **84,6 / 100** |
+| Genel skor | — | **90,0 / 100** |
 
-> ⚠️ **Çakışan blok seferleri:** Bu feed'in baskın bulgusu, aynı blokta zaman bakımından çakışan seferler (MobilityData'da 908 *error*). GTFS Analyzer aynı olguyu TRP_022 ile yakalar; iki araç da yalnızca aynı gün aktif servisleri çakışma sayar (takvim-kesişim). Fark sayım birimindedir: MobilityData çakışan her sefer **çiftini** ayrı sayar (908), GTFS Analyzer ise aynı sefere ait tekrarlı çakışmaları tek kayda indirir (770) — yoğun bloklardaki tekrarı bastırır. Önem sınıflandırması da farklıdır (Analyzer'da kritik değil).
->
-> ⚠️ **Fares v2:** Bu feed ağ atamasını `routes.txt`'teki `network_id` sütunuyla yapar (`networks.txt` yok — geçerli bir GTFS Fares v2 yöntemi). GTFS Analyzer `fare_leg_rules.txt` içindeki `network_id` referanslarını üç kaynağın tümünden (`networks.txt`, `routes.txt`, `route_networks.txt`) çözer; bu nedenle geçerli tanımlarda yanlış kritik üretmez (bu feed'de 0 kritik). Gerçekten tanımsız `network_id` gibi Fares v2 referans bütünlüğü sorunları ise kritik olarak raporlanır (FAR/FPD/FLG/FTR/RCT/FMD grupları). MobilityData da Fares v2'yi doğrular (şema + referans bütünlüğü + fare_transfer/products/media/timeframes kuralları), ancak kapsam ve önem sınıflandırması farklılık gösterir.
+> Spec açısından temiz bir feed: iki araç da 0 kritik bulur ve yayın skoru 100'dür. Aradaki 49'a 8'lik kural farkı, GTFS Analyzer'ın spec uyumunun ötesinde operasyonel kalite de ölçmesinden gelir.
 
 #### Tokyo Toei (Tokyo Metropolitan Bureau of Transportation)
 
-Feed: `mdb-3175` (MobilityDatabase, 2026-07-29 anlık görüntüsü; geçerlilik aralığı: 2026-07-29–2029-07-28) · 151 hat, 5.370 durak, 68.817 sefer.
+Feed: `mdb-3175` · 151 hat, 5.370 durak, 68.817 sefer · 8,6 MB · **GTFS-JP profili**
 
 | | MobilityData | GTFS Analyzer |
 |---|---:|---:|
-| Toplam notice | 2.666 | 1.885 |
+| Toplam bulgu | 1.849 | 1.741 |
 | Kritik / Error | 0 | 0 |
-| Yüksek / Warning | 330 | 12 |
-| Orta | — | 964 |
-| Düşük | — | 588 |
-| Bilgi / Info | 2.336 | 321 |
-| Tetiklenen kural tipi | 9 | **50** |
+| Yüksek / Warning | 268 | 12 |
+| Orta | — | 809 |
+| Düşük | — | 548 |
+| Bilgi / Info | 1.581 | 372 |
+| Tetiklenen kural tipi | 8 | **49** |
+| Doğrulama süresi | 5,94 sn | **1,75 sn** |
 | Yayın skoru | — | **100 / 100** |
-| Genel skor | — | **85,0 / 100** |
+| Genel skor | — | **87,2 / 100** |
 
-> 🗾 **Spec-temiz ama operasyonel olarak yoğun:** Her iki araç da 0 kritik bulur — feed spec açısından temiz. Fark analitik katmanda: GTFS Analyzer'ın orta/düşük bulgularının çoğu 3 yıllık geçerlilik penceresi (2026–2029) ve yoğun şebeke/şekil desenlerinden gelen operasyonel sinyallerdir; MobilityData bu feed'i ağırlıkla uyarı/bilgi olarak özetler.
+> GTFS-JP profili gerçek bir Japon feed'inde yanlış pozitif üretmez: feed spec açısından temizdir (0 kritik, yayın skoru 100) ve profil kuralları yalnız Japonya'ya özgü alanları denetler.
 
 #### VBB (Berlin-Brandenburg Ulaşım Birliği)
 
-Feed: `mdb-782` (MobilityDatabase, 2026-07-25 anlık görüntüsü; geçerlilik aralığı: 2026-07-23–2026-12-12) · 1.274 hat, 41.961 durak, 258.524 sefer, 14.485 shape · ~75 MB. Bu feed, MobilityData'nın barındırılan web doğrulayıcısının işleyemeyeceği kadar büyüktür; MobilityData sayıları masaüstü uygulamasıyla üretilen rapordandır. GTFS Analyzer feed'i doğrudan tarayıcıda (~15 sn) doğrular.
+Feed: `mdb-782` · 1.274 hat, 41.961 durak, 258.524 sefer, 14.485 shape · **~75 MB**
 
 | | MobilityData | GTFS Analyzer |
 |---|---:|---:|
-| Toplam notice | 11.950 | 23.569 |
+| Toplam bulgu | 12.201 | 25.369 |
 | Kritik / Error | 0 | 0 |
-| Yüksek / Warning | 11.249 | 1.281 |
-| Orta | — | 7.356 |
-| Düşük | — | 6.809 |
-| Bilgi / Info | 701 | 8.123 |
-| Tetiklenen kural tipi | 17 | **90** |
-| Yayın skoru | — | **100 / 100** |
+| Yüksek / Warning | 11.486 | 1.307 |
+| Orta | — | 7.440 |
+| Düşük | — | 8.186 |
+| Bilgi / Info | 715 | 8.436 |
+| Tetiklenen kural tipi | 18 | **91** |
+| Doğrulama süresi | 45,16 sn | **21,07 sn** |
 | Genel skor | — | **78,4 / 100** |
 
-> 🇩🇪 **Büyük feed, farklı odak:** Her iki araç da 0 kritik bulur — feed spec açısından temizdir. MobilityData toplamının yarıdan fazlası (`non_ascii_or_non_printable_char`, 6.813) feed'in Almanca metnindeki meşru ü/ö/ä/ß karakterleridir; GTFS Analyzer geçerli Unicode harfleri işaretlemez, yalnız yazdırılamaz/kontrol karakterlerini. GTFS Analyzer'ın hacmi ise MobilityData'da bulunmayan operasyonel/geometrik analitiğe (şekil, durak, istatistiksel süre) dayanır. Çekirdek kontrollerde iki araç hizalıdır: `stop_without_stop_time` (STP_020) ve `service_has_no_active_day_of_the_week` (CAL_006) sırasıyla 1.398 ve 1.035 ile birebir eşleşir.
+> 🇩🇪 **Bu feed, MobilityData'nın barındırılan web doğrulayıcısının işleyemeyeceği kadar büyüktür.** GTFS Analyzer aynı feed'i **doğrudan tarayıcıda**, dosyayı hiçbir sunucuya göndermeden doğrular. MobilityData toplamının yarıdan fazlası (`non_ascii_or_non_printable_char`) feed'in Almanca metnindeki meşru ü/ö/ä/ß karakterleridir; GTFS Analyzer geçerli Unicode harfleri işaretlemez. Çekirdek kontrollerde iki araç hizalıdır.
 
 ---
 
@@ -184,9 +224,52 @@ Arayüzde performans için sınırlandırılmış bulgu örnekleri bulunsa bile 
 
 ---
 
+## Dört Kullanım Yolu
+
+Aynı doğrulama çekirdeği (`gtfs_pipeline::validate_bytes`) dört şekilde çalışır — hepsi aynı 600 kuralı, aynı sonucu üretir:
+
+| yol | ne için | veri nereye gider |
+|---|---|---|
+| **Tarayıcı** ([uygulama](https://ttezer.github.io/gtfs-analyzer/)) | tek feed'i açıp haritayla incelemek | **hiçbir yere** — WebAssembly ile cihazda |
+| **CLI** (`gtfs-analyzer`) | toplu doğrulama, betikleme, Python entegrasyonu | hiçbir yere — yerel binary |
+| **CI/CD** (exit kodu + `--fail-on`) | feed yayına çıkmadan önce pipeline kapısı | hiçbir yere — kendi runner'ınız |
+| **WASM/npm paketi** | kendi web uygulamanıza gömmek | hiçbir yere — kullanıcının tarayıcısında |
+
+Hiçbirinde feed sunucuya yüklenmez. Bu, barındırılan doğrulayıcılardan temel farktır: ticari sözleşme gereği dışarı çıkamayan veriyi de doğrulayabilirsiniz.
+
+### CI/CD entegrasyonu
+
+`--fail-on` bayrağı yalnız istediğiniz sınıf/önem seviyesinde koşuyu düşürür, böylece Analytics gürültüsü pipeline'ı kırmaz:
+
+```yaml
+# GitHub Actions — yalnız resmî GTFS Spec ihlalleri koşuyu düşürsün
+- name: GTFS feed doğrulama
+  run: |
+    curl -sL https://github.com/ttezer/gtfs-analyzer/releases/latest/download/gtfs-analyzer-x86_64-linux.tar.gz | tar xz
+    ./gtfs-analyzer validate feed.zip --fail-on-class spec --min-severity critical
+```
+
+Exit kodları: `0` temiz · `1` eşiği aşan bulgu var · `2` feed okunamadı (fatal).
+
+### WASM / npm paketi
+
+Doğrulama çekirdeği `wasm-bindgen` ile paketlenir ve kendi web uygulamanıza gömülebilir:
+
+```js
+import init, { validate, prepare, list_zip_files } from "gtfs-wasm";
+
+await init();
+const result = validate(new Uint8Array(zipBytes), "{}");
+console.log(result.notices.length, result.metrics.overall_score);
+```
+
+Dışa açılan API dardır ve kararlıdır: `validate`, `validate_with_today`, `prepare`, `rerun_k6_k7`, `list_zip_files`, `shape_coords_of`, `get_cached_file_stats`. `prepare` + `rerun_k6_k7` çifti, eşikleri değiştirip yeniden analiz ederken feed'i baştan ayrıştırmamayı sağlar — 75 MB'lık VBB feed'inde eşik denemesi saniyeler yerine milisaniyeler alır.
+
+Paket `crates/wasm` altındadır; `npm run wasm` ile üretilir.
+
 ## CLI (Terminal)
 
-Web arayüzü dışında, aynı doğrulama çekirdeğini (`gtfs_pipeline::validate_bytes`) terminalden çalıştırabilirsiniz — Python/otomasyon entegrasyonu için.
+Aynı doğrulama çekirdeğini terminalden çalıştırabilirsiniz — toplu iş, betikleme ve Python/otomasyon entegrasyonu için.
 
 ### Kurulum
 
