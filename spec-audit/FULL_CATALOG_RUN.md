@@ -44,7 +44,12 @@ GEREKTİRMEZ** — hepsi eldeki `run-32290410755/` verisiyle (defter tarafı iç
 - `.github/workflows/benchmark-validator-audit-all-mdb.yml`
 
 Eski `benchmark/auditall/` yığını #152'de emekliye ayrıldı — diriltme.
-`agent/validator-audit-all-mdb-20260817` dalı **silinmez**.
+
+> ✅ **`agent/validator-audit-all-mdb-20260817` koruma notu KALDIRILDI.** O dal, 3. koşumun
+> (`31981225727`) ham verisini TEK BAŞINA taşıdığı için korunuyordu — sonuçlar main'e hiç
+> alınmamıştı ve dal silinseydi 62 MB'lık koşum verisi kaybolacaktı. Veri artık
+> `audit-results/full-mdb-schedule-20260817/` altında, diğer altı koşumla aynı yerde;
+> dal silindi. **Ders: bir dalı "silme" diye işaretlemek, içindeki veriyi kalıcı yapmaz.**
 
 ## 2. Koşmadan önce güncellenecek şeyler
 

@@ -1,0 +1,36 @@
+{
+  "old_run_id": 31934698855,
+  "new_run_id": 31981225727,
+  "comparison_scope": "common feed IDs only; statuses and validator findings only; timing intentionally not compared because old analyzer timing capture was invalid",
+  "common_feed_count": 4258,
+  "only_in_new": [],
+  "only_in_old": [
+    "mdb-2904"
+  ],
+  "status_change_count": 1,
+  "status_changes": [
+    {
+      "feed_id": "mdb-2014",
+      "old": {
+        "download_status": "failed",
+        "analyzer_state": null,
+        "md_state": null
+      },
+      "new": {
+        "download_status": "ok",
+        "analyzer_state": "completed",
+        "md_state": "timeout"
+      }
+    }
+  ],
+  "finding_signature_change_count": 1045,
+  "analyzer_finding_change_feed_count": 1002,
+  "mobilitydata_finding_change_feed_count": 315,
+  "both_validator_finding_change_feed_count": 272,
+  "finding_signature_unchanged_feed_count": 3213,
+  "common_analyzer_notice_total_old": 45505233,
+  "common_analyzer_notice_total_new": 46869031,
+  "common_md_notice_total_old": 120436330,
+  "common_md_notice_total_new": 120370972,
+  "note": "mdb-2904 is the sole old-only feed and is excluded by standing instruction; this is not catalog drift. mdb-2014 is the sole status change among common feeds: prior download failed; fresh run downloaded successfully, Analyzer completed, MobilityData timed out."
+}

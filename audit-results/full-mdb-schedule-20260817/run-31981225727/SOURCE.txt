@@ -1,0 +1,16 @@
+Run ID: 31981225727
+Artifact: validator-audit-all-mdb-final
+Artifact ID: 9273267886
+Artifact digest: sha256:ccaab6606784a9cd663941dc38778334516403c850432a5946254e361e916e05
+Artifact size (GitHub metadata): 39559895 bytes
+Product commit: 87e1e4934f050b7999c327ba2f21a292fc5885d2
+Audit harness commit: 2eb4c09708370ac5a92bab4b45ff3f333d5f7874
+MobilityData validator: v8.0.1
+Audit date: 2026-08-17
+Analyzer rule count: 597
+Catalog SHA-256: bc3d638ffd46a91a58b00603a67ff3f8d4119131503083fd3b541719a1896d64
+Manifest SHA-256: 2779557d0dd6a9d3004811d7007d3094fff9655bd7f09a0848fa59044043e9a8
+Scope: Full MobilityDatabase GTFS Schedule catalog coverage with public HTTP(S) latest URL; no URL/content deduplication; GTFS Realtime excluded.
+Exclusions: mdb-2904 excluded by standing instruction; 204 Schedule rows had no public latest URL. Selected/tested manifest size: 4258 of 4463 GTFS Schedule catalog rows.
+Health gates: coverage manifest_checked=true, missing_manifest_feed_ids=[]; timing measured for all 4224 Analyzer completed states and all 4216 MobilityData completed states, including all 4214 both-completed feeds; duplicate-content groups=101, unique participating feeds=206; mdb-2014 download_status=ok; final workflow conclusion=success.
+Old-run comparison: common-feed findings/statuses only against run 31934698855; old timing intentionally not compared.
