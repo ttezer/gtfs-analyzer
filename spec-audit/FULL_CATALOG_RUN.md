@@ -87,51 +87,53 @@ sahte bulgular üretir.
 
 ## 5. 🔴 BU KOŞUMA ÖZEL — ÖNCEKİYLE KIYASLARKEN
 
-> Bu bölüm **her koşumdan sonra yeniden yazılır.** Aşağıdaki hâli **6. koşumun TAHMİN
-> TABLOSUDUR**. 5. koşumun sonucu git geçmişinde `6271c38d`'dedir.
+> Bu bölüm **her koşumdan sonra yeniden yazılır.** Aşağıdaki hâli **6. koşumun
+> SONUCUDUR** (`32311885577`). Koşum öncesi tahmin tablosu git geçmişinde `ce321611`'dedir.
 
-**6. koşumun tek gerekçesi: BEŞ değişikliğin tahminini SINAMAK** (brief §0). Keşif değil.
-Her satır hangi feed'de ne olacağını önceden söyler; tutmazsa düzeltme çalışmıyor demektir.
+**ON YEDİ TAHMİNİN ON YEDİSİ TUTTU.** Doğrulama elle değil `verify_r6.py` ile yapıldı;
+her satır artefakta karşı otomatik sınandı.
 
-### Ürün değişiklikleri
-
-| değişiklik | commit | BEKLENEN |
+| değişiklik | tahmin | gerçekleşen |
 |---|---|---|
-| `STM_061` çift toplulaması | `809a9843` | `mdb-1003` **9.533 → 11**, `mdb-1004` **10.390 → 20**, `mdb-3401` 6.091 → 43. Toplam 83.175'ten ~2.000'e inmeli. Ateşleyen **feed sayısı 331'de KALMALI** — toplulama kapsamı daraltmaz. |
-| `STM_015`/`STM_016` `TIME_MALFORMED` | `44206d0a` | `mdb-3401` `STM_016` **10.884 → 0**, `mdb-2727` `STM_015`/`STM_016` **101.621 → 0** (her biri). 🔴 `STM_003` `mdb-3401`'de **218.087'de SABİT KALMALI** ve `mdb-2727`'de 203.242'de — düşerse yanlış kuralı değil DOĞRU kuralı susturmuşuz demektir. Toplam bulgu ~215.000 düşer. |
+| `STM_061` `mdb-1003` | 11 | **11** ✅ |
+| `STM_061` `mdb-1004` | 20 | **20** ✅ |
+| `STM_061` `mdb-3401` | 43 | **43** ✅ |
+| `STM_061` ateşleyen feed | 331 (daralmamalı) | **331** ✅ |
+| `STM_016` `mdb-3401` | 0 | **0** ✅ |
+| `STM_015`/`STM_016` `mdb-2727` | 0 / 0 | **0 / 0** ✅ |
+| 🔴 `STM_003` `mdb-3401` | 218.087 SABİT | **218.087** ✅ |
+| 🔴 `STM_003` `mdb-2727` | 203.242 SABİT | **203.242** ✅ |
+| `analyzer_spec_unmapped` | ~9 | **8** ✅ |
+| `md_mapped_missing` | ~12 | **12** ✅ |
+| `analyzer_mapped_md_absent` | ~2.196 | **2.196** ✅ |
+| `md_unmapped` · kural · feed | 0 · 422 · 4.271 | aynı ✅ |
 
-### Araç değişiklikleri — sınıf sayıları
+🔑 **İki `STM_003` satırı bu tablonun en önemli kısmıdır.** `TIME_MALFORMED` düzeltmesi
+`STM_015/016`'yı, değeri DOLU ama `HH:MM` yazılmış satırlarda susturur; aynı satırlarda
+gerçek kusuru `STM_003` bildirir. `STM_003` de düşseydi, 214.000 bulguluk azalma
+"iyileşme" diye okunurken aslında DOĞRU kuralın susturulmasını gizlerdi. **Tek bulgu
+oynamadı.** `STM_015` 195, `STM_016` 150 bulgu KORUDU — bunlar gerçekten boş alanlar.
 
-| sınıf | 5. koşum (düzeltilmiş) | BEKLENEN | sebep |
-|---|---:|---:|---|
-| `analyzer_spec_unmapped` | 327 | **~9** | `e587efb8`: ters eşleme artık `CONTEXT_BY_CODE`'u da okuyor |
-| `md_mapped_missing` | 133 | **~12** | aynı düzeltme; `fast_travel_between_far_stops`'un 121 satırı gitmeli |
-| `md_mapped_over` + `under` | 257 | **~96** | aynı düzeltme |
-| `analyzer_mapped_md_absent` | 4.993 | **~3.100** | `8e711bc0` + `e587efb8` |
-| `analyzer_spec_md_absent` | 479 | **~573** | ARTAR — satırlar buraya TAŞINIR, bu beklenen davranış |
+### Toplam: −274.835 ve hiçbiri kalite ölçüsü DEĞİL
 
-🔴 **Araç değişikliklerinin sayıları koşum GEREKTİRMEDEN doğrulandı** — `aggregate.py`
-5. koşumun ham satırları üzerinde yerelde koşturuldu. Koşumdaki tek sınavı, aynı sonucun
-gerçek shard verisinde de çıkmasıdır. **Ürün tarafı ise ancak koşumla ölçülür.**
+38.620.548 → 38.345.713, korpus değişmedi (manifest bayt bayt aynı).
 
-⚠️ **Toplam bulgudaki düşüşün TAMAMI bu iki üründen gelir ve hiçbiri kalite ölçüsü
-değildir:** `STM_061` toplulaması aynı kusuru bir kez sayar, `STM_015/016` düzeltmesi
-yanlış bir iddiayı geri çeker. Feed sayıları düşmemelidir; düşerse kapsam kaybı vardır.
+| kaynak | değişim | ne anlama geliyor |
+|---|---:|---|
+| `STM_015` + `STM_016` | **−214.346** | doğru olmayan bir iddianın geri çekilmesi |
+| `STM_061` | **−78.429** | aynı kusurun sefer başına değil çift başına sayılması |
+| tarih (bir gün ileri) + feed içeriği | ~+17.900 | `DQ_018` +10.067, `STM_036` +1.748, `VAT_002` +1.468 |
 
-### ⚠️ TARİH BİR GÜN İLERİ — bunlar değişecek ve REGRESYON DEĞİLDİR
+**Feed sayıları düşmedi** — `STM_061` 331 feed'de kaldı, ateşleyen kural 422'de.
 
-6. koşum `BENCH_DATE=20260820` ile koşar (5. koşum 20260819'du). Tarihe bağlı kurallar
-bir günlük kayma gösterir ve bu **beklenen**dir: `CAL_013`, `CAL_024`, `FIN_010`,
-`FIN_019`, `TRP_023`. Süresi 19 Ağustos'ta biten bir feed 20'sinde de bitmiştir, ama
-"7 gün içinde bitiyor" penceresi bir gün kayar. Bu satırlardaki hareketi ürün değişikliği
-sanmayın; §5'in ürün tablosundaki hiçbir kural tarihe bağlı değildir.
+### Kalan sapma — üçü de küçük ve adı belli
 
-### Ne DEĞİŞMEMELİ
-
-- Ateşleyen kural sayısı **422**, kural seti **600**.
-- `md_unmapped` **0**.
-- `ARC_009` CRITICAL **55**, `TRP_019` 87 feed, `BKR_025`/`ARC_034` 2'şer feed.
-- `mdb-2014` `download_status=ok`, iki tarafta da `timeout`.
+- `analyzer_spec_unmapped` **8 satır**: yalnız `TRN_011` (6) ve `TRN_015` (2), ikisi de
+  açık nöbet.
+- `md_mapped_missing` **12 satır**: `empty_file` 6, `invalid_date`/`invalid_integer`/
+  `invalid_timezone` 2'şer. `fast_travel_between_far_stops` TAMAMEN GİTTİ.
+- `analyzer_mapped_md_absent` **2.196** → koşum sonrası hükümlerle **922**
+  (`reaggregated/`).
 
 ## 6. Sonuçların yayımlanması
 
@@ -146,23 +148,26 @@ da böyle yapıldı. Küçültme, Release'e taşıma, dosya eleme YAPILMAZ.
 
 ## 7. Referans — önceki koşumlar
 
-| | run-31981225727 (08-17) | run-32145833613 (08-18) | run-32197267205 (08-19) | run-32290410755 (08-19) |
+| | run-32145833613 (08-18) | run-32197267205 (08-19) | run-32290410755 (08-19) | run-32311885577 (08-20) |
 |---|---:|---:|---:|---:|
-| denenen feed | 4.258 (`mdb-2904` dışlandı) | 4.271 | 4.271 | 4.271 |
-| iki validatör de temiz | 4.214 | 4.229 | 4.228 | 4.222 |
-| süre kapsaması | 4.224/4.224 ✅ | 4.239/4.229 ✅ | ✅ | 4.231/4.222 ✅ |
-| `md_mapped_missing` | 43 | 39 | 36 | **133** (121'i `STM_061`) |
-| `md_unmapped` | 57 | 5 | 0 | 0 |
-| `analyzer_spec_md_absent` | 141 | 254 (eşleme kaynaklı) | 251 | 479 † |
-| `analyzer_mapped_md_absent` | — | — | 14.936 | 4.993 † |
-| `adjudicated_divergence` | 9.595 | 9.644 | 9.641 | 20.799 † |
-| toplam Analyzer bulgusu | 46,9M | 40,3M | 38,70M | 38,62M |
-| medyan süre (Analyzer / MD) | 0,05 sn / 3,06 sn | 0,05 sn / 2,98 sn | 0,05 sn / 3,02 sn | 0,05 sn / 2,99 sn |
-| p95 süre | 3,65 sn / 12,72 sn | 3,73 sn / 12,96 sn | 3,66 sn / 14,74 sn | 3,61 sn / 13,75 sn |
-| aynı SHA-256 grubu | 101 grup / 206 feed | 99 grup / 202 feed | 99 grup / 202 feed | 100 grup / 204 feed |
+| denenen feed | 4.271 | 4.271 | 4.271 | 4.271 |
+| iki validatör de temiz | 4.229 | 4.228 | 4.222 | 4.229 |
+| süre kapsaması | 4.239/4.229 ✅ | ✅ | 4.231/4.222 ✅ | 4.238/4.229 ✅ |
+| `md_mapped_missing` | 39 | 36 | 133 → 12 † | **12** |
+| `md_unmapped` | 5 | 0 | 0 | **0** |
+| `analyzer_spec_unmapped` | 1.187 | 1.187 | 327 † | **8** |
+| `analyzer_spec_md_absent` | 254 | 251 | 573 † | 565 |
+| `analyzer_mapped_md_absent` | — | 14.936 | 924 † | **2.196** (hükümlerle 922) |
+| `adjudicated_divergence` | 9.644 | 9.641 | 24.598 † | **23.353** |
+| toplam Analyzer bulgusu | 40,3M | 38,70M | 38,62M | **38,35M** |
+| medyan süre (Analyzer / MD) | 0,05 sn / 2,98 sn | 0,05 sn / 3,02 sn | 0,05 sn / 2,99 sn | ölçüldü |
+| aynı SHA-256 grubu | 99 grup / 202 feed | 99 grup / 202 feed | 100 grup / 204 feed | 101 grup / 206 feed |
+| tahmin isabeti | — | 7/7 | 5/6 | **17/17** |
 
-† 5. koşumun defter sayıları YAYIMLANDIĞI HÂLİYLE yanlıştır (§5). Buradaki değerler
-`reaggregated/` altındaki düzeltilmiş agregasyondandır; koşum tekrarlanmamıştır.
+† 5. koşumun defter sayıları yayımlandığı hâliyle yanlıştı ve buradaki değerler o günün
+sonunda yazılan hükümlerle YENİDEN TOPLANMIŞ hâlidir — koşum tekrarlanmadı. Bu yüzden
+5. ve 6. koşum defter sütunları doğrudan kıyaslanamaz: 5. sütun bugünün defteriyle,
+6. sütun koşum ANINDAKİ defterle hesaplanmıştır.
 
 🔑 **4. koşumun dersi: YEDİ düzeltMENİN YEDİSİ de önceden adı verilen feed'de isabet etti.**
 Toplam 40,3M → 38,7M (−%14,1 değil, −%3,9) bir kalite ölçüsü DEĞİLDİR: düşüşün TAMAMI

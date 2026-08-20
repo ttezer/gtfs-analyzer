@@ -1,0 +1,63 @@
+Run ID: 32311885577
+Artifact: validator-audit-all-mdb-final
+Artifact ID: 9388213898
+Artifact digest: sha256:77f82ddec7d8ca75781fd8efc8ddf095760f37eb0298a40d7d5fd339a6d3b253
+Artifact size (GitHub metadata): 42399727 bytes
+Product commit: 005dbba0 (main at branch point, CI green as run 32311173331)
+Audit harness commit: a8411cd6a2e5ec2c7d5f4bd7c1d76e0e83f6dd6b
+MobilityData validator: v8.0.1
+Audit date: 2026-08-20 (BENCH_DATE=20260820, MD_DATE=2026-08-20)
+Analyzer rule count: 600 (422 observed firing)
+Manifest SHA-256: af55ad532b9cd10775ed478cc0a7673fc962d795710fd42f6262a81880e9a5b4 (byte-identical to runs 32197267205 and 32290410755)
+Scope: Full MobilityDatabase GTFS Schedule catalog coverage with public HTTP(S) latest URL; no URL/content deduplication; GTFS Realtime excluded.
+Exclusions: mdb-2904 excluded by standing instruction. Selected/tested manifest size: 4271 of 4476 GTFS Schedule catalog rows.
+Health gates: coverage manifest_checked=true, missing_manifest_feed_ids=[], unexpected_feed_ids=[]; timing measured for 4238 Analyzer and 4229 MobilityData states against 4229 both-completed feeds; duplicate-content groups=101 covering 206 feeds; mdb-2014 download_status=ok; all 640 shards completed; final workflow conclusion=success.
+
+PURPOSE AND RESULT: 17 predictions, 17 held
+-------------------------------------------
+Brief section 5 named the feed for every change before the run. `verify_r6.py` checked
+each one against this artifact.
+
+  STM_061 pair aggregation
+    mdb-1003    9,533 -> 11        predicted 11
+    mdb-1004   10,390 -> 20        predicted 20
+    mdb-3401    6,091 -> 43        predicted 43
+    feeds firing  331 -> 331       aggregation must not narrow coverage; it did not
+    rule total 83,175 -> 4,746
+
+  TIME_MALFORMED sentinel
+    mdb-3401 STM_016  10,884 -> 0
+    mdb-2727 STM_015 101,621 -> 0
+    mdb-2727 STM_016 101,621 -> 0
+    mdb-3401 STM_003 218,087 -> 218,087   HELD
+    mdb-2727 STM_003 203,242 -> 203,242   HELD
+
+The STM_003 rows are the ones that mattered. The fix stops STM_015/016 from claiming a
+missing time on rows where the value is present but written HH:MM, and STM_003 reports
+the real defect on those same rows. Had STM_003 fallen with them, a 214,000-finding drop
+would have read as an improvement while hiding the correct rule being silenced. It did
+not move by a single notice.
+
+STM_015 and STM_016 keep 195 and 150 findings respectively — the genuinely empty fields,
+which is what the rules were always meant to report.
+
+  Tool-side classes (verified locally before the run, confirmed here on real shard data)
+    analyzer_spec_unmapped     327 -> 8      no fast_travel row remains
+    md_mapped_missing          133 -> 12
+    analyzer_mapped_md_absent 4,993 -> 2,196
+    md_unmapped                  0 -> 0
+
+Total Analyzer findings 38,620,548 -> 38,345,713, a change of -274,835 across an unchanged
+corpus (manifest byte-identical). NOT A QUALITY MEASURE: -214,346 is STM_015/016 retracting
+a claim that was not true, and -78,429 is STM_061 counting one defect once instead of once
+per trip in the timetable. Feed counts did not fall.
+
+REAGGREGATED/
+-------------
+Four verdicts landed on main after this run started (b18f0dc2: ARC_020, RTS_022, DQ_018,
+following STM_014 in 005dbba0 which IS in the run). `reaggregated/` holds aggregate.py
+re-run over this run's own raw rows with those verdicts present:
+analyzer_mapped_md_absent 2,196 -> 922, adjudicated_divergence 23,353 -> 24,627. Bookkeeping
+only; no rule behaviour differs between the two.
+
+The top-level files are the run's own artifacts, unedited.
