@@ -1,14 +1,8 @@
 /// <reference path="./node-shim.d.ts" />
 
-import init, {
-  get_cached_file_stats,
-  list_zip_files,
-  prepare_with_today,
-  rerun_k6_k7_with_today,
-  shape_coords_of,
-  validate_with_today,
-  type CachedState,
-} from '../pkg/gtfs_wasm.js';
+import type { CachedState } from '../pkg/gtfs_wasm.js';
+
+type BundledWasm = typeof import('../pkg/gtfs_wasm.js');
 import type {
   EngineMode,
   EngineResult,
@@ -72,6 +66,8 @@ const SDK_VERSION = '0.1.2';
 const ENGINE_VERSION = '0.9.7';
 
 let initialization: Promise<void> | undefined;
+let bundledWasmModule: BundledWasm | undefined;
+let bundledWasmLoading: Promise<BundledWasm> | undefined;
 
 /** Returns the public SDK version and the validator engine version it embeds. */
 export function getVersion(): SdkVersion {
@@ -87,11 +83,11 @@ export function initialize(): Promise<void> {
 const bundledEngine: ValidatorEngine = {
   mode: 'wasm32-serial',
   initialize,
-  listZipFiles: (input) => parseJson<ZipFileInfo[]>(list_zip_files(input), []),
-  prepare: (input, configDelta, onStage, today) => prepare_with_today(input, configDelta, onStage, today),
-  rerun: (cache, configDelta, onStage, today) => rerun_k6_k7_with_today(cache as CachedState, configDelta, onStage, today),
-  getCachedFileStats: (cache) => parseJson<FileInfo[]>(get_cached_file_stats(cache as CachedState), []),
-  getShapeCoords: (cache, shapeId) => parseJson<[number, number][]>(shape_coords_of(cache as CachedState, shapeId), []),
+  listZipFiles: (input) => parseJson<ZipFileInfo[]>(bundledWasm().list_zip_files(input), []),
+  prepare: (input, configDelta, onStage, today) => bundledWasm().prepare_with_today(input, configDelta, onStage, today),
+  rerun: (cache, configDelta, onStage, today) => bundledWasm().rerun_k6_k7_with_today(cache as CachedState, configDelta, onStage, today),
+  getCachedFileStats: (cache) => parseJson<FileInfo[]>(bundledWasm().get_cached_file_stats(cache as CachedState), []),
+  getShapeCoords: (cache, shapeId) => parseJson<[number, number][]>(bundledWasm().shape_coords_of(cache as CachedState, shapeId), []),
 };
 
 /** Validates a GTFS ZIP with the same engine used by the Analyzer application. */
@@ -104,7 +100,7 @@ export async function validateGtfs(
   const bytes = input instanceof Uint8Array ? input : new Uint8Array(input);
   const today = normalizeToday(options.today);
   const configDelta = options.config === undefined ? '' : JSON.stringify(options.config);
-  const result = JSON.parse(validate_with_today(bytes, configDelta, today)) as EngineResult;
+  const result = JSON.parse(bundledWasm().validate_with_today(bytes, configDelta, today)) as EngineResult;
 
   if ('Fatal' in result) {
     throw new ValidationError(result.Fatal);
@@ -300,14 +296,28 @@ function parseJson<T>(raw: unknown, fallback: T): T {
 }
 
 async function initializeWasm(): Promise<void> {
+  bundledWasmLoading ??= loadAndInitializeWasm();
+  bundledWasmModule = await bundledWasmLoading;
+}
+
+async function loadAndInitializeWasm(): Promise<BundledWasm> {
+  const module = await import('../pkg/gtfs_wasm.js');
   const wasmUrl = new URL('../pkg/gtfs_wasm_bg.wasm', import.meta.url);
   if (isNodeRuntime()) {
     const nodeFsPromises = 'node:fs/promises';
     const { readFile } = await import(/* @vite-ignore */ nodeFsPromises);
-    await init({ module_or_path: new Uint8Array(await readFile(wasmUrl)) });
-    return;
+    await module.default({ module_or_path: new Uint8Array(await readFile(wasmUrl)) });
+  } else {
+    await module.default(wasmUrl);
   }
-  await init(wasmUrl);
+  return module;
+}
+
+function bundledWasm(): BundledWasm {
+  if (!bundledWasmModule) {
+    throw new Error('WASM engine is not initialized. Call initialize() first.');
+  }
+  return bundledWasmModule;
 }
 
 function isNodeRuntime(): boolean {

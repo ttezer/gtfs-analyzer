@@ -68,6 +68,8 @@ Options:
 
 `initialize()` is exported for hosts that want to warm up WebAssembly manually,
 but `validateGtfs()` and `createValidatorSession()` call it automatically.
+Importing the SDK alone does not load the WASM module; the generated glue and
+binary are loaded lazily on the first initialization or validation call.
 
 ## Understanding the result
 
@@ -347,6 +349,11 @@ The generated `gtfs-wasm` binding is an internal implementation detail and is no
 part of the public API. The bundled SDK engine is serial by default; the Analyzer
 UI supplies its selected threaded or memory64 engine through the adapter contract
 without exposing those bindings as public API.
+
+The release WASM build keeps `wasm-opt -O3`. In a 2026-08-20 comparison,
+`-Oz` reduced the raw binary by 0.73% but produced a slightly larger gzip file
+and no runtime benefit on the SDK smoke fixture, so the performance-oriented
+profile remains the default.
 
 ## License
 
