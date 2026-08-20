@@ -1,5 +1,5 @@
 import type { CachedState } from '../pkg/gtfs_wasm';
-import type { ValidatorEngine, ValidationStage } from '../../sdk/src/index.js';
+import type { ValidatorEngine, ValidationStage } from 'gtfs-sdk';
 import type { ValidateResult, ValidationResult, FatalError, FileInfo } from './types';
 
 export type { CachedState };

@@ -3,11 +3,20 @@
   "version": "0.1.0",
   "description": "GTFS Analyzer validation engine for Browser and Node.js.",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ttezer/gtfs-analyzer.git"
+  },
+  "bugs": {
+    "url": "https://github.com/ttezer/gtfs-analyzer/issues"
+  },
+  "homepage": "https://github.com/ttezer/gtfs-analyzer#readme",
   "type": "module",
   "files": [
     "dist",
     "pkg",
-    "README.md"
+    "README.md",
+    "LICENSE"
   ],
   "exports": {
     ".": {
@@ -20,8 +29,9 @@
     "node": ">=20"
   },
   "scripts": {
+    "version:check": "node scripts/check-version.mjs",
     "wasm:build": "wasm-pack build ../crates/wasm --target web --out-dir ../../sdk/pkg --release -- --features quiet && node scripts/prepare-wasm-package.mjs",
-    "build": "npm run wasm:build && tsc -p tsconfig.json",
+    "build": "npm run version:check && npm run wasm:build && tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test:smoke": "npm run build && node scripts/smoke-test.mjs",
     "pack:check": "npm run build && npm pack --dry-run",

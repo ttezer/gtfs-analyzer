@@ -1,9 +1,11 @@
 import { defineConfig } from 'vite';
 import wasm from 'vite-plugin-wasm';
 import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 
 // Build-time sabiti: package.json sürümü (debug bundle / about için).
 const pkgVersion = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')).version;
+const sdkSource = fileURLToPath(new URL('../sdk/src/index.ts', import.meta.url));
 
 // WASM threads (SharedArrayBuffer) crossOriginIsolated gerektirir. Prod'da bunu
 // coi-serviceworker sağlar; dev/preview'de aşağıdaki başlıklarla sağlanır.
@@ -16,6 +18,7 @@ export default defineConfig({
   plugins: [wasm()],
   base: './',
   define: { __APP_VERSION__: JSON.stringify(pkgVersion) },
+  resolve: { alias: { 'gtfs-sdk': sdkSource } },
   server: { headers: coopCoep },
   preview: { headers: coopCoep },
   // Worker'lar ES modülü olarak paketlenmeli: validator-worker içinde threaded WASM

@@ -3,7 +3,7 @@
 import {
   createValidatorSession,
   type ValidatorSession,
-} from '../../sdk/src/index.js';
+} from 'gtfs-sdk';
 import {
   currentToday,
   createSdkEngine,

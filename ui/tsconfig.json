@@ -3,6 +3,10 @@
     "target": "ESNext",
     "module": "ESNext",
     "moduleResolution": "bundler",
+    "baseUrl": ".",
+    "paths": {
+      "gtfs-sdk": ["../sdk/src/index.ts"]
+    },
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
