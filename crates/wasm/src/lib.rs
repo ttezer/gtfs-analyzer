@@ -9,6 +9,9 @@ use gtfs_pipeline::{
     DerivedData, EntityRecords, FileAvailability, FileInfo,
 };
 
+#[cfg(feature = "sdk-en")]
+mod i18n;
+
 macro_rules! t_start {
     ($label:expr) => {
         {
@@ -352,6 +355,8 @@ fn rerun_k6_k7_inner(
     wasm_log!(format!("[rules] after-K6 top: {}", top_rules_str(&all_notices)));
 
     let real_totals = cap_per_rule(&mut all_notices);
+    #[cfg(feature = "sdk-en")]
+    i18n::translate_notices(&mut all_notices);
     all_notices.shrink_to_fit();
     log_mem("after-cap");
     let real_total: usize = real_totals.values().map(|&v| v as usize).sum();
@@ -451,6 +456,8 @@ fn run_full_pipeline(zip_bytes: &[u8], config: &ValidatorConfig, today: u32) -> 
     // 1) Dedup sonrası gerçek totalleri say, ardından kural başına gösterim cap'ini uygula.
     // Native pipeline K7'de dedup yaptığı için karşılaştırılabilir "gerçek" sayı bu noktadadır.
     let real_totals = cap_per_rule(&mut all_notices);
+    #[cfg(feature = "sdk-en")]
+    i18n::translate_notices(&mut all_notices);
     all_notices.shrink_to_fit();
     // 3) DURDURMA YOK — çok büyük feed'de yalnızca konsola uyarı (cap zaten sınırlıyor)
     let real_total: usize = real_totals.values().map(|&v| v as usize).sum();

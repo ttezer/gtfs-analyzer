@@ -13,6 +13,7 @@ npm install gtfs-sdk
 
 The package requires Node.js 20+ in Node environments. In browsers, pass a
 `Uint8Array` or `ArrayBuffer`; the SDK does not upload the feed anywhere.
+Notice titles, messages, and remediation text returned by the SDK are English.
 
 ## Quick start
 
@@ -342,7 +343,7 @@ Runnable examples are included in the package repository:
 ```ts
 import { getVersion } from 'gtfs-sdk';
 
-getVersion(); // { sdk: '0.1.2', engine: '0.9.7' }
+getVersion(); // { sdk: '0.1.3', engine: '0.9.7' }
 ```
 
 The generated `gtfs-wasm` binding is an internal implementation detail and is not

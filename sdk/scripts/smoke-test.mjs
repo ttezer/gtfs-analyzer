@@ -12,12 +12,24 @@ import {
 const fixtureUrl = new URL('../../ui/tests/fixtures/minimal.zip', import.meta.url);
 const fixture = new Uint8Array(await readFile(fileURLToPath(fixtureUrl)));
 
-assert.deepEqual(getVersion(), { sdk: '0.1.2', engine: '0.9.7' });
+assert.deepEqual(getVersion(), { sdk: '0.1.3', engine: '0.9.7' });
 
 const result = await validateGtfs(fixture, { today: '2026-08-20' });
 assert.equal(result.validation_status, 'COMPLETE');
 assert.ok(result.notices.length > 0);
 assert.equal(typeof result.reports.r5.score, 'number');
+for (const notice of result.notices) {
+  assert.match(notice.title, /^[\x00-\x7F]*$/, `notice title is not English: ${notice.rule_id}`);
+  assert.match(notice.message, /^[\x00-\x7F]*$/, `notice message is not English: ${notice.rule_id}`);
+  assert.match(notice.remediation, /^[\x00-\x7F]*$/, `notice remediation is not English: ${notice.rule_id}`);
+}
+
+await assert.rejects(
+  () => validateGtfs(new Uint8Array([1, 2, 3]), { today: '2026-08-20' }),
+  (error) => error instanceof ValidationError
+    && error.code === 'ZipUnreadable'
+    && error.message === 'Could not read the GTFS ZIP archive.',
+);
 
 await assert.rejects(
   () => validateGtfs(fixture, { today: '2026-02-30' }),

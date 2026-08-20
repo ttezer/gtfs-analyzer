@@ -62,7 +62,7 @@ export type {
   ZipFileInfo,
 } from './types.js';
 
-const SDK_VERSION = '0.1.2';
+const SDK_VERSION = '0.1.3';
 const ENGINE_VERSION = '0.9.7';
 
 let initialization: Promise<void> | undefined;
@@ -103,7 +103,7 @@ export async function validateGtfs(
   const result = JSON.parse(bundledWasm().validate_with_today(bytes, configDelta, today)) as EngineResult;
 
   if ('Fatal' in result) {
-    throw new ValidationError(result.Fatal);
+    throw new ValidationError(toPublicFatal(result.Fatal));
   }
   return result.Ok;
 }
@@ -244,11 +244,11 @@ function unwrapEngineResult(raw: unknown): ValidationResult {
     ? parseJson<EngineResult | null>(raw, null)
     : raw as EngineResult | null;
   if (!result || typeof result !== 'object') {
-    throw new ValidationError({ code: 'InvalidInput', message: 'Beklenmedik validator sonucu.' });
+    throw new ValidationError({ code: 'InvalidInput', message: 'Unexpected validator result.' });
   }
-  if ('Fatal' in result) throw new ValidationError(result.Fatal);
+  if ('Fatal' in result) throw new ValidationError(toPublicFatal(result.Fatal));
   if (!('Ok' in result)) {
-    throw new ValidationError({ code: 'InvalidInput', message: 'Beklenmedik validator sonucu.' });
+    throw new ValidationError({ code: 'InvalidInput', message: 'Unexpected validator result.' });
   }
   return result.Ok;
 }
@@ -270,24 +270,37 @@ function serializeConfig(config: Record<string, unknown> | undefined): string {
 }
 
 function normalizeFatalError(error: unknown): FatalError {
-  if (error instanceof ValidationError) return { code: error.code, message: error.message };
+  if (error instanceof ValidationError) return toPublicFatal({ code: error.code, message: error.message });
   if (error !== null && typeof error === 'object' && 'code' in error) {
     const candidate = error as { code: FatalError['code']; message?: unknown };
-    return {
-      code: candidate.code,
-      message: error instanceof Error ? error.message : String(candidate.message ?? error),
-    };
+    return toPublicFatal({ code: candidate.code, message: error instanceof Error ? error.message : String(candidate.message ?? error) });
   }
 
   const raw = typeof error === 'string' ? error : error instanceof Error ? error.message : String(error);
   const parsed = parseJson<EngineResult | FatalError | null>(raw, null);
-  if (parsed && 'Fatal' in parsed) return parsed.Fatal;
-  if (parsed && 'code' in parsed && 'message' in parsed) return parsed;
+  if (parsed && 'Fatal' in parsed) return toPublicFatal(parsed.Fatal);
+  if (parsed && 'code' in parsed && 'message' in parsed) return toPublicFatal(parsed);
 
   const code: FatalError['code'] = /unreachable|RuntimeError|out of memory|memory access/i.test(raw)
     ? 'ResourceLimit'
     : 'ZipUnreadable';
-  return { code, message: raw };
+  return toPublicFatal({ code, message: raw });
+}
+
+function toPublicFatal(error: FatalError): FatalError {
+  return { code: error.code, message: publicFatalMessage(error.code) };
+}
+
+function publicFatalMessage(code: FatalError['code']): string {
+  switch (code) {
+    case 'ZipUnreadable': return 'Could not read the GTFS ZIP archive.';
+    case 'Utf8Critical': return 'A critical GTFS text file is not valid UTF-8.';
+    case 'NoRequiredFiles': return 'Required GTFS files are missing.';
+    case 'CsvMalformed': return 'A GTFS CSV file is malformed.';
+    case 'DecompressionLimit': return 'ZIP decompression exceeded the safety limit.';
+    case 'ResourceLimit': return 'A memory, size, or runtime safety limit was reached.';
+    case 'InvalidInput': return 'Invalid SDK input or configuration.';
+  }
 }
 
 function parseJson<T>(raw: unknown, fallback: T): T {
