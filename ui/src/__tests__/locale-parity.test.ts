@@ -19,7 +19,7 @@ describe('locale parity (registry kural anahtarları)', () => {
     expect(minus(j, e)).toEqual([]); // ja'da olup en'de olmayan (orphan → RTS_015 sınıfı)
   });
 
-  it('ruleMessages anahtarları en/ja arasında birebir aynı (tr bilinçli boş)', () => {
+  it('ruleMessages içinde ja anahtarları en tarafından kapsanır (tr bilinçli boş)', () => {
     expect(Object.keys(tr.ruleMessages)).toHaveLength(0);
     const e = keys(en.ruleMessages);
     const j = keys(ja.ruleMessages);
@@ -30,7 +30,7 @@ describe('locale parity (registry kural anahtarları)', () => {
     expect(minus(j, e)).toEqual([]);
   });
 
-  it('ruleRemediations anahtarları en/ja arasında birebir aynı (tr bilinçli boş)', () => {
+  it('ruleRemediations içinde ja anahtarları en tarafından kapsanır (tr bilinçli boş)', () => {
     expect(Object.keys(tr.ruleRemediations)).toHaveLength(0);
     const e = keys(en.ruleRemediations);
     const j = keys(ja.ruleRemediations);

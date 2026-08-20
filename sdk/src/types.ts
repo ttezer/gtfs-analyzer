@@ -148,6 +148,8 @@ export interface ValidationResult {
 export interface FatalError {
   code: FatalCode;
   message: string;
+  /** Optional engine diagnostic retained separately from the stable public message. */
+  detail?: string;
 }
 
 export type EngineResult =

@@ -261,12 +261,12 @@ mod tests {
         }
     }
 
-    /// Coverage gate. The dictionaries translate by rule id with `if let Some(..)`,
+    /// English coverage gate. The dictionaries translate by rule id with `if let Some(..)`,
     /// so a registered rule that is absent from a table falls back SILENTLY to the
     /// pipeline's Turkish text — invisible unless a feed happens to fire that rule.
     /// The public `gtfs-sdk` build has no other text source, so `en` must be total.
     #[test]
-    fn every_registered_rule_resolves_in_every_dictionary() {
+    fn every_registered_rule_resolves_in_english_dictionary() {
         // `en` only: it is the public SDK's single text source, and every other
         // locale falls back to it. A gap here degrades to Turkish; a gap in `ja`
         // degrades to English, which is a translation debt rather than a leak.

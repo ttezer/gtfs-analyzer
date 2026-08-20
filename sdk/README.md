@@ -301,9 +301,13 @@ try {
 } catch (error) {
   if (error instanceof ValidationError) {
     console.error(error.code, error.message);
+    if (error.detail) console.error('engine detail:', error.detail);
   }
 }
 ```
+
+`message` is a stable English summary suitable for user-facing UI. `detail` is
+optional and preserves the lower-level engine diagnostic for logs and support.
 
 Error codes:
 
@@ -343,7 +347,7 @@ Runnable examples are included in the package repository:
 ```ts
 import { getVersion } from 'gtfs-sdk';
 
-getVersion(); // { sdk: '0.1.3', engine: '0.9.7' }
+getVersion(); // { sdk: '0.1.4', engine: '0.9.7' }
 ```
 
 The generated `gtfs-wasm` binding is an internal implementation detail and is not
@@ -351,10 +355,11 @@ part of the public API. The bundled SDK engine is serial by default; the Analyze
 UI supplies its selected threaded or memory64 engine through the adapter contract
 without exposing those bindings as public API.
 
-The release WASM build keeps `wasm-opt -O3`. In a 2026-08-20 comparison,
-`-Oz` reduced the raw binary by 0.73% but produced a slightly larger gzip file
-and no runtime benefit on the SDK smoke fixture, so the performance-oriented
-profile remains the default.
+The SDK release uses Rust `opt-level=2` and keeps `wasm-opt -O3`. This is
+intentionally separate from the application's and CLI's `opt-level=3` profile:
+the SDK's WASM is inside the npm tarball, so the package build keeps measurable
+size headroom without changing the engine code or the application's release
+profile. The package-size gate is checked in CI.
 
 ## License
 

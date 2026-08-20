@@ -242,11 +242,13 @@ export class ValidatorSession {
 
 export class ValidationError extends Error {
   readonly code: FatalError['code'];
+  readonly detail?: string;
 
   constructor(error: FatalError) {
     super(error.message);
     this.name = 'ValidationError';
     this.code = error.code;
+    this.detail = error.detail;
   }
 }
 
@@ -273,15 +275,18 @@ function serializeConfig(config: Record<string, unknown> | undefined): string {
   try {
     return JSON.stringify(config);
   } catch (error: unknown) {
-    throw new ValidationError({
+    const detail = `Config could not be serialized to JSON: ${error instanceof Error ? error.message : String(error)}`;
+    throw new ValidationError(toPublicFatal({
       code: 'InvalidInput',
-      message: `Config could not be serialized to JSON: ${error instanceof Error ? error.message : String(error)}`,
-    });
+      message: detail,
+    }));
   }
 }
 
 function normalizeFatalError(error: unknown): FatalError {
-  if (error instanceof ValidationError) return toPublicFatal({ code: error.code, message: error.message });
+  if (error instanceof ValidationError) {
+    return toPublicFatal({ code: error.code, message: error.message, detail: error.detail });
+  }
   if (error !== null && typeof error === 'object' && 'code' in error) {
     const candidate = error as { code: FatalError['code']; message?: unknown };
     return toPublicFatal({ code: candidate.code, message: error instanceof Error ? error.message : String(candidate.message ?? error) });
@@ -299,7 +304,9 @@ function normalizeFatalError(error: unknown): FatalError {
 }
 
 function toPublicFatal(error: FatalError): FatalError {
-  return { code: error.code, message: publicFatalMessage(error.code) };
+  const message = publicFatalMessage(error.code);
+  const detail = error.detail ?? (error.message === message ? undefined : error.message);
+  return detail === undefined ? { code: error.code, message } : { code: error.code, message, detail };
 }
 
 function publicFatalMessage(code: FatalError['code']): string {
@@ -369,10 +376,11 @@ function normalizeToday(value: Today | undefined): number {
     ? String(value)
     : value.replaceAll('-', '');
   if (!/^\d{8}$/.test(digits)) {
-    throw new ValidationError({
+    const detail = `Invalid today value: ${value}. Expected YYYYMMDD or YYYY-MM-DD.`;
+    throw new ValidationError(toPublicFatal({
       code: 'InvalidInput',
-      message: `Invalid today value: ${value}. Expected YYYYMMDD or YYYY-MM-DD.`,
-    });
+      message: detail,
+    }));
   }
 
   const year = Number(digits.slice(0, 4));
@@ -385,10 +393,11 @@ function normalizeToday(value: Today | undefined): number {
     || date.getUTCMonth() !== month - 1
     || date.getUTCDate() !== day
   ) {
-    throw new ValidationError({
+    const detail = `Invalid today value: ${value}. Expected a real calendar date.`;
+    throw new ValidationError(toPublicFatal({
       code: 'InvalidInput',
-      message: `Invalid today value: ${value}. Expected a real calendar date.`,
-    });
+      message: detail,
+    }));
   }
   return year * 10000 + month * 100 + day;
 }

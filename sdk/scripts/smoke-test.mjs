@@ -12,7 +12,7 @@ import {
 const fixtureUrl = new URL('../../ui/tests/fixtures/minimal.zip', import.meta.url);
 const fixture = new Uint8Array(await readFile(fileURLToPath(fixtureUrl)));
 
-assert.deepEqual(getVersion(), { sdk: '0.1.3', engine: '0.9.7' });
+assert.deepEqual(getVersion(), { sdk: '0.1.4', engine: '0.9.7' });
 
 const result = await validateGtfs(fixture, { today: '2026-08-20' });
 assert.equal(result.validation_status, 'COMPLETE');
@@ -28,12 +28,26 @@ await assert.rejects(
   () => validateGtfs(new Uint8Array([1, 2, 3]), { today: '2026-08-20' }),
   (error) => error instanceof ValidationError
     && error.code === 'ZipUnreadable'
-    && error.message === 'Could not read the GTFS ZIP archive.',
+    && error.message === 'Could not read the GTFS ZIP archive.'
+    && error.detail?.includes('Could not find EOCD'),
 );
 
 await assert.rejects(
   () => validateGtfs(fixture, { today: '2026-02-30' }),
-  (error) => error instanceof ValidationError && error.code === 'InvalidInput',
+  (error) => error instanceof ValidationError
+    && error.code === 'InvalidInput'
+    && error.message === 'Invalid SDK input or configuration.'
+    && error.detail?.includes('Invalid today value'),
+);
+
+const circularConfig = {};
+circularConfig.self = circularConfig;
+await assert.rejects(
+  () => validateGtfs(fixture, { config: circularConfig }),
+  (error) => error instanceof ValidationError
+    && error.code === 'InvalidInput'
+    && error.message === 'Invalid SDK input or configuration.'
+    && error.detail?.includes('circular'),
 );
 
 const stages = [];

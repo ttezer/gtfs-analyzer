@@ -41,7 +41,7 @@
   "scripts": {
     "clean": "node scripts/clean-build.mjs",
     "version:check": "node scripts/check-version.mjs",
-    "wasm:build": "wasm-pack build ../crates/wasm --target web --out-dir ../../sdk/pkg --release -- --features quiet,sdk-en && node scripts/prepare-wasm-package.mjs",
+    "wasm:build": "node scripts/build-wasm.mjs",
     "build": "npm run clean && npm run version:check && npm run wasm:build && tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test:smoke": "npm run build && node scripts/smoke-test.mjs",
