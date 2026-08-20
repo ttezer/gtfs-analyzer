@@ -209,8 +209,17 @@ pub fn validate_translations(
                 ));
             }
 
+        // 🔴 `table_known` KOŞULU ŞART. Bu sezgi, alan adının GTFS'te çevrilebilir bir
+        // içerik türüne benzediğini varsayar — ama tablo tanınmıyorsa o şemadan hiçbir şey
+        // bilinmez ve alanın çevrilebilir olup olmadığı hakkında hüküm verilemez.
+        // mdb-2126 tam bu vakadır: `table_name = "directions"` (GTFS tablosu değil, TRN_001
+        // zaten 421 bulguyla bunu söylüyor) ve `field_name = "direction"`, çevirileri
+        // 'East'/'West'/'North'/'South'. Alan apaçık çevrilebilir; kural aynı 421 satırda
+        // ikinci ve YANLIŞ bir Spec iddiası üretiyordu.
+        // TRN_002 aynı türev kusurunu taşıyordu ve tablo bilinmediğinde susmaya çevrildi;
+        // bu, o düzeltmenin atlanmış ikinci yarısıdır.
         let translatable = ["name", "desc", "url", "email", "phone", "headsign", "signposted_as"];
-        if has_field_name && !translatable.iter().any(|needle| field_name.contains(needle)) {
+        if table_known && has_field_name && !translatable.iter().any(|needle| field_name.contains(needle)) {
             notices.push(make_k2_notice(
                 &mut counter,
                 "TRN_011",
