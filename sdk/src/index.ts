@@ -62,7 +62,7 @@ export type {
   ZipFileInfo,
 } from './types.js';
 
-const SDK_VERSION = '0.1.3';
+const SDK_VERSION = '0.1.4';
 const ENGINE_VERSION = '0.9.7';
 
 let initialization: Promise<void> | undefined;
@@ -99,8 +99,19 @@ export async function validateGtfs(
 
   const bytes = input instanceof Uint8Array ? input : new Uint8Array(input);
   const today = normalizeToday(options.today);
-  const configDelta = options.config === undefined ? '' : JSON.stringify(options.config);
-  const result = JSON.parse(bundledWasm().validate_with_today(bytes, configDelta, today)) as EngineResult;
+  // `serializeConfig` (not a bare JSON.stringify) so a circular or BigInt config
+  // throws ValidationError here exactly as it does on the session path.
+  const configDelta = serializeConfig(options.config);
+
+  let result: EngineResult;
+  try {
+    result = JSON.parse(bundledWasm().validate_with_today(bytes, configDelta, today)) as EngineResult;
+  } catch (error: unknown) {
+    // A WASM trap (out of memory, unreachable) surfaces as a raw RuntimeError.
+    // The session path already maps it to ResourceLimit; this one must too.
+    if (error instanceof ValidationError) throw error;
+    throw new ValidationError(normalizeFatalError(error));
+  }
 
   if ('Fatal' in result) {
     throw new ValidationError(toPublicFatal(result.Fatal));
@@ -309,8 +320,16 @@ function parseJson<T>(raw: unknown, fallback: T): T {
 }
 
 async function initializeWasm(): Promise<void> {
+  // Both promises are cleared on failure: a one-off fetch/compile error (a network
+  // blip in the browser) must not poison every later call for the page's lifetime.
   bundledWasmLoading ??= loadAndInitializeWasm();
-  bundledWasmModule = await bundledWasmLoading;
+  try {
+    bundledWasmModule = await bundledWasmLoading;
+  } catch (error: unknown) {
+    bundledWasmLoading = undefined;
+    initialization = undefined;
+    throw error;
+  }
 }
 
 async function loadAndInitializeWasm(): Promise<BundledWasm> {

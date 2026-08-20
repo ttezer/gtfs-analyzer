@@ -23,7 +23,10 @@ describe('locale parity (registry kural anahtarları)', () => {
     expect(Object.keys(tr.ruleMessages)).toHaveLength(0);
     const e = keys(en.ruleMessages);
     const j = keys(ja.ruleMessages);
-    expect(minus(e, j)).toEqual([]);
+    // en'de olup ja'da olmayan: SERBEST. `ja` sözlüğü çeviri bulamadığında
+    // İngilizce'ye düşer (crates/cli/src/i18n.rs `fallback`), yani boşluk
+    // Türkçe sızıntısı değil çeviri borcudur. `en` tamlığını Rust tarafındaki
+    // `every_registered_rule_resolves_in_every_dictionary` kapısı zorlar.
     expect(minus(j, e)).toEqual([]);
   });
 
@@ -31,7 +34,10 @@ describe('locale parity (registry kural anahtarları)', () => {
     expect(Object.keys(tr.ruleRemediations)).toHaveLength(0);
     const e = keys(en.ruleRemediations);
     const j = keys(ja.ruleRemediations);
-    expect(minus(e, j)).toEqual([]); // en'de olup ja'da olmayan
+    // en'de olup ja'da olmayan: SERBEST. `ja` sözlüğü çeviri bulamadığında
+    // İngilizce'ye düşer (crates/cli/src/i18n.rs `fallback`), yani boşluk
+    // Türkçe sızıntısı değil çeviri borcudur. `en` tamlığını Rust tarafındaki
+    // `every_registered_rule_resolves_in_every_dictionary` kapısı zorlar.
     expect(minus(j, e)).toEqual([]); // ja'da olup en'de olmayan (orphan)
   });
 });

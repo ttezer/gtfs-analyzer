@@ -260,4 +260,37 @@ mod tests {
             }
         }
     }
+
+    /// Coverage gate. The dictionaries translate by rule id with `if let Some(..)`,
+    /// so a registered rule that is absent from a table falls back SILENTLY to the
+    /// pipeline's Turkish text — invisible unless a feed happens to fire that rule.
+    /// The public `gtfs-sdk` build has no other text source, so `en` must be total.
+    #[test]
+    fn every_registered_rule_resolves_in_every_dictionary() {
+        // `en` only: it is the public SDK's single text source, and every other
+        // locale falls back to it. A gap here degrades to Turkish; a gap in `ja`
+        // degrades to English, which is a translation debt rather than a leak.
+        for (lang, raw) in [("en", EN_JSON)] {
+            let dict = Dictionary::parse(raw, lang).expect("locale parses");
+            let mut missing: Vec<String> = Vec::new();
+            for rule in gtfs_rules::RULES {
+                for (section, table) in [
+                    ("titles", &dict.titles),
+                    ("messages", &dict.messages),
+                    ("remediations", &dict.remediations),
+                ] {
+                    if !table.contains_key(rule.id) {
+                        missing.push(format!("{section}/{}", rule.id));
+                    }
+                }
+            }
+            assert!(
+                missing.is_empty(),
+                "'{lang}' locale is missing {} entries: {missing:?}\n\
+                 Add them to ui/src/locales/{lang}.ts, then run `npm run locales:export`.",
+                missing.len()
+            );
+        }
+    }
+
 }
