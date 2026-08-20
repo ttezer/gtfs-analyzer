@@ -12,7 +12,7 @@ import {
 const fixtureUrl = new URL('../../ui/tests/fixtures/minimal.zip', import.meta.url);
 const fixture = new Uint8Array(await readFile(fileURLToPath(fixtureUrl)));
 
-assert.deepEqual(getVersion(), { sdk: '0.1.0', engine: '0.9.7' });
+assert.deepEqual(getVersion(), { sdk: '0.1.1', engine: '0.9.7' });
 
 const result = await validateGtfs(fixture, { today: '2026-08-20' });
 assert.equal(result.validation_status, 'COMPLETE');

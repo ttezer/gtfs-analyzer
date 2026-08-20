@@ -45,7 +45,7 @@ export type {
   ZipFileInfo,
 } from './types.js';
 
-const SDK_VERSION = '0.1.0';
+const SDK_VERSION = '0.1.1';
 const ENGINE_VERSION = '0.9.7';
 
 let initialization: Promise<void> | undefined;
@@ -159,7 +159,7 @@ export class ValidatorSession {
     if (!this.cache) {
       throw new ValidationError({
         code: 'InvalidInput',
-        message: 'Hazır cache yok. Önce validate çağırın.',
+        message: 'No prepared cache. Call validate() first.',
       });
     }
 
@@ -190,7 +190,7 @@ export class ValidatorSession {
 
   private runCached(configDelta: string, onStage: (stage: ValidationStage, elapsedMs: number) => void): ValidationResult {
     if (!this.cache) {
-      throw new ValidationError({ code: 'InvalidInput', message: 'Hazır cache yok. Önce validate çağırın.' });
+      throw new ValidationError({ code: 'InvalidInput', message: 'No prepared cache. Call validate() first.' });
     }
     try {
       return unwrapEngineResult(this.engine.rerun(this.cache, configDelta, onStage, this.today));
@@ -206,7 +206,7 @@ export class ValidatorSession {
   }
 
   private ensureOpen(): void {
-    if (this.closed) throw new Error('ValidatorSession dispose edildi. Yeni bir session oluşturun.');
+    if (this.closed) throw new Error('ValidatorSession has been disposed. Create a new session.');
   }
 }
 
@@ -245,7 +245,7 @@ function serializeConfig(config: Record<string, unknown> | undefined): string {
   } catch (error: unknown) {
     throw new ValidationError({
       code: 'InvalidInput',
-      message: `Config JSON olarak serileştirilemedi: ${error instanceof Error ? error.message : String(error)}`,
+      message: `Config could not be serialized to JSON: ${error instanceof Error ? error.message : String(error)}`,
     });
   }
 }
@@ -306,7 +306,7 @@ function normalizeToday(value: Today | undefined): number {
   if (!/^\d{8}$/.test(digits)) {
     throw new ValidationError({
       code: 'InvalidInput',
-      message: `Geçersiz today değeri: ${value}. YYYYMMDD veya YYYY-MM-DD bekleniyor.`,
+      message: `Invalid today value: ${value}. Expected YYYYMMDD or YYYY-MM-DD.`,
     });
   }
 
@@ -322,7 +322,7 @@ function normalizeToday(value: Today | undefined): number {
   ) {
     throw new ValidationError({
       code: 'InvalidInput',
-      message: `Geçersiz today değeri: ${value}. Gerçek bir takvim tarihi bekleniyor.`,
+      message: `Invalid today value: ${value}. Expected a real calendar date.`,
     });
   }
   return year * 10000 + month * 100 + day;

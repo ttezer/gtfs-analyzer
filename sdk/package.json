@@ -1,8 +1,16 @@
 {
   "name": "gtfs-sdk",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "GTFS Analyzer validation engine for Browser and Node.js.",
   "license": "MIT",
+  "keywords": [
+    "gtfs",
+    "gtfs-validator",
+    "transit",
+    "public-transport",
+    "validation",
+    "wasm"
+  ],
   "repository": {
     "type": "git",
     "url": "git+https://github.com/ttezer/gtfs-analyzer.git"
