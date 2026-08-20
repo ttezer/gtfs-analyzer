@@ -266,7 +266,7 @@ console.log(result.notices.length, result.reports.r5.score);
 
 Dışa açılan public API `validateGtfs`, `getVersion` ve progress/cache akışı gereken uygulamalar için `createValidatorSession` içerir. Düşük seviyeli `gtfs-wasm` binding'i SDK sözleşmesinin parçası değildir. WASM64 ve threaded motor seçimi ise ilk SDK paketinde internal kalır.
 
-Paket kaynakları `sdk/` altındadır; WASM binding'i build sırasında `crates/wasm` üzerinden üretilir.
+Paket kaynakları `sdk/` altındadır; ayrıntılı kullanım, sonuç modeli ve config referansı [`sdk/README.md`](sdk/README.md) içindedir. WASM binding'i build sırasında `crates/wasm` üzerinden üretilir.
 Web UI worker'ı da aynı `ValidatorSession` facade'ını kullanır; seri/threaded/WASM64 seçimini yalnızca uygulama içindeki engine adapter belirler.
 
 ## CLI (Terminal)

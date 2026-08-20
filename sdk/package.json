@@ -23,6 +23,7 @@
   "files": [
     "dist",
     "pkg",
+    "examples",
     "README.md",
     "LICENSE"
   ],
