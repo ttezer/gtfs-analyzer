@@ -250,6 +250,10 @@ AGG_RULES = {
                 # sayı tarifenin sıklığıyla ölçekleniyordu: mdb-1003'te 9.533 bulgunun
                 # tamamı TEK çiftten geldi (11 oldu), mdb-1004'te 10.390 -> 20.
                 # MD per-occurrence sayar → our_count << md_count ARTIK NORMAL.
+    "FIN_018", "FIN_007", "FIN_014",  # 2026-08-20: FEED BAŞINA tek bulgu (feed_info.txt tek
+                # satırlıktır). Kanıt sayının kendisidir: 1.491 ortak feed -> 1.491 bulgu,
+                # 288 -> 288, 264 -> 264. MD eksik ALAN başına sayar (55x / 12x / 7x).
+                # SHP_024 ile aynı atlama; kural agregat davranıyordu, liste bilmiyordu.
     "SHP_024",  # 2026-08-20: (stop_id, shape_id) ÇİFTİ başına tek notice (`seen_shp024`).
                 # MD (sefer, durak) başına sayar → aynı shape N seferde kullanılırsa MD N
                 # katı verir; ortak 581 feed'de biz 122.401, onlar 486.637 (3,98x). Kural
