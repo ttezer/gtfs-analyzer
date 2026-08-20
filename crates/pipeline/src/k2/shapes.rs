@@ -219,6 +219,17 @@ pub fn validate_shapes(file: &RawFile, zip_bytes: Option<&[u8]>) -> (Vec<ShapePo
                 notices.push(n);
             }
 
+            // ARC_034: başlık tekrarı → notice + kayıt YAPMA (#181, K1 stream eder).
+            if crate::k1_parse::arc034_is_header_repeat(row, &file.headers) {
+                notices.push(make_k2_notice(
+                    &mut counter, "ARC_034", EntityType::File, Some(file.name.clone()),
+                    None, &file.name, Some(line), None, None, None,
+                    format!("'{}' {line}. satırı başlık satırının tekrarı — veri olarak okunuyor.", file.name),
+                    "Dosyanın ortasındaki tekrar eden başlık satırını kaldırın; genellikle iki dosyanın uç uca eklenmesinden doğar.",
+                ));
+                return;
+            }
+
             // ARC_018: tamamen boş satır → notice + kayıt YAPMA
             if row.iter().all(|v| v.trim().is_empty()) {
                 notices.push(make_k2_notice(

@@ -360,13 +360,26 @@ fn contains_as_word(haystack: &str, needle: &str) -> bool {
 /// Metin yalnızca büyük harf alfabetik karakter içeriyor mu? (en az 2 harf, hepsi büyük)
 /// Alloc'suz: ara Vec yok, ilk küçük harfte kısa devre. Eşik + predicate AYNI →
 /// her girdi için orijinalle birebir aynı sonuç.
+/// Kısaltmaların altında kaldığı harf sayısı — bunun altındaki all-caps metin
+/// okunabilirlik sorunu DEĞİLDİR (#182).
+///
+/// 🔴 Eşik ölçümle seçildi, sezgiyle değil. run-32311885577'de kuralın ateşlediği
+/// 2.127 feed örneğinin **%33'ü (708) dört harf veya kısaydı** ve içerikleri açıkça
+/// kurum kısaltmasıydı: YMCA, NVBW, DMV, CVS, CATA, AFPA, CCAS. `mdb-2389`'daki
+/// 2.394 bulgunun TAMAMI iki üç-harfli yer koduydu (NAN, VAN). Bir kısaltmanın
+/// küçük harfli biçimi yoktur; "Ymca" öneri olarak yanlıştır.
+///
+/// MobilityData da bu feed'lerde susuyor ve ortak feed'lerde BİZDEN FAZLA sayıyor
+/// (1,11x), yani eşik bizi onların gerisine düşürmüyor.
+const DQ018_MIN_LETTERS: usize = 5;
+
 fn is_all_caps(s: &str) -> bool {
     let mut n = 0usize;
     for c in s.chars().filter(|c| c.is_alphabetic()) {
         if !c.is_uppercase() { return false; }
         n += 1;
     }
-    n >= 2
+    n >= DQ018_MIN_LETTERS
 }
 
 // Tüm harfler küçük harf — mixed_case_recommended_field (all-lowercase varyantı)

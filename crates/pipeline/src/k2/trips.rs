@@ -179,6 +179,18 @@ pub fn validate_trips(file: &RawFile, zip_bytes: Option<&[u8]>) -> (Vec<TripReco
 
     // Satır işleyici — hem stream (raw_text) hem rows fallback yolundan çağrılır.
     let mut process = |row: &[Cow<'_, str>], line: u64| {
+        // ARC_034: başlık satırının tekrarı — notice + satırı KAYDETME (K1'deki continue).
+        // Bu dosya K1'de stream edilir ve orada yalnız başlık okunur, dolayısıyla kontrol
+        // K1'de kalırsa bu dosyada HİÇ çalışmaz (#181).
+        if crate::k1_parse::arc034_is_header_repeat(row, &file.headers) {
+            notices.push(make_k2_notice(
+                &mut counter, "ARC_034", EntityType::File, Some(file.name.clone()),
+                None, &file.name, Some(line), None, None, None,
+                format!("'{}' {line}. satırı başlık satırının tekrarı — veri olarak okunuyor.", file.name),
+                "Dosyanın ortasındaki tekrar eden başlık satırını kaldırın; genellikle iki dosyanın uç uca eklenmesinden doğar.",
+            ));
+            return;
+        }
         dq016.observe(line, row.iter().map(|value| value.as_ref()), &file.headers);
         let trip_id = SmolStr::new(get_col_raw(row, cols.trip_id));
         let entity_id = (!trip_id.is_empty()).then(|| trip_id.to_string());

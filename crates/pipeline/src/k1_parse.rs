@@ -674,6 +674,23 @@ pub(crate) fn arc012_check(
 ///
 /// Geçerli Unicode harf/rakam/boşluk (Japonca, Türkçe vb.) sorun DEĞİLDİR — yalnızca
 /// kontrol karakterleri, DEL, yedek alanlar (surrogate) ve özel kullanım alanı işaretlenir.
+/// ARC_034: satır başlık satırının birebir tekrarı mı?
+///
+/// 🔴 K1 ve K2'nin İKİSİ de bunu sormak zorundadır. `stop_times.txt`, `shapes.txt`,
+/// `trips.txt` ve `calendar_dates.txt` K1'de `stream_mode` ile YALNIZ başlığı okur;
+/// veri satırları K2'ye gider. Kontrol yalnız K1'de kaldığı sürece o dört dosyadaki
+/// tekrar eden başlık satırı VERİ olarak işlenir — `mdb-1004/trips.txt` satır 16873
+/// tam bu vakadır ve `TRP_002`'ye literal `"route_id"` değerini FK ihlali diye
+/// raporlatıyordu (#181).
+///
+/// ⚠️ Yanlış pozitif kapısı: satırın BÜTÜN alanları kendi sütun adına eşit olmalı.
+/// Tek bir sütunda `route_id` değerinin "route_id" olması meşrudur.
+pub(crate) fn arc034_is_header_repeat<S: AsRef<str>>(row: &[S], headers: &[String]) -> bool {
+    row.len() == headers.len()
+        && !headers.is_empty()
+        && row.iter().zip(headers.iter()).all(|(v, h)| v.as_ref().trim() == h.trim())
+}
+
 pub(crate) fn arc021_bad_char<'a>(values: impl Iterator<Item = &'a str>) -> Option<u32> {
     for val in values {
         for ch in val.chars() {
@@ -1674,10 +1691,7 @@ pub fn parse(zip_bytes: &[u8], cfg: &ValidatorConfig) -> Result<K1Result, FatalE
             // ⚠️ YANLIŞ POZİTİF KAPISI: satırın BÜTÜN alanları kendi sütun adına
             // eşit olmalı. Tek bir sütunda `route_id` değerinin "route_id" olması
             // meşrudur ve tetiklemez; hepsinin birden eşleşmesi başka türlü oluşamaz.
-            if row.len() == headers.len()
-                && !headers.is_empty()
-                && row.iter().zip(headers.iter()).all(|(v, h)| v.trim() == h.trim())
-            {
+            if arc034_is_header_repeat(&row[..], &headers[..]) {
                 notices.push(make_notice(
                     &mut counter, "ARC_034",
                     EntityType::File, Some(raw_name.clone()),

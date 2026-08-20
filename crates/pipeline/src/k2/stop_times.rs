@@ -1338,6 +1338,18 @@ pub fn validate_stop_times(
                 st.notices.push(n);
             }
 
+            // ARC_034: başlık tekrarı → notice + indexleme YAPMA. K1 bu dosyayı stream
+            // eder ve yalnız başlığı okur; kontrol orada kalırsa burada hiç çalışmaz (#181).
+            if crate::k1_parse::arc034_is_header_repeat(row, &file.headers) {
+                st.notices.push(make_k2_notice(
+                    &mut st.counter, "ARC_034", EntityType::File, Some(file.name.clone()),
+                    None, &file.name, Some(line), None, None, None,
+                    format!("'{}' {line}. satırı başlık satırının tekrarı — veri olarak okunuyor.", file.name),
+                    "Dosyanın ortasındaki tekrar eden başlık satırını kaldırın; genellikle iki dosyanın uç uca eklenmesinden doğar.",
+                ));
+                return;
+            }
+
             // ARC_018: tamamen boş satır → notice + indexleme YAPMA (K1'deki continue)
             if row.iter().all(|v| v.trim().is_empty()) {
                 st.notices.push(make_k2_notice(
