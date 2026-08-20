@@ -1200,8 +1200,18 @@ pub fn parse(zip_bytes: &[u8], cfg: &ValidatorConfig) -> Result<K1Result, FatalE
             "GTFS .txt dosyaları birden fazla/derin alt dizinde bulundu; kök keşfi güvenli değil",
         );
     }
+    // 🔴 "DOSYA VAR" ile "DOSYA VERİ TAŞIYOR" ayrı sorulardır ve bastırma İKİNCİSİNE
+    // bakmalıdır. Sıfır baytlık bir `calendar.txt`, boş `calendar_dates.txt`'i mazur
+    // GÖSTERMEZ: o durumda feed'in hiç servis tanımı yoktur.
+    let mut file_has_data = |name: &str| -> bool {
+        archive.index_for_name(name)
+            .and_then(|i| archive.by_index_raw(i).ok())
+            .map(|f| f.size() > 0)
+            .unwrap_or(false)
+    };
     let calendar_entry = format!("{}calendar.txt", root_prefix.as_deref().unwrap_or(""));
-    let has_calendar_txt = entry_names.iter().any(|n| n.replace('\\', "/") == calendar_entry);
+    let has_calendar_txt = entry_names.iter().any(|n| n.replace('\\', "/") == calendar_entry)
+        && file_has_data(&calendar_entry);
     // 🔑 AYNI TOLERANS TERS YÖNDE DE GEÇERLİ (#166). Spec: "calendar.txt —
     // Required UNLESS all dates of service are defined in calendar_dates.txt."
     // Yani veri calendar_dates.txt'te tanımlıyken boş calendar.txt GEÇERLİDİR.
@@ -1211,10 +1221,19 @@ pub fn parse(zip_bytes: &[u8], cfg: &ValidatorConfig) -> Result<K1Result, FatalE
     // MobilityData hiçbirinde konuşmuyordu — onların `empty_file`'ı yalnız
     // ZORUNLU dosyada ateşler, koşullu zorunluda değil.
     //
-    // İkisi de boşsa feed'in hiç servisi yok demektir; onu `DQ_005` sahiplenir,
-    // dolayısıyla bu bastırma gerçek bir hatayı gizlemez.
+    // 🔴 "İkisi de boşsa DQ_005 sahiplenir" DİYE YAZILMIŞTI VE ÖLÇÜLMEMİŞTİ. 7. koşumda
+    // `ntd-60089` ve beş kardeşinde her iki dosya da 0 BAYT; `DQ_005` ateşlemiyor ve
+    // hiçbir kural "bu feed'in hiç servisi yok" demiyordu. MobilityData `empty_file`'ı
+    // yedi dosya için basarken biz beş diyorduk — fark tam olarak bu iki dosyaydı.
+    // Bastırma artık diğer dosyanın VERİ TAŞIMASINI şart koşar, yalnız varlığını değil.
+    //
+    // ⚠️ SINIR: kontrol sıkıştırılmamış BOYUTA bakar (`size() > 0`), ayrıştırma sonucuna
+    // değil. Sıfır baytlık dosya yakalanır; "yalnız başlık satırı içeren" dosya yakalanmaz,
+    // çünkü bastırma bayrakları dosya döngüsünden ÖNCE hesaplanır ve o noktada henüz hiçbir
+    // dosya ayrıştırılmamıştır. Korpusta ölçülen altı vakanın altısı da 0 bayttır.
     let calendar_dates_entry = format!("{}calendar_dates.txt", root_prefix.as_deref().unwrap_or(""));
-    let has_calendar_dates_txt = entry_names.iter().any(|n| n.replace('\\', "/") == calendar_dates_entry);
+    let has_calendar_dates_txt = entry_names.iter().any(|n| n.replace('\\', "/") == calendar_dates_entry)
+        && file_has_data(&calendar_dates_entry);
 
     let mut notices: Vec<Notice> = Vec::new();
     let mut counter: u32 = 0;

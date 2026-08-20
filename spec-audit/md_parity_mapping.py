@@ -830,6 +830,20 @@ def classify_mapped_divergence(code: str) -> tuple[str, str]:
 # ⚠️ Bu liste "biz daha iyiyiz" demez. Yalnız "bu kontrolün MD'de eşleniği yok"
 # der; kontrolün kendisinin doğru olup olmadığı ayrı bir sorudur ve kural
 # kartlarında yanıtlanır.
+# ── MD'nin ARC_034 satırlarında ürettiği TÜREV kodlar ───────────────────────────
+#
+# `mdb-1003`/`mdb-1004` başlık satırını veri olarak tekrarlar. Biz `ARC_034` ile TEK
+# yapısal bulgu üretip satırı ATLARIZ; MobilityData satırı veri sayıp her alan için ayrı
+# hata basar — `invalid_date`, `invalid_integer`, `invalid_float`, `invalid_timezone`,
+# `invalid_time`. 7. koşumda `md_mapped_missing`'in 15 satırının 9'u tam olarak budur.
+#
+# 🔴 Bu bir KÖRLÜK DEĞİL, `ARC_034` kartında yazılı bilinçli karardır: "tek yapısal kusur,
+# aksi hâlde onlarca alan hatasına dağılır" (`ARC_018` emsali). Kodun kaynağını söylemek,
+# aynı satırı dokuz kez farklı adla bildirmekten iyidir.
+ARC034_DERIVATIVE_MD_CODES: frozenset[str] = frozenset({
+    "invalid_date", "invalid_integer", "invalid_float", "invalid_timezone", "invalid_time",
+})
+
 NO_MD_EQUIVALENT: dict[str, str] = {
     "ARC_032": "Alan değerinde HTML etiketi/kaçış dizisi. Katalogda 'html' geçen tek bir kod yok.",
     "ARC_013": "CSV ayrıştırma hatası. MD'nin `csv_parsing_failed`'i onların ayrıştırıcısının 4096 karakterlik alan sınırıdır (mdb-982'de mesajı bunu yazar) ve aynı feed'i biz sorunsuz okuyoruz — UNMAPPED_DECISIONS'ta kayıtlı. Bizim ARC_013'ümüz gerçek bir ayrıştırma hatasıdır; ikisini eşlemek onların ayrıştırıcı sınırını bizim körlüğümüz gibi gösterirdi.",
