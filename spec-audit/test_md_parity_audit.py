@@ -410,6 +410,32 @@ class LedgerDriftGate(unittest.TestCase):
             self.assertEqual(mapping.classify_analyzer_divergence(rid)[0], "unreviewed",
                              f"{rid} nöbetteyken kapatılmış görünüyor")
 
+    def test_aggregation_verdict_implies_agg_rules_membership(self):
+        """Bir kuralı AGREGAT diye yargılamak, onu `AGG_RULES`'a yazmayı GEREKTİRİR.
+
+        🔴 Bu depoda ALTI kez atlandı: `STM_014`, `DQ_016`, `SHP_024`, `FIN_018`,
+        `FIN_007`, `FIN_014`. Her seferinde kural dedup'u YAPIYORDU, hüküm de
+        "agregasyon farkı" diyordu, ama `AGG_RULES` bilmediği için her koşum aynı
+        oranı sahte `md_mapped_under` olarak raporladı. `DQ_016`'nın kendi yorumu
+        bunu "kendi dersimizin tekrarı" diye yazar — yani hata, dersi yazdıktan
+        SONRA da tekrarlandı.
+
+        Dedup yazmak ile onu ilan etmek iki ayrı adımdır ve ikincisini hiçbir şey
+        zorlamıyordu. Artık zorluyor.
+        """
+        import csv as _csv
+        ledger = Path(__file__).resolve().parent / "fp_adjudication.tsv"
+        with ledger.open(encoding="utf-8", newline="") as fh:
+            agg_judged = {r["rule_id"].strip() for r in _csv.DictReader(fh, delimiter="\t")
+                          if (r.get("verdict") or "").strip() == "AGGREGATION"}
+        self.assertTrue(agg_judged, "AGGREGATION hükmü yok — test örneksiz kalmış")
+        missing = sorted(agg_judged - set(audit.AGG_RULES))
+        self.assertFalse(missing,
+                         f"AGGREGATION diye yargılanmış ama AGG_RULES'ta OLMAYAN kurallar: "
+                         f"{', '.join(missing)}. Hüküm yazmak yetmez; `md_parity_audit.py`'deki "
+                         f"AGG_RULES kümesine de eklenmeli, yoksa her koşum bu kuralı sahte "
+                         f"`md_mapped_under` olarak raporlar.")
+
     def test_fix_confirmed_requires_a_measurement(self):
         """`FIX_CONFIRMED` nöbeti KAPATIR, dolayısıyla ucuz yazılamamalıdır.
 

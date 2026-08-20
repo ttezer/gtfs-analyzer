@@ -3281,6 +3281,69 @@ mod tests {
             "start < end temiz olmalı: {:?}", notices);
     }
 
+    /// STM_034 "yalnız biri tanımlı" der — DOLULUK hakkında. Bozuk değer "yok" DEĞİLDİR.
+    ///
+    /// 🔴 Regresyon: `arrival_time`/`departure_time` parse hatasında `None` döner ve kural
+    /// bunu boş alanla aynı saydığı sürece dolu bir satır için asimetri uydurur. Aynı satırda
+    /// STM_003/STM_004 zaten gerçek kusuru bildirir; ikinci ve YANLIŞ bulgu üretilmemeli.
+    /// STM_015/016 mdb-2727'de bu hatayı 101.621 kez yapmıştı.
+    #[test]
+    fn stm_034_does_not_fire_when_one_time_is_present_but_malformed() {
+        // 🔴 VAKA SEÇİMİ ÖNEMLİ: iki alan da bozuksa kural zaten susar, o yüzden böyle bir
+        // fixture kapıyı SINAMAZ (ilk yazımda bu hatayı yaptım ve boz-testi yakaladı).
+        // Yanlış pozitifin gerçek şekli: BİRİ bozuk, DİĞERİ geçerli — eski kod bunu
+        // "(None, Some)" olarak görüp asimetri uyduruyordu.
+        let file = make_file(
+            vec!["trip_id", "stop_id", "stop_sequence", "arrival_time", "departure_time"],
+            vec![vec!["T1", "S1", "1", "8:30", "08:31:00"]],
+        );
+        let (_, notices) = validate_stop_times(&file, None, false);
+        assert!(!notices.iter().any(|n| n.rule_id == "STM_034"),
+            "iki alan da DOLU (yalnız biçimi bozuk) — STM_034 asimetri uydurmamalı: {:?}",
+            notices.iter().map(|n| &n.rule_id).collect::<Vec<_>>());
+        assert!(notices.iter().any(|n| n.rule_id == "STM_003"),
+            "gerçek kusuru bildiren kural SUSMAMALI");
+    }
+
+    /// Gerçekten tek taraflı boşlukta STM_034 hâlâ ateşlemeli — kapı fazla geniş olmamalı.
+    #[test]
+    fn stm_034_still_fires_when_one_side_is_genuinely_empty() {
+        let file = make_file(
+            vec!["trip_id", "stop_id", "stop_sequence", "arrival_time", "departure_time"],
+            vec![vec!["T1", "S1", "1", "08:30:00", ""]],
+        );
+        let (_, notices) = validate_stop_times(&file, None, false);
+        assert!(notices.iter().any(|n| n.rule_id == "STM_034"),
+            "arrival dolu, departure GERÇEKTEN boş — STM_034 ateşlemeli: {:?}",
+            notices.iter().map(|n| &n.rule_id).collect::<Vec<_>>());
+    }
+
+    /// STM_047 "timepoint=1 ama iki zaman da tanımlı değil" der; bozuk değer tanımsız değildir.
+    #[test]
+    fn stm_047_does_not_fire_when_times_are_present_but_malformed() {
+        let file = make_file(
+            vec!["trip_id", "stop_id", "stop_sequence", "arrival_time", "departure_time", "timepoint"],
+            vec![vec!["T1", "S1", "1", "8:30", "8:31", "1"]],
+        );
+        let (_, notices) = validate_stop_times(&file, None, false);
+        assert!(!notices.iter().any(|n| n.rule_id == "STM_047"),
+            "iki alan da DOLU (biçimi bozuk) — STM_047 'tanımlı değil' dememeli: {:?}",
+            notices.iter().map(|n| &n.rule_id).collect::<Vec<_>>());
+    }
+
+    /// Gerçekten boş iki alan + timepoint=1 → STM_047 ateşlemeli.
+    #[test]
+    fn stm_047_still_fires_when_both_times_are_genuinely_empty() {
+        let file = make_file(
+            vec!["trip_id", "stop_id", "stop_sequence", "arrival_time", "departure_time", "timepoint"],
+            vec![vec!["T1", "S1", "1", "", "", "1"]],
+        );
+        let (_, notices) = validate_stop_times(&file, None, false);
+        assert!(notices.iter().any(|n| n.rule_id == "STM_047"),
+            "iki alan da GERÇEKTEN boş — STM_047 ateşlemeli: {:?}",
+            notices.iter().map(|n| &n.rule_id).collect::<Vec<_>>());
+    }
+
     #[test]
     fn stm_058_malformed_window_is_reported_not_swallowed() {
         // Eskiden `.ok().flatten()` hatayı yutuyordu: hiç bulgu çıkmıyor, değer kayboluyor

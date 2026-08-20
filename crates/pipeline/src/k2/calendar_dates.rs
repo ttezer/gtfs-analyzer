@@ -96,6 +96,17 @@ pub fn validate_calendar_dates(
     let mut dq016 = crate::k1_parse::Dq016Acc::default();
 
     let mut process = |row: &[Cow<'_, str>], line: u64| {
+        // ARC_034: başlık tekrarı → notice + satırı KAYDETME. Bu dosya K1'de stream edilir
+        // ve orada yalnız başlık okunur; kontrol K1'de kalırsa burada hiç çalışmaz (#181).
+        if crate::k1_parse::arc034_is_header_repeat(row, &file.headers) {
+            notices.push(make_k2_notice(
+                &mut counter, "ARC_034", EntityType::File, Some(file.name.clone()),
+                None, &file.name, Some(line), None, None, None,
+                format!("'{}' {line}. satırı başlık satırının tekrarı — veri olarak okunuyor.", file.name),
+                "Dosyanın ortasındaki tekrar eden başlık satırını kaldırın; genellikle iki dosyanın uç uca eklenmesinden doğar.",
+            ));
+            return;
+        }
         index.raw_row_count += 1;
         dq016.observe(line, row.iter().map(|value| value.as_ref()), &file.headers);
         let raw_sid = get_col_raw(row, cols.service_id);
