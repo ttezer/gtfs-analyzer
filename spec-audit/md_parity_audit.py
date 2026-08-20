@@ -250,6 +250,8 @@ AGG_RULES = {
                 # sayı tarifenin sıklığıyla ölçekleniyordu: mdb-1003'te 9.533 bulgunun
                 # tamamı TEK çiftten geldi (11 oldu), mdb-1004'te 10.390 -> 20.
                 # MD per-occurrence sayar → our_count << md_count ARTIK NORMAL.
+    "TRP_024",  # 2026-08-20: BLOK başına tek notice. Kural her çakışan seferi sayıyordu ve
+                # sayı blok büyüklüğüyle ölçekleniyordu (tdg-83634: 5.798 -> 1.887).
     "FIN_018", "FIN_007", "FIN_014",  # 2026-08-20: FEED BAŞINA tek bulgu (feed_info.txt tek
                 # satırlıktır). Kanıt sayının kendisidir: 1.491 ortak feed -> 1.491 bulgu,
                 # 288 -> 288, 264 -> 264. MD eksik ALAN başına sayar (55x / 12x / 7x).

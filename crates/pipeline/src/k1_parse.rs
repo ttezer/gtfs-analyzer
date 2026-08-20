@@ -319,6 +319,28 @@ fn tokenize_csv(
                 // bugüne dek burada sessizce kaydı bölüyordu — veri de kayboluyordu.
                 if pos < n && !matches!(bytes[pos], b',' | b'\n' | b'\r') {
                     rfc.observe(line_no, RFC4180_AFTER_CLOSE, &buf);
+                    // 🔴 Kalan metin AYNI alana eklenir, YENİ bir alan açılmaz.
+                    //
+                    // Eski davranış alanı burada kapatıyordu ve `"Thonon Les Arts" A compter
+                    // du 01/09/2026` gibi bir hücre İKİ alana bölünüyordu. Sonuç sütun
+                    // kaymasıdır: `tdg-80973/routes.txt`'te 7 satır böyle yazılmış ve
+                    // `route_id` bir sonraki sütuna kaydığı için `RTS_031` "route_id
+                    // zorunludur" diye Spec·KRİTİK bulgu üretiyordu — ARC_033'ün saydığı
+                    // 7 satırla BİREBİR aynı satırlar.
+                    //
+                    // İhlal yine bildirilir (yukarıdaki `observe`); değişen, ihlalin VERİYİ
+                    // BOZMAMASI. Python'un `csv` modülü de aynı toleransı uygular.
+                    while pos < n && !matches!(bytes[pos], b',' | b'\n' | b'\r') {
+                        let b = bytes[pos];
+                        if b < 0x80 {
+                            buf.push(b as char);
+                            pos += 1;
+                        } else {
+                            let ch = text[pos..].chars().next().unwrap();
+                            buf.push(ch);
+                            pos += ch.len_utf8();
+                        }
+                    }
                 }
                 record.push(SmolStr::new(&buf));
             } else {
@@ -3318,6 +3340,25 @@ mod tests {
         assert_eq!(records[0][1], "b,c");
         assert_eq!(records[0][2], "d");
         assert_eq!(records[1][1], "hello\nworld");
+    }
+
+    /// Kapanış tırnağından sonraki metin AYNI alanda kalır — alan sayısı korunur.
+    ///
+    /// 🔴 Regresyon: eski tokenizer alanı tırnakta kapatıp kalanı YENİ alan yapıyordu,
+    /// yani `tdg-80973/routes.txt`'te bir hücre iki alana bölünüyor ve sonraki sütunlar
+    /// kayıyordu. `route_id` boş görününce `RTS_031` Spec·KRİTİK "route_id zorunludur"
+    /// uyduruyordu — `ARC_033`'ün saydığı 7 satırla birebir aynı satırlarda. İhlalin
+    /// RAPORLANMASI doğruydu; VERİYİ BOZMASI değil.
+    #[test]
+    fn tokenize_csv_keeps_text_after_closing_quote_in_same_field() {
+        let text = "a,b,c\n1,\"Thonon Les Arts\" A compter du 01/09,3\n";
+        let (records, _, rfc) = tokenize_csv(text, None).unwrap();
+        // Alan sayısı başlıkla aynı kalmalı — kayma YOK.
+        assert_eq!(records[1].len(), 3, "kapanış tırnağı sonrası metin yeni alan açmamalı");
+        assert_eq!(records[1][1], "Thonon Les Arts A compter du 01/09");
+        assert_eq!(records[1][2], "3", "sonraki sütun kaymamalı");
+        // İhlal yine de bildirilmeli (ARC_033).
+        assert!(rfc.rows > 0, "RFC 4180 ihlali raporlanmaya devam etmeli");
     }
 
     #[test]

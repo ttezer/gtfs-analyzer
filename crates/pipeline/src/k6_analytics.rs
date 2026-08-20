@@ -3341,28 +3341,62 @@ fn check_operational_analytics(
         }
     }
 
-    // TRP_024: block içinde tutarsız rota tipi
+    // TRP_024: block içinde tutarsız rota tipi — BLOK BAŞINA TEK BULGU
+    //
+    // 🔴 Kural sefer başına emit ediyordu ve sayı blokun büyüklüğüyle ölçekleniyordu:
+    // `tdg-83634`'te 5.798 bulgu, MobilityData aynı feed'de 204 diyor (28x). Buna karşılık
+    // `tdg-81942`'de ikimiz de 1.870 veriyoruz — orada bloklar tek seferlik. Kusur BLOĞUN
+    // özelliğidir ("bu blok tür değiştiriyor"), seferin değil; STM_061'in çift toplulaması
+    // ve STM_014'ün segment toplulamasıyla aynı desen.
     {
         let route_type_map: HashMap<&str, u32> = records.routes.iter()
             .filter(|r| !r.route_id.is_empty())
             .filter_map(|r| r.route_type.map(|rt| (r.route_id.as_str(), rt)))
             .collect();
-        let mut block_route_types: HashMap<&str, (u32, &str)> = HashMap::new();
+        // blok → (ilk görülen tür, ilk sefer, ilk satır, çakışan türler, örnek seferler)
+        let mut block_route_types: HashMap<&str, (u32, &str, u64)> = HashMap::new();
+        let mut conflicts: HashMap<&str, (u32, &str, u64, BTreeSet<u32>, Vec<&str>)> = HashMap::new();
         for t in &records.trips {
             let Some(bid) = ti_opr.block_id(t) else { continue };
             let Some(&rtype) = route_type_map.get(ti_opr.route_id(t)) else { continue };
-            let entry = block_route_types.entry(bid).or_insert((rtype, t.trip_id.as_str()));
+            let entry = block_route_types.entry(bid).or_insert((rtype, t.trip_id.as_str(), t.line));
             if entry.0 != rtype {
-                notices.push(k6_notice(
-                    ctr, "TRP_024", EntityType::Trip,
-                    Some(t.trip_id.to_string()), Some(t.trip_id.to_string()),
-                    "trips.txt", Some(t.line), Some("block_id"),
-                    Some(format!("route_type={rtype}")), Some(format!("route_type={}", entry.0)),
-                    format!("block_id '{}' içinde farklı rota tipleri: '{}' tip-{} ve '{}' trip-{rtype}.",
-                        bid, entry.1, entry.0, t.trip_id),
-                    "Aynı block içindeki tüm seferlerin aynı rota tipine sahip olmasını sağlayın.",
-                ));
+                let c = conflicts.entry(bid).or_insert_with(|| (entry.0, entry.1, entry.2, BTreeSet::new(), Vec::new()));
+                c.3.insert(rtype);
+                c.4.push(t.trip_id.as_str());
             }
+        }
+        // HashMap iterasyonu sırasız → blok anahtarına göre sırala (golden determinizmi).
+        let mut bids: Vec<&str> = conflicts.keys().copied().collect();
+        bids.sort_unstable();
+        for bid in bids {
+            let (first_type, first_trip, first_line, types, trips) = &conflicts[bid];
+            let n = trips.len();
+            let type_list: Vec<String> = types.iter().map(|t| t.to_string()).collect();
+            let msg = if n == 1 {
+                format!("block_id '{bid}' içinde farklı rota tipleri: '{first_trip}' tip-{first_type} ve '{}' tip-{}.",
+                    trips[0], type_list[0])
+            } else {
+                format!("block_id '{bid}' içinde farklı rota tipleri: '{first_trip}' tip-{first_type}, ayrıca {n} seferde tip-{}. Tek blok, tek kök neden: seferler ayrı ayrı listelenmez.",
+                    type_list.join("/"))
+            };
+            let mut notice = k6_notice(
+                ctr, "TRP_024", EntityType::Trip,
+                Some(bid.to_string()), Some(bid.to_string()),
+                "trips.txt", Some(*first_line), Some("block_id"),
+                Some(format!("route_type={}", type_list.join("/"))), Some(format!("route_type={first_type}")),
+                msg,
+                "Aynı block içindeki tüm seferlerin aynı rota tipine sahip olmasını sağlayın.",
+            );
+            let mut d = std::collections::BTreeMap::new();
+            d.insert("block_id".to_string(), bid.to_string());
+            d.insert("trip_count".to_string(), n.to_string());
+            d.insert("first_trip".to_string(), first_trip.to_string());
+            let mut sample: Vec<&str> = trips.clone();
+            sample.sort_unstable(); sample.dedup();
+            d.insert("trips".to_string(), sample.iter().take(STM014_TRIP_SAMPLE).copied().collect::<Vec<_>>().join(","));
+            notice.details = Some(d);
+            notices.push(notice);
         }
     }
 
