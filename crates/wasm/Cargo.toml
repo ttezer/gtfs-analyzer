@@ -22,6 +22,9 @@ zip = { workspace = true }
 wasm-bindgen-rayon = { version = "1.3", optional = true }
 
 [features]
+# Public `gtfs-sdk` build'i için UI/teşhis konsol çıktısını susturur.
+quiet = ["gtfs-pipeline/quiet"]
+
 # Tarayıcıda gerçek iş-parçacıkları (SharedArrayBuffer + Web Workers). Yalnızca
 # nightly + build-std + atomics ile derlenir; varsayılan (cargo test / seri wasm) KAPALI.
 # K6 paralelliğini gtfs-pipeline/parallel üzerinden açar; init_thread_pool'u JS'e verir.

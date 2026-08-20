@@ -4,12 +4,12 @@
 
 [![Uygulamayı Aç](https://img.shields.io/badge/Uygulamay%C4%B1%20A%C3%A7-gtfs--analyzer-2ea44f?style=flat&logo=googlechrome&logoColor=white)](https://ttezer.github.io/gtfs-analyzer/)
 [![GTFS-JP](https://img.shields.io/badge/GTFS--JP-destekli-c8102e?style=flat)](https://www.gtfs.jp/)
-[![GTFS Spec kanıt tabanı](https://img.shields.io/badge/GTFS%20Spec-%25972-007ec6?style=flat)](spec-audit/EVIDENCE_BASE.md)
+[![GTFS Spec kanıt tabanı](https://img.shields.io/badge/GTFS%20Spec-%2597.2-007ec6?style=flat)](spec-audit/EVIDENCE_BASE.md)
 [![Kural sayısı](https://img.shields.io/badge/kural-600-blue?style=flat)](RULES.md)
 [![Korpus doğrulaması](https://img.shields.io/badge/korpus-4271%20feed%20%C3%97%207%20ko%C5%9Fum-brightgreen?style=flat)](audit-results/)
 [![Lisans MIT](https://img.shields.io/badge/lisans-MIT-yellow?style=flat)](LICENSE)
 
-**GTFS Validator & Analyzer**, GTFS dosyalarını doğrudan tarayıcıda doğrulayan açık kaynak bir **GTFS validator** ve feed kalite analiz aracıdır. Yüklenen `.zip` hiçbir sunucuya gönderilmez; doğrulama tamamen **WebAssembly** ile kullanıcının cihazında çalışır. Tarayıcı, **CLI**, **CI/CD** ve **npm/WASM SDK** olmak üzere dört yoldan kullanılabilir.
+**GTFS Validator & Analyzer**, GTFS dosyalarını doğrudan tarayıcıda doğrulayan açık kaynak bir **GTFS validator** ve feed kalite analiz aracıdır. Yüklenen `.zip` hiçbir sunucuya gönderilmez; doğrulama tamamen **WebAssembly** ile kullanıcının cihazında çalışır. Tarayıcı, **CLI**, **CI/CD** ve **gtfs-sdk npm paketi** olmak üzere dört yoldan kullanılabilir.
 
 **600 doğrulama kuralı** ile GTFS spesifikasyonunun ölçülebilir hükümlerinin **%97,2'sini** karşılar ve alan tablosunun **300 atomunun 300'ünde** en az bir Spec çapası taşır. Bu oranlar iddia değil ölçümdür: kanıt tabanı ve türetme yöntemi [`spec-audit/EVIDENCE_BASE.md`](spec-audit/EVIDENCE_BASE.md) altında açıktır.
 
@@ -50,7 +50,7 @@ GTFS Validator & Analyzer, spesifikasyon doğrulamasını operasyonel kalite ana
 | Çıktı formatı | HTML, JSON | HTML, JSON | HTML, CSV, JSON, PDF |
 | Platform | Web | Web, CLI, Desktop | Web, CLI *(Desktop planlanmış)* |
 | CI/CD entegrasyonu | ❌ | ❌ | ✅ `--fail-on` + exit kodu |
-| npm/WASM paketi | ❌ | ❌ | ✅ |
+| `gtfs-sdk` npm paketi | ❌ | ❌ | ✅ |
 | GTFS Spec kapsamı (ölçülmüş) | — | — | **%97,2** · 300/300 alan çapası |
 | Korpus doğrulaması | — | — | **4.271 feed × 7 koşum** |
 | **Toplam kural** | **178** | **~120** | **600** |
@@ -233,7 +233,7 @@ Aynı doğrulama çekirdeği (`gtfs_pipeline::validate_bytes`) dört şekilde ç
 | **Tarayıcı** ([uygulama](https://ttezer.github.io/gtfs-analyzer/)) | tek feed'i açıp haritayla incelemek | **hiçbir yere** — WebAssembly ile cihazda |
 | **CLI** (`gtfs-analyzer`) | toplu doğrulama, betikleme, Python entegrasyonu | hiçbir yere — yerel binary |
 | **CI/CD** (exit kodu + `--fail-on`) | feed yayına çıkmadan önce pipeline kapısı | hiçbir yere — kendi runner'ınız |
-| **WASM/npm paketi** | kendi web uygulamanıza gömmek | hiçbir yere — kullanıcının tarayıcısında |
+| **gtfs-sdk npm paketi** | kendi web veya Node uygulamanıza gömmek | hiçbir yere — yerel WASM |
 
 Hiçbirinde feed sunucuya yüklenmez. Bu, barındırılan doğrulayıcılardan temel farktır: ticari sözleşme gereği dışarı çıkamayan veriyi de doğrulayabilirsiniz.
 
@@ -251,21 +251,23 @@ Hiçbirinde feed sunucuya yüklenmez. Bu, barındırılan doğrulayıcılardan t
 
 Exit kodları: `0` temiz · `1` eşiği aşan bulgu var · `2` feed okunamadı (fatal).
 
-### WASM / npm paketi
+### `gtfs-sdk` npm paketi
 
-Doğrulama çekirdeği `wasm-bindgen` ile paketlenir ve kendi web uygulamanıza gömülebilir:
+`gtfs-sdk`, v0.9.7 doğrulama motorunu typed JavaScript/TypeScript API olarak sunar. Feed uygulamadan çıkmadan yerel WASM ile doğrulanır:
 
 ```js
-import init, { validate, prepare, list_zip_files } from "gtfs-wasm";
+import { validateGtfs } from "gtfs-sdk";
 
-await init();
-const result = validate(new Uint8Array(zipBytes), "{}");
-console.log(result.notices.length, result.metrics.overall_score);
+const result = await validateGtfs(new Uint8Array(zipBytes), {
+  today: "2026-08-20",
+});
+console.log(result.notices.length, result.reports.r5.score);
 ```
 
-Dışa açılan API dardır ve kararlıdır: `validate`, `validate_with_today`, `prepare`, `rerun_k6_k7`, `list_zip_files`, `shape_coords_of`, `get_cached_file_stats`. `prepare` + `rerun_k6_k7` çifti, eşikleri değiştirip yeniden analiz ederken feed'i baştan ayrıştırmamayı sağlar — 75 MB'lık VBB feed'inde eşik denemesi saniyeler yerine milisaniyeler alır.
+Dışa açılan public API `validateGtfs`, `getVersion` ve progress/cache akışı gereken uygulamalar için `createValidatorSession` içerir. Düşük seviyeli `gtfs-wasm` binding'i SDK sözleşmesinin parçası değildir. WASM64 ve threaded motor seçimi ise ilk SDK paketinde internal kalır.
 
-Paket `crates/wasm` altındadır; `npm run wasm` ile üretilir.
+Paket kaynakları `sdk/` altındadır; WASM binding'i build sırasında `crates/wasm` üzerinden üretilir.
+Web UI worker'ı da aynı `ValidatorSession` facade'ını kullanır; seri/threaded/WASM64 seçimini yalnızca uygulama içindeki engine adapter belirler.
 
 ## CLI (Terminal)
 

@@ -11,18 +11,48 @@ use gtfs_pipeline::{
 
 macro_rules! t_start {
     ($label:expr) => {
-        web_sys::console::time_with_label($label)
+        {
+            #[cfg(not(feature = "quiet"))]
+            web_sys::console::time_with_label($label);
+        }
     };
 }
 macro_rules! t_end {
     ($label:expr) => {
-        web_sys::console::time_end_with_label($label)
+        {
+            #[cfg(not(feature = "quiet"))]
+            web_sys::console::time_end_with_label($label);
+        }
+    };
+}
+
+macro_rules! wasm_log {
+    ($value:expr) => {
+        {
+            #[cfg(not(feature = "quiet"))]
+            {
+                let value: JsValue = ($value).into();
+                web_sys::console::log_1(&value);
+            }
+        }
+    };
+}
+
+macro_rules! wasm_warn {
+    ($value:expr) => {
+        {
+            #[cfg(not(feature = "quiet"))]
+            {
+                let value: JsValue = ($value).into();
+                web_sys::console::warn_1(&value);
+            }
+        }
     };
 }
 
 #[wasm_bindgen(start)]
 pub fn wasm_init() {
-    web_sys::console::warn_1(&"[GTFS WASM] binary v6 yüklendi".into());
+    wasm_warn!("[GTFS WASM] binary v6 yüklendi");
 }
 
 // `threads` feature açıkken JS'e `init_thread_pool(n)` verir; UI doğrulamadan önce
@@ -117,6 +147,7 @@ pub fn list_zip_files(zip_bytes: &[u8]) -> JsValue {
 /// metadata'sından; hiç decompress edilmez, milisaniye sürer. Bu değerler GÜVENİLİR bir
 /// gerçek feed'i kalibre etmek içindir — runtime guard hâlâ gerçek açılan baytı sayar,
 /// beyan edilen boyuta güvenmez.
+#[cfg_attr(feature = "quiet", allow(unused_variables))]
 fn log_zip_ratio_report(entries: &[(String, u64, u64)]) {
     if entries.is_empty() {
         return;
@@ -161,7 +192,7 @@ fn log_zip_ratio_report(entries: &[(String, u64, u64)]) {
         feed_ratio,
         mib(total_u) * 2.0,
     );
-    web_sys::console::log_1(&report.into());
+    wasm_log!(report);
 
     // Erken uyarı (issue #46, @Whatsonyourmind önerisi): ölçülen worst-ratio aktif
     // `max_ratio` cap'inin yarısına ulaştıysa, false-trip'ten ÖNCE yeniden ölçmenin
@@ -173,7 +204,7 @@ fn log_zip_ratio_report(entries: &[(String, u64, u64)]) {
              -> false-trip'ten once decompression-guard sabitlerini yeniden olc (bkz. issue #46).",
             max_ratio, cap
         );
-        web_sys::console::warn_1(&warn.into());
+        wasm_warn!(warn);
     }
 }
 
@@ -244,10 +275,27 @@ fn is_valid_yyyymmdd(v: u32) -> bool {
 /// `on_stage(name, elapsed_ms)`: K1/K2/K3/K4/K5 her biri bittikten sonra çağrılır.
 #[wasm_bindgen]
 pub fn prepare(zip_bytes: &[u8], config_delta_json: &str, on_stage: &js_sys::Function) -> Result<CachedState, JsValue> {
+    prepare_with_today(zip_bytes, config_delta_json, on_stage, today_yyyymmdd())
+}
+
+/// Deterministik K1–K5 hazırlığı; `today` K4 cross-reference tarihli kontrollerinde kullanılır.
+#[wasm_bindgen]
+pub fn prepare_with_today(
+    zip_bytes: &[u8],
+    config_delta_json: &str,
+    on_stage: &js_sys::Function,
+    today: u32,
+) -> Result<CachedState, JsValue> {
+    if !is_valid_yyyymmdd(today) {
+        return Err(to_js(&ValidateResult::Fatal(FatalError {
+            code: FatalCode::InvalidInput,
+            message: format!("Geçersiz 'today' değeri: {today} (beklenen YYYYMMDD, ör. 20260716)"),
+        })));
+    }
     // Servis-günü normalizasyonu K2'de (run_k1_k5) yapıldığından config burada gerekir.
     // service_day_start_hour değişimi cache'lenmiş records'a yansımaz → dosya yeniden yüklenir.
     let config = parse_config(config_delta_json).map_err(|e| to_js(&ValidateResult::Fatal(e)))?;
-    run_k1_k5(zip_bytes, &config, on_stage)
+    run_k1_k5(zip_bytes, &config, on_stage, today)
         .map_err(|fatal| to_js(&ValidateResult::Fatal(fatal)))
 }
 
@@ -255,7 +303,32 @@ pub fn prepare(zip_bytes: &[u8], config_delta_json: &str, on_stage: &js_sys::Fun
 /// `on_stage(name, elapsed_ms)`: K6 ve K7 bittikten sonra çağrılır.
 #[wasm_bindgen]
 pub fn rerun_k6_k7(cache: &CachedState, config_delta_json: &str, on_stage: &js_sys::Function) -> JsValue {
-    let today = today_yyyymmdd();
+    rerun_k6_k7_with_today(cache, config_delta_json, on_stage, today_yyyymmdd())
+}
+
+/// Deterministik K6+K7 yeniden çalıştırması; `today` takvim ve servis kontrollerinde kullanılır.
+#[wasm_bindgen]
+pub fn rerun_k6_k7_with_today(
+    cache: &CachedState,
+    config_delta_json: &str,
+    on_stage: &js_sys::Function,
+    today: u32,
+) -> JsValue {
+    if !is_valid_yyyymmdd(today) {
+        return to_js(&ValidateResult::Fatal(FatalError {
+            code: FatalCode::InvalidInput,
+            message: format!("Geçersiz 'today' değeri: {today} (beklenen YYYYMMDD, ör. 20260716)"),
+        }));
+    }
+    rerun_k6_k7_inner(cache, config_delta_json, on_stage, today)
+}
+
+fn rerun_k6_k7_inner(
+    cache: &CachedState,
+    config_delta_json: &str,
+    on_stage: &js_sys::Function,
+    today: u32,
+) -> JsValue {
     let config = match parse_config(config_delta_json) {
         Ok(c) => c,
         Err(e) => return to_js(&ValidateResult::Fatal(e)),
@@ -275,17 +348,17 @@ pub fn rerun_k6_k7(cache: &CachedState, config_delta_json: &str, on_stage: &js_s
 
     let mut all_notices = cache.k1_k5_notices.clone();
     all_notices.extend(k6.notices);
-    web_sys::console::log_1(&format!("[mem] after-K6 (pre-cap): {} notices, {:.1} MB", all_notices.len(), mem_mb()).into());
-    web_sys::console::log_1(&format!("[rules] after-K6 top: {}", top_rules_str(&all_notices)).into());
+    wasm_log!(format!("[mem] after-K6 (pre-cap): {} notices, {:.1} MB", all_notices.len(), mem_mb()));
+    wasm_log!(format!("[rules] after-K6 top: {}", top_rules_str(&all_notices)));
 
     let real_totals = cap_per_rule(&mut all_notices);
     all_notices.shrink_to_fit();
     log_mem("after-cap");
     let real_total: usize = real_totals.values().map(|&v| v as usize).sum();
     if real_total > NOTICE_LIMIT {
-        web_sys::console::warn_1(&format!(
+        wasm_warn!(format!(
             "[uyarı] {real_total} notice üretildi (>{NOTICE_LIMIT}); gösterim kural başına cap'lendi, doğrulama durdurulmadı."
-        ).into());
+        ));
     }
 
     let t = js_sys::Date::now();
@@ -308,9 +381,9 @@ pub fn rerun_k6_k7(cache: &CachedState, config_delta_json: &str, on_stage: &js_s
     });
     // #15: sonucu JS'e serialize etmek (to_js) büyük feed'de belleğin son sıçraması;
     // bu satır basılıp sonrası gelmiyorsa OOM serialize'da demektir.
-    web_sys::console::log_1(&format!("[mem] before to_js (serialize): {:.1} MB", mem_mb()).into());
+    wasm_log!(format!("[mem] before to_js (serialize): {:.1} MB", mem_mb()));
     let js = to_js(&result);
-    web_sys::console::log_1(&format!("[mem] after to_js: {:.1} MB", mem_mb()).into());
+    wasm_log!(format!("[mem] after to_js: {:.1} MB", mem_mb()));
     js
 }
 
@@ -382,9 +455,9 @@ fn run_full_pipeline(zip_bytes: &[u8], config: &ValidatorConfig, today: u32) -> 
     // 3) DURDURMA YOK — çok büyük feed'de yalnızca konsola uyarı (cap zaten sınırlıyor)
     let real_total: usize = real_totals.values().map(|&v| v as usize).sum();
     if real_total > NOTICE_LIMIT {
-        web_sys::console::warn_1(&format!(
+        wasm_warn!(format!(
             "[uyarı] {real_total} notice üretildi (>{NOTICE_LIMIT}); gösterim kural başına cap'lendi, doğrulama durdurulmadı."
-        ).into());
+        ));
     }
 
     let coverage_complete = coverage_complete_of(&partial);
@@ -404,9 +477,13 @@ fn run_full_pipeline(zip_bytes: &[u8], config: &ValidatorConfig, today: u32) -> 
     })
 }
 
-fn run_k1_k5(zip_bytes: &[u8], config: &ValidatorConfig, on_stage: &js_sys::Function) -> Result<CachedState, FatalError> {
-    let today = today_yyyymmdd();
-    web_sys::console::log_1(&format!("[mem] K0-start (zip {:.1} MB): {:.1} MB", zip_bytes.len() as f64 / 1_048_576.0, mem_mb()).into());
+fn run_k1_k5(
+    zip_bytes: &[u8],
+    config: &ValidatorConfig,
+    on_stage: &js_sys::Function,
+    today: u32,
+) -> Result<CachedState, FatalError> {
+    wasm_log!(format!("[mem] K0-start (zip {:.1} MB): {:.1} MB", zip_bytes.len() as f64 / 1_048_576.0, mem_mb()));
 
     let mut t = js_sys::Date::now();
     t_start!("K1-parse");
@@ -470,8 +547,8 @@ fn run_k1_k5(zip_bytes: &[u8], config: &ValidatorConfig, on_stage: &js_sys::Func
     k1_k5_notices.extend(k4.notices);
     k1_k5_notices.extend(k5.notices);
     // DURDURMA YOK: K1-K5 notice'ları cap'lenmeden taşınır; gösterim cap'i K6+K7 yolunda uygulanır.
-    web_sys::console::log_1(&format!("[mem] K1-K5 done: {} notices, {:.1} MB", k1_k5_notices.len(), mem_mb()).into());
-    web_sys::console::log_1(&format!("[rules] K1-K5 top: {}", top_rules_str(&k1_k5_notices)).into());
+    wasm_log!(format!("[mem] K1-K5 done: {} notices, {:.1} MB", k1_k5_notices.len(), mem_mb()));
+    wasm_log!(format!("[rules] K1-K5 top: {}", top_rules_str(&k1_k5_notices)));
 
     Ok(CachedState {
         k1_k5_notices,
@@ -503,6 +580,7 @@ fn cap_for_rule(rule_id: &str) -> usize {
     if HIGH_CAP_RULES.contains(&rule_id) { HIGH_CAP } else { PER_RULE_CAP }
 }
 
+#[cfg_attr(feature = "quiet", allow(dead_code))]
 fn count_totals(notices: &[gtfs_core::Notice]) -> std::collections::HashMap<String, u32> {
     let mut m = std::collections::HashMap::new();
     for n in notices { *m.entry(n.rule_id.clone()).or_insert(0u32) += 1; }
@@ -510,6 +588,7 @@ fn count_totals(notices: &[gtfs_core::Notice]) -> std::collections::HashMap<Stri
 }
 
 // #15 Mode A teşhisi: en çok notice üreten ilk 10 kuralı "RULE=count" olarak döner.
+#[cfg_attr(feature = "quiet", allow(dead_code))]
 fn top_rules_str(notices: &[gtfs_core::Notice]) -> String {
     let m = count_totals(notices);
     let mut v: Vec<(&String, &u32)> = m.iter().collect();
@@ -560,6 +639,7 @@ fn cap_per_rule(notices: &mut Vec<gtfs_core::Notice>) -> std::collections::HashM
 // WASM belleği yalnızca BÜYÜR (sayfa iade edilmez) → her aşamadan sonra okunan değer
 // o ana dek erişilen tepe kullanımdır; aşamalar arası delta = o aşamanın eklediği kalıcı
 // tahsisat. OOM'da feed taşıran aşamada ölür → son log hangi aşamaya kadar geldiğini verir.
+#[cfg_attr(feature = "quiet", allow(dead_code))]
 fn mem_mb() -> f64 {
     use wasm_bindgen::JsCast;
     let buf = wasm_bindgen::memory()
@@ -575,8 +655,9 @@ fn mem_mb() -> f64 {
     bytes / 1_048_576.0
 }
 
+#[cfg_attr(feature = "quiet", allow(unused_variables))]
 fn log_mem(stage: &str) {
-    web_sys::console::log_1(&format!("[mem] {stage}: {:.1} MB", mem_mb()).into());
+    wasm_log!(format!("[mem] {stage}: {:.1} MB", mem_mb()));
 }
 
 fn today_yyyymmdd() -> u32 {

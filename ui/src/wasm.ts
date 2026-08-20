@@ -1,4 +1,5 @@
 import type { CachedState } from '../pkg/gtfs_wasm';
+import type { ValidatorEngine, ValidationStage } from '../../sdk/src/index.js';
 import type { ValidateResult, ValidationResult, FatalError, FileInfo } from './types';
 
 export type { CachedState };
@@ -6,11 +7,25 @@ export type { CachedState };
 // İki WASM paketi de AYNI API'yi dışa verir; yalnızca threaded paket ek `initThreadPool` taşır.
 // Seri paket = pkg/ (stable, tek thread). Threaded paket = pkg-threads/ (nightly+atomics, rayon).
 type SerialModule = typeof import('../pkg/gtfs_wasm');
-type ThreadedModule = SerialModule & { initThreadPool: (n: number) => Promise<void> };
-type Memory64Module = typeof import('../pkg64/gtfs_wasm');
+type DeterministicModule = SerialModule & {
+  prepare_with_today: (
+    zip: Uint8Array,
+    configDelta: string,
+    onStage: Function,
+    today: number,
+  ) => CachedState;
+  rerun_k6_k7_with_today: (
+    cache: CachedState,
+    configDelta: string,
+    onStage: Function,
+    today: number,
+  ) => string;
+};
+type ThreadedModule = DeterministicModule & { initThreadPool: (n: number) => Promise<void> };
+type Memory64Module = DeterministicModule;
 
 let ready = false;
-let mod: SerialModule | null = null;
+let mod: DeterministicModule | null = null;
 let usingThreads = false;
 let usingMemory64 = false;
 
@@ -50,7 +65,7 @@ export async function initWasm(forceSerial = false, forceMemory64 = false, force
     try {
       const m64 = await import('../pkg64/gtfs_wasm') as Memory64Module;
       await m64.default();
-      mod = m64 as unknown as SerialModule;
+      mod = m64;
       usingThreads = false;
       usingMemory64 = true;
       ready = true;
@@ -87,7 +102,7 @@ export async function initWasm(forceSerial = false, forceMemory64 = false, force
   }
 
   if (!mod) {
-    const s = await import('../pkg/gtfs_wasm');
+    const s = await import('../pkg/gtfs_wasm') as unknown as DeterministicModule;
     await s.default();
     mod = s;
     usingThreads = false;
@@ -97,9 +112,14 @@ export async function initWasm(forceSerial = false, forceMemory64 = false, force
   ready = true;
 }
 
-function loaded(): SerialModule {
+function loaded(): DeterministicModule {
   if (!mod) throw new Error('WASM başlatılmadı (önce initWasm çağrılmalı).');
   return mod;
+}
+
+export function currentToday(): number {
+  const now = new Date();
+  return now.getFullYear() * 10000 + (now.getMonth() + 1) * 100 + now.getDate();
 }
 
 export function runValidate(zip: Uint8Array, configDelta = ''): ValidateResult {
@@ -149,6 +169,27 @@ export function runPrepare(zip: Uint8Array, configDelta: string, onStage: (name:
   }
 }
 
+export function runPrepareWithToday(
+  zip: Uint8Array,
+  configDelta: string,
+  onStage: (stage: ValidationStage, elapsedMs: number) => void,
+  today: number,
+): CachedState {
+  const cb = (name: string, elapsedMs: number) => onStage(name as ValidationStage, elapsedMs);
+  try {
+    return loaded().prepare_with_today(zip, configDelta, cb, today);
+  } catch (thrown: unknown) {
+    const raw = typeof thrown === 'string' ? thrown : String(thrown);
+    const parsed = tryParseJson<ValidateResult>(raw);
+    if (parsed && 'Fatal' in parsed) throw parsed.Fatal;
+    const isWasmCrash = /unreachable|RuntimeError|out of memory|memory access/i.test(raw);
+    const message = isWasmCrash
+      ? `Feed tarayıcı için çok büyük — WASM bellek yetersiz. Daha küçük bir feed deneyin. (${raw})`
+      : raw;
+    throw { code: 'ZipUnreadable', message } satisfies FatalError;
+  }
+}
+
 export function runRerun(
   cache: CachedState,
   configDelta = '',
@@ -156,6 +197,29 @@ export function runRerun(
 ): ValidateResult {
   const cb = (name: string, elapsedMs: number) => onStage(name, elapsedMs);
   return JSON.parse(loaded().rerun_k6_k7(cache, configDelta, cb)) as ValidateResult;
+}
+
+export function runRerunWithToday(
+  cache: CachedState,
+  configDelta: string,
+  onStage: (stage: ValidationStage, elapsedMs: number) => void,
+  today: number,
+): ValidateResult {
+  const cb = (name: string, elapsedMs: number) => onStage(name as ValidationStage, elapsedMs);
+  return JSON.parse(loaded().rerun_k6_k7_with_today(cache, configDelta, cb, today)) as ValidateResult;
+}
+
+/** Adapts the UI's selected WASM variant to the public SDK session contract. */
+export function createSdkEngine(): ValidatorEngine {
+  return {
+    mode: engineMode(),
+    initialize: () => initWasm(),
+    listZipFiles,
+    prepare: runPrepareWithToday,
+    rerun: runRerunWithToday,
+    getCachedFileStats,
+    getShapeCoords: shapeCoordsOf,
+  };
 }
 
 export function extractOk(result: ValidateResult): ValidationResult | null {

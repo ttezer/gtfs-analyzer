@@ -1,16 +1,14 @@
 /// <reference lib="webworker" />
 
 import {
+  createValidatorSession,
+  type ValidatorSession,
+} from '../../sdk/src/index.js';
+import {
+  currentToday,
+  createSdkEngine,
   initWasm,
-  listZipFiles,
-  runPrepare,
-  runRerun,
-  getCachedFileStats,
-  shapeCoordsOf,
-  extractOk,
-  extractFatal,
   engineMode,
-  type CachedState,
   type EngineMode,
 } from './wasm';
 import type { FatalError, ValidationResult } from './types';
@@ -36,7 +34,7 @@ export type WorkerMsg = FileListMsg | FileDoneMsg | StageDoneMsg | EngineMsg | R
 
 // ── Durum ─────────────────────────────────────────────────────────────────────
 
-let cache: CachedState | null = null;
+let session: ValidatorSession | null = null;
 
 // ── Ana mesaj dinleyici ───────────────────────────────────────────────────────
 
@@ -50,63 +48,64 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
       req.type === 'validate' ? (req.forceWasm32 ?? false) : false,
     );
 
+    if (!session || session.engineMode !== engineMode()) {
+      session?.dispose();
+      session = await createValidatorSession({ today: currentToday(), engine: createSdkEngine() });
+    }
+
     // Harita ikonu: büyük feed'de shape geometrisini on-demand çek (cache canlı).
     if (req.type === 'shape-coords') {
-      const coords = cache ? shapeCoordsOf(cache, req.shapeId) : [];
+      const coords = session.getShapeCoords(req.shapeId);
       send<ShapeCoordsMsg>({ id: req.id, type: 'shape-coords-result', coords });
       return;
     }
 
     if (req.type === 'validate') {
-      send<EngineMsg>({ id: req.id, type: 'engine', mode: engineMode() });
+      send<EngineMsg>({ id: req.id, type: 'engine', mode: session.engineMode });
       const bytes = new Uint8Array(req.buffer);
-
-      // 1. ZIP dosya listesi — anında
-      const files = listZipFiles(bytes);
-      send<FileListMsg>({ id: req.id, type: 'file-list', files });
-
-      // 2. K1–K5 — her aşama sonrası callback ateşlenir
       const tStart = performance.now();
       const stageHandler = (stage: string, elapsed_ms: number) => {
         send<StageDoneMsg>({ id: req.id, type: 'stage', stage, elapsed_ms });
         console.log(`[time] ${stage}: +${elapsed_ms}ms — ${((performance.now() - tStart) / 1000).toFixed(1)}s toplam`);
       };
-
-      const newCache = runPrepare(bytes, req.configDelta, stageHandler);
-      cache = newCache;
-
-      // 3. K1 bittikten sonra dosya istatistiklerini gönder
-      const fileStats = getCachedFileStats(cache);
-      for (const f of fileStats) {
-        send<FileDoneMsg>({ id: req.id, type: 'file-done', name: f.name, rows: f.rows, bytes: f.bytes });
-      }
-
-      // 4. K6–K7
-      const rawResult = runRerun(cache, req.configDelta, stageHandler);
-      respondWithResult(req.id, rawResult);
+      const run = await session.validate(bytes, {
+        config: parseConfigDelta(req.configDelta),
+        callbacks: {
+          onFileList: (files) => send<FileListMsg>({ id: req.id, type: 'file-list', files }),
+          onFileDone: (file) => send<FileDoneMsg>({ id: req.id, type: 'file-done', name: file.name, rows: file.rows, bytes: file.bytes }),
+          onStageDone: stageHandler,
+        },
+      });
+      respondWithValidationResult(req.id, run.result);
       return;
     }
 
     // Rerun (config değişikliği)
-    if (!cache) {
-      send<ResultMsg>({
-        id: req.id, type: 'result', ok: false,
-        error: { code: 'InvalidInput', message: 'Hazır cache yok. ZIP dosyasını yeniden yükleyin.' },
-      });
-      return;
-    }
-
     const tStart = performance.now();
     const stageHandler = (stage: string, elapsed_ms: number) => {
       send<StageDoneMsg>({ id: req.id, type: 'stage', stage, elapsed_ms });
       console.log(`[time] ${stage}: +${elapsed_ms}ms — ${((performance.now() - tStart) / 1000).toFixed(1)}s toplam`);
     };
-    respondWithResult(req.id, runRerun(cache, req.configDelta, stageHandler));
+    const run = await session.rerun({
+      config: parseConfigDelta(req.configDelta),
+      callbacks: { onStageDone: stageHandler },
+    });
+    respondWithValidationResult(req.id, run.result);
 
   } catch (error: unknown) {
-    // runPrepare zaten FatalError objesi throw eder — ikinci kez sarma
+    // Error subclass'larının custom alanları Worker structured clone'da kaybolabilir;
+    // UI'ya her zaman düz FatalError nesnesi gönder.
     if (error !== null && typeof error === 'object' && 'code' in error) {
-      send<ResultMsg>({ id: req.id, type: 'result', ok: false, error: error as FatalError });
+      const candidate = error as { code: FatalError['code']; message?: unknown };
+      send<ResultMsg>({
+        id: req.id,
+        type: 'result',
+        ok: false,
+        error: {
+          code: candidate.code,
+          message: error instanceof Error ? error.message : String(candidate.message ?? error),
+        },
+      });
       return;
     }
     const message = error instanceof Error ? error.message : String(error);
@@ -120,16 +119,22 @@ function send<T extends WorkerMsg>(msg: T): void {
   postMessage(msg);
 }
 
-function respondWithResult(id: number, rawResult: ReturnType<typeof runRerun>): void {
-  const fatal = extractFatal(rawResult);
-  if (fatal) { send<ResultMsg>({ id, type: 'result', ok: false, error: fatal }); return; }
+function respondWithValidationResult(id: number, result: ValidationResult): void {
+  send<ResultMsg>({ id, type: 'result', ok: true, result });
+}
 
-  const ok = extractOk(rawResult);
-  if (!ok) {
-    send<ResultMsg>({ id, type: 'result', ok: false, error: { code: 'InvalidInput', message: 'Beklenmedik sonuç biçimi.' } });
-    return;
+function parseConfigDelta(configDelta: string): Record<string, unknown> | undefined {
+  if (!configDelta || configDelta === '{}') return undefined;
+  try {
+    const parsed: unknown = JSON.parse(configDelta);
+    if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('Config nesne olmalı.');
+    return parsed as Record<string, unknown>;
+  } catch (error: unknown) {
+    throw {
+      code: 'InvalidInput',
+      message: `Config parse hatası: ${error instanceof Error ? error.message : String(error)}`,
+    } satisfies FatalError;
   }
-  send<ResultMsg>({ id, type: 'result', ok: true, result: ok });
 }
 
 export {};

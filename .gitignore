@@ -12,6 +12,10 @@
 # npm
 /ui/node_modules/
 /ui/pkg64/
+/sdk/pkg/
+/sdk/dist/
+/sdk/node_modules/
+/crates/wasm/pkg/
 
 # Built UI bundle — CI builds and deploys it from source (see deploy.yml),
 # so the committed copy was dead weight. Build locally only for preview.

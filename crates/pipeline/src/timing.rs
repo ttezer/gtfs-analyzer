@@ -32,7 +32,7 @@ impl Drop for Timer {
 
 /// #15 Adım-2: K2-içi peak attribution. WASM linear memory high-water (MB) konsola basar.
 /// Bellek yalnız büyür → her etiket o ana dek erişilen tepe. Native'de no-op.
-#[cfg(target_arch = "wasm32")]
+#[cfg(all(target_arch = "wasm32", not(feature = "quiet")))]
 pub(crate) fn mem_log(label: &str) {
     let pages = core::arch::wasm32::memory_size(0);
     let mb = (pages as f64) * 65536.0 / 1_048_576.0;
@@ -40,24 +40,37 @@ pub(crate) fn mem_log(label: &str) {
 }
 // Rust core henüz wasm64 için wasm32::memory_size eşdeğeri sunmuyor. Memory64
 // smoke testinde yanlış native zaman/bellek yoluna düşmek yerine teşhisi no-op yap.
-#[cfg(target_arch = "wasm64")]
-pub(crate) fn mem_log(_label: &str) {}
-#[cfg(not(target_family = "wasm"))]
+#[cfg(any(
+    target_arch = "wasm64",
+    not(target_family = "wasm"),
+    all(target_family = "wasm", feature = "quiet"),
+))]
 pub(crate) fn mem_log(_label: &str) {}
 
 /// #15: serbest teşhis satırı (yapı-boyutu kırılımı vb.). high-water DEĞİL — çağıran
 /// gerçek `len × size_of` canlı boyutu hesaplar. Native'de no-op.
-#[cfg(target_family = "wasm")]
+#[cfg(all(target_family = "wasm", not(feature = "quiet")))]
 pub(crate) fn mem_note(msg: &str) {
     web_sys::console::log_1(&format!("[mem] {msg}").into());
 }
-#[cfg(not(target_family = "wasm"))]
+#[cfg(any(
+    not(target_family = "wasm"),
+    all(target_family = "wasm", feature = "quiet"),
+))]
 pub(crate) fn mem_note(_msg: &str) {}
 
-#[cfg(target_family = "wasm")]
+#[cfg(all(target_family = "wasm", feature = "quiet"))]
+pub(crate) struct Timer;
+
+#[cfg(all(target_family = "wasm", feature = "quiet"))]
+impl Timer {
+    pub(crate) fn start(_label: impl Into<String>) -> Self { Self }
+}
+
+#[cfg(all(target_family = "wasm", not(feature = "quiet")))]
 pub(crate) struct Timer(String);
 
-#[cfg(target_family = "wasm")]
+#[cfg(all(target_family = "wasm", not(feature = "quiet")))]
 impl Timer {
     pub(crate) fn start(label: impl Into<String>) -> Self {
         let s: String = label.into();
@@ -66,7 +79,7 @@ impl Timer {
     }
 }
 
-#[cfg(target_family = "wasm")]
+#[cfg(all(target_family = "wasm", not(feature = "quiet")))]
 impl Drop for Timer {
     fn drop(&mut self) {
         web_sys::console::time_end_with_label(&self.0);

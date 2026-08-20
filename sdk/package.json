@@ -1,0 +1,34 @@
+{
+  "name": "gtfs-sdk",
+  "version": "0.1.0",
+  "description": "GTFS Analyzer validation engine for Browser and Node.js.",
+  "license": "MIT",
+  "type": "module",
+  "files": [
+    "dist",
+    "pkg",
+    "README.md"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "wasm:build": "wasm-pack build ../crates/wasm --target web --out-dir ../../sdk/pkg --release -- --features quiet && node scripts/prepare-wasm-package.mjs",
+    "build": "npm run wasm:build && tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test:smoke": "npm run build && node scripts/smoke-test.mjs",
+    "pack:check": "npm run build && npm pack --dry-run",
+    "prepublishOnly": "npm run build"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "^5.4.0"
+  }
+}
