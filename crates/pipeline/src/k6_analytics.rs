@@ -3353,24 +3353,34 @@ fn check_operational_analytics(
             .filter(|r| !r.route_id.is_empty())
             .filter_map(|r| r.route_type.map(|rt| (r.route_id.as_str(), rt)))
             .collect();
-        // blok → (ilk görülen tür, ilk sefer, ilk satır, çakışan türler, örnek seferler)
+        // blok → ilk görülen (tür, sefer, satır); ve blok → çakışma özeti.
+        struct BlockConflict<'a> {
+            first_type: u32,
+            first_trip: &'a str,
+            first_line: u64,
+            other_types: BTreeSet<u32>,
+            trips: Vec<&'a str>,
+        }
         let mut block_route_types: HashMap<&str, (u32, &str, u64)> = HashMap::new();
-        let mut conflicts: HashMap<&str, (u32, &str, u64, BTreeSet<u32>, Vec<&str>)> = HashMap::new();
+        let mut conflicts: HashMap<&str, BlockConflict<'_>> = HashMap::new();
         for t in &records.trips {
             let Some(bid) = ti_opr.block_id(t) else { continue };
             let Some(&rtype) = route_type_map.get(ti_opr.route_id(t)) else { continue };
             let entry = block_route_types.entry(bid).or_insert((rtype, t.trip_id.as_str(), t.line));
             if entry.0 != rtype {
-                let c = conflicts.entry(bid).or_insert_with(|| (entry.0, entry.1, entry.2, BTreeSet::new(), Vec::new()));
-                c.3.insert(rtype);
-                c.4.push(t.trip_id.as_str());
+                let c = conflicts.entry(bid).or_insert_with(|| BlockConflict {
+                    first_type: entry.0, first_trip: entry.1, first_line: entry.2,
+                    other_types: BTreeSet::new(), trips: Vec::new(),
+                });
+                c.other_types.insert(rtype);
+                c.trips.push(t.trip_id.as_str());
             }
         }
         // HashMap iterasyonu sırasız → blok anahtarına göre sırala (golden determinizmi).
         let mut bids: Vec<&str> = conflicts.keys().copied().collect();
         bids.sort_unstable();
         for bid in bids {
-            let (first_type, first_trip, first_line, types, trips) = &conflicts[bid];
+            let BlockConflict { first_type, first_trip, first_line, other_types: types, trips } = &conflicts[bid];
             let n = trips.len();
             let type_list: Vec<String> = types.iter().map(|t| t.to_string()).collect();
             let msg = if n == 1 {
