@@ -68,7 +68,7 @@ export type {
   ZipFileInfo,
 } from './types.js';
 
-const SDK_VERSION = '0.1.1';
+const SDK_VERSION = '0.1.2';
 const ENGINE_VERSION = '0.9.7';
 
 let initialization: Promise<void> | undefined;

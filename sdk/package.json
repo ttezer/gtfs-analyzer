@@ -1,6 +1,6 @@
 {
   "name": "gtfs-sdk",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "GTFS Analyzer validation engine for Browser and Node.js.",
   "license": "MIT",
   "keywords": [
@@ -22,11 +22,12 @@
   "type": "module",
   "files": [
     "dist",
-    "pkg",
-    "examples",
+    "pkg/gtfs_wasm.js",
+    "pkg/gtfs_wasm_bg.wasm",
     "README.md",
     "LICENSE"
   ],
+  "sideEffects": false,
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -38,12 +39,14 @@
     "node": ">=20"
   },
   "scripts": {
+    "clean": "node scripts/clean-build.mjs",
     "version:check": "node scripts/check-version.mjs",
     "wasm:build": "wasm-pack build ../crates/wasm --target web --out-dir ../../sdk/pkg --release -- --features quiet && node scripts/prepare-wasm-package.mjs",
-    "build": "npm run version:check && npm run wasm:build && tsc -p tsconfig.json",
+    "build": "npm run clean && npm run version:check && npm run wasm:build && tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test:smoke": "npm run build && node scripts/smoke-test.mjs",
-    "pack:check": "npm run build && npm pack --dry-run",
+    "package:check": "node scripts/check-package.mjs",
+    "pack:check": "npm run build && npm run package:check",
     "prepublishOnly": "npm run build"
   },
   "devDependencies": {

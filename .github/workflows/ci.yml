@@ -204,7 +204,7 @@ jobs:
 
       - name: SDK smoke + paket dry-run
         working-directory: sdk
-        run: npm run test:smoke && npm pack --dry-run
+        run: npm run test:smoke && npm run package:check
 
   # WASM + UI tek kez derlenir; çıktı (ui/dist) artifact olarak e2e ve deploy job'larına
   # aktarılır. Böylece aynı wasm iki ayrı runner'da tekrar derlenmez.
