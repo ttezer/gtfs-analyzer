@@ -55,7 +55,7 @@ pub fn check_with_files(
             for trip_id in &idx.trip_id_set {
                 if !map.trips.contains_key(trip_id.as_str()) {
                     let line = idx.trip_first_line.get(trip_id).copied();
-                    notices.push( notice(
+                    notices.push(notice(
                         &mut ctr,
                         "STM_001",
                         EntityType::Trip,
@@ -82,7 +82,7 @@ pub fn check_with_files(
             for stop_id in &idx.stop_id_set {
                 if !map.stops.contains_key(stop_id.as_str()) {
                     let line = idx.stop_first_line.get(stop_id).copied();
-                    notices.push( notice(
+                    notices.push(notice(
                         &mut ctr,
                         "STM_002",
                         EntityType::Stop,
@@ -114,7 +114,7 @@ pub fn check_with_files(
                         && !map.location_group_ids.contains(lg.as_str())
                         && xfl024_seen.insert(lg.as_str())
                     {
-                        notices.push( notice(
+                        notices.push(notice(
                             &mut ctr, "XFL_024", EntityType::Row,
                             Some(lg.to_string()), Some(lg.to_string()),
                             "stop_times.txt", Some(st.line as u64), Some("location_group_id"),
@@ -134,7 +134,7 @@ pub fn check_with_files(
                         && !map.geojson_location_ids.contains(loc.as_str())
                         && xfl025_seen.insert(loc.as_str())
                     {
-                        notices.push( notice(
+                        notices.push(notice(
                             &mut ctr, "XFL_025", EntityType::Row,
                             Some(loc.to_string()), Some(loc.to_string()),
                             "stop_times.txt", Some(st.line as u64), Some("location_id"),
@@ -271,7 +271,7 @@ pub fn check_with_files(
         // Feed-level (XFL_028/029/030): cemv ↔ contactless media VARLIK tutarlılığı
         {
             let mut feed_cemv = |rule: &str, msg: String, rem: &str| {
-                notices.push( notice(
+                notices.push(notice(
                     &mut ctr, rule, EntityType::Feed,
                     None, None, "", None, None, None, None, msg, rem,
                 ));
@@ -352,7 +352,7 @@ pub fn check_with_files(
                 // FP guard: route'un kapsamı çözülebilir mi? (global / network bilgisi / area bilgisi var)
                 let resolvable = global_type3 || rnet.is_some() || rareas.is_some();
                 if cemv == Some(1) && resolvable && !covered {
-                    notices.push( notice(
+                    notices.push(notice(
                         &mut ctr, "XFL_026", EntityType::Route,
                         Some(r.route_id.clone()), Some(r.route_id.clone()),
                         "routes.txt", None, Some("cemv_support"), None, None,
@@ -361,7 +361,7 @@ pub fn check_with_files(
                     ));
                 }
                 if cemv == Some(2) && covered {
-                    notices.push( notice(
+                    notices.push(notice(
                         &mut ctr, "XFL_027", EntityType::Route,
                         Some(r.route_id.clone()), Some(r.route_id.clone()),
                         "routes.txt", None, Some("cemv_support"), None, None,
@@ -436,7 +436,7 @@ fn check_agencies(
             for rec in &records.agencies {
                 if let Some(ref alang) = rec.agency_lang {
                     if !alang.is_empty() && alang.to_lowercase() != feed_lang.to_lowercase() {
-                        notices.push( notice(
+                        notices.push(notice(
                             ctr,
                             "AGN_013",
                             EntityType::Agency,
@@ -474,7 +474,7 @@ fn check_agencies(
         langs.sort();
         langs.dedup();
         if langs.len() > 1 {
-            notices.push( notice(
+            notices.push(notice(
                 ctr, "AGN_017", EntityType::Feed,
                 None, None, "agency.txt", None, Some("agency_lang"),
                 Some(langs.join(", ")), None,
@@ -503,7 +503,7 @@ fn check_agencies(
     zones.sort_unstable();
     zones.dedup();
     if zones.len() > 1 {
-        notices.push( notice(
+        notices.push(notice(
             ctr,
             "AGN_005",
             EntityType::Agency,
@@ -524,7 +524,7 @@ fn check_agencies(
         .filter(|r| !r.route_id.is_empty() && r.agency_id.is_none())
         .count();
     if routes_without_agency > 0 {
-        notices.push( notice(
+        notices.push(notice(
             ctr,
             "AGN_011",
             EntityType::Feed,
@@ -551,7 +551,7 @@ fn check_agencies(
         .filter(|f| !f.fare_id.is_empty() && f.agency_id.is_none())
         .count();
     if fares_without_agency > 0 {
-        notices.push( notice(
+        notices.push(notice(
             ctr,
             "AGN_011",
             EntityType::Feed,
@@ -615,7 +615,7 @@ fn check_stops(
 
         // STP_009: parent_station geçerli stop_id'ye referans
         if !parent.trim().is_empty() && !map.stops.contains_key(parent) {
-            notices.push( notice(
+            notices.push(notice(
                 ctr,
                 "STP_009",
                 EntityType::Stop,
@@ -636,7 +636,7 @@ fn check_stops(
             if let Some(&pidx) = map.stops.get(parent) {
                 let ptype = records.stops[pidx].location_type;
                 if ptype != Some(1) && loc_type != Some(4) {
-                    notices.push( notice(
+                    notices.push(notice(
                         ctr,
                         "STP_010",
                         EntityType::Stop,
@@ -656,7 +656,7 @@ fn check_stops(
 
         // STP_011: location_type 2,3,4 için parent_station zorunlu
         if matches!(loc_type, Some(2) | Some(3) | Some(4)) && parent.trim().is_empty() {
-            notices.push( notice(
+            notices.push(notice(
                 ctr,
                 "STP_011",
                 EntityType::Stop,
@@ -677,7 +677,7 @@ fn check_stops(
 
         // STP_036: location_type=1 (station) parent_station içermemeli
         if loc_type == Some(1) && !parent.trim().is_empty() {
-            notices.push( notice(
+            notices.push(notice(
                 ctr,
                 "STP_036",
                 EntityType::Stop,
@@ -697,7 +697,7 @@ fn check_stops(
         if used_in_stm.contains(rec.stop_id.as_str())
             && !matches!(loc_type, None | Some(0))
         {
-            notices.push( notice(
+            notices.push(notice(
                 ctr,
                 "STP_012",
                 EntityType::Stop,
@@ -724,7 +724,7 @@ fn check_stops(
             if let Some(&pidx) = map.stops.get(parent) {
                 let ptype = records.stops[pidx].location_type;
                 if !matches!(ptype, None | Some(0)) {
-                    notices.push( notice(
+                    notices.push(notice(
                         ctr,
                         "STP_021",
                         EntityType::Stop,
@@ -748,7 +748,7 @@ fn check_stops(
         // STP_015: level_id bulunamadı
         if let Some(ref lid) = rec.level_id {
             if !map.levels.contains_key(lid.as_str()) {
-                notices.push( notice(
+                notices.push(notice(
                     ctr,
                     "STP_015",
                     EntityType::Stop,
@@ -771,7 +771,7 @@ fn check_stops(
         let stop_access_raw = row_field(&rec.row, "stop_access");
         if !stop_access_raw.is_empty()
             && !matches!(stop_access_raw, "0" | "1") {
-                notices.push( notice(
+                notices.push(notice(
                     ctr,
                     "STP_026",
                     EntityType::Stop,
@@ -800,7 +800,7 @@ fn check_stops(
                 } else {
                     "parent_station boş".to_string()
                 };
-                notices.push( notice(
+                notices.push(notice(
                     ctr,
                     "STP_043",
                     EntityType::Stop,
@@ -829,7 +829,7 @@ fn check_stops(
                     .map(|&i| records.stops[i].location_type == Some(1))
                     .unwrap_or(false);
             if parent_is_station {
-                notices.push( notice(
+                notices.push(notice(
                     ctr,
                     "STP_027",
                     EntityType::Stop,
@@ -854,7 +854,7 @@ fn check_stops(
             && matches!(loc_type, None | Some(0))
             && parent.is_empty()
         {
-            notices.push( notice(
+            notices.push(notice(
                 ctr,
                 "STP_032",
                 EntityType::Stop,
@@ -892,7 +892,7 @@ fn check_routes(
         let eid = Some(rec.route_id.clone());
         if let Some(ref aid) = rec.agency_id {
             if !map.agencies.contains_key(aid.as_str()) {
-                notices.push( notice(
+                notices.push(notice(
                     ctr,
                     "RTS_002",
                     EntityType::Route,
@@ -922,7 +922,7 @@ fn check_routes(
             continue;
         }
         if !used_routes.contains(rec.route_id.as_str()) {
-            notices.push( notice(
+            notices.push(notice(
                 ctr,
                 "RTS_012",
                 EntityType::Route,
@@ -974,7 +974,7 @@ fn check_routes(
                 None
             };
             if let Some((field, value)) = bad {
-                notices.push( notice(
+                notices.push(notice(
                     ctr,
                     "RTS_028",
                     EntityType::Route,
@@ -1038,7 +1038,7 @@ fn check_booking_rules(
                 if known.contains(br) || !seen.insert(br) {
                     continue;
                 }
-                notices.push( notice(
+                notices.push(notice(
                     ctr,
                     rule_id,
                     EntityType::Row,
@@ -1067,7 +1067,7 @@ fn check_booking_rules(
             continue;
         }
         let eid = (!rec.booking_rule_id.is_empty()).then(|| rec.booking_rule_id.clone());
-        notices.push( notice(
+        notices.push(notice(
             ctr,
             "BKR_015",
             EntityType::Row,
@@ -1105,7 +1105,7 @@ fn check_trips(
 
         // TRP_002: route_id referansı
         if !rec_route_id.is_empty() && !map.routes.contains_key(rec_route_id) {
-            notices.push( notice(
+            notices.push(notice(
                 ctr,
                 "TRP_002",
                 EntityType::Trip,
@@ -1123,7 +1123,7 @@ fn check_trips(
 
         // TRP_003: service_id referansı
         if !rec_service_id.is_empty() && !map.services.contains(rec_service_id) {
-            notices.push( notice(
+            notices.push(notice(
                 ctr,
                 "TRP_003",
                 EntityType::Trip,
@@ -1146,7 +1146,7 @@ fn check_trips(
         if shapes_available {
             if let Some(sid) = ti.shape_id(rec) {
             if !map.shape_points.contains_key(sid) {
-                notices.push( notice(
+                notices.push(notice(
                     ctr,
                     "TRP_004",
                     EntityType::Trip,
@@ -1191,7 +1191,7 @@ fn check_trips(
                 .unwrap_or(false);
 
             if route_continuous || trip_has_continuous_stm.contains(rec.trip_id.as_str()) {
-                notices.push( notice(
+                notices.push(notice(
                     ctr,
                     "TRP_019",
                     EntityType::Trip,
@@ -1318,7 +1318,7 @@ fn check_pathways(
                 d.insert("from_station".to_string(), fs.to_string());
                 d.insert("to_station".to_string(), ts.to_string());
                 n.details = Some(d);
-                notices.push( n);
+                notices.push(n);
             }
         }
     }
@@ -1349,7 +1349,7 @@ fn check_pathways(
                 .map(|s| s.len())
                 .unwrap_or(0);
             if count == 1 {
-                notices.push( notice(
+                notices.push(notice(
                     ctr,
                     "PTH_019",
                     EntityType::Stop,
@@ -1391,7 +1391,7 @@ fn check_pathways(
                 if !has_level {
                     seen.insert(stop_id);
                     let stop_rec = records.stops.iter().find(|s| s.stop_id == stop_id);
-                    notices.push( notice(
+                    notices.push(notice(
                         ctr,
                         "LVL_006",
                         EntityType::Stop,
@@ -1435,7 +1435,7 @@ fn check_calendar(
                 if rec.service_id.is_empty() {
                     continue;
                 }
-                notices.push( notice(
+                notices.push(notice(
                     ctr,
                     "CAL_009",
                     EntityType::Service,
@@ -1468,7 +1468,7 @@ fn check_calendar(
             continue;
         }
         if !used_services.contains(rec.service_id.as_str()) {
-            notices.push( notice(
+            notices.push(notice(
                 ctr,
                 "CAL_011",
                 EntityType::Service,
@@ -1495,7 +1495,7 @@ fn check_calendar(
             }
             let all_inactive = rec.days.iter().all(|d| d.is_none_or(|v| v == 0));
             if all_inactive && !services_with_added.contains(rec.service_id.as_str()) {
-                notices.push( notice(
+                notices.push(notice(
                     ctr,
                     "CAL_018",
                     EntityType::Service,
@@ -1545,7 +1545,7 @@ fn check_calendar_dates(
                 // Bu service_id için exception_type=1 kaydı yok
                 // �?' calendar.txt olmadan bu servis hiç çalı�Ymaz
                 let line = records.calendar_dates.first_line.get(*sid).copied();
-                notices.push( notice(
+                notices.push(notice(
                     ctr,
                     "CLD_004",
                     EntityType::Service,
@@ -1580,7 +1580,7 @@ fn check_frequencies(
 
         // FRQ_001: trip_id trips.txt'te tanımlı değil
         if !map.trips.contains_key(rec.trip_id.as_str()) {
-            notices.push( notice(
+            notices.push(notice(
                 ctr,
                 "FRQ_001",
                 EntityType::Trip,
@@ -1600,7 +1600,7 @@ fn check_frequencies(
         // trips.txt'te olmayan trip için FRQ_001 kök FK hatasıdır; türev notice üretme.
         if map.trips.contains_key(rec.trip_id.as_str())
             && !trips_in_stm.contains(rec.trip_id.as_str()) {
-            notices.push( notice(
+            notices.push(notice(
                 ctr,
                 "TRP_017",
                 EntityType::Trip,
@@ -1640,7 +1640,7 @@ fn check_transfers(
             ("to_stop_id",   rec.to_stop_id.as_str()),
         ] {
             if !stop_id.is_empty() && !map.stops.contains_key(stop_id) {
-                notices.push( notice(
+                notices.push(notice(
                     ctr, "TRF_003", EntityType::Transfer,
                     None, None, "transfers.txt", Some(rec.line), Some(field),
                     Some(stop_id.to_string()), None,
@@ -1654,7 +1654,7 @@ fn check_transfers(
         const MAX_TRANSFER_SEC: u32 = 3600;
         if let Some(mtt) = rec.min_transfer_time {
             if mtt > MAX_TRANSFER_SEC {
-                notices.push( notice(
+                notices.push(notice(
                     ctr, "TRF_010", EntityType::Transfer,
                     None, None, "transfers.txt", Some(rec.line), Some("min_transfer_time"),
                     Some(format!("{mtt}s")), Some(format!("≤ {MAX_TRANSFER_SEC}s")),
@@ -1673,7 +1673,7 @@ fn check_transfers(
                         let distance_m = 6_371_000.0 * 2.0 * h.sqrt().atan2((1.0 - h).sqrt());
                         let speed = distance_m / mtt as f64;
                         if speed > 2.0 {
-                            notices.push( notice(ctr, "TRF_020", EntityType::Transfer, None, None,
+                            notices.push(notice(ctr, "TRF_020", EntityType::Transfer, None, None,
                                 "transfers.txt", Some(rec.line), Some("min_transfer_time"),
                                 Some(format!("{speed:.2} m/s")), Some("≤ 2.00 m/s".to_string()),
                                 format!("'{}' → '{}' aktarması {:.0}m mesafeyi {}s içinde yürümeyi gerektiriyor ({speed:.2} m/s).", rec.from_stop_id, rec.to_stop_id, distance_m, mtt),
@@ -1687,7 +1687,7 @@ fn check_transfers(
         // TRF_018: aynı seferde aktarma (from_trip_id == to_trip_id)
         if let (Some(ref fti), Some(ref tti)) = (&rec.from_trip_id, &rec.to_trip_id) {
             if fti == tti {
-                notices.push( notice(
+                notices.push(notice(
                     ctr, "TRF_018", EntityType::Transfer,
                     None, None, "transfers.txt", Some(rec.line), Some("from_trip_id"),
                     Some(fti.clone()), None,
@@ -1700,7 +1700,7 @@ fn check_transfers(
         // TRF_006: from_trip_id referansı
         if let Some(ref fti) = rec.from_trip_id {
             if !map.trips.contains_key(fti.as_str()) {
-                notices.push( notice(
+                notices.push(notice(
                     ctr,
                     "TRF_006",
                     EntityType::Transfer,
@@ -1720,7 +1720,7 @@ fn check_transfers(
         // TRF_007: to_trip_id referansı
         if let Some(ref tti) = rec.to_trip_id {
             if !map.trips.contains_key(tti.as_str()) {
-                notices.push( notice(
+                notices.push(notice(
                     ctr,
                     "TRF_007",
                     EntityType::Transfer,
@@ -1740,7 +1740,7 @@ fn check_transfers(
         // TRF_008: from_route_id referansı
         if let Some(ref fri) = rec.from_route_id {
             if !map.routes.contains_key(fri.as_str()) {
-                notices.push( notice(
+                notices.push(notice(
                     ctr,
                     "TRF_008",
                     EntityType::Transfer,
@@ -1760,7 +1760,7 @@ fn check_transfers(
         // TRF_009: to_route_id referansı
         if let Some(ref tri) = rec.to_route_id {
             if !map.routes.contains_key(tri.as_str()) {
-                notices.push( notice(
+                notices.push(notice(
                     ctr,
                     "TRF_009",
                     EntityType::Transfer,
@@ -1780,7 +1780,7 @@ fn check_transfers(
         // TRF_013: transfer_type=4/5 için from_trip_id ve to_trip_id zorunlu
         if matches!(ttype, Some(4) | Some(5))
             && (rec.from_trip_id.is_none() || rec.to_trip_id.is_none()) {
-                notices.push( notice(
+                notices.push(notice(
                     ctr,
                     "TRF_013",
                     EntityType::Transfer,
@@ -1807,7 +1807,7 @@ fn check_transfers(
             ] {
                 if let Some(tid) = trip_id_opt {
                     if map.trips.contains_key(tid.as_str()) && !trips_in_stm.contains(tid.as_str()) {
-                        notices.push( notice(
+                        notices.push(notice(
                             ctr, "TRF_014", EntityType::Transfer,
                             None, None, "transfers.txt", Some(rec.line), Some(field),
                             Some(tid.clone()), None,
@@ -1834,7 +1834,7 @@ fn check_transfers(
                     });
                 if let (Some(fr), Some(tr)) = (from_rtype, to_rtype) {
                     if fr != tr {
-                        notices.push( notice(
+                        notices.push(notice(
                             ctr, "TRF_019", EntityType::Transfer,
                             None, None, "transfers.txt", Some(rec.line), Some("from_trip_id"),
                             Some(format!("from={fr}, to={tr}")), None,
@@ -1852,7 +1852,7 @@ fn check_transfers(
         if let (Some(ref fti), Some(ref fri)) = (&rec.from_trip_id, &rec.from_route_id) {
             if let Some(&tidx) = map.trips.get(fti.as_str()) {
                 if ti_trf.route_id(&records.trips[tidx]) != fri.as_str() {
-                    notices.push( notice(
+                    notices.push(notice(
                         ctr, "TRF_017", EntityType::Transfer,
                         None, None, "transfers.txt", Some(rec.line), Some("from_route_id"),
                         Some(fri.clone()),
@@ -1869,7 +1869,7 @@ fn check_transfers(
         if let (Some(ref tti), Some(ref tri)) = (&rec.to_trip_id, &rec.to_route_id) {
             if let Some(&tidx) = map.trips.get(tti.as_str()) {
                 if ti_trf.route_id(&records.trips[tidx]) != tri.as_str() {
-                    notices.push( notice(
+                    notices.push(notice(
                         ctr, "TRF_017", EntityType::Transfer,
                         None, None, "transfers.txt", Some(rec.line), Some("to_route_id"),
                         Some(tri.clone()),
@@ -1892,7 +1892,7 @@ fn check_transfers(
                     .and_then(|idx| trip_stops.get(fti.as_str()).map(|s| s.contains(idx)))
                     .unwrap_or(false);
                 if !in_trip {
-                    notices.push( notice(
+                    notices.push(notice(
                         ctr, "XFL_021", EntityType::Transfer,
                         None, None, "transfers.txt", Some(rec.line), Some("from_stop_id"),
                         Some(fsid.to_string()), None,
@@ -1909,7 +1909,7 @@ fn check_transfers(
                     .and_then(|idx| trip_stops.get(tti.as_str()).map(|s| s.contains(idx)))
                     .unwrap_or(false);
                 if !in_trip {
-                    notices.push( notice(
+                    notices.push(notice(
                         ctr, "XFL_021", EntityType::Transfer,
                         None, None, "transfers.txt", Some(rec.line), Some("to_stop_id"),
                         Some(tsid.to_string()), None,
@@ -1929,7 +1929,7 @@ fn check_transfers(
                 if let Some(&tidx) = map.trips.get(tid.as_str()) {
                     let actual_route = ti_trf.route_id(&records.trips[tidx]);
                     if actual_route != rid.as_str() {
-                        notices.push( notice(
+                        notices.push(notice(
                             ctr, "XFL_020", EntityType::Transfer,
                             None, None, "transfers.txt", Some(rec.line), Some(route_field),
                             Some(rid.clone()), Some(actual_route.to_string()),
@@ -1956,7 +1956,7 @@ fn check_transfers(
             let Some(&sidx) = map.stops.get(stop_id) else { continue };
             if matches!(records.stops[sidx].location_type, Some(2) | Some(3) | Some(4)) {
                 let lt = records.stops[sidx].location_type.unwrap_or(0);
-                notices.push( notice(
+                notices.push(notice(
                     ctr, "TRF_021", EntityType::Transfer,
                     None, None, "transfers.txt", Some(rec.line), Some(field),
                     Some(stop_id.to_string()), Some("location_type 0 veya 1".to_string()),
@@ -1976,7 +1976,7 @@ fn check_transfers(
             ] {
                 if let Some(&sidx) = map.stops.get(stop_id) {
                     if records.stops[sidx].location_type == Some(1) {
-                        notices.push( notice(
+                        notices.push(notice(
                             ctr,
                             "TRF_015",
                             EntityType::Transfer,
@@ -2026,7 +2026,7 @@ fn check_transfers(
                 rec.to_route_id.as_deref().unwrap_or(""),
             );
             if let Some(&prev_line) = seen_keys.get(&key) {
-                notices.push( notice(
+                notices.push(notice(
                     ctr,
                     "TRF_016",
                     EntityType::Transfer,
@@ -2061,7 +2061,7 @@ fn check_transfers(
             }
             let key = (rec.from_stop_id.as_str(), rec.to_stop_id.as_str());
             if let Some(&prev_line) = seen_stops.get(&key) {
-                notices.push( notice(
+                notices.push(notice(
                     ctr, "TRF_012", EntityType::Transfer,
                     None, None, "transfers.txt", Some(rec.line),
                     Some("from_stop_id|to_stop_id"),
@@ -2098,7 +2098,7 @@ fn check_fare_attributes(
     for rec in &records.fare_attributes {
         if let Some(ref aid) = rec.agency_id {
             if !map.agencies.contains_key(aid.as_str()) {
-                notices.push( notice(
+                notices.push(notice(
                     ctr,
                     "FAR_008",
                     EntityType::Fare,
@@ -2117,7 +2117,7 @@ fn check_fare_attributes(
             // FIN_013: aynı sütun politikasını her fare için tekrarlama; feed başına tek özet.
             if records.fare_attributes.iter().find(|f| f.agency_id.is_none()).is_some_and(|first| std::ptr::eq(first, rec)) {
               let missing = records.fare_attributes.iter().filter(|f| f.agency_id.is_none()).count();
-              notices.push( notice(
+              notices.push(notice(
                 ctr,
                 "FIN_013",
                 EntityType::Feed,
@@ -2136,7 +2136,7 @@ fn check_fare_attributes(
 
         // FAR_009: bu fare_id'ye ait fare_rules kuralı yok
         if !rec.fare_id.is_empty() && !fares_with_rules.contains(rec.fare_id.as_str()) {
-            notices.push( notice(
+            notices.push(notice(
                 ctr,
                 "FAR_009",
                 EntityType::Fare,
@@ -2167,7 +2167,7 @@ fn check_fare_rules(
 ) {
     // FRL_006: fare_attributes tanımlı ama hiç fare_rules kaydı yok
     if records.fare_rules.is_empty() && !records.fare_attributes.is_empty() {
-        notices.push( notice(
+        notices.push(notice(
             ctr,
             "FRL_006",
             EntityType::Fare,
@@ -2207,7 +2207,7 @@ fn check_fare_rules(
         // FRL_002: route_id referansı (varsa)
         if let Some(ref rid) = rec.route_id {
             if !map.routes.contains_key(rid.as_str()) {
-                notices.push( notice(
+                notices.push(notice(
                     ctr,
                     "FRL_002",
                     EntityType::Fare,
@@ -2246,7 +2246,7 @@ fn check_fare_rules(
             && rec.destination_id.is_none()
             && rec.contains_id.is_none()
         {
-            notices.push( notice(
+            notices.push(notice(
                 ctr,
                 "FRL_007",
                 EntityType::Fare,
@@ -2271,7 +2271,7 @@ fn check_fare_rules(
     // observed = kaç satırda tekrarladığı; satır = ilk görüldüğü yer.
     for (fare_id, (line, rows)) in &frl001_bad {
         let eid = Some((*fare_id).to_string());
-        notices.push( notice(
+        notices.push(notice(
             ctr, "FRL_001", EntityType::Fare, eid.clone(), eid,
             "fare_rules.txt", Some(*line), Some("fare_id"),
             Some(format!("{fare_id} ({rows} satır)")), None,
@@ -2280,7 +2280,7 @@ fn check_fare_rules(
         ));
     }
     for ((rule, field, zid), (fare_id, line, rows)) in &frl_zone_bad {
-        notices.push( notice(
+        notices.push(notice(
             ctr, rule, EntityType::Fare, Some(fare_id.clone()), Some(fare_id.clone()),
             "fare_rules.txt", Some(*line), Some(field),
             Some(format!("{zid} ({rows} satır)")), None,
@@ -2304,7 +2304,7 @@ fn check_fare_rules(
                 .map(|r| r.route_id.as_str())
                 .collect();
             if !uncovered.is_empty() {
-                notices.push( notice(
+                notices.push(notice(
                     ctr,
                     "FRL_008",
                     EntityType::Feed,
@@ -2342,7 +2342,7 @@ fn check_fare_rules(
             );
             if let Some(&prev_fare) = rule_key_to_fare.get(&key) {
                 if prev_fare != rec.fare_id.as_str() {
-                    notices.push( notice(
+                    notices.push(notice(
                         ctr,
                         "FAR_010",
                         EntityType::Fare,
@@ -2380,7 +2380,7 @@ fn check_fares_v2(
     for rec in &records.fare_products {
         if let Some(ref fmid) = rec.fare_media_id {
             if !map.fare_media_ids.contains_key(fmid.as_str()) {
-                notices.push( notice(
+                notices.push(notice(
                     ctr, "FPD_004", EntityType::Row,
                     Some(rec.fare_product_id.clone()), Some(rec.fare_product_id.clone()),
                     "fare_products.txt", Some(rec.line), Some("fare_media_id"),
@@ -2392,7 +2392,7 @@ fn check_fares_v2(
         }
         if let Some(ref rcid) = rec.rider_category_id {
             if !map.rider_category_ids.contains(rcid.as_str()) {
-                notices.push( notice(
+                notices.push(notice(
                     ctr, "FPD_005", EntityType::Row,
                     Some(rec.fare_product_id.clone()), Some(rec.fare_product_id.clone()),
                     "fare_products.txt", Some(rec.line), Some("rider_category_id"),
@@ -2505,7 +2505,7 @@ fn check_fares_v2(
                 details.insert("resolving_categories".to_string(), resolving.join(", "));
             }
             agg.details = Some(details);
-            notices.push( agg);
+            notices.push(agg);
         } else {
             for (fpid, eligible, default_count) in violations {
                 let lines = fp_rows.get(fpid).expect("fare product rows are indexed together");
@@ -2520,7 +2520,7 @@ fn check_fares_v2(
                         fpid, default_count
                     )
                 };
-                notices.push( notice(
+                notices.push(notice(
                     ctr, "RCT_006", EntityType::Row,
                     Some(fpid.to_string()), Some(fpid.to_string()),
                     "fare_products.txt", lines.first().copied(), None,
@@ -2540,7 +2540,7 @@ fn check_fares_v2(
         // varlık ölçmüyor. Spec'te alan Required (#153, korpusta 16 feed).
         if rec.fare_product_id.trim().is_empty() {
             let eid = rec.leg_group_id.clone();
-            notices.push( notice(
+            notices.push(notice(
                 ctr, "FLG_008", EntityType::Row, eid.clone(), eid.clone(),
                 "fare_leg_rules.txt", Some(rec.line), Some("fare_product_id"),
                 Some(String::new()), None,
@@ -2550,7 +2550,7 @@ fn check_fares_v2(
         }
         if !rec.fare_product_id.is_empty() && !map.fare_product_ids.contains_key(rec.fare_product_id.as_str()) {
             let eid = rec.leg_group_id.clone();
-            notices.push( notice(
+            notices.push(notice(
                 ctr, "FLG_001", EntityType::Row, eid.clone(), eid.clone(),
                 "fare_leg_rules.txt", Some(rec.line), Some("fare_product_id"),
                 Some(rec.fare_product_id.clone()), None,
@@ -2561,7 +2561,7 @@ fn check_fares_v2(
         if let Some(ref nid) = rec.network_id {
             if !map.network_ids.contains(nid.as_str()) {
                 let eid = rec.leg_group_id.clone();
-                notices.push( notice(
+                notices.push(notice(
                     ctr, "FLG_002", EntityType::Row, eid.clone(), eid.clone(),
                     "fare_leg_rules.txt", Some(rec.line), Some("network_id"),
                     Some(nid.clone()), None,
@@ -2573,7 +2573,7 @@ fn check_fares_v2(
         if let Some(ref aid) = rec.from_area_id {
             if !map.areas.contains_key(aid.as_str()) {
                 let eid = rec.leg_group_id.clone();
-                notices.push( notice(
+                notices.push(notice(
                     ctr, "FLG_003", EntityType::Row, eid.clone(), eid.clone(),
                     "fare_leg_rules.txt", Some(rec.line), Some("from_area_id"),
                     Some(aid.clone()), None,
@@ -2585,7 +2585,7 @@ fn check_fares_v2(
         if let Some(ref aid) = rec.to_area_id {
             if !map.areas.contains_key(aid.as_str()) {
                 let eid = rec.leg_group_id.clone();
-                notices.push( notice(
+                notices.push(notice(
                     ctr, "FLG_004", EntityType::Row, eid.clone(), eid.clone(),
                     "fare_leg_rules.txt", Some(rec.line), Some("to_area_id"),
                     Some(aid.clone()), None,
@@ -2597,7 +2597,7 @@ fn check_fares_v2(
         if let Some(ref tfid) = rec.from_timeframe_group_id {
             if !map.timeframe_group_ids.contains(tfid.as_str()) {
                 let eid = rec.leg_group_id.clone();
-                notices.push( notice(
+                notices.push(notice(
                     ctr, "FLG_005", EntityType::Row, eid.clone(), eid.clone(),
                     "fare_leg_rules.txt", Some(rec.line), Some("from_timeframe_group_id"),
                     Some(tfid.clone()), None,
@@ -2609,7 +2609,7 @@ fn check_fares_v2(
         if let Some(ref tfid) = rec.to_timeframe_group_id {
             if !map.timeframe_group_ids.contains(tfid.as_str()) {
                 let eid = rec.leg_group_id.clone();
-                notices.push( notice(
+                notices.push(notice(
                     ctr, "FLG_006", EntityType::Row, eid.clone(), eid.clone(),
                     "fare_leg_rules.txt", Some(rec.line), Some("to_timeframe_group_id"),
                     Some(tfid.clone()), None,
@@ -2624,7 +2624,7 @@ fn check_fares_v2(
     for rec in &records.fare_transfer_rules {
         if let Some(ref lgid) = rec.from_leg_group_id {
             if !map.leg_group_ids.contains(lgid.as_str()) {
-                notices.push( notice(
+                notices.push(notice(
                     ctr, "FTR_002", EntityType::Row,
                     Some(lgid.clone()), Some(lgid.clone()),
                     "fare_transfer_rules.txt", Some(rec.line), Some("from_leg_group_id"),
@@ -2636,7 +2636,7 @@ fn check_fares_v2(
         }
         if let Some(ref lgid) = rec.to_leg_group_id {
             if !map.leg_group_ids.contains(lgid.as_str()) {
-                notices.push( notice(
+                notices.push(notice(
                     ctr, "FTR_003", EntityType::Row,
                     Some(lgid.clone()), Some(lgid.clone()),
                     "fare_transfer_rules.txt", Some(rec.line), Some("to_leg_group_id"),
@@ -2648,7 +2648,7 @@ fn check_fares_v2(
         }
         if let Some(ref fpid) = rec.fare_product_id {
             if !map.fare_product_ids.contains_key(fpid.as_str()) {
-                notices.push( notice(
+                notices.push(notice(
                     ctr, "FTR_004", EntityType::Row,
                     rec.from_leg_group_id.clone(), rec.from_leg_group_id.clone(),
                     "fare_transfer_rules.txt", Some(rec.line), Some("fare_product_id"),
@@ -2663,7 +2663,7 @@ fn check_fares_v2(
     // SAR_001-002: stop_areas cross-ref
     for rec in &records.stop_areas {
         if !rec.area_id.is_empty() && !map.areas.contains_key(rec.area_id.as_str()) {
-            notices.push( notice(
+            notices.push(notice(
                 ctr, "SAR_001", EntityType::Row,
                 Some(rec.area_id.clone()), Some(rec.area_id.clone()),
                 "stop_areas.txt", Some(rec.line), Some("area_id"),
@@ -2673,7 +2673,7 @@ fn check_fares_v2(
             ));
         }
         if !rec.stop_id.is_empty() && !map.stops.contains_key(rec.stop_id.as_str()) {
-            notices.push( notice(
+            notices.push(notice(
                 ctr, "SAR_002", EntityType::Row,
                 Some(rec.stop_id.clone()), Some(rec.stop_id.clone()),
                 "stop_areas.txt", Some(rec.line), Some("stop_id"),
@@ -2689,7 +2689,7 @@ fn check_fares_v2(
         if !rec.location_group_id.is_empty()
             && !map.location_group_ids.contains(rec.location_group_id.as_str())
         {
-            notices.push( notice(
+            notices.push(notice(
                 ctr, "XFL_022", EntityType::Row,
                 Some(rec.location_group_id.clone()), Some(rec.location_group_id.clone()),
                 "location_group_stops.txt", Some(rec.line), Some("location_group_id"),
@@ -2699,7 +2699,7 @@ fn check_fares_v2(
             ));
         }
         if !rec.stop_id.is_empty() && !map.stops.contains_key(rec.stop_id.as_str()) {
-            notices.push( notice(
+            notices.push(notice(
                 ctr, "XFL_023", EntityType::Row,
                 Some(rec.stop_id.clone()), Some(rec.stop_id.clone()),
                 "location_group_stops.txt", Some(rec.line), Some("stop_id"),
@@ -2713,7 +2713,7 @@ fn check_fares_v2(
     // TFR_002: timeframes.service_id cross-ref
     for rec in &records.timeframes {
         if !rec.service_id.is_empty() && !map.services.contains(rec.service_id.as_str()) {
-            notices.push( notice(
+            notices.push(notice(
                 ctr, "TFR_002", EntityType::Row,
                 Some(rec.timeframe_group_id.clone()), Some(rec.timeframe_group_id.clone()),
                 "timeframes.txt", Some(rec.line), Some("service_id"),
@@ -2744,7 +2744,7 @@ fn check_levels(
             continue;
         }
         if !used_levels.contains(rec.level_id.as_str()) {
-            notices.push( notice(
+            notices.push(notice(
                 ctr,
                 "LVL_004",
                 EntityType::Level,
@@ -2797,7 +2797,7 @@ fn check_translations(
                 _ => true,
             };
             if !exists {
-                notices.push( notice(
+                notices.push(notice(
                     ctr,
                     "TRN_004",
                     EntityType::Translation,
@@ -2819,7 +2819,7 @@ fn check_translations(
 
         // TRN_007: çeviri dili feed_lang ile aynı — gereksiz çeviri (döngü sonunda agregasyon)
         if !feed_lang.is_empty() && rec.language == feed_lang {
-            trn007_pending.push( notice(
+            trn007_pending.push(notice(
                 ctr,
                 "TRN_007",
                 EntityType::Translation,
@@ -2873,7 +2873,7 @@ fn check_translations(
             }
             Some(prev) if *prev == rec.translation => {
                 // TRN_005: aynı anahtar + aynı çeviri değeri → birebir yinelenen satır
-                notices.push( notice(
+                notices.push(notice(
                     ctr,
                     "TRN_005",
                     EntityType::Translation,
@@ -2894,7 +2894,7 @@ fn check_translations(
             }
             Some(_) => {
                 // TRN_006: aynı anahtar + farklı çeviri değeri → çelişki
-                notices.push( notice(
+                notices.push(notice(
                     ctr,
                     "TRN_006",
                     EntityType::Translation,
@@ -2920,7 +2920,7 @@ fn check_translations(
     // tek satır ise satır-başına korunur.
     if trn007_pending.len() > 1 {
         let n = trn007_pending.len();
-        notices.push( notice(
+        notices.push(notice(
             ctr,
             "TRN_007",
             EntityType::Feed,
@@ -3008,7 +3008,7 @@ fn check_gtfs_jp(records: &EntityRecords, notices: &mut Vec<Notice>, ctr: &mut u
             if kana_records.contains(stop.stop_id.as_str()) || kana_values.contains(name) {
                 continue;
             }
-            notices.push( notice(
+            notices.push(notice(
                 ctr,
                 "JPN_001",
                 EntityType::Stop,
@@ -3041,7 +3041,7 @@ fn check_gtfs_jp(records: &EntityRecords, notices: &mut Vec<Notice>, ctr: &mut u
             if kr_rec.contains(route.route_id.as_str()) || kr_val.contains(name) {
                 continue;
             }
-            notices.push( notice(
+            notices.push(notice(
                 ctr, "JPN_008", EntityType::Route,
                 Some(route.route_id.clone()), Some(route.route_id.clone()),
                 "translations.txt", Some(route.line), Some(field),
@@ -3061,7 +3061,7 @@ fn check_gtfs_jp(records: &EntityRecords, notices: &mut Vec<Notice>, ctr: &mut u
             if kt_rec.contains(trip.trip_id.as_str()) || kt_val.contains(hs) {
                 continue;
             }
-            notices.push( notice(
+            notices.push(notice(
                 ctr, "JPN_009", EntityType::Trip,
                 Some(trip.trip_id.to_string()), Some(trip.trip_id.to_string()),
                 "translations.txt", Some(trip.line), Some("trip_headsign"),
@@ -3082,7 +3082,7 @@ fn check_gtfs_jp(records: &EntityRecords, notices: &mut Vec<Notice>, ctr: &mut u
                 continue;
             }
             let eid = ag.agency_id.clone().filter(|s| !s.is_empty()).unwrap_or_else(|| ag.agency_name.clone());
-            notices.push( notice(
+            notices.push(notice(
                 ctr, "JPN_010", EntityType::Agency,
                 Some(eid.clone()), Some(eid),
                 "translations.txt", Some(ag.line), Some("agency_name"),
@@ -3107,7 +3107,7 @@ fn check_gtfs_jp(records: &EntityRecords, notices: &mut Vec<Notice>, ctr: &mut u
                 _ => continue,
             };
             if !office_ids.contains(oid) {
-                notices.push( notice(
+                notices.push(notice(
                     ctr,
                     "JPN_002",
                     EntityType::Trip,
@@ -3133,7 +3133,7 @@ fn check_gtfs_jp(records: &EntityRecords, notices: &mut Vec<Notice>, ctr: &mut u
                 _ => continue,
             };
             if !office_ids.contains(oid) {
-                notices.push( notice(
+                notices.push(notice(
                     ctr,
                     "JPN_002",
                     EntityType::Route,
@@ -3165,7 +3165,7 @@ fn check_gtfs_jp(records: &EntityRecords, notices: &mut Vec<Notice>, ctr: &mut u
                 _ => continue,
             };
             if !agency_ids.contains(aid) {
-                notices.push( notice(
+                notices.push(notice(
                     ctr,
                     "JPN_003",
                     EntityType::Agency,
@@ -3191,7 +3191,7 @@ fn check_gtfs_jp(records: &EntityRecords, notices: &mut Vec<Notice>, ctr: &mut u
         || !records.office_jp.is_empty()
         || !records.agency_jp.is_empty();
     if is_gtfs_jp && records.translations.is_empty() {
-        notices.push( notice(
+        notices.push(notice(
             ctr,
             "JPN_004",
             EntityType::Feed,
@@ -3215,7 +3215,7 @@ fn check_gtfs_jp(records: &EntityRecords, notices: &mut Vec<Notice>, ctr: &mut u
             .filter(|a| a.agency_id.as_deref().is_none_or(|id| id.trim().is_empty()))
             .count();
         if missing > 0 {
-            notices.push( notice(
+            notices.push(notice(
                 ctr,
                 "JPN_011",
                 EntityType::Feed,
@@ -3240,7 +3240,7 @@ fn check_gtfs_jp(records: &EntityRecords, notices: &mut Vec<Notice>, ctr: &mut u
         }
         let name_empty = oj.office_name.as_deref().map(|s| s.trim().is_empty()).unwrap_or(true);
         if name_empty {
-            notices.push( notice(
+            notices.push(notice(
                 ctr,
                 "JPN_005",
                 EntityType::Agency,
@@ -3260,7 +3260,7 @@ fn check_gtfs_jp(records: &EntityRecords, notices: &mut Vec<Notice>, ctr: &mut u
     // ── JPN_006: GTFS-JP'de fare_attributes.txt + fare_rules.txt zorunlu ──
     // FP riski (gerçekten ücretsiz hizmet olabilir) → Orta/Quality, feed-level tek uyarı.
     if is_gtfs_jp && (records.fare_attributes.is_empty() || records.fare_rules.is_empty()) {
-        notices.push( notice(
+        notices.push(notice(
             ctr,
             "JPN_006",
             EntityType::Feed,
@@ -3278,7 +3278,7 @@ fn check_gtfs_jp(records: &EntityRecords, notices: &mut Vec<Notice>, ctr: &mut u
 
     // ── JPN_007: GTFS-JP'de feed_info.txt zorunlu ──
     if is_gtfs_jp && records.feed_info.is_empty() {
-        notices.push( notice(
+        notices.push(notice(
             ctr,
             "JPN_007",
             EntityType::Feed,
@@ -3319,7 +3319,7 @@ fn check_fare_leg_join_rules(
             (&rec.to_network_id,   "to_network_id",   "FLJ_002"),
         ] {
             if value.is_empty() {
-                notices.push( notice(
+                notices.push(notice(
                     ctr, rule, EntityType::Row, None, None,
                     "fare_leg_join_rules.txt", Some(rec.line), Some(field),
                     Some(String::new()), None,
@@ -3327,7 +3327,7 @@ fn check_fare_leg_join_rules(
                     "networks.txt veya routes.network_id içinde tanımlı bir ağ kodu girin.",
                 ));
             } else if !map.network_ids.contains(value.as_str()) {
-                notices.push( notice(
+                notices.push(notice(
                     ctr, rule, EntityType::Row, None, None,
                     "fare_leg_join_rules.txt", Some(rec.line), Some(field),
                     Some(value.clone()), None,
@@ -3345,7 +3345,7 @@ fn check_fare_leg_join_rules(
         for (value, other, field, other_field, rule) in pairs {
             if value.is_empty() {
                 if !other.is_empty() {
-                    notices.push( notice(
+                    notices.push(notice(
                         ctr, rule, EntityType::Row, None, None,
                         "fare_leg_join_rules.txt", Some(rec.line), Some(field),
                         Some(String::new()), None,
@@ -3356,7 +3356,7 @@ fn check_fare_leg_join_rules(
                 continue;
             }
             match map.stops.get(value.as_str()).and_then(|&i| records.stops.get(i)) {
-                None => notices.push( notice(
+                None => notices.push(notice(
                     ctr, rule, EntityType::Row, None, None,
                     "fare_leg_join_rules.txt", Some(rec.line), Some(field),
                     Some(value.clone()), None,
@@ -3364,7 +3364,7 @@ fn check_fare_leg_join_rules(
                     "stops.txt'te tanımlı bir stop_id kullanın.",
                 )),
                 Some(stop) if !matches!(stop.location_type.unwrap_or(0), 0 | 1) => {
-                    notices.push( notice(
+                    notices.push(notice(
                         ctr, rule, EntityType::Row, None, None,
                         "fare_leg_join_rules.txt", Some(rec.line), Some(field),
                         Some(value.clone()), Some("location_type 0 veya 1".to_string()),
@@ -3400,7 +3400,7 @@ fn check_route_networks(
 
         // NET_002: network_id — Required + networks.txt'te tanımlı olmalı.
         if rec.network_id.is_empty() {
-            notices.push( notice(
+            notices.push(notice(
                 ctr, "NET_002", EntityType::Row, eid.clone(), eid.clone(),
                 "route_networks.txt", Some(rec.line), Some("network_id"),
                 Some(String::new()), None,
@@ -3408,7 +3408,7 @@ fn check_route_networks(
                 "networks.txt'te tanımlı bir network_id girin.",
             ));
         } else if !declared.contains(rec.network_id.as_str()) {
-            notices.push( notice(
+            notices.push(notice(
                 ctr, "NET_002", EntityType::Row, eid.clone(), eid.clone(),
                 "route_networks.txt", Some(rec.line), Some("network_id"),
                 Some(rec.network_id.clone()), None,
@@ -3419,7 +3419,7 @@ fn check_route_networks(
 
         // NET_003: route_id — Required + routes.txt'te tanımlı olmalı.
         if rec.route_id.is_empty() {
-            notices.push( notice(
+            notices.push(notice(
                 ctr, "NET_003", EntityType::Row, None, None,
                 "route_networks.txt", Some(rec.line), Some("route_id"),
                 Some(String::new()), None,
@@ -3427,7 +3427,7 @@ fn check_route_networks(
                 "routes.txt'te tanımlı bir route_id girin.",
             ));
         } else if !map.routes.contains_key(rec.route_id.as_str()) {
-            notices.push( notice(
+            notices.push(notice(
                 ctr, "NET_003", EntityType::Row, eid.clone(), eid.clone(),
                 "route_networks.txt", Some(rec.line), Some("route_id"),
                 Some(rec.route_id.clone()), None,
@@ -3450,7 +3450,7 @@ fn check_attributions(
         // ATR_010: agency_id cross-ref — attribution'daki agency_id agency.txt'te bulunamadı
         if let Some(ref aid) = rec.agency_id {
             if !map.agencies.contains_key(aid.as_str()) {
-                notices.push( notice(
+                notices.push(notice(
                     ctr,
                     "ATR_010",
                     EntityType::Attribution,
@@ -3470,7 +3470,7 @@ fn check_attributions(
         // ATR_011: route_id referansı
         if let Some(ref rid) = rec.route_id {
             if !map.routes.contains_key(rid.as_str()) {
-                notices.push( notice(
+                notices.push(notice(
                     ctr,
                     "ATR_011",
                     EntityType::Attribution,
@@ -3490,7 +3490,7 @@ fn check_attributions(
         // ATR_012: trip_id referansı
         if let Some(ref tid) = rec.trip_id {
             if !map.trips.contains_key(tid.as_str()) {
-                notices.push( notice(
+                notices.push(notice(
                     ctr,
                     "ATR_012",
                     EntityType::Attribution,
@@ -3513,7 +3513,7 @@ fn check_attributions(
             .filter(|x| x.is_some())
             .count();
         if filled > 1 {
-            notices.push( notice(
+            notices.push(notice(
                 ctr,
                 "ATR_009",
                 EntityType::Attribution,
@@ -3551,7 +3551,7 @@ fn check_xfl(
                 continue;
             }
             if !trips_in_stm.contains(rec.trip_id.as_str()) {
-                notices.push( notice(
+                notices.push(notice(
                     ctr,
                     "XFL_002",
                     EntityType::Trip,
@@ -3581,7 +3581,7 @@ fn check_xfl(
         for rec in &records.trips {
             if rec.trip_id.is_empty() { continue; }
             if trip_stm_count.get(rec.trip_id.as_str()).copied().unwrap_or(0) == 1 {
-                notices.push( notice(
+                notices.push(notice(
                     ctr,
                     "STM_033",
                     EntityType::Trip,
@@ -3617,7 +3617,7 @@ fn check_xfl(
                 ("PTH_003", "to_stop_id",   rec.to_stop_id.as_str()),
             ] {
                 if !stop_id.is_empty() && !map.stops.contains_key(stop_id) {
-                    notices.push( notice(
+                    notices.push(notice(
                         ctr,
                         rule_id,
                         EntityType::Pathway,
@@ -3694,7 +3694,7 @@ fn check_xfl(
                               field: &'static str, line: u64, msg: String, fix: &'static str,
                               notices: &mut Vec<gtfs_core::Notice>, ctr: &mut u32| {
             if cond {
-                notices.push( notice(ctr, rule, EntityType::Row, None, None, file, Some(line),
+                notices.push(notice(ctr, rule, EntityType::Row, None, None, file, Some(line),
                     Some(field), Some(String::new()), Some("(dolu)".to_string()), msg, fix));
             }
         };
@@ -3759,7 +3759,7 @@ fn check_xfl(
                     if !has_boarding_area.contains(stop_id) {
                         continue;
                     }
-                    notices.push( notice(
+                    notices.push(notice(
                         ctr, "PTH_030", EntityType::Row,
                         Some(rec.pathway_id.clone()), Some(rec.pathway_id.clone()),
                         "pathways.txt", Some(rec.line), Some(field),
@@ -3794,7 +3794,7 @@ fn check_xfl(
                 // ara düğüm ve biniş alanında Conditionally Forbidden) → location_type
                 // 0/boş dışında bakmıyoruz; oradaki hata STP_026'nın alanı.
                 if matches!(stop.location_type, None | Some(0)) && stop.stop_access == Some(1) {
-                    notices.push( notice(
+                    notices.push(notice(
                         ctr,
                         "PTH_031",
                         EntityType::Pathway,
@@ -3812,7 +3812,7 @@ fn check_xfl(
                     ));
                 }
                 if stop.location_type == Some(1) {
-                    notices.push( notice(
+                    notices.push(notice(
                         ctr,
                         "PTH_026",
                         EntityType::Pathway,
@@ -3854,7 +3854,7 @@ fn check_xfl(
                     .find(|sp| records.shape_interns.id(sp) == *shape_id)
                     .map(|sp| sp.line_u64());
                 let trip_count = trip_ids.len();
-                notices.push( notice(
+                notices.push(notice(
                     ctr,
                     "SHP_019",
                     EntityType::Shape,
@@ -3892,7 +3892,7 @@ fn check_xfl(
             .collect();
         if !bad.is_empty() {
             let bad_list: Vec<&str> = bad.into_iter().collect();
-            notices.push( notice(
+            notices.push(notice(
                 ctr,
                 "XFL_006",
                 EntityType::Service,
@@ -3943,7 +3943,7 @@ fn check_xfl(
                         }
                     }
                     if inconsistent {
-                        notices.push( notice(
+                        notices.push(notice(
                             ctr,
                             "XFL_011",
                             EntityType::Service,
@@ -3995,7 +3995,7 @@ fn check_xfl(
                         }
                     }
                     if outside {
-                        notices.push( notice(
+                        notices.push(notice(
                             ctr,
                             "CAL_019",
                             EntityType::Service,
@@ -4034,7 +4034,7 @@ fn check_xfl(
                 if !trip_ids.is_empty()
                     && trip_ids.iter().all(|tid| !trips_in_stm.contains(*tid))
                 {
-                    notices.push( notice(
+                    notices.push(notice(
                         ctr,
                         "XFL_012",
                         EntityType::Route,
@@ -4151,7 +4151,7 @@ fn check_xfl(
                 "Gidiş ve dönüş yönleri için ayrı shape_id tanımlayın.",
             );
             n.details = Some(details);
-            notices.push( n);
+            notices.push(n);
         }
     }
 
@@ -4202,7 +4202,7 @@ fn check_xfl(
             unmatched.dedup();
             let total = unmatched.len();
             let sample: Vec<&str> = unmatched.iter().take(5).map(String::as_str).collect();
-            notices.push( notice(
+            notices.push(notice(
                 ctr, "TRN_016", EntityType::Feed, None, None,
                 "translations.txt", None, Some("field_value"),
                 Some(total.to_string()), None,
@@ -4244,7 +4244,7 @@ fn check_xfl(
         if !bad_keys.is_empty() {
             let mut bad_list: Vec<&str> = bad_keys.iter().map(String::as_str).collect();
             bad_list.sort_unstable();
-            notices.push( notice(
+            notices.push(notice(
                 ctr,
                 "XFL_014",
                 EntityType::Feed,
@@ -4287,7 +4287,7 @@ fn check_xfl(
         if !bad_refs.is_empty() {
             let mut bad_list: Vec<&str> = bad_refs.iter().map(String::as_str).collect();
             bad_list.sort_unstable();
-            notices.push( notice(
+            notices.push(notice(
                 ctr,
                 "XFL_015",
                 EntityType::Feed,
@@ -4314,7 +4314,7 @@ fn check_xfl(
             .iter()
             .any(|r| r.table_name == "feed_info");
         if has_feed_info_trn && records.feed_info.is_empty() {
-            notices.push( notice(
+            notices.push(notice(
                 ctr,
                 "XFL_016",
                 EntityType::Feed,
@@ -4361,7 +4361,7 @@ fn check_xfl(
         clashes.sort();
         clashes.dedup();
         for (id, other) in clashes {
-            notices.push( notice(
+            notices.push(notice(
                 ctr, "XFL_031", EntityType::Row,
                 Some(id.clone()), Some(id.clone()),
                 "location_groups.txt", None, Some("location_group_id"),
@@ -4390,7 +4390,7 @@ fn check_xfl(
             // meşrudur. Notice'ı o dosyaya bağlamak kullanıcıyı düzeltilecek yerden başka
             // yere yolluyordu ve spec kapsam defterinde `routes.txt:network_id` hükmü
             // "ölçülmüyor" görünüyordu. Çakışan dosyanın adı mesajda zaten geçiyor.
-            notices.push( notice(
+            notices.push(notice(
                 ctr,
                 "XFL_019",
                 EntityType::Feed,
@@ -4417,7 +4417,7 @@ fn check_xfl(
                 if let Some(&aidx) = map.agencies.get(aid.as_str()) {
                     if let Some(av) = records.agencies[aidx].agency_cemv_support {
                         if rv != av {
-                            notices.push( notice(
+                            notices.push(notice(
                                 ctr,
                                 "XFL_017",
                                 EntityType::Route,
@@ -4501,7 +4501,7 @@ fn check_stm_shape_dist(
         // Olası birim çakışmaları: ayak/metre ≈ 3.28×, metre/km ≈ 1000×, km/metre ≈ 0.001×
         if !(0.4..=2.5).contains(&ratio) {
             flagged_shapes.insert(shape_id);
-            notices.push( notice(
+            notices.push(notice(
                 ctr,
                 "STM_024",
                 EntityType::Trip,
@@ -4688,7 +4688,7 @@ fn check_flex_zone_overlap(
         }
         if let Some((l1, l2, line)) = found {
             let zones = format!("'{l1}' ve '{l2}' bölgeleri");
-            notices.push( notice(
+            notices.push(notice(
                 ctr, "STM_060", EntityType::Trip,
                 Some(trip.to_string()), Some(trip.to_string()),
                 "stop_times.txt", Some(line), Some("location_id"),

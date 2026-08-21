@@ -35,7 +35,7 @@ pub fn validate_fare_leg_rules(
         let rule_priority = match parse_u32(&row_map, "rule_priority") {
             Ok(v) => v,
             Err(err) => {
-                notices.push( make_k2_notice(
+                notices.push(make_k2_notice(
                     &mut counter, "FLG_007", EntityType::Row, entity_id.clone(), Some(&row_map),
                     &file.name, Some(line), Some("rule_priority"),
                     get_trimmed_field(&row_map, "rule_priority").map(str::to_string),

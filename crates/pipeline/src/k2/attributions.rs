@@ -38,7 +38,7 @@ pub fn validate_attributions(
 
         // ATR_001: attribution_id eksik (tavsiye edilen)
         if attribution_id.is_none() {
-            notices.push( make_k2_notice(
+            notices.push(make_k2_notice(
                 &mut counter, "ATR_001", EntityType::Attribution, None,
                 Some(&row_map), &file.name, Some(line), Some("attribution_id"),
                 Some(String::new()), None,
@@ -50,7 +50,7 @@ pub fn validate_attributions(
         let organization_name = get_trimmed_field(&row_map, "organization_name").unwrap_or("").to_string();
         // sütun başlıkta yoksa ARC_025 devralır → atla
         if get_trimmed_field(&row_map, "organization_name") == Some("") {
-            notices.push( make_k2_notice(
+            notices.push(make_k2_notice(
                 &mut counter,
                 "ATR_002",
                 EntityType::Attribution,
@@ -71,7 +71,7 @@ pub fn validate_attributions(
         let is_authority = parse_role_enum(&row_map, &mut notices, &mut counter, "ATR_006", "is_authority", &attribution_id, line, &file.name);
 
         if !matches!(is_producer, Some(1)) && !matches!(is_operator, Some(1)) && !matches!(is_authority, Some(1)) {
-            notices.push( make_k2_notice(
+            notices.push(make_k2_notice(
                 &mut counter,
                 "ATR_003",
                 EntityType::Attribution,
@@ -93,7 +93,7 @@ pub fn validate_attributions(
             .map(str::to_string);
         if let Some(url) = attribution_url.as_deref() {
             if !looks_like_url(url) {
-                notices.push( make_k2_notice(
+                notices.push(make_k2_notice(
                     &mut counter,
                     "ATR_007",
                     EntityType::Attribution,
@@ -115,7 +115,7 @@ pub fn validate_attributions(
             .map(str::to_string);
         if let Some(email) = attribution_email.as_deref() {
             if !looks_like_email(email) {
-                notices.push( make_k2_notice(
+                notices.push(make_k2_notice(
                     &mut counter,
                     "ATR_008",
                     EntityType::Attribution,
@@ -178,7 +178,7 @@ fn parse_role_enum(
         Ok(value) => {
             if let Some(v) = value {
                 if !validate_enum(&v.to_string(), &["0", "1"]) {
-                    notices.push( make_k2_notice(
+                    notices.push(make_k2_notice(
                         counter,
                         rule_id,
                         EntityType::Attribution,
@@ -197,7 +197,7 @@ fn parse_role_enum(
             value
         }
         Err(err) => {
-            notices.push( make_k2_notice(
+            notices.push(make_k2_notice(
                 counter,
                 rule_id,
                 EntityType::Attribution,

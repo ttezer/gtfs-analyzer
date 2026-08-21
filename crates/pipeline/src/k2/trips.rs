@@ -192,7 +192,7 @@ pub fn validate_trips_with_limits(
         // Bu dosya K1'de stream edilir ve orada yalnız başlık okunur, dolayısıyla kontrol
         // K1'de kalırsa bu dosyada HİÇ çalışmaz (#181).
         if crate::k1_parse::arc034_is_header_repeat(row, &file.headers) {
-            notices.push( make_k2_notice(
+            notices.push(make_k2_notice(
                 &mut counter, "ARC_034", EntityType::File, Some(file.name.clone()),
                 None, &file.name, Some(line), None, None, None,
                 format!("'{}' {line}. satırı başlık satırının tekrarı — veri olarak okunuyor.", file.name),
@@ -206,7 +206,7 @@ pub fn validate_trips_with_limits(
 
         // TRP_001: trip_id zorunlu
         if trip_id.is_empty() && has_trip_id_col {
-            notices.push( make_k2_notice(
+            notices.push(make_k2_notice(
                 &mut counter, "TRP_001", EntityType::Trip, None,
                 None, &file.name, Some(line), Some("trip_id"),
                 Some(String::new()), None,
@@ -220,7 +220,7 @@ pub fn validate_trips_with_limits(
 
         // TRP_031: route_id required — intern_idx 0 döndürdüyse boş demektir
         if route_idx == 0 && has_route_id_col {
-            notices.push( make_k2_notice(
+            notices.push(make_k2_notice(
                 &mut counter, "TRP_031", EntityType::Trip, None,
                 None, &file.name, Some(line), Some("route_id"),
                 Some(String::new()), None,
@@ -233,7 +233,7 @@ pub fn validate_trips_with_limits(
         // çözümünü ölçer ve boş değeri "referans yok" sayıp geçer — çapa granülerliği
         // triyajında bulundu (korpusta 24 satır / 5 feed).
         if service_idx == 0 && has_service_id_col {
-            notices.push( make_k2_notice(
+            notices.push(make_k2_notice(
                 &mut counter, "TRP_035", EntityType::Trip, None,
                 None, &file.name, Some(line), Some("service_id"),
                 Some(String::new()), Some("(dolu)".to_string()),
@@ -253,7 +253,7 @@ pub fn validate_trips_with_limits(
         // alfabelerde (Türkçe, Japonca) eşiği erken tetikliyordu.
         let short_name_chars = short_name_raw.chars().count();
         if !short_name_raw.is_empty() && short_name_chars > 20 {
-            notices.push( make_k2_notice(
+            notices.push(make_k2_notice(
                 &mut counter, "TRP_014", EntityType::Trip, entity_id.clone(),
                 None, &file.name, Some(line), Some("trip_short_name"),
                 Some(short_name_chars.to_string()), Some("≤20".to_string()),
@@ -273,7 +273,7 @@ pub fn validate_trips_with_limits(
             Ok(v) => {
                 if let Some(val) = v {
                     if val > 1 {
-                        notices.push( make_k2_notice(
+                        notices.push(make_k2_notice(
                             &mut counter, "TRP_005", EntityType::Trip, entity_id.clone(),
                             None, &file.name, Some(line), Some("direction_id"),
                             Some(val.to_string()), Some("0 veya 1".to_string()),
@@ -285,7 +285,7 @@ pub fn validate_trips_with_limits(
                 v
             }
             Err(_) => {
-                notices.push( make_k2_notice(
+                notices.push(make_k2_notice(
                     &mut counter, "TRP_005", EntityType::Trip, entity_id.clone(),
                     None, &file.name, Some(line), Some("direction_id"),
                     Some(dir_raw.to_string()), Some("0 veya 1".to_string()),
@@ -302,7 +302,7 @@ pub fn validate_trips_with_limits(
             Ok(v) => {
                 if let Some(val) = v {
                     if val > 2 {
-                        notices.push( make_k2_notice(
+                        notices.push(make_k2_notice(
                             &mut counter, "TRP_006", EntityType::Trip, entity_id.clone(),
                             None, &file.name, Some(line), Some("wheelchair_accessible"),
                             Some(val.to_string()), Some("0, 1 veya 2".to_string()),
@@ -316,7 +316,7 @@ pub fn validate_trips_with_limits(
             Err(()) => {
                 // Sayı OLMAYAN değer eskiden sessizce düşüyordu: aralık dışı sayı TRP_006 üretirken
                 // "abc" hiçbir bulgu vermiyordu. Aynı olgunun iki dalı → aynı kural (PTH_027 emsali).
-                notices.push( make_k2_notice(
+                notices.push(make_k2_notice(
                     &mut counter, "TRP_006", EntityType::Trip, entity_id.clone(),
                     None, &file.name, Some(line), Some("wheelchair_accessible"),
                     Some(wc_raw.to_string()), Some("0, 1 veya 2".to_string()),
@@ -333,7 +333,7 @@ pub fn validate_trips_with_limits(
             Ok(v) => {
                 if let Some(val) = v {
                     if val > 2 {
-                        notices.push( make_k2_notice(
+                        notices.push(make_k2_notice(
                             &mut counter, "TRP_007", EntityType::Trip, entity_id.clone(),
                             None, &file.name, Some(line), Some("bikes_allowed"),
                             Some(val.to_string()), Some("0, 1 veya 2".to_string()),
@@ -347,7 +347,7 @@ pub fn validate_trips_with_limits(
             Err(()) => {
                 // Sayı OLMAYAN değer eskiden sessizce düşüyordu: aralık dışı sayı TRP_007 üretirken
                 // "abc" hiçbir bulgu vermiyordu. Aynı olgunun iki dalı → aynı kural (PTH_027 emsali).
-                notices.push( make_k2_notice(
+                notices.push(make_k2_notice(
                     &mut counter, "TRP_007", EntityType::Trip, entity_id.clone(),
                     None, &file.name, Some(line), Some("bikes_allowed"),
                     Some(ba_raw.to_string()), Some("0, 1 veya 2".to_string()),
@@ -377,7 +377,7 @@ pub fn validate_trips_with_limits(
             Ok(v) => {
                 if let Some(val) = v {
                     if val > 2 {
-                        notices.push( make_k2_notice(
+                        notices.push(make_k2_notice(
                             &mut counter, "TRP_032", EntityType::Trip, entity_id.clone(),
                             None, &file.name, Some(line), Some("cars_allowed"),
                             Some(val.to_string()), Some("0, 1 veya 2".to_string()),
@@ -397,7 +397,7 @@ pub fn validate_trips_with_limits(
             match parse_f64_col(raw) {
                 Ok(v) => v,
                 Err(()) => {
-                    notices.push( make_k2_notice(
+                    notices.push(make_k2_notice(
                         &mut counter, "TRP_034", EntityType::Trip,
                         Some(trip_id.to_string()), None,
                         &file.name, Some(line), Some(field),
@@ -434,7 +434,7 @@ pub fn validate_trips_with_limits(
         let cursor = Cursor::new(zb);
         match zip::ZipArchive::new(cursor) {
             Err(e) => {
-                notices.push( make_k2_notice(
+                notices.push(make_k2_notice(
                     &mut counter, "ARC_009", EntityType::File, Some(file.name.clone()),
                     None, &file.name, None, None, None, None,
                     format!("'{}' ZIP yeniden açılamadı: {e}.", file.name),
@@ -444,7 +444,7 @@ pub fn validate_trips_with_limits(
             Ok(mut archive) => {
                 match archive.by_name(&file.name) {
                     Err(e) => {
-                        notices.push( make_k2_notice(
+                        notices.push(make_k2_notice(
                             &mut counter, "ARC_009", EntityType::File, Some(file.name.clone()),
                             None, &file.name, None, None, None, None,
                             format!("'{}' ZIP girdisi bulunamadı: {e}.", file.name),
@@ -517,14 +517,14 @@ pub fn validate_trips_with_limits(
             Some(observed), None, msg, crate::k1_parse::DQ016_REMEDIATION,
         );
         n.details = dq016.evidence_details();
-        notices.push( n);
+        notices.push(n);
     }
 
     // TRP_021: loop sonrası tek özet notice
     if trp021_missing_count > 0 {
         let total = trp021_missing_count + bikes_allowed_set_count as usize;
         if bikes_allowed_set_count == 0 {
-            notices.push( make_k2_notice(
+            notices.push(make_k2_notice(
                 &mut counter, "TRP_021", EntityType::Trip, None,
                 None, &file.name, None, Some("bikes_allowed"),
                 Some(format!("{trp021_missing_count}/{total}")), Some("0".to_string()),
@@ -539,7 +539,7 @@ pub fn validate_trips_with_limits(
                     trp021_missing_examples.join(", "),
                     if trp021_missing_count > trp021_missing_examples.len() { ", …" } else { "" })
             };
-            notices.push( make_k2_notice(
+            notices.push(make_k2_notice(
                 &mut counter, "TRP_021", EntityType::Trip, None,
                 None, &file.name, trp021_first_line, Some("bikes_allowed"),
                 Some(format!("{trp021_missing_count}/{total}")), Some("0".to_string()),
@@ -552,12 +552,12 @@ pub fn validate_trips_with_limits(
 
     // ARC_013: akış gövdesinde kapanmamış tırnak (issue #84) — DOSYA başına tek notice.
     if scan.unclosed || zip_unclosed {
-        notices.push( super::common::arc013_unclosed_stream(&file.name, &mut counter));
+        notices.push(super::common::arc013_unclosed_stream(&file.name, &mut counter));
     }
 
     // ARC_033: DOSYA başına TEK özet (kopya denetim yok — #75 dersi).
     if let Some(n) = super::common::arc033_summary(&rfc_acc, &file.name, &mut counter) {
-        notices.push( n);
+        notices.push(n);
     }
 
     (records, interns, notices)

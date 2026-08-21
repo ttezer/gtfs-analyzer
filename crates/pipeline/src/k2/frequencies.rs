@@ -31,7 +31,7 @@ pub fn validate_frequencies(file: &RawFile) -> (Vec<FrequencyRecord>, Vec<gtfs_c
 
         // FRQ_001: trip_id required (sütun yoksa ARC_025 devralır → atla)
         if get_raw_field(&row_map, "trip_id").map(str::trim) == Some("") {
-            notices.push( make_k2_notice(
+            notices.push(make_k2_notice(
                 &mut counter, "FRQ_001", EntityType::Trip, None,
                 Some(&row_map), &file.name, Some(line), Some("trip_id"),
                 Some(String::new()), None,
@@ -44,7 +44,7 @@ pub fn validate_frequencies(file: &RawFile) -> (Vec<FrequencyRecord>, Vec<gtfs_c
         let start_time = match parse_gtfs_time(&row_map, "start_time") {
             Ok(v) => {
                 if get_trimmed_field(&row_map, "start_time") == Some("") {
-                    notices.push( make_k2_notice(
+                    notices.push(make_k2_notice(
                         &mut counter, "FRQ_002", EntityType::Trip, entity_id.clone(),
                         Some(&row_map), &file.name, Some(line), Some("start_time"),
                         Some(String::new()), Some("HH:MM:SS".to_string()),
@@ -55,7 +55,7 @@ pub fn validate_frequencies(file: &RawFile) -> (Vec<FrequencyRecord>, Vec<gtfs_c
                 v
             }
             Err(err) => {
-                notices.push( make_k2_notice(
+                notices.push(make_k2_notice(
                     &mut counter, "FRQ_002", EntityType::Trip, entity_id.clone(),
                     Some(&row_map), &file.name, Some(line), Some("start_time"),
                     get_trimmed_field(&row_map, "start_time").map(str::to_string),
@@ -70,7 +70,7 @@ pub fn validate_frequencies(file: &RawFile) -> (Vec<FrequencyRecord>, Vec<gtfs_c
         let end_time = match parse_gtfs_time(&row_map, "end_time") {
             Ok(v) => {
                 if get_trimmed_field(&row_map, "end_time") == Some("") {
-                    notices.push( make_k2_notice(
+                    notices.push(make_k2_notice(
                         &mut counter, "FRQ_003", EntityType::Trip, entity_id.clone(),
                         Some(&row_map), &file.name, Some(line), Some("end_time"),
                         Some(String::new()), Some("HH:MM:SS".to_string()),
@@ -81,7 +81,7 @@ pub fn validate_frequencies(file: &RawFile) -> (Vec<FrequencyRecord>, Vec<gtfs_c
                 v
             }
             Err(err) => {
-                notices.push( make_k2_notice(
+                notices.push(make_k2_notice(
                     &mut counter, "FRQ_003", EntityType::Trip, entity_id.clone(),
                     Some(&row_map), &file.name, Some(line), Some("end_time"),
                     get_trimmed_field(&row_map, "end_time").map(str::to_string),
@@ -99,7 +99,7 @@ pub fn validate_frequencies(file: &RawFile) -> (Vec<FrequencyRecord>, Vec<gtfs_c
                     None => {
                         // sütun yoksa ARC_025 devralır → atla
                         if get_trimmed_field(&row_map, "headway_secs") == Some("") {
-                            notices.push( make_k2_notice(
+                            notices.push(make_k2_notice(
                                 &mut counter, "FRQ_004", EntityType::Trip, entity_id.clone(),
                                 Some(&row_map), &file.name, Some(line), Some("headway_secs"),
                                 Some(String::new()), Some("> 0".to_string()),
@@ -112,7 +112,7 @@ pub fn validate_frequencies(file: &RawFile) -> (Vec<FrequencyRecord>, Vec<gtfs_c
                     Some(val) => {
                         // FRQ_008: headway_secs == 0
                         if val == 0 {
-                            notices.push( make_k2_notice(
+                            notices.push(make_k2_notice(
                                 &mut counter, "FRQ_008", EntityType::Trip, entity_id.clone(),
                                 Some(&row_map), &file.name, Some(line), Some("headway_secs"),
                                 Some("0".to_string()), Some("> 0".to_string()),
@@ -122,7 +122,7 @@ pub fn validate_frequencies(file: &RawFile) -> (Vec<FrequencyRecord>, Vec<gtfs_c
                         }
                         // FRQ_009: headway_secs çok kısa (< 60s)
                         if val > 0 && val < 60 {
-                            notices.push( make_k2_notice(
+                            notices.push(make_k2_notice(
                                 &mut counter, "FRQ_009", EntityType::Trip, entity_id.clone(),
                                 Some(&row_map), &file.name, Some(line), Some("headway_secs"),
                                 Some(format!("{val}s")), Some("≥ 60s".to_string()),
@@ -135,7 +135,7 @@ pub fn validate_frequencies(file: &RawFile) -> (Vec<FrequencyRecord>, Vec<gtfs_c
                 }
             }
             Err(err) => {
-                notices.push( make_k2_notice(
+                notices.push(make_k2_notice(
                     &mut counter, "FRQ_004", EntityType::Trip, entity_id.clone(),
                     Some(&row_map), &file.name, Some(line), Some("headway_secs"),
                     get_trimmed_field(&row_map, "headway_secs").map(str::to_string),
@@ -151,7 +151,7 @@ pub fn validate_frequencies(file: &RawFile) -> (Vec<FrequencyRecord>, Vec<gtfs_c
             let s_secs = s.0 * 3600 + s.1 * 60 + s.2;
             let e_secs = e.0 * 3600 + e.1 * 60 + e.2;
             if e_secs <= s_secs {
-                notices.push( make_k2_notice(
+                notices.push(make_k2_notice(
                     &mut counter, "FRQ_005", EntityType::Trip, entity_id.clone(),
                     Some(&row_map), &file.name, Some(line), Some("end_time"),
                     get_trimmed_field(&row_map, "end_time").map(str::to_string),
@@ -175,7 +175,7 @@ pub fn validate_frequencies(file: &RawFile) -> (Vec<FrequencyRecord>, Vec<gtfs_c
             let e_secs = e.0 * 3600 + e.1 * 60 + e.2;
             let exact = get_trimmed_field(&row_map, "exact_times") == Some("1");
             if exact && h > 0 && e_secs > s_secs && (e_secs - s_secs) % h == 0 {
-                notices.push( make_k2_notice(
+                notices.push(make_k2_notice(
                     &mut counter, "FRQ_012", EntityType::Trip, entity_id.clone(),
                     Some(&row_map), &file.name, Some(line), Some("end_time"),
                     get_trimmed_field(&row_map, "end_time").map(str::to_string),
@@ -195,7 +195,7 @@ pub fn validate_frequencies(file: &RawFile) -> (Vec<FrequencyRecord>, Vec<gtfs_c
             Ok(v) => {
                 if let Some(val) = v {
                     if !validate_enum(&val.to_string(), &["0", "1"]) {
-                        notices.push( make_k2_notice(
+                        notices.push(make_k2_notice(
                             &mut counter, "FRQ_007", EntityType::Trip, entity_id.clone(),
                             Some(&row_map), &file.name, Some(line), Some("exact_times"),
                             Some(val.to_string()), Some("0 veya 1".to_string()),
@@ -209,7 +209,7 @@ pub fn validate_frequencies(file: &RawFile) -> (Vec<FrequencyRecord>, Vec<gtfs_c
             Err(err) => {
                 // Sayı OLMAYAN değer eskiden sessizce düşüyordu: aralık dışı sayı FRQ_007 üretirken
                 // "abc" hiçbir bulgu vermiyordu. Aynı olgunun iki dalı → aynı kural (PTH_027 emsali).
-                notices.push( make_k2_notice(
+                notices.push(make_k2_notice(
                     &mut counter, "FRQ_007", EntityType::Trip, entity_id.clone(),
                     Some(&row_map), &file.name, Some(line), Some("exact_times"),
                     get_trimmed_field(&row_map, "exact_times").map(str::to_string), Some("0 veya 1".to_string()),
@@ -259,7 +259,7 @@ pub fn validate_frequencies(file: &RawFile) -> (Vec<FrequencyRecord>, Vec<gtfs_c
         let mut max_end = periods[0].1;
         for &(cur_start, cur_end, cur_line, cur_row) in &periods[1..] {
             if cur_start < max_end {
-                notices.push( make_k2_notice(
+                notices.push(make_k2_notice(
                     &mut counter, "FRQ_011", EntityType::Trip, Some(trip.to_string()),
                     Some(cur_row), &file.name, Some(cur_line), Some("start_time"),
                     get_trimmed_field(cur_row, "start_time").map(str::to_string),

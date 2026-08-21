@@ -444,7 +444,7 @@ pub fn validate_with_stream_limit(
     {
         let mut ctr = 0u32;
         for (name, rows) in files_over_row_limit(&records.streaming_row_counts, cfg.max_file_rows as u64) {
-            notices.push( make_k2_notice(
+            notices.push(make_k2_notice(
                 &mut ctr, "ARC_022", gtfs_core::EntityType::File, Some(name.to_string()),
                 None, name, None, None,
                 Some(format!("{rows}")), None,
@@ -461,7 +461,7 @@ pub fn validate_with_stream_limit(
         let agency_lang = ag.agency_lang.as_deref().unwrap_or("").to_lowercase();
         if !agency_lang.is_empty() && feed_lang != agency_lang {
             let mut ctr = 0u32;
-            notices.push( make_k2_notice(
+            notices.push(make_k2_notice(
                 &mut ctr, "AGN_013", gtfs_core::EntityType::Feed, None,
                 None, "feed_info.txt", None, Some("feed_lang"),
                 Some(fi.feed_lang.clone()),
