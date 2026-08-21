@@ -1593,12 +1593,15 @@ pub fn parse_with_limits(
             || raw_name == "trips.txt" || raw_name == "calendar_dates.txt";
 
         k1dbg!("[K1] tokenizing: {raw_name}");
-        // CSV tokenization — stream_mode'da yalnızca başlık (Some(0)); diğer dosyalarda
-        // da K1'in ham Vec büyümesini config'teki satır bütçesiyle sınırla.
+        // CSV tokenization — stream_mode'da yalnızca başlık (Some(0)). SDK'nin
+        // sınırlı parse yolunda akış-dışı dosyaların ham Vec büyümesini config'teki
+        // satır bütçesiyle sınırla; native parse yolunda tarihsel tam-korpus davranışını koru.
         let _t = crate::timing::Timer::start(format!("K1::tokenize::{raw_name}"));
+        let buffered_row_limit = (!stream_mode && buffered_entry_limit.is_some())
+            .then_some(cfg.max_file_rows as usize);
         let (mut records, csv_truncated, rfc4180) = match tokenize_csv(
             text,
-            Some(if stream_mode { 0 } else { cfg.max_file_rows as usize }),
+            if stream_mode { Some(0) } else { buffered_row_limit },
         ) {
             Ok(r) => r,
             Err(msg) => {
@@ -2802,6 +2805,40 @@ mod tests {
         // Tavanın altındaki gerçek boyutlar aynen geçer (davranış değişmez).
         assert_eq!(prealloc_capacity(1000), 1000);
         assert_eq!(prealloc_capacity(MAX_PREALLOC), MAX_PREALLOC);
+    }
+
+    #[test]
+    fn native_parse_preserves_full_buffered_files_while_sdk_parse_limits_them() {
+        let mut fare_rules = String::from("fare_id,price,currency\n");
+        for i in 0..12 {
+            fare_rules.push_str(&format!("F{i},1.00,EUR\n"));
+        }
+        let zip = zip_with_files(&[
+            ("agency.txt", b"agency_id,agency_name,agency_url,agency_timezone\nA1,Test,http://x.test,UTC\n"),
+            ("stops.txt", b"stop_id,stop_name,stop_lat,stop_lon\nS1,Stop,41,29\n"),
+            ("routes.txt", b"route_id,agency_id,route_short_name,route_type\nR1,A1,1,3\n"),
+            ("trips.txt", b"route_id,service_id,trip_id\nR1,S1,T1\n"),
+            ("stop_times.txt", b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\n"),
+            ("calendar.txt", b"service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nS1,1,1,1,1,1,0,0,20260101,20261231\n"),
+            ("fare_rules.txt", fare_rules.as_bytes()),
+        ]);
+        let cfg = ValidatorConfig {
+            max_file_rows: 10,
+            ..ValidatorConfig::default()
+        };
+
+        let native = super::parse_with_limits(
+            &zip, &cfg, super::DEFAULT_DECOMPRESSION_LIMITS, None,
+        ).expect("native parse başarılı olmalı");
+        let sdk = super::parse_with_limits(
+            &zip,
+            &cfg,
+            crate::decompress_guard::SDK_DECOMPRESSION_LIMITS,
+            Some(crate::decompress_guard::SDK_MAX_BUFFERED_FILE_BYTES),
+        ).expect("SDK parse başarılı olmalı");
+
+        assert_eq!(native.files["fare_rules.txt"].rows.len(), 12);
+        assert_eq!(sdk.files["fare_rules.txt"].rows.len(), 10);
     }
 
     #[test]

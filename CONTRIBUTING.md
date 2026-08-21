@@ -100,6 +100,17 @@ standalone with `npm run typecheck` (requires the wasm packages to be built firs
 2. Keep changes focused; ensure `cargo test --workspace` and the UI tests pass.
 3. Open a PR against `main`; CI must be green (drift check may warn, that's fine).
 
+### Full MobilityDatabase audit
+
+The full MobilityDatabase GTFS Schedule audit is intentionally **manual**; it is
+not triggered automatically by a push or pull request. Run it from the Actions
+page with `workflow_dispatch` after the final commit has been pushed.
+
+Any pull request that changes `crates/pipeline/**` requires one successful manual
+full-corpus audit before merge. The audit must be run against the final PR head,
+and its run URL and result must be recorded in the PR. This requirement is in
+addition to the normal CI checks; normal CI remains automatic.
+
 ## License
 
 By contributing, you agree that your contributions are licensed under the

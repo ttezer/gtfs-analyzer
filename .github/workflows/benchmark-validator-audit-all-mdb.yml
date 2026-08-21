@@ -1,11 +1,9 @@
 name: Full MobilityDatabase GTFS Schedule Audit
 
 on:
-  pull_request:
-    branches: [main]
-    paths:
-      - 'benchmark/audit_all/**'
-      - '.github/workflows/benchmark-validator-audit-all-mdb.yml'
+  # Full-corpus audit is deliberately manual. A PR/push trigger here caused the
+  # workflow to retrigger itself whenever this workflow file changed, producing
+  # repeated 72-minute runs for unrelated validator fixes.
   workflow_dispatch:
 
 permissions:
