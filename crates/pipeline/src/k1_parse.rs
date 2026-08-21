@@ -145,9 +145,6 @@ const MAX_PREALLOC: usize = 64 * 1024 * 1024; // 64 MiB
 const MAX_ZIP_ENTRIES: usize = 100_000;
 const MAX_ZIP_METADATA_BYTES: usize = 16 * 1024 * 1024;
 const MAX_GEOJSON_BYTES: u64 = 64 * 1024 * 1024;
-const MAX_GEOJSON_FEATURES: usize = 100_000;
-const MAX_GEOJSON_RING_POINTS: usize = 10_000;
-const MAX_GEOJSON_TOTAL_POINTS: usize = 1_000_000;
 
 /// K1 ham dosya tamponu için başlangıç kapasitesi: beyan edilen boyutu [`MAX_PREALLOC`]
 /// ile sınırlar ve en az 1 döndürür (sıfır-kapasite alloc'u anlamsız).
@@ -1282,7 +1279,6 @@ pub fn parse_with_limits(
     let mut counter: u32 = 0;
     let mut geojson_location_ids: std::collections::HashSet<String> = std::collections::HashSet::new();
     let mut geojson_geometries: std::collections::HashMap<String, LocationGeometry> = std::collections::HashMap::new();
-    let mut geojson_total_points = 0usize;
     let mut raw_files: RawFiles = HashMap::new();
     let mut present_files: HashSet<String> = HashSet::new();
     // locations.geojson özel işlendiği için present_files'e aşağıdaki dalda eklenir.
@@ -1319,7 +1315,7 @@ pub fn parse_with_limits(
         }
         // Hoşgörü uygulandı: dosya işlenecek ama alt dizinde olduğu yine de bulgudur.
         if raw_name != entry_name && raw_name.ends_with(".txt") {
-            crate::notice_budget::push(&mut notices, make_notice(
+            notices.push( make_notice(
                 &mut counter, "ARC_024",
                 EntityType::File, Some(entry_name.clone()),
                 Some(&entry_name), None, None,
@@ -1329,7 +1325,7 @@ pub fn parse_with_limits(
             ));
         }
         if raw_name.ends_with(".txt") && zf.unix_mode().is_some_and(|mode| mode & 0o400 == 0) {
-            crate::notice_budget::push(&mut notices, make_notice(&mut counter, "ARC_027", EntityType::File, Some(raw_name.clone()),
+            notices.push( make_notice(&mut counter, "ARC_027", EntityType::File, Some(raw_name.clone()),
                 Some(&raw_name), None, None, zf.unix_mode().map(|m| format!("{m:o}")),
                 format!("'{raw_name}' ZIP girdisinde kullanıcı okuma izni bulunmuyor."),
                 "ZIP girdisinin Unix izinlerine user-read (0400) bitini ekleyin."));
@@ -1337,7 +1333,7 @@ pub fn parse_with_limits(
 
         // ARC_023: ZIP içinde nested ZIP dosyası
         if raw_name.ends_with(".zip") && !raw_name.contains('/') && !raw_name.contains('\\') {
-            crate::notice_budget::push(&mut notices, make_notice(
+            notices.push( make_notice(
                 &mut counter, "ARC_023",
                 EntityType::File, Some(raw_name.clone()),
                 Some(&raw_name), None, None,
@@ -1366,7 +1362,6 @@ pub fn parse_with_limits(
                         &mut counter,
                         &mut geojson_location_ids,
                         &mut geojson_geometries,
-                        &mut geojson_total_points,
                     );
                     if !has_valid_locations_geojson {
                         partial.mark_unavailable(raw_name.clone());
@@ -1375,7 +1370,7 @@ pub fn parse_with_limits(
                 Err(e) => {
                     // locations.geojson is optional; an unreadable entry must not make
                     // stops.txt optional, and must be visible in PARTIAL metadata.
-                    crate::notice_budget::push(&mut notices, make_notice(
+                    notices.push( make_notice(
                         &mut counter, "LOC_001", EntityType::File, Some(raw_name.clone()),
                         Some(&raw_name), None, None, None,
                         format!("'{raw_name}' okunamadı: {e}"),
@@ -1389,7 +1384,7 @@ pub fn parse_with_limits(
 
         // ARC_024: Alt dizinde .txt dosyası — standart parser'lar bu dosyaları atlar
         if raw_name.ends_with(".txt") && (raw_name.contains('/') || raw_name.contains('\\')) {
-            crate::notice_budget::push(&mut notices, make_notice(
+            notices.push( make_notice(
                 &mut counter, "ARC_024",
                 EntityType::File, Some(raw_name.clone()),
                 Some(&raw_name), None, None,
@@ -1405,7 +1400,7 @@ pub fn parse_with_limits(
         // ARC_024 yukarıda özel işlendi; bunlar buraya ulaşmadan continue etti.
         if !raw_name.ends_with(".txt") {
             if !raw_name.contains('/') && !raw_name.contains('\\') {
-                crate::notice_budget::push(&mut notices, make_notice(
+                notices.push( make_notice(
                     &mut counter, "ARC_007",
                     EntityType::File, Some(raw_name.clone()),
                     Some(&raw_name), None, None,
@@ -1490,7 +1485,7 @@ pub fn parse_with_limits(
                     if scanned >= probe_limit { break; }
                 }
                 if reached_eof { malformed_eol |= previous_was_cr; }
-                if malformed_eol { crate::notice_budget::push(&mut notices, make_notice(&mut counter, "ARC_026", EntityType::File, Some(raw_name.clone()), Some(&raw_name), None, None, Some("CR not followed by LF".to_string()), format!("'{raw_name}' CRLF veya LF dışında satır sonu içeriyor."), "Satır sonlarını LF ya da CRLF olarak yeniden yazın.")); }
+                if malformed_eol { notices.push( make_notice(&mut counter, "ARC_026", EntityType::File, Some(raw_name.clone()), Some(&raw_name), None, None, Some("CR not followed by LF".to_string()), format!("'{raw_name}' CRLF veya LF dışında satır sonu içeriyor."), "Satır sonlarını LF ya da CRLF olarak yeniden yazın.")); }
                 // 8192'lik kesme çok baytlı bir UTF-8 karakterini ortadan bölebilir.
                 // Kırpılmazsa aşağıdaki from_utf8 GEÇERLİ dosyayı bozuk sanar ve
                 // zorunlu dosyada Utf8Critical → feed tümüyle reddedilirdi.
@@ -1500,13 +1495,13 @@ pub fn parse_with_limits(
             }
         }
         if !is_zip_stream && has_malformed_eol(&raw_vec) {
-            crate::notice_budget::push(&mut notices, make_notice(&mut counter, "ARC_026", EntityType::File, Some(raw_name.clone()), Some(&raw_name), None, None, Some("CR not followed by LF".to_string()), format!("'{raw_name}' CRLF veya LF dışında satır sonu içeriyor."), "Satır sonlarını LF ya da CRLF olarak yeniden yazın."));
+            notices.push( make_notice(&mut counter, "ARC_026", EntityType::File, Some(raw_name.clone()), Some(&raw_name), None, None, Some("CR not followed by LF".to_string()), format!("'{raw_name}' CRLF veya LF dışında satır sonu içeriyor."), "Satır sonlarını LF ya da CRLF olarak yeniden yazın."));
         }
 
         // ARC_011: Dosya boyutu — tüm kök .txt dosyaları için (bilinmeyen dahil).
         // zip_stream partial_read'de raw_vec yalnızca başlık (~8KB); gerçek boyut ZIP metadata'sından.
         let file_size_bytes = if is_zip_stream { uncompressed_hint } else { raw_vec.len() };
-        crate::notice_budget::push(&mut notices, make_notice(
+        notices.push( make_notice(
             &mut counter, "ARC_011",
             EntityType::File, Some(raw_name.clone()),
             Some(&raw_name), None, None,
@@ -1517,7 +1512,7 @@ pub fn parse_with_limits(
 
         // ARC_007: Bilinmeyen dosya — boyut kaydedildikten sonra atla
         if !is_known {
-            crate::notice_budget::push(&mut notices, make_notice(
+            notices.push( make_notice(
                 &mut counter, "ARC_007",
                 EntityType::File, Some(raw_name.clone()),
                 Some(&raw_name), None, None,
@@ -1530,7 +1525,7 @@ pub fn parse_with_limits(
 
         // ARC_006: İsteğe bağlı dosya mevcut (BİLGİ)
         if !is_required {
-            crate::notice_budget::push(&mut notices, make_notice(
+            notices.push( make_notice(
                 &mut counter, "ARC_006",
                 EntityType::File, Some(raw_name.clone()),
                 Some(&raw_name), None, None,
@@ -1545,7 +1540,7 @@ pub fn parse_with_limits(
         if has_bom {
             // ARC_010 ve DQ_014 aynı koşul — ikisi ayrı ayrı ateşlenmez;
             // DQ_014 sadece ARC_002 suppressor listesinde referans, ARC_010 onu kapsar.
-            crate::notice_budget::push(&mut notices, make_notice(
+            notices.push( make_notice(
                 &mut counter, "ARC_010",
                 EntityType::File, Some(raw_name.clone()),
                 Some(&raw_name), None, None,
@@ -1562,7 +1557,7 @@ pub fn parse_with_limits(
             Ok(s) => s,
             Err(_) => {
                 // ARC_002: Kritik UTF-8 ihlali
-                crate::notice_budget::push(&mut notices, make_notice(
+                notices.push( make_notice(
                     &mut counter, "ARC_002",
                     EntityType::File, Some(raw_name.clone()),
                     Some(&raw_name), None, None,
@@ -1572,7 +1567,7 @@ pub fn parse_with_limits(
                 ));
                 partial.mark_unavailable(raw_name.clone());
                 if !is_required {
-                    crate::notice_budget::push(&mut notices, make_notice(
+                    notices.push( make_notice(
                         &mut counter, "ARC_003",
                         EntityType::File, Some(raw_name.clone()),
                         Some(&raw_name), None, None,
@@ -1608,7 +1603,7 @@ pub fn parse_with_limits(
             Ok(r) => r,
             Err(msg) => {
                 // ARC_013
-                crate::notice_budget::push(&mut notices, make_notice(
+                notices.push( make_notice(
                     &mut counter, "ARC_013",
                     EntityType::File, Some(raw_name.clone()),
                     Some(&raw_name), None, None,
@@ -1657,7 +1652,7 @@ pub fn parse_with_limits(
                 if !arc009_critical(&raw_name) {
                     n.severity = Severity::Bilgi;
                 }
-                crate::notice_budget::push(&mut notices, n);
+                notices.push( n);
             }
             continue;
         }
@@ -1668,7 +1663,7 @@ pub fn parse_with_limits(
         // ARC_014: Başlıkta boşluk
         for (col_i, hdr) in raw_headers.iter().enumerate() {
             if hdr != hdr.trim() {
-                crate::notice_budget::push(&mut notices, make_notice(
+                notices.push( make_notice(
                     &mut counter, "ARC_014",
                     EntityType::File, Some(raw_name.clone()),
                     Some(&raw_name), Some(1), Some(hdr.as_str()),
@@ -1686,7 +1681,7 @@ pub fn parse_with_limits(
         // ARC_019: Başlıkta boş sütun adı
         for hdr in &headers {
             if hdr.is_empty() {
-                crate::notice_budget::push(&mut notices, make_notice(
+                notices.push( make_notice(
                     &mut counter, "ARC_019",
                     EntityType::File, Some(raw_name.clone()),
                     Some(&raw_name), Some(1), None,
@@ -1702,7 +1697,7 @@ pub fn parse_with_limits(
         let mut seen_hdrs: HashSet<&str> = HashSet::new();
         for hdr in &headers {
             if !seen_hdrs.insert(hdr.as_str()) {
-                crate::notice_budget::push(&mut notices, make_notice(
+                notices.push( make_notice(
                     &mut counter, "ARC_015",
                     EntityType::File, Some(raw_name.clone()),
                     Some(&raw_name), Some(1), Some(hdr.as_str()),
@@ -1718,7 +1713,7 @@ pub fn parse_with_limits(
         if !known_cols.is_empty() {
             for hdr in &headers {
                 if !known_cols.contains(&hdr.as_str()) && !hdr.starts_with("jp_") {
-                    crate::notice_budget::push(&mut notices, make_notice(
+                    notices.push( make_notice(
                         &mut counter, "ARC_017",
                         EntityType::File, Some(raw_name.clone()),
                         Some(&raw_name), Some(1), Some(hdr.as_str()),
@@ -1744,7 +1739,7 @@ pub fn parse_with_limits(
         // k2 grup kuralının konusudur.
         for &f in req_flds.iter().chain(extra_req) {
             if !headers.iter().any(|h| h == f) {
-                crate::notice_budget::push(&mut notices, make_notice(
+                notices.push( make_notice(
                     &mut counter, "ARC_025",
                     EntityType::File, Some(raw_name.clone()),
                     Some(&raw_name), Some(1), Some(f),
@@ -1782,12 +1777,12 @@ pub fn parse_with_limits(
                 if is_info {
                     n.severity = Severity::Bilgi;
                 }
-                crate::notice_budget::push(&mut notices, n);
+                notices.push( n);
             }
 
             // ARC_018: Boş veri satırı (tüm alanlar boş)
             if row.iter().all(|v| v.trim().is_empty()) {
-                crate::notice_budget::push(&mut notices, make_notice(
+                notices.push( make_notice(
                     &mut counter, "ARC_018",
                     EntityType::File, Some(raw_name.clone()),
                     Some(&raw_name), Some(line_num), None,
@@ -1815,7 +1810,7 @@ pub fn parse_with_limits(
             // eşit olmalı. Tek bir sütunda `route_id` değerinin "route_id" olması
             // meşrudur ve tetiklemez; hepsinin birden eşleşmesi başka türlü oluşamaz.
             if arc034_is_header_repeat(&row[..], &headers[..]) {
-                crate::notice_budget::push(&mut notices, make_notice(
+                notices.push( make_notice(
                     &mut counter, "ARC_034",
                     EntityType::File, Some(raw_name.clone()),
                     Some(&raw_name), Some(line_num), None,
@@ -1830,7 +1825,7 @@ pub fn parse_with_limits(
             if !arc021_fired {
                 if let Some(cp) = arc021_bad_char(row.iter().map(|v| v.as_str())) {
                     arc021_fired = true;
-                    crate::notice_budget::push(&mut notices, make_notice(
+                    notices.push( make_notice(
                         &mut counter, "ARC_021",
                         EntityType::File, Some(raw_name.clone()),
                         Some(&raw_name), Some(line_num), None,
@@ -1845,7 +1840,7 @@ pub fn parse_with_limits(
             if !arc030_fired {
                 if let Some(cp) = arc030_bad_whitespace(row.iter().map(|v| v.as_str())) {
                     arc030_fired = true;
-                    crate::notice_budget::push(&mut notices, make_notice(
+                    notices.push( make_notice(
                         &mut counter, "ARC_030",
                         EntityType::File, Some(raw_name.clone()),
                         Some(&raw_name), Some(line_num), None,
@@ -1875,12 +1870,12 @@ pub fn parse_with_limits(
                 Some(observed), msg, DQ016_REMEDIATION,
             );
             n.details = dq016.evidence_details();
-            crate::notice_budget::push(&mut notices, n);
+            notices.push( n);
         }
 
         // ARC_032: DOSYA başına TEK özet (DQ_016 ile aynı patlama önlemi).
         if let Some((observed, msg, cols)) = arc032.summary(&raw_name) {
-            crate::notice_budget::push(&mut notices, make_notice(
+            notices.push( make_notice(
                 &mut counter, "ARC_032",
                 EntityType::File, Some(raw_name.clone()),
                 Some(raw_name.as_str()), arc032.first_line, Some(cols.as_str()),
@@ -1894,7 +1889,7 @@ pub fn parse_with_limits(
         if rfc4180.rows > 0 {
             let kind = rfc4180.kind.unwrap_or(RFC4180_BARE_QUOTE);
             let example = rfc4180.example.clone().unwrap_or_default();
-            crate::notice_budget::push(&mut notices, make_notice(
+            notices.push( make_notice(
                 &mut counter, "ARC_033",
                 EntityType::File, Some(raw_name.clone()),
                 Some(raw_name.as_str()), rfc4180.first_line, None,
@@ -1912,7 +1907,7 @@ pub fn parse_with_limits(
         // yeterli değildir; `csv_truncated` gerçek aşımı taşır.
         let max_rows = cfg.max_file_rows as usize;
         if !stream_mode && (csv_truncated || rows.len() > max_rows) {
-            crate::notice_budget::push(&mut notices, make_notice(
+            notices.push( make_notice(
                 &mut counter, "ARC_022",
                 EntityType::File, Some(raw_name.clone()),
                 Some(&raw_name), None, None,
@@ -1944,7 +1939,7 @@ pub fn parse_with_limits(
             if !arc009_critical(&raw_name) {
                 n.severity = Severity::Bilgi;
             }
-            crate::notice_budget::push(&mut notices, n);
+            notices.push( n);
         }
 
         // zip_stream partial_read'de bytes = ~8KB snippet; gerçek boyut ZIP metadata'sında.
@@ -1987,7 +1982,7 @@ pub fn parse_with_limits(
     if !missing.is_empty() {
         for &f in &missing {
             partial.mark_unavailable(f);
-            crate::notice_budget::push(&mut notices, make_notice(
+            notices.push( make_notice(
                 &mut counter, "ARC_004",
                 EntityType::Feed, None,
                 None, None, None,
@@ -2003,7 +1998,7 @@ pub fn parse_with_limits(
         .iter()
         .any(|&f| present_files.contains(f));
     if !has_any_calendar {
-        crate::notice_budget::push(&mut notices, make_notice(
+        notices.push( make_notice(
             &mut counter, "ARC_008",
             EntityType::Feed, None,
             None, None, None,
@@ -2016,7 +2011,7 @@ pub fn parse_with_limits(
     // ARC_031: spec dosya düzeyi hükmü — feed_info.txt, translations.txt varsa ZORUNLU.
     // Koşul sağlanmadığında dosya yalnız TAVSİYE edilir; o hâli ARC_020 (Quality) taşır.
     if present_files.contains("translations.txt") && !present_files.contains("feed_info.txt") {
-        crate::notice_budget::push(&mut notices, make_notice(
+        notices.push( make_notice(
             &mut counter, "ARC_031",
             EntityType::Feed, None,
             None, None, None,
@@ -2046,12 +2041,11 @@ fn validate_locations_geojson(
     counter: &mut u32,
     geojson_ids: &mut std::collections::HashSet<String>,
     geoms: &mut std::collections::HashMap<String, LocationGeometry>,
-    total_points: &mut usize,
 ) -> bool {
     let text = match std::str::from_utf8(bytes) {
         Ok(s) => s,
         Err(_) => {
-            crate::notice_budget::push(notices, make_notice(
+            notices.push( make_notice(
                 counter, "ARC_002", EntityType::File, Some(fname.to_string()),
                 Some(fname), None, None, None,
                 format!("'{fname}' UTF-8 kodlamasıyla okunamıyor."),
@@ -2064,7 +2058,7 @@ fn validate_locations_geojson(
     let json: serde_json::Value = match serde_json::from_str(text) {
         Ok(v) => v,
         Err(e) => {
-            crate::notice_budget::push(notices, make_notice(
+            notices.push( make_notice(
                 counter, "LOC_001", EntityType::File, Some(fname.to_string()),
                 Some(fname), None, None, Some(format!("JSON hatası: {e}")),
                 format!("'{fname}' geçerli bir GeoJSON belgesi değil: {e}"),
@@ -2076,7 +2070,7 @@ fn validate_locations_geojson(
 
     let root_type = json.get("type").and_then(|t| t.as_str());
     if root_type != Some("FeatureCollection") {
-        crate::notice_budget::push(notices, make_notice(
+        notices.push( make_notice(
             counter, "LOC_001", EntityType::File, Some(fname.to_string()),
             Some(fname), None, Some("type"), root_type.map(str::to_string),
             format!("'{fname}' kök tipi 'FeatureCollection' olmalıdır; bulundu: '{}'.", root_type.unwrap_or("yok")),
@@ -2086,7 +2080,7 @@ fn validate_locations_geojson(
     }
 
     let Some(features) = json.get("features").and_then(|f| f.as_array()) else {
-        crate::notice_budget::push(notices, make_notice(
+        notices.push( make_notice(
             counter, "LOC_001", EntityType::File, Some(fname.to_string()),
             Some(fname), None, Some("features"), None,
             format!("'{fname}' için 'features' dizisi eksik veya geçersiz."),
@@ -2095,19 +2089,9 @@ fn validate_locations_geojson(
         return false;
     };
 
-    if features.len() > MAX_GEOJSON_FEATURES {
-        crate::notice_budget::push(notices, make_notice(
-            counter, "LOC_001", EntityType::File, Some(fname.to_string()),
-            Some(fname), None, Some("features"), Some(features.len().to_string()),
-            format!("'{fname}' güvenlik sınırı olan {MAX_GEOJSON_FEATURES} feature sayısını aşıyor."),
-            "locations.geojson dosyasını daha küçük parçalara bölün.",
-        ));
-        return false;
-    }
-
     // LOC_005: FeatureCollection boş
     if features.is_empty() {
-        crate::notice_budget::push(notices, make_notice(
+        notices.push( make_notice(
             counter, "LOC_005", EntityType::File, Some(fname.to_string()),
             Some(fname), None, Some("features"), None,
             format!("'{fname}' FeatureCollection'ı boş — hiç feature yok."),
@@ -2125,7 +2109,7 @@ fn validate_locations_geojson(
                 // XFL_025: stop_times.location_id ham CSV değeriyle eşleşmesi için tırnaksız ham id.
                 geojson_ids.insert(id_val.as_str().map(str::to_string).unwrap_or_else(|| id_str.clone()));
                 if let Some(first_idx) = seen_ids.get(&id_str) {
-                    crate::notice_budget::push(notices, make_notice(
+                    notices.push( make_notice(
                         counter, "LOC_007", EntityType::File, Some(fname.to_string()),
                         Some(fname), Some((i + 1) as u64), Some("id"), Some(id_str.clone()),
                         format!("'{fname}' özellik {} ve {} aynı 'id' değerine sahip ({id_str}) — GTFS Flex referansı belirsizleşir.", first_idx + 1, i + 1),
@@ -2146,7 +2130,7 @@ fn validate_locations_geojson(
         match feature.get("type").and_then(|v| v.as_str()) {
             Some("Feature") => {}
             other => {
-                crate::notice_budget::push(notices, make_notice(
+                notices.push( make_notice(
                     counter, "LOC_008", EntityType::File, Some(fname.to_string()),
                     Some(fname), Some(feat_num), Some("type"),
                     other.map(str::to_string),
@@ -2159,7 +2143,7 @@ fn validate_locations_geojson(
         // LOC_009: "properties" nesnesi Required (spec tablosu). Boş nesne GEÇERLİDİR —
         // stop_name/stop_desc opsiyoneldir; eksik ya da nesne-olmayan değer ihlaldir.
         if !feature.get("properties").is_some_and(|v| v.is_object()) {
-            crate::notice_budget::push(notices, make_notice(
+            notices.push( make_notice(
                 counter, "LOC_009", EntityType::File, Some(fname.to_string()),
                 Some(fname), Some(feat_num), Some("properties"), None,
                 format!("'{fname}' özellik {feat_num} için 'properties' nesnesi eksik."),
@@ -2169,7 +2153,7 @@ fn validate_locations_geojson(
 
         // LOC_003: Feature'da 'id' property eksik
         if feature.get("id").is_none() {
-            crate::notice_budget::push(notices, make_notice(
+            notices.push( make_notice(
                 counter, "LOC_003", EntityType::File, Some(fname.to_string()),
                 Some(fname), Some(feat_num), Some("id"), None,
                 format!("'{fname}' özellik {feat_num} için 'id' property eksik — stop_times çapraz referansı için zorunlu."),
@@ -2190,7 +2174,7 @@ fn validate_locations_geojson(
 
         // LOC_002: Feature'da geometry null veya eksik
         if geometry.is_none_or(|g| g.is_null()) {
-            crate::notice_budget::push(notices, make_notice(
+            notices.push( make_notice(
                 counter, "LOC_002", EntityType::File, Some(fname.to_string()),
                 Some(fname), Some(feat_num), Some("geometry"), None,
                 format!("'{fname}' özellik {feat_num} için geometry null veya eksik — GTFS Flex gerektiriyor."),
@@ -2206,7 +2190,7 @@ fn validate_locations_geojson(
                 // LOC_010: "coordinates" Required. Eksik/dizi-olmayan değerde eskiden
                 // `if let Some(..)` sessizce atlıyordu → geometri hiç doğrulanmadan geçiyordu.
                 match geometry.get("coordinates").and_then(|c| c.as_array()) {
-                    Some(rings) => check_polygon_rings(counter, fname, feat_num, rings, notices, total_points, Some(&mut geom)),
+                    Some(rings) => check_polygon_rings(counter, fname, feat_num, rings, notices, Some(&mut geom)),
                     None => missing_coordinates(counter, fname, feat_num, notices),
                 }
             }
@@ -2216,14 +2200,14 @@ fn validate_locations_geojson(
                     Some(polygons) => {
                         for poly in polygons {
                             if let Some(rings) = poly.as_array() {
-                                check_polygon_rings(counter, fname, feat_num, rings, notices, total_points, Some(&mut geom));
+                                check_polygon_rings(counter, fname, feat_num, rings, notices, Some(&mut geom));
                             }
                         }
                     }
                 }
             }
             Some(t) => {
-                crate::notice_budget::push(notices, make_notice(
+                notices.push( make_notice(
                     counter, "LOC_001", EntityType::File, Some(fname.to_string()),
                     Some(fname), Some(feat_num), Some("geometry.type"), Some(t.to_string()),
                     format!("'{fname}' özellik {feat_num} geçersiz geometri tipi: '{t}'. GTFS Flex yalnızca Polygon ve MultiPolygon destekler."),
@@ -2231,7 +2215,7 @@ fn validate_locations_geojson(
                 ));
             }
             None => {
-                crate::notice_budget::push(notices, make_notice(
+                notices.push( make_notice(
                     counter, "LOC_001", EntityType::File, Some(fname.to_string()),
                     Some(fname), Some(feat_num), Some("geometry.type"), None,
                     format!("'{fname}' özellik {feat_num} için geometri tipi eksik."),
@@ -2258,7 +2242,7 @@ fn validate_locations_geojson(
 /// LOC_010: geometry.coordinates eksik veya dizi değil. Spec bu alanı Required işaretler;
 /// eksikliğinde bölge geometrisi hiç çözümlenemez, dolayısıyla KRİTİK.
 fn missing_coordinates(counter: &mut u32, fname: &str, feat_num: u64, notices: &mut Vec<Notice>) {
-    crate::notice_budget::push(notices, make_notice(
+    notices.push( make_notice(
         counter, "LOC_010", EntityType::File, Some(fname.to_string()),
         Some(fname), Some(feat_num), Some("coordinates"), None,
         format!("'{fname}' özellik {feat_num} için geometry 'coordinates' eksik veya dizi değil."),
@@ -2272,28 +2256,10 @@ fn check_polygon_rings(
     feat_num: u64,
     rings: &[serde_json::Value],
     notices: &mut Vec<Notice>,
-    total_points: &mut usize,
     // Pa1fdaa0d: dış ring K6'ya taşınır. `None` verilirse geometri toplanmaz
     // (yalnız doğrulama yapılır) — testler ve eski çağrı yolları için.
     collect: Option<&mut LocationGeometry>,
 ) {
-    let point_count = rings.iter().fold(0usize, |sum, ring| {
-        sum.saturating_add(ring.as_array().map_or(0, Vec::len))
-    });
-    if rings.len() > 1_024
-        || rings.iter().filter_map(|r| r.as_array()).any(|pts| pts.len() > MAX_GEOJSON_RING_POINTS)
-        || total_points.saturating_add(point_count) > MAX_GEOJSON_TOTAL_POINTS
-    {
-        crate::notice_budget::push(notices, make_notice(
-            counter, "LOC_011", EntityType::File, Some(fname.to_string()),
-            Some(fname), Some(feat_num), Some("coordinates"), Some(point_count.to_string()),
-            format!("'{fname}' özellik {feat_num} geometrisi GeoJSON güvenlik bütçesini aşıyor; pahalı geometri denetimi atlandı."),
-            "Geometri ring sayısını ve nokta sayısını azaltın.",
-        ));
-        return;
-    }
-    *total_points = total_points.saturating_add(point_count);
-
     let mut all_lats = Vec::new();
     let mut all_lons = Vec::new();
     let mut already_reported_closure = false;
@@ -2315,7 +2281,7 @@ fn check_polygon_rings(
             let last_lat  = last.get(1).and_then(|v| v.as_f64());
             if let (Some(fl), Some(fa), Some(ll), Some(la)) = (first_lon, first_lat, last_lon, last_lat) {
                 if (fl - ll).abs() > 1e-8 || (fa - la).abs() > 1e-8 {
-                    crate::notice_budget::push(notices, make_notice(
+                    notices.push( make_notice(
                         counter, "LOC_004", EntityType::File, Some(fname.to_string()),
                         Some(fname), Some(feat_num), Some("coordinates"), None,
                         format!("'{fname}' özellik {feat_num} Polygon ring'i kapalı değil — ilk nokta [{fl},{fa}] son nokta [{ll},{la}] ile eşleşmiyor."),
@@ -2400,7 +2366,7 @@ fn check_polygon_rings(
             bad = interior_disconnection(&all_rings);
         }
         if let Some(why) = bad {
-            crate::notice_budget::push(notices, make_notice(
+            notices.push( make_notice(
                 counter, "LOC_011", EntityType::File, Some(fname.to_string()),
                 Some(fname), Some(feat_num), Some("coordinates"), Some(why.clone()),
                 format!("'{fname}' özellik {feat_num} poligonu OpenGIS Simple Features 6.1.11'e göre geçersiz: {why}."),
@@ -2421,7 +2387,7 @@ fn check_polygon_rings(
         let holes: f64 = ring_areas[1..].iter().map(|a| a.abs()).sum();
         let area_km2 = (outer - holes).max(0.0);
         if area_km2 > 500.0 {
-            crate::notice_budget::push(notices, make_notice(
+            notices.push( make_notice(
                 counter, "LOC_006", EntityType::File, Some(fname.to_string()),
                 Some(fname), Some(feat_num), Some("coordinates"), Some(format!("{area_km2:.0}km²")),
                 format!("'{fname}' özellik {feat_num} Polygon alanı çok büyük (~{area_km2:.0}km²) — GTFS Flex bölgesi için gerçekçi değil."),

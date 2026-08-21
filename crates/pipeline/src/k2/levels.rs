@@ -23,7 +23,7 @@ pub fn validate_levels(file: &RawFile) -> (Vec<LevelRecord>, Vec<gtfs_core::Noti
         let level_id = get_raw_field(&row_map, "level_id").unwrap_or("").to_string();
         // LVL_008: level_id required (sütun yoksa ARC_025 devralır → atla)
         if get_raw_field(&row_map, "level_id").map(str::trim) == Some("") {
-            crate::notice_budget::push(&mut notices, make_k2_notice(
+            notices.push( make_k2_notice(
                 &mut counter, "LVL_008", EntityType::Level, None, Some(&row_map),
                 &file.name, Some(line), Some("level_id"), Some(String::new()), None,
                 "level_id zorunludur.".to_string(), "Her kata benzersiz bir level_id verin.",
@@ -35,7 +35,7 @@ pub fn validate_levels(file: &RawFile) -> (Vec<LevelRecord>, Vec<gtfs_core::Noti
             Ok(v) => {
                 // LVL_007: level_index required (sütun yoksa ARC_025 devralır → atla)
                 if v.is_none() && get_trimmed_field(&row_map, "level_index") == Some("") {
-                    crate::notice_budget::push(&mut notices, make_k2_notice(
+                    notices.push( make_k2_notice(
                         &mut counter, "LVL_007", EntityType::Level, entity_id.clone(), Some(&row_map),
                         &file.name, Some(line), Some("level_index"), Some(String::new()), None,
                         "level_index zorunludur.".to_string(),
@@ -45,7 +45,7 @@ pub fn validate_levels(file: &RawFile) -> (Vec<LevelRecord>, Vec<gtfs_core::Noti
                 v
             }
             Err(err) => {
-                crate::notice_budget::push(&mut notices, make_k2_notice(
+                notices.push( make_k2_notice(
                     &mut counter,
                     "LVL_002",
                     EntityType::Level,
@@ -67,7 +67,7 @@ pub fn validate_levels(file: &RawFile) -> (Vec<LevelRecord>, Vec<gtfs_core::Noti
             .filter(|v| !v.trim().is_empty())
             .map(str::to_string);
         if level_name.is_none() {
-            crate::notice_budget::push(&mut notices, make_k2_notice(
+            notices.push( make_k2_notice(
                 &mut counter,
                 "LVL_003",
                 EntityType::Level,
@@ -86,7 +86,7 @@ pub fn validate_levels(file: &RawFile) -> (Vec<LevelRecord>, Vec<gtfs_core::Noti
         // LVL_005: level_name çok uzun (> 255 karakter)
         if let Some(ref name) = level_name {
             if name.len() > 255 {
-                crate::notice_budget::push(&mut notices, make_k2_notice(
+                notices.push( make_k2_notice(
                     &mut counter, "LVL_005", EntityType::Level, entity_id.clone(),
                     Some(&row_map), &file.name, Some(line), Some("level_name"),
                     Some(format!("{} karakter", name.len())), Some("≤ 255 karakter".to_string()),

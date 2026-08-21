@@ -34,7 +34,7 @@ pub fn validate_rider_categories(
         let name = get_trimmed_field(&row_map, "rider_category_name").unwrap_or("").to_string();
         // sütun başlıkta yoksa ARC_025 devralır → atla
         if get_trimmed_field(&row_map, "rider_category_name") == Some("") {
-            crate::notice_budget::push(&mut notices, make_k2_notice(
+            notices.push( make_k2_notice(
                 &mut counter, "RCT_002", EntityType::Row, entity_id.clone(), Some(&row_map),
                 &file.name, Some(line), Some("rider_category_name"), None,
                 Some("dolu".to_string()),
@@ -47,7 +47,7 @@ pub fn validate_rider_categories(
             Ok(value) => {
                 if let Some(v) = value {
                     if !validate_enum(&v.to_string(), &["0", "1"]) {
-                        crate::notice_budget::push(&mut notices, make_k2_notice(
+                        notices.push( make_k2_notice(
                             &mut counter, "RCT_003", EntityType::Row, entity_id.clone(), Some(&row_map),
                             &file.name, Some(line), Some("is_default_fare_category"), Some(v.to_string()),
                             Some("0 veya 1".to_string()),
@@ -59,7 +59,7 @@ pub fn validate_rider_categories(
                 value
             }
             Err(err) => {
-                crate::notice_budget::push(&mut notices, make_k2_notice(
+                notices.push( make_k2_notice(
                     &mut counter, "RCT_003", EntityType::Row, entity_id.clone(), Some(&row_map),
                     &file.name, Some(line), Some("is_default_fare_category"),
                     get_trimmed_field(&row_map, "is_default_fare_category").map(str::to_string),
@@ -73,7 +73,7 @@ pub fn validate_rider_categories(
         let min_age = match parse_u32(&row_map, "min_age") {
             Ok(v) => v,
             Err(err) => {
-                crate::notice_budget::push(&mut notices, make_k2_notice(
+                notices.push( make_k2_notice(
                     &mut counter, "RCT_004", EntityType::Row, entity_id.clone(), Some(&row_map),
                     &file.name, Some(line), Some("min_age"),
                     get_trimmed_field(&row_map, "min_age").map(str::to_string),
@@ -87,7 +87,7 @@ pub fn validate_rider_categories(
         let max_age = match parse_u32(&row_map, "max_age") {
             Ok(v) => v,
             Err(err) => {
-                crate::notice_budget::push(&mut notices, make_k2_notice(
+                notices.push( make_k2_notice(
                     &mut counter, "RCT_004", EntityType::Row, entity_id.clone(), Some(&row_map),
                     &file.name, Some(line), Some("max_age"),
                     get_trimmed_field(&row_map, "max_age").map(str::to_string),
@@ -100,7 +100,7 @@ pub fn validate_rider_categories(
 
         if let (Some(mn), Some(mx)) = (min_age, max_age) {
             if mx < mn {
-                crate::notice_budget::push(&mut notices, make_k2_notice(
+                notices.push( make_k2_notice(
                     &mut counter, "RCT_005", EntityType::Row, entity_id.clone(), Some(&row_map),
                     &file.name, Some(line), Some("max_age"), Some(mx.to_string()),
                     Some(format!(">= {mn}")),
@@ -116,7 +116,7 @@ pub fn validate_rider_categories(
             .map(str::to_string);
         if let Some(ref url) = eligibility_url {
             if !looks_like_url(url) {
-                crate::notice_budget::push(&mut notices, make_k2_notice(
+                notices.push( make_k2_notice(
                     &mut counter, "RCT_007", EntityType::Row, Some(id.clone()), Some(&row_map),
                     &file.name, Some(line), Some("eligibility_url"), Some(url.clone()), None,
                     "eligibility_url geçerli bir URL değil.".to_string(),

@@ -35,7 +35,7 @@ pub fn validate_fare_transfer_rules(
             Ok(value) => {
                 if let Some(v) = value {
                     if !validate_enum(&v.to_string(), &["0", "1", "2"]) {
-                        crate::notice_budget::push(&mut notices, make_k2_notice(
+                        notices.push( make_k2_notice(
                             &mut counter, "FTR_001", EntityType::Row, entity_id.clone(), Some(&row_map),
                             &file.name, Some(line), Some("fare_transfer_type"), Some(v.to_string()),
                             Some("0–2".to_string()),
@@ -44,7 +44,7 @@ pub fn validate_fare_transfer_rules(
                         ));
                     }
                 } else if get_trimmed_field(&row_map, "fare_transfer_type") == Some("") {
-                    crate::notice_budget::push(&mut notices, make_k2_notice(
+                    notices.push( make_k2_notice(
                         &mut counter, "FTR_001", EntityType::Row, entity_id.clone(), Some(&row_map),
                         &file.name, Some(line), Some("fare_transfer_type"), None,
                         Some("0–2".to_string()),
@@ -55,7 +55,7 @@ pub fn validate_fare_transfer_rules(
                 value
             }
             Err(err) => {
-                crate::notice_budget::push(&mut notices, make_k2_notice(
+                notices.push( make_k2_notice(
                     &mut counter, "FTR_001", EntityType::Row, entity_id.clone(), Some(&row_map),
                     &file.name, Some(line), Some("fare_transfer_type"),
                     get_trimmed_field(&row_map, "fare_transfer_type").map(str::to_string),
@@ -70,7 +70,7 @@ pub fn validate_fare_transfer_rules(
             Ok(value) => {
                 if let Some(v) = value {
                     if !validate_enum(&v.to_string(), &["0", "1", "2", "3"]) {
-                        crate::notice_budget::push(&mut notices, make_k2_notice(
+                        notices.push( make_k2_notice(
                             &mut counter, "FTR_005", EntityType::Row, entity_id.clone(), Some(&row_map),
                             &file.name, Some(line), Some("duration_limit_type"), Some(v.to_string()),
                             Some("0–3".to_string()),
@@ -82,7 +82,7 @@ pub fn validate_fare_transfer_rules(
                 value
             }
             Err(err) => {
-                crate::notice_budget::push(&mut notices, make_k2_notice(
+                notices.push( make_k2_notice(
                     &mut counter, "FTR_005", EntityType::Row, entity_id.clone(), Some(&row_map),
                     &file.name, Some(line), Some("duration_limit_type"),
                     get_trimmed_field(&row_map, "duration_limit_type").map(str::to_string),
@@ -97,7 +97,7 @@ pub fn validate_fare_transfer_rules(
             Ok(value) => {
                 if let Some(v) = value {
                     if v == 0 {
-                        crate::notice_budget::push(&mut notices, make_k2_notice(
+                        notices.push( make_k2_notice(
                             &mut counter, "FTR_006", EntityType::Row, entity_id.clone(), Some(&row_map),
                             &file.name, Some(line), Some("duration_limit"), Some(v.to_string()),
                             Some("> 0".to_string()),
@@ -109,7 +109,7 @@ pub fn validate_fare_transfer_rules(
                 value
             }
             Err(err) => {
-                crate::notice_budget::push(&mut notices, make_k2_notice(
+                notices.push( make_k2_notice(
                     &mut counter, "FTR_006", EntityType::Row, entity_id.clone(), Some(&row_map),
                     &file.name, Some(line), Some("duration_limit"),
                     get_trimmed_field(&row_map, "duration_limit").map(str::to_string),
@@ -122,7 +122,7 @@ pub fn validate_fare_transfer_rules(
 
         // FTR_007: duration_limit_type, duration_limit olmadan anlamsız
         if duration_limit_type.is_some() && duration_limit.is_none() {
-            crate::notice_budget::push(&mut notices, make_k2_notice(
+            notices.push( make_k2_notice(
                 &mut counter, "FTR_007", EntityType::Row, entity_id.clone(), Some(&row_map),
                 &file.name, Some(line), Some("duration_limit"), None,
                 Some("dolu".to_string()),
@@ -139,7 +139,7 @@ pub fn validate_fare_transfer_rules(
             match raw.parse::<i32>() {
                 Ok(v) if v == -1 || v > 0 => Some(v),
                 Ok(v) => {
-                    crate::notice_budget::push(&mut notices, make_k2_notice(
+                    notices.push( make_k2_notice(
                         &mut counter, "FTR_008", EntityType::Row, entity_id.clone(), Some(&row_map),
                         &file.name, Some(line), Some("transfer_count"), Some(v.to_string()),
                         Some("-1 veya > 0".to_string()),
@@ -149,7 +149,7 @@ pub fn validate_fare_transfer_rules(
                     None
                 }
                 Err(_) => {
-                    crate::notice_budget::push(&mut notices, make_k2_notice(
+                    notices.push( make_k2_notice(
                         &mut counter, "FTR_008", EntityType::Row, entity_id.clone(), Some(&row_map),
                         &file.name, Some(line), Some("transfer_count"), Some(raw.clone()),
                         Some("-1 veya > 0".to_string()),
@@ -173,14 +173,14 @@ pub fn validate_fare_transfer_rules(
         // Varlık kontrolü ham alan üzerinden (transfer_count_raw); geçersiz değer FTR_008'e bırakılır.
         if let (Some(f), Some(t)) = (from_leg.as_deref(), to_leg.as_deref()) {
             if f == t && transfer_count_raw.is_none() {
-                crate::notice_budget::push(&mut notices, make_k2_notice(
+                notices.push( make_k2_notice(
                     &mut counter, "FTR_009", EntityType::Row, entity_id.clone(), Some(&row_map),
                     &file.name, Some(line), Some("transfer_count"), None, Some("dolu".to_string()),
                     "from_leg_group_id ile to_leg_group_id aynı olduğunda transfer_count zorunludur.".to_string(),
                     "transfer_count girin (-1 = sınırsız veya pozitif bir değer).",
                 ));
             } else if f != t && transfer_count_raw.is_some() {
-                crate::notice_budget::push(&mut notices, make_k2_notice(
+                notices.push( make_k2_notice(
                     &mut counter, "FTR_010", EntityType::Row, entity_id.clone(), Some(&row_map),
                     &file.name, Some(line), Some("transfer_count"),
                     transfer_count_raw.clone(), Some("(boş)".to_string()),
@@ -192,7 +192,7 @@ pub fn validate_fare_transfer_rules(
 
         // FTR_011: duration_limit tanımlıyken duration_limit_type zorunludur (FTR_007'nin ters yönü).
         if duration_limit.is_some() && duration_limit_type.is_none() {
-            crate::notice_budget::push(&mut notices, make_k2_notice(
+            notices.push( make_k2_notice(
                 &mut counter, "FTR_011", EntityType::Row, entity_id.clone(), Some(&row_map),
                 &file.name, Some(line), Some("duration_limit_type"), None, Some("dolu".to_string()),
                 "duration_limit tanımlandığında duration_limit_type de belirtilmelidir.".to_string(),

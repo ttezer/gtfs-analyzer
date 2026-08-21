@@ -183,7 +183,7 @@ pub fn validate_with_stream_limit(
         let _t = Timer::start("K2::agency");
         let (agency_records, agency_notices) = validate_agency(file);
         records.agencies = agency_records;
-        crate::notice_budget::extend(&mut notices, agency_notices);
+        notices.extend(agency_notices);
     }
 
     if let Some(file) = files.get("agency_jp.txt") {
@@ -200,14 +200,14 @@ pub fn validate_with_stream_limit(
         let _t = Timer::start("K2::attributions");
         let (attribution_records, attribution_notices) = validate_attributions(file);
         records.attributions = attribution_records;
-        crate::notice_budget::extend(&mut notices, attribution_notices);
+        notices.extend(attribution_notices);
     }
 
     if let Some(file) = files.get("calendar.txt") {
         let _t = Timer::start("K2::calendar");
         let (calendar_records, calendar_notices) = validate_calendar(file);
         records.calendars = calendar_records;
-        crate::notice_budget::extend(&mut notices, calendar_notices);
+        notices.extend(calendar_notices);
     }
 
     if let Some(file) = files.get("calendar_dates.txt") {
@@ -218,7 +218,7 @@ pub fn validate_with_stream_limit(
                 stream_budget.as_mut().map(|budget| &mut *budget),
             );
         records.calendar_dates = calendar_date_records;
-        crate::notice_budget::extend(&mut notices, calendar_date_notices);
+        notices.extend(calendar_date_notices);
         records.streaming_row_counts.insert("calendar_dates.txt".to_string(), records.calendar_dates.raw_row_count);
         mem_log(&format!(
             "K2::calendar_dates done: svcs={} exc_total={} added_dates={} removed_dates={}",
@@ -233,14 +233,14 @@ pub fn validate_with_stream_limit(
         let _t = Timer::start("K2::feed_info");
         let (feed_info_records, feed_info_notices) = validate_feed_info(file);
         records.feed_info = feed_info_records;
-        crate::notice_budget::extend(&mut notices, feed_info_notices);
+        notices.extend(feed_info_notices);
     }
 
     if let Some(file) = files.get("fare_attributes.txt") {
         let _t = Timer::start("K2::fare_attributes");
         let (fare_attribute_records, fare_attribute_notices) = validate_fare_attributes(file);
         records.fare_attributes = fare_attribute_records;
-        crate::notice_budget::extend(&mut notices, fare_attribute_notices);
+        notices.extend(fare_attribute_notices);
     }
 
     if let Some(file) = files.get("fare_rules.txt") {
@@ -252,28 +252,28 @@ pub fn validate_with_stream_limit(
         let _t = Timer::start("K2::frequencies");
         let (frequency_records, frequency_notices) = validate_frequencies(file);
         records.frequencies = frequency_records;
-        crate::notice_budget::extend(&mut notices, frequency_notices);
+        notices.extend(frequency_notices);
     }
 
     if let Some(file) = files.get("levels.txt") {
         let _t = Timer::start("K2::levels");
         let (level_records, level_notices) = validate_levels(file);
         records.levels = level_records;
-        crate::notice_budget::extend(&mut notices, level_notices);
+        notices.extend(level_notices);
     }
 
     if let Some(file) = files.get("pathways.txt") {
         let _t = Timer::start("K2::pathways");
         let (pathway_records, pathway_notices) = validate_pathways(file);
         records.pathways = pathway_records;
-        crate::notice_budget::extend(&mut notices, pathway_notices);
+        notices.extend(pathway_notices);
     }
 
     if let Some(file) = files.get("routes.txt") {
         let _t = Timer::start("K2::routes");
         let (route_records, route_notices) = validate_routes(file);
         records.routes = route_records;
-        crate::notice_budget::extend(&mut notices, route_notices);
+        notices.extend(route_notices);
     }
 
     if let Some(file) = files.get("shapes.txt") {
@@ -285,7 +285,7 @@ pub fn validate_with_stream_limit(
             );
         records.shapes = shape_records;
         records.shape_interns = shape_interns;
-        crate::notice_budget::extend(&mut notices, shape_notices);
+        notices.extend(shape_notices);
         records.streaming_row_counts.insert("shapes.txt".to_string(), records.shapes.len() as u64);
         mem_log("K2 after shapes records");
     }
@@ -294,21 +294,21 @@ pub fn validate_with_stream_limit(
         let _t = Timer::start("K2::stops");
         let (stop_records, stop_notices) = validate_stops(file);
         records.stops = stop_records;
-        crate::notice_budget::extend(&mut notices, stop_notices);
+        notices.extend(stop_notices);
     }
 
     if let Some(file) = files.get("transfers.txt") {
         let _t = Timer::start("K2::transfers");
         let (transfer_records, transfer_notices) = validate_transfers(file);
         records.transfers = transfer_records;
-        crate::notice_budget::extend(&mut notices, transfer_notices);
+        notices.extend(transfer_notices);
     }
 
     if let Some(file) = files.get("translations.txt") {
         let _t = Timer::start("K2::translations");
         let (translation_records, translation_notices) = validate_translations(file);
         records.translations = translation_records;
-        crate::notice_budget::extend(&mut notices, translation_notices);
+        notices.extend(translation_notices);
     }
 
     if let Some(file) = files.get("trips.txt") {
@@ -320,7 +320,7 @@ pub fn validate_with_stream_limit(
             );
         records.trips = trip_records;
         records.trip_interns = trip_interns;
-        crate::notice_budget::extend(&mut notices, trip_notices);
+        notices.extend(trip_notices);
         records.streaming_row_counts.insert("trips.txt".to_string(), records.trips.len() as u64);
         mem_log("K2 after trips records");
     }
@@ -334,7 +334,7 @@ pub fn validate_with_stream_limit(
         let _t = Timer::start("K2::booking_rules");
         let (bkr_records, bkr_notices) = validate_booking_rules(file);
         records.booking_rules = bkr_records;
-        crate::notice_budget::extend(&mut notices, bkr_notices);
+        notices.extend(bkr_notices);
     }
 
     if let Some(file) = files.get("stop_areas.txt") {
@@ -361,42 +361,42 @@ pub fn validate_with_stream_limit(
         let _t = Timer::start("K2::rider_categories");
         let (rcat_records, rcat_notices) = validate_rider_categories(file);
         records.rider_categories = rcat_records;
-        crate::notice_budget::extend(&mut notices, rcat_notices);
+        notices.extend(rcat_notices);
     }
 
     if let Some(file) = files.get("fare_media.txt") {
         let _t = Timer::start("K2::fare_media");
         let (fmed_records, fmed_notices) = validate_fare_media(file);
         records.fare_media = fmed_records;
-        crate::notice_budget::extend(&mut notices, fmed_notices);
+        notices.extend(fmed_notices);
     }
 
     if let Some(file) = files.get("fare_products.txt") {
         let _t = Timer::start("K2::fare_products");
         let (fprod_records, fprod_notices) = validate_fare_products(file);
         records.fare_products = fprod_records;
-        crate::notice_budget::extend(&mut notices, fprod_notices);
+        notices.extend(fprod_notices);
     }
 
     if let Some(file) = files.get("fare_leg_rules.txt") {
         let _t = Timer::start("K2::fare_leg_rules");
         let (flr_records, flr_notices) = validate_fare_leg_rules(file);
         records.fare_leg_rules = flr_records;
-        crate::notice_budget::extend(&mut notices, flr_notices);
+        notices.extend(flr_notices);
     }
 
     if let Some(file) = files.get("fare_transfer_rules.txt") {
         let _t = Timer::start("K2::fare_transfer_rules");
         let (ftr_records, ftr_notices) = validate_fare_transfer_rules(file);
         records.fare_transfer_rules = ftr_records;
-        crate::notice_budget::extend(&mut notices, ftr_notices);
+        notices.extend(ftr_notices);
     }
 
     if let Some(file) = files.get("timeframes.txt") {
         let _t = Timer::start("K2::timeframes");
         let (tfr_records, tfr_notices) = validate_timeframes(file);
         records.timeframes = tfr_records;
-        crate::notice_budget::extend(&mut notices, tfr_notices);
+        notices.extend(tfr_notices);
     }
 
     records.has_route_networks_file = files.contains_key("route_networks.txt");
@@ -424,7 +424,7 @@ pub fn validate_with_stream_limit(
             stream_budget.as_mut().map(|budget| &mut *budget),
         );
         records.stop_times_index = stm_index;
-        crate::notice_budget::extend(&mut notices, stop_time_notices);
+        notices.extend(stop_time_notices);
         records.streaming_row_counts.insert("stop_times.txt".to_string(), records.stop_times_index.total_rows as u64);
         mem_log("K2 after stop_times index");
     }
@@ -444,7 +444,7 @@ pub fn validate_with_stream_limit(
     {
         let mut ctr = 0u32;
         for (name, rows) in files_over_row_limit(&records.streaming_row_counts, cfg.max_file_rows as u64) {
-            crate::notice_budget::push(&mut notices, make_k2_notice(
+            notices.push( make_k2_notice(
                 &mut ctr, "ARC_022", gtfs_core::EntityType::File, Some(name.to_string()),
                 None, name, None, None,
                 Some(format!("{rows}")), None,
@@ -461,7 +461,7 @@ pub fn validate_with_stream_limit(
         let agency_lang = ag.agency_lang.as_deref().unwrap_or("").to_lowercase();
         if !agency_lang.is_empty() && feed_lang != agency_lang {
             let mut ctr = 0u32;
-            crate::notice_budget::push(&mut notices, make_k2_notice(
+            notices.push( make_k2_notice(
                 &mut ctr, "AGN_013", gtfs_core::EntityType::Feed, None,
                 None, "feed_info.txt", None, Some("feed_lang"),
                 Some(fi.feed_lang.clone()),

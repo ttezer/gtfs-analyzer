@@ -52,7 +52,7 @@ pub fn validate_fare_products(
         let amount = match parse_f64(&row_map, "amount") {
             Ok(value) => {
                 if value.is_none() && get_trimmed_field(&row_map, "amount") == Some("") {
-                    crate::notice_budget::push(&mut notices, make_k2_notice(
+                    notices.push( make_k2_notice(
                         &mut counter, "FPD_002", EntityType::Row, entity_id.clone(), Some(&row_map),
                         &file.name, Some(line), Some("amount"), None,
                         Some("sayısal değer".to_string()),
@@ -63,7 +63,7 @@ pub fn validate_fare_products(
                 value
             }
             Err(err) => {
-                crate::notice_budget::push(&mut notices, make_k2_notice(
+                notices.push( make_k2_notice(
                     &mut counter, "FPD_002", EntityType::Row, entity_id.clone(), Some(&row_map),
                     &file.name, Some(line), Some("amount"),
                     get_trimmed_field(&row_map, "amount").map(str::to_string),
@@ -79,7 +79,7 @@ pub fn validate_fare_products(
             match ic_price_raw.parse::<f64>() {
                 Ok(v) if v >= 0.0 || (v - (-1.0)).abs() < 1e-9 => {}
                 Ok(v) => {
-                    crate::notice_budget::push(&mut notices, make_k2_notice(
+                    notices.push( make_k2_notice(
                         &mut counter, "GGL_002", EntityType::Row, entity_id.clone(), Some(&row_map),
                         &file.name, Some(line), Some("ic_price"),
                         Some(v.to_string()), Some("-1 veya >= 0".to_string()),
@@ -88,7 +88,7 @@ pub fn validate_fare_products(
                     ));
                 }
                 Err(_) => {
-                    crate::notice_budget::push(&mut notices, make_k2_notice(
+                    notices.push( make_k2_notice(
                         &mut counter, "GGL_002", EntityType::Row, entity_id.clone(), Some(&row_map),
                         &file.name, Some(line), Some("ic_price"),
                         Some(ic_price_raw.to_string()), Some("-1 veya >= 0".to_string()),
@@ -103,7 +103,7 @@ pub fn validate_fare_products(
         // ⚠️ ISO 4217 AKTİF kod listesi (issue #82): eski denetim "üç büyük harf" idi,
         // `ZZZ` geçiyordu ve `iso4217_minor_unit` onu sessizce 2 ondalık sayıyordu.
         if !super::common::is_iso4217(&currency) {
-            crate::notice_budget::push(&mut notices, make_k2_notice(
+            notices.push( make_k2_notice(
                 &mut counter, "FPD_003", EntityType::Row, entity_id.clone(), Some(&row_map),
                 &file.name, Some(line), Some("currency"), Some(currency.clone()),
                 Some("ISO 4217".to_string()),
@@ -138,7 +138,7 @@ pub fn validate_fare_products(
         let want = iso4217_minor_unit(&currency)
             .map(|u| u.to_string())
             .unwrap_or_else(|| "tanımsız".to_string());
-        crate::notice_budget::push(&mut notices, make_k2_notice(
+        notices.push( make_k2_notice(
             &mut counter, "FPD_007", EntityType::File, None, None,
             &file.name, Some(line), Some("amount"),
             Some(format!("{iso_bad} satır")), Some(format!("{want} ondalık basamak")),

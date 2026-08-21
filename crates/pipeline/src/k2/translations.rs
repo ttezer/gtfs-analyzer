@@ -58,7 +58,7 @@ pub fn validate_translations(
         let table_name = get_trimmed_field(&row_map, "table_name").unwrap_or("").to_string();
         let table_known = TRANSLATION_TABLES.contains(&table_name.as_str());
         if has_table_name && !table_known {
-            crate::notice_budget::push(&mut notices, make_k2_notice(
+            notices.push( make_k2_notice(
                 &mut counter,
                 "TRN_001",
                 EntityType::Row,
@@ -87,7 +87,7 @@ pub fn validate_translations(
         // türev bulgusu geliyordu. Kök zaten raporlandığı için türev susar.
         if has_table_name && has_field_name && table_known
             && !valid_fields_for_table(&table_name).contains(&field_name.as_str()) {
-            crate::notice_budget::push(&mut notices, make_k2_notice(
+            notices.push( make_k2_notice(
                 &mut counter,
                 "TRN_002",
                 EntityType::Row,
@@ -105,7 +105,7 @@ pub fn validate_translations(
 
         let language = get_trimmed_field(&row_map, "language").unwrap_or("").to_string();
         if has_language && !looks_like_bcp47(&language) {
-            crate::notice_budget::push(&mut notices, make_k2_notice(
+            notices.push( make_k2_notice(
                 &mut counter,
                 "TRN_003",
                 EntityType::Row,
@@ -123,7 +123,7 @@ pub fn validate_translations(
 
         let translation = get_trimmed_field(&row_map, "translation").unwrap_or("").to_string();
         if has_translation && translation.is_empty() {
-            crate::notice_budget::push(&mut notices, make_k2_notice(
+            notices.push( make_k2_notice(
                 &mut counter,
                 "TRN_008",
                 EntityType::Row,
@@ -155,7 +155,7 @@ pub fn validate_translations(
         //    zaten TRN_001/002/003/006/011 ateşliyor, yani ALTINCI kez aynı şeyi söylemek olurdu.
         let table_known = TRANSLATION_TABLES.contains(&table_name.as_str());
         if table_known && table_name != "feed_info" && record_id.is_none() && field_value.is_none() {
-            crate::notice_budget::push(&mut notices, make_k2_notice(
+            notices.push( make_k2_notice(
                 &mut counter,
                 "TRN_015",
                 EntityType::Row,
@@ -172,7 +172,7 @@ pub fn validate_translations(
         }
 
         if record_id.is_some() && field_value.is_some() {
-            crate::notice_budget::push(&mut notices, make_k2_notice(
+            notices.push( make_k2_notice(
                 &mut counter,
                 "TRN_009",
                 EntityType::Row,
@@ -193,7 +193,7 @@ pub fn validate_translations(
         // field_value modunda (record_id boş) record_sub_id yasaktır → FP üretme.
         if table_name == "stop_times" && record_id.is_some()
             && record_sub_id.is_none() {
-                crate::notice_budget::push(&mut notices, make_k2_notice(
+                notices.push( make_k2_notice(
                     &mut counter,
                     "TRN_010",
                     EntityType::Row,
@@ -220,7 +220,7 @@ pub fn validate_translations(
         // bu, o düzeltmenin atlanmış ikinci yarısıdır.
         let translatable = ["name", "desc", "url", "email", "phone", "headsign", "signposted_as"];
         if table_known && has_field_name && !translatable.iter().any(|needle| field_name.contains(needle)) {
-            crate::notice_budget::push(&mut notices, make_k2_notice(
+            notices.push( make_k2_notice(
                 &mut counter,
                 "TRN_011",
                 EntityType::Row,
@@ -237,7 +237,7 @@ pub fn validate_translations(
         }
 
         if table_name == "feed_info" && (record_id.is_some() || record_sub_id.is_some() || field_value.is_some()) {
-            crate::notice_budget::push(&mut notices, make_k2_notice(
+            notices.push( make_k2_notice(
                 &mut counter,
                 "TRN_013",
                 EntityType::Row,
@@ -262,7 +262,7 @@ pub fn validate_translations(
             && record_id.as_deref().is_some_and(|r| !r.is_empty())
             && record_sub_id.as_deref().is_none_or(str::is_empty)
         {
-            crate::notice_budget::push(&mut notices, make_k2_notice(
+            notices.push( make_k2_notice(
                 &mut counter, "TRN_017", EntityType::Row, record_id.clone(),
                 Some(&row_map), &file.name, Some(line), Some("record_sub_id"),
                 None, Some("stop_sequence".to_string()),
@@ -272,7 +272,7 @@ pub fn validate_translations(
         }
 
         if table_name != "stop_times" && record_sub_id.is_some() {
-            crate::notice_budget::push(&mut notices, make_k2_notice(
+            notices.push( make_k2_notice(
                 &mut counter,
                 "TRN_014",
                 EntityType::Row,
