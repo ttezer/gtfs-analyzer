@@ -1,7 +1,9 @@
 use std::collections::{HashMap, HashSet};
 use std::io::Read;
 
-use crate::decompress_guard::{GuardedReader, DEFAULT_DECOMPRESSION_LIMITS};
+use crate::decompress_guard::{
+    DecompressionLimits, GuardedReader, DEFAULT_DECOMPRESSION_LIMITS,
+};
 use gtfs_config::ValidatorConfig;
 use gtfs_core::{EntityType, FatalCode, FatalError, Notice, PartialReport, Severity};
 use smol_str::SmolStr;
@@ -135,6 +137,17 @@ const UTF8_BOM: &[u8] = &[0xEF, 0xBB, 0xBF];
 /// zorlayabilir. Beyanı bu tavana kapatırız; gerçek baytlar geldikçe Vec büyür, yani
 /// meşru büyük dosyalar için davranış değişmez, yalnızca başlangıç kapasitesi sınırlanır.
 const MAX_PREALLOC: usize = 64 * 1024 * 1024; // 64 MiB
+
+/// Merkezi dizin ve pahalı opsiyonel girdiler için sabit güvenlik bütçeleri.
+/// Bunlar normal GTFS feed'lerinin kapsamını daraltmaz; yalnızca saldırganın
+/// doğrulama sırasında sınırsız metadata/JSON ve geometrik karşılaştırma
+/// üretmesini engeller.
+const MAX_ZIP_ENTRIES: usize = 100_000;
+const MAX_ZIP_METADATA_BYTES: usize = 16 * 1024 * 1024;
+const MAX_GEOJSON_BYTES: u64 = 64 * 1024 * 1024;
+const MAX_GEOJSON_FEATURES: usize = 100_000;
+const MAX_GEOJSON_RING_POINTS: usize = 10_000;
+const MAX_GEOJSON_TOTAL_POINTS: usize = 1_000_000;
 
 /// K1 ham dosya tamponu için başlangıç kapasitesi: beyan edilen boyutu [`MAX_PREALLOC`]
 /// ile sınırlar ve en az 1 döndürür (sıfır-kapasite alloc'u anlamsız).
@@ -396,7 +409,8 @@ fn tokenize_csv(
             records.push(record);
             if let Some(max) = max_data_rows {
                 // records[0] başlık; veri satırı sayısı records.len()-1
-                if records.len() > max {
+                if records.len().saturating_sub(1) > max {
+                    records.pop();
                     truncated = true;
                     break;
                 }
@@ -1168,6 +1182,18 @@ fn detect_wrapped_root(entry_names: &[String]) -> Option<String> {
 /// verilir — knob'ın YALNIZ K1'de çalışması, 1M satırı gerçekte aşan iki dosyada
 /// (stop_times/shapes) sessizce etkisiz kalması demek olurdu.
 pub fn parse(zip_bytes: &[u8], cfg: &ValidatorConfig) -> Result<K1Result, FatalError> {
+    parse_with_limits(zip_bytes, cfg, DEFAULT_DECOMPRESSION_LIMITS, None)
+}
+
+/// K1'in native ve SDK çağrıları için ortak gövdesi. SDK, WASM belleği daha
+/// küçük olduğu için stream edilmeyen tek dosyalara ayrıca daha düşük bir sınır
+/// verir; native CLI'nin büyük feed davranışı korunur.
+pub fn parse_with_limits(
+    zip_bytes: &[u8],
+    cfg: &ValidatorConfig,
+    limits: DecompressionLimits,
+    buffered_entry_limit: Option<u64>,
+) -> Result<K1Result, FatalError> {
     k1dbg!("[K1] parse başladı, {} bayt", zip_bytes.len());
     let cursor = std::io::Cursor::new(zip_bytes);
     k1dbg!("[K1] ZipArchive::new çağrılıyor...");
@@ -1176,13 +1202,30 @@ pub fn parse(zip_bytes: &[u8], cfg: &ValidatorConfig) -> Result<K1Result, FatalE
         message: format!("ZIP arşivi açılamadı: {e}"),
     })?;
     k1dbg!("[K1] archive açıldı: {} entry", archive.len());
+    if archive.len() > MAX_ZIP_ENTRIES {
+        return Err(FatalError {
+            code: FatalCode::ResourceLimit,
+            message: format!("ZIP merkezi dizini {} girdilik güvenlik sınırını aşıyor.", MAX_ZIP_ENTRIES),
+        });
+    }
 
     // ARC_009 yanlış-pozitif guard'ı: calendar_dates.txt boş (veya yalnızca başlık) olsa bile
     // calendar.txt servisi tanımlıyorsa bu KRİTİK değildir (calendar_dates şartlı zorunludur,
     // calendar.txt varken opsiyoneldir). Döngü-sırasından bağımsız olsun diye önceden hesaplanır.
     // calendar.txt YOKSA boş calendar_dates "hiç servis tanımı yok" demektir → ARC_009 kalır.
     // Tek üst klasöre sarılmış feed → o klasörü kök kabul et (detay: detect_wrapped_root).
-    let entry_names: Vec<String> = archive.file_names().map(str::to_string).collect();
+    let mut entry_names = Vec::with_capacity(archive.len());
+    let mut metadata_bytes = 0usize;
+    for name in archive.file_names() {
+        metadata_bytes = metadata_bytes.saturating_add(name.len());
+        if metadata_bytes > MAX_ZIP_METADATA_BYTES {
+            return Err(FatalError {
+                code: FatalCode::ResourceLimit,
+                message: format!("ZIP merkezi dizini {MAX_ZIP_METADATA_BYTES} bayt metadata sınırını aşıyor."),
+            });
+        }
+        entry_names.push(name.to_string());
+    }
     let mut partial = PartialReport::default();
     let root_prefix = detect_wrapped_root(&entry_names);
     if let Some(prefix) = &root_prefix {
@@ -1239,6 +1282,7 @@ pub fn parse(zip_bytes: &[u8], cfg: &ValidatorConfig) -> Result<K1Result, FatalE
     let mut counter: u32 = 0;
     let mut geojson_location_ids: std::collections::HashSet<String> = std::collections::HashSet::new();
     let mut geojson_geometries: std::collections::HashMap<String, LocationGeometry> = std::collections::HashMap::new();
+    let mut geojson_total_points = 0usize;
     let mut raw_files: RawFiles = HashMap::new();
     let mut present_files: HashSet<String> = HashSet::new();
     // locations.geojson özel işlendiği için present_files'e aşağıdaki dalda eklenir.
@@ -1307,8 +1351,13 @@ pub fn parse(zip_bytes: &[u8], cfg: &ValidatorConfig) -> Result<K1Result, FatalE
         // locations.geojson: Flex GeoJSON lokasyon dosyası (özel işlem)
         if raw_name == "locations.geojson" {
             present_files.insert(raw_name.clone());
-            let mut buf = Vec::with_capacity(zf.size() as usize);
-            match zf.read_to_end(&mut buf) {
+            let declared_size = zf.size();
+            let compressed_size = zf.compressed_size();
+            let mut geo_limits = limits;
+            geo_limits.max_entry_decompressed = geo_limits.max_entry_decompressed.min(MAX_GEOJSON_BYTES);
+            let mut buf = Vec::with_capacity(prealloc_capacity(declared_size.min(MAX_GEOJSON_BYTES) as usize));
+            let mut guarded = GuardedReader::new(&mut zf, geo_limits, &mut total_decompressed, compressed_size);
+            match guarded.read_to_end(&mut buf) {
                 Ok(_) => {
                     has_valid_locations_geojson = validate_locations_geojson(
                         &buf,
@@ -1317,14 +1366,21 @@ pub fn parse(zip_bytes: &[u8], cfg: &ValidatorConfig) -> Result<K1Result, FatalE
                         &mut counter,
                         &mut geojson_location_ids,
                         &mut geojson_geometries,
+                        &mut geojson_total_points,
                     );
                     if !has_valid_locations_geojson {
                         partial.mark_unavailable(raw_name.clone());
                     }
                 }
-                Err(_) => {
+                Err(e) => {
                     // locations.geojson is optional; an unreadable entry must not make
                     // stops.txt optional, and must be visible in PARTIAL metadata.
+                    notices.push(make_notice(
+                        &mut counter, "LOC_001", EntityType::File, Some(raw_name.clone()),
+                        Some(&raw_name), None, None, None,
+                        format!("'{raw_name}' okunamadı: {e}"),
+                        "locations.geojson dosyasını geçerli UTF-8 JSON olarak yeniden üretin.",
+                    ));
                     partial.mark_unavailable(raw_name.clone());
                 }
             }
@@ -1371,7 +1427,7 @@ pub fn parse(zip_bytes: &[u8], cfg: &ValidatorConfig) -> Result<K1Result, FatalE
 
         // Bayt oku (ARC_011 için is_known kontrolünden önce yapılır)
         k1dbg!("[K1] okuma başladı: {raw_name} (compressed: {} b)", zf.compressed_size());
-        let uncompressed_hint = zf.size() as usize;
+        let uncompressed_hint = zf.size().min(usize::MAX as u64) as usize;
         // #38: Büyük dosyalar K2 ZIP stream eder; K1 yalnızca başlık satırını okur.
         // stop_times, trips, calendar_dates için 8 KB partial read; raw_text=None.
         let is_zip_stream = matches!(raw_name.as_str(), "stop_times.txt" | "shapes.txt" | "trips.txt" | "calendar_dates.txt");
@@ -1394,7 +1450,13 @@ pub fn parse(zip_bytes: &[u8], cfg: &ValidatorConfig) -> Result<K1Result, FatalE
             // Bomba tetiklerse read() hata döner; tripped() ile plain ZIP hatasından
             // ayrılıp ARC_029 (DecompressionLimit) Fatal'ı üretilir.
             let comp_size = zf.compressed_size();
-            let mut guarded = GuardedReader::new(&mut zf, DEFAULT_DECOMPRESSION_LIMITS, &mut total_decompressed, comp_size);
+            let mut entry_limits = limits;
+            if !is_zip_stream {
+                if let Some(limit) = buffered_entry_limit {
+                    entry_limits.max_entry_decompressed = entry_limits.max_entry_decompressed.min(limit);
+                }
+            }
+            let mut guarded = GuardedReader::new(&mut zf, entry_limits, &mut total_decompressed, comp_size);
             if is_zip_stream {
                 let mut chunk = [0u8; 64 * 1024];
                 let mut malformed_eol = false;
@@ -1520,9 +1582,13 @@ pub fn parse(zip_bytes: &[u8], cfg: &ValidatorConfig) -> Result<K1Result, FatalE
             || raw_name == "trips.txt" || raw_name == "calendar_dates.txt";
 
         k1dbg!("[K1] tokenizing: {raw_name}");
-        // CSV tokenization — stream_mode'da yalnızca başlık (Some(0)), aksi halde tam veri
+        // CSV tokenization — stream_mode'da yalnızca başlık (Some(0)); diğer dosyalarda
+        // da K1'in ham Vec büyümesini config'teki satır bütçesiyle sınırla.
         let _t = crate::timing::Timer::start(format!("K1::tokenize::{raw_name}"));
-        let (mut records, _, rfc4180) = match tokenize_csv(text, if stream_mode { Some(0) } else { None }) {
+        let (mut records, csv_truncated, rfc4180) = match tokenize_csv(
+            text,
+            Some(if stream_mode { 0 } else { cfg.max_file_rows as usize }),
+        ) {
             Ok(r) => r,
             Err(msg) => {
                 // ARC_013
@@ -1825,15 +1891,17 @@ pub fn parse(zip_bytes: &[u8], cfg: &ValidatorConfig) -> Result<K1Result, FatalE
             ));
         }
 
-        // ARC_022: Dosya satır sayısı limiti (stream_mode'da K2 üretir — rows burada boş)
+        // ARC_022: Dosya satır sayısı limiti (stream_mode'da K2 üretir — rows burada boş).
+        // Tokenizer sınırı erken kestiği için `rows.len() > max_rows` artık tek başına
+        // yeterli değildir; `csv_truncated` gerçek aşımı taşır.
         let max_rows = cfg.max_file_rows as usize;
-        if !stream_mode && rows.len() > max_rows {
+        if !stream_mode && (csv_truncated || rows.len() > max_rows) {
             notices.push(make_notice(
                 &mut counter, "ARC_022",
                 EntityType::File, Some(raw_name.clone()),
                 Some(&raw_name), None, None,
-                Some(format!("{}", rows.len())),
-                format!("'{raw_name}' dosyasında {} satır var; {} satır sınırını aşıyor.", rows.len(), max_rows),
+                Some(format!("{}", if csv_truncated { max_rows.saturating_add(1) } else { rows.len() })),
+                format!("'{raw_name}' dosyasında en az {} satır var; {} satır sınırını aşıyor.", if csv_truncated { max_rows.saturating_add(1) } else { rows.len() }, max_rows),
                 "Dosyayı küçük parçalara bölün veya gereksiz satırları kaldırın.",
             ));
         }
@@ -1962,6 +2030,7 @@ fn validate_locations_geojson(
     counter: &mut u32,
     geojson_ids: &mut std::collections::HashSet<String>,
     geoms: &mut std::collections::HashMap<String, LocationGeometry>,
+    total_points: &mut usize,
 ) -> bool {
     let text = match std::str::from_utf8(bytes) {
         Ok(s) => s,
@@ -2009,6 +2078,16 @@ fn validate_locations_geojson(
         ));
         return false;
     };
+
+    if features.len() > MAX_GEOJSON_FEATURES {
+        notices.push(make_notice(
+            counter, "LOC_001", EntityType::File, Some(fname.to_string()),
+            Some(fname), None, Some("features"), Some(features.len().to_string()),
+            format!("'{fname}' güvenlik sınırı olan {MAX_GEOJSON_FEATURES} feature sayısını aşıyor."),
+            "locations.geojson dosyasını daha küçük parçalara bölün.",
+        ));
+        return false;
+    }
 
     // LOC_005: FeatureCollection boş
     if features.is_empty() {
@@ -2111,7 +2190,7 @@ fn validate_locations_geojson(
                 // LOC_010: "coordinates" Required. Eksik/dizi-olmayan değerde eskiden
                 // `if let Some(..)` sessizce atlıyordu → geometri hiç doğrulanmadan geçiyordu.
                 match geometry.get("coordinates").and_then(|c| c.as_array()) {
-                    Some(rings) => check_polygon_rings(counter, fname, feat_num, rings, notices, Some(&mut geom)),
+                    Some(rings) => check_polygon_rings(counter, fname, feat_num, rings, notices, total_points, Some(&mut geom)),
                     None => missing_coordinates(counter, fname, feat_num, notices),
                 }
             }
@@ -2121,7 +2200,7 @@ fn validate_locations_geojson(
                     Some(polygons) => {
                         for poly in polygons {
                             if let Some(rings) = poly.as_array() {
-                                check_polygon_rings(counter, fname, feat_num, rings, notices, Some(&mut geom));
+                                check_polygon_rings(counter, fname, feat_num, rings, notices, total_points, Some(&mut geom));
                             }
                         }
                     }
@@ -2177,10 +2256,28 @@ fn check_polygon_rings(
     feat_num: u64,
     rings: &[serde_json::Value],
     notices: &mut Vec<Notice>,
+    total_points: &mut usize,
     // Pa1fdaa0d: dış ring K6'ya taşınır. `None` verilirse geometri toplanmaz
     // (yalnız doğrulama yapılır) — testler ve eski çağrı yolları için.
     collect: Option<&mut LocationGeometry>,
 ) {
+    let point_count = rings.iter().fold(0usize, |sum, ring| {
+        sum.saturating_add(ring.as_array().map_or(0, Vec::len))
+    });
+    if rings.len() > 1_024
+        || rings.iter().filter_map(|r| r.as_array()).any(|pts| pts.len() > MAX_GEOJSON_RING_POINTS)
+        || total_points.saturating_add(point_count) > MAX_GEOJSON_TOTAL_POINTS
+    {
+        notices.push(make_notice(
+            counter, "LOC_011", EntityType::File, Some(fname.to_string()),
+            Some(fname), Some(feat_num), Some("coordinates"), Some(point_count.to_string()),
+            format!("'{fname}' özellik {feat_num} geometrisi GeoJSON güvenlik bütçesini aşıyor; pahalı geometri denetimi atlandı."),
+            "Geometri ring sayısını ve nokta sayısını azaltın.",
+        ));
+        return;
+    }
+    *total_points = total_points.saturating_add(point_count);
+
     let mut all_lats = Vec::new();
     let mut all_lons = Vec::new();
     let mut already_reported_closure = false;

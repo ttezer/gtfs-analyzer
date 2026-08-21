@@ -50,6 +50,14 @@ const DEF_SERVICE_DAY_START_HOUR:   u32 =   3;
 const DEF_MAX_CALENDAR_FUTURE_YEARS: u32 =  3;
 const DEF_BIG_GAP_DAYS:             u32 =  14;
 
+// JSON config delta'sı kullanıcı kontrollüdür; bu koleksiyonlar analiz için
+// sınırsız büyüyemez. Sınırlar normal kullanımın çok üzerindedir ve yalnızca
+// WASM/native parser'ın devasa map/Vec tahsis etmesini önler.
+const MAX_RURAL_ROUTE_IDS: usize = 100_000;
+const MAX_CALENDAR_OVERRIDE_RULES: usize = 100_000;
+const MAX_OVERRIDE_SERVICE_IDS_PER_RULE: usize = 100_000;
+const MAX_CONFIG_STRING_BYTES: usize = 4 * 1024 * 1024;
+
 /// Validator parametreleri. Tüm eşikler architecture v0.8 Bölüm 6'dan.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ValidatorConfig {
@@ -417,6 +425,45 @@ pub fn merge_delta(base: &ValidatorConfig, delta_json: &str) -> Result<Validator
                     rule.start_date, rule.end_date
                 ));
             }
+        }
+    }
+
+    if cfg.rural_route_ids.len() > MAX_RURAL_ROUTE_IDS {
+        return Err(format!(
+            "'rural_route_ids' {} öğelik güvenlik sınırını aşıyor",
+            MAX_RURAL_ROUTE_IDS
+        ));
+    }
+    if cfg.calendar_override_rules.len() > MAX_CALENDAR_OVERRIDE_RULES {
+        return Err(format!(
+            "'calendar_override_rules' {} öğelik güvenlik sınırını aşıyor",
+            MAX_CALENDAR_OVERRIDE_RULES
+        ));
+    }
+    let total_config_string_bytes: usize = cfg
+        .rural_route_ids
+        .iter()
+        .map(String::len)
+        .chain(cfg.calendar_override_rules.iter().flat_map(|rule| {
+            std::iter::once(rule.route_id.len())
+                .chain(rule.base_service_ids.iter().map(String::len))
+                .chain(rule.override_service_ids.iter().map(String::len))
+        }))
+        .sum();
+    if total_config_string_bytes > MAX_CONFIG_STRING_BYTES {
+        return Err(format!(
+            "config string alanları {} baytlık güvenlik sınırını aşıyor",
+            MAX_CONFIG_STRING_BYTES
+        ));
+    }
+    for (i, rule) in cfg.calendar_override_rules.iter().enumerate() {
+        if rule.base_service_ids.len() > MAX_OVERRIDE_SERVICE_IDS_PER_RULE
+            || rule.override_service_ids.len() > MAX_OVERRIDE_SERVICE_IDS_PER_RULE
+        {
+            return Err(format!(
+                "calendar_override_rules[{i}] servis listesi {} öğelik güvenlik sınırını aşıyor",
+                MAX_OVERRIDE_SERVICE_IDS_PER_RULE
+            ));
         }
     }
 

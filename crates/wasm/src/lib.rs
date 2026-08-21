@@ -5,7 +5,8 @@ use gtfs_config::{merge_delta, ValidatorConfig};
 use gtfs_core::{FatalCode, FatalError, PartialReport, ValidateResult, ValidationResult, ValidationStatus};
 use gtfs_pipeline::{
     analyze_k6_with_files, build_derived_with_files, build_entity_map, build_name_index,
-    check_cross_ref_with_files, collect_file_stats, parse, report_k7, validate_k2,
+    check_cross_ref_with_files, collect_file_stats, parse_with_limits, report_k7,
+    validate_k2_with_stream_limit,
     DerivedData, EntityRecords, FileAvailability, FileInfo,
 };
 
@@ -67,9 +68,12 @@ pub use wasm_bindgen_rayon::init_thread_pool;
 // ── Sabitler ─────────────────────────────────────────────────────────────────
 
 const PER_RULE_CAP: usize = 500;
-// Yumuşak uyarı eşiği — AŞILSA BİLE doğrulamayı DURDURMAZ; yalnızca konsola uyarı yazar.
-// Notice sayısı cap dışı gerçek bir rakamdır; gösterim/render kural başına cap_per_rule ile sınırlanır.
+// Aşamalar arası notice birikiminin sabit üst sınırı. Bu sınır aşıldığında
+// yeni kayıtlar alınmaz; böylece son cap'ten önce sınırsız ara Vec oluşmaz.
 const NOTICE_LIMIT: usize = 1_000_000;
+const MAX_ZIP_ENTRIES: usize = 100_000;
+const MAX_ZIP_METADATA_BYTES: usize = 16 * 1024 * 1024;
+const MAX_SHAPE_COORDS: usize = 100_000;
 const HIGH_CAP: usize = 2_000;
 const HIGH_CAP_RULES: &[&str] = &["TRP_020", "OPR_007", "STP_016", "STP_017"];
 
@@ -111,7 +115,7 @@ fn call_stage(f: &js_sys::Function, name: &str, elapsed_ms: u32) {
 /// ZIP içindeki kök .txt dosyalarını listeler (ayrıştırma yapmadan, sadece metadata).
 /// Dönen değer: JSON dizisi — [{name, uncompressed_size}]
 #[wasm_bindgen]
-pub fn list_zip_files(zip_bytes: &[u8]) -> JsValue {
+pub fn list_zip_files(zip_bytes: Vec<u8>) -> JsValue {
     use std::io::Cursor;
 
     #[derive(serde::Serialize)]
@@ -125,15 +129,23 @@ pub fn list_zip_files(zip_bytes: &[u8]) -> JsValue {
         Ok(a) => a,
         Err(_) => return JsValue::from_str("[]"),
     };
+    if archive.len() > MAX_ZIP_ENTRIES {
+        return JsValue::from_str("[]");
+    }
 
     let mut entries: Vec<Entry> = Vec::new();
     // #46 kalibrasyon: tüm girdilerin merkezi-dizin (açılmış, sıkıştırılmış) boyutlarını
     // DECOMPRESS ETMEDEN topla — decompression guard sınırlarını gerçek feed'e göre
     // ayarlamak için. Rapor konsola basılır (aşağıda).
     let mut calib: Vec<(String, u64, u64)> = Vec::new();
+    let mut metadata_bytes = 0usize;
     for i in 0..archive.len() {
         let Ok(f) = archive.by_index(i) else { continue };
         let name = f.name().to_string();
+        metadata_bytes = metadata_bytes.saturating_add(name.len());
+        if metadata_bytes > MAX_ZIP_METADATA_BYTES {
+            return JsValue::from_str("[]");
+        }
         let (u, c) = (f.size(), f.compressed_size());
         calib.push((name.clone(), u, c));
         if name.ends_with(".txt") && !name.contains('/') && !name.contains('\\') {
@@ -223,14 +235,19 @@ pub fn get_cached_file_stats(cache: &CachedState) -> JsValue {
 /// ikonuna tıklayınca yalnız ilgili shape'i BURADAN çeker (records bellekte canlı).
 /// Bulunamazsa/geometri yoksa `[]`.
 #[wasm_bindgen]
-pub fn shape_coords_of(cache: &CachedState, shape_id: &str) -> JsValue {
+pub fn shape_coords_of(cache: &CachedState, shape_id: String) -> JsValue {
     let mut pts: Vec<(u32, f64, f64)> = cache
         .records
         .shapes
         .iter()
-        .filter(|s| cache.records.shape_interns.id(s) == shape_id)
+        .filter(|s| cache.records.shape_interns.id(s) == shape_id.as_str())
         .filter_map(|s| Some((s.shape_pt_sequence().unwrap_or(0), s.shape_pt_lat()?, s.shape_pt_lon()?)))
         .collect();
+    if pts.len() > MAX_SHAPE_COORDS {
+        return JsValue::from_str(
+            r#"{"Fatal":{"code":"ResourceLimit","message":"Shape geometry exceeds the SDK safety limit."}}"#,
+        );
+    }
     pts.sort_unstable_by_key(|&(seq, _, _)| seq);
     let coords: Vec<[f64; 2]> = pts.into_iter().map(|(_, lat, lon)| [lat, lon]).collect();
     JsValue::from_str(&serde_json::to_string(&coords).unwrap_or_else(|_| "[]".into()))
@@ -240,7 +257,7 @@ pub fn shape_coords_of(cache: &CachedState, shape_id: &str) -> JsValue {
 /// `today` = tarayıcının yerel tarihi; deterministik çıktı için
 /// [`validate_with_today`] kullanın.
 #[wasm_bindgen]
-pub fn validate(zip_bytes: &[u8], config_delta_json: &str) -> JsValue {
+pub fn validate(zip_bytes: Vec<u8>, config_delta_json: String) -> JsValue {
     validate_with_today(zip_bytes, config_delta_json, today_yyyymmdd())
 }
 
@@ -253,18 +270,18 @@ pub fn validate(zip_bytes: &[u8], config_delta_json: &str) -> JsValue {
 ///
 /// `today` formatı `YYYYMMDD` (ör. 20260716). Geçersiz değer Fatal döner.
 #[wasm_bindgen]
-pub fn validate_with_today(zip_bytes: &[u8], config_delta_json: &str, today: u32) -> JsValue {
+pub fn validate_with_today(zip_bytes: Vec<u8>, config_delta_json: String, today: u32) -> JsValue {
     if !is_valid_yyyymmdd(today) {
         return to_js(&ValidateResult::Fatal(FatalError {
             code: FatalCode::InvalidInput,
             message: format!("Geçersiz 'today' değeri: {today} (beklenen YYYYMMDD, ör. 20260716)"),
         }));
     }
-    let config = match parse_config(config_delta_json) {
+    let config = match parse_config(&config_delta_json) {
         Ok(c) => c,
         Err(e) => return to_js(&ValidateResult::Fatal(e)),
     };
-    to_js(&run_full_pipeline(zip_bytes, &config, today))
+    to_js(&run_full_pipeline(&zip_bytes, &config, today))
 }
 
 /// Kaba YYYYMMDD sağlaması: pipeline'a anlamsız tarih girip sessizce saçma
@@ -277,15 +294,15 @@ fn is_valid_yyyymmdd(v: u32) -> bool {
 /// K1–K5'i çalıştırır.
 /// `on_stage(name, elapsed_ms)`: K1/K2/K3/K4/K5 her biri bittikten sonra çağrılır.
 #[wasm_bindgen]
-pub fn prepare(zip_bytes: &[u8], config_delta_json: &str, on_stage: &js_sys::Function) -> Result<CachedState, JsValue> {
+pub fn prepare(zip_bytes: Vec<u8>, config_delta_json: String, on_stage: &js_sys::Function) -> Result<CachedState, JsValue> {
     prepare_with_today(zip_bytes, config_delta_json, on_stage, today_yyyymmdd())
 }
 
 /// Deterministik K1–K5 hazırlığı; `today` K4 cross-reference tarihli kontrollerinde kullanılır.
 #[wasm_bindgen]
 pub fn prepare_with_today(
-    zip_bytes: &[u8],
-    config_delta_json: &str,
+    zip_bytes: Vec<u8>,
+    config_delta_json: String,
     on_stage: &js_sys::Function,
     today: u32,
 ) -> Result<CachedState, JsValue> {
@@ -297,15 +314,15 @@ pub fn prepare_with_today(
     }
     // Servis-günü normalizasyonu K2'de (run_k1_k5) yapıldığından config burada gerekir.
     // service_day_start_hour değişimi cache'lenmiş records'a yansımaz → dosya yeniden yüklenir.
-    let config = parse_config(config_delta_json).map_err(|e| to_js(&ValidateResult::Fatal(e)))?;
-    run_k1_k5(zip_bytes, &config, on_stage, today)
+    let config = parse_config(&config_delta_json).map_err(|e| to_js(&ValidateResult::Fatal(e)))?;
+    run_k1_k5(&zip_bytes, &config, on_stage, today)
         .map_err(|fatal| to_js(&ValidateResult::Fatal(fatal)))
 }
 
 /// Önbellekten K6+K7'yi çalıştırır.
 /// `on_stage(name, elapsed_ms)`: K6 ve K7 bittikten sonra çağrılır.
 #[wasm_bindgen]
-pub fn rerun_k6_k7(cache: &CachedState, config_delta_json: &str, on_stage: &js_sys::Function) -> JsValue {
+pub fn rerun_k6_k7(cache: &CachedState, config_delta_json: String, on_stage: &js_sys::Function) -> JsValue {
     rerun_k6_k7_with_today(cache, config_delta_json, on_stage, today_yyyymmdd())
 }
 
@@ -313,7 +330,7 @@ pub fn rerun_k6_k7(cache: &CachedState, config_delta_json: &str, on_stage: &js_s
 #[wasm_bindgen]
 pub fn rerun_k6_k7_with_today(
     cache: &CachedState,
-    config_delta_json: &str,
+    config_delta_json: String,
     on_stage: &js_sys::Function,
     today: u32,
 ) -> JsValue {
@@ -323,7 +340,7 @@ pub fn rerun_k6_k7_with_today(
             message: format!("Geçersiz 'today' değeri: {today} (beklenen YYYYMMDD, ör. 20260716)"),
         }));
     }
-    rerun_k6_k7_inner(cache, config_delta_json, on_stage, today)
+    rerun_k6_k7_inner(cache, &config_delta_json, on_stage, today)
 }
 
 fn rerun_k6_k7_inner(
@@ -350,11 +367,15 @@ fn rerun_k6_k7_inner(
     call_stage(on_stage, "K6", (js_sys::Date::now() - t) as u32);
 
     let mut all_notices = cache.k1_k5_notices.clone();
-    all_notices.extend(k6.notices);
+    let mut notice_budget_exceeded = false;
+    notice_budget_exceeded |= append_notices_bounded(&mut all_notices, k6.notices);
     wasm_log!(format!("[mem] after-K6 (pre-cap): {} notices, {:.1} MB", all_notices.len(), mem_mb()));
     wasm_log!(format!("[rules] after-K6 top: {}", top_rules_str(&all_notices)));
 
     let real_totals = cap_per_rule(&mut all_notices);
+    if notice_budget_exceeded {
+        wasm_warn!(format!("[uyarı] notice bütçesi aşıldı; ilk {NOTICE_LIMIT} kayıt işlendi."));
+    }
     #[cfg(feature = "sdk-en")]
     i18n::translate_notices(&mut all_notices);
     all_notices.shrink_to_fit();
@@ -396,7 +417,12 @@ fn rerun_k6_k7_inner(
 
 fn run_full_pipeline(zip_bytes: &[u8], config: &ValidatorConfig, today: u32) -> ValidateResult {
     t_start!("K1-parse");
-    let k1 = match parse(zip_bytes, config) {
+    let k1 = match parse_with_limits(
+        zip_bytes,
+        config,
+        gtfs_pipeline::decompress_guard::SDK_DECOMPRESSION_LIMITS,
+        Some(gtfs_pipeline::decompress_guard::SDK_MAX_BUFFERED_FILE_BYTES),
+    ) {
         Ok(r) => r,
         Err(e) => return ValidateResult::Fatal(e),
     };
@@ -407,7 +433,12 @@ fn run_full_pipeline(zip_bytes: &[u8], config: &ValidatorConfig, today: u32) -> 
     let mut file_stats = collect_file_stats(&k1.files);
 
     t_start!("K2-validate");
-    let mut k2 = validate_k2(k1.files, Some(zip_bytes), config); // #15 W2 + #38: stop_times ZIP stream
+    let mut k2 = validate_k2_with_stream_limit(
+        k1.files,
+        Some(zip_bytes),
+        config,
+        Some(config.max_file_rows as usize),
+    ); // #15 W2 + #38: stop_times ZIP stream
     t_end!("K2-validate");
     // Gece yarısını aşan seferleri (00:xx) servis-günü notasyonuna (24:xx) normalize et
     // (K3–K6 öncesi). pipeline::validate_bytes ile aynı adım; WASM kendi orkestrasyonunu
@@ -441,21 +472,25 @@ fn run_full_pipeline(zip_bytes: &[u8], config: &ValidatorConfig, today: u32) -> 
     t_end!("K6-analytics");
 
     let mut all_notices = Vec::new();
-    all_notices.extend(k1.notices);
-    all_notices.extend(k2.notices);
-    all_notices.extend(k3.notices);
+    let mut notice_budget_exceeded = false;
+    notice_budget_exceeded |= append_notices_bounded(&mut all_notices, k1.notices);
+    notice_budget_exceeded |= append_notices_bounded(&mut all_notices, k2.notices);
+    notice_budget_exceeded |= append_notices_bounded(&mut all_notices, k3.notices);
     if !partial.is_empty() {
         partial.extend_skipped_checks(k4.skipped_checks);
         partial.extend_skipped_checks(k5.skipped_checks);
         partial.extend_skipped_checks(k6.skipped_checks);
     }
-    all_notices.extend(k4.notices);
-    all_notices.extend(k5.notices);
-    all_notices.extend(k6.notices);
+    notice_budget_exceeded |= append_notices_bounded(&mut all_notices, k4.notices);
+    notice_budget_exceeded |= append_notices_bounded(&mut all_notices, k5.notices);
+    notice_budget_exceeded |= append_notices_bounded(&mut all_notices, k6.notices);
 
     // 1) Dedup sonrası gerçek totalleri say, ardından kural başına gösterim cap'ini uygula.
     // Native pipeline K7'de dedup yaptığı için karşılaştırılabilir "gerçek" sayı bu noktadadır.
     let real_totals = cap_per_rule(&mut all_notices);
+    if notice_budget_exceeded {
+        wasm_warn!(format!("[uyarı] notice bütçesi aşıldı; ilk {NOTICE_LIMIT} kayıt işlendi."));
+    }
     #[cfg(feature = "sdk-en")]
     i18n::translate_notices(&mut all_notices);
     all_notices.shrink_to_fit();
@@ -494,7 +529,12 @@ fn run_k1_k5(
 
     let mut t = js_sys::Date::now();
     t_start!("K1-parse");
-    let k1 = parse(zip_bytes, config)?;
+    let k1 = parse_with_limits(
+        zip_bytes,
+        config,
+        gtfs_pipeline::decompress_guard::SDK_DECOMPRESSION_LIMITS,
+        Some(gtfs_pipeline::decompress_guard::SDK_MAX_BUFFERED_FILE_BYTES),
+    )?;
     t_end!("K1-parse");
     call_stage(on_stage, "K1", (js_sys::Date::now() - t) as u32);
     log_mem("after-K1-parse");
@@ -505,7 +545,12 @@ fn run_k1_k5(
 
     t = js_sys::Date::now();
     t_start!("K2-validate");
-    let mut k2 = validate_k2(k1.files, Some(zip_bytes), config); // #15 W2 + #38: stop_times ZIP stream
+    let mut k2 = validate_k2_with_stream_limit(
+        k1.files,
+        Some(zip_bytes),
+        config,
+        Some(config.max_file_rows as usize),
+    ); // #15 W2 + #38: stop_times ZIP stream
     t_end!("K2-validate");
     // Gece yarısı (00:xx) → servis-günü (24:xx) normalizasyonu — K3–K6 öncesi (bkz. ilk yol).
     k2.records.stop_times_index.normalize_service_day(config.service_day_start_hour);
@@ -544,16 +589,19 @@ fn run_k1_k5(
     log_mem("after-K5-derived");
 
     let mut k1_k5_notices = Vec::new();
-    k1_k5_notices.extend(k1.notices);
-    k1_k5_notices.extend(k2.notices);
-    k1_k5_notices.extend(k3.notices);
+    let mut notice_budget_exceeded = false;
+    notice_budget_exceeded |= append_notices_bounded(&mut k1_k5_notices, k1.notices);
+    notice_budget_exceeded |= append_notices_bounded(&mut k1_k5_notices, k2.notices);
+    notice_budget_exceeded |= append_notices_bounded(&mut k1_k5_notices, k3.notices);
     if !partial.is_empty() {
         partial.extend_skipped_checks(k4.skipped_checks);
         partial.extend_skipped_checks(k5.skipped_checks);
     }
-    k1_k5_notices.extend(k4.notices);
-    k1_k5_notices.extend(k5.notices);
-    // DURDURMA YOK: K1-K5 notice'ları cap'lenmeden taşınır; gösterim cap'i K6+K7 yolunda uygulanır.
+    notice_budget_exceeded |= append_notices_bounded(&mut k1_k5_notices, k4.notices);
+    notice_budget_exceeded |= append_notices_bounded(&mut k1_k5_notices, k5.notices);
+    if notice_budget_exceeded {
+        wasm_warn!(format!("[uyarı] K1-K5 notice bütçesi aşıldı; ilk {NOTICE_LIMIT} kayıt işlendi."));
+    }
     wasm_log!(format!("[mem] K1-K5 done: {} notices, {:.1} MB", k1_k5_notices.len(), mem_mb()));
     wasm_log!(format!("[rules] K1-K5 top: {}", top_rules_str(&k1_k5_notices)));
 
@@ -570,6 +618,12 @@ fn run_k1_k5(
 fn parse_config(delta_json: &str) -> Result<ValidatorConfig, FatalError> {
     if delta_json.is_empty() || delta_json == "{}" {
         return Ok(ValidatorConfig::default());
+    }
+    if delta_json.len() > 4 * 1024 * 1024 {
+        return Err(FatalError {
+            code: FatalCode::ResourceLimit,
+            message: "Config JSON exceeds the 4 MiB safety limit.".to_string(),
+        });
     }
     merge_delta(&ValidatorConfig::default(), delta_json).map_err(|e| FatalError {
         code: FatalCode::InvalidInput,
@@ -640,6 +694,19 @@ fn cap_per_rule(notices: &mut Vec<gtfs_core::Notice>) -> std::collections::HashM
     );
     *notices = kept;
     real_totals
+}
+
+/// Her pipeline aşamasının notice çıktısını birleştirirken de sabit bir bütçe
+/// uygula. Önceki akışta sınır yalnız en sonda çalıştığı için tek bir aşama
+/// milyonlarca notice ile ara Vec'i büyütebiliyordu.
+fn append_notices_bounded(
+    destination: &mut Vec<gtfs_core::Notice>,
+    incoming: Vec<gtfs_core::Notice>,
+) -> bool {
+    let incoming_len = incoming.len();
+    let remaining = NOTICE_LIMIT.saturating_sub(destination.len());
+    destination.extend(incoming.into_iter().take(remaining));
+    incoming_len > remaining
 }
 
 // #15 Adım-1 enstrümantasyon: WASM linear memory high-water (MB).

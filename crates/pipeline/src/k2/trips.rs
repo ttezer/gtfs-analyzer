@@ -146,6 +146,14 @@ impl Cols {
 }
 
 pub fn validate_trips(file: &RawFile, zip_bytes: Option<&[u8]>) -> (Vec<TripRecord>, TripInternTable, Vec<gtfs_core::Notice>) {
+    validate_trips_with_limits(file, zip_bytes, None)
+}
+
+pub fn validate_trips_with_limits(
+    file: &RawFile,
+    zip_bytes: Option<&[u8]>,
+    max_data_rows: Option<usize>,
+) -> (Vec<TripRecord>, TripInternTable, Vec<gtfs_core::Notice>) {
     // #38: trips.txt K1'de yalnızca başlık okunur; K2 zip_bytes'tan stream eder.
     // Eski rows yolu test/legacy fallback olarak korunur.
     let mut notices = Vec::new();
@@ -443,7 +451,9 @@ pub fn validate_trips(file: &RawFile, zip_bytes: Option<&[u8]>) -> (Vec<TripReco
                         ));
                     }
                     Ok(entry) => {
-                        let mut csv_reader = ZipCsvReader::new(entry);
+                        let mut csv_reader = ZipCsvReader::with_limits(
+                            entry, super::stop_times::stream_byte_limit(max_data_rows), max_data_rows,
+                        );
                         let mut raw_fields: Vec<Vec<u8>> = Vec::with_capacity(16);
                         let mut zip_line: u64 = 2;
                         let mut header_skipped = false;

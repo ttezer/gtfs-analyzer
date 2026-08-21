@@ -12,8 +12,8 @@ pub mod recovery;
 pub(crate) mod notice_factory;
 pub(crate) mod timing;
 
-pub use k1_parse::{parse, K1Result, RawFile, RawFiles};
-pub use k2::{validate as validate_k2, EntityRecords, K2Result};
+pub use k1_parse::{parse, parse_with_limits, K1Result, RawFile, RawFiles};
+pub use k2::{validate as validate_k2, validate_with_stream_limit as validate_k2_with_stream_limit, EntityRecords, K2Result};
 pub use k3_entity_graph::{build as build_entity_map, EntityMap, K3Result};
 pub use k4_cross_ref::{check as check_cross_ref, check_with_files as check_cross_ref_with_files, K4Result};
 pub use k5_derived::{build as build_derived, build_with_files as build_derived_with_files, DerivedData, K5Result};

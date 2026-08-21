@@ -5,7 +5,18 @@ use std::borrow::Cow;
 use std::io::{Cursor, Read};
 
 use super::common::{get_col_raw, get_col, make_k2_notice};
+#[cfg(feature = "parallel")]
+use crate::decompress_guard::{DecompressionLimits, GuardedReader, DEFAULT_DECOMPRESSION_LIMITS};
 use crate::k1_parse::{RawFile, RFC4180_AFTER_CLOSE, RFC4180_BARE_QUOTE};
+
+/// K2'nin K1'den sonra ZIP'i yeniden açtığı yollar için entry başına sert bütçe.
+pub(crate) const K2_MAX_STREAM_BYTES: usize = 512 * 1024 * 1024;
+
+/// SDK builds pass `max_data_rows`; native callers keep the historical large-feed
+/// path and therefore do not receive the SDK's per-entry byte cap.
+pub(crate) fn stream_byte_limit(max_data_rows: Option<usize>) -> usize {
+    if max_data_rows.is_some() { K2_MAX_STREAM_BYTES } else { usize::MAX }
+}
 
 // ── CompactStopTime: 24B flat per row — trip_id taşımaz ──────────────────────
 // #38: Swiss feed 28M×112B=3.1GB → OOM; 28M×24B=672MB → bütçe dahilinde.
@@ -868,25 +879,6 @@ impl TripAgg {
 // Pass-1: '\n' say (header dahil) → veri satırı = n - 1.
 // Amaç: all_rows + row_trip için reserve_exact → sıfır realloc, sıfır artık kapasite.
 // CPU bedeli: Swiss 2170 MB → ~10-20 s ekstra decompression. Memory deterministik.
-fn count_zip_rows(zb: &[u8], file_name: &str) -> Option<usize> {
-    use std::io::BufRead;
-    let cursor = std::io::Cursor::new(zb);
-    let mut archive = zip::ZipArchive::new(cursor).ok()?;
-    let entry = archive.by_name(file_name).ok()?;
-    let mut reader = std::io::BufReader::with_capacity(1 << 16, entry);
-    let mut count = 0usize;
-    let mut buf = Vec::with_capacity(256);
-    loop {
-        buf.clear();
-        match reader.read_until(b'\n', &mut buf) {
-            Ok(0) | Err(_) => break,
-            Ok(_) => count += 1,
-        }
-    }
-    // count = header + veri satırları (trailing boş satır varsa +1, güvenli; sadece kapasite)
-    Some(count.saturating_sub(1))
-}
-
 /// Ham alan baytlarından kısa, güvenli bir örnek — notice mesajına girer.
 fn lossy40(bytes: &[u8]) -> String {
     String::from_utf8_lossy(bytes).chars().take(40).collect()
@@ -911,6 +903,11 @@ pub(crate) struct ZipCsvReader<R: Read> {
     pub(crate) rfc: Option<(&'static str, String)>,
     /// issue #84: EOF'a tırnak İÇİNDE varıldı → kayıt hiç kapanmadı (`ARC_013`).
     pub(crate) unclosed: bool,
+    max_bytes: Option<usize>,
+    bytes_read: usize,
+    max_data_rows: Option<usize>,
+    records_seen: usize,
+    truncated: bool,
 }
 
 impl<R: Read> ZipCsvReader<R> {
@@ -923,8 +920,24 @@ impl<R: Read> ZipCsvReader<R> {
             pending: None,
             rfc: None,
             unclosed: false,
+            max_bytes: None,
+            bytes_read: 0,
+            max_data_rows: None,
+            records_seen: 0,
+            truncated: false,
         }
     }
+
+    /// SDK'nin ZIP'i ikinci kez açtığı K2 yolları için entry ve veri satırı bütçesi.
+    /// Native test/fallback yolu `new` ile sınırsız davranışını korur.
+    pub(crate) fn with_limits(r: R, max_bytes: usize, max_data_rows: Option<usize>) -> Self {
+        let mut reader = Self::new(r);
+        reader.max_bytes = Some(max_bytes);
+        reader.max_data_rows = max_data_rows;
+        reader
+    }
+
+    pub(crate) fn truncated(&self) -> bool { self.truncated }
 
     #[inline(always)]
     fn next_byte(&mut self) -> Option<u8> {
@@ -933,9 +946,21 @@ impl<R: Read> ZipCsvReader<R> {
         }
         if self.pos == self.filled {
             // Kısa okuma normaldir (deflate akışı): 0 = EOF, hata = akış sonu.
-            match self.inner.read(&mut self.buf) {
+            let read_buf: &mut [u8] = if let Some(max) = self.max_bytes {
+                if self.bytes_read >= max {
+                    self.truncated = true;
+                    return None;
+                }
+                let remaining = max - self.bytes_read;
+                let buf_len = self.buf.len();
+                &mut self.buf[..remaining.min(buf_len)]
+            } else {
+                &mut self.buf
+            };
+            match self.inner.read(read_buf) {
                 Ok(0) | Err(_) => return None,
                 Ok(n) => {
+                    self.bytes_read = self.bytes_read.saturating_add(n);
                     self.filled = n;
                     self.pos = 0;
                 }
@@ -963,6 +988,14 @@ impl<R: Read> ZipCsvReader<R> {
     /// `mem::take` ile kapasiteyi çöpe atıyordu; VBB'de (5,68M satır × ~10 alan)
     /// bu ~57M tahsis demekti. Alan içerikleri, alan sayısı ve sıra birebir aynı.
     pub(crate) fn next_record(&mut self, out: &mut Vec<Vec<u8>>) -> bool {
+        if let Some(max) = self.max_data_rows {
+            // Header dahil kayıt sayısı: 1 + izin verilen veri satırı.
+            if self.records_seen >= max.saturating_add(1) {
+                self.truncated = true;
+                out.clear();
+                return false;
+            }
+        }
         let mut fi: usize = 0;
         Self::begin_field(out, fi);
         let mut in_quotes = false;
@@ -979,6 +1012,7 @@ impl<R: Read> ZipCsvReader<R> {
             () => {{
                 fi += 1;
                 out.truncate(fi);
+                self.records_seen = self.records_seen.saturating_add(1);
                 return true;
             }};
         }
@@ -1272,6 +1306,15 @@ pub fn validate_stop_times(
     zip_bytes: Option<&[u8]>,
     has_booking_rules: bool,
 ) -> (StopTimesIndex, Vec<gtfs_core::Notice>) {
+    validate_stop_times_with_limits(file, zip_bytes, has_booking_rules, None)
+}
+
+pub fn validate_stop_times_with_limits(
+    file: &RawFile,
+    zip_bytes: Option<&[u8]>,
+    has_booking_rules: bool,
+    max_data_rows: Option<usize>,
+) -> (StopTimesIndex, Vec<gtfs_core::Notice>) {
     let mut st = StChunk { has_booking_rules, ..StChunk::default() };
     let cols = Cols::from_headers(&file.headers);
     // B1: feed'de hiç Flex sütunu yoksa satır başı flex işini tümüyle atla.
@@ -1306,17 +1349,18 @@ pub fn validate_stop_times(
         let est = text.bytes().filter(|&b| b == b'\n').count();
         st.all_rows.reserve(est);
         st.row_trip.reserve(est);
-    } else if let Some(zb) = zip_bytes {
-        // #38 (ZIP stream 2-pass): Pass-1 ile exact satır sayısı → reserve_exact → sıfır realloc,
-        // sıfır artık kapasite. shrink_to YOK (allocator kumarı). Fallback: bytes/60 capped 50M.
-        crate::timing::mem_log("K2 stop_times pre-count pass");
-        let est = count_zip_rows(zb, &file.name)
-            .unwrap_or_else(|| (file.bytes as usize / 60).clamp(1, 50_000_000));
-        crate::timing::mem_log("K2 stop_times pre-count done");
+    } else if zip_bytes.is_some() {
+        // ZIP'i ikinci kez baştan sona açan exact pre-count kaldırıldı: o pass
+        // decompression guard'dan kaçıyor ve zip bombasında yalnızca CPU tüketiyordu.
+        let est = (file.bytes as usize / 60).clamp(1, 50_000_000);
         st.all_rows.reserve_exact(est);
         st.row_trip.reserve_exact(est);
     }
 
+    #[cfg(feature = "parallel")]
+    let stream_truncated = false;
+    #[cfg(not(feature = "parallel"))]
+    let mut stream_truncated = false;
     {
         // Satır işleyici — hem stream (raw_text) hem rows yolundan çağrılır.
         // Tüm değişken durum closure ile yakalanır (notices, counter, index, caches).
@@ -2039,12 +2083,27 @@ pub fn validate_stop_times(
                             ));
                         }
                         #[cfg(feature = "parallel")]
-                        Ok(mut entry) => {
+                        Ok(entry) => {
                             use rayon::prelude::*;
                             // Deflate akışı rastgele erişilemez → gövdeyi bir kez aç, sonra
-                            // satır/trip sınırlarında bölüp parçaları paralel ayrıştır.
-                            let mut body: Vec<u8> = Vec::with_capacity(file.bytes as usize + 1);
-                            if entry.read_to_end(&mut body).is_ok() {
+                            // satır/trip sınırlarında bölüp parçaları paralel ayrıştır. ZIP
+                            // metadata'sındaki `file.bytes` yalnızca başlangıç kapasitesidir;
+                            // doğrudan Vec::with_capacity kullanmak sahte merkezi-dizin
+                            // boyutuyla tahsis saldırısına açıktı.
+                            let stream_limit = stream_byte_limit(max_data_rows);
+                            let mut limits: DecompressionLimits = DEFAULT_DECOMPRESSION_LIMITS;
+                            if max_data_rows.is_some() {
+                                limits.max_entry_decompressed = stream_limit as u64;
+                                limits.max_total_decompressed = stream_limit as u64;
+                            }
+                            let compressed_size = entry.compressed_size();
+                            let mut total_decompressed = 0u64;
+                            let mut guarded = GuardedReader::new(
+                                entry, limits, &mut total_decompressed, compressed_size,
+                            );
+                            let initial_capacity = (file.bytes as usize).min(64 * 1024 * 1024);
+                            let mut body: Vec<u8> = Vec::with_capacity(initial_capacity + 1);
+                            if guarded.read_to_end(&mut body).is_ok() {
                                 let n = std::thread::available_parallelism().map(|v| v.get()).unwrap_or(4);
                                 let ranges = split_body_at_trip_boundaries(&body, cols.trip_id, n);
                                 let parts: Vec<StChunk> = ranges.par_iter().map(|&(bs, be, first_line)| {
@@ -2052,7 +2111,9 @@ pub fn validate_stop_times(
                                     // Bayrak chunk'a TAŞINMALI: `StChunk::default()` her chunk için
                                     // yeniden kurulur ve `has_booking_rules` false kalırdı → STM_059
                                     // yalnız tek parçalı feed'lerde çalışırdı. `emit_proof` yakaladı.
-                                    let mut rdr = ZipCsvReader::new(Cursor::new(&body[bs..be]));
+                                    let mut rdr = ZipCsvReader::with_limits(
+                                        Cursor::new(&body[bs..be]), stream_limit, None,
+                                    );
                                     let mut fields: Vec<Vec<u8>> = Vec::with_capacity(header_count + 1);
                                     let mut line = first_line;
                                     while rdr.next_record(&mut fields) {
@@ -2079,7 +2140,9 @@ pub fn validate_stop_times(
                         }
                         #[cfg(not(feature = "parallel"))]
                         Ok(entry) => {
-                            let mut csv_reader = ZipCsvReader::new(entry);
+                            let mut csv_reader = ZipCsvReader::with_limits(
+                                entry, stream_byte_limit(max_data_rows), max_data_rows,
+                            );
                             let mut raw_fields: Vec<Vec<u8>> = Vec::with_capacity(header_count + 1);
                             let mut zip_line: u64 = 2;
                             let mut header_skipped = false;
@@ -2147,6 +2210,7 @@ pub fn validate_stop_times(
                             for c in it {
                                 st.merge(c);
                             }
+                            stream_truncated |= csv_reader.truncated();
                         }
                     }
                 }
@@ -2159,6 +2223,12 @@ pub fn validate_stop_times(
                     row.iter().map(|s| Cow::Borrowed(s.as_str())).collect();
                 process(&mut st, &cow_row, (row_idx + 2) as u64);
             }
+        }
+    }
+
+    if stream_truncated {
+        if let Some(max) = max_data_rows {
+            st.total_rows = st.total_rows.max(max.saturating_add(1));
         }
     }
 
@@ -2554,6 +2624,30 @@ fn parse_pickup_dropoff_col(
 mod tests {
     use super::*;
     use crate::k1_parse::RawFile;
+
+    #[test]
+    fn zip_csv_reader_enforces_row_and_byte_budgets() {
+        let body = b"a\n1\n2\n3\n";
+        let mut reader = ZipCsvReader::with_limits(
+            Cursor::new(body),
+            body.len() + 1,
+            Some(2),
+        );
+        let mut fields = Vec::new();
+        assert!(reader.next_record(&mut fields)); // header
+        assert!(reader.next_record(&mut fields));
+        assert!(reader.next_record(&mut fields));
+        assert!(!reader.next_record(&mut fields));
+        assert!(reader.truncated(), "satır bütçesi aşımı görünür olmalı");
+
+        let mut byte_limited = ZipCsvReader::with_limits(
+            Cursor::new(body),
+            body.len() - 1,
+            None,
+        );
+        while byte_limited.next_record(&mut fields) {}
+        assert!(byte_limited.truncated(), "byte bütçesi aşımı görünür olmalı");
+    }
 
     #[test]
     fn normalize_service_day_wraps_midnight_keeps_real_errors() {

@@ -81,6 +81,14 @@ pub fn validate_calendar_dates(
     file: &RawFile,
     zip_bytes: Option<&[u8]>,
 ) -> (CalendarDateIndex, Vec<gtfs_core::Notice>) {
+    validate_calendar_dates_with_limits(file, zip_bytes, None)
+}
+
+pub fn validate_calendar_dates_with_limits(
+    file: &RawFile,
+    zip_bytes: Option<&[u8]>,
+    max_data_rows: Option<usize>,
+) -> (CalendarDateIndex, Vec<gtfs_core::Notice>) {
     // #38: calendar_dates.txt K1'de yalnızca başlık okunur; K2 zip_bytes'tan stream eder.
     let mut notices = Vec::new();
     let mut counter = 0u32;
@@ -273,7 +281,9 @@ pub fn validate_calendar_dates(
                         ));
                     }
                     Ok(entry) => {
-                        let mut csv_reader = ZipCsvReader::new(entry);
+                        let mut csv_reader = ZipCsvReader::with_limits(
+                            entry, super::stop_times::stream_byte_limit(max_data_rows), max_data_rows,
+                        );
                         let mut raw_fields: Vec<Vec<u8>> = Vec::with_capacity(4);
                         let mut zip_line: u64 = 2;
                         let mut header_skipped = false;
@@ -294,6 +304,11 @@ pub fn validate_calendar_dates(
                             }
                             process(&cow_row, zip_line);
                             zip_line += 1;
+                        }
+                        if csv_reader.truncated() {
+                            if let Some(max) = max_data_rows {
+                                index.raw_row_count = index.raw_row_count.max(max.saturating_add(1) as u64);
+                            }
                         }
                     }
                 }

@@ -41,7 +41,7 @@ use booking_rules::{validate_booking_rules, BookingRuleRecord};
 use attributions::{validate_attributions, AttributionRecord};
 use common::make_k2_notice;
 use calendar::{validate_calendar, CalendarRecord};
-use calendar_dates::{validate_calendar_dates, CalendarDateIndex};
+use calendar_dates::{validate_calendar_dates_with_limits, CalendarDateIndex};
 use gtfs_config::ValidatorConfig;
 use gtfs_core::Notice;
 use crate::k1_parse::{RawFile, RawFiles};
@@ -62,16 +62,16 @@ use rider_categories::{validate_rider_categories, RiderCategoryRecord};
 use fare_leg_join_rules::{parse_fare_leg_join_rules, FareLegJoinRuleRecord};
 use route_networks::{parse_route_networks, RouteNetworkRecord};
 use routes::{validate_routes, RouteRecord};
-use shapes::{validate_shapes, ShapePointRecord};
+use shapes::{validate_shapes_with_limits, ShapePointRecord};
 pub use shapes::ShapeInternTable;
 use stop_areas::{parse_stop_areas, StopAreaRecord};
 use stops::{validate_stops, StopRecord};
-use stop_times::{validate_stop_times, StopTimeRecord};
+use stop_times::{validate_stop_times_with_limits, StopTimeRecord};
 pub use stop_times::{CompactStopTime, StopTimesIndex};
 use timeframes::{validate_timeframes, TimeframeRecord};
 use transfers::{validate_transfers, TransferRecord};
 use translations::{validate_translations, TranslationRecord};
-use trips::{validate_trips, TripRecord, TripInternTable};
+use trips::{validate_trips_with_limits, TripRecord, TripInternTable};
 use rustc_hash::FxHashMap;
 
 /// K2 sonrasında üretilecek typed entity kayıtlarının kapsayıcısı.
@@ -157,7 +157,18 @@ fn files_over_row_limit(counts: &FxHashMap<String, u64>, max_rows: u64) -> Vec<(
 /// tarihsel olarak yapılandırmasızdır. 2026-08-07'de (issue #71) eklendi: eşik K1 ve K2'de
 /// ayrı ayrı sabit kodluydu ve kurala fixture yazılamıyordu. Denetimin kendisi artık bu
 /// fonksiyonun sonundaki TEK geçişte (issue #75); alt modüllerde kopyası YOKTUR.
-pub fn validate(mut files: RawFiles, zip_bytes: Option<&[u8]>, cfg: &ValidatorConfig) -> K2Result {
+pub fn validate(files: RawFiles, zip_bytes: Option<&[u8]>, cfg: &ValidatorConfig) -> K2Result {
+    validate_with_stream_limit(files, zip_bytes, cfg, None)
+}
+
+/// SDK/WASM çağrısında stream edilen dört dosyaya config satır bütçesini de
+/// geçirir. Native uyumluluk için mevcut `validate` API'si sınırsız bırakılır.
+pub fn validate_with_stream_limit(
+    mut files: RawFiles,
+    zip_bytes: Option<&[u8]>,
+    cfg: &ValidatorConfig,
+    max_stream_rows: Option<usize>,
+) -> K2Result {
     use crate::timing::{Timer, mem_log};
     let mut notices = Vec::new();
     let mut records = EntityRecords::default();
@@ -200,7 +211,8 @@ pub fn validate(mut files: RawFiles, zip_bytes: Option<&[u8]>, cfg: &ValidatorCo
 
     if let Some(file) = files.get("calendar_dates.txt") {
         let _t = Timer::start("K2::calendar_dates");
-        let (calendar_date_records, calendar_date_notices) = validate_calendar_dates(file, zip_bytes);
+        let (calendar_date_records, calendar_date_notices) =
+            validate_calendar_dates_with_limits(file, zip_bytes, max_stream_rows);
         records.calendar_dates = calendar_date_records;
         notices.extend(calendar_date_notices);
         records.streaming_row_counts.insert("calendar_dates.txt".to_string(), records.calendar_dates.raw_row_count);
@@ -262,7 +274,8 @@ pub fn validate(mut files: RawFiles, zip_bytes: Option<&[u8]>, cfg: &ValidatorCo
 
     if let Some(file) = files.get("shapes.txt") {
         let _t = Timer::start("K2::shapes");
-        let (shape_records, shape_interns, shape_notices) = validate_shapes(file, zip_bytes);
+        let (shape_records, shape_interns, shape_notices) =
+            validate_shapes_with_limits(file, zip_bytes, max_stream_rows);
         records.shapes = shape_records;
         records.shape_interns = shape_interns;
         notices.extend(shape_notices);
@@ -293,7 +306,8 @@ pub fn validate(mut files: RawFiles, zip_bytes: Option<&[u8]>, cfg: &ValidatorCo
 
     if let Some(file) = files.get("trips.txt") {
         let _t = Timer::start("K2::trips");
-        let (trip_records, trip_interns, trip_notices) = validate_trips(file, zip_bytes);
+        let (trip_records, trip_interns, trip_notices) =
+            validate_trips_with_limits(file, zip_bytes, max_stream_rows);
         records.trips = trip_records;
         records.trip_interns = trip_interns;
         notices.extend(trip_notices);
@@ -395,8 +409,8 @@ pub fn validate(mut files: RawFiles, zip_bytes: Option<&[u8]>, cfg: &ValidatorCo
     if let Some(file) = &stop_times_file {
         let _t = Timer::start("K2::stop_times");
         let has_booking_rules = !records.booking_rules.is_empty();
-        let (stm_index, stop_time_notices) = validate_stop_times(
-            file, zip_bytes, has_booking_rules,
+        let (stm_index, stop_time_notices) = validate_stop_times_with_limits(
+            file, zip_bytes, has_booking_rules, max_stream_rows,
         );
         records.stop_times_index = stm_index;
         notices.extend(stop_time_notices);

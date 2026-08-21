@@ -151,6 +151,14 @@ impl Cols {
 }
 
 pub fn validate_shapes(file: &RawFile, zip_bytes: Option<&[u8]>) -> (Vec<ShapePointRecord>, ShapeInternTable, Vec<gtfs_core::Notice>) {
+    validate_shapes_with_limits(file, zip_bytes, None)
+}
+
+pub fn validate_shapes_with_limits(
+    file: &RawFile,
+    zip_bytes: Option<&[u8]>,
+    max_data_rows: Option<usize>,
+) -> (Vec<ShapePointRecord>, ShapeInternTable, Vec<gtfs_core::Notice>) {
     // #15 W3: shapes.txt K1'de stream edilir (RawFile.rows boş, gövde raw_text'te). Burada
     // streaming parse edilir; K1'in per-satır generic notice'ları (ARC_012/018/021, DQ_016)
     // bu geçişe taşındı (stop_times deseni — aynı line/severity/rule davranışı). Eski rows
@@ -197,6 +205,7 @@ pub fn validate_shapes(file: &RawFile, zip_bytes: Option<&[u8]>) -> (Vec<ShapePo
     let mut intern_map: rustc_hash::FxHashMap<smol_str::SmolStr, u32> = Default::default();
     let mut last_shape: Option<(smol_str::SmolStr, u32)> = None;
     let mut total_rows: usize = 0;
+    let mut stream_truncated = false;
     let mut dq016 = crate::k1_parse::Dq016Acc::default();
 
     {
@@ -497,7 +506,9 @@ pub fn validate_shapes(file: &RawFile, zip_bytes: Option<&[u8]>) -> (Vec<ShapePo
                 Err(_) => {}
                 Ok(mut archive) => {
                     if let Ok(entry) = archive.by_name(&file.name) {
-                        let mut rdr = ZipCsvReader::new(entry);
+                        let mut rdr = ZipCsvReader::with_limits(
+                            entry, super::stop_times::stream_byte_limit(max_data_rows), max_data_rows,
+                        );
                         let mut fields: Vec<Vec<u8>> = Vec::with_capacity(8);
                         let mut line: u64 = 2;
                         let mut header_skipped = false;
@@ -522,6 +533,7 @@ pub fn validate_shapes(file: &RawFile, zip_bytes: Option<&[u8]>) -> (Vec<ShapePo
                             process(&row, line);
                             line += 1;
                         }
+                        stream_truncated |= rdr.truncated();
                     }
                 }
             }
@@ -551,6 +563,12 @@ pub fn validate_shapes(file: &RawFile, zip_bytes: Option<&[u8]>) -> (Vec<ShapePo
                     row.iter().map(|s| Cow::Borrowed(s.as_str())).collect();
                 process(&cow_row, (row_idx + 2) as u64);
             }
+        }
+    }
+
+    if stream_truncated {
+        if let Some(max) = max_data_rows {
+            total_rows = total_rows.max(max.saturating_add(1));
         }
     }
 
