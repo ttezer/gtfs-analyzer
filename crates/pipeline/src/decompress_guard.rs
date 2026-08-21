@@ -68,6 +68,37 @@ pub const DEFAULT_DECOMPRESSION_LIMITS: DecompressionLimits = DecompressionLimit
     max_ratio: 100,
 };
 
+/// Daha küçük wasm32 belleğinde çalışan SDK için decompression sınırları.
+///
+/// Native CLI'nin büyük feed desteği için kullandığı placeholder sınırları WASM için
+/// fazla gevşektir. SDK kendi giriş boyutu kapısını ayrıca uygular; bu sınır ikinci
+/// savunma hattıdır ve özellikle K2'nin ZIP'i yeniden açtığı yollar için gereklidir.
+pub const SDK_DECOMPRESSION_LIMITS: DecompressionLimits = DecompressionLimits {
+    max_total_decompressed: 6 * 1024 * 1024 * 1024,
+    max_entry_decompressed: 3 * 1024 * 1024 * 1024,
+    ratio_floor: 16 * 1024 * 1024,
+    max_ratio: 100,
+};
+
+/// K1'de ham Vec'e alınan (stream edilmeyen) tek dosyanın SDK üst sınırı.
+pub const SDK_MAX_BUFFERED_FILE_BYTES: u64 = 512 * 1024 * 1024;
+
+/// Bir K2 ZIP stream'inin satır okuyucusuna uygulanacak toplam bütçe.
+pub struct DecompressionBudget {
+    limits: DecompressionLimits,
+    total_decompressed: u64,
+}
+
+impl DecompressionBudget {
+    pub fn new(limits: DecompressionLimits) -> Self {
+        Self { limits, total_decompressed: 0 }
+    }
+
+    pub fn reader<'a, R: Read>(&'a mut self, inner: R, compressed_size: u64) -> GuardedReader<'a, R> {
+        GuardedReader::new(inner, self.limits, &mut self.total_decompressed, compressed_size)
+    }
+}
+
 /// Sınır aşımının nedeni (hata mesajı ve teşhis için).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum GuardTrip {

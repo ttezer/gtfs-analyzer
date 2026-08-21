@@ -29,7 +29,7 @@ pub fn validate_fare_media(
             Ok(value) => {
                 if let Some(v) = value {
                     if !validate_enum(&v.to_string(), &["0", "1", "2", "3", "4"]) {
-                        notices.push(make_k2_notice(
+                        notices.push( make_k2_notice(
                             &mut counter, "FMD_002", EntityType::Row, entity_id.clone(), Some(&row_map),
                             &file.name, Some(line), Some("fare_media_type"), Some(v.to_string()),
                             Some("0–4".to_string()),
@@ -38,7 +38,7 @@ pub fn validate_fare_media(
                         ));
                     }
                 } else if get_trimmed_field(&row_map, "fare_media_type") == Some("") {
-                    notices.push(make_k2_notice(
+                    notices.push( make_k2_notice(
                         &mut counter, "FMD_002", EntityType::Row, entity_id.clone(), Some(&row_map),
                         &file.name, Some(line), Some("fare_media_type"), None,
                         Some("0–4".to_string()),
@@ -49,7 +49,7 @@ pub fn validate_fare_media(
                 value
             }
             Err(err) => {
-                notices.push(make_k2_notice(
+                notices.push( make_k2_notice(
                     &mut counter, "FMD_002", EntityType::Row, entity_id.clone(), Some(&row_map),
                     &file.name, Some(line), Some("fare_media_type"),
                     get_trimmed_field(&row_map, "fare_media_type").map(str::to_string),
@@ -71,7 +71,7 @@ pub fn validate_fare_media(
                 Some(2) => "mobil uygulama",
                 _ => "transit kuruluş uygulaması",
             };
-            notices.push(make_k2_notice(
+            notices.push( make_k2_notice(
                 &mut counter, "FMD_003", EntityType::Row, entity_id.clone(), Some(&row_map),
                 &file.name, Some(line), Some("fare_media_name"), None, None,
                 format!("fare_media_type={} ({type_label}) için fare_media_name tavsiye edilir.", fare_media_type.unwrap()),

@@ -41,7 +41,7 @@ pub fn validate_agency(file: &RawFile) -> (Vec<AgencyRecord>, Vec<gtfs_core::Not
 
         // AGN_014: birden fazla kuruluş varken bu satırda agency_id boş/eksik
         if multiple_agencies && agency_id.is_none() {
-            notices.push(make_k2_notice(
+            notices.push( make_k2_notice(
                 &mut counter, "AGN_014", EntityType::Agency, None, Some(&row_map),
                 &file.name, Some(line), Some("agency_id"), Some(String::new()), None,
                 "Birden fazla kuruluş tanımlıyken agency_id zorunludur.".to_string(),
@@ -52,7 +52,7 @@ pub fn validate_agency(file: &RawFile) -> (Vec<AgencyRecord>, Vec<gtfs_core::Not
         // AGN_002: agency_name required (sütun başlıkta yoksa ARC_025 devralır → atla)
         let agency_name = get_trimmed_field(&row_map, "agency_name").unwrap_or("").to_string();
         if get_trimmed_field(&row_map, "agency_name") == Some("") {
-            notices.push(make_k2_notice(
+            notices.push( make_k2_notice(
                 &mut counter, "AGN_002", EntityType::Agency, entity_id.clone(), Some(&row_map),
                 &file.name, Some(line), Some("agency_name"), Some(String::new()), None,
                 "agency_name zorunludur.".to_string(), "agency_name alanını doldurun.",
@@ -67,12 +67,12 @@ pub fn validate_agency(file: &RawFile) -> (Vec<AgencyRecord>, Vec<gtfs_core::Not
         // `" https://x "` sessizce geçerli sayılırdı — issue #92'nin karşı örneği.
         let agency_url = get_lexical_field(&row_map, "agency_url").unwrap_or("").to_string();
         match get_trimmed_field(&row_map, "agency_url") {
-            Some("") => notices.push(make_k2_notice(
+            Some("") => notices.push( make_k2_notice(
                 &mut counter, "AGN_003", EntityType::Agency, entity_id.clone(), Some(&row_map),
                 &file.name, Some(line), Some("agency_url"), Some(String::new()), None,
                 "agency_url zorunludur.".to_string(), "Geçerli bir http/https URL'si girin.",
             )),
-            Some(_) if !looks_like_url(&agency_url) => notices.push(make_k2_notice(
+            Some(_) if !looks_like_url(&agency_url) => notices.push( make_k2_notice(
                 &mut counter, "AGN_003", EntityType::Agency, entity_id.clone(), Some(&row_map),
                 &file.name, Some(line), Some("agency_url"), Some(agency_url.clone()), None,
                 "agency_url geçerli bir URL değil.".to_string(), "Geçerli bir http/https URL'si kullanın.",
@@ -82,7 +82,7 @@ pub fn validate_agency(file: &RawFile) -> (Vec<AgencyRecord>, Vec<gtfs_core::Not
 
         // AGN_015: agency_url güvensiz 'http://' kullanıyor — 'https://' önerilir.
         if agency_url.starts_with("http://") {
-            notices.push(make_k2_notice(
+            notices.push( make_k2_notice(
                 &mut counter, "AGN_015", EntityType::Agency, entity_id.clone(), Some(&row_map),
                 &file.name, Some(line), Some("agency_url"), Some(agency_url.clone()),
                 Some("https://".to_string()),
@@ -97,7 +97,7 @@ pub fn validate_agency(file: &RawFile) -> (Vec<AgencyRecord>, Vec<gtfs_core::Not
             let digits: String = phone.chars().filter(|c| c.is_ascii_digit()).collect();
             const SUSPICIOUS_PHONES: &[&str] = &["8882812681", "18882812681"];
             if SUSPICIOUS_PHONES.contains(&digits.as_str()) {
-                notices.push(make_k2_notice(
+                notices.push( make_k2_notice(
                     &mut counter, "AGN_016", EntityType::Agency, entity_id.clone(), Some(&row_map),
                     &file.name, Some(line), Some("agency_phone"), Some(phone.to_string()), None,
                     format!("agency_phone '{phone}' bilinen bir yer-tutucu/hizmet-dışı numara — gerçek iletişim numarası olmayabilir."),
@@ -109,12 +109,12 @@ pub fn validate_agency(file: &RawFile) -> (Vec<AgencyRecord>, Vec<gtfs_core::Not
         // AGN_004: agency_timezone required + valid IANA (sütun yoksa ARC_025 devralır → atla)
         let agency_timezone = get_trimmed_field(&row_map, "agency_timezone").unwrap_or("").to_string();
         match get_trimmed_field(&row_map, "agency_timezone") {
-            Some("") => notices.push(make_k2_notice(
+            Some("") => notices.push( make_k2_notice(
                 &mut counter, "AGN_004", EntityType::Agency, entity_id.clone(), Some(&row_map),
                 &file.name, Some(line), Some("agency_timezone"), Some(String::new()), None,
                 "agency_timezone zorunludur.".to_string(), "Geçerli bir IANA saat dilimi girin.",
             )),
-            Some(_) if !looks_like_iana_timezone(&agency_timezone) => notices.push(make_k2_notice(
+            Some(_) if !looks_like_iana_timezone(&agency_timezone) => notices.push( make_k2_notice(
                 &mut counter, "AGN_004", EntityType::Agency, entity_id.clone(), Some(&row_map),
                 &file.name, Some(line), Some("agency_timezone"), Some(agency_timezone.clone()), None,
                 format!("agency_timezone '{agency_timezone}' geçerli bir IANA saat dilimi değil."),
@@ -129,7 +129,7 @@ pub fn validate_agency(file: &RawFile) -> (Vec<AgencyRecord>, Vec<gtfs_core::Not
             .map(str::to_string);
         if let Some(ref lang) = agency_lang {
             if !looks_like_bcp47(lang) {
-                notices.push(make_k2_notice(
+                notices.push( make_k2_notice(
                     &mut counter, "AGN_006", EntityType::Agency, entity_id.clone(), Some(&row_map),
                     &file.name, Some(line), Some("agency_lang"), Some(lang.clone()), None,
                     format!("agency_lang '{lang}' geçerli bir BCP-47 dil kodu değil."),
@@ -144,7 +144,7 @@ pub fn validate_agency(file: &RawFile) -> (Vec<AgencyRecord>, Vec<gtfs_core::Not
             .map(str::to_string);
         if let Some(ref phone) = agency_phone {
             if !looks_like_phone(phone) {
-                notices.push(make_k2_notice(
+                notices.push( make_k2_notice(
                     &mut counter, "AGN_007", EntityType::Agency, entity_id.clone(), Some(&row_map),
                     &file.name, Some(line), Some("agency_phone"), Some(phone.clone()), None,
                     format!("agency_phone '{phone}' geçerli bir telefon numarası formatında değil."),
@@ -159,7 +159,7 @@ pub fn validate_agency(file: &RawFile) -> (Vec<AgencyRecord>, Vec<gtfs_core::Not
             .map(str::to_string);
         if let Some(ref url) = agency_fare_url {
             if !looks_like_url(url) {
-                notices.push(make_k2_notice(
+                notices.push( make_k2_notice(
                     &mut counter, "AGN_008", EntityType::Agency, entity_id.clone(), Some(&row_map),
                     &file.name, Some(line), Some("agency_fare_url"), Some(url.clone()), None,
                     "agency_fare_url geçerli bir URL değil.".to_string(),
@@ -174,7 +174,7 @@ pub fn validate_agency(file: &RawFile) -> (Vec<AgencyRecord>, Vec<gtfs_core::Not
             .map(str::to_string);
         if let Some(ref email) = agency_email {
             if !looks_like_email(email) {
-                notices.push(make_k2_notice(
+                notices.push( make_k2_notice(
                     &mut counter, "AGN_009", EntityType::Agency, entity_id.clone(), Some(&row_map),
                     &file.name, Some(line), Some("agency_email"), Some(email.clone()), None,
                     "agency_email geçerli bir e-posta adresi değil.".to_string(),
@@ -188,7 +188,7 @@ pub fn validate_agency(file: &RawFile) -> (Vec<AgencyRecord>, Vec<gtfs_core::Not
             Ok(v) => {
                 if let Some(val) = v {
                     if val > 2 {
-                        notices.push(make_k2_notice(
+                        notices.push( make_k2_notice(
                             &mut counter, "AGN_012", EntityType::Agency, entity_id.clone(), Some(&row_map),
                             &file.name, Some(line), Some("cemv_support"), Some(val.to_string()),
                             Some("0, 1 veya 2".to_string()),
@@ -202,7 +202,7 @@ pub fn validate_agency(file: &RawFile) -> (Vec<AgencyRecord>, Vec<gtfs_core::Not
             Err(err) => {
                 // Sayı OLMAYAN değer eskiden sessizce düşüyordu: aralık dışı sayı AGN_012 üretirken
                 // "abc" hiçbir bulgu vermiyordu. Aynı olgunun iki dalı → aynı kural (PTH_027 emsali).
-                notices.push(make_k2_notice(
+                notices.push( make_k2_notice(
                     &mut counter, "AGN_012", EntityType::Agency, entity_id.clone(),
                     Some(&row_map), &file.name, Some(line), Some("cemv_support"),
                     get_trimmed_field(&row_map, "cemv_support").map(str::to_string), Some("0, 1 veya 2".to_string()),

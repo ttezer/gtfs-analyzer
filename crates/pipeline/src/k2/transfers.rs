@@ -34,7 +34,7 @@ pub fn validate_transfers(file: &RawFile) -> (Vec<TransferRecord>, Vec<gtfs_core
             Ok(value) => {
                 if let Some(v) = value {
                     if !validate_enum(&v.to_string(), &["0", "1", "2", "3", "4", "5"]) {
-                        notices.push(make_k2_notice(
+                        notices.push( make_k2_notice(
                             &mut counter, "TRF_004", EntityType::Row, entity_id.clone(), Some(&row_map),
                             &file.name, Some(line), Some("transfer_type"), Some(v.to_string()),
                             Some("0–5".to_string()),
@@ -46,7 +46,7 @@ pub fn validate_transfers(file: &RawFile) -> (Vec<TransferRecord>, Vec<gtfs_core
                 value
             }
             Err(err) => {
-                notices.push(make_k2_notice(
+                notices.push( make_k2_notice(
                     &mut counter, "TRF_004", EntityType::Row, entity_id.clone(), Some(&row_map),
                     &file.name, Some(line), Some("transfer_type"),
                     get_trimmed_field(&row_map, "transfer_type").map(str::to_string),
@@ -65,7 +65,7 @@ pub fn validate_transfers(file: &RawFile) -> (Vec<TransferRecord>, Vec<gtfs_core
 
         // TRF_001: from_stop_id zorunlu
         if stop_ids_required && get_raw_field(&row_map, "from_stop_id").map(str::trim) == Some("") {
-            notices.push(make_k2_notice(
+            notices.push( make_k2_notice(
                 &mut counter, "TRF_001", EntityType::Row, entity_id.clone(), Some(&row_map),
                 &file.name, Some(line), Some("from_stop_id"), Some(String::new()), None,
                 "from_stop_id zorunludur.".to_string(),
@@ -75,7 +75,7 @@ pub fn validate_transfers(file: &RawFile) -> (Vec<TransferRecord>, Vec<gtfs_core
 
         // TRF_002: to_stop_id zorunlu
         if stop_ids_required && get_raw_field(&row_map, "to_stop_id").map(str::trim) == Some("") {
-            notices.push(make_k2_notice(
+            notices.push( make_k2_notice(
                 &mut counter, "TRF_002", EntityType::Row, entity_id.clone(), Some(&row_map),
                 &file.name, Some(line), Some("to_stop_id"), Some(String::new()), None,
                 "to_stop_id zorunludur.".to_string(),
@@ -87,7 +87,7 @@ pub fn validate_transfers(file: &RawFile) -> (Vec<TransferRecord>, Vec<gtfs_core
         let min_transfer_time = match parse_u32(&row_map, "min_transfer_time") {
             Ok(value) => value,
             Err(err) => {
-                notices.push(make_k2_notice(
+                notices.push( make_k2_notice(
                     &mut counter, "TRF_005", EntityType::Row, entity_id.clone(), Some(&row_map),
                     &file.name, Some(line), Some("min_transfer_time"),
                     get_trimmed_field(&row_map, "min_transfer_time").map(str::to_string),
@@ -99,7 +99,7 @@ pub fn validate_transfers(file: &RawFile) -> (Vec<TransferRecord>, Vec<gtfs_core
         };
 
         if matches!(transfer_type, Some(2)) && min_transfer_time.is_none() {
-            notices.push(make_k2_notice(
+            notices.push( make_k2_notice(
                 &mut counter, "TRF_005", EntityType::Row, entity_id.clone(), Some(&row_map),
                 &file.name, Some(line), Some("min_transfer_time"), Some(String::new()),
                 None, "transfer_type=2 için min_transfer_time zorunludur.".to_string(),
@@ -110,7 +110,7 @@ pub fn validate_transfers(file: &RawFile) -> (Vec<TransferRecord>, Vec<gtfs_core
         // GGL_001: transfer_type=4/5 Google Transit tarafından desteklenmiyor
         if matches!(transfer_type, Some(4) | Some(5)) {
             let ttype = transfer_type.unwrap();
-            notices.push(make_k2_notice(
+            notices.push( make_k2_notice(
                 &mut counter, "GGL_001", EntityType::Row, entity_id.clone(), Some(&row_map),
                 &file.name, Some(line), Some("transfer_type"),
                 Some(ttype.to_string()), None,

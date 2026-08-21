@@ -32,7 +32,7 @@ pub fn validate_fare_attributes(
         let fare_id = get_raw_field(&row_map, "fare_id").unwrap_or("").to_string();
         // FAR_012: fare_id required (sütun yoksa ARC_025 devralır → atla)
         if get_raw_field(&row_map, "fare_id").map(str::trim) == Some("") {
-            notices.push(make_k2_notice(
+            notices.push( make_k2_notice(
                 &mut counter, "FAR_012", EntityType::Fare, None, Some(&row_map),
                 &file.name, Some(line), Some("fare_id"), Some(String::new()), None,
                 "fare_id zorunludur.".to_string(), "Her ücret tanımına benzersiz bir fare_id verin.",
@@ -56,7 +56,7 @@ pub fn validate_fare_attributes(
             Ok(value) => {
                 if let Some(v) = value {
                     if v < 0.0 {
-                        notices.push(make_k2_notice(
+                        notices.push( make_k2_notice(
                             &mut counter, "FAR_002", EntityType::Fare, entity_id.clone(), Some(&row_map),
                             &file.name, Some(line), Some("price"), Some(v.to_string()), Some(">= 0".to_string()),
                             "price negatif olamaz.".to_string(), "price alanını sıfır veya pozitif bir değere ayarlayın.",
@@ -66,7 +66,7 @@ pub fn validate_fare_attributes(
                 value
             }
             Err(err) => {
-                notices.push(make_k2_notice(
+                notices.push( make_k2_notice(
                     &mut counter, "FAR_002", EntityType::Fare, entity_id.clone(), Some(&row_map),
                     &file.name, Some(line), Some("price"), get_trimmed_field(&row_map, "price").map(str::to_string),
                     None, err, "price için geçerli bir sayısal değer girin.",
@@ -79,7 +79,7 @@ pub fn validate_fare_attributes(
         // ⚠️ ISO 4217 AKTİF kod listesi (issue #82): eski denetim "üç büyük harf" idi,
         // `ZZZ` geçiyordu ve `iso4217_minor_unit` onu sessizce 2 ondalık sayıyordu.
         if !super::common::is_iso4217(&currency_type) {
-            notices.push(make_k2_notice(
+            notices.push( make_k2_notice(
                 &mut counter, "FAR_003", EntityType::Fare, entity_id.clone(), Some(&row_map),
                 &file.name, Some(line), Some("currency_type"), Some(currency_type.clone()),
                 Some("ISO 4217".to_string()), "currency_type geçerli bir ISO 4217 kodu değil.".to_string(),
@@ -92,7 +92,7 @@ pub fn validate_fare_attributes(
         );
         // FAR_011: payment_method required (sütun yoksa ARC_025 devralır → atla)
         if get_trimmed_field(&row_map, "payment_method") == Some("") {
-            notices.push(make_k2_notice(
+            notices.push( make_k2_notice(
                 &mut counter, "FAR_011", EntityType::Fare, entity_id.clone(), Some(&row_map),
                 &file.name, Some(line), Some("payment_method"), Some(String::new()), None,
                 "payment_method zorunludur.".to_string(),
@@ -106,7 +106,7 @@ pub fn validate_fare_attributes(
         let transfer_duration = match parse_u32(&row_map, "transfer_duration") {
             Ok(value) => value,
             Err(err) => {
-                notices.push(make_k2_notice(
+                notices.push( make_k2_notice(
                     &mut counter, "FAR_006", EntityType::Fare, entity_id.clone(), Some(&row_map),
                     &file.name, Some(line), Some("transfer_duration"),
                     get_trimmed_field(&row_map, "transfer_duration").map(str::to_string),
@@ -138,7 +138,7 @@ pub fn validate_fare_attributes(
         let want = iso4217_minor_unit(&currency)
             .map(|u| u.to_string())
             .unwrap_or_else(|| "tanımsız".to_string());
-        notices.push(make_k2_notice(
+        notices.push( make_k2_notice(
             &mut counter, "FAR_013", EntityType::File, None, None,
             &file.name, Some(line), Some("price"),
             Some(format!("{iso_bad} satır")), Some(format!("{want} ondalık basamak")),
@@ -171,13 +171,13 @@ fn parse_enum_u32(
         Ok(value) => {
             if let Some(v) = value {
                 if !validate_enum(&v.to_string(), allowed) {
-                    notices.push(make_k2_notice(counter, rule_id, EntityType::Fare, entity_id.clone(), Some(row_map), file_name, Some(line), Some(field), Some(v.to_string()), None, format!("{field} alanı geçerli bir enum değeri değil."), "Alanı geçerli bir spec enum değerine ayarlayın."));
+                    notices.push( make_k2_notice(counter, rule_id, EntityType::Fare, entity_id.clone(), Some(row_map), file_name, Some(line), Some(field), Some(v.to_string()), None, format!("{field} alanı geçerli bir enum değeri değil."), "Alanı geçerli bir spec enum değerine ayarlayın."));
                 }
             }
             value
         }
         Err(err) => {
-            notices.push(make_k2_notice(counter, rule_id, EntityType::Fare, entity_id.clone(), Some(row_map), file_name, Some(line), Some(field), get_trimmed_field(row_map, field).map(str::to_string), None, err, "Alanı geçerli bir spec enum değerine ayarlayın."));
+            notices.push( make_k2_notice(counter, rule_id, EntityType::Fare, entity_id.clone(), Some(row_map), file_name, Some(line), Some(field), get_trimmed_field(row_map, field).map(str::to_string), None, err, "Alanı geçerli bir spec enum değerine ayarlayın."));
             None
         }
     }

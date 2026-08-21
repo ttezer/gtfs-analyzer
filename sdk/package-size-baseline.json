@@ -1,4 +1,4 @@
 {
-  "maxPackedBytes": 1000000,
-  "maxUnpackedBytes": 2900000
+  "maxPackedBytes": 900000,
+  "maxUnpackedBytes": 2500000
 }

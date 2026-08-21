@@ -146,13 +146,22 @@ impl Cols {
 }
 
 pub fn validate_trips(file: &RawFile, zip_bytes: Option<&[u8]>) -> (Vec<TripRecord>, TripInternTable, Vec<gtfs_core::Notice>) {
+    validate_trips_with_limits(file, zip_bytes, None, None)
+}
+
+pub fn validate_trips_with_limits(
+    file: &RawFile,
+    zip_bytes: Option<&[u8]>,
+    max_data_rows: Option<usize>,
+    mut stream_budget: Option<&mut super::stop_times::StreamBudget>,
+) -> (Vec<TripRecord>, TripInternTable, Vec<gtfs_core::Notice>) {
     // #38: trips.txt K1'de yalnızca başlık okunur; K2 zip_bytes'tan stream eder.
     // Eski rows yolu test/legacy fallback olarak korunur.
     let mut notices = Vec::new();
-    // Kapasite tahmini: sıkışık boyut / 60 (ortalama satır).
-    let est_rows = zip_bytes.map(|_| (file.bytes as usize / 60).max(1))
-        .or_else(|| file.raw_text.as_ref().map(|t| t.len() / 60))
-        .unwrap_or(file.rows.len());
+    // ZIP central-directory sizes are attacker-controlled metadata. Grow from
+    // observed records rather than trusting the declared size.
+    let est_rows = if zip_bytes.is_some() { 0 }
+        else { file.raw_text.as_ref().map(|t| t.len() / 60).unwrap_or(file.rows.len()) };
     let mut records: Vec<TripRecord> = Vec::with_capacity(est_rows);
     let mut counter = 0u32;
 
@@ -183,7 +192,7 @@ pub fn validate_trips(file: &RawFile, zip_bytes: Option<&[u8]>) -> (Vec<TripReco
         // Bu dosya K1'de stream edilir ve orada yalnız başlık okunur, dolayısıyla kontrol
         // K1'de kalırsa bu dosyada HİÇ çalışmaz (#181).
         if crate::k1_parse::arc034_is_header_repeat(row, &file.headers) {
-            notices.push(make_k2_notice(
+            notices.push( make_k2_notice(
                 &mut counter, "ARC_034", EntityType::File, Some(file.name.clone()),
                 None, &file.name, Some(line), None, None, None,
                 format!("'{}' {line}. satırı başlık satırının tekrarı — veri olarak okunuyor.", file.name),
@@ -197,7 +206,7 @@ pub fn validate_trips(file: &RawFile, zip_bytes: Option<&[u8]>) -> (Vec<TripReco
 
         // TRP_001: trip_id zorunlu
         if trip_id.is_empty() && has_trip_id_col {
-            notices.push(make_k2_notice(
+            notices.push( make_k2_notice(
                 &mut counter, "TRP_001", EntityType::Trip, None,
                 None, &file.name, Some(line), Some("trip_id"),
                 Some(String::new()), None,
@@ -211,7 +220,7 @@ pub fn validate_trips(file: &RawFile, zip_bytes: Option<&[u8]>) -> (Vec<TripReco
 
         // TRP_031: route_id required — intern_idx 0 döndürdüyse boş demektir
         if route_idx == 0 && has_route_id_col {
-            notices.push(make_k2_notice(
+            notices.push( make_k2_notice(
                 &mut counter, "TRP_031", EntityType::Trip, None,
                 None, &file.name, Some(line), Some("route_id"),
                 Some(String::new()), None,
@@ -224,7 +233,7 @@ pub fn validate_trips(file: &RawFile, zip_bytes: Option<&[u8]>) -> (Vec<TripReco
         // çözümünü ölçer ve boş değeri "referans yok" sayıp geçer — çapa granülerliği
         // triyajında bulundu (korpusta 24 satır / 5 feed).
         if service_idx == 0 && has_service_id_col {
-            notices.push(make_k2_notice(
+            notices.push( make_k2_notice(
                 &mut counter, "TRP_035", EntityType::Trip, None,
                 None, &file.name, Some(line), Some("service_id"),
                 Some(String::new()), Some("(dolu)".to_string()),
@@ -244,7 +253,7 @@ pub fn validate_trips(file: &RawFile, zip_bytes: Option<&[u8]>) -> (Vec<TripReco
         // alfabelerde (Türkçe, Japonca) eşiği erken tetikliyordu.
         let short_name_chars = short_name_raw.chars().count();
         if !short_name_raw.is_empty() && short_name_chars > 20 {
-            notices.push(make_k2_notice(
+            notices.push( make_k2_notice(
                 &mut counter, "TRP_014", EntityType::Trip, entity_id.clone(),
                 None, &file.name, Some(line), Some("trip_short_name"),
                 Some(short_name_chars.to_string()), Some("≤20".to_string()),
@@ -264,7 +273,7 @@ pub fn validate_trips(file: &RawFile, zip_bytes: Option<&[u8]>) -> (Vec<TripReco
             Ok(v) => {
                 if let Some(val) = v {
                     if val > 1 {
-                        notices.push(make_k2_notice(
+                        notices.push( make_k2_notice(
                             &mut counter, "TRP_005", EntityType::Trip, entity_id.clone(),
                             None, &file.name, Some(line), Some("direction_id"),
                             Some(val.to_string()), Some("0 veya 1".to_string()),
@@ -276,7 +285,7 @@ pub fn validate_trips(file: &RawFile, zip_bytes: Option<&[u8]>) -> (Vec<TripReco
                 v
             }
             Err(_) => {
-                notices.push(make_k2_notice(
+                notices.push( make_k2_notice(
                     &mut counter, "TRP_005", EntityType::Trip, entity_id.clone(),
                     None, &file.name, Some(line), Some("direction_id"),
                     Some(dir_raw.to_string()), Some("0 veya 1".to_string()),
@@ -293,7 +302,7 @@ pub fn validate_trips(file: &RawFile, zip_bytes: Option<&[u8]>) -> (Vec<TripReco
             Ok(v) => {
                 if let Some(val) = v {
                     if val > 2 {
-                        notices.push(make_k2_notice(
+                        notices.push( make_k2_notice(
                             &mut counter, "TRP_006", EntityType::Trip, entity_id.clone(),
                             None, &file.name, Some(line), Some("wheelchair_accessible"),
                             Some(val.to_string()), Some("0, 1 veya 2".to_string()),
@@ -307,7 +316,7 @@ pub fn validate_trips(file: &RawFile, zip_bytes: Option<&[u8]>) -> (Vec<TripReco
             Err(()) => {
                 // Sayı OLMAYAN değer eskiden sessizce düşüyordu: aralık dışı sayı TRP_006 üretirken
                 // "abc" hiçbir bulgu vermiyordu. Aynı olgunun iki dalı → aynı kural (PTH_027 emsali).
-                notices.push(make_k2_notice(
+                notices.push( make_k2_notice(
                     &mut counter, "TRP_006", EntityType::Trip, entity_id.clone(),
                     None, &file.name, Some(line), Some("wheelchair_accessible"),
                     Some(wc_raw.to_string()), Some("0, 1 veya 2".to_string()),
@@ -324,7 +333,7 @@ pub fn validate_trips(file: &RawFile, zip_bytes: Option<&[u8]>) -> (Vec<TripReco
             Ok(v) => {
                 if let Some(val) = v {
                     if val > 2 {
-                        notices.push(make_k2_notice(
+                        notices.push( make_k2_notice(
                             &mut counter, "TRP_007", EntityType::Trip, entity_id.clone(),
                             None, &file.name, Some(line), Some("bikes_allowed"),
                             Some(val.to_string()), Some("0, 1 veya 2".to_string()),
@@ -338,7 +347,7 @@ pub fn validate_trips(file: &RawFile, zip_bytes: Option<&[u8]>) -> (Vec<TripReco
             Err(()) => {
                 // Sayı OLMAYAN değer eskiden sessizce düşüyordu: aralık dışı sayı TRP_007 üretirken
                 // "abc" hiçbir bulgu vermiyordu. Aynı olgunun iki dalı → aynı kural (PTH_027 emsali).
-                notices.push(make_k2_notice(
+                notices.push( make_k2_notice(
                     &mut counter, "TRP_007", EntityType::Trip, entity_id.clone(),
                     None, &file.name, Some(line), Some("bikes_allowed"),
                     Some(ba_raw.to_string()), Some("0, 1 veya 2".to_string()),
@@ -368,7 +377,7 @@ pub fn validate_trips(file: &RawFile, zip_bytes: Option<&[u8]>) -> (Vec<TripReco
             Ok(v) => {
                 if let Some(val) = v {
                     if val > 2 {
-                        notices.push(make_k2_notice(
+                        notices.push( make_k2_notice(
                             &mut counter, "TRP_032", EntityType::Trip, entity_id.clone(),
                             None, &file.name, Some(line), Some("cars_allowed"),
                             Some(val.to_string()), Some("0, 1 veya 2".to_string()),
@@ -388,7 +397,7 @@ pub fn validate_trips(file: &RawFile, zip_bytes: Option<&[u8]>) -> (Vec<TripReco
             match parse_f64_col(raw) {
                 Ok(v) => v,
                 Err(()) => {
-                    notices.push(make_k2_notice(
+                    notices.push( make_k2_notice(
                         &mut counter, "TRP_034", EntityType::Trip,
                         Some(trip_id.to_string()), None,
                         &file.name, Some(line), Some(field),
@@ -425,7 +434,7 @@ pub fn validate_trips(file: &RawFile, zip_bytes: Option<&[u8]>) -> (Vec<TripReco
         let cursor = Cursor::new(zb);
         match zip::ZipArchive::new(cursor) {
             Err(e) => {
-                notices.push(make_k2_notice(
+                notices.push( make_k2_notice(
                     &mut counter, "ARC_009", EntityType::File, Some(file.name.clone()),
                     None, &file.name, None, None, None, None,
                     format!("'{}' ZIP yeniden açılamadı: {e}.", file.name),
@@ -435,7 +444,7 @@ pub fn validate_trips(file: &RawFile, zip_bytes: Option<&[u8]>) -> (Vec<TripReco
             Ok(mut archive) => {
                 match archive.by_name(&file.name) {
                     Err(e) => {
-                        notices.push(make_k2_notice(
+                        notices.push( make_k2_notice(
                             &mut counter, "ARC_009", EntityType::File, Some(file.name.clone()),
                             None, &file.name, None, None, None, None,
                             format!("'{}' ZIP girdisi bulunamadı: {e}.", file.name),
@@ -443,7 +452,12 @@ pub fn validate_trips(file: &RawFile, zip_bytes: Option<&[u8]>) -> (Vec<TripReco
                         ));
                     }
                     Ok(entry) => {
-                        let mut csv_reader = ZipCsvReader::new(entry);
+                        let stream_limit = stream_budget.as_ref()
+                            .map(|budget| budget.limit())
+                            .unwrap_or(super::stop_times::stream_byte_limit(max_data_rows));
+                        let mut csv_reader = ZipCsvReader::with_limits(
+                            entry, stream_limit, max_data_rows,
+                        );
                         let mut raw_fields: Vec<Vec<u8>> = Vec::with_capacity(16);
                         let mut zip_line: u64 = 2;
                         let mut header_skipped = false;
@@ -464,6 +478,9 @@ pub fn validate_trips(file: &RawFile, zip_bytes: Option<&[u8]>) -> (Vec<TripReco
                             }
                             process(&cow_row, zip_line);
                             zip_line += 1;
+                        }
+                        if let Some(budget) = stream_budget.as_mut() {
+                            budget.consume(csv_reader.bytes_read());
                         }
                     }
                 }
@@ -500,14 +517,14 @@ pub fn validate_trips(file: &RawFile, zip_bytes: Option<&[u8]>) -> (Vec<TripReco
             Some(observed), None, msg, crate::k1_parse::DQ016_REMEDIATION,
         );
         n.details = dq016.evidence_details();
-        notices.push(n);
+        notices.push( n);
     }
 
     // TRP_021: loop sonrası tek özet notice
     if trp021_missing_count > 0 {
         let total = trp021_missing_count + bikes_allowed_set_count as usize;
         if bikes_allowed_set_count == 0 {
-            notices.push(make_k2_notice(
+            notices.push( make_k2_notice(
                 &mut counter, "TRP_021", EntityType::Trip, None,
                 None, &file.name, None, Some("bikes_allowed"),
                 Some(format!("{trp021_missing_count}/{total}")), Some("0".to_string()),
@@ -522,7 +539,7 @@ pub fn validate_trips(file: &RawFile, zip_bytes: Option<&[u8]>) -> (Vec<TripReco
                     trp021_missing_examples.join(", "),
                     if trp021_missing_count > trp021_missing_examples.len() { ", …" } else { "" })
             };
-            notices.push(make_k2_notice(
+            notices.push( make_k2_notice(
                 &mut counter, "TRP_021", EntityType::Trip, None,
                 None, &file.name, trp021_first_line, Some("bikes_allowed"),
                 Some(format!("{trp021_missing_count}/{total}")), Some("0".to_string()),
@@ -535,12 +552,12 @@ pub fn validate_trips(file: &RawFile, zip_bytes: Option<&[u8]>) -> (Vec<TripReco
 
     // ARC_013: akış gövdesinde kapanmamış tırnak (issue #84) — DOSYA başına tek notice.
     if scan.unclosed || zip_unclosed {
-        notices.push(super::common::arc013_unclosed_stream(&file.name, &mut counter));
+        notices.push( super::common::arc013_unclosed_stream(&file.name, &mut counter));
     }
 
     // ARC_033: DOSYA başına TEK özet (kopya denetim yok — #75 dersi).
     if let Some(n) = super::common::arc033_summary(&rfc_acc, &file.name, &mut counter) {
-        notices.push(n);
+        notices.push( n);
     }
 
     (records, interns, notices)

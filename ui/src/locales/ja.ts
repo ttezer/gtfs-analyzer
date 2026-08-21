@@ -330,6 +330,7 @@ const ja: LocaleShape = {
     'fix.pattern.trips'     : '{n}便',
     'fix.pattern.stops_n'   : '{n}停留所',
     'fix.pattern.summary'   : '{p}種類のパターン · 合計{t}便',
+    'fix.pattern.limited'   : '安全上の制限により表示を制限しました。{n}便は省略されました。',
     'fix.pattern.dir_out'   : '往路',
     'fix.pattern.dir_in'    : '復路',
     'fix.spec_link'         : 'GTFS仕様（新しいタブ）',

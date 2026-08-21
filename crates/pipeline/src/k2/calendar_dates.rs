@@ -81,6 +81,15 @@ pub fn validate_calendar_dates(
     file: &RawFile,
     zip_bytes: Option<&[u8]>,
 ) -> (CalendarDateIndex, Vec<gtfs_core::Notice>) {
+    validate_calendar_dates_with_limits(file, zip_bytes, None, None)
+}
+
+pub fn validate_calendar_dates_with_limits(
+    file: &RawFile,
+    zip_bytes: Option<&[u8]>,
+    max_data_rows: Option<usize>,
+    mut stream_budget: Option<&mut super::stop_times::StreamBudget>,
+) -> (CalendarDateIndex, Vec<gtfs_core::Notice>) {
     // #38: calendar_dates.txt K1'de yalnızca başlık okunur; K2 zip_bytes'tan stream eder.
     let mut notices = Vec::new();
     let mut counter = 0u32;
@@ -99,7 +108,7 @@ pub fn validate_calendar_dates(
         // ARC_034: başlık tekrarı → notice + satırı KAYDETME. Bu dosya K1'de stream edilir
         // ve orada yalnız başlık okunur; kontrol K1'de kalırsa burada hiç çalışmaz (#181).
         if crate::k1_parse::arc034_is_header_repeat(row, &file.headers) {
-            notices.push(make_k2_notice(
+            notices.push( make_k2_notice(
                 &mut counter, "ARC_034", EntityType::File, Some(file.name.clone()),
                 None, &file.name, Some(line), None, None, None,
                 format!("'{}' {line}. satırı başlık satırının tekrarı — veri olarak okunuyor.", file.name),
@@ -124,7 +133,7 @@ pub fn validate_calendar_dates(
 
         // CLD_001: service_id required
         if service_id.is_empty() && has_service_id_col {
-            notices.push(make_k2_notice(
+            notices.push( make_k2_notice(
                 &mut counter, "CLD_001", EntityType::Service, None,
                 None, &file.name, Some(line), Some("service_id"),
                 Some(String::new()), None,
@@ -138,7 +147,7 @@ pub fn validate_calendar_dates(
         let date = match parse_date_raw(date_raw) {
             Ok(v) => {
                 if date_raw.is_empty() {
-                    notices.push(make_k2_notice(
+                    notices.push( make_k2_notice(
                         &mut counter, "CLD_002", EntityType::Service, entity_id.clone(),
                         None, &file.name, Some(line), Some("date"),
                         Some(String::new()), Some("YYYYMMDD".to_string()),
@@ -149,7 +158,7 @@ pub fn validate_calendar_dates(
                 // CLD_005: tarih 2000–2099 dışında
                 if let Some((year, month, day)) = v {
                     if !(2000..=2099).contains(&year) {
-                        notices.push(make_k2_notice(
+                        notices.push( make_k2_notice(
                             &mut counter, "CLD_005", EntityType::Service, entity_id.clone(),
                             None, &file.name, Some(line), Some("date"),
                             Some(format!("{year}-{month:02}-{day:02}")),
@@ -165,7 +174,7 @@ pub fn validate_calendar_dates(
                 v
             }
             Err(err) => {
-                notices.push(make_k2_notice(
+                notices.push( make_k2_notice(
                     &mut counter, "CLD_002", EntityType::Service, entity_id.clone(),
                     None, &file.name, Some(line), Some("date"),
                     Some(date_raw.to_string()), Some("YYYYMMDD".to_string()),
@@ -180,7 +189,7 @@ pub fn validate_calendar_dates(
         let et_raw = get_col(row, cols.exception_type);
         let exception_type = if et_raw.is_empty() {
             if has_exception_type_col {
-                notices.push(make_k2_notice(
+                notices.push( make_k2_notice(
                     &mut counter, "CLD_003", EntityType::Service, entity_id.clone(),
                     None, &file.name, Some(line), Some("exception_type"),
                     Some(String::new()), Some("1 veya 2".to_string()),
@@ -193,7 +202,7 @@ pub fn validate_calendar_dates(
             match et_raw.parse::<u32>() {
                 Ok(val) if val == 1 || val == 2 => Some(val),
                 Ok(val) => {
-                    notices.push(make_k2_notice(
+                    notices.push( make_k2_notice(
                         &mut counter, "CLD_003", EntityType::Service, entity_id.clone(),
                         None, &file.name, Some(line), Some("exception_type"),
                         Some(val.to_string()), Some("1 veya 2".to_string()),
@@ -204,7 +213,7 @@ pub fn validate_calendar_dates(
                     Some(val)
                 }
                 Err(_) => {
-                    notices.push(make_k2_notice(
+                    notices.push( make_k2_notice(
                         &mut counter, "CLD_003", EntityType::Service, entity_id.clone(),
                         None, &file.name, Some(line), Some("exception_type"),
                         Some(et_raw.to_string()), Some("1 veya 2".to_string()),
@@ -255,7 +264,7 @@ pub fn validate_calendar_dates(
         let cursor = Cursor::new(zb);
         match zip::ZipArchive::new(cursor) {
             Err(e) => {
-                notices.push(make_k2_notice(
+                notices.push( make_k2_notice(
                     &mut counter, "ARC_009", EntityType::File, Some(file.name.clone()),
                     None, &file.name, None, None, None, None,
                     format!("'{}' ZIP yeniden açılamadı: {e}.", file.name),
@@ -265,7 +274,7 @@ pub fn validate_calendar_dates(
             Ok(mut archive) => {
                 match archive.by_name(&file.name) {
                     Err(e) => {
-                        notices.push(make_k2_notice(
+                        notices.push( make_k2_notice(
                             &mut counter, "ARC_009", EntityType::File, Some(file.name.clone()),
                             None, &file.name, None, None, None, None,
                             format!("'{}' ZIP girdisi bulunamadı: {e}.", file.name),
@@ -273,7 +282,12 @@ pub fn validate_calendar_dates(
                         ));
                     }
                     Ok(entry) => {
-                        let mut csv_reader = ZipCsvReader::new(entry);
+                        let stream_limit = stream_budget.as_ref()
+                            .map(|budget| budget.limit())
+                            .unwrap_or(super::stop_times::stream_byte_limit(max_data_rows));
+                        let mut csv_reader = ZipCsvReader::with_limits(
+                            entry, stream_limit, max_data_rows,
+                        );
                         let mut raw_fields: Vec<Vec<u8>> = Vec::with_capacity(4);
                         let mut zip_line: u64 = 2;
                         let mut header_skipped = false;
@@ -294,6 +308,13 @@ pub fn validate_calendar_dates(
                             }
                             process(&cow_row, zip_line);
                             zip_line += 1;
+                        }
+                        let bytes_read = csv_reader.bytes_read();
+                        if let Some(budget) = stream_budget.as_mut() { budget.consume(bytes_read); }
+                        if csv_reader.truncated() {
+                            if let Some(max) = max_data_rows {
+                                index.raw_row_count = index.raw_row_count.max(max.saturating_add(1) as u64);
+                            }
                         }
                     }
                 }
@@ -324,7 +345,7 @@ pub fn validate_calendar_dates(
     // CLD_006: bir service_id için çok fazla istisna günü (> 60)
     for (sid, &count) in &index.exception_count {
         if count > 60 {
-            notices.push(make_k2_notice(
+            notices.push( make_k2_notice(
                 &mut counter, "CLD_006", EntityType::Service, Some(sid.to_string()),
                 None, &file.name, None, Some("service_id"),
                 Some(count.to_string()), Some("≤ 60".to_string()),
@@ -347,17 +368,17 @@ pub fn validate_calendar_dates(
             Some(observed), None, msg, crate::k1_parse::DQ016_REMEDIATION,
         );
         n.details = dq016.evidence_details();
-        notices.push(n);
+        notices.push( n);
     }
 
     // ARC_013: akış gövdesinde kapanmamış tırnak (issue #84) — DOSYA başına tek notice.
     if scan.unclosed || zip_unclosed {
-        notices.push(super::common::arc013_unclosed_stream(&file.name, &mut counter));
+        notices.push( super::common::arc013_unclosed_stream(&file.name, &mut counter));
     }
 
     // ARC_033: DOSYA başına TEK özet (kopya denetim yok — #75 dersi).
     if let Some(n) = super::common::arc033_summary(&rfc_acc, &file.name, &mut counter) {
-        notices.push(n);
+        notices.push( n);
     }
 
     (index, notices)

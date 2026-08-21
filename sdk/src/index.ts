@@ -64,6 +64,8 @@ export type {
 
 const SDK_VERSION = '0.1.4';
 const ENGINE_VERSION = '0.9.7';
+const MAX_INPUT_BYTES = 512 * 1024 * 1024;
+const MAX_CONFIG_BYTES = 4 * 1024 * 1024;
 
 let initialization: Promise<void> | undefined;
 let bundledWasmModule: BundledWasm | undefined;
@@ -87,7 +89,7 @@ const bundledEngine: ValidatorEngine = {
   prepare: (input, configDelta, onStage, today) => bundledWasm().prepare_with_today(input, configDelta, onStage, today),
   rerun: (cache, configDelta, onStage, today) => bundledWasm().rerun_k6_k7_with_today(cache as CachedState, configDelta, onStage, today),
   getCachedFileStats: (cache) => parseJson<FileInfo[]>(bundledWasm().get_cached_file_stats(cache as CachedState), []),
-  getShapeCoords: (cache, shapeId) => parseJson<[number, number][]>(bundledWasm().shape_coords_of(cache as CachedState, shapeId), []),
+  getShapeCoords: (cache, shapeId) => parseShapeCoords(bundledWasm().shape_coords_of(cache as CachedState, shapeId)),
 };
 
 /** Validates a GTFS ZIP with the same engine used by the Analyzer application. */
@@ -95,13 +97,12 @@ export async function validateGtfs(
   input: Uint8Array | ArrayBuffer,
   options: ValidateOptions = {},
 ): Promise<ValidationResult> {
-  await initialize();
-
-  const bytes = input instanceof Uint8Array ? input : new Uint8Array(input);
+  const bytes = normalizeInput(input);
   const today = normalizeToday(options.today);
   // `serializeConfig` (not a bare JSON.stringify) so a circular or BigInt config
   // throws ValidationError here exactly as it does on the session path.
   const configDelta = serializeConfig(options.config);
+  await initialize();
 
   let result: EngineResult;
   try {
@@ -153,33 +154,32 @@ export class ValidatorSession {
     options: SessionRunOptions = {},
   ): Promise<SessionResult> {
     this.ensureOpen();
+    const bytes = normalizeInput(input);
     await this.engine.initialize();
 
     this.releaseCache();
-    const bytes = input instanceof Uint8Array ? input : new Uint8Array(input);
     const config = options.config ?? this.defaultConfig;
     const configDelta = serializeConfig(config);
-    const files = this.engine.listZipFiles(bytes);
-    options.callbacks?.onFileList?.(files);
-
     const onStage = makeStageCallback(options.callbacks);
+    let files: ZipFileInfo[];
     try {
+      files = this.engine.listZipFiles(bytes);
+      options.callbacks?.onFileList?.(files);
       const cache = this.engine.prepare(bytes, configDelta, onStage, this.today);
       this.cache = cache;
       this.lastFiles = files;
+      const fileStats = this.engine.getCachedFileStats(cache);
+      for (const file of fileStats) options.callbacks?.onFileDone?.(file);
+
+      return {
+        result: this.runCached(configDelta, onStage),
+        files,
+        fileStats,
+        engineMode: this.engineMode,
+      };
     } catch (error: unknown) {
       throw new ValidationError(normalizeFatalError(error));
     }
-
-    const fileStats = this.engine.getCachedFileStats(this.cache);
-    for (const file of fileStats) options.callbacks?.onFileDone?.(file);
-
-    return {
-      result: this.runCached(configDelta, onStage),
-      files,
-      fileStats,
-      engineMode: this.engineMode,
-    };
   }
 
   /** Re-runs K6–K7 without reparsing the ZIP or rebuilding the cache. */
@@ -208,7 +208,11 @@ export class ValidatorSession {
   getShapeCoords(shapeId: string): [number, number][] {
     this.ensureOpen();
     if (!this.cache) return [];
-    return this.engine.getShapeCoords(this.cache, shapeId);
+    try {
+      return this.engine.getShapeCoords(this.cache, shapeId);
+    } catch (error: unknown) {
+      throw new ValidationError(normalizeFatalError(error));
+    }
   }
 
   /** Releases the WASM cache. Safe to call more than once. */
@@ -273,7 +277,11 @@ function makeStageCallback(callbacks: ValidationCallbacks | undefined): (stage: 
 function serializeConfig(config: Record<string, unknown> | undefined): string {
   if (config === undefined) return '';
   try {
-    return JSON.stringify(config);
+    const serialized = JSON.stringify(config);
+    if (new TextEncoder().encode(serialized).byteLength > MAX_CONFIG_BYTES) {
+      throw new Error(`Configuration exceeds the ${MAX_CONFIG_BYTES} byte safety limit.`);
+    }
+    return serialized;
   } catch (error: unknown) {
     const detail = `Config could not be serialized to JSON: ${error instanceof Error ? error.message : String(error)}`;
     throw new ValidationError(toPublicFatal({
@@ -281,6 +289,16 @@ function serializeConfig(config: Record<string, unknown> | undefined): string {
       message: detail,
     }));
   }
+}
+
+function normalizeInput(input: Uint8Array | ArrayBuffer): Uint8Array {
+  if (input.byteLength > MAX_INPUT_BYTES) {
+    throw new ValidationError({
+      code: 'ResourceLimit',
+      message: `GTFS ZIP exceeds the ${MAX_INPUT_BYTES} byte SDK safety limit.`,
+    });
+  }
+  return input instanceof Uint8Array ? input : new Uint8Array(input);
 }
 
 function normalizeFatalError(error: unknown): FatalError {
@@ -324,6 +342,14 @@ function publicFatalMessage(code: FatalError['code']): string {
 function parseJson<T>(raw: unknown, fallback: T): T {
   if (typeof raw !== 'string') return raw as T;
   try { return JSON.parse(raw) as T; } catch { return fallback; }
+}
+
+function parseShapeCoords(raw: unknown): [number, number][] {
+  const parsed = parseJson<unknown>(raw, null);
+  if (parsed && typeof parsed === 'object' && 'Fatal' in parsed) {
+    throw new ValidationError(toPublicFatal((parsed as { Fatal: FatalError }).Fatal));
+  }
+  return Array.isArray(parsed) ? parsed as [number, number][] : [];
 }
 
 async function initializeWasm(): Promise<void> {

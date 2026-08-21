@@ -47,7 +47,7 @@
     "test:smoke": "npm run build && node scripts/smoke-test.mjs",
     "package:check": "node scripts/check-package.mjs",
     "pack:check": "npm run build && npm run package:check",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run pack:check"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",

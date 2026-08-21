@@ -151,6 +151,15 @@ impl Cols {
 }
 
 pub fn validate_shapes(file: &RawFile, zip_bytes: Option<&[u8]>) -> (Vec<ShapePointRecord>, ShapeInternTable, Vec<gtfs_core::Notice>) {
+    validate_shapes_with_limits(file, zip_bytes, None, None)
+}
+
+pub fn validate_shapes_with_limits(
+    file: &RawFile,
+    zip_bytes: Option<&[u8]>,
+    max_data_rows: Option<usize>,
+    mut stream_budget: Option<&mut super::stop_times::StreamBudget>,
+) -> (Vec<ShapePointRecord>, ShapeInternTable, Vec<gtfs_core::Notice>) {
     // #15 W3: shapes.txt K1'de stream edilir (RawFile.rows boş, gövde raw_text'te). Burada
     // streaming parse edilir; K1'in per-satır generic notice'ları (ARC_012/018/021, DQ_016)
     // bu geçişe taşındı (stop_times deseni — aynı line/severity/rule davranışı). Eski rows
@@ -168,7 +177,9 @@ pub fn validate_shapes(file: &RawFile, zip_bytes: Option<&[u8]>) -> (Vec<ShapePo
     // bir kez ondan türetilir; feed'e uyarlanır. Yalnız KAPASİTE — eleman değeri/sırası etkilenmez.
     const SAMPLE_ROWS: usize = 4096;
     let stream_bytes: Option<usize> = zip_bytes
-        .map(|_| file.bytes as usize)
+        // ZIP central-directory sizes are untrusted; disable metadata-based
+        // preallocation for the streamed path.
+        .map(|_| 0)
         .or_else(|| file.raw_text.as_ref().map(|t| t.len()));
     let mut sampled_bytes: usize = 0;
     let mut capacity_set = false;
@@ -197,6 +208,7 @@ pub fn validate_shapes(file: &RawFile, zip_bytes: Option<&[u8]>) -> (Vec<ShapePo
     let mut intern_map: rustc_hash::FxHashMap<smol_str::SmolStr, u32> = Default::default();
     let mut last_shape: Option<(smol_str::SmolStr, u32)> = None;
     let mut total_rows: usize = 0;
+    let mut stream_truncated = false;
     let mut dq016 = crate::k1_parse::Dq016Acc::default();
 
     {
@@ -216,12 +228,12 @@ pub fn validate_shapes(file: &RawFile, zip_bytes: Option<&[u8]>) -> (Vec<ShapePo
                 if is_info {
                     n.severity = Severity::Bilgi;
                 }
-                notices.push(n);
+                notices.push( n);
             }
 
             // ARC_034: başlık tekrarı → notice + kayıt YAPMA (#181, K1 stream eder).
             if crate::k1_parse::arc034_is_header_repeat(row, &file.headers) {
-                notices.push(make_k2_notice(
+                notices.push( make_k2_notice(
                     &mut counter, "ARC_034", EntityType::File, Some(file.name.clone()),
                     None, &file.name, Some(line), None, None, None,
                     format!("'{}' {line}. satırı başlık satırının tekrarı — veri olarak okunuyor.", file.name),
@@ -232,7 +244,7 @@ pub fn validate_shapes(file: &RawFile, zip_bytes: Option<&[u8]>) -> (Vec<ShapePo
 
             // ARC_018: tamamen boş satır → notice + kayıt YAPMA
             if row.iter().all(|v| v.trim().is_empty()) {
-                notices.push(make_k2_notice(
+                notices.push( make_k2_notice(
                     &mut counter, "ARC_018", EntityType::File, Some(file.name.clone()),
                     None, &file.name, Some(line), None,
                     None, None,
@@ -264,7 +276,7 @@ pub fn validate_shapes(file: &RawFile, zip_bytes: Option<&[u8]>) -> (Vec<ShapePo
             if !arc021_fired {
                 if let Some(cp) = crate::k1_parse::arc021_bad_char(row.iter().map(|v| v.as_ref())) {
                     arc021_fired = true;
-                    notices.push(make_k2_notice(
+                    notices.push( make_k2_notice(
                         &mut counter, "ARC_021", EntityType::File, Some(file.name.clone()),
                         None, &file.name, Some(line), None,
                         Some(format!("U+{cp:04X}")), None,
@@ -278,7 +290,7 @@ pub fn validate_shapes(file: &RawFile, zip_bytes: Option<&[u8]>) -> (Vec<ShapePo
             if !arc030_fired {
                 if let Some(cp) = crate::k1_parse::arc030_bad_whitespace(row.iter().map(|v| v.as_ref())) {
                     arc030_fired = true;
-                    notices.push(make_k2_notice(
+                    notices.push( make_k2_notice(
                         &mut counter, "ARC_030", EntityType::File, Some(file.name.clone()),
                         None, &file.name, Some(line), None,
                         Some(format!("U+{cp:04X}")), None,
@@ -322,7 +334,7 @@ pub fn validate_shapes(file: &RawFile, zip_bytes: Option<&[u8]>) -> (Vec<ShapePo
 
             // SHP_001: shape_id required (sütun yoksa ARC_025 devralır → atla)
             if shape_id.is_empty() && file.headers.iter().any(|h| h == "shape_id") {
-                notices.push(make_k2_notice(
+                notices.push( make_k2_notice(
                     &mut counter, "SHP_001", EntityType::Shape, None,
                     None, &file.name, Some(line), Some("shape_id"),
                     Some(String::new()), None,
@@ -336,7 +348,7 @@ pub fn validate_shapes(file: &RawFile, zip_bytes: Option<&[u8]>) -> (Vec<ShapePo
             let shape_pt_sequence = match parse_u32_col(seq_raw) {
                 Ok(v) => {
                     if v.is_none() && file.headers.iter().any(|h| h == "shape_pt_sequence") {
-                        notices.push(make_k2_notice(
+                        notices.push( make_k2_notice(
                             &mut counter, "SHP_004", EntityType::Shape, entity_id(),
                             None, &file.name, Some(line), Some("shape_pt_sequence"),
                             Some(String::new()), None,
@@ -347,7 +359,7 @@ pub fn validate_shapes(file: &RawFile, zip_bytes: Option<&[u8]>) -> (Vec<ShapePo
                     v
                 }
                 Err(_) => {
-                    notices.push(make_k2_notice(
+                    notices.push( make_k2_notice(
                         &mut counter, "SHP_004", EntityType::Shape, entity_id(),
                         None, &file.name, Some(line), Some("shape_pt_sequence"),
                         Some(seq_raw.to_string()), None,
@@ -361,7 +373,7 @@ pub fn validate_shapes(file: &RawFile, zip_bytes: Option<&[u8]>) -> (Vec<ShapePo
             // SHP_008: shape_pt_sequence yineleniyor
             if let Some(seq) = shape_pt_sequence {
                 if !seen_seq_by_shape.entry(shape_idx).or_default().insert(seq) {
-                    notices.push(make_k2_notice(
+                    notices.push( make_k2_notice(
                         &mut counter, "SHP_008", EntityType::Shape, entity_id(),
                         None, &file.name, Some(line), Some("shape_pt_sequence"),
                         Some(seq.to_string()), None,
@@ -376,7 +388,7 @@ pub fn validate_shapes(file: &RawFile, zip_bytes: Option<&[u8]>) -> (Vec<ShapePo
             let shape_pt_lat = match parse_f64_col(lat_raw) {
                 Ok(None) => {
                     if file.headers.iter().any(|h| h == "shape_pt_lat") {
-                        notices.push(make_k2_notice(
+                        notices.push( make_k2_notice(
                             &mut counter, "SHP_002", EntityType::Shape, entity_id(),
                             None, &file.name, Some(line), Some("shape_pt_lat"),
                             Some(String::new()), Some("[-90, 90]".to_string()),
@@ -388,7 +400,7 @@ pub fn validate_shapes(file: &RawFile, zip_bytes: Option<&[u8]>) -> (Vec<ShapePo
                 }
                 Ok(Some(lat)) => {
                     if !(-90.0..=90.0).contains(&lat) {
-                        notices.push(make_k2_notice(
+                        notices.push( make_k2_notice(
                             &mut counter, "SHP_002", EntityType::Shape, entity_id(),
                             None, &file.name, Some(line), Some("shape_pt_lat"),
                             Some(lat.to_string()), Some("[-90, 90]".to_string()),
@@ -399,7 +411,7 @@ pub fn validate_shapes(file: &RawFile, zip_bytes: Option<&[u8]>) -> (Vec<ShapePo
                     Some(lat)
                 }
                 Err(_) => {
-                    notices.push(make_k2_notice(
+                    notices.push( make_k2_notice(
                         &mut counter, "SHP_002", EntityType::Shape, entity_id(),
                         None, &file.name, Some(line), Some("shape_pt_lat"),
                         Some(lat_raw.to_string()), Some("[-90, 90]".to_string()),
@@ -415,7 +427,7 @@ pub fn validate_shapes(file: &RawFile, zip_bytes: Option<&[u8]>) -> (Vec<ShapePo
             let shape_pt_lon = match parse_f64_col(lon_raw) {
                 Ok(None) => {
                     if file.headers.iter().any(|h| h == "shape_pt_lon") {
-                        notices.push(make_k2_notice(
+                        notices.push( make_k2_notice(
                             &mut counter, "SHP_003", EntityType::Shape, entity_id(),
                             None, &file.name, Some(line), Some("shape_pt_lon"),
                             Some(String::new()), Some("[-180, 180]".to_string()),
@@ -427,7 +439,7 @@ pub fn validate_shapes(file: &RawFile, zip_bytes: Option<&[u8]>) -> (Vec<ShapePo
                 }
                 Ok(Some(lon)) => {
                     if !(-180.0..=180.0).contains(&lon) {
-                        notices.push(make_k2_notice(
+                        notices.push( make_k2_notice(
                             &mut counter, "SHP_003", EntityType::Shape, entity_id(),
                             None, &file.name, Some(line), Some("shape_pt_lon"),
                             Some(lon.to_string()), Some("[-180, 180]".to_string()),
@@ -438,7 +450,7 @@ pub fn validate_shapes(file: &RawFile, zip_bytes: Option<&[u8]>) -> (Vec<ShapePo
                     Some(lon)
                 }
                 Err(_) => {
-                    notices.push(make_k2_notice(
+                    notices.push( make_k2_notice(
                         &mut counter, "SHP_003", EntityType::Shape, entity_id(),
                         None, &file.name, Some(line), Some("shape_pt_lon"),
                         Some(lon_raw.to_string()), Some("[-180, 180]".to_string()),
@@ -455,7 +467,7 @@ pub fn validate_shapes(file: &RawFile, zip_bytes: Option<&[u8]>) -> (Vec<ShapePo
                 Ok(v) => {
                     if let Some(d) = v {
                         if d < 0.0 {
-                            notices.push(make_k2_notice(
+                            notices.push( make_k2_notice(
                                 &mut counter, "SHP_021", EntityType::Shape, entity_id(),
                                 None, &file.name, Some(line), Some("shape_dist_traveled"),
                                 Some(d.to_string()), Some(">= 0".to_string()),
@@ -469,7 +481,7 @@ pub fn validate_shapes(file: &RawFile, zip_bytes: Option<&[u8]>) -> (Vec<ShapePo
                 Err(()) => {
                     // Sayı OLMAYAN değer eskiden sessizce düşüyordu: aralık dışı sayı SHP_021 üretirken
                     // "abc" hiçbir bulgu vermiyordu. Aynı olgunun iki dalı → aynı kural (PTH_027 emsali).
-                    notices.push(make_k2_notice(
+                    notices.push( make_k2_notice(
                         &mut counter, "SHP_021", EntityType::Shape, entity_id(),
                         None, &file.name, Some(line), Some("shape_dist_traveled"),
                         Some(sdt_raw.to_string()), Some(">= 0".to_string()),
@@ -497,7 +509,12 @@ pub fn validate_shapes(file: &RawFile, zip_bytes: Option<&[u8]>) -> (Vec<ShapePo
                 Err(_) => {}
                 Ok(mut archive) => {
                     if let Ok(entry) = archive.by_name(&file.name) {
-                        let mut rdr = ZipCsvReader::new(entry);
+                        let stream_limit = stream_budget.as_ref()
+                            .map(|budget| budget.limit())
+                            .unwrap_or(super::stop_times::stream_byte_limit(max_data_rows));
+                        let mut rdr = ZipCsvReader::with_limits(
+                            entry, stream_limit, max_data_rows,
+                        );
                         let mut fields: Vec<Vec<u8>> = Vec::with_capacity(8);
                         let mut line: u64 = 2;
                         let mut header_skipped = false;
@@ -522,6 +539,10 @@ pub fn validate_shapes(file: &RawFile, zip_bytes: Option<&[u8]>) -> (Vec<ShapePo
                             process(&row, line);
                             line += 1;
                         }
+                        if let Some(budget) = stream_budget.as_mut() {
+                            budget.consume(rdr.bytes_read());
+                        }
+                        stream_truncated |= rdr.truncated();
                     }
                 }
             }
@@ -554,14 +575,20 @@ pub fn validate_shapes(file: &RawFile, zip_bytes: Option<&[u8]>) -> (Vec<ShapePo
         }
     }
 
+    if stream_truncated {
+        if let Some(max) = max_data_rows {
+            total_rows = total_rows.max(max.saturating_add(1));
+        }
+    }
+
     // ARC_013: akış gövdesinde kapanmamış tırnak (issue #84) — DOSYA başına tek notice.
     if scan.unclosed || zip_unclosed {
-        notices.push(super::common::arc013_unclosed_stream(&file.name, &mut counter));
+        notices.push( super::common::arc013_unclosed_stream(&file.name, &mut counter));
     }
 
     // ARC_033: DOSYA başına TEK özet.
     if let Some(n) = super::common::arc033_summary(&rfc_acc, &file.name, &mut counter) {
-        notices.push(n);
+        notices.push( n);
     }
 
     // ⚠️ ARC_022 (satır sayısı limiti) BURADA DEĞİL: issue #75'te `k2/mod.rs`'teki tek
@@ -579,7 +606,7 @@ pub fn validate_shapes(file: &RawFile, zip_bytes: Option<&[u8]>) -> (Vec<ShapePo
             "Dosyaya en az bir veri satırı ekleyin (veya gereksizse dosyayı kaldırın).",
         );
         n.severity = Severity::Bilgi;
-        notices.push(n);
+        notices.push( n);
     }
 
     // DQ_016: DOSYA başına TEK özet (satır-başına değil — patlama önlemi).
@@ -590,7 +617,7 @@ pub fn validate_shapes(file: &RawFile, zip_bytes: Option<&[u8]>) -> (Vec<ShapePo
             Some(observed), None, msg, crate::k1_parse::DQ016_REMEDIATION,
         );
         n.details = dq016.evidence_details();
-        notices.push(n);
+        notices.push( n);
     }
 
     (records, intern, notices)

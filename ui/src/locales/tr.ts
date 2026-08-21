@@ -340,6 +340,7 @@ const tr = {
     'fix.pattern.trips'     : '{n} sefer',
     'fix.pattern.stops_n'   : '{n} durak',
     'fix.pattern.summary'   : '{p} farklı desen · toplam {t} sefer',
+    'fix.pattern.limited'   : 'Güvenlik nedeniyle gösterim sınırlandı; {n} sefer gösterilmedi.',
     'fix.pattern.dir_out'   : 'Gidiş',
     'fix.pattern.dir_in'    : 'Dönüş',
     'fix.spec_link'         : 'GTFS spesifikasyonu (yeni sekme)',

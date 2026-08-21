@@ -277,7 +277,7 @@ fn build_shape_geometry(
                     ("shape_id".to_string(), shape_id.clone()),
                     ("shape_point_count".to_string(), "1".to_string()),
                 ].into_iter().collect());
-                notices.push(notice);
+                notices.push( notice);
             }
             continue;
         }
@@ -316,7 +316,7 @@ fn build_shape_geometry(
             if let Some(d) = pt.shape_dist_traveled() {
                 if let Some(prev) = prev_dist {
                     if d < prev {
-                        notices.push(k5_notice(
+                        notices.push( k5_notice(
                             ctr, "SHP_005", EntityType::Shape,
                             Some(shape_id.clone()), Some(shape_id.clone()),
                             "shapes.txt", Some(pt.line_u64()), Some("shape_dist_traveled"),
@@ -349,7 +349,7 @@ fn build_shape_geometry(
                 // SHP_010: ardışık özdeş koordinat — shape başına bir kez (dedup zaten teke indirir)
                 if (lat - plat).abs() < f64::EPSILON && (lon - plon).abs() < f64::EPSILON && !shp010_fired {
                     shp010_fired = true;
-                    shp010_pending.push(k5_notice(
+                    shp010_pending.push( k5_notice(
                         ctr,
                         "SHP_010",
                         EntityType::Shape,
@@ -410,7 +410,7 @@ fn build_shape_geometry(
         d.insert("affected_shapes".to_string(), n10.to_string());
         if !examples.is_empty() { d.insert("example_shapes".to_string(), examples.join(", ")); }
         notice.details = Some(d);
-        notices.push(notice);
+        notices.push( notice);
     } else {
         notices.append(&mut shp010_pending);
     }
@@ -422,7 +422,7 @@ fn build_shape_geometry(
             let line = entity_map.shape_points[shape_id]
                 .first()
                 .map(|&i| records.shapes[i].line_u64());
-            notices.push(k5_notice(
+            notices.push( k5_notice(
                 ctr,
                 "SHP_018",
                 EntityType::Shape,

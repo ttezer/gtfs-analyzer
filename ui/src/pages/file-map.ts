@@ -221,12 +221,18 @@ export function renderFileMap(root: HTMLElement, result: ValidationResult): void
     const jump = root.querySelector<HTMLSelectElement>('#file-map-jump');
     if (!jump) return;
     const currentValue = selectedFileId ?? '';
-    jump.innerHTML = `
-      <option value="">${t('fileMap.coreView')}</option>
-      ${allGraphFileIds
+    const options = [
+      { value: '', label: t('fileMap.coreView') },
+      ...allGraphFileIds
         .filter((fileId) => explorationNodeIds.has(fileId))
-        .map((fileId) => `<option value="${fileId}">${fileId}</option>`)
-        .join('')}`;
+        .map((fileId) => ({ value: fileId, label: fileId })),
+    ];
+    jump.replaceChildren(...options.map(({ value, label }) => {
+      const option = document.createElement('option');
+      option.value = value;
+      option.textContent = label;
+      return option;
+    }));
     jump.value = currentValue;
   };
 

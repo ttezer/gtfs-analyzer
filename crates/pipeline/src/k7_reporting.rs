@@ -1286,7 +1286,7 @@ mod tests {
             );
             n.file = Some("stops.txt".into());
             n.line = Some(line);
-            notices.push(n);
+            notices.push( n);
         }
 
         let (kept, totals) = dedup_and_cap_by_rule(notices, |_| 2);

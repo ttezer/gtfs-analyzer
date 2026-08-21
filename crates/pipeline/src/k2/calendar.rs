@@ -35,7 +35,7 @@ pub fn validate_calendar(file: &RawFile) -> (Vec<CalendarRecord>, Vec<gtfs_core:
 
         // CAL_022: service_id required (sütun yoksa ARC_025 devralır → atla)
         if get_raw_field(&row_map, "service_id").map(str::trim) == Some("") {
-            notices.push(make_k2_notice(
+            notices.push( make_k2_notice(
                 &mut counter, "CAL_022", EntityType::Service, None, Some(&row_map),
                 &file.name, Some(line), Some("service_id"), Some(String::new()), None,
                 "service_id zorunludur.".to_string(),
@@ -63,7 +63,7 @@ pub fn validate_calendar(file: &RawFile) -> (Vec<CalendarRecord>, Vec<gtfs_core:
                 Ok(v) => {
                     if let Some(val) = v {
                         if !validate_enum(&val.to_string(), &["0", "1"]) {
-                            notices.push(make_k2_notice(
+                            notices.push( make_k2_notice(
                                 &mut counter, "CAL_002", EntityType::Service, entity_id.clone(),
                                 Some(&row_map), &file.name, Some(line), Some(field),
                                 Some(val.to_string()), Some("0 veya 1".to_string()),
@@ -78,7 +78,7 @@ pub fn validate_calendar(file: &RawFile) -> (Vec<CalendarRecord>, Vec<gtfs_core:
                     }
                 }
                 Err(err) => {
-                    notices.push(make_k2_notice(
+                    notices.push( make_k2_notice(
                         &mut counter, "CAL_002", EntityType::Service, entity_id.clone(),
                         Some(&row_map), &file.name, Some(line), Some(field),
                         get_trimmed_field(&row_map, field).map(str::to_string),
@@ -94,7 +94,7 @@ pub fn validate_calendar(file: &RawFile) -> (Vec<CalendarRecord>, Vec<gtfs_core:
         // bu yüzden BİLGİ. Servis gerçekten hiç aktif gün içermiyorsa (calendar_dates de yok)
         // bunu OPR_011 (kullanılan) / CAL_011 (kullanılmayan) daha yüksek şiddette yakalar.
         if all_zero && days.iter().any(|d| d.is_some()) {
-            notices.push(make_k2_notice(
+            notices.push( make_k2_notice(
                 &mut counter, "CAL_006", EntityType::Service, entity_id.clone(),
                 Some(&row_map), &file.name, Some(line),
                 // Olgu YEDİ gün alanının BİRLİKTE 0 olmasıdır; hepsi adlandırılır.
@@ -108,7 +108,7 @@ pub fn validate_calendar(file: &RawFile) -> (Vec<CalendarRecord>, Vec<gtfs_core:
         let start_date = match parse_service_date(&row_map, "start_date") {
             Ok(v) => {
                 if get_trimmed_field(&row_map, "start_date") == Some("") {
-                    notices.push(make_k2_notice(
+                    notices.push( make_k2_notice(
                         &mut counter, "CAL_003", EntityType::Service, entity_id.clone(),
                         Some(&row_map), &file.name, Some(line), Some("start_date"),
                         Some(String::new()), None,
@@ -119,7 +119,7 @@ pub fn validate_calendar(file: &RawFile) -> (Vec<CalendarRecord>, Vec<gtfs_core:
                 v
             }
             Err(err) => {
-                notices.push(make_k2_notice(
+                notices.push( make_k2_notice(
                     &mut counter, "CAL_003", EntityType::Service, entity_id.clone(),
                     Some(&row_map), &file.name, Some(line), Some("start_date"),
                     get_trimmed_field(&row_map, "start_date").map(str::to_string),
@@ -134,7 +134,7 @@ pub fn validate_calendar(file: &RawFile) -> (Vec<CalendarRecord>, Vec<gtfs_core:
         let end_date = match parse_service_date(&row_map, "end_date") {
             Ok(v) => {
                 if get_trimmed_field(&row_map, "end_date") == Some("") {
-                    notices.push(make_k2_notice(
+                    notices.push( make_k2_notice(
                         &mut counter, "CAL_004", EntityType::Service, entity_id.clone(),
                         Some(&row_map), &file.name, Some(line), Some("end_date"),
                         Some(String::new()), None,
@@ -145,7 +145,7 @@ pub fn validate_calendar(file: &RawFile) -> (Vec<CalendarRecord>, Vec<gtfs_core:
                 v
             }
             Err(err) => {
-                notices.push(make_k2_notice(
+                notices.push( make_k2_notice(
                     &mut counter, "CAL_004", EntityType::Service, entity_id.clone(),
                     Some(&row_map), &file.name, Some(line), Some("end_date"),
                     get_trimmed_field(&row_map, "end_date").map(str::to_string),
@@ -161,7 +161,7 @@ pub fn validate_calendar(file: &RawFile) -> (Vec<CalendarRecord>, Vec<gtfs_core:
             let sd = s.0 * 10000 + s.1 * 100 + s.2;
             let ed = e.0 * 10000 + e.1 * 100 + e.2;
             if ed < sd {
-                notices.push(make_k2_notice(
+                notices.push( make_k2_notice(
                     &mut counter, "CAL_005", EntityType::Service, entity_id.clone(),
                     Some(&row_map), &file.name, Some(line), Some("end_date"),
                     Some(format!("{}", ed)), Some(format!(">= {}", sd)),

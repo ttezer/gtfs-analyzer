@@ -5,7 +5,33 @@ use std::borrow::Cow;
 use std::io::{Cursor, Read};
 
 use super::common::{get_col_raw, get_col, make_k2_notice};
+#[cfg(feature = "parallel")]
+use crate::decompress_guard::{DecompressionLimits, GuardedReader, DEFAULT_DECOMPRESSION_LIMITS};
 use crate::k1_parse::{RawFile, RFC4180_AFTER_CLOSE, RFC4180_BARE_QUOTE};
+
+/// K2'nin K1'den sonra ZIP'i yeniden açtığı yollar için entry başına sert bütçe.
+pub(crate) const K2_MAX_STREAM_BYTES: usize = 512 * 1024 * 1024;
+
+/// SDK builds pass `max_data_rows`; native callers keep the historical large-feed
+/// path and therefore do not receive the SDK's per-entry byte cap.
+pub(crate) fn stream_byte_limit(max_data_rows: Option<usize>) -> usize {
+    if max_data_rows.is_some() { K2_MAX_STREAM_BYTES } else { usize::MAX }
+}
+
+/// Shared SDK budget for the files that K2 reopens from the ZIP. A separate
+/// per-entry limit still applies, but the total budget prevents four large
+/// entries from each consuming the full allowance in one validation run.
+pub struct StreamBudget {
+    remaining: usize,
+}
+
+impl StreamBudget {
+    pub(crate) fn new(bytes: usize) -> Self { Self { remaining: bytes } }
+    pub(crate) fn limit(&self) -> usize { self.remaining }
+    pub(crate) fn consume(&mut self, bytes: usize) {
+        self.remaining = self.remaining.saturating_sub(bytes);
+    }
+}
 
 // ── CompactStopTime: 24B flat per row — trip_id taşımaz ──────────────────────
 // #38: Swiss feed 28M×112B=3.1GB → OOM; 28M×24B=672MB → bütçe dahilinde.
@@ -868,25 +894,6 @@ impl TripAgg {
 // Pass-1: '\n' say (header dahil) → veri satırı = n - 1.
 // Amaç: all_rows + row_trip için reserve_exact → sıfır realloc, sıfır artık kapasite.
 // CPU bedeli: Swiss 2170 MB → ~10-20 s ekstra decompression. Memory deterministik.
-fn count_zip_rows(zb: &[u8], file_name: &str) -> Option<usize> {
-    use std::io::BufRead;
-    let cursor = std::io::Cursor::new(zb);
-    let mut archive = zip::ZipArchive::new(cursor).ok()?;
-    let entry = archive.by_name(file_name).ok()?;
-    let mut reader = std::io::BufReader::with_capacity(1 << 16, entry);
-    let mut count = 0usize;
-    let mut buf = Vec::with_capacity(256);
-    loop {
-        buf.clear();
-        match reader.read_until(b'\n', &mut buf) {
-            Ok(0) | Err(_) => break,
-            Ok(_) => count += 1,
-        }
-    }
-    // count = header + veri satırları (trailing boş satır varsa +1, güvenli; sadece kapasite)
-    Some(count.saturating_sub(1))
-}
-
 /// Ham alan baytlarından kısa, güvenli bir örnek — notice mesajına girer.
 fn lossy40(bytes: &[u8]) -> String {
     String::from_utf8_lossy(bytes).chars().take(40).collect()
@@ -911,6 +918,11 @@ pub(crate) struct ZipCsvReader<R: Read> {
     pub(crate) rfc: Option<(&'static str, String)>,
     /// issue #84: EOF'a tırnak İÇİNDE varıldı → kayıt hiç kapanmadı (`ARC_013`).
     pub(crate) unclosed: bool,
+    max_bytes: Option<usize>,
+    bytes_read: usize,
+    max_data_rows: Option<usize>,
+    records_seen: usize,
+    truncated: bool,
 }
 
 impl<R: Read> ZipCsvReader<R> {
@@ -923,8 +935,25 @@ impl<R: Read> ZipCsvReader<R> {
             pending: None,
             rfc: None,
             unclosed: false,
+            max_bytes: None,
+            bytes_read: 0,
+            max_data_rows: None,
+            records_seen: 0,
+            truncated: false,
         }
     }
+
+    /// SDK'nin ZIP'i ikinci kez açtığı K2 yolları için entry ve veri satırı bütçesi.
+    /// Native test/fallback yolu `new` ile sınırsız davranışını korur.
+    pub(crate) fn with_limits(r: R, max_bytes: usize, max_data_rows: Option<usize>) -> Self {
+        let mut reader = Self::new(r);
+        reader.max_bytes = Some(max_bytes);
+        reader.max_data_rows = max_data_rows;
+        reader
+    }
+
+    pub(crate) fn truncated(&self) -> bool { self.truncated }
+    pub(crate) fn bytes_read(&self) -> usize { self.bytes_read }
 
     #[inline(always)]
     fn next_byte(&mut self) -> Option<u8> {
@@ -933,9 +962,21 @@ impl<R: Read> ZipCsvReader<R> {
         }
         if self.pos == self.filled {
             // Kısa okuma normaldir (deflate akışı): 0 = EOF, hata = akış sonu.
-            match self.inner.read(&mut self.buf) {
+            let read_buf: &mut [u8] = if let Some(max) = self.max_bytes {
+                if self.bytes_read >= max {
+                    self.truncated = true;
+                    return None;
+                }
+                let remaining = max - self.bytes_read;
+                let buf_len = self.buf.len();
+                &mut self.buf[..remaining.min(buf_len)]
+            } else {
+                &mut self.buf
+            };
+            match self.inner.read(read_buf) {
                 Ok(0) | Err(_) => return None,
                 Ok(n) => {
+                    self.bytes_read = self.bytes_read.saturating_add(n);
                     self.filled = n;
                     self.pos = 0;
                 }
@@ -963,6 +1004,14 @@ impl<R: Read> ZipCsvReader<R> {
     /// `mem::take` ile kapasiteyi çöpe atıyordu; VBB'de (5,68M satır × ~10 alan)
     /// bu ~57M tahsis demekti. Alan içerikleri, alan sayısı ve sıra birebir aynı.
     pub(crate) fn next_record(&mut self, out: &mut Vec<Vec<u8>>) -> bool {
+        if let Some(max) = self.max_data_rows {
+            // Header dahil kayıt sayısı: 1 + izin verilen veri satırı.
+            if self.records_seen >= max.saturating_add(1) {
+                self.truncated = true;
+                out.clear();
+                return false;
+            }
+        }
         let mut fi: usize = 0;
         Self::begin_field(out, fi);
         let mut in_quotes = false;
@@ -979,6 +1028,7 @@ impl<R: Read> ZipCsvReader<R> {
             () => {{
                 fi += 1;
                 out.truncate(fi);
+                self.records_seen = self.records_seen.saturating_add(1);
                 return true;
             }};
         }
@@ -1272,6 +1322,16 @@ pub fn validate_stop_times(
     zip_bytes: Option<&[u8]>,
     has_booking_rules: bool,
 ) -> (StopTimesIndex, Vec<gtfs_core::Notice>) {
+    validate_stop_times_with_limits(file, zip_bytes, has_booking_rules, None, None)
+}
+
+pub fn validate_stop_times_with_limits(
+    file: &RawFile,
+    zip_bytes: Option<&[u8]>,
+    has_booking_rules: bool,
+    max_data_rows: Option<usize>,
+    mut stream_budget: Option<&mut StreamBudget>,
+) -> (StopTimesIndex, Vec<gtfs_core::Notice>) {
     let mut st = StChunk { has_booking_rules, ..StChunk::default() };
     let cols = Cols::from_headers(&file.headers);
     // B1: feed'de hiç Flex sütunu yoksa satır başı flex işini tümüyle atla.
@@ -1306,17 +1366,15 @@ pub fn validate_stop_times(
         let est = text.bytes().filter(|&b| b == b'\n').count();
         st.all_rows.reserve(est);
         st.row_trip.reserve(est);
-    } else if let Some(zb) = zip_bytes {
-        // #38 (ZIP stream 2-pass): Pass-1 ile exact satır sayısı → reserve_exact → sıfır realloc,
-        // sıfır artık kapasite. shrink_to YOK (allocator kumarı). Fallback: bytes/60 capped 50M.
-        crate::timing::mem_log("K2 stop_times pre-count pass");
-        let est = count_zip_rows(zb, &file.name)
-            .unwrap_or_else(|| (file.bytes as usize / 60).clamp(1, 50_000_000));
-        crate::timing::mem_log("K2 stop_times pre-count done");
-        st.all_rows.reserve_exact(est);
-        st.row_trip.reserve_exact(est);
+    } else if zip_bytes.is_some() {
+        // ZIP central-directory sizes are attacker-controlled metadata. Do not use
+        // them as a Vec capacity hint; grow from observed rows instead.
     }
 
+    #[cfg(feature = "parallel")]
+    let stream_truncated = false;
+    #[cfg(not(feature = "parallel"))]
+    let mut stream_truncated = false;
     {
         // Satır işleyici — hem stream (raw_text) hem rows yolundan çağrılır.
         // Tüm değişken durum closure ile yakalanır (notices, counter, index, caches).
@@ -1335,13 +1393,13 @@ pub fn validate_stop_times(
                 if is_info {
                     n.severity = Severity::Bilgi;
                 }
-                st.notices.push(n);
+                st.notices.push( n);
             }
 
             // ARC_034: başlık tekrarı → notice + indexleme YAPMA. K1 bu dosyayı stream
             // eder ve yalnız başlığı okur; kontrol orada kalırsa burada hiç çalışmaz (#181).
             if crate::k1_parse::arc034_is_header_repeat(row, &file.headers) {
-                st.notices.push(make_k2_notice(
+                st.notices.push( make_k2_notice(
                     &mut st.counter, "ARC_034", EntityType::File, Some(file.name.clone()),
                     None, &file.name, Some(line), None, None, None,
                     format!("'{}' {line}. satırı başlık satırının tekrarı — veri olarak okunuyor.", file.name),
@@ -1352,7 +1410,7 @@ pub fn validate_stop_times(
 
             // ARC_018: tamamen boş satır → notice + indexleme YAPMA (K1'deki continue)
             if row.iter().all(|v| v.trim().is_empty()) {
-                st.notices.push(make_k2_notice(
+                st.notices.push( make_k2_notice(
                     &mut st.counter, "ARC_018", EntityType::File, Some(file.name.clone()),
                     None, &file.name, Some(line), None,
                     None, None,
@@ -1366,7 +1424,7 @@ pub fn validate_stop_times(
             if !st.arc021_fired {
                 if let Some(cp) = crate::k1_parse::arc021_bad_char(row.iter().map(|v| v.as_ref())) {
                     st.arc021_fired = true;
-                    st.notices.push(make_k2_notice(
+                    st.notices.push( make_k2_notice(
                         &mut st.counter, "ARC_021", EntityType::File, Some(file.name.clone()),
                         None, &file.name, Some(line), None,
                         Some(format!("U+{cp:04X}")), None,
@@ -1380,7 +1438,7 @@ pub fn validate_stop_times(
             if !st.arc030_fired {
                 if let Some(cp) = crate::k1_parse::arc030_bad_whitespace(row.iter().map(|v| v.as_ref())) {
                     st.arc030_fired = true;
-                    st.notices.push(make_k2_notice(
+                    st.notices.push( make_k2_notice(
                         &mut st.counter, "ARC_030", EntityType::File, Some(file.name.clone()),
                         None, &file.name, Some(line), None,
                         Some(format!("U+{cp:04X}")), None,
@@ -1402,7 +1460,7 @@ pub fn validate_stop_times(
 
         // STM_046: trip_id required (sütun yoksa ARC_025 devralır → atla)
         if trip_id.is_empty() && file.headers.iter().any(|h| h == "trip_id") {
-            st.notices.push(make_k2_notice(
+            st.notices.push( make_k2_notice(
                 &mut st.counter, "STM_046", EntityType::Trip, None,
                 None, &file.name, Some(line), Some("trip_id"),
                 Some(String::new()), None,
@@ -1416,7 +1474,7 @@ pub fn validate_stop_times(
         let stop_sequence = match parse_u32_raw(seq_raw, "stop_sequence") {
             Ok(v) => {
                 if v.is_none() && file.headers.iter().any(|h| h == "stop_sequence") {
-                    st.notices.push(make_k2_notice(
+                    st.notices.push( make_k2_notice(
                         &mut st.counter, "STM_005", EntityType::Trip, eid(),
                         None, &file.name, Some(line), Some("stop_sequence"),
                         Some(String::new()), None,
@@ -1427,7 +1485,7 @@ pub fn validate_stop_times(
                 v
             }
             Err(err) => {
-                st.notices.push(make_k2_notice(
+                st.notices.push( make_k2_notice(
                     &mut st.counter, "STM_005", EntityType::Trip, eid(),
                     None, &file.name, Some(line), Some("stop_sequence"),
                     Some(seq_raw.to_string()), None, err,
@@ -1490,7 +1548,7 @@ pub fn validate_stop_times(
                         d.insert("curr_seq".to_string(), seq.to_string());
                         d.insert("prev_seq".to_string(), last.to_string());
                         n.details = Some(d);
-                        st.notices.push(n);
+                        st.notices.push( n);
                         agg.unsorted_fired = true;
                         st.unsorted_seq_trips.push((trip_id.clone(), last, seq, line));
                     } else if seq > last {
@@ -1513,7 +1571,7 @@ pub fn validate_stop_times(
         let has_flex_location = !get_col_raw(row, cols.location_id).is_empty()
             || !get_col_raw(row, cols.location_group_id).is_empty();
         if raw_stop.is_empty() && !has_flex_location && file.headers.iter().any(|h| h == "stop_id") {
-            st.notices.push(make_k2_notice(
+            st.notices.push( make_k2_notice(
                 &mut st.counter, "STM_006", EntityType::Stop, eid(),
                 None, &file.name, Some(line), Some("stop_id"),
                 Some(String::new()), None,
@@ -1543,7 +1601,7 @@ pub fn validate_stop_times(
         let arrival_time = match parse_gtfs_time_raw(arr_raw, "arrival_time") {
             Ok(v) => v,
             Err(err) => {
-                st.notices.push(make_k2_notice(
+                st.notices.push( make_k2_notice(
                     &mut st.counter, "STM_003", EntityType::Trip, eid(),
                     None, &file.name, Some(line), Some("arrival_time"),
                     Some(arr_raw.to_string()), Some("HH:MM:SS".to_string()), err,
@@ -1560,7 +1618,7 @@ pub fn validate_stop_times(
         let departure_time = match parse_gtfs_time_raw(dep_raw, "departure_time") {
             Ok(v) => v,
             Err(err) => {
-                st.notices.push(make_k2_notice(
+                st.notices.push( make_k2_notice(
                     &mut st.counter, "STM_004", EntityType::Trip, eid(),
                     None, &file.name, Some(line), Some("departure_time"),
                     Some(dep_raw.to_string()), Some("HH:MM:SS".to_string()), err,
@@ -1585,7 +1643,7 @@ pub fn validate_stop_times(
         match (arrival_time.or(arr_malformed.then_some((0,0,0))),
                departure_time.or(dep_malformed.then_some((0,0,0)))) {
             (Some(_), None) => {
-                st.notices.push(make_k2_notice(
+                st.notices.push( make_k2_notice(
                     &mut st.counter, "STM_034", EntityType::Trip, eid(),
                     None, &file.name, Some(line), Some("departure_time"),
                     None, Some("dolu".to_string()),
@@ -1594,7 +1652,7 @@ pub fn validate_stop_times(
                 ));
             }
             (None, Some(_)) => {
-                st.notices.push(make_k2_notice(
+                st.notices.push( make_k2_notice(
                     &mut st.counter, "STM_034", EntityType::Trip, eid(),
                     None, &file.name, Some(line), Some("arrival_time"),
                     None, Some("dolu".to_string()),
@@ -1641,7 +1699,7 @@ pub fn validate_stop_times(
             Ok(v) => {
                 if let Some(val) = v {
                     if val > 1 {
-                        st.notices.push(make_k2_notice(
+                        st.notices.push( make_k2_notice(
                             &mut st.counter, "STM_022", EntityType::Trip, eid(),
                             None, &file.name, Some(line), Some("timepoint"),
                             Some(val.to_string()), Some("0 veya 1".to_string()),
@@ -1655,7 +1713,7 @@ pub fn validate_stop_times(
             Err(err) => {
                 // Sayı OLMAYAN değer eskiden sessizce düşüyordu: aralık dışı sayı STM_022 üretirken
                 // "abc" hiçbir bulgu vermiyordu. Aynı olgunun iki dalı → aynı kural (PTH_027 emsali).
-                st.notices.push(make_k2_notice(
+                st.notices.push( make_k2_notice(
                     &mut st.counter, "STM_022", EntityType::Trip, eid(),
                     None, &file.name, Some(line), Some("timepoint"),
                     Some(tp_raw.to_string()), Some("0 veya 1".to_string()),
@@ -1675,7 +1733,7 @@ pub fn validate_stop_times(
             && arrival_time.is_none() && !arr_malformed
             && departure_time.is_none() && !dep_malformed
         {
-            st.notices.push(make_k2_notice(
+            st.notices.push( make_k2_notice(
                 &mut st.counter, "STM_047", EntityType::Trip, eid(),
                 None, &file.name, Some(line),
                 // Hüküm İKİ alanı da kapsar: spec "Required for timepoint=1" cümlesini hem
@@ -1694,7 +1752,7 @@ pub fn validate_stop_times(
             Ok(v) => {
                 if let Some(d) = v {
                     if d < 0.0 {
-                        st.notices.push(make_k2_notice(
+                        st.notices.push( make_k2_notice(
                             &mut st.counter, "STM_030", EntityType::Trip, eid(),
                             None, &file.name, Some(line), Some("shape_dist_traveled"),
                             Some(d.to_string()), Some(">= 0".to_string()),
@@ -1708,7 +1766,7 @@ pub fn validate_stop_times(
             Err(err) => {
                 // Sayı OLMAYAN değer eskiden sessizce düşüyordu: aralık dışı sayı STM_030 üretirken
                 // "abc" hiçbir bulgu vermiyordu. Aynı olgunun iki dalı → aynı kural (PTH_027 emsali).
-                st.notices.push(make_k2_notice(
+                st.notices.push( make_k2_notice(
                     &mut st.counter, "STM_030", EntityType::Trip, eid(),
                     None, &file.name, Some(line), Some("shape_dist_traveled"),
                     Some(sdt_raw.to_string()), Some(">= 0".to_string()),
@@ -1730,7 +1788,7 @@ pub fn validate_stop_times(
         if let Some(ref hs) = stop_headsign {
             const FORBIDDEN: &[char] = &['!', '$', '%', '\\', '*', '=', '_'];
             if let Some(bad) = hs.chars().find(|c| FORBIDDEN.contains(c)) {
-                st.notices.push(make_k2_notice(
+                st.notices.push( make_k2_notice(
                     &mut st.counter, "STM_042", EntityType::Trip, eid(),
                     None, &file.name, Some(line), Some("stop_headsign"),
                     Some(format!("'{bad}' karakteri içeriyor")), None,
@@ -1762,7 +1820,7 @@ pub fn validate_stop_times(
                 } else {
                     ("drop_off_type=2", "drop_off_booking_rule_id")
                 };
-                st.notices.push(make_k2_notice(
+                st.notices.push( make_k2_notice(
                     &mut st.counter, "STM_059", EntityType::Trip, eid(),
                     None, &file.name, Some(line), Some(field),
                     None, None,
@@ -1798,7 +1856,7 @@ pub fn validate_stop_times(
             match parse_gtfs_time_raw(raw, field) {
                 Ok(v) => v,
                 Err(err) => {
-                    st.notices.push(make_k2_notice(
+                    st.notices.push( make_k2_notice(
                         &mut st.counter, "STM_058", EntityType::Trip, eid(),
                         None, &file.name, Some(line), Some(field),
                         Some(raw.to_string()), Some("HH:MM:SS".to_string()), err,
@@ -1818,7 +1876,7 @@ pub fn validate_stop_times(
 
         // STM_037: Flex penceresinde arrival_time/departure_time yasak
         if has_any_window && (arrival_time.is_some() || departure_time.is_some()) {
-            st.notices.push(make_k2_notice(
+            st.notices.push( make_k2_notice(
                 &mut st.counter, "STM_037", EntityType::Trip, eid(),
                 None, &file.name, Some(line), Some("arrival_time"),
                 Some(arr_raw.to_string()), Some("(boş)".to_string()),
@@ -1832,7 +1890,7 @@ pub fn validate_stop_times(
         if has_any_window {
             if let Some(pt) = pickup_type {
                 if pt == 0 || pt == 3 {
-                    st.notices.push(make_k2_notice(
+                    st.notices.push( make_k2_notice(
                         &mut st.counter, "STM_051", EntityType::Trip, eid(),
                         None, &file.name, Some(line), Some("pickup_type"),
                         Some(pt.to_string()), Some("1 veya 2".to_string()),
@@ -1843,7 +1901,7 @@ pub fn validate_stop_times(
             }
             // STM_052: Flex penceresi tanımlı iken drop_off_type=0 (düzenli) yasak.
             if drop_off_type == Some(0) {
-                st.notices.push(make_k2_notice(
+                st.notices.push( make_k2_notice(
                     &mut st.counter, "STM_052", EntityType::Trip, eid(),
                     None, &file.name, Some(line), Some("drop_off_type"),
                     Some("0".to_string()), Some("1 veya 2".to_string()),
@@ -1858,7 +1916,7 @@ pub fn validate_stop_times(
             // Enum dışı değerler (>3) STM_018/019'un işi; burada çift emit etmemek için elenir.
             if matches!(continuous_pickup, Some(0) | Some(2) | Some(3)) {
                 let cp = continuous_pickup.unwrap();
-                st.notices.push(make_k2_notice(
+                st.notices.push( make_k2_notice(
                     &mut st.counter, "STM_054", EntityType::Trip, eid(),
                     None, &file.name, Some(line), Some("continuous_pickup"),
                     Some(cp.to_string()), Some("1 veya boş".to_string()),
@@ -1868,7 +1926,7 @@ pub fn validate_stop_times(
             }
             if matches!(continuous_drop_off, Some(0) | Some(2) | Some(3)) {
                 let cd = continuous_drop_off.unwrap();
-                st.notices.push(make_k2_notice(
+                st.notices.push( make_k2_notice(
                     &mut st.counter, "STM_055", EntityType::Trip, eid(),
                     None, &file.name, Some(line), Some("continuous_drop_off"),
                     Some(cd.to_string()), Some("1 veya boş".to_string()),
@@ -1888,7 +1946,7 @@ pub fn validate_stop_times(
             let sw_secs = sw.0 * 3600 + sw.1 * 60 + sw.2;
             let ew_secs = ew.0 * 3600 + ew.1 * 60 + ew.2;
             if sw_secs >= ew_secs {
-                st.notices.push(make_k2_notice(
+                st.notices.push( make_k2_notice(
                     &mut st.counter, "STM_038", EntityType::Trip, eid(),
                     None, &file.name, Some(line), Some("start_pickup_drop_off_window"),
                     Some(format!("{start_window_raw} >= {end_window_raw}")), None,
@@ -1901,7 +1959,7 @@ pub fn validate_stop_times(
         // STM_039: location_id/group_id var ama pencere eksik
         if has_location && (!has_start_window || !has_end_window) {
             let missing = if !has_start_window { "start_pickup_drop_off_window" } else { "end_pickup_drop_off_window" };
-            st.notices.push(make_k2_notice(
+            st.notices.push( make_k2_notice(
                 &mut st.counter, "STM_039", EntityType::Trip, eid(),
                 None, &file.name, Some(line), Some(missing),
                 None, Some("HH:MM:SS".to_string()),
@@ -1912,7 +1970,7 @@ pub fn validate_stop_times(
 
         // STM_040: Flex penceresi var ama booking_rule_id yok
         if has_any_window && pbr_raw.is_empty() && dobr_raw.is_empty() {
-            st.notices.push(make_k2_notice(
+            st.notices.push( make_k2_notice(
                 &mut st.counter, "STM_040", EntityType::Trip, eid(),
                 None, &file.name, Some(line), Some("pickup_booking_rule_id"),
                 None, None,
@@ -1923,7 +1981,7 @@ pub fn validate_stop_times(
 
         // STM_041: stop_id ve location_id/group_id aynı anda dolu (çakışma)
         if !raw_stop.is_empty() && has_location {
-            st.notices.push(make_k2_notice(
+            st.notices.push( make_k2_notice(
                 &mut st.counter, "STM_041", EntityType::Trip, eid(),
                 None, &file.name, Some(line),
                 // Çakışma üç alan arasındadır; eskiden yalnız "location_id" yazılıyordu ve
@@ -2021,7 +2079,7 @@ pub fn validate_stop_times(
             let cursor = Cursor::new(zb);
             match zip::ZipArchive::new(cursor) {
                 Err(e) => {
-                    st.notices.push(make_k2_notice(
+                    st.notices.push( make_k2_notice(
                         &mut st.counter, "ARC_009", EntityType::File, Some(file.name.clone()),
                         None, &file.name, None, None, None, None,
                         format!("'{}' ZIP yeniden açılamadı: {e}.", file.name),
@@ -2031,7 +2089,7 @@ pub fn validate_stop_times(
                 Ok(mut archive) => {
                     match archive.by_name(&file.name) {
                         Err(e) => {
-                            st.notices.push(make_k2_notice(
+                            st.notices.push( make_k2_notice(
                                 &mut st.counter, "ARC_009", EntityType::File, Some(file.name.clone()),
                                 None, &file.name, None, None, None, None,
                                 format!("'{}' ZIP girdisi bulunamadı: {e}.", file.name),
@@ -2039,12 +2097,28 @@ pub fn validate_stop_times(
                             ));
                         }
                         #[cfg(feature = "parallel")]
-                        Ok(mut entry) => {
+                        Ok(entry) => {
                             use rayon::prelude::*;
                             // Deflate akışı rastgele erişilemez → gövdeyi bir kez aç, sonra
-                            // satır/trip sınırlarında bölüp parçaları paralel ayrıştır.
-                            let mut body: Vec<u8> = Vec::with_capacity(file.bytes as usize + 1);
-                            if entry.read_to_end(&mut body).is_ok() {
+                            // satır/trip sınırlarında bölüp parçaları paralel ayrıştır. ZIP
+                            // metadata'sındaki `file.bytes` yalnızca başlangıç kapasitesidir;
+                            // doğrudan Vec::with_capacity kullanmak sahte merkezi-dizin
+                            // boyutuyla tahsis saldırısına açıktı.
+                            let stream_limit = stream_budget.as_ref()
+                                .map(|budget| budget.limit())
+                                .unwrap_or(stream_byte_limit(max_data_rows));
+                            let mut limits: DecompressionLimits = DEFAULT_DECOMPRESSION_LIMITS;
+                            if max_data_rows.is_some() {
+                                limits.max_entry_decompressed = stream_limit as u64;
+                                limits.max_total_decompressed = stream_limit as u64;
+                            }
+                            let compressed_size = entry.compressed_size();
+                            let mut total_decompressed = 0u64;
+                            let mut guarded = GuardedReader::new(
+                                entry, limits, &mut total_decompressed, compressed_size,
+                            );
+                            let mut body: Vec<u8> = Vec::new();
+                            if guarded.read_to_end(&mut body).is_ok() {
                                 let n = std::thread::available_parallelism().map(|v| v.get()).unwrap_or(4);
                                 let ranges = split_body_at_trip_boundaries(&body, cols.trip_id, n);
                                 let parts: Vec<StChunk> = ranges.par_iter().map(|&(bs, be, first_line)| {
@@ -2052,7 +2126,9 @@ pub fn validate_stop_times(
                                     // Bayrak chunk'a TAŞINMALI: `StChunk::default()` her chunk için
                                     // yeniden kurulur ve `has_booking_rules` false kalırdı → STM_059
                                     // yalnız tek parçalı feed'lerde çalışırdı. `emit_proof` yakaladı.
-                                    let mut rdr = ZipCsvReader::new(Cursor::new(&body[bs..be]));
+                                    let mut rdr = ZipCsvReader::with_limits(
+                                        Cursor::new(&body[bs..be]), stream_limit, max_data_rows,
+                                    );
                                     let mut fields: Vec<Vec<u8>> = Vec::with_capacity(header_count + 1);
                                     let mut line = first_line;
                                     while rdr.next_record(&mut fields) {
@@ -2076,10 +2152,18 @@ pub fn validate_stop_times(
                                 if let Some(first) = it.next() { st = first; }
                                 for c in it { st.merge(c); }
                             }
+                            if let Some(budget) = stream_budget.as_mut() {
+                                budget.consume(total_decompressed as usize);
+                            }
                         }
                         #[cfg(not(feature = "parallel"))]
                         Ok(entry) => {
-                            let mut csv_reader = ZipCsvReader::new(entry);
+                            let stream_limit = stream_budget.as_ref()
+                                .map(|budget| budget.limit())
+                                .unwrap_or(stream_byte_limit(max_data_rows));
+                            let mut csv_reader = ZipCsvReader::with_limits(
+                                entry, stream_limit, max_data_rows,
+                            );
                             let mut raw_fields: Vec<Vec<u8>> = Vec::with_capacity(header_count + 1);
                             let mut zip_line: u64 = 2;
                             let mut header_skipped = false;
@@ -2147,6 +2231,10 @@ pub fn validate_stop_times(
                             for c in it {
                                 st.merge(c);
                             }
+                            if let Some(budget) = stream_budget.as_mut() {
+                                budget.consume(csv_reader.bytes_read());
+                            }
+                            stream_truncated |= csv_reader.truncated();
                         }
                     }
                 }
@@ -2162,14 +2250,20 @@ pub fn validate_stop_times(
         }
     }
 
+    if stream_truncated {
+        if let Some(max) = max_data_rows {
+            st.total_rows = st.total_rows.max(max.saturating_add(1));
+        }
+    }
+
     // ARC_013: akış gövdesinde kapanmamış tırnak (issue #84).
     if st.unclosed {
-        st.notices.push(super::common::arc013_unclosed_stream(&file.name, &mut st.counter));
+        st.notices.push( super::common::arc013_unclosed_stream(&file.name, &mut st.counter));
     }
 
     // ARC_033: DOSYA başına TEK özet (chunk'lar `StChunk::merge` ile birleşti).
     if let Some(n) = super::common::arc033_summary(&st.rfc, &file.name, &mut st.counter) {
-        st.notices.push(n);
+        st.notices.push( n);
     }
 
     // ⚠️ ARC_022 BURADA DEĞİL — `k2/mod.rs`'teki tek geçişte (issue #75). Gerekçe
@@ -2177,7 +2271,7 @@ pub fn validate_stop_times(
 
     // ARC_009: başlık var ama veri satırı yok (K1'den taşındı; ZIP streaming yolu dahil)
     if (file.raw_text.is_some() || zip_bytes.is_some()) && st.total_rows == 0 {
-        st.notices.push(make_k2_notice(
+        st.notices.push( make_k2_notice(
             &mut st.counter, "ARC_009", EntityType::File, Some(file.name.clone()),
             None, &file.name, None, None,
             None, None,
@@ -2194,12 +2288,12 @@ pub fn validate_stop_times(
             Some(observed), None, msg, crate::k1_parse::DQ016_REMEDIATION,
         );
         n.details = st.dq016.evidence_details();
-        st.notices.push(n);
+        st.notices.push( n);
     }
 
     // STM_050: feed-seviyesi TEK özet (satır-başına değil — büyük feed OOM önlemi).
     if st.stm050_empty > 0 {
-        st.notices.push(make_k2_notice(
+        st.notices.push( make_k2_notice(
             &mut st.counter, "STM_050", EntityType::Feed, None,
             None, &file.name, None, Some("timepoint"),
             Some(format!("{}", st.stm050_empty)), None,
@@ -2312,7 +2406,7 @@ pub fn validate_stop_times(
             for w in rows[s..e].windows(2) {
                 let (a, b) = (&w[0], &w[1]);
                 if a.sequence != u32::MAX && a.sequence == b.sequence {
-                    stm032_pending.push(make_k2_notice(
+                    stm032_pending.push( make_k2_notice(
                         &mut st.counter, "STM_032", EntityType::Trip, Some(tid.to_string()),
                         None, &file.name, Some(b.line as u64), Some("stop_sequence"),
                         Some(b.sequence.to_string()), None,
@@ -2324,7 +2418,7 @@ pub fn validate_stop_times(
                 // shape_dist_traveled ARTMALI. Yalnız iki satırda da değer varsa karşılaştırılır;
                 // eksik değer STM_017'nin konusudur. NaN karşılaştırması false döner, guard şart.
                 if a.dist_f32.is_finite() && b.dist_f32.is_finite() && b.dist_f32 <= a.dist_f32 {
-                    stm056_pending.push(make_k2_notice(
+                    stm056_pending.push( make_k2_notice(
                         &mut st.counter, "STM_056", EntityType::Trip, Some(tid.to_string()),
                         None, &file.name, Some(b.line as u64), Some("shape_dist_traveled"),
                         Some(format!("{}", b.dist_f32)), Some(format!("> {}", a.dist_f32)),
@@ -2416,7 +2510,7 @@ pub fn validate_stop_times(
             ("observed_time".to_string(), observed),
             ("expected_time".to_string(), expected),
         ].into_iter().collect());
-        st.notices.push(notice);
+        st.notices.push( notice);
     }
 
     for violation in index.find_raw_same_row_midnight_departures() {
@@ -2440,7 +2534,7 @@ pub fn validate_stop_times(
             ("observed_time".to_string(), observed),
             ("expected_time".to_string(), expected),
         ].into_iter().collect());
-        st.notices.push(notice);
+        st.notices.push( notice);
     }
 
     // ── trip_stop_set post-finalize inşası (#38 peak-2) ──────────────────────────
@@ -2502,7 +2596,7 @@ fn finalize_stm_pending(
             d.insert("example_trips".to_string(), examples.join(", "));
         }
         notice.details = Some(d);
-        notices.push(notice);
+        notices.push( notice);
     } else {
         notices.append(pending);
     }
@@ -2526,7 +2620,7 @@ fn parse_pickup_dropoff_col(
             if let Some(val) = v {
                 if val > 3 {
                     let entity_id = (!trip_id.is_empty()).then(|| trip_id.to_string());
-                    notices.push(make_k2_notice(
+                    notices.push( make_k2_notice(
                         counter, rule_id, EntityType::Trip, entity_id,
                         None, file_name, Some(line), Some(field),
                         Some(val.to_string()), Some("0-3".to_string()),
@@ -2539,7 +2633,7 @@ fn parse_pickup_dropoff_col(
         }
         Err(err) => {
             let entity_id = (!trip_id.is_empty()).then(|| trip_id.to_string());
-            notices.push(make_k2_notice(
+            notices.push( make_k2_notice(
                 counter, rule_id, EntityType::Trip, entity_id,
                 None, file_name, Some(line), Some(field),
                 Some(raw.to_string()), Some("0-3".to_string()), err,
@@ -2554,6 +2648,30 @@ fn parse_pickup_dropoff_col(
 mod tests {
     use super::*;
     use crate::k1_parse::RawFile;
+
+    #[test]
+    fn zip_csv_reader_enforces_row_and_byte_budgets() {
+        let body = b"a\n1\n2\n3\n";
+        let mut reader = ZipCsvReader::with_limits(
+            Cursor::new(body),
+            body.len() + 1,
+            Some(2),
+        );
+        let mut fields = Vec::new();
+        assert!(reader.next_record(&mut fields)); // header
+        assert!(reader.next_record(&mut fields));
+        assert!(reader.next_record(&mut fields));
+        assert!(!reader.next_record(&mut fields));
+        assert!(reader.truncated(), "satır bütçesi aşımı görünür olmalı");
+
+        let mut byte_limited = ZipCsvReader::with_limits(
+            Cursor::new(body),
+            body.len() - 1,
+            None,
+        );
+        while byte_limited.next_record(&mut fields) {}
+        assert!(byte_limited.truncated(), "byte bütçesi aşımı görünür olmalı");
+    }
 
     #[test]
     fn normalize_service_day_wraps_midnight_keeps_real_errors() {

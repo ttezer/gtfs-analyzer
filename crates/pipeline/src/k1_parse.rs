@@ -1,7 +1,9 @@
 use std::collections::{HashMap, HashSet};
 use std::io::Read;
 
-use crate::decompress_guard::{GuardedReader, DEFAULT_DECOMPRESSION_LIMITS};
+use crate::decompress_guard::{
+    DecompressionLimits, GuardedReader, DEFAULT_DECOMPRESSION_LIMITS,
+};
 use gtfs_config::ValidatorConfig;
 use gtfs_core::{EntityType, FatalCode, FatalError, Notice, PartialReport, Severity};
 use smol_str::SmolStr;
@@ -135,6 +137,14 @@ const UTF8_BOM: &[u8] = &[0xEF, 0xBB, 0xBF];
 /// zorlayabilir. Beyanı bu tavana kapatırız; gerçek baytlar geldikçe Vec büyür, yani
 /// meşru büyük dosyalar için davranış değişmez, yalnızca başlangıç kapasitesi sınırlanır.
 const MAX_PREALLOC: usize = 64 * 1024 * 1024; // 64 MiB
+
+/// Merkezi dizin ve pahalı opsiyonel girdiler için sabit güvenlik bütçeleri.
+/// Bunlar normal GTFS feed'lerinin kapsamını daraltmaz; yalnızca saldırganın
+/// doğrulama sırasında sınırsız metadata/JSON ve geometrik karşılaştırma
+/// üretmesini engeller.
+const MAX_ZIP_ENTRIES: usize = 100_000;
+const MAX_ZIP_METADATA_BYTES: usize = 16 * 1024 * 1024;
+const MAX_GEOJSON_BYTES: u64 = 64 * 1024 * 1024;
 
 /// K1 ham dosya tamponu için başlangıç kapasitesi: beyan edilen boyutu [`MAX_PREALLOC`]
 /// ile sınırlar ve en az 1 döndürür (sıfır-kapasite alloc'u anlamsız).
@@ -396,7 +406,8 @@ fn tokenize_csv(
             records.push(record);
             if let Some(max) = max_data_rows {
                 // records[0] başlık; veri satırı sayısı records.len()-1
-                if records.len() > max {
+                if records.len().saturating_sub(1) > max {
+                    records.pop();
                     truncated = true;
                     break;
                 }
@@ -1168,6 +1179,18 @@ fn detect_wrapped_root(entry_names: &[String]) -> Option<String> {
 /// verilir — knob'ın YALNIZ K1'de çalışması, 1M satırı gerçekte aşan iki dosyada
 /// (stop_times/shapes) sessizce etkisiz kalması demek olurdu.
 pub fn parse(zip_bytes: &[u8], cfg: &ValidatorConfig) -> Result<K1Result, FatalError> {
+    parse_with_limits(zip_bytes, cfg, DEFAULT_DECOMPRESSION_LIMITS, None)
+}
+
+/// K1'in native ve SDK çağrıları için ortak gövdesi. SDK, WASM belleği daha
+/// küçük olduğu için stream edilmeyen tek dosyalara ayrıca daha düşük bir sınır
+/// verir; native CLI'nin büyük feed davranışı korunur.
+pub fn parse_with_limits(
+    zip_bytes: &[u8],
+    cfg: &ValidatorConfig,
+    limits: DecompressionLimits,
+    buffered_entry_limit: Option<u64>,
+) -> Result<K1Result, FatalError> {
     k1dbg!("[K1] parse başladı, {} bayt", zip_bytes.len());
     let cursor = std::io::Cursor::new(zip_bytes);
     k1dbg!("[K1] ZipArchive::new çağrılıyor...");
@@ -1176,13 +1199,30 @@ pub fn parse(zip_bytes: &[u8], cfg: &ValidatorConfig) -> Result<K1Result, FatalE
         message: format!("ZIP arşivi açılamadı: {e}"),
     })?;
     k1dbg!("[K1] archive açıldı: {} entry", archive.len());
+    if archive.len() > MAX_ZIP_ENTRIES {
+        return Err(FatalError {
+            code: FatalCode::ResourceLimit,
+            message: format!("ZIP merkezi dizini {} girdilik güvenlik sınırını aşıyor.", MAX_ZIP_ENTRIES),
+        });
+    }
 
     // ARC_009 yanlış-pozitif guard'ı: calendar_dates.txt boş (veya yalnızca başlık) olsa bile
     // calendar.txt servisi tanımlıyorsa bu KRİTİK değildir (calendar_dates şartlı zorunludur,
     // calendar.txt varken opsiyoneldir). Döngü-sırasından bağımsız olsun diye önceden hesaplanır.
     // calendar.txt YOKSA boş calendar_dates "hiç servis tanımı yok" demektir → ARC_009 kalır.
     // Tek üst klasöre sarılmış feed → o klasörü kök kabul et (detay: detect_wrapped_root).
-    let entry_names: Vec<String> = archive.file_names().map(str::to_string).collect();
+    let mut entry_names = Vec::with_capacity(archive.len());
+    let mut metadata_bytes = 0usize;
+    for name in archive.file_names() {
+        metadata_bytes = metadata_bytes.saturating_add(name.len());
+        if metadata_bytes > MAX_ZIP_METADATA_BYTES {
+            return Err(FatalError {
+                code: FatalCode::ResourceLimit,
+                message: format!("ZIP merkezi dizini {MAX_ZIP_METADATA_BYTES} bayt metadata sınırını aşıyor."),
+            });
+        }
+        entry_names.push(name.to_string());
+    }
     let mut partial = PartialReport::default();
     let root_prefix = detect_wrapped_root(&entry_names);
     if let Some(prefix) = &root_prefix {
@@ -1275,7 +1315,7 @@ pub fn parse(zip_bytes: &[u8], cfg: &ValidatorConfig) -> Result<K1Result, FatalE
         }
         // Hoşgörü uygulandı: dosya işlenecek ama alt dizinde olduğu yine de bulgudur.
         if raw_name != entry_name && raw_name.ends_with(".txt") {
-            notices.push(make_notice(
+            notices.push( make_notice(
                 &mut counter, "ARC_024",
                 EntityType::File, Some(entry_name.clone()),
                 Some(&entry_name), None, None,
@@ -1285,7 +1325,7 @@ pub fn parse(zip_bytes: &[u8], cfg: &ValidatorConfig) -> Result<K1Result, FatalE
             ));
         }
         if raw_name.ends_with(".txt") && zf.unix_mode().is_some_and(|mode| mode & 0o400 == 0) {
-            notices.push(make_notice(&mut counter, "ARC_027", EntityType::File, Some(raw_name.clone()),
+            notices.push( make_notice(&mut counter, "ARC_027", EntityType::File, Some(raw_name.clone()),
                 Some(&raw_name), None, None, zf.unix_mode().map(|m| format!("{m:o}")),
                 format!("'{raw_name}' ZIP girdisinde kullanıcı okuma izni bulunmuyor."),
                 "ZIP girdisinin Unix izinlerine user-read (0400) bitini ekleyin."));
@@ -1293,7 +1333,7 @@ pub fn parse(zip_bytes: &[u8], cfg: &ValidatorConfig) -> Result<K1Result, FatalE
 
         // ARC_023: ZIP içinde nested ZIP dosyası
         if raw_name.ends_with(".zip") && !raw_name.contains('/') && !raw_name.contains('\\') {
-            notices.push(make_notice(
+            notices.push( make_notice(
                 &mut counter, "ARC_023",
                 EntityType::File, Some(raw_name.clone()),
                 Some(&raw_name), None, None,
@@ -1307,8 +1347,13 @@ pub fn parse(zip_bytes: &[u8], cfg: &ValidatorConfig) -> Result<K1Result, FatalE
         // locations.geojson: Flex GeoJSON lokasyon dosyası (özel işlem)
         if raw_name == "locations.geojson" {
             present_files.insert(raw_name.clone());
-            let mut buf = Vec::with_capacity(zf.size() as usize);
-            match zf.read_to_end(&mut buf) {
+            let declared_size = zf.size();
+            let compressed_size = zf.compressed_size();
+            let mut geo_limits = limits;
+            geo_limits.max_entry_decompressed = geo_limits.max_entry_decompressed.min(MAX_GEOJSON_BYTES);
+            let mut buf = Vec::with_capacity(prealloc_capacity(declared_size.min(MAX_GEOJSON_BYTES) as usize));
+            let mut guarded = GuardedReader::new(&mut zf, geo_limits, &mut total_decompressed, compressed_size);
+            match guarded.read_to_end(&mut buf) {
                 Ok(_) => {
                     has_valid_locations_geojson = validate_locations_geojson(
                         &buf,
@@ -1322,9 +1367,15 @@ pub fn parse(zip_bytes: &[u8], cfg: &ValidatorConfig) -> Result<K1Result, FatalE
                         partial.mark_unavailable(raw_name.clone());
                     }
                 }
-                Err(_) => {
+                Err(e) => {
                     // locations.geojson is optional; an unreadable entry must not make
                     // stops.txt optional, and must be visible in PARTIAL metadata.
+                    notices.push( make_notice(
+                        &mut counter, "LOC_001", EntityType::File, Some(raw_name.clone()),
+                        Some(&raw_name), None, None, None,
+                        format!("'{raw_name}' okunamadı: {e}"),
+                        "locations.geojson dosyasını geçerli UTF-8 JSON olarak yeniden üretin.",
+                    ));
                     partial.mark_unavailable(raw_name.clone());
                 }
             }
@@ -1333,7 +1384,7 @@ pub fn parse(zip_bytes: &[u8], cfg: &ValidatorConfig) -> Result<K1Result, FatalE
 
         // ARC_024: Alt dizinde .txt dosyası — standart parser'lar bu dosyaları atlar
         if raw_name.ends_with(".txt") && (raw_name.contains('/') || raw_name.contains('\\')) {
-            notices.push(make_notice(
+            notices.push( make_notice(
                 &mut counter, "ARC_024",
                 EntityType::File, Some(raw_name.clone()),
                 Some(&raw_name), None, None,
@@ -1349,7 +1400,7 @@ pub fn parse(zip_bytes: &[u8], cfg: &ValidatorConfig) -> Result<K1Result, FatalE
         // ARC_024 yukarıda özel işlendi; bunlar buraya ulaşmadan continue etti.
         if !raw_name.ends_with(".txt") {
             if !raw_name.contains('/') && !raw_name.contains('\\') {
-                notices.push(make_notice(
+                notices.push( make_notice(
                     &mut counter, "ARC_007",
                     EntityType::File, Some(raw_name.clone()),
                     Some(&raw_name), None, None,
@@ -1371,7 +1422,7 @@ pub fn parse(zip_bytes: &[u8], cfg: &ValidatorConfig) -> Result<K1Result, FatalE
 
         // Bayt oku (ARC_011 için is_known kontrolünden önce yapılır)
         k1dbg!("[K1] okuma başladı: {raw_name} (compressed: {} b)", zf.compressed_size());
-        let uncompressed_hint = zf.size() as usize;
+        let uncompressed_hint = zf.size().min(usize::MAX as u64) as usize;
         // #38: Büyük dosyalar K2 ZIP stream eder; K1 yalnızca başlık satırını okur.
         // stop_times, trips, calendar_dates için 8 KB partial read; raw_text=None.
         let is_zip_stream = matches!(raw_name.as_str(), "stop_times.txt" | "shapes.txt" | "trips.txt" | "calendar_dates.txt");
@@ -1394,25 +1445,47 @@ pub fn parse(zip_bytes: &[u8], cfg: &ValidatorConfig) -> Result<K1Result, FatalE
             // Bomba tetiklerse read() hata döner; tripped() ile plain ZIP hatasından
             // ayrılıp ARC_029 (DecompressionLimit) Fatal'ı üretilir.
             let comp_size = zf.compressed_size();
-            let mut guarded = GuardedReader::new(&mut zf, DEFAULT_DECOMPRESSION_LIMITS, &mut total_decompressed, comp_size);
+            let mut entry_limits = limits;
+            if !is_zip_stream {
+                if let Some(limit) = buffered_entry_limit {
+                    entry_limits.max_entry_decompressed = entry_limits.max_entry_decompressed.min(limit);
+                }
+            }
+            let mut guarded = GuardedReader::new(&mut zf, entry_limits, &mut total_decompressed, comp_size);
             if is_zip_stream {
                 let mut chunk = [0u8; 64 * 1024];
                 let mut malformed_eol = false;
                 let mut previous_was_cr = false;
+                let mut scanned = 0usize;
+                let mut reached_eof = false;
+                // K1 needs only a small sample for schema/encoding checks, but it must
+                // still give GuardedReader enough input to detect a compression bomb.
+                // Probe up to the ratio floor, then leave the bounded full pass to K2.
+                // This avoids decompressing multi-gigabyte stream entries twice while
+                // preserving ARC_029 for highly-compressible payloads.
+                let probe_limit = usize::try_from(entry_limits.ratio_floor)
+                    .unwrap_or(usize::MAX)
+                    .saturating_add(1)
+                    .max(8192);
                 loop {
                     let n = match guarded.read(&mut chunk) {
                         Ok(n) => n,
                         Err(e) => return Err(read_fatal(&guarded, &raw_name, &e)),
                     };
-                    if n == 0 { break; }
+                    if n == 0 {
+                        reached_eof = true;
+                        break;
+                    }
+                    scanned = scanned.saturating_add(n);
                     if previous_was_cr && chunk[0] != b'\n' { malformed_eol = true; }
                     malformed_eol |= chunk[..n].windows(2).any(|p| p[0] == b'\r' && p[1] != b'\n');
                     previous_was_cr = chunk[n - 1] == b'\r';
                     let keep = (8192usize.saturating_sub(raw_vec.len())).min(n);
                     raw_vec.extend_from_slice(&chunk[..keep]);
+                    if scanned >= probe_limit { break; }
                 }
-                malformed_eol |= previous_was_cr;
-                if malformed_eol { notices.push(make_notice(&mut counter, "ARC_026", EntityType::File, Some(raw_name.clone()), Some(&raw_name), None, None, Some("CR not followed by LF".to_string()), format!("'{raw_name}' CRLF veya LF dışında satır sonu içeriyor."), "Satır sonlarını LF ya da CRLF olarak yeniden yazın.")); }
+                if reached_eof { malformed_eol |= previous_was_cr; }
+                if malformed_eol { notices.push( make_notice(&mut counter, "ARC_026", EntityType::File, Some(raw_name.clone()), Some(&raw_name), None, None, Some("CR not followed by LF".to_string()), format!("'{raw_name}' CRLF veya LF dışında satır sonu içeriyor."), "Satır sonlarını LF ya da CRLF olarak yeniden yazın.")); }
                 // 8192'lik kesme çok baytlı bir UTF-8 karakterini ortadan bölebilir.
                 // Kırpılmazsa aşağıdaki from_utf8 GEÇERLİ dosyayı bozuk sanar ve
                 // zorunlu dosyada Utf8Critical → feed tümüyle reddedilirdi.
@@ -1422,13 +1495,13 @@ pub fn parse(zip_bytes: &[u8], cfg: &ValidatorConfig) -> Result<K1Result, FatalE
             }
         }
         if !is_zip_stream && has_malformed_eol(&raw_vec) {
-            notices.push(make_notice(&mut counter, "ARC_026", EntityType::File, Some(raw_name.clone()), Some(&raw_name), None, None, Some("CR not followed by LF".to_string()), format!("'{raw_name}' CRLF veya LF dışında satır sonu içeriyor."), "Satır sonlarını LF ya da CRLF olarak yeniden yazın."));
+            notices.push( make_notice(&mut counter, "ARC_026", EntityType::File, Some(raw_name.clone()), Some(&raw_name), None, None, Some("CR not followed by LF".to_string()), format!("'{raw_name}' CRLF veya LF dışında satır sonu içeriyor."), "Satır sonlarını LF ya da CRLF olarak yeniden yazın."));
         }
 
         // ARC_011: Dosya boyutu — tüm kök .txt dosyaları için (bilinmeyen dahil).
         // zip_stream partial_read'de raw_vec yalnızca başlık (~8KB); gerçek boyut ZIP metadata'sından.
         let file_size_bytes = if is_zip_stream { uncompressed_hint } else { raw_vec.len() };
-        notices.push(make_notice(
+        notices.push( make_notice(
             &mut counter, "ARC_011",
             EntityType::File, Some(raw_name.clone()),
             Some(&raw_name), None, None,
@@ -1439,7 +1512,7 @@ pub fn parse(zip_bytes: &[u8], cfg: &ValidatorConfig) -> Result<K1Result, FatalE
 
         // ARC_007: Bilinmeyen dosya — boyut kaydedildikten sonra atla
         if !is_known {
-            notices.push(make_notice(
+            notices.push( make_notice(
                 &mut counter, "ARC_007",
                 EntityType::File, Some(raw_name.clone()),
                 Some(&raw_name), None, None,
@@ -1452,7 +1525,7 @@ pub fn parse(zip_bytes: &[u8], cfg: &ValidatorConfig) -> Result<K1Result, FatalE
 
         // ARC_006: İsteğe bağlı dosya mevcut (BİLGİ)
         if !is_required {
-            notices.push(make_notice(
+            notices.push( make_notice(
                 &mut counter, "ARC_006",
                 EntityType::File, Some(raw_name.clone()),
                 Some(&raw_name), None, None,
@@ -1467,7 +1540,7 @@ pub fn parse(zip_bytes: &[u8], cfg: &ValidatorConfig) -> Result<K1Result, FatalE
         if has_bom {
             // ARC_010 ve DQ_014 aynı koşul — ikisi ayrı ayrı ateşlenmez;
             // DQ_014 sadece ARC_002 suppressor listesinde referans, ARC_010 onu kapsar.
-            notices.push(make_notice(
+            notices.push( make_notice(
                 &mut counter, "ARC_010",
                 EntityType::File, Some(raw_name.clone()),
                 Some(&raw_name), None, None,
@@ -1484,7 +1557,7 @@ pub fn parse(zip_bytes: &[u8], cfg: &ValidatorConfig) -> Result<K1Result, FatalE
             Ok(s) => s,
             Err(_) => {
                 // ARC_002: Kritik UTF-8 ihlali
-                notices.push(make_notice(
+                notices.push( make_notice(
                     &mut counter, "ARC_002",
                     EntityType::File, Some(raw_name.clone()),
                     Some(&raw_name), None, None,
@@ -1494,7 +1567,7 @@ pub fn parse(zip_bytes: &[u8], cfg: &ValidatorConfig) -> Result<K1Result, FatalE
                 ));
                 partial.mark_unavailable(raw_name.clone());
                 if !is_required {
-                    notices.push(make_notice(
+                    notices.push( make_notice(
                         &mut counter, "ARC_003",
                         EntityType::File, Some(raw_name.clone()),
                         Some(&raw_name), None, None,
@@ -1520,13 +1593,20 @@ pub fn parse(zip_bytes: &[u8], cfg: &ValidatorConfig) -> Result<K1Result, FatalE
             || raw_name == "trips.txt" || raw_name == "calendar_dates.txt";
 
         k1dbg!("[K1] tokenizing: {raw_name}");
-        // CSV tokenization — stream_mode'da yalnızca başlık (Some(0)), aksi halde tam veri
+        // CSV tokenization — stream_mode'da yalnızca başlık (Some(0)). SDK'nin
+        // sınırlı parse yolunda akış-dışı dosyaların ham Vec büyümesini config'teki
+        // satır bütçesiyle sınırla; native parse yolunda tarihsel tam-korpus davranışını koru.
         let _t = crate::timing::Timer::start(format!("K1::tokenize::{raw_name}"));
-        let (mut records, _, rfc4180) = match tokenize_csv(text, if stream_mode { Some(0) } else { None }) {
+        let buffered_row_limit = (!stream_mode && buffered_entry_limit.is_some())
+            .then_some(cfg.max_file_rows as usize);
+        let (mut records, csv_truncated, rfc4180) = match tokenize_csv(
+            text,
+            if stream_mode { Some(0) } else { buffered_row_limit },
+        ) {
             Ok(r) => r,
             Err(msg) => {
                 // ARC_013
-                notices.push(make_notice(
+                notices.push( make_notice(
                     &mut counter, "ARC_013",
                     EntityType::File, Some(raw_name.clone()),
                     Some(&raw_name), None, None,
@@ -1575,7 +1655,7 @@ pub fn parse(zip_bytes: &[u8], cfg: &ValidatorConfig) -> Result<K1Result, FatalE
                 if !arc009_critical(&raw_name) {
                     n.severity = Severity::Bilgi;
                 }
-                notices.push(n);
+                notices.push( n);
             }
             continue;
         }
@@ -1586,7 +1666,7 @@ pub fn parse(zip_bytes: &[u8], cfg: &ValidatorConfig) -> Result<K1Result, FatalE
         // ARC_014: Başlıkta boşluk
         for (col_i, hdr) in raw_headers.iter().enumerate() {
             if hdr != hdr.trim() {
-                notices.push(make_notice(
+                notices.push( make_notice(
                     &mut counter, "ARC_014",
                     EntityType::File, Some(raw_name.clone()),
                     Some(&raw_name), Some(1), Some(hdr.as_str()),
@@ -1604,7 +1684,7 @@ pub fn parse(zip_bytes: &[u8], cfg: &ValidatorConfig) -> Result<K1Result, FatalE
         // ARC_019: Başlıkta boş sütun adı
         for hdr in &headers {
             if hdr.is_empty() {
-                notices.push(make_notice(
+                notices.push( make_notice(
                     &mut counter, "ARC_019",
                     EntityType::File, Some(raw_name.clone()),
                     Some(&raw_name), Some(1), None,
@@ -1620,7 +1700,7 @@ pub fn parse(zip_bytes: &[u8], cfg: &ValidatorConfig) -> Result<K1Result, FatalE
         let mut seen_hdrs: HashSet<&str> = HashSet::new();
         for hdr in &headers {
             if !seen_hdrs.insert(hdr.as_str()) {
-                notices.push(make_notice(
+                notices.push( make_notice(
                     &mut counter, "ARC_015",
                     EntityType::File, Some(raw_name.clone()),
                     Some(&raw_name), Some(1), Some(hdr.as_str()),
@@ -1636,7 +1716,7 @@ pub fn parse(zip_bytes: &[u8], cfg: &ValidatorConfig) -> Result<K1Result, FatalE
         if !known_cols.is_empty() {
             for hdr in &headers {
                 if !known_cols.contains(&hdr.as_str()) && !hdr.starts_with("jp_") {
-                    notices.push(make_notice(
+                    notices.push( make_notice(
                         &mut counter, "ARC_017",
                         EntityType::File, Some(raw_name.clone()),
                         Some(&raw_name), Some(1), Some(hdr.as_str()),
@@ -1662,7 +1742,7 @@ pub fn parse(zip_bytes: &[u8], cfg: &ValidatorConfig) -> Result<K1Result, FatalE
         // k2 grup kuralının konusudur.
         for &f in req_flds.iter().chain(extra_req) {
             if !headers.iter().any(|h| h == f) {
-                notices.push(make_notice(
+                notices.push( make_notice(
                     &mut counter, "ARC_025",
                     EntityType::File, Some(raw_name.clone()),
                     Some(&raw_name), Some(1), Some(f),
@@ -1700,12 +1780,12 @@ pub fn parse(zip_bytes: &[u8], cfg: &ValidatorConfig) -> Result<K1Result, FatalE
                 if is_info {
                     n.severity = Severity::Bilgi;
                 }
-                notices.push(n);
+                notices.push( n);
             }
 
             // ARC_018: Boş veri satırı (tüm alanlar boş)
             if row.iter().all(|v| v.trim().is_empty()) {
-                notices.push(make_notice(
+                notices.push( make_notice(
                     &mut counter, "ARC_018",
                     EntityType::File, Some(raw_name.clone()),
                     Some(&raw_name), Some(line_num), None,
@@ -1733,7 +1813,7 @@ pub fn parse(zip_bytes: &[u8], cfg: &ValidatorConfig) -> Result<K1Result, FatalE
             // eşit olmalı. Tek bir sütunda `route_id` değerinin "route_id" olması
             // meşrudur ve tetiklemez; hepsinin birden eşleşmesi başka türlü oluşamaz.
             if arc034_is_header_repeat(&row[..], &headers[..]) {
-                notices.push(make_notice(
+                notices.push( make_notice(
                     &mut counter, "ARC_034",
                     EntityType::File, Some(raw_name.clone()),
                     Some(&raw_name), Some(line_num), None,
@@ -1748,7 +1828,7 @@ pub fn parse(zip_bytes: &[u8], cfg: &ValidatorConfig) -> Result<K1Result, FatalE
             if !arc021_fired {
                 if let Some(cp) = arc021_bad_char(row.iter().map(|v| v.as_str())) {
                     arc021_fired = true;
-                    notices.push(make_notice(
+                    notices.push( make_notice(
                         &mut counter, "ARC_021",
                         EntityType::File, Some(raw_name.clone()),
                         Some(&raw_name), Some(line_num), None,
@@ -1763,7 +1843,7 @@ pub fn parse(zip_bytes: &[u8], cfg: &ValidatorConfig) -> Result<K1Result, FatalE
             if !arc030_fired {
                 if let Some(cp) = arc030_bad_whitespace(row.iter().map(|v| v.as_str())) {
                     arc030_fired = true;
-                    notices.push(make_notice(
+                    notices.push( make_notice(
                         &mut counter, "ARC_030",
                         EntityType::File, Some(raw_name.clone()),
                         Some(&raw_name), Some(line_num), None,
@@ -1793,12 +1873,12 @@ pub fn parse(zip_bytes: &[u8], cfg: &ValidatorConfig) -> Result<K1Result, FatalE
                 Some(observed), msg, DQ016_REMEDIATION,
             );
             n.details = dq016.evidence_details();
-            notices.push(n);
+            notices.push( n);
         }
 
         // ARC_032: DOSYA başına TEK özet (DQ_016 ile aynı patlama önlemi).
         if let Some((observed, msg, cols)) = arc032.summary(&raw_name) {
-            notices.push(make_notice(
+            notices.push( make_notice(
                 &mut counter, "ARC_032",
                 EntityType::File, Some(raw_name.clone()),
                 Some(raw_name.as_str()), arc032.first_line, Some(cols.as_str()),
@@ -1812,7 +1892,7 @@ pub fn parse(zip_bytes: &[u8], cfg: &ValidatorConfig) -> Result<K1Result, FatalE
         if rfc4180.rows > 0 {
             let kind = rfc4180.kind.unwrap_or(RFC4180_BARE_QUOTE);
             let example = rfc4180.example.clone().unwrap_or_default();
-            notices.push(make_notice(
+            notices.push( make_notice(
                 &mut counter, "ARC_033",
                 EntityType::File, Some(raw_name.clone()),
                 Some(raw_name.as_str()), rfc4180.first_line, None,
@@ -1825,15 +1905,17 @@ pub fn parse(zip_bytes: &[u8], cfg: &ValidatorConfig) -> Result<K1Result, FatalE
             ));
         }
 
-        // ARC_022: Dosya satır sayısı limiti (stream_mode'da K2 üretir — rows burada boş)
+        // ARC_022: Dosya satır sayısı limiti (stream_mode'da K2 üretir — rows burada boş).
+        // Tokenizer sınırı erken kestiği için `rows.len() > max_rows` artık tek başına
+        // yeterli değildir; `csv_truncated` gerçek aşımı taşır.
         let max_rows = cfg.max_file_rows as usize;
-        if !stream_mode && rows.len() > max_rows {
-            notices.push(make_notice(
+        if !stream_mode && (csv_truncated || rows.len() > max_rows) {
+            notices.push( make_notice(
                 &mut counter, "ARC_022",
                 EntityType::File, Some(raw_name.clone()),
                 Some(&raw_name), None, None,
-                Some(format!("{}", rows.len())),
-                format!("'{raw_name}' dosyasında {} satır var; {} satır sınırını aşıyor.", rows.len(), max_rows),
+                Some(format!("{}", if csv_truncated { max_rows.saturating_add(1) } else { rows.len() })),
+                format!("'{raw_name}' dosyasında en az {} satır var; {} satır sınırını aşıyor.", if csv_truncated { max_rows.saturating_add(1) } else { rows.len() }, max_rows),
                 "Dosyayı küçük parçalara bölün veya gereksiz satırları kaldırın.",
             ));
         }
@@ -1860,7 +1942,7 @@ pub fn parse(zip_bytes: &[u8], cfg: &ValidatorConfig) -> Result<K1Result, FatalE
             if !arc009_critical(&raw_name) {
                 n.severity = Severity::Bilgi;
             }
-            notices.push(n);
+            notices.push( n);
         }
 
         // zip_stream partial_read'de bytes = ~8KB snippet; gerçek boyut ZIP metadata'sında.
@@ -1903,7 +1985,7 @@ pub fn parse(zip_bytes: &[u8], cfg: &ValidatorConfig) -> Result<K1Result, FatalE
     if !missing.is_empty() {
         for &f in &missing {
             partial.mark_unavailable(f);
-            notices.push(make_notice(
+            notices.push( make_notice(
                 &mut counter, "ARC_004",
                 EntityType::Feed, None,
                 None, None, None,
@@ -1919,7 +2001,7 @@ pub fn parse(zip_bytes: &[u8], cfg: &ValidatorConfig) -> Result<K1Result, FatalE
         .iter()
         .any(|&f| present_files.contains(f));
     if !has_any_calendar {
-        notices.push(make_notice(
+        notices.push( make_notice(
             &mut counter, "ARC_008",
             EntityType::Feed, None,
             None, None, None,
@@ -1932,7 +2014,7 @@ pub fn parse(zip_bytes: &[u8], cfg: &ValidatorConfig) -> Result<K1Result, FatalE
     // ARC_031: spec dosya düzeyi hükmü — feed_info.txt, translations.txt varsa ZORUNLU.
     // Koşul sağlanmadığında dosya yalnız TAVSİYE edilir; o hâli ARC_020 (Quality) taşır.
     if present_files.contains("translations.txt") && !present_files.contains("feed_info.txt") {
-        notices.push(make_notice(
+        notices.push( make_notice(
             &mut counter, "ARC_031",
             EntityType::Feed, None,
             None, None, None,
@@ -1966,7 +2048,7 @@ fn validate_locations_geojson(
     let text = match std::str::from_utf8(bytes) {
         Ok(s) => s,
         Err(_) => {
-            notices.push(make_notice(
+            notices.push( make_notice(
                 counter, "ARC_002", EntityType::File, Some(fname.to_string()),
                 Some(fname), None, None, None,
                 format!("'{fname}' UTF-8 kodlamasıyla okunamıyor."),
@@ -1979,7 +2061,7 @@ fn validate_locations_geojson(
     let json: serde_json::Value = match serde_json::from_str(text) {
         Ok(v) => v,
         Err(e) => {
-            notices.push(make_notice(
+            notices.push( make_notice(
                 counter, "LOC_001", EntityType::File, Some(fname.to_string()),
                 Some(fname), None, None, Some(format!("JSON hatası: {e}")),
                 format!("'{fname}' geçerli bir GeoJSON belgesi değil: {e}"),
@@ -1991,7 +2073,7 @@ fn validate_locations_geojson(
 
     let root_type = json.get("type").and_then(|t| t.as_str());
     if root_type != Some("FeatureCollection") {
-        notices.push(make_notice(
+        notices.push( make_notice(
             counter, "LOC_001", EntityType::File, Some(fname.to_string()),
             Some(fname), None, Some("type"), root_type.map(str::to_string),
             format!("'{fname}' kök tipi 'FeatureCollection' olmalıdır; bulundu: '{}'.", root_type.unwrap_or("yok")),
@@ -2001,7 +2083,7 @@ fn validate_locations_geojson(
     }
 
     let Some(features) = json.get("features").and_then(|f| f.as_array()) else {
-        notices.push(make_notice(
+        notices.push( make_notice(
             counter, "LOC_001", EntityType::File, Some(fname.to_string()),
             Some(fname), None, Some("features"), None,
             format!("'{fname}' için 'features' dizisi eksik veya geçersiz."),
@@ -2012,7 +2094,7 @@ fn validate_locations_geojson(
 
     // LOC_005: FeatureCollection boş
     if features.is_empty() {
-        notices.push(make_notice(
+        notices.push( make_notice(
             counter, "LOC_005", EntityType::File, Some(fname.to_string()),
             Some(fname), None, Some("features"), None,
             format!("'{fname}' FeatureCollection'ı boş — hiç feature yok."),
@@ -2030,7 +2112,7 @@ fn validate_locations_geojson(
                 // XFL_025: stop_times.location_id ham CSV değeriyle eşleşmesi için tırnaksız ham id.
                 geojson_ids.insert(id_val.as_str().map(str::to_string).unwrap_or_else(|| id_str.clone()));
                 if let Some(first_idx) = seen_ids.get(&id_str) {
-                    notices.push(make_notice(
+                    notices.push( make_notice(
                         counter, "LOC_007", EntityType::File, Some(fname.to_string()),
                         Some(fname), Some((i + 1) as u64), Some("id"), Some(id_str.clone()),
                         format!("'{fname}' özellik {} ve {} aynı 'id' değerine sahip ({id_str}) — GTFS Flex referansı belirsizleşir.", first_idx + 1, i + 1),
@@ -2051,7 +2133,7 @@ fn validate_locations_geojson(
         match feature.get("type").and_then(|v| v.as_str()) {
             Some("Feature") => {}
             other => {
-                notices.push(make_notice(
+                notices.push( make_notice(
                     counter, "LOC_008", EntityType::File, Some(fname.to_string()),
                     Some(fname), Some(feat_num), Some("type"),
                     other.map(str::to_string),
@@ -2064,7 +2146,7 @@ fn validate_locations_geojson(
         // LOC_009: "properties" nesnesi Required (spec tablosu). Boş nesne GEÇERLİDİR —
         // stop_name/stop_desc opsiyoneldir; eksik ya da nesne-olmayan değer ihlaldir.
         if !feature.get("properties").is_some_and(|v| v.is_object()) {
-            notices.push(make_notice(
+            notices.push( make_notice(
                 counter, "LOC_009", EntityType::File, Some(fname.to_string()),
                 Some(fname), Some(feat_num), Some("properties"), None,
                 format!("'{fname}' özellik {feat_num} için 'properties' nesnesi eksik."),
@@ -2074,7 +2156,7 @@ fn validate_locations_geojson(
 
         // LOC_003: Feature'da 'id' property eksik
         if feature.get("id").is_none() {
-            notices.push(make_notice(
+            notices.push( make_notice(
                 counter, "LOC_003", EntityType::File, Some(fname.to_string()),
                 Some(fname), Some(feat_num), Some("id"), None,
                 format!("'{fname}' özellik {feat_num} için 'id' property eksik — stop_times çapraz referansı için zorunlu."),
@@ -2095,7 +2177,7 @@ fn validate_locations_geojson(
 
         // LOC_002: Feature'da geometry null veya eksik
         if geometry.is_none_or(|g| g.is_null()) {
-            notices.push(make_notice(
+            notices.push( make_notice(
                 counter, "LOC_002", EntityType::File, Some(fname.to_string()),
                 Some(fname), Some(feat_num), Some("geometry"), None,
                 format!("'{fname}' özellik {feat_num} için geometry null veya eksik — GTFS Flex gerektiriyor."),
@@ -2128,7 +2210,7 @@ fn validate_locations_geojson(
                 }
             }
             Some(t) => {
-                notices.push(make_notice(
+                notices.push( make_notice(
                     counter, "LOC_001", EntityType::File, Some(fname.to_string()),
                     Some(fname), Some(feat_num), Some("geometry.type"), Some(t.to_string()),
                     format!("'{fname}' özellik {feat_num} geçersiz geometri tipi: '{t}'. GTFS Flex yalnızca Polygon ve MultiPolygon destekler."),
@@ -2136,7 +2218,7 @@ fn validate_locations_geojson(
                 ));
             }
             None => {
-                notices.push(make_notice(
+                notices.push( make_notice(
                     counter, "LOC_001", EntityType::File, Some(fname.to_string()),
                     Some(fname), Some(feat_num), Some("geometry.type"), None,
                     format!("'{fname}' özellik {feat_num} için geometri tipi eksik."),
@@ -2163,7 +2245,7 @@ fn validate_locations_geojson(
 /// LOC_010: geometry.coordinates eksik veya dizi değil. Spec bu alanı Required işaretler;
 /// eksikliğinde bölge geometrisi hiç çözümlenemez, dolayısıyla KRİTİK.
 fn missing_coordinates(counter: &mut u32, fname: &str, feat_num: u64, notices: &mut Vec<Notice>) {
-    notices.push(make_notice(
+    notices.push( make_notice(
         counter, "LOC_010", EntityType::File, Some(fname.to_string()),
         Some(fname), Some(feat_num), Some("coordinates"), None,
         format!("'{fname}' özellik {feat_num} için geometry 'coordinates' eksik veya dizi değil."),
@@ -2202,7 +2284,7 @@ fn check_polygon_rings(
             let last_lat  = last.get(1).and_then(|v| v.as_f64());
             if let (Some(fl), Some(fa), Some(ll), Some(la)) = (first_lon, first_lat, last_lon, last_lat) {
                 if (fl - ll).abs() > 1e-8 || (fa - la).abs() > 1e-8 {
-                    notices.push(make_notice(
+                    notices.push( make_notice(
                         counter, "LOC_004", EntityType::File, Some(fname.to_string()),
                         Some(fname), Some(feat_num), Some("coordinates"), None,
                         format!("'{fname}' özellik {feat_num} Polygon ring'i kapalı değil — ilk nokta [{fl},{fa}] son nokta [{ll},{la}] ile eşleşmiyor."),
@@ -2287,7 +2369,7 @@ fn check_polygon_rings(
             bad = interior_disconnection(&all_rings);
         }
         if let Some(why) = bad {
-            notices.push(make_notice(
+            notices.push( make_notice(
                 counter, "LOC_011", EntityType::File, Some(fname.to_string()),
                 Some(fname), Some(feat_num), Some("coordinates"), Some(why.clone()),
                 format!("'{fname}' özellik {feat_num} poligonu OpenGIS Simple Features 6.1.11'e göre geçersiz: {why}."),
@@ -2308,7 +2390,7 @@ fn check_polygon_rings(
         let holes: f64 = ring_areas[1..].iter().map(|a| a.abs()).sum();
         let area_km2 = (outer - holes).max(0.0);
         if area_km2 > 500.0 {
-            notices.push(make_notice(
+            notices.push( make_notice(
                 counter, "LOC_006", EntityType::File, Some(fname.to_string()),
                 Some(fname), Some(feat_num), Some("coordinates"), Some(format!("{area_km2:.0}km²")),
                 format!("'{fname}' özellik {feat_num} Polygon alanı çok büyük (~{area_km2:.0}km²) — GTFS Flex bölgesi için gerçekçi değil."),
@@ -2723,6 +2805,40 @@ mod tests {
         // Tavanın altındaki gerçek boyutlar aynen geçer (davranış değişmez).
         assert_eq!(prealloc_capacity(1000), 1000);
         assert_eq!(prealloc_capacity(MAX_PREALLOC), MAX_PREALLOC);
+    }
+
+    #[test]
+    fn native_parse_preserves_full_buffered_files_while_sdk_parse_limits_them() {
+        let mut fare_rules = String::from("fare_id,price,currency\n");
+        for i in 0..12 {
+            fare_rules.push_str(&format!("F{i},1.00,EUR\n"));
+        }
+        let zip = zip_with_files(&[
+            ("agency.txt", b"agency_id,agency_name,agency_url,agency_timezone\nA1,Test,http://x.test,UTC\n"),
+            ("stops.txt", b"stop_id,stop_name,stop_lat,stop_lon\nS1,Stop,41,29\n"),
+            ("routes.txt", b"route_id,agency_id,route_short_name,route_type\nR1,A1,1,3\n"),
+            ("trips.txt", b"route_id,service_id,trip_id\nR1,S1,T1\n"),
+            ("stop_times.txt", b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\n"),
+            ("calendar.txt", b"service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nS1,1,1,1,1,1,0,0,20260101,20261231\n"),
+            ("fare_rules.txt", fare_rules.as_bytes()),
+        ]);
+        let cfg = ValidatorConfig {
+            max_file_rows: 10,
+            ..ValidatorConfig::default()
+        };
+
+        let native = super::parse_with_limits(
+            &zip, &cfg, super::DEFAULT_DECOMPRESSION_LIMITS, None,
+        ).expect("native parse başarılı olmalı");
+        let sdk = super::parse_with_limits(
+            &zip,
+            &cfg,
+            crate::decompress_guard::SDK_DECOMPRESSION_LIMITS,
+            Some(crate::decompress_guard::SDK_MAX_BUFFERED_FILE_BYTES),
+        ).expect("SDK parse başarılı olmalı");
+
+        assert_eq!(native.files["fare_rules.txt"].rows.len(), 12);
+        assert_eq!(sdk.files["fare_rules.txt"].rows.len(), 10);
     }
 
     #[test]

@@ -58,7 +58,7 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
         // `RTS_001` YİNELENMEYİ ölçer ve olmayan bir kimlik yinelenemez, dolayısıyla
         // boş değer iki kuralın arasından düşüyordu (#153, korpusta 4 feed).
         if route_id.trim().is_empty() {
-            notices.push(make_k2_notice(
+            notices.push( make_k2_notice(
                 &mut counter, "RTS_031", EntityType::Route, None, Some(&row_map),
                 &file.name, Some(line), Some("route_id"), Some(String::new()), None,
                 "route_id zorunludur.".to_string(),
@@ -84,7 +84,7 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
         // idi: R2'nin "Alan" sütunu, feed'i yayından ALIKOYAN bir bulguda boş kalıyordu.
         // Tek alan adı yazmak yanlış olurdu — hüküm ikisinin BİRLİKTE boş olmasıdır.
         if route_short_name.is_none() && route_long_name.is_none() {
-            notices.push(make_k2_notice(
+            notices.push( make_k2_notice(
                 &mut counter, "RTS_003", EntityType::Route, entity_id.clone(), Some(&row_map),
                 &file.name, Some(line), Some("route_short_name|route_long_name"), None, None,
                 "route_short_name ve route_long_name alanlarının her ikisi de boş; en az biri zorunludur.".to_string(),
@@ -105,7 +105,7 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
             // yanlış pozitif üretiyordu.
             let char_len = s.chars().count();
             if char_len > 12 {
-                notices.push(make_k2_notice(
+                notices.push( make_k2_notice(
                     &mut counter, "RTS_010", EntityType::Route, entity_id.clone(), Some(&row_map),
                     &file.name, Some(line), Some("route_short_name"),
                     Some(char_len.to_string()), Some("≤12".to_string()),
@@ -117,7 +117,7 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
                 // Google'ın kendi muafiyeti: `route_long_name` doluysa uyarı göz ardı
                 // edilebilir — uzun ad zaten okunabilir gösterimi taşır. Guard olmadan
                 // "Green Line" gibi meşru adlandırmalarda gereksiz gürültü üretiyordu.
-                notices.push(make_k2_notice(
+                notices.push( make_k2_notice(
                     &mut counter, "RTS_021", EntityType::Route, entity_id.clone(), Some(&row_map),
                     &file.name, Some(line), Some("route_short_name"),
                     Some(char_len.to_string()), Some("≤6 (Google)".to_string()),
@@ -131,7 +131,7 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
         if let Some(ref l) = route_long_name {
             let char_len = l.chars().count(); // bayt değil karakter — bkz. RTS_010/021 notu
             if char_len > 100 {
-                notices.push(make_k2_notice(
+                notices.push( make_k2_notice(
                     &mut counter, "RTS_011", EntityType::Route, entity_id.clone(), Some(&row_map),
                     &file.name, Some(line), Some("route_long_name"),
                     Some(char_len.to_string()), Some("≤100".to_string()),
@@ -148,7 +148,7 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
                     None => {
                         // RTS_004: route_type missing (sütun yoksa ARC_025 devralır → atla)
                         if get_trimmed_field(&row_map, "route_type") == Some("") {
-                            notices.push(make_k2_notice(
+                            notices.push( make_k2_notice(
                                 &mut counter, "RTS_004", EntityType::Route, entity_id.clone(), Some(&row_map),
                                 &file.name, Some(line), Some("route_type"),
                                 Some(String::new()), None,
@@ -168,7 +168,7 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
                         // kullandığı için yayına engel yapardı. Ayrım RTS_030'a taşındı.
                         if is_extended_route_type(val) {
                             // RTS_030: genişletilmiş (HVT) tip — çekirdek enum dışı, Interop
-                            notices.push(make_k2_notice(
+                            notices.push( make_k2_notice(
                                 &mut counter, "RTS_030", EntityType::Route, entity_id.clone(), Some(&row_map),
                                 &file.name, Some(line), Some("route_type"),
                                 Some(val.to_string()), Some("0-7,11,12".to_string()),
@@ -177,7 +177,7 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
                             ));
                         } else if !is_core_route_type(val) {
                             // RTS_004: route_type invalid enum value
-                            notices.push(make_k2_notice(
+                            notices.push( make_k2_notice(
                                 &mut counter, "RTS_004", EntityType::Route, entity_id.clone(), Some(&row_map),
                                 &file.name, Some(line), Some("route_type"),
                                 Some(val.to_string()), Some("0-7,11,12".to_string()),
@@ -190,7 +190,7 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
                 }
             }
             Err(err) => {
-                notices.push(make_k2_notice(
+                notices.push( make_k2_notice(
                     &mut counter, "RTS_004", EntityType::Route, entity_id.clone(), Some(&row_map),
                     &file.name, Some(line), Some("route_type"),
                     get_trimmed_field(&row_map, "route_type").map(str::to_string),
@@ -207,7 +207,7 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
             .map(str::to_string);
         if let Some(ref url) = route_url {
             if !looks_like_url(url) {
-                notices.push(make_k2_notice(
+                notices.push( make_k2_notice(
                     &mut counter, "RTS_005", EntityType::Route, entity_id.clone(), Some(&row_map),
                     &file.name, Some(line), Some("route_url"), Some(url.clone()), None,
                     "route_url geçerli bir URL değil.".to_string(),
@@ -222,7 +222,7 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
             .map(str::to_string);
         if let Some(ref color) = route_color {
             if !is_hex_color_6(color) {
-                notices.push(make_k2_notice(
+                notices.push( make_k2_notice(
                     &mut counter, "RTS_006", EntityType::Route, entity_id.clone(), Some(&row_map),
                     &file.name, Some(line), Some("route_color"), Some(color.clone()),
                     Some("6 haneli hex".to_string()),
@@ -238,7 +238,7 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
             .map(str::to_string);
         if let Some(ref color) = route_text_color {
             if !is_hex_color_6(color) {
-                notices.push(make_k2_notice(
+                notices.push( make_k2_notice(
                     &mut counter, "RTS_007", EntityType::Route, entity_id.clone(), Some(&row_map),
                     &file.name, Some(line), Some("route_text_color"), Some(color.clone()),
                     Some("6 haneli hex".to_string()),
@@ -253,7 +253,7 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
             if is_hex_color_6(fg) && is_hex_color_6(bg) {
                 if let Some(ratio) = wcag_contrast_ratio(fg, bg) {
                     if ratio < 3.0 {
-                        notices.push(make_k2_notice(
+                        notices.push( make_k2_notice(
                             &mut counter, "RTS_008", EntityType::Route, entity_id.clone(), Some(&row_map),
                             &file.name, Some(line), Some("route_text_color"),
                             Some(format!("{ratio:.2}")), Some(">= 3.0".to_string()),
@@ -280,7 +280,7 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
         let route_sort_order = match parse_u32(&row_map, "route_sort_order") {
             Ok(v) => v,
             Err(err) => {
-                notices.push(make_k2_notice(
+                notices.push( make_k2_notice(
                     &mut counter, "RTS_029", EntityType::Route, entity_id.clone(), Some(&row_map),
                     &file.name, Some(line), Some("route_sort_order"),
                     get_trimmed_field(&row_map, "route_sort_order").map(str::to_string),
@@ -328,7 +328,7 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
                 n.details = Some(std::collections::BTreeMap::from([
                     ("matched_field".to_string(), matched_field.to_string()),
                 ]));
-                notices.push(n);
+                notices.push( n);
             }
         }
 
@@ -346,7 +346,7 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
             Ok(v) => {
                 if let Some(val) = v {
                     if val > 2 {
-                        notices.push(make_k2_notice(
+                        notices.push( make_k2_notice(
                             &mut counter, "RTS_024", EntityType::Route, entity_id.clone(), Some(&row_map),
                             &file.name, Some(line), Some("cemv_support"), Some(val.to_string()),
                             Some("0, 1 veya 2".to_string()),
@@ -360,7 +360,7 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
             Err(err) => {
                 // Sayı OLMAYAN değer eskiden sessizce düşüyordu: aralık dışı sayı RTS_024 üretirken
                 // "abc" hiçbir bulgu vermiyordu. Aynı olgunun iki dalı → aynı kural (PTH_027 emsali).
-                notices.push(make_k2_notice(
+                notices.push( make_k2_notice(
                     &mut counter, "RTS_024", EntityType::Route, entity_id.clone(),
                     Some(&row_map), &file.name, Some(line), Some("cemv_support"),
                     get_trimmed_field(&row_map, "cemv_support").map(str::to_string), Some("0, 1 veya 2".to_string()),
@@ -453,7 +453,7 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
                 "Aynı kısa+uzun adı taşıyan hatları birleştirin ya da adlarını benzersizleştirin; bilerek kopya ise görmezden gelin.",
             );
             n.details = Some([("conflicting_routes".to_string(), group_str.clone())].into_iter().collect());
-            notices.push(n);
+            notices.push( n);
         }
     }
 
@@ -491,7 +491,7 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
                 "Aynı hat numarası varyant/yön için bilinçli kullanılıyorsa yok sayın; değilse benzersizleştirin.",
             );
             n.details = Some([("conflicting_routes".to_string(), group_str.clone())].into_iter().collect());
-            notices.push(n);
+            notices.push( n);
         }
     }
 
@@ -528,7 +528,7 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
                 "Aynı uzun ad bilinçli paylaşılıyorsa yok sayın; değilse her hatta ayırt edici bir ad verin.",
             );
             n.details = Some([("conflicting_routes".to_string(), group_str.clone())].into_iter().collect());
-            notices.push(n);
+            notices.push( n);
         }
     }
 
@@ -552,7 +552,7 @@ fn parse_continuous_field(
         Ok(v) => {
             if let Some(val) = v {
                 if !matches!(val, 0..=3) {
-                    notices.push(make_k2_notice(
+                    notices.push( make_k2_notice(
                         counter, rule_id, EntityType::Route, entity_id.clone(), Some(row_map),
                         file_name, Some(line), Some(field), Some(val.to_string()),
                         Some("0-3".to_string()),
