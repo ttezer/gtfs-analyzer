@@ -16,6 +16,12 @@ export interface MapPin {
 let overlay: HTMLElement | null = null;
 let leafletMap: L.Map | null = null;
 
+export const MAX_MAP_PINS = 5_000;
+const MAX_MAP_POLYLINE_POINTS = 100_000;
+const MAX_MAP_EXTRA_POLYLINES = 100;
+const MAX_MAP_EXTRA_POINTS = 10_000;
+const MAX_MAP_ARROWS = 2_000;
+
 export interface MapOptions {
   pins: MapPin[];
   polyline?: [number, number][];  // shape çizgisi (ana renk)
@@ -39,10 +45,6 @@ export function openMapModal(title: string, opts: MapOptions): void {
 
   if (!leafletMap) {
     leafletMap = L.map(mapDiv);
-    L.tileLayer('https://mt0.google.com/vt/lyrs=p&x={x}&y={y}&z={z}', {
-      attribution: '© Google',
-      maxZoom: 19,
-    }).addTo(leafletMap);
   } else {
     leafletMap.eachLayer((layer: L.Layer) => {
       if (!(layer instanceof L.TileLayer)) leafletMap!.removeLayer(layer);
@@ -50,22 +52,23 @@ export function openMapModal(title: string, opts: MapOptions): void {
   }
 
   const bounds: [number, number][] = [];
+  const polyline = capPoints(opts.polyline, MAX_MAP_POLYLINE_POINTS);
 
   // Shape polyline (arka planda, pinlerden önce)
-  if (opts.polyline && opts.polyline.length > 1) {
+  if (polyline && polyline.length > 1) {
     // Vurgulu (siyah) taban çizgi biraz daha kalın ve tam opak: gri denemesinde çizgi
     // harita altlığında kaybolmuştu.
     const isBase = opts.polylineColor !== undefined;
-    L.polyline(opts.polyline, {
+    L.polyline(polyline, {
       color: opts.polylineColor ?? '#f59e0b',
       weight: isBase ? 4 : 3,
       opacity: isBase ? 0.95 : 0.8,
     }).addTo(leafletMap);
-    for (const pt of opts.polyline) bounds.push(pt);
+    for (const pt of polyline) bounds.push(pt);
 
     // Yön okları — her ~250m'de bir küçük üçgen
     if (opts.showArrows) {
-      for (const arrow of arrowsAlongPolyline(opts.polyline, 250)) {
+      for (const arrow of arrowsAlongPolyline(polyline, 250).slice(0, MAX_MAP_ARROWS)) {
         L.marker([arrow.lat, arrow.lon], {
           icon: L.divIcon({
             html: `<svg width="14" height="14" viewBox="-7 -7 14 14" style="transform:rotate(${arrow.angle}deg);display:block">
@@ -84,17 +87,18 @@ export function openMapModal(title: string, opts: MapOptions): void {
   // Ek renkli segmentler (bozuk hız segmentleri vb.)
   let zoomTarget: [number, number][] | null = null;
   if (opts.extraPolylines) {
-    for (const seg of opts.extraPolylines) {
-      if (seg.coords.length > 1) {
-        L.polyline(seg.coords, { color: seg.color, weight: seg.weight ?? 4, opacity: 0.95 }).addTo(leafletMap);
-        for (const pt of seg.coords) bounds.push(pt);
-        if (seg.zoomTo) zoomTarget = seg.coords;
+    for (const seg of opts.extraPolylines.slice(0, MAX_MAP_EXTRA_POLYLINES)) {
+      const coords = capPoints(seg.coords, MAX_MAP_EXTRA_POINTS);
+      if (coords && coords.length > 1) {
+        L.polyline(coords, { color: seg.color, weight: seg.weight ?? 4, opacity: 0.95 }).addTo(leafletMap);
+        for (const pt of coords) bounds.push(pt);
+        if (seg.zoomTo) zoomTarget = coords;
       }
     }
   }
 
   // Pinler
-  for (const pin of opts.pins) {
+  for (const pin of opts.pins.slice(0, MAX_MAP_PINS)) {
     const color = pin.color ?? (pin.primary ? '#2563eb' : '#dc2626');
     const radius = pin.small ? 5 : 9;
     const weight = pin.small ? 1.5 : 2.5;
@@ -135,6 +139,15 @@ export function openMapModal(title: string, opts: MapOptions): void {
 
   // Leaflet görünür hale geldikten sonra boyutu yeniden hesapla
   setTimeout(() => leafletMap!.invalidateSize(), 50);
+}
+
+function capPoints(points: [number, number][] | undefined, max: number): [number, number][] | undefined {
+  if (!points || points.length <= max) return points;
+  const out: [number, number][] = [points[0]];
+  const step = (points.length - 1) / (max - 1);
+  for (let i = 1; i < max - 1; i++) out.push(points[Math.round(i * step)]);
+  out.push(points[points.length - 1]);
+  return out;
 }
 
 export function closeMapModal(): void {

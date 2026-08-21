@@ -42,14 +42,14 @@ fn opt_int_checked(
     entity_id: Option<String>,
     file_name: &str,
     line: u64,
-    notices: &mut Vec<gtfs_core::Notice>,
+    mut notices: &mut Vec<gtfs_core::Notice>,
     ctr: &mut u32,
 ) -> Option<i64> {
     let raw = get_trimmed_field(row, field).filter(|v| !v.trim().is_empty())?;
     match raw.parse::<i64>() {
         Ok(v) => Some(v),
         Err(_) => {
-            notices.push(make_k2_notice(
+            crate::notice_budget::push(&mut notices, make_k2_notice(
                 ctr, rule, EntityType::Row, entity_id, Some(row),
                 file_name, Some(line), Some(field),
                 Some(raw.to_string()), Some("tam sayı".to_string()),
@@ -79,7 +79,7 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
         // Sütun başlıkta hiç yoksa ARC_025 devralır (RTS_004 deseni) → burada susulur.
         if id.is_empty() {
             if get_raw_field(&row_map, "booking_rule_id").map(str::trim) == Some("") {
-                notices.push(make_k2_notice(
+                crate::notice_budget::push(&mut notices, make_k2_notice(
                     &mut ctr, "BKR_019", EntityType::Row, None, Some(&row_map),
                     &file.name, Some(line), Some("booking_rule_id"),
                     Some(String::new()), None,
@@ -88,7 +88,7 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
                 ));
             }
         } else if !seen_ids.insert(id.clone()) {
-            notices.push(make_k2_notice(
+            crate::notice_budget::push(&mut notices, make_k2_notice(
                 &mut ctr, "BKR_019", EntityType::Row, entity_id.clone(), Some(&row_map),
                 &file.name, Some(line), Some("booking_rule_id"),
                 Some(id.clone()), None,
@@ -110,7 +110,7 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
             } else {
                 (btype_str.clone(), format!("booking_type '{btype_str}' geçerli bir değer değil (0, 1 veya 2 olmalıdır)."))
             };
-            notices.push(make_k2_notice(
+            crate::notice_budget::push(&mut notices, make_k2_notice(
                 &mut ctr, "BKR_016", EntityType::Row, entity_id.clone(), Some(&row_map),
                 &file.name, Some(line), Some("booking_type"),
                 Some(observed), Some("0-2".to_string()), message,
@@ -139,7 +139,7 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
         // dört kez kural körleştirdi.
         for field in ["prior_notice_start_time", "prior_notice_last_time"] {
             if let Err(raw) = parse_gtfs_time(&row_map, field) {
-                notices.push(make_k2_notice(
+                crate::notice_budget::push(&mut notices, make_k2_notice(
                     &mut ctr, "BKR_025", EntityType::Row, entity_id.clone(), Some(&row_map),
                     &file.name, Some(line), Some(field),
                     Some(raw), Some("HH:MM:SS".to_string()),
@@ -161,7 +161,7 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
                 && (has_duration_min || has_duration_max || has_last_day
                     || has_last_time || has_start_day || has_start_time)
             {
-                notices.push(make_k2_notice(
+                crate::notice_budget::push(&mut notices, make_k2_notice(
                     &mut ctr, "BKR_004", EntityType::Row, entity_id.clone(), Some(&row_map),
                     &file.name, Some(line), Some("prior_notice_duration_min"),
                     Some(btype_str.clone()), Some("(boş)".to_string()),
@@ -172,7 +172,7 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
 
             // BKR_005: booking_type=2 iken prior_notice_duration_max yasak
             if btype == 2 && has_duration_max {
-                notices.push(make_k2_notice(
+                crate::notice_budget::push(&mut notices, make_k2_notice(
                     &mut ctr, "BKR_005", EntityType::Row, entity_id.clone(), Some(&row_map),
                     &file.name, Some(line), Some("prior_notice_duration_max"),
                     get_trimmed_field(&row_map, "prior_notice_duration_max").map(str::to_string),
@@ -187,7 +187,7 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
             // type=0 kolu BKR_004'te (tüm prior_notice alanları) — burada tekrar edilmez.
             // BKR_005'in (duration_max) birebir aynası.
             if btype == 2 && has_duration_min {
-                notices.push(make_k2_notice(
+                crate::notice_budget::push(&mut notices, make_k2_notice(
                     &mut ctr, "BKR_012", EntityType::Row, entity_id.clone(), Some(&row_map),
                     &file.name, Some(line), Some("prior_notice_duration_min"),
                     get_trimmed_field(&row_map, "prior_notice_duration_min").map(str::to_string),
@@ -201,7 +201,7 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
             // Spec: "Optional if booking_type=2. Forbidden otherwise."
             // BKR_004 bu alanı KAPSAMAZ (yalnız altı prior_notice_* alanı) → type=0 da buraya dahil.
             if btype != 2 && has_service_id {
-                notices.push(make_k2_notice(
+                crate::notice_budget::push(&mut notices, make_k2_notice(
                     &mut ctr, "BKR_014", EntityType::Row, entity_id.clone(), Some(&row_map),
                     &file.name, Some(line), Some("prior_notice_service_id"),
                     Some(btype_str.clone()), Some("2".to_string()),
@@ -212,7 +212,7 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
 
             // BKR_007: booking_type=1 iken prior_notice_duration_min zorunlu
             if btype == 1 && !has_duration_min {
-                notices.push(make_k2_notice(
+                crate::notice_budget::push(&mut notices, make_k2_notice(
                     &mut ctr, "BKR_007", EntityType::Row, entity_id.clone(), Some(&row_map),
                     &file.name, Some(line), Some("prior_notice_duration_min"),
                     None, Some("integer > 0".to_string()),
@@ -224,7 +224,7 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
             // BKR_001: prior_notice_last_day yalnız booking_type=2 için tanımlanabilir
             // (spec booking_rules.txt: "Required for booking_type=2. Forbidden otherwise").
             if btype != 2 && has_last_day {
-                notices.push(make_k2_notice(
+                crate::notice_budget::push(&mut notices, make_k2_notice(
                     &mut ctr, "BKR_001", EntityType::Row, entity_id.clone(), Some(&row_map),
                     &file.name, Some(line), Some("prior_notice_last_day"),
                     Some(btype_str.clone()), Some("2".to_string()),
@@ -243,7 +243,7 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
                 } else {
                     "booking_type=1 ve prior_notice_duration_max tanımlı"
                 };
-                notices.push(make_k2_notice(
+                crate::notice_budget::push(&mut notices, make_k2_notice(
                     &mut ctr, "BKR_001", EntityType::Row, entity_id.clone(), Some(&row_map),
                     &file.name, Some(line), Some("prior_notice_start_day"),
                     Some(btype_str.clone()), Some("(boş)".to_string()),
@@ -254,7 +254,7 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
 
             // BKR_008: booking_type=2 iken prior_notice_last_day zorunlu
             if btype == 2 && !has_last_day {
-                notices.push(make_k2_notice(
+                crate::notice_budget::push(&mut notices, make_k2_notice(
                     &mut ctr, "BKR_008", EntityType::Row, entity_id.clone(), Some(&row_map),
                     &file.name, Some(line), Some("prior_notice_last_day"),
                     None, Some("integer ≥ 0".to_string()),
@@ -265,7 +265,7 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
 
             // BKR_009: booking_type=2 iken prior_notice_last_time zorunlu
             if btype == 2 && !has_last_time {
-                notices.push(make_k2_notice(
+                crate::notice_budget::push(&mut notices, make_k2_notice(
                     &mut ctr, "BKR_009", EntityType::Row, entity_id.clone(), Some(&row_map),
                     &file.name, Some(line), Some("prior_notice_last_time"),
                     None, Some("HH:MM:SS".to_string()),
@@ -279,7 +279,7 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
         if has_duration_min {
             match duration_min {
                 Some(v) if v <= 0 => {
-                    notices.push(make_k2_notice(
+                    crate::notice_budget::push(&mut notices, make_k2_notice(
                         &mut ctr, "BKR_006", EntityType::Row, entity_id.clone(), Some(&row_map),
                         &file.name, Some(line), Some("prior_notice_duration_min"),
                         Some(v.to_string()), Some("> 0".to_string()),
@@ -288,7 +288,7 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
                     ));
                 }
                 None => {
-                    notices.push(make_k2_notice(
+                    crate::notice_budget::push(&mut notices, make_k2_notice(
                         &mut ctr, "BKR_006", EntityType::Row, entity_id.clone(), Some(&row_map),
                         &file.name, Some(line), Some("prior_notice_duration_min"),
                         get_trimmed_field(&row_map, "prior_notice_duration_min").map(str::to_string),
@@ -305,7 +305,7 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
         // günü çelişkilidir — spec: "Forbidden for booking_type=1 if prior_notice_duration_max
         // is defined." `BKR_002` komşudur ama başka hükmü ölçer (start_day yalnız last_day ile).
         if booking_type == Some(1) && has_duration_max && has_start_day {
-            notices.push(make_k2_notice(
+            crate::notice_budget::push(&mut notices, make_k2_notice(
                 &mut ctr, "BKR_024", EntityType::Row, entity_id.clone(), Some(&row_map),
                 &file.name, Some(line), Some("prior_notice_start_day"),
                 get_trimmed_field(&row_map, "prior_notice_start_day").map(str::to_string),
@@ -317,7 +317,7 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
 
         // BKR_002: prior_notice_start_day dolu ama prior_notice_last_day yok
         if has_start_day && !has_last_day {
-            notices.push(make_k2_notice(
+            crate::notice_budget::push(&mut notices, make_k2_notice(
                 &mut ctr, "BKR_002", EntityType::Row, entity_id.clone(), Some(&row_map),
                 &file.name, Some(line), Some("prior_notice_start_day"),
                 get_trimmed_field(&row_map, "prior_notice_start_day").map(str::to_string), None,
@@ -328,7 +328,7 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
 
         // BKR_003: prior_notice_start_time dolu ama prior_notice_start_day yok
         if has_start_time && !has_start_day {
-            notices.push(make_k2_notice(
+            crate::notice_budget::push(&mut notices, make_k2_notice(
                 &mut ctr, "BKR_003", EntityType::Row, entity_id.clone(), Some(&row_map),
                 &file.name, Some(line), Some("prior_notice_start_time"),
                 get_trimmed_field(&row_map, "prior_notice_start_time").map(str::to_string), None,
@@ -342,7 +342,7 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
         // BKR_003'ün (start_time ↔ start_day) birebir aynası; BKR_003 gibi booking_type'tan
         // BAĞIMSIZ çalışır (booking_type okunamayan satırlarda da geçerli bir spec ihlali).
         if has_last_time && !has_last_day {
-            notices.push(make_k2_notice(
+            crate::notice_budget::push(&mut notices, make_k2_notice(
                 &mut ctr, "BKR_013", EntityType::Row, entity_id.clone(), Some(&row_map),
                 &file.name, Some(line), Some("prior_notice_last_time"),
                 get_trimmed_field(&row_map, "prior_notice_last_time").map(str::to_string), None,
@@ -353,7 +353,7 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
 
         // BKR_010: prior_notice_start_day dolu ama prior_notice_start_time yok
         if has_start_day && !has_start_time {
-            notices.push(make_k2_notice(
+            crate::notice_budget::push(&mut notices, make_k2_notice(
                 &mut ctr, "BKR_010", EntityType::Row, entity_id.clone(), Some(&row_map),
                 &file.name, Some(line), Some("prior_notice_start_time"),
                 None, Some("HH:MM:SS".to_string()),
@@ -365,7 +365,7 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
         // BKR_011: prior_notice_last_day > prior_notice_start_day (rezervasyon penceresi geçersiz)
         if let (Some(ld), Some(sd)) = (last_day, start_day) {
             if ld > sd {
-                notices.push(make_k2_notice(
+                crate::notice_budget::push(&mut notices, make_k2_notice(
                     &mut ctr, "BKR_011", EntityType::Row, entity_id.clone(), Some(&row_map),
                     &file.name, Some(line), Some("prior_notice_last_day"),
                     Some(format!("last_day={ld}, start_day={sd}")), None,
@@ -388,7 +388,7 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
         ] {
             if let Some(url) = opt_str(&row_map, field) {
                 if !looks_like_url(&url) {
-                    notices.push(make_k2_notice(
+                    crate::notice_budget::push(&mut notices, make_k2_notice(
                         &mut ctr, rule, EntityType::Row, Some(id.clone()), Some(&row_map),
                         &file.name, Some(line), Some(field), Some(url), None,
                         msg.to_string(), fix,
@@ -398,7 +398,7 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
         }
         if let Some(phone) = opt_str(&row_map, "phone_number") {
             if !looks_like_phone(&phone) {
-                notices.push(make_k2_notice(
+                crate::notice_budget::push(&mut notices, make_k2_notice(
                     &mut ctr, "BKR_022", EntityType::Row, Some(id.clone()), Some(&row_map),
                     &file.name, Some(line), Some("phone_number"), Some(phone.clone()), None,
                     format!("phone_number '{phone}' geçerli bir telefon numarası formatında değil."),

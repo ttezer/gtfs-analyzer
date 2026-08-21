@@ -9,6 +9,10 @@ import { t } from './i18n';
 
 let overlay: HTMLElement | null = null;
 
+const MAX_PATTERN_GROUPS = 500;
+const MAX_PATTERN_TRIPS = 100_000;
+const MAX_PATTERN_TRIPS_PER_GROUP = 5_000;
+
 export function openPatternModal(routeId: string, routeLabel: string, nameIndex: NameIndex): void {
   ensureOverlay();
   overlay!.querySelector<HTMLElement>('.mm-title')!.textContent =
@@ -40,14 +44,31 @@ function directionLabel(tripIds: string[], ni: NameIndex): string {
 function renderPatterns(routeId: string, ni: NameIndex): string {
   // Hatta ait sefer'ler → sıralı durak dizisine göre grupla (trip listesiyle).
   const groups = new Map<string, { stops: string[]; trips: string[] }>();
+  let omittedTrips = 0;
+  let storedTrips = 0;
   for (const [tripId, rId] of Object.entries(ni.trip_routes)) {
     if (rId !== routeId) continue;
+    if (groups.size >= MAX_PATTERN_GROUPS && !groups.has((ni.trip_stops[tripId] ?? []).join('>'))) {
+      omittedTrips++;
+      continue;
+    }
     const stops = ni.trip_stops[tripId] ?? [];
     if (stops.length === 0) continue;
     const key = stops.join('>');
     const e = groups.get(key);
-    if (e) e.trips.push(tripId);
-    else groups.set(key, { stops, trips: [tripId] });
+    if (e) {
+      if (e.trips.length < MAX_PATTERN_TRIPS_PER_GROUP && storedTrips < MAX_PATTERN_TRIPS) {
+        e.trips.push(tripId);
+        storedTrips++;
+      } else {
+        omittedTrips++;
+      }
+    } else if (storedTrips < MAX_PATTERN_TRIPS) {
+      groups.set(key, { stops, trips: [tripId] });
+      storedTrips++;
+    } else {
+      omittedTrips++;
+    }
   }
   if (groups.size === 0) {
     return `<p class="pm-empty">${t('fix.pattern.none')}</p>`;
@@ -78,7 +99,10 @@ function renderPatterns(routeId: string, ni: NameIndex): string {
     p: String(patterns.length),
     t: String(totalTrips),
   })}</p>`;
-  return summary + rows;
+  const limitNote = omittedTrips > 0
+    ? `<p class="pm-summary">${t('fix.pattern.limited', { n: String(omittedTrips) })}</p>`
+    : '';
+  return summary + limitNote + rows;
 }
 
 function ensureOverlay(): void {

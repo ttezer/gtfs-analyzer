@@ -28,7 +28,7 @@ pub fn validate_timeframes(
         let entity_id = (!group_id.is_empty()).then_some(group_id.clone());
 
         if get_raw_field(&row_map, "timeframe_group_id").map(str::trim) == Some("") {
-            notices.push(make_k2_notice(
+            crate::notice_budget::push(&mut notices, make_k2_notice(
                 &mut counter, "TFR_001", EntityType::Row, None, Some(&row_map),
                 &file.name, Some(line), Some("timeframe_group_id"), None,
                 Some("dolu".to_string()),
@@ -42,7 +42,7 @@ pub fn validate_timeframes(
         let start_time = match parse_gtfs_time(&row_map, "start_time") {
             Ok(v) => v,
             Err(err) => {
-                notices.push(make_k2_notice(
+                crate::notice_budget::push(&mut notices, make_k2_notice(
                     &mut counter, "TFR_003", EntityType::Row, entity_id.clone(), Some(&row_map),
                     &file.name, Some(line), Some("start_time"),
                     get_trimmed_field(&row_map, "start_time").map(str::to_string),
@@ -56,7 +56,7 @@ pub fn validate_timeframes(
         let end_time = match parse_gtfs_time(&row_map, "end_time") {
             Ok(v) => v,
             Err(err) => {
-                notices.push(make_k2_notice(
+                crate::notice_budget::push(&mut notices, make_k2_notice(
                     &mut counter, "TFR_003", EntityType::Row, entity_id.clone(), Some(&row_map),
                     &file.name, Some(line), Some("end_time"),
                     get_trimmed_field(&row_map, "end_time").map(str::to_string),
@@ -81,7 +81,7 @@ pub fn validate_timeframes(
             } else {
                 ("end_time", "start_time")
             };
-            notices.push(make_k2_notice(
+            crate::notice_budget::push(&mut notices, make_k2_notice(
                 &mut counter, "TFR_007", EntityType::Row, entity_id.clone(), Some(&row_map),
                 &file.name, Some(line), Some(missing), Some(String::new()),
                 Some("dolu".to_string()),
@@ -98,7 +98,7 @@ pub fn validate_timeframes(
         for (field, parsed) in [("start_time", start_time), ("end_time", end_time)] {
             let Some((hour, minute, second)) = parsed else { continue };
             if hour > 24 || (hour == 24 && (minute > 0 || second > 0)) {
-                notices.push(make_k2_notice(
+                crate::notice_budget::push(&mut notices, make_k2_notice(
                     &mut counter, "TFR_006", EntityType::Row, entity_id.clone(), Some(&row_map),
                     &file.name, Some(line), Some(field),
                     get_trimmed_field(&row_map, field).map(str::to_string),
@@ -114,7 +114,7 @@ pub fn validate_timeframes(
             let st_secs = st.0 as u64 * 3600 + st.1 as u64 * 60 + st.2 as u64;
             let et_secs = et.0 as u64 * 3600 + et.1 as u64 * 60 + et.2 as u64;
             if et_secs <= st_secs {
-                notices.push(make_k2_notice(
+                crate::notice_budget::push(&mut notices, make_k2_notice(
                     &mut counter, "TFR_004", EntityType::Row, entity_id.clone(), Some(&row_map),
                     &file.name, Some(line), Some("end_time"),
                     get_trimmed_field(&row_map, "end_time").map(str::to_string),
@@ -155,7 +155,7 @@ pub fn validate_timeframes(
             let (prev_st, prev_et, prev_line) = intervals[i - 1];
             let (cur_st, _, cur_line) = intervals[i];
             if cur_st < prev_et {
-                notices.push(make_k2_notice(
+                crate::notice_budget::push(&mut notices, make_k2_notice(
                     &mut counter, "TFR_005", EntityType::Row,
                     Some(group_id.to_string()), None,
                     &file.name, Some(cur_line), Some("start_time"),

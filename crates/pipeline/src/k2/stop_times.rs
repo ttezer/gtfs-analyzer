@@ -18,6 +18,21 @@ pub(crate) fn stream_byte_limit(max_data_rows: Option<usize>) -> usize {
     if max_data_rows.is_some() { K2_MAX_STREAM_BYTES } else { usize::MAX }
 }
 
+/// Shared SDK budget for the files that K2 reopens from the ZIP. A separate
+/// per-entry limit still applies, but the total budget prevents four large
+/// entries from each consuming the full allowance in one validation run.
+pub struct StreamBudget {
+    remaining: usize,
+}
+
+impl StreamBudget {
+    pub(crate) fn new(bytes: usize) -> Self { Self { remaining: bytes } }
+    pub(crate) fn limit(&self) -> usize { self.remaining }
+    pub(crate) fn consume(&mut self, bytes: usize) {
+        self.remaining = self.remaining.saturating_sub(bytes);
+    }
+}
+
 // ── CompactStopTime: 24B flat per row — trip_id taşımaz ──────────────────────
 // #38: Swiss feed 28M×112B=3.1GB → OOM; 28M×24B=672MB → bütçe dahilinde.
 // stop_id → stop_idx (intern); zamanlar saniye (sentinel u32::MAX); f32 dist.
@@ -938,6 +953,7 @@ impl<R: Read> ZipCsvReader<R> {
     }
 
     pub(crate) fn truncated(&self) -> bool { self.truncated }
+    pub(crate) fn bytes_read(&self) -> usize { self.bytes_read }
 
     #[inline(always)]
     fn next_byte(&mut self) -> Option<u8> {
@@ -1279,9 +1295,9 @@ impl StChunk {
         if self.arc030_fired {
             incoming.retain(|n| n.rule_id != "ARC_030");
         }
-        self.notices.extend(incoming);
-        self.stm018_pending.extend(other.stm018_pending);
-        self.stm019_pending.extend(other.stm019_pending);
+        crate::notice_budget::extend(&mut self.notices, incoming);
+        crate::notice_budget::extend(&mut self.stm018_pending, other.stm018_pending);
+        crate::notice_budget::extend(&mut self.stm019_pending, other.stm019_pending);
         self.arc021_fired |= other.arc021_fired;
         self.arc030_fired |= other.arc030_fired;
         self.counter += other.counter;
@@ -1306,7 +1322,7 @@ pub fn validate_stop_times(
     zip_bytes: Option<&[u8]>,
     has_booking_rules: bool,
 ) -> (StopTimesIndex, Vec<gtfs_core::Notice>) {
-    validate_stop_times_with_limits(file, zip_bytes, has_booking_rules, None)
+    validate_stop_times_with_limits(file, zip_bytes, has_booking_rules, None, None)
 }
 
 pub fn validate_stop_times_with_limits(
@@ -1314,6 +1330,7 @@ pub fn validate_stop_times_with_limits(
     zip_bytes: Option<&[u8]>,
     has_booking_rules: bool,
     max_data_rows: Option<usize>,
+    mut stream_budget: Option<&mut StreamBudget>,
 ) -> (StopTimesIndex, Vec<gtfs_core::Notice>) {
     let mut st = StChunk { has_booking_rules, ..StChunk::default() };
     let cols = Cols::from_headers(&file.headers);
@@ -1350,11 +1367,8 @@ pub fn validate_stop_times_with_limits(
         st.all_rows.reserve(est);
         st.row_trip.reserve(est);
     } else if zip_bytes.is_some() {
-        // ZIP'i ikinci kez baştan sona açan exact pre-count kaldırıldı: o pass
-        // decompression guard'dan kaçıyor ve zip bombasında yalnızca CPU tüketiyordu.
-        let est = (file.bytes as usize / 60).clamp(1, 50_000_000);
-        st.all_rows.reserve_exact(est);
-        st.row_trip.reserve_exact(est);
+        // ZIP central-directory sizes are attacker-controlled metadata. Do not use
+        // them as a Vec capacity hint; grow from observed rows instead.
     }
 
     #[cfg(feature = "parallel")]
@@ -1379,13 +1393,13 @@ pub fn validate_stop_times_with_limits(
                 if is_info {
                     n.severity = Severity::Bilgi;
                 }
-                st.notices.push(n);
+                crate::notice_budget::push(&mut st.notices, n);
             }
 
             // ARC_034: başlık tekrarı → notice + indexleme YAPMA. K1 bu dosyayı stream
             // eder ve yalnız başlığı okur; kontrol orada kalırsa burada hiç çalışmaz (#181).
             if crate::k1_parse::arc034_is_header_repeat(row, &file.headers) {
-                st.notices.push(make_k2_notice(
+                crate::notice_budget::push(&mut st.notices, make_k2_notice(
                     &mut st.counter, "ARC_034", EntityType::File, Some(file.name.clone()),
                     None, &file.name, Some(line), None, None, None,
                     format!("'{}' {line}. satırı başlık satırının tekrarı — veri olarak okunuyor.", file.name),
@@ -1396,7 +1410,7 @@ pub fn validate_stop_times_with_limits(
 
             // ARC_018: tamamen boş satır → notice + indexleme YAPMA (K1'deki continue)
             if row.iter().all(|v| v.trim().is_empty()) {
-                st.notices.push(make_k2_notice(
+                crate::notice_budget::push(&mut st.notices, make_k2_notice(
                     &mut st.counter, "ARC_018", EntityType::File, Some(file.name.clone()),
                     None, &file.name, Some(line), None,
                     None, None,
@@ -1410,7 +1424,7 @@ pub fn validate_stop_times_with_limits(
             if !st.arc021_fired {
                 if let Some(cp) = crate::k1_parse::arc021_bad_char(row.iter().map(|v| v.as_ref())) {
                     st.arc021_fired = true;
-                    st.notices.push(make_k2_notice(
+                    crate::notice_budget::push(&mut st.notices, make_k2_notice(
                         &mut st.counter, "ARC_021", EntityType::File, Some(file.name.clone()),
                         None, &file.name, Some(line), None,
                         Some(format!("U+{cp:04X}")), None,
@@ -1424,7 +1438,7 @@ pub fn validate_stop_times_with_limits(
             if !st.arc030_fired {
                 if let Some(cp) = crate::k1_parse::arc030_bad_whitespace(row.iter().map(|v| v.as_ref())) {
                     st.arc030_fired = true;
-                    st.notices.push(make_k2_notice(
+                    crate::notice_budget::push(&mut st.notices, make_k2_notice(
                         &mut st.counter, "ARC_030", EntityType::File, Some(file.name.clone()),
                         None, &file.name, Some(line), None,
                         Some(format!("U+{cp:04X}")), None,
@@ -1446,7 +1460,7 @@ pub fn validate_stop_times_with_limits(
 
         // STM_046: trip_id required (sütun yoksa ARC_025 devralır → atla)
         if trip_id.is_empty() && file.headers.iter().any(|h| h == "trip_id") {
-            st.notices.push(make_k2_notice(
+            crate::notice_budget::push(&mut st.notices, make_k2_notice(
                 &mut st.counter, "STM_046", EntityType::Trip, None,
                 None, &file.name, Some(line), Some("trip_id"),
                 Some(String::new()), None,
@@ -1460,7 +1474,7 @@ pub fn validate_stop_times_with_limits(
         let stop_sequence = match parse_u32_raw(seq_raw, "stop_sequence") {
             Ok(v) => {
                 if v.is_none() && file.headers.iter().any(|h| h == "stop_sequence") {
-                    st.notices.push(make_k2_notice(
+                    crate::notice_budget::push(&mut st.notices, make_k2_notice(
                         &mut st.counter, "STM_005", EntityType::Trip, eid(),
                         None, &file.name, Some(line), Some("stop_sequence"),
                         Some(String::new()), None,
@@ -1471,7 +1485,7 @@ pub fn validate_stop_times_with_limits(
                 v
             }
             Err(err) => {
-                st.notices.push(make_k2_notice(
+                crate::notice_budget::push(&mut st.notices, make_k2_notice(
                     &mut st.counter, "STM_005", EntityType::Trip, eid(),
                     None, &file.name, Some(line), Some("stop_sequence"),
                     Some(seq_raw.to_string()), None, err,
@@ -1534,7 +1548,7 @@ pub fn validate_stop_times_with_limits(
                         d.insert("curr_seq".to_string(), seq.to_string());
                         d.insert("prev_seq".to_string(), last.to_string());
                         n.details = Some(d);
-                        st.notices.push(n);
+                        crate::notice_budget::push(&mut st.notices, n);
                         agg.unsorted_fired = true;
                         st.unsorted_seq_trips.push((trip_id.clone(), last, seq, line));
                     } else if seq > last {
@@ -1557,7 +1571,7 @@ pub fn validate_stop_times_with_limits(
         let has_flex_location = !get_col_raw(row, cols.location_id).is_empty()
             || !get_col_raw(row, cols.location_group_id).is_empty();
         if raw_stop.is_empty() && !has_flex_location && file.headers.iter().any(|h| h == "stop_id") {
-            st.notices.push(make_k2_notice(
+            crate::notice_budget::push(&mut st.notices, make_k2_notice(
                 &mut st.counter, "STM_006", EntityType::Stop, eid(),
                 None, &file.name, Some(line), Some("stop_id"),
                 Some(String::new()), None,
@@ -1587,7 +1601,7 @@ pub fn validate_stop_times_with_limits(
         let arrival_time = match parse_gtfs_time_raw(arr_raw, "arrival_time") {
             Ok(v) => v,
             Err(err) => {
-                st.notices.push(make_k2_notice(
+                crate::notice_budget::push(&mut st.notices, make_k2_notice(
                     &mut st.counter, "STM_003", EntityType::Trip, eid(),
                     None, &file.name, Some(line), Some("arrival_time"),
                     Some(arr_raw.to_string()), Some("HH:MM:SS".to_string()), err,
@@ -1604,7 +1618,7 @@ pub fn validate_stop_times_with_limits(
         let departure_time = match parse_gtfs_time_raw(dep_raw, "departure_time") {
             Ok(v) => v,
             Err(err) => {
-                st.notices.push(make_k2_notice(
+                crate::notice_budget::push(&mut st.notices, make_k2_notice(
                     &mut st.counter, "STM_004", EntityType::Trip, eid(),
                     None, &file.name, Some(line), Some("departure_time"),
                     Some(dep_raw.to_string()), Some("HH:MM:SS".to_string()), err,
@@ -1629,7 +1643,7 @@ pub fn validate_stop_times_with_limits(
         match (arrival_time.or(arr_malformed.then_some((0,0,0))),
                departure_time.or(dep_malformed.then_some((0,0,0)))) {
             (Some(_), None) => {
-                st.notices.push(make_k2_notice(
+                crate::notice_budget::push(&mut st.notices, make_k2_notice(
                     &mut st.counter, "STM_034", EntityType::Trip, eid(),
                     None, &file.name, Some(line), Some("departure_time"),
                     None, Some("dolu".to_string()),
@@ -1638,7 +1652,7 @@ pub fn validate_stop_times_with_limits(
                 ));
             }
             (None, Some(_)) => {
-                st.notices.push(make_k2_notice(
+                crate::notice_budget::push(&mut st.notices, make_k2_notice(
                     &mut st.counter, "STM_034", EntityType::Trip, eid(),
                     None, &file.name, Some(line), Some("arrival_time"),
                     None, Some("dolu".to_string()),
@@ -1685,7 +1699,7 @@ pub fn validate_stop_times_with_limits(
             Ok(v) => {
                 if let Some(val) = v {
                     if val > 1 {
-                        st.notices.push(make_k2_notice(
+                        crate::notice_budget::push(&mut st.notices, make_k2_notice(
                             &mut st.counter, "STM_022", EntityType::Trip, eid(),
                             None, &file.name, Some(line), Some("timepoint"),
                             Some(val.to_string()), Some("0 veya 1".to_string()),
@@ -1699,7 +1713,7 @@ pub fn validate_stop_times_with_limits(
             Err(err) => {
                 // Sayı OLMAYAN değer eskiden sessizce düşüyordu: aralık dışı sayı STM_022 üretirken
                 // "abc" hiçbir bulgu vermiyordu. Aynı olgunun iki dalı → aynı kural (PTH_027 emsali).
-                st.notices.push(make_k2_notice(
+                crate::notice_budget::push(&mut st.notices, make_k2_notice(
                     &mut st.counter, "STM_022", EntityType::Trip, eid(),
                     None, &file.name, Some(line), Some("timepoint"),
                     Some(tp_raw.to_string()), Some("0 veya 1".to_string()),
@@ -1719,7 +1733,7 @@ pub fn validate_stop_times_with_limits(
             && arrival_time.is_none() && !arr_malformed
             && departure_time.is_none() && !dep_malformed
         {
-            st.notices.push(make_k2_notice(
+            crate::notice_budget::push(&mut st.notices, make_k2_notice(
                 &mut st.counter, "STM_047", EntityType::Trip, eid(),
                 None, &file.name, Some(line),
                 // Hüküm İKİ alanı da kapsar: spec "Required for timepoint=1" cümlesini hem
@@ -1738,7 +1752,7 @@ pub fn validate_stop_times_with_limits(
             Ok(v) => {
                 if let Some(d) = v {
                     if d < 0.0 {
-                        st.notices.push(make_k2_notice(
+                        crate::notice_budget::push(&mut st.notices, make_k2_notice(
                             &mut st.counter, "STM_030", EntityType::Trip, eid(),
                             None, &file.name, Some(line), Some("shape_dist_traveled"),
                             Some(d.to_string()), Some(">= 0".to_string()),
@@ -1752,7 +1766,7 @@ pub fn validate_stop_times_with_limits(
             Err(err) => {
                 // Sayı OLMAYAN değer eskiden sessizce düşüyordu: aralık dışı sayı STM_030 üretirken
                 // "abc" hiçbir bulgu vermiyordu. Aynı olgunun iki dalı → aynı kural (PTH_027 emsali).
-                st.notices.push(make_k2_notice(
+                crate::notice_budget::push(&mut st.notices, make_k2_notice(
                     &mut st.counter, "STM_030", EntityType::Trip, eid(),
                     None, &file.name, Some(line), Some("shape_dist_traveled"),
                     Some(sdt_raw.to_string()), Some(">= 0".to_string()),
@@ -1774,7 +1788,7 @@ pub fn validate_stop_times_with_limits(
         if let Some(ref hs) = stop_headsign {
             const FORBIDDEN: &[char] = &['!', '$', '%', '\\', '*', '=', '_'];
             if let Some(bad) = hs.chars().find(|c| FORBIDDEN.contains(c)) {
-                st.notices.push(make_k2_notice(
+                crate::notice_budget::push(&mut st.notices, make_k2_notice(
                     &mut st.counter, "STM_042", EntityType::Trip, eid(),
                     None, &file.name, Some(line), Some("stop_headsign"),
                     Some(format!("'{bad}' karakteri içeriyor")), None,
@@ -1806,7 +1820,7 @@ pub fn validate_stop_times_with_limits(
                 } else {
                     ("drop_off_type=2", "drop_off_booking_rule_id")
                 };
-                st.notices.push(make_k2_notice(
+                crate::notice_budget::push(&mut st.notices, make_k2_notice(
                     &mut st.counter, "STM_059", EntityType::Trip, eid(),
                     None, &file.name, Some(line), Some(field),
                     None, None,
@@ -1842,7 +1856,7 @@ pub fn validate_stop_times_with_limits(
             match parse_gtfs_time_raw(raw, field) {
                 Ok(v) => v,
                 Err(err) => {
-                    st.notices.push(make_k2_notice(
+                    crate::notice_budget::push(&mut st.notices, make_k2_notice(
                         &mut st.counter, "STM_058", EntityType::Trip, eid(),
                         None, &file.name, Some(line), Some(field),
                         Some(raw.to_string()), Some("HH:MM:SS".to_string()), err,
@@ -1862,7 +1876,7 @@ pub fn validate_stop_times_with_limits(
 
         // STM_037: Flex penceresinde arrival_time/departure_time yasak
         if has_any_window && (arrival_time.is_some() || departure_time.is_some()) {
-            st.notices.push(make_k2_notice(
+            crate::notice_budget::push(&mut st.notices, make_k2_notice(
                 &mut st.counter, "STM_037", EntityType::Trip, eid(),
                 None, &file.name, Some(line), Some("arrival_time"),
                 Some(arr_raw.to_string()), Some("(boş)".to_string()),
@@ -1876,7 +1890,7 @@ pub fn validate_stop_times_with_limits(
         if has_any_window {
             if let Some(pt) = pickup_type {
                 if pt == 0 || pt == 3 {
-                    st.notices.push(make_k2_notice(
+                    crate::notice_budget::push(&mut st.notices, make_k2_notice(
                         &mut st.counter, "STM_051", EntityType::Trip, eid(),
                         None, &file.name, Some(line), Some("pickup_type"),
                         Some(pt.to_string()), Some("1 veya 2".to_string()),
@@ -1887,7 +1901,7 @@ pub fn validate_stop_times_with_limits(
             }
             // STM_052: Flex penceresi tanımlı iken drop_off_type=0 (düzenli) yasak.
             if drop_off_type == Some(0) {
-                st.notices.push(make_k2_notice(
+                crate::notice_budget::push(&mut st.notices, make_k2_notice(
                     &mut st.counter, "STM_052", EntityType::Trip, eid(),
                     None, &file.name, Some(line), Some("drop_off_type"),
                     Some("0".to_string()), Some("1 veya 2".to_string()),
@@ -1902,7 +1916,7 @@ pub fn validate_stop_times_with_limits(
             // Enum dışı değerler (>3) STM_018/019'un işi; burada çift emit etmemek için elenir.
             if matches!(continuous_pickup, Some(0) | Some(2) | Some(3)) {
                 let cp = continuous_pickup.unwrap();
-                st.notices.push(make_k2_notice(
+                crate::notice_budget::push(&mut st.notices, make_k2_notice(
                     &mut st.counter, "STM_054", EntityType::Trip, eid(),
                     None, &file.name, Some(line), Some("continuous_pickup"),
                     Some(cp.to_string()), Some("1 veya boş".to_string()),
@@ -1912,7 +1926,7 @@ pub fn validate_stop_times_with_limits(
             }
             if matches!(continuous_drop_off, Some(0) | Some(2) | Some(3)) {
                 let cd = continuous_drop_off.unwrap();
-                st.notices.push(make_k2_notice(
+                crate::notice_budget::push(&mut st.notices, make_k2_notice(
                     &mut st.counter, "STM_055", EntityType::Trip, eid(),
                     None, &file.name, Some(line), Some("continuous_drop_off"),
                     Some(cd.to_string()), Some("1 veya boş".to_string()),
@@ -1932,7 +1946,7 @@ pub fn validate_stop_times_with_limits(
             let sw_secs = sw.0 * 3600 + sw.1 * 60 + sw.2;
             let ew_secs = ew.0 * 3600 + ew.1 * 60 + ew.2;
             if sw_secs >= ew_secs {
-                st.notices.push(make_k2_notice(
+                crate::notice_budget::push(&mut st.notices, make_k2_notice(
                     &mut st.counter, "STM_038", EntityType::Trip, eid(),
                     None, &file.name, Some(line), Some("start_pickup_drop_off_window"),
                     Some(format!("{start_window_raw} >= {end_window_raw}")), None,
@@ -1945,7 +1959,7 @@ pub fn validate_stop_times_with_limits(
         // STM_039: location_id/group_id var ama pencere eksik
         if has_location && (!has_start_window || !has_end_window) {
             let missing = if !has_start_window { "start_pickup_drop_off_window" } else { "end_pickup_drop_off_window" };
-            st.notices.push(make_k2_notice(
+            crate::notice_budget::push(&mut st.notices, make_k2_notice(
                 &mut st.counter, "STM_039", EntityType::Trip, eid(),
                 None, &file.name, Some(line), Some(missing),
                 None, Some("HH:MM:SS".to_string()),
@@ -1956,7 +1970,7 @@ pub fn validate_stop_times_with_limits(
 
         // STM_040: Flex penceresi var ama booking_rule_id yok
         if has_any_window && pbr_raw.is_empty() && dobr_raw.is_empty() {
-            st.notices.push(make_k2_notice(
+            crate::notice_budget::push(&mut st.notices, make_k2_notice(
                 &mut st.counter, "STM_040", EntityType::Trip, eid(),
                 None, &file.name, Some(line), Some("pickup_booking_rule_id"),
                 None, None,
@@ -1967,7 +1981,7 @@ pub fn validate_stop_times_with_limits(
 
         // STM_041: stop_id ve location_id/group_id aynı anda dolu (çakışma)
         if !raw_stop.is_empty() && has_location {
-            st.notices.push(make_k2_notice(
+            crate::notice_budget::push(&mut st.notices, make_k2_notice(
                 &mut st.counter, "STM_041", EntityType::Trip, eid(),
                 None, &file.name, Some(line),
                 // Çakışma üç alan arasındadır; eskiden yalnız "location_id" yazılıyordu ve
@@ -2065,7 +2079,7 @@ pub fn validate_stop_times_with_limits(
             let cursor = Cursor::new(zb);
             match zip::ZipArchive::new(cursor) {
                 Err(e) => {
-                    st.notices.push(make_k2_notice(
+                    crate::notice_budget::push(&mut st.notices, make_k2_notice(
                         &mut st.counter, "ARC_009", EntityType::File, Some(file.name.clone()),
                         None, &file.name, None, None, None, None,
                         format!("'{}' ZIP yeniden açılamadı: {e}.", file.name),
@@ -2075,7 +2089,7 @@ pub fn validate_stop_times_with_limits(
                 Ok(mut archive) => {
                     match archive.by_name(&file.name) {
                         Err(e) => {
-                            st.notices.push(make_k2_notice(
+                            crate::notice_budget::push(&mut st.notices, make_k2_notice(
                                 &mut st.counter, "ARC_009", EntityType::File, Some(file.name.clone()),
                                 None, &file.name, None, None, None, None,
                                 format!("'{}' ZIP girdisi bulunamadı: {e}.", file.name),
@@ -2090,7 +2104,9 @@ pub fn validate_stop_times_with_limits(
                             // metadata'sındaki `file.bytes` yalnızca başlangıç kapasitesidir;
                             // doğrudan Vec::with_capacity kullanmak sahte merkezi-dizin
                             // boyutuyla tahsis saldırısına açıktı.
-                            let stream_limit = stream_byte_limit(max_data_rows);
+                            let stream_limit = stream_budget.as_ref()
+                                .map(|budget| budget.limit())
+                                .unwrap_or(stream_byte_limit(max_data_rows));
                             let mut limits: DecompressionLimits = DEFAULT_DECOMPRESSION_LIMITS;
                             if max_data_rows.is_some() {
                                 limits.max_entry_decompressed = stream_limit as u64;
@@ -2101,8 +2117,7 @@ pub fn validate_stop_times_with_limits(
                             let mut guarded = GuardedReader::new(
                                 entry, limits, &mut total_decompressed, compressed_size,
                             );
-                            let initial_capacity = (file.bytes as usize).min(64 * 1024 * 1024);
-                            let mut body: Vec<u8> = Vec::with_capacity(initial_capacity + 1);
+                            let mut body: Vec<u8> = Vec::new();
                             if guarded.read_to_end(&mut body).is_ok() {
                                 let n = std::thread::available_parallelism().map(|v| v.get()).unwrap_or(4);
                                 let ranges = split_body_at_trip_boundaries(&body, cols.trip_id, n);
@@ -2112,7 +2127,7 @@ pub fn validate_stop_times_with_limits(
                                     // yeniden kurulur ve `has_booking_rules` false kalırdı → STM_059
                                     // yalnız tek parçalı feed'lerde çalışırdı. `emit_proof` yakaladı.
                                     let mut rdr = ZipCsvReader::with_limits(
-                                        Cursor::new(&body[bs..be]), stream_limit, None,
+                                        Cursor::new(&body[bs..be]), stream_limit, max_data_rows,
                                     );
                                     let mut fields: Vec<Vec<u8>> = Vec::with_capacity(header_count + 1);
                                     let mut line = first_line;
@@ -2137,11 +2152,17 @@ pub fn validate_stop_times_with_limits(
                                 if let Some(first) = it.next() { st = first; }
                                 for c in it { st.merge(c); }
                             }
+                            if let Some(budget) = stream_budget.as_mut() {
+                                budget.consume(total_decompressed as usize);
+                            }
                         }
                         #[cfg(not(feature = "parallel"))]
                         Ok(entry) => {
+                            let stream_limit = stream_budget.as_ref()
+                                .map(|budget| budget.limit())
+                                .unwrap_or(stream_byte_limit(max_data_rows));
                             let mut csv_reader = ZipCsvReader::with_limits(
-                                entry, stream_byte_limit(max_data_rows), max_data_rows,
+                                entry, stream_limit, max_data_rows,
                             );
                             let mut raw_fields: Vec<Vec<u8>> = Vec::with_capacity(header_count + 1);
                             let mut zip_line: u64 = 2;
@@ -2210,6 +2231,9 @@ pub fn validate_stop_times_with_limits(
                             for c in it {
                                 st.merge(c);
                             }
+                            if let Some(budget) = stream_budget.as_mut() {
+                                budget.consume(csv_reader.bytes_read());
+                            }
                             stream_truncated |= csv_reader.truncated();
                         }
                     }
@@ -2234,12 +2258,12 @@ pub fn validate_stop_times_with_limits(
 
     // ARC_013: akış gövdesinde kapanmamış tırnak (issue #84).
     if st.unclosed {
-        st.notices.push(super::common::arc013_unclosed_stream(&file.name, &mut st.counter));
+        crate::notice_budget::push(&mut st.notices, super::common::arc013_unclosed_stream(&file.name, &mut st.counter));
     }
 
     // ARC_033: DOSYA başına TEK özet (chunk'lar `StChunk::merge` ile birleşti).
     if let Some(n) = super::common::arc033_summary(&st.rfc, &file.name, &mut st.counter) {
-        st.notices.push(n);
+        crate::notice_budget::push(&mut st.notices, n);
     }
 
     // ⚠️ ARC_022 BURADA DEĞİL — `k2/mod.rs`'teki tek geçişte (issue #75). Gerekçe
@@ -2247,7 +2271,7 @@ pub fn validate_stop_times_with_limits(
 
     // ARC_009: başlık var ama veri satırı yok (K1'den taşındı; ZIP streaming yolu dahil)
     if (file.raw_text.is_some() || zip_bytes.is_some()) && st.total_rows == 0 {
-        st.notices.push(make_k2_notice(
+        crate::notice_budget::push(&mut st.notices, make_k2_notice(
             &mut st.counter, "ARC_009", EntityType::File, Some(file.name.clone()),
             None, &file.name, None, None,
             None, None,
@@ -2264,12 +2288,12 @@ pub fn validate_stop_times_with_limits(
             Some(observed), None, msg, crate::k1_parse::DQ016_REMEDIATION,
         );
         n.details = st.dq016.evidence_details();
-        st.notices.push(n);
+        crate::notice_budget::push(&mut st.notices, n);
     }
 
     // STM_050: feed-seviyesi TEK özet (satır-başına değil — büyük feed OOM önlemi).
     if st.stm050_empty > 0 {
-        st.notices.push(make_k2_notice(
+        crate::notice_budget::push(&mut st.notices, make_k2_notice(
             &mut st.counter, "STM_050", EntityType::Feed, None,
             None, &file.name, None, Some("timepoint"),
             Some(format!("{}", st.stm050_empty)), None,
@@ -2382,7 +2406,7 @@ pub fn validate_stop_times_with_limits(
             for w in rows[s..e].windows(2) {
                 let (a, b) = (&w[0], &w[1]);
                 if a.sequence != u32::MAX && a.sequence == b.sequence {
-                    stm032_pending.push(make_k2_notice(
+                    crate::notice_budget::push(&mut stm032_pending, make_k2_notice(
                         &mut st.counter, "STM_032", EntityType::Trip, Some(tid.to_string()),
                         None, &file.name, Some(b.line as u64), Some("stop_sequence"),
                         Some(b.sequence.to_string()), None,
@@ -2394,7 +2418,7 @@ pub fn validate_stop_times_with_limits(
                 // shape_dist_traveled ARTMALI. Yalnız iki satırda da değer varsa karşılaştırılır;
                 // eksik değer STM_017'nin konusudur. NaN karşılaştırması false döner, guard şart.
                 if a.dist_f32.is_finite() && b.dist_f32.is_finite() && b.dist_f32 <= a.dist_f32 {
-                    stm056_pending.push(make_k2_notice(
+                    crate::notice_budget::push(&mut stm056_pending, make_k2_notice(
                         &mut st.counter, "STM_056", EntityType::Trip, Some(tid.to_string()),
                         None, &file.name, Some(b.line as u64), Some("shape_dist_traveled"),
                         Some(format!("{}", b.dist_f32)), Some(format!("> {}", a.dist_f32)),
@@ -2486,7 +2510,7 @@ pub fn validate_stop_times_with_limits(
             ("observed_time".to_string(), observed),
             ("expected_time".to_string(), expected),
         ].into_iter().collect());
-        st.notices.push(notice);
+        crate::notice_budget::push(&mut st.notices, notice);
     }
 
     for violation in index.find_raw_same_row_midnight_departures() {
@@ -2510,7 +2534,7 @@ pub fn validate_stop_times_with_limits(
             ("observed_time".to_string(), observed),
             ("expected_time".to_string(), expected),
         ].into_iter().collect());
-        st.notices.push(notice);
+        crate::notice_budget::push(&mut st.notices, notice);
     }
 
     // ── trip_stop_set post-finalize inşası (#38 peak-2) ──────────────────────────
@@ -2541,7 +2565,7 @@ pub fn validate_stop_times_with_limits(
 #[allow(clippy::too_many_arguments)]
 fn finalize_stm_pending(
     pending: &mut Vec<Notice>,
-    notices: &mut Vec<Notice>,
+    mut notices: &mut Vec<Notice>,
     counter: &mut u32,
     file_name: &str,
     rule_id: &str,
@@ -2572,7 +2596,7 @@ fn finalize_stm_pending(
             d.insert("example_trips".to_string(), examples.join(", "));
         }
         notice.details = Some(d);
-        notices.push(notice);
+        crate::notice_budget::push(&mut notices, notice);
     } else {
         notices.append(pending);
     }
@@ -2583,7 +2607,7 @@ fn finalize_stm_pending(
 #[allow(clippy::too_many_arguments)]
 fn parse_pickup_dropoff_col(
     raw: &str,
-    notices: &mut Vec<gtfs_core::Notice>,
+    mut notices: &mut Vec<gtfs_core::Notice>,
     counter: &mut u32,
     rule_id: &str,
     field: &str,
@@ -2596,7 +2620,7 @@ fn parse_pickup_dropoff_col(
             if let Some(val) = v {
                 if val > 3 {
                     let entity_id = (!trip_id.is_empty()).then(|| trip_id.to_string());
-                    notices.push(make_k2_notice(
+                    crate::notice_budget::push(&mut notices, make_k2_notice(
                         counter, rule_id, EntityType::Trip, entity_id,
                         None, file_name, Some(line), Some(field),
                         Some(val.to_string()), Some("0-3".to_string()),
@@ -2609,7 +2633,7 @@ fn parse_pickup_dropoff_col(
         }
         Err(err) => {
             let entity_id = (!trip_id.is_empty()).then(|| trip_id.to_string());
-            notices.push(make_k2_notice(
+            crate::notice_budget::push(&mut notices, make_k2_notice(
                 counter, rule_id, EntityType::Trip, entity_id,
                 None, file_name, Some(line), Some(field),
                 Some(raw.to_string()), Some("0-3".to_string()), err,

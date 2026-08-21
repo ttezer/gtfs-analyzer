@@ -31,6 +31,17 @@ let usingMemory64 = false;
 
 export type EngineMode = 'wasm64-serial' | 'wasm32-threaded' | 'wasm32-serial';
 
+export const MAX_INPUT_BYTES = 512 * 1024 * 1024;
+
+function assertInputLimit(zip: Uint8Array): void {
+  if (zip.byteLength > MAX_INPUT_BYTES) {
+    throw {
+      code: 'ResourceLimit',
+      message: 'Input ZIP exceeds the SDK safety limit.',
+    } satisfies FatalError;
+  }
+}
+
 /** Doğrulamanın gerçek thread'lerle mi (paralel K6) yoksa seri mi çalıştığını döner. */
 export function isThreaded(): boolean {
   return usingThreads;
@@ -123,10 +134,12 @@ export function currentToday(): number {
 }
 
 export function runValidate(zip: Uint8Array, configDelta = ''): ValidateResult {
+  assertInputLimit(zip);
   return JSON.parse(loaded().validate(zip, configDelta)) as ValidateResult;
 }
 
 export function listZipFiles(zip: Uint8Array): Array<{ name: string; uncompressed_size: number }> {
+  assertInputLimit(zip);
   try {
     return JSON.parse(loaded().list_zip_files(zip)) as Array<{ name: string; uncompressed_size: number }>;
   } catch (err) {
@@ -153,6 +166,7 @@ export function shapeCoordsOf(cache: CachedState, shapeId: string): [number, num
 }
 
 export function runPrepare(zip: Uint8Array, configDelta: string, onStage: (name: string, elapsedMs: number) => void): CachedState {
+  assertInputLimit(zip);
   const cb = (name: string, elapsedMs: number) => onStage(name, elapsedMs);
   try {
     return loaded().prepare(zip, configDelta, cb);
@@ -175,6 +189,7 @@ export function runPrepareWithToday(
   onStage: (stage: ValidationStage, elapsedMs: number) => void,
   today: number,
 ): CachedState {
+  assertInputLimit(zip);
   const cb = (name: string, elapsedMs: number) => onStage(name as ValidationStage, elapsedMs);
   try {
     return loaded().prepare_with_today(zip, configDelta, cb, today);

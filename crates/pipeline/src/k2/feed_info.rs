@@ -32,7 +32,7 @@ pub fn validate_feed_info(file: &RawFile) -> (Vec<FeedInfoRecord>, Vec<gtfs_core
         let publisher_name = get_trimmed_field(&row_map, "feed_publisher_name").unwrap_or("").to_string();
         // sütun başlıkta yoksa ARC_025 devralır → atla
         if get_trimmed_field(&row_map, "feed_publisher_name") == Some("") {
-            notices.push(make_k2_notice(
+            crate::notice_budget::push(&mut notices, make_k2_notice(
                 &mut counter,
                 "FIN_001",
                 EntityType::Feed,
@@ -50,7 +50,7 @@ pub fn validate_feed_info(file: &RawFile) -> (Vec<FeedInfoRecord>, Vec<gtfs_core
 
         let publisher_url = get_lexical_field(&row_map, "feed_publisher_url").unwrap_or("").to_string();
         if publisher_url.is_empty() || !looks_like_url(&publisher_url) {
-            notices.push(make_k2_notice(
+            crate::notice_budget::push(&mut notices, make_k2_notice(
                 &mut counter,
                 "FIN_002",
                 EntityType::Feed,
@@ -68,7 +68,7 @@ pub fn validate_feed_info(file: &RawFile) -> (Vec<FeedInfoRecord>, Vec<gtfs_core
 
         let feed_lang = get_lexical_field(&row_map, "feed_lang").unwrap_or("").to_string();
         if feed_lang.is_empty() || !looks_like_bcp47(&feed_lang) {
-            notices.push(make_k2_notice(
+            crate::notice_budget::push(&mut notices, make_k2_notice(
                 &mut counter,
                 "FIN_003",
                 EntityType::Feed,
@@ -89,7 +89,7 @@ pub fn validate_feed_info(file: &RawFile) -> (Vec<FeedInfoRecord>, Vec<gtfs_core
             .map(str::to_string);
         if let Some(ref lang) = default_lang {
             if !looks_like_bcp47(lang) {
-                notices.push(make_k2_notice(
+                crate::notice_budget::push(&mut notices, make_k2_notice(
                     &mut counter,
                     "FIN_004",
                     EntityType::Feed,
@@ -113,7 +113,7 @@ pub fn validate_feed_info(file: &RawFile) -> (Vec<FeedInfoRecord>, Vec<gtfs_core
         let raw_start = get_trimmed_field(&row_map, "feed_start_date").unwrap_or("").to_string();
         let raw_end   = get_trimmed_field(&row_map, "feed_end_date").unwrap_or("").to_string();
         if raw_start.is_empty() || raw_end.is_empty() {
-            notices.push(make_k2_notice(
+            crate::notice_budget::push(&mut notices, make_k2_notice(
                 &mut counter, "FIN_014", EntityType::Feed, None,
                 Some(&row_map), &file.name, Some(line), None,
                 None, None,
@@ -123,7 +123,7 @@ pub fn validate_feed_info(file: &RawFile) -> (Vec<FeedInfoRecord>, Vec<gtfs_core
         }
         if let (Some(start), Some(end)) = (feed_start_date, feed_end_date) {
             if end < start {
-                notices.push(make_k2_notice(
+                crate::notice_budget::push(&mut notices, make_k2_notice(
                     &mut counter,
                     "FIN_012",
                     EntityType::Feed,
@@ -145,7 +145,7 @@ pub fn validate_feed_info(file: &RawFile) -> (Vec<FeedInfoRecord>, Vec<gtfs_core
             .filter(|v| !v.is_empty())
             .map(str::to_string);
         if feed_version.is_none() {
-            notices.push(make_k2_notice(
+            crate::notice_budget::push(&mut notices, make_k2_notice(
                 &mut counter,
                 "FIN_007",
                 EntityType::Feed,
@@ -166,7 +166,7 @@ pub fn validate_feed_info(file: &RawFile) -> (Vec<FeedInfoRecord>, Vec<gtfs_core
             .map(str::to_string);
         if let Some(email) = feed_contact_email.as_deref() {
             if !looks_like_email(email) {
-                notices.push(make_k2_notice(
+                crate::notice_budget::push(&mut notices, make_k2_notice(
                     &mut counter,
                     "FIN_008",
                     EntityType::Feed,
@@ -188,7 +188,7 @@ pub fn validate_feed_info(file: &RawFile) -> (Vec<FeedInfoRecord>, Vec<gtfs_core
             .map(str::to_string);
         if let Some(url) = feed_contact_url.as_deref() {
             if !looks_like_url(url) {
-                notices.push(make_k2_notice(
+                crate::notice_budget::push(&mut notices, make_k2_notice(
                     &mut counter,
                     "FIN_009",
                     EntityType::Feed,
@@ -221,7 +221,7 @@ pub fn validate_feed_info(file: &RawFile) -> (Vec<FeedInfoRecord>, Vec<gtfs_core
 
     // FIN_015: Birden fazla feed_info kaydı (more_than_one_entity)
     if records.len() > 1 {
-        notices.push(make_k2_notice(
+        crate::notice_budget::push(&mut notices, make_k2_notice(
             &mut counter, "FIN_015", EntityType::Feed, None,
             None, &file.name, None, None,
             Some(records.len().to_string()), Some("1".to_string()),
@@ -235,7 +235,7 @@ pub fn validate_feed_info(file: &RawFile) -> (Vec<FeedInfoRecord>, Vec<gtfs_core
 
 fn parse_date_field(
     row_map: &RowMap,
-    notices: &mut Vec<gtfs_core::Notice>,
+    mut notices: &mut Vec<gtfs_core::Notice>,
     counter: &mut u32,
     rule_id: &str,
     field: &str,
@@ -245,7 +245,7 @@ fn parse_date_field(
     match parse_service_date(row_map, field) {
         Ok(value) => value,
         Err(err) => {
-            notices.push(make_k2_notice(
+            crate::notice_budget::push(&mut notices, make_k2_notice(
                 counter,
                 rule_id,
                 EntityType::Feed,

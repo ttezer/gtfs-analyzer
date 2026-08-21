@@ -7,6 +7,7 @@ pub mod k4_cross_ref;
 pub mod k5_derived;
 pub mod k6_analytics;
 pub mod k7_reporting;
+pub(crate) mod notice_budget;
 pub mod decompress_guard;
 pub mod recovery;
 pub(crate) mod notice_factory;
@@ -102,12 +103,12 @@ pub fn validate_bytes(zip: &[u8], config: &ValidatorConfig, today: u32) -> Valid
         partial.extend_skipped_checks(k5.skipped_checks);
         partial.extend_skipped_checks(k6.skipped_checks);
     }
-    all.extend(k1.notices);
-    all.extend(k2.notices);
-    all.extend(k3.notices);
-    all.extend(k4.notices);
-    all.extend(k5.notices);
-    all.extend(k6.notices);
+    notice_budget::extend(&mut all, k1.notices);
+    notice_budget::extend(&mut all, k2.notices);
+    notice_budget::extend(&mut all, k3.notices);
+    notice_budget::extend(&mut all, k4.notices);
+    notice_budget::extend(&mut all, k5.notices);
+    notice_budget::extend(&mut all, k6.notices);
 
     // issue #133 — yayın kararı ve skor, KAPSAM kaybını görmek zorunda. Zorunlu bir dosya
     // okunamadıysa ona bağlı kurallar hiç koşmamıştır; bulgu yokluğu kanıt yokluğudur.

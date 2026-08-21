@@ -1,6 +1,6 @@
 ﻿import type { ValidationResult, Notice, R9Item, NameIndex, Severity } from '../types';
 import { SEVERITY_TR, SEVERITY_COLOR, RULE_CLASS_TR, t, tMsg, tRemediation } from '../i18n';
-import { openMapModal, type MapPin, type MapOptions } from '../map-modal';
+import { MAX_MAP_PINS, openMapModal, type MapPin, type MapOptions } from '../map-modal';
 import { requestShapeCoords } from '../validator-client';
 import { openPatternModal } from '../pattern-modal';
 import { escHtml } from '../escape';
@@ -299,6 +299,10 @@ function stopLabel(name: string, id: string): string {
   return `<strong>${escHtml(name)}</strong><br><code>${escHtml(id)}</code>`;
 }
 
+function pushMapPin(pins: MapPin[], pin: MapPin): void {
+  if (pins.length < MAX_MAP_PINS) pins.push(pin);
+}
+
 // Harita ikon sistemi: whitelist tabanlı.
 // entity_id'nin stop_coords'ta bulunması yeterli DEĞİL — rule bazlı kontrol şart.
 // Yanlış eşleşmeyi önlemek için sadece burada tanımlı kurallar harita ikonu gösterir.
@@ -521,17 +525,17 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
     for (let i = 0; i < ctxB.length; i++) {
       const seq = seqB[i] ? `#${seqB[i]} ` : '';
       const p = stopPin(ctxB[i], nameIndex, true, `${seq}${t('fix.map.pin.prev')}`);
-      if (p) pins.push(p);
+      if (p) pushMapPin(pins, p);
     }
     // Hatalı durak — kırmızı
     const seqLabel = errSeq ? `#${errSeq} ` : '';
     const errPin = sid ? stopPin(sid, nameIndex, false, `${seqLabel}${t('fix.map.pin.bad_seq')}`) : null;
-    if (errPin) pins.push(errPin);
+    if (errPin) pushMapPin(pins, errPin);
     // Sonraki 3 durak — mavi
     for (let i = 0; i < ctxA.length; i++) {
       const seq = seqA[i] ? `#${seqA[i]} ` : '';
       const p = stopPin(ctxA[i], nameIndex, true, `${seq}${t('fix.map.pin.next')}`);
-      if (p) pins.push(p);
+      if (p) pushMapPin(pins, p);
     }
 
     const polyline = shapeId ? (nameIndex.shape_coords[shapeId] ?? []) : [];
@@ -582,7 +586,7 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
       const lat = parseFloat(m[1]);
       const lon = parseFloat(m[2]);
       if (!isNaN(lat) && !isNaN(lon)) {
-        pins.push({ lat, lon, label: `${t('fix.map.pin.dup_coord')}<br><code>(${m[1]}, ${m[2]})</code>`, primary: false });
+        pushMapPin(pins, { lat, lon, label: `${t('fix.map.pin.dup_coord')}<br><code>(${escHtml(m[1])}, ${escHtml(m[2])})</code>`, primary: false });
       }
     }
     const legendItems: Array<{ color: string; label: string }> = [];
@@ -619,12 +623,12 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
 
     const seen = new Set<string>();
     const pins: MapPin[] = [];
-    for (const id of stops) {
+    for (const id of stops.slice(0, MAX_MAP_PINS)) {
       if (seen.has(id)) continue;
       seen.add(id);
       const isDup = id === dupStopId;
       const p = stopPin(id, nameIndex, !isDup, isDup ? t('fix.map.pin.repeated') : undefined);
-      if (p) { p.small = !isDup; pins.push(p); }
+      if (p) { p.small = !isDup; pushMapPin(pins, p); }
     }
     const legendItems: Array<{ color: string; label: string }> = [];
     if (polyline.length > 1) legendItems.push({ color: '#f59e0b', label: t('fix.map.route_shape') });
@@ -661,8 +665,8 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
       const idxB = parseInt(m[2], 10);
       const ptA = polyline[idxA];
       const ptB = polyline[idxB];
-      if (ptA) pins.push({ lat: ptA[0], lon: ptA[1], label: `<strong>${t('fix.map.pin.jump_start')}</strong><br>Segment ${idxA}`, primary: true });
-      if (ptB) pins.push({ lat: ptB[0], lon: ptB[1], label: `<strong>${t('fix.map.pin.jump_end')}</strong><br>Segment ${idxB}`, primary: false });
+      if (ptA) pushMapPin(pins, { lat: ptA[0], lon: ptA[1], label: `<strong>${t('fix.map.pin.jump_start')}</strong><br>Segment ${idxA}`, primary: true });
+      if (ptB) pushMapPin(pins, { lat: ptB[0], lon: ptB[1], label: `<strong>${t('fix.map.pin.jump_end')}</strong><br>Segment ${idxB}`, primary: false });
       if (ptA && ptB) {
         // zoomTo YOK (2026-07-25): segmente zoom yapmak shape'in geri kalanını ekran dışına
         // atıyor ve geriye bağlamsız tek çizgi kalıyordu ("haritada gözükmüyor"). Görünüm
@@ -698,7 +702,7 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
       const lat = parseFloat(m[1]);
       const lon = parseFloat(m[2]);
       if (!isNaN(lat) && !isNaN(lon)) {
-        pins.push({ lat, lon, label: `${t('fix.map.pin.repeat_coord')}<br><code>(${m[1]}, ${m[2]})</code>`, primary: false });
+        pushMapPin(pins, { lat, lon, label: `${t('fix.map.pin.repeat_coord')}<br><code>(${escHtml(m[1])}, ${escHtml(m[2])})</code>`, primary: false });
       }
     }
     const legendItems: Array<{ color: string; label: string }> = [];
@@ -718,10 +722,10 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
       const c = parseInt(m[3], 10), d = parseInt(m[4], 10);
       const ptA = polyline[a], ptB = polyline[b];
       const ptC = polyline[c], ptD = polyline[d];
-      if (ptA) pins.push({ lat: ptA[0], lon: ptA[1], label: t('fix.map.pin.seg_start', { a: String(a), b: String(b) }), primary: true });
-      if (ptB) pins.push({ lat: ptB[0], lon: ptB[1], label: t('fix.map.pin.seg_end',   { a: String(a), b: String(b) }), primary: true });
-      if (ptC) pins.push({ lat: ptC[0], lon: ptC[1], label: t('fix.map.pin.seg_start', { a: String(c), b: String(d) }), primary: false });
-      if (ptD) pins.push({ lat: ptD[0], lon: ptD[1], label: t('fix.map.pin.seg_end',   { a: String(c), b: String(d) }), primary: false });
+      if (ptA) pushMapPin(pins, { lat: ptA[0], lon: ptA[1], label: t('fix.map.pin.seg_start', { a: String(a), b: String(b) }), primary: true });
+      if (ptB) pushMapPin(pins, { lat: ptB[0], lon: ptB[1], label: t('fix.map.pin.seg_end',   { a: String(a), b: String(b) }), primary: true });
+      if (ptC) pushMapPin(pins, { lat: ptC[0], lon: ptC[1], label: t('fix.map.pin.seg_start', { a: String(c), b: String(d) }), primary: false });
+      if (ptD) pushMapPin(pins, { lat: ptD[0], lon: ptD[1], label: t('fix.map.pin.seg_end',   { a: String(c), b: String(d) }), primary: false });
     }
     const legendItems: Array<{ color: string; label: string }> = [];
     if (polyline.length > 1) legendItems.push({ color: '#f59e0b', label: t('fix.map.route_shape') });
@@ -760,11 +764,11 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
       }
       if (coordA && !seenStops.has(stopA)) {
         seenStops.add(stopA);
-        pins.push({ lat: coordA[0], lon: coordA[1], label: `<code>${escHtml(stopA)}</code>`, primary: true, small: false });
+        pushMapPin(pins, { lat: coordA[0], lon: coordA[1], label: `<code>${escHtml(stopA)}</code>`, primary: true, small: false });
       }
       if (coordB && !seenStops.has(stopB)) {
         seenStops.add(stopB);
-        pins.push({ lat: coordB[0], lon: coordB[1], label: `<code>${escHtml(stopB)}</code>`, primary: true, small: false });
+        pushMapPin(pins, { lat: coordB[0], lon: coordB[1], label: `<code>${escHtml(stopB)}</code>`, primary: true, small: false });
       }
     }
 
@@ -790,15 +794,15 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
     const stopB = notice.details?.['stop_b'] ?? '';
 
     const pins: import('../map-modal').MapPin[] = [];
-    for (const id of stopIds) {
+    for (const id of stopIds.slice(0, MAX_MAP_PINS)) {
       if (id === stopA || id === stopB) continue;
       const p = stopPin(id, nameIndex, true);
-      if (p) pins.push({ ...p, small: true });
+      if (p) pushMapPin(pins, { ...p, small: true });
     }
     const pinA = stopA ? stopPin(stopA, nameIndex, true, t('fix.map.pin.depart')) : null;
-    if (pinA) pins.push(pinA);
+    if (pinA) pushMapPin(pins, pinA);
     const pinB = stopB ? stopPin(stopB, nameIndex, false, t('fix.map.pin.arrive_short')) : null;
-    if (pinB) pins.push(pinB);
+    if (pinB) pushMapPin(pins, pinB);
 
     const legendItems: Array<{ color: string; label: string }> = [];
     if (polyline.length > 1) legendItems.push({ color: '#f59e0b', label: t('fix.map.route_shape') });
@@ -821,7 +825,7 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
   function shapeStopPins(shapeId: string): MapPin[] {
     const tripId = nameIndex.shape_trips[shapeId] ?? '';
     const stopIds = tripId ? (nameIndex.trip_stops[tripId] ?? []) : [];
-    return stopIds
+    return stopIds.slice(0, MAX_MAP_PINS)
       .map(id => stopPin(id, nameIndex, true))
       .filter((p): p is MapPin => p !== null)
       .map(p => ({ ...p, small: true }));
@@ -834,15 +838,15 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
     const tripId = nameIndex.shape_trips[entityId] ?? '';
     const stopIds = tripId ? (nameIndex.trip_stops[tripId] ?? []) : [];
     const pins: MapPin[] = [];
-    for (const id of stopIds) {
+    for (const id of stopIds.slice(0, MAX_MAP_PINS)) {
       if (far.has(id)) continue;                       // uzak duraklar aşağıda, üstte kalsın
       const p = stopPin(id, nameIndex, true);
-      if (p) pins.push({ ...p, small: true });
+      if (p) pushMapPin(pins, { ...p, small: true });
     }
     let farDrawn = 0;
     for (const id of far) {
       const p = stopPin(id, nameIndex, false, t('fix.map.pin.far_from_shape'));
-      if (p) { pins.push(p); farDrawn++; }
+      if (p) { pushMapPin(pins, p); farDrawn++; }
     }
     const legendItems: Array<{ color: string; label: string }> = [];
     if (polyline.length > 1) legendItems.push({ color: '#f59e0b', label: t('fix.map.route_shape') });
@@ -858,14 +862,14 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
     const tripId = notice.details?.['trip_id'] ?? '';
     const stopIds = tripId ? (nameIndex.trip_stops[tripId] ?? []) : [];
     const pins: MapPin[] = [];
-    for (const id of stopIds) {
+    for (const id of stopIds.slice(0, MAX_MAP_PINS)) {
       if (id === problemStopId) continue;
       const p = stopPin(id, nameIndex, true);
-      if (p) pins.push({ ...p, small: true });
+      if (p) pushMapPin(pins, { ...p, small: true });
     }
     const endpoint = notice.details?.['endpoint'] === 'start' ? t('fix.map.pin.first_far_start') : t('fix.map.pin.last_far_end');
     const errPin = problemStopId ? stopPin(problemStopId, nameIndex, false, endpoint) : null;
-    if (errPin) pins.push(errPin);
+    if (errPin) pushMapPin(pins, errPin);
     const legendItems: Array<{ color: string; label: string }> = [];
     if (polyline.length > 1) legendItems.push({ color: '#f59e0b', label: t('fix.map.route_shape') });
     if (stopIds.length > 0) legendItems.push({ color: '#2563eb', label: t('fix.map.trip_stops') });
@@ -890,13 +894,13 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
     const tripId = notice.details?.['trip_id'] ?? '';
     const stopIds = tripId ? (nameIndex.trip_stops[tripId] ?? []) : [];
     const pins: MapPin[] = [];
-    for (const id of stopIds) {
+    for (const id of stopIds.slice(0, MAX_MAP_PINS)) {
       if (id === firstStopId) continue;
       const p = stopPin(id, nameIndex, true);
-      if (p) pins.push({ ...p, small: true });
+      if (p) pushMapPin(pins, { ...p, small: true });
     }
     const errPin = firstStopId ? stopPin(firstStopId, nameIndex, false, t('fix.map.pin.first_wrong')) : null;
-    if (errPin) pins.push(errPin);
+    if (errPin) pushMapPin(pins, errPin);
     const legendItems: Array<{ color: string; label: string }> = [];
     if (polyline.length > 1) legendItems.push({ color: '#f59e0b', label: t('fix.map.route_shape_rev') });
     if (stopIds.length > 0) legendItems.push({ color: '#2563eb', label: t('fix.map.trip_stops') });
@@ -914,15 +918,15 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
     const stopA = notice.details?.['stop_a'] ?? '';
     const stopB = notice.details?.['stop_b'] ?? '';
     const pins: MapPin[] = [];
-    for (const id of stopIds) {
+    for (const id of stopIds.slice(0, MAX_MAP_PINS)) {
       if (id === stopA || id === stopB) continue;
       const p = stopPin(id, nameIndex, true);
-      if (p) pins.push({ ...p, small: true });
+      if (p) pushMapPin(pins, { ...p, small: true });
     }
     const pinA = stopA ? stopPin(stopA, nameIndex, true, t('fix.map.pin.depart_speed')) : null;
     const pinB = stopB ? stopPin(stopB, nameIndex, false, t('fix.map.pin.arrive_speed')) : null;
-    if (pinA) pins.push(pinA);
-    if (pinB) pins.push(pinB);
+    if (pinA) pushMapPin(pins, pinA);
+    if (pinB) pushMapPin(pins, pinB);
     const legendItems: Array<{ color: string; label: string }> = [];
     if (polyline.length > 1) legendItems.push({ color: '#f59e0b', label: t('fix.map.route_shape') });
     if (stopIds.length > 0) legendItems.push({ color: '#2563eb', label: t('fix.map.trip_stops') });
@@ -938,15 +942,15 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
     const stopA = notice.details?.['stop_a'] ?? '';
     const stopB = notice.details?.['stop_b'] ?? '';
     const pins: MapPin[] = [];
-    for (const id of stopIds) {
+    for (const id of stopIds.slice(0, MAX_MAP_PINS)) {
       if (id === stopA || id === stopB) continue;
       const p = stopPin(id, nameIndex, true);
-      if (p) pins.push({ ...p, small: true });
+      if (p) pushMapPin(pins, { ...p, small: true });
     }
     const pinA = stopA ? stopPin(stopA, nameIndex, true, t('fix.map.pin.depart')) : null;
     const pinB = stopB ? stopPin(stopB, nameIndex, false, t('fix.map.pin.arrive_far')) : null;
-    if (pinA) pins.push(pinA);
-    if (pinB) pins.push(pinB);
+    if (pinA) pushMapPin(pins, pinA);
+    if (pinB) pushMapPin(pins, pinB);
     const legendItems: Array<{ color: string; label: string }> = [];
     if (polyline.length > 1) legendItems.push({ color: '#f59e0b', label: t('fix.map.route_shape') });
     if (stopIds.length > 0) legendItems.push({ color: '#2563eb', label: t('fix.map.trip_stops') });
@@ -975,13 +979,13 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
     const stopIds = entityId ? (nameIndex.trip_stops[entityId] ?? []) : [];
     const repeatStopId = notice.observed_value ?? '';
     const pins: MapPin[] = [];
-    for (const id of stopIds) {
+    for (const id of stopIds.slice(0, MAX_MAP_PINS)) {
       if (id === repeatStopId) continue;
       const p = stopPin(id, nameIndex, true);
-      if (p) pins.push({ ...p, small: true });
+      if (p) pushMapPin(pins, { ...p, small: true });
     }
     const errPin = repeatStopId ? stopPin(repeatStopId, nameIndex, false, t('fix.map.pin.revisit')) : null;
-    if (errPin) pins.push(errPin);
+    if (errPin) pushMapPin(pins, errPin);
     const legendItems: Array<{ color: string; label: string }> = [];
     if (polyline.length > 1) legendItems.push({ color: '#f59e0b', label: t('fix.map.route_shape') });
     if (stopIds.length > 0) legendItems.push({ color: '#2563eb', label: t('fix.map.trip_stops') });
@@ -1002,8 +1006,8 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
     const fromName = nameIndex.stops[fromId] ?? fromId;
     const toName   = nameIndex.stops[toId]   ?? toId;
     const pins: MapPin[] = [
-      { lat: fromCoord[0], lon: fromCoord[1], label: t('fix.map.pin.station', { name: fromName }), primary: true },
-      { lat: toCoord[0],   lon: toCoord[1],   label: t('fix.map.pin.station', { name: toName }),   primary: false },
+      { lat: fromCoord[0], lon: fromCoord[1], label: t('fix.map.pin.station', { name: escHtml(fromName) }), primary: true },
+      { lat: toCoord[0],   lon: toCoord[1],   label: t('fix.map.pin.station', { name: escHtml(toName) }),   primary: false },
     ];
     return {
       pins,
@@ -1030,10 +1034,10 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
     // İzole küme ≤200 durak olduğundan, yalnızca izole duraklar için biriktir.
     const stopRoutes = new Map<string, Set<string>>(); // stop_id → route_id set
     const stopTrips  = new Map<string, number>();       // stop_id → distinct trip count
-    for (const [tripId, stops] of Object.entries(nameIndex.trip_stops)) {
+    for (const [tripId, stops] of Object.entries(nameIndex.trip_stops).slice(0, MAX_MAP_PINS)) {
       const routeId = nameIndex.trip_routes[tripId];
       const seenInTrip = new Set<string>();
-      for (const s of stops) {
+      for (const s of stops.slice(0, MAX_MAP_PINS)) {
         stopsInTrips.add(s);
         if (!isolatedSet.has(s) || seenInTrip.has(s)) continue;
         seenInTrip.add(s);
@@ -1046,7 +1050,7 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
       }
     }
     const pins: MapPin[] = [];
-    for (const [sid, coord] of Object.entries(nameIndex.stop_coords)) {
+    for (const [sid, coord] of Object.entries(nameIndex.stop_coords).slice(0, MAX_MAP_PINS)) {
       const isIsolated = isolatedSet.has(sid);
       const inTrips = stopsInTrips.has(sid);
       if (!isIsolated && !inTrips) continue; // stop_times'sız durakları gizle
@@ -1071,7 +1075,7 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
       } else {
         label = stopLabel(name, sid);
       }
-      pins.push({
+      pushMapPin(pins, {
         lat: coord[0],
         lon: coord[1],
         label,
@@ -1189,12 +1193,12 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
           const arrCoord = nameIndex.stop_coords[arrId];
           if (depCoord) {
             const depName = nameIndex.stops[depId] ?? depId;
-            pins.push({ lat: depCoord[0], lon: depCoord[1], color, primary: true,
+            pushMapPin(pins, { lat: depCoord[0], lon: depCoord[1], color, primary: true,
               label: `<strong>${escHtml(routeName)} — ${t('fix.map.pin.depart')}</strong><br>${stopLabel(depName, depId)}` });
           }
           if (arrCoord && arrId !== depId) {
             const arrName = nameIndex.stops[arrId] ?? arrId;
-            pins.push({ lat: arrCoord[0], lon: arrCoord[1], color, primary: true, small: true,
+            pushMapPin(pins, { lat: arrCoord[0], lon: arrCoord[1], color, primary: true, small: true,
               label: `<strong>${escHtml(routeName)} — ${t('fix.map.pin.arrive')}</strong><br>${stopLabel(arrName, arrId)}` });
           }
         }
@@ -1220,7 +1224,7 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
         const label = notice.rule_id === 'GEO_020'
           ? t('fix.map.degenerate_shape')
           : t('fix.map.null_island_point');
-        pins.push({ lat: plat, lon: plon, label: `<strong>${label}</strong><br><code>${escHtml(entityId)}</code><br><code>${escHtml(m[1])}, ${escHtml(m[2])}</code>`, primary: false });
+        pushMapPin(pins, { lat: plat, lon: plon, label: `<strong>${label}</strong><br><code>${escHtml(entityId)}</code><br><code>${escHtml(m[1])}, ${escHtml(m[2])}</code>`, primary: false });
       }
     }
     const polyline = notice.rule_id === 'GEO_017' && entityId ? (nameIndex.shape_coords[entityId] ?? []) : [];
@@ -1236,7 +1240,7 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
   // Üçünün de kanıtı dağılımın kendisi: özet (013), hepsi 200m içinde (018),
   // koordinatların üst üste yığılması (021).
   if (['GEO_013','GEO_018','GEO_021'].includes(notice.rule_id)) {
-    const pins: MapPin[] = Object.entries(nameIndex.stop_coords).map(([stopId, coord]) => ({
+    const pins: MapPin[] = Object.entries(nameIndex.stop_coords).slice(0, MAX_MAP_PINS).map(([stopId, coord]) => ({
       lat: coord[0],
       lon: coord[1],
       label: nameIndex.stops[stopId]
@@ -1300,7 +1304,7 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
       { lat, lon, label: stopLabel(stopName, entityId), primary: true },
     ];
     const parentPin = parentId ? stopPin(parentId, nameIndex, false, t('fix.map.pin.parent')) : null;
-    if (parentPin) pins.push(parentPin);
+    if (parentPin) pushMapPin(pins, parentPin);
     const legendItems = pins.length > 1
       ? [{ color: '#2563eb', label: t('fix.map.stop') }, { color: '#dc2626', label: t('fix.map.parent_station_label') }]
       : [];
@@ -1322,7 +1326,7 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
     const secondId = notice.observed_value?.match(/to '([^']+)'/)?.[1] ?? '';
     const pins: MapPin[] = [{ lat, lon, label: stopLabel(stopName, entityId), primary: true }];
     const pinB = secondId ? stopPin(secondId, nameIndex, false) : null;
-    if (pinB) pins.push(pinB);
+    if (pinB) pushMapPin(pins, pinB);
     const legendItems = pins.length > 1
       ? [{ color: '#2563eb', label: `${t('fix.map.stop')} 1` }, { color: '#dc2626', label: `${t('fix.map.stop')} 2` }]
       : [];
@@ -1344,7 +1348,7 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
       { color: '#dc2626', label: t('fix.map.far_stop') },
     ];
     if (!isNaN(medLat) && !isNaN(medLon)) {
-      pins.push({ lat: medLat, lon: medLon, label: `<strong>${t('fix.map.feed_median')}</strong>`, primary: true });
+      pushMapPin(pins, { lat: medLat, lon: medLon, label: `<strong>${t('fix.map.feed_median')}</strong>`, primary: true });
       extraPolylines.push({ coords: [[lat, lon], [medLat, medLon]], color: '#dc2626', weight: 2, zoomTo: false });
       legendItems.push({ color: '#2563eb', label: t('fix.map.feed_median') });
     }

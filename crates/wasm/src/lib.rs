@@ -74,6 +74,7 @@ const NOTICE_LIMIT: usize = 1_000_000;
 const MAX_ZIP_ENTRIES: usize = 100_000;
 const MAX_ZIP_METADATA_BYTES: usize = 16 * 1024 * 1024;
 const MAX_SHAPE_COORDS: usize = 100_000;
+const MAX_INPUT_BYTES: usize = 512 * 1024 * 1024;
 const HIGH_CAP: usize = 2_000;
 const HIGH_CAP_RULES: &[&str] = &["TRP_020", "OPR_007", "STP_016", "STP_017"];
 
@@ -124,6 +125,9 @@ pub fn list_zip_files(zip_bytes: Vec<u8>) -> JsValue {
         uncompressed_size: u64,
     }
 
+    if zip_bytes.len() > MAX_INPUT_BYTES {
+        return JsValue::from_str("[]");
+    }
     let cursor = Cursor::new(zip_bytes);
     let mut archive = match zip::ZipArchive::new(cursor) {
         Ok(a) => a,
@@ -242,6 +246,7 @@ pub fn shape_coords_of(cache: &CachedState, shape_id: String) -> JsValue {
         .iter()
         .filter(|s| cache.records.shape_interns.id(s) == shape_id.as_str())
         .filter_map(|s| Some((s.shape_pt_sequence().unwrap_or(0), s.shape_pt_lat()?, s.shape_pt_lon()?)))
+        .take(MAX_SHAPE_COORDS + 1)
         .collect();
     if pts.len() > MAX_SHAPE_COORDS {
         return JsValue::from_str(
@@ -271,6 +276,12 @@ pub fn validate(zip_bytes: Vec<u8>, config_delta_json: String) -> JsValue {
 /// `today` formatı `YYYYMMDD` (ör. 20260716). Geçersiz değer Fatal döner.
 #[wasm_bindgen]
 pub fn validate_with_today(zip_bytes: Vec<u8>, config_delta_json: String, today: u32) -> JsValue {
+    if zip_bytes.len() > MAX_INPUT_BYTES {
+        return to_js(&ValidateResult::Fatal(FatalError {
+            code: FatalCode::ResourceLimit,
+            message: "Input ZIP exceeds the SDK safety limit.".to_string(),
+        }));
+    }
     if !is_valid_yyyymmdd(today) {
         return to_js(&ValidateResult::Fatal(FatalError {
             code: FatalCode::InvalidInput,
@@ -306,6 +317,12 @@ pub fn prepare_with_today(
     on_stage: &js_sys::Function,
     today: u32,
 ) -> Result<CachedState, JsValue> {
+    if zip_bytes.len() > MAX_INPUT_BYTES {
+        return Err(to_js(&ValidateResult::Fatal(FatalError {
+            code: FatalCode::ResourceLimit,
+            message: "Input ZIP exceeds the SDK safety limit.".to_string(),
+        })));
+    }
     if !is_valid_yyyymmdd(today) {
         return Err(to_js(&ValidateResult::Fatal(FatalError {
             code: FatalCode::InvalidInput,

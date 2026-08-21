@@ -46,7 +46,7 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
         let entity_id = (!pathway_id.is_empty()).then_some(pathway_id.clone());
         // PTH_020: pathway_id required (sütun yoksa ARC_025 devralır → atla)
         if get_raw_field(&row_map, "pathway_id").map(str::trim) == Some("") {
-            notices.push(make_k2_notice(
+            crate::notice_budget::push(&mut notices, make_k2_notice(
                 &mut counter, "PTH_020", EntityType::Pathway, None, Some(&row_map),
                 &file.name, Some(line), Some("pathway_id"), Some(String::new()), None,
                 "pathway_id zorunludur.".to_string(), "Her geçide benzersiz bir pathway_id verin.",
@@ -68,10 +68,10 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
         let is_bidirectional_semantic = get_trimmed_field(&row_map, "is_bidirectional")
             .and_then(|value| value.parse::<u32>().ok());
         if get_trimmed_field(&row_map, "pathway_mode") == Some("") {
-            notices.push(make_k2_notice(&mut counter, "PTH_023", EntityType::Pathway, entity_id.clone(), Some(&row_map), &file.name, Some(line), Some("pathway_mode"), Some(String::new()), None, "pathway_mode zorunludur.".to_string(), "pathway_mode değerini 1-7 arasında girin."));
+            crate::notice_budget::push(&mut notices, make_k2_notice(&mut counter, "PTH_023", EntityType::Pathway, entity_id.clone(), Some(&row_map), &file.name, Some(line), Some("pathway_mode"), Some(String::new()), None, "pathway_mode zorunludur.".to_string(), "pathway_mode değerini 1-7 arasında girin."));
         }
         if get_trimmed_field(&row_map, "is_bidirectional") == Some("") {
-            notices.push(make_k2_notice(&mut counter, "PTH_024", EntityType::Pathway, entity_id.clone(), Some(&row_map), &file.name, Some(line), Some("is_bidirectional"), Some(String::new()), None, "is_bidirectional zorunludur.".to_string(), "is_bidirectional değerini 0 veya 1 girin."));
+            crate::notice_budget::push(&mut notices, make_k2_notice(&mut counter, "PTH_024", EntityType::Pathway, entity_id.clone(), Some(&row_map), &file.name, Some(line), Some("is_bidirectional"), Some(String::new()), None, "is_bidirectional zorunludur.".to_string(), "is_bidirectional değerini 0 veya 1 girin."));
         }
 
         let length = parse_nonnegative_f64(
@@ -102,13 +102,13 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
         let from_stop_id = get_raw_field(&row_map, "from_stop_id").unwrap_or("");
         let to_stop_id = get_raw_field(&row_map, "to_stop_id").unwrap_or("");
         if get_raw_field(&row_map, "from_stop_id").map(str::trim) == Some("") {
-            notices.push(make_k2_notice(&mut counter, "PTH_021", EntityType::Pathway, entity_id.clone(), Some(&row_map), &file.name, Some(line), Some("from_stop_id"), Some(String::new()), None, "from_stop_id zorunludur.".to_string(), "Geçidin başlangıç durağını girin."));
+            crate::notice_budget::push(&mut notices, make_k2_notice(&mut counter, "PTH_021", EntityType::Pathway, entity_id.clone(), Some(&row_map), &file.name, Some(line), Some("from_stop_id"), Some(String::new()), None, "from_stop_id zorunludur.".to_string(), "Geçidin başlangıç durağını girin."));
         }
         if get_raw_field(&row_map, "to_stop_id").map(str::trim) == Some("") {
-            notices.push(make_k2_notice(&mut counter, "PTH_022", EntityType::Pathway, entity_id.clone(), Some(&row_map), &file.name, Some(line), Some("to_stop_id"), Some(String::new()), None, "to_stop_id zorunludur.".to_string(), "Geçidin bitiş durağını girin."));
+            crate::notice_budget::push(&mut notices, make_k2_notice(&mut counter, "PTH_022", EntityType::Pathway, entity_id.clone(), Some(&row_map), &file.name, Some(line), Some("to_stop_id"), Some(String::new()), None, "to_stop_id zorunludur.".to_string(), "Geçidin bitiş durağını girin."));
         }
         if !from_stop_id.is_empty() && from_stop_id == to_stop_id {
-            notices.push(make_k2_notice(
+            crate::notice_budget::push(&mut notices, make_k2_notice(
                 &mut counter,
                 "PTH_011",
                 EntityType::Pathway,
@@ -126,7 +126,7 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
         }
 
         if matches!(pathway_mode_semantic, Some(7)) && matches!(is_bidirectional_semantic, Some(1)) {
-            notices.push(make_k2_notice(
+            crate::notice_budget::push(&mut notices, make_k2_notice(
                 &mut counter,
                 "PTH_016",
                 EntityType::Pathway,
@@ -147,7 +147,7 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
         let max_slope = match parse_f64(&row_map, "max_slope") {
             Ok(v) => v,
             Err(err) => {
-                notices.push(make_k2_notice(
+                crate::notice_budget::push(&mut notices, make_k2_notice(
                     &mut counter,
                     "PTH_017",
                     EntityType::Pathway,
@@ -168,7 +168,7 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
         // `Optional`'dır — gerçek yasaklarını 14 alanda `Conditionally Forbidden` yazarak
         // ifade eden bir belge, burada bilinçli olarak yazmamıştır. Tavsiye → Quality.
         if max_slope.is_some() && !matches!(pathway_mode_semantic, Some(1 | 3)) {
-            notices.push(make_k2_notice(
+            crate::notice_budget::push(&mut notices, make_k2_notice(
                 &mut counter,
                 "PTH_028",
                 EntityType::Pathway,
@@ -189,7 +189,7 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
         //   (b) sıfır — tipin dışladığı tek değer; yön bilgisi taşımaz.
         let stair_count = match parse_i32(&row_map, "stair_count") {
             Ok(Some(0)) => {
-                notices.push(make_k2_notice(
+                crate::notice_budget::push(&mut notices, make_k2_notice(
                     &mut counter, "PTH_027", EntityType::Pathway, entity_id.clone(),
                     Some(&row_map), &file.name, Some(line), Some("stair_count"),
                     Some("0".to_string()), Some("0 dışında tam sayı".to_string()),
@@ -200,7 +200,7 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
             }
             Ok(v) => v,
             Err(err) => {
-                notices.push(make_k2_notice(
+                crate::notice_budget::push(&mut notices, make_k2_notice(
                     &mut counter, "PTH_027", EntityType::Pathway, entity_id.clone(),
                     Some(&row_map), &file.name, Some(line), Some("stair_count"),
                     get_trimmed_field(&row_map, "stair_count").map(str::to_string),
@@ -237,7 +237,7 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
         // PTH_018: signposted_as çok uzun (> 255 karakter)
         if let Some(sign) = get_trimmed_field(&row_map, "signposted_as") {
             if sign.len() > 255 {
-                notices.push(make_k2_notice(
+                crate::notice_budget::push(&mut notices, make_k2_notice(
                     &mut counter, "PTH_018", EntityType::Pathway,
                     entity_id.clone(), Some(&row_map), &file.name, Some(line),
                     Some("signposted_as"),
@@ -282,7 +282,7 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
             d.insert("example_pathways".to_string(), pth009_examples.join(", "));
         }
         n.details = Some(d);
-        notices.push(n);
+        crate::notice_budget::push(&mut notices, n);
     }
 
     // PTH_008 feed-seviyesi tek özet (PTH_009 ile aynı desen).
@@ -300,7 +300,7 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
             d.insert("example_pathways".to_string(), pth008_examples.join(", "));
         }
         n.details = Some(d);
-        notices.push(n);
+        crate::notice_budget::push(&mut notices, n);
     }
     if pth029_count > 0 {
         let mut n = make_k2_notice(&mut counter, "PTH_029", EntityType::Feed, None, None,
@@ -310,7 +310,7 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
         let mut d = std::collections::BTreeMap::new();
         d.insert("affected_pathways".to_string(), pth029_count.to_string());
         if !pth029_examples.is_empty() { d.insert("example_pathways".to_string(), pth029_examples.join(", ")); }
-        n.details = Some(d); notices.push(n);
+        n.details = Some(d); crate::notice_budget::push(&mut notices, n);
     }
     if pth025_count > 0 {
         let mut n = make_k2_notice(&mut counter, "PTH_025", EntityType::Feed, None, None,
@@ -320,7 +320,7 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
         let mut d = std::collections::BTreeMap::new();
         d.insert("affected_pathways".to_string(), pth025_count.to_string());
         if !pth025_examples.is_empty() { d.insert("example_pathways".to_string(), pth025_examples.join(", ")); }
-        n.details = Some(d); notices.push(n);
+        n.details = Some(d); crate::notice_budget::push(&mut notices, n);
     }
 
     (records, notices)
@@ -331,7 +331,7 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
 #[allow(clippy::too_many_arguments)]
 fn parse_enum_u32(
     row_map: &RowMap,
-    notices: &mut Vec<gtfs_core::Notice>,
+    mut notices: &mut Vec<gtfs_core::Notice>,
     counter: &mut u32,
     rule_id: &str,
     field: &str,
@@ -346,7 +346,7 @@ fn parse_enum_u32(
                 if !validate_enum(&v.to_string(), allowed) {
                     let allowed_str = allowed.join(", ");
                     let remediation = format!("{field} için şu değerlerden birini kullanın: {allowed_str}.");
-                    notices.push(make_k2_notice(counter, rule_id, EntityType::Pathway, entity_id.clone(), Some(row_map), file_name, Some(line), Some(field), Some(v.to_string()), Some(allowed_str.clone()), format!("{field} geçerli bir değer değil."), &remediation));
+                    crate::notice_budget::push(&mut notices, make_k2_notice(counter, rule_id, EntityType::Pathway, entity_id.clone(), Some(row_map), file_name, Some(line), Some(field), Some(v.to_string()), Some(allowed_str.clone()), format!("{field} geçerli bir değer değil."), &remediation));
                 }
             }
             value
@@ -354,7 +354,7 @@ fn parse_enum_u32(
         Err(err) => {
             let allowed_str = allowed.join(", ");
             let remediation = format!("{field} için şu değerlerden birini kullanın: {allowed_str}.");
-            notices.push(make_k2_notice(counter, rule_id, EntityType::Pathway, entity_id.clone(), Some(row_map), file_name, Some(line), Some(field), get_trimmed_field(row_map, field).map(str::to_string), Some(allowed_str.clone()), err, &remediation));
+            crate::notice_budget::push(&mut notices, make_k2_notice(counter, rule_id, EntityType::Pathway, entity_id.clone(), Some(row_map), file_name, Some(line), Some(field), get_trimmed_field(row_map, field).map(str::to_string), Some(allowed_str.clone()), err, &remediation));
             None
         }
     }
@@ -365,7 +365,7 @@ fn parse_enum_u32(
 #[allow(clippy::too_many_arguments)]
 fn parse_nonnegative_f64(
     row_map: &RowMap,
-    notices: &mut Vec<gtfs_core::Notice>,
+    mut notices: &mut Vec<gtfs_core::Notice>,
     counter: &mut u32,
     rule_id: &str,
     field: &str,
@@ -377,13 +377,13 @@ fn parse_nonnegative_f64(
         Ok(value) => {
             if let Some(v) = value {
                 if v < 0.0 {
-                    notices.push(make_k2_notice(counter, rule_id, EntityType::Pathway, entity_id.clone(), Some(row_map), file_name, Some(line), Some(field), Some(v.to_string()), Some(">= 0".to_string()), format!("{field} alanı negatif olamaz."), "Alanı sıfır veya pozitif bir değere ayarlayın."));
+                    crate::notice_budget::push(&mut notices, make_k2_notice(counter, rule_id, EntityType::Pathway, entity_id.clone(), Some(row_map), file_name, Some(line), Some(field), Some(v.to_string()), Some(">= 0".to_string()), format!("{field} alanı negatif olamaz."), "Alanı sıfır veya pozitif bir değere ayarlayın."));
                 }
             }
             value
         }
         Err(err) => {
-            notices.push(make_k2_notice(counter, rule_id, EntityType::Pathway, entity_id.clone(), Some(row_map), file_name, Some(line), Some(field), get_trimmed_field(row_map, field).map(str::to_string), None, err, "Alanı geçerli bir sayısal değere ayarlayın."));
+            crate::notice_budget::push(&mut notices, make_k2_notice(counter, rule_id, EntityType::Pathway, entity_id.clone(), Some(row_map), file_name, Some(line), Some(field), get_trimmed_field(row_map, field).map(str::to_string), None, err, "Alanı geçerli bir sayısal değere ayarlayın."));
             None
         }
     }
@@ -394,7 +394,7 @@ fn parse_nonnegative_f64(
 #[allow(clippy::too_many_arguments)]
 fn parse_positive_f64(
     row_map: &RowMap,
-    notices: &mut Vec<gtfs_core::Notice>,
+    mut notices: &mut Vec<gtfs_core::Notice>,
     counter: &mut u32,
     rule_id: &str,
     field: &str,
@@ -406,13 +406,13 @@ fn parse_positive_f64(
         Ok(value) => {
             if let Some(v) = value {
                 if v <= 0.0 {
-                    notices.push(make_k2_notice(counter, rule_id, EntityType::Pathway, entity_id.clone(), Some(row_map), file_name, Some(line), Some(field), Some(v.to_string()), Some("> 0".to_string()), format!("{field} alanı pozitif olmalıdır."), "Alanı pozitif bir değere ayarlayın."));
+                    crate::notice_budget::push(&mut notices, make_k2_notice(counter, rule_id, EntityType::Pathway, entity_id.clone(), Some(row_map), file_name, Some(line), Some(field), Some(v.to_string()), Some("> 0".to_string()), format!("{field} alanı pozitif olmalıdır."), "Alanı pozitif bir değere ayarlayın."));
                 }
             }
             value
         }
         Err(err) => {
-            notices.push(make_k2_notice(counter, rule_id, EntityType::Pathway, entity_id.clone(), Some(row_map), file_name, Some(line), Some(field), get_trimmed_field(row_map, field).map(str::to_string), None, err, "Alanı geçerli bir sayısal değere ayarlayın."));
+            crate::notice_budget::push(&mut notices, make_k2_notice(counter, rule_id, EntityType::Pathway, entity_id.clone(), Some(row_map), file_name, Some(line), Some(field), get_trimmed_field(row_map, field).map(str::to_string), None, err, "Alanı geçerli bir sayısal değere ayarlayın."));
             None
         }
     }
@@ -423,7 +423,7 @@ fn parse_positive_f64(
 #[allow(clippy::too_many_arguments)]
 fn parse_positive_u32(
     row_map: &RowMap,
-    notices: &mut Vec<gtfs_core::Notice>,
+    mut notices: &mut Vec<gtfs_core::Notice>,
     counter: &mut u32,
     rule_id: &str,
     field: &str,
@@ -435,13 +435,13 @@ fn parse_positive_u32(
         Ok(value) => {
             if let Some(v) = value {
                 if v == 0 {
-                    notices.push(make_k2_notice(counter, rule_id, EntityType::Pathway, entity_id.clone(), Some(row_map), file_name, Some(line), Some(field), Some(v.to_string()), Some("> 0".to_string()), format!("{field} alanı pozitif olmalıdır."), "Alanı pozitif bir tam sayıya ayarlayın."));
+                    crate::notice_budget::push(&mut notices, make_k2_notice(counter, rule_id, EntityType::Pathway, entity_id.clone(), Some(row_map), file_name, Some(line), Some(field), Some(v.to_string()), Some("> 0".to_string()), format!("{field} alanı pozitif olmalıdır."), "Alanı pozitif bir tam sayıya ayarlayın."));
                 }
             }
             value
         }
         Err(err) => {
-            notices.push(make_k2_notice(counter, rule_id, EntityType::Pathway, entity_id.clone(), Some(row_map), file_name, Some(line), Some(field), get_trimmed_field(row_map, field).map(str::to_string), None, err, "Alanı geçerli bir tam sayıya ayarlayın."));
+            crate::notice_budget::push(&mut notices, make_k2_notice(counter, rule_id, EntityType::Pathway, entity_id.clone(), Some(row_map), file_name, Some(line), Some(field), get_trimmed_field(row_map, field).map(str::to_string), None, err, "Alanı geçerli bir tam sayıya ayarlayın."));
             None
         }
     }

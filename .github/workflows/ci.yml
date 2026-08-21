@@ -549,7 +549,7 @@ jobs:
   # kaynaktan-taze olarak deploy eder (committed dist yok; drift imkânsız).
   deploy:
     name: Deploy
-    needs: build-wasm
+    needs: [rust-test, ts-test, sdk-test, build-wasm, e2e, security-audit]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 10   # normal: Deploy ~11sn
