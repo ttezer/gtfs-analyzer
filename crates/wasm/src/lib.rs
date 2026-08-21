@@ -450,11 +450,16 @@ fn run_full_pipeline(zip_bytes: &[u8], config: &ValidatorConfig, today: u32) -> 
     let mut file_stats = collect_file_stats(&k1.files);
 
     t_start!("K2-validate");
+    // #185: satır bütçesi GEÇİLMEZ. `Some(max_file_rows)` verildiğinde K2 stream'lenen
+    // dosyaları 1.000.000 satırda sessizce kesiyor, ardından kesmenin yarattığı boşta
+    // referanslar feed'in kusuru olarak raporlanıyordu (VBB: 250.407 TRP_004 + 220.752
+    // XFL_002 uydurma HIGH bulgu). v0.9.7 hiçbir satır sınırı uygulamıyordu; davranış
+    // oraya döndürüldü. `max_file_rows` yine yalnız ARC_022 eşiğidir.
     let mut k2 = validate_k2_with_stream_limit(
         k1.files,
         Some(zip_bytes),
         config,
-        Some(config.max_file_rows as usize),
+        None,
     ); // #15 W2 + #38: stop_times ZIP stream
     t_end!("K2-validate");
     // Gece yarısını aşan seferleri (00:xx) servis-günü notasyonuna (24:xx) normalize et
@@ -562,11 +567,16 @@ fn run_k1_k5(
 
     t = js_sys::Date::now();
     t_start!("K2-validate");
+    // #185: satır bütçesi GEÇİLMEZ. `Some(max_file_rows)` verildiğinde K2 stream'lenen
+    // dosyaları 1.000.000 satırda sessizce kesiyor, ardından kesmenin yarattığı boşta
+    // referanslar feed'in kusuru olarak raporlanıyordu (VBB: 250.407 TRP_004 + 220.752
+    // XFL_002 uydurma HIGH bulgu). v0.9.7 hiçbir satır sınırı uygulamıyordu; davranış
+    // oraya döndürüldü. `max_file_rows` yine yalnız ARC_022 eşiğidir.
     let mut k2 = validate_k2_with_stream_limit(
         k1.files,
         Some(zip_bytes),
         config,
-        Some(config.max_file_rows as usize),
+        None,
     ); // #15 W2 + #38: stop_times ZIP stream
     t_end!("K2-validate");
     // Gece yarısı (00:xx) → servis-günü (24:xx) normalizasyonu — K3–K6 öncesi (bkz. ilk yol).
