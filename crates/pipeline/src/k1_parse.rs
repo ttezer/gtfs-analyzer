@@ -1593,15 +1593,17 @@ pub fn parse_with_limits(
             || raw_name == "trips.txt" || raw_name == "calendar_dates.txt";
 
         k1dbg!("[K1] tokenizing: {raw_name}");
-        // CSV tokenization — stream_mode'da yalnızca başlık (Some(0)). SDK'nin
-        // sınırlı parse yolunda akış-dışı dosyaların ham Vec büyümesini config'teki
-        // satır bütçesiyle sınırla; native parse yolunda tarihsel tam-korpus davranışını koru.
+        // CSV tokenization — stream_mode'da yalnızca başlık (Some(0)), diğer her yerde
+        // SINIRSIZ. #185: SDK yolunda `cfg.max_file_rows` satır bütçesi uygulanıyordu;
+        // 1M satırı aşan dosyalar sessizce kesiliyor ve kesmenin ürettiği boşta
+        // referanslar feed'in kusuru sayılıyordu. Ölçüm sınırın gereksiz olduğunu
+        // gösterdi (VBB tarayıcıda tam hâlde 18,9 sn, kesilmiş hâlde 117 sn sürüyordu:
+        // maliyet satır okumakta değil, uydurma notice üretmekteydi). `max_file_rows`
+        // yalnız ARC_022 eşiğidir; `buffered_entry_limit` bayt sınırı olarak kalır.
         let _t = crate::timing::Timer::start(format!("K1::tokenize::{raw_name}"));
-        let buffered_row_limit = (!stream_mode && buffered_entry_limit.is_some())
-            .then_some(cfg.max_file_rows as usize);
         let (mut records, csv_truncated, rfc4180) = match tokenize_csv(
             text,
-            if stream_mode { Some(0) } else { buffered_row_limit },
+            if stream_mode { Some(0) } else { None },
         ) {
             Ok(r) => r,
             Err(msg) => {
@@ -2808,7 +2810,7 @@ mod tests {
     }
 
     #[test]
-    fn native_parse_preserves_full_buffered_files_while_sdk_parse_limits_them() {
+    fn neither_native_nor_sdk_parse_truncates_buffered_files() {
         let mut fare_rules = String::from("fare_id,price,currency\n");
         for i in 0..12 {
             fare_rules.push_str(&format!("F{i},1.00,EUR\n"));
@@ -2837,8 +2839,15 @@ mod tests {
             Some(crate::decompress_guard::SDK_MAX_BUFFERED_FILE_BYTES),
         ).expect("SDK parse başarılı olmalı");
 
+        // #185: `max_file_rows` bir RAPORLAMA eşiğidir (ARC_022), bir kesme sınırı
+        // değil. Her iki yol da dosyanın tamamını okumalı; SDK yolu kesmeye başlarsa
+        // tarayıcı kesilmiş feed'i tam feed gibi doğrulayıp boşta kalan referansları
+        // kullanıcının kusuru olarak raporlar.
         assert_eq!(native.files["fare_rules.txt"].rows.len(), 12);
-        assert_eq!(sdk.files["fare_rules.txt"].rows.len(), 10);
+        assert_eq!(
+            sdk.files["fare_rules.txt"].rows.len(), 12,
+            "SDK parse yolu buffered dosyayı kesmemeli (#185)"
+        );
     }
 
     #[test]
