@@ -290,7 +290,7 @@ fn k6_notice(
 
 fn finalize_stm007_pending(
     pending: &mut Vec<Notice>,
-    mut notices: &mut Vec<Notice>,
+    notices: &mut Vec<Notice>,
     ctr: &mut u32,
     rule_id: &str,
     threshold: usize,
@@ -323,7 +323,7 @@ fn finalize_stm007_pending(
             details.insert("example_trips".to_string(), examples.join(", "));
         }
         notice.details = Some(details);
-        crate::notice_budget::push(&mut notices, notice);
+        crate::notice_budget::push(notices, notice);
     } else {
         notices.append(pending);
     }
@@ -844,7 +844,7 @@ fn check_speed_and_duration<'a>(
     config: &ValidatorConfig,
     idx: &StopTimesIndex<'_>,
     shape_idx: &ShapeIndex<'a>,
-    mut notices: &mut Vec<Notice>,
+    notices: &mut Vec<Notice>,
     ctr: &mut u32,
 ) {
     use crate::timing::Timer;
@@ -979,7 +979,7 @@ fn check_speed_and_duration<'a>(
     }
     noncontig.sort_by_key(|&(_, lo, _)| lo);
     for (trip_id, lo, hi) in noncontig {
-        crate::notice_budget::push(&mut notices, k6_notice(
+        crate::notice_budget::push(notices, k6_notice(
             ctr, "STM_036", EntityType::Trip,
             Some(trip_id.to_string()), Some(trip_id.to_string()),
             "stop_times.txt", Some(lo as u64), Some("stop_sequence"),
@@ -1098,11 +1098,11 @@ fn check_speed_and_duration<'a>(
                     if is_rail {
                         n.severity = gtfs_core::Severity::Bilgi;
                     }
-                    crate::notice_budget::push(&mut notices, n);
+                    crate::notice_budget::push(notices, n);
                 }
 
                 if duration_sec < config.min_trip_duration_sec {
-                    crate::notice_budget::push(&mut notices, k6_notice(
+                    crate::notice_budget::push(notices, k6_notice(
                         ctr,
                         "STM_029",
                         EntityType::Trip,
@@ -1134,7 +1134,7 @@ fn check_speed_and_duration<'a>(
             previous_time = event_time;
         }
         if max_same_run >= 3 {
-            crate::notice_budget::push(&mut notices, k6_notice(ctr, "STM_053", EntityType::Trip,
+            crate::notice_budget::push(notices, k6_notice(ctr, "STM_053", EntityType::Trip,
                 Some(trip_id.to_string()), Some(trip_id.to_string()), "stop_times.txt",
                 stimes.first().map(|s| s.line as u64), Some("arrival_time"),
                 Some(format!("{max_same_run} ardışık durak")), Some("< 3 ardışık durak".to_string()),
@@ -1195,7 +1195,7 @@ fn check_speed_and_duration<'a>(
                     d.insert("dep".to_string(), dep_hms.clone());
                     d.insert("arr".to_string(), arr_hms.clone());
                     n.details = Some(d);
-                    crate::notice_budget::push(&mut notices, n);
+                    crate::notice_budget::push(notices, n);
                 }
             }
             if let Some(departure) = st.departure_time() {
@@ -1337,7 +1337,7 @@ fn check_speed_and_duration<'a>(
                         d.insert("stop_a".to_string(), idx.stop_id_of(a).to_string());
                         d.insert("stop_b".to_string(), idx.stop_id_of(b).to_string());
                         n012.details = Some(d);
-                        crate::notice_budget::push(&mut notices, n012);
+                        crate::notice_budget::push(notices, n012);
                     }
                     continue;
                 }
@@ -1401,7 +1401,7 @@ fn check_speed_and_duration<'a>(
             if dist_km < 1e-6 {
                 if idx.stop_id_of(a) == idx.stop_id_of(b) {
                     // STM_035: aynı durak ardışık iki kez (terminal/döngü hattı)
-                    crate::notice_budget::push(&mut notices, k6_notice(
+                    crate::notice_budget::push(notices, k6_notice(
                         ctr, "STM_035", EntityType::Trip,
                         Some(trip_id.to_string()), Some(trip_id.to_string()),
                         "stop_times.txt", Some(b.line as u64), Some("stop_id"),
@@ -1413,7 +1413,7 @@ fn check_speed_and_duration<'a>(
                     ));
                 } else {
                     // STM_021: farklı stop_id'ler aynı koordinatta — gerçek veri hatası
-                    crate::notice_budget::push(&mut notices, k6_notice(
+                    crate::notice_budget::push(notices, k6_notice(
                         ctr, "STM_021", EntityType::Trip,
                         Some(trip_id.to_string()), Some(trip_id.to_string()),
                         "stop_times.txt", Some(b.line as u64), Some("stop_id"),
@@ -1442,7 +1442,7 @@ fn check_speed_and_duration<'a>(
                 d.insert("stop_a".to_string(), idx.stop_id_of(a).to_string());
                 d.insert("stop_b".to_string(), idx.stop_id_of(b).to_string());
                 n025.details = Some(d);
-                crate::notice_budget::push(&mut notices, n025);
+                crate::notice_budget::push(notices, n025);
             }
 
             // STM_026: durak arası mesafe çok uzun — shape arc projeksiyon hataları olabileceğinden
@@ -1467,7 +1467,7 @@ fn check_speed_and_duration<'a>(
                 d.insert("stop_a".to_string(), idx.stop_id_of(a).to_string());
                 d.insert("stop_b".to_string(), idx.stop_id_of(b).to_string());
                 n026.details = Some(d);
-                crate::notice_budget::push(&mut notices, n026);
+                crate::notice_budget::push(notices, n026);
             }
 
             let speed = dist_km / (dt_sec as f64 / 3600.0);
@@ -1492,7 +1492,7 @@ fn check_speed_and_duration<'a>(
                 d.insert("stop_a".to_string(), idx.stop_id_of(a).to_string());
                 d.insert("stop_b".to_string(), idx.stop_id_of(b).to_string());
                 n012.details = Some(d);
-                crate::notice_budget::push(&mut notices, n012);
+                crate::notice_budget::push(notices, n012);
                 trip_bad_seg_count += 1;
                 continue;
             }
@@ -1562,7 +1562,7 @@ fn check_speed_and_duration<'a>(
                 );
                 n.details = Some(d);
             }
-            crate::notice_budget::push(&mut notices, n);
+            crate::notice_budget::push(notices, n);
         }
 
         // STM_020: trip başına en büyük mesafeli sıfır-geçiş-süreli segment (tek notice/trip)
@@ -1590,7 +1590,7 @@ fn check_speed_and_duration<'a>(
                 ("stop_a".to_string(), stop_a.to_string()),
                 ("stop_b".to_string(), stop_b.to_string()),
             ].into_iter().collect());
-            crate::notice_budget::push(&mut notices, n);
+            crate::notice_budget::push(notices, n);
         }
     }
     } // K6::sd::loop
@@ -1661,7 +1661,7 @@ fn check_speed_and_duration<'a>(
             d.insert("speed_max".to_string(), format!("{speed_max:.1}"));
             d.insert("trips".to_string(), trips.iter().take(STM014_TRIP_SAMPLE).copied().collect::<Vec<_>>().join(","));
             n.details = Some(d);
-            crate::notice_budget::push(&mut notices, n);
+            crate::notice_budget::push(notices, n);
         }
     }
 
@@ -1730,7 +1730,7 @@ fn check_speed_and_duration<'a>(
             d.insert("speed_max".to_string(), format!("{speed_max:.0}"));
             d.insert("trips".to_string(), trips.iter().take(STM014_TRIP_SAMPLE).copied().collect::<Vec<_>>().join(","));
             n.details = Some(d);
-            crate::notice_budget::push(&mut notices, n);
+            crate::notice_budget::push(notices, n);
         }
     }
 
@@ -1747,7 +1747,7 @@ fn check_speed_and_duration<'a>(
 fn check_frequency_headway(
     records: &EntityRecords,
     config: &ValidatorConfig,
-    mut notices: &mut Vec<Notice>,
+    notices: &mut Vec<Notice>,
     ctr: &mut u32,
 ) {
     let max_secs = config.max_headway_warning_min * 60;
@@ -1758,7 +1758,7 @@ fn check_frequency_headway(
         let trip_id = if frq.trip_id.is_empty() { continue } else { &frq.trip_id };
 
         if hw > max_secs {
-            crate::notice_budget::push(&mut notices, k6_notice(
+            crate::notice_budget::push(notices, k6_notice(
                 ctr,
                 "FRQ_006",
                 EntityType::Trip,
@@ -1777,7 +1777,7 @@ fn check_frequency_headway(
 
         // FRQ_010: çok yüksek frekanslı sefer (bunching eşiği altında) → bilgi
         if hw <= bunching_secs {
-            crate::notice_budget::push(&mut notices, k6_notice(
+            crate::notice_budget::push(notices, k6_notice(
                 ctr,
                 "FRQ_010",
                 EntityType::Trip,
@@ -1818,7 +1818,7 @@ fn check_route_headway(
     records: &EntityRecords,
     config: &ValidatorConfig,
     idx: &StopTimesIndex<'_>,
-    mut notices: &mut Vec<Notice>,
+    notices: &mut Vec<Notice>,
     ctr: &mut u32,
 ) {
     let ti_hw = &records.trip_interns;
@@ -1944,7 +1944,7 @@ fn check_route_headway(
                 "Pik/saatdışı sefer sayısını artırın ya da büyük boşlukları kapatın.",
             );
             n001.service_id = Some(service_id.to_string());
-            crate::notice_budget::push(&mut notices, n001);
+            crate::notice_budget::push(notices, n001);
         }
     }
 
@@ -1981,7 +1981,7 @@ fn check_route_headway(
                 "Sefer programını düzenleyin; çok sık gelen seferler sıkışmaya yol açabilir.",
             );
             n.service_id = Some(service_id.to_string());
-            crate::notice_budget::push(&mut notices, n);
+            crate::notice_budget::push(notices, n);
         }
     }
 }
@@ -1993,7 +1993,7 @@ fn check_calendar_analytics(
     derived: &DerivedData,
     config: &ValidatorConfig,
     today_yyyymmdd: u32,
-    mut notices: &mut Vec<Notice>,
+    notices: &mut Vec<Notice>,
     ctr: &mut u32,
 ) {
     let ti_cal = &records.trip_interns;
@@ -2067,7 +2067,7 @@ fn check_calendar_analytics(
                     format!("'{service_id}' takvimi feed'in {feed_window_days} günlük yayın penceresinin yalnızca {total_days} gününde (%{pct:.0}) aktif."),
                 )
             };
-            crate::notice_budget::push(&mut notices, k6_notice(
+            crate::notice_budget::push(notices, k6_notice(
                 ctr,
                 "CAL_010",
                 EntityType::Service,
@@ -2111,7 +2111,7 @@ fn check_calendar_analytics(
                 let trip_count = service_trip_counts.get(service_id.as_str()).copied().unwrap_or(0);
                 if !has_upcoming && trip_count > 0 {
                     let n = config.upcoming_service_days;
-                    crate::notice_budget::push(&mut notices, k6_notice(
+                    crate::notice_budget::push(notices, k6_notice(
                         ctr,
                         "CAL_021",
                         EntityType::Service,
@@ -2184,7 +2184,7 @@ fn check_calendar_analytics(
             d.insert("services".to_string(), svcs.join(","));
             d
         });
-        crate::notice_budget::push(&mut notices, n);
+        crate::notice_budget::push(notices, n);
     }
 
     // CAL_008 / CAL_009: expiry (bitiş tarihine göre)
@@ -2198,7 +2198,7 @@ fn check_calendar_analytics(
             // `>=` kullanıyoruz: sınır yılına denk gelen tarihler de dahil ("3 yıl veya daha fazla").
             let today_year = today_yyyymmdd / 10000;
             if ey >= today_year + config.max_calendar_future_years {
-                crate::notice_budget::push(&mut notices, k6_notice(
+                crate::notice_budget::push(notices, k6_notice(
                     ctr, "CAL_023", EntityType::Service,
                     Some(cal.service_id.clone()), Some(cal.service_id.clone()),
                     "calendar.txt", Some(cal.line), Some("end_date"),
@@ -2217,7 +2217,7 @@ fn check_calendar_analytics(
             let end_jdn = yyyymmdd_to_jdn(end_yyyymmdd);
             let today_jdn = yyyymmdd_to_jdn(today_yyyymmdd);
             if end_jdn > today_jdn && end_jdn - today_jdn <= warning_days {
-                crate::notice_budget::push(&mut notices, k6_notice(
+                crate::notice_budget::push(notices, k6_notice(
                     ctr,
                     "CAL_008",
                     EntityType::Service,
@@ -2260,7 +2260,7 @@ fn check_calendar_analytics(
                     let has_before = dates.iter().any(|&d| d < fs_yyyymmdd);
                     let has_after  = dates.iter().any(|&d| d > fe_yyyymmdd);
                     if has_before || has_after {
-                        crate::notice_budget::push(&mut notices, k6_notice(
+                        crate::notice_budget::push(notices, k6_notice(
                             ctr,
                             "CAL_014",
                             EntityType::Service,
@@ -2292,7 +2292,7 @@ fn check_calendar_analytics(
         // seçimini geri okur. Bu boş dosya guard'ı ARC_009'daki has_calendar_txt emsaliyle
         // aynı sınıftan. Base schedule'ın varlığını ARC_008/CAL kuralları ayrıca ölçer.
         if has_base_calendar && active > 0 && count > active / 2 {
-            crate::notice_budget::push(&mut notices, k6_notice(
+            crate::notice_budget::push(notices, k6_notice(
                 ctr,
                 "CLD_007",
                 EntityType::Service,
@@ -2316,7 +2316,7 @@ fn check_calendar_analytics(
             .min();
         if let Some(first) = min_date {
             if first > today_yyyymmdd {
-                crate::notice_budget::push(&mut notices, k6_notice(
+                crate::notice_budget::push(notices, k6_notice(
                     ctr, "CAL_015", EntityType::Feed,
                     None, None, "calendar.txt", None, None,
                     Some(format!("{first}")), Some(format!("≤ {today_yyyymmdd}")),
@@ -2360,7 +2360,7 @@ fn check_calendar_analytics(
         // CAL_017 emit: yalnız feed'in tamamı gelecekteyse (feed_has_started false).
         future_services.sort_unstable();
         for (service_id, min_svc) in future_services {
-            crate::notice_budget::push(&mut notices, k6_notice(
+            crate::notice_budget::push(notices, k6_notice(
                 ctr, "CAL_017", EntityType::Service,
                 Some(service_id.to_string()), Some(service_id.to_string()),
                 "calendar.txt", None, Some("start_date"),
@@ -2392,7 +2392,7 @@ fn check_calendar_analytics(
                 d.insert("services".to_string(), svcs.join(","));
                 d
             });
-            crate::notice_budget::push(&mut notices, n);
+            crate::notice_budget::push(notices, n);
         }
 
         // CAL_016: en geç aktif tarih 2 yıldan fazla ileriye uzanıyor
@@ -2404,7 +2404,7 @@ fn check_calendar_analytics(
         if let Some(last) = max_date {
             let last_jdn = yyyymmdd_to_jdn(last);
             if last_jdn > far_future_jdn {
-                crate::notice_budget::push(&mut notices, k6_notice(
+                crate::notice_budget::push(notices, k6_notice(
                     ctr, "CAL_016", EntityType::Feed,
                     None, None, "calendar.txt", None, None,
                     Some(format!("{last}")), Some("≤ +2 yıl".to_string()),
@@ -2431,7 +2431,7 @@ fn check_geo_stop_analytics(
     records: &EntityRecords,
     derived: &DerivedData,
     config: &ValidatorConfig,
-    mut notices: &mut Vec<Notice>,
+    notices: &mut Vec<Notice>,
     ctr: &mut u32,
 ) {
     use crate::timing::Timer;
@@ -2491,7 +2491,7 @@ fn check_geo_stop_analytics(
                 }
                 let dist_km = haversine_km(la_i, lo_i, la_j, lo_j);
                 if dist_km == 0.0 {
-                    crate::notice_budget::push(&mut notices, k6_notice(
+                    crate::notice_budget::push(notices, k6_notice(
                         ctr,
                         "STP_016",
                         EntityType::Stop,
@@ -2528,7 +2528,7 @@ fn check_geo_stop_analytics(
                             config.stop_too_close_m),
                         "Durakları birleştirin ya da konumlarını doğrulayın.",
                     );
-                    crate::notice_budget::push(&mut notices, n);
+                    crate::notice_budget::push(notices, n);
                 }
             }
         }
@@ -2610,7 +2610,7 @@ fn check_geo_stop_analytics(
                     ("med_lon".to_string(), format!("{med_lon:.6}")),
                     ("dist_km".to_string(), format!("{d:.1}")),
                 ].into_iter().collect());
-                crate::notice_budget::push(&mut notices, n);
+                crate::notice_budget::push(notices, n);
             }
         }
     }
@@ -2624,7 +2624,7 @@ fn check_geo_stop_analytics(
         let span_km = haversine_km(min_lat, min_lon, max_lat, max_lon);
         if span_km > 500.0 {
             // Çok geniş bir feed → bilgi notu
-            crate::notice_budget::push(&mut notices, k6_notice(
+            crate::notice_budget::push(notices, k6_notice(
                 ctr,
                 "GEO_014",
                 EntityType::Feed,
@@ -2653,7 +2653,7 @@ fn check_geo_stop_analytics(
                 let in_japan = (20.25..=45.33).contains(&lat) && (122.56..=153.59).contains(&lon);
                 if !in_japan {
                     let name = stop.stop_name.as_deref().filter(|s| !s.is_empty()).unwrap_or(&stop.stop_id);
-                    crate::notice_budget::push(&mut notices, k6_notice(
+                    crate::notice_budget::push(notices, k6_notice(
                         ctr, "GEO_015", EntityType::Stop,
                         Some(stop.stop_id.clone()), Some(stop.stop_id.clone()),
                         "stops.txt", Some(stop.line), Some("stop_lat|stop_lon"),
@@ -2673,7 +2673,7 @@ fn check_geo_stop_analytics(
         let (Some(lat), Some(lon)) = (stop.stop_lat, stop.stop_lon) else { continue };
         if lat.abs() < 0.1 && lon.abs() < 0.1 {
             let name = stop.stop_name.as_deref().filter(|s| !s.is_empty()).unwrap_or(&stop.stop_id);
-            crate::notice_budget::push(&mut notices, k6_notice(
+            crate::notice_budget::push(notices, k6_notice(
                 ctr, "GEO_016", EntityType::Stop,
                 Some(stop.stop_id.clone()), Some(stop.stop_id.clone()),
                 "stops.txt", Some(stop.line), Some("stop_lat|stop_lon"),
@@ -2690,7 +2690,7 @@ fn check_geo_stop_analytics(
         let Some(lat) = stop.stop_lat else { continue };
         if lat.abs() > 89.0 {
             let name = stop.stop_name.as_deref().filter(|s| !s.is_empty()).unwrap_or(&stop.stop_id);
-            crate::notice_budget::push(&mut notices, k6_notice(
+            crate::notice_budget::push(notices, k6_notice(
                 ctr, "GEO_022", EntityType::Stop,
                 Some(stop.stop_id.clone()), Some(stop.stop_id.clone()),
                 "stops.txt", Some(stop.line), Some("stop_lat"),
@@ -2713,7 +2713,7 @@ fn check_geo_stop_analytics(
             let max_lon = coords.iter().map(|(_,lon)| *lon).fold(f64::NEG_INFINITY, f64::max);
             let span_km = haversine_km(min_lat, min_lon, max_lat, max_lon);
             if span_km < 0.2 {
-                crate::notice_budget::push(&mut notices, k6_notice(
+                crate::notice_budget::push(notices, k6_notice(
                     ctr, "GEO_018", EntityType::Feed,
                     None, None, "", None, None,
                     Some(format!("{:.0}m", span_km * 1000.0)),
@@ -2736,7 +2736,7 @@ fn check_geo_stop_analytics(
         if lat.abs() < 0.1 && lon.abs() < 0.1 { continue; }
         if (lat - lat.round()).abs() < 1e-9 && (lon - lon.round()).abs() < 1e-9 {
             let name = stop.stop_name.as_deref().filter(|s| !s.is_empty()).unwrap_or(&stop.stop_id);
-            crate::notice_budget::push(&mut notices, k6_notice(
+            crate::notice_budget::push(notices, k6_notice(
                 ctr, "GEO_019", EntityType::Stop,
                 Some(stop.stop_id.clone()), Some(stop.stop_id.clone()),
                 "stops.txt", Some(stop.line), Some("stop_lat|stop_lon"),
@@ -2755,7 +2755,7 @@ fn check_geo_shape_analytics(
     derived: &DerivedData,
     config: &ValidatorConfig,
     rail: &RailIndex<'_>,
-    mut notices: &mut Vec<Notice>,
+    notices: &mut Vec<Notice>,
     ctr: &mut u32,
 ) {
     let rail_shapes = &rail.shapes;
@@ -2776,7 +2776,7 @@ fn check_geo_shape_analytics(
                 continue; // → GEO_007
             }
             if dist > max_jump_km {
-                crate::notice_budget::push(&mut notices, k6_notice(
+                crate::notice_budget::push(notices, k6_notice(
                     ctr,
                     "GEO_006",
                     EntityType::Shape,
@@ -2806,7 +2806,7 @@ fn check_geo_shape_analytics(
             if lat.abs() < 0.1 && lon.abs() < 0.1 {
                 flagged.insert(pt.shape_idx());
                 let sid = records.shape_interns.id(pt);
-                crate::notice_budget::push(&mut notices, k6_notice(
+                crate::notice_budget::push(notices, k6_notice(
                     ctr, "GEO_017", EntityType::Shape,
                     Some(sid.to_string()), Some(sid.to_string()),
                     "shapes.txt", Some(pt.line as u64), Some("shape_pt_lat|shape_pt_lon"),
@@ -2825,7 +2825,7 @@ fn check_geo_shape_trip_analytics(
     records: &EntityRecords,
     config: &ValidatorConfig,
     rail: &RailIndex<'_>,
-    mut notices: &mut Vec<Notice>,
+    notices: &mut Vec<Notice>,
     ctr: &mut u32,
 ) {
     // GEO_020: Shape'in tüm noktaları aynı koordinatta (dejenere geometri)
@@ -2868,7 +2868,7 @@ fn check_geo_shape_trip_analytics(
             if lat.abs() < 0.1 && lon.abs() < 0.1 { continue; }
             let count = shape_counts.get(shape_idx).copied().unwrap_or(0);
             if count >= 2 {
-                crate::notice_budget::push(&mut notices, k6_notice(
+                crate::notice_budget::push(notices, k6_notice(
                     ctr, "GEO_020", EntityType::Shape,
                     Some(shape_id.to_string()), Some(shape_id.to_string()),
                     // İhlal koordinat çiftindedir.
@@ -2900,7 +2900,7 @@ fn check_geo_shape_trip_analytics(
         let shared: usize = coord_counts.values().filter(|&&c| c > 1).map(|&c| c as usize).sum();
         if total_stops >= 5 && shared as f64 / total_stops as f64 > 0.3 {
             let pct = shared as f64 / total_stops as f64 * 100.0;
-            crate::notice_budget::push(&mut notices, k6_notice(
+            crate::notice_budget::push(notices, k6_notice(
                 ctr, "GEO_021", EntityType::Feed,
                 None, None, "stops.txt", None, None,
                 Some(format!("{pct:.0}%")), Some("≤30%".to_string()),
@@ -2914,7 +2914,7 @@ fn check_geo_shape_trip_analytics(
     {
         let total_st = records.stop_times_index.total_rows;
         if total_st > config.max_total_stop_times as usize {
-            crate::notice_budget::push(&mut notices, k6_notice(
+            crate::notice_budget::push(notices, k6_notice(
                 ctr, "STM_044", EntityType::Feed,
                 None, None, "stop_times.txt", None, None,
                 Some(format!("{total_st}")), Some("≤2.000.000".to_string()),
@@ -2950,7 +2950,7 @@ fn check_geo_shape_trip_analytics(
             for st in stops {
                 let Some((h, m, s)) = st.departure_time() else { continue };
                 if h > max_dep_h || (h == max_dep_h && (m > 0 || s > 0)) {
-                    crate::notice_budget::push(&mut notices, k6_notice(
+                    crate::notice_budget::push(notices, k6_notice(
                         ctr, "STM_045", EntityType::Trip,
                         Some(trip_id.to_string()), Some(trip_id.to_string()),
                         "stop_times.txt", Some(st.line as u64), Some("departure_time"),
@@ -2982,7 +2982,7 @@ fn check_geo_shape_trip_analytics(
             if count > config.max_stops_per_trip && trip_ids_set.contains(trip_id) {
                 let dep_suffix = stops.first().and_then(|s| s.departure_time())
                     .map(|(h, m, _)| format!(" {h:02}:{m:02} kalkışlı")).unwrap_or_default();
-                crate::notice_budget::push(&mut notices, k6_notice(
+                crate::notice_budget::push(notices, k6_notice(
                     ctr, "STM_043", EntityType::Trip,
                     Some((*trip_id).to_string()), Some((*trip_id).to_string()),
                     "stop_times.txt", None, None,
@@ -3002,7 +3002,7 @@ fn check_geo_shape_trip_analytics(
         }
         for (shape_id, count) in &shape_counts {
             if *count > config.max_shape_points {
-                crate::notice_budget::push(&mut notices, k6_notice(
+                crate::notice_budget::push(notices, k6_notice(
                     ctr, "SHP_026", EntityType::Shape,
                     Some((*shape_id).to_string()), Some((*shape_id).to_string()),
                     "shapes.txt", None, None,
@@ -3026,7 +3026,7 @@ fn check_operational_analytics(
     _config: &ValidatorConfig,
     idx: &StopTimesIndex<'_>,
     today_yyyymmdd: u32,
-    mut notices: &mut Vec<Notice>,
+    notices: &mut Vec<Notice>,
     ctr: &mut u32,
 ) {
     use crate::timing::Timer;
@@ -3046,7 +3046,7 @@ fn check_operational_analytics(
         let count = stimes.len();
         if count < 2 {
             let line = stimes.first().map(|s| s.line as u64);
-            crate::notice_budget::push(&mut notices, k6_notice(
+            crate::notice_budget::push(notices, k6_notice(
                 ctr,
                 "OPR_006",
                 EntityType::Trip,
@@ -3127,7 +3127,7 @@ fn check_operational_analytics(
                 det.insert("stops".to_string(), stop_list.join(","));
                 det.insert("dup_stop".to_string(), dup_stop.to_string());
                 n.details = Some(det);
-                crate::notice_budget::push(&mut notices, n);
+                crate::notice_budget::push(notices, n);
             }
         }
     }
@@ -3152,7 +3152,7 @@ fn check_operational_analytics(
                 .unwrap_or(false);
             if !has_active {
                 reported_services.insert(svc);
-                crate::notice_budget::push(&mut notices, k6_notice(
+                crate::notice_budget::push(notices, k6_notice(
                     ctr,
                     "OPR_011",
                     EntityType::Service,
@@ -3179,7 +3179,7 @@ fn check_operational_analytics(
                 .values()
                 .any(|dates| !dates.is_empty());
             if !any_active {
-                crate::notice_budget::push(&mut notices, k6_notice(
+                crate::notice_budget::push(notices, k6_notice(
                     ctr,
                     "OPR_016",
                     EntityType::Feed,
@@ -3207,7 +3207,7 @@ fn check_operational_analytics(
             })
         });
         if !active_in_7days {
-            crate::notice_budget::push(&mut notices, k6_notice(
+            crate::notice_budget::push(notices, k6_notice(
                 ctr, "TRP_023", EntityType::Feed,
                 None, None, "calendar.txt", None, None,
                 Some("0".to_string()), None,
@@ -3242,7 +3242,7 @@ fn check_operational_analytics(
         let mut services: Vec<(&str, (u32, u64))> = inactive_by_service.into_iter().collect();
         services.sort_by(|a, b| a.0.cmp(b.0));
         for (service_id, (count, line)) in services {
-            crate::notice_budget::push(&mut notices, k6_notice(
+            crate::notice_budget::push(notices, k6_notice(
                 ctr, "CAL_024", EntityType::Service,
                 Some(service_id.to_string()), Some(service_id.to_string()),
                 "trips.txt", Some(line), Some("service_id"),
@@ -3263,7 +3263,7 @@ fn check_operational_analytics(
                 .unwrap_or(false);
             if !has_any_date {
                 let svc = ti_opr.service_id(trip);
-                crate::notice_budget::push(&mut notices, k6_notice(
+                crate::notice_budget::push(notices, k6_notice(
                     ctr, "TRP_026", EntityType::Trip,
                     Some(trip.trip_id.to_string()), Some(trip.trip_id.to_string()),
                     "trips.txt", Some(trip.line), Some("service_id"),
@@ -3284,7 +3284,7 @@ fn check_operational_analytics(
                 .filter(|t| !t.trip_id.is_empty() && t.wheelchair_accessible.unwrap_or(0) == 0)
                 .count();
             if unset == total {
-                crate::notice_budget::push(&mut notices, k6_notice(
+                crate::notice_budget::push(notices, k6_notice(
                     ctr, "TRP_029", EntityType::Feed,
                     None, None,
                     "trips.txt", None, Some("wheelchair_accessible"),
@@ -3293,7 +3293,7 @@ fn check_operational_analytics(
                     "Tekerlekli sandalye erişilebilirliğini wheelchair_accessible alanıyla bildirin (1=erişilebilir, 2=erişilemez).",
                 ));
             } else if unset > 0 {
-                crate::notice_budget::push(&mut notices, k6_notice(
+                crate::notice_budget::push(notices, k6_notice(
                     ctr, "TRP_028", EntityType::Feed,
                     None, None,
                     "trips.txt", None, Some("wheelchair_accessible"),
@@ -3319,7 +3319,7 @@ fn check_operational_analytics(
                     && matches!(s.wheelchair_boarding, None | Some(0)))
                 .count();
             if unset == total {
-                crate::notice_budget::push(&mut notices, k6_notice(
+                crate::notice_budget::push(notices, k6_notice(
                     ctr, "STP_038", EntityType::Feed,
                     None, None,
                     "stops.txt", None, Some("wheelchair_boarding"),
@@ -3328,7 +3328,7 @@ fn check_operational_analytics(
                     "Durakların tekerlekli sandalye erişilebilirliğini wheelchair_boarding ile bildirin (1=erişilebilir, 2=erişilemez).",
                 ));
             } else if unset > 0 {
-                crate::notice_budget::push(&mut notices, k6_notice(
+                crate::notice_budget::push(notices, k6_notice(
                     ctr, "STP_037", EntityType::Feed,
                     None, None,
                     "stops.txt", None, Some("wheelchair_boarding"),
@@ -3406,7 +3406,7 @@ fn check_operational_analytics(
             sample.sort_unstable(); sample.dedup();
             d.insert("trips".to_string(), sample.iter().take(STM014_TRIP_SAMPLE).copied().collect::<Vec<_>>().join(","));
             notice.details = Some(d);
-            crate::notice_budget::push(&mut notices, notice);
+            crate::notice_budget::push(notices, notice);
         }
     }
 
@@ -3454,7 +3454,7 @@ fn check_operational_analytics(
                             });
                             if !same_day { continue; }
                         }
-                        crate::notice_budget::push(&mut notices, k6_notice(
+                        crate::notice_budget::push(notices, k6_notice(
                             ctr, "TRP_022", EntityType::Trip,
                             Some(tid_a.to_string()), Some(tid_a.to_string()),
                             "trips.txt", None, Some("block_id"),
@@ -3482,7 +3482,7 @@ fn check_operational_analytics(
             // tetiklendiğinde TRP_025 de tetikleniyordu (%100 > %80), yani aynı feed-level
             // olgu iki INFO notice üretiyordu. Şimdi TRP_025 = %80–99, TRP_029 = %100.
             if ratio > 0.80 && unknown < total {
-                crate::notice_budget::push(&mut notices, k6_notice(
+                crate::notice_budget::push(notices, k6_notice(
                     ctr, "TRP_025", EntityType::Feed,
                     None, None, "trips.txt", None, Some("wheelchair_accessible"),
                     Some(format!("{:.0}%", ratio * 100.0)),
@@ -3500,7 +3500,7 @@ fn check_operational_analytics(
 
 fn check_stoptimes_derived(
     idx: &StopTimesIndex<'_>,
-    mut notices: &mut Vec<Notice>,
+    notices: &mut Vec<Notice>,
     ctr: &mut u32,
 ) {
     // STM_015 / STM_016: ilk/son durağın zorunlu zaman alanları
@@ -3535,7 +3535,7 @@ fn check_stoptimes_derived(
         // Spec·Kritik olduğu için o yanlış iddia R1 yayın kapısına giriyordu.
         if let Some(first) = stimes.first() {
             if !is_flex(first) && first.arrival_is_absent() {
-                crate::notice_budget::push(&mut notices, k6_notice(
+                crate::notice_budget::push(notices, k6_notice(
                     ctr, "STM_015", EntityType::Trip,
                     Some(trip_id.to_string()), Some(trip_id.to_string()),
                     "stop_times.txt", Some(first.line as u64),
@@ -3556,7 +3556,7 @@ fn check_stoptimes_derived(
 
         if let Some(last) = stimes.last() {
             if !is_flex(last) && last.arrival_is_absent() {
-                crate::notice_budget::push(&mut notices, k6_notice(
+                crate::notice_budget::push(notices, k6_notice(
                     ctr, "STM_016", EntityType::Trip,
                     Some(trip_id.to_string()), Some(trip_id.to_string()),
                     "stop_times.txt", Some(last.line as u64),
@@ -3589,7 +3589,7 @@ fn check_stoptimes_derived(
             let missing_mid = has_time[1..n - 1].iter().any(|&v| !v);
             let has_any = has_time.iter().any(|&v| v);
             if has_any && missing_mid {
-                crate::notice_budget::push(&mut notices, k6_notice(
+                crate::notice_budget::push(notices, k6_notice(
                     ctr,
                     "STM_013",
                     EntityType::Trip,
@@ -3614,7 +3614,7 @@ fn check_route_trip_quality(
     records: &EntityRecords,
     derived: &DerivedData,
     idx: &StopTimesIndex<'_>,
-    mut notices: &mut Vec<Notice>,
+    notices: &mut Vec<Notice>,
     ctr: &mut u32,
 ) {
     use crate::timing::Timer;
@@ -3678,7 +3678,7 @@ fn check_route_trip_quality(
             if let Some(svc) = trips.first().map(|t| ti_rtq.service_id(t)).filter(|s| !s.is_empty()) {
                 n013.service_id = Some(svc.to_string());
             }
-            crate::notice_budget::push(&mut notices, n013);
+            crate::notice_budget::push(notices, n013);
         }
     }
     drop(_t2);
@@ -3695,7 +3695,7 @@ fn check_route_trip_quality(
                 .unwrap_or(false)
         });
         if !has_active {
-            crate::notice_budget::push(&mut notices, k6_notice(
+            crate::notice_budget::push(notices, k6_notice(
                 ctr,
                 "RTS_016",
                 EntityType::Route,
@@ -3734,7 +3734,7 @@ fn check_route_trip_quality(
             if route_named.get(ti_rtq.route_id(trip)).copied().unwrap_or(false) {
                 continue;
             }
-            crate::notice_budget::push(&mut notices, k6_notice(
+            crate::notice_budget::push(notices, k6_notice(
                 ctr,
                 "TRP_011",
                 EntityType::Trip,
@@ -3868,7 +3868,7 @@ fn check_route_trip_quality(
                 // #15: rname/dep (format!) yalnız emit anında — eşleşmeyen seferler için değil.
                 let rname = route_short.get(ti_rtq.route_id(trip)).copied().unwrap_or(ti_rtq.route_id(trip));
                 let dep = trip_first_dep.get(trip.trip_id.as_str()).map(|s| format!(" {} kalkışlı", s)).unwrap_or_default();
-                crate::notice_budget::push(&mut notices, k6_notice(
+                crate::notice_budget::push(notices, k6_notice(
                     ctr,
                     "TRP_020",
                     EntityType::Trip,
@@ -3923,7 +3923,7 @@ fn check_route_trip_quality(
             if let Some(aurl) = agency_url {
                 if route_url == aurl {
                     let rname = route_short.get(route.route_id.as_str()).copied().unwrap_or(route.route_id.as_str());
-                    crate::notice_budget::push(&mut notices, k6_notice(
+                    crate::notice_budget::push(notices, k6_notice(
                         ctr, "RTS_020", EntityType::Route,
                         Some(route.route_id.clone()), Some(route.route_id.clone()),
                         "routes.txt", Some(route.line), Some("route_url"),
@@ -3955,7 +3955,7 @@ fn check_route_trip_quality(
             // short="5", long="Route 5A" → kelime sınırı yok, ateşlemez.
             let names_equal = short.to_lowercase() == long.to_lowercase();
             if names_equal || (short.chars().count() >= 2 && contains_as_word(long, short)) {
-                crate::notice_budget::push(&mut notices, k6_notice(
+                crate::notice_budget::push(notices, k6_notice(
                     ctr, "RTS_022", EntityType::Route,
                     Some(route.route_id.clone()), Some(route.route_id.clone()),
                     "routes.txt", Some(route.line), Some("route_long_name"),
@@ -3995,7 +3995,7 @@ fn check_route_trip_quality(
                                 matches: &mut BTreeMap<NormalizedWebUrl, Vec<usize>>,
                                 message_name: &str,
                                 ctr: &mut u32,
-                                mut notices: &mut Vec<Notice>| {
+                                notices: &mut Vec<Notice>| {
             for (normalized, stop_indices) in matches.iter_mut() {
                 stop_indices.sort_by(|a, b| records.stops[*a].stop_id.cmp(&records.stops[*b].stop_id));
                 let representative = &records.stops[stop_indices[0]];
@@ -4021,7 +4021,7 @@ fn check_route_trip_quality(
                     "stop_url'yi bu durağa özgü bir sayfaya yönlendirin ya da boş bırakın.",
                 );
                 notice.details = Some(details);
-                crate::notice_budget::push(&mut notices, notice);
+                crate::notice_budget::push(notices, notice);
             }
         };
 
@@ -4056,7 +4056,7 @@ fn check_route_trip_quality(
                 let (_ps, pe, _) = wins[i - 1];
                 let (cs, _ce, cl) = wins[i];
                 if cs < pe {
-                    crate::notice_budget::push(&mut notices, k6_notice(
+                    crate::notice_budget::push(notices, k6_notice(
                         ctr, "PDW_006", EntityType::Trip,
                         Some(trip_id.to_string()), Some(trip_id.to_string()),
                         "stop_times.txt", Some(cl), Some("start_pickup_drop_off_window"),
@@ -4168,7 +4168,7 @@ fn check_data_quality(
     config: &ValidatorConfig,
     today_yyyymmdd: u32,
     availability: &FileAvailability<'_>,
-    mut notices: &mut Vec<Notice>,
+    notices: &mut Vec<Notice>,
     ctr: &mut u32,
 ) {
     let agency_usable = availability.present_and_available("agency.txt");
@@ -4183,7 +4183,7 @@ fn check_data_quality(
     if let Some(source_url) = config.source_url.as_deref() {
         let path = source_url.split(['?', '#']).next().unwrap_or(source_url);
         if !path.to_ascii_lowercase().ends_with(".zip") {
-            crate::notice_budget::push(&mut notices, k6_notice(ctr, "ARC_028", EntityType::Feed, None, None,
+            crate::notice_budget::push(notices, k6_notice(ctr, "ARC_028", EntityType::Feed, None, None,
                 "source_url", None, Some("source_url"), Some(source_url.to_string()),
                 Some("kalıcı URL .../dosya.zip".to_string()),
                 format!("GTFS yayın URL'si bir .zip dosya adıyla bitmiyor: '{source_url}'."),
@@ -4199,7 +4199,7 @@ fn check_data_quality(
             let generic = lower.split(|c: char| !c.is_alphanumeric()).any(|w| w == "stop" || w == "station");
             let accepted = matches!(lower.as_str(), "union station" | "central station");
             if generic && !accepted {
-                crate::notice_budget::push(&mut notices, k6_notice(ctr, "STP_040", EntityType::Stop, Some(stop.stop_id.clone()),
+                crate::notice_budget::push(notices, k6_notice(ctr, "STP_040", EntityType::Stop, Some(stop.stop_id.clone()),
                     Some(stop.stop_id.clone()), "stops.txt", Some(stop.line), Some("stop_name"),
                     Some(name.to_string()), None,
                     format!("stop_id '{}' adı gereksiz genel 'stop/station' sözcüğü içeriyor: '{}'.", stop.stop_id, name),
@@ -4208,7 +4208,7 @@ fn check_data_quality(
             if let Some(parent_id) = stop.row.get("parent_station").filter(|v| !v.trim().is_empty()) {
                 if let Some(parent_name) = stop_by_id.get(parent_id.trim()).and_then(|p| p.stop_name.as_deref()) {
                     if !lower.contains(&parent_name.to_lowercase()) {
-                        crate::notice_budget::push(&mut notices, k6_notice(ctr, "STP_041", EntityType::Stop, Some(stop.stop_id.clone()),
+                        crate::notice_budget::push(notices, k6_notice(ctr, "STP_041", EntityType::Stop, Some(stop.stop_id.clone()),
                             Some(stop.stop_id.clone()), "stops.txt", Some(stop.line), Some("stop_name"),
                             Some(name.to_string()), Some(format!("{} içermeli", parent_name)),
                             format!("Alt durak '{}' adı üst istasyon '{}' adını içermiyor.", name, parent_name),
@@ -4228,7 +4228,7 @@ fn check_data_quality(
     };
 
     if trips_usable && calendar_source_usable && !records.trips.is_empty() && !has_any_active {
-        crate::notice_budget::push(&mut notices, k6_notice(
+        crate::notice_budget::push(notices, k6_notice(
             ctr,
             "DQ_005",
             EntityType::Feed,
@@ -4249,7 +4249,7 @@ fn check_data_quality(
         let shapeless = records.trips.iter().filter(|t| t.shape_idx == 0).count();
         let ratio = shapeless as f64 / records.trips.len() as f64;
         if ratio > 0.8 {
-            crate::notice_budget::push(&mut notices, k6_notice(
+            crate::notice_budget::push(notices, k6_notice(
                 ctr,
                 "DQ_006",
                 EntityType::Feed,
@@ -4271,7 +4271,7 @@ fn check_data_quality(
     if trips_usable && stop_times_usable
         && records.stop_times_index.total_rows == 0 && !records.trips.is_empty()
     {
-        crate::notice_budget::push(&mut notices, k6_notice(
+        crate::notice_budget::push(notices, k6_notice(
             ctr,
             "DQ_009",
             EntityType::Feed,
@@ -4289,7 +4289,7 @@ fn check_data_quality(
 
     // DQ_011: feed'de çok az durak (< 2) — işlevsel transit veri değil
     if stops_usable && records.stops.len() == 1 {
-        crate::notice_budget::push(&mut notices, k6_notice(
+        crate::notice_budget::push(notices, k6_notice(
             ctr,
             "DQ_011",
             EntityType::Feed,
@@ -4309,7 +4309,7 @@ fn check_data_quality(
     if agency_usable && routes_usable && records.agencies.len() > 5 {
         let routes_with_agency = records.routes.iter().filter(|r| r.agency_id.is_some()).count();
         if routes_with_agency == 0 {
-            crate::notice_budget::push(&mut notices, k6_notice(
+            crate::notice_budget::push(notices, k6_notice(
                 ctr,
                 "DQ_012",
                 EntityType::Feed,
@@ -4335,7 +4335,7 @@ fn check_data_quality(
                 let label = r.route_short_name.as_deref()
                     .filter(|s| !s.is_empty())
                     .unwrap_or(r.route_id.as_str());
-                crate::notice_budget::push(&mut notices, k6_notice(
+                crate::notice_budget::push(notices, k6_notice(
                     ctr, "RTS_025", EntityType::Route,
                     Some(r.route_id.to_string()), Some(r.route_id.to_string()),
                     "routes.txt", Some(r.line), Some("agency_id"),
@@ -4351,7 +4351,7 @@ fn check_data_quality(
     if trips_usable {
         let trip_count = records.trips.len();
         if trip_count > 0 && trip_count < 3 {
-            crate::notice_budget::push(&mut notices, k6_notice(
+            crate::notice_budget::push(notices, k6_notice(
                 ctr, "DQ_013", EntityType::Feed,
                 None, None, "trips.txt", None, None,
                 Some(format!("{trip_count}")), Some("≥ 3".to_string()),
@@ -4378,7 +4378,7 @@ fn check_data_quality(
                     .filter(|s| !s.is_empty())
                     .or(route.route_long_name.as_deref().filter(|s| !s.is_empty()))
                     .unwrap_or(&route.route_id);
-                crate::notice_budget::push(&mut notices, k6_notice(
+                crate::notice_budget::push(notices, k6_notice(
                     ctr, "DQ_003", EntityType::Route,
                     Some(route.route_id.clone()), Some(route.route_id.clone()),
                     "routes.txt", Some(route.line), Some("route_desc"),
@@ -4399,7 +4399,7 @@ fn check_data_quality(
                     .filter(|s| !s.is_empty())
                     .or(route.route_long_name.as_deref().filter(|s| !s.is_empty()))
                     .unwrap_or(&route.route_id);
-                crate::notice_budget::push(&mut notices, k6_notice(
+                crate::notice_budget::push(notices, k6_notice(
                     ctr, "DQ_004", EntityType::Route,
                     Some(route.route_id.clone()), Some(route.route_id.clone()),
                     "routes.txt", Some(route.line), Some("route_url"),
@@ -4421,7 +4421,7 @@ fn check_data_quality(
             })
             .count();
         if suspicious > 0 {
-            crate::notice_budget::push(&mut notices, k6_notice(
+            crate::notice_budget::push(notices, k6_notice(
                 ctr, "DQ_017", EntityType::Feed,
                 None, None, "stops.txt", None, Some("stop_lat/stop_lon"),
                 Some(format!("{suspicious}")), None,
@@ -4437,7 +4437,7 @@ fn check_data_quality(
             if let Some((y, m, d)) = fi.feed_end_date {
                 let end = y * 10000 + m * 100 + d;
                 if end < today_yyyymmdd {
-                    crate::notice_budget::push(&mut notices, k6_notice(
+                    crate::notice_budget::push(notices, k6_notice(
                         ctr, "FIN_010", EntityType::Feed,
                         None, None, "feed_info.txt", None, Some("feed_end_date"),
                         Some(format!("{y}-{m:02}-{d:02}")),
@@ -4452,7 +4452,7 @@ fn check_data_quality(
             if let Some((sy, sm, sd)) = fi.feed_start_date {
                 let start = sy * 10000 + sm * 100 + sd;
                 if start > today_yyyymmdd {
-                    crate::notice_budget::push(&mut notices, k6_notice(
+                    crate::notice_budget::push(notices, k6_notice(
                         ctr, "FIN_016", EntityType::Feed,
                         None, None, "feed_info.txt", None, Some("feed_start_date"),
                         Some(format!("{sy}-{sm:02}-{sd:02}")),
@@ -4469,7 +4469,7 @@ fn check_data_quality(
                 let today_jdn = yyyymmdd_to_jdn(today_yyyymmdd);
                 let end_jdn   = yyyymmdd_to_jdn(end);
                 if end_jdn > today_jdn + 730 {
-                    crate::notice_budget::push(&mut notices, k6_notice(
+                    crate::notice_budget::push(notices, k6_notice(
                         ctr, "FIN_017", EntityType::Feed,
                         None, None, "feed_info.txt", None, Some("feed_end_date"),
                         Some(format!("{ey}-{em:02}-{ed:02}")),
@@ -4487,7 +4487,7 @@ fn check_data_quality(
             let has_contact_url = fi.feed_contact_url.as_deref()
                 .map(|u| !u.trim().is_empty()).unwrap_or(false);
             if !has_contact_email && !has_contact_url {
-                crate::notice_budget::push(&mut notices, k6_notice(
+                crate::notice_budget::push(notices, k6_notice(
                     ctr, "FIN_018", EntityType::Feed,
                     None, None, "feed_info.txt", None, Some("feed_contact_email"),
                     None, None,
@@ -4526,7 +4526,7 @@ fn check_data_quality(
                                 ("days_left".to_string(), days_left.to_string()),
                                 ("warning_days".to_string(), warning_days.to_string()),
                             ].into_iter().collect());
-                            crate::notice_budget::push(&mut notices, notice);
+                            crate::notice_budget::push(notices, notice);
                         }
                     }
                 }
@@ -4542,7 +4542,7 @@ fn check_data_quality(
                 let end_jdn   = yyyymmdd_to_jdn(ey * 10000 + em * 100 + ed);
                 let span_days = end_jdn.saturating_sub(start_jdn);
                 if span_days < 7 {
-                    crate::notice_budget::push(&mut notices, k6_notice(
+                    crate::notice_budget::push(notices, k6_notice(
                         ctr, "FIN_020", EntityType::Feed,
                         None, None, "feed_info.txt", None, None,
                         Some(format!("{span_days}")), Some("≥7".to_string()),
@@ -4562,7 +4562,7 @@ fn check_data_quality(
                 let end_jdn   = yyyymmdd_to_jdn(ey * 10000 + em * 100 + ed);
                 let span_days = end_jdn.saturating_sub(start_jdn);
                 if span_days > 1825 {
-                    crate::notice_budget::push(&mut notices, k6_notice(
+                    crate::notice_budget::push(notices, k6_notice(
                         ctr, "CAL_020", EntityType::Feed,
                         None, None, "feed_info.txt", None, None,
                         Some(format!("{} yıl", span_days / 365)), Some("≤5 yıl".to_string()),
@@ -4587,7 +4587,7 @@ fn check_data_quality(
             }
             if let Some((&most_common_name, &most_count)) = name_counts.iter().max_by_key(|(_, &c)| c) {
                 if most_count as f64 / total_named as f64 > 0.8 {
-                    crate::notice_budget::push(&mut notices, k6_notice(
+                    crate::notice_budget::push(notices, k6_notice(
                         ctr, "DQ_022", EntityType::Feed,
                         None, None, "stops.txt", None, Some("stop_name"),
                         Some(format!("{:.0}%", most_count as f64 / total_named as f64 * 100.0)),
@@ -4615,21 +4615,21 @@ fn check_data_quality(
         }
 
         for dup_id in find_dups(records.stops.iter().filter(|_| stops_usable).filter(|s| !s.stop_id.is_empty()).map(|s| s.stop_id.as_str())) {
-            crate::notice_budget::push(&mut notices, k6_notice(ctr, "DQ_021", EntityType::Stop,
+            crate::notice_budget::push(notices, k6_notice(ctr, "DQ_021", EntityType::Stop,
                 Some(dup_id.clone()), Some(dup_id.clone()),
                 "stops.txt", None, Some("stop_id"), Some(dup_id.clone()), None,
                 format!("stop_id '{dup_id}' stops.txt'de birden fazla kez tanımlanmış."),
                 "stops.txt'de benzersiz stop_id değerleri kullanın."));
         }
         for dup_id in find_dups(records.routes.iter().filter(|_| routes_usable).filter(|r| !r.route_id.is_empty()).map(|r| r.route_id.as_str())) {
-            crate::notice_budget::push(&mut notices, k6_notice(ctr, "DQ_021", EntityType::Route,
+            crate::notice_budget::push(notices, k6_notice(ctr, "DQ_021", EntityType::Route,
                 Some(dup_id.clone()), Some(dup_id.clone()),
                 "routes.txt", None, Some("route_id"), Some(dup_id.clone()), None,
                 format!("route_id '{dup_id}' routes.txt'de birden fazla kez tanımlanmış."),
                 "routes.txt'de benzersiz route_id değerleri kullanın."));
         }
         for dup_id in find_dups(records.trips.iter().filter(|_| trips_usable).filter(|t| !t.trip_id.is_empty()).map(|t| t.trip_id.as_str())) {
-            crate::notice_budget::push(&mut notices, k6_notice(ctr, "DQ_021", EntityType::Trip,
+            crate::notice_budget::push(notices, k6_notice(ctr, "DQ_021", EntityType::Trip,
                 Some(dup_id.clone()), Some(dup_id.clone()),
                 "trips.txt", None, Some("trip_id"), Some(dup_id.clone()), None,
                 format!("trip_id '{dup_id}' trips.txt'de birden fazla kez tanımlanmış."),
@@ -4641,7 +4641,7 @@ fn check_data_quality(
         for dup_id in find_dups(records.attributions.iter().filter(|_| availability.present_and_available("attributions.txt"))
             .filter_map(|a| a.attribution_id.as_deref()).filter(|id| !id.is_empty()))
         {
-            crate::notice_budget::push(&mut notices, k6_notice(ctr, "DQ_021", EntityType::Attribution,
+            crate::notice_budget::push(notices, k6_notice(ctr, "DQ_021", EntityType::Attribution,
                 Some(dup_id.clone()), Some(dup_id.clone()),
                 "attributions.txt", None, Some("attribution_id"), Some(dup_id.clone()), None,
                 format!("attribution_id '{dup_id}' attributions.txt'de birden fazla kez tanımlanmış."),
@@ -4653,7 +4653,7 @@ fn check_data_quality(
         for dup_id in find_dups(records.route_networks.iter().filter(|_| availability.present_and_available("route_networks.txt"))
             .map(|r| r.route_id.as_str()).filter(|id| !id.is_empty()))
         {
-            crate::notice_budget::push(&mut notices, k6_notice(ctr, "DQ_021", EntityType::Route,
+            crate::notice_budget::push(notices, k6_notice(ctr, "DQ_021", EntityType::Route,
                 Some(dup_id.clone()), Some(dup_id.clone()),
                 "route_networks.txt", None, Some("route_id"), Some(dup_id.clone()), None,
                 format!("route_id '{dup_id}' route_networks.txt'de birden fazla kez tanımlanmış — bir hat yalnız bir ağa ait olabilir."),
@@ -4702,7 +4702,7 @@ fn check_data_quality(
             opt(&r.from_timeframe_group_id), opt(&r.to_timeframe_group_id),
             r.fare_product_id.clone(),
         ])) {
-            crate::notice_budget::push(&mut notices, k6_notice(ctr, "DQ_021", EntityType::Row,
+            crate::notice_budget::push(notices, k6_notice(ctr, "DQ_021", EntityType::Row,
                 Some(format!("fare_leg_rules.txt: {dup}")), None,
                 "fare_leg_rules.txt", None, Some("network_id|from_area_id|to_area_id|from_timeframe_group_id|to_timeframe_group_id|fare_product_id"),
                 Some(dup.clone()), None,
@@ -4716,7 +4716,7 @@ fn check_data_quality(
             r.from_network_id.clone(), r.to_network_id.clone(),
             r.from_stop_id.clone(), r.to_stop_id.clone(),
         ])) {
-            crate::notice_budget::push(&mut notices, k6_notice(ctr, "DQ_021", EntityType::Row,
+            crate::notice_budget::push(notices, k6_notice(ctr, "DQ_021", EntityType::Row,
                 Some(format!("fare_leg_join_rules.txt: {dup}")), None,
                 "fare_leg_join_rules.txt", None,
                 Some("from_network_id|to_network_id|from_stop_id|to_stop_id"),
@@ -4730,7 +4730,7 @@ fn check_data_quality(
             r.transfer_count.map(|v| v.to_string()).unwrap_or_default(),
             r.duration_limit.map(|v| v.to_string()).unwrap_or_default(),
         ])) {
-            crate::notice_budget::push(&mut notices, k6_notice(ctr, "DQ_021", EntityType::Row,
+            crate::notice_budget::push(notices, k6_notice(ctr, "DQ_021", EntityType::Row,
                 Some(format!("fare_transfer_rules.txt: {dup}")), None,
                 "fare_transfer_rules.txt", None, Some("from_leg_group_id|to_leg_group_id|fare_product_id|transfer_count|duration_limit"),
                 Some(dup.clone()), None,
@@ -4742,7 +4742,7 @@ fn check_data_quality(
             .filter(|g| !g.location_group_id.is_empty())
             .map(|g| g.location_group_id.as_str()))
         {
-            crate::notice_budget::push(&mut notices, k6_notice(ctr, "DQ_021", EntityType::Row,
+            crate::notice_budget::push(notices, k6_notice(ctr, "DQ_021", EntityType::Row,
                 Some(dup_id.clone()), Some(dup_id.clone()),
                 "location_groups.txt", None, Some("location_group_id"), Some(dup_id.clone()), None,
                 format!("location_group_id '{dup_id}' location_groups.txt'de birden fazla kez tanımlanmış."),
@@ -4752,7 +4752,7 @@ fn check_data_quality(
         for dup in composite_dups(records.location_group_stops.iter().filter(|_| availability.present_and_available("location_group_stops.txt"))
             .map(|s| vec![s.location_group_id.clone(), s.stop_id.clone()]))
         {
-            crate::notice_budget::push(&mut notices, k6_notice(ctr, "DQ_021", EntityType::Row,
+            crate::notice_budget::push(notices, k6_notice(ctr, "DQ_021", EntityType::Row,
                 Some(format!("location_group_stops.txt: {dup}")), None,
                 "location_group_stops.txt", None, Some("location_group_id|stop_id"),
                 Some(dup.clone()), None,
@@ -4767,7 +4767,7 @@ fn check_data_quality(
         for dup in composite_dups(records.stop_areas.iter().filter(|_| availability.present_and_available("stop_areas.txt"))
             .map(|s| vec![s.area_id.clone(), s.stop_id.clone()]))
         {
-            crate::notice_budget::push(&mut notices, k6_notice(ctr, "DQ_021", EntityType::Row,
+            crate::notice_budget::push(notices, k6_notice(ctr, "DQ_021", EntityType::Row,
                 Some(format!("stop_areas.txt: {dup}")), None,
                 "stop_areas.txt", None, Some("area_id|stop_id"),
                 Some(dup.clone()), None,
@@ -4779,7 +4779,7 @@ fn check_data_quality(
             r.fare_id.clone(), opt(&r.route_id), opt(&r.origin_id),
             opt(&r.destination_id), opt(&r.contains_id),
         ])) {
-            crate::notice_budget::push(&mut notices, k6_notice(ctr, "DQ_021", EntityType::Row,
+            crate::notice_budget::push(notices, k6_notice(ctr, "DQ_021", EntityType::Row,
                 Some(format!("fare_rules.txt: {dup}")), None,
                 "fare_rules.txt", None, Some("fare_id|route_id|origin_id|destination_id|contains_id"),
                 Some(dup.clone()), None,
@@ -4855,7 +4855,7 @@ fn check_data_quality(
                         conflicting.len()
                     )
                 };
-                crate::notice_budget::push(&mut notices, k6_notice(ctr, "DQ_021", EntityType::Service,
+                crate::notice_budget::push(notices, k6_notice(ctr, "DQ_021", EntityType::Service,
                     Some(sid.to_string()), Some(sid.to_string()),
                     "calendar_dates.txt", None, Some("service_id|date"),
                     Some(format!("{}{}", sample.join(", "), more)), None,
@@ -4892,7 +4892,7 @@ fn check_data_quality(
             records.feed_info.is_empty()
         };
         if missing_shapes && missing_feed_info {
-            crate::notice_budget::push(&mut notices, k6_notice(
+            crate::notice_budget::push(notices, k6_notice(
                 ctr, "ARC_020", EntityType::Feed,
                 None, None, "shapes.txt/feed_info.txt", None, None,
                 None, None,
@@ -4900,7 +4900,7 @@ fn check_data_quality(
                 "shapes.txt ile güzergah geometrisi ve feed_info.txt ile yayıncı bilgisi ekleyin.",
             ));
         } else if missing_shapes {
-            crate::notice_budget::push(&mut notices, k6_notice(
+            crate::notice_budget::push(notices, k6_notice(
                 ctr, "ARC_020", EntityType::Feed,
                 None, None, "shapes.txt", None, None,
                 None, None,
@@ -4908,7 +4908,7 @@ fn check_data_quality(
                 "shapes.txt dosyası oluşturarak güzergah geometrisi ekleyin.",
             ));
         } else if missing_feed_info {
-            crate::notice_budget::push(&mut notices, k6_notice(
+            crate::notice_budget::push(notices, k6_notice(
                 ctr, "ARC_020", EntityType::Feed,
                 None, None, "feed_info.txt", None, None,
                 None, None,
@@ -4954,7 +4954,7 @@ fn check_remaining_analytics<'a>(
     idx: &StopTimesIndex<'_>,
     shape_idx: &ShapeIndex<'a>,
     rail_shapes: &FxHashSet<&str>,
-    mut notices: &mut Vec<Notice>,
+    notices: &mut Vec<Notice>,
     ctr: &mut u32,
 ) {
     use crate::timing::Timer;
@@ -5109,7 +5109,7 @@ fn check_remaining_analytics<'a>(
                             if !fired_023 {
                                 fired_023 = true;
                                 let prefix = shp_route_prefix(shape_route_labels.get(*shape_id).map(|v| v.as_slice()).unwrap_or(&[]));
-                                crate::notice_budget::push(&mut notices, k6_notice(
+                                crate::notice_budget::push(notices, k6_notice(
                                     ctr, "SHP_023", EntityType::Shape,
                                     Some(shape_id.to_string()), Some(shape_id.to_string()),
                                     "shapes.txt", None, Some("shape_dist_traveled"),
@@ -5124,7 +5124,7 @@ fn check_remaining_analytics<'a>(
                             if coord_diff_m >= DIFF_THRESHOLD_M {
                                 if !fired_028 {
                                     fired_028 = true;
-                                    crate::notice_budget::push(&mut notices, k6_notice(
+                                    crate::notice_budget::push(notices, k6_notice(
                                         ctr, "SHP_028", EntityType::Shape,
                                         Some(shape_id.to_string()), Some(shape_id.to_string()),
                                         "shapes.txt", None, Some("shape_dist_traveled"),
@@ -5136,7 +5136,7 @@ fn check_remaining_analytics<'a>(
                                 }
                             } else if !fired_029 {
                                 fired_029 = true;
-                                crate::notice_budget::push(&mut notices, k6_notice(
+                                crate::notice_budget::push(notices, k6_notice(
                                     ctr, "SHP_029", EntityType::Shape,
                                     Some(shape_id.to_string()), Some(shape_id.to_string()),
                                     "shapes.txt", None, Some("shape_dist_traveled"),
@@ -5188,7 +5188,7 @@ fn check_remaining_analytics<'a>(
                 .filter_map(|(tid, _)| trip_to_shape.get(*tid).copied())
                 .collect::<FxHashSet<&str>>()
                 .len();
-            crate::notice_budget::push(&mut notices, k6_notice(
+            crate::notice_budget::push(notices, k6_notice(
                 ctr,
                 "STM_017",
                 EntityType::Feed,
@@ -5209,7 +5209,7 @@ fn check_remaining_analytics<'a>(
                     .map(|(h, m, _)| format!("{h:02}:{m:02}"))
                     .unwrap_or_default();
                 let dep_infix = if dep.is_empty() { String::new() } else { format!(" {dep}") };
-                crate::notice_budget::push(&mut notices, k6_notice(
+                crate::notice_budget::push(notices, k6_notice(
                     ctr,
                     "STM_017",
                     EntityType::Trip,
@@ -5277,7 +5277,7 @@ fn check_remaining_analytics<'a>(
                 ("affected_trip_count".to_string(), affected_trips.to_string()),
                 ("representative_trip_ids".to_string(), trip_ids.join(",")),
             ].into_iter().collect());
-            crate::notice_budget::push(&mut notices, notice);
+            crate::notice_budget::push(notices, notice);
         }
     }
 
@@ -5289,7 +5289,7 @@ fn check_remaining_analytics<'a>(
             let severe_km = shape_jump_threshold_km(shape_id, rail_shapes, config) * 3.0;
             for (i, &dist) in seg.segment_distances_km.iter().enumerate() {
                 if dist > severe_km {
-                    crate::notice_budget::push(&mut notices, k6_notice(
+                    crate::notice_budget::push(notices, k6_notice(
                         ctr,
                         "GEO_007",
                         EntityType::Shape,
@@ -5437,7 +5437,7 @@ fn check_remaining_analytics<'a>(
                     det.insert("example_dep".to_string(), dep.clone());
                 }
                 notice.details = Some(det);
-                crate::notice_budget::push(&mut notices, notice);
+                crate::notice_budget::push(notices, notice);
                 // SHP_013 kaldırıldı — GEO_009 ile aynı fiziksel koşulu raporluyordu (çift sayım)
             }
         }
@@ -5518,7 +5518,7 @@ fn check_remaining_analytics<'a>(
                 if dist_km > threshold_km {
                     seen_shp024.insert((stop_id, shape_id));
                     let stop_name = stop_names.get(stop_id).copied().unwrap_or(stop_id);
-                    crate::notice_budget::push(&mut notices, k6_notice(
+                    crate::notice_budget::push(notices, k6_notice(
                         ctr, "SHP_024", EntityType::Stop,
                         Some(stop_id.to_string()), Some(stop_id.to_string()),
                         "stop_times.txt", Some(st.line as u64), Some("shape_dist_traveled"),
@@ -5589,7 +5589,7 @@ fn check_remaining_analytics<'a>(
 
             if trip_max_sdt.is_finite() && trip_max_sdt > shape_max * 1.001 {
                 let route = trip_to_route_rem.get(trip.trip_id.as_str()).copied().unwrap_or(trip.trip_id.as_str());
-                crate::notice_budget::push(&mut notices, k6_notice(
+                crate::notice_budget::push(notices, k6_notice(
                     ctr, "SHP_025", EntityType::Trip,
                     Some(trip.trip_id.to_string()), Some(trip.trip_id.to_string()),
                     "stop_times.txt", None, Some("shape_dist_traveled"),
@@ -5663,7 +5663,7 @@ fn check_remaining_analytics<'a>(
                         })
                         .count();
                     if nearby >= 2 {
-                        crate::notice_budget::push(&mut notices, k6_notice(
+                        crate::notice_budget::push(notices, k6_notice(
                             ctr,
                             "GEO_012",
                             EntityType::Stop,
@@ -5689,7 +5689,7 @@ fn check_remaining_analytics<'a>(
     {
         let n_stops_with_coords = records.stops.iter().filter(|s| s.stop_lat.is_some()).count();
         if n_stops_with_coords > 0 {
-            crate::notice_budget::push(&mut notices, k6_notice(
+            crate::notice_budget::push(notices, k6_notice(
                 ctr,
                 "GEO_013",
                 EntityType::Feed,
@@ -5797,7 +5797,7 @@ fn check_remaining_analytics<'a>(
                 "Bu bilgi notu; sefer sıklığı aynı tür hatlara göre sıradışı.",
             );
             n.service_id = Some(g.svc.to_string());
-            crate::notice_budget::push(&mut notices, n);
+            crate::notice_budget::push(notices, n);
         }
     }
 
@@ -5827,7 +5827,7 @@ fn check_remaining_analytics<'a>(
             if dirs.len() == 1 {
                 let dir = dirs.iter().next().copied().unwrap_or(0);
                 let label = route_short_opr13.get(route_id).copied().unwrap_or(route_id);
-                crate::notice_budget::push(&mut notices, k6_notice(
+                crate::notice_budget::push(notices, k6_notice(
                     ctr,
                     "OPR_013",
                     EntityType::Route,
@@ -5857,7 +5857,7 @@ fn check_remaining_analytics<'a>(
             let total = records.trips.len();
             if trips_without == total {
                 // Hiçbir trip'in stop_times yok — XFL_002'den daha geniş feed-level kapsam
-                crate::notice_budget::push(&mut notices, k6_notice(
+                crate::notice_budget::push(notices, k6_notice(
                     ctr,
                     "DQ_005b",
                     EntityType::Feed,
@@ -5885,7 +5885,7 @@ fn check_remaining_analytics<'a>(
                 .count();
             let ratio = without_coords as f64 / records.stops.len() as f64;
             if ratio > 0.5 {
-                crate::notice_budget::push(&mut notices, k6_notice(
+                crate::notice_budget::push(notices, k6_notice(
                     ctr,
                     "DQ_005c",
                     EntityType::Feed,
@@ -5914,7 +5914,7 @@ fn check_remaining_analytics<'a>(
         for ag in &records.agencies {
             let Some(ref aid) = ag.agency_id else { continue };
             if !agencies_in_routes.contains(aid.as_str()) {
-                crate::notice_budget::push(&mut notices, k6_notice(
+                crate::notice_budget::push(notices, k6_notice(
                     ctr,
                     "DQ_010",
                     EntityType::Feed,
@@ -5950,7 +5950,7 @@ fn check_remaining_analytics<'a>(
                 let label = r.route_short_name.as_deref()
                     .filter(|s| !s.is_empty())
                     .unwrap_or(r.route_id.as_str());
-                crate::notice_budget::push(&mut notices, k6_notice(
+                crate::notice_budget::push(notices, k6_notice(
                     ctr,
                     "RTS_017",
                     EntityType::Route,
@@ -6004,7 +6004,7 @@ fn check_remaining_analytics<'a>(
             route_missing.into_iter().map(|(r, (c, l))| (r, c, l)).collect();
         rows.sort_unstable_by(|a, b| a.0.cmp(b.0)); // deterministik sıra
         for (route_id, count, line) in rows {
-            crate::notice_budget::push(&mut notices, k6_notice(
+            crate::notice_budget::push(notices, k6_notice(
                 ctr,
                 "TRP_012",
                 EntityType::Route,
@@ -6032,7 +6032,7 @@ fn check_remaining_analytics<'a>(
         for t in &records.trips {
             if let Some(bid) = ti_rem.block_id(t).filter(|b| !b.is_empty()) {
                 if block_count.get(bid).copied().unwrap_or(0) == 1 {
-                    crate::notice_budget::push(&mut notices, k6_notice(
+                    crate::notice_budget::push(notices, k6_notice(
                         ctr,
                         "TRP_015",
                         EntityType::Trip,
@@ -6075,7 +6075,7 @@ fn check_remaining_analytics<'a>(
         mixed.sort_by(|a, b| a.0.cmp(b.0)); // HashMap sırası deterministik değil
         for (bid, types, trip_id, line) in mixed {
             let list = types.iter().map(u32::to_string).collect::<Vec<_>>().join(", ");
-            crate::notice_budget::push(&mut notices, k6_notice(
+            crate::notice_budget::push(notices, k6_notice(
                 ctr, "TRP_033", EntityType::Trip,
                 Some(bid.to_string()), Some(bid.to_string()),
                 "trips.txt", Some(line), Some("block_id"),
@@ -6108,7 +6108,7 @@ fn check_remaining_analytics<'a>(
             // Sadece fiziksel duraklar (location_type=0 veya null); parent station/giriş vs. hariç
             if stop.location_type.unwrap_or(0) != 0 { continue; }
             if !used_stops.contains(stop.stop_id.as_str()) {
-                crate::notice_budget::push(&mut notices, k6_notice(
+                crate::notice_budget::push(notices, k6_notice(
                     ctr,
                     "STP_020",
                     EntityType::Stop,
@@ -6206,7 +6206,7 @@ fn check_remaining_analytics<'a>(
             d.insert("first_stop".to_string(), first_stop.clone());
             d.insert("trip_id".to_string(), trip_id.clone());
             n016.details = Some(d);
-            crate::notice_budget::push(&mut notices, n016);
+            crate::notice_budget::push(notices, n016);
         }
     }
 
@@ -6361,7 +6361,7 @@ fn check_remaining_analytics<'a>(
                 det.insert("shape_id".to_string(), shape_id.to_string());
                 det.insert("bad_stop".to_string(), idx.stop_id_of(st).to_string());
                 notice.details = Some(det);
-                crate::notice_budget::push(&mut notices, notice);
+                crate::notice_budget::push(notices, notice);
             }
         }
     }
@@ -6437,7 +6437,7 @@ fn check_remaining_analytics<'a>(
             d.insert("endpoint".to_string(), "start".to_string());
             d.insert("trip_id".to_string(), trip_id.clone());
             n.details = Some(d);
-            crate::notice_budget::push(&mut notices, n);
+            crate::notice_budget::push(notices, n);
         }
 
         let mut end_ids: Vec<&str> = end_agg.keys().copied().collect();
@@ -6466,7 +6466,7 @@ fn check_remaining_analytics<'a>(
             d.insert("endpoint".to_string(), "end".to_string());
             d.insert("trip_id".to_string(), trip_id.clone());
             n.details = Some(d);
-            crate::notice_budget::push(&mut notices, n);
+            crate::notice_budget::push(notices, n);
         }
     }
 
@@ -6520,7 +6520,7 @@ fn check_remaining_analytics<'a>(
                 let mut det = std::collections::BTreeMap::new();
                 det.insert("parent_id".to_string(), parent_id.to_string());
                 notice.details = Some(det);
-                crate::notice_budget::push(&mut notices, notice);
+                crate::notice_budget::push(notices, notice);
             }
         }
     }
@@ -6553,7 +6553,7 @@ fn check_remaining_analytics<'a>(
             if stop.stop_id.is_empty() { continue; }
             if !stations_with_children.contains(stop.stop_id.as_str()) {
                 let sname = stop.stop_name.as_deref().unwrap_or(stop.stop_id.as_str());
-                crate::notice_budget::push(&mut notices, k6_notice(
+                crate::notice_budget::push(notices, k6_notice(
                     ctr,
                     "STP_030",
                     EntityType::Stop,
@@ -6610,7 +6610,7 @@ fn check_remaining_analytics<'a>(
         for stop in &records.stops {
             if stop.stop_id.is_empty() { continue; }
             if let Some(name) = stop.stop_name.as_deref().filter(|s| is_all_caps(s)) {
-                crate::notice_budget::push(&mut notices, k6_notice(
+                crate::notice_budget::push(notices, k6_notice(
                     ctr, "DQ_018", EntityType::Stop,
                     Some(stop.stop_id.clone()), Some(stop.stop_id.clone()),
                     "stops.txt", Some(stop.line), Some("stop_name"),
@@ -6627,7 +6627,7 @@ fn check_remaining_analytics<'a>(
             if let Some(name) = route.route_long_name.as_deref().filter(|s| is_all_caps(s)) {
                 let label = route.route_short_name.as_deref()
                     .filter(|s| !s.is_empty()).unwrap_or(route.route_id.as_str());
-                crate::notice_budget::push(&mut notices, k6_notice(
+                crate::notice_budget::push(notices, k6_notice(
                     ctr, "DQ_018", EntityType::Route,
                     Some(route.route_id.clone()), Some(route.route_id.clone()),
                     "routes.txt", Some(route.line), Some("route_long_name"),
@@ -6644,7 +6644,7 @@ fn check_remaining_analytics<'a>(
             if let Some(desc) = route.route_desc.as_deref().filter(|s| is_all_caps(s)) {
                 let label = route.route_short_name.as_deref()
                     .filter(|s| !s.is_empty()).unwrap_or(route.route_id.as_str());
-                crate::notice_budget::push(&mut notices, k6_notice(
+                crate::notice_budget::push(notices, k6_notice(
                     ctr, "DQ_018", EntityType::Route,
                     Some(route.route_id.clone()), Some(route.route_id.clone()),
                     "routes.txt", Some(route.line), Some("route_desc"),
@@ -6659,7 +6659,7 @@ fn check_remaining_analytics<'a>(
         for trip in &records.trips {
             if trip.trip_id.is_empty() { continue; }
             if let Some(hs) = ti_rem.headsign(trip).filter(|s| is_all_caps(s)) {
-                crate::notice_budget::push(&mut notices, k6_notice(
+                crate::notice_budget::push(notices, k6_notice(
                     ctr, "DQ_018", EntityType::Trip,
                     Some(trip.trip_id.to_string()), Some(trip.trip_id.to_string()),
                     "trips.txt", Some(trip.line), Some("trip_headsign"),
@@ -6677,7 +6677,7 @@ fn check_remaining_analytics<'a>(
                 let label = ag.agency_id.as_deref()
                     .filter(|s| !s.is_empty())
                     .unwrap_or(ag.agency_name.as_str());
-                crate::notice_budget::push(&mut notices, k6_notice(
+                crate::notice_budget::push(notices, k6_notice(
                     ctr, "DQ_018", EntityType::Agency,
                     Some(label.to_string()), Some(label.to_string()),
                     "agency.txt", Some(ag.line), Some("agency_name"),
@@ -6690,7 +6690,7 @@ fn check_remaining_analytics<'a>(
 
         // stop_headsign (B4: tek-tarama'dan toplanan caps değerleri — aynı sıra/içerik/ctr)
         for (line, s) in &dq_caps_hs {
-            crate::notice_budget::push(&mut notices, k6_notice(
+            crate::notice_budget::push(notices, k6_notice(
                 ctr, "DQ_018", EntityType::Row,
                 None, None,
                 "stop_times.txt", Some(*line), Some("stop_headsign"),
@@ -6703,7 +6703,7 @@ fn check_remaining_analytics<'a>(
         // feed_publisher_name
         if let Some(fi) = records.feed_info.first() {
             if is_all_caps(&fi.feed_publisher_name) {
-                crate::notice_budget::push(&mut notices, k6_notice(
+                crate::notice_budget::push(notices, k6_notice(
                     ctr, "DQ_018", EntityType::Feed,
                     None, None,
                     "feed_info.txt", Some(fi.line), Some("feed_publisher_name"),
@@ -6721,7 +6721,7 @@ fn check_remaining_analytics<'a>(
         for stop in &records.stops {
             if stop.stop_id.is_empty() { continue; }
             if let Some(name) = stop.stop_name.as_deref().filter(|s| is_all_lower(s)) {
-                crate::notice_budget::push(&mut notices, k6_notice(
+                crate::notice_budget::push(notices, k6_notice(
                     ctr, "DQ_019", EntityType::Stop,
                     Some(stop.stop_id.clone()), Some(stop.stop_id.clone()),
                     "stops.txt", Some(stop.line), Some("stop_name"),
@@ -6734,7 +6734,7 @@ fn check_remaining_analytics<'a>(
         for route in &records.routes {
             if route.route_id.is_empty() { continue; }
             if let Some(name) = route.route_long_name.as_deref().filter(|s| is_all_lower(s)) {
-                crate::notice_budget::push(&mut notices, k6_notice(
+                crate::notice_budget::push(notices, k6_notice(
                     ctr, "DQ_019", EntityType::Route,
                     Some(route.route_id.clone()), Some(route.route_id.clone()),
                     "routes.txt", Some(route.line), Some("route_long_name"),
@@ -6747,7 +6747,7 @@ fn check_remaining_analytics<'a>(
         for route in &records.routes {
             if route.route_id.is_empty() { continue; }
             if let Some(desc) = route.route_desc.as_deref().filter(|s| is_all_lower(s)) {
-                crate::notice_budget::push(&mut notices, k6_notice(
+                crate::notice_budget::push(notices, k6_notice(
                     ctr, "DQ_019", EntityType::Route,
                     Some(route.route_id.clone()), Some(route.route_id.clone()),
                     "routes.txt", Some(route.line), Some("route_desc"),
@@ -6760,7 +6760,7 @@ fn check_remaining_analytics<'a>(
         for trip in &records.trips {
             if trip.trip_id.is_empty() { continue; }
             if let Some(hs) = ti_rem.headsign(trip).filter(|s| is_all_lower(s)) {
-                crate::notice_budget::push(&mut notices, k6_notice(
+                crate::notice_budget::push(notices, k6_notice(
                     ctr, "DQ_019", EntityType::Trip,
                     Some(trip.trip_id.to_string()), Some(trip.trip_id.to_string()),
                     "trips.txt", Some(trip.line), Some("trip_headsign"),
@@ -6778,7 +6778,7 @@ fn check_remaining_analytics<'a>(
                 let label = ag.agency_id.as_deref()
                     .filter(|s| !s.is_empty())
                     .unwrap_or(ag.agency_name.as_str());
-                crate::notice_budget::push(&mut notices, k6_notice(
+                crate::notice_budget::push(notices, k6_notice(
                     ctr, "DQ_019", EntityType::Agency,
                     Some(label.to_string()), Some(label.to_string()),
                     "agency.txt", Some(ag.line), Some("agency_name"),
@@ -6791,7 +6791,7 @@ fn check_remaining_analytics<'a>(
 
         // stop_headsign (B4: tek-tarama'dan toplanan lower değerleri — aynı sıra/içerik/ctr)
         for (line, s) in &dq_lower_hs {
-            crate::notice_budget::push(&mut notices, k6_notice(
+            crate::notice_budget::push(notices, k6_notice(
                 ctr, "DQ_019", EntityType::Row,
                 None, None,
                 "stop_times.txt", Some(*line), Some("stop_headsign"),
@@ -6804,7 +6804,7 @@ fn check_remaining_analytics<'a>(
         // feed_publisher_name
         if let Some(fi) = records.feed_info.first() {
             if is_all_lower(&fi.feed_publisher_name) {
-                crate::notice_budget::push(&mut notices, k6_notice(
+                crate::notice_budget::push(notices, k6_notice(
                     ctr, "DQ_019", EntityType::Feed,
                     None, None,
                     "feed_info.txt", Some(fi.line), Some("feed_publisher_name"),
@@ -6828,7 +6828,7 @@ fn check_remaining_analytics<'a>(
             .filter(|t| ti_rem.headsign(t).map(|s| s.trim().is_empty()).unwrap_or(true))
             .count();
         if missing > 0 && total > 0 {
-            crate::notice_budget::push(&mut notices, k6_notice(
+            crate::notice_budget::push(notices, k6_notice(
                 ctr, "DQ_020", EntityType::Feed,
                 None, None, "trips.txt", None, Some("trip_headsign"),
                 Some(format!("{missing}/{total}")), None,
@@ -6856,7 +6856,7 @@ fn check_remaining_analytics<'a>(
         let mut routes: Vec<_> = by_route.into_iter().collect(); routes.sort_by_key(|x| x.0);
         for (route, (count, min, max)) in routes {
             let hm = |s: u32| format!("{:02}:{:02}", s / 3600, s / 60 % 60);
-            crate::notice_budget::push(&mut notices, k6_notice(
+            crate::notice_budget::push(notices, k6_notice(
                 ctr, "OPR_009", EntityType::Route,
                 Some(route.to_string()), Some(route.to_string()), "stop_times.txt", None,
                 Some("departure_time"), Some(format!("{count} sefer, {}-{}", hm(min), hm(max))), None,
@@ -6884,7 +6884,7 @@ fn check_remaining_analytics<'a>(
                 if d < MIN_TRIP_KM {
                     let route = trip_to_route_rem.get(trip_id).copied().unwrap_or(trip_id);
                     let dist_m = d * 1000.0;
-                    crate::notice_budget::push(&mut notices, k6_notice(
+                    crate::notice_budget::push(notices, k6_notice(
                         ctr, "OPR_017", EntityType::Trip,
                         Some(trip_id.to_string()), Some(trip_id.to_string()),
                         "trips.txt", None, None,
@@ -6924,7 +6924,7 @@ fn check_remaining_analytics<'a>(
         }
         for (route_id, (has_acc, has_noacc)) in &route_wc {
             if *has_acc && *has_noacc {
-                crate::notice_budget::push(&mut notices, k6_notice(
+                crate::notice_budget::push(notices, k6_notice(
                     ctr, "OPR_010", EntityType::Route,
                     Some(route_id.to_string()), Some(route_id.to_string()),
                     "trips.txt", None, Some("wheelchair_accessible"),
@@ -6936,7 +6936,7 @@ fn check_remaining_analytics<'a>(
         }
         for (route_id, (has_allow, has_noallow)) in &route_ba {
             if *has_allow && *has_noallow {
-                crate::notice_budget::push(&mut notices, k6_notice(
+                crate::notice_budget::push(notices, k6_notice(
                     ctr, "OPR_010", EntityType::Route,
                     Some(route_id.to_string()), Some(route_id.to_string()),
                     "trips.txt", None, Some("bikes_allowed"),
@@ -6961,7 +6961,7 @@ fn check_remaining_analytics<'a>(
             let avg = timed.iter().map(|&x| x as u64).sum::<u64>() / count as u64;
             if avg > AVG_TRANSFER_THRESHOLD_SEC {
                 let avg_min = avg as f64 / 60.0;
-                crate::notice_budget::push(&mut notices, k6_notice(
+                crate::notice_budget::push(notices, k6_notice(
                     ctr, "OPR_014", EntityType::Feed,
                     None, None,
                     "transfers.txt", None, Some("min_transfer_time"),
@@ -6988,7 +6988,7 @@ fn check_remaining_analytics<'a>(
             ) {
                 let dist_m = haversine_km(la1, lo1, la2, lo2) * 1000.0;
                 if dist_m > TRF_DIST_THRESHOLD_M {
-                    crate::notice_budget::push(&mut notices, k6_notice(
+                    crate::notice_budget::push(notices, k6_notice(
                         ctr, "TRF_011", EntityType::Transfer,
                         Some(format!("{}|{}", trf.from_stop_id, trf.to_stop_id)),
                         Some(format!("{}|{}", trf.from_stop_id, trf.to_stop_id)),
@@ -7013,7 +7013,7 @@ fn check_remaining_analytics<'a>(
         const MIN_POINTS_PER_10KM: f64 = 2.0; // en az 2 nokta / 10km
         for (shape_id, pts) in shape_coords.iter() {
             if pts.len() < 3 {
-                crate::notice_budget::push(&mut notices, k6_notice(
+                crate::notice_budget::push(notices, k6_notice(
                     ctr, "SHP_015", EntityType::Shape,
                     Some(shape_id.to_string()), Some(shape_id.to_string()),
                     "shapes.txt", None, Some("shape_pt_lat|shape_pt_lon"),
@@ -7029,7 +7029,7 @@ fn check_remaining_analytics<'a>(
             if total_km > 1.0 {
                 let density = pts.len() as f64 / (total_km / 10.0);
                 if density < MIN_POINTS_PER_10KM {
-                    crate::notice_budget::push(&mut notices, k6_notice(
+                    crate::notice_budget::push(notices, k6_notice(
                         ctr, "SHP_015", EntityType::Shape,
                         Some(shape_id.to_string()), Some(shape_id.to_string()),
                         "shapes.txt", None, Some("shape_pt_lat|shape_pt_lon"),
@@ -7137,7 +7137,7 @@ fn check_remaining_analytics<'a>(
             d.insert("affected_shapes".to_string(), n20.to_string());
             if !examples.is_empty() { d.insert("example_shapes".to_string(), examples.join(", ")); }
             notice.details = Some(d);
-            crate::notice_budget::push(&mut notices, notice);
+            crate::notice_budget::push(notices, notice);
         } else {
             notices.append(&mut shp020_pending);
         }
@@ -7222,7 +7222,7 @@ fn check_remaining_analytics<'a>(
             d.insert("affected_shapes".to_string(), n09.to_string());
             if !examples.is_empty() { d.insert("example_shapes".to_string(), examples.join(", ")); }
             notice.details = Some(d);
-            crate::notice_budget::push(&mut notices, notice);
+            crate::notice_budget::push(notices, notice);
         } else {
             notices.append(&mut shp009_pending);
         }
@@ -7242,7 +7242,7 @@ fn check_shp012<'a>(
     idx: &StopTimesIndex<'_>,
     shape_idx: &ShapeIndex<'a>,
     rail_shapes: &FxHashSet<&str>,
-    mut notices: &mut Vec<Notice>,
+    notices: &mut Vec<Notice>,
     ctr: &mut u32,
 ) {
     let ti_shp012 = &records.trip_interns;
@@ -7331,7 +7331,7 @@ fn check_shp012<'a>(
                 "shapes.txt noktalarını durak konumlarına yaklaştırın.",
             );
             n.details = Some([("far_stops".to_string(), far.join(","))].into_iter().collect());
-            crate::notice_budget::push(&mut notices, n);
+            crate::notice_budget::push(notices, n);
         }
     }
 }
@@ -7346,7 +7346,7 @@ fn check_shp022<'a>(
     records: &'a EntityRecords,
     idx: &StopTimesIndex<'_>,
     shape_idx: &ShapeIndex<'a>,
-    mut notices: &mut Vec<Notice>,
+    notices: &mut Vec<Notice>,
     ctr: &mut u32,
 ) {
     use crate::timing::Timer;
@@ -7512,7 +7512,7 @@ fn check_shp022<'a>(
         // Buffer'ı boşalt: stop başına tek (deterministik) temsilci. Sıra önemsiz (K6 renumber
         // + K7 dedup sonradan kanonik sıralar).
         for (_stop, (_key, notice)) in shp022_best {
-            crate::notice_budget::push(&mut notices, notice);
+            crate::notice_budget::push(notices, notice);
         }
     }
 }
@@ -7578,7 +7578,7 @@ fn format_hms(total_secs: u32) -> String {
 fn check_linked_trip_continuations(
     records: &EntityRecords,
     derived: &DerivedData,
-    mut notices: &mut Vec<Notice>,
+    notices: &mut Vec<Notice>,
     ctr: &mut u32,
 ) {
     let ti = &records.trip_interns;
@@ -7664,7 +7664,7 @@ fn check_linked_trip_continuations(
         let Some((ta, sa, tb, sb, day, line)) = first_conflict(&by_from[trip]) else {
             continue;
         };
-        crate::notice_budget::push(&mut notices, k6_notice(ctr, "TRF_022", EntityType::Trip,
+        crate::notice_budget::push(notices, k6_notice(ctr, "TRF_022", EntityType::Trip,
             Some(trip.to_string()), Some(trip.to_string()),
             "transfers.txt", Some(line), Some("to_trip_id"),
             Some(format!("{ta} ({sa}) / {tb} ({sb})")), None,
@@ -7682,7 +7682,7 @@ fn check_linked_trip_continuations(
         let Some((ta, sa, tb, sb, day, line)) = first_conflict(&by_to[trip]) else {
             continue;
         };
-        crate::notice_budget::push(&mut notices, k6_notice(ctr, "TRF_023", EntityType::Trip,
+        crate::notice_budget::push(notices, k6_notice(ctr, "TRF_023", EntityType::Trip,
             Some(trip.to_string()), Some(trip.to_string()),
             "transfers.txt", Some(line), Some("from_trip_id"),
             Some(format!("{ta} ({sa}) / {tb} ({sb})")), None,
@@ -7702,7 +7702,7 @@ fn check_calendar_override_analytics(
     derived: &DerivedData,
     config: &ValidatorConfig,
     idx: &StopTimesIndex<'_>,
-    mut notices: &mut Vec<Notice>,
+    notices: &mut Vec<Notice>,
     ctr: &mut u32,
 ) {
     use crate::timing::Timer;
@@ -7858,7 +7858,7 @@ fn check_calendar_override_analytics(
                 d.insert("active_service_patterns".to_string(), patterns_str);
                 d
             });
-            crate::notice_budget::push(&mut notices, n);
+            crate::notice_budget::push(notices, n);
         }
 
         if !exc_dates.is_empty() {
@@ -7907,7 +7907,7 @@ fn check_calendar_override_analytics(
                 d.insert("active_service_patterns".to_string(), patterns_str);
                 d
             });
-            crate::notice_budget::push(&mut notices, n);
+            crate::notice_budget::push(notices, n);
         }
     }
 
@@ -7957,7 +7957,7 @@ fn check_calendar_override_analytics(
                 "Override gününde base servisi calendar_dates.txt ile kaldırın (exception_type=2).",
             );
             n.details = Some(build_override_details(count, &dates_021, &base_str, &override_str));
-            crate::notice_budget::push(&mut notices, n);
+            crate::notice_budget::push(notices, n);
         }
 
         if !dates_022.is_empty() {
@@ -7973,7 +7973,7 @@ fn check_calendar_override_analytics(
                 "Override günü için override servisini calendar_dates.txt ile ekleyin (exception_type=1).",
             );
             n.details = Some(build_override_details(count, &dates_022, &base_str, &override_str));
-            crate::notice_budget::push(&mut notices, n);
+            crate::notice_budget::push(notices, n);
         }
 
         if !dates_023.is_empty() {
@@ -7989,7 +7989,7 @@ fn check_calendar_override_analytics(
                 "Override penceresinde hem base hem override servisini aktif tutun.",
             );
             n.details = Some(build_override_details(count, &dates_023, &base_str, &override_str));
-            crate::notice_budget::push(&mut notices, n);
+            crate::notice_budget::push(notices, n);
         }
     }
 
@@ -8014,7 +8014,7 @@ fn check_calendar_override_analytics(
                     }))
             });
             if !has_weekend {
-                crate::notice_budget::push(&mut notices, k6_notice(
+                crate::notice_budget::push(notices, k6_notice(
                     ctr, "OPR_004", EntityType::Route,
                     Some(route_id.to_string()), Some(route_id.to_string()),
                     "trips.txt", None, None, None, None,
@@ -8059,7 +8059,7 @@ fn check_calendar_override_analytics(
                     "Boşluk planlanmışsa görmezden gelin; aksi hâlde eksik günleri calendar_dates.txt ile ekleyin.",
                 );
                 n012.service_id = Some(svc_id.clone());
-                crate::notice_budget::push(&mut notices, n012);
+                crate::notice_budget::push(notices, n012);
             }
         }
     }
@@ -8107,7 +8107,7 @@ fn check_calendar_override_analytics(
                 let mut d = std::collections::BTreeMap::new();
                 d.insert("shape_id".to_string(), shape_id.to_string());
                 n015.details = Some(d);
-                crate::notice_budget::push(&mut notices, n015);
+                crate::notice_budget::push(notices, n015);
             }
         }
     }
@@ -8146,7 +8146,7 @@ fn build_override_details(
 fn check_pathway_analytics(
     records: &EntityRecords,
     derived: &DerivedData,
-    mut notices: &mut Vec<Notice>,
+    notices: &mut Vec<Notice>,
     ctr: &mut u32,
 ) {
     if records.pathways.is_empty() {
@@ -8232,7 +8232,7 @@ fn check_pathway_analytics(
         if entrances.is_empty() {
             for &platform in &platforms {
                 if graph_stops.contains(platform) {
-                    crate::notice_budget::push(&mut notices, k6_notice(
+                    crate::notice_budget::push(notices, k6_notice(
                         ctr,
                         "PTH_012",
                         EntityType::Stop,
@@ -8286,7 +8286,7 @@ fn check_pathway_analytics(
                         .any(|k| reachable_from_entrances.contains(k.stop_id.as_str()))
                 });
             if !reachable {
-                crate::notice_budget::push(&mut notices, k6_notice(
+                crate::notice_budget::push(notices, k6_notice(
                     ctr,
                     "PTH_012",
                     EntityType::Stop,
@@ -8339,7 +8339,7 @@ fn check_pathway_analytics(
         });
 
         if !any_platform_accessible {
-            crate::notice_budget::push(&mut notices, k6_notice(
+            crate::notice_budget::push(notices, k6_notice(
                 ctr,
                 "PTH_013",
                 EntityType::Stop,
@@ -8370,7 +8370,7 @@ fn check_pathway_analytics(
             if length > 0.0 && tt > 0 {
                 let speed = length / tt as f64;
                 if speed > MAX_PATHWAY_SPEED_MS {
-                    crate::notice_budget::push(&mut notices, k6_notice(
+                    crate::notice_budget::push(notices, k6_notice(
                         ctr,
                         "PTH_015",
                         EntityType::Pathway,
@@ -8400,7 +8400,7 @@ fn check_vat_analytics(
     derived: &DerivedData,
     config: &ValidatorConfig,
     idx: &StopTimesIndex<'_>,
-    mut notices: &mut Vec<Notice>,
+    notices: &mut Vec<Notice>,
     ctr: &mut u32,
 ) {
     let ti_vat = &records.trip_interns;
@@ -8543,7 +8543,7 @@ fn check_vat_analytics(
                     d.insert("routes".to_string(), format!("{rid_a},{rid_b}"));
                     d.insert("route_b".to_string(), rid_b.to_string());
                     n.details = Some(d);
-                    crate::notice_budget::push(&mut notices, n);
+                    crate::notice_budget::push(notices, n);
                 }
             }
         }
@@ -8636,7 +8636,7 @@ fn check_vat_analytics(
                 d.insert("routes".to_string(), route_ids.join(","));
                 d
             });
-            crate::notice_budget::push(&mut notices, n002);
+            crate::notice_budget::push(notices, n002);
         }
     }
 
@@ -8808,7 +8808,7 @@ fn check_vat_analytics(
                     d.insert("duplicate_trips".to_string(), repeats.to_string());
                     n.details = Some(d);
                 }
-                crate::notice_budget::push(&mut notices, n);
+                crate::notice_budget::push(notices, n);
             }
         }
     }
@@ -8923,7 +8923,7 @@ fn check_vat_analytics(
                     let mut d = std::collections::BTreeMap::new();
                     d.insert("isolated_stops".to_string(), isolated_all.join(","));
                     n005.details = Some(d);
-                    crate::notice_budget::push(&mut notices, n005);
+                    crate::notice_budget::push(notices, n005);
                 }
             }
         }
@@ -8937,7 +8937,7 @@ fn check_vat_analytics(
                 let ratio = count as f64 / total_trips as f64;
                 if ratio >= 0.40 {
                     let label = route_label.get(route).copied().unwrap_or(route);
-                    crate::notice_budget::push(&mut notices, k6_notice(
+                    crate::notice_budget::push(notices, k6_notice(
                         ctr,
                         "VAT_006",
                         EntityType::Route,
@@ -9016,7 +9016,7 @@ fn check_vat_analytics(
             let mut d = std::collections::BTreeMap::new();
             d.insert("routes".to_string(), route_ids.join(","));
             n007.details = Some(d);
-            crate::notice_budget::push(&mut notices, n007);
+            crate::notice_budget::push(notices, n007);
         }
     }
 
@@ -9047,7 +9047,7 @@ fn check_vat_analytics(
                     "Bu seferlerin doğru route_id ve service_id'ye atandığını kontrol edin.",
                 );
                 n.service_id = Some((*service_id).to_string());
-                crate::notice_budget::push(&mut notices, n);
+                crate::notice_budget::push(notices, n);
             }
         }
     }
@@ -9072,7 +9072,7 @@ fn check_vat_analytics(
         if trip_durations.len() >= 5 {
             let avg = trip_durations.iter().sum::<u64>() / trip_durations.len() as u64;
             if avg < 60 {
-                crate::notice_budget::push(&mut notices, k6_notice(
+                crate::notice_budget::push(notices, k6_notice(
                     ctr, "OPR_025", EntityType::Feed,
                     None, None, "stop_times.txt", None, None,
                     Some(format!("{avg}s")), Some("≥60s".to_string()),
@@ -9099,7 +9099,7 @@ fn check_vat_analytics(
             for (shape_id, route_set) in &shape_routes {
                 if route_set.len() > threshold && route_set.len() >= 3 {
                     let pct = route_set.len() as f64 / total_routes as f64 * 100.0;
-                    crate::notice_budget::push(&mut notices, k6_notice(
+                    crate::notice_budget::push(notices, k6_notice(
                         ctr, "VAT_008", EntityType::Shape,
                         Some((*shape_id).to_string()), None,
                         "trips.txt", None, None,

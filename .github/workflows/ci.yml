@@ -202,6 +202,13 @@ jobs:
         working-directory: sdk
         run: npm ci
 
+      # SDK release build'i wasm-opt'i doğrudan çağırır. wasm-pack kendi build'inde
+      # bunu sağlasa da SDK smoke job'ı ayrı bir runner'da çalışır; Binaryen'i burada
+      # açıkça kurmak, yerel makinedeki PATH'e bağlı sessiz farkı kaldırır.
+      - name: Binaryen (wasm-opt) kur
+        working-directory: sdk
+        run: npm install --no-save --ignore-scripts --package-lock=false binaryen@130.0.0
+
       - name: SDK smoke + paket dry-run
         working-directory: sdk
         run: npm run test:smoke && npm run package:check

@@ -125,7 +125,7 @@ fn build_location_groups(records: &EntityRecords, map: &mut EntityMap) {
 fn build_agencies(
     records: &EntityRecords,
     map: &mut EntityMap,
-    mut notices: &mut Vec<Notice>,
+    notices: &mut Vec<Notice>,
     ctr: &mut u32,
 ) {
     for (idx, rec) in records.agencies.iter().enumerate() {
@@ -135,7 +135,7 @@ fn build_agencies(
         };
         if let Some(&prev_idx) = map.agencies.get(aid.as_str()) {
             let prev_line = records.agencies[prev_idx].line;
-            crate::notice_budget::push(&mut notices, make_notice(
+            crate::notice_budget::push(notices, make_notice(
                 ctr,
                 "AGN_010",
                 EntityType::Agency,
@@ -161,7 +161,7 @@ fn build_agencies(
 fn build_stops(
     records: &EntityRecords,
     map: &mut EntityMap,
-    mut notices: &mut Vec<Notice>,
+    notices: &mut Vec<Notice>,
     ctr: &mut u32,
 ) {
     for (idx, rec) in records.stops.iter().enumerate() {
@@ -178,7 +178,7 @@ fn build_stops(
         }
         if let Some(&prev_idx) = map.stops.get(sid.as_str()) {
             let prev_line = records.stops[prev_idx].line;
-            crate::notice_budget::push(&mut notices, make_notice(
+            crate::notice_budget::push(notices, make_notice(
                 ctr,
                 "STP_001",
                 EntityType::Stop,
@@ -202,7 +202,7 @@ fn build_stops(
 fn build_routes(
     records: &EntityRecords,
     map: &mut EntityMap,
-    mut notices: &mut Vec<Notice>,
+    notices: &mut Vec<Notice>,
     ctr: &mut u32,
 ) {
     for (idx, rec) in records.routes.iter().enumerate() {
@@ -212,7 +212,7 @@ fn build_routes(
         }
         if let Some(&prev_idx) = map.routes.get(rid.as_str()) {
             let prev_line = records.routes[prev_idx].line;
-            crate::notice_budget::push(&mut notices, make_notice(
+            crate::notice_budget::push(notices, make_notice(
                 ctr,
                 "RTS_001",
                 EntityType::Route,
@@ -236,7 +236,7 @@ fn build_routes(
 fn build_trips(
     records: &EntityRecords,
     map: &mut EntityMap,
-    mut notices: &mut Vec<Notice>,
+    notices: &mut Vec<Notice>,
     ctr: &mut u32,
 ) {
     for (idx, rec) in records.trips.iter().enumerate() {
@@ -247,7 +247,7 @@ fn build_trips(
         if let Some(&prev_idx) = map.trips.get(tid.as_str()) {
             let prev_line = records.trips[prev_idx].line;
             let tid_s = tid.to_string();
-            crate::notice_budget::push(&mut notices, make_notice(
+            crate::notice_budget::push(notices, make_notice(
                 ctr,
                 "TRP_001",
                 EntityType::Trip,
@@ -271,7 +271,7 @@ fn build_trips(
 fn build_services(
     records: &EntityRecords,
     map: &mut EntityMap,
-    mut notices: &mut Vec<Notice>,
+    notices: &mut Vec<Notice>,
     ctr: &mut u32,
 ) {
     // CAL_001: service_id tekil (calendar.txt)
@@ -282,7 +282,7 @@ fn build_services(
             continue;
         }
         if let Some(&prev_line) = seen_cal.get(sid.as_str()) {
-            crate::notice_budget::push(&mut notices, make_notice(
+            crate::notice_budget::push(notices, make_notice(
                 ctr,
                 "CAL_001",
                 EntityType::Service,
@@ -332,7 +332,7 @@ fn build_shapes(records: &EntityRecords, map: &mut EntityMap) {
 fn build_pathways(
     records: &EntityRecords,
     map: &mut EntityMap,
-    mut notices: &mut Vec<Notice>,
+    notices: &mut Vec<Notice>,
     ctr: &mut u32,
 ) {
     for (idx, rec) in records.pathways.iter().enumerate() {
@@ -342,7 +342,7 @@ fn build_pathways(
         }
         if let Some(&prev_idx) = map.pathways.get(pid.as_str()) {
             let prev_line = records.pathways[prev_idx].line;
-            crate::notice_budget::push(&mut notices, make_notice(
+            crate::notice_budget::push(notices, make_notice(
                 ctr,
                 "PTH_001",
                 EntityType::Pathway,
@@ -366,7 +366,7 @@ fn build_pathways(
 fn build_levels(
     records: &EntityRecords,
     map: &mut EntityMap,
-    mut notices: &mut Vec<Notice>,
+    notices: &mut Vec<Notice>,
     ctr: &mut u32,
 ) {
     for (idx, rec) in records.levels.iter().enumerate() {
@@ -376,7 +376,7 @@ fn build_levels(
         }
         if let Some(&prev_idx) = map.levels.get(lid.as_str()) {
             let prev_line = records.levels[prev_idx].line;
-            crate::notice_budget::push(&mut notices, make_notice(
+            crate::notice_budget::push(notices, make_notice(
                 ctr,
                 "LVL_001",
                 EntityType::Level,
@@ -400,7 +400,7 @@ fn build_levels(
 fn build_fare_attrs(
     records: &EntityRecords,
     map: &mut EntityMap,
-    mut notices: &mut Vec<Notice>,
+    notices: &mut Vec<Notice>,
     ctr: &mut u32,
 ) {
     for (idx, rec) in records.fare_attributes.iter().enumerate() {
@@ -410,7 +410,7 @@ fn build_fare_attrs(
         }
         if let Some(&prev_idx) = map.fare_attrs.get(fid.as_str()) {
             let prev_line = records.fare_attributes[prev_idx].line;
-            crate::notice_budget::push(&mut notices, make_notice(
+            crate::notice_budget::push(notices, make_notice(
                 ctr,
                 "FAR_001",
                 EntityType::Fare,
@@ -434,7 +434,7 @@ fn build_fare_attrs(
 fn build_fares_v2(
     records: &EntityRecords,
     map: &mut EntityMap,
-    mut notices: &mut Vec<Notice>,
+    notices: &mut Vec<Notice>,
     ctr: &mut u32,
 ) {
     // ARS_001: area_id tekil
@@ -444,7 +444,7 @@ fn build_fares_v2(
         }
         if let Some(&prev_idx) = map.areas.get(rec.area_id.as_str()) {
             let prev_line = records.areas[prev_idx].line;
-            crate::notice_budget::push(&mut notices, make_notice(
+            crate::notice_budget::push(notices, make_notice(
                 ctr, "ARS_001", EntityType::Row,
                 Some(rec.area_id.clone()), Some(rec.area_id.clone()),
                 "areas.txt", rec.line, "area_id",
@@ -463,7 +463,7 @@ fn build_fares_v2(
             continue;
         }
         if map.network_ids.contains(rec.network_id.as_str()) {
-            crate::notice_budget::push(&mut notices, make_notice(
+            crate::notice_budget::push(notices, make_notice(
                 ctr, "NET_001", EntityType::Row,
                 Some(rec.network_id.clone()), Some(rec.network_id.clone()),
                 "networks.txt", rec.line, "network_id",
@@ -497,7 +497,7 @@ fn build_fares_v2(
             continue;
         }
         if map.rider_category_ids.contains(rec.rider_category_id.as_str()) {
-            crate::notice_budget::push(&mut notices, make_notice(
+            crate::notice_budget::push(notices, make_notice(
                 ctr, "RCT_001", EntityType::Row,
                 Some(rec.rider_category_id.clone()), Some(rec.rider_category_id.clone()),
                 "rider_categories.txt", rec.line, "rider_category_id",
@@ -517,7 +517,7 @@ fn build_fares_v2(
         }
         if let Some(&prev_idx) = map.fare_media_ids.get(rec.fare_media_id.as_str()) {
             let prev_line = records.fare_media[prev_idx].line;
-            crate::notice_budget::push(&mut notices, make_notice(
+            crate::notice_budget::push(notices, make_notice(
                 ctr, "FMD_001", EntityType::Row,
                 Some(rec.fare_media_id.clone()), Some(rec.fare_media_id.clone()),
                 "fare_media.txt", rec.line, "fare_media_id",
@@ -548,7 +548,7 @@ fn build_fares_v2(
             rec.fare_media_id.as_deref().unwrap_or(""),
         );
         if let Some(&prev_line) = seen_pk.get(&pk) {
-            crate::notice_budget::push(&mut notices, make_notice(
+            crate::notice_budget::push(notices, make_notice(
                 ctr, "FPD_001", EntityType::Row,
                 Some(rec.fare_product_id.clone()), Some(rec.fare_product_id.clone()),
                 "fare_products.txt", rec.line, "fare_product_id|rider_category_id|fare_media_id",

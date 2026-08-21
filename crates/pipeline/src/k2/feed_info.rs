@@ -235,7 +235,7 @@ pub fn validate_feed_info(file: &RawFile) -> (Vec<FeedInfoRecord>, Vec<gtfs_core
 
 fn parse_date_field(
     row_map: &RowMap,
-    mut notices: &mut Vec<gtfs_core::Notice>,
+    notices: &mut Vec<gtfs_core::Notice>,
     counter: &mut u32,
     rule_id: &str,
     field: &str,
@@ -245,7 +245,7 @@ fn parse_date_field(
     match parse_service_date(row_map, field) {
         Ok(value) => value,
         Err(err) => {
-            crate::notice_budget::push(&mut notices, make_k2_notice(
+            crate::notice_budget::push(notices, make_k2_notice(
                 counter,
                 rule_id,
                 EntityType::Feed,

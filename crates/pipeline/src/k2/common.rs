@@ -826,12 +826,12 @@ pub fn require_nonempty(
     line: u64,
     message: String,
     remediation: &'static str,
-    mut notices: &mut Vec<Notice>,
+    notices: &mut Vec<Notice>,
     counter: &mut u32,
 ) {
     // `None` = sütun başlıkta yok → ARC_025; `Some("")` = sütun var, değer boş → bu kural.
     if get_trimmed_field(row, field).is_some_and(str::is_empty) {
-        crate::notice_budget::push(&mut notices, make_k2_notice(
+        crate::notice_budget::push(notices, make_k2_notice(
             counter, rule_id, entity_type, entity_id, Some(row),
             file, Some(line), Some(field),
             Some(String::new()), Some("(dolu)".to_string()),

@@ -42,14 +42,14 @@ fn opt_int_checked(
     entity_id: Option<String>,
     file_name: &str,
     line: u64,
-    mut notices: &mut Vec<gtfs_core::Notice>,
+    notices: &mut Vec<gtfs_core::Notice>,
     ctr: &mut u32,
 ) -> Option<i64> {
     let raw = get_trimmed_field(row, field).filter(|v| !v.trim().is_empty())?;
     match raw.parse::<i64>() {
         Ok(v) => Some(v),
         Err(_) => {
-            crate::notice_budget::push(&mut notices, make_k2_notice(
+            crate::notice_budget::push(notices, make_k2_notice(
                 ctr, rule, EntityType::Row, entity_id, Some(row),
                 file_name, Some(line), Some(field),
                 Some(raw.to_string()), Some("tam sayı".to_string()),

@@ -2565,7 +2565,7 @@ pub fn validate_stop_times_with_limits(
 #[allow(clippy::too_many_arguments)]
 fn finalize_stm_pending(
     pending: &mut Vec<Notice>,
-    mut notices: &mut Vec<Notice>,
+    notices: &mut Vec<Notice>,
     counter: &mut u32,
     file_name: &str,
     rule_id: &str,
@@ -2596,7 +2596,7 @@ fn finalize_stm_pending(
             d.insert("example_trips".to_string(), examples.join(", "));
         }
         notice.details = Some(d);
-        crate::notice_budget::push(&mut notices, notice);
+        crate::notice_budget::push(notices, notice);
     } else {
         notices.append(pending);
     }
@@ -2607,7 +2607,7 @@ fn finalize_stm_pending(
 #[allow(clippy::too_many_arguments)]
 fn parse_pickup_dropoff_col(
     raw: &str,
-    mut notices: &mut Vec<gtfs_core::Notice>,
+    notices: &mut Vec<gtfs_core::Notice>,
     counter: &mut u32,
     rule_id: &str,
     field: &str,
@@ -2620,7 +2620,7 @@ fn parse_pickup_dropoff_col(
             if let Some(val) = v {
                 if val > 3 {
                     let entity_id = (!trip_id.is_empty()).then(|| trip_id.to_string());
-                    crate::notice_budget::push(&mut notices, make_k2_notice(
+                    crate::notice_budget::push(notices, make_k2_notice(
                         counter, rule_id, EntityType::Trip, entity_id,
                         None, file_name, Some(line), Some(field),
                         Some(val.to_string()), Some("0-3".to_string()),
@@ -2633,7 +2633,7 @@ fn parse_pickup_dropoff_col(
         }
         Err(err) => {
             let entity_id = (!trip_id.is_empty()).then(|| trip_id.to_string());
-            crate::notice_budget::push(&mut notices, make_k2_notice(
+            crate::notice_budget::push(notices, make_k2_notice(
                 counter, rule_id, EntityType::Trip, entity_id,
                 None, file_name, Some(line), Some(field),
                 Some(raw.to_string()), Some("0-3".to_string()), err,

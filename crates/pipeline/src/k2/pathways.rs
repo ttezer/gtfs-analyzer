@@ -331,7 +331,7 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
 #[allow(clippy::too_many_arguments)]
 fn parse_enum_u32(
     row_map: &RowMap,
-    mut notices: &mut Vec<gtfs_core::Notice>,
+    notices: &mut Vec<gtfs_core::Notice>,
     counter: &mut u32,
     rule_id: &str,
     field: &str,
@@ -346,7 +346,7 @@ fn parse_enum_u32(
                 if !validate_enum(&v.to_string(), allowed) {
                     let allowed_str = allowed.join(", ");
                     let remediation = format!("{field} için şu değerlerden birini kullanın: {allowed_str}.");
-                    crate::notice_budget::push(&mut notices, make_k2_notice(counter, rule_id, EntityType::Pathway, entity_id.clone(), Some(row_map), file_name, Some(line), Some(field), Some(v.to_string()), Some(allowed_str.clone()), format!("{field} geçerli bir değer değil."), &remediation));
+                    crate::notice_budget::push(notices, make_k2_notice(counter, rule_id, EntityType::Pathway, entity_id.clone(), Some(row_map), file_name, Some(line), Some(field), Some(v.to_string()), Some(allowed_str.clone()), format!("{field} geçerli bir değer değil."), &remediation));
                 }
             }
             value
@@ -354,7 +354,7 @@ fn parse_enum_u32(
         Err(err) => {
             let allowed_str = allowed.join(", ");
             let remediation = format!("{field} için şu değerlerden birini kullanın: {allowed_str}.");
-            crate::notice_budget::push(&mut notices, make_k2_notice(counter, rule_id, EntityType::Pathway, entity_id.clone(), Some(row_map), file_name, Some(line), Some(field), get_trimmed_field(row_map, field).map(str::to_string), Some(allowed_str.clone()), err, &remediation));
+            crate::notice_budget::push(notices, make_k2_notice(counter, rule_id, EntityType::Pathway, entity_id.clone(), Some(row_map), file_name, Some(line), Some(field), get_trimmed_field(row_map, field).map(str::to_string), Some(allowed_str.clone()), err, &remediation));
             None
         }
     }
@@ -365,7 +365,7 @@ fn parse_enum_u32(
 #[allow(clippy::too_many_arguments)]
 fn parse_nonnegative_f64(
     row_map: &RowMap,
-    mut notices: &mut Vec<gtfs_core::Notice>,
+    notices: &mut Vec<gtfs_core::Notice>,
     counter: &mut u32,
     rule_id: &str,
     field: &str,
@@ -377,13 +377,13 @@ fn parse_nonnegative_f64(
         Ok(value) => {
             if let Some(v) = value {
                 if v < 0.0 {
-                    crate::notice_budget::push(&mut notices, make_k2_notice(counter, rule_id, EntityType::Pathway, entity_id.clone(), Some(row_map), file_name, Some(line), Some(field), Some(v.to_string()), Some(">= 0".to_string()), format!("{field} alanı negatif olamaz."), "Alanı sıfır veya pozitif bir değere ayarlayın."));
+                    crate::notice_budget::push(notices, make_k2_notice(counter, rule_id, EntityType::Pathway, entity_id.clone(), Some(row_map), file_name, Some(line), Some(field), Some(v.to_string()), Some(">= 0".to_string()), format!("{field} alanı negatif olamaz."), "Alanı sıfır veya pozitif bir değere ayarlayın."));
                 }
             }
             value
         }
         Err(err) => {
-            crate::notice_budget::push(&mut notices, make_k2_notice(counter, rule_id, EntityType::Pathway, entity_id.clone(), Some(row_map), file_name, Some(line), Some(field), get_trimmed_field(row_map, field).map(str::to_string), None, err, "Alanı geçerli bir sayısal değere ayarlayın."));
+            crate::notice_budget::push(notices, make_k2_notice(counter, rule_id, EntityType::Pathway, entity_id.clone(), Some(row_map), file_name, Some(line), Some(field), get_trimmed_field(row_map, field).map(str::to_string), None, err, "Alanı geçerli bir sayısal değere ayarlayın."));
             None
         }
     }
@@ -394,7 +394,7 @@ fn parse_nonnegative_f64(
 #[allow(clippy::too_many_arguments)]
 fn parse_positive_f64(
     row_map: &RowMap,
-    mut notices: &mut Vec<gtfs_core::Notice>,
+    notices: &mut Vec<gtfs_core::Notice>,
     counter: &mut u32,
     rule_id: &str,
     field: &str,
@@ -406,13 +406,13 @@ fn parse_positive_f64(
         Ok(value) => {
             if let Some(v) = value {
                 if v <= 0.0 {
-                    crate::notice_budget::push(&mut notices, make_k2_notice(counter, rule_id, EntityType::Pathway, entity_id.clone(), Some(row_map), file_name, Some(line), Some(field), Some(v.to_string()), Some("> 0".to_string()), format!("{field} alanı pozitif olmalıdır."), "Alanı pozitif bir değere ayarlayın."));
+                    crate::notice_budget::push(notices, make_k2_notice(counter, rule_id, EntityType::Pathway, entity_id.clone(), Some(row_map), file_name, Some(line), Some(field), Some(v.to_string()), Some("> 0".to_string()), format!("{field} alanı pozitif olmalıdır."), "Alanı pozitif bir değere ayarlayın."));
                 }
             }
             value
         }
         Err(err) => {
-            crate::notice_budget::push(&mut notices, make_k2_notice(counter, rule_id, EntityType::Pathway, entity_id.clone(), Some(row_map), file_name, Some(line), Some(field), get_trimmed_field(row_map, field).map(str::to_string), None, err, "Alanı geçerli bir sayısal değere ayarlayın."));
+            crate::notice_budget::push(notices, make_k2_notice(counter, rule_id, EntityType::Pathway, entity_id.clone(), Some(row_map), file_name, Some(line), Some(field), get_trimmed_field(row_map, field).map(str::to_string), None, err, "Alanı geçerli bir sayısal değere ayarlayın."));
             None
         }
     }
@@ -423,7 +423,7 @@ fn parse_positive_f64(
 #[allow(clippy::too_many_arguments)]
 fn parse_positive_u32(
     row_map: &RowMap,
-    mut notices: &mut Vec<gtfs_core::Notice>,
+    notices: &mut Vec<gtfs_core::Notice>,
     counter: &mut u32,
     rule_id: &str,
     field: &str,
@@ -435,13 +435,13 @@ fn parse_positive_u32(
         Ok(value) => {
             if let Some(v) = value {
                 if v == 0 {
-                    crate::notice_budget::push(&mut notices, make_k2_notice(counter, rule_id, EntityType::Pathway, entity_id.clone(), Some(row_map), file_name, Some(line), Some(field), Some(v.to_string()), Some("> 0".to_string()), format!("{field} alanı pozitif olmalıdır."), "Alanı pozitif bir tam sayıya ayarlayın."));
+                    crate::notice_budget::push(notices, make_k2_notice(counter, rule_id, EntityType::Pathway, entity_id.clone(), Some(row_map), file_name, Some(line), Some(field), Some(v.to_string()), Some("> 0".to_string()), format!("{field} alanı pozitif olmalıdır."), "Alanı pozitif bir tam sayıya ayarlayın."));
                 }
             }
             value
         }
         Err(err) => {
-            crate::notice_budget::push(&mut notices, make_k2_notice(counter, rule_id, EntityType::Pathway, entity_id.clone(), Some(row_map), file_name, Some(line), Some(field), get_trimmed_field(row_map, field).map(str::to_string), None, err, "Alanı geçerli bir tam sayıya ayarlayın."));
+            crate::notice_budget::push(notices, make_k2_notice(counter, rule_id, EntityType::Pathway, entity_id.clone(), Some(row_map), file_name, Some(line), Some(field), get_trimmed_field(row_map, field).map(str::to_string), None, err, "Alanı geçerli bir tam sayıya ayarlayın."));
             None
         }
     }

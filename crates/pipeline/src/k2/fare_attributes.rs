@@ -158,7 +158,7 @@ pub fn validate_fare_attributes(
 #[allow(clippy::too_many_arguments)]
 fn parse_enum_u32(
     row_map: &RowMap,
-    mut notices: &mut Vec<gtfs_core::Notice>,
+    notices: &mut Vec<gtfs_core::Notice>,
     counter: &mut u32,
     rule_id: &str,
     field: &str,
@@ -171,13 +171,13 @@ fn parse_enum_u32(
         Ok(value) => {
             if let Some(v) = value {
                 if !validate_enum(&v.to_string(), allowed) {
-                    crate::notice_budget::push(&mut notices, make_k2_notice(counter, rule_id, EntityType::Fare, entity_id.clone(), Some(row_map), file_name, Some(line), Some(field), Some(v.to_string()), None, format!("{field} alanı geçerli bir enum değeri değil."), "Alanı geçerli bir spec enum değerine ayarlayın."));
+                    crate::notice_budget::push(notices, make_k2_notice(counter, rule_id, EntityType::Fare, entity_id.clone(), Some(row_map), file_name, Some(line), Some(field), Some(v.to_string()), None, format!("{field} alanı geçerli bir enum değeri değil."), "Alanı geçerli bir spec enum değerine ayarlayın."));
                 }
             }
             value
         }
         Err(err) => {
-            crate::notice_budget::push(&mut notices, make_k2_notice(counter, rule_id, EntityType::Fare, entity_id.clone(), Some(row_map), file_name, Some(line), Some(field), get_trimmed_field(row_map, field).map(str::to_string), None, err, "Alanı geçerli bir spec enum değerine ayarlayın."));
+            crate::notice_budget::push(notices, make_k2_notice(counter, rule_id, EntityType::Fare, entity_id.clone(), Some(row_map), file_name, Some(line), Some(field), get_trimmed_field(row_map, field).map(str::to_string), None, err, "Alanı geçerli bir spec enum değerine ayarlayın."));
             None
         }
     }

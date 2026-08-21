@@ -540,7 +540,7 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
 #[allow(clippy::too_many_arguments)]
 fn parse_continuous_field(
     row_map: &RowMap,
-    mut notices: &mut Vec<gtfs_core::Notice>,
+    notices: &mut Vec<gtfs_core::Notice>,
     counter: &mut u32,
     rule_id: &str,
     field: &str,
@@ -552,7 +552,7 @@ fn parse_continuous_field(
         Ok(v) => {
             if let Some(val) = v {
                 if !matches!(val, 0..=3) {
-                    crate::notice_budget::push(&mut notices, make_k2_notice(
+                    crate::notice_budget::push(notices, make_k2_notice(
                         counter, rule_id, EntityType::Route, entity_id.clone(), Some(row_map),
                         file_name, Some(line), Some(field), Some(val.to_string()),
                         Some("0-3".to_string()),

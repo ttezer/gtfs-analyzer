@@ -1461,23 +1461,35 @@ pub fn parse_with_limits(
                 let mut chunk = [0u8; 64 * 1024];
                 let mut malformed_eol = false;
                 let mut previous_was_cr = false;
+                let mut scanned = 0usize;
+                let mut reached_eof = false;
+                // K1 needs only a small sample for schema/encoding checks, but it must
+                // still give GuardedReader enough input to detect a compression bomb.
+                // Probe up to the ratio floor, then leave the bounded full pass to K2.
+                // This avoids decompressing multi-gigabyte stream entries twice while
+                // preserving ARC_029 for highly-compressible payloads.
+                let probe_limit = usize::try_from(entry_limits.ratio_floor)
+                    .unwrap_or(usize::MAX)
+                    .saturating_add(1)
+                    .max(8192);
                 loop {
-                    // K1 only needs the header/sample for streamed files; K2 owns
-                    // the bounded full pass. Stopping here avoids decompressing a
-                    // multi-gigabyte entry twice before K2 starts.
-                    if raw_vec.len() >= 8192 { break; }
                     let n = match guarded.read(&mut chunk) {
                         Ok(n) => n,
                         Err(e) => return Err(read_fatal(&guarded, &raw_name, &e)),
                     };
-                    if n == 0 { break; }
+                    if n == 0 {
+                        reached_eof = true;
+                        break;
+                    }
+                    scanned = scanned.saturating_add(n);
                     if previous_was_cr && chunk[0] != b'\n' { malformed_eol = true; }
                     malformed_eol |= chunk[..n].windows(2).any(|p| p[0] == b'\r' && p[1] != b'\n');
                     previous_was_cr = chunk[n - 1] == b'\r';
                     let keep = (8192usize.saturating_sub(raw_vec.len())).min(n);
                     raw_vec.extend_from_slice(&chunk[..keep]);
+                    if scanned >= probe_limit { break; }
                 }
-                malformed_eol |= previous_was_cr;
+                if reached_eof { malformed_eol |= previous_was_cr; }
                 if malformed_eol { crate::notice_budget::push(&mut notices, make_notice(&mut counter, "ARC_026", EntityType::File, Some(raw_name.clone()), Some(&raw_name), None, None, Some("CR not followed by LF".to_string()), format!("'{raw_name}' CRLF veya LF dışında satır sonu içeriyor."), "Satır sonlarını LF ya da CRLF olarak yeniden yazın.")); }
                 // 8192'lik kesme çok baytlı bir UTF-8 karakterini ortadan bölebilir.
                 // Kırpılmazsa aşağıdaki from_utf8 GEÇERLİ dosyayı bozuk sanar ve
@@ -2030,7 +2042,7 @@ pub fn parse_with_limits(
 fn validate_locations_geojson(
     bytes: &[u8],
     fname: &str,
-    mut notices: &mut Vec<Notice>,
+    notices: &mut Vec<Notice>,
     counter: &mut u32,
     geojson_ids: &mut std::collections::HashSet<String>,
     geoms: &mut std::collections::HashMap<String, LocationGeometry>,
@@ -2039,7 +2051,7 @@ fn validate_locations_geojson(
     let text = match std::str::from_utf8(bytes) {
         Ok(s) => s,
         Err(_) => {
-            crate::notice_budget::push(&mut notices, make_notice(
+            crate::notice_budget::push(notices, make_notice(
                 counter, "ARC_002", EntityType::File, Some(fname.to_string()),
                 Some(fname), None, None, None,
                 format!("'{fname}' UTF-8 kodlamasıyla okunamıyor."),
@@ -2052,7 +2064,7 @@ fn validate_locations_geojson(
     let json: serde_json::Value = match serde_json::from_str(text) {
         Ok(v) => v,
         Err(e) => {
-            crate::notice_budget::push(&mut notices, make_notice(
+            crate::notice_budget::push(notices, make_notice(
                 counter, "LOC_001", EntityType::File, Some(fname.to_string()),
                 Some(fname), None, None, Some(format!("JSON hatası: {e}")),
                 format!("'{fname}' geçerli bir GeoJSON belgesi değil: {e}"),
@@ -2064,7 +2076,7 @@ fn validate_locations_geojson(
 
     let root_type = json.get("type").and_then(|t| t.as_str());
     if root_type != Some("FeatureCollection") {
-        crate::notice_budget::push(&mut notices, make_notice(
+        crate::notice_budget::push(notices, make_notice(
             counter, "LOC_001", EntityType::File, Some(fname.to_string()),
             Some(fname), None, Some("type"), root_type.map(str::to_string),
             format!("'{fname}' kök tipi 'FeatureCollection' olmalıdır; bulundu: '{}'.", root_type.unwrap_or("yok")),
@@ -2074,7 +2086,7 @@ fn validate_locations_geojson(
     }
 
     let Some(features) = json.get("features").and_then(|f| f.as_array()) else {
-        crate::notice_budget::push(&mut notices, make_notice(
+        crate::notice_budget::push(notices, make_notice(
             counter, "LOC_001", EntityType::File, Some(fname.to_string()),
             Some(fname), None, Some("features"), None,
             format!("'{fname}' için 'features' dizisi eksik veya geçersiz."),
@@ -2084,7 +2096,7 @@ fn validate_locations_geojson(
     };
 
     if features.len() > MAX_GEOJSON_FEATURES {
-        crate::notice_budget::push(&mut notices, make_notice(
+        crate::notice_budget::push(notices, make_notice(
             counter, "LOC_001", EntityType::File, Some(fname.to_string()),
             Some(fname), None, Some("features"), Some(features.len().to_string()),
             format!("'{fname}' güvenlik sınırı olan {MAX_GEOJSON_FEATURES} feature sayısını aşıyor."),
@@ -2095,7 +2107,7 @@ fn validate_locations_geojson(
 
     // LOC_005: FeatureCollection boş
     if features.is_empty() {
-        crate::notice_budget::push(&mut notices, make_notice(
+        crate::notice_budget::push(notices, make_notice(
             counter, "LOC_005", EntityType::File, Some(fname.to_string()),
             Some(fname), None, Some("features"), None,
             format!("'{fname}' FeatureCollection'ı boş — hiç feature yok."),
@@ -2113,7 +2125,7 @@ fn validate_locations_geojson(
                 // XFL_025: stop_times.location_id ham CSV değeriyle eşleşmesi için tırnaksız ham id.
                 geojson_ids.insert(id_val.as_str().map(str::to_string).unwrap_or_else(|| id_str.clone()));
                 if let Some(first_idx) = seen_ids.get(&id_str) {
-                    crate::notice_budget::push(&mut notices, make_notice(
+                    crate::notice_budget::push(notices, make_notice(
                         counter, "LOC_007", EntityType::File, Some(fname.to_string()),
                         Some(fname), Some((i + 1) as u64), Some("id"), Some(id_str.clone()),
                         format!("'{fname}' özellik {} ve {} aynı 'id' değerine sahip ({id_str}) — GTFS Flex referansı belirsizleşir.", first_idx + 1, i + 1),
@@ -2134,7 +2146,7 @@ fn validate_locations_geojson(
         match feature.get("type").and_then(|v| v.as_str()) {
             Some("Feature") => {}
             other => {
-                crate::notice_budget::push(&mut notices, make_notice(
+                crate::notice_budget::push(notices, make_notice(
                     counter, "LOC_008", EntityType::File, Some(fname.to_string()),
                     Some(fname), Some(feat_num), Some("type"),
                     other.map(str::to_string),
@@ -2147,7 +2159,7 @@ fn validate_locations_geojson(
         // LOC_009: "properties" nesnesi Required (spec tablosu). Boş nesne GEÇERLİDİR —
         // stop_name/stop_desc opsiyoneldir; eksik ya da nesne-olmayan değer ihlaldir.
         if !feature.get("properties").is_some_and(|v| v.is_object()) {
-            crate::notice_budget::push(&mut notices, make_notice(
+            crate::notice_budget::push(notices, make_notice(
                 counter, "LOC_009", EntityType::File, Some(fname.to_string()),
                 Some(fname), Some(feat_num), Some("properties"), None,
                 format!("'{fname}' özellik {feat_num} için 'properties' nesnesi eksik."),
@@ -2157,7 +2169,7 @@ fn validate_locations_geojson(
 
         // LOC_003: Feature'da 'id' property eksik
         if feature.get("id").is_none() {
-            crate::notice_budget::push(&mut notices, make_notice(
+            crate::notice_budget::push(notices, make_notice(
                 counter, "LOC_003", EntityType::File, Some(fname.to_string()),
                 Some(fname), Some(feat_num), Some("id"), None,
                 format!("'{fname}' özellik {feat_num} için 'id' property eksik — stop_times çapraz referansı için zorunlu."),
@@ -2178,7 +2190,7 @@ fn validate_locations_geojson(
 
         // LOC_002: Feature'da geometry null veya eksik
         if geometry.is_none_or(|g| g.is_null()) {
-            crate::notice_budget::push(&mut notices, make_notice(
+            crate::notice_budget::push(notices, make_notice(
                 counter, "LOC_002", EntityType::File, Some(fname.to_string()),
                 Some(fname), Some(feat_num), Some("geometry"), None,
                 format!("'{fname}' özellik {feat_num} için geometry null veya eksik — GTFS Flex gerektiriyor."),
@@ -2211,7 +2223,7 @@ fn validate_locations_geojson(
                 }
             }
             Some(t) => {
-                crate::notice_budget::push(&mut notices, make_notice(
+                crate::notice_budget::push(notices, make_notice(
                     counter, "LOC_001", EntityType::File, Some(fname.to_string()),
                     Some(fname), Some(feat_num), Some("geometry.type"), Some(t.to_string()),
                     format!("'{fname}' özellik {feat_num} geçersiz geometri tipi: '{t}'. GTFS Flex yalnızca Polygon ve MultiPolygon destekler."),
@@ -2219,7 +2231,7 @@ fn validate_locations_geojson(
                 ));
             }
             None => {
-                crate::notice_budget::push(&mut notices, make_notice(
+                crate::notice_budget::push(notices, make_notice(
                     counter, "LOC_001", EntityType::File, Some(fname.to_string()),
                     Some(fname), Some(feat_num), Some("geometry.type"), None,
                     format!("'{fname}' özellik {feat_num} için geometri tipi eksik."),
@@ -2245,8 +2257,8 @@ fn validate_locations_geojson(
 /// Polygon ring'leri için LOC_004 (kapalı değil) ve LOC_006 (alan > 500km²) kontrolü.
 /// LOC_010: geometry.coordinates eksik veya dizi değil. Spec bu alanı Required işaretler;
 /// eksikliğinde bölge geometrisi hiç çözümlenemez, dolayısıyla KRİTİK.
-fn missing_coordinates(counter: &mut u32, fname: &str, feat_num: u64, mut notices: &mut Vec<Notice>) {
-    crate::notice_budget::push(&mut notices, make_notice(
+fn missing_coordinates(counter: &mut u32, fname: &str, feat_num: u64, notices: &mut Vec<Notice>) {
+    crate::notice_budget::push(notices, make_notice(
         counter, "LOC_010", EntityType::File, Some(fname.to_string()),
         Some(fname), Some(feat_num), Some("coordinates"), None,
         format!("'{fname}' özellik {feat_num} için geometry 'coordinates' eksik veya dizi değil."),
@@ -2259,7 +2271,7 @@ fn check_polygon_rings(
     fname: &str,
     feat_num: u64,
     rings: &[serde_json::Value],
-    mut notices: &mut Vec<Notice>,
+    notices: &mut Vec<Notice>,
     total_points: &mut usize,
     // Pa1fdaa0d: dış ring K6'ya taşınır. `None` verilirse geometri toplanmaz
     // (yalnız doğrulama yapılır) — testler ve eski çağrı yolları için.
@@ -2272,7 +2284,7 @@ fn check_polygon_rings(
         || rings.iter().filter_map(|r| r.as_array()).any(|pts| pts.len() > MAX_GEOJSON_RING_POINTS)
         || total_points.saturating_add(point_count) > MAX_GEOJSON_TOTAL_POINTS
     {
-        crate::notice_budget::push(&mut notices, make_notice(
+        crate::notice_budget::push(notices, make_notice(
             counter, "LOC_011", EntityType::File, Some(fname.to_string()),
             Some(fname), Some(feat_num), Some("coordinates"), Some(point_count.to_string()),
             format!("'{fname}' özellik {feat_num} geometrisi GeoJSON güvenlik bütçesini aşıyor; pahalı geometri denetimi atlandı."),
@@ -2303,7 +2315,7 @@ fn check_polygon_rings(
             let last_lat  = last.get(1).and_then(|v| v.as_f64());
             if let (Some(fl), Some(fa), Some(ll), Some(la)) = (first_lon, first_lat, last_lon, last_lat) {
                 if (fl - ll).abs() > 1e-8 || (fa - la).abs() > 1e-8 {
-                    crate::notice_budget::push(&mut notices, make_notice(
+                    crate::notice_budget::push(notices, make_notice(
                         counter, "LOC_004", EntityType::File, Some(fname.to_string()),
                         Some(fname), Some(feat_num), Some("coordinates"), None,
                         format!("'{fname}' özellik {feat_num} Polygon ring'i kapalı değil — ilk nokta [{fl},{fa}] son nokta [{ll},{la}] ile eşleşmiyor."),
@@ -2388,7 +2400,7 @@ fn check_polygon_rings(
             bad = interior_disconnection(&all_rings);
         }
         if let Some(why) = bad {
-            crate::notice_budget::push(&mut notices, make_notice(
+            crate::notice_budget::push(notices, make_notice(
                 counter, "LOC_011", EntityType::File, Some(fname.to_string()),
                 Some(fname), Some(feat_num), Some("coordinates"), Some(why.clone()),
                 format!("'{fname}' özellik {feat_num} poligonu OpenGIS Simple Features 6.1.11'e göre geçersiz: {why}."),
@@ -2409,7 +2421,7 @@ fn check_polygon_rings(
         let holes: f64 = ring_areas[1..].iter().map(|a| a.abs()).sum();
         let area_km2 = (outer - holes).max(0.0);
         if area_km2 > 500.0 {
-            crate::notice_budget::push(&mut notices, make_notice(
+            crate::notice_budget::push(notices, make_notice(
                 counter, "LOC_006", EntityType::File, Some(fname.to_string()),
                 Some(fname), Some(feat_num), Some("coordinates"), Some(format!("{area_km2:.0}km²")),
                 format!("'{fname}' özellik {feat_num} Polygon alanı çok büyük (~{area_km2:.0}km²) — GTFS Flex bölgesi için gerçekçi değil."),

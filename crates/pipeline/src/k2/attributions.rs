@@ -166,7 +166,7 @@ pub fn validate_attributions(
 #[allow(clippy::too_many_arguments)]
 fn parse_role_enum(
     row_map: &RowMap,
-    mut notices: &mut Vec<gtfs_core::Notice>,
+    notices: &mut Vec<gtfs_core::Notice>,
     counter: &mut u32,
     rule_id: &str,
     field: &str,
@@ -178,7 +178,7 @@ fn parse_role_enum(
         Ok(value) => {
             if let Some(v) = value {
                 if !validate_enum(&v.to_string(), &["0", "1"]) {
-                    crate::notice_budget::push(&mut notices, make_k2_notice(
+                    crate::notice_budget::push(notices, make_k2_notice(
                         counter,
                         rule_id,
                         EntityType::Attribution,
@@ -197,7 +197,7 @@ fn parse_role_enum(
             value
         }
         Err(err) => {
-            crate::notice_budget::push(&mut notices, make_k2_notice(
+            crate::notice_budget::push(notices, make_k2_notice(
                 counter,
                 rule_id,
                 EntityType::Attribution,
