@@ -385,7 +385,7 @@ gtfs-analyzer rules --rule STM_004 --json --pretty
 各ルールは4つのクラスのいずれかに分類されます。クラスは検出結果の**権威ソース**（正当性の根拠）を反映し、ユーザーはその検出が本当の GTFS Spec 違反なのか、相互運用性・品質・分析シグナルなのかを一目で判断できます:
 
 - **Spec** — 公式の **GTFS Schedule Reference** が明示的に必須・禁止・無効と定めるケースのみ（required / conditionally required / conditionally forbidden フィールド、enum 値、外部キー、一意性、フォーマット制約）。他のソースは `Spec` を生成しません。
-- **Interop** — MobilityData、GTFS Guru、Google Transit、または地域プロファイル（例: GTFS-JP）などの消費者/バリデータ挙動との互換性シグナル。
+- **Interop** — MobilityData、Google Transit、または地域プロファイル（例: GTFS-JP）などの消費者/バリデータ挙動との互換性シグナル。
 - **Quality** — GTFS ベストプラクティス、データ品質、可読性、一貫性、制作品質のチェック。
 - **Analytics** — 統計的・運用的・パフォーマンス・分析目的のシグナル。
 

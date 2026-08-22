@@ -69,7 +69,7 @@ Varsa `blocks` ilişkileri.
 ### Dış araç eşleşmesi
 <!-- Makine-okunur özet (Sapma Defteri bu satırdan üretilir). Tür: MD-parite | proje-özel | spec-sürüm | eşik | severity | İNCELE -->
 - **Eşleşme:** `md_notice_adı` veya — · **Tür:** MD-parite · **Bilinçli:** — (gerekçe / parite-test, belirlenince doldur)
-Varsa MobilityData veya GTFS Guru tarafında yer alan tarih damgalı, doğrulanmış eşleşme (uzun açıklama, prose).
+Varsa MobilityData tarafında yer alan tarih damgalı, doğrulanmış eşleşme (uzun açıklama, prose).
 
 ### GTFS spec referansı
 Varsa ilgili GTFS spec maddesi ve kaynak linki

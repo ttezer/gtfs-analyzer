@@ -384,7 +384,7 @@ Validation thresholds can be customized from the **Analysis Thresholds** section
 Every rule falls into one of four classes. The class reflects the finding's **authority source** (its basis of legitimacy), so a user can tell at a glance whether a finding is a real GTFS Spec violation or an interoperability/quality/analytics signal:
 
 - **Spec** — only cases that the official **GTFS Schedule Reference** explicitly requires, forbids, or renders invalid (required / conditionally required / conditionally forbidden fields, enum values, foreign keys, uniqueness, format constraints). No other source produces `Spec`.
-- **Interop** — compatibility signals with consumer/validator behavior such as MobilityData, GTFS Guru, Google Transit, or a regional profile (e.g., GTFS-JP).
+- **Interop** — compatibility signals with consumer/validator behavior such as MobilityData, Google Transit, or a regional profile (e.g., GTFS-JP).
 - **Quality** — GTFS best-practice, data quality, readability, consistency, and production-quality checks.
 - **Analytics** — statistical, operational, performance, or analysis-oriented signals.
 
