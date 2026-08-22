@@ -4,8 +4,8 @@
 
 [![Uygulamayı Aç](https://img.shields.io/badge/Uygulamay%C4%B1%20A%C3%A7-gtfs--analyzer-2ea44f?style=flat&logo=googlechrome&logoColor=white)](https://ttezer.github.io/gtfs-analyzer/)
 [![GTFS-JP](https://img.shields.io/badge/GTFS--JP-destekli-c8102e?style=flat)](https://www.gtfs.jp/)
-[![GTFS Spec kapsamı](https://img.shields.io/badge/GTFS%20Spec-97.2%25-007ec6?style=flat)](spec-audit/EVIDENCE_BASE.md)
 [![Kural sayısı](https://img.shields.io/badge/kural-600-blue?style=flat)](RULES.md)
+![GTFS Spec kapsamı](https://img.shields.io/badge/GTFS%20Spec-97.2%25-007ec6?style=flat)
 [![Korpus doğrulaması](https://img.shields.io/badge/korpus-4318%20feed%20%C3%97%2012%20ko%C5%9Fum-brightgreen?style=flat)](audit-results/)
 [![crates.io](https://img.shields.io/crates/v/gtfs-analyzer?style=flat&label=crates.io)](https://crates.io/crates/gtfs-analyzer)
 [![npm](https://img.shields.io/npm/v/gtfs-sdk?style=flat&label=npm)](https://www.npmjs.com/package/gtfs-sdk)
@@ -13,7 +13,7 @@
 
 **GTFS Validator & Analyzer**, GTFS dosyalarını doğrudan tarayıcıda doğrulayan açık kaynak bir **GTFS validator** ve feed kalite analiz aracıdır. Yüklenen `.zip` hiçbir sunucuya gönderilmez; doğrulama tamamen **WebAssembly** ile kullanıcının cihazında çalışır. Tarayıcı, **CLI**, **CI/CD** ve **gtfs-sdk npm paketi** olmak üzere dört yoldan kullanılabilir.
 
-**600 doğrulama kuralı** ile GTFS spesifikasyonunun ölçülebilir hükümlerinin **%97,2'sini** karşılar ve alan tablosunun **300 atomunun 300'ünde** en az bir Spec çapası taşır. Bu oranlar iddia değil ölçümdür: kanıt tabanı ve türetme yöntemi [`spec-audit/EVIDENCE_BASE.md`](spec-audit/EVIDENCE_BASE.md) altında açıktır.
+**600 doğrulama kuralı** ile GTFS spesifikasyonunun ölçülebilir hükümlerinin **%97,2'sini** karşılar ve alan tablosunun **300 atomunun 300'ünde** en az bir Spec çapası taşır. Bu kuralların **417'si** son tam katalog koşumunda en az bir bulgu üretti. Kuralların tamamı [`RULES.md`](RULES.md) altında listelidir.
 
 Doğruluk iddiası, MobilityData'nın resmî `gtfs-validator` aracına karşı **on iki tam katalog koşumuyla** sınanmıştır: her koşumda MobilityDatabase kataloğunun test edilebilir her GTFS Schedule feed'i — son koşumda **4.318** —, iki validatörle **aynı makinede, aynı gün** doğrulanır — MobilityData tarafında gerçek **Java** `gtfs-validator v8.0.1` çalıştırılır, rapor karşılaştırması yapılmaz. Ham sonuçların tamamı depoda: [`audit-results/`](audit-results/).
 
@@ -36,27 +36,26 @@ GTFS Validator & Analyzer, spesifikasyon doğrulamasını operasyonel kalite ana
 
 ### Özellikler
 
-| Özellik | MobilityData | GTFS Guru | GTFS Analyzer |
-|---|:---:|:---:|:---:|
-| Web arayüzü | ✅ | ✅ | ✅ |
-| Veri sunucuya gitmiyor | ❌ | ✅ | ✅ |
-| Spec uyum kuralları | ✅ | ✅ | ✅ |
-| Kalite kuralları | ❌ | ❌ | ✅ |
-| Operasyonel analitik | ❌ | ❌ | ✅ |
-| Harita görselleştirme | ❌ | ❌ | Durak, güzergah, sefer, hat, pathway |
-| Feed skoru | ❌ | ❌ | ✅ |
-| Düzeltme önerisi | Kısmi | ❌ | ✅ |
-| GTFS Flex desteği | Kısmi | ❌ | ✅ |
-| Fares v2 doğrulama | Kısmi | ❌ | ✅ |
-| GTFS-JP profil doğrulama | ❌ | ❌ | ✅ |
-| Çıktı formatı | HTML, JSON | HTML, JSON | HTML, CSV, JSON, PDF |
-| Platform | Web | Web, CLI, Desktop | Web, CLI *(Desktop planlanmış)* |
-| CI/CD entegrasyonu | ❌ | ❌ | ✅ `--fail-on` + exit kodu |
-| `gtfs-sdk` npm paketi | ❌ | ❌ | ✅ |
-| crates.io paketi (`cargo install`) | ❌ | ❌ | ✅ |
-| GTFS Spec kapsamı (ölçülmüş) | — | — | **%97,2** · 300/300 alan çapası |
-| Korpus doğrulaması | — | — | **4.318 feed × 12 koşum** |
-| **Toplam kural** | **178** | **~120** | **600** |
+| Özellik | MobilityData | GTFS Analyzer |
+|---|:---:|:---:|
+| Web arayüzü | ✅ | ✅ |
+| Veri sunucuya gitmiyor | ❌ | ✅ |
+| Spec uyum kuralları | ✅ | ✅ |
+| Kalite kuralları | ❌ | ✅ |
+| Operasyonel analitik | ❌ | ✅ |
+| Harita görselleştirme | ❌ | Durak, güzergah, sefer, hat, pathway |
+| Feed skoru | ❌ | ✅ |
+| Düzeltme önerisi | Kısmi | ✅ |
+| GTFS Flex desteği | Kısmi | ✅ |
+| Fares v2 doğrulama | Kısmi | ✅ |
+| GTFS-JP profil doğrulama | ❌ | ✅ |
+| Çıktı formatı | HTML, JSON | HTML, CSV, JSON, PDF |
+| Dağıtım | Web · masaüstü kurulum (msi/dmg/deb) · CLI JAR · Docker | Web · CLI binary · `cargo install` · npm SDK |
+| Belgelenmiş CI/CD entegrasyonu | README'de tarif yok (Docker/CLI ile mümkün) | ✅ `--fail-on` + exit kodu |
+| npm paketi | ❌ | ✅ `gtfs-sdk` |
+| crates.io paketi | — *(Java projesi)* | ✅ `gtfs-analyzer` |
+| GTFS Spec kapsamı (ölçülmüş) | — | **%97,2** · 300/300 alan çapası |
+| **Toplam kural** | **178** | **600** |
 
 ### Korpus Doğrulaması — 4.318 feed, on iki koşum
 
@@ -227,16 +226,17 @@ Arayüzde performans için sınırlandırılmış bulgu örnekleri bulunsa bile 
 
 ---
 
-## Dört Kullanım Yolu
+## Beş Kullanım Yolu
 
-Aynı doğrulama çekirdeği (`gtfs_pipeline::validate_bytes`) dört şekilde çalışır — hepsi aynı 600 kuralı, aynı sonucu üretir:
+Aynı doğrulama çekirdeği (`gtfs_pipeline::validate_bytes`) beş şekilde çalışır — hepsi aynı 600 kuralı, aynı sonucu üretir:
 
 | yol | ne için | veri nereye gider |
 |---|---|---|
 | **Tarayıcı** ([uygulama](https://ttezer.github.io/gtfs-analyzer/)) | tek feed'i açıp haritayla incelemek | **hiçbir yere** — WebAssembly ile cihazda |
-| **CLI** (`gtfs-analyzer`) | toplu doğrulama, betikleme, Python entegrasyonu | hiçbir yere — yerel binary |
+| **CLI** (`cargo install gtfs-analyzer` ya da hazır binary) | toplu doğrulama, betikleme, Python entegrasyonu | hiçbir yere — yerel binary |
+| **Rust kütüphanesi** ([`gtfs-pipeline`](https://crates.io/crates/gtfs-pipeline)) | doğrulamayı kendi Rust servisinize gömmek | hiçbir yere — kendi süreciniz |
 | **CI/CD** (exit kodu + `--fail-on`) | feed yayına çıkmadan önce pipeline kapısı | hiçbir yere — kendi runner'ınız |
-| **gtfs-sdk npm paketi** | kendi web veya Node uygulamanıza gömmek | hiçbir yere — yerel WASM |
+| **[`gtfs-sdk`](https://www.npmjs.com/package/gtfs-sdk) npm paketi** | kendi web veya Node uygulamanıza gömmek | hiçbir yere — yerel WASM |
 
 Hiçbirinde feed sunucuya yüklenmez. Bu, barındırılan doğrulayıcılardan temel farktır: ticari sözleşme gereği dışarı çıkamayan veriyi de doğrulayabilirsiniz.
 

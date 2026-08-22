@@ -4,8 +4,8 @@
 
 [![Open App](https://img.shields.io/badge/Open%20App-gtfs--analyzer-2ea44f?style=flat&logo=googlechrome&logoColor=white)](https://ttezer.github.io/gtfs-analyzer/)
 [![GTFS-JP](https://img.shields.io/badge/GTFS--JP-supported-c8102e?style=flat)](https://www.gtfs.jp/)
-[![GTFS Spec coverage](https://img.shields.io/badge/GTFS%20Spec-97.2%25-007ec6?style=flat)](spec-audit/EVIDENCE_BASE.md)
 [![Rule count](https://img.shields.io/badge/rules-600-blue?style=flat)](RULES.en.md)
+![GTFS Spec coverage](https://img.shields.io/badge/GTFS%20Spec-97.2%25-007ec6?style=flat)
 [![Corpus validation](https://img.shields.io/badge/corpus-4%2C318%20feeds%20%C3%97%2012%20runs-brightgreen?style=flat)](audit-results/)
 [![crates.io](https://img.shields.io/crates/v/gtfs-analyzer?style=flat&label=crates.io)](https://crates.io/crates/gtfs-analyzer)
 [![npm](https://img.shields.io/npm/v/gtfs-sdk?style=flat&label=npm)](https://www.npmjs.com/package/gtfs-sdk)
@@ -13,7 +13,7 @@
 
 GTFS Validator & Analyzer is an open-source GTFS validator and feed quality analyzer. The uploaded `.zip` file is never sent to any server; all validation runs on the user's device via WebAssembly. It is available as a browser application, CLI, CI/CD gate, and `gtfs-sdk` npm package.
 
-The project covers **97.2% of the measurable GTFS Specification requirements** and anchors all 300 atoms in the field inventory to at least one Spec rule. The evidence base and derivation method are documented in [`spec-audit/EVIDENCE_BASE.md`](spec-audit/EVIDENCE_BASE.md).
+The project covers **97.2% of the measurable GTFS Specification requirements** and anchors all 300 atoms in the field inventory to at least one Spec rule. Of its **600 rules**, **417** produced at least one finding in the most recent full-catalog run. Every rule is listed in [`RULES.en.md`](RULES.en.md).
 
 Accuracy is tested against MobilityData's official `gtfs-validator` through **twelve full catalog runs**. Each run validates every testable GTFS Schedule feed in the catalogue — **4,318** as of the most recent run — with both validators on the same machine and date, using the actual Java `gtfs-validator v8.0.1`. The raw outputs are available in [`audit-results/`](audit-results/).
 
@@ -36,27 +36,26 @@ GTFS Validator & Analyzer extends specification validation with operational qual
 
 ### Feature Matrix
 
-| Feature | MobilityData | GTFS Guru | GTFS Analyzer |
-|---|:---:|:---:|:---:|
-| Web interface | ✅ | ✅ | ✅ |
-| Data never leaves the browser | ❌ | ✅ | ✅ |
-| Spec compliance rules | ✅ | ✅ | ✅ |
-| Quality rules | ❌ | ❌ | ✅ |
-| Operational analytics | ❌ | ❌ | ✅ |
-| Map visualization | ❌ | ❌ | Stops, routes, trips, lines, pathways |
-| Feed score | ❌ | ❌ | ✅ |
-| Remediation guidance | Partial | ❌ | ✅ |
-| GTFS Flex support | Partial | ❌ | ✅ |
-| Fares v2 validation | Partial | ❌ | ✅ |
-| GTFS-JP profile validation | ❌ | ❌ | ✅ |
-| Output formats | HTML, JSON | HTML, JSON | HTML, CSV, JSON, PDF |
-| Platform | Web | Web, CLI, Desktop | Web, CLI *(Desktop planned)* |
-| CI/CD integration | ❌ | ❌ | ✅ `--fail-on` + exit codes |
-| `gtfs-sdk` npm package | ❌ | ❌ | ✅ |
-| crates.io package (`cargo install`) | ❌ | ❌ | ✅ |
-| GTFS Spec coverage (measured) | — | — | **97.2%** · 300/300 field anchors |
-| Corpus validation | — | — | **4,318 feeds × 12 runs** |
-| **Total rules** | **178** | **~120** | **600** |
+| Feature | MobilityData | GTFS Analyzer |
+|---|:---:|:---:|
+| Web interface | ✅ | ✅ |
+| Data never leaves the browser | ❌ | ✅ |
+| Spec compliance rules | ✅ | ✅ |
+| Quality rules | ❌ | ✅ |
+| Operational analytics | ❌ | ✅ |
+| Map visualization | ❌ | Stops, routes, trips, lines, pathways |
+| Feed score | ❌ | ✅ |
+| Remediation guidance | Partial | ✅ |
+| GTFS Flex support | Partial | ✅ |
+| Fares v2 validation | Partial | ✅ |
+| GTFS-JP profile validation | ❌ | ✅ |
+| Output formats | HTML, JSON | HTML, CSV, JSON, PDF |
+| Distribution | Web · desktop installers (msi/dmg/deb) · CLI JAR · Docker | Web · CLI binary · `cargo install` · npm SDK |
+| Documented CI/CD integration | Not documented in the README (possible via Docker/CLI) | ✅ `--fail-on` + exit codes |
+| npm package | ❌ | ✅ `gtfs-sdk` |
+| crates.io package | — *(Java project)* | ✅ `gtfs-analyzer` |
+| GTFS Spec coverage (measured) | — | **97.2%** · 300/300 field anchors |
+| **Total rules** | **178** | **600** |
 
 ### Corpus Validation — 4,318 feeds, twelve runs
 
@@ -223,16 +222,17 @@ Even when the UI retains a limited number of finding examples for performance, t
 
 ---
 
-## Four Ways to Use It
+## Five Ways to Use It
 
-The same validation core (`gtfs_pipeline::validate_bytes`) runs in four ways — all of them use the same 600 rules and produce the same result model:
+The same validation core (`gtfs_pipeline::validate_bytes`) runs in five ways — all of them use the same 600 rules and produce the same result model:
 
 | Path | Best for | Where the data goes |
 |---|---|---|
 | **Browser** ([app](https://ttezer.github.io/gtfs-analyzer/)) | Inspecting one feed with the map and report | **Nowhere** — on-device WebAssembly |
-| **CLI** (`gtfs-analyzer`) | Batch validation, scripting, and Python integration | Nowhere — local binary |
+| **CLI** (`cargo install gtfs-analyzer`, or a prebuilt binary) | Batch validation, scripting, and Python integration | Nowhere — local binary |
+| **Rust library** ([`gtfs-pipeline`](https://crates.io/crates/gtfs-pipeline)) | Embedding validation in your own Rust service | Nowhere — your own process |
 | **CI/CD** (exit codes + `--fail-on`) | A release gate before publishing a feed | Nowhere — your own runner |
-| **`gtfs-sdk` npm package** | Embedding validation in your web or Node application | Nowhere — local WASM |
+| **[`gtfs-sdk`](https://www.npmjs.com/package/gtfs-sdk) npm package** | Embedding validation in your web or Node application | Nowhere — local WASM |
 
 The feed is never uploaded to a server in any of these modes. This makes it suitable for data that cannot leave your organization under policy or contract.
 

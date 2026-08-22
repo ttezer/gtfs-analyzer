@@ -4,8 +4,8 @@
 
 [![アプリを開く](https://img.shields.io/badge/%E3%82%A2%E3%83%97%E3%83%AA%E3%82%92%E9%96%8B%E3%81%8F-gtfs--analyzer-2ea44f?style=flat&logo=googlechrome&logoColor=white)](https://ttezer.github.io/gtfs-analyzer/)
 [![GTFS-JP](https://img.shields.io/badge/GTFS--JP-対応-c8102e?style=flat)](https://www.gtfs.jp/)
-[![GTFS Spec カバレッジ](https://img.shields.io/badge/GTFS%20Spec-97.2%25-007ec6?style=flat)](spec-audit/EVIDENCE_BASE.md)
 [![ルール数](https://img.shields.io/badge/rules-600-blue?style=flat)](RULES.ja.md)
+![GTFS Spec カバレッジ](https://img.shields.io/badge/GTFS%20Spec-97.2%25-007ec6?style=flat)
 [![コーパス検証](https://img.shields.io/badge/corpus-4%2C318%20feeds%20%C3%97%2012%20runs-brightgreen?style=flat)](audit-results/)
 [![crates.io](https://img.shields.io/crates/v/gtfs-analyzer?style=flat&label=crates.io)](https://crates.io/crates/gtfs-analyzer)
 [![npm](https://img.shields.io/npm/v/gtfs-sdk?style=flat&label=npm)](https://www.npmjs.com/package/gtfs-sdk)
@@ -13,7 +13,7 @@
 
 GTFS Validator & Analyzer は、ブラウザ上で動作するオープンソースの GTFS バリデーター兼フィード品質分析ツールです。アップロードされた .zip ファイルはいかなるサーバーにも送信されず、すべての処理は WebAssembly によってユーザーのデバイス上で実行されます。ブラウザ、CLI、CI/CD ゲート、`gtfs-sdk` npm パッケージとして利用できます。
 
-測定可能な GTFS 仕様要件の **97.2%** をカバーし、フィールドインベントリの 300 個のアトムすべてを少なくとも 1 つの Spec ルールにアンカーしています。根拠文書と導出方法は [`spec-audit/EVIDENCE_BASE.md`](spec-audit/EVIDENCE_BASE.md) に記載されています。
+測定可能な GTFS 仕様要件の **97.2%** をカバーし、フィールドインベントリの 300 個のアトムすべてを少なくとも 1 つの Spec ルールにアンカーしています。**600 個の検証ルール**のうち **417 個**が直近の完全カタログ実行で少なくとも 1 件の指摘を出しました。すべてのルールは [`RULES.ja.md`](RULES.ja.md) に一覧化されています。
 
 MobilityData の公式 `gtfs-validator` に対して **12 回の完全なカタログ実行**で精度を検証しました。各実行ではカタログ内のテスト可能な全 GTFS Schedule フィード（直近の実行で **4,318 件**）を同じマシン・同じ日付で両方のバリデーターにかけ、MobilityData 側では実際の Java `gtfs-validator v8.0.1` を使用しています。生データは [`audit-results/`](audit-results/) にあります。
 
@@ -36,27 +36,26 @@ GTFS Validator & Analyzer は、仕様検証を運用品質分析へと拡張し
 
 ### 機能比較表
 
-| 機能 | MobilityData | GTFS Guru | GTFS Analyzer |
-|---|:---:|:---:|:---:|
-| Web インターフェース | ✅ | ✅ | ✅ |
-| データがブラウザから出ない | ❌ | ✅ | ✅ |
-| 仕様準拠ルール | ✅ | ✅ | ✅ |
-| 品質ルール | ❌ | ❌ | ✅ |
-| 運用アナリティクス | ❌ | ❌ | ✅ |
-| 地図の可視化 | ❌ | ❌ | 停留所・経路・便・路線・通路 |
-| フィードスコア | ❌ | ❌ | ✅ |
-| 修正ガイダンス | 一部 | ❌ | ✅ |
-| GTFS Flex サポート | 一部 | ❌ | ✅ |
-| Fares v2 検証 | 部分的 | ❌ | ✅ |
-| GTFS-JP プロファイル検証 | ❌ | ❌ | ✅ |
-| 出力形式 | HTML, JSON | HTML, JSON | HTML, CSV, JSON, PDF |
-| プラットフォーム | Web | Web, CLI, デスクトップ | Web, CLI *（デスクトップは計画中）* |
-| CI/CD 統合 | ❌ | ❌ | ✅ `--fail-on` + 終了コード |
-| `gtfs-sdk` npm パッケージ | ❌ | ❌ | ✅ |
-| crates.io パッケージ（`cargo install`） | ❌ | ❌ | ✅ |
-| GTFS Spec カバレッジ（測定値） | — | — | **97.2%** · 300/300 フィールドアンカー |
-| コーパス検証 | — | — | **4,318 フィード × 12 実行** |
-| **総ルール数** | **178** | **~120** | **600** |
+| 機能 | MobilityData | GTFS Analyzer |
+|---|:---:|:---:|
+| Web インターフェース | ✅ | ✅ |
+| データがブラウザから出ない | ❌ | ✅ |
+| 仕様準拠ルール | ✅ | ✅ |
+| 品質ルール | ❌ | ✅ |
+| 運用アナリティクス | ❌ | ✅ |
+| 地図の可視化 | ❌ | 停留所・経路・便・路線・通路 |
+| フィードスコア | ❌ | ✅ |
+| 修正ガイダンス | 一部 | ✅ |
+| GTFS Flex サポート | 一部 | ✅ |
+| Fares v2 検証 | 部分的 | ✅ |
+| GTFS-JP プロファイル検証 | ❌ | ✅ |
+| 出力形式 | HTML, JSON | HTML, CSV, JSON, PDF |
+| 配布形態 | Web · デスクトップインストーラー（msi/dmg/deb）· CLI JAR · Docker | Web · CLI バイナリ · `cargo install` · npm SDK |
+| 文書化された CI/CD 統合 | README に記載なし（Docker/CLI で可能） | ✅ `--fail-on` + 終了コード |
+| npm パッケージ | ❌ | ✅ `gtfs-sdk` |
+| crates.io パッケージ | — *（Java プロジェクト）* | ✅ `gtfs-analyzer` |
+| GTFS Spec カバレッジ（測定値） | — | **97.2%** · 300/300 フィールドアンカー |
+| **総ルール数** | **178** | **600** |
 
 ### コーパス検証 — 4,318 フィード、12 回の実行
 
@@ -224,16 +223,17 @@ GTFS Analyzer は Web アプリケーションです — インストール不�
 
 ---
 
-## 4 つの利用方法
+## 5 つの利用方法
 
-同じ検証コア（`gtfs_pipeline::validate_bytes`）を 4 つの方法で実行できます。すべて同じ 600 ルールと同じ結果モデルを使用します。
+同じ検証コア（`gtfs_pipeline::validate_bytes`）を 5 つの方法で実行できます。すべて同じ 600 ルールと同じ結果モデルを使用します。
 
 | 方法 | 用途 | データの送信先 |
 |---|---|---|
 | **ブラウザ** ([アプリ](https://ttezer.github.io/gtfs-analyzer/)) | 1 つのフィードを地図とレポートで確認 | **どこにも送信しない** — デバイス上の WebAssembly |
-| **CLI** (`gtfs-analyzer`) | 一括検証、スクリプト、Python 連携 | どこにも送信しない — ローカルバイナリ |
+| **CLI**（`cargo install gtfs-analyzer` またはビルド済みバイナリ） | 一括検証、スクリプト、Python 連携 | どこにも送信しない — ローカルバイナリ |
+| **Rust ライブラリ**（[`gtfs-pipeline`](https://crates.io/crates/gtfs-pipeline)） | 自分の Rust サービスへの組み込み | どこにも送信しない — 自分のプロセス |
 | **CI/CD**（終了コード + `--fail-on`） | フィード公開前のパイプラインゲート | どこにも送信しない — 自分の runner |
-| **`gtfs-sdk` npm パッケージ** | Web または Node アプリへの組み込み | どこにも送信しない — ローカル WASM |
+| **[`gtfs-sdk`](https://www.npmjs.com/package/gtfs-sdk) npm パッケージ** | Web または Node アプリへの組み込み | どこにも送信しない — ローカル WASM |
 
 どの方法でもフィードがサーバーにアップロードされることはありません。組織のポリシーや契約上、外部に出せないデータにも利用できます。
 
