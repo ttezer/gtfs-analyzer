@@ -3,6 +3,10 @@ name = "gtfs-config"
 version = "0.9.7"
 edition = "2021"
 license.workspace = true
+description = "Validator configuration and thresholds for the GTFS Analyzer. Internal to gtfs-analyzer; the API carries no stability guarantee."
+repository = "https://github.com/ttezer/gtfs-analyzer"
+keywords = ["gtfs", "transit", "validator", "config"]
+categories = ["data-structures"]
 
 [dependencies]
 serde = { workspace = true }

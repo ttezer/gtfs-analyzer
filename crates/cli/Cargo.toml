@@ -3,6 +3,11 @@ name = "gtfs-analyzer"
 version = "0.9.7"
 edition = "2021"
 license.workspace = true
+description = "Validate a GTFS Schedule feed from the command line: 600+ rules, notices with remediation, publication and quality scores, JSON or human-readable output."
+repository = "https://github.com/ttezer/gtfs-analyzer"
+keywords = ["gtfs", "transit", "validator", "cli", "opendata"]
+categories = ["command-line-utilities", "parser-implementations"]
+readme = "README.md"
 
 [[bin]]
 name = "gtfs-analyzer"

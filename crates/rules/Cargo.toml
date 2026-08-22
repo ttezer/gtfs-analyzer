@@ -3,6 +3,10 @@ name = "gtfs-rules"
 version = "0.9.7"
 edition = "2021"
 license.workspace = true
+description = "Rule registry for the GTFS Analyzer: identifiers, classes, severities and metadata for every validation rule. Internal to gtfs-analyzer; the API carries no stability guarantee."
+repository = "https://github.com/ttezer/gtfs-analyzer"
+keywords = ["gtfs", "transit", "validator", "rules"]
+categories = ["data-structures"]
 
 [dependencies]
 gtfs-core = { path = "../core" }

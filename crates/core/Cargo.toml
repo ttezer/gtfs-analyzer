@@ -3,6 +3,10 @@ name = "gtfs-core"
 version = "0.9.7"
 edition = "2021"
 license.workspace = true
+description = "Core types for the GTFS Analyzer validator: notices, reports, metrics and the validation result. Internal to gtfs-analyzer; the API carries no stability guarantee."
+repository = "https://github.com/ttezer/gtfs-analyzer"
+keywords = ["gtfs", "transit", "validator"]
+categories = ["data-structures"]
 
 [dependencies]
 serde = { workspace = true }
