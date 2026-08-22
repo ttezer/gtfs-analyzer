@@ -284,11 +284,11 @@ curl -sL https://github.com/ttezer/gtfs-analyzer/releases/latest/download/gtfs-a
 ソースからビルドする場合：
 
 ```bash
-cargo build --release -p gtfs-cli
+cargo build --release -p gtfs-analyzer
 target/release/gtfs-analyzer validate feed.zip --json
 
 # または直接
-cargo run -p gtfs-cli -- validate feed.zip --json
+cargo run -p gtfs-analyzer -- validate feed.zip --json
 ```
 
 ### `validate` — フィード検証

@@ -286,11 +286,11 @@ curl -sL https://github.com/ttezer/gtfs-analyzer/releases/latest/download/gtfs-a
 Kaynaktan derlemek için:
 
 ```bash
-cargo build --release -p gtfs-cli
+cargo build --release -p gtfs-analyzer
 target/release/gtfs-analyzer validate feed.zip --json
 
 # ya da doğrudan
-cargo run -p gtfs-cli -- validate feed.zip --json
+cargo run -p gtfs-analyzer -- validate feed.zip --json
 ```
 
 ### `validate` — feed doğrulama

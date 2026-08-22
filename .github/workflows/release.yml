@@ -78,7 +78,7 @@ jobs:
 
       # Release profili lto="fat" + codegen-units=1 kullanır (Cargo.toml).
       - name: CLI derle
-        run: cargo build --release -p gtfs-cli --target ${{ matrix.target }}
+        run: cargo build --release -p gtfs-analyzer --target ${{ matrix.target }}
 
       # Yüklenen binary'nin gerçekten çalıştığını ve sürümünün tag ile eşleştiğini
       # doğrula — yanlış sürüm yayınlamak sessiz ve pahalı bir hatadır.

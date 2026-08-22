@@ -283,11 +283,11 @@ curl -sL https://github.com/ttezer/gtfs-analyzer/releases/latest/download/gtfs-a
 To build from source:
 
 ```bash
-cargo build --release -p gtfs-cli
+cargo build --release -p gtfs-analyzer
 target/release/gtfs-analyzer validate feed.zip --json
 
 # or directly
-cargo run -p gtfs-cli -- validate feed.zip --json
+cargo run -p gtfs-analyzer -- validate feed.zip --json
 ```
 
 ### `validate` — feed validation

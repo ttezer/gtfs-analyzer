@@ -315,7 +315,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "gtfs-cli"
+name = "gtfs-analyzer"
 version = "0.9.7"
 dependencies = [
  "chrono",

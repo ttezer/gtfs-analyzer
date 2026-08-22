@@ -1,5 +1,5 @@
 [package]
-name = "gtfs-cli"
+name = "gtfs-analyzer"
 version = "0.9.7"
 edition = "2021"
 license.workspace = true
