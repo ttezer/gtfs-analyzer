@@ -261,7 +261,21 @@ borç değildir, kanıtları integration testlerindedir.
 
 ---
 
-## 4. Gerçek veri kanıtı — 242 feed'lik korpus koşumu (2026-08-06)
+## 4. Gerçek veri kanıtı — İKİ KATMAN
+
+🔑 **Bu belgedeki gerçek veri kanıtı iki ayrı katmandan gelir ve ikisi farklı işe yarar.
+Karıştırılırsa aşağıdaki 242 sayısı "ellerindeki tek şey bu" diye okunur — değildir.**
+
+| katman | büyüklük | üçüncü taraf doğrulayabilir mi | depoda mı |
+|---|---|---|---|
+| **Sabit korpus** | 242 feed | ✅ evet — SHA-256 manifesti + `verify_corpus.py` (228/242 hâlâ indirilebilir, §5.5) | ✅ `spec-audit/corpus-evidence/` |
+| **Tam katalog koşumları** | 4.318 feed × 12 koşum | ⚠️ kısmen — ilk yedi koşum yayımlandı | ⚠️ `audit-results/` (7 koşum) |
+
+Sabit korpus **küçüktür ama yeniden üretilebilir**; tam katalog koşumları **büyüktür ama
+tamamı yayımlanmadı**. Aşağıdaki §4.x sabit korpusun ölçümüdür; kural kapsamı ve sessizlik
+rakamları için §5.7 tam katalog koşumunu kullanır.
+
+### 4.0 Sabit korpus koşumu (242 feed, 2026-08-06)
 
 Tek binary, tek tarih (`--today 20260717`), tüm korpus.
 
@@ -273,8 +287,8 @@ R1 yayın engeli taşıyan feed: 46 / 242 (üç yeni feed'in üçü de temiz)
 
 **Yeniden üretim:**
 ```
-python3 notgit/corpus_batch.py validate --today 20260717 --timeout 900
-python3 notgit/corpus_batch.py report
+python3 spec-audit/corpus_batch.py validate --today 20260717 --timeout 900
+python3 spec-audit/corpus_batch.py report
 ```
 
 ### 4.1 MobilityData paritesi — bağımsız referansa karşı
@@ -288,7 +302,7 @@ Korpustaki her feed için MD'nin kendi doğrulama raporu saklanır ve satır sat
 **En yüksek hacimli Kritik·Spec kuralı MD ile BİREBİR aynı sayıyı verdi:**
 `STM_056` = `decreasing_or_equal_stop_time_distance` → **3.763.204 = 3.763.204** (mdb-2904).
 
-12 açıklanamayan sapmanın dökümü:
+10 açıklanamayan sapmanın dökümü:
 - **5'i tarihe göreli** — MD raporunun doğrulama günü bizim sabit günümüzden farklı.
 - **2'si MD kod eşlemesinin kabalığı** — tek MD kodu bizde 6 kurala karşılık geliyor.
 - **2'si bilinçli karar** — `ARC_020` DRT muafiyeti, `ARC_017` GTFS-JP sütunları.
@@ -296,7 +310,10 @@ Korpustaki her feed için MD'nin kendi doğrulama raporu saklanır ve satır sat
   MD semptomu 10 kez bildiriyor, biz kök nedeni bir kez (`FIN_015`).
 - **Geriye açık sapma KALMADI** → bölüm 6.
 
-**Yeniden üretim:** `python3 notgit/md_parity_audit.py notgit/corpus/pairs`
+**Yeniden üretim:** `python3 spec-audit/md_parity_audit.py <pairs-dizini>` — girdi dizini
+(`notgit/corpus/pairs`) **gitignore'dadır, üçüncü taraf onu indiremez.** Dışarıdan
+doğrulanabilir olan çıktıdır: `spec-audit/corpus-evidence/parity_unexplained.csv`
+açıklanamayan satırların tamamını taşır.
 
 ### 4.2 En yeni kuralların bağımsız doğrulaması
 
@@ -337,7 +354,7 @@ kural her feed'de ateşliyorsa "ölçüm" bir fark göstermez. `Pc3b911a6`'nın 
 bu eksikle duruyordu (yalnız ihlalli girdi) ve tamamlandı; `Pd59e5eaa`'nın ise hiç testi
 yoktu — ikisi de artık çift girdili.
 
-### 5.0.2 Akış gövdesinde kapanmamış tırnak — artık bildiriliyor (issue #84)
+### 5.0.1 Akış gövdesinde kapanmamış tırnak — artık bildiriliyor (issue #84)
 
 K1 dört akış dosyasının gövdesini hiç açmaz ve K1'deki gövde tarayıcısı ölü koddu; K2
 okuyucuları kapanmamış tırnağı tolere ediyordu. Tek kaçak tırnak dosyanın kalanını yutup
@@ -350,7 +367,7 @@ girdi akış modunda `ARC_013`, tam modda `ARC_033` üretiyordu. İki okuyucu hi
 
 **Ölçüm:** 20 feed · 75 akış dosyası · kapanmamış tırnak **0**; bulgu farkı 0.
 
-### 5.0.3 Sert tip predikatı HAM değeri ölçmeli (issue #92)
+### 5.0.2 Sert tip predikatı HAM değeri ölçmeli (issue #92)
 
 `#85` kimliği ham yaptı; 6. denetim aynı kusurun TİP predikatlarında sürdüğünü gösterdi.
 `" https://example.com "` ham hâlde kaçırılmamış boşluk taşır — spec "özel karakterler
@@ -373,7 +390,7 @@ gösterdi. Sebep değişiklik DEĞİLDİ — o iki kural BUGÜNE bağlı Analyti
 "önce" koşusu bir gün önce yapılmıştı. `--today 20260807` ile sabitleyince fark yalnız
 `RTS_005` kaldı. **Tarihe bağlı kural varken önce/sonra ölçümü sabit tarihle yapılmalı.**
 
-### 5.0.1 Kimlik semantiği: PK/FK ham sözlüksel değerdir (issue #85)
+### 5.0.3 Kimlik semantiği: PK/FK ham sözlüksel değerdir (issue #85)
 
 🔴 5. denetim turu: `get_trimmed_field`/`get_col` HER değeri kırpıyor, ID'ler o kırpılmış
 değerden kuruluyordu. Ölçülen iki hâl (`main = 44d516d8`):
@@ -669,9 +686,14 @@ kuralın 26'sı örneklendi, yanlış pozitif çıkmadı, iki atıf kusuru düze
 Söylenemez: *"287 tetiklenen kuralda yanlış pozitif yoktur."* Yayılmış (yoğunlaşmamış)
 kuralların bulguları HİÇ okunmadı.
 
-### 5.7 Kuralların yarısı korpusta hiç tetiklenmiyor — ve bu ARTIK TRİYAJLI
-287 kural tetikleniyor, **308 kural hiç çıkmıyor** (2026-08-16 tazelenmiş baseline).
-Yani kuralların yarısı için GERÇEK VERİ üzerinde doğru-pozitif gözlemi YOK.
+### 5.7 Kuralların üçte biri korpusta hiç tetiklenmiyor — ve bu ARTIK TRİYAJLI
+**417 kural tetikleniyor, 183 kural hiç çıkmıyor** (600 kural; 12. tam katalog koşumu,
+`32587015142`, 2026-08-22). Yani kuralların yaklaşık **%30'u** için gerçek veri üzerinde
+doğru-pozitif gözlemi YOK.
+
+> 📌 Bu oran 242 feed'lik korpusta çok daha kötüydü (287 tetikleyen / 308 sessiz, 2026-08-16).
+> Tam katalog koşumları sessiz kural sayısını 308'den 183'e indirdi — kural eklendiği için
+> değil, korpus 242'den 4.318 feed'e çıktığı için.
 
 🔴 **Ama "sessiz" ile "kanıtsız" AYNI ŞEY DEĞİL, ve bu ayrım artık ölçülmüş durumda.**
 `spec-audit/silent_rules.tsv` her sessiz kural için sessizliğin SEBEBİNİ makine-okunur
