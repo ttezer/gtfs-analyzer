@@ -464,14 +464,19 @@ fn first_spec_notice(feed: &Path, lang: &str) -> serde_json::Value {
     json_of(&out)["notices"][0].clone()
 }
 
+/// The default has to be English: the binary is published to crates.io, so an
+/// unflagged run is what the rest of the world sees. Turkish stays available
+/// behind `--lang tr`.
 #[test]
-fn lang_defaults_to_the_pipelines_turkish_text() {
+fn lang_defaults_to_english_and_turkish_stays_available() {
     let feed = feed_with_critical();
-    let default = first_spec_notice(&feed, "tr");
-    let explicit = json_of(&validate(&feed, &["--json", "--class", "spec"]))["notices"][0].clone();
+    let default = json_of(&validate(&feed, &["--json", "--class", "spec"]))["notices"][0].clone();
+    let en = first_spec_notice(&feed, "en");
+    let tr = first_spec_notice(&feed, "tr");
 
-    assert_eq!(default["title"], explicit["title"]);
-    assert_eq!(default["message"], explicit["message"]);
+    assert_eq!(default["title"], en["title"], "default must be English");
+    assert_eq!(default["message"], en["message"], "default must be English");
+    assert_ne!(default["title"], tr["title"], "Turkish must still differ");
 }
 
 #[test]
@@ -507,11 +512,15 @@ fn lang_ja_differs_from_both_tr_and_en() {
 
 #[test]
 fn rules_subcommand_honours_lang() {
-    let tr = json_of(&run(&["rules", "--json", "--rule", "TRP_002"]));
+    let default = json_of(&run(&["rules", "--json", "--rule", "TRP_002"]));
+    let tr = json_of(&run(&[
+        "rules", "--json", "--rule", "TRP_002", "--lang", "tr",
+    ]));
     let en = json_of(&run(&[
         "rules", "--json", "--rule", "TRP_002", "--lang", "en",
     ]));
 
+    assert_eq!(default[0]["title"], en[0]["title"], "default must be English");
     assert_ne!(en[0]["title"], tr[0]["title"]);
     assert!(en[0]["title"].as_str().unwrap().is_ascii());
 }

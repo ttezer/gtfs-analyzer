@@ -10,7 +10,7 @@ Bu betik mevcut binary'yi 242 feed'in tamamında koşar ve KURAL BAŞINA feed/bu
 yazar. `corpus_batch.py`'nin sonuçlarına DOKUNMAZ — o araç tamamlanmış feed'i atlar ve
 eski koşumun çıktısı korunmalıdır.
 
-    cargo build --release -p gtfs-cli
+    cargo build --release -p gtfs-analyzer
     python3 spec-audit/post_baseline_measure.py            # devam ettirilebilir
     python3 spec-audit/post_baseline_measure.py --report    # özet
 """
@@ -97,7 +97,7 @@ def main():
         return 0
 
     if not os.path.exists(BINARY):
-        sys.exit("release binary yok: cargo build --release -p gtfs-cli")
+        sys.exit("release binary yok: cargo build --release -p gtfs-analyzer")
     feeds = sorted(f for f in os.listdir(ZIPS)
                 if f.endswith(".zip") and f[:-4] not in EXCLUDED_FEEDS)
     if EXCLUDED_FEEDS:

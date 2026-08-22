@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Korpus koşumu → DÖRT KÜÇÜK DOSYA (ham bulgular değil).
 
-    cargo build --release -p gtfs-cli
+    cargo build --release -p gtfs-analyzer
     python3 spec-audit/corpus_report.py            # koşar, devam ettirilebilir
     python3 spec-audit/corpus_report.py --report   # eski baseline ile FARK
 
@@ -68,7 +68,7 @@ def write_provenance(feeds):
 
 def run():
     if not os.path.exists(BINARY):
-        sys.exit("release binary yok: cargo build --release -p gtfs-cli")
+        sys.exit("release binary yok: cargo build --release -p gtfs-analyzer")
     feeds = sorted(f for f in os.listdir(ZIPS)
                    if f.endswith(".zip") and f[:-4] not in EXCLUDED_FEEDS)
     prov = write_provenance(feeds)

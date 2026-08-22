@@ -294,7 +294,7 @@ def cmd_validate(args):
             sys.exit(f"--only: bu zip'ler yok: {sorted(missing)}")
 
     print(f"{len(files)} feed · today={args.today} · release binary derleniyor…")
-    subprocess.run(["cargo", "build", "--release", "-p", "gtfs-cli"], cwd=REPO, check=True)
+    subprocess.run(["cargo", "build", "--release", "-p", "gtfs-analyzer"], cwd=REPO, check=True)
     binary = os.path.join(REPO, "target", "release", "gtfs-analyzer")
 
     # `--today md` → her feed KENDİ MD raporunun doğrulama gününde koşulur.

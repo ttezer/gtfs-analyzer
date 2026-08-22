@@ -13,7 +13,7 @@ tarihini ve binary'nin commit'ini KENDİ İÇİNE yazar.
 `corpus_batch.py`'nin `results/` dizinine DOKUNMAZ (o araç tamamlanmış feed'i atlar ve
 eski koşum kanıt olarak korunmalıdır); bu betik kendi ham çıktısını ayrı tutar.
 
-    cargo build --release -p gtfs-cli
+    cargo build --release -p gtfs-analyzer
     python3 spec-audit/refresh_rule_stats.py            # devam ettirilebilir
     python3 spec-audit/refresh_rule_stats.py --report   # eski baseline ile FARK
 """
@@ -176,6 +176,6 @@ if __name__ == "__main__":
         write_out()
     else:
         if not os.path.exists(BINARY):
-            sys.exit("release binary yok: cargo build --release -p gtfs-cli")
+            sys.exit("release binary yok: cargo build --release -p gtfs-analyzer")
         run_all()
     sys.exit(0)

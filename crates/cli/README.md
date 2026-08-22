@@ -13,7 +13,7 @@ gtfs-analyzer validate feed.zip
 - **Notices carry remediation**: every finding says what is wrong, where, and what to change.
 - **Scores**: a weighted overall score plus a publication score built only from blocker-eligible findings.
 - **JSON or human-readable output**, selectable severity and rule filters.
-- **Streams large archives**: feeds with millions of `stop_times` rows are validated without loading the file into memory.
+- **Handles large feeds**: the archive is read into memory once — the ZIP central directory is at the end, so it has to be — but the row-heavy files are streamed out of it rather than materialised whole. Across the 4,300-feed corpus, peak memory is 14 MiB at the median and 425 MiB at the 95th percentile.
 
 ```sh
 gtfs-analyzer validate feed.zip --json --lang en

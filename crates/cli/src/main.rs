@@ -83,7 +83,7 @@ struct ValidateArgs {
     output: Option<PathBuf>,
 
     /// Language for notice titles, messages and remediations.
-    #[arg(long, value_enum, default_value = "tr")]
+    #[arg(long, value_enum, default_value = "en")]
     lang: LangArg,
 
     /// JSON config delta to merge over ValidatorConfig::default().
@@ -126,7 +126,7 @@ struct RulesArgs {
     output: Option<PathBuf>,
 
     /// Language for rule titles.
-    #[arg(long, value_enum, default_value = "tr")]
+    #[arg(long, value_enum, default_value = "en")]
     lang: LangArg,
 }
 
