@@ -74,12 +74,20 @@ def parse_analyzer(report):
     out={"report_bytes":report.stat().st_size}
     by_rule=collections.Counter(); by_class=collections.Counter(); by_sev=collections.Counter()
     samples={}
-    status=None
+    status=None; scores=None
     if ijson is not None:
         try:
             with report.open("rb") as f:
                 vals=ijson.items(f,"status")
                 status=next(vals,None)
+            # R5 skor kartı (`reports.r5`) ayrı bir geçişte okunur; notice akışıyla aynı
+            # prefix'ten gelmiyor. Skorlar koşum sırasında zaten hesaplanıyordu ama
+            # hiçbir tüketici saklamıyordu — 11 koşum boyunca ortalama skor ölçülemedi.
+            with report.open("rb") as f:
+                r5=next(ijson.items(f,"reports.r5"),None)
+            # ijson sayıları `Decimal` döndürür ve `Decimal` JSONL'e yazılamaz —
+            # dönüştürülmezse shard çıktısı yazılırken TypeError ile patlar.
+            if r5: scores={k:float(v) for k,v in r5.items()}
             with report.open("rb") as f:
                 for n in ijson.items(f,"notices.item"):
                     rid=n.get("rule_id") or "(none)"
@@ -94,6 +102,7 @@ def parse_analyzer(report):
         try:
             d=json.loads(report.read_text())
             status=d.get("status")
+            scores=(d.get("reports") or {}).get("r5")
             for n in d.get("notices",[]):
                 rid=n.get("rule_id") or "(none)"
                 by_rule[rid]+=1
@@ -110,6 +119,7 @@ def parse_analyzer(report):
       "by_class":dict(by_class),
       "by_severity":dict(by_sev),
       "samples":samples,
+      "scores":scores,
     })
     return out
 
