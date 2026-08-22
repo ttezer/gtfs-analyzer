@@ -128,6 +128,23 @@ fn version_flag_is_supported() {
 }
 
 #[test]
+fn short_version_flag_is_supported() {
+    let out = run(&["-V"]);
+    assert_eq!(code(&out), 0);
+    assert!(stdout_of(&out).contains(env!("CARGO_PKG_VERSION")));
+}
+
+#[test]
+fn verbose_version_reports_deterministic_provenance() {
+    let out = run(&["--version", "--verbose"]);
+    assert_eq!(code(&out), 0);
+    let stdout = stdout_of(&out);
+    assert!(stdout.contains("commit: "));
+    assert!(stdout.contains("provenance-source: "));
+    assert!(!stdout.contains("built at"));
+}
+
+#[test]
 fn missing_feed_file_is_a_cli_error() {
     let out = run(&["validate", "/nonexistent/feed.zip"]);
     assert_eq!(code(&out), 2);

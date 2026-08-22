@@ -8,6 +8,7 @@ repository = "https://github.com/ttezer/gtfs-analyzer"
 keywords = ["gtfs", "transit", "validator", "cli", "opendata"]
 categories = ["command-line-utilities", "parser-implementations"]
 readme = "README.md"
+build = "build.rs"
 
 [[bin]]
 name = "gtfs-analyzer"
@@ -22,6 +23,9 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 clap = { version = "4", features = ["derive"] }
 chrono = "0.4"
+
+[build-dependencies]
+serde_json = { workspace = true }
 
 [dev-dependencies]
 zip = { workspace = true }

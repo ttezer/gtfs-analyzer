@@ -90,7 +90,7 @@ jobs:
           BIN="target/${{ matrix.target }}/release/$NAME"
 
           # Duman testi: binary çalışıyor mu, kural kaydı okunabiliyor mu.
-          "$BIN" --version
+          "$BIN" --version --verbose
           "$BIN" rules --class spec --severity critical | tail -1
 
           # Tag ile Cargo.toml sürümü ayrışmışsa yanlış sürüm yayınlamaktansa kır.

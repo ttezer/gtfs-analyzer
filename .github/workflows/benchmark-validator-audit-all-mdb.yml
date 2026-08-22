@@ -66,7 +66,7 @@ jobs:
           path: |
             benchmark/audit_all/run/manifest.json
             benchmark/audit_all/run/feeds_v2.csv
-          retention-days: 30
+          retention-days: 90
 
   build-tools:
     runs-on: ubuntu-latest
@@ -81,7 +81,7 @@ jobs:
           mkdir -p benchmark/audit_all/tools
           cp target/release/gtfs-analyzer benchmark/audit_all/tools/gtfs-analyzer
           chmod +x benchmark/audit_all/tools/gtfs-analyzer
-          benchmark/audit_all/tools/gtfs-analyzer --version > benchmark/audit_all/tools/analyzer-version.txt 2>&1 || true
+          benchmark/audit_all/tools/gtfs-analyzer --version --verbose > benchmark/audit_all/tools/analyzer-version.txt 2>&1 || true
           git rev-parse HEAD > benchmark/audit_all/tools/analyzer-commit.txt
       - name: Download MobilityData v8.0.1 CLI
         env:
@@ -111,7 +111,7 @@ jobs:
         with:
           name: audit-all-mdb-tools
           path: benchmark/audit_all/tools/
-          retention-days: 30
+          retention-days: 90
 
   audit_a:
     needs: [prepare, build-tools]
@@ -159,7 +159,7 @@ jobs:
         with:
           name: audit-all-mdb-shard-${{ matrix.shard }}
           path: benchmark/audit_all/shards/
-          retention-days: 30
+          retention-days: 90
 
   audit_b:
     needs: [prepare, build-tools]
@@ -207,7 +207,7 @@ jobs:
         with:
           name: audit-all-mdb-shard-${{ matrix.shard }}
           path: benchmark/audit_all/shards/
-          retention-days: 30
+          retention-days: 90
 
   audit_c:
     needs: [prepare, build-tools]
@@ -255,7 +255,7 @@ jobs:
         with:
           name: audit-all-mdb-shard-${{ matrix.shard }}
           path: benchmark/audit_all/shards/
-          retention-days: 30
+          retention-days: 90
 
   audit_d:
     needs: [prepare, build-tools]
@@ -303,12 +303,14 @@ jobs:
         with:
           name: audit-all-mdb-shard-${{ matrix.shard }}
           path: benchmark/audit_all/shards/
-          retention-days: 30
+          retention-days: 90
 
   aggregate:
     needs: [prepare, build-tools, audit_a, audit_b, audit_c, audit_d]
     if: always()
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     timeout-minutes: 180
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -362,6 +364,44 @@ jobs:
             --all-results benchmark/audit_all/final/all-results.json.gz \
             --max 100 \
             --out benchmark/audit_all/final/raw-evidence.json
+      - name: Record audit provenance
+        env:
+          AUDIT_REPOSITORY: ${{ github.repository }}
+          AUDIT_RUN_ID: ${{ github.run_id }}
+          AUDIT_RUN_ATTEMPT: ${{ github.run_attempt }}
+          AUDIT_REF: ${{ github.ref }}
+          AUDIT_COMMIT: ${{ github.sha }}
+        run: |
+          python3 - <<'PY'
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+
+          root = Path("benchmark/audit_all")
+          manifest = root / "final/corpus-manifest.json"
+          provenance = {
+              "schema_version": 1,
+              "repository": os.environ["AUDIT_REPOSITORY"],
+              "workflow": "Full MobilityDatabase GTFS Schedule Audit",
+              "workflow_run_id": int(os.environ["AUDIT_RUN_ID"]),
+              "workflow_run_attempt": int(os.environ["AUDIT_RUN_ATTEMPT"]),
+              "workflow_ref": os.environ["AUDIT_REF"],
+              "analyzer_commit": os.environ["AUDIT_COMMIT"],
+              "mobilitydata_validator_version": os.environ["MD_VERSION"],
+              "shard_count": int(os.environ["SHARD_COUNT"]),
+              "corpus_manifest_sha256": hashlib.sha256(manifest.read_bytes()).hexdigest(),
+              "selection_script": "benchmark/audit_all/select_corpus.py",
+              "shard_script": "benchmark/audit_all/run_shard.py",
+              "aggregate_script": "benchmark/audit_all/aggregate.py",
+              "analyzer_command": [
+                  "gtfs-analyzer", "validate", "<feed.zip>", "--json", "--lang", "en",
+                  "--today", "20260820", "--output", "report.json",
+              ],
+          }
+          out = root / "final/provenance.json"
+          out.write_text(json.dumps(provenance, indent=2, sort_keys=True) + "\n")
+          print(json.dumps(provenance, indent=2, sort_keys=True))
       - name: Bundle final audit
         if: always()
         run: |
@@ -376,7 +416,22 @@ jobs:
             benchmark/audit_all/final/
             benchmark/audit_all/validator-audit-all-mdb-results.tar.gz
             benchmark/audit_all/validator-audit-all-mdb-results.tar.gz.sha256
-          retention-days: 30
+          retention-days: 90
+      - name: Archive final audit as GitHub prerelease
+        if: always() && hashFiles('benchmark/audit_all/final/provenance.json') != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          AUDIT_TAG: audit-${{ github.run_id }}-${{ github.run_attempt }}
+        run: |
+          set -euo pipefail
+          gh release create "$AUDIT_TAG" \
+            benchmark/audit_all/validator-audit-all-mdb-results.tar.gz \
+            benchmark/audit_all/validator-audit-all-mdb-results.tar.gz.sha256 \
+            benchmark/audit_all/final/provenance.json \
+            --target "$GITHUB_SHA" \
+            --prerelease \
+            --title "MobilityDatabase audit ${{ github.run_id }}" \
+            --notes "Full MobilityDatabase GTFS Schedule audit. The tag is an audit archive, not a product release."
       - name: Enforce complete testable corpus
         if: always()
         run: |

@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 use chrono::{Datelike, Local};
-use clap::{Args, Parser, Subcommand, ValueEnum};
+use clap::{ArgAction, Args, CommandFactory, Parser, Subcommand, ValueEnum};
 use gtfs_config::{merge_delta, ValidatorConfig};
 use gtfs_core::{
     AuthoritySource, NameIndex, Notice, RuleClass, Severity, ValidateResult, ValidationResult,
@@ -16,12 +16,24 @@ use serde::Serialize;
 mod i18n;
 use i18n::{LangArg, Translator};
 
+mod provenance {
+    include!(concat!(env!("OUT_DIR"), "/provenance.rs"));
+}
+
 #[derive(Debug, Parser)]
-#[command(name = "gtfs-analyzer", version)]
+#[command(name = "gtfs-analyzer", disable_version_flag = true)]
 #[command(about = "GTFS feed validator CLI")]
 struct Cli {
+    /// Print the package version.
+    #[arg(short = 'V', long, action = ArgAction::SetTrue)]
+    version: bool,
+
+    /// Include deterministic build provenance with --version.
+    #[arg(long, requires = "version")]
+    verbose: bool,
+
     #[command(subcommand)]
-    command: Command,
+    command: Option<Command>,
 }
 
 #[derive(Debug, Subcommand)]
@@ -206,9 +218,28 @@ fn authority_str(source: AuthoritySource) -> &'static str {
 
 fn main() -> ExitCode {
     let cli = Cli::parse();
-    match cli.command {
+    if cli.version {
+        print_version(cli.verbose);
+        return ExitCode::SUCCESS;
+    }
+
+    let Some(command) = cli.command else {
+        let mut help = Cli::command();
+        let _ = help.print_help();
+        return ExitCode::from(2);
+    };
+
+    match command {
         Command::Validate(args) => run_validate(args),
         Command::Rules(args) => run_rules(args),
+    }
+}
+
+fn print_version(verbose: bool) {
+    println!("gtfs-analyzer {}", env!("CARGO_PKG_VERSION"));
+    if verbose {
+        println!("commit: {}", provenance::COMMIT);
+        println!("provenance-source: {}", provenance::SOURCE);
     }
 }
 

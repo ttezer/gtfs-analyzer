@@ -18,7 +18,11 @@ gtfs-analyzer validate feed.zip
 ```sh
 gtfs-analyzer validate feed.zip --json --lang en
 gtfs-analyzer validate feed.zip --today 20260820
+gtfs-analyzer --version --verbose
 ```
+
+`--version --verbose` prints the package version, commit SHA and provenance
+source without embedding a wall-clock build timestamp.
 
 Exit code is `0` when the feed is clean, `1` when notices were produced, and `2` on a fatal error.
 

@@ -281,6 +281,8 @@ Rust kurmadan: [Releases](https://github.com/ttezer/gtfs-analyzer/releases) sayf
 # Linux / macOS — en son sürüm
 curl -sL https://github.com/ttezer/gtfs-analyzer/releases/latest/download/gtfs-analyzer-x86_64-linux.tar.gz | tar xz
 ./gtfs-analyzer --version
+# Sürümle birlikte deterministik provenance bilgisi
+./gtfs-analyzer --version --verbose
 ```
 
 Kaynaktan derlemek için:
