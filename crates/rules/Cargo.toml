@@ -9,4 +9,4 @@ keywords = ["gtfs", "transit", "validator", "rules"]
 categories = ["data-structures"]
 
 [dependencies]
-gtfs-core = { path = "../core" }
+gtfs-core = { version = "0.9.7", path = "../core" }
