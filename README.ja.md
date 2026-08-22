@@ -6,14 +6,16 @@
 [![GTFS-JP](https://img.shields.io/badge/GTFS--JP-対応-c8102e?style=flat)](https://www.gtfs.jp/)
 [![GTFS Spec カバレッジ](https://img.shields.io/badge/GTFS%20Spec-97.2%25-007ec6?style=flat)](spec-audit/EVIDENCE_BASE.md)
 [![ルール数](https://img.shields.io/badge/rules-600-blue?style=flat)](RULES.ja.md)
-[![コーパス検証](https://img.shields.io/badge/corpus-4%2C271%20feeds%20%C3%97%207%20runs-brightgreen?style=flat)](audit-results/)
+[![コーパス検証](https://img.shields.io/badge/corpus-4%2C318%20feeds%20%C3%97%2012%20runs-brightgreen?style=flat)](audit-results/)
+[![crates.io](https://img.shields.io/crates/v/gtfs-analyzer?style=flat&label=crates.io)](https://crates.io/crates/gtfs-analyzer)
+[![npm](https://img.shields.io/npm/v/gtfs-sdk?style=flat&label=npm)](https://www.npmjs.com/package/gtfs-sdk)
 [![License MIT](https://img.shields.io/badge/%E3%83%A9%E3%82%A4%E3%82%BB%E3%83%B3%E3%82%B9-MIT-yellow?style=flat)](LICENSE)
 
 GTFS Validator & Analyzer は、ブラウザ上で動作するオープンソースの GTFS バリデーター兼フィード品質分析ツールです。アップロードされた .zip ファイルはいかなるサーバーにも送信されず、すべての処理は WebAssembly によってユーザーのデバイス上で実行されます。ブラウザ、CLI、CI/CD ゲート、`gtfs-sdk` npm パッケージとして利用できます。
 
 測定可能な GTFS 仕様要件の **97.2%** をカバーし、フィールドインベントリの 300 個のアトムすべてを少なくとも 1 つの Spec ルールにアンカーしています。根拠文書と導出方法は [`spec-audit/EVIDENCE_BASE.md`](spec-audit/EVIDENCE_BASE.md) に記載されています。
 
-MobilityData の公式 `gtfs-validator` に対して **7 回の完全なカタログ実行**で精度を検証しました。各実行では **4,271 件の GTFS Schedule フィード**を同じマシン・同じ日付で両方のバリデーターにかけ、MobilityData 側では実際の Java `gtfs-validator v8.0.1` を使用しています。生データは [`audit-results/`](audit-results/) にあります。
+MobilityData の公式 `gtfs-validator` に対して **12 回の完全なカタログ実行**で精度を検証しました。各実行ではカタログ内のテスト可能な全 GTFS Schedule フィード（直近の実行で **4,318 件**）を同じマシン・同じ日付で両方のバリデーターにかけ、MobilityData 側では実際の Java `gtfs-validator v8.0.1` を使用しています。生データは [`audit-results/`](audit-results/) にあります。
 
 GTFS Validator & Analyzer は、ファイルが仕様に準拠しているかどうかをチェックするだけではありません。フィードがどれだけ信頼でき、一貫性があり、利用可能であるかも分析します。エラーを該当するファイルと行番号とともに表示し、各検出結果に対する修正手順を提示し、地理的な問題 — 例えば逸脱した経路、壊れた座標、到達不能な停留所など — をインタラクティブな地図上にマーキングします。
 
@@ -51,32 +53,33 @@ GTFS Validator & Analyzer は、仕様検証を運用品質分析へと拡張し
 | プラットフォーム | Web | Web, CLI, デスクトップ | Web, CLI *（デスクトップは計画中）* |
 | CI/CD 統合 | ❌ | ❌ | ✅ `--fail-on` + 終了コード |
 | `gtfs-sdk` npm パッケージ | ❌ | ❌ | ✅ |
+| crates.io パッケージ（`cargo install`） | ❌ | ❌ | ✅ |
 | GTFS Spec カバレッジ（測定値） | — | — | **97.2%** · 300/300 フィールドアンカー |
-| コーパス検証 | — | — | **4,271 フィード × 7 実行** |
+| コーパス検証 | — | — | **4,318 フィード × 12 実行** |
 | **総ルール数** | **178** | **~120** | **600** |
 
-### コーパス検証 — 4,271 フィード、7 回の実行
+### コーパス検証 — 4,318 フィード、12 回の実行
 
 少数のフィードだけではバリデーターの精度を示せません。GTFS Analyzer は MobilityDatabase の GTFS Schedule カタログ全体に対して定期的に実行され、完全な出力をリポジトリに保存しています。
 
 | | |
 |---|---|
-| フィード数 | **4,271**（カタログに `latest.zip` がある公開 Schedule フィード） |
+| フィード数 | **4,318**（カタログに `latest.zip` がある公開 Schedule フィード） |
 | 比較対象 | MobilityData **`gtfs-validator` v8.0.1** — 実際の Java バリデーター、同じマシン・同じ日付 |
-| 実行回数 | **7**（2026-08-16 → 2026-08-20） |
+| 実行回数 | **12**（2026-08-16 → 2026-08-22） |
 | シャード | 1 回あたり 640 並列ジョブ |
-| 生データ | [`audit-results/`](audit-results/)、1 回あたり 18〜20 ファイル |
+| 生データ | 最初の 7 回は [`audit-results/`](audit-results/)（1 回あたり 18〜20 ファイル）、以降の実行は `audit-<run-id>` プレリリースとして保存 |
 
 🔬 **公開レポートの比較ではなく、再実行です。** 各フィードを MobilityData の Java バリデーターでもう一度検証するため、両方のツールが同じアーカイブを同じ分析日に見ます。
 
-#### 最新実行（`32344419636`）
+#### 最新実行（`32587015142`）
 
 | 指標 | 値 |
 |---|---|
-| 両バリデーターが正常に完了 | 4,229 / 4,271 フィード |
-| **見逃した指摘**（MobilityData は報告、Analyzer は無通知） | **0 行** |
+| 両バリデーターが正常に完了 | 4,275 / 4,318 フィード |
+| **見逃した指摘**（MobilityData は報告、Analyzer は無通知） | **0 件** — 15 行はすべて粒度の違い |
 | カタログコードの未マッピング | **0** |
-| Analyzer のみが検出 | 779 行（Critical は 3 件のみ） |
+| Analyzer のみが検出 | 789 行（Critical なし） |
 | 中央値の実行時間 | **0.05 秒** · MobilityData 3.00 秒 |
 | 中央値のピークメモリ | **14 MB** · MobilityData 329 MB |
 
@@ -272,6 +275,13 @@ console.log(result.notices.length, result.reports.r5.score);
 Web UI に加えて、同じ検証コア（`gtfs_pipeline::validate_bytes`）をターミナルから実行できます — Python/自動化連携向け。
 
 ### インストール
+
+Rust がインストールされている場合、最短の方法：
+
+```bash
+cargo install gtfs-analyzer
+gtfs-analyzer validate feed.zip
+```
 
 Rust をインストールせずに使う場合：[Releases](https://github.com/ttezer/gtfs-analyzer/releases) からお使いのプラットフォーム向けアーカイブ（`x86_64-linux`、`aarch64-macos`、`x86_64-windows`）をダウンロードし、展開して `gtfs-analyzer` バイナリを `PATH` に配置します。
 

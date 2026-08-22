@@ -6,14 +6,16 @@
 [![GTFS-JP](https://img.shields.io/badge/GTFS--JP-destekli-c8102e?style=flat)](https://www.gtfs.jp/)
 [![GTFS Spec kapsamı](https://img.shields.io/badge/GTFS%20Spec-97.2%25-007ec6?style=flat)](spec-audit/EVIDENCE_BASE.md)
 [![Kural sayısı](https://img.shields.io/badge/kural-600-blue?style=flat)](RULES.md)
-[![Korpus doğrulaması](https://img.shields.io/badge/korpus-4271%20feed%20%C3%97%207%20ko%C5%9Fum-brightgreen?style=flat)](audit-results/)
+[![Korpus doğrulaması](https://img.shields.io/badge/korpus-4318%20feed%20%C3%97%2012%20ko%C5%9Fum-brightgreen?style=flat)](audit-results/)
+[![crates.io](https://img.shields.io/crates/v/gtfs-analyzer?style=flat&label=crates.io)](https://crates.io/crates/gtfs-analyzer)
+[![npm](https://img.shields.io/npm/v/gtfs-sdk?style=flat&label=npm)](https://www.npmjs.com/package/gtfs-sdk)
 [![Lisans MIT](https://img.shields.io/badge/lisans-MIT-yellow?style=flat)](LICENSE)
 
 **GTFS Validator & Analyzer**, GTFS dosyalarını doğrudan tarayıcıda doğrulayan açık kaynak bir **GTFS validator** ve feed kalite analiz aracıdır. Yüklenen `.zip` hiçbir sunucuya gönderilmez; doğrulama tamamen **WebAssembly** ile kullanıcının cihazında çalışır. Tarayıcı, **CLI**, **CI/CD** ve **gtfs-sdk npm paketi** olmak üzere dört yoldan kullanılabilir.
 
 **600 doğrulama kuralı** ile GTFS spesifikasyonunun ölçülebilir hükümlerinin **%97,2'sini** karşılar ve alan tablosunun **300 atomunun 300'ünde** en az bir Spec çapası taşır. Bu oranlar iddia değil ölçümdür: kanıt tabanı ve türetme yöntemi [`spec-audit/EVIDENCE_BASE.md`](spec-audit/EVIDENCE_BASE.md) altında açıktır.
 
-Doğruluk iddiası, MobilityData'nın resmî `gtfs-validator` aracına karşı **yedi tam katalog koşumuyla** sınanmıştır: her koşumda MobilityDatabase kataloğunun **4.271 GTFS Schedule feed'i**, iki validatörle **aynı makinede, aynı gün** doğrulanır — MobilityData tarafında gerçek **Java** `gtfs-validator v8.0.1` çalıştırılır, rapor karşılaştırması yapılmaz. Ham sonuçların tamamı depoda: [`audit-results/`](audit-results/).
+Doğruluk iddiası, MobilityData'nın resmî `gtfs-validator` aracına karşı **on iki tam katalog koşumuyla** sınanmıştır: her koşumda MobilityDatabase kataloğunun test edilebilir her GTFS Schedule feed'i — son koşumda **4.318** —, iki validatörle **aynı makinede, aynı gün** doğrulanır — MobilityData tarafında gerçek **Java** `gtfs-validator v8.0.1` çalıştırılır, rapor karşılaştırması yapılmaz. Ham sonuçların tamamı depoda: [`audit-results/`](audit-results/).
 
 GTFS Validator & Analyzer yalnızca dosyanın spesifikasyona uygun olup olmadığını kontrol etmez; feed'in ne kadar güvenilir, tutarlı ve kullanılabilir olduğunu da analiz eder. Hataları ilgili dosya ve satır numarasıyla birlikte gösterir, her bulgu için düzeltme adımları sunar ve coğrafi sorunları — örneğin sapan güzergâhlar, bozuk koordinatlar veya erişilemeyen duraklar — interaktif harita üzerinde işaretler.
 
@@ -51,32 +53,33 @@ GTFS Validator & Analyzer, spesifikasyon doğrulamasını operasyonel kalite ana
 | Platform | Web | Web, CLI, Desktop | Web, CLI *(Desktop planlanmış)* |
 | CI/CD entegrasyonu | ❌ | ❌ | ✅ `--fail-on` + exit kodu |
 | `gtfs-sdk` npm paketi | ❌ | ❌ | ✅ |
+| crates.io paketi (`cargo install`) | ❌ | ❌ | ✅ |
 | GTFS Spec kapsamı (ölçülmüş) | — | — | **%97,2** · 300/300 alan çapası |
-| Korpus doğrulaması | — | — | **4.271 feed × 7 koşum** |
+| Korpus doğrulaması | — | — | **4.318 feed × 12 koşum** |
 | **Toplam kural** | **178** | **~120** | **600** |
 
-### Korpus Doğrulaması — 4.271 feed, yedi koşum
+### Korpus Doğrulaması — 4.318 feed, on iki koşum
 
 Bir validator'ın doğruluğu birkaç feed'le gösterilemez. GTFS Analyzer, **MobilityDatabase'in tüm GTFS Schedule kataloğuna** karşı düzenli olarak koşturulur ve sonuçların tamamı depoda yayımlanır.
 
 | | |
 |---|---|
-| Feed sayısı | **4.271** (katalogda public `latest.zip` taşıyan her Schedule feed'i) |
+| Feed sayısı | **4.318** (katalogda public `latest.zip` taşıyan her Schedule feed'i) |
 | Karşı taraf | MobilityData **`gtfs-validator` v8.0.1** — gerçek **Java** aracı, aynı makinede, aynı gün |
-| Koşum sayısı | **7** (2026-08-16 → 2026-08-20) |
+| Koşum sayısı | **12** (2026-08-16 → 2026-08-22) |
 | Shard | koşum başına 640 paralel iş |
-| Ham çıktı | tamamı depoda — [`audit-results/`](audit-results/), koşum başına 18–20 dosya |
+| Ham çıktı | ilk yedi koşum depoda — [`audit-results/`](audit-results/), koşum başına 18–20 dosya; sonraki koşumlar `audit-<run-id>` prerelease'i olarak arşivlenir |
 
 🔬 **Rapor karşılaştırması değil, yeniden koşum.** Yayımlanmış MD raporlarını okumak yerine her feed için MobilityData'nın Java validator'ı yeniden çalıştırılır. Böylece iki taraf da aynı arşivi, aynı tarih parametresiyle görür ve fark "kim ne buldu"dur, "kimin raporu ne zaman üretildi" değil.
 
-#### Son koşumun sonucu (`32344419636`)
+#### Son koşumun sonucu (`32587015142`)
 
 | ölçü | değer |
 |---|---|
-| İki validatör de temiz bitirdi | 4.229 / 4.271 feed |
-| **Gözden kaçırdığımız** (MD konuşuyor, biz susuyoruz) | **0 satır** |
+| İki validatör de temiz bitirdi | 4.275 / 4.318 feed |
+| **Gözden kaçırdığımız** (MD konuşuyor, biz susuyoruz) | **0 olgu** — 15 satırın tamamı granülerlik farkı |
 | MD'nin katalogunda eşlenmemiş kod | **0** (dört koşumdur) |
-| Bizim bulup MD'nin bulmadığı | 779 satır, yalnız 3'ü Kritik |
+| Bizim bulup MD'nin bulmadığı | 789 satır, Kritik yok |
 | Medyan süre | **0,05 sn** · MobilityData 3,00 sn |
 | Medyan tepe bellek | **14 MB** · MobilityData 329 MB |
 
@@ -274,6 +277,13 @@ Web UI worker'ı da aynı `ValidatorSession` facade'ını kullanır; seri/thread
 Aynı doğrulama çekirdeğini terminalden çalıştırabilirsiniz — toplu iş, betikleme ve Python/otomasyon entegrasyonu için.
 
 ### Kurulum
+
+Rust kuruluysa en kısa yol:
+
+```bash
+cargo install gtfs-analyzer
+gtfs-analyzer validate feed.zip
+```
 
 Rust kurmadan: [Releases](https://github.com/ttezer/gtfs-analyzer/releases) sayfasından platformunuza uygun arşivi indirin (`x86_64-linux`, `aarch64-macos`, `x86_64-windows`), açın ve `gtfs-analyzer` binary'sini `PATH`'inize koyun.
 

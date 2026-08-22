@@ -6,14 +6,16 @@
 [![GTFS-JP](https://img.shields.io/badge/GTFS--JP-supported-c8102e?style=flat)](https://www.gtfs.jp/)
 [![GTFS Spec coverage](https://img.shields.io/badge/GTFS%20Spec-97.2%25-007ec6?style=flat)](spec-audit/EVIDENCE_BASE.md)
 [![Rule count](https://img.shields.io/badge/rules-600-blue?style=flat)](RULES.en.md)
-[![Corpus validation](https://img.shields.io/badge/corpus-4%2C271%20feeds%20%C3%97%207%20runs-brightgreen?style=flat)](audit-results/)
+[![Corpus validation](https://img.shields.io/badge/corpus-4%2C318%20feeds%20%C3%97%2012%20runs-brightgreen?style=flat)](audit-results/)
+[![crates.io](https://img.shields.io/crates/v/gtfs-analyzer?style=flat&label=crates.io)](https://crates.io/crates/gtfs-analyzer)
+[![npm](https://img.shields.io/npm/v/gtfs-sdk?style=flat&label=npm)](https://www.npmjs.com/package/gtfs-sdk)
 [![License MIT](https://img.shields.io/badge/license-MIT-yellow?style=flat)](LICENSE)
 
 GTFS Validator & Analyzer is an open-source GTFS validator and feed quality analyzer. The uploaded `.zip` file is never sent to any server; all validation runs on the user's device via WebAssembly. It is available as a browser application, CLI, CI/CD gate, and `gtfs-sdk` npm package.
 
 The project covers **97.2% of the measurable GTFS Specification requirements** and anchors all 300 atoms in the field inventory to at least one Spec rule. The evidence base and derivation method are documented in [`spec-audit/EVIDENCE_BASE.md`](spec-audit/EVIDENCE_BASE.md).
 
-Accuracy is tested against MobilityData's official `gtfs-validator` through **seven full catalog runs**. Each run validates **4,271 GTFS Schedule feeds** with both validators on the same machine and date, using the actual Java `gtfs-validator v8.0.1`. The raw outputs are available in [`audit-results/`](audit-results/).
+Accuracy is tested against MobilityData's official `gtfs-validator` through **twelve full catalog runs**. Each run validates every testable GTFS Schedule feed in the catalogue — **4,318** as of the most recent run — with both validators on the same machine and date, using the actual Java `gtfs-validator v8.0.1`. The raw outputs are available in [`audit-results/`](audit-results/).
 
 GTFS Validator & Analyzer does not merely check whether a file conforms to the specification; it also analyzes how reliable, consistent, and usable the feed is. It shows errors together with the relevant file and line number, provides remediation steps for each finding, and marks geographic issues — such as deviating routes, broken coordinates, or unreachable stops — on an interactive map.
 
@@ -51,32 +53,33 @@ GTFS Validator & Analyzer extends specification validation with operational qual
 | Platform | Web | Web, CLI, Desktop | Web, CLI *(Desktop planned)* |
 | CI/CD integration | ❌ | ❌ | ✅ `--fail-on` + exit codes |
 | `gtfs-sdk` npm package | ❌ | ❌ | ✅ |
+| crates.io package (`cargo install`) | ❌ | ❌ | ✅ |
 | GTFS Spec coverage (measured) | — | — | **97.2%** · 300/300 field anchors |
-| Corpus validation | — | — | **4,271 feeds × 7 runs** |
+| Corpus validation | — | — | **4,318 feeds × 12 runs** |
 | **Total rules** | **178** | **~120** | **600** |
 
-### Corpus Validation — 4,271 feeds, seven runs
+### Corpus Validation — 4,318 feeds, twelve runs
 
 A validator's accuracy cannot be demonstrated with a handful of feeds. GTFS Analyzer is regularly run against the full MobilityDatabase GTFS Schedule catalog, and the complete outputs are stored in the repository.
 
 | | |
 |---|---|
-| Feeds | **4,271** public Schedule feeds with a `latest.zip` in the catalog |
+| Feeds | **4,318** public Schedule feeds with a `latest.zip` in the catalog |
 | Comparison | MobilityData **`gtfs-validator` v8.0.1**, actual Java validator, same machine and date |
-| Runs | **7** (2026-08-16 → 2026-08-20) |
+| Runs | **12** (2026-08-16 → 2026-08-22) |
 | Shards | 640 parallel jobs per run |
-| Raw output | [`audit-results/`](audit-results/), 18–20 files per run |
+| Raw output | first seven runs in [`audit-results/`](audit-results/), 18–20 files per run; later runs archived as an `audit-<run-id>` prerelease |
 
 🔬 **These are reruns, not report comparisons.** Each feed is validated again with MobilityData's Java validator, so both tools see the same archive on the same analysis date.
 
-#### Latest run (`32344419636`)
+#### Latest run (`32587015142`)
 
 | Measure | Value |
 |---|---|
-| Both validators completed cleanly | 4,229 / 4,271 feeds |
-| **Findings we missed** (MobilityData reports, Analyzer is silent) | **0 rows** |
+| Both validators completed cleanly | 4,275 / 4,318 feeds |
+| **Findings we missed** (MobilityData reports, Analyzer is silent) | **0 facts** — all 15 rows are granularity differences |
 | Unmapped catalog codes | **0** |
-| Findings found by Analyzer only | 779 rows, only 3 Critical |
+| Findings found by Analyzer only | 789 rows, none Critical |
 | Median runtime | **0.05 s** · MobilityData 3.00 s |
 | Median peak memory | **14 MB** · MobilityData 329 MB |
 
@@ -271,6 +274,13 @@ Package sources live under `sdk/`; the detailed usage, result model, and config 
 Besides the web UI, you can run the same validation core (`gtfs_pipeline::validate_bytes`) from a terminal — for Python/automation integration.
 
 ### Installation
+
+With Rust installed, the shortest path:
+
+```bash
+cargo install gtfs-analyzer
+gtfs-analyzer validate feed.zip
+```
 
 Without installing Rust: download the archive for your platform from [Releases](https://github.com/ttezer/gtfs-analyzer/releases) (`x86_64-linux`, `aarch64-macos`, `x86_64-windows`), unpack it and put the `gtfs-analyzer` binary on your `PATH`.
 
