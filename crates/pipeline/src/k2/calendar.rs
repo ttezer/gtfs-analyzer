@@ -66,7 +66,7 @@ pub fn validate_calendar(file: &RawFile) -> (Vec<CalendarRecord>, Vec<gtfs_core:
                             notices.push(make_k2_notice(
                                 &mut counter, "CAL_002", EntityType::Service, entity_id.clone(),
                                 Some(&row_map), &file.name, Some(line), Some(field),
-                                Some(val.to_string()), Some("0 veya 1".to_string()),
+                                Some(val.to_string()), Some("0 or 1".to_string()),
                                 format!("{field} alanı 0 veya 1 olmalıdır."),
                                 "Her gün alanını 0 veya 1 olarak ayarlayın.",
                             ));
@@ -82,7 +82,7 @@ pub fn validate_calendar(file: &RawFile) -> (Vec<CalendarRecord>, Vec<gtfs_core:
                         &mut counter, "CAL_002", EntityType::Service, entity_id.clone(),
                         Some(&row_map), &file.name, Some(line), Some(field),
                         get_trimmed_field(&row_map, field).map(str::to_string),
-                        Some("0 veya 1".to_string()), err,
+                        Some("0 or 1".to_string()), err,
                         "Her gün alanını 0 veya 1 olarak ayarlayın.",
                     ));
                 }

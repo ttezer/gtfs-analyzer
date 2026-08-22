@@ -179,7 +179,7 @@ pub fn validate_frequencies(file: &RawFile) -> (Vec<FrequencyRecord>, Vec<gtfs_c
                     &mut counter, "FRQ_012", EntityType::Trip, entity_id.clone(),
                     Some(&row_map), &file.name, Some(line), Some("end_time"),
                     get_trimmed_field(&row_map, "end_time").map(str::to_string),
-                    Some(format!("son kalkış + 1..{} sn", h - 1)),
+                    Some(format!("last departure + 1..{} s", h - 1)),
                     format!(
                         "exact_times=1 iken end_time ({}) son seferin kalkışına headway ({h} sn) \
                          kadar uzakta — son sefer belirsiz kalıyor.",
@@ -198,7 +198,7 @@ pub fn validate_frequencies(file: &RawFile) -> (Vec<FrequencyRecord>, Vec<gtfs_c
                         notices.push(make_k2_notice(
                             &mut counter, "FRQ_007", EntityType::Trip, entity_id.clone(),
                             Some(&row_map), &file.name, Some(line), Some("exact_times"),
-                            Some(val.to_string()), Some("0 veya 1".to_string()),
+                            Some(val.to_string()), Some("0 or 1".to_string()),
                             "exact_times 0 veya 1 olmalıdır.".to_string(),
                             "exact_times değerini 0 (frekans bazlı) veya 1 (tarifeli) olarak ayarlayın.",
                         ));
@@ -212,7 +212,7 @@ pub fn validate_frequencies(file: &RawFile) -> (Vec<FrequencyRecord>, Vec<gtfs_c
                 notices.push(make_k2_notice(
                     &mut counter, "FRQ_007", EntityType::Trip, entity_id.clone(),
                     Some(&row_map), &file.name, Some(line), Some("exact_times"),
-                    get_trimmed_field(&row_map, "exact_times").map(str::to_string), Some("0 veya 1".to_string()),
+                    get_trimmed_field(&row_map, "exact_times").map(str::to_string), Some("0 or 1".to_string()),
                     err,
                     "exact_times değerini 0 (frekans bazlı) veya 1 (tarifeli) olarak ayarlayın.",
                 ));

@@ -191,7 +191,7 @@ pub fn validate_agency(file: &RawFile) -> (Vec<AgencyRecord>, Vec<gtfs_core::Not
                         notices.push(make_k2_notice(
                             &mut counter, "AGN_012", EntityType::Agency, entity_id.clone(), Some(&row_map),
                             &file.name, Some(line), Some("cemv_support"), Some(val.to_string()),
-                            Some("0, 1 veya 2".to_string()),
+                            Some("0, 1 or 2".to_string()),
                             "cemv_support 0, 1 veya 2 olmalıdır.".to_string(),
                             "cemv_support alanını 0 (bilgi yok), 1 (destekleniyor) veya 2 (desteklenmiyor) olarak ayarlayın.",
                         ));
@@ -205,7 +205,7 @@ pub fn validate_agency(file: &RawFile) -> (Vec<AgencyRecord>, Vec<gtfs_core::Not
                 notices.push(make_k2_notice(
                     &mut counter, "AGN_012", EntityType::Agency, entity_id.clone(),
                     Some(&row_map), &file.name, Some(line), Some("cemv_support"),
-                    get_trimmed_field(&row_map, "cemv_support").map(str::to_string), Some("0, 1 veya 2".to_string()),
+                    get_trimmed_field(&row_map, "cemv_support").map(str::to_string), Some("0, 1 or 2".to_string()),
                     err,
                     "cemv_support alanını 0 (bilgi yok), 1 (destekleniyor) veya 2 (desteklenmiyor) olarak ayarlayın.",
                 ));

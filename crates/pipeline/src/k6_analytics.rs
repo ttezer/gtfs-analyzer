@@ -1137,7 +1137,7 @@ fn check_speed_and_duration<'a>(
             notices.push(k6_notice(ctr, "STM_053", EntityType::Trip,
                 Some(trip_id.to_string()), Some(trip_id.to_string()), "stop_times.txt",
                 stimes.first().map(|s| s.line as u64), Some("arrival_time"),
-                Some(format!("{max_same_run} ardışık durak")), Some("< 3 ardışık durak".to_string()),
+                Some(format!("{max_same_run} consecutive stops")), Some("< 3 consecutive stops".to_string()),
                 format!("trip_id '{trip_id}' içinde {max_same_run} ardışık durak aynı zaman değerini kullanıyor."),
                 "Ardışık stop_times zamanlarını doğrulayın; gerçek bekleme ise zamanları açıklayıcı biçimde düzenleyin."));
         }
@@ -1327,7 +1327,7 @@ fn check_speed_and_duration<'a>(
                             Some(trip_id.to_string()), Some(trip_id.to_string()),
                             "stop_times.txt", Some(b.line as u64), Some("arrival_time"),
                             Some(format!("sıfır süre, {dist_km:.1} km")),
-                            Some(format!("< {impossible_km:.1} km (aynı dakika içinde)")),
+                            Some(format!("< {impossible_km:.1} km (within the same minute)")),
                             format!("trip_id '{trip_id}'{dep_suffix} stop_sequence {}-{} arası geçiş süresi sıfır ama mesafe {dist_km:.1} km — aynı dakika içinde kapatılamaz (≥ {:.0} km/h gerekirdi, eşik {threshold:.0} km/h).",
                                 a.stop_sequence().unwrap_or(0), b.stop_sequence().unwrap_or(0),
                                 dist_km * 60.0),
@@ -2062,7 +2062,7 @@ fn check_calendar_analytics(
             } else {
                 let pct = total_days as f64 * 100.0 / feed_window_days as f64;
                 (
-                    format!("{total_days}/{feed_window_days} gün (%{pct:.0})"),
+                    format!("{total_days}/{feed_window_days} days ({pct:.0}%)"),
                     format!("≥ %{:.0}", SHORT_FEED_ACTIVE_RATIO * 100.0),
                     format!("'{service_id}' takvimi feed'in {feed_window_days} günlük yayın penceresinin yalnızca {total_days} gününde (%{pct:.0}) aktif."),
                 )
@@ -2407,7 +2407,7 @@ fn check_calendar_analytics(
                 notices.push(k6_notice(
                     ctr, "CAL_016", EntityType::Feed,
                     None, None, "calendar.txt", None, None,
-                    Some(format!("{last}")), Some("≤ +2 yıl".to_string()),
+                    Some(format!("{last}")), Some("≤ +2 years".to_string()),
                     format!("Feed'in en son servis tarihi {last} — bugünden 2 yıldan fazla ileride; bu veri bozuk olabilir."),
                     "Servis takvimini gerçekçi bir bitiş tarihiyle sınırlandırın.",
                 ));
@@ -3112,7 +3112,7 @@ fn check_operational_analytics(
                     "stop_times.txt",
                     None,
                     None,
-                    Some(format!("{count}× tekrar")),
+                    Some(format!("{count}× repeat")),
                     None,
                     format!("'{}' hattının {}seferinde '{}' durağı (kod: '{}') {}× geçiyor — tekrarlayan operasyon deseni.",
                         route, dep, stop_name, dup_stop, count),
@@ -3288,7 +3288,7 @@ fn check_operational_analytics(
                     ctr, "TRP_029", EntityType::Feed,
                     None, None,
                     "trips.txt", None, Some("wheelchair_accessible"),
-                    Some(format!("{total}")), Some("1 veya 2".to_string()),
+                    Some(format!("{total}")), Some("1 or 2".to_string()),
                     format!("{total} seferin hiçbirinde wheelchair_accessible bilgisi girilmemiş."),
                     "Tekerlekli sandalye erişilebilirliğini wheelchair_accessible alanıyla bildirin (1=erişilebilir, 2=erişilemez).",
                 ));
@@ -3323,7 +3323,7 @@ fn check_operational_analytics(
                     ctr, "STP_038", EntityType::Feed,
                     None, None,
                     "stops.txt", None, Some("wheelchair_boarding"),
-                    Some(format!("{total}")), Some("1 veya 2".to_string()),
+                    Some(format!("{total}")), Some("1 or 2".to_string()),
                     format!("{total} fiziksel durağın hiçbirinde wheelchair_boarding bilgisi girilmemiş."),
                     "Durakların tekerlekli sandalye erişilebilirliğini wheelchair_boarding ile bildirin (1=erişilebilir, 2=erişilemez).",
                 ));
@@ -4441,7 +4441,7 @@ fn check_data_quality(
                         ctr, "FIN_010", EntityType::Feed,
                         None, None, "feed_info.txt", None, Some("feed_end_date"),
                         Some(format!("{y}-{m:02}-{d:02}")),
-                        Some("≥ bugün".to_string()),
+                        Some("≥ today".to_string()),
                         format!("Feed'in geçerlilik süresi {y}-{m:02}-{d:02} tarihinde dolmuş; mevcut veriler güncel değil."),
                         "feed_info.txt'deki feed_end_date'i güncel tutun ve yeni bir feed yayınlayın.",
                     ));
@@ -4456,7 +4456,7 @@ fn check_data_quality(
                         ctr, "FIN_016", EntityType::Feed,
                         None, None, "feed_info.txt", None, Some("feed_start_date"),
                         Some(format!("{sy}-{sm:02}-{sd:02}")),
-                        Some("≤ bugün".to_string()),
+                        Some("≤ today".to_string()),
                         format!("feed_start_date ({sy}-{sm:02}-{sd:02}) henüz gelmedi — feed bugün için aktif değil."),
                         "feed_start_date'i geçmiş veya bugüne ayarlayın ya da feed'i doğru zamanda yayınlayın.",
                     ));
@@ -4473,7 +4473,7 @@ fn check_data_quality(
                         ctr, "FIN_017", EntityType::Feed,
                         None, None, "feed_info.txt", None, Some("feed_end_date"),
                         Some(format!("{ey}-{em:02}-{ed:02}")),
-                        Some("≤ +2 yıl".to_string()),
+                        Some("≤ +2 years".to_string()),
                         format!("feed_end_date ({ey}-{em:02}-{ed:02}) bugünden 2 yıldan fazla ileride — muhtemelen yanlış değer."),
                         "feed_end_date'i gerçekçi bir bitiş tarihiyle güncelleyin.",
                     ));
@@ -4565,7 +4565,7 @@ fn check_data_quality(
                     notices.push(k6_notice(
                         ctr, "CAL_020", EntityType::Feed,
                         None, None, "feed_info.txt", None, None,
-                        Some(format!("{} yıl", span_days / 365)), Some("≤5 yıl".to_string()),
+                        Some(format!("{} years", span_days / 365)), Some("≤5 years".to_string()),
                         format!("Feed geçerlilik penceresi {} gün (~{} yıl) — gerçekçi olmayan zaman dilimi.",
                             span_days, span_days / 365),
                         "feed_start_date ve feed_end_date değerlerini gerçekçi hizmet dönemine göre düzenleyin.",
@@ -6859,7 +6859,7 @@ fn check_remaining_analytics<'a>(
             notices.push(k6_notice(
                 ctr, "OPR_009", EntityType::Route,
                 Some(route.to_string()), Some(route.to_string()), "stop_times.txt", None,
-                Some("departure_time"), Some(format!("{count} sefer, {}-{}", hm(min), hm(max))), None,
+                Some("departure_time"), Some(format!("{count} trips, {}-{}", hm(min), hm(max))), None,
                 format!("'{route}' hattında {count} gece seferi var (ilk kalkış aralığı {}-{}).", hm(min), hm(max)),
                 "Bu bilgi notu; gece servisleri için beklenen bir durumdur.",
             ));
@@ -7846,7 +7846,7 @@ fn check_calendar_override_analytics(
                 Some(route_id.to_string()), Some(route_id.to_string()),
                 "trips.txt", None, None,
                 Some(format!("{count}")),
-                Some("≤ 1/gün".to_string()),
+                Some("≤ 1/day".to_string()),
                 msg,
                 "Her takvim günü için yalnızca bir servis aktif olacak şekilde düzenleyin.",
             );
@@ -7894,7 +7894,7 @@ fn check_calendar_override_analytics(
                 Some(route_id.to_string()), Some(route_id.to_string()),
                 "trips.txt", None, None,
                 Some(format!("{count}")),
-                Some("≤ 1/gün".to_string()),
+                Some("≤ 1/day".to_string()),
                 msg,
                 "Override günlerinde base servisi calendar_dates.txt ile kaldırın (exception_type=2).",
             );
@@ -8348,7 +8348,7 @@ fn check_pathway_analytics(
                 "pathways.txt",
                 None,
                 None,
-                Some("max_slope > 8% veya min_width < 0.9m".to_string()),
+                Some("max_slope > 8% or min_width < 0.9m".to_string()),
                 Some("max_slope ≤ 8% ve min_width ≥ 0.9m olan en az 1 path".to_string()),
                 format!(
                     "İstasyon '{station_id}' — entrance'tan platforma tekerlekli sandalye ile erişilebilir pathway rotası yok (tüm pathlarda max_slope > 8% veya min_width < 0.9m).",
@@ -8625,7 +8625,7 @@ fn check_vat_analytics(
                 "stops.txt",
                 None,
                 Some("stop_id"),
-                Some(format!("{} hat", routes.len())),
+                Some(format!("{} routes", routes.len())),
                 None,
                 format!("'{name}' (kod: '{stop_id}') durağından {} hat geçiyor ({routes_label_str}); transfers.txt'te aktarma tanımlı değil.",
                     routes.len()),
@@ -8798,7 +8798,7 @@ fn check_vat_analytics(
                     "stop_times.txt",
                     None,
                     Some("trip_id"),
-                    Some(format!("{dur_min}dk (saat-bazlı beklenen {ref_min}dk)")),
+                    Some(format!("{dur_min}min (hour-based expected {ref_min}min)")),
                     None,
                     format!("'{label}' hattının '{trip_id}'{dep_suffix} seferinin süresi {dur_min}dk — bu saatte beklenen ~{ref_min}dk ({sigma_str}).{repeat_suffix}"),
                     "stop_times.txt zaman değerlerini ve sefer güzergahını doğrulayın.",
@@ -9103,8 +9103,8 @@ fn check_vat_analytics(
                         ctr, "VAT_008", EntityType::Shape,
                         Some((*shape_id).to_string()), None,
                         "trips.txt", None, None,
-                        Some(format!("{:.0}% ({} hat)", pct, route_set.len())),
-                        Some(format!("≤{threshold} hat")),
+                        Some(format!("{:.0}% ({} routes)", pct, route_set.len())),
+                        Some(format!("≤{threshold} routes")),
                         format!("'{shape_id}' shape'i {} hatta ({pct:.0}%) kullanılıyor — olası yanlış shape ataması.",
                             route_set.len()),
                         "Her hat ve yön için ayrı shape_id tanımlayın.",
@@ -13824,7 +13824,7 @@ mod tests {
         );
         let n = vat[0];
         // Temsili trip: leksikografik en küçük (deterministik).
-        assert_eq!(n.entity_id.as_deref(), Some("X_D00"), "temsili en küçük trip_id olmalı");
+        assert_eq!(n.entity_id.as_deref(), Some("X_D00"), "representative must be the smallest trip_id");
         assert_eq!(
             n.details.as_ref().and_then(|d| d.get("duplicate_trips")).map(String::as_str),
             Some("10"),
@@ -14333,7 +14333,7 @@ mod tests {
         let found: Vec<_> = result.notices.iter().filter(|n| n.rule_id == "OPR_009").collect();
         assert_eq!(found.len(), 1);
         assert_eq!(found[0].entity_type, EntityType::Route);
-        assert!(found[0].observed_value.as_deref().unwrap_or("").contains("2 sefer"));
+        assert!(found[0].observed_value.as_deref().unwrap_or("").contains("2 trips"));
     }
 
     // ── TRP_033 · blokta karışık route_type ───────────────────────────────────

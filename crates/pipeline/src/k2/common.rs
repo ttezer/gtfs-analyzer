@@ -855,7 +855,7 @@ pub(crate) fn arc033_summary(
     Some(make_k2_notice(
         counter, "ARC_033", EntityType::File, Some(file.to_string()),
         None, file, acc.first_line, None,
-        Some(format!("{} satır · {kind}", acc.rows)), None,
+        Some(format!("{} rows · {kind}", acc.rows)), None,
         format!("'{file}' RFC 4180'e uymuyor: {kind} ({} satırda; ilk örnek: '{example}').", acc.rows),
         "Tırnak veya virgül içeren alan değerlerini tırnak içine alın; değerin içindeki her \
 tırnağı ikiye katlayarak kaçırın (\"12\"\" Street\").",

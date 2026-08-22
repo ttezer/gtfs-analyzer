@@ -188,7 +188,7 @@ fn parse_role_enum(
                         Some(line),
                         Some(field),
                         Some(v.to_string()),
-                        Some("0 veya 1".to_string()),
+                        Some("0 or 1".to_string()),
                         format!("{field} alanı 0 veya 1 olmalıdır."),
                         "Her attribution rol alanını 0 veya 1 olarak ayarlayın.",
                     ));
@@ -207,7 +207,7 @@ fn parse_role_enum(
                 Some(line),
                 Some(field),
                 get_trimmed_field(row_map, field).map(str::to_string),
-                Some("0 veya 1".to_string()),
+                Some("0 or 1".to_string()),
                 err,
                 "Her attribution rol alanını 0 veya 1 olarak ayarlayın.",
             ));

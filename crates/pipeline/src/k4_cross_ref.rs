@@ -533,7 +533,7 @@ fn check_agencies(
             "routes.txt",
             None,
             Some("agency_id"),
-            Some(format!("{routes_without_agency} hat")),
+            Some(format!("{routes_without_agency} routes")),
             Some("dolu".to_string()),
             format!(
                 "Feed'de {} işletici var; {routes_without_agency} hatta agency_id belirtilmemiş — hangi işleticinin çalıştırdığı belirlenemiyor.",
@@ -666,7 +666,7 @@ fn check_stops(
                 Some(rec.line),
                 Some("parent_station"),
                 None,
-                Some("dolu olmalı".to_string()),
+                Some("must be set".to_string()),
                 format!(
                     "location_type={} olan durak için parent_station zorunludur.",
                     loc_type.unwrap()
@@ -687,7 +687,7 @@ fn check_stops(
                 Some(rec.line),
                 Some("parent_station"),
                 Some(parent.to_string()),
-                Some("boş olmalı".to_string()),
+                Some("must be empty".to_string()),
                 format!("İstasyon '{}' (location_type=1) parent_station='{}' içeriyor; istasyonlar üst varlık olarak parent_station içermemelidir.", rec.stop_id, parent),
                 "İstasyondan parent_station alanını kaldırın; sadece location_type 2/3/4 için parent_station gerekir.",
             ));
@@ -781,7 +781,7 @@ fn check_stops(
                     Some(rec.line),
                     Some("stop_access"),
                     Some(stop_access_raw.to_string()),
-                    Some("0 veya 1".to_string()),
+                    Some("0 or 1".to_string()),
                     format!("stop_access '{stop_access_raw}' geçersiz enum değeri."),
                     "stop_access için 0 veya 1 kullanın.",
                 ));
@@ -984,7 +984,7 @@ fn check_routes(
                     Some(rec.line),
                     Some(field),
                     Some(value.to_string()),
-                    Some("1 veya boş".to_string()),
+                    Some("1 or empty".to_string()),
                     format!(
                         "'{}' hattının '{}' seferinde Flex penceresi tanımlı — {field}={value} yasaktır.",
                         rec.route_id, sample_trip
@@ -1307,7 +1307,7 @@ fn check_pathways(
                     Some(rec.line),
                     Some("from_stop_id|to_stop_id"),
                     Some(format!("from_station={fs}, to_station={ts}")),
-                    Some("aynı istasyon içinde olmalı".to_string()),
+                    Some("must be within the same station".to_string()),
                     format!(
                         "pathway_id '{}' farklı istasyonlar arası bağlantı kuruyor (from_station='{fs}', to_station='{ts}').",
                         rec.pathway_id
@@ -1790,7 +1790,7 @@ fn check_transfers(
                     Some(rec.line),
                     Some("from_trip_id|to_trip_id"),
                     None,
-                    Some("tip 4/5 için her iki trip_id zorunlu".to_string()),
+                    Some("both trip_id values are required for type 4/5".to_string()),
                     format!(
                         "transfer_type={} için from_trip_id ve to_trip_id zorunludur.",
                         ttype.unwrap()
@@ -1959,7 +1959,7 @@ fn check_transfers(
                 notices.push(notice(
                     ctr, "TRF_021", EntityType::Transfer,
                     None, None, "transfers.txt", Some(rec.line), Some(field),
-                    Some(stop_id.to_string()), Some("location_type 0 veya 1".to_string()),
+                    Some(stop_id.to_string()), Some("location_type 0 or 1".to_string()),
                     format!(
                         "{field} '{stop_id}' location_type={lt}; aktarma yalnızca durak (0) veya istasyon (1) referansı alabilir.",
                     ),
@@ -2126,7 +2126,7 @@ fn check_fare_attributes(
                 "fare_attributes.txt",
                 None,
                 Some("agency_id"),
-                Some(format!("{missing} eksik kayıt")),
+                Some(format!("{missing} missing records")),
                 Some("dolu".to_string()),
                 format!("{missing} ücret tarifesinde agency_id eksik{}.", if multi_agency { "; birden fazla kuruluşta zorunludur" } else { "; tek kuruluşta önerilir" }),
                 "agency_id sütununu ücret tarifeleri için doldurun.",
@@ -2146,7 +2146,7 @@ fn check_fare_attributes(
                 Some(rec.line),
                 Some("fare_id"),
                 Some(rec.fare_id.clone()),
-                Some("fare_rules.txt'te kayıt".to_string()),
+                Some("a record in fare_rules.txt".to_string()),
                 format!(
                     "Ücret tarifesi '{}' için fare_rules.txt'te hiç kural tanımlanmamış — hangi hatlara uygulanacağı belli değil.",
                     rec.fare_id
@@ -2274,7 +2274,7 @@ fn check_fare_rules(
         notices.push(notice(
             ctr, "FRL_001", EntityType::Fare, eid.clone(), eid,
             "fare_rules.txt", Some(*line), Some("fare_id"),
-            Some(format!("{fare_id} ({rows} satır)")), None,
+            Some(format!("{fare_id} ({rows} rows)")), None,
             format!("'{fare_id}' ücret tarifesi fare_attributes.txt'te tanımlı değil ({rows} fare_rules satırında kullanılıyor)."),
             "Geçerli bir fare_id kullanın ya da fare_attributes.txt'e tanımını ekleyin.",
         ));
@@ -2283,7 +2283,7 @@ fn check_fare_rules(
         notices.push(notice(
             ctr, rule, EntityType::Fare, Some(fare_id.clone()), Some(fare_id.clone()),
             "fare_rules.txt", Some(*line), Some(field),
-            Some(format!("{zid} ({rows} satır)")), None,
+            Some(format!("{zid} ({rows} rows)")), None,
             format!("{field} '{zid}' stops.txt'te tanımlı bir zone_id değil ({rows} fare_rules satırında kullanılıyor)."),
             "Geçerli bir zone_id kullanın.",
         ));
@@ -3367,7 +3367,7 @@ fn check_fare_leg_join_rules(
                     notices.push(notice(
                         ctr, rule, EntityType::Row, None, None,
                         "fare_leg_join_rules.txt", Some(rec.line), Some(field),
-                        Some(value.clone()), Some("location_type 0 veya 1".to_string()),
+                        Some(value.clone()), Some("location_type 0 or 1".to_string()),
                         format!("'{value}' bir durak veya istasyon değil (location_type={}).",
                                 stop.location_type.unwrap_or(0)),
                         "Durak (location_type 0/boş) veya istasyon (location_type=1) gösterin.",
@@ -3524,7 +3524,7 @@ fn check_attributions(
                 // Olgu ÜÇ hedef alanının birlikte kullanılmasıdır.
                 Some("agency_id|route_id|trip_id"),
                 None,
-                Some("en fazla biri dolu olmalı (agency_id/route_id/trip_id)".to_string()),
+                Some("at most one may be set (agency_id/route_id/trip_id)".to_string()),
                 "agency_id, route_id ve trip_id aynı satırda birlikte kullanılamaz.".to_string(),
                 "Bu alanlardan yalnızca birini doldurun.",
             ));
@@ -3822,7 +3822,7 @@ fn check_xfl(
                         Some(rec.line),
                         Some(field),
                         Some(stop_id.to_string()),
-                        Some("location_type 0, 2, 3 veya 4".to_string()),
+                        Some("location_type 0, 2, 3 or 4".to_string()),
                         format!(
                             "{field} '{stop_id}' bir istasyon (location_type=1); pathway uç noktası peron, giriş/çıkış, ara düğüm veya biniş alanı olmalıdır.",
                         ),

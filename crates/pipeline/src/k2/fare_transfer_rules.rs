@@ -142,7 +142,7 @@ pub fn validate_fare_transfer_rules(
                     notices.push(make_k2_notice(
                         &mut counter, "FTR_008", EntityType::Row, entity_id.clone(), Some(&row_map),
                         &file.name, Some(line), Some("transfer_count"), Some(v.to_string()),
-                        Some("-1 veya > 0".to_string()),
+                        Some("-1 or > 0".to_string()),
                         "transfer_count -1 veya pozitif bir tam sayı olmalıdır.".to_string(),
                         "-1 (sınırsız) veya 1 gibi pozitif bir değer girin.",
                     ));
@@ -152,7 +152,7 @@ pub fn validate_fare_transfer_rules(
                     notices.push(make_k2_notice(
                         &mut counter, "FTR_008", EntityType::Row, entity_id.clone(), Some(&row_map),
                         &file.name, Some(line), Some("transfer_count"), Some(raw.clone()),
-                        Some("-1 veya > 0".to_string()),
+                        Some("-1 or > 0".to_string()),
                         "transfer_count sayısal bir değer değil.".to_string(),
                         "-1 (sınırsız) veya pozitif bir tam sayı girin.",
                     ));

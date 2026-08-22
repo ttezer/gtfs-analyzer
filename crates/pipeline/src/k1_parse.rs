@@ -573,7 +573,7 @@ impl Dq016Acc {
         }
         let cols = self.cols.iter().map(String::as_str).collect::<Vec<_>>().join(", ");
         Some((
-            format!("{} satır", self.rows),
+            format!("{} rows", self.rows),
             format!(
                 "'{file_name}' dosyasında {} satırda baştaki/sondaki boşluk var; etkilenen sütunlar: {cols}.",
                 self.rows
@@ -700,7 +700,7 @@ pub(crate) fn arc012_check(
             "Her satırın başlık sayısı kadar virgülle ayrılmış değer içerdiğinden emin olun.",
         )
     };
-    Some((msg, tip, format!("{row_len} sütun (beklenen {header_count})"), short))
+    Some((msg, tip, format!("{row_len} columns (expected {header_count})"), short))
 }
 
 /// ARC_021: satırda yazdırılamaz/sorunlu karakter arar, ilk bulunanın kod noktasını döner.
@@ -1505,7 +1505,7 @@ pub fn parse_with_limits(
             &mut counter, "ARC_011",
             EntityType::File, Some(raw_name.clone()),
             Some(&raw_name), None, None,
-            Some(format!("{file_size_bytes} bayt")),
+            Some(format!("{file_size_bytes} bytes")),
             format!("'{raw_name}' boyutu: {file_size_bytes} bayt."),
             "Bilgi amaçlı; düzeltme gerekmez.",
         ));
@@ -1898,7 +1898,7 @@ pub fn parse_with_limits(
                 &mut counter, "ARC_033",
                 EntityType::File, Some(raw_name.clone()),
                 Some(raw_name.as_str()), rfc4180.first_line, None,
-                Some(format!("{} satır · {kind}", rfc4180.rows)),
+                Some(format!("{} rows · {kind}", rfc4180.rows)),
                 format!(
                     "'{raw_name}' RFC 4180'e uymuyor: {kind} ({} satırda; ilk örnek: '{example}').",
                     rfc4180.rows
@@ -2326,7 +2326,7 @@ fn check_polygon_rings(
         if !ring_is_simple(outer) {
             bad = Some("dış ring kendini kesiyor".to_string());
         } else if has_spike(outer) {
-            bad = Some("dış ring'de sıfır alanlı çıkıntı (spike/cut line) var".to_string());
+            bad = Some("zero-area spike (spike/cut line) on the outer ring".to_string());
         } else if ring_touches_itself(outer) {
             bad = Some("dış ring kendine dokunuyor — iç kısım bölünüyor".to_string());
         }
@@ -2335,7 +2335,7 @@ fn check_polygon_rings(
             if !ring_is_simple(hole) {
                 bad = Some(format!("{i}. delik kendini kesiyor"));
             } else if has_spike(hole) {
-                bad = Some(format!("{i}. delikte sıfır alanlı çıkıntı (spike/cut line) var"));
+                bad = Some(format!("zero-area spike (spike/cut line) in hole {i}"));
             } else if ring_touches_itself(hole) {
                 bad = Some(format!("{i}. delik kendine dokunuyor — iç kısım bölünüyor"));
             } else if rings_cross(outer, hole) {
@@ -2344,7 +2344,7 @@ fn check_polygon_rings(
             } else if hole.iter().any(|&p| !point_in_ring(p, outer)) {
                 // Eskiden yalnız İLK NOKTA örnekleniyordu → kısmen dışarı taşan delik
                 // görünmüyordu. Artık TÜM köşeler denetlenir.
-                bad = Some(format!("{i}. delik kısmen veya tamamen dış ring'in dışında"));
+                bad = Some(format!("hole {i} lies partly or wholly outside the outer ring"));
             }
         }
         // Delik-delik ilişkisi: kesişme yasak (6.1.11/3); iç içe delik de geçersizdir

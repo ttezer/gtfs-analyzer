@@ -178,7 +178,7 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
                 Some(line),
                 Some("max_slope"),
                 max_slope.map(|v| v.to_string()),
-                Some("pathway_mode 1 veya 3".to_string()),
+                Some("pathway_mode 1 or 3".to_string()),
                 "max_slope yalnızca pathway_mode 1 veya 3 için geçerlidir.".to_string(),
                 "max_slope yalnızca yürüme yolu veya hareketli yürüme yolu geçitlerinde kullanın.",
             ));

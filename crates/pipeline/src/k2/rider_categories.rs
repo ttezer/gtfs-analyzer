@@ -50,7 +50,7 @@ pub fn validate_rider_categories(
                         notices.push(make_k2_notice(
                             &mut counter, "RCT_003", EntityType::Row, entity_id.clone(), Some(&row_map),
                             &file.name, Some(line), Some("is_default_fare_category"), Some(v.to_string()),
-                            Some("0 veya 1".to_string()),
+                            Some("0 or 1".to_string()),
                             "is_default_fare_category geçerli bir enum değeri değil.".to_string(),
                             "0 (varsayılan değil) veya 1 (varsayılan) kullanın.",
                         ));
@@ -63,7 +63,7 @@ pub fn validate_rider_categories(
                     &mut counter, "RCT_003", EntityType::Row, entity_id.clone(), Some(&row_map),
                     &file.name, Some(line), Some("is_default_fare_category"),
                     get_trimmed_field(&row_map, "is_default_fare_category").map(str::to_string),
-                    Some("0 veya 1".to_string()), err,
+                    Some("0 or 1".to_string()), err,
                     "0 veya 1 kullanın.",
                 ));
                 None

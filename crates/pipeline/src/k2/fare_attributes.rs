@@ -141,7 +141,7 @@ pub fn validate_fare_attributes(
         notices.push(make_k2_notice(
             &mut counter, "FAR_013", EntityType::File, None, None,
             &file.name, Some(line), Some("price"),
-            Some(format!("{iso_bad} satır")), Some(format!("{want} ondalık basamak")),
+            Some(format!("{iso_bad} rows")), Some(format!("{want} decimal places")),
             format!(
                 "fare_attributes.txt dosyasında {iso_bad} tutar, para biriminin ISO 4217 ondalık basamak \
                  sayısını taşımıyor (ör. satır {line}: {currency} {amount} — {want} basamak beklenir)."

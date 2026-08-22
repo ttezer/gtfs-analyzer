@@ -192,7 +192,7 @@ pub fn validate_calendar_dates_with_limits(
                 notices.push(make_k2_notice(
                     &mut counter, "CLD_003", EntityType::Service, entity_id.clone(),
                     None, &file.name, Some(line), Some("exception_type"),
-                    Some(String::new()), Some("1 veya 2".to_string()),
+                    Some(String::new()), Some("1 or 2".to_string()),
                     "exception_type zorunludur.".to_string(),
                     "exception_type değerini 1 (eklendi) veya 2 (kaldırıldı) olarak ayarlayın.",
                 ));
@@ -205,7 +205,7 @@ pub fn validate_calendar_dates_with_limits(
                     notices.push(make_k2_notice(
                         &mut counter, "CLD_003", EntityType::Service, entity_id.clone(),
                         None, &file.name, Some(line), Some("exception_type"),
-                        Some(val.to_string()), Some("1 veya 2".to_string()),
+                        Some(val.to_string()), Some("1 or 2".to_string()),
                         "exception_type 1 veya 2 olmalıdır.".to_string(),
                         "exception_type değerini 1 (hizmet eklendi) veya 2 (hizmet kaldırıldı) \
                          olarak ayarlayın.",
@@ -216,7 +216,7 @@ pub fn validate_calendar_dates_with_limits(
                     notices.push(make_k2_notice(
                         &mut counter, "CLD_003", EntityType::Service, entity_id.clone(),
                         None, &file.name, Some(line), Some("exception_type"),
-                        Some(et_raw.to_string()), Some("1 veya 2".to_string()),
+                        Some(et_raw.to_string()), Some("1 or 2".to_string()),
                         format!("exception_type '{et_raw}' geçersiz; 1 veya 2 olmalıdır."),
                         "exception_type değerini 1 (hizmet eklendi) veya 2 (hizmet kaldırıldı) \
                          olarak ayarlayın.",

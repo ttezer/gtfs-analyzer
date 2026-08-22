@@ -276,7 +276,7 @@ pub fn validate_trips_with_limits(
                         notices.push(make_k2_notice(
                             &mut counter, "TRP_005", EntityType::Trip, entity_id.clone(),
                             None, &file.name, Some(line), Some("direction_id"),
-                            Some(val.to_string()), Some("0 veya 1".to_string()),
+                            Some(val.to_string()), Some("0 or 1".to_string()),
                             format!("direction_id {val} geçersiz; 0 veya 1 olmalıdır."),
                             "direction_id değerini 0 (gidiş) veya 1 (dönüş) olarak ayarlayın.",
                         ));
@@ -288,7 +288,7 @@ pub fn validate_trips_with_limits(
                 notices.push(make_k2_notice(
                     &mut counter, "TRP_005", EntityType::Trip, entity_id.clone(),
                     None, &file.name, Some(line), Some("direction_id"),
-                    Some(dir_raw.to_string()), Some("0 veya 1".to_string()),
+                    Some(dir_raw.to_string()), Some("0 or 1".to_string()),
                     format!("direction_id '{dir_raw}' geçersiz; 0 veya 1 olmalıdır."),
                     "direction_id değerini 0 (gidiş) veya 1 (dönüş) olarak ayarlayın.",
                 ));
@@ -305,7 +305,7 @@ pub fn validate_trips_with_limits(
                         notices.push(make_k2_notice(
                             &mut counter, "TRP_006", EntityType::Trip, entity_id.clone(),
                             None, &file.name, Some(line), Some("wheelchair_accessible"),
-                            Some(val.to_string()), Some("0, 1 veya 2".to_string()),
+                            Some(val.to_string()), Some("0, 1 or 2".to_string()),
                             "wheelchair_accessible 0, 1 veya 2 olmalıdır.".to_string(),
                             "wheelchair_accessible değerini 0 (bilgi yok), 1 (erişilebilir) veya 2 (erişilemez) olarak ayarlayın.",
                         ));
@@ -319,7 +319,7 @@ pub fn validate_trips_with_limits(
                 notices.push(make_k2_notice(
                     &mut counter, "TRP_006", EntityType::Trip, entity_id.clone(),
                     None, &file.name, Some(line), Some("wheelchair_accessible"),
-                    Some(wc_raw.to_string()), Some("0, 1 veya 2".to_string()),
+                    Some(wc_raw.to_string()), Some("0, 1 or 2".to_string()),
                     format!("wheelchair_accessible '{}' sayı olarak okunamıyor.", wc_raw),
                     "wheelchair_accessible değerini 0 (bilgi yok), 1 (erişilebilir) veya 2 (erişilemez) olarak ayarlayın.",
                 ));
@@ -336,7 +336,7 @@ pub fn validate_trips_with_limits(
                         notices.push(make_k2_notice(
                             &mut counter, "TRP_007", EntityType::Trip, entity_id.clone(),
                             None, &file.name, Some(line), Some("bikes_allowed"),
-                            Some(val.to_string()), Some("0, 1 veya 2".to_string()),
+                            Some(val.to_string()), Some("0, 1 or 2".to_string()),
                             "bikes_allowed 0, 1 veya 2 olmalıdır.".to_string(),
                             "bikes_allowed değerini 0 (bilgi yok), 1 (izinli) veya 2 (izinsiz) olarak ayarlayın.",
                         ));
@@ -350,7 +350,7 @@ pub fn validate_trips_with_limits(
                 notices.push(make_k2_notice(
                     &mut counter, "TRP_007", EntityType::Trip, entity_id.clone(),
                     None, &file.name, Some(line), Some("bikes_allowed"),
-                    Some(ba_raw.to_string()), Some("0, 1 veya 2".to_string()),
+                    Some(ba_raw.to_string()), Some("0, 1 or 2".to_string()),
                     format!("bikes_allowed '{}' sayı olarak okunamıyor.", ba_raw),
                     "bikes_allowed değerini 0 (bilgi yok), 1 (izinli) veya 2 (izinsiz) olarak ayarlayın.",
                 ));
@@ -380,7 +380,7 @@ pub fn validate_trips_with_limits(
                         notices.push(make_k2_notice(
                             &mut counter, "TRP_032", EntityType::Trip, entity_id.clone(),
                             None, &file.name, Some(line), Some("cars_allowed"),
-                            Some(val.to_string()), Some("0, 1 veya 2".to_string()),
+                            Some(val.to_string()), Some("0, 1 or 2".to_string()),
                             "cars_allowed 0, 1 veya 2 olmalıdır.".to_string(),
                             "cars_allowed değerini 0 (bilgi yok), 1 (araç izinli) veya 2 (araç izinsiz) olarak ayarlayın.",
                         ));

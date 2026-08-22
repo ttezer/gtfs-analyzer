@@ -2784,7 +2784,7 @@ fn arc033_reports_one_summary_per_file_not_one_per_row() {
             let hits: Vec<_> = vr.notices.iter().filter(|n| n.rule_id == "ARC_033").collect();
             assert_eq!(hits.len(), 1, "dosya başına TEK özet bekleniyor, gelen: {}", hits.len());
             let observed = hits[0].observed_value.clone().unwrap_or_default();
-            assert!(observed.starts_with("5 satır"), "özet satır sayısını taşımalı: {observed}");
+            assert!(observed.starts_with("5 rows"), "özet satır sayısını taşımalı: {observed}");
         }
         other => panic!("Ok beklendi: {other:?}"),
     }

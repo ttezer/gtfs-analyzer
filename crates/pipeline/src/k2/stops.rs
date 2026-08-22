@@ -70,7 +70,7 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
             if let Some(first_stop) = stop_code_owner.get(code) {
                 notices.push(make_k2_notice(&mut counter, "STP_039", EntityType::Stop, entity_id.clone(),
                     Some(&row_map), &file.name, Some(line), Some("stop_code"), Some(code.clone()),
-                    Some("feed içinde benzersiz".to_string()),
+                    Some("unique within the feed".to_string()),
                     format!("stop_code '{code}' hem '{first_stop}' hem '{stop_id}' duraklarında kullanılıyor."),
                     "Her yolcu-facing stop_code değerini feed içinde benzersiz yapın."));
             } else { stop_code_owner.insert(code.clone(), stop_id.clone()); }
@@ -301,7 +301,7 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
                         notices.push(make_k2_notice(
                             &mut counter, "STP_013", EntityType::Stop, entity_id.clone(),
                             Some(&row_map), &file.name, Some(line), Some("wheelchair_boarding"),
-                            Some(val.to_string()), Some("0, 1 veya 2".to_string()),
+                            Some(val.to_string()), Some("0, 1 or 2".to_string()),
                             "wheelchair_boarding 0, 1 veya 2 olmalıdır.".to_string(),
                             "wheelchair_boarding alanını 0 (bilgi yok), 1 (erişilebilir) veya 2 (erişilemez) olarak ayarlayın.",
                         ));
@@ -315,7 +315,7 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
                 notices.push(make_k2_notice(
                     &mut counter, "STP_013", EntityType::Stop, entity_id.clone(),
                     Some(&row_map), &file.name, Some(line), Some("wheelchair_boarding"),
-                    get_trimmed_field(&row_map, "wheelchair_boarding").map(str::to_string), Some("0, 1 veya 2".to_string()),
+                    get_trimmed_field(&row_map, "wheelchair_boarding").map(str::to_string), Some("0, 1 or 2".to_string()),
                     err,
                     "wheelchair_boarding alanını 0 (bilgi yok), 1 (erişilebilir) veya 2 (erişilemez) olarak ayarlayın.",
                 ));

@@ -1702,7 +1702,7 @@ pub fn validate_stop_times_with_limits(
                         st.notices.push(make_k2_notice(
                             &mut st.counter, "STM_022", EntityType::Trip, eid(),
                             None, &file.name, Some(line), Some("timepoint"),
-                            Some(val.to_string()), Some("0 veya 1".to_string()),
+                            Some(val.to_string()), Some("0 or 1".to_string()),
                             "timepoint 0 veya 1 olmalıdır.".to_string(),
                             "timepoint değerini 0 (yaklaşık) veya 1 (kesin) olarak ayarlayın.",
                         ));
@@ -1716,7 +1716,7 @@ pub fn validate_stop_times_with_limits(
                 st.notices.push(make_k2_notice(
                     &mut st.counter, "STM_022", EntityType::Trip, eid(),
                     None, &file.name, Some(line), Some("timepoint"),
-                    Some(tp_raw.to_string()), Some("0 veya 1".to_string()),
+                    Some(tp_raw.to_string()), Some("0 or 1".to_string()),
                     err,
                     "timepoint değerini 0 (yaklaşık) veya 1 (kesin) olarak ayarlayın.",
                 ));
@@ -1893,7 +1893,7 @@ pub fn validate_stop_times_with_limits(
                     st.notices.push(make_k2_notice(
                         &mut st.counter, "STM_051", EntityType::Trip, eid(),
                         None, &file.name, Some(line), Some("pickup_type"),
-                        Some(pt.to_string()), Some("1 veya 2".to_string()),
+                        Some(pt.to_string()), Some("1 or 2".to_string()),
                         format!("trip_id '{trip_id}' Flex penceresi tanımlı iken pickup_type={pt} yasaktır."),
                         "Flex penceresi olan stop_times satırlarında pickup_type'ı 1 (alış yok) veya 2 (telefonla) yapın.",
                     ));
@@ -1904,7 +1904,7 @@ pub fn validate_stop_times_with_limits(
                 st.notices.push(make_k2_notice(
                     &mut st.counter, "STM_052", EntityType::Trip, eid(),
                     None, &file.name, Some(line), Some("drop_off_type"),
-                    Some("0".to_string()), Some("1 veya 2".to_string()),
+                    Some("0".to_string()), Some("1 or 2".to_string()),
                     format!("trip_id '{trip_id}' Flex penceresi tanımlı iken drop_off_type=0 yasaktır."),
                     "Flex penceresi olan stop_times satırlarında drop_off_type'ı 1 (iniş yok) veya 2 (telefonla) yapın.",
                 ));
@@ -1919,7 +1919,7 @@ pub fn validate_stop_times_with_limits(
                 st.notices.push(make_k2_notice(
                     &mut st.counter, "STM_054", EntityType::Trip, eid(),
                     None, &file.name, Some(line), Some("continuous_pickup"),
-                    Some(cp.to_string()), Some("1 veya boş".to_string()),
+                    Some(cp.to_string()), Some("1 or empty".to_string()),
                     format!("trip_id '{trip_id}' Flex penceresi tanımlı iken continuous_pickup={cp} yasaktır."),
                     "Flex penceresi olan stop_times satırlarında continuous_pickup'ı 1 yapın veya alanı boş bırakın.",
                 ));
@@ -1929,7 +1929,7 @@ pub fn validate_stop_times_with_limits(
                 st.notices.push(make_k2_notice(
                     &mut st.counter, "STM_055", EntityType::Trip, eid(),
                     None, &file.name, Some(line), Some("continuous_drop_off"),
-                    Some(cd.to_string()), Some("1 veya boş".to_string()),
+                    Some(cd.to_string()), Some("1 or empty".to_string()),
                     format!("trip_id '{trip_id}' Flex penceresi tanımlı iken continuous_drop_off={cd} yasaktır."),
                     "Flex penceresi olan stop_times satırlarında continuous_drop_off'u 1 yapın veya alanı boş bırakın.",
                 ));

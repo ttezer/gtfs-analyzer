@@ -82,7 +82,7 @@ pub fn validate_fare_products(
                     notices.push(make_k2_notice(
                         &mut counter, "GGL_002", EntityType::Row, entity_id.clone(), Some(&row_map),
                         &file.name, Some(line), Some("ic_price"),
-                        Some(v.to_string()), Some("-1 veya >= 0".to_string()),
+                        Some(v.to_string()), Some("-1 or >= 0".to_string()),
                         format!("ic_price '{v}' geçersiz: -1 veya sıfırdan büyük bir değer olmalıdır."),
                         "ic_price değerini -1 (bilinmiyor) veya pozitif bir sayı olarak ayarlayın.",
                     ));
@@ -91,7 +91,7 @@ pub fn validate_fare_products(
                     notices.push(make_k2_notice(
                         &mut counter, "GGL_002", EntityType::Row, entity_id.clone(), Some(&row_map),
                         &file.name, Some(line), Some("ic_price"),
-                        Some(ic_price_raw.to_string()), Some("-1 veya >= 0".to_string()),
+                        Some(ic_price_raw.to_string()), Some("-1 or >= 0".to_string()),
                         format!("ic_price '{ic_price_raw}' sayısal değil."),
                         "ic_price değerini -1 (bilinmiyor) veya pozitif bir sayı olarak ayarlayın.",
                     ));
@@ -141,7 +141,7 @@ pub fn validate_fare_products(
         notices.push(make_k2_notice(
             &mut counter, "FPD_007", EntityType::File, None, None,
             &file.name, Some(line), Some("amount"),
-            Some(format!("{iso_bad} satır")), Some(format!("{want} ondalık basamak")),
+            Some(format!("{iso_bad} rows")), Some(format!("{want} decimal places")),
             format!(
                 "fare_products.txt dosyasında {iso_bad} tutar, para biriminin ISO 4217 ondalık basamak \
                  sayısını taşımıyor (ör. satır {line}: {currency} {amount} — {want} basamak beklenir)."
