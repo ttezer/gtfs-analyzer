@@ -7,6 +7,57 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Published to crates.io.** `cargo install gtfs-analyzer` now works. Five crates went
+  up together, in dependency order: `gtfs-core`, `gtfs-config`, `gtfs-rules`,
+  `gtfs-pipeline` and `gtfs-analyzer`. The four libraries are published so the binary can
+  be built from the registry; their descriptions say plainly that they are internal and
+  carry no stability guarantee.
+
+- **`gtfs-analyzer --version --verbose`** prints the commit the binary was built from and
+  where that information came from. Deterministic only — no wall-clock build timestamp, so
+  reproducible builds are unaffected. When built from a crates.io package, where there is
+  no git repository, the commit is read from `.cargo_vcs_info.json`.
+
+- **The corpus audit records its own provenance.** Each run now writes `provenance.json`
+  with the run id, attempt, ref, analyzer commit, MobilityData version, shard count and
+  the SHA-256 of the corpus manifest, and archives the result bundle as an
+  `audit-<run-id>` GitHub prerelease. Actions artifacts are kept for 90 days instead of 30.
+
+- **The audit captures the R5 score card per feed.** The analyzer had been computing
+  publication and quality scores for every feed in every run and the aggregator was
+  discarding them, so the average score across the catalogue had never been measurable.
+  It is now: overall 90.0, publication 98.1, quality 70.3 across 4,285 feeds.
+
+### Changed
+
+- **The CLI answers in English by default.** `--lang` defaulted to `tr`, which was not a
+  translation choice but the absence of one: the pipeline's native text is Turkish and
+  `LangArg::Tr` applies no dictionary. For a binary on crates.io that meant the rest of
+  the world got Turkish. `--lang tr` still selects the untranslated path.
+
+- **Observed and expected values are emitted in English.** These fields are data the
+  pipeline builds at emit time, so no dictionary ever touched them; with English as the
+  default they sat inside English sentences while still reading `278 bayt` or
+  `1 veya 2`. 86 strings across 19 files. Rule counts are unaffected — the dedup key never
+  included these fields.
+
+- **The CLI crate is named `gtfs-analyzer`**, matching the binary it ships. On crates.io
+  the package name is what users type. `[[bin]] name` is unchanged, so the built binary
+  path and everything consuming it are untouched.
+
+### Fixed
+
+- **The browser no longer truncates large feeds.** Feeds with more than 1,000,000 rows in
+  a streamed file were silently cut, and the dangling references produced by that cut were
+  reported as defects of the feed. VBB showed 517,962 findings, 472,257 of them HIGH,
+  against 25,369 from the CLI and 12,201 from MobilityData. Reading the whole feed also
+  turned out to be six times *faster*: 18.9 s against 117 s, because the cost was in
+  fabricating notices, not in reading rows. The buffered parse path had the same flaw and
+  was fixed with it.
+  Both are now guarded by tests that fail if the budget is reintroduced.
+
 ## [0.9.7] - 2026-08-20
 
 ### Added
