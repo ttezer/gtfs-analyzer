@@ -11,7 +11,7 @@
 [![npm](https://img.shields.io/npm/v/gtfs-sdk?style=flat&label=npm)](https://www.npmjs.com/package/gtfs-sdk)
 [![Lisans MIT](https://img.shields.io/badge/lisans-MIT-yellow?style=flat)](LICENSE)
 
-**GTFS Validator & Analyzer**, GTFS dosyalarını doğrudan tarayıcıda doğrulayan açık kaynak bir **GTFS validator** ve feed kalite analiz aracıdır. Yüklenen `.zip` hiçbir sunucuya gönderilmez; doğrulama tamamen **WebAssembly** ile kullanıcının cihazında çalışır. Tarayıcı, **CLI**, **CI/CD** ve **gtfs-sdk npm paketi** olmak üzere dört yoldan kullanılabilir.
+**GTFS Validator & Analyzer**, GTFS dosyalarını doğrudan tarayıcıda doğrulayan açık kaynak bir **GTFS validator** ve feed kalite analiz aracıdır. Yüklenen `.zip` hiçbir sunucuya gönderilmez; doğrulama tamamen **WebAssembly** ile kullanıcının cihazında çalışır. Tarayıcı, **CLI** (`cargo install gtfs-analyzer`), **Rust kütüphanesi**, **CI/CD** ve **`gtfs-sdk` npm paketi** olmak üzere beş yoldan kullanılabilir.
 
 **600 doğrulama kuralı** ile GTFS spesifikasyonunun ölçülebilir hükümlerinin **%97,2'sini** karşılar ve alan tablosunun **300 atomunun 300'ünde** en az bir Spec çapası taşır. Bu kuralların **417'si** son tam katalog koşumunda en az bir bulgu üretti. Kuralların tamamı [`RULES.md`](RULES.md) altında listelidir.
 
@@ -57,32 +57,20 @@ GTFS Validator & Analyzer, spesifikasyon doğrulamasını operasyonel kalite ana
 | GTFS Spec kapsamı (ölçülmüş) | — | **%97,2** · 300/300 alan çapası |
 | **Toplam kural** | **178** | **600** |
 
-### Korpus Doğrulaması — 4.318 feed, on iki koşum
+### Korpus Doğrulaması
 
-Bir validator'ın doğruluğu birkaç feed'le gösterilemez. GTFS Analyzer, **MobilityDatabase'in tüm GTFS Schedule kataloğuna** karşı düzenli olarak koşturulur ve sonuçların tamamı depoda yayımlanır.
+Doğruluk birkaç feed'le gösterilemez. Her sürüm, **MobilityDatabase'in tüm GTFS Schedule kataloğuna** karşı koşturulur: son koşumda **4.318 feed**, 640 paralel shard. Karşı tarafta MobilityData'nın **`gtfs-validator` v8.0.1**'i, yayımlanmış raporları okunarak değil **aynı arşiv üzerinde yeniden çalıştırılarak** — böylece fark "kim ne buldu" olur, "kimin raporu ne zaman üretildi" değil.
 
-| | |
-|---|---|
-| Feed sayısı | **4.318** (katalogda public `latest.zip` taşıyan her Schedule feed'i) |
-| Karşı taraf | MobilityData **`gtfs-validator` v8.0.1** — gerçek **Java** aracı, aynı makinede, aynı gün |
-| Koşum sayısı | **12** (2026-08-16 → 2026-08-22) |
-| Shard | koşum başına 640 paralel iş |
-| Ham çıktı | ilk yedi koşum depoda — [`audit-results/`](audit-results/), koşum başına 18–20 dosya; sonraki koşumlar `audit-<run-id>` prerelease'i olarak arşivlenir |
+Son koşumdan (`32587015142`, 4.275 feed'de iki taraf da temiz):
 
-🔬 **Rapor karşılaştırması değil, yeniden koşum.** Yayımlanmış MD raporlarını okumak yerine her feed için MobilityData'nın Java validator'ı yeniden çalıştırılır. Böylece iki taraf da aynı arşivi, aynı tarih parametresiyle görür ve fark "kim ne buldu"dur, "kimin raporu ne zaman üretildi" değil.
+| | GTFS Analyzer | MobilityData |
+|---|---|---|
+| Medyan süre | **0,05 sn** | 3,00 sn |
+| Medyan tepe bellek | **14 MB** | 329 MB |
+| Bitiremediği feed | **1** | 10 |
+| MD'nin görüp bizim göremediğimiz | **0 olgu** | — |
 
-#### Son koşumun sonucu (`32587015142`)
-
-| ölçü | değer |
-|---|---|
-| İki validatör de temiz bitirdi | 4.275 / 4.318 feed |
-| **Gözden kaçırdığımız** (MD konuşuyor, biz susuyoruz) | **0 olgu** — 15 satırın tamamı granülerlik farkı |
-| MD'nin katalogunda eşlenmemiş kod | **0** (dört koşumdur) |
-| Bizim bulup MD'nin bulmadığı | 789 satır, Kritik yok |
-| Medyan süre | **0,05 sn** · MobilityData 3,00 sn |
-| Medyan tepe bellek | **14 MB** · MobilityData 329 MB |
-
-Yedinci koşum, dört feed'lik yerel doğrulamanın göremediği bir yanlış pozitifi yakaladı ve düzeltildi — koşum sürüm öncesi zorunludur, tam da bu yüzden.
+Ham çıktılar [`audit-results/`](audit-results/) altında — ilk yedi koşum depoda, sonrakiler `audit-<run-id>` prerelease'i olarak arşivleniyor.
 
 ### Feed Analizi Örnekleri
 
@@ -253,6 +241,38 @@ Hiçbirinde feed sunucuya yüklenmez. Bu, barındırılan doğrulayıcılardan t
 ```
 
 Exit kodları: `0` temiz · `1` eşiği aşan bulgu var · `2` feed okunamadı (fatal).
+
+### Rust kütüphanesi
+
+Doğrulamayı kendi Rust servisinize gömmek için `gtfs-pipeline`'ı doğrudan kullanın — CLI'a, dosya sistemine ya da ağa ihtiyaç yok:
+
+```toml
+[dependencies]
+gtfs-pipeline = "0.9.7"
+gtfs-config   = "0.9.7"
+gtfs-core     = "0.9.7"
+```
+
+```rust
+use gtfs_config::ValidatorConfig;
+use gtfs_core::ValidateResult;
+use gtfs_pipeline::validate_bytes;
+
+let zip = std::fs::read("feed.zip")?;
+let config = ValidatorConfig::default();
+
+match validate_bytes(&zip, &config, 20_260_820) {
+    ValidateResult::Ok(result) => {
+        println!("bulgu: {}", result.notices.len());
+        println!("yayın skoru: {}", result.reports.r5.pub_score);
+    }
+    ValidateResult::Fatal(err) => eprintln!("fatal: {}", err.message),
+}
+```
+
+`validate_bytes` baytları alır ve tüm raporları (`r1`–`r9`), skorları ve bulguları taşıyan bir sonuç döndürür. Eşikleri değiştirmek için `ValidatorConfig` alanlarını ayarlayın ya da `merge_delta` ile JSON bir delta uygulayın.
+
+⚠️ Kütüphane crate'leri analyzer'ın **iç yapısıdır**; binary crates.io'dan derlenebilsin diye yayımlanmışlardır ve **API kararlılığı garantisi taşımazlar**. Kararlı bir yüzey istiyorsanız CLI'ın JSON çıktısı ya da `gtfs-sdk` daha güvenlidir.
 
 ### `gtfs-sdk` npm paketi
 

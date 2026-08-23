@@ -11,7 +11,7 @@
 [![npm](https://img.shields.io/npm/v/gtfs-sdk?style=flat&label=npm)](https://www.npmjs.com/package/gtfs-sdk)
 [![License MIT](https://img.shields.io/badge/license-MIT-yellow?style=flat)](LICENSE)
 
-GTFS Validator & Analyzer is an open-source GTFS validator and feed quality analyzer. The uploaded `.zip` file is never sent to any server; all validation runs on the user's device via WebAssembly. It is available as a browser application, CLI, CI/CD gate, and `gtfs-sdk` npm package.
+GTFS Validator & Analyzer is an open-source GTFS validator and feed quality analyzer. The uploaded `.zip` file is never sent to any server; all validation runs on the user's device via WebAssembly. It is available as a browser application, a CLI (`cargo install gtfs-analyzer`), a Rust library, a CI/CD gate, and the `gtfs-sdk` npm package.
 
 The project covers **97.2% of the measurable GTFS Specification requirements** and anchors all 300 atoms in the field inventory to at least one Spec rule. Of its **600 rules**, **417** produced at least one finding in the most recent full-catalog run. Every rule is listed in [`RULES.en.md`](RULES.en.md).
 
@@ -57,30 +57,20 @@ GTFS Validator & Analyzer extends specification validation with operational qual
 | GTFS Spec coverage (measured) | — | **97.2%** · 300/300 field anchors |
 | **Total rules** | **178** | **600** |
 
-### Corpus Validation — 4,318 feeds, twelve runs
+### Corpus Validation
 
-A validator's accuracy cannot be demonstrated with a handful of feeds. GTFS Analyzer is regularly run against the full MobilityDatabase GTFS Schedule catalog, and the complete outputs are stored in the repository.
+Accuracy cannot be shown with a handful of feeds. Every release is run against the **entire MobilityDatabase GTFS Schedule catalogue** — **4,318 feeds** in the most recent run, over 640 parallel shards. On the other side is MobilityData's **`gtfs-validator` v8.0.1**, executed again on the same archive rather than read from its published reports, so the difference is "who found what", not "whose report was generated when".
 
-| | |
-|---|---|
-| Feeds | **4,318** public Schedule feeds with a `latest.zip` in the catalog |
-| Comparison | MobilityData **`gtfs-validator` v8.0.1**, actual Java validator, same machine and date |
-| Runs | **12** (2026-08-16 → 2026-08-22) |
-| Shards | 640 parallel jobs per run |
-| Raw output | first seven runs in [`audit-results/`](audit-results/), 18–20 files per run; later runs archived as an `audit-<run-id>` prerelease |
+From the most recent run (`32587015142`, both validators clean on 4,275 feeds):
 
-🔬 **These are reruns, not report comparisons.** Each feed is validated again with MobilityData's Java validator, so both tools see the same archive on the same analysis date.
+| | GTFS Analyzer | MobilityData |
+|---|---|---|
+| Median wall time | **0.05 s** | 3.00 s |
+| Median peak memory | **14 MB** | 329 MB |
+| Feeds not completed | **1** | 10 |
+| Facts MobilityData saw and we did not | **0** | — |
 
-#### Latest run (`32587015142`)
-
-| Measure | Value |
-|---|---|
-| Both validators completed cleanly | 4,275 / 4,318 feeds |
-| **Findings we missed** (MobilityData reports, Analyzer is silent) | **0 facts** — all 15 rows are granularity differences |
-| Unmapped catalog codes | **0** |
-| Findings found by Analyzer only | 789 rows, none Critical |
-| Median runtime | **0.05 s** · MobilityData 3.00 s |
-| Median peak memory | **14 MB** · MobilityData 329 MB |
+Raw output is under [`audit-results/`](audit-results/) — the first seven runs are committed, later ones are archived as an `audit-<run-id>` prerelease.
 
 ### Feed Analysis Examples
 
@@ -249,6 +239,38 @@ The `--fail-on` flags fail the run only for the severity or class you choose, so
 ```
 
 Exit codes: `0` clean · `1` matching findings present · `2` feed/config/file error.
+
+### Rust library
+
+To embed validation in your own Rust service, use `gtfs-pipeline` directly — no CLI, no filesystem, no network:
+
+```toml
+[dependencies]
+gtfs-pipeline = "0.9.7"
+gtfs-config   = "0.9.7"
+gtfs-core     = "0.9.7"
+```
+
+```rust
+use gtfs_config::ValidatorConfig;
+use gtfs_core::ValidateResult;
+use gtfs_pipeline::validate_bytes;
+
+let zip = std::fs::read("feed.zip")?;
+let config = ValidatorConfig::default();
+
+match validate_bytes(&zip, &config, 20_260_820) {
+    ValidateResult::Ok(result) => {
+        println!("notices: {}", result.notices.len());
+        println!("publication score: {}", result.reports.r5.pub_score);
+    }
+    ValidateResult::Fatal(err) => eprintln!("fatal: {}", err.message),
+}
+```
+
+`validate_bytes` takes bytes and returns a result carrying every report (`r1`–`r9`), the scores and the notices. Adjust `ValidatorConfig` fields to change thresholds, or apply a JSON delta with `merge_delta`.
+
+⚠️ The library crates are the analyzer's **internals**. They are published so the binary can be built from the registry and they carry **no API stability guarantee**. If you need a stable surface, the CLI's JSON output or `gtfs-sdk` is the safer choice.
 
 ### `gtfs-sdk` npm package
 

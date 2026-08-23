@@ -11,7 +11,7 @@
 [![npm](https://img.shields.io/npm/v/gtfs-sdk?style=flat&label=npm)](https://www.npmjs.com/package/gtfs-sdk)
 [![License MIT](https://img.shields.io/badge/%E3%83%A9%E3%82%A4%E3%82%BB%E3%83%B3%E3%82%B9-MIT-yellow?style=flat)](LICENSE)
 
-GTFS Validator & Analyzer は、ブラウザ上で動作するオープンソースの GTFS バリデーター兼フィード品質分析ツールです。アップロードされた .zip ファイルはいかなるサーバーにも送信されず、すべての処理は WebAssembly によってユーザーのデバイス上で実行されます。ブラウザ、CLI、CI/CD ゲート、`gtfs-sdk` npm パッケージとして利用できます。
+GTFS Validator & Analyzer は、ブラウザ上で動作するオープンソースの GTFS バリデーター兼フィード品質分析ツールです。アップロードされた .zip ファイルはいかなるサーバーにも送信されず、すべての処理は WebAssembly によってユーザーのデバイス上で実行されます。ブラウザ、CLI（`cargo install gtfs-analyzer`）、Rust ライブラリ、CI/CD ゲート、`gtfs-sdk` npm パッケージの 5 つの方法で利用できます。
 
 測定可能な GTFS 仕様要件の **97.2%** をカバーし、フィールドインベントリの 300 個のアトムすべてを少なくとも 1 つの Spec ルールにアンカーしています。**600 個の検証ルール**のうち **417 個**が直近の完全カタログ実行で少なくとも 1 件の指摘を出しました。すべてのルールは [`RULES.ja.md`](RULES.ja.md) に一覧化されています。
 
@@ -57,30 +57,20 @@ GTFS Validator & Analyzer は、仕様検証を運用品質分析へと拡張し
 | GTFS Spec カバレッジ（測定値） | — | **97.2%** · 300/300 フィールドアンカー |
 | **総ルール数** | **178** | **600** |
 
-### コーパス検証 — 4,318 フィード、12 回の実行
+### コーパス検証
 
-少数のフィードだけではバリデーターの精度を示せません。GTFS Analyzer は MobilityDatabase の GTFS Schedule カタログ全体に対して定期的に実行され、完全な出力をリポジトリに保存しています。
+数件のフィードでは正確性を示せません。すべてのリリースは **MobilityDatabase の GTFS Schedule カタログ全体**に対して実行されます — 直近の実行で **4,318 フィード**、640 並列シャード。比較対象は MobilityData の **`gtfs-validator` v8.0.1** で、公開済みレポートを読むのではなく**同じアーカイブ上で再実行**します。したがって差分は「どちらが何を検出したか」であり、「どちらのレポートがいつ生成されたか」ではありません。
 
-| | |
-|---|---|
-| フィード数 | **4,318**（カタログに `latest.zip` がある公開 Schedule フィード） |
-| 比較対象 | MobilityData **`gtfs-validator` v8.0.1** — 実際の Java バリデーター、同じマシン・同じ日付 |
-| 実行回数 | **12**（2026-08-16 → 2026-08-22） |
-| シャード | 1 回あたり 640 並列ジョブ |
-| 生データ | 最初の 7 回は [`audit-results/`](audit-results/)（1 回あたり 18〜20 ファイル）、以降の実行は `audit-<run-id>` プレリリースとして保存 |
+直近の実行（`32587015142`、4,275 フィードで両者とも正常完了）:
 
-🔬 **公開レポートの比較ではなく、再実行です。** 各フィードを MobilityData の Java バリデーターでもう一度検証するため、両方のツールが同じアーカイブを同じ分析日に見ます。
+| | GTFS Analyzer | MobilityData |
+|---|---|---|
+| 実行時間の中央値 | **0.05 秒** | 3.00 秒 |
+| ピークメモリの中央値 | **14 MB** | 329 MB |
+| 完了できなかったフィード | **1** | 10 |
+| MobilityData が検出し当方が見逃した事実 | **0 件** | — |
 
-#### 最新実行（`32587015142`）
-
-| 指標 | 値 |
-|---|---|
-| 両バリデーターが正常に完了 | 4,275 / 4,318 フィード |
-| **見逃した指摘**（MobilityData は報告、Analyzer は無通知） | **0 件** — 15 行はすべて粒度の違い |
-| カタログコードの未マッピング | **0** |
-| Analyzer のみが検出 | 789 行（Critical なし） |
-| 中央値の実行時間 | **0.05 秒** · MobilityData 3.00 秒 |
-| 中央値のピークメモリ | **14 MB** · MobilityData 329 MB |
+生データは [`audit-results/`](audit-results/) にあります — 最初の 7 回はリポジトリ内、以降は `audit-<run-id>` プレリリースとして保存されます。
 
 ### フィード分析の例
 
@@ -250,6 +240,38 @@ GTFS Analyzer は Web アプリケーションです — インストール不�
 ```
 
 終了コード：`0` クリーン · `1` 条件に一致する指摘あり · `2` フィード / config / ファイルエラー。
+
+### Rust ライブラリ
+
+自分の Rust サービスに検証を組み込む場合は `gtfs-pipeline` を直接使用します。CLI もファイルシステムもネットワークも不要です:
+
+```toml
+[dependencies]
+gtfs-pipeline = "0.9.7"
+gtfs-config   = "0.9.7"
+gtfs-core     = "0.9.7"
+```
+
+```rust
+use gtfs_config::ValidatorConfig;
+use gtfs_core::ValidateResult;
+use gtfs_pipeline::validate_bytes;
+
+let zip = std::fs::read("feed.zip")?;
+let config = ValidatorConfig::default();
+
+match validate_bytes(&zip, &config, 20_260_820) {
+    ValidateResult::Ok(result) => {
+        println!("指摘: {}", result.notices.len());
+        println!("公開スコア: {}", result.reports.r5.pub_score);
+    }
+    ValidateResult::Fatal(err) => eprintln!("fatal: {}", err.message),
+}
+```
+
+`validate_bytes` はバイト列を受け取り、すべてのレポート（`r1`–`r9`）、スコア、指摘を含む結果を返します。しきい値を変更するには `ValidatorConfig` のフィールドを調整するか、`merge_delta` で JSON デルタを適用します。
+
+⚠️ ライブラリ crate はアナライザーの**内部実装**です。バイナリをレジストリからビルドできるように公開されているだけで、**API の安定性は保証されません**。安定したインターフェースが必要な場合は、CLI の JSON 出力または `gtfs-sdk` を使用してください。
 
 ### `gtfs-sdk` npm パッケージ
 
