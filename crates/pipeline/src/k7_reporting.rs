@@ -8,7 +8,7 @@ use gtfs_core::{
 };
 use gtfs_rules::get_rule;
 
-use crate::k2::EntityRecords;
+use crate::k2::{EntityRecords, GTFS_JP_FILES};
 use crate::k5_derived::DerivedData;
 
 // ── Çıktı tipi ────────────────────────────────────────────────────────────────
@@ -1143,7 +1143,7 @@ fn build_metrics(notices: &[Notice], records: &EntityRecords, derived: &DerivedD
     //   (c) translations'ta kana okuması (language=ja-Hrkt).
     let is_gtfs_jp = records.has_gtfs_jp_file
         || file_stats.iter()
-            .any(|f| matches!(f.name.as_str(), "agency_jp.txt" | "routes_jp.txt" | "office_jp.txt" | "pattern_jp.txt"))
+            .any(|f| GTFS_JP_FILES.contains(&f.name.as_str()))
         || records.feed_info.first()
             .map(|fi| fi.feed_lang.to_lowercase().starts_with("ja"))
             .unwrap_or(false)
