@@ -4,7 +4,7 @@ use gtfs_core::{EntityType, Notice};
 use rustc_hash::{FxHashMap, FxHashSet};
 use smol_str::SmolStr;
 
-use crate::k2::EntityRecords;
+use crate::k2::{EntityRecords, GTFS_JP_FILES};
 use crate::k3_entity_graph::EntityMap;
 use crate::recovery::FileAvailability;
 use crate::timing::Timer;
@@ -234,7 +234,7 @@ pub fn check_with_files(
     gate!("K4::translations", availability.all(&["translations.txt", "feed_info.txt"]), {
         check_translations(records, map, &mut notices, &mut ctr);
     });
-    { let _t = Timer::start("K4::gtfs_jp"); check_gtfs_jp(records, &mut notices, &mut ctr); }
+    { let _t = Timer::start("K4::gtfs_jp"); check_gtfs_jp(records, &mut notices, &mut ctr, availability); }
     gate!("K4::attributions", availability.available("attributions.txt"), {
         check_attributions(records, map, &mut notices, &mut ctr);
     });
@@ -2983,8 +2983,29 @@ fn valid_gtfs_jp_date(raw: &str) -> bool {
 // bir ja-Hrkt çeviri varsa. Bir durağın kanası var sayılır ⇔ translations'ta
 // (table=stops, field=stop_name, language=ja-Hrkt) record_id=stop_id VEYA
 // field_value=stop_name ile eşleşen satır bulunur.
-fn check_gtfs_jp(records: &EntityRecords, notices: &mut Vec<Notice>, ctr: &mut u32) {
+fn check_gtfs_jp(
+    records: &EntityRecords,
+    notices: &mut Vec<Notice>,
+    ctr: &mut u32,
+    availability: &FileAvailability<'_>,
+) {
     let ti_jpn = &records.trip_interns;
+    // Gerçek pipeline'da K1 envanteri boş/bozuk dosyaları da fiziksel varlık olarak taşır.
+    // Doğrudan K4 çağrılarında ise complete() sentetik kayıtları desteklemek için mevcut
+    // typed kayıtlar ve pattern işareti geri dönüş ölçütüdür.
+    let has_jp_file = records.has_gtfs_jp_file || if availability.has_inventory() {
+        GTFS_JP_FILES.iter().any(|name| availability.present(name))
+    } else {
+        !records.agency_jp.is_empty()
+            || !records.office_jp.is_empty()
+            || !records.routes_jp.is_empty()
+            || records.has_pattern_jp_file
+    };
+    let has_pattern_jp_file = records.has_pattern_jp_file || if availability.has_inventory() {
+        availability.present("pattern_jp.txt")
+    } else {
+        false
+    };
     // ── JPN_001: stop_name kana (ja-Hrkt) okuması — kapı: feed_lang ja* VEYA ja-Hrkt çeviri ──
     let feed_lang_ja = records.feed_info.first()
         .map(|fi| fi.feed_lang.to_lowercase().starts_with("ja"))
@@ -2993,10 +3014,7 @@ fn check_gtfs_jp(records: &EntityRecords, notices: &mut Vec<Notice>, ctr: &mut u
         .any(|t| t.language.eq_ignore_ascii_case("ja-Hrkt"));
     let is_gtfs_jp = feed_lang_ja
         || has_kana
-        || !records.agency_jp.is_empty()
-        || !records.office_jp.is_empty()
-        || !records.routes_jp.is_empty()
-        || records.has_pattern_jp_file;
+        || has_jp_file;
     if is_gtfs_jp {
         let mut kana_records: HashSet<&str> = HashSet::new();
         let mut kana_values: HashSet<&str> = HashSet::new();
@@ -3450,7 +3468,7 @@ fn check_gtfs_jp(records: &EntityRecords, notices: &mut Vec<Notice>, ctr: &mut u
     // `pattern_jp.txt` ve trips.jp_pattern_id ayrı ayrı opsiyoneldir. jp_pattern_id
     // pattern_jp.txt yokken kurum içi kod olarak kullanılabilir; yalnızca pattern
     // master dosyası mevcutsa burada foreign-key bütünlüğü aranır.
-    if records.has_pattern_jp_file {
+    if has_pattern_jp_file {
         let pattern_ids: HashSet<&str> = records.pattern_jp.iter()
             .map(|pattern| pattern.jp_pattern_id.as_str()).filter(|id| !id.is_empty()).collect();
         for trip in &records.trips {
@@ -6017,6 +6035,18 @@ mod tests {
         let result = check(&recs, &EntityMap::default(), 20260515);
         assert!(result.notices.iter().any(|n| n.rule_id == "JPN_010"),
             "agency_name kana yok → JPN_010");
+    }
+
+    #[test]
+    fn empty_gtfs_jp_file_inventory_activates_jp_profile() {
+        let (recs, _map) = empty();
+        for file in GTFS_JP_FILES {
+            let present = HashSet::from([file.to_string()]);
+            let availability = FileAvailability::from_k1(&present, &[]);
+            let result = check_with_files(&recs, &EntityMap::default(), 20260515, &availability);
+            assert!(result.notices.iter().any(|n| n.rule_id == "JPN_007"),
+                "boş/başlıksız {file} dosyası GTFS-JP profilini açmalı");
+        }
     }
 
     #[test]

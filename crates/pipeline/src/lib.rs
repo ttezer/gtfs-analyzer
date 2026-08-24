@@ -13,7 +13,7 @@ pub(crate) mod notice_factory;
 pub(crate) mod timing;
 
 pub use k1_parse::{parse, parse_with_limits, K1Result, RawFile, RawFiles};
-pub use k2::{validate as validate_k2, validate_with_stream_limit as validate_k2_with_stream_limit, EntityRecords, K2Result};
+pub use k2::{validate as validate_k2, validate_with_stream_limit as validate_k2_with_stream_limit, EntityRecords, K2Result, GTFS_JP_FILES};
 pub use k3_entity_graph::{build as build_entity_map, EntityMap, K3Result};
 pub use k4_cross_ref::{check as check_cross_ref, check_with_files as check_cross_ref_with_files, K4Result};
 pub use k5_derived::{build as build_derived, build_with_files as build_derived_with_files, DerivedData, K5Result};
@@ -40,12 +40,16 @@ pub fn validate_bytes(zip: &[u8], config: &ValidatorConfig, today: u32) -> Valid
     let mut partial = k1.partial;
     let unavailable_files = partial.unavailable_files.clone();
     let availability = FileAvailability::from_k1(&k1.present_files, &unavailable_files);
+    let has_gtfs_jp_file = GTFS_JP_FILES.iter().any(|file| k1.present_files.contains(*file));
+    let has_pattern_jp_file = k1.present_files.contains("pattern_jp.txt");
     let mut file_stats = collect_file_stats(&k1.files);
 
     let mut k2 = {
         let _t = Timer::start("K2-validate");
         validate_k2(k1.files, Some(zip), config) // #15 W2 + #38: ZIP bytes K2'ye → stop_times stream
     };
+    k2.records.has_gtfs_jp_file = has_gtfs_jp_file;
+    k2.records.has_pattern_jp_file |= has_pattern_jp_file;
 
     // Gece yarısını aşan seferleri (00:xx) servis-günü notasyonuna (24:xx) normalize et.
     // K2, STM_048 raw Spec bulgusunu bu pass'ten önce üretir; bu pass yalnızca

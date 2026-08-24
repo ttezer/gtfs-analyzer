@@ -7,7 +7,7 @@ use gtfs_pipeline::{
     analyze_k6_with_files, build_derived_with_files, build_entity_map, build_name_index,
     check_cross_ref_with_files, collect_file_stats, parse_with_limits, report_k7,
     validate_k2_with_stream_limit,
-    DerivedData, EntityRecords, FileAvailability, FileInfo,
+    DerivedData, EntityRecords, FileAvailability, FileInfo, GTFS_JP_FILES,
 };
 
 #[cfg(feature = "sdk-en")]
@@ -446,6 +446,8 @@ fn run_full_pipeline(zip_bytes: &[u8], config: &ValidatorConfig, today: u32) -> 
     let mut partial = k1.partial;
     let unavailable_files = partial.unavailable_files.clone();
     let availability = FileAvailability::from_k1(&k1.present_files, &unavailable_files);
+    let has_gtfs_jp_file = GTFS_JP_FILES.iter().any(|file| k1.present_files.contains(*file));
+    let has_pattern_jp_file = k1.present_files.contains("pattern_jp.txt");
     t_end!("K1-parse");
     let mut file_stats = collect_file_stats(&k1.files);
 
@@ -462,6 +464,8 @@ fn run_full_pipeline(zip_bytes: &[u8], config: &ValidatorConfig, today: u32) -> 
         None,
     ); // #15 W2 + #38: stop_times ZIP stream
     t_end!("K2-validate");
+    k2.records.has_gtfs_jp_file = has_gtfs_jp_file;
+    k2.records.has_pattern_jp_file |= has_pattern_jp_file;
     // Gece yarısını aşan seferleri (00:xx) servis-günü notasyonuna (24:xx) normalize et
     // (K3–K6 öncesi). pipeline::validate_bytes ile aynı adım; WASM kendi orkestrasyonunu
     // kullandığı için burada da çağrılmalı.
@@ -563,6 +567,8 @@ fn run_k1_k5(
     let mut partial = k1.partial;
     let unavailable_files = partial.unavailable_files.clone();
     let availability = FileAvailability::from_k1(&k1.present_files, &unavailable_files);
+    let has_gtfs_jp_file = GTFS_JP_FILES.iter().any(|file| k1.present_files.contains(*file));
+    let has_pattern_jp_file = k1.present_files.contains("pattern_jp.txt");
     let mut file_stats = collect_file_stats(&k1.files);
 
     t = js_sys::Date::now();
@@ -579,6 +585,8 @@ fn run_k1_k5(
         None,
     ); // #15 W2 + #38: stop_times ZIP stream
     t_end!("K2-validate");
+    k2.records.has_gtfs_jp_file = has_gtfs_jp_file;
+    k2.records.has_pattern_jp_file |= has_pattern_jp_file;
     // Gece yarısı (00:xx) → servis-günü (24:xx) normalizasyonu — K3–K6 öncesi (bkz. ilk yol).
     k2.records.stop_times_index.normalize_service_day(config.service_day_start_hour);
     call_stage(on_stage, "K2", (js_sys::Date::now() - t) as u32);

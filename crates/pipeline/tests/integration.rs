@@ -53,6 +53,21 @@ fn run(files: &[(&str, &[u8])]) -> ValidateResult {
     validate_bytes(&make_zip(files), &ValidatorConfig::default(), TODAY)
 }
 
+#[test]
+fn empty_gtfs_jp_file_still_activates_profile_detection() {
+    for file in ["agency_jp.txt", "office_jp.txt", "routes_jp.txt", "pattern_jp.txt"] {
+        let mut files = base_files();
+        files.push((file, b"header_only\n"));
+        match run(&files) {
+            ValidateResult::Ok(vr) => {
+                assert!(vr.metrics.is_gtfs_jp, "{file} GTFS-JP rozeti açmalı");
+                assert!(has(&vr, "JPN_007"), "{file} GTFS-JP profil kurallarını açmalı");
+            }
+            other => panic!("ValidateResult::Ok beklendi, alınan: {other:?}"),
+        }
+    }
+}
+
 const LEGACY_TRANSLATIONS: &[u8] =
     b"trans_id,lang,translation\n1,EN,Example\n2,HE,\xD7\x93\xD7\x95\xD7\x92\xD7\x9E\xD7\x94\n";
 

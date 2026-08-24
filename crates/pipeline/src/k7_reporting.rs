@@ -1141,8 +1141,9 @@ fn build_metrics(notices: &[Notice], records: &EntityRecords, derived: &DerivedD
     // _jp dosyası yok ama feed_lang=ja + kana çevirileri var). Üç sinyalden biri yeterli:
     //   (a) herhangi bir *_jp.txt dosyası, (b) feed_lang ja* ile başlıyor,
     //   (c) translations'ta kana okuması (language=ja-Hrkt).
-    let is_gtfs_jp = file_stats.iter()
-        .any(|f| matches!(f.name.as_str(), "agency_jp.txt" | "routes_jp.txt" | "office_jp.txt" | "pattern_jp.txt"))
+    let is_gtfs_jp = records.has_gtfs_jp_file
+        || file_stats.iter()
+            .any(|f| matches!(f.name.as_str(), "agency_jp.txt" | "routes_jp.txt" | "office_jp.txt" | "pattern_jp.txt"))
         || records.feed_info.first()
             .map(|fi| fi.feed_lang.to_lowercase().starts_with("ja"))
             .unwrap_or(false)

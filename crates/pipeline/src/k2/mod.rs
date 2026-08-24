@@ -78,6 +78,14 @@ use translations::{validate_translations, TranslationRecord};
 use trips::{validate_trips_with_limits, TripRecord, TripInternTable};
 use rustc_hash::FxHashMap;
 
+/// GTFS-JP profilini fiziksel dosya varlığıyla tanımlayan bilinen dosyalar.
+pub const GTFS_JP_FILES: [&str; 4] = [
+    "agency_jp.txt",
+    "office_jp.txt",
+    "routes_jp.txt",
+    "pattern_jp.txt",
+];
+
 /// K2 sonrasında üretilecek typed entity kayıtlarının kapsayıcısı.
 #[derive(Debug, Default)]
 pub struct EntityRecords {
@@ -102,6 +110,8 @@ pub struct EntityRecords {
     pub networks: Vec<NetworkRecord>,
     pub office_jp: Vec<OfficeJpRecord>,
     pub pattern_jp: Vec<PatternJpRecord>,
+    /// GTFS-JP dosyalarından birinin ZIP'te fiziksel olarak mevcut olduğunu korur.
+    pub has_gtfs_jp_file: bool,
     /// `pattern_jp.txt` dosyasının mevcut olup olmadığını, boş olsa bile korur.
     pub has_pattern_jp_file: bool,
     pub pathways: Vec<PathwayRecord>,
