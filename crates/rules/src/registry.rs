@@ -1827,7 +1827,9 @@ pub static RULES: &[RuleMeta] = &[
         "GTFS-JP: office_jp.office_id eksik veya tekrarlı"),
     r!("JPN_015", Yuksek, Interop, 1, &[], Some("route_id"), VI, Entity,
         "GTFS-JP legacy: routes_jp.route_id eksik, tekrarlı veya routes.txt'te yok"),
-    r!("JPN_016", Orta, Quality, 1, &[], Some("jp_pattern_id"), VS, Row,
+    // K4 notice'ı pattern_jp için jp_pattern_id, legacy routes_jp için route_id
+    // taşır; tek bir K2 scope alanı bu iki dosya-bağımlı kimliği doğru ifade edemez.
+    r!("JPN_016", Orta, Quality, 1, &[], None, VS, Row,
         "GTFS-JP: pattern_jp veya legacy routes_jp route_update_date geçersiz"),
     r!("JPN_017", Yuksek, Interop, 1, &[], Some("jp_pattern_id"), VI, Entity,
         "GTFS-JP: pattern_jp.jp_pattern_id eksik veya tekrarlı"),
