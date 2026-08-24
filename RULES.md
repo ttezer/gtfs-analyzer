@@ -791,7 +791,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | JPN_003 | GTFS-JP: agency_jp.agency_id agency.txt'te tanımlı değil | YÜKSEK | Interop |
 | JPN_004 | GTFS-JP: translations.txt eksik (profil zorunlu kılar) | YÜKSEK | Interop |
 | JPN_005 | GTFS-JP: office_jp.office_name boş (zorunlu alan) | YÜKSEK | Interop |
-| JPN_006 | GTFS-JP: fare_attributes/fare_rules eksik (profil zorunlu kılar) | ORTA | Quality |
+| JPN_006 | GTFS-JP: fare_attributes eksik veya farklı ücret profilleri için fare_rules eksik | ORTA | Quality |
 | JPN_007 | GTFS-JP: feed_info.txt eksik (profil zorunlu kılar) | ORTA | Quality |
 | JPN_008 | GTFS-JP: hat adının (route_long_name) kana (ja-Hrkt) okuması eksik | ORTA | Quality |
 | JPN_009 | GTFS-JP: trip_headsign kana (ja-Hrkt) okuması eksik | ORTA | Quality |
@@ -801,7 +801,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | JPN_013 | GTFS-JP: agency_zip_number biçimi geçersiz | ORTA | Quality |
 | JPN_014 | GTFS-JP: office_jp.office_id eksik veya tekrarlı | YÜKSEK | Interop |
 | JPN_015 | GTFS-JP: routes_jp.route_id eksik, tekrarlı veya routes.txt'te yok | YÜKSEK | Interop |
-| JPN_016 | GTFS-JP: routes_jp.route_update_date geçersiz | ORTA | Quality |
+| JPN_016 | GTFS-JP: pattern_jp.route_update_date geçersiz | ORTA | Quality |
 | JPN_017 | GTFS-JP: pattern_jp.jp_pattern_id eksik veya tekrarlı | YÜKSEK | Interop |
 | JPN_018 | GTFS-JP: trips.jp_pattern_id pattern_jp.txt'te tanımlı değil | YÜKSEK | Interop |
 | JPN_019 | GTFS-JP: kana çevirisinin kaydı veya alt kaydı geçersiz | ORTA | Interop |

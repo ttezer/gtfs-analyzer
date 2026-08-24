@@ -3286,9 +3286,29 @@ fn check_gtfs_jp(
         }
     }
 
-    // ── JPN_006: GTFS-JP'de fare_attributes.txt + fare_rules.txt zorunlu ──
-    // FP riski (gerçekten ücretsiz hizmet olabilir) → Orta/Quality, feed-level tek uyarı.
-    if is_gtfs_jp && (records.fare_attributes.is_empty() || records.fare_rules.is_empty()) {
+    // ── JPN_006: GTFS-JP ücret kapsamı ───────────────────────────────────────
+    // v3'te fare_attributes.txt zorunludur; fare_rules.txt ise tüm hatlar aynı
+    // tek tip ücreti kullanmıyorsa koşullu zorunludur. Tek başına eksik
+    // fare_rules.txt, uniform ücret ile route/zone bazlı ücret ayrımını
+    // gözlemlenebilir kılmaz; bu yüzden yalnızca birden fazla farklı ücret
+    // profili kanıtı varsa koşullu eksiklik raporlanır.
+    let fare_profiles: HashSet<(String, String, String, String, String)> = records
+        .fare_attributes
+        .iter()
+        .map(|fare| {
+            (
+                fare.row.get("price").cloned().unwrap_or_default(),
+                fare.row.get("currency_type").cloned().unwrap_or_default(),
+                fare.row.get("payment_method").cloned().unwrap_or_default(),
+                fare.row.get("transfers").cloned().unwrap_or_default(),
+                fare.row.get("transfer_duration").cloned().unwrap_or_default(),
+            )
+        })
+        .collect();
+    let fare_rules_conditionally_required = fare_profiles.len() > 1;
+    let fare_problem = records.fare_attributes.is_empty()
+        || (fare_rules_conditionally_required && records.fare_rules.is_empty());
+    if is_gtfs_jp && fare_problem {
         notices.push(notice(
             ctr,
             "JPN_006",
@@ -3300,8 +3320,8 @@ fn check_gtfs_jp(
             Some("fare_attributes"),
             None,
             None,
-            "GTFS-JP feed'inde fare_attributes.txt/fare_rules.txt eksik — profil ücret bilgisini zorunlu kılar.".to_string(),
-            "fare_attributes.txt ve fare_rules.txt ekleyerek ücret bilgisini sağlayın.",
+            "GTFS-JP feed'inde fare_attributes.txt eksik veya farklı ücret profilleri için fare_rules.txt eksik — v3 ücret kapsamı koşulunu karşılamıyor.".to_string(),
+            "fare_attributes.txt'i ekleyin; hatlara/alanlara göre farklı ücret profilleri varsa fare_rules.txt ile bunları eşleyin.",
         ));
     }
 
@@ -3420,16 +3440,19 @@ fn check_gtfs_jp(
         }
     }
 
-    // ── JPN_016: routes_jp.route_update_date YYYYMMDD ────────────────────────
-    for route in &records.routes_jp {
-        if let Some(date) = route.route_update_date.as_deref() {
+    // ── JPN_016: pattern_jp.route_update_date YYYYMMDD ──────────────────────
+    // GTFS-JP v3'te route_update_date pattern_jp.txt içindedir. routes_jp.txt
+    // eski sürüm uyumluluğu için parse edilir, ancak v3 JPN_016 kapsamına
+    // sokulmaz.
+    for pattern in &records.pattern_jp {
+        if let Some(date) = pattern.route_update_date.as_deref() {
             if !valid_gtfs_jp_date(date) {
                 notices.push(notice(
-                    ctr, "JPN_016", EntityType::Route,
-                    Some(route.route_id.clone()), Some(route.route_id.clone()),
-                    "routes_jp.txt", Some(route.line), Some("route_update_date"),
+                    ctr, "JPN_016", EntityType::Row,
+                    Some(pattern.jp_pattern_id.clone()), Some(pattern.jp_pattern_id.clone()),
+                    "pattern_jp.txt", Some(pattern.line), Some("route_update_date"),
                     Some(date.to_string()), Some("YYYYMMDD".to_string()),
-                    format!("routes_jp.txt route_update_date '{}' geçerli bir tarih değil.", date),
+                    format!("pattern_jp.txt route_update_date '{}' geçerli bir tarih değil.", date),
                     "route_update_date değerini geçerli bir YYYYMMDD tarihi olarak girin.",
                 ));
             }
@@ -3493,6 +3516,13 @@ fn check_gtfs_jp(
         let route_ids: HashSet<&str> = records.routes.iter().map(|r| r.route_id.as_str()).collect();
         let trip_ids: HashSet<&str> = records.trips.iter().map(|t| t.trip_id.as_str()).collect();
         for translation in records.translations.iter().filter(|t| t.language.eq_ignore_ascii_case("ja-Hrkt")) {
+            // TRN_001/TRN_002 bilinmeyen table_name/field_name kök bulgularını
+            // üretir. JPN_019 yalnız bilinen tabloların GTFS-JP referansını
+            // denetler; aksi hâlde aynı satırda türev bulgu çığı oluşur.
+            let table_known = crate::k2::translations::is_known_translation_table(&translation.table_name);
+            if !table_known {
+                continue;
+            }
             let valid_field = crate::k2::translations::valid_fields_for_table(&translation.table_name)
                 .contains(&translation.field_name.as_str());
             let valid_record = match (translation.table_name.as_str(), translation.record_id.as_deref()) {
@@ -3520,7 +3550,11 @@ fn check_gtfs_jp(
                     // A sub-record cannot identify a stop_times row without its trip.
                     (None, Some(_)) => false,
                 }
-            } else { translation.record_sub_id.is_none() };
+            } else {
+                translation.record_sub_id.as_deref().is_none_or(|value| {
+                    crate::k2::translations::is_none_record_sub_id(value)
+                })
+            };
             if !valid_field || !valid_record || !valid_sub_id {
                 notices.push(notice(
                     ctr, "JPN_019", EntityType::Translation,
@@ -6309,6 +6343,53 @@ mod tests {
     }
 
     #[test]
+    fn uniform_fare_without_fare_rules_does_not_produce_jpn_006() {
+        use crate::k2::office_jp::OfficeJpRecord;
+        let (mut recs, _map) = empty();
+        recs.office_jp = vec![OfficeJpRecord {
+            office_id: "OF1".into(), office_name: Some("本社".into()),
+            row: Default::default(), line: 2,
+        }];
+        let mut row = std::collections::HashMap::new();
+        row.insert("price".into(), "200".into());
+        row.insert("currency_type".into(), "JPY".into());
+        row.insert("payment_method".into(), "0".into());
+        recs.fare_attributes = vec![FareAttributeRecord {
+            fare_id: "F1".into(), price: Some(200.0), currency_type: "JPY".into(),
+            payment_method: Some(0), transfers: None, transfer_duration: None,
+            agency_id: None, row, line: 2,
+        }];
+        let result = check(&recs, &EntityMap::default(), 20260515);
+        assert!(!result.notices.iter().any(|n| n.rule_id == "JPN_006"),
+            "tek tip ücrette fare_rules koşullu zorunluluk üretmemeli: {:?}", result.notices);
+    }
+
+    #[test]
+    fn distinct_fare_profiles_without_fare_rules_produce_jpn_006() {
+        use crate::k2::office_jp::OfficeJpRecord;
+        let (mut recs, _map) = empty();
+        recs.office_jp = vec![OfficeJpRecord {
+            office_id: "OF1".into(), office_name: Some("本社".into()),
+            row: Default::default(), line: 2,
+        }];
+        let fare = |id: &str, price: &str| {
+            let mut row = std::collections::HashMap::new();
+            row.insert("price".into(), price.into());
+            row.insert("currency_type".into(), "JPY".into());
+            row.insert("payment_method".into(), "0".into());
+            FareAttributeRecord {
+                fare_id: id.into(), price: price.parse().ok(), currency_type: "JPY".into(),
+                payment_method: Some(0), transfers: None, transfer_duration: None,
+                agency_id: None, row, line: 2,
+            }
+        };
+        recs.fare_attributes = vec![fare("F1", "200"), fare("F2", "300")];
+        let result = check(&recs, &EntityMap::default(), 20260515);
+        assert!(result.notices.iter().any(|n| n.rule_id == "JPN_006"),
+            "farklı ücret profilleri için fare_rules eksikliği raporlanmalı");
+    }
+
+    #[test]
     fn missing_feed_info_in_jp_feed_produces_jpn_007() {
         use crate::k2::office_jp::OfficeJpRecord;
         let (mut recs, _map) = empty();
@@ -7028,14 +7109,16 @@ mod tests {
     }
 
     #[test]
-    fn jpn_016_reports_invalid_routes_jp_update_date() {
+    fn jpn_016_reports_invalid_pattern_jp_update_date() {
         let (mut recs, _map) = empty();
-        recs.routes_jp = vec![RoutesJpRecord {
-            route_id: "R1".into(), route_update_date: Some("20260231".into()),
+        recs.pattern_jp = vec![PatternJpRecord {
+            jp_pattern_id: "P1".into(), route_update_date: Some("20260231".into()),
             origin_stop: None, via_stop: None, destination_stop: None, row: Default::default(), line: 5,
         }];
         let result = check(&recs, &EntityMap::default(), 20260824);
-        assert!(result.notices.iter().any(|n| n.rule_id == "JPN_016"));
+        assert!(result.notices.iter().any(|n| n.rule_id == "JPN_016"
+            && n.file.as_deref() == Some("pattern_jp.txt")
+            && n.line == Some(5)));
     }
 
     #[test]
@@ -7116,7 +7199,7 @@ mod tests {
     }
 
     #[test]
-    fn jpn_019_reports_unknown_translation_table_and_field() {
+    fn jpn_019_is_silent_for_unknown_translation_table() {
         let (mut recs, _map) = empty();
         recs.translations = vec![TranslationRecord {
             table_name: "unknown_table".into(), field_name: "unknown_field".into(), language: "ja-Hrkt".into(),
@@ -7124,7 +7207,22 @@ mod tests {
             field_value: None, row: Default::default(), line: 7,
         }];
         let result = check(&recs, &EntityMap::default(), 20260824);
-        assert!(result.notices.iter().any(|n| n.rule_id == "JPN_019" && n.line == Some(7)));
+        assert!(!result.notices.iter().any(|n| n.rule_id == "JPN_019"),
+            "TRN_001 kök bulgusuna JPN_019 türevi eklenmemeli: {:?}", result.notices);
+    }
+
+    #[test]
+    fn jpn_019_accepts_gtfs_jp_none_record_sub_id() {
+        let (mut recs, _map) = empty();
+        recs.stops = vec![stop("S1")];
+        recs.translations = vec![TranslationRecord {
+            table_name: "stops".into(), field_name: "stop_name".into(), language: "ja-Hrkt".into(),
+            translation: "とうきょう".into(), record_id: Some("S1".into()),
+            record_sub_id: Some("NONE".into()), field_value: None, row: Default::default(), line: 7,
+        }];
+        let result = check(&recs, &EntityMap::default(), 20260824);
+        assert!(!result.notices.iter().any(|n| n.rule_id == "JPN_019"),
+            "GTFS-JP v3'te NONE gerçek alt kimlik sayılmamalı: {:?}", result.notices);
     }
 
     #[test]

@@ -13,7 +13,7 @@
 
 GTFS Validator & Analyzer is an open-source GTFS validator and feed quality analyzer. The uploaded `.zip` file is never sent to any server; all validation runs on the user's device via WebAssembly. It is available as a browser application, a CLI (`cargo install gtfs-analyzer`), a Rust library, a CI/CD gate, and the `gtfs-sdk` npm package.
 
-The project covers **97.2% of the measurable GTFS Specification requirements** and anchors all 300 atoms in the field inventory to at least one Spec rule. Of its **610 rules**, **421** produced at least one finding in the most recent full-catalog run. Every rule is listed in [`RULES.en.md`](RULES.en.md).
+The project covers **97.2% of the measurable GTFS Specification requirements** and anchors all 300 atoms in the field inventory to at least one Spec rule. Of its **610 rules**, **417** produced at least one finding in the most recent full 4,318-feed catalog run; the GTFS-JP additions were measured separately on a 585-feed profile run. Every rule is listed in [`RULES.en.md`](RULES.en.md).
 
 Accuracy is tested against MobilityData's official `gtfs-validator` through **twelve full catalog runs**. Each run validates every testable GTFS Schedule feed in the catalogue — **4,318** as of the most recent run — with both validators on the same machine and date, using the actual Java `gtfs-validator v8.0.1`. The raw outputs are available in [`audit-results/`](audit-results/).
 
@@ -155,7 +155,7 @@ Feed: `mdb-782` · 1,274 routes, 41,961 stops, 258,524 trips, 14,485 shapes · *
 
 GTFS Analyzer automatically recognizes **GTFS-JP**, Japan's national GTFS profile (国土交通省 / MLIT standard), and enforces the requirements that GTFS-JP makes mandatory where standard GTFS leaves them optional. Because MLIT requires subsidized operators to publish GTFS-JP, hundreds of small operators must conform to this profile — yet mainstream validators do not check its profile-specific obligations.
 
-**Automatic detection.** A feed is flagged as GTFS-JP — and a **GTFS-JP** badge appears in the report — when it contains `*_jp.txt` files (`agency_jp.txt`, `office_jp.txt`, `routes_jp.txt`, `pattern_jp.txt`), when `feed_lang` starts with `ja`, or when `translations.txt` carries kana (`ja-Hrkt`) readings. The profile rules activate only on such feeds and stay silent on standard feeds.
+**Automatic detection.** A feed is flagged as GTFS-JP — and a **GTFS-JP** badge appears in the report — when it contains the current GTFS-JP files (`agency_jp.txt`, `office_jp.txt`, `pattern_jp.txt`) or the legacy-compatible `routes_jp.txt`, when `feed_lang` starts with `ja`, or when `translations.txt` carries kana (`ja-Hrkt`) readings. `routes_jp.txt` is not a v3 file; it remains recognized only for legacy-feed compatibility. The profile rules activate only on such feeds and stay silent on standard feeds.
 
 **Profile rules (JPN group).**
 
@@ -166,7 +166,7 @@ GTFS Analyzer automatically recognizes **GTFS-JP**, Japan's national GTFS profil
 | **JPN_003** | `agency_jp.txt` `agency_id` must be defined in `agency.txt` (operator referential integrity) |
 | **JPN_004** | `translations.txt` must be present — mandatory in GTFS-JP (notably for kana readings) |
 | **JPN_005** | `office_name` (a required field) must be filled in `office_jp.txt` |
-| **JPN_006** | `fare_attributes.txt` + `fare_rules.txt` must be present — mandatory in GTFS-JP |
+| **JPN_006** | `fare_attributes.txt` is required; `fare_rules.txt` is conditional when fare profiles differ |
 | **JPN_007** | `feed_info.txt` must be present — mandatory in GTFS-JP |
 | **JPN_008** | Kana (`ja-Hrkt`) reading for the route name (`route_long_name`) |
 | **JPN_009** | Kana (`ja-Hrkt`) reading for `trip_headsign` |
@@ -175,8 +175,8 @@ GTFS Analyzer automatically recognizes **GTFS-JP**, Japan's national GTFS profil
 | **JPN_012** | `agency_jp.agency_id` is required and must identify an `agency.txt` row |
 | **JPN_013** | When present, `agency_zip_number` must contain exactly 7 ASCII digits |
 | **JPN_014** | `office_jp.office_id` must be present and unique |
-| **JPN_015** | `routes_jp.route_id` must be present, unique, and defined in `routes.txt` |
-| **JPN_016** | `routes_jp.route_update_date` must be a valid `YYYYMMDD` date |
+| **JPN_015** | Legacy `routes_jp.route_id` compatibility check; not a v3 file |
+| **JPN_016** | `pattern_jp.route_update_date` must be a valid `YYYYMMDD` date |
 | **JPN_017** | `pattern_jp.jp_pattern_id` must be present and unique |
 | **JPN_018** | When `pattern_jp.txt` exists, `trips.jp_pattern_id` must reference it |
 | **JPN_019** | `ja-Hrkt` rows must use valid GTFS tables, fields, records, and stop-time sub-records |

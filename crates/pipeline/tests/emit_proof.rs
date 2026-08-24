@@ -781,9 +781,9 @@ fn fixtures() -> Vec<Fixture> {
         fx("JPN_015", vec![
             ("routes_jp.txt", "route_id,route_update_date,origin_stop,via_stop,destination_stop\nMISSING,20260101,Origin,Via,Destination\n"),
         ]),
-        // JPN_016: routes_jp.route_update_date geçersiz takvim tarihi.
+        // JPN_016: pattern_jp.route_update_date geçersiz takvim tarihi.
         fx("JPN_016", vec![
-            ("routes_jp.txt", "route_id,route_update_date,origin_stop,via_stop,destination_stop\nR1,20260231,Origin,Via,Destination\n"),
+            ("pattern_jp.txt", "jp_pattern_id,route_update_date,origin_stop,via_stop,destination_stop\nP1,20260231,Origin,Via,Destination\n"),
         ]),
         // JPN_017: pattern_jp'te boş jp_pattern_id ve yinelenen jp_pattern_id.
         fx("JPN_017", vec![

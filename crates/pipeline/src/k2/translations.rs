@@ -23,6 +23,17 @@ pub(crate) fn valid_fields_for_table(table: &str) -> &'static [&'static str] {
     }
 }
 
+pub(crate) fn is_known_translation_table(table: &str) -> bool {
+    TRANSLATION_TABLES.contains(&table)
+}
+
+/// GTFS-JP v3 örneklerinde `record_sub_id` değeri, alt kimlik gerekmeyen
+/// tablolarda boş yerine `NONE` olarak yazılabilir. Bu değer bir gerçek alt
+/// kimlik değildir; `stop_times` için ise geçerli bir stop_sequence sayılmaz.
+pub(crate) fn is_none_record_sub_id(value: &str) -> bool {
+    value.trim().eq_ignore_ascii_case("NONE")
+}
+
 #[derive(Debug, Clone)]
 pub struct TranslationRecord {
     pub table_name: String,
@@ -271,7 +282,11 @@ pub fn validate_translations(
             ));
         }
 
-        if table_name != "stop_times" && record_sub_id.is_some() {
+        if table_name != "stop_times"
+            && record_sub_id
+                .as_deref()
+                .is_some_and(|value| !is_none_record_sub_id(value))
+        {
             notices.push(make_k2_notice(
                 &mut counter,
                 "TRN_014",
@@ -357,5 +372,15 @@ mod tests {
                 "{rule} must be gated by its missing header: {notices:?}"
             );
         }
+    }
+
+    #[test]
+    fn gtfs_jp_none_record_sub_id_is_not_trn_014() {
+        let file = make_file(
+            vec!["table_name", "field_name", "language", "translation", "record_id", "record_sub_id"],
+            vec![vec!["stops", "stop_name", "ja-Hrkt", "とうきょう", "S1", "NONE"]],
+        );
+        let (_, notices) = validate_translations(&file);
+        assert!(!notices.iter().any(|n| n.rule_id == "TRN_014"), "{notices:?}");
     }
 }

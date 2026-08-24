@@ -13,7 +13,7 @@
 
 GTFS Validator & Analyzer は、ブラウザ上で動作するオープンソースの GTFS バリデーター兼フィード品質分析ツールです。アップロードされた .zip ファイルはいかなるサーバーにも送信されず、すべての処理は WebAssembly によってユーザーのデバイス上で実行されます。ブラウザ、CLI（`cargo install gtfs-analyzer`）、Rust ライブラリ、CI/CD ゲート、`gtfs-sdk` npm パッケージの 5 つの方法で利用できます。
 
-測定可能な GTFS 仕様要件の **97.2%** をカバーし、フィールドインベントリの 300 個のアトムすべてを少なくとも 1 つの Spec ルールにアンカーしています。**610 個の検証ルール**のうち **421 個**が直近の完全カタログ実行で少なくとも 1 件の指摘を出しました。すべてのルールは [`RULES.ja.md`](RULES.ja.md) に一覧化されています。
+測定可能な GTFS 仕様要件の **97.2%** をカバーし、フィールドインベントリの 300 個のアトムすべてを少なくとも 1 つの Spec ルールにアンカーしています。**610 個の検証ルール**のうち **417 個**が直近の 4,318 フィード完全カタログ実行で少なくとも 1 件の指摘を出しました。GTFS-JP の追加ルールは別途 585 フィードのプロファイル実行で測定しています。すべてのルールは [`RULES.ja.md`](RULES.ja.md) に一覧化されています。
 
 MobilityData の公式 `gtfs-validator` に対して **12 回の完全なカタログ実行**で精度を検証しました。各実行ではカタログ内のテスト可能な全 GTFS Schedule フィード（直近の実行で **4,318 件**）を同じマシン・同じ日付で両方のバリデーターにかけ、MobilityData 側では実際の Java `gtfs-validator v8.0.1` を使用しています。生データは [`audit-results/`](audit-results/) にあります。
 
@@ -156,7 +156,7 @@ GTFS Validator & Analyzer は、仕様検証を運用品質分析へと拡張し
 
 GTFS Analyzer は、日本の国内 GTFS プロファイルである **GTFS-JP**（国土交通省 / MLIT 標準）を自動的に認識し、標準 GTFS では任意とされている項目のうち GTFS-JP が必須とする要件を検証します。MLIT は補助を受ける事業者に GTFS-JP の公開を求めているため、数百の中小事業者がこのプロファイルへの準拠を必要としますが、一般的なバリデーターはプロファイル固有の要件を検査しません。
 
-**自動検出。** フィードに `*_jp.txt` ファイル（`agency_jp.txt`、`office_jp.txt`、`routes_jp.txt`、`pattern_jp.txt`）が含まれる場合、`feed_lang` が `ja` で始まる場合、または `translations.txt` にかな（`ja-Hrkt`）の読みが含まれる場合、そのフィードは GTFS-JP として判定され、レポートに **GTFS-JP** バッジが表示されます。プロファイルルールはこれらのフィードでのみ有効になり、標準フィードでは作動しません。
+**自動検出。** フィードに現行 GTFS-JP ファイル（`agency_jp.txt`、`office_jp.txt`、`pattern_jp.txt`）または旧版互換の `routes_jp.txt` が含まれる場合、`feed_lang` が `ja` で始まる場合、または `translations.txt` にかな（`ja-Hrkt`）の読みが含まれる場合、そのフィードは GTFS-JP として判定され、レポートに **GTFS-JP** バッジが表示されます。`routes_jp.txt` は v3 のファイルではなく、旧版フィード互換のためにのみ認識されます。プロファイルルールはこれらのフィードでのみ有効になり、標準フィードでは作動しません。
 
 **プロファイルルール（JPN グループ）。**
 
@@ -167,7 +167,7 @@ GTFS Analyzer は、日本の国内 GTFS プロファイルである **GTFS-JP**
 | **JPN_003** | `agency_jp.txt` の `agency_id` が `agency.txt` に定義されていること（事業者参照整合性） |
 | **JPN_004** | `translations.txt` の存在 — GTFS-JP では（特にかな読みのため）必須 |
 | **JPN_005** | `office_jp.txt` の必須項目 `office_name` が入力されていること |
-| **JPN_006** | `fare_attributes.txt` + `fare_rules.txt` の存在 — GTFS-JP では必須 |
+| **JPN_006** | `fare_attributes.txt` は必須、運賃プロファイルが異なる場合は `fare_rules.txt` が条件付き必須 |
 | **JPN_007** | `feed_info.txt` の存在 — GTFS-JP では必須 |
 | **JPN_008** | 路線名（`route_long_name`）のかな（`ja-Hrkt`）読み |
 | **JPN_009** | `trip_headsign` のかな（`ja-Hrkt`）読み |
@@ -176,8 +176,8 @@ GTFS Analyzer は、日本の国内 GTFS プロファイルである **GTFS-JP**
 | **JPN_012** | `agency_jp.agency_id` が必須で、`agency.txt` の行を参照すること |
 | **JPN_013** | 存在する場合、`agency_zip_number` は7桁のASCII数字であること |
 | **JPN_014** | `office_jp.office_id` が存在し、一意であること |
-| **JPN_015** | `routes_jp.route_id` が存在し、一意で、`routes.txt` に定義されていること |
-| **JPN_016** | `routes_jp.route_update_date` が有効な `YYYYMMDD` 日付であること |
+| **JPN_015** | 旧版 `routes_jp.route_id` の互換性チェック（v3 ファイルではありません） |
+| **JPN_016** | `pattern_jp.route_update_date` が有効な `YYYYMMDD` 日付であること |
 | **JPN_017** | `pattern_jp.jp_pattern_id` が存在し、一意であること |
 | **JPN_018** | `pattern_jp.txt` が存在する場合、`trips.jp_pattern_id` が同ファイルを参照すること |
 | **JPN_019** | `ja-Hrkt` 行が有効なGTFSテーブル・フィールド・レコード・stop_timesサブレコードを使うこと |

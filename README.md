@@ -13,7 +13,7 @@
 
 **GTFS Validator & Analyzer**, GTFS dosyalarını doğrudan tarayıcıda doğrulayan açık kaynak bir **GTFS validator** ve feed kalite analiz aracıdır. Yüklenen `.zip` hiçbir sunucuya gönderilmez; doğrulama tamamen **WebAssembly** ile kullanıcının cihazında çalışır. Tarayıcı, **CLI** (`cargo install gtfs-analyzer`), **Rust kütüphanesi**, **CI/CD** ve **`gtfs-sdk` npm paketi** olmak üzere beş yoldan kullanılabilir.
 
-**610 doğrulama kuralı** ile GTFS spesifikasyonunun ölçülebilir hükümlerinin **%97,2'sini** karşılar ve alan tablosunun **300 atomunun 300'ünde** en az bir Spec çapası taşır. Bu kuralların **421'i** son tam katalog koşumunda en az bir bulgu üretti. Kuralların tamamı [`RULES.md`](RULES.md) altında listelidir.
+**610 doğrulama kuralı** ile GTFS spesifikasyonunun ölçülebilir hükümlerinin **%97,2'sini** karşılar ve alan tablosunun **300 atomunun 300'ünde** en az bir Spec çapası taşır. Bu kuralların **417'si** son 4.318 feed'lik tam katalog koşumunda en az bir bulgu üretti; GTFS-JP ek kuralları ayrıca 585 feed'lik profil koşumunda ölçüldü. Kuralların tamamı [`RULES.md`](RULES.md) altında listelidir.
 
 Doğruluk iddiası, MobilityData'nın resmî `gtfs-validator` aracına karşı **on iki tam katalog koşumuyla** sınanmıştır: her koşumda MobilityDatabase kataloğunun test edilebilir her GTFS Schedule feed'i — son koşumda **4.318** —, iki validatörle **aynı makinede, aynı gün** doğrulanır — MobilityData tarafında gerçek **Java** `gtfs-validator v8.0.1` çalıştırılır, rapor karşılaştırması yapılmaz. Ham sonuçların tamamı depoda: [`audit-results/`](audit-results/).
 
@@ -157,7 +157,7 @@ Feed: `mdb-782` · 1.274 hat, 41.961 durak, 258.524 sefer, 14.485 shape · **~75
 
 GTFS Analyzer, Japonya'nın ulusal GTFS profili **GTFS-JP**'yi (国土交通省 / MLIT standardı) otomatik olarak tanır ve standart GTFS'in isteğe bağlı bıraktığı, GTFS-JP'nin zorunlu kıldığı kuralları uygular. MLIT, sübvansiyon alan işletmecilerden GTFS-JP yayımlamasını şart koştuğu için yüzlerce küçük operatör bu profile uymak zorundadır; ancak yaygın doğrulayıcılar profile özgü zorunlulukları denetlemez.
 
-**Otomatik tespit.** Bir feed; `*_jp.txt` dosyaları (`agency_jp.txt`, `office_jp.txt`, `routes_jp.txt`, `pattern_jp.txt`) içeriyorsa, `feed_lang` değeri `ja` ile başlıyorsa ya da `translations.txt` içinde kana (`ja-Hrkt`) okumaları taşıyorsa GTFS-JP olarak işaretlenir ve raporda **GTFS-JP** rozeti görünür. Profil kuralları yalnızca bu feed'lerde devreye girer; standart feed'lerde sessiz kalır.
+**Otomatik tespit.** Bir feed; güncel GTFS-JP dosyalarını (`agency_jp.txt`, `office_jp.txt`, `pattern_jp.txt`) veya eski sürüm uyumluluğu için tanınan `routes_jp.txt` dosyasını içeriyorsa, `feed_lang` değeri `ja` ile başlıyorsa ya da `translations.txt` içinde kana (`ja-Hrkt`) okumaları taşıyorsa GTFS-JP olarak işaretlenir ve raporda **GTFS-JP** rozeti görünür. `routes_jp.txt` v3 dosyası değildir; yalnızca eski feed'lerin tanınması için korunur. Profil kuralları yalnızca bu feed'lerde devreye girer; standart feed'lerde sessiz kalır.
 
 **Profil kuralları (JPN grubu).**
 
@@ -168,7 +168,7 @@ GTFS Analyzer, Japonya'nın ulusal GTFS profili **GTFS-JP**'yi (国土交通省 
 | **JPN_003** | `agency_jp.txt` `agency_id` değerinin `agency.txt`'te tanımlı olması (işletici referans bütünlüğü) |
 | **JPN_004** | `translations.txt`'in mevcudiyeti — GTFS-JP'de (özellikle kana okumaları için) zorunludur |
 | **JPN_005** | `office_jp.txt`'te `office_name` zorunlu alanının dolu olması |
-| **JPN_006** | `fare_attributes.txt` + `fare_rules.txt`'in mevcudiyeti — GTFS-JP'de zorunludur |
+| **JPN_006** | `fare_attributes.txt` zorunluluğu ve farklı ücret profillerinde `fare_rules.txt` koşulu |
 | **JPN_007** | `feed_info.txt`'in mevcudiyeti — GTFS-JP'de zorunludur |
 | **JPN_008** | Hat adının (`route_long_name`) kana (`ja-Hrkt`) okuması |
 | **JPN_009** | `trip_headsign` kana (`ja-Hrkt`) okuması |
@@ -177,8 +177,8 @@ GTFS Analyzer, Japonya'nın ulusal GTFS profili **GTFS-JP**'yi (国土交通省 
 | **JPN_012** | `agency_jp.agency_id` eksikliği |
 | **JPN_013** | Varsa `agency_zip_number` değerinin 7 ASCII rakam olması |
 | **JPN_014** | `office_jp.office_id` eksikliği ve tekrarları |
-| **JPN_015** | `routes_jp.route_id` eksikliği, tekrarları ve `routes.txt` referansı |
-| **JPN_016** | `routes_jp.route_update_date` geçerli tarih biçimi |
+| **JPN_015** | Eski `routes_jp.route_id` uyumluluk kontrolü; v3 dosyası değildir |
+| **JPN_016** | `pattern_jp.route_update_date` geçerli tarih biçimi |
 | **JPN_017** | `pattern_jp.jp_pattern_id` eksikliği ve tekrarları |
 | **JPN_018** | Mevcut `pattern_jp.txt` içindeki kopuk `trips.jp_pattern_id` referansı |
 | **JPN_019** | GTFS-JP `ja-Hrkt` satırlarında geçersiz kayıt/alan/alt kayıt |
