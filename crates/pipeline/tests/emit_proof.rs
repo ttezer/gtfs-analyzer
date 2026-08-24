@@ -765,6 +765,46 @@ fn fixtures() -> Vec<Fixture> {
             ("feed_info.txt", "feed_publisher_name,feed_publisher_url,feed_lang\nPub,https://x.example,ja\n"),
             ("agency.txt", "agency_id,agency_name,agency_url,agency_timezone\n,Test,http://test.example,UTC\n"),
         ]),
+        // JPN_012: agency_jp satırında agency_id eksik.
+        fx("JPN_012", vec![
+            ("agency_jp.txt", "agency_id,agency_zip_number\n,1234567\n"),
+        ]),
+        // JPN_013: agency_zip_number tam yedi ASCII rakam biçiminde değil.
+        fx("JPN_013", vec![
+            ("agency_jp.txt", "agency_id,agency_zip_number\n1,123-4567\n"),
+        ]),
+        // JPN_014: boş office_id ve yinelenen office_id.
+        fx("JPN_014", vec![
+            ("office_jp.txt", "office_id,office_name\n,OfficeEmpty\nO1,OfficeA\nO1,OfficeB\n"),
+        ]),
+        // JPN_015: routes_jp.route_id routes.txt'te yok.
+        fx("JPN_015", vec![
+            ("routes_jp.txt", "route_id,route_update_date,origin_stop,via_stop,destination_stop\nMISSING,20260101,Origin,Via,Destination\n"),
+        ]),
+        // JPN_016: routes_jp.route_update_date geçersiz takvim tarihi.
+        fx("JPN_016", vec![
+            ("routes_jp.txt", "route_id,route_update_date,origin_stop,via_stop,destination_stop\nR1,20260231,Origin,Via,Destination\n"),
+        ]),
+        // JPN_017: pattern_jp'te boş jp_pattern_id ve yinelenen jp_pattern_id.
+        fx("JPN_017", vec![
+            ("pattern_jp.txt", "jp_pattern_id,route_update_date,origin_stop,via_stop,destination_stop\n,20260101,Origin,Via,Destination\nP1,20260101,Origin,Via,Destination\nP1,20260101,Origin,Via,Destination\n"),
+        ]),
+        // JPN_018: trips.jp_pattern_id mevcut ama pattern_jp.txt'te karşılığı yok.
+        fx("JPN_018", vec![
+            ("trips.txt", "route_id,service_id,trip_id,jp_pattern_id\nR1,SVC1,T1,MISSING_PATTERN\n"),
+        ]),
+        // JPN_019: ja-Hrkt çevirisi mevcut olmayan bir stop kaydını gösteriyor.
+        fx("JPN_019", vec![
+            ("translations.txt", "table_name,field_name,language,translation,record_id\nstops,stop_name,ja-Hrkt,とうきょう,MISSING_STOP\n"),
+        ]),
+        // JPN_020: office_url ve office_phone biçimleri şüpheli.
+        fx("JPN_020", vec![
+            ("office_jp.txt", "office_id,office_name,office_url,office_phone\nO1,Office1,not-a-url,x\n"),
+        ]),
+        // JPN_021: aynı ja-Hrkt çeviri hedefi iki farklı kana değeri taşıyor.
+        fx("JPN_021", vec![
+            ("translations.txt", "table_name,field_name,language,translation,record_id\nstops,stop_name,ja-Hrkt,とうきょう,S1\nstops,stop_name,ja-Hrkt,トウキョウ,S1\n"),
+        ]),
 
         // ── LOC grubu (locations.geojson; k1_parse::validate_locations_geojson) ─
         // LOC_001: geçersiz JSON.

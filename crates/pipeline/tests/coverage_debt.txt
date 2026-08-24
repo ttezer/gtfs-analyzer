@@ -3,8 +3,9 @@
 # 🔴 HER SATIRIN GEREKÇESİ YAZILI OLMALI. `AGN_001` dersi: allowlist girişi, kanıtın
 # NEREDE olduğunun yazılmasıdır; yazılamıyorsa kural ölüdür.
 #
-# ✅ 2026-08-07 (issue #71): borç **7 → 0**. Yeni JPN fixture'ları bu sprintte eklendi;
-# kalan borç satırları aşağıdaki fixture planını gösterir.
+# ✅ 2026-08-07 (issue #71): borç **7 → 0**. Yeni JPN fixture'ları bu sprintte eklendi.
+# ✅ 2026-08-24: JPN_012..021 için emit_proof.rs::fixtures() uçtan uca kanıtı eklendi;
+# borç **10 → 0**.
 #
 # ⚠️ Eşik taşımaları VARSAYILAN DAVRANIŞI DEĞİŞTİRMEMELİDİR; tek amaç kanıt yazabilmektir.
 #
@@ -13,14 +14,3 @@
 #
 # ⚠️ Defterin boş olması "her kural her yolda kanıtlı" DEMEK DEĞİLDİR — fixture kuralın
 # BİR emit noktasını kanıtlar. Çoklu emit noktaları integration.rs ile ayrıca kanıtlanır.
-# Azaltmak için emit_proof.rs::fixtures()'a fixture ekleyin. 10 kural.
-JPN_012
-JPN_013
-JPN_014
-JPN_015
-JPN_016
-JPN_017
-JPN_018
-JPN_019
-JPN_020
-JPN_021
