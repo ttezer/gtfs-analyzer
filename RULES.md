@@ -800,8 +800,8 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | JPN_012 | GTFS-JP: agency_jp.agency_id eksik | YÜKSEK | Interop |
 | JPN_013 | GTFS-JP: agency_zip_number biçimi geçersiz | ORTA | Quality |
 | JPN_014 | GTFS-JP: office_jp.office_id eksik veya tekrarlı | YÜKSEK | Interop |
-| JPN_015 | GTFS-JP: routes_jp.route_id eksik, tekrarlı veya routes.txt'te yok | YÜKSEK | Interop |
-| JPN_016 | GTFS-JP: pattern_jp.route_update_date geçersiz | ORTA | Quality |
+| JPN_015 | GTFS-JP legacy: routes_jp.route_id eksik, tekrarlı veya routes.txt'te yok | YÜKSEK | Interop |
+| JPN_016 | GTFS-JP: pattern_jp veya legacy routes_jp route_update_date geçersiz | ORTA | Quality |
 | JPN_017 | GTFS-JP: pattern_jp.jp_pattern_id eksik veya tekrarlı | YÜKSEK | Interop |
 | JPN_018 | GTFS-JP: trips.jp_pattern_id pattern_jp.txt'te tanımlı değil | YÜKSEK | Interop |
 | JPN_019 | GTFS-JP: kana çevirisinin kaydı veya alt kaydı geçersiz | ORTA | Interop |

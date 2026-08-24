@@ -800,8 +800,8 @@
 | JPN_012 | GTFS-JP：agency_jp の agency_id が欠如 | 高 | 相互運用 |
 | JPN_013 | GTFS-JP：agency_zip_number の形式が無効 | 中 | 品質 |
 | JPN_014 | GTFS-JP：office_jp の office_id が欠如または重複 | 高 | 相互運用 |
-| JPN_015 | GTFS-JP：routes_jp の route_id が無効 | 高 | 相互運用 |
-| JPN_016 | GTFS-JP：route_update_date が無効 | 中 | 品質 |
+| JPN_015 | GTFS-JP legacy：routes_jp の route_id が無効 | 高 | 相互運用 |
+| JPN_016 | GTFS-JP：pattern_jp または旧版 routes_jp の route_update_date が無効 | 中 | 品質 |
 | JPN_017 | GTFS-JP：jp_pattern_id が欠如または重複 | 高 | 相互運用 |
 | JPN_018 | GTFS-JP：jp_pattern_id が未定義 | 高 | 相互運用 |
 | JPN_019 | GTFS-JP：かな翻訳の参照が無効 | 中 | 相互運用 |

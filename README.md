@@ -178,7 +178,7 @@ GTFS Analyzer, Japonya'nın ulusal GTFS profili **GTFS-JP**'yi (国土交通省 
 | **JPN_013** | Varsa `agency_zip_number` değerinin 7 ASCII rakam olması |
 | **JPN_014** | `office_jp.office_id` eksikliği ve tekrarları |
 | **JPN_015** | Eski `routes_jp.route_id` uyumluluk kontrolü; v3 dosyası değildir |
-| **JPN_016** | `pattern_jp.route_update_date` geçerli tarih biçimi |
+| **JPN_016** | `pattern_jp.route_update_date`; legacy `routes_jp.route_update_date` geçerli tarih biçimi |
 | **JPN_017** | `pattern_jp.jp_pattern_id` eksikliği ve tekrarları |
 | **JPN_018** | Mevcut `pattern_jp.txt` içindeki kopuk `trips.jp_pattern_id` referansı |
 | **JPN_019** | GTFS-JP `ja-Hrkt` satırlarında geçersiz kayıt/alan/alt kayıt |

@@ -800,8 +800,8 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | JPN_012 | GTFS-JP: agency_jp agency_id missing | HIGH | Interop |
 | JPN_013 | GTFS-JP: agency_zip_number format invalid | MEDIUM | Quality |
 | JPN_014 | GTFS-JP: office_jp office_id missing or duplicated | HIGH | Interop |
-| JPN_015 | GTFS-JP: routes_jp route_id invalid | HIGH | Interop |
-| JPN_016 | GTFS-JP: route_update_date invalid | MEDIUM | Quality |
+| JPN_015 | GTFS-JP legacy: routes_jp route_id invalid | HIGH | Interop |
+| JPN_016 | GTFS-JP: pattern_jp or legacy routes_jp route_update_date invalid | MEDIUM | Quality |
 | JPN_017 | GTFS-JP: jp_pattern_id missing or duplicated | HIGH | Interop |
 | JPN_018 | GTFS-JP: jp_pattern_id undefined | HIGH | Interop |
 | JPN_019 | GTFS-JP: kana translation reference invalid | MEDIUM | Interop |

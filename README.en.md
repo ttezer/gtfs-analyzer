@@ -176,7 +176,7 @@ GTFS Analyzer automatically recognizes **GTFS-JP**, Japan's national GTFS profil
 | **JPN_013** | When present, `agency_zip_number` must contain exactly 7 ASCII digits |
 | **JPN_014** | `office_jp.office_id` must be present and unique |
 | **JPN_015** | Legacy `routes_jp.route_id` compatibility check; not a v3 file |
-| **JPN_016** | `pattern_jp.route_update_date` must be a valid `YYYYMMDD` date |
+| **JPN_016** | `pattern_jp.route_update_date` and legacy `routes_jp.route_update_date` must be valid `YYYYMMDD` dates |
 | **JPN_017** | `pattern_jp.jp_pattern_id` must be present and unique |
 | **JPN_018** | When `pattern_jp.txt` exists, `trips.jp_pattern_id` must reference it |
 | **JPN_019** | `ja-Hrkt` rows must use valid GTFS tables, fields, records, and stop-time sub-records |

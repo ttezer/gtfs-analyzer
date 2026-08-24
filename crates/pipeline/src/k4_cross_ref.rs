@@ -3440,10 +3440,11 @@ fn check_gtfs_jp(
         }
     }
 
-    // ── JPN_016: pattern_jp.route_update_date YYYYMMDD ──────────────────────
-    // GTFS-JP v3'te route_update_date pattern_jp.txt içindedir. routes_jp.txt
-    // eski sürüm uyumluluğu için parse edilir, ancak v3 JPN_016 kapsamına
-    // sokulmaz.
+    // ── JPN_016: route_update_date YYYYMMDD ─────────────────────────────────
+    // GTFS-JP v3'te tarih pattern_jp.txt içindedir. routes_jp.txt v3 dosyası
+    // değildir; ancak eski feed uyumluluğu için aynı tarih alanını doğrulamaya
+    // devam ederiz. Böylece legacy feed'lerde gerçek üretici hataları sessizce
+    // kaybolmaz.
     for pattern in &records.pattern_jp {
         if let Some(date) = pattern.route_update_date.as_deref() {
             if !valid_gtfs_jp_date(date) {
@@ -3453,6 +3454,20 @@ fn check_gtfs_jp(
                     "pattern_jp.txt", Some(pattern.line), Some("route_update_date"),
                     Some(date.to_string()), Some("YYYYMMDD".to_string()),
                     format!("pattern_jp.txt route_update_date '{}' geçerli bir tarih değil.", date),
+                    "route_update_date değerini geçerli bir YYYYMMDD tarihi olarak girin.",
+                ));
+            }
+        }
+    }
+    for route in &records.routes_jp {
+        if let Some(date) = route.route_update_date.as_deref() {
+            if !valid_gtfs_jp_date(date) {
+                notices.push(notice(
+                    ctr, "JPN_016", EntityType::Row,
+                    Some(route.route_id.clone()), Some(route.route_id.clone()),
+                    "routes_jp.txt", Some(route.line), Some("route_update_date"),
+                    Some(date.to_string()), Some("YYYYMMDD".to_string()),
+                    format!("routes_jp.txt route_update_date '{}' geçerli bir tarih değil.", date),
                     "route_update_date değerini geçerli bir YYYYMMDD tarihi olarak girin.",
                 ));
             }
@@ -7119,6 +7134,20 @@ mod tests {
         assert!(result.notices.iter().any(|n| n.rule_id == "JPN_016"
             && n.file.as_deref() == Some("pattern_jp.txt")
             && n.line == Some(5)));
+    }
+
+    #[test]
+    fn jpn_016_reports_invalid_legacy_routes_jp_update_date() {
+        let (mut recs, _map) = empty();
+        recs.routes_jp = vec![RoutesJpRecord {
+            route_id: "R1".into(), route_update_date: Some("令和8年4月6日".into()),
+            origin_stop: None, via_stop: None, destination_stop: None,
+            row: Default::default(), line: 7,
+        }];
+        let result = check(&recs, &EntityMap::default(), 20260824);
+        assert!(result.notices.iter().any(|n| n.rule_id == "JPN_016"
+            && n.file.as_deref() == Some("routes_jp.txt")
+            && n.line == Some(7)));
     }
 
     #[test]
