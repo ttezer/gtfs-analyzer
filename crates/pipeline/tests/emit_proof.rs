@@ -789,8 +789,9 @@ fn fixtures() -> Vec<Fixture> {
         fx("JPN_017", vec![
             ("pattern_jp.txt", "jp_pattern_id,route_update_date,origin_stop,via_stop,destination_stop\n,20260101,Origin,Via,Destination\nP1,20260101,Origin,Via,Destination\nP1,20260101,Origin,Via,Destination\n"),
         ]),
-        // JPN_018: trips.jp_pattern_id mevcut ama pattern_jp.txt'te karşılığı yok.
+        // JPN_018: pattern_jp.txt mevcut ama trips.jp_pattern_id karşılığı yok.
         fx("JPN_018", vec![
+            ("pattern_jp.txt", "jp_pattern_id,route_update_date,origin_stop,via_stop,destination_stop\nKNOWN_PATTERN,20260101,Origin,Via,Destination\n"),
             ("trips.txt", "route_id,service_id,trip_id,jp_pattern_id\nR1,SVC1,T1,MISSING_PATTERN\n"),
         ]),
         // JPN_019: ja-Hrkt çevirisi mevcut olmayan bir stop kaydını gösteriyor.

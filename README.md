@@ -180,7 +180,7 @@ GTFS Analyzer, Japonya'nın ulusal GTFS profili **GTFS-JP**'yi (国土交通省 
 | **JPN_015** | `routes_jp.route_id` eksikliği, tekrarları ve `routes.txt` referansı |
 | **JPN_016** | `routes_jp.route_update_date` geçerli tarih biçimi |
 | **JPN_017** | `pattern_jp.jp_pattern_id` eksikliği ve tekrarları |
-| **JPN_018** | `trips.jp_pattern_id` için kopuk `pattern_jp` referansı |
+| **JPN_018** | Mevcut `pattern_jp.txt` içindeki kopuk `trips.jp_pattern_id` referansı |
 | **JPN_019** | GTFS-JP `ja-Hrkt` satırlarında geçersiz kayıt/alan/alt kayıt |
 | **JPN_020** | `office_url` ve `office_phone` biçim kalite kontrolü |
 | **JPN_021** | Kana çevirilerinde boş, çakışan veya tutarsız kayıtlar |

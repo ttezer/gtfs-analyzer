@@ -2996,7 +2996,7 @@ fn check_gtfs_jp(records: &EntityRecords, notices: &mut Vec<Notice>, ctr: &mut u
         || !records.agency_jp.is_empty()
         || !records.office_jp.is_empty()
         || !records.routes_jp.is_empty()
-        || !records.pattern_jp.is_empty();
+        || records.has_pattern_jp_file;
     if is_gtfs_jp {
         let mut kana_records: HashSet<&str> = HashSet::new();
         let mut kana_values: HashSet<&str> = HashSet::new();
@@ -3447,9 +3447,10 @@ fn check_gtfs_jp(records: &EntityRecords, notices: &mut Vec<Notice>, ctr: &mut u
     }
 
     // ── JPN_018: trips.jp_pattern_id → pattern_jp.jp_pattern_id ──────────────
-    if !records.pattern_jp.is_empty()
-        || records.trips.iter().any(|trip| ti_jpn.jp_pattern_id(trip).is_some_and(|id| !id.is_empty()))
-    {
+    // `pattern_jp.txt` ve trips.jp_pattern_id ayrı ayrı opsiyoneldir. jp_pattern_id
+    // pattern_jp.txt yokken kurum içi kod olarak kullanılabilir; yalnızca pattern
+    // master dosyası mevcutsa burada foreign-key bütünlüğü aranır.
+    if records.has_pattern_jp_file {
         let pattern_ids: HashSet<&str> = records.pattern_jp.iter()
             .map(|pattern| pattern.jp_pattern_id.as_str()).filter(|id| !id.is_empty()).collect();
         for trip in &records.trips {
@@ -7010,7 +7011,7 @@ mod tests {
     }
 
     #[test]
-    fn jpn_018_reports_trip_pattern_without_pattern_file() {
+    fn jpn_018_reports_trip_pattern_not_in_pattern_file() {
         let (mut recs, _map) = empty();
         let mut ti = TripInternTable::new();
         let mut t = trip(&mut ti, "T1", "R1", "S1");
@@ -7018,9 +7019,23 @@ mod tests {
         t.jp_pattern_idx = 1;
         recs.trips = vec![t];
         recs.trip_interns = ti;
+        recs.has_pattern_jp_file = true;
         let result = check(&recs, &EntityMap::default(), 20260824);
         assert!(result.notices.iter().any(|n| n.rule_id == "JPN_018"
             && n.entity_id.as_deref() == Some("T1")));
+    }
+
+    #[test]
+    fn jpn_018_silent_when_pattern_file_is_absent() {
+        let (mut recs, _map) = empty();
+        let mut ti = TripInternTable::new();
+        let mut t = trip(&mut ti, "T1", "R1", "S1");
+        ti.jp_patterns.push("INTERNAL_PATTERN_CODE".into());
+        t.jp_pattern_idx = 1;
+        recs.trips = vec![t];
+        recs.trip_interns = ti;
+        let result = check(&recs, &EntityMap::default(), 20260824);
+        assert!(!result.notices.iter().any(|n| n.rule_id == "JPN_018"));
     }
 
     #[test]

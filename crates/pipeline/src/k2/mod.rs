@@ -102,6 +102,8 @@ pub struct EntityRecords {
     pub networks: Vec<NetworkRecord>,
     pub office_jp: Vec<OfficeJpRecord>,
     pub pattern_jp: Vec<PatternJpRecord>,
+    /// `pattern_jp.txt` dosyasının mevcut olup olmadığını, boş olsa bile korur.
+    pub has_pattern_jp_file: bool,
     pub pathways: Vec<PathwayRecord>,
     pub rider_categories: Vec<RiderCategoryRecord>,
     pub routes: Vec<RouteRecord>,
@@ -204,6 +206,7 @@ pub fn validate_with_stream_limit(
 
     if let Some(file) = files.get("pattern_jp.txt") {
         let _t = Timer::start("K2::pattern_jp");
+        records.has_pattern_jp_file = true;
         records.pattern_jp = parse_pattern_jp(file);
     }
 
