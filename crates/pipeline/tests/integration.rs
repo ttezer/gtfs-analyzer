@@ -136,6 +136,39 @@ fn modern_translation_headers_keep_translation_conflict_validation() {
     }
 }
 
+#[test]
+fn gtfs_jp_kana_profile_keeps_profile_and_general_translation_findings_distinct() {
+    let mut files = base_files();
+    files.push((
+        "feed_info.txt",
+        b"feed_publisher_name,feed_publisher_url,feed_lang\nTest,http://test.example,ja\n",
+    ));
+    files.push((
+        "translations.txt",
+        b"table_name,field_name,language,translation,record_id\n\
+          stops,stop_name,ja-Hrkt,\xE3\x81\xA8\xE3\x81\x86\xE3\x81\x8D\xE3\x82\x87\xE3\x81\x86,S1\n\
+          stops,stop_name,ja-Hrkt,Tokyo,S1\n\
+          stops,stop_name,ja-Hrkt,,S2\n",
+    ));
+
+    match run(&files) {
+        ValidateResult::Ok(vr) => {
+            // S1'de çelişki + Latin içerik iki JPN_021 predicate'ini tetikleyebilir;
+            // JPN_021 Entity kapsamı nedeniyle K7 aynı record_id için tek temsilci tutar.
+            assert_eq!(
+                vr.notices.iter().filter(|n| n.rule_id == "JPN_021").count(),
+                2,
+                "JPN_021 S1 ve S2 için birer final bulgu üretmeli"
+            );
+            // Profil kuralı, genel GTFS translations kurallarının yerine geçmez:
+            // aynı feed'de TRN_006 (çelişki) ve TRN_008 (boş translation) korunur.
+            assert!(vr.notices.iter().any(|n| n.rule_id == "TRN_006"));
+            assert!(vr.notices.iter().any(|n| n.rule_id == "TRN_008"));
+        }
+        other => panic!("ValidateResult::Ok beklendi, alınan: {other:?}"),
+    }
+}
+
 // ── issue #108: RTS_022 tek karakterli tam eşitliği kaçırmamalı ───────────────
 
 fn rts022_route_name_feed(routes: &'static [u8]) -> Vec<(&'static str, &'static [u8])> {
