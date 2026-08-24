@@ -8,7 +8,7 @@ const TRANSLATION_TABLES: &[&str] = &[
     "levels",
 ];
 
-fn valid_fields_for_table(table: &str) -> &'static [&'static str] {
+pub(crate) fn valid_fields_for_table(table: &str) -> &'static [&'static str] {
     match table {
         "agency" => &["agency_name", "agency_url", "agency_fare_url", "agency_email", "agency_phone"],
         "stops" => &["stop_name", "stop_desc", "stop_url", "tts_stop_name"],

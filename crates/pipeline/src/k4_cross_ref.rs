@@ -3493,14 +3493,8 @@ fn check_gtfs_jp(
         let route_ids: HashSet<&str> = records.routes.iter().map(|r| r.route_id.as_str()).collect();
         let trip_ids: HashSet<&str> = records.trips.iter().map(|t| t.trip_id.as_str()).collect();
         for translation in records.translations.iter().filter(|t| t.language.eq_ignore_ascii_case("ja-Hrkt")) {
-            let valid_field = match translation.table_name.as_str() {
-                "agency" => matches!(translation.field_name.as_str(), "agency_name" | "agency_url" | "agency_fare_url" | "agency_email" | "agency_phone"),
-                "stops" => matches!(translation.field_name.as_str(), "stop_name" | "stop_desc" | "stop_url" | "tts_stop_name"),
-                "routes" => matches!(translation.field_name.as_str(), "route_short_name" | "route_long_name" | "route_desc" | "route_url"),
-                "trips" => matches!(translation.field_name.as_str(), "trip_headsign" | "trip_short_name"),
-                "stop_times" => translation.field_name == "stop_headsign",
-                _ => true,
-            };
+            let valid_field = crate::k2::translations::valid_fields_for_table(&translation.table_name)
+                .contains(&translation.field_name.as_str());
             let valid_record = match (translation.table_name.as_str(), translation.record_id.as_deref()) {
                 (_, None) => true,
                 ("agency", Some(id)) => agency_ids.contains(id),
@@ -3508,10 +3502,24 @@ fn check_gtfs_jp(
                 ("routes", Some(id)) => route_ids.contains(id),
                 ("trips", Some(id)) | ("stop_times", Some(id)) => trip_ids.contains(id),
                 ("feed_info", Some(_)) => false,
-                _ => true,
+                _ => false,
             };
             let valid_sub_id = if translation.table_name == "stop_times" {
-                translation.record_sub_id.as_deref().is_none_or(|sub| sub.parse::<u32>().is_ok())
+                match (translation.record_id.as_deref(), translation.record_sub_id.as_deref()) {
+                    // `record_sub_id` is the stop_sequence belonging to the trip in
+                    // `record_id`; numeric formatting alone does not prove this link.
+                    (Some(trip_id), Some(sub)) => sub.parse::<u32>().ok()
+                        .filter(|sequence| *sequence != u32::MAX)
+                        .is_some_and(|sequence| {
+                            records.stop_times_index.sorted_stops(trip_id).is_some_and(|rows| {
+                                rows.binary_search_by_key(&sequence, |stop| stop.sequence).is_ok()
+                            })
+                        }),
+                    // TRN_017 owns the missing-sub-id case when record_id is present.
+                    (Some(_), None) | (None, None) => true,
+                    // A sub-record cannot identify a stop_times row without its trip.
+                    (None, Some(_)) => false,
+                }
             } else { translation.record_sub_id.is_none() };
             if !valid_field || !valid_record || !valid_sub_id {
                 notices.push(notice(
@@ -3575,17 +3583,19 @@ fn check_gtfs_jp(
             let key = format!("{}|{}|{}|{}|{}", translation.table_name, translation.field_name,
                 translation.record_id.as_deref().unwrap_or(""), translation.record_sub_id.as_deref().unwrap_or(""),
                 translation.field_value.as_deref().unwrap_or(""));
-            if let Some((previous, first_line)) = seen.insert(key, (translation.translation.clone(), translation.line)) {
-                if previous != translation.translation {
+            if let Some((previous, first_line)) = seen.get(&key) {
+                if *previous != translation.translation {
                     notices.push(notice(
                         ctr, "JPN_021", EntityType::Translation,
                         translation.record_id.clone(), translation.record_id.clone(),
                         "translations.txt", Some(translation.line), Some("translation"),
-                        Some(translation.translation.clone()), Some(previous),
-                        format!("Aynı ja-Hrkt çeviri hedefi satır {} ile çelişiyor.", first_line),
+                        Some(translation.translation.clone()), Some(previous.clone()),
+                        format!("Aynı ja-Hrkt çeviri hedefi ilk satır {} ile çelişiyor.", first_line),
                         "Aynı çeviri hedefi için tek ve tutarlı bir kana değeri bırakın.",
                     ));
                 }
+            } else {
+                seen.insert(key, (translation.translation.clone(), translation.line));
             }
             if !has_japanese(&translation.translation) {
                 notices.push(notice(
@@ -7082,6 +7092,42 @@ mod tests {
     }
 
     #[test]
+    fn jpn_019_checks_stop_times_record_sub_id_against_source_rows() {
+        let (mut recs, _map) = empty();
+        let mut ti = TripInternTable::new();
+        recs.trips = vec![trip(&mut ti, "T1", "R1", "S1")];
+        recs.trip_interns = ti;
+        recs.stop_times_index = StopTimesIndex::from_records(&[
+            StopTimeRecord { trip_id: "T1".into(), stop_sequence: Some(5), ..Default::default() },
+        ]);
+        let translation = |sub: &str| TranslationRecord {
+            table_name: "stop_times".into(), field_name: "stop_headsign".into(), language: "ja-Hrkt".into(),
+            translation: "とうきょう".into(), record_id: Some("T1".into()), record_sub_id: Some(sub.into()),
+            field_value: None, row: Default::default(), line: 6,
+        };
+
+        recs.translations = vec![translation("5")];
+        let valid = check(&recs, &EntityMap::default(), 20260824);
+        assert!(!valid.notices.iter().any(|n| n.rule_id == "JPN_019"));
+
+        recs.translations = vec![translation("6")];
+        let dangling = check(&recs, &EntityMap::default(), 20260824);
+        assert!(dangling.notices.iter().any(|n| n.rule_id == "JPN_019" && n.line == Some(6)));
+    }
+
+    #[test]
+    fn jpn_019_reports_unknown_translation_table_and_field() {
+        let (mut recs, _map) = empty();
+        recs.translations = vec![TranslationRecord {
+            table_name: "unknown_table".into(), field_name: "unknown_field".into(), language: "ja-Hrkt".into(),
+            translation: "とうきょう".into(), record_id: None, record_sub_id: None,
+            field_value: None, row: Default::default(), line: 7,
+        }];
+        let result = check(&recs, &EntityMap::default(), 20260824);
+        assert!(result.notices.iter().any(|n| n.rule_id == "JPN_019" && n.line == Some(7)));
+    }
+
+    #[test]
     fn jpn_020_reports_bad_office_url_and_phone() {
         let (mut recs, _map) = empty();
         let mut row = std::collections::HashMap::new();
@@ -7101,10 +7147,12 @@ mod tests {
             translation: value.into(), record_id: Some("S1".into()), record_sub_id: None,
             field_value: None, row: Default::default(), line,
         };
-        recs.translations = vec![translation("とうきょう", 2), translation("トウキョウ", 3), translation("", 4)];
+        recs.translations = vec![translation("とうきょう", 2), translation("トウキョウ", 3), translation("Tokyo", 4), translation("", 5)];
         let result = check(&recs, &EntityMap::default(), 20260824);
-        assert!(result.notices.iter().any(|n| n.rule_id == "JPN_021" && n.line == Some(3)));
+        let conflict = result.notices.iter().find(|n| n.rule_id == "JPN_021" && n.line == Some(3)).expect("JPN_021 çelişki bulgusu");
+        assert!(conflict.message.contains("ilk satır 2"), "ilk görülen satır korunmalı: {}", conflict.message);
         assert!(result.notices.iter().any(|n| n.rule_id == "JPN_021" && n.line == Some(4)));
+        assert!(result.notices.iter().any(|n| n.rule_id == "JPN_021" && n.line == Some(5)));
     }
 
 }
