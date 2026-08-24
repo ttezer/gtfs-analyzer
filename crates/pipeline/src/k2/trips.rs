@@ -23,6 +23,7 @@ pub struct TripInternTable {
     pub short_names: Vec<SmolStr>,
     pub block_ids:   Vec<SmolStr>,
     pub jp_offices:  Vec<SmolStr>,
+    pub jp_patterns: Vec<SmolStr>,
 }
 
 impl TripInternTable {
@@ -36,6 +37,7 @@ impl TripInternTable {
             short_names: empty(),
             block_ids:   empty(),
             jp_offices:  empty(),
+            jp_patterns: empty(),
         }
     }
 
@@ -72,6 +74,11 @@ impl TripInternTable {
         if t.jp_office_idx == 0 { return None; }
         self.jp_offices.get(t.jp_office_idx as usize).map(SmolStr::as_str)
     }
+    #[inline]
+    pub fn jp_pattern_id<'a>(&'a self, t: &TripRecord) -> Option<&'a str> {
+        if t.jp_pattern_idx == 0 { return None; }
+        self.jp_patterns.get(t.jp_pattern_idx as usize).map(SmolStr::as_str)
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -84,6 +91,7 @@ pub struct TripRecord {
     pub short_name_idx: u32,
     pub block_idx:      u32,
     pub jp_office_idx:  u32,
+    pub jp_pattern_idx: u32,
     pub direction_id:   Option<u32>,
     pub wheelchair_accessible: Option<u32>,
     pub bikes_allowed:  Option<u32>,
@@ -121,6 +129,7 @@ struct Cols {
     safe_duration_factor: Option<usize>,
     safe_duration_offset: Option<usize>,
     jp_office_id: Option<usize>,
+    jp_pattern_id: Option<usize>,
 }
 
 impl Cols {
@@ -141,6 +150,7 @@ impl Cols {
             safe_duration_factor:  pos("safe_duration_factor"),
             safe_duration_offset:  pos("safe_duration_offset"),
             jp_office_id:          pos("jp_office_id"),
+            jp_pattern_id:         pos("jp_pattern_id"),
         }
     }
 }
@@ -185,6 +195,7 @@ pub fn validate_trips_with_limits(
     let mut short_name_map: FxHashMap<String, u32> = FxHashMap::default();
     let mut block_map:      FxHashMap<String, u32> = FxHashMap::default();
     let mut jp_office_map:  FxHashMap<String, u32> = FxHashMap::default();
+    let mut jp_pattern_map: FxHashMap<String, u32> = FxHashMap::default();
 
     // Satır işleyici — hem stream (raw_text) hem rows fallback yolundan çağrılır.
     let mut process = |row: &[Cow<'_, str>], line: u64| {
@@ -266,6 +277,7 @@ pub fn validate_trips_with_limits(
         let short_name_idx  = intern_idx(short_name_raw, &mut interns.short_names,  &mut short_name_map);
         let block_idx       = intern_idx(get_col_raw(row, cols.block_id),     &mut interns.block_ids,  &mut block_map);
         let jp_office_idx   = intern_idx(get_col_raw(row, cols.jp_office_id), &mut interns.jp_offices, &mut jp_office_map);
+        let jp_pattern_idx  = intern_idx(get_col_raw(row, cols.jp_pattern_id), &mut interns.jp_patterns, &mut jp_pattern_map);
 
         // TRP_005: direction_id 0 veya 1 olmalı
         let dir_raw = get_col(row, cols.direction_id);
@@ -415,7 +427,7 @@ pub fn validate_trips_with_limits(
         records.push(TripRecord {
             trip_id,
             route_idx, service_idx, shape_idx,
-            headsign_idx, short_name_idx, block_idx, jp_office_idx,
+            headsign_idx, short_name_idx, block_idx, jp_office_idx, jp_pattern_idx,
             direction_id,
             wheelchair_accessible, bikes_allowed, cars_allowed,
             safe_duration_factor, safe_duration_offset,

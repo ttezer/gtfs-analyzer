@@ -157,7 +157,7 @@ Feed: `mdb-782` · 1.274 hat, 41.961 durak, 258.524 sefer, 14.485 shape · **~75
 
 GTFS Analyzer, Japonya'nın ulusal GTFS profili **GTFS-JP**'yi (国土交通省 / MLIT standardı) otomatik olarak tanır ve standart GTFS'in isteğe bağlı bıraktığı, GTFS-JP'nin zorunlu kıldığı kuralları uygular. MLIT, sübvansiyon alan işletmecilerden GTFS-JP yayımlamasını şart koştuğu için yüzlerce küçük operatör bu profile uymak zorundadır; ancak yaygın doğrulayıcılar profile özgü zorunlulukları denetlemez.
 
-**Otomatik tespit.** Bir feed; `*_jp.txt` dosyaları (`agency_jp.txt`, `office_jp.txt`, `routes_jp.txt`) içeriyorsa, `feed_lang` değeri `ja` ile başlıyorsa ya da `translations.txt` içinde kana (`ja-Hrkt`) okumaları taşıyorsa GTFS-JP olarak işaretlenir ve raporda **GTFS-JP** rozeti görünür. Profil kuralları yalnızca bu feed'lerde devreye girer; standart feed'lerde sessiz kalır.
+**Otomatik tespit.** Bir feed; `*_jp.txt` dosyaları (`agency_jp.txt`, `office_jp.txt`, `routes_jp.txt`, `pattern_jp.txt`) içeriyorsa, `feed_lang` değeri `ja` ile başlıyorsa ya da `translations.txt` içinde kana (`ja-Hrkt`) okumaları taşıyorsa GTFS-JP olarak işaretlenir ve raporda **GTFS-JP** rozeti görünür. Profil kuralları yalnızca bu feed'lerde devreye girer; standart feed'lerde sessiz kalır.
 
 **Profil kuralları (JPN grubu).**
 
@@ -173,6 +173,17 @@ GTFS Analyzer, Japonya'nın ulusal GTFS profili **GTFS-JP**'yi (国土交通省 
 | **JPN_008** | Hat adının (`route_long_name`) kana (`ja-Hrkt`) okuması |
 | **JPN_009** | `trip_headsign` kana (`ja-Hrkt`) okuması |
 | **JPN_010** | İşletici adının (`agency_name`) kana (`ja-Hrkt`) okuması |
+| **JPN_011** | GTFS-JP feed'inde tek işletici olsa bile `agency_id` zorunluluğu |
+| **JPN_012** | `agency_jp.agency_id` eksikliği |
+| **JPN_013** | Varsa `agency_zip_number` değerinin 7 ASCII rakam olması |
+| **JPN_014** | `office_jp.office_id` eksikliği ve tekrarları |
+| **JPN_015** | `routes_jp.route_id` eksikliği, tekrarları ve `routes.txt` referansı |
+| **JPN_016** | `routes_jp.route_update_date` geçerli tarih biçimi |
+| **JPN_017** | `pattern_jp.jp_pattern_id` eksikliği ve tekrarları |
+| **JPN_018** | `trips.jp_pattern_id` için kopuk `pattern_jp` referansı |
+| **JPN_019** | GTFS-JP `ja-Hrkt` satırlarında geçersiz kayıt/alan/alt kayıt |
+| **JPN_020** | `office_url` ve `office_phone` biçim kalite kontrolü |
+| **JPN_021** | Kana çevirilerinde boş, çakışan veya tutarsız kayıtlar |
 
 Yukarıdaki **Tokyo Toei** karşılaştırması bu profilin gerçek bir GTFS-JP feed'inde nasıl davrandığını gösterir: feed spec açısından temizdir (0 kritik) ve profil kuralları doğru referanslı veride yanlış pozitif üretmez.
 

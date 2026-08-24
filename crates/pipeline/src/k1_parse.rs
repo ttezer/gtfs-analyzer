@@ -40,7 +40,7 @@ pub(crate) const KNOWN_FILES: &[&str] = &[
     // Flex
     "booking_rules.txt", "location_groups.txt", "location_group_stops.txt",
     // GTFS-JP uzantıları (Japonya standardı)
-    "agency_jp.txt", "routes_jp.txt", "office_jp.txt",
+    "agency_jp.txt", "routes_jp.txt", "office_jp.txt", "pattern_jp.txt",
 ];
 
 // ── Tipler ────────────────────────────────────────────────────────────────────
@@ -1094,6 +1094,9 @@ fn known_columns(filename: &str) -> &'static [&'static str] {
         "office_jp.txt" => &["office_id","office_name","office_url","office_phone"],
         "routes_jp.txt" => &[
             "route_id","route_update_date","origin_stop","via_stop","destination_stop",
+        ],
+        "pattern_jp.txt" => &[
+            "jp_pattern_id","route_update_date","origin_stop","via_stop","destination_stop",
         ],
         _ => &[],
     }

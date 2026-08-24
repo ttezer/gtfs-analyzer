@@ -759,7 +759,7 @@ mod tests {
         let base = TripRecord {
             trip_id: "T1".into(),
             route_idx: 0, service_idx: 0, shape_idx: 0,
-            headsign_idx: 0, short_name_idx: 0, block_idx: 0, jp_office_idx: 0,
+            headsign_idx: 0, short_name_idx: 0, block_idx: 0, jp_office_idx: 0, jp_pattern_idx: 0,
             direction_id: None, wheelchair_accessible: None,
             bikes_allowed: None, cars_allowed: None,
             safe_duration_factor: None, safe_duration_offset: None,

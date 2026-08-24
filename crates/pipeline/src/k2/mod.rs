@@ -19,12 +19,14 @@ pub mod frequencies;
 pub mod levels;
 pub mod networks;
 pub mod office_jp;
+pub mod pattern_jp;
 pub mod pathways;
 pub mod rider_categories;
 pub mod location_groups;
 pub mod fare_leg_join_rules;
 pub mod route_networks;
 pub mod routes;
+pub mod routes_jp;
 pub mod shapes;
 pub mod stop_areas;
 pub mod stops;
@@ -57,11 +59,13 @@ use levels::{validate_levels, LevelRecord};
 use location_groups::{parse_location_groups, LocationGroupRecord, parse_location_group_stops, LocationGroupStopRecord};
 use networks::{parse_networks, NetworkRecord};
 use office_jp::{parse_office_jp, OfficeJpRecord};
+use pattern_jp::{parse_pattern_jp, PatternJpRecord};
 use pathways::{validate_pathways, PathwayRecord};
 use rider_categories::{validate_rider_categories, RiderCategoryRecord};
 use fare_leg_join_rules::{parse_fare_leg_join_rules, FareLegJoinRuleRecord};
 use route_networks::{parse_route_networks, RouteNetworkRecord};
 use routes::{validate_routes, RouteRecord};
+use routes_jp::{parse_routes_jp, RoutesJpRecord};
 use shapes::{validate_shapes_with_limits, ShapePointRecord};
 pub use shapes::ShapeInternTable;
 use stop_areas::{parse_stop_areas, StopAreaRecord};
@@ -97,9 +101,11 @@ pub struct EntityRecords {
     pub location_group_stops: Vec<LocationGroupStopRecord>,
     pub networks: Vec<NetworkRecord>,
     pub office_jp: Vec<OfficeJpRecord>,
+    pub pattern_jp: Vec<PatternJpRecord>,
     pub pathways: Vec<PathwayRecord>,
     pub rider_categories: Vec<RiderCategoryRecord>,
     pub routes: Vec<RouteRecord>,
+    pub routes_jp: Vec<RoutesJpRecord>,
     pub fare_leg_join_rules: Vec<FareLegJoinRuleRecord>,
     pub route_networks: Vec<RouteNetworkRecord>,
     pub shapes: Vec<ShapePointRecord>,
@@ -194,6 +200,16 @@ pub fn validate_with_stream_limit(
     if let Some(file) = files.get("office_jp.txt") {
         let _t = Timer::start("K2::office_jp");
         records.office_jp = parse_office_jp(file);
+    }
+
+    if let Some(file) = files.get("pattern_jp.txt") {
+        let _t = Timer::start("K2::pattern_jp");
+        records.pattern_jp = parse_pattern_jp(file);
+    }
+
+    if let Some(file) = files.get("routes_jp.txt") {
+        let _t = Timer::start("K2::routes_jp");
+        records.routes_jp = parse_routes_jp(file);
     }
 
     if let Some(file) = files.get("attributions.txt") {

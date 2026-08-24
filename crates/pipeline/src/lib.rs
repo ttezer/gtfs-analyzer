@@ -415,7 +415,7 @@ mod name_index_tests {
             let sh = ti.shape_ids.len() as u32; ti.shape_ids.push(sid.into());
             recs.trips.push(crate::k2::trips::TripRecord {
                 trip_id: tid.into(), route_idx: ri, service_idx: si, shape_idx: sh,
-                headsign_idx: 0, short_name_idx: 0, block_idx: 0, jp_office_idx: 0,
+                headsign_idx: 0, short_name_idx: 0, block_idx: 0, jp_office_idx: 0, jp_pattern_idx: 0,
                 direction_id: None, wheelchair_accessible: None,
                 bikes_allowed: None, cars_allowed: None,
                 safe_duration_factor: None, safe_duration_offset: None,

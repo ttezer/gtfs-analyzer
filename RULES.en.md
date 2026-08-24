@@ -2,7 +2,7 @@
 
 🇹🇷 [Türkçe](RULES.md) · 🇬🇧 **English** · 🇯🇵 [日本語](RULES.ja.md)
 
-600 rules, 38 groups. Each rule is identified by a unique ID, severity level, and class.
+610 rules, 38 groups. Each rule is identified by a unique ID, severity level, and class.
 Severity levels: **CRITICAL** (publish blocker) · **HIGH** · **MEDIUM** · **LOW** · **INFO**
 Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Quality** (GTFS Quality) · **Analytics** (GTFS Analytics)
 
@@ -797,3 +797,13 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | JPN_009 | GTFS-JP: trip_headsign kana reading missing | MEDIUM | Quality |
 | JPN_010 | GTFS-JP: agency_name kana reading missing | MEDIUM | Quality |
 | JPN_011 | GTFS-JP: agency_id required even with one agency | HIGH | Interop |
+| JPN_012 | GTFS-JP: agency_jp agency_id missing | HIGH | Interop |
+| JPN_013 | GTFS-JP: agency_zip_number format invalid | MEDIUM | Quality |
+| JPN_014 | GTFS-JP: office_jp office_id missing or duplicated | HIGH | Interop |
+| JPN_015 | GTFS-JP: routes_jp route_id invalid | HIGH | Interop |
+| JPN_016 | GTFS-JP: route_update_date invalid | MEDIUM | Quality |
+| JPN_017 | GTFS-JP: jp_pattern_id missing or duplicated | HIGH | Interop |
+| JPN_018 | GTFS-JP: jp_pattern_id undefined | HIGH | Interop |
+| JPN_019 | GTFS-JP: kana translation reference invalid | MEDIUM | Interop |
+| JPN_020 | GTFS-JP: office contact format suspicious | MEDIUM | Quality |
+| JPN_021 | GTFS-JP: kana translation inconsistent | MEDIUM | Quality |

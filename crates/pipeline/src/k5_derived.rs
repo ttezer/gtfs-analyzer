@@ -551,7 +551,7 @@ mod tests {
         let trip = TripRecord {
             trip_id: trip_id.into(),
             route_idx: ri, service_idx: si, shape_idx: shi,
-            headsign_idx: 0, short_name_idx: 0, block_idx: 0, jp_office_idx: 0,
+            headsign_idx: 0, short_name_idx: 0, block_idx: 0, jp_office_idx: 0, jp_pattern_idx: 0,
             direction_id: None, wheelchair_accessible: None,
             bikes_allowed: None, cars_allowed: None,
             safe_duration_factor: None, safe_duration_offset: None,

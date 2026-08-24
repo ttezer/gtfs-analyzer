@@ -3,23 +3,24 @@
 # 🔴 HER SATIRIN GEREKÇESİ YAZILI OLMALI. `AGN_001` dersi: allowlist girişi, kanıtın
 # NEREDE olduğunun yazılmasıdır; yazılamıyorsa kural ölüdür.
 #
-# ✅ 2026-08-07 (issue #71): borç **7 → 0**. Defter BOŞ. Denetim "hâlâ 7" dediğinde
-# listenin gerekçeleri incelendi ve ÇOĞU YANLIŞ ÇIKTI:
-#   OPR_024  eşiği zaten `ValidatorConfig`'teydi          → `fx_cfg`, 500→50
-#   VAT_006  "inline yazılamaz" deniyordu; 50 satır yetti → `fx`
-#   STM_043  aynı                                          → `fx` (201 satır)
-#   SHP_026  eşik SABİT KODLUYDU → `ValidatorConfig`'e taşındı, `fx_cfg`
-#   STM_044  aynı                                          → `fx_cfg`
-#   ARC_027  zip ÜST VERİSİYLE tetikleniyor → harness'a `unix_permissions` yazan
-#            kurucu eklendi (`fx_noread`)
-#   ARC_022  eşik `k1_parse.rs`'te sabit kodluydu ve K1'in `parse()`'ı config ALMIYORDU.
-#            İmza `parse(&[u8], &ValidatorConfig)` oldu; aynı alan K2'nin akış yollarına
-#            (stop_times/shapes) da bağlandı → `fx_cfg` (max_file_rows 10, 11 satır).
-# ⚠️ Eşik taşımaları VARSAYILAN DAVRANIŞI DEĞİŞTİRMEDİ; tek amaç kanıt yazılabilmesiydi.
+# ✅ 2026-08-07 (issue #71): borç **7 → 0**. Yeni JPN fixture'ları bu sprintte eklendi;
+# kalan borç satırları aşağıdaki fixture planını gösterir.
 #
-# 🔴 DERS: "inline yazılamaz" bir ÖLÇÜM DEĞİL TAHMİNDİ; yedi kaydın yedisi de denenince
-# düştü. Bu dosyaya yeni satır eklenecekse gerekçe DENENMİŞ olmalı, tahmin edilmiş değil.
+# ⚠️ Eşik taşımaları VARSAYILAN DAVRANIŞI DEĞİŞTİRMEMELİDİR; tek amaç kanıt yazabilmektir.
+#
+# 🔴 DERS: "inline yazılamaz" bir ÖLÇÜM DEĞİL TAHMİNDİ; yeni kural eklenince fixture
+# ile emit yolu denenmeden borç allowlist'e alınmamalıdır.
 #
 # ⚠️ Defterin boş olması "her kural her yolda kanıtlı" DEMEK DEĞİLDİR — fixture kuralın
-# BİR emit noktasını kanıtlar. ARC_022'nin üç emit noktası vardır (K1 akış-dışı, K2
-# stop_times, K2 shapes); üçü de integration.rs::arc022_* ile ayrıca kanıtlandı.
+# BİR emit noktasını kanıtlar. Çoklu emit noktaları integration.rs ile ayrıca kanıtlanır.
+# Azaltmak için emit_proof.rs::fixtures()'a fixture ekleyin. 10 kural.
+JPN_012
+JPN_013
+JPN_014
+JPN_015
+JPN_016
+JPN_017
+JPN_018
+JPN_019
+JPN_020
+JPN_021

@@ -2,7 +2,7 @@
 
 🇹🇷 **Türkçe** · 🇬🇧 [English](RULES.en.md) · 🇯🇵 [日本語](RULES.ja.md)
 
-600 kural, 38 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
+610 kural, 38 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
 Önem seviyeleri: **KRİTİK** (yayın engelleyici) · **YÜKSEK** · **ORTA** · **DÜŞÜK** · **BİLGİ**
 Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · **Quality** (GTFS Kalitesi) · **Analytics** (GTFS Analitiği)
 
@@ -797,3 +797,13 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | JPN_009 | GTFS-JP: trip_headsign kana (ja-Hrkt) okuması eksik | ORTA | Quality |
 | JPN_010 | GTFS-JP: işletici adının (agency_name) kana (ja-Hrkt) okuması eksik | ORTA | Quality |
 | JPN_011 | GTFS-JP: tek işletici olsa bile agency_id zorunlu | YÜKSEK | Interop |
+| JPN_012 | GTFS-JP: agency_jp.agency_id eksik | YÜKSEK | Interop |
+| JPN_013 | GTFS-JP: agency_zip_number biçimi geçersiz | ORTA | Quality |
+| JPN_014 | GTFS-JP: office_jp.office_id eksik veya tekrarlı | YÜKSEK | Interop |
+| JPN_015 | GTFS-JP: routes_jp.route_id eksik, tekrarlı veya routes.txt'te yok | YÜKSEK | Interop |
+| JPN_016 | GTFS-JP: routes_jp.route_update_date geçersiz | ORTA | Quality |
+| JPN_017 | GTFS-JP: pattern_jp.jp_pattern_id eksik veya tekrarlı | YÜKSEK | Interop |
+| JPN_018 | GTFS-JP: trips.jp_pattern_id pattern_jp.txt'te tanımlı değil | YÜKSEK | Interop |
+| JPN_019 | GTFS-JP: kana çevirisinin kaydı veya alt kaydı geçersiz | ORTA | Interop |
+| JPN_020 | GTFS-JP: office_url veya office_phone biçimi şüpheli | ORTA | Quality |
+| JPN_021 | GTFS-JP: kana çevirisi boş, çakışmalı veya tutarsız | ORTA | Quality |

@@ -1192,6 +1192,16 @@ const tr = {
     'JPN_009': 'GTFS-JP: trip_headsign kana okuması eksik',
     'JPN_010': 'GTFS-JP: işletici adının kana okuması eksik',
     'JPN_011': 'GTFS-JP: tek işletici olsa bile agency_id zorunlu',
+    'JPN_012': 'GTFS-JP: agency_jp.agency_id eksik',
+    'JPN_013': 'GTFS-JP: agency_zip_number biçimi geçersiz',
+    'JPN_014': 'GTFS-JP: office_jp.office_id eksik veya tekrarlı',
+    'JPN_015': "GTFS-JP: routes_jp.route_id geçersiz",
+    'JPN_016': 'GTFS-JP: route_update_date geçersiz',
+    'JPN_017': 'GTFS-JP: jp_pattern_id eksik veya tekrarlı',
+    'JPN_018': 'GTFS-JP: jp_pattern_id tanımsız',
+    'JPN_019': 'GTFS-JP: kana çeviri referansı geçersiz',
+    'JPN_020': 'GTFS-JP: ofis iletişim biçimi şüpheli',
+    'JPN_021': 'GTFS-JP: kana çevirisi tutarsız',
   } as Record<string, string>,
 };
 
