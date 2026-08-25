@@ -58,11 +58,42 @@ const MAX_CALENDAR_OVERRIDE_RULES: usize = 100_000;
 const MAX_OVERRIDE_SERVICE_IDS_PER_RULE: usize = 100_000;
 const MAX_CONFIG_STRING_BYTES: usize = 4 * 1024 * 1024;
 
+/// GTFS-JP kural kapsamı.
+///
+/// `Auto` sürüm iddiasında bulunmaz ve mevcut GTFS-JP davranışını korur.
+/// `V3` eski Japonya-özel uzantı dosyalarını doğrular; `V4` ise bu dosyaları
+/// referans kapsamı olarak görür ve v3 uzantı foreign-key/biçim kurallarını
+/// çalıştırmaz. Sürüm otomatik olarak feed içeriğinden çıkarılmaz.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum GtfsJpProfile {
+    Auto,
+    V3,
+    V4,
+}
+
+impl Default for GtfsJpProfile {
+    fn default() -> Self { Self::Auto }
+}
+
+impl GtfsJpProfile {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Auto => "auto",
+            Self::V3 => "v3",
+            Self::V4 => "v4",
+        }
+    }
+}
+
 /// Validator parametreleri. Tüm eşikler architecture v0.8 Bölüm 6'dan.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ValidatorConfig {
     /// URL ile başlatılan analizlerde dış yayın adresi; upload modunda None.
     pub source_url: Option<String>,
+    /// GTFS-JP kural kapsamı. `Auto` varsayılanı sürüm iddiasında bulunmaz.
+    #[serde(default)]
+    pub gtfs_jp_profile: GtfsJpProfile,
     /// STP_040/041: dil-bağımlı stop naming best-practice kontrolleri (varsayılan kapalı).
     pub stop_name_best_practices: bool,
     pub max_speed_bus_kmh:        f64,
@@ -157,6 +188,7 @@ impl Default for ValidatorConfig {
     fn default() -> Self {
         Self {
             source_url: None,
+            gtfs_jp_profile: GtfsJpProfile::Auto,
             stop_name_best_practices: false,
             max_speed_bus_kmh:        DEF_MAX_SPEED_BUS_KMH,
             max_speed_tram_kmh:       DEF_MAX_SPEED_TRAM_KMH,
@@ -313,6 +345,7 @@ pub fn merge_delta(base: &ValidatorConfig, delta_json: &str) -> Result<Validator
         "bunching_threshold_min", "rail_stop_distance_km",
         "max_trips_per_route", "duration_outlier_sigma", "headway_outlier_sigma", "service_day_start_hour",
         "max_calendar_future_years", "source_url", "stop_name_best_practices", "rural_route_ids", "calendar_override_rules",
+        "gtfs_jp_profile",
     ];
     let unknown: Vec<&str> = map.keys()
         .filter(|k| !known.contains(&k.as_str()))
@@ -333,6 +366,11 @@ pub fn merge_delta(base: &ValidatorConfig, delta_json: &str) -> Result<Validator
             Some(v.as_str().ok_or_else(|| format!("'source_url' için string veya null bekleniyor, alınan: {v}"))?.trim().to_string())
         };
         if cfg.source_url.as_deref() == Some("") { cfg.source_url = None; }
+    }
+
+    if let Some(v) = map.get("gtfs_jp_profile") {
+        cfg.gtfs_jp_profile = serde_json::from_value(v.clone())
+            .map_err(|e| format!("'gtfs_jp_profile' parse hatası (auto, v3 veya v4 bekleniyor): {e}"))?;
     }
 
     macro_rules! apply_f64 {
@@ -478,6 +516,7 @@ mod tests {
     #[test]
     fn default_values() {
         let cfg = ValidatorConfig::default();
+        assert_eq!(cfg.gtfs_jp_profile, GtfsJpProfile::Auto);
         assert_eq!(cfg.max_speed_bus_kmh,        120.0);
         assert_eq!(cfg.max_speed_tram_kmh,       100.0);
         assert_eq!(cfg.max_speed_metro_kmh,      150.0);
@@ -513,6 +552,19 @@ mod tests {
         // Dokunulmayan alanlar değişmemeli
         assert_eq!(cfg.max_speed_rail_kmh, 300.0);
         assert_eq!(cfg.min_transfer_time_sec, 180);
+    }
+
+    #[test]
+    fn gtfs_jp_profile_is_an_explicit_config_delta() {
+        let base = ValidatorConfig::default();
+        let cfg = merge_delta(&base, r#"{"gtfs_jp_profile":"v4"}"#)
+            .expect("v4 profil seçimi kabul edilmeli");
+        assert_eq!(cfg.gtfs_jp_profile, GtfsJpProfile::V4);
+        assert_eq!(cfg.gtfs_jp_profile.as_str(), "v4");
+
+        let err = merge_delta(&base, r#"{"gtfs_jp_profile":"v5"}"#)
+            .expect_err("tanımsız profil reddedilmeli");
+        assert!(err.contains("gtfs_jp_profile"), "hata profil alanını göstermeli: {err}");
     }
 
     #[test]

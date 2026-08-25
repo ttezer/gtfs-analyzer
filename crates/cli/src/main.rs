@@ -4,7 +4,7 @@ use std::process::ExitCode;
 
 use chrono::{Datelike, Local};
 use clap::{ArgAction, Args, CommandFactory, Parser, Subcommand, ValueEnum};
-use gtfs_config::{merge_delta, ValidatorConfig};
+use gtfs_config::{merge_delta, GtfsJpProfile, ValidatorConfig};
 use gtfs_core::{
     AuthoritySource, NameIndex, Notice, RuleClass, Severity, ValidateResult, ValidationResult,
     ValidationStatus,
@@ -34,6 +34,23 @@ struct Cli {
 
     #[command(subcommand)]
     command: Option<Command>,
+}
+
+#[derive(Debug, Clone, Copy, ValueEnum)]
+enum GtfsJpProfileArg {
+    Auto,
+    V3,
+    V4,
+}
+
+impl From<GtfsJpProfileArg> for GtfsJpProfile {
+    fn from(value: GtfsJpProfileArg) -> Self {
+        match value {
+            GtfsJpProfileArg::Auto => Self::Auto,
+            GtfsJpProfileArg::V3 => Self::V3,
+            GtfsJpProfileArg::V4 => Self::V4,
+        }
+    }
 }
 
 #[derive(Debug, Subcommand)]
@@ -101,6 +118,10 @@ struct ValidateArgs {
     /// JSON config delta to merge over ValidatorConfig::default().
     #[arg(long)]
     config: Option<PathBuf>,
+
+    /// GTFS-JP rule profile. This explicit CLI value overrides the config file.
+    #[arg(long, value_enum)]
+    gtfs_jp_profile: Option<GtfsJpProfileArg>,
 
     /// Validation date as YYYYMMDD. Defaults to the local current date.
     #[arg(long, value_parser = parse_today)]
@@ -312,10 +333,13 @@ fn run_validate(args: ValidateArgs) -> ExitCode {
         Err(err) => return cli_error(err),
     };
 
-    let config = match load_config(args.config.as_ref()) {
+    let mut config = match load_config(args.config.as_ref()) {
         Ok(config) => config,
         Err(err) => return cli_error(err),
     };
+    if let Some(profile) = args.gtfs_jp_profile {
+        config.gtfs_jp_profile = profile.into();
+    }
 
     // Parsed before the pipeline runs: a broken dictionary should fail fast
     // rather than after a multi-minute validation.

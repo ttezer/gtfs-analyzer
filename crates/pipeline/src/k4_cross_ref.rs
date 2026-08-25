@@ -1,6 +1,7 @@
 ﻿use std::collections::{BTreeSet, HashMap, HashSet};
 
 use gtfs_core::{EntityType, Notice};
+use gtfs_config::GtfsJpProfile;
 use rustc_hash::{FxHashMap, FxHashSet};
 use smol_str::SmolStr;
 
@@ -3015,6 +3016,10 @@ fn check_gtfs_jp(
     let is_gtfs_jp = feed_lang_ja
         || has_kana
         || has_jp_file;
+    // GTFS-JP v4 keeps the Japanese translation and core GTFS checks, but
+    // moves agency_jp/office_jp/pattern_jp out of the main standard. The
+    // profile is explicit; Auto preserves the pre-v4 behavior.
+    let legacy_v3_extensions = !matches!(records.gtfs_jp_profile, GtfsJpProfile::V4);
     if is_gtfs_jp {
         let mut kana_records: HashSet<&str> = HashSet::new();
         let mut kana_values: HashSet<&str> = HashSet::new();
@@ -3125,6 +3130,7 @@ fn check_gtfs_jp(
         }
     }
 
+    if legacy_v3_extensions {
     // ── JPN_002: trips.jp_office_id → office_jp.office_id ──
     // Kapı: office_jp.txt mevcut (GTFS-JP yapısal sinyali). Boş/eksik jp_office_id atlanır;
     // sadece dolu ama office_jp'de tanımsız referanslar işaretlenir.
@@ -3215,6 +3221,8 @@ fn check_gtfs_jp(
         }
     }
 
+    }
+
     // ── JPN_004: GTFS-JP feed'inde translations.txt zorunlu ──
     // GTFS-JP profili translations.txt'i (özellikle stop_name kana/ja-Hrkt okumaları için)
     // zorunlu kılar. Kapı: GTFS-JP sinyali (feed_lang ja* VEYA *_jp dosyası) AMA translations hiç yok.
@@ -3261,6 +3269,7 @@ fn check_gtfs_jp(
         }
     }
 
+    if legacy_v3_extensions {
     // ── JPN_005: office_jp.office_name zorunlu (boş olamaz) ──
     // Kapı: office_jp.txt mevcut. office_id'si dolu ama office_name'i boş/eksik satırlar işaretlenir.
     for oj in &records.office_jp {
@@ -3284,6 +3293,8 @@ fn check_gtfs_jp(
                 "office_jp.txt'te her office_id için office_name değerini doldurun.",
             ));
         }
+    }
+
     }
 
     // ── JPN_006: GTFS-JP ücret kapsamı ───────────────────────────────────────
@@ -3343,6 +3354,7 @@ fn check_gtfs_jp(
         ));
     }
 
+    if legacy_v3_extensions {
     // ── JPN_012: agency_jp.agency_id zorunlu ─────────────────────────────────
     for aj in &records.agency_jp {
         if aj.agency_id.as_deref().is_none_or(|id| id.trim().is_empty()) {
@@ -3524,6 +3536,8 @@ fn check_gtfs_jp(
         }
     }
 
+    }
+
     // ── JPN_019: ja-Hrkt çevirilerinde gerçek kayıt/alt kayıt bütünlüğü ───────
     {
         let agency_ids: HashSet<&str> = records.agencies.iter().filter_map(|a| a.agency_id.as_deref()).collect();
@@ -3584,6 +3598,7 @@ fn check_gtfs_jp(
         }
     }
 
+    if legacy_v3_extensions {
     // ── JPN_020: office_url / office_phone kalite biçimi ─────────────────────
     for office in &records.office_jp {
         if let Some(url) = office.row.get("office_url").map(String::as_str).map(str::trim).filter(|v| !v.is_empty()) {
@@ -3612,6 +3627,8 @@ fn check_gtfs_jp(
                 ));
             }
         }
+    }
+
     }
 
     // ── JPN_021: kana satırı boş/çakışmalı/tutarsız ────────────────────────────
@@ -7188,6 +7205,42 @@ mod tests {
         recs.trip_interns = ti;
         let result = check(&recs, &EntityMap::default(), 20260824);
         assert!(!result.notices.iter().any(|n| n.rule_id == "JPN_018"));
+    }
+
+    #[test]
+    fn v4_profile_treats_v3_extension_files_as_reference_only() {
+        let (mut recs, _map) = empty();
+        recs.gtfs_jp_profile = GtfsJpProfile::V4;
+        recs.agency_jp = vec![AgencyJpRecord { agency_id: None, row: Default::default(), line: 2 }];
+        recs.office_jp = vec![OfficeJpRecord {
+            office_id: "O1".into(), office_name: None, row: Default::default(), line: 3,
+        }];
+        recs.routes = vec![route("R1")];
+        recs.routes_jp = vec![RoutesJpRecord {
+            route_id: "MISSING".into(), route_update_date: Some("令和8年4月6日".into()),
+            origin_stop: None, via_stop: None, destination_stop: None,
+            row: Default::default(), line: 4,
+        }];
+        recs.pattern_jp = vec![PatternJpRecord {
+            jp_pattern_id: "P1".into(), route_update_date: Some("20260231".into()),
+            origin_stop: None, via_stop: None, destination_stop: None,
+            row: Default::default(), line: 5,
+        }];
+        recs.has_pattern_jp_file = true;
+
+        let mut ti = TripInternTable::new();
+        let mut t = trip(&mut ti, "T1", "R1", "S1");
+        ti.jp_patterns.push("MISSING_PATTERN".into());
+        t.jp_pattern_idx = 1;
+        recs.trips = vec![t];
+        recs.trip_interns = ti;
+
+        let result = check(&recs, &EntityMap::default(), 20260824);
+        for id in ["JPN_002", "JPN_003", "JPN_005", "JPN_012", "JPN_013",
+                   "JPN_014", "JPN_015", "JPN_016", "JPN_017", "JPN_018", "JPN_020"] {
+            assert!(!result.notices.iter().any(|n| n.rule_id == id),
+                "v4 profilinde v3 uzantı kuralı çalışmamalı: {id}");
+        }
     }
 
     #[test]

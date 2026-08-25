@@ -22,7 +22,7 @@ pub use k7_reporting::{report as report_k7, K7Result};
 pub use recovery::FileAvailability;
 
 // Entegrasyon testlerine açık yeniden ihracat
-pub use gtfs_config::{CalendarOverrideRule, ValidatorConfig};
+pub use gtfs_config::{CalendarOverrideRule, GtfsJpProfile, ValidatorConfig};
 pub use gtfs_core::{FatalCode, FatalError, FileInfo, ValidateResult, ValidationResult, ValidationStatus};
 
 /// K1–K7 tam pipeline — entegrasyon testleri ve araç entegrasyonu için.

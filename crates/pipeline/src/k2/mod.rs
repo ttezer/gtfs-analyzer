@@ -44,7 +44,7 @@ use attributions::{validate_attributions, AttributionRecord};
 use common::make_k2_notice;
 use calendar::{validate_calendar, CalendarRecord};
 use calendar_dates::{validate_calendar_dates_with_limits, CalendarDateIndex};
-use gtfs_config::ValidatorConfig;
+use gtfs_config::{GtfsJpProfile, ValidatorConfig};
 use gtfs_core::Notice;
 use crate::k1_parse::{RawFile, RawFiles};
 use fare_attributes::{validate_fare_attributes, FareAttributeRecord};
@@ -89,6 +89,8 @@ pub const GTFS_JP_FILES: [&str; 4] = [
 /// K2 sonrasında üretilecek typed entity kayıtlarının kapsayıcısı.
 #[derive(Debug, Default)]
 pub struct EntityRecords {
+    /// K4/K7'nin kullanacağı açık GTFS-JP profil seçimi. `Auto` sürüm iddiası değildir.
+    pub gtfs_jp_profile: GtfsJpProfile,
     pub agencies: Vec<AgencyRecord>,
     pub agency_jp: Vec<AgencyJpRecord>,
     pub areas: Vec<AreaRecord>,
@@ -190,6 +192,7 @@ pub fn validate_with_stream_limit(
     use crate::timing::{Timer, mem_log};
     let mut notices = Vec::new();
     let mut records = EntityRecords::default();
+    records.gtfs_jp_profile = cfg.gtfs_jp_profile;
     let mut stream_budget = max_stream_rows.map(|_| StreamBudget::new(K2_MAX_STREAM_BYTES));
     mem_log("K2-start (=after-K1, K1 raw alive)");
     // #15 W2: stop_times EN SONA ertelenir — diğer tüm dosyalar parse edilip k1.files'in
