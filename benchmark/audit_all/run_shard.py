@@ -55,14 +55,50 @@ def run_timed(cmd,timefile,stdout,stderr,timeout_s,cwd=None):
         p=subprocess.run(full,stdout=out,stderr=err,cwd=cwd)
     return p.returncode
 
+def parse_download_metadata(raw):
+    """Parse curl's machine-readable response trailer.
+
+    A catalog URL can return a successful HTTP response whose body is an HTML
+    or XML error page. Keeping the HTTP metadata beside the ZIP decision makes
+    ``not_zip`` diagnosable instead of accidentally reading it as "not a feed".
+    """
+    fields=(raw or "").rstrip("\n").split("\t")
+    if len(fields) != 4:
+        return {"effective_url": (raw or "").strip() or None}
+    effective,http_status,content_type,downloaded=fields
+    try:
+        http_status=int(http_status)
+    except ValueError:
+        http_status=None
+    try:
+        downloaded=int(downloaded)
+    except ValueError:
+        downloaded=None
+    return {
+        "effective_url": effective or None,
+        "http_status": http_status,
+        "content_type": content_type or None,
+        "response_bytes": downloaded,
+    }
+
+def sha256_file(path):
+    import hashlib
+    digest=hashlib.sha256()
+    with Path(path).open("rb") as fh:
+        for chunk in iter(lambda:fh.read(8*1024*1024),b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
 def download(url,dest,max_time=DOWNLOAD_TIMEOUT,max_size=MAX_DOWNLOAD):
     cmd=["curl","--fail","--location","--silent","--show-error",
          "--retry","2","--retry-delay","2","--retry-all-errors",
          "--connect-timeout","20","--max-time",str(max_time),
          "--max-filesize",str(max_size),url,"-o",str(dest)]
-    cmd[1:1]=["--write-out","%{url_effective}"]
+    cmd[1:1]=["--write-out","%{url_effective}\t%{http_code}\t%{content_type}\t%{size_download}\n"]
     p=subprocess.run(cmd,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
-    return p.returncode,p.stderr.decode("utf-8","replace")[:3000],p.stdout.decode("utf-8","replace").strip()
+    return (p.returncode,
+            p.stderr.decode("utf-8","replace")[:3000],
+            parse_download_metadata(p.stdout.decode("utf-8","replace")))
 
 def small_notice(n):
     keep=("id","rule_id","severity","rule_class","entity_type","entity_id","scope_key",
@@ -187,38 +223,40 @@ def run_one(feed,root,analyzer,mdjar):
     result={"feed":feed,"started_at_epoch":time.time()}
     z=work/"feed.zip"
 
-    rc,err,effective=download(feed["url"],z)
+    rc,err,download_meta=download(feed["url"],z)
     if rc!=0:
-        result["download"]={"status":"failed","curl_exit":rc,"stderr":err,"effective_url":effective}
+        result["download"]={"status":"failed","curl_exit":rc,"stderr":err,**download_meta}
         result["finished_at_epoch"]=time.time()
         shutil.rmtree(work,ignore_errors=True)
         return result
     b=z.stat().st_size
-    if b < 100_000_000:
-        sha=hashlib.sha256(z.read_bytes()).hexdigest()
-    else:
-        h=hashlib.sha256()
-        with z.open("rb") as f:
-            for chunk in iter(lambda:f.read(8*1024*1024),b""): h.update(chunk)
-        sha=h.hexdigest()
-    result["download"]={"status":"ok","bytes":b,"sha256":sha,"is_zip":zipfile.is_zipfile(z),"effective_url":effective}
-    if not result["download"]["is_zip"]:
-        result["download"]["status"]="not_zip"
+    sha=sha256_file(z)
+    is_zip=zipfile.is_zipfile(z)
+    result["download"]={"status":"ok" if is_zip else "not_zip",
+                         "bytes":b,"sha256":sha,"is_zip":is_zip,**download_meta}
+    if not is_zip:
+        # This is a catalog URL/payload problem, not proof that the catalog
+        # record is not a GTFS feed. Preserve enough evidence to adjudicate it.
+        result["download"]["diagnostic"]=(
+            "catalog URL returned a non-ZIP payload; this does not prove the "
+            "catalog record is not a feed"
+        )
         result["finished_at_epoch"]=time.time()
         shutil.rmtree(work,ignore_errors=True)
         return result
 
     stored=work/"stored-md.json"
-    stored_url=(effective.rsplit("/",1)[0]+"/report_8.0.1.json") if effective else feed["stored_md_report_url"]
-    src,se,_=download(stored_url,stored,max_time=45,max_size=20_000_000)
+    stored_url=((download_meta.get("effective_url") or "").rsplit("/",1)[0]+"/report_8.0.1.json") if download_meta.get("effective_url") else feed["stored_md_report_url"]
+    src,se,stored_meta=download(stored_url,stored,max_time=45,max_size=20_000_000)
     if src==0:
         try:
             result["mobilitydata_stored"]=parse_md_report(stored)
             result["mobilitydata_stored"]["status"]="available"
+            result["mobilitydata_stored"]["download"] = stored_meta
         except Exception as e:
             result["mobilitydata_stored"]={"status":"parse_error","error":repr(e)}
     else:
-        result["mobilitydata_stored"]={"status":"unavailable","curl_exit":src}
+        result["mobilitydata_stored"]={"status":"unavailable","curl_exit":src,**stored_meta}
 
     ar=work/"analyzer"/"report.json"
     aexit=run_timed(

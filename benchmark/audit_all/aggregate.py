@@ -123,6 +123,49 @@ def require_consistent_states(feed_rows):
             "from it. Fix the state classifier; do not publish the run."
         )
 
+def load_result_rows(path):
+    """Load a previous aggregate result for source-drift comparison."""
+    path=Path(path)
+    opener=gzip.open if path.suffix==".gz" else open
+    with opener(path,"rt",encoding="utf-8") as f:
+        data=json.load(f)
+    if not isinstance(data,list):
+        raise SystemExit(f"baseline results must contain a JSON array: {path}")
+    return data
+
+def compare_source_drift(rows, baseline_path):
+    """Compare feed payload provenance with a previous run, without deduping."""
+    if not baseline_path:
+        return {
+            "baseline_checked": False,
+            "reason": "No --baseline-results was supplied; current payload hashes are still recorded.",
+            "changed_feed_count": 0,
+            "changed": [],
+        }
+    baseline=load_result_rows(baseline_path)
+    current_by_id={((r.get("feed") or {}).get("feed_id") or ""):r for r in rows}
+    baseline_by_id={((r.get("feed") or {}).get("feed_id") or ""):r for r in baseline}
+    changed=[]
+    for fid in sorted(set(current_by_id)&set(baseline_by_id)):
+        current=(current_by_id[fid].get("download") or {})
+        previous=(baseline_by_id[fid].get("download") or {})
+        keys=("sha256","bytes","effective_url","http_status","content_type")
+        differences={k:{"baseline":previous.get(k),"current":current.get(k)}
+                     for k in keys if previous.get(k)!=current.get(k)}
+        if differences:
+            changed.append({"feed_id":fid,"differences":differences})
+    return {
+        "baseline_checked": True,
+        "baseline_path": str(baseline_path),
+        "baseline_feed_count": len(baseline_by_id),
+        "current_feed_count": len(current_by_id),
+        "compared_feed_count": len(set(current_by_id)&set(baseline_by_id)),
+        "changed_feed_count": len(changed),
+        "changed": changed,
+        "missing_from_current": sorted(set(baseline_by_id)-set(current_by_id)),
+        "new_in_current": sorted(set(current_by_id)-set(baseline_by_id)),
+    }
+
 
 def main():
     ap=argparse.ArgumentParser()
@@ -130,6 +173,7 @@ def main():
     ap.add_argument("--map-file",required=True)
     ap.add_argument("--out-dir",required=True)
     ap.add_argument("--manifest",help="corpus-manifest.json; verilirse eksik/beklenmeyen feed kontrolü yapılır")
+    ap.add_argument("--baseline-results",help="previous all-results.json[.gz] for feed payload drift comparison")
     args=ap.parse_args()
     out=Path(args.out_dir); out.mkdir(parents=True,exist_ok=True)
     MAP,AGG=load_map(args.map_file)
@@ -183,6 +227,8 @@ def main():
     dupes=[{"sha256":s,"feed_count":len(i),"feed_ids":sorted(i)} for s,i in sha_groups.items() if len(i)>1]
     dupes.sort(key=lambda x:(-x["feed_count"],x["sha256"]))
     (out/"duplicate-content-groups.json").write_text(json.dumps(dupes,indent=2,ensure_ascii=False)+"\n")
+    source_drift=compare_source_drift(rows,args.baseline_results)
+    (out/"source-drift.json").write_text(json.dumps(source_drift,indent=2,ensure_ascii=False)+"\n")
 
     feed_csv=[]
     analyzer_rules={}
@@ -400,7 +446,8 @@ def main():
       "md_peak_rss_median_kb":statistics.median(mrss) if mrss else None,
       "unique_analyzer_rules_seen":len(ar_list),"unique_md_codes_seen":len(mc_list),
       "divergence_candidate_counts":dict(types),
-      "fresh_vs_stored_md_report_count_different":len(stored_disagreements)}
+      "fresh_vs_stored_md_report_count_different":len(stored_disagreements),
+      "source_drift":source_drift}
     (out/"summary.json").write_text(json.dumps(summary,indent=2,ensure_ascii=False)+"\n")
 
     top=divergences[:60]

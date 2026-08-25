@@ -68,6 +68,13 @@ Eski `benchmark/auditall/` yığını #152'de emekliye ayrıldı — diriltme.
 3. **`MD_VERSION` `8.0.1`'de kalır.** Yükseltilirse sonuç önceki koşumlarla
    **kıyaslanamaz** ve rapor başlığında öyle yazılır.
 
+4. **Önceki ham sonuçla payload drift karşılaştırması yap.** Manifestin aynı olması
+   yalnızca feed kimliklerinin aynı olduğunu gösterir; `latest.zip` içeriği değişebilir.
+   Aggregate çağrısına `--baseline-results <önceki>/all-results.json.gz` ekle. Çıktıdaki
+   `source-drift.json` değişen SHA, byte sayısı, effective URL, HTTP status ve content type
+   alanlarını feed bazında gösterir. `download.status=not_zip` ise “feed değil” anlamına
+   gelmez; catalog URL'sinin o koşuda ZIP olmayan bir payload döndürdüğünü belirtir.
+
 ## 3. Dokunulmayacaklar
 
 - **`require_measured` (aggregate.py).** `measured column(s) came back wholly empty` ile

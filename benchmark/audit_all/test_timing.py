@@ -9,6 +9,7 @@ sessizce None dönmesini gizledi.
 from __future__ import annotations
 
 import importlib.util
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -65,6 +66,46 @@ class TimingParse(unittest.TestCase):
 
     def test_missing_file_is_empty_not_an_exception(self):
         self.assertEqual(shard.timing(HERE / "does-not-exist.txt"), {})
+
+
+class DownloadMetadata(unittest.TestCase):
+    def test_curl_trailer_preserves_http_payload_metadata(self):
+        meta=shard.parse_download_metadata(
+            "https://example.test/archive.zip\t200\tapplication/zip\t1234\n"
+        )
+        self.assertEqual(meta["effective_url"], "https://example.test/archive.zip")
+        self.assertEqual(meta["http_status"], 200)
+        self.assertEqual(meta["content_type"], "application/zip")
+        self.assertEqual(meta["response_bytes"], 1234)
+
+    def test_malformed_curl_trailer_keeps_raw_url(self):
+        self.assertEqual(
+            shard.parse_download_metadata("https://example.test/error"),
+            {"effective_url": "https://example.test/error"},
+        )
+
+
+class SourceDrift(unittest.TestCase):
+    def test_baseline_comparison_reports_changed_payload(self):
+        with tempfile.TemporaryDirectory() as d:
+            baseline=Path(d) / "baseline.json"
+            baseline.write_text(json.dumps([{
+                "feed":{"feed_id":"mdb-1"},
+                "download":{"sha256":"old","bytes":10,"effective_url":"https://old"},
+            }]))
+            current=[{
+                "feed":{"feed_id":"mdb-1"},
+                "download":{"sha256":"new","bytes":11,"effective_url":"https://new"},
+            }]
+            result=agg.compare_source_drift(current, baseline)
+            self.assertTrue(result["baseline_checked"])
+            self.assertEqual(result["changed_feed_count"], 1)
+            self.assertEqual(result["changed"][0]["feed_id"], "mdb-1")
+
+    def test_without_baseline_current_hashes_are_not_called_stable(self):
+        result=agg.compare_source_drift([], None)
+        self.assertFalse(result["baseline_checked"])
+        self.assertIn("hashes are still recorded", result["reason"])
 
 
 class EmptyColumnGuard(unittest.TestCase):
