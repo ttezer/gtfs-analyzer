@@ -50,13 +50,15 @@ pub struct TranslationRecord {
 pub fn validate_translations(
     file: &RawFile,
 ) -> (Vec<TranslationRecord>, Vec<gtfs_core::Notice>) {
-    validate_translations_with_profile_and_signal(file, false, false)
+    validate_translations_with_profile(file, false, false)
 }
 
-/// K2-only entry point: V4 turns `record_sub_id` into a strict GTFS field for
-/// a GTFS-JP feed. The explicit signal is computed once by K2 and carried to
+/// Public profile-aware translation validator. V4 turns `record_sub_id` into
+/// a strict GTFS field only when `is_gtfs_jp` is also true; both facts are
+/// explicit so callers cannot accidentally enable JP strictness for a normal
+/// feed. The full pipeline computes the signal once in K2 and carries it to
 /// K4 in `EntityRecords`.
-pub(crate) fn validate_translations_with_profile_and_signal(
+pub fn validate_translations_with_profile(
     file: &RawFile,
     is_v4_profile: bool,
     is_gtfs_jp: bool,
@@ -401,7 +403,7 @@ mod tests {
             vec!["table_name", "field_name", "language", "translation", "record_id", "record_sub_id"],
             vec![vec!["stops", "stop_name", "ja-Hrkt", "とうきょう", "S1", "NONE"]],
         );
-        let (_, notices) = validate_translations_with_profile_and_signal(&file, true, true);
+        let (_, notices) = validate_translations_with_profile(&file, true, true);
         assert!(notices.iter().any(|n| n.rule_id == "TRN_014"), "{notices:?}");
     }
 
@@ -411,7 +413,7 @@ mod tests {
             vec!["table_name", "field_name", "language", "translation", "record_id", "record_sub_id"],
             vec![vec!["stops", "stop_name", "en", "Tokyo", "S1", "NONE"]],
         );
-        let (_, notices) = validate_translations_with_profile_and_signal(&file, true, false);
+        let (_, notices) = validate_translations_with_profile(&file, true, false);
         assert!(!notices.iter().any(|n| n.rule_id == "TRN_014"), "{notices:?}");
     }
 }

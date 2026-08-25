@@ -382,7 +382,7 @@ pub fn validate_with_stream_limit_and_jp_signal(
             });
         records.is_gtfs_jp |= has_ja_hrkt_translation;
         let (translation_records, translation_notices) =
-            translations::validate_translations_with_profile_and_signal(
+            translations::validate_translations_with_profile(
                 file,
                 matches!(cfg.gtfs_jp_profile, GtfsJpProfile::V4),
                 records.is_gtfs_jp,
