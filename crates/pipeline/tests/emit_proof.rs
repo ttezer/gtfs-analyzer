@@ -115,7 +115,7 @@ fn fx(rule: &'static str, overrides: Vec<(&'static str, &'static str)>) -> Fixtu
     Fixture { rule, overrides, removes: Vec::new(), raw: Vec::new(), config: None, no_read: Vec::new() }
 }
 
-/// V3 uzantı kurallarının emit kanıtı: üretim varsayılanı V4 olsa da bu fixture'lar
+/// V3 uzantı kurallarının emit kanıtı: üretim varsayılanı Auto olsa da bu fixture'lar
 /// bilerek legacy/v3 profilini seçer. Böylece kanıt testi, V4'ün bu kuralları susturmasını
 /// değil, V3 davranışının hâlâ çalıştığını ölçer.
 fn fx_v3(rule: &'static str, overrides: Vec<(&'static str, &'static str)>) -> Fixture {
@@ -126,6 +126,21 @@ fn fx_v3(rule: &'static str, overrides: Vec<(&'static str, &'static str)>) -> Fi
         raw: Vec::new(),
         config: Some(ValidatorConfig {
             gtfs_jp_profile: GtfsJpProfile::V3,
+            ..ValidatorConfig::default()
+        }),
+        no_read: Vec::new(),
+    }
+}
+
+/// V4 kuralı için emit-proof fixture'ı: profil sürümü fixture tarafından açıkça seçilir.
+fn fx_v4(rule: &'static str, overrides: Vec<(&'static str, &'static str)>) -> Fixture {
+    Fixture {
+        rule,
+        overrides,
+        removes: Vec::new(),
+        raw: Vec::new(),
+        config: Some(ValidatorConfig {
+            gtfs_jp_profile: GtfsJpProfile::V4,
             ..ValidatorConfig::default()
         }),
         no_read: Vec::new(),
@@ -825,7 +840,7 @@ fn fixtures() -> Vec<Fixture> {
             ("translations.txt", "table_name,field_name,language,translation,record_id\nstops,stop_name,ja-Hrkt,とうきょう,S1\nstops,stop_name,ja-Hrkt,トウキョウ,S1\n"),
         ]),
         // JPN_022: GTFS-JP v4'te agency_lang, location_type ve feed_info ana alanları eksik.
-         fx("JPN_022", vec![
+         fx_v4("JPN_022", vec![
          ("agency.txt", "agency_id,agency_name,agency_url,agency_timezone,agency_lang\n1,Test,http://test.example,UTC,\n"),
          ("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop,35.0,139.0\n"),
          ("feed_info.txt", "feed_publisher_name,feed_publisher_url,feed_lang\nPub,https://x.example,ja\n"),

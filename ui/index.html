@@ -681,8 +681,10 @@
     .sf-overridden { background: #eff6ff; }
     .sf-label { font-size: .78rem; font-weight: 600; color: var(--color-text); }
     .sf-control { display: flex; align-items: center; gap: .25rem; }
-    .sf-input { width: 82px; padding: .18rem .4rem; border: 1px solid var(--color-border); border-radius: 4px; font-size: .8rem; background: var(--color-bg); }
-    .sf-input:focus { outline: 2px solid #1d4ed8; outline-offset: 1px; }
+    .sf-input, .sf-select { padding: .18rem .4rem; border: 1px solid var(--color-border); border-radius: 4px; font-size: .8rem; background: var(--color-bg); color: var(--color-text); }
+    .sf-input { width: 82px; }
+    .sf-select { min-width: 150px; }
+    .sf-input:focus, .sf-select:focus { outline: 2px solid #1d4ed8; outline-offset: 1px; }
     .sf-unit { font-size: .75rem; color: var(--color-muted); }
     .sf-reset { padding: .1rem .3rem; font-size: .72rem; line-height: 1; }
     .sf-desc { font-size: .7rem; color: var(--color-muted); }
@@ -761,7 +763,7 @@
     }
     html.dark .drop-zone { background: var(--color-surface); }
     html.dark .filter-input,
-    html.dark .sf-input  { background: var(--color-bg); color: var(--color-text); }
+    html.dark .sf-input, html.dark .sf-select  { background: var(--color-bg); color: var(--color-text); }
     html.dark .sev-btn   { background: var(--color-bg); }
     html.dark .acc-header:hover { background: var(--color-bg); }
     html.dark .sc-chip   { filter: brightness(.9); }

@@ -155,6 +155,11 @@ const tr = {
     'file.attributions.txt'  : 'atıf',
     'file.translations.txt'  : 'çeviri',
     // Config fields
+    'cfg.gtfs_jp_profile.label' : 'GTFS-JP profil kapsamı',
+    'cfg.gtfs_jp_profile.desc'  : 'Sürüm otomatik tespit edilmez; Auto legacy davranışı korur, V3/V4 açık kapsam seçer.',
+    'cfg.gtfs_jp_profile.auto'  : 'Auto (legacy)',
+    'cfg.gtfs_jp_profile.v3'    : 'V3',
+    'cfg.gtfs_jp_profile.v4'    : 'V4',
     'cfg.max_speed_bus_kmh.label'        : 'Maks. Otobüs Hızı',
     'cfg.max_speed_bus_kmh.unit'         : 'km/s',
     'cfg.max_speed_bus_kmh.desc'         : 'Otobüs seferleri için maksimum izin verilen hız',

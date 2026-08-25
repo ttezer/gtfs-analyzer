@@ -1,6 +1,6 @@
 # GTFS-JP v3/v4 uyumluluk matrisi
 
-Bu belge, GTFS Analyzer’ın GTFS-JP v3 kapsamını ve GTFS-JP v4 ile arasındaki farkları kayıt altına alır. Analyzer feed’in v3 veya v4 olduğunu otomatik olarak iddia etmez; runtime yalnızca GTFS-JP sinyali üretir. Kural kapsamı açık profil seçimiyle kontrol edilir: varsayılan `v4` profilidir, `auto` mevcut davranışı koruyan geriye dönük uyumluluk modudur, `v3` eski Japonya-özel uzantıları doğrular. UI ve SDK’daki profil rozeti yalnızca bu seçimi gösterir; tam V4 uyumluluk sertifikası değildir.
+Bu belge, GTFS Analyzer’ın GTFS-JP v3 kapsamını ve GTFS-JP v4 ile arasındaki farkları kayıt altına alır. Analyzer feed’in v3 veya v4 olduğunu otomatik olarak iddia etmez; runtime yalnızca GTFS-JP sinyali üretir. Kural kapsamı açık profil seçimiyle kontrol edilir: varsayılan `auto` profilidir, `v3` eski Japonya-özel uzantıları doğrular, `v4` ise yeni V4 kapsamını açıkça seçer. UI ve SDK’daki profil rozeti yalnızca bu seçimi gösterir; tam V4 uyumluluk sertifikası değildir.
 
 V3 kuralları geriye dönük uyumluluk için korunur. MLIT’nin 19 Mart 2026 tarihli v4 spesifikasyonu, v3’teki `agency_jp.txt`, `office_jp.txt` ve `pattern_jp.txt` dosyalarını ana standardın dışına çıkarıp v3 uzantıları için referans bölümüne taşır. Bu fark runtime’a işlendi: v4 profilinde bu dosyalara bağlı JPN kuralları çalışmaz; çeviri/kana ve temel GTFS-JP kontrolleri çalışmaya devam eder. V4’ün ana GTFS alanlarında değiştirdiği tüm zorunluluk sınıfları henüz “tam v4 uyumluluk rozeti” olarak ilan edilmiyor.
 
@@ -8,13 +8,28 @@ V3 kuralları geriye dönük uyumluluk için korunur. MLIT’nin 19 Mart 2026 ta
 
 | Profil | Sürüm tespiti | `*_jp` uzantı kuralları | Çeviri/kana kuralları | Varsayılan |
 |---|---|---|---|---|
-| `auto` | Yapılmaz; yalnız GTFS-JP sinyali | Mevcut v3/legacy davranışı | Çalışır | Hayır (uyumluluk modu) |
+| `auto` | Yapılmaz; yalnız GTFS-JP sinyali | Mevcut v3/legacy davranışı | Çalışır | Evet |
 | `v3` | Kullanıcı seçer | `JPN_002/003/005/012–018/020` çalışır | Çalışır | Hayır |
-| `v4` | Kullanıcı seçer veya varsayılan | Bu uzantılar referans kapsamıdır; yukarıdaki kurallar çalışmaz | `JPN_001/004/006–011/019/021` çalışır | Evet |
+| `v4` | Kullanıcı seçer | Bu uzantılar referans kapsamıdır; yukarıdaki kurallar çalışmaz | `JPN_001/004/006–011/019/021/022` çalışır | Hayır |
 
 CLI: `gtfs-analyzer validate feed.zip --gtfs-jp-profile v4`
 
-JSON config delta: `{"gtfs_jp_profile":"v4"}`. WASM tarafında aynı alan mevcut config delta sözleşmesiyle verilir. Profil feed içeriğinden otomatik çıkarılmaz. UI raporunda `GTFS-JP` tespit rozeti yanında `GTFS-JP V4` (veya seçilen `V3`/`AUTO`) kapsam rozeti gösterilir; bu rozet feed sürümünü değil analiz profilini ifade eder.
+JSON config delta: `{"gtfs_jp_profile":"v4"}`. WASM tarafında aynı alan mevcut config delta sözleşmesiyle verilir. Profil feed içeriğinden otomatik çıkarılmaz. Web ayarlarında `Auto / V3 / V4` seçilebilir. UI raporunda `GTFS-JP` tespit rozeti yanında seçilen kapsam rozeti gösterilir; bu rozet feed sürümünü değil analiz profilini ifade eder.
+
+## 2026-08-25 açık V4 ölçümü
+
+592 JP feed aynı manifestten, yalnızca `--gtfs-jp-profile v4` açık seçimiyle yeniden
+koşturuldu. 588 sonuç `ok`, 2 sonuç `fatal`, 2 sonuç ise kısmi çıktı verdi; V4
+profilinde 583 feed GTFS-JP sinyali taşıdı. İki kritik ölçüm:
+
+| Kural | Feed | Bulgu | Yorum |
+|---|---:|---:|---|
+| JPN_019 | 1 | 1 | Boş `record_sub_id` kullanan geçerli V4 çevirileri artık yanlış alarm üretmiyor. |
+| JPN_022 | 16 | 2.473 | Alan bazlı dedup korunuyor; eksik `location_type` satırları ayrı bulgu olarak kalıyor. |
+
+Ham sonuç: `/Users/tacettintezer/GTFS/run14-artifacts/jp-v4-fixed-20260825.summary.json`.
+Bu ölçüm varsayılan davranışı değiştirmez; `auto` profili hâlâ v3/legacy davranışını
+korur ve feed sürümünü otomatik iddia etmez.
 
 Kaynaklar: [GTFS-JP v3 resmî arşiv PDF'i](https://www.mlit.go.jp/sogoseisaku/transport/content/001981081.pdf), [GTFS-JP format referansı](https://www.gtfs.jp/developpers-guide/format-reference.html), [pattern_jp.txt rehberi](https://www.busdata.or.jp/gtfs_guide/08%E3%80%80pattern_jp-txt%EF%BC%88%E5%81%9C%E8%BB%8A%E3%83%91%E3%82%BF%E3%83%BC%E3%83%B3%E6%83%85%E5%A0%B1%EF%BC%89%E3%80%80%E3%80%90%E4%BB%BB%E6%84%8F%E3%80%91/), [GTFS-JP v4 spesifikasyonu](https://www.mlit.go.jp/commmmons/document/007/), [v3-v4 fark belgesi](https://www.mlit.go.jp/commmmons/document/007/commmons_doc_007-03_ver01.pdf).
 
@@ -50,9 +65,9 @@ Kaynaklar: [GTFS-JP v3 resmî arşiv PDF'i](https://www.mlit.go.jp/sogoseisaku/t
 - Opsiyonel dosyanın yokluğu tek başına analiz skorunu veya yayın engelini değiştirmez.
 - Opsiyonel dosya mevcutsa hatalı kimlik, tarih veya biçim Interop/Quality seviyesinde raporlanabilir.
 - Rapor GTFS-JP tespiti yapar ve seçilen kural profilini taşır; `v3`/`v4` feed sürümü iddiası üretmez.
-- Varsayılan `v4` profilinde `agency_jp.txt`, `office_jp.txt` ve `pattern_jp.txt` referans verisi olarak okunabilir ama ilgili v3 bulguları üretilmez. `auto` ve `v3` profillerinde legacy/v3 kuralları çalışır. Bu seçim feed'in sürümünü otomatik kanıtlamaz.
+- Varsayılan `auto` profilinde mevcut legacy/v3 davranışı korunur. `v4` profilinde `agency_jp.txt`, `office_jp.txt` ve `pattern_jp.txt` referans verisi olarak okunabilir ama ilgili v3 bulguları üretilmez. Bu seçim feed'in sürümünü otomatik kanıtlamaz.
 - `pattern_jp.txt` içindeki `origin_stop`, `via_stop` ve `destination_stop` açıklayıcı metindir; `stop_id` foreign key'i değildir.
-- `translations.txt` içinde v3/`auto` profili `record_sub_id=NONE` değerini alt kimlik yok anlamında kabul eder. V4'te `agency`, `stops`, `routes` ve `trips` için `record_id` kullanılıyorsa `NONE` zorunludur; `stop_times` için gerçek `stop_sequence` gerekir.
+- `translations.txt` içinde `record_sub_id` yalnızca `stop_times` için kullanılır. `agency`, `stops`, `routes` ve `trips` satırlarında alan boş bırakılmalıdır; `NONE` gerçek bir alt kimlik olmadığı için V4'te geçersizdir. `stop_times` için gerçek `stop_sequence` gerekir.
 
 ## V4'ün kalan kapsamı
 

@@ -69,7 +69,7 @@ fn empty_gtfs_jp_file_still_activates_profile_detection() {
                 assert!(vr.metrics.is_gtfs_jp, "{file} GTFS-JP rozeti açmalı");
                 assert_eq!(
                     vr.metrics.gtfs_jp_profile.as_deref(),
-                    Some("v4"),
+                    Some("auto"),
                     "varsayılan profil kullanıcıya taşınmalı"
                 );
                 assert!(has(&vr, "JPN_007"), "{file} GTFS-JP profil kurallarını açmalı");
@@ -96,6 +96,33 @@ fn selected_gtfs_jp_profile_is_exposed_without_version_inference() {
         ValidateResult::Ok(vr) => {
             assert!(!vr.metrics.is_gtfs_jp);
             assert_eq!(vr.metrics.gtfs_jp_profile, None);
+        }
+        other => panic!("ValidateResult::Ok beklendi, alınan: {other:?}"),
+    }
+}
+
+#[test]
+fn v4_required_field_findings_survive_feed_pipeline_dedup() {
+    let mut files = base_files();
+    files.push((
+        "feed_info.txt",
+        b"feed_publisher_name,feed_publisher_url,feed_lang\nTest,http://test.example,ja\n",
+    ));
+
+    match run_with_profile(&files, GtfsJpProfile::V4) {
+        ValidateResult::Ok(vr) => {
+            let fields: std::collections::BTreeSet<_> = vr
+                .notices
+                .iter()
+                .filter(|n| n.rule_id == "JPN_022")
+                .filter_map(|n| n.field.as_deref())
+                .collect();
+            assert_eq!(fields.len(), 5, "JPN_022 alan bazında beş bulguya ayrılmalı: {fields:?}");
+            assert!(fields.contains("agency_lang"));
+            assert!(fields.contains("location_type"));
+            assert!(fields.contains("feed_start_date"));
+            assert!(fields.contains("feed_end_date"));
+            assert!(fields.contains("feed_version"));
         }
         other => panic!("ValidateResult::Ok beklendi, alınan: {other:?}"),
     }

@@ -156,6 +156,11 @@ const en: LocaleShape = {
     'file.attributions.txt'  : 'attribution',
     'file.translations.txt'  : 'translation',
     // Config fields
+    'cfg.gtfs_jp_profile.label' : 'GTFS-JP validation profile',
+    'cfg.gtfs_jp_profile.desc'  : 'The version is not inferred automatically; Auto preserves legacy behavior, while V3/V4 select an explicit scope.',
+    'cfg.gtfs_jp_profile.auto'  : 'Auto (legacy)',
+    'cfg.gtfs_jp_profile.v3'    : 'V3',
+    'cfg.gtfs_jp_profile.v4'    : 'V4',
     'cfg.max_speed_bus_kmh.label'        : 'Max. Bus Speed',
     'cfg.max_speed_bus_kmh.unit'         : 'km/h',
     'cfg.max_speed_bus_kmh.desc'         : 'Maximum allowed speed for bus services',

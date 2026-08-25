@@ -39,6 +39,10 @@ const CONFIG_KEYS: Array<{ key: string; type: 'float' | 'int'; def: number; min:
   { key: 'max_calendar_future_years', type: 'int',  def: 3,    min: 1,    max: 50   },
 ];
 
+const GTFS_JP_PROFILES = ['auto', 'v3', 'v4'] as const;
+type ConfigValue = number | string;
+type ConfigOverrides = Record<string, ConfigValue>;
+
 export function renderUpload(root: HTMLElement): void {
   const state = getState();
   const hasResult = state.result !== null;
@@ -183,8 +187,28 @@ function renderScoreCompact(result: ValidationResult): string {
 
 // ── Ayarlar alanları ─────────────────────────────────────────────────────────
 
-function renderSettingsFields(overrides: Record<string, number>): string {
-  return CONFIG_KEYS.map(f => {
+function renderSettingsFields(overrides: ConfigOverrides): string {
+  const selectedProfile = typeof overrides.gtfs_jp_profile === 'string'
+    && GTFS_JP_PROFILES.includes(overrides.gtfs_jp_profile as typeof GTFS_JP_PROFILES[number])
+    ? overrides.gtfs_jp_profile
+    : 'auto';
+  const profileOverridden = selectedProfile !== 'auto';
+  const profileOptions = GTFS_JP_PROFILES.map(profile =>
+    `<option value="${profile}" ${selectedProfile === profile ? 'selected' : ''}>${escHtml(t(`cfg.gtfs_jp_profile.${profile}`))}</option>`
+  ).join('');
+  const profileRow = `
+      <div class="sf-row${profileOverridden ? ' sf-overridden' : ''}">
+        <label class="sf-label" title="${escHtml(t('cfg.gtfs_jp_profile.desc'))}">${escHtml(t('cfg.gtfs_jp_profile.label'))}</label>
+        <div class="sf-control">
+          <select class="sf-select sf-value" data-key="gtfs_jp_profile" data-def="auto" aria-label="${escHtml(t('cfg.gtfs_jp_profile.label'))}">
+            ${profileOptions}
+          </select>
+          <button class="sf-reset btn btn-ghost" data-key="gtfs_jp_profile" title="${t('upload.reset')}"
+            ${!profileOverridden ? 'style="visibility:hidden"' : ''}>✕</button>
+        </div>
+        <div class="sf-desc">${escHtml(t('cfg.gtfs_jp_profile.desc'))} (${t('upload.default_for', { val: t('cfg.gtfs_jp_profile.auto') })})</div>
+      </div>`;
+  return profileRow + CONFIG_KEYS.map(f => {
     const val = overrides[f.key] !== undefined ? overrides[f.key] : f.def;
     const isOverridden = overrides[f.key] !== undefined;
     const label = t(`cfg.${f.key}.label`);
@@ -194,7 +218,7 @@ function renderSettingsFields(overrides: Record<string, number>): string {
       <div class="sf-row${isOverridden ? ' sf-overridden' : ''}">
         <label class="sf-label" title="${escHtml(desc)}">${escHtml(label)}</label>
         <div class="sf-control">
-          <input class="sf-input" type="number" data-key="${f.key}" data-def="${f.def}"
+          <input class="sf-input sf-value" type="number" data-key="${f.key}" data-def="${f.def}"
             data-type="${f.type}" min="${f.min}" max="${f.max}"
             step="${f.type === 'int' ? 1 : 0.1}" value="${val}"/>
           <span class="sf-unit">${unit}</span>
@@ -206,14 +230,15 @@ function renderSettingsFields(overrides: Record<string, number>): string {
   }).join('');
 }
 
-function parseConfigDelta(delta: string): Record<string, number> {
+function parseConfigDelta(delta: string): ConfigOverrides {
   if (!delta || delta === '{}') return {};
   try {
     const parsed: unknown = JSON.parse(delta);
     if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return {};
-    const result: Record<string, number> = {};
+    const result: ConfigOverrides = {};
     for (const [key, value] of Object.entries(parsed as Record<string, unknown>)) {
       if (typeof value === 'number' && isFinite(value)) result[key] = value;
+      else if (typeof value === 'string') result[key] = value;
     }
     return result;
   } catch { return {}; }
@@ -288,7 +313,7 @@ function attachUploadListeners(root: HTMLElement): void {
     });
   });
 
-  root.querySelectorAll<HTMLInputElement>('.sf-input').forEach(input => {
+  root.querySelectorAll<HTMLInputElement | HTMLSelectElement>('.sf-value').forEach(input => {
     input.addEventListener('change', () => {
       const btn = root.querySelector<HTMLButtonElement>(
         `.sf-reset[data-key="${CSS.escape(input.dataset['key']!)}"]`);
@@ -299,14 +324,19 @@ function attachUploadListeners(root: HTMLElement): void {
 }
 
 function applySettings(root: HTMLElement): void {
-  const delta: Record<string, number> = {};
-  root.querySelectorAll<HTMLInputElement>('.sf-input').forEach(input => {
+  const delta: ConfigOverrides = {};
+  root.querySelectorAll<HTMLInputElement | HTMLSelectElement>('.sf-value').forEach(input => {
     const key = input.dataset['key']!;
-    const def = parseFloat(input.dataset['def']!);
+    const def = input.dataset['def']!;
+    if (input instanceof HTMLSelectElement) {
+      if (input.value !== def) delta[key] = input.value;
+      return;
+    }
+    const numericDef = parseFloat(def);
     const val = input.dataset['type'] === 'int'
       ? parseInt(input.value, 10)
       : parseFloat(input.value);
-    if (!isNaN(val) && val !== def) delta[key] = val;
+    if (!isNaN(val) && val !== numericDef) delta[key] = val;
   });
   const deltaStr = Object.keys(delta).length > 0 ? JSON.stringify(delta) : '';
   setConfigDelta(deltaStr);
@@ -318,7 +348,7 @@ function applySettings(root: HTMLElement): void {
 }
 
 function resetSettings(root: HTMLElement): void {
-  root.querySelectorAll<HTMLInputElement>('.sf-input').forEach(input => {
+  root.querySelectorAll<HTMLInputElement | HTMLSelectElement>('.sf-value').forEach(input => {
     input.value = input.dataset['def']!;
     input.closest('.sf-row')?.classList.remove('sf-overridden');
     const btn = root.querySelector<HTMLButtonElement>(

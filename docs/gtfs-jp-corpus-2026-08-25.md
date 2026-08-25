@@ -82,6 +82,26 @@ Ham çıktı:
 
 Bu koşumda JPN_012, JPN_005, JPN_007, JPN_014, JPN_015, JPN_017, JPN_020 ve JPN_021 için bulgu oluşmadı. JPN_018 sonucu önceki adjudication ile aynıdır: `1 feed / 3 bulgu`. JPN_019 da `1 feed / 1 bulgu` olarak kalmıştır; bu korpusta bilinmeyen `table_name` türevi görülmemiştir.
 
+## Açık V4 profil follow-up'ı
+
+Yukarıdaki aggregate varsayılan `auto`/v3-legacy kapsamıdır. Profilin varsayılan
+olarak V4 yapılmasının etkisini ölçmek için aynı 592 feed, bu kez açık
+`--gtfs-jp-profile v4` seçimiyle ayrıca koşturuldu. Sonuç özeti:
+
+| Ölçüm | Sonuç |
+|---|---:|
+| `ok` sonuç | 588 |
+| `fatal` sonuç | 2 |
+| Kısmi çıktı | 2 |
+| GTFS-JP rozeti | 583 |
+| JPN_019 | 1 feed / 1 bulgu |
+| JPN_022 | 16 feed / 2.473 bulgu |
+
+Ham follow-up özeti:
+[`jp-v4-fixed-20260825.summary.json`](/Users/tacettintezer/GTFS/run14-artifacts/jp-v4-fixed-20260825.summary.json).
+V4 açıkça seçilmediğinde bu sonuçlar uygulanmaz; araç feed içeriğinden v3/v4
+çıkarımı yapmaz.
+
 ## Sınırlar
 
 - Manifest feed kimlikleri aynıdır; `latest.zip` URL'leri yeniden indirildiği için arşiv byte'larının tamamının aynı olduğu varsayılmaz. Ürün karşılaştırmaları payload SHA-256 drift'i ile birlikte okunmalıdır.

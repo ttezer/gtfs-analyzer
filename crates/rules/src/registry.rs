@@ -1841,7 +1841,7 @@ pub static RULES: &[RuleMeta] = &[
         "GTFS-JP: office_url veya office_phone biçimi şüpheli"),
     r!("JPN_021", Orta, Quality, 2, &[], Some("record_id"), VS, Entity,
         "GTFS-JP: kana çevirisi boş, çakışmalı veya tutarsız"),
-    r!("JPN_022", Orta, Interop, 1, &[], None, VI, Feed,
+    r!("JPN_022", Orta, Interop, 1, &[], None, VI, Field,
         "GTFS-JP v4: ana alan zorunluluğu eksik"),
 ];
 

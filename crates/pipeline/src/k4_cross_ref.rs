@@ -3662,10 +3662,11 @@ fn check_gtfs_jp(
                     translation.record_id.as_deref(),
                     translation.record_sub_id.as_deref(),
                 ) {
-                    // V4 uses the literal NONE for record-level translations.
-                    ("agency" | "stops" | "routes" | "trips", Some(_), Some(value)) =>
-                        crate::k2::translations::is_none_record_sub_id(value),
-                    ("agency" | "stops" | "routes" | "trips", Some(_), None) => false,
+                    // V4 follows the GTFS translations contract: record_sub_id
+                    // is only used for stop_times. For other record-level tables
+                    // the field must be omitted/blank, not replaced with NONE.
+                    ("agency" | "stops" | "routes" | "trips", Some(_), Some(_)) => false,
+                    ("agency" | "stops" | "routes" | "trips", Some(_), None) => true,
                     // field_value mode has no record identity or sub-record identity.
                     (_, None, None) => true,
                     (_, None, Some(_)) => false,
@@ -7409,7 +7410,7 @@ mod tests {
     }
 
     #[test]
-    fn jpn_019_v4_requires_none_for_record_id_translation() {
+    fn jpn_019_v4_accepts_blank_and_rejects_none_record_sub_id() {
         let (mut recs, _map) = empty();
         recs.gtfs_jp_profile = GtfsJpProfile::V4;
         recs.stops = vec![stop("S1")];
@@ -7420,12 +7421,12 @@ mod tests {
         };
         recs.translations = vec![translation.clone()];
         let missing = check(&recs, &EntityMap::default(), 20260824);
-        assert!(missing.notices.iter().any(|n| n.rule_id == "JPN_019"));
+        assert!(!missing.notices.iter().any(|n| n.rule_id == "JPN_019"));
 
         translation.record_sub_id = Some("NONE".into());
         recs.translations = vec![translation];
-        let valid = check(&recs, &EntityMap::default(), 20260824);
-        assert!(!valid.notices.iter().any(|n| n.rule_id == "JPN_019"));
+        let invalid = check(&recs, &EntityMap::default(), 20260824);
+        assert!(invalid.notices.iter().any(|n| n.rule_id == "JPN_019"));
     }
 
     #[test]
