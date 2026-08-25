@@ -9,12 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Published to crates.io.** `cargo install gtfs-analyzer` now works. Five crates went
-  up together, in dependency order: `gtfs-core`, `gtfs-config`, `gtfs-rules`,
-  `gtfs-pipeline` and `gtfs-analyzer`. The four libraries are published so the binary can
-  be built from the registry; their descriptions say plainly that they are internal and
-  carry no stability guarantee.
-
 - **`gtfs-analyzer --version --verbose`** prints the commit the binary was built from and
   where that information came from. Deterministic only — no wall-clock build timestamp, so
   reproducible builds are unaffected. When built from a crates.io package, where there is
@@ -72,6 +66,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `0.10.0` engine.
 - **GTFS-JP K2 signal naming** now uses `signal_before_kana`, making the pre-kana
   detection stage explicit in the translation path.
+- **Release packages are published.** `gtfs-core`, `gtfs-config`, `gtfs-rules`,
+  `gtfs-pipeline` and `gtfs-analyzer` are available on crates.io at `0.10.0`; the
+  `gtfs-sdk` package is available on npm at `0.2.0`.
+- **GTFS-JP documentation** now identifies the badge as v3/v4 profile support and
+  documents the web, CLI and SDK profile-selection paths.
+
+### Fixed
+
+- **The web profile selector is applied before automatic upload validation.** Choosing
+  `V3` or `V4` and then selecting a feed now commits the current settings instead of
+  silently running with the previous `auto` config.
 
 ## [0.9.7] - 2026-08-20
 

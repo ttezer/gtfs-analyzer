@@ -3,7 +3,7 @@
 🇹🇷 **Türkçe** · 🇬🇧 [English](README.en.md) · 🇯🇵 [日本語](README.ja.md)
 
 [![Uygulamayı Aç](https://img.shields.io/badge/Uygulamay%C4%B1%20A%C3%A7-gtfs--analyzer-2ea44f?style=flat&logo=googlechrome&logoColor=white)](https://ttezer.github.io/gtfs-analyzer/)
-[![GTFS-JP](https://img.shields.io/badge/GTFS--JP-destekli-c8102e?style=flat)](https://www.gtfs.jp/)
+[![GTFS-JP](https://img.shields.io/badge/GTFS--JP-v3%2Fv4%20destekli-c8102e?style=flat)](https://www.gtfs.jp/)
 [![Kural sayısı](https://img.shields.io/badge/kural-611-blue?style=flat)](RULES.md)
 ![GTFS Spec kapsamı](https://img.shields.io/badge/GTFS%20Spec-97.2%25-007ec6?style=flat)
 [![Korpus doğrulaması](https://img.shields.io/badge/korpus-4318%20feed%20%C3%97%2012%20ko%C5%9Fum-brightgreen?style=flat)](audit-results/)
@@ -158,6 +158,8 @@ Feed: `mdb-782` · 1.274 hat, 41.961 durak, 258.524 sefer, 14.485 shape · **~75
 GTFS Analyzer, Japonya'nın ulusal GTFS profili **GTFS-JP**'yi (国土交通省 / MLIT standardı) otomatik olarak tanır ve standart GTFS'in isteğe bağlı bıraktığı, GTFS-JP'nin zorunlu kıldığı kuralları uygular. MLIT, sübvansiyon alan işletmecilerden GTFS-JP yayımlamasını şart koştuğu için yüzlerce küçük operatör bu profile uymak zorundadır; ancak yaygın doğrulayıcılar profile özgü zorunlulukları denetlemez.
 
 **Otomatik tespit.** Bir feed; GTFS-JP v3'te kullanılan (`agency_jp.txt`, `office_jp.txt`, `pattern_jp.txt`) uzantı dosyalarından birini veya eski sürüm uyumluluğu için tanınan `routes_jp.txt` dosyasını içeriyorsa, `feed_lang` değeri `ja` ile başlıyorsa ya da `translations.txt` içinde kana (`ja-Hrkt`) okumaları taşıyorsa GTFS-JP olarak işaretlenir ve raporda **GTFS-JP** rozeti görünür. `routes_jp.txt` v3 dosyası değildir; yalnızca eski feed'lerin tanınması için korunur. MLIT GTFS-JP v4 bu üç v3 uzantı dosyasını ana standardın dışına almıştır; Analyzer feed'i v3 veya v4 diye etiketlemez. Varsayılan kural kapsamı **auto** profilidir; web/CLI/WASM üzerinden açıkça `v3` veya `v4` seçilebilir. V4 profilinde v3 uzantı dosyaları referans kabul edilir ve bunlara bağlı JPN kuralları çalışmaz. Profil kuralları yalnızca GTFS-JP sinyali taşıyan feed'lerde devreye girer; standart feed'lerde sessiz kalır.
+
+**Profil seçimi (analiz sırasında).** Web uygulamasında ZIP'i seçmeden önce **Analiz Kriterleri** panelini açın ve **GTFS-JP profil kapsamı** alanından `Auto`, `V3` veya `V4` seçin. Feed'i seçtiğiniz anda mevcut seçim kaydedilir ve analiz otomatik başlar; `Auto` varsayılandır. CLI için `--gtfs-jp-profile v3` veya `--gtfs-jp-profile v4` kullanın. SDK'da aynı seçimi `config: { gtfs_jp_profile: 'v3' }` ya da `'v4'` ile verin. Bu seçim feed'in resmî sürümünü tespit etmez; yalnızca uygulanacak doğrulama kapsamını belirler. Ayrıntılı farklar için [GTFS-JP v3/v4 uyumluluk matrisine](docs/gtfs-jp-v3-v4-matrix.md) bakın.
 
 **Profil kuralları (JPN grubu).**
 

@@ -3,7 +3,7 @@
 🇹🇷 [Türkçe](README.md) · 🇬🇧 [English](README.en.md) · 🇯🇵 **日本語**
 
 [![アプリを開く](https://img.shields.io/badge/%E3%82%A2%E3%83%97%E3%83%AA%E3%82%92%E9%96%8B%E3%81%8F-gtfs--analyzer-2ea44f?style=flat&logo=googlechrome&logoColor=white)](https://ttezer.github.io/gtfs-analyzer/)
-[![GTFS-JP](https://img.shields.io/badge/GTFS--JP-対応-c8102e?style=flat)](https://www.gtfs.jp/)
+[![GTFS-JP](https://img.shields.io/badge/GTFS--JP-v3%2Fv4%20%E5%AF%BE%E5%BF%9C-c8102e?style=flat)](https://www.gtfs.jp/)
 [![ルール数](https://img.shields.io/badge/rules-611-blue?style=flat)](RULES.ja.md)
 ![GTFS Spec カバレッジ](https://img.shields.io/badge/GTFS%20Spec-97.2%25-007ec6?style=flat)
 [![コーパス検証](https://img.shields.io/badge/corpus-4%2C318%20feeds%20%C3%97%2012%20runs-brightgreen?style=flat)](audit-results/)
@@ -157,6 +157,8 @@ GTFS Validator & Analyzer は、仕様検証を運用品質分析へと拡張し
 GTFS Analyzer は、日本の国内 GTFS プロファイルである **GTFS-JP**（国土交通省 / MLIT 標準）を自動的に認識し、標準 GTFS では任意とされている項目のうち GTFS-JP が必須とする要件を検証します。MLIT は補助を受ける事業者に GTFS-JP の公開を求めているため、数百の中小事業者がこのプロファイルへの準拠を必要としますが、一般的なバリデーターはプロファイル固有の要件を検査しません。
 
 **自動検出。** フィードに現行 GTFS-JP ファイル（`agency_jp.txt`、`office_jp.txt`、`pattern_jp.txt`）または旧版互換の `routes_jp.txt` が含まれる場合、`feed_lang` が `ja` で始まる場合、または `translations.txt` にかな（`ja-Hrkt`）の読みが含まれる場合、そのフィードは GTFS-JP として判定され、レポートに **GTFS-JP** バッジが表示されます。`routes_jp.txt` は v3 のファイルではなく、旧版フィード互換のためにのみ認識されます。プロファイルルールはこれらのフィードでのみ有効になり、標準フィードでは作動しません。
+
+**解析プロファイルの選択。** Web アプリでは ZIP を選ぶ前に **分析設定** パネルを開き、**GTFS-JP 検証プロファイル**で `Auto`、`V3`、または `V4` を選択してください。フィードを選択すると現在の選択が保存され、そのまま自動解析が始まります。デフォルトは `Auto` です。CLI では `--gtfs-jp-profile v3` または `--gtfs-jp-profile v4`、SDK では `config: { gtfs_jp_profile: 'v3' }` または `'v4'` を指定します。これは検証範囲の選択であり、フィードの公式 GTFS-JP バージョンを自動判定するものではありません。詳細は [GTFS-JP v3/v4 互換性マトリクス](docs/gtfs-jp-v3-v4-matrix.md) を参照してください。
 
 **プロファイルルール（JPN グループ）。**
 

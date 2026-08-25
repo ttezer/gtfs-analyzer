@@ -15,6 +15,18 @@ test('sayfa açılıyor ve upload zone görünüyor', async ({ page }) => {
   await expect(page.locator('#file-input')).toBeAttached();
 });
 
+test('GTFS-JP profili feed seçimiyle birlikte uygulanıyor', async ({ page }) => {
+  await page.goto('/');
+  await page.locator('#settings-toggle').click();
+  await page.locator('select[data-key="gtfs_jp_profile"]').selectOption('v4');
+  await page.locator('#file-input').setInputFiles(FIXTURE_ZIP);
+
+  await expect.poll(() => page.evaluate(
+    () => sessionStorage.getItem('gtfs-config-delta'),
+  )).toBe('{"gtfs_jp_profile":"v4"}');
+  await expect(page.locator('#drop-zone.loading')).not.toBeVisible({ timeout: 25_000 });
+});
+
 test('.zip olmayan dosyada hata kartı çıkıyor', async ({ page }) => {
   await page.goto('/');
   await page.locator('#file-input').setInputFiles({

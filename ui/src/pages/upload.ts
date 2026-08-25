@@ -324,6 +324,15 @@ function attachUploadListeners(root: HTMLElement): void {
 }
 
 function applySettings(root: HTMLElement): void {
+  saveSettings(root);
+
+  const statusEl = root.querySelector<HTMLElement>('#settings-status')!;
+  statusEl.textContent = t('upload.settings_saved');
+  statusEl.className = 'settings-status ok';
+  setTimeout(() => { statusEl.className = 'settings-status hidden'; }, 3000);
+}
+
+function saveSettings(root: HTMLElement): void {
   const delta: ConfigOverrides = {};
   root.querySelectorAll<HTMLInputElement | HTMLSelectElement>('.sf-value').forEach(input => {
     const key = input.dataset['key']!;
@@ -340,11 +349,6 @@ function applySettings(root: HTMLElement): void {
   });
   const deltaStr = Object.keys(delta).length > 0 ? JSON.stringify(delta) : '';
   setConfigDelta(deltaStr);
-
-  const statusEl = root.querySelector<HTMLElement>('#settings-status')!;
-  statusEl.textContent = t('upload.settings_saved');
-  statusEl.className = 'settings-status ok';
-  setTimeout(() => { statusEl.className = 'settings-status hidden'; }, 3000);
 }
 
 function resetSettings(root: HTMLElement): void {
@@ -491,6 +495,10 @@ function showUrlBlocked(el: HTMLElement, url: URL): void {
 
 async function handleBuffer(buffer: ArrayBuffer, fileName: string, fileSize: number, root: HTMLElement, errorEl: HTMLElement): Promise<void> {
   errorEl.className = 'upload-status hidden';
+  // Settings are edited in the form before the explicit Apply button is pressed.
+  // Commit the current controls at upload time so selecting a profile and then
+  // choosing a feed cannot silently run with the previous config delta.
+  saveSettings(root);
   setLoading(root, fileName, fileSize);
   const startedAt = performance.now();
 

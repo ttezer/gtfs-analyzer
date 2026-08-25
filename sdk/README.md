@@ -61,6 +61,11 @@ const result = await validateGtfs(zipBytes, {
 });
 ```
 
+For a GTFS-JP analysis, select the scope explicitly with `config.gtfs_jp_profile`:
+use `'v3'` for the legacy v3 rule scope, `'v4'` for the v4 scope, or omit the
+field/use `'auto'` for the default legacy-compatible behavior. The SDK does not
+infer the feed's official GTFS-JP version; the value selects the validation scope.
+
 Options:
 
 | Option | Type | Behavior |
