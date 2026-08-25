@@ -232,6 +232,9 @@ call more than once; calls after disposal throw.
 ## Configuration reference
 
 The `config` object is merged over the defaults. Only known keys are accepted.
+`ValidatorConfigDelta` exposes every accepted key in TypeScript, so misspelled
+configuration properties are rejected during type-checking when supplied as
+object literals, in addition to the engine's runtime validation.
 The values below are the default thresholds used by the `0.9.7` validator engine.
 
 | Key | Default | Unit / purpose |

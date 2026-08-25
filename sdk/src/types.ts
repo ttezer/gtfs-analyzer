@@ -163,11 +163,54 @@ export type Today = number | `${number}-${number}-${number}` | `${number}${numbe
 /** Explicit GTFS-JP validation scope; this never claims the feed's official version. */
 export type GtfsJpProfile = 'auto' | 'v3' | 'v4';
 
-/** Typed public configuration delta accepted by the Rust/WASM engine. */
+/** Calendar base/override relationship used by OPR_021/022/023. */
+export interface CalendarOverrideRule {
+  route_id: string;
+  base_service_ids: string[];
+  override_service_ids: string[];
+  start_date: number;
+  end_date: number;
+}
+
+/** All configuration keys accepted by the Rust/WASM engine. */
 export interface ValidatorConfigDelta {
-  /** Selects the GTFS-JP rule scope; the engine does not infer v3/v4 from feed contents. */
+  source_url?: string | null;
   gtfs_jp_profile?: GtfsJpProfile;
-  [key: string]: unknown;
+  stop_name_best_practices?: boolean;
+  max_speed_bus_kmh?: number;
+  max_speed_tram_kmh?: number;
+  max_speed_metro_kmh?: number;
+  max_speed_rail_kmh?: number;
+  max_speed_ferry_kmh?: number;
+  max_speed_cablecar_kmh?: number;
+  min_transfer_time_sec?: number;
+  max_transfer_distance_m?: number;
+  max_shape_jump_km?: number;
+  max_shape_jump_km_rail?: number;
+  stop_too_close_m?: number;
+  stop_far_from_shape_m?: number;
+  stop_far_from_shape_m_rail?: number;
+  stop_far_from_parent_m?: number;
+  feed_expiry_warning_days?: number;
+  feed_info_expiry_warning_days?: number;
+  service_gap_days?: number;
+  big_gap_days?: number;
+  upcoming_service_days?: number;
+  max_trip_duration_hours?: number;
+  max_trip_duration_hours_rail?: number;
+  min_trip_duration_sec?: number;
+  max_headway_warning_min?: number;
+  max_headway_warning_min_rail?: number;
+  service_day_window_hours_rail?: number;
+  bunching_threshold_min?: number;
+  rail_stop_distance_km?: number;
+  max_trips_per_route?: number;
+  duration_outlier_sigma?: number;
+  headway_outlier_sigma?: number;
+  service_day_start_hour?: number;
+  max_calendar_future_years?: number;
+  rural_route_ids?: string[];
+  calendar_override_rules?: CalendarOverrideRule[];
 }
 
 export interface ValidateOptions {

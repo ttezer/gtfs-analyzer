@@ -380,12 +380,13 @@ pub fn validate_with_stream_limit_and_jp_signal(
                         .is_some_and(|value| value.trim().eq_ignore_ascii_case("ja-Hrkt"))
                 })
             });
-        records.is_gtfs_jp = Some(records.is_gtfs_jp.unwrap_or(false) || has_ja_hrkt_translation);
+        let is_gtfs_jp = records.is_gtfs_jp == Some(true);
+        records.is_gtfs_jp = Some(is_gtfs_jp || has_ja_hrkt_translation);
         let (translation_records, translation_notices) =
             translations::validate_translations_with_profile(
                 file,
                 matches!(cfg.gtfs_jp_profile, GtfsJpProfile::V4),
-                records.is_gtfs_jp.unwrap_or(false),
+                is_gtfs_jp || has_ja_hrkt_translation,
             );
         records.translations = translation_records;
         notices.extend(translation_notices);

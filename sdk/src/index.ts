@@ -19,6 +19,7 @@ import type {
   ValidationCallbacks,
   ValidationStage,
   ValidationResult,
+  ValidatorConfigDelta,
   ZipFileInfo,
 } from './types.js';
 
@@ -30,6 +31,7 @@ export type {
   SdkVersion,
   FatalCode,
   FeedMetrics,
+  CalendarOverrideRule,
   FileInfo,
   NameIndex,
   Notice,
@@ -138,7 +140,7 @@ export class ValidatorSession {
   readonly engineMode: EngineMode;
 
   private readonly today: number;
-  private readonly defaultConfig?: Record<string, unknown>;
+  private readonly defaultConfig?: ValidatorConfigDelta;
   private readonly engine: ValidatorEngine;
   private cache: ValidatorCache | undefined;
   private lastFiles: ZipFileInfo[] = [];
@@ -276,7 +278,7 @@ function makeStageCallback(callbacks: ValidationCallbacks | undefined): (stage: 
   return (stage, elapsedMs) => callbacks?.onStageDone?.(stage, elapsedMs);
 }
 
-function serializeConfig(config: Record<string, unknown> | undefined): string {
+function serializeConfig(config: ValidatorConfigDelta | undefined): string {
   if (config === undefined) return '';
   try {
     const serialized = JSON.stringify(config);
