@@ -5112,7 +5112,13 @@ mod tests {
     use crate::k2::shapes::ShapeInternTable;
 
     fn empty() -> (EntityRecords, EntityMap) {
-        (EntityRecords::default(), EntityMap::default())
+        // Bu yardımcı, aşağıdaki eski JPN_* fixture'larının V3 uzantı kurallarını
+        // sınadığı sentetik feed'i temsil eder. Üretim varsayılanı V4 olduğu için
+        // legacy testlerinin profil niyeti burada açıkça belirtilmelidir; V4 davranışı
+        // ayrıca `v4_profile_treats_v3_extension_files_as_reference_only` ile sınanır.
+        let mut records = EntityRecords::default();
+        records.gtfs_jp_profile = GtfsJpProfile::V3;
+        (records, EntityMap::default())
     }
 
     fn route(id: &str) -> RouteRecord {

@@ -89,7 +89,8 @@ pub const GTFS_JP_FILES: [&str; 4] = [
 /// K2 sonrasında üretilecek typed entity kayıtlarının kapsayıcısı.
 #[derive(Debug, Default)]
 pub struct EntityRecords {
-    /// K4/K7'nin kullanacağı açık GTFS-JP profil seçimi. `Auto` sürüm iddiası değildir.
+    /// K4/K7'nin kullanacağı açık GTFS-JP profil seçimi. Varsayılan V4'tür;
+    /// `Auto` yalnız geriye dönük uyumluluk modudur ve sürüm iddiası değildir.
     pub gtfs_jp_profile: GtfsJpProfile,
     pub agencies: Vec<AgencyRecord>,
     pub agency_jp: Vec<AgencyJpRecord>,

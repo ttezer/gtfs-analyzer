@@ -60,8 +60,8 @@ const MAX_CONFIG_STRING_BYTES: usize = 4 * 1024 * 1024;
 
 /// GTFS-JP kural kapsamı.
 ///
-/// `Auto` sürüm iddiasında bulunmaz ve mevcut GTFS-JP davranışını korur.
-/// `V3` eski Japonya-özel uzantı dosyalarını doğrular; `V4` ise bu dosyaları
+/// `V4` varsayılandır. `Auto` sürüm iddiasında bulunmadan eski davranışı korur;
+/// `V3` eski Japonya-özel uzantı dosyalarını doğrular. `V4` ise bu dosyaları
 /// referans kapsamı olarak görür ve v3 uzantı foreign-key/biçim kurallarını
 /// çalıştırmaz. Sürüm otomatik olarak feed içeriğinden çıkarılmaz.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -73,7 +73,7 @@ pub enum GtfsJpProfile {
 }
 
 impl Default for GtfsJpProfile {
-    fn default() -> Self { Self::Auto }
+    fn default() -> Self { Self::V4 }
 }
 
 impl GtfsJpProfile {
@@ -91,7 +91,8 @@ impl GtfsJpProfile {
 pub struct ValidatorConfig {
     /// URL ile başlatılan analizlerde dış yayın adresi; upload modunda None.
     pub source_url: Option<String>,
-    /// GTFS-JP kural kapsamı. `Auto` varsayılanı sürüm iddiasında bulunmaz.
+    /// GTFS-JP kural kapsamı. Yeni varsayılan V4'tür; geriye dönük uyumluluk için
+    /// `Auto` (eski davranış) ve açık `V3` profili korunur.
     #[serde(default)]
     pub gtfs_jp_profile: GtfsJpProfile,
     /// STP_040/041: dil-bağımlı stop naming best-practice kontrolleri (varsayılan kapalı).
@@ -188,7 +189,7 @@ impl Default for ValidatorConfig {
     fn default() -> Self {
         Self {
             source_url: None,
-            gtfs_jp_profile: GtfsJpProfile::Auto,
+            gtfs_jp_profile: GtfsJpProfile::V4,
             stop_name_best_practices: false,
             max_speed_bus_kmh:        DEF_MAX_SPEED_BUS_KMH,
             max_speed_tram_kmh:       DEF_MAX_SPEED_TRAM_KMH,
@@ -516,7 +517,7 @@ mod tests {
     #[test]
     fn default_values() {
         let cfg = ValidatorConfig::default();
-        assert_eq!(cfg.gtfs_jp_profile, GtfsJpProfile::Auto);
+        assert_eq!(cfg.gtfs_jp_profile, GtfsJpProfile::V4);
         assert_eq!(cfg.max_speed_bus_kmh,        120.0);
         assert_eq!(cfg.max_speed_tram_kmh,       100.0);
         assert_eq!(cfg.max_speed_metro_kmh,      150.0);

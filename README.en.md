@@ -155,7 +155,7 @@ Feed: `mdb-782` · 1,274 routes, 41,961 stops, 258,524 trips, 14,485 shapes · *
 
 GTFS Analyzer automatically recognizes **GTFS-JP**, Japan's national GTFS profile (国土交通省 / MLIT standard), and enforces the requirements that GTFS-JP makes mandatory where standard GTFS leaves them optional. Because MLIT requires subsidized operators to publish GTFS-JP, hundreds of small operators must conform to this profile — yet mainstream validators do not check its profile-specific obligations.
 
-**Automatic detection.** A feed is flagged as GTFS-JP — and a **GTFS-JP** badge appears in the report — when it contains the current GTFS-JP files (`agency_jp.txt`, `office_jp.txt`, `pattern_jp.txt`) or the legacy-compatible `routes_jp.txt`, when `feed_lang` starts with `ja`, or when `translations.txt` carries kana (`ja-Hrkt`) readings. `routes_jp.txt` is not a v3 file; it remains recognized only for legacy-feed compatibility. The profile rules activate only on such feeds and stay silent on standard feeds.
+**Automatic detection.** A feed is flagged as GTFS-JP — and a **GTFS-JP** badge appears in the report — when it contains the current GTFS-JP files (`agency_jp.txt`, `office_jp.txt`, `pattern_jp.txt`) or the legacy-compatible `routes_jp.txt`, when `feed_lang` starts with `ja`, or when `translations.txt` carries kana (`ja-Hrkt`) readings. `routes_jp.txt` is not a v3 file; it remains recognized only for legacy-feed compatibility. The default rule profile is now **v4**; `auto` (the previous behavior) and explicit `v3` remain available for backward compatibility. Under v4, v3 extension files are reference data and their v3-specific JPN rules do not run. The profile rules activate only on GTFS-JP signals and stay silent on standard feeds.
 
 **Profile rules (JPN group).**
 

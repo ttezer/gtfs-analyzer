@@ -13,7 +13,7 @@ use std::collections::BTreeSet;
 use std::io::Write as _;
 use zip::write::SimpleFileOptions;
 
-use gtfs_pipeline::{validate_bytes, CalendarOverrideRule, ValidateResult, ValidatorConfig};
+use gtfs_pipeline::{validate_bytes, CalendarOverrideRule, GtfsJpProfile, ValidateResult, ValidatorConfig};
 use gtfs_rules::RULES;
 
 const TODAY: u32 = 20_260_515;
@@ -113,6 +113,23 @@ struct Fixture {
 
 fn fx(rule: &'static str, overrides: Vec<(&'static str, &'static str)>) -> Fixture {
     Fixture { rule, overrides, removes: Vec::new(), raw: Vec::new(), config: None, no_read: Vec::new() }
+}
+
+/// V3 uzantı kurallarının emit kanıtı: üretim varsayılanı V4 olsa da bu fixture'lar
+/// bilerek legacy/v3 profilini seçer. Böylece kanıt testi, V4'ün bu kuralları susturmasını
+/// değil, V3 davranışının hâlâ çalıştığını ölçer.
+fn fx_v3(rule: &'static str, overrides: Vec<(&'static str, &'static str)>) -> Fixture {
+    Fixture {
+        rule,
+        overrides,
+        removes: Vec::new(),
+        raw: Vec::new(),
+        config: Some(ValidatorConfig {
+            gtfs_jp_profile: GtfsJpProfile::V3,
+            ..ValidatorConfig::default()
+        }),
+        no_read: Vec::new(),
+    }
 }
 
 /// Dosya çıkarmalı fixture ("X.txt eksik" senaryoları).
@@ -746,16 +763,16 @@ fn fixtures() -> Vec<Fixture> {
         // JPN_010: agency_name dolu ama kana okuması yok (base agency).
         fx("JPN_010", vec![("feed_info.txt", "feed_publisher_name,feed_publisher_url,feed_lang\nPub,https://x.example,ja\n")]),
         // JPN_002: trips.jp_office_id office_jp.txt'te tanımsız.
-        fx("JPN_002", vec![
+        fx_v3("JPN_002", vec![
             ("office_jp.txt", "office_id,office_name\nO1,Office1\n"),
             ("trips.txt", "route_id,service_id,trip_id,jp_office_id\nR1,SVC1,T1,BADREF\n"),
         ]),
         // JPN_003: agency_jp.agency_id agency.txt'te tanımsız.
-        fx("JPN_003", vec![("agency_jp.txt", "agency_id\nNOPE\n")]),
+        fx_v3("JPN_003", vec![("agency_jp.txt", "agency_id\nNOPE\n")]),
         // JPN_004: GTFS-JP sinyali (office_jp) var ama translations.txt yok.
         fx("JPN_004", vec![("office_jp.txt", "office_id,office_name\nO1,Office1\n")]),
         // JPN_005: office_jp.office_name boş.
-        fx("JPN_005", vec![("office_jp.txt", "office_id,office_name\nO1,\n")]),
+        fx_v3("JPN_005", vec![("office_jp.txt", "office_id,office_name\nO1,\n")]),
         // JPN_006: GTFS-JP (feed_lang=ja) ama fare_attributes/fare_rules yok.
         fx("JPN_006", vec![("feed_info.txt", "feed_publisher_name,feed_publisher_url,feed_lang\nPub,https://x.example,ja\n")]),
         // JPN_007: GTFS-JP sinyali (office_jp) var ama feed_info.txt yok.
@@ -766,32 +783,32 @@ fn fixtures() -> Vec<Fixture> {
             ("agency.txt", "agency_id,agency_name,agency_url,agency_timezone\n,Test,http://test.example,UTC\n"),
         ]),
         // JPN_012: agency_jp satırında agency_id eksik.
-        fx("JPN_012", vec![
+        fx_v3("JPN_012", vec![
             ("agency_jp.txt", "agency_id,agency_zip_number\n,1234567\n"),
         ]),
         // JPN_013: agency_zip_number tam yedi ASCII rakam biçiminde değil.
-        fx("JPN_013", vec![
+        fx_v3("JPN_013", vec![
             ("agency_jp.txt", "agency_id,agency_zip_number\n1,123-4567\n"),
         ]),
         // JPN_014: boş office_id ve yinelenen office_id.
-        fx("JPN_014", vec![
+        fx_v3("JPN_014", vec![
             ("office_jp.txt", "office_id,office_name\n,OfficeEmpty\nO1,OfficeA\nO1,OfficeB\n"),
         ]),
         // JPN_015: routes_jp.route_id routes.txt'te yok.
-        fx("JPN_015", vec![
+        fx_v3("JPN_015", vec![
             ("routes_jp.txt", "route_id,route_update_date,origin_stop,via_stop,destination_stop\nMISSING,20260101,Origin,Via,Destination\n"),
         ]),
         // JPN_016: pattern_jp ve legacy routes_jp route_update_date geçersiz.
-        fx("JPN_016", vec![
+        fx_v3("JPN_016", vec![
             ("pattern_jp.txt", "jp_pattern_id,route_update_date,origin_stop,via_stop,destination_stop\nP1,20260231,Origin,Via,Destination\n"),
             ("routes_jp.txt", "route_id,route_update_date,origin_stop,via_stop,destination_stop\nR1,令和8年4月6日,Origin,Via,Destination\n"),
         ]),
         // JPN_017: pattern_jp'te boş jp_pattern_id ve yinelenen jp_pattern_id.
-        fx("JPN_017", vec![
+        fx_v3("JPN_017", vec![
             ("pattern_jp.txt", "jp_pattern_id,route_update_date,origin_stop,via_stop,destination_stop\n,20260101,Origin,Via,Destination\nP1,20260101,Origin,Via,Destination\nP1,20260101,Origin,Via,Destination\n"),
         ]),
         // JPN_018: pattern_jp.txt mevcut ama trips.jp_pattern_id karşılığı yok.
-        fx("JPN_018", vec![
+        fx_v3("JPN_018", vec![
             ("pattern_jp.txt", "jp_pattern_id,route_update_date,origin_stop,via_stop,destination_stop\nKNOWN_PATTERN,20260101,Origin,Via,Destination\n"),
             ("trips.txt", "route_id,service_id,trip_id,jp_pattern_id\nR1,SVC1,T1,MISSING_PATTERN\n"),
         ]),
@@ -800,7 +817,7 @@ fn fixtures() -> Vec<Fixture> {
             ("translations.txt", "table_name,field_name,language,translation,record_id\nstops,stop_name,ja-Hrkt,とうきょう,MISSING_STOP\n"),
         ]),
         // JPN_020: office_url ve office_phone biçimleri şüpheli.
-        fx("JPN_020", vec![
+        fx_v3("JPN_020", vec![
             ("office_jp.txt", "office_id,office_name,office_url,office_phone\nO1,Office1,not-a-url,x\n"),
         ]),
         // JPN_021: aynı ja-Hrkt çeviri hedefi iki farklı kana değeri taşıyor.
