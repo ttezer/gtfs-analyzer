@@ -210,13 +210,15 @@ pub fn validate_with_stream_limit_and_jp_signal(
 ) -> K2Result {
     use crate::timing::{Timer, mem_log};
     let mut notices = Vec::new();
-    let mut records = EntityRecords::default();
-    records.gtfs_jp_profile = cfg.gtfs_jp_profile;
     // Capture physical JP files before any streaming/drop path. K4 receives
     // the same signal from K1 in the full pipeline; direct K2 callers need the
     // local inventory so translation strictness cannot diverge by entry point.
-    records.has_gtfs_jp_file = has_gtfs_jp_file
-        .unwrap_or_else(|| GTFS_JP_FILES.iter().any(|name| files.contains_key(*name)));
+    let mut records = EntityRecords {
+        gtfs_jp_profile: cfg.gtfs_jp_profile,
+        has_gtfs_jp_file: has_gtfs_jp_file
+            .unwrap_or_else(|| GTFS_JP_FILES.iter().any(|name| files.contains_key(*name))),
+        ..EntityRecords::default()
+    };
     let mut stream_budget = max_stream_rows.map(|_| StreamBudget::new(K2_MAX_STREAM_BYTES));
     mem_log("K2-start (=after-K1, K1 raw alive)");
     // #15 W2: stop_times EN SONA ertelenir — diğer tüm dosyalar parse edilip k1.files'in
@@ -370,7 +372,7 @@ pub fn validate_with_stream_limit_and_jp_signal(
         // The profile is an explicit user choice; the GTFS-JP signal is a
         // separate input. V4's stricter record_sub_id rule must not be applied
         // to an unrelated feed merely because V4 was selected in the UI/CLI.
-        let has_ja_hrkt_translation = file
+        let signal_before_kana = file
             .headers
             .iter()
             .position(|header| header == "language")
@@ -381,12 +383,12 @@ pub fn validate_with_stream_limit_and_jp_signal(
                 })
             });
         let is_gtfs_jp = records.is_gtfs_jp == Some(true);
-        records.is_gtfs_jp = Some(is_gtfs_jp || has_ja_hrkt_translation);
+        records.is_gtfs_jp = Some(is_gtfs_jp || signal_before_kana);
         let (translation_records, translation_notices) =
             translations::validate_translations_with_profile(
                 file,
                 matches!(cfg.gtfs_jp_profile, GtfsJpProfile::V4),
-                is_gtfs_jp || has_ja_hrkt_translation,
+                is_gtfs_jp || signal_before_kana,
             );
         records.translations = translation_records;
         notices.extend(translation_notices);

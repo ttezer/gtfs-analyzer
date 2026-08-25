@@ -1,6 +1,6 @@
 [package]
 name = "gtfs-config"
-version = "0.9.7"
+version = "0.10.0"
 edition = "2021"
 license.workspace = true
 description = "Validator configuration and thresholds for the GTFS Analyzer. Internal to gtfs-analyzer; the API carries no stability guarantee."

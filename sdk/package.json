@@ -1,6 +1,6 @@
 {
   "name": "gtfs-sdk",
-  "version": "0.1.5",
+  "version": "0.2.0",
   "description": "GTFS Analyzer validation engine for Browser and Node.js.",
   "license": "MIT",
   "keywords": [
@@ -44,6 +44,7 @@
     "wasm:build": "node scripts/build-wasm.mjs",
     "build": "npm run clean && npm run version:check && npm run wasm:build && tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test:config-parity": "node scripts/config-parity-test.mjs",
     "test:smoke": "npm run build && node scripts/smoke-test.mjs",
     "package:check": "node scripts/check-package.mjs",
     "pack:check": "npm run build && npm run package:check",

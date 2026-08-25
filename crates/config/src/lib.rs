@@ -58,22 +58,34 @@ const MAX_CALENDAR_OVERRIDE_RULES: usize = 100_000;
 const MAX_OVERRIDE_SERVICE_IDS_PER_RULE: usize = 100_000;
 const MAX_CONFIG_STRING_BYTES: usize = 4 * 1024 * 1024;
 
+/// JSON config delta'sında kabul edilen anahtarların canonical listesi.
+/// SDK'nin typed `ValidatorConfigDelta` yüzeyi bu listeyle parity içinde tutulur.
+pub const KNOWN_CONFIG_KEYS: &[&str] = &[
+    "max_speed_bus_kmh", "max_speed_tram_kmh", "max_speed_metro_kmh",
+    "max_speed_rail_kmh", "max_speed_ferry_kmh", "max_speed_cablecar_kmh",
+    "min_transfer_time_sec", "max_transfer_distance_m", "max_shape_jump_km", "max_shape_jump_km_rail",
+    "stop_too_close_m", "stop_far_from_shape_m", "stop_far_from_shape_m_rail", "stop_far_from_parent_m", "feed_expiry_warning_days", "feed_info_expiry_warning_days",
+    "service_gap_days", "big_gap_days", "upcoming_service_days", "max_trip_duration_hours", "max_trip_duration_hours_rail", "min_trip_duration_sec",
+    "max_headway_warning_min", "max_headway_warning_min_rail", "service_day_window_hours_rail",
+    "bunching_threshold_min", "rail_stop_distance_km",
+    "max_trips_per_route", "duration_outlier_sigma", "headway_outlier_sigma", "service_day_start_hour",
+    "max_calendar_future_years", "source_url", "stop_name_best_practices", "rural_route_ids", "calendar_override_rules",
+    "gtfs_jp_profile",
+];
+
 /// GTFS-JP kural kapsamı.
 ///
 /// `Auto` varsayılandır ve sürüm iddiasında bulunmadan mevcut legacy davranışı
 /// korur. `V3` eski Japonya-özel uzantı dosyalarını doğrular. `V4` ise bu
 /// dosyaları referans kapsamı olarak görür ve v3 uzantı foreign-key/biçim
 /// kurallarını çalıştırmaz. Sürüm otomatik olarak feed içeriğinden çıkarılmaz.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum GtfsJpProfile {
+    #[default]
     Auto,
     V3,
     V4,
-}
-
-impl Default for GtfsJpProfile {
-    fn default() -> Self { Self::Auto }
 }
 
 impl GtfsJpProfile {
@@ -336,20 +348,8 @@ pub fn merge_delta(base: &ValidatorConfig, delta_json: &str) -> Result<Validator
         serde_json::from_str(delta_json).map_err(|e| format!("JSON parse hatası: {e}"))?;
 
     // Bilinmeyen anahtarları önce topla — Err durumunda hiçbir şey uygulanmaz.
-    let known: &[&str] = &[
-        "max_speed_bus_kmh", "max_speed_tram_kmh", "max_speed_metro_kmh",
-        "max_speed_rail_kmh", "max_speed_ferry_kmh", "max_speed_cablecar_kmh",
-        "min_transfer_time_sec", "max_transfer_distance_m", "max_shape_jump_km", "max_shape_jump_km_rail",
-        "stop_too_close_m", "stop_far_from_shape_m", "stop_far_from_shape_m_rail", "stop_far_from_parent_m", "feed_expiry_warning_days", "feed_info_expiry_warning_days",
-        "service_gap_days", "big_gap_days", "upcoming_service_days", "max_trip_duration_hours", "max_trip_duration_hours_rail", "min_trip_duration_sec",
-        "max_headway_warning_min", "max_headway_warning_min_rail", "service_day_window_hours_rail",
-        "bunching_threshold_min", "rail_stop_distance_km",
-        "max_trips_per_route", "duration_outlier_sigma", "headway_outlier_sigma", "service_day_start_hour",
-        "max_calendar_future_years", "source_url", "stop_name_best_practices", "rural_route_ids", "calendar_override_rules",
-        "gtfs_jp_profile",
-    ];
     let unknown: Vec<&str> = map.keys()
-        .filter(|k| !known.contains(&k.as_str()))
+        .filter(|k| !KNOWN_CONFIG_KEYS.contains(&k.as_str()))
         .map(String::as_str)
         .collect();
     if !unknown.is_empty() {

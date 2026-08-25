@@ -54,8 +54,10 @@ fn run(files: &[(&str, &[u8])]) -> ValidateResult {
 }
 
 fn run_with_profile(files: &[(&str, &[u8])], profile: GtfsJpProfile) -> ValidateResult {
-    let mut config = ValidatorConfig::default();
-    config.gtfs_jp_profile = profile;
+    let config = ValidatorConfig {
+        gtfs_jp_profile: profile,
+        ..ValidatorConfig::default()
+    };
     validate_bytes(&make_zip(files), &config, TODAY)
 }
 

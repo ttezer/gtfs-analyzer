@@ -1,6 +1,6 @@
 [package]
 name = "gtfs-pipeline"
-version = "0.9.7"
+version = "0.10.0"
 edition = "2021"
 license.workspace = true
 description = "GTFS Schedule validation engine for GTFS Analyzer. Pre-1.0 API; breaking changes may occur before 1.0."
@@ -9,9 +9,9 @@ keywords = ["gtfs", "transit", "validator", "parser"]
 categories = ["parser-implementations"]
 
 [dependencies]
-gtfs-core = { version = "0.9.7", path = "../core" }
-gtfs-rules = { version = "0.9.7", path = "../rules" }
-gtfs-config = { version = "0.9.7", path = "../config" }
+gtfs-core = { version = "0.10.0", path = "../core" }
+gtfs-rules = { version = "0.10.0", path = "../rules" }
+gtfs-config = { version = "0.10.0", path = "../config" }
 serde = { workspace = true }
 serde_json = { workspace = true }
 zip = { workspace = true }

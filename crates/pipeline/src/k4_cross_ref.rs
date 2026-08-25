@@ -3074,7 +3074,7 @@ fn check_gtfs_jp(
         .unwrap_or(false);
     let has_kana = records.translations.iter()
         .any(|t| t.language.eq_ignore_ascii_case("ja-Hrkt"));
-    let is_gtfs_jp = records.is_gtfs_jp.unwrap_or_else(|| {
+    let is_gtfs_jp = records.is_gtfs_jp.unwrap_or({
         // Compatibility path for direct/synthetic K4 callers that predate the
         // K2 signal field. The real K1→K2→K4 pipeline always carries Some(...).
         feed_lang_ja || has_kana || has_jp_file
@@ -5283,8 +5283,10 @@ mod tests {
         // sınadığı sentetik feed'i temsil eder. Üretim varsayılanı V4 olduğu için
         // legacy testlerinin profil niyeti burada açıkça belirtilmelidir; V4 davranışı
         // ayrıca `v4_profile_treats_v3_extension_files_as_reference_only` ile sınanır.
-        let mut records = EntityRecords::default();
-        records.gtfs_jp_profile = GtfsJpProfile::V3;
+        let records = EntityRecords {
+            gtfs_jp_profile: GtfsJpProfile::V3,
+            ..EntityRecords::default()
+        };
         (records, EntityMap::default())
     }
 

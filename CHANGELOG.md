@@ -58,6 +58,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   was fixed with it.
   Both are now guarded by tests that fail if the budget is reintroduced.
 
+## [0.10.0] - 2026-08-25
+
+### Added
+
+- **Rust/SDK config parity is checked in the SDK CI job.** The canonical Rust known-key
+  list and the typed `ValidatorConfigDelta` surface must contain the same 37 keys.
+
+### Changed
+
+- **Release versions are synchronized.** The Rust workspace, UI package and
+  `cargo install gtfs-analyzer` now use `0.10.0`; `gtfs-sdk` is `0.2.0` and embeds the
+  `0.10.0` engine.
+- **GTFS-JP K2 signal naming** now uses `signal_before_kana`, making the pre-kana
+  detection stage explicit in the translation path.
+
 ## [0.9.7] - 2026-08-20
 
 ### Added
