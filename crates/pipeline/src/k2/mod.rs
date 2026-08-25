@@ -358,7 +358,7 @@ pub fn validate_with_stream_limit(
             });
         let is_gtfs_jp = has_gtfs_jp_file || feed_lang_is_japanese || has_ja_hrkt_translation;
         let (translation_records, translation_notices) =
-            translations::validate_translations_with_profile(
+            translations::validate_translations_with_profile_and_signal(
                 file,
                 matches!(cfg.gtfs_jp_profile, GtfsJpProfile::V4),
                 is_gtfs_jp,
