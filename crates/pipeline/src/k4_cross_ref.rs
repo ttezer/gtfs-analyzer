@@ -430,6 +430,11 @@ fn append_jpn022_missing_records(
             let mut finding = findings.pop().expect("group contains one finding");
             finding.observed_value = Some("1".to_string());
             finding.expected_value = None;
+            let details = finding.details.get_or_insert_with(Default::default);
+            details.insert("affected_records".to_string(), "1".to_string());
+            if let Some(entity_id) = finding.entity_id.as_deref() {
+                details.insert("example_record_ids".to_string(), entity_id.to_string());
+            }
             finding.message = format!(
                 "GTFS-JP v4'te {file} içindeki {field} alanı 1 kayıtta eksik veya boş."
             );
@@ -7513,7 +7518,16 @@ mod tests {
         recs.agencies[0].agency_lang = None;
         recs.stops = vec![stop("S1")];
         let result = check(&recs, &EntityMap::default(), 20260824);
-        assert_eq!(result.notices.iter().filter(|n| n.rule_id == "JPN_022").count(), 5);
+        let findings = result.notices.iter().filter(|n| n.rule_id == "JPN_022").collect::<Vec<_>>();
+        assert_eq!(findings.len(), 5);
+        assert!(findings.iter().all(|finding| {
+            finding
+                .details
+                .as_ref()
+                .and_then(|details| details.get("affected_records"))
+                .map(String::as_str)
+                == Some("1")
+        }));
     }
 
     #[test]

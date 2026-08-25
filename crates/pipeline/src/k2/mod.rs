@@ -185,15 +185,34 @@ pub fn validate(files: RawFiles, zip_bytes: Option<&[u8]>, cfg: &ValidatorConfig
 /// SDK/WASM çağrısında stream edilen dört dosyaya config satır bütçesini de
 /// geçirir. Native uyumluluk için mevcut `validate` API'si sınırsız bırakılır.
 pub fn validate_with_stream_limit(
+    files: RawFiles,
+    zip_bytes: Option<&[u8]>,
+    cfg: &ValidatorConfig,
+    max_stream_rows: Option<usize>,
+) -> K2Result {
+    validate_with_stream_limit_and_jp_signal(files, zip_bytes, cfg, max_stream_rows, None)
+}
+
+/// K1 can know that a JP file exists even when K2 cannot parse/materialise it
+/// (for example after a decompression or stream-limit recovery decision). The
+/// optional signal keeps that physical-file fact aligned with K4 without
+/// changing the historical four-argument API above.
+pub fn validate_with_stream_limit_and_jp_signal(
     mut files: RawFiles,
     zip_bytes: Option<&[u8]>,
     cfg: &ValidatorConfig,
     max_stream_rows: Option<usize>,
+    has_gtfs_jp_file: Option<bool>,
 ) -> K2Result {
     use crate::timing::{Timer, mem_log};
     let mut notices = Vec::new();
     let mut records = EntityRecords::default();
     records.gtfs_jp_profile = cfg.gtfs_jp_profile;
+    // Capture physical JP files before any streaming/drop path. K4 receives
+    // the same signal from K1 in the full pipeline; direct K2 callers need the
+    // local inventory so translation strictness cannot diverge by entry point.
+    records.has_gtfs_jp_file = has_gtfs_jp_file
+        .unwrap_or_else(|| GTFS_JP_FILES.iter().any(|name| files.contains_key(*name)));
     let mut stream_budget = max_stream_rows.map(|_| StreamBudget::new(K2_MAX_STREAM_BYTES));
     mem_log("K2-start (=after-K1, K1 raw alive)");
     // #15 W2: stop_times EN SONA ertelenir — diğer tüm dosyalar parse edilip k1.files'in
@@ -342,8 +361,7 @@ pub fn validate_with_stream_limit(
         // The profile is an explicit user choice; the GTFS-JP signal is a
         // separate input. V4's stricter record_sub_id rule must not be applied
         // to an unrelated feed merely because V4 was selected in the UI/CLI.
-        let has_gtfs_jp_file = GTFS_JP_FILES.iter().any(|name| files.contains_key(*name));
-        let feed_lang_is_japanese = records.feed_info.iter().any(|feed_info| {
+        let feed_lang_is_japanese = records.feed_info.first().is_some_and(|feed_info| {
             feed_info.feed_lang.trim().to_ascii_lowercase().starts_with("ja")
         });
         let has_ja_hrkt_translation = file
@@ -356,7 +374,7 @@ pub fn validate_with_stream_limit(
                         .is_some_and(|value| value.trim().eq_ignore_ascii_case("ja-Hrkt"))
                 })
             });
-        let is_gtfs_jp = has_gtfs_jp_file || feed_lang_is_japanese || has_ja_hrkt_translation;
+        let is_gtfs_jp = records.has_gtfs_jp_file || feed_lang_is_japanese || has_ja_hrkt_translation;
         let (translation_records, translation_notices) =
             translations::validate_translations_with_profile_and_signal(
                 file,
