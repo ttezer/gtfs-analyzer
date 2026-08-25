@@ -118,7 +118,7 @@ pub struct EntityRecords {
     /// K2'nin tek GTFS-JP sinyali. K4 üretim yolunda bu alanı okur; doğrudan
     /// sentetik K4 çağrıları için yalnız envantersiz compatibility fallback'i
     /// kullanılır.
-    pub is_gtfs_jp: bool,
+    pub is_gtfs_jp: Option<bool>,
     /// `pattern_jp.txt` dosyasının mevcut olup olmadığını, boş olsa bile korur.
     pub has_pattern_jp_file: bool,
     pub pathways: Vec<PathwayRecord>,
@@ -292,10 +292,10 @@ pub fn validate_with_stream_limit_and_jp_signal(
         notices.extend(feed_info_notices);
     }
 
-    records.is_gtfs_jp = records.has_gtfs_jp_file
+    records.is_gtfs_jp = Some(records.has_gtfs_jp_file
         || records.feed_info.first().is_some_and(|feed_info| {
             feed_info.feed_lang.trim().to_ascii_lowercase().starts_with("ja")
-        });
+        }));
 
     if let Some(file) = files.get("fare_attributes.txt") {
         let _t = Timer::start("K2::fare_attributes");
@@ -380,12 +380,12 @@ pub fn validate_with_stream_limit_and_jp_signal(
                         .is_some_and(|value| value.trim().eq_ignore_ascii_case("ja-Hrkt"))
                 })
             });
-        records.is_gtfs_jp |= has_ja_hrkt_translation;
+        records.is_gtfs_jp = Some(records.is_gtfs_jp.unwrap_or(false) || has_ja_hrkt_translation);
         let (translation_records, translation_notices) =
             translations::validate_translations_with_profile(
                 file,
                 matches!(cfg.gtfs_jp_profile, GtfsJpProfile::V4),
-                records.is_gtfs_jp,
+                records.is_gtfs_jp.unwrap_or(false),
             );
         records.translations = translation_records;
         notices.extend(translation_notices);
