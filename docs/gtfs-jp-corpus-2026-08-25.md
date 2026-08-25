@@ -16,7 +16,7 @@ Ham JSONL çıktı repo dışındadır:
 |---|---:|
 | Seçilen JP feed | 592 |
 | JSON raporu üreten feed | 590 |
-| ZIP olmayan URL | 2 (`mdb-1057`, `mdb-874`) |
+| ZIP olmayan payload | 2 (`mdb-1057`, `mdb-874`) |
 | GTFS-JP rozeti | 585 |
 | GTFS-JP bulgusu üreten feed | 543 / 585 |
 | Toplam JPN bulgusu | 99.057 |
@@ -26,6 +26,41 @@ Ham JSONL çıktı repo dışındadır:
 | Ortalama Quality skoru (585 feed) | 74,405 |
 
 JPN bulgusu olan 543 feed'in ortalama genel skoru `93,415`, JPN bulgusu olmayan 42 feed'in ortalaması `94,686` oldu. Bu karşılaştırma nedensel etki iddiası değildir; gruplar aynı zamanda diğer Quality/Interop bulgularını da içerir.
+
+## Mutable `latest.zip` follow-up
+
+Manifestteki 592 feed kimliği aynı bırakılarak, aynı release binary ve aynı
+`--today 20260820` parametresiyle yeniden indirilen payload'lar karşılaştırıldı.
+Üç feed'in arşiv SHA-256'sı/byte sayısı değişmiş ve toplam notice/skor farkı
+yalnızca aşağıdaki kural değişimlerinden oluşmuştur:
+
+| Feed | Arşiv boyutu eski → yeni | Notice eski → yeni | Skor eski → yeni | Değişen kurallar |
+|---|---:|---:|---:|---|
+| `jbda-isecity-communitybus` | 69.188 → 69.206 B | 279 → 274 | 93,3 → 94,4 | CAL_008: 3→0; CAL_014: 1→0; OPR_012: 1→0 |
+| `jbda-komonotown-communitybus` | 34.834 → 34.852 B | 154 → 153 | 90,7 → 91,3 | CAL_007: 2→5; CAL_008: 3→0; CAL_014: 1→0 |
+| `mdb-3175` | 8.416.859 → 8.416.574 B | 1.857 → 1.858 | 86,6 → 86,6 | CAL_024: 57→58 |
+
+Bu üç feed'de JPN kural dağılımı değişmemiştir. Ayrıntılı tekrar koşusu
+[`three-feed-recheck-20260825/summary.json`](/Users/tacettintezer/GTFS/run13-artifacts/three-feed-recheck-20260825/summary.json)
+altındadır.
+
+## `not_zip` kayıtlarının resmî kaynakla doğrulanması
+
+`mdb-1057` ve `mdb-874` MobilityDatabase kayıtları gerçek GTFS Schedule
+feed'leridir; katalogdaki eski `latest.zip` yolları sırasıyla HTML 404 ve
+taşınmış bir HTML sayfası döndürmüştür. Bu nedenle ilk koşudaki iki satır
+“feed değil” olarak yorumlanmamalıdır. Resmî kaynaklardan ayrı bir doğrulama
+koşusu yapıldı:
+
+| Feed | Resmî payload | Toplam notice | JPN notice | Skor |
+|---|---|---:|---:|---:|
+| `mdb-1057` | [Fukuoka Municipal Ferry GTFS](https://www.city.fukuoka.lg.jp/kowan/kyakusen/shisei/shieitosen_opendata.html) | 607 | 155 | 78,0 |
+| `mdb-874` | [Aomori City Bus GTFS-JP](https://aomoricitybus.com/opendata/index.html) | 6.838 | 5.006 | 88,2 |
+
+Bu iki resmî kaynak sonucu ilk 592'lik aggregate'a geriye dönük olarak
+eklenmemiştir; farklı URL/snapshot olduğu için ayrı follow-up olarak tutulur.
+Ham çıktı:
+[`mdb-1057-mdb-874-official-20260825.json`](/Users/tacettintezer/GTFS/run13-artifacts/mdb-1057-mdb-874-official-20260825.json).
 
 ## JPN kural dağılımı
 
@@ -49,7 +84,7 @@ Bu koşumda JPN_012, JPN_005, JPN_007, JPN_014, JPN_015, JPN_017, JPN_020 ve JPN
 
 ## Sınırlar
 
-- Manifest feed kimlikleri aynıdır; `latest.zip` URL'leri yeniden indirildiği için arşiv byte'larının tamamının aynı olduğu varsayılmaz.
+- Manifest feed kimlikleri aynıdır; `latest.zip` URL'leri yeniden indirildiği için arşiv byte'larının tamamının aynı olduğu varsayılmaz. Ürün karşılaştırmaları payload SHA-256 drift'i ile birlikte okunmalıdır.
 - Bu ölçüm yalnız GTFS Analyzer sonuçlarını yeniler; MobilityData Validator yeniden koşturulmamıştır.
-- ZIP olmayan iki satır skor veya kural dağılımına dahil edilmemiştir.
+- ZIP olmayan iki payload ilk aggregate'ta skor veya kural dağılımına dahil edilmemiştir; gerçek feed oldukları resmî kaynak follow-up'ında doğrulanmıştır.
 - v4 runtime kuralı uygulanmamıştır; sonuçlar GTFS-JP v3 kapsamındaki mevcut kuralların ölçümüdür.
