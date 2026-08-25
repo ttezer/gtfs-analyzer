@@ -2,7 +2,7 @@
 
 🇹🇷 [Türkçe](RULES.md) · 🇬🇧 [English](RULES.en.md) · 🇯🇵 **日本語**
 
-610ルール、38グループ。各ルールは一意のID、重要度、クラスで定義されます。
+611ルール、38グループ。各ルールは一意のID、重要度、クラスで定義されます。
 重要度: **致命的**（公開ブロッカー）· **高** · **中** · **低** · **情報**
 クラス: **仕様**（GTFS妥当性）· **相互運用**（GTFSインターオペラビリティ）· **品質**（GTFS品質）· **分析**（GTFSアナリティクス）
 
@@ -801,9 +801,10 @@
 | JPN_013 | GTFS-JP：agency_zip_number の形式が無効 | 中 | 品質 |
 | JPN_014 | GTFS-JP：office_jp の office_id が欠如または重複 | 高 | 相互運用 |
 | JPN_015 | GTFS-JP legacy：routes_jp の route_id が無効 | 高 | 相互運用 |
-| JPN_016 | GTFS-JP：pattern_jp または旧版 routes_jp の route_update_date が無効 | 中 | 品質 |
+| JPN_016 | GTFS-JP：pattern_jp／旧版 routes_jp の route_update_date が無効 | 中 | 品質 |
 | JPN_017 | GTFS-JP：jp_pattern_id が欠如または重複 | 高 | 相互運用 |
 | JPN_018 | GTFS-JP：jp_pattern_id が未定義 | 高 | 相互運用 |
 | JPN_019 | GTFS-JP：かな翻訳の参照が無効 | 中 | 相互運用 |
 | JPN_020 | GTFS-JP：営業所連絡先の形式が不審 | 中 | 品質 |
 | JPN_021 | GTFS-JP：かな翻訳が不整合 | 中 | 品質 |
+| JPN_022 | GTFS-JP v4：必須コアフィールドが不足 | 中 | 相互運用 |

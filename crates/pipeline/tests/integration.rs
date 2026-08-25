@@ -535,7 +535,7 @@ fn trp_019_silent_when_no_continuous_service() {
 fn trp_019_fires_when_stop_time_enables_continuous_service() {
     const STOP_TIMES_CONTINUOUS: &[u8] =
         b"trip_id,arrival_time,departure_time,stop_id,stop_sequence,continuous_drop_off\n\
-          T1,08:00:00,08:00:00,S1,1,1\nT1,08:10:00,08:10:00,S2,2,1\n";
+          T1,08:00:00,08:00:00,S1,1,2\nT1,08:10:00,08:10:00,S2,2,2\n";
 
     let mut files = base_files();
     files[4] = ("stop_times.txt", STOP_TIMES_CONTINUOUS);

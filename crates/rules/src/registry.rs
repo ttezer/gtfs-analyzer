@@ -1841,6 +1841,8 @@ pub static RULES: &[RuleMeta] = &[
         "GTFS-JP: office_url veya office_phone biçimi şüpheli"),
     r!("JPN_021", Orta, Quality, 2, &[], Some("record_id"), VS, Entity,
         "GTFS-JP: kana çevirisi boş, çakışmalı veya tutarsız"),
+    r!("JPN_022", Orta, Interop, 1, &[], None, VI, Feed,
+        "GTFS-JP v4: ana alan zorunluluğu eksik"),
 ];
 
 /// `RULES` üzerinden id → metadata için tek seferlik kurulan O(1) arama tablosu.
@@ -2122,6 +2124,7 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("JPN_019", RegionalProfile),
     ("JPN_020", ProjectQuality),
     ("JPN_021", ProjectQuality),
+    ("JPN_022", RegionalProfile),
     ("LOC_001", GtfsSpec),
     ("LOC_002", GtfsSpec),
     ("LOC_003", GtfsSpec),

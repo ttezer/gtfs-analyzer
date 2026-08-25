@@ -1147,6 +1147,7 @@ const ja: LocaleShape = {
     'JPN_019': 'GTFS-JPのかな翻訳が無効なフィールド、レコード、またはサブレコードを参照しています。',
     'JPN_020': "営業所'{entity_id}'：office_url または office_phone の形式が不審です。",
     'JPN_021': 'GTFS-JPのかな翻訳が空、競合、または不整合です。',
+    'JPN_022': 'GTFS-JP v4の必須コアフィールドが不足しています。',
   } as Record<string, string>,
 
   ruleRemediations: {
@@ -1749,6 +1750,7 @@ const ja: LocaleShape = {
     'JPN_019': 'ja-Hrkt翻訳のtable_name、field_name、record_id、record_sub_idを修正してください。',
     'JPN_020': '有効なhttp/httpsのoffice_urlと、発信可能なoffice_phoneを設定してください。',
     'JPN_021': '各翻訳対象に一貫した日本語かな翻訳を1つ設定してください。',
+    'JPN_022': 'GTFS-JP v4で必須のコアフィールドを入力してください。',
     // XFL
     'XFL_002': 'この便のstop_timesレコードを追加してください。',
     'XFL_006': 'calendar_dates.txtにexception_type=1のレコードを追加するか、calendar.txtでサービスを定義してください。',
@@ -2411,6 +2413,7 @@ const ja: LocaleShape = {
     'JPN_019': 'GTFS-JP：かな翻訳の参照が無効',
     'JPN_020': 'GTFS-JP：営業所連絡先の形式が不審',
     'JPN_021': 'GTFS-JP：かな翻訳が不整合',
+    'JPN_022': 'GTFS-JP v4：必須コアフィールドが不足',
   } as Record<string, string>,
 };
 

@@ -2,7 +2,7 @@
 
 🇹🇷 [Türkçe](RULES.md) · 🇬🇧 **English** · 🇯🇵 [日本語](RULES.ja.md)
 
-610 rules, 38 groups. Each rule is identified by a unique ID, severity level, and class.
+611 rules, 38 groups. Each rule is identified by a unique ID, severity level, and class.
 Severity levels: **CRITICAL** (publish blocker) · **HIGH** · **MEDIUM** · **LOW** · **INFO**
 Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Quality** (GTFS Quality) · **Analytics** (GTFS Analytics)
 
@@ -807,3 +807,4 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | JPN_019 | GTFS-JP: kana translation reference invalid | MEDIUM | Interop |
 | JPN_020 | GTFS-JP: office contact format suspicious | MEDIUM | Quality |
 | JPN_021 | GTFS-JP: kana translation inconsistent | MEDIUM | Quality |
+| JPN_022 | GTFS-JP v4: required core field missing | MEDIUM | Interop |

@@ -824,6 +824,12 @@ fn fixtures() -> Vec<Fixture> {
         fx("JPN_021", vec![
             ("translations.txt", "table_name,field_name,language,translation,record_id\nstops,stop_name,ja-Hrkt,とうきょう,S1\nstops,stop_name,ja-Hrkt,トウキョウ,S1\n"),
         ]),
+        // JPN_022: GTFS-JP v4'te agency_lang, location_type ve feed_info ana alanları eksik.
+         fx("JPN_022", vec![
+         ("agency.txt", "agency_id,agency_name,agency_url,agency_timezone,agency_lang\n1,Test,http://test.example,UTC,\n"),
+         ("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop,35.0,139.0\n"),
+         ("feed_info.txt", "feed_publisher_name,feed_publisher_url,feed_lang\nPub,https://x.example,ja\n"),
+     ]),
 
         // ── LOC grubu (locations.geojson; k1_parse::validate_locations_geojson) ─
         // LOC_001: geçersiz JSON.

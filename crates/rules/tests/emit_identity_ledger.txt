@@ -1,4 +1,4 @@
-# Bir rule_id'nin BİRBİRİYLE HİÇ ORTAK ALANI OLMAYAN emit noktaları. 10 kural.
+# Bir rule_id'nin BİRBİRİYLE HİÇ ORTAK ALANI OLMAYAN emit noktaları. 11 kural.
 # Biçim: RULE_ID  dosya:alan+alan  dosya:alan
 #
 # Ayrık küme = kural muhtemelen İKİ FARKLI OLGU için kullanılıyor. Bazıları
@@ -12,6 +12,7 @@ AGN_013  k4_cross_ref.rs:agency_lang  mod.rs:feed_lang
 BKR_001  booking_rules.rs:prior_notice_last_day  booking_rules.rs:prior_notice_start_day
 DQ_018  k6_analytics.rs:agency_name  k6_analytics.rs:feed_publisher_name  k6_analytics.rs:route_desc  k6_analytics.rs:route_long_name  k6_analytics.rs:stop_headsign  k6_analytics.rs:stop_name  k6_analytics.rs:trip_headsign
 DQ_019  k6_analytics.rs:agency_name  k6_analytics.rs:feed_publisher_name  k6_analytics.rs:route_desc  k6_analytics.rs:route_long_name  k6_analytics.rs:stop_headsign  k6_analytics.rs:stop_name  k6_analytics.rs:trip_headsign
+JPN_022  k4_cross_ref.rs:agency_lang  k4_cross_ref.rs:location_type
 OPR_010  k6_analytics.rs:bikes_allowed  k6_analytics.rs:wheelchair_accessible
 SHP_009  k6_analytics.rs:affected_shapes+example_shapes  k6_analytics.rs:repeated_shapes
 SHP_020  k6_analytics.rs:affected_shapes+example_shapes  k6_analytics.rs:repeated_shapes

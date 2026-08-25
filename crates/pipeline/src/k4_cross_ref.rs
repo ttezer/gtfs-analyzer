@@ -3269,6 +3269,83 @@ fn check_gtfs_jp(
         }
     }
 
+    // ── JPN_022: GTFS-JP v4 ana alan zorunluluğu ─────────────────────────────
+    // V4, v3'te sabit/opsiyonel olan bazı alanları açıkça zorunlu kılar. Dolu
+    // değerlerin biçim ve anlam denetimi genel GTFS kurallarında kalır; bu kural
+    // yalnız eksik/boş değerleri, profil seçimi V4 iken görünür kılar.
+    if is_gtfs_jp && matches!(records.gtfs_jp_profile, GtfsJpProfile::V4) {
+        for agency in &records.agencies {
+            if agency.agency_lang.as_deref().is_none_or(|value| value.trim().is_empty()) {
+                notices.push(notice(
+                    ctr,
+                    "JPN_022",
+                    EntityType::Agency,
+                    agency.agency_id.clone(),
+                    agency.agency_id.clone(),
+                    "agency.txt",
+                    Some(agency.line),
+                    Some("agency_lang"),
+                    None,
+                    None,
+                    "GTFS-JP v4'te agency_lang zorunludur ancak değer eksik.".to_string(),
+                    "agency.txt'teki agency_lang alanını doldurun.",
+                ));
+            }
+        }
+
+        // V4 makes stops.location_type Required. The base GTFS parser keeps the
+        // v3-compatible default (missing/blank means a regular stop), so only a
+        // genuinely missing/blank column is reported here; a non-numeric value
+        // remains the responsibility of STP_008 and must not be double-reported.
+        for stop in &records.stops {
+            let raw_location_type = stop.row.get("location_type").map(String::as_str);
+            if stop.location_type.is_none()
+                && raw_location_type.is_none_or(|value| value.trim().is_empty())
+            {
+                notices.push(notice(
+                    ctr,
+                    "JPN_022",
+                    EntityType::Stop,
+                    Some(stop.stop_id.clone()),
+                    Some(stop.stop_id.clone()),
+                    "stops.txt",
+                    Some(stop.line),
+                    Some("location_type"),
+                    None,
+                    None,
+                    "GTFS-JP v4'te location_type zorunludur ancak değer eksik.".to_string(),
+                    "stops.txt'teki her durak için location_type değerini 0, 1, 2, 3 veya 4 olarak belirtin.",
+                ));
+            }
+        }
+
+        if let Some(feed_info) = records.feed_info.first() {
+            let required_fields = [
+                ("feed_start_date", feed_info.feed_start_date.is_none()),
+                ("feed_end_date", feed_info.feed_end_date.is_none()),
+                ("feed_version", feed_info.feed_version.as_deref().is_none_or(|value| value.trim().is_empty())),
+            ];
+            for (field, missing) in required_fields {
+                if missing {
+                    notices.push(notice(
+                        ctr,
+                        "JPN_022",
+                        EntityType::Feed,
+                        None,
+                        None,
+                        "feed_info.txt",
+                        Some(feed_info.line),
+                        Some(field),
+                        None,
+                        None,
+                        format!("GTFS-JP v4'te {field} zorunludur ancak değer eksik."),
+                        "feed_info.txt'teki ilgili zorunlu alanı doldurun.",
+                    ));
+                }
+            }
+        }
+    }
+
     if legacy_v3_extensions {
     // ── JPN_005: office_jp.office_name zorunlu (boş olamaz) ──
     // Kapı: office_jp.txt mevcut. office_id'si dolu ama office_name'i boş/eksik satırlar işaretlenir.
@@ -3578,6 +3655,23 @@ fn check_gtfs_jp(
                     (Some(_), None) | (None, None) => true,
                     // A sub-record cannot identify a stop_times row without its trip.
                     (None, Some(_)) => false,
+                }
+            } else if matches!(records.gtfs_jp_profile, GtfsJpProfile::V4) {
+                match (
+                    translation.table_name.as_str(),
+                    translation.record_id.as_deref(),
+                    translation.record_sub_id.as_deref(),
+                ) {
+                    // V4 uses the literal NONE for record-level translations.
+                    ("agency" | "stops" | "routes" | "trips", Some(_), Some(value)) =>
+                        crate::k2::translations::is_none_record_sub_id(value),
+                    ("agency" | "stops" | "routes" | "trips", Some(_), None) => false,
+                    // field_value mode has no record identity or sub-record identity.
+                    (_, None, None) => true,
+                    (_, None, Some(_)) => false,
+                    // Other record-level tables must not carry a sub-record id.
+                    (_, Some(_), None) => true,
+                    (_, Some(_), Some(_)) => false,
                 }
             } else {
                 translation.record_sub_id.as_deref().is_none_or(|value| {
@@ -5097,6 +5191,7 @@ mod tests {
     use crate::k2::calendar::CalendarRecord;
     use crate::k2::fare_attributes::FareAttributeRecord;
     use crate::k2::fare_rules::FareRuleRecord;
+    use crate::k2::feed_info::FeedInfoRecord;
     use crate::k2::frequencies::FrequencyRecord;
     use crate::k2::levels::LevelRecord;
     use crate::k2::office_jp::OfficeJpRecord;
@@ -7311,6 +7406,49 @@ mod tests {
         let result = check(&recs, &EntityMap::default(), 20260824);
         assert!(!result.notices.iter().any(|n| n.rule_id == "JPN_019"),
             "GTFS-JP v3'te NONE gerçek alt kimlik sayılmamalı: {:?}", result.notices);
+    }
+
+    #[test]
+    fn jpn_019_v4_requires_none_for_record_id_translation() {
+        let (mut recs, _map) = empty();
+        recs.gtfs_jp_profile = GtfsJpProfile::V4;
+        recs.stops = vec![stop("S1")];
+        let mut translation = TranslationRecord {
+            table_name: "stops".into(), field_name: "stop_name".into(), language: "ja-Hrkt".into(),
+            translation: "とうきょう".into(), record_id: Some("S1".into()), record_sub_id: None,
+            field_value: None, row: Default::default(), line: 7,
+        };
+        recs.translations = vec![translation.clone()];
+        let missing = check(&recs, &EntityMap::default(), 20260824);
+        assert!(missing.notices.iter().any(|n| n.rule_id == "JPN_019"));
+
+        translation.record_sub_id = Some("NONE".into());
+        recs.translations = vec![translation];
+        let valid = check(&recs, &EntityMap::default(), 20260824);
+        assert!(!valid.notices.iter().any(|n| n.rule_id == "JPN_019"));
+    }
+
+    #[test]
+    fn v4_reports_missing_core_required_fields_for_gtfs_jp() {
+        let (mut recs, _map) = empty();
+        recs.gtfs_jp_profile = GtfsJpProfile::V4;
+        recs.feed_info = vec![FeedInfoRecord {
+            feed_publisher_name: "Pub".into(),
+            feed_publisher_url: "https://example.com".into(),
+            feed_lang: "ja".into(),
+            feed_start_date: None,
+            feed_end_date: None,
+            feed_version: None,
+            feed_contact_email: None,
+            feed_contact_url: None,
+            row: Default::default(),
+            line: 2,
+        }];
+        recs.agencies = vec![agency_tz("A1", "UTC")];
+        recs.agencies[0].agency_lang = None;
+        recs.stops = vec![stop("S1")];
+        let result = check(&recs, &EntityMap::default(), 20260824);
+        assert_eq!(result.notices.iter().filter(|n| n.rule_id == "JPN_022").count(), 5);
     }
 
     #[test]

@@ -2,7 +2,7 @@
 
 🇹🇷 **Türkçe** · 🇬🇧 [English](RULES.en.md) · 🇯🇵 [日本語](RULES.ja.md)
 
-610 kural, 38 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
+611 kural, 38 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
 Önem seviyeleri: **KRİTİK** (yayın engelleyici) · **YÜKSEK** · **ORTA** · **DÜŞÜK** · **BİLGİ**
 Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · **Quality** (GTFS Kalitesi) · **Analytics** (GTFS Analitiği)
 
@@ -807,3 +807,4 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | JPN_019 | GTFS-JP: kana çevirisinin kaydı veya alt kaydı geçersiz | ORTA | Interop |
 | JPN_020 | GTFS-JP: office_url veya office_phone biçimi şüpheli | ORTA | Quality |
 | JPN_021 | GTFS-JP: kana çevirisi boş, çakışmalı veya tutarsız | ORTA | Quality |
+| JPN_022 | GTFS-JP v4: ana alan zorunluluğu eksik | ORTA | Interop |

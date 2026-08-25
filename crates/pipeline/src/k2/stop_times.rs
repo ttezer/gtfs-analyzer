@@ -2016,8 +2016,8 @@ pub fn validate_stop_times_with_limits(
                 st.stop_first_line.entry(stop_smol).or_insert(line);
                 // stop_idx_set kaldırıldı; trip_stop_set finalize sonrası rows'dan inşa edilir
             }
-            if matches!(continuous_pickup, Some(0) | Some(1))
-                || matches!(continuous_drop_off, Some(0) | Some(1))
+            if matches!(continuous_pickup, Some(0) | Some(2) | Some(3))
+                || matches!(continuous_drop_off, Some(0) | Some(2) | Some(3))
             {
                 agg.continuous = true;
             }

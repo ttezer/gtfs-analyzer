@@ -1166,6 +1166,7 @@ const en: LocaleShape = {
     'JPN_019': "GTFS-JP kana translation points to an invalid field, record, or sub-record.",
     'JPN_020': "Office '{entity_id}': office_url or office_phone has a suspicious format.",
     'JPN_021': 'GTFS-JP kana translations are empty, conflicting, or inconsistent.',
+    'JPN_022': 'GTFS-JP v4 is missing a required core field.',
     // v0.1.4: rules that had no dictionary entry (SDK English output)
     'ARC_026': "Line endings in '{entity_id}' are neither CRLF nor LF.",
     'ARC_027': "The ZIP entry '{entity_id}' does not grant user read permission.",
@@ -1381,6 +1382,7 @@ const en: LocaleShape = {
     'JPN_019': 'Correct the ja-Hrkt translation table, field, record_id, and record_sub_id references.',
     'JPN_020': 'Use a valid http/https office_url and a dialable office_phone number.',
     'JPN_021': 'Keep one consistent Japanese kana translation for each target and use Japanese characters.',
+    'JPN_022': 'Fill in the required GTFS-JP v4 core field.',
     // AGN
     'AGN_002': 'Fill in the agency_name field.',
     'AGN_003': 'Enter a valid http/https URL for agency_url.',
@@ -2524,6 +2526,7 @@ const en: LocaleShape = {
     'JPN_019': 'GTFS-JP: kana translation reference invalid',
     'JPN_020': 'GTFS-JP: office contact format suspicious',
     'JPN_021': 'GTFS-JP: kana translation inconsistent',
+    'JPN_022': 'GTFS-JP v4: required core field missing',
   },
 };
 
