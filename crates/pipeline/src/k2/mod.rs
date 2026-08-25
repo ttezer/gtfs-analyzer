@@ -74,7 +74,7 @@ use stop_times::{validate_stop_times_with_limits, StopTimeRecord, StreamBudget, 
 pub use stop_times::{CompactStopTime, StopTimesIndex};
 use timeframes::{validate_timeframes, TimeframeRecord};
 use transfers::{validate_transfers, TransferRecord};
-use translations::{validate_translations, TranslationRecord};
+use translations::TranslationRecord;
 use trips::{validate_trips_with_limits, TripRecord, TripInternTable};
 use rustc_hash::FxHashMap;
 
@@ -339,7 +339,11 @@ pub fn validate_with_stream_limit(
 
     if let Some(file) = files.get("translations.txt") {
         let _t = Timer::start("K2::translations");
-        let (translation_records, translation_notices) = validate_translations(file);
+        let (translation_records, translation_notices) =
+            translations::validate_translations_with_profile(
+                file,
+                matches!(cfg.gtfs_jp_profile, GtfsJpProfile::V4),
+            );
         records.translations = translation_records;
         notices.extend(translation_notices);
     }

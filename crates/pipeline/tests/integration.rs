@@ -128,6 +128,36 @@ fn v4_required_field_findings_survive_feed_pipeline_dedup() {
     }
 }
 
+#[test]
+fn v4_rejects_none_record_sub_id_in_general_and_jp_rules() {
+    let mut files = base_files();
+    files.push((
+        "feed_info.txt",
+        b"feed_publisher_name,feed_publisher_url,feed_lang\nTest,http://test.example,ja\n",
+    ));
+    files.push((
+        "translations.txt",
+        b"table_name,field_name,language,translation,record_id,record_sub_id\n\
+          stops,stop_name,ja-Hrkt,\xE3\x81\xA8\xE3\x81\x86\xE3\x81\x8D\xE3\x82\x87\xE3\x81\x86,S1,NONE\n",
+    ));
+
+    match run_with_profile(&files, GtfsJpProfile::V4) {
+        ValidateResult::Ok(vr) => {
+            assert!(vr.notices.iter().any(|n| n.rule_id == "TRN_014"));
+            assert!(vr.notices.iter().any(|n| n.rule_id == "JPN_019"));
+        }
+        other => panic!("ValidateResult::Ok beklendi, alınan: {other:?}"),
+    }
+
+    match run_with_profile(&files, GtfsJpProfile::Auto) {
+        ValidateResult::Ok(vr) => {
+            assert!(!vr.notices.iter().any(|n| n.rule_id == "TRN_014"));
+            assert!(!vr.notices.iter().any(|n| n.rule_id == "JPN_019"));
+        }
+        other => panic!("ValidateResult::Ok beklendi, alınan: {other:?}"),
+    }
+}
+
 const LEGACY_TRANSLATIONS: &[u8] =
     b"trans_id,lang,translation\n1,EN,Example\n2,HE,\xD7\x93\xD7\x95\xD7\x92\xD7\x9E\xD7\x94\n";
 

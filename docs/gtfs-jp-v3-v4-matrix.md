@@ -20,14 +20,14 @@ JSON config delta: `{"gtfs_jp_profile":"v4"}`. WASM tarafında aynı alan mevcut
 
 592 JP feed aynı manifestten, yalnızca `--gtfs-jp-profile v4` açık seçimiyle yeniden
 koşturuldu. 588 sonuç `ok`, 2 sonuç `fatal`, 2 sonuç ise kısmi çıktı verdi; V4
-profilinde 583 feed GTFS-JP sinyali taşıdı. İki kritik ölçüm:
+ profilinde 585 feed GTFS-JP sinyali taşıdı. İki kritik ölçüm:
 
 | Kural | Feed | Bulgu | Yorum |
 |---|---:|---:|---|
 | JPN_019 | 1 | 1 | Boş `record_sub_id` kullanan geçerli V4 çevirileri artık yanlış alarm üretmiyor. |
-| JPN_022 | 16 | 2.473 | Alan bazlı dedup korunuyor; eksik `location_type` satırları ayrı bulgu olarak kalıyor. |
+| JPN_022 | 16 | 16 | Alan bazlı dedup korunuyor; aynı dosya/alandaki çoklu eksiklikler tek feed özetiyle, tekil eksiklikler satır bilgisiyle raporlanıyor. |
 
-Ham sonuç: `/Users/tacettintezer/GTFS/run14-artifacts/jp-v4-fixed-20260825.summary.json`.
+Ham sonuç: `/Users/tacettintezer/GTFS/run14-artifacts/jp-v4-aggregated-20260825.summary.json`.
 Bu ölçüm varsayılan davranışı değiştirmez; `auto` profili hâlâ v3/legacy davranışını
 korur ve feed sürümünü otomatik iddia etmez.
 

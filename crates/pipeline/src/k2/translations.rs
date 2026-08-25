@@ -50,6 +50,16 @@ pub struct TranslationRecord {
 pub fn validate_translations(
     file: &RawFile,
 ) -> (Vec<TranslationRecord>, Vec<gtfs_core::Notice>) {
+    validate_translations_with_profile(file, false)
+}
+
+/// V4 turns `record_sub_id` into a strict GTFS field: it is only allowed for
+/// `stop_times`. Keep the legacy wrapper above for callers that do not carry a
+/// profile, while the production K2 path supplies the explicit V4 choice.
+pub fn validate_translations_with_profile(
+    file: &RawFile,
+    is_v4_profile: bool,
+) -> (Vec<TranslationRecord>, Vec<gtfs_core::Notice>) {
     let mut notices = Vec::new();
     let mut records = Vec::new();
     let mut counter = 0;
@@ -283,9 +293,9 @@ pub fn validate_translations(
         }
 
         if table_name != "stop_times"
-            && record_sub_id
-                .as_deref()
-                .is_some_and(|value| !is_none_record_sub_id(value))
+            && record_sub_id.as_deref().is_some_and(|value| {
+                is_v4_profile || !is_none_record_sub_id(value)
+            })
         {
             notices.push(make_k2_notice(
                 &mut counter,
@@ -382,5 +392,15 @@ mod tests {
         );
         let (_, notices) = validate_translations(&file);
         assert!(!notices.iter().any(|n| n.rule_id == "TRN_014"), "{notices:?}");
+    }
+
+    #[test]
+    fn v4_none_record_sub_id_is_trn_014() {
+        let file = make_file(
+            vec!["table_name", "field_name", "language", "translation", "record_id", "record_sub_id"],
+            vec![vec!["stops", "stop_name", "ja-Hrkt", "とうきょう", "S1", "NONE"]],
+        );
+        let (_, notices) = validate_translations_with_profile(&file, true);
+        assert!(notices.iter().any(|n| n.rule_id == "TRN_014"), "{notices:?}");
     }
 }

@@ -93,12 +93,12 @@ olarak V4 yapılmasının etkisini ölçmek için aynı 592 feed, bu kez açık
 | `ok` sonuç | 588 |
 | `fatal` sonuç | 2 |
 | Kısmi çıktı | 2 |
-| GTFS-JP rozeti | 583 |
+| GTFS-JP rozeti | 585 |
 | JPN_019 | 1 feed / 1 bulgu |
-| JPN_022 | 16 feed / 2.473 bulgu |
+| JPN_022 | 16 feed / 16 bulgu |
 
 Ham follow-up özeti:
-[`jp-v4-fixed-20260825.summary.json`](/Users/tacettintezer/GTFS/run14-artifacts/jp-v4-fixed-20260825.summary.json).
+[`jp-v4-aggregated-20260825.summary.json`](/Users/tacettintezer/GTFS/run14-artifacts/jp-v4-aggregated-20260825.summary.json).
 V4 açıkça seçilmediğinde bu sonuçlar uygulanmaz; araç feed içeriğinden v3/v4
 çıkarımı yapmaz.
 
@@ -107,4 +107,4 @@ V4 açıkça seçilmediğinde bu sonuçlar uygulanmaz; araç feed içeriğinden 
 - Manifest feed kimlikleri aynıdır; `latest.zip` URL'leri yeniden indirildiği için arşiv byte'larının tamamının aynı olduğu varsayılmaz. Ürün karşılaştırmaları payload SHA-256 drift'i ile birlikte okunmalıdır.
 - Bu ölçüm yalnız GTFS Analyzer sonuçlarını yeniler; MobilityData Validator yeniden koşturulmamıştır.
 - ZIP olmayan iki payload ilk aggregate'ta skor veya kural dağılımına dahil edilmemiştir; gerçek feed oldukları resmî kaynak follow-up'ında doğrulanmıştır.
-- v4 runtime kuralı uygulanmamıştır; sonuçlar GTFS-JP v3 kapsamındaki mevcut kuralların ölçümüdür.
+- Ana aggregate v4 runtime profili olmadan alınmıştır; aşağıdaki açık V4 follow-up'ı ayrı bir koşum olarak v4 kurallarını ölçer.

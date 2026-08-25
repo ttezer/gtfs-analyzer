@@ -411,6 +411,57 @@ fn notice(
     notice
 }
 
+fn append_jpn022_missing_records(
+    notices: &mut Vec<Notice>,
+    _ctr: &mut u32,
+    pending: Vec<Notice>,
+) {
+    let mut grouped: std::collections::BTreeMap<(String, String), Vec<Notice>> =
+        std::collections::BTreeMap::new();
+    for finding in pending {
+        let key = (
+            finding.file.clone().unwrap_or_default(),
+            finding.field.clone().unwrap_or_default(),
+        );
+        grouped.entry(key).or_default().push(finding);
+    }
+
+    for ((file, field), mut findings) in grouped {
+        if findings.len() == 1 {
+            notices.push(findings.pop().expect("group contains one finding"));
+            continue;
+        }
+
+        let affected = findings.len();
+        let examples = findings
+            .iter()
+            .filter_map(|finding| finding.entity_id.as_deref())
+            .take(5)
+            .map(str::to_string)
+            .collect::<Vec<_>>();
+        let mut summary = findings.remove(0);
+        summary.entity_type = EntityType::Feed;
+        summary.entity_id = None;
+        summary.scope_key = None;
+        summary.line = None;
+        summary.observed_value = Some(affected.to_string());
+        summary.expected_value = Some("required and non-empty".to_string());
+        summary.message = format!(
+            "GTFS-JP v4'te {file} içindeki {field} alanı {affected} kayıtta eksik veya boş."
+        );
+        summary.remediation = format!(
+            "{file} içindeki ilgili zorunlu alanı tüm kayıtlar için doldurun."
+        );
+        let mut details = std::collections::BTreeMap::new();
+        details.insert("affected_records".to_string(), affected.to_string());
+        if !examples.is_empty() {
+            details.insert("example_record_ids".to_string(), examples.join(", "));
+        }
+        summary.details = Some(details);
+        notices.push(summary);
+    }
+}
+
 // �"?�"? Yardımcı: ham row alanı �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?
 
 fn row_field<'a>(row: &'a HashMap<String, String>, key: &str) -> &'a str {
@@ -3274,9 +3325,10 @@ fn check_gtfs_jp(
     // değerlerin biçim ve anlam denetimi genel GTFS kurallarında kalır; bu kural
     // yalnız eksik/boş değerleri, profil seçimi V4 iken görünür kılar.
     if is_gtfs_jp && matches!(records.gtfs_jp_profile, GtfsJpProfile::V4) {
+        let mut jpn022_pending = Vec::new();
         for agency in &records.agencies {
             if agency.agency_lang.as_deref().is_none_or(|value| value.trim().is_empty()) {
-                notices.push(notice(
+                jpn022_pending.push(notice(
                     ctr,
                     "JPN_022",
                     EntityType::Agency,
@@ -3302,7 +3354,7 @@ fn check_gtfs_jp(
             if stop.location_type.is_none()
                 && raw_location_type.is_none_or(|value| value.trim().is_empty())
             {
-                notices.push(notice(
+                jpn022_pending.push(notice(
                     ctr,
                     "JPN_022",
                     EntityType::Stop,
@@ -3318,6 +3370,13 @@ fn check_gtfs_jp(
                 ));
             }
         }
+
+        // A missing/blank required column is a file/field defect, not a distinct
+        // defect for every affected row. Keep one-row cases pinpointed, but turn
+        // repeated findings for the same file+field into one feed summary with
+        // the affected-record count. This prevents v4 from producing thousands
+        // of indistinguishable location_type notices on ordinary GTFS feeds.
+        append_jpn022_missing_records(notices, ctr, jpn022_pending);
 
         if let Some(feed_info) = records.feed_info.first() {
             let required_fields = [
@@ -7450,6 +7509,38 @@ mod tests {
         recs.stops = vec![stop("S1")];
         let result = check(&recs, &EntityMap::default(), 20260824);
         assert_eq!(result.notices.iter().filter(|n| n.rule_id == "JPN_022").count(), 5);
+    }
+
+    #[test]
+    fn jpn_022_aggregates_repeated_missing_stop_fields() {
+        let (mut recs, _map) = empty();
+        recs.gtfs_jp_profile = GtfsJpProfile::V4;
+        recs.has_gtfs_jp_file = true;
+        recs.stops = vec![stop("S1"), stop("S2"), stop("S3")];
+
+        let result = check(&recs, &EntityMap::default(), 20260824);
+        let findings = result
+            .notices
+            .iter()
+            .filter(|notice| {
+                notice.rule_id == "JPN_022"
+                    && notice.file.as_deref() == Some("stops.txt")
+                    && notice.field.as_deref() == Some("location_type")
+            })
+            .collect::<Vec<_>>();
+
+        assert_eq!(findings.len(), 1);
+        assert_eq!(findings[0].entity_type, EntityType::Feed);
+        assert_eq!(findings[0].line, None);
+        assert_eq!(findings[0].observed_value.as_deref(), Some("3"));
+        assert_eq!(
+            findings[0]
+                .details
+                .as_ref()
+                .and_then(|details| details.get("affected_records"))
+                .map(String::as_str),
+            Some("3")
+        );
     }
 
     #[test]
