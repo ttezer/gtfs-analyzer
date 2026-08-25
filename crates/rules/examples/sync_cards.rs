@@ -186,12 +186,26 @@ fn main() {
                     }
                     // URL tarafı: ...rs#L<old_n>
                     edits.push((num_start, num_end, new_n.to_string()));
-                    // Link metni tarafı: en yakın önceki "<dosya>.rs:<old_n>]"
-                    let needle = format!(":{old_n}]");
-                    if let Some(at) = line[..pos].rfind(&needle) {
-                        let ds = at + 1; // ':' sonrası rakam başı
-                        let de = ds + old_n.to_string().len();
-                        edits.push((ds, de, new_n.to_string()));
+                    // Link metni tarafı: anchor numarası daha önce değişmiş,
+                    // etiket numarası eski kalmış olabilir. Bu yüzden etiketi
+                    // `old_n` ile aramak yerine, bağlantının hemen önündeki
+                    // `[...rs:<digits>]` aralığını yapısal olarak bul.
+                    if let Some(label_end) = line[..pos].rfind(']') {
+                        if let Some(label_start) = line[..label_end].rfind('[') {
+                            let label = &line[label_start + 1..label_end];
+                            if let Some(colon) = label.rfind(':') {
+                                let label_path = &label[..colon];
+                                let label_digits = &label[colon + 1..];
+                                if label_path.ends_with(".rs")
+                                    && !label_digits.is_empty()
+                                    && label_digits.chars().all(|c| c.is_ascii_digit())
+                                {
+                                    let ds = label_start + 1 + colon + 1;
+                                    let de = ds + label_digits.len();
+                                    edits.push((ds, de, new_n.to_string()));
+                                }
+                            }
+                        }
                     }
                     ref_fix += 1;
                 }
