@@ -465,7 +465,6 @@ fn run_full_pipeline(zip_bytes: &[u8], config: &ValidatorConfig, today: u32) -> 
         Some(has_gtfs_jp_file),
     ); // #15 W2 + #38: stop_times ZIP stream
     t_end!("K2-validate");
-    k2.records.has_gtfs_jp_file = has_gtfs_jp_file;
     k2.records.has_pattern_jp_file |= has_pattern_jp_file;
     // Gece yarısını aşan seferleri (00:xx) servis-günü notasyonuna (24:xx) normalize et
     // (K3–K6 öncesi). pipeline::validate_bytes ile aynı adım; WASM kendi orkestrasyonunu
@@ -587,7 +586,6 @@ fn run_k1_k5(
         Some(has_gtfs_jp_file),
     ); // #15 W2 + #38: stop_times ZIP stream
     t_end!("K2-validate");
-    k2.records.has_gtfs_jp_file = has_gtfs_jp_file;
     k2.records.has_pattern_jp_file |= has_pattern_jp_file;
     // Gece yarısı (00:xx) → servis-günü (24:xx) normalizasyonu — K3–K6 öncesi (bkz. ilk yol).
     k2.records.stop_times_index.normalize_service_day(config.service_day_start_hour);

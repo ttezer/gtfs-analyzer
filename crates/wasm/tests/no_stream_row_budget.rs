@@ -21,6 +21,31 @@ fn code_only(src: &str) -> String {
         .join("\n")
 }
 
+fn top_level_arguments(call: &str) -> Vec<&str> {
+    let open = call.find('(').expect("çağrı açılışı yok") + 1;
+    let close = call.rfind(");").expect("çağrı kapanışı yok");
+    let args = &call[open..close];
+    let mut result = Vec::new();
+    let mut depth = 0usize;
+    let mut start = 0usize;
+    for (index, character) in args.char_indices() {
+        match character {
+            '(' => depth += 1,
+            ')' => depth = depth.checked_sub(1).expect("parantez dengesi bozuk"),
+            ',' if depth == 0 => {
+                result.push(args[start..index].trim());
+                start = index + character.len_utf8();
+            }
+            _ => {}
+        }
+    }
+    let last = args[start..].trim();
+    if !last.is_empty() {
+        result.push(last);
+    }
+    result
+}
+
 #[test]
 fn wasm_never_passes_a_row_budget_to_k2() {
     let code = code_only(SRC);
@@ -39,9 +64,11 @@ fn wasm_never_passes_a_row_budget_to_k2() {
              sessizce kesip kesmenin hasarını feed'in kusuru olarak raporlar. \
              Bulunan çağrı:\n{block}"
         );
-        assert!(
-            block.contains("None"),
-            "#185: K2 çağrısının satır bütçesi argümanı `None` olmalı. Bulunan:\n{block}"
+        let args = top_level_arguments(block);
+        assert!(args.len() >= 5, "#185: JP sinyal taşıyan K2 çağrısı beş argümanlı olmalı: {block}");
+        assert_eq!(
+            args[3], "None",
+            "#185: K2 çağrısının dördüncü, satır bütçesi argümanı `None` olmalı. Bulunan:\n{block}"
         );
 
         rest = &after[end..];

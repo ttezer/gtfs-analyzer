@@ -50,24 +50,13 @@ pub struct TranslationRecord {
 pub fn validate_translations(
     file: &RawFile,
 ) -> (Vec<TranslationRecord>, Vec<gtfs_core::Notice>) {
-    validate_translations_with_profile(file, false)
+    validate_translations_with_profile_and_signal(file, false, false)
 }
 
-/// Backward-compatible profile-only entry point. Existing callers that select
-/// V4 retain the historical strict behavior; the production K2 path uses the
-/// signal-aware entry point below so an unrelated V4 feed is not treated as
-/// GTFS-JP.
-pub fn validate_translations_with_profile(
-    file: &RawFile,
-    is_v4_profile: bool,
-) -> (Vec<TranslationRecord>, Vec<gtfs_core::Notice>) {
-    validate_translations_with_profile_and_signal(file, is_v4_profile, true)
-}
-
-/// V4 turns `record_sub_id` into a strict GTFS field for a GTFS-JP feed: it is
-/// only allowed for `stop_times`. The explicit signal is supplied by K2 after
-/// checking JP extension files, feed language, and kana translations.
-pub fn validate_translations_with_profile_and_signal(
+/// K2-only entry point: V4 turns `record_sub_id` into a strict GTFS field for
+/// a GTFS-JP feed. The explicit signal is computed once by K2 and carried to
+/// K4 in `EntityRecords`.
+pub(crate) fn validate_translations_with_profile_and_signal(
     file: &RawFile,
     is_v4_profile: bool,
     is_gtfs_jp: bool,
@@ -412,7 +401,7 @@ mod tests {
             vec!["table_name", "field_name", "language", "translation", "record_id", "record_sub_id"],
             vec![vec!["stops", "stop_name", "ja-Hrkt", "とうきょう", "S1", "NONE"]],
         );
-        let (_, notices) = validate_translations_with_profile(&file, true);
+        let (_, notices) = validate_translations_with_profile_and_signal(&file, true, true);
         assert!(notices.iter().any(|n| n.rule_id == "TRN_014"), "{notices:?}");
     }
 

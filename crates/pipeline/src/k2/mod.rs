@@ -115,6 +115,10 @@ pub struct EntityRecords {
     pub pattern_jp: Vec<PatternJpRecord>,
     /// GTFS-JP dosyalarından birinin ZIP'te fiziksel olarak mevcut olduğunu korur.
     pub has_gtfs_jp_file: bool,
+    /// K2'nin tek GTFS-JP sinyali. K4 üretim yolunda bu alanı okur; doğrudan
+    /// sentetik K4 çağrıları için yalnız envantersiz compatibility fallback'i
+    /// kullanılır.
+    pub is_gtfs_jp: bool,
     /// `pattern_jp.txt` dosyasının mevcut olup olmadığını, boş olsa bile korur.
     pub has_pattern_jp_file: bool,
     pub pathways: Vec<PathwayRecord>,
@@ -288,6 +292,11 @@ pub fn validate_with_stream_limit_and_jp_signal(
         notices.extend(feed_info_notices);
     }
 
+    records.is_gtfs_jp = records.has_gtfs_jp_file
+        || records.feed_info.first().is_some_and(|feed_info| {
+            feed_info.feed_lang.trim().to_ascii_lowercase().starts_with("ja")
+        });
+
     if let Some(file) = files.get("fare_attributes.txt") {
         let _t = Timer::start("K2::fare_attributes");
         let (fare_attribute_records, fare_attribute_notices) = validate_fare_attributes(file);
@@ -361,9 +370,6 @@ pub fn validate_with_stream_limit_and_jp_signal(
         // The profile is an explicit user choice; the GTFS-JP signal is a
         // separate input. V4's stricter record_sub_id rule must not be applied
         // to an unrelated feed merely because V4 was selected in the UI/CLI.
-        let feed_lang_is_japanese = records.feed_info.first().is_some_and(|feed_info| {
-            feed_info.feed_lang.trim().to_ascii_lowercase().starts_with("ja")
-        });
         let has_ja_hrkt_translation = file
             .headers
             .iter()
@@ -374,12 +380,12 @@ pub fn validate_with_stream_limit_and_jp_signal(
                         .is_some_and(|value| value.trim().eq_ignore_ascii_case("ja-Hrkt"))
                 })
             });
-        let is_gtfs_jp = records.has_gtfs_jp_file || feed_lang_is_japanese || has_ja_hrkt_translation;
+        records.is_gtfs_jp |= has_ja_hrkt_translation;
         let (translation_records, translation_notices) =
             translations::validate_translations_with_profile_and_signal(
                 file,
                 matches!(cfg.gtfs_jp_profile, GtfsJpProfile::V4),
-                is_gtfs_jp,
+                records.is_gtfs_jp,
             );
         records.translations = translation_records;
         notices.extend(translation_notices);

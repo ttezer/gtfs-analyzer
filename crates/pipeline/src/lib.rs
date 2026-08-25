@@ -59,7 +59,6 @@ pub fn validate_bytes(zip: &[u8], config: &ValidatorConfig, today: u32) -> Valid
             Some(has_gtfs_jp_file),
         ) // #15 W2 + #38: ZIP bytes K2'ye → stop_times stream
     };
-    k2.records.has_gtfs_jp_file = has_gtfs_jp_file;
     k2.records.has_pattern_jp_file |= has_pattern_jp_file;
 
     // Gece yarısını aşan seferleri (00:xx) servis-günü notasyonuna (24:xx) normalize et.

@@ -3074,9 +3074,17 @@ fn check_gtfs_jp(
         .unwrap_or(false);
     let has_kana = records.translations.iter()
         .any(|t| t.language.eq_ignore_ascii_case("ja-Hrkt"));
-    let is_gtfs_jp = feed_lang_ja
-        || has_kana
-        || has_jp_file;
+    let is_gtfs_jp = if records.is_gtfs_jp {
+        true
+    } else if availability.has_inventory() {
+        // In the real K1→K2→K4 pipeline, K2 is the sole writer. Do not
+        // re-derive a competing signal from partially available K4 records.
+        false
+    } else {
+        // Compatibility path for direct/synthetic K4 callers that have no K1
+        // inventory and therefore cannot carry K2's computed signal.
+        feed_lang_ja || has_kana || has_jp_file
+    };
     // GTFS-JP v4 keeps the Japanese translation and core GTFS checks, but
     // moves agency_jp/office_jp/pattern_jp out of the main standard. The
     // profile is explicit; Auto preserves the pre-v4 behavior.
