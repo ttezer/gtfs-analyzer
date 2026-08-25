@@ -54,6 +54,7 @@ engine, parses the ZIP, runs K1–K7, and resolves directly to a `ValidationResu
 const result = await validateGtfs(zipBytes, {
   today: 20260820, // YYYYMMDD number or YYYY-MM-DD string
   config: {
+    gtfs_jp_profile: 'v3',
     max_speed_bus_kmh: 110,
     min_transfer_time_sec: 240,
   },
@@ -65,7 +66,7 @@ Options:
 | Option | Type | Behavior |
 | --- | --- | --- |
 | `today` | `number \| YYYY-MM-DD \| YYYYMMDD` | Date used by calendar and freshness checks. Defaults to the local date. |
-| `config` | `Record<string, unknown>` | A delta over validator defaults. Unknown keys and out-of-range values are rejected. |
+| `config` | `ValidatorConfigDelta` | A delta over validator defaults. Unknown keys and out-of-range values are rejected. |
 
 `initialize()` is exported for hosts that want to warm up WebAssembly manually,
 but `validateGtfs()` and `createValidatorSession()` call it automatically.
@@ -236,6 +237,7 @@ The values below are the default thresholds used by the `0.9.7` validator engine
 | Key | Default | Unit / purpose |
 | --- | ---: | --- |
 | `source_url` | `null` | External feed URL metadata. |
+| `gtfs_jp_profile` | `auto` | Explicit GTFS-JP scope: `auto`, `v3`, or `v4`; the feed version is never inferred. |
 | `stop_name_best_practices` | `false` | Enable language-dependent stop-name checks. |
 | `max_speed_bus_kmh` | `120` | Bus speed ceiling. |
 | `max_speed_tram_kmh` | `100` | Tram speed ceiling. |

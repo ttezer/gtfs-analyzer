@@ -59,6 +59,8 @@ export type {
   ValidationCallbacks,
   ValidationStage,
   ValidationResult,
+  ValidatorConfigDelta,
+  GtfsJpProfile,
   ZipFileInfo,
 } from './types.js';
 

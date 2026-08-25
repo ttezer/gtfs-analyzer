@@ -160,11 +160,21 @@ export type EngineResult =
 
 export type Today = number | `${number}-${number}-${number}` | `${number}${number}${number}${number}${number}${number}${number}${number}`;
 
+/** Explicit GTFS-JP validation scope; this never claims the feed's official version. */
+export type GtfsJpProfile = 'auto' | 'v3' | 'v4';
+
+/** Typed public configuration delta accepted by the Rust/WASM engine. */
+export interface ValidatorConfigDelta {
+  /** Selects the GTFS-JP rule scope; the engine does not infer v3/v4 from feed contents. */
+  gtfs_jp_profile?: GtfsJpProfile;
+  [key: string]: unknown;
+}
+
 export interface ValidateOptions {
   /** Deterministic validation date: YYYYMMDD or YYYY-MM-DD. */
   today?: Today;
   /** Validator config delta; unknown keys are rejected by the engine. */
-  config?: Record<string, unknown>;
+  config?: ValidatorConfigDelta;
 }
 
 export type EngineMode = 'wasm32-serial' | 'wasm32-threaded' | 'wasm64-serial';
@@ -213,7 +223,7 @@ export interface ValidatorSessionOptions extends ValidateOptions {
 
 export interface SessionRunOptions {
   /** Validator config delta for this run. */
-  config?: Record<string, unknown>;
+  config?: ValidatorConfigDelta;
   callbacks?: ValidationCallbacks;
 }
 
