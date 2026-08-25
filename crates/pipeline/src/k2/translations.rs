@@ -50,15 +50,17 @@ pub struct TranslationRecord {
 pub fn validate_translations(
     file: &RawFile,
 ) -> (Vec<TranslationRecord>, Vec<gtfs_core::Notice>) {
-    validate_translations_with_profile(file, false)
+    validate_translations_with_profile(file, false, false)
 }
 
-/// V4 turns `record_sub_id` into a strict GTFS field: it is only allowed for
-/// `stop_times`. Keep the legacy wrapper above for callers that do not carry a
-/// profile, while the production K2 path supplies the explicit V4 choice.
+/// V4 turns `record_sub_id` into a strict GTFS field for a GTFS-JP feed: it is
+/// only allowed for `stop_times`. Keep the legacy wrapper above for callers
+/// that do not carry a profile, while the production K2 path supplies both the
+/// explicit V4 choice and the GTFS-JP signal.
 pub fn validate_translations_with_profile(
     file: &RawFile,
     is_v4_profile: bool,
+    is_gtfs_jp: bool,
 ) -> (Vec<TranslationRecord>, Vec<gtfs_core::Notice>) {
     let mut notices = Vec::new();
     let mut records = Vec::new();
@@ -294,7 +296,7 @@ pub fn validate_translations_with_profile(
 
         if table_name != "stop_times"
             && record_sub_id.as_deref().is_some_and(|value| {
-                is_v4_profile || !is_none_record_sub_id(value)
+                (is_v4_profile && is_gtfs_jp) || !is_none_record_sub_id(value)
             })
         {
             notices.push(make_k2_notice(
@@ -400,7 +402,17 @@ mod tests {
             vec!["table_name", "field_name", "language", "translation", "record_id", "record_sub_id"],
             vec![vec!["stops", "stop_name", "ja-Hrkt", "とうきょう", "S1", "NONE"]],
         );
-        let (_, notices) = validate_translations_with_profile(&file, true);
+        let (_, notices) = validate_translations_with_profile(&file, true, true);
         assert!(notices.iter().any(|n| n.rule_id == "TRN_014"), "{notices:?}");
+    }
+
+    #[test]
+    fn v4_none_record_sub_id_is_tolerated_without_gtfs_jp_signal() {
+        let file = make_file(
+            vec!["table_name", "field_name", "language", "translation", "record_id", "record_sub_id"],
+            vec![vec!["stops", "stop_name", "en", "Tokyo", "S1", "NONE"]],
+        );
+        let (_, notices) = validate_translations_with_profile(&file, true, false);
+        assert!(!notices.iter().any(|n| n.rule_id == "TRN_014"), "{notices:?}");
     }
 }

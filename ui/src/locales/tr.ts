@@ -1209,7 +1209,7 @@ const tr = {
     'JPN_019': 'GTFS-JP: kana çeviri referansı geçersiz',
     'JPN_020': 'GTFS-JP: ofis iletişim biçimi şüpheli',
     'JPN_021': 'GTFS-JP: kana çevirisi tutarsız',
-    'JPN_022': 'GTFS-JP v4: ana alan zorunluluğu eksik',
+    'JPN_022': 'GTFS-JP v4: {file} içindeki {field} alanı {observed_value} kayıtta eksik veya boş.',
   } as Record<string, string>,
 };
 

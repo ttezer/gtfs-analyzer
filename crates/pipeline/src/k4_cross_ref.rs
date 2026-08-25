@@ -413,7 +413,6 @@ fn notice(
 
 fn append_jpn022_missing_records(
     notices: &mut Vec<Notice>,
-    _ctr: &mut u32,
     pending: Vec<Notice>,
 ) {
     let mut grouped: std::collections::BTreeMap<(String, String), Vec<Notice>> =
@@ -428,7 +427,13 @@ fn append_jpn022_missing_records(
 
     for ((file, field), mut findings) in grouped {
         if findings.len() == 1 {
-            notices.push(findings.pop().expect("group contains one finding"));
+            let mut finding = findings.pop().expect("group contains one finding");
+            finding.observed_value = Some("1".to_string());
+            finding.expected_value = None;
+            finding.message = format!(
+                "GTFS-JP v4'te {file} içindeki {field} alanı 1 kayıtta eksik veya boş."
+            );
+            notices.push(finding);
             continue;
         }
 
@@ -445,7 +450,7 @@ fn append_jpn022_missing_records(
         summary.scope_key = None;
         summary.line = None;
         summary.observed_value = Some(affected.to_string());
-        summary.expected_value = Some("required and non-empty".to_string());
+        summary.expected_value = None;
         summary.message = format!(
             "GTFS-JP v4'te {file} içindeki {field} alanı {affected} kayıtta eksik veya boş."
         );
@@ -3376,8 +3381,6 @@ fn check_gtfs_jp(
         // repeated findings for the same file+field into one feed summary with
         // the affected-record count. This prevents v4 from producing thousands
         // of indistinguishable location_type notices on ordinary GTFS feeds.
-        append_jpn022_missing_records(notices, ctr, jpn022_pending);
-
         if let Some(feed_info) = records.feed_info.first() {
             let required_fields = [
                 ("feed_start_date", feed_info.feed_start_date.is_none()),
@@ -3386,7 +3389,7 @@ fn check_gtfs_jp(
             ];
             for (field, missing) in required_fields {
                 if missing {
-                    notices.push(notice(
+                    jpn022_pending.push(notice(
                         ctr,
                         "JPN_022",
                         EntityType::Feed,
@@ -3403,6 +3406,8 @@ fn check_gtfs_jp(
                 }
             }
         }
+
+        append_jpn022_missing_records(notices, jpn022_pending);
     }
 
     if legacy_v3_extensions {
@@ -7533,6 +7538,7 @@ mod tests {
         assert_eq!(findings[0].entity_type, EntityType::Feed);
         assert_eq!(findings[0].line, None);
         assert_eq!(findings[0].observed_value.as_deref(), Some("3"));
+        assert_eq!(findings[0].expected_value, None);
         assert_eq!(
             findings[0]
                 .details

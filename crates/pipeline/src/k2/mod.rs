@@ -339,10 +339,29 @@ pub fn validate_with_stream_limit(
 
     if let Some(file) = files.get("translations.txt") {
         let _t = Timer::start("K2::translations");
+        // The profile is an explicit user choice; the GTFS-JP signal is a
+        // separate input. V4's stricter record_sub_id rule must not be applied
+        // to an unrelated feed merely because V4 was selected in the UI/CLI.
+        let has_gtfs_jp_file = GTFS_JP_FILES.iter().any(|name| files.contains_key(*name));
+        let feed_lang_is_japanese = records.feed_info.iter().any(|feed_info| {
+            feed_info.feed_lang.trim().to_ascii_lowercase().starts_with("ja")
+        });
+        let has_ja_hrkt_translation = file
+            .headers
+            .iter()
+            .position(|header| header == "language")
+            .is_some_and(|language_idx| {
+                file.rows.iter().any(|row| {
+                    row.get(language_idx)
+                        .is_some_and(|value| value.trim().eq_ignore_ascii_case("ja-Hrkt"))
+                })
+            });
+        let is_gtfs_jp = has_gtfs_jp_file || feed_lang_is_japanese || has_ja_hrkt_translation;
         let (translation_records, translation_notices) =
             translations::validate_translations_with_profile(
                 file,
                 matches!(cfg.gtfs_jp_profile, GtfsJpProfile::V4),
+                is_gtfs_jp,
             );
         records.translations = translation_records;
         notices.extend(translation_notices);

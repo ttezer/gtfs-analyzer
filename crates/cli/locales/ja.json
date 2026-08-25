@@ -577,7 +577,7 @@
     "JPN_019": "GTFS-JPのかな翻訳が無効なフィールド、レコード、またはサブレコードを参照しています。",
     "JPN_020": "営業所'{entity_id}'：office_url または office_phone の形式が不審です。",
     "JPN_021": "GTFS-JPのかな翻訳が空、競合、または不整合です。",
-    "JPN_022": "GTFS-JP v4の必須コアフィールドが不足しています。"
+    "JPN_022": "GTFS-JP v4：{file} の {field} が {observed_value} 件のレコードで欠落または空です。"
   },
   "remediations": {
     "ARC_001": "フィードのZIPファイルが破損していないか確認してください。",

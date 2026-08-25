@@ -1173,7 +1173,7 @@ const en: LocaleShape = {
     'JPN_019': "GTFS-JP kana translation points to an invalid field, record, or sub-record.",
     'JPN_020': "Office '{entity_id}': office_url or office_phone has a suspicious format.",
     'JPN_021': 'GTFS-JP kana translations are empty, conflicting, or inconsistent.',
-    'JPN_022': 'GTFS-JP v4 is missing a required core field.',
+    'JPN_022': 'GTFS-JP v4: {file} field {field} is missing or blank in {observed_value} record(s).',
     // v0.1.4: rules that had no dictionary entry (SDK English output)
     'ARC_026': "Line endings in '{entity_id}' are neither CRLF nor LF.",
     'ARC_027': "The ZIP entry '{entity_id}' does not grant user read permission.",
