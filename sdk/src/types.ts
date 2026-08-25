@@ -109,6 +109,8 @@ export interface FeedMetrics {
   coverage_complete?: boolean;
   file_stats: FileInfo[];
   is_gtfs_jp?: boolean;
+  /** Selected validation profile; this does not infer the feed's official v3/v4 version. */
+  gtfs_jp_profile?: 'auto' | 'v3' | 'v4' | string | null;
 }
 
 export interface NameIndex {

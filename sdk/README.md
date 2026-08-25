@@ -164,6 +164,9 @@ const linkedFindings = result.reports.r2.items
 `metrics` contains feed-level counts and summary values, including stop, route,
 trip, and shape counts; active service days; average daily trips; feed and service
 date ranges; notice counts by rule class; overall score; and per-file statistics.
+For GTFS-JP feeds, `is_gtfs_jp` reports detection and `gtfs_jp_profile` reports the
+selected `auto`, `v3`, or `v4` validation scope. The profile field is not an
+automatic claim about the feed's official GTFS-JP version.
 
 `name_index` contains lookup maps for building UIs without reparsing the ZIP:
 

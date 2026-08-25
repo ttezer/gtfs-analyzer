@@ -247,6 +247,8 @@ const ja: LocaleShape = {
     'domain.sev.INFO'            : '情報',
     'domain.metrics_title'       : 'フィード概要',
     'domain.gtfs_jp.tip'         : 'GTFS-JP（日本プロファイル）フィード — feed_lang=ja・かな翻訳（ja-Hrkt）・*_jp ファイルのいずれかから検出。',
+    'domain.gtfs_jp.profile'     : 'GTFS-JP {profile}プロファイル',
+    'domain.gtfs_jp.profile_tip' : 'このバッジは分析で選択された検証範囲を示します。フィードの公式GTFS-JPバージョンを自動判定するものではありません。',
     'domain.metric.stops'        : '停留所',
     'domain.metric.routes'       : '路線',
     'domain.metric.trips'        : '便',

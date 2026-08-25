@@ -1,6 +1,6 @@
 # GTFS-JP v3/v4 uyumluluk matrisi
 
-Bu belge, GTFS Analyzer’ın GTFS-JP v3 kapsamını ve GTFS-JP v4 ile arasındaki farkları kayıt altına alır. Analyzer feed’in v3 veya v4 olduğunu otomatik olarak iddia etmez; runtime yalnızca GTFS-JP sinyali üretir. Kural kapsamı artık açık profil seçimiyle kontrol edilir: varsayılan `v4` profilidir, `auto` mevcut davranışı koruyan geriye dönük uyumluluk modudur, `v3` eski Japonya-özel uzantıları doğrular.
+Bu belge, GTFS Analyzer’ın GTFS-JP v3 kapsamını ve GTFS-JP v4 ile arasındaki farkları kayıt altına alır. Analyzer feed’in v3 veya v4 olduğunu otomatik olarak iddia etmez; runtime yalnızca GTFS-JP sinyali üretir. Kural kapsamı açık profil seçimiyle kontrol edilir: varsayılan `v4` profilidir, `auto` mevcut davranışı koruyan geriye dönük uyumluluk modudur, `v3` eski Japonya-özel uzantıları doğrular. UI ve SDK’daki profil rozeti yalnızca bu seçimi gösterir; tam V4 uyumluluk sertifikası değildir.
 
 V3 kuralları geriye dönük uyumluluk için korunur. MLIT’nin 19 Mart 2026 tarihli v4 spesifikasyonu, v3’teki `agency_jp.txt`, `office_jp.txt` ve `pattern_jp.txt` dosyalarını ana standardın dışına çıkarıp v3 uzantıları için referans bölümüne taşır. Bu fark runtime’a işlendi: v4 profilinde bu dosyalara bağlı JPN kuralları çalışmaz; çeviri/kana ve temel GTFS-JP kontrolleri çalışmaya devam eder. V4’ün ana GTFS alanlarında değiştirdiği tüm zorunluluk sınıfları henüz “tam v4 uyumluluk rozeti” olarak ilan edilmiyor.
 
@@ -14,7 +14,7 @@ V3 kuralları geriye dönük uyumluluk için korunur. MLIT’nin 19 Mart 2026 ta
 
 CLI: `gtfs-analyzer validate feed.zip --gtfs-jp-profile v4`
 
-JSON config delta: `{"gtfs_jp_profile":"v4"}`. WASM tarafında aynı alan mevcut config delta sözleşmesiyle verilir. Profil feed içeriğinden otomatik çıkarılmaz.
+JSON config delta: `{"gtfs_jp_profile":"v4"}`. WASM tarafında aynı alan mevcut config delta sözleşmesiyle verilir. Profil feed içeriğinden otomatik çıkarılmaz. UI raporunda `GTFS-JP` tespit rozeti yanında `GTFS-JP V4` (veya seçilen `V3`/`AUTO`) kapsam rozeti gösterilir; bu rozet feed sürümünü değil analiz profilini ifade eder.
 
 Kaynaklar: [GTFS-JP v3 resmî arşiv PDF'i](https://www.mlit.go.jp/sogoseisaku/transport/content/001981081.pdf), [GTFS-JP format referansı](https://www.gtfs.jp/developpers-guide/format-reference.html), [pattern_jp.txt rehberi](https://www.busdata.or.jp/gtfs_guide/08%E3%80%80pattern_jp-txt%EF%BC%88%E5%81%9C%E8%BB%8A%E3%83%91%E3%82%BF%E3%83%BC%E3%83%B3%E6%83%85%E5%A0%B1%EF%BC%89%E3%80%80%E3%80%90%E4%BB%BB%E6%84%8F%E3%80%91/), [GTFS-JP v4 spesifikasyonu](https://www.mlit.go.jp/commmmons/document/007/), [v3-v4 fark belgesi](https://www.mlit.go.jp/commmmons/document/007/commmons_doc_007-03_ver01.pdf).
 
@@ -49,7 +49,7 @@ Kaynaklar: [GTFS-JP v3 resmî arşiv PDF'i](https://www.mlit.go.jp/sogoseisaku/t
 
 - Opsiyonel dosyanın yokluğu tek başına analiz skorunu veya yayın engelini değiştirmez.
 - Opsiyonel dosya mevcutsa hatalı kimlik, tarih veya biçim Interop/Quality seviyesinde raporlanabilir.
-- Rapor GTFS-JP tespiti yapar; `v3`/`v4` sürüm rozeti üretmez.
+- Rapor GTFS-JP tespiti yapar ve seçilen kural profilini taşır; `v3`/`v4` feed sürümü iddiası üretmez.
 - Varsayılan `v4` profilinde `agency_jp.txt`, `office_jp.txt` ve `pattern_jp.txt` referans verisi olarak okunabilir ama ilgili v3 bulguları üretilmez. `auto` ve `v3` profillerinde legacy/v3 kuralları çalışır. Bu seçim feed'in sürümünü otomatik kanıtlamaz.
 - `pattern_jp.txt` içindeki `origin_stop`, `via_stop` ve `destination_stop` açıklayıcı metindir; `stop_id` foreign key'i değildir.
 - `translations.txt` içinde v3/`auto` profili `record_sub_id=NONE` değerini alt kimlik yok anlamında kabul eder. V4'te `agency`, `stops`, `routes` ve `trips` için `record_id` kullanılıyorsa `NONE` zorunludur; `stop_times` için gerçek `stop_sequence` gerekir.
@@ -61,4 +61,4 @@ MLIT v4 belgesinin uzantı dosyası, `jp_pattern_id` farkı, translations alt ki
 1. V4 teknik rehberindeki uygulama rehberleri ve öneri alanlarını ayrı kalite kapsamı olarak değerlendirmek,
 2. Bu kapsamın tamamı için üretici çeşitliliğini temsil eden ek fixture/korpus doğrulaması yapmak
 
-gerekecek. Bu işler tamamlanmadan UI’da “v4 uyumlu” rozeti üretilmeyecek; `--gtfs-jp-profile v4` yalnız kodlanmış v4 kapsamını açıkça seçer.
+gerekecek. UI’daki `GTFS-JP V4` rozeti “v4 uyumlu” anlamına gelmez; `--gtfs-jp-profile v4` yalnız kodlanmış v4 kapsamını açıkça seçer.

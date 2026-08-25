@@ -256,6 +256,8 @@ const en: LocaleShape = {
     'domain.sev.INFO'            : 'Info',
     'domain.metrics_title'       : 'Feed Metrics',
     'domain.gtfs_jp.tip'         : 'GTFS-JP (Japan profile) feed — detected from feed_lang=ja, kana translations (ja-Hrkt), or *_jp files.',
+    'domain.gtfs_jp.profile'     : 'GTFS-JP {profile} profile',
+    'domain.gtfs_jp.profile_tip' : 'This badge shows the validation scope selected for the analysis; the feed’s official GTFS-JP version is not inferred automatically.',
     'domain.metric.stops'        : 'Stops',
     'domain.metric.routes'       : 'Routes',
     'domain.metric.trips'        : 'Trips',

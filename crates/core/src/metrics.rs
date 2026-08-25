@@ -65,6 +65,13 @@ pub struct FeedMetrics {
     /// UI'da "GTFS-JP" rozeti + JPN grubu kurallarının koşullu tetiklenmesi için.
     #[serde(default)]
     pub is_gtfs_jp: bool,
+
+    /// GTFS-JP için seçilmiş kural kapsamı.
+    ///
+    /// Bu alan feed'in resmî v3/v4 sürümünü tespit etmez; yalnızca analizde
+    /// kullanılan açık profil seçimini UI/SDK tüketicilerine taşır.
+    #[serde(default)]
+    pub gtfs_jp_profile: Option<String>,
 }
 
 fn default_true_metrics() -> bool { true }

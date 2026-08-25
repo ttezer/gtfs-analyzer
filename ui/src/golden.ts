@@ -65,6 +65,7 @@ export function buildGoldenSnapshot(
     avg_daily_trips: m.avg_daily_trips, feed_start_date: m.feed_start_date,
     feed_end_date: m.feed_end_date, service_start_date: m.service_start_date,
     service_end_date: m.service_end_date, is_gtfs_jp: m.is_gtfs_jp ?? false,
+    gtfs_jp_profile: m.gtfs_jp_profile ?? null,
   };
   const iso = generatedAt.toISOString();
   // deterministic=true (git-tracked regression export): per-second `generated_at` atlanır ki

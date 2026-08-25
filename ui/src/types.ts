@@ -129,6 +129,8 @@ export interface FeedMetrics {
   file_stats: FileInfo[];
   /** Feed GTFS-JP (Japonya profili) mi — *_jp.txt dosyası varsa true. */
   is_gtfs_jp?: boolean;
+  /** Analizde seçilen profil; feed'in resmî v3/v4 sürümünü otomatik olarak iddia etmez. */
+  gtfs_jp_profile?: 'auto' | 'v3' | 'v4' | string | null;
 }
 
 export interface NameIndex {

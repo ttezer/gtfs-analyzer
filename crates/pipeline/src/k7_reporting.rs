@@ -1149,6 +1149,8 @@ fn build_metrics(notices: &[Notice], records: &EntityRecords, derived: &DerivedD
             .unwrap_or(false)
         || records.translations.iter()
             .any(|t| t.language.eq_ignore_ascii_case("ja-Hrkt"));
+    let gtfs_jp_profile = is_gtfs_jp
+        .then(|| records.gtfs_jp_profile.as_str().to_string());
 
     FeedMetrics {
         coverage_complete,
@@ -1169,6 +1171,7 @@ fn build_metrics(notices: &[Notice], records: &EntityRecords, derived: &DerivedD
         overall_score: 0.0, // report() fonksiyonunda r5.score ile güncellenir
         file_stats,
         is_gtfs_jp,
+        gtfs_jp_profile,
     }
 }
 

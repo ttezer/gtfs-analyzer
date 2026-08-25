@@ -217,6 +217,10 @@ function countBySeverity(result: ValidationResult): SevCount {
 // ── Feed metrikleri ───────────────────────────────────────────────────────────
 
 function renderMetrics(m: FeedMetrics): string {
+  const profile = m.gtfs_jp_profile?.toLowerCase();
+  const profileBadge = m.is_gtfs_jp && profile && ['auto', 'v3', 'v4'].includes(profile)
+    ? ` <span class="jp-badge" title="${escHtml(t('domain.gtfs_jp.profile_tip'))}">${escHtml(t('domain.gtfs_jp.profile', { profile: profile.toUpperCase() }))}</span>`
+    : '';
   const items = [
     { label: t('domain.metric.stops'),        value: m.stop_count.toLocaleString('tr-TR') },
     { label: t('domain.metric.routes'),       value: m.route_count.toLocaleString('tr-TR') },
@@ -241,7 +245,7 @@ function renderMetrics(m: FeedMetrics): string {
 
   return `
     <div class="card">
-      <h3 class="rpt-section-title">${t('domain.metrics_title')}${m.is_gtfs_jp ? ` <span class="jp-badge" title="${escHtml(t('domain.gtfs_jp.tip'))}">GTFS-JP</span>` : ''}</h3>
+      <h3 class="rpt-section-title">${t('domain.metrics_title')}${m.is_gtfs_jp ? ` <span class="jp-badge" title="${escHtml(t('domain.gtfs_jp.tip'))}">GTFS-JP</span>` : ''}${profileBadge}</h3>
       <div class="rpt-metrics-grid">${metricCards}</div>
       ${fileRows ? `
         <div class="table-scroll rpt-files">

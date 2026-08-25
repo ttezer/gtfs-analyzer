@@ -1,7 +1,7 @@
 use std::io::Write as _;
 use zip::write::SimpleFileOptions;
 
-use gtfs_pipeline::{k1_parse::parse, validate_bytes, FatalCode, ValidateResult, ValidatorConfig};
+use gtfs_pipeline::{k1_parse::parse, validate_bytes, FatalCode, GtfsJpProfile, ValidateResult, ValidatorConfig};
 
 // Tüm testler için sabit tarih — deterministik analytics çıktısı
 const TODAY: u32 = 20_260_515;
@@ -53,6 +53,12 @@ fn run(files: &[(&str, &[u8])]) -> ValidateResult {
     validate_bytes(&make_zip(files), &ValidatorConfig::default(), TODAY)
 }
 
+fn run_with_profile(files: &[(&str, &[u8])], profile: GtfsJpProfile) -> ValidateResult {
+    let mut config = ValidatorConfig::default();
+    config.gtfs_jp_profile = profile;
+    validate_bytes(&make_zip(files), &config, TODAY)
+}
+
 #[test]
 fn empty_gtfs_jp_file_still_activates_profile_detection() {
     for file in ["agency_jp.txt", "office_jp.txt", "routes_jp.txt", "pattern_jp.txt"] {
@@ -61,10 +67,37 @@ fn empty_gtfs_jp_file_still_activates_profile_detection() {
         match run(&files) {
             ValidateResult::Ok(vr) => {
                 assert!(vr.metrics.is_gtfs_jp, "{file} GTFS-JP rozeti açmalı");
+                assert_eq!(
+                    vr.metrics.gtfs_jp_profile.as_deref(),
+                    Some("v4"),
+                    "varsayılan profil kullanıcıya taşınmalı"
+                );
                 assert!(has(&vr, "JPN_007"), "{file} GTFS-JP profil kurallarını açmalı");
             }
             other => panic!("ValidateResult::Ok beklendi, alınan: {other:?}"),
         }
+    }
+}
+
+#[test]
+fn selected_gtfs_jp_profile_is_exposed_without_version_inference() {
+    let mut files = base_files();
+    files.push(("pattern_jp.txt", b"jp_pattern_id,route_update_date\nP1,20260825\n"));
+
+    match run_with_profile(&files, GtfsJpProfile::V3) {
+        ValidateResult::Ok(vr) => {
+            assert!(vr.metrics.is_gtfs_jp);
+            assert_eq!(vr.metrics.gtfs_jp_profile.as_deref(), Some("v3"));
+        }
+        other => panic!("ValidateResult::Ok beklendi, alınan: {other:?}"),
+    }
+
+    match run(&base_files()) {
+        ValidateResult::Ok(vr) => {
+            assert!(!vr.metrics.is_gtfs_jp);
+            assert_eq!(vr.metrics.gtfs_jp_profile, None);
+        }
+        other => panic!("ValidateResult::Ok beklendi, alınan: {other:?}"),
     }
 }
 
