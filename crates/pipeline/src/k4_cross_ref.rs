@@ -1286,6 +1286,38 @@ fn check_trips(
 /// referansıdır ve tetiklenir.
 const PTH014_WALK_MAX_M: f64 = 300.0;
 
+/// PTH_014 yürüme mesafesi kanıtı (m). Guard'ın sorduğu soru "uçlar arasındaki
+/// YÜRÜYÜŞ kısa mı", dolayısıyla kaynak sırası şudur (#187):
+///
+/// 1. **Beyan edilen `pathways.txt.length`.** Geçidin gerçek yürüme uzunluğunu
+///    ölçen tek alan budur; üretici onu bilerek yazar.
+/// 2. **Uç koordinatları** (`length` yoksa). Geodezik mesafe kuş uçuşudur, gerçek
+///    yürüme mesafesi değildir — yalnız daha iyi bir kaynak yokken kullanılır.
+/// 3. **İkisi de yoksa `None`** → guard uygulanmaz, kural normal yoluna devam eder.
+///
+/// #187 · MBTA Winter Street Concourse (`dwnxg-385`/`386`): `node-dwnxg-concourse`
+/// koordinatsız (generic node'da koordinat OPSİYONELDİR), `length=142,3416` m.
+///
+/// `length` yalnız sonlu ve `>= 0` ise kanıt sayılır: `PTH_006` negatif değeri
+/// raporlar ama değeri yine de kayda geçirir, geçersiz beyan burada elenir.
+fn pth014_distance_m(
+    rec: &crate::k2::pathways::PathwayRecord,
+    stop_coord: &HashMap<&str, (f64, f64)>,
+) -> Option<f64> {
+    if let Some(length) = rec.length.filter(|v| v.is_finite() && *v >= 0.0) {
+        return Some(length);
+    }
+    match (
+        stop_coord.get(rec.from_stop_id.as_str()),
+        stop_coord.get(rec.to_stop_id.as_str()),
+    ) {
+        (Some(&(la, lo)), Some(&(lb, lob))) => {
+            Some(crate::k5_derived::haversine_km(la, lo, lb, lob) * 1000.0)
+        }
+        _ => None,
+    }
+}
+
 fn check_pathways(
     records: &EntityRecords,
     _map: &EntityMap,
@@ -1349,15 +1381,12 @@ fn check_pathways(
                 // yürüme bağlantısıdır (VBB Potsdam "Platz der Einheit/West" ↔
                 // ".../Bildungsforum" ~150 m), topoloji hatası değil → atla. Yalnız
                 // uçlar birbirinden uzaksa (olası yanlış stop_id referansı) tetiklenir.
-                if let (Some(&(la, lo)), Some(&(lb, lob))) = (
-                    stop_coord.get(rec.from_stop_id.as_str()),
-                    stop_coord.get(rec.to_stop_id.as_str()),
-                ) {
-                    if crate::k5_derived::haversine_km(la, lo, lb, lob) * 1000.0
-                        <= PTH014_WALK_MAX_M
-                    {
-                        continue;
-                    }
+                // Mesafe kaynağı için bkz. `pth014_distance_m`: önce beyan edilen
+                // `length`, o yoksa uç koordinatları (#187).
+                if pth014_distance_m(rec, &stop_coord)
+                    .is_some_and(|meters| meters <= PTH014_WALK_MAX_M)
+                {
+                    continue;
                 }
                 let mut n = notice(
                     ctr,
@@ -1374,7 +1403,7 @@ fn check_pathways(
                         "pathway_id '{}' farklı istasyonlar arası bağlantı kuruyor (from_station='{fs}', to_station='{ts}').",
                         rec.pathway_id
                     ),
-                    "Pathway yalnızca aynı istasyon içindeki durakları bağlamalıdır.",
+                    "İki ucun da aynı parent station'a çözüldüğünü doğrulayın. İki istasyon arasındaki geçit bilinçliyse dış ucunu giriş/çıkış (location_type=2) olarak modelleyin.",
                 );
                 let mut d = std::collections::BTreeMap::new();
                 d.insert("from_station".to_string(), fs.to_string());
@@ -5926,6 +5955,123 @@ mod tests {
         assert!(
             result.notices.iter().any(|n| n.rule_id == "PTH_014"),
             "gerçek cross-station geçidinde PTH_014 çıkmalı"
+        );
+    }
+
+    /// #187 · MBTA `dwnxg-385/386` (Winter Street Concourse, Park St ↔ Downtown
+    /// Crossing): iki uç da generic node (lt=3), biri KOORDİNATSIZ — GTFS'te
+    /// generic node koordinatı opsiyoneldir. Beyan edilen `length` 142,34 m,
+    /// 300 m guard'ının çok altında → PTH_014 ÇIKMAMALI.
+    #[test]
+    fn pth_014_short_declared_length_without_coordinate_is_suppressed() {
+        let (mut recs, map) = empty();
+        let mut with_coord = stop_ctx("N_A", Some(3), "A");
+        with_coord.stop_lat = Some(42.3564);
+        with_coord.stop_lon = Some(-71.0624);
+        recs.stops = vec![
+            stop_ctx("A", Some(1), ""),
+            stop_ctx("B", Some(1), ""),
+            with_coord,
+            stop_ctx("N_B", Some(3), "B"), // koordinatsız generic node
+        ];
+        recs.pathways = vec![PathwayRecord {
+            pathway_id: "dwnxg-385".into(),
+            from_stop_id: "N_A".into(),
+            to_stop_id: "N_B".into(),
+            pathway_mode: Some(1), is_bidirectional: Some(0),
+            length: Some(142.3416), traversal_time: None,
+            stair_count: None, max_slope: None, min_width: None,
+            row: Default::default(), line: 2,
+        }];
+        let result = check(&recs, &map, 20260515);
+        assert!(
+            !result.notices.iter().any(|n| n.rule_id == "PTH_014"),
+            "koordinatsız uçta kısa beyan edilen length PTH_014'ü bastırmalı: {:?}",
+            result.notices.iter().filter(|n| n.rule_id == "PTH_014").collect::<Vec<_>>()
+        );
+    }
+
+    /// Guard, `length` VARLIĞINA değil DEĞERİNE bakar: koordinat yokken uzun bir
+    /// beyan hâlâ tetiklemeli, yoksa length yazmak kuralı kapatan bir anahtar olurdu.
+    #[test]
+    fn pth_014_long_declared_length_without_coordinate_fires() {
+        let (mut recs, map) = empty();
+        recs.stops = vec![
+            stop_ctx("A", Some(1), ""),
+            stop_ctx("B", Some(1), ""),
+            stop_ctx("N_A", Some(3), "A"),
+            stop_ctx("N_B", Some(3), "B"),
+        ];
+        recs.pathways = vec![PathwayRecord {
+            pathway_id: "P1".into(),
+            from_stop_id: "N_A".into(),
+            to_stop_id: "N_B".into(),
+            pathway_mode: Some(1), is_bidirectional: Some(0),
+            length: Some(5_000.0), traversal_time: None,
+            stair_count: None, max_slope: None, min_width: None,
+            row: Default::default(), line: 2,
+        }];
+        let result = check(&recs, &map, 20260515);
+        assert!(
+            result.notices.iter().any(|n| n.rule_id == "PTH_014"),
+            "5 km'lik beyan cross-station PTH_014'ü tetiklemeli"
+        );
+    }
+
+    /// Öncelik kararı (#187): guard YÜRÜME mesafesini sorar. Koordinat farkı kuş
+    /// uçuşudur, yürüme mesafesi değildir; geçidin kendi `length` beyanı varsa
+    /// ölçtüğü şey doğrudan odur ve koordinatların önüne geçer.
+    #[test]
+    fn pth_014_declared_length_outranks_coordinates() {
+        let (mut recs, map) = empty();
+        let mut from = stop_ctx("N_A", Some(3), "A");
+        from.stop_lat = Some(42.3564);
+        from.stop_lon = Some(-71.0624);
+        let mut to = stop_ctx("N_B", Some(3), "B");
+        to.stop_lat = Some(42.4064); // ~5,5 km kuzey
+        to.stop_lon = Some(-71.0624);
+        recs.stops = vec![stop_ctx("A", Some(1), ""), stop_ctx("B", Some(1), ""), from, to];
+        recs.pathways = vec![PathwayRecord {
+            pathway_id: "P1".into(),
+            from_stop_id: "N_A".into(),
+            to_stop_id: "N_B".into(),
+            pathway_mode: Some(1), is_bidirectional: Some(0),
+            length: Some(10.0), traversal_time: None,
+            stair_count: None, max_slope: None, min_width: None,
+            row: Default::default(), line: 2,
+        }];
+        let result = check(&recs, &map, 20260515);
+        assert!(
+            !result.notices.iter().any(|n| n.rule_id == "PTH_014"),
+            "geçerli kısa length beyanı, uzak koordinatlara rağmen PTH_014'ü bastırmalı: {:?}",
+            result.notices.iter().filter(|n| n.rule_id == "PTH_014").collect::<Vec<_>>()
+        );
+    }
+
+    /// PTH_006 negatif `length`'i raporlar ama değeri yine de döndürür; geçersiz
+    /// beyan mesafe kanıtı sayılmamalı → kural normal yoluna devam eder.
+    #[test]
+    fn pth_014_negative_declared_length_is_not_distance_evidence() {
+        let (mut recs, map) = empty();
+        recs.stops = vec![
+            stop_ctx("A", Some(1), ""),
+            stop_ctx("B", Some(1), ""),
+            stop_ctx("N_A", Some(3), "A"),
+            stop_ctx("N_B", Some(3), "B"),
+        ];
+        recs.pathways = vec![PathwayRecord {
+            pathway_id: "P1".into(),
+            from_stop_id: "N_A".into(),
+            to_stop_id: "N_B".into(),
+            pathway_mode: Some(1), is_bidirectional: Some(0),
+            length: Some(-1.0), traversal_time: None,
+            stair_count: None, max_slope: None, min_width: None,
+            row: Default::default(), line: 2,
+        }];
+        let result = check(&recs, &map, 20260515);
+        assert!(
+            result.notices.iter().any(|n| n.rule_id == "PTH_014"),
+            "negatif length bastırma kanıtı olmamalı"
         );
     }
 

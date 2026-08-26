@@ -1821,7 +1821,7 @@ const en: LocaleShape = {
     'LOC_008': "Add \"type\": \"Feature\" to every feature object.",
     // PTH
     'PTH_001': 'Assign a unique pathway_id to each pathway record.',
-    'PTH_014': 'Pathways must connect stops within the same station; update from_stop_id or to_stop_id.',
+    'PTH_014': 'Check that both endpoints resolve to the same parent station. If the passage between two stations is intentional, model its outer end as an entrance (location_type=2).',
     // RTS
     'RTS_001': 'Assign a unique route_id to each route record.',
     // SHP
