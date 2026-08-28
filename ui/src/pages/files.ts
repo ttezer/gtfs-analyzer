@@ -1,5 +1,5 @@
 import type { ValidationResult } from '../types';
-import { SEVERITY_COLOR, SEVERITY_TR, t } from '../i18n';
+import { SEVERITY_COLOR, SEVERITY_TR, t, intlLocale } from '../i18n';
 import { setFixFileFilter, setPage } from '../state';
 import {
   CALENDAR_FILES,
@@ -74,7 +74,7 @@ function renderFileRow(row: FileSummary, calendarMissing: boolean): string {
     .filter((severity) => row.severityCounts[severity] > 0)
     .map((severity) => `
       <span class="file-sev-badge" style="color:${SEVERITY_COLOR[severity]}">
-        ${SEVERITY_TR[severity]} ${row.severityCounts[severity].toLocaleString('tr-TR')}
+        ${SEVERITY_TR[severity]} ${row.severityCounts[severity].toLocaleString(intlLocale())}
       </span>`)
     .join('');
 
@@ -83,7 +83,7 @@ function renderFileRow(row: FileSummary, calendarMissing: boolean): string {
     ? `<span class="file-delta-neg">${row.scoreDelta.toFixed(1)} puan</span>`
     : '';
   const fileInfo = row.info
-    ? `<span class="file-info">${row.info.rows.toLocaleString('tr-TR')} satir - ${formatFileBytes(row.info.bytes)}</span>`
+    ? `<span class="file-info">${row.info.rows.toLocaleString(intlLocale())} ${t('upload.row_unit')} · ${formatFileBytes(row.info.bytes)}</span>`
     : '';
   const displayName = row.general ? t('files.general') : row.name;
   const clickable = !row.general && row.notices.length > 0;

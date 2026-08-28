@@ -1,5 +1,5 @@
 import type { ValidationResult, R5Report, FeedMetrics } from '../types';
-import { t } from '../i18n';
+import { t, intlLocale } from '../i18n';
 import { getState, setPage, setFixClassFilter } from '../state';
 import { fmtServiceDate, inclusiveDaySpan, dayOffset, fmtTimestamp } from '../dates';
 import { escHtml } from '../escape';
@@ -184,20 +184,20 @@ function renderPieCard(c: SevCount): string {
       return `<div class="pie-leg-row">` +
                `<span class="pie-leg-dot" style="background:${s.color}"></span>` +
                `<span class="pie-leg-label">${t(`domain.sev.${s.key}`)}</span>` +
-               `<span class="pie-leg-count">${count.toLocaleString('tr-TR')}</span>` +
+               `<span class="pie-leg-count">${count.toLocaleString(intlLocale())}</span>` +
                `<span class="pie-leg-pct">${pct}%</span>` +
              `</div>`;
     }).join('');
 
   return `
     <div class="rpt-score-card rpt-pie-card">
-      <span class="rpt-score-label">${t('domain.pie_title')} <span class="rpt-score-total">${total.toLocaleString('tr-TR')}</span></span>
+      <span class="rpt-score-label">${t('domain.pie_title')} <span class="rpt-score-total">${total.toLocaleString(intlLocale())}</span></span>
       <div class="rpt-pie-body">
         <svg viewBox="0 0 36 36" class="rpt-pie-svg" aria-hidden="true">
           <circle cx="18" cy="18" r="${R}" fill="none" class="pie-track" stroke-width="3.5"/>
           ${circles}
           <text x="18" y="16" text-anchor="middle" dominant-baseline="middle"
-            font-size="5.5" font-weight="800" class="pie-center-num">${total.toLocaleString('tr-TR')}</text>
+            font-size="5.5" font-weight="800" class="pie-center-num">${total.toLocaleString(intlLocale())}</text>
           <text x="18" y="22" text-anchor="middle" dominant-baseline="middle"
             font-size="2.8" class="pie-center-txt">${t('domain.pie_center')}</text>
         </svg>
@@ -222,12 +222,12 @@ function renderMetrics(m: FeedMetrics): string {
     ? ` <span class="jp-badge" title="${escHtml(t('domain.gtfs_jp.profile_tip'))}">${escHtml(t('domain.gtfs_jp.profile', { profile: profile.toUpperCase() }))}</span>`
     : '';
   const items = [
-    { label: t('domain.metric.stops'),        value: m.stop_count.toLocaleString('tr-TR') },
-    { label: t('domain.metric.routes'),       value: m.route_count.toLocaleString('tr-TR') },
-    { label: t('domain.metric.trips'),        value: m.trip_count.toLocaleString('tr-TR') },
-    { label: t('domain.metric.shapes'),       value: m.shape_count.toLocaleString('tr-TR') },
-    { label: t('domain.metric.service_days'), value: m.active_service_days.toLocaleString('tr-TR') },
-    { label: t('domain.metric.avg_trips'),    value: Math.round(m.avg_daily_trips).toLocaleString('tr-TR') },
+    { label: t('domain.metric.stops'),        value: m.stop_count.toLocaleString(intlLocale()) },
+    { label: t('domain.metric.routes'),       value: m.route_count.toLocaleString(intlLocale()) },
+    { label: t('domain.metric.trips'),        value: m.trip_count.toLocaleString(intlLocale()) },
+    { label: t('domain.metric.shapes'),       value: m.shape_count.toLocaleString(intlLocale()) },
+    { label: t('domain.metric.service_days'), value: m.active_service_days.toLocaleString(intlLocale()) },
+    { label: t('domain.metric.avg_trips'),    value: Math.round(m.avg_daily_trips).toLocaleString(intlLocale()) },
   ];
 
   const metricCards = items.map(it => `
@@ -239,7 +239,7 @@ function renderMetrics(m: FeedMetrics): string {
   const fileRows = m.file_stats.map(f => `
     <tr>
       <td><code>${escHtml(f.name)}</code></td>
-      <td class="num">${f.rows.toLocaleString('tr-TR')}</td>
+      <td class="num">${f.rows.toLocaleString(intlLocale())}</td>
       <td class="num">${formatBytes(f.bytes)}</td>
     </tr>`).join('');
 
@@ -277,8 +277,8 @@ function renderFeedCalendar(m: FeedMetrics): string {
     const span = inclusiveDaySpan(ss, se);
     const pct = span > 0 ? Math.round((m.active_service_days / span) * 100) : 0;
     const activeStr = t('domain.active_days_fmt', {
-      active: m.active_service_days.toLocaleString('tr-TR'),
-      span: span.toLocaleString('tr-TR'),
+      active: m.active_service_days.toLocaleString(intlLocale()),
+      span: span.toLocaleString(intlLocale()),
     });
     const coverageStr = t('domain.coverage_fmt', { pct });
     serviceVal = `${escHtml(fmtServiceDate(ss) ?? '')} – ${escHtml(fmtServiceDate(se) ?? '')}`

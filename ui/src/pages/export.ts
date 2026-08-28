@@ -1,5 +1,5 @@
 import type { Notice, ValidationResult } from '../types';
-import { SEVERITY_TR, RULE_CLASS_TR, t, tMsg, getLocale } from '../i18n';
+import { SEVERITY_TR, RULE_CLASS_TR, t, tMsg, getLocale, intlLocale } from '../i18n';
 import { augmentRouteLabels } from './fix';
 import { getState } from '../state';
 import { getLastEngineMode } from '../validator-client';
@@ -14,9 +14,11 @@ import { formatBytes } from '../format';
 // Bayt → insan-okur boyut (yerel ondalık ayraçla). Tahmini dışa aktarım boyutu için.
 const byteLen = (s: string): number => new TextEncoder().encode(s).length;
 
-// Locale-duyarlı sayı biçimi (binlik ayraç tr "2.935.811" / en "2,935,811" / ja "2,935,811").
-const fmtInt = (n: number): string => new Intl.NumberFormat(undefined).format(n);
-const fmtDec1 = (n: number): string => new Intl.NumberFormat(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(n);
+// Locale-duyarlı sayı biçimi (binlik ayraç tr "2.935.811" / en "2,935,811" /
+// ja "2,935,811" / fr "2 935 811"). `undefined` TARAYICI locale'ini kullanırdı;
+// uygulama dili tarayıcıdan farklı olduğunda biçim de yanlış çıkıyordu.
+const fmtInt = (n: number): string => new Intl.NumberFormat(intlLocale()).format(n);
+const fmtDec1 = (n: number): string => new Intl.NumberFormat(intlLocale(), { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(n);
 
 // Renkli daire içinde satır-ikonu (currentColor). Kart/stat başlıkları için.
 const ICON: Record<string, string> = {
@@ -263,6 +265,7 @@ export function renderExport(
                 <option value="tr"${getLocale() === 'tr' ? ' selected' : ''}>Türkçe</option>
                 <option value="en"${getLocale() === 'en' ? ' selected' : ''}>English</option>
                 <option value="ja"${getLocale() === 'ja' ? ' selected' : ''}>日本語</option>
+                <option value="fr"${getLocale() === 'fr' ? ' selected' : ''}>Français</option>
               </select>
             </label>
             <button id="btn-export-executive" class="btn btn-primary exp-card-btn">${t('export.card.executive.action')}</button>

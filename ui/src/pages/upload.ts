@@ -1,5 +1,5 @@
 import { setResult, getState, setConfigDelta, setPage } from '../state';
-import { FATAL_CODE_TR, t, getLocale } from '../i18n';
+import { FATAL_CODE_TR, t, getLocale, intlLocale } from '../i18n';
 import type { FatalError, ValidationResult, FileInfo } from '../types';
 import { renderApp } from '../main';
 import { validateFile } from '../validator-client';
@@ -136,8 +136,8 @@ export function renderUpload(root: HTMLElement): void {
 function renderFileStatRows(files: FileInfo[]): string {
   return files.map(f => {
     const kb = Math.round(f.bytes / 1024);
-    const base = t(`file.${f.name}`) !== `file.${f.name}` ? t(`file.${f.name}`) : t('upload.row_unit');
-    const label = pluralUnit(base, f.rows);
+    const unitKey = t(`file.${f.name}`) !== `file.${f.name}` ? `file.${f.name}` : 'upload.row_unit';
+    const label = pluralUnit(t(unitKey), f.rows, unitKey);
     return `
       <div class="lp-file-row done">
         <span class="lp-icon">✓</span>
@@ -535,8 +535,8 @@ async function handleBuffer(buffer: ArrayBuffer, fileName: string, fileSize: num
         if (!row) return;
         row.className = 'lp-file-row done';
         row.querySelector('.lp-icon')!.textContent = '✓';
-        const base = t(`file.${name}`) !== `file.${name}` ? t(`file.${name}`) : t('upload.row_unit');
-        const label = pluralUnit(base, rows);
+        const unitKey = t(`file.${name}`) !== `file.${name}` ? `file.${name}` : 'upload.row_unit';
+        const label = pluralUnit(t(unitKey), rows, unitKey);
         row.querySelector<HTMLElement>('.lp-status')!.textContent =
           `${formatCount(rows)} ${label} · ${formatSize(Math.round(bytes / 1024))}`;
       },
@@ -548,7 +548,7 @@ async function handleBuffer(buffer: ArrayBuffer, fileName: string, fileSize: num
         stageEl.querySelector<HTMLElement>('.lp-status')!.textContent =
           elapsed_ms < 1000
             ? `${elapsed_ms} ${t('upload.unit_ms')}`
-            : `${(elapsed_ms / 1000).toLocaleString(numLocale(), { minimumFractionDigits: 1, maximumFractionDigits: 1 })} ${t('upload.unit_sec')}`;
+            : `${(elapsed_ms / 1000).toLocaleString(intlLocale(), { minimumFractionDigits: 1, maximumFractionDigits: 1 })} ${t('upload.unit_sec')}`;
         const idx = STAGE_ORDER.indexOf(stage);
         if (idx >= 0 && idx < STAGE_ORDER.length - 1) {
           const nextEl = root.querySelector<HTMLElement>(
@@ -703,23 +703,29 @@ function formatSize(kb: number): string {
 }
 
 function formatReportDuration(ms: number): string {
-  return new Intl.NumberFormat(numLocale(), { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(ms / 1000);
+  return new Intl.NumberFormat(intlLocale(), { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(ms / 1000);
 }
 
-// App diline karşılık gelen BCP-47 etiketi — sayı biçimlendirme için (tr virgül, en/ja nokta).
-function numLocale(): string {
-  const l = getLocale();
-  return l === 'tr' ? 'tr-TR' : l === 'ja' ? 'ja-JP' : 'en-US';
-}
 
 // Tam sayıyı app diline göre binlik ayraçla biçimler.
 function formatCount(n: number): string {
-  return n.toLocaleString(numLocale());
+  return n.toLocaleString(intlLocale());
 }
 
-// Dosya birimi locale'de tekil tutulur; İngilizcede sayıya göre çoğullanır (stop → stops).
-// tr/ja adı sayıya göre çekmez → değişmez. Mevcut tüm İngilizce birimler düzenli (+s).
-function pluralUnit(label: string, count: number): string {
-  if (getLocale() !== 'en') return label;
-  return new Intl.PluralRules('en').select(count) === 'one' ? label : `${label}s`;
+// Dosya birimi locale'de tekil tutulur; en/fr sayıya göre çoğullanır (stop → stops,
+// arrêt → arrêts). tr/ja adı sayıya göre çekmez → değişmez.
+//
+// Düzensiz çoğullar `<anahtar>.plural` ile locale'den gelir: Fransızca'da
+// `level` = niveau → niveaux, düzenli `+s` kuralını bozan tek birim (15 birim
+// ölçüldü). Anahtar yoksa `+s`'e düşülür — ikisi de düzenli olan İngilizce ve
+// Fransızca için doğru sonuç.
+function pluralUnit(label: string, count: number, key?: string): string {
+  const locale = getLocale();
+  if (locale !== 'en' && locale !== 'fr') return label;
+  if (new Intl.PluralRules(intlLocale()).select(count) === 'one') return label;
+  if (key) {
+    const irregular = t(`${key}.plural`);
+    if (irregular !== `${key}.plural`) return irregular;
+  }
+  return `${label}s`;
 }

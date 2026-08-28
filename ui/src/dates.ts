@@ -5,8 +5,9 @@
 // bu yüzden her çağrı defansif sarılır ve ham değere düşer.
 import KkDate from 'kk-date';
 import { getLocale } from './i18n';
+import type { Locale } from './i18n';
 
-const LOCALE_TAG: Record<string, string> = { tr: 'tr', en: 'en', ja: 'ja' };
+const LOCALE_TAG: Record<Locale, string> = { tr: 'tr', en: 'en', ja: 'ja', fr: 'fr' };
 function tag(): string {
   return LOCALE_TAG[getLocale()] ?? 'en';
 }

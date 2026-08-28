@@ -1,5 +1,5 @@
 ﻿import type { ValidationResult, Notice, R9Item, NameIndex, Severity } from '../types';
-import { SEVERITY_TR, SEVERITY_COLOR, RULE_CLASS_TR, t, tMsg, tRemediation } from '../i18n';
+import { SEVERITY_TR, SEVERITY_COLOR, RULE_CLASS_TR, t, tMsg, tRemediation, intlLocale } from '../i18n';
 import { MAX_MAP_PINS, openMapModal, type MapPin, type MapOptions } from '../map-modal';
 import { requestShapeCoords } from '../validator-client';
 import { openPatternModal } from '../pattern-modal';
@@ -66,7 +66,7 @@ function renderR9(items: R9Item[], noticeMap: Map<string, Notice>, normFactor: n
     const realTotal = cappedTotals[item.rule_id];
     // Toplam: sadece cap'e çarpan kurullarda gerçek toplam
     const totalHtml = realTotal != null
-      ? `<span class="cap-total">${realTotal.toLocaleString('tr-TR')}</span>`
+      ? `<span class="cap-total">${realTotal.toLocaleString(intlLocale())}</span>`
       : '<span class="muted-text">—</span>';
     // Hata: R2 tablosunda görünen sayı (cap sonrası)
     const shownCount = shownCounts[item.rule_id] ?? item.affected_instance_count;
@@ -79,7 +79,7 @@ function renderR9(items: R9Item[], noticeMap: Map<string, Notice>, normFactor: n
         </td>
         <td style="color:${SEVERITY_COLOR[severity]}">${SEVERITY_TR[severity]}</td>
         <td>${badgeHtml}</td>
-        <td data-val="${shownCount}">${shownCount.toLocaleString('tr-TR')}</td>
+        <td data-val="${shownCount}">${shownCount.toLocaleString(intlLocale())}</td>
         <td data-val="${realTotal ?? -1}">${totalHtml}</td>
         <td class="score" data-val="${item.priority_score}">${item.priority_score.toFixed(1)}</td>
         <td class="score-delta-cell" data-val="${pubSd}">${pubHtml}</td>
@@ -1416,7 +1416,7 @@ export function attachFixListeners(root: HTMLElement, result?: ValidationResult,
           if (type === 'sev') {
             return ((SEVERITY_RANK[(a.dataset['sev'] ?? 'INFO') as Severity] ?? 9) - (SEVERITY_RANK[(b.dataset['sev'] ?? 'INFO') as Severity] ?? 9)) * sortDir;
           }
-          return cellTxt(a, col).localeCompare(cellTxt(b, col), 'tr') * sortDir;
+          return cellTxt(a, col).localeCompare(cellTxt(b, col), intlLocale()) * sortDir;
         });
         for (const main of mains) {
           const detail = r9Tbody.querySelector<HTMLTableRowElement>(`.r9-detail-row[data-for="${main.dataset['idx']}"]`);
@@ -1477,7 +1477,7 @@ export function attachFixListeners(root: HTMLElement, result?: ValidationResult,
             const nb = parseFloat(txt2(b, col).replace(/[^\d.-]/g, '')) || 0;
             return (na - nb) * r2Dir;
           }
-          return txt2(a, col).localeCompare(txt2(b, col), 'tr') * r2Dir;
+          return txt2(a, col).localeCompare(txt2(b, col), intlLocale()) * r2Dir;
         });
         for (const r of rows2) r2Tbody.appendChild(r);
         r2Table.querySelectorAll('.sort-ind').forEach(s => { s.textContent = ''; });
