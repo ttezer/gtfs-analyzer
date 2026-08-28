@@ -163,7 +163,7 @@ jobs:
 
       # `crates/cli/locales/*.json` TS locale'lerden TÜRETİLİR; export çalıştırılmazsa
       # CLI eski metni yayınlar. Üç türetilmiş dosya olduğundan (en/ja/fr) kapı burada.
-      - name: locale export drift (bayat ise: npm run locales:export)
+      - name: "locale export drift (bayat ise: npm run locales:export)"
         working-directory: ui
         run: npm run locales:export -- --check
 
