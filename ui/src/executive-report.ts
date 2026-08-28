@@ -1,4 +1,5 @@
 import type { Locale } from './i18n';
+import { INTL_LOCALE } from './i18n';
 import {
   ruleClassForLocale,
   severityForLocale,
@@ -245,11 +246,56 @@ const REPORT_TEXT = {
     insightCapped: '少なくとも1つのルールが表示上限を超えています。本レポートは合計と優先順位に実集計値を使用します。',
     levelStrong: '良好', levelWatch: '要監視', levelAction: '対応必要',
   },
+  fr: {
+    reportTitle: 'Rapport de direction GTFS Analyzer',
+    reportSubtitle: 'Préparation à la publication, qualité des données et plan d’amélioration actionnable',
+    generated: 'Généré', version: 'Version de GTFS Analyzer', engine: 'Moteur d’analyse', printReport: 'Imprimer / Enregistrer en PDF',
+    confidential: 'Préparé pour l’aide à la décision',
+    executiveSummary: 'Synthèse',
+    ready: 'Prêt à publier', blocked: 'Publication bloquée',
+    summaryReady: 'Aucun bloquant pour la publication n’a été trouvé. {findings} signalements répartis sur {rules} règles restent à traiter ; le score global est de {score}/100.',
+    summaryBlocked: '{blockers} bloquants pour la publication ont été trouvés. Traitez d’abord les éléments P0, puis relancez l’analyse.',
+    actualFindings: 'Total des signalements', ruleTypes: 'Règles concernées', selectedActions: 'Actions prioritaires',
+    scoreNote: 'Les scores évaluent le jeu de données GTFS ; ils ne mesurent ni la performance ni la précision de GTFS Analyzer.',
+    feedProfile: 'Profil du jeu de données et scores', feedProfileIntro: 'Cette vue résume l’ampleur du jeu de données ainsi que le risque de publication et de qualité sur une seule page.',
+    stops: 'Arrêts', routes: 'Lignes', trips: 'Courses', shapes: 'Tracés', activeDays: 'Jours de service actifs', dailyTrips: 'Courses quotidiennes (moy.)',
+    feedRange: 'Période de validité du jeu de données', serviceRange: 'Période de service réelle', files: 'Fichiers',
+    publishScore: 'Score de publication', overallScore: 'Score global', spec: 'Spec', interop: 'Interop', quality: 'Qualité', analytics: 'Analytique',
+    prioritizedFindings: 'Signalements priorisés', prioritizedIntro: 'Les bloquants pour la publication R1 sont combinés au classement impact/effort R9. Chaque règle est consolidée en une seule action.',
+    evidence: 'Preuve', why: 'Pourquoi c’est important', action: 'Action recommandée', affected: 'Nombre de signalements', effort: 'Effort', scoreImpact: 'Impact sur le score',
+    noFindings: 'Aucun signalement ne nécessite de priorisation.',
+    diagnosticCoverage: 'Signalements par classe d’analyse', coverageIntro: 'Les valeurs ci-dessous sont des nombres de signalements, et non des scores. Zéro signalement est un résultat positif.',
+    findingUnit: 'signalements', noClassFindings: 'Aucun signalement',
+    feedInsights: 'Observations propres au jeu de données', noInsight: 'Aucun signal de risque structurel supplémentaire n’a été identifié.',
+    remediationPlan: 'Plan de correction propre au jeu de données', remediationIntro: 'Les phases sont générées à partir des bloquants R1 réels de ce jeu de données et des données de priorité R9.',
+    phase0: 'P0 · Bloquants pour la publication', phase1: 'P1 · Améliorations prioritaires', phase2: 'P2 · Amélioration de la qualité',
+    phaseEmptyP0: 'Aucun bloquant R1 n’a été trouvé ; aucune action P0 n’est requise.', phaseEmptyP1: 'Aucun signalement prioritaire P1 n’a été trouvé.', phaseEmptyP2: 'Aucun signalement d’amélioration P2 n’a été trouvé.',
+    phaseMeta: '{rules} règles · {findings} signalements · effort total {effort}',
+    phaseScoreGain: 'Gain estimé du score global : +{score}', phasePublishGain: 'Gain estimé du score de publication : +{score}',
+    phaseMore: '+{count} règles supplémentaires sont incluses dans cette phase.',
+    phaseExit: 'Critère de sortie',
+    phaseExitRules: 'Les {findings} signalements actuels répartis sur {rules} règles atteignent zéro ou sont documentés comme exceptions acceptées ; relancez l’analyse.',
+    appendix: 'Annexe technique', appendixIntro: 'Les décomptes ci-dessous utilisent les totaux réels des règles, plutôt que les plafonds d’affichage, lorsque cela est possible.',
+    severityDistribution: 'Répartition par gravité', classDistribution: 'Répartition des signalements par classe', topRules: 'Règles au plus fort volume', fileInventory: 'Inventaire des fichiers',
+    rule: 'Règle', severity: 'Gravité', class: 'Classe', count: 'Nombre', file: 'Fichier', rows: 'Enregistrements',
+    cappedNote: 'Le total réel est de {actual}, contre {displayed} occurrences conservées pour l’affichage.',
+    offline: 'Ce rapport a été généré localement dans le navigateur à partir du jeu de données téléversé et des résultats de GTFS Analyzer ; aucune API externe n’est requise.',
+    unknown: 'Inconnu', notAvailable: 'Non disponible',
+    impactP0: 'Les {count} signalements « {rule} » affectent directement la porte de publication R1 et peuvent amener les systèmes consommateurs à rejeter le jeu de données.',
+    impactSpec: 'Les {count} signalements « {rule} » affectent la conformité à la spécification GTFS ; le niveau d’exigence et l’impact sur la publication doivent être évalués dans le contexte de la règle.',
+    impactInterop: 'Les {count} signalements « {rule} » peuvent affecter l’interprétation cohérente par les systèmes consommateurs et l’interopérabilité entre systèmes.',
+    impactQuality: 'Les {count} signalements « {rule} » peuvent réduire la fiabilité du modèle de données, l’expérience voyageur ou la maintenabilité ; ils ne sont pas des bloquants pour la publication en eux-mêmes.',
+    impactAnalytics: 'Les {count} signalements « {rule} » peuvent affecter la précision de la planification, de la mesure de performance ou d’autres résultats analytiques ; ils ne sont pas des bloquants pour la publication en eux-mêmes.',
+    insightRouteTrip: 'Le nombre de lignes correspond exactement au nombre de courses ({count}). Cela peut indiquer une ligne par course ; vérifiez le modèle de lignes.',
+    insightNoShapes: 'Il y a {trips} courses mais aucun tracé. L’affichage cartographique, les distances et les analyses basées sur l’itinéraire peuvent rester limités.',
+    insightNoService: 'Aucune période de service réelle valide n’a pu être calculée. Vérifiez les enregistrements de calendrier et d’exception.',
+    insightCapped: 'Au moins une règle dépasse le plafond d’affichage. Ce rapport utilise les décomptes agrégés réels pour les totaux et les priorités.',
+    levelStrong: 'Solide', levelWatch: 'À surveiller', levelAction: 'Action requise',
+  },
 } as const;
 
 type ReportText = { [Key in keyof typeof REPORT_TEXT.en]: string };
 
-const INTL_LOCALE: Record<Locale, string> = { tr: 'tr-TR', en: 'en-US', ja: 'ja-JP' };
 const SEVERITIES: Severity[] = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'INFO'];
 const CLASSES: RuleClass[] = ['SPEC', 'INTEROP', 'QUALITY', 'ANALYTICS'];
 

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { buildExecutiveReportHtml, buildExecutiveReportModel } from '../executive-report';
 import type { Notice, R9Item, ValidationResult } from '../types';
+import type { Locale } from '../i18n';
 
 function notice(ruleId: string, severity: Notice['severity'] = 'MEDIUM', index = 1, ruleClass?: Notice['rule_class']): Notice {
   return {
@@ -68,7 +69,7 @@ function result(): ValidationResult {
   };
 }
 
-const build = (locale: 'tr' | 'en' | 'ja') => buildExecutiveReportModel({
+const build = (locale: Locale) => buildExecutiveReportModel({
   result: result(),
   fileName: 'unsafe <feed>.zip',
   generatedAt: '2026-07-21 12:00:00',
@@ -136,16 +137,24 @@ describe('executive report', () => {
     expect(html).not.toContain('Kritik yapısal ve zorunlu alan sorunlarını giderin.');
   });
 
-  it('renders independent Turkish, English, and Japanese reports', () => {
+  it('renders independent Turkish, English, Japanese, and French reports', () => {
     const tr = buildExecutiveReportHtml(build('tr'));
     const en = buildExecutiveReportHtml(build('en'));
     const ja = buildExecutiveReportHtml(build('ja'));
+    const fr = buildExecutiveReportHtml(build('fr'));
     expect(tr).toContain('Yönetici Özeti');
     expect(en).toContain('Executive Summary');
     expect(ja).toContain('エグゼクティブサマリー');
     expect(tr).toContain('Feed’e Özel İyileştirme Planı');
     expect(en).toContain('Feed-Specific Remediation Plan');
     expect(ja).toContain('フィード固有の改善計画');
+    expect(fr).toContain('Synthèse');
+    expect(fr).toContain('Plan de correction propre au jeu de données');
+    // INTL_LOCALE kapısı: fr-FR binlik ayracı U+202F, en-US ise virgül.
+    // `\d,\d` yazmak yetmez — en-US binlik ayracı da virgüldür ve testi
+    // yanlışlıkla yeşil tutar (ölçüldü).
+    expect(fr).toMatch(/\d\u202f\d{3}/);
+    expect(fr).not.toMatch(/\d,\d{3}/);
   });
 
   it('escapes feed-derived content and contains no external-validator branding', () => {

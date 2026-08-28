@@ -6,6 +6,7 @@ import { renderFiles } from './pages/files';
 import { renderExport } from './pages/export';
 import { renderCompare } from './pages/compare';
 import { getLocale, setLocale, t } from './i18n';
+import type { Locale } from './i18n';
 import { initDebugBuffer } from './debug-buffer';
 import { escHtml } from './escape';
 import type { AppPage } from './state';
@@ -46,6 +47,7 @@ function langFlagsHtml(): string {
     { lang: 'tr', label: '🇹🇷 TR', title: 'Türkçe' },
     { lang: 'en', label: '🇬🇧 EN', title: 'English' },
     { lang: 'ja', label: '🇯🇵 日本語', title: '日本語' },
+    { lang: 'fr', label: '🇫🇷 FR', title: 'Français' },
   ];
   return `<div class="lang-flags">${langs.map(f =>
     `<button class="lang-flag${cur === f.lang ? ' active' : ''}" data-lang="${f.lang}" title="${f.title}">${f.label}</button>`
@@ -84,7 +86,7 @@ export function renderApp(): void {
       .addEventListener('click', toggleDarkMode);
     app.querySelectorAll<HTMLButtonElement>('.lang-flag').forEach(btn => {
       btn.addEventListener('click', () => {
-        setLocale(btn.dataset['lang'] as 'tr' | 'en' | 'ja');
+        setLocale(btn.dataset['lang'] as Locale);
         if (document.querySelector('#drop-zone.loading')) {
           // ZIP yükleme aktifken tam render yapma
           document.querySelectorAll<HTMLButtonElement>('.lang-flag').forEach(b => {
@@ -141,7 +143,7 @@ export function renderApp(): void {
     .addEventListener('click', toggleDarkMode);
   app.querySelectorAll<HTMLButtonElement>('.lang-flag').forEach(btn => {
     btn.addEventListener('click', () => {
-      setLocale(btn.dataset['lang'] as 'tr' | 'en' | 'ja');
+      setLocale(btn.dataset['lang'] as Locale);
       renderApp();
     });
   });

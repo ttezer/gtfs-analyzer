@@ -2,10 +2,11 @@ import type { Severity, RuleClass, FatalCode } from './types';
 import tr from './locales/tr';
 import en from './locales/en';
 import ja from './locales/ja';
+import fr from './locales/fr';
 
 // ── Locale registry — yeni dil = buraya import + LOCALES'e ekle ──────────────
 
-const LOCALES = { tr, en, ja };
+const LOCALES = { tr, en, ja, fr };
 export type Locale = keyof typeof LOCALES;
 
 // ── Locale state ──────────────────────────────────────────────────────────────
@@ -22,6 +23,17 @@ let _locale: Locale = (() => {
 if (typeof document !== 'undefined') document.documentElement.lang = _locale;
 
 export function getLocale(): Locale { return _locale; }
+
+// ── Intl etiketleri ───────────────────────────────────────────────────────────
+// Uygulama dilinin BCP-47 karşılığı; sayı/tarih/sıralama biçimlendirmesinin TEK
+// kaynağı. `Record<Locale, …>` olduğu için yeni bir dil eklendiğinde tsc kırılır
+// — sessizce yanlış locale'e düşmenin önündeki tek kapı budur.
+export const INTL_LOCALE: Record<Locale, string> = {
+  tr: 'tr-TR', en: 'en-US', ja: 'ja-JP', fr: 'fr-FR',
+};
+
+/** Aktif dilin BCP-47 etiketi. `toLocaleString`/`Intl.*` çağrılarında kullanın. */
+export function intlLocale(): string { return INTL_LOCALE[_locale]; }
 
 export function setLocale(l: Locale): void {
   _locale = l;
