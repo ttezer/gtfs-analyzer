@@ -111,20 +111,20 @@ fn parse_rows(md: &str) -> BTreeMap<String, Row> {
 /// BAĞIMSIZ yeniden ifadesi — kasıtlı kopya: biri değişirse test kırılmalı.
 fn expected_severity(debug_name: &str, lang: usize) -> &'static str {
     match debug_name {
-        "Kritik" => ["KRİTİK", "CRITICAL", "致命的"][lang],
-        "Yuksek" => ["YÜKSEK", "HIGH", "高"][lang],
-        "Orta" => ["ORTA", "MEDIUM", "中"][lang],
-        "Dusuk" => ["DÜŞÜK", "LOW", "低"][lang],
-        "Bilgi" => ["BİLGİ", "INFO", "情報"][lang],
+        "Kritik" => ["KRİTİK", "CRITICAL", "致命的", "CRITIQUE"][lang],
+        "Yuksek" => ["YÜKSEK", "HIGH", "高", "ÉLEVÉE"][lang],
+        "Orta" => ["ORTA", "MEDIUM", "中", "MOYENNE"][lang],
+        "Dusuk" => ["DÜŞÜK", "LOW", "低", "FAIBLE"][lang],
+        "Bilgi" => ["BİLGİ", "INFO", "情報", "INFO"][lang],
         other => panic!("bilinmeyen severity: {other}"),
     }
 }
 fn expected_class(debug_name: &str, lang: usize) -> &'static str {
     match debug_name {
-        "Spec" => ["Spec", "Spec", "仕様"][lang],
-        "Interop" => ["Interop", "Interop", "相互運用"][lang],
-        "Quality" => ["Quality", "Quality", "品質"][lang],
-        "Analytics" => ["Analytics", "Analytics", "分析"][lang],
+        "Spec" => ["Spec", "Spec", "仕様", "Spec"][lang],
+        "Interop" => ["Interop", "Interop", "相互運用", "Interop"][lang],
+        "Quality" => ["Quality", "Quality", "品質", "Quality"][lang],
+        "Analytics" => ["Analytics", "Analytics", "分析", "Analytics"][lang],
         other => panic!("bilinmeyen rule_class: {other}"),
     }
 }
@@ -140,7 +140,7 @@ fn read(file: &str) -> String {
 fn rules_docs_match_registry() {
     let mut problems: Vec<String> = vec![];
 
-    for (lang, file) in ["RULES.md", "RULES.en.md", "RULES.ja.md"].iter().enumerate() {
+    for (lang, file) in ["RULES.md", "RULES.en.md", "RULES.ja.md", "RULES.fr.md"].iter().enumerate() {
         let rows = parse_rows(&read(file));
 
         for rule in RULES {
@@ -183,6 +183,34 @@ fn rules_docs_match_registry() {
 
 /// Türkçe tablo başlıkları doğrudan `registry.title`'dan gelir → birebir eşleşmeli.
 /// (EN/JA başlıkları locale dosyalarından geldiği için ayrı testte kontrol edilir.)
+/// Türkçe sızıntı kapısı — çevrilmiş RULES dosyaları için.
+///
+/// `gen_rules`, locale'de bulamadığı başlığın yerine registry'nin TÜRKÇE metnini
+/// yazar. Yukarıdaki başlık denetimi yalnız `RULES.md`'yi kapsadığından, yarım
+/// çevrilmiş bir locale ile üretilen `RULES.en/ja/fr.md` sessizce Türkçe satır
+/// taşıyabilirdi. `ş ğ İ ı` harfleri bu üç dilin hiçbirinde yoktur.
+#[test]
+fn translated_rules_docs_carry_no_turkish_titles() {
+    let mut problems: Vec<String> = vec![];
+
+    for file in ["RULES.en.md", "RULES.ja.md", "RULES.fr.md"] {
+        for (id, row) in parse_rows(&read(file)) {
+            if row.title.contains(['ş', 'ğ', 'İ', 'ı', 'Ş', 'Ğ']) {
+                problems.push(format!("{file} · {id}: '{}'", row.title));
+            }
+        }
+    }
+
+    assert!(
+        problems.is_empty(),
+        "çevrilmiş RULES dosyalarında Türkçe başlık ({} satır):\n  {}\n\
+         Eksik başlıkları ui/src/locales/<lang>.ts içine ekleyip \
+         `cargo run -p gtfs-rules --example gen_rules` çalıştırın.",
+        problems.len(),
+        problems.join("\n  ")
+    );
+}
+
 #[test]
 fn turkish_rules_doc_titles_match_registry_titles() {
     let rows = parse_rows(&read("RULES.md"));
@@ -221,7 +249,7 @@ fn rules_doc_intro_counts_match_registry() {
     groups.dedup();
     let g = groups.len();
 
-    for file in ["RULES.md", "RULES.en.md", "RULES.ja.md"] {
+    for file in ["RULES.md", "RULES.en.md", "RULES.ja.md", "RULES.fr.md"] {
         let md = read(file);
         let intro: String = md.lines().take(10).collect::<Vec<_>>().join("\n");
         assert!(

@@ -1,6 +1,6 @@
 # GTFS Validator & Analyzer — ルール一覧
 
-🇹🇷 [Türkçe](RULES.md) · 🇬🇧 [English](RULES.en.md) · 🇯🇵 **日本語**
+🇹🇷 [Türkçe](RULES.md) · 🇬🇧 [English](RULES.en.md) · 🇯🇵 **日本語** · 🇫🇷 [Français](RULES.fr.md)
 
 611ルール、38グループ。各ルールは一意のID、重要度、クラスで定義されます。
 重要度: **致命的**（公開ブロッカー）· **高** · **中** · **低** · **情報**

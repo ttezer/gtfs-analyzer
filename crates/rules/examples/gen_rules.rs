@@ -22,24 +22,24 @@ fn group_of(id: &str) -> &str {
 }
 
 // severity enum (Debug adı) → [TR, EN, JA]
-fn sev3(s: &str) -> [&'static str; 3] {
+fn sev4(s: &str) -> [&'static str; 4] {
     match s {
-        "Kritik" => ["KRİTİK", "CRITICAL", "致命的"],
-        "Yuksek" => ["YÜKSEK", "HIGH", "高"],
-        "Orta" => ["ORTA", "MEDIUM", "中"],
-        "Dusuk" => ["DÜŞÜK", "LOW", "低"],
-        "Bilgi" => ["BİLGİ", "INFO", "情報"],
-        _ => ["?", "?", "?"],
+        "Kritik" => ["KRİTİK", "CRITICAL", "致命的", "CRITIQUE"],
+        "Yuksek" => ["YÜKSEK", "HIGH", "高", "ÉLEVÉE"],
+        "Orta" => ["ORTA", "MEDIUM", "中", "MOYENNE"],
+        "Dusuk" => ["DÜŞÜK", "LOW", "低", "FAIBLE"],
+        "Bilgi" => ["BİLGİ", "INFO", "情報", "INFO"],
+        _ => ["?", "?", "?", "?"],
     }
 }
-// class enum (Debug adı) → [TR, EN, JA]
-fn cls3(c: &str) -> [&'static str; 3] {
+// class enum (Debug adı) → [TR, EN, JA, FR]
+fn cls4(c: &str) -> [&'static str; 4] {
     match c {
-        "Spec" => ["Spec", "Spec", "仕様"],
-        "Interop" => ["Interop", "Interop", "相互運用"],
-        "Quality" => ["Quality", "Quality", "品質"],
-        "Analytics" => ["Analytics", "Analytics", "分析"],
-        _ => ["?", "?", "?"],
+        "Spec" => ["Spec", "Spec", "仕様", "Spec"],
+        "Interop" => ["Interop", "Interop", "相互運用", "Interop"],
+        "Quality" => ["Quality", "Quality", "品質", "Quality"],
+        "Analytics" => ["Analytics", "Analytics", "分析", "Analytics"],
+        _ => ["?", "?", "?", "?"],
     }
 }
 
@@ -108,8 +108,10 @@ fn main() {
     let g_tr = parse_groups(&rd("RULES.md"));
     let g_en = parse_groups(&rd("RULES.en.md"));
     let g_ja = parse_groups(&rd("RULES.ja.md"));
+    let g_fr = parse_groups(&rd("RULES.fr.md"));
     let t_en = parse_titles(&rd("ui/src/locales/en.ts"));
     let t_ja = parse_titles(&rd("ui/src/locales/ja.ts"));
+    let t_fr = parse_titles(&rd("ui/src/locales/fr.ts"));
 
     // registry sırası: grupların ilk görülme sırası + grup içi kural sırası
     let mut group_order: Vec<&str> = vec![];
@@ -128,7 +130,7 @@ fn main() {
         Lang {
             file: "RULES.md", idx: 0,
             title_hdr: "# GTFS Validator & Analyzer — Kural Listesi",
-            nav: "🇹🇷 **Türkçe** · 🇬🇧 [English](RULES.en.md) · 🇯🇵 [日本語](RULES.ja.md)",
+            nav: "🇹🇷 **Türkçe** · 🇬🇧 [English](RULES.en.md) · 🇯🇵 [日本語](RULES.ja.md) · 🇫🇷 [Français](RULES.fr.md)",
             intro: "{N} kural, {G} grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.\nÖnem seviyeleri: **KRİTİK** (yayın engelleyici) · **YÜKSEK** · **ORTA** · **DÜŞÜK** · **BİLGİ**\nSınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · **Quality** (GTFS Kalitesi) · **Analytics** (GTFS Analitiği)",
             table_hdr: "| Kural | Başlık | Önem | Sınıf |",
             groups: g_tr, titles: None,
@@ -136,7 +138,7 @@ fn main() {
         Lang {
             file: "RULES.en.md", idx: 1,
             title_hdr: "# GTFS Validator & Analyzer — Rule List",
-            nav: "🇹🇷 [Türkçe](RULES.md) · 🇬🇧 **English** · 🇯🇵 [日本語](RULES.ja.md)",
+            nav: "🇹🇷 [Türkçe](RULES.md) · 🇬🇧 **English** · 🇯🇵 [日本語](RULES.ja.md) · 🇫🇷 [Français](RULES.fr.md)",
             intro: "{N} rules, {G} groups. Each rule is identified by a unique ID, severity level, and class.\nSeverity levels: **CRITICAL** (publish blocker) · **HIGH** · **MEDIUM** · **LOW** · **INFO**\nClasses: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Quality** (GTFS Quality) · **Analytics** (GTFS Analytics)",
             table_hdr: "| Rule | Title | Severity | Class |",
             groups: g_en, titles: Some(t_en),
@@ -144,10 +146,18 @@ fn main() {
         Lang {
             file: "RULES.ja.md", idx: 2,
             title_hdr: "# GTFS Validator & Analyzer — ルール一覧",
-            nav: "🇹🇷 [Türkçe](RULES.md) · 🇬🇧 [English](RULES.en.md) · 🇯🇵 **日本語**",
+            nav: "🇹🇷 [Türkçe](RULES.md) · 🇬🇧 [English](RULES.en.md) · 🇯🇵 **日本語** · 🇫🇷 [Français](RULES.fr.md)",
             intro: "{N}ルール、{G}グループ。各ルールは一意のID、重要度、クラスで定義されます。\n重要度: **致命的**（公開ブロッカー）· **高** · **中** · **低** · **情報**\nクラス: **仕様**（GTFS妥当性）· **相互運用**（GTFSインターオペラビリティ）· **品質**（GTFS品質）· **分析**（GTFSアナリティクス）",
             table_hdr: "| ルール | タイトル | 重要度 | クラス |",
             groups: g_ja, titles: Some(t_ja),
+        },
+        Lang {
+            file: "RULES.fr.md", idx: 3,
+            title_hdr: "# GTFS Validator & Analyzer — Liste des règles",
+            nav: "🇹🇷 [Türkçe](RULES.md) · 🇬🇧 [English](RULES.en.md) · 🇯🇵 [日本語](RULES.ja.md) · 🇫🇷 **Français**",
+            intro: "{N} règles, {G} groupes. Chaque règle est identifiée par un ID unique, un niveau de gravité et une classe.\nNiveaux de gravité : **CRITIQUE** (bloquant pour la publication) · **ÉLEVÉE** · **MOYENNE** · **FAIBLE** · **INFO**\nClasses : **Spec** (validité GTFS) · **Interop** (interopérabilité GTFS) · **Quality** (qualité GTFS) · **Analytics** (analytique GTFS)",
+            table_hdr: "| Règle | Titre | Gravité | Classe |",
+            groups: g_fr, titles: Some(t_fr),
         },
     ];
 
@@ -175,8 +185,8 @@ fn main() {
                         r.title.to_string()
                     }),
                 };
-                let sev = sev3(&format!("{:?}", r.severity))[lang.idx];
-                let cls = cls3(&format!("{:?}", r.rule_class))[lang.idx];
+                let sev = sev4(&format!("{:?}", r.severity))[lang.idx];
+                let cls = cls4(&format!("{:?}", r.rule_class))[lang.idx];
                 let safe_title = title.replace('|', "\\|");
                 out.push_str(&format!("| {} | {} | {} | {} |\n", r.id, safe_title, sev, cls));
             }
@@ -189,9 +199,19 @@ fn main() {
     if missing_titles.is_empty() {
         println!("Tüm başlıklar locale'den çözüldü.");
     } else {
-        println!("UYARI: locale'de başlığı bulunamayan (TR'ye düşen) {} kural:", missing_titles.len());
+        // Eksik başlık registry'nin TÜRKÇE metnine düşer ve o metin dosyaya YAZILIR.
+        // `rules_doc_drift` başlık sütununu yalnız RULES.md için doğruladığından
+        // (turkish_rules_doc_titles_match_registry_titles), sızıntı hiçbir testi
+        // kırmazdı. Bu yüzden generator burada durur: yarım çevrilmiş bir locale ile
+        // RULES.<lang>.md üretmek sessiz bir Türkçe sızıntısıdır.
+        eprintln!(
+            "HATA: locale'de başlığı bulunamayan (TR'ye düşen) {} kural:",
+            missing_titles.len()
+        );
         for m in &missing_titles {
-            println!("  {m}");
+            eprintln!("  {m}");
         }
+        eprintln!("Eksik başlıkları ui/src/locales/<lang>.ts içine ekleyip tekrar çalıştırın.");
+        std::process::exit(1);
     }
 }
