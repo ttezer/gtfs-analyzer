@@ -67,7 +67,7 @@ standalone with `npm run typecheck` (requires the wasm packages to be built firs
   commit message to silence it for a deliberately artifact-free change.
 - **Rules & i18n:** Adding/changing/removing a rule means updating the registry
   (`crates/rules/src/registry.rs`), its card in `docs/rules/`, and the locale files
-  (`ui/src/locales/{en,tr,ja}.ts`). Locale parity is enforced by a test.
+  (`ui/src/locales/{en,tr,ja,fr}.ts`). Locale parity is enforced by a test.
 - **Formatting: this repository is deliberately not rustfmt-formatted.** `cargo fmt --check`
   fails, and that is the recorded decision rather than neglect — do not "fix" it, and do not
   add a formatting gate. Match the style of the code around you instead.

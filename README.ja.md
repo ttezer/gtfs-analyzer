@@ -1,6 +1,6 @@
 # GTFS Validator & Analyzer
 
-🇹🇷 [Türkçe](README.md) · 🇬🇧 [English](README.en.md) · 🇯🇵 **日本語**
+🇹🇷 [Türkçe](README.md) · 🇬🇧 [English](README.en.md) · 🇯🇵 **日本語** · 🇫🇷 [Français](README.fr.md)
 
 [![アプリを開く](https://img.shields.io/badge/%E3%82%A2%E3%83%97%E3%83%AA%E3%82%92%E9%96%8B%E3%81%8F-gtfs--analyzer-2ea44f?style=flat&logo=googlechrome&logoColor=white)](https://ttezer.github.io/gtfs-analyzer/)
 [![GTFS-JP](https://img.shields.io/badge/GTFS--JP-v3%2Fv4%20%E5%AF%BE%E5%BF%9C-c8102e?style=flat)](https://www.gtfs.jp/)
@@ -352,7 +352,7 @@ cargo run -p gtfs-analyzer -- validate feed.zip --json
 | `--pretty` | JSON をインデント出力（`--json` が必要） |
 | `--include-name-index` | `name_index`（停留所/路線/shape の参照表）を JSON に含める |
 | `-o report.json` | stdout ではなくファイルに出力 |
-| `--lang en` | 指摘テキストの言語：`tr`（デフォルト）/ `en` / `ja` |
+| `--lang en` | 指摘テキストの言語：`en`（デフォルト）/ `tr` / `ja` / `fr` |
 | `--config config.json` | JSON config デルタを適用（`ValidatorConfig::default()` の上に） |
 | `--today 20260710` | 解析の「今日」を固定（カレンダールール用） |
 
@@ -404,7 +404,7 @@ gtfs-analyzer rules --rule STM_004 --json --pretty
 
 ### 出力言語
 
-検証コアは指摘テキストをトルコ語で生成します。`--lang en` / `--lang ja` は、**Web UI と同じ翻訳辞書**を使ってそれらを置き換えます。ルール ID、重大度、クラス（`CRITICAL`、`SPEC`）はどの言語でも機械可読な値のままで、翻訳されるのは `title`、`message`、`remediation` のみです。
+検証コアは指摘テキストをトルコ語で生成します。`--lang en` / `--lang ja` / `--lang fr` は、**Web UI と同じ翻訳辞書**を使ってそれらを置き換えます。ルール ID、重大度、クラス（`CRITICAL`、`SPEC`）はどの言語でも機械可読な値のままで、翻訳されるのは `title`、`message`、`remediation` のみです。
 
 ルールの翻訳がない場合の順序は、指定言語 → 英語 → トルコ語（コアが生成したテキスト）です。出力が空になることはありません。
 

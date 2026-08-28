@@ -9,6 +9,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **French is a fourth interface and CLI language.** `🇫🇷 FR` joins the language switcher,
+  `--lang fr` joins the CLI, and `RULES.fr.md` / `README.fr.md` join the docs. The
+  translation is complete rather than partial: 611/611 titles, messages and remediations,
+  533 UI strings and the executive report. `crates/cli/locales/fr.json` is derived from
+  `ui/src/locales/fr.ts` by `npm run locales:export` like the other locales.
+
+- **Three new locale gates.** A Turkish-leak detector (`ş ğ İ ı` cannot appear in a French
+  value), a placeholder-parity check (every `{token}` set must match English), and a
+  BCP-47 literal ban outside `i18n.ts`. The first two exist because a 2,472-string
+  translation cannot be reviewed by eye; the third because sixteen hardcoded
+  `toLocaleString('tr-TR')` calls were printing Turkish number formatting in the English
+  and Japanese interfaces as well.
+
+- **`gen_rules` now fails on a missing title.** It used to substitute the registry's
+  Turkish text and print a warning while exiting 0, and `rules_doc_drift` only verified
+  the title column of `RULES.md`, so a half-translated locale could silently push Turkish
+  rows into `RULES.en/ja/fr.md` with CI still green. The generator now exits 1, and a new
+  test scans the translated rule docs for Turkish-only letters.
+
 - **`gtfs-analyzer --version --verbose`** prints the commit the binary was built from and
   where that information came from. Deterministic only — no wall-clock build timestamp, so
   reproducible builds are unaffected. When built from a crates.io package, where there is

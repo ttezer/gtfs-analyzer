@@ -102,7 +102,7 @@ jobs:
           fi
 
           mkdir stage
-          cp "$BIN" LICENSE README.md README.en.md README.ja.md stage/
+          cp "$BIN" LICENSE README*.md stage/
 
       - name: Arşivle (tar.gz)
         if: runner.os != 'Windows'

@@ -1,6 +1,6 @@
 # GTFS Validator & Analyzer
 
-🇹🇷 **Türkçe** · 🇬🇧 [English](README.en.md) · 🇯🇵 [日本語](README.ja.md)
+🇹🇷 **Türkçe** · 🇬🇧 [English](README.en.md) · 🇯🇵 [日本語](README.ja.md) · 🇫🇷 [Français](README.fr.md)
 
 [![Uygulamayı Aç](https://img.shields.io/badge/Uygulamay%C4%B1%20A%C3%A7-gtfs--analyzer-2ea44f?style=flat&logo=googlechrome&logoColor=white)](https://ttezer.github.io/gtfs-analyzer/)
 [![GTFS-JP](https://img.shields.io/badge/GTFS--JP-v3%2Fv4%20destekli-c8102e?style=flat)](https://www.gtfs.jp/)
@@ -354,7 +354,7 @@ cargo run -p gtfs-analyzer -- validate feed.zip --json
 | `--pretty` | JSON'ı girintili yazar (`--json` gerektirir) |
 | `--include-name-index` | `name_index`'i (durak/hat/shape arama tabloları) JSON'a dahil eder |
 | `-o rapor.json` | Çıktıyı stdout yerine dosyaya yazar |
-| `--lang en` | Bulgu metinlerinin dili: `tr` (varsayılan) / `en` / `ja` |
+| `--lang en` | Bulgu metinlerinin dili: `en` (varsayılan) / `tr` / `ja` / `fr` |
 | `--config config.json` | JSON config delta uygular (`ValidatorConfig::default()` üzerine) |
 | `--gtfs-jp-profile auto\|v3\|v4` | GTFS-JP kural profilini açıkça seçer; config değerini geçersiz kılar |
 | `--today 20260710` | Analiz "bugün"ünü sabitler (takvim kuralları için) |
@@ -407,7 +407,7 @@ Alanlar: `id`, `severity`, `class`, `authority_source`, `base_effort`, `blocks`,
 
 ### Çıktı dili
 
-Doğrulama çekirdeği bulgu metinlerini Türkçe üretir; `--lang en` / `--lang ja` bunları arayüzün kullandığı **aynı çeviri sözlükleriyle** değiştirir. Kural ID'leri, önem ve sınıf değerleri (`CRITICAL`, `SPEC`) her dilde makine-okunur sabit kalır; yalnızca `title`, `message` ve `remediation` çevrilir.
+Doğrulama çekirdeği bulgu metinlerini Türkçe üretir; `--lang en` / `--lang ja` / `--lang fr` bunları arayüzün kullandığı **aynı çeviri sözlükleriyle** değiştirir. Kural ID'leri, önem ve sınıf değerleri (`CRITICAL`, `SPEC`) her dilde makine-okunur sabit kalır; yalnızca `title`, `message` ve `remediation` çevrilir.
 
 Bir kuralın çevirisi yoksa sıra şudur: istenen dil → İngilizce → Türkçe (çekirdeğin ürettiği metin). Böylece çıktı hiçbir zaman boş kalmaz.
 

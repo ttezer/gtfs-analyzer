@@ -1,6 +1,6 @@
 # GTFS Validator & Analyzer
 
-🇹🇷 [Türkçe](README.md) · 🇬🇧 **English** · 🇯🇵 [日本語](README.ja.md)
+🇹🇷 [Türkçe](README.md) · 🇬🇧 **English** · 🇯🇵 [日本語](README.ja.md) · 🇫🇷 [Français](README.fr.md)
 
 [![Open App](https://img.shields.io/badge/Open%20App-gtfs--analyzer-2ea44f?style=flat&logo=googlechrome&logoColor=white)](https://ttezer.github.io/gtfs-analyzer/)
 [![GTFS-JP](https://img.shields.io/badge/GTFS--JP-v3%2Fv4%20supported-c8102e?style=flat)](https://www.gtfs.jp/)
@@ -351,7 +351,7 @@ cargo run -p gtfs-analyzer -- validate feed.zip --json
 | `--pretty` | Indent the JSON output (requires `--json`) |
 | `--include-name-index` | Include `name_index` (stop/route/shape lookup tables) in the JSON |
 | `-o report.json` | Write the output to a file instead of stdout |
-| `--lang en` | Language of the finding texts: `tr` (default) / `en` / `ja` |
+| `--lang en` | Language of the finding texts: `en` (default) / `tr` / `ja` / `fr` |
 | `--config config.json` | Apply a JSON config delta (on top of `ValidatorConfig::default()`) |
 | `--today 20260710` | Pin the analysis "today" (for calendar rules) |
 
@@ -403,7 +403,7 @@ The `--class` / `--severity` / `--min-severity` / `--rule` filters mean the same
 
 ### Output language
 
-The validation core emits its finding texts in Turkish; `--lang en` / `--lang ja` replace them using the **same translation dictionaries the web UI uses**. Rule ids, severities and classes (`CRITICAL`, `SPEC`) stay machine-readable in every language — only `title`, `message` and `remediation` are translated.
+The validation core emits its finding texts in Turkish; `--lang en` / `--lang ja` / `--lang fr` replace them using the **same translation dictionaries the web UI uses**. Rule ids, severities and classes (`CRITICAL`, `SPEC`) stay machine-readable in every language — only `title`, `message` and `remediation` are translated.
 
 When a rule has no translation the chain is: requested language → English → Turkish (the core's own text), so the output is never blank.
 
