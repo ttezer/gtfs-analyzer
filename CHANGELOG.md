@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-08-28
+
+The npm `gtfs-sdk` package is not republished in this release. Its WASM build
+embeds English only (`sdk-en` feature reads `en.json`), so French changed nothing
+in it: the source diff is empty and the packed size moved by 608 bytes. It stays
+at 0.2.0 with the 0.10.0 engine until a change actually affects it.
+
 ### Added
 
 - **French is a fourth interface and CLI language.** `🇫🇷 FR` joins the language switcher,
@@ -1731,7 +1738,7 @@ filters (R2).
   audit (`cargo audit` blocking; `npm audit` reported, non-blocking).
 - GitHub Pages deploy builds from source to guarantee the live site matches `HEAD`.
 
-[Unreleased]: https://github.com/ttezer/gtfs-analyzer/compare/v0.8.0...HEAD
+[Unreleased]: https://github.com/ttezer/gtfs-analyzer/compare/v0.11.0...HEAD
 [0.8.0]: https://github.com/ttezer/gtfs-analyzer/compare/v0.7.0...v0.8.0
 [0.1.3]: https://github.com/ttezer/gtfs-analyzer/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/ttezer/gtfs-analyzer/releases/tag/v0.1.2

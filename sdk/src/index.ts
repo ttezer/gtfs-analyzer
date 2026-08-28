@@ -67,7 +67,7 @@ export type {
 } from './types.js';
 
 const SDK_VERSION = '0.2.0';
-const ENGINE_VERSION = '0.10.0';
+const ENGINE_VERSION = '0.11.0';
 const MAX_INPUT_BYTES = 512 * 1024 * 1024;
 const MAX_CONFIG_BYTES = 4 * 1024 * 1024;
 
