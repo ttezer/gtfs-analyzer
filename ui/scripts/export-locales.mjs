@@ -12,7 +12,7 @@ import { writeFileSync, readFileSync, existsSync, mkdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 const OUT_DIR = fileURLToPath(new URL('../../crates/cli/locales/', import.meta.url));
-const LANGS = ['en', 'ja'];
+const LANGS = ['en', 'ja', 'fr'];
 
 /** Shape embedded by the CLI. Keep in sync with `crates/cli/src/i18n.rs`. */
 function payloadOf(locale) {

@@ -542,6 +542,38 @@ fn rules_subcommand_honours_lang() {
     assert!(en[0]["title"].as_str().unwrap().is_ascii());
 }
 
+/// French is a complete dictionary (611/611 across titles, messages and
+/// remediations), enforced by the coverage gate in `i18n.rs`. What must never
+/// happen is a Turkish leak, a silent fall-through to English, or an unresolved
+/// `{placeholder}` reaching the user.
+///
+/// Deliberately no `is_ascii()` assertion here — the pattern used for `en`
+/// would fail on French accents (é, à, ç).
+#[test]
+fn lang_fr_translates_and_never_leaks_turkish_or_placeholders() {
+    let feed = feed_with_critical();
+    let fr = first_spec_notice(&feed, "fr");
+    let tr = first_spec_notice(&feed, "tr");
+    let en = first_spec_notice(&feed, "en");
+
+    assert_ne!(fr["title"], tr["title"], "French title must differ from Turkish");
+    // `fr` is a COMPLETE dictionary (see the coverage gate in i18n.rs), so it must
+    // not silently fall through to the English fallback either.
+    assert_ne!(fr["title"], en["title"], "French title must differ from English");
+
+    for field in ["title", "message", "remediation"] {
+        let text = fr[field].as_str().unwrap_or_default();
+        assert!(
+            !text.contains('{'),
+            "unresolved placeholder in fr {field}: {text}"
+        );
+        assert!(
+            !text.contains(['ş', 'ğ', 'İ', 'ı']),
+            "Turkish leaked into fr {field}: {text}"
+        );
+    }
+}
+
 #[test]
 fn unknown_lang_is_rejected() {
     let out = validate(&feed_ok(), &["--lang", "de"]);

@@ -18,6 +18,7 @@ use serde::Deserialize;
 
 const EN_JSON: &str = include_str!("../locales/en.json");
 const JA_JSON: &str = include_str!("../locales/ja.json");
+const FR_JSON: &str = include_str!("../locales/fr.json");
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
 pub enum LangArg {
@@ -25,6 +26,7 @@ pub enum LangArg {
     Tr,
     En,
     Ja,
+    Fr,
 }
 
 #[derive(Debug, Deserialize)]
@@ -58,6 +60,10 @@ impl Translator {
             })),
             LangArg::Ja => Ok(Some(Self {
                 primary: Dictionary::parse(JA_JSON, "ja")?,
+                fallback: Some(Dictionary::parse(EN_JSON, "en")?),
+            })),
+            LangArg::Fr => Ok(Some(Self {
+                primary: Dictionary::parse(FR_JSON, "fr")?,
                 fallback: Some(Dictionary::parse(EN_JSON, "en")?),
             })),
         }
@@ -247,7 +253,7 @@ mod tests {
 
     #[test]
     fn registry_titles_cover_every_rule() {
-        for lang in [LangArg::En, LangArg::Ja] {
+        for lang in [LangArg::En, LangArg::Ja, LangArg::Fr] {
             let translator = Translator::new(lang).unwrap().unwrap();
             for meta in gtfs_rules::RULES {
                 assert_ne!(
@@ -261,16 +267,25 @@ mod tests {
         }
     }
 
-    /// English coverage gate. The dictionaries translate by rule id with `if let Some(..)`,
-    /// so a registered rule that is absent from a table falls back SILENTLY to the
-    /// pipeline's Turkish text — invisible unless a feed happens to fire that rule.
-    /// The public `gtfs-sdk` build has no other text source, so `en` must be total.
+    /// Coverage gate for the locales that are promised to be COMPLETE.
+    ///
+    /// The dictionaries translate by rule id with `if let Some(..)`, so a registered
+    /// rule that is absent from a table falls back SILENTLY — invisible unless a feed
+    /// happens to fire that rule. Two different reasons put a locale in this gate:
+    ///
+    /// * `en` — LEAK gate. It is the public `gtfs-sdk` build's single text source and
+    ///   every other locale falls back to it, so a gap here degrades all the way to
+    ///   the pipeline's Turkish text.
+    /// * `fr` — POLICY gate. A gap degrades to English, which is harmless on its own;
+    ///   the gate exists because `fr` was committed to as a complete translation and
+    ///   nothing else would hold that promise. Without it a newly added rule would
+    ///   quietly skip French and the locale would erode into a partial one.
+    ///
+    /// `ja` is deliberately OUTSIDE this gate: it is knowingly partial (messages and
+    /// remediations fall back to English) and that is accepted translation debt.
     #[test]
-    fn every_registered_rule_resolves_in_english_dictionary() {
-        // `en` only: it is the public SDK's single text source, and every other
-        // locale falls back to it. A gap here degrades to Turkish; a gap in `ja`
-        // degrades to English, which is a translation debt rather than a leak.
-        for (lang, raw) in [("en", EN_JSON)] {
+    fn every_registered_rule_resolves_in_complete_dictionaries() {
+        for (lang, raw) in [("en", EN_JSON), ("fr", FR_JSON)] {
             let dict = Dictionary::parse(raw, lang).expect("locale parses");
             let mut missing: Vec<String> = Vec::new();
             for rule in gtfs_rules::RULES {
