@@ -114,6 +114,10 @@ jobs:
         run: (cd stage && 7z a "../${{ matrix.asset }}" .)
 
       - name: Taslak release'e yükle
+        # Bu adım Windows runner'da da koşuyor ve `shell` belirtilmezse pwsh
+        # kullanılır; orada `$RELEASE_TAG` tanımsız bir PowerShell değişkenidir,
+        # boş string olarak geçer ve `gh` "release not found" der.
+        shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ github.ref_name }}
