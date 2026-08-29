@@ -5827,7 +5827,7 @@ fn check_remaining_analytics<'a>(
             if dirs.len() == 1 {
                 let dir = dirs.iter().next().copied().unwrap_or(0);
                 let label = route_short_opr13.get(route_id).copied().unwrap_or(route_id);
-                notices.push(k6_notice(
+                let mut notice = k6_notice(
                     ctr,
                     "OPR_013",
                     EntityType::Route,
@@ -5841,7 +5841,11 @@ fn check_remaining_analytics<'a>(
                     format!("'{label}' kodlu hatta yalnızca {} yönlü seferler var — karşı yön tanımlı değil.",
                         if dir == 0 { "gidiş" } else { "dönüş" }),
                     "Bu bilgi notu; tek yönlü hatlar için beklenen bir durumdur.",
-                ));
+                );
+                // en/ja/fr şablonları `{route_label}` ile doldurulur.
+                let details = notice.details.get_or_insert_with(Default::default);
+                details.insert("route_label".to_string(), label.to_string());
+                notices.push(notice);
             }
         }
     }
@@ -6004,7 +6008,8 @@ fn check_remaining_analytics<'a>(
             route_missing.into_iter().map(|(r, (c, l))| (r, c, l)).collect();
         rows.sort_unstable_by(|a, b| a.0.cmp(b.0)); // deterministik sıra
         for (route_id, count, line) in rows {
-            notices.push(k6_notice(
+            let label = route_short.get(route_id).copied().unwrap_or(route_id);
+            let mut notice = k6_notice(
                 ctr,
                 "TRP_012",
                 EntityType::Route,
@@ -6015,9 +6020,12 @@ fn check_remaining_analytics<'a>(
                 Some("direction_id"),
                 Some(count.to_string()),
                 None,
-                format!("'{}' kodlu hattın {count} seferinde yön bilgisi (direction_id) girilmemiş — hat çift yönlü.", route_short.get(route_id).copied().unwrap_or(route_id)),
+                format!("'{label}' kodlu hattın {count} seferinde yön bilgisi (direction_id) girilmemiş — hat çift yönlü."),
                 "Bu seferlerin direction_id alanını 0 veya 1 olarak doldurun.",
-            ));
+            );
+            notice.details.get_or_insert_with(Default::default)
+                .insert("route_label".to_string(), label.to_string());
+            notices.push(notice);
         }
     }
 
@@ -6924,26 +6932,34 @@ fn check_remaining_analytics<'a>(
         }
         for (route_id, (has_acc, has_noacc)) in &route_wc {
             if *has_acc && *has_noacc {
-                notices.push(k6_notice(
+                let label = route_short.get(*route_id).copied().unwrap_or(*route_id);
+                let mut notice = k6_notice(
                     ctr, "OPR_010", EntityType::Route,
                     Some(route_id.to_string()), Some(route_id.to_string()),
                     "trips.txt", None, Some("wheelchair_accessible"),
                     None, None,
-                    format!("'{}' kodlu hatta bazı seferler tekerlekli sandalye erişimli (1), bazıları erişimsiz (2) olarak işaretlenmiş.", route_short.get(*route_id).copied().unwrap_or(*route_id)),
+                    format!("'{label}' kodlu hatta bazı seferler tekerlekli sandalye erişimli (1), bazıları erişimsiz (2) olarak işaretlenmiş."),
                     "Aynı hattaki tüm seferlerin erişilebilirlik bilgisini tutarlı hâle getirin.",
-                ));
+                );
+                notice.details.get_or_insert_with(Default::default)
+                    .insert("route_label".to_string(), label.to_string());
+                notices.push(notice);
             }
         }
         for (route_id, (has_allow, has_noallow)) in &route_ba {
             if *has_allow && *has_noallow {
-                notices.push(k6_notice(
+                let label = route_short.get(*route_id).copied().unwrap_or(*route_id);
+                let mut notice = k6_notice(
                     ctr, "OPR_010", EntityType::Route,
                     Some(route_id.to_string()), Some(route_id.to_string()),
                     "trips.txt", None, Some("bikes_allowed"),
                     None, None,
-                    format!("'{}' kodlu hatta bazı seferler bisiklete izin veriyor (1), bazıları vermiyor (2).", route_short.get(*route_id).copied().unwrap_or(*route_id)),
+                    format!("'{label}' kodlu hatta bazı seferler bisiklete izin veriyor (1), bazıları vermiyor (2)."),
                     "Aynı hattaki tüm seferlerin bisiklet politikasını tutarlı hâle getirin.",
-                ));
+                );
+                notice.details.get_or_insert_with(Default::default)
+                    .insert("route_label".to_string(), label.to_string());
+                notices.push(notice);
             }
         }
     }
@@ -8014,13 +8030,18 @@ fn check_calendar_override_analytics(
                     }))
             });
             if !has_weekend {
-                notices.push(k6_notice(
+                let label = route_short_o4.get(*route_id).copied().unwrap_or(*route_id);
+                let mut notice = k6_notice(
                     ctr, "OPR_004", EntityType::Route,
                     Some(route_id.to_string()), Some(route_id.to_string()),
                     "trips.txt", None, None, None, None,
-                    format!("'{}' kodlu hattın aktif servislerinde hafta sonu (Cumartesi/Pazar) günü yok.", route_short_o4.get(*route_id).copied().unwrap_or(*route_id)),
+                    format!("'{label}' kodlu hattın aktif servislerinde hafta sonu (Cumartesi/Pazar) günü yok."),
                     "Bu bilgi notudur; aksiyon gerekmez.",
-                ));
+                );
+                // en/ja/fr şablonları `{route_label}` ile doldurulur.
+                let details = notice.details.get_or_insert_with(Default::default);
+                details.insert("route_label".to_string(), label.to_string());
+                notices.push(notice);
             }
         }
     }
@@ -8106,6 +8127,8 @@ fn check_calendar_override_analytics(
                 );
                 let mut d = std::collections::BTreeMap::new();
                 d.insert("shape_id".to_string(), shape_id.to_string());
+                d.insert("route_label".to_string(),
+                    route_short_o15.get(*route_id).copied().unwrap_or(*route_id).to_string());
                 n015.details = Some(d);
                 notices.push(n015);
             }
@@ -9047,6 +9070,10 @@ fn check_vat_analytics(
                     "Bu seferlerin doğru route_id ve service_id'ye atandığını kontrol edin.",
                 );
                 n.service_id = Some((*service_id).to_string());
+                n.details.get_or_insert_with(Default::default).insert(
+                    "route_label".to_string(),
+                    route_short_o24.get(*route_id).copied().unwrap_or(*route_id).to_string(),
+                );
                 notices.push(n);
             }
         }

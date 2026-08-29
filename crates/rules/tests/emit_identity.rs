@@ -121,6 +121,12 @@ fn emit_field_sets() -> BTreeMap<String, Vec<(String, BTreeSet<String>)>> {
                     {
                         break;
                     }
+                    // `details` anahtarları (`route_label`, `affected_stops` …) mesaj
+                    // şablonunu doldurur, emit'in HANGİ ALAN için üretildiğini söylemez.
+                    // Alan adı gibi göründükleri için kimlik kümesini kirletiyorlardı:
+                    // OPR_010'un iki emit'i ortak bir `route_label` yüzünden ayrık
+                    // olmaktan çıkıp defterden düşmüştü (2026-08-29).
+                    if l.contains(".insert(") { continue; }
                     for lit in l.split('"').skip(1).step_by(2) {
                         if lit != *id && looks_like_field(lit) { fields.insert(lit.to_string()); }
                     }

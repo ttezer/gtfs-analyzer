@@ -128,13 +128,20 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
         // STP_022: stop_code eksik (duraklar ve istasyonlar için) — döngü sonunda
         // agregasyon kararı için bekletilir.
         if stop_code.is_none() && is_stop_or_station {
-            stp022_pending.push(make_k2_notice(
+            let mut notice = make_k2_notice(
                 &mut counter, "STP_022", EntityType::Stop, entity_id.clone(),
                 Some(&row_map), &file.name, Some(line), Some("stop_code"),
                 Some(String::new()), None,
                 format!("'{}' durağında stop_code eksik.", stop_id),
                 "Yolcuların tanıyabileceği kısa bir stop_code değeri girin.",
-            ));
+            );
+            // Kural iki ölçekte emit edilir (durak başına / feed özeti) ama tek mesaj
+            // şablonu vardır. Tekil dalda da sayaç+örnek yazılır ki en/ja/fr metni
+            // her iki dalda dolsun (k4'teki `affected_records` emsali).
+            let details = notice.details.get_or_insert_with(Default::default);
+            details.insert("affected_stops".to_string(), "1".to_string());
+            details.insert("example_stops".to_string(), stop_id.to_string());
+            stp022_pending.push(notice);
         }
 
         // stop_name: required for stops/stations/entrances (location_type 0, 1, 2 veya boş)
@@ -408,13 +415,17 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
             .map(str::to_string);
         let loc_type = location_type.unwrap_or(0);
         if zone_id.is_none() && loc_type == 0 {
-            stp033_pending.push(make_k2_notice(
+            let mut notice = make_k2_notice(
                 &mut counter, "STP_033", EntityType::Stop, entity_id.clone(),
                 Some(&row_map), &file.name, Some(line), Some("zone_id"),
                 None, None,
                 format!("'{}' durağında zone_id eksik; ücret hesaplamaları etkilenebilir.", stop_id),
                 "Ücret hesabı için zone_id alanını doldurun.",
-            ));
+            );
+            let details = notice.details.get_or_insert_with(Default::default);
+            details.insert("affected_stops".to_string(), "1".to_string());
+            details.insert("example_stops".to_string(), stop_id.to_string());
+            stp033_pending.push(notice);
         }
 
         let stop_url = get_lexical_field(&row_map, "stop_url")
