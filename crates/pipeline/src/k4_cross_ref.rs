@@ -3176,7 +3176,12 @@ fn check_gtfs_jp(
                 EntityType::Stop,
                 Some(stop.stop_id.clone()),
                 Some(stop.stop_id.clone()),
-                "translations.txt",
+                // Dosya/satır ÇİFTİ tek kaynağı göstermelidir: `line` eksikliğin sahibi
+                // kaydın satırıdır (burada stops.txt), `translations.txt` değil. İkisi
+                // karışınca bulguyu doğrulamak isteyen kişi yanlış dosyanın o satırına
+                // bakar (2026-08-29, Katori feed'inde JPN_008 için yaşandı). Çevirinin
+                // nereye ekleneceğini çözüm önerisi zaten söylüyor.
+                "stops.txt",
                 Some(stop.line),
                 Some("stop_name"),
                 None,
@@ -3206,7 +3211,7 @@ fn check_gtfs_jp(
             notices.push(notice(
                 ctr, "JPN_008", EntityType::Route,
                 Some(route.route_id.clone()), Some(route.route_id.clone()),
-                "translations.txt", Some(route.line), Some(field),
+                "routes.txt", Some(route.line), Some(field),
                 None, Some("ja-Hrkt".to_string()),
                 format!("'{}' hattının adı ('{}') için kana (ja-Hrkt) okuması eksik — GTFS-JP'de zorunlu.", route.route_id, name),
                 "translations.txt'e bu hat için language=ja-Hrkt (route adı) çevirisi ekleyin.",
@@ -3226,7 +3231,7 @@ fn check_gtfs_jp(
             notices.push(notice(
                 ctr, "JPN_009", EntityType::Trip,
                 Some(trip.trip_id.to_string()), Some(trip.trip_id.to_string()),
-                "translations.txt", Some(trip.line), Some("trip_headsign"),
+                "trips.txt", Some(trip.line), Some("trip_headsign"),
                 None, Some("ja-Hrkt".to_string()),
                 format!("'{}' seferinin trip_headsign'ı ('{}') için kana (ja-Hrkt) okuması eksik — GTFS-JP'de zorunlu.", trip.trip_id, hs),
                 "translations.txt'e bu sefer için language=ja-Hrkt (trip_headsign) çevirisi ekleyin.",
@@ -3247,7 +3252,7 @@ fn check_gtfs_jp(
             notices.push(notice(
                 ctr, "JPN_010", EntityType::Agency,
                 Some(eid.clone()), Some(eid),
-                "translations.txt", Some(ag.line), Some("agency_name"),
+                "agency.txt", Some(ag.line), Some("agency_name"),
                 None, Some("ja-Hrkt".to_string()),
                 format!("'{}' işleticisinin adı için kana (ja-Hrkt) okuması eksik — GTFS-JP'de zorunlu.", ag.agency_name),
                 "translations.txt'e bu işletici için language=ja-Hrkt (agency_name) çevirisi ekleyin.",
@@ -6409,6 +6414,31 @@ mod tests {
         let result = check(&recs, &EntityMap::default(), 20260515);
         assert!(result.notices.iter().any(|n| n.rule_id == "JPN_008"),
             "Japonca route_short_name kana yok → JPN_008");
+    }
+
+    #[test]
+    fn kana_rules_point_at_the_file_their_line_belongs_to() {
+        // `line` eksikliğin sahibi kaydın satırıdır; `file` da onu göstermelidir.
+        // Eskiden dosya "translations.txt" yazılıyordu ve satır routes.txt'in satırı
+        // oluyordu — bulguyu doğrulamak isteyen kişi yanlış dosyanın o satırına bakıyordu.
+        use crate::k2::translations::TranslationRecord;
+        let (mut recs, _map) = empty();
+        let mut r1 = route("R1");
+        r1.route_long_name = Some("香取市循環バス".into());
+        r1.line = 7;
+        recs.routes = vec![r1];
+        recs.translations = vec![TranslationRecord {
+            table_name: "stops".into(), field_name: "stop_name".into(),
+            language: "ja-Hrkt".into(), translation: "x".into(),
+            record_id: Some("S1".into()), record_sub_id: None, field_value: None,
+            row: Default::default(), line: 2,
+        }];
+        let result = check(&recs, &EntityMap::default(), 20260515);
+        let found = result.notices.iter()
+            .find(|n| n.rule_id == "JPN_008")
+            .expect("kanası eksik hat için JPN_008 bekleniyor");
+        assert_eq!(found.file.as_deref(), Some("routes.txt"));
+        assert_eq!(found.line, Some(7));
     }
 
     #[test]
