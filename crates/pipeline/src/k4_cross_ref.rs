@@ -2855,6 +2855,43 @@ fn check_levels(
 
 // �"?�"? TRN_005-006: çeviri cross-ref �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?
 
+/// `attributions.txt`'nin birincil anahtarı; `EntityMap` bu tabloyu taşımaz.
+fn attribution_id_set(records: &EntityRecords) -> HashSet<&str> {
+    records.attributions.iter()
+        .filter_map(|a| a.attribution_id.as_deref())
+        .filter(|id| !id.is_empty())
+        .collect()
+}
+
+/// Bir çeviri satırının `record_id`'si kaynak tabloda var mı?
+///
+/// `None` = tablonun kimliği bu aşamada çözülemez → hiçbir kural iddia üretmemelidir.
+/// TRN_004 ve XFL_014 bu eşlemenin iki ayrı kopyasını taşıyordu; `attributions` ikisinde
+/// de "lookup not feasible" sayılıyor, yani `attribution_id` elimizdeyken denetlenmiyordu
+/// (2026-08-29, Katori feed'i). Kopyayı tekilleştirmek aynı sapmanın tekrarını önler.
+/// JPN_019 ayrı bir eşleme kullanır: o blok `EntityMap` yerine ham K2 kayıtlarını okur.
+fn translation_record_exists(
+    map: &EntityMap,
+    attribution_ids: &HashSet<&str>,
+    table: &str,
+    record_id: &str,
+) -> Option<bool> {
+    Some(match table {
+        "agency" => map.agencies.contains_key(record_id),
+        "stops" => map.stops.contains_key(record_id),
+        "routes" => map.routes.contains_key(record_id),
+        "trips" => map.trips.contains_key(record_id),
+        "calendar" | "calendar_dates" => map.services.contains(record_id),
+        "levels" => map.levels.contains_key(record_id),
+        "pathways" => map.pathways.contains_key(record_id),
+        "fare_attributes" => map.fare_attrs.contains_key(record_id),
+        "attributions" => attribution_ids.contains(record_id),
+        // feed_info/stop_times/shapes/frequencies/transfers/fare_rules/translations:
+        // kimlik ya yasaktır (feed_info → TRN_013) ya da tek alanla çözülemez.
+        _ => return None,
+    })
+}
+
 fn check_translations(
     records: &EntityRecords,
     map: &EntityMap,
@@ -2866,6 +2903,7 @@ fn check_translations(
     //   değer aynı  → TRN_005 (birebir yinelenen çeviri)
     //   değer farklı → TRN_006 (çelişkili çeviri; hangisi geçerli belirsiz)
     let mut seen: HashMap<String, String> = HashMap::new();
+    let attribution_ids = attribution_id_set(records);
     // TRN_007 agregasyonu: feed_lang ile aynı dildeki çeviriler (yaygın GTFS-JP araç pratiği —
     // her alanı ja/ja-Hrkt/en'e çevirir, ja kaynağı birebir tekrarlar) satır-başına on binlerce
     // notice yerine tek feed-seviyesi özette toplanır (STM_017/STP_022 emsali).
@@ -2874,25 +2912,20 @@ fn check_translations(
     for rec in &records.translations {
         // TRN_004: record_id başvurulan kayıt bulunamadı
         if let Some(ref rid) = rec.record_id {
-            let exists = match rec.table_name.as_str() {
-                "agency" => map.agencies.contains_key(rid.as_str()),
-                "stops" => map.stops.contains_key(rid.as_str()),
-                "routes" => map.routes.contains_key(rid.as_str()),
-                "trips" => map.trips.contains_key(rid.as_str()),
-                "calendar" | "calendar_dates" => map.services.contains(rid.as_str()),
-                "levels" => map.levels.contains_key(rid.as_str()),
-                "pathways" => map.pathways.contains_key(rid.as_str()),
-                "fare_attributes" => map.fare_attrs.contains_key(rid.as_str()),
-                "feed_info" | "stop_times" | "frequencies" | "transfers"
-                | "fare_rules" | "shapes" | "attributions" | "translations" => true, // lookup not feasible
-                _ => true,
-            };
+            let exists = translation_record_exists(
+                map, &attribution_ids, &rec.table_name, rid.as_str(),
+            ).unwrap_or(true);
             if !exists {
                 notices.push(notice(
                     ctr,
                     "TRN_004",
                     EntityType::Translation,
-                    None,
+                    // `entity_id` boş bırakılıyordu, oysa en/ja/fr mesaj şablonları
+                    // `{entity_id}` ile doldurulur → İngilizce metin "record_id '' not
+                    // found." çıkıyordu. Türkçe metin koddaki `format!`ten geldiği için
+                    // kusur yalnız diğer dillerde görünüyordu. `scope_key` bilinçli olarak
+                    // boş kalıyor: kapsam birimi satırdır, record_id değil.
+                    Some(rid.clone()),
                     None,
                     "translations.txt",
                     Some(rec.line),
@@ -4813,22 +4846,15 @@ fn check_xfl(
     // XFL_014:�?eviri yapılan kayıt silinmiş veya tanımsız (dangling translation feed özeti)
     {
         let mut bad_keys: HashSet<String> = HashSet::new();
+        let attribution_ids = attribution_id_set(records);
         for rec in &records.translations {
             if let Some(ref rid) = rec.record_id {
                 if rid.is_empty() {
                     continue;
                 }
-                let exists = match rec.table_name.as_str() {
-                    "agency" => map.agencies.contains_key(rid.as_str()),
-                    "stops" => map.stops.contains_key(rid.as_str()),
-                    "routes" => map.routes.contains_key(rid.as_str()),
-                    "trips" => map.trips.contains_key(rid.as_str()),
-                    "calendar" | "calendar_dates" => map.services.contains(rid.as_str()),
-                    "levels" => map.levels.contains_key(rid.as_str()),
-                    "pathways" => map.pathways.contains_key(rid.as_str()),
-                    "fare_attributes" => map.fare_attrs.contains_key(rid.as_str()),
-                    _ => true,
-                };
+                let exists = translation_record_exists(
+                    map, &attribution_ids, &rec.table_name, rid.as_str(),
+                ).unwrap_or(true);
                 if !exists {
                     bad_keys.insert(format!("{}:{}", rec.table_name, rid));
                 }
@@ -7340,6 +7366,65 @@ mod tests {
         assert_eq!(found[0].entity_type, EntityType::Feed);
         assert!(found[0].message.contains("2 ücret tarifesinde"));
     }
+    fn attributions_translation_fixture(
+        attribution_id: &str,
+        record_id: &str,
+        language: &str,
+    ) -> EntityRecords {
+        let (mut recs, _map) = empty();
+        recs.attributions = vec![AttributionRecord {
+            attribution_id: Some(attribution_id.into()),
+            organization_name: "Org".into(),
+            is_producer: Some(1),
+            is_operator: None,
+            is_authority: None,
+            agency_id: None,
+            route_id: None,
+            trip_id: None,
+            attribution_url: None,
+            attribution_email: None,
+            row: Default::default(),
+            line: 2,
+        }];
+        recs.translations = vec![TranslationRecord {
+            table_name: "attributions".into(),
+            field_name: "organization_name".into(),
+            language: language.into(),
+            translation: "Org Sales Office".into(),
+            record_id: Some(record_id.into()),
+            record_sub_id: None,
+            field_value: None,
+            row: Default::default(),
+            line: 6,
+        }];
+        recs
+    }
+
+    #[test]
+    fn trn_004_resolves_attributions_record_id() {
+        // `attributions` eskiden "lookup not feasible" sayılıyordu; kimliği çözülebilir
+        // olduğu için artık dil bağımsız eksende de denetlenir. Mevcut kimlik susmalı.
+        let recs = attributions_translation_fixture("A1", "A1", "en");
+        let result = check(&recs, &EntityMap::default(), 20260824);
+        assert!(!result.notices.iter().any(|n| n.rule_id == "TRN_004"));
+    }
+
+    #[test]
+    fn trn_004_reports_missing_attributions_record_id_in_any_language() {
+        // JPN_019 yalnız `ja-Hrkt` satırlarına bakar; aynı kusur `en` satırında da
+        // görünür olmalıdır, yoksa referans bütünlüğü dil eksenine bağlı kalır.
+        let recs = attributions_translation_fixture("A1", "A2", "en");
+        let result = check(&recs, &EntityMap::default(), 20260824);
+        let trn004 = result.notices.iter().find(|n| n.rule_id == "TRN_004" && n.line == Some(6));
+        let trn004 = trn004.expect("TRN_004 bulunmalı");
+        // en/ja/fr şablonları `{entity_id}` ile doldurulur; boş bırakılırsa mesaj
+        // "record_id '' not found." olur.
+        assert_eq!(trn004.entity_id.as_deref(), Some("A2"));
+        assert!(!result.notices.iter().any(|n| n.rule_id == "JPN_019"));
+        // XFL_014 aynı eşlemeyi kullanır; feed özeti de artık bu satırı görmelidir.
+        assert!(result.notices.iter().any(|n| n.rule_id == "XFL_014"));
+    }
+
     #[test]
     fn trn_016_flags_field_value_matching_nothing() {
         use crate::k2::translations::TranslationRecord;
