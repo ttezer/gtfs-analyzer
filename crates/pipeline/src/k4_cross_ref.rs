@@ -3721,6 +3721,9 @@ fn check_gtfs_jp(
         let stop_ids: HashSet<&str> = records.stops.iter().map(|s| s.stop_id.as_str()).collect();
         let route_ids: HashSet<&str> = records.routes.iter().map(|r| r.route_id.as_str()).collect();
         let trip_ids: HashSet<&str> = records.trips.iter().map(|t| t.trip_id.as_str()).collect();
+        let attribution_ids: HashSet<&str> = records.attributions.iter()
+            .filter_map(|a| a.attribution_id.as_deref())
+            .collect();
         for translation in records.translations.iter().filter(|t| t.language.eq_ignore_ascii_case("ja-Hrkt")) {
             // TRN_001/TRN_002 bilinmeyen table_name/field_name kök bulgularını
             // üretir. JPN_019 yalnız bilinen tabloların GTFS-JP referansını
@@ -3737,6 +3740,7 @@ fn check_gtfs_jp(
                 ("stops", Some(id)) => stop_ids.contains(id),
                 ("routes", Some(id)) => route_ids.contains(id),
                 ("trips", Some(id)) | ("stop_times", Some(id)) => trip_ids.contains(id),
+                ("attributions", Some(id)) => attribution_ids.contains(id),
                 ("feed_info", Some(_)) => false,
                 _ => false,
             };
@@ -7575,6 +7579,38 @@ mod tests {
         let result = check(&recs, &EntityMap::default(), 20260824);
         assert!(result.notices.iter().any(|n| n.rule_id == "JPN_019"
             && n.file.as_deref() == Some("translations.txt") && n.line == Some(6)));
+    }
+
+    #[test]
+    fn jpn_019_accepts_attributions_record_id() {
+        let (mut recs, _map) = empty();
+        recs.attributions = vec![AttributionRecord {
+            attribution_id: Some("A1".into()),
+            organization_name: "Org".into(),
+            is_producer: Some(1),
+            is_operator: None,
+            is_authority: None,
+            agency_id: None,
+            route_id: None,
+            trip_id: None,
+            attribution_url: None,
+            attribution_email: None,
+            row: Default::default(),
+            line: 2,
+        }];
+        recs.translations = vec![TranslationRecord {
+            table_name: "attributions".into(),
+            field_name: "organization_name".into(),
+            language: "ja-Hrkt".into(),
+            translation: "おーぐ".into(),
+            record_id: Some("A1".into()),
+            record_sub_id: None,
+            field_value: None,
+            row: Default::default(),
+            line: 6,
+        }];
+        let result = check(&recs, &EntityMap::default(), 20260824);
+        assert!(!result.notices.iter().any(|n| n.rule_id == "JPN_019"));
     }
 
     #[test]
