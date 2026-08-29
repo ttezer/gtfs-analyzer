@@ -3723,7 +3723,12 @@ fn check_gtfs_jp(
         let trip_ids: HashSet<&str> = records.trips.iter().map(|t| t.trip_id.as_str()).collect();
         let attribution_ids: HashSet<&str> = records.attributions.iter()
             .filter_map(|a| a.attribution_id.as_deref())
+            .filter(|id| !id.is_empty())
             .collect();
+        let pathway_ids: HashSet<&str> = records.pathways.iter()
+            .map(|p| p.pathway_id.as_str()).filter(|id| !id.is_empty()).collect();
+        let level_ids: HashSet<&str> = records.levels.iter()
+            .map(|l| l.level_id.as_str()).filter(|id| !id.is_empty()).collect();
         for translation in records.translations.iter().filter(|t| t.language.eq_ignore_ascii_case("ja-Hrkt")) {
             // TRN_001/TRN_002 bilinmeyen table_name/field_name kök bulgularını
             // üretir. JPN_019 yalnız bilinen tabloların GTFS-JP referansını
@@ -3741,8 +3746,15 @@ fn check_gtfs_jp(
                 ("routes", Some(id)) => route_ids.contains(id),
                 ("trips", Some(id)) | ("stop_times", Some(id)) => trip_ids.contains(id),
                 ("attributions", Some(id)) => attribution_ids.contains(id),
+                ("pathways", Some(id)) => pathway_ids.contains(id),
+                ("levels", Some(id)) => level_ids.contains(id),
+                // TRN_013 ile aynı hüküm: feed_info tek satırlıdır, kimlik alanı taşıyamaz.
                 ("feed_info", Some(_)) => false,
-                _ => false,
+                // Kimliği çözemediğimiz tablo hakkında İDDİA YOKTUR. `_ => false` bilinen
+                // ama kolu yazılmamış her tabloyu sessizce yanlış pozitife çeviriyordu
+                // (attributions: Katori feed'inde 8 bulgu; pathways/levels: ölçülen 2).
+                // Emsal: TRN_004 aynı sözleşmeyi kullanır ("lookup not feasible" → true).
+                _ => true,
             };
             let valid_sub_id = if translation.table_name == "stop_times" {
                 match (translation.record_id.as_deref(), translation.record_sub_id.as_deref()) {
@@ -7611,6 +7623,125 @@ mod tests {
         }];
         let result = check(&recs, &EntityMap::default(), 20260824);
         assert!(!result.notices.iter().any(|n| n.rule_id == "JPN_019"));
+    }
+
+    #[test]
+    fn jpn_019_still_reports_missing_attributions_record_id() {
+        // Fail-open sözleşmesi yalnız kimliği ÇÖZÜLEMEYEN tablo içindir. attributions.txt
+        // yüklüyken bulunmayan bir record_id hâlâ bulgudur; aksi hâlde kolu tümden
+        // kabule çeviren bir "düzeltme" de testlerden geçerdi.
+        let (mut recs, _map) = empty();
+        recs.attributions = vec![AttributionRecord {
+            attribution_id: Some("A1".into()),
+            organization_name: "Org".into(),
+            is_producer: Some(1),
+            is_operator: None,
+            is_authority: None,
+            agency_id: None,
+            route_id: None,
+            trip_id: None,
+            attribution_url: None,
+            attribution_email: None,
+            row: Default::default(),
+            line: 2,
+        }];
+        recs.translations = vec![TranslationRecord {
+            table_name: "attributions".into(),
+            field_name: "organization_name".into(),
+            language: "ja-Hrkt".into(),
+            translation: "おーぐ".into(),
+            record_id: Some("A2".into()),
+            record_sub_id: None,
+            field_value: None,
+            row: Default::default(),
+            line: 6,
+        }];
+        let result = check(&recs, &EntityMap::default(), 20260824);
+        assert!(result.notices.iter().any(|n| n.rule_id == "JPN_019" && n.line == Some(6)));
+    }
+
+    #[test]
+    fn jpn_019_accepts_pathways_and_levels_record_ids() {
+        let (mut recs, _map) = empty();
+        recs.pathways = vec![PathwayRecord {
+            pathway_id: "PW1".into(),
+            from_stop_id: "S1".into(),
+            to_stop_id: "S2".into(),
+            pathway_mode: Some(1),
+            is_bidirectional: Some(1),
+            length: None,
+            traversal_time: None,
+            stair_count: None,
+            max_slope: None,
+            min_width: None,
+            row: Default::default(),
+            line: 2,
+        }];
+        recs.levels = vec![LevelRecord {
+            level_id: "L1".into(),
+            level_index: Some(0.0),
+            level_name: Some("1F".into()),
+            row: Default::default(),
+            line: 2,
+        }];
+        recs.translations = vec![
+            TranslationRecord {
+                table_name: "pathways".into(),
+                field_name: "signposted_as".into(),
+                language: "ja-Hrkt".into(),
+                translation: "てすとつうろ".into(),
+                record_id: Some("PW1".into()),
+                record_sub_id: None,
+                field_value: None,
+                row: Default::default(),
+                line: 6,
+            },
+            TranslationRecord {
+                table_name: "levels".into(),
+                field_name: "level_name".into(),
+                language: "ja-Hrkt".into(),
+                translation: "いっかい".into(),
+                record_id: Some("L1".into()),
+                record_sub_id: None,
+                field_value: None,
+                row: Default::default(),
+                line: 7,
+            },
+        ];
+        let result = check(&recs, &EntityMap::default(), 20260824);
+        assert!(!result.notices.iter().any(|n| n.rule_id == "JPN_019"));
+    }
+
+    #[test]
+    fn jpn_019_still_reports_missing_pathways_record_id() {
+        let (mut recs, _map) = empty();
+        recs.pathways = vec![PathwayRecord {
+            pathway_id: "PW1".into(),
+            from_stop_id: "S1".into(),
+            to_stop_id: "S2".into(),
+            pathway_mode: Some(1),
+            is_bidirectional: Some(1),
+            length: None,
+            traversal_time: None,
+            stair_count: None,
+            max_slope: None,
+            min_width: None,
+            row: Default::default(),
+            line: 2,
+        }];
+        recs.translations = vec![TranslationRecord {
+            table_name: "pathways".into(),
+            field_name: "signposted_as".into(),
+            language: "ja-Hrkt".into(),
+            translation: "てすとつうろ".into(),
+            record_id: Some("PW9".into()),
+            record_sub_id: None,
+            field_value: None,
+            row: Default::default(),
+            line: 6,
+        }];
+        let result = check(&recs, &EntityMap::default(), 20260824);
+        assert!(result.notices.iter().any(|n| n.rule_id == "JPN_019" && n.line == Some(6)));
     }
 
     #[test]
