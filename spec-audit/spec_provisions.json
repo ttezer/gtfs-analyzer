@@ -1,14 +1,14 @@
 {
   "_source": {
     "url": "https://gtfs.org/documentation/schedule/reference/",
-    "sha256": "214e2a7d3a43b6c200dc081614b03b00c65250c863a59f25376df24e95d5a9bb",
-    "bytes": 295827,
+    "sha256": "d094f007f3552f2aa95d35af407742139b2b1c6e39460fca716a0b707f1a8bed",
+    "bytes": 297959,
     "provisions_sha256": "0c49d5d2a5faedbc79c725952939e1079ac561ac1bf89bc3a65f5890b11fb2b7",
     "spec_revision": "April 27, 2026",
     "upstream_repo": "google/transit",
     "upstream_path": "gtfs/spec/en/reference.md",
-    "upstream_commit": "ac663b574aae7223e45044b7733a1f101f0ab907",
-    "upstream_commit_date": "2026-04-30T15:08:27Z"
+    "upstream_commit": "3215f98f26615f1b925dca1bf2205311b747e308",
+    "upstream_commit_date": "2026-08-17T19:34:59Z"
   },
   "_note": "Üretilmiş dosya — elle düzenlemeyin. Yeniden üretmek için: python3 spec-audit/extract_provisions.py. Satırlar ADAYDIR, hüküm değil; triyaj spec-audit/PROVISION_TRIAGE.md'de. `_source.provisions_sha256` kataloğun DOĞRULANABİLİR çapasıdır; tutmuyorsa yüzde başka bir metne aittir. (`sha256` yeniden ÜRETİLEMEZ — sayfa her yanıtta Cloudflare satırları yüzünden değişir; o alan yalnız kayıttır.) `_source.upstream_commit` ise o metnin KAYNAK sürümünü (google/transit reference.md) sabitler — sha256'nın yerine geçmez, farklı soruyu yanıtlar: 'hangi spec sürümü' vs 'hangi baytlar'.",
   "provisions": [
