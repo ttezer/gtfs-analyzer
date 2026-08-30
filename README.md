@@ -262,9 +262,9 @@ Doğrulamayı kendi Rust servisinize gömmek için `gtfs-pipeline`'ı doğrudan 
 
 ```toml
 [dependencies]
-gtfs-pipeline = "0.11.0"
-gtfs-config   = "0.11.0"
-gtfs-core     = "0.11.0"
+gtfs-pipeline = "0.11.1"
+gtfs-config   = "0.11.1"
+gtfs-core     = "0.11.1"
 ```
 
 ```rust

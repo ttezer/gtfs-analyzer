@@ -316,7 +316,7 @@ dependencies = [
 
 [[package]]
 name = "gtfs-analyzer"
-version = "0.11.0"
+version = "0.11.1"
 dependencies = [
  "chrono",
  "clap",
@@ -331,7 +331,7 @@ dependencies = [
 
 [[package]]
 name = "gtfs-config"
-version = "0.11.0"
+version = "0.11.1"
 dependencies = [
  "serde",
  "serde_json",
@@ -339,7 +339,7 @@ dependencies = [
 
 [[package]]
 name = "gtfs-core"
-version = "0.11.0"
+version = "0.11.1"
 dependencies = [
  "serde",
  "serde_json",
@@ -347,7 +347,7 @@ dependencies = [
 
 [[package]]
 name = "gtfs-pipeline"
-version = "0.11.0"
+version = "0.11.1"
 dependencies = [
  "chrono-tz",
  "gtfs-config",
@@ -366,7 +366,7 @@ dependencies = [
 
 [[package]]
 name = "gtfs-rules"
-version = "0.11.0"
+version = "0.11.1"
 dependencies = [
  "gtfs-core",
 ]

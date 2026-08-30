@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **All five publishable Rust crates are `0.11.1`.** The release carries the validator
+  fixes committed after the `0.11.0` crates.io publication, including pathway distance
+  resolution, translation reference validation, and corrected notice placeholders and
+  source-file locations. `gtfs-wasm` remains `publish = false` and is distributed through
+  the npm SDK.
+
 - **`gtfs-sdk` bumped to `0.2.1`.** The published `0.2.0` reports
   `getVersion() → { sdk: '0.2.0', engine: '0.10.0' }` while the engine it wraps is
   `0.11.0`; the corrected string was committed but never republished, so the same

@@ -1,6 +1,6 @@
 [package]
 name = "gtfs-rules"
-version = "0.11.0"
+version = "0.11.1"
 edition = "2021"
 license.workspace = true
 description = "Rule registry for the GTFS Analyzer validator. Internal API, no stability guarantee."
@@ -9,4 +9,4 @@ keywords = ["gtfs", "transit", "validator", "rules"]
 categories = ["data-structures"]
 
 [dependencies]
-gtfs-core = { version = "0.11.0", path = "../core" }
+gtfs-core = { version = "0.11.1", path = "../core" }
