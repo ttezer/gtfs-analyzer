@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **`gtfs-sdk` bumped to `0.2.1`.** The published `0.2.0` reports
+  `getVersion() → { sdk: '0.2.0', engine: '0.10.0' }` while the engine it wraps is
+  `0.11.0`; the corrected string was committed but never republished, so the same
+  version number carries two different contents on npm and in the tree. The bump also
+  carries what has accumulated since `0.2.0` was packed: the GTFS-JP profile note in
+  the SDK README (`'v3'` / `'v4'` / `'auto'` select the validation scope — the SDK does
+  not infer a feed's official GTFS-JP version), and the English rule messages, whose
+  placeholders the SDK's `sdk-en` WASM build embeds. Several of those messages rendered
+  with empty values before this release (`Route '' has no weekend service.`), and the
+  GTFS-JP kana rules now report the file their line number belongs to.
+
 ## [0.11.0] - 2026-08-28
 
 The npm `gtfs-sdk` package is not republished in this release. Its WASM build

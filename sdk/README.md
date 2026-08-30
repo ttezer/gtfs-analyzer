@@ -360,7 +360,7 @@ Runnable examples are included in the package repository:
 ```ts
 import { getVersion } from 'gtfs-sdk';
 
-getVersion(); // { sdk: '0.2.0', engine: '0.11.0' }
+getVersion(); // { sdk: '0.2.1', engine: '0.11.0' }
 ```
 
 The generated `gtfs-wasm` binding is an internal implementation detail and is not
