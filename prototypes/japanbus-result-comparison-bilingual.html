@@ -125,6 +125,13 @@
     .snapshot-warning { display: flex; align-items: flex-start; gap: 9px; margin: 14px 0 18px; padding: 11px 13px; border: 1px solid #ead9b6; border-radius: 10px; color: #76571c; background: #fffaf0; font-size: 11px; }
     .snapshot-warning .warning-mark { width: 22px; height: 22px; display: grid; place-items: center; flex: 0 0 auto; border-radius: 7px; color: #8b650d; background: #fff0c7; font-weight: 900; }
     .snapshot-warning strong { display: block; margin-bottom: 2px; color: #604712; }
+    .upload-context-note { display: flex; align-items: flex-start; gap: 9px; margin: 14px 0 18px; padding: 12px 13px; border: 1px solid #edc7cc; border-radius: 10px; color: #7e3039; background: var(--red-soft); font-size: 11px; }
+    .upload-context-note[hidden] { display: none; }
+    .upload-context-note .context-mark { width: 22px; height: 22px; display: grid; place-items: center; flex: 0 0 auto; border-radius: 7px; color: #fff; background: var(--red); font-weight: 900; }
+    .upload-context-note strong { display: block; margin-bottom: 2px; color: #762832; }
+    .upload-context-note code { padding: 1px 4px; border-radius: 4px; color: #762832; background: rgba(255,255,255,.65); font-size: 10px; overflow-wrap: anywhere; }
+    .back-upload { display: inline-flex; margin-top: 12px; color: var(--blue); font-size: 11px; font-weight: 800; text-decoration: none; }
+    .back-upload:hover { text-decoration: underline; }
 
     .compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 18px; }
     .validator-card { overflow: hidden; }
@@ -341,7 +348,7 @@
           </div>
         </div>
         <div class="header-actions">
-          <span class="badge status"><span class="lang-ja">同じZIPで比較</span><span class="lang-tr">Aynı ZIP karşılaştırması</span></span>
+          <span class="badge status"><span class="lang-ja" id="header-status-ja">同じZIPで比較</span><span class="lang-tr" id="header-status-tr">Aynı ZIP karşılaştırması</span></span>
           <div class="lang-switch" aria-label="Language">
             <button class="active" data-lang="ja">日本語</button>
             <button data-lang="tr">Türkçe</button>
@@ -363,12 +370,13 @@
         <strong><span class="lang-ja">このページの位置づけ</span><span class="lang-tr">Bu sayfanın amacı</span></strong>
         <span class="lang-ja">結果を保存するサービスではありません。必要な場合は下部のレポートをダウンロードしてください。</span>
         <span class="lang-tr">Bu sayfa sonuçları saklamaz. Gerekirse aşağıdaki raporları cihazınıza indirin.</span>
+        <a class="back-upload" href="./japanbus-upload-bilingual.html"><span class="lang-ja">← 新しいfeedをアップロード</span><span class="lang-tr">← Yeni feed yükle</span></a>
       </div>
     </section>
 
     <section class="feed-card" aria-label="Feed information">
       <div class="card-heading">
-        <h2><span class="lang-ja">検証対象フィード</span><span class="lang-tr">Doğrulanan feed</span></h2>
+        <h2><span class="lang-ja" id="feed-card-heading-ja">検証対象フィード</span><span class="lang-tr" id="feed-card-heading-tr">Doğrulanan feed</span></h2>
         <span class="badge"><span class="lang-ja">桑名市コミュニティバス · 2026/06–2027/06</span><span class="lang-tr">Kuwana City Community Bus · 2026/06–2027/06</span></span>
       </div>
       <div class="feed-layout">
@@ -391,7 +399,16 @@
 
     <div class="snapshot-warning">
       <div class="warning-mark">!</div>
-      <div><strong><span class="lang-ja">2つの結果は同じZIPから作成されています。</span><span class="lang-tr">İki sonuç aynı ZIP üzerinden üretildi.</span></strong><span class="lang-ja">桑名市コミュニティバスの同じ feed を、既存のFeedValidator 1.2.16とGTFS Analyzer Engine 0.11.1で確認しました。今回の選択範囲はAutoです。V3/V4は明示的に選べますが、feedの公式版を自動判定するものではありません。</span><span class="lang-tr">Kuwana City Community Bus’ın aynı feed’i mevcut FeedValidator 1.2.16 ve GTFS Analyzer Engine 0.11.1 ile kontrol edildi. Bu çalıştırmada kapsam Auto. V3/V4 açıkça seçilebilir; bu seçim feed’in resmî sürümünü otomatik tespit etmez.</span></div>
+      <div><strong><span class="lang-ja" id="snapshot-title-ja">2つの結果は同じZIPから作成されています。</span><span class="lang-tr" id="snapshot-title-tr">İki sonuç aynı ZIP üzerinden üretildi.</span></strong><span class="lang-ja" id="snapshot-detail-ja">桑名市コミュニティバスの同じ feed を、既存のFeedValidator 1.2.16とGTFS Analyzer Engine 0.11.1で確認しました。今回の選択範囲はAutoです。V3/V4は明示的に選べますが、feedの公式版を自動判定するものではありません。</span><span class="lang-tr" id="snapshot-detail-tr">Kuwana City Community Bus’ın aynı feed’i mevcut FeedValidator 1.2.16 ve GTFS Analyzer Engine 0.11.1 ile kontrol edildi. Bu çalıştırmada kapsam Auto. V3/V4 açıkça seçilebilir; bu seçim feed’in resmî sürümünü otomatik tespit etmez.</span></div>
+    </div>
+
+    <div class="upload-context-note" id="upload-context-note" hidden>
+      <div class="context-mark">!</div>
+      <div>
+        <strong><span class="lang-ja">アップロード情報を受け取りました。</span><span class="lang-tr">Yükleme bilgisi alındı.</span></strong>
+        <span class="lang-ja">選択したfeed：</span><span class="lang-tr">Seçilen feed:</span> <code id="upload-context-name">—</code> · <span class="lang-ja">プロファイル：</span><span class="lang-tr">Profil:</span> <code id="upload-context-profile">Auto</code><br />
+        <span class="lang-ja">この画面のスコアと指摘は、アップロードしたfeedの実測結果ではありません。バックエンド接続前のKuwanaサンプル表示です。</span><span class="lang-tr">Bu ekrandaki skorlar ve bulgular yüklediğiniz feed’in gerçek sonucu değildir. Backend bağlantısı tamamlanana kadar Kuwana örnek koşumu gösterilir.</span>
+      </div>
     </div>
 
     <div class="privacy">
@@ -431,13 +448,13 @@
               <div class="validator-icon">新</div>
               <div><h2><span class="lang-ja">GTFS Analyzer</span><span class="lang-tr">GTFS Analyzer</span></h2><p><span class="lang-ja">GTFS-JPプロファイル対応・ローカル処理</span><span class="lang-tr">GTFS-JP profili ve yerel işleme</span></p></div>
             </div>
-            <span class="badge engine-badge">Engine 0.11.1 · <span class="lang-ja">実測</span><span class="lang-tr">Gerçek çalıştırma</span></span>
+            <span class="badge engine-badge">Engine 0.11.1 · <span class="lang-ja" id="engine-status-ja">実測</span><span class="lang-tr" id="engine-status-tr">Gerçek çalıştırma</span></span>
           </div>
         </div>
         <div class="summary">
           <div class="sum critical"><label><span class="lang-ja">高</span><span class="lang-tr">Yüksek</span></label><strong>1</strong></div>
           <div class="sum medium"><label><span class="lang-ja">中</span><span class="lang-tr">Orta</span></label><strong>103</strong></div>
-          <div class="sum good"><label><span class="lang-ja">総合スコア</span><span class="lang-tr">Genel skor</span></label><strong>94.7</strong></div>
+          <div class="sum good"><label><span class="lang-ja" id="analyzer-score-label-ja">総合スコア</span><span class="lang-tr" id="analyzer-score-label-tr">Genel skor</span></label><strong id="analyzer-overall-score">94.7</strong></div>
         </div>
         <div class="validator-body">
           <div class="draft-note"><span class="lang-ja">同じ桑名市 ZIPをEngine 0.11.1で検証した結果：231通知（情報125・高1・中103・低2）、仕様・相互運用0件。</span><span class="lang-tr">Aynı Kuwana City ZIP’i Engine 0.11.1 ile çalıştırıldı: 231 bildirim (125 bilgi · 1 yüksek · 103 orta · 2 düşük), spec ve interop 0.</span></div>
@@ -551,10 +568,10 @@
       <article class="card report-card">
         <div class="card-heading">
           <h2><span class="lang-ja">GTFS Analyzerの詳細結果</span><span class="lang-tr">GTFS Analyzer ayrıntılı sonucu</span></h2>
-          <span class="badge engine-badge">Engine 0.11.1 · <span class="lang-ja">実測</span><span class="lang-tr">Gerçek çalıştırma</span></span>
+            <span class="badge engine-badge">Engine 0.11.1 · <span class="lang-ja" id="report-engine-status-ja">実測</span><span class="lang-tr" id="report-engine-status-tr">Gerçek çalıştırma</span></span>
         </div>
         <p class="report-kicker"><span class="lang-ja">同じ桑名市コミュニティバスZIPをEngine 0.11.1で再実行した実測結果。ルールID・観測値・修正案まで同じページ内で確認できます。</span><span class="lang-tr">Aynı Kuwana City Community Bus ZIP’inin Engine 0.11.1 ile yeniden çalıştırılmış gerçek sonucu. Kural ID’si, gözlenen değer ve düzeltme önerisi aynı sayfada görünür.</span></p>
-        <div class="report-source"><strong><span class="lang-ja">プロファイル：</span><span class="lang-tr">Profil:</span></strong> GTFS-JP · Auto · <span class="lang-ja">ローカル実行サンプル</span><span class="lang-tr">yerel çalıştırma örneği</span><br><strong><span class="lang-ja">結果：</span><span class="lang-tr">Sonuç:</span></strong> OK · 231 <span class="lang-ja">通知</span><span class="lang-tr">bildirim</span>（INFO 125 · HIGH 1 · MEDIUM 103 · LOW 2） · <strong>Overall 94.7 · Publish 100.0</strong><br><strong><span class="lang-ja">スコア：</span><span class="lang-tr">Skorlar:</span></strong> spec 100 · interop 100 · quality 78.1 · analytics 90.9</div>
+        <div class="report-source"><strong><span class="lang-ja">プロファイル：</span><span class="lang-tr">Profil:</span></strong> GTFS-JP · Auto · <span class="lang-ja">ローカル実行サンプル</span><span class="lang-tr">yerel çalıştırma örneği</span><br><strong><span class="lang-ja">結果：</span><span class="lang-tr">Sonuç:</span></strong> OK · 231 <span class="lang-ja">通知</span><span class="lang-tr">bildirim</span>（INFO 125 · HIGH 1 · MEDIUM 103 · LOW 2） · <strong>Overall <span id="analyzer-report-overall-score">94.7</span> · Publish <span id="analyzer-report-publish-score">100.0</span></strong><br><strong><span class="lang-ja">スコア：</span><span class="lang-tr">Skorlar:</span></strong> spec 100 · interop 100 · quality 78.1 · analytics 90.9</div>
 
         <div class="report-item">
           <div class="report-item-head"><h3><span class="lang-ja">仕様・相互運用の通知</span><span class="lang-tr">Spesifikasyon ve birlikte çalışabilirlik</span></h3><span class="state accepted">0</span></div>
@@ -601,6 +618,7 @@
           <details class="evidence-details"><summary><span class="lang-ja">代表的な行・値を表示</span><span class="lang-tr">Örnek satır ve değerleri göster</span></summary><code>trips.txt:15 · trip_id=1全日_08時03分_系統131001 · 0m<br>trips.txt:22 · trip_id=1全日_08時30分_系統141001 · 0m<br>stop_times.txt · route_id=10C · max headway=285 · limit≤240<br>feed_info.txt:2 · feed_contact_email / feed_contact_url = missing</code></details>
         </div>
         <div class="report-note"><span class="lang-ja">残りの125件は情報通知です。任意ファイル、ファイルサイズ、route_desc / route_url、路線の片方向運行、運行パターン、アクセシビリティ項目などを個別に記録しています。</span><span class="lang-tr">Kalan 125 bildirim bilgi seviyesindedir. Opsiyonel dosyalar, dosya boyutları, route_desc / route_url, tek yönlü hatlar, işletim desenleri ve erişilebilirlik alanlarını ayrı ayrı kaydeder.</span></div>
+        <div class="report-note"><span class="lang-ja" id="publish-score-basis-ja">公開スコア100.0は、R1の公開阻害対象通知が0件であることを示します。High / Mediumの品質・分析通知は、自動的に公開阻害にはなりません。</span><span class="lang-tr" id="publish-score-basis-tr">Yayın skoru 100.0, R1 kapsamındaki yayın engeli adayı bildirimin 0 olduğunu gösterir. High / Medium kalite ve analiz bildirimleri otomatik olarak yayın engeli sayılmaz.</span></div>
       </article>
     </section>
 
@@ -673,7 +691,62 @@
       body.classList.toggle('tr', lang === 'tr');
       document.documentElement.lang = lang === 'tr' ? 'tr' : 'ja';
       langButtons.forEach((b) => b.classList.toggle('active', b === button));
+      updateUploadContextLanguage();
     }));
+
+    const uploadContextNote = document.getElementById('upload-context-note');
+    const uploadContextName = document.getElementById('upload-context-name');
+    const uploadContextProfile = document.getElementById('upload-context-profile');
+    const snapshotTitleJa = document.getElementById('snapshot-title-ja');
+    const snapshotTitleTr = document.getElementById('snapshot-title-tr');
+    const snapshotDetailJa = document.getElementById('snapshot-detail-ja');
+    const snapshotDetailTr = document.getElementById('snapshot-detail-tr');
+    const feedHeadingJa = document.getElementById('feed-card-heading-ja');
+    const feedHeadingTr = document.getElementById('feed-card-heading-tr');
+    const headerStatusJa = document.getElementById('header-status-ja');
+    const headerStatusTr = document.getElementById('header-status-tr');
+    const engineStatusJa = document.getElementById('engine-status-ja');
+    const engineStatusTr = document.getElementById('engine-status-tr');
+    const reportEngineStatusJa = document.getElementById('report-engine-status-ja');
+    const reportEngineStatusTr = document.getElementById('report-engine-status-tr');
+    const analyzerScoreLabelJa = document.getElementById('analyzer-score-label-ja');
+    const analyzerScoreLabelTr = document.getElementById('analyzer-score-label-tr');
+    const analyzerOverallScore = document.getElementById('analyzer-overall-score');
+    const analyzerReportOverallScore = document.getElementById('analyzer-report-overall-score');
+    const analyzerReportPublishScore = document.getElementById('analyzer-report-publish-score');
+    const publishScoreBasisJa = document.getElementById('publish-score-basis-ja');
+    const publishScoreBasisTr = document.getElementById('publish-score-basis-tr');
+
+    function updateUploadContextLanguage() {
+      let context = null;
+      try { context = JSON.parse(sessionStorage.getItem('japanbus-prototype-context') || 'null'); } catch (_) { context = null; }
+      if (!context || (!context.fileName && !context.sourceUrl)) return;
+
+      uploadContextNote?.removeAttribute('hidden');
+      if (uploadContextName) uploadContextName.textContent = context.fileName || context.sourceUrl || '—';
+      if (uploadContextProfile) uploadContextProfile.textContent = context.profile || 'Auto';
+      body.classList.add('upload-context-mode');
+      if (feedHeadingJa) feedHeadingJa.textContent = 'サンプル検証フィード';
+      if (feedHeadingTr) feedHeadingTr.textContent = 'Örnek doğrulama feed’i';
+      if (headerStatusJa) headerStatusJa.textContent = 'プロトタイプ表示';
+      if (headerStatusTr) headerStatusTr.textContent = 'Prototip görünümü';
+      if (engineStatusJa) engineStatusJa.textContent = 'サンプル';
+      if (engineStatusTr) engineStatusTr.textContent = 'Örnek veri';
+      if (reportEngineStatusJa) reportEngineStatusJa.textContent = 'サンプル';
+      if (reportEngineStatusTr) reportEngineStatusTr.textContent = 'Örnek veri';
+      if (analyzerScoreLabelJa) analyzerScoreLabelJa.textContent = '総合スコア（未計算）';
+      if (analyzerScoreLabelTr) analyzerScoreLabelTr.textContent = 'Genel skor (hesaplanmadı)';
+      if (analyzerOverallScore) analyzerOverallScore.textContent = '—';
+      if (analyzerReportOverallScore) analyzerReportOverallScore.textContent = '—';
+      if (analyzerReportPublishScore) analyzerReportPublishScore.textContent = '—';
+      if (publishScoreBasisJa) publishScoreBasisJa.textContent = 'このfeedの公開スコアはまだ計算されていません。下の説明はKuwanaサンプルの結果にのみ適用されます。';
+      if (publishScoreBasisTr) publishScoreBasisTr.textContent = 'Bu feed için yayın skoru henüz hesaplanmadı. Aşağıdaki açıklama yalnızca Kuwana örnek sonucuna aittir.';
+      if (snapshotTitleJa) snapshotTitleJa.textContent = 'アップロードしたfeedの実測結果ではありません。';
+      if (snapshotTitleTr) snapshotTitleTr.textContent = 'Bu, yüklenen feed’in gerçek sonucu değildir.';
+      if (snapshotDetailJa) snapshotDetailJa.textContent = 'バックエンド接続前のプロトタイプです。下のスコア、指摘、レポートはKuwanaサンプルの固定データであり、アップロード内容から計算されていません。';
+      if (snapshotDetailTr) snapshotDetailTr.textContent = 'Backend bağlantısı tamamlanmadan önceki prototiptir. Aşağıdaki skorlar, bulgular ve raporlar Kuwana örneğinin sabit verileridir; yüklediğiniz içerikten hesaplanmamıştır.';
+    }
+    updateUploadContextLanguage();
 
     const mapModal = document.getElementById('map-modal');
     const mapModalClose = document.getElementById('map-modal-close');

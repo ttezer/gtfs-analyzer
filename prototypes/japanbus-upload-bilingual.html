@@ -1,0 +1,371 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>GTFSフィードをアップロード | GTFS Analyzer</title>
+  <style>
+    :root {
+      --ink: #122333;
+      --muted: #617384;
+      --subtle: #8a9aa8;
+      --line: #dce5eb;
+      --surface: #fff;
+      --canvas: #f4f7f9;
+      --navy: #17364d;
+      --blue: #1479b8;
+      --blue-soft: #eaf5fb;
+      --green: #137653;
+      --green-soft: #e7f6ee;
+      --amber: #9a5d05;
+      --amber-soft: #fff5df;
+      --red: #b63845;
+      --red-soft: #fff0f1;
+      --shadow: 0 10px 30px rgba(16, 39, 56, .07);
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; color: var(--ink); background: var(--canvas); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans JP", "Hiragino Kaku Gothic ProN", "Yu Gothic", Meiryo, sans-serif; line-height: 1.5; }
+    button, input { font: inherit; }
+    a { color: inherit; }
+    [hidden] { display: none !important; }
+    .topline { height: 5px; background: linear-gradient(90deg, var(--navy), var(--blue)); }
+    .shell { width: min(920px, calc(100% - 48px)); margin: 0 auto; }
+    header { padding: 22px 0 18px; border-bottom: 1px solid var(--line); background: rgba(255,255,255,.86); }
+    .header-row, .brand, .header-actions, .crumbs, .lang-switch, .source-tabs, .profile-row, .actions, .privacy, .step { display: flex; align-items: center; }
+    .header-row { justify-content: space-between; gap: 20px; }
+    .brand { gap: 12px; }
+    .brand-mark { width: 44px; height: 44px; display: grid; place-items: center; border-radius: 12px; color: #fff; background: var(--navy); font-size: 11px; font-weight: 800; letter-spacing: .08em; }
+    .brand-title { color: var(--navy); font-size: 16px; font-weight: 800; }
+    .brand-sub { margin-top: 2px; color: var(--muted); font-size: 11px; }
+    .header-actions { gap: 10px; }
+    .prototype-badge { padding: 5px 9px; border: 1px solid #cbe5f1; border-radius: 999px; color: var(--blue); background: var(--blue-soft); font-size: 10px; font-weight: 800; white-space: nowrap; }
+    .lang-switch { gap: 3px; padding: 3px; border: 1px solid var(--line); border-radius: 10px; background: #fff; }
+    .lang-switch button { padding: 6px 9px; border: 0; border-radius: 7px; cursor: pointer; color: var(--muted); background: transparent; font-size: 12px; font-weight: 700; }
+    .lang-switch button.active { color: #fff; background: var(--navy); }
+    .crumbs { gap: 8px; padding-top: 14px; color: var(--subtle); font-size: 11px; }
+    .crumbs strong { color: var(--navy); }
+    .lang-tr { display: none; }
+    body.tr .lang-ja { display: none; }
+    body.tr .lang-tr { display: inline; }
+    body.tr .lang-tr.block { display: block; }
+    main { padding: 0 0 46px; }
+    .hero { padding: 36px 0 24px; }
+    .eyebrow { margin-bottom: 8px; color: var(--blue); font-size: 11px; font-weight: 800; letter-spacing: .11em; }
+    h1 { margin: 0; color: var(--navy); font-size: clamp(28px, 5vw, 42px); line-height: 1.15; letter-spacing: -.025em; }
+    .hero p { max-width: 720px; margin: 12px 0 0; color: var(--muted); font-size: 14px; }
+    .prototype-note { display: flex; align-items: flex-start; gap: 10px; margin: 0 0 18px; padding: 13px 15px; border: 1px solid #ead9b6; border-radius: 12px; color: #76571c; background: #fffaf0; font-size: 12px; }
+    .note-mark { width: 23px; height: 23px; display: grid; place-items: center; flex: 0 0 auto; border-radius: 7px; color: #8b650d; background: #fff0c7; font-weight: 900; }
+    .prototype-note strong { display: block; margin-bottom: 2px; color: #604712; }
+    .upload-card { padding: 22px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); box-shadow: var(--shadow); }
+    .card-heading { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 18px; }
+    .card-heading h2 { margin: 0; color: var(--navy); font-size: 18px; }
+    .card-heading p { margin: 4px 0 0; color: var(--muted); font-size: 12px; }
+    .step-count { color: var(--subtle); font-size: 11px; font-weight: 800; white-space: nowrap; }
+    .source-tabs { gap: 6px; margin-bottom: 14px; padding: 4px; border: 1px solid var(--line); border-radius: 10px; background: #f7f9fa; }
+    .source-tab { flex: 1; padding: 9px 12px; border: 0; border-radius: 7px; cursor: pointer; color: var(--muted); background: transparent; font-size: 12px; font-weight: 800; }
+    .source-tab.active { color: #fff; background: var(--navy); box-shadow: 0 3px 9px rgba(23, 54, 77, .16); }
+    .field-label { display: block; margin-bottom: 7px; color: var(--navy); font-size: 12px; font-weight: 800; }
+    .drop-zone { position: relative; display: grid; min-height: 178px; place-items: center; padding: 22px; border: 1px dashed #9fc8da; border-radius: 12px; text-align: center; background: linear-gradient(145deg, #f5fbfe, #fff); cursor: pointer; }
+    .drop-zone:hover, .drop-zone:focus-within { border-color: var(--blue); background: #f0f9fd; }
+    .drop-icon { width: 42px; height: 42px; display: grid; place-items: center; margin: 0 auto 9px; border-radius: 12px; color: var(--blue); background: var(--blue-soft); font-size: 21px; font-weight: 900; }
+    .drop-title { color: var(--navy); font-size: 14px; font-weight: 800; }
+    .drop-subtitle { margin-top: 3px; color: var(--muted); font-size: 11px; }
+    .drop-meta { min-height: 17px; margin-top: 8px; color: var(--blue); font-size: 11px; font-weight: 800; overflow-wrap: anywhere; }
+    #feed-file { position: absolute; width: 1px; height: 1px; opacity: 0; }
+    .url-panel { padding: 17px; border: 1px solid var(--line); border-radius: 12px; background: #fbfcfd; }
+    .url-input { width: 100%; padding: 12px 13px; border: 1px solid #bfcfd9; border-radius: 8px; color: var(--navy); background: #fff; font-size: 13px; outline: none; }
+    .url-input:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(20, 121, 184, .12); }
+    .field-hint { margin: 7px 0 0; color: var(--subtle); font-size: 10px; }
+    .profile-box { margin-top: 18px; padding: 14px 15px; border: 1px solid var(--line); border-radius: 11px; background: #fbfcfd; }
+    .profile-row { flex-wrap: wrap; gap: 7px; }
+    .profile-label { margin-right: 4px; color: var(--navy); font-size: 11px; font-weight: 800; }
+    .profile-button { padding: 6px 12px; border: 1px solid var(--line); border-radius: 999px; cursor: pointer; color: var(--muted); background: #fff; font-size: 11px; font-weight: 800; }
+    .profile-button.active { border-color: #b9dbea; color: #0b638e; background: var(--blue-soft); }
+    .profile-help { margin: 8px 0 0; color: var(--subtle); font-size: 10px; }
+    .privacy { gap: 9px; margin-top: 14px; padding: 10px 12px; border: 1px solid #cfe8da; border-radius: 10px; color: #286448; background: #f0faf4; font-size: 11px; }
+    .privacy-mark { width: 22px; height: 22px; display: grid; place-items: center; flex: 0 0 auto; border-radius: 7px; color: var(--green); background: var(--green-soft); font-weight: 900; }
+    .privacy strong { color: #175b40; }
+    .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; margin: 22px 0 18px; }
+    .step { align-items: flex-start; gap: 9px; min-width: 0; padding: 11px; border: 1px solid var(--line); border-radius: 9px; background: #fff; }
+    .step-number { width: 22px; height: 22px; display: grid; place-items: center; flex: 0 0 auto; border-radius: 7px; color: #fff; background: var(--navy); font-size: 11px; font-weight: 900; }
+    .step.active { border-color: #cbe3ef; background: #f1f9fd; }
+    .step.active .step-number { background: var(--blue); }
+    .step strong { display: block; color: var(--navy); font-size: 11px; line-height: 1.35; }
+    .step small { display: block; margin-top: 3px; color: var(--subtle); font-size: 10px; line-height: 1.35; }
+    .actions { justify-content: space-between; gap: 12px; padding-top: 16px; border-top: 1px solid var(--line); }
+    .actions-left { color: var(--subtle); font-size: 10px; }
+    .actions-right { display: flex; align-items: center; gap: 10px; }
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 10px 14px; border: 1px solid var(--line); border-radius: 8px; cursor: pointer; color: var(--navy); background: #fff; font-size: 11px; font-weight: 800; text-decoration: none; }
+    .btn.primary { border-color: var(--navy); color: #fff; background: var(--navy); }
+    .btn.primary:disabled { border-color: #b8c6ce; cursor: not-allowed; color: #81909a; background: #e6ecef; }
+    .btn:not(:disabled):hover { transform: translateY(-1px); filter: brightness(.98); }
+    .validation-message { min-height: 17px; margin: 10px 0 0; color: var(--red); font-size: 11px; font-weight: 700; }
+    .footer { display: flex; justify-content: space-between; gap: 14px; margin-top: 22px; padding-top: 16px; border-top: 1px solid var(--line); color: var(--subtle); font-size: 10px; }
+    .footer a { color: var(--blue); font-weight: 800; text-decoration: none; }
+    .footer a:hover { text-decoration: underline; }
+    @media (max-width: 680px) {
+      .shell { width: min(100% - 28px, 920px); }
+      header { padding-top: 16px; }
+      .header-row { align-items: flex-start; }
+      .header-actions { flex-direction: column-reverse; align-items: flex-end; }
+      .prototype-badge { display: none; }
+      .hero { padding-top: 26px; }
+      .upload-card { padding: 15px; }
+      .card-heading { display: block; }
+      .step-count { display: block; margin-top: 5px; }
+      .steps { grid-template-columns: 1fr; }
+      .actions { display: block; }
+      .actions-right { justify-content: flex-start; margin-top: 12px; }
+      .footer { display: block; }
+      .footer span { display: block; margin-top: 5px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="topline"></div>
+  <header>
+    <div class="shell">
+      <div class="header-row">
+        <div class="brand">
+          <div class="brand-mark">BUS</div>
+          <div>
+            <div class="brand-title"><span class="lang-ja">GTFSフィードをアップロード</span><span class="lang-tr">GTFS feed yükle</span></div>
+            <div class="brand-sub">JapanBus.jp × GTFS Analyzer</div>
+          </div>
+        </div>
+        <div class="header-actions">
+          <span class="prototype-badge"><span class="lang-ja">比較フローのプロトタイプ</span><span class="lang-tr">Karşılaştırma akışı prototipi</span></span>
+          <div class="lang-switch" aria-label="Language">
+            <button class="active" data-lang="ja" type="button">日本語</button>
+            <button data-lang="tr" type="button">Türkçe</button>
+          </div>
+        </div>
+      </div>
+      <div class="crumbs"><a href="./"><span class="lang-ja">GTFSツール</span><span class="lang-tr">GTFS araçları</span></a><span>›</span><strong><span class="lang-ja">feedアップロード</span><span class="lang-tr">Feed yükleme</span></strong></div>
+    </div>
+  </header>
+
+  <main class="shell">
+    <section class="hero">
+      <div class="eyebrow">JAPANBUS GTFS · VALIDATION FLOW</div>
+      <h1><span class="lang-ja">GTFSフィードをアップロード</span><span class="lang-tr">GTFS feed’ini yükle</span></h1>
+      <p><span class="lang-ja">同じfeedを既存のJapanBus FeedValidatorとGTFS Analyzerで確認し、結果を一つの画面で比較するための入口です。</span><span class="lang-tr">Aynı feed’i mevcut JapanBus FeedValidator ve GTFS Analyzer ile kontrol edip sonuçları tek ekranda görmek için başlangıç noktasıdır.</span></p>
+    </section>
+
+    <div class="prototype-note">
+      <div class="note-mark">!</div>
+      <div>
+        <strong><span class="lang-ja">現在は画面フローのプロトタイプです。</span><span class="lang-tr">Bu ekran şu anda akış prototipidir.</span></strong>
+        <span class="lang-ja">下の送信ではfeedの実測はまだ行わず、選択情報を結果画面へ渡します。結果画面のスコアと指摘はKuwanaサンプルであり、アップロードしたfeedの判定ではありません。</span>
+        <span class="lang-tr">Gönder düğmesi şu aşamada feed’i gerçekten çalıştırmaz; yalnızca seçimi sonuç ekranına taşır. Sonuç ekranındaki skor ve bulgular Kuwana örneğidir, yüklediğiniz feed’in kararı değildir.</span>
+      </div>
+    </div>
+
+    <form class="upload-card" id="upload-form">
+      <div class="card-heading">
+        <div>
+          <h2><span class="lang-ja">検証対象を選択</span><span class="lang-tr">Doğrulanacak feed’i seç</span></h2>
+          <p><span class="lang-ja">ZIPファイルまたは公開されているfeed URLを指定します。</span><span class="lang-tr">ZIP dosyası veya erişilebilir bir feed URL’si seçin.</span></p>
+        </div>
+        <span class="step-count"><span class="lang-ja">ステップ 1 / 3</span><span class="lang-tr">Adım 1 / 3</span></span>
+      </div>
+
+      <div class="source-tabs" role="tablist" aria-label="Feed source">
+        <button class="source-tab active" type="button" role="tab" aria-selected="true" data-source="file"><span class="lang-ja">ZIPファイル</span><span class="lang-tr">ZIP dosyası</span></button>
+        <button class="source-tab" type="button" role="tab" aria-selected="false" data-source="url"><span class="lang-ja">Feed URL</span><span class="lang-tr">Feed URL’si</span></button>
+      </div>
+
+      <div id="file-panel" data-panel="file">
+        <label class="field-label" for="feed-file"><span class="lang-ja">GTFS ZIPファイル</span><span class="lang-tr">GTFS ZIP dosyası</span></label>
+        <label class="drop-zone" for="feed-file">
+          <input id="feed-file" type="file" accept=".zip,application/zip" />
+          <div>
+            <div class="drop-icon">↑</div>
+            <div class="drop-title"><span class="lang-ja">クリックしてZIPを選択</span><span class="lang-tr">ZIP seçmek için tıklayın</span></div>
+            <div class="drop-subtitle"><span class="lang-ja">またはこのエリアにドロップ · GTFS-JP V3 / V4</span><span class="lang-tr">veya bu alana bırakın · GTFS-JP V3 / V4</span></div>
+            <div class="drop-meta" id="file-meta" aria-live="polite"></div>
+          </div>
+        </label>
+      </div>
+
+      <div class="url-panel" id="url-panel" data-panel="url" hidden>
+        <label class="field-label" for="feed-url"><span class="lang-ja">公開feed URL</span><span class="lang-tr">Açık feed URL’si</span></label>
+        <input class="url-input" id="feed-url" type="url" inputmode="url" placeholder="https://example.jp/gtfs/feed.zip" autocomplete="url" />
+        <p class="field-hint"><span class="lang-ja">URLは http / https で始まる必要があります。ブラウザ制限により取得できない場合はZIPを選択してください。</span><span class="lang-tr">URL http / https ile başlamalıdır. Tarayıcı kısıtı nedeniyle alınamazsa ZIP dosyasını seçin.</span></p>
+      </div>
+
+      <div class="profile-box">
+        <div class="profile-row">
+          <span class="profile-label"><span class="lang-ja">GTFS-JPプロファイル</span><span class="lang-tr">GTFS-JP profili</span></span>
+          <button class="profile-button active" type="button" data-profile="Auto">Auto</button>
+          <button class="profile-button" type="button" data-profile="V3">V3</button>
+          <button class="profile-button" type="button" data-profile="V4">V4</button>
+        </div>
+        <p class="profile-help"><span class="lang-ja">Auto / V3 / V4は検証範囲の選択です。feedの公式GTFS-JP版を自動判定する機能ではありません。</span><span class="lang-tr">Auto / V3 / V4 doğrulama kapsamını seçer. Feed’in resmî GTFS-JP sürümünü otomatik tespit etmez.</span></p>
+      </div>
+
+      <div class="privacy">
+        <div class="privacy-mark">⌁</div>
+        <div><strong><span class="lang-ja">結果は保存しません。</span><span class="lang-tr">Sonuçlar saklanmaz.</span></strong> <span class="lang-ja">このプロトタイプでは選択したファイルの内容を送信せず、画面遷移用の情報だけを一時的に使います。</span><span class="lang-tr">Bu prototipte dosya içeriği gönderilmez; yalnızca sayfa geçişi için seçim bilgisi geçici olarak kullanılır.</span></div>
+      </div>
+
+      <div class="steps" aria-label="Validation steps">
+        <div class="step active"><div class="step-number">1</div><div><strong><span class="lang-ja">feedを選択</span><span class="lang-tr">Feed’i seç</span></strong><small><span class="lang-ja">ZIPまたはURL</span><span class="lang-tr">ZIP veya URL</span></small></div></div>
+        <div class="step"><div class="step-number">2</div><div><strong><span class="lang-ja">2つのvalidatorで比較</span><span class="lang-tr">İki validator ile karşılaştır</span></strong><small><span class="lang-ja">FeedValidator + Analyzer</span><span class="lang-tr">FeedValidator + Analyzer</span></small></div></div>
+        <div class="step"><div class="step-number">3</div><div><strong><span class="lang-ja">結果を同じ画面に表示</span><span class="lang-tr">Sonucu aynı sayfada göster</span></strong><small><span class="lang-ja">詳細・差分・ダウンロード</span><span class="lang-tr">Ayrıntı · fark · indirme</span></small></div></div>
+      </div>
+
+      <div class="actions">
+        <div class="actions-left"><span class="lang-ja">入力後に結果画面へ進みます。</span><span class="lang-tr">Girdi sonrası sonuç sayfasına geçilir.</span></div>
+        <div class="actions-right">
+          <a class="btn" href="./japanbus-result-comparison-bilingual.html"><span class="lang-ja">サンプル結果を見る</span><span class="lang-tr">Örnek sonucu gör</span></a>
+          <button class="btn primary" id="submit-button" type="submit" disabled><span class="lang-ja">結果ページへ →</span><span class="lang-tr">Sonuç sayfasına geç →</span></button>
+        </div>
+      </div>
+      <p class="validation-message" id="validation-message" role="alert" aria-live="polite"></p>
+    </form>
+
+    <div class="footer">
+      <a href="./"><span class="lang-ja">← GTFS Analyzerホーム</span><span class="lang-tr">← GTFS Analyzer ana sayfa</span></a>
+      <span><span class="lang-ja">JapanBus結果プロトタイプ · GTFS-JP V3 / V4</span><span class="lang-tr">JapanBus sonuç prototipi · GTFS-JP V3 / V4</span></span>
+    </div>
+  </main>
+
+  <script>
+    const body = document.body;
+    const langButtons = document.querySelectorAll('[data-lang]');
+    const uploadForm = document.getElementById('upload-form');
+    const fileInput = document.getElementById('feed-file');
+    const fileMeta = document.getElementById('file-meta');
+    const feedUrl = document.getElementById('feed-url');
+    const submitButton = document.getElementById('submit-button');
+    const validationMessage = document.getElementById('validation-message');
+    const sourceTabs = document.querySelectorAll('[data-source]');
+    const panels = document.querySelectorAll('[data-panel]');
+    const profileButtons = document.querySelectorAll('[data-profile]');
+    let source = 'file';
+    let profile = 'Auto';
+
+    const messages = {
+      ja: {
+        invalidFile: 'ZIPファイルを選択してください。',
+        invalidUrl: '有効な http / https URLを入力してください。',
+        readyFile: 'ZIPファイルを選択済み',
+        readyUrl: 'URLを入力済み'
+      },
+      tr: {
+        invalidFile: 'Lütfen bir ZIP dosyası seçin.',
+        invalidUrl: 'Geçerli bir http / https URL’si girin.',
+        readyFile: 'ZIP dosyası seçildi',
+        readyUrl: 'URL girildi'
+      }
+    };
+
+    function currentLanguage() { return body.classList.contains('tr') ? 'tr' : 'ja'; }
+    function formatBytes(bytes) {
+      if (!bytes) return '0 B';
+      if (bytes < 1024) return `${bytes} B`;
+      if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+      return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    }
+    function validUrl() {
+      try {
+        const parsed = new URL(feedUrl.value.trim());
+        return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+      } catch (_) {
+        return false;
+      }
+    }
+    function hasValidInput() {
+      if (source === 'file') return Boolean(fileInput.files?.[0]) && fileInput.files[0].name.toLowerCase().endsWith('.zip');
+      return validUrl();
+    }
+    function setMessage(key) {
+      validationMessage.textContent = key ? messages[currentLanguage()][key] : '';
+    }
+    function updateSubmitState() {
+      submitButton.disabled = !hasValidInput();
+      if (source === 'file' && fileInput.files?.[0]) {
+        const file = fileInput.files[0];
+        fileMeta.textContent = `${file.name} · ${formatBytes(file.size)}`;
+      } else if (source === 'url' && feedUrl.value.trim()) {
+        fileMeta.textContent = '';
+      } else if (!fileInput.files?.[0]) {
+        fileMeta.textContent = '';
+      }
+    }
+
+    langButtons.forEach((button) => button.addEventListener('click', () => {
+      const lang = button.dataset.lang;
+      body.classList.toggle('tr', lang === 'tr');
+      document.documentElement.lang = lang === 'tr' ? 'tr' : 'ja';
+      document.title = lang === 'tr' ? 'GTFS feed yükle | GTFS Analyzer' : 'GTFSフィードをアップロード | GTFS Analyzer';
+      langButtons.forEach((item) => item.classList.toggle('active', item === button));
+      updateSubmitState();
+      if (validationMessage.dataset.messageKey) setMessage(validationMessage.dataset.messageKey);
+    }));
+
+    sourceTabs.forEach((tab) => tab.addEventListener('click', () => {
+      source = tab.dataset.source;
+      sourceTabs.forEach((item) => {
+        const active = item === tab;
+        item.classList.toggle('active', active);
+        item.setAttribute('aria-selected', String(active));
+      });
+      panels.forEach((panel) => { panel.hidden = panel.dataset.panel !== source; });
+      validationMessage.dataset.messageKey = '';
+      setMessage('');
+      updateSubmitState();
+    }));
+
+    profileButtons.forEach((button) => button.addEventListener('click', () => {
+      profile = button.dataset.profile;
+      profileButtons.forEach((item) => item.classList.toggle('active', item === button));
+    }));
+
+    fileInput.addEventListener('change', () => {
+      const file = fileInput.files?.[0];
+      if (file && !file.name.toLowerCase().endsWith('.zip')) {
+        validationMessage.dataset.messageKey = 'invalidFile';
+        setMessage('invalidFile');
+        submitButton.disabled = true;
+        fileMeta.textContent = '';
+        return;
+      }
+      validationMessage.dataset.messageKey = '';
+      setMessage('');
+      updateSubmitState();
+    });
+    feedUrl.addEventListener('input', () => {
+      validationMessage.dataset.messageKey = '';
+      setMessage('');
+      updateSubmitState();
+    });
+
+    uploadForm.addEventListener('submit', (event) => {
+      event.preventDefault();
+      if (!hasValidInput()) {
+        const key = source === 'file' ? 'invalidFile' : 'invalidUrl';
+        validationMessage.dataset.messageKey = key;
+        setMessage(key);
+        return;
+      }
+
+      const file = fileInput.files?.[0];
+      const context = {
+        sourceType: source,
+        fileName: source === 'file' ? file.name : '',
+        fileSize: source === 'file' ? file.size : null,
+        sourceUrl: source === 'url' ? feedUrl.value.trim() : '',
+        profile,
+        submittedAt: new Date().toISOString()
+      };
+      try { sessionStorage.setItem('japanbus-prototype-context', JSON.stringify(context)); } catch (_) { /* storage may be disabled */ }
+      window.location.href = './japanbus-result-comparison-bilingual.html?source=upload';
+    });
+
+    try { sessionStorage.removeItem('japanbus-prototype-context'); } catch (_) { /* storage may be disabled */ }
+    updateSubmitState();
+  </script>
+</body>
+</html>

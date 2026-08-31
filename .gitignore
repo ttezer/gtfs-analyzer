@@ -61,3 +61,4 @@ CLAUDE.md
 /prototypes/*
 !/prototypes/
 !/prototypes/japanbus-result-comparison-bilingual.html
+!/prototypes/japanbus-upload-bilingual.html
