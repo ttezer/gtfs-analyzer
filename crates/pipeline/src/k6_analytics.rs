@@ -6036,33 +6036,57 @@ fn check_remaining_analytics<'a>(
         }
     }
 
-    // ── TRP_015: trip block_id tek (block'ta başka sefer yok) ─────────────────
+    // ── TRP_015: block_id hiçbir seferi gruplamıyor (FEED başına tek bulgu) ───
+    //
+    // Blok kimliği SPEC'in tanımıdır: `(block_id, service_id)`. GTFS Schedule Reference,
+    // `trips.block_id`: "A block consists of a single trip or many sequential trips made
+    // using the same vehicle, defined by shared service days and block_id. A block_id may
+    // have trips with different service days, making distinct blocks."
+    //
+    // 🔴 Buradan iki sonuç çıkar ve ikisi de eski hükmü çürütür:
+    //   1. TEK SEFERLİK BLOK GEÇERLİDİR — spec onu ilk seçenek olarak sayar. Eski kural
+    //      "blok en az 2 sefer içermelidir" diyordu; bu spec'e aykırı bir normdu ve sefer
+    //      başına ateşleyerek korpusta 1.549.904 notice üretiyordu (675 feed, MD'de karşılığı
+    //      yok).
+    //   2. Çift tanımını UYGULAMAK gürültüyü büyütürdü: aynı block_id farklı servis
+    //      günlerinde ayrı bloklar oluşturduğu için tek-seferlik blok sayısı artar
+    //      (14 feed'lik örneklem, mdb-2727: 101.089 → 101.621).
+    //
+    // Geriye kalan savunulabilir tek sinyal alan düzeyindedir: HİÇBİR blok iki sefer
+    // içermiyorsa `block_id` fiilen `trip_id` kopyasıdır ve araç devamlılığı bilgisi
+    // taşımaz. Örneklemde 14 feed'in 8'i tam %100 oranındaydı — eşik keyfi değil.
+    // Çakışan seferler TRP_022'nin, blok içi route_type tutarsızlığı TRP_033'ün ekseni.
     {
-        let mut block_count: HashMap<&str, u32> = HashMap::new();
+        let mut block_count: HashMap<(&str, &str), u32> = HashMap::new();
+        let mut trips_with_block: u64 = 0;
         for t in &records.trips {
             if let Some(bid) = ti_rem.block_id(t).filter(|b| !b.is_empty()) {
-                *block_count.entry(bid).or_default() += 1;
+                trips_with_block += 1;
+                *block_count.entry((bid, ti_rem.service_id(t))).or_default() += 1;
             }
         }
-        for t in &records.trips {
-            if let Some(bid) = ti_rem.block_id(t).filter(|b| !b.is_empty()) {
-                if block_count.get(bid).copied().unwrap_or(0) == 1 {
-                    notices.push(k6_notice(
-                        ctr,
-                        "TRP_015",
-                        EntityType::Trip,
-                        Some(t.trip_id.to_string()),
-                        Some(t.trip_id.to_string()),
-                        "trips.txt",
-                        Some(t.line),
-                        Some("block_id"),
-                        Some(bid.to_string()),
-                        None,
-                        format!("'{}' hattının seferinde '{bid}' blok kodu tek kullanılmış — blok en az 2 sefer içermelidir.", ti_rem.route_id(t)),
-                        "block_id'nin aynı araca atanan birden fazla sefer için kullanıldığından emin olun.",
-                    ));
-                }
-            }
+        let grouped = block_count.values().filter(|&&c| c > 1).count();
+        if trips_with_block > 0 && grouped == 0 {
+            let mut notice = k6_notice(
+                ctr,
+                "TRP_015",
+                EntityType::Feed,
+                None,
+                None,
+                "trips.txt",
+                None,
+                Some("block_id"),
+                Some(block_count.len().to_string()),
+                None,
+                format!(
+                    "block_id taşıyan {trips_with_block} seferin her biri kendi bloğunda tek — {} blok kodunun hiçbiri iki seferi gruplamıyor, alan fiilen trip_id kopyası.",
+                    block_count.len()
+                ),
+                "block_id'yi aynı araçla ardışık yapılan seferlere ORTAK verin; her sefere ayrı kod vermek alanı bilgisiz bırakır (tek seferlik blok spec'e göre geçerlidir, bulgu onun için değildir).",
+            );
+            notice.details.get_or_insert_with(Default::default)
+                .insert("trips_with_block".to_string(), trips_with_block.to_string());
+            notices.push(notice);
         }
     }
 
@@ -12620,36 +12644,50 @@ mod tests {
     // ── TRP_015: block_id singleton ──────────────────────────────────────────
 
     #[test]
-    fn singleton_block_produces_trp_015() {
+    fn block_id_that_groups_nothing_produces_one_feed_level_trp_015() {
+        // Iki sefer, iki AYRI block_id → hicbir blok iki seferi gruplamiyor.
+        // Alan fiilen trip_id kopyasi → FEED basina TEK bulgu.
         let records = records_with(
             vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1)],
             vec![route("R1", 3)],
-            vec![trip_blk("T1", "R1", "BLK1")], // block'ta tek sefer
-            vec![
-                stoptime("T1", 1, "A", (8,0,0), (8,0,0), 2),
-                stoptime("T1", 2, "B", (8,10,0), (8,10,0), 3),
-            ],
-        );
-        let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
-        assert!(result.notices.iter().any(|n| n.rule_id == "TRP_015"), "TRP_015 olmalı");
-    }
-
-    #[test]
-    fn shared_block_no_trp_015() {
-        let records = records_with(
-            vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1)],
-            vec![route("R1", 3)],
-            vec![
-                trip_blk("T1", "R1", "BLK1"),
-                trip_blk("T2", "R1", "BLK1"),
-            ],
+            vec![trip_blk("T1", "R1", "BLK1"), trip_blk("T2", "R1", "BLK2")],
             vec![
                 stoptime("T1", 1, "A", (8,0,0), (8,0,0), 2),
                 stoptime("T2", 1, "B", (9,0,0), (9,0,0), 3),
             ],
         );
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
-        assert!(!result.notices.iter().any(|n| n.rule_id == "TRP_015"));
+        let hits: Vec<_> = result.notices.iter().filter(|n| n.rule_id == "TRP_015").collect();
+        assert_eq!(hits.len(), 1, "feed basina TEK bulgu bekleniyor, bulunan: {}", hits.len());
+        assert!(hits[0].entity_id.is_none(), "feed duzeyi bulgu trip kimligi tasimamali");
+    }
+
+    #[test]
+    fn a_single_trip_block_is_valid_per_spec_and_stays_silent() {
+        // 🔴 ESKI HUKUM SPEC'E AYKIRIYDI. GTFS Schedule Reference, trips.block_id:
+        // "A block consists of a single trip or many sequential trips ..." — tek seferlik
+        // blok GECERLIDIR. Eski kural onu sefer basina raporluyor ve korpusta 1.549.904
+        // notice / 675 feed uretiyordu. Burada BLK1 iki seferi gruplarken BLK2 tek
+        // seferliktir: gruplama VAR, dolayisiyla feed duzeyi bulgu da yoktur.
+        let records = records_with(
+            vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1)],
+            vec![route("R1", 3)],
+            vec![
+                trip_blk("T1", "R1", "BLK1"),
+                trip_blk("T2", "R1", "BLK1"),
+                trip_blk("T3", "R1", "BLK2"),
+            ],
+            vec![
+                stoptime("T1", 1, "A", (8,0,0), (8,0,0), 2),
+                stoptime("T2", 1, "B", (9,0,0), (9,0,0), 3),
+                stoptime("T3", 1, "A", (10,0,0), (10,0,0), 2),
+            ],
+        );
+        let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
+        assert!(
+            !result.notices.iter().any(|n| n.rule_id == "TRP_015"),
+            "tek seferlik blok spec'e gore gecerlidir; gruplama varken TRP_015 susmali",
+        );
     }
 
     // ── STP_020: kullanılmayan durak ─────────────────────────────────────────

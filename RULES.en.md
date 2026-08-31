@@ -195,7 +195,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | TRP_012 | direction_id missing on bidirectional route | LOW | Quality |
 | TRP_013 | Route has only one trip | LOW | Quality |
 | TRP_014 | trip_short_name too long | INFO | Quality |
-| TRP_015 | Single trip in block_id group | LOW | Quality |
+| TRP_015 | block_id groups no trips | LOW | Quality |
 | TRP_017 | Frequency-based trip missing from stop_times | MEDIUM | Quality |
 | TRP_019 | shape_id missing with continuous service active | HIGH | Spec |
 | TRP_020 | trip_headsign matches intermediate stop name | INFO | Analytics |

@@ -195,7 +195,7 @@
 | TRP_012 | 双方向路線でdirection_idが不足 | 低 | 品質 |
 | TRP_013 | 路線に便が1本のみ | 低 | 品質 |
 | TRP_014 | trip_short_nameが長すぎる | 情報 | 品質 |
-| TRP_015 | block内で唯一の便 | 低 | 品質 |
+| TRP_015 | block_idが便をまとめていない | 低 | 品質 |
 | TRP_017 | 頻度ベースの便にstop_timesなし | 中 | 品質 |
 | TRP_019 | 連続サービス中にshape_idが必須 | 高 | 仕様 |
 | TRP_020 | trip_headsignが中間停留所名と一致 | 情報 | 分析 |

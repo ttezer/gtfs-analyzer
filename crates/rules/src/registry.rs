@@ -572,8 +572,22 @@ pub static RULES: &[RuleMeta] = &[
         "Hat tek seferlik"),
     r!("TRP_014", Bilgi,  Quality, 1, &[], Some("trip_id"), VS, Entity,
         "trip_short_name çok uzun"),
-    r!("TRP_015", Dusuk,  Quality, 1, &[], Some("trip_id"), VS, Entity,
-        "block_id grubunda tek sefer"),
+    // TRP_015 YENİDEN TANIMLANDI (2026-09-01, 13. korpus turu). Eski hüküm "blok en az 2
+    // sefer içermelidir" idi ve SPEC'E AYKIRIYDI: GTFS Schedule Reference `trips.block_id`
+    // için "A block consists of **a single trip** or many sequential trips ... defined by
+    // shared service days and block_id. A block_id may have trips with different service
+    // days, making distinct blocks." — tek seferlik blok GEÇERLİDİR.
+    // Ölçüm: kural sefer başına ateşliyordu → 1.549.904 notice / 675 feed (korpusun %3,9'u),
+    // MD'de karşılığı YOK. 14 feed'lik örneklemde spec'in çift tanımı ((block_id, service_id))
+    // uygulanınca tek-seferlik blok sayısı AZALMIYOR, ARTIYOR (mdb-2727 101.089 → 101.621),
+    // çünkü aynı block_id farklı servis günlerinde ayrı bloklar oluşturuyor. Yani hükmü
+    // "doğru" tanımlamak gürültüyü büyütürdü; hükmün kendisi yanlıştı.
+    // Yeni hüküm — savunulabilir kalan tek sinyal: block_id HİÇBİR seferi gruplamıyorsa
+    // alan fiilen `trip_id` kopyasıdır ve araç devamlılığı bilgisi taşımaz. Aynı örneklemde
+    // 14 feed'in 8'i tam %100 oranındaydı, yani bu keyfi bir eşik değil veride net bir sınıf.
+    // FEED başına TEK bulgu (TRP_033'ün "blok başına tek notice" emsali).
+    r!("TRP_015", Dusuk,  Quality, 1, &[], None, VS, Feed,
+        "block_id hiçbir seferi gruplamıyor"),
     r!("TRP_017", Orta,   Quality, 1, &[], Some("trip_id"), VS, Entity,
         "Frekans tabanlı sefer stop_times'ta eksik"),
     // TRP_019 SINIFI DEĞİŞTİ (2026-08-03): Quality → Spec. Spec `trips.shape_id` için

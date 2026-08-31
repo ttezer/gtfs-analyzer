@@ -195,7 +195,7 @@ Classes : **Spec** (validité GTFS) · **Interop** (interopérabilité GTFS) · 
 | TRP_012 | direction_id manquant sur une ligne bidirectionnelle | FAIBLE | Quality |
 | TRP_013 | La ligne ne comporte qu’une seule course | FAIBLE | Quality |
 | TRP_014 | trip_short_name trop long | INFO | Quality |
-| TRP_015 | Course unique dans un groupe block_id | FAIBLE | Quality |
+| TRP_015 | block_id ne regroupe aucune course | FAIBLE | Quality |
 | TRP_017 | Course basée sur la fréquence absente de stop_times | MOYENNE | Quality |
 | TRP_019 | shape_id manquant alors que le service continu est actif | ÉLEVÉE | Spec |
 | TRP_020 | trip_headsign correspond au nom d’un arrêt intermédiaire | INFO | Analytics |

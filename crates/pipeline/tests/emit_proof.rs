@@ -1387,7 +1387,9 @@ fn fixtures() -> Vec<Fixture> {
         fx("TRP_013", vec![]),
         // TRP_014: trip_short_name > 20 karakter (k2).
         fx("TRP_014", vec![("trips.txt", "route_id,service_id,trip_id,trip_short_name\nR1,SVC1,T1,ABCDEFGHIJKLMNOPQRSTU\n")]),
-        // TRP_015: block_id'de tek sefer (k6).
+        // TRP_015: block_id hiçbir seferi gruplamıyor (k6, FEED başına tek bulgu).
+        // Tek sefer + tek block → gruplama yok. (Tek seferlik blok spec'e göre GEÇERLİ;
+        // bulgu onun için değil, alanın hiç gruplamamasi için.)
         fx("TRP_015", vec![("trips.txt", "route_id,service_id,trip_id,block_id\nR1,SVC1,T1,B1\n")]),
         // TRP_017: frekans tabanlı sefer stop_times'ta yok (k4).
         fx("TRP_017", vec![

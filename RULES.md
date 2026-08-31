@@ -195,7 +195,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | TRP_012 | Çift yönlü rotada direction_id eksik | DÜŞÜK | Quality |
 | TRP_013 | Hat tek seferlik | DÜŞÜK | Quality |
 | TRP_014 | trip_short_name çok uzun | BİLGİ | Quality |
-| TRP_015 | block_id grubunda tek sefer | DÜŞÜK | Quality |
+| TRP_015 | block_id hiçbir seferi gruplamıyor | DÜŞÜK | Quality |
 | TRP_017 | Frekans tabanlı sefer stop_times'ta eksik | ORTA | Quality |
 | TRP_019 | Continuous servis aktifken shape_id eksik | YÜKSEK | Spec |
 | TRP_020 | trip_headsign ara durak adıyla eşleşiyor | BİLGİ | Analytics |

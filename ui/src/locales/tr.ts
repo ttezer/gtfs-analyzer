@@ -753,7 +753,7 @@ const tr = {
     'TRP_012': 'Çift yönlü rotada direction_id eksik',
     'TRP_013': 'Hat tek seferlik',
     'TRP_014': 'trip_short_name çok uzun',
-    'TRP_015': 'block_id grubunda tek sefer',
+    'TRP_015': 'block_id hiçbir seferi gruplamıyor',
     'TRP_017': "Frekans tabanlı sefer stop_times'ta eksik",
     'TRP_019': 'Continuous servis aktifken shape_id eksik',
     'TRP_020': 'trip_headsign ara durak adıyla eşleşiyor',
