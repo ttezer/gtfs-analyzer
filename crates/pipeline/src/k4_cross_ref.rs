@@ -1780,7 +1780,8 @@ fn check_transfers(
             if fti == tti {
                 notices.push(notice(
                     ctr, "TRF_018", EntityType::Transfer,
-                    None, None, "transfers.txt", Some(rec.line), Some("from_trip_id"),
+                    // Sefer kimliği elimizde; boş bırakılınca mesaj "the same trip ('')" oluyordu.
+                    Some(fti.clone()), None, "transfers.txt", Some(rec.line), Some("from_trip_id"),
                     Some(fti.clone()), None,
                     format!("from_trip_id ve to_trip_id aynı sefer ('{fti}'); aktarmanın bir anlamı yok."),
                     "from_trip_id ve to_trip_id farklı seferler olmalıdır.",

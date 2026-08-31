@@ -37,8 +37,6 @@ pub fn validate_agency(file: &RawFile) -> (Vec<AgencyRecord>, Vec<gtfs_core::Not
         let agency_id = get_raw_field(&row_map, "agency_id")
             .filter(|v| !v.trim().is_empty())
             .map(str::to_string);
-        let entity_id = agency_id.clone();
-
         // AGN_014: birden fazla kuruluş varken bu satırda agency_id boş/eksik
         if multiple_agencies && agency_id.is_none() {
             notices.push(make_k2_notice(
@@ -51,6 +49,11 @@ pub fn validate_agency(file: &RawFile) -> (Vec<AgencyRecord>, Vec<gtfs_core::Not
 
         // AGN_002: agency_name required (sütun başlıkta yoksa ARC_025 devralır → atla)
         let agency_name = get_trimmed_field(&row_map, "agency_name").unwrap_or("").to_string();
+        // `agency_id` tek işletmecili feed'lerde OPSİYONELDİR ve orada boş kalır; bütün AGN
+        // mesajları `{entity_id}` ile doldurulduğu için metin "Agency ''" çıkıyordu (korpusta
+        // AGN_015 97 feed). Kimlik yoksa okunabilir ada düşülür — DQ_010 ile aynı emsal.
+        let entity_id = agency_id.clone()
+            .or_else(|| Some(agency_name.clone()).filter(|s| !s.is_empty()));
         if get_trimmed_field(&row_map, "agency_name") == Some("") {
             notices.push(make_k2_notice(
                 &mut counter, "AGN_002", EntityType::Agency, entity_id.clone(), Some(&row_map),

@@ -2406,19 +2406,27 @@ pub fn validate_stop_times_with_limits(
             for w in rows[s..e].windows(2) {
                 let (a, b) = (&w[0], &w[1]);
                 if a.sequence != u32::MAX && a.sequence == b.sequence {
-                    stm032_pending.push(make_k2_notice(
+                    let mut n032 = make_k2_notice(
                         &mut st.counter, "STM_032", EntityType::Trip, Some(tid.to_string()),
                         None, &file.name, Some(b.line as u64), Some("stop_sequence"),
                         Some(b.sequence.to_string()), None,
                         format!("trip_id '{}' için stop_sequence {} tekrar ediyor.", tid, b.sequence),
                         "Her (trip_id, stop_sequence) çifti stop_times.txt'te benzersiz olmalıdır.",
-                    ));
+                    );
+                    // STM_056 ile aynı desen: feed özeti dalı affected_rows/example_trips yazar,
+                    // tek şablon iki dala da hizmet ettiği için tekil dal da taşımalı.
+                    {
+                        let d = n032.details.get_or_insert_with(Default::default);
+                        d.insert("affected_rows".to_string(), "1".to_string());
+                        d.insert("example_trips".to_string(), tid.to_string());
+                    }
+                    stm032_pending.push(n032);
                 }
                 // STM_056 (MD `decreasing_or_equal_stop_time_distance`): stop_sequence boyunca
                 // shape_dist_traveled ARTMALI. Yalnız iki satırda da değer varsa karşılaştırılır;
                 // eksik değer STM_017'nin konusudur. NaN karşılaştırması false döner, guard şart.
                 if a.dist_f32.is_finite() && b.dist_f32.is_finite() && b.dist_f32 <= a.dist_f32 {
-                    stm056_pending.push(make_k2_notice(
+                    let mut n056 = make_k2_notice(
                         &mut st.counter, "STM_056", EntityType::Trip, Some(tid.to_string()),
                         None, &file.name, Some(b.line as u64), Some("shape_dist_traveled"),
                         Some(format!("{}", b.dist_f32)), Some(format!("> {}", a.dist_f32)),
@@ -2427,7 +2435,15 @@ pub fn validate_stop_times_with_limits(
                             tid, b.sequence, b.dist_f32, a.dist_f32
                         ),
                         "stop_times.txt'te shape_dist_traveled değerlerini stop_sequence sırasına göre artan biçimde düzeltin.",
-                    ));
+                    );
+                    // Feed özeti dalı (`finalize_stm_pending`) affected_rows/example_trips yazar;
+                    // tek şablonun iki dalda da dolması için tekil dal da aynı anahtarları taşır.
+                    {
+                        let d = n056.details.get_or_insert_with(Default::default);
+                        d.insert("affected_rows".to_string(), "1".to_string());
+                        d.insert("example_trips".to_string(), tid.to_string());
+                    }
+                    stm056_pending.push(n056);
                 }
             }
         }
@@ -3096,7 +3112,11 @@ mod tests {
         let stm032: Vec<_> = notices.iter().filter(|n| n.rule_id == "STM_032").collect();
         assert_eq!(stm032.len(), 2, "düşük hacimde iki pinpoint notice korunmalı");
         assert!(stm032.iter().all(|n| n.entity_type == EntityType::Trip));
-        assert!(stm032.iter().all(|n| n.details.is_none()));
+        // STM_056 ile aynı sözleşme değişikliği: pinpoint dal da `affected_rows`/`example_trips`
+        // taşır, çünkü tek mesaj şablonu hem satır-başına hem feed-özeti dalına hizmet ediyor.
+        assert!(stm032.iter().all(|n| n.details.as_ref()
+            .and_then(|d| d.get("affected_rows")).map(|v| v == "1").unwrap_or(false)),
+            "pinpoint notice affected_rows=1 taşımalı");
     }
 
     /// #97 kabul matrisi: `stop_sequence` ARTIŞ hükmünü ölçen kural SPEC sınıfında olmalı,
@@ -3210,7 +3230,14 @@ mod tests {
         let stm056: Vec<_> = notices.iter().filter(|n| n.rule_id == "STM_056").collect();
         assert_eq!(stm056.len(), 2, "düşük hacimde iki pinpoint notice korunmalı");
         assert!(stm056.iter().all(|n| n.entity_type == EntityType::Trip));
-        assert!(stm056.iter().all(|n| n.details.is_none()));
+        // Pinpoint dal artık `details` TAŞIR: tek mesaj şablonu iki dala da hizmet ettiği
+        // için (feed özeti / satır başına) sayaç+örnek burada da yazılır, yoksa en/ja/fr
+        // metni boş placeholder ile çıkar. Ayırt edici olan sayaç: pinpoint'te 1.
+        assert!(stm056.iter().all(|n| n.details.as_ref()
+            .and_then(|d| d.get("affected_rows")).map(|v| v == "1").unwrap_or(false)),
+            "pinpoint notice affected_rows=1 taşımalı");
+        assert!(stm056.iter().all(|n| n.details.as_ref()
+            .is_some_and(|d| d.contains_key("example_trips"))));
     }
 
     #[test]

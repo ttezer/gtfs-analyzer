@@ -1992,7 +1992,9 @@ pub fn parse_with_limits(
             partial.mark_unavailable(f);
             notices.push(make_notice(
                 &mut counter, "ARC_004",
-                EntityType::Feed, None,
+                // Dosya adı elimizde; boş bırakılınca en/ja/fr metni
+                // "Required file '' is missing." oluyordu.
+                EntityType::Feed, Some(f.to_string()),
                 None, None, None,
                 Some(f.to_string()),
                 format!("Zorunlu GTFS dosyası eksik: '{f}'."),

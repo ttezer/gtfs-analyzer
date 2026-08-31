@@ -349,7 +349,7 @@ fn build_shape_geometry(
                 // SHP_010: ardışık özdeş koordinat — shape başına bir kez (dedup zaten teke indirir)
                 if (lat - plat).abs() < f64::EPSILON && (lon - plon).abs() < f64::EPSILON && !shp010_fired {
                     shp010_fired = true;
-                    shp010_pending.push(k5_notice(
+                    let mut notice = k5_notice(
                         ctr,
                         "SHP_010",
                         EntityType::Shape,
@@ -365,7 +365,14 @@ fn build_shape_geometry(
                             prev_line, pt.line
                         ),
                         "Tekrarlanan güzergah noktasını kaldırın.",
-                    ));
+                    );
+                    // Kural iki ölçekte emit edilir (shape başına / feed özeti) ama tek mesaj
+                    // şablonu vardır. Tekil dalda da sayaç+örnek yazılır ki en/ja/fr metni
+                    // iki dalda da dolsun (STP_022 emsali, 2026-08-29).
+                    let details = notice.details.get_or_insert_with(Default::default);
+                    details.insert("affected_shapes".to_string(), "1".to_string());
+                    details.insert("example_shapes".to_string(), shape_id.to_string());
+                    shp010_pending.push(notice);
                 }
 
                 let d = haversine_km(plat, plon, lat, lon);

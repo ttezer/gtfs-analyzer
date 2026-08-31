@@ -1056,6 +1056,11 @@ fn check_speed_and_duration<'a>(
                 d.insert("dir".to_string(), dir_sd.to_string());
                 d.insert("dep".to_string(), format_hms(dep_s));
                 d.insert("arr".to_string(), format_hms(arr_s));
+                // Feed özeti dalı (`finalize_stm007_pending`) affected_rows/example_trips yazar;
+                // tek şablon iki dala da hizmet ettiği için tekil dal da taşımalı, yoksa özet
+                // notice'ın en/ja/fr metni boş placeholder'la çıkar (korpusta ölçüldü).
+                d.insert("affected_rows".to_string(), "1".to_string());
+                d.insert("example_trips".to_string(), trip_id.to_string());
                 n.details = Some(d);
                 n.service_id = Some(svc_sd.to_string());
                 stm007_pending.push(n);
@@ -5922,7 +5927,9 @@ fn check_remaining_analytics<'a>(
                     ctr,
                     "DQ_010",
                     EntityType::Feed,
-                    None,
+                    // `agency_id` elimizde; boş bırakılınca en/ja/fr metni
+                    // "Agency '' is not used by any route." oluyordu.
+                    Some(aid.clone()),
                     None,
                     "agency.txt",
                     Some(ag.line),
@@ -7129,12 +7136,20 @@ fn check_remaining_analytics<'a>(
                 ),
                 "Güzergah şeklindeki tekrarlayan noktaları temizleyin.",
             );
+            // Feed özeti dalı `affected_shapes`/`example_shapes` yazar; tek şablonun
+            // iki dalda da dolması için tekil dal da aynı anahtarları taşır.
+            {
+                let d = n.details.get_or_insert_with(Default::default);
+                d.insert("affected_shapes".to_string(), "1".to_string());
+                d.insert("example_shapes".to_string(), shape_id.to_string());
+            }
             if n_shapes > 1 {
-                let mut d = std::collections::BTreeMap::new();
+                // `= Some(map)` ataması yukarıda yazılan affected_shapes/example_shapes'i
+                // siliyordu; mevcut map'e EKLENİR.
+                let d = n.details.get_or_insert_with(Default::default);
                 d.insert("repeated_shapes".to_string(), n_shapes.to_string());
                 d.insert("shapes".to_string(),
                     shapes.iter().take(10).copied().collect::<Vec<_>>().join(","));
-                n.details = Some(d);
             }
             shp020_pending.push(n);
         }
@@ -7215,11 +7230,17 @@ fn check_remaining_analytics<'a>(
                 ),
                 "Güzergah şeklindeki kesişen segmentleri düzeltin.",
             );
+            // Feed özeti dalı `affected_shapes`/`example_shapes` yazar; tek şablonun
+            // iki dalda da dolması için tekil dal da aynı anahtarları taşır.
+            {
+                let d = n.details.get_or_insert_with(Default::default);
+                d.insert("affected_shapes".to_string(), "1".to_string());
+                d.insert("example_shapes".to_string(), shape_id.to_string());
+            }
             if n_shapes > 1 {
-                let mut d = std::collections::BTreeMap::new();
+                let d = n.details.get_or_insert_with(Default::default);
                 d.insert("repeated_shapes".to_string(), n_shapes.to_string());
                 d.insert("shapes".to_string(), shapes.iter().take(10).copied().collect::<Vec<_>>().join(","));
-                n.details = Some(d);
             }
             shp009_pending.push(n);
         }
