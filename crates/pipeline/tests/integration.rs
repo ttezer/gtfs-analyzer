@@ -1637,6 +1637,40 @@ fn empty_calendar_dates_stays_suppressed_only_while_calendar_txt_carries_the_ser
     );
 }
 
+#[test]
+fn empty_required_file_alone_blocks_publication() {
+    // ARC_035'in TEK GERCEK gerekcesi bu vakadir ve korpusta saf ornegi yoktu:
+    // agency/stops/routes/calendar DOLU, yalnizca trips.txt ve stop_times.txt
+    // baslik-only. O iki dosya `is_zip_stream` yolunda oldugu icin eski kodda
+    // ARC_009 BILE cikmiyordu — feed tek bir bulgu bile uretmeden `publishable`
+    // sayiliyordu. (55 feed'lik dogrulama orneklemindeki 10 ARC_035 feed'inin
+    // hepsinde ZATEN STP_018 veya ARC_025 engeli vardi, yani kapiyi orada bu kural
+    // cevirmiyor; ceviren yer tam olarak burasi.)
+    let files: Vec<(&str, &[u8])> = vec![
+        ("agency.txt", AGENCY),
+        ("stops.txt", STOPS),
+        ("routes.txt", ROUTES),
+        ("calendar.txt", CALENDAR),
+        ("trips.txt", &b"route_id,service_id,trip_id\n"[..]),
+        ("stop_times.txt", &b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\n"[..]),
+    ];
+    let ValidateResult::Ok(vr) = run(&files) else { panic!("fatal olmamali") };
+
+    let blockers: Vec<&str> = vr.reports.r1.blocker_notice_ids.iter()
+        .filter_map(|id| vr.notices.iter().find(|n| &n.id == id))
+        .map(|n| n.rule_id.as_str())
+        .collect();
+    assert!(
+        !vr.reports.r1.publishable,
+        "bos zorunlu dosyali feed yayina uygun sayilmamali",
+    );
+    assert!(
+        blockers.iter().all(|r| *r == "ARC_035"),
+        "bu vakada TEK engel ARC_035 olmali (baska engel varsa test kendi iddiasini olcmuyor): {blockers:?}",
+    );
+    assert_eq!(blockers.len(), 2, "trips.txt + stop_times.txt icin iki engel: {blockers:?}");
+}
+
 // ── ARC_025: zorunlu sutun basligta hic yok (header-level) ────────────────────
 
 #[test]
