@@ -6889,11 +6889,31 @@ fn check_remaining_analytics<'a>(
             let dist_km: Option<f64> = if let Some(&shape_id) = trip_shape_local.get(trip_id) {
                 derived.shape_geometry.shapes.get(shape_id).map(|s| s.total_length_km)
             } else {
-                stimes.first().zip(stimes.last()).and_then(|(first, last)| {
-                    stop_coords.get(idx.stop_id_of(first))
-                        .zip(stop_coords.get(idx.stop_id_of(last)))
-                        .map(|(&(la1, lo1), &(la2, lo2))| haversine_km(la1, lo1, la2, lo2))
-                })
+                // Shape yoksa ARDIŞIK duraklar boyunca yol uzunluğu toplanır.
+                //
+                // 🔴 Eskiden yalnız İLK ve SON durak arası kuş uçuşu ölçülüyordu; DÖNGÜSEL
+                // hatta (ilk durak == son durak) bu tanım gereği 0 verir ve sefer 20 km yol
+                // yapsa bile "0m" raporlanırdı. 13. korpus koşumunda ölçüldü: Singapur LTA
+                // feed'inde (mdb-3051, shapes.txt yok) 230.914 seferin 88.359'u döngüsel ve
+                // OPR_017 92.354 bulgu üretiyordu — feed'in tüm bulgularının %88'i. O
+                // seferlerin gerçek yol uzunluğu medyan 20,9 km, 2000 örneğin HİÇBİRİ 100 m'nin
+                // altında değildi. Korpus geneli: 479 feed, 636.734 bulgu.
+                //
+                // Ardışık toplam düz hatlarda da kuş uçuşundan daha isabetlidir (kuş uçuşu
+                // gerçek yolu her zaman KISA gösterir), yani düzeltme yalnız döngüyü kurtarmaz.
+                let mut total = 0.0f64;
+                let mut seen_any = false;
+                for pair in stimes.windows(2) {
+                    let (a, b) = (&pair[0], &pair[1]);
+                    if let (Some(&(la1, lo1)), Some(&(la2, lo2))) =
+                        (stop_coords.get(idx.stop_id_of(a)), stop_coords.get(idx.stop_id_of(b)))
+                    {
+                        total += haversine_km(la1, lo1, la2, lo2);
+                        seen_any = true;
+                    }
+                }
+                // Tek duraklı sefer: ölçülecek segment yok → STM_033'ün konusu, burada susulur.
+                seen_any.then_some(total)
             };
             if let Some(d) = dist_km {
                 if d < MIN_TRIP_KM {
@@ -12373,6 +12393,39 @@ mod tests {
         let opr: Vec<_> = result.notices.iter().filter(|n| n.rule_id == "OPR_005").collect();
         assert_eq!(opr.len(), 1, "yalnızca sıradışı seyrek hat işaretlenmeli");
         assert_eq!(opr[0].entity_id.as_deref(), Some("RS"));
+    }
+
+    #[test]
+    fn opr_017_measures_the_path_not_the_straight_line_on_a_loop() {
+        // 🔴 13. korpus koşumunun bulduğu FP: shape yokken ilk-son kuş uçuşu ölçülüyordu, bu
+        // yüzden DÖNGÜSEL hat (ilk durak == son durak) her zaman 0 m çıkıyordu. Singapur LTA
+        // feed'inde 92.354 bulgunun neredeyse tamamı buydu; gerçek yol medyan 20,9 km.
+        // Burada sefer A→B→C→A dolaşıyor: kuş uçuşu 0, ardışık toplam ~44 km.
+        let stops = vec![
+            stop("A", 41.00, 29.00), stop("B", 41.10, 29.00), stop("C", 41.10, 29.20),
+        ];
+        let mut sts = Vec::new();
+        sts.push(stoptime("LOOP", 1, "A", (8, 0, 0), (8, 0, 0), 2));
+        sts.push(stoptime("LOOP", 2, "B", (8, 20, 0), (8, 20, 0), 3));
+        sts.push(stoptime("LOOP", 3, "C", (8, 40, 0), (8, 40, 0), 4));
+        sts.push(stoptime("LOOP", 4, "A", (9, 0, 0), (9, 0, 0), 5));
+        let records = records_with(stops, vec![route("R1", 3)], vec![trip("LOOP", "R1")], sts);
+        let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
+        assert!(!result.notices.iter().any(|n| n.rule_id == "OPR_017"),
+            "döngüsel sefer gerçek yolu boyunca uzun; OPR_017 susmalı");
+    }
+
+    #[test]
+    fn opr_017_still_flags_a_genuinely_short_trip() {
+        // Kapının koruduğu şey: gerçekten kısa sefer HÂLÂ yakalanmalı. İki durak ~8 m arayla.
+        let stops = vec![stop("A", 41.000_00, 29.000_00), stop("B", 41.000_05, 29.000_05)];
+        let mut sts = Vec::new();
+        sts.push(stoptime("SHORT", 1, "A", (8, 0, 0), (8, 0, 0), 2));
+        sts.push(stoptime("SHORT", 2, "B", (8, 1, 0), (8, 1, 0), 3));
+        let records = records_with(stops, vec![route("R1", 3)], vec![trip("SHORT", "R1")], sts);
+        let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
+        assert!(result.notices.iter().any(|n| n.rule_id == "OPR_017"),
+            "100 m altındaki gerçek sefer işaretlenmeli");
     }
 
     #[test]
