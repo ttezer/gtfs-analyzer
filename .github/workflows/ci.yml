@@ -339,10 +339,8 @@ jobs:
         working-directory: ui
         run: npm run build
 
-      - name: JapanBus sayfalarını UI artifactına ekle
-        run: |
-          cp prototypes/japanbus-result-comparison-bilingual.html ui/dist/japanbus-result-comparison-bilingual.html
-          cp prototypes/japanbus-upload-bilingual.html ui/dist/japanbus-upload-bilingual.html
+      # JapanBus prototipleri repoda tutuluyor ancak backend bağlantısı tamamlanana kadar
+      # Pages artifact'ına kopyalanmıyor; geçici akış bu nedenle pasif kalıyor.
 
       - name: ui/dist artifact yükle (e2e + deploy bunu tüketir)
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
