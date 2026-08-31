@@ -2,7 +2,7 @@
 
 🇹🇷 **Türkçe** · 🇬🇧 [English](RULES.en.md) · 🇯🇵 [日本語](RULES.ja.md) · 🇫🇷 [Français](RULES.fr.md)
 
-611 kural, 38 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
+612 kural, 38 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
 Önem seviyeleri: **KRİTİK** (yayın engelleyici) · **YÜKSEK** · **ORTA** · **DÜŞÜK** · **BİLGİ**
 Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · **Quality** (GTFS Kalitesi) · **Analytics** (GTFS Analitiği)
 
@@ -20,7 +20,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | ARC_007 | GTFS dışı tanınmayan dosya | BİLGİ | Quality |
 | ARC_008 | Takvim dosyası eksik (calendar.txt ve calendar_dates.txt) | KRİTİK | Spec |
 | ARC_031 | translations.txt varken feed_info.txt eksik | KRİTİK | Spec |
-| ARC_009 | Dosyada veri satırı yok | KRİTİK | Quality |
+| ARC_009 | Opsiyonel dosyada veri satırı yok | BİLGİ | Quality |
 | ARC_010 | Dosya UTF-8 BOM içeriyor | ORTA | Quality |
 | ARC_011 | Dosya boyutu (bilgi) | BİLGİ | Analytics |
 | ARC_012 | Satır sütun sayısı başlıkla uyuşmuyor | KRİTİK | Spec |
@@ -44,6 +44,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | ARC_032 | Alan değerinde HTML etiketi veya kaçış dizisi | YÜKSEK | Spec |
 | ARC_033 | Alan değerinde kaçırılmamış tırnak (RFC 4180) | YÜKSEK | Spec |
 | ARC_034 | Başlık satırı veri satırı olarak tekrarlanmış | YÜKSEK | Spec |
+| ARC_035 | Zorunlu dosya boş | KRİTİK | Spec |
 
 ## BKR — Booking Rules (Rezervasyon Kuralları)
 

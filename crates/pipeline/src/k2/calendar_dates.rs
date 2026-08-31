@@ -272,7 +272,7 @@ pub fn validate_calendar_dates_with_limits(
                 ));
             }
             Ok(mut archive) => {
-                match archive.by_name(&file.name) {
+                match archive.by_name(file.zip_entry_name.as_deref().unwrap_or(&file.name)) {
                     Err(e) => {
                         notices.push(make_k2_notice(
                             &mut counter, "ARC_009", EntityType::File, Some(file.name.clone()),
@@ -400,7 +400,7 @@ mod tests {
                 .map(|r| r.into_iter().map(smol_str::SmolStr::from).collect())
                 .collect(),
             bytes: 0,
-            raw_text: None,
+            raw_text: None, zip_entry_name: None,
         }
     }
 

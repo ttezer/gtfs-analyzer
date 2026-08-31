@@ -225,7 +225,17 @@ CONTEXT_MAPPINGS: tuple[ContextMapping, ...] = (
     _ctx("missing_required_field", "FAR_003", filename=("fare_attributes.txt",), fields=("currency_type",), label="fare_attributes.txt::currency_type"),
     _ctx("invalid_email", "AGN_009", filename=("agency.txt",), fields=("agency_email",), label="agency.txt::agency_email"),
     _ctx("invalid_language_code", "FIN_004", filename=("feed_info.txt",), fields=("default_lang",), label="feed_info.txt::default_lang"),
-    _ctx("empty_file", "STP_018", filename=("stops.txt",), label="stops.txt boş"),
+    # empty_file — 13. korpus koşumunda ARAÇ KUSURU olarak bulundu (#md_mapped_missing).
+    # MD bu kodu HER boş dosya için basar; eşlemede yalnız `stops.txt` bağlamı vardı,
+    # dolayısıyla `routes.txt`/`trips.txt`/`calendar.txt` örnekleri `unresolved` sayılıp
+    # altı feed'de (ntd-60089 · tld-4456/4458/4461/4466/478) sahte "MD 7 / A 0" üretiyordu.
+    # Ölçüm: o feed'lerde ARC_009 = 7 ↔ MD empty_file = 7, BİREBİR. Genel karşılık ARC_009'dur;
+    # `stops.txt` boşken STP_018 ("hiç durak yok") her zaman ateşlemediği için o bağlamda
+    # iki kural da aday tutulur.
+    # 2026-08-31: zorunlu dosyanın boşluğu ARC_035'e (Kritik·Spec) devredildi; MD tek kod
+    # basmaya devam ettiği için eşleme her iki kuralı da aday tutar.
+    _ctx("empty_file", "ARC_009", "ARC_035", label="dosyada veri satırı yok"),
+    _ctx("empty_file", "ARC_035", "STP_018", filename=("stops.txt",), label="stops.txt boş"),
     _ctx("foreign_key_violation", "XFL_015", filename=("attributions.txt",), label="attributions.txt referansları"),
 
     # ── foreign_key_violation ─    # ── foreign_key_violation ────────────────────────────────────────────────

@@ -111,8 +111,11 @@ pub static RULES: &[RuleMeta] = &[
     // hangi dilin varsayılan olduğu bilinemez ve TRN_007 hiç çalışamaz.
     r!("ARC_031", Kritik, Spec,    1, &[], None, VS_K, Feed,
         "translations.txt varken feed_info.txt eksik"),
-    r!("ARC_009", Kritik, Quality, 1, &[], None, VS, File,
-        "Dosyada veri satırı yok"),
+    // ARC_009 artık YALNIZ opsiyonel dosyaları raporlar: zorunlu dosyanın boş olması
+    // 2026-08-31'de ARC_035'e (Kritik·Spec) devredildi. Boş bir `shapes.txt`/`transfers.txt`
+    // zararsızdır, bu yüzden severity dinamik değil sabit Bilgi'dir.
+    r!("ARC_009", Bilgi, Quality, 1, &[], None, VS, File,
+        "Opsiyonel dosyada veri satırı yok"),
     r!("ARC_010", Orta,   Quality, 1, &[], None, VS, File,
         "Dosya UTF-8 BOM içeriyor"),
     r!("ARC_011", Bilgi,  Analytics, 1, &[], None, VA, File,
@@ -178,6 +181,16 @@ pub static RULES: &[RuleMeta] = &[
         "Alan değerinde kaçırılmamış tırnak (RFC 4180)"),
     r!("ARC_034", Yuksek, Spec, 1, &[], None, VS, File,
         "Başlık satırı veri satırı olarak tekrarlanmış"),
+    // ARC_035 (13. korpus koşumu, 2026-08-31): "zorunlu dosya VAR" testi dosyanın
+    // VARLIĞINA bakıyordu, İÇERİĞİNE değil. 0 baytlık bir `stop_times.txt` "mevcut"
+    // sayılıyor, boşluğu yalnız ARC_009 (Quality) görüyordu; R1 kapısı `Spec ∧ Kritik`
+    // olduğu için yayın engeli doğmuyordu. Ölçüm: en az 32 feed'de zorunlu bir dosya boş
+    // ve BEŞİ (mdb-1817 · mdb-1819 · mdb-3181 · mdb-342 · mdb-3459) boş `stop_times.txt`
+    // ile YAYIN SKORU 100,0 alıyordu. Dosyayı silmek ARC_004 (Kritik·Spec) üretirken
+    // boşaltmak cezasız kalıyordu — yani boşaltmak skoru YÜKSELTİYORDU.
+    // ARC_004 ile aynı eksen ve aynı muafiyet: saf Flex feed'inde `stops.txt` muaftır.
+    r!("ARC_035", Kritik, Spec, 1, &[], None, VS_K, File,
+        "Zorunlu dosya boş"),
 
     // ── BKR: Booking Rules ─────────────────────────────────────────────────────
     r!("BKR_001", Yuksek, Spec, 1, &[], Some("booking_rule_id"), VS, Entity,
@@ -1885,6 +1898,7 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("ARC_002", GtfsBestPractice),
     ("ARC_003", ProjectQuality),
     ("ARC_004", GtfsSpec),
+    ("ARC_035", GtfsSpec),
     ("ARC_006", ProjectQuality),
     ("ARC_007", ProjectQuality),
     ("ARC_008", GtfsSpec),

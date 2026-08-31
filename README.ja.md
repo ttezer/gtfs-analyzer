@@ -4,7 +4,7 @@
 
 [![アプリを開く](https://img.shields.io/badge/%E3%82%A2%E3%83%97%E3%83%AA%E3%82%92%E9%96%8B%E3%81%8F-gtfs--analyzer-2ea44f?style=flat&logo=googlechrome&logoColor=white)](https://ttezer.github.io/gtfs-analyzer/)
 [![GTFS-JP](https://img.shields.io/badge/GTFS--JP-v3%2Fv4%20%E5%AF%BE%E5%BF%9C-c8102e?style=flat)](https://www.gtfs.jp/)
-[![ルール数](https://img.shields.io/badge/rules-611-blue?style=flat)](RULES.ja.md)
+[![ルール数](https://img.shields.io/badge/rules-612-blue?style=flat)](RULES.ja.md)
 ![GTFS Spec カバレッジ](https://img.shields.io/badge/GTFS%20Spec-97.2%25-007ec6?style=flat)
 [![コーパス検証](https://img.shields.io/badge/corpus-4%2C318%20feeds%20%C3%97%2012%20runs-brightgreen?style=flat)](audit-results/)
 [![crates.io](https://img.shields.io/crates/v/gtfs-analyzer?style=flat&label=crates.io)](https://crates.io/crates/gtfs-analyzer)
@@ -13,7 +13,7 @@
 
 GTFS Validator & Analyzer は、ブラウザ上で動作するオープンソースの GTFS バリデーター兼フィード品質分析ツールです。アップロードされた .zip ファイルはいかなるサーバーにも送信されず、すべての処理は WebAssembly によってユーザーのデバイス上で実行されます。ブラウザ、CLI（`cargo install gtfs-analyzer`）、Rust ライブラリ、CI/CD ゲート、`gtfs-sdk` npm パッケージの 5 つの方法で利用できます。
 
-測定可能な GTFS 仕様要件の **97.2%** をカバーし、フィールドインベントリの 300 個のアトムすべてを少なくとも 1 つの Spec ルールにアンカーしています。**611 個の検証ルール**のうち **417 個**が直近の 4,318 フィード完全カタログ実行で少なくとも 1 件の指摘を出しました。GTFS-JP の追加ルールは別途 585 フィードのプロファイル実行で測定しています。すべてのルールは [`RULES.ja.md`](RULES.ja.md) に一覧化されています。
+測定可能な GTFS 仕様要件の **97.2%** をカバーし、フィールドインベントリの 300 個のアトムすべてを少なくとも 1 つの Spec ルールにアンカーしています。**612 個の検証ルール**のうち **417 個**が直近の 4,318 フィード完全カタログ実行で少なくとも 1 件の指摘を出しました。GTFS-JP の追加ルールは別途 585 フィードのプロファイル実行で測定しています。すべてのルールは [`RULES.ja.md`](RULES.ja.md) に一覧化されています。
 
 MobilityData の公式 `gtfs-validator` に対して **12 回の完全なカタログ実行**で精度を検証しました。各実行ではカタログ内のテスト可能な全 GTFS Schedule フィード（直近の実行で **4,318 件**）を同じマシン・同じ日付で両方のバリデーターにかけ、MobilityData 側では実際の Java `gtfs-validator v8.0.1` を使用しています。生データは [`audit-results/`](audit-results/) にあります。
 
@@ -21,7 +21,7 @@ GTFS Validator & Analyzer は、ファイルが仕様に準拠しているかど
 
 すべての検出結果には、ルールコード、分析クラス、重大度レベルが付与されます。仕様・相互運用・品質・分析 のクラスと 致命的 → 情報 の重大度レベルにより、数千件の検出結果をフィルタリングし、優先順位付けし、体系的に処理できます。また本ツールは、フィードが使用している GTFS 機能 — Shapes、Transfers、Fares、Headsigns、Flex など — を自動的に検出してレポートに含めます。
 
-GTFS Validator & Analyzer は、仕様検証を運用品質分析へと拡張します。路線ごとの運行頻度の不整合、異常な速度区間、孤立した停留所、サービスパターンの欠落、ネットワークトポロジーの問題を、611 個の異なる検証・分析ルールで精査します。結果は、準拠性と品質を別々に評価するスコアで要約されます。優先順位付けされた修正キューは、どの問題を最初に対処すべきか、および各修正がスコアに与える可能性のある影響を示します。
+GTFS Validator & Analyzer は、仕様検証を運用品質分析へと拡張します。路線ごとの運行頻度の不整合、異常な速度区間、孤立した停留所、サービスパターンの欠落、ネットワークトポロジーの問題を、612 個の異なる検証・分析ルールで精査します。結果は、準拠性と品質を別々に評価するスコアで要約されます。優先順位付けされた修正キューは、どの問題を最初に対処すべきか、および各修正がスコアに与える可能性のある影響を示します。
 
 **対象ユーザー**
 
@@ -55,7 +55,7 @@ GTFS Validator & Analyzer は、仕様検証を運用品質分析へと拡張し
 | npm パッケージ | ❌ | ✅ `gtfs-sdk` |
 | crates.io パッケージ | — *（Java プロジェクト）* | ✅ `gtfs-analyzer` |
 | GTFS Spec カバレッジ（測定値） | — | **97.2%** · 300/300 フィールドアンカー |
-| **総ルール数** | **178** | **611** |
+| **総ルール数** | **178** | **612** |
 
 ### コーパス検証
 
@@ -229,7 +229,7 @@ GTFS Analyzer は Web アプリケーションです — インストール不�
 
 ## 5 つの利用方法
 
-同じ検証コア（`gtfs_pipeline::validate_bytes`）を 5 つの方法で実行できます。すべて同じ 611 ルールと同じ結果モデルを使用します。
+同じ検証コア（`gtfs_pipeline::validate_bytes`）を 5 つの方法で実行できます。すべて同じ 612 ルールと同じ結果モデルを使用します。
 
 | 方法 | 用途 | データの送信先 |
 |---|---|---|
@@ -747,7 +747,7 @@ gtfs-validator/
 │   ├── config/     # 設定型
 │   ├── core/       # 共有データ構造と結果モデル
 │   ├── pipeline/   # 検証パイプライン（k1〜k7 ステージ）
-│   ├── rules/      # ルール定義とレジストリ（611 ルール、38 グループ）
+│   ├── rules/      # ルール定義とレジストリ（612 ルール、38 グループ）
 │   └── wasm/       # wasm-bindgen WASM 出力
 ├── spec-audit/     # 仕様から生成したフィールド表（アンカー検査）
 └── ui/             # Vite + TypeScript フロントエンド

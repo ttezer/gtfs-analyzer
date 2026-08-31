@@ -459,7 +459,7 @@ mod tests {
             headers: headers.iter().map(|s| s.to_string()).collect(),
             rows: rows.into_iter().map(|r| r.into_iter().map(SmolStr::from).collect()).collect(),
             bytes: 0,
-            raw_text: None,
+            raw_text: None, zip_entry_name: None,
         }
     }
 
@@ -508,7 +508,7 @@ mod tests {
         let headers = ["pathway_id", "from_stop_id", "to_stop_id", "pathway_mode", "is_bidirectional", "length"];
         let file = RawFile { name: "pathways.txt".into(), headers: headers.iter().map(|s| s.to_string()).collect(),
             rows: [["P1","S1","S2","1","0",""],["P2","S1","S2","6","0",""],["P3","S1","S2","7","0","12"],["P4","S1","S2","2","0",""]]
-                .into_iter().map(|r| r.into_iter().map(SmolStr::from).collect()).collect(), bytes: 0, raw_text: None };
+                .into_iter().map(|r| r.into_iter().map(SmolStr::from).collect()).collect(), bytes: 0, raw_text: None, zip_entry_name: None };
         let (_, notices) = validate_pathways(&file);
         let n = notices.iter().find(|n| n.rule_id == "PTH_025").unwrap();
         assert_eq!(n.details.as_ref().unwrap().get("affected_pathways").map(String::as_str), Some("2"));
@@ -522,7 +522,7 @@ mod tests {
                    ["P3","S3","S4","5","0",""],   // asansör → sayılır
                    ["P4","S4","S5","1","0",""],   // yürüme yolu → PTH_029 DEĞİL (PTH_025'in alanı)
                    ["P5","S5","S6","4","0","30"]] // dolu → sayılmaz
-                .into_iter().map(|r| r.into_iter().map(SmolStr::from).collect()).collect(), bytes: 0, raw_text: None };
+                .into_iter().map(|r| r.into_iter().map(SmolStr::from).collect()).collect(), bytes: 0, raw_text: None, zip_entry_name: None };
         let (_, notices) = validate_pathways(&file);
         let hits: Vec<_> = notices.iter().filter(|n| n.rule_id == "PTH_029").collect();
         assert_eq!(hits.len(), 1, "feed başına tek özet bekleniyor: {hits:?}");
@@ -535,7 +535,7 @@ mod tests {
         let headers = ["pathway_id", "from_stop_id", "to_stop_id", "pathway_mode", "is_bidirectional", "traversal_time"];
         let file = RawFile { name: "pathways.txt".into(), headers: headers.iter().map(|s| s.to_string()).collect(),
             rows: [["P1","S1","S2","3","0","20"],["P2","S2","S3","5","0","45"]]
-                .into_iter().map(|r| r.into_iter().map(SmolStr::from).collect()).collect(), bytes: 0, raw_text: None };
+                .into_iter().map(|r| r.into_iter().map(SmolStr::from).collect()).collect(), bytes: 0, raw_text: None, zip_entry_name: None };
         let (_, notices) = validate_pathways(&file);
         assert!(!notices.iter().any(|n| n.rule_id == "PTH_029"), "{notices:?}");
     }

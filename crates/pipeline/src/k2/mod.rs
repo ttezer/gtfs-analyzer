@@ -623,7 +623,7 @@ mod tests {
                     "Europe/Istanbul".into(),
                 ]],
                 bytes: 0,
-                raw_text: None,
+                raw_text: None, zip_entry_name: None,
             },
         );
 
@@ -638,7 +638,7 @@ mod tests {
                 ],
                 rows: vec![vec!["R1".into(), "10".into(), "99".into()]],
                 bytes: 0,
-                raw_text: None,
+                raw_text: None, zip_entry_name: None,
             },
         );
 
@@ -654,7 +654,7 @@ mod tests {
                 ],
                 rows: vec![vec!["R1".into(), "WKD".into(), "T1".into(), "9".into()]],
                 bytes: 0,
-                raw_text: None,
+                raw_text: None, zip_entry_name: None,
             },
         );
 
@@ -676,7 +676,7 @@ mod tests {
                 headers: vec!["fare_id".into(), "route_id".into()],
                 rows: vec![vec!["F1".into(), "R1".into()]],
                 bytes: 0,
-                raw_text: None,
+                raw_text: None, zip_entry_name: None,
             },
         );
 

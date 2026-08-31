@@ -188,7 +188,7 @@ mod tests {
                 .collect(),
             rows: rows.into_iter().map(|r| r.into_iter().map(SmolStr::new).collect()).collect(),
             bytes: 0,
-            raw_text: None,
+            raw_text: None, zip_entry_name: None,
         }
     }
 

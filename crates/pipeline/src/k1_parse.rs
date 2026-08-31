@@ -27,6 +27,14 @@ const REQUIRED_FILES: &[&str] = &[
 
 const CALENDAR_FILES: &[&str] = &["calendar.txt", "calendar_dates.txt"];
 
+/// `agency.csv` gibi: bir GTFS dosyasının gövdesini taşıyıp uzantısı `.txt` olmayan girdi.
+/// Konumdan bağımsızdır; çağıran taraf kök/alt dizin ayrımını kendi yapar.
+fn gtfs_stem_with_wrong_extension(path: &str) -> bool {
+    let base = path.rsplit(['/', '\\']).next().unwrap_or(path).to_ascii_lowercase();
+    let Some((stem, _ext)) = base.rsplit_once('.') else { return false };
+    KNOWN_FILES.iter().any(|k| k.strip_suffix(".txt") == Some(stem))
+}
+
 pub(crate) const KNOWN_FILES: &[&str] = &[
     "agency.txt", "stops.txt", "routes.txt", "trips.txt", "stop_times.txt",
     "calendar.txt", "calendar_dates.txt", "shapes.txt", "frequencies.txt",
@@ -62,6 +70,14 @@ pub struct RawFile {
     /// ham metin (başlık dahil). `rows` boş kaldığında K2 bunu satır satır işler.
     /// Diğer tüm dosyalarda `None`.
     pub raw_text: Option<String>,
+    /// ZIP içindeki GERÇEK girdi adı — yalnız `name`den farklıysa doludur.
+    ///
+    /// Sarılı feed'de (`TestFlex1/stop_times.txt`) K1 kök önekini düşer ve dosyayı
+    /// `stop_times.txt` adıyla işler. K2 ise büyük dosyaları ZIP'i YENİDEN AÇARAK stream
+    /// eder; `by_name("stop_times.txt")` sarılı arşivde HİÇBİR ŞEY bulamaz ve dosya
+    /// sessizce boş sayılırdı. 13. korpus koşumunda ölçüldü: ARC_024 ateşleyen **44
+    /// feed'in 44'ünde** tek bir `STM_*` kuralı bile ateşlemiyordu.
+    pub zip_entry_name: Option<String>,
 }
 
 pub type RawFiles = HashMap<String, RawFile>;
@@ -1284,6 +1300,10 @@ pub fn parse_with_limits(
     let mut geojson_geometries: std::collections::HashMap<String, LocationGeometry> = std::collections::HashMap::new();
     let mut raw_files: RawFiles = HashMap::new();
     let mut present_files: HashSet<String> = HashSet::new();
+    // ARC_035: mevcut ama hiç veri satırı taşımayan dosyalar. Bulgu traversal sonunda,
+    // ARC_004'ün yanında üretilir — Flex muafiyeti (`has_valid_locations_geojson`) ancak
+    // orada güvenilirdir, çünkü ZIP girdi sırası locations.geojson'u sonraya atabilir.
+    let mut empty_files: HashSet<String> = HashSet::new();
     // locations.geojson özel işlendiği için present_files'e aşağıdaki dalda eklenir.
     let mut has_valid_locations_geojson = false;
     // DQ_016 için dosya başına birincil anahtar sütun indeksi — ilk "*_id" sütunu
@@ -1334,8 +1354,13 @@ pub fn parse_with_limits(
                 "ZIP girdisinin Unix izinlerine user-read (0400) bitini ekleyin."));
         }
 
-        // ARC_023: ZIP içinde nested ZIP dosyası
-        if raw_name.ends_with(".zip") && !raw_name.contains('/') && !raw_name.contains('\\') {
+        // ARC_023: ZIP içinde nested ZIP dosyası (kök VEYA alt dizin).
+        // 🔴 Eskiden yalnız KÖKTEKİ .zip görülüyordu; alt dizindeki nested ZIP hiçbir bulgu
+        // üretmeden atlanıyordu (ARC_007 de `contains('/')` ile eliyor). Korpusta beş feed
+        // — tdg-83019 · tld-768_1 · mdb-3340 · mdb-657 · tld-752 — tüm GTFS'ini alt dizindeki
+        // bir nested ZIP'te taşıyor; kullanıcı yalnız "zorunlu dosya eksik" görüp SEBEBİ
+        // öğrenemiyordu. Konum kuralın hükmünü değiştirmez: GTFS nested ZIP'i hiç desteklemez.
+        if raw_name.ends_with(".zip") {
             notices.push(make_notice(
                 &mut counter, "ARC_023",
                 EntityType::File, Some(raw_name.clone()),
@@ -1402,7 +1427,15 @@ pub fn parse_with_limits(
         // işaretlenir (ör. .pdf/.out/.csv). .zip → ARC_023, locations.geojson, alt-dizin .txt →
         // ARC_024 yukarıda özel işlendi; bunlar buraya ulaşmadan continue etti.
         if !raw_name.ends_with(".txt") {
-            if !raw_name.contains('/') && !raw_name.contains('\\') {
+            // Alt dizindeki dosyalar normalde sessizdir (bir GitHub repo zip'i onlarca
+            // LICENSE/README/kaynak dosyası taşıyabilir, hepsini raporlamak gürültüdür).
+            // TEK istisna: adı bir GTFS dosyasının gövdesi olup uzantısı `.txt` OLMAYAN
+            // girdi — `agency.csv` gibi. Korpus 13'te iki feed (mdb-3434 · mdb-3135) bütün
+            // GTFS'ini alt dizinde `.csv` uzantısıyla taşıyor ve tek çıktı "zorunlu dosya
+            // eksik" oluyordu; dosyaların ORADA olduğu hiçbir bulguda görünmüyordu.
+            if !raw_name.contains('/') && !raw_name.contains('\\')
+                || gtfs_stem_with_wrong_extension(&raw_name)
+            {
                 notices.push(make_notice(
                     &mut counter, "ARC_007",
                     EntityType::File, Some(raw_name.clone()),
@@ -1647,20 +1680,19 @@ pub fn parse_with_limits(
             let conditional_pair_covers_it = (raw_name == "calendar_dates.txt" && has_calendar_txt)
                 || (raw_name == "calendar.txt" && has_calendar_dates_txt);
             if !conditional_pair_covers_it {
-                let mut n = make_notice(
-                    &mut counter, "ARC_009",
-                    EntityType::File, Some(raw_name.clone()),
-                    Some(&raw_name), None, None,
-                    None,
-                    format!("'{raw_name}' dosyası boş veya yalnızca başlık satırı içeriyor."),
-                    "Dosyaya en az bir veri satırı ekleyin (veya gereksizse dosyayı kaldırın).",
-                );
-                // Boş OPSİYONEL dosya (transfers, fare_*, vb.) KRİTİK değildir → Bilgi'ye düşür.
-                // Zorunlu dosyalar + servis tanımlayan takvim dosyaları Kritik kalır.
-                if !arc009_critical(&raw_name) {
-                    n.severity = Severity::Bilgi;
+                empty_files.insert(raw_name.clone());
+                // Zorunlu dosyanın boşluğu ARC_035'in (Kritik·Spec) konusudur; ARC_009
+                // yalnız opsiyonel dosyaları raporlar ve sabit Bilgi'dir.
+                if !REQUIRED_FILES.contains(&raw_name.as_str()) {
+                    notices.push(make_notice(
+                        &mut counter, "ARC_009",
+                        EntityType::File, Some(raw_name.clone()),
+                        Some(&raw_name), None, None,
+                        None,
+                        format!("'{raw_name}' dosyası boş veya yalnızca başlık satırı içeriyor."),
+                        "Dosyaya en az bir veri satırı ekleyin (veya gereksizse dosyayı kaldırın).",
+                    ));
                 }
-                notices.push(n);
             }
             continue;
         }
@@ -1935,19 +1967,18 @@ pub fn parse_with_limits(
             && !(raw_name == "calendar_dates.txt" && has_calendar_txt)
             && !(raw_name == "calendar.txt" && has_calendar_dates_txt)
         {
-            let mut n = make_notice(
-                &mut counter, "ARC_009",
-                EntityType::File, Some(raw_name.clone()),
-                Some(&raw_name), None, None,
-                None,
-                format!("'{raw_name}' dosyasında başlık satırı var ama veri satırı yok."),
-                "Dosyaya en az bir veri satırı ekleyin (veya gereksizse dosyayı kaldırın).",
-            );
-            // Boş OPSİYONEL dosya KRİTİK değil → Bilgi (bkz. arc009_critical).
-            if !arc009_critical(&raw_name) {
-                n.severity = Severity::Bilgi;
+            empty_files.insert(raw_name.clone());
+            // Zorunlu dosya → ARC_035 (traversal sonunda, Flex muafiyetiyle).
+            if !REQUIRED_FILES.contains(&raw_name.as_str()) {
+                notices.push(make_notice(
+                    &mut counter, "ARC_009",
+                    EntityType::File, Some(raw_name.clone()),
+                    Some(&raw_name), None, None,
+                    None,
+                    format!("'{raw_name}' dosyasında başlık satırı var ama veri satırı yok."),
+                    "Dosyaya en az bir veri satırı ekleyin (veya gereksizse dosyayı kaldırın).",
+                ));
             }
-            notices.push(n);
         }
 
         // zip_stream partial_read'de bytes = ~8KB snippet; gerçek boyut ZIP metadata'sında.
@@ -1966,7 +1997,8 @@ pub fn parse_with_limits(
         };
 
         k1dbg!("[K1] bitti: {raw_name} ({} satır)", rows.len());
-        raw_files.insert(raw_name.clone(), RawFile { name: raw_name, headers, rows, bytes: bytes_len, raw_text });
+        let zip_entry_name = (raw_name != entry_name).then(|| entry_name.clone());
+        raw_files.insert(raw_name.clone(), RawFile { name: raw_name, headers, rows, bytes: bytes_len, raw_text, zip_entry_name });
     }
 
     // ── Dosya varlık kontrolleri ──────────────────────────────────────────────
@@ -2001,6 +2033,27 @@ pub fn parse_with_limits(
                 "Eksik dosyayı feed ZIP arşivine ekleyin.",
             ));
         }
+    }
+
+    // ARC_035: zorunlu dosya MEVCUT ama hiç veri satırı yok.
+    // ARC_004 ile aynı eksen ve aynı muafiyet — "dosya var" testi içeriğe bakmazsa
+    // 0 baytlık bir `stop_times.txt` yayın kapısından geçer (13. korpus koşumu: beş feed
+    // boş stop_times ile yayın skoru 100,0 alıyordu).
+    let empty_required: Vec<&str> = REQUIRED_FILES
+        .iter()
+        .filter(|&&f| empty_files.contains(f))
+        .filter(|&&f| !(f == "stops.txt" && has_valid_locations_geojson))
+        .copied()
+        .collect();
+    for &f in &empty_required {
+        notices.push(make_notice(
+            &mut counter, "ARC_035",
+            EntityType::File, Some(f.to_string()),
+            Some(f), None, None,
+            Some(f.to_string()),
+            format!("Zorunlu GTFS dosyası '{f}' hiç veri satırı içermiyor."),
+            "Dosyaya gerçek verileri ekleyin; boş bırakmak dosyayı eklememekle aynıdır.",
+        ));
     }
 
     // ARC_008: calendar.txt VE calendar_dates.txt ikisi de eksik (Kritik, non-Fatal)
@@ -3273,9 +3326,12 @@ mod tests {
     }
 
     #[test]
-    fn arc009_still_reports_an_empty_required_file() {
+    fn arc035_still_reports_an_empty_required_file() {
         // Tolerans yalnız KOŞULLU ÇİFTE aittir; gerçekten zorunlu bir dosya
-        // boşsa kural susmamalı.
+        // boşsa kural susmamalı. 2026-08-31: bu hüküm ARC_009'dan ARC_035'e
+        // (Kritik·Spec) devredildi — sınıf dinamik olamadığı için Quality kalan
+        // ARC_009 R1 kapısından geçemiyor, yani boş zorunlu dosya yayın kapısını
+        // düşürmüyordu. İDDİA AYNI: boş zorunlu dosya SUSMAMALI.
         let zip = zip_with_files(&[
             ("agency.txt",     b"agency_id,agency_name,agency_url,agency_timezone\n1,Test,http://x.com,UTC\n"),
             ("stops.txt",      b"stop_id,stop_name,stop_lat,stop_lon\n"),
@@ -3285,8 +3341,10 @@ mod tests {
             ("calendar.txt",   b"service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,0,0,20240101,20241231\n"),
         ]);
         let k1 = parse(&zip).unwrap();
-        assert!(k1.notices.iter().any(|n| n.rule_id == "ARC_009" && n.file.as_deref() == Some("stops.txt")),
-            "boş stops.txt hâlâ ARC_009 üretmeli");
+        assert!(k1.notices.iter().any(|n| n.rule_id == "ARC_035" && n.file.as_deref() == Some("stops.txt")),
+            "boş stops.txt ARC_035 üretmeli");
+        assert!(!k1.notices.iter().any(|n| n.rule_id == "ARC_009" && n.file.as_deref() == Some("stops.txt")),
+            "zorunlu dosya ARC_009'a DÜŞMEMELİ — çift raporlama olurdu");
     }
 
     #[test]

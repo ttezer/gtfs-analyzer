@@ -80,7 +80,7 @@ MAP = {
     "missing_prior_notice_duration_min": ["BKR_007"],  # 10/10 feed
     "feed_info_lang_and_agency_lang_mismatch": ["AGN_013"],  # 12/12 feed
     "missing_trip_edge":                ["STM_015", "STM_016"],  # ilk/son durak arrival/departure
-    "empty_file":                       ["ARC_009"],  # "dosyada veri satırı yok" — 8/8 feed
+    "empty_file":                       ["ARC_009", "ARC_035"],  # zorunlu → ARC_035 (2026-08-31), opsiyonel → ARC_009
     "invalid_color":                    ["RTS_006", "RTS_007"],  # route_color / route_text_color
     # STP_003/STP_005 GEÇERSİZ değeri ölçer (parse edilebiliyorsa aralık kontrolü);
     # BOŞ koordinatın sahibi STP_006/STP_007'dir. 7/7 feed doğrulandı — boşluk YOKTU,

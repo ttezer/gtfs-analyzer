@@ -454,7 +454,7 @@ pub fn validate_trips_with_limits(
                 ));
             }
             Ok(mut archive) => {
-                match archive.by_name(&file.name) {
+                match archive.by_name(file.zip_entry_name.as_deref().unwrap_or(&file.name)) {
                     Err(e) => {
                         notices.push(make_k2_notice(
                             &mut counter, "ARC_009", EntityType::File, Some(file.name.clone()),
@@ -572,6 +572,20 @@ pub fn validate_trips_with_limits(
         notices.push(n);
     }
 
+    // ARC_035: `trips.txt` ZORUNLU bir dosyadır ve başlık-only hâli 2026-08-31'e kadar
+    // HİÇBİR bulgu üretmiyordu — dosya `is_zip_stream` listesinde olduğu için K1'in
+    // boş-dosya kontrolü ona hiç bakmıyor, K2'de de karşılığı yazılmamıştı. (0 baytlık
+    // hâli K1'in `records.is_empty()` kolundan yakalanıyordu; aradaki fark görünmezdi.)
+    if (file.raw_text.is_some() || zip_bytes.is_some()) && records.is_empty() {
+        notices.push(make_k2_notice(
+            &mut counter, "ARC_035", EntityType::File, Some(file.name.clone()),
+            None, &file.name, None, None,
+            Some(file.name.clone()), None,
+            format!("Zorunlu GTFS dosyası '{}' hiç veri satırı içermiyor.", file.name),
+            "Dosyaya gerçek verileri ekleyin; boş bırakmak dosyayı eklememekle aynıdır.",
+        ));
+    }
+
     (records, interns, notices)
 }
 
@@ -587,7 +601,7 @@ mod tests {
             headers: headers.into_iter().map(str::to_string).collect(),
             rows: rows.into_iter().map(|r| r.into_iter().map(smol_str::SmolStr::from).collect()).collect(),
             bytes: 0,
-            raw_text: None,
+            raw_text: None, zip_entry_name: None,
         }
     }
 
@@ -603,7 +617,7 @@ mod tests {
             headers: headers.into_iter().map(str::to_string).collect(),
             rows: vec![],
             bytes: text.len() as u32,
-            raw_text: Some(text),
+            raw_text: Some(text), zip_entry_name: None,
         }
     }
 

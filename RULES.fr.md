@@ -2,7 +2,7 @@
 
 🇹🇷 [Türkçe](RULES.md) · 🇬🇧 [English](RULES.en.md) · 🇯🇵 [日本語](RULES.ja.md) · 🇫🇷 **Français**
 
-611 règles, 38 groupes. Chaque règle est identifiée par un ID unique, un niveau de gravité et une classe.
+612 règles, 38 groupes. Chaque règle est identifiée par un ID unique, un niveau de gravité et une classe.
 Niveaux de gravité : **CRITIQUE** (bloquant pour la publication) · **ÉLEVÉE** · **MOYENNE** · **FAIBLE** · **INFO**
 Classes : **Spec** (validité GTFS) · **Interop** (interopérabilité GTFS) · **Quality** (qualité GTFS) · **Analytics** (analytique GTFS)
 
@@ -20,7 +20,7 @@ Classes : **Spec** (validité GTFS) · **Interop** (interopérabilité GTFS) · 
 | ARC_007 | Fichier non GTFS non reconnu | INFO | Quality |
 | ARC_008 | Fichier de calendrier manquant (calendar.txt et calendar_dates.txt) | CRITIQUE | Spec |
 | ARC_031 | feed_info.txt manquant alors que translations.txt est présent | CRITIQUE | Spec |
-| ARC_009 | Le fichier ne contient aucun enregistrement de données | CRITIQUE | Quality |
+| ARC_009 | Le fichier facultatif ne contient aucun enregistrement de données | INFO | Quality |
 | ARC_010 | Le fichier contient une BOM UTF-8 | MOYENNE | Quality |
 | ARC_011 | Taille du fichier (info) | INFO | Analytics |
 | ARC_012 | Le nombre de colonnes ne correspond pas à l’en-tête | CRITIQUE | Spec |
@@ -44,6 +44,7 @@ Classes : **Spec** (validité GTFS) · **Interop** (interopérabilité GTFS) · 
 | ARC_032 | Balise HTML ou séquence d’échappement dans la valeur d’un champ | ÉLEVÉE | Spec |
 | ARC_033 | Guillemet non échappé dans la valeur d’un champ (RFC 4180) | ÉLEVÉE | Spec |
 | ARC_034 | Ligne d’en-tête répétée comme enregistrement de données | ÉLEVÉE | Spec |
+| ARC_035 | Fichier obligatoire vide | CRITIQUE | Spec |
 
 ## BKR — Règles de réservation
 

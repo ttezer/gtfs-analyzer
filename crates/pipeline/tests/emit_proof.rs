@@ -284,7 +284,9 @@ fn fixtures() -> Vec<Fixture> {
         // ZORUNLU kılar (koşul sağlanmazsa yalnız tavsiye eder → ARC_020, Quality).
         fx("ARC_031", vec![("translations.txt", "table_name,field_name,language,translation,record_id\nstops,stop_name,fr,Gare,S1\n")]),
         // ARC_009: dosyada veri satırı yok (sadece başlık).
-        fx("ARC_009", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\n")]),
+        // ARC_009 artık YALNIZ opsiyonel dosyaları raporlar; zorunlu dosyanın boşluğu
+        // ARC_035'e devredildi (2026-08-31), bu yüzden fixture opsiyonel bir dosyadır.
+        fx("ARC_009", vec![("frequencies.txt", "trip_id,start_time,end_time,headway_secs\n")]),
         // ARC_012: satır sütun sayısı başlıkla uyuşmuyor.
         fx("ARC_012", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0\nS2,Stop2,41.1,29.1\n")]),
         // ARC_015: yinelenen başlık sütunu.
@@ -1724,6 +1726,8 @@ fn fixtures() -> Vec<Fixture> {
         fx("ARC_021", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,A\u{1}B,41.0,29.0\nS2,Stop2,41.1,29.1\n")]),
         // ARC_023: ZIP içinde iç içe ZIP dosyası.
         fx("ARC_023", vec![("inner.zip", "dummy\n")]),
+        // ARC_035: zorunlu dosya mevcut ama yalnız başlık satırı taşıyor (veri yok).
+        fx("ARC_035", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\n")]),
 
         // ── TRF grubu (kalan: transfers k4 FK + k6) ────────────────────────────
         // TRF_003: from/to_stop_id stops.txt'te yok (k4).

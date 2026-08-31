@@ -148,7 +148,7 @@ mod tests {
             headers: vec!["from_stop_id".into(), "to_stop_id".into(), "transfer_type".into()],
             rows: rows.iter().map(|r| r.iter().map(|v| SmolStr::new(*v)).collect()).collect(),
             bytes: 0,
-            raw_text: None,
+            raw_text: None, zip_entry_name: None,
         }
     }
 

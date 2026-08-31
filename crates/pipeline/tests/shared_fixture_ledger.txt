@@ -5,7 +5,7 @@
 # ya DUPLİKASYON (aynı olgu iki kez). Şüpheliyse kaldır/katmanla; değilse işle.
 ARC_002 ARC_003
 ARC_006 FIN_007
-ARC_009 STP_018
+ARC_035 STP_018
 ATR_010 XFL_015
 CAL_009 DQ_005
 CAL_015 CAL_017

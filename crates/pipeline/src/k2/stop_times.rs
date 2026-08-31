@@ -2087,7 +2087,7 @@ pub fn validate_stop_times_with_limits(
                     ));
                 }
                 Ok(mut archive) => {
-                    match archive.by_name(&file.name) {
+                    match archive.by_name(file.zip_entry_name.as_deref().unwrap_or(&file.name)) {
                         Err(e) => {
                             st.notices.push(make_k2_notice(
                                 &mut st.counter, "ARC_009", EntityType::File, Some(file.name.clone()),
@@ -2269,14 +2269,17 @@ pub fn validate_stop_times_with_limits(
     // ⚠️ ARC_022 BURADA DEĞİL — `k2/mod.rs`'teki tek geçişte (issue #75). Gerekçe
     // shapes.rs'teki notla aynı.
 
-    // ARC_009: başlık var ama veri satırı yok (K1'den taşındı; ZIP streaming yolu dahil)
+    // ARC_035: `stop_times.txt` ZORUNLU bir dosyadır; başlık var ama veri satırı yoksa
+    // hüküm "opsiyonel dosya boş" (ARC_009·Bilgi) değil, "zorunlu dosya boş"tur
+    // (Kritik·Spec). Bu dosya stream yolundan geçtiği için K1'in traversal'ı onu boş
+    // GÖREMEZ; devir bu yüzden burada yapılır.
     if (file.raw_text.is_some() || zip_bytes.is_some()) && st.total_rows == 0 {
         st.notices.push(make_k2_notice(
-            &mut st.counter, "ARC_009", EntityType::File, Some(file.name.clone()),
+            &mut st.counter, "ARC_035", EntityType::File, Some(file.name.clone()),
             None, &file.name, None, None,
-            None, None,
-            format!("'{}' dosyasında başlık satırı var ama veri satırı yok.", file.name),
-            "Dosyaya en az bir veri satırı ekleyin.",
+            Some(file.name.clone()), None,
+            format!("Zorunlu GTFS dosyası '{}' hiç veri satırı içermiyor.", file.name),
+            "Dosyaya gerçek verileri ekleyin; boş bırakmak dosyayı eklememekle aynıdır.",
         ));
     }
 
@@ -2737,7 +2740,7 @@ mod tests {
             headers: headers.into_iter().map(str::to_string).collect(),
             rows: Vec::new(),
             bytes: 0,
-            raw_text: Some(text),
+            raw_text: Some(text), zip_entry_name: None,
         }
     }
 

@@ -4,7 +4,7 @@
 
 [![Ouvrir l’application](https://img.shields.io/badge/Ouvrir%20l%27application-gtfs--analyzer-2ea44f?style=flat&logo=googlechrome&logoColor=white)](https://ttezer.github.io/gtfs-analyzer/)
 [![GTFS-JP](https://img.shields.io/badge/GTFS--JP-v3%2Fv4%20support%C3%A9-c8102e?style=flat)](https://www.gtfs.jp/)
-[![Nombre de règles](https://img.shields.io/badge/r%C3%A8gles-611-blue?style=flat)](RULES.fr.md)
+[![Nombre de règles](https://img.shields.io/badge/r%C3%A8gles-612-blue?style=flat)](RULES.fr.md)
 ![Couverture de la spécification GTFS](https://img.shields.io/badge/Sp%C3%A9cification%20GTFS-97.2%25-007ec6?style=flat)
 [![Validation sur corpus](https://img.shields.io/badge/corpus-4%2C318%20jeux%20de%20donn%C3%A9es%20%C3%97%2012%20ex%C3%A9cutions-brightgreen?style=flat)](audit-results/)
 [![crates.io](https://img.shields.io/crates/v/gtfs-analyzer?style=flat&label=crates.io)](https://crates.io/crates/gtfs-analyzer)
@@ -13,7 +13,7 @@
 
 GTFS Validator & Analyzer est un validateur GTFS et un analyseur de qualité de jeux de données open source. Le fichier `.zip` téléversé n’est jamais envoyé à un serveur ; toute la validation s’exécute sur l’appareil de l’utilisateur via WebAssembly. L’outil est disponible sous forme d’application navigateur, de CLI (`cargo install gtfs-analyzer`), de bibliothèque Rust, de barrière CI/CD et de paquet npm `gtfs-sdk`.
 
-Le projet couvre **97,2 % des exigences mesurables de la spécification GTFS** et rattache les 300 atomes de l’inventaire des champs à au moins une règle Spec. Sur ses **611 règles**, **417** ont produit au moins un signalement lors de la dernière exécution complète sur le catalogue de 4 318 jeux de données ; les ajouts GTFS-JP ont été mesurés séparément sur une exécution de profil portant sur 585 jeux de données. Toutes les règles sont listées dans [`RULES.fr.md`](RULES.fr.md).
+Le projet couvre **97,2 % des exigences mesurables de la spécification GTFS** et rattache les 300 atomes de l’inventaire des champs à au moins une règle Spec. Sur ses **612 règles**, **417** ont produit au moins un signalement lors de la dernière exécution complète sur le catalogue de 4 318 jeux de données ; les ajouts GTFS-JP ont été mesurés séparément sur une exécution de profil portant sur 585 jeux de données. Toutes les règles sont listées dans [`RULES.fr.md`](RULES.fr.md).
 
 L’exactitude est éprouvée face au `gtfs-validator` officiel de MobilityData au fil de **douze exécutions complètes sur le catalogue**. Chaque exécution valide tous les jeux de données GTFS Schedule testables du catalogue — **4 318** lors de la dernière en date — avec les deux validateurs sur la même machine et à la même date, en utilisant réellement le `gtfs-validator v8.0.1` Java. Les sorties brutes sont disponibles dans [`audit-results/`](audit-results/).
 
@@ -21,7 +21,7 @@ GTFS Validator & Analyzer ne se contente pas de vérifier la conformité d’un 
 
 Chaque signalement porte un code de règle, une classe d’analyse et un niveau de gravité. Grâce aux classes Spec · Interop · Quality · Analytics et aux niveaux de gravité Critique → Info, des milliers de signalements peuvent être filtrés, priorisés et traités méthodiquement. L’outil détecte également de façon automatique les fonctionnalités GTFS utilisées par le jeu de données — tracés, correspondances, tarifs, girouettes, Flex, etc. — et les intègre au rapport.
 
-GTFS Validator & Analyzer prolonge la validation de la spécification par une analyse de qualité opérationnelle. Incohérences de fréquence par ligne, segments à vitesse anormale, arrêts isolés, ruptures dans les schémas de service et problèmes de topologie du réseau sont examinés à l’aide de 611 règles distinctes de validation et d’analyse. Les résultats sont synthétisés par des scores de publiabilité et de qualité globale du jeu de données. La file de correction priorisée indique quels problèmes traiter en premier et l’effet probable de chaque correction sur le score.
+GTFS Validator & Analyzer prolonge la validation de la spécification par une analyse de qualité opérationnelle. Incohérences de fréquence par ligne, segments à vitesse anormale, arrêts isolés, ruptures dans les schémas de service et problèmes de topologie du réseau sont examinés à l’aide de 612 règles distinctes de validation et d’analyse. Les résultats sont synthétisés par des scores de publiabilité et de qualité globale du jeu de données. La file de correction priorisée indique quels problèmes traiter en premier et l’effet probable de chaque correction sur le score.
 
 **À qui s’adresse-t-il ?**
 
@@ -55,7 +55,7 @@ GTFS Validator & Analyzer prolonge la validation de la spécification par une an
 | Paquet npm | ❌ | ✅ `gtfs-sdk` |
 | Paquet crates.io | — *(projet Java)* | ✅ `gtfs-analyzer` |
 | Couverture de la spécification GTFS (mesurée) | — | **97,2 %** · 300/300 ancrages de champs |
-| **Nombre total de règles** | **178** | **611** |
+| **Nombre total de règles** | **178** | **612** |
 
 ### Validation sur corpus
 
@@ -228,7 +228,7 @@ Même lorsque l’interface ne conserve qu’un nombre limité d’exemples de s
 
 ## Cinq façons de l’utiliser
 
-Le même cœur de validation (`gtfs_pipeline::validate_bytes`) s’exécute de cinq manières — toutes utilisent les mêmes 611 règles et produisent le même modèle de résultat :
+Le même cœur de validation (`gtfs_pipeline::validate_bytes`) s’exécute de cinq manières — toutes utilisent les mêmes 612 règles et produisent le même modèle de résultat :
 
 | Voie | Idéal pour | Où vont les données |
 |---|---|---|
@@ -746,7 +746,7 @@ gtfs-validator/
 │   ├── config/     # Types de configuration
 │   ├── core/       # Structures de données partagées et modèle de résultat
 │   ├── pipeline/   # Pipeline de validation (étapes k1–k7)
-│   ├── rules/      # Définition des règles et registre (611 règles, 38 groupes)
+│   ├── rules/      # Définition des règles et registre (612 règles, 38 groupes)
 │   └── wasm/       # Sortie WASM wasm-bindgen
 ├── spec-audit/     # Table des champs générée depuis la spécification (barrière d’ancrage)
 └── ui/             # Interface Vite + TypeScript

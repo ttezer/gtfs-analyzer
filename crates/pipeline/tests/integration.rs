@@ -1446,6 +1446,197 @@ fn path_traversal_entries_rejected_and_root_file_intact() {
     );
 }
 
+#[test]
+fn nested_zip_is_reported_in_subdirectories_too() {
+    // Korpus 13'te olculdu: bes feed (tdg-83019 · tld-768_1 · mdb-3340 · mdb-657 · tld-752)
+    // butun GTFS'ini ALT DIZINDEKI bir nested ZIP'te tasiyor. Eskiden ARC_023 yalnizca kok
+    // dizini goruyordu; o feed'lerde tek cikti "zorunlu dosya eksik" oluyor, SEBEBI hicbir
+    // bulguda gorunmuyordu. Konum kuralin hukmunu degistirmez.
+    let inner: &[u8] = b"PK\x05\x06\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00";
+    let mut files = base_files();
+    files.extend([("root.zip", inner), ("GTFS_20250111/gtfs_data.zip", inner)]);
+
+    let k1 = parse(&make_zip(&files), &ValidatorConfig::default()).expect("kok GTFS dosyalari mevcut");
+
+    let found: Vec<&str> = k1
+        .notices
+        .iter()
+        .filter(|n| n.rule_id == "ARC_023")
+        .filter_map(|n| n.entity_id.as_deref())
+        .collect();
+    assert_eq!(
+        found.len(),
+        2,
+        "kok VE alt dizindeki nested ZIP icin ARC_023 beklenir, bulunan: {found:?}",
+    );
+    assert!(
+        found.iter().any(|f| f.contains("GTFS_20250111/gtfs_data.zip")),
+        "alt dizindeki nested ZIP tam yoluyla raporlanmali: {found:?}",
+    );
+}
+
+#[test]
+fn gtfs_named_file_with_wrong_extension_is_reported_in_subdirectories() {
+    // Korpus 13: mdb-3434 ve mdb-3135 butun GTFS'ini alt dizinde `.csv` uzantisiyla tasiyor.
+    // Eskiden tek cikti ARC_004 ("zorunlu dosya eksik") oluyor, dosyalarin ORADA oldugu
+    // hicbir bulguda gorunmuyordu. Alt dizindeki DIGER dosyalar sessiz kalmali — bir repo
+    // zip'inin LICENSE/README'sini raporlamak gurultudur.
+    let blob: &[u8] = b"x\n";
+    let mut files = base_files();
+    files.extend([
+        ("sub/agency.csv", blob),
+        ("sub/stop_times.csv", blob),
+        ("sub/LICENSE", blob),
+        ("sub/README.md", blob),
+        ("sub/lib/main.dart", blob),
+    ]);
+
+    let k1 = parse(&make_zip(&files), &ValidatorConfig::default()).expect("kok GTFS dosyalari mevcut");
+
+    let found: Vec<&str> = k1
+        .notices
+        .iter()
+        .filter(|n| n.rule_id == "ARC_007")
+        .filter_map(|n| n.entity_id.as_deref())
+        .collect();
+    assert!(
+        found.contains(&"sub/agency.csv") && found.contains(&"sub/stop_times.csv"),
+        "alt dizindeki GTFS-adli yanlis uzantili dosyalar ARC_007 almali: {found:?}",
+    );
+    for quiet in ["sub/LICENSE", "sub/README.md", "sub/lib/main.dart"] {
+        assert!(
+            !found.contains(&quiet),
+            "GTFS adi tasimayan alt dizin dosyasi sessiz kalmali: {quiet} — {found:?}",
+        );
+    }
+}
+
+#[test]
+fn wrapped_feed_streams_stop_times_instead_of_reading_it_as_empty() {
+    // 13. korpus kosumu: K1 sarili feed'in kok onekini duser ve dosyayi `stop_times.txt`
+    // adiyla isler, ama K2 buyuk dosyalari ZIP'i YENIDEN ACARAK stream eder ve
+    // `by_name("stop_times.txt")` sarili arsivde HICBIR SEY bulamiyordu. Dosya sessizce
+    // bos sayiliyor, sonucta ARC_024 atesleyen 44 feed'in 44'unde tek bir STM_* kurali
+    // bile atesleMIYORdu; ustelik her durak "hic sefer gecmiyor" gorunup STP_020 FP'si
+    // uretiyordu (mdb-3459'da 678 bulgu).
+    let wrapped: Vec<(String, &[u8])> = base_files()
+        .into_iter()
+        .map(|(name, body)| (format!("GTFS/{name}"), body))
+        .collect();
+    let files: Vec<(&str, &[u8])> = wrapped.iter().map(|(n, b)| (n.as_str(), *b)).collect();
+
+    let k1 = parse(&make_zip(&files), &ValidatorConfig::default()).expect("sarili feed acilmali");
+
+    let st = k1.files.get("stop_times.txt").expect("kok oneki dusulmus adla islenmeli");
+    assert_eq!(
+        st.zip_entry_name.as_deref(),
+        Some("GTFS/stop_times.txt"),
+        "K2'nin ZIP'i yeniden acabilmesi icin GERCEK girdi adi tasinmali",
+    );
+
+    let ValidateResult::Ok(vr) = run(&files) else {
+        panic!("sarili feed fatal olmamali")
+    };
+    // stop_times gercekten okunduysa duraklar KULLANILIYOR demektir; okunmadiginda
+    // STP_020 ("hic sefer gecmeyen durak") her durak icin patlardi.
+    let stp020 = vr.notices.iter().filter(|n| n.rule_id == "STP_020").count();
+    assert_eq!(
+        stp020, 0,
+        "sarili feed'de stop_times okunmali; STP_020 atesliyorsa stream yolu yine kor",
+    );
+    // Bos sayilan dosya ARC_035'i de yanlis tetikliyordu (Kritik·Spec = yayin engeli).
+    assert!(
+        !vr.notices.iter().any(|n| n.rule_id == "ARC_035"),
+        "dolu bir stop_times.txt ARC_035 uretmemeli",
+    );
+}
+
+#[test]
+fn empty_required_file_is_spec_critical_while_empty_optional_stays_informational() {
+    // 13. korpus kosumu: "zorunlu dosya var mi?" testi dosyanin VARLIGINA bakiyordu.
+    // 0 baytlik bir stop_times.txt "mevcut" sayilip yayin kapisindan geciyordu — en az
+    // 32 feed'de zorunlu bir dosya bos, besi (mdb-1817 · mdb-342 · mdb-3181 · mdb-3459 ·
+    // mdb-1819) YAYIN SKORU 100,0 aliyordu. Dosyayi silmek ARC_004 uretirken bosaltmak
+    // cezasiz kaliyordu.
+    let empty_stops: &[u8] = b"stop_id,stop_name,stop_lat,stop_lon\n";
+    // NOT: opsiyonel taraf `frequencies.txt` ile kuruldu. Baslik-only bir `shapes.txt`
+    // bugun HIC ARC_009 uretmiyor (k2/shapes.rs kolu `raw_text.is_some()` istiyor, kucuk
+    // shapes stream yoluna girmiyor) — ayri ve daha kucuk bir bosluk, bu testin konusu degil.
+    let empty_freq: &[u8] = b"trip_id,start_time,end_time,headway_secs\n";
+    let mut files = base_files();
+    files.retain(|(n, _)| *n != "stops.txt");
+    files.push(("stops.txt", empty_stops));
+    files.push(("frequencies.txt", empty_freq));
+
+    let ValidateResult::Ok(vr) = run(&files) else { panic!("fatal olmamali") };
+
+    let arc035: Vec<&str> = vr.notices.iter().filter(|n| n.rule_id == "ARC_035")
+        .filter_map(|n| n.entity_id.as_deref()).collect();
+    assert_eq!(arc035, vec!["stops.txt"], "bos ZORUNLU dosya ARC_035 almali: {arc035:?}");
+
+    let arc009: Vec<&str> = vr.notices.iter().filter(|n| n.rule_id == "ARC_009")
+        .filter_map(|n| n.entity_id.as_deref()).collect();
+    assert!(
+        arc009.contains(&"frequencies.txt") && !arc009.contains(&"stops.txt"),
+        "bos OPSIYONEL dosya ARC_009'da kalmali, zorunlu olan ARC_035'e gecmeli: {arc009:?}",
+    );
+}
+
+#[test]
+fn header_only_stream_files_are_not_silently_treated_as_present() {
+    // `is_zip_stream` listesindeki dort dosya (stop_times · shapes · trips ·
+    // calendar_dates) K1'de YALNIZ baslik okunur, govdeyi K2 stream eder. K1'in kendi
+    // bos-dosya kontrolu `!stream_mode` istedigi icin bu dorde HIC bakmaz; karsiligin
+    // K2'de yazilmis olmasi gerekir. 2026-08-31'de olculdu: yalnizca `stop_times.txt`
+    // dogru davraniyordu.
+    //   · shapes.txt  → K2 kolu `raw_text.is_some()` istiyordu, ama is_zip_stream
+    //                   dosyalarda raw_text HER ZAMAN None → kol OLU KODDU.
+    //   · trips.txt   → karsiligi hic yazilmamisti (ve trips ZORUNLU → ARC_035).
+    // Not: 0 baytlik hal K1'in `records.is_empty()` kolundan zaten yakalaniyordu;
+    // gorunmeyen tam olarak "baslik var, veri yok" araligiydi.
+    let mut files = base_files();
+    files.push(("shapes.txt", &b"shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\n"[..]));
+    let ValidateResult::Ok(vr) = run(&files) else { panic!("fatal olmamali") };
+    assert!(
+        vr.notices.iter().any(|n| n.rule_id == "ARC_009" && n.file.as_deref() == Some("shapes.txt")),
+        "baslik-only shapes.txt ARC_009 uretmeli (opsiyonel dosya → Bilgi)",
+    );
+
+    let mut files = base_files();
+    files.retain(|(n, _)| *n != "trips.txt");
+    files.push(("trips.txt", &b"route_id,service_id,trip_id\n"[..]));
+    let ValidateResult::Ok(vr) = run(&files) else { panic!("fatal olmamali") };
+    assert!(
+        vr.notices.iter().any(|n| n.rule_id == "ARC_035" && n.file.as_deref() == Some("trips.txt")),
+        "baslik-only trips.txt ARC_035 uretmeli (ZORUNLU dosya → Kritik·Spec)",
+    );
+}
+
+#[test]
+fn empty_calendar_dates_stays_suppressed_only_while_calendar_txt_carries_the_service() {
+    // Kosullu cift toleransi: calendar.txt servisi tanimliyorsa bos calendar_dates.txt
+    // yanlis pozitiftir. Ama calendar.txt YOKSA bastirma da olmamalidir — yoksa
+    // "hic servis tanimi yok" hali sessizce gecerdi.
+    let empty_cd: &[u8] = b"service_id,date,exception_type\n";
+
+    let mut with_calendar = base_files();
+    with_calendar.push(("calendar_dates.txt", empty_cd));
+    let ValidateResult::Ok(vr) = run(&with_calendar) else { panic!("fatal olmamali") };
+    assert!(
+        !vr.notices.iter().any(|n| n.rule_id == "ARC_009" && n.file.as_deref() == Some("calendar_dates.txt")),
+        "calendar.txt servisi tasirken bos calendar_dates.txt bastirilmali",
+    );
+
+    let mut without_calendar = base_files();
+    without_calendar.retain(|(n, _)| *n != "calendar.txt");
+    without_calendar.push(("calendar_dates.txt", empty_cd));
+    let ValidateResult::Ok(vr) = run(&without_calendar) else { panic!("fatal olmamali") };
+    assert!(
+        vr.notices.iter().any(|n| n.rule_id == "ARC_009" && n.file.as_deref() == Some("calendar_dates.txt")),
+        "calendar.txt yokken bos calendar_dates.txt SUSMAMALI",
+    );
+}
+
 // ── ARC_025: zorunlu sutun basligta hic yok (header-level) ────────────────────
 
 #[test]

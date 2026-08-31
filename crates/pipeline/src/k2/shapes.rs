@@ -508,7 +508,7 @@ pub fn validate_shapes_with_limits(
             match zip::ZipArchive::new(cursor) {
                 Err(_) => {}
                 Ok(mut archive) => {
-                    if let Ok(entry) = archive.by_name(&file.name) {
+                    if let Ok(entry) = archive.by_name(file.zip_entry_name.as_deref().unwrap_or(&file.name)) {
                         let stream_limit = stream_budget.as_ref()
                             .map(|budget| budget.limit())
                             .unwrap_or(super::stop_times::stream_byte_limit(max_data_rows));
@@ -596,8 +596,12 @@ pub fn validate_shapes_with_limits(
     // `trips.txt` ve `calendar_dates.txt` hiçbir kopyaya sahip değildi.
 
     // ARC_009: başlık var ama veri satırı yok (stream_mode'da K1'den taşındı). shapes
-    // OPSİYONEL → Bilgi (arc009_critical(shapes)=false ile aynı davranış).
-    if file.raw_text.is_some() && total_rows == 0 {
+    // OPSİYONEL → Bilgi.
+    // 🔴 Bu kol 2026-08-31'e kadar ÖLÜ KODDU: `shapes.txt` `is_zip_stream` listesinde
+    // olduğu için K1 `raw_text`'i HER ZAMAN None bırakır; K1'in kendi boş-dosya kontrolü
+    // de `!stream_mode` istediği için shapes'e hiç bakmaz. Sonuç: başlık-only bir
+    // `shapes.txt` hiçbir bulgu üretmiyordu. Koşul `stop_times.rs`'tekiyle hizalandı.
+    if (file.raw_text.is_some() || zip_bytes.is_some()) && total_rows == 0 {
         let mut n = make_k2_notice(
             &mut counter, "ARC_009", EntityType::File, Some(file.name.clone()),
             None, &file.name, None, None,
@@ -634,7 +638,7 @@ mod tests {
             headers: headers.into_iter().map(str::to_string).collect(),
             rows: rows.into_iter().map(|r| r.into_iter().map(smol_str::SmolStr::from).collect()).collect(),
             bytes: 0,
-            raw_text: None,
+            raw_text: None, zip_entry_name: None,
         }
     }
 
@@ -705,7 +709,7 @@ mod tests {
             headers: headers.iter().map(|s| s.to_string()).collect(),
             rows: Vec::new(),
             bytes: 0,
-            raw_text: Some(text),
+            raw_text: Some(text), zip_entry_name: None,
         };
         let (rec_b, _interns, not_b) = validate_shapes(&file_stream, None);
 
@@ -731,7 +735,7 @@ mod tests {
                 .into_iter().map(str::to_string).collect(),
             rows: Vec::new(),
             bytes: text.len() as u32,
-            raw_text: Some(text),
+            raw_text: Some(text), zip_entry_name: None,
         }
     }
 

@@ -343,7 +343,7 @@ mod tests {
             headers: headers.iter().map(|s| s.to_string()).collect(),
             rows: rows.into_iter().map(|r| r.into_iter().map(SmolStr::from).collect()).collect(),
             bytes: 0,
-            raw_text: None,
+            raw_text: None, zip_entry_name: None,
         }
     }
 

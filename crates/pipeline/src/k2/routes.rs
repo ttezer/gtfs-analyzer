@@ -578,7 +578,7 @@ mod tests {
             headers: headers.into_iter().map(str::to_string).collect(),
             rows: rows.into_iter().map(|r| r.into_iter().map(smol_str::SmolStr::from).collect()).collect(),
             bytes: 0,
-            raw_text: None,
+            raw_text: None, zip_entry_name: None,
         }
     }
 
@@ -867,7 +867,7 @@ mod tests {
             .collect(),
             rows,
             bytes: 0,
-            raw_text: None,
+            raw_text: None, zip_entry_name: None,
         };
 
         let started = std::time::Instant::now();
