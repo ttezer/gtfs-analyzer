@@ -1,0 +1,685 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>GTFS 検証結果 | GTFS Analyzer</title>
+  <style>
+    :root {
+      --ink: #122333;
+      --muted: #617384;
+      --subtle: #8a9aa8;
+      --line: #dce5eb;
+      --surface: #ffffff;
+      --canvas: #f4f7f9;
+      --navy: #17364d;
+      --navy-2: #234e6b;
+      --blue: #1479b8;
+      --blue-soft: #eaf5fb;
+      --green: #137653;
+      --green-soft: #e7f6ee;
+      --amber: #9a5d05;
+      --amber-soft: #fff5df;
+      --red: #b63845;
+      --red-soft: #fff0f1;
+      --shadow: 0 10px 30px rgba(16, 39, 56, .07);
+      --radius: 14px;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: var(--canvas);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans JP",
+        "Hiragino Kaku Gothic ProN", "Yu Gothic", Meiryo, sans-serif;
+      line-height: 1.5;
+    }
+    button, a { font: inherit; }
+    a { color: inherit; }
+
+    .topline { height: 5px; background: linear-gradient(90deg, var(--navy), var(--blue)); }
+    .shell { max-width: 1240px; margin: 0 auto; padding: 0 24px 42px; }
+
+    header {
+      padding: 22px 0 18px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(255,255,255,.86);
+    }
+    .header-row, .brand, .header-actions, .crumbs, .badge-row, .source-line,
+    .card-heading, .download-row, .issue-meta, .footer-row {
+      display: flex;
+      align-items: center;
+    }
+    .header-row { justify-content: space-between; gap: 20px; }
+    .brand { gap: 12px; }
+    .brand-mark {
+      width: 44px; height: 44px; border-radius: 12px;
+      display: grid; place-items: center;
+      color: #fff; background: var(--navy);
+      font-weight: 800; font-size: 11px; letter-spacing: .08em;
+    }
+    .brand-title { font-size: 16px; font-weight: 800; color: var(--navy); }
+    .brand-sub { margin-top: 2px; color: var(--muted); font-size: 11px; }
+    .header-actions { gap: 10px; }
+    .lang-switch { display: flex; gap: 3px; padding: 3px; border: 1px solid var(--line); border-radius: 10px; background: #fff; }
+    .lang-switch button {
+      border: 0; border-radius: 7px; padding: 6px 9px; cursor: pointer;
+      color: var(--muted); background: transparent; font-size: 12px; font-weight: 700;
+    }
+    .lang-switch button.active { color: #fff; background: var(--navy); }
+    .status { color: var(--green); background: var(--green-soft); border: 1px solid #cbe9d9; }
+    .badge {
+      display: inline-flex; align-items: center; gap: 5px;
+      min-height: 25px; padding: 4px 9px; border: 1px solid var(--line);
+      border-radius: 999px; color: var(--muted); background: #fff;
+      font-size: 11px; font-weight: 700; white-space: nowrap;
+    }
+    .badge::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; opacity: .7; }
+    .crumbs { gap: 8px; padding-top: 14px; color: var(--subtle); font-size: 11px; }
+    .crumbs strong { color: var(--navy); }
+
+    .hero { padding: 28px 0 20px; display: flex; justify-content: space-between; gap: 24px; }
+    .eyebrow { margin-bottom: 8px; color: var(--blue); font-size: 11px; font-weight: 800; letter-spacing: .11em; }
+    h1 { margin: 0; color: var(--navy); font-size: clamp(24px, 3.2vw, 36px); line-height: 1.18; letter-spacing: -.02em; }
+    .hero p { max-width: 720px; margin: 11px 0 0; color: var(--muted); font-size: 14px; }
+    .hero-note {
+      min-width: 245px; align-self: start; padding: 13px 15px;
+      border: 1px solid #cfe4ef; border-radius: 12px; background: var(--blue-soft);
+      color: #285873; font-size: 12px;
+    }
+    .hero-note strong { display: block; margin-bottom: 3px; color: var(--navy); }
+    .lang-tr { display: none; }
+    body.tr .lang-ja { display: none; }
+    body.tr .lang-tr { display: inline; }
+    body.tr .lang-tr.block { display: block; }
+
+    .feed-card, .card { border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow); }
+    .feed-card { padding: 18px 20px; }
+    .card-heading { justify-content: space-between; gap: 14px; margin-bottom: 14px; }
+    .card-heading h2, .card-heading h3 { margin: 0; color: var(--navy); font-size: 15px; }
+    .card-heading small { color: var(--subtle); font-size: 11px; }
+    .feed-layout { display: grid; grid-template-columns: minmax(240px, 1.25fr) repeat(5, minmax(100px, .75fr)); gap: 14px; align-items: center; }
+    .feed-file { min-width: 0; }
+    .feed-file .file-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--navy); font-weight: 800; font-size: 14px; }
+    .feed-file .file-source { margin-top: 3px; color: var(--muted); font-size: 11px; }
+    .source-link { color: var(--blue); text-decoration: none; font-weight: 700; }
+    .source-link:hover { text-decoration: underline; }
+    .profile-scope { display: flex; align-items: center; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
+    .profile-title { color: var(--navy); font-size: 10px; font-weight: 800; }
+    .profile-chip { padding: 3px 7px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); background: #fff; font-size: 10px; font-weight: 800; }
+    .profile-chip.active { border-color: #b9dbea; color: #0b638e; background: var(--blue-soft); }
+    .profile-hint { color: var(--subtle); font-size: 9px; }
+    .feed-file code { padding: 2px 5px; border-radius: 4px; background: #f0f4f6; color: #526675; font-size: 10px; }
+    .fact { padding-left: 14px; border-left: 1px solid var(--line); }
+    .fact label { display: block; color: var(--subtle); font-size: 10px; font-weight: 700; }
+    .fact strong { display: block; margin-top: 2px; color: var(--navy); font-size: 13px; }
+
+    .privacy {
+      display: flex; align-items: center; gap: 9px; margin: 14px 0 18px; padding: 10px 13px;
+      border: 1px solid #cfe8da; border-radius: 10px; color: #286448; background: #f0faf4; font-size: 12px;
+    }
+    .privacy .lock { width: 22px; height: 22px; display: grid; place-items: center; border-radius: 7px; background: var(--green-soft); }
+    .privacy strong { color: #175b40; }
+
+    .snapshot-warning { display: flex; align-items: flex-start; gap: 9px; margin: 14px 0 18px; padding: 11px 13px; border: 1px solid #ead9b6; border-radius: 10px; color: #76571c; background: #fffaf0; font-size: 11px; }
+    .snapshot-warning .warning-mark { width: 22px; height: 22px; display: grid; place-items: center; flex: 0 0 auto; border-radius: 7px; color: #8b650d; background: #fff0c7; font-weight: 900; }
+    .snapshot-warning strong { display: block; margin-bottom: 2px; color: #604712; }
+
+    .compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 18px; }
+    .validator-card { overflow: hidden; }
+    .validator-head { padding: 17px 18px 15px; border-bottom: 1px solid var(--line); }
+    .validator-head.current { background: linear-gradient(135deg, #f8fafb, #fff); }
+    .validator-head.ours { background: linear-gradient(135deg, #f0f8fc, #fff); }
+    .validator-head .title-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+    .validator-name { display: flex; gap: 10px; align-items: flex-start; }
+    .validator-icon { width: 32px; height: 32px; display: grid; place-items: center; border-radius: 9px; color: var(--navy); background: #e8eef2; font-size: 11px; font-weight: 900; }
+    .ours .validator-icon { color: #0b638e; background: #d9effa; }
+    .validator-name h2 { margin: 0; color: var(--navy); font-size: 16px; }
+    .validator-name p { margin: 2px 0 0; color: var(--muted); font-size: 11px; }
+    .engine-badge { color: var(--blue); background: var(--blue-soft); border-color: #cbe5f1; }
+    .engine-badge::before { background: var(--blue); }
+    .summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding: 14px 18px; border-bottom: 1px solid var(--line); }
+    .summary .sum { padding: 9px 10px; border-radius: 9px; background: #f7f9fa; }
+    .summary .sum label { display: block; color: var(--subtle); font-size: 10px; font-weight: 700; }
+    .summary .sum strong { display: block; margin-top: 2px; font-size: 22px; line-height: 1.1; color: var(--navy); }
+    .summary .sum.warning strong { color: var(--amber); }
+    .summary .sum.medium strong { color: var(--amber); }
+    .summary .sum.critical strong { color: var(--red); }
+    .summary .sum.good strong { color: var(--green); }
+    .validator-body { padding: 15px 18px 18px; }
+    .finding-group { margin-top: 15px; }
+    .finding-group h3 { display: flex; justify-content: space-between; margin: 0 0 8px; color: var(--navy); font-size: 12px; }
+    .finding-group h3 span { color: var(--subtle); font-weight: 500; }
+    .finding { position: relative; margin: 7px 0; padding: 10px 11px 10px 14px; border: 1px solid var(--line); border-radius: 9px; background: #fff; }
+    .finding::before { content: ""; position: absolute; left: 0; top: 9px; bottom: 9px; width: 3px; border-radius: 3px; background: var(--amber); }
+    .finding.red::before { background: var(--red); }
+    .finding.blue::before { background: var(--blue); }
+    .finding .finding-title { color: var(--navy); font-size: 12px; font-weight: 800; }
+    .finding .finding-detail { margin-top: 3px; color: var(--muted); font-size: 11px; }
+    .finding code { color: #38586d; font-size: 10px; }
+    .finding .tag { display: inline-flex; margin-top: 6px; padding: 2px 6px; border-radius: 4px; color: #667986; background: #f1f5f7; font-size: 9px; font-weight: 700; }
+    .finding .tag.jp { color: #0b638e; background: var(--blue-soft); }
+    .draft-note { margin: 0 0 12px; padding: 8px 10px; border: 1px dashed #c6dbe6; border-radius: 8px; color: #426579; background: #f5fbfe; font-size: 10px; }
+
+    .delta-card { margin-top: 18px; padding: 18px 20px; }
+    .delta-intro { margin: -4px 0 15px; color: var(--muted); font-size: 12px; }
+    .delta-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+    .delta-item { padding: 12px; border-radius: 10px; background: #f7f9fa; }
+    .delta-item .delta-num { color: var(--navy); font-size: 23px; font-weight: 850; line-height: 1; }
+    .delta-item p { margin: 5px 0 0; color: var(--muted); font-size: 11px; }
+    .delta-item.shared { border: 1px solid #cce7d7; background: #f3fbf6; }
+    .delta-item.shared .delta-num { color: var(--green); }
+    .delta-item.only-old { border: 1px solid #e7e1d3; background: #fffbf2; }
+    .delta-item.only-old .delta-num { color: var(--amber); }
+    .delta-item.only-new { border: 1px solid #cbe3ef; background: #f1f9fd; }
+    .delta-item.only-new .delta-num { color: var(--blue); }
+    .delta-item.jp { border: 1px solid #d8d1ed; background: #f8f5ff; }
+    .delta-item.jp .delta-num { color: #6c50a7; }
+
+    .action-plan { margin-top: 18px; padding: 18px 20px; }
+    .action-plan-intro { margin: -4px 0 15px; color: var(--muted); font-size: 12px; }
+    .action-plan-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    .action-step { position: relative; min-width: 0; padding: 13px 13px 12px 48px; border: 1px solid var(--line); border-radius: 10px; background: #fff; }
+    .action-step::before { content: ""; position: absolute; left: 14px; top: 14px; display: grid; width: 24px; height: 24px; place-items: center; border-radius: 7px; color: #fff; background: var(--navy); font-size: 12px; font-weight: 900; }
+    .action-step.p1 { border-color: #edc7cc; background: var(--red-soft); }
+    .action-step.p1::before { content: "1"; background: var(--red); }
+    .action-step.p2 { border-color: #ead9b6; background: var(--amber-soft); }
+    .action-step.p2::before { content: "2"; background: var(--amber); }
+    .action-step.p3 { border-color: #cbe3ef; background: var(--blue-soft); }
+    .action-step.p3::before { content: "3"; background: var(--blue); }
+    .action-step h3 { margin: 0; color: var(--navy); font-size: 12px; }
+    .action-step .action-rule { display: block; margin-top: 3px; color: var(--subtle); font-size: 10px; font-weight: 800; }
+    .action-step p { margin: 8px 0 0; color: var(--muted); font-size: 10px; line-height: 1.5; }
+    .action-step p strong { color: var(--navy); }
+    .action-footnote { margin: 12px 0 0; color: var(--subtle); font-size: 10px; }
+
+    .detail-card { margin-top: 18px; padding: 18px 20px 8px; }
+    .detail-tabs { display: flex; gap: 6px; overflow-x: auto; margin: -2px 0 15px; padding-bottom: 2px; }
+    .detail-tabs button { padding: 7px 10px; border: 1px solid var(--line); border-radius: 8px; cursor: pointer; color: var(--muted); background: #fff; font-size: 11px; font-weight: 700; white-space: nowrap; }
+    .detail-tabs button.active { border-color: var(--navy); color: #fff; background: var(--navy); }
+    .evidence-note { margin: -5px 0 12px; padding: 8px 10px; border-left: 3px solid var(--blue); color: #426579; background: #f5fbfe; font-size: 10px; }
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+    .detail-table th { padding: 9px 10px; text-align: left; color: var(--subtle); border-bottom: 1px solid var(--line); font-size: 10px; }
+    .detail-table td { padding: 11px 10px; vertical-align: top; border-bottom: 1px solid #edf1f3; }
+    .detail-table tr:last-child td { border-bottom: 0; }
+    .detail-table .issue { color: var(--navy); font-weight: 800; }
+    .detail-table .where { display: block; margin-top: 3px; color: var(--muted); font-size: 10px; font-weight: 500; }
+    .map-link { display: inline-flex; align-items: center; margin-top: 5px; padding: 3px 6px; border: 1px solid #cbe3ef; border-radius: 5px; color: var(--blue); background: var(--blue-soft); font-size: 9px; font-weight: 800; text-decoration: none; }
+    .map-link:hover { text-decoration: underline; }
+    .mm-overlay { position: fixed; inset: 0; z-index: 20; display: flex; align-items: center; justify-content: center; padding: 18px; background: rgba(11, 29, 42, .62); }
+    .mm-hidden { display: none !important; }
+    .mm-box { width: min(840px, 96vw); overflow: hidden; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); box-shadow: 0 24px 72px rgba(0,0,0,.35); }
+    .mm-header { display: flex; align-items: center; gap: 12px; padding: 13px 16px; border-bottom: 1px solid var(--line); }
+    .mm-title { flex: 1; color: var(--navy); font-size: 14px; font-weight: 800; }
+    .mm-close { padding: 3px 8px; border: 0; border-radius: 7px; cursor: pointer; color: var(--muted); background: transparent; font-size: 18px; }
+    .mm-close:hover { color: var(--navy); background: #f1f5f7; }
+    .mm-context { padding: 9px 16px; color: var(--muted); background: #f7f9fa; font-size: 10px; }
+    .mm-map { display: block; width: 100%; height: min(58vh, 460px); border: 0; }
+    .mm-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 9px 16px; border-top: 1px solid var(--line); color: var(--subtle); font-size: 10px; }
+    .mm-footer a { color: var(--blue); font-weight: 800; text-decoration: none; }
+    .mm-footer a:hover { text-decoration: underline; }
+    .detail-table td > strong { display: block; color: var(--navy); font-size: 11px; }
+    .detail-table td > small { display: block; margin-top: 3px; color: var(--subtle); font-size: 9px; line-height: 1.35; }
+    .detail-footnote { margin: 8px 0 10px; color: var(--subtle); font-size: 10px; }
+    .state { display: inline-flex; align-items: center; gap: 5px; padding: 3px 7px; border-radius: 5px; font-size: 10px; font-weight: 800; white-space: nowrap; }
+    .state.shared { color: var(--green); background: var(--green-soft); }
+    .state.old { color: var(--amber); background: var(--amber-soft); }
+    .state.new { color: var(--blue); background: var(--blue-soft); }
+    .state.accepted { color: #6c50a7; background: #f0eaff; }
+    .explain { color: var(--muted); line-height: 1.55; }
+    .explain strong { color: var(--navy); }
+
+    .same-page-reports { display: grid; grid-template-columns: 1fr; gap: 18px; margin-top: 18px; }
+    .report-card { padding: 18px 20px 12px; }
+    .report-card .card-heading { margin-bottom: 5px; }
+    .report-kicker { margin: 0 0 12px; color: var(--muted); font-size: 11px; }
+    .report-source { margin-bottom: 4px; padding: 9px 10px; border-radius: 8px; color: var(--muted); background: #f7f9fa; font-size: 10px; }
+    .report-source strong { color: var(--navy); }
+    .report-item { padding: 12px 0; border-top: 1px solid #edf1f3; }
+    .report-item-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+    .report-item h3 { margin: 0; color: var(--navy); font-size: 12px; }
+    .report-item p { margin: 4px 0 0; color: var(--muted); font-size: 11px; line-height: 1.5; }
+    .report-list { margin: 7px 0 0; padding-left: 16px; color: var(--muted); font-size: 11px; }
+    .report-list li { margin: 3px 0; }
+    .report-list code, .report-source code { color: #38586d; font-size: 10px; }
+    .column-issues { display: grid; gap: 7px; margin-top: 8px; }
+    .column-issue { padding: 8px 9px; border: 1px solid #e7ecef; border-radius: 7px; background: #fbfcfd; }
+    .column-issue strong { display: block; color: var(--navy); font-size: 10px; }
+    .column-issue small { display: block; margin-top: 4px; color: var(--muted); font-size: 9px; line-height: 1.45; }
+    .column-issue code { color: #38586d; font-size: 9px; }
+    .column-issue mark { padding: 1px 3px; border-radius: 3px; color: #fff; background: var(--red); }
+    .evidence-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 7px; margin-top: 9px; }
+    .evidence-cell { min-width: 0; padding: 7px 8px; border: 1px solid #e7ecef; border-radius: 7px; background: #fbfcfd; }
+    .evidence-label { display: block; margin-bottom: 3px; color: var(--subtle); font-size: 9px; font-weight: 800; }
+    .evidence-value { display: block; overflow-wrap: anywhere; color: var(--navy); font-size: 10px; line-height: 1.4; }
+    .evidence-value code { color: #38586d; font-size: 9px; }
+    .evidence-details { margin-top: 8px; color: var(--muted); font-size: 10px; }
+    .evidence-details summary { cursor: pointer; color: var(--blue); font-weight: 800; }
+    .evidence-details code { display: block; margin-top: 5px; padding: 7px 8px; border-radius: 6px; color: #38586d; background: #f4f7f9; line-height: 1.5; }
+    .report-note { margin: 10px 0 2px; padding: 9px 10px; border: 1px dashed #c6dbe6; border-radius: 8px; color: #426579; background: #f5fbfe; font-size: 10px; }
+
+    .download-card { display: grid; grid-template-columns: 1fr auto; gap: 20px; align-items: center; margin-top: 18px; padding: 18px 20px; border: 1px solid #cfe4ef; border-radius: var(--radius); background: linear-gradient(110deg, #eef8fc, #fff); }
+    .download-card h2 { margin: 0; color: var(--navy); font-size: 15px; }
+    .download-card p { margin: 5px 0 0; color: var(--muted); font-size: 12px; }
+    .download-row { justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 9px 12px; border: 1px solid var(--line); border-radius: 8px; cursor: pointer; text-decoration: none; color: var(--navy); background: #fff; font-size: 11px; font-weight: 800; }
+    .btn.primary { border-color: var(--navy); color: #fff; background: var(--navy); }
+    .btn:hover { filter: brightness(.98); transform: translateY(-1px); }
+
+    .footer-row { justify-content: space-between; gap: 20px; margin-top: 25px; padding-top: 15px; color: var(--subtle); border-top: 1px solid var(--line); font-size: 10px; }
+    .footer-row a { color: var(--blue); text-decoration: none; }
+
+    /* Result page reading order: differences first, full reports below. */
+    main.shell { display: flex; flex-direction: column; }
+    main.shell > .hero { order: 1; }
+    main.shell > .feed-card { order: 2; }
+    main.shell > .snapshot-warning { order: 3; }
+    main.shell > .privacy { order: 4; }
+    main.shell > .delta-card { order: 5; }
+    main.shell > .action-plan { order: 6; }
+    main.shell > .detail-card { order: 7; }
+    main.shell > .compare-grid { order: 8; }
+    main.shell > .same-page-reports { order: 9; }
+    main.shell > .download-card { order: 10; }
+    main.shell > .footer-row { order: 11; }
+
+    @media (max-width: 900px) {
+      .feed-layout { grid-template-columns: repeat(3, 1fr); }
+      .feed-file { grid-column: 1 / -1; }
+      .compare-grid { grid-template-columns: 1fr; }
+      .same-page-reports { grid-template-columns: 1fr; }
+      .delta-grid { grid-template-columns: repeat(2, 1fr); }
+      .action-plan-grid { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 620px) {
+      .shell { padding: 0 14px 28px; }
+      header { padding-top: 16px; }
+      .header-row { align-items: flex-start; }
+      .header-actions { flex-direction: column-reverse; align-items: flex-end; }
+      .hero { display: block; padding-top: 22px; }
+      .hero-note { min-width: 0; margin-top: 16px; }
+      .feed-layout { grid-template-columns: repeat(2, 1fr); }
+      .fact { padding-left: 10px; }
+      .feed-card, .delta-card, .detail-card, .report-card, .download-card { padding-left: 14px; padding-right: 14px; }
+      .summary { padding-left: 14px; padding-right: 14px; }
+      .validator-body, .validator-head { padding-left: 14px; padding-right: 14px; }
+      .detail-table th, .detail-table td { padding-left: 5px; padding-right: 5px; }
+      .detail-table th:nth-child(4), .detail-table td:nth-child(4) { display: none; }
+      .evidence-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .download-card { display: block; }
+      .download-row { justify-content: flex-start; margin-top: 13px; }
+      .footer-row { display: block; }
+      .footer-row span { display: block; margin-top: 5px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="topline"></div>
+  <header>
+    <div class="shell">
+      <div class="header-row">
+        <div class="brand">
+          <div class="brand-mark">BUS</div>
+          <div>
+            <div class="brand-title"><span class="lang-ja">GTFS 検証結果</span><span class="lang-tr">GTFS Doğrulama Sonucu</span></div>
+            <div class="brand-sub">JapanBus.jp × GTFS Analyzer</div>
+          </div>
+        </div>
+        <div class="header-actions">
+          <span class="badge status"><span class="lang-ja">同じZIPで比較</span><span class="lang-tr">Aynı ZIP karşılaştırması</span></span>
+          <div class="lang-switch" aria-label="Language">
+            <button class="active" data-lang="ja">日本語</button>
+            <button data-lang="tr">Türkçe</button>
+          </div>
+        </div>
+      </div>
+      <div class="crumbs"><span class="lang-ja">GTFS関連ツール</span><span class="lang-tr">GTFS araçları</span><span>›</span><strong><span class="lang-ja">検証結果</span><span class="lang-tr">Doğrulama sonucu</span></strong></div>
+    </div>
+  </header>
+
+  <main class="shell">
+    <section class="hero">
+      <div>
+        <div class="eyebrow">GTFS VALIDATION · RESULT DETAIL</div>
+        <h1><span class="lang-ja">GTFSフィードの検証結果</span><span class="lang-tr">GTFS feed doğrulama sonucu</span></h1>
+        <p><span class="lang-ja">既存のFeedValidatorとGTFS Analyzerの結果を、同じページで確認できます。差分を先に、その後に各レポートの詳細を表示します。</span><span class="lang-tr">FeedValidator ve GTFS Analyzer sonuçlarını aynı sayfada inceleyin. Önce farkları, ardından her raporun ayrıntılarını gösteriyoruz.</span></p>
+      </div>
+      <div class="hero-note">
+        <strong><span class="lang-ja">このページの位置づけ</span><span class="lang-tr">Bu sayfanın amacı</span></strong>
+        <span class="lang-ja">結果を保存するサービスではありません。必要な場合は下部のレポートをダウンロードしてください。</span>
+        <span class="lang-tr">Bu sayfa sonuçları saklamaz. Gerekirse aşağıdaki raporları cihazınıza indirin.</span>
+      </div>
+    </section>
+
+    <section class="feed-card" aria-label="Feed information">
+      <div class="card-heading">
+        <h2><span class="lang-ja">検証対象フィード</span><span class="lang-tr">Doğrulanan feed</span></h2>
+        <span class="badge"><span class="lang-ja">桑名市コミュニティバス · 2026/06–2027/06</span><span class="lang-tr">Kuwana City Community Bus · 2026/06–2027/06</span></span>
+      </div>
+      <div class="feed-layout">
+        <div class="feed-file">
+          <div class="file-name">kuwana-communitybus-feed.zip</div>
+          <div class="file-source"><span class="lang-ja">フィード提供者：桑名市</span><span class="lang-tr">Feed sağlayıcısı: Kuwana City</span> · <a class="source-link" href="https://www.city.kuwana.lg.jp/maas/kurashi/koutsuu/24-57172-225-351.html" target="_blank" rel="noreferrer"><span class="lang-ja">公式情報</span><span class="lang-tr">Resmî kaynak</span> ↗</a> · <a class="source-link" href="https://api.gtfs-data.jp/v2/organizations/kuwanacity/feeds/communitybus/files/feed.zip?rid=next" target="_blank" rel="noreferrer"><span class="lang-ja">GTFSダウンロード</span><span class="lang-tr">GTFS indir</span> ↗</a></div>
+          <div class="profile-scope" aria-label="GTFS-JP validation profile">
+            <span class="profile-title"><span class="lang-ja">GTFS-JPプロファイル</span><span class="lang-tr">GTFS-JP profil kapsamı</span></span>
+            <span class="profile-chip active">Auto</span><span class="profile-chip">V3</span><span class="profile-chip">V4</span>
+            <span class="profile-hint"><span class="lang-ja">選択範囲 · 公式版の自動判定ではない</span><span class="lang-tr">seçilen kapsam · resmî sürüm tespiti değil</span></span>
+          </div>
+        </div>
+        <div class="fact"><label><span class="lang-ja">路線</span><span class="lang-tr">Hat</span></label><strong>15</strong></div>
+        <div class="fact"><label><span class="lang-ja">停留所</span><span class="lang-tr">Durak</span></label><strong>312</strong></div>
+        <div class="fact"><label><span class="lang-ja">便</span><span class="lang-tr">Sefer</span></label><strong>54</strong></div>
+        <div class="fact"><label><span class="lang-ja">形状</span><span class="lang-tr">Shape</span></label><strong>0</strong></div>
+        <div class="fact"><label><span class="lang-ja">有効期間</span><span class="lang-tr">Geçerlilik</span></label><strong>2026/06/03–2027/06/30</strong></div>
+      </div>
+    </section>
+
+    <div class="snapshot-warning">
+      <div class="warning-mark">!</div>
+      <div><strong><span class="lang-ja">2つの結果は同じZIPから作成されています。</span><span class="lang-tr">İki sonuç aynı ZIP üzerinden üretildi.</span></strong><span class="lang-ja">桑名市コミュニティバスの同じ feed を、既存のFeedValidator 1.2.16とGTFS Analyzer Engine 0.11.1で確認しました。今回の選択範囲はAutoです。V3/V4は明示的に選べますが、feedの公式版を自動判定するものではありません。</span><span class="lang-tr">Kuwana City Community Bus’ın aynı feed’i mevcut FeedValidator 1.2.16 ve GTFS Analyzer Engine 0.11.1 ile kontrol edildi. Bu çalıştırmada kapsam Auto. V3/V4 açıkça seçilebilir; bu seçim feed’in resmî sürümünü otomatik tespit etmez.</span></div>
+    </div>
+
+    <div class="privacy">
+      <div class="lock">⌁</div>
+      <div><strong><span class="lang-ja">このページは結果を保存しません。</span><span class="lang-tr">Bu sayfa sonuçları kaydetmez.</span></strong> <span class="lang-ja">既存validatorのHTMLは比較用に一時生成されたレポートです。</span><span class="lang-tr">Mevcut validator HTML’i karşılaştırma için geçici üretilmiş bir rapordur.</span></div>
+    </div>
+
+    <section class="compare-grid" aria-label="Validator comparison">
+      <article class="card validator-card">
+        <div class="validator-head current">
+          <div class="title-row">
+            <div class="validator-name">
+              <div class="validator-icon">旧</div>
+              <div><h2><span class="lang-ja">既存のGTFSチェックツール</span><span class="lang-tr">Mevcut GTFS kontrol aracı</span></h2><p>FeedValidator · japanbus.jp</p></div>
+            </div>
+            <span class="badge">FeedValidator 1.2.16</span>
+          </div>
+        </div>
+        <div class="summary">
+          <div class="sum warning"><label><span class="lang-ja">警告</span><span class="lang-tr">Uyarı</span></label><strong>8</strong></div>
+          <div class="sum"><label><span class="lang-ja">エラー</span><span class="lang-tr">Hata</span></label><strong>0</strong></div>
+          <div class="sum good"><label><span class="lang-ja">状態</span><span class="lang-tr">Durum</span></label><strong><span class="lang-ja">報告済</span><span class="lang-tr">Rapor hazır</span></strong></div>
+        </div>
+        <div class="validator-body">
+          <div class="finding-group">
+            <h3><span class="lang-ja">警告の内訳</span><span class="lang-tr">Uyarı dağılımı</span><span>8</span></h3>
+            <div class="finding"><div class="finding-title">Unknown Files</div><div class="finding-detail"><code>attributions.txt</code>, <code>translations.txt</code> · 2 <span class="lang-ja">件</span><span class="lang-tr">adet</span></div><span class="tag">Warning</span></div>
+            <div class="finding"><div class="finding-title">Unrecognized Columns</div><div class="finding-detail"><code>stops.txt</code>, <code>trips.txt</code>, <code>fare_attributes.txt</code>, <code>feed_info.txt</code> · 6 <span class="lang-ja">件</span><span class="lang-tr">adet</span></div><span class="tag">Warning</span></div>
+          </div>
+        </div>
+      </article>
+
+      <article class="card validator-card">
+        <div class="validator-head ours">
+          <div class="title-row">
+            <div class="validator-name">
+              <div class="validator-icon">新</div>
+              <div><h2><span class="lang-ja">GTFS Analyzer</span><span class="lang-tr">GTFS Analyzer</span></h2><p><span class="lang-ja">GTFS-JPプロファイル対応・ローカル処理</span><span class="lang-tr">GTFS-JP profili ve yerel işleme</span></p></div>
+            </div>
+            <span class="badge engine-badge">Engine 0.11.1 · <span class="lang-ja">実測</span><span class="lang-tr">Gerçek çalıştırma</span></span>
+          </div>
+        </div>
+        <div class="summary">
+          <div class="sum critical"><label><span class="lang-ja">高</span><span class="lang-tr">Yüksek</span></label><strong>1</strong></div>
+          <div class="sum medium"><label><span class="lang-ja">中</span><span class="lang-tr">Orta</span></label><strong>103</strong></div>
+          <div class="sum good"><label><span class="lang-ja">総合スコア</span><span class="lang-tr">Genel skor</span></label><strong>94.7</strong></div>
+        </div>
+        <div class="validator-body">
+          <div class="draft-note"><span class="lang-ja">同じ桑名市 ZIPをEngine 0.11.1で検証した結果：231通知（情報125・高1・中103・低2）、仕様・相互運用0件。</span><span class="lang-tr">Aynı Kuwana City ZIP’i Engine 0.11.1 ile çalıştırıldı: 231 bildirim (125 bilgi · 1 yüksek · 103 orta · 2 düşük), spec ve interop 0.</span></div>
+          <div class="finding-group">
+            <h3><span class="lang-ja">主な結果</span><span class="lang-tr">Öne çıkan sonuçlar</span><span>106 <span class="lang-ja">件</span><span class="lang-tr">bulgu</span></span></h3>
+            <div class="finding red"><div class="finding-title"><span class="lang-ja">shapeがなく、全便が経路形状なし</span><span class="lang-tr">Shape yok; tüm seferlerde rota geometrisi eksik</span></div><div class="finding-detail"><code>DQ_006</code> · <span class="lang-ja">54/54便 · 100%</span><span class="lang-tr">54/54 sefer · %100</span></div><span class="tag">High</span></div>
+            <div class="finding red"><div class="finding-title"><span class="lang-ja">GTFS-JPのかな読みが不足</span><span class="lang-tr">GTFS-JP kana okumaları eksik</span></div><div class="finding-detail"><code>JPN_008</code> ×15 · <code>JPN_009</code> ×54 · <span class="lang-ja">路線・便</span><span class="lang-tr">hat ve sefer</span></div><span class="tag">Medium · 69</span></div>
+            <div class="finding blue"><div class="finding-title"><span class="lang-ja">停留所コードが未設定</span><span class="lang-tr">Durak kodu eksik</span></div><div class="finding-detail"><code>stops.txt</code> · <span class="lang-ja">312停留所</span><span class="lang-tr">312 durak</span></div><span class="tag">Medium</span></div>
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <section class="card delta-card">
+      <div class="card-heading"><h2><span class="lang-ja">差分の要約</span><span class="lang-tr">Farkların özeti</span></h2><small><span class="lang-ja">最初に確認するポイント</span><span class="lang-tr">İlk bakılacak bölüm</span></small></div>
+      <p class="delta-intro"><span class="lang-ja">同じ桑名市コミュニティバスのZIPを2つのvalidatorで確認した結果です。件数の差は、FeedValidatorがファイル構造の警告を中心に出し、AnalyzerがGTFS-JP・品質・運行分析を別ルールで集計するために生じます。</span><span class="lang-tr">Aynı Kuwana City Community Bus ZIP’inin iki validator’daki sonucu. Sayı farkı; FeedValidator’ın dosya yapısı uyarılarına, Analyzer’ın ise GTFS-JP, kalite ve işletim analizlerine ayrı kurallarla bakmasından kaynaklanıyor.</span></p>
+      <div class="delta-grid">
+        <div class="delta-item shared"><div class="delta-num">2</div><p><span class="lang-ja">同じファイルに言及</span><span class="lang-tr">Aynı dosyalara değinen bulgu</span></p></div>
+        <div class="delta-item only-old"><div class="delta-num">8</div><p><span class="lang-ja">FeedValidatorの警告</span><span class="lang-tr">FeedValidator uyarısı</span></p></div>
+        <div class="delta-item only-new"><div class="delta-num">106</div><p><span class="lang-ja">Analyzerの高・中・低通知</span><span class="lang-tr">Analyzer yüksek/orta/düşük</span></p></div>
+        <div class="delta-item jp"><div class="delta-num">125</div><p><span class="lang-ja">Analyzerの情報通知</span><span class="lang-tr">Analyzer bilgi bildirimi</span></p></div>
+      </div>
+    </section>
+
+    <section class="card action-plan">
+      <div class="card-heading"><h2><span class="lang-ja">修正の優先順位</span><span class="lang-tr">Öncelikli düzeltme sırası</span></h2><small><span class="lang-ja">Analyzerの実測結果から</span><span class="lang-tr">Analyzer gerçek sonucuna göre</span></small></div>
+      <p class="action-plan-intro"><span class="lang-ja">まず影響範囲が大きく、原因を特定しやすい項目から確認します。これはAnalyzerの優先度であり、既存FeedValidatorの警告を置き換えるものではありません。</span><span class="lang-tr">Önce etki alanı geniş ve nedeni doğrudan görülebilen maddeler kontrol edilir. Bu sıra Analyzer önceliğidir; mevcut FeedValidator uyarılarının yerine geçmez.</span></p>
+      <div class="action-plan-grid">
+        <article class="action-step p1">
+          <h3><span class="lang-ja">shapeとshape_idを追加</span><span class="lang-tr">shape ve shape_id ekle</span></h3>
+          <span class="action-rule"><code>DQ_006</code> · High · 54/54 trips</span>
+          <p><strong><span class="lang-ja">対象：</span><span class="lang-tr">Kanıt:</span></strong> <span class="lang-ja"><code>trips.txt</code> の集計で100%。</span><span class="lang-tr"><code>trips.txt</code> toplu bulgusunda %100.</span><br><strong><span class="lang-ja">対応：</span><span class="lang-tr">Düzeltme:</span></strong> <span class="lang-ja">shapes.txtを追加し、trips.txtのshape_idを設定</span><span class="lang-tr">shapes.txt ekle ve trips.txt içindeki shape_id alanlarını doldur</span></p>
+        </article>
+        <article class="action-step p2">
+          <h3><span class="lang-ja">GTFS-JPのかな読みを追加</span><span class="lang-tr">GTFS-JP kana okumalarını ekle</span></h3>
+          <span class="action-rule"><code>JPN_008</code> ×15 · <code>JPN_009</code> ×54</span>
+          <p><strong><span class="lang-ja">対象：</span><span class="lang-tr">Kanıt:</span></strong> <span class="lang-ja"><code>routes.txt</code> 2–16、<code>trips.txt</code> 2–55。</span><span class="lang-tr"><code>routes.txt</code> satır 2–16 · <code>trips.txt</code> satır 2–55.</span><br><strong><span class="lang-ja">対応：</span><span class="lang-tr">Düzeltme:</span></strong> <span class="lang-ja">translations.txtにja-Hrktの翻字を追加</span><span class="lang-tr">translations.txt içine ja-Hrkt karşılıklarını ekle</span></p>
+        </article>
+        <article class="action-step p3">
+          <h3><span class="lang-ja">停留所コードを設定</span><span class="lang-tr">Durak kodlarını tanımla</span></h3>
+          <span class="action-rule"><code>STP_022</code> · Medium · 312 stops</span>
+          <p><strong><span class="lang-ja">対象：</span><span class="lang-tr">Kanıt:</span></strong> <span class="lang-ja"><code>stops.txt</code> 2–313、<code>stop_code</code>。</span><span class="lang-tr"><code>stops.txt</code> satır 2–313 · <code>stop_code</code>.</span><br><strong><span class="lang-ja">対応：</span><span class="lang-tr">Düzeltme:</span></strong> <span class="lang-ja">利用者が認識できる短いstop_codeを設定</span><span class="lang-tr">yolcunun tanıyacağı kısa stop_code değerleri ekle</span></p>
+        </article>
+      </div>
+      <p class="action-footnote"><span class="lang-ja">INFO通知125件は情報として別途記録されています。まずHigh/Mediumの原因を確認し、修正後に同じZIPを再検証します。</span><span class="lang-tr">125 INFO bildirimi bilgi amaçlı ayrıca kayıtlıdır. Önce High/Medium nedenleri kontrol edilir; düzeltmeden sonra aynı ZIP yeniden doğrulanır.</span></p>
+    </section>
+
+    <section class="card detail-card">
+      <div class="card-heading"><h2><span class="lang-ja">問題ごとの比較</span><span class="lang-tr">Bulgu bazında karşılaştırma</span></h2><small><span class="lang-ja">ファイル・行・理由</span><span class="lang-tr">Dosya · satır · neden</span></small></div>
+      <div class="detail-tabs" role="tablist">
+        <button class="active" data-filter="all"><span class="lang-ja">代表例</span><span class="lang-tr">Örnekler</span> · 5</button>
+        <button data-filter="shared"><span class="lang-ja">同じファイル</span><span class="lang-tr">Aynı dosya</span> · 1</button>
+        <button data-filter="old"><span class="lang-ja">FeedValidatorのみ</span><span class="lang-tr">FeedValidator farkı</span> · 1</button>
+        <button data-filter="new"><span class="lang-ja">Analyzerのみ</span><span class="lang-tr">Analyzer farkı</span> · 3</button>
+      </div>
+      <div class="evidence-note"><span class="lang-ja">行番号は各TXTのヘッダーを1行目として表示します。Analyzerの集計ルールは特定の1行に割り当てず「集計」と表示し、実際の対象件数を併記します。</span><span class="lang-tr">Satır numaraları her TXT dosyasının başlığı 1. satır kabul edilerek gösterilir. Analyzer’ın toplu kuralları tek bir satıra zorlanmaz; “toplu bulgu” ve gerçek etkilenen kayıt sayısı birlikte yazılır.</span></div>
+      <table class="detail-table">
+        <thead><tr><th><span class="lang-ja">問題</span><span class="lang-tr">Bulgu</span></th><th>FeedValidator 1.2.16</th><th>GTFS Analyzer 0.11.1</th><th><span class="lang-ja">解釈</span><span class="lang-tr">Yorum</span></th></tr></thead>
+        <tbody>
+          <tr data-kind="shared"><td class="issue"><span class="lang-ja">追加ファイルの扱い</span><span class="lang-tr">Ek dosyaların ele alınması</span><span class="where"><code>attributions.txt</code> · <code>translations.txt</code> · <span class="lang-ja">行：ファイル単位</span><span class="lang-tr">satır: dosya düzeyi</span></span></td><td><strong>2 Warning</strong><small>Unknown Files</small></td><td><strong>8 Info</strong><small><code>ARC_006</code></small></td><td class="explain"><span class="lang-ja">同じ2ファイルを参照していますが、FeedValidatorは警告、Analyzerは任意ファイルの情報通知として扱います。</span><span class="lang-tr">Aynı 2 dosyaya bakıyorlar; FeedValidator uyarı, Analyzer ise opsiyonel dosya bilgi bildirimi üretiyor.</span></td></tr>
+          <tr data-kind="old"><td class="issue"><span class="lang-ja">未認識の追加列</span><span class="lang-tr">Tanınmayan ek sütunlar</span><span class="where"><code>stops.txt</code> · <code>trips.txt</code> · <code>fare_attributes.txt</code> · <code>feed_info.txt</code> · <span class="lang-ja">行1：ヘッダー</span><span class="lang-tr">satır 1: başlık</span></span></td><td><strong>6 Warning</strong><small>Unrecognized Columns</small></td><td><strong>0</strong><small><span class="lang-ja">対応する通知なし</span><span class="lang-tr">karşılık gelen bildirim yok</span></small></td><td class="explain"><span class="lang-ja">platform_code、jp_pattern_id、jp_trip_descなど6件を未認識列として表示しています。</span><span class="lang-tr">platform_code, jp_pattern_id, jp_trip_desc gibi 6 sütun başlığını tanınmayan kolon olarak gösteriyor.</span></td></tr>
+          <tr data-kind="new"><td class="issue"><span class="lang-ja">GTFS-JPのかな読みが不足</span><span class="lang-tr">GTFS-JP kana okumaları eksik</span><span class="where"><code>routes.txt</code> · <code>trips.txt</code> · <span class="lang-ja">行2–16・2–55</span><span class="lang-tr">satır 2–16 · 2–55</span> · <code>route_long_name</code> / <code>trip_headsign</code></span></td><td><strong>—</strong><small><span class="lang-ja">検出なし</span><span class="lang-tr">bulgu yok</span></small></td><td><strong>69 Medium</strong><small><code>JPN_008</code> ×15 · <code>JPN_009</code> ×54</small></td><td class="explain"><span class="lang-ja">路線名15件と便の行先表示54件にja-Hrktの読みがありません。GTFS-JPのV3/V4プロファイル検証で確認対象になります。</span><span class="lang-tr">15 hat adında ve 54 sefer başlığında ja-Hrkt okuması yok. GTFS-JP V3/V4 profil doğrulamasında kontrol edilir.</span></td></tr>
+          <tr data-kind="new"><td class="issue"><span class="lang-ja">shapeが未設定</span><span class="lang-tr">Shape tanımlanmamış</span><span class="where"><code>trips.txt</code> · <code>shapes.txt</code> · <span class="lang-ja">行：集計</span><span class="lang-tr">satır: toplu bulgu</span> · <code>shape_id</code></span></td><td><strong>—</strong><small><span class="lang-ja">検出なし</span><span class="lang-tr">bulgu yok</span></small></td><td><strong>1 High</strong><small><code>DQ_006</code> · 54/54 trips</small></td><td class="explain"><span class="lang-ja">shapeがなく、全54便で経路形状を参照できません。推奨ファイル欠落も<code>ARC_020</code>で記録しています。</span><span class="lang-tr">Shape yok; 54 seferin hiçbirinde rota geometrisi yok. Önerilen dosya eksikliği ayrıca <code>ARC_020</code> ile kaydediliyor.</span></td></tr>
+          <tr data-kind="new"><td class="issue"><span class="lang-ja">停留所コードが未設定</span><span class="lang-tr">Durak kodu eksik</span><span class="where"><code>stops.txt</code> · <span class="lang-ja">行2–313</span><span class="lang-tr">satır 2–313</span> · <code>stop_code</code></span><a class="map-link" data-map-popup href="https://www.google.com/maps/search/?api=1&amp;query=35.064378,136.686218" target="_blank" rel="noreferrer" data-map-title-ja="STP_022 · stop_code · 桑名市コミュニティバス" data-map-title-tr="STP_022 · stop_code · Kuwana City Community Bus" data-map-context-ja="stops.txt · lines 2–313 · stop_id=102_01 · stop_code missing" data-map-context-tr="stops.txt · satır 2–313 · stop_id=102_01 · stop_code eksik">↗ <span class="lang-ja">代表停留所を地図で開く</span><span class="lang-tr">Örnek durağı haritada aç</span></a></td><td><strong>—</strong><small><span class="lang-ja">検出なし</span><span class="lang-tr">bulgu yok</span></small></td><td><strong>1 Medium</strong><small><span class="lang-ja">312停留所</span><span class="lang-tr">312 durak</span></small></td><td class="explain"><span class="lang-ja">stop_codeが312停留所で未設定。例：101_01、102_01、102_02。座標例：35.064378, 136.686218。</span><span class="lang-tr">312 durakta stop_code eksik. Örnekler: 101_01, 102_01, 102_02. Örnek koordinat: 35.064378, 136.686218.</span></td></tr>
+        </tbody>
+      </table>
+      <p class="detail-footnote"><span class="lang-ja">上の表は同じZIPに対する代表的な差分です。FeedValidatorは8警告、Analyzerは231通知（情報125・高1・中103・低2）を出しています。全件の詳細は下に続きます。</span><span class="lang-tr">Yukarıdaki tablo aynı ZIP için seçilmiş ana farkları gösterir. FeedValidator 8 uyarı, Analyzer 231 bildirim üretiyor (125 bilgi · 1 yüksek · 103 orta · 2 düşük). Ayrıntılar aşağıda devam eder.</span></p>
+    </section>
+
+    <section class="same-page-reports" id="full-results" aria-label="Detailed validator results">
+      <article class="card report-card">
+        <div class="card-heading">
+          <h2><span class="lang-ja">既存ツールの詳細結果</span><span class="lang-tr">Mevcut aracın ayrıntılı sonucu</span></h2>
+          <span class="badge">FeedValidator 1.2.16</span>
+        </div>
+        <p class="report-kicker"><span class="lang-ja">同じ桑名市コミュニティバスZIPをJapanBus.jpの既存FeedValidatorにアップロードした実際のHTMLレポート。レポートに記載された警告、対象ファイル、列名をここに転記しています。</span><span class="lang-tr">Aynı Kuwana City Community Bus ZIP’inin JapanBus.jp üzerindeki mevcut FeedValidator’a yüklenmesiyle oluşan gerçek HTML raporu. Raporda belirtilen uyarıları, dosyaları ve sütun adlarını burada aktarıyoruz.</span></p>
+        <div class="report-source"><strong><span class="lang-ja">レポート：</span><span class="lang-tr">Rapor:</span></strong> <code>GTFS-validation202608312351002758.html</code> · <a class="source-link" href="https://japanbus.jp/GTFS-validation/data_file/GTFS-validation202608312351002758.html" target="_blank" rel="noreferrer">japanbus.jp ↗</a><br><strong>FeedValidator extension:</strong> None · <strong><span class="lang-ja">報告された停留所：</span><span class="lang-tr">Rapordaki durak:</span></strong> 312 · <strong><span class="lang-ja">今後の運行日：</span><span class="lang-tr">Yaklaşan servis tarihleri:</span></strong> Mon Aug 31 – Thu Oct 29</div>
+
+        <div class="report-item">
+          <div class="report-item-head"><h3>Unknown Files</h3><span class="state old">2 <span class="lang-ja">件</span><span class="lang-tr">adet</span></span></div>
+          <p><span class="lang-ja">想定外のファイルとして表示。ファイル名の誤り、またはサブディレクトリ内にある可能性を確認するよう案内。</span><span class="lang-tr">Beklenmeyen dosya olarak gösterildi. Dosya adının yanlış yazılmış olabileceği veya alt klasörde bulunabileceği belirtiliyor.</span></p>
+          <ul class="report-list"><li><code>attributions.txt</code></li><li><code>translations.txt</code></li></ul>
+          <div class="evidence-grid">
+            <div class="evidence-cell"><span class="evidence-label"><span class="lang-ja">ファイル</span><span class="lang-tr">Dosya</span></span><span class="evidence-value"><code>attributions.txt</code><br><code>translations.txt</code></span></div>
+            <div class="evidence-cell"><span class="evidence-label"><span class="lang-ja">行</span><span class="lang-tr">Satır</span></span><span class="evidence-value"><span class="lang-ja">ファイル単位</span><span class="lang-tr">Dosya düzeyi</span></span></div>
+            <div class="evidence-cell"><span class="evidence-label"><span class="lang-ja">理由</span><span class="lang-tr">Neden</span></span><span class="evidence-value"><span class="lang-ja">FeedValidatorが想定していないファイル</span><span class="lang-tr">FeedValidator’ın beklemediği dosya</span></span></div>
+            <div class="evidence-cell"><span class="evidence-label"><span class="lang-ja">確認</span><span class="lang-tr">Kontrol</span></span><span class="evidence-value"><span class="lang-ja">綴りとサブディレクトリを確認</span><span class="lang-tr">Yazımı ve alt klasörü kontrol et</span></span></div>
+          </div>
+        </div>
+
+        <div class="report-item">
+          <div class="report-item-head"><h3>Unrecognized Columns</h3><span class="state old">6 <span class="lang-ja">件</span><span class="lang-tr">adet</span></span></div>
+          <p><span class="lang-ja">列名は大文字・小文字も含めて確認するよう案内。既知の誤記か、validatorがまだ知らない拡張列の可能性があり、追加情報自体は許容されると説明。</span><span class="lang-tr">Sütun adlarının büyük/küçük harf duyarlılığıyla kontrol edilmesi isteniyor. Yazım hatası veya validator’ın henüz bilmediği bir uzantı olabilir; ek bilgi tek başına sorun sayılmıyor.</span></p>
+          <div class="column-issues">
+            <div class="column-issue"><strong><code>platform_code</code> · <code>stops.txt</code></strong><small><span class="lang-ja">line 1 · <mark>platform_code</mark></span><span class="lang-tr">line 1 · <mark>platform_code</mark></span></small></div>
+            <div class="column-issue"><strong><code>jp_pattern_id</code> · <code>trips.txt</code></strong><small><span class="lang-ja">line 1 · <mark>jp_pattern_id</mark></span><span class="lang-tr">line 1 · <mark>jp_pattern_id</mark></span></small></div>
+            <div class="column-issue"><strong><code>jp_trip_desc</code> · <code>trips.txt</code></strong><small><span class="lang-ja">line 1 · <mark>jp_trip_desc</mark></span><span class="lang-tr">line 1 · <mark>jp_trip_desc</mark></span></small></div>
+            <div class="column-issue"><strong><code>agency_id</code> · <code>fare_attributes.txt</code></strong><small><span class="lang-ja">line 1 · <mark>agency_id</mark></span><span class="lang-tr">line 1 · <mark>agency_id</mark></span></small></div>
+            <div class="column-issue"><strong><code>feed_contact_email</code> · <code>feed_info.txt</code></strong><small><span class="lang-ja">line 1 · <mark>feed_contact_email</mark></span><span class="lang-tr">line 1 · <mark>feed_contact_email</mark></span></small></div>
+            <div class="column-issue"><strong><span class="lang-ja">その他1件</span><span class="lang-tr">1 ek sütun daha</span></strong><small><span class="lang-ja">レポートの未認識列警告に含まれる</span><span class="lang-tr">Raporun tanınmayan sütun uyarısına dahil</span></small></div>
+          </div>
+          <div class="evidence-grid">
+            <div class="evidence-cell"><span class="evidence-label"><span class="lang-ja">行</span><span class="lang-tr">Satır</span></span><span class="evidence-value"><code>1</code> · <span class="lang-ja">ヘッダー</span><span class="lang-tr">başlık</span></span></div>
+            <div class="evidence-cell"><span class="evidence-label"><span class="lang-ja">列</span><span class="lang-tr">Alan</span></span><span class="evidence-value"><code>platform_code</code> · <code>jp_pattern_id</code> · <code>jp_trip_desc</code> · <code>agency_id</code> · <code>feed_contact_email</code> · <span class="lang-ja">その他1件</span><span class="lang-tr">1 ek sütun</span></span></div>
+            <div class="evidence-cell"><span class="evidence-label"><span class="lang-ja">理由</span><span class="lang-tr">Neden</span></span><span class="evidence-value"><span class="lang-ja">FeedValidatorが認識しない列名</span><span class="lang-tr">FeedValidator’ın tanımadığı kolon adı</span></span></div>
+            <div class="evidence-cell"><span class="evidence-label"><span class="lang-ja">対応</span><span class="lang-tr">Aksiyon</span></span><span class="evidence-value"><span class="lang-ja">誤記か拡張列かを確認</span><span class="lang-tr">Yazım hatası mı, uzantı mı kontrol et</span></span></div>
+          </div>
+        </div>
+      </article>
+
+      <article class="card report-card">
+        <div class="card-heading">
+          <h2><span class="lang-ja">GTFS Analyzerの詳細結果</span><span class="lang-tr">GTFS Analyzer ayrıntılı sonucu</span></h2>
+          <span class="badge engine-badge">Engine 0.11.1 · <span class="lang-ja">実測</span><span class="lang-tr">Gerçek çalıştırma</span></span>
+        </div>
+        <p class="report-kicker"><span class="lang-ja">同じ桑名市コミュニティバスZIPをEngine 0.11.1で再実行した実測結果。ルールID・観測値・修正案まで同じページ内で確認できます。</span><span class="lang-tr">Aynı Kuwana City Community Bus ZIP’inin Engine 0.11.1 ile yeniden çalıştırılmış gerçek sonucu. Kural ID’si, gözlenen değer ve düzeltme önerisi aynı sayfada görünür.</span></p>
+        <div class="report-source"><strong><span class="lang-ja">プロファイル：</span><span class="lang-tr">Profil:</span></strong> GTFS-JP · Auto · <span class="lang-ja">ローカル実行サンプル</span><span class="lang-tr">yerel çalıştırma örneği</span><br><strong><span class="lang-ja">結果：</span><span class="lang-tr">Sonuç:</span></strong> OK · 231 <span class="lang-ja">通知</span><span class="lang-tr">bildirim</span>（INFO 125 · HIGH 1 · MEDIUM 103 · LOW 2） · <strong>Overall 94.7 · Publish 100.0</strong><br><strong><span class="lang-ja">スコア：</span><span class="lang-tr">Skorlar:</span></strong> spec 100 · interop 100 · quality 78.1 · analytics 90.9</div>
+
+        <div class="report-item">
+          <div class="report-item-head"><h3><span class="lang-ja">仕様・相互運用の通知</span><span class="lang-tr">Spesifikasyon ve birlikte çalışabilirlik</span></h3><span class="state accepted">0</span></div>
+          <p><span class="lang-ja">今回の実測ではspec通知0、interop通知0。既存FeedValidatorの追加ファイル警告は、Analyzerでは<code>ARC_006</code>の情報通知として整理されています。</span><span class="lang-tr">Bu çalıştırmada spec ve interop bildirimi 0. Mevcut FeedValidator’ın ek dosya uyarıları Analyzer’da <code>ARC_006</code> bilgi bildirimi olarak sınıflanıyor.</span></p>
+          <ul class="report-list"><li><code>attributions.txt</code> · <code>translations.txt</code> · <span class="lang-ja">対応するAnalyzer通知はINFO</span><span class="lang-tr">Analyzer karşılığı INFO</span></li></ul>
+        </div>
+
+        <div class="report-item">
+          <div class="report-item-head"><h3><span class="lang-ja">GTFS-JPのかな読み</span><span class="lang-tr">GTFS-JP kana okumaları</span></h3><span class="state new"><span class="lang-ja">69 中</span><span class="lang-tr">69 orta</span></span></div>
+          <p><span class="lang-ja">路線名15件と便の行先表示54件で、GTFS-JPが求めるja-Hrktの読みが不足しています。</span><span class="lang-tr">15 hat adında ve 54 sefer başlığında GTFS-JP’nin istediği ja-Hrkt okuması eksik.</span></p>
+          <ul class="report-list"><li><code>JPN_008</code> ×15 · <code>routes.txt</code></li><li><code>JPN_009</code> ×54 · <code>trips.txt</code></li></ul>
+          <div class="evidence-grid">
+            <div class="evidence-cell"><span class="evidence-label"><span class="lang-ja">ファイル・行</span><span class="lang-tr">Dosya · satır</span></span><span class="evidence-value"><code>routes.txt</code> · 2–16<br><code>trips.txt</code> · 2–55</span></div>
+            <div class="evidence-cell"><span class="evidence-label"><span class="lang-ja">フィールド</span><span class="lang-tr">Alan</span></span><span class="evidence-value"><code>route_long_name</code><br><code>trip_headsign</code></span></div>
+            <div class="evidence-cell"><span class="evidence-label"><span class="lang-ja">期待値</span><span class="lang-tr">Beklenen</span></span><span class="evidence-value"><code>ja-Hrkt</code> translation</span></div>
+            <div class="evidence-cell"><span class="evidence-label"><span class="lang-ja">修正案</span><span class="lang-tr">Düzeltme</span></span><span class="evidence-value"><span class="lang-ja">translations.txtに読みを追加</span><span class="lang-tr">translations.txt içine kana ekle</span></span></div>
+          </div>
+          <details class="evidence-details"><summary><span class="lang-ja">54便の該当行を表示</span><span class="lang-tr">54 seferin satırlarını göster</span></summary><code>trips.txt · lines 2–55 · field trip_headsign · rule JPN_009</code></details>
+        </div>
+
+        <div class="report-item">
+          <div class="report-item-head"><h3><span class="lang-ja">shape・停留所情報の不足</span><span class="lang-tr">Shape ve durak bilgilerindeki eksikler</span></h3><span class="state new"><span class="lang-ja">1 高 · 1 中 · 1 低</span><span class="lang-tr">1 yüksek · 1 orta · 1 düşük</span></span></div>
+          <p><span class="lang-ja">shapeがなく全54便が経路形状なし。312停留所でstop_codeも未設定。推奨のshapes.txt欠落も記録されています。</span><span class="lang-tr">Shape yok; 54 seferin tamamında rota geometrisi eksik. 312 durakta stop_code da tanımsız. Önerilen shapes.txt eksikliği ayrıca kaydedildi.</span></p>
+          <ul class="report-list"><li><code>DQ_006</code> · <code>trips.txt</code> · 54/54 trips · <span class="lang-ja">shapeを付与</span><span class="lang-tr">shape eklenmeli</span></li><li><code>STP_022</code> · <code>stops.txt</code> · 312 stops · <span class="lang-ja">コードを付与</span><span class="lang-tr">kod eklenmeli</span></li><li><code>ARC_020</code> · <code>shapes.txt</code> · <span class="lang-ja">推奨ファイルを追加</span><span class="lang-tr">önerilen dosya eklenmeli</span></li></ul>
+          <div class="evidence-grid">
+            <div class="evidence-cell"><span class="evidence-label"><span class="lang-ja">ファイル・行</span><span class="lang-tr">Dosya · satır</span></span><span class="evidence-value"><code>trips.txt</code> · 集計<br><code>shapes.txt</code> · 欠落</span></div>
+            <div class="evidence-cell"><span class="evidence-label"><span class="lang-ja">フィールド</span><span class="lang-tr">Alan</span></span><span class="evidence-value"><code>shape_id</code></span></div>
+            <div class="evidence-cell"><span class="evidence-label"><span class="lang-ja">観測値</span><span class="lang-tr">Gözlenen</span></span><span class="evidence-value"><code>100%</code> · 54/54 trips</span></div>
+            <div class="evidence-cell"><span class="evidence-label"><span class="lang-ja">修正案</span><span class="lang-tr">Düzeltme</span></span><span class="evidence-value"><span class="lang-ja">shapes.txtを追加しshape_idを設定</span><span class="lang-tr">shapes.txt ekle ve shape_id ata</span></span></div>
+          </div>
+          <a class="map-link" data-map-popup href="https://www.google.com/maps/search/?api=1&amp;query=35.0657366239573,136.684144703041" target="_blank" rel="noreferrer" data-map-title-ja="GTFS Analyzer · 停留所座標サンプル" data-map-title-tr="GTFS Analyzer · Durak koordinatı örneği" data-map-context-ja="stops.txt · line 2 · stop_id=101_01 · 35.0657366239573, 136.684144703041" data-map-context-tr="stops.txt · satır 2 · stop_id=101_01 · 35.0657366239573, 136.684144703041">↗ <span class="lang-ja">停留所座標のサンプルを地図で開く</span><span class="lang-tr">Örnek durak koordinatını haritada aç</span></a>
+        </div>
+
+        <div class="report-item">
+          <div class="report-item-head"><h3><span class="lang-ja">運行品質と構造の確認</span><span class="lang-tr">İşletim kalitesi ve yapı kontrolleri</span></h3><span class="state new"><span class="lang-ja">33 中 · 1 低</span><span class="lang-tr">33 orta · 1 düşük</span></span></div>
+          <p><span class="lang-ja">短距離便32件、最大ヘッドウェイ超過1件、連絡先不足1件を検出。ファイル・路線・便の情報通知も個別に記録。</span><span class="lang-tr">32 çok kısa sefer, 1 yüksek headway ve 1 iletişim bilgisi eksikliği bulundu. Dosya, hat ve sefer bilgi bildirimleri de ayrı kaydedildi.</span></p>
+          <ul class="report-list"><li><code>OPR_017</code> · 32 medium · <span class="lang-ja">運行距離を確認</span><span class="lang-tr">işletim mesafesi doğrulanmalı</span></li><li><code>OPR_001</code> · 1 medium · <code>route 10C</code> · <span class="lang-ja">ヘッドウェイを確認</span><span class="lang-tr">headway doğrulanmalı</span></li><li><code>FIN_018</code> · 1 low · <code>feed_info.txt</code></li></ul>
+          <div class="evidence-grid">
+            <div class="evidence-cell"><span class="evidence-label"><span class="lang-ja">ファイル・行</span><span class="lang-tr">Dosya · satır</span></span><span class="evidence-value"><code>trips.txt</code> · 集計32件<br><code>stop_times.txt</code> · 集計</span></div>
+            <div class="evidence-cell"><span class="evidence-label"><span class="lang-ja">観測値</span><span class="lang-tr">Gözlenen</span></span><span class="evidence-value"><code>0–45m</code> · min<br><code>285</code> · headway</span></div>
+            <div class="evidence-cell"><span class="evidence-label"><span class="lang-ja">期待値</span><span class="lang-tr">Beklenen</span></span><span class="evidence-value"><code>&gt; 100m</code> · distance<br><code>≤ 240</code> · headway</span></div>
+            <div class="evidence-cell"><span class="evidence-label"><span class="lang-ja">修正案</span><span class="lang-tr">Düzeltme</span></span><span class="evidence-value"><span class="lang-ja">便・停留所時刻・連絡先を確認</span><span class="lang-tr">seferi, durak zamanını ve iletişimi kontrol et</span></span></div>
+          </div>
+          <details class="evidence-details"><summary><span class="lang-ja">代表的な行・値を表示</span><span class="lang-tr">Örnek satır ve değerleri göster</span></summary><code>trips.txt:15 · trip_id=1全日_08時03分_系統131001 · 0m<br>trips.txt:22 · trip_id=1全日_08時30分_系統141001 · 0m<br>stop_times.txt · route_id=10C · max headway=285 · limit≤240<br>feed_info.txt:2 · feed_contact_email / feed_contact_url = missing</code></details>
+        </div>
+        <div class="report-note"><span class="lang-ja">残りの125件は情報通知です。任意ファイル、ファイルサイズ、route_desc / route_url、路線の片方向運行、運行パターン、アクセシビリティ項目などを個別に記録しています。</span><span class="lang-tr">Kalan 125 bildirim bilgi seviyesindedir. Opsiyonel dosyalar, dosya boyutları, route_desc / route_url, tek yönlü hatlar, işletim desenleri ve erişilebilirlik alanlarını ayrı ayrı kaydeder.</span></div>
+      </article>
+    </section>
+
+    <section class="download-card">
+      <div>
+        <h2><span class="lang-ja">検証結果をダウンロード</span><span class="lang-tr">Doğrulama sonuçlarını indir</span></h2>
+        <p><span class="lang-ja">このサービスは結果を保存しません。HTML、PDF、JSONを自分の端末へダウンロードできます。</span><span class="lang-tr">Bu servis sonuçları saklamaz. HTML, PDF veya JSON raporlarını kendi cihazınıza indirebilirsiniz.</span></p>
+      </div>
+      <div class="download-row">
+        <button class="btn primary" data-toast="html">↓ <span>HTML</span> <span class="lang-ja">をダウンロード</span><span class="lang-tr">indir</span></button>
+        <button class="btn" data-toast="pdf">↓ <span>PDF</span> <span class="lang-ja">をダウンロード</span><span class="lang-tr">indir</span></button>
+        <button class="btn" data-toast="json">↓ <span>JSON</span> <span class="lang-ja">をダウンロード</span><span class="lang-tr">indir</span></button>
+      </div>
+    </section>
+
+    <div class="footer-row">
+      <div>GTFS Analyzer · <span class="lang-ja">検証結果プロトタイプ</span><span class="lang-tr">doğrulama sonucu prototipi</span></div>
+      <span><span class="lang-ja">保存なし · ローカル処理 · GTFS-JP対応</span><span class="lang-tr">Saklama yok · Yerel işleme · GTFS-JP desteği</span></span>
+    </div>
+  </main>
+
+  <div class="mm-overlay mm-hidden" id="map-modal" aria-hidden="true">
+    <div class="mm-box" role="dialog" aria-modal="true" aria-labelledby="map-modal-title">
+      <div class="mm-header">
+        <strong class="mm-title" id="map-modal-title"><span class="lang-ja">GTFS Analyzerの地図</span><span class="lang-tr">GTFS Analyzer haritası</span></strong>
+        <button class="mm-close" id="map-modal-close" type="button" aria-label="Haritayı kapat">✕</button>
+      </div>
+      <div class="mm-context" id="map-modal-context">stops.txt · stop_id · latitude / longitude</div>
+      <iframe class="mm-map" id="map-modal-frame" title="GTFS Analyzer haritası" loading="lazy" src="https://www.openstreetmap.org/export/embed.html?bbox=136.55%2C35.01%2C136.76%2C35.18&amp;layer=mapnik&amp;marker=35.064378%2C136.686218"></iframe>
+      <div class="mm-footer">
+        <span><span class="lang-ja">同じページ内の地図プレビュー · OpenStreetMap</span><span class="lang-tr">Aynı sayfadaki harita önizlemesi · OpenStreetMap</span></span>
+        <a id="map-modal-external" href="https://www.google.com/maps/search/?api=1&amp;query=35.064378,136.686218" target="_blank" rel="noreferrer"><span class="lang-ja">外部地図で開く ↗</span><span class="lang-tr">Haritayı dışarıda aç ↗</span></a>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const body = document.body;
+    const langButtons = document.querySelectorAll('[data-lang]');
+    langButtons.forEach((button) => button.addEventListener('click', () => {
+      const lang = button.dataset.lang;
+      body.classList.toggle('tr', lang === 'tr');
+      document.documentElement.lang = lang === 'tr' ? 'tr' : 'ja';
+      langButtons.forEach((b) => b.classList.toggle('active', b === button));
+    }));
+
+    const mapModal = document.getElementById('map-modal');
+    const mapModalClose = document.getElementById('map-modal-close');
+    const mapModalContext = document.getElementById('map-modal-context');
+    const mapModalExternal = document.getElementById('map-modal-external');
+    const mapModalTitleJa = document.querySelector('#map-modal-title .lang-ja');
+    const mapModalTitleTr = document.querySelector('#map-modal-title .lang-tr');
+    const closeMapModal = () => {
+      mapModal?.classList.add('mm-hidden');
+      mapModal?.setAttribute('aria-hidden', 'true');
+      document.body.style.overflow = '';
+    };
+    document.querySelectorAll('[data-map-popup]').forEach((link) => link.addEventListener('click', (event) => {
+      event.preventDefault();
+      const isTr = body.classList.contains('tr');
+      if (mapModalTitleJa) mapModalTitleJa.textContent = link.dataset.mapTitleJa || 'GTFS Analyzerの地図';
+      if (mapModalTitleTr) mapModalTitleTr.textContent = link.dataset.mapTitleTr || 'GTFS Analyzer haritası';
+      if (mapModalContext) mapModalContext.textContent = isTr ? (link.dataset.mapContextTr || '') : (link.dataset.mapContextJa || '');
+      if (mapModalExternal) mapModalExternal.href = link.href;
+      mapModal?.classList.remove('mm-hidden');
+      mapModal?.setAttribute('aria-hidden', 'false');
+      document.body.style.overflow = 'hidden';
+      mapModalClose?.focus();
+    }));
+    mapModalClose?.addEventListener('click', closeMapModal);
+    mapModal?.addEventListener('click', (event) => { if (event.target === mapModal) closeMapModal(); });
+    document.addEventListener('keydown', (event) => { if (event.key === 'Escape') closeMapModal(); });
+
+    const tabs = document.querySelectorAll('[data-filter]');
+    const rows = document.querySelectorAll('[data-kind]');
+    tabs.forEach((tab) => tab.addEventListener('click', () => {
+      tabs.forEach((b) => b.classList.toggle('active', b === tab));
+      const filter = tab.dataset.filter;
+      rows.forEach((row) => { row.style.display = filter === 'all' || row.dataset.kind === filter ? '' : 'none'; });
+    }));
+
+    document.querySelectorAll('[data-toast]').forEach((button) => button.addEventListener('click', () => {
+      const isTr = body.classList.contains('tr');
+      const kind = button.dataset.toast;
+      const labels = isTr
+        ? { legacy: 'Prototip: eski HTML sonucu bu alana bağlanacak.', analyzer: 'Prototip: Analyzer ayrıntı paneli burada açılacak.', html: 'Prototip: doğrulama HTML raporu indirilecek.', pdf: 'Prototip: PDF raporu indirilecek.', json: 'Prototip: JSON raporu indirilecek.' }
+        : { legacy: 'プロトタイプ：既存HTML結果の詳細をここに表示します。', analyzer: 'プロトタイプ：Analyzerの詳細パネルをここに表示します。', html: 'プロトタイプ：検証結果HTMLレポートをダウンロードします。', pdf: 'プロトタイプ：PDFレポートをダウンロードします。', json: 'プロトタイプ：JSONレポートをダウンロードします。' };
+      const note = document.createElement('div');
+      note.textContent = labels[kind] || '';
+      note.style.cssText = 'position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:10;padding:10px 14px;border-radius:8px;background:#17364d;color:#fff;font-size:12px;box-shadow:0 8px 24px rgba(0,0,0,.18)';
+      document.body.appendChild(note);
+      setTimeout(() => note.remove(), 2400);
+    }));
+  </script>
+</body>
+</html>

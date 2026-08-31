@@ -585,6 +585,9 @@ jobs:
           name: ui-dist
           path: ui/dist
 
+      - name: JapanBus sonuç sayfasını ekle
+        run: cp prototypes/japanbus-result-comparison-bilingual.html ui/dist/japanbus-result-comparison-bilingual.html
+
       # Re-run'larda upload-pages-artifact yeni bir "github-pages" artifact'ı ekler ama
       # eskisini silmez → run içinde 2 tane olur → deploy-pages@v5 "Multiple artifacts
       # named github-pages" ile patlar. Upload'tan önce mevcut olan(lar)ı temizle.

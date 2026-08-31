@@ -56,5 +56,8 @@ CLAUDE.md
 .claude/
 /docs/audits/
 
-# Local scratch prototypes (not part of the published product)
-/prototypes/
+# Local scratch prototypes. The JapanBus result page is an intentional static
+# Pages artifact; keep other prototypes local-only.
+/prototypes/*
+!/prototypes/
+!/prototypes/japanbus-result-comparison-bilingual.html
