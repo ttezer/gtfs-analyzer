@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **`gtfs-wasm` aligned to `0.11.1` and `gtfs-sdk` bumped to `0.2.2`.** The SDK now
+  reports and bundles the same `0.11.1` engine as the Rust release.
+
 - **All five publishable Rust crates are `0.11.1`.** The release carries the validator
   fixes committed after the `0.11.0` crates.io publication, including pathway distance
   resolution, translation reference validation, and corrected notice placeholders and

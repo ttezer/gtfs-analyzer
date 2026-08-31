@@ -66,8 +66,8 @@ export type {
   ZipFileInfo,
 } from './types.js';
 
-const SDK_VERSION = '0.2.1';
-const ENGINE_VERSION = '0.11.0';
+const SDK_VERSION = '0.2.2';
+const ENGINE_VERSION = '0.11.1';
 const MAX_INPUT_BYTES = 512 * 1024 * 1024;
 const MAX_CONFIG_BYTES = 4 * 1024 * 1024;
 

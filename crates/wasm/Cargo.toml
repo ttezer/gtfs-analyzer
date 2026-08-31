@@ -1,6 +1,6 @@
 [package]
 name = "gtfs-wasm"
-version = "0.11.0"
+version = "0.11.1"
 edition = "2021"
 license.workspace = true
 # cdylib bir wasm hedefidir; npm paketi olarak dağıtılıyor, crates.io'ya değil.
