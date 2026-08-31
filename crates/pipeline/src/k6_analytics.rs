@@ -12404,11 +12404,12 @@ mod tests {
         let stops = vec![
             stop("A", 41.00, 29.00), stop("B", 41.10, 29.00), stop("C", 41.10, 29.20),
         ];
-        let mut sts = Vec::new();
-        sts.push(stoptime("LOOP", 1, "A", (8, 0, 0), (8, 0, 0), 2));
-        sts.push(stoptime("LOOP", 2, "B", (8, 20, 0), (8, 20, 0), 3));
-        sts.push(stoptime("LOOP", 3, "C", (8, 40, 0), (8, 40, 0), 4));
-        sts.push(stoptime("LOOP", 4, "A", (9, 0, 0), (9, 0, 0), 5));
+        let sts = vec![
+            stoptime("LOOP", 1, "A", (8, 0, 0), (8, 0, 0), 2),
+            stoptime("LOOP", 2, "B", (8, 20, 0), (8, 20, 0), 3),
+            stoptime("LOOP", 3, "C", (8, 40, 0), (8, 40, 0), 4),
+            stoptime("LOOP", 4, "A", (9, 0, 0), (9, 0, 0), 5),
+        ];
         let records = records_with(stops, vec![route("R1", 3)], vec![trip("LOOP", "R1")], sts);
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
         assert!(!result.notices.iter().any(|n| n.rule_id == "OPR_017"),
@@ -12419,9 +12420,10 @@ mod tests {
     fn opr_017_still_flags_a_genuinely_short_trip() {
         // Kapının koruduğu şey: gerçekten kısa sefer HÂLÂ yakalanmalı. İki durak ~8 m arayla.
         let stops = vec![stop("A", 41.000_00, 29.000_00), stop("B", 41.000_05, 29.000_05)];
-        let mut sts = Vec::new();
-        sts.push(stoptime("SHORT", 1, "A", (8, 0, 0), (8, 0, 0), 2));
-        sts.push(stoptime("SHORT", 2, "B", (8, 1, 0), (8, 1, 0), 3));
+        let sts = vec![
+            stoptime("SHORT", 1, "A", (8, 0, 0), (8, 0, 0), 2),
+            stoptime("SHORT", 2, "B", (8, 1, 0), (8, 1, 0), 3),
+        ];
         let records = records_with(stops, vec![route("R1", 3)], vec![trip("SHORT", "R1")], sts);
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
         assert!(result.notices.iter().any(|n| n.rule_id == "OPR_017"),
