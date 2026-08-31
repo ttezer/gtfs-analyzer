@@ -55,3 +55,6 @@ Thumbs.db
 CLAUDE.md
 .claude/
 /docs/audits/
+
+# Local scratch prototypes (not part of the published product)
+/prototypes/
