@@ -267,6 +267,17 @@
     .btn.primary { border-color: var(--navy); color: #fff; background: var(--navy); }
     .btn:hover { filter: brightness(.98); transform: translateY(-1px); }
 
+    .related-card { margin-top: 18px; padding: 18px 20px 20px; }
+    .related-intro { margin: -4px 0 16px; color: var(--muted); font-size: 12px; }
+    .related-group + .related-group { margin-top: 18px; }
+    .related-group h3 { margin: 0 0 9px; color: var(--navy); font-size: 12px; }
+    .related-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+    .related-link { display: flex; min-width: 0; flex-direction: column; gap: 4px; padding: 12px; border: 1px solid var(--line); border-radius: 9px; color: var(--navy); background: #fff; text-decoration: none; transition: border-color .15s, transform .15s, box-shadow .15s; }
+    .related-link:hover { border-color: #9dc7d9; box-shadow: 0 5px 14px rgba(31, 73, 92, .08); transform: translateY(-1px); }
+    .related-link strong { font-size: 11px; line-height: 1.35; }
+    .related-link small { color: var(--muted); font-size: 10px; line-height: 1.45; }
+    .related-link .external { align-self: flex-end; color: var(--blue); font-size: 11px; font-weight: 800; }
+
     .footer-row { justify-content: space-between; gap: 20px; margin-top: 25px; padding-top: 15px; color: var(--subtle); border-top: 1px solid var(--line); font-size: 10px; }
     .footer-row a { color: var(--blue); text-decoration: none; }
 
@@ -282,7 +293,8 @@
     main.shell > .compare-grid { order: 8; }
     main.shell > .same-page-reports { order: 9; }
     main.shell > .download-card { order: 10; }
-    main.shell > .footer-row { order: 11; }
+    main.shell > .related-card { order: 11; }
+    main.shell > .footer-row { order: 12; }
 
     @media (max-width: 900px) {
       .feed-layout { grid-template-columns: repeat(3, 1fr); }
@@ -291,6 +303,7 @@
       .same-page-reports { grid-template-columns: 1fr; }
       .delta-grid { grid-template-columns: repeat(2, 1fr); }
       .action-plan-grid { grid-template-columns: 1fr; }
+      .related-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     }
     @media (max-width: 620px) {
       .shell { padding: 0 14px 28px; }
@@ -301,7 +314,7 @@
       .hero-note { min-width: 0; margin-top: 16px; }
       .feed-layout { grid-template-columns: repeat(2, 1fr); }
       .fact { padding-left: 10px; }
-      .feed-card, .delta-card, .detail-card, .report-card, .download-card { padding-left: 14px; padding-right: 14px; }
+      .feed-card, .delta-card, .detail-card, .report-card, .download-card, .related-card { padding-left: 14px; padding-right: 14px; }
       .summary { padding-left: 14px; padding-right: 14px; }
       .validator-body, .validator-head { padding-left: 14px; padding-right: 14px; }
       .detail-table th, .detail-table td { padding-left: 5px; padding-right: 5px; }
@@ -309,6 +322,7 @@
       .evidence-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .download-card { display: block; }
       .download-row { justify-content: flex-start; margin-top: 13px; }
+      .related-grid { grid-template-columns: 1fr; }
       .footer-row { display: block; }
       .footer-row span { display: block; margin-top: 5px; }
     }
@@ -599,6 +613,34 @@
         <button class="btn primary" data-toast="html">↓ <span>HTML</span> <span class="lang-ja">をダウンロード</span><span class="lang-tr">indir</span></button>
         <button class="btn" data-toast="pdf">↓ <span>PDF</span> <span class="lang-ja">をダウンロード</span><span class="lang-tr">indir</span></button>
         <button class="btn" data-toast="json">↓ <span>JSON</span> <span class="lang-ja">をダウンロード</span><span class="lang-tr">indir</span></button>
+      </div>
+    </section>
+
+    <section class="card related-card" id="related-links">
+      <div class="card-heading"><h2><span class="lang-ja">関連リンク</span><span class="lang-tr">İlgili bağlantılar</span></h2><small><span class="lang-ja">元のJapanBusページに掲載されたリンク</span><span class="lang-tr">JapanBus sayfasında yer alan bağlantılar</span></small></div>
+      <p class="related-intro"><span class="lang-ja">検証後に仕様、公開データ、表示確認、運営者情報へ移動できます。リンク先は元ページの掲載内容に合わせています。</span><span class="lang-tr">Doğrulama sonrası teknik şartnameye, açık veri listelerine, görüntüleme araçlarına ve işletmeci bilgilerine geçebilirsiniz. Hedefler kaynak sayfadaki bağlantılara göre eklenmiştir.</span></p>
+
+      <div class="related-group">
+        <h3><span class="lang-ja">GTFS・検証・公開データ</span><span class="lang-tr">GTFS · doğrulama · açık veri</span></h3>
+        <div class="related-grid">
+          <a class="related-link" href="https://github.com/google/transitfeed/wiki/FeedValidator" target="_blank" rel="noreferrer"><strong>FeedValidator</strong><small><span class="lang-ja">元のFeedValidator資料</span><span class="lang-tr">Mevcut FeedValidator kaynağı</span></small><span class="external">↗</span></a>
+          <a class="related-link" href="https://www.gtfs.jp/" target="_blank" rel="noreferrer"><strong>GTFS.JP</strong><small><span class="lang-ja">標準的なバス情報フォーマット</span><span class="lang-tr">Standart otobüs bilgi formatı</span></small><span class="external">↗</span></a>
+          <a class="related-link" href="https://www.rosenzu.com/net/mieru/" target="_blank" rel="noreferrer"><strong><span class="lang-ja">GTFS関連情報</span><span class="lang-tr">GTFS ile ilgili bilgiler</span></strong><small><span class="lang-ja">公共交通利用促進ネットワーク</span><span class="lang-tr">Toplu taşıma veri ağı</span></small><span class="external">↗</span></a>
+          <a class="related-link" href="https://tshimada291.sakura.ne.jp/transport/gtfs-list.html" target="_blank" rel="noreferrer"><strong><span class="lang-ja">公共交通オープンデータ一覧</span><span class="lang-tr">Toplu taşıma açık veri listesi</span></strong><small><span class="lang-ja">GTFS・GTFS-JPの公開データ</span><span class="lang-tr">GTFS ve GTFS-JP açık verileri</span></small><span class="external">↗</span></a>
+          <a class="related-link" href="https://tshimada291.sakura.ne.jp/transport/gtfs-viewer/test-vw/" target="_blank" rel="noreferrer"><strong>GTFS Test Viewer</strong><small><span class="lang-ja">GTFS・GTFS-JPの表示確認</span><span class="lang-tr">GTFS ve GTFS-JP görüntüleme testi</span></small><span class="external">↗</span></a>
+          <a class="related-link" href="https://www.busdata.or.jp/" target="_blank" rel="noreferrer"><strong><span class="lang-ja">日本バス情報協会</span><span class="lang-tr">Japonya Otobüs Bilgileri Derneği</span></strong><small><span class="lang-ja">バスデータの流通・活用</span><span class="lang-tr">Otobüs verilerinin paylaşımı ve kullanımı</span></small><span class="external">↗</span></a>
+        </div>
+      </div>
+
+      <div class="related-group">
+        <h3><span class="lang-ja">JapanBus関連サービス</span><span class="lang-tr">JapanBus ile ilgili hizmetler</span></h3>
+        <div class="related-grid">
+          <a class="related-link" href="https://japanbus.jp/GTFS-validation/" target="_blank" rel="noreferrer"><strong><span class="lang-ja">GTFSチェックツール</span><span class="lang-tr">GTFS kontrol aracı</span></strong><small><span class="lang-ja">元のFeedValidatorページ</span><span class="lang-tr">Mevcut FeedValidator sayfası</span></small><span class="external">↗</span></a>
+          <a class="related-link" href="https://buste.in/search/bus/toiawase/?url1=http%3A%2F%2Fjapanbus.jp%2FGTFS-validation%2F" target="_blank" rel="noreferrer"><strong><span class="lang-ja">お問い合わせ</span><span class="lang-tr">İletişim</span></strong><small><span class="lang-ja">運営者への問い合わせ</span><span class="lang-tr">İşletmeciye ulaşın</span></small><span class="external">↗</span></a>
+          <a class="related-link" href="https://buste.in/search/bus/" target="_blank" rel="noreferrer"><strong><span class="lang-ja">バス停検索</span><span class="lang-tr">Durak arama</span></strong><small><span class="lang-ja">バス停を地図・住所から検索</span><span class="lang-tr">Durakları harita veya adresle bulun</span></small><span class="external">↗</span></a>
+          <a class="related-link" href="https://bustime.jp/" target="_blank" rel="noreferrer"><strong><span class="lang-ja">バス時刻検索</span><span class="lang-tr">Otobüs saat arama</span></strong><small><span class="lang-ja">全国のバス停・駅の時刻表</span><span class="lang-tr">Japonya genelinde durak ve istasyon saatleri</span></small><span class="external">↗</span></a>
+          <a class="related-link" href="https://hotel.kokunai.net/Search/" target="_blank" rel="noreferrer"><strong><span class="lang-ja">全国ホテル空室検索</span><span class="lang-tr">Ülke geneli otel arama</span></strong><small><span class="lang-ja">宿泊プラン検索</span><span class="lang-tr">Konaklama planı arama</span></small><span class="external">↗</span></a>
+        </div>
       </div>
     </section>
 
