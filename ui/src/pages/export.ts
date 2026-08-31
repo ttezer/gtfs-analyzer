@@ -1,5 +1,5 @@
 import type { Notice, ValidationResult } from '../types';
-import { SEVERITY_TR, RULE_CLASS_TR, t, tMsg, getLocale, intlLocale } from '../i18n';
+import { SEVERITY_TR, RULE_CLASS_TR, t, tMsg, tRemediation, getLocale, intlLocale } from '../i18n';
 import { augmentRouteLabels } from './fix';
 import { getState } from '../state';
 import { getLastEngineMode } from '../validator-client';
@@ -314,7 +314,12 @@ export function renderExport(
   });
   root.querySelector('#btn-export-csv')!.addEventListener('click',  () => dl('﻿' + makeCsv(), 'text/csv; charset=utf-8', 'csv'));
   root.querySelector('#btn-export-json')!.addEventListener('click', () => dl(makeJson(), 'application/json', 'json'));
-  root.querySelector('#btn-export-pdf')!.addEventListener('click', () => printHtml(buildReportHtml(result, fileName, now, PRINT_EXAMPLES_PER_RULE)));
+  root.querySelector('#btn-export-pdf')!.addEventListener('click', () => printHtml(buildReportHtml(
+    result,
+    fileName,
+    now,
+    result.notices.length <= PRINT_FULL_NOTICE_LIMIT ? undefined : PRINT_EXAMPLES_PER_RULE,
+  )));
   root.querySelector('#btn-debug-json')!.addEventListener('click', () =>
     triggerDownload(new Blob([makeDebug()], { type: 'application/json' }), fileName.replace(/\.zip$/i, `-debug-${fnTs}.json`)));
   root.querySelector('#btn-golden-json')!.addEventListener('click', () => {
@@ -381,66 +386,98 @@ function buildCsv(result: ValidationResult): string {
 /// yalnızca 8'ini temsil ediyordu, çünkü 500 kritik bulgunun tamamı tek bir kuraldan
 /// (PTH_014) geliyor. Önem başına kota da 15/96'da kalıyor ve belgeyi uzatıyor.
 /// Kural bazında toplama ise 96/96 kuralı ~238 satırda veriyor — motorun STM_014/DQ_016'da
-/// zaten uyguladığı ilke. Tam liste CSV/JSON çıktılarında duruyor.
+/// zaten uyguladığı ilke. Tam liste HTML/CSV/JSON çıktılarında duruyor.
 const PRINT_EXAMPLES_PER_RULE = 3;
+const PRINT_FULL_NOTICE_LIMIT = 2000;
 
 const SEVERITY_RANK: Record<string, number> = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3, INFO: 4 };
 
-function buildReportHtml(result: ValidationResult, fileName: string, ts: string, examplesPerRule?: number): string {
+export function buildReportHtml(result: ValidationResult, fileName: string, ts: string, examplesPerRule?: number): string {
   const { r1, r5 } = result.reports;
   const publishLabel = r1.publishable
     ? t('export.html.publishable_ok')
     : t('export.html.publishable_blocked');
 
-  const cell = (n: Notice): string => `
-    <tr>
-      <td>${escHtml(n.rule_id)}</td>
-      <td>${SEVERITY_TR[n.severity]}</td>
-      <td>${RULE_CLASS_TR[n.rule_class]}</td>
-      <td>${escHtml(tMsg(n))}</td>
-      <td>${n.entity_id ? escHtml(n.entity_id) : ''}</td>
-      <td>${n.file ? escHtml(n.file) : ''}</td>
-      <td>${n.service_id ? escHtml(n.service_id) : ''}</td>
-      <td>${n.line ?? ''}</td>
-    </tr>`;
+  const value = (v: string | number | null | undefined): string =>
+    v == null || v === '' ? t('export.html.no_value') : String(v);
+  const valueHtml = (v: string | number | null | undefined): string => escHtml(value(v));
+  const ruleTitle = (n: Notice): string => {
+    const translated = t(`rule.${n.rule_id}`);
+    return translated === `rule.${n.rule_id}` ? (n.title || n.rule_id) : translated;
+  };
+  const mapHref = (n: Notice): string | null => {
+    if (n.entity_type !== 'Stop' || !n.entity_id) return null;
+    const coords = result.name_index.stop_coords[n.entity_id];
+    if (!coords) return null;
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${coords[0]},${coords[1]}`)}`;
+  };
+  const detailEntries = (n: Notice): string => {
+    const entries = Object.entries(n.details ?? {});
+    if (!entries.length) return '';
+    return `<div class="notice-details notice-wide"><h4>${t('export.html.th.details')}</h4><dl>${entries.map(([key, item]) =>
+      `<div><dt>${escHtml(key)}</dt><dd><code>${escHtml(item)}</code></dd></div>`).join('')}</dl></div>`;
+  };
+  const noticeCard = (n: Notice): string => {
+    const map = mapHref(n);
+    return `
+      <article class="notice-card">
+        <header class="notice-head">
+          <div>
+            <p class="notice-kicker">${escHtml(n.rule_id)} · ${escHtml(SEVERITY_TR[n.severity])} · ${escHtml(RULE_CLASS_TR[n.rule_class])}</p>
+            <h3>${escHtml(ruleTitle(n))}</h3>
+          </div>
+          <code class="notice-id">${escHtml(n.id)}</code>
+        </header>
+        <div class="notice-message"><strong>${t('export.html.th.message')}</strong><p>${escHtml(tMsg(n))}</p></div>
+        <div class="notice-grid">
+          <div><span>${t('export.html.th.file')}</span><code>${valueHtml(n.file)}</code></div>
+          <div><span>${t('export.html.th.row')}</span><code>${n.line != null ? String(n.line) : t('export.html.no_value')}</code></div>
+          <div><span>${t('export.html.th.entity_type')}</span><code>${valueHtml(n.entity_type)}</code></div>
+          <div><span>${t('export.html.th.entity_id')}</span><code>${valueHtml(n.entity_id)}</code></div>
+          <div><span>${t('export.html.th.field')}</span><code>${valueHtml(n.field)}</code></div>
+          <div><span>${t('export.html.th.service')}</span><code>${valueHtml(n.service_id)}</code></div>
+          <div><span>${t('export.html.th.scope')}</span><code>${valueHtml(n.scope_key)}</code></div>
+          <div><span>${t('export.html.th.blocks')}</span><code>${n.blocks.length ? escHtml(n.blocks.join(', ')) : t('export.html.no_value')}</code></div>
+          <div class="notice-wide"><span>${t('export.html.th.observed')}</span><code>${valueHtml(n.observed_value)}</code></div>
+          <div class="notice-wide"><span>${t('export.html.th.expected')}</span><code>${valueHtml(n.expected_value)}</code></div>
+          <div><span>${t('export.html.th.effort')}</span><code>${String(n.base_effort)}</code></div>
+          ${map ? `<div><a class="map-link" href="${escHtml(map)}" target="_blank" rel="noopener">${t('export.html.map_link')}</a></div>` : ''}
+        </div>
+        ${detailEntries(n)}
+        <div class="notice-remediation notice-wide"><h4>${t('export.html.th.remediation')}</h4><p>${escHtml(tRemediation(n) || t('export.html.no_value'))}</p></div>
+      </article>`;
+  };
 
-  let noticeRows: string;
-  let truncationNote = '';
-
-  if (examplesPerRule == null) {
-    noticeRows = result.notices.map(cell).join(''); // indirilen HTML: her bulgu
-  } else {
-    const byRule = new Map<string, Notice[]>();
-    for (const n of result.notices) {
-      const list = byRule.get(n.rule_id);
-      if (list) list.push(n); else byRule.set(n.rule_id, [n]);
-    }
-    // Kural sırası: önce önem, sonra kural kimliği → deterministik ve okunur.
-    const groups = [...byRule.entries()].sort((a, b) =>
-      (SEVERITY_RANK[a[1][0]!.severity] ?? 9) - (SEVERITY_RANK[b[1][0]!.severity] ?? 9)
-      || a[0].localeCompare(b[0]));
-
-    noticeRows = groups.map(([ruleId, list]) => {
-      const head = list[0]!;
-      // Gerçek toplam cap'ten önceki sayıdır; gösterilen liste kural başına cap'li olabilir.
-      const total = result.capped_totals?.[ruleId] ?? list.length;
-      const examples = list.slice(0, examplesPerRule);
-      const label = t('export.html.rule_group', {
-        rule: ruleId,
-        severity: SEVERITY_TR[head.severity],
-        cls: RULE_CLASS_TR[head.rule_class],
-        count: fmtInt(total),
-      });
-      const more = total > examples.length
-        ? ` <span style="color:#64748b;font-weight:400">· ${escHtml(t('export.html.rule_examples', { shown: fmtInt(examples.length) }))}</span>`
-        : '';
-      return `
-    <tr><td colspan="8" style="background:#f1f5f9;font-weight:600">${escHtml(label)}${more}</td></tr>`
-        + examples.map(cell).join('');
-    }).join('');
-
-    truncationNote = `<p style="margin:.4rem 0 .8rem;padding:.5rem .7rem;border-radius:.3rem;background:#fff8df;color:#8b5a00;font-size:.82rem">${escHtml(t('export.html.print_grouped', { examples: String(examplesPerRule), rules: fmtInt(groups.length), total: fmtInt(result.notices.length) }))}</p>`;
+  const byRule = new Map<string, Notice[]>();
+  for (const n of result.notices) {
+    const list = byRule.get(n.rule_id);
+    if (list) list.push(n); else byRule.set(n.rule_id, [n]);
   }
+  // Kural sırası: önce önem, sonra kural kimliği → deterministik ve okunur.
+  const groups = [...byRule.entries()].sort((a, b) =>
+    (SEVERITY_RANK[a[1][0]!.severity] ?? 9) - (SEVERITY_RANK[b[1][0]!.severity] ?? 9)
+    || a[0].localeCompare(b[0]));
+
+  const noticeSections = groups.map(([ruleId, list]) => {
+    const head = list[0]!;
+    // Gerçek toplam cap'ten önceki sayıdır; gösterilen liste kural başına cap'li olabilir.
+    const total = result.capped_totals?.[ruleId] ?? list.length;
+    const examples = examplesPerRule == null ? list : list.slice(0, examplesPerRule);
+    const shown = total > examples.length
+      ? `<span class="rule-more">${escHtml(t('export.html.rule_examples', { shown: fmtInt(examples.length) }))}</span>`
+      : '';
+    return `
+      <section class="rule-section">
+        <header class="rule-head"><div><p class="notice-kicker">${escHtml(ruleId)}</p><h2>${escHtml(ruleTitle(head))}</h2><p>${escHtml(SEVERITY_TR[head.severity])} · ${escHtml(RULE_CLASS_TR[head.rule_class])}</p></div><strong>${fmtInt(total)}<small>${t('export.html.th.findings')}</small></strong></header>
+        <div class="rule-action"><strong>${t('export.html.th.remediation')}</strong><p>${escHtml(tRemediation(head) || t('export.html.no_value'))}</p></div>
+        ${shown ? `<p class="rule-truncation">${shown}</p>` : ''}
+        ${examples.map(noticeCard).join('')}
+      </section>`;
+  }).join('');
+
+  const truncationNote = examplesPerRule != null
+    ? `<p class="report-note">${escHtml(t('export.html.print_grouped', { examples: String(examplesPerRule), rules: fmtInt(groups.length), total: fmtInt(result.notices.length) }))}</p>`
+    : '';
 
   const breakdown = t('export.html.breakdown', {
     spec    : r5.spec_score.toFixed(1),
@@ -450,29 +487,62 @@ function buildReportHtml(result: ValidationResult, fileName: string, ts: string,
   });
 
   return `<!DOCTYPE html>
-<html lang="tr">
+<html lang="${getLocale()}">
 <head>
   <meta charset="UTF-8"/>
   <title>${t('export.html.doc_title')} - ${escHtml(fileName)}</title>
   <style>
-    body { font-family: system-ui, sans-serif; max-width: 1100px; margin: 0 auto; padding: 2rem; color: #1e293b; }
-    h1 { font-size: 1.4rem; margin-bottom: .5rem; }
-    .summary { display: flex; gap: 2rem; flex-wrap: wrap; margin: 1rem 0 1.5rem; }
+    body { font-family: system-ui, sans-serif; max-width: 1180px; margin: 0 auto; padding: 2rem; color: #1e293b; background: #f8fafc; }
+    h1 { font-size: 1.5rem; margin-bottom: .5rem; }
+    h2 { font-size: 1.1rem; margin: 0; }
+    h3, h4, p { margin-top: 0; }
+    .summary { display: flex; gap: 2rem; flex-wrap: wrap; margin: 1rem 0 1.5rem; padding: 1rem; border: 1px solid #e2e8f0; border-radius: .6rem; background: #fff; }
     .kpi { display: flex; flex-direction: column; }
     .kpi-value { font-size: 1.8rem; font-weight: 700; }
     .kpi-label { font-size: .8rem; color: #64748b; }
     .score-breakdown { margin-top: .3rem; font-size: .8rem; color: #64748b; }
-    h2 { font-size: 1rem; margin: 1.5rem 0 .5rem; }
-    table { border-collapse: collapse; width: 100%; font-size: 0.82rem; }
-    th, td { border: 1px solid #e2e8f0; padding: 0.35rem 0.6rem; text-align: left; vertical-align: top; }
-    th { background: #f8fafc; font-weight: 600; }
-    @media print { body { padding: 1rem; } }
+    .report-note { margin: 1rem 0; padding: .75rem 1rem; border: 1px solid #bfdbfe; border-radius: .5rem; background: #eff6ff; color: #1e3a8a; font-size: .85rem; }
+    .rule-section { margin: 1.25rem 0; padding: 1rem; border: 1px solid #dbe4ec; border-radius: .7rem; background: #fff; }
+    .rule-head { display: flex; justify-content: space-between; gap: 1rem; align-items: flex-start; padding-bottom: .75rem; border-bottom: 1px solid #e2e8f0; }
+    .rule-head h2 { margin: .15rem 0 .25rem; }
+    .rule-head p { margin: 0; color: #64748b; font-size: .82rem; }
+    .rule-head > strong { color: #0f4c64; font-size: 1.5rem; text-align: right; white-space: nowrap; }
+    .rule-head > strong small { display: block; color: #64748b; font-size: .72rem; font-weight: 500; }
+    .rule-action { margin: .8rem 0; padding: .65rem .8rem; border-left: 4px solid #0f766e; border-radius: .25rem; background: #f0fdfa; font-size: .85rem; }
+    .rule-action strong { color: #115e59; }
+    .rule-action p { margin: .25rem 0 0; }
+    .rule-truncation { margin: .5rem 0; color: #92400e; font-size: .78rem; }
+    .rule-more { color: #92400e; }
+    .notice-card { margin: .8rem 0; padding: .85rem; border: 1px solid #e2e8f0; border-left: 4px solid #64748b; border-radius: .5rem; background: #fff; break-inside: avoid; }
+    .notice-head { display: flex; justify-content: space-between; gap: 1rem; align-items: flex-start; }
+    .notice-kicker { margin: 0 0 .2rem; color: #64748b; font-size: .72rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+    .notice-head h3 { margin: 0; font-size: 1rem; }
+    .notice-id { color: #64748b; font-size: .68rem; word-break: break-all; }
+    .notice-message { margin: .7rem 0; padding: .6rem .75rem; border-radius: .35rem; background: #f8fafc; font-size: .85rem; }
+    .notice-message p { margin: .2rem 0 0; white-space: pre-wrap; }
+    .notice-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .45rem .7rem; }
+    .notice-grid > div { min-width: 0; padding: .45rem .55rem; border: 1px solid #edf2f7; border-radius: .3rem; background: #fbfdff; }
+    .notice-grid span, .notice-details h4, .notice-remediation h4 { display: block; margin-bottom: .18rem; color: #64748b; font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; }
+    .notice-grid code, .notice-details code { display: block; overflow-wrap: anywhere; white-space: pre-wrap; font-size: .78rem; }
+    .notice-wide { grid-column: 1 / -1; }
+    .notice-details { margin-top: .55rem; padding: .6rem .75rem; border-radius: .35rem; background: #f8fafc; }
+    .notice-details dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .35rem .8rem; margin: 0; }
+    .notice-details dl > div { min-width: 0; }
+    .notice-details dt { color: #64748b; font-size: .72rem; }
+    .notice-details dd { margin: 0; }
+    .notice-remediation { margin-top: .55rem; padding: .65rem .75rem; border-radius: .35rem; background: #f0fdf4; color: #14532d; }
+    .notice-remediation p { margin: 0; white-space: pre-wrap; font-size: .84rem; }
+    .map-link { color: #0369a1; font-weight: 700; text-decoration: none; }
+    .map-link:hover { text-decoration: underline; }
+    @media print { body { max-width: none; padding: 1rem; background: #fff; } .rule-section { margin: .7rem 0; } }
+    @media screen and (max-width: 720px) { .notice-grid, .notice-details dl { grid-template-columns: 1fr; } .notice-wide { grid-column: auto; } }
   </style>
 </head>
 <body>
   <h1>${t('export.html.h1')}</h1>
   <p style="color:#64748b;font-size:.9rem">${t('export.html.source')} ${escHtml(fileName)}</p>
   <p style="color:#64748b;font-size:.82rem">${t('export.summary.datetime')}: ${escHtml(ts)}</p>
+  <div class="report-note">${t('export.html.detail_intro')}${result.metrics.is_gtfs_jp && result.metrics.gtfs_jp_profile ? ` · ${t('export.html.gtfs_jp_profile')}: ${escHtml(result.metrics.gtfs_jp_profile)}` : ''}</div>
 
   <div class="summary">
     <div class="kpi">
@@ -496,19 +566,7 @@ function buildReportHtml(result: ValidationResult, fileName: string, ts: string,
 
   <h2>${t('export.html.h2_findings')}</h2>
   ${truncationNote}
-  <table>
-    <thead><tr>
-      <th>${t('export.html.th.rule')}</th>
-      <th>${t('export.html.th.severity')}</th>
-      <th>${t('export.html.th.class')}</th>
-      <th>${t('export.html.th.message')}</th>
-      <th>${t('export.html.th.entity_id')}</th>
-      <th>${t('export.html.th.file')}</th>
-      <th>${t('export.html.th.service')}</th>
-      <th>${t('export.html.th.row')}</th>
-    </tr></thead>
-    <tbody>${noticeRows}</tbody>
-  </table>
+  <div class="finding-list">${noticeSections || `<p class="report-note">${t('export.html.no_findings')}</p>`}</div>
 
   <footer style="margin-top:2rem;padding-top:1rem;border-top:1px solid #e2e8f0;text-align:center;font-size:.78rem;color:#64748b">
     <a href="https://github.com/ttezer/gtfs-analyzer" style="color:#64748b">github.com/ttezer/gtfs-analyzer</a> · MIT License
