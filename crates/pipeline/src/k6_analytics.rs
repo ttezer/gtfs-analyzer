@@ -435,6 +435,54 @@ fn hms_to_secs(t: (u32, u32, u32)) -> u32 {
 
 /// Durak (slat, slon) noktasının polyline üzerindeki projeksiyon arc-length'ini döndürür (km).
 /// `pts` sıralı shape noktaları; `cum` her noktanın baştan birikimli mesafesi (cum[0]=0).
+/// SHP_016 için projeksiyon ayrıntısı: en yakın noktanın (yay, mesafe) çifti ve AYRICA
+/// shape'in İLK %10'undaki en yakın adayın mesafesi.
+///
+/// Neden ayrı: `project_arc_km` yalnız yayı döndürür ve "en yakın nokta" tek başına yön
+/// kanıtı DEĞİLDİR. Kendi üzerinden geçen bir shape'te ilk durak İKİ yere birden düşer;
+/// hangisinin seçildiği metrelerle belirlenir. DART (Des Moines) feed'inde ölçüldü —
+/// shape 58782, trip 751448: ilk durak segment 54'e 6,8 m, shape'in BAŞINA 10,0 m
+/// uzaklıkta. Aradaki 3,1 m yüzünden kural "shape ters çizilmiş" diyordu, oysa uçtan uca
+/// bakıldığında ilk durak shape başına 10 m, son durak shape sonuna 9 m — güzergah DOĞRU.
+/// Dönen üçlü, çağıranın bu belirsizliği görüp susmasını sağlar.
+fn project_arc_detail(
+    pts: &[(f64, f64)],
+    cum: &[f64],
+    slat: f64,
+    slon: f64,
+) -> (f64, f64, Option<f64>) {
+    let cos_lat = (slat.to_radians()).cos().max(0.001_f64);
+    let scale   = 111.0_f64 * cos_lat;
+    let head_limit = cum.last().copied().unwrap_or(0.0) * 0.10;
+    let mut best_arc = 0.0_f64;
+    let mut best_dsq = f64::INFINITY;
+    let mut head_dsq = f64::INFINITY;
+    for w in 0..pts.len() - 1 {
+        let (alat, alon) = pts[w];
+        let (blat, blon) = pts[w + 1];
+        let ax = (alon - slon) * scale;
+        let ay = (alat - slat) * 111.0_f64;
+        let dx = (blon - slon) * scale - ax;
+        let dy = (blat - slat) * 111.0_f64 - ay;
+        let len_sq = dx * dx + dy * dy;
+        let t = if len_sq < 1e-12 { 0.0_f64 } else {
+            ((-ax * dx) + (-ay * dy)) / len_sq
+        }.clamp(0.0_f64, 1.0_f64);
+        let nx = ax + t * dx;
+        let ny = ay + t * dy;
+        let dsq = nx * nx + ny * ny;
+        let arc = cum[w] + t * (cum[w + 1] - cum[w]);
+        if dsq < best_dsq {
+            best_dsq = dsq;
+            best_arc = arc;
+        }
+        if arc < head_limit && dsq < head_dsq {
+            head_dsq = dsq;
+        }
+    }
+    (best_arc, best_dsq.sqrt(), head_dsq.is_finite().then(|| head_dsq.sqrt()))
+}
+
 fn project_arc_km(pts: &[(f64, f64)], cum: &[f64], slat: f64, slon: f64) -> f64 {
     let cos_lat = (slat.to_radians()).cos().max(0.001_f64);
     let scale   = 111.0_f64 * cos_lat;
@@ -6188,6 +6236,12 @@ fn check_remaining_analytics<'a>(
         let _t16 = Timer::start("K6::rem::shp_016");
         // shape_id → (min_first_arc, total_km, route, trip_id, first_stop)
         let mut agg: FxHashMap<&str, (f64, f64, String, String, String)> = FxHashMap::default();
+        // 🔴 Projeksiyonu okunamayan trip'i sadece ATLAMAK YETMEZ, TERS ETKİ YAPAR: `agg`
+        // shape başına MİNİMUM yayı tutar ve düşük minimum "bir varyant baştan başlıyor"
+        // demektir, yani kuralı SUSTURAN kanıttır. Belirsiz trip'i elemek o kanıtı da
+        // eler ve shape daha KOLAY ateşler — ölçüldü, `mdb-1138` 46 → 168 çıktı.
+        // Doğrusu: şüpheli trip'in shape'i HAKKINDA KARAR VERİLMEZ.
+        let mut unreliable: FxHashSet<&str> = FxHashSet::default();
         for (trip_id, stimes) in &idx.by_trip {
             let Some(&shape_id) = trip_shape_local.get(trip_id) else { continue };
             let Some(pts) = shape_coords.get(shape_id) else { continue };
@@ -6208,7 +6262,24 @@ fn check_remaining_analytics<'a>(
             // by_trip dilimleri stop_sequence sıralı → ilk eleman = ilk durak
             let Some(first_st) = stimes.first() else { continue };
             let Some(&(slat, slon)) = stop_coords.get(idx.stop_id_of(first_st)) else { continue };
-            let first_arc = project_arc_km(pts, cum, slat, slon);
+            let (first_arc, first_dist, head_dist) = project_arc_detail(pts, cum, slat, slon);
+            // 🔴 İKİ KORUMA — ikisi de "ölçemediğin şey hakkında iddia kurma" ilkesinden.
+            // 14. korpus koşumunun verisiyle 29 feed / 1.009 bulgu üzerinde eşiklendi.
+            //
+            // (B) Projeksiyon durağa ÇOK UZAKSA yön kanıtı değildir. `tdg-83210`'da seçilen
+            // projeksiyonun durağa uzaklığı 2.561 KM — orada durak koordinatı bozuk ve asıl
+            // kusuru `GEO_016`/`SHP_014` raporluyor; SHP_016'nın konuşması türev gürültüydü.
+            // Örneklemde 184 bulgu (%18,2) bu daldan geliyordu.
+            if first_dist > 0.5 { unreliable.insert(shape_id); continue; }
+            // (A) Shape KENDİ ÜZERİNDEN GEÇİYORSA ilk durak iki yere birden düşer ve hangisinin
+            // seçildiği metrelerle belirlenir → yön okunamaz. DART shape 58782: seçilen 6,8 m,
+            // shape başındaki aday 10,0 m (fark 3,1 m); `mdb-1138`/`mdb-1154`'te fark 0,0 m.
+            // Eşik ölçümden: korumadan sonra kalan GERÇEK ters vakaların en küçük farkı 61 m,
+            // ortancası 5.744 m — 50 m sınırı gerçekleri kesmeden belirsizi eliyor.
+            if head_dist.is_some_and(|hd| hd - first_dist < 0.05) {
+                unreliable.insert(shape_id);
+                continue;
+            }
             let route = trip_to_route_rem.get(trip_id).copied().unwrap_or(trip_id);
             let entry = agg.entry(shape_id).or_insert_with(|| {
                 (f64::INFINITY, total, String::new(), String::new(), String::new())
@@ -6223,6 +6294,7 @@ fn check_remaining_analytics<'a>(
         let mut shape_ids: Vec<&str> = agg.keys().copied().collect();
         shape_ids.sort_unstable();
         for shape_id in shape_ids {
+            if unreliable.contains(shape_id) { continue; }
             let (min_arc, total, route, trip_id, first_stop) = &agg[shape_id];
             if !min_arc.is_finite() || *min_arc <= *total * 0.5 { continue; }
             reversed_shapes.insert(shape_id);
@@ -12858,6 +12930,83 @@ mod tests {
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
         assert!(result.notices.iter().any(|n| n.rule_id == "SHP_016"), "tamamen ters shape → SHP_016 olmalı");
         assert!(!result.notices.iter().any(|n| n.rule_id == "SHP_017"), "tamamen ters shape → SHP_017 olmamalı (SHP_016 öncelikli)");
+    }
+
+    #[test]
+    fn shp_016_stays_silent_when_the_shape_crosses_itself() {
+        let mut shape_ti = ShapeInternTable::new();
+        use crate::k2::shapes::ShapePointRecord;
+        // DART (Des Moines) feed'inde bulundu: route 97 / trip 751448 / shape 58782.
+        // Shape KENDI UZERINDEN gecince ilk durak IKI yere birden dusuyor; hangisinin
+        // secildigi metrelerle belirleniyor. Orada secilen projeksiyon 6,8 m, shape'in
+        // BASINDAKI aday 10,0 m — 3,1 m fark yuzunden kural "ters cizilmis" diyordu.
+        // Oysa uctan uca: ilk durak shape basina 10 m, son durak shape sonuna 9 m,
+        // duraklar shape boyunca 0 → 19 → 24 → 93 sirasiyla ilerliyor. Shape DOGRU.
+        //
+        // Kurgu DART'in kosulunu birebir kurar ve OLCULDU: shape kuzeye 22 km gidip
+        // 17 m yandaki paralel koridordan geri doner, sonra doguya sapar. Ilk durak iki
+        // koridorun ARASINDA: donuse 4,2 m, gidise 12,6 m. Yani EN YAKIN projeksiyon
+        // ikinci gecistedir (arc = toplam yolun %91'i) ve koruma olmadan kural "ters" der.
+        // Fark 8,4 m < 50 m → belirsizlik korumasi devreye girer. Uzaklik korumasi (B)
+        // BURADA TETIKLENMEZ (4,2 m < 500 m), yani test yalnizca A'yi olcer.
+        //
+        // ⚠️ Durak shape noktasinin TAM ustune ya da koridorun uzerine konursa projeksiyon
+        // mesafesi 0 cikar, kural zaten susar ve test HICBIR SEY olcmez — ilk iki kurgu
+        // bu yuzden gecersizdi ve korumayi bozdugumda yine yesil yaniyordu.
+        let mut records = records_with(
+            vec![stop("A", 41.0001, 29.00015), stop("C", 41.000, 29.0500)],
+            vec![route("R1", 3)],
+            vec![trip_sh("T1", "R1", "S1")],
+            vec![
+                stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
+                stoptime("T1", 2, "C", (8, 30, 0), (8, 30, 0), 3),
+            ],
+        );
+        records.shapes = vec![
+            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.000), Some(29.0000), Some(1), None, 2),
+            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.200), Some(29.0000), Some(2), None, 3),
+            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.200), Some(29.0002), Some(3), None, 4),
+            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.000), Some(29.0002), Some(4), None, 5),
+            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.000), Some(29.0500), Some(5), None, 6),
+        ];
+        records.shape_interns = shape_ti.clone();
+        let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
+        assert!(
+            !result.notices.iter().any(|n| n.rule_id == "SHP_016"),
+            "kendi uzerinden gecen shape'te yon OKUNAMAZ; SHP_016 iddia kurmamali",
+        );
+    }
+
+    #[test]
+    fn shp_016_stays_silent_when_the_stop_is_nowhere_near_the_shape() {
+        let mut shape_ti = ShapeInternTable::new();
+        use crate::k2::shapes::ShapePointRecord;
+        // `tdg-83210`: secilen projeksiyonun duraga uzakligi 2.561 KM. Orada durak
+        // koordinati bozuk ve asil kusuru GEO_016/SHP_014 raporluyor; SHP_016'nin
+        // konusmasi turev gurultuydu — tek basina 100 bulgu uretiyordu.
+        // Kurgu B'yi IZOLE eder: durak shape'in SON ucunun otesinde (arc = total, yani
+        // "ikinci yari" sarti saglanir) ama duraga 4 km uzakta — ve shape'in BASINA 12 km,
+        // yani fark 8 km olduğu icin belirsizlik korumasi (A) devreye GIRMEZ. Boylece test
+        // yalnizca uzaklik korumasini olcer.
+        let mut records = records_with(
+            vec![stop("FAR", 41.000, 29.150), stop("B", 41.000, 29.100)],
+            vec![route("R1", 3)],
+            vec![trip_sh("T1", "R1", "S1")],
+            vec![
+                stoptime("T1", 1, "FAR", (8, 0, 0), (8, 0, 0), 2),
+                stoptime("T1", 2, "B", (8, 30, 0), (8, 30, 0), 3),
+            ],
+        );
+        records.shapes = vec![
+            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.000), Some(29.000), Some(1), None, 2),
+            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.000), Some(29.100), Some(2), None, 3),
+        ];
+        records.shape_interns = shape_ti.clone();
+        let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
+        assert!(
+            !result.notices.iter().any(|n| n.rule_id == "SHP_016"),
+            "durak shape'ten cok uzakken projeksiyon yon kaniti degildir",
+        );
     }
 
     #[test]
