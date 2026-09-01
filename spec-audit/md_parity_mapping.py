@@ -295,6 +295,12 @@ CONTEXT_MAPPINGS: tuple[ContextMapping, ...] = (
     _ctx("invalid_integer", "FAR_005", filename=("fare_attributes.txt",), fields=("transfers",), label="fare_attributes.txt::transfers"),
     _ctx("invalid_integer", "FAR_004", filename=("fare_attributes.txt",), fields=("payment_method",), label="fare_attributes.txt::payment_method"),
     _ctx("invalid_integer", "RTS_004", filename=("routes.txt",), fields=("route_type",), label="routes.txt::route_type"),
+    # 2026-09-01 (14. korpus koşumu): `md_mapped_under`'ın en büyük kalemi buradan doğuyordu.
+    # `mdb-2727` `exception_type` sütununa sayı yerine "Added" yazıyor. MD `invalid_integer`
+    # = 103.211 diyor; eşlemede yalnız `routes.txt::route_type` (RTS_004 = 1.590) vardı, geri
+    # kalan 101.621 hiçbir kurala bağlanamıyor ve sahte UNDER olarak raporlanıyordu. Bizde o
+    # 101.621 `CLD_003` olarak ZATEN raporlanıyor: 1.590 + 101.621 = 103.211, BİREBİR.
+    _ctx("invalid_integer", "CLD_003", filename=("calendar_dates.txt",), fields=("exception_type",), label="calendar_dates.txt::exception_type"),
     _ctx("invalid_integer", "STM_022", filename=("stop_times.txt",), fields=("timepoint",), label="stop_times.txt::timepoint"),
     _ctx("number_out_of_range", "STM_030", filename=("stop_times.txt",), fields=("shape_dist_traveled",), label="stop_times.txt::shape_dist_traveled negatif"),
     _ctx("missing_required_field", "CAL_025", filename=("calendar.txt",), fields=("monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"), label="calendar.txt::gün alanı boş"),

@@ -256,6 +256,31 @@ AGG_RULES = {
                 # satırlıktır). Kanıt sayının kendisidir: 1.491 ortak feed -> 1.491 bulgu,
                 # 288 -> 288, 264 -> 264. MD eksik ALAN başına sayar (55x / 12x / 7x).
                 # SHP_024 ile aynı atlama; kural agregat davranıyordu, liste bilmiyordu.
+    # 2026-09-01 (14. korpus koşumu): `md_mapped_under` sınıfının 68 kaleminin bir kısmı
+    # ürün körlüğü değil ARAÇ KUSURUYDU. Aşağıdaki sekiz kuralın hepsi registry'de zaten
+    # Feed veya File düzeyinde dedup ediliyor — yani tasarım gereği agregat — ama liste
+    # bunu bilmediği için her koşumda sahte UNDER üretiyorlardı. Bu, STM_014 · DQ_016 ·
+    # SHP_024'ten sonra aynı atlamanın DÖRDÜNCÜ tekrarı.
+    "SHP_002", "SHP_003",  # [Entity=shape] shape_pt_lat/lon geçersiz — SHAPE başına tek notice.
+                # MD NOKTA başına sayar. tfs-70 (ondalık ayırıcı virgül) ile ölçüldü: shapes.txt
+                # 36.491 nokta ama 397 shape → MD 72.982 (lat+lon), biz 794. Aynı feed'in
+                # stops tarafı BİREBİR eşleşiyor (STP_004 7.836 + STP_005 7.843 ↔ MD'nin kalanı),
+                # yani fark granülerlikte, kapsamda değil. Nokta başına emit 36.491 notice
+                # demek olurdu — STM_050/DQ_016 patlamalarının aynısı.
+    "ARC_021",  # [File] yazdırılamaz/sorunlu karakter — DOSYA başına tek özet. MD alan-değeri
+                # başına sayar: mdb-1926'da MD 777 ↔ biz 1, üstelik AYNI satırı (45556) ve aynı
+                # karakteri (U+FFFD) gösteriyoruz. Tespit birebir, granülerlik farklı.
+    "ARC_030",  # [File] sekme/satır sonu içeren değer — dosya başına tek (mdb-501: MD 29 ↔ 2).
+    "FAR_013",  # [File] price ISO 4217 ondalık basamak — dosya başına tek (mdb-114: MD 31 ↔ 1).
+    "FPD_007",  # [File] amount ISO 4217 ondalık basamak — FAR_013'ün fare_products karşılığı,
+                # aynı feed'lerde aynı oran (mdb-114: MD 31 ↔ 1).
+    "LOC_011",  # [File] geçersiz poligon (ring kendini kesiyor / delik dışarıda) — dosya başına
+                # tek (mdb-2164: MD 9 ↔ 1).
+    "AGN_011",  # [Feed] birden fazla kuruluşta agency_id yok — FEED başına tek; MD eksik alan
+                # taşıyan her agency satırını sayar (mdb-1134: MD 15 ↔ 1).
+    "AGN_013",  # [Feed] feed dili ↔ ajans dili uyuşmazlığı — feed başına tek (mdb-2826: 25 ↔ 2).
+    "AGN_017",  # [Feed] agency'ler arası agency_lang tutarsızlığı — AGN_013 ile aynı feed'lerde
+                # aynı oran; ikisi de feed düzeyi hüküm (mdb-2832: 21 ↔ 2).
     "SHP_024",  # 2026-08-20: (stop_id, shape_id) ÇİFTİ başına tek notice (`seen_shp024`).
                 # MD (sefer, durak) başına sayar → aynı shape N seferde kullanılırsa MD N
                 # katı verir; ortak 581 feed'de biz 122.401, onlar 486.637 (3,98x). Kural
