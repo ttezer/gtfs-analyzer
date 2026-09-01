@@ -7,6 +7,85 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-09-01
+
+A validator-behaviour release, driven by two full-catalog audit runs over the
+4,332 GTFS Schedule feeds in the MobilityDatabase catalog. Notice volume across
+the corpus drops from 39.26M to 37.28M against an identical set of archives, and
+no rule went silent.
+
+### Added
+
+- **`ARC_035` — required file is empty** (Critical/Spec, rule count 611 → 612).
+  "Is the required file present?" tested existence, not content, so a 0-byte
+  `stop_times.txt` counted as present. Only `ARC_009` saw the emptiness and it is
+  Quality, so the publication gate (`Spec ∧ Critical`) never fired: deleting a file
+  was penalised while emptying it was not. The rule carries `ARC_004`'s Flex
+  exemption for `stops.txt`. It fires on 34 feeds in the corpus and lowers the
+  publication score on all of them, eight going 100.0 → 92.6.
+
+### Fixed
+
+- **Wrapped feeds never streamed `stop_times.txt`.** K1 strips an archive's root
+  prefix and processes the entry under its bare name, while K2 re-opens the ZIP to
+  stream large files and looked it up by that stripped name — which matches nothing
+  in a wrapped archive, so the file was silently counted as empty. All 44 feeds that
+  emit `ARC_024` had zero `STM_*` findings, and every stop looked unserved:
+  `mdb-3459` reported 678 `STP_020` findings that were pure false positives.
+  `RawFile` now carries the real ZIP entry name. Corpus effect: `STM_*` 15,105,004 →
+  15,166,425, `STP_020` −31,532, `RTS_012` −3,610.
+
+- **`TRP_015` contradicted the specification and has been redefined.** It asserted
+  that a block must contain at least two trips; the GTFS Schedule Reference says
+  "a block consists of **a single trip** or many sequential trips … defined by shared
+  service days and block_id". The rule fired once per trip and produced 1,549,904
+  notices across 675 feeds — 3.9% of the corpus — with no MobilityData counterpart.
+  Block identity is now the spec's `(block_id, service_id)` pair, a single-trip block
+  is silent, and one feed-level notice is emitted only when no block groups any trips
+  at all. Corpus effect: 1,549,904 → **109**.
+
+- **`OPR_017` claimed a distance it could not measure.** Zero does not mean "measured
+  and zero"; it means unmeasurable, and this rule makes a distance claim. Each of the
+  three observed causes is already reported by another rule — the trip stopping twice
+  at the same dock (`STM_035`), stops at Null Island (`GEO_016`), single-stop trips
+  (`STM_033`). Measured on a same-archive sample of 73 feeds: 25,921 → 20,359, with 35
+  feeds going fully silent and genuinely short trips untouched.
+
+- **`STP_031` compared stop name and description with ASCII-only case folding.**
+  The two sides are user text, so the rule was blind in every alphabet with
+  diacritics. On `mdb-1000` normalising case gives 6 matches and MobilityData reports
+  6, while we reported 4 — the two missed carried `ł`/`Ł` and `ń`/`Ń`. Turkish is
+  covered for the symmetric pairs; dotless i stays out of scope because Unicode's
+  locale-independent casing is asymmetric there.
+
+- **`ARC_023` only saw nested ZIPs in the archive root.** Five feeds carry their
+  whole GTFS inside a subdirectory ZIP and reported nothing but "required file
+  missing". Firing feeds 7 → 12.
+
+- **`ARC_007` now reports GTFS-named files with a wrong extension in subdirectories**
+  (`agency.csv`), while staying silent on a repository ZIP's `LICENSE`/`README.md`.
+
+- **Header-only files on the stream path were invisible.** Of the four files K1 reads
+  only headers for, `shapes.txt`'s K2 branch required `raw_text` — always `None` for
+  exactly those files, so the branch was dead code — and `trips.txt` had no check at
+  all. Their 0-byte form was already caught, so the gap was precisely "header
+  present, no data rows".
+
+### Changed
+
+- **`ARC_009` now reports optional files only**, at a fixed Info severity. Its
+  critical arm moved to `ARC_035`; severity could be varied per file but class could
+  not, which is why a Critical-but-Quality finding never reached the publication gate.
+
+### Internal
+
+- The MobilityData parity tooling stopped reporting aggregated rules as under-counts.
+  `AGG_RULES` 32 → 42 entries, each with the measurement behind it, plus a
+  `calendar_dates.txt::exception_type` context and a `missing_trip_edge` by-design
+  verdict. No validator behaviour changes there.
+
+## [0.11.1] - 2026-08-30
+
 ### Changed
 
 - **`gtfs-wasm` aligned to `0.11.1` and `gtfs-sdk` bumped to `0.2.2`.** The SDK now
@@ -1760,7 +1839,9 @@ filters (R2).
   audit (`cargo audit` blocking; `npm audit` reported, non-blocking).
 - GitHub Pages deploy builds from source to guarantee the live site matches `HEAD`.
 
-[Unreleased]: https://github.com/ttezer/gtfs-analyzer/compare/v0.11.0...HEAD
+[Unreleased]: https://github.com/ttezer/gtfs-analyzer/compare/v0.12.0...HEAD
+[0.12.0]: https://github.com/ttezer/gtfs-analyzer/compare/v0.11.1...v0.12.0
+[0.11.1]: https://github.com/ttezer/gtfs-analyzer/compare/v0.11.0...v0.11.1
 [0.8.0]: https://github.com/ttezer/gtfs-analyzer/compare/v0.7.0...v0.8.0
 [0.1.3]: https://github.com/ttezer/gtfs-analyzer/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/ttezer/gtfs-analyzer/releases/tag/v0.1.2

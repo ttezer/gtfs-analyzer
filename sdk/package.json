@@ -1,6 +1,6 @@
 {
   "name": "gtfs-sdk",
-  "version": "0.2.2",
+  "version": "0.3.0",
   "description": "GTFS Analyzer validation engine for Browser and Node.js.",
   "license": "MIT",
   "keywords": [

@@ -1,6 +1,6 @@
 [package]
 name = "gtfs-core"
-version = "0.11.1"
+version = "0.12.0"
 edition = "2021"
 license.workspace = true
 description = "Core types for the GTFS Analyzer validator. Internal API, no stability guarantee."
