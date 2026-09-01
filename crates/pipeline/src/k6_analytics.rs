@@ -6940,7 +6940,21 @@ fn check_remaining_analytics<'a>(
                 seen_any.then_some(total)
             };
             if let Some(d) = dist_km {
-                if d < MIN_TRIP_KM {
+                // 🔴 SIFIR "ölçüldü ve sıfır" DEĞİL, "ÖLÇÜLEMEDİ" demektir — ve kural bir
+                // MESAFE iddiasıdır, ölçemediği şey hakkında iddia kuramaz. 14. korpus
+                // koşumunda (2026-09-01) kalan 91.417 bulgunun örneklerinde en yaygın değer
+                // "0m"di (124 feed'in 47'si). Üç vaka sınıfı ölçüldü ve ÜÇÜNÜN DE gerçek
+                // kök nedeni BAŞKA bir kuralda zaten raporlanıyor:
+                //   · `tld-821`: sefer aynı durakta iki kez duruyor (kalkış = varış iskelesi),
+                //     ara durak yok → toplanacak segment yok. `STM_035` orada 5 bulgu veriyor,
+                //     OPR_017 de 5 — BİREBİR aynı olguyu ikinci kez raporluyorduk.
+                //   · `mdb-1316`/`tfs-658`: 158 durağın 149'u `(0,0)` Null Island. Tümüyle
+                //     bozuk koordinatlı seferlerde toplam 0 çıkıyor; `GEO_016` orada 149 bulgu
+                //     veriyor. Sefer gerçekte var, ÖLÇÜLEMİYOR.
+                //   · `ntd-10183`: aynı durak üç kez + `STM_033` (tek duraklı sefer) = 37.
+                // Gerçekten kısa seferler etkilenmez: `mdb-893`'te shape 24 m, duraklar 17 m
+                // ayrı ve bulgu DOĞRU — 17 m > 0 olduğu için raporlanmaya devam eder.
+                if d > 0.0 && d < MIN_TRIP_KM {
                     let route = trip_to_route_rem.get(trip_id).copied().unwrap_or(trip_id);
                     let dist_m = d * 1000.0;
                     notices.push(k6_notice(
@@ -12417,6 +12431,46 @@ mod tests {
         let opr: Vec<_> = result.notices.iter().filter(|n| n.rule_id == "OPR_005").collect();
         assert_eq!(opr.len(), 1, "yalnızca sıradışı seyrek hat işaretlenmeli");
         assert_eq!(opr[0].entity_id.as_deref(), Some("RS"));
+    }
+
+    #[test]
+    fn opr_017_stays_silent_when_the_distance_cannot_be_measured() {
+        // 14. korpus kosumu (2026-09-01): 13'teki dongu duzeltmesinden SONRA bile 91.417
+        // bulgu kalmisti ve orneklerin en yaygin degeri "0m"di (124 feed'in 47'si).
+        // SIFIR "olculdu ve sifir" DEGIL, "OLCULEMEDI" demektir; kural bir MESAFE iddiasidir.
+        // Uc vaka sinifi olculdu, ucunun de kok nedeni BASKA kuralda raporlaniyor:
+        //   tld-821  → sefer ayni durakta iki kez (STM_035 orada 5, OPR_017 de 5 idi: BIREBIR
+        //              ayni olgunun ikinci kez raporlanmasi)
+        //   mdb-1316 → 158 duragin 149'u (0,0) Null Island (GEO_016 = 149)
+        //   ntd-10183→ ayni durak uc kez + tek-durakli sefer (STM_033 = 37)
+        let stops = vec![stop("A", 0.0, 0.0), stop("B", 0.0, 0.0)];
+        let sts = vec![
+            stoptime("ZERO", 1, "A", (8, 0, 0), (8, 0, 0), 2),
+            stoptime("ZERO", 2, "B", (8, 30, 0), (8, 30, 0), 3),
+        ];
+        let records = records_with(stops, vec![route("R1", 3)], vec![trip("ZERO", "R1")], sts);
+        let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
+        assert!(
+            !result.notices.iter().any(|n| n.rule_id == "OPR_017"),
+            "yol uzunlugu 0 ise mesafe OLCULEMEMISTIR; OPR_017 iddia kurmamali",
+        );
+    }
+
+    #[test]
+    fn opr_017_still_flags_a_genuinely_short_but_measurable_trip() {
+        // Karsi kanit: mdb-893'te shape 24 m, duraklar 17 m ayri ve bulgu DOGRU. Sifir
+        // susturmasi gercek kisa seferleri kapatmamali.
+        let stops = vec![stop("A", 41.00000, 29.00000), stop("B", 41.00015, 29.00000)];
+        let sts = vec![
+            stoptime("SHORT", 1, "A", (8, 0, 0), (8, 0, 0), 2),
+            stoptime("SHORT", 2, "B", (8, 2, 0), (8, 2, 0), 3),
+        ];
+        let records = records_with(stops, vec![route("R1", 3)], vec![trip("SHORT", "R1")], sts);
+        let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
+        assert!(
+            result.notices.iter().any(|n| n.rule_id == "OPR_017"),
+            "olculebilir ve gercekten kisa sefer raporlanmali",
+        );
     }
 
     #[test]
