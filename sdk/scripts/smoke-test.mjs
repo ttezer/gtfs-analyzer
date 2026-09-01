@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
+import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 import {
@@ -12,7 +13,15 @@ import {
 const fixtureUrl = new URL('../../ui/tests/fixtures/minimal.zip', import.meta.url);
 const fixture = new Uint8Array(await readFile(fileURLToPath(fixtureUrl)));
 
-assert.deepEqual(getVersion(), { sdk: '0.2.2', engine: '0.11.1' });
+// Surum bilgisi package.json'dan okunur: bump sirasinda BES ayri yerde elle guncellenmesi
+// gerekiyordu (package.json · SDK_VERSION · ENGINE_VERSION · README ornegi · BU SATIR) ve
+// 0.12.0'da ucu unutuldu, CI iki kez ust uste kirmizi yandi. Testin iddiasi degismedi:
+// getVersion() paketin ilan ettigi surumu ve gomulu motorun surumunu dogru bildirmeli.
+const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
+const engineVersion = JSON.parse(
+  readFileSync(new URL('../pkg/package.json', import.meta.url), 'utf8'),
+).version;
+assert.deepEqual(getVersion(), { sdk: pkg.version, engine: engineVersion });
 
 const result = await validateGtfs(fixture, { today: '2026-08-20' });
 assert.equal(result.validation_status, 'COMPLETE');
