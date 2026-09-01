@@ -460,6 +460,17 @@ UNMAPPED_DECISIONS = {
 # MD-ONLY / MISS'te görünsün, adjudicate edilsin, SONRA buraya insin.
 # Kaynak: 2×20-feed kampanyası (memory: project_20feed_campaign) + MD_PARITY_GUIDE.
 BY_DESIGN = {
+    "missing_trip_edge":
+        "OTORİTE AYRIMI, gerekçesi k6_analytics.rs'te yazılı ve ölçüldü. Spec `arrival_time` "
+        "için 'Required for the first and last stop in a trip' der — NORMATİF. `departure_time` "
+        "için böyle bir madde YOKTUR (yalnız timepoint=1'de zorunlu); MD yine de ikisini birden "
+        "arar ve gerekçesini spec'in 'enter the same value' ÖNERİSİNE dayandırır. Bizde "
+        "STM_015/016 yalnız `arrival_time`'ı Spec·Kritik olarak ölçer; departure tarafını "
+        "STM_034 (Interop, K2) zaten kapsar. Tek kuralda birleştirmek, normatif olmayan bir "
+        "vakayı R1 yayın kapısına sokardı. Sonuç: MD alan başına 2, biz satır başına 1 → "
+        "14. korpus koşumunda DOKUZ feed'de tam 2.0x (tdg-81645/81648/81649/81650/81651/81652, "
+        "tdg-83921, ntd-40056, mdb-2165, mdb-370). Katsayının tam 2.0 olması bunun granülerlik "
+        "olduğunun kendi kanıtıdır.",
     "unknown_file":
         "BİZ-DOĞRU (GTFS-JP farkındalığı): MD `agency_jp.txt`/`office_jp.txt` dosyalarını "
         "tanımıyor ve 'bilinmeyen dosya' işaretliyor; biz GTFS-JP profilini destekliyoruz "

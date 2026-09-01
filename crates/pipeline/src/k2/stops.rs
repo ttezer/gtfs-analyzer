@@ -189,7 +189,18 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
             .filter(|v| !v.trim().is_empty())
             .map(str::to_string);
         if let (Some(ref name), Some(ref desc)) = (&stop_name, &stop_desc) {
-            if name.eq_ignore_ascii_case(desc) {
+            // 🔴 `eq_ignore_ascii_case` DEĞİL: o yalnız a-z/A-Z aralığını eşitler ve iki
+            // KULLANICI METNİNİ karşılaştırdığımız için diyakritikli alfabelerde kör kalır.
+            // 14. korpus koşumunda ölçüldü — `mdb-1000` (Polonya): normalize edilince 6 durak
+            // eşleşiyor, MD de 6 diyor, biz 4 buluyorduk. Kaçan ikisi tam da ASCII dışı çifti
+            // taşıyordu: `Stanisławczyk`/`STANISŁAWCZYK` (ł↔Ł) ve `Witoszyńce`/`WITOSZYŃCE`
+            // (ń↔Ń). Aynı körlük Türkçe (ş↔Ş, ğ↔Ğ), Çekçe, Yunanca ve Kiril feed'lerinde de
+            // geçerliydi. `tdg-83513` 158↔160 ve `mdb-784` 73.944↔73.946 aynı sabit farkı
+            // gösteriyordu — üç feed'de de eksik olan tam olarak ASCII dışı çiftlerdi.
+            // Alloc'suz: iki tarafı da tembel şekilde küçük harfe çevirip karakter karşılaştır.
+            if name.chars().flat_map(char::to_lowercase)
+                .eq(desc.chars().flat_map(char::to_lowercase))
+            {
                 notices.push(make_k2_notice(
                     &mut counter, "STP_031", EntityType::Stop, entity_id.clone(),
                     Some(&row_map), &file.name, Some(line), Some("stop_desc"),
@@ -562,6 +573,41 @@ mod tests {
         let (records, notices) = validate_stops(&file);
         assert_eq!(records.len(), 1);
         assert!(notices.is_empty(), "Geçerli durak notice üretmemeli: {:?}", notices);
+    }
+
+    #[test]
+    fn stp_031_compares_case_beyond_ascii() {
+        // 14. korpus kosumu: kural `eq_ignore_ascii_case` kullaniyordu ve o YALNIZ a-z/A-Z
+        // araligini esitler. Iki KULLANICI METNI karsilastirildigi icin diyakritikli
+        // alfabelerde kordu. `mdb-1000` (Polonya) ile olculdu: normalize edilince 6 durak
+        // eslesiyor, MD de 6 diyor, biz 4 buluyorduk. Kacan ikisi tam da ASCII disi cifti
+        // tasiyordu. Ayni korluk Turkce (s-cedilla, g-breve), Cekce, Yunanca, Kiril'de de vardi.
+        let file = make_file(
+            vec!["stop_id", "stop_name", "stop_lat", "stop_lon", "stop_desc"],
+            vec![
+                // ASCII cift — eskiden de yakalaniyordu, REGRESYON kapisi
+                vec!["S1", "Buszkowiczki", "41.0", "29.0", "BUSZKOWICZKI"],
+                // ASCII disi cift (l-stroke) — eskiden KACIYORDU
+                vec!["S2", "Stanis\u{142}awczyk", "41.1", "29.1", "STANIS\u{141}AWCZYK"],
+                // Turkce cift (c-cedilla, o-umlaut, s-cedilla) — ayni sinif.
+                // NOT: `i` ve dotless-i BILEREK kullanilmadi. Unicode'un locale-bagimsiz
+                // casing'inde bu cift ASIMETRIKTIR: dotless-i buyuyunce `I` olur ama
+                // `I` kucuiltunce `i` olur, dotless-i degil. Yani "BAGCILAR" ile "Bagcilar"
+                // (dotless) Unicode'a gore ESIT DEGILDIR ve kural haklı olarak susar;
+                // Turkce'ye ozel casing yapmak locale bilgisi ister, bu kuralin isi degil.
+                vec!["S3", "\u{e7}orlu g\u{f6}l \u{15f}ube", "41.2", "29.2", "\u{c7}ORLU G\u{d6}L \u{15e}UBE"],
+                // GERCEKTEN farkli aciklama — susmali
+                vec!["S4", "Merkez", "41.3", "29.3", "Otogar karsisi"],
+            ],
+        );
+        let (_records, notices) = validate_stops(&file);
+        let hits: Vec<&str> = notices.iter().filter(|n| n.rule_id == "STP_031")
+            .filter_map(|n| n.entity_id.as_deref()).collect();
+        assert!(hits.contains(&"S1"), "ASCII cift yakalanmali (regresyon): {hits:?}");
+        assert!(hits.contains(&"S2"), "ASCII disi cift (l-stroke) yakalanmali: {hits:?}");
+        assert!(hits.contains(&"S3"), "Turkce cift yakalanmali: {hits:?}");
+        assert!(!hits.contains(&"S4"), "gercekten farkli aciklama SUSMALI: {hits:?}");
+        assert_eq!(hits.len(), 3, "tam olarak uc esdeger cift beklenir: {hits:?}");
     }
 
     #[test]
