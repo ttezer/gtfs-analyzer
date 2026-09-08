@@ -48,22 +48,22 @@ Bu commit pipeline değişikliği içerdiği için ilgili Rust/WASM/SDK kapılar
 
 ## Commit 4 — Fare media ve locale
 
-- [ ] `ui/src/locales/en.ts`, `ja.ts` ve `fr.ts` içindeki yalnız `FMD_002` `recommendation` metinleri düzeltilecek.
-- [ ] Türkçe `FMD_002` öneri metni `fare_media.rs` içindeki hard-coded metinde düzeltilecek.
-- [ ] `FMD_002` eşlemeleri şu hale getirilecek:
+- [x] `ui/src/locales/en.ts`, `ja.ts` ve `fr.ts` içindeki yalnız `FMD_002` `recommendation` metinleri düzeltilecek.
+- [x] Türkçe `FMD_002` öneri metni `fare_media.rs` içindeki hard-coded metinde düzeltilecek.
+- [x] `FMD_002` eşlemeleri şu hale getirilecek:
   - `0`: None
   - `1`: Physical paper ticket
   - `2`: Physical transit card
   - `3`: cEMV
   - `4`: Mobile app
-- [ ] `FMD_003` kümesinden tip `1` çıkarılacak; yalnız `2` ve `4` kalacak.
-- [ ] Tip `1` bekleyen mevcut test düzeltilecek.
-- [ ] Tip `2` ve `4` testleri korunacak.
-- [ ] `FMD_003` locale mesajlarına dokunulmayacak.
-- [ ] `npm run locales:export` çalıştırılacak.
-- [ ] `FMD_003` için locale/export çıktısının değişmemesi beklenen kontrol olarak doğrulanacak.
-- [ ] `npm run locales:export -- --check` çalıştırılacak.
-- [ ] `FMD_003` sınıfı `Quality` olarak korunacak.
+- [x] `FMD_003` kümesinden tip `1` çıkarılacak; yalnız `2` ve `4` kalacak.
+- [x] Tip `1` bekleyen mevcut test düzeltilecek.
+- [x] Tip `2` ve `4` testleri korunacak.
+- [x] `FMD_003` locale mesajlarına dokunulmayacak.
+- [x] `npm run locales:export` çalıştırılacak.
+- [x] `FMD_003` için locale/export çıktısının değişmemesi beklenen kontrol olarak doğrulanacak.
+- [x] `npm run locales:export -- --check` çalıştırılacak.
+- [x] `FMD_003` sınıfı `Quality` olarak korunacak.
 
 Locale zinciri: `ui/src/locales/{en,ja,fr}.ts` → export → `crates/cli/locales/*.json`. Türkçe öneri metni Rust kaynağında ayrı ele alınacak.
 

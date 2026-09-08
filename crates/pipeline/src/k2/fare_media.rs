@@ -34,7 +34,7 @@ pub fn validate_fare_media(
                             &file.name, Some(line), Some("fare_media_type"), Some(v.to_string()),
                             Some("0–4".to_string()),
                             "fare_media_type geçerli bir enum değeri değil.".to_string(),
-                            "0 (yok), 1 (fiziksel kart), 2 (mobil uygulama), 3 (EMV temassız), 4 (transit kuruluş uygulaması) kullanın.",
+                            "0 (yok), 1 (fiziksel kağıt bilet), 2 (fiziksel transit kartı), 3 (cEMV), 4 (mobil uygulama) kullanın.",
                         ));
                     }
                 } else if get_trimmed_field(&row_map, "fare_media_type") == Some("") {
@@ -64,12 +64,12 @@ pub fn validate_fare_media(
             .filter(|v| !v.trim().is_empty())
             .map(str::to_string);
 
-        // FMD_003: TransitCard/MobileApp/AgencyApp için fare_media_name tavsiye edilir
-        if fare_media_name.is_none() && matches!(fare_media_type, Some(1) | Some(2) | Some(4)) {
+        // FMD_003: TransitCard/MobileApp için fare_media_name tavsiye edilir
+        if fare_media_name.is_none() && matches!(fare_media_type, Some(2) | Some(4)) {
             let type_label = match fare_media_type {
-                Some(1) => "fiziksel kart",
-                Some(2) => "mobil uygulama",
-                _ => "transit kuruluş uygulaması",
+                Some(2) => "fiziksel transit kartı",
+                Some(4) => "mobil uygulama",
+                _ => unreachable!("FMD_003 only accepts fare_media_type 2 or 4"),
             };
             notices.push(make_k2_notice(
                 &mut counter, "FMD_003", EntityType::Row, entity_id.clone(), Some(&row_map),
@@ -111,7 +111,7 @@ mod tests {
     fn fmd_003_fires_for_transit_card_without_name() {
         let file = make_file(
             &["fare_media_id", "fare_media_type"],
-            vec![vec!["FM1", "1"]],
+            vec![vec!["FM1", "2"]],
         );
         let (_, notices) = validate_fare_media(&file);
         assert!(notices.iter().any(|n| n.rule_id == "FMD_003"), "FMD_003 bekleniyor");
@@ -121,7 +121,7 @@ mod tests {
     fn fmd_003_silent_when_name_present() {
         let file = make_file(
             &["fare_media_id", "fare_media_type", "fare_media_name"],
-            vec![vec!["FM1", "1", "İstanbulkart"]],
+            vec![vec!["FM1", "2", "İstanbulkart"]],
         );
         let (_, notices) = validate_fare_media(&file);
         assert!(!notices.iter().any(|n| n.rule_id == "FMD_003"), "FMD_003 tetiklenmemeli");
@@ -135,5 +135,15 @@ mod tests {
         );
         let (_, notices) = validate_fare_media(&file);
         assert!(!notices.iter().any(|n| n.rule_id == "FMD_003"), "FMD_003 tetiklenmemeli");
+    }
+
+    #[test]
+    fn fmd_003_silent_for_paper_ticket_without_name() {
+        let file = make_file(
+            &["fare_media_id", "fare_media_type"],
+            vec![vec!["FM1", "1"]],
+        );
+        let (_, notices) = validate_fare_media(&file);
+        assert!(!notices.iter().any(|n| n.rule_id == "FMD_003"), "kağıt bilet için FMD_003 tetiklenmemeli");
     }
 }

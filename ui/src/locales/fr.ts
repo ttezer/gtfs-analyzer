@@ -1689,7 +1689,7 @@ const fr: LocaleShape = {
     'FPD_004': 'Utilisez un fare_media_id valide.',
     'FPD_005': 'Utilisez un rider_category_id valide.',
     // FMD
-    'FMD_002': 'Utilisez 0 (aucun), 1 (carte physique), 2 (application mobile), 3 (sans contact EMV) ou 4 (application de l’exploitant).',
+    'FMD_002': 'Utilisez 0 (aucun), 1 (billet papier physique), 2 (carte de transport physique), 3 (cEMV) ou 4 (application mobile).',
     'FMD_003': 'Ajoutez fare_media_name pour que les voyageurs reconnaissent le moyen de paiement.',
     // TFR
     'TFR_001': 'Saisissez un timeframe_group_id pour chaque enregistrement de plage horaire.',

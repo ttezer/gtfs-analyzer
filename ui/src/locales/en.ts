@@ -1687,7 +1687,7 @@ const en: LocaleShape = {
     'FPD_004': 'Use a valid fare_media_id.',
     'FPD_005': 'Use a valid rider_category_id.',
     // FMD
-    'FMD_002': 'Use 0 (none), 1 (physical card), 2 (mobile app), 3 (EMV contactless), or 4 (transit agency app).',
+    'FMD_002': 'Use 0 (none), 1 (physical paper ticket), 2 (physical transit card), 3 (cEMV), or 4 (mobile app).',
     'FMD_003': 'Add fare_media_name so passengers can recognise the payment method.',
     // TFR
     'TFR_001': 'Enter a timeframe_group_id for each timeframe record.',
