@@ -54,6 +54,15 @@ pub fn validate_fare_attributes(
 
         let price = match parse_f64(&row_map, "price") {
             Ok(value) => {
+                if value.is_none() && get_trimmed_field(&row_map, "price") == Some("") {
+                    notices.push(make_k2_notice(
+                        &mut counter, "FAR_002", EntityType::Fare, entity_id.clone(), Some(&row_map),
+                        &file.name, Some(line), Some("price"), Some(String::new()),
+                        Some("sayısal değer".to_string()),
+                        "price zorunludur ve boş bırakılamaz.".to_string(),
+                        "price alanına geçerli bir sayısal değer girin.",
+                    ));
+                }
                 if let Some(v) = value {
                     if v < 0.0 {
                         notices.push(make_k2_notice(
@@ -180,5 +189,45 @@ fn parse_enum_u32(
             notices.push(make_k2_notice(counter, rule_id, EntityType::Fare, entity_id.clone(), Some(row_map), file_name, Some(line), Some(field), get_trimmed_field(row_map, field).map(str::to_string), None, err, "Alanı geçerli bir spec enum değerine ayarlayın."));
             None
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::k1_parse::RawFile;
+    use smol_str::SmolStr;
+
+    fn make_file(headers: &[&str], rows: Vec<Vec<&str>>) -> RawFile {
+        RawFile {
+            name: "fare_attributes.txt".to_string(),
+            headers: headers.iter().map(|s| (*s).to_string()).collect(),
+            rows: rows.into_iter()
+                .map(|row| row.into_iter().map(SmolStr::from).collect())
+                .collect(),
+            bytes: 0,
+            raw_text: None,
+            zip_entry_name: None,
+        }
+    }
+
+    #[test]
+    fn blank_price_produces_far_002() {
+        let file = make_file(
+            &["fare_id", "price", "currency_type", "payment_method"],
+            vec![vec!["F1", "", "TRY", "0"]],
+        );
+        let (_, notices) = validate_fare_attributes(&file);
+        assert!(notices.iter().any(|notice| notice.rule_id == "FAR_002"));
+    }
+
+    #[test]
+    fn negative_price_keeps_existing_far_002_behavior() {
+        let file = make_file(
+            &["fare_id", "price", "currency_type", "payment_method"],
+            vec![vec!["F1", "-1", "TRY", "0"]],
+        );
+        let (_, notices) = validate_fare_attributes(&file);
+        assert!(notices.iter().any(|notice| notice.rule_id == "FAR_002"));
     }
 }

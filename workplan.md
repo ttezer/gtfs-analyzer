@@ -40,9 +40,9 @@ Bu commit pipeline değişikliği içerdiği için Cargo testleri, Clippy, WASM 
 
 ## Commit 3 — FAR_002
 
-- [ ] Boş `fare_attributes.price` değerleri `FAR_002` ile raporlanacak.
-- [ ] Boş, geçersiz metin ve negatif değer senaryoları ayrı test edilecek.
-- [ ] `FAR_011` ve `FAR_012` ile notice davranışı karşılaştırılacak.
+- [x] Boş `fare_attributes.price` değerleri `FAR_002` ile raporlanacak.
+- [x] Boş, geçersiz metin ve negatif değer senaryoları ayrı test edilecek.
+- [x] `FAR_011` ve `FAR_012` ile notice davranışı karşılaştırılacak.
 
 Bu commit pipeline değişikliği içerdiği için ilgili Rust/WASM/SDK kapıları çalıştırılacak.
 
