@@ -208,7 +208,7 @@ Bu commit K2 pipeline değişikliği içerdiği için ilgili Cargo testleri, emi
 - [x] Timeout commit’i: `test_timing` 25/25 benchmark testi; WASM/SDK yok.
 - [x] Parse, FAR, FMD ve TRN commitleri: ilgili Cargo testleri ve Clippy geçti.
 - [x] GGL commiti: fare_attributes testleri, emit-proof ve kaynak/kart senkronu.
-- [ ] Rust pipeline değişen commitlerde tam prepush WASM determinism kapısı tamamlanacak; SDK kapısı geçti.
+- [x] Rust pipeline değişen commitlerde tam prepush WASM determinism kapısı tamamlandı; SDK kapısı geçti.
 - [x] FMD commitinde locale export ve locale parity geçti.
 - [x] TRN commitinde `sync_cards`, `emit_proof` ve `card_consistency` geçti.
 - [x] Dokümantasyon commitinde rule parity ve doküman kontrolleri geçti.
@@ -220,9 +220,9 @@ Bu commit K2 pipeline değişikliği içerdiği için ilgili Cargo testleri, emi
 
 - [x] CI ile aynı stable Rust toolchain doğrulandı: `rustc 1.98.1 (48a229cea 2026-09-01)`.
 - [x] `rustc --version` kaydedildi.
-- [x] Önce/sonra unpacked boyutları ölçüldü: `2.495.431 → 2.497.468` byte (`+2.037`, `%+0,0816`).
-- [x] Önce/sonra packed boyutları ölçüldü: `898.394 → 898.761` byte (`+367`, `%+0,0409`).
-- [x] `pkg/gtfs_wasm_bg.wasm` boyutu kaydedildi: `2.439.100 → 2.441.137` byte (`+2.037`, `%+0,0835`).
+- [x] Önce/sonra unpacked boyutları ölçüldü: `2.495.431 → 2.497.474` byte (`+2.043`, `%+0,0819`).
+- [x] Önce/sonra packed boyutları ölçüldü: `898.394 → 898.757` byte (`+363`, `%+0,0404`).
+- [x] `pkg/gtfs_wasm_bg.wasm` boyutu kaydedildi: `2.439.100 → 2.441.143` byte (`+2.043`, `%+0,0838`).
 - [x] Beklenen 9 dosyalık paket listesi önce/sonra aynı çıktı.
 - [x] `npm run package:check` geçti; güncel paket kapak altında kaldı.
 - [x] `sdk/package-size-baseline.json` otomatik güncellenmedi.
