@@ -100,13 +100,13 @@ Bu commit yalnız dokümantasyon içeriyorsa WASM/SDK kapısı çalıştırılma
 
 ## Commit 6 — Triage güncellemesi
 
-- [ ] `spec-audit/PROVISION_TRIAGE.md` başına güncel durum tablosu eklenecek.
-- [ ] Tarihsel kayıtlar silinmeyecek.
-- [ ] Tarihsel bölümler “değiştirilmez kanıt kaydı” olarak etiketlenecek.
-- [ ] Runtime, Quality, dokümantasyon ve kapanmış maddeler ayrılacak.
-- [ ] Timeout maddesi “düzeltildi, tam korpus doğrulaması bekliyor” olarak gösterilecek.
-- [ ] `agency_lang` ve linked-trip maddeleri tanım/ölçüm bekleyen Quality işleri olarak gösterilecek.
-- [ ] Güncel durum ile tarihsel kanıt bölümlerinin birbirini çelişkili göstermediği doğrulanacak.
+- [x] `spec-audit/PROVISION_TRIAGE.md` başına güncel durum tablosu eklenecek.
+- [x] Tarihsel kayıtlar silinmeyecek.
+- [x] Tarihsel bölümler “değiştirilmez kanıt kaydı” olarak etiketlenecek.
+- [x] Runtime, Quality, dokümantasyon ve kapanmış maddeler ayrılacak.
+- [x] Timeout maddesi “düzeltildi, tam korpus doğrulaması bekliyor” olarak gösterilecek.
+- [x] `agency_lang` ve linked-trip maddeleri tanım/ölçüm bekleyen Quality işleri olarak gösterilecek.
+- [x] Güncel durum ile tarihsel kanıt bölümlerinin birbirini çelişkili göstermediği doğrulanacak.
 
 Bu commit yalnız triage/dokümantasyon içeriyorsa WASM/SDK kapısı çalıştırılmayacak.
 

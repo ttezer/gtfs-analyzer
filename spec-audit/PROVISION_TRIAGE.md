@@ -32,6 +32,25 @@ adjudike edildi. Bölümler tam bitirilir, yarım bırakılmaz — kalan sayıs�
 > Aşağıdaki tur bölümleri o günkü kararları taşır; **kapanış durumu tek yerde tutulur:
 > "DURUM MAKİNESİ" tablosu.**
 
+## GÜNCEL UYGULAMA DURUMU — 2026-09-09
+
+Bu tablo canlı çalışma durumudur. Aşağıdaki tarihsel bölümlerde geçen “açık”, “kapandı”
+veya “tek kalan kalem” ifadeleri kendi tarihsel bağlamında okunmalıdır; güncel iş kuyruğu
+olarak kullanılmamalıdır.
+
+| konu | güncel durum |
+|---|---|
+| `TRP_032` | Parse edilemeyen `cars_allowed` değerleri raporlanıyor. |
+| `RTS_013` / `RTS_018` | Parse edilemeyen continuous alanları raporlanıyor. |
+| `AGN_012`, `STP_008`, `STP_013`, `STM_022`, `STM_030`, `TRP_006`, `TRP_007`, `RTS_024` | Kod düzeltildi; rule kartları güncellendi. |
+| `FAR_002` | Mevcut `price` sütunundaki boş değerler raporlanıyor. |
+| `FMD_002` / `FMD_003` | Enum açıklamaları ve `fare_media_name` Quality kapsamı güncellendi. |
+| `TRN_017` | Eksik `record_sub_id` K2’de korunuyor. |
+| `TRN_010` | K2→K4 eşleşme doğrulaması ayrı uygulama işi olarak bekliyor. |
+| `GGL_002` | Kaynak ve dosya kapsamı doğrulanana kadar karar bekliyor. |
+| `agency_lang` / linked trip | Tanım ve korpus ölçümü bekleyen Quality işleri. |
+| timeout asimetrisi | `ANALYZER_TIMEOUT` 420 saniyeye hizalandı; tam korpus doğrulaması bekliyor. |
+
 ## Karar sınıfları
 
 | sınıf | anlamı |
