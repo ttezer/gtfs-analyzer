@@ -950,7 +950,7 @@ const en: LocaleShape = {
     'FMD_003': "Fare media '{entity_id}': fare_media_name is recommended for TransitCard/MobileApp.",
     // FPD
     'FPD_001': "Duplicate fare_products composite key for '{entity_id}' — same fare_product_id, rider_category_id and fare_media_id.",
-    'FPD_002': "Fare product '{entity_id}': amount is missing or negative.",
+    'FPD_002': "Fare product '{entity_id}': amount is missing or not numeric.",
     'FPD_003': "Fare product '{entity_id}': currency '{observed_value}' is not a valid ISO 4217 code.",
     'FPD_004': "Fare product '{entity_id}': fare_media_id '{observed_value}' not found.",
     'FPD_005': "Fare product '{entity_id}': rider_category_id '{observed_value}' not found.",
@@ -1550,7 +1550,7 @@ const en: LocaleShape = {
     'CLD_006': 'Define a regular service period in calendar.txt instead of using many exceptions.',
     // FAR
     'FAR_001': 'Assign a unique fare_id to each fare record.',
-    'FAR_002': 'Set price to zero or a positive value.',
+    'FAR_002': 'Enter a valid numeric price that is zero or positive.',
     'FAR_003': 'Use a 3-letter uppercase ISO 4217 currency code (e.g., TRY, EUR).',
     'FAR_004': 'Set the field to a valid spec enum value.',
     'FAR_005': 'Set the field to a valid spec enum value.',
@@ -1682,7 +1682,7 @@ const en: LocaleShape = {
     'FTR_010': 'Remove transfer_count or make the leg groups equal.',
     'FTR_011': 'Fill duration_limit_type (0–3) or remove duration_limit.',
     // FPD
-    'FPD_002': 'Set amount to zero or a positive value.',
+    'FPD_002': 'Enter a valid numeric amount; negative values are allowed for transfer discounts.',
     'FPD_003': 'Use a 3-letter uppercase ISO 4217 currency code (e.g., TRY, EUR, USD).',
     'FPD_004': 'Use a valid fare_media_id.',
     'FPD_005': 'Use a valid rider_category_id.',
@@ -2311,7 +2311,7 @@ const en: LocaleShape = {
     'FMD_003': 'fare_media_name recommended for TransitCard/MobileApp',
     // FPD
     'FPD_001': 'Duplicate fare_products composite key',
-    'FPD_002': 'amount missing or negative',
+    'FPD_002': 'amount missing or not numeric',
     'FPD_003': 'currency invalid ISO 4217 code',
     'FPD_004': 'fare_media_id not found',
     'FPD_005': 'rider_category_id not found',

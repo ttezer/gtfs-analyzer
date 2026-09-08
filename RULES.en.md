@@ -478,7 +478,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | Rule | Title | Severity | Class |
 |---|---|---|---|
 | FPD_001 | Duplicate fare_products composite key | CRITICAL | Spec |
-| FPD_002 | amount missing or negative | CRITICAL | Spec |
+| FPD_002 | amount missing or not numeric | CRITICAL | Spec |
 | FPD_003 | currency invalid ISO 4217 code | CRITICAL | Spec |
 | FPD_004 | fare_media_id not found | CRITICAL | Spec |
 | FPD_005 | rider_category_id not found | CRITICAL | Spec |

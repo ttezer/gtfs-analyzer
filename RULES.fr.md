@@ -478,7 +478,7 @@ Classes : **Spec** (validité GTFS) · **Interop** (interopérabilité GTFS) · 
 | Règle | Titre | Gravité | Classe |
 |---|---|---|---|
 | FPD_001 | Clé composite fare_products en double | CRITIQUE | Spec |
-| FPD_002 | amount manquant ou négatif | CRITIQUE | Spec |
+| FPD_002 | amount manquant ou non numérique | CRITIQUE | Spec |
 | FPD_003 | currency n’est pas un code ISO 4217 valide | CRITIQUE | Spec |
 | FPD_004 | fare_media_id introuvable | CRITIQUE | Spec |
 | FPD_005 | rider_category_id introuvable | CRITIQUE | Spec |

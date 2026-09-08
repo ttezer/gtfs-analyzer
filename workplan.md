@@ -71,30 +71,30 @@ Locale zinciri: `ui/src/locales/{en,ja,fr}.ts` → export → `crates/cli/locale
 
 Aşağıdaki kartlarda runtime davranışı değil, eski açıklamalar düzeltilecek:
 
-- [ ] `AGN_012`
-- [ ] `STP_008`
-- [ ] `STP_013`
-- [ ] `STM_022`
-- [ ] `STM_030`
-- [ ] `TRP_006`
-- [ ] `TRP_007`
-- [ ] `RTS_024`
+- [x] `AGN_012`
+- [x] `STP_008`
+- [x] `STP_013`
+- [x] `STM_022`
+- [x] `STM_030`
+- [x] `TRP_006`
+- [x] `TRP_007`
+- [x] `RTS_024`
 
 Her kart için:
 
-- [ ] Parse hatalarının artık notice ürettiği belirtilecek.
-- [ ] Artık geçerli olmayan yanlış-negatif iddiaları düzeltilecek.
-- [ ] `## Yanlış pozitif / negatif` bölümü korunacak.
-- [ ] Yalnız geçersiz maddeler güncellenecek.
-- [ ] `STP_008` ve `STP_013` kapsam cümleleri yeni davranışa göre düzeltilecek.
+- [x] Parse hatalarının artık notice ürettiği belirtilecek.
+- [x] Artık geçerli olmayan yanlış-negatif iddiaları düzeltilecek.
+- [x] `## Yanlış pozitif / negatif` bölümü korunacak.
+- [x] Yalnız geçersiz maddeler güncellenecek.
+- [x] `STP_008` ve `STP_013` kapsam cümleleri yeni davranışa göre düzeltilecek.
 
 Ayrıca:
 
-- [ ] `FAR_004` kartında boş `payment_method` kontrolünün `FAR_011` tarafından yapıldığı belirtilecek.
-- [ ] `FPD_002` başlığı ve karar cümlesi negatif tutar Spec’e uygun olacak şekilde düzeltilecek.
+- [x] `FAR_004` kartında boş `payment_method` kontrolünün `FAR_011` tarafından yapıldığı belirtilecek.
+- [x] `FPD_002` başlığı ve karar cümlesi negatif tutar Spec’e uygun olacak şekilde düzeltilecek.
 - [ ] `FAR_013` için eski/uygulanmayan iş veya iddia eklenmeyecek.
-- [ ] Dil README’leri ve ilgili `RULES.md` dosyaları güncel rule başlıkları, sınıfları ve aşamalarıyla eşleştirilecek.
-- [ ] README’lerdeki kural sayısı, badge, kapsam ve indeks referansları kontrol edilecek.
+- [x] Dil README’leri ve ilgili `RULES.md` dosyaları güncel rule başlıkları, sınıfları ve aşamalarıyla eşleştirilecek.
+- [x] README’lerdeki kural sayısı, badge, kapsam ve indeks referansları kontrol edilecek.
 
 Bu commit yalnız dokümantasyon içeriyorsa WASM/SDK kapısı çalıştırılmayacak.
 

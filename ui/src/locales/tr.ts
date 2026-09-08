@@ -986,7 +986,7 @@ const tr = {
     'FMD_003': 'TransitCard/MobileApp için fare_media_name tavsiye edilir',
     // FPD
     'FPD_001': 'fare_products bileşik anahtarı yineleniyor',
-    'FPD_002': 'amount eksik veya negatif',
+    'FPD_002': 'amount eksik veya sayısal değil',
     'FPD_003': 'currency geçersiz ISO 4217 kodu',
     'FPD_004': 'fare_media_id bulunamadı',
     'FPD_005': 'rider_category_id bulunamadı',

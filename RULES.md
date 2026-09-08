@@ -478,7 +478,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | Kural | Başlık | Önem | Sınıf |
 |---|---|---|---|
 | FPD_001 | fare_products bileşik anahtarı yineleniyor | KRİTİK | Spec |
-| FPD_002 | amount eksik veya negatif | KRİTİK | Spec |
+| FPD_002 | amount eksik veya sayısal değil | KRİTİK | Spec |
 | FPD_003 | currency geçersiz ISO 4217 kodu | KRİTİK | Spec |
 | FPD_004 | fare_media_id bulunamadı | KRİTİK | Spec |
 | FPD_005 | rider_category_id bulunamadı | KRİTİK | Spec |

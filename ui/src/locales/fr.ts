@@ -952,7 +952,7 @@ const fr: LocaleShape = {
     'FMD_003': 'Support tarifaire « {entity_id} » : fare_media_name est recommandé pour TransitCard/MobileApp.',
     // FPD
     'FPD_001': 'Clé composite fare_products en double pour « {entity_id} » — mêmes fare_product_id, rider_category_id et fare_media_id.',
-    'FPD_002': 'Produit tarifaire « {entity_id} » : amount est absent ou négatif.',
+    'FPD_002': 'Produit tarifaire « {entity_id} » : amount est absent ou non numérique.',
     'FPD_003': 'Produit tarifaire « {entity_id} » : currency « {observed_value} » n’est pas un code ISO 4217 valide.',
     'FPD_004': 'Produit tarifaire « {entity_id} » : fare_media_id « {observed_value} » est introuvable.',
     'FPD_005': 'Produit tarifaire « {entity_id} » : rider_category_id « {observed_value} » est introuvable.',
@@ -1552,7 +1552,7 @@ const fr: LocaleShape = {
     'CLD_006': 'Définissez une période de service régulière dans calendar.txt plutôt que d’utiliser de nombreuses exceptions.',
     // FAR
     'FAR_001': 'Attribuez un fare_id unique à chaque enregistrement tarifaire.',
-    'FAR_002': 'Mettez price à zéro ou à une valeur positive.',
+    'FAR_002': 'Saisissez une valeur numérique valide pour price, égale ou supérieure à zéro.',
     'FAR_003': 'Utilisez un code de devise ISO 4217 de 3 lettres majuscules (par exemple EUR, CAD).',
     'FAR_004': 'Mettez le champ à une valeur d’énumération valide de la spécification.',
     'FAR_005': 'Mettez le champ à une valeur d’énumération valide de la spécification.',
@@ -1684,7 +1684,7 @@ const fr: LocaleShape = {
     'FTR_010': 'Retirez transfer_count, ou rendez les groupes de trajets identiques.',
     'FTR_011': 'Renseignez duration_limit_type (0–3), ou retirez duration_limit.',
     // FPD
-    'FPD_002': 'Mettez amount à zéro ou à une valeur positive.',
+    'FPD_002': 'Saisissez une valeur numérique valide pour amount ; les valeurs négatives sont autorisées pour les remises de correspondance.',
     'FPD_003': 'Utilisez un code de devise ISO 4217 de 3 lettres majuscules (par exemple EUR, CAD, USD).',
     'FPD_004': 'Utilisez un fare_media_id valide.',
     'FPD_005': 'Utilisez un rider_category_id valide.',
@@ -2312,7 +2312,7 @@ const fr: LocaleShape = {
     'FMD_003': 'fare_media_name recommandé pour TransitCard/MobileApp',
     // FPD
     'FPD_001': 'Clé composite fare_products en double',
-    'FPD_002': 'amount manquant ou négatif',
+    'FPD_002': 'amount manquant ou non numérique',
     'FPD_003': 'currency n’est pas un code ISO 4217 valide',
     'FPD_004': 'fare_media_id introuvable',
     'FPD_005': 'rider_category_id introuvable',
