@@ -169,6 +169,85 @@ fn prealloc_capacity(uncompressed_hint: usize) -> usize {
     uncompressed_hint.clamp(1, MAX_PREALLOC)
 }
 
+/// Yerel dosya başlığı (local file header) imzası ve sabit uzunluğu.
+const LFH_SIGNATURE: u32 = 0x0403_4b50;
+const LFH_LEN: usize = 30;
+/// Data descriptor imzası. APPNOTE'a göre bu imza OPSİYONELDİR; iki biçim de okunur.
+const DATA_DESCRIPTOR_SIGNATURE: u32 = 0x0807_4b50;
+/// Data descriptor bayrağı (general purpose bit flag, bit 3).
+const FLAG_DATA_DESCRIPTOR: u16 = 0x0008;
+/// zip64 kaçış değeri — gerçek boyut extra field'da taşınır, 32-bit alan okunamaz.
+const ZIP64_SENTINEL: u32 = 0xFFFF_FFFF;
+
+/// ARC_036: bir girdinin AKIŞ görünümü (yerel başlık + data descriptor) merkez diziniyle
+/// çelişiyor mu?
+///
+/// `entries`, merkez dizinden okunan `(header_start, compressed_size, uncompressed_size, crc32)`
+/// dörtlüleridir. Yalnız data-descriptor bayrağı set olan girdiler incelenir; descriptor hiç
+/// yoksa ya da içindeki üçlü merkez dizinle tutmuyorsa girdi tutarsız sayılır.
+///
+/// 🔑 Bayrağın set olması TEK BAŞINA kusur DEĞİLDİR — korpus örnekleminin %40'ı descriptor'ı
+/// kurallara uygun kullanıyor (yerel boyutlar 0, descriptor yerinde ve doğru). Karşılaştırma
+/// yapılmadan ateşlenirse ~1.700 feed'e yanlış bulgu basılır.
+///
+/// zip64 girdileri ATLANIR: 32-bit alanlar `0xFFFFFFFF` kaçışını taşır, gerçek değer extra
+/// field'dadır ve buradan okunamaz — okunamayan şeyi "çelişkili" saymak FP üretir.
+fn count_inconsistent_stream_headers(zip_bytes: &[u8], entries: &[(u64, u64, u64, u32)]) -> usize {
+    let mut inconsistent = 0usize;
+    for &(header_start, csize, usize_declared, crc) in entries {
+        let Ok(off) = usize::try_from(header_start) else { continue };
+        let Some(lfh) = zip_bytes.get(off..off.saturating_add(LFH_LEN)) else { continue };
+        if u32::from_le_bytes([lfh[0], lfh[1], lfh[2], lfh[3]]) != LFH_SIGNATURE {
+            continue;
+        }
+        let flag = u16::from_le_bytes([lfh[6], lfh[7]]);
+        if flag & FLAG_DATA_DESCRIPTOR == 0 {
+            continue;
+        }
+        let local_csize = u32::from_le_bytes([lfh[18], lfh[19], lfh[20], lfh[21]]);
+        let local_usize = u32::from_le_bytes([lfh[22], lfh[23], lfh[24], lfh[25]]);
+        let name_len = u16::from_le_bytes([lfh[26], lfh[27]]) as usize;
+        let extra_len = u16::from_le_bytes([lfh[28], lfh[29]]) as usize;
+        if local_csize == ZIP64_SENTINEL
+            || local_usize == ZIP64_SENTINEL
+            || csize >= u64::from(ZIP64_SENTINEL)
+            || usize_declared >= u64::from(ZIP64_SENTINEL)
+        {
+            continue;
+        }
+        // Verinin bittiği yer MERKEZ DİZİNDEKİ boyutla bulunur; yerel alan (kurallara uygun
+        // akış zip'inde) sıfırdır ve buradan konum hesaplanamaz.
+        let Ok(csize_usize) = usize::try_from(csize) else { continue };
+        let data_end = off
+            .saturating_add(LFH_LEN)
+            .saturating_add(name_len)
+            .saturating_add(extra_len)
+            .saturating_add(csize_usize);
+        let Some(head) = zip_bytes.get(data_end..data_end.saturating_add(4)) else {
+            inconsistent += 1; // descriptor için yer bile yok
+            continue;
+        };
+        let body_off = if u32::from_le_bytes([head[0], head[1], head[2], head[3]])
+            == DATA_DESCRIPTOR_SIGNATURE
+        {
+            data_end.saturating_add(4)
+        } else {
+            data_end
+        };
+        let Some(body) = zip_bytes.get(body_off..body_off.saturating_add(12)) else {
+            inconsistent += 1;
+            continue;
+        };
+        let d_crc = u32::from_le_bytes([body[0], body[1], body[2], body[3]]);
+        let d_csize = u32::from_le_bytes([body[4], body[5], body[6], body[7]]);
+        let d_usize = u32::from_le_bytes([body[8], body[9], body[10], body[11]]);
+        if u64::from(d_csize) != csize || u64::from(d_usize) != usize_declared || d_crc != crc {
+            inconsistent += 1;
+        }
+    }
+    inconsistent
+}
+
 /// GuardedReader okuma hatasını Fatal'a çevirir: guard tetiklendiyse ARC_029
 /// (DecompressionLimit), aksi halde ham ZIP okuma hatası (ARC_001 ZipUnreadable).
 fn read_fatal<R: Read>(guarded: &GuardedReader<'_, R>, raw_name: &str, e: &std::io::Error) -> FatalError {
@@ -1294,6 +1373,20 @@ pub fn parse_with_limits(
     let has_calendar_dates_txt = entry_names.iter().any(|n| n.replace('\\', "/") == calendar_dates_entry)
         && file_has_data(&calendar_dates_entry);
 
+    // ARC_036: akış görünümü tutarlılığı. Merkez dizin metadata'sı burada toplanır; ham
+    // bayt karşılaştırmasını `count_inconsistent_stream_headers` yapar. `by_index_raw`
+    // seçildi çünkü karar için AÇMA gerekmiyor, yalnız başlık alanları okunuyor.
+    let stream_entries: Vec<(u64, u64, u64, u32)> = (0..archive.len())
+        .filter_map(|i| {
+            archive
+                .by_index_raw(i)
+                .ok()
+                .map(|zf| (zf.header_start(), zf.compressed_size(), zf.size(), zf.crc32()))
+        })
+        .collect();
+    let inconsistent_stream_entries =
+        count_inconsistent_stream_headers(zip_bytes, &stream_entries);
+
     let mut notices: Vec<Notice> = Vec::new();
     let mut counter: u32 = 0;
     let mut geojson_location_ids: std::collections::HashSet<String> = std::collections::HashSet::new();
@@ -2053,6 +2146,23 @@ pub fn parse_with_limits(
             Some(f.to_string()),
             format!("Zorunlu GTFS dosyası '{f}' hiç veri satırı içermiyor."),
             "Dosyaya gerçek verileri ekleyin; boş bırakmak dosyayı eklememekle aynıdır.",
+        ));
+    }
+
+    // ARC_036: ZIP akış görünümü merkez diziniyle çelişiyor. Feed düzeyinde TEK bulgu —
+    // girdi başına basmak yayıncının tek hatasını girdi sayısı kadar tekrarlar.
+    if inconsistent_stream_entries > 0 {
+        notices.push(make_notice(
+            &mut counter, "ARC_036",
+            EntityType::Feed, None,
+            None, None, None,
+            Some(inconsistent_stream_entries.to_string()),
+            format!(
+                "ZIP arşivinde {inconsistent_stream_entries} girdinin akış başlığı merkez diziniyle çelişiyor; \
+                 arşivi akıştan okuyan araçlar dosyayı açamaz."
+            ),
+            "Arşivi standart bir ZIP aracıyla yeniden paketleyin; \
+             data-descriptor bayrağı ile yerel başlıktaki boyutlar tutarlı olmalıdır.",
         ));
     }
 
@@ -3873,6 +3983,145 @@ mod tests {
         assert!(!k1.notices.iter().any(|n| n.rule_id == "LOC_006"),
             "delikler dış ringden düşülmeli");
     }
+
+    // ── ARC_036: ZIP akış görünümü tutarlılığı ─────────────────────────────────
+    //
+    // Birim testleri SAF fonksiyona kurulur, çünkü asıl risk uçtan uca akışta değil
+    // bayt yorumundadır: kural gevşetilirse korpusun %40'ına (descriptor'ı MEŞRU
+    // kullanan feed'lere) yanlış bulgu basar. `mesru_akis_zipinde_susar` o kapıdır.
+
+    /// Tek girdilik sentetik yerel başlık + (opsiyonel) data descriptor üretir.
+    /// `descriptor`: `None` → hiç yazılmaz, ardından başka bir yerel başlık gelir.
+    fn synthetic_entry(
+        flag: u16,
+        local_csize: u32,
+        local_usize: u32,
+        data: &[u8],
+        descriptor: Option<(u32, u32, u32)>,
+        descriptor_signature: bool,
+    ) -> Vec<u8> {
+        let name = b"agency.txt";
+        let mut b = Vec::new();
+        b.extend_from_slice(&LFH_SIGNATURE.to_le_bytes());
+        b.extend_from_slice(&20u16.to_le_bytes()); // version
+        b.extend_from_slice(&flag.to_le_bytes());
+        b.extend_from_slice(&0u16.to_le_bytes()); // method: stored
+        b.extend_from_slice(&0u16.to_le_bytes()); // time
+        b.extend_from_slice(&0u16.to_le_bytes()); // date
+        b.extend_from_slice(&0u32.to_le_bytes()); // crc (yerel alan)
+        b.extend_from_slice(&local_csize.to_le_bytes());
+        b.extend_from_slice(&local_usize.to_le_bytes());
+        b.extend_from_slice(&(name.len() as u16).to_le_bytes());
+        b.extend_from_slice(&0u16.to_le_bytes()); // extra len
+        b.extend_from_slice(name);
+        b.extend_from_slice(data);
+        match descriptor {
+            Some((crc, csize, usize_)) => {
+                if descriptor_signature {
+                    b.extend_from_slice(&DATA_DESCRIPTOR_SIGNATURE.to_le_bytes());
+                }
+                b.extend_from_slice(&crc.to_le_bytes());
+                b.extend_from_slice(&csize.to_le_bytes());
+                b.extend_from_slice(&usize_.to_le_bytes());
+            }
+            // Descriptor yok: `tdg-81618` deseni — hemen sonraki girdinin başlığı gelir.
+            None => b.extend_from_slice(&LFH_SIGNATURE.to_le_bytes()),
+        }
+        b
+    }
+
+    const DATA: &[u8] = b"agency_id,agency_name\n1,Test\n";
+
+    /// Korpusun %40'ının kullandığı KURALLARA UYGUN akış zip'i: yerel boyutlar 0,
+    /// descriptor yerinde ve merkez dizinle birebir. Burada ateşlemek felakettir.
+    #[test]
+    fn arc036_mesru_akis_zipinde_susar() {
+        let crc = 0xDEAD_BEEF;
+        let n = DATA.len() as u32;
+        for with_sig in [true, false] {
+            let bytes = synthetic_entry(
+                FLAG_DATA_DESCRIPTOR, 0, 0, DATA, Some((crc, n, n)), with_sig,
+            );
+            let entries = [(0u64, u64::from(n), u64::from(n), crc)];
+            assert_eq!(
+                count_inconsistent_stream_headers(&bytes, &entries), 0,
+                "meşru akış zip'i (descriptor imzası: {with_sig}) bulgu üretmemeli",
+            );
+        }
+    }
+
+    /// `tdg-81618` deseni: bayrak set, yerel boyutlar DOLU, descriptor kaydı YOK.
+    #[test]
+    fn arc036_descriptor_yoksa_ateslenir() {
+        let crc = 0xDEAD_BEEF;
+        let n = DATA.len() as u32;
+        let bytes = synthetic_entry(FLAG_DATA_DESCRIPTOR, n, n, DATA, None, false);
+        let entries = [(0u64, u64::from(n), u64::from(n), crc)];
+        assert_eq!(count_inconsistent_stream_headers(&bytes, &entries), 1);
+    }
+
+    /// `mdb-2607` deseni: descriptor VAR, crc/csize doğru, ama `usize` sıfır yazılmış.
+    /// Dar bir "descriptor var mı" kontrolü bunu KAÇIRIRDI.
+    #[test]
+    fn arc036_descriptor_celisirse_ateslenir() {
+        let crc = 0xDEAD_BEEF;
+        let n = DATA.len() as u32;
+        let bytes = synthetic_entry(
+            FLAG_DATA_DESCRIPTOR, 0, 0, DATA, Some((crc, n, 0)), true,
+        );
+        let entries = [(0u64, u64::from(n), u64::from(n), crc)];
+        assert_eq!(count_inconsistent_stream_headers(&bytes, &entries), 1);
+    }
+
+    /// Bayrak set değilse girdi hiç incelenmez; zip64 kaçışı taşıyan girdi ATLANIR
+    /// (gerçek boyut extra field'da, buradan okunamaz — okunamayanı suçlamayız).
+    #[test]
+    fn arc036_bayraksiz_ve_zip64_girdiler_atlanir() {
+        let crc = 0xDEAD_BEEF;
+        let n = DATA.len() as u32;
+        let no_flag = synthetic_entry(0, n, n, DATA, None, false);
+        assert_eq!(
+            count_inconsistent_stream_headers(&no_flag, &[(0, u64::from(n), u64::from(n), crc)]), 0,
+        );
+        let zip64 = synthetic_entry(
+            FLAG_DATA_DESCRIPTOR, ZIP64_SENTINEL, ZIP64_SENTINEL, DATA, None, false,
+        );
+        assert_eq!(
+            count_inconsistent_stream_headers(&zip64, &[(0, u64::from(n), u64::from(n), crc)]), 0,
+        );
+    }
+
+    /// Uçtan uca: normal feed sessiz, aynı feed'in yalnız bayrak bitleri çevrilmiş
+    /// hâli TEK bulgu üretir (feed düzeyi dedup) ve sayıyı `observed_value`da taşır.
+    #[test]
+    fn arc036_uctan_uca_yalniz_bayrak_biti_cevrilince_atesler() {
+        let clean = minimal_gtfs_zip();
+        let r = parse(&clean).unwrap();
+        assert!(
+            !r.notices.iter().any(|n| n.rule_id == "ARC_036"),
+            "sağlam arşivde ARC_036 ateşlememeli",
+        );
+
+        let mut flipped = clean.clone();
+        let starts: Vec<u64> = {
+            let mut a = zip::ZipArchive::new(std::io::Cursor::new(&clean[..])).unwrap();
+            (0..a.len()).map(|i| a.by_index_raw(i).unwrap().header_start()).collect()
+        };
+        for s in &starts {
+            let off = *s as usize + 6; // general purpose bit flag
+            let flag = u16::from_le_bytes([flipped[off], flipped[off + 1]]);
+            flipped[off..off + 2].copy_from_slice(&(flag | FLAG_DATA_DESCRIPTOR).to_le_bytes());
+        }
+        // Merkez dizin bozulmadığı için arşiv hâlâ açılabilir olmalı; kural bunu ölçüyor.
+        let r = parse(&flipped).unwrap();
+        let hits: Vec<_> = r.notices.iter().filter(|n| n.rule_id == "ARC_036").collect();
+        assert_eq!(hits.len(), 1, "feed düzeyinde tek bulgu bekleniyordu");
+        assert_eq!(
+            hits[0].observed_value.as_deref(), Some(starts.len().to_string().as_str()),
+            "etkilenen girdi sayısı observed_value'da taşınmalı",
+        );
+    }
+
 }
     /// `required_fields` (ARC_025'in dayanağı) spec'in `Required` sütunlarıyla BİREBİR olmalı.
     ///

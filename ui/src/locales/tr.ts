@@ -612,6 +612,7 @@ const tr = {
     'ARC_033': 'Alan değerinde kaçırılmamış tırnak (RFC 4180)',
     'ARC_034': 'Başlık satırı veri satırı olarak tekrarlanmış',
     'ARC_035': 'Zorunlu dosya boş',
+    'ARC_036': 'ZIP akış başlığı merkez diziniyle çelişiyor',
     'ARS_002': "areas.txt'te area_id boş",
     'CAL_025': 'Takvim gün alanı boş (değer verilmemiş)',
     'FMD_004': 'fare_media_id boş',

@@ -73,15 +73,44 @@ fn make_zip_with_modes(files: &[(String, Vec<u8>)], no_read: &[&str]) -> Vec<u8>
 /// ARC_027 fixture'ı: verilen dosyalar okuma izinsiz yazılır.
 fn fx_noread(rule: &'static str, no_read: Vec<&'static str>) -> Fixture {
     Fixture { rule, overrides: Vec::new(), removes: Vec::new(), raw: Vec::new(),
-              config: None, no_read }
+              config: None, no_read, flip_stream_flags: false }
+}
+
+/// ARC_036 fixture'ı: zip KURULDUKTAN SONRA yerel başlıkların bayrağına bit 3 eklenir.
+/// İçerik ve merkez dizin değişmez — arşiv hâlâ açılabilir; çelişen tek şey akış görünümüdür.
+/// `ARC_027` emsali: kural zip ÜST VERİSİYLE tetikleniyor, normal fixture yolu üretemiyor.
+fn flip_data_descriptor_flags(mut zip_bytes: Vec<u8>) -> Vec<u8> {
+    let starts: Vec<u64> = {
+        let mut a = zip::ZipArchive::new(std::io::Cursor::new(&zip_bytes[..])).unwrap();
+        (0..a.len()).map(|i| a.by_index_raw(i).unwrap().header_start()).collect()
+    };
+    for s in starts {
+        let off = s as usize + 6; // general purpose bit flag
+        let flag = u16::from_le_bytes([zip_bytes[off], zip_bytes[off + 1]]);
+        zip_bytes[off..off + 2].copy_from_slice(&(flag | 0x0008).to_le_bytes());
+    }
+    zip_bytes
+}
+
+/// ARC_036 fixture'ı: base feed, yalnız zip çerçevesi bozulur.
+fn fx_stream_flag(rule: &'static str) -> Fixture {
+    Fixture { rule, overrides: Vec::new(), removes: Vec::new(), raw: Vec::new(),
+              config: None, no_read: Vec::new(), flip_stream_flags: true }
 }
 
 fn emitted_rules(files: &[(String, Vec<u8>)], config: &ValidatorConfig) -> BTreeSet<String> {
-    emitted_rules_modes(files, config, &[])
+    emitted_rules_modes(files, config, &[], false)
 }
 
-fn emitted_rules_modes(files: &[(String, Vec<u8>)], config: &ValidatorConfig, no_read: &[&str]) -> BTreeSet<String> {
-    match validate_bytes(&make_zip_with_modes(files, no_read), config, TODAY) {
+fn emitted_rules_modes(
+    files: &[(String, Vec<u8>)],
+    config: &ValidatorConfig,
+    no_read: &[&str],
+    flip_stream_flags: bool,
+) -> BTreeSet<String> {
+    let zip_bytes = make_zip_with_modes(files, no_read);
+    let zip_bytes = if flip_stream_flags { flip_data_descriptor_flags(zip_bytes) } else { zip_bytes };
+    match validate_bytes(&zip_bytes, config, TODAY) {
         ValidateResult::Ok(vr) => vr.notices.iter().map(|n| n.rule_id.clone()).collect(),
         ValidateResult::Fatal(e) => {
             // Fatal yol: rule_id'yi koddan türetmek yerine boş set; arşiv fatal'ları allowlist'te.
@@ -109,10 +138,13 @@ struct Fixture {
     /// Kural `zf.unix_mode() & 0o400 == 0` arıyor; içerikle değil zip ÜST VERİSİYLE
     /// tetikleniyor, bu yüzden normal fixture yolu onu üretemiyordu.
     no_read: Vec<&'static str>,
+    /// ARC_036 için: zip kurulduktan SONRA yerel başlık bayraklarına bit 3 eklenir.
+    /// Aynı gerekçe — tetikleyici içerik değil, zip çerçevesi.
+    flip_stream_flags: bool,
 }
 
 fn fx(rule: &'static str, overrides: Vec<(&'static str, &'static str)>) -> Fixture {
-    Fixture { rule, overrides, removes: Vec::new(), raw: Vec::new(), config: None, no_read: Vec::new() }
+    Fixture { rule, overrides, removes: Vec::new(), raw: Vec::new(), config: None, no_read: Vec::new(), flip_stream_flags: false }
 }
 
 /// V3 uzantı kurallarının emit kanıtı: üretim varsayılanı Auto olsa da bu fixture'lar
@@ -129,6 +161,7 @@ fn fx_v3(rule: &'static str, overrides: Vec<(&'static str, &'static str)>) -> Fi
             ..ValidatorConfig::default()
         }),
         no_read: Vec::new(),
+        flip_stream_flags: false,
     }
 }
 
@@ -144,22 +177,23 @@ fn fx_v4(rule: &'static str, overrides: Vec<(&'static str, &'static str)>) -> Fi
             ..ValidatorConfig::default()
         }),
         no_read: Vec::new(),
+        flip_stream_flags: false,
     }
 }
 
 /// Dosya çıkarmalı fixture ("X.txt eksik" senaryoları).
 fn fx_rm(rule: &'static str, overrides: Vec<(&'static str, &'static str)>, removes: Vec<&'static str>) -> Fixture {
-    Fixture { rule, overrides, removes, raw: Vec::new(), config: None, no_read: Vec::new() }
+    Fixture { rule, overrides, removes, raw: Vec::new(), config: None, no_read: Vec::new(), flip_stream_flags: false }
 }
 
 /// Ham byte fixture — geçersiz UTF-8 senaryoları (ARC_002/003).
 fn fx_raw(rule: &'static str, raw: Vec<(&'static str, &'static [u8])>) -> Fixture {
-    Fixture { rule, overrides: Vec::new(), removes: Vec::new(), raw, config: None, no_read: Vec::new() }
+    Fixture { rule, overrides: Vec::new(), removes: Vec::new(), raw, config: None, no_read: Vec::new(), flip_stream_flags: false }
 }
 
 /// Config-override fixture — ör. calendar_override_rules (OPR_021/022/023).
 fn fx_cfg(rule: &'static str, overrides: Vec<(&'static str, &'static str)>, config: ValidatorConfig) -> Fixture {
-    Fixture { rule, overrides, removes: Vec::new(), raw: Vec::new(), config: Some(config), no_read: Vec::new() }
+    Fixture { rule, overrides, removes: Vec::new(), raw: Vec::new(), config: Some(config), no_read: Vec::new(), flip_stream_flags: false }
 }
 
 /// Notice olarak emit edilmeyen kurallar (fatal yol veya dinamik) — proof'tan muaf.
@@ -655,6 +689,10 @@ fn fixtures() -> Vec<Fixture> {
         // VERİSİYLE tetiklendiği için normal fixture yolu üretemiyordu; harness'a
         // `unix_permissions` yazan bir kurucu eklendi.
         fx_noread("ARC_027", vec!["stops.txt"]),
+        // ARC_036: base feed'in zip'i kurulduktan sonra yalnız yerel başlık bayraklarına
+        // bit 3 eklenir. Merkez dizin sağlam kalır — arşiv açılır, çelişen tek şey akış
+        // görünümüdür. Gerçek karşılığı: `tdg-81618` (aktif feed, MD bu yüzden çöküyor).
+        fx_stream_flag("ARC_036"),
         // STM_061: ardışık OLMAYAN uzak çift. A→C kuş uçuşu ~60 km, 6 dakikada
         // kapatılıyor (600 km/h, otobüs eşiği 120). Ara durak B zamanı geç yazılmış.
         fx("STM_061", vec![
@@ -1892,7 +1930,9 @@ fn each_fixture_actually_emits_its_rule() {
     for f in fixtures() {
         let cfg = f.config.clone().unwrap_or_default();
         let no_read: Vec<&str> = f.no_read.clone();
-        let emitted = emitted_rules_modes(&with_opts(&f.overrides, &f.removes, &f.raw), &cfg, &no_read);
+        let emitted = emitted_rules_modes(
+            &with_opts(&f.overrides, &f.removes, &f.raw), &cfg, &no_read, f.flip_stream_flags,
+        );
         if !emitted.contains(f.rule) {
             failures.push(format!("  {} emit etmedi → {:?}", f.rule, emitted));
         }

@@ -191,6 +191,19 @@ pub static RULES: &[RuleMeta] = &[
     // ARC_004 ile aynı eksen ve aynı muafiyet: saf Flex feed'inde `stops.txt` muaftır.
     r!("ARC_035", Kritik, Spec, 1, &[], None, VS_K, File,
         "Zorunlu dosya boş"),
+    // ARC_036 (2026-09-08): ZIP girdisinin AKIŞ görünümü merkez diziniyle çelişiyor —
+    // yerel başlıkta data-descriptor bayrağı (bit 3) set ama descriptor kaydı yok ya da
+    // içindeki crc/boyutlar merkez dizinle tutmuyor (APPNOTE 4.4.4). Merkez dizinden okuyan
+    // araçlar (biz, Python `zipfile`, commons-compress) hiç fark etmez; AKIŞTAN okuyanlar
+    // arşivi hiç açamaz. Korpusta ölçülen iki vaka: `tdg-81618` (bayrak set, boyutlar dolu,
+    // descriptor YOK) ve `mdb-2607` (descriptor var, `usize=0` yanlış).
+    // 🔑 Sınıf SPEC DEĞİL: ihlal edilen belge GTFS değil, ZIP APPNOTE'u; otorite ProjectQuality.
+    // Şiddet ÖLÇÜMLE Düşük: 200 feed'lik rastgele örneklemde 0 vaka, bilinen tüm vaka 4.332'de 2.
+    // ⚠️ FP kapısı: örneklemin %40'ı (80/200) data descriptor'ı MEŞRU kullanıyor (boyutlar 0,
+    // descriptor yerinde) — kural onların HİÇBİRİNDE ateşlemiyor. Koşul gevşetilirse ~1.700
+    // feed'e yanlış bulgu basar; descriptor merkez dizinle KARŞILAŞTIRILMADAN ateşleme.
+    r!("ARC_036", Dusuk, Quality, 1, &[], None, VS, Feed,
+        "ZIP akış başlığı merkez diziniyle çelişiyor"),
 
     // ── BKR: Booking Rules ─────────────────────────────────────────────────────
     r!("BKR_001", Yuksek, Spec, 1, &[], Some("booking_rule_id"), VS, Entity,
@@ -1913,6 +1926,7 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("ARC_003", ProjectQuality),
     ("ARC_004", GtfsSpec),
     ("ARC_035", GtfsSpec),
+    ("ARC_036", ProjectQuality),
     ("ARC_006", ProjectQuality),
     ("ARC_007", ProjectQuality),
     ("ARC_008", GtfsSpec),

@@ -2,7 +2,7 @@
 
 🇹🇷 [Türkçe](RULES.md) · 🇬🇧 **English** · 🇯🇵 [日本語](RULES.ja.md) · 🇫🇷 [Français](RULES.fr.md)
 
-612 rules, 38 groups. Each rule is identified by a unique ID, severity level, and class.
+613 rules, 38 groups. Each rule is identified by a unique ID, severity level, and class.
 Severity levels: **CRITICAL** (publish blocker) · **HIGH** · **MEDIUM** · **LOW** · **INFO**
 Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Quality** (GTFS Quality) · **Analytics** (GTFS Analytics)
 
@@ -45,6 +45,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | ARC_033 | Unescaped quotation mark in a field value (RFC 4180) | HIGH | Spec |
 | ARC_034 | Header row repeated as a data row | HIGH | Spec |
 | ARC_035 | Required file is empty | CRITICAL | Spec |
+| ARC_036 | ZIP stream header contradicts the central directory | LOW | Quality |
 
 ## BKR — Booking Rules
 
