@@ -1218,7 +1218,7 @@ pub static RULES: &[RuleMeta] = &[
         Some("fare_product_id|rider_category_id|fare_media_id"), VS_K, Row,
         "fare_products bileşik anahtarı yineleniyor"),
     r!("FPD_002", Kritik, Spec, 1, &[], Some("fare_product_id"), VS_K, Row,
-        "amount eksik veya negatif"),
+        "amount eksik veya sayısal değil"),
     r!("FPD_003", Kritik, Spec, 1, &[], Some("fare_product_id"), VS_K, Row,
         "currency geçersiz ISO 4217 kodu"),
     r!("FPD_004", Kritik, Spec, 1, &[], Some("fare_product_id"), VS_K, Row,
