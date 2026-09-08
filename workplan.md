@@ -214,6 +214,8 @@ Bu commit K2 pipeline değişikliği içerdiği için ilgili Cargo testleri, emi
 - [x] Dokümantasyon commitinde rule parity ve doküman kontrolleri geçti.
 - [x] Triage commitinde triage/evidence kontrolleri geçti.
 - [x] Sabit test sayısı yerine tüm ilgili kontrollerin yeşil olması esas alındı.
+- [x] Prepush `rust ui sdk wasm` kapısı tamamen geçti; wasm32/threads/memory64 parity `19 notice birebir eşit` verdi.
+- [ ] `cargo fmt --all -- --check` repo-geneli mevcut format drift'i nedeniyle başarısız; formatter çalıştırılmadı ve kapsam dışı satırlar değiştirilmedi.
 - [x] Push yapılmayacak.
 
 ## SDK paket kapağı — son aşama
