@@ -7,7 +7,9 @@ try:
 except Exception:
     ijson=None
 
-ANALYZER_TIMEOUT=300
+# Keep both validators under the same per-feed wall-clock budget so a slower
+# analyzer run is not turned into a false corpus discrepancy.
+ANALYZER_TIMEOUT=420
 MD_TIMEOUT=420
 DOWNLOAD_TIMEOUT=300
 # 1.2 GB kestiği için run-31934698855'te `mdb-2014` hiç indirilemedi
