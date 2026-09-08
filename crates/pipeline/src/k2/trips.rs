@@ -400,7 +400,16 @@ pub fn validate_trips_with_limits(
                 }
                 v
             }
-            Err(_) => None,
+            Err(()) => {
+                notices.push(make_k2_notice(
+                    &mut counter, "TRP_032", EntityType::Trip, entity_id.clone(),
+                    None, &file.name, Some(line), Some("cars_allowed"),
+                    Some(ca_raw.to_string()), Some("0, 1 or 2".to_string()),
+                    format!("cars_allowed '{}' sayı olarak okunamıyor.", ca_raw),
+                    "cars_allowed değerini 0 (bilgi yok), 1 (araç izinli) veya 2 (araç izinsiz) olarak ayarlayın.",
+                ));
+                None
+            }
         };
 
         // TRP_034: iki alan da spec'te `Float`. Parse hatası eskiden `.ok().flatten()` ile
@@ -689,6 +698,16 @@ mod tests {
         );
         let (_, _ti, notices) = validate_trips(&file, None);
         assert!(!notices.iter().any(|n| n.rule_id == "TRP_032"));
+    }
+
+    #[test]
+    fn non_numeric_cars_allowed_produces_trp_032() {
+        let file = make_file(
+            vec!["route_id", "service_id", "trip_id", "cars_allowed"],
+            vec![vec!["R1", "SVC1", "T1", "abc"]],
+        );
+        let (_, _ti, notices) = validate_trips(&file, None);
+        assert!(notices.iter().any(|n| n.rule_id == "TRP_032"));
     }
     #[test]
     fn valid_direction_id_zero_produces_no_notice() {

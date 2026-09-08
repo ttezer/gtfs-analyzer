@@ -563,7 +563,16 @@ fn parse_continuous_field(
             }
             v
         }
-        Err(_) => None,
+        Err(err) => {
+            notices.push(make_k2_notice(
+                counter, rule_id, EntityType::Route, entity_id.clone(), Some(row_map),
+                file_name, Some(line), Some(field),
+                get_trimmed_field(row_map, field).map(str::to_string),
+                Some("0-3".to_string()), err,
+                "Alanı 0, 1, 2 veya 3 değerlerinden biri olarak girin.",
+            ));
+            None
+        }
     }
 }
 
@@ -665,6 +674,17 @@ mod tests {
         );
         let (_, notices) = validate_routes(&file);
         assert!(notices.iter().any(|n| n.rule_id == "RTS_006"));
+    }
+
+    #[test]
+    fn non_numeric_continuous_values_produce_their_rules() {
+        let file = make_file(
+            vec!["route_id", "route_short_name", "route_type", "continuous_pickup", "continuous_drop_off"],
+            vec![vec!["R1", "10", "3", "abc", "xyz"]],
+        );
+        let (_, notices) = validate_routes(&file);
+        assert!(notices.iter().any(|n| n.rule_id == "RTS_013"), "RTS_013 bekleniyor: {notices:?}");
+        assert!(notices.iter().any(|n| n.rule_id == "RTS_018"), "RTS_018 bekleniyor: {notices:?}");
     }
 
     /// Aynı ad FARKLI AJANSTA kopya değildir — iki işletmecinin "10" hattı olması olağan.

@@ -29,10 +29,10 @@ Bu commit Python/benchmark kapsamındadır; WASM ve SDK kapısı çalıştırıl
 
 ## Commit 2 — Sessiz parse düzeltmeleri
 
-- [ ] `TRP_032`: parse edilemeyen `cars_allowed` değerleri raporlanacak.
-- [ ] `RTS_013`: `continuous_pickup` parse hataları raporlanacak.
-- [ ] `RTS_018`: `continuous_drop_off` parse hataları raporlanacak.
-- [ ] Her rule için geçerli, geçersiz sayısal, parse edilemeyen metin ve boş değer testleri eklenecek.
+- [x] `TRP_032`: parse edilemeyen `cars_allowed` değerleri raporlanacak.
+- [x] `RTS_013`: `continuous_pickup` parse hataları raporlanacak.
+- [x] `RTS_018`: `continuous_drop_off` parse hataları raporlanacak.
+- [x] Her rule için geçerli, geçersiz sayısal, parse edilemeyen metin ve boş değer testleri eklenecek.
 - [ ] `booking_rules.rs` ve `pathways.rs` değiştirilmeyecek.
 - [ ] Daha önce düzeltilmiş `AGN_012`, `STP_008`, `STP_013`, `STM_022`, `STM_030`, `TRP_006`, `TRP_007`, `RTS_024` için runtime değişikliği yapılmayacak.
 
