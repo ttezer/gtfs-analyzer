@@ -924,12 +924,13 @@ fn stp_016_silent_for_parent_child_at_identical_coordinates() {
     }
 }
 
-// ── Test 10c: TRN_010 — field_value modunda record_sub_id muaf ───────────────
+// ── Test 10c: TRN_017 — field_value modunda record_sub_id muaf ───────────────
 // stop_times çevirisi field_value ile eşleştirilirse record_id/record_sub_id boş
-// olmalıdır (spec). Bu modda TRN_010 ateşlenmemeli; record_id modunda ateşlenmeli.
+// olmalıdır (spec). Bu modda TRN_010/TRN_017 ateşlenmemeli; record_id modunda
+// eksik record_sub_id için yalnız TRN_017 ateşlenmelidir.
 
 #[test]
-fn trn_010_silent_in_field_value_mode_but_fires_in_record_id_mode() {
+fn trn_017_silent_in_field_value_mode_but_fires_in_record_id_mode() {
     const TR_FIELD_VALUE: &[u8] =
         b"table_name,field_name,language,translation,record_id,record_sub_id,field_value\n\
           stop_times,stop_headsign,ja,Hedef,,,Headsign\n";
@@ -951,8 +952,9 @@ fn trn_010_silent_in_field_value_mode_but_fires_in_record_id_mode() {
     files.push(("translations.txt", TR_RECORD_ID));
     match run(&files) {
         ValidateResult::Ok(vr) => assert!(
-            vr.notices.iter().any(|n| n.rule_id == "TRN_010"),
-            "record_id modunda record_sub_id yoksa TRN_010 ateşlenmeli.",
+            vr.notices.iter().any(|n| n.rule_id == "TRN_017")
+                && !vr.notices.iter().any(|n| n.rule_id == "TRN_010"),
+            "record_id modunda record_sub_id yoksa yalnız TRN_017 ateşlenmeli.",
         ),
         _ => panic!("ValidateResult::Ok beklendi"),
     }
