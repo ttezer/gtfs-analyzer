@@ -213,26 +213,6 @@ pub fn validate_translations_with_profile(
             ));
         }
 
-        // record_sub_id yalnızca record_id ile eşleştirme modunda zorunludur.
-        // field_value modunda (record_id boş) record_sub_id yasaktır → FP üretme.
-        if table_name == "stop_times" && record_id.is_some()
-            && record_sub_id.is_none() {
-                notices.push(make_k2_notice(
-                    &mut counter,
-                    "TRN_010",
-                    EntityType::Row,
-                    record_id.clone(),
-                    Some(&row_map),
-                    &file.name,
-                    Some(line),
-                    Some("record_sub_id"),
-                    Some(String::new()),
-                    Some("stop_sequence".to_string()),
-                    "stop_times çevirileri için record_sub_id zorunludur.".to_string(),
-                    "record_sub_id değerini stop_sequence değerine ayarlayın.",
-                ));
-            }
-
         // 🔴 `table_known` KOŞULU ŞART. Bu sezgi, alan adının GTFS'te çevrilebilir bir
         // içerik türüne benzediğini varsayar — ama tablo tanınmıyorsa o şemadan hiçbir şey
         // bilinmez ve alanın çevrilebilir olup olmadığı hakkında hüküm verilemez.
@@ -278,7 +258,7 @@ pub fn validate_translations_with_profile(
             ));
         }
 
-        // TRN_017: TRN_014'ün ters kolu. `stop_times.txt`'in birincil anahtarı bileşiktir
+        // TRN_017: `stop_times.txt`'in birincil anahtarı bileşiktir
         // (`trip_id` + `stop_sequence`); `record_id` yalnız ilkini taşır, `record_sub_id`
         // ikincisini. İkincisi olmadan çeviri hangi SATIRA ait olduğunu söyleyemez —
         // referans dangling değil BELİRSİZdir, bu yüzden `XFL_014` de görmez.
@@ -363,6 +343,7 @@ mod tests {
         let hits: Vec<_> = notices.iter().filter(|n| n.rule_id == "TRN_017").collect();
         assert_eq!(hits.len(), 1, "yalnız ilk satır: {hits:?}");
         assert_eq!(hits[0].entity_id.as_deref(), Some("T1"));
+        assert!(!notices.iter().any(|n| n.rule_id == "TRN_010"), "eksik sub-id K2'de TRN_010 üretmemeli: {notices:?}");
         // TRN_014 ters koldur ve bu satırlarda konuşmamalı.
         assert!(!notices.iter().any(|n| n.rule_id == "TRN_014"), "{notices:?}");
     }

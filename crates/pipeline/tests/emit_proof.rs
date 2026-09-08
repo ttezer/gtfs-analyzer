@@ -1488,8 +1488,11 @@ fn fixtures() -> Vec<Fixture> {
         ]),
         // TRN_008: translation değeri boş (k2).
         fx("TRN_008", vec![("translations.txt", "table_name,field_name,language,translation,record_id\nstops,stop_name,fr,,S1\n")]),
-        // TRN_010: stop_times çevirisi record_id var ama record_sub_id yok (k2).
-        fx("TRN_010", vec![("translations.txt", "table_name,field_name,language,translation,record_id\nstop_times,stop_headsign,fr,X,T1\n")]),
+        // TRN_010: stop_times çevirisindeki record_sub_id ilgili trip'in stop_sequence'i değil (k4).
+        fx("TRN_010", vec![
+            ("feed_info.txt", "feed_publisher_name,feed_publisher_url,feed_lang\nPub,https://x.example,en\n"),
+            ("translations.txt", "table_name,field_name,language,translation,record_id,record_sub_id\nstop_times,stop_headsign,fr,X,T1,99\n"),
+        ]),
         // TRN_013: feed_info çevirisi record_id/sub_id/field_value kullanıyor (k2).
         fx("TRN_013", vec![("translations.txt", "table_name,field_name,language,translation,record_id\nfeed_info,feed_publisher_name,fr,X,FI\n")]),
         // TRN_014: stop_times dışı tabloda record_sub_id (k2).

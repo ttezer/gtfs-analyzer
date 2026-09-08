@@ -2893,6 +2893,27 @@ fn translation_record_exists(
     })
 }
 
+/// `record_sub_id`, `record_id` ile gösterilen trip içindeki gerçek
+/// `stop_sequence` değerlerinden biri olmalıdır. `None`, ilgili trip'in
+/// `stop_times` indeksinde bulunamadığı ve bu aşamada TRN_010 adına hüküm
+/// verilemeyeceği anlamına gelir; kaynağın kimlik çözümünü bu kural üstlenmez.
+fn stop_times_translation_sub_id_valid(
+    records: &EntityRecords,
+    translation: &crate::k2::translations::TranslationRecord,
+) -> Option<bool> {
+    let (Some(trip_id), Some(sub_id)) = (
+        translation.record_id.as_deref(),
+        translation.record_sub_id.as_deref(),
+    ) else {
+        return None;
+    };
+    let sequence = sub_id.parse::<u32>().ok().filter(|&value| value != u32::MAX);
+    let rows = records.stop_times_index.sorted_stops(trip_id)?;
+    Some(sequence.is_some_and(|value| {
+        rows.binary_search_by_key(&value, |stop| stop.sequence).is_ok()
+    }))
+}
+
 fn check_translations(
     records: &EntityRecords,
     map: &EntityMap,
@@ -2911,6 +2932,29 @@ fn check_translations(
     let mut trn007_pending: Vec<Notice> = Vec::new();
 
     for rec in &records.translations {
+        // TRN_010: `record_sub_id` doluysa, record_id ile gösterilen trip'in
+        // gerçek stop_sequence değerine bağlanmalıdır. Eksik sub-id K2'de
+        // TRN_017 tarafından raporlanır; field_value modu bu dala girmez.
+        if rec.table_name == "stop_times"
+            && stop_times_translation_sub_id_valid(records, rec) == Some(false)
+        {
+            notices.push(notice(
+                ctr,
+                "TRN_010",
+                EntityType::Translation,
+                rec.record_id.clone(),
+                rec.record_id.clone(),
+                "translations.txt",
+                Some(rec.line),
+                Some("record_sub_id"),
+                rec.record_sub_id.clone(),
+                Some("stop_sequence".to_string()),
+                "record_sub_id, record_id ile belirlenen trip içindeki geçerli bir stop_sequence değil."
+                    .to_string(),
+                "record_sub_id değerini ilgili trip içindeki stop_sequence değerine ayarlayın.",
+            ));
+        }
+
         // TRN_004: record_id başvurulan kayıt bulunamadı
         if let Some(ref rid) = rec.record_id {
             let exists = translation_record_exists(
@@ -6351,6 +6395,59 @@ mod tests {
         let result = check(&recs, &EntityMap::default(), 20260515);
         assert!(result.notices.iter().any(|n| n.rule_id == "TRN_006"));
         assert!(!result.notices.iter().any(|n| n.rule_id == "TRN_005"));
+    }
+
+    #[test]
+    fn trn_010_validates_stop_sequence_within_the_referenced_trip() {
+        let (mut recs, _map) = empty();
+        recs.stop_times_index = StopTimesIndex::from_records(&[
+            StopTimeRecord { trip_id: "T1".into(), stop_sequence: Some(5), ..Default::default() },
+            StopTimeRecord { trip_id: "T2".into(), stop_sequence: Some(7), ..Default::default() },
+        ]);
+        let translation = |sub: &str| TranslationRecord {
+            table_name: "stop_times".into(), field_name: "stop_headsign".into(),
+            language: "en".into(), translation: "Centre".into(),
+            record_id: Some("T1".into()), record_sub_id: Some(sub.into()),
+            field_value: None, row: Default::default(), line: 6,
+        };
+
+        recs.translations = vec![translation("5")];
+        let valid = check(&recs, &EntityMap::default(), 20260824);
+        assert!(!valid.notices.iter().any(|n| n.rule_id == "TRN_010"));
+
+        // 7 başka bir trip'te bulunsa da T1'in stop_sequence kümesine ait değildir.
+        recs.translations = vec![translation("7")];
+        let invalid = check(&recs, &EntityMap::default(), 20260824);
+        let hit = invalid.notices.iter().find(|n| n.rule_id == "TRN_010")
+            .expect("geçersiz trip-bazlı stop_sequence için TRN_010 bekleniyor");
+        assert_eq!(hit.entity_type, EntityType::Translation);
+        assert_eq!(hit.entity_id.as_deref(), Some("T1"));
+        assert_eq!(hit.observed_value.as_deref(), Some("7"));
+
+        recs.translations = vec![translation("4294967295")];
+        let sentinel = check(&recs, &EntityMap::default(), 20260824);
+        assert!(sentinel.notices.iter().any(|n| n.rule_id == "TRN_010"));
+    }
+
+    #[test]
+    fn trn_010_and_jpn_019_can_report_distinct_axes_together() {
+        let (mut recs, _map) = empty();
+        let mut ti = TripInternTable::new();
+        recs.trips = vec![trip(&mut ti, "T1", "R1", "S1")];
+        recs.trip_interns = ti;
+        recs.stop_times_index = StopTimesIndex::from_records(&[
+            StopTimeRecord { trip_id: "T1".into(), stop_sequence: Some(5), ..Default::default() },
+        ]);
+        recs.translations = vec![TranslationRecord {
+            table_name: "stop_times".into(), field_name: "stop_headsign".into(),
+            language: "ja-Hrkt".into(), translation: "とうきょう".into(),
+            record_id: Some("T1".into()), record_sub_id: Some("6".into()),
+            field_value: None, row: Default::default(), line: 6,
+        }];
+
+        let result = check(&recs, &EntityMap::default(), 20260824);
+        assert_eq!(result.notices.iter().filter(|n| n.rule_id == "TRN_010").count(), 1);
+        assert_eq!(result.notices.iter().filter(|n| n.rule_id == "JPN_019").count(), 1);
     }
 
     #[test]

@@ -141,43 +141,43 @@ Bu commit en sona bırakılacak.
 
 ### `TRN_017`
 
-- [ ] K2’de eksik `record_sub_id` koşulu korunacak.
-- [ ] `record_id` dolu ve `record_sub_id` boş durumunda yalnız `TRN_017` üretilecek.
-- [ ] Sentetik fixture kullanılacak; korpusta örnek bulunmaması beklenen durum olarak kaydedilecek.
+- [x] K2’de eksik `record_sub_id` koşulu korunacak.
+- [x] `record_id` dolu ve `record_sub_id` boş durumunda yalnız `TRN_017` üretilecek.
+- [x] Sentetik fixture kullanılacak; korpusta örnek bulunmaması beklenen durum olarak kaydedilecek.
 
 ### `TRN_010`
 
-- [ ] K2’deki duplicate eksik-alan emisyonu kaldırılacak.
-- [ ] `TRN_010` K2’den K4’e taşınacak.
-- [ ] Dolu fakat eşleşmeyen `record_sub_id` için `TRN_010` üretilecek.
-- [ ] Mevcut `stop_times_index.sorted_stops(trip_id)` kullanılacak.
-- [ ] Arama `record_id` ile belirlenen trip’e göre yapılacak.
-- [ ] Global `stop_sequence` kümesi kullanılmayacak.
-- [ ] `u32::MAX` sentinel değeri geçersiz kabul edilecek.
-- [ ] `record_id` boş ve `record_sub_id` dolu durum TRN_010’a alınmayacak.
-- [ ] Rule kartındaki aşama `K2` → `K4` olarak güncellenecek.
-- [ ] Emisyon `make_k2_notice` yerine K4 `notice()` ile yapılacak.
-- [ ] `EntityType`, satır ve kimlik bağlamı K4 davranışına göre güncellenecek.
+- [x] K2’deki duplicate eksik-alan emisyonu kaldırılacak.
+- [x] `TRN_010` K2’den K4’e taşınacak.
+- [x] Dolu fakat eşleşmeyen `record_sub_id` için `TRN_010` üretilecek.
+- [x] Mevcut `stop_times_index.sorted_stops(trip_id)` kullanılacak.
+- [x] Arama `record_id` ile belirlenen trip’e göre yapılacak.
+- [x] Global `stop_sequence` kümesi kullanılmayacak.
+- [x] `u32::MAX` sentinel değeri geçersiz kabul edilecek.
+- [x] `record_id` boş ve `record_sub_id` dolu durum TRN_010’a alınmayacak.
+- [x] Rule kartındaki aşama `K2` → `K4` olarak güncellenecek.
+- [x] Emisyon `make_k2_notice` yerine K4 `notice()` ile yapılacak.
+- [x] `EntityType`, satır ve kimlik bağlamı K4 davranışına göre güncellenecek.
 
 ### `JPN_019`
 
-- [ ] `valid_sub_id` JPN_019’dan çıkarılmayacak.
-- [ ] JPN_019’un üçlü OR kontrolü korunacak.
-- [ ] GTFS-JP’ye özgü diğer tablo alt-kolları değiştirilmeyecek.
-- [ ] JPN_019 ile TRN_010’un aynı fixture’da birlikte üretim yapıp yapmadığı ölçülecek.
-- [ ] Çakışma varsa önce farklı eksenler doğrulanacak.
-- [ ] Gerekirse `blocks` ilişkisi değerlendirilecek; JPN_019 kapsamı daraltılmayacak.
+- [x] `valid_sub_id` JPN_019’dan çıkarılmayacak.
+- [x] JPN_019’un üçlü OR kontrolü korunacak.
+- [x] GTFS-JP’ye özgü diğer tablo alt-kolları değiştirilmeyecek.
+- [x] JPN_019 ile TRN_010’un aynı fixture’da birlikte üretim yapıp yapmadığı ölçülecek.
+- [x] Çakışma varsa önce farklı eksenler doğrulanacak.
+- [x] Gerekirse `blocks` ilişkisi değerlendirilecek; JPN_019 kapsamı daraltılmayacak.
 
 ### TRN kart ve senkron kapıları
 
-- [ ] Rule registry ve rule kartları güncellenecek.
-- [ ] Locale anahtarları kontrol edilecek.
-- [ ] `RULES.md` dosyaları güncellenecek.
-- [ ] `emit_proof` fixture’ları güncellenecek.
-- [ ] `md_parity_mapping.py` değiştirilmeyecek; bu rule’lar orada yok.
-- [ ] `cargo run -p gtfs-rules --example sync_cards` aynı commit içinde çalıştırılacak.
-- [ ] `card_consistency` testleri çalıştırılacak.
-- [ ] Aynı fixture’da duplicate notice olmadığı doğrulanacak.
+- [x] Rule registry ve rule kartları güncellenecek.
+- [x] Locale anahtarları kontrol edilecek.
+- [x] `RULES.md` dosyaları güncellenecek.
+- [x] `emit_proof` fixture’ları güncellenecek.
+- [x] `md_parity_mapping.py` değiştirilmeyecek; bu rule’lar orada yok.
+- [x] `cargo run -p gtfs-rules --example sync_cards` aynı commit içinde çalıştırılacak.
+- [x] `card_consistency` testleri çalıştırılacak.
+- [x] Aynı fixture’da duplicate notice olmadığı doğrulanacak.
 
 Bu commit K2/K4 pipeline değişikliği içerdiği için Cargo testleri, Clippy, WASM ve SDK aşamaları zorunludur.
 
