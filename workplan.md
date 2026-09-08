@@ -20,8 +20,8 @@ Bu plan 2026-09-09 tarihli triage incelemesine göre hazırlanmıştır. İşler
 - [x] `mdb-784` yeniden çalıştırılmayacak.
 - [x] Mevcut artifact’lerden `ANALYZER_TIMEOUT` / `MD_TIMEOUT` farkı belgelenecek.
 - [x] 300 saniyede kesilme ve önceki koşum süreleri kaydedilecek.
-- [ ] Issue `#2142` gerçek GitHub durumundan kontrol edilecek; bu checkout’un `ttezer/gtfs-analyzer` deposunda issue bulunamadı.
-- [ ] Issue gönderilmişse performans rakamları için düzeltme notu hazırlanacak; taslaksa dipnot eklenecek.
+- [x] Issue `#2142` gerçek GitHub durumundan kontrol edildi; bu checkout’un `ttezer/gtfs-analyzer` deposunda issue bulunamadı.
+- [ ] Issue bulunamadığı için performans rakamlarına düzeltme notu/dipnot eklenmedi; dış issue durumu ayrıca doğrulanmayı bekliyor.
 - [x] Timeout değişikliği uygulanacak.
 - [x] Yeni tam korpus koşumuna kadar durum “düzeltildi, doğrulama bekliyor” olarak izlenecek.
 
@@ -33,8 +33,8 @@ Bu commit Python/benchmark kapsamındadır; WASM ve SDK kapısı çalıştırıl
 - [x] `RTS_013`: `continuous_pickup` parse hataları raporlanacak.
 - [x] `RTS_018`: `continuous_drop_off` parse hataları raporlanacak.
 - [x] Her rule için geçerli, geçersiz sayısal, parse edilemeyen metin ve boş değer testleri eklenecek.
-- [ ] `booking_rules.rs` ve `pathways.rs` değiştirilmeyecek.
-- [ ] Daha önce düzeltilmiş `AGN_012`, `STP_008`, `STP_013`, `STM_022`, `STM_030`, `TRP_006`, `TRP_007`, `RTS_024` için runtime değişikliği yapılmayacak.
+- [x] `booking_rules.rs` ve `pathways.rs` mevcut kontrolleri nedeniyle değiştirilmedi.
+- [x] Daha önce düzeltilmiş `AGN_012`, `STP_008`, `STP_013`, `STM_022`, `STM_030`, `TRP_006`, `TRP_007`, `RTS_024` için runtime değişikliği yapılmadı; yalnız kartlar güncellendi.
 
 Bu commit pipeline değişikliği içerdiği için Cargo testleri, Clippy, WASM ve SDK doğrulamaları çalıştırılacak.
 
@@ -92,7 +92,7 @@ Ayrıca:
 
 - [x] `FAR_004` kartında boş `payment_method` kontrolünün `FAR_011` tarafından yapıldığı belirtilecek.
 - [x] `FPD_002` başlığı ve karar cümlesi negatif tutar Spec’e uygun olacak şekilde düzeltilecek.
-- [ ] `FAR_013` için eski/uygulanmayan iş veya iddia eklenmeyecek.
+- [x] `FAR_013` için eski/uygulanmayan iş veya iddia eklenmedi.
 - [x] Dil README’leri ve ilgili `RULES.md` dosyaları güncel rule başlıkları, sınıfları ve aşamalarıyla eşleştirilecek.
 - [x] README’lerdeki kural sayısı, badge, kapsam ve indeks referansları kontrol edilecek.
 
@@ -124,20 +124,21 @@ Bu işler ana runtime commitlerini bloke etmeyecek.
 
 ### `agency_lang`
 
-- [ ] Gerçek korpusta eksiklik oranı ölçülecek.
-- [ ] Feed ve profil bazında dağılım çıkarılacak.
-- [ ] Ölçüm olmadan yeni notice davranışı eklenmeyecek.
+- [x] Gerçek korpusta eksiklik oranı ölçüldü: 830 feed, 826 `agency.txt`, 2.373 agency satırı; 463 eksik (%19,51), 54 feed etkileniyor.
+- [x] Dil dağılımı çıkarıldı; en yaygın değerler `ja` 606, `de` 487, `cs` 329, `en` 135, `et` 64.
+- [x] Ölçüm sonucunda yeni notice davranışı eklenmedi; Quality değerlendirmesi ayrı karar olarak kaldı.
 
 ### Linked trip
 
-- [ ] “Linked trip” kapsamı tanımlanacak.
-- [ ] Hangi alan veya sefer ilişkisinin ölçüleceği belirlenecek.
-- [ ] Mevcut kapsam dışı kararla karşılaştırılacak.
-- [ ] Tanım netleşmeden mesafe ölçümü veya eşik belirlenmeyecek.
+- [ ] “Linked trip” kapsamı için `block_id`, Fares v2 veya GTFS-JP anlamlarından biri seçilecek.
+- [ ] Tanım seçilmeden hangi alan veya sefer ilişkisinin ölçüleceği belirlenmeyecek.
+- [x] Mevcut kapsam dışı kararla karşılaştırıldı; mevcut hüküm KAPSAM DIŞI olarak korundu.
+- [x] Tanım netleşmediği için mesafe ölçümü veya eşik belirlenmedi.
 
 ## Commit 7 — TRN/K4 geçişi
 
-Bu commit en sona bırakılacak.
+Bu commit çekirdek runtime düzeltmeleri içinde en sona bırakıldı. Bağımsız GGL araştırması
+ve son doğrulama/doküman commitleri bunun ardından gelebilir; TRN kod kararı değişmez.
 
 ### `TRN_017`
 
@@ -191,32 +192,42 @@ Bu commit K2/K4 pipeline değişikliği içerdiği için Cargo testleri, Clippy,
 
 Bu commit K2 pipeline değişikliği içerdiği için ilgili Cargo testleri, emit-proof ve kart senkronu zorunludur.
 
+## Commit 9 — TRN entegrasyon testi hizalaması
+
+- [x] `record_id` dolu ve `record_sub_id` boş senaryosunun entegrasyon beklentisi TRN_017 olarak düzeltildi.
+- [x] `field_value` modunda TRN_010/TRN_017 sessizliği ve `record_id` modunda yalnız TRN_017 üretimi test edildi.
+
+## Commit 10 — FPD_002 registry/kart son hizalaması
+
+- [x] Registry başlığı negatif tutarı hatalı göstermeyecek şekilde `amount eksik veya sayısal değil` yapıldı.
+- [x] FPD_002 kartındaki R9 mesajı registry ve gerçek runtime davranışıyla eşitlendi.
+- [x] Negatif tutarın geçerli olduğunu açıklayan kart bölümü korundu.
+
 ## Commit bazlı doğrulama
 
-- [ ] Timeout commit’i: benchmark kontrolleri; WASM/SDK yok.
-- [ ] Parse, FAR, FMD ve TRN commitleri: ilgili Cargo testleri ve Clippy.
+- [x] Timeout commit’i: `test_timing` 25/25 benchmark testi; WASM/SDK yok.
+- [x] Parse, FAR, FMD ve TRN commitleri: ilgili Cargo testleri ve Clippy geçti.
 - [x] GGL commiti: fare_attributes testleri, emit-proof ve kaynak/kart senkronu.
-- [ ] Rust pipeline değişen commitlerde WASM ve SDK.
-- [ ] FMD commitinde locale export ve locale parity.
-- [ ] TRN commitinde `sync_cards`, `emit_proof` ve `card_consistency`.
-- [ ] Dokümantasyon commitinde rule parity ve doküman kontrolleri.
-- [ ] Triage commitinde triage/evidence kontrolleri.
-- [ ] Sabit test sayısı yerine tüm ilgili kontrollerin yeşil olması esas alınacak.
-- [ ] Push yapılmayacak.
+- [ ] Rust pipeline değişen commitlerde tam prepush WASM determinism kapısı tamamlanacak; SDK kapısı geçti.
+- [x] FMD commitinde locale export ve locale parity geçti.
+- [x] TRN commitinde `sync_cards`, `emit_proof` ve `card_consistency` geçti.
+- [x] Dokümantasyon commitinde rule parity ve doküman kontrolleri geçti.
+- [x] Triage commitinde triage/evidence kontrolleri geçti.
+- [x] Sabit test sayısı yerine tüm ilgili kontrollerin yeşil olması esas alındı.
+- [x] Push yapılmayacak.
 
 ## SDK paket kapağı — son aşama
 
-- [ ] CI ile aynı Rust toolchain doğrulanacak.
-- [ ] `rustc --version` kaydedilecek.
-- [ ] Önce/sonra unpacked boyutları ölçülecek.
-- [ ] Önce/sonra packed boyutları ölçülecek.
-- [ ] Byte ve yüzde farkı hesaplanacak.
-- [ ] `pkg/gtfs_wasm_bg.wasm` boyutu kaydedilecek.
-- [ ] Beklenen 9 dosyalık paket listesi karşılaştırılacak.
-- [ ] `npm run package:check` çalıştırılacak.
-- [ ] `sdk/package-size-baseline.json` otomatik güncellenmeyecek.
-- [ ] Boyut artışı beklenmeyen büyüme, kabul edilebilir doğal artış veya optimizasyon gerektiren artış olarak sınıflandırılacak.
-- [ ] Gerekçeli karar verilmeden SDK yayınlanmayacak.
+- [x] CI ile aynı stable Rust toolchain doğrulandı: `rustc 1.98.1 (48a229cea 2026-09-01)`.
+- [x] `rustc --version` kaydedildi.
+- [x] Önce/sonra unpacked boyutları ölçüldü: `2.495.431 → 2.497.468` byte (`+2.037`, `%+0,0816`).
+- [x] Önce/sonra packed boyutları ölçüldü: `898.394 → 898.761` byte (`+367`, `%+0,0409`).
+- [x] `pkg/gtfs_wasm_bg.wasm` boyutu kaydedildi: `2.439.100 → 2.441.137` byte (`+2.037`, `%+0,0835`).
+- [x] Beklenen 9 dosyalık paket listesi önce/sonra aynı çıktı.
+- [x] `npm run package:check` geçti; güncel paket kapak altında kaldı.
+- [x] `sdk/package-size-baseline.json` otomatik güncellenmedi.
+- [x] Artış küçük, deterministik ve runtime düzeltmelerinin doğal sonucu olarak sınıflandırıldı; optimizasyon yeniden değerlendirilmedi.
+- [x] Gerekçeli karar verilmeden SDK yayınlanmayacak; bu çalışma push/yayın yapmıyor.
 
 ## Son rapor
 

@@ -46,10 +46,11 @@ olarak kullanılmamalıdır.
 | `FAR_002` | Mevcut `price` sütunundaki boş değerler raporlanıyor. |
 | `FMD_002` / `FMD_003` | Enum açıklamaları ve `fare_media_name` Quality kapsamı güncellendi. |
 | `TRN_017` | Eksik `record_sub_id` K2’de korunuyor. |
-| `TRN_010` | K2→K4 eşleşme doğrulaması ayrı uygulama işi olarak bekliyor. |
+| `TRN_010` | K4'te `record_id` ile belirlenen trip'in `stop_sequence` değerine göre doğrulanıyor; kart, fixture ve senkron kapıları güncellendi. |
 | `GGL_002` | Google'ın resmi uzantı dokümanına göre `fare_attributes.txt` → `ic_price` olarak hizalandı; kod, fixture ve kart güncellendi. |
-| `agency_lang` / linked trip | Tanım ve korpus ölçümü bekleyen Quality işleri. |
-| timeout asimetrisi | `ANALYZER_TIMEOUT` 420 saniyeye hizalandı; tam korpus doğrulaması bekliyor. |
+| `agency_lang` | Yerel 830 feed korpusunda 826 `agency.txt`, 2.373 agency satırı; 463 satırda (%19,51) eksik, 54 feed etkileniyor. Yalnız ölçüm yapıldı; yeni notice eklenmedi. |
+| linked trip | Terim/kapsam hâlâ tanımsız; mevcut hüküm KAPSAM DIŞI olarak korunuyor. Mesafe ölçümü ve eşik belirlenmedi. |
+| timeout asimetrisi | `ANALYZER_TIMEOUT` 420 saniyeye hizalandı; artifact kanıtı mevcut, tam korpus doğrulaması bekliyor. `#2142` bu checkout'un GitHub deposunda bulunamadı. |
 
 ## Karar sınıfları
 
