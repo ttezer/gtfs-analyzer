@@ -1361,8 +1361,8 @@ fn fixtures() -> Vec<Fixture> {
         fx("FMD_001", vec![("fare_media.txt", "fare_media_id,fare_media_type\nM1,2\nM1,2\n")]),
         // GGL_001: transfer_type=4/5 (in-seat) Google desteklemiyor (k2).
         fx("GGL_001", vec![("transfers.txt", "from_stop_id,to_stop_id,transfer_type\nS1,S2,4\n")]),
-        // GGL_002: ic_price geçersiz (-5) (k2).
-        fx("GGL_002", vec![("fare_products.txt", "fare_product_id,amount,currency,ic_price\nP1,2.5,USD,-5\n")]),
+        // GGL_002: fare_attributes.txt içindeki Google ic_price uzantısı geçersiz (-5) (k2).
+        fx("GGL_002", vec![("fare_attributes.txt", "fare_id,price,currency_type,payment_method,ic_price\nF1,2.5,JPY,0,-5\n")]),
 
         // ── FRQ grubu (kalan) ──────────────────────────────────────────────────
         // FRQ_006: headway > 240dk (k6).

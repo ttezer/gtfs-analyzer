@@ -47,7 +47,7 @@ olarak kullanılmamalıdır.
 | `FMD_002` / `FMD_003` | Enum açıklamaları ve `fare_media_name` Quality kapsamı güncellendi. |
 | `TRN_017` | Eksik `record_sub_id` K2’de korunuyor. |
 | `TRN_010` | K2→K4 eşleşme doğrulaması ayrı uygulama işi olarak bekliyor. |
-| `GGL_002` | Kaynak ve dosya kapsamı doğrulanana kadar karar bekliyor. |
+| `GGL_002` | Google'ın resmi uzantı dokümanına göre `fare_attributes.txt` → `ic_price` olarak hizalandı; kod, fixture ve kart güncellendi. |
 | `agency_lang` / linked trip | Tanım ve korpus ölçümü bekleyen Quality işleri. |
 | timeout asimetrisi | `ANALYZER_TIMEOUT` 420 saniyeye hizalandı; tam korpus doğrulaması bekliyor. |
 

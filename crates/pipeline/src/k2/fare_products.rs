@@ -74,31 +74,6 @@ pub fn validate_fare_products(
             }
         };
 
-        // GGL_002: ic_price (Google-özel alan) — varsa -1 veya pozitif olmalı
-        if let Some(ic_price_raw) = get_trimmed_field(&row_map, "ic_price").filter(|v| !v.trim().is_empty()) {
-            match ic_price_raw.parse::<f64>() {
-                Ok(v) if v >= 0.0 || (v - (-1.0)).abs() < 1e-9 => {}
-                Ok(v) => {
-                    notices.push(make_k2_notice(
-                        &mut counter, "GGL_002", EntityType::Row, entity_id.clone(), Some(&row_map),
-                        &file.name, Some(line), Some("ic_price"),
-                        Some(v.to_string()), Some("-1 or >= 0".to_string()),
-                        format!("ic_price '{v}' geçersiz: -1 veya sıfırdan büyük bir değer olmalıdır."),
-                        "ic_price değerini -1 (bilinmiyor) veya pozitif bir sayı olarak ayarlayın.",
-                    ));
-                }
-                Err(_) => {
-                    notices.push(make_k2_notice(
-                        &mut counter, "GGL_002", EntityType::Row, entity_id.clone(), Some(&row_map),
-                        &file.name, Some(line), Some("ic_price"),
-                        Some(ic_price_raw.to_string()), Some("-1 or >= 0".to_string()),
-                        format!("ic_price '{ic_price_raw}' sayısal değil."),
-                        "ic_price değerini -1 (bilinmiyor) veya pozitif bir sayı olarak ayarlayın.",
-                    ));
-                }
-            }
-        }
-
         let currency = get_trimmed_field(&row_map, "currency").unwrap_or("").to_string();
         // ⚠️ ISO 4217 AKTİF kod listesi (issue #82): eski denetim "üç büyük harf" idi,
         // `ZZZ` geçiyordu ve `iso4217_minor_unit` onu sessizce 2 ondalık sayıyordu.

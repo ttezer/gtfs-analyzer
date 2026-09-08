@@ -116,11 +116,11 @@ Bu işler ana runtime commitlerini bloke etmeyecek.
 
 ### GGL_002
 
-- [ ] Japonya’ya özel `ic_price` sözleşmesinin kesin kaynağı bulunacak.
-- [ ] Kaynak, schema ve gerçek feed örnekleri karşılaştırılacak.
-- [ ] Alanın `fare_attributes.txt`, `fare_products.txt` veya her ikisindeki kapsamı kesinleştirilecek.
-- [ ] Kanıt gelmeden rule taşınmayacak veya mevcut kontrol silinmeyecek.
-- [ ] Sonuç; yalnız `fare_attributes`, iki dosyada ayrı kontrol veya mevcut davranış seçeneklerinden biri olarak kaydedilecek.
+- [x] Japonya’ya özel `ic_price` sözleşmesinin kesin kaynağı bulundu: Google Transit resmi uzantı referansı.
+- [x] Kaynak ve mevcut kod/fixture kapsamı karşılaştırıldı.
+- [x] Alanın yalnız `fare_attributes.txt` kapsamındaki Google uzantısı olduğu kesinleştirildi.
+- [x] Kaynak kanıtı gelmeden taşınmadı; resmi kaynak doğrulandıktan sonra taşındı.
+- [x] Sonuç: `GGL_002` yalnız `fare_attributes.txt` içindeki `ic_price` değerini denetliyor.
 
 ### `agency_lang`
 
@@ -181,10 +181,21 @@ Bu commit en sona bırakılacak.
 
 Bu commit K2/K4 pipeline değişikliği içerdiği için Cargo testleri, Clippy, WASM ve SDK aşamaları zorunludur.
 
+## Commit 8 — GGL_002 Google uzantısı dosya hizalaması
+
+- [x] Google'ın resmi referansında `ic_price` alanının `fare_attributes.txt` altında olduğu doğrulandı.
+- [x] `GGL_002` kontrolü `fare_products.txt`ten `fare_attributes.txt`e taşındı.
+- [x] Eski Fares v2 kontrolü kaldırıldı; `fare_products.txt` artık `ic_price` nedeniyle işaretlenmiyor.
+- [x] Unit testler ve `emit_proof` fixture'ı `fare_attributes.txt`e taşındı.
+- [x] GGL_002 kartı, kaynak ve alan açıklamaları güncellendi.
+
+Bu commit K2 pipeline değişikliği içerdiği için ilgili Cargo testleri, emit-proof ve kart senkronu zorunludur.
+
 ## Commit bazlı doğrulama
 
 - [ ] Timeout commit’i: benchmark kontrolleri; WASM/SDK yok.
 - [ ] Parse, FAR, FMD ve TRN commitleri: ilgili Cargo testleri ve Clippy.
+- [x] GGL commiti: fare_attributes testleri, emit-proof ve kaynak/kart senkronu.
 - [ ] Rust pipeline değişen commitlerde WASM ve SDK.
 - [ ] FMD commitinde locale export ve locale parity.
 - [ ] TRN commitinde `sync_cards`, `emit_proof` ve `card_consistency`.
