@@ -69,7 +69,7 @@ pub fn validate_fare_media(
             let type_label = match fare_media_type {
                 Some(2) => "fiziksel transit kartı",
                 Some(4) => "mobil uygulama",
-                _ => unreachable!("FMD_003 only accepts fare_media_type 2 or 4"),
+                _ => "ödeme aracı",
             };
             notices.push(make_k2_notice(
                 &mut counter, "FMD_003", EntityType::Row, entity_id.clone(), Some(&row_map),
